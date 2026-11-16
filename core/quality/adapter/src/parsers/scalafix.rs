@@ -144,6 +144,107 @@ fn patch_finding(file: &str, hunk: &Hunk) -> FileFinding {
     }
 }
 
+fn lint_finding(
+    lines: &[&str],
+    index: &mut usize,
+    lint: &Lint<'_>,
+    line: &str,
+    files: &[&str],
+) -> Result<FileFinding, ParseError> {
+    let file = known(TOOL, files, lint.path)?;
+    let mut end = None;
+    let mut message = lint.message.to_owned();
+    let mut scan = *index;
+    while let Some(&current) = lines.get(scan)
+        && lint_header(current).is_none()
+        && !is_diff_start(&lines, scan)
+    {
+        if scan > *index
+            && let Some(width) = caret_width(current)
+        {
+            end = Some(TextPosition {
+                line: lint.line,
+                column: lint.column + width,
+            });
+            for extra in lines.get(*index..scan - 1).into_iter().flatten() {
+                message.push('\n');
+                message.push_str(extra.trim());
+            }
+            *index = scan + 1;
+            break;
+        }
+        scan += 1;
+    }
+    if lint.line == 0 || lint.column == 0 || lint.rule.is_empty() {
+        return Err(ParseError::shape(TOOL, format!("malformed lint: {line}")));
+    }
+    Ok(FileFinding {
+        file: file.to_owned(),
+        finding: Finding {
+            tool_id: TOOL.to_owned(),
+            rule_id: lint.rule.to_owned(),
+            message,
+            severity: lint.severity,
+            start: TextPosition {
+                line: lint.line,
+                column: lint.column,
+            },
+            end,
+            suggestions: Vec::new(),
+            encoding: ColumnEncoding::Scalars,
+            related: Vec::new(),
+        },
+    })
+}
+
+fn diff_findings(
+    lines: &[&str],
+    index: &mut usize,
+    path: &str,
+    files: &[&str],
+    findings: &mut Vec<FileFinding>,
+) -> Result<usize, ParseError> {
+    let mut patches = 0;
+    let file = known(TOOL, files, path.trim())?;
+    *index += 1;
+    while let Some(&header) = lines.get(*index)
+        && header.starts_with("@@ ")
+    {
+        let (old, new) = hunk_counts(header)
+            .ok_or_else(|| ParseError::shape(TOOL, format!("malformed hunk: {header}")))?;
+        *index += 1;
+        let begin = *index;
+        let (mut seen_old, mut seen_new) = (0, 0);
+        while let Some(&row) = lines.get(*index)
+            && (seen_old < old || seen_new < new)
+        {
+            match row.chars().next() {
+                Some('-') => seen_old += 1,
+                Some('+') => seen_new += 1,
+                Some('\\') => {}
+                _ => {
+                    seen_old += 1;
+                    seen_new += 1;
+                }
+            }
+            *index += 1;
+        }
+        if seen_old != old || seen_new != new {
+            return Err(ParseError::shape(TOOL, format!("truncated hunk: {header}")));
+        }
+        while lines.get(*index).is_some_and(|row| row.starts_with('\\')) {
+            *index += 1;
+        }
+        let body = lines
+            .get(begin..*index)
+            .ok_or_else(|| ParseError::shape(TOOL, format!("truncated hunk: {header}")))?;
+        let hunk = hunk_span(header, body)?;
+        findings.push(patch_finding(file, &hunk));
+        patches += 1;
+    }
+    Ok(patches)
+}
+
 /// # Errors
 ///
 /// Returns [`ParseError`] when the tool output cannot be parsed.
@@ -180,95 +281,17 @@ pub fn parse_scalafix(
             continue;
         }
         if let Some(lint) = lint_header(line) {
-            let file = known(TOOL, files, lint.path)?;
-            let mut end = None;
-            let mut message = lint.message.to_owned();
-            let mut scan = index;
-            while let Some(&current) = lines.get(scan)
-                && lint_header(current).is_none()
-                && !is_diff_start(&lines, scan)
-            {
-                if scan > index
-                    && let Some(width) = caret_width(current)
-                {
-                    end = Some(TextPosition {
-                        line: lint.line,
-                        column: lint.column + width,
-                    });
-                    for extra in lines.get(index..scan - 1).into_iter().flatten() {
-                        message.push('\n');
-                        message.push_str(extra.trim());
-                    }
-                    index = scan + 1;
-                    break;
-                }
-                scan += 1;
-            }
-            if lint.line == 0 || lint.column == 0 || lint.rule.is_empty() {
-                return Err(ParseError::shape(TOOL, format!("malformed lint: {line}")));
-            }
+            let item = lint_finding(&lines, &mut index, &lint, line, files)?;
             if lint.severity == ToolSeverity::Error {
                 errors += 1;
             }
-            findings.push(FileFinding {
-                file: file.to_owned(),
-                finding: Finding {
-                    tool_id: TOOL.to_owned(),
-                    rule_id: lint.rule.to_owned(),
-                    message,
-                    severity: lint.severity,
-                    start: TextPosition {
-                        line: lint.line,
-                        column: lint.column,
-                    },
-                    end,
-                    suggestions: Vec::new(),
-                    encoding: ColumnEncoding::Scalars,
-                    related: Vec::new(),
-                },
-            });
+            findings.push(item);
             continue;
         }
         if let (Some(path), Some(next)) = (line.strip_prefix("--- "), lines.get(index))
             && next.starts_with("+++ ")
         {
-            let file = known(TOOL, files, path.trim())?;
-            index += 1;
-            while let Some(&header) = lines.get(index)
-                && header.starts_with("@@ ")
-            {
-                let (old, new) = hunk_counts(header)
-                    .ok_or_else(|| ParseError::shape(TOOL, format!("malformed hunk: {header}")))?;
-                index += 1;
-                let begin = index;
-                let (mut seen_old, mut seen_new) = (0, 0);
-                while let Some(&row) = lines.get(index)
-                    && (seen_old < old || seen_new < new)
-                {
-                    match row.chars().next() {
-                        Some('-') => seen_old += 1,
-                        Some('+') => seen_new += 1,
-                        Some('\\') => {}
-                        _ => {
-                            seen_old += 1;
-                            seen_new += 1;
-                        }
-                    }
-                    index += 1;
-                }
-                if seen_old != old || seen_new != new {
-                    return Err(ParseError::shape(TOOL, format!("truncated hunk: {header}")));
-                }
-                while lines.get(index).is_some_and(|row| row.starts_with('\\')) {
-                    index += 1;
-                }
-                let body = lines
-                    .get(begin..index)
-                    .ok_or_else(|| ParseError::shape(TOOL, format!("truncated hunk: {header}")))?;
-                let hunk = hunk_span(header, body)?;
-                findings.push(patch_finding(file, &hunk));
-                patches += 1;
-            }
+            patches += diff_findings(&lines, &mut index, path, files, &mut findings)?;
             continue;
         }
         return Err(ParseError::shape(

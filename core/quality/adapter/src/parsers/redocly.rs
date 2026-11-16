@@ -53,6 +53,81 @@ fn display(cwd: &Path, file: &str) -> String {
         .map_or_else(|_| dx_path::posix(Path::new(file)), dx_path::posix)
 }
 
+fn problem_finding(
+    problem: &serde_json::Value,
+    root: &str,
+    root_display: &str,
+    cwd: &Path,
+    staged: &[&str],
+) -> Result<FileFinding, ParseError> {
+    let severity = match problem.get("severity").and_then(serde_json::Value::as_str) {
+        Some("error") => ToolSeverity::Error,
+        Some("warn") => ToolSeverity::Warning,
+        other => return Err(shape(format!("unknown severity {other:?}"))),
+    };
+    let rule = problem
+        .get("ruleId")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| shape("missing ruleId"))?;
+    let message = problem
+        .get("message")
+        .and_then(serde_json::Value::as_str)
+        .filter(|text| !text.is_empty())
+        .ok_or_else(|| shape("missing message"))?;
+    let location = problem
+        .get("location")
+        .and_then(serde_json::Value::as_array)
+        .and_then(|items| items.first());
+    let (line, column, message) = match location {
+        None => (1, 1, message.to_owned()),
+        Some(location) => {
+            let reference = location
+                .get("source")
+                .and_then(|source| source.get("ref"))
+                .and_then(serde_json::Value::as_str)
+                .ok_or_else(|| shape("missing location source"))?;
+            let file =
+                staged_file(cwd, staged, reference).ok_or_else(|| ParseError::UnknownFile {
+                    tool: TOOL,
+                    path: reference.to_owned(),
+                })?;
+            let start = location.get("start");
+            let at = |field: &str| {
+                start
+                    .and_then(|start| start.get(field))
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(1)
+                    .max(1)
+            };
+            let (line, column) = (at("line"), at("col"));
+            if display(cwd, file) == root_display {
+                (line, column, message.to_owned())
+            } else {
+                (
+                    1,
+                    1,
+                    format!("{}:{line}:{column}: {message}", display(cwd, file)),
+                )
+            }
+        }
+    };
+    let (start, end) = point(line, column);
+    Ok(FileFinding {
+        file: root.to_owned(),
+        finding: Finding {
+            tool_id: TOOL.to_owned(),
+            rule_id: rule.to_owned(),
+            message,
+            severity,
+            start,
+            end,
+            suggestions: Vec::new(),
+            encoding: ColumnEncoding::Utf16,
+            related: Vec::new(),
+        },
+    })
+}
+
 /// Findings from one `redocly lint --format=json` run over the single root `root`.
 ///
 /// `staged` lists every staged spec file (the root, refs and dep files), spelled as absolute
@@ -100,78 +175,12 @@ pub fn parse_redocly(
     let mut seen_errors = 0u64;
     let mut seen_warnings = 0u64;
     for problem in problems {
-        let severity = match problem.get("severity").and_then(serde_json::Value::as_str) {
-            Some("error") => {
-                seen_errors += 1;
-                ToolSeverity::Error
-            }
-            Some("warn") => {
-                seen_warnings += 1;
-                ToolSeverity::Warning
-            }
-            other => return Err(shape(format!("unknown severity {other:?}"))),
-        };
-        let rule = problem
-            .get("ruleId")
-            .and_then(serde_json::Value::as_str)
-            .ok_or_else(|| shape("missing ruleId"))?;
-        let message = problem
-            .get("message")
-            .and_then(serde_json::Value::as_str)
-            .filter(|text| !text.is_empty())
-            .ok_or_else(|| shape("missing message"))?;
-        let location = problem
-            .get("location")
-            .and_then(serde_json::Value::as_array)
-            .and_then(|items| items.first());
-        let (line, column, message) = match location {
-            None => (1, 1, message.to_owned()),
-            Some(location) => {
-                let reference = location
-                    .get("source")
-                    .and_then(|source| source.get("ref"))
-                    .and_then(serde_json::Value::as_str)
-                    .ok_or_else(|| shape("missing location source"))?;
-                let file =
-                    staged_file(cwd, staged, reference).ok_or_else(|| ParseError::UnknownFile {
-                        tool: TOOL,
-                        path: reference.to_owned(),
-                    })?;
-                let start = location.get("start");
-                let at = |field: &str| {
-                    start
-                        .and_then(|start| start.get(field))
-                        .and_then(serde_json::Value::as_u64)
-                        .unwrap_or(1)
-                        .max(1)
-                };
-                let (line, column) = (at("line"), at("col"));
-                if display(cwd, file) == root_display {
-                    (line, column, message.to_owned())
-                } else {
-                    (
-                        1,
-                        1,
-                        format!("{}:{line}:{column}: {message}", display(cwd, file)),
-                    )
-                }
-            }
-        };
-        let (start, end) = point(line, column);
-        findings.push(FileFinding {
-            file: root.to_owned(),
-            finding: Finding {
-                tool_id: TOOL.to_owned(),
-                rule_id: rule.to_owned(),
-                message,
-                severity,
-                start,
-                end,
-                suggestions: Vec::new(),
-                encoding: ColumnEncoding::Utf16,
-                related: Vec::new(),
-            },
-        });
+        let item = problem_finding(problem, root, &root_display, cwd, staged)?;
+        match item.finding.severity {
+            ToolSeverity::Error => seen_errors += 1,
+            ToolSeverity::Warning | ToolSeverity::Info => seen_warnings += 1,
+        }
+        findings.push(item);
     }
     if seen_errors != errors || seen_warnings != warnings {
         return Err(ParseError::Incomplete {

@@ -73,6 +73,138 @@ fn undefined_type(line: &str) -> bool {
         .is_some_and(|name| !name.is_empty())
 }
 
+#[derive(Default)]
+struct Scan {
+    findings: Vec<FileFinding>,
+    dependencies: Vec<String>,
+    errors: usize,
+    own_errors: usize,
+    foreign_error: Option<String>,
+}
+
+fn scan_stdout(out: &str, files: &[&str], first: &str, scan: &mut Scan) -> Result<(), ParseError> {
+    for line in out.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty()
+            || trimmed.starts_with("Parsing ") && trimmed.ends_with(" for types")
+            || trimmed.starts_with("Program: ")
+            || trimmed.starts_with("Generating \"")
+        {
+            continue;
+        }
+        if let Some(path) = trimmed
+            .strip_prefix("Scanning ")
+            .and_then(|rest| rest.strip_suffix(" for includes"))
+        {
+            scan.dependencies.push(path.to_owned());
+            continue;
+        }
+        if undefined_type(trimmed) {
+            scan.errors += 1;
+            scan.own_errors += 1;
+            scan.findings
+                .push(finding(first, ToolSeverity::Error, 1, trimmed));
+            continue;
+        }
+        let Some(found) = tagged(trimmed, "WARNING") else {
+            return Err(ParseError::shape(
+                TOOL,
+                format!("unreadable line: {trimmed}"),
+            ));
+        };
+        if found.rest.is_empty() {
+            return Err(ParseError::shape(
+                TOOL,
+                format!("malformed finding: {trimmed}"),
+            ));
+        }
+        let Some(file) = files
+            .iter()
+            .find(|file| super::same_drive_path(file, found.path))
+        else {
+            continue;
+        };
+        // The include pass and the type pass print the same warning.
+        let duplicate = scan.findings.iter().any(|known| {
+            known.file == **file
+                && known.finding.severity == ToolSeverity::Warning
+                && known.finding.start.line == found.line.max(1)
+                && known.finding.message == found.rest
+        });
+        if !duplicate {
+            scan.findings
+                .push(finding(file, ToolSeverity::Warning, found.line, found.rest));
+        }
+    }
+    Ok(())
+}
+
+fn flush_pending(
+    pending: &mut Option<(Tagged<'_>, String)>,
+    files: &[&str],
+    scan: &mut Scan,
+) -> Result<(), ParseError> {
+    let Some((at, message)) = pending.take() else {
+        return Ok(());
+    };
+    let message = message.trim().to_owned();
+    if message.is_empty() {
+        return Err(ParseError::shape(
+            TOOL,
+            format!("error without a message at {}:{}", at.path, at.line),
+        ));
+    }
+    scan.errors += 1;
+    if let Some(file) = files
+        .iter()
+        .find(|file| super::same_drive_path(file, at.path))
+    {
+        scan.own_errors += 1;
+        scan.findings
+            .push(finding(file, ToolSeverity::Error, at.line, &message));
+    } else if scan.foreign_error.is_none() {
+        scan.foreign_error = Some(format!("{}:{}: {message}", at.path, at.line));
+    }
+    Ok(())
+}
+
+fn scan_stderr(err: &str, files: &[&str], scan: &mut Scan) -> Result<(), ParseError> {
+    let mut pending: Option<(Tagged<'_>, String)> = None;
+    for line in err.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if let Some(found) = tagged(trimmed, "FAILURE") {
+            flush_pending(&mut pending, files, scan)?;
+            let message = found.rest.to_owned();
+            pending = Some((found, message));
+            flush_pending(&mut pending, files, scan)?;
+            continue;
+        }
+        if let Some(found) = tagged(trimmed, "ERROR") {
+            flush_pending(&mut pending, files, scan)?;
+            pending = Some((found, String::new()));
+            continue;
+        }
+        match pending.as_mut() {
+            Some((_, message)) => {
+                if !message.is_empty() {
+                    message.push(' ');
+                }
+                message.push_str(trimmed);
+            }
+            None => {
+                return Err(ParseError::shape(
+                    TOOL,
+                    format!("unreadable line: {trimmed}"),
+                ));
+            }
+        }
+    }
+    flush_pending(&mut pending, files, scan)
+}
+
 /// Parses stdout and stderr of one `thrift -strict -v --gen json` run over one
 /// schema.
 ///
@@ -107,125 +239,16 @@ pub fn parse_thrift(
     let first = files
         .first()
         .ok_or_else(|| ParseError::shape(TOOL, "no checked file".to_owned()))?;
-    let mut findings: Vec<FileFinding> = Vec::new();
-    let mut dependencies = Vec::new();
-    let mut errors = 0usize;
-    let mut own_errors = 0usize;
-    let mut foreign_error: Option<String> = None;
-
-    for line in out.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty()
-            || trimmed.starts_with("Parsing ") && trimmed.ends_with(" for types")
-            || trimmed.starts_with("Program: ")
-            || trimmed.starts_with("Generating \"")
-        {
-            continue;
-        }
-        if let Some(path) = trimmed
-            .strip_prefix("Scanning ")
-            .and_then(|rest| rest.strip_suffix(" for includes"))
-        {
-            dependencies.push(path.to_owned());
-            continue;
-        }
-        if undefined_type(trimmed) {
-            errors += 1;
-            own_errors += 1;
-            findings.push(finding(first, ToolSeverity::Error, 1, trimmed));
-            continue;
-        }
-        let Some(found) = tagged(trimmed, "WARNING") else {
-            return Err(ParseError::shape(
-                TOOL,
-                format!("unreadable line: {trimmed}"),
-            ));
-        };
-        if found.rest.is_empty() {
-            return Err(ParseError::shape(
-                TOOL,
-                format!("malformed finding: {trimmed}"),
-            ));
-        }
-        let Some(file) = files
-            .iter()
-            .find(|file| super::same_drive_path(file, found.path))
-        else {
-            continue;
-        };
-        // The include pass and the type pass print the same warning.
-        let duplicate = findings.iter().any(|known| {
-            known.file == **file
-                && known.finding.severity == ToolSeverity::Warning
-                && known.finding.start.line == found.line.max(1)
-                && known.finding.message == found.rest
-        });
-        if !duplicate {
-            findings.push(finding(file, ToolSeverity::Warning, found.line, found.rest));
-        }
-    }
-
-    let mut pending: Option<(Tagged<'_>, String)> = None;
-    let mut flush = |pending: &mut Option<(Tagged<'_>, String)>,
-                     findings: &mut Vec<FileFinding>|
-     -> Result<(), ParseError> {
-        let Some((at, message)) = pending.take() else {
-            return Ok(());
-        };
-        let message = message.trim().to_owned();
-        if message.is_empty() {
-            return Err(ParseError::shape(
-                TOOL,
-                format!("error without a message at {}:{}", at.path, at.line),
-            ));
-        }
-        errors += 1;
-        if let Some(file) = files
-            .iter()
-            .find(|file| super::same_drive_path(file, at.path))
-        {
-            own_errors += 1;
-            findings.push(finding(file, ToolSeverity::Error, at.line, &message));
-        } else if foreign_error.is_none() {
-            foreign_error = Some(format!("{}:{}: {message}", at.path, at.line));
-        }
-        Ok(())
-    };
-    for line in err.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        if let Some(found) = tagged(trimmed, "FAILURE") {
-            flush(&mut pending, &mut findings)?;
-            // A failure never has a continuation line, and `exit` follows it.
-            let message = found.rest.to_owned();
-            pending = Some((found, message));
-            flush(&mut pending, &mut findings)?;
-            continue;
-        }
-        if let Some(found) = tagged(trimmed, "ERROR") {
-            flush(&mut pending, &mut findings)?;
-            // The message follows on the next line; the rest is the last token.
-            pending = Some((found, String::new()));
-            continue;
-        }
-        match pending.as_mut() {
-            Some((_, message)) => {
-                if !message.is_empty() {
-                    message.push(' ');
-                }
-                message.push_str(trimmed);
-            }
-            None => {
-                return Err(ParseError::shape(
-                    TOOL,
-                    format!("unreadable line: {trimmed}"),
-                ));
-            }
-        }
-    }
-    flush(&mut pending, &mut findings)?;
+    let mut scan = Scan::default();
+    scan_stdout(out, files, first, &mut scan)?;
+    scan_stderr(err, files, &mut scan)?;
+    let Scan {
+        mut findings,
+        dependencies,
+        errors,
+        own_errors,
+        foreign_error,
+    } = scan;
 
     if code == Some(1) && own_errors == 0 {
         let Some(detail) = foreign_error else {

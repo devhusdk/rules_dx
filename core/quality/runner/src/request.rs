@@ -220,6 +220,53 @@ fn check_mappings(
     Ok(out)
 }
 
+fn non_empty_paths(
+    role: &str,
+    tool_id: &str,
+    values: &[String],
+) -> Result<Vec<PathBuf>, RequestError> {
+    let mut out = Vec::with_capacity(values.len());
+    for value in values {
+        if value.is_empty() {
+            return Err(RequestError::EmptyExec {
+                role: role.to_owned(),
+                workspace: tool_id.to_owned(),
+            });
+        }
+        out.push(PathBuf::from(value));
+    }
+    Ok(out)
+}
+
+fn check_path_tools(tool_id: &str, doc: &ToolDoc) -> Result<Vec<(String, PathBuf)>, RequestError> {
+    let mut path_tools: Vec<(String, PathBuf)> = Vec::with_capacity(doc.path_tools.len());
+    for helper in &doc.path_tools {
+        let allowed = PATH_TOOL_ALLOWLIST
+            .iter()
+            .any(|(tool, names)| *tool == tool_id && names.contains(&helper.name.as_str()));
+        if !allowed {
+            return Err(RequestError::UnknownPathTool {
+                tool: tool_id.to_owned(),
+                name: helper.name.clone(),
+            });
+        }
+        if helper.binary.is_empty() {
+            return Err(RequestError::EmptyExec {
+                role: "tool path helper".to_owned(),
+                workspace: helper.name.clone(),
+            });
+        }
+        if path_tools.iter().any(|(name, _)| *name == helper.name) {
+            return Err(RequestError::DuplicateMapping {
+                role: "tool path helper".to_owned(),
+                path: helper.name.clone(),
+            });
+        }
+        path_tools.push((helper.name.clone(), PathBuf::from(&helper.binary)));
+    }
+    Ok(path_tools)
+}
+
 fn check_tool(
     tool_id: &str,
     doc: &ToolDoc,
@@ -278,51 +325,9 @@ fn check_tool(
         }
         env.push((entry.key.clone(), entry.value.clone()));
     }
-    let mut upstream = Vec::with_capacity(doc.upstream.len());
-    for exec in &doc.upstream {
-        if exec.is_empty() {
-            return Err(RequestError::EmptyExec {
-                role: "upstream diagnostics".to_owned(),
-                workspace: tool_id.to_owned(),
-            });
-        }
-        upstream.push(PathBuf::from(exec));
-    }
-    let mut search_paths = Vec::with_capacity(doc.search_paths.len());
-    for dir in &doc.search_paths {
-        if dir.is_empty() {
-            return Err(RequestError::EmptyExec {
-                role: "tool search path".to_owned(),
-                workspace: tool_id.to_owned(),
-            });
-        }
-        search_paths.push(PathBuf::from(dir));
-    }
-    let mut path_tools: Vec<(String, PathBuf)> = Vec::with_capacity(doc.path_tools.len());
-    for helper in &doc.path_tools {
-        let allowed = PATH_TOOL_ALLOWLIST
-            .iter()
-            .any(|(tool, names)| *tool == tool_id && names.contains(&helper.name.as_str()));
-        if !allowed {
-            return Err(RequestError::UnknownPathTool {
-                tool: tool_id.to_owned(),
-                name: helper.name.clone(),
-            });
-        }
-        if helper.binary.is_empty() {
-            return Err(RequestError::EmptyExec {
-                role: "tool path helper".to_owned(),
-                workspace: helper.name.clone(),
-            });
-        }
-        if path_tools.iter().any(|(name, _)| *name == helper.name) {
-            return Err(RequestError::DuplicateMapping {
-                role: "tool path helper".to_owned(),
-                path: helper.name.clone(),
-            });
-        }
-        path_tools.push((helper.name.clone(), PathBuf::from(&helper.binary)));
-    }
+    let upstream = non_empty_paths("upstream diagnostics", tool_id, &doc.upstream)?;
+    let search_paths = non_empty_paths("tool search path", tool_id, &doc.search_paths)?;
+    let path_tools = check_path_tools(tool_id, doc)?;
     if binary.is_none() && upstream.is_empty() {
         return Err(RequestError::ToolWithoutBinary {
             tool: tool_id.to_owned(),

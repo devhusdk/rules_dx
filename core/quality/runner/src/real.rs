@@ -490,61 +490,7 @@ impl RealBackend {
     ) -> Result<ChildOutput, RunnerError> {
         self.last_stderr.borrow_mut().clear();
         let cwd = scratch.root().join(&invocation.cwd_rel);
-        let extra: Vec<(OsString, OsString)> = tool
-            .extra_env
-            .iter()
-            .map(|(key, value)| (OsString::from(key), OsString::from(value)))
-            .collect();
-        let ambient: Vec<(OsString, OsString)> = std::env::vars_os().collect();
-        let mut env = exec::hermetic_env(scratch.root(), &extra, &ambient);
-        env.extend(launcher_env(tool_id, &tool.binary));
-        if !tool.path_tools.is_empty() {
-            let dir = scratch.root().join(PATH_TOOLS_DIR_REL);
-            std::fs::create_dir_all(&dir)
-                .map_err(|err| execution(tool_id, format!("path tools dir: {err}")))?;
-            for (name, binary) in &tool.path_tools {
-                let shim_env = launcher_env(name, binary);
-                write_path_shim(&dir, name, binary, &shim_env)
-                    .map_err(|err| execution(tool_id, format!("path tool {name}: {err}")))?;
-            }
-            env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case("PATH"));
-            env.push((OsString::from("PATH"), dir.into_os_string()));
-        }
-        if tool_id == "terraform" {
-            // Terraform reads no user CLI config, plugin cache or extra args.
-            env.retain(|(key, _)| {
-                let key = key.to_string_lossy();
-                key != TERRAFORM_PLUGIN_DIRS_ENV
-                    && key != "TF_DATA_DIR"
-                    && key != "TF_PLUGIN_CACHE_DIR"
-                    && !key.starts_with("TF_CLI_ARGS")
-                    && key != "TF_CLI_CONFIG_FILE"
-            });
-            let config = scratch.root().join(TERRAFORM_CLI_CONFIG_REL);
-            if let Some(parent) = config.parent() {
-                std::fs::create_dir_all(parent)
-                    .map_err(|err| execution(tool_id, format!("terraform state dir: {err}")))?;
-            }
-            std::fs::write(&config, b"")
-                .map_err(|err| execution(tool_id, format!("terraform cli config: {err}")))?;
-            env.push((
-                OsString::from("TF_CLI_CONFIG_FILE"),
-                config.into_os_string(),
-            ));
-            env.push((OsString::from("TF_IN_AUTOMATION"), OsString::from("1")));
-            env.push((OsString::from("CHECKPOINT_DISABLE"), OsString::from("1")));
-        }
-        if tool_id == "tflint" {
-            let plugins = scratch.root().join(TFLINT_PLUGIN_DIR_REL);
-            std::fs::create_dir_all(&plugins)
-                .map_err(|err| execution(tool_id, format!("plugin dir: {err}")))?;
-            env.retain(|(key, _)| key != "TFLINT_CONFIG_FILE");
-            env.push((
-                OsString::from("TFLINT_PLUGIN_DIR"),
-                plugins.into_os_string(),
-            ));
-            env.push((OsString::from("TFLINT_LOG"), OsString::new()));
-        }
+        let mut env = base_env(tool_id, tool, scratch)?;
         let socket_dir = if cfg!(unix) && (tool_id == "terraform" || tool_id == "tflint") {
             let short = short_socket_dir()
                 .map_err(|err| execution(tool_id, format!("socket dir: {err}")))?;
@@ -557,128 +503,7 @@ impl RealBackend {
         } else {
             None
         };
-        let bicep_argv0 = invocation.argv.first().map(Path::new);
-        let runs_bicep = tool_id == "bicep"
-            || tool
-                .path_tools
-                .iter()
-                .any(|(name, binary)| name == "bicep" && bicep_argv0 == Some(binary.as_path()));
-        if runs_bicep {
-            let home = scratch.root().join(BICEP_HOME_REL);
-            std::fs::create_dir_all(&home)
-                .map_err(|err| execution(tool_id, format!("bicep home: {err}")))?;
-            env.retain(|(key, _)| {
-                !["HOME", "USERPROFILE", "DOTNET_BUNDLE_EXTRACT_BASE_DIR"]
-                    .iter()
-                    .any(|name| key.to_string_lossy().eq_ignore_ascii_case(name))
-            });
-            env.push((OsString::from("HOME"), home.clone().into_os_string()));
-            env.push((OsString::from("USERPROFILE"), home.clone().into_os_string()));
-            env.push((
-                OsString::from("DOTNET_BUNDLE_EXTRACT_BASE_DIR"),
-                home.join("extract").into_os_string(),
-            ));
-            for (key, value) in [
-                ("DOTNET_CLI_TELEMETRY_OPTOUT", "1"),
-                ("DOTNET_NOLOGO", "1"),
-                ("DOTNET_SYSTEM_GLOBALIZATION_INVARIANT", "1"),
-            ] {
-                env.push((OsString::from(key), OsString::from(value)));
-            }
-        }
-        if tool_id == "helmfmt" {
-            let home = scratch.root().join(HELMFMT_HOME_REL);
-            std::fs::create_dir_all(&home)
-                .map_err(|err| execution(tool_id, format!("helmfmt home: {err}")))?;
-            for name in ["HOME", "USERPROFILE"] {
-                env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case(name));
-                env.push((OsString::from(name), home.clone().into_os_string()));
-            }
-        }
-        if tool_id == "latexindent" {
-            let home = scratch.root().join(LATEXINDENT_HOME_REL);
-            std::fs::create_dir_all(&home)
-                .map_err(|err| execution(tool_id, format!("latexindent home: {err}")))?;
-            for name in ["HOME", "USERPROFILE"] {
-                env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case(name));
-                env.push((OsString::from(name), home.clone().into_os_string()));
-            }
-            if cfg!(windows) {
-                env.push((OsString::from("LC_ALL"), OsString::from("C")));
-            }
-        }
-        if tool_id == "pkl_lsp" {
-            // Point the JVM profile directories at the scratch home.
-            let home = scratch.root().join(PKL_LSP_HOME_REL);
-            for name in ["USERPROFILE", "APPDATA", "LOCALAPPDATA"] {
-                env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case(name));
-                env.push((OsString::from(name), home.clone().into_os_string()));
-            }
-            if let Some(root) = std::env::var_os("SystemRoot") {
-                env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case("PATH"));
-                env.push((
-                    OsString::from("PATH"),
-                    Path::new(&root).join("System32").into_os_string(),
-                ));
-            }
-        }
-        if tool_id == "dialyzer" {
-            // The Windows erlexec stops with "No PATH variable (!)" when PATH is unset.
-            if let Some(root) = std::env::var_os("SystemRoot") {
-                env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case("PATH"));
-                env.push((
-                    OsString::from("PATH"),
-                    Path::new(&root).join("System32").into_os_string(),
-                ));
-            }
-        }
-        if tool_id == "zanuda" {
-            // zanuda type checks against the compiler's standard library.
-            let cwd = std::env::current_dir().unwrap_or_default();
-            for (key, value) in &mut env {
-                if key == "OCAMLLIB" && Path::new(value.as_os_str()).is_relative() {
-                    *value = cwd.join(&*value).into_os_string();
-                }
-            }
-        }
-        if tool_id == "typstyle" || tool_id == "prettier" {
-            env.push((OsString::from("NO_COLOR"), OsString::from("1")));
-        }
-        if tool_id == "docstrfmt" {
-            env.push((OsString::from("PYTHONUTF8"), OsString::from("1")));
-        }
-        if tool_id == "mbake" {
-            // Disable ANSI codes and line wrapping so paths stay with their messages.
-            env.push((OsString::from("NO_COLOR"), OsString::from("1")));
-            env.push((OsString::from("TERM"), OsString::from("dumb")));
-            env.push((OsString::from("COLUMNS"), OsString::from("100000")));
-        }
-        if tool_id == "cue" {
-            // HOME is unset; module loads need a cache and config dir, kept in the scratch.
-            let state = scratch.root().join(CUE_STATE_REL);
-            env.push((
-                OsString::from("CUE_CACHE_DIR"),
-                state.join("cache").into_os_string(),
-            ));
-            env.push((
-                OsString::from("CUE_CONFIG_DIR"),
-                state.join("config").into_os_string(),
-            ));
-        }
-        if tool_id == "dart" {
-            // The host HOME stays unset (dart format needs none); analytics stay off.
-            env.push((
-                OsString::from("DART_SUPPRESS_ANALYTICS"),
-                OsString::from("true"),
-            ));
-        }
-        if tool_id == "redocly" {
-            env.push((OsString::from("REDOCLY_TELEMETRY"), OsString::from("off")));
-            env.push((
-                OsString::from("REDOCLY_SUPPRESS_UPDATE_NOTICE"),
-                OsString::from("true"),
-            ));
-        }
+        tool_specific_env(tool_id, tool, invocation, scratch, &mut env)?;
         let argv = spawn_argv(tool_id, invocation);
         if let Some(max) = argv.first().and_then(|program| (self.argv_limit)(program)) {
             let units = commands::argv_cost(&argv).1 + 2 * argv.len();
@@ -697,6 +522,205 @@ impl RealBackend {
         let out = out?;
         self.last_stderr.borrow_mut().clone_from(&out.stderr);
         Ok(out)
+    }
+}
+
+fn base_env(
+    tool_id: &str,
+    tool: &RealTool,
+    scratch: &Scratch,
+) -> Result<Vec<(OsString, OsString)>, RunnerError> {
+    let extra: Vec<(OsString, OsString)> = tool
+        .extra_env
+        .iter()
+        .map(|(key, value)| (OsString::from(key), OsString::from(value)))
+        .collect();
+    let ambient: Vec<(OsString, OsString)> = std::env::vars_os().collect();
+    let mut env = exec::hermetic_env(scratch.root(), &extra, &ambient);
+    env.extend(launcher_env(tool_id, &tool.binary));
+    if !tool.path_tools.is_empty() {
+        let dir = scratch.root().join(PATH_TOOLS_DIR_REL);
+        std::fs::create_dir_all(&dir)
+            .map_err(|err| execution(tool_id, format!("path tools dir: {err}")))?;
+        for (name, binary) in &tool.path_tools {
+            let shim_env = launcher_env(name, binary);
+            write_path_shim(&dir, name, binary, &shim_env)
+                .map_err(|err| execution(tool_id, format!("path tool {name}: {err}")))?;
+        }
+        env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case("PATH"));
+        env.push((OsString::from("PATH"), dir.into_os_string()));
+    }
+    if tool_id == "terraform" {
+        // Terraform reads no user CLI config, plugin cache or extra args.
+        env.retain(|(key, _)| {
+            let key = key.to_string_lossy();
+            key != TERRAFORM_PLUGIN_DIRS_ENV
+                && key != "TF_DATA_DIR"
+                && key != "TF_PLUGIN_CACHE_DIR"
+                && !key.starts_with("TF_CLI_ARGS")
+                && key != "TF_CLI_CONFIG_FILE"
+        });
+        let config = scratch.root().join(TERRAFORM_CLI_CONFIG_REL);
+        if let Some(parent) = config.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|err| execution(tool_id, format!("terraform state dir: {err}")))?;
+        }
+        std::fs::write(&config, b"")
+            .map_err(|err| execution(tool_id, format!("terraform cli config: {err}")))?;
+        env.push((
+            OsString::from("TF_CLI_CONFIG_FILE"),
+            config.into_os_string(),
+        ));
+        env.push((OsString::from("TF_IN_AUTOMATION"), OsString::from("1")));
+        env.push((OsString::from("CHECKPOINT_DISABLE"), OsString::from("1")));
+    }
+    if tool_id == "tflint" {
+        let plugins = scratch.root().join(TFLINT_PLUGIN_DIR_REL);
+        std::fs::create_dir_all(&plugins)
+            .map_err(|err| execution(tool_id, format!("plugin dir: {err}")))?;
+        env.retain(|(key, _)| key != "TFLINT_CONFIG_FILE");
+        env.push((
+            OsString::from("TFLINT_PLUGIN_DIR"),
+            plugins.into_os_string(),
+        ));
+        env.push((OsString::from("TFLINT_LOG"), OsString::new()));
+    }
+    Ok(env)
+}
+
+fn tool_specific_env(
+    tool_id: &str,
+    tool: &RealTool,
+    invocation: &Invocation,
+    scratch: &Scratch,
+    env: &mut Vec<(OsString, OsString)>,
+) -> Result<(), RunnerError> {
+    let bicep_argv0 = invocation.argv.first().map(Path::new);
+    let runs_bicep = tool_id == "bicep"
+        || tool
+            .path_tools
+            .iter()
+            .any(|(name, binary)| name == "bicep" && bicep_argv0 == Some(binary.as_path()));
+    if runs_bicep {
+        let home = scratch.root().join(BICEP_HOME_REL);
+        std::fs::create_dir_all(&home)
+            .map_err(|err| execution(tool_id, format!("bicep home: {err}")))?;
+        env.retain(|(key, _)| {
+            !["HOME", "USERPROFILE", "DOTNET_BUNDLE_EXTRACT_BASE_DIR"]
+                .iter()
+                .any(|name| key.to_string_lossy().eq_ignore_ascii_case(name))
+        });
+        env.push((OsString::from("HOME"), home.clone().into_os_string()));
+        env.push((OsString::from("USERPROFILE"), home.clone().into_os_string()));
+        env.push((
+            OsString::from("DOTNET_BUNDLE_EXTRACT_BASE_DIR"),
+            home.join("extract").into_os_string(),
+        ));
+        for (key, value) in [
+            ("DOTNET_CLI_TELEMETRY_OPTOUT", "1"),
+            ("DOTNET_NOLOGO", "1"),
+            ("DOTNET_SYSTEM_GLOBALIZATION_INVARIANT", "1"),
+        ] {
+            env.push((OsString::from(key), OsString::from(value)));
+        }
+    }
+    if tool_id == "helmfmt" {
+        let home = scratch.root().join(HELMFMT_HOME_REL);
+        std::fs::create_dir_all(&home)
+            .map_err(|err| execution(tool_id, format!("helmfmt home: {err}")))?;
+        for name in ["HOME", "USERPROFILE"] {
+            env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case(name));
+            env.push((OsString::from(name), home.clone().into_os_string()));
+        }
+    }
+    if tool_id == "latexindent" {
+        let home = scratch.root().join(LATEXINDENT_HOME_REL);
+        std::fs::create_dir_all(&home)
+            .map_err(|err| execution(tool_id, format!("latexindent home: {err}")))?;
+        for name in ["HOME", "USERPROFILE"] {
+            env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case(name));
+            env.push((OsString::from(name), home.clone().into_os_string()));
+        }
+        if cfg!(windows) {
+            env.push((OsString::from("LC_ALL"), OsString::from("C")));
+        }
+    }
+    tool_quirk_env(tool_id, scratch, env);
+    Ok(())
+}
+
+fn tool_quirk_env(tool_id: &str, scratch: &Scratch, env: &mut Vec<(OsString, OsString)>) {
+    if tool_id == "pkl_lsp" {
+        // Point the JVM profile directories at the scratch home.
+        let home = scratch.root().join(PKL_LSP_HOME_REL);
+        for name in ["USERPROFILE", "APPDATA", "LOCALAPPDATA"] {
+            env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case(name));
+            env.push((OsString::from(name), home.clone().into_os_string()));
+        }
+        if let Some(root) = std::env::var_os("SystemRoot") {
+            env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case("PATH"));
+            env.push((
+                OsString::from("PATH"),
+                Path::new(&root).join("System32").into_os_string(),
+            ));
+        }
+    }
+    if tool_id == "dialyzer" {
+        // The Windows erlexec stops with "No PATH variable (!)" when PATH is unset.
+        if let Some(root) = std::env::var_os("SystemRoot") {
+            env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case("PATH"));
+            env.push((
+                OsString::from("PATH"),
+                Path::new(&root).join("System32").into_os_string(),
+            ));
+        }
+    }
+    if tool_id == "zanuda" {
+        // zanuda type checks against the compiler's standard library.
+        let cwd = std::env::current_dir().unwrap_or_default();
+        for (key, value) in env.iter_mut() {
+            if key == "OCAMLLIB" && Path::new(value.as_os_str()).is_relative() {
+                *value = cwd.join(&*value).into_os_string();
+            }
+        }
+    }
+    if tool_id == "typstyle" || tool_id == "prettier" {
+        env.push((OsString::from("NO_COLOR"), OsString::from("1")));
+    }
+    if tool_id == "docstrfmt" {
+        env.push((OsString::from("PYTHONUTF8"), OsString::from("1")));
+    }
+    if tool_id == "mbake" {
+        // Disable ANSI codes and line wrapping so paths stay with their messages.
+        env.push((OsString::from("NO_COLOR"), OsString::from("1")));
+        env.push((OsString::from("TERM"), OsString::from("dumb")));
+        env.push((OsString::from("COLUMNS"), OsString::from("100000")));
+    }
+    if tool_id == "cue" {
+        // HOME is unset; module loads need a cache and config dir, kept in the scratch.
+        let state = scratch.root().join(CUE_STATE_REL);
+        env.push((
+            OsString::from("CUE_CACHE_DIR"),
+            state.join("cache").into_os_string(),
+        ));
+        env.push((
+            OsString::from("CUE_CONFIG_DIR"),
+            state.join("config").into_os_string(),
+        ));
+    }
+    if tool_id == "dart" {
+        // The host HOME stays unset (dart format needs none); analytics stay off.
+        env.push((
+            OsString::from("DART_SUPPRESS_ANALYTICS"),
+            OsString::from("true"),
+        ));
+    }
+    if tool_id == "redocly" {
+        env.push((OsString::from("REDOCLY_TELEMETRY"), OsString::from("off")));
+        env.push((
+            OsString::from("REDOCLY_SUPPRESS_UPDATE_NOTICE"),
+            OsString::from("true"),
+        ));
     }
 }
 

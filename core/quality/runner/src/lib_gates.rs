@@ -202,6 +202,10 @@ fn permutation_ranking_prefers_stable_fewer_rounds() {
     };
     assert_eq!(rank_key(&first), rank_key(&second));
     assert_eq!(rank_key(&first), (0, 2));
+}
+
+#[test]
+fn permutation_ranking_orders_convergence_outcomes() {
     let stages = vec![stage("lint-a", &["rust"], &["src/lib.rs"])];
     let mut initial = BTreeMap::new();
     initial.insert("src/lib.rs".to_owned(), "BAD".to_owned());
@@ -319,7 +323,8 @@ fn interruption_leaves_no_partially_written_file() {
         let terminal_body = terminal.get(&edits.path).expect("staged path");
         let edit = &edits.edits[0];
         let mut spliced = Vec::new();
-        spliced.extend_from_slice(&original.as_bytes()[..usize::try_from(edit.start_byte).unwrap()]);
+        spliced
+            .extend_from_slice(&original.as_bytes()[..usize::try_from(edit.start_byte).unwrap()]);
         spliced.extend_from_slice(&edit.replacement);
         spliced.extend_from_slice(&original.as_bytes()[usize::try_from(edit.end_byte).unwrap()..]);
         assert_eq!(&spliced, terminal_body.as_bytes());
@@ -336,9 +341,12 @@ fn interruption_leaves_no_partially_written_file() {
             let original = initial.get(&edits.path).expect("staged path");
             let edit = &edits.edits[0];
             let mut spliced = Vec::new();
-            spliced.extend_from_slice(&original.as_bytes()[..usize::try_from(edit.start_byte).unwrap()]);
+            spliced.extend_from_slice(
+                &original.as_bytes()[..usize::try_from(edit.start_byte).unwrap()],
+            );
             spliced.extend_from_slice(&edit.replacement);
-            spliced.extend_from_slice(&original.as_bytes()[usize::try_from(edit.end_byte).unwrap()..]);
+            spliced
+                .extend_from_slice(&original.as_bytes()[usize::try_from(edit.end_byte).unwrap()..]);
             state.insert(edits.path.clone(), String::from_utf8(spliced).unwrap());
         }
         for (path, body) in &state {
@@ -352,7 +360,8 @@ fn interruption_leaves_no_partially_written_file() {
         let original = initial.get(&edits.path).expect("staged path");
         let edit = &edits.edits[0];
         let mut spliced = Vec::new();
-        spliced.extend_from_slice(&original.as_bytes()[..usize::try_from(edit.start_byte).unwrap()]);
+        spliced
+            .extend_from_slice(&original.as_bytes()[..usize::try_from(edit.start_byte).unwrap()]);
         spliced.extend_from_slice(&edit.replacement);
         spliced.extend_from_slice(&original.as_bytes()[usize::try_from(edit.end_byte).unwrap()..]);
         full.insert(edits.path.clone(), String::from_utf8(spliced).unwrap());
@@ -546,7 +555,8 @@ fn minimal_edits_trim_common_prefix_and_suffix() {
         assert_eq!(edit.end_byte, end, "{original:?}");
         assert_eq!(edit.replacement, replacement.as_bytes(), "{original:?}");
         let mut spliced = Vec::new();
-        spliced.extend_from_slice(&original.as_bytes()[..usize::try_from(edit.start_byte).unwrap()]);
+        spliced
+            .extend_from_slice(&original.as_bytes()[..usize::try_from(edit.start_byte).unwrap()]);
         spliced.extend_from_slice(&edit.replacement);
         spliced.extend_from_slice(&original.as_bytes()[usize::try_from(edit.end_byte).unwrap()..]);
         assert_eq!(&spliced, terminal_body.as_bytes(), "{original:?}");
@@ -555,9 +565,12 @@ fn minimal_edits_trim_common_prefix_and_suffix() {
     assert!("héllo BAD 🌍\n".is_char_boundary(usize::try_from(edit.start_byte).unwrap()));
     assert!("héllo BAD 🌍\n".is_char_boundary(usize::try_from(edit.end_byte).unwrap()));
     let mut spliced = Vec::new();
-    spliced.extend_from_slice(&"héllo BAD 🌍\n".as_bytes()[..usize::try_from(edit.start_byte).unwrap()]);
+    spliced.extend_from_slice(
+        &"héllo BAD 🌍\n".as_bytes()[..usize::try_from(edit.start_byte).unwrap()],
+    );
     spliced.extend_from_slice(&edit.replacement);
-    spliced.extend_from_slice(&"héllo BAD 🌍\n".as_bytes()[usize::try_from(edit.end_byte).unwrap()..]);
+    spliced
+        .extend_from_slice(&"héllo BAD 🌍\n".as_bytes()[usize::try_from(edit.end_byte).unwrap()..]);
     assert_eq!(&spliced, "héllo GOOD 🌍\n".as_bytes());
 }
 

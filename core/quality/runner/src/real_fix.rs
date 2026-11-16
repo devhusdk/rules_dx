@@ -376,6 +376,88 @@ pub(super) enum Outcome {
 }
 
 /// The single routing table from a tool and capability to its fixer.
+fn keeps_unchanged(tool_id: &str) -> bool {
+    matches!(
+        tool_id,
+        "vale"
+            | "markdown_check"
+            | "rustc"
+            | "ty"
+            | "pydoclint"
+            | "clippy"
+            | "roslyn"
+            | "csc"
+            | "fsc"
+            | "fsharplint"
+            | "fortitude"
+            | "pkl_lsp"
+            | "perlcritic"
+            | "jsonnet_lint"
+            | "pmd"
+            | "spotbugs"
+            | "qmllint"
+            | "clang_tidy"
+            | "staticcheck"
+            | "govet"
+            | "gplint"
+            | "errcheck"
+            | "stylelint"
+            | "yamllint"
+            | "shellcheck"
+            | "hadolint"
+            | "hlint"
+            | "redocly"
+            | "kubeconform"
+            | "helm"
+            | "capnp"
+            | "checkmake"
+            | "flatc"
+            | "tflint"
+            | "cfn_lint"
+            | "chktex"
+            | "cmakelint"
+            | "credo"
+            | "dialyzer"
+            | "elvis"
+            | "elixirc"
+            | "erlc"
+            | "gotype"
+            | "jet"
+            | "julialint"
+            | "luals"
+            | "phpcs"
+            | "phpstan"
+            | "regal"
+            | "sorbet"
+            | "tsc"
+            | "javac"
+            | "kotlinc"
+            | "scalac"
+            | "flang"
+            | "ghc"
+            | "ldc"
+            | "ocaml"
+            | "swiftc"
+            | "zig"
+            | "zig_ast_check"
+            | "swift_lint"
+            | "xmllint"
+            | "selene"
+            | "zanuda"
+            | "thrift"
+            | "avro_tools"
+            | "tinymist"
+            | "detekt"
+            | "lychee"
+            | "actionlint"
+            | "zizmor"
+            | "trivy_config"
+            | "trivy_image_config"
+            | "container_structure_test"
+            | "weeder"
+    )
+}
+
 fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, RunnerError> {
     if capability == "audit" || capability == "typecheck" {
         return Ok(Route::Keep);
@@ -393,82 +475,7 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
         }
     };
     match tool_id {
-        "vale"
-        | "markdown_check"
-        | "rustc"
-        | "ty"
-        | "pydoclint"
-        | "clippy"
-        | "roslyn"
-        | "csc"
-        | "fsc"
-        | "fsharplint"
-        | "fortitude"
-        | "pkl_lsp"
-        | "perlcritic"
-        | "jsonnet_lint"
-        | "pmd"
-        | "spotbugs"
-        | "qmllint"
-        | "clang_tidy"
-        | "staticcheck"
-        | "govet"
-        | "gplint"
-        | "errcheck"
-        | "stylelint"
-        | "yamllint"
-        | "shellcheck"
-        | "hadolint"
-        | "hlint"
-        | "redocly"
-        | "kubeconform"
-        | "helm"
-        | "capnp"
-        | "checkmake"
-        | "flatc"
-        | "tflint"
-        | "cfn_lint"
-        | "chktex"
-        | "cmakelint"
-        | "credo"
-        | "dialyzer"
-        | "elvis"
-        | "elixirc"
-        | "erlc"
-        | "gotype"
-        | "jet"
-        | "julialint"
-        | "luals"
-        | "phpcs"
-        | "phpstan"
-        | "regal"
-        | "sorbet"
-        | "tsc"
-        | "javac"
-        | "kotlinc"
-        | "scalac"
-        | "flang"
-        | "ghc"
-        | "ldc"
-        | "ocaml"
-        | "swiftc"
-        | "zig"
-        | "zig_ast_check"
-        | "swift_lint"
-        | "xmllint"
-        | "selene"
-        | "zanuda"
-        | "thrift"
-        | "avro_tools"
-        | "tinymist"
-        | "detekt"
-        | "lychee"
-        | "actionlint"
-        | "zizmor"
-        | "trivy_config"
-        | "trivy_image_config"
-        | "container_structure_test"
-        | "weeder" => Ok(Route::Keep),
+        _ if keeps_unchanged(tool_id) => Ok(Route::Keep),
         "graphql_eslint" => match tool.config_rel {
             Some(_) => Ok(Route::Keep),
             None => Err(missing_tier_base(tool_id)),
@@ -579,6 +586,87 @@ impl SessionScratch {
     }
 }
 
+struct FixCall<'a> {
+    backend: &'a RealBackend,
+    route: Route,
+    tool_id: &'a str,
+    tool: &'a RealTool,
+}
+
+fn run_batches(
+    call: &FixCall<'_>,
+    session: &mut SessionScratch,
+    current: &BTreeMap<String, String>,
+    targets: &[String],
+    batches: Vec<Vec<&Path>>,
+    names: &[String],
+) -> Result<BTreeMap<String, String>, RunnerError> {
+    let FixCall {
+        backend,
+        route,
+        tool_id,
+        tool,
+    } = *call;
+    let mut fixed = BTreeMap::new();
+    let mut offset = 0;
+    for batch in batches {
+        let Some(batch_targets) = targets.get(offset..offset + batch.len()) else {
+            return Err(execution(tool_id, "fix batch out of range".to_owned()));
+        };
+        offset += batch.len();
+        session.stage(current, batch_targets)?;
+        let outcome = backend.spawn_fix(route, tool_id, tool, &batch, &session.scratch, names)?;
+        match outcome {
+            Outcome::Fixed => {
+                for (path, file) in batch_targets.iter().zip(&batch) {
+                    let reread = RealBackend::reread_fixed(tool_id, file)?;
+                    let before = text_of(current, path)?;
+                    fixed.insert(
+                        path.clone(),
+                        RealBackend::settle(tool_id, path, &before, reread)?,
+                    );
+                }
+            }
+            Outcome::Kept if batch.len() == 1 => {
+                for path in batch_targets {
+                    fixed.insert(path.clone(), text_of(current, path)?);
+                }
+            }
+            Outcome::Failed(err) if batch.len() == 1 => return Err(err),
+            Outcome::Kept | Outcome::Failed(_) => {
+                for (path, file) in batch_targets.iter().zip(&batch) {
+                    session.stage(current, std::slice::from_ref(path))?;
+                    let alone = [*file];
+                    let text = match backend.spawn_fix(
+                        route,
+                        tool_id,
+                        tool,
+                        &alone,
+                        &session.scratch,
+                        names,
+                    )? {
+                        Outcome::Fixed => {
+                            let reread = RealBackend::reread_fixed(tool_id, file)?;
+                            RealBackend::settle(tool_id, path, &text_of(current, path)?, reread)?
+                        }
+                        Outcome::Kept => text_of(current, path)?,
+                        Outcome::Failed(err) => return Err(err),
+                    };
+                    fixed.insert(path.clone(), text);
+                }
+            }
+        }
+    }
+    Ok(fixed)
+}
+
+fn text_of(current: &BTreeMap<String, String>, path: &String) -> Result<String, RunnerError> {
+    current
+        .get(path)
+        .cloned()
+        .ok_or(RunnerError::MissingFile { path: path.clone() })
+}
+
 /// Fix state for one convergence run: one scratch per stage, reused across rounds.
 pub(super) struct FixSession<'a> {
     backend: &'a RealBackend,
@@ -613,26 +701,13 @@ impl<'a> FixSession<'a> {
         let backend = self.backend;
         let tool = backend.tool(tool_id)?;
         let route = fix_route(tool_id, tool, self.capability)?;
-        let text_of = |path: &String| {
-            current
-                .get(path)
-                .cloned()
-                .ok_or(RunnerError::MissingFile { path: path.clone() })
-        };
         if tool_id == "ffmt" && targets.iter().any(|path| !ffmt_accepts(Path::new(path))) {
-            // The same filter as the check path: these sources are returned untouched.
             let accepted: Vec<String> = targets
                 .iter()
                 .filter(|path| ffmt_accepts(Path::new(path)))
                 .cloned()
                 .collect();
-            let mut fixed = self.fix(index, stage, current, &accepted)?;
-            for path in targets {
-                if !fixed.contains_key(path) {
-                    fixed.insert(path.clone(), text_of(path)?);
-                }
-            }
-            return Ok(fixed);
+            return self.fix_accepted(index, stage, current, targets, &accepted);
         }
         if tool_id == "helmfmt" {
             let known_file = |path: &str| {
@@ -647,19 +722,13 @@ impl<'a> FixSession<'a> {
                     .filter(|path| commands::is_helm_template(path, known_file))
                     .cloned()
                     .collect();
-                let mut fixed = self.fix(index, stage, current, &accepted)?;
-                for path in targets {
-                    if !fixed.contains_key(path) {
-                        fixed.insert(path.clone(), text_of(path)?);
-                    }
-                }
-                return Ok(fixed);
+                return self.fix_accepted(index, stage, current, targets, &accepted);
             }
         }
         if matches!(route, Route::Keep) || targets.is_empty() {
             return targets
                 .iter()
-                .map(|path| Ok((path.clone(), text_of(path)?)))
+                .map(|path| Ok((path.clone(), text_of(current, path)?)))
                 .collect();
         }
         if !self.scratches.contains_key(&index) {
@@ -700,55 +769,27 @@ impl<'a> FixSession<'a> {
                 backend.fix_invocation(route, tool_id, tool, batch, &session.scratch)
             })?
         };
-        let mut fixed = BTreeMap::new();
-        let mut offset = 0;
-        for batch in batches {
-            let Some(batch_targets) = targets.get(offset..offset + batch.len()) else {
-                return Err(execution(tool_id, "fix batch out of range".to_owned()));
-            };
-            offset += batch.len();
-            session.stage(current, batch_targets)?;
-            let outcome =
-                backend.spawn_fix(route, tool_id, tool, &batch, &session.scratch, &names)?;
-            match outcome {
-                Outcome::Fixed => {
-                    for (path, file) in batch_targets.iter().zip(&batch) {
-                        let reread = RealBackend::reread_fixed(tool_id, file)?;
-                        let before = text_of(path)?;
-                        fixed.insert(
-                            path.clone(),
-                            RealBackend::settle(tool_id, path, &before, reread)?,
-                        );
-                    }
-                }
-                Outcome::Kept if batch.len() == 1 => {
-                    for path in batch_targets {
-                        fixed.insert(path.clone(), text_of(path)?);
-                    }
-                }
-                Outcome::Failed(err) if batch.len() == 1 => return Err(err),
-                Outcome::Kept | Outcome::Failed(_) => {
-                    for (path, file) in batch_targets.iter().zip(&batch) {
-                        session.stage(current, std::slice::from_ref(path))?;
-                        let alone = [*file];
-                        let text = match backend.spawn_fix(
-                            route,
-                            tool_id,
-                            tool,
-                            &alone,
-                            &session.scratch,
-                            &names,
-                        )? {
-                            Outcome::Fixed => {
-                                let reread = RealBackend::reread_fixed(tool_id, file)?;
-                                RealBackend::settle(tool_id, path, &text_of(path)?, reread)?
-                            }
-                            Outcome::Kept => text_of(path)?,
-                            Outcome::Failed(err) => return Err(err),
-                        };
-                        fixed.insert(path.clone(), text);
-                    }
-                }
+        let call = FixCall {
+            backend,
+            route,
+            tool_id,
+            tool,
+        };
+        run_batches(&call, session, current, targets, batches, &names)
+    }
+
+    fn fix_accepted(
+        &mut self,
+        index: usize,
+        stage: &StageSpec,
+        current: &BTreeMap<String, String>,
+        targets: &[String],
+        accepted: &[String],
+    ) -> Result<BTreeMap<String, String>, RunnerError> {
+        let mut fixed = self.fix(index, stage, current, accepted)?;
+        for path in targets {
+            if !fixed.contains_key(path) {
+                fixed.insert(path.clone(), text_of(current, path)?);
             }
         }
         Ok(fixed)
@@ -904,6 +945,42 @@ impl RealBackend {
         })
     }
 
+    fn ansible_fix_invocation(
+        &self,
+        tool_id: &str,
+        tool: &RealTool,
+        refs: &[&Path],
+        scratch: &Scratch,
+    ) -> Result<Invocation, RunnerError> {
+        let config = self.config_abs(tool_id, tool, scratch)?;
+        let roots = super::staging::ansible_collections_roots(
+            tool.tool_files.iter().map(|(rel, _)| rel.as_str()),
+        )
+        .map_err(|detail| execution(tool_id, detail))?;
+        let mut collections = Vec::with_capacity(roots.len());
+        for root in &roots {
+            collections.push(if root.is_empty() {
+                scratch.root().to_path_buf()
+            } else {
+                scratch
+                    .resolve(Path::new(root))
+                    .map_err(|err| execution(tool_id, format!("collections root: {err}")))?
+            });
+        }
+        let collection_refs: Vec<&Path> = collections.iter().map(PathBuf::as_path).collect();
+        let context = commands::AnsibleLintContext {
+            config: config.as_deref(),
+            collections: &collection_refs,
+            project_dir: scratch.root(),
+        };
+        Ok(commands::ansible_lint_fix(
+            &tool.binary,
+            refs,
+            &context,
+            self.unsafe_fixes,
+        ))
+    }
+
     fn fix_invocation(
         &self,
         route: Route,
@@ -938,36 +1015,7 @@ impl RealBackend {
                 commands::scalafix_fix(&tool.binary, refs, &context)
                     .map_err(|err| execution(tool_id, err.to_string()))
             }
-            Route::AnsibleLint => {
-                let config = self.config_abs(tool_id, tool, scratch)?;
-                let roots = super::staging::ansible_collections_roots(
-                    tool.tool_files.iter().map(|(rel, _)| rel.as_str()),
-                )
-                .map_err(|detail| execution(tool_id, detail))?;
-                let mut collections = Vec::with_capacity(roots.len());
-                for root in &roots {
-                    collections.push(if root.is_empty() {
-                        scratch.root().to_path_buf()
-                    } else {
-                        scratch
-                            .resolve(Path::new(root))
-                            .map_err(|err| execution(tool_id, format!("collections root: {err}")))?
-                    });
-                }
-                let collection_refs: Vec<&Path> =
-                    collections.iter().map(PathBuf::as_path).collect();
-                let context = commands::AnsibleLintContext {
-                    config: config.as_deref(),
-                    collections: &collection_refs,
-                    project_dir: scratch.root(),
-                };
-                Ok(commands::ansible_lint_fix(
-                    &tool.binary,
-                    refs,
-                    &context,
-                    self.unsafe_fixes,
-                ))
-            }
+            Route::AnsibleLint => self.ansible_fix_invocation(tool_id, tool, refs, scratch),
             Route::Sqlfluff => {
                 let Some(config) = self.config_abs(tool_id, tool, scratch)? else {
                     return Err(missing_tier_base(tool_id));
@@ -1115,6 +1163,158 @@ impl RealBackend {
         })
     }
 
+    fn optional_fix_invocation(
+        &self,
+        tool_id: &str,
+        tool: &RealTool,
+        refs: &[&Path],
+        scratch: &Scratch,
+        config: Option<&Path>,
+        format: bool,
+    ) -> Result<Invocation, RunnerError> {
+        match tool_id {
+            "taplo" => Ok(commands::taplo_format(&tool.binary, refs, config, false)),
+            "ruff" => {
+                let cwd_rel = Self::cwd_rel(tool_id, tool.config_rel.as_deref());
+                Ok(if format {
+                    commands::ruff_format_fix(&tool.binary, refs, config, &cwd_rel)
+                } else {
+                    commands::ruff_fix(&tool.binary, refs, config, &cwd_rel, self.unsafe_fixes)
+                })
+            }
+            "typos" => Ok(commands::typos_fix(&tool.binary, refs, config)),
+            "scalafmt" => Ok(commands::scalafmt_fix(&tool.binary, refs, config)),
+            "latexindent" => match refs {
+                [file] => Ok(commands::latexindent_fix(
+                    &tool.binary,
+                    file,
+                    &Self::latexindent_cruft(tool_id, scratch)?,
+                    config,
+                )),
+                _ => Err(execution(
+                    tool_id,
+                    "latexindent fixes one file at a time".to_owned(),
+                )),
+            },
+            "gersemi" => match config {
+                Some(config) => Ok(commands::gersemi_fix(&tool.binary, refs, config)),
+                None => Err(execution(tool_id, "gersemi needs a config path".to_owned())),
+            },
+            "ffmt" => Ok(commands::ffmt_fix(
+                &tool.binary,
+                refs,
+                &Self::ffmt_config_dir(tool)?,
+            )),
+            _ => self.optional_fix_more(tool_id, tool, refs, config, format),
+        }
+    }
+
+    fn optional_fix_more(
+        &self,
+        tool_id: &str,
+        tool: &RealTool,
+        refs: &[&Path],
+        config: Option<&Path>,
+        format: bool,
+    ) -> Result<Invocation, RunnerError> {
+        match tool_id {
+            "docstrfmt" => match config {
+                Some(config) => Ok(commands::docstrfmt_fix(&tool.binary, refs, config)),
+                None => Err(execution(
+                    tool_id,
+                    "docstrfmt needs a config path".to_owned(),
+                )),
+            },
+            "mbake" => match config {
+                Some(config) => Ok(commands::mbake_fix(&tool.binary, refs, config)),
+                None => Err(execution(tool_id, "mbake needs a config path".to_owned())),
+            },
+            "stylua" => Ok(commands::stylua_fix(&tool.binary, refs, config)),
+            "yamlfmt" => Ok(commands::yamlfmt_fix(&tool.binary, refs, config)),
+            "djlint" => Ok(commands::djlint_format_fix(&tool.binary, refs, config)),
+            "psscriptanalyzer" => Ok(commands::psscriptanalyzer_format_fix(
+                &tool.binary,
+                refs,
+                config,
+            )),
+            "rubocop" => Ok(if format {
+                commands::rubocop_format_fix(&tool.binary, refs, config)
+            } else {
+                commands::rubocop_lint_fix(&tool.binary, refs, config, self.unsafe_fixes)
+            }),
+            "csharpier" => Ok(commands::csharpier_fix(&tool.binary, refs, config)),
+            "qmlformat" => Ok(commands::qmlformat_fix(&tool.binary, refs, config)),
+            "prettier" => {
+                let launch = ResolvedTool::javascript(tool_id, &tool.binary);
+                Ok(commands::prettier_fix(&launch, refs, config)
+                    .map_err(|err| execution(tool_id, err.to_string()))?)
+            }
+            "remark" => {
+                let launch = ResolvedTool::javascript(tool_id, &tool.binary);
+                Ok(commands::remark_fix(&launch, refs, config)
+                    .map_err(|err| execution(tool_id, err.to_string()))?)
+            }
+            "clang_format" => Ok(commands::clang_format_fix(&tool.binary, refs, config)),
+            _ => Err(execution(
+                tool_id,
+                format!("unsupported real tool: {tool_id}"),
+            )),
+        }
+    }
+
+    fn plain_fix_invocation(
+        tool_id: &str,
+        tool: &RealTool,
+        refs: &[&Path],
+        scratch: &Scratch,
+    ) -> Result<Invocation, RunnerError> {
+        match tool_id {
+            "google_java_format" => Ok(commands::google_java_format_fix(&tool.binary, refs)),
+            "ktfmt" => Ok(commands::ktfmt_fix(&tool.binary, refs)),
+            "fantomas" => Ok(commands::fantomas_fix(&tool.binary, refs)),
+            "bicep" => match refs {
+                [file] => Ok(commands::bicep_format_fix(&tool.binary, file)),
+                _ => Err(execution(
+                    tool_id,
+                    "bicep fixes one file at a time".to_owned(),
+                )),
+            },
+            "buf" => Ok(commands::buf_format_fix(&tool.binary, refs, scratch.root())),
+            "gofumpt" => Ok(commands::gofumpt_fix(
+                &tool.binary,
+                refs,
+                Self::gofumpt_lang(tool)?,
+            )),
+            "cue" => Ok(commands::cue_fix(&tool.binary, refs)),
+            "jsonnetfmt" => Ok(commands::jsonnetfmt_fix(&tool.binary, refs)),
+            "helmfmt" => Ok(commands::helmfmt_fix(&tool.binary, refs)),
+            "nixfmt" => Ok(commands::nixfmt_fix(&tool.binary, refs)),
+            "ormolu" => Ok(commands::ormolu_fix(&tool.binary, refs)),
+            "topiary" => Ok(commands::topiary_fix(&tool.binary, refs)),
+            "typstyle" => Ok(commands::typstyle_fix(&tool.binary, refs)),
+            "opa" => match refs {
+                [file] => Ok(commands::opa_fmt_fix(&tool.binary, file)),
+                _ => Err(execution(
+                    tool_id,
+                    "opa fixes one file at a time".to_owned(),
+                )),
+            },
+            "pkl" => Ok(commands::pkl_fix(&tool.binary, refs)),
+            "dart" => Ok(commands::dart_format_fix(&tool.binary, refs)),
+            "julia_format" => Ok(commands::julia_format_fix(&tool.binary, refs)),
+            "zig_fmt" => Ok(commands::zig_fmt_fix(&tool.binary, refs)),
+            "modfmt" => Ok(commands::modfmt_fix(&tool.binary, refs)),
+            "terraform" => Ok(commands::terraform_fix(&tool.binary, refs)),
+            "shfmt" => Ok(commands::shfmt_fix(&tool.binary, refs)),
+            "keep_sorted" => Ok(commands::keep_sorted_fix(&tool.binary, refs)),
+            "deadnix" => Ok(commands::deadnix_fix(&tool.binary, refs)),
+            _ => Err(execution(
+                tool_id,
+                format!("unsupported real tool: {tool_id}"),
+            )),
+        }
+    }
+
     fn build_fix_invocation(
         &self,
         spec: &FixSpec,
@@ -1160,168 +1360,16 @@ impl RealBackend {
             }
             FixConfig::Optional => {
                 let config = self.config_abs(tool_id, tool, scratch)?;
-                match tool_id {
-                    "taplo" => Ok(commands::taplo_format(
-                        &tool.binary,
-                        refs,
-                        config.as_deref(),
-                        false,
-                    )),
-                    "ruff" => {
-                        let cwd_rel = Self::cwd_rel(tool_id, tool.config_rel.as_deref());
-                        Ok(if format {
-                            commands::ruff_format_fix(
-                                &tool.binary,
-                                refs,
-                                config.as_deref(),
-                                &cwd_rel,
-                            )
-                        } else {
-                            commands::ruff_fix(
-                                &tool.binary,
-                                refs,
-                                config.as_deref(),
-                                &cwd_rel,
-                                self.unsafe_fixes,
-                            )
-                        })
-                    }
-                    "typos" => Ok(commands::typos_fix(&tool.binary, refs, config.as_deref())),
-                    "scalafmt" => Ok(commands::scalafmt_fix(
-                        &tool.binary,
-                        refs,
-                        config.as_deref(),
-                    )),
-                    "latexindent" => match refs {
-                        [file] => Ok(commands::latexindent_fix(
-                            &tool.binary,
-                            file,
-                            &Self::latexindent_cruft(tool_id, scratch)?,
-                            config.as_deref(),
-                        )),
-                        _ => Err(execution(
-                            tool_id,
-                            "latexindent fixes one file at a time".to_owned(),
-                        )),
-                    },
-                    "gersemi" => match config.as_deref() {
-                        Some(config) => Ok(commands::gersemi_fix(&tool.binary, refs, config)),
-                        None => Err(execution(tool_id, "gersemi needs a config path".to_owned())),
-                    },
-                    "ffmt" => Ok(commands::ffmt_fix(
-                        &tool.binary,
-                        refs,
-                        &Self::ffmt_config_dir(tool)?,
-                    )),
-                    "docstrfmt" => match config.as_deref() {
-                        Some(config) => Ok(commands::docstrfmt_fix(&tool.binary, refs, config)),
-                        None => Err(execution(
-                            tool_id,
-                            "docstrfmt needs a config path".to_owned(),
-                        )),
-                    },
-                    "mbake" => match config.as_deref() {
-                        Some(config) => Ok(commands::mbake_fix(&tool.binary, refs, config)),
-                        None => Err(execution(tool_id, "mbake needs a config path".to_owned())),
-                    },
-                    "stylua" => Ok(commands::stylua_fix(&tool.binary, refs, config.as_deref())),
-                    "yamlfmt" => Ok(commands::yamlfmt_fix(&tool.binary, refs, config.as_deref())),
-                    "djlint" => Ok(commands::djlint_format_fix(
-                        &tool.binary,
-                        refs,
-                        config.as_deref(),
-                    )),
-                    "psscriptanalyzer" => Ok(commands::psscriptanalyzer_format_fix(
-                        &tool.binary,
-                        refs,
-                        config.as_deref(),
-                    )),
-                    "rubocop" => Ok(if format {
-                        commands::rubocop_format_fix(&tool.binary, refs, config.as_deref())
-                    } else {
-                        commands::rubocop_lint_fix(
-                            &tool.binary,
-                            refs,
-                            config.as_deref(),
-                            self.unsafe_fixes,
-                        )
-                    }),
-                    "csharpier" => Ok(commands::csharpier_fix(
-                        &tool.binary,
-                        refs,
-                        config.as_deref(),
-                    )),
-                    "qmlformat" => Ok(commands::qmlformat_fix(
-                        &tool.binary,
-                        refs,
-                        config.as_deref(),
-                    )),
-                    "prettier" => {
-                        let launch = ResolvedTool::javascript(tool_id, &tool.binary);
-                        Ok(commands::prettier_fix(&launch, refs, config.as_deref())
-                            .map_err(|err| execution(tool_id, err.to_string()))?)
-                    }
-                    "remark" => {
-                        let launch = ResolvedTool::javascript(tool_id, &tool.binary);
-                        Ok(commands::remark_fix(&launch, refs, config.as_deref())
-                            .map_err(|err| execution(tool_id, err.to_string()))?)
-                    }
-                    "clang_format" => Ok(commands::clang_format_fix(
-                        &tool.binary,
-                        refs,
-                        config.as_deref(),
-                    )),
-                    _ => Err(execution(
-                        tool_id,
-                        format!("unsupported real tool: {tool_id}"),
-                    )),
-                }
-            }
-            FixConfig::None => match tool_id {
-                "google_java_format" => Ok(commands::google_java_format_fix(&tool.binary, refs)),
-                "ktfmt" => Ok(commands::ktfmt_fix(&tool.binary, refs)),
-                "fantomas" => Ok(commands::fantomas_fix(&tool.binary, refs)),
-                "bicep" => match refs {
-                    [file] => Ok(commands::bicep_format_fix(&tool.binary, file)),
-                    _ => Err(execution(
-                        tool_id,
-                        "bicep fixes one file at a time".to_owned(),
-                    )),
-                },
-                "buf" => Ok(commands::buf_format_fix(&tool.binary, refs, scratch.root())),
-                "gofumpt" => Ok(commands::gofumpt_fix(
-                    &tool.binary,
-                    refs,
-                    Self::gofumpt_lang(tool)?,
-                )),
-                "cue" => Ok(commands::cue_fix(&tool.binary, refs)),
-                "jsonnetfmt" => Ok(commands::jsonnetfmt_fix(&tool.binary, refs)),
-                "helmfmt" => Ok(commands::helmfmt_fix(&tool.binary, refs)),
-                "nixfmt" => Ok(commands::nixfmt_fix(&tool.binary, refs)),
-                "ormolu" => Ok(commands::ormolu_fix(&tool.binary, refs)),
-                "topiary" => Ok(commands::topiary_fix(&tool.binary, refs)),
-                "typstyle" => Ok(commands::typstyle_fix(&tool.binary, refs)),
-                "opa" => match refs {
-                    [file] => Ok(commands::opa_fmt_fix(&tool.binary, file)),
-                    _ => Err(execution(
-                        tool_id,
-                        "opa fixes one file at a time".to_owned(),
-                    )),
-                },
-                "pkl" => Ok(commands::pkl_fix(&tool.binary, refs)),
-                "dart" => Ok(commands::dart_format_fix(&tool.binary, refs)),
-                "julia_format" => Ok(commands::julia_format_fix(&tool.binary, refs)),
-                "zig_fmt" => Ok(commands::zig_fmt_fix(&tool.binary, refs)),
-                "modfmt" => Ok(commands::modfmt_fix(&tool.binary, refs)),
-                "terraform" => Ok(commands::terraform_fix(&tool.binary, refs)),
-                "shfmt" => Ok(commands::shfmt_fix(&tool.binary, refs)),
-                "keep_sorted" => Ok(commands::keep_sorted_fix(&tool.binary, refs)),
-                "deadnix" => Ok(commands::deadnix_fix(&tool.binary, refs)),
-                _ => Err(execution(
+                self.optional_fix_invocation(
                     tool_id,
-                    format!("unsupported real tool: {tool_id}"),
-                )),
-            },
+                    tool,
+                    refs,
+                    scratch,
+                    config.as_deref(),
+                    format,
+                )
+            }
+            FixConfig::None => Self::plain_fix_invocation(tool_id, tool, refs, scratch),
         }
     }
 }

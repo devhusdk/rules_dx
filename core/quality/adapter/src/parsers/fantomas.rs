@@ -41,6 +41,94 @@ struct FantomasRange {
     start_column: u64,
 }
 
+fn file_findings(
+    entry: &FantomasFile,
+    files: &[&str],
+    root: &Path,
+    findings: &mut Vec<FileFinding>,
+    failed: &mut bool,
+) -> Result<(), ParseError> {
+    const TOOL: &str = "fantomas";
+    let named = entry.path.strip_prefix("./").unwrap_or(&entry.path);
+    let relative = Path::new(named)
+        .strip_prefix(root)
+        .map_or_else(|_| named.to_owned(), dx_path::posix);
+    let normalized = relative.as_str();
+    match entry.status.as_str() {
+        "unchanged" | "formatted" => {
+            known(TOOL, files, normalized)?;
+        }
+        "needs-formatting" => {
+            let checked = known(TOOL, files, normalized)?;
+            findings.push(unformatted_at(TOOL, checked, 1, 1, ColumnEncoding::Scalars));
+        }
+        "error" => {
+            let checked = known(TOOL, files, normalized)?;
+            *failed = true;
+            if entry.diagnostics.is_empty() {
+                findings.push(finding(
+                    TOOL,
+                    checked,
+                    "syntax".to_owned(),
+                    entry.message.clone(),
+                    ToolSeverity::Error,
+                    TextPosition { line: 1, column: 1 },
+                    ColumnEncoding::Scalars,
+                ));
+            }
+            for diagnostic in &entry.diagnostics {
+                findings.push(finding(
+                    TOOL,
+                    checked,
+                    diagnostic.code.clone(),
+                    diagnostic.message.clone(),
+                    ToolSeverity::Error,
+                    TextPosition {
+                        line: diagnostic.range.start_line,
+                        column: diagnostic.range.start_column,
+                    },
+                    ColumnEncoding::Scalars,
+                ));
+            }
+        }
+        other => {
+            return Err(ParseError::Shape {
+                tool: TOOL,
+                detail: format!("unknown file status: {other}"),
+            });
+        }
+    }
+    Ok(())
+}
+
+fn check_exit(code: Option<i32>, failed: bool, no_findings: bool) -> Result<(), ParseError> {
+    const TOOL: &str = "fantomas";
+    if failed {
+        if code != Some(1) {
+            return Err(ParseError::Shape {
+                tool: TOOL,
+                detail: format!("unparsable files with exit {} (want 1)", code_name(code)),
+            });
+        }
+    } else if no_findings {
+        if code != Some(0) {
+            return Err(ParseError::Shape {
+                tool: TOOL,
+                detail: format!("exit {} with no needs-formatting files", code_name(code)),
+            });
+        }
+    } else if code != Some(99) {
+        return Err(ParseError::Shape {
+            tool: TOOL,
+            detail: format!(
+                "needs-formatting files with exit {} (want 99)",
+                code_name(code)
+            ),
+        });
+    }
+    Ok(())
+}
+
 /// # Errors
 ///
 /// Returns [`ParseError`] when the tool output cannot be parsed.
@@ -78,79 +166,9 @@ pub fn parse_fantomas(
     let mut findings = Vec::new();
     let mut failed = false;
     for entry in &report.files {
-        let named = entry.path.strip_prefix("./").unwrap_or(&entry.path);
-        let relative = Path::new(named)
-            .strip_prefix(root)
-            .map_or_else(|_| named.to_owned(), dx_path::posix);
-        let normalized = relative.as_str();
-        match entry.status.as_str() {
-            "unchanged" | "formatted" => {
-                known(TOOL, files, normalized)?;
-            }
-            "needs-formatting" => {
-                let checked = known(TOOL, files, normalized)?;
-                findings.push(unformatted_at(TOOL, checked, 1, 1, ColumnEncoding::Scalars));
-            }
-            "error" => {
-                let checked = known(TOOL, files, normalized)?;
-                failed = true;
-                if entry.diagnostics.is_empty() {
-                    findings.push(finding(
-                        TOOL,
-                        checked,
-                        "syntax".to_owned(),
-                        entry.message.clone(),
-                        ToolSeverity::Error,
-                        TextPosition { line: 1, column: 1 },
-                        ColumnEncoding::Scalars,
-                    ));
-                }
-                for diagnostic in &entry.diagnostics {
-                    findings.push(finding(
-                        TOOL,
-                        checked,
-                        diagnostic.code.clone(),
-                        diagnostic.message.clone(),
-                        ToolSeverity::Error,
-                        TextPosition {
-                            line: diagnostic.range.start_line,
-                            column: diagnostic.range.start_column,
-                        },
-                        ColumnEncoding::Scalars,
-                    ));
-                }
-            }
-            other => {
-                return Err(ParseError::Shape {
-                    tool: TOOL,
-                    detail: format!("unknown file status: {other}"),
-                });
-            }
-        }
+        file_findings(entry, files, root, &mut findings, &mut failed)?;
     }
-    if failed {
-        if code != Some(1) {
-            return Err(ParseError::Shape {
-                tool: TOOL,
-                detail: format!("unparsable files with exit {} (want 1)", code_name(code)),
-            });
-        }
-    } else if findings.is_empty() {
-        if code != Some(0) {
-            return Err(ParseError::Shape {
-                tool: TOOL,
-                detail: format!("exit {} with no needs-formatting files", code_name(code)),
-            });
-        }
-    } else if code != Some(99) {
-        return Err(ParseError::Shape {
-            tool: TOOL,
-            detail: format!(
-                "needs-formatting files with exit {} (want 99)",
-                code_name(code)
-            ),
-        });
-    }
+    check_exit(code, failed, findings.is_empty())?;
     Ok(findings)
 }
 

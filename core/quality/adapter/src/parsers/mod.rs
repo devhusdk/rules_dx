@@ -728,6 +728,77 @@ impl DiffExit {
     }
 }
 
+fn rubocop_offense(
+    tool: &'static str,
+    checked: &str,
+    off: &serde_json::Value,
+) -> Result<FileFinding, ParseError> {
+    let line = off
+        .get("location")
+        .and_then(|l| l.get("line"))
+        .and_then(serde_json::Value::as_u64)
+        .ok_or_else(|| ParseError::Shape {
+            tool,
+            detail: "missing line".to_owned(),
+        })?;
+    let col = off
+        .get("location")
+        .and_then(|l| l.get("column"))
+        .and_then(serde_json::Value::as_u64)
+        .ok_or_else(|| ParseError::Shape {
+            tool,
+            detail: "missing column".to_owned(),
+        })?;
+    let message = off
+        .get("message")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_owned();
+    if message.is_empty() {
+        return Err(ParseError::Shape {
+            tool,
+            detail: "missing message".to_owned(),
+        });
+    }
+    let rule = off
+        .get("cop_name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_owned();
+    let severity = match off.get("severity").and_then(|v| v.as_str()) {
+        Some("error" | "fatal") => ToolSeverity::Error,
+        Some("warning" | "convention" | "refactor") => ToolSeverity::Warning,
+        Some("info") => ToolSeverity::Info,
+        other => {
+            return Err(ParseError::Shape {
+                tool,
+                detail: format!("unknown severity {other:?}"),
+            });
+        }
+    };
+    if line == 0 || col == 0 {
+        return Err(ParseError::Shape {
+            tool,
+            detail: "positions must be nonzero".to_owned(),
+        });
+    }
+    let (start, end) = point(line, col);
+    Ok(FileFinding {
+        file: checked.to_owned(),
+        finding: Finding {
+            tool_id: tool.to_owned(),
+            rule_id: rule,
+            message,
+            severity,
+            start,
+            end,
+            suggestions: Vec::new(),
+            encoding: ColumnEncoding::Scalars,
+            related: Vec::new(),
+        },
+    })
+}
+
 /// Report the offenses in the `RuboCop` JSON grammar, used by `rubocop`.
 pub(super) fn rubocop_json(
     tool: &'static str,
@@ -790,70 +861,7 @@ pub(super) fn rubocop_json(
                 detail: "missing offenses".to_owned(),
             })?;
         for off in offenses {
-            let line = off
-                .get("location")
-                .and_then(|l| l.get("line"))
-                .and_then(serde_json::Value::as_u64)
-                .ok_or_else(|| ParseError::Shape {
-                    tool,
-                    detail: "missing line".to_owned(),
-                })?;
-            let col = off
-                .get("location")
-                .and_then(|l| l.get("column"))
-                .and_then(serde_json::Value::as_u64)
-                .ok_or_else(|| ParseError::Shape {
-                    tool,
-                    detail: "missing column".to_owned(),
-                })?;
-            let message = off
-                .get("message")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_owned();
-            if message.is_empty() {
-                return Err(ParseError::Shape {
-                    tool,
-                    detail: "missing message".to_owned(),
-                });
-            }
-            let rule = off
-                .get("cop_name")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_owned();
-            let severity = match off.get("severity").and_then(|v| v.as_str()) {
-                Some("error" | "fatal") => ToolSeverity::Error,
-                Some("warning" | "convention" | "refactor") => ToolSeverity::Warning,
-                Some("info") => ToolSeverity::Info,
-                other => {
-                    return Err(ParseError::Shape {
-                        tool,
-                        detail: format!("unknown severity {other:?}"),
-                    });
-                }
-            };
-            if line == 0 || col == 0 {
-                return Err(ParseError::Shape {
-                    tool,
-                    detail: "positions must be nonzero".to_owned(),
-                });
-            }
-            let (start, end) = point(line, col);
-            findings.push(FileFinding {
-                file: checked.to_owned(),
-                finding: Finding {
-                    tool_id: tool.to_owned(),
-                    rule_id: rule,
-                    message,
-                    severity,
-                    start,
-                    end,
-                    suggestions: Vec::new(),
-                    encoding: ColumnEncoding::Scalars,
-                    related: Vec::new(),
-                },
-            });
+            findings.push(rubocop_offense(tool, checked, off)?);
         }
     }
     if findings.is_empty() && code != Some(0) {

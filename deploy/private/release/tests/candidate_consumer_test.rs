@@ -276,9 +276,9 @@ fn assert_swift_consumer(case: &Case) {
     let extension = case.bazel(&[
         "mod",
         "show_extension",
-        "@my_dx//swift:extensions.bzl%swift_linux",
+        "@my_dx//swift:extensions.bzl%swift",
     ]);
-    ok(&extension, "mod show_extension swift_linux");
+    ok(&extension, "mod show_extension swift");
     assert!(
         extension.stdout.contains("dx_swift_linux_x86_64"),
         "{}",

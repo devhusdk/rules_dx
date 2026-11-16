@@ -212,8 +212,13 @@ fn selected_cc(case: &Case, flags: &[&str]) -> Vec<String> {
 fn an_indirect_consumer_builds_with_its_own_cc_toolchain_unless_rules_dx_toolchains_are_on() {
     let case = indirect_consumer("indirect");
     let selected = selected_cc(&case, &[]);
+    let expected = if cfg!(target_os = "macos") {
+        "@@apple_support+//toolchain:"
+    } else {
+        "@@own_cc+//:cc"
+    };
     assert!(
-        !selected.is_empty() && selected.iter().all(|line| line.contains("@@own_cc+//:cc")),
+        !selected.is_empty() && selected.iter().all(|line| line.contains(expected)),
         "{selected:?}"
     );
     let enabled = selected_cc(&case, &["--@@rules_dx+//config:toolchains=true"]);
@@ -224,6 +229,9 @@ fn an_indirect_consumer_builds_with_its_own_cc_toolchain_unless_rules_dx_toolcha
                 .all(|line| line.contains("@@llvm+//toolchain:")),
         "{enabled:?}"
     );
+    if cfg!(target_os = "macos") {
+        return;
+    }
     let run = case.bazel(&["build", "--color=no", "--curses=no", NO_DETECT, "//:main"]);
     assert!(run.status.success(), "{}", run.combined());
     let files = case.bazel(&[

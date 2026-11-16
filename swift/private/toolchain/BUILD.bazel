@@ -126,6 +126,7 @@ filegroup(
     name = "module_srcs",
     srcs = glob([
         "*.bzl",
+        "*.lock.json",
         "BUILD.bazel",
     ]) + [
         "extract_windows.ps1",

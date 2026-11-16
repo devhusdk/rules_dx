@@ -67,6 +67,15 @@ class RenderTest(unittest.TestCase):
         with self.assertRaises(SystemExit):
             render.render(module, readme)
 
+    def test_unpatched_dep_row(self):
+        module = MODULE + 'bazel_dep(name = "bar", version = "3.1")\n'
+        readme = README + "| `bar` | 1.0 | none | Root only. Newer |\n"
+        self.assertIn("| `bar` | 3.1 | none | Root only. Newer |", render.render(module, readme))
+
+    def test_unpatched_row_without_dep(self):
+        with self.assertRaises(SystemExit):
+            render.render(MODULE, README + "| `bar` | 1.0 | none | Root only. Newer |\n")
+
 
 if __name__ == "__main__":
     unittest.main()

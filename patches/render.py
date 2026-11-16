@@ -28,12 +28,15 @@ def overrides(module_text):
 def render(module_text, readme_text):
     """Returns the README with each table row's Version set from MODULE.bazel."""
     known = overrides(module_text)
+    deps = dict(_DEP.findall(module_text))
     listed = {}
     out = []
     for line in readme_text.split("\n"):
         cells = line.split(" | ", 3)
         if len(cells) == 4 and cells[0].startswith("| `") and not cells[0].startswith("| `---"):
             module = cells[0][3:].split("`", 1)[0]
+            if module not in known and cells[2].strip() == "none" and module in deps:
+                known[module] = (deps[module], [])
             if module not in known:
                 raise SystemExit("patches/README.md: %s has no override in MODULE.bazel" % module)
             if not (cells[3].startswith("Root only.") or re.search(r"Consumer fix: #\d+ \|?$", cells[3])):

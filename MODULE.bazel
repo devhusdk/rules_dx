@@ -205,9 +205,11 @@ single_version_override(
 )
 
 # floor: equals tested; kcov links libdw and libelf (#7327)
+# needed: @kcov (dx_pins extension) loads @elfutils
 bazel_dep(name = "elfutils", version = "0.195")
 
 # floor: equals tested; elfutils needs 1.3.2 (#7327)
+# needed: @kcov (dx_pins extension) loads @zlib
 bazel_dep(name = "zlib", version = "1.3.2.bcr.3")
 
 # floor: equals tested
@@ -1591,6 +1593,7 @@ pub_tools.from_lock(
 use_repo(pub_tools, "dart_apitool_deps", "dx_dart_bench_deps")
 
 # floor: equals tested
+# needed: @rules_julia (rules_julia extension) loads @toml.bzl
 bazel_dep(name = "toml.bzl", version = "0.5.0")
 
 rules_julia = use_extension("//julia/private/toolchain:extensions.bzl", "rules_julia")

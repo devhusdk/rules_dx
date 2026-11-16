@@ -269,11 +269,6 @@ jobs:
             bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors "$@" //tools/testing:nested_bazel_harness_test
             bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "$@" --//cc:compiler=msvc //deploy/private:pypi_native_msvc_verify
           fi
-      - uses: ./.github/actions/hermetic-evidence
-        if: always()
-        with:
-          platform: ${{ matrix.platform }}
-          manifest-from: evidence
   determinism:
     name: determinism (two cold builds, exec logs compared)
     timeout-minutes: 60

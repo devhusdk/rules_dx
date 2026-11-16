@@ -13,6 +13,7 @@ single_version_override(
 
 README = "text\n\n| Module | Version | Patches | Why |\n| --- | --- | --- | --- |\n| `foo` | 1.0 | `a.patch` | Root only. Because |\n"
 
+
 class RenderTest(unittest.TestCase):
     def test_sets_version(self):
         self.assertIn("| `foo` | 2.0 | `a.patch` | Root only. Because |", render.render(MODULE, README))
@@ -74,6 +75,7 @@ class RenderTest(unittest.TestCase):
     def test_unpatched_row_without_dep(self):
         with self.assertRaises(SystemExit):
             render.render(MODULE, README + "| `bar` | 1.0 | none | Root only. Newer |\n")
+
 
 if __name__ == "__main__":
     unittest.main()

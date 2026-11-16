@@ -56,6 +56,23 @@ fn candidates_agree(workspace: &Path, path: &str, changes: &[(usize, &FileChange
     })
 }
 
+fn retag_terminals(
+    producers: &mut [Producer],
+    retag: &BTreeSet<(usize, String)>,
+    out: &mut Reconciled,
+) {
+    for (index, producer) in producers.iter_mut().enumerate() {
+        for mut finding in std::mem::take(&mut producer.terminal) {
+            if let Some(path) = &finding.path
+                && retag.contains(&(index, path.clone()))
+            {
+                finding.snapshot = Snapshot::Initial;
+            }
+            out.terminal.push(finding);
+        }
+    }
+}
+
 /// Merges per-producer results, rejecting paths whose producers disagree.
 ///
 /// A producer that has no change for a path, saw the same original bytes the
@@ -158,16 +175,7 @@ pub(crate) fn reconcile(workspace: &Path, mut producers: Vec<Producer>) -> Recon
             out.digests.insert(path, digest);
         }
     }
-    for (index, producer) in producers.iter_mut().enumerate() {
-        for mut finding in std::mem::take(&mut producer.terminal) {
-            if let Some(path) = &finding.path
-                && retag.contains(&(index, path.clone()))
-            {
-                finding.snapshot = Snapshot::Initial;
-            }
-            out.terminal.push(finding);
-        }
-    }
+    retag_terminals(&mut producers, &retag, &mut out);
     out
 }
 

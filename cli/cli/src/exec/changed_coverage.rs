@@ -90,6 +90,55 @@ struct Verdict {
     lines: Vec<String>,
 }
 
+fn outcome_report(
+    result: dx_lcov::ChangedResult,
+    changed: &dx_lcov::ChangedAccount,
+    minimum: u32,
+    merge_base: &str,
+) -> (Option<(&'static str, String)>, Vec<String>) {
+    let against = format!("against merge-base {merge_base}");
+    let (covered, eligible) = (changed.covered_lines, changed.eligible_lines);
+    match result {
+        dx_lcov::ChangedResult::Pass => (
+            None,
+            vec![format!(
+                "changed-line coverage {} meets minimum {minimum}% {against}",
+                percent(covered, eligible)
+            )],
+        ),
+        dx_lcov::ChangedResult::NotApplicable => (
+            None,
+            vec![format!(
+                "changed-line coverage not applicable: no changed executable lines {against}"
+            )],
+        ),
+        dx_lcov::ChangedResult::Fail => (
+            Some((
+                CODE_CHANGED_LINE_BELOW_MINIMUM,
+                format!(
+                    "changed-line coverage {} below minimum {minimum}% {against}",
+                    percent(covered, eligible)
+                ),
+            )),
+            changed
+                .uncovered
+                .iter()
+                .map(|line| format!("changed_line_uncovered: {}:{}", line.path, line.line))
+                .collect(),
+        ),
+        dx_lcov::ChangedResult::Incomplete => (
+            Some((
+                CODE_CHANGED_LINE_INCOMPLETE,
+                format!(
+                    "changed sources absent from the coverage report {against}: {}",
+                    changed.uninstrumented.join(", ")
+                ),
+            )),
+            Vec::new(),
+        ),
+    }
+}
+
 fn verdict(gate: &ChangedGate<'_>, minimum: u32) -> Verdict {
     let mut event = ChangedLineCoverageEvent {
         base: String::new(),
@@ -149,47 +198,7 @@ fn verdict(gate: &ChangedGate<'_>, minimum: u32) -> Verdict {
         .map(|line| (line.path.clone(), line.line))
         .collect();
     event.uninstrumented.clone_from(&changed.uninstrumented);
-    let against = format!("against merge-base {merge_base}");
-    let (covered, eligible) = (changed.covered_lines, changed.eligible_lines);
-    let (error, lines) = match result {
-        dx_lcov::ChangedResult::Pass => (
-            None,
-            vec![format!(
-                "changed-line coverage {} meets minimum {minimum}% {against}",
-                percent(covered, eligible)
-            )],
-        ),
-        dx_lcov::ChangedResult::NotApplicable => (
-            None,
-            vec![format!(
-                "changed-line coverage not applicable: no changed executable lines {against}"
-            )],
-        ),
-        dx_lcov::ChangedResult::Fail => (
-            Some((
-                CODE_CHANGED_LINE_BELOW_MINIMUM,
-                format!(
-                    "changed-line coverage {} below minimum {minimum}% {against}",
-                    percent(covered, eligible)
-                ),
-            )),
-            changed
-                .uncovered
-                .iter()
-                .map(|line| format!("changed_line_uncovered: {}:{}", line.path, line.line))
-                .collect(),
-        ),
-        dx_lcov::ChangedResult::Incomplete => (
-            Some((
-                CODE_CHANGED_LINE_INCOMPLETE,
-                format!(
-                    "changed sources absent from the coverage report {against}: {}",
-                    changed.uninstrumented.join(", ")
-                ),
-            )),
-            Vec::new(),
-        ),
-    };
+    let (error, lines) = outcome_report(result, &changed, minimum, &merge_base);
     Verdict {
         event,
         error,

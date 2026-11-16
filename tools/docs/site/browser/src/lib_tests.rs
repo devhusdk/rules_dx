@@ -88,7 +88,7 @@ fn the_acquired_firefox_layout_names_the_browser_binary() {
 
 #[test]
 fn a_missing_browser_tree_is_reported_as_empty() {
-    let root = std::path::PathBuf::from("/nonexistent-dx-firefox-tree");
+    let root = PathBuf::from("/nonexistent-dx-firefox-tree");
     assert_eq!(firefox_executable(&root), "");
 }
 

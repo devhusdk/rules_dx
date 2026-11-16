@@ -46,10 +46,19 @@ fn converts_modules_functions_and_methods() {
     assert_eq!(add.params[0].name, "a");
     assert_eq!(add.returns.as_ref().unwrap().r#type, "number");
     assert_eq!(add.examples, vec!["add(1, 2)".to_owned()]);
-    assert_eq!(add.relations.as_ref().unwrap().member_of, vec!["lua:geo:geo"]);
+    assert_eq!(
+        add.relations.as_ref().unwrap().member_of,
+        vec!["lua:geo:geo"]
+    );
     assert_eq!(symbol(&shard, "geo.sub").display_name, "sub");
-    assert_eq!(symbol(&shard, "geo.Shape~3Aarea").kind, SymbolKind::Method as i32);
-    assert_eq!(symbol(&shard, "geo.defaults").kind, SymbolKind::Variable as i32);
+    assert_eq!(
+        symbol(&shard, "geo.Shape~3Aarea").kind,
+        SymbolKind::Method as i32
+    );
+    assert_eq!(
+        symbol(&shard, "geo.defaults").kind,
+        SymbolKind::Variable as i32
+    );
 }
 
 #[test]
@@ -67,7 +76,11 @@ fn rejects_unknown_formats_and_kinds() {
     let wrong = document(vec![]).replace("\"format\":1", "\"format\":2");
     assert!(convert(&wrong, "geo").unwrap_err().contains("format 2"));
     let odd = document(vec![item("spaceship", "x")]);
-    assert!(convert(&odd, "geo").unwrap_err().contains("unknown item type"));
+    assert!(
+        convert(&odd, "geo")
+            .unwrap_err()
+            .contains("unknown item type")
+    );
     assert!(convert("[]", "geo").is_err());
     assert!(convert(&document(vec![]), "bad package").is_err());
 }

@@ -60,6 +60,10 @@ pub struct Flags {
 }
 
 /// Reads `--flag VALUE` pairs; rejects unknown flags, missing values and empty values.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn flags(args: &[String], known: &[&str]) -> Result<Flags, String> {
     let mut pairs = Vec::new();
     let mut index = 0;
@@ -84,12 +88,20 @@ pub fn flags(args: &[String], known: &[&str]) -> Result<Flags, String> {
 
 impl Flags {
     /// The value of a flag that must appear exactly once.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn one(&mut self, flag: &str) -> Result<String, String> {
         self.optional(flag)?
             .ok_or_else(|| format!("{flag} is required"))
     }
 
     /// The value of a flag that may appear at most once.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn optional(&mut self, flag: &str) -> Result<Option<String>, String> {
         let mut values = self.many(flag);
         if values.len() > 1 {
@@ -109,6 +121,10 @@ impl Flags {
 }
 
 /// Encodes and writes one shard.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn write_shard(out: &str, shard: &DocIr) -> Result<(), String> {
     let bytes =
         crate::encode_shard(shard).map_err(|error| format!("cannot encode IR: {error:?}"))?;

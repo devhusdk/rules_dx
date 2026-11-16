@@ -9,10 +9,7 @@ const CONTENT: &str = r##"<div class="odoc-spec"><div class="spec type anchored"
 
 fn pages() -> Vec<(String, String)> {
     vec![
-        (
-            "geo/Shapes".to_owned(),
-            page("<p>Shapes doc.</p>", CONTENT),
-        ),
+        ("geo/Shapes".to_owned(), page("<p>Shapes doc.</p>", CONTENT)),
         (
             "geo/Shapes/Sub".to_owned(),
             page(
@@ -82,12 +79,20 @@ fn colliding_names_stay_unique_and_undocumented_items_are_incomplete() {
 
 #[test]
 fn rejects_bad_input() {
-    assert!(convert(&pages(), "a b", "").unwrap_err().contains("invalid package"));
+    assert!(
+        convert(&pages(), "a b", "")
+            .unwrap_err()
+            .contains("invalid package")
+    );
     assert!(convert(&[], "geo", "").unwrap_err().contains("no public"));
     let bad = vec![("geo/M".to_owned(), "{".to_owned())];
     assert!(convert(&bad, "geo", "").unwrap_err().contains("malformed"));
     let flat = vec![("M".to_owned(), page("", ""))];
-    assert!(convert(&flat, "geo", "").unwrap_err().contains("package directory"));
+    assert!(
+        convert(&flat, "geo", "")
+            .unwrap_err()
+            .contains("package directory")
+    );
 }
 
 #[test]
@@ -100,7 +105,7 @@ fn html_reader_decodes_and_renders() {
 
 #[test]
 fn parse_args_reads_every_flag_and_requires_html() {
-    let args = |list: &[&str]| list.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+    let args = |list: &[&str]| list.iter().map(ToString::to_string).collect::<Vec<_>>();
     let ok = parse_args(&args(&["--html", "a", "--package", "p", "--out", "o"])).unwrap();
     assert_eq!(ok.package, "p");
     assert_eq!(
@@ -108,9 +113,18 @@ fn parse_args_reads_every_flag_and_requires_html() {
         "--html is required"
     );
     assert_eq!(
-        parse_args(&args(&["--html", "a", "--html", "b", "--package", "p", "--out", "o"]))
-            .unwrap()
-            .html,
+        parse_args(&args(&[
+            "--html",
+            "a",
+            "--html",
+            "b",
+            "--package",
+            "p",
+            "--out",
+            "o"
+        ]))
+        .unwrap()
+        .html,
         vec!["a".to_owned(), "b".to_owned()]
     );
 }
@@ -118,20 +132,37 @@ fn parse_args_reads_every_flag_and_requires_html() {
 #[test]
 fn config_is_recorded_on_every_symbol() {
     let shard = convert(&pages(), "geo", "odoc=3.2.2").unwrap();
-    assert!(!shard.symbols.is_empty());
+    assert_ne!(shard.symbols, [] as [Symbol; 0]);
     for symbol in &shard.symbols {
-        let found = symbol.extensions.iter().find(|e| e.key == KEY_CONFIG).unwrap();
+        let found = symbol
+            .extensions
+            .iter()
+            .find(|e| e.key == KEY_CONFIG)
+            .unwrap();
         assert_eq!(found.value, b"odoc=3.2.2");
     }
     let bare = convert(&pages(), "geo", "").unwrap();
-    assert!(bare.symbols.iter().all(|s| s.extensions.iter().all(|e| e.key != KEY_CONFIG)));
+    assert!(
+        bare.symbols
+            .iter()
+            .all(|s| s.extensions.iter().all(|e| e.key != KEY_CONFIG))
+    );
 }
 
 #[test]
 fn parses_config_flag() {
-    let args: Vec<String> = ["--html", "h", "--package", "p", "--config", "c", "--out", "o"]
-        .iter()
-        .map(|a| a.to_string())
-        .collect();
+    let args: Vec<String> = [
+        "--html",
+        "h",
+        "--package",
+        "p",
+        "--config",
+        "c",
+        "--out",
+        "o",
+    ]
+    .iter()
+    .map(ToString::to_string)
+    .collect();
     assert_eq!(parse_args(&args).unwrap().config, "c");
 }

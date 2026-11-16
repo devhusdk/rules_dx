@@ -85,7 +85,7 @@ pub struct Function {
     pub params: Vec<Parameter>,
 }
 
-/// The CmdletBinding attribute of one function.
+/// The `CmdletBinding` attribute of one function.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct CmdletBinding {

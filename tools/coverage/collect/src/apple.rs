@@ -12,6 +12,7 @@ pub fn covered_objects(list: &str) -> Vec<PathBuf> {
         .collect()
 }
 
+#[must_use]
 pub fn llvm_arch(machine: &str) -> &'static str {
     if machine == "aarch64" {
         "arm64"
@@ -20,6 +21,7 @@ pub fn llvm_arch(machine: &str) -> &'static str {
     }
 }
 
+#[must_use]
 pub fn apple_export_args(
     profdata: &Path,
     root: &Path,
@@ -35,13 +37,12 @@ pub fn apple_export_args(
     args
 }
 
+#[must_use]
 pub fn exit_code(test_exit: i32, export_ok: bool) -> i32 {
     if test_exit != 0 {
         test_exit
-    } else if export_ok {
-        0
     } else {
-        1
+        i32::from(!export_ok)
     }
 }
 
@@ -55,7 +56,7 @@ mod tests {
             covered_objects("a/app;b/lib;"),
             vec![PathBuf::from("a/app"), PathBuf::from("b/lib")]
         );
-        assert!(covered_objects("").is_empty());
+        assert_eq!(covered_objects(""), [] as [PathBuf; 0]);
     }
 
     #[test]

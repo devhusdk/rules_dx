@@ -5,6 +5,7 @@ use crate::types::{Api, Function, Names, Parameter, ParameterSet, SCHEMA, parse_
 use documentation_ir::proto::{
     DocIr, Extension, Param, Returns, SourceRef, Symbol, SymbolKind, Visibility,
 };
+use std::fmt::Write as _;
 
 const LANGUAGE: &str = "powershell";
 const KEY_ALIASES: &str = "powershell.aliases";
@@ -21,6 +22,10 @@ pub struct Settings {
 }
 
 /// Converts one dx.powershell.api/1 document into a validated IR shard.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn convert(json: &str, settings: &Settings) -> Result<DocIr, String> {
     let api = parse_api(json)?;
     let public = public_functions(&api)?;
@@ -50,7 +55,7 @@ fn config_text(api: &Api, settings: &Settings) -> String {
         api.pwsh
     );
     if !settings.config.is_empty() {
-        text.push_str(&format!(";config={}", settings.config));
+        write!(text, ";config={}", settings.config).unwrap_or_default();
     }
     text
 }
@@ -142,6 +147,7 @@ fn symbol(api: &Api, public: &Public<'_>, settings: &Settings, config: &str) -> 
 }
 
 /// Normalizes help text: LF line ends and no surrounding blank space.
+#[must_use]
 pub fn clean(text: &str) -> String {
     text.replace("\r\n", "\n")
         .replace('\r', "\n")
@@ -289,6 +295,7 @@ fn implicit_positions(function: &Function) -> Vec<Option<u32>> {
 }
 
 /// Renders one Get-Help style syntax line per parameter set, default set first.
+#[must_use]
 pub fn signature(function: &Function) -> String {
     let implicit = implicit_positions(function);
     let common = if is_advanced(function) {

@@ -27,6 +27,7 @@ pub struct Options {
 }
 
 /// The usage line shown for a rejected invocation.
+#[must_use]
 pub fn usage() -> String {
     let mut line = String::from("usage: site_build --mdbook FILE --book FILE --summary FILE");
     line.push_str(" --manifest FILE --out DIR [--api-tree DIR --api-summary FILE]");
@@ -34,6 +35,10 @@ pub fn usage() -> String {
 }
 
 /// Parses argv into inputs, or returns the rejection text.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Options, String> {
     let mut options = Options::default();
     let mut index = 0;
@@ -42,13 +47,13 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
             return Err(format!("{flag} needs a value"));
         };
         match flag.as_str() {
-            "--mdbook" => options.mdbook = value.clone(),
-            "--book" => options.book = value.clone(),
-            "--summary" => options.summary = value.clone(),
-            "--manifest" => options.manifest = value.clone(),
-            "--out" => options.out = value.clone(),
-            "--api-tree" => options.api_tree = value.clone(),
-            "--api-summary" => options.api_summary = value.clone(),
+            "--mdbook" => options.mdbook.clone_from(value),
+            "--book" => options.book.clone_from(value),
+            "--summary" => options.summary.clone_from(value),
+            "--manifest" => options.manifest.clone_from(value),
+            "--out" => options.out.clone_from(value),
+            "--api-tree" => options.api_tree.clone_from(value),
+            "--api-summary" => options.api_summary.clone_from(value),
             _ => return Err(format!("unknown argument '{flag}'")),
         }
         index += 2;
@@ -75,7 +80,10 @@ pub fn route_error(route: &str) -> String {
     if route.is_empty() {
         return "docs_site: a source route is empty".to_string();
     }
-    if !route.ends_with(".md") {
+    if !Path::new(route)
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
+    {
         return format!("docs_site: route '{route}' is not a Markdown page");
     }
     if route.starts_with('/') || route.contains('\\') || route.contains(char::is_whitespace) {
@@ -90,6 +98,7 @@ pub fn route_error(route: &str) -> String {
 }
 
 /// Validates one page list, returning "" when mdBook can render every route once.
+#[must_use]
 pub fn pages_error(pages: &[Page]) -> String {
     let mut seen: BTreeSet<&str> = BTreeSet::new();
     for page in pages {
@@ -111,6 +120,7 @@ pub fn pages_error(pages: &[Page]) -> String {
 ///
 /// mdBook renders `dir/README.md` as `dir/index.html` but rewrites a link to
 /// `dir/README.md` as `dir/README.html`, so the rendered index is copied.
+#[must_use]
 pub fn alias_route(route: &str) -> Option<String> {
     let name = route.strip_suffix(".md")?;
     if name != "README" && !name.ends_with("/README") {
@@ -120,6 +130,7 @@ pub fn alias_route(route: &str) -> Option<String> {
 }
 
 /// Parses one page manifest, returning "" when the text holds no page line.
+#[must_use]
 pub fn manifest_error(text: &str) -> String {
     for line in text.lines() {
         if line.trim().is_empty() {
@@ -136,6 +147,7 @@ pub fn manifest_error(text: &str) -> String {
 }
 
 /// Returns the pages one manifest text declares, in file order.
+#[must_use]
 pub fn manifest_pages(text: &str) -> Vec<Page> {
     text.lines()
         .filter(|line| !line.trim().is_empty())
@@ -152,6 +164,7 @@ pub fn manifest_pages(text: &str) -> Vec<Page> {
 ///
 /// mdBook exits 0 after logging a warning, so its log decides whether the
 /// render is trustworthy.
+#[must_use]
 pub fn log_error(log: &str) -> String {
     for line in log.lines() {
         for marker in ["[WARN]", "[ERROR]"] {
@@ -165,6 +178,7 @@ pub fn log_error(log: &str) -> String {
 }
 
 /// Assembles the book and runs mdBook, returning "" on success.
+#[must_use]
 pub fn run(options: &Options) -> String {
     let manifest = read(&options.manifest);
     if manifest.is_empty() {
@@ -271,6 +285,10 @@ fn stage(book: &Path, options: &Options, pages: &[Page]) -> Result<(), String> {
 }
 
 /// Returns one page per Markdown file of an API tree, routed under `api/`.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn api_pages(tree: &Path) -> Result<Vec<Page>, String> {
     let mut pages = Vec::new();
     let mut pending = vec![tree.to_path_buf()];

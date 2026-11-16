@@ -1,9 +1,10 @@
 //! Converts Avro schemas (.avsc, .avpr, or the schemas avro-tools writes for .avdl) into one
-//! validated DocIr shard, reading the `doc` attribute of every named type, field and message.
+//! validated `DocIr` shard, reading the `doc` attribute of every named type, field and message.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
 
@@ -29,6 +30,7 @@ pub struct Options {
 }
 
 /// The usage line shown for a rejected invocation.
+#[must_use]
 pub fn usage() -> &'static str {
     "usage: avro_extract --package NAME --out FILE (--schema FILE=SRC | --schema-dir DIR=SRC)... [--generated SRC]..."
 }
@@ -43,6 +45,10 @@ fn pair(flag: &str, value: &str) -> Result<(String, String), String> {
 }
 
 /// Parses argv into inputs, or returns the rejection text.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Options, String> {
     let mut flags = documentation_ir::tool::flags(
         args,
@@ -76,6 +82,10 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
 }
 
 /// Reads, converts, validates and writes one shard, returning the failure text on error.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), String> {
     let mut inputs: Vec<(String, String, String)> = Vec::new();
     for (file, source) in &options.schemas {
@@ -315,7 +325,7 @@ impl Builder<'_> {
             let ty = field.get("type").unwrap_or(&Value::Null);
             let mut signature = format!("{} {name}", type_text(ty, &namespace));
             if let Some(default) = field.get("default") {
-                signature.push_str(&format!(" = {default}"));
+                write!(signature, " = {default}").unwrap_or_default();
             }
             let field_line = if line == 0 {
                 0
@@ -456,7 +466,7 @@ impl Builder<'_> {
                 .filter(|text| text != "string")
                 .collect();
             if !errors.is_empty() {
-                signature.push_str(&format!(" throws {}", errors.join(", ")));
+                write!(signature, " throws {}", errors.join(", ")).unwrap_or_default();
             }
             if message.get("one-way").and_then(Value::as_bool) == Some(true) {
                 signature.push_str(" (one-way)");
@@ -488,6 +498,10 @@ impl Builder<'_> {
 }
 
 /// Converts schema texts, each with the source it documents and its file name, into one shard.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn convert(inputs: &[(String, String, String)], options: &Options) -> Result<DocIr, String> {
     let package = options.package.as_str();
     if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {
@@ -498,7 +512,13 @@ pub fn convert(inputs: &[(String, String, String)], options: &Options) -> Result
         let value: Value = serde_json::from_str(text)
             .map_err(|error| format!("{file} is not valid JSON: {error}"))?;
         // Line numbers only mean something when the schema text is the source itself.
-        let own_text = file == source || source.ends_with(".avsc") || source.ends_with(".avpr");
+        let own_text = file == source
+            || Path::new(source)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("avsc"))
+            || Path::new(source)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("avpr"));
         let mut builder = Builder {
             package,
             source: source.clone(),

@@ -1,4 +1,4 @@
-//! Converts the `index.json` of `dart doc` into one validated DocIr shard.
+//! Converts the `index.json` of `dart doc` into one validated `DocIr` shard.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
@@ -31,11 +31,16 @@ pub struct Options {
 }
 
 /// The usage line shown for a rejected invocation.
+#[must_use]
 pub fn usage() -> &'static str {
     "usage: dart_extract --index FILE --package NAME --out FILE"
 }
 
 /// Parses argv into inputs, or returns the rejection text.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Options, String> {
     let mut flags = documentation_ir::tool::flags(args, &["--index", "--package", "--out"])?;
     Ok(Options {
@@ -46,6 +51,10 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
 }
 
 /// Reads, converts, validates and writes one shard, returning the failure text on error.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), String> {
     let json = fs::read_to_string(&options.index)
         .map_err(|error| format!("cannot read {}: {error}", options.index))?;
@@ -106,9 +115,8 @@ fn kind_of(kind: u64, parent_kind: Option<u64>) -> Option<(SymbolKind, &'static 
         2 => (SymbolKind::Method, "constructor"),
         0 | 16 => (SymbolKind::Property, "property"),
         20 => (SymbolKind::Variable, "variable"),
-        19 => (SymbolKind::Constant, "const"),
         1 if parent_kind == Some(5) => (SymbolKind::EnumVariant, "enum value"),
-        1 => (SymbolKind::Constant, "const"),
+        19 | 1 => (SymbolKind::Constant, "const"),
         _ => return None,
     })
 }
@@ -121,6 +129,10 @@ fn extension(key: &str, value: &str) -> Extension {
 }
 
 /// Converts one `index.json` document into a validated IR shard of one package.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
     if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {
         return Err(format!("invalid package '{package}'"));

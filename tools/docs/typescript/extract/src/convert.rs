@@ -1,4 +1,4 @@
-//! Maps TypeDoc JSON onto the versioned documentation IR.
+//! Maps `TypeDoc` JSON onto the versioned documentation IR.
 
 use crate::types::{
     call_signature, comment_text, flag, list, modifiers, object_literal, parameters, render_type,
@@ -9,6 +9,7 @@ use documentation_ir::proto::{
 };
 use serde_json::Value;
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 
 const LANGUAGE: &str = "typescript";
 const KEY_CONFIG: &str = "typescript.config";
@@ -26,9 +27,9 @@ const KIND_INTERFACE: u64 = 256;
 const KIND_CONSTRUCTOR: u64 = 512;
 const KIND_PROPERTY: u64 = 1024;
 const KIND_METHOD: u64 = 2048;
-const KIND_ACCESSOR: u64 = 262144;
-const KIND_TYPE_ALIAS: u64 = 2097152;
-const KIND_REFERENCE: u64 = 4194304;
+const KIND_ACCESSOR: u64 = 262_144;
+const KIND_TYPE_ALIAS: u64 = 2_097_152;
+const KIND_REFERENCE: u64 = 4_194_304;
 
 /// The identity and location inputs of one extraction.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -38,7 +39,11 @@ pub struct Settings {
     pub config: String,
 }
 
-/// Converts one TypeDoc JSON document into a validated IR shard.
+/// Converts one `TypeDoc` JSON document into a validated IR shard.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn convert(json: &str, settings: &Settings) -> Result<DocIr, String> {
     let root: Value = serde_json::from_str(json)
         .map_err(|error| format!("TypeDoc JSON is malformed: {error}"))?;
@@ -333,7 +338,7 @@ impl Walker<'_> {
 
     fn references(&mut self) -> Result<(), String> {
         let pending = std::mem::take(&mut self.pending);
-        for (node, parent) in pending.iter() {
+        for (node, parent) in &pending {
             self.reference(node, parent)?;
         }
         self.link_aliases()?;
@@ -409,8 +414,8 @@ impl Walker<'_> {
                 let body = comment_text(list(tag, "content"));
                 match text(tag, "tag") {
                     "@example" => examples.push(body),
-                    "@deprecated" => doc.push_str(&format!("\n\n**Deprecated:** {body}")),
-                    "@remarks" => doc.push_str(&format!("\n\n{body}")),
+                    "@deprecated" => write!(doc, "\n\n**Deprecated:** {body}").unwrap_or_default(),
+                    "@remarks" => write!(doc, "\n\n{body}").unwrap_or_default(),
                     _ => {}
                 }
             }

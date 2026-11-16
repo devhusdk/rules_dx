@@ -1,6 +1,7 @@
-//! Renders TypeDoc type and signature JSON as TypeScript source text.
+//! Renders `TypeDoc` type and signature JSON as TypeScript source text.
 
 use serde_json::Value;
+use std::fmt::Write as _;
 
 const FLAG_OPTIONAL: &str = "isOptional";
 const FLAG_REST: &str = "isRest";
@@ -29,7 +30,7 @@ pub fn flag(node: &Value, flag: &str) -> bool {
         .unwrap_or(false)
 }
 
-/// Renders one TypeDoc type object.
+/// Renders one `TypeDoc` type object.
 pub fn render_type(node: &Value) -> Result<String, String> {
     let kind = text(node, "type");
     match kind {
@@ -123,8 +124,7 @@ fn wrapped(node: &Value, slot: Slot) -> Result<String, String> {
     let function = kind == "reflection"
         && node
             .get("declaration")
-            .map(|declaration| !list(declaration, "signatures").is_empty())
-            .unwrap_or(false);
+            .is_some_and(|declaration| !list(declaration, "signatures").is_empty());
     let needs = match slot {
         Slot::Postfix => {
             matches!(
@@ -245,11 +245,13 @@ fn template_literal(node: &Value) -> Result<String, String> {
         let (Some(part), Some(tail)) = (items.first(), items.get(1)) else {
             return Err("TypeDoc template literal tail is not a pair".to_owned());
         };
-        out.push_str(&format!(
+        write!(
+            out,
             "${{{}}}{}",
             render_type(part)?,
             tail.as_str().unwrap_or("")
-        ));
+        )
+        .unwrap_or_default();
     }
     out.push('`');
     Ok(out)
@@ -335,10 +337,10 @@ pub fn type_parameters(node: &Value) -> Result<String, String> {
     for item in items {
         let mut part = text(item, "name").to_owned();
         if let Some(constraint) = item.get("type") {
-            part.push_str(&format!(" extends {}", render_type(constraint)?));
+            write!(part, " extends {}", render_type(constraint)?).unwrap_or_default();
         }
         if let Some(default) = item.get("default") {
-            part.push_str(&format!(" = {}", render_type(default)?));
+            write!(part, " = {}", render_type(default)?).unwrap_or_default();
         }
         parts.push(part);
     }

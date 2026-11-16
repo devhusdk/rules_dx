@@ -255,7 +255,7 @@ fn parse_takes_the_api_tree_and_summary_together() {
         "o",
     ]
     .iter()
-    .map(|s| s.to_string())
+    .map(ToString::to_string)
     .collect();
     let mut both = base.clone();
     both.extend(["--api-tree", "t", "--api-summary", "f"].map(str::to_string));

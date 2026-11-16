@@ -2,7 +2,8 @@ use super::*;
 use serde_json::json;
 
 fn item(name: &str, kind: u64, href: &str, desc: &str, parent: Option<(&str, u64, &str)>) -> Value {
-    let mut value = json!({"name": name, "qualifiedName": name, "href": href, "kind": kind, "desc": desc});
+    let mut value =
+        json!({"name": name, "qualifiedName": name, "href": href, "kind": kind, "desc": desc});
     if let Some((pname, pkind, phref)) = parent {
         value["enclosedBy"] = json!({"name": pname, "kind": pkind, "href": phref});
     }
@@ -12,14 +13,62 @@ fn item(name: &str, kind: u64, href: &str, desc: &str, parent: Option<(&str, u64
 fn index() -> String {
     json!([
         item("ledger", 9, "ledger/", "A ledger library.", None),
-        item("Ledger", 3, "ledger/Ledger-class.html", "Adds entries.", Some(("ledger", 9, "ledger/"))),
-        item("Ledger.new", 2, "ledger/Ledger/Ledger.html", "Creates one.", Some(("Ledger", 3, "ledger/Ledger-class.html"))),
-        item("add", 10, "ledger/Ledger/add.html", "Adds n.", Some(("Ledger", 3, "ledger/Ledger-class.html"))),
-        item("Color", 5, "ledger/Color.html", "", Some(("ledger", 9, "ledger/"))),
-        item("red", 1, "ledger/Color/red-constant.html", "Red.", Some(("Color", 5, "ledger/Color.html"))),
-        item("M", 11, "ledger/M-mixin.html", "A mixin.", Some(("ledger", 9, "ledger/"))),
-        item("toString", 10, "ledger/M/toString.html", "A string representation of this object.", Some(("M", 11, "ledger/M-mixin.html"))),
-        item("answer", 19, "ledger/answer-constant.html", "A const.", Some(("ledger", 9, "ledger/")))
+        item(
+            "Ledger",
+            3,
+            "ledger/Ledger-class.html",
+            "Adds entries.",
+            Some(("ledger", 9, "ledger/"))
+        ),
+        item(
+            "Ledger.new",
+            2,
+            "ledger/Ledger/Ledger.html",
+            "Creates one.",
+            Some(("Ledger", 3, "ledger/Ledger-class.html"))
+        ),
+        item(
+            "add",
+            10,
+            "ledger/Ledger/add.html",
+            "Adds n.",
+            Some(("Ledger", 3, "ledger/Ledger-class.html"))
+        ),
+        item(
+            "Color",
+            5,
+            "ledger/Color.html",
+            "",
+            Some(("ledger", 9, "ledger/"))
+        ),
+        item(
+            "red",
+            1,
+            "ledger/Color/red-constant.html",
+            "Red.",
+            Some(("Color", 5, "ledger/Color.html"))
+        ),
+        item(
+            "M",
+            11,
+            "ledger/M-mixin.html",
+            "A mixin.",
+            Some(("ledger", 9, "ledger/"))
+        ),
+        item(
+            "toString",
+            10,
+            "ledger/M/toString.html",
+            "A string representation of this object.",
+            Some(("M", 11, "ledger/M-mixin.html"))
+        ),
+        item(
+            "answer",
+            19,
+            "ledger/answer-constant.html",
+            "A const.",
+            Some(("ledger", 9, "ledger/"))
+        )
     ])
     .to_string()
 }
@@ -44,7 +93,11 @@ fn converts_every_declaration_kind() {
             "dart:ledger:ledger.answer",
         ]
     );
-    let kinds: Vec<(&str, i32)> = shard.symbols.iter().map(|s| (s.display_name.as_str(), s.kind)).collect();
+    let kinds: Vec<(&str, i32)> = shard
+        .symbols
+        .iter()
+        .map(|s| (s.display_name.as_str(), s.kind))
+        .collect();
     assert!(kinds.contains(&("Ledger", SymbolKind::Class as i32)));
     assert!(kinds.contains(&("Ledger.new", SymbolKind::Method as i32)));
     assert!(kinds.contains(&("red", SymbolKind::EnumVariant as i32)));
@@ -54,9 +107,16 @@ fn converts_every_declaration_kind() {
 #[test]
 fn nests_members_under_their_owner() {
     let shard = convert(&index(), "ledger").unwrap();
-    let add = shard.symbols.iter().find(|s| s.display_name == "add").unwrap();
+    let add = shard
+        .symbols
+        .iter()
+        .find(|s| s.display_name == "add")
+        .unwrap();
     assert_eq!(add.id, "dart:ledger:ledger.Ledger.add");
-    assert_eq!(add.relations.as_ref().unwrap().member_of, ["dart:ledger:ledger.Ledger"]);
+    assert_eq!(
+        add.relations.as_ref().unwrap().member_of,
+        ["dart:ledger:ledger.Ledger"]
+    );
     assert_eq!(add.doc_markdown, "Adds n.");
 }
 
@@ -69,7 +129,11 @@ fn drops_object_members_of_mixins() {
 #[test]
 fn marks_undocumented_symbols_incomplete() {
     let shard = convert(&index(), "ledger").unwrap();
-    let color = shard.symbols.iter().find(|s| s.display_name == "Color").unwrap();
+    let color = shard
+        .symbols
+        .iter()
+        .find(|s| s.display_name == "Color")
+        .unwrap();
     assert!(color.extensions.iter().any(|e| e.key == KEY_INCOMPLETE));
 }
 
@@ -84,6 +148,8 @@ fn rejects_bad_input() {
 
 #[test]
 fn parses_arguments() {
-    let args: Vec<String> = ["--index", "i", "--package", "p", "--out", "o"].map(String::from).to_vec();
+    let args: Vec<String> = ["--index", "i", "--package", "p", "--out", "o"]
+        .map(String::from)
+        .to_vec();
     assert_eq!(parse(&args).unwrap().package, "p");
 }

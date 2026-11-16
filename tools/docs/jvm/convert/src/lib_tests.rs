@@ -230,7 +230,7 @@ fn kotlin_kinds_and_receiver_overload_ids() {
         grow,
     ])))
     .expect("kotlin converts");
-    let kinds: Vec<_> = shard.symbols.iter().map(|s| s.kind()).collect();
+    let kinds: Vec<_> = shard.symbols.iter().map(Symbol::kind).collect();
     assert!(kinds.contains(&SymbolKind::TypeAlias));
     assert!(kinds.contains(&SymbolKind::Property));
     assert!(kinds.contains(&SymbolKind::Function));

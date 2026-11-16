@@ -45,7 +45,7 @@ impl Response {
 fn request(port: u16, path: &str) -> Response {
     let mut stream =
         TcpStream::connect(("127.0.0.1", port)).expect("connect to the preview server");
-    write!(stream, "GET {path} HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n").expect("send request");
+    writeln!(stream, "GET {path} HTTP/1.1\r\nHost: 127.0.0.1\r\n\r").expect("send request");
     let mut raw = Vec::new();
     stream.read_to_end(&mut raw).expect("read response");
     let text = String::from_utf8_lossy(&raw).into_owned();
@@ -158,9 +158,11 @@ fn a_deep_nested_command_page_resolves_its_own_relative_assets() {
 fn every_sidebar_and_page_link_resolves_over_http() {
     let root = site();
     let server = Server::start(root.clone(), "rules_dx");
-    let pages = served_routes(&root)
-        .into_iter()
-        .filter(|route| route.ends_with(".html"));
+    let pages = served_routes(&root).into_iter().filter(|route| {
+        Path::new(route)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("html"))
+    });
     let mut visited: BTreeSet<String> = BTreeSet::new();
     for page in pages {
         let response = server.get(&format!("/rules_dx/{page}"));

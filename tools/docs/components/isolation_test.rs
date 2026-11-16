@@ -141,7 +141,7 @@ fn bad_inputs_fail_without_a_stub() {
     ] {
         let output = run(root, &args);
         assert!(
-            matches!(output.status.code(), Some(1) | Some(2)),
+            matches!(output.status.code(), Some(1 | 2)),
             "{name}: {:?} {}",
             output.status.code(),
             text(&output)

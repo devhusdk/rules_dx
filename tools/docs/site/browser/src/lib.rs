@@ -28,6 +28,10 @@ pub struct Browser {
 
 impl Browser {
     /// Starts Firefox on a private profile and opens one control session, retrying a lost port race.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn start(firefox: &Path, profile: &Path) -> Result<Self, String> {
         let deadline = Instant::now() + LAUNCH_BUDGET;
         let mut last = String::new();
@@ -115,11 +119,16 @@ impl Browser {
     }
 
     /// Returns the loopback port one browser's control connection is bound to.
+    #[must_use]
     pub fn port(&self) -> u16 {
         self.port
     }
 
     /// Sizes the viewport to one CSS pixel width and height.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn set_viewport(&mut self, width: u64, height: u64) -> Result<(), String> {
         self.call(
             "WebDriver:SetWindowRect",
@@ -129,6 +138,10 @@ impl Browser {
     }
 
     /// Loads one absolute URL and waits until the page finished loading.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn navigate(&mut self, url: &str) -> Result<(), String> {
         self.call("WebDriver:Navigate", serde_json::json!({ "url": url }))?;
         let loaded = format!(
@@ -142,6 +155,10 @@ impl Browser {
     }
 
     /// Sends one key press to whatever element holds the focus.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn press(&mut self, key: &str) -> Result<(), String> {
         let actions = serde_json::json!({
             "actions": [{
@@ -158,6 +175,10 @@ impl Browser {
     }
 
     /// Runs one script in the page and returns its JSON value.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn script(&mut self, source: &str) -> Result<Value, String> {
         let value = self.call(
             "WebDriver:ExecuteScript",
@@ -167,6 +188,10 @@ impl Browser {
     }
 
     /// Runs one script in the page and returns its value as a string.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn text(&mut self, source: &str) -> Result<String, String> {
         Ok(self
             .script(source)?
@@ -176,11 +201,19 @@ impl Browser {
     }
 
     /// Runs one script in the page and returns its value as a number.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn count(&mut self, source: &str) -> Result<u64, String> {
         Ok(self.script(source)?.as_u64().unwrap_or_default())
     }
 
     /// Runs one script in the page and returns whether it produced a truthy value.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn truthy(&mut self, source: &str) -> Result<bool, String> {
         Ok(match self.script(source)? {
             Value::Null => false,
@@ -267,37 +300,34 @@ struct Frame {
 
 impl Frame {
     fn push(&mut self, byte: u8) -> Result<Option<String>, String> {
-        match self.length {
-            None => {
-                if byte == b':' {
-                    self.length = Some(self.digits.parse::<usize>().map_err(|error| {
-                        format!(
-                            "browser: cannot read a frame length '{}': {error}",
-                            self.digits
-                        )
-                    })?);
-                    self.digits.clear();
-                    if self.length == Some(0) {
-                        self.length = None;
-                        return Ok(Some(String::new()));
-                    }
-                } else if byte.is_ascii_digit() {
-                    self.digits.push(byte as char);
-                } else {
-                    return Err(format!(
-                        "browser: frame length holds the byte {:?}",
-                        byte as char
-                    ));
-                }
-            }
-            Some(_) => {
-                self.body.push(byte);
-                if self.body.len() == self.length.unwrap_or_default() {
-                    let body = String::from_utf8_lossy(&self.body).into_owned();
+        if self.length.is_none() {
+            if byte == b':' {
+                self.length = Some(self.digits.parse::<usize>().map_err(|error| {
+                    format!(
+                        "browser: cannot read a frame length '{}': {error}",
+                        self.digits
+                    )
+                })?);
+                self.digits.clear();
+                if self.length == Some(0) {
                     self.length = None;
-                    self.body.clear();
-                    return Ok(Some(body));
+                    return Ok(Some(String::new()));
                 }
+            } else if byte.is_ascii_digit() {
+                self.digits.push(byte as char);
+            } else {
+                return Err(format!(
+                    "browser: frame length holds the byte {:?}",
+                    byte as char
+                ));
+            }
+        } else {
+            self.body.push(byte);
+            if self.body.len() == self.length.unwrap_or_default() {
+                let body = String::from_utf8_lossy(&self.body).into_owned();
+                self.length = None;
+                self.body.clear();
+                return Ok(Some(body));
             }
         }
         Ok(None)
@@ -305,13 +335,15 @@ impl Frame {
 }
 
 /// Returns the loopback port the next browser should bind its control socket to.
+#[must_use]
 pub fn control_port() -> u16 {
-    TcpListener::bind("127.0.0.1:0")
-        .map(|listener| listener.local_addr().map(|addr| addr.port()).unwrap_or(0))
-        .unwrap_or(CONTROL_PORT)
+    TcpListener::bind("127.0.0.1:0").map_or(CONTROL_PORT, |listener| {
+        listener.local_addr().map_or(0, |addr| addr.port())
+    })
 }
 
 /// Returns the layout of one acquired Firefox tree, or "" when it holds no browser.
+#[must_use]
 pub fn firefox_executable(root: &Path) -> String {
     let browser = root.join("extracted/firefox/firefox");
     if browser.is_file() {
@@ -399,6 +431,10 @@ fn settle() -> Result<(), String> {
 }
 
 /// Polls one script until it reads as yes, or reports how long it waited.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn wait_for(browser: &mut Browser, source: &str, seconds: u64) -> Result<bool, String> {
     let deadline = Instant::now() + Duration::from_secs(seconds);
     loop {

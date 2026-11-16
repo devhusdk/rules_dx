@@ -15,6 +15,10 @@ fn document(path: &str, text: &str) -> Result<Value, String> {
 }
 
 /// Returns the platforms the `dogfood` job of `ci.yml` passes to the reusable workflow.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn dogfood_platforms(path: &str, text: &str) -> Result<Vec<String>, String> {
     let document = document(path, text)?;
     let Some(platforms) = field(
@@ -31,6 +35,10 @@ pub fn dogfood_platforms(path: &str, text: &str) -> Result<Vec<String>, String> 
 }
 
 /// Returns the runner label of each platform in the `preflight` matrix of `ci.yml`.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn runner_platforms(path: &str, text: &str) -> Result<BTreeMap<String, String>, String> {
     let document = document(path, text)?;
     let Some(include) = field(
@@ -61,6 +69,10 @@ pub fn runner_platforms(path: &str, text: &str) -> Result<BTreeMap<String, Strin
 }
 
 /// Returns the `quality` labels of each platform's `preflight` lane in `ci.yml`.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn preflight_quality(path: &str, text: &str) -> Result<BTreeMap<String, Vec<String>>, String> {
     let document = document(path, text)?;
     let Some(include) = field(
@@ -93,6 +105,10 @@ pub fn preflight_quality(path: &str, text: &str) -> Result<BTreeMap<String, Vec<
 
 /// Checks that each non-default platform's preflight lane runs its own evidence suite
 /// `//core/quality/testdata:runner_matrix_<platform>` and lists no label twice.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn check_evidence_lanes(
     path: &str,
     lanes: &BTreeMap<String, Vec<String>>,
@@ -138,6 +154,10 @@ fn runner_label(runs_on: &str) -> &str {
 }
 
 /// Returns the platforms the jobs of one extra workflow run on.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn workflow_platforms(
     path: &str,
     text: &str,
@@ -180,6 +200,10 @@ pub fn workflow_platforms(
 ///
 /// Bazel matches `attr` patterns as unanchored regular expressions, so a tag with
 /// any regex metacharacter is rejected rather than guessed at.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn tag_job_platforms(
     path: &str,
     text: &str,
@@ -362,10 +386,9 @@ jobs:
     fn skips_jobs_that_run_no_bazel() {
         let runners = runner_platforms("ci.yml", CI).expect("runners");
         let extra = "jobs:\n  finish:\n    runs-on: ubuntu-slim\n";
-        assert!(
-            workflow_platforms("evidence.yml", extra, &runners)
-                .expect("platforms")
-                .is_empty()
+        assert_eq!(
+            workflow_platforms("evidence.yml", extra, &runners).expect("platforms"),
+            [] as [String; 0]
         );
     }
 

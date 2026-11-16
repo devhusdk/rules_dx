@@ -1,8 +1,9 @@
-//! Converts nightly rustdoc JSON into one validated DocIr shard.
+//! Converts nightly rustdoc JSON into one validated `DocIr` shard.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::fmt::Write as _;
 use std::fs;
 
 use documentation_ir::encode_shard;
@@ -32,11 +33,16 @@ pub struct Source {
 }
 
 /// The usage line shown for a rejected invocation.
+#[must_use]
 pub fn usage() -> &'static str {
     "usage: rust_extract --json FILE --package NAME --crate NAME --srcs-file FILE --out FILE"
 }
 
 /// Parses argv into inputs, or returns the rejection text.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Options, String> {
     let mut flags = documentation_ir::tool::flags(
         args,
@@ -52,6 +58,10 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
 }
 
 /// Parses the tab-separated srcs file into crate sources.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse_sources(text: &str) -> Result<Vec<Source>, String> {
     let mut sources = Vec::new();
     for line in text.lines().filter(|line| !line.is_empty()) {
@@ -74,6 +84,7 @@ pub fn parse_sources(text: &str) -> Result<Vec<Source>, String> {
 }
 
 /// Maps one rustdoc span file to its docs path, or None when the crate does not own it.
+#[must_use]
 pub fn map_source(sources: &[Source], span_file: &str) -> Option<(String, bool)> {
     let file = span_file.replace('\\', "/");
     let file = file.strip_prefix("./").unwrap_or(&file);
@@ -99,6 +110,7 @@ pub fn map_source(sources: &[Source], span_file: &str) -> Option<(String, bool)>
 }
 
 /// Reads, converts and writes one shard, returning "" on success.
+#[must_use]
 pub fn run(options: &Options) -> String {
     let json = match fs::read_to_string(&options.json) {
         Ok(json) => json,
@@ -129,6 +141,10 @@ pub fn run(options: &Options) -> String {
 }
 
 /// Converts one rustdoc JSON text into encoded shard bytes.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn convert(
     json: &str,
     package: &str,
@@ -139,6 +155,10 @@ pub fn convert(
 }
 
 /// Converts one rustdoc JSON text into a sorted shard.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn extract(
     json: &str,
     package: &str,
@@ -685,7 +705,7 @@ impl<'a> Walker<'a> {
                 }
             }
         }
-        let mut groups: BTreeMap<&str, Vec<Cand>> = BTreeMap::new();
+        let mut groups: BTreeMap<&str, Vec<Cand<'_>>> = BTreeMap::new();
         for (index, entry) in entries.iter().enumerate() {
             groups
                 .entry(entry.base.as_str())
@@ -698,11 +718,11 @@ impl<'a> Walker<'a> {
                 .or_default()
                 .push(Cand::Alias(index, alias));
         }
-        let rank_of = |cand: &Cand| match cand {
+        let rank_of = |cand: &Cand<'_>| match cand {
             Cand::Entry(_, e) => e.rank,
             Cand::Alias(_, a) => a.rank,
         };
-        let key_of = |cand: &Cand| match cand {
+        let key_of = |cand: &Cand<'_>| match cand {
             Cand::Entry(_, e) => (e.rank, e.pos.clone(), e.tag),
             Cand::Alias(_, a) => (a.rank, a.pos.clone(), a.tag),
         };
@@ -721,7 +741,7 @@ impl<'a> Walker<'a> {
             let mut survivors = Vec::new();
             for cand in &live {
                 if let Cand::Alias(_, alias) = cand {
-                    let rivals: Vec<&Cand> = live
+                    let rivals: Vec<&Cand<'_>> = live
                         .iter()
                         .filter(|other| {
                             !matches!((cand, other), (Cand::Alias(a, _), Cand::Alias(b, _)) if a == b)
@@ -987,6 +1007,7 @@ fn summary_kind(kind: &rustdoc_types::ItemKind) -> SymbolKind {
 }
 
 /// Returns the declaration text shown for one item.
+#[must_use]
 pub fn signature(item: &Item, name: &str) -> String {
     let vis = if is_public(item) { "pub " } else { "" };
     match &item.inner {
@@ -1004,7 +1025,7 @@ pub fn signature(item: &Item, name: &str) -> String {
                 }
             }
             if let Some(abi) = abi(&header.abi) {
-                text.push_str(&format!("extern \"{abi}\" "));
+                write!(text, "extern \"{abi}\" ").unwrap_or_default();
             }
             let inputs: Vec<String> = function
                 .sig
@@ -1013,13 +1034,15 @@ pub fn signature(item: &Item, name: &str) -> String {
                 .map(|(arg, ty)| input(arg, ty))
                 .chain(function.sig.is_c_variadic.then(|| "...".to_string()))
                 .collect();
-            text.push_str(&format!(
+            write!(
+                text,
                 "fn {name}{}({})",
                 params(&function.generics.params),
                 inputs.join(", ")
-            ));
+            )
+            .unwrap_or_default();
             if let Some(output) = &function.sig.output {
-                text.push_str(&format!(" -> {}", ty(output)));
+                write!(text, " -> {}", ty(output)).unwrap_or_default();
             }
             text + &where_clause(&function.generics)
         }
@@ -1066,9 +1089,9 @@ pub fn signature(item: &Item, name: &str) -> String {
             if data.is_auto {
                 text.push_str("auto ");
             }
-            text.push_str(&format!("trait {name}{}", params(&data.generics.params)));
+            write!(text, "trait {name}{}", params(&data.generics.params)).unwrap_or_default();
             if !data.bounds.is_empty() {
-                text.push_str(&format!(": {}", bounds(&data.bounds)));
+                write!(text, ": {}", bounds(&data.bounds)).unwrap_or_default();
             }
             text + &where_clause(&data.generics)
         }
@@ -1112,11 +1135,11 @@ pub fn signature(item: &Item, name: &str) -> String {
         } => {
             let mut text = format!("{vis}type {name}{}", params(&generics.params));
             if !list.is_empty() {
-                text.push_str(&format!(": {}", bounds(list)));
+                write!(text, ": {}", bounds(list)).unwrap_or_default();
             }
             text.push_str(&where_clause(generics));
             if let Some(type_) = type_ {
-                text.push_str(&format!(" = {}", ty(type_)));
+                write!(text, " = {}", ty(type_)).unwrap_or_default();
             }
             text + ";"
         }
@@ -1229,17 +1252,17 @@ fn param(param: &GenericParamDef) -> String {
         } => {
             let mut text = param.name.clone();
             if !list.is_empty() {
-                text.push_str(&format!(": {}", bounds(list)));
+                write!(text, ": {}", bounds(list)).unwrap_or_default();
             }
             if let Some(default) = default {
-                text.push_str(&format!(" = {}", ty(default)));
+                write!(text, " = {}", ty(default)).unwrap_or_default();
             }
             text
         }
         GenericParamDefKind::Const { type_, default } => {
             let mut text = format!("const {}: {}", param.name, ty(type_));
             if let Some(default) = default {
-                text.push_str(&format!(" = {default}"));
+                write!(text, " = {default}").unwrap_or_default();
             }
             text
         }
@@ -1388,7 +1411,7 @@ pub fn ty(type_: &Type) -> String {
                 text.push_str("unsafe ");
             }
             if let Some(abi) = abi(&pointer.header.abi) {
-                text.push_str(&format!("extern \"{abi}\" "));
+                write!(text, "extern \"{abi}\" ").unwrap_or_default();
             }
             let inputs: Vec<String> = pointer
                 .sig
@@ -1402,9 +1425,9 @@ pub fn ty(type_: &Type) -> String {
                     }
                 })
                 .collect();
-            text.push_str(&format!("fn({})", inputs.join(", ")));
+            write!(text, "fn({})", inputs.join(", ")).unwrap_or_default();
             if let Some(output) = &pointer.sig.output {
-                text.push_str(&format!(" -> {}", ty(output)));
+                write!(text, " -> {}", ty(output)).unwrap_or_default();
             }
             text
         }

@@ -1,4 +1,4 @@
-//! Checks that consumer TypeDoc configuration cannot inject plugins into the docs rule.
+//! Checks that consumer `TypeDoc` configuration cannot inject plugins into the docs rule.
 
 use documentation_ir::{decode_shard, validate_shard};
 
@@ -46,5 +46,5 @@ fn the_hostile_shard_is_valid() {
     let shard = decode_shard(&bytes).expect("the shard decodes");
     validate_shard(&shard).expect("validate_shard passes");
     assert_eq!(shard.package, "hostile");
-    assert!(!shard.symbols.is_empty());
+    assert_ne!(shard.symbols, [] as [documentation_ir::proto::Symbol; 0]);
 }

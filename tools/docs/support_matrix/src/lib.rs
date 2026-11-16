@@ -7,6 +7,7 @@ pub mod runfiles_source;
 pub mod workflows;
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write as _;
 
 use serde::Deserialize;
 
@@ -123,7 +124,7 @@ pub struct Facts {
     /// Family, capability, tool, then platform, then the reason the tool cannot run there.
     #[serde(default)]
     pub tool_not_applicable: ToolNotApplicable,
-    /// Row name to the label of its unsupported constraint_value.
+    /// Row name to the label of its unsupported `constraint_value`.
     #[serde(default)]
     pub unsupported_constraints: BTreeMap<String, String>,
     /// Language row name to the cell of its dependency sets, or none with the reason.
@@ -135,7 +136,7 @@ pub struct Facts {
     /// Language row name to its `*_fuzz_test` macro.
     #[serde(default)]
     pub fuzz: BTreeMap<String, String>,
-    /// Publishing rule to the tool its api_compat check runs, or "not available".
+    /// Publishing rule to the tool its `api_compat` check runs, or "not available".
     #[serde(default)]
     pub api_compat_tools: BTreeMap<String, String>,
     pub not_languages: Vec<String>,
@@ -143,6 +144,9 @@ pub struct Facts {
 
 /// Reads workspace files by their repository-relative path.
 pub trait Source {
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     fn read(&self, path: &str) -> Result<String, String>;
 }
 
@@ -158,6 +162,10 @@ pub type ToolNotApplicable =
     BTreeMap<String, BTreeMap<String, BTreeMap<String, BTreeMap<String, String>>>>;
 
 /// Parses the facts JSON.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse_facts(text: &str) -> Result<Facts, String> {
     serde_json::from_str(text).map_err(|error| format!("facts JSON is invalid: {error}"))
 }
@@ -166,6 +174,10 @@ pub fn parse_facts(text: &str) -> Result<Facts, String> {
 pub type RowTests = BTreeMap<String, Vec<String>>;
 
 /// Reads `tools/docs/support_matrix/row_tests/<platform>.json` for every platform.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn read_row_tests(
     facts: &Facts,
     source: &dyn Source,
@@ -181,11 +193,19 @@ pub fn read_row_tests(
 }
 
 /// Reads `tools/docs/support_matrix/row_labels.json`: row name to the sorted labels tagged `row:<name>`.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn read_row_labels(source: &dyn Source) -> Result<BTreeMap<String, Vec<String>>, String> {
     read_labels(source, ROW_LABELS_PATH)
 }
 
 /// Reads `tools/docs/support_matrix/consumer_labels.json`: row name to the sorted labels tagged `consumer-row:<name>`.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn read_consumer_labels(source: &dyn Source) -> Result<BTreeMap<String, Vec<String>>, String> {
     read_labels(source, CONSUMER_LABELS_PATH)
 }
@@ -204,11 +224,7 @@ struct Context {
 }
 
 impl Context {
-    fn tested_on(
-        &self,
-        row: &Row,
-        labels: &[String],
-    ) -> Result<Vec<String>, String> {
+    fn tested_on(&self, row: &Row, labels: &[String]) -> Result<Vec<String>, String> {
         let mut on = BTreeSet::new();
         for label in labels {
             let mut tags = None;
@@ -276,6 +292,10 @@ impl Context {
 }
 
 /// Reads every source and returns the platforms of each row.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn row_platforms(
     facts: &Facts,
     source: &dyn Source,
@@ -353,6 +373,10 @@ pub fn row_platforms(
 }
 
 /// Checks that every `lang.json` language has one manifest entry per suite column and `lang.json` platform, and that each run entry names its test.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn check_conformance(facts: &Facts) -> Result<(), String> {
     let every = vec!["*".to_owned()];
     for row in facts.rows.iter().filter(|row| row.section == "languages") {
@@ -394,6 +418,10 @@ pub fn check_conformance(facts: &Facts) -> Result<(), String> {
 }
 
 /// Generates the page from the facts and the workspace sources.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn generate(facts_json: &str, source: &dyn Source) -> Result<String, String> {
     let facts = parse_facts(facts_json)?;
     check_conformance(&facts)?;
@@ -402,6 +430,7 @@ pub fn generate(facts_json: &str, source: &dyn Source) -> Result<String, String>
 }
 
 /// Renders the per-language skip reasons as JSON keyed by the unsupported constraint label.
+#[must_use]
 pub fn unsupported_json(facts: &Facts) -> String {
     let mut out = serde_json::Map::new();
     for row in &facts.rows {
@@ -430,6 +459,7 @@ pub fn unsupported_json(facts: &Facts) -> String {
 }
 
 /// Returns a short line diff of `want` against `have`, or None when equal.
+#[must_use]
 pub fn diff(have: &str, want: &str) -> Option<String> {
     if have == want {
         return None;
@@ -443,10 +473,10 @@ pub fn diff(have: &str, want: &str) -> Option<String> {
             continue;
         }
         if let Some(old) = old {
-            out.push_str(&format!("-{}: {old}\n", index + 1));
+            writeln!(out, "-{}: {old}", index + 1).unwrap_or_default();
         }
         if let Some(new) = new {
-            out.push_str(&format!("+{}: {new}\n", index + 1));
+            writeln!(out, "+{}: {new}", index + 1).unwrap_or_default();
         }
     }
     if out.is_empty() {

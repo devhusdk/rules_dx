@@ -1,4 +1,4 @@
-//! Runs collect_native on a binary built with GCC coverage instrumentation.
+//! Runs `collect_native` on a binary built with GCC coverage instrumentation.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -236,7 +236,7 @@ fn fails_on_wrong_gcda_version() {
     let run = setup("corrupt");
     let mut gcdas = Vec::new();
     gcda_files(&run.coverage_dir, &mut gcdas);
-    assert!(!gcdas.is_empty());
+    assert_ne!(gcdas, [] as [PathBuf; 0]);
     for gcda in &gcdas {
         let mut bytes = fs::read(gcda).unwrap();
         bytes[4..8].copy_from_slice(b"0000");

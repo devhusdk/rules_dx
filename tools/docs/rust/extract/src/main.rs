@@ -1,4 +1,4 @@
-//! Writes one DocIr shard from nightly rustdoc JSON.
+//! Writes one `DocIr` shard from nightly rustdoc JSON.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 

@@ -1,4 +1,4 @@
-//! Converts the JSON of `ldc2 -D -X` into one validated DocIr shard.
+//! Converts the JSON of `ldc2 -D -X` into one validated `DocIr` shard.
 //!
 //! The compiler JSON carries the ddoc comment, kind, protection and position of every
 //! declaration, but only mangled types. The signature text is therefore cut from the source
@@ -12,6 +12,7 @@ use documentation_ir::proto::{
 };
 use serde_json::Value;
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 use std::fs;
 
 const LANGUAGE: &str = "d";
@@ -36,11 +37,16 @@ pub struct Options {
 }
 
 /// The usage line shown for a rejected invocation.
+#[must_use]
 pub fn usage() -> &'static str {
     "usage: d_extract --api FILE --sources FILE --out FILE --package NAME [--config TEXT]"
 }
 
 /// Parses argv into inputs, or returns the rejection text.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Options, String> {
     let mut flags = documentation_ir::tool::flags(
         args,
@@ -56,6 +62,10 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
 }
 
 /// Parses a srcs manifest of `exec_path<TAB>rel<TAB>generated` lines.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse_sources(text: &str) -> Result<Vec<Source>, String> {
     text.lines()
         .filter(|line| !line.is_empty())
@@ -74,6 +84,10 @@ pub fn parse_sources(text: &str) -> Result<Vec<Source>, String> {
 }
 
 /// Reads, converts, validates and writes one shard. Nothing is written on error.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), String> {
     let read = |path: &str| {
         fs::read_to_string(path).map_err(|error| format!("cannot read {path}: {error}"))
@@ -96,6 +110,10 @@ struct Context<'a> {
 }
 
 /// Converts the compiler JSON into a validated IR shard. `texts` maps each exec path to its text.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn convert(
     json: &str,
     sources: &[Source],
@@ -109,7 +127,7 @@ pub fn convert(
         .ok_or_else(|| "compiler JSON is not an array".to_owned())?;
     let mut text = format!("ldc-json=1;package={package}");
     if !config.is_empty() {
-        text.push_str(&format!(";config={config}"));
+        write!(text, ";config={config}").unwrap_or_default();
     }
     let context = Context {
         package,
@@ -344,6 +362,7 @@ fn parameter_names(node: &Value) -> Vec<String> {
 }
 
 /// The declaration text from `line` to the first `{`, `;` or `=>` outside parentheses.
+#[must_use]
 pub fn declaration(text: &str, line: usize) -> String {
     let mut out = String::new();
     let mut depth = 0usize;
@@ -467,7 +486,7 @@ impl Sections {
                 _ => summary.push(line),
             }
         }
-        sections.summary = summary.join("\n").trim().to_owned();
+        summary.join("\n").trim().clone_into(&mut sections.summary);
         let returns = returns.join("\n").trim().to_owned();
         if !returns.is_empty() {
             sections.returns = Some(returns);

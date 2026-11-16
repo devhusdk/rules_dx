@@ -1,4 +1,4 @@
-//! Converts the C# and F# API facts of the dotnet drivers into one validated DocIr shard.
+//! Converts the C# and F# API facts of the dotnet drivers into one validated `DocIr` shard.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
@@ -22,11 +22,16 @@ pub struct Options {
 }
 
 /// The usage line shown for a rejected invocation.
+#[must_use]
 pub fn usage() -> &'static str {
     "usage: dotnet_extract --api FILE --language csharp|fsharp --package NAME --srcs-file FILE --out FILE [--config TEXT]"
 }
 
 /// Parses argv into inputs, or returns the rejection text.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Options, String> {
     let mut flags = documentation_ir::tool::flags(
         args,
@@ -57,6 +62,10 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
 }
 
 /// Reads, converts, validates and writes one shard. Nothing is written on error.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), String> {
     let json = fs::read_to_string(&options.api)
         .map_err(|error| format!("cannot read {}: {error}", options.api))?;

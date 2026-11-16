@@ -6,7 +6,8 @@ use std::process::Command;
 use documentation_ir::{decode_shard, validate_shard};
 
 fn fixture() -> documentation_ir::proto::DocIr {
-    let bytes = std::fs::read(dx_testing::env_file("DX_FIXTURE_SHARD")).expect("read the fixture shard");
+    let bytes =
+        std::fs::read(dx_testing::env_file("DX_FIXTURE_SHARD")).expect("read the fixture shard");
     decode_shard(&bytes).expect("the fixture shard decodes")
 }
 
@@ -16,7 +17,7 @@ fn the_fixture_shard_is_valid_and_prefixed() {
     validate_shard(&shard).expect("validate_shard passes");
     assert_eq!(shard.language, "typescript");
     assert_eq!(shard.package, "geometry");
-    assert!(!shard.symbols.is_empty());
+    assert_ne!(shard.symbols, [] as [documentation_ir::proto::Symbol; 0]);
     for symbol in &shard.symbols {
         assert!(
             symbol.id.starts_with("typescript:geometry:"),
@@ -85,7 +86,8 @@ fn run_extract(dir: &Path, typedoc: &Path) -> (i32, String) {
 fn the_binary_rejects_a_wrong_schema_version_and_writes_no_shard() {
     let dir_tmp = dx_test_scratch::scratch("ts-extract");
     let dir = dir_tmp.path().to_path_buf();
-    let json = std::fs::read_to_string(dx_testing::env_file("DX_FIXTURE_TYPEDOC")).expect("typedoc json");
+    let json =
+        std::fs::read_to_string(dx_testing::env_file("DX_FIXTURE_TYPEDOC")).expect("typedoc json");
     assert!(json.contains("\"schemaVersion\": \"2.0\""));
     let old = dir.join("old.json");
     std::fs::write(

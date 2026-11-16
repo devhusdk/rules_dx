@@ -1,5 +1,7 @@
 //! A small tolerant HTML reader for the fragments odoc writes.
 
+use std::fmt::Write as _;
+
 /// One element, or a text node when `name` is empty.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Node {
@@ -64,15 +66,12 @@ pub fn decode(raw: &str) -> String {
                 })
                 .and_then(char::from_u32),
         };
-        match decoded {
-            Some(c) => {
-                out.push(c);
-                rest = tail;
-            }
-            None => {
-                out.push('&');
-                rest = after;
-            }
+        if let Some(c) = decoded {
+            out.push(c);
+            rest = tail;
+        } else {
+            out.push('&');
+            rest = after;
         }
     }
     out.push_str(rest);
@@ -289,7 +288,7 @@ fn render(node: &Node, out: &mut String) {
             let label = text(node, &[]);
             match node.attr("href") {
                 Some(href) if href.starts_with("http://") || href.starts_with("https://") => {
-                    out.push_str(&format!("[{label}]({href})"));
+                    write!(out, "[{label}]({href})").unwrap_or_default();
                 }
                 _ => out.push_str(&label),
             }

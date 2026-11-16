@@ -9,6 +9,10 @@ pub struct RunfilesSource {
 
 impl RunfilesSource {
     /// Opens the runfiles of the running binary or test.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn create() -> Result<Self, String> {
         runfiles::Runfiles::create()
             .map(|runfiles| Self { runfiles })

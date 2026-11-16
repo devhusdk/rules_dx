@@ -1,4 +1,4 @@
-//! Converts the Hoogle text of `haddock --hoogle` into one validated DocIr shard.
+//! Converts the Hoogle text of `haddock --hoogle` into one validated `DocIr` shard.
 //!
 //! Hoogle text is haddock's stable, machine-readable output: one line per module, type,
 //! constructor, field, class and function, each preceded by its `-- |` doc. It carries no
@@ -8,6 +8,7 @@
 
 use documentation_ir::proto::{DocIr, Extension, SourceRef, Symbol, SymbolKind, Visibility};
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 use std::fs;
 
 const LANGUAGE: &str = "haskell";
@@ -32,11 +33,16 @@ pub struct Options {
 }
 
 /// The usage line shown for a rejected invocation.
+#[must_use]
 pub fn usage() -> &'static str {
     "usage: haskell_extract --hoogle DIR --sources FILE --out FILE --package NAME [--config TEXT]"
 }
 
 /// Parses argv into inputs, or returns the rejection text.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Options, String> {
     let mut flags = documentation_ir::tool::flags(
         args,
@@ -52,6 +58,10 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
 }
 
 /// Parses a srcs manifest of `exec_path<TAB>rel<TAB>generated` lines.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse_sources(text: &str) -> Result<Vec<Source>, String> {
     text.lines()
         .filter(|line| !line.is_empty())
@@ -70,6 +80,10 @@ pub fn parse_sources(text: &str) -> Result<Vec<Source>, String> {
 }
 
 /// Reads, converts, validates and writes one shard. Nothing is written on error.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), String> {
     let read = |path: &str| {
         fs::read_to_string(path).map_err(|error| format!("cannot read {path}: {error}"))
@@ -117,6 +131,10 @@ struct Parent {
 }
 
 /// Converts Hoogle text into a validated IR shard. `texts` maps each exec path to its text.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn convert(
     hoogle: &str,
     sources: &[Source],
@@ -126,7 +144,7 @@ pub fn convert(
 ) -> Result<DocIr, String> {
     let mut config_text = format!("hoogle=1;package={package}");
     if !config.is_empty() {
-        config_text.push_str(&format!(";config={config}"));
+        write!(config_text, ";config={config}").unwrap_or_default();
     }
     let context = Context {
         package,
@@ -237,8 +255,8 @@ pub fn convert(
                     let method = parent
                         .as_ref()
                         .filter(|p| p.is_class && !is_field && !constructor)
-                        .filter(|p| sig.starts_with(&format!("{} ", p.name)))
-                        .is_some();
+                        .as_ref()
+                        .is_some_and(|p| sig.starts_with(&format!("{} ", p.name)));
                     let (kind, base, from) = match (&parent, is_field, constructor, method) {
                         (Some(p), true, _, _) => (SymbolKind::Field, p.id.as_str(), p.line),
                         (Some(p), _, true, _) => (SymbolKind::EnumVariant, p.id.as_str(), p.line),

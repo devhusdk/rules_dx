@@ -5,6 +5,7 @@ pub mod tool;
 
 pub use doc_ir_proto::dx::documentation::v1 as proto;
 use proto::{DocIr, Symbol};
+use std::fmt::Write as _;
 
 use dx_path::proto_validate::{
     OrderViolation, check_sorted_next, decode_with_validation, encode_with_validation,
@@ -12,13 +13,14 @@ use dx_path::proto_validate::{
 use dx_path::reject_reason;
 
 /// Escapes one id segment: every byte outside `[A-Za-z0-9_]` becomes `~` plus two hex digits.
+#[must_use]
 pub fn escape_segment(segment: &str) -> String {
     let mut out = String::with_capacity(segment.len());
     for byte in segment.bytes() {
         if byte.is_ascii_alphanumeric() || byte == b'_' {
             out.push(char::from(byte));
         } else {
-            out.push_str(&format!("~{byte:02X}"));
+            write!(out, "~{byte:02X}").unwrap_or_default();
         }
     }
     out
@@ -77,23 +79,28 @@ pub enum Error {
     },
 }
 
+#[must_use]
 pub fn source_path_reason(file: &str) -> Option<&'static str> {
     reject_reason(file)
 }
 
 /// Escapes one id segment: every byte outside `[A-Za-z0-9_]` becomes `~` plus two hex digits.
+#[must_use]
 pub fn escape_id_segment(segment: &str) -> String {
     let mut out = String::with_capacity(segment.len());
     for byte in segment.bytes() {
         if byte.is_ascii_alphanumeric() || byte == b'_' {
             out.push(char::from(byte));
         } else {
-            out.push_str(&format!("~{byte:02X}"));
+            write!(out, "~{byte:02X}").unwrap_or_default();
         }
     }
     out
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn validate_shard(shard: &DocIr) -> Result<(), Error> {
     if shard.language.is_empty() {
         return Err(Error::EmptyLanguage);
@@ -210,7 +217,7 @@ fn validate_symbol(symbol: &Symbol, index: usize, prefix: &str) -> Result<(), Er
         });
     }
     let mut previous: Option<&String> = None;
-    for extension in symbol.extensions.iter() {
+    for extension in &symbol.extensions {
         match check_sorted_next(previous, &extension.key) {
             Ok(()) => {}
             Err(OrderViolation::Duplicate) => {
@@ -235,7 +242,7 @@ fn validate_aliases(symbol: &Symbol, prefix: &str) -> Result<(), Error> {
         return Ok(());
     };
     let mut previous: Option<&String> = None;
-    for alias in relations.reexported_as.iter() {
+    for alias in &relations.reexported_as {
         if !alias.starts_with(prefix) || alias.len() == prefix.len() {
             return Err(Error::ForeignAlias {
                 id: symbol.id.clone(),
@@ -261,10 +268,16 @@ fn validate_aliases(symbol: &Symbol, prefix: &str) -> Result<(), Error> {
     Ok(())
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn encode_shard(shard: &DocIr) -> Result<Vec<u8>, Error> {
     encode_with_validation(shard, validate_shard)
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn decode_shard(bytes: &[u8]) -> Result<DocIr, Error> {
     decode_with_validation(bytes, validate_shard, Error::Decode)
 }

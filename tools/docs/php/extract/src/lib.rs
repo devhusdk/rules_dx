@@ -1,8 +1,9 @@
-//! Converts the php_dump driver's JSON into one validated DocIr shard.
+//! Converts the `php_dump` driver's JSON into one validated `DocIr` shard.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::BTreeSet;
+use std::fmt::Write as _;
 use std::fs;
 
 use documentation_ir::json::{boolean, field, number, string, strings};
@@ -25,11 +26,16 @@ pub struct Options {
 }
 
 /// The usage line shown for a rejected invocation.
+#[must_use]
 pub fn usage() -> &'static str {
     "usage: php_extract --json FILE --package NAME --out FILE"
 }
 
 /// Parses argv into inputs, or returns the rejection text.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Options, String> {
     let mut flags = documentation_ir::tool::flags(args, &["--json", "--package", "--out"])?;
     Ok(Options {
@@ -40,6 +46,10 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
 }
 
 /// Reads, converts, validates and writes one shard, returning the failure text on error.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), String> {
     let json = fs::read_to_string(&options.json)
         .map_err(|error| format!("cannot read {}: {error}", options.json))?;
@@ -284,7 +294,7 @@ fn signature(element: &Element) -> String {
         "class" => {
             let mut text = format!("{}class {name}", modifiers(element, false));
             if !element.superclass.is_empty() {
-                text.push_str(&format!(" extends \\{}", element.superclass));
+                write!(text, " extends \\{}", element.superclass).unwrap_or_default();
             }
             text.push_str(&list("implements", &element.interfaces));
             text
@@ -340,7 +350,7 @@ fn signature(element: &Element) -> String {
             let params: Vec<String> = element.params.iter().map(parameter_text).collect();
             let mut text = format!("{prefix}function {}({})", element.name, params.join(", "));
             if !is_constructor(element) && !element.return_type.is_empty() {
-                text.push_str(&format!(": {}", element.return_type));
+                write!(text, ": {}", element.return_type).unwrap_or_default();
             }
             text
         }
@@ -428,6 +438,10 @@ fn extension(key: &str, value: &str) -> Extension {
 }
 
 /// Converts one driver JSON document into a validated IR shard of one package.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
     if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {
         return Err(format!("invalid package '{package}'"));

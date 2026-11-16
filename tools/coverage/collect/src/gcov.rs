@@ -1,5 +1,6 @@
 use serde_json::Value;
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 #[derive(Default)]
@@ -34,7 +35,11 @@ pub fn gcno_by_key(manifest: &str) -> BTreeMap<String, String> {
     manifest
         .lines()
         .map(str::trim)
-        .filter(|line| line.ends_with(".gcno"))
+        .filter(|line| {
+            Path::new(line)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("gcno"))
+        })
         .filter_map(|line| Some((object_key(line)?, line.to_string())))
         .collect()
 }
@@ -108,26 +113,20 @@ pub fn add_gcov_json(report: &mut Report, json: &str) -> Result<(), String> {
 pub fn render(report: &Report) -> String {
     let mut out = String::new();
     for (source, cov) in report {
-        out.push_str(&format!("SF:{source}\n"));
+        writeln!(out, "SF:{source}").unwrap_or_default();
         for (name, (start, _)) in &cov.functions {
-            out.push_str(&format!("FN:{start},{name}\n"));
+            writeln!(out, "FN:{start},{name}").unwrap_or_default();
         }
         for (name, (_, count)) in &cov.functions {
-            out.push_str(&format!("FNDA:{count},{name}\n"));
+            writeln!(out, "FNDA:{count},{name}").unwrap_or_default();
         }
         let hit_functions = cov.functions.values().filter(|f| f.1 > 0).count();
-        out.push_str(&format!(
-            "FNF:{}\nFNH:{hit_functions}\n",
-            cov.functions.len()
-        ));
+        writeln!(out, "FNF:{}\nFNH:{hit_functions}", cov.functions.len()).unwrap_or_default();
         for (line, count) in &cov.lines {
-            out.push_str(&format!("DA:{line},{count}\n"));
+            writeln!(out, "DA:{line},{count}").unwrap_or_default();
         }
         let hit_lines = cov.lines.values().filter(|c| **c > 0).count();
-        out.push_str(&format!(
-            "LF:{}\nLH:{hit_lines}\nend_of_record\n",
-            cov.lines.len()
-        ));
+        writeln!(out, "LF:{}\nLH:{hit_lines}\nend_of_record", cov.lines.len()).unwrap_or_default();
     }
     out
 }

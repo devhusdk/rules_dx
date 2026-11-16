@@ -1,4 +1,4 @@
-//! Converts the symbol graph of `swift-symbolgraph-extract` into one validated DocIr shard.
+//! Converts the symbol graph of `swift-symbolgraph-extract` into one validated `DocIr` shard.
 //!
 //! A symbol graph carries each public declaration with its doc comment, declaration fragments
 //! and parameter list, but no source locations, so each declaration is located in the library's
@@ -11,6 +11,7 @@ use documentation_ir::proto::{
 };
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write as _;
 use std::fs;
 
 const LANGUAGE: &str = "swift";
@@ -37,11 +38,16 @@ pub struct Options {
 }
 
 /// The usage line shown for a rejected invocation.
+#[must_use]
 pub fn usage() -> &'static str {
     "usage: swift_extract --graphs DIR --sources FILE --module NAME --out FILE --package NAME [--config TEXT]"
 }
 
 /// Parses argv into inputs, or returns the rejection text.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Options, String> {
     let mut flags = documentation_ir::tool::flags(
         args,
@@ -65,6 +71,10 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
 }
 
 /// Parses a srcs manifest of `exec_path<TAB>rel<TAB>generated` lines.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse_sources(text: &str) -> Result<Vec<Source>, String> {
     text.lines()
         .filter(|line| !line.is_empty())
@@ -83,6 +93,10 @@ pub fn parse_sources(text: &str) -> Result<Vec<Source>, String> {
 }
 
 /// Reads, converts, validates and writes one shard. Nothing is written on error.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), String> {
     let read = |path: &str| {
         fs::read_to_string(path).map_err(|error| format!("cannot read {path}: {error}"))
@@ -232,6 +246,10 @@ fn collect<'a>(root: &'a Value, other: Option<&str>, entries: &mut Vec<Entry<'a>
 
 /// Converts one module's symbol graph, and the `<module>@<Other>` graphs of its extensions of other
 /// modules' types, into a validated IR shard. `texts` maps each exec path to its text.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn convert(
     graph: &str,
     extension_graphs: &[(String, String)],
@@ -255,7 +273,7 @@ pub fn convert(
     }
     let mut config_text = format!("symbolgraph=1;package={package};module={module}");
     if !config.is_empty() {
-        config_text.push_str(&format!(";config={config}"));
+        write!(config_text, ";config={config}").unwrap_or_default();
     }
     let mut order: Vec<usize> = (0..sources.len()).collect();
     order.sort_by_key(|index| sources.get(*index).map(|source| &source.rel));
@@ -394,7 +412,7 @@ pub fn convert(
     Ok(shard)
 }
 
-/// Rewrites each resolvable DocC symbol link ``` ``Path/To/Symbol`` ``` to a `dx:` link; others stay code.
+/// Rewrites each resolvable `DocC` symbol link ``` ``Path/To/Symbol`` ``` to a `dx:` link; others stay code.
 fn link_symbols(text: &str, module: &str, links: &BTreeMap<String, String>) -> String {
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
@@ -430,7 +448,7 @@ fn link_symbols(text: &str, module: &str, links: &BTreeMap<String, String>) -> S
                 if !name.is_empty() && !name.contains('\n') && !last.is_empty() =>
             {
                 out.truncate(out.len() - 2);
-                out.push_str(&format!("[{last}](dx:{id})"));
+                write!(out, "[{last}](dx:{id})").unwrap_or_default();
                 let Some(remainder) = from_close.get(2..) else {
                     break;
                 };
@@ -578,13 +596,15 @@ fn split_doc(lines: &[String]) -> (String, Vec<(String, String)>, Option<String>
             match open {
                 Open::Param | Open::Block => {
                     if let Some(last) = params.last_mut() {
-                        last.1 = format!("{} {}", last.1, trimmed).trim().to_owned();
+                        format!("{} {}", last.1, trimmed)
+                            .trim()
+                            .clone_into(&mut last.1);
                         continue;
                     }
                 }
                 Open::Returns => {
                     if let Some(text) = returns.as_mut() {
-                        *text = format!("{text} {trimmed}").trim().to_owned();
+                        format!("{text} {trimmed}").trim().clone_into(text);
                         continue;
                     }
                 }

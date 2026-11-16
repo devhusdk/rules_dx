@@ -105,7 +105,7 @@ fn signatures_docs_and_sources_come_from_the_compile() {
 fn the_defines_select_the_members() {
     let base = shard("DX_FIXTURE_SHARD");
     let extra = shard("DX_FIXTURE_EXTRA_SHARD");
-    assert!(symbols(&base, "Account.Freeze").is_empty());
+    assert_eq!(symbols(&base, "Account.Freeze"), [] as [&Symbol; 0]);
     assert_eq!(symbols(&extra, "Account.Freeze").len(), 1);
     assert_ne!(
         std::fs::read(dx_testing::env_file("DX_FIXTURE_SHARD")).expect("read"),

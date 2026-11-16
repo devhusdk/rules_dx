@@ -4,7 +4,7 @@ use super::{Options, api_path, code, parse, relative, render, title};
 use documentation_ir::proto::{DocIr, Relations, SourceRef, Symbol, SymbolKind};
 
 fn args(list: &[&str]) -> Vec<String> {
-    list.iter().map(|s| s.to_string()).collect()
+    list.iter().map(ToString::to_string).collect()
 }
 
 fn symbol(id: &str, signature: &str, doc: &str, line: u64) -> Symbol {

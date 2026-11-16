@@ -1,14 +1,15 @@
 //! Renders the support matrix as Markdown with stable, ASCII-only output.
 
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 
 use crate::{Facts, Row, RowPlatforms, UPDATE_COMMAND};
 
 fn table(header: &[&str], rows: &[Vec<String>]) -> String {
     let mut out = format!("| {} |\n", header.join(" | "));
-    out.push_str(&format!("|{}\n", " --- |".repeat(header.len())));
+    writeln!(out, "|{}", " --- |".repeat(header.len())).unwrap_or_default();
     for row in rows {
-        out.push_str(&format!("| {} |\n", row.join(" | ")));
+        writeln!(out, "| {} |", row.join(" | ")).unwrap_or_default();
     }
     out
 }
@@ -64,7 +65,11 @@ fn suite_cell(facts: &Facts, row: &Row, test: &str) -> String {
                 .platforms
                 .iter()
                 .all(|p| entries.iter().any(|e| e.platform == p.id));
-        return if every { "all".to_owned() } else { run.join(", ") };
+        return if every {
+            "all".to_owned()
+        } else {
+            run.join(", ")
+        };
     }
     if !run.is_empty() {
         parts.push(run.join(", "));
@@ -80,11 +85,13 @@ fn suite_cell(facts: &Facts, row: &Row, test: &str) -> String {
     }
     let pending = ids("pending");
     if !pending.is_empty() {
-        parts.push(if run.is_empty() && entries.iter().all(|e| e.status != "n/a") {
-            "pending".to_owned()
-        } else {
-            format!("pending on {}", pending.join(", "))
-        });
+        parts.push(
+            if run.is_empty() && entries.iter().all(|e| e.status != "n/a") {
+                "pending".to_owned()
+            } else {
+                format!("pending on {}", pending.join(", "))
+            },
+        );
     }
     parts.join("; ")
 }
@@ -163,14 +170,17 @@ fn language_table(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> 
             .collect()
         })
         .collect();
-    let header: Vec<&str> = ["Language", "Not supported on", "Dependencies", "Bench", "Fuzz"]
-        .into_iter()
-        .chain(SUITE_TESTS)
-        .collect();
-    table(
-        &header,
-        &rows,
-    )
+    let header: Vec<&str> = [
+        "Language",
+        "Not supported on",
+        "Dependencies",
+        "Bench",
+        "Fuzz",
+    ]
+    .into_iter()
+    .chain(SUITE_TESTS)
+    .collect();
+    table(&header, &rows)
 }
 
 fn compiler_table(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> String {
@@ -274,7 +284,7 @@ fn quality_cell(facts: &Facts, row: &Row, capability: &str) -> String {
                     .map(|(p, reason)| format!("`{}`: {reason}", p.id))
                     .collect();
                 if !notes.is_empty() {
-                    cell.push_str(&format!(" (not on {})", notes.join("; ")));
+                    write!(cell, " (not on {})", notes.join("; ")).unwrap_or_default();
                 }
             }
             cell
@@ -284,6 +294,7 @@ fn quality_cell(facts: &Facts, row: &Row, capability: &str) -> String {
 }
 
 /// Reports whether `row` has a quality row: every language and format, and targets with a family; never compilers.
+#[must_use]
 pub fn shows_quality(row: &Row) -> bool {
     match row.section.as_str() {
         "targets" => !row.families.is_empty(),
@@ -350,6 +361,7 @@ fn quality_table(facts: &Facts) -> String {
 }
 
 /// Renders the whole page.
+#[must_use]
 pub fn render(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> String {
     let ids: Vec<String> = facts
         .platforms
@@ -367,10 +379,12 @@ pub fn render(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> Stri
          `macos_x86_64` is not supported.\n\n",
     );
     out.push_str("`n/a` means the capability does not apply to that language or format.\n\n");
-    out.push_str(&format!("The platforms are {}.\n\n", ids.join(", ")));
-    out.push_str(&format!(
-        "Do not edit this page. Run `{UPDATE_COMMAND}` to refresh it.\n\n"
-    ));
+    writeln!(out, "The platforms are {}.\n", ids.join(", ")).unwrap_or_default();
+    writeln!(
+        out,
+        "Do not edit this page. Run `{UPDATE_COMMAND}` to refresh it.\n"
+    )
+    .unwrap_or_default();
     out.push_str("## Languages\n\n");
     out.push_str(
         "Each suite column names the platforms the conformance test runs on, `n/a` with its reason, or `pending`.\n\n",
@@ -430,9 +444,9 @@ fn not_applicable_section(facts: &Facts) -> String {
         } else {
             out.push('\n');
         }
-        out.push_str(&format!("Not applicable for `{capability}`:\n\n"));
+        writeln!(out, "Not applicable for `{capability}`:\n").unwrap_or_default();
         for (family, reason) in families {
-            out.push_str(&format!("- `{family}`: {reason}\n"));
+            writeln!(out, "- `{family}`: {reason}").unwrap_or_default();
         }
     }
     out

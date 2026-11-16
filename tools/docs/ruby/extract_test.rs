@@ -133,7 +133,7 @@ fn signatures_docs_types_and_sources_come_from_yard() {
     let area = symbol(&shard, "Geometry.Circle.area");
     assert_eq!(area.signature_text, "def area");
     assert_eq!(area.doc_markdown, "Computes the area of the circle.");
-    assert!(area.params.is_empty());
+    assert_eq!(area.params, [] as [documentation_ir::proto::Param; 0]);
     assert_eq!(area.returns.as_ref().expect("returns").r#type, "Float");
     let source = area.source.as_ref().expect("a source");
     assert_eq!(

@@ -279,8 +279,8 @@ fn docs_params_returns_and_positions() {
 fn undocumented_symbol_has_empty_doc() {
     let shard = shard("");
     let symbol = find(&shard, "Shapes.Measured");
-    assert!(symbol.doc_markdown.is_empty());
-    assert!(symbol.params.is_empty());
+    assert_eq!(symbol.doc_markdown, "");
+    assert_eq!(symbol.params, [] as [Param; 0]);
     assert!(symbol.returns.is_none());
 }
 

@@ -7,6 +7,7 @@ use documentation_ir::proto::{
 };
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write as _;
 
 /// One declared source file of the documented library.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -26,6 +27,10 @@ pub struct Settings {
 }
 
 /// Parses the tab-separated srcs manifest.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse_sources(text: &str) -> Result<Vec<Source>, String> {
     let mut sources = Vec::new();
     for line in text.lines().filter(|line| !line.is_empty()) {
@@ -48,6 +53,10 @@ pub fn parse_sources(text: &str) -> Result<Vec<Source>, String> {
 }
 
 /// Converts one dx.dotnet-api/1 document into a validated IR shard.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn convert(json: &str, settings: &Settings) -> Result<DocIr, String> {
     let api = parse_api(json)?;
     if api.language != settings.language {
@@ -217,7 +226,7 @@ fn symbol(
         .ok_or_else(|| format!("no id for '{}'", item.doc_id))?;
     let mut config = format!("assembly={};api={SCHEMA}", api.assembly);
     if !settings.config.is_empty() {
-        config.push_str(&format!(";config={}", settings.config));
+        write!(config, ";config={}", settings.config).unwrap_or_default();
     }
     let mut missing: BTreeSet<String> = item.incomplete.iter().cloned().collect();
     if item.summary.trim().is_empty() {

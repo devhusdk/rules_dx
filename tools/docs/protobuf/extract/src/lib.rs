@@ -1,4 +1,4 @@
-//! Converts a protoc descriptor set with source info into one validated DocIr shard.
+//! Converts a protoc descriptor set with source info into one validated `DocIr` shard.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
@@ -41,11 +41,16 @@ pub struct Options {
 }
 
 /// The usage line shown for a rejected invocation.
+#[must_use]
 pub fn usage() -> &'static str {
     "usage: protobuf_extract --descriptor FILE --package NAME --out FILE --src PROTO=PATH... [--generated PROTO]..."
 }
 
 /// Parses argv into inputs, or returns the rejection text.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Options, String> {
     let mut flags = documentation_ir::tool::flags(
         args,
@@ -77,6 +82,10 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
 }
 
 /// Reads, converts, validates and writes one shard, returning the failure text on error.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), String> {
     let bytes = fs::read(&options.descriptor)
         .map_err(|error| format!("cannot read {}: {error}", options.descriptor))?;
@@ -223,7 +232,11 @@ impl Builder<'_> {
     fn collect_maps(&mut self, prefix: &str, messages: &[DescriptorProto]) {
         for message in messages {
             let full = format!("{prefix}.{}", message.name());
-            if message.options.as_ref().is_some_and(|o| o.map_entry()) {
+            if message
+                .options
+                .as_ref()
+                .is_some_and(prost_types::MessageOptions::map_entry)
+            {
                 let key = message.field.iter().find(|f| f.number() == 1);
                 let value = message.field.iter().find(|f| f.number() == 2);
                 if let (Some(key), Some(value)) = (key, value) {
@@ -255,20 +268,17 @@ impl Builder<'_> {
             let mut field_segments = segments.clone();
             field_segments.push(field.name().to_owned());
             let ty = type_name(field);
-            let signature = match self.maps.get(&ty) {
-                Some((key, value)) => {
-                    format!("map<{key}, {value}> {} = {};", field.name(), field.number())
-                }
-                None => {
-                    let label = if field.label() == Label::Repeated {
-                        "repeated "
-                    } else if field.proto3_optional() {
-                        "optional "
-                    } else {
-                        ""
-                    };
-                    format!("{label}{ty} {} = {};", field.name(), field.number())
-                }
+            let signature = if let Some((key, value)) = self.maps.get(&ty) {
+                format!("map<{key}, {value}> {} = {};", field.name(), field.number())
+            } else {
+                let label = if field.label() == Label::Repeated {
+                    "repeated "
+                } else if field.proto3_optional() {
+                    "optional "
+                } else {
+                    ""
+                };
+                format!("{label}{ty} {} = {};", field.name(), field.number())
             };
             self.push(
                 &field_segments,
@@ -281,7 +291,11 @@ impl Builder<'_> {
             );
         }
         for (index, nested) in message.nested_type.iter().enumerate() {
-            if nested.options.as_ref().is_some_and(|o| o.map_entry()) {
+            if nested
+                .options
+                .as_ref()
+                .is_some_and(prost_types::MessageOptions::map_entry)
+            {
                 continue;
             }
             let mut nested_path = path.to_vec();
@@ -390,6 +404,10 @@ impl Builder<'_> {
 }
 
 /// Converts one descriptor set into a validated IR shard of one package.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn convert(descriptor: &[u8], options: &Options) -> Result<DocIr, String> {
     let package = options.package.as_str();
     if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {

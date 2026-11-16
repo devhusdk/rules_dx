@@ -1,4 +1,4 @@
-//! Converts the JSON of `zig_doc_dump` into one validated DocIr shard.
+//! Converts the JSON of `zig_doc_dump` into one validated `DocIr` shard.
 //!
 //! The dump (schema 1) carries, per source file, the `//!` file doc and every declaration with
 //! its `///` doc, `pub` flag, kind, line and exact signature text. Only what the main file (the
@@ -12,6 +12,7 @@ use documentation_ir::proto::{
 };
 use serde_json::Value;
 use std::collections::BTreeSet;
+use std::fmt::Write as _;
 use std::fs;
 
 const LANGUAGE: &str = "zig";
@@ -37,11 +38,16 @@ pub struct Options {
 }
 
 /// The usage line shown for a rejected invocation.
+#[must_use]
 pub fn usage() -> &'static str {
     "usage: zig_extract --dump FILE --sources FILE --out FILE --package NAME [--config TEXT]"
 }
 
 /// Parses argv into inputs, or returns the rejection text.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Options, String> {
     let mut flags = documentation_ir::tool::flags(
         args,
@@ -57,6 +63,10 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
 }
 
 /// Parses a srcs manifest of `exec_path<TAB>rel<TAB>generated` lines.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse_sources(text: &str) -> Result<Vec<Source>, String> {
     text.lines()
         .filter(|line| !line.is_empty())
@@ -75,6 +85,10 @@ pub fn parse_sources(text: &str) -> Result<Vec<Source>, String> {
 }
 
 /// Reads, converts, validates and writes one shard. Nothing is written on error.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), String> {
     let read = |path: &str| {
         fs::read_to_string(path).map_err(|error| format!("cannot read {path}: {error}"))
@@ -93,6 +107,10 @@ struct Context<'a> {
 }
 
 /// Converts the dump JSON into a validated IR shard.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn convert(
     json: &str,
     sources: &[Source],
@@ -112,7 +130,7 @@ pub fn convert(
     };
     let mut text = format!("zig-ast={SCHEMA};package={package}");
     if !config.is_empty() {
-        text.push_str(&format!(";config={config}"));
+        write!(text, ";config={config}").unwrap_or_default();
     }
     let context = Context {
         package,
@@ -151,6 +169,7 @@ fn list<'a>(value: &'a Value, key: &str) -> &'a [Value] {
 }
 
 /// Resolves `target` against the directory of `from`, folding `.` and `..` segments.
+#[must_use]
 pub fn resolve(from: &str, target: &str) -> String {
     let mut parts: Vec<&str> = from.split('/').collect();
     parts.pop();
@@ -221,7 +240,12 @@ fn module(
 /// The module name of an `@import` that names another `zig_library` rather than a file or builtin.
 fn dependency(import: &str) -> Option<&str> {
     let builtin = matches!(import, "std" | "builtin" | "root");
-    (!import.is_empty() && !builtin && !import.ends_with(".zig")).then_some(import)
+    (!import.is_empty()
+        && !builtin
+        && !std::path::Path::new(import)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("zig")))
+    .then_some(import)
 }
 
 /// Emits a re-exported dependency as a module whose doc links to the dependency's own shard.

@@ -59,23 +59,21 @@ single_version_override(
 )
 
 # floor: equals tested
-bazel_dep(name = "llvm", version = "0.8.26")
+bazel_dep(name = "llvm", version = "0.8.27")
 single_version_override(
     module_name = "llvm",
     patch_strip = 1,
     patches = [
         "//patches/llvm:libunwind_copy.patch",
-        "//patches/llvm:clang_cl_crt_default_lib.patch",
         "//patches/llvm:clang_cl_profile_no_mingw.patch",
         "//patches/llvm:unwatched_overlay_inputs.patch",
         "//patches/llvm:msvc_source_directories.patch",
         "//patches/llvm:lse_atomic_sources.patch",
         "//patches/llvm:stage0_runtime_features.patch",
-        "//patches/llvm:aarch64_outline_atomics.patch",
         "//patches/llvm:macos_sdk_resolve_symlinks.patch",
         "//patches/llvm:msvc_fuzzer.patch",
     ],
-    version = "0.8.26",
+    version = "0.8.27",
 )
 
 # dev only: //patches/llvm/tests:libunwind_copy_test reads the patched libunwind.a

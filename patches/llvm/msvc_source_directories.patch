@@ -1,4 +1,5 @@
 diff --git a/runtimes/msvc/BUILD.bazel b/runtimes/msvc/BUILD.bazel
+index dac32eb..e5a4c7f 100644
 --- a/runtimes/msvc/BUILD.bazel
 +++ b/runtimes/msvc/BUILD.bazel
 @@ -1,71 +1,7 @@
@@ -73,7 +74,7 @@ diff --git a/runtimes/msvc/BUILD.bazel b/runtimes/msvc/BUILD.bazel
  alias(
      name = "msvc_include",
      actual = "@msvc_runtime//:msvc_include",
-@@ -104,30 +40,26 @@
+@@ -104,30 +40,26 @@ alias(
      actual = "@msvc_runtime//:msvc_lib_x64",
  )
  
@@ -114,7 +115,7 @@ diff --git a/runtimes/msvc/BUILD.bazel b/runtimes/msvc/BUILD.bazel
  )
  
  case_insensitive_vfs_overlay(
-@@ -150,62 +82,22 @@
+@@ -156,62 +88,22 @@ case_insensitive_vfs_overlay(
      ],
  )
  

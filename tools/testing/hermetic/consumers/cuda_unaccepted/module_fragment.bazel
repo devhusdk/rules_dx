@@ -1,2 +1,2 @@
-bazel_dep(name = "llvm", version = "0.8.26")
+bazel_dep(name = "llvm", version = "0.8.27")
 bazel_dep(name = "rules_shell", version = "0.8.0")

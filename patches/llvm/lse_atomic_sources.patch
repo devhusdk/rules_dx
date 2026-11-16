@@ -21,7 +21,7 @@ index 454cd22..c9ad737 100644
  
  bzl_library(
 diff --git a/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel b/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel
-index 0fa0744..3c53c15 100644
+index 35759bb..4524b43 100644
 --- a/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel
 +++ b/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel
 @@ -5,6 +5,7 @@ load("@bazel_skylib//rules/directory:directory.bzl", "directory")
@@ -32,7 +32,7 @@ index 0fa0744..3c53c15 100644
  load("@llvm//3rd_party/llvm-project/x.x/compiler-rt:targets.bzl", "atomic_helper_cc_library")
  load(
      "@llvm//3rd_party/llvm-project/x.x/compiler-rt:weak_symbols.bzl",
-@@ -512,29 +513,7 @@ builtins_aarch64_atomic_deps = [
+@@ -513,29 +514,7 @@ builtins_aarch64_atomic_deps = [
          model = model,
          pat = pat,
      )

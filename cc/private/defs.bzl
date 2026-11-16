@@ -160,13 +160,8 @@ def _cc_kwargs(kwargs, srcs, hdrs = None):
     return dx_append_flags(kwargs, "features", features) if features else kwargs
 
 def cc_library(name, srcs = None, hdrs = None, visibility = None, **kwargs):
-    """Minimal wrapper over cc_library. On macOS it builds no dylib unless linkstatic is set."""
+    """Minimal wrapper over cc_library."""
     kwargs = _cc_kwargs(kwargs, srcs, hdrs)
-    if "linkstatic" not in kwargs:
-        kwargs["linkstatic"] = select({
-            Label("@platforms//os:macos"): True,
-            "//conditions:default": False,
-        })
     effective_srcs = srcs if srcs != None else []
     effective_hdrs = hdrs if hdrs != None else []
     dx_wrap(name, _cc_library, _cc_library_forward, effective_srcs, visibility = visibility, hdrs = effective_hdrs, extra_forward_kwargs = {"hdrs": effective_hdrs}, **kwargs)
@@ -195,7 +190,6 @@ def cc_test(name, *, srcs = None, visibility = None, **kwargs):
     })
     if "linkstatic" not in kwargs:
         kwargs["linkstatic"] = select({
-            Label("@platforms//os:macos"): True,
             Label("@platforms//os:windows"): True,
             "//conditions:default": False,
         })

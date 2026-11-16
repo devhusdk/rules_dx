@@ -8,6 +8,7 @@ pub struct Circle {
 
 impl Circle {
     /// Returns the area in square meters.
+    #[must_use]
     pub fn area(&self) -> f64 {
         std::f64::consts::PI * self.radius * self.radius
     }
@@ -15,6 +16,7 @@ impl Circle {
 
 /// Returns the circle with radius one.
 #[cfg(feature = "extra")]
+#[must_use]
 pub fn unit_circle() -> Circle {
     Circle { radius: 1.0 }
 }

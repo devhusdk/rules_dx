@@ -1,5 +1,5 @@
 #!/bin/sh
-# The macOS SDK repo holds copies of header files, not file symlinks, and flat frameworks without Versions or symlinks.
+# The macOS SDK repo holds copies of header files, not file symlinks, and flat frameworks whose Versions holds only .tbd stubs.
 set -eu
 sysroot=$(readlink -f "$1")
 frameworks="$sysroot/System/Library/Frameworks"
@@ -25,9 +25,9 @@ if [ -n "$links" ]; then
     echo "symlinks remain in $frameworks" >&2
     exit 1
 fi
-versions=$(find "$frameworks" -type d -path '*.framework/Versions')
+versions=$(find "$frameworks" -path '*.framework/Versions/*' ! -type d ! -name '*.tbd')
 if [ -n "$versions" ]; then
     echo "$versions" >&2
-    echo "Versions directories remain in $frameworks" >&2
+    echo "Versions entries other than .tbd stubs remain in $frameworks" >&2
     exit 1
 fi

@@ -155,6 +155,21 @@ pub fn publish_dry_run_check(inputs: &PublishDryRunInputs) -> Result<PublishDryR
         &inputs.notice_texts,
     )
     .map_err(|error| format!("publish dry-run: NOTICE validation failed: {error}"))?;
+    check_dry_run_logs(inputs)?;
+    let sbom_digest = sbom_subject_digest(&inputs.spdx)?;
+    let report = render_dry_run_report(inputs, &verification, &sbom_digest);
+    if report.is_empty() {
+        return Err("publish dry-run: rendered report is empty".to_owned());
+    }
+    Ok(PublishDryRunOutcome {
+        report,
+        sbom_digest,
+        qualified,
+        verification: verification_text,
+    })
+}
+
+fn check_dry_run_logs(inputs: &PublishDryRunInputs) -> Result<(), String> {
     let artifacts_list = read_text(&inputs.release_artifacts_list, "release artifacts list")?;
     for required in [
         "license.toml",
@@ -206,7 +221,14 @@ pub fn publish_dry_run_check(inputs: &PublishDryRunInputs) -> Result<PublishDryR
         "checksum-only verification is not publisher-identity proof",
         "install verifier refusal log",
     )?;
-    let sbom_digest = sbom_subject_digest(&inputs.spdx)?;
+    Ok(())
+}
+
+fn render_dry_run_report(
+    inputs: &PublishDryRunInputs,
+    verification: &cell::Verification,
+    sbom_digest: &str,
+) -> String {
     let artifacts: Vec<serde_json::Value> = verification
         .cells
         .iter()
@@ -223,7 +245,7 @@ pub fn publish_dry_run_check(inputs: &PublishDryRunInputs) -> Result<PublishDryR
         .collect();
     let release_matrix: Vec<serde_json::Value> =
         verification.cells.iter().map(cell_entry).collect();
-    let report = super::render_pretty(&serde_json::json!({
+    super::render_pretty(&serde_json::json!({
         "approved": inputs.approve,
         "artifacts": artifacts,
         "bcr_shape": {
@@ -293,16 +315,7 @@ pub fn publish_dry_run_check(inputs: &PublishDryRunInputs) -> Result<PublishDryR
             "trust_root": SIGNING_TRUST_ROOT,
             "verifier": "//deploy/private/install:dx_verify",
         },
-    }));
-    if report.is_empty() {
-        return Err("publish dry-run: rendered report is empty".to_owned());
-    }
-    Ok(PublishDryRunOutcome {
-        report,
-        sbom_digest,
-        qualified,
-        verification: verification_text,
-    })
+    }))
 }
 
 fn operations() -> Vec<OpRecord> {

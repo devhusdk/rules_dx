@@ -576,7 +576,7 @@ mod tests {
     }
 
     #[cfg(unix)]
-    fn strings(args: Vec<OsString>) -> Vec<String> {
+    fn strings(args: &[OsString]) -> Vec<String> {
         args.iter()
             .map(|a| a.to_string_lossy().into_owned())
             .collect()
@@ -604,8 +604,8 @@ mod tests {
         let calls = octo_calls(scratch.path());
         let spec = octo_spec(&envs, "S");
         assert_eq!(calls.len(), 2);
-        assert_eq!(calls[0], strings(octopus_push_args(package, &spec)));
-        assert_eq!(calls[1], strings(octopus_release_args(&spec)));
+        assert_eq!(calls[0], strings(&octopus_push_args(package, &spec)));
+        assert_eq!(calls[1], strings(&octopus_release_args(&spec)));
         assert!(calls[0].contains(&"S".to_owned()));
         let args = std::fs::read_to_string(scratch.path().join("args.txt")).expect("args");
         let env = std::fs::read_to_string(scratch.path().join("env.txt")).expect("env");

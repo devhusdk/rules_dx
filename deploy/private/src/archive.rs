@@ -1421,9 +1421,7 @@ mod tests {
         }
     }
 
-    #[test]
-    fn archive_extract_rejects_traversal_duplicates_links_and_modeless_zip() {
-        let scratch = scratch_dir();
+    fn reject_zip_cases(scratch: &Path) {
         let cases: Vec<(&str, Vec<u8>, &str)> = vec![
             (
                 "up.zip",
@@ -1482,14 +1480,20 @@ mod tests {
             ("garbage.zip", b"not a zip".to_vec(), "archive listing"),
         ];
         for (name, bytes, want) in cases {
-            let path = scratch.path().join(name);
+            let path = scratch.join(name);
             std::fs::write(&path, bytes).expect("write");
-            let dir = scratch.path().join(format!("{name}.out"));
+            let dir = scratch.join(format!("{name}.out"));
             let error = archive_extract(&path, &dir).expect_err(name);
             assert!(error.to_string().contains(want), "{name}: {error}");
-            assert!(!scratch.path().join("escape").exists());
+            assert!(!scratch.join("escape").exists());
             assert!(!Path::new("/abs").exists());
         }
+    }
+
+    #[test]
+    fn archive_extract_rejects_traversal_duplicates_links_and_modeless_zip() {
+        let scratch = scratch_dir();
+        reject_zip_cases(scratch.path());
         let mut builder = tar::Builder::new(Vec::new());
         let mut link = tar::Header::new_ustar();
         link.set_entry_type(tar::EntryType::Symlink);

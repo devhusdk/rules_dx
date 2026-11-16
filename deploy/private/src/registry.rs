@@ -1,6 +1,7 @@
 //! Minimal OCI Distribution client that pushes one staged OCI image layout.
 
 use crate::http::{basic_auth, query_escape};
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 /// Fixed message for a registry or token realm that refuses the credentials.
@@ -224,7 +225,7 @@ pub(crate) fn check_realm(endpoint: &Endpoint, realm: &str) -> Result<(), String
     }
 }
 
-fn transport(what: &str, error: ureq::Error) -> String {
+fn transport(what: &str, error: &ureq::Error) -> String {
     format!("registry: {what} failed: {error}")
 }
 
@@ -280,7 +281,7 @@ impl<'a> Session<'a> {
         let ping = agent
             .get(format!("{origin}/v2/"))
             .call()
-            .map_err(|error| transport("ping", error))?;
+            .map_err(|error| transport("ping", &error))?;
         let status = ping.status().as_u16();
         if status == 200 {
             return Ok(Self {
@@ -318,15 +319,15 @@ impl<'a> Session<'a> {
                 let mut url = realm.clone();
                 url.push(if url.contains('?') { '&' } else { '?' });
                 if let Some(service) = service {
-                    url.push_str(&format!("service={}&", query_escape(service)));
+                    write!(url, "service={}&", query_escape(service)).ok();
                 }
                 let scope = format!("repository:{}:pull,push", target.name);
-                url.push_str(&format!("scope={}", query_escape(&scope)));
+                write!(url, "scope={}", query_escape(&scope)).ok();
                 let mut reply = agent
                     .get(url)
                     .header("Authorization", basic_auth(creds.user, creds.secret))
                     .call()
-                    .map_err(|error| transport("token request", error))?;
+                    .map_err(|error| transport("token request", &error))?;
                 let status = reply.status().as_u16();
                 if status != 200 {
                     return Err(status_error("token request", status));
@@ -387,7 +388,7 @@ impl<'a> Session<'a> {
             url.truncate(hash);
         }
         url.push(if url.contains('?') { '&' } else { '?' });
-        url.push_str(&format!("digest={}", query_escape(digest)));
+        write!(url, "digest={}", query_escape(digest)).ok();
         Ok(url)
     }
 
@@ -396,14 +397,14 @@ impl<'a> Session<'a> {
         let head = self
             .authorize(self.agent.head(self.url(&format!("blobs/{digest}"))))
             .call()
-            .map_err(|error| transport("blob check", error))?;
+            .map_err(|error| transport("blob check", &error))?;
         if head.status().as_u16() == 200 {
             return Ok(());
         }
         let start = self
             .authorize(self.agent.post(self.url("blobs/uploads/")))
             .send_empty()
-            .map_err(|error| transport("blob upload start", error))?;
+            .map_err(|error| transport("blob upload start", &error))?;
         let status = start.status().as_u16();
         if status != 202 {
             return Err(status_error("blob upload start", status));
@@ -433,7 +434,7 @@ impl<'a> Session<'a> {
         }
         let done = put
             .send(file)
-            .map_err(|error| transport("blob upload", error))?;
+            .map_err(|error| transport("blob upload", &error))?;
         let status = done.status().as_u16();
         if status != 201 {
             return Err(status_error(&format!("blob upload of {digest}"), status));
@@ -452,7 +453,7 @@ impl<'a> Session<'a> {
             .authorize(self.agent.put(self.url(&format!("manifests/{tag}"))))
             .header("Content-Type", media_type)
             .send(bytes)
-            .map_err(|error| transport("manifest upload", error))?;
+            .map_err(|error| transport("manifest upload", &error))?;
         let status = done.status().as_u16();
         if status != 201 {
             return Err(status_error("manifest upload", status));

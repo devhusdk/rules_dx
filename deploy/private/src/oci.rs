@@ -386,7 +386,7 @@ fn oci_resolve(
         let next = match links.get(&current) {
             None => return Ok(current),
             Some(OciLink::Symbolic(target)) => {
-                let parent = current.rsplit_once('/').map(|(dir, _)| dir).unwrap_or("");
+                let parent = current.rsplit_once('/').map_or("", |(dir, _)| dir);
                 oci_member_path(parent, target)
             }
             Some(OciLink::Hard(target)) => oci_member_path("", target),

@@ -76,11 +76,10 @@ pub fn deploy_outdir(argv: &[String]) -> std::path::PathBuf {
     if let Some(first) = argv.get(1) {
         return absolute_from_invocation(Path::new(first));
     }
-    std::env::var("BUILD_WORKSPACE_DIRECTORY")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|_| {
-            std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."))
-        })
+    std::env::var("BUILD_WORKSPACE_DIRECTORY").map_or_else(
+        |_| std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")),
+        std::path::PathBuf::from,
+    )
 }
 
 /// Resolves a relative path against the directory the user ran bazel from.
@@ -217,8 +216,7 @@ pub(crate) fn tempfile_stage_dir(prefix: &str) -> io::Result<std::path::PathBuf>
     for counter in 0..100 {
         let nanos = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0);
+            .map_or(0, |d| d.as_nanos());
         let dir =
             std::env::temp_dir().join(format!("{prefix}{}-{nanos}-{counter}", std::process::id()));
         match create_private_dir(&dir) {

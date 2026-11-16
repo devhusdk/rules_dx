@@ -43,6 +43,7 @@ pub fn parse_version(version: &str) -> Option<[u64; 3]> {
 
 /// Returns the bump from `previous` to `next`; None when either is not a plain version.
 /// Below 1.0.0 a minor change counts as major, as cargo treats it.
+#[must_use]
 pub fn required_bump(previous: &str, next: &str) -> Option<Bump> {
     let (old, new) = (parse_version(previous)?, parse_version(next)?);
     let bump = if old[0] != new[0] || (old[0] == 0 && old[1] != new[1]) {
@@ -56,6 +57,7 @@ pub fn required_bump(previous: &str, next: &str) -> Option<Bump> {
 }
 
 /// Returns an error when a breaking report is not allowed by the version bump.
+#[must_use]
 pub fn breaking_refusal(
     mode: ApiCompatMode,
     bump: Option<Bump>,
@@ -80,6 +82,7 @@ pub enum Baseline {
 
 impl Baseline {
     /// Parses the `api_baseline` attribute value; empty means `registry`.
+    #[must_use]
     pub fn parse(value: &str) -> Option<Self> {
         match value {
             "registry" => Some(Self::Registry),
@@ -124,6 +127,7 @@ pub fn latest_published(index_body: &str, next: &str) -> Option<String> {
 }
 
 /// Returns the highest `v<version>` tag below `next` from `git tag` output.
+#[must_use]
 pub fn previous_tag(tags: &str, next: &str) -> Option<String> {
     highest_below(
         tags.lines().filter_map(|tag| tag.trim().strip_prefix('v')),
@@ -133,6 +137,7 @@ pub fn previous_tag(tags: &str, next: &str) -> Option<String> {
 }
 
 /// Returns the highest release below `next` listed in a `maven-metadata.xml` body.
+#[must_use]
 pub fn previous_release(metadata: &str, next: &str) -> Option<String> {
     let versions = metadata
         .split("<version>")
@@ -228,6 +233,7 @@ pub fn changes_or_failure(
 }
 
 /// The repository a deploy runs from.
+#[must_use]
 pub fn workspace_dir() -> std::path::PathBuf {
     std::env::var("BUILD_WORKSPACE_DIRECTORY")
         .unwrap_or_else(|_| ".".to_owned())
@@ -249,11 +255,19 @@ pub fn previous_git_tag(workspace: &std::path::Path, next: &str) -> Result<Optio
 }
 
 /// Downloads `url` up to `limit` bytes; None when the server answers 404 or 410.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn fetch(url: &str, limit: u64) -> Result<Option<Vec<u8>>, String> {
     fetch_with(&crate::http::publish_agent(), url, limit)
 }
 
 /// Downloads `url` with `agent` up to `limit` bytes; None when the server answers 404 or 410.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn fetch_with(agent: &ureq::Agent, url: &str, limit: u64) -> Result<Option<Vec<u8>>, String> {
     match agent.get(url).call() {
         Ok(response) if matches!(response.status().as_u16(), 404 | 410) => Ok(None),
@@ -274,6 +288,10 @@ pub fn fetch_with(agent: &ureq::Agent, url: &str, limit: u64) -> Result<Option<V
 
 /// Writes the files under `rel_dir` at `rev` into `dest`; false when that directory has no `marker` file.
 /// Symlinks and submodules are skipped. The index and working tree are not touched.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn export_git_dir(
     workspace: &std::path::Path,
     rel_dir: &str,

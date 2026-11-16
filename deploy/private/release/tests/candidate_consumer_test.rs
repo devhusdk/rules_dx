@@ -147,7 +147,7 @@ fn consumer(candidate: &Candidate, archive: &Path, registry: &Path) -> Case {
     case
 }
 
-fn dx(case: &Case, command: &str, args: &[&str]) -> Run {
+fn dx(case: &Case, command: &str, extra: &[&str]) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = case.root().to_string_lossy().into_owned();
     let home_dir = dx_test_scratch::scratch("candidate-home");
@@ -159,7 +159,7 @@ fn dx(case: &Case, command: &str, args: &[&str]) -> Run {
         .to_string_lossy()
         .into_owned();
     let mut argv: Vec<&str> = vec![command, "--workspace", workspace.as_str()];
-    argv.extend_from_slice(args);
+    argv.extend_from_slice(extra);
     let mut env = vec![("HOME", home.as_str()), ("PATH", path.as_str())];
     let bazel_sh = crate::quickstart_consumer_test::nested_env()
         .into_iter()

@@ -1,6 +1,7 @@
 //! Shared test fixtures: the env lock, scratch dirs and child-process env tests.
 
 use crate::{gzip_compress, tar_archive};
+use std::fmt::Write as _;
 use std::path::Path;
 
 static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
@@ -387,7 +388,7 @@ fn fake_serve(mut stream: std::net::TcpStream, state: &std::sync::Mutex<FakeStat
         reply.len()
     );
     for (key, value) in extra {
-        text.push_str(&format!("{key}: {value}\r\n"));
+        write!(text, "{key}: {value}\r\n").ok();
     }
     text.push_str("\r\n");
     text.push_str(&reply);

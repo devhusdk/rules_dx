@@ -1854,7 +1854,7 @@ mod tests {
         let bin = scratch.path().join("bin");
         std::fs::create_dir_all(&bin).expect("bin");
         fake_npm(&bin, 0);
-        let args = bin.join("args.txt");
+        let args_file = bin.join("args.txt");
         let path = format!(
             "{}:{}",
             bin.display(),
@@ -1884,10 +1884,10 @@ mod tests {
             );
             std::fs::remove_dir_all(&outdir).expect("cleanup");
             if want == 1 {
-                assert!(!args.exists(), "npm ran with approval {approved:?}");
+                assert!(!args_file.exists(), "npm ran with approval {approved:?}");
             }
         }
-        let seen = std::fs::read_to_string(&args).expect("npm ran once approved");
+        let seen = std::fs::read_to_string(&args_file).expect("npm ran once approved");
         assert!(seen.contains("publish"));
         assert!(!seen.contains("sekret"));
     }

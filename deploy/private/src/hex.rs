@@ -228,8 +228,8 @@ pub fn hex_main(
     match which_on_path(tool) {
         Some(program) => {
             let tarball_text = tarball.to_string_lossy().into_owned();
-            let args = hex_build_args(tool, &tarball_text);
-            if let Err(error) = hex_run(&program, &args, &package_dir, "") {
+            let build_args = hex_build_args(tool, &tarball_text);
+            if let Err(error) = hex_run(&program, &build_args, &package_dir, "") {
                 eprintln!("{error}");
                 return 1;
             }

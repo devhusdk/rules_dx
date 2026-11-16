@@ -458,7 +458,7 @@ def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resourc
         visibility = ["//visibility:private"],
     )
     upstream_kwargs["copts"] = copts + _include_copts(name)
-    upstream_kwargs["deps"] = effective_deps + [":" + name + "_qt_frameworks"] + _windows_console(test, modules)
+    upstream_kwargs["deps"] = effective_deps + [":" + name + "_qt_frameworks"] + _windows_console(test or kwargs.get("testonly", False), modules)
     wrap = dx_wrap_test if test else dx_wrap_binary
     wrap(
         name,

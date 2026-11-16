@@ -424,8 +424,15 @@ pub fn run(exe: &Path, user_args: &[OsString]) -> io::Result<i32> {
         Ok(resolver) => descriptor_for(resolver, exe),
         Err(_) => descriptor_path(exe),
     };
-    let text = std::fs::read_to_string(&path)
-        .map_err(|error| io::Error::new(error.kind(), format!("{}: {error}", path.display())))?;
+    let text = match std::fs::read_to_string(&path) {
+        Ok(text) => text,
+        Err(error) => {
+            return Err(match resolver {
+                Err(missing) => missing,
+                Ok(_) => io::Error::new(error.kind(), format!("{}: {error}", path.display())),
+            });
+        }
+    };
     let descriptor = parse(&text)?;
     if let Some(message) = &descriptor.fail {
         eprintln!("{message}");

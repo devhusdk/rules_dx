@@ -1574,7 +1574,11 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags_part6() {
             "-Duser.home=/scratch/home",
             "--enable-native-access=ALL-UNNAMED",
             "-cp",
-            "/pins/pkl-lsp.jar:/pins/natives.jar",
+            if cfg!(windows) {
+                "/pins/pkl-lsp.jar;/pins/natives.jar"
+            } else {
+                "/pins/pkl-lsp.jar:/pins/natives.jar"
+            },
             "org.pkl.lsp.cli.Main",
             "--",
             "/scratch/a.pkl"

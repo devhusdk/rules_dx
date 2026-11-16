@@ -183,6 +183,25 @@ fn job_stays_inside_the_time_budget() {
 }
 
 #[test]
+fn cacheless_retry_drops_the_remote_downloader() {
+    let analysis = job(WORKFLOW, "analysis");
+    let steps = analysis["steps"].as_array().expect("steps");
+    let step = steps
+        .iter()
+        .find(|s| s["name"].as_str() == Some("affected tests"))
+        .expect("affected tests step");
+    let run = step["run"].as_str().expect("run");
+    let retries: Vec<&str> = run
+        .lines()
+        .filter(|line| line.contains("--remote_cache="))
+        .collect();
+    assert_eq!(retries.len(), 1, "{run}");
+    for flag in ["--remote_cache= ", "--experimental_remote_downloader= "] {
+        assert!(retries[0].contains(flag), "retry lacks {flag}: {}", retries[0]);
+    }
+}
+
+#[test]
 fn affected_tests_run_after_an_earlier_step_fails() {
     let analysis = job(WORKFLOW, "analysis");
     let steps = analysis["steps"].as_array().expect("steps");

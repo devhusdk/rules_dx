@@ -277,6 +277,7 @@ fn init_and_completion_run_without_a_workspace() {
     std::fs::create_dir_all(&tools).expect("fake bin");
     let bazel = tools.join(format!("bazel{}", std::env::consts::EXE_SUFFIX));
     std::fs::copy(dx_testing::process_probe(), &bazel).expect("fake bazel");
+    std::fs::write(tools.join("stop"), "").expect("fake bazel stop file");
     let path = tools.to_string_lossy();
     let (code, out, err) = run_dx(
         root,

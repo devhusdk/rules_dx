@@ -1,30 +1,33 @@
 use dx_testing::{env_file, resolve_runfiles};
-use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
+use std::process::Command;
+use std::sync::OnceLock;
 
-fn run(dir: &Path, fixture: &str) -> (Output, PathBuf) {
-    let source = resolve_runfiles(&format!(
-        "_main/julia/private/tools/lint/testdata/{fixture}"
-    ));
-    let file = dir.join(fixture);
-    std::fs::copy(&source, &file).unwrap_or_else(|error| panic!("copy: {error}"));
+const FIXTURES: [&str; 3] = ["buggy.jl", "clean.jl", "unicode.jl"];
+
+fn lint_all() -> String {
+    let scratch = dx_test_scratch::scratch("julia-lint");
+    let dir = scratch.path();
+    let files: Vec<_> = FIXTURES
+        .iter()
+        .map(|fixture| {
+            let source = resolve_runfiles(&format!(
+                "_main/julia/private/tools/lint/testdata/{fixture}"
+            ));
+            let file = dir.join(fixture);
+            std::fs::copy(&source, &file).unwrap_or_else(|error| panic!("copy: {error}"));
+            file
+        })
+        .collect();
     let report = dir.join("report.json");
-    let bin = env_file("JULIA_LINT");
-    let out = Command::new(bin)
+    let out = Command::new(env_file("JULIA_LINT"))
         .arg("--scratch")
         .arg(dir.join("work"))
         .arg("--report")
         .arg(&report)
-        .arg(&file)
+        .args(&files)
         .env("TMPDIR", dir)
         .output()
         .unwrap_or_else(|error| panic!("spawn: {error}"));
-    (out, report)
-}
-
-fn report_of(fixture: &str) -> String {
-    let scratch = dx_test_scratch::scratch("julia-lint");
-    let (out, report) = run(scratch.path(), fixture);
     assert_eq!(
         out.status.code(),
         Some(0),
@@ -32,6 +35,17 @@ fn report_of(fixture: &str) -> String {
         String::from_utf8_lossy(&out.stderr)
     );
     std::fs::read_to_string(report).unwrap()
+}
+
+fn report_of(fixture: &str) -> String {
+    static REPORT: OnceLock<String> = OnceLock::new();
+    let file = format!("{fixture}\",");
+    REPORT
+        .get_or_init(lint_all)
+        .lines()
+        .filter(|line| line.contains(&file))
+        .map(|line| format!("{line}\n"))
+        .collect()
 }
 
 #[test]

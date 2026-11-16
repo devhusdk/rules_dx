@@ -320,7 +320,7 @@ pub fn write_rules_py_patches(workspace: &Path, rules_dx: &Path) -> Result<(), S
 }
 
 /// The modules whose root MODULE.bazel `single_version_override` the consumer repeats.
-pub const ROOT_PATCHED_MODULES: [&str; 1] = ["protobuf"];
+pub const ROOT_PATCHED_MODULES: [&str; 2] = ["protobuf", "rules_python"];
 
 /// The `single_version_override` of `module` in `root_module` when it applies `//patches/` files.
 #[must_use]
@@ -486,6 +486,28 @@ mod tests {
             "diff"
         );
         assert!(workspace.join("patches/protobuf/BUILD.bazel").is_file());
+    }
+
+    #[test]
+    fn root_patch_overrides_carry_the_rules_python_patches() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("src");
+        let workspace = dir.path().join("ws");
+        std::fs::create_dir_all(source.join("patches/rules_python")).unwrap();
+        std::fs::write(
+            source.join("patches/rules_python/install_name_tool.patch"),
+            "diff",
+        )
+        .unwrap();
+        let block = "single_version_override(\n    module_name = \"rules_python\",\n    patch_strip = 1,\n    patches = [\n        \"//patches/rules_python:install_name_tool.patch\",\n    ],\n    version = \"2.4.6\",\n)\n";
+        std::fs::write(source.join("MODULE.bazel"), block).unwrap();
+        assert_eq!(
+            write_root_patch_overrides(&workspace, &source).unwrap(),
+            block
+        );
+        assert!(workspace
+            .join("patches/rules_python/install_name_tool.patch")
+            .is_file());
     }
 
     #[test]

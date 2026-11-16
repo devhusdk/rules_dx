@@ -82,6 +82,8 @@ def _macos_coverage_tools_impl(ctx):
         value = run_env.get(key, "")
         asserts.true(env, value.endswith(key.lower().replace("_", "-")), key + "=" + value)
         asserts.false(env, "apple_support" in value, key + "=" + value)
+        cc_value = run_env.get("DX_CC_" + key, "")
+        asserts.true(env, cc_value.endswith(key.lower().replace("_", "-")), "DX_CC_" + key + "=" + cc_value)
     return analysistest.end(env)
 
 _macos_coverage_tools_test = analysistest.make(
@@ -90,7 +92,7 @@ _macos_coverage_tools_test = analysistest.make(
 )
 
 def cc_macos_coverage_tools_test(name, target, size):
-    """Asserts a cc_test on macOS collects coverage with the hermetic llvm tools."""
+    """Asserts a cc_test on macOS collects coverage with the hermetic llvm tools and passes the cc toolchain's tools."""
     _macos_coverage_tools_test(
         name = name,
         size = size,

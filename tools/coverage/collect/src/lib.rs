@@ -119,6 +119,32 @@ fn merge(profdata: &Path, inputs: &[PathBuf], output: &Path) -> Result<(), Strin
     }
 }
 
+fn merge_with_fallback(
+    primary: (&Path, &Path),
+    fallback: Option<(PathBuf, PathBuf)>,
+    inputs: &[PathBuf],
+    output: &Path,
+) -> Result<PathBuf, String> {
+    let (profdata, cov) = primary;
+    match (merge(profdata, inputs, output), fallback) {
+        (Ok(()), _) => Ok(cov.to_path_buf()),
+        (Err(stderr), None) => Err(format!(
+            "llvm-profdata merge failed ({}):\n{stderr}",
+            profdata.display()
+        )),
+        (Err(stderr), Some((cc_profdata, cc_cov))) => {
+            merge(&cc_profdata, inputs, output).map_err(|cc_stderr| {
+                format!(
+                    "llvm-profdata merge failed ({}):\n{stderr}\nllvm-profdata merge failed ({}):\n{cc_stderr}",
+                    profdata.display(),
+                    cc_profdata.display()
+                )
+            })?;
+            Ok(cc_cov)
+        }
+    }
+}
+
 fn export(
     ctx: &Context,
     cov: &Path,
@@ -264,12 +290,11 @@ fn collect_all() -> Result<(), String> {
     }
 
     let merged = ctx.coverage_dir.join("_dx_merged.profdata");
-    merge(&profdata, &profraw, &merged).map_err(|stderr| {
-        format!(
-            "llvm-profdata merge failed ({}):\n{stderr}",
-            profdata.display()
-        )
-    })?;
+    let fallback = match (env::var("DX_CC_LLVM_PROFDATA"), env::var("DX_CC_LLVM_COV")) {
+        (Ok(profdata), Ok(cov)) => Some((ctx.tool(&profdata), ctx.tool(&cov))),
+        _ => None,
+    };
+    let cov = merge_with_fallback((&profdata, &cov), fallback, &profraw, &merged)?;
     let report = if objects.is_empty() {
         eprintln!(
             "dx coverage collector: no instrumented objects to export; writing an empty report"
@@ -285,3 +310,74 @@ fn collect_all() -> Result<(), String> {
     Ok(())
 }
 // LCOV_EXCL_STOP
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    fn tool(dir: &Path, name: &str, body: &str) -> PathBuf {
+        let path = dir.join(name);
+        fs::write(&path, format!("#!/bin/sh\n{body}\n")).unwrap();
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
+        path
+    }
+
+    fn scratch(name: &str) -> PathBuf {
+        let dir = PathBuf::from(env::var("TEST_TMPDIR").unwrap()).join(name);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn merge_uses_primary_when_it_succeeds() {
+        let dir = scratch("primary_ok");
+        let ok = tool(&dir, "ok", "exit 0");
+        let bad = tool(&dir, "bad", "exit 1");
+        let picked = merge_with_fallback(
+            (&ok, Path::new("primary_cov")),
+            Some((bad, PathBuf::from("cc_cov"))),
+            &[],
+            &dir.join("out"),
+        );
+        assert_eq!(picked, Ok(PathBuf::from("primary_cov")));
+    }
+
+    #[test]
+    fn merge_falls_back_to_cc_tools_when_primary_fails() {
+        let dir = scratch("fallback_ok");
+        let bad = tool(&dir, "bad", "echo version mismatch >&2; exit 1");
+        let ok = tool(&dir, "ok", "exit 0");
+        let picked = merge_with_fallback(
+            (&bad, Path::new("primary_cov")),
+            Some((ok, PathBuf::from("cc_cov"))),
+            &[],
+            &dir.join("out"),
+        );
+        assert_eq!(picked, Ok(PathBuf::from("cc_cov")));
+    }
+
+    #[test]
+    fn merge_reports_primary_failure_without_fallback() {
+        let dir = scratch("no_fallback");
+        let bad = tool(&dir, "bad", "echo primary broke >&2; exit 1");
+        let err =
+            merge_with_fallback((&bad, Path::new("cov")), None, &[], &dir.join("out")).unwrap_err();
+        assert!(err.contains("primary broke"), "{err}");
+    }
+
+    #[test]
+    fn merge_reports_both_failures_when_fallback_fails() {
+        let dir = scratch("both_fail");
+        let bad = tool(&dir, "bad", "echo primary broke >&2; exit 1");
+        let worse = tool(&dir, "worse", "echo cc broke >&2; exit 1");
+        let err = merge_with_fallback(
+            (&bad, Path::new("cov")),
+            Some((worse, PathBuf::from("cc_cov"))),
+            &[],
+            &dir.join("out"),
+        )
+        .unwrap_err();
+        assert!(err.contains("primary broke") && err.contains("cc broke"), "{err}");
+    }
+}

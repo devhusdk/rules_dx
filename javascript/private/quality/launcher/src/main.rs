@@ -36,7 +36,10 @@ fn run() -> std::io::Result<std::process::ExitCode> {
     prepend_path(&mut command, &plan.path_prefix);
     let status = command.status()?;
     Ok(std::process::ExitCode::from(
-        status.code().unwrap_or(1) as u8
+        status
+            .code()
+            .and_then(|code| u8::try_from(code).ok())
+            .unwrap_or(1),
     ))
 }
 

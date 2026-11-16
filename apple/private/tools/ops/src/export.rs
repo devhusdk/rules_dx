@@ -40,7 +40,9 @@ fn digits(stamp: &str) -> String {
 pub fn now() -> String {
     let seconds = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |elapsed| elapsed.as_secs() as i64);
+        .map_or(0, |elapsed| {
+            i64::try_from(elapsed.as_secs()).unwrap_or(i64::MAX)
+        });
     let (days, rest) = (seconds.div_euclid(86_400), seconds.rem_euclid(86_400));
     let shifted = days + 719_468;
     let era = shifted.div_euclid(146_097);

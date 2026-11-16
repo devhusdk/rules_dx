@@ -3,7 +3,7 @@
 use std::fmt::Write as _;
 use std::path::Path;
 
-use crate::util::{Failure, Outcome, reject, usage};
+use crate::util::{Failure, Outcome, has_extension, reject, usage};
 use crate::xcode::{Tools, components};
 
 /// What one Mach-O file declares: platforms and minimum OS versions, in load-command order.
@@ -101,7 +101,7 @@ pub fn run(tools: &Tools<'_>, args: &[String]) -> Outcome {
         let name = Path::new(input)
             .file_name()
             .map_or_else(|| input.clone(), |name| name.to_string_lossy().into_owned());
-        let (what, key) = if name.ends_with(".a") {
+        let (what, key) = if has_extension(&name, "a") {
             (format!("library archive {name}"), "archive")
         } else {
             (format!("framework binary {name}"), "framework")

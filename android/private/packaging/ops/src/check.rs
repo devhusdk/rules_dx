@@ -56,7 +56,13 @@ pub fn base_library(name: &str, abi: &str) -> bool {
     name.strip_prefix("base/lib/")
         .and_then(|rest| rest.strip_prefix(abi))
         .and_then(|rest| rest.strip_prefix('/'))
-        .is_some_and(|file| !file.contains('/') && file.len() > 3 && file.ends_with(".so"))
+        .is_some_and(|file| {
+            !file.contains('/')
+                && file.len() > 3
+                && Path::new(file)
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("so"))
+        })
 }
 
 /// Whether every entry of the zip file reads back with its recorded checksum.

@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use crate::signing::{
     Flags, absolute, caller, describe, hardened, outside_bazel_out, private_files, text, value,
 };
-use crate::util::{Env, Failure, Outcome, Scratch, exit_code, reject, usage};
+use crate::util::{Env, Failure, Outcome, Scratch, exit_code, has_extension, reject, usage};
 use crate::xcode::{DITTO, SPCTL, Tools};
 
 pub const PREFIX: &str = "dx-apple-notarize";
@@ -78,7 +78,7 @@ pub fn run(tools: &Tools<'_>, args: &[String], env: Env<'_>) -> Outcome {
 
     let caller = caller(env);
     let app = absolute(flags.get("app"), &caller);
-    if !text(&app).ends_with(".app") {
+    if !has_extension(&text(&app), "app") {
         return Err(usage(format!(
             "--app {} must name an .app bundle",
             app.display()

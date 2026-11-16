@@ -22,7 +22,7 @@ pub fn owner(name: &str) -> Option<i32> {
 }
 
 fn quiet(tools: &Tools<'_>, args: &[&str]) {
-    let _ = tools.xcrun(args);
+    drop(tools.xcrun(args));
 }
 
 fn sweep(tools: &Tools<'_>, alive: &dyn Fn(i32) -> bool) {

@@ -238,7 +238,7 @@ pub fn lock(tools: &Tools, request: &Request) -> Result<Outcome, String> {
             Ok(Outcome::Written)
         }
     });
-    let _ = std::fs::remove_dir_all(&scratch);
+    std::fs::remove_dir_all(&scratch).ok();
     outcome
 }
 

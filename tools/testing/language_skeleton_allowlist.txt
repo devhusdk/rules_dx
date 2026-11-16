@@ -278,8 +278,6 @@ platforms-option apple/private/ios/lib_tests.bzl
 platforms-option cc/private/toolchain/action_tests.bzl
 platforms-option cc/private/toolchain/select.bzl
 platforms-option erlang/private/defs.bzl
-private-names cc/private/context/tests
-private-names cc/private/testdata
 private-visibility android/private/library/BUILD.bazel
 private-visibility android/private/packaging/BUILD.bazel
 private-visibility android/private/packaging/ops/BUILD.bazel

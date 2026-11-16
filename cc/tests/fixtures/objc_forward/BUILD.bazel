@@ -1,0 +1,14 @@
+load("//cc:defs.bzl", "cc_objc_library")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+cc_objc_library(
+    name = "objc_library_fixture",
+    srcs = ["greeter.m"],
+    hdrs = ["greeter.h"],
+    non_arc_srcs = ["non_arc.mm"],
+    target_compatible_with = ["@platforms//os:macos"],
+)

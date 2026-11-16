@@ -2,9 +2,9 @@
 
 #include <string>
 
-std::string DXLegacyGreeting() {
+std::string DXNonArcGreeting() {
   DXGreeter *greeter = [[DXGreeter alloc] init];
-  std::string out = [[greeter greet:@"legacy"] UTF8String];
+  std::string out = [[greeter greet:@"non_arc"] UTF8String];
   [greeter release];
   return out;
 }

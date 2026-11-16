@@ -95,7 +95,7 @@ fn write_own_cc(case: &Case) {
         "module(name = \"own_cc\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.28\")\nregister_toolchains(\"//:toolchain\")\n",
     );
     case.write("own_cc/config.bzl", OWN_CC_CONFIG);
-    case.write(&format!("own_cc/{tool}"), script);
+    case.write(format!("own_cc/{tool}"), script);
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -186,7 +186,11 @@ fn indirect_consumer(name: &str) -> Case {
     case
 }
 
-const NO_DETECT: &str = "--repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1";
+/// Turns off the host C++ toolchains of `rules_cc` and `apple_support`.
+const NO_DETECT: [&str; 2] = [
+    "--repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1",
+    "--repo_env=BAZEL_NO_APPLE_CPP_TOOLCHAIN=1",
+];
 
 /// The `Selected` lines of the C++ toolchain resolution of `//:probe`.
 fn selected_cc(case: &Case, flags: &[&str]) -> Vec<String> {
@@ -195,8 +199,8 @@ fn selected_cc(case: &Case, flags: &[&str]) -> Vec<String> {
         "--color=no",
         "--curses=no",
         "--toolchain_resolution_debug=@bazel_tools//tools/cpp:toolchain_type",
-        NO_DETECT,
     ];
+    args.extend_from_slice(&NO_DETECT);
     args.extend_from_slice(flags);
     args.push("//:probe");
     let run = case.bazel(&args);
@@ -212,36 +216,29 @@ fn selected_cc(case: &Case, flags: &[&str]) -> Vec<String> {
 fn an_indirect_consumer_builds_with_its_own_cc_toolchain_unless_rules_dx_toolchains_are_on() {
     let case = indirect_consumer("indirect");
     let selected = selected_cc(&case, &[]);
-    let expected = if cfg!(target_os = "macos") {
-        "@@apple_support+//toolchain:"
-    } else {
-        "@@own_cc+//:cc"
-    };
     assert!(
-        !selected.is_empty() && selected.iter().all(|line| line.contains(expected)),
+        !selected.is_empty() && selected.iter().all(|line| line.contains("@@own_cc+//:cc")),
         "{selected:?}"
     );
     let enabled = selected_cc(&case, &["--@@rules_dx+//config:toolchains=true"]);
+    let rules_dx_cc = if cfg!(target_os = "macos") {
+        "@@apple_support+//toolchain:"
+    } else {
+        "@@llvm+//toolchain:"
+    };
     assert!(
-        !enabled.is_empty()
-            && enabled
-                .iter()
-                .all(|line| line.contains("@@llvm+//toolchain:")),
+        !enabled.is_empty() && enabled.iter().all(|line| line.contains(rules_dx_cc)),
         "{enabled:?}"
     );
-    if cfg!(target_os = "macos") {
-        return;
-    }
-    let run = case.bazel(&["build", "--color=no", "--curses=no", NO_DETECT, "//:main"]);
+    let mut build = vec!["build", "--color=no", "--curses=no"];
+    build.extend_from_slice(&NO_DETECT);
+    build.push("//:main");
+    let run = case.bazel(&build);
     assert!(run.status.success(), "{}", run.combined());
-    let files = case.bazel(&[
-        "cquery",
-        "--color=no",
-        "--curses=no",
-        NO_DETECT,
-        "--output=files",
-        "//:main",
-    ]);
+    let mut cquery = vec!["cquery", "--color=no", "--curses=no", "--output=files"];
+    cquery.extend_from_slice(&NO_DETECT);
+    cquery.push("//:main");
+    let files = case.bazel(&cquery);
     assert!(files.status.success(), "{}", files.combined());
     let binary = files
         .stdout

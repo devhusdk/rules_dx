@@ -1,8 +1,10 @@
+load("@bazel_skylib//lib:selects.bzl", "selects")
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("@rules_cc//cc:defs.bzl", "cc_library")
 load("//cc/private/toolchain:select.bzl", "cc_toolchain_test")
-load("//go:defs.bzl", "go_library", "go_test")
-load("//core/tests:direct_sources.bzl", "dx_direct_sources_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//core/tests:direct_sources.bzl", "dx_direct_sources_test")
+load("//go:defs.bzl", "go_library", "go_test")
 load(":toolchain_test.bzl", "cgo_toolchain_tests")
 load(":unsupported_tests.bzl", "cgo_unsupported_toolchain_tests")
 
@@ -16,6 +18,25 @@ _UNIX = select({
     "@platforms//os:macos": [],
     "//conditions:default": ["@platforms//:incompatible"],
 })
+
+_CGO_SUBJECT = selects.with_or({
+    (
+        "@platforms//os:linux",
+        "@platforms//os:macos",
+        ":unsupported_probe_on",
+    ): [],
+    "//conditions:default": ["@platforms//:incompatible"],
+})
+
+bool_flag(
+    name = "unsupported_probe",
+    build_setting_default = False,
+)
+
+config_setting(
+    name = "unsupported_probe_on",
+    flag_values = {":unsupported_probe": "true"},
+)
 
 platform(
     name = "windows_x86_64",
@@ -34,6 +55,7 @@ go_library(
     ],
     cgo = True,
     importpath = "rules_dx/go/tests/fixtures/cgo",
+    target_compatible_with = _CGO_SUBJECT,
 )
 
 dx_direct_sources_test(
@@ -86,6 +108,7 @@ go_library(
     }),
     copts = ["-DDX_CGO_COPT=1"],
     importpath = "rules_dx/go/tests/fixtures/cgo/cxx",
+    target_compatible_with = _CGO_SUBJECT,
 )
 
 go_test(

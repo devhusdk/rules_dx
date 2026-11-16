@@ -10,6 +10,8 @@ Add `rules_dx` to `MODULE.bazel`:
 bazel_dep(name = "rules_dx", version = "<version>")
 ```
 
+Then run `dx init --apply`, as in the [Quickstart](../../README.md#quickstart).
+
 Load the rules from `@rules_dx//msix:defs.bzl`:
 
 ```python

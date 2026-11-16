@@ -4,9 +4,14 @@
 
 ## Install
 
-Add `rules_dx` to `MODULE.bazel`:
+Run `dx init --apply` in the repository, as in the [Quickstart](../../README.md#quickstart).
+
+For a Avro project it writes this `MODULE.bazel`, tested in [`avro/tests/consumer`](../../avro/tests/consumer/consumer.MODULE.bazel):
 
 ```python
+# dx: yours; dx adds its missing lines
+module(name = "my_project")
+
 bazel_dep(name = "rules_dx", version = "<version>")
 ```
 

@@ -130,24 +130,27 @@ pub(crate) fn bazel(case: &Case, args: &[&str]) -> Run {
 /// The symlink and licence lines `docs/cli/commands/windows.md` has a Windows user add to `.bazelrc` or `user.bazelrc`.
 pub(crate) const WINDOWS_LICENCES: &str = "startup:windows --windows_enable_symlinks\ncommon:windows --repo_env=BAZEL_MSVC_RUNTIME_VISUAL_STUDIO_EULA=1\ncommon:windows --repo_env=BAZEL_WINDOWS_SDK_EULA=1\n";
 
-/// On Windows, the `.bazelrc` the consumer starts with: the preset's Windows lines and its
-/// `//config:toolchains` line, which a source-built dx needs before `dx init` writes the preset,
-/// and `WINDOWS_LICENCES`. The
-/// quickstart cuts it back to `WINDOWS_LICENCES` before `dx init`.
-fn write_windows_rc(case: &Case) {
-    if cfg!(windows) {
-        let mut rc = String::from("common --enable_platform_specific_config\n");
-        rc.extend(
-            dx_testing::preset_rc()
-                .lines()
-                .filter(|line| {
-                    line.contains(":windows ") || line.ends_with("//config:toolchains=true")
-                })
-                .map(|line| format!("{line}\n")),
-        );
-        rc.push_str(WINDOWS_LICENCES);
-        write_text(&case.root().join(".bazelrc"), &rc);
-    }
+/// The `.bazelrc` the consumer starts with: the preset's `//config:toolchains` line, which a
+/// source-built dx needs before `dx init` writes the preset, and on Windows the preset's Windows
+/// lines and `WINDOWS_LICENCES`. The quickstart cuts it back to `initial_rc` before `dx init`.
+fn write_source_dx_rc(case: &Case) {
+    let mut rc = String::from("common --enable_platform_specific_config\n");
+    rc.extend(
+        dx_testing::preset_rc()
+            .lines()
+            .filter(|line| {
+                (cfg!(windows) && line.contains(":windows "))
+                    || line.ends_with("//config:toolchains=true")
+            })
+            .map(|line| format!("{line}\n")),
+    );
+    rc.push_str(initial_rc());
+    write_text(&case.root().join(".bazelrc"), &rc);
+}
+
+/// The `.bazelrc` lines a user has before `dx init`: `WINDOWS_LICENCES` on Windows, none elsewhere.
+fn initial_rc() -> &'static str {
+    if cfg!(windows) { WINDOWS_LICENCES } else { "" }
 }
 
 fn run_in(case: &Case, args: &[&str], what: &str) -> Run {
@@ -208,7 +211,7 @@ fn the_readme_quickstart_runs_as_written() {
 
     let case = nested::case("quickstart_readme");
     copy_rules_py_patches(&source, &case);
-    write_windows_rc(&case);
+    write_source_dx_rc(&case);
     for (name, text) in &files {
         let mut text = text.replace("<release>", "0.0.0");
         if name == "MODULE.bazel" {
@@ -255,9 +258,7 @@ fn the_readme_quickstart_runs_as_written() {
         &module,
         &read_text(&module).replace(&rules_py_override(), ""),
     );
-    if cfg!(windows) {
-        write_text(&case.root().join(".bazelrc"), WINDOWS_LICENCES);
-    }
+    write_text(&case.root().join(".bazelrc"), initial_rc());
     let root = case.root().to_string_lossy().into_owned();
     let env = nested_env();
     let mut pairs: Vec<(&str, &str)> = env
@@ -320,7 +321,7 @@ fn bcr_test_module_runs_its_presubmit_targets() {
         &read_text(&source.join(".bazelversion")),
     );
     copy_rules_py_patches(&source, &case);
-    write_windows_rc(&case);
+    write_source_dx_rc(&case);
     let module = case.root().join("MODULE.bazel");
     write_text(
         &module,

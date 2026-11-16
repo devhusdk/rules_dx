@@ -21,7 +21,7 @@ pub fn rewritten() -> Vec<String> {
 pub fn sync_preset_layers(invocation: &Invocation, workspace: &Path, err: &mut dyn Write) {
     if matches!(
         invocation.command,
-        Command::Init | Command::Status | Command::Upgrade
+        Command::Init | Command::Status | Command::Upgrade | Command::Completion
     ) || !workspace.join("MODULE.bazel").is_file()
     {
         return;
@@ -86,6 +86,8 @@ mod tests {
     fn run(command: &str, root: &Path) -> String {
         let argv: &[&str] = if command == "upgrade" {
             &["upgrade", "--to", "1.0.0"]
+        } else if command == "completion" {
+            &["completion", "bash"]
         } else {
             &[command]
         };
@@ -105,8 +107,8 @@ mod tests {
     }
 
     #[test]
-    fn init_status_and_upgrade_do_not_write() {
-        for command in ["init", "status", "upgrade"] {
+    fn init_status_upgrade_and_completion_do_not_write() {
+        for command in ["init", "status", "upgrade", "completion"] {
             let scratch = workspace(true);
             run(command, scratch.path());
             assert!(!scratch.path().join(".dx").exists(), "{command}");

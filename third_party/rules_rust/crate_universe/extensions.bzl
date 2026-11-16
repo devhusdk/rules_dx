@@ -1,4 +1,4 @@
-"""The rules_rust 0.75.0 crate_universe `crate` extension with patches/rules_rust/crate_universe_lazy_host_tools.patch, patches/rules_rust/crate_universe_module_labels.patch and bazelbuild/rules_rust#4386 applied."""
+"""The rules_rust 0.75.0 crate_universe `crate` extension with patches/rules_rust/crate_universe_lazy_host_tools.patch, patches/rules_rust/crate_universe_module_labels.patch and bazelbuild/rules_rust#4386 applied; crate BUILD files pass NO_COVERAGE_FEATURES to cargo_build_script."""
 
 load("@bazel_features//:features.bzl", "bazel_features")
 load("@bazel_skylib//lib:structs.bzl", "structs")
@@ -38,6 +38,7 @@ load(
     generate_splicing_config = "splicing_config",
 )
 load("@rules_rust//crate_universe/private:urls.bzl", "CARGO_BAZEL_SHA256S", "CARGO_BAZEL_URLS")
+load(":build_script_features.bzl", "build_scripts_without_coverage")
 load("@rules_rust//rust/platform:triple.bzl", "get_host_triple")
 load("@rules_rust//rust/platform:triple_mappings.bzl", "system_to_binary_ext")
 
@@ -418,7 +419,7 @@ def _generate_hub_and_spokes(
 
         if "Http" in repo:
             # Replicates functionality in repo_http.j2.
-            build_file_content = _main_repo_labels(module_repo_prefix, module_ctx.read(crates_dir.get_child("BUILD.%s-%s.bazel" % (name, version))))
+            build_file_content = build_scripts_without_coverage(_main_repo_labels(module_repo_prefix, module_ctx.read(crates_dir.get_child("BUILD.%s-%s.bazel" % (name, version)))))
             repo = repo["Http"]
             http_archive(
                 name = crate_repo_name,
@@ -434,7 +435,7 @@ def _generate_hub_and_spokes(
             )
         elif "Git" in repo:
             # Replicates functionality in repo_git.j2
-            build_file_content = _main_repo_labels(module_repo_prefix, module_ctx.read(crates_dir.get_child("BUILD.%s-%s.bazel" % (name, version))))
+            build_file_content = build_scripts_without_coverage(_main_repo_labels(module_repo_prefix, module_ctx.read(crates_dir.get_child("BUILD.%s-%s.bazel" % (name, version)))))
             repo = repo["Git"]
             kwargs = {}
             for k, v in repo["commitish"].items():

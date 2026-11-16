@@ -8,6 +8,7 @@ use crate::util::{Captured, Failure, Outcome, Scratch, apks_in, capture, reject,
 pub const PREFIX: &str = "dx-android-apk-set";
 
 /// The first bundletool error line, without its tag.
+#[must_use]
 pub fn reason(log: &str) -> &str {
     log.lines()
         .find_map(|line| {
@@ -30,6 +31,9 @@ fn rejected(ran: &Captured, spec: &Path, aab: &Path, what: String) -> Failure {
     reject(format!("{what}: {why}"))
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn run(args: &[String]) -> Outcome {
     let [bundletool, aab, spec, keystore, apks, out_dir] = args else {
         return Err(usage(

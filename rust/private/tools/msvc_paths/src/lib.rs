@@ -21,6 +21,7 @@ pub fn execroot(cwd: &Path) -> io::Result<PathBuf> {
 }
 
 /// Returns the prefix that leads from `cwd` back up to `root`.
+#[must_use]
 pub fn up_prefix(cwd: &Path, root: &Path) -> String {
     let depth = cwd.components().count() - root.components().count();
     "../".repeat(depth)
@@ -49,6 +50,7 @@ impl Rewriter {
     }
 
     /// Replaces every `<root>\` and `<root>/` in `text`, ignoring ASCII case.
+    #[must_use]
     pub fn rewrite(&self, text: &str) -> String {
         let mut out = String::with_capacity(text.len());
         let mut rest = text;
@@ -187,6 +189,7 @@ fn edit_line(line: &str, edit: &mut impl FnMut(&str) -> io::Result<String>) -> i
 }
 
 /// Splits an MSVC option such as `/DEF:` from its value; a plain path has no option.
+#[must_use]
 pub fn split_option(arg: &str) -> (&str, &str) {
     if let Some(rest) = arg.strip_prefix(['/', '-'])
         && let Some((name, _)) = rest.split_once(':')
@@ -218,6 +221,7 @@ pub fn link_copy_dir(out: &str) -> String {
     format!("{dir}_dx_link/{stem}")
 }
 
+#[must_use]
 pub fn exit_code(status: ExitStatus) -> ExitCode {
     match status.code() {
         Some(0) => ExitCode::SUCCESS,
@@ -324,8 +328,8 @@ mod tests {
         fs::create_dir_all(dir.join("bazel-out")).unwrap();
         fs::create_dir_all(&cwd).unwrap();
         assert_eq!(execroot(&cwd).unwrap(), dir);
-        assert_eq!(up_prefix(&cwd, &dir), "../../");
-        assert_eq!(up_prefix(&dir, &dir), "");
+        assert_eq!(up_prefix(&cwd, dir), "../../");
+        assert_eq!(up_prefix(dir, dir), "");
     }
 
     #[test]

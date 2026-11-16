@@ -1,4 +1,4 @@
-//! Runs one D test built with `-cov` and writes its LCOV report into COVERAGE_DIR for Bazel.
+//! Runs one D test built with `-cov` and writes its LCOV report into `COVERAGE_DIR` for Bazel.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
@@ -59,8 +59,7 @@ fn run() -> Result<i32, String> {
     command.args(env::args().skip(1));
     let coverage_dir = env::var_os("COVERAGE_DIR").map(PathBuf::from);
     let lst_dir = env::var_os("TEST_TMPDIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(env::temp_dir)
+        .map_or_else(env::temp_dir, PathBuf::from)
         .join("dx_d_lst");
     if coverage_dir.is_some() {
         fs::create_dir_all(&lst_dir)

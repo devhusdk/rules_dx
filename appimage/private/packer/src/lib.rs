@@ -1,4 +1,4 @@
-//! Builds an AppDir, runs appimagetool and writes the identity file.
+//! Builds an `AppDir`, runs appimagetool and writes the identity file.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
@@ -103,6 +103,7 @@ fn parse_entry(entry: &str) -> Result<Entry, String> {
     Err(format!("unknown entry '{entry}'"))
 }
 
+#[must_use]
 pub fn sha256_hex(bytes: &[u8]) -> String {
     hex(&Sha256::digest(bytes))
 }
@@ -130,6 +131,7 @@ fn hash_file(path: &Path) -> Result<String, String> {
     Ok(hex(&hasher.finalize()))
 }
 
+#[must_use]
 pub fn highest_glibc(bytes: &[u8]) -> Option<Vec<u64>> {
     const MARK: &[u8] = b"GLIBC_";
     let mut best: Option<Vec<u64>> = None;
@@ -159,6 +161,7 @@ pub fn highest_glibc(bytes: &[u8]) -> Option<Vec<u64>> {
     best
 }
 
+#[must_use]
 pub fn interpreter(bytes: &[u8]) -> Option<String> {
     const LIB: &[u8] = b"/lib";
     const LD: &[u8] = b"/ld-linux";
@@ -365,6 +368,7 @@ fn check_desktop(desktop: &Path, name: &str) -> Result<(), String> {
 
 pub const FILE_COMMAND: &str = "file";
 
+#[must_use]
 pub fn run(invoked: &str, args: &[String]) -> u8 {
     if Path::new(invoked)
         .file_name()

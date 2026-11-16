@@ -176,15 +176,14 @@ impl Parser<'_> {
             if self.eat("}") {
                 return Ok(entries);
             }
-            let entry = match self.keyword() {
-                Some(key) => (Term::Atom(key), self.term()?),
-                None => {
-                    let key = self.term()?;
-                    if !self.eat("=>") {
-                        return self.fail("expected =>");
-                    }
-                    (key, self.term()?)
+            let entry = if let Some(key) = self.keyword() {
+                (Term::Atom(key), self.term()?)
+            } else {
+                let key = self.term()?;
+                if !self.eat("=>") {
+                    return self.fail("expected =>");
                 }
+                (key, self.term()?)
             };
             entries.push(entry);
             if !self.eat(",") && !self.rest().starts_with(b"}") {
@@ -463,7 +462,7 @@ impl Resolver for Hex {
             )));
         };
         Ok(Resolution {
-            groups: std::collections::BTreeMap::new(),
+            groups: BTreeMap::new(),
             packages,
             ..Resolution::default()
         })

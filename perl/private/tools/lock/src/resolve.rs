@@ -58,14 +58,18 @@ pub fn parse_snapshot(text: &str) -> Result<Vec<Distribution>, Error> {
                 let (key, value) = body.split_once(':').unwrap_or((body, ""));
                 section = key;
                 if key == "pathname" {
-                    current.pathname = value.trim().to_owned();
+                    value.trim().clone_into(&mut current.pathname);
                 }
             }
             _ => {
                 let Some(current) = out.last_mut() else {
                     return Err(Error::new(format!("{body:?} is outside a distribution")));
                 };
-                let module = body.split_whitespace().next().unwrap_or_default().to_owned();
+                let module = body
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or_default()
+                    .to_owned();
                 match section {
                     "provides" => current.provides.push(module),
                     "requirements" => current.requirements.push(module),
@@ -172,7 +176,8 @@ impl Cpan {
 
 impl Resolver for Cpan {
     fn resolve(&self, scratch: &Scratch, _old: Option<&Lock>) -> Result<Resolution, Error> {
-        let hub = dx_families::hub("cpan").ok_or_else(|| Error::new("cpan has no registry entry"))?;
+        let hub =
+            dx_families::hub("cpan").ok_or_else(|| Error::new("cpan has no registry entry"))?;
         let read = |name: &str| {
             std::fs::read_to_string(scratch.set().join(name))
                 .map_err(|error| Error::new(format!("{name}: {error}")))
@@ -184,7 +189,7 @@ impl Resolver for Cpan {
         let packages = packages(&read(&hub.manifest)?, &read(state)?)
             .map_err(|error| Error::new(format!("{state}: {error}")))?;
         Ok(Resolution {
-            groups: std::collections::BTreeMap::new(),
+            groups: BTreeMap::new(),
             packages,
             ..Resolution::default()
         })

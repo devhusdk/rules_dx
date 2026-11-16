@@ -18,6 +18,10 @@ pub struct Wants {
 }
 
 /// Reads the `--abi` and `--resource` flags.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Wants, String> {
     let mut wants = Wants::default();
     let mut rest = args.iter();
@@ -36,16 +40,18 @@ pub fn parse(args: &[String]) -> Result<Wants, String> {
 }
 
 /// Whether `name` is a v1 signature file.
+#[must_use]
 pub fn signature_entry(name: &str) -> bool {
     name.strip_prefix("META-INF/").is_some_and(|file| {
         !file.contains('/')
-            && file
-                .rsplit_once('.')
-                .is_some_and(|(stem, end)| !stem.is_empty() && ["RSA", "DSA", "EC", "SF"].contains(&end))
+            && file.rsplit_once('.').is_some_and(|(stem, end)| {
+                !stem.is_empty() && ["RSA", "DSA", "EC", "SF"].contains(&end)
+            })
     })
 }
 
 /// Whether `name` is a native library of `abi` in the base module.
+#[must_use]
 pub fn base_library(name: &str, abi: &str) -> bool {
     name.strip_prefix("base/lib/")
         .and_then(|rest| rest.strip_prefix(abi))
@@ -54,6 +60,7 @@ pub fn base_library(name: &str, abi: &str) -> bool {
 }
 
 /// Whether every entry of the zip file reads back with its recorded checksum.
+#[must_use]
 pub fn entries_intact(package: &Path) -> bool {
     let Ok(file) = std::fs::File::open(package) else {
         return false;
@@ -113,7 +120,10 @@ fn check_aab(bundletool: &Path, package: &Path, wants: &Wants) -> Outcome {
     let run = |args: &[&str]| -> Captured {
         capture(
             Command::new(bundletool)
-                .arg(format!("--jvm_flag=-Djava.io.tmpdir={}", work.path().display()))
+                .arg(format!(
+                    "--jvm_flag=-Djava.io.tmpdir={}",
+                    work.path().display()
+                ))
                 .args(args),
         )
     };
@@ -125,7 +135,9 @@ fn check_aab(bundletool: &Path, package: &Path, wants: &Wants) -> Outcome {
         )));
     }
     if !run(&["dump", "manifest", &bundle, "--module=base"]).success() {
-        return Err(reject(format!("{shown} has no readable base module manifest")));
+        return Err(reject(format!(
+            "{shown} has no readable base module manifest"
+        )));
     }
     let names = std::fs::read(package)
         .ok()
@@ -137,16 +149,28 @@ fn check_aab(bundletool: &Path, package: &Path, wants: &Wants) -> Outcome {
         }
     }
     for resource in &wants.resources {
-        let found = run(&["dump", "resources", &bundle, &format!("--resource={resource}")]);
-        let name = resource.split_once('/').map_or(resource.as_str(), |(_, name)| name);
+        let found = run(&[
+            "dump",
+            "resources",
+            &bundle,
+            &format!("--resource={resource}"),
+        ]);
+        let name = resource
+            .split_once('/')
+            .map_or(resource.as_str(), |(_, name)| name);
         if !found.success() || !found.text.contains(name) {
-            return Err(reject(format!("{shown} does not resolve resource {resource}")));
+            return Err(reject(format!(
+                "{shown} does not resolve resource {resource}"
+            )));
         }
     }
     println!("{PREFIX}: {shown} is a valid app bundle");
     Ok(0)
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn run(args: &[String]) -> Outcome {
     let [bundletool, package, rest @ ..] = args else {
         return Err(usage(USAGE));

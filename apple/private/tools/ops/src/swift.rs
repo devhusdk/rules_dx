@@ -6,7 +6,11 @@ use crate::xcode::{Tools, XCRUN};
 pub const PREFIX: &str = "dx-apple-swift";
 
 /// Runs `xcrun <tool> <args>` with this process's streams.
-pub fn run(tools: &Tools, tool: &str, args: &[String]) -> Outcome {
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
+pub fn run(tools: &Tools<'_>, tool: &str, args: &[String]) -> Outcome {
     let mut argv = vec![tool];
     argv.extend(args.iter().map(String::as_str));
     match tools.xcrun_inherit(&argv) {

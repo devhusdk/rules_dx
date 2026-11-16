@@ -351,6 +351,7 @@ impl AqueryGraph {
 }
 
 /// Reports whether a compile action belongs to the requested top-level label.
+#[must_use]
 pub fn owns_label(action_target: &str, label: &str) -> bool {
     action_target == label || action_target == format!("{label}_upstream")
 }
@@ -389,6 +390,7 @@ pub enum Quoting {
 }
 
 /// Picks the response-file quoting from the selected driver, or None when it is unknown.
+#[must_use]
 pub fn rsp_quoting(arguments: &[String], driver: Driver) -> Option<Quoting> {
     for argument in arguments {
         match argument.strip_prefix("--rsp-quoting=") {
@@ -441,6 +443,7 @@ const MSVC_ARGV_INCLUDE_FLAGS: [&str; 4] = ["/imsvc", "-imsvc", "/winsysroot", "
 /// resolved against the execroot. An `external/` argv0 is read from the output base when it
 /// is there, because Bazel need not link every repository into the execroot.
 /// `cl` takes no flag and prints its banner on stderr.
+#[must_use]
 pub fn version_probe(execroot: &Path, output_base: &Path, argv0: &str) -> (PathBuf, Vec<String>) {
     let in_output_base = output_base.join(argv0);
     let path = if argv0.starts_with("external/") && in_output_base.exists() {
@@ -577,13 +580,12 @@ pub fn qualify(
                         .param_files
                         .iter()
                         .find(|file| file.exec_path.replace('\\', "/") == path.replace('\\', "/"));
-                    match listed {
-                        Some(file) => expected.extend(file.arguments.iter().cloned()),
-                        None => {
-                            let text = read_response_file(execroot, path)
-                                .map_err(|err| fail(format!("param file '{path}': {err}")))?;
-                            expected.extend(text.lines().map(unquote_line));
-                        }
+                    if let Some(file) = listed {
+                        expected.extend(file.arguments.iter().cloned())
+                    } else {
+                        let text = read_response_file(execroot, path)
+                            .map_err(|err| fail(format!("param file '{path}': {err}")))?;
+                        expected.extend(text.lines().map(unquote_line));
                     }
                 }
                 None => expected.push(argument.clone()),
@@ -825,6 +827,7 @@ fn tokenize_windows(path: &str, text: &str) -> Result<Vec<String>, Error> {
 }
 
 /// Rebuilds one execroot-relative artifact path from its fragment chain.
+#[must_use]
 pub fn fragment_path(fragments: &BTreeMap<i64, &PathFragment>, id: i64) -> String {
     let mut parts: Vec<&str> = Vec::new();
     let mut current = id;
@@ -861,12 +864,12 @@ fn resolve_inputs(
         let Some(dep_set) = dep_sets.get(&id) else {
             continue;
         };
-        for artifact_id in dep_set.direct_artifact_ids.iter() {
+        for artifact_id in &dep_set.direct_artifact_ids {
             if let Some(path) = artifacts.get(artifact_id) {
                 paths.insert(path);
             }
         }
-        for nested in dep_set.transitive_dep_set_ids.iter() {
+        for nested in &dep_set.transitive_dep_set_ids {
             pending.push(*nested);
         }
     }
@@ -910,11 +913,11 @@ pub fn database(
     let mut conflicts: BTreeMap<&str, usize> = BTreeMap::new();
     for command in commands {
         let previous = by_source.insert(command.source.as_str(), command);
-        if let Some(previous) = previous {
-            if previous.arguments != command.arguments {
-                let count = conflicts.entry(command.source.as_str()).or_insert(1);
-                *count += 1;
-            }
+        if let Some(previous) = previous
+            && previous.arguments != command.arguments
+        {
+            let count = conflicts.entry(command.source.as_str()).or_insert(1);
+            *count += 1;
         }
     }
     if let Some((source, count)) = conflicts.iter().next() {

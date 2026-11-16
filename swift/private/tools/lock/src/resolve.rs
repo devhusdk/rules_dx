@@ -74,7 +74,9 @@ struct Settings {
 }
 
 fn field<'v>(value: &'v Value, key: &str) -> Result<&'v str, Error> {
-    value[key].as_str().ok_or_else(|| Error::new(format!("{key} is missing")))
+    value[key]
+        .as_str()
+        .ok_or_else(|| Error::new(format!("{key} is missing")))
 }
 
 fn strings(value: &Value) -> Vec<String> {
@@ -114,7 +116,10 @@ impl<'a> Swift<'a> {
         let text = std::fs::read_to_string(scratch.set().join(&self.manifest))
             .map_err(|error| Error::new(format!("{}: {error}", self.manifest)))?;
         let at = |url: &str, message: String| {
-            let line = text.lines().position(|line| line.contains(url)).map_or(1, |index| index + 1);
+            let line = text
+                .lines()
+                .position(|line| line.contains(url))
+                .map_or(1, |index| index + 1);
             Error::new(format!("{}:{line}: {message}", self.manifest))
         };
         let dumped = self
@@ -167,8 +172,12 @@ impl<'a> Swift<'a> {
                     .cloned()
                     .ok_or_else(|| at(url, format!("{tag} has no object")))?;
             }
-            let revision = field(&object, "sha").map_err(|error| at(url, format!("{reference}: {error}")))?;
-            pins.insert(repo.to_lowercase(), (url.to_owned(), version.to_owned(), revision.to_owned()));
+            let revision =
+                field(&object, "sha").map_err(|error| at(url, format!("{reference}: {error}")))?;
+            pins.insert(
+                repo.to_lowercase(),
+                (url.to_owned(), version.to_owned(), revision.to_owned()),
+            );
         }
         let quoted = |text: &str| Value::from(text).to_string();
         let entries: Vec<String> = pins
@@ -183,12 +192,19 @@ impl<'a> Swift<'a> {
                 )
             })
             .collect();
-        let state = format!("{{\n  \"pins\" : [\n{}\n  ],\n  \"version\" : 3\n}}\n", entries.join(",\n"));
-        std::fs::write(scratch.set().join(&self.state), state).map_err(|error| Error::new(format!("{}: {error}", self.state)))
+        let state = format!(
+            "{{\n  \"pins\" : [\n{}\n  ],\n  \"version\" : 3\n}}\n",
+            entries.join(",\n")
+        );
+        std::fs::write(scratch.set().join(&self.state), state)
+            .map_err(|error| Error::new(format!("{}: {error}", self.state)))
     }
 
     fn api(&self, url: &str) -> Result<Value, Error> {
-        let bytes = self.download.bytes(url).map_err(|error| Error::new(format!("{url}: {error}")))?;
+        let bytes = self
+            .download
+            .bytes(url)
+            .map_err(|error| Error::new(format!("{url}: {error}")))?;
         serde_json::from_slice(&bytes).map_err(|error| Error::new(format!("{url}: {error}")))
     }
 
@@ -203,7 +219,10 @@ impl<'a> Swift<'a> {
             .map_err(|error| Error::new(format!("{}: {error}", self.state)))?;
         let version = state.get("version").and_then(Value::as_u64).unwrap_or(0);
         if version != 2 && version != 3 {
-            return Err(Error::new(format!("{} has version {version}; want 2 or 3", self.state)));
+            return Err(Error::new(format!(
+                "{} has version {version}; want 2 or 3",
+                self.state
+            )));
         }
         let mut pins = Vec::new();
         for pin in elements(state.get("pins")) {
@@ -235,7 +254,13 @@ impl<'a> Swift<'a> {
         Ok(pins)
     }
 
-    fn package_json(&self, scratch: &Scratch, package: &std::path::Path, command: &str, args: &[&str]) -> Result<Value, String> {
+    fn package_json(
+        &self,
+        scratch: &Scratch,
+        package: &std::path::Path,
+        command: &str,
+        args: &[&str],
+    ) -> Result<Value, String> {
         let output = scratch
             .command(&self.swift)
             .arg("package")
@@ -246,7 +271,10 @@ impl<'a> Swift<'a> {
             .output()
             .map_err(|error| format!("swift: {error}"))?;
         if !output.status.success() {
-            return Err(format!("swift package {command} failed:\n{}", String::from_utf8_lossy(&output.stderr)));
+            return Err(format!(
+                "swift package {command} failed:\n{}",
+                String::from_utf8_lossy(&output.stderr)
+            ));
         }
         serde_json::from_slice(&output.stdout).map_err(|error| error.to_string())
     }
@@ -254,7 +282,10 @@ impl<'a> Swift<'a> {
     fn describe(&self, scratch: &Scratch, pin: Pin) -> Result<Described, Error> {
         let identity = &pin.identity;
         let failed = |message: String| Error::new(format!("pin {identity}: {message}"));
-        let bytes = self.download.bytes(&pin.url).map_err(|error| failed(format!("{}: {error}", pin.url)))?;
+        let bytes = self
+            .download
+            .bytes(&pin.url)
+            .map_err(|error| failed(format!("{}: {error}", pin.url)))?;
         let sha256 = dx_digest::sha256_hex(&bytes);
         let root = scratch.tmp().join(identity);
         std::fs::create_dir_all(&root).map_err(|error| failed(error.to_string()))?;
@@ -269,10 +300,18 @@ impl<'a> Swift<'a> {
         if !elements(dumped.get("dependencies")).is_empty() {
             return Err(failed("declares dependencies on other packages; only packages without dependencies are supported".to_owned()));
         }
-        let described = self.package_json(scratch, &package, "describe", &["--type", "json"]).map_err(failed)?;
+        let described = self
+            .package_json(scratch, &package, "describe", &["--type", "json"])
+            .map_err(failed)?;
         let (settings, conditional) = target_settings(&dumped).map_err(failed)?;
         let (products, targets) = library_targets(&described, &conditional).map_err(failed)?;
-        Ok(Described { pin, sha256, products, targets, settings })
+        Ok(Described {
+            pin,
+            sha256,
+            products,
+            targets,
+            settings,
+        })
     }
 }
 
@@ -312,13 +351,18 @@ fn setting_values(setting: &Value, kind: &str) -> Vec<String> {
 ///
 /// # Errors
 /// Fails when a target has no name.
-fn target_settings(dumped: &Value) -> Result<(BTreeMap<String, Settings>, BTreeSet<String>), String> {
+fn target_settings(
+    dumped: &Value,
+) -> Result<(BTreeMap<String, Settings>, BTreeSet<String>), String> {
     let mut all = BTreeMap::new();
     let mut conditional = BTreeSet::new();
     for target in elements(dumped.get("targets")) {
         let name = target["name"].as_str().ok_or("a target has no name")?;
         let mut settings = Settings {
-            include: target["publicHeadersPath"].as_str().unwrap_or("include").to_owned(),
+            include: target["publicHeadersPath"]
+                .as_str()
+                .unwrap_or("include")
+                .to_owned(),
             ..Settings::default()
         };
         for setting in elements(target.get("settings")) {
@@ -336,7 +380,11 @@ fn target_settings(dumped: &Value) -> Result<(BTreeMap<String, Settings>, BTreeS
                 continue;
             }
             if tool == "swift" {
-                settings.defines.extend(defines.into_iter().map(|define| define.split('=').next().unwrap_or_default().to_owned()));
+                settings.defines.extend(
+                    defines
+                        .into_iter()
+                        .map(|define| define.split('=').next().unwrap_or_default().to_owned()),
+                );
             } else {
                 settings.c_defines.extend(defines);
             }
@@ -381,7 +429,9 @@ pub fn library_targets(
             if seen.contains_key(&target_name) {
                 continue;
             }
-            let target = all.get(target_name.as_str()).ok_or(format!("target {target_name} is not described"))?;
+            let target = all
+                .get(target_name.as_str())
+                .ok_or(format!("target {target_name} is not described"))?;
             let module_type = target["module_type"].as_str().unwrap_or_default();
             if !matches!(module_type, "SwiftTarget" | "ClangTarget")
                 || target["type"] != "library"
@@ -427,12 +477,25 @@ impl Resolver for Swift<'_> {
             }
         }
         for package in &kept {
-            for product in package.extra.get("swift_products").and_then(Value::as_object).into_iter().flatten().map(|(name, _)| name) {
+            for product in package
+                .extra
+                .get("swift_products")
+                .and_then(Value::as_object)
+                .into_iter()
+                .flatten()
+                .map(|(name, _)| name)
+            {
                 owners.entry(product).or_default().push(&package.name);
             }
         }
         for package in &kept {
-            for target in package.extra.get("swift_targets").and_then(Value::as_object).into_iter().flat_map(Map::values) {
+            for target in package
+                .extra
+                .get("swift_targets")
+                .and_then(Value::as_object)
+                .into_iter()
+                .flat_map(Map::values)
+            {
                 for dependency in strings(&target["product_deps"]) {
                     let found = dependency.split_once(':').is_some_and(|(owner, product)| {
                         owners.get(product).is_some_and(|all| all.contains(&owner))
@@ -472,9 +535,12 @@ impl Resolver for Swift<'_> {
                     product_deps.push(format!("{owner}:{product}"));
                     deps.push(owner.to_owned());
                 }
-                let path = field(target, "path").map_err(|error| Error::new(format!("pin {identity}: {error}")))?;
-                let srcs: Vec<String> =
-                    strings(&target["sources"]).iter().map(|source| format!("{path}/{source}")).collect();
+                let path = field(target, "path")
+                    .map_err(|error| Error::new(format!("pin {identity}: {error}")))?;
+                let srcs: Vec<String> = strings(&target["sources"])
+                    .iter()
+                    .map(|source| format!("{path}/{source}"))
+                    .collect();
                 let mut entry = json!({
                     "deps": strings(&target["target_dependencies"]),
                     "module": field(target, "c99name").map_err(|error| Error::new(format!("pin {identity}: {error}")))?,
@@ -493,7 +559,11 @@ impl Resolver for Swift<'_> {
                             json!(format!("{path}/{}", settings.include)),
                         );
                     }
-                    let defines = if target["module_type"] == "ClangTarget" { &settings.c_defines } else { &settings.defines };
+                    let defines = if target["module_type"] == "ClangTarget" {
+                        &settings.c_defines
+                    } else {
+                        &settings.defines
+                    };
                     if !defines.is_empty() {
                         set_field(&mut entry, "defines", json!(defines));
                     }
@@ -539,7 +609,7 @@ impl Resolver for Swift<'_> {
         }
         packages.extend(kept);
         Ok(Resolution {
-            groups: std::collections::BTreeMap::new(),
+            groups: BTreeMap::new(),
             packages,
             ..Resolution::default()
         })

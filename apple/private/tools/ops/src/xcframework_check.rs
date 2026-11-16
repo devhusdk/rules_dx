@@ -1,5 +1,6 @@
-//! Checks the slices of one iOS XCFramework archive and publishes it.
+//! Checks the slices of one iOS `XCFramework` archive and publishes it.
 
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use crate::util::{Failure, Outcome, reject, usage};
@@ -16,6 +17,7 @@ pub struct Slice {
 }
 
 /// Reads the build platforms, newest minimum version and install name out of `otool -l` text.
+#[must_use]
 pub fn parse_slice(loads: &str) -> Slice {
     let mut found = Slice::default();
     let mut command = "";
@@ -125,7 +127,7 @@ fn write(path: &Path, result: std::io::Result<()>) -> Result<(), Failure> {
     result.map_err(|error| usage(format!("cannot write {}: {error}", path.display())))
 }
 
-fn verify(tools: &Tools, args: &[String], work: &Path, tmp: &Path) -> Result<(), Failure> {
+fn verify(tools: &Tools<'_>, args: &[String], work: &Path, tmp: &Path) -> Result<(), Failure> {
     let [
         report,
         out,
@@ -280,10 +282,12 @@ fn verify(tools: &Tools, args: &[String], work: &Path, tmp: &Path) -> Result<(),
                 )));
             }
             let slice = check.slice(&cell, &arch, &binary, sdk, code)?;
-            text.push_str(&format!(
-                "slice={cell} library={identifier} platform={sdk} minos={} install_name={}\n",
+            writeln!(
+                text,
+                "slice={cell} library={identifier} platform={sdk} minos={} install_name={}",
                 slice.minos, slice.install_name
-            ));
+            )
+            .ok();
             position += 1;
         }
         if listed.is_empty() {
@@ -325,10 +329,14 @@ fn verify(tools: &Tools, args: &[String], work: &Path, tmp: &Path) -> Result<(),
     write(Path::new(report), std::fs::rename(tmp, report))
 }
 
-/// Checks the XCFramework archive `args` name, publishes it and writes the slice report on success.
+/// Checks the `XCFramework` archive `args` name, publishes it and writes the slice report on success.
 ///
 /// Failures read `<what> ...`; the caller prefixes [`PREFIX`].
-pub fn run(tools: &Tools, args: &[String]) -> Outcome {
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
+pub fn run(tools: &Tools<'_>, args: &[String]) -> Outcome {
     let report = args.first().map_or("", String::as_str);
     let work = PathBuf::from(format!("{report}.unpacked"));
     let tmp = PathBuf::from(format!("{report}.tmp"));

@@ -689,13 +689,12 @@ impl Resolver for Php<'_> {
             let dev = !production_set.contains(name);
             let kept = unchanged(old, name, &version, url)
                 .and_then(|kept| Some((kept.archives.first()?.clone(), kept.extra.clone())));
-            let (archive, extra) = match kept {
-                Some(found) => found,
-                None => {
-                    let mut extra = BTreeMap::new();
-                    extra.insert("composer_manifest".to_owned(), manifest(&package.entry));
-                    (self.archive(name, &package.entry)?, extra)
-                }
+            let (archive, extra) = if let Some(found) = kept {
+                found
+            } else {
+                let mut extra = BTreeMap::new();
+                extra.insert("composer_manifest".to_owned(), manifest(&package.entry));
+                (self.archive(name, &package.entry)?, extra)
             };
             packages.push(Package {
                 name: name.clone(),
@@ -733,7 +732,7 @@ impl Resolver for Php<'_> {
         std::fs::write(scratch.set().join(&self.state), to_php_json(&state))
             .map_err(|error| Error::new(format!("{}: {error}", self.state)))?;
         Ok(Resolution {
-            groups: std::collections::BTreeMap::new(),
+            groups: BTreeMap::new(),
             packages,
             ..Resolution::default()
         })

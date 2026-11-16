@@ -70,7 +70,7 @@ struct CoverletRun<'a> {
     target_args: &'a [String],
 }
 
-fn coverlet_args(run: &CoverletRun) -> Vec<String> {
+fn coverlet_args(run: &CoverletRun<'_>) -> Vec<String> {
     let mut args = vec![
         run.test_assembly.to_string(),
         "--target".to_string(),
@@ -259,8 +259,7 @@ fn run() -> Result<i32, String> {
     };
 
     let tmp = env::var_os("TEST_TMPDIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(env::temp_dir)
+        .map_or_else(env::temp_dir, PathBuf::from)
         .join("dx_coverlet");
     let root = tmp.join("runfiles");
     let mut assemblies = config.instrument.clone();

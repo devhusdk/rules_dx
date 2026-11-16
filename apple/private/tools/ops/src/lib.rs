@@ -138,6 +138,7 @@ fn group_alive(group: i32) -> bool {
 }
 
 /// Creates one test simulator and prints its UDID.
+#[must_use]
 pub fn create_test_simulator() -> u8 {
     report(
         test_sim::PREFIX,
@@ -154,6 +155,7 @@ pub fn create_test_simulator() -> u8 {
 }
 
 /// Deletes the test simulator `SIMULATOR_UDID` names.
+#[must_use]
 pub fn delete_test_simulator() -> u8 {
     report(
         test_sim::PREFIX,

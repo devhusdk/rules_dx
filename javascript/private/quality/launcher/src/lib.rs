@@ -32,6 +32,7 @@ impl Plan {
 }
 
 /// Names the descriptor beside one launcher.
+#[must_use]
 pub fn descriptor_path(exe: &Path) -> PathBuf {
     let mut name = exe.file_stem().unwrap_or(exe.as_os_str()).to_os_string();
     name.push(".launcher.txt");
@@ -49,6 +50,10 @@ pub struct Descriptor {
 }
 
 /// Returns the launch one descriptor names.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn descriptor(path: &Path) -> io::Result<Descriptor> {
     let text = read(path)?;
     let mut entry = None;
@@ -83,6 +88,10 @@ pub fn descriptor(path: &Path) -> io::Result<Descriptor> {
 }
 
 /// Resolves what one launcher invocation runs from its own runfiles.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn plan(exe: &Path, args: &[String]) -> io::Result<Plan> {
     let cwd = std::env::current_dir().map_err(|error| {
         bad(format!(
@@ -94,6 +103,10 @@ pub fn plan(exe: &Path, args: &[String]) -> io::Result<Plan> {
 }
 
 /// Resolves one launch as if the launcher ran in `cwd`.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn plan_in(exe: &Path, args: &[String], cwd: &Path) -> io::Result<Plan> {
     let owned = descriptor(&descriptor_path(exe))?;
     let runfiles = dx_path::Resolver::for_binary(exe)?;
@@ -122,8 +135,7 @@ pub fn plan_in(exe: &Path, args: &[String], cwd: &Path) -> io::Result<Plan> {
         args: script_args,
         path_prefix: wrapper
             .parent()
-            .map(Path::to_path_buf)
-            .unwrap_or_else(|| PathBuf::from("")),
+            .map_or_else(|| PathBuf::from(""), Path::to_path_buf),
         env_set: vec![
             ("JS_BINARY__EXECROOT".to_owned(), execroot.clone()),
             ("JS_BINARY__RUNFILES".to_owned(), tree.clone()),
@@ -178,8 +190,7 @@ fn runfiles_root(runfiles: &dx_path::Resolver) -> PathBuf {
     }
     source
         .parent()
-        .map(Path::to_path_buf)
-        .unwrap_or_else(|| PathBuf::from(""))
+        .map_or_else(|| PathBuf::from(""), Path::to_path_buf)
 }
 
 fn lossy(path: &Path) -> String {
@@ -205,4 +216,3 @@ fn read(path: &Path) -> io::Result<String> {
 fn bad(message: impl std::fmt::Display) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidInput, message.to_string())
 }
-

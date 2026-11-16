@@ -8,6 +8,7 @@ pub mod sign;
 pub mod util;
 
 /// Runs the operation `args` names and returns its exit code.
+#[must_use]
 pub fn run(args: &[String]) -> u8 {
     let (name, rest) = match args.split_first() {
         Some((name, rest)) => (name.as_str(), rest),

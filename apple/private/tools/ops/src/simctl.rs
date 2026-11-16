@@ -8,6 +8,7 @@ use crate::xcode::{Tools, XCRUN};
 pub const PREFIX: &str = "dx-apple-simctl";
 
 /// The `(name, udid)` of a line of `simctl list devices`.
+#[must_use]
 pub fn device(line: &str) -> Option<(&str, &str)> {
     let first = line.strip_prefix(' ')?.trim_start().chars().next()?;
     if matches!(first, '=' | '-') {
@@ -23,7 +24,11 @@ pub fn device(line: &str) -> Option<(&str, &str)> {
 }
 
 /// The stdout of `xcrun simctl list <what>`, or why it failed.
-pub fn list(tools: &Tools, what: &[&str], noun: &str) -> Result<String, Failure> {
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
+pub fn list(tools: &Tools<'_>, what: &[&str], noun: &str) -> Result<String, Failure> {
     let mut args = vec!["simctl", "list"];
     args.extend_from_slice(what);
     let listed = tools.xcrun(&args);
@@ -43,7 +48,7 @@ pub fn list(tools: &Tools, what: &[&str], noun: &str) -> Result<String, Failure>
     }
 }
 
-fn udid(tools: &Tools, env: Env) -> Result<String, Failure> {
+fn udid(tools: &Tools<'_>, env: Env<'_>) -> Result<String, Failure> {
     let want = env("DX_SIMCTL_DEVICE")
         .ok_or_else(|| usage("DX_SIMCTL_DEVICE names the simulator by name or UDID"))?;
     let listing = list(tools, &["devices", "available"], "simulators")?;
@@ -68,7 +73,7 @@ fn done(code: Option<i32>) -> Outcome {
     Ok(exit_code(code))
 }
 
-fn install(tools: &Tools, env: Env, udid: &str, app: &str) -> Outcome {
+fn install(tools: &Tools<'_>, env: Env<'_>, udid: &str, app: &str) -> Outcome {
     let app_path = Path::new(app);
     if !app_path.exists() {
         return Err(usage("the built .ipa or .app is missing"));
@@ -103,7 +108,11 @@ fn install(tools: &Tools, env: Env, udid: &str, app: &str) -> Outcome {
 }
 
 /// Runs `simctl <op> [app]`.
-pub fn run(tools: &Tools, args: &[String], env: Env) -> Outcome {
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
+pub fn run(tools: &Tools<'_>, args: &[String], env: Env<'_>) -> Outcome {
     let Some((op, rest)) = args.split_first() else {
         return Err(usage("usage: apple_ops simctl <boot|install|launch> [app]"));
     };

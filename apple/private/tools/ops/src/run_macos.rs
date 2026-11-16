@@ -8,7 +8,11 @@ use crate::xcode::{DITTO, PLUTIL, Tools};
 pub const PREFIX: &str = "apple_macos_app";
 
 /// Runs the app in the zip at `args[0]` with the remaining arguments.
-pub fn run(tools: &Tools, args: &[String], env: Env) -> Outcome {
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
+pub fn run(tools: &Tools<'_>, args: &[String], env: Env<'_>) -> Outcome {
     let Some((zipped, rest)) = args.split_first() else {
         return Err(usage("run the app with bazel run"));
     };

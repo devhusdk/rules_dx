@@ -16,6 +16,7 @@ pub const SPCTL: &str = "/usr/sbin/spctl";
 pub const APPLICATIONS: &str = "/Applications";
 
 /// The text of `CFBundleShortVersionString` in a `version.plist`.
+#[must_use]
 pub fn short_version(plist: &str) -> Option<&str> {
     let after = plist.split_once("<key>CFBundleShortVersionString</key>")?.1;
     let value = after.split_once("<string>")?.1;
@@ -35,6 +36,7 @@ pub(crate) fn components(version: &str) -> [u64; 3] {
 }
 
 /// Whether the installed `have` (`15.2`) is the configured `want` (`15.2.0.15C500b`).
+#[must_use]
 pub fn version_matches(want: &str, have: &str) -> bool {
     !want.is_empty() && components(want) == components(have)
 }
@@ -53,6 +55,10 @@ fn installed(developer_dir: &Path, want: &str) -> bool {
 /// The developer directory of the Xcode installed as `version`.
 ///
 /// `preset` is a `DEVELOPER_DIR` already in the environment; it wins when it is that Xcode.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn developer_dir(
     version: &str,
     preset: Option<&str>,
@@ -89,7 +95,11 @@ pub fn developer_dir(
 }
 
 /// The developer directory the launcher's `DX_XCODE_VERSION` selects.
-pub fn for_launcher(env: Env) -> Result<PathBuf, Failure> {
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
+pub fn for_launcher(env: Env<'_>) -> Result<PathBuf, Failure> {
     let version = env("DX_XCODE_VERSION").unwrap_or_default();
     developer_dir(
         &version,
@@ -98,8 +108,12 @@ pub fn for_launcher(env: Env) -> Result<PathBuf, Failure> {
     )
 }
 
-/// The developer directory a rules_apple test runner selects.
-pub fn for_test_runner(env: Env) -> Result<PathBuf, Failure> {
+/// The developer directory a `rules_apple` test runner selects.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
+pub fn for_test_runner(env: Env<'_>) -> Result<PathBuf, Failure> {
     if let Some(version) = env("XCODE_VERSION_OVERRIDE") {
         return developer_dir(
             &version,
@@ -137,21 +151,25 @@ impl Tools<'_> {
     }
 
     /// Runs `xcrun <args>` and captures it.
+    #[must_use]
     pub fn xcrun(&self, args: &[&str]) -> Output {
         self.runner.capture(&self.cmd(XCRUN, args))
     }
 
     /// Runs `xcrun <args>` with this process's streams.
+    #[must_use]
     pub fn xcrun_inherit(&self, args: &[&str]) -> Option<i32> {
         self.runner.inherit(&self.cmd(XCRUN, args))
     }
 
     /// Runs the system tool `program` and captures it.
+    #[must_use]
     pub fn tool(&self, program: &str, args: &[&str]) -> Output {
         self.runner.capture(&self.cmd(program, args))
     }
 
     /// Runs an arbitrary program with this process's streams.
+    #[must_use]
     pub fn run_program(&self, program: &str, args: &[&str]) -> Option<i32> {
         self.runner.inherit(&self.cmd(program, args))
     }

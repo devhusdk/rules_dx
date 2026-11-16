@@ -2,6 +2,7 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write as _;
 
 use dx_lock::{Archive, Error, HttpFetch, Lock, Package, Resolution, Resolver, Scratch, Spec};
 
@@ -500,13 +501,15 @@ pub fn state(packages: &[Package], constraints: &BTreeMap<String, BTreeSet<Strin
     let mut out =
         String::from("# This file is maintained automatically by the terraform lock step.\n");
     for package in packages {
-        out.push_str(&format!(
-            "\nprovider \"{}\" {{\n  version = \"{}\"\n",
+        writeln!(
+            out,
+            "\nprovider \"{}\" {{\n  version = \"{}\"",
             package.name, package.version
-        ));
+        )
+        .ok();
         if let Some(set) = constraints.get(&package.name).filter(|set| !set.is_empty()) {
             let joined: Vec<&str> = set.iter().map(String::as_str).collect();
-            out.push_str(&format!("  constraints = \"{}\"\n", joined.join(", ")));
+            writeln!(out, "  constraints = \"{}\"", joined.join(", ")).ok();
         }
         let hashes: BTreeSet<String> = package
             .archives
@@ -515,7 +518,7 @@ pub fn state(packages: &[Package], constraints: &BTreeMap<String, BTreeSet<Strin
             .collect();
         out.push_str("  hashes = [\n");
         for hash in hashes {
-            out.push_str(&format!("    \"{hash}\",\n"));
+            writeln!(out, "    \"{hash}\",").ok();
         }
         out.push_str("  ]\n}\n");
     }
@@ -584,7 +587,7 @@ impl Resolver for Terraform<'_> {
         std::fs::write(scratch.set().join(&self.state), state(&packages, &wanted))
             .map_err(|error| Error::new(format!("{}: {error}", self.state)))?;
         Ok(Resolution {
-            groups: std::collections::BTreeMap::new(),
+            groups: BTreeMap::new(),
             packages,
             ..Resolution::default()
         })

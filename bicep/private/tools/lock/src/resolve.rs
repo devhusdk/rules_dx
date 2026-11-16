@@ -256,15 +256,24 @@ fn read_references(scratch: &Scratch) -> Result<Vec<Reference>, Error> {
     let mut files: Vec<_> = entries
         .filter_map(Result::ok)
         .map(|entry| entry.path())
-        .filter(|path| path.extension().is_some_and(|extension| extension == "bicep"))
+        .filter(|path| {
+            path.extension()
+                .is_some_and(|extension| extension == "bicep")
+        })
         .collect();
     files.sort();
     let mut tags: BTreeMap<String, String> = BTreeMap::new();
     for file in files {
-        let shown = file.file_name().unwrap_or_default().to_string_lossy().into_owned();
+        let shown = file
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .into_owned();
         let text = std::fs::read_to_string(&file)
             .map_err(|error| Error::new(format!("{shown}: {error}")))?;
-        for reference in references(&text).map_err(|error| Error::new(format!("{shown}: {error}")))? {
+        for reference in
+            references(&text).map_err(|error| Error::new(format!("{shown}: {error}")))?
+        {
             match tags.get(&reference.name) {
                 Some(tag) if *tag != reference.tag => {
                     return Err(Error::new(format!(
@@ -299,7 +308,7 @@ impl Resolver for Bicep<'_> {
             });
         }
         Ok(Resolution {
-            groups: std::collections::BTreeMap::new(),
+            groups: BTreeMap::new(),
             packages,
             ..Resolution::default()
         })

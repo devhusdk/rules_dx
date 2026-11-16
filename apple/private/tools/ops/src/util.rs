@@ -41,11 +41,13 @@ pub fn missing(message: impl Into<String>) -> Failure {
 }
 
 /// The process environment, with empty values dropped.
+#[must_use]
 pub fn process_env(name: &str) -> Option<String> {
     std::env::var(name).ok().filter(|value| !value.is_empty())
 }
 
 /// Maps a child's exit code to this program's.
+#[must_use]
 pub fn exit_code(code: Option<i32>) -> u8 {
     code.and_then(|code| u8::try_from(code).ok()).unwrap_or(1)
 }
@@ -67,6 +69,7 @@ pub struct Output {
 }
 
 impl Output {
+    #[must_use]
     pub fn success(&self) -> bool {
         self.code == Some(0)
     }
@@ -115,7 +118,10 @@ impl Runner for System {
 pub struct Scratch(PathBuf);
 
 impl Scratch {
-    pub fn new(env: Env, name: &str) -> Result<Scratch, Failure> {
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
+    pub fn new(env: Env<'_>, name: &str) -> Result<Scratch, Failure> {
         let root = env("TMPDIR").ok_or_else(|| usage("TMPDIR names the scratch directory"))?;
         let path = Path::new(&root).join(format!("dx-{name}.{}", std::process::id()));
         std::fs::create_dir_all(&path)
@@ -123,6 +129,7 @@ impl Scratch {
         Ok(Scratch(path))
     }
 
+    #[must_use]
     pub fn path(&self) -> &Path {
         &self.0
     }

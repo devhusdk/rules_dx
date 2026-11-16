@@ -1,4 +1,5 @@
 //! Converts the `.lst` files a D program built with `-cov` writes into LCOV.
+use std::fmt::Write as _;
 
 /// Returns the LCOV record for one `.lst` file, or None when the file has no code.
 ///
@@ -22,12 +23,12 @@ pub fn lst_to_lcov(text: &str) -> Option<String> {
         };
         found += 1;
         hit += usize::from(count > 0);
-        out.push_str(&format!("DA:{},{count}\n", index + 1));
+        writeln!(out, "DA:{},{count}", index + 1).ok();
     }
     if found == 0 {
         return None;
     }
-    out.push_str(&format!("LF:{found}\nLH:{hit}\nend_of_record\n"));
+    writeln!(out, "LF:{found}\nLH:{hit}\nend_of_record").ok();
     Some(out)
 }
 

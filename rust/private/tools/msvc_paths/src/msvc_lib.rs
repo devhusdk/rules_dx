@@ -1,6 +1,6 @@
-//! Runs $TARGET_AR from the execroot with execroot-relative paths, so archive member names do not
+//! Runs $`TARGET_AR` from the execroot with execroot-relative paths, so archive member names do not
 //! depend on the checkout. Build scripts call it from deep inside bazel-out, where `../` prefixes
-//! would push paths past MAX_PATH, so the archiver always runs from the execroot itself.
+//! would push paths past `MAX_PATH`, so the archiver always runs from the execroot itself.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
@@ -25,7 +25,7 @@ fn run() -> io::Result<ExitCode> {
     let ar = path::absolute(Path::new(&ar))?;
     let mut args: Vec<String> = env::args().skip(1).collect();
     edit_args(&mut args, |arg| Ok(rewriter.rewrite(arg)))?;
-    for arg in args.iter_mut() {
+    for arg in &mut args {
         if let Some(file) = arg.strip_prefix('@') {
             let file = path::absolute(file)?;
             *arg = format!("@{}", rewriter.rewrite(&file.to_string_lossy()));

@@ -42,6 +42,10 @@ pub struct Scratch(PathBuf);
 
 impl Scratch {
     /// Creates a new directory named after `base` and this process.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn beside(base: &Path) -> std::io::Result<Scratch> {
         let mut name = base.file_name().unwrap_or_default().to_os_string();
         name.push(format!(".dx-work.{}", std::process::id()));
@@ -50,6 +54,7 @@ impl Scratch {
         Ok(Scratch(path))
     }
 
+    #[must_use]
     pub fn path(&self) -> &Path {
         &self.0
     }
@@ -62,6 +67,7 @@ impl Drop for Scratch {
 }
 
 /// Whether `path` is a file this process may run.
+#[must_use]
 pub fn runnable(path: &Path) -> bool {
     let Ok(meta) = std::fs::metadata(path) else {
         return false;
@@ -97,16 +103,19 @@ pub struct Captured {
 }
 
 impl Captured {
+    #[must_use]
     pub fn success(&self) -> bool {
         self.code == Some(0)
     }
 
     /// Whether a line starts with `prefix`.
+    #[must_use]
     pub fn line_starts(&self, prefix: &str) -> bool {
         self.text.lines().any(|line| line.starts_with(prefix))
     }
 
     /// The first line that is not blank and not a stack frame.
+    #[must_use]
     pub fn first_reason(&self) -> &str {
         self.text
             .lines()
@@ -142,6 +151,7 @@ pub fn passes(command: &mut Command) -> bool {
 }
 
 /// The `.apk` files directly inside `dir`, sorted.
+#[must_use]
 pub fn apks_in(dir: &Path) -> Vec<PathBuf> {
     let mut found: Vec<PathBuf> = std::fs::read_dir(dir)
         .map(|entries| {
@@ -157,6 +167,7 @@ pub fn apks_in(dir: &Path) -> Vec<PathBuf> {
 }
 
 /// The entry names in the central directory of one zip file.
+#[must_use]
 pub fn zip_names(bytes: &[u8]) -> Option<Vec<String>> {
     let word = |at: usize, len: usize| -> Option<usize> {
         let field = bytes.get(at..at.checked_add(len)?)?;

@@ -1,8 +1,8 @@
 //! Runs the README quickstart and `bcr_test_module` as written, against this checkout.
 
 use dx_nested::compose::{
-    llvm_override, protobuf_override, rules_dx_override, rules_flutter_override,
-    rules_julia_override, rules_py_override, rules_rust_override, windows_support_override,
+    llvm_override, protobuf_override, rules_dx_override, rules_flutter_override, rules_py_override,
+    rules_rust_override, windows_support_override,
 };
 use dx_nested::{self as nested, Case, footprint, plain_fixture};
 use dx_release_tools::presubmit;
@@ -161,7 +161,6 @@ fn copy_rules_py_patches(source: &std::path::Path, case: &Case) {
     for package in [
         "rules_py",
         "rules_flutter",
-        "rules_julia",
         "rules_rust",
         "llvm",
         "protobuf",
@@ -205,7 +204,7 @@ fn the_readme_quickstart_runs_as_written() {
     let source = rules_dx_source();
     let files = quickstart_files(&read_text(&source.join("README.md")));
     let names: Vec<&str> = files.iter().map(|(name, _)| name.as_str()).collect();
-    assert_eq!(names, [".bazelversion", "MODULE.bazel", "BUILD.bazel"]);
+    assert_eq!(names, [".bazelversion", "MODULE.bazel"]);
 
     let case = nested::case("quickstart_readme");
     copy_rules_py_patches(&source, &case);
@@ -217,7 +216,6 @@ fn the_readme_quickstart_runs_as_written() {
             text.push('\n');
             text.push_str(&rules_py_override());
             text.push_str(&rules_flutter_override());
-            text.push_str(&rules_julia_override());
             text.push_str(&rules_rust_override());
             text.push_str(&llvm_override());
             text.push_str(&protobuf_override());
@@ -227,6 +225,25 @@ fn the_readme_quickstart_runs_as_written() {
         write_text(&case.root().join(name), &text);
     }
 
+    assert!(
+        !case.root().join("BUILD.bazel").exists() && !case.root().join("BUILD").exists(),
+        "the quickstart consumer has no root package"
+    );
+    write_text(
+        &case.root().join("app/BUILD.bazel"),
+        "load(\"@rules_dx//rust:defs.bzl\", \"rust_library\")\n\nrust_library(\n    name = \"app\",\n    srcs = [\"lib.rs\"],\n    crate_root = \"lib.rs\",\n)\n",
+    );
+    write_text(
+        &case.root().join("app/lib.rs"),
+        "//! A Rust target in a consumer with no root package.\n\n/// Returns the answer.\npub fn answer() -> u32 {\n    42\n}\n",
+    );
+    run_in(
+        &case,
+        &["build", "//app"],
+        "build a rust target with no root package",
+    );
+    std::fs::remove_dir_all(case.root().join("app"))
+        .unwrap_or_else(|error| panic!("remove app: {error}"));
     run_in(
         &case,
         &["run", "@rules_dx//:dx", "--", "--help"],
@@ -311,7 +328,6 @@ fn bcr_test_module_runs_its_presubmit_targets() {
             + &rules_dx_override(&source)
             + &rules_py_override()
             + &rules_flutter_override()
-            + &rules_julia_override()
             + &rules_rust_override()
             + &llvm_override()
             + &protobuf_override()

@@ -8,7 +8,6 @@ The Version column is generated from `MODULE.bazel`, and every patch it applies 
 | --- | --- | --- | --- |
 | `rules_rust` | 0.75.0 | `clippy_metadata_inputs.patch` | Root only. clippy reads dependency `.rmeta` |
 | `rules_rust` | 0.75.0 | `pipelined_rmeta_path.patch` | Root only. The full rustc action writes its own `.rmeta` so it does not hit the read-only one from the metadata action (bazelbuild/rules_rust#3383; drop when a rules_rust release has it) |
-| `rules_rust` | 0.75.0 | `crate_universe_root_lookup.patch` | Root only. `crate_universe` looks up the root `MODULE.bazel` only in the root module, so a consumer without a root `BUILD.bazel` can use `dx_crates` |
 | `rules_rust` | 0.75.0 | `msvc_pdb_output.patch` | MSVC `bin` and `cdylib` crates always declare their `.pdb`, since rustc writes it whatever the strip level (rust-lang/rust#115120). Consumer fix: #11414 |
 | `rules_rust` | 0.75.0 | `crate_universe_lazy_host_tools.patch` | `crate` hubs with a `lockfile` render from it without fetching `rust_host_tools` (cargo and rustc), unless a repin is requested or `CARGO_BAZEL_DIGEST_CHECK=1` is set, which CI preflight does. Consumer fix: #11414 |
 | `rules_rust` | 0.75.0 | `cargo_toml_env_vars_flag.patch` | `--@rules_rust//cargo/settings:cargo_toml_env_vars=False` makes `cargo_toml_env_vars` write an empty env file, so `cargo_toml_variable_extractor` and the 55 crates it needs are never fetched (drop when a rules_rust release has the flag). Consumer fix: #11414 |

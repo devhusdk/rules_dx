@@ -58,10 +58,9 @@ pub fn rules_py_override() -> String {
 }
 
 /// The patches of `//patches/rules_rust` that `rules_rust_override` names, without `.patch`.
-pub const RULES_RUST_PATCHES: [&str; 11] = [
+pub const RULES_RUST_PATCHES: [&str; 10] = [
     "clippy_metadata_inputs",
     "pipelined_rmeta_path",
-    "crate_universe_root_lookup",
     "msvc_pdb_output",
     "static_archive_link_arg",
     "crate_universe_lazy_host_tools",
@@ -218,25 +217,6 @@ pub fn rules_flutter_override() -> String {
     )
 }
 
-/// The patches of `//patches/rules_julia` that `rules_julia_override` names, without `.patch`.
-pub const RULES_JULIA_PATCHES: [&str; 4] = [
-    "package_annotation_version",
-    "package_name",
-    "portable_cpu_target",
-    "template_action_input",
-];
-
-/// Pins `rules_julia` 0.8.0 with the patches of the root MODULE.bazel.
-#[must_use]
-pub fn rules_julia_override() -> String {
-    let patches = RULES_JULIA_PATCHES
-        .map(|name| format!("        \"//patches/rules_julia:{name}.patch\",\n"))
-        .concat();
-    format!(
-        "single_version_override(\n    module_name = \"rules_julia\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    version = \"0.8.0\",\n)\n"
-    )
-}
-
 /// Drops the `module()` line and any comment or blank lines before it.
 fn without_module_line(snippet: &str) -> String {
     let mut lines = snippet.lines().peekable();
@@ -359,8 +339,7 @@ pub fn write_windows_support_patches(workspace: &Path, rules_dx: &Path) -> Resul
 /// Returns `Err` when the operation fails.
 pub fn write_rules_py_patches(workspace: &Path, rules_dx: &Path) -> Result<(), String> {
     write_patches(workspace, rules_dx, "rules_py", &RULES_PY_PATCHES)?;
-    write_patches(workspace, rules_dx, "rules_flutter", &RULES_FLUTTER_PATCHES)?;
-    write_patches(workspace, rules_dx, "rules_julia", &RULES_JULIA_PATCHES)
+    write_patches(workspace, rules_dx, "rules_flutter", &RULES_FLUTTER_PATCHES)
 }
 
 /// The modules whose root MODULE.bazel `single_version_override` the consumer repeats.

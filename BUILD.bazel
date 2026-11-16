@@ -819,6 +819,7 @@ filegroup(
         "//ruby/private/quality:module_srcs",
         "//rust:module_srcs",
         "//rust/private:module_srcs",
+        "//rust/private/crate_universe:module_srcs",
         "//rust/private/quality:module_srcs",
         "//rust/private/quality/tools:module_srcs",
         "//rust/private/quality/tools/progenitor:module_srcs",

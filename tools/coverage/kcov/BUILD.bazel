@@ -86,7 +86,6 @@ sh_test(
         ":kcov",
         ":smoke",
     ],
-    tags = ["no-remote-exec"],
     target_compatible_with = ["@platforms//os:linux"],
 )
 

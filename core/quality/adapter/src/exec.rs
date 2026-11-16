@@ -185,8 +185,39 @@ impl Scratch {
     ///
     /// Returns an I/O error when the filesystem or process operation fails.
     pub fn close(self) -> io::Result<()> {
-        self.dir.close()
+        remove_scratch(&self.dir.keep())
     }
+}
+
+const SCRATCH_REMOVE_BACKOFF_MS: [u64; 6] = [10, 50, 100, 250, 500, 1000];
+
+#[cfg(windows)]
+const ERROR_SHARING_VIOLATION: i32 = 32;
+
+fn held(err: &io::Error) -> bool {
+    #[cfg(windows)]
+    if err.raw_os_error() == Some(ERROR_SHARING_VIOLATION) {
+        return true;
+    }
+    err.kind() == io::ErrorKind::PermissionDenied
+}
+
+/// Removes a closed scratch tree, clearing read-only entries and retrying while entries are held.
+fn remove_scratch(path: &Path) -> io::Result<()> {
+    let mut outcome = std::fs::remove_dir_all(path);
+    for delay in SCRATCH_REMOVE_BACKOFF_MS {
+        match &outcome {
+            Err(err) if held(err) => {}
+            _ => return outcome,
+        }
+        dx_process::make_writable(path);
+        outcome = std::fs::remove_dir_all(path);
+        if outcome.is_ok() {
+            return outcome;
+        }
+        std::thread::sleep(Duration::from_millis(delay));
+    }
+    outcome
 }
 
 fn ensure_no_symlink_prefix(root: &Path, path: &Path, rel: &Path) -> io::Result<()> {
@@ -739,6 +770,20 @@ mod tests {
         let root = scratch.root().to_owned();
         std::fs::remove_dir_all(&root).expect("pre-remove");
         assert!(scratch.close().is_err(), "missing tree is an error");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn close_removes_a_read_only_tree() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let scratch = Scratch::create(&std::env::temp_dir()).expect("scratch");
+        let root = scratch.root().to_owned();
+        let locked = root.join("locked");
+        std::fs::create_dir(&locked).expect("locked dir");
+        std::fs::write(locked.join("file"), b"x").expect("file");
+        std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o500)).expect("chmod");
+        scratch.close().expect("close clears read-only entries");
+        assert!(!root.exists(), "closed scratch is gone");
     }
 
     fn pair(key: &str, value: &str) -> (OsString, OsString) {

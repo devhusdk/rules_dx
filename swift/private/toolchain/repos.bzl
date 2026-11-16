@@ -233,15 +233,7 @@ filegroup(
 
 filegroup(
     name = "profile_runtime",
-    srcs = glob(
-        [
-            "toolchain/usr/lib/**/clang_rt.profile-x86_64.lib",
-            "toolchain/usr/lib/**/x86_64-*-windows-msvc/clang_rt.profile.lib",
-            "platform/Developer/SDKs/Windows.sdk/usr/lib/**/clang_rt.profile-x86_64.lib",
-            "platform/Developer/SDKs/Windows.sdk/usr/lib/**/x86_64-*-windows-msvc/clang_rt.profile.lib",
-        ],
-        allow_empty = True,
-    )[:1],
+    srcs = ["toolchain/usr/lib/clang/21/lib/windows/clang_rt.profile-x86_64.lib"],
 )
 
 filegroup(

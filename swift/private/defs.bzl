@@ -168,6 +168,11 @@ def _swift_coverage_kwargs(kwargs):
         Label("//swift/private/platforms:is_windows_x86_64_static_crt"): ["-NODEFAULTLIB:msvcrt.lib", "-NODEFAULTLIB:msvcprt.lib"],
         "//conditions:default": [],
     }))
+    out = dx_append_flags(out, "linkopts", select({
+        Label("//swift/private:coverage_windows_static_crt"): [],
+        Label("//swift/private:coverage_windows"): ["-NODEFAULTLIB:libcmt.lib"],
+        "//conditions:default": [],
+    }))
     out = dx_append_flags(out, "features", select({
         Label("//swift/private:coverage_linux"): ["-llvm_coverage_map_format"],
         Label("//swift/private:coverage_windows"): ["-llvm_coverage_map_format"],

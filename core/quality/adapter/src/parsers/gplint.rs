@@ -1,6 +1,77 @@
 use super::{FileFinding, ParseError, check_output_size, code_name, known};
 use crate::{ColumnEncoding, Finding, LINE_END, TextPosition, ToolSeverity};
 
+fn gplint_error(
+    error: &serde_json::Value,
+    checked: &str,
+    saw_error: &mut bool,
+) -> Result<FileFinding, ParseError> {
+    const TOOL: &str = "gplint";
+    let shape = |detail: &str| ParseError::Shape {
+        tool: TOOL,
+        detail: detail.to_owned(),
+    };
+    let line = error
+        .get("line")
+        .and_then(serde_json::Value::as_u64)
+        .ok_or_else(|| shape("missing line"))?
+        .max(1); // empty files report line 0
+    let column = error
+        .get("column")
+        .and_then(serde_json::Value::as_u64)
+        .unwrap_or(0);
+    let rule = error
+        .get("rule")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_owned();
+    let message = error
+        .get("message")
+        .and_then(|v| v.as_str())
+        .filter(|text| !text.is_empty())
+        .ok_or_else(|| shape("missing message"))?
+        .to_owned();
+    let severity = match error.get("level").and_then(serde_json::Value::as_u64) {
+        Some(2) => {
+            *saw_error = true;
+            ToolSeverity::Error
+        }
+        Some(1) => ToolSeverity::Warning,
+        other => {
+            return Err(ParseError::Shape {
+                tool: TOOL,
+                detail: format!("unknown level {other:?}"),
+            });
+        }
+    };
+    // Parse errors have no column; they cover their whole line.
+    let (start, end) = if column == 0 {
+        (
+            TextPosition { line, column: 1 },
+            Some(TextPosition {
+                line,
+                column: LINE_END,
+            }),
+        )
+    } else {
+        (TextPosition { line, column }, None)
+    };
+    Ok(FileFinding {
+        file: checked.to_owned(),
+        finding: Finding {
+            tool_id: TOOL.to_owned(),
+            rule_id: rule,
+            message,
+            severity,
+            start,
+            end,
+            suggestions: Vec::new(),
+            encoding: ColumnEncoding::Scalars,
+            related: Vec::new(),
+        },
+    })
+}
+
 /// Parses `gplint -f json`. Every requested file must be named exactly once, because gplint
 /// treats arguments as globs and silently drops what does not match, and because it exits 0
 /// with no output when it crashes.
@@ -55,65 +126,7 @@ pub fn parse_gplint(
             .and_then(|v| v.as_array())
             .ok_or_else(|| shape("missing errors"))?;
         for error in errors {
-            let line = error
-                .get("line")
-                .and_then(serde_json::Value::as_u64)
-                .ok_or_else(|| shape("missing line"))?
-                .max(1); // empty files report line 0
-            let column = error
-                .get("column")
-                .and_then(serde_json::Value::as_u64)
-                .unwrap_or(0);
-            let rule = error
-                .get("rule")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_owned();
-            let message = error
-                .get("message")
-                .and_then(|v| v.as_str())
-                .filter(|text| !text.is_empty())
-                .ok_or_else(|| shape("missing message"))?
-                .to_owned();
-            let severity = match error.get("level").and_then(serde_json::Value::as_u64) {
-                Some(2) => {
-                    saw_error = true;
-                    ToolSeverity::Error
-                }
-                Some(1) => ToolSeverity::Warning,
-                other => {
-                    return Err(ParseError::Shape {
-                        tool: TOOL,
-                        detail: format!("unknown level {other:?}"),
-                    });
-                }
-            };
-            // Parse errors have no column; they cover their whole line.
-            let (start, end) = if column == 0 {
-                (
-                    TextPosition { line, column: 1 },
-                    Some(TextPosition {
-                        line,
-                        column: LINE_END,
-                    }),
-                )
-            } else {
-                (TextPosition { line, column }, None)
-            };
-            findings.push(FileFinding {
-                file: checked.to_owned(),
-                finding: Finding {
-                    tool_id: TOOL.to_owned(),
-                    rule_id: rule,
-                    message,
-                    severity,
-                    start,
-                    end,
-                    suggestions: Vec::new(),
-                    encoding: ColumnEncoding::Scalars,
-                    related: Vec::new(),
-                },
-            });
+            findings.push(gplint_error(error, checked, &mut saw_error)?);
         }
     }
     if let Some(missing) = files.iter().find(|file| !reported.contains(file)) {

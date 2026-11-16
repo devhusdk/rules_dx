@@ -58,9 +58,13 @@ fn assemble_covers_insertion_deletion_and_multibyte_boundaries() {
             original.is_char_boundary(usize::try_from(edit.start_byte).unwrap()),
             "{label}"
         );
-        assert!(original.is_char_boundary(usize::try_from(edit.end_byte).unwrap()), "{label}");
+        assert!(
+            original.is_char_boundary(usize::try_from(edit.end_byte).unwrap()),
+            "{label}"
+        );
         let mut spliced = Vec::new();
-        spliced.extend_from_slice(&original.as_bytes()[..usize::try_from(edit.start_byte).unwrap()]);
+        spliced
+            .extend_from_slice(&original.as_bytes()[..usize::try_from(edit.start_byte).unwrap()]);
         spliced.extend_from_slice(&edit.replacement);
         spliced.extend_from_slice(&original.as_bytes()[usize::try_from(edit.end_byte).unwrap()..]);
         assert_eq!(&spliced, terminal_body.as_bytes(), "{label}");
@@ -627,6 +631,25 @@ fn per_stage_malformed_edits_rejected_by_validate_gate() {
         replacement: b"x".to_vec(),
     }]);
     assert!(validate(&inverted).is_err());
+}
+
+#[test]
+fn per_stage_malformed_digests_and_paths_rejected_by_validate_gate() {
+    let stages = vec![stage("lint-a", &["rust"], &["src/lib.rs"])];
+    let files = vec![file("src/lib.rs", "BAD\n")];
+    let valid = synthetic::run_pipeline("//core/quality:test", "lint", &stages, &files).unwrap();
+    assert_eq!(valid.replacements.len(), 1);
+    assert!(validate(&valid).is_ok());
+    let edits = &valid.replacements[0];
+    assert_eq!(edits.edits.len(), 1);
+    assert_eq!(edits.edits[0].start_byte, 0);
+    assert_eq!(edits.edits[0].end_byte, 2);
+    assert_eq!(&edits.edits[0].replacement, b"GOO");
+    let mk = |edits: Vec<Edit>| {
+        let mut mutated = valid.clone();
+        mutated.replacements[0].edits = edits;
+        mutated
+    };
     let mut bad_digest = valid.clone();
     bad_digest.replacements[0].original_digest = vec![0xAB; DIGEST_LEN + 1];
     assert!(validate(&bad_digest).is_err());

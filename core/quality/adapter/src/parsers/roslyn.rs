@@ -180,6 +180,79 @@ pub fn parse_csc(
     parse_scoped("csc", Scope::Compiler, sarif, code, files)
 }
 
+fn scope_result(
+    tool: &'static str,
+    scope: Scope,
+    run: &Value,
+    mut result: Value,
+    files: &[&str],
+    any_error: &mut bool,
+) -> Result<Option<Value>, ParseError> {
+    if result
+        .get("ruleId")
+        .and_then(Value::as_str)
+        .is_none_or(str::is_empty)
+    {
+        return Err(ParseError::Shape {
+            tool,
+            detail: "result without a rule id".to_owned(),
+        });
+    }
+    if result.get("level").and_then(Value::as_str) == Some("error") {
+        *any_error = true;
+    }
+    if scope == Scope::Compiler && !is_compiler_rule(run, &result) {
+        return Ok(None);
+    }
+    let rule = result
+        .get("ruleId")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    if REFERENCE_TRIMMER_RULES.contains(&rule) {
+        return Ok(None);
+    }
+    if !rule.starts_with("AD")
+        && suppressed(
+            result
+                .get("suppressions")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .map(|suppression| suppression.get("status")),
+        )
+    {
+        return Ok(None);
+    }
+    let has_locations = result
+        .get("locations")
+        .and_then(Value::as_array)
+        .is_some_and(|locations| !locations.is_empty());
+    if !has_locations {
+        if let Some(detail) = analyzer_failure(&result) {
+            return Err(ParseError::Incomplete { tool, detail });
+        }
+        return Ok(None);
+    }
+    if keep_locations(&mut result, files) {
+        map_related_locations(&mut result, files);
+        return Ok(Some(result));
+    } else if result.get("level").and_then(Value::as_str) == Some("error") {
+        let rule = result
+            .get("ruleId")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let message = result
+            .pointer("/message/text")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        return Err(ParseError::Incomplete {
+            tool,
+            detail: format!("{rule} outside the checked files: {message}"),
+        });
+    }
+    Ok(None)
+}
+
 fn parse_scoped(
     tool: &'static str,
     scope: Scope,
@@ -207,68 +280,9 @@ fn parse_scoped(
             continue;
         };
         let mut kept = Vec::with_capacity(all.len());
-        for mut result in all {
-            if result
-                .get("ruleId")
-                .and_then(Value::as_str)
-                .is_none_or(str::is_empty)
-            {
-                return Err(ParseError::Shape {
-                    tool,
-                    detail: "result without a rule id".to_owned(),
-                });
-            }
-            if result.get("level").and_then(Value::as_str) == Some("error") {
-                any_error = true;
-            }
-            if scope == Scope::Compiler && !is_compiler_rule(run, &result) {
-                continue;
-            }
-            let rule = result
-                .get("ruleId")
-                .and_then(Value::as_str)
-                .unwrap_or_default();
-            if REFERENCE_TRIMMER_RULES.contains(&rule) {
-                continue;
-            }
-            if !rule.starts_with("AD")
-                && suppressed(
-                    result
-                        .get("suppressions")
-                        .and_then(Value::as_array)
-                        .into_iter()
-                        .flatten()
-                        .map(|suppression| suppression.get("status")),
-                )
-            {
-                continue;
-            }
-            let has_locations = result
-                .get("locations")
-                .and_then(Value::as_array)
-                .is_some_and(|locations| !locations.is_empty());
-            if !has_locations {
-                if let Some(detail) = analyzer_failure(&result) {
-                    return Err(ParseError::Incomplete { tool, detail });
-                }
-                continue;
-            }
-            if keep_locations(&mut result, files) {
-                map_related_locations(&mut result, files);
+        for result in all {
+            if let Some(result) = scope_result(tool, scope, run, result, files, &mut any_error)? {
                 kept.push(result);
-            } else if result.get("level").and_then(Value::as_str) == Some("error") {
-                let rule = result
-                    .get("ruleId")
-                    .and_then(Value::as_str)
-                    .unwrap_or_default();
-                let message = result
-                    .pointer("/message/text")
-                    .and_then(Value::as_str)
-                    .unwrap_or_default();
-                return Err(ParseError::Incomplete {
-                    tool,
-                    detail: format!("{rule} outside the checked files: {message}"),
-                });
             }
         }
         run["results"] = Value::Array(kept);

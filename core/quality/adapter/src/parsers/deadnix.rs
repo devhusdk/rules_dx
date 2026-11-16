@@ -16,6 +16,66 @@ fn number(value: &serde_json::Value, key: &str) -> Result<Option<u64>, ParseErro
     }
 }
 
+fn deadnix_result(
+    result: &serde_json::Value,
+    checked: &str,
+    dead: &mut bool,
+) -> Result<FileFinding, ParseError> {
+    let message = result
+        .get("message")
+        .and_then(serde_json::Value::as_str)
+        .map(str::trim)
+        .filter(|message| !message.is_empty())
+        .ok_or_else(|| ParseError::shape(TOOL, "missing message"))?;
+    let (rule_id, severity, start, end) = match number(result, "line")? {
+        Some(line) => {
+            *dead = true;
+            let column = number(result, "column")?
+                .ok_or_else(|| ParseError::shape(TOOL, "missing column"))?;
+            let end = number(result, "endColumn")?
+                .filter(|end| *end > column)
+                .map(|column| TextPosition { line, column });
+            let rule_id = message
+                .split_once(':')
+                .map_or("unused", |(kind, _)| kind)
+                .to_ascii_lowercase()
+                .replace(' ', "_");
+            (
+                rule_id,
+                ToolSeverity::Warning,
+                TextPosition { line, column },
+                end,
+            )
+        }
+        None if message.contains(IO_ERROR) => {
+            return Err(ParseError::Incomplete {
+                tool: TOOL,
+                detail: format!("deadnix could not read {checked}: {message}"),
+            });
+        }
+        None => (
+            "syntax".to_owned(),
+            ToolSeverity::Error,
+            TextPosition { line: 1, column: 1 },
+            None,
+        ),
+    };
+    Ok(FileFinding {
+        file: checked.to_owned(),
+        finding: Finding {
+            tool_id: TOOL.to_owned(),
+            rule_id,
+            message: message.to_owned(),
+            severity,
+            start,
+            end,
+            suggestions: Vec::new(),
+            encoding: ColumnEncoding::Utf8,
+            related: Vec::new(),
+        },
+    })
+}
+
 /// Parses `deadnix --fail -o json <files>`: one JSON object per file with results.
 ///
 /// A result with a line is dead code. A result without one is a parse or IO failure, which
@@ -71,59 +131,7 @@ pub fn parse_deadnix(
             .and_then(serde_json::Value::as_array)
             .ok_or_else(|| ParseError::shape(TOOL, "missing results"))?;
         for result in results {
-            let message = result
-                .get("message")
-                .and_then(serde_json::Value::as_str)
-                .map(str::trim)
-                .filter(|message| !message.is_empty())
-                .ok_or_else(|| ParseError::shape(TOOL, "missing message"))?;
-            let (rule_id, severity, start, end) = match number(result, "line")? {
-                Some(line) => {
-                    dead = true;
-                    let column = number(result, "column")?
-                        .ok_or_else(|| ParseError::shape(TOOL, "missing column"))?;
-                    let end = number(result, "endColumn")?
-                        .filter(|end| *end > column)
-                        .map(|column| TextPosition { line, column });
-                    let rule_id = message
-                        .split_once(':')
-                        .map_or("unused", |(kind, _)| kind)
-                        .to_ascii_lowercase()
-                        .replace(' ', "_");
-                    (
-                        rule_id,
-                        ToolSeverity::Warning,
-                        TextPosition { line, column },
-                        end,
-                    )
-                }
-                None if message.contains(IO_ERROR) => {
-                    return Err(ParseError::Incomplete {
-                        tool: TOOL,
-                        detail: format!("deadnix could not read {checked}: {message}"),
-                    });
-                }
-                None => (
-                    "syntax".to_owned(),
-                    ToolSeverity::Error,
-                    TextPosition { line: 1, column: 1 },
-                    None,
-                ),
-            };
-            findings.push(FileFinding {
-                file: checked.to_owned(),
-                finding: Finding {
-                    tool_id: TOOL.to_owned(),
-                    rule_id,
-                    message: message.to_owned(),
-                    severity,
-                    start,
-                    end,
-                    suggestions: Vec::new(),
-                    encoding: ColumnEncoding::Utf8,
-                    related: Vec::new(),
-                },
-            });
+            findings.push(deadnix_result(result, checked, &mut dead)?);
         }
     }
     if code == Some(1) && !dead {

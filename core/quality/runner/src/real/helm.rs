@@ -1,5 +1,6 @@
 use std::path::{Component, Path, PathBuf};
 
+use quality_adapter::exec::Scratch;
 use quality_adapter::kubernetes_preflight::{self, Document};
 use quality_adapter::parsers::FileFinding;
 use quality_adapter::{TextPosition, commands, parsers};
@@ -54,6 +55,165 @@ pub(super) const TOOL: ToolDef = ToolDef {
     run: |backend, call| backend.check_helm(call.tool_id, call.tool, call.staged, call.config),
 };
 
+type RenderedEntry = (String, String, Vec<Document>);
+
+fn helm_state(scratch: &Scratch, tool_id: &str, name: &str) -> Result<String, RunnerError> {
+    let dir = scratch
+        .resolve(Path::new(&format!("{STATE_REL}/{name}")))
+        .map_err(|err| execution(tool_id, format!("helm state: {err}")))?;
+    Ok(dir.to_string_lossy().into_owned())
+}
+
+fn helm_tool(tool_id: &str, tool: &RealTool, scratch: &Scratch) -> Result<RealTool, RunnerError> {
+    let state_dir = scratch
+        .resolve(Path::new(STATE_REL))
+        .map_err(|err| execution(tool_id, format!("helm state: {err}")))?;
+    std::fs::create_dir_all(&state_dir)
+        .map_err(|err| execution(tool_id, format!("helm state: {err}")))?;
+    let mut helm = RealTool {
+        binary: tool.binary.clone(),
+        extra_env: tool.extra_env.clone(),
+        config_rel: None,
+        edition: None,
+        dialect: None,
+        args: Vec::new(),
+        tool_files: Vec::new(),
+        upstream_diagnostics: Vec::new(),
+        search_paths: tool.search_paths.clone(),
+        path_tools: Vec::new(),
+    };
+    for (key, name) in [
+        ("HELM_CACHE_HOME", "cache"),
+        ("HELM_CONFIG_HOME", "config"),
+        ("HELM_DATA_HOME", "data"),
+        ("HELM_REPOSITORY_CONFIG", "repositories.yaml"),
+        ("HELM_REPOSITORY_CACHE", "repository"),
+        ("HELM_REGISTRY_CONFIG", "registry.json"),
+        ("HELM_PLUGINS", "plugins"),
+        ("KUBECONFIG", "kubeconfig"),
+    ] {
+        helm.extra_env
+            .push((key.to_owned(), helm_state(scratch, tool_id, name)?));
+    }
+    helm.extra_env
+        .push(("HELM_NO_PLUGINS".to_owned(), "1".to_owned()));
+    Ok(helm)
+}
+
+fn preflight_rendered(
+    tool_id: &str,
+    rendered: &[parsers::RenderedFile],
+    chart_yaml: &str,
+    context: &HelmContext,
+    absolute_of: &dyn Fn(&str) -> Option<PathBuf>,
+    findings: &mut Vec<FileFinding>,
+) -> Result<(Vec<RenderedEntry>, Vec<(String, RenderedEntry)>), RunnerError> {
+    let mut owned: Vec<RenderedEntry> = Vec::new();
+    let mut unowned: Vec<(String, RenderedEntry)> = Vec::new();
+    for file in rendered {
+        let workspace = join_rel(&context.chart_root, &file.path);
+        let known = absolute_of(&workspace);
+        let has_owner = known.is_some();
+        let (workspace, absolute) = if let Some(absolute) = known {
+            (workspace, absolute)
+        } else {
+            let absolute = absolute_of(chart_yaml).ok_or_else(|| {
+                execution(
+                    tool_id,
+                    format!("{chart_yaml} is not among the staged files"),
+                )
+            })?;
+            (chart_yaml.to_owned(), absolute)
+        };
+        let checked = kubernetes_preflight::check_file(&file.path, file.text.as_bytes());
+        let entry = (
+            workspace,
+            absolute.to_string_lossy().into_owned(),
+            checked.documents,
+        );
+        if has_owner {
+            findings.extend(
+                checked
+                    .problems
+                    .into_iter()
+                    .map(|problem| reset_position(preflight_finding(&absolute, problem))),
+            );
+            owned.push(entry);
+        } else {
+            for problem in checked.problems {
+                findings.push(moved_finding(
+                    preflight_finding(&absolute, problem),
+                    &file.path,
+                ));
+            }
+            unowned.push((file.path.clone(), entry));
+        }
+    }
+    Ok((owned, unowned))
+}
+
+fn kube_inputs(
+    tool_id: &str,
+    tool: &RealTool,
+    config_path: &Path,
+) -> Result<(commands::KubeconformConfig, PathBuf), RunnerError> {
+    let config_bytes = std::fs::read(config_path)
+        .map_err(|err| execution(tool_id, format!("read config: {err}")))?;
+    let kube = commands::kubeconform_config(config_path, &config_bytes)
+        .map_err(|err| execution(tool_id, err))?;
+    let binary = tool
+        .path_tools
+        .iter()
+        .find(|(name, _)| name == "kubeconform")
+        .map(|(_, binary)| binary.clone())
+        .ok_or_else(|| {
+            execution(
+                tool_id,
+                "helm needs the kubeconform companion binary; the aspect did not supply it"
+                    .to_owned(),
+            )
+        })?;
+    Ok((kube, binary))
+}
+
+fn chart_paths(
+    tool_id: &str,
+    scratch: &Scratch,
+    context: &HelmContext,
+) -> Result<(PathBuf, Vec<PathBuf>), RunnerError> {
+    let chart_abs = if context.chart_root.is_empty() {
+        scratch.root().to_path_buf()
+    } else {
+        scratch
+            .resolve(Path::new(&context.chart_root))
+            .map_err(|err| execution(tool_id, format!("chart root: {err}")))?
+    };
+    let mut value_paths: Vec<PathBuf> = Vec::new();
+    for value in &context.values {
+        value_paths.push(
+            scratch
+                .resolve(Path::new(value))
+                .map_err(|err| execution(tool_id, format!("values file: {err}")))?,
+        );
+    }
+    Ok((chart_abs, value_paths))
+}
+
+fn kubeconform_tool(binary: PathBuf, args: &[String]) -> RealTool {
+    RealTool {
+        binary,
+        extra_env: Vec::new(),
+        config_rel: None,
+        edition: None,
+        dialect: None,
+        args: args.to_vec(),
+        tool_files: Vec::new(),
+        upstream_diagnostics: Vec::new(),
+        search_paths: Vec::new(),
+        path_tools: Vec::new(),
+    }
+}
+
 impl RealBackend {
     /// Lints the chart, renders it offline, and validates the rendered documents with kubeconform.
     pub(super) fn check_helm(
@@ -77,76 +237,10 @@ impl RealBackend {
                 "helm needs a kubernetes_schemas config".to_owned(),
             ));
         };
-        let config_bytes = std::fs::read(config_path)
-            .map_err(|err| execution(tool_id, format!("read config: {err}")))?;
-        let kube = commands::kubeconform_config(config_path, &config_bytes)
-            .map_err(|err| execution(tool_id, err))?;
-        let kubeconform_binary = tool
-            .path_tools
-            .iter()
-            .find(|(name, _)| name == "kubeconform")
-            .map(|(_, binary)| binary.clone())
-            .ok_or_else(|| {
-                execution(
-                    tool_id,
-                    "helm needs the kubeconform companion binary; the aspect did not supply it"
-                        .to_owned(),
-                )
-            })?;
-        let chart_abs = if context.chart_root.is_empty() {
-            scratch.root().to_path_buf()
-        } else {
-            scratch
-                .resolve(Path::new(&context.chart_root))
-                .map_err(|err| execution(tool_id, format!("chart root: {err}")))?
-        };
-        let mut value_paths: Vec<PathBuf> = Vec::new();
-        for value in &context.values {
-            value_paths.push(
-                scratch
-                    .resolve(Path::new(value))
-                    .map_err(|err| execution(tool_id, format!("values file: {err}")))?,
-            );
-        }
+        let (kube, kubeconform_binary) = kube_inputs(tool_id, tool, config_path)?;
+        let (chart_abs, value_paths) = chart_paths(tool_id, scratch, &context)?;
         let value_refs: Vec<&Path> = value_paths.iter().map(PathBuf::as_path).collect();
-        let state = |name: &str| -> Result<String, RunnerError> {
-            let dir = scratch
-                .resolve(Path::new(&format!("{STATE_REL}/{name}")))
-                .map_err(|err| execution(tool_id, format!("helm state: {err}")))?;
-            Ok(dir.to_string_lossy().into_owned())
-        };
-        let state_dir = scratch
-            .resolve(Path::new(STATE_REL))
-            .map_err(|err| execution(tool_id, format!("helm state: {err}")))?;
-        std::fs::create_dir_all(&state_dir)
-            .map_err(|err| execution(tool_id, format!("helm state: {err}")))?;
-        let mut helm = RealTool {
-            binary: tool.binary.clone(),
-            extra_env: tool.extra_env.clone(),
-            config_rel: None,
-            edition: None,
-            dialect: None,
-            args: Vec::new(),
-            tool_files: Vec::new(),
-            upstream_diagnostics: Vec::new(),
-            search_paths: tool.search_paths.clone(),
-            path_tools: Vec::new(),
-        };
-        for (key, name) in [
-            ("HELM_CACHE_HOME", "cache"),
-            ("HELM_CONFIG_HOME", "config"),
-            ("HELM_DATA_HOME", "data"),
-            ("HELM_REPOSITORY_CONFIG", "repositories.yaml"),
-            ("HELM_REPOSITORY_CACHE", "repository"),
-            ("HELM_REGISTRY_CONFIG", "registry.json"),
-            ("HELM_PLUGINS", "plugins"),
-            ("KUBECONFIG", "kubeconfig"),
-        ] {
-            helm.extra_env.push((key.to_owned(), state(name)?));
-        }
-        helm.extra_env
-            .push(("HELM_NO_PLUGINS".to_owned(), "1".to_owned()));
-
+        let helm = helm_tool(tool_id, tool, scratch)?;
         let names: Vec<&str> = staged
             .pairs
             .iter()
@@ -190,63 +284,15 @@ impl RealBackend {
         }
         let rendered = parsed(tool_id, parsers::split_rendered(&out.stdout))?;
         let chart_yaml = join_rel(&context.chart_root, "Chart.yaml");
-        let mut owned: Vec<(String, String, Vec<Document>)> = Vec::new();
-        #[expect(
-            clippy::type_complexity,
-            reason = "the tuple is local to this function"
-        )]
-        let mut unowned: Vec<(String, (String, String, Vec<Document>))> = Vec::new();
-        for file in &rendered {
-            let workspace = join_rel(&context.chart_root, &file.path);
-            let known = absolute_of(&workspace);
-            let has_owner = known.is_some();
-            let (workspace, absolute) = if let Some(absolute) = known {
-                (workspace, absolute)
-            } else {
-                let absolute = absolute_of(&chart_yaml).ok_or_else(|| {
-                    execution(
-                        tool_id,
-                        format!("{chart_yaml} is not among the staged files"),
-                    )
-                })?;
-                (chart_yaml.clone(), absolute)
-            };
-            let checked = kubernetes_preflight::check_file(&file.path, file.text.as_bytes());
-            let entry = (
-                workspace,
-                absolute.to_string_lossy().into_owned(),
-                checked.documents,
-            );
-            if has_owner {
-                findings.extend(
-                    checked
-                        .problems
-                        .into_iter()
-                        .map(|problem| reset_position(preflight_finding(&absolute, problem))),
-                );
-                owned.push(entry);
-            } else {
-                for problem in checked.problems {
-                    findings.push(moved_finding(
-                        preflight_finding(&absolute, problem),
-                        &file.path,
-                    ));
-                }
-                unowned.push((file.path.clone(), entry));
-            }
-        }
-        let kubeconform = RealTool {
-            binary: kubeconform_binary,
-            extra_env: Vec::new(),
-            config_rel: None,
-            edition: None,
-            dialect: None,
-            args: tool.args.clone(),
-            tool_files: Vec::new(),
-            upstream_diagnostics: Vec::new(),
-            search_paths: Vec::new(),
-            path_tools: Vec::new(),
-        };
+        let (owned, unowned) = preflight_rendered(
+            tool_id,
+            &rendered,
+            &chart_yaml,
+            &context,
+            &absolute_of,
+            &mut findings,
+        )?;
+        let kubeconform = kubeconform_tool(kubeconform_binary, &tool.args);
         findings.extend(
             self.validate_documents("kubeconform", &kubeconform, scratch, config_path, &owned)?
                 .into_iter()

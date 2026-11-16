@@ -100,6 +100,83 @@ fn finding(file: &str, rule: &str, message: String, line: u64, column: u64) -> F
     }
 }
 
+fn check_clean_report(
+    value: &serde_json::Value,
+    targets: &[CheckJsonschemaTarget<'_>],
+    passed: &BTreeSet<&str>,
+) -> Result<(), ParseError> {
+    let errors = value.get("errors").and_then(serde_json::Value::as_array);
+    if errors.is_some_and(|errors| !errors.is_empty()) {
+        return Err(shape("exit 0 with errors"));
+    }
+    let checked = strings(value, "checked_paths")?
+        .ok_or_else(|| shape("missing checked_paths (the report needs -vv)"))?;
+    for name in &checked {
+        target(targets, name)?;
+    }
+    let checked: BTreeSet<&str> = checked.iter().map(String::as_str).collect();
+    if checked != *passed {
+        return Err(ParseError::Incomplete {
+            tool: TOOL,
+            detail: format!("checked {} of {} files", checked.len(), passed.len()),
+        });
+    }
+    Ok(())
+}
+
+fn validation_findings(
+    errors: &[serde_json::Value],
+    targets: &[CheckJsonschemaTarget<'_>],
+    seen: &mut BTreeSet<String>,
+    findings: &mut Vec<FileFinding>,
+) -> Result<(), ParseError> {
+    for error in errors {
+        let name = text(error, "filename")?;
+        let entry = target(targets, name)?;
+        seen.insert(name.to_owned());
+        let deep = error
+            .get("has_sub_errors")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false)
+            .then(|| error.get("best_deep_match"))
+            .flatten()
+            .filter(|deep| deep.is_object());
+        let source = deep.unwrap_or(error);
+        let path = text(source, "path")?;
+        let message = clean(text(source, "message")?, targets);
+        let (line, column) = json_schema::locate(entry.bytes, entry.filetype, path);
+        findings.push(finding(
+            entry.file,
+            RULE_VALIDATION,
+            format!("{path}: {message}"),
+            line,
+            column,
+        ));
+    }
+    Ok(())
+}
+
+fn parse_error_findings(
+    parse_errors: &[serde_json::Value],
+    targets: &[CheckJsonschemaTarget<'_>],
+    seen: &mut BTreeSet<String>,
+    findings: &mut Vec<FileFinding>,
+) -> Result<(), ParseError> {
+    for error in parse_errors {
+        let name = text(error, "filename")?;
+        let entry = target(targets, name)?;
+        seen.insert(name.to_owned());
+        let tool_message = clean(text(error, "message")?, targets);
+        let (line, column, message) = match json_schema::syntax_problem(entry.bytes, entry.filetype)
+        {
+            Some((line, column, detail)) => (line, column, format!("{detail}: {tool_message}")),
+            None => (1, 1, tool_message),
+        };
+        findings.push(finding(entry.file, RULE_PARSE, message, line, column));
+    }
+    Ok(())
+}
+
 /// Parses `check-jsonschema --output-format json -vv`.
 ///
 /// Fails closed: exit 0 needs `status: ok` over exactly the files handed in, exit 1 needs a
@@ -137,22 +214,7 @@ pub fn parse_check_jsonschema(
     let mut findings = Vec::new();
     match (code, status) {
         (Some(0), "ok") => {
-            let errors = value.get("errors").and_then(serde_json::Value::as_array);
-            if errors.is_some_and(|errors| !errors.is_empty()) {
-                return Err(shape("exit 0 with errors"));
-            }
-            let checked = strings(&value, "checked_paths")?
-                .ok_or_else(|| shape("missing checked_paths (the report needs -vv)"))?;
-            for name in &checked {
-                target(targets, name)?;
-            }
-            let checked: BTreeSet<&str> = checked.iter().map(String::as_str).collect();
-            if checked != passed {
-                return Err(ParseError::Incomplete {
-                    tool: TOOL,
-                    detail: format!("checked {} of {} files", checked.len(), passed.len()),
-                });
-            }
+            check_clean_report(&value, targets, &passed)?;
             return Ok(findings);
         }
         (Some(1), "fail") => {}
@@ -175,41 +237,8 @@ pub fn parse_check_jsonschema(
     if errors.is_empty() && parse_errors.is_empty() {
         return Err(shape("exit 1 without an error"));
     }
-    for error in errors {
-        let name = text(error, "filename")?;
-        let entry = target(targets, name)?;
-        seen.insert(name.to_owned());
-        let deep = error
-            .get("has_sub_errors")
-            .and_then(serde_json::Value::as_bool)
-            .unwrap_or(false)
-            .then(|| error.get("best_deep_match"))
-            .flatten()
-            .filter(|deep| deep.is_object());
-        let source = deep.unwrap_or(error);
-        let path = text(source, "path")?;
-        let message = clean(text(source, "message")?, targets);
-        let (line, column) = json_schema::locate(entry.bytes, entry.filetype, path);
-        findings.push(finding(
-            entry.file,
-            RULE_VALIDATION,
-            format!("{path}: {message}"),
-            line,
-            column,
-        ));
-    }
-    for error in parse_errors {
-        let name = text(error, "filename")?;
-        let entry = target(targets, name)?;
-        seen.insert(name.to_owned());
-        let tool_message = clean(text(error, "message")?, targets);
-        let (line, column, message) = match json_schema::syntax_problem(entry.bytes, entry.filetype)
-        {
-            Some((line, column, detail)) => (line, column, format!("{detail}: {tool_message}")),
-            None => (1, 1, tool_message),
-        };
-        findings.push(finding(entry.file, RULE_PARSE, message, line, column));
-    }
+    validation_findings(errors, targets, &mut seen, &mut findings)?;
+    parse_error_findings(parse_errors, targets, &mut seen, &mut findings)?;
     let seen: BTreeSet<&str> = seen.iter().map(String::as_str).collect();
     if seen != passed {
         return Err(ParseError::Incomplete {

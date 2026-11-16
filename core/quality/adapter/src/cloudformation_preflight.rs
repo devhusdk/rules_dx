@@ -76,6 +76,70 @@ fn value_done(stack: &mut [Frame]) {
     }
 }
 
+/// Records one scalar event: a root or metadata key, or a resource type value.
+fn scan_scalar(out: &mut Scanned, stack: &mut [Frame], value: &str, start: saphyr_parser::Marker) {
+    let expecting = matches!(
+        stack.last(),
+        Some(Frame::Map {
+            expecting_key: true,
+            ..
+        })
+    );
+    if expecting {
+        if stack.len() == 1 {
+            out.root_keys.push(value.to_string());
+        }
+        let merge_on_path =
+            value == "<<" && (1..=3).contains(&stack.len()) && path_matches(stack, stack.len() - 1);
+        if merge_on_path || (stack.len() == 4 && in_metadata_config(stack)) {
+            out.metadata_keys.push((
+                value.to_string(),
+                start.line().max(1) as u64,
+                start.col() as u64 + 1,
+            ));
+        }
+        if let Some(Frame::Map { expecting_key, key }) = stack.last_mut() {
+            *expecting_key = false;
+            *key = Some(value.to_string());
+        }
+    } else {
+        if stack.len() == 3 && value.starts_with("AWS::") && is_resource_type(stack) {
+            out.aws_resource = true;
+        }
+        value_done(stack);
+    }
+}
+
+/// Records one alias event, rejecting an alias used as a mapping key.
+fn scan_alias(
+    out: &mut Scanned,
+    stack: &mut [Frame],
+    start: saphyr_parser::Marker,
+) -> Result<(), Problem> {
+    if matches!(
+        stack.last(),
+        Some(Frame::Map {
+            expecting_key: true,
+            ..
+        })
+    ) {
+        return Err(syntax(
+            start.line(),
+            start.col(),
+            "an alias used as a mapping key",
+        ));
+    }
+    let at = (start.line().max(1) as u64, start.col() as u64 + 1);
+    if stack.len() == 1 {
+        out.root_alias = Some(at);
+    }
+    if (1..=4).contains(&stack.len()) && path_matches(stack, stack.len().min(3)) {
+        out.metadata_keys.push(("*alias".to_owned(), at.0, at.1));
+    }
+    value_done(stack);
+    Ok(())
+}
+
 /// The root keys of one YAML document and whether `Resources` holds an `AWS::` typed entry.
 fn scan_yaml(text: &str) -> Result<Scanned, Problem> {
     let mut out = Scanned::default();
@@ -95,62 +159,8 @@ fn scan_yaml(text: &str) -> Result<Scanned, Problem> {
                     ));
                 }
             }
-            Event::Scalar(value, ..) => {
-                let expecting = matches!(
-                    stack.last(),
-                    Some(Frame::Map {
-                        expecting_key: true,
-                        ..
-                    })
-                );
-                if expecting {
-                    if stack.len() == 1 {
-                        out.root_keys.push(value.to_string());
-                    }
-                    let merge_on_path = value == "<<"
-                        && (1..=3).contains(&stack.len())
-                        && path_matches(&stack, stack.len() - 1);
-                    if merge_on_path || (stack.len() == 4 && in_metadata_config(&stack)) {
-                        out.metadata_keys.push((
-                            value.to_string(),
-                            span.start.line().max(1) as u64,
-                            span.start.col() as u64 + 1,
-                        ));
-                    }
-                    if let Some(Frame::Map { expecting_key, key }) = stack.last_mut() {
-                        *expecting_key = false;
-                        *key = Some(value.to_string());
-                    }
-                } else {
-                    if stack.len() == 3 && value.starts_with("AWS::") && is_resource_type(&stack) {
-                        out.aws_resource = true;
-                    }
-                    value_done(&mut stack);
-                }
-            }
-            Event::Alias(_) => {
-                if matches!(
-                    stack.last(),
-                    Some(Frame::Map {
-                        expecting_key: true,
-                        ..
-                    })
-                ) {
-                    return Err(syntax(
-                        span.start.line(),
-                        span.start.col(),
-                        "an alias used as a mapping key",
-                    ));
-                }
-                let at = (span.start.line().max(1) as u64, span.start.col() as u64 + 1);
-                if stack.len() == 1 {
-                    out.root_alias = Some(at);
-                }
-                if (1..=4).contains(&stack.len()) && path_matches(&stack, stack.len().min(3)) {
-                    out.metadata_keys.push(("*alias".to_owned(), at.0, at.1));
-                }
-                value_done(&mut stack);
-            }
+            Event::Scalar(value, ..) => scan_scalar(&mut out, &mut stack, &value, span.start),
+            Event::Alias(_) => scan_alias(&mut out, &mut stack, span.start)?,
             Event::MappingStart(..) | Event::SequenceStart(..) => {
                 if matches!(
                     stack.last(),

@@ -32,6 +32,62 @@ fn posix_directories(kind: &str, message: String) -> String {
     }
 }
 
+fn require_findings_exit(code: Option<i32>) -> Result<(), ParseError> {
+    if code == Some(FINDINGS_EXIT) {
+        return Ok(());
+    }
+    Err(ParseError::Shape {
+        tool: "buf",
+        detail: format!(
+            "findings with exit {} (want {FINDINGS_EXIT})",
+            code_name(code)
+        ),
+    })
+}
+
+fn record_positions(
+    record: &BufLintRecord,
+    trimmed: &str,
+) -> Result<(u64, u64, Option<TextPosition>), ParseError> {
+    const TOOL: &str = "buf";
+    let (start_line, start_column) = match (record.start_line, record.start_column) {
+        (Some(line), Some(column)) => {
+            if line == 0 || column == 0 {
+                return Err(ParseError::Shape {
+                    tool: TOOL,
+                    detail: format!("malformed start: {trimmed}"),
+                });
+            }
+            (line, column)
+        }
+        _ => {
+            return Err(ParseError::Shape {
+                tool: TOOL,
+                detail: format!("missing start: {trimmed}"),
+            });
+        }
+    };
+    let end = match (record.end_line, record.end_column) {
+        (Some(line), Some(column)) => {
+            if line == 0 || column == 0 {
+                return Err(ParseError::Shape {
+                    tool: TOOL,
+                    detail: format!("malformed end: {trimmed}"),
+                });
+            }
+            Some(TextPosition { line, column })
+        }
+        (None, None) => None,
+        _ => {
+            return Err(ParseError::Shape {
+                tool: TOOL,
+                detail: format!("partial end: {trimmed}"),
+            });
+        }
+    };
+    Ok((start_line, start_column, end))
+}
+
 /// # Errors
 ///
 /// Returns [`ParseError`] when the tool output cannot be parsed.
@@ -65,41 +121,7 @@ pub fn parse_buf_lint(
                 detail: format!("malformed record: {trimmed}"),
             });
         }
-        let (start_line, start_column) = match (record.start_line, record.start_column) {
-            (Some(line), Some(column)) => {
-                if line == 0 || column == 0 {
-                    return Err(ParseError::Shape {
-                        tool: TOOL,
-                        detail: format!("malformed start: {trimmed}"),
-                    });
-                }
-                (line, column)
-            }
-            _ => {
-                return Err(ParseError::Shape {
-                    tool: TOOL,
-                    detail: format!("missing start: {trimmed}"),
-                });
-            }
-        };
-        let end = match (record.end_line, record.end_column) {
-            (Some(line), Some(column)) => {
-                if line == 0 || column == 0 {
-                    return Err(ParseError::Shape {
-                        tool: TOOL,
-                        detail: format!("malformed end: {trimmed}"),
-                    });
-                }
-                Some(TextPosition { line, column })
-            }
-            (None, None) => None,
-            _ => {
-                return Err(ParseError::Shape {
-                    tool: TOOL,
-                    detail: format!("partial end: {trimmed}"),
-                });
-            }
-        };
+        let (start_line, start_column, end) = record_positions(&record, trimmed)?;
         if !files.contains(&record.path.as_str())
             && let Some((_, shown)) = context.iter().find(|(path, _)| *path == record.path)
         {
@@ -134,15 +156,7 @@ pub fn parse_buf_lint(
         });
     }
     if !broken.is_empty() {
-        if code != Some(FINDINGS_EXIT) {
-            return Err(ParseError::Shape {
-                tool: TOOL,
-                detail: format!(
-                    "findings with exit {} (want {FINDINGS_EXIT})",
-                    code_name(code)
-                ),
-            });
-        }
+        require_findings_exit(code)?;
         broken.sort();
         broken.dedup();
         return Err(ParseError::Incomplete {
@@ -157,14 +171,8 @@ pub fn parse_buf_lint(
                 detail: format!("exit {} with no findings", code_name(code)),
             });
         }
-    } else if code != Some(FINDINGS_EXIT) {
-        return Err(ParseError::Shape {
-            tool: TOOL,
-            detail: format!(
-                "findings with exit {} (want {FINDINGS_EXIT})",
-                code_name(code)
-            ),
-        });
+    } else {
+        require_findings_exit(code)?;
     }
     Ok(findings)
 }

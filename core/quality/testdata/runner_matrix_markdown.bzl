@@ -15,84 +15,84 @@ _VALE_STYLE_FILES = [
     "meta.json",
 ]
 
-def _vale_profile_case(name, profile, family, path, text):
+_VALE_TEST_CONFIG = {
+    "toolfile_tools": ["vale", "vale"],
+    "toolfile_srcs": [":vale_test.ini", "styles/Dx/Markers.yml"],
+    "config_tools": ["vale"],
+    "config_files": [":vale_test.ini"],
+}
+
+_MARKDOWN_VALE = ["markdown_check", "vale"]
+_MARKDOWN_VALE_BINARIES = ["//core/quality/markdown:quality_markdown", "@dx_tools//:vale"]
+
+def _vale_profile_files(profile):
     styles = ["write-good/" + f for f in _VALE_STYLE_FILES]
     ini = ":vale_profile/%s/.vale.ini" % profile
     root = "core/quality/testdata/vale_profile/%s/" % profile
     return {
-        "name": name,
-        "generated": {path: text},
-        "capability": "lint",
-        "stages": ["vale;%s;%s" % (family, path)],
-        "tool_names": ["vale"],
-        "tool_binaries": ["@dx_tools//:vale"],
         "toolfile_tools": ["vale"] * (1 + len(styles)),
         "toolfile_srcs": [ini] + ["//core/quality/tiers/vale:styles/" + s for s in styles],
         "toolfile_rels": [""] + [root + ".dx/config/vale/styles/" + s for s in styles],
         "config_tools": ["vale"],
         "config_files": [ini],
-        "path_tool_owners": ["vale"] if family == "rst" else [],
-        "path_tool_names": ["rst2html"] if family == "rst" else [],
-        "path_tool_binaries": ["//core/quality/tools/python:rst2html"] if family == "rst" else [],
-        "expected_file": ":matrix/%s.expected.txt" % name,
-        "linux_arm64": True,
-        "macos_arm64": True,
-        "windows_x86_64": True,
-        "windows_arm64": True,
     }
 
+def _vale_profile_case(name, profile, family, path, text):
+    extra = {}
+    if family == "rst":
+        extra = {
+            "path_tool_owners": ["vale"],
+            "path_tool_names": ["rst2html"],
+            "path_tool_binaries": ["//core/quality/tools/python:rst2html"],
+        }
+    return matrix_case(
+        name = name,
+        capability = "lint",
+        tool = "vale",
+        binary = "@dx_tools//:vale",
+        source_class = family,
+        generated = {path: text},
+        **dict(_vale_profile_files(profile), **extra)
+    )
+
 def _clean_tier_case(profile):
-    name = "matrix_markdown_lint_clean_" + profile
-    path = "matrix/clean_%s.md" % profile
-    case = _vale_profile_case(name, profile, "markdown", path, "# Clean\n\n```sh\nls\n```\n\n## Part\n")
-    case["stages"] = ["markdown_check;markdown;" + path] + case["stages"]
-    case["tool_names"] = ["markdown_check", "vale"]
-    case["tool_binaries"] = ["//core/quality/markdown:quality_markdown", "@dx_tools//:vale"]
-    case["config_tools"] = ["vale", "markdown_check"]
     kinds = "//core/quality/tiers/markdown_check:%s.txt" % profile
-    case["config_files"] = case["config_files"] + [kinds]
-    case["toolfile_tools"] = case["toolfile_tools"] + ["markdown_check"]
-    case["toolfile_srcs"] = case["toolfile_srcs"] + [kinds]
-    case["toolfile_rels"] = case["toolfile_rels"] + [""]
-    return case
+    files = _vale_profile_files(profile)
+    return matrix_case(
+        name = "matrix_markdown_lint_clean_" + profile,
+        capability = "lint",
+        tool = _MARKDOWN_VALE,
+        binary = _MARKDOWN_VALE_BINARIES,
+        source_class = "markdown",
+        generated = {"matrix/clean_%s.md" % profile: "# Clean\n\n```sh\nls\n```\n\n## Part\n"},
+        toolfile_tools = files["toolfile_tools"] + ["markdown_check"],
+        toolfile_srcs = files["toolfile_srcs"] + [kinds],
+        toolfile_rels = files["toolfile_rels"] + [""],
+        config_tools = ["vale", "markdown_check"],
+        config_files = files["config_files"] + [kinds],
+    )
 
 MARKDOWN_CASES = [
-    {
-        "name": "matrix_markdown_lint_pass",
-        "srcs": [":real_clean.md"],
-        "capability": "lint",
-        "stages": ["markdown_check;markdown;core/quality/testdata/real_clean.md", "vale;markdown;core/quality/testdata/real_clean.md"],
-        "tool_names": ["markdown_check", "vale"],
-        "tool_binaries": ["//core/quality/markdown:quality_markdown", "@dx_tools//:vale"],
-        "toolfile_tools": ["vale", "vale"],
-        "toolfile_srcs": [":vale_test.ini", "styles/Dx/Markers.yml"],
-        "config_tools": ["vale"],
-        "config_files": [":vale_test.ini"],
-        "expected_file": ":matrix/matrix_markdown_lint_pass.expected.txt",
-        "linux_arm64": True,
-        "macos_arm64": True,
-        "windows_x86_64": True,
-        "windows_arm64": True,
-    },
-    {
-        "name": "matrix_markdown_lint_fail",
-        "generated": {
+    matrix_case(
+        name = "matrix_markdown_lint_pass",
+        capability = "lint",
+        tool = _MARKDOWN_VALE,
+        binary = _MARKDOWN_VALE_BINARIES,
+        source_class = "markdown",
+        src = ":real_clean.md",
+        **_VALE_TEST_CONFIG
+    ),
+    matrix_case(
+        name = "matrix_markdown_lint_fail",
+        capability = "lint",
+        tool = _MARKDOWN_VALE,
+        binary = _MARKDOWN_VALE_BINARIES,
+        source_class = "markdown",
+        generated = {
             "matrix/markdown_dirty.md": "# Matrix dirty\n\n# Again\n",
         },
-        "capability": "lint",
-        "stages": ["markdown_check;markdown;matrix/markdown_dirty.md", "vale;markdown;matrix/markdown_dirty.md"],
-        "tool_names": ["markdown_check", "vale"],
-        "tool_binaries": ["//core/quality/markdown:quality_markdown", "@dx_tools//:vale"],
-        "toolfile_tools": ["vale", "vale"],
-        "toolfile_srcs": [":vale_test.ini", "styles/Dx/Markers.yml"],
-        "config_tools": ["vale"],
-        "config_files": [":vale_test.ini"],
-        "expected_file": ":matrix/matrix_markdown_lint_fail.expected.txt",
-        "linux_arm64": True,
-        "macos_arm64": True,
-        "windows_x86_64": True,
-        "windows_arm64": True,
-    },
+        **_VALE_TEST_CONFIG
+    ),
     matrix_case(
         name = "matrix_markdown_lychee_pass",
         capability = "lint",
@@ -113,20 +113,17 @@ MARKDOWN_CASES = [
             "matrix/lychee_dirty/README.md": "See [gone](missing.md).\n",
         },
     ),
-    {
-        "name": "matrix_markdown_sibling_pass",
-        "srcs": [":sibling_clean.md"],
-        "siblings": [":sibling_license.txt"],
-        "capability": "lint",
-        "stages": ["markdown_check;markdown;core/quality/testdata/sibling_clean.md", "vale;markdown;core/quality/testdata/sibling_clean.md"],
-        "tool_names": ["markdown_check", "vale"],
-        "tool_binaries": ["//core/quality/markdown:quality_markdown", "@dx_tools//:vale"],
-        "toolfile_tools": ["vale", "vale"],
-        "toolfile_srcs": [":vale_test.ini", "styles/Dx/Markers.yml"],
-        "config_tools": ["vale"],
-        "config_files": [":vale_test.ini"],
-        "expected_file": ":matrix/matrix_markdown_sibling_pass.expected.txt",
-    },
+    matrix_case(
+        name = "matrix_markdown_sibling_pass",
+        capability = "lint",
+        tool = _MARKDOWN_VALE,
+        binary = _MARKDOWN_VALE_BINARIES,
+        source_class = "markdown",
+        src = ":sibling_clean.md",
+        siblings = [":sibling_license.txt"],
+        platforms = ["linux_x86_64"],
+        **_VALE_TEST_CONFIG
+    ),
     matrix_case(
         name = "matrix_vale_rst_lint_pass",
         capability = "lint",

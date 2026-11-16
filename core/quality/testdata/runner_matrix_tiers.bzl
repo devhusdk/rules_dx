@@ -4,17 +4,22 @@ load(":runner_matrix_file_family.bzl", "TFLINT_HEADER")
 load(":runner_matrix_tests.bzl", "matrix_case")
 load("//core/quality/tiers:corpora.bzl", "TIER_JAVASCRIPT", "TIER_JSON", "TIER_TOML", "TIER_YAML", "tier_labels")
 
+_NO_PLATFORMS = ["linux_x86_64"]
+
 def _fixpoint_case(name, tool, binary, source_class, paths, config = None):
     sources = ",".join(["core/quality/tiers/" + path for path in paths])
-    case = {
-        "name": name,
-        "srcs": tier_labels(paths),
-        "capability": "format",
-        "stages": ["%s;%s;%s" % (tool, source_class, sources)],
-        "tool_names": [tool],
-        "tool_binaries": [binary],
-        "expected": "\n".join(
-[
+    return matrix_case(
+        name = name,
+        capability = "format",
+        tool = tool,
+        binary = binary,
+        source_class = source_class,
+        srcs = tier_labels(paths),
+        path = sources,
+        config = config,
+        platforms = _NO_PLATFORMS,
+        expected_file = None,
+        expected = "\n".join([
             "producer //core/quality/testdata:" + name,
             "capability FORMAT",
             "stages 1",
@@ -25,15 +30,8 @@ def _fixpoint_case(name, tool, binary, source_class, paths, config = None):
             "terminal 0",
             "replacements 0",
             "",
-        ]
-        ),
-    }
-    if config:
-        case["toolfile_tools"] = [tool]
-        case["toolfile_srcs"] = [config]
-        case["config_tools"] = [tool]
-        case["config_files"] = [config]
-    return case
+        ]),
+    )
 
 _HADOLINT_CLEAN = {"matrix/hadolint_tier/Dockerfile": "FROM scratch\nCOPY hello /hello\nENTRYPOINT [\"/hello\"]\n"}
 _HADOLINT_STYLE = {"matrix/hadolint_style/Dockerfile": "FROM scratch\nRUN [\"/bin/a\"]\nRUN [\"/bin/b\"]\n"}
@@ -44,7 +42,6 @@ _TFLINT_DOCUMENTED = {
 _SELENE_CLEAN = {"matrix/selene_tier/add.lua": "local function add(a, b)\n    return a + b\nend\n\nprint(add(1, 2))\n"}
 _DART_CLEAN = {"matrix/dart_tier/main.dart": "void main() {\n  print(1);\n}\n"}
 _SWIFT_CLEAN = {"matrix/swift_lint_tier/add.swift": "func add(a: Int, b: Int) -> Int {\n  return a + b\n}\n"}
-_NO_PLATFORMS = ["linux_x86_64"]
 _TRIVY_CLEAN = {"matrix/trivy_tier/Dockerfile": "FROM scratch\nUSER 1000\nHEALTHCHECK NONE\n"}
 
 def _lint_case(name, generated, source_class, tool, binary, config, **extra):

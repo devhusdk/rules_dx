@@ -18,9 +18,9 @@ exports_files([
 def _yard_repo_impl(ctx):
     gem_extract(
         ctx,
-        url = ctx.attr.url,
+        url = ctx.attr.urls,
         sha256 = ctx.attr.sha256,
-        canonical_id = "dx-yard-gem:" + ctx.attr.url,
+        canonical_id = "dx-yard-gem:" + ctx.attr.urls[0],
         output = ".",
         required = ["lib/yard.rb"],
     )
@@ -31,6 +31,6 @@ yard_repo = repository_rule(
     implementation = _yard_repo_impl,
     attrs = {
         "sha256": attr.string(mandatory = True),
-        "url": attr.string(mandatory = True),
+        "urls": attr.string_list(mandatory = True),
     },
 )

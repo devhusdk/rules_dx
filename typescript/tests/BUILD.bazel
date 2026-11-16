@@ -3,7 +3,7 @@ load("@aspect_rules_js//js:defs.bzl", "js_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//javascript:defs.bzl", "javascript_test")
 load("//typescript/private/playwright:closure.bzl", "CLOSURE_DIR")
-load("//typescript/private/playwright:repos.bzl", "CHROMIUM_REVISION", "CHROMIUM_VERSION", "PLAYWRIGHT_VERSION")
+load("//typescript/private/playwright:pins.bzl", "CHROMIUM_REVISION", "CHROMIUM_VERSION", "PLAYWRIGHT_VERSION")
 load(":playwright_tests.bzl", "playwright_compatibility_tests")
 
 package(

@@ -3260,7 +3260,9 @@ LANGS = json.decode("""{
       "package.json"
     ],
     "name": "typescript",
-    "pins": [],
+    "pins": [
+      "private/playwright/pins.json"
+    ],
     "platforms": [
       "linux_arm64",
       "linux_x86_64",

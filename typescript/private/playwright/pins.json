@@ -1,0 +1,28 @@
+{
+  "cells": {
+    "linux_arm64": {
+      "sha256": "b136462898353d94c7fab50f9cdaa6d8f0d4c190153916936aa0a03353a26bf2",
+      "type": "zip",
+      "urls": [
+        "https://storage.googleapis.com/chrome-for-testing-public/158.0.8127.18/linux-arm64/chrome-headless-shell-linux-arm64.zip"
+      ]
+    },
+    "linux_x86_64": {
+      "sha256": "18352d22cb0cdf520cbff2ad8c41391f0e02a72886cb53b0fde4bdfc4bd075d6",
+      "type": "zip",
+      "urls": [
+        "https://storage.googleapis.com/chrome-for-testing-public/158.0.8127.18/linux64/chrome-headless-shell-linux64.zip"
+      ]
+    },
+    "macos_arm64": {
+      "sha256": "f34261d2aad94fb71b336597acabf20166ee5a2f14926c731f33d04c5da6cd3f",
+      "type": "zip",
+      "urls": [
+        "https://storage.googleapis.com/chrome-for-testing-public/158.0.8127.18/mac-arm64/chrome-headless-shell-mac-arm64.zip"
+      ]
+    }
+  },
+  "playwright": "1.65.0",
+  "revision": "1254",
+  "version": "158.0.8127.18"
+}

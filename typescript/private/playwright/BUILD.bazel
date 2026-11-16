@@ -26,6 +26,7 @@ filegroup(
     ]) + [
         "chromium_env.cjs",
         "pins.cjs",
+        "pins.json",
         "runner.cjs",
     ],
     visibility = ["//:__subpackages__"],

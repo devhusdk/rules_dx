@@ -1,0 +1,11 @@
+{
+  "archives": {
+    "yard": {
+      "sha256": "52e211493f7cb8a3ebf7e104a25a1e73937a3103092545d34cb88fafebb3dc51",
+      "urls": [
+        "https://rubygems.org/downloads/yard-0.9.45.gem"
+      ],
+      "version": "0.9.45"
+    }
+  }
+}

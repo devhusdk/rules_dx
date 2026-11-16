@@ -187,7 +187,7 @@ pub fn luarocks_main(
         }
     };
     let (package, version) = (identity.0.as_str(), identity.1.as_str());
-    if LUAROCKS_GATE.requested(env_or_empty) {
+    if OwnerGate::requested(env_or_empty) {
         let upstream = version.rsplit_once('-').map_or(version, |(v, _)| v);
         if let Some(refusal) = placeholder_refusal("luarocks_deploy", upstream) {
             eprintln!("{refusal}");

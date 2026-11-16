@@ -199,7 +199,7 @@ pub fn hackage_main(
         }
     };
     let (package, version) = (identity.0.as_str(), identity.1.as_str());
-    if HACKAGE_GATE.requested(env_or_empty) {
+    if OwnerGate::requested(env_or_empty) {
         if let Some(refusal) = placeholder_refusal("hackage_deploy", version) {
             eprintln!("{refusal}");
             return 1;

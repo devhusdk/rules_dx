@@ -313,7 +313,7 @@ pub fn opam_main(
         eprintln!("opam_deploy: {target_name}: opam lint failed");
         return 1;
     }
-    if OPAM_GATE.requested(env_or_empty) {
+    if OwnerGate::requested(env_or_empty) {
         let secrets = match OPAM_GATE.authorize(env_or_empty) {
             Ok(secrets) => secrets,
             Err(error) => {

@@ -40,7 +40,8 @@ pub fn github_release_command(tag: &str, asset_bases: &[String]) -> String {
 fn release_command(tag: &str, asset_bases: &[String], with_notes: bool) -> String {
     let mut cmd = format!("gh release create {tag}");
     for base in asset_bases {
-        cmd.push_str(&format!(" {base}"));
+        cmd.push(' ');
+        cmd.push_str(base);
     }
     cmd.push_str(" --draft --verify-tag");
     if with_notes {
@@ -262,7 +263,7 @@ fn previous_release_lines(bases: &[String]) -> Vec<String> {
     for base in bases {
         match assets.iter().find(|(name, _)| name == base) {
             Some((_, size)) => {
-                lines.push(format!("  previous asset: {base} {size} bytes in {tag}"))
+                lines.push(format!("  previous asset: {base} {size} bytes in {tag}"));
             }
             None => lines.push(format!("  previous asset: {base} not in {tag}")),
         }
@@ -352,7 +353,7 @@ pub fn github_main_checked(
         }
     };
     let workspace = std::env::var_os("BUILD_WORKSPACE_DIRECTORY").filter(|dir| !dir.is_empty());
-    let live = GITHUB_GATE.requested(env_or_empty);
+    let live = OwnerGate::requested(env_or_empty);
     let resolved = resolve_tag(tag, workspace.as_ref());
     let tag_text = match &resolved {
         Ok(tag) => tag.as_str(),
@@ -735,7 +736,7 @@ mod tests {
         );
         assert_eq!(code, 0);
         let logged = std::fs::read_to_string(&log).expect("gh log");
-        let args: Vec<&str> = logged.lines().collect();
+        let calls: Vec<&str> = logged.lines().collect();
         let a = runfiles.join("a.tar.gz").display().to_string();
         let b = runfiles.join("b.tar.gz").display().to_string();
         let want = [
@@ -747,7 +748,7 @@ mod tests {
             "--draft",
             "--verify-tag",
         ];
-        assert_eq!(args, want);
+        assert_eq!(calls, want);
     }
 
     #[test]
@@ -848,7 +849,7 @@ case "$1" in
   log) case "$*" in *v1.0.0..*) ;; *) exit 0 ;; esac; printf 'aaaaaaa1\0feat(cli): add init\0\036bbbbbbb2\0fix: stop crash\0\036ccccccc3\0fix: second\0\036' ;;
 esac
 "#;
-        dx_testing::executable_script(&git, &script);
+        dx_testing::executable_script(&git, script);
     }
 
     #[cfg(unix)]

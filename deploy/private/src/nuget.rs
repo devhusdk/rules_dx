@@ -583,7 +583,7 @@ pub fn nuget_main_checked(
             return 1;
         }
     }
-    if NUGET_GATE.requested(env_or_empty) {
+    if OwnerGate::requested(env_or_empty) {
         if package_version == "0.0.0" {
             eprintln!(
                 "nuget_deploy: live push refuses {package_id} version {package_version}; set a real version in the nuspec"

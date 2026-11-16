@@ -168,7 +168,7 @@ pub fn cpan_main(
         }
     };
     let (package, version) = (identity.0.as_str(), identity.1.as_str());
-    if CPAN_GATE.requested(env_or_empty) {
+    if OwnerGate::requested(env_or_empty) {
         if let Some(refusal) = placeholder_refusal("cpan_deploy", version) {
             eprintln!("{refusal}");
             return 1;
@@ -200,17 +200,17 @@ pub fn cpan_main(
     let staged = basename(&dist).and_then(|base| {
         let dir = run.outdir().join(format!("{target_name}-dist"));
         std::fs::create_dir_all(&dir)?;
-        let dest = dir.join(base);
-        copy_verified(&dist, &dest)?;
-        Ok(dest)
+        let target = dir.join(base);
+        copy_verified(&dist, &target)?;
+        Ok(target)
     });
     match staged {
-        Ok(dest) => {
+        Ok(copy) => {
             println!(
                 "cpan_deploy: staged {package} {version} (build_mode: {})",
                 deploy_build_mode()
             );
-            println!("  dist: {}", dest.display());
+            println!("  dist: {}", copy.display());
             0
         }
         Err(error) => {

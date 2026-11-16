@@ -41,54 +41,22 @@ fn help_text() -> String {
 ///
 /// Returns an error when the operation fails.
 pub fn parse_args(argv: &[String]) -> Result<VerifyArgs, ArgsError> {
-    let mut args = VerifyArgs::default();
+    let mut parsed = VerifyArgs::default();
     let mut i = 1;
     while let Some(flag) = argv.get(i) {
-        match flag.as_str() {
-            "--binary" => {
-                args.binary = argv.get(i + 1).cloned().unwrap_or_default();
-                i += 2;
-            }
-            "--bundle" => {
-                args.bundle = argv.get(i + 1).cloned().unwrap_or_default();
-                i += 2;
-            }
-            "--identity" => {
-                args.identity = argv.get(i + 1).cloned().unwrap_or_default();
-                i += 2;
-            }
-            "--issuer" => {
-                args.issuer = argv.get(i + 1).cloned().unwrap_or_default();
-                i += 2;
-            }
-            "--attestation" => {
-                args.attestation = argv.get(i + 1).cloned().unwrap_or_default();
-                i += 2;
-            }
-            "--owner" => {
-                args.owner = argv.get(i + 1).cloned().unwrap_or_default();
-                i += 2;
-            }
-            "--sbom" => {
-                args.sbom = argv.get(i + 1).cloned().unwrap_or_default();
-                i += 2;
-            }
-            "--sbom-bundle" => {
-                args.sbom_bundle = argv.get(i + 1).cloned().unwrap_or_default();
-                i += 2;
-            }
-            "--notice" => {
-                args.notice = argv.get(i + 1).cloned().unwrap_or_default();
-                i += 2;
-            }
-            "--notice-manifest" => {
-                args.notice_manifest = argv.get(i + 1).cloned().unwrap_or_default();
-                i += 2;
-            }
-            "--notice-bundle" => {
-                args.notice_bundle = argv.get(i + 1).cloned().unwrap_or_default();
-                i += 2;
-            }
+        let value = argv.get(i + 1).cloned().unwrap_or_default();
+        let slot = match flag.as_str() {
+            "--binary" => &mut parsed.binary,
+            "--bundle" => &mut parsed.bundle,
+            "--identity" => &mut parsed.identity,
+            "--issuer" => &mut parsed.issuer,
+            "--attestation" => &mut parsed.attestation,
+            "--owner" => &mut parsed.owner,
+            "--sbom" => &mut parsed.sbom,
+            "--sbom-bundle" => &mut parsed.sbom_bundle,
+            "--notice" => &mut parsed.notice,
+            "--notice-manifest" => &mut parsed.notice_manifest,
+            "--notice-bundle" => &mut parsed.notice_bundle,
             "--sha256" | "--checksum" | "--sha256-file" | "--checksum-file" => {
                 return Err(ArgsError(
                     "dx_verify: checksum-only verification is not publisher-identity proof; pass --bundle plus --identity/--issuer".to_owned(),
@@ -103,8 +71,15 @@ pub fn parse_args(argv: &[String]) -> Result<VerifyArgs, ArgsError> {
                     help_text()
                 )));
             }
-        }
+        };
+        *slot = value;
+        i += 2;
     }
+    check_required(&parsed)?;
+    Ok(parsed)
+}
+
+fn check_required(args: &VerifyArgs) -> Result<(), ArgsError> {
     if args.binary.is_empty() {
         return Err(ArgsError(
             "dx_verify: missing --binary PATH (standalone dx binary to verify)".to_owned(),
@@ -158,7 +133,7 @@ pub fn parse_args(argv: &[String]) -> Result<VerifyArgs, ArgsError> {
             "dx_verify: --notice-bundle needs --notice".to_owned(),
         ));
     }
-    Ok(args)
+    Ok(())
 }
 
 #[must_use]
@@ -242,11 +217,11 @@ pub struct SystemVerifier;
 const SPAWN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
 
 fn spawn_success(argv: &[String]) -> bool {
-    let Some((binary, args)) = argv.split_first() else {
+    let Some((binary, rest)) = argv.split_first() else {
         return false;
     };
     let mut command = std::process::Command::new(binary);
-    command.args(args);
+    command.args(rest);
     dx_process::capture::run_captured(&mut command, SPAWN_TIMEOUT).is_ok_and(|out| out.success())
 }
 
@@ -332,17 +307,16 @@ fn verify_notice(notice_text: &str, manifest_text: &str) -> Result<usize, String
         .map_err(|error| format!("dx_verify: {error}"))
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
-pub fn verify(args: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, String> {
-    let mut out = String::new();
-    let binary = PathBuf::from(&args.binary);
-    let bundle = PathBuf::from(&args.bundle);
-    if !verifier.is_file(&binary) {
+fn check_inputs(
+    args: &VerifyArgs,
+    verifier: &dyn Verifier,
+    binary: &Path,
+    bundle: &Path,
+) -> Result<(), String> {
+    if !verifier.is_file(binary) {
         return Err(format!("dx_verify: binary not found: {}", args.binary));
     }
-    if !verifier.is_file(&bundle) {
+    if !verifier.is_file(bundle) {
         return Err(format!(
             "dx_verify: bundle not found: {} (missing, invalid, or unavailable verification inputs fail closed)",
             args.bundle
@@ -378,9 +352,20 @@ pub fn verify(args: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, Stri
             args.notice_bundle
         ));
     }
-    if !verifier.is_nonempty_file(&bundle) {
+    if !verifier.is_nonempty_file(bundle) {
         return Err(format!("dx_verify: bundle is empty: {}", args.bundle));
     }
+    Ok(())
+}
+
+/// # Errors
+///
+/// Returns an error when the operation fails.
+pub fn verify(request: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, String> {
+    let mut out = String::new();
+    let binary = PathBuf::from(&request.binary);
+    let bundle = PathBuf::from(&request.bundle);
+    check_inputs(request, verifier, &binary, &bundle)?;
     writeln!(out, "dx_verify: trust root {TRUST_ROOT} (Sigstore TUF public-good; verifiers bootstrapped from the trust root, never alongside the binary)").ok();
     let cosign = verifier.cosign_bin();
     let gh = verifier.gh_bin();
@@ -392,12 +377,18 @@ pub fn verify(args: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, Stri
             binary.display()
         )
         .ok();
-        if verifier.cosign_verify(&cosign, &bundle, &args.identity, &args.issuer, &binary) {
+        if verifier.cosign_verify(
+            &cosign,
+            &bundle,
+            &request.identity,
+            &request.issuer,
+            &binary,
+        ) {
             verified = "cosign".to_owned();
             writeln!(
                 out,
                 "dx_verify: cosign publisher-identity OK (identity={} issuer={})",
-                args.identity, args.issuer
+                request.identity, request.issuer
             )
             .ok();
         } else {
@@ -405,8 +396,8 @@ pub fn verify(args: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, Stri
                 "dx_verify: cosign verification failed (tampered bytes, replaced binary/bundle, or unapproved signer fail closed)".to_owned(),
             );
         }
-    } else if !args.attestation.is_empty() && verifier.have(&gh) {
-        if args.owner.is_empty() {
+    } else if !request.attestation.is_empty() && verifier.have(&gh) {
+        if request.owner.is_empty() {
             return Err(
                 "dx_verify: --owner OWNER is required with --attestation (GitHub attestation path)"
                     .to_owned(),
@@ -418,20 +409,20 @@ pub fn verify(args: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, Stri
             binary.display()
         )
         .ok();
-        let attestation = PathBuf::from(&args.attestation);
+        let attestation = PathBuf::from(&request.attestation);
         if verifier.gh_verify(
             &gh,
             &binary,
             &attestation,
-            &args.identity,
-            &args.issuer,
-            &args.owner,
+            &request.identity,
+            &request.issuer,
+            &request.owner,
         ) {
             verified = "gh-attestation".to_owned();
             writeln!(
                 out,
                 "dx_verify: attestation publisher-identity OK (identity={} issuer={} owner={})",
-                args.identity, args.issuer, args.owner
+                request.identity, request.issuer, request.owner
             )
             .ok();
         } else {
@@ -445,9 +436,9 @@ pub fn verify(args: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, Stri
             "dx_verify: no verifier available (want {cosign} verify-blob or {gh} attestation verify); missing, invalid, or unavailable verification inputs fail closed"
         ));
     }
-    if !args.sbom.is_empty() {
-        let sbom = PathBuf::from(&args.sbom);
-        let sbom_bundle = PathBuf::from(&args.sbom_bundle);
+    if !request.sbom.is_empty() {
+        let sbom = PathBuf::from(&request.sbom);
+        let sbom_bundle = PathBuf::from(&request.sbom_bundle);
         if !verifier.have(&cosign) {
             return Err(format!(
                 "dx_verify: SBOM verification needs {cosign} (unavailable)"
@@ -459,7 +450,13 @@ pub fn verify(args: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, Stri
             sbom.display()
         )
         .ok();
-        if verifier.cosign_verify(&cosign, &sbom_bundle, &args.identity, &args.issuer, &sbom) {
+        if verifier.cosign_verify(
+            &cosign,
+            &sbom_bundle,
+            &request.identity,
+            &request.issuer,
+            &sbom,
+        ) {
             out.push_str("dx_verify: SBOM publisher-identity OK\n");
         } else {
             return Err(
@@ -467,9 +464,9 @@ pub fn verify(args: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, Stri
             );
         }
     }
-    if !args.notice.is_empty() {
-        let notice_path = PathBuf::from(&args.notice);
-        let notice_bundle = PathBuf::from(&args.notice_bundle);
+    if !request.notice.is_empty() {
+        let notice_path = PathBuf::from(&request.notice);
+        let notice_bundle = PathBuf::from(&request.notice_bundle);
         if !verifier.have(&cosign) {
             return Err(format!(
                 "dx_verify: NOTICE verification needs {cosign} (unavailable)"
@@ -484,8 +481,8 @@ pub fn verify(args: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, Stri
         if verifier.cosign_verify(
             &cosign,
             &notice_bundle,
-            &args.identity,
-            &args.issuer,
+            &request.identity,
+            &request.issuer,
             &notice_path,
         ) {
             out.push_str("dx_verify: NOTICE publisher-identity OK\n");
@@ -494,17 +491,17 @@ pub fn verify(args: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, Stri
                 "dx_verify: NOTICE verification failed (fail closed before install)".to_owned(),
             );
         }
-        let manifest_path = PathBuf::from(&args.notice_manifest);
+        let manifest_path = PathBuf::from(&request.notice_manifest);
         let notice_text = verifier
             .read_text(&notice_path)
-            .ok_or_else(|| format!("dx_verify: notice not readable: {}", args.notice))?;
+            .ok_or_else(|| format!("dx_verify: notice not readable: {}", request.notice))?;
         if notice_text.trim().is_empty() {
-            return Err(format!("dx_verify: notice is empty: {}", args.notice));
+            return Err(format!("dx_verify: notice is empty: {}", request.notice));
         }
         let manifest_text = verifier.read_text(&manifest_path).ok_or_else(|| {
             format!(
                 "dx_verify: notice manifest not readable: {}",
-                args.notice_manifest
+                request.notice_manifest
             )
         })?;
         let count = verify_notice(&notice_text, &manifest_text)?;
@@ -563,8 +560,7 @@ mod tests {
         files: HashMap<PathBuf, Vec<u8>>,
         cosign_ok: bool,
         gh_ok: bool,
-        have_cosign: bool,
-        have_gh: bool,
+        absent: Vec<&'static str>,
         gh_policy: Option<(&'static str, &'static str)>,
     }
 
@@ -574,8 +570,7 @@ mod tests {
                 files: HashMap::new(),
                 cosign_ok: true,
                 gh_ok: true,
-                have_cosign: true,
-                have_gh: true,
+                absent: Vec::new(),
                 gh_policy: None,
             }
         }
@@ -641,11 +636,7 @@ mod tests {
         }
 
         fn have(&self, bin: &str) -> bool {
-            if bin == "cosign" {
-                self.have_cosign
-            } else {
-                self.have_gh
-            }
+            !self.absent.contains(&bin)
         }
 
         fn sha256_file(&self, path: &Path) -> io::Result<String> {
@@ -836,8 +827,7 @@ mod tests {
     fn fails_closed_without_verifier() {
         let args = valid_args();
         let mut fake = valid_fake();
-        fake.have_cosign = false;
-        fake.have_gh = false;
+        fake.absent = vec!["cosign", "gh"];
         let err = verify(&args, &fake).expect_err("no verifier");
         assert!(err.contains("no verifier available"));
     }
@@ -979,7 +969,7 @@ mod tests {
         args.attestation = "/tmp/dx-fake.attestation".to_owned();
         args.owner = "owner".to_owned();
         fake.write("/tmp/dx-fake.attestation", b"attestation-bytes");
-        fake.have_cosign = false;
+        fake.absent = vec!["cosign"];
         fake.gh_ok = true;
         let err = verify(&args, &fake).expect_err("no cosign for NOTICE");
         assert!(err.contains("needs cosign"), "got {err}");
@@ -1132,7 +1122,9 @@ mod tests {
         };
         let attestation_fake = |cosign: bool, gh_ok: bool| {
             let mut fake = valid_fake();
-            fake.have_cosign = cosign;
+            if !cosign {
+                fake.absent.push("cosign");
+            }
             fake.gh_ok = gh_ok;
             fake.write("/tmp/dx-fake.attestation", b"attestation-bytes");
             fake

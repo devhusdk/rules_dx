@@ -295,17 +295,13 @@ fn pub_api_check(
         ));
     }
     let work = tempfile_stage_dir("pub-api-").map_err(|error| format!("pub_deploy: {error}"))?;
-    let tools = if needs_flutter {
-        flutter
-            .map(|(flutter_dart, root)| {
-                flutter_sdk_tree(flutter_dart, &work).map(|dart| (dart, Some(root)))
-            })
-            .transpose()
-    } else {
-        Ok(Some((dart.to_path_buf(), None)))
+    let tools = match flutter {
+        Some((flutter_dart, root)) if needs_flutter => {
+            flutter_sdk_tree(flutter_dart, &work).map(|dart| (dart, Some(root)))
+        }
+        _ => Ok((dart.to_path_buf(), None)),
     };
-    let result = tools.and_then(|tools| {
-        let (dart, flutter_root) = tools.expect("tools are chosen above");
+    let result = tools.and_then(|(dart, flutter_root)| {
         pub_api_compare(
             agent,
             (&dart, apitool, flutter_root),
@@ -551,7 +547,7 @@ pub fn pub_main_checked(
         };
         outcome.and_then(|outcome| conclude("pub_deploy", mode, version, outcome))
     };
-    let live = PUB_GATE.requested(env_or_empty);
+    let live = OwnerGate::requested(env_or_empty);
     let secrets = if live {
         match PUB_GATE.authorize(env_or_empty) {
             Ok(secrets) => Some(secrets),
@@ -617,10 +613,11 @@ fn pub_run_checked(
     api_check: &dyn Fn(&Path, &str) -> Result<(), String>,
 ) -> Result<String, String> {
     let (flutter, version) = pub_checked_stage(mapped, staging, package_name, version)?;
-    if secrets.is_some() {
-        if let Some(error) = placeholder_refusal("pub_deploy", &version) {
-            return Err(error);
-        }
+    if let Some(error) = secrets
+        .as_ref()
+        .and_then(|_| placeholder_refusal("pub_deploy", &version))
+    {
+        return Err(error);
     }
     api_check(staging, &version)?;
     let tool = tool_name(flutter);

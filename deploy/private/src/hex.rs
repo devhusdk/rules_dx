@@ -208,7 +208,7 @@ pub fn hex_main(
         };
         files.push(path);
     }
-    if HEX_GATE.requested(env_or_empty) {
+    if OwnerGate::requested(env_or_empty) {
         return hex_publish(&files, package_name, version, tool);
     }
     let house = run.outdir().join(format!("{package_name}-hex"));

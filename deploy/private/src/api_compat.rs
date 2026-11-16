@@ -10,6 +10,7 @@ pub enum ApiCompatMode {
 
 impl ApiCompatMode {
     /// Parses the `api_compat` attribute value.
+    #[must_use]
     pub fn parse(value: &str) -> Option<Self> {
         match value {
             "off" => Some(Self::Off),
@@ -29,6 +30,7 @@ pub enum Bump {
 }
 
 /// Returns the numeric `major.minor.patch` of a version; build and pre-release parts are ignored.
+#[must_use]
 pub fn parse_version(version: &str) -> Option<[u64; 3]> {
     let core = version.split(['-', '+']).next()?;
     let mut parts = core.split('.');
@@ -157,6 +159,10 @@ pub enum Outcome {
 const REPORT_LINES: usize = 40;
 
 /// Prints the report of an `api_compat` check and refuses a breaking change without a major bump.
+///
+/// # Errors
+///
+/// Returns the failure message when the mode is `fail` and the change is breaking without a major bump.
 pub fn conclude(
     rule: &str,
     mode: ApiCompatMode,
@@ -229,6 +235,10 @@ pub fn workspace_dir() -> std::path::PathBuf {
 }
 
 /// Returns the highest `v<version>` tag below `next` in the repository at `workspace`.
+///
+/// # Errors
+///
+/// Returns the failure message when the git invocation fails.
 pub fn previous_git_tag(workspace: &std::path::Path, next: &str) -> Result<Option<String>, String> {
     let output = dx_process::capture::run_checked(
         dx_process::capture::git(workspace).args(["tag", "--list", "v*"]),

@@ -143,7 +143,6 @@ fn npm_registry_host(registry: &str) -> &str {
 /// Rejects a provenance policy the access mode or registry cannot honor.
 pub fn npm_provenance_error(access: &str, registry: &str, provenance: &str) -> Option<String> {
     match provenance {
-        "none" => None,
         "required" if access != "public" => Some(format!(
             "npm_deploy: provenance 'required' is not supported with access '{access}'; \
              use access 'public' or provenance 'none'"
@@ -152,7 +151,7 @@ pub fn npm_provenance_error(access: &str, registry: &str, provenance: &str) -> O
             "npm_deploy: provenance 'required' is not supported by registry '{registry}'; \
              use https://registry.npmjs.org or provenance 'none'"
         )),
-        "required" => None,
+        "none" | "required" => None,
         _ => Some(format!(
             "npm_deploy: invalid provenance '{provenance}': want 'required' or 'none'"
         )),
@@ -764,7 +763,7 @@ pub fn npm_deploy_main_checked(
     println!("  provenance: {provenance}");
     println!("  tarball: {}", outdir.join(&tgz_base).display());
     println!("  feed: {}", feed_dir.display());
-    if NPM_GATE.requested(env_or_empty) {
+    if OwnerGate::requested(env_or_empty) {
         let secrets = match NPM_GATE.authorize(env_or_empty) {
             Ok(secrets) => secrets,
             Err(error) => {
@@ -1105,8 +1104,7 @@ mod tests {
             std::process::Command::new(program)
                 .arg("--version")
                 .output()
-                .map(|out| out.status.success())
-                .unwrap_or(false)
+                .is_ok_and(|out| out.status.success())
         };
         if !ok("node") || !ok("npm") {
             return;
@@ -1406,8 +1404,7 @@ mod tests {
             std::process::Command::new(tool)
                 .arg("--version")
                 .output()
-                .map(|o| o.status.success())
-                .unwrap_or(false)
+                .is_ok_and(|o| o.status.success())
         };
         if !ok("npm") {
             return;

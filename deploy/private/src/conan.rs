@@ -7,7 +7,7 @@ use crate::run::{
 use crate::stage::*;
 use std::path::{Path, PathBuf};
 
-/// Owner approval gate for conan_deploy.
+/// Owner approval gate for `conan_deploy`.
 pub(crate) const CONAN_GATE: OwnerGate = OwnerGate {
     tool: "conan_deploy",
     action: "upload",
@@ -180,7 +180,7 @@ fn conan_deploy_checked(
         .map_err(|error| format!("conan_deploy: cannot read conanfile.py: {error}"))?;
     let version = recipe_version(&text, spec.package, spec.version)?;
     let package = spec.package;
-    if CONAN_GATE.requested(env_or_empty) {
+    if OwnerGate::requested(env_or_empty) {
         if let Some(error) = placeholder_refusal("conan_deploy", &version) {
             return Err(error);
         }

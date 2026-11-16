@@ -298,7 +298,7 @@ pub fn octopus_main(spec: &OctopusLaunch<'_>, argv: &[String]) -> i32 {
         space: &space,
         server: &server,
     };
-    if OCTOPUS_GATE.requested(env_or_empty) {
+    if OwnerGate::requested(env_or_empty) {
         if let Some(refusal) = octopus_live_refusal(&version, &server) {
             eprintln!("{refusal}");
             return 1;

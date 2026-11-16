@@ -8,6 +8,7 @@ use crate::run::{
 };
 use crate::stage::*;
 use base64::Engine as _;
+use std::fmt::Write as _;
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -51,7 +52,10 @@ pub struct FormulaAsset {
 /// Returns the os and arch a release archive name says it is built for.
 pub fn homebrew_asset_platform(base: &str) -> Option<(&'static str, &'static str)> {
     let lower = base.to_ascii_lowercase();
-    if !(lower.ends_with(".tar.gz") || lower.ends_with(".tgz") || lower.ends_with(".zip")) {
+    let single = Path::new(&lower)
+        .extension()
+        .is_some_and(|ext| ext == "tgz" || ext == "zip");
+    if !(lower.ends_with(".tar.gz") || single) {
         return None;
     }
     let has = |words: &[&str]| words.iter().any(|word| lower.contains(word));
@@ -124,21 +128,24 @@ pub fn homebrew_render_formula(
         if in_os.is_empty() {
             continue;
         }
-        out.push_str(&format!("\n  on_{os} do\n"));
+        write!(out, "\n  on_{os} do\n").ok();
         for arch in ["arm", "intel"] {
             for asset in in_os.iter().filter(|asset| asset.arch == arch) {
-                out.push_str(&format!(
+                write!(
+                    out,
                     "    on_{arch} do\n      url \"https://github.com/{}/releases/download/{tag}/{}\"\n      sha256 \"{}\"\n    end\n",
                     launch.repo, asset.name, asset.sha256
-                ));
+                ).ok();
             }
         }
         out.push_str("  end\n");
     }
-    out.push_str(&format!(
+    write!(
+        out,
         "\n  def install\n    bin.install \"{}\"\n  end\nend\n",
         ruby_escape(launch.binary)
-    ));
+    )
+    .ok();
     out
 }
 
@@ -369,7 +376,7 @@ pub fn homebrew_tap_main(launch: &HomebrewLaunch<'_>, argv: &[String]) -> i32 {
         }
     };
     let formula = homebrew_render_formula(launch, &release.tag, &formula_assets);
-    if HOMEBREW_TAP_GATE.requested(env_or_empty) {
+    if OwnerGate::requested(env_or_empty) {
         if let Some(error) = placeholder_refusal("homebrew_tap_deploy", &release.tag) {
             eprintln!("{error}");
             return 1;
@@ -405,7 +412,7 @@ pub fn homebrew_tap_main(launch: &HomebrewLaunch<'_>, argv: &[String]) -> i32 {
             }
             println!("  command: {}", homebrew_api_command(launch));
             println!("  formula: {}", file.display());
-            if homebrew_syntax_check(&file) { 0 } else { 1 }
+            i32::from(!homebrew_syntax_check(&file))
         }
         Err(error) => {
             eprintln!("homebrew_tap_deploy: {error}");

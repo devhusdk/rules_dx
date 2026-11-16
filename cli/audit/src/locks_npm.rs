@@ -1,6 +1,7 @@
 use crate::vuln::LockedPackage;
 use dx_error::DxError;
 
+#[must_use]
 pub fn is_npm_git_reference(text: &str) -> bool {
     let trimmed = text.trim();
     if trimmed.is_empty() {
@@ -135,7 +136,10 @@ const PACKAGE_LOCK_VERSION: u64 = 3;
 fn check_package_lock_version(
     object: &serde_json::Map<String, serde_json::Value>,
 ) -> Result<(), DxError> {
-    match object.get("lockfileVersion").and_then(|v| v.as_u64()) {
+    match object
+        .get("lockfileVersion")
+        .and_then(serde_json::Value::as_u64)
+    {
         Some(PACKAGE_LOCK_VERSION) => Ok(()),
         found => Err(DxError::failure(format!(
             "invalid package-lock.json: unsupported lockfileVersion {}; dx reads lockfileVersion {PACKAGE_LOCK_VERSION}",
@@ -162,7 +166,7 @@ pub fn parse_package_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
             .filter(|detail| {
                 detail
                     .get("link")
-                    .and_then(|value| value.as_bool())
+                    .and_then(serde_json::Value::as_bool)
                     .unwrap_or(false)
             })
             .filter_map(|detail| detail.get("resolved").and_then(|value| value.as_str()))
@@ -181,7 +185,7 @@ pub fn parse_package_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
             };
             if detail
                 .get("link")
-                .and_then(|value| value.as_bool())
+                .and_then(serde_json::Value::as_bool)
                 .unwrap_or(false)
             {
                 continue;

@@ -33,6 +33,7 @@ pub enum LicenseExpr {
     Unknown,
 }
 
+#[must_use]
 pub fn parse_license(text: &str) -> LicenseExpr {
     let parsed = spdx::Expression::parse(text)
         .or_else(|_| spdx::Expression::parse_mode(text, spdx::ParseMode::LAX));
@@ -180,6 +181,7 @@ pub fn evaluate(
     }
 }
 
+#[must_use]
 pub fn fails_in_tier(outcome: TierOutcome, tier: Tier) -> bool {
     match (outcome, tier) {
         (TierOutcome::Deny, _) => true,

@@ -50,7 +50,7 @@ pub struct Plugin {
     pub write: fn(&Ctx<'_>) -> Result<(), DxError>,
 }
 
-/// Builds rules_dx labels and returns the absolute paths of their files.
+/// Builds `rules_dx` labels and returns the absolute paths of their files.
 pub trait Runner {
     fn build(&self, labels: &[String]) -> Result<Vec<PathBuf>, DxError>;
     /// Builds labels as they are written and returns the files of one output group.
@@ -70,6 +70,7 @@ pub struct Report {
 
 impl Report {
     /// One line naming every failed plug-in, or `None` when all are fine.
+    #[must_use]
     pub fn warning(&self) -> Option<String> {
         if self.failed.is_empty() {
             return None;
@@ -278,6 +279,7 @@ fn remove_stale(workspace: &Path, all: &[&Plugin], active: &[&Plugin]) {
 }
 
 /// Reads the plug-in results from `state.json`: `None` when it has never run.
+#[must_use]
 pub fn failed_plugins(workspace: &Path) -> Option<Vec<(String, String)>> {
     let value: serde_json::Value =
         serde_json::from_slice(&std::fs::read(workspace.join(STATE_FILE)).ok()?).ok()?;
@@ -301,6 +303,7 @@ fn missing_outputs_of(workspace: &Path, plugin: &Plugin) -> Vec<String> {
 }
 
 /// Output files of plug-ins that last ran fine but are gone now, as workspace-relative paths.
+#[must_use]
 pub fn missing_outputs(workspace: &Path) -> Vec<String> {
     let Some(state) = read_state(&workspace.join(STATE_FILE)) else {
         return Vec::new();

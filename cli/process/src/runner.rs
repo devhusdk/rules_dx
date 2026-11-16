@@ -65,7 +65,7 @@ fn stream_spec(
 
 /// Clears the tail before any Bazel run, and tees its stderr when `capture` allows.
 fn bazel_stderr(argv: &[String], capture: bool) -> StreamOutput {
-    let Some(program) = argv.first().map(|program| program.as_ref()) else {
+    let Some(program) = argv.first().map(std::convert::AsRef::as_ref) else {
         return StreamOutput::Inherit;
     };
     if stderr_tail::wanted(program) {

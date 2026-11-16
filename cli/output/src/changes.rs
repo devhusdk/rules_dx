@@ -77,11 +77,9 @@ impl ChangeEffect {
 
 fn check_effect(path: &str, effect: ChangeEffect, reason: Option<&str>) -> Result<(), OutputError> {
     match (effect, reason) {
-        (ChangeEffect::Refused, None) | (ChangeEffect::Refused, Some("")) => {
-            Err(OutputError::MissingReason {
-                path: path.to_owned(),
-            })
-        }
+        (ChangeEffect::Refused, None | Some("")) => Err(OutputError::MissingReason {
+            path: path.to_owned(),
+        }),
         (ChangeEffect::Proposed | ChangeEffect::Applied, Some(_)) => {
             Err(OutputError::UnexpectedReason {
                 path: path.to_owned(),
@@ -104,6 +102,7 @@ pub fn change_event(
 }
 
 /// Builds the record for a change whose producer already validated it.
+#[must_use]
 pub fn change_value(
     change: &ChangeEvent,
     effect: ChangeEffect,
@@ -142,6 +141,7 @@ pub fn change_value(
 }
 
 /// Builds a refused change that has no single edit set.
+#[must_use]
 pub fn refusal_value(path: &str, kind: ChangeKind, reason: &str) -> Value {
     Value::Object(record(path, kind, 0, ChangeEffect::Refused, Some(reason)))
 }

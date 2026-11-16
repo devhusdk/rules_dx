@@ -106,7 +106,7 @@ fn agent(url: &str) -> ureq::Agent {
         .timeout_connect(Some(Duration::from_secs(30)))
         .timeout_recv_response(Some(Duration::from_secs(60)))
         // ureq bounds the whole body transfer, not idle time.
-        .timeout_recv_body(Some(Duration::from_secs(60 * 60)))
+        .timeout_recv_body(Some(Duration::from_hours(1)))
         .build()
         .into()
 }
@@ -169,12 +169,13 @@ fn sidecar(agent: &ureq::Agent, request: &Request<'_>) -> Result<String, ShimErr
     parse_hash(first).ok_or_else(|| ShimError::failure(format!("{url} holds no sha256")))
 }
 
+#[must_use]
 pub fn parse_hash(text: &str) -> Option<String> {
     (text.len() == 64 && text.bytes().all(|b| b.is_ascii_hexdigit()))
         .then(|| text.to_ascii_lowercase())
 }
 
-const STALE_PART_AGE: Duration = Duration::from_secs(60 * 60);
+const STALE_PART_AGE: Duration = Duration::from_hours(1);
 
 // A killed run leaves its part file behind.
 fn sweep_stale_parts(dir: &Path, asset: &str) {
@@ -315,8 +316,7 @@ impl PartFile {
         static COUNTER: AtomicU64 = AtomicU64::new(0);
         let nanos = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.subsec_nanos())
-            .unwrap_or(0);
+            .map_or(0, |d| d.subsec_nanos());
         let nonce = COUNTER.fetch_add(1, Ordering::Relaxed);
         let path = dir.join(format!(
             ".{asset}.{}.{nanos}-{nonce}.part",

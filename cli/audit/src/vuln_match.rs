@@ -10,6 +10,7 @@ use crate::exception::{
 };
 
 /// The single dispatch table from a lock set to its version matcher.
+#[must_use]
 pub fn version_assess(set: &str, scope: &str, version: &str) -> VersionScope {
     match set {
         "cargo" => cargo_assess(scope, version),
@@ -35,6 +36,7 @@ pub fn version_assess(set: &str, scope: &str, version: &str) -> VersionScope {
 }
 
 /// The scope that matches exactly `version` in the given lock set, as written by `--accept`.
+#[must_use]
 pub fn exact_scope(set: &str, version: &str) -> String {
     let version = version.trim();
     match set {
@@ -46,10 +48,12 @@ pub fn exact_scope(set: &str, version: &str) -> String {
     }
 }
 
+#[must_use]
 pub fn version_affected(set: &str, scope: &str, version: &str) -> bool {
     version_assess(set, scope, version) == VersionScope::Affected
 }
 
+#[must_use]
 pub fn package_identity(set: &str, name: &str) -> String {
     if is_nuget_set(set) {
         name.trim().to_lowercase()
@@ -64,6 +68,7 @@ fn is_nuget_set(set: &str) -> bool {
     set == "nuget" || set.starts_with("nuget-")
 }
 
+#[must_use]
 pub fn same_package(set: &str, left: &str, right: &str) -> bool {
     if (is_nuget_set(set) || set == "uv") && (left.trim().is_empty() || right.trim().is_empty()) {
         return false;
@@ -71,6 +76,7 @@ pub fn same_package(set: &str, left: &str, right: &str) -> bool {
     package_identity(set, left) == package_identity(set, right)
 }
 
+#[must_use]
 pub fn match_packages(
     packages: &[LockedPackage],
     advisories: &[Advisory],
@@ -147,6 +153,7 @@ pub fn match_packages(
     (findings, unassessed)
 }
 
+#[must_use]
 pub fn apply_exceptions(
     findings: &[VulnFinding],
     exceptions: &[RiskException],

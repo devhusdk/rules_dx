@@ -147,9 +147,9 @@ fn directory(archive: &[u8], eocd: usize) -> Result<Directory, ArchiveError> {
     let locator = eocd - ZIP64_LOCATOR_FIXED;
     let at = offset_of(u64_at(archive, locator + 8)?, "the zip64 record offset")?;
     if !signature_at(archive, at, ZIP64_EOCD_SIGNATURE)
-        || !at
+        || at
             .checked_add(ZIP64_EOCD_FIXED)
-            .is_some_and(|record_end| record_end <= locator)
+            .is_none_or(|record_end| record_end > locator)
     {
         return Err(ArchiveError::BadCentralDirectory {
             detail: format!("no zip64 end record at {at}"),

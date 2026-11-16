@@ -1,4 +1,4 @@
-use super::*;
+use super::{BackendError, BackendPlan, CheckPlan, ResolvedSet, Selection};
 
 /// Refuses a package update in a pinned set; dx never rewrites its lock.
 pub(super) fn selective(set: &ResolvedSet) -> BackendError {

@@ -240,7 +240,7 @@ mod tests {
             EntryKind::Missing
         );
         assert_eq!(
-            classify(&scratch.path()).expect("root"),
+            classify(scratch.path()).expect("root"),
             EntryKind::Directory
         );
         scratch.close().expect("cleanup");
@@ -524,7 +524,7 @@ mod tests {
             classify(&destination).expect("destination"),
             EntryKind::Missing
         );
-        let err = materialize_file(&scratch.path(), &destination, LinkPolicy::LinkOrCopy)
+        let err = materialize_file(scratch.path(), &destination, LinkPolicy::LinkOrCopy)
             .expect_err("directory source");
         assert_eq!(err.kind(), io::ErrorKind::InvalidInput);
         scratch.close().expect("cleanup");

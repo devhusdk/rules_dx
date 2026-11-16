@@ -198,7 +198,7 @@ mod tests {
             ]
         );
         assert_eq!(plan.preserved_current, Some(current.hex.clone()));
-        assert!(plan.refused_unmanaged.is_empty());
+        assert_eq!(plan.refused_unmanaged, [] as [String; 0]);
     }
 
     #[test]
@@ -210,8 +210,11 @@ mod tests {
             generation(GenerationUse::Generated, '2'),
         ];
         let plan = plan_prune(inputs(&records, &generations, Some(&current.hex)));
-        assert!(plan.prune_setup_records.is_empty());
-        assert!(plan.prune_generations.is_empty());
+        assert_eq!(plan.prune_setup_records, [] as [String; 0]);
+        assert_eq!(
+            plan.prune_generations,
+            [] as [crate::prune::planning::GenerationView; 0]
+        );
     }
 
     #[test]
@@ -235,8 +238,11 @@ mod tests {
             observation_unknown: false,
             previous_hex: None,
         });
-        assert!(plan.prune_setup_records.is_empty());
-        assert!(plan.prune_generations.is_empty());
+        assert_eq!(plan.prune_setup_records, [] as [String; 0]);
+        assert_eq!(
+            plan.prune_generations,
+            [] as [crate::prune::planning::GenerationView; 0]
+        );
     }
 
     #[test]
@@ -282,8 +288,11 @@ mod tests {
             previous_hex: None,
         });
         assert!(plan.observation_unknown);
-        assert!(plan.prune_setup_records.is_empty());
-        assert!(plan.prune_generations.is_empty());
+        assert_eq!(plan.prune_setup_records, [] as [String; 0]);
+        assert_eq!(
+            plan.prune_generations,
+            [] as [crate::prune::planning::GenerationView; 0]
+        );
         assert_eq!(plan.preserved_unobserved_setup_records, vec![stale.hex]);
         assert_eq!(plan.preserved_unobserved_generations, generations);
         assert_eq!(plan.preserved_current, Some(current.hex));
@@ -332,7 +341,10 @@ mod tests {
             ..inputs(&records, &[], Some(&current.hex))
         });
         assert_eq!(plan.prune_setup_records, vec![previous.hex]);
-        assert!(plan.preserved_unobserved_setup_records.is_empty());
-        assert!(plan.preserved_unobserved_generations.is_empty());
+        assert_eq!(plan.preserved_unobserved_setup_records, [] as [String; 0]);
+        assert_eq!(
+            plan.preserved_unobserved_generations,
+            [] as [crate::prune::planning::GenerationView; 0]
+        );
     }
 }

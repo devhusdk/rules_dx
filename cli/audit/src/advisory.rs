@@ -34,6 +34,7 @@ pub const CODE_ADVISORY_REFRESH_FAILED: &str = "advisory_refresh_failed";
 pub const REFRESH_COMMAND: &str = "bazel run @rules_dx//cli/advisory_prep --";
 
 /// Maps a dependency set name to its advisory family; the sole set-to-family step.
+#[must_use]
 pub fn advisory_family(set: &str) -> Option<&'static str> {
     match set {
         "npm-adopt" | "npm-adopt-polyglot" | "npm-tools" => Some("npm"),
@@ -44,6 +45,7 @@ pub fn advisory_family(set: &str) -> Option<&'static str> {
 }
 
 /// Maps a dependency set name to the family whose yanked-version snapshot covers it.
+#[must_use]
 pub fn yanked_family(set: &str) -> Option<&'static str> {
     match set {
         "cargo" => Some("cargo-yanked"),
@@ -57,6 +59,7 @@ pub const PYPI_FAMILY: &str = "pypi";
 /// The pin family of the trivy database and checks, one `.tar.gz` of the cache directory.
 pub const TRIVY_FAMILY: &str = "trivy";
 
+#[must_use]
 pub fn advisory_source(family: &str) -> Option<&'static str> {
     match family {
         "cran" => Some("https://osv-vulnerabilities.storage.googleapis.com/CRAN/all.zip"),
@@ -64,6 +67,7 @@ pub fn advisory_source(family: &str) -> Option<&'static str> {
     }
 }
 
+#[must_use]
 pub fn is_accepted_url(url: &str) -> bool {
     (url.starts_with("https://") || url.starts_with("file://")) && url::Url::parse(url).is_ok()
 }
@@ -85,6 +89,7 @@ pub struct AdvisoryPin {
 
 impl AdvisoryPin {
     /// The line this pin takes in `.dx/pins`.
+    #[must_use]
     pub fn line(&self) -> String {
         format!(
             "advisory {} {} {} {}",
@@ -93,16 +98,19 @@ impl AdvisoryPin {
     }
 
     /// Where the verified snapshot is cached, relative to the workspace.
+    #[must_use]
     pub fn cache_rel(&self) -> String {
         format!(".dx/local/advisory/{}/{}.json", self.sha256, self.family)
     }
 
     /// Where the unpacked trivy cache lives, relative to the workspace.
+    #[must_use]
     pub fn trivy_cache_rel(&self) -> String {
         format!(".dx/local/advisory/{}/trivy", self.sha256)
     }
 
     /// Whole days from the pin date to `today`, when both are audit dates.
+    #[must_use]
     pub fn age_days(&self, today: &str) -> Option<i64> {
         let parse = |value: &str| chrono::NaiveDate::parse_from_str(value, "%Y-%m-%d").ok();
         if !is_audit_date(today) {
@@ -113,6 +121,7 @@ impl AdvisoryPin {
 }
 
 /// The pin for one family; lines of any other shape are ignored.
+#[must_use]
 pub fn find_pin(text: &str, family: &str) -> Option<AdvisoryPin> {
     text.lines().find_map(|line| {
         let fields: Vec<&str> = line.trim_end_matches('\r').split_whitespace().collect();
@@ -133,6 +142,7 @@ pub fn find_pin(text: &str, family: &str) -> Option<AdvisoryPin> {
 }
 
 /// The local path a `file://` URL names.
+#[must_use]
 pub fn file_url_path(url: &str) -> Option<std::path::PathBuf> {
     url::Url::parse(url).ok()?.to_file_path().ok()
 }
@@ -142,10 +152,12 @@ pub fn file_url(path: &std::path::Path) -> Option<String> {
     url::Url::from_file_path(path).ok().map(String::from)
 }
 
+#[must_use]
 pub fn snapshot_rel(family: &str) -> String {
     format!(".dx/local/advisory/{family}.json")
 }
 
+#[must_use]
 pub fn identity_rel(family: &str) -> String {
     format!(".dx/local/advisory/{family}.meta.json")
 }
@@ -155,6 +167,7 @@ pub fn parse_identity(text: &str) -> Result<AdvisorySnapshot, DxError> {
         .map_err(|error| DxError::failure(format!("invalid advisory identity: {error}")))
 }
 
+#[must_use]
 pub fn identity_matches_bytes(snapshot: &AdvisorySnapshot, bytes: &[u8]) -> bool {
     dx_digest::sha256_hex(bytes) == snapshot.sha256.trim()
 }
@@ -189,6 +202,7 @@ pub fn validate_snapshot(snapshot: &AdvisorySnapshot) -> Result<(), SnapshotProb
     Ok(())
 }
 
+#[must_use]
 pub fn freshness(snapshot: &AdvisorySnapshot, today: &str) -> Freshness {
     if snapshot.retrieved_at.trim() == today.trim() && is_audit_date(today) {
         Freshness::Fresh
@@ -198,6 +212,7 @@ pub fn freshness(snapshot: &AdvisorySnapshot, today: &str) -> Freshness {
 }
 
 /// Whether one value is an audit date, `YYYY-MM-DD`.
+#[must_use]
 pub fn is_audit_date(value: &str) -> bool {
     let bytes = value.as_bytes();
     if bytes.len() != 10 || bytes.get(4) != Some(&b'-') || bytes.get(7) != Some(&b'-') {

@@ -32,6 +32,7 @@ pub const EVENTS: &[&str] = &[
     "tools",
 ];
 
+#[must_use]
 pub fn schema() -> Value {
     json!({"major": SCHEMA_MAJOR, "minor": SCHEMA_MINOR})
 }
@@ -560,6 +561,7 @@ pub struct SummaryEvent {
     pub disk_cache_bytes: Option<u64>,
 }
 
+#[must_use]
 pub fn summary_event(summary: &SummaryEvent) -> Value {
     let mut map = base("summary");
     map.insert("slots".to_owned(), Value::from(summary.slots));
@@ -593,6 +595,7 @@ pub struct CapabilityEvent {
 }
 
 /// Builds the event for a capability whose producer already validated it.
+#[must_use]
 pub fn capability_value(capability: &CapabilityEvent) -> Value {
     let mut map = base("capability");
     map.insert("name".to_owned(), Value::String(capability.name.clone()));
@@ -1177,6 +1180,7 @@ impl std::ops::Add for ActionCounts {
 }
 
 impl ActionCounts {
+    #[must_use]
     pub fn cached(&self) -> u64 {
         self.disk
             .saturating_add(self.remote)
@@ -1198,6 +1202,7 @@ pub struct TestCounts {
     pub skipped: u64,
 }
 
+#[must_use]
 pub fn command_finished(exit_code: i32, counts: &FinishedCounts) -> Value {
     let mut map = base("command_finished");
     map.insert("exit_code".to_owned(), Value::from(exit_code));

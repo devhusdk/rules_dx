@@ -1,4 +1,4 @@
-//! Edits the version of the rules_dx `bazel_dep` in `MODULE.bazel` or an included file.
+//! Edits the version of the `rules_dx` `bazel_dep` in `MODULE.bazel` or an included file.
 
 use std::path::Path;
 
@@ -30,7 +30,7 @@ fn is_one_line_dep(line: &str) -> bool {
         .is_some_and(|version| !version.contains('"'))
 }
 
-/// Plans setting the rules_dx `bazel_dep` version to `version`. Writes nothing.
+/// Plans setting the `rules_dx` `bazel_dep` version to `version`. Writes nothing.
 pub fn plan_rules_dx_version(root: &Path, version: &str) -> Result<ModuleEdit, AdoptError> {
     if version.is_empty() {
         return Err(AdoptError::EmptyVersion);

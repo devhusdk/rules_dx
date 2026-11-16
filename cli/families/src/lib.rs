@@ -27,6 +27,7 @@ pub struct QualityFiles {
 impl QualityFiles {
     /// Whether a workspace with the extensions and file names of `extensions` needs the aspect
     /// file.
+    #[must_use]
     pub fn wanted(&self, extensions: &BTreeSet<String>) -> bool {
         self.every_workspace
             || self
@@ -37,6 +38,7 @@ impl QualityFiles {
     }
 
     /// The `bzl%name` labels of the aspects (or probes) of `command`.
+    #[must_use]
     pub fn labels(&self, command: &str, probes: bool) -> Vec<String> {
         let table = if probes { &self.probes } else { &self.aspects };
         table
@@ -61,6 +63,7 @@ pub struct DocsFiles {
 
 impl DocsFiles {
     /// The `bzl%name` labels of the docs aspects.
+    #[must_use]
     pub fn labels(&self) -> Vec<String> {
         self.aspects
             .iter()
@@ -199,6 +202,7 @@ pub fn setup_flags<'a>(names: impl IntoIterator<Item = &'a str>) -> Vec<(String,
 }
 
 /// The hub entry of `ecosystem`, if a `lang.json` has one.
+#[must_use]
 pub fn hub(ecosystem: &str) -> Option<&'static Hub> {
     hubs().iter().find(|hub| hub.ecosystem == ecosystem)
 }

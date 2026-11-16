@@ -111,6 +111,7 @@ pub fn notice_text_path_error(text_path: &str) -> Result<(), DxError> {
 
 /// The sha256 of the body `render_notice` writes under an entry header
 /// (the words with trailing newlines replaced by exactly one `\n`).
+#[must_use]
 pub fn notice_text_sha256(words: &str) -> String {
     let mut body = words.trim_end_matches('\n').to_owned();
     body.push('\n');
@@ -119,6 +120,7 @@ pub fn notice_text_sha256(words: &str) -> String {
 
 /// Renders the manifest: `header` as a `#` comment line, then one line per
 /// entry sorted by (package, set, version, license).
+#[must_use]
 pub fn render_notice_manifest(header: &str, entries: &[NoticeEntry]) -> String {
     let mut sorted: Vec<&NoticeEntry> = entries.iter().collect();
     sorted.sort_by(|a, b| {

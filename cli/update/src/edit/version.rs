@@ -18,6 +18,7 @@ pub enum WidenVersion {
 }
 
 impl WidenVersion {
+    #[must_use]
     pub fn display(&self) -> String {
         match self {
             WidenVersion::Semver(version) => version.to_string(),
@@ -54,10 +55,12 @@ pub enum VersionError {
     InvalidRelease { set: &'static str, version: String },
 }
 
+#[must_use]
 pub fn is_stable(version: &semver::Version) -> bool {
     version.pre.is_empty()
 }
 
+#[must_use]
 pub fn compare(left: &semver::Version, right: &semver::Version) -> std::cmp::Ordering {
     left.cmp(right)
 }

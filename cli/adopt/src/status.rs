@@ -19,6 +19,7 @@ pub struct StatusCheck {
     pub hint: String,
 }
 
+#[must_use]
 pub fn render_status_text(checks: &[StatusCheck]) -> String {
     checks
         .iter()
@@ -458,6 +459,7 @@ pub(crate) fn host_name(os: &str, arch: &str) -> Option<&'static str> {
     }
 }
 
+#[must_use]
 pub fn host_check(os: &str, arch: &str) -> StatusCheck {
     match host_name(os, arch) {
         Some(name) => check(
@@ -483,7 +485,7 @@ fn exec_tools_check(root: &Path) -> StatusCheck {
     for line in root_rc.replace("\\\r\n", "").replace("\\\n", "").lines() {
         match dx_preset::workspace_import(line.trim()) {
             Some(rel) => {
-                text.push_str(&std::fs::read_to_string(root.join(rel)).unwrap_or_default())
+                text.push_str(&std::fs::read_to_string(root.join(rel)).unwrap_or_default());
             }
             None => text.push_str(line),
         }
@@ -588,6 +590,7 @@ fn ide_check(root: &Path) -> Option<StatusCheck> {
     ))
 }
 
+#[must_use]
 pub fn observed_status_checks(
     root: &Path,
     pinned: Result<String, AdoptError>,
@@ -627,7 +630,7 @@ mod tests {
         assert!(super::ide_check(root).is_none());
         std::fs::create_dir_all(root.join(".dx/local/ide")).expect("dir");
         let state = |text: &str| {
-            std::fs::write(root.join(".dx/local/ide/state.json"), text).expect("state")
+            std::fs::write(root.join(".dx/local/ide/state.json"), text).expect("state");
         };
         state(r#"{"digest":"d","plugins":{"typescript":"ok"}}"#);
         let gone = super::ide_check(root).expect("missing");
@@ -754,8 +757,7 @@ node.toolchain(node_version = pinned)
             skew.detail
         );
         let overridden = run(&format!(
-            "{}single_version_override(module_name = \"rules_rust\", version = \"0.75.0\")\n",
-            setup
+            "{setup}single_version_override(module_name = \"rules_rust\", version = \"0.75.0\")\n"
         ));
         assert_eq!(overridden.status, "warn");
         assert!(

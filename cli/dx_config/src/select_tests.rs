@@ -61,7 +61,7 @@ fn an_opt_in_family_runs_only_the_tools_it_names() {
     .unwrap();
     let selection = effective(Some(&config)).unwrap();
     assert_eq!(selection.families["lua"].format, ["stylua"]);
-    assert!(selection.families["lua"].lint.is_empty());
+    assert_eq!(selection.families["lua"].lint, [] as [String; 0]);
     assert_eq!(selection.families["lua"].tier.as_str(), "standard");
     assert_eq!(selection.families["flatbuffers"].lint, ["flatc"]);
     let unlisted = effective(None).unwrap();

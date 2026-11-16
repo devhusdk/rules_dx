@@ -34,10 +34,12 @@ pub struct HookError {
 }
 
 impl HookError {
+    #[must_use]
     pub fn new(message: String) -> Self {
         Self { message }
     }
 
+    #[must_use]
     pub fn message(&self) -> &str {
         &self.message
     }

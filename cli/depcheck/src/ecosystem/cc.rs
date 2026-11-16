@@ -53,8 +53,8 @@ pub fn parse_cc_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Depch
             DepInfo {
                 spec: if ver.is_empty() { "*".to_owned() } else { ver },
                 category: category.to_owned(),
-                optional: item.get("optional").map(toml_bool).unwrap_or(false),
-                platform: item.get("platform").map(toml_bool).unwrap_or(false),
+                optional: item.get("optional").is_some_and(toml_bool),
+                platform: item.get("platform").is_some_and(toml_bool),
                 sha256: sha,
                 package: String::new(),
                 raw: name,
@@ -82,6 +82,7 @@ pub fn parse_cc_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckEr
     Ok(pkgs)
 }
 
+#[must_use]
 pub fn parse_cc_lock_sha(path: &Path) -> BTreeMap<String, String> {
     let Ok(text) = std::fs::read_to_string(path) else {
         return BTreeMap::new();

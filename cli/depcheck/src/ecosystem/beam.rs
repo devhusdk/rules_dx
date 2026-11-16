@@ -87,7 +87,10 @@ pub fn parse_hex_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckE
         let Some(name) = package.get("name").and_then(|v| v.as_str()) else {
             continue;
         };
-        let version = package.get("version").and_then(|v| v.as_str()).unwrap_or("0");
+        let version = package
+            .get("version")
+            .and_then(|v| v.as_str())
+            .unwrap_or("0");
         pkgs.insert(normalize_lower(name), version.to_owned());
     }
     Ok(pkgs)

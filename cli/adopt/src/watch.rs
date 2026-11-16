@@ -34,6 +34,7 @@ pub fn plan_watch(command: &str, ci: bool) -> Result<String, AdoptError> {
 }
 
 /// Whether a path relative to the watch root can trigger a rerun.
+#[must_use]
 pub fn should_watch_path(relative: &Path) -> bool {
     let names: Vec<String> = relative
         .components()
@@ -54,6 +55,7 @@ pub fn should_watch_path(relative: &Path) -> bool {
 }
 
 /// Sorted, deduplicated paths under one of the roots that can trigger a rerun.
+#[must_use]
 pub fn coalesce_watch_paths(roots: &[&Path], mut paths: Vec<PathBuf>) -> Vec<PathBuf> {
     paths.retain(|path| {
         roots
@@ -66,6 +68,7 @@ pub fn coalesce_watch_paths(roots: &[&Path], mut paths: Vec<PathBuf>) -> Vec<Pat
 }
 
 /// Whether an event changes the tree rather than only reading it.
+#[must_use]
 pub fn is_change(kind: &notify::EventKind) -> bool {
     use notify::event::{AccessKind, AccessMode, EventKind};
     match kind {
@@ -80,6 +83,7 @@ pub fn is_change(kind: &notify::EventKind) -> bool {
 }
 
 /// Whether an event only touches directory timestamps, which Windows reports on reads.
+#[must_use]
 pub fn is_directory_touch(event: &notify::Event) -> bool {
     use notify::event::{EventKind, ModifyKind};
     matches!(event.kind, EventKind::Modify(ModifyKind::Any))
@@ -110,6 +114,7 @@ const WATCH_POLL_INTERVAL: Duration = Duration::from_secs(1);
 const POLLED_FILESYSTEMS: &[&str] = &["9p", "drvfs", "fuse.drvfs", "nfs", "nfs4", "cifs", "smb3"];
 
 /// Whether the mount holding `root` is one of the polled filesystems.
+#[must_use]
 pub fn mountinfo_needs_polling(mountinfo: &str, root: &Path) -> bool {
     mountinfo
         .lines()
@@ -230,6 +235,7 @@ pub struct WatchSession {
 
 impl WatchSession {
     /// Whether this session polls the tree instead of using the platform watcher.
+    #[must_use]
     pub fn polling(&self) -> bool {
         self.polling
     }
@@ -369,6 +375,7 @@ impl WatchSession {
         }
     }
 
+    #[must_use]
     pub fn drain(&self) -> Vec<PathBuf> {
         let paths: Vec<PathBuf> = self
             .events

@@ -32,12 +32,14 @@ impl AuditFamily {
 }
 
 impl AuditReport {
+    #[must_use]
     pub fn aggregate(outcomes: Vec<FamilyOutcome>) -> AuditReport {
         let mut sorted = outcomes;
         sorted.sort_by_key(|outcome| outcome.family.order());
         AuditReport { outcomes: sorted }
     }
 
+    #[must_use]
     pub fn is_clean(&self) -> bool {
         !self.outcomes.is_empty()
             && self
@@ -46,6 +48,7 @@ impl AuditReport {
                 .all(|outcome| outcome.status == FamilyStatus::Clean)
     }
 
+    #[must_use]
     pub fn incomplete(&self) -> Vec<AuditFamily> {
         self.outcomes
             .iter()
@@ -55,6 +58,7 @@ impl AuditReport {
     }
 }
 
+#[must_use]
 pub fn exit_code(report: &AuditReport) -> i32 {
     if report.outcomes.is_empty() || report.is_clean() {
         EXIT_SUCCESS
@@ -78,7 +82,7 @@ mod tests {
             outcome(AuditFamily::License, FamilyStatus::Clean),
         ]);
         assert!(report.is_clean());
-        assert!(report.incomplete().is_empty());
+        assert_eq!(report.incomplete(), [] as [AuditFamily; 0]);
         assert_eq!(exit_code(&report), EXIT_SUCCESS);
         assert_eq!(exit_code(&report), 0);
     }

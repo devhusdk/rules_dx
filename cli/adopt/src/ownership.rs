@@ -11,7 +11,7 @@ pub enum Ownership {
     Block,
     /// dx adds its missing lines and leaves the rest.
     Lines,
-    /// dx updates only the rules_dx pin.
+    /// dx updates only the `rules_dx` pin.
     Pin,
     /// Written when missing, never rewritten.
     Once,
@@ -28,6 +28,7 @@ impl Ownership {
         Ownership::Once,
     ];
 
+    #[must_use]
     pub fn label(self) -> &'static str {
         match self {
             Ownership::Whole => "whole",
@@ -43,6 +44,7 @@ impl Ownership {
     /// The one-line comment that tells a reader what dx does to this file, in the file's comment
     /// syntax. `None` for formats that cannot carry a comment or where one would be noise.
     /// `edit_instead` names the file to edit for `whole`, or the base for `extends`.
+    #[must_use]
     pub fn header(self, path: &str, edit_instead: Option<&str>) -> Option<String> {
         let prefix = comment_prefix(path)?;
         let text = match self {
@@ -68,6 +70,7 @@ const OVERRIDE_MARKER: &str = "dx: override of base ";
 
 /// The base blob sha in a `dx: override of base <sha>` header, read from the leading comment
 /// lines of a root config file.
+#[must_use]
 pub fn override_base(text: &str) -> Option<&str> {
     let (header, _) = split_override_header(text);
     let (_, rest) = header.lines().last()?.split_once(OVERRIDE_MARKER)?;
@@ -76,6 +79,7 @@ pub fn override_base(text: &str) -> Option<&str> {
 
 /// Splits a root config file after its `dx: override of base <sha>` line: the leading lines up
 /// to and including that line, then the rest. Without the header it is `("", text)`.
+#[must_use]
 pub fn split_override_header(text: &str) -> (&str, &str) {
     let mut cut = 0;
     for line in text.split_inclusive('\n') {

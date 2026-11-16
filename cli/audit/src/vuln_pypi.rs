@@ -2,6 +2,7 @@ use crate::vuln::VersionScope;
 use pep440_rs::Version;
 use std::str::FromStr;
 
+#[must_use]
 pub fn normalize_pypi_name(name: &str) -> String {
     let mut out = String::with_capacity(name.len());
     let mut separator = false;
@@ -34,6 +35,7 @@ fn single_exact_clause(scope: &str) -> bool {
     !scope.contains(',') && (scope.starts_with("==") || scope.starts_with('='))
 }
 
+#[must_use]
 pub fn pypi_assess(scope: &str, version: &str) -> VersionScope {
     let scope = scope.trim();
     if scope.is_empty() {
@@ -72,6 +74,7 @@ pub fn pypi_assess(scope: &str, version: &str) -> VersionScope {
 }
 
 #[cfg(test)]
+#[must_use]
 pub fn pypi_in_scope(scope: &str, version: &str) -> bool {
     pypi_assess(scope, version) == VersionScope::Affected
 }

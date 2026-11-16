@@ -81,8 +81,8 @@ fn mod_keeps_a_url_scheme_inside_a_replace_path() {
 fn mod_reports_directives_that_are_not_requirements_separately() {
     let text = "module example.com/root\n\ngo 1.24.12\n\ntoolchain go1.24.12\n\nignore ./vendor\n\nexclude example.com/bad v1.0.0\n\nexclude (\n\texample.com/worse v9.9.9\n)\n\nretract v1.0.0-bad\n\nretract [v1.1.0, v1.2.0]\n";
     let file = parse_mod(text).expect("parses");
-    assert!(file.require.is_empty());
-    assert!(file.replace.is_empty());
+    assert_eq!(file.require, [] as [GoRequirement; 0]);
+    assert_eq!(file.replace, [] as [GoReplacement; 0]);
 }
 
 #[test]
@@ -154,8 +154,9 @@ fn sum_keeps_the_highest_hashed_version() {
     assert_eq!(packages.len(), 1);
     assert_eq!(packages["x"], "v1.0.0");
     assert!(parse_sum("").unwrap().is_empty());
-    let pick =
-        |a: &str, b: &str| parse_sum(&format!("m {a} h1:x\nm {b} h1:y\nm {a} h1:x\n")).unwrap()["m"].clone();
+    let pick = |a: &str, b: &str| {
+        parse_sum(&format!("m {a} h1:x\nm {b} h1:y\nm {a} h1:x\n")).unwrap()["m"].clone()
+    };
     assert_eq!(pick("v1.9.0", "v1.10.0"), "v1.10.0");
     assert_eq!(pick("v1.10.0", "v1.9.0"), "v1.10.0");
     assert_eq!(pick("v1.0.0-rc.1", "v1.0.0"), "v1.0.0");

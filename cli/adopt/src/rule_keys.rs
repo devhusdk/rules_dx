@@ -33,11 +33,11 @@ pub fn rule_settings(ext: &str, keys: &[&str], text: &str) -> Option<RuleSetting
 fn scalar(value: &Value) -> String {
     match value {
         Value::String(text) => text.clone(),
-        other @ Value::Null
-        | other @ Value::Bool(_)
-        | other @ Value::Number(_)
-        | other @ Value::Array(_)
-        | other @ Value::Object(_) => other.to_string(),
+        other @ (Value::Null
+        | Value::Bool(_)
+        | Value::Number(_)
+        | Value::Array(_)
+        | Value::Object(_)) => other.to_string(),
     }
 }
 
@@ -242,6 +242,6 @@ mod tests {
                 "  + d (error)",
             ]
         );
-        assert!(rule_report("biome", &old, &old).is_empty());
+        assert_eq!(rule_report("biome", &old, &old), [] as [String; 0]);
     }
 }

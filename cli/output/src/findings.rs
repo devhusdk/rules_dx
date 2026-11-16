@@ -63,6 +63,7 @@ pub struct FindingRecord {
 }
 
 impl FindingRecord {
+    #[must_use]
     pub fn single(diagnostic: DiagnosticEvent) -> Self {
         FindingRecord {
             related_spans: vec![None; diagnostic.related.len()],
@@ -195,6 +196,7 @@ fn range_value(range: (u64, u64), span: Option<Span>) -> Value {
 }
 
 /// Builds the event for one finding whose producer already validated it.
+#[must_use]
 pub fn finding_value(record: &FindingRecord) -> Value {
     let diagnostic = &record.diagnostic;
     let mut map = base("diagnostic");
@@ -406,6 +408,7 @@ fn check_notice(notice: &NoticeEvent) -> Result<(), OutputError> {
 }
 
 /// Builds the event for a notice whose producer already validated it.
+#[must_use]
 pub fn notice_value(notice: &NoticeEvent) -> Value {
     let mut map = base("notice");
     map.insert(

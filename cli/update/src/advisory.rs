@@ -25,6 +25,7 @@ pub struct Pin {
 }
 
 impl Pin {
+    #[must_use]
     pub fn line(&self) -> String {
         format!(
             "advisory {} {} {} {}",
@@ -34,6 +35,7 @@ impl Pin {
 }
 
 /// Reads one pin line; any other line gives `None`.
+#[must_use]
 pub fn parse_line(line: &str) -> Option<Pin> {
     let fields: Vec<&str> = line.trim_end_matches('\r').split_whitespace().collect();
     let ["advisory", family, date, sha256, url] = fields[..] else {
@@ -84,6 +86,7 @@ pub fn parse_release(json: &str) -> Result<Release, DxError> {
 }
 
 /// Replaces the advisory lines of `text` the release has a pin for; every other line stays as it is.
+#[must_use]
 pub fn rewrite(text: &str, release: &Release) -> String {
     let newest: BTreeMap<&str, &Pin> = release
         .pins
@@ -106,6 +109,7 @@ pub fn rewrite(text: &str, release: &Release) -> String {
 }
 
 /// Whole days between two `YYYY-MM-DD` dates.
+#[must_use]
 pub fn days_between(from: &str, to: &str) -> Option<i64> {
     let parse = |value: &str| {
         let mut parts = value.split('-').map(|part| part.parse::<i64>().ok());
@@ -156,6 +160,7 @@ pub fn status(current: &[Pin], release: &Release, today: &str) -> Vec<String> {
 }
 
 /// The pin diff of a bump as unified-looking `-`/`+` lines; empty when nothing changes.
+#[must_use]
 pub fn diff(before: &str, after: &str) -> Vec<String> {
     let old = pins(before);
     let new = pins(after);
@@ -174,6 +179,7 @@ pub fn diff(before: &str, after: &str) -> Vec<String> {
 }
 
 /// The pull request body: the pin diff and the advisories only the new snapshots report.
+#[must_use]
 pub fn pr_body(release: &Release, diff: &[String], new_findings: &[String]) -> String {
     let mut text = format!(
         "Moves the advisory pins in `.dx/pins` to release {}.\n\n",
@@ -201,6 +207,7 @@ pub fn pr_body(release: &Release, diff: &[String], new_findings: &[String]) -> S
 }
 
 /// Findings in `after` that `before` does not have.
+#[must_use]
 pub fn new_findings(before: &[String], after: &[String]) -> Vec<String> {
     let mut found: Vec<String> = after
         .iter()
@@ -291,7 +298,7 @@ mod tests {
                 format!("+ {}", pin_line("cargo", "2026-11-05", SHA_B)),
             ]
         );
-        assert!(diff(&after, &after).is_empty());
+        assert_eq!(diff(&after, &after), [] as [String; 0]);
     }
 
     #[test]

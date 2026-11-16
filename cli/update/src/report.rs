@@ -4,6 +4,7 @@ pub const EXIT_SUCCESS: i32 = dx_error::EXIT_SUCCESS;
 
 pub const EXIT_FAILURE: i32 = dx_error::EXIT_FAILURE;
 
+#[must_use]
 pub fn exit_code(report: &UpdateReport) -> i32 {
     if report.overall_failure {
         EXIT_FAILURE

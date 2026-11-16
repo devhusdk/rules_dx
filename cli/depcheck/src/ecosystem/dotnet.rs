@@ -35,7 +35,7 @@ pub fn parse_dotnet_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, D
         };
         let name = caps[1].to_owned();
         let ver = caps[2].to_owned();
-        let rest = caps.get(3).map(|m| m.as_str()).unwrap_or("");
+        let rest = caps.get(3).map_or("", |m| m.as_str());
         let category = if ["main", "prod", "compile"].contains(&group.to_lowercase().as_str()) {
             "prod"
         } else {

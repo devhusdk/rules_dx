@@ -52,7 +52,7 @@ fn good_binary_installs() {
         let mode = std::fs::metadata(&dest).expect("meta").permissions().mode();
         assert_eq!(mode & 0o777, 0o755);
     }
-    assert!(leftovers(dest.parent().expect("dir")).is_empty());
+    assert_eq!(leftovers(dest.parent().expect("dir")), [] as [String; 0]);
 }
 
 #[test]
@@ -87,7 +87,7 @@ fn wrong_sidecar_is_refused_and_leaves_nothing() {
         "{err}"
     );
     assert!(!dest.exists());
-    assert!(leftovers(dest.parent().expect("dir")).is_empty());
+    assert_eq!(leftovers(dest.parent().expect("dir")), [] as [String; 0]);
 }
 
 #[test]
@@ -168,7 +168,7 @@ fn truncated_body_is_refused() {
         "{err}"
     );
     assert!(!dest.exists());
-    assert!(leftovers(dest.parent().expect("dir")).is_empty());
+    assert_eq!(leftovers(dest.parent().expect("dir")), [] as [String; 0]);
 }
 
 #[test]
@@ -222,7 +222,7 @@ fn concurrent_installs_leave_one_file() {
     });
     assert_eq!(std::fs::read(&dest).expect("read"), body);
     let dir = dest.parent().expect("dir");
-    assert!(leftovers(dir).is_empty());
+    assert_eq!(leftovers(dir), [] as [String; 0]);
     assert_eq!(std::fs::read_dir(dir).expect("dir").count(), 1);
 }
 
@@ -266,7 +266,7 @@ fn old_part_files_are_swept_and_fresh_ones_kept() {
     for path in [&old, &fresh, &other] {
         std::fs::write(path, b"partial").expect("write");
     }
-    let two_hours_ago = std::time::SystemTime::now() - std::time::Duration::from_secs(2 * 3600);
+    let two_hours_ago = std::time::SystemTime::now() - std::time::Duration::from_hours(2);
     for path in [&old, &other] {
         std::fs::File::options()
             .write(true)

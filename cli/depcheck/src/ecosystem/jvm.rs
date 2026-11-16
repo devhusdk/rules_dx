@@ -56,8 +56,8 @@ pub fn parse_jvm_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Depc
             DepInfo {
                 spec: ver,
                 category: category.to_owned(),
-                optional: item.get("optional").map(toml_bool).unwrap_or(false),
-                platform: item.get("platform").map(toml_bool).unwrap_or(false),
+                optional: item.get("optional").is_some_and(toml_bool),
+                platform: item.get("platform").is_some_and(toml_bool),
                 raw: format!("{grp}:{art}"),
                 peer: false,
                 sha256: String::new(),

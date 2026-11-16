@@ -90,6 +90,7 @@ impl Site {
 }
 
 impl Handle {
+    #[must_use]
     pub fn local_addr(&self) -> SocketAddr {
         self.addr
     }

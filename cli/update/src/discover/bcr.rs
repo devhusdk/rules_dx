@@ -196,7 +196,7 @@ mod tests {
                 tags: None,
             }]
         );
-        assert!(found.errors.is_empty());
+        assert_eq!(found.errors, [] as [crate::discover::LookupError; 0]);
     }
 
     #[test]
@@ -257,7 +257,7 @@ mod tests {
             DEFAULT_BASE,
             &|_: &str| Err(DxError::failure("HTTP 404")),
         );
-        assert!(found.candidates.is_empty());
+        assert_eq!(found.candidates, [] as [crate::discover::Candidate; 0]);
         assert_eq!(found.errors[0].package, "rules_x");
         assert_eq!(found.errors[0].reason, "HTTP 404");
     }

@@ -44,6 +44,7 @@ impl CollectorConfig {
         })
     }
 
+    #[must_use]
     pub fn output_group(&self) -> &str {
         &self.output_group
     }
@@ -159,8 +160,10 @@ pub fn stream_started(path: &Path) -> std::io::Result<bool> {
         };
         if event
             .pointer("/id/started")
-            .is_some_and(|id| id.is_object())
-            && event.get("started").is_some_and(|body| body.is_object())
+            .is_some_and(serde_json::Value::is_object)
+            && event
+                .get("started")
+                .is_some_and(serde_json::Value::is_object)
         {
             return Ok(true);
         }
@@ -180,7 +183,7 @@ pub fn stream_build_tool_version(path: &Path) -> std::io::Result<Option<String>>
         };
         if event
             .pointer("/id/started")
-            .is_some_and(|id| id.is_object())
+            .is_some_and(serde_json::Value::is_object)
             && let Some(version) = event
                 .pointer("/started/buildToolVersion")
                 .and_then(serde_json::Value::as_str)
@@ -198,6 +201,7 @@ pub(crate) fn file_uri_to_path(uri: &str) -> Result<PathBuf, BepError> {
     })
 }
 
+#[must_use]
 pub fn is_bytestream_uri(uri: &str) -> bool {
     uri.starts_with("bytestream://")
 }
@@ -212,6 +216,7 @@ fn strip_verbatim_prefix(path: &Path) -> PathBuf {
     }
 }
 
+#[must_use]
 pub fn local_path_for_bep_file(workspace: &Path, path_prefix: &[String], name: &str) -> PathBuf {
     let mut path = strip_verbatim_prefix(workspace);
     for part in path_prefix {
@@ -247,6 +252,7 @@ pub struct OutputLocations {
 
 impl OutputLocations {
     /// Locations for a workspace before any `bazel info` output is applied.
+    #[must_use]
     pub fn new(workspace: &Path) -> Self {
         OutputLocations {
             workspace: workspace.to_path_buf(),
@@ -328,12 +334,11 @@ fn testlogs_label_parts(label: &str) -> Option<(Option<&str>, &str, &str)> {
         let (repo, rest) = rest.split_once("//")?;
         (Some(repo), rest)
     };
-    let (package, target) = match rest.split_once(':') {
-        Some((package, target)) => (package, target),
-        None => {
-            let base = rest.rsplit('/').next().unwrap_or(rest);
-            (rest, base)
-        }
+    let (package, target) = if let Some((package, target)) = rest.split_once(':') {
+        (package, target)
+    } else {
+        let base = rest.rsplit('/').next().unwrap_or(rest);
+        (rest, base)
     };
     if target.is_empty() {
         return None;
@@ -450,12 +455,14 @@ pub(crate) fn testlog_path_under(
     Ok(path)
 }
 
+#[must_use]
 pub fn is_shard_artifact(path: &Path, suffix: &str) -> bool {
     path.as_os_str()
         .as_encoded_bytes()
         .ends_with(suffix.as_bytes())
 }
 
+#[must_use]
 pub fn exec_matches(artifact_path: &Path, exec_path: &str) -> bool {
     if exec_path.is_empty() {
         return false;
@@ -465,6 +472,7 @@ pub fn exec_matches(artifact_path: &Path, exec_path: &str) -> bool {
 }
 
 /// Whether `exec_path` names `artifact` outright or as a whole trailing path suffix.
+#[must_use]
 pub fn suffix_matches(artifact: &str, exec_path: &str) -> bool {
     if artifact == exec_path {
         return true;
@@ -475,6 +483,7 @@ pub fn suffix_matches(artifact: &str, exec_path: &str) -> bool {
 }
 
 /// Paths of the non-shard artifacts, each once, in first-seen order.
+#[must_use]
 pub fn non_shard_artifact_paths(outputs: &[TargetOutput], suffix: &str) -> Vec<String> {
     let mut paths = Vec::new();
     let mut seen = std::collections::BTreeSet::new();

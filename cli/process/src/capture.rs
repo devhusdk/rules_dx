@@ -23,6 +23,7 @@ const GIT_ENV: [&str; 5] = [
 ];
 
 /// A git command in `cwd`, inheriting the environment.
+#[must_use]
 pub fn git(cwd: &Path) -> Command {
     let mut command = Command::new("git");
     command.current_dir(cwd);
@@ -30,6 +31,7 @@ pub fn git(cwd: &Path) -> Command {
 }
 
 /// A git command in `cwd` without the inherited repository selection.
+#[must_use]
 pub fn git_isolated(cwd: &Path) -> Command {
     let mut command = git(cwd);
     for name in GIT_ENV {
@@ -59,14 +61,17 @@ pub struct Captured {
 }
 
 impl Captured {
+    #[must_use]
     pub fn success(&self) -> bool {
         self.code == Some(0)
     }
 
+    #[must_use]
     pub fn stdout_text(&self) -> String {
         String::from_utf8_lossy(&self.stdout).into_owned()
     }
 
+    #[must_use]
     pub fn stderr_text(&self) -> String {
         String::from_utf8_lossy(&self.stderr).trim().to_owned()
     }
@@ -108,6 +113,7 @@ pub enum RunError {
 
 impl RunError {
     /// The captured stderr of a failed run, empty for the other kinds.
+    #[must_use]
     pub fn stderr(&self) -> &str {
         match self {
             RunError::Failed { stderr, .. } => stderr,

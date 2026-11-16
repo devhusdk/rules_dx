@@ -1,4 +1,4 @@
-//! Lists NuGet packages whose newest stable version on nuget.org is newer than the manifest requirement.
+//! Lists `NuGet` packages whose newest stable version on nuget.org is newer than the manifest requirement.
 
 use dx_error::DxError;
 

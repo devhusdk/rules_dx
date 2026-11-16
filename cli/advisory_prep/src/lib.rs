@@ -20,6 +20,7 @@ use dx_audit::advisory_prep::{
 pub const DEFAULT_OUT: &str = ".dx/local/advisory";
 
 /// True when `.dx/pins` under `workspace` pins advisory snapshots.
+#[must_use]
 pub fn advisory_pinned(workspace: &Path) -> bool {
     std::fs::read_to_string(workspace.join(".dx/pins"))
         .is_ok_and(|pins| pins.lines().any(|line| line.starts_with("advisory ")))
@@ -76,15 +77,15 @@ pub struct PrepareOptions {
     pub retrieved_at: String,
     pub limits: FetchLimits,
     pub archives: BTreeMap<String, PathBuf>,
-    /// File holding the cpansa_dump output instead of running the binary.
+    /// File holding the `cpansa_dump` output instead of running the binary.
     pub cpansa_output: Option<PathBuf>,
-    /// The `//perl/private/tools:cpansa_dump` binary that prints the CPANSA::DB database.
+    /// The `//perl/private/tools:cpansa_dump` binary that prints the `CPANSA::DB` database.
     pub cpansa_dump: Option<PathBuf>,
     /// The pinned trivy binary; set, it downloads the trivy databases under `out`.
     pub trivy: Option<PathBuf>,
     /// Base URL of the cargo sparse index the yanked flags are read from.
     pub cargo_index: Option<String>,
-    /// Base URL of the PyPI JSON API the yanked flags are read from.
+    /// Base URL of the `PyPI` JSON API the yanked flags are read from.
     pub pypi_index: Option<String>,
 }
 
@@ -124,6 +125,7 @@ pub struct Summary {
 
 impl Summary {
     /// Builds the summary of the snapshots one run published.
+    #[must_use]
     pub fn of(prepared: &[Prepared]) -> Self {
         let prepared: Vec<&Prepared> = prepared
             .iter()
@@ -141,6 +143,7 @@ impl Summary {
     }
 
     /// Renders the key=value lines a workflow step output takes.
+    #[must_use]
     pub fn render(&self) -> String {
         format!(
             "status={}\necosystems={}\nfamilies={}\n",
@@ -198,7 +201,7 @@ pub fn write_pins(
         lines.push(pin.line());
     }
     if options.trivy.is_some() {
-        let asset = dir.join(date).join(format!("{}.tar.gz", TRIVY_FAMILY));
+        let asset = dir.join(date).join(format!("{TRIVY_FAMILY}.tar.gz"));
         let payload = trivy::pack_cache(&options.out.join(trivy::CACHE_DIR), &asset)?;
         let pin = dx_audit::advisory::AdvisoryPin {
             family: TRIVY_FAMILY.to_owned(),

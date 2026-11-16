@@ -365,7 +365,7 @@ wsdep = "1.0"
     fn the_package_filter_limits_lookups() {
         let found = run(&["old".to_owned()]);
         assert_eq!(found.candidates.len(), 1);
-        assert!(found.errors.is_empty());
+        assert_eq!(found.errors, [] as [crate::discover::LookupError; 0]);
     }
 
     #[test]

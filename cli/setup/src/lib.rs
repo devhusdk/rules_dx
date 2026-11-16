@@ -53,6 +53,7 @@ pub struct GenerationId(String);
 pub struct GenerationIdError(String);
 
 impl GenerationId {
+    #[must_use]
     pub fn from_digest(digest: dx_digest::RawDigest) -> Self {
         GenerationId(dx_digest::to_hex(&digest))
     }
@@ -65,6 +66,7 @@ impl GenerationId {
         }
     }
 
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -172,6 +174,7 @@ pub struct PreparedSides {
     pub empty_generated: GenerationId,
 }
 
+#[must_use]
 pub fn setup_fingerprint(pair: &SetupPair) -> String {
     format!(
         "dx-setup/v0\n{}\n{}\n",
@@ -180,10 +183,12 @@ pub fn setup_fingerprint(pair: &SetupPair) -> String {
     )
 }
 
+#[must_use]
 pub fn setup_digest(pair: &SetupPair) -> [u8; 32] {
     digest(setup_fingerprint(pair).as_bytes())
 }
 
+#[must_use]
 pub fn setup_hex(pair: &SetupPair) -> String {
     dx_digest::to_hex(&setup_digest(pair))
 }

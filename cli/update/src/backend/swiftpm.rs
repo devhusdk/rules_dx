@@ -1,4 +1,7 @@
-use super::*;
+use super::{
+    BackendError, BackendPlan, CheckPlan, Path, ResolvedSet, Run, Selection, UvClosure, bazel,
+    set_dir, strings, swift_argv, swift_identity,
+};
 
 const LOCK: &str = "@rules_dx//swift/private/tools/lock";
 

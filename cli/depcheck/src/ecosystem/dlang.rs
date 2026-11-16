@@ -42,7 +42,7 @@ pub fn parse_d_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Depche
         let version = value
             .as_str()
             .or_else(|| value.get("version").and_then(|v| v.as_str()));
-        let optional = value.get("optional").and_then(|v| v.as_bool()) == Some(true);
+        let optional = value.get("optional").and_then(serde_json::Value::as_bool) == Some(true);
         add_dep(&mut deps, name, version, optional);
     }
     Ok(deps)

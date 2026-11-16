@@ -25,7 +25,7 @@ pub struct RootBuild {
 /// Everything `render` reads.
 pub struct Inputs {
     pub config: Option<DxConfig>,
-    /// Apparent name the workspace gives rules_dx.
+    /// Apparent name the workspace gives `rules_dx`.
     pub repo: String,
     /// Names of the files in the workspace root.
     pub root_files: BTreeSet<String>,
@@ -80,12 +80,14 @@ const GITLEAKS_STRICT: &str = include_str!("../../../core/quality/tiers/gitleaks
 pub const POLICY_LABEL: &str = "//.dx:policy";
 
 /// `.dx/config/<dir>/base.<ext>`, the tier file dx renders for a file tool.
+#[must_use]
 pub fn base_path(config: &ToolConfig) -> Option<String> {
     (config.kind == "file" && config.tier_active && !config.ext.is_empty())
         .then(|| format!(".dx/config/{}/base.{}", tier_dir(config), config.ext))
 }
 
 /// The directory a tool's tier files live in, under `.dx/config` and `core/quality/tiers`.
+#[must_use]
 pub fn tier_dir(config: &ToolConfig) -> &str {
     if config.tier_dir.is_empty() {
         config.id
@@ -430,6 +432,7 @@ fn dx_build(
 
 /// The tools each family selects per capability, read from the `families` of a `.dx/BUILD.bazel`.
 /// Empty when the block is missing or does not parse.
+#[must_use]
 pub fn policy_families(text: &str) -> BTreeMap<String, BTreeMap<String, Vec<String>>> {
     let Some(rest) = text
         .find("families = {")

@@ -109,7 +109,10 @@ mod tests {
     fn reads_every_locked_package() {
         let names: Vec<_> = locked_packages(LOCK).into_iter().map(|(n, _)| n).collect();
         assert_eq!(names, ["jason", "current", "pre"]);
-        assert!(locked_packages("not json").is_empty());
+        assert_eq!(
+            locked_packages("not json"),
+            [] as [(std::string::String, std::string::String); 0]
+        );
     }
 
     #[test]
@@ -125,17 +128,16 @@ mod tests {
             found.candidates[0].published.as_deref(),
             Some("2026-03-01T00:00:00Z")
         );
-        assert!(found.errors.is_empty());
+        assert_eq!(found.errors, [] as [crate::discover::LookupError; 0]);
     }
 
     #[test]
     fn prereleases_need_the_flag() {
         let only = ["pre".to_owned()];
         let text = [LOCK.to_owned()];
-        assert!(
-            outdated("deps", &text, &only, false, DEFAULT_BASE, &api)
-                .candidates
-                .is_empty()
+        assert_eq!(
+            outdated("deps", &text, &only, false, DEFAULT_BASE, &api).candidates,
+            [] as [crate::discover::Candidate; 0]
         );
         let found = outdated("deps", &text, &only, true, DEFAULT_BASE, &api);
         assert_eq!(found.candidates[0].latest, "2.0.0-rc.1");

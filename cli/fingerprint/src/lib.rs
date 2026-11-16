@@ -20,6 +20,7 @@ pub fn to_json<T: serde::Serialize>(view: &T) -> Result<String, FingerprintError
     serde_json::to_string(view).map_err(FingerprintError::from)
 }
 
+#[must_use]
 pub fn ensure_ascii(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     for c in text.chars() {

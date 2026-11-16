@@ -45,6 +45,7 @@ pub struct HeldSelection {
 
 impl HeldSelection {
     /// The selection the leases protect.
+    #[must_use]
     pub fn pair(&self) -> &SetupPair {
         &self.pair
     }

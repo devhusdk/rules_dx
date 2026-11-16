@@ -14,9 +14,7 @@ pub(crate) fn strip_go_v(text: &str) -> String {
                         ' ' | '\t' | ',' | '<' | '>' | '=' | '~' | '^' | '!' | '('
                     )
                 });
-            let next_ok = chars
-                .get(index + 1)
-                .is_some_and(|next| next.is_ascii_digit());
+            let next_ok = chars.get(index + 1).is_some_and(char::is_ascii_digit);
             if prev_ok && next_ok {
                 continue;
             }
@@ -27,6 +25,7 @@ pub(crate) fn strip_go_v(text: &str) -> String {
 }
 
 #[cfg(test)]
+#[must_use]
 pub fn go_in_scope(scope: &str, version: &str) -> bool {
     go_assess(scope, version) == VersionScope::Affected
 }

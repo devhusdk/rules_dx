@@ -14,6 +14,7 @@ pub const COMMIT_LOCK_FILE_NAME: &str = dx_path::state::COMMIT_LOCK;
 pub const COMMIT_HOLDER_FILE_NAME: &str = dx_path::state::COMMIT_LOCK_HOLDER;
 
 /// Text for a busy workspace; names the holder when known.
+#[must_use]
 pub fn busy_message(path: &Path, holder: Option<&str>) -> String {
     format!(
         "workspace busy: {} holds {}; wait for it to finish, then retry",
@@ -54,16 +55,19 @@ pub struct ManagedRoot {
 
 impl ManagedRoot {
     /// Names a managed root; use [`ManagedRoot::ensure_dir`] before locking.
+    #[must_use]
     pub fn new(dir: PathBuf) -> Self {
         ManagedRoot { dir }
     }
 
     /// The root directory itself.
+    #[must_use]
     pub fn dir(&self) -> &Path {
         &self.dir
     }
 
     /// The lock file serializing this root.
+    #[must_use]
     pub fn lock_path(&self) -> PathBuf {
         self.dir.join(COMMIT_LOCK_FILE_NAME)
     }
@@ -84,6 +88,7 @@ pub struct CommitLock {
 
 impl CommitLock {
     /// Hands the locked file to a caller that keeps the raw handle.
+    #[must_use]
     pub fn into_file(self) -> File {
         self.file
     }
@@ -252,7 +257,7 @@ mod tests {
         match &error {
             LockError::LockFailed { path, reason } => {
                 assert_eq!(path, &root.lock_path());
-                assert!(!reason.is_empty());
+                assert_ne!(reason, "");
             }
             LockError::Busy { .. } => panic!("a directory lock file is not busy: {error:?}"), // LCOV_EXCL_LINE - reason: test failure arm, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         }
@@ -318,7 +323,7 @@ mod tests {
         // LCOV_EXCL_START - reason: hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         probe
             .map_err(|_| {
-                eprintln!("host refuses links; link cases are covered on hosts that allow them")
+                eprintln!("host refuses links; link cases are covered on hosts that allow them");
             })
             .is_ok()
         // LCOV_EXCL_STOP - reason: end hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
@@ -537,12 +542,12 @@ mod tests {
             },
         ];
         for error in &errors {
-            assert!(!format!("{error}").is_empty());
+            assert_ne!(format!("{error}"), "");
         }
         let busy = LockError::Busy {
             path: PathBuf::from("/ws/.dx/local/.commit.lock"),
             holder: None,
         };
-        assert!(!format!("{busy}").is_empty());
+        assert_ne!(format!("{busy}"), "");
     }
 }

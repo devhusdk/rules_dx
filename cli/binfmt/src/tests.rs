@@ -235,7 +235,7 @@ fn elf_names_musl_and_static_images() {
     let fixed = inspect(&elf(elf::EM_X86_64, None, &[])).unwrap();
     assert_eq!(fixed[0].abi, Abi::Static);
     assert_eq!(fixed[0].abi.name(), "static");
-    assert!(fixed[0].needed.is_empty());
+    assert_eq!(fixed[0].needed, [] as [String; 0]);
 }
 
 #[test]
@@ -257,7 +257,7 @@ fn pe_reads_machine_subsystem_and_imports() {
     let gui = inspect(&pe(pe::IMAGE_FILE_MACHINE_ARM64, 2, None)).unwrap();
     assert_eq!(gui[0].machine, "aarch64");
     assert_eq!(gui[0].abi.name(), "msvc windows");
-    assert!(gui[0].needed.is_empty());
+    assert_eq!(gui[0].needed, [] as [String; 0]);
     let odd = inspect(&pe(pe::IMAGE_FILE_MACHINE_AMD64, 10, None)).unwrap();
     assert_eq!(odd[0].abi.name(), "msvc subsystem-10");
 }
@@ -333,7 +333,7 @@ fn wasm_reads_the_module_header() {
     assert_eq!(images[0].format.name(), "wasm");
     assert_eq!(images[0].machine, "wasm32");
     assert_eq!(images[0].abi, Abi::Static);
-    assert!(images[0].needed.is_empty());
+    assert_eq!(images[0].needed, [] as [String; 0]);
     assert_eq!(machine(module).as_deref(), Some("wasm32"));
     assert_eq!(machine(&module[..4]), None);
 }
@@ -595,10 +595,10 @@ fn producers_split_the_elf_comment_section() {
 
 #[test]
 fn producers_are_empty_without_a_comment_or_for_other_formats() {
-    assert!(producers(&elf_comment(None)).is_empty());
-    assert!(producers(&pe(0x8664, 3, None)).is_empty());
-    assert!(producers(&pe_with_rich(&[])).is_empty());
-    assert!(producers(b"not a binary").is_empty());
+    assert_eq!(producers(&elf_comment(None)), [] as [String; 0]);
+    assert_eq!(producers(&pe(0x8664, 3, None)), [] as [String; 0]);
+    assert_eq!(producers(&pe_with_rich(&[])), [] as [String; 0]);
+    assert_eq!(producers(b"not a binary"), [] as [String; 0]);
 }
 
 fn pe_with_rich(entries: &[(u16, u16, u32)]) -> Vec<u8> {
@@ -645,7 +645,7 @@ fn inspect_accepts_32_bit_headers() {
     put(&mut elf32, 20, &1u32.to_le_bytes());
     put(&mut elf32, 40, &52u16.to_le_bytes());
     assert_eq!(inspect(&elf32).unwrap()[0].machine, "x86");
-    assert!(producers(&elf32).is_empty());
+    assert_eq!(producers(&elf32), [] as [String; 0]);
 
     let mut thin = macho(
         macho::CPU_TYPE_ARM64,
@@ -726,7 +726,7 @@ fn elf32_with_bad_program_headers_is_rejected() {
 fn elf_dynamic_segment_without_needed_entries_names_none() {
     let mut image = elf_with(elf::EM_X86_64, None, &["libc.so.6"], false);
     put(&mut image, 528, &u64::from(elf::DT_SONAME).to_le_bytes());
-    assert!(inspect(&image).unwrap()[0].needed.is_empty());
+    assert_eq!(inspect(&image).unwrap()[0].needed, [] as [String; 0]);
 }
 
 #[test]
@@ -749,5 +749,5 @@ fn macho_ignores_load_commands_it_does_not_read() {
 fn producers_are_empty_for_a_pe_without_a_dans_marker() {
     let mut image = pe_with_rich(&[(1, 2, 3)]);
     put(&mut image, 0x40, &0u32.to_le_bytes());
-    assert!(producers(&image).is_empty());
+    assert_eq!(producers(&image), [] as [String; 0]);
 }

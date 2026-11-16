@@ -40,7 +40,7 @@ struct Cli {
     /// Workspace the inner Bazel commands run in.
     #[arg(long)]
     workspace: Option<PathBuf>,
-    /// Environment file receiving VAR=path instead of GITHUB_ENV.
+    /// Environment file receiving VAR=path instead of `GITHUB_ENV`.
     #[arg(long)]
     env_file: Option<PathBuf>,
     /// Write VAR=path to standard output instead of a file.

@@ -76,7 +76,7 @@ fn parses_library_archives_and_stubs() {
                 ]
             );
         }
-        other @ Step::Bootstrap { .. } | other @ Step::Build { .. } => panic!("{other:?}"),
+        other @ (Step::Bootstrap { .. } | Step::Build { .. }) => panic!("{other:?}"),
     }
 }
 
@@ -124,7 +124,7 @@ fn copy_tree_follows_links_and_writes_over_read_only_files() {
     assert_eq!(fs::read_to_string(dst.join("d/f")).unwrap(), "x");
     #[cfg(unix)]
     assert!(fs::symlink_metadata(dst.join("link")).unwrap().is_file());
-    fs::remove_dir_all(&base).unwrap();
+    fs::remove_dir_all(base).unwrap();
 }
 
 #[test]

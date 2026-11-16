@@ -11,7 +11,7 @@ use serde::Deserialize;
 use crate::advisory::{AdvisoryPin, CODE_ADVISORY_REFRESH_FAILED, PIN_MAX_AGE_DAYS, TRIVY_FAMILY};
 use crate::exception::RiskException;
 
-const FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(900);
+const FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_mins(15);
 const LOCK_NAME: &str = "trivy.lock";
 
 pub const SEVERITIES: [&str; 4] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
@@ -130,6 +130,7 @@ pub fn parse_report(json: &str) -> Result<Vec<ImageFinding>, DxError> {
 /// Whether `exception` covers `found` in the image built by `label`: set `oci`
 /// covers every image, a label pattern covers the images it matches. The
 /// advisory and package must match, and `versions` is `*` or the installed one.
+#[must_use]
 pub fn covers(exception: &RiskException, label: Option<&str>, found: &ImageFinding) -> bool {
     let set_matches = exception.set == IMAGE_SET
         || label.is_some_and(|label| dx_config::conventions::pattern_covers(&exception.set, label));
@@ -214,24 +215,22 @@ fn install_trivy_pin(
     partial: &Path,
     cache: &Path,
 ) -> Result<(), DxError> {
-    let bytes = match local {
-        Some(path) => std::fs::read(path)
-            .map_err(|error| DxError::infra(format!("{}: {error}", path.display())))?,
-        None => {
-            let plan = crate::advisory_prep::fetch_many_plan(
-                &[(pin.url.clone(), archive.to_path_buf())],
-                crate::advisory_prep::DEFAULT_LIMITS,
-                1,
-            )
-            .map_err(|error| DxError::infra(error.to_string()))?;
-            dx_process::capture::run_checked(
-                Command::new(&plan.program).args(&plan.argv),
-                FETCH_TIMEOUT,
-            )
-            .map_err(|error| DxError::infra(format!("{}: {error}", pin.url)))?;
-            std::fs::read(archive)
-                .map_err(|error| DxError::infra(format!("{}: {error}", pin.url)))?
-        }
+    let bytes = if let Some(path) = local {
+        std::fs::read(path)
+            .map_err(|error| DxError::infra(format!("{}: {error}", path.display())))?
+    } else {
+        let plan = crate::advisory_prep::fetch_many_plan(
+            &[(pin.url.clone(), archive.to_path_buf())],
+            crate::advisory_prep::DEFAULT_LIMITS,
+            1,
+        )
+        .map_err(|error| DxError::infra(error.to_string()))?;
+        dx_process::capture::run_checked(
+            Command::new(&plan.program).args(&plan.argv),
+            FETCH_TIMEOUT,
+        )
+        .map_err(|error| DxError::infra(format!("{}: {error}", pin.url)))?;
+        std::fs::read(archive).map_err(|error| DxError::infra(format!("{}: {error}", pin.url)))?
     };
     let actual = dx_digest::sha256_hex(&bytes);
     if actual != pin.sha256 {

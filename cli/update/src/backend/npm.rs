@@ -1,4 +1,7 @@
-use super::*;
+use super::{
+    BackendError, BackendPlan, CheckPlan, Path, ResolvedSet, Selection, UvClosure,
+    configured_node_argv, configured_pnpm_argv, dependency_sets, npm_env, strings,
+};
 
 pub(super) fn plan(
     workspace: &Path,

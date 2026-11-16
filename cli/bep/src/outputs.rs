@@ -340,7 +340,7 @@ fn mentions_group(completed: &serde_json::Map<String, Value>, group: &str) -> bo
     completed
         .get("outputGroup")
         .and_then(Value::as_array)
-        .map(|groups| {
+        .is_some_and(|groups| {
             groups.iter().any(|g| {
                 g.as_object()
                     .and_then(|g| g.get("name"))
@@ -348,7 +348,6 @@ fn mentions_group(completed: &serde_json::Map<String, Value>, group: &str) -> bo
                     == Some(group)
             })
         })
-        .unwrap_or(false)
 }
 
 #[cfg(test)]
@@ -607,7 +606,7 @@ mod tests {
             .expect("collect")
             .targets;
         assert_eq!(got.len(), 1);
-        assert!(got[0].artifacts.is_empty());
+        assert_eq!(got[0].artifacts, [] as [CollectedArtifact; 0]);
     }
 
     fn modern_set(id: &str, body: &str) -> String {
@@ -668,7 +667,7 @@ mod tests {
     fn missing_child_set_fails() {
         let parent = r#"{"files": [], "fileSets": [{"id": "9"}]}"#;
         let stream = [
-            modern_set("1", &parent),
+            modern_set("1", parent),
             completed("//q:a", true, &group_ref("dx_results", &["1"])),
         ]
         .join("\n");
@@ -689,7 +688,7 @@ mod tests {
     #[test]
     fn child_set_without_id_fails() {
         let parent = r#"{"files": [], "fileSets": [{}]}"#;
-        let stream = modern_set("1", &parent);
+        let stream = modern_set("1", parent);
         let artifacts = FakeArtifacts {
             files: HashMap::new(),
         };
@@ -701,7 +700,7 @@ mod tests {
     #[test]
     fn non_array_file_sets_fails() {
         let parent = r#"{"files": [], "fileSets": {}}"#;
-        let stream = modern_set("1", &parent);
+        let stream = modern_set("1", parent);
         let artifacts = FakeArtifacts {
             files: HashMap::new(),
         };
@@ -788,7 +787,7 @@ mod tests {
         assert_eq!(got.len(), 2);
         for output in &got {
             assert!(!output.success);
-            assert!(output.artifacts.is_empty());
+            assert_eq!(output.artifacts, [] as [CollectedArtifact; 0]);
         }
     }
 
@@ -832,7 +831,7 @@ mod tests {
         let got = collect_account(Cursor::new(stream), &config(), &artifacts, None)
             .expect("collect")
             .targets;
-        assert!(got.is_empty());
+        assert_eq!(got, [] as [TargetOutput; 0]);
     }
 
     #[test]
@@ -846,7 +845,7 @@ mod tests {
             .targets;
         assert_eq!(got.len(), 1);
         assert!(!got[0].success);
-        assert!(got[0].artifacts.is_empty());
+        assert_eq!(got[0].artifacts, [] as [CollectedArtifact; 0]);
     }
 
     #[test]
@@ -860,7 +859,7 @@ mod tests {
             .targets;
         assert_eq!(got.len(), 1);
         assert!(got[0].success);
-        assert!(got[0].artifacts.is_empty());
+        assert_eq!(got[0].artifacts, [] as [CollectedArtifact; 0]);
     }
 
     #[test]
@@ -951,7 +950,7 @@ mod tests {
             .targets;
         assert_eq!(got.len(), 1);
         assert!(!got[0].success);
-        assert!(got[0].artifacts.is_empty());
+        assert_eq!(got[0].artifacts, [] as [CollectedArtifact; 0]);
     }
 
     #[test]
@@ -963,7 +962,7 @@ mod tests {
         let got = collect_account(Cursor::new(stream), &config(), &artifacts, None)
             .expect("collect")
             .targets;
-        assert!(got.is_empty());
+        assert_eq!(got, [] as [TargetOutput; 0]);
     }
 
     #[test]
@@ -973,7 +972,7 @@ mod tests {
         };
         let account = collect_account(Cursor::new("not json\n"), &config(), &artifacts, None)
             .expect("cut-off tail");
-        assert!(account.targets.is_empty());
+        assert_eq!(account.targets, [] as [TargetOutput; 0]);
         assert!(
             account
                 .problem

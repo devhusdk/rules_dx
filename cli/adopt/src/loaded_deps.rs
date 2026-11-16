@@ -1,5 +1,5 @@
 //! Plans a `bazel_dep` for each rule set the workspace's BUILD files load from that the root
-//! module does not declare, at the version rules_dx itself depends on, and the TypeScript
+//! module does not declare, at the version `rules_dx` itself depends on, and the TypeScript
 //! compiler repository `ts_project` reads when TypeScript rules are loaded.
 
 use std::collections::BTreeSet;
@@ -66,7 +66,9 @@ pub fn plan_loaded_deps(root: &Path) -> Result<LockHubs, AdoptError> {
     if loads_ts && !is_rules_dx_root(root) && !imports_ts_compiler(root, &text)? {
         if !declared.contains(TS_MODULE) && !loaded.contains(TS_MODULE) {
             new = ModuleFile::parse(&new)
-                .and_then(|file| file.insert_bazel_dep(TS_MODULE, dx_versions::ASPECT_RULES_TS_VERSION))
+                .and_then(|file| {
+                    file.insert_bazel_dep(TS_MODULE, dx_versions::ASPECT_RULES_TS_VERSION)
+                })
                 .map_err(refuse)?;
             notes.push(format!(
                 "BUILD files load TypeScript rules; {MODULE_FILE} needs bazel_dep {TS_MODULE} {}",

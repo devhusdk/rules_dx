@@ -9,6 +9,7 @@ pub struct LicensedPackage {
     pub license: String,
 }
 
+#[must_use]
 pub fn cargo_licenses(cargo_bazel_text: &str, packages: &[LockedPackage]) -> Vec<LicensedPackage> {
     let value: serde_json::Value = match serde_json::from_str(cargo_bazel_text) {
         Ok(value) => value,
@@ -63,12 +64,14 @@ pub fn cargo_licenses(cargo_bazel_text: &str, packages: &[LockedPackage]) -> Vec
 }
 
 /// Returns the `package.license` a manifest declares, if any.
+#[must_use]
 pub fn cargo_manifest_license(cargo_toml: &str) -> Option<String> {
     let table: toml::Table = toml::from_str(cargo_toml).ok()?;
     let license = table.get("package")?.get("license")?.as_str()?.trim();
     (!license.is_empty()).then(|| license.to_owned())
 }
 
+#[must_use]
 pub fn unknown_licenses(packages: &[LockedPackage], set: &str) -> Vec<LicensedPackage> {
     packages
         .iter()
@@ -82,6 +85,7 @@ pub fn unknown_licenses(packages: &[LockedPackage], set: &str) -> Vec<LicensedPa
         .collect()
 }
 
+#[must_use]
 pub fn npm_licenses(package_lock_text: &str, packages: &[LockedPackage]) -> Vec<LicensedPackage> {
     let mut by_name_version = std::collections::BTreeMap::new();
     if let Ok(value) = serde_json::from_str::<serde_json::Value>(package_lock_text)
@@ -134,6 +138,7 @@ pub fn npm_licenses(package_lock_text: &str, packages: &[LockedPackage]) -> Vec<
         .collect()
 }
 
+#[must_use]
 pub fn inventory_licenses(
     packages: &[LockedPackage],
     inventory: &[crate::license_policy::LicenseInventory],
@@ -165,6 +170,7 @@ pub fn inventory_licenses(
         .collect()
 }
 
+#[must_use]
 pub fn inventory_text_present(
     package: &LockedPackage,
     inventory: &[crate::license_policy::LicenseInventory],

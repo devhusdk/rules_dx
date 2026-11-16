@@ -98,6 +98,7 @@ pub fn parse_name_status_nul(output: &[u8]) -> Result<Vec<GitChange>, DxError> {
 /// True when `path` (relative to a root) is dx's machine-local state, `.dx/local`.
 ///
 /// Only the top level of the root counts; a nested `.dx` is an ordinary file.
+#[must_use]
 pub fn is_dx_state(path: &str) -> bool {
     let dir = dx_path::state::LOCAL_DIR;
     path == dir
@@ -107,6 +108,7 @@ pub fn is_dx_state(path: &str) -> bool {
 }
 
 /// True when git ignores the generated `.dx` files, so they would not be committed.
+#[must_use]
 pub fn dx_config_git_ignored(root: &Path) -> bool {
     dx_process::capture::run_captured(
         dx_process::capture::git(root).args(["check-ignore", "-q", ".dx/BUILD.bazel"]),
@@ -116,6 +118,7 @@ pub fn dx_config_git_ignored(root: &Path) -> bool {
 }
 
 /// Sorts changes by path and drops duplicate paths, keeping rename sources.
+#[must_use]
 pub fn dedupe_changes(changes: Vec<GitChange>) -> Vec<GitChange> {
     let mut sorted = changes;
     sorted.sort_by(|left, right| {
@@ -141,6 +144,7 @@ fn is_package_dir(workspace: &Path, dir: &str) -> bool {
 }
 
 /// Maps a missing path to the nearest enclosing Bazel package pattern for fallback.
+#[must_use]
 pub fn nearest_package_pattern(workspace: &Path, rel: &str) -> String {
     let mut dir = match rel.rsplit_once('/') {
         Some((parent, _)) => parent,
@@ -196,7 +200,10 @@ mod tests {
         assert_eq!(changes[3].path, "pkg/now.py");
         assert_eq!(changes[3].from.as_deref(), Some("pkg/was.py"));
         assert_eq!(changes[3].kind, super::ChangeKind::Renamed);
-        assert!(super::parse_name_status_nul(b"").expect("empty").is_empty());
+        assert_eq!(
+            super::parse_name_status_nul(b"").expect("empty"),
+            [] as [crate::git_changes::GitChange; 0]
+        );
     }
 
     #[test]

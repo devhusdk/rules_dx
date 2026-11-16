@@ -16,6 +16,7 @@ pub struct NeededLicense {
 }
 
 /// Every id a `lang.json` lists.
+#[must_use]
 pub fn known_license_ids() -> BTreeSet<String> {
     dx_families::licenses()
         .iter()
@@ -24,11 +25,13 @@ pub fn known_license_ids() -> BTreeSet<String> {
 }
 
 /// The `<os>_<arch>` name of the running host, like `linux_x86_64`.
+#[must_use]
 pub fn host_platform() -> Option<&'static str> {
     crate::status::host_name(std::env::consts::OS, std::env::consts::ARCH)
 }
 
 /// The ids that the languages found under `root` need on `platform`.
+#[must_use]
 pub fn needed_licenses(root: &Path, platform: &str) -> BTreeSet<NeededLicense> {
     let marks = crate::families::file_extensions(root);
     dx_families::licenses()
@@ -139,13 +142,12 @@ pub fn render_license_accept(module: &str, ids: &BTreeSet<String>) -> String {
         .collect::<Vec<_>>()
         .join("\n");
     let mut lines = String::new();
-    let name = match extension_names(&text).into_iter().next() {
-        Some(name) => name,
-        None => {
-            lines.push_str(LICENSE_EXTENSION_LINE);
-            lines.push('\n');
-            "dx_licenses".to_owned()
-        }
+    let name = if let Some(name) = extension_names(&text).into_iter().next() {
+        name
+    } else {
+        lines.push_str(LICENSE_EXTENSION_LINE);
+        lines.push('\n');
+        "dx_licenses".to_owned()
     };
     let list: Vec<String> = ids.iter().map(|id| format!("\"{id}\"")).collect();
     lines.push_str(&format!("{name}.accept(ids = [{}])\n", list.join(", ")));

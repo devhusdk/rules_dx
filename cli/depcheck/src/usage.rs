@@ -53,6 +53,7 @@ fn collect_sources(root: &Path, nested: Option<&str>) -> Vec<PathBuf> {
     out
 }
 
+#[must_use]
 pub fn is_test_file(eco: Language, path: &Path) -> bool {
     let s = format!("/{}", dx_path::posix(path).trim_start_matches('/'));
     let name = path
@@ -510,7 +511,7 @@ fn dep_patterns(eco: Language, dep: &str) -> Result<DepPatterns, DepcheckError> 
             )]
         }
         Language::Haskell => {
-            let head = r#"(?m)^\s*import\s+(?:safe\s+)?(?:qualified\s+)?"#;
+            let head = r"(?m)^\s*import\s+(?:safe\s+)?(?:qualified\s+)?";
             let package = format!(r#"(?:"{}"\s+(?:qualified\s+)?)?"#, regex_escape(dep));
             crate::ecosystem::haskell::module_prefixes(dep)
                 .iter()

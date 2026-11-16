@@ -83,15 +83,15 @@ fn check_exec_path(producer: &str, path: &str) -> Result<(), Error> {
             path,
             reason,
         },
-        other @ Error::Decode(_)
-        | other @ Error::EmptyProducer
-        | other @ Error::BadProducer { .. }
-        | other @ Error::EmptyLanguage { .. }
-        | other @ Error::EmptyEntries { .. }
-        | other @ Error::BadExecPath { .. }
-        | other @ Error::BadReplaces { .. }
-        | other @ Error::DuplicateLogicalPath { .. }
-        | other @ Error::NotReadOnly { .. } => other,
+        other @ (Error::Decode(_)
+        | Error::EmptyProducer
+        | Error::BadProducer { .. }
+        | Error::EmptyLanguage { .. }
+        | Error::EmptyEntries { .. }
+        | Error::BadExecPath { .. }
+        | Error::BadReplaces { .. }
+        | Error::DuplicateLogicalPath { .. }
+        | Error::NotReadOnly { .. }) => other,
     })
 }
 
@@ -107,15 +107,15 @@ fn check_replaces(
     if let Err(error) = check_path(producer, replaces) {
         let (path, reason) = match error {
             Error::BadPath { path, reason, .. } => (path, reason),
-            other @ Error::Decode(_)
-            | other @ Error::EmptyProducer
-            | other @ Error::BadProducer { .. }
-            | other @ Error::EmptyLanguage { .. }
-            | other @ Error::EmptyEntries { .. }
-            | other @ Error::BadExecPath { .. }
-            | other @ Error::BadReplaces { .. }
-            | other @ Error::DuplicateLogicalPath { .. }
-            | other @ Error::NotReadOnly { .. } => return Err(other),
+            other @ (Error::Decode(_)
+            | Error::EmptyProducer
+            | Error::BadProducer { .. }
+            | Error::EmptyLanguage { .. }
+            | Error::EmptyEntries { .. }
+            | Error::BadExecPath { .. }
+            | Error::BadReplaces { .. }
+            | Error::DuplicateLogicalPath { .. }
+            | Error::NotReadOnly { .. }) => return Err(other),
         };
         return Err(Error::BadReplaces {
             producer: producer.to_owned(),
@@ -198,6 +198,7 @@ pub fn decode_validated(bytes: &[u8]) -> Result<DxCodegenShard, Error> {
 
 pub const ENTRY_SHAPE: &str = "LOGICAL_PATH|IMPORT_ROOT|NAMESPACE[|EXEC_PATH[|REPLACES]]";
 
+#[must_use]
 pub fn parse_entry(raw: &str) -> Option<DxCodegenEntry> {
     let parts: Vec<&str> = raw.split('|').collect();
     let (logical_path, import_root, namespace, exec_path, replaces) = match parts.as_slice() {
@@ -224,6 +225,7 @@ pub fn parse_entry(raw: &str) -> Option<DxCodegenEntry> {
     })
 }
 
+#[must_use]
 pub fn shard(producer: String, language: String, entries: Vec<DxCodegenEntry>) -> DxCodegenShard {
     DxCodegenShard {
         producer,
@@ -558,6 +560,9 @@ mod tests {
         let built = shard("//gen:alpha".into(), "rust".into(), Vec::new());
         assert_eq!(built.producer, "//gen:alpha");
         assert_eq!(built.language, "rust");
-        assert!(built.entries.is_empty());
+        assert_eq!(
+            built.entries,
+            [] as [codegen_proto::rules_dx::codegen::DxCodegenEntry; 0]
+        );
     }
 }

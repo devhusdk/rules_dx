@@ -61,16 +61,16 @@ pub struct CommandBazel {
     pub dir: PathBuf,
 }
 
-const BAZEL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(1800);
+const BAZEL_TIMEOUT: std::time::Duration = std::time::Duration::from_mins(30);
 
 fn run_detail(bin: &Path, error: &dx_process::capture::RunError) -> String {
     match error {
         dx_process::capture::RunError::Spawn { source, .. } => {
             format!("could not run {}: {source}", bin.display())
         }
-        other @ dx_process::capture::RunError::TimedOut { .. }
-        | other @ dx_process::capture::RunError::OutputTooLarge { .. }
-        | other @ dx_process::capture::RunError::Failed { .. } => other.to_string(),
+        other @ (dx_process::capture::RunError::TimedOut { .. }
+        | dx_process::capture::RunError::OutputTooLarge { .. }
+        | dx_process::capture::RunError::Failed { .. }) => other.to_string(),
     }
 }
 
@@ -172,6 +172,7 @@ pub fn first_line(stderr: &[u8]) -> Option<String> {
 }
 
 /// Renders one inner Bazel failure as `exit <code>[: <first stderr line>]`.
+#[must_use]
 pub fn exit_detail(code: Option<i32>, stderr: &[u8]) -> String {
     let code = code.unwrap_or(-1);
     match first_line(stderr) {
@@ -181,6 +182,7 @@ pub fn exit_detail(code: Option<i32>, stderr: &[u8]) -> String {
 }
 
 /// Returns whether `name` is a plain environment variable name.
+#[must_use]
 pub fn is_var_name(name: &str) -> bool {
     let mut chars = name.chars();
     match chars.next() {
@@ -224,6 +226,7 @@ pub fn select_artifact(cquery_stdout: &str, label: &str) -> Result<String, Resol
 }
 
 /// Joins one root directory with one cquery artifact path.
+#[must_use]
 pub fn join_under(root: &str, rel: &str) -> PathBuf {
     rel.split('/')
         .fold(PathBuf::from(root), |path, part| path.join(part))

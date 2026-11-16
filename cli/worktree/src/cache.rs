@@ -92,7 +92,7 @@ mod tests {
         std::fs::write(dx.join("a").join(TAG_NAME), "Signature: nope").unwrap();
         std::fs::create_dir_all(dx.join("b")).unwrap();
         std::fs::write(dx.join("b").join(TAG_NAME), "Sig").unwrap();
-        assert!(slot_caches(temp.path()).is_empty());
+        assert_eq!(slot_caches(temp.path()), [] as [std::path::PathBuf; 0]);
     }
 
     #[test]
@@ -102,7 +102,7 @@ mod tests {
         for name in state::LOCAL_ENTRIES {
             tag(&state::local_dir(temp.path()).join(name));
         }
-        assert!(slot_caches(temp.path()).is_empty());
+        assert_eq!(slot_caches(temp.path()), [] as [std::path::PathBuf; 0]);
     }
 
     #[test]
@@ -121,7 +121,7 @@ mod tests {
     fn does_not_descend_below_children() {
         let temp = tempfile::tempdir().unwrap();
         tag(&temp.path().join(".dx").join("a").join("b"));
-        assert!(slot_caches(temp.path()).is_empty());
+        assert_eq!(slot_caches(temp.path()), [] as [std::path::PathBuf; 0]);
     }
 
     #[cfg(unix)]
@@ -133,12 +133,15 @@ mod tests {
         let dx = temp.path().join("slot").join(".dx");
         std::fs::create_dir_all(&dx).unwrap();
         std::os::unix::fs::symlink(&real, dx.join("link")).unwrap();
-        assert!(slot_caches(&temp.path().join("slot")).is_empty());
+        assert_eq!(
+            slot_caches(&temp.path().join("slot")),
+            [] as [std::path::PathBuf; 0]
+        );
 
         let other = temp.path().join("other");
         std::fs::create_dir_all(&other).unwrap();
         std::os::unix::fs::symlink(real.parent().unwrap(), other.join(".dx")).unwrap();
         tag(&real.join("c"));
-        assert!(slot_caches(&other).is_empty());
+        assert_eq!(slot_caches(&other), [] as [std::path::PathBuf; 0]);
     }
 }

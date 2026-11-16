@@ -163,13 +163,16 @@ version = "0.1.0"
             .map(|c| (c.package.as_str(), c.current.as_str(), c.latest.as_str()))
             .collect();
         assert_eq!(listed, [("OrderedCollections", "1.6.0", "1.8.1")]);
-        assert!(found.errors.is_empty());
+        assert_eq!(found.errors, [] as [crate::discover::LookupError; 0]);
     }
 
     #[test]
     fn prereleases_need_the_flag() {
         let only = ["Preferences".to_owned()];
-        assert!(run(&only, false).candidates.is_empty());
+        assert_eq!(
+            run(&only, false).candidates,
+            [] as [crate::discover::Candidate; 0]
+        );
         let found = run(&only, true);
         assert_eq!(found.candidates[0].latest, "1.6.0-DEV");
         assert!(found.candidates[0].prerelease);
@@ -186,7 +189,7 @@ version = "0.1.0"
             DEFAULT_BASE,
             &|_: &str| Err(DxError::failure("offline")),
         );
-        assert!(found.candidates.is_empty());
+        assert_eq!(found.candidates, [] as [crate::discover::Candidate; 0]);
         assert_eq!(found.errors[0].package, "JSON");
     }
 }

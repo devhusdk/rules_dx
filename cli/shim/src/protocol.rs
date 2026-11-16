@@ -36,10 +36,12 @@ impl std::fmt::Display for ShimError {
 }
 
 impl std::error::Error for ShimError {}
+#[must_use]
 pub fn version_is_valid(version: &str) -> bool {
     !version.is_empty() && semver::Version::parse(version).is_ok()
 }
 /// The sha256 on the `<version> <sha256> <asset>` line of a `.dx/pins` file.
+#[must_use]
 pub fn pinned_hash(text: &str, version: &str, asset: &str) -> Option<String> {
     text.lines().find_map(|line| {
         let fields: Vec<&str> = line.trim_end_matches('\r').split_whitespace().collect();
@@ -53,6 +55,7 @@ pub fn pinned_hash(text: &str, version: &str, asset: &str) -> Option<String> {
 
 /// The version of the single root `bazel_dep(name = "rules_dx", ...)` line, by the
 /// same rules as the `tools/dx` launchers. `None` sends the call through Bazel.
+#[must_use]
 pub fn module_version(text: &str) -> Option<String> {
     let names_rules_dx = text.lines().any(|line| {
         line.split_once("module_name")
@@ -142,6 +145,7 @@ pub fn resolve_version(env_get: EnvGet, cwd: &Path) -> Result<Route, ShimError> 
     Ok(Route::Module { version, pins })
 }
 
+#[must_use]
 pub fn find_module_file(cwd: &Path) -> Option<PathBuf> {
     cwd.ancestors()
         .map(|dir| dir.join("MODULE.bazel"))
@@ -154,6 +158,7 @@ pub struct Platform {
 }
 
 pub const SUPPORTED: &str = "linux x86_64/arm64, macos arm64, windows x86_64/arm64";
+#[must_use]
 pub fn platform(os: &str, arch: &str) -> Option<Platform> {
     let os = match os {
         "linux" => "linux",
@@ -172,12 +177,13 @@ pub fn platform(os: &str, arch: &str) -> Option<Platform> {
     Some(Platform { os, arch })
 }
 
+#[must_use]
 pub fn unsupported_platform(version: &str, os: &str, arch: &str) -> ShimError {
     ShimError::failure(format!(
         "no dx {version} binary for {os} {arch}; supported: {SUPPORTED}; use bazel run @rules_dx//:dx -- ..."
     ))
 }
-/// An x86_64 process on an Apple silicon Mac (Rosetta) runs on arm64 hardware.
+/// An `x86_64` process on an Apple silicon Mac (Rosetta) runs on arm64 hardware.
 pub fn effective_arch(
     os: &'static str,
     arch: &'static str,
@@ -204,13 +210,16 @@ fn read_sysctl(key: &str) -> Option<String> {
     String::from_utf8(output.stdout).ok()
 }
 
+#[must_use]
 pub fn host_platform() -> (&'static str, &'static str) {
     let (os, arch) = (std::env::consts::OS, std::env::consts::ARCH);
     (os, effective_arch(os, arch, &read_sysctl))
 }
+#[must_use]
 pub fn asset_name(platform: Platform) -> String {
     format!("dx-{}-{}", platform.os, platform.arch)
 }
+#[must_use]
 pub fn cache_file_name(platform: Platform) -> String {
     let exe = if platform.os == "windows" { ".exe" } else { "" };
     format!("{}{exe}", asset_name(platform))
@@ -226,12 +235,15 @@ pub fn cache_root(env_get: EnvGet, windows: bool) -> Option<PathBuf> {
     let home = if windows { "USERPROFILE" } else { "HOME" };
     non_empty(home).map(|home| PathBuf::from(home).join(".cache").join("dx"))
 }
+#[must_use]
 pub fn bin_dir(root: &Path, version: &str) -> PathBuf {
     root.join("bin").join(version)
 }
+#[must_use]
 pub fn bin_path(root: &Path, version: &str, platform: Platform) -> PathBuf {
     bin_dir(root, version).join(cache_file_name(platform))
 }
+#[must_use]
 pub fn release_url(base: &str, version: &str, asset: &str) -> String {
     format!("{}/v{version}/{asset}", base.trim_end_matches('/'))
 }
@@ -248,6 +260,7 @@ pub fn release_base(env_get: EnvGet) -> Result<String, ShimError> {
     }
 }
 
+#[must_use]
 pub fn base_is_allowed(base: &str) -> bool {
     if base.starts_with("https://") && base.len() > "https://".len() {
         return true;

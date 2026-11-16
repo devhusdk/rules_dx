@@ -90,11 +90,13 @@ impl HookKind {
     ];
 
     /// The hook kind a command-line word names.
+    #[must_use]
     pub fn from_word(word: &str) -> Option<HookKind> {
         Self::ALL.into_iter().find(|kind| kind.word() == word)
     }
 
     /// The command-line word for this hook kind.
+    #[must_use]
     pub fn word(self) -> &'static str {
         match self {
             HookKind::Create => "create",
@@ -105,6 +107,7 @@ impl HookKind {
     }
 
     /// The Claude Code event that runs this hook, for error text.
+    #[must_use]
     pub fn event(self) -> &'static str {
         match self {
             HookKind::Create => "WorktreeCreate",
@@ -147,6 +150,7 @@ pub fn cwd(input: &Value) -> Option<PathBuf> {
 }
 
 /// The branch a named agent worktree uses.
+#[must_use]
 pub fn branch_for(name: &str) -> String {
     let cleaned: String = name
         .chars()
@@ -255,13 +259,14 @@ pub fn create(
     let remote = if has_origin && fetched {
         match git::remote_heads(&pool.main, &stem, &|| host.interrupted()) {
             Ok(set) => Some(set),
-            Err(error) => match host.interrupted() {
-                Some(signo) => return Err(WorktreeError::stopped(signo)),
-                None => {
+            Err(error) => {
+                if let Some(signo) = host.interrupted() {
+                    return Err(WorktreeError::stopped(signo));
+                } else {
                     let _ = error;
                     None
                 }
-            },
+            }
         }
     } else {
         None
@@ -309,6 +314,7 @@ pub fn remove(
 /// Whether a hook has nothing to do for this payload.
 ///
 /// Cursor runs `SubagentStop` without an `agent_id`; its subagents hold no slots.
+#[must_use]
 pub fn ignored(kind: HookKind, input: &Value) -> bool {
     kind == HookKind::Stop
         && field(input, "agent_id").is_none()
@@ -1046,7 +1052,7 @@ fn blocked(input: &Value) -> Option<String> {
                     "dx: use `dx worktree add <branch>` instead of `git worktree add`".to_owned(),
                 );
             }
-            Some("remove") | Some("prune") => {
+            Some("remove" | "prune") => {
                 return Some(
                     "dx: use `dx worktree release` instead of `git worktree remove|prune`"
                         .to_owned(),

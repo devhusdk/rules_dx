@@ -105,7 +105,7 @@ fn normalize_lexical(path: &Path) -> PathBuf {
                 }
             }
             other @ (Component::Prefix(_) | Component::RootDir | Component::Normal(_)) => {
-                out.push(other.as_os_str())
+                out.push(other.as_os_str());
             }
         }
     }

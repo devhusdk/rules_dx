@@ -20,6 +20,7 @@ const ZIP_EMPTY_MAGIC: &[u8] = b"PK\x05\x06";
 
 impl Format {
     /// Names the format from a file name suffix.
+    #[must_use]
     pub fn from_name(name: &str) -> Option<Format> {
         if name.ends_with(".tar.gz") {
             Some(Format::TarGz)
@@ -31,6 +32,7 @@ impl Format {
     }
 
     /// The suffix release assets of this format carry.
+    #[must_use]
     pub fn suffix(self) -> &'static str {
         match self {
             Format::TarGz => ".tar.gz",
@@ -77,6 +79,7 @@ fn invalid(message: String) -> io::Error {
 }
 
 /// Returns why an archive member name is unsafe to extract, if it is.
+#[must_use]
 pub fn member_name_error(name: &str) -> Option<String> {
     if name.is_empty() {
         return Some("archive member name must not be empty".to_owned());

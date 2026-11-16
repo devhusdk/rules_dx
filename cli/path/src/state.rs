@@ -67,29 +67,35 @@ pub const CLEAN_ENTRIES: [&str; 13] = [
     SYNC_FINGERPRINT,
 ];
 
+#[must_use]
 pub fn dx_dir(workspace: &Path) -> PathBuf {
     workspace.join(DX_DIR)
 }
 
+#[must_use]
 pub fn local_dir(workspace: &Path) -> PathBuf {
     dx_dir(workspace).join("local")
 }
 
 /// The inputs and outputs hash from the last `.dx` sync.
+#[must_use]
 pub fn fingerprint_path(workspace: &Path) -> PathBuf {
     local_dir(workspace).join(FINGERPRINT)
 }
 
 /// What the last `dx sync` of `.dx/local` saw, so build commands know when to sync again.
+#[must_use]
 pub fn sync_fingerprint_path(workspace: &Path) -> PathBuf {
     local_dir(workspace).join(SYNC_FINGERPRINT)
 }
 
 /// Held while a `.dx` sync renders and cleans up.
+#[must_use]
 pub fn sync_lock_path(workspace: &Path) -> PathBuf {
     local_dir(workspace).join(SYNC_LOCK)
 }
 
+#[must_use]
 pub fn launcher_dir(workspace: &Path) -> PathBuf {
     local_dir(workspace).join(LAUNCHER)
 }

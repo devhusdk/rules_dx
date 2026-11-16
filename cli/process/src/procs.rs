@@ -2,6 +2,7 @@
 
 /// Whether `pid` names a running process.
 #[expect(unsafe_code, reason = "kill with signal 0 has no safe std API")]
+#[must_use]
 pub fn pid_alive(pid: u32) -> bool {
     let Ok(pid) = libc::pid_t::try_from(pid) else {
         return false;
@@ -81,6 +82,7 @@ pub(crate) fn start_time_command(pid: u32) -> std::process::Command {
 
 /// The id of the current boot, or `None` when the OS does not give one.
 #[cfg(target_os = "linux")]
+#[must_use]
 pub fn boot_id() -> Option<String> {
     std::fs::read_to_string("/proc/sys/kernel/random/boot_id")
         .ok()

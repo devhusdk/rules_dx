@@ -25,6 +25,7 @@ pub struct CollectedInventory {
 }
 
 impl CollectedInventory {
+    #[must_use]
     pub fn prune_inputs(&self) -> PruneInputs<'_> {
         PruneInputs {
             records: &self.records,
@@ -38,6 +39,7 @@ impl CollectedInventory {
         }
     }
 
+    #[must_use]
     pub fn plan(&self) -> PrunePlan {
         plan_prune(self.prune_inputs())
     }

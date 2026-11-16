@@ -62,6 +62,7 @@ pub struct GoModFile {
 
 impl GoModFile {
     /// Finds the replacement that applies to one required module version.
+    #[must_use]
     pub fn replacement_for(&self, module: &str, version: &str) -> Option<&GoReplacement> {
         let mut wildcard = None;
         for entry in self.replace.iter().filter(|entry| entry.module == module) {
@@ -78,8 +79,7 @@ impl GoModFile {
 /// Reads a Go manifest, failing on syntax the Go toolchain rejects.
 pub fn parse_mod(text: &str) -> Result<GoModFile, String> {
     let manifest = manifest()?;
-    let parsed =
-        GoMod::from_str(text).map_err(|detail| format!("invalid {manifest}: {detail}"))?;
+    let parsed = GoMod::from_str(text).map_err(|detail| format!("invalid {manifest}: {detail}"))?;
     let mut markers = requirement_markers(text);
     let require = parsed
         .require
@@ -298,30 +298,27 @@ pub fn insert_require(text: &str, module: &str, version: &str) -> Result<String,
         )));
     }
     let eol = if text.contains("\r\n") { "\r\n" } else { "\n" };
-    let out = match direct_require_block(text) {
-        Some(block) => {
-            let at = block
-                .entries
-                .iter()
-                .find(|(_, name)| name.as_str() > module)
-                .map_or(block.close, |(start, _)| *start);
-            let (head, tail) = text.split_at_checked(at).ok_or_else(|| {
-                GoEditError::Invalid(format!("cannot locate the require block for {module:?}"))
-            })?;
-            let entry = format!("{}{module} {version}{eol}", block.indent);
-            format!("{head}{entry}{tail}")
+    let out = if let Some(block) = direct_require_block(text) {
+        let at = block
+            .entries
+            .iter()
+            .find(|(_, name)| name.as_str() > module)
+            .map_or(block.close, |(start, _)| *start);
+        let (head, tail) = text.split_at_checked(at).ok_or_else(|| {
+            GoEditError::Invalid(format!("cannot locate the require block for {module:?}"))
+        })?;
+        let entry = format!("{}{module} {version}{eol}", block.indent);
+        format!("{head}{entry}{tail}")
+    } else {
+        let mut out = text.to_owned();
+        if !out.is_empty() && !out.ends_with('\n') {
+            out.push_str(eol);
         }
-        None => {
-            let mut out = text.to_owned();
-            if !out.is_empty() && !out.ends_with('\n') {
-                out.push_str(eol);
-            }
-            if !out.trim().is_empty() {
-                out.push_str(eol);
-            }
-            out.push_str(&format!("require ({eol}\t{module} {version}{eol}){eol}"));
-            out
+        if !out.trim().is_empty() {
+            out.push_str(eol);
         }
+        out.push_str(&format!("require ({eol}\t{module} {version}{eol}){eol}"));
+        out
     };
     let after = parse_mod(&out).map_err(GoEditError::Invalid)?;
     let mut expected = before.require.clone();

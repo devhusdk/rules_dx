@@ -313,9 +313,6 @@ fn sorted(value: Value) -> Value {
             Value::Object(ordered.into_iter().collect())
         }
         Value::Array(items) => Value::Array(items.into_iter().map(sorted).collect()),
-        other @ Value::Null
-        | other @ Value::Bool(_)
-        | other @ Value::Number(_)
-        | other @ Value::String(_) => other,
+        other @ (Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_)) => other,
     }
 }

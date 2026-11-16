@@ -46,6 +46,7 @@ pub fn evaluate_notice(
     }
 }
 
+#[must_use]
 pub fn notice_fails(outcome: TierOutcome, tier: Tier) -> bool {
     crate::license_expr::fails_in_tier(outcome, tier)
 }

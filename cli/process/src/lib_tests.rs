@@ -579,7 +579,7 @@ fn workflow_argv_still_protects_capture_options_on_test_commands() {
         &[],
     )
     .expect_err("startup option");
-    assert!(err.kind() == dx_error::ErrorKind::Usage);
+    assert_eq!(err.kind(), dx_error::ErrorKind::Usage);
 }
 
 #[test]
@@ -810,7 +810,7 @@ fn workflow_argv_rejects_protected_conflicts() {
         &[],
     )
     .expect_err("conflict");
-    assert!(err.kind() == dx_error::ErrorKind::Usage);
+    assert_eq!(err.kind(), dx_error::ErrorKind::Usage);
     assert!(!err.to_string().contains("/tmp/bep.json"));
     assert!(!err.to_string().contains("/tmp/required.json"));
 }
@@ -835,14 +835,23 @@ fn arena_defaults(vars: &[(&str, &str)], linux: bool) -> Vec<(&'static str, &'st
 fn bazel_env_defaults_sets_arena_max_only_when_free() {
     let default = vec![("MALLOC_ARENA_MAX", "2")];
     assert_eq!(arena_defaults(&[], true), default);
-    assert!(arena_defaults(&[("MALLOC_ARENA_MAX", "8")], true).is_empty());
-    assert!(arena_defaults(&[("MALLOC_ARENA_MAX", "")], true).is_empty());
-    assert!(arena_defaults(&[("GLIBC_TUNABLES", "glibc.malloc.arena_max=4")], true).is_empty());
+    assert_eq!(
+        arena_defaults(&[("MALLOC_ARENA_MAX", "8")], true),
+        [] as [(&str, &str); 0]
+    );
+    assert_eq!(
+        arena_defaults(&[("MALLOC_ARENA_MAX", "")], true),
+        [] as [(&str, &str); 0]
+    );
+    assert_eq!(
+        arena_defaults(&[("GLIBC_TUNABLES", "glibc.malloc.arena_max=4")], true),
+        [] as [(&str, &str); 0]
+    );
     assert_eq!(
         arena_defaults(&[("GLIBC_TUNABLES", "glibc.malloc.tcache_count=0")], true),
         default
     );
-    assert!(arena_defaults(&[], false).is_empty());
+    assert_eq!(arena_defaults(&[], false), [] as [(&str, &str); 0]);
 }
 
 #[test]
@@ -873,7 +882,7 @@ struct FakeRunner {
 
 impl Runner for FakeRunner {
     fn run(&self, argv: &[String], cwd: &Path, _env: &[(&str, &str)]) -> io::Result<ChildStatus> {
-        assert!(!argv.is_empty());
+        assert_ne!(argv, [] as [String; 0]);
         assert!(cwd.is_absolute() || cwd.as_os_str() == ".");
         Ok(self.status.clone())
     }

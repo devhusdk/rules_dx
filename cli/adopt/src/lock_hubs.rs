@@ -111,7 +111,7 @@ fn tag(name: &str, args: Vec<(&str, Arg)>) -> NewTag {
     }
 }
 
-/// The `cargo.annotation` that gives every crate build script of a hub the rules_dx cc env.
+/// The `cargo.annotation` that gives every crate build script of a hub the `rules_dx` cc env.
 fn build_script_cc_env_annotation() -> NewTag {
     let env = BUILD_SCRIPT_CC_ENV
         .iter()
@@ -325,7 +325,8 @@ impl Planner<'_> {
                 if !self.exists(&path)
                     || self.exists(&workspace)
                     || paths.contains(&workspace)
-                    || dx_families::hub("npm").is_some_and(|hub| self.declares_pnpm_builds(&beside(&hub.manifest)))
+                    || dx_families::hub("npm")
+                        .is_some_and(|hub| self.declares_pnpm_builds(&beside(&hub.manifest)))
                 {
                     continue;
                 }
@@ -754,27 +755,26 @@ impl Planner<'_> {
 
     fn add(&mut self, eco: &Hub, tags: &[NewTag], hubs: &[&str]) -> Result<(), AdoptError> {
         let file = ModuleFile::parse(&self.text).map_err(refuse)?;
-        let binding = match file
+        let binding = if let Some((name, _)) = file
             .extension_bindings(&eco.extension, &eco.ecosystem)
             .first()
         {
-            Some((name, _)) => (*name).to_owned(),
-            None => {
-                let taken: Vec<&str> = file
-                    .calls_named("use_extension")
-                    .filter_map(|call| call.binding.as_deref())
-                    .collect();
-                if taken.contains(&eco.ecosystem.as_str()) {
-                    (1..)
-                        .map(|n| match n {
-                            1 => format!("dx_{}", eco.ecosystem),
-                            n => format!("dx_{}_{n}", eco.ecosystem),
-                        })
-                        .find(|name| !taken.contains(&name.as_str()))
-                        .unwrap_or_default()
-                } else {
-                    eco.ecosystem.clone()
-                }
+            (*name).to_owned()
+        } else {
+            let taken: Vec<&str> = file
+                .calls_named("use_extension")
+                .filter_map(|call| call.binding.as_deref())
+                .collect();
+            if taken.contains(&eco.ecosystem.as_str()) {
+                (1..)
+                    .map(|n| match n {
+                        1 => format!("dx_{}", eco.ecosystem),
+                        n => format!("dx_{}_{n}", eco.ecosystem),
+                    })
+                    .find(|name| !taken.contains(&name.as_str()))
+                    .unwrap_or_default()
+            } else {
+                eco.ecosystem.clone()
             }
         };
         self.text = file
@@ -1038,14 +1038,14 @@ mod tests {
             ]),
             [t("{composer:manifest}"), t("{dub:manifest}")]
         );
-        assert!(
+        assert_eq!(
             unlocked(&[
                 (t("{composer:manifest}"), "{}"),
                 (t("{composer:lock}"), ""),
                 (t("{dub:manifest}"), "{}"),
                 (t("{dub:lock}"), "")
-            ])
-            .is_empty()
+            ]),
+            [] as [&str; 0]
         );
     }
 
@@ -1055,7 +1055,10 @@ mod tests {
             unlocked(&[(t("{maven:manifest}"), "")]),
             [t("{maven:manifest}")]
         );
-        assert!(unlocked(&[(t("{maven:manifest}"), ""), (t("{maven:lock}"), "")]).is_empty());
+        assert_eq!(
+            unlocked(&[(t("{maven:manifest}"), ""), (t("{maven:lock}"), "")]),
+            [] as [&str; 0]
+        );
     }
 
     #[test]
@@ -1064,8 +1067,11 @@ mod tests {
             unlocked(&[("app-1.0-1.rockspec", "")]),
             [t("{luarocks:manifest}")]
         );
-        assert!(unlocked(&[("app-1.0-1.rockspec", ""), (t("{luarocks:lock}"), "")]).is_empty());
-        assert!(unlocked(&[(".rockspec", "")]).is_empty());
+        assert_eq!(
+            unlocked(&[("app-1.0-1.rockspec", ""), (t("{luarocks:lock}"), "")]),
+            [] as [&str; 0]
+        );
+        assert_eq!(unlocked(&[(".rockspec", "")]), [] as [&str; 0]);
     }
 
     #[test]
@@ -1078,14 +1084,14 @@ mod tests {
             unlocked(&[(t("{cargo:manifest}"), ""), (t("{cargo:lock}"), "")]),
             [t("{cargo:manifest}")]
         );
-        assert!(
+        assert_eq!(
             unlocked(&[
                 (t("{cargo:manifest}"), ""),
                 (t("{cargo:lock}"), "version = 4\n")
-            ])
-            .is_empty()
+            ]),
+            [] as [&str; 0]
         );
-        assert!(unlocked(&[(t("{cargo:lock}"), "")]).is_empty());
+        assert_eq!(unlocked(&[(t("{cargo:lock}"), "")]), [] as [&str; 0]);
     }
 
     #[test]
@@ -1095,8 +1101,14 @@ mod tests {
             unlocked(&[(t("{uv:manifest}"), project)]),
             [t("{uv:manifest}")]
         );
-        assert!(unlocked(&[(t("{uv:manifest}"), project), (t("{uv:lock}"), "")]).is_empty());
-        assert!(unlocked(&[(t("{uv:manifest}"), "[tool.ruff]\n")]).is_empty());
+        assert_eq!(
+            unlocked(&[(t("{uv:manifest}"), project), (t("{uv:lock}"), "")]),
+            [] as [&str; 0]
+        );
+        assert_eq!(
+            unlocked(&[(t("{uv:manifest}"), "[tool.ruff]\n")]),
+            [] as [&str; 0]
+        );
         for tool in ["[tool.poetry]\n", "[tool.pdm]\n"] {
             let text = format!("{project}{tool}");
             assert!(
@@ -1118,11 +1130,15 @@ mod tests {
             unlocked(&[(t("{npm:manifest}"), "{}"), ("pnpm-workspace.yaml", "")]),
             [t("{npm:manifest}")]
         );
-        assert!(unlocked(&[(t("{npm:manifest}"), "{}")]).is_empty());
-        assert!(
-            unlocked(&[(t("{npm:manifest}"), "{\"packageManager\": \"pnpm@9.1.0\"}")]).is_empty()
+        assert_eq!(unlocked(&[(t("{npm:manifest}"), "{}")]), [] as [&str; 0]);
+        assert_eq!(
+            unlocked(&[(t("{npm:manifest}"), "{\"packageManager\": \"pnpm@9.1.0\"}")]),
+            [] as [&str; 0]
         );
-        assert!(unlocked(&[(t("{npm:manifest}"), "{\"packageManager\": \"yarn@4\"}")]).is_empty());
+        assert_eq!(
+            unlocked(&[(t("{npm:manifest}"), "{\"packageManager\": \"yarn@4\"}")]),
+            [] as [&str; 0]
+        );
         for lock in [t("{npm:lock}"), "package-lock.json", "yarn.lock"] {
             assert!(
                 unlocked(&[(t("{npm:manifest}"), pnpm), (lock, "")]).is_empty(),
@@ -1226,7 +1242,7 @@ mod tests {
             pnpm_settings(&[(t("{npm:lock}"), ""), (t("apps/web/{npm:lock}"), "")]),
             ["pnpm-workspace.yaml", "apps/web/pnpm-workspace.yaml"]
         );
-        assert!(pnpm_settings(&[]).is_empty());
+        assert_eq!(pnpm_settings(&[]), [] as [String; 0]);
         assert_eq!(
             pnpm_settings(&[
                 (t("{npm:lock}"), ""),

@@ -11,6 +11,7 @@ use super::put;
 
 const PLATFORM_MARKERS: [&str; 4] = ["sys_platform", "sys-platform", "platform_system", "os_name"];
 
+#[must_use]
 pub fn normalize_py(name: &str) -> String {
     name.to_lowercase().replace(['-', '.'], "_")
 }
@@ -61,6 +62,7 @@ fn parse_requirement(item: &str) -> Option<Requirement> {
     })
 }
 
+#[must_use]
 pub fn satisfies_py(spec: &str, locked: &str) -> Option<bool> {
     let specifiers = VersionSpecifiers::from_str(spec.trim()).ok()?;
     let version = Version::from_str(locked.trim()).ok()?;

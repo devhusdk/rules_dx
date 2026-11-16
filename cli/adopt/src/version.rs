@@ -8,14 +8,17 @@ use super::AdoptError;
 pub const DX_VERSION: &str = "0.0.0";
 pub const MODULE_VERSION: &str = "0.0.0";
 
+#[must_use]
 pub fn pin_is_valid(pin: &str) -> bool {
     !pin.is_empty() && semver::Version::parse(pin).is_ok()
 }
 
+#[must_use]
 pub fn pin_rewrite_hint() -> String {
     "dx init --apply".to_owned()
 }
 
+#[must_use]
 pub fn version_move_hint(from: &str, to: &str) -> String {
     if version_pin_matches_module(from, to) {
         "dx status".to_owned()
@@ -24,6 +27,7 @@ pub fn version_move_hint(from: &str, to: &str) -> String {
     }
 }
 
+#[must_use]
 pub fn version_pin_matches_module(dx_version: &str, module_version: &str) -> bool {
     if dx_version.is_empty() || module_version.is_empty() {
         return false;
@@ -151,7 +155,8 @@ pub struct ModuleDependency {
 }
 
 impl ModuleDependency {
-    /// Returns the rules_dx version Bazel resolves.
+    /// Returns the `rules_dx` version Bazel resolves.
+    #[must_use]
     pub fn resolved_version(&self) -> Option<&str> {
         match (
             self.override_kind.as_deref(),
@@ -165,7 +170,7 @@ impl ModuleDependency {
     }
 }
 
-/// Reads the rules_dx dependency from MODULE.bazel and every file it includes.
+/// Reads the `rules_dx` dependency from MODULE.bazel and every file it includes.
 pub fn parse_module_dependency(
     text: &str,
     read_include: &dyn Fn(&str) -> Result<String, DxError>,
@@ -217,6 +222,7 @@ pub fn parse_module_dependency(
     Ok(dependency)
 }
 
+#[must_use]
 pub fn local_path_overrides(text: &str) -> Vec<String> {
     let Ok(module) = ModuleFile::parse(text) else {
         return Vec::new();
@@ -243,7 +249,7 @@ pub fn read_module_dependency(root: &Path) -> Result<ModuleDependency, AdoptErro
     })
 }
 
-/// The rules_dx version `MODULE.bazel` asks for; `None` without a usable version.
+/// The `rules_dx` version `MODULE.bazel` asks for; `None` without a usable version.
 pub fn module_rules_dx_version(root: &Path) -> Option<String> {
     let dependency = read_module_dependency(root).ok()?;
     let resolved = dependency.resolved_version().filter(|v| pin_is_valid(v));
@@ -251,6 +257,7 @@ pub fn module_rules_dx_version(root: &Path) -> Option<String> {
     resolved.or(declared).map(str::to_owned)
 }
 
+#[must_use]
 pub fn module_dependency_status(dependency: &ModuleDependency) -> &'static str {
     if let Some((name, _)) = &dependency.workspace_module
         && name == "rules_dx"
@@ -265,6 +272,7 @@ pub fn module_dependency_status(dependency: &ModuleDependency) -> &'static str {
     }
 }
 
+#[must_use]
 pub fn render_module_dependency(dependency: &ModuleDependency) -> String {
     if let Some((name, version)) = &dependency.workspace_module
         && name == "rules_dx"
@@ -634,7 +642,7 @@ mod tests {
             "module(name = \"demo\")\nlocal_path_override(module_name = \"a\", path = \"../a\")\ngit_override(module_name = \"b\", remote = \"r\")\nlocal_path_override(module_name = \"c\", path = \"third_party/c\")\n",
         );
         assert_eq!(paths, vec!["../a".to_owned(), "third_party/c".to_owned()]);
-        assert!(local_path_overrides("not starlark (").is_empty());
+        assert_eq!(local_path_overrides("not starlark ("), [] as [String; 0]);
     }
 
     #[test]
@@ -750,8 +758,14 @@ mod tests {
         assert_eq!(setup.dep_version("llvm"), Some("0.8.19"));
         assert_eq!(setup.dep_version("missing"), None);
         assert_eq!(setup.tag_arg("rust.toolchain", "missing"), None);
-        assert!(setup.tag_list_arg("rust.toolchain", "missing").is_empty());
-        assert!(setup.tag_list_arg("missing.tag", "versions").is_empty());
+        assert_eq!(
+            setup.tag_list_arg("rust.toolchain", "missing"),
+            [] as [String; 0]
+        );
+        assert_eq!(
+            setup.tag_list_arg("missing.tag", "versions"),
+            [] as [String; 0]
+        );
     }
 
     #[test]
@@ -781,8 +795,11 @@ mod tests {
                 "rust".to_owned()
             )]
         );
-        assert!(setup.deps.is_empty());
-        assert!(setup.registered.is_empty());
-        assert!(setup.tags.is_empty());
+        assert_eq!(
+            setup.deps,
+            [] as [(std::string::String, std::string::String); 0]
+        );
+        assert_eq!(setup.registered, [] as [String; 0]);
+        assert_eq!(setup.tags, [] as [dx_module_bazel::Call; 0]);
     }
 }

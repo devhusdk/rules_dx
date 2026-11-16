@@ -75,7 +75,7 @@ pub fn go_locked_packages(text: &str) -> Result<Vec<LockedPackage>, DxError> {
         {
             Some(GoReplacementTarget::FilePath(_)) => continue,
             Some(GoReplacementTarget::Module { module, version }) => {
-                out.push(LockedPackage::new("go", module, version))
+                out.push(LockedPackage::new("go", module, version));
             }
             None => out.push(LockedPackage::new(
                 "go",

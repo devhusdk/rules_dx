@@ -39,6 +39,7 @@ pub enum AuditFamily {
 }
 
 impl AuditFamily {
+    #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
             AuditFamily::Security => SECURITY_FAMILY,
@@ -64,6 +65,7 @@ pub struct AuditRequest {
 
 impl AuditRequest {
     /// Returns the scopes to audit.
+    #[must_use]
     pub fn effective_scopes(&self) -> Vec<String> {
         match &self.scope {
             AuditScope::Default => vec![DEFAULT_SCOPE.to_owned()],
@@ -101,6 +103,6 @@ mod tests {
             families: vec![AuditFamily::Security],
             scope: AuditScope::Only(Vec::new()),
         };
-        assert!(nothing.effective_scopes().is_empty());
+        assert_eq!(nothing.effective_scopes(), [] as [String; 0]);
     }
 }

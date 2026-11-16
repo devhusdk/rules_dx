@@ -2,6 +2,7 @@ pub const WORKFLOW_DIR: &str = ".github/workflows";
 
 pub const COMMIT_JSON_ENV: &str = "DX_BUMP_GITHUB_COMMIT_JSON";
 
+#[must_use]
 pub fn workflow_file(name: &str) -> bool {
     name.ends_with(".yml") || name.ends_with(".yaml")
 }
@@ -194,6 +195,7 @@ fn trailing_comment(content: &str, end: usize) -> Option<String> {
     (!text.is_empty() && line.starts_with(char::is_whitespace)).then(|| text.to_owned())
 }
 
+#[must_use]
 pub fn version_numbers(version: &str) -> Option<Vec<u64>> {
     let parts: Vec<u64> = version
         .strip_prefix('v')
@@ -266,6 +268,7 @@ pub fn split_pin(value: &str) -> Option<(&str, &str)> {
     Some((action, reference))
 }
 
+#[must_use]
 pub fn pin_targets_package(kind: UsesKind, value: &str, package: &str) -> bool {
     let Some((action, _)) = split_pin(value) else {
         return false;

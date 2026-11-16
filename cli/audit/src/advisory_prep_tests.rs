@@ -325,7 +325,7 @@ fn only_the_ecosystems_the_dependency_sets_need_are_prepared() {
     ]);
     assert_eq!(families_of(ruby.path()), vec!["rubygems"]);
     let powershell = workspace_with(&["third_party/powershell/powershell.lock.json"]);
-    assert!(families_of(powershell.path()).is_empty());
+    assert_eq!(families_of(powershell.path()), [] as [&str; 0]);
     let go = workspace_with(&["third_party/go/go.mod"]);
     assert_eq!(families_of(go.path()), vec!["go"]);
 }
@@ -355,7 +355,8 @@ fn every_audited_set_names_locks_and_one_advisory_family() {
         "advisory prep must prepare every curated advisory set, and nothing else"
     );
     let workspace = workspace_with(
-        &vuln_locks("cargo").unwrap()
+        &vuln_locks("cargo")
+            .unwrap()
             .iter()
             .map(String::as_str)
             .collect::<Vec<_>>(),
@@ -441,7 +442,10 @@ fn an_empty_yanked_snapshot_is_an_empty_list() {
     )
     .expect("builds");
     assert_eq!(prepared.payload, b"[]");
-    assert!(parse_snapshot("[]").expect("parses").is_empty());
+    assert_eq!(
+        parse_snapshot("[]").expect("parses"),
+        [] as [crate::vuln::Advisory; 0]
+    );
 }
 
 #[test]

@@ -38,6 +38,12 @@ fn remove(path: &Path) -> io::Result<()> {
     }
 }
 
+#[cfg(unix)]
+pub(crate) fn make_executable(path: &Path) -> io::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755))
+}
+
 #[cfg(test)]
 mod tests {
     #[cfg(unix)]
@@ -57,12 +63,6 @@ mod tests {
         assert_eq!(std::fs::read_link(dir.join("lib")).expect("read"), second);
         scratch.close().expect("cleanup");
     }
-}
-
-#[cfg(unix)]
-pub(crate) fn make_executable(path: &Path) -> io::Result<()> {
-    use std::os::unix::fs::PermissionsExt;
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755))
 }
 
 #[cfg(not(unix))]

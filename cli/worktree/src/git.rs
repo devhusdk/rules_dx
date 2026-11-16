@@ -10,7 +10,7 @@ use dx_process::lifecycle::{
 use super::WorktreeError;
 
 /// Bound for slot-changing git runs such as checkouts of large trees.
-const WRITE_TIMEOUT: Duration = Duration::from_secs(1800);
+const WRITE_TIMEOUT: Duration = Duration::from_mins(30);
 
 /// Bound for the per-slot status reads. A timeout keeps the slot.
 const READ_TIMEOUT: Duration = Duration::from_secs(120);

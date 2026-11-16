@@ -1,4 +1,4 @@
-//! The CycloneDX 1.6 JSON data model dx writes next to the SPDX one.
+//! The `CycloneDX` 1.6 JSON data model dx writes next to the SPDX one.
 
 use serde::{Deserialize, Serialize};
 
@@ -76,6 +76,7 @@ pub struct CycloneDxDocument {
 
 impl CycloneDxDocument {
     /// Returns a document whose root `application` component is `root`, with no dependencies yet.
+    #[must_use]
     pub fn new(root_name: &str, timestamp: &str, tool: &str) -> Self {
         Self {
             bom_format: BOM_FORMAT.to_owned(),
@@ -121,7 +122,8 @@ impl CycloneDxDocument {
 
 pub const ROOT_REF: &str = "root";
 
-/// The CycloneDX `licenses` value for an SPDX expression: one id, an expression, or nothing.
+/// The `CycloneDX` `licenses` value for an SPDX expression: one id, an expression, or nothing.
+#[must_use]
 pub fn license_choices(expression: &str) -> Vec<CdxLicenseChoice> {
     if crate::license_error("license", expression).is_some()
         || matches!(
@@ -144,6 +146,7 @@ pub fn license_choices(expression: &str) -> Vec<CdxLicenseChoice> {
 }
 
 /// Graph rules the schema cannot express: unique bom-refs and dependencies that name known refs.
+#[must_use]
 pub fn reference_errors(document: &CycloneDxDocument) -> Vec<String> {
     let mut errors = Vec::new();
     let mut known = std::collections::BTreeSet::new();

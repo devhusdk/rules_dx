@@ -49,7 +49,7 @@ fn staging_prefix(path: &Path) -> String {
     format!(".{}.", truncated_name(path))
 }
 
-/// True when candidate is a staging file that write_atomic makes next to target.
+/// True when candidate is a staging file that `write_atomic` makes next to target.
 pub fn is_staging_sibling(target: &Path, candidate: &Path) -> bool {
     if candidate == target
         || candidate.parent().map(dx_path::without_verbatim)
@@ -66,7 +66,7 @@ pub fn is_staging_sibling(target: &Path, candidate: &Path) -> bool {
         && name.ends_with(STAGING_SUFFIX)
 }
 
-const STALE_STAGING_AGE: Duration = Duration::from_secs(60 * 60);
+const STALE_STAGING_AGE: Duration = Duration::from_hours(1);
 
 /// Removes staging files next to target that an interrupted write left behind.
 /// Files younger than an hour are kept since another process may still be writing them.
@@ -102,9 +102,8 @@ pub fn write_atomic(path: &Path, content: &[u8]) -> io::Result<()> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt as _;
-        let mode = std::fs::metadata(path)
-            .map(|metadata| metadata.permissions().mode() & 0o777)
-            .unwrap_or(0o644);
+        let mode =
+            std::fs::metadata(path).map_or(0o644, |metadata| metadata.permissions().mode() & 0o777);
         staging
             .as_file()
             .set_permissions(std::fs::Permissions::from_mode(mode))?;
@@ -473,7 +472,7 @@ mod tests {
         let err = copy_atomic(&scratch.path().join("absent"), &out.join("dest"))
             .expect_err("missing source");
         assert_eq!(err.kind(), io::ErrorKind::NotFound);
-        assert!(names_in(&out).is_empty());
+        assert_eq!(names_in(&out), [] as [String; 0]);
         scratch.close().expect("cleanup");
     }
 
@@ -491,7 +490,7 @@ mod tests {
         ] {
             std::fs::write(dir.join(name), b"x").expect("write");
         }
-        let long_ago = std::time::SystemTime::now() - Duration::from_secs(2 * 60 * 60);
+        let long_ago = std::time::SystemTime::now() - Duration::from_hours(2);
         File::options()
             .write(true)
             .open(&old)

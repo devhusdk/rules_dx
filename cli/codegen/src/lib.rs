@@ -43,10 +43,12 @@ pub const LIBRARY_KINDS: &[&str] = &[
 ];
 
 /// Reports whether a rule class contributes a codegen plan.
+#[must_use]
 pub fn is_library_kind(rule_class: &str) -> bool {
     LIBRARY_KINDS.contains(&rule_class)
 }
 
+#[must_use]
 pub fn quote_label(label: &str) -> String {
     let mut quoted = String::with_capacity(label.len() + 2);
     quoted.push('"');
@@ -61,6 +63,7 @@ pub fn quote_label(label: &str) -> String {
     quoted
 }
 
+#[must_use]
 pub fn expand_roots(schema: &str, projections: &[String]) -> Vec<String> {
     let mut roots: Vec<String> = Vec::with_capacity(1 + projections.len());
     roots.push(schema.to_owned());
@@ -98,16 +101,19 @@ pub fn resolve_scope(targets: &[String]) -> Result<CodegenScope, ScopeError> {
     }
 }
 
-/// Returns the aspect label in the rules_dx repository named `repo`.
+/// Returns the aspect label in the `rules_dx` repository named `repo`.
+#[must_use]
 pub fn aspect_label(repo: &str) -> String {
     format!("@{repo}//{CODEGEN_ASPECT}")
 }
 
-/// Returns the repository target in the rules_dx repository named `repo`.
+/// Returns the repository target in the `rules_dx` repository named `repo`.
+#[must_use]
 pub fn repository_target(repo: &str) -> String {
     format!("@{repo}//{REPOSITORY_TARGET}")
 }
 
+#[must_use]
 pub fn scope_targets(scope: &CodegenScope, repo: &str) -> Vec<String> {
     match scope {
         CodegenScope::Repository => vec![repository_target(repo)],
@@ -156,10 +162,12 @@ pub enum CollectError {
     Fingerprint(#[from] dx_fingerprint::FingerprintError),
 }
 
+#[must_use]
 pub fn is_shard_artifact(path: &Path) -> bool {
     dx_bep::is_shard_artifact(path, SHARD_SUFFIX)
 }
 
+#[must_use]
 pub fn exec_matches(artifact_path: &Path, exec_path: &str) -> bool {
     dx_bep::exec_matches(artifact_path, exec_path)
 }
@@ -281,6 +289,7 @@ type MergeIndex<'a> = BTreeMap<
     BTreeMap<(&'a str, &'a str, &'a str, &'a str, &'a str), &'a CodegenEntry>,
 >;
 
+#[must_use]
 pub fn merge_records(records: &[CodegenRecord]) -> Vec<CodegenRecord> {
     let mut owners: MergeIndex<'_> = BTreeMap::new();
     for record in records {
@@ -309,6 +318,7 @@ pub fn merge_records(records: &[CodegenRecord]) -> Vec<CodegenRecord> {
         .collect()
 }
 
+#[must_use]
 pub fn conflict_error(records: &[CodegenRecord]) -> String {
     type Claim<'a> = (&'a str, &'a str, &'a str, &'a str, &'a str, &'a str);
     let mut by_path: BTreeMap<&str, BTreeSet<Claim<'_>>> = BTreeMap::new();
@@ -385,6 +395,7 @@ pub fn fingerprint(records: &[CodegenRecord]) -> Result<String, dx_fingerprint::
     dx_fingerprint::to_json(&view)
 }
 
+#[must_use]
 pub fn plan_digest(fingerprint: &str) -> [u8; 32] {
     digest(fingerprint.as_bytes())
 }

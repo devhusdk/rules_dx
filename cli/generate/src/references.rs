@@ -24,6 +24,7 @@ pub fn targets(config: &ToolConfig, text: &str) -> Vec<String> {
 }
 
 /// Every `.dx/` path `text` names, without a leading `./`.
+#[must_use]
 pub fn dx_paths(text: &str) -> Vec<String> {
     let is_path = |c: char| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '/' | '-');
     let mut out = Vec::new();

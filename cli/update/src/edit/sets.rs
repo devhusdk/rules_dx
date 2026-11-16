@@ -49,10 +49,12 @@ impl UpdateSet {
         UpdateSet::Pins,
     ];
 
+    #[must_use]
     pub fn builtin_names() -> Vec<&'static str> {
         Self::BUILTIN.iter().map(|set| set.name()).collect()
     }
 
+    #[must_use]
     pub fn name(self) -> &'static str {
         match self {
             UpdateSet::Bazel => "bazel",
@@ -76,6 +78,7 @@ impl UpdateSet {
         }
     }
 
+    #[must_use]
     pub fn parse(text: &str) -> Option<UpdateSet> {
         match text {
             "bazel" => Some(UpdateSet::Bazel),
@@ -100,19 +103,23 @@ impl UpdateSet {
         }
     }
 
+    #[must_use]
     pub fn names() -> Vec<&'static str> {
         Self::ALL.iter().map(|set| set.name()).collect()
     }
 
+    #[must_use]
     pub fn pipe_list() -> String {
         Self::names().join("|")
     }
 
     /// Whether an update edits every manifest of the set that declares the package.
+    #[must_use]
     pub fn spans_manifests(self) -> bool {
         matches!(self, UpdateSet::Cargo | UpdateSet::GithubActions)
     }
 
+    #[must_use]
     pub fn needs_update_refresh(self) -> bool {
         !matches!(
             self,
@@ -175,7 +182,7 @@ mod tests {
             ]
         );
         let mut sorted = names.clone();
-        sorted.sort();
+        sorted.sort_unstable();
         assert_eq!(names, sorted);
     }
 

@@ -1,4 +1,4 @@
-use super::*;
+use super::{BackendError, BackendPlan, CheckPlan, Path, ResolvedSet, Selection, UvClosure};
 
 pub(super) fn plan(
     _workspace: &Path,

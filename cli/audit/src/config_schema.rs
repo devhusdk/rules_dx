@@ -12,11 +12,13 @@ fn render<T: JsonSchema>(title: &str) -> String {
 }
 
 /// Returns the JSON Schema for `security.toml`.
+#[must_use]
 pub fn security_schema() -> String {
     render::<SecurityFile>("security.toml")
 }
 
 /// Returns the JSON Schema for `license.toml`.
+#[must_use]
 pub fn licenses_schema() -> String {
     render::<LicensesFile>("license.toml")
 }

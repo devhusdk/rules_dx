@@ -181,9 +181,8 @@ mod sys {
     pub(super) fn settle_leader(read: super::Leader, gone: impl FnOnce() -> bool) -> super::Leader {
         match read {
             super::Leader::Unknown if gone() => super::Leader::Absent,
-            other @ super::Leader::Present(_)
-            | other @ super::Leader::Absent
-            | other @ super::Leader::Unknown => other,
+            other
+            @ (super::Leader::Present(_) | super::Leader::Absent | super::Leader::Unknown) => other,
         }
     }
 
@@ -300,8 +299,7 @@ mod sys {
     #[cfg(target_os = "linux")]
     pub fn namespace() -> String {
         std::fs::read_link("/proc/self/ns/pid")
-            .map(|link| link.display().to_string())
-            .unwrap_or_else(|_| "-".to_owned())
+            .map_or_else(|_| "-".to_owned(), |link| link.display().to_string())
     }
 
     #[cfg(target_os = "linux")]
@@ -365,6 +363,7 @@ fn group_alive(pgid: i32) -> bool {
 }
 
 /// Stops every recorded group whose dx is gone, and returns the groups it stopped.
+#[must_use]
 pub fn reap_orphans() -> Vec<Reaped> {
     match lease_dir() {
         Some(dir) => reap_in(dir),
@@ -498,38 +497,35 @@ fn reap_with(dir: &Path, observe: fn(&Recorded) -> Observed, stop: fn(&Recorded)
         };
         let mut text = String::new();
         drop(file.read_to_string(&mut text));
-        match parse_lease(&text) {
-            Some(recorded) => {
-                let now = observe(&recorded);
-                match verdict(&recorded, &now) {
-                    Verdict::Keep => {
-                        if now.leader == Leader::Unknown {
-                            log_decision(dir, "keep-unknown", pid, &recorded, &now);
-                        }
-                        continue;
+        if let Some(recorded) = parse_lease(&text) {
+            let now = observe(&recorded);
+            match verdict(&recorded, &now) {
+                Verdict::Keep => {
+                    if now.leader == Leader::Unknown {
+                        log_decision(dir, "keep-unknown", pid, &recorded, &now);
                     }
-                    Verdict::Drop => {}
-                    Verdict::Stop => {
-                        log_decision(dir, "stop", pid, &recorded, &now);
-                        stop(&recorded);
-                        reaped.push(Reaped {
-                            pid,
-                            pgid: recorded.pgid,
-                        });
-                    }
+                    continue;
                 }
-                drop(std::fs::remove_file(&path));
+                Verdict::Drop => {}
+                Verdict::Stop => {
+                    log_decision(dir, "stop", pid, &recorded, &now);
+                    stop(&recorded);
+                    reaped.push(Reaped {
+                        pid,
+                        pgid: recorded.pgid,
+                    });
+                }
             }
-            None => {
-                let old = entry
-                    .metadata()
-                    .and_then(|meta| meta.modified())
-                    .ok()
-                    .and_then(|time| time.elapsed().ok())
-                    .is_some_and(|age| age >= STALE_EMPTY);
-                if old {
-                    drop(std::fs::remove_file(&path));
-                }
+            drop(std::fs::remove_file(&path));
+        } else {
+            let old = entry
+                .metadata()
+                .and_then(|meta| meta.modified())
+                .ok()
+                .and_then(|time| time.elapsed().ok())
+                .is_some_and(|age| age >= STALE_EMPTY);
+            if old {
+                drop(std::fs::remove_file(&path));
             }
         }
     }
@@ -582,6 +578,7 @@ fn stop_group(_recorded: &Recorded) {}
 pub const CODE_ORPHAN_PROCESS_GROUP_STOPPED: &str = "orphan_process_group_stopped";
 
 /// The one line printed for a stopped group.
+#[must_use]
 pub fn reaped_message(group: &Reaped) -> String {
     format!(
         "stopped leftover process group {} from dx run {}, which is gone",

@@ -126,17 +126,16 @@ mod tests {
             .map(|c| (c.package.as_str(), c.current.as_str(), c.latest.as_str()))
             .collect();
         assert_eq!(listed, [("semver", "0.8.0", "0.9.1")]);
-        assert!(found.errors.is_empty());
+        assert_eq!(found.errors, [] as [crate::discover::LookupError; 0]);
     }
 
     #[test]
     fn prereleases_need_the_flag() {
         let only = ["beta".to_owned()];
         let text = [SELECTIONS.to_owned()];
-        assert!(
-            outdated("dub", &text, &only, false, DEFAULT_BASE, &api)
-                .candidates
-                .is_empty()
+        assert_eq!(
+            outdated("dub", &text, &only, false, DEFAULT_BASE, &api).candidates,
+            [] as [crate::discover::Candidate; 0]
         );
         let found = outdated("dub", &text, &only, true, DEFAULT_BASE, &api);
         assert!(found.candidates[0].prerelease);

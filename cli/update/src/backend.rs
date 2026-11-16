@@ -121,6 +121,7 @@ impl StagedRun {
     }
 
     /// The environment for a scratch directory: the planned env plus what the tool forces.
+    #[must_use]
     pub fn env(&self, scratch: &Path) -> Vec<(String, String)> {
         let mut env = self.env.clone();
         if self.tool == StagedTool::GoModDownload {
@@ -157,6 +158,7 @@ impl StagedRun {
     }
 
     /// Names the tool in messages.
+    #[must_use]
     pub fn tool_name(&self) -> &'static str {
         match self.tool {
             StagedTool::GoModDownload => "go",
@@ -166,6 +168,7 @@ impl StagedRun {
     }
 
     /// The directory under `scratch` the inputs are copied into and the outputs are read from.
+    #[must_use]
     pub fn inputs_dir(&self, scratch: &Path) -> std::path::PathBuf {
         scratch.join("out")
     }
@@ -208,6 +211,7 @@ fn resolution_suffix(detail: &Option<String>) -> String {
 impl BackendError {
     /// The stable machine code each message starts with (`unsupported` for
     /// the selective-update refusal, whose message reads "unsupported selective update").
+    #[must_use]
     pub fn code(&self) -> &'static str {
         match self {
             BackendError::Unsupported { .. } => "unsupported",
@@ -347,6 +351,7 @@ pub enum CheckPlan {
 pub const NPM_CONFIG_ENV: [&str; 2] = ["npm_config_globalconfig", "npm_config_userconfig"];
 
 /// Names the OS null device the npm config variables point at.
+#[must_use]
 pub fn null_device() -> &'static str {
     if cfg!(windows) { "NUL" } else { "/dev/null" }
 }
@@ -358,10 +363,11 @@ fn npm_env() -> Vec<(String, String)> {
         .collect()
 }
 
-/// The env crate_universe reads to decide whether to repin; `repin` may also be one crate name,
-/// which crate_universe turns into `cargo update --package <name>`. Both triggers are forced so a host
+/// The env `crate_universe` reads to decide whether to repin; `repin` may also be one crate name,
+/// which `crate_universe` turns into `cargo update --package <name>`. Both triggers are forced so a host
 /// `REPIN` or `CARGO_BAZEL_REPIN` cannot turn a check into a write. A check (`repin == "false"`) also
-/// sets `CARGO_BAZEL_DIGEST_CHECK`, because crate_universe otherwise renders from a stale lock unchecked.
+/// sets `CARGO_BAZEL_DIGEST_CHECK`, because `crate_universe` otherwise renders from a stale lock unchecked.
+#[must_use]
 pub fn cargo_env(repin: &str, repository: &str) -> Vec<(String, String)> {
     let mut env = vec![
         ("CARGO_BAZEL_ISOLATED".to_owned(), "true".to_owned()),
@@ -375,9 +381,10 @@ pub fn cargo_env(repin: &str, repository: &str) -> Vec<(String, String)> {
     env
 }
 
-/// The env rules_jvm_external's pin script reads. Only the maven-specific variable is set: `REPIN`
-/// would also trigger crate_universe. A check sets nothing, and `host_env_refusal` keeps the host
+/// The env `rules_jvm_external`'s pin script reads. Only the maven-specific variable is set: `REPIN`
+/// would also trigger `crate_universe`. A check sets nothing, and `host_env_refusal` keeps the host
 /// from supplying either variable, because any value suppresses the stale-lock failure.
+#[must_use]
 pub fn maven_env(apply: bool) -> Vec<(String, String)> {
     if apply {
         vec![("RULES_JVM_EXTERNAL_REPIN".to_owned(), "1".to_owned())]
@@ -386,8 +393,9 @@ pub fn maven_env(apply: bool) -> Vec<(String, String)> {
     }
 }
 
-/// `bazel run @<repository>//:pin`, rules_jvm_external's pin script. It needs no rules_dx
-/// diagnostics settings, and a consumer without rules_dx cannot resolve them.
+/// `bazel run @<repository>//:pin`, `rules_jvm_external`'s pin script. It needs no `rules_dx`
+/// diagnostics settings, and a consumer without `rules_dx` cannot resolve them.
+#[must_use]
 pub fn maven_pin_argv(head: &dx_process::BazelHead, repository: &str) -> Vec<String> {
     let pin_head = dx_process::BazelHead {
         settings: Vec::new(),
@@ -444,7 +452,8 @@ pub fn host_env_refusal(
 }
 
 /// Fetches a configured hub repository (cargo or maven), re-evaluating its module extension.
-/// `bazel fetch` of one crate_universe repository; `cargo_env` decides whether it repins.
+/// `bazel fetch` of one `crate_universe` repository; `cargo_env` decides whether it repins.
+#[must_use]
 pub fn configured_fetch_argv(
     head: &dx_process::BazelHead,
     repository: &str,
@@ -491,7 +500,8 @@ const CARGO_ONE_PACKAGE: &str = "crate_universe repins one crate per run; select
 const CARGO_RESERVED: &str =
     "crate_universe reads this crate name as a repin mode; select the set without a package";
 
-/// Values crate_universe reads as a repin mode (or as "skip the repin") instead of a crate name.
+/// Values `crate_universe` reads as a repin mode (or as "skip the repin") instead of a crate name.
+#[must_use]
 pub fn cargo_reserved_repin(name: &str) -> bool {
     const WORDS: [&str; 13] = [
         "eager",
@@ -524,12 +534,14 @@ fn configured_pnpm_argv(
 }
 
 /// `@<pnpm hub>//:pnpm`, the hermetic pnpm binary.
+#[must_use]
 pub fn pnpm_label() -> String {
     let hub = dx_families::hub("pnpm").map_or("", |hub| hub.hub.as_str());
     format!("@{hub}//:pnpm")
 }
 
 /// `bazel run <pnpm label> -- --dir <dir> <command>`, the hermetic pnpm.
+#[must_use]
 pub fn pnpm_run_argv(
     head: &dx_process::BazelHead,
     offline: bool,
@@ -558,6 +570,7 @@ pub fn pnpm_run_argv(
 }
 
 /// `bazel run <resolver> -- --dir <dir>`, the pinned resolver that writes a lock beside its manifest.
+#[must_use]
 pub fn resolver_run_argv(head: &dx_process::BazelHead, resolver: &str, dir: &str) -> Vec<String> {
     bazel(head, "run", &[resolver, "--", "--dir", dir])
 }
@@ -969,6 +982,7 @@ pub fn uv_lock_argv(
 }
 
 /// Reports whether the planned argv runs Bazel.
+#[must_use]
 pub fn runs_bazel(argv: &[String]) -> bool {
     argv.first()
         .is_some_and(|program| program == dx_process::launcher_argv0())
@@ -1030,7 +1044,7 @@ fn composer_env() -> Vec<(String, String)> {
 /// Runs the script in a temp copy of the set directory, then compares or copies back the state file `$state`.
 const SWIFT_SCRIPT: &str = r#"dir=$1; apply=$2; shift 2; tmp=$(mktemp -d) || exit 1; cp -R "$dir"/. "$tmp"; (cd "$tmp" && "$@"); code=$?; if [ $code -eq 0 ] && ! cmp -s "$tmp/$state" "$dir/$state"; then if [ "$apply" = apply ]; then cp "$tmp/$state" "$dir/$state"; code=$?; else echo "$state is out of date; run dx update" >&2; code=1; fi; fi; rm -rf "$tmp"; exit $code"#;
 
-/// The SwiftPM identity of a package named by host and path: the lowercase last segment.
+/// The `SwiftPM` identity of a package named by host and path: the lowercase last segment.
 fn swift_identity(name: &str) -> String {
     name.rsplit('/').next().unwrap_or(name).to_ascii_lowercase()
 }

@@ -2219,7 +2219,7 @@ fn release_stops_no_server_when_none_runs_in_the_slot() {
     let me = who("s1", 10);
     let a = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
     ops::release(&pool, &host, &me, &a.path, true).expect("release");
-    assert!(host.shutdown_paths().is_empty());
+    assert_eq!(host.shutdown_paths(), [] as [std::path::PathBuf; 0]);
 }
 
 #[test]
@@ -2251,7 +2251,7 @@ fn a_symlinked_cache_stops_the_server_of_a_released_slot() {
     host.serve(82, &physical(&a.path));
     ops::release(&pool, &host, &me, &a.path, true).expect("release");
     assert_eq!(host.shutdown_paths().len(), 1);
-    assert!(host.servers().is_empty());
+    assert_eq!(host.servers(), [] as [crate::host::Server; 0]);
 }
 
 #[test]
@@ -2374,7 +2374,7 @@ fn prune_bases_lists_free_bases_lru_on_plenty_of_disk() {
         "a dry run deletes nothing"
     );
     let applied = ops::prune(&pool, &host, true, true).expect("apply");
-    assert!(applied.skipped_bases.is_empty());
+    assert_eq!(applied.skipped_bases, [] as [crate::ops::PruneKeptBase; 0]);
     assert!(!base_a.exists() && !base_b.exists());
     assert!(base_held.exists(), "a leased slot keeps its base");
 }
@@ -2461,7 +2461,10 @@ fn prune_bases_lists_tagged_caches_of_free_slots() {
     assert_eq!(dirs, vec![&cache]);
     assert!(cache.exists(), "a dry run deletes nothing");
     let applied = ops::prune(&pool, &host, true, true).expect("apply");
-    assert!(applied.skipped_caches.is_empty());
+    assert_eq!(
+        applied.skipped_caches,
+        [] as [crate::ops::PruneSkippedCache; 0]
+    );
     assert!(!cache.exists());
     assert!(held.exists(), "a leased slot keeps its cache");
 }
@@ -2474,7 +2477,7 @@ fn prune_without_bases_skips_caches_on_plenty_of_disk() {
     host.live(10);
     let (cache, _, _) = cache_fixture(&fixture, &host, &pool);
     let plain = ops::prune(&pool, &host, false, false).expect("plain");
-    assert!(plain.plan.caches.is_empty());
+    assert_eq!(plain.plan.caches, [] as [crate::ops::PruneCache; 0]);
     assert!(plain.plan.is_empty());
     assert!(cache.exists());
 }
@@ -3100,7 +3103,7 @@ fn prune_apply_reports_a_free_slot_base_whose_server_will_not_stop_as_skipped() 
         pruned.skipped_bases[0].owner,
         ops::BaseOwner::Slot(slot.slot)
     );
-    assert!(pruned.plan.bases.is_empty());
+    assert_eq!(pruned.plan.bases, [] as [crate::ops::PruneBase; 0]);
     assert_eq!(pruned.plan.bytes(), 0);
     assert!(base.exists());
 }
@@ -3943,10 +3946,9 @@ mod hooks {
         let held = ops::add(&pool, &host, &second, &existing("feature/a")).expect_err("live");
         assert_eq!(held.code, "branch_held");
         let stop = serde_json::json!({"agent_id": "a2"});
-        assert!(
-            hook::stop(&pool, &host, &first, &stop)
-                .expect("stop")
-                .is_empty()
+        assert_eq!(
+            hook::stop(&pool, &host, &first, &stop).expect("stop"),
+            [] as [u32; 0]
         );
         let stop = serde_json::json!({"agent_id": "a1"});
         host.serve(900, &pool.slot_path(1));
@@ -4812,7 +4814,7 @@ fn release_removes_a_clean_pushed_external_worktree() {
     assert_eq!(released.branch.as_deref(), Some("by-hand"));
     assert!(!hand.exists());
     assert_eq!(host.shutdown_count(), 1);
-    assert!(host.servers().is_empty());
+    assert_eq!(host.servers(), [] as [crate::host::Server; 0]);
     assert!(
         !dx_test_scratch::git(&fixture.main, &fixture.main, &["worktree", "list"])
             .contains("by-hand")
@@ -5049,11 +5051,11 @@ fn prune_removes_clean_external_worktrees_on_merged_branches_only() {
     assert!(fresh.exists());
     assert!(locked.exists());
     assert!(serving.exists());
-    assert!(
+    assert_eq!(
         ops::prune_plan(&pool, &host, ops::Trigger::LowDisk)
             .expect("plan")
-            .externals
-            .is_empty()
+            .externals,
+        [] as [crate::ops::PruneExternal; 0]
     );
 }
 
@@ -5069,11 +5071,11 @@ fn prune_removes_external_worktrees_whose_upstream_branch_was_deleted() {
     dx_test_scratch::git(&hand, &hand, &["push", "--quiet", "-u", "origin", "topic"]);
     dx_test_scratch::git(&hand, &hand, &["push", "--quiet", "origin", "topic:kept"]);
     let follower = tracking_checkout(&fixture, "follower", "origin/topic");
-    assert!(
+    assert_eq!(
         ops::prune_plan(&pool, &host, ops::Trigger::LowDisk)
             .expect("plan")
-            .externals
-            .is_empty()
+            .externals,
+        [] as [crate::ops::PruneExternal; 0]
     );
     dx_test_scratch::git(
         &fixture.main,
@@ -5125,7 +5127,7 @@ fn prune_keeps_unpushed_branch_created_from_the_default_branch() {
         "refs/remotes/origin/main"
     );
     let plan = ops::prune_plan(&pool, &host, ops::Trigger::LowDisk).expect("plan");
-    assert!(plan.externals.is_empty());
+    assert_eq!(plan.externals, [] as [crate::ops::PruneExternal; 0]);
     assert_eq!(kept_reason(&plan, &fresh), Some("local"));
     ops::prune_apply(&pool, &host, &plan, &pool.lock().expect("lock")).expect("apply");
     assert!(fresh.exists());
@@ -5186,11 +5188,11 @@ fn prune_lists_detached_external_worktrees_as_removable_or_kept() {
     for path in [&fresh, &ahead, &side, &dirty] {
         assert!(path.exists(), "{}", path.display());
     }
-    assert!(
+    assert_eq!(
         ops::prune_plan(&pool, &host, ops::Trigger::LowDisk)
             .expect("plan")
-            .externals
-            .is_empty()
+            .externals,
+        [] as [crate::ops::PruneExternal; 0]
     );
 }
 
@@ -5285,7 +5287,7 @@ fn prune_apply_removes_external_worktree_still_clean_at_apply() {
     let kept = ops::prune_apply(&pool, &host, &plan, &pool.lock().expect("lock"))
         .expect("apply")
         .kept;
-    assert!(kept.is_empty());
+    assert_eq!(kept, [] as [crate::ops::PruneKept; 0]);
     assert!(!hand.exists());
 }
 
@@ -5325,7 +5327,10 @@ fn prune_apply_skips_a_slot_that_cannot_be_deleted_as_busy() {
     assert_eq!(next.slots.len(), 1, "the next prune finds it again");
     host.unstick();
     let pruned = ops::prune(&pool, &host, true, false).expect("prune again");
-    assert!(pruned.skipped_slots.is_empty());
+    assert_eq!(
+        pruned.skipped_slots,
+        [] as [crate::ops::PruneSkippedSlot; 0]
+    );
     assert_eq!(pruned.plan.slots.len(), 1);
     assert!(!path.exists());
     assert!(pool.record(slot.slot).is_none());
@@ -5359,7 +5364,10 @@ fn prune_apply_prunes_a_slot_and_skips_its_stuck_output_base_as_orphaned() {
     let (slot, path, base) = idle_slot_with_base(&fixture, &host, &pool);
     host.stick(&base);
     let pruned = ops::prune(&pool, &host, true, false).expect("prune");
-    assert!(pruned.skipped_slots.is_empty());
+    assert_eq!(
+        pruned.skipped_slots,
+        [] as [crate::ops::PruneSkippedSlot; 0]
+    );
     assert_eq!(pruned.plan.slots.len(), 1);
     assert_eq!(pruned.plan.bytes(), 4096, "the stuck base is not counted");
     assert_eq!(pruned.skipped_bases.len(), 1);
@@ -5403,7 +5411,7 @@ fn prune_apply_skips_stuck_bases_as_busy() {
             .iter()
             .any(|base| base.owner == ops::BaseOwner::Orphan)
     );
-    assert!(pruned.plan.bases.is_empty());
+    assert_eq!(pruned.plan.bases, [] as [crate::ops::PruneBase; 0]);
     assert_eq!(pruned.plan.bytes(), 0);
     assert!(owned.exists() && orphan.exists());
 }
@@ -5418,7 +5426,7 @@ fn prune_apply_keeps_a_stuck_external_worktree_as_busy() {
     let pruned = ops::prune(&pool, &host, true, false).expect("prune");
     assert_eq!(pruned.kept.len(), 1);
     assert_eq!(pruned.kept[0].reason, "busy");
-    assert!(pruned.plan.externals.is_empty());
+    assert_eq!(pruned.plan.externals, [] as [crate::ops::PruneExternal; 0]);
     assert_eq!(pruned.plan.bytes(), 0);
 }
 
@@ -5700,7 +5708,7 @@ fn list_disk_measures_nothing_when_a_signal_came_first() {
     host.stop_after(0, 15);
     let error = ops::list(&pool, &host, true).expect_err("stopped");
     assert_eq!(error.signal, Some(15));
-    assert!(host.disk_paths().is_empty());
+    assert_eq!(host.disk_paths(), [] as [std::path::PathBuf; 0]);
 }
 
 #[test]
@@ -5718,7 +5726,7 @@ fn prune_plan_stops_measuring_after_a_signal() {
     host.stop_after(0, 2);
     let error = ops::prune_plan(&pool, &host, ops::Trigger::LowDisk).expect_err("stopped");
     assert_eq!(error.signal, Some(2));
-    assert!(host.disk_paths().is_empty());
+    assert_eq!(host.disk_paths(), [] as [std::path::PathBuf; 0]);
 }
 
 #[test]
@@ -5801,7 +5809,7 @@ fn add_stops_before_fetching_when_a_signal_came_first() {
     host.stop_after(0, 2);
     let error = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect_err("stopped");
     assert_eq!(error.signal, Some(2));
-    assert!(pool.records().is_empty());
+    assert_eq!(pool.records(), [] as [crate::pool::Record; 0]);
 }
 
 #[test]
@@ -6211,7 +6219,7 @@ mod reaping {
         host.script_server(5, Some(true), None, GIB);
         let reaped = reap_idle(&host, &keep(&[]), 100 * GIB, 120);
         assert_eq!(reaped, Reaped::default());
-        assert!(host.stopped().is_empty());
+        assert_eq!(host.stopped(), [] as [u32; 0]);
     }
 
     #[test]
@@ -6237,7 +6245,7 @@ mod reaping {
             reap_idle(&host, &keep(&[]), 100 * GIB, 120),
             Reaped::default()
         );
-        assert!(host.stopped().is_empty());
+        assert_eq!(host.stopped(), [] as [u32; 0]);
     }
 }
 

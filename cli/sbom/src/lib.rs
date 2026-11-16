@@ -184,6 +184,7 @@ pub type Document = SpdxDocument;
 
 impl SpdxDocument {
     /// Returns an empty SPDX 2.3 document with version, data license, id and creation info set.
+    #[must_use]
     pub fn new(name: &str, namespace: &str, creators: &[&str]) -> Self {
         Self {
             version: SPDX_VERSION.to_owned(),
@@ -204,6 +205,7 @@ impl SpdxDocument {
 }
 
 /// `SPDXRef-DOCUMENT DESCRIBES <id>`: the document names `id` as one of its roots.
+#[must_use]
 pub fn describes(id: &str) -> SpdxRelationship {
     SpdxRelationship {
         from: DOCUMENT_ID.to_owned(),
@@ -213,6 +215,7 @@ pub fn describes(id: &str) -> SpdxRelationship {
 }
 
 /// `<from> CONTAINS <to>`.
+#[must_use]
 pub fn contains(from: &str, to: &str) -> SpdxRelationship {
     SpdxRelationship {
         from: from.to_owned(),
@@ -221,6 +224,7 @@ pub fn contains(from: &str, to: &str) -> SpdxRelationship {
     }
 }
 
+#[must_use]
 pub fn sha256_of(checksums: &[SpdxChecksum]) -> Option<&str> {
     checksums
         .iter()
@@ -228,12 +232,14 @@ pub fn sha256_of(checksums: &[SpdxChecksum]) -> Option<&str> {
         .map(|checksum| checksum.value.as_str())
 }
 
+#[must_use]
 pub fn purl_name(locator: &str) -> Option<&str> {
     let rest = locator.strip_prefix("pkg:")?;
     let path = rest.split('@').next()?;
     path.rsplit('/').next().filter(|name| !name.is_empty())
 }
 
+#[must_use]
 pub fn purl_version(locator: &str) -> Option<&str> {
     let rest = locator.strip_prefix("pkg:")?;
     let (_, version) = rest.rsplit_once('@')?;
@@ -241,6 +247,7 @@ pub fn purl_version(locator: &str) -> Option<&str> {
 }
 
 /// Returns why `value` is not an SPDX license expression, or `None` when it is (or is a sentinel).
+#[must_use]
 pub fn license_error(field: &str, value: &str) -> Option<String> {
     if value.is_empty() || value == NOASSERTION || value == NONE {
         return None;
@@ -251,6 +258,7 @@ pub fn license_error(field: &str, value: &str) -> Option<String> {
 }
 
 /// True when `id` has the `SPDXRef-[A-Za-z0-9.-]+` shape SPDX 2.3 requires of element ids.
+#[must_use]
 pub fn is_element_id(id: &str) -> bool {
     id.strip_prefix("SPDXRef-").is_some_and(|rest| {
         !rest.is_empty()
@@ -263,6 +271,7 @@ pub fn is_element_id(id: &str) -> bool {
 /// Graph rules the SPDX 2.3 JSON schema does not check: every element id is well formed and
 /// unique, every relationship end is the document or a declared element, and the document
 /// DESCRIBES at least one element.
+#[must_use]
 pub fn reference_errors(document: &SpdxDocument) -> Vec<String> {
     let mut errors = Vec::new();
     if document.id != DOCUMENT_ID {

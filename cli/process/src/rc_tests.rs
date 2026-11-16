@@ -73,7 +73,7 @@ fn cache_and_gc() -> Vec<String> {
 fn ci_reads_user_rc_but_adds_no_cache() {
     let policy = Machine::local().env("CI", "true").policy();
     assert!(policy.read_user_rc);
-    assert!(policy.startup_opts().is_empty());
+    assert_eq!(policy.startup_opts(), [] as [&str; 0]);
     assert_eq!(policy.disk_cache, None);
     assert_eq!(policy.bazel_disk_cache, None);
     assert!(!policy.disk_cache_gc);
@@ -90,7 +90,7 @@ fn ci_reads_the_setup_bazel_rc_without_adding_a_cache_flag() {
         )
         .policy();
     assert_eq!(policy.bazel_disk_cache, Some(PathBuf::from("/c")));
-    assert!(policy.verb_options("build", None, &[]).is_empty());
+    assert_eq!(policy.verb_options("build", None, &[]), [] as [String; 0]);
 }
 
 #[test]
@@ -127,7 +127,7 @@ fn ci_false_and_zero_stay_local() {
 fn local_reads_user_rc_and_shares_the_disk_cache() {
     let policy = Machine::local().policy();
     assert!(policy.read_user_rc);
-    assert!(policy.startup_opts().is_empty());
+    assert_eq!(policy.startup_opts(), [] as [&str; 0]);
     assert_eq!(policy.disk_cache, local_cache());
     assert!(policy.disk_cache_gc);
     assert_eq!(policy.gc_idle_delay_secs, None);
@@ -326,7 +326,7 @@ fn no_cache_dir_means_no_disk_cache() {
 fn configure_real_under_bazel_test_stays_hermetic() {
     configure_real(Path::new("/nonexistent-dx-workspace"));
     assert_eq!(current(), &RcPolicy::hermetic());
-    assert!(build_verb_options("build", &[]).is_empty());
+    assert_eq!(build_verb_options("build", &[]), [] as [String; 0]);
 }
 
 fn local_policy() -> RcPolicy {
@@ -401,7 +401,7 @@ fn local_query_argv_gets_no_disk_cache() {
 #[test]
 fn shutdown_startup_opts_follow_the_policy() {
     assert_eq!(current().startup_opts(), WORKFLOW_STARTUP_OPTS);
-    assert!(local_policy().startup_opts().is_empty());
+    assert_eq!(local_policy().startup_opts(), [] as [&str; 0]);
 }
 
 const SHARE_4: LocalShare = LocalShare {
@@ -475,7 +475,7 @@ fn no_share_adds_no_local_resources() {
 #[test]
 fn hermetic_caps_local_resources_only_with_a_share() {
     let hermetic = RcPolicy::hermetic();
-    assert!(hermetic.verb_options("build", None, &[]).is_empty());
+    assert_eq!(hermetic.verb_options("build", None, &[]), [] as [String; 0]);
     assert_eq!(
         hermetic.verb_options("build", Some(&SHARE_4), &[]),
         vec![
@@ -623,7 +623,9 @@ static SHARE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 #[test]
 fn the_process_share_clears_only_its_own_value() {
-    let _guard = SHARE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _guard = SHARE_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     set_share(Some(SHARE_4));
     assert_eq!(share(), Some(SHARE_4));
     clear_share(&LocalShare {
@@ -637,7 +639,9 @@ fn the_process_share_clears_only_its_own_value() {
 
 #[test]
 fn a_live_share_source_is_read_on_every_call() {
-    let _guard = SHARE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _guard = SHARE_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     use std::sync::atomic::{AtomicU64, Ordering};
     let cpus = Arc::new(AtomicU64::new(8));
     let seen = Arc::clone(&cpus);
@@ -675,7 +679,9 @@ fn a_live_share_source_is_read_on_every_call() {
 
 #[test]
 fn a_poisoned_share_lock_is_left_alone() {
-    let _guard = SHARE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _guard = SHARE_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     set_share(Some(SHARE_4));
     drop(
         std::thread::spawn(|| {
@@ -715,13 +721,13 @@ fn the_gc_pair_follows_only_build_verbs_and_never_hermetic_runs() {
         .file("/ws/.bazelrc", "startup --max_idle_secs=90\n")
         .policy();
     assert_eq!(policy, RcPolicy::hermetic());
-    assert!(policy.verb_options("build", None, &[]).is_empty());
+    assert_eq!(policy.verb_options("build", None, &[]), [] as [String; 0]);
     let ci = Machine::local()
         .env("CI", "true")
         .file("/ws/.bazelrc", "startup --max_idle_secs=90\n")
         .policy();
     assert_ne!(ci, RcPolicy::hermetic());
-    assert!(ci.verb_options("build", None, &[]).is_empty());
+    assert_eq!(ci.verb_options("build", None, &[]), [] as [String; 0]);
 }
 
 #[test]
@@ -793,7 +799,7 @@ fn an_rc_disk_cache_drops_the_cache_and_the_pair() {
         .policy();
     assert_eq!(policy.disk_cache, None);
     assert!(!policy.disk_cache_gc);
-    assert!(policy.verb_options("build", None, &[]).is_empty());
+    assert_eq!(policy.verb_options("build", None, &[]), [] as [String; 0]);
 }
 
 #[test]
@@ -987,7 +993,7 @@ fn default_user_roots_follow_test_tmpdir_then_xdg_then_home() {
 #[test]
 fn no_user_name_means_no_default_user_roots() {
     let machine = Machine::local();
-    assert!(repo_caches(&machine, &[]).is_empty());
+    assert_eq!(repo_caches(&machine, &[]), [] as [std::path::PathBuf; 0]);
     let logname = Machine::local().env("LOGNAME", "me");
     assert_eq!(
         repo_caches(&logname, &[]).first(),

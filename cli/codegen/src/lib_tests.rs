@@ -817,7 +817,7 @@ fn collect_plan_rejects_conflicts() {
 #[test]
 fn empty_outputs_select_an_empty_plan() {
     let plan = collect_plan(&[]).expect("empty plan");
-    assert!(plan.records.is_empty());
+    assert_eq!(plan.records, [] as [CodegenRecord; 0]);
     assert_eq!(plan.fingerprint, "[]");
     assert_eq!(plan.digest, dx_digest::blake3(b"[]"));
 }
@@ -966,5 +966,5 @@ fn sources_sidecars_merge_sorted_and_stay_out_of_the_generated_artifacts() {
         decode_sources(&outputs),
         ["api/BUILD.bazel", "api/a.proto", "api/b.proto"]
     );
-    assert!(generated_artifact_paths(&outputs).is_empty());
+    assert_eq!(generated_artifact_paths(&outputs), [] as [String; 0]);
 }

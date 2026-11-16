@@ -307,7 +307,7 @@ mod tests {
         for uses in [format!("o/r@{SHA}"), "o/r@main".to_owned()] {
             let found = run(&uses, release("v5.0.0"));
             assert_eq!(found.unknown.len(), 1, "{uses}");
-            assert!(found.candidates.is_empty());
+            assert_eq!(found.candidates, [] as [crate::discover::Candidate; 0]);
         }
     }
 
@@ -322,7 +322,7 @@ mod tests {
     fn missing_release_is_unknown_and_bad_json_is_an_error() {
         let found = run("o/r@v1", Err(DxError::failure("HTTP 404")));
         assert_eq!(found.unknown[0].reason, "no GitHub release");
-        assert!(found.errors.is_empty());
+        assert_eq!(found.errors, [] as [crate::discover::LookupError; 0]);
         let found = run("o/r@v1", Ok("nope".into()));
         assert_eq!(found.errors.len(), 1);
         let found = run("o/r@v1", Err(DxError::failure("HTTP 403")));
@@ -332,7 +332,7 @@ mod tests {
     #[test]
     fn prerelease_tags_are_not_offered() {
         let found = run("o/r@v1", release("v2.0.0-rc1"));
-        assert!(found.candidates.is_empty());
+        assert_eq!(found.candidates, [] as [crate::discover::Candidate; 0]);
     }
 
     #[test]

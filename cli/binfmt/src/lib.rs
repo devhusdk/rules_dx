@@ -38,6 +38,7 @@ pub enum Format {
 
 impl Format {
     /// Returns the lowercase format name.
+    #[must_use]
     pub fn name(self) -> &'static str {
         match self {
             Format::Elf => "elf",
@@ -60,6 +61,7 @@ pub enum Abi {
 
 impl Abi {
     /// Returns the ABI as one short word or phrase.
+    #[must_use]
     pub fn name(&self) -> String {
         match self {
             Abi::Gnu => "gnu".to_owned(),
@@ -80,7 +82,8 @@ pub struct Image {
     pub needed: Vec<String>,
 }
 
-/// Names an ELF e_machine value.
+/// Names an ELF `e_machine` value.
+#[must_use]
 pub fn elf_machine_name(raw: u16) -> String {
     match raw {
         elf::EM_386 => "x86".to_owned(),
@@ -93,6 +96,7 @@ pub fn elf_machine_name(raw: u16) -> String {
 }
 
 /// Names a PE COFF machine value.
+#[must_use]
 pub fn pe_machine_name(raw: u16) -> String {
     match raw {
         pe::IMAGE_FILE_MACHINE_I386 => "x86".to_owned(),
@@ -104,6 +108,7 @@ pub fn pe_machine_name(raw: u16) -> String {
 }
 
 /// Names a Mach-O cputype value.
+#[must_use]
 pub fn macho_machine_name(raw: u32) -> String {
     match raw {
         macho::CPU_TYPE_X86 => "x86".to_owned(),
@@ -118,6 +123,7 @@ const WASM_MAGIC: &[u8] = b"\0asm\x01\0\0\0";
 const WASM_MACHINE: &str = "wasm32";
 
 /// Names the machine from the first header bytes of an ELF, PE, thin Mach-O or wasm file.
+#[must_use]
 pub fn machine(head: &[u8]) -> Option<String> {
     if head.starts_with(WASM_MAGIC) {
         return Some(WASM_MACHINE.to_owned());
@@ -141,12 +147,8 @@ pub fn machine(head: &[u8]) -> Option<String> {
     if let [m0, m1, m2, m3, c0, c1, c2, c3, ..] = *head {
         let cpu = [c0, c1, c2, c3];
         return match [m0, m1, m2, m3] {
-            [0xcf, 0xfa, 0xed, 0xfe] | [0xce, 0xfa, 0xed, 0xfe] => {
-                Some(macho_machine_name(u32::from_le_bytes(cpu)))
-            }
-            [0xfe, 0xed, 0xfa, 0xcf] | [0xfe, 0xed, 0xfa, 0xce] => {
-                Some(macho_machine_name(u32::from_be_bytes(cpu)))
-            }
+            [0xcf | 0xce, 0xfa, 0xed, 0xfe] => Some(macho_machine_name(u32::from_le_bytes(cpu))),
+            [0xfe, 0xed, 0xfa, 0xcf | 0xce] => Some(macho_machine_name(u32::from_be_bytes(cpu))),
             _ => None,
         };
     }
@@ -240,6 +242,7 @@ pub fn machines(bytes: &[u8]) -> Result<Vec<String>, Error> {
 ///
 /// ELF files give the strings of the `.comment` section. PE files give one `msvc <prodid>.<build>`
 /// per entry of the Rich header. Anything else, or an image without either, yields an empty list.
+#[must_use]
 pub fn producers(bytes: &[u8]) -> Vec<String> {
     match FileKind::parse(bytes) {
         Ok(FileKind::Elf32) => elf_producers::<elf::FileHeader32<object::Endianness>>(bytes),

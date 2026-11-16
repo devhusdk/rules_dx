@@ -1,4 +1,7 @@
-use super::*;
+use super::{
+    BackendError, BackendPlan, CheckPlan, Path, ResolvedSet, Run, Selection, UvClosure, bazel,
+    dependency_sets, julia_env, set_dir,
+};
 
 pub(super) fn plan(
     workspace: &Path,

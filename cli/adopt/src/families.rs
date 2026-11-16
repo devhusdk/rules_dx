@@ -53,6 +53,7 @@ const QUALITY_FAMILIES: &[(&str, &[&str])] = &[
 ];
 
 /// The `[families.<id>]` ids of `dx.toml` whose files occur under `root`.
+#[must_use]
 pub fn detected_families(root: &Path) -> BTreeSet<String> {
     let mut names = BTreeSet::new();
     let mut extensions = BTreeSet::new();
@@ -93,6 +94,7 @@ fn is_named_file(name: &str) -> bool {
 
 /// The lowercased extensions, with their dot, of the files under `root`, plus the names that
 /// `is_named_file` accepts, alone or before a dot.
+#[must_use]
 pub fn file_extensions(root: &Path) -> BTreeSet<String> {
     source_files(root)
         .iter()

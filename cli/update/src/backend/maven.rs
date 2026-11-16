@@ -1,4 +1,8 @@
-use super::*;
+use super::{
+    BackendError, BackendPlan, CheckPlan, MAVEN_COURSIER_ENV, MAVEN_ONE_PACKAGE, MAVEN_REPIN_ENV,
+    Path, ResolvedSet, Selection, UvClosure, configured_fetch_argv, maven_env, maven_pin_argv,
+    maven_repository,
+};
 
 pub(super) fn plan(
     _workspace: &Path,

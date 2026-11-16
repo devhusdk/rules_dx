@@ -37,6 +37,7 @@ pub struct PresetState {
 
 impl PresetState {
     /// True when no line, active or commented, names a `.dx/bazelrc` layer.
+    #[must_use]
     pub fn unwired(&self) -> bool {
         self.layers
             .iter()
@@ -44,11 +45,13 @@ impl PresetState {
     }
 
     /// Whether apply would add the import block.
+    #[must_use]
     pub fn will_import(&self) -> bool {
         self.unwired() && !self.rc_symlink && self.collisions.is_empty()
     }
 
     /// Some layers are named in the `.bazelrc` and some are not.
+    #[must_use]
     pub fn partial(&self) -> bool {
         !self.unwired()
             && self
@@ -58,6 +61,7 @@ impl PresetState {
     }
 
     /// Advisories for what apply leaves alone.
+    #[must_use]
     pub fn notes(&self) -> Vec<String> {
         let mut notes = Vec::new();
         if self.unwired() {
@@ -99,11 +103,13 @@ impl PresetState {
 }
 
 /// The workspace-relative path of one layer file.
+#[must_use]
 pub fn layer_rel(layer: Layer) -> String {
     format!("{CONSUMER_DIR}/{}", layer.file_name())
 }
 
 /// Every workspace-relative path the preset owns.
+#[must_use]
 pub fn preset_paths() -> Vec<String> {
     let mut paths = vec![BAZELRC.to_owned(), GITIGNORE.to_owned()];
     paths.extend(Layer::ALL.iter().map(|layer| layer_rel(*layer)));
@@ -111,6 +117,7 @@ pub fn preset_paths() -> Vec<String> {
 }
 
 /// Every file the preset owns with the content a fresh workspace gets.
+#[must_use]
 pub fn preset_files() -> Vec<(String, String)> {
     let imports: Vec<String> = Layer::ALL
         .iter()
@@ -283,6 +290,7 @@ pub struct PresetDrift {
 }
 
 /// The preset drift under `root`, without writing.
+#[must_use]
 pub fn preset_drift(root: &Path) -> PresetDrift {
     let mut drift = PresetDrift::default();
     let state = match inspect_preset(root) {
@@ -339,7 +347,7 @@ mod tests {
         let root = scratch.path();
         let (wrote, notes) = apply(root);
         assert_eq!(wrote, [BAZELRC, GITIGNORE]);
-        assert!(notes.is_empty());
+        assert_eq!(notes, [] as [String; 0]);
         assert_eq!(preset_drift(root), PresetDrift::default());
         let (wrote, notes) = apply(root);
         assert!(wrote.is_empty() && notes.is_empty(), "{wrote:?} {notes:?}");
@@ -365,7 +373,7 @@ mod tests {
         let root = scratch.path();
         std::fs::write(root.join(".bazelrc"), "common --repo_env=DO_NOT_TRACK=1\n").expect("rc");
         let (wrote, _) = apply(root);
-        assert!(!wrote.is_empty());
+        assert_ne!(wrote, [] as [String; 0]);
         let text = std::fs::read_to_string(root.join(".bazelrc")).expect("read");
         assert!(text.starts_with(dx_preset::IMPORT_COMMENT), "{text:?}");
     }
@@ -389,7 +397,7 @@ mod tests {
             std::fs::remove_file(root.join(".bazelrc")).expect("rm");
             std::os::unix::fs::symlink(&other, root.join(".bazelrc")).expect("link");
             let (wrote, notes) = apply(root);
-            assert!(wrote.is_empty());
+            assert_eq!(wrote, [] as [String; 0]);
             assert!(notes[0].contains("symlink"), "{notes:?}");
         }
     }
@@ -412,7 +420,7 @@ mod tests {
         )
         .expect("comment");
         assert_eq!(preset_drift(root), PresetDrift::default());
-        assert!(apply(root).0.is_empty());
+        assert_eq!(apply(root).0, [] as [String; 0]);
         std::fs::write(
             root.join(".bazelrc"),
             rc.replace(&format!("{resources}\n"), ""),
@@ -420,7 +428,7 @@ mod tests {
         .expect("delete");
         let drift = preset_drift(root);
         assert!(drift.other[0].contains("resources.bazelrc"), "{drift:?}");
-        assert!(apply(root).0.is_empty());
+        assert_eq!(apply(root).0, [] as [String; 0]);
     }
 
     #[test]
@@ -439,7 +447,7 @@ mod tests {
             .collect();
         assert_eq!(ignore, format!("target/\nmine.log\n{added}"));
         assert_eq!(preset_drift(root), PresetDrift::default());
-        assert!(apply(root).0.is_empty());
+        assert_eq!(apply(root).0, [] as [String; 0]);
     }
 
     #[test]

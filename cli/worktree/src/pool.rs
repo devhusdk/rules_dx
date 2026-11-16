@@ -189,6 +189,7 @@ pub struct Record {
 
 impl Record {
     /// Whether `who` is the session that holds this lease, whichever agent.
+    #[must_use]
     pub fn same_session(&self, who: &Who) -> bool {
         match (&self.session, &who.session) {
             (Some(left), Some(right)) => left == right,
@@ -200,6 +201,7 @@ impl Record {
     /// Whether `who` must stay out of this slot: another session holds it, or another agent
     /// of the same session does. Agent-less callers, unclaimed hook slots and agents that
     /// stopped keep the session rule.
+    #[must_use]
     pub fn refuses(&self, who: &Who) -> bool {
         if !self.held || self.session.is_none() {
             return false;
@@ -247,6 +249,7 @@ impl Record {
     }
 
     /// A short name for the holder, as `list` and refusals print it.
+    #[must_use]
     pub fn holder(&self, alive: bool) -> Option<String> {
         if !self.held {
             return None;
@@ -366,6 +369,7 @@ impl Pool {
     }
 
     /// The existing pool holding slot directory `path`, found from its marker without git.
+    #[must_use]
     pub fn open_slot(path: &Path) -> Option<Pool> {
         let path = super::host::resolved(path);
         path.ancestors().skip(1).find_map(|base| {
@@ -413,9 +417,7 @@ impl Pool {
                     std::fs::create_dir_all(state::dx_dir(&base)).map_err(WorktreeError::io)?;
                     let ours = claim_marker(&marker, &marker_bytes(&main))
                         .map_err(WorktreeError::io)?
-                        || std::fs::read(&marker)
-                            .map(|bytes| marker_matches(&bytes, &main))
-                            .unwrap_or(false);
+                        || std::fs::read(&marker).is_ok_and(|bytes| marker_matches(&bytes, &main));
                     if ours {
                         return Ok(Some(Pool {
                             main,
@@ -438,6 +440,7 @@ impl Pool {
         Ok(found)
     }
 
+    #[must_use]
     pub fn slot_path(&self, slot: u32) -> PathBuf {
         self.base.join(slot.to_string())
     }
@@ -526,6 +529,7 @@ impl Pool {
     }
 
     /// The slot a path is, or is inside.
+    #[must_use]
     pub fn slot_of(&self, path: &Path) -> Option<u32> {
         let path = super::host::resolved(path);
         let base = super::host::resolved(&self.base);
@@ -568,6 +572,7 @@ fn busy_file(base: &Path, slot: u32) -> PathBuf {
 }
 
 /// Holds the busy lock of the slot `workspace` is in; `None` outside a slot.
+#[must_use]
 pub fn hold_busy(
     workspace: &Path,
     wait: Duration,
@@ -581,6 +586,7 @@ pub fn hold_busy(
 }
 
 /// The lease of the slot a directory is in, after resolving links in the path.
+#[must_use]
 pub fn lease_for_dir(dir: &Path) -> Option<(PathBuf, Record)> {
     lease_for_workspace(&host::resolved(dir))
 }
@@ -596,6 +602,7 @@ fn busy_error(error: &std::io::Error, slot: u32) -> dx_error::DxError {
 }
 
 /// The slots of the pool whose primary checkout holds `dir`; none when `dir` is not in one.
+#[must_use]
 pub fn slots_for_primary(dir: &Path) -> Option<Vec<(PathBuf, Record)>> {
     let dir = host::resolved(dir);
     let main = dir
@@ -615,6 +622,7 @@ pub fn slots_for_primary(dir: &Path) -> Option<Vec<(PathBuf, Record)>> {
 }
 
 /// The slot a workspace is in and its lease, found from the path alone.
+#[must_use]
 pub fn lease_for_workspace(workspace: &Path) -> Option<(PathBuf, Record)> {
     let mut current = Some(workspace);
     while let Some(dir) = current {

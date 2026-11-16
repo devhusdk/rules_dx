@@ -38,6 +38,7 @@ pub enum ChangedResult {
 
 impl ChangedResult {
     /// The token the `changed_line_coverage` event carries.
+    #[must_use]
     pub fn name(self) -> &'static str {
         match self {
             ChangedResult::Pass => "pass",
@@ -48,6 +49,7 @@ impl ChangedResult {
     }
 
     /// True when the gate lets the run pass.
+    #[must_use]
     pub fn ok(self) -> bool {
         matches!(self, ChangedResult::Pass | ChangedResult::NotApplicable)
     }
@@ -55,6 +57,7 @@ impl ChangedResult {
 
 impl ChangedAccount {
     /// Incomplete with any uninstrumented file, else not applicable without eligible lines, else the exact percent compare.
+    #[must_use]
     pub fn result(&self, minimum: u32) -> ChangedResult {
         if !self.uninstrumented.is_empty() {
             ChangedResult::Incomplete
@@ -180,6 +183,7 @@ pub fn parse_added_lines(diff: &str) -> AddedLines {
 }
 
 /// Every line of one new file, which counts as added in full.
+#[must_use]
 pub fn all_lines(text: &str) -> BTreeSet<u32> {
     (1..=text.lines().count() as u32).collect()
 }
@@ -256,7 +260,7 @@ pub fn changed_account(
             }
         };
         let mut touched = FileHits::default();
-        for line in lines.iter() {
+        for line in *lines {
             if let Some(count) = hits.lines.get(line) {
                 touched.lines.insert(*line, *count);
             }

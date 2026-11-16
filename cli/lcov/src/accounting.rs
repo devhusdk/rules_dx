@@ -61,6 +61,7 @@ pub struct CellAccount {
 
 impl CellAccount {
     /// The one-line counts summary for this cell.
+    #[must_use]
     pub fn summary(&self) -> String {
         format!(
             "coverage sources {}: {} raw, {} excluded, {} eligible, {} covered lines; {} eligible, {} support, {} excluded, {} unsupported files",
@@ -88,6 +89,7 @@ impl CellAccount {
     }
 
     /// True when the cell has no accounting errors, at least one eligible line, and meets `minimum` percent.
+    #[must_use]
     pub fn meets(&self, minimum: u32) -> bool {
         self.errors.is_empty()
             && self.eligible_lines > 0
@@ -108,7 +110,7 @@ pub(crate) struct LineCount {
 pub(crate) fn count_lines(hits: &FileHits, ignores: &Ignores) -> LineCount {
     let mut count = LineCount::default();
     let mut numbered: Vec<u32> = hits.lines.keys().copied().collect();
-    numbered.sort();
+    numbered.sort_unstable();
     for line in numbered {
         if is_ignored(ignores, line) {
             count.ignored += 1;
@@ -127,6 +129,7 @@ pub(crate) fn count_lines(hits: &FileHits, ignores: &Ignores) -> LineCount {
 /// The tracked files that could be orphans: covered-language files outside dx state and the ignored prefixes.
 ///
 /// `ignored_prefixes` are `.bazelignore` entries without a trailing slash.
+#[must_use]
 pub fn orphan_candidates(tracked: &[String], ignored_prefixes: &[String]) -> Vec<String> {
     let mut out: Vec<String> = tracked
         .iter()

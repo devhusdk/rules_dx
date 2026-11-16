@@ -87,6 +87,7 @@ pub struct Findings {
 }
 
 /// Reads `owner/name` from a GitHub repository URL or `github:owner/name` shorthand.
+#[must_use]
 pub fn github_repo(url: &str) -> Option<String> {
     let url = url.trim();
     let path = url
@@ -104,6 +105,7 @@ pub fn github_repo(url: &str) -> Option<String> {
 }
 
 /// Keeps a package when no filter is given or the filter names it.
+#[must_use]
 pub fn wanted(only: &[String], package: &str) -> bool {
     only.is_empty() || only.iter().any(|name| name == package)
 }
@@ -195,6 +197,7 @@ pub enum Registry {
 
 impl Registry {
     /// The page that lists a package's releases.
+    #[must_use]
     pub fn url(self, package: &str) -> String {
         match self {
             Registry::Bcr => format!("https://registry.bazel.build/modules/{package}"),

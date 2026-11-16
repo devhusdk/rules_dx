@@ -176,6 +176,7 @@ fn observe_process(
 /// Reading stops at the first file the kernel refuses to show (another uid,
 /// or non-dumpable): such a process cannot be using this user's `.dx/local`.
 /// A root-owned process working in someone's `.dx/local` is therefore not seen.
+#[must_use]
 pub fn scan_live_observation(proc_root: &Path, dx_dir: &Path) -> LiveObservation {
     scan_with(&RealProcFs, proc_root, dx_dir)
 }
@@ -328,8 +329,8 @@ mod tests {
         let root = scratch.path().to_path_buf();
         let dx_dir = dx_path::state::local_dir(&workspace_of(&root));
         match scan_live_observation(&root.join("no-such-proc"), &dx_dir) {
-            LiveObservation::Unavailable { reason } => assert!(!reason.is_empty()),
-            other @ LiveObservation::Known(_) | other @ LiveObservation::Unknown { .. } => {
+            LiveObservation::Unavailable { reason } => assert_ne!(reason, ""),
+            other @ (LiveObservation::Known(_) | LiveObservation::Unknown { .. }) => {
                 panic!("a missing proc root is unavailable, never idle: {other:?}")
             }
         }
@@ -349,7 +350,7 @@ mod tests {
         fs::write(&blocker, "not a directory").expect("blocker file");
         match scan_live_observation(&blocker, &dx_dir) {
             LiveObservation::Unavailable { .. } => {}
-            other @ LiveObservation::Known(_) | other @ LiveObservation::Unknown { .. } => {
+            other @ (LiveObservation::Known(_) | LiveObservation::Unknown { .. }) => {
                 panic!("a file proc root is unavailable, never idle: {other:?}")
             }
         }
@@ -377,8 +378,7 @@ mod tests {
         );
         match scan_live_observation(&proc_root, &dx_dir) {
             LiveObservation::Known(live) => assert_eq!(live, LiveHexes::default()),
-            other @ LiveObservation::Unknown { .. }
-            | other @ LiveObservation::Unavailable { .. } => {
+            other @ (LiveObservation::Unknown { .. } | LiveObservation::Unavailable { .. }) => {
                 panic!("a listed proc root is known: {other:?}")
             }
         }
@@ -413,8 +413,7 @@ mod tests {
         );
         let live = match scan_live_observation(&proc_root, &dx_dir) {
             LiveObservation::Known(live) => live,
-            other @ LiveObservation::Unknown { .. }
-            | other @ LiveObservation::Unavailable { .. } => {
+            other @ (LiveObservation::Unknown { .. } | LiveObservation::Unavailable { .. }) => {
                 panic!("a listed proc root is known: {other:?}")
             }
         };
@@ -467,12 +466,11 @@ mod tests {
         );
         let live = match scan_live_observation(&proc_root, &dx_dir) {
             LiveObservation::Known(live) => live,
-            other @ LiveObservation::Unknown { .. }
-            | other @ LiveObservation::Unavailable { .. } => {
+            other @ (LiveObservation::Unknown { .. } | LiveObservation::Unavailable { .. }) => {
                 panic!("a listed proc root is known: {other:?}")
             }
         };
-        assert!(live.setup.is_empty());
+        assert_eq!(live.setup, [] as [String; 0]);
         assert_eq!(
             live.generations,
             vec![GenerationView {
@@ -511,12 +509,11 @@ mod tests {
         );
         let live = match scan_live_observation(&proc_root, &dx_dir) {
             LiveObservation::Known(live) => live,
-            other @ LiveObservation::Unknown { .. }
-            | other @ LiveObservation::Unavailable { .. } => {
+            other @ (LiveObservation::Unknown { .. } | LiveObservation::Unavailable { .. }) => {
                 panic!("a listed proc root is known: {other:?}")
             }
         };
-        assert!(live.setup.is_empty());
+        assert_eq!(live.setup, [] as [String; 0]);
         assert_eq!(
             live.generations,
             vec![
@@ -567,8 +564,11 @@ mod tests {
         assert!(scanned.observation_unknown);
         let plan = scanned.plan();
         assert!(plan.observation_unknown);
-        assert!(plan.prune_setup_records.is_empty());
-        assert!(plan.prune_generations.is_empty());
+        assert_eq!(plan.prune_setup_records, [] as [String; 0]);
+        assert_eq!(
+            plan.prune_generations,
+            [] as [crate::prune::planning::GenerationView; 0]
+        );
         assert_eq!(plan.preserved_unobserved_setup_records, vec![stale_hex]);
         assert_eq!(plan.preserved_unobserved_generations.len(), 2);
         drop(fs::remove_dir_all(&root));
@@ -595,7 +595,7 @@ mod tests {
                 assert_eq!(partial.setup, vec![hex]);
                 assert!(reason.contains("11"), "{reason}");
             }
-            other @ LiveObservation::Known(_) | other @ LiveObservation::Unavailable { .. } => {
+            other @ (LiveObservation::Known(_) | LiveObservation::Unavailable { .. }) => {
                 panic!("an unreadable process is unknown: {other:?}")
             }
         }
@@ -611,7 +611,7 @@ mod tests {
         fs::write(proc_root.join("12").join("fd"), "not a dir").expect("fd file");
         match scan_live_observation(&proc_root, &dx_dir) {
             LiveObservation::Unknown { reason, .. } => assert!(reason.contains("12"), "{reason}"),
-            other @ LiveObservation::Known(_) | other @ LiveObservation::Unavailable { .. } => {
+            other @ (LiveObservation::Known(_) | LiveObservation::Unavailable { .. }) => {
                 panic!("an unreadable fd dir is unknown: {other:?}")
             }
         }
@@ -626,8 +626,7 @@ mod tests {
         fs::create_dir_all(proc_root.join("13")).expect("pid dir");
         match scan_live_observation(&proc_root, &dx_dir) {
             LiveObservation::Known(live) => assert_eq!(live, LiveHexes::default()),
-            other @ LiveObservation::Unknown { .. }
-            | other @ LiveObservation::Unavailable { .. } => {
+            other @ (LiveObservation::Unknown { .. } | LiveObservation::Unavailable { .. }) => {
                 panic!("gone process is skipped: {other:?}")
             }
         }
@@ -653,8 +652,11 @@ mod tests {
             collect_inventory_with_scan_from(&workspace, &proc_root, None).expect("scan");
         assert!(preserved.observation_unknown);
         let plan = preserved.plan();
-        assert!(plan.prune_setup_records.is_empty());
-        assert!(plan.prune_generations.is_empty());
+        assert_eq!(plan.prune_setup_records, [] as [String; 0]);
+        assert_eq!(
+            plan.prune_generations,
+            [] as [crate::prune::planning::GenerationView; 0]
+        );
     }
 
     #[cfg(target_os = "linux")]
@@ -664,8 +666,7 @@ mod tests {
         let dx_dir = dx_path::state::local_dir(&workspace_of(scratch.path()));
         match scan_live_observation(Path::new("/proc"), &dx_dir) {
             LiveObservation::Known(_) => {}
-            other @ LiveObservation::Unknown { .. }
-            | other @ LiveObservation::Unavailable { .. } => {
+            other @ (LiveObservation::Unknown { .. } | LiveObservation::Unavailable { .. }) => {
                 panic!("/proc is observable: {other:?}")
             }
         }
@@ -835,8 +836,11 @@ mod tests {
                 .expect("scan");
         assert!(scanned.observation_unknown);
         let plan = scanned.plan();
-        assert!(plan.prune_setup_records.is_empty());
-        assert!(plan.prune_generations.is_empty());
+        assert_eq!(plan.prune_setup_records, [] as [String; 0]);
+        assert_eq!(
+            plan.prune_generations,
+            [] as [crate::prune::planning::GenerationView; 0]
+        );
         let mut kept = vec![older_hex, previous_hex];
         kept.sort();
         assert_eq!(plan.preserved_unobserved_setup_records, kept);
@@ -857,7 +861,7 @@ mod tests {
             collect_inventory_with(&proc, &workspace, &FakeProc::root(), None).expect("scan");
         assert!(!scanned.observation_unknown);
         assert_eq!(scanned.active_setup_hexes, vec![stale_hex]);
-        assert!(scanned.plan().prune_setup_records.is_empty());
+        assert_eq!(scanned.plan().prune_setup_records, [] as [String; 0]);
     }
 
     #[test]
@@ -885,8 +889,7 @@ mod tests {
         proc.files.insert(pid.join("maps"), maps.into_bytes());
         let live = match scan_with(&proc, &FakeProc::root(), &dx_dir) {
             LiveObservation::Known(live) => live,
-            other @ LiveObservation::Unknown { .. }
-            | other @ LiveObservation::Unavailable { .. } => {
+            other @ (LiveObservation::Unknown { .. } | LiveObservation::Unavailable { .. }) => {
                 panic!("a readable process is known: {other:?}")
             }
         };
@@ -930,7 +933,7 @@ mod tests {
                 assert_eq!(partial.setup, vec![hex]);
                 assert!(reason.contains("maps"), "{reason}");
             }
-            other @ LiveObservation::Known(_) | other @ LiveObservation::Unavailable { .. } => {
+            other @ (LiveObservation::Known(_) | LiveObservation::Unavailable { .. }) => {
                 panic!("an unreadable maps file is unknown: {other:?}")
             }
         }

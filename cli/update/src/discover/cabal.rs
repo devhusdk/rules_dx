@@ -228,7 +228,7 @@ mod tests {
             .map(|c| (c.package.as_str(), c.current.as_str(), c.latest.as_str()))
             .collect();
         assert_eq!(listed, [("safe", "0.3.21", "0.3.22")]);
-        assert!(found.errors.is_empty());
+        assert_eq!(found.errors, [] as [crate::discover::LookupError; 0]);
     }
 
     #[test]
@@ -242,7 +242,7 @@ mod tests {
             DEFAULT_BASE,
             &fail,
         );
-        assert!(found.candidates.is_empty());
+        assert_eq!(found.candidates, [] as [crate::discover::Candidate; 0]);
         assert_eq!(found.errors.len(), 1);
     }
 

@@ -822,24 +822,18 @@ fn parity_consistency_truth_table() {
         Language::Fsharp,
         Language::Cc,
     ] {
-        assert_eq!(consistency(eco, "ok_used"), 0, "{:?} ok_used", eco);
-        assert_eq!(consistency(eco, "stale"), 1, "{:?} stale", eco);
-        assert_eq!(consistency(eco, "unused"), 0, "{:?} unused", eco);
+        assert_eq!(consistency(eco, "ok_used"), 0, "{eco:?} ok_used");
+        assert_eq!(consistency(eco, "stale"), 1, "{eco:?} stale");
+        assert_eq!(consistency(eco, "unused"), 0, "{eco:?} unused");
         assert_eq!(
             consistency(eco, "transitive_shared"),
             0,
-            "{:?} transitive",
-            eco
+            "{eco:?} transitive"
         );
-        assert_eq!(consistency(eco, "exception"), 0, "{:?} exception", eco);
-        assert_eq!(consistency(eco, "category"), 0, "{:?} category", eco);
-        assert_eq!(consistency(eco, "category_ok"), 0, "{:?} category_ok", eco);
-        assert_eq!(
-            consistency(eco, "platform_optional"),
-            0,
-            "{:?} platform",
-            eco
-        );
+        assert_eq!(consistency(eco, "exception"), 0, "{eco:?} exception");
+        assert_eq!(consistency(eco, "category"), 0, "{eco:?} category");
+        assert_eq!(consistency(eco, "category_ok"), 0, "{eco:?} category_ok");
+        assert_eq!(consistency(eco, "platform_optional"), 0, "{eco:?} platform");
     }
 }
 
@@ -876,26 +870,25 @@ fn parity_usage_truth_table() {
         Language::Cc,
     ] {
         let (ok_code, _) = usage(eco, "ok_used");
-        assert_eq!(ok_code, 0, "{:?} ok_used usage", eco);
+        assert_eq!(ok_code, 0, "{eco:?} ok_used usage");
         let (stale_code, _) = usage(eco, "stale");
-        assert_eq!(stale_code, 0, "{:?} stale usage", eco);
+        assert_eq!(stale_code, 0, "{eco:?} stale usage");
         let (unused_code, _) = usage(eco, "unused");
-        assert_eq!(unused_code, 1, "{:?} unused usage", eco);
+        assert_eq!(unused_code, 1, "{eco:?} unused usage");
         let (trans_code, _) = usage(eco, "transitive_shared");
-        assert_eq!(trans_code, 0, "{:?} transitive usage", eco);
+        assert_eq!(trans_code, 0, "{eco:?} transitive usage");
         let (plat_code, _) = usage(eco, "platform_optional");
-        assert_eq!(plat_code, 0, "{:?} platform usage", eco);
+        assert_eq!(plat_code, 0, "{eco:?} platform usage");
         let (plat_unused_code, _) = usage(eco, "platform_optional_unused");
-        assert_eq!(plat_unused_code, 1, "{:?} platform unused", eco);
+        assert_eq!(plat_unused_code, 1, "{eco:?} platform unused");
         let (cat_code, cat_err) = usage(eco, "category");
-        assert_eq!(cat_code, 1, "{:?} category usage", eco);
+        assert_eq!(cat_code, 1, "{eco:?} category usage");
         assert!(
             cat_err.contains("category error"),
-            "{:?} category error text: {cat_err}",
-            eco
+            "{eco:?} category error text: {cat_err}"
         );
         let (cat_ok_code, _) = usage(eco, "category_ok");
-        assert_eq!(cat_ok_code, 0, "{:?} category_ok usage", eco);
+        assert_eq!(cat_ok_code, 0, "{eco:?} category_ok usage");
     }
 }
 
@@ -2575,7 +2568,7 @@ fn pnpm_lock_lists_every_version() {
     assert!(parsed.has_package("foo", "1.0.0"));
     assert!(parsed.has_package("foo", "2.0.0"));
     assert!(parsed.has_package("@S/n", "1.0.0"));
-    assert!(parsed.importer_keys().is_empty());
+    assert_eq!(parsed.importer_keys(), [] as [&str; 0]);
 }
 
 #[test]

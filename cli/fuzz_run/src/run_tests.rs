@@ -95,5 +95,5 @@ fn crowbar_takes_no_fuzz_flags_of_its_own() {
         Path::new("/w"),
         Path::new("/c"),
     );
-    assert!(args.is_empty());
+    assert_eq!(args, [] as [String; 0]);
 }

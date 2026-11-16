@@ -106,6 +106,7 @@ pub struct PnpmLock {
 }
 
 impl PnpmLock {
+    #[must_use]
     pub fn importer(&self, key: &str) -> Option<&BTreeMap<String, PnpmEntry>> {
         self.importers.get(key)
     }
@@ -115,10 +116,12 @@ impl PnpmLock {
     }
 
     /// Package names the lock lists, without versions.
+    #[must_use]
     pub fn package_names(&self) -> BTreeSet<String> {
         self.packages.iter().map(|(name, _)| name.clone()).collect()
     }
 
+    #[must_use]
     pub fn has_package(&self, name: &str, version: &str) -> bool {
         self.packages
             .contains(&(normalize_lower(name), version.to_owned()))

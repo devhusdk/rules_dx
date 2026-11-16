@@ -28,6 +28,7 @@ pub enum Merge3 {
 }
 
 /// Merges the changes from `ancestor` to `ours` and from `ancestor` to `theirs`, keeping every byte.
+#[must_use]
 pub fn merge3(ancestor: &str, ours: &str, theirs: &str, labels: Labels<'_>) -> Merge3 {
     let base: Vec<&str> = ancestor.split_inclusive('\n').collect();
     let our: Vec<&str> = ours.split_inclusive('\n').collect();

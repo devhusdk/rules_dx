@@ -1,4 +1,7 @@
-use super::*;
+use super::{
+    BackendError, BackendPlan, CheckPlan, Path, ResolvedSet, Selection, UvClosure, bazel,
+    composer_argv, composer_env,
+};
 
 const RESOLVER: &str = "@rules_dx//php/private/tools/lock";
 

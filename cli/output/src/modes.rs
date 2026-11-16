@@ -12,6 +12,7 @@ impl OutputMode {
         Ok(OutputModeName::parse(text)?.resolve(quiet))
     }
 
+    #[must_use]
     pub fn name(&self) -> &'static str {
         match self {
             OutputMode::Text { .. } => "text",
@@ -35,6 +36,7 @@ impl OutputModeName {
         })
     }
 
+    #[must_use]
     pub fn resolve(self, quiet: bool) -> OutputMode {
         match self {
             OutputModeName::Text => OutputMode::Text { quiet },
@@ -51,6 +53,7 @@ pub enum StdoutOwner {
     Report,
 }
 
+#[must_use]
 pub fn stdout_owner(mode: &OutputMode, stdout_report: bool) -> StdoutOwner {
     if stdout_report {
         return StdoutOwner::Report;
@@ -62,6 +65,7 @@ pub fn stdout_owner(mode: &OutputMode, stdout_report: bool) -> StdoutOwner {
     }
 }
 
+#[must_use]
 pub fn dx_text_visible(mode: &OutputMode) -> bool {
     matches!(mode, OutputMode::Text { quiet: false })
 }

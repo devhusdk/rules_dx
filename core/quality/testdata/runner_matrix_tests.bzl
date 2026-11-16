@@ -477,7 +477,7 @@ _FORWARDED_DEFAULTS = {
 
 def matrix_case(name, capability, tool, binary, source_class, src = None, generated = None, config = None, platforms = SUPPORT_PLATFORMS, **extra):
     """Returns one matrix case row."""
-    if (src == None) == (generated == None):
+    if (src == None) == (generated == None) or generated == {}:
         fail("matrix_case " + name + ": set exactly one of src and generated")
     case = {
         "name": name,
@@ -494,10 +494,8 @@ def matrix_case(name, capability, tool, binary, source_class, src = None, genera
         case["srcs"] = [src]
         path = "core/quality/testdata/" + src.removeprefix(":")
     else:
-        if len(generated) != 1:
-            fail("matrix_case " + name + ": generated takes one file")
         case["generated"] = generated
-        path = generated.keys()[0]
+        path = ",".join(sorted(generated.keys()))
     case["stages"] = ["%s;%s;%s" % (tool, source_class, path)]
     if config != None:
         case["toolfile_tools"] = [tool]

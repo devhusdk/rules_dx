@@ -44,7 +44,7 @@ def cpan_package(name, deps):
         srcs = srcs,
         includes = includes,
         visibility = ["//visibility:public"],
-        deps = deps,
+        deps = deps + [Label("//perl/private:pod")],
     )
     for script in native.glob(["bin/*", "script/*"], allow_empty = True):
         perl_binary(

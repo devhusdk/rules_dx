@@ -1,0 +1,21 @@
+{
+  "cells": {
+    "linux_arm64": {
+      "binary": "firefox/firefox",
+      "sha256": "73fc3d6f6f4d3fcdeee59db90156568af9959405120ad686e535f572995074d0",
+      "type": "tar.xz",
+      "urls": [
+        "https://download-installer.cdn.mozilla.net/pub/firefox/releases/157.0/linux-aarch64/en-US/firefox-157.0.tar.xz"
+      ]
+    },
+    "linux_x86_64": {
+      "binary": "firefox/firefox",
+      "sha256": "42f2c62a562316982ef5a796738c57602bf84a984f5c616e80bcff4627f78fff",
+      "type": "tar.xz",
+      "urls": [
+        "https://download-installer.cdn.mozilla.net/pub/firefox/releases/157.0/linux-x86_64/en-US/firefox-157.0.tar.xz"
+      ]
+    }
+  },
+  "version": "157.0"
+}

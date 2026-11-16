@@ -1,119 +1,75 @@
-"""Pinned upstream Firefox acquisition for the documentation browser harness."""
+"""Firefox acquisition for the documentation browser harness, pinned in tools/docs/site/browser/pins.json."""
 
-FIREFOX_VERSION = "157.0"
-
-FIREFOX_CDN = "https://download-installer.cdn.mozilla.net/pub/firefox/releases/" + FIREFOX_VERSION
-
-_ARCHIVE = "tar.xz"
 _EXECUTABLE = "firefox/firefox"
-
-ARTIFACTS = {
-    "linux_arm64": struct(
-        archive_format = _ARCHIVE,
-        asset = "firefox-" + FIREFOX_VERSION + ".tar.xz",
-        directory = "linux-aarch64",
-        executable = _EXECUTABLE,
-        sha256 = "73fc3d6f6f4d3fcdeee59db90156568af9959405120ad686e535f572995074d0",
-    ),
-    "linux_x86_64": struct(
-        archive_format = _ARCHIVE,
-        asset = "firefox-" + FIREFOX_VERSION + ".tar.xz",
-        directory = "linux-x86_64",
-        executable = _EXECUTABLE,
-        sha256 = "42f2c62a562316982ef5a796738c57602bf84a984f5c616e80bcff4627f78fff",
-    ),
-}
-
-PLATFORM_CONSTRAINTS = {
-    "linux_arm64": ["@platforms//os:linux", "@platforms//cpu:arm64"],
-    "linux_x86_64": ["@platforms//os:linux", "@platforms//cpu:x86_64"],
-}
 
 _REPOSITORY_PREFIX = "dx_firefox_"
 
-_ARTIFACT_KEYS = [
-    "archive_format",
-    "asset",
-    "directory",
-    "executable",
-    "sha256",
-]
+_CELL_KEYS = ["binary", "sha256", "type", "urls"]
 
 def repository_name(platform):
     """Returns the repository name one platform's Firefox is acquired into."""
     return _REPOSITORY_PREFIX + platform
 
-def artifact_repositories():
-    """Returns the platform-keyed Firefox repository names."""
-    return {platform: repository_name(platform) for platform in sorted(ARTIFACTS.keys())}
+def constraints(platform):
+    """Returns the os and cpu constraint values of one pinned cell."""
+    os, cpu = platform.split("_", 1)
+    return ["@platforms//os:" + os, "@platforms//cpu:" + cpu]
 
-def no_match_error():
+def no_match_error(pins):
     """Returns the diagnostic for an execution platform upstream ships no Firefox for."""
-    return ("rules_dx: no pinned Firefox " + FIREFOX_VERSION + " artifact for this execution " +
-            "platform; want one of " + ", ".join(sorted(ARTIFACTS.keys())))
+    return ("rules_dx: no pinned Firefox " + pins["version"] + " artifact for this execution " +
+            "platform; want one of " + ", ".join(sorted(pins["cells"].keys())))
 
-def artifact_errors():
-    """Returns one error string per artifact that is not ready to download."""
+def artifact_errors(pins):
+    """Returns one error string per cell that is not ready to download."""
     errors = []
-    for platform in sorted(ARTIFACTS.keys()):
-        if platform not in PLATFORM_CONSTRAINTS:
-            errors.append("artifact '" + platform + "' names no platform constraints")
-        artifact = ARTIFACTS[platform]
-        missing = [key for key in _ARTIFACT_KEYS if getattr(artifact, key, "") == ""]
+    for platform in sorted(pins["cells"].keys()):
+        cell = pins["cells"][platform]
+        missing = [key for key in _CELL_KEYS if not cell.get(key)]
         if len(missing) > 0:
-            errors.append("artifact '" + platform + "' is missing " + ", ".join(missing))
+            errors.append("cell '" + platform + "' is missing " + ", ".join(missing))
             continue
-        expected = "firefox-" + FIREFOX_VERSION + ".tar.xz"
-        if artifact.asset != expected:
-            errors.append("artifact '" + platform + "' asset is '" + artifact.asset +
-                          "', want the pinned '" + expected + "'")
+        if cell["binary"] != _EXECUTABLE:
+            errors.append("cell '" + platform + "' binary is '" + cell["binary"] + "', want '" + _EXECUTABLE + "'")
+        expected = "/firefox-" + pins["version"] + ".tar.xz"
+        if not cell["urls"][0].endswith(expected):
+            errors.append("cell '" + platform + "' url is '" + cell["urls"][0] + "', want one ending in '" + expected + "'")
     return errors
 
-def url_for(artifact):
-    """Returns the download URL one pinned Firefox artifact lives at."""
-    return FIREFOX_CDN + "/" + artifact.directory + "/en-US/" + artifact.asset
-
-def hub_build():
+def hub_build(pins):
     """Returns the hub BUILD file selecting one pinned artifact per platform."""
+    platforms = sorted(pins["cells"].keys())
     lines = []
-    for platform in sorted(PLATFORM_CONSTRAINTS.keys()):
+    for platform in platforms:
         lines.append("config_setting(")
         lines.append('    name = "%s",' % platform)
         lines.append("    constraint_values = [")
-        for constraint in PLATFORM_CONSTRAINTS[platform]:
+        for constraint in constraints(platform):
             lines.append('        "%s",' % constraint)
         lines.append("    ],")
         lines.append(")")
-    lines.append("")
-    lines.append("alias(")
-    lines.append('    name = "firefox",')
-    lines.append("    actual = select({")
-    for platform in sorted(ARTIFACTS.keys()):
-        lines.append('        ":%s": "@%s//:binary",' % (platform, repository_name(platform)))
-    lines.append("    }, no_match_error = \"%s\")," % no_match_error())
-    lines.append('    visibility = ["//visibility:public"],')
-    lines.append(")")
-    lines.append("")
-    lines.append("alias(")
-    lines.append('    name = "tree",')
-    lines.append("    actual = select({")
-    for platform in sorted(ARTIFACTS.keys()):
-        lines.append('        ":%s": "@%s//:tool",' % (platform, repository_name(platform)))
-    lines.append("    }, no_match_error = \"%s\")," % no_match_error())
-    lines.append('    visibility = ["//visibility:public"],')
-    lines.append(")")
+    for target, source in (("firefox", "binary"), ("tree", "tool")):
+        lines.append("")
+        lines.append("alias(")
+        lines.append('    name = "%s",' % target)
+        lines.append("    actual = select({")
+        for platform in platforms:
+            lines.append('        ":%s": "@%s//:%s",' % (platform, repository_name(platform), source))
+        lines.append("    }, no_match_error = \"%s\")," % no_match_error(pins))
+        lines.append('    visibility = ["//visibility:public"],')
+        lines.append(")")
     return "\n".join(lines) + "\n"
 
 def _firefox_repo_impl(ctx):
     ctx.download_and_extract(
-        url = ctx.attr.url,
+        url = ctx.attr.urls,
         output = "extracted",
         sha256 = ctx.attr.sha256,
         type = ctx.attr.archive_format,
-        canonical_id = "dx-firefox-archive:" + ctx.attr.url,
+        canonical_id = "dx-firefox-archive:" + ctx.attr.urls[0],
     )
-    if not ctx.path("extracted/" + ctx.attr.executable).exists:
-        fail("firefox: '" + ctx.attr.asset + "' holds no '" + ctx.attr.executable + "'")
+    if not ctx.path("extracted/" + _EXECUTABLE).exists:
+        fail("firefox: '" + ctx.attr.urls[0] + "' holds no '" + _EXECUTABLE + "'")
     ctx.file("BUILD.bazel", _tool_build())
     return ctx.repo_metadata(reproducible = True)
 
@@ -143,18 +99,10 @@ firefox_repo = repository_rule(
             doc = "Archive type used to extract the downloaded tool.",
             mandatory = True,
         ),
-        "asset": attr.string(
-            doc = "Release asset name, reported when the executable is missing.",
-            mandatory = True,
-        ),
-        "executable": attr.string(
-            doc = "Path inside the extracted tree to the tool executable.",
-            mandatory = True,
-        ),
         "sha256": attr.string(
             doc = "Expected SHA-256 of the downloaded archive.",
             mandatory = True,
         ),
-        "url": attr.string(doc = "Download URL of the tool archive.", mandatory = True),
+        "urls": attr.string_list(doc = "Download URLs of the tool archive.", mandatory = True),
     },
 )

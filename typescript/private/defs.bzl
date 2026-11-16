@@ -13,7 +13,7 @@ load("//core:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwarg
 load("//core/quality:pipeline.bzl", "upstream_tags")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//typescript/private/playwright:closure.bzl", "CLOSURE_DIR")
-load("//typescript/private/playwright:repos.bzl", "CHROMIUM_REVISION", "PLAYWRIGHT_VERSION", "playwright_compatible_with")
+load("//typescript/private/playwright:pins.bzl", "CHROMIUM_REVISION", "PLAYWRIGHT_VERSION", "playwright_compatible_with")
 load("//typescript/private/quality:tsc_gate.bzl", "tsc_gate")
 load(":kwargs.bzl", "typescript_forward_kwargs", "typescript_inner_kwargs")
 load(":proto.bzl", "ts_proto_srcs")

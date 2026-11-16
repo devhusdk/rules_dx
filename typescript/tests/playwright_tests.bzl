@@ -1,7 +1,7 @@
 """Analysis tests for the platforms typescript_playwright_test accepts."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//typescript/private/playwright:repos.bzl", "ARTIFACTS", "playwright_compatible_with")
+load("//typescript/private/playwright:pins.bzl", "ARTIFACTS", "playwright_compatible_with")
 
 _ProbeInfo = provider(doc = "The constraints the Playwright compatibility select resolves to.", fields = ["constraints"])
 

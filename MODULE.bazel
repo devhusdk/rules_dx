@@ -722,6 +722,10 @@ dx_pins.data(
     pins = "//fortran:pins.json",
 )
 dx_pins.data(
+    name = "dx_playwright",
+    pins = "//typescript/private/playwright:pins.json",
+)
+dx_pins.data(
     name = "dx_julia",
     pins = "//julia:pins.json",
 )

@@ -1,35 +1,36 @@
-"""Unit tests of the elixirc replay script."""
+"""Unit tests of the elixirc replay command."""
 
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
-load("//core/quality:elixirc.bzl", "elixirc_script")
+load("//core/quality:elixirc.bzl", "elixirc_command")
 
-def _script(env = {}):
-    return elixirc_script(
-        maybe_install_erlang = "",
+def _command(env = {}):
+    return elixirc_command(
+        env_program = "bazel-out/coreutils_bin/env",
         elixir_home = "bazel-out/elixir",
-        erlang_home = "bazel-out/erlang",
+        erlang_root = "bazel-out/erlang",
         coreutils_path = "bazel-out/coreutils_bin",
         erl_libs_path = "",
         env = env,
-        setup = "",
+        out = "out",
         elixirc_opts = [],
+        srcs = ["a.ex"],
     )
 
 def _host_path_test_impl(ctx):
     env = unittest.begin(ctx)
-    script = _script()
-    asserts.false(env, "/usr/bin" in script)
-    asserts.false(env, ":/bin" in script)
-    asserts.true(env, '"$ABS_COREUTILS"' in script)
+    command = _command()
+    asserts.equals(env, "PATH=__BAZEL_EXECUTION_ROOT__/bazel-out/elixir/bin:__BAZEL_EXECUTION_ROOT__/bazel-out/erlang/bin:__BAZEL_EXECUTION_ROOT__/bazel-out/coreutils_bin", command[1])
     return unittest.end(env)
 
-def _quoted_env_test_impl(ctx):
+def _env_test_impl(ctx):
     env = unittest.begin(ctx)
-    asserts.true(env, "export A='x y;z'" in _script({"A": "x y;z"}))
+    command = _command({"A": "x y;z"})
+    asserts.true(env, "A=x y;z" in command)
+    asserts.equals(env, ["__BAZEL_EXECUTION_ROOT__/bazel-out/elixir/bin/elixirc", "-o", "out", "a.ex"], command[-4:])
     return unittest.end(env)
 
 _host_path_test = unittest.make(_host_path_test_impl)
-_quoted_env_test = unittest.make(_quoted_env_test_impl)
+_env_test = unittest.make(_env_test_impl)
 
 def elixirc_script_test_suite(name):
-    unittest.suite(name, _host_path_test, _quoted_env_test)
+    unittest.suite(name, _host_path_test, _env_test)

@@ -198,6 +198,7 @@ single_version_override(
     patch_strip = 1,
     patches = [
         "//patches/rules_python:single_import_lib.patch",
+        "//patches/rules_python:install_name_tool.patch",
         "//patches/rules_python:lock_extension.patch",
     ],
     version = "2.4.6",

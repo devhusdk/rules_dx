@@ -364,6 +364,12 @@ pub fn miss_marker(os: &str) -> &'static str {
     }
 }
 
+/// The bash Bazel's repository rules run `patch_cmds` with.
+pub const UNIX_BAZEL_SH: &str = "BAZEL_SH=/bin/bash";
+
+/// The arguments before the command a Unix probe records: `env -i`, its variables, `sh -c SCRIPT` and the workspace.
+const UNIX_ENV_PREFIX: usize = 11;
+
 pub const HOME_RC: &str = "build --action_env=DX_HOME_CONFIG=present\n";
 
 pub const LEAKS_PACKAGE: &str = "dx_hermetic_leaks";
@@ -1401,6 +1407,7 @@ impl Session {
             format!("PATH={}", self.applets.display()),
             format!("BAZELISK_HOME={}", self.bazelisk_home.display()),
             format!("XDG_CACHE_HOME={}", cache_home(probe.output_root).display()),
+            UNIX_BAZEL_SH.to_owned(),
             "/bin/sh".to_owned(),
             "-c".to_owned(),
             "cd \"$0\" && \"$@\"; rc=$?; \"$1\" \"$2\" \"$3\" \"$4\" shutdown >/dev/null 2>&1; exit $rc"
@@ -1518,6 +1525,7 @@ impl Session {
             format!("PATH={}:{}", bin.display(), self.applets.display()),
             format!("BAZELISK_HOME={}", self.bazelisk_home.display()),
             format!("XDG_CACHE_HOME={}", cache_home(output_root).display()),
+            UNIX_BAZEL_SH.to_owned(),
             "/bin/sh".to_owned(),
             "-c".to_owned(),
             "cd \"$0\" && \"$@\"; rc=$?; bazel --max_idle_secs=60 shutdown >/dev/null 2>&1; exit $rc"
@@ -1526,7 +1534,7 @@ impl Session {
             self.manifest.dx.to_string_lossy().into_owned(),
         ];
         invocation.extend(args);
-        let recorded = invocation.get(10..).unwrap_or_default().to_vec();
+        let recorded = invocation.get(UNIX_ENV_PREFIX..).unwrap_or_default().to_vec();
         // Lint exits 1 when it reports findings, which the manifest then compares.
         let expect = if command == "lint" {
             Expect::Findings
@@ -1569,7 +1577,7 @@ impl Session {
             });
         }
         let argv = self.bazel_argv(probe);
-        let recorded = argv.get(10..).unwrap_or_default().to_vec();
+        let recorded = argv.get(UNIX_ENV_PREFIX..).unwrap_or_default().to_vec();
         self.execute(Exec {
             name: &probe.name,
             net: probe.net,

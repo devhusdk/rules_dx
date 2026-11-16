@@ -627,6 +627,30 @@ fn function_signature(member: &Node, name: &str, ty: &str, described: &Described
     }
 }
 
+fn variable_signature(member: &Node, name: &str, ty: &str, in_class: bool) -> (SymbolKind, String) {
+    let constant = ty.contains("constexpr")
+        || (ty.starts_with("const ") && !ty.contains('*') && member.attr("static") != "no")
+        || (!in_class && ty.starts_with("const ") && !ty.contains('*'));
+    let mut head = template_prefix(member);
+    if member.attr("static") == "yes" {
+        head.push_str("static ");
+    }
+    write!(head, "{ty} {name}{}", type_text(member.first("argsstring"))).unwrap_or_default();
+    let init = type_text(member.first("initializer"));
+    if !init.is_empty() {
+        head.push(' ');
+        head.push_str(&init);
+    }
+    let kind = if constant {
+        SymbolKind::Constant
+    } else if in_class {
+        SymbolKind::Field
+    } else {
+        SymbolKind::Variable
+    };
+    (kind, head)
+}
+
 fn member_draft(
     member: &Node,
     compound_path: &[String],
@@ -670,30 +694,7 @@ fn member_draft(
             };
             (kind, callable.head)
         }
-        "variable" => {
-            let constant = ty.contains("constexpr")
-                || (ty.starts_with("const ") && !ty.contains('*') && member.attr("static") != "no")
-                || (!in_class && ty.starts_with("const ") && !ty.contains('*'));
-            let mut head = template_prefix(member);
-            if member.attr("static") == "yes" {
-                head.push_str("static ");
-            }
-            write!(head, "{ty} {name}{}", type_text(member.first("argsstring")))
-                .unwrap_or_default();
-            let init = type_text(member.first("initializer"));
-            if !init.is_empty() {
-                head.push(' ');
-                head.push_str(&init);
-            }
-            let kind = if constant {
-                SymbolKind::Constant
-            } else if in_class {
-                SymbolKind::Field
-            } else {
-                SymbolKind::Variable
-            };
-            (kind, head)
-        }
+        "variable" => variable_signature(member, &name, &ty, in_class),
         "typedef" => {
             let definition = squeeze(&type_text(member.first("definition")));
             let args = type_text(member.first("argsstring"));
@@ -929,6 +930,69 @@ fn parse_compounds(documents: &[&str]) -> Result<(String, Vec<Node>), String> {
     Ok((version, compounds))
 }
 
+fn compound_names_of(compounds: &[Node]) -> BTreeMap<String, Vec<String>> {
+    compounds
+        .iter()
+        .filter_map(|c| {
+            let name = c.first("compoundname")?.text();
+            Some((c.attr("id").to_owned(), segments(&squeeze(&name))))
+        })
+        .collect()
+}
+
+fn compound_drafts(
+    compounds: &[Node],
+    compound_names: &BTreeMap<String, Vec<String>>,
+    context: &Context<'_>,
+    prefix: &str,
+) -> Vec<Draft> {
+    let mut drafts: Vec<Draft> = Vec::new();
+    let mut seen_members: BTreeSet<String> = BTreeSet::new();
+    for compound in compounds {
+        let kind = compound.attr("kind");
+        let path = compound_names
+            .get(compound.attr("id"))
+            .cloned()
+            .unwrap_or_default();
+        let scoped = matches!(kind, "class" | "struct" | "union" | "namespace");
+        if scoped
+            && (path.is_empty()
+                || path.iter().any(|p| p.starts_with('@'))
+                || (kind != "namespace" && compound.attr("prot") != "public"))
+        {
+            continue;
+        }
+        let in_class = matches!(kind, "class" | "struct" | "union");
+        if in_class {
+            drafts.extend(class_draft(
+                compound,
+                &path,
+                compound_names,
+                context,
+                prefix,
+            ));
+        }
+        let member_path: &[String] = if scoped { &path } else { &[] };
+        for section in compound.all("sectiondef") {
+            for member in section.all("memberdef") {
+                if !seen_members.insert(member.attr("id").to_owned()) {
+                    continue;
+                }
+                let compound_id = if scoped { compound.attr("id") } else { "" };
+                if let Some(draft) =
+                    member_draft(member, member_path, compound_id, in_class, context, prefix)
+                {
+                    if member.attr("kind") == "enum" {
+                        drafts.extend(enum_values(member, &draft.path, context, prefix));
+                    }
+                    drafts.push(draft);
+                }
+            }
+        }
+    }
+    drafts
+}
+
 /// Converts the Doxygen XML documents of one package into a validated IR shard.
 ///
 /// # Errors
@@ -957,62 +1021,8 @@ pub fn convert(
         config: format!("doxygen={version};format={FORMAT}"),
     };
 
-    let mut drafts: Vec<Draft> = Vec::new();
-    let mut seen_members: BTreeSet<String> = BTreeSet::new();
-    let compound_names: BTreeMap<String, Vec<String>> = compounds
-        .iter()
-        .filter_map(|c| {
-            let name = c.first("compoundname")?.text();
-            Some((c.attr("id").to_owned(), segments(&squeeze(&name))))
-        })
-        .collect();
-    for compound in &compounds {
-        let kind = compound.attr("kind");
-        let path = compound_names
-            .get(compound.attr("id"))
-            .cloned()
-            .unwrap_or_default();
-        let scoped = matches!(kind, "class" | "struct" | "union" | "namespace");
-        if scoped
-            && (path.is_empty()
-                || path.iter().any(|p| p.starts_with('@'))
-                || (kind != "namespace" && compound.attr("prot") != "public"))
-        {
-            continue;
-        }
-        let in_class = matches!(kind, "class" | "struct" | "union");
-        if in_class {
-            drafts.extend(class_draft(
-                compound,
-                &path,
-                &compound_names,
-                &context,
-                &prefix,
-            ));
-        }
-        let member_path: &[String] = if scoped { &path } else { &[] };
-        for section in compound.all("sectiondef") {
-            for member in section.all("memberdef") {
-                if !seen_members.insert(member.attr("id").to_owned()) {
-                    continue;
-                }
-                let compound_id = if scoped { compound.attr("id") } else { "" };
-                if let Some(draft) = member_draft(
-                    member,
-                    member_path,
-                    compound_id,
-                    in_class,
-                    &context,
-                    &prefix,
-                ) {
-                    if member.attr("kind") == "enum" {
-                        drafts.extend(enum_values(member, &draft.path, &context, &prefix));
-                    }
-                    drafts.push(draft);
-                }
-            }
-        }
-    }
+    let compound_names = compound_names_of(&compounds);
+    let mut drafts = compound_drafts(&compounds, &compound_names, &context, &prefix);
 
     // Namespaces appear when something public lives in them.
     let mut namespaces: BTreeMap<Vec<String>, &Node> = BTreeMap::new();

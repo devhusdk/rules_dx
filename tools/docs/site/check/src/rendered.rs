@@ -284,6 +284,82 @@ pub fn asset(root: &Path, logical: &str) -> Result<PathBuf, String> {
     }
 }
 
+fn check_page(
+    root: &Path,
+    page: &Page,
+    ids: &BTreeMap<String, Vec<String>>,
+    errors: &mut Vec<String>,
+) {
+    if !is_fragment(&page.route) {
+        if page.title.is_empty() {
+            errors.push(format!("{} has no <title>", page.route));
+        }
+        if page.headings.is_empty() {
+            errors.push(format!("{} has no heading", page.route));
+        }
+        if !page.has_viewport {
+            errors.push(format!("{} has no viewport meta tag", page.route));
+        }
+        if !page.has_nav {
+            errors.push(format!("{} has no navigation element", page.route));
+        }
+    }
+    for link in &page.links {
+        if !is_internal(link) && !link.starts_with('#') && !link.starts_with('?') {
+            continue;
+        }
+        let (route, anchor) = split_target(link);
+        let route = route.split('?').next().unwrap_or("").to_string();
+        if route.is_empty() && !link.contains('#') && !link.starts_with('?') {
+            errors.push(format!("{} links to an empty target", page.route));
+            continue;
+        }
+        let name = if route.is_empty() {
+            page.route.clone()
+        } else {
+            let target = resolve(&page.route, &route);
+            let name = page_name(root, &target);
+            if !root.join(&name).is_file() {
+                errors.push(format!("{} links to missing '{link}'", page.route));
+                continue;
+            }
+            name
+        };
+        if anchor.is_empty() || anchor == "top" || anchor == "mdbook-searchbar" {
+            continue;
+        }
+        let found = ids.get(&name);
+        let has = |id: &str| found.is_some_and(|found| found.iter().any(|f| f == id));
+        let decoded = decode_fragment(&anchor);
+        if has(&anchor) || decoded.as_deref().is_some_and(has) {
+            continue;
+        }
+        if decoded.is_none() {
+            errors.push(format!(
+                "{} links to malformed anchor encoding '{link}'",
+                page.route
+            ));
+        } else {
+            errors.push(format!("{} links to missing anchor '{link}'", page.route));
+        }
+    }
+    for asset in &page.assets {
+        if !is_internal(asset) {
+            continue;
+        }
+        let (route, _) = split_target(asset);
+        let route = route.split('?').next().unwrap_or("");
+        if route.is_empty() {
+            continue;
+        }
+        let target = resolve(&page.route, route);
+        let name = page_name(root, &target);
+        if !root.join(&name).exists() {
+            errors.push(format!("{} references missing asset '{asset}'", page.route));
+        }
+    }
+}
+
 /// Returns the diagnostics for one rendered site, or an empty string when it holds.
 #[must_use]
 pub fn check_rendered(rendered: &Rendered, forbid: &[String]) -> String {
@@ -320,74 +396,7 @@ pub fn check_rendered(rendered: &Rendered, forbid: &[String]) -> String {
 
     let mut errors: Vec<String> = Vec::new();
     for page in &pages {
-        if !is_fragment(&page.route) {
-            if page.title.is_empty() {
-                errors.push(format!("{} has no <title>", page.route));
-            }
-            if page.headings.is_empty() {
-                errors.push(format!("{} has no heading", page.route));
-            }
-            if !page.has_viewport {
-                errors.push(format!("{} has no viewport meta tag", page.route));
-            }
-            if !page.has_nav {
-                errors.push(format!("{} has no navigation element", page.route));
-            }
-        }
-        for link in &page.links {
-            if !is_internal(link) && !link.starts_with('#') && !link.starts_with('?') {
-                continue;
-            }
-            let (route, anchor) = split_target(link);
-            let route = route.split('?').next().unwrap_or("").to_string();
-            if route.is_empty() && !link.contains('#') && !link.starts_with('?') {
-                errors.push(format!("{} links to an empty target", page.route));
-                continue;
-            }
-            let name = if route.is_empty() {
-                page.route.clone()
-            } else {
-                let target = resolve(&page.route, &route);
-                let name = page_name(root, &target);
-                if !root.join(&name).is_file() {
-                    errors.push(format!("{} links to missing '{link}'", page.route));
-                    continue;
-                }
-                name
-            };
-            if anchor.is_empty() || anchor == "top" || anchor == "mdbook-searchbar" {
-                continue;
-            }
-            let found = ids.get(&name);
-            let has = |id: &str| found.is_some_and(|found| found.iter().any(|f| f == id));
-            let decoded = decode_fragment(&anchor);
-            if has(&anchor) || decoded.as_deref().is_some_and(has) {
-                continue;
-            }
-            if decoded.is_none() {
-                errors.push(format!(
-                    "{} links to malformed anchor encoding '{link}'",
-                    page.route
-                ));
-            } else {
-                errors.push(format!("{} links to missing anchor '{link}'", page.route));
-            }
-        }
-        for asset in &page.assets {
-            if !is_internal(asset) {
-                continue;
-            }
-            let (route, _) = split_target(asset);
-            let route = route.split('?').next().unwrap_or("");
-            if route.is_empty() {
-                continue;
-            }
-            let target = resolve(&page.route, route);
-            let name = page_name(root, &target);
-            if !root.join(&name).exists() {
-                errors.push(format!("{} references missing asset '{asset}'", page.route));
-            }
-        }
+        check_page(root, page, &ids, &mut errors);
     }
 
     let index = pages

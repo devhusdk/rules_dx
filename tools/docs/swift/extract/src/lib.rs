@@ -277,7 +277,7 @@ pub fn convert(
     }
     let mut order: Vec<usize> = (0..sources.len()).collect();
     order.sort_by_key(|index| sources.get(*index).map(|source| &source.rel));
-    let lines: Vec<Vec<&str>> = sources
+    let source_lines: Vec<Vec<&str>> = sources
         .iter()
         .map(|source| {
             texts
@@ -310,10 +310,18 @@ pub fn convert(
     });
 
     let module_id = documentation_ir::escape_id_segment(module);
-    let mut taken_ids: BTreeMap<String, usize> = BTreeMap::new();
-    let mut ids_by_path: BTreeMap<Vec<String>, String> = BTreeMap::new();
-    let mut used: BTreeSet<Place> = BTreeSet::new();
-    let mut places: BTreeMap<String, Place> = BTreeMap::new();
+    let mut assembly = Assembly {
+        sources,
+        source_lines: &source_lines,
+        order: &order,
+        module_id: &module_id,
+        package,
+        config_text: &config_text,
+        taken_ids: BTreeMap::new(),
+        ids_by_path: BTreeMap::new(),
+        used: BTreeSet::new(),
+        places: BTreeMap::new(),
+    };
     let mut symbols: Vec<Symbol> = Vec::new();
 
     let module_place = order.first().map(|first| (*first, 1));
@@ -331,15 +339,51 @@ pub fn convert(
     ));
 
     for entry in &entries {
+        symbols.push(assembly.symbol(entry)?);
+    }
+    let mut links: BTreeMap<String, String> = BTreeMap::new();
+    for (path, id) in &assembly.ids_by_path {
+        links.insert(path.join("/"), format!("{LANGUAGE}:{package}:{id}"));
+    }
+    for symbol in &mut symbols {
+        symbol.doc_markdown = link_symbols(&symbol.doc_markdown, module, &links);
+    }
+    symbols.sort_by(|a, b| a.id.cmp(&b.id));
+    let shard = DocIr {
+        language: LANGUAGE.to_owned(),
+        package: package.to_owned(),
+        symbols,
+    };
+    documentation_ir::validate_shard(&shard).map_err(|error| format!("invalid IR: {error:?}"))?;
+    Ok(shard)
+}
+
+struct Assembly<'a> {
+    sources: &'a [Source],
+    source_lines: &'a [Vec<&'a str>],
+    order: &'a [usize],
+    module_id: &'a str,
+    package: &'a str,
+    config_text: &'a str,
+    taken_ids: BTreeMap<String, usize>,
+    ids_by_path: BTreeMap<Vec<String>, String>,
+    used: BTreeSet<Place>,
+    places: BTreeMap<String, Place>,
+}
+
+impl Assembly<'_> {
+    fn symbol(&mut self, entry: &Entry<'_>) -> Result<Symbol, String> {
+        let (sources, source_lines, order) = (self.sources, self.source_lines, self.order);
+        let (module_id, package, config_text) = (self.module_id, self.package, self.config_text);
         let mut id = entry.other.as_ref().map_or_else(
-            || module_id.clone(),
+            || module_id.to_owned(),
             |other| documentation_ir::escape_id_segment(other),
         );
         for segment in &entry.path {
             id.push('.');
             id.push_str(&documentation_ir::escape_id_segment(segment));
         }
-        let count = taken_ids.entry(id.clone()).or_insert(0);
+        let count = self.taken_ids.entry(id.clone()).or_insert(0);
         *count += 1;
         if *count > 1 {
             id = format!("{id}@{count}");
@@ -350,21 +394,31 @@ pub fn convert(
         let name = name.as_str();
         let parent_id = match entry.other {
             Some(_) => None,
-            None => ids_by_path.get(parent_path).cloned(),
+            None => self.ids_by_path.get(parent_path).cloned(),
         };
-        let member_of = parent_id.clone().unwrap_or_else(|| module_id.clone());
+        let member_of = parent_id.clone().unwrap_or_else(|| module_id.to_owned());
         if entry.other.is_none() {
-            ids_by_path
+            self.ids_by_path
                 .entry(entry.path.clone())
                 .or_insert_with(|| id.clone());
         }
 
         let base = name.split('(').next().unwrap_or(name);
-        let parent_place = parent_id.as_ref().and_then(|id| places.get(id)).copied();
-        let place = locate(&lines, &order, entry.keywords, base, parent_place, &used);
+        let parent_place = parent_id
+            .as_ref()
+            .and_then(|id| self.places.get(id))
+            .copied();
+        let place = locate(
+            source_lines,
+            order,
+            entry.keywords,
+            base,
+            parent_place,
+            &self.used,
+        );
         if let Some(place) = place {
-            used.insert(place);
-            places.insert(id.clone(), place);
+            self.used.insert(place);
+            self.places.insert(id.clone(), place);
         }
 
         let signature = fragments(entry.node.get("declarationFragments"));
@@ -377,7 +431,7 @@ pub fn convert(
             Some(&format!("{LANGUAGE}:{package}:{member_of}")),
             doc,
             place.map(|place| source_ref(sources, place)).transpose()?,
-            &config_text,
+            config_text,
         );
         if let Some(target) = &entry.extends {
             symbol.extensions.push(Extension {
@@ -393,23 +447,8 @@ pub fn convert(
                 doc: returns.unwrap_or_default(),
             });
         }
-        symbols.push(symbol);
+        Ok(symbol)
     }
-    let mut links: BTreeMap<String, String> = BTreeMap::new();
-    for (path, id) in &ids_by_path {
-        links.insert(path.join("/"), format!("{LANGUAGE}:{package}:{id}"));
-    }
-    for symbol in &mut symbols {
-        symbol.doc_markdown = link_symbols(&symbol.doc_markdown, module, &links);
-    }
-    symbols.sort_by(|a, b| a.id.cmp(&b.id));
-    let shard = DocIr {
-        language: LANGUAGE.to_owned(),
-        package: package.to_owned(),
-        symbols,
-    };
-    documentation_ir::validate_shard(&shard).map_err(|error| format!("invalid IR: {error:?}"))?;
-    Ok(shard)
 }
 
 /// Rewrites each resolvable `DocC` symbol link ``` ``Path/To/Symbol`` ``` to a `dx:` link; others stay code.
@@ -549,9 +588,6 @@ fn doc_lines(node: &Value) -> Vec<String> {
 
 /// Splits a doc comment into its markdown, its `Parameter` entries and its `Returns` entry.
 fn split_doc(lines: &[String]) -> (String, Vec<(String, String)>, Option<String>) {
-    let mut kept: Vec<&str> = Vec::new();
-    let mut params: Vec<(String, String)> = Vec::new();
-    let mut returns: Option<String> = None;
     #[derive(PartialEq)]
     enum Open {
         None,
@@ -559,6 +595,9 @@ fn split_doc(lines: &[String]) -> (String, Vec<(String, String)>, Option<String>
         Returns,
         Block,
     }
+    let mut kept: Vec<&str> = Vec::new();
+    let mut params: Vec<(String, String)> = Vec::new();
+    let mut returns: Option<String> = None;
     let mut open = Open::None;
     for line in lines {
         let trimmed = line.trim();

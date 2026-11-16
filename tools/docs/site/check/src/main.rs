@@ -13,13 +13,13 @@ fn main() -> ExitCode {
     if args.iter().any(|arg| arg == "--rendered") {
         return match parse_rendered(&args) {
             Ok((rendered, forbid)) => {
-                report(dx_site_check::rendered::check_rendered(&rendered, &forbid))
+                report(&dx_site_check::rendered::check_rendered(&rendered, &forbid))
             }
             Err(detail) => reject(detail, dx_site_check::rendered::usage()),
         };
     }
     match dx_site_check::parse_args(&args) {
-        Ok(inputs) => report(dx_site_check::check(&inputs)),
+        Ok(inputs) => report(&dx_site_check::check(&inputs)),
         Err((detail, usage)) => reject(detail, usage),
     }
 }
@@ -52,7 +52,7 @@ fn parse_rendered(
     Ok((rendered, forbid))
 }
 
-fn report(refusal: String) -> ExitCode {
+fn report(refusal: &str) -> ExitCode {
     if refusal.is_empty() {
         return ExitCode::SUCCESS;
     }

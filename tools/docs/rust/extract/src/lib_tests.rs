@@ -30,7 +30,7 @@ fn span(file: &str, line: u64) -> Value {
 }
 
 fn item(id: u32, name: Option<&str>, visibility: &str, docs: Option<&str>, inner: Value) -> Value {
-    json!({
+    let mut value = json!({
         "id": id,
         "crate_id": 0,
         "name": name,
@@ -40,8 +40,9 @@ fn item(id: u32, name: Option<&str>, visibility: &str, docs: Option<&str>, inner
         "links": {},
         "attrs": [],
         "deprecation": null,
-        "inner": inner,
-    })
+    });
+    value["inner"] = inner;
+    value
 }
 
 fn no_generics() -> Value {
@@ -49,12 +50,15 @@ fn no_generics() -> Value {
 }
 
 fn function(inputs: Value, output: Value) -> Value {
-    json!({"function": {
-        "sig": {"inputs": inputs, "output": output, "is_c_variadic": false},
+    let mut value = json!({"function": {
+        "sig": {"is_c_variadic": false},
         "generics": no_generics(),
         "header": {"is_const": false, "is_unsafe": false, "is_async": false, "abi": "Rust"},
         "has_body": true,
-    }})
+    }});
+    value["function"]["sig"]["inputs"] = inputs;
+    value["function"]["sig"]["output"] = output;
+    value
 }
 
 fn crate_json(items: Vec<Value>, root_items: &[u32]) -> Value {

@@ -32,7 +32,7 @@ fn returning(value: Value) -> Value {
     )
 }
 
-fn document(objects: Vec<Value>) -> Value {
+fn document(objects: &[Value]) -> Value {
     json!({"format": 1, "ruby": "3.4.9", "yard": "0.9.45", "objects": objects})
 }
 
@@ -43,7 +43,7 @@ fn base() -> Vec<Value> {
     ]
 }
 
-fn convert_all(objects: Vec<Value>) -> DocIr {
+fn convert_all(objects: &[Value]) -> DocIr {
     convert(&document(objects).to_string(), "geo").unwrap()
 }
 
@@ -87,7 +87,7 @@ fn every_kind_maps_with_its_display_name() {
         "scope",
         json!("class"),
     )));
-    let shard = convert_all(objects);
+    let shard = convert_all(&objects);
     assert_eq!(
         (shard.language.as_str(), shard.package.as_str()),
         ("ruby", "geo")
@@ -145,7 +145,7 @@ fn every_kind_maps_with_its_display_name() {
 fn a_class_signature_names_its_superclass() {
     let mut objects = base();
     objects[1] = with(objects[1].clone(), "superclass", json!("Geo::Shape"));
-    let shard = convert_all(objects);
+    let shard = convert_all(&objects);
     assert_eq!(
         symbol(&shard, "Geo.Circle").signature_text,
         "class Geo::Circle < Geo::Shape"
@@ -168,7 +168,7 @@ fn attribute_pairs_become_one_property() {
     objects.push(returning(attribute("label", "label", true, true)));
     objects.push(attribute("label", "label=", true, true));
     objects.push(attribute("secret", "secret=", false, true));
-    let shard = convert_all(objects);
+    let shard = convert_all(&objects);
     let radius = symbol(&shard, "Geo.Circle.radius");
     assert_eq!(radius.kind(), SymbolKind::Property);
     assert_eq!(radius.signature_text, "attr_reader :radius");
@@ -218,7 +218,7 @@ fn only_the_public_api_of_the_own_files_is_emitted() {
         "owner",
         json!("dep"),
     ));
-    let shard = convert_all(objects);
+    let shard = convert_all(&objects);
     assert_eq!(ids(&shard), vec!["ruby:geo:Geo", "ruby:geo:Geo.Circle"]);
 }
 
@@ -253,7 +253,7 @@ fn missing_facts_are_listed_as_incomplete() {
         "tags",
         json!([]),
     ));
-    let shard = convert_all(objects);
+    let shard = convert_all(&objects);
     let shift = symbol(&shard, "Geo.Circle.shift");
     let names: Vec<(&str, &str, &str)> = shift
         .params
@@ -292,7 +292,7 @@ fn docs_normalize_crlf_line_endings() {
         "docstring",
         json!("One.\r\n\r\nTwo.\r\n"),
     );
-    let shard = convert_all(objects);
+    let shard = convert_all(&objects);
     assert_eq!(symbol(&shard, "Geo.Circle").doc_markdown, "One.\n\nTwo.");
 }
 
@@ -314,7 +314,7 @@ fn mixins_resolve_only_to_own_or_dependency_namespaces() {
         "extends",
         json!(["Dep::Mixin", "Unknown"]),
     );
-    let shard = convert_all(objects);
+    let shard = convert_all(&objects);
     assert_eq!(
         symbol(&shard, "Geo.Circle")
             .relations
@@ -331,7 +331,7 @@ fn a_member_of_a_dependency_namespace_points_at_the_dependency() {
         with(obj("module", "Geo", "Geo", ""), "owner", json!("dep")),
         obj("class", "Geo::Square", "Square", "Geo"),
     ];
-    let shard = convert_all(objects);
+    let shard = convert_all(&objects);
     assert_eq!(ids(&shard), vec!["ruby:geo:Geo.Square"]);
     assert_eq!(
         shard.symbols[0].relations.as_ref().unwrap().member_of,
@@ -341,7 +341,7 @@ fn a_member_of_a_dependency_namespace_points_at_the_dependency() {
 
 #[test]
 fn every_malformed_document_is_rejected() {
-    let good = document(base());
+    let good = document(&base());
     let cases = [
         (
             with(good.clone(), "format", json!(2)).to_string(),
@@ -353,20 +353,15 @@ fn every_malformed_document_is_rejected() {
         ),
         ("[]".to_owned(), "not an object"),
         (
-            document(vec![obj("classvariable", "Geo::@@x", "@@x", "Geo")]).to_string(),
+            document(&[obj("classvariable", "Geo::@@x", "@@x", "Geo")]).to_string(),
             "unknown type 'classvariable'",
         ),
         (
-            document(vec![with(
-                obj("module", "Geo", "Geo", ""),
-                "line",
-                json!("3"),
-            )])
-            .to_string(),
+            document(&[with(obj("module", "Geo", "Geo", ""), "line", json!("3"))]).to_string(),
             "'line' is not a number",
         ),
         (
-            document(vec![with(
+            document(&[with(
                 obj("module", "Geo", "Geo", ""),
                 "visibility",
                 json!("private"),
@@ -374,7 +369,7 @@ fn every_malformed_document_is_rejected() {
             .to_string(),
             "no public Ruby API",
         ),
-        (document(vec![]).to_string(), "no public Ruby API"),
+        (document(&[]).to_string(), "no public Ruby API"),
     ];
     for (json, needle) in cases {
         let error = convert(&json, "geo").unwrap_err();
@@ -389,7 +384,7 @@ fn every_malformed_document_is_rejected() {
 fn an_id_collision_fails_validation() {
     let mut objects = base();
     objects.push(obj("constant", "Geo::Circle", "Circle", "Geo"));
-    let error = convert(&document(objects).to_string(), "geo").unwrap_err();
+    let error = convert(&document(&objects).to_string(), "geo").unwrap_err();
     assert!(error.contains("DuplicateSymbolId"), "{error}");
 }
 
@@ -401,7 +396,7 @@ fn run_writes_no_shard_on_failure() {
     let out = dir.join("out.ir.pb");
     fs::write(
         &json,
-        with(document(base()), "format", json!(2)).to_string(),
+        with(document(&base()), "format", json!(2)).to_string(),
     )
     .unwrap();
     let options = Options {
@@ -411,7 +406,7 @@ fn run_writes_no_shard_on_failure() {
     };
     assert!(run(&options).is_err());
     assert!(!out.exists());
-    fs::write(&json, document(base()).to_string()).unwrap();
+    fs::write(&json, document(&base()).to_string()).unwrap();
     run(&options).unwrap();
     let shard = documentation_ir::decode_shard(&fs::read(&out).unwrap()).unwrap();
     assert_eq!(shard.symbols.len(), 2);

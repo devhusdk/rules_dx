@@ -2,7 +2,7 @@
 
 load("//core:deb_closure.bzl", "deb_closure")
 load("//core:jammy_runtime.bzl", "JAMMY_RUNTIME_MIRROR")
-load(":closure.bzl", "CHROMIUM_CLOSURE", "CLOSURE_DIR")
+load(":closure.bzl", "CLOSURE_DIR", "chromium_closure")
 
 visibility(["//..."])
 
@@ -47,7 +47,8 @@ def _chromium_impl(rctx):
         type = "zip",
     )
     rctx.file(browser + "/INSTALLATION_COMPLETE", "")
-    deb_closure(rctx, JAMMY_RUNTIME_MIRROR, CHROMIUM_CLOSURE.get(rctx.attr.platform, []), CLOSURE_DIR)
+    pins = json.decode(rctx.read(Label(":pins.json")))
+    deb_closure(rctx, JAMMY_RUNTIME_MIRROR, chromium_closure(pins, rctx.attr.platform), CLOSURE_DIR)
     rctx.file("BUILD.bazel", "\n".join([
         "filegroup(",
         '    name = "browsers",',

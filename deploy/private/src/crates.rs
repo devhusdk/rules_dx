@@ -513,7 +513,7 @@ pub fn crates_main_checked(
     } else {
         run.resolve(semver_checks_rloc)
     };
-    let live = CRATES_GATE.requested(env_or_empty);
+    let live = OwnerGate::requested(env_or_empty);
     let checked = crates_package_paths(&files)
         .map_err(|error| format!("crates_deploy: {error}"))
         .and_then(|mapped| {
@@ -825,7 +825,12 @@ mod tests {
 
     #[test]
     fn cargo_failure_lines_keep_last_lines_and_hide_token() {
-        let stderr: String = (1..=50).map(|n| format!("line {n} s3cret\n")).collect();
+        let stderr: String = (1..=50).fold(String::new(), |mut text, n| {
+            text.push_str("line ");
+            text.push_str(&n.to_string());
+            text.push_str(" s3cret\n");
+            text
+        });
         let lines = cargo_failure_lines(stderr.as_bytes(), "s3cret");
         assert_eq!(lines.len(), 40);
         assert_eq!(lines[0], "line 11 [redacted]");

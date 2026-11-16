@@ -304,19 +304,18 @@ fn maven_pom_fields(pom: &[u8]) -> Result<std::collections::HashMap<String, Stri
                 }
             }
             Event::GeneralRef(reference) => {
-                let resolved = match reference
+                let resolved = if let Some(ch) = reference
                     .resolve_char_ref()
                     .map_err(|error| format!("pom text is not valid: {error}"))?
                 {
-                    Some(ch) => ch.to_string(),
-                    None => {
-                        let name = reference
-                            .decode()
-                            .map_err(|error| format!("pom text is not valid: {error}"))?;
-                        quick_xml::escape::resolve_predefined_entity(&name)
-                            .ok_or_else(|| format!("pom uses unknown entity &{name};"))?
-                            .to_owned()
-                    }
+                    ch.to_string()
+                } else {
+                    let name = reference
+                        .decode()
+                        .map_err(|error| format!("pom text is not valid: {error}"))?;
+                    quick_xml::escape::resolve_predefined_entity(&name)
+                        .ok_or_else(|| format!("pom uses unknown entity &{name};"))?
+                        .to_owned()
                 };
                 if let Some(value) = fields.get_mut(&stack.join("/")) {
                     value.push_str(&resolved);
@@ -849,7 +848,7 @@ pub fn maven_main(spec: &MavenLaunch<'_>, argv: &[String]) -> i32 {
         pom: &pom,
         classified: &classified,
     };
-    if MAVEN_GATE.requested(env_or_empty) {
+    if OwnerGate::requested(env_or_empty) {
         let live = match maven_live_gate(&env_or_empty, version) {
             Ok(live) => live,
             Err(error) => {
@@ -1290,9 +1289,7 @@ pub(crate) mod tests {
         );
         let mut vars = APPROVED.to_vec();
         vars.push(("MAVEN_ALLOW_UNSIGNED", "1"));
-        let live = maven_live_gate(&gate_env(&vars), "1.0.0")
-            .ok()
-            .expect("unsigned allowed");
+        let live = maven_live_gate(&gate_env(&vars), "1.0.0").expect("unsigned allowed");
         assert!(live.unsigned);
         assert!(live.signer.is_none());
         assert_eq!(
@@ -1303,9 +1300,7 @@ pub(crate) mod tests {
         let mut vars = APPROVED.to_vec();
         vars.push(("MAVEN_GPG_KEY", &secret));
         vars.push(("MAVEN_GPG_PASSPHRASE", PASSPHRASE));
-        let live = maven_live_gate(&gate_env(&vars), "1.0.0")
-            .ok()
-            .expect("signed");
+        let live = maven_live_gate(&gate_env(&vars), "1.0.0").expect("signed");
         assert!(!live.unsigned);
         assert!(live.signer.is_some());
     }

@@ -164,6 +164,10 @@ mod tests {
     const BCR: &str = r#"{"kind":"bcr","config":{"module":"rules_dx","version":"1.2.3","input_rlocs":["w/a.json"]}}"#;
     const SIGNING: &str = r#"{"kind":"signing","config":{"identity":"id","issuer":"https://token.actions.githubusercontent.com","cosign_rloc":"c/cosign","cosign_version":"v2","cosign_sha256":"abc","asset_rlocs":["w/bin"]}}"#;
 
+    #[expect(
+        clippy::unnecessary_wraps,
+        reason = "matches the resolver callback signature"
+    )]
     fn ok(rloc: &str) -> io::Result<PathBuf> {
         Ok(PathBuf::from(format!("/r/{rloc}")))
     }

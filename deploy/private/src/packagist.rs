@@ -109,7 +109,7 @@ pub fn packagist_main(
             return 1;
         }
     };
-    if PACKAGIST_GATE.requested(env_or_empty) {
+    if OwnerGate::requested(env_or_empty) {
         let secrets = match PACKAGIST_GATE.authorize(env_or_empty) {
             Ok(secrets) => secrets,
             Err(error) => {

@@ -142,16 +142,16 @@ fn parse(argv: &[String]) -> Result<Invocation, ParseError> {
         .get(1)
         .and_then(|name| spec_for(name))
         .ok_or(ParseError::UnknownKind)?;
-    let args = argv.get(2..).ok_or(ParseError::UnknownKind)?;
+    let rest = argv.get(2..).ok_or(ParseError::UnknownKind)?;
     let arity_error = || ParseError::Arity {
         name: spec.name,
         usage: spec.usage,
     };
-    if !spec.arity.accepts(args.len()) {
+    if !spec.arity.accepts(rest.len()) {
         return Err(arity_error());
     }
     if spec.kind == Kind::Spdx {
-        for arg in args.iter().skip(4).filter(|arg| arg.starts_with("--")) {
+        for arg in rest.iter().skip(4).filter(|arg| arg.starts_with("--")) {
             let known = arg.starts_with("--runtimes=")
                 || arg.strip_prefix("--lock=").is_some_and(|spec| {
                     spec.split_once(':')
@@ -164,7 +164,7 @@ fn parse(argv: &[String]) -> Result<Invocation, ParseError> {
     }
     Ok(match spec.kind {
         Kind::Spdx => {
-            let [src, dst, package, supplier, extra @ ..] = args else {
+            let [src, dst, package, supplier, extra @ ..] = rest else {
                 return Err(arity_error());
             };
             let runtimes = extra
@@ -192,7 +192,7 @@ fn parse(argv: &[String]) -> Result<Invocation, ParseError> {
             }
         }
         Kind::Provenance => {
-            let [src, dst, builder, ..] = args else {
+            let [src, dst, builder, ..] = rest else {
                 return Err(arity_error());
             };
             Invocation::Provenance {
@@ -202,7 +202,7 @@ fn parse(argv: &[String]) -> Result<Invocation, ParseError> {
             }
         }
         Kind::BcrSource => {
-            let [dst, module, version, ..] = args else {
+            let [dst, module, version, ..] = rest else {
                 return Err(arity_error());
             };
             Invocation::BcrSource {
@@ -212,7 +212,7 @@ fn parse(argv: &[String]) -> Result<Invocation, ParseError> {
             }
         }
         Kind::Notice => {
-            let [manifest, dst, root, third, ..] = args else {
+            let [manifest, dst, root, third, ..] = rest else {
                 return Err(arity_error());
             };
             let runtimes = third.strip_prefix("--runtimes=").map(PathBuf::from);
@@ -221,7 +221,7 @@ fn parse(argv: &[String]) -> Result<Invocation, ParseError> {
                 manifest: PathBuf::from(manifest),
                 dst: PathBuf::from(dst),
                 root: root.clone(),
-                texts: args
+                texts: rest
                     .get(texts_from..)
                     .unwrap_or(&[])
                     .iter()
@@ -231,7 +231,7 @@ fn parse(argv: &[String]) -> Result<Invocation, ParseError> {
             }
         }
         Kind::Inventory => {
-            let [shipped, lock, licenses, dst, texts, rest @ ..] = args else {
+            let [shipped, lock, licenses, dst, texts, rest @ ..] = rest else {
                 return Err(arity_error());
             };
             Invocation::Inventory {

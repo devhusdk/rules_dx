@@ -1,5 +1,6 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
+use std::fmt::Write as _;
 use std::io;
 use std::path::Path;
 
@@ -56,6 +57,7 @@ pub(crate) fn render_pretty(value: &serde_json::Value) -> String {
     dx_fingerprint::to_json_ascii_pretty(value).unwrap_or_default()
 }
 
+#[must_use]
 pub fn bin_usage(prog: &str, usage: &str) -> i32 {
     eprintln!("usage: {prog} {usage}");
     1
@@ -71,10 +73,12 @@ pub fn bin_error(diagnostic: impl std::fmt::Display) -> i32 {
     1
 }
 
+#[must_use]
 pub fn render_spdx(base: &str, digest: &str, package: &str, supplier: &str) -> String {
     render_spdx_with_crates(base, digest, package, supplier, &[])
 }
 
+#[must_use]
 pub fn render_spdx_with_crates(
     base: &str,
     digest: &str,
@@ -241,10 +245,16 @@ fn spdx_id(kind: &str, name: &str, version: &str) -> String {
     format!("SPDXRef-{kind}-{clean}")
 }
 
+/// # Errors
+///
+/// Returns an error when the SPDX document cannot be read or written.
 pub fn write_spdx(src: &Path, dst: &Path, package: &str, supplier: &str) -> io::Result<()> {
     write_spdx_with_inventory(src, dst, package, supplier, None)
 }
 
+/// # Errors
+///
+/// Returns an error when the SPDX document cannot be read or written.
 pub fn write_spdx_with_inventory(
     src: &Path,
     dst: &Path,
@@ -255,6 +265,9 @@ pub fn write_spdx_with_inventory(
     write_spdx_full(src, dst, package, supplier, inventory, None)
 }
 
+/// # Errors
+///
+/// Returns an error when the SPDX document cannot be read or written.
 pub fn write_spdx_full(
     src: &Path,
     dst: &Path,
@@ -532,14 +545,27 @@ fn basename_of(path: &str) -> String {
 pub fn render_bcr_dry_run(module: &str, version: &str, inputs: &[String]) -> String {
     let mut out = String::new();
     out.push_str("bcr: dry run (BCR_DRY_RUN=1); would submit, submitting nothing:\n");
-    out.push_str(&format!("  module: {module}\n"));
-    out.push_str(&format!("  version: {version}\n"));
+    out.push_str("  module: ");
+    out.push_str(module);
+    out.push_str("\n  version: ");
+    out.push_str(version);
+    out.push('\n');
     for input in inputs {
-        out.push_str(&format!("  input: {} ({input})\n", basename_of(input)));
+        out.push_str("  input: ");
+        out.push_str(&basename_of(input));
+        out.push_str(" (");
+        out.push_str(input);
+        out.push_str(")\n");
     }
-    out.push_str(&format!(
-        "  command: gh pr create --repo bazelbuild/bazel-central-registry --title \"Add {module}@{version}\" --body \"Owner-approved BCR submission for {module}@{version}\"\n"
-    ));
+    out.push_str("  command: gh pr create --repo bazelbuild/bazel-central-registry --title \"Add ");
+    out.push_str(module);
+    out.push('@');
+    out.push_str(version);
+    out.push_str("\" --body \"Owner-approved BCR submission for ");
+    out.push_str(module);
+    out.push('@');
+    out.push_str(version);
+    out.push_str("\"\n");
     out.push_str("  presubmit: bazel test @rules_dx//... (seed host) + BCR presubmit.yml\n");
     out
 }
@@ -619,29 +645,35 @@ pub fn render_signing_dry_run(
 ) -> String {
     let mut out = String::new();
     out.push_str("signing: dry run (RELEASE_SIGN_DRY_RUN=1); would sign, publishing nothing:\n");
-    out.push_str(&format!("  trust root: {SIGNING_TRUST_ROOT}\n"));
-    out.push_str(&format!("  identity: {identity}\n"));
-    out.push_str(&format!("  issuer: {issuer}\n"));
-    out.push_str(&format!(
+    writeln!(out, "  trust root: {SIGNING_TRUST_ROOT}").ok();
+    writeln!(out, "  identity: {identity}").ok();
+    writeln!(out, "  issuer: {issuer}").ok();
+    write!(out, 
         "  cosign: {cosign_version} (pinned and sha256-checked per deploy/private/release/pins.json)\n"
-    ));
-    out.push_str(&format!(
+    ).ok();
+    write!(
+        out,
         "  bundle media type: {SIGNING_BUNDLE_MEDIA_TYPE} (Sigstore bundle v0.3)\n"
-    ));
+    )
+    .ok();
     for asset in assets {
         let base = basename_of(asset);
         let bundle = signing_bundle_for(asset, outdir);
-        out.push_str(&format!("  asset: {base} ({asset})\n"));
-        out.push_str(&format!(
+        write!(out, "  asset: {base} ({asset})\n").ok();
+        write!(
+            out,
             "  command: cosign sign-blob --yes --bundle {bundle} {asset}\n"
-        ));
-        out.push_str(&format!(
+        )
+        .ok();
+        write!(
+            out,
             "  command: gh attestation create {asset} --bundle {bundle}\n"
-        ));
+        )
+        .ok();
     }
-    out.push_str(&format!(
+    write!(out, 
         "  verify: cosign verify-blob --bundle <bundle> --certificate-identity {identity} --certificate-oidc-issuer {issuer} <binary>\n"
-    ));
+    ).ok();
     out
 }
 
@@ -728,11 +760,11 @@ const SIGN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
 
 /// Runs `argv` with the inherited environment and working directory.
 fn run_output(argv: &[String]) -> Result<dx_process::capture::Captured, String> {
-    let (binary, args) = argv
+    let (binary, rest) = argv
         .split_first()
         .ok_or_else(|| "invocation needs a binary".to_owned())?;
     let mut command = std::process::Command::new(binary);
-    command.args(args);
+    command.args(rest);
     dx_process::capture::run_captured(&mut command, SIGN_TIMEOUT).map_err(|error| error.to_string())
 }
 
@@ -772,12 +804,14 @@ fn signing_live(
         return Err(bad.detail.clone());
     }
     let mut out = String::new();
-    out.push_str(&format!(
+    write!(
+        out,
         "signing: live sign with cosign {} on {SIGNING_TRUST_ROOT}:\n",
         pin.version
-    ));
+    )
+    .ok();
     for record in &records {
-        out.push_str(&format!("  signed: {} (verified)\n", record.detail));
+        write!(out, "  signed: {} (verified)\n", record.detail).ok();
     }
     Ok(out)
 }
@@ -862,10 +896,12 @@ fn signing_sign_one(
 pub fn render_release_dry_run(tag: &str, approve: &str) -> String {
     let mut out = String::new();
     out.push_str("release: dry run (RELEASE_DRY_RUN=1); would release, publishing nothing:\n");
-    out.push_str(&format!("  tag: {tag}\n"));
-    out.push_str(&format!(
+    write!(out, "  tag: {tag}\n").ok();
+    write!(
+        out,
         "  approve: {approve} (real release needs RELEASE_APPROVE=1 + owner approval)\n"
-    ));
+    )
+    .ok();
     out.push_str("  steps:\n");
     out.push_str(
         "    1. bazel build //deploy/private/release:dx_host_cell //cli/cli:man_pages (this host's release cell)\n",
@@ -888,9 +924,9 @@ pub fn render_release_dry_run(tag: &str, approve: &str) -> String {
     out.push_str(
         "    7. bazel run //deploy/private/install:dx_verify --binary <dx> --bundle <bundle> --identity <id> --issuer <issuer> --notice <NOTICE> --notice-manifest <manifest> --notice-bundle <NOTICE.bundle> (fail-before-install)\n",
     );
-    out.push_str(&format!(
+    write!(out, 
         "  tag creation: git tag {tag} must already exist in the remote (pushed beforehand with owner approval); this program never creates or pushes tags\n"
-    ));
+    ).ok();
     out.push_str("  publishing: nothing (dry run never tags, releases, submits, or pushes)\n");
     out.push_str("  ceiling: this program never creates or pushes tags\n");
     out
@@ -1130,13 +1166,13 @@ pub fn render_notice(root: &str, entries: &[(NoticeEntry, String)]) -> String {
         ))
     });
     let mut out = String::new();
-    out.push_str(&format!("NOTICE for {root}\n"));
+    write!(out, "NOTICE for {root}\n").ok();
     out.push_str(
         "Generated by rules_dx notice_bundle from the audited license inventory; do not edit.\n",
     );
     out.push('\n');
     for (entry, words) in &sorted {
-        out.push_str(&format!("{}\n", notice_entry_header(entry)));
+        write!(out, "{}\n", notice_entry_header(entry)).ok();
         let trimmed = words.trim_end_matches('\n');
         out.push_str(trimmed);
         out.push('\n');

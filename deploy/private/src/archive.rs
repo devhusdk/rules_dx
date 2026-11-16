@@ -760,6 +760,7 @@ mod tests {
 
     #[test]
     fn gzip_header_matches_python_gzip() {
+        use std::io::Read as _;
         let tar =
             tar_archive([("hello", b"hello world\n".as_slice(), 0o755)].into_iter()).expect("tar");
         let gz = gzip_compress(&tar).expect("gz");
@@ -767,11 +768,10 @@ mod tests {
             &gz[0..10],
             &[0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff]
         );
-        let mut decoder = flate2::read::GzDecoder::new(&gz[..]);
-        let mut decoded = Vec::new();
-        use std::io::Read as _;
-        decoder.read_to_end(&mut decoded).expect("decode");
-        assert_eq!(decoded, tar);
+        let mut gunzip = flate2::read::GzDecoder::new(&gz[..]);
+        let mut plain = Vec::new();
+        gunzip.read_to_end(&mut plain).expect("decode");
+        assert_eq!(plain, tar);
     }
 
     #[test]
@@ -782,10 +782,9 @@ mod tests {
             &gz[0..10],
             &[0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff]
         );
-        let mut decoder = flate2::read::GzDecoder::new(&gz[..]);
+        let mut gunzip = flate2::read::GzDecoder::new(&gz[..]);
         let mut tar = Vec::new();
-        use std::io::Read as _;
-        decoder.read_to_end(&mut tar).expect("decode");
+        gunzip.read_to_end(&mut tar).expect("decode");
         assert_eq!(tar.len(), RECORDSIZE);
         assert_eq!(&tar[0..6], b"hello\0");
         assert_eq!(&tar[100..108], b"0000755\0");

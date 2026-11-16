@@ -41,7 +41,7 @@ pub struct Predicate {
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct Statement {
     #[serde(rename = "_type", default)]
-    pub statement_type: String,
+    pub kind: String,
     #[serde(rename = "predicateType", default)]
     pub predicate_type: String,
     #[serde(default)]
@@ -58,7 +58,7 @@ pub fn statement_error(
     digest: &str,
     builder: &str,
 ) -> Result<(), String> {
-    if statement.statement_type != STATEMENT_TYPE {
+    if statement.kind != STATEMENT_TYPE {
         return Err("provenance missing in-toto Statement v1".to_owned());
     }
     if statement.predicate_type != PREDICATE_TYPE {
@@ -93,7 +93,7 @@ mod tests {
 
     fn good(builder: &str) -> Statement {
         Statement {
-            statement_type: STATEMENT_TYPE.to_owned(),
+            kind: STATEMENT_TYPE.to_owned(),
             predicate_type: PREDICATE_TYPE.to_owned(),
             subject: vec![Subject {
                 name: "a.bin".to_owned(),
@@ -136,7 +136,7 @@ mod tests {
     #[test]
     fn rejects_wrong_statement_type() {
         let mut statement = good(PROVENANCE_BUILDER_RELEASE);
-        statement.statement_type.push('x');
+        statement.kind.push('x');
         let err = check(&statement, PROVENANCE_BUILDER_RELEASE).expect_err("type");
         assert!(err.contains("in-toto Statement v1"), "{err}");
     }

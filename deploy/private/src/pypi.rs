@@ -767,7 +767,7 @@ pub fn pypi_main_checked(
         eprintln!("{message}");
         return 1;
     }
-    if PYPI_GATE.requested(env_or_empty) {
+    if OwnerGate::requested(env_or_empty) {
         if let Err(error) = PYPI_GATE.authorize(env_or_empty) {
             eprintln!("{error}");
             return 1;

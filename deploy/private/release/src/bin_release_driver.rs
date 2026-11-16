@@ -275,6 +275,10 @@ mod tests {
         drop(live("v1.2.3", Some(SHA), "1", git_unread));
     }
 
+    #[expect(
+        clippy::unnecessary_wraps,
+        reason = "matches the git state callback signature"
+    )]
     fn git_ok(tree_dirty: bool, head: &str, tag: Option<&str>) -> Result<GitState, String> {
         Ok(GitState {
             tree_dirty,

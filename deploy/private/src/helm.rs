@@ -157,7 +157,7 @@ fn helm_push(
         os(user),
         os("--password-stdin"),
     ];
-    let login: Vec<&std::ffi::OsStr> = login.iter().map(|a| a.as_os_str()).collect();
+    let login: Vec<&std::ffi::OsStr> = login.iter().map(std::ffi::OsString::as_os_str).collect();
     if !helm.run(&login, Some(token)) {
         return false;
     }
@@ -220,7 +220,7 @@ fn helm_main_with(
             return 1;
         }
     };
-    let creds = if HELM_GATE.requested(var) {
+    let creds = if OwnerGate::requested(var) {
         if let Some(error) = placeholder_refusal("helm_chart_deploy", &version) {
             eprintln!("{error}");
             return 1;

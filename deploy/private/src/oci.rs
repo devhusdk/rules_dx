@@ -224,7 +224,7 @@ fn read_prefix(reader: &mut impl Read, buf: &mut [u8]) -> io::Result<usize> {
         {
             Ok(0) => break,
             Ok(read) => filled += read,
-            Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
             Err(error) => return Err(error),
         }
     }
@@ -1110,7 +1110,7 @@ pub fn oci_main(
     repository: &str,
     tag: &str,
     platform: &str,
-    checks: OciChecks,
+    checks: &OciChecks,
     argv: &[String],
 ) -> i32 {
     let Some(run) = DeployRun::start(
@@ -1131,7 +1131,7 @@ pub fn oci_main(
             return 1;
         }
     };
-    if OCI_GATE.requested(env_or_empty) {
+    if OwnerGate::requested(env_or_empty) {
         if let Some(error) = placeholder_refusal("oci_deploy", tag) {
             eprintln!("{error}");
             return 1;
@@ -1152,7 +1152,7 @@ pub fn oci_main(
                     return 1;
                 }
             };
-            if scan_and_report(&staged, &checks, run_trivy) != 0 {
+            if scan_and_report(&staged, checks, run_trivy) != 0 {
                 eprintln!("oci_deploy: refusing to push an image with scan findings");
                 return 1;
             }
@@ -1179,7 +1179,7 @@ pub fn oci_main(
             println!("  layout: {}", layout.display());
             println!("  index: {}", layout.join("index.json").display());
             println!("  size: {bytes} bytes");
-            scan_and_report(&layout, &checks, run_trivy)
+            scan_and_report(&layout, checks, run_trivy)
         }
         Err(error) => {
             eprintln!("oci_deploy: {error}");

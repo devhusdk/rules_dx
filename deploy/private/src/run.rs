@@ -65,7 +65,7 @@ impl Secrets {
 
 impl OwnerGate {
     /// True when the live path is requested (DX_DEPLOY_LIVE is exactly 1).
-    pub(crate) fn requested(&self, var: impl Fn(&str) -> String) -> bool {
+    pub(crate) fn requested(var: impl Fn(&str) -> String) -> bool {
         var(DEPLOY_LIVE_ENV) == "1"
     }
 
@@ -200,7 +200,7 @@ pub(crate) fn scrubbed_command(
 }
 
 /// Bound for one registry publisher child, long enough for a slow upload.
-pub(crate) const PUBLISH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(900);
+pub(crate) const PUBLISH_TIMEOUT: std::time::Duration = std::time::Duration::from_mins(15);
 
 /// Runs one publisher child under `PUBLISH_TIMEOUT`.
 pub(crate) fn run_publish(
@@ -581,20 +581,23 @@ mod tests {
 
     #[test]
     fn requested_is_true_only_for_exact_one() {
-        assert!(TEST_GATE.requested(lookup(&[("DX_DEPLOY_LIVE", "1")])));
+        assert!(OwnerGate::requested(lookup(&[("DX_DEPLOY_LIVE", "1")])));
         for value in ["", "0", "true", "yes", " 1", "1 ", "01"] {
             assert!(
-                !TEST_GATE.requested(lookup(&[("DX_DEPLOY_LIVE", value)])),
+                !OwnerGate::requested(lookup(&[("DX_DEPLOY_LIVE", value)])),
                 "{value:?}"
             );
         }
-        assert!(!TEST_GATE.requested(lookup(&[])));
+        assert!(!OwnerGate::requested(lookup(&[])));
     }
 
     #[test]
     fn launcher_live_var_is_ignored() {
-        assert!(!TEST_GATE.requested(lookup(&[("TEST_LIVE", "1")])));
-        assert!(!TEST_GATE.requested(lookup(&[("DX_DEPLOY_LIVE", "0"), ("TEST_LIVE", "1")])));
+        assert!(!OwnerGate::requested(lookup(&[("TEST_LIVE", "1")])));
+        assert!(!OwnerGate::requested(lookup(&[
+            ("DX_DEPLOY_LIVE", "0"),
+            ("TEST_LIVE", "1")
+        ])));
     }
 
     #[test]

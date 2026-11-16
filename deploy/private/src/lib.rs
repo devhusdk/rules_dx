@@ -64,6 +64,7 @@ pub use stage::*;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::run::OwnerGate;
     use crate::test_support::*;
     use dx_ecosystems::Ecosystem;
     use std::io;
@@ -124,7 +125,7 @@ mod tests {
                 "demo/app",
                 "1.0.0",
                 "linux/amd64",
-                OciChecks::default(),
+                &OciChecks::default(),
                 &argv
             ),
             1
@@ -189,7 +190,7 @@ mod tests {
                         "demo/app",
                         "1.0.0",
                         "linux/amd64",
-                        OciChecks::default(),
+                        &OciChecks::default(),
                         &argv
                     ),
                     1
@@ -301,11 +302,15 @@ mod tests {
             for value in ["", "0", "true", "yes", " 1", "1 "] {
                 let mut env = base.clone();
                 env.insert("DX_DEPLOY_LIVE", value);
-                assert!(!gate.requested(|key| lookup(&env, key)), "{value:?}");
+                assert!(!OwnerGate::requested(|key| lookup(&env, key)), "{value:?}");
             }
             let mut env = base.clone();
             env.insert("DX_DEPLOY_LIVE", "1");
-            assert!(gate.requested(|key| lookup(&env, key)), "{}", gate.tool);
+            assert!(
+                OwnerGate::requested(|key| lookup(&env, key)),
+                "{}",
+                gate.tool
+            );
         }
     }
 
@@ -402,7 +407,7 @@ mod tests {
                         "demo/app",
                         "0.0.0",
                         "linux/amd64",
-                        OciChecks::default(),
+                        &OciChecks::default(),
                         &argv
                     ),
                     1
@@ -747,7 +752,7 @@ mod tests {
                         "demo/app",
                         "1.0.0",
                         "linux/amd64",
-                        OciChecks::default(),
+                        &OciChecks::default(),
                         &argv
                     ),
                     0
@@ -930,7 +935,7 @@ mod tests {
         let github: fn(&[String], &str, &str, &[String]) -> i32 = crate::github_main;
         let homebrew: fn(&crate::HomebrewLaunch<'_>, &[String]) -> i32 = crate::homebrew_tap_main;
         let maven: fn(&crate::MavenLaunch<'_>, &[String]) -> i32 = crate::maven_main;
-        let oci: fn(&str, &str, &str, &str, &str, crate::OciChecks, &[String]) -> i32 =
+        let oci: fn(&str, &str, &str, &str, &str, &crate::OciChecks, &[String]) -> i32 =
             crate::oci_main;
         let octopus: fn(&crate::OctopusLaunch<'_>, &[String]) -> i32 = crate::octopus_main;
         let npm_deploy: fn(&[String], &str, &str) -> i32 = crate::npm_deploy_main;

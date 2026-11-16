@@ -2,8 +2,8 @@
 
 // LCOV_EXCL_START - reason: thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 fn run(argv: &[String]) -> i32 {
-    let args = match dx_install_tools::parse_args(argv) {
-        Ok(args) => args,
+    let parsed = match dx_install_tools::parse_args(argv) {
+        Ok(parsed) => parsed,
         Err(error) => {
             if error.0.starts_with("usage:") {
                 println!("{error}");
@@ -13,7 +13,7 @@ fn run(argv: &[String]) -> i32 {
             return 1;
         }
     };
-    match dx_install_tools::verify(&args, &dx_install_tools::SystemVerifier) {
+    match dx_install_tools::verify(&parsed, &dx_install_tools::SystemVerifier) {
         Ok(text) => {
             print!("{text}");
             0

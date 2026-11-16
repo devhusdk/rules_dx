@@ -129,8 +129,13 @@ fn pages_component_error(rel: &str, name: &str) -> Option<String> {
 
 /// Converts a directory entry name to UTF-8, rejecting anything else.
 fn pages_entry_name(dir: &Path, raw: std::ffi::OsString) -> Result<String, String> {
-    raw.into_string()
-        .map_err(|raw| format!("unsafe path under {}: {raw:?} is not UTF-8", dir.display()))
+    raw.into_string().map_err(|raw| {
+        format!(
+            "unsafe path under {}: {} is not UTF-8",
+            dir.display(),
+            raw.to_string_lossy()
+        )
+    })
 }
 
 fn pages_walk(dir: &Path, prefix: &str, files: &mut Vec<PagesFile>) -> Result<(), String> {
@@ -429,7 +434,7 @@ fn pages_check_run(
     0
 }
 
-/// Owner approval gate for cloudflare_pages_deploy.
+/// Owner approval gate for `cloudflare_pages_deploy`.
 const CLOUDFLARE_GATE: OwnerGate = OwnerGate {
     tool: "cloudflare_pages_deploy",
     action: "upload",
@@ -599,7 +604,7 @@ fn pages_main_with(
     let text = |key: &str| vars(key).and_then(|value| value.into_string().ok());
     let build_mode = text("DX_BUILD_MODE").unwrap_or_else(|| "<unset>".to_owned());
     let var = |key: &str| text(key).unwrap_or_default();
-    if CLOUDFLARE_GATE.requested(var) {
+    if OwnerGate::requested(var) {
         if let Some(message) = CLOUDFLARE_GATE.refusal(var) {
             return pages_fail(err, name, &message);
         }
@@ -691,7 +696,7 @@ mod tests {
     const ACCOUNT: &str = "0123456789abcdef0123456789abcdef";
     const TOKEN: &str = "cf-secret-token-123";
 
-    fn launch<'a>(branch: &'a str) -> PagesLaunch<'a> {
+    fn launch(branch: &str) -> PagesLaunch<'_> {
         PagesLaunch {
             deploy_name: "pages_demo",
             account_id: ACCOUNT,
@@ -885,7 +890,7 @@ printf '%s\n' "{\"type\":\"pages-deploy-detailed\",\"version\":1,\"pages_project
         let (code, out, err, record) =
             run_capture("main", &SITE, RECORD_AND_SUCCEED, "production", "");
         assert_eq!(code, 1);
-        assert!(out.is_empty());
+        assert!(out.is_empty(), "{out}");
         assert!(err.contains("CLOUDFLARE_API_TOKEN is not set"), "{err}");
         assert!(record.is_empty(), "wrangler must not run");
     }
@@ -897,7 +902,7 @@ printf '%s\n' "{\"type\":\"pages-deploy-detailed\",\"version\":1,\"pages_project
         assert_eq!(code, 1);
         assert!(err.contains("CLOUDFLARE_API_TOKEN is malformed"), "{err}");
         assert!(!err.contains("a b"));
-        assert!(record.is_empty());
+        assert!(record.is_empty(), "wrangler must not run");
     }
 
     #[test]

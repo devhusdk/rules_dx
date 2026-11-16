@@ -95,7 +95,7 @@ pub fn today() -> String {
     let seconds = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |elapsed| elapsed.as_secs());
-    civil_date((seconds / 86_400) as i64)
+    civil_date(i64::try_from(seconds / 86_400).unwrap_or(i64::MAX))
 }
 
 fn civil_date(days: i64) -> String {
@@ -126,13 +126,14 @@ pub fn scan_layout(
 ) -> Result<Vec<ImageFinding>, String> {
     let severities = severity_list(floor).map_err(|e| e.to_string())?;
     let cache = trivy_cache(workspace, &today(), false).map_err(|e| e.to_string())?;
-    if let Some(cache) = &cache {
-        if !cache.join("db").join("metadata.json").is_file() {
-            return Err(format!(
-                "trivy database missing in {}: db/metadata.json; pin it with advisory_prep --trivy --pin",
-                cache.display()
-            ));
-        }
+    if let Some(cache) = cache
+        .as_ref()
+        .filter(|cache| !cache.join("db").join("metadata.json").is_file())
+    {
+        return Err(format!(
+            "trivy database missing in {}: db/metadata.json; pin it with advisory_prep --trivy --pin",
+            cache.display()
+        ));
     }
     let report = run(&trivy_args(layout, &severities, cache.as_deref(), None))?;
     let findings = parse_report(&report).map_err(|e| e.to_string())?;

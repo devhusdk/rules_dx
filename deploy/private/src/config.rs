@@ -618,7 +618,7 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
                 &oci.repository,
                 &oci.tag,
                 &oci.platform,
-                crate::OciChecks {
+                &crate::OciChecks {
                     scan,
                     scan_severity: oci.scan_severity.clone(),
                     label: oci.label.clone(),

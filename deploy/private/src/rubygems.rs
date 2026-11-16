@@ -277,7 +277,7 @@ pub fn rubygems_main(
     ) else {
         return 1;
     };
-    let live = RUBYGEMS_GATE.requested(env_or_empty);
+    let live = OwnerGate::requested(env_or_empty);
     let secrets = if live {
         match RUBYGEMS_GATE.authorize(env_or_empty) {
             Ok(secrets) => Some(secrets),
@@ -311,15 +311,14 @@ pub fn rubygems_main(
         .and_then(|mapped| {
             rubygems_build_checked(&gem_program, &mapped, &staging, gem_name, version)
         });
-    let result = built.and_then(|(gem, version)| match &secrets {
-        Some(secrets) => {
+    let result = built.and_then(|(gem, version)| {
+        if let Some(secrets) = &secrets {
             if let Some(error) = placeholder_refusal("rubygems_deploy", &version) {
                 return Err(error);
             }
             gem_push(&gem_program, &gem, secrets.get("RUBYGEMS_API_TOKEN"))
                 .map(|()| format!("rubygems_deploy: pushed {gem_name} {version}"))
-        }
-        None => {
+        } else {
             let dest = run.outdir().join(format!("{gem_name}-{version}.gem"));
             copy_verified(&gem, &dest).map_err(|error| format!("rubygems_deploy: {error}"))?;
             let build_mode = deploy_build_mode();

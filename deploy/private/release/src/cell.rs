@@ -606,17 +606,13 @@ fn installed_mode(_path: &Path) -> Option<u32> {
     Some(0o755)
 }
 
-/// Builds, checks and runs one extracted install; called only after a clean extraction.
-fn installed_checks(
-    inputs: &QualifyInputs,
+/// Notes the member list and file modes of an extracted install.
+fn note_layout(
+    cell: &Cell,
     listing: &[(String, u32, String)],
-    runner: &dyn Runner,
+    exe: &Path,
     verdicts: &mut Verdicts,
-    binary: &mut BinaryFacts,
 ) {
-    let cell = &inputs.cell;
-    let install = inputs.work.join(INSTALL_DIR);
-    let exe = install.join(&cell.exe);
     let have: BTreeSet<&str> = listing.iter().map(|entry| entry.0.as_str()).collect();
     let want: BTreeSet<&str> = ["LICENSE", "NOTICE", "IDENTITY.txt", cell.exe.as_str()]
         .into_iter()
@@ -639,7 +635,7 @@ fn installed_checks(
         .filter(|(name, mode, _)| *mode != if *name == cell.exe { 0o755 } else { 0o644 })
         .map(|(name, mode, _)| format!("{name} has mode {mode:o}"))
         .collect();
-    if have.contains(cell.exe.as_str()) && installed_mode(&exe) != Some(0o755) {
+    if have.contains(cell.exe.as_str()) && installed_mode(exe) != Some(0o755) {
         wrong.push(format!("extracted {} is not mode 755", cell.exe));
     }
     verdicts.note(
@@ -650,6 +646,17 @@ fn installed_checks(
             Err(wrong.join("; "))
         },
     );
+}
+
+/// Notes the identity, binary format and imports of an extracted install.
+fn note_binary(
+    inputs: &QualifyInputs,
+    install: &Path,
+    exe: &Path,
+    verdicts: &mut Verdicts,
+    binary: &mut BinaryFacts,
+) {
+    let cell = &inputs.cell;
     let identity =
         parse_identity(&std::fs::read_to_string(install.join("IDENTITY.txt")).unwrap_or_default());
     let mismatched: Vec<String> = [
@@ -669,7 +676,7 @@ fn installed_checks(
             Err(mismatched.join("; "))
         },
     );
-    let image = std::fs::read(&exe)
+    let image = std::fs::read(exe)
         .map_err(|error| format!("cannot read {}: {error}", cell.exe))
         .and_then(|bytes| {
             binary.sha256 = dx_digest::sha256_hex(&bytes);
@@ -716,6 +723,68 @@ fn installed_checks(
                 }
             }),
     );
+}
+
+/// Notes the sidecar digest and the rebuild determinism of the archive.
+fn note_digests(
+    inputs: &QualifyInputs,
+    archive: &ArchiveFacts,
+    readable: Result<(), String>,
+    verdicts: &mut Verdicts,
+) {
+    let mut sidecar = inputs.archive.clone().into_os_string();
+    sidecar.push(".sha256");
+    verdicts.note(
+        "digest",
+        readable.and_then(|()| {
+            let text = std::fs::read_to_string(&sidecar)
+                .map_err(|error| format!("cannot read the .sha256 sidecar: {error}"))?;
+            let listed = text.split_whitespace().next().unwrap_or_default();
+            let listed = listed.strip_prefix('\\').unwrap_or(listed);
+            if listed == archive.sha256 {
+                Ok(())
+            } else {
+                Err(format!(
+                    "sidecar lists {listed:?}, archive is {}",
+                    archive.sha256
+                ))
+            }
+        }),
+    );
+    verdicts.note(
+        "determinism",
+        sha256_file(&inputs.rebuild)
+            .and_then(|(rebuilt, _)| {
+                if rebuilt == archive.sha256 {
+                    Ok(())
+                } else {
+                    Err(format!(
+                        "rebuild is {rebuilt}, archive is {}; {}",
+                        archive.sha256,
+                        differing_members(inputs)
+                    ))
+                }
+            })
+            .and_then(|()| match &inputs.symbols {
+                Some(symbols) => symbols_match(symbols),
+                None => Ok(()),
+            }),
+    );
+}
+
+/// Builds, checks and runs one extracted install; called only after a clean extraction.
+fn installed_checks(
+    inputs: &QualifyInputs,
+    listing: &[(String, u32, String)],
+    runner: &dyn Runner,
+    verdicts: &mut Verdicts,
+    binary: &mut BinaryFacts,
+) {
+    let cell = &inputs.cell;
+    let install = inputs.work.join(INSTALL_DIR);
+    let exe = install.join(&cell.exe);
+    note_layout(cell, listing, &exe, verdicts);
+    note_binary(inputs, &install, &exe, verdicts, binary);
     verdicts.note(
         "run",
         ran(runner, &exe, &["help"], &install)
@@ -863,43 +932,11 @@ pub fn qualify(inputs: &QualifyInputs, runner: &dyn Runner) -> CellRecord {
             Ok(())
         }),
     );
-    let mut sidecar = inputs.archive.clone().into_os_string();
-    sidecar.push(".sha256");
-    verdicts.note(
-        "digest",
-        bytes.as_ref().map_err(String::clone).and_then(|_| {
-            let text = std::fs::read_to_string(&sidecar)
-                .map_err(|error| format!("cannot read the .sha256 sidecar: {error}"))?;
-            let listed = text.split_whitespace().next().unwrap_or_default();
-            let listed = listed.strip_prefix('\\').unwrap_or(listed);
-            if listed == archive.sha256 {
-                Ok(())
-            } else {
-                Err(format!(
-                    "sidecar lists {listed:?}, archive is {}",
-                    archive.sha256
-                ))
-            }
-        }),
-    );
-    verdicts.note(
-        "determinism",
-        sha256_file(&inputs.rebuild)
-            .and_then(|(rebuilt, _)| {
-                if rebuilt == archive.sha256 {
-                    Ok(())
-                } else {
-                    Err(format!(
-                        "rebuild is {rebuilt}, archive is {}; {}",
-                        archive.sha256,
-                        differing_members(inputs)
-                    ))
-                }
-            })
-            .and_then(|()| match &inputs.symbols {
-                Some(symbols) => symbols_match(symbols),
-                None => Ok(()),
-            }),
+    note_digests(
+        inputs,
+        &archive,
+        bytes.as_ref().map(drop).map_err(String::clone),
+        &mut verdicts,
     );
     let listing = dx_deploy_tools::archive_extract(&inputs.archive, &inputs.work.join(INSTALL_DIR))
         .map_err(|error| format!("cannot extract: {error}"));

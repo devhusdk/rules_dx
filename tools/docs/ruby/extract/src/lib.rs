@@ -61,7 +61,7 @@ pub use documentation_ir::escape_segment;
 /// One YARD tag.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct Tag {
-    tag: String,
+    kind: String,
     name: String,
     types: Vec<String>,
     text: String,
@@ -119,7 +119,7 @@ fn tags(object: &Map<String, Value>, at: &str) -> Result<Vec<Tag>, String> {
                 .as_object()
                 .ok_or_else(|| format!("{at} is not an object"))?;
             Ok(Tag {
-                tag: string(tag, "tag", &at)?,
+                kind: string(tag, "tag", &at)?,
                 name: string(tag, "name", &at)?,
                 types: strings(tag, "types", &at)?,
                 text: string(tag, "text", &at)?,
@@ -226,7 +226,7 @@ fn is_hidden_itself(object: &Object) -> bool {
         || object
             .tags
             .iter()
-            .any(|tag| tag.tag == "private" || (tag.tag == "api" && tag.text.trim() == "private"))
+            .any(|tag| tag.kind == "private" || (tag.kind == "api" && tag.text.trim() == "private"))
 }
 
 /// Normalizes CRLF line endings and trims trailing whitespace.
@@ -321,7 +321,7 @@ fn params_and_incomplete(draft: &Draft<'_>, incomplete: &mut Vec<String>) -> Vec
         let tag = object
             .tags
             .iter()
-            .find(|tag| tag.tag == "param" && tag.name == name);
+            .find(|tag| tag.kind == "param" && tag.name == name);
         match tag {
             None => undocumented.push(name.clone()),
             Some(tag) if tag.types.is_empty() => untyped.push(name.clone()),
@@ -348,7 +348,7 @@ fn returns_and_incomplete(draft: &Draft<'_>, incomplete: &mut Vec<String>) -> Op
     if !callable {
         return None;
     }
-    let tag = object.tags.iter().find(|tag| tag.tag == "return");
+    let tag = object.tags.iter().find(|tag| tag.kind == "return");
     let writer_only = draft.kind == SymbolKind::Property && draft.name.ends_with('=');
     let exempt = writer_only || (object.name == "initialize" && !object.singleton);
     if !exempt && tag.is_none_or(|tag| tag.types.is_empty()) {
@@ -367,18 +367,7 @@ fn extension(key: &str, value: &str) -> Extension {
     }
 }
 
-/// Converts one driver JSON document into a validated IR shard of one package.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
-pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
-    if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {
-        return Err(format!("invalid package '{package}'"));
-    }
-    let root: Value =
-        serde_json::from_str(json).map_err(|error| format!("YARD JSON is malformed: {error}"))?;
-    let root = root.as_object().ok_or("YARD JSON is not an object")?;
+fn parse_document(root: &Map<String, Value>) -> Result<(String, Vec<Object>), String> {
     let at = "YARD JSON";
     match number(root, "format", at)? {
         FORMAT => {}
@@ -400,6 +389,45 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
         .enumerate()
         .map(|(index, value)| object(value, &format!("YARD JSON object {index}")))
         .collect::<Result<_, _>>()?;
+    Ok((config, objects))
+}
+
+fn hidden_namespaces_of(objects: &[Object]) -> BTreeSet<&str> {
+    objects
+        .iter()
+        .filter(|object| matches!(object.kind, Type::Module | Type::Class))
+        .filter(|object| is_hidden_itself(object))
+        .map(|object| object.path.as_str())
+        .collect()
+}
+
+fn is_hidden(object: &Object, hidden_namespaces: &BTreeSet<&str>) -> bool {
+    if is_hidden_itself(object) {
+        return true;
+    }
+    let mut namespace = object.namespace.as_str();
+    while !namespace.is_empty() {
+        if hidden_namespaces.contains(namespace) {
+            return true;
+        }
+        namespace = namespace.rsplit_once("::").map_or("", |(parent, _)| parent);
+    }
+    false
+}
+
+/// Converts one driver JSON document into a validated IR shard of one package.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
+pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
+    if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {
+        return Err(format!("invalid package '{package}'"));
+    }
+    let root: Value =
+        serde_json::from_str(json).map_err(|error| format!("YARD JSON is malformed: {error}"))?;
+    let root = root.as_object().ok_or("YARD JSON is not an object")?;
+    let (config, objects) = parse_document(root)?;
 
     let mut owners: BTreeMap<&str, &str> = BTreeMap::new();
     for object in &objects {
@@ -415,25 +443,8 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
             namespace_qualified(path)
         ))
     };
-    let hidden_namespaces: BTreeSet<&str> = objects
-        .iter()
-        .filter(|object| matches!(object.kind, Type::Module | Type::Class))
-        .filter(|object| is_hidden_itself(object))
-        .map(|object| object.path.as_str())
-        .collect();
-    let hidden = |object: &Object| -> bool {
-        if is_hidden_itself(object) {
-            return true;
-        }
-        let mut namespace = object.namespace.as_str();
-        while !namespace.is_empty() {
-            if hidden_namespaces.contains(namespace) {
-                return true;
-            }
-            namespace = namespace.rsplit_once("::").map_or("", |(parent, _)| parent);
-        }
-        false
-    };
+    let hidden_namespaces = hidden_namespaces_of(&objects);
+    let hidden = |object: &Object| is_hidden(object, &hidden_namespaces);
 
     let prefix = format!("{LANGUAGE}:{package}:");
     let mut symbols = Vec::new();

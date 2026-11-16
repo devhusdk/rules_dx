@@ -371,6 +371,42 @@ struct Draft {
     incomplete: Vec<String>,
 }
 
+fn returns_of<'a>(def: &'a Value, incomplete: &mut Vec<String>) -> (Option<Returns>, &'a str) {
+    let annotation = def
+        .get("returns")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let notes: Vec<String> = sections(def, "returns")
+        .iter()
+        .flat_map(|section| list(section, "value"))
+        .map(|entry| normalize(text(entry, "description")))
+        .filter(|note| !note.is_empty())
+        .collect();
+    let section_type = sections(def, "returns")
+        .iter()
+        .flat_map(|section| list(section, "value"))
+        .map(|entry| text(entry, "annotation"))
+        .find(|kind| !kind.is_empty())
+        .unwrap_or_default();
+    if annotation.is_empty() && section_type.is_empty() {
+        incomplete.push("return_type".to_owned());
+    }
+    let returns = if annotation.is_empty() && notes.is_empty() && section_type.is_empty() {
+        None
+    } else {
+        let kind = if annotation.is_empty() {
+            section_type
+        } else {
+            annotation
+        };
+        Some(Returns {
+            r#type: kind.to_owned(),
+            doc: notes.join("\n"),
+        })
+    };
+    (returns, annotation)
+}
+
 fn function_draft(def: &Value, docs: &Value, in_class: bool, name: &str) -> Draft {
     let parameters = list(def, "parameters");
     let documented = sections(docs, "parameters");
@@ -423,38 +459,7 @@ fn function_draft(def: &Value, docs: &Value, in_class: bool, name: &str) -> Draf
     if !untyped.is_empty() {
         incomplete.push(format!("param_types={}", untyped.join(",")));
     }
-    let annotation = def
-        .get("returns")
-        .and_then(Value::as_str)
-        .unwrap_or_default();
-    let notes: Vec<String> = sections(def, "returns")
-        .iter()
-        .flat_map(|section| list(section, "value"))
-        .map(|entry| normalize(text(entry, "description")))
-        .filter(|note| !note.is_empty())
-        .collect();
-    let section_type = sections(def, "returns")
-        .iter()
-        .flat_map(|section| list(section, "value"))
-        .map(|entry| text(entry, "annotation"))
-        .find(|kind| !kind.is_empty())
-        .unwrap_or_default();
-    if annotation.is_empty() && section_type.is_empty() {
-        incomplete.push("return_type".to_owned());
-    }
-    let returns = if annotation.is_empty() && notes.is_empty() && section_type.is_empty() {
-        None
-    } else {
-        let kind = if annotation.is_empty() {
-            section_type
-        } else {
-            annotation
-        };
-        Some(Returns {
-            r#type: kind.to_owned(),
-            doc: notes.join("\n"),
-        })
-    };
+    let (returns, annotation) = returns_of(def, &mut incomplete);
     let asynchronous = if has_label(def, "async") {
         "async "
     } else {
@@ -574,26 +579,7 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
 /// Source mapper: griffe's package-relative file to (repo-relative file, generated).
 pub type SourceMap<'a> = &'a dyn Fn(&str) -> Result<(String, bool), String>;
 
-/// Like [`convert`], with every source path mapped through `map`.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
-pub fn convert_mapped(json: &str, package: &str, map: SourceMap<'_>) -> Result<DocIr, String> {
-    if package.is_empty()
-        || package.contains([':', '.'])
-        || package.chars().any(char::is_whitespace)
-    {
-        return Err(format!("invalid package '{package}'"));
-    }
-    let root: Value =
-        serde_json::from_str(json).map_err(|error| format!("griffe JSON is malformed: {error}"))?;
-    if root.get("format").and_then(Value::as_u64) != Some(FORMAT) {
-        return Err(format!(
-            "griffe JSON format {:?} is not supported, expected {FORMAT}",
-            root.get("format")
-        ));
-    }
+fn shard_config(root: &Value, package: &str) -> Result<String, String> {
     let header = |key: &str| -> Result<&str, String> {
         root.get(key)
             .and_then(Value::as_str)
@@ -605,23 +591,15 @@ pub fn convert_mapped(json: &str, package: &str, map: SourceMap<'_>) -> Result<D
             header("package")?
         ));
     }
-    let config = format!(
+    Ok(format!(
         "docstyle={};format={FORMAT};griffe={};python={}",
         header("docstyle")?,
         header("griffe")?,
         header("python")?
-    );
-    let module = root
-        .get("module")
-        .filter(|module| kind_of(module) == "module")
-        .ok_or("griffe JSON has no module")?;
-    if text(module, "path") != package {
-        return Err(format!(
-            "griffe JSON module '{}' is not package '{package}'",
-            text(module, "path")
-        ));
-    }
+    ))
+}
 
+fn walk_module<'a>(module: &'a Value, package: &str) -> Walker<'a> {
     let mut defs = BTreeMap::new();
     index(module, &mut defs);
     let mut walker = Walker {
@@ -648,14 +626,120 @@ pub fn convert_mapped(json: &str, package: &str, map: SourceMap<'_>) -> Result<D
             walker.walk(container, &path);
         }
     }
+    walker
+}
 
-    let canonical = |def: &str, reach: &Reach<'_>| -> Option<String> {
-        if reach.paths.contains_key(def) {
-            Some(def.to_owned())
-        } else {
-            reach.paths.keys().next().cloned()
-        }
+fn canonical_path(def: &str, reach: &Reach<'_>) -> Option<String> {
+    if reach.paths.contains_key(def) {
+        Some(def.to_owned())
+    } else {
+        reach.paths.keys().next().cloned()
+    }
+}
+
+fn reached_symbol(
+    def_path: &str,
+    reach: &Reach<'_>,
+    by_path: &BTreeMap<&str, &Value>,
+    package: &str,
+    config: &str,
+    map: SourceMap<'_>,
+) -> Result<Option<Symbol>, String> {
+    let (Some(def), Some(path)) = (reach.def, canonical_path(def_path, reach)) else {
+        return Ok(None);
     };
+    let parent_path = reach.paths.get(&path).map_or("", String::as_str);
+    let parent_def = by_path.get(parent_path).copied();
+    let draft = draft(def, parent_def);
+    let mut incomplete = Vec::new();
+    let doc = description(def);
+    if doc.is_empty() {
+        incomplete.push("doc".to_owned());
+    }
+    incomplete.extend(draft.incomplete);
+    let member_of: Vec<String> = if parent_path.is_empty() {
+        Vec::new()
+    } else {
+        vec![join_id(package, parent_path)]
+    };
+    let reexported_as: Vec<String> = reach
+        .paths
+        .keys()
+        .filter(|other| **other != path)
+        .map(|other| join_id(package, other))
+        .collect();
+    let relations = if member_of.is_empty() && reexported_as.is_empty() {
+        None
+    } else {
+        Some(Relations {
+            member_of,
+            implements: Vec::new(),
+            reexported_as,
+        })
+    };
+    let mut extensions = vec![extension(KEY_CONFIG, config)];
+    if !incomplete.is_empty() {
+        extensions.push(extension(KEY_INCOMPLETE, &incomplete.join(";")));
+    }
+    let file = text(def, "relative_package_filepath");
+    let mapped = if file.is_empty() {
+        None
+    } else {
+        Some(map(file)?)
+    };
+    Ok(Some(Symbol {
+        id: join_id(package, &path),
+        kind: draft.kind as i32,
+        signature_text: draft.signature,
+        doc_markdown: doc,
+        params: draft.params,
+        returns: draft.returns,
+        examples: examples(def),
+        source: mapped.map(|(file, generated)| SourceRef {
+            file,
+            line: def.get("lineno").and_then(Value::as_u64).unwrap_or(0),
+            generated,
+        }),
+        visibility: Visibility::Public as i32,
+        relations,
+        extensions,
+        display_name: path,
+    }))
+}
+
+/// Like [`convert`], with every source path mapped through `map`.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
+pub fn convert_mapped(json: &str, package: &str, map: SourceMap<'_>) -> Result<DocIr, String> {
+    if package.is_empty()
+        || package.contains([':', '.'])
+        || package.chars().any(char::is_whitespace)
+    {
+        return Err(format!("invalid package '{package}'"));
+    }
+    let root: Value =
+        serde_json::from_str(json).map_err(|error| format!("griffe JSON is malformed: {error}"))?;
+    if root.get("format").and_then(Value::as_u64) != Some(FORMAT) {
+        return Err(format!(
+            "griffe JSON format {:?} is not supported, expected {FORMAT}",
+            root.get("format")
+        ));
+    }
+    let config = shard_config(&root, package)?;
+    let module = root
+        .get("module")
+        .filter(|module| kind_of(module) == "module")
+        .ok_or("griffe JSON has no module")?;
+    if text(module, "path") != package {
+        return Err(format!(
+            "griffe JSON module '{}' is not package '{package}'",
+            text(module, "path")
+        ));
+    }
+
+    let walker = walk_module(module, package);
     let by_path: BTreeMap<&str, &Value> = walker
         .reached
         .values()
@@ -664,66 +748,9 @@ pub fn convert_mapped(json: &str, package: &str, map: SourceMap<'_>) -> Result<D
         .collect();
     let mut symbols = Vec::new();
     for (def_path, reach) in &walker.reached {
-        let (Some(def), Some(path)) = (reach.def, canonical(def_path, reach)) else {
-            continue;
-        };
-        let parent_path = reach.paths.get(&path).map_or("", String::as_str);
-        let parent_def = by_path.get(parent_path).copied();
-        let draft = draft(def, parent_def);
-        let mut incomplete = Vec::new();
-        let doc = description(def);
-        if doc.is_empty() {
-            incomplete.push("doc".to_owned());
+        if let Some(symbol) = reached_symbol(def_path, reach, &by_path, package, &config, map)? {
+            symbols.push(symbol);
         }
-        incomplete.extend(draft.incomplete);
-        let member_of: Vec<String> = if parent_path.is_empty() {
-            Vec::new()
-        } else {
-            vec![join_id(package, parent_path)]
-        };
-        let reexported_as: Vec<String> = reach
-            .paths
-            .keys()
-            .filter(|other| **other != path)
-            .map(|other| join_id(package, other))
-            .collect();
-        let relations = if member_of.is_empty() && reexported_as.is_empty() {
-            None
-        } else {
-            Some(Relations {
-                member_of,
-                implements: Vec::new(),
-                reexported_as,
-            })
-        };
-        let mut extensions = vec![extension(KEY_CONFIG, &config)];
-        if !incomplete.is_empty() {
-            extensions.push(extension(KEY_INCOMPLETE, &incomplete.join(";")));
-        }
-        let file = text(def, "relative_package_filepath");
-        let mapped = if file.is_empty() {
-            None
-        } else {
-            Some(map(file)?)
-        };
-        symbols.push(Symbol {
-            id: join_id(package, &path),
-            kind: draft.kind as i32,
-            signature_text: draft.signature,
-            doc_markdown: doc,
-            params: draft.params,
-            returns: draft.returns,
-            examples: examples(def),
-            source: mapped.map(|(file, generated)| SourceRef {
-                file,
-                line: def.get("lineno").and_then(Value::as_u64).unwrap_or(0),
-                generated,
-            }),
-            visibility: Visibility::Public as i32,
-            relations,
-            extensions,
-            display_name: path,
-        });
     }
     // The root module symbol alone is not an API.
     if symbols.len() < 2 {

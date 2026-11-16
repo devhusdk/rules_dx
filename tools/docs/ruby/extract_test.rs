@@ -1,5 +1,6 @@
 //! Checks the Ruby fixture shards and the YARD driver's and converter's failure handling.
 
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -315,10 +316,11 @@ impl Driver {
 
     fn manifest(&self, name: &str, files: &[&str]) -> PathBuf {
         let path = self.dir.join(name);
-        let text: String = files
-            .iter()
-            .map(|rel| format!("{}\t{rel}\t0\n", self.root.join(rel).display()))
-            .collect();
+        let mut text = String::new();
+        for rel in files {
+            writeln!(text, "{}\t{rel}\t0", self.root.join(rel).display())
+                .expect("write to a string");
+        }
         std::fs::write(&path, text).expect("write the manifest");
         path
     }

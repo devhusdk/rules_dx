@@ -39,6 +39,30 @@ fn browser_at(base: &str) -> ProfiledBrowser {
     }
 }
 
+fn sidebar_routes(browser: &mut Browser) -> Vec<String> {
+    let links = browser
+        .script(
+            "return Array.from(document.querySelectorAll('#mdbook-sidebar a'))\
+             .map(function (a) { return a.getAttribute('href'); })",
+        )
+        .expect("sidebar routes");
+    links
+        .as_array()
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item.as_str())
+                .filter(|href| {
+                    std::path::Path::new(href)
+                        .extension()
+                        .is_some_and(|ext| ext.eq_ignore_ascii_case("html"))
+                })
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 #[test]
 fn the_site_navigates_searches_and_reaches_every_command_page_in_a_browser() {
     let server = Server::start(user_site(), "");
@@ -68,27 +92,7 @@ fn the_site_navigates_searches_and_reaches_every_command_page_in_a_browser() {
         "the sidebar must list the whole book"
     );
 
-    let links = browser
-        .script(
-            "return Array.from(document.querySelectorAll('#mdbook-sidebar a'))\
-             .map(function (a) { return a.getAttribute('href'); })",
-        )
-        .expect("sidebar routes");
-    let routes: Vec<String> = links
-        .as_array()
-        .map(|items| {
-            items
-                .iter()
-                .filter_map(|item| item.as_str())
-                .filter(|href| {
-                    std::path::Path::new(href)
-                        .extension()
-                        .is_some_and(|ext| ext.eq_ignore_ascii_case("html"))
-                })
-                .map(str::to_string)
-                .collect()
-        })
-        .unwrap_or_default();
+    let routes = sidebar_routes(&mut browser);
     assert!(
         routes.len() >= 30,
         "the sidebar names {} rendered pages",

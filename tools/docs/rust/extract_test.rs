@@ -147,7 +147,7 @@ fn a_span_outside_the_crate_sources_fails_without_a_shard() {
     let srcs: String = fixture_srcs()
         .lines()
         .filter(|line| !line.contains("shapes.rs"))
-        .map(|line| format!("{line}\n"))
+        .map(|line| [line, "\n"].concat())
         .collect();
     let dir_tmp = scratch("extract-source", &fixture_json(), &srcs);
     let dir = dir_tmp.path();

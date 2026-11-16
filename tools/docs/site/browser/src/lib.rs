@@ -2,6 +2,7 @@
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
+use std::fmt::Write as _;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
@@ -134,7 +135,8 @@ impl Browser {
             "WebDriver:SetWindowRect",
             serde_json::json!({ "x": 0, "y": 0, "width": width, "height": height }),
         )?;
-        settle()
+        settle();
+        Ok(())
     }
 
     /// Loads one absolute URL and waits until the page finished loading.
@@ -171,7 +173,8 @@ impl Browser {
             }],
         });
         self.call("WebDriver:PerformActions", actions)?;
-        settle()
+        settle();
+        Ok(())
     }
 
     /// Runs one script in the page and returns its JSON value.
@@ -227,7 +230,8 @@ impl Browser {
 
     fn call(&mut self, name: &str, params: Value) -> Result<Value, String> {
         self.next_id += 1;
-        let message = serde_json::json!([0, self.next_id, name, params]).to_string();
+        let message =
+            Value::Array(vec![0.into(), self.next_id.into(), name.into(), params]).to_string();
         let framed = format!("{}:{message}", message.len());
         self.stream
             .set_read_timeout(Some(STEP_TIMEOUT))
@@ -406,12 +410,15 @@ fn missing_libraries(log: &Path) -> String {
             libraries.push(name);
         }
     }
-    libraries
-        .iter()
-        .map(|name| {
-            format!("browser: missing shared library {name} (install the system package that provides it)\n")
-        })
-        .collect()
+    let mut report = String::new();
+    for name in libraries {
+        writeln!(
+            report,
+            "browser: missing shared library {name} (install the system package that provides it)"
+        )
+        .unwrap_or_default();
+    }
+    report
 }
 
 fn log_tail(log: &Path) -> String {
@@ -425,9 +432,8 @@ fn log_tail(log: &Path) -> String {
         .join("\n")
 }
 
-fn settle() -> Result<(), String> {
+fn settle() {
     thread::sleep(SETTLE);
-    Ok(())
 }
 
 /// Polls one script until it reads as yes, or reports how long it waited.

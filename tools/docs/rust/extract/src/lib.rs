@@ -251,6 +251,129 @@ enum Cand<'x> {
     Alias(usize, &'x AliasCand),
 }
 
+fn kept_aliases(aliases: &[AliasCand]) -> BTreeMap<(&str, Id), (usize, &AliasCand)> {
+    // One alias per (name, target); an explicit `pub use` beats a glob.
+    let mut kept: BTreeMap<(&str, Id), (usize, &AliasCand)> = BTreeMap::new();
+    for (index, alias) in aliases.iter().enumerate() {
+        match kept.entry((alias.base.as_str(), alias.target)) {
+            std::collections::btree_map::Entry::Vacant(slot) => {
+                slot.insert((index, alias));
+            }
+            std::collections::btree_map::Entry::Occupied(mut slot) => {
+                if slot.get().1.glob && !alias.glob {
+                    slot.insert((index, alias));
+                }
+            }
+        }
+    }
+    kept
+}
+
+fn rank_of(cand: &Cand<'_>) -> u8 {
+    match cand {
+        Cand::Entry(_, e) => e.rank,
+        Cand::Alias(_, a) => a.rank,
+    }
+}
+
+fn surviving<'x>(base: &str, live: &[Cand<'x>]) -> Result<Vec<Cand<'x>>, String> {
+    // A glob name is dropped when another item has the same name in the same namespace.
+    let mut survivors = Vec::new();
+    for cand in live {
+        if let Cand::Alias(_, alias) = cand {
+            let rivals: Vec<&Cand<'_>> = live
+                .iter()
+                .filter(|other| {
+                    !matches!((cand, other), (Cand::Alias(a, _), Cand::Alias(b, _)) if a == b)
+                        && rank_of(other) == rank_of(cand)
+                })
+                .collect();
+            if alias.glob {
+                if !rivals.is_empty() {
+                    continue;
+                }
+            } else if let Some(rival) = rivals
+                .iter()
+                .find(|r| !matches!(r, Cand::Alias(_, a) if a.glob))
+            {
+                let other = match rival {
+                    Cand::Entry(_, e) => e.symbol.signature_text.clone(),
+                    Cand::Alias(_, a) => format!("a re-export of {}", a.base),
+                };
+                return Err(format!(
+                    "re-export name '{base}' collides with '{other}' in the same namespace"
+                ));
+            }
+        }
+        survivors.push(*cand);
+    }
+    Ok(survivors)
+}
+
+type FinalIds = (BTreeMap<usize, String>, BTreeMap<usize, String>);
+
+fn assign_ids(entries: &[Entry], aliases: &[AliasCand]) -> Result<FinalIds, String> {
+    let kept = kept_aliases(aliases);
+    let mut groups: BTreeMap<&str, Vec<Cand<'_>>> = BTreeMap::new();
+    for (index, entry) in entries.iter().enumerate() {
+        groups
+            .entry(entry.base.as_str())
+            .or_default()
+            .push(Cand::Entry(index, entry));
+    }
+    for (index, alias) in kept.into_values() {
+        groups
+            .entry(alias.base.as_str())
+            .or_default()
+            .push(Cand::Alias(index, alias));
+    }
+    let key_of = |cand: &Cand<'_>| match cand {
+        Cand::Entry(_, e) => (e.rank, e.pos.clone(), e.tag),
+        Cand::Alias(_, a) => (a.rank, a.pos.clone(), a.tag),
+    };
+    let mut final_entry: BTreeMap<usize, String> = BTreeMap::new();
+    let mut final_alias: BTreeMap<usize, String> = BTreeMap::new();
+    for (base, cands) in groups {
+        let mut forced = Vec::new();
+        let mut live = Vec::new();
+        for cand in &cands {
+            match cand {
+                Cand::Entry(_, e) if e.forced => forced.push(*cand),
+                Cand::Entry(..) | Cand::Alias(..) => live.push(*cand),
+            }
+        }
+        let mut survivors = surviving(base, &live)?;
+        survivors.sort_by_key(key_of);
+        forced.sort_by_key(key_of);
+        for (group, plain_first) in [(&survivors, true), (&forced, false)] {
+            let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
+            for (n, cand) in group.iter().enumerate() {
+                let tag = key_of(cand).2;
+                let id = if plain_first && n == 0 {
+                    base.to_string()
+                } else {
+                    let count = counts.entry(tag).or_insert(0);
+                    *count += 1;
+                    if *count == 1 {
+                        format!("{base}@{tag}")
+                    } else {
+                        format!("{base}@{tag}-{count}")
+                    }
+                };
+                match cand {
+                    Cand::Entry(i, _) => {
+                        final_entry.insert(*i, id);
+                    }
+                    Cand::Alias(i, _) => {
+                        final_alias.insert(*i, id);
+                    }
+                }
+            }
+        }
+    }
+    Ok((final_entry, final_alias))
+}
+
 struct Walker<'a> {
     krate: &'a Crate,
     prefix: String,
@@ -578,10 +701,10 @@ impl<'a> Walker<'a> {
                     };
                     let summary = import.id.and_then(|id| self.krate.paths.get(&id));
                     let kind = summary.map_or(SymbolKind::Unspecified, |summary| {
-                        summary_kind(&summary.kind)
+                        summary_kind(summary.kind)
                     });
                     let namespace =
-                        summary.map_or((3, "item"), |summary| summary_namespace(&summary.kind));
+                        summary.map_or((3, "item"), |summary| summary_namespace(summary.kind));
                     self.push(item, base, namespace, kind, signature, None)?;
                 }
             }
@@ -691,110 +814,7 @@ impl<'a> Walker<'a> {
             canonical,
             ..
         } = self;
-        // One alias per (name, target); an explicit `pub use` beats a glob.
-        let mut kept: BTreeMap<(&str, Id), (usize, &AliasCand)> = BTreeMap::new();
-        for (index, alias) in aliases.iter().enumerate() {
-            match kept.entry((alias.base.as_str(), alias.target)) {
-                std::collections::btree_map::Entry::Vacant(slot) => {
-                    slot.insert((index, alias));
-                }
-                std::collections::btree_map::Entry::Occupied(mut slot) => {
-                    if slot.get().1.glob && !alias.glob {
-                        slot.insert((index, alias));
-                    }
-                }
-            }
-        }
-        let mut groups: BTreeMap<&str, Vec<Cand<'_>>> = BTreeMap::new();
-        for (index, entry) in entries.iter().enumerate() {
-            groups
-                .entry(entry.base.as_str())
-                .or_default()
-                .push(Cand::Entry(index, entry));
-        }
-        for (index, alias) in kept.into_values() {
-            groups
-                .entry(alias.base.as_str())
-                .or_default()
-                .push(Cand::Alias(index, alias));
-        }
-        let rank_of = |cand: &Cand<'_>| match cand {
-            Cand::Entry(_, e) => e.rank,
-            Cand::Alias(_, a) => a.rank,
-        };
-        let key_of = |cand: &Cand<'_>| match cand {
-            Cand::Entry(_, e) => (e.rank, e.pos.clone(), e.tag),
-            Cand::Alias(_, a) => (a.rank, a.pos.clone(), a.tag),
-        };
-        let mut final_entry: BTreeMap<usize, String> = BTreeMap::new();
-        let mut final_alias: BTreeMap<usize, String> = BTreeMap::new();
-        for (base, cands) in groups {
-            let mut forced = Vec::new();
-            let mut live = Vec::new();
-            for cand in &cands {
-                match cand {
-                    Cand::Entry(_, e) if e.forced => forced.push(*cand),
-                    Cand::Entry(..) | Cand::Alias(..) => live.push(*cand),
-                }
-            }
-            // A glob name is dropped when another item has the same name in the same namespace.
-            let mut survivors = Vec::new();
-            for cand in &live {
-                if let Cand::Alias(_, alias) = cand {
-                    let rivals: Vec<&Cand<'_>> = live
-                        .iter()
-                        .filter(|other| {
-                            !matches!((cand, other), (Cand::Alias(a, _), Cand::Alias(b, _)) if a == b)
-                                && rank_of(other) == rank_of(cand)
-                        })
-                        .collect();
-                    if alias.glob {
-                        if !rivals.is_empty() {
-                            continue;
-                        }
-                    } else if let Some(rival) = rivals
-                        .iter()
-                        .find(|r| !matches!(r, Cand::Alias(_, a) if a.glob))
-                    {
-                        let other = match rival {
-                            Cand::Entry(_, e) => e.symbol.signature_text.clone(),
-                            Cand::Alias(_, a) => format!("a re-export of {}", a.base),
-                        };
-                        return Err(format!(
-                            "re-export name '{base}' collides with '{other}' in the same namespace"
-                        ));
-                    }
-                }
-                survivors.push(*cand);
-            }
-            survivors.sort_by_key(key_of);
-            forced.sort_by_key(key_of);
-            for (group, plain_first) in [(&survivors, true), (&forced, false)] {
-                let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
-                for (n, cand) in group.iter().enumerate() {
-                    let tag = key_of(cand).2;
-                    let id = if plain_first && n == 0 {
-                        base.to_string()
-                    } else {
-                        let count = counts.entry(tag).or_insert(0);
-                        *count += 1;
-                        if *count == 1 {
-                            format!("{base}@{tag}")
-                        } else {
-                            format!("{base}@{tag}-{count}")
-                        }
-                    };
-                    match cand {
-                        Cand::Entry(i, _) => {
-                            final_entry.insert(*i, id);
-                        }
-                        Cand::Alias(i, _) => {
-                            final_alias.insert(*i, id);
-                        }
-                    }
-                }
-            }
-        }
+        let (final_entry, final_alias) = assign_ids(&entries, &aliases)?;
         if final_entry.len() != entries.len() {
             return Err("an entry was left without a final id".to_string());
         }
@@ -956,7 +976,7 @@ fn member_namespace(kind: SymbolKind) -> (u8, &'static str) {
     }
 }
 
-fn summary_namespace(kind: &rustdoc_types::ItemKind) -> (u8, &'static str) {
+fn summary_namespace(kind: rustdoc_types::ItemKind) -> (u8, &'static str) {
     use rustdoc_types::ItemKind as K;
     match kind {
         K::Module => (0, "mod"),
@@ -984,7 +1004,7 @@ fn summary_namespace(kind: &rustdoc_types::ItemKind) -> (u8, &'static str) {
     }
 }
 
-fn summary_kind(kind: &rustdoc_types::ItemKind) -> SymbolKind {
+fn summary_kind(kind: rustdoc_types::ItemKind) -> SymbolKind {
     use rustdoc_types::ItemKind as K;
     match kind {
         K::Module => SymbolKind::Module,
@@ -1012,40 +1032,7 @@ pub fn signature(item: &Item, name: &str) -> String {
     let vis = if is_public(item) { "pub " } else { "" };
     match &item.inner {
         ItemEnum::Module(_) => format!("{vis}mod {name}"),
-        ItemEnum::Function(function) => {
-            let header = &function.header;
-            let mut text = String::from(vis);
-            for (on, word) in [
-                (header.is_const, "const "),
-                (header.is_async, "async "),
-                (header.is_unsafe, "unsafe "),
-            ] {
-                if on {
-                    text.push_str(word);
-                }
-            }
-            if let Some(abi) = abi(&header.abi) {
-                write!(text, "extern \"{abi}\" ").unwrap_or_default();
-            }
-            let inputs: Vec<String> = function
-                .sig
-                .inputs
-                .iter()
-                .map(|(arg, ty)| input(arg, ty))
-                .chain(function.sig.is_c_variadic.then(|| "...".to_string()))
-                .collect();
-            write!(
-                text,
-                "fn {name}{}({})",
-                params(&function.generics.params),
-                inputs.join(", ")
-            )
-            .unwrap_or_default();
-            if let Some(output) = &function.sig.output {
-                write!(text, " -> {}", ty(output)).unwrap_or_default();
-            }
-            text + &where_clause(&function.generics)
-        }
+        ItemEnum::Function(function) => function_signature(vis, name, function),
         ItemEnum::Struct(data) => {
             let head = format!("{vis}struct {name}{}", params(&data.generics.params));
             let clause = where_clause(&data.generics);
@@ -1081,20 +1068,7 @@ pub fn signature(item: &Item, name: &str) -> String {
             format!("{name}{body}{discriminant}")
         }
         ItemEnum::StructField(field) => format!("{vis}{name}: {}", ty(field)),
-        ItemEnum::Trait(data) => {
-            let mut text = String::from(vis);
-            if data.is_unsafe {
-                text.push_str("unsafe ");
-            }
-            if data.is_auto {
-                text.push_str("auto ");
-            }
-            write!(text, "trait {name}{}", params(&data.generics.params)).unwrap_or_default();
-            if !data.bounds.is_empty() {
-                write!(text, ": {}", bounds(&data.bounds)).unwrap_or_default();
-            }
-            text + &where_clause(&data.generics)
-        }
+        ItemEnum::Trait(data) => trait_signature(vis, name, data),
         ItemEnum::TraitAlias(data) => format!(
             "{vis}trait {name}{} = {}{};",
             params(&data.generics.params),
@@ -1132,22 +1106,80 @@ pub fn signature(item: &Item, name: &str) -> String {
             bounds: list,
             type_,
             ..
-        } => {
-            let mut text = format!("{vis}type {name}{}", params(&generics.params));
-            if !list.is_empty() {
-                write!(text, ": {}", bounds(list)).unwrap_or_default();
-            }
-            text.push_str(&where_clause(generics));
-            if let Some(type_) = type_ {
-                write!(text, " = {}", ty(type_)).unwrap_or_default();
-            }
-            text + ";"
-        }
+        } => assoc_type_signature(vis, name, generics, list, type_.as_ref()),
         ItemEnum::ExternCrate { .. }
         | ItemEnum::Use(_)
         | ItemEnum::Impl(_)
         | ItemEnum::Primitive(_) => name.to_string(),
     }
+}
+
+fn function_signature(vis: &str, name: &str, function: &rustdoc_types::Function) -> String {
+    let header = &function.header;
+    let mut text = String::from(vis);
+    for (on, word) in [
+        (header.is_const, "const "),
+        (header.is_async, "async "),
+        (header.is_unsafe, "unsafe "),
+    ] {
+        if on {
+            text.push_str(word);
+        }
+    }
+    if let Some(abi) = abi(&header.abi) {
+        write!(text, "extern \"{abi}\" ").unwrap_or_default();
+    }
+    let inputs: Vec<String> = function
+        .sig
+        .inputs
+        .iter()
+        .map(|(arg, ty)| input(arg, ty))
+        .chain(function.sig.is_c_variadic.then(|| "...".to_string()))
+        .collect();
+    write!(
+        text,
+        "fn {name}{}({})",
+        params(&function.generics.params),
+        inputs.join(", ")
+    )
+    .unwrap_or_default();
+    if let Some(output) = &function.sig.output {
+        write!(text, " -> {}", ty(output)).unwrap_or_default();
+    }
+    text + &where_clause(&function.generics)
+}
+
+fn trait_signature(vis: &str, name: &str, data: &rustdoc_types::Trait) -> String {
+    let mut text = String::from(vis);
+    if data.is_unsafe {
+        text.push_str("unsafe ");
+    }
+    if data.is_auto {
+        text.push_str("auto ");
+    }
+    write!(text, "trait {name}{}", params(&data.generics.params)).unwrap_or_default();
+    if !data.bounds.is_empty() {
+        write!(text, ": {}", bounds(&data.bounds)).unwrap_or_default();
+    }
+    text + &where_clause(&data.generics)
+}
+
+fn assoc_type_signature(
+    vis: &str,
+    name: &str,
+    generics: &Generics,
+    list: &[GenericBound],
+    type_: Option<&Type>,
+) -> String {
+    let mut text = format!("{vis}type {name}{}", params(&generics.params));
+    if !list.is_empty() {
+        write!(text, ": {}", bounds(list)).unwrap_or_default();
+    }
+    text.push_str(&where_clause(generics));
+    if let Some(type_) = type_ {
+        write!(text, " = {}", ty(type_)).unwrap_or_default();
+    }
+    text + ";"
 }
 
 fn item_fields(fields: &[Option<Id>]) -> Vec<bool> {

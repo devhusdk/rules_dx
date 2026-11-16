@@ -200,12 +200,9 @@ struct Page<'a> {
     canonical: Option<String>,
 }
 
-/// Renders every output of one site's shards.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
-pub fn render(shards: &[DocIr], source_url: &str) -> Result<Rendered, String> {
+type PageGroups<'a> = (BTreeMap<String, Page<'a>>, BTreeMap<String, Vec<String>>);
+
+fn collect_pages(shards: &[DocIr]) -> Result<PageGroups<'_>, String> {
     let mut pages: BTreeMap<String, Page<'_>> = BTreeMap::new();
     let mut groups: BTreeMap<String, Vec<String>> = BTreeMap::new();
     for shard in shards {
@@ -231,6 +228,16 @@ pub fn render(shards: &[DocIr], source_url: &str) -> Result<Rendered, String> {
             }
         }
     }
+    Ok((pages, groups))
+}
+
+/// Renders every output of one site's shards.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
+pub fn render(shards: &[DocIr], source_url: &str) -> Result<Rendered, String> {
+    let (pages, groups) = collect_pages(shards)?;
     if pages.is_empty() {
         return Err("the shards name no symbols".to_string());
     }
@@ -269,9 +276,7 @@ pub fn render(shards: &[DocIr], source_url: &str) -> Result<Rendered, String> {
     };
     let mut records = Vec::new();
     for (group, ids) in &groups {
-        rendered
-            .api
-            .push_str(&format!("\n## {}\n\n", group_title(group)));
+        write!(rendered.api, "\n## {}\n\n", group_title(group)).unwrap_or_default();
         let mut ids = ids.clone();
         ids.sort();
         for id in ids {
@@ -281,16 +286,15 @@ pub fn render(shards: &[DocIr], source_url: &str) -> Result<Rendered, String> {
             let path = api_path(&id);
             let summary = first_line(&page.symbol.doc_markdown);
             let name = titles.of(&id);
-            rendered
-                .summary
-                .push_str(&format!("    - [{}]({path})\n", link_text(&name)));
+            writeln!(rendered.summary, "    - [{}]({path})", link_text(&name)).unwrap_or_default();
             match summary {
-                Some(line) => rendered
-                    .api
-                    .push_str(&format!("- [{}]({path}): {line}\n", code(&name))),
-                None => rendered
-                    .api
-                    .push_str(&format!("- [{}]({path})\n", code(&name))),
+                Some(line) => {
+                    writeln!(rendered.api, "- [{}]({path}): {line}", code(&name))
+                        .unwrap_or_default();
+                }
+                None => {
+                    writeln!(rendered.api, "- [{}]({path})", code(&name)).unwrap_or_default();
+                }
             }
             let rel = path.strip_prefix("api/").unwrap_or(&path).to_string();
             rendered
@@ -333,6 +337,25 @@ fn first_line(doc: &str) -> Option<&str> {
         .filter(|line| !line.starts_with('#') && !line.starts_with("```"))
 }
 
+fn fence_of(id: &str) -> &'static str {
+    match id.split_once(':') {
+        Some(("rust", _)) => "rust,noplayground",
+        Some(("go", _)) => "go",
+        Some(("ruby", _)) => "ruby",
+        Some(("ocaml", _)) => "ocaml",
+        Some(("python", _)) => "python",
+        Some(("java", _)) => "java",
+        Some(("kotlin", _)) => "kotlin",
+        Some(("scala", _)) => "scala",
+        Some(("vue", _)) => "ts",
+        Some(("d", _)) => "d",
+        Some(("haskell", _)) => "haskell",
+        Some(("swift", _)) => "swift",
+        Some(("zig", _)) => "zig",
+        _ => "text",
+    }
+}
+
 fn page_text(
     page: &Page<'_>,
     known: &BTreeSet<&str>,
@@ -351,22 +374,7 @@ fn page_text(
         .unwrap_or_default();
     }
     if !symbol.signature_text.is_empty() {
-        let fence = match page.id.split_once(':') {
-            Some(("rust", _)) => "rust,noplayground",
-            Some(("go", _)) => "go",
-            Some(("ruby", _)) => "ruby",
-            Some(("ocaml", _)) => "ocaml",
-            Some(("python", _)) => "python",
-            Some(("java", _)) => "java",
-            Some(("kotlin", _)) => "kotlin",
-            Some(("scala", _)) => "scala",
-            Some(("vue", _)) => "ts",
-            Some(("d", _)) => "d",
-            Some(("haskell", _)) => "haskell",
-            Some(("swift", _)) => "swift",
-            Some(("zig", _)) => "zig",
-            _ => "text",
-        };
+        let fence = fence_of(&page.id);
         writeln!(text, "```{fence}\n{}\n```\n", symbol.signature_text).unwrap_or_default();
     }
     if symbol.doc_markdown.trim().is_empty() {

@@ -211,10 +211,6 @@ fsharp lint_error_test *
 fsharp lint_test *
 fsharp lock_test *
 fsharp runfiles_test *
-go format_error_test *
-go format_test *
-go lint_error_test *
-go lint_test *
 haskell cross_test *
 haskell format_error_test *
 haskell format_test *

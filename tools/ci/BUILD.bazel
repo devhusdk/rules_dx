@@ -1661,7 +1661,6 @@ rust_test(
     crate_name = "workflow_files_test",
     crate_root = "workflow_files_test.rs",
     data = [
-        "pr_check.sh",
         "//.github:workflows/ci.yml",
         "//.github:workflows/dx-update.yml",
         "//.github:workflows/pr-check.yml",
@@ -1673,6 +1672,7 @@ rust_test(
         "//deploy/private:gate_sources",
         "//deploy/private/release:release_matrix",
         "//docs:github-ci.md",
+        "//tools/ci/producers:src/pr_check.rs",
     ],
     env = {"DX_RELEASE_MATRIX": "$(rootpath //deploy/private/release:release_matrix)"},
     deps = all_crate_deps(

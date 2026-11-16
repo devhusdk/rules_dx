@@ -3,7 +3,9 @@ use dx_testing::read_runfiles;
 
 const CI: &str = ".github/workflows/ci.yml";
 const WORKFLOW: &str = ".github/workflows/pr-check.yml";
-const SCRIPT: &str = "tools/ci/pr_check.sh";
+const SCRIPT: &str = "tools/ci/producers/src/pr_check.rs";
+const TOOL: &str = "\"$RUNNER_TEMP/pr-check/producers_bin\"";
+const TOOL_STEP: &str = "pr-check tool";
 const SETS: [&str; 7] = [
     "workflow",
     "preflight",
@@ -13,6 +15,16 @@ const SETS: [&str; 7] = [
     "docs",
     "cli",
 ];
+
+/// Returns the text of `pub const NAME` in the source, up to the end of its statement.
+fn constant(source: &str, name: &str) -> String {
+    let start = source
+        .find(&format!("pub const {name}: "))
+        .unwrap_or_else(|| panic!("{SCRIPT} has no {name}"));
+    let rest = source.get(start..).expect("string slice within bounds");
+    let end = rest.find(";\n").expect("end of constant");
+    rest.get(..end).expect("string slice within bounds").to_owned()
+}
 
 /// Returns every `//` label in the text.
 fn labels(text: &str) -> Vec<String> {
@@ -27,7 +39,7 @@ fn labels(text: &str) -> Vec<String> {
 
 #[test]
 fn script_covers_the_ci_preflight_labels() {
-    let script = read_runfiles(SCRIPT);
+    let script = constant(&read_runfiles(SCRIPT), "PREFLIGHT_TARGETS");
     let preflight = job(CI, "preflight");
     let matrix = preflight["strategy"]["matrix"]["include"]
         .as_array()
@@ -58,12 +70,7 @@ fn script_covers_the_ci_preflight_labels() {
 
 #[test]
 fn workflow_set_runs_the_action_and_workflow_tests() {
-    let script = read_runfiles(SCRIPT);
-    let body = script
-        .split("workflow() {")
-        .nth(1)
-        .and_then(|rest| rest.split("\n}\n").next())
-        .expect("workflow set");
+    let body = constant(&read_runfiles(SCRIPT), "WORKFLOW_TARGETS");
     for label in [
         "//tools/ci:secret_flags_test",
         "//tools/ci:workflow_pins_test",
@@ -75,32 +82,18 @@ fn workflow_set_runs_the_action_and_workflow_tests() {
 #[test]
 fn windows_arm64_set_targets_the_platform() {
     let script = read_runfiles(SCRIPT);
-    let start = script
-        .find("preflight-windows-arm64() {")
-        .expect("windows_arm64 set");
-    let body = script.get(start..).expect("string slice within bounds");
-    let body = body
-        .get(..body.find("\n}\n").expect("end of set"))
-        .expect("string slice within bounds");
-    assert!(body.contains("--platforms=@llvm//platforms:windows_aarch64"));
-    assert!(body.contains("--skip_incompatible_explicit_targets"));
-    assert!(body.contains("//dart/private/tools:all"));
+    assert!(
+        constant(&script, "WINDOWS_ARM64_PLATFORM")
+            .contains("--platforms=@llvm//platforms:windows_aarch64")
+    );
+    assert!(constant(&script, "WINDOWS_ARM64_TARGETS").contains("//dart/private/tools:all"));
 }
 
 #[test]
 fn windows_arm64_set_or_blocklist_covers_ci_preflight() {
     let script = read_runfiles(SCRIPT);
-    let start = script
-        .find("preflight-windows-arm64() {")
-        .expect("windows_arm64 set");
-    let body = script.get(start..).expect("string slice within bounds");
-    let body = body
-        .get(..body.find("\n}\n").expect("end of set"))
-        .expect("string slice within bounds");
-    let blocked = script
-        .lines()
-        .find(|line| line.starts_with("WINDOWS_ARM64_BLOCKED="))
-        .expect("WINDOWS_ARM64_BLOCKED line");
+    let body = &constant(&script, "WINDOWS_ARM64_TARGETS");
+    let blocked = &constant(&script, "WINDOWS_ARM64_BLOCKED");
     let mut wanted = Vec::new();
     for step in steps(CI, "preflight") {
         let run = step["run"].as_str().unwrap_or_default();
@@ -136,28 +129,46 @@ fn workflow_runs_every_set_in_its_own_step() {
         .iter()
         .filter(|step| step["run"].is_string())
         .filter(|step| step["name"].as_str() != Some("affected tests"))
+        .filter(|step| step["name"].as_str() != Some(TOOL_STEP))
         .map(|step| step["name"].as_str().unwrap_or_default().to_owned())
         .collect();
     assert_eq!(names, SETS);
     for step in steps(WORKFLOW, "analysis") {
         if let Some(run) = step["run"].as_str() {
             let name = step["name"].as_str().unwrap_or_default();
-            if name == "affected tests" {
+            if name == "affected tests" || name == TOOL_STEP {
                 continue;
             }
             assert!(
-                run.contains(&format!("{SCRIPT} {name} ")),
+                run.contains(&format!("{TOOL} --pr-check {name} ")),
                 "step {name} runs {run}"
             );
         }
     }
     let script = read_runfiles(SCRIPT);
+    let sets = constant(&script, "SETS");
     for set in SETS {
         assert!(
-            script.contains(&format!("{set}()")),
+            sets.contains(&format!("\"{set}\"")),
             "{SCRIPT} has no {set} set"
         );
     }
+}
+
+#[test]
+fn workflow_builds_the_tool_before_the_sets() {
+    let steps = steps(WORKFLOW, "analysis");
+    let position = |name: &str| {
+        steps
+            .iter()
+            .position(|step| step["name"].as_str() == Some(name))
+            .unwrap_or_else(|| panic!("{WORKFLOW} has no {name} step"))
+    };
+    let tool = position(TOOL_STEP);
+    let run = steps[tool]["run"].as_str().expect("run");
+    assert!(run.contains("//tools/ci/producers:producers_bin"), "{run}");
+    assert!(run.contains(TOOL), "{run}");
+    assert!(SETS.iter().all(|set| tool < position(set)));
 }
 
 #[test]
@@ -242,7 +253,9 @@ fn consumer_queries_skip_the_private_upstream_copies() {
         let mut seen = 0;
         for line in text.lines() {
             for tag in ["starter-consumer", "hermetic-consumer"] {
-                if line.contains(&format!("attr(tags, {tag}")) && line.contains("bazel query") {
+                if line.contains(&format!("attr(tags, {tag}"))
+                    && (path == SCRIPT || line.contains("bazel query"))
+                {
                     seen += 1;
                     assert!(
                         line.contains("except filter(\"_upstream$\", //...)"),

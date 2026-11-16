@@ -1557,6 +1557,7 @@ impl ModuleFile {
             (format!("@{repo}//crate_universe:extensions.bzl"), "crate"),
             (format!("@{dx}//rust:extensions.bzl"), "cargo"),
             ("//rust:extensions.bzl".to_owned(), "cargo"),
+            ("//third_party/rules_rust/crate_universe:extensions.bzl".to_owned(), "crate"),
         ];
         self.calls_named("use_extension")
             .filter(|call| {

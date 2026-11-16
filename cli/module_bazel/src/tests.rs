@@ -634,6 +634,22 @@ fn hub_view(hub: &CargoHub<'_>) -> (String, Option<String>, Vec<String>, usize) 
 }
 
 #[test]
+fn cargo_hubs_follow_the_vendored_crate_extension() {
+    let source = "crate = use_extension(\"//third_party/rules_rust/crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = \"h\", manifests = [\"//x:Cargo.toml\"])\n";
+    let file = parse(source);
+    let hubs: Vec<_> = file
+        .cargo_hubs()
+        .expect("hubs")
+        .iter()
+        .map(hub_view)
+        .collect();
+    assert_eq!(
+        hubs,
+        [("h".to_owned(), None, vec!["//x:Cargo.toml".to_owned()], 2)]
+    );
+}
+
+#[test]
 fn cargo_hubs_follow_the_rules_rust_crate_extension() {
     let source = "bazel_dep(name = \"rules_rust\", version = \"0.74.0\")\ncrate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.annotation(crate = \"blake3\")\ncrate.from_cargo(\n    name = \"dx_crates\",\n    cargo_lockfile = \"//rust/tests/fixtures/hello:Cargo.lock\",\n    manifests = [\n        \"//cli/bump:Cargo.toml\",\n        \"//:Cargo.toml\",\n    ],\n)\ncrate.from_cargo(name = \"other\", manifests = [\"//x:Cargo.toml\"])\nfake = use_extension(\"@fake//crate_universe:extensions.bzl\", \"crate\")\nfake.from_cargo(name = \"no\", manifests = [\"//no:Cargo.toml\"])\n";
     let file = parse(source);

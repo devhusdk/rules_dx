@@ -1,4 +1,4 @@
-//! Evaluates one starlark_test manifest without host shell tooling.
+//! Evaluates one `starlark_test` manifest without host shell tooling.
 //!
 //! The Starlark rule writes one JSON manifest per case and runs this binary as
 //! the test executable. The harness resolves every input through its own
@@ -29,6 +29,7 @@ pub struct Report {
 
 impl Report {
     /// Renders the whole report as test output text.
+    #[must_use]
     pub fn text(&self) -> String {
         let mut out = self.lines.join("\n");
         out.push('\n');
@@ -36,6 +37,7 @@ impl Report {
     }
 
     /// Returns whether every assertion passed.
+    #[must_use]
     pub fn ok(&self) -> bool {
         self.failed == 0
     }
@@ -206,10 +208,7 @@ fn longest_prefix_match(haystack: &[u8], needle: &[u8]) -> usize {
 fn first_missing_line<'a>(haystack: &[u8], needle: &'a str) -> (usize, &'a str) {
     let bytes = needle.as_bytes();
     let matched = longest_prefix_match(haystack, bytes);
-    let mut index = bytes[..matched]
-        .iter()
-        .filter(|&&byte| byte == b'\n')
-        .count();
+    let mut index = bytes[..matched].split(|&byte| byte == b'\n').count() - 1;
     if matched > 0 && bytes.get(matched) == Some(&b'\n') {
         index += 1;
     }
@@ -300,6 +299,10 @@ fn evaluate_file(
 }
 
 /// Evaluates the check records of one parsed manifest.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn evaluate(manifest: &serde_json::Value) -> std::io::Result<Report> {
     let version = manifest
         .get("version")
@@ -338,6 +341,10 @@ pub fn evaluate(manifest: &serde_json::Value) -> std::io::Result<Report> {
 }
 
 /// Evaluates the file entries of one manifest through one resolver.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn evaluate_files(
     manifest: &serde_json::Value,
     resolver: &Resolver,
@@ -357,6 +364,10 @@ pub fn evaluate_files(
 ///
 /// Observation lines carry no verdict; they never change the pass or fail
 /// counts.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn evaluate_observations(
     manifest: &serde_json::Value,
     report: &mut Report,
@@ -459,6 +470,10 @@ fn env_value(name: &str) -> std::io::Result<String> {
 }
 
 /// Evaluates the manifest one runfiles key names for one executable.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn run_with(exe: &Path, key: &str) -> std::io::Result<Report> {
     let resolver = resolver_for(exe)?;
     let manifest_path = resolver
@@ -513,7 +528,7 @@ fn finish(
             i32::from(!report.ok())
         }
         Err(error) => {
-            drop(writeln!(err, "starlark_harness: {error}"));
+            writeln!(err, "starlark_harness: {error}").ok();
             1
         }
     }
@@ -558,7 +573,7 @@ mod tests {
         let mut report = evaluate(&value).expect("manifest evaluates");
         let scratch = dx_test_scratch::scratch("starlark-harness");
         let dir = scratch.path();
-        let resolver = Resolver::for_tree(&dir).expect("tree resolver");
+        let resolver = Resolver::for_tree(dir).expect("tree resolver");
         evaluate_files(&value, &resolver, &mut report).expect("files evaluate");
         evaluate_observations(&value, &mut report).expect("observations evaluate");
         summarize(&mut report);
@@ -589,7 +604,7 @@ mod tests {
             "_main/pkg/case.starlark_manifest.json",
             manifest_bytes.as_bytes(),
         );
-        let exe = write(&dir, "probe_test", b"stand-in");
+        let exe = write(dir, "probe_test", b"stand-in");
         run_with(&exe, "_main/pkg/case.starlark_manifest.json")
     }
 
@@ -796,11 +811,11 @@ mod tests {
         let scratch = dx_test_scratch::scratch("starlark-harness");
         let dir = scratch.path();
         write(
-            &dir,
+            dir,
             "_main/pkg/answer.txt",
             b"answer=42\nnote \"quoted\" $HOME `tap` \\ done\n",
         );
-        write(&dir, "_main/pkg/shape.txt", b"shape=circle\n");
+        write(dir, "_main/pkg/shape.txt", b"shape=circle\n");
         let value = manifest(
             serde_json::json!([]),
             serde_json::json!([
@@ -808,7 +823,7 @@ mod tests {
                 {"label": "//pkg:shape", "key": "_main/pkg/shape.txt", "needles": ["shape=circle"]},
             ]),
         );
-        let resolver = Resolver::for_tree(&dir).expect("tree resolver");
+        let resolver = Resolver::for_tree(dir).expect("tree resolver");
         let mut report = empty_report();
         evaluate_files(&value, &resolver, &mut report).expect("files evaluate");
         assert_eq!(
@@ -826,14 +841,14 @@ mod tests {
     fn a_missing_substring_reports_needle_and_path() {
         let scratch = dx_test_scratch::scratch("starlark-harness");
         let dir = scratch.path();
-        write(&dir, "_main/pkg/present.txt", b"here\n");
+        write(dir, "_main/pkg/present.txt", b"here\n");
         let value = manifest(
             serde_json::json!([]),
             serde_json::json!([
                 {"label": "//pkg:present", "key": "_main/pkg/present.txt", "needles": ["absent"]},
             ]),
         );
-        let resolver = Resolver::for_tree(&dir).expect("tree resolver");
+        let resolver = Resolver::for_tree(dir).expect("tree resolver");
         let mut report = empty_report();
         evaluate_files(&value, &resolver, &mut report).expect("files evaluate");
         assert_eq!(report.failed, 1);
@@ -846,8 +861,8 @@ mod tests {
     fn a_multiline_needle_matches_only_contiguous_lines() {
         let scratch = dx_test_scratch::scratch("starlark-harness");
         let dir = scratch.path();
-        write(&dir, "_main/pkg/joined.txt", b"a\nb\n");
-        write(&dir, "_main/pkg/split.txt", b"a\nx\nb\n");
+        write(dir, "_main/pkg/joined.txt", b"a\nb\n");
+        write(dir, "_main/pkg/split.txt", b"a\nx\nb\n");
         let value = manifest(
             serde_json::json!([]),
             serde_json::json!([
@@ -855,7 +870,7 @@ mod tests {
                 {"label": "//pkg:split", "key": "_main/pkg/split.txt", "needles": ["a\nb"]},
             ]),
         );
-        let resolver = Resolver::for_tree(&dir).expect("tree resolver");
+        let resolver = Resolver::for_tree(dir).expect("tree resolver");
         let mut report = empty_report();
         evaluate_files(&value, &resolver, &mut report).expect("files evaluate");
         assert_eq!(report.failed, 1);
@@ -870,14 +885,14 @@ mod tests {
     fn a_missing_multiline_needle_reports_only_the_missing_line() {
         let scratch = dx_test_scratch::scratch("starlark-harness");
         let dir = scratch.path();
-        write(&dir, "_main/pkg/block.txt", b"a\nb\nc\n");
+        write(dir, "_main/pkg/block.txt", b"a\nb\nc\n");
         let value = manifest(
             serde_json::json!([]),
             serde_json::json!([
                 {"label": "//pkg:block", "key": "_main/pkg/block.txt", "needles": ["a\nb\nX\nc"]},
             ]),
         );
-        let resolver = Resolver::for_tree(&dir).expect("tree resolver");
+        let resolver = Resolver::for_tree(dir).expect("tree resolver");
         let mut report = empty_report();
         evaluate_files(&value, &resolver, &mut report).expect("files evaluate");
         assert_eq!(report.failed, 1);
@@ -890,14 +905,14 @@ mod tests {
     fn an_out_of_order_needle_line_is_reported() {
         let scratch = dx_test_scratch::scratch("starlark-harness");
         let dir = scratch.path();
-        write(&dir, "_main/pkg/split.txt", b"a\nx\nb\n");
+        write(dir, "_main/pkg/split.txt", b"a\nx\nb\n");
         let value = manifest(
             serde_json::json!([]),
             serde_json::json!([
                 {"label": "//pkg:split", "key": "_main/pkg/split.txt", "needles": ["a\nb"]},
             ]),
         );
-        let resolver = Resolver::for_tree(&dir).expect("tree resolver");
+        let resolver = Resolver::for_tree(dir).expect("tree resolver");
         let mut report = empty_report();
         evaluate_files(&value, &resolver, &mut report).expect("files evaluate");
         assert_eq!(report.failed, 1);
@@ -922,7 +937,7 @@ mod tests {
                 {"label": "//pkg:ghost", "key": "_main/pkg/ghost.txt", "needles": ["x"]},
             ]),
         );
-        let resolver = Resolver::for_tree(&dir).expect("tree resolver");
+        let resolver = Resolver::for_tree(dir).expect("tree resolver");
         let mut report = empty_report();
         let error =
             evaluate_file(&value["files"][0], &resolver, &mut report).expect_err("missing runfile");
@@ -932,14 +947,14 @@ mod tests {
     fn endings_report(bytes: &[u8], kind: &str) -> Report {
         let scratch = dx_test_scratch::scratch("starlark-harness");
         let dir = scratch.path();
-        write(&dir, "_main/pkg/t.txt", bytes);
+        write(dir, "_main/pkg/t.txt", bytes);
         let value = manifest(
             serde_json::json!([]),
             serde_json::json!([
                 {"label": "//pkg:t", "key": "_main/pkg/t.txt", "needles": [], "line_endings": kind},
             ]),
         );
-        let resolver = Resolver::for_tree(&dir).expect("tree resolver");
+        let resolver = Resolver::for_tree(dir).expect("tree resolver");
         let mut report = empty_report();
         evaluate_files(&value, &resolver, &mut report).expect("files evaluate");
         report
@@ -974,14 +989,14 @@ mod tests {
     fn an_unknown_line_ending_kind_is_an_error() {
         let scratch = dx_test_scratch::scratch("starlark-harness");
         let dir = scratch.path();
-        write(&dir, "_main/pkg/t.txt", b"a\n");
+        write(dir, "_main/pkg/t.txt", b"a\n");
         let value = manifest(
             serde_json::json!([]),
             serde_json::json!([
                 {"label": "//pkg:t", "key": "_main/pkg/t.txt", "needles": [], "line_endings": "cr"},
             ]),
         );
-        let resolver = Resolver::for_tree(&dir).expect("tree resolver");
+        let resolver = Resolver::for_tree(dir).expect("tree resolver");
         let mut report = empty_report();
         let error = evaluate_files(&value, &resolver, &mut report).expect_err("kind");
         assert!(error.to_string().contains("line_endings"), "{error}");
@@ -991,14 +1006,14 @@ mod tests {
     fn a_file_entry_without_needles_is_an_error() {
         let scratch = dx_test_scratch::scratch("starlark-harness");
         let dir = scratch.path();
-        write(&dir, "_main/pkg/empty.txt", b"x\n");
+        write(dir, "_main/pkg/empty.txt", b"x\n");
         let value = manifest(
             serde_json::json!([]),
             serde_json::json!([
                 {"label": "//pkg:empty", "key": "_main/pkg/empty.txt", "needles": []},
             ]),
         );
-        let resolver = Resolver::for_tree(&dir).expect("tree resolver");
+        let resolver = Resolver::for_tree(dir).expect("tree resolver");
         let mut report = empty_report();
         let error = evaluate_files(&value, &resolver, &mut report).expect_err("needles");
         assert!(error.to_string().contains("no substrings"), "{error}");
@@ -1130,7 +1145,7 @@ mod tests {
     fn run_with_rejects_an_unknown_manifest_key() {
         let scratch = dx_test_scratch::scratch("starlark-harness");
         let dir = scratch.path();
-        let exe = write(&dir, "probe_test", b"stand-in");
+        let exe = write(dir, "probe_test", b"stand-in");
         std::fs::create_dir_all(dir.join("probe_test.runfiles/_main/pkg")).expect("empty tree");
         let error = run_with(&exe, "_main/pkg/absent.json").expect_err("unknown key");
         assert!(

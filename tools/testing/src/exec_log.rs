@@ -177,6 +177,11 @@ fn spawn(bytes: &[u8]) -> Result<Spawn, String> {
     Ok(found)
 }
 
+/// Parses an execution log.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn read(bytes: &[u8]) -> Result<Log, String> {
     let mut decoder = ruzstd::decoding::StreamingDecoder::new(bytes).map_err(|e| e.to_string())?;
     let mut raw = Vec::new();
@@ -223,6 +228,11 @@ pub fn read(bytes: &[u8]) -> Result<Log, String> {
     Ok(log)
 }
 
+/// Parses an allowlist file into its entries.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn parse_allowlist(text: &str) -> Result<BTreeSet<String>, String> {
     let mut keys = BTreeSet::new();
     let mut previous: Option<&str> = None;
@@ -243,6 +253,7 @@ pub fn parse_allowlist(text: &str) -> Result<BTreeSet<String>, String> {
     Ok(keys)
 }
 
+#[must_use]
 pub fn problems(first: &Log, second: &Log, allowlist: &BTreeSet<String>) -> Vec<String> {
     let mut out = Vec::new();
     for (key, value) in first {

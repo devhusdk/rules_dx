@@ -15,7 +15,11 @@ pub fn check(mode: &str, key: &str, text: &str) {
     let mut findings = Vec::new();
     let mut changed = Vec::new();
     let mut results = 0;
-    for entry in key.split(' ').filter(|entry| entry.ends_with(".pb")) {
+    for entry in key.split(' ').filter(|entry| {
+        std::path::Path::new(entry)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("pb"))
+    }) {
         let path = dx_testing::rlocation(entry).expect("result must resolve from runfiles");
         let bytes = std::fs::read(&path).expect("result must be readable");
         let result = quality_result::decode_validated(&bytes).expect("result must decode");
@@ -72,7 +76,7 @@ pub fn check(mode: &str, key: &str, text: &str) {
                         let end = usize::try_from(start)
                             .unwrap_or(usize::MAX)
                             .min(bytes.len());
-                        bytes[..end].iter().filter(|b| **b == b'\n').count() + 1 == line
+                        bytes[..end].split(|b| *b == b'\n').count() + 1 == line
                     })
             });
             assert!(found, "missing {rule} at {file}:{line} in:\n{}", report());

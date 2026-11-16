@@ -1,7 +1,7 @@
 use super::*;
 
 /// Trimmed output of `bazel mod graph --output=json --verbose` from Bazel 9.2.0 on a
-/// `dx init` consumer; see testdata/graph_bazel_9_2_0.json.
+/// `dx init` consumer; see `testdata/graph_bazel_9_2_0.json`.
 const GRAPH: &str = include_str!("../testdata/graph_bazel_9_2_0.json");
 
 fn table(pins: &[(&str, &str, &str)]) -> Table {
@@ -50,7 +50,7 @@ fn a_dep_missing_from_the_graph_fails() {
 fn an_override_replaces_the_floor_as_the_expectation() {
     let table = table(&[("bazel_skylib", "1.8.0", "1.9.2")]);
     let overrides = Overrides::from([("bazel_skylib".to_owned(), "1.9.2".to_owned())]);
-    assert!(check_graph(GRAPH, &table, &overrides).is_empty());
+    assert_eq!(check_graph(GRAPH, &table, &overrides), [] as [String; 0]);
     let wrong = Overrides::from([("bazel_skylib".to_owned(), "1.8.0".to_owned())]);
     assert_eq!(check_graph(GRAPH, &table, &wrong).len(), 1);
 }
@@ -63,20 +63,17 @@ fn output_that_is_not_json_fails() {
 
 #[test]
 fn overrides_parse_and_reject_bad_input() {
-    let table = table(&[
-        ("a", "1.0.0", "2.0.0"),
-        ("b", "1.0.0", "3.0.0")
-    ]);
-    assert!(parse_overrides("", &table, ).unwrap().is_empty());
+    let table = table(&[("a", "1.0.0", "2.0.0"), ("b", "1.0.0", "3.0.0")]);
+    assert!(parse_overrides("", &table,).unwrap().is_empty());
     assert_eq!(
-        parse_overrides("a=1.5.0, b=2.0.0-rc.1", &table, ).unwrap(),
+        parse_overrides("a=1.5.0, b=2.0.0-rc.1", &table,).unwrap(),
         Overrides::from([
             ("a".to_owned(), "1.5.0".to_owned()),
             ("b".to_owned(), "2.0.0-rc.1".to_owned())
         ])
     );
     assert_eq!(
-        parse_overrides("tested", &table, ).unwrap(),
+        parse_overrides("tested", &table,).unwrap(),
         Overrides::from([
             ("a".to_owned(), "2.0.0".to_owned()),
             ("b".to_owned(), "3.0.0".to_owned())
@@ -89,7 +86,7 @@ fn overrides_parse_and_reject_bad_input() {
         ("z=1.0.0", "not in CONSUMER_BAZEL_DEPS"),
         ("a=1.0.0,a=1.1.0", "twice"),
     ] {
-        let error = parse_overrides(spec, &table, ).unwrap_err();
+        let error = parse_overrides(spec, &table).unwrap_err();
         assert!(error.contains(needle), "{spec}: {error}");
     }
 }

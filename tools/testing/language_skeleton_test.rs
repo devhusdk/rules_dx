@@ -1,4 +1,4 @@
-//! Every language directory follows docs/design/language-skeleton.md outside tools/testing/language_skeleton_allowlist.txt, and the allowlist holds no spare line.
+//! Every language directory follows docs/design/language-skeleton.md outside `tools/testing/language_skeleton_allowlist.txt`, and the allowlist holds no spare line.
 
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
@@ -567,7 +567,7 @@ fn basename(path: &str) -> &str {
     path.rsplit_once('/').map_or(path, |(_, name)| name)
 }
 
-/// The path a rules_dx label names: `//a/b:c.bzl` gives `a/b/c.bzl`.
+/// The path a `rules_dx` label names: `//a/b:c.bzl` gives `a/b/c.bzl`.
 fn label_path(from: &str, label: &str) -> Option<String> {
     let label = label.strip_prefix("@rules_dx").unwrap_or(label);
     if label.starts_with('@') {
@@ -595,7 +595,11 @@ fn is_build(path: &str) -> bool {
 
 /// Whether a file can name a fixture: a `BUILD`, `.bzl` or `MODULE.bazel` file.
 fn names_fixtures(path: &str) -> bool {
-    is_build(path) || path.ends_with(".bzl") || basename(path) == "MODULE.bazel"
+    is_build(path)
+        || Path::new(&path)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("bzl"))
+        || basename(path) == "MODULE.bazel"
 }
 
 fn is_word(byte: u8) -> bool {
@@ -997,7 +1001,10 @@ fn check_platforms(tree: &Tree, lang: &str, found: &mut Found) {
         .filter(|path| !path.starts_with(&tests))
         .collect();
     for path in sources {
-        if path.ends_with(".bzl") {
+        if Path::new(&path)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("bzl"))
+        {
             let module = tree.module(&path).expect("snapshot source");
             for kind in &module.platform_attrs {
                 if kind != "string_list" {
@@ -1021,7 +1028,10 @@ fn check_platforms(tree: &Tree, lang: &str, found: &mut Found) {
 
 /// Whether a file name reads as a test.
 fn test_file(name: &str) -> bool {
-    if name.ends_with(".bzl") {
+    if Path::new(&name)
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("bzl"))
+    {
         return name.ends_with("_tests.bzl");
     }
     let stem = name.split_once('.').map_or(name, |(stem, _)| stem);
@@ -1421,10 +1431,11 @@ fn differences(found: &Found, allowed: &BTreeSet<String>) -> Vec<String> {
 }
 
 fn collect(root: &Path, dir: &Path, text: &mut BTreeMap<String, String>) {
-    let entries = std::fs::read_dir(dir).unwrap_or_else(|error| panic!("{dir:?}: {error}"));
+    let entries =
+        std::fs::read_dir(dir).unwrap_or_else(|error| panic!("{}: {error}", dir.display()));
     for entry in entries {
         let path = entry
-            .unwrap_or_else(|error| panic!("{dir:?}: {error}"))
+            .unwrap_or_else(|error| panic!("{}: {error}", dir.display()))
             .path();
         if path.is_dir() {
             collect(root, &path, text);
@@ -1977,7 +1988,7 @@ fn dev_proxy_tags_accepts_test_dependency_tags() {
             "toy_dev.from_lock(name = \"x\")\ntoy_dev.crates(name = \"y\")\n",
         );
     });
-    assert!(found.is_empty());
+    assert_eq!(found, [] as [String; 0]);
 }
 
 #[test]

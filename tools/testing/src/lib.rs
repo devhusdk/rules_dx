@@ -1,5 +1,6 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 pub mod cli;
@@ -21,6 +22,7 @@ pub struct Run {
 }
 
 impl Run {
+    #[must_use]
     pub fn combined(&self) -> String {
         let mut out = self.stdout.clone();
         out.push_str(&self.stderr);
@@ -31,6 +33,10 @@ impl Run {
 /// Runs one tool on the runfiles built beside it, never on the runfiles of this process.
 ///
 /// Returns a `Command` for `bin` with `envs` set and the runfiles variables pointing at `bin`'s own
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 /// runfiles, so callers can add arguments and choose how to collect output.
 pub fn command_for(bin: &Path, envs: &[(&str, &str)]) -> std::io::Result<std::process::Command> {
     let mut command = std::process::Command::new(bin);
@@ -63,6 +69,10 @@ fn child_timeout() -> std::time::Duration {
 }
 
 /// Runs `bin` like `run`, with a default deadline of 120s (`DX_TESTING_CHILD_TIMEOUT_SECS`).
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn run(bin: &Path, args: &[&str], envs: &[(&str, &str)]) -> std::io::Result<Run> {
     run_within(bin, args, envs, child_timeout())
 }
@@ -80,7 +90,7 @@ fn drain<R: std::io::Read + Send + 'static>(
                 break;
             }
             into.lock()
-                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .extend(chunk.iter().take(count));
         }
     })
@@ -89,7 +99,7 @@ fn drain<R: std::io::Read + Send + 'static>(
 fn captured_text(buffer: &Captured) -> String {
     let bytes = buffer
         .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     String::from_utf8_lossy(&bytes).into_owned()
 }
 
@@ -104,6 +114,10 @@ fn wait_for(handle: std::thread::JoinHandle<()>, limit: std::time::Duration) {
 }
 
 /// Runs `bin` and kills it when it outlives `limit`, returning `TimedOut` with the output so far.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn run_within(
     bin: &Path,
     args: &[&str],
@@ -114,6 +128,10 @@ pub fn run_within(
 }
 
 /// Like `run_within` for a prepared command; the caller sets any platform flags.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn run_command(
     command: &mut std::process::Command,
     limit: std::time::Duration,
@@ -176,6 +194,10 @@ pub fn run_command(
 }
 
 /// Copies the directory `from` into `to`, keeping files, directories and symlinks.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
 pub fn copy_tree(from: &Path, to: &Path) {
     std::fs::create_dir_all(to).unwrap_or_else(|error| panic!("create {}: {error}", to.display()));
     for entry in
@@ -216,10 +238,20 @@ fn symlink(destination: &Path, link: &Path, source: &Path) {
     result.unwrap_or_else(|error| panic!("link {}: {error}", source.display()));
 }
 
+/// Returns the SHA-256 of the file at `path` as lowercase hex.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn sha256_file(path: &Path) -> Result<String, String> {
     dx_digest::sha256_file_hex(path).map_err(|error| format!("read {}: {error}", path.display()))
 }
 
+/// Reads the JSON file at `path`.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn read_json(path: &Path) -> Result<serde_json::Value, String> {
     let text = std::fs::read_to_string(path)
         .map_err(|err| format!("cannot read {}: {err}", path.display()))?;
@@ -227,6 +259,11 @@ pub fn read_json(path: &Path) -> Result<serde_json::Value, String> {
         .map_err(|err| format!("{} is not valid JSON: {err}", path.display()))
 }
 
+/// Writes `value` as JSON to `path`.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn write_json(path: &Path, value: &serde_json::Value) -> Result<(), String> {
     let mut text = serde_json::to_string_pretty(value).map_err(|err| err.to_string())?;
     text.push('\n');
@@ -235,16 +272,26 @@ pub fn write_json(path: &Path, value: &serde_json::Value) -> Result<(), String> 
 }
 
 /// Writes `text` to `path`, creating its parents and panicking with the path on failure.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
 pub fn write(path: &Path, text: &str) {
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir {parent:?}: {error}"));
+        std::fs::create_dir_all(parent)
+            .unwrap_or_else(|error| panic!("mkdir {}: {error}", parent.display()));
     }
-    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
+    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {}: {error}", path.display()));
 }
 
 /// Reads `path` as UTF-8 text, panicking with the path on failure.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
+#[must_use]
 pub fn read(path: &Path) -> String {
-    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
+    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {}: {error}", path.display()))
 }
 
 fn read_lines(path: &Path) -> std::io::Result<Vec<String>> {
@@ -283,6 +330,7 @@ fn workspace() -> String {
 }
 
 /// Returns the runfiles key that one `$(rootpath)` or `$(rlocationpath)` spells.
+#[must_use]
 pub fn rlocation_key(rel: &str) -> String {
     if let Some(external) = rel.strip_prefix("../") {
         return external.to_owned();
@@ -322,6 +370,10 @@ fn existing(runfiles: &runfiles::Runfiles, key: &str) -> Option<PathBuf> {
 }
 
 /// Resolves one runfiles key through the Bazel runfiles of this process.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn rlocation(key: &str) -> std::io::Result<PathBuf> {
     let opened = runfiles::Runfiles::create();
     if let Some(found) = opened
@@ -345,16 +397,27 @@ pub fn rlocation(key: &str) -> std::io::Result<PathBuf> {
 }
 
 /// Resolves one `$(rootpath)` or `$(rlocationpath)` test input, panicking with its key when absent.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
+#[must_use]
 pub fn resolve_runfiles(rel: &str) -> PathBuf {
     find_runfile(rel).unwrap_or_else(|error| panic!("runfile {rel}: {error}"))
 }
 
 /// Resolves the runfile named by environment variable `var`, panicking when it is unset.
+#[must_use]
 pub fn env_file(var: &str) -> PathBuf {
     resolve_runfiles(&env_text(var))
 }
 
 /// Reads environment variable `var`, panicking when it is unset.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
+#[must_use]
 pub fn env_text(var: &str) -> String {
     std::env::var(var).unwrap_or_else(|_| panic!("{var} is set"))
 }
@@ -368,11 +431,17 @@ pub fn env_files(var: &str) -> Vec<PathBuf> {
 }
 
 /// Renders a path as an owned string.
+#[must_use]
 pub fn path_text(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
 
 /// Creates and returns the directory `name` under `TEST_TMPDIR`.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
+#[must_use]
 pub fn scratch_dir(name: &str) -> PathBuf {
     let dir = PathBuf::from(env_text("TEST_TMPDIR")).join(name);
     std::fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("create {}: {e}", dir.display()));
@@ -380,6 +449,11 @@ pub fn scratch_dir(name: &str) -> PathBuf {
 }
 
 /// Joins the runfiles named by environment variables `vars` into a classpath string.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
+#[must_use]
 pub fn classpath(vars: &[&str]) -> String {
     let joined = std::env::join_paths(vars.iter().map(|var| env_file(var)))
         .unwrap_or_else(|e| panic!("classpath entries join: {e}"));
@@ -387,12 +461,18 @@ pub fn classpath(vars: &[&str]) -> String {
 }
 
 /// Reads one test input resolved through `resolve_runfiles`, panicking when it cannot be read.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
+#[must_use]
 pub fn read_runfile(rel: &str) -> Vec<u8> {
     let resolved = resolve_runfiles(rel);
     std::fs::read(&resolved).unwrap_or_else(|e| panic!("read {}: {e}", resolved.display()))
 }
 
 /// Reports whether `needle` occurs in `haystack`.
+#[must_use]
 pub fn contains_bytes(haystack: &[u8], needle: &[u8]) -> bool {
     haystack.windows(needle.len()).any(|w| w == needle)
 }
@@ -413,21 +493,31 @@ fn find_runfile(rel: &str) -> std::io::Result<PathBuf> {
         .ok_or(error)
 }
 
-/// Names the rules_dx checkout behind the `//:MODULE.bazel` runfile of the calling test.
+/// Names the `rules_dx` checkout behind the `//:MODULE.bazel` runfile of the calling test.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
+#[must_use]
 pub fn rules_dx_source() -> PathBuf {
     let module = find_runfile("MODULE.bazel").unwrap_or_else(|error| {
         panic!(
             "runfile MODULE.bazel: {error}; add //:module_srcs or an area module_srcs to the test's data"
         )
     });
-    let real = std::fs::canonicalize(&module).unwrap_or_else(|error| panic!("{module:?}: {error}"));
+    let real = std::fs::canonicalize(&module)
+        .unwrap_or_else(|error| panic!("{}: {error}", module.display()));
     dx_path::without_verbatim(
         real.parent()
-            .unwrap_or_else(|| panic!("no checkout above {real:?}")),
+            .unwrap_or_else(|| panic!("no checkout above {}", real.display())),
     )
 }
 
 /// Writes the `@dx_test_tags_sources` snapshot named by `DX_SOURCES_JSON`, `DX_FILES_JSON` and, when set, `DX_RUST_JSON` and `DX_PROSE_JSON` into a scratch tree and names its root.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
 pub fn source_snapshot() -> PathBuf {
     static ROOT: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
     ROOT.get_or_init(|| {
@@ -457,6 +547,11 @@ pub fn source_snapshot() -> PathBuf {
 }
 
 /// Every path in the `@dx_test_tags_sources` snapshot named by `DX_PATHS_JSON`, sorted.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
+#[must_use]
 pub fn source_paths() -> Vec<String> {
     let key = env_text("DX_PATHS_JSON");
     let path = rlocation(key.trim()).unwrap_or_else(|error| panic!("DX_PATHS_JSON: {error}"));
@@ -464,19 +559,30 @@ pub fn source_paths() -> Vec<String> {
 }
 
 /// Writes `text` to `path`, creating its parent directories, and panics with the path on failure.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
 pub fn write_text(path: &Path, text: &str) {
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir {parent:?}: {error}"));
+        std::fs::create_dir_all(parent)
+            .unwrap_or_else(|error| panic!("mkdir {}: {error}", parent.display()));
     }
-    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
+    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {}: {error}", path.display()));
 }
 
 /// Reads `path` as text and panics with the path on failure.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
+#[must_use]
 pub fn read_text(path: &Path) -> String {
-    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
+    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {}: {error}", path.display()))
 }
 
-/// One preset layer as rules_dx renders it for its own tests, with warnings as errors.
+/// One preset layer as `rules_dx` renders it for its own tests, with warnings as errors.
+#[must_use]
 pub fn preset_layer(layer: dx_preset::Layer) -> String {
     dx_preset::render_layer_with(layer, dx_preset::DEFAULT_REPO, Some(true))
 }
@@ -490,11 +596,17 @@ pub fn preset_rc() -> String {
 }
 
 /// Names the Bazel-built process probe from the runfiles of the calling test.
+#[must_use]
 pub fn process_probe() -> PathBuf {
     env_file("DX_PROCESS_PROBE")
 }
 
 /// Reports whether a live process still holds the alive lock at `lock`.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
+#[must_use]
 pub fn alive_lock_held(lock: &Path) -> bool {
     let file = std::fs::OpenOptions::new()
         .read(true)
@@ -531,6 +643,10 @@ pub fn holding() -> std::sync::RwLockReadGuard<'static, ()> {
 /// Writes `body` to `path` and marks it executable, without the test process
 /// ever opening the file for writing. A thread that forks meanwhile cannot
 /// inherit a write fd, so exec-ing the file never fails with ETXTBSY.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
 #[cfg(unix)]
 pub fn executable_script(path: &Path, body: &str) {
     use std::io::Write;
@@ -556,6 +672,11 @@ pub fn executable_script(path: &Path, body: &str) {
 /// (`.exe` on Windows) for a `dx generate` run, which answers with a clean, complete
 /// result manifest and fills the lock files `dx generate` seeds; returns a PATH of
 /// `dir` alone.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
+#[must_use]
 pub fn fake_generate_bazel_path(dir: &Path, tool: &Path) -> String {
     std::fs::create_dir_all(dir).expect("fake bazel dir");
     for name in ["bazel", "uv", "python"] {
@@ -570,6 +691,10 @@ pub fn fake_generate_bazel_path(dir: &Path, tool: &Path) -> String {
 }
 
 /// Waits up to 10s for the process holding the alive lock at `lock` to die.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
 pub fn assert_alive_lock_released(lock: &Path) {
     assert!(lock.exists(), "the probe never armed: {}", lock.display());
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
@@ -584,6 +709,10 @@ pub fn assert_alive_lock_released(lock: &Path) {
 }
 
 /// Waits up to 10s for the probe to create its alive lock at `lock`.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
 pub fn wait_armed(lock: &Path) {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     while !lock.exists() {
@@ -597,6 +726,10 @@ pub fn wait_armed(lock: &Path) {
 }
 
 /// Asserts the alive lock at `lock` stays held for 2s after the probe armed.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
 pub fn assert_still_held(lock: &Path) {
     wait_armed(lock);
     let end = std::time::Instant::now() + std::time::Duration::from_secs(2);
@@ -613,6 +746,12 @@ pub fn assert_still_held(lock: &Path) {
     }
 }
 
+#[must_use]
+/// Returns the runfiles root of the running test.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
 pub fn runfiles_root() -> PathBuf {
     let root =
         std::env::var("TEST_SRCDIR").unwrap_or_else(|_| panic!("TEST_SRCDIR is set under Bazel"));
@@ -621,11 +760,22 @@ pub fn runfiles_root() -> PathBuf {
     Path::new(&root).join(workspace)
 }
 
+#[must_use]
+/// Reads the runfile `rel` as text.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
 pub fn read_runfiles(rel: &str) -> String {
     let path = resolve_runfiles(rel);
     std::fs::read_to_string(&path).unwrap_or_else(|error| panic!("read {rel}: {error}"))
 }
 
+/// Returns the value of the string constant `name` in `file`.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
 pub fn starlark_const(text: &str, name: &str, file: &str) -> String {
     let prefix = format!("{name} = \"");
     text.lines()
@@ -636,7 +786,12 @@ pub fn starlark_const(text: &str, name: &str, file: &str) -> String {
         .to_owned()
 }
 
-/// Returns the workflow runfiles paths that DX_WORKFLOWS lists.
+/// Returns the workflow runfiles paths that `DX_WORKFLOWS` lists.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
+#[must_use]
 pub fn workflow_files() -> Vec<String> {
     let list = std::env::var("DX_WORKFLOWS").unwrap_or_else(|_| {
         panic!(
@@ -647,6 +802,10 @@ pub fn workflow_files() -> Vec<String> {
 }
 
 /// Parses a whitespace-separated workflow list into sorted, unique paths.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
 pub fn workflow_paths(list: &str, source: &str) -> Vec<String> {
     let mut paths: Vec<String> = list.split_whitespace().map(str::to_owned).collect();
     paths.sort();
@@ -655,13 +814,23 @@ pub fn workflow_paths(list: &str, source: &str) -> Vec<String> {
     for path in &paths {
         assert!(
             path.starts_with(".github/workflows/")
-                && (path.ends_with(".yml") || path.ends_with(".yaml")),
+                && (Path::new(path)
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("yml"))
+                    || Path::new(path)
+                        .extension()
+                        .is_some_and(|ext| ext.eq_ignore_ascii_case("yaml"))),
             "{source} entry {path} is not a .github/workflows/*.yml or *.yaml file"
         );
     }
     paths
 }
 
+/// Checks that every one of `patterns` occurs in the file at `path`.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn expect_contains(path: &Path, patterns: &[&str]) -> Result<(), String> {
     if !path.is_file() {
         return Err(format!("missing file {}", path.display()));
@@ -684,6 +853,11 @@ pub fn expect_contains(path: &Path, patterns: &[&str]) -> Result<(), String> {
     }
 }
 
+/// Checks that none of `patterns` occurs in the file at `path`.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn expect_absent(path: &Path, patterns: &[&str]) -> Result<(), String> {
     if !path.is_file() {
         return Err(format!("missing file {}", path.display()));
@@ -767,6 +941,11 @@ fn unified_diff(expected: &str, actual: &str) -> String {
     out.join("\n")
 }
 
+/// Compares a snapshot against the files on disk.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn snapshot_diff(
     expected: &Path,
     actual: &Path,
@@ -806,7 +985,7 @@ pub fn snapshot_diff(
                 staged.display()
             );
             if let Some(rel) = workspace_rel {
-                hint.push_str(&format!("; copy it to {rel} in the checkout, then re-run"));
+                write!(hint, "; copy it to {rel} in the checkout, then re-run").ok();
             }
             return Err(hint);
         }
@@ -821,6 +1000,11 @@ pub fn snapshot_diff(
     ))
 }
 
+/// Checks that the file at `path` holds valid JSON.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn assert_valid_json(path: &Path) -> Result<(), String> {
     let text = std::fs::read_to_string(path)
         .map_err(|err| format!("cannot read {}: {err}", path.display()))?;

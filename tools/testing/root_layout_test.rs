@@ -24,10 +24,11 @@ fn is_artifact(name: &str) -> bool {
 
 fn root_directories() -> Vec<String> {
     let root = dx_testing::rules_dx_source();
-    let entries = std::fs::read_dir(&root).unwrap_or_else(|error| panic!("{root:?}: {error}"));
+    let entries =
+        std::fs::read_dir(&root).unwrap_or_else(|error| panic!("{}: {error}", root.display()));
     let mut names = Vec::new();
     for entry in entries {
-        let entry = entry.unwrap_or_else(|error| panic!("{root:?}: {error}"));
+        let entry = entry.unwrap_or_else(|error| panic!("{}: {error}", root.display()));
         let name = entry.file_name().to_string_lossy().into_owned();
         if entry.path().is_dir() && !is_artifact(&name) {
             names.push(name);

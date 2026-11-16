@@ -1,13 +1,14 @@
 //! Floor checks for consumer `bazel_dep`s.
 //!
-//! A consumer that depends on rules_dx must resolve every `CONSUMER_BAZEL_DEPS` module at its
-//! floor, the oldest version rules_dx supports. This crate holds the pure pieces: the candidate
+//! A consumer that depends on `rules_dx` must resolve every `CONSUMER_BAZEL_DEPS` module at its
+//! floor, the oldest version `rules_dx` supports. This crate holds the pure pieces: the candidate
 //! overrides (`DX_CONSUMER_OVERRIDES`), the MODULE.bazel edits they imply, and the comparison of
 //! a `bazel mod graph --output=json --verbose` result against the floors.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write as _;
 
 use dx_module_bazel::{ModuleError, ModuleFile, compare_module_versions};
 use std::cmp::Ordering;
@@ -32,6 +33,10 @@ pub type Table = BTreeMap<String, Pins>;
 pub type Overrides = BTreeMap<String, String>;
 
 /// Parses the `{module: {floor, tested}}` JSON.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn parse_table(json: &str) -> Result<Table, String> {
     let value: serde_json::Value =
         serde_json::from_str(json).map_err(|error| format!("table JSON: {error}"))?;
@@ -64,6 +69,10 @@ fn safe(token: &str) -> bool {
 
 /// Parses `module=version,...` without checking the modules against the table. The hermetic
 /// consumer suites use it: they have no table, and a module the consumer does not declare is
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 /// left out of its `bazel_dep`s but still forced by the override.
 pub fn parse_pairs(spec: &str) -> Result<Overrides, String> {
     let mut overrides = Overrides::new();
@@ -94,6 +103,10 @@ pub fn parse_pairs(spec: &str) -> Result<Overrides, String> {
 }
 
 /// Parses `DX_CONSUMER_OVERRIDES`: empty, the keyword `tested`, or `module=version,...`.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn parse_overrides(spec: &str, table: &Table) -> Result<Overrides, String> {
     let spec = spec.trim();
     if spec.is_empty() {
@@ -135,12 +148,14 @@ pub fn parse_overrides(spec: &str, table: &Table) -> Result<Overrides, String> {
 }
 
 /// `single_version_override` calls that force each module to its version.
+#[must_use]
 pub fn render_overrides(overrides: &Overrides) -> String {
     let mut text = String::new();
     for (module, version) in overrides {
-        text.push_str(&format!(
+        write!(
+            text,
             "single_version_override(\n    module_name = \"{module}\",\n    version = \"{version}\",\n)\n"
-        ));
+        ).ok();
     }
     text
 }
@@ -149,6 +164,10 @@ pub fn render_overrides(overrides: &Overrides) -> String {
 ///
 /// Direct `bazel_dep`s of an overridden module are set to the override version, because
 /// `--check_direct_dependencies=error` rejects a direct dep that resolves to another version.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 /// The override calls are appended.
 pub fn apply_overrides(module_bazel: &str, overrides: &Overrides) -> Result<String, String> {
     let mut text = module_bazel.to_owned();

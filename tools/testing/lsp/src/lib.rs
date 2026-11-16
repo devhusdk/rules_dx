@@ -43,6 +43,12 @@ impl std::error::Error for Error {}
 pub const MAX_HEADER_BYTES: usize = 65536;
 pub const MAX_BODY_BYTES: usize = 1 << 30;
 
+#[must_use]
+/// Frames `message` for the wire.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
 pub fn encode(message: &serde_json::Value) -> Vec<u8> {
     let body = serde_json::to_vec(message).expect("lsp message serializes");
     let mut out = format!("Content-Length: {}\r\n\r\n", body.len()).into_bytes();
@@ -50,6 +56,11 @@ pub fn encode(message: &serde_json::Value) -> Vec<u8> {
     out
 }
 
+/// Returns the `Content-Length` of a message header.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn header_length(head: &[u8]) -> Result<usize, Error> {
     let fields = head
         .strip_suffix(b"\r\n\r\n")
@@ -72,6 +83,11 @@ pub fn header_length(head: &[u8]) -> Result<usize, Error> {
     ))
 }
 
+/// Reads one framed message.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn read_message(reader: &mut impl BufRead) -> Result<serde_json::Value, Error> {
     let mut head: Vec<u8> = Vec::new();
     loop {
@@ -101,10 +117,16 @@ pub fn read_message(reader: &mut impl BufRead) -> Result<serde_json::Value, Erro
         .map_err(|err| Error::Malformed(format!("lsp body is not JSON: {err}")))
 }
 
+#[must_use]
 pub fn is_response_for(message: &serde_json::Value, id: i64) -> bool {
     message.get("id") == Some(&serde_json::json!(id)) && message.get("method").is_none()
 }
 
+/// Returns the `result` of a successful response.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn ok_result(message: &serde_json::Value) -> Result<serde_json::Value, Error> {
     if let Some(error) = message.get("error") {
         let code = error
@@ -123,6 +145,7 @@ pub fn ok_result(message: &serde_json::Value) -> Result<serde_json::Value, Error
         .unwrap_or(serde_json::Value::Null))
 }
 
+#[must_use]
 pub fn diagnostics_for(message: &serde_json::Value, uri: &str) -> Option<serde_json::Value> {
     if message.get("method")?.as_str()? != "textDocument/publishDiagnostics" {
         return None;
@@ -131,11 +154,7 @@ pub fn diagnostics_for(message: &serde_json::Value, uri: &str) -> Option<serde_j
         return None;
     }
     let diagnostics = message.pointer("/params/diagnostics")?;
-    if diagnostics
-        .as_array()
-        .map(|items| items.is_empty())
-        .unwrap_or(true)
-    {
+    if diagnostics.as_array().is_none_or(Vec::is_empty) {
         return None;
     }
     Some(diagnostics.clone())
@@ -153,6 +172,11 @@ pub struct Session {
 const STDERR_KEEP_BYTES: usize = 64 * 1024;
 
 impl Session {
+    /// Starts a language server session.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the operation fails.
     pub fn spawn(
         binary: &Path,
         args: &[&str],
@@ -166,6 +190,15 @@ impl Session {
         Session::from_command(command)
     }
 
+    /// Starts a session from `command`.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the operation fails.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the operation fails.
     pub fn from_command(mut command: Command) -> Result<Session, Error> {
         command
             .stdin(Stdio::piped())
@@ -223,6 +256,11 @@ impl Session {
         })
     }
 
+    /// Sends one message.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the operation fails.
     pub fn send(&mut self, message: &serde_json::Value) -> Result<(), Error> {
         let bytes = encode(message);
         self.stdin
@@ -233,6 +271,11 @@ impl Session {
             .map_err(|err| Error::Transport(format!("cannot flush lsp message: {err}")))
     }
 
+    /// Sends a request and returns its id.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the operation fails.
     pub fn request(&mut self, method: &str, params: serde_json::Value) -> Result<i64, Error> {
         self.next_id += 1;
         let id = self.next_id;
@@ -245,6 +288,11 @@ impl Session {
         Ok(id)
     }
 
+    /// Sends a notification.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the operation fails.
     pub fn notify(&mut self, method: &str, params: serde_json::Value) -> Result<(), Error> {
         self.send(&serde_json::json!({
             "jsonrpc": "2.0",
@@ -265,6 +313,11 @@ impl Session {
             .join("\n")
     }
 
+    /// Returns the next server message before `deadline`.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the operation fails.
     pub fn next_event(&self, what: &str, deadline: Instant) -> Result<serde_json::Value, Error> {
         match self
             .events
@@ -285,6 +338,11 @@ impl Session {
         }
     }
 
+    /// Waits for the response to a request.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the operation fails.
     pub fn wait_response(
         &self,
         id: i64,
@@ -308,17 +366,25 @@ impl Session {
     }
 
     /// Moves everything the server has already sent into the log.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the operation fails.
     pub fn drain(&self) -> Result<(), Error> {
         loop {
             match self.events.try_recv() {
                 Ok(Ok(message)) => self.log.borrow_mut().push(message),
                 Ok(Err(err)) => return Err(err),
-                Err(TryRecvError::Empty) | Err(TryRecvError::Disconnected) => return Ok(()),
+                Err(TryRecvError::Empty | TryRecvError::Disconnected) => return Ok(()),
             }
         }
     }
 
     /// Every `publishDiagnostics` params for `uri` received so far, oldest first.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the operation fails.
     pub fn publications(&self, uri: &str) -> Result<Vec<serde_json::Value>, Error> {
         self.drain()?;
         Ok(self
@@ -338,6 +404,10 @@ impl Session {
     }
 
     /// The first publication for `uri` in arrival order, past or future.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the operation fails.
     pub fn wait_publication(
         &self,
         uri: &str,
@@ -352,8 +422,7 @@ impl Session {
                 let empty = params
                     .get("diagnostics")
                     .and_then(serde_json::Value::as_array)
-                    .map(Vec::is_empty)
-                    .unwrap_or(true);
+                    .is_none_or(Vec::is_empty);
                 if !want_nonempty || !empty {
                     return Ok(params.clone());
                 }
@@ -364,6 +433,10 @@ impl Session {
     }
 
     /// The first `window/showMessage` whose text contains `needle`.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the operation fails.
     pub fn wait_show_message(
         &self,
         needle: &str,
@@ -392,6 +465,11 @@ impl Session {
         }
     }
 
+    /// Waits for published diagnostics.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the operation fails.
     pub fn wait_diagnostics(
         &self,
         uri: &str,
@@ -406,6 +484,11 @@ impl Session {
         }
     }
 
+    /// Sends the initialize handshake.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the operation fails.
     pub fn initialize(
         &mut self,
         root_uri: &str,
@@ -426,6 +509,11 @@ impl Session {
         self.notify("initialized", serde_json::json!({}))
     }
 
+    /// Shuts the server down.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the operation fails.
     pub fn shutdown(mut self) -> Result<(), Error> {
         let id = self.request("shutdown", serde_json::Value::Null)?;
         let response =
@@ -457,6 +545,11 @@ impl Drop for Session {
     }
 }
 
+/// Returns the context directory `name` under `directory`.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn require_context(directory: &Path, name: &str) -> Result<PathBuf, Error> {
     let path = directory.join(name);
     if path.is_file() {
@@ -469,6 +562,11 @@ pub fn require_context(directory: &Path, name: &str) -> Result<PathBuf, Error> {
     }
 }
 
+/// Writes `text` to `path`, creating its parent directories.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
 pub fn write_text(path: &Path, text: &str) {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).unwrap_or_else(|_| panic!("create {}", parent.display()));
@@ -476,23 +574,36 @@ pub fn write_text(path: &Path, text: &str) {
     std::fs::write(path, text).unwrap_or_else(|_| panic!("write {}", path.display()));
 }
 
+#[must_use]
+/// Returns the `file://` URI of `path`.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
 pub fn file_uri(path: &Path) -> String {
     assert!(path.is_absolute(), "lsp uri needs an absolute path");
     format!("file://{}", path.display())
 }
 
+#[must_use]
 pub fn offset_to_position(text: &str, offset: usize) -> Option<(u32, u32)> {
     let before = text.get(..offset)?;
-    let line = before.matches('\n').count() as u32;
-    let start = before.rfind('\n').map(|index| index + 1).unwrap_or(0);
-    Some((line, (offset - start) as u32))
+    let line = u32::try_from(before.matches('\n').count()).unwrap_or(u32::MAX);
+    let start = before.rfind('\n').map_or(0, |index| index + 1);
+    Some((line, u32::try_from(offset - start).unwrap_or(u32::MAX)))
 }
 
+#[must_use]
 pub fn error_code(message: &serde_json::Value) -> Option<i64> {
     message.get("error")?.get("code")?.as_i64()
 }
 
 /// Line and character of the `occurrence`th (zero based) match of `needle`.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
+#[must_use]
 pub fn position_of(text: &str, needle: &str, occurrence: usize) -> (u32, u32) {
     let offset = text
         .match_indices(needle)
@@ -513,6 +624,12 @@ pub fn location_uri(result: &serde_json::Value) -> Option<String> {
         .map(str::to_owned)
 }
 
+#[must_use]
+/// Returns the environment that scopes a language server to `root`.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
 pub fn scoped_env(root: &Path) -> Vec<(String, String)> {
     let home = root.join("home");
     let tmp = root.join("tmp");
@@ -527,6 +644,15 @@ pub fn scoped_env(root: &Path) -> Vec<(String, String)> {
     ]
 }
 
+/// Returns the URI a definition request resolves to.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
 pub fn definition_uri(
     session: &mut Session,
     file_uri: &str,
@@ -551,6 +677,11 @@ pub fn definition_uri(
     ok_result(&response)
 }
 
+/// Polls the definition request until a location is returned.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn poll_definition(
     session: &mut Session,
     file_uri: &str,
@@ -583,6 +714,12 @@ pub fn poll_definition(
     }
 }
 
+#[must_use]
+/// Returns the first location of an LSP definition result.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
 pub fn first_location(result: &serde_json::Value, what: &str) -> serde_json::Value {
     result
         .as_array()
@@ -657,7 +794,7 @@ mod tests {
     #[test]
     fn lsp_frame_rejects_oversized_header() {
         let mut bytes = b"X-Pad: ".to_vec();
-        bytes.extend(std::iter::repeat(b'a').take(70 * 1024));
+        bytes.extend(std::iter::repeat_n(b'a', 70 * 1024));
         bytes.extend_from_slice(b"\r\n\r\n");
         let err = read_message(&mut &bytes[..]).expect_err("oversized header must fail");
         assert!(matches!(err, Error::Malformed(_)), "unexpected {err}");
@@ -666,9 +803,8 @@ mod tests {
     #[test]
     fn lsp_unavailable_server_reports_unavailable() {
         let missing = PathBuf::from("/nonexistent/dx-lsp-probe-server");
-        let err = match Session::spawn(&missing, &[], &[]) {
-            Err(err) => err,
-            Ok(_) => panic!("missing server must not start"),
+        let Err(err) = Session::spawn(&missing, &[], &[]) else {
+            panic!("missing server must not start");
         };
         assert!(matches!(err, Error::Unavailable(_)), "unexpected {err}");
     }

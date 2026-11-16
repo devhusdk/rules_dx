@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-/// Registrations for toolchain types rules_dx defines.
+/// Registrations for toolchain types `rules_dx` defines.
 const OWN_TYPES: &[&str] = &[
     "//core/quality:busybox_sh_linux_x86_64",
     "//core/quality:busybox_sh_windows_x86_64",
@@ -76,7 +76,7 @@ fn registered(module: &str) -> BTreeSet<String> {
 
 fn module() -> String {
     let path = dx_testing::rules_dx_source().join("MODULE.bazel");
-    std::fs::read_to_string(&path).unwrap_or_else(|error| panic!("{path:?}: {error}"))
+    std::fs::read_to_string(&path).unwrap_or_else(|error| panic!("{}: {error}", path.display()))
 }
 
 #[test]

@@ -7,6 +7,10 @@ use serde_json::Value;
 use crate::{Case, footprint, plain_consumer};
 
 /// Returns `Ok` when the fixture is a plain consumer of `rules_<lang>` and its measured footprint matches `budget`.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn check_fixture(
     lang: &str,
     module_bazel: &str,
@@ -37,6 +41,7 @@ pub fn check_fixture(
 }
 
 /// Returns the paths below `root` relative to it, dotfiles and dot directories included.
+#[must_use]
 pub fn fixture_files(root: &Path) -> Vec<String> {
     let mut found = Vec::new();
     collect(root, "", &mut found);
@@ -63,6 +68,11 @@ fn collect(dir: &Path, prefix: &str, found: &mut Vec<String>) {
 /// Measures the footprint of the module the case's nested Bazel resolved.
 ///
 /// Panics when a Bazel command fails or the measurement cannot be read.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
+#[must_use]
 pub fn measure_case(case: &Case) -> footprint::Footprint {
     let graph = run_ok(case, &["mod", "graph", "--output=json"], "mod graph");
     let info = run_ok(case, &["info", "output_base"], "info output_base");

@@ -112,8 +112,8 @@ pub fn missing_from_runfiles(entries: Vec<(Bzl, String)>) -> Vec<String> {
             missing.entry(bzl.path.clone()).or_insert(loader);
             continue;
         };
-        let text =
-            std::fs::read_to_string(&path).unwrap_or_else(|error| panic!("{path:?}: {error}"));
+        let text = std::fs::read_to_string(&path)
+            .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
         for label in loads(&text) {
             if generated(&label) {
                 continue;

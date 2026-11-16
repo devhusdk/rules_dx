@@ -1,6 +1,7 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Instant;
@@ -174,6 +175,7 @@ pub const SHIM_NAME: &str = if cfg!(windows) {
 
 /// The PATH of every action: the pinned coreutils applet directory on Unix, system directories only plus the shim directory on Windows.
 /// Bazel starts `cmd_ps` genrules as a bare `powershell.exe`, so its directory is listed too.
+#[must_use]
 pub fn action_path(system_root: Option<&str>, shim_dir: Option<&Path>, applets: &Path) -> String {
     if !cfg!(windows) {
         return applets.display().to_string();
@@ -205,6 +207,7 @@ pub fn windows_bash(
 }
 
 /// The Windows tool directories under Program Files and the local profile: Python, Node, JDK and LLVM.
+#[must_use]
 pub fn windows_tool_dirs(
     program_files: Option<&Path>,
     local_app_data: Option<&Path>,
@@ -239,6 +242,7 @@ pub fn windows_tool_dirs(
 }
 
 /// The preinstalled Visual Studio and Windows SDK trees an MSVC qualification must not read.
+#[must_use]
 pub fn windows_msvc_denies(
     program_files: Option<&Path>,
     program_files_x86: Option<&Path>,
@@ -298,6 +302,7 @@ pub const NETWORK_MARKER: &str = "Network is unreachable";
 pub const HOME_MARKER: &str = "dx-hermetic: home config absent";
 
 /// Marker strings the probes expect, by host OS: (ambient tool, network, home config).
+#[must_use]
 pub fn markers(os: &str) -> (&'static str, &'static str, &'static str) {
     if os == "macos" {
         (MACOS_DENIED_MARKER, MACOS_DENIED_MARKER, HOME_MARKER)
@@ -323,6 +328,7 @@ pub const WINDOWS_PASSTHROUGH: &[&str] = &[
 ];
 
 /// The passthrough variables for a run: the Visual Studio ones go when that tree is denied.
+#[must_use]
 pub fn windows_passthrough(vs_denied: bool) -> Vec<&'static str> {
     WINDOWS_PASSTHROUGH
         .iter()
@@ -342,13 +348,14 @@ pub const APPCONTAINER_ENV: &str = "DX_HERMETIC_APPCONTAINER";
 
 pub const MACOS_DENIED_MARKER: &str = "Operation not permitted";
 
-/// WSAEACCES, which an AppContainer without network capabilities gets from connect.
+/// WSAEACCES, which an `AppContainer` without network capabilities gets from connect.
 pub const WINDOWS_DENIED_MARKER: &str = "os error 10013";
 
 pub const MISS_MARKER: &str = "Unknown host";
 
 /// The sandbox denies the registry connection on macOS before DNS can fail. Linux and the
 /// Windows run account both fail at DNS.
+#[must_use]
 pub fn miss_marker(os: &str) -> &'static str {
     if os == "macos" {
         MACOS_DENIED_MARKER
@@ -408,6 +415,7 @@ pub struct Manifest {
 
 impl Manifest {
     /// Whether the qualification builds with the host's Visual Studio toolchain rules.
+    #[must_use]
     pub fn is_msvc(&self) -> bool {
         self.compiler
             .as_ref()
@@ -450,6 +458,10 @@ fn string(value: &Value, key: &str) -> Result<String, String> {
 }
 
 /// Rejects a consumer path that is absolute or climbs out of the workspace.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn checked_dest(dest: &str) -> Result<String, String> {
     let bad = dest.is_empty()
         || dest.starts_with('/')
@@ -466,6 +478,7 @@ pub fn checked_dest(dest: &str) -> Result<String, String> {
 }
 
 /// Names the probe that builds one expected-failure target.
+#[must_use]
 pub fn failure_probe_name(label: &str) -> String {
     let body: String = label
         .chars()
@@ -557,6 +570,10 @@ fn parse_lint_findings(value: &Value) -> Result<Vec<(String, u64)>, String> {
 }
 
 /// Parses the manifest a qualification target writes, resolving paths against `base`.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
     let value: Value =
         serde_json::from_str(text).map_err(|err| format!("manifest is not JSON: {err}"))?;
@@ -632,6 +649,7 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
 }
 
 /// Returns the leak package that proves each isolation boundary.
+#[must_use]
 pub fn leaks_build(tool: &str) -> String {
     format!(
         "genrule(\n    name = \"ambient_tool\",\n    outs = [\"ambient_tool.txt\"],\n    cmd = \"{tool} --version > $@\",\n    tags = [\"manual\"],\n)\n\ngenrule(\n    name = \"home_config\",\n    outs = [\"home_config.txt\"],\n    cmd = \"test \\\"$${{DX_HOME_CONFIG:-absent}}\\\" = present || {{ echo dx-hermetic: home config $${{DX_HOME_CONFIG:-absent}} >&2; exit 1; }}; echo present > $@\",\n    tags = [\"manual\"],\n)\n\ngenrule(\n    name = \"network\",\n    outs = [\"network.txt\"],\n    cmd = \"exec 3<>/dev/tcp/1.1.1.1/443 && echo connected > $@\",\n    tags = [\n        \"manual\",\n        \"requires-network\",\n    ],\n)\n"
@@ -639,6 +657,7 @@ pub fn leaks_build(tool: &str) -> String {
 }
 
 /// Returns the leak package with PowerShell genrules, for a Windows host.
+#[must_use]
 pub fn leaks_build_windows(tool: &str) -> String {
     let ambient = format!("{tool} --version | Out-File -FilePath '$@'; exit $$LASTEXITCODE");
     let home = "if ($$env:DX_HOME_CONFIG -eq 'present') { Set-Content -Path '$@' -Value present } else { [Console]::Error.WriteLine('dx-hermetic: home config absent'); exit 1 }";
@@ -649,6 +668,7 @@ pub fn leaks_build_windows(tool: &str) -> String {
 }
 
 /// Returns the leak package for the host this qualification runs on.
+#[must_use]
 pub fn leaks_build_host(tool: &str) -> String {
     if cfg!(windows) {
         leaks_build_windows(tool)
@@ -666,6 +686,10 @@ pub enum Expect {
 }
 
 /// Reports whether one probe ended the way the qualification requires.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn verdict(expect: &Expect, exit: i32, log: &str) -> Result<(), String> {
     match expect {
         Expect::Pass if exit == 0 => Ok(()),
@@ -679,12 +703,14 @@ pub fn verdict(expect: &Expect, exit: i32, log: &str) -> Result<(), String> {
 }
 
 /// Names a core WebAssembly module wasm32, or None for any other file.
+#[must_use]
 pub fn wasm_machine(head: &[u8]) -> Option<String> {
     head.starts_with(b"\0asm\x01\0\0\0")
         .then(|| "wasm32".to_owned())
 }
 
 /// Reads the home directory of one user from passwd text.
+#[must_use]
 pub fn passwd_home(passwd: &str, uid: u32) -> Option<PathBuf> {
     passwd.lines().find_map(|line| {
         let fields: Vec<&str> = line.split(':').collect();
@@ -695,6 +721,7 @@ pub fn passwd_home(passwd: &str, uid: u32) -> Option<PathBuf> {
 }
 
 /// Reads the real user or group id from /proc/self/status text.
+#[must_use]
 pub fn status_id(status: &str, key: &str) -> Option<u32> {
     status
         .lines()
@@ -771,12 +798,20 @@ pub struct Isolation {
 
 impl Isolation {
     /// Plans the masks for this host, keeping every path the run itself needs.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the operation fails.
     /// Probes the live host; see `plan_with` for the injectable form.
     pub fn plan(shim: &Path, keep: &[PathBuf], home: Option<&Path>) -> Result<Self, String> {
         Self::plan_with(&HostPaths::detect(), shim, keep, home)
     }
 
     /// Plans the masks against the given host locations.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the operation fails.
     pub fn plan_with(
         host: &HostPaths,
         shim: &Path,
@@ -847,6 +882,7 @@ impl Isolation {
 
     /// The planned SDK, home and tool paths the Windows run must not read, minus anything
     /// that holds or sits inside a grant, since a deny beats any grant.
+    #[must_use]
     pub fn windows_denies(&self) -> Vec<PathBuf> {
         let mut denies: Vec<PathBuf> = Vec::new();
         for path in self
@@ -868,6 +904,7 @@ impl Isolation {
     }
 
     /// Returns the namespace setup script; "$@" is the command run as the real user.
+    #[must_use]
     pub fn script(&self, net: Net) -> String {
         let mut lines = vec!["set -eu".to_owned()];
         if net == Net::Denied {
@@ -903,6 +940,7 @@ impl Isolation {
     }
 
     /// Wraps one command in fresh user, mount and, when denied, network namespaces.
+    #[must_use]
     pub fn command(&self, net: Net, inner: &[String]) -> Command {
         if cfg!(target_os = "macos") {
             return self.macos_command(net, inner);
@@ -946,14 +984,11 @@ impl Isolation {
         if net == Net::Allowed {
             command.arg("--net");
         }
-        match &self.group {
-            Some(group) => {
-                command.args(["--group", group]);
-            }
-            None => {
-                self.grant_args(&mut command);
-                self.deny_args(&mut command);
-            }
+        if let Some(group) = &self.group {
+            command.args(["--group", group]);
+        } else {
+            self.grant_args(&mut command);
+            self.deny_args(&mut command);
         }
         command.arg("--");
         command.args(inner);
@@ -962,6 +997,7 @@ impl Isolation {
 
     /// The launcher command that gives the group its grants (`--setup-group`) or takes them away
     /// and deletes it (`--teardown-group`).
+    #[must_use]
     pub fn windows_group_command(&self, mode: &str, group: &str) -> Command {
         let mut command = Command::new(&self.launcher);
         command.args(["--backend", "user", mode, group]);
@@ -971,6 +1007,7 @@ impl Isolation {
 
     /// The launcher command that puts the denies on the shared `dxh-host` group
     /// (`--ensure-host-denies`) or takes them off (`--remove-host-denies`).
+    #[must_use]
     pub fn windows_host_command(&self, mode: &str) -> Command {
         let mut command = Command::new(&self.launcher);
         command.args(["--backend", "user", mode]);
@@ -995,33 +1032,41 @@ impl Isolation {
     }
 
     /// The macOS sandbox profile: network denied except loopback when asked, planned paths hidden.
+    #[must_use]
     pub fn macos_profile(&self, net: Net) -> String {
         let mut profile = "(version 1)(allow default)".to_owned();
         if net == Net::Denied {
             profile.push_str("(deny network*)(allow network-outbound (remote ip \"localhost:*\"))(allow network-bind network-inbound (local ip \"localhost:*\"))(allow network* (remote unix-socket))(allow network* (local unix-socket))");
         }
         for dir in self.sdk_dirs.iter().chain(&self.home_dirs) {
-            profile.push_str(&format!(
+            write!(
+                profile,
                 "(deny file-read* (subpath \"{}\"))",
                 profile_path(dir)
-            ));
+            )
+            .ok();
         }
         for file in &self.home_files {
-            profile.push_str(&format!(
+            write!(
+                profile,
                 "(deny file-read* (literal \"{}\"))",
                 profile_path(file)
-            ));
+            )
+            .ok();
         }
         for tool in &self.tools {
-            profile.push_str(&format!(
+            write!(
+                profile,
                 "(deny process-exec (literal \"{}\"))",
                 profile_path(tool)
-            ));
+            )
+            .ok();
         }
         profile
     }
 
     /// Wraps one command in a macOS `sandbox-exec` profile.
+    #[must_use]
     pub fn macos_command(&self, net: Net, inner: &[String]) -> Command {
         let mut command = Command::new("/usr/bin/sandbox-exec");
         command.env_clear();
@@ -1045,6 +1090,10 @@ pub struct AclGroup {
 
 impl AclGroup {
     /// Creates the group and points `isolation` at it. The time spent on each path, at setup and
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the operation fails.
     /// at teardown, goes to `out`'s timeline.
     pub fn setup(isolation: &mut Isolation, name: &str, out: &Path) -> Result<Self, String> {
         for (command, group) in [
@@ -1113,7 +1162,7 @@ fn timeline(out: &Path, line: &str) {
         .append(true)
         .open(logs.join("timeline.log"))
     {
-        drop(writeln!(file, "{line}"));
+        writeln!(file, "{line}").ok();
     }
 }
 
@@ -1166,6 +1215,10 @@ pub struct Outcome {
 }
 
 /// Runs one command, capturing its exit code and output.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn capture(mut command: Command) -> Result<Outcome, String> {
     let output = command
         .output()
@@ -1250,6 +1303,7 @@ impl Session {
     }
 
     /// The environment a Windows action gets: nothing inherited but the system and toolchain variables.
+    #[must_use]
     pub fn windows_env(&self, home: &Path, path: &str) -> Vec<(String, String)> {
         if !cfg!(windows) {
             return Vec::new();
@@ -1282,7 +1336,8 @@ impl Session {
     }
 
     /// The targets of the `hermetic_test` probe. With coverage targets it also
-    /// builds the generate_check binary, so `dx_generate_check` only runs it.
+    /// builds the `generate_check` binary, so `dx_generate_check` only runs it.
+    #[must_use]
     pub fn hermetic_test_targets(&self) -> Vec<String> {
         let mut targets = self.manifest.patterns.clone();
         if !self.manifest.coverage.is_empty() {
@@ -1293,7 +1348,7 @@ impl Session {
 
     /// The bazelisk command line of one probe, without the process wrapper. Build-like
     /// verbs carry the settings and disk cache dx adds, so dx reuses the probe builds.
-    fn bazel_tail(&self, probe: &Probe) -> Vec<String> {
+    fn bazel_tail(&self, probe: &Probe<'_>) -> Vec<String> {
         let mut argv = vec![self.bazel.to_string_lossy().into_owned()];
         argv.extend(startup_flags(probe.output_root));
         argv.extend([
@@ -1338,7 +1393,7 @@ impl Session {
         )
     }
 
-    fn bazel_argv(&self, probe: &Probe) -> Vec<String> {
+    fn bazel_argv(&self, probe: &Probe<'_>) -> Vec<String> {
         let mut argv = vec![
             "/usr/bin/env".to_owned(),
             "-i".to_owned(),
@@ -1389,6 +1444,10 @@ impl Session {
     }
 
     /// Runs the dx binary on `targets` with `bazel` on its PATH.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the operation fails.
     pub fn run_dx(&mut self, run: DxRun<'_>) -> Result<Outcome, String> {
         let DxRun {
             name,
@@ -1486,7 +1545,11 @@ impl Session {
     }
 
     /// Runs one probe, logs it and records its verdict.
-    pub fn run(&mut self, probe: Probe) -> Result<Outcome, String> {
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the operation fails.
+    pub fn run(&mut self, probe: Probe<'_>) -> Result<Outcome, String> {
         if cfg!(windows) {
             let argv = self.bazel_tail(&probe);
             let mut env = self.windows_env(probe.home, &self.action_path());
@@ -1600,6 +1663,7 @@ impl Session {
 
 /// Copies every consumer `test.log` under `testlogs` to `dest`, keeping the
 /// relative layout, and returns the first 40 lines of each for the error text.
+#[must_use]
 pub fn copy_test_logs(testlogs: &Path, dest: &Path) -> String {
     let mut found = Vec::new();
     collect_test_logs(testlogs, &mut found);
@@ -1619,11 +1683,13 @@ pub fn copy_test_logs(testlogs: &Path, dest: &Path) -> String {
         drop(std::fs::write(&target, &content));
         let content = String::from_utf8_lossy(&content);
         let head: Vec<&str> = content.lines().take(40).collect();
-        text.push_str(&format!(
+        write!(
+            text,
             "\nconsumer test log {}:\n{}",
             rel.display(),
             head.join("\n")
-        ));
+        )
+        .ok();
     }
     text
 }
@@ -1643,12 +1709,17 @@ fn collect_test_logs(dir: &Path, found: &mut Vec<PathBuf>) {
 }
 
 /// Builds the cquery expression for the non-manual targets the patterns name.
+#[must_use]
 pub fn built_query(patterns: &[String]) -> String {
     let all = patterns.join(" + ");
     format!("({all}) except attr(tags, \"\\bmanual\\b\", {all})")
 }
 
 /// Hashes and identifies every output file cquery listed.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn artifacts(workspace: &Path, listed: &str) -> Result<Vec<Value>, String> {
     let mut out = Vec::new();
     for line in listed
@@ -1679,6 +1750,7 @@ pub fn artifacts(workspace: &Path, listed: &str) -> Result<Vec<Value>, String> {
 /// On Windows the strict action PATH has no shim directory, so the ambient-tool action takes the
 /// isolated PATH, where the ambient tool resolves to the shim. It also takes PATHEXT: the strict
 /// env drops it, and without it PowerShell does not resolve the `.cmd` shim.
+#[must_use]
 pub fn leak_flags(name: &str) -> Vec<String> {
     if cfg!(windows) && name == "ambient_tool" {
         vec![
@@ -1722,6 +1794,7 @@ pub struct CoveredSource {
 }
 
 /// Turns coverage patterns into the workspace path prefixes they own.
+#[must_use]
 pub fn owned_prefixes(coverage: &[String]) -> Vec<String> {
     coverage
         .iter()
@@ -1741,6 +1814,10 @@ pub fn owned_prefixes(coverage: &[String]) -> Vec<String> {
 }
 
 /// Reads the per-file line counts of an LCOV report.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn coverage_sources(report: &str) -> Result<Vec<CoveredSource>, String> {
     let files = dx_lcov::parse_lcov(report).map_err(|err| format!("coverage report: {err}"))?;
     Ok(files
@@ -1754,6 +1831,10 @@ pub fn coverage_sources(report: &str) -> Result<Vec<CoveredSource>, String> {
 }
 
 /// Reads coverage sources back from recorded evidence.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn sources_from_json(value: &Value) -> Result<Vec<CoveredSource>, String> {
     value
         .as_array()
@@ -1785,6 +1866,10 @@ fn source_package_path(path: &str) -> &str {
 }
 
 /// Checks a coverage report holds only owned consumer sources and hits every covered one.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn check_coverage(sources: &[CoveredSource], manifest: &Manifest) -> Result<(), String> {
     if sources.is_empty() {
         return Err("coverage report has no source files".to_owned());
@@ -1793,8 +1878,12 @@ pub fn check_coverage(sources: &[CoveredSource], manifest: &Manifest) -> Result<
     for source in sources {
         let path = source.path.as_str();
         if path.starts_with('/')
-            || path.ends_with(".jar")
-            || path.ends_with(".class")
+            || Path::new(path)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("jar"))
+            || Path::new(path)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("class"))
             || path.split('/').any(|part| part == "external")
         {
             return Err(format!("coverage report names a non-source file {path}"));
@@ -1821,6 +1910,7 @@ pub fn check_coverage(sources: &[CoveredSource], manifest: &Manifest) -> Result<
 }
 
 /// Counts the `tool:rule` pairs of the diagnostic events in `dx lint --output json` stdout.
+#[must_use]
 pub fn lint_counts(stdout: &str) -> BTreeMap<String, u64> {
     let mut counts = BTreeMap::new();
     for event in stdout
@@ -1892,6 +1982,10 @@ fn required_probes<'a>(manifest: &'a Manifest, os: &str) -> Vec<(String, &'a str
 }
 
 /// Checks evidence against the commit and the manifest it must describe.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn verify_evidence(evidence: &Value, commit: &str, manifest: &Manifest) -> Result<(), String> {
     let label = manifest.label.as_str();
     let languages = manifest.languages.as_slice();
@@ -2093,7 +2187,8 @@ fn read_head(path: &Path) -> Result<Vec<u8>, String> {
 }
 
 /// Whether Windows can load the image at another base: a PE with relocations stripped
-/// (COFF Characteristics bit 0x1) cannot, and an AppContainer always relocates.
+/// (COFF Characteristics bit 0x1) cannot, and an `AppContainer` always relocates.
+#[must_use]
 pub fn relocatable(head: &[u8]) -> bool {
     if !head.starts_with(b"MZ") {
         return true;
@@ -2113,6 +2208,10 @@ pub fn relocatable(head: &[u8]) -> bool {
 }
 
 /// The Bazel binary `bazelisk --print_env` resolved: `BAZEL_REAL` when a wrapper is
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 /// configured, otherwise the directory bazelisk puts first on the `PATH` it prints.
 pub fn bazel_real(stdout: &str) -> Result<PathBuf, String> {
     let value = |key: &str| {
@@ -2182,7 +2281,8 @@ fn copy(from: &Path, to: &Path) -> Result<(), String> {
         .map_err(|err| format!("cannot copy {} to {}: {err}", from.display(), to.display()))
 }
 
-/// Derives the consumer BUILD file from a repository one: rules_dx renamed, repository-only statements dropped.
+/// Derives the consumer BUILD file from a repository one: `rules_dx` renamed, repository-only statements dropped.
+#[must_use]
 pub fn consumer_build(text: &str, repo_name: &str) -> String {
     let mut out: Vec<String> = Vec::new();
     let mut depth = 0i32;
@@ -2196,7 +2296,8 @@ pub fn consumer_build(text: &str, repo_name: &str) -> String {
                 || (line.starts_with("load(") && line.contains("//core/quality:fixtures.bzl"))
         };
         if drop {
-            depth += line.matches('(').count() as i32 - line.matches(')').count() as i32;
+            depth += i32::try_from(line.matches('(').count()).unwrap_or(i32::MAX)
+                - i32::try_from(line.matches(')').count()).unwrap_or(i32::MAX);
             continue;
         }
         let trimmed = line.trim_start();
@@ -2314,7 +2415,11 @@ fn materialize_init(manifest: &Manifest, workspace: &Path, source: &Path) -> Res
     copy(&manifest.bazelversion, &workspace.join(".bazelversion"))
 }
 
-/// Points the preset layers `dx init` wrote at the repo name the composed MODULE.bazel gives rules_dx.
+/// Points the preset layers `dx init` wrote at the repo name the composed MODULE.bazel gives `rules_dx`.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn rename_preset(workspace: &Path, repo_name: &str) -> Result<(), String> {
     let dir = workspace.join(".dx").join("bazelrc");
     let entries =
@@ -2332,6 +2437,10 @@ pub fn rename_preset(workspace: &Path, repo_name: &str) -> Result<(), String> {
 }
 
 /// Builds the consumer workspace with the public dx entry point and its own files.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn materialize(
     manifest: &Manifest,
     workspace: &Path,
@@ -2397,6 +2506,7 @@ fn host() -> Value {
 /// Where a qualification runs. Windows gets a short root on the drive of `tmp`, because
 /// bsdtar changes into each npm package directory and `SetCurrentDirectory` stops at 258
 /// characters; the nested execroot under `TEST_TMPDIR` is too deep for that.
+#[must_use]
 pub fn qualification_root_for(tmp: &Path, windows: bool) -> PathBuf {
     let text = tmp.to_string_lossy();
     let drive = match text.as_bytes() {
@@ -2410,6 +2520,7 @@ pub fn qualification_root_for(tmp: &Path, windows: bool) -> PathBuf {
     }
 }
 
+#[must_use]
 pub fn qualification_root(tmp: &Path) -> PathBuf {
     qualification_root_for(tmp, cfg!(windows))
 }
@@ -2444,6 +2555,7 @@ fn windows_output_base(output_root: &Path) -> String {
 }
 
 /// The workspace rules log `contexts` without the modules that `module` overrides with `local_path_override`.
+#[must_use]
 pub fn refetch_candidates(contexts: Vec<String>, module: &str) -> Vec<String> {
     let local = dx_nested::compose::local_override_repos(module);
     contexts
@@ -2456,6 +2568,7 @@ pub fn refetch_candidates(contexts: Vec<String>, module: &str) -> Vec<String> {
 pub const COMMAND_LINE_LIMIT: usize = 1024;
 
 /// The length of `arg` once quoted for CommandLineToArgvW.
+#[must_use]
 pub fn quoted_len(arg: &str) -> usize {
     if !arg.is_empty() && !arg.contains([' ', '\t', '\n', '"']) {
         return arg.encode_utf16().count();
@@ -2464,6 +2577,7 @@ pub fn quoted_len(arg: &str) -> usize {
 }
 
 /// Splits `args` into batches whose command line, after `base` characters, stays within `limit`.
+#[must_use]
 pub fn command_line_batches(base: usize, args: &[String], limit: usize) -> Vec<Vec<String>> {
     let mut batches: Vec<Vec<String>> = Vec::new();
     let mut length = base;
@@ -2482,6 +2596,7 @@ pub fn command_line_batches(base: usize, args: &[String], limit: usize) -> Vec<V
 }
 
 /// The `(bzl label, rule name)` of each repository in `bazel mod show_repo --output=streamed_jsonproto` output, by canonical name.
+#[must_use]
 pub fn show_repo_rules(stdout: &str) -> BTreeMap<String, (String, String)> {
     stdout
         .lines()
@@ -2513,6 +2628,7 @@ fn external_dirs(output_root: &Path) -> Vec<PathBuf> {
 }
 
 /// The file of `.bzl` label `@@repo//package:file` under an `external` directory.
+#[must_use]
 pub fn external_bzl(external: &Path, label: &str) -> Option<PathBuf> {
     let (repo, path) = label.strip_prefix("@@")?.split_once("//")?;
     let (package, file) = path.split_once(':')?;
@@ -2542,6 +2658,7 @@ fn local_rule_repo(
 }
 
 /// Whether `source` declares `rule` as `repository_rule(..., local = True)`, through top-level `rule = other` aliases.
+#[must_use]
 pub fn declares_local_rule(source: &str, rule: &str) -> bool {
     let mut name = rule.to_owned();
     for _ in 0..8 {
@@ -2636,7 +2753,8 @@ fn call_arguments(call: &str) -> Vec<String> {
     arguments
 }
 
-/// The Windows bash path rules_shell detected in `output_base`, read from its generated BUILD.
+/// The Windows bash path `rules_shell` detected in `output_base`, read from its generated BUILD.
+#[must_use]
 pub fn detected_windows_sh(output_base: &Path) -> Option<String> {
     let entries = std::fs::read_dir(output_base.join("external")).ok()?;
     let repo = entries
@@ -2656,7 +2774,11 @@ pub fn detected_windows_sh(output_base: &Path) -> Option<String> {
     Some(value.get(..value.find(quote)?)?.to_owned())
 }
 
-/// Fails when rules_shell gave the Windows sh toolchain no bash, or System32's bash.exe,
+/// Fails when `rules_shell` gave the Windows sh toolchain no bash, or System32's bash.exe,
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 /// which is the WSL stub.
 pub fn check_windows_sh(detected: &str, system_root: &str) -> Result<(), String> {
     let normal = |path: &str| path.replace('\\', "/").to_lowercase();
@@ -2673,6 +2795,7 @@ pub fn check_windows_sh(detected: &str, system_root: &str) -> Result<(), String>
 
 /// The Windows startup flags as dx `--bazel-startup-option` arguments. dx rejects
 /// `--nosystem_rc`, so it is left out. Elsewhere the `bazel` script carries the flags.
+#[must_use]
 pub fn dx_startup_options(output_root: &Path, windows: bool) -> Vec<String> {
     if !windows {
         return Vec::new();
@@ -2685,7 +2808,7 @@ pub fn dx_startup_options(output_root: &Path, windows: bool) -> Vec<String> {
 }
 
 /// The PATH dx runs with on Windows. The bash dir goes ahead of System32, so a `bash`
-/// looked up on PATH (the sh_binary launcher fallback, `#!/usr/bin/env bash` scripts)
+/// looked up on PATH (the `sh_binary` launcher fallback, `#!/usr/bin/env bash` scripts)
 /// finds MSYS bash and not the WSL stub.
 pub fn dx_windows_path(bin: &Path, bash: Option<&Path>, action_path: &str) -> String {
     let mut dirs = vec![bin.to_string_lossy().into_owned()];
@@ -2789,6 +2912,10 @@ fn preflight_error(outcome: &Outcome) -> String {
 
 // LCOV_EXCL_START - reason: runs only inside the isolated qualification, issue: 1758, policy: docs/cli/commands/build-test-coverage.md
 /// Confirms this host can create the namespaces the qualification needs.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn preflight(isolation: &Isolation) -> Result<(), String> {
     let probe: &[&str] = if cfg!(windows) {
         &["cmd.exe", "/c", "exit 0"]
@@ -2806,6 +2933,10 @@ pub fn preflight(isolation: &Isolation) -> Result<(), String> {
 }
 
 /// Runs the Windows preflight, deny and bash checks as one script in one launch, since each
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 /// launch logs a fresh account on. `script` must be in a granted directory.
 pub fn isolation_check(
     isolation: &Isolation,
@@ -2840,6 +2971,7 @@ fn windows_host_msvc_denies() -> Vec<PathBuf> {
 }
 
 /// Runs every probe of one qualification and returns its evidence.
+#[must_use]
 pub fn qualify(manifest: Manifest, root: &Path, out: &Path) -> Value {
     let label = manifest.label.clone();
     let mut evidence = json!({
@@ -2861,7 +2993,11 @@ pub fn qualify(manifest: Manifest, root: &Path, out: &Path) -> Value {
     evidence
 }
 
-/// The rules_dx source tree the manifest's `MODULE.bazel` lives in.
+/// The `rules_dx` source tree the manifest's `MODULE.bazel` lives in.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn source_tree(manifest: &Manifest) -> Result<PathBuf, String> {
     std::fs::canonicalize(&manifest.module_file)
         .map(strip_verbatim)
@@ -2872,6 +3008,7 @@ pub fn source_tree(manifest: &Manifest) -> Result<PathBuf, String> {
 }
 
 /// Tells whether a freshly pinned Maven lock differs from the committed one, ignoring CRLF.
+#[must_use]
 pub fn lock_differs(committed: &str, pinned: &str) -> bool {
     committed.replace("\r\n", "\n") != pinned.replace("\r\n", "\n")
 }

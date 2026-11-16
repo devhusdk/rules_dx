@@ -421,7 +421,7 @@ impl Drop for Probe {
 }
 
 /// Opens its gate file on drop, so a probe waiting on it ends even if the test panics.
-struct Release(std::path::PathBuf);
+struct Release(PathBuf);
 
 impl Release {
     fn fire(&self) {
@@ -479,7 +479,7 @@ fn counted_sigints_are_logged_and_do_not_stop_the_probe() {
     }
     for n in 1..=2 {
         // SAFETY: kill takes plain integers and has no memory preconditions.
-        assert_eq!(unsafe { kill(child.0.id() as i32, 2) }, 0);
+        assert_eq!(unsafe { kill(i32::try_from(child.0.id()).unwrap(), 2) }, 0);
         sigints_logged(&log, n);
     }
     assert_eq!(

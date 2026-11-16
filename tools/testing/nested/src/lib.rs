@@ -11,6 +11,7 @@ pub mod record;
 
 use std::cell::{Ref, RefCell};
 use std::ffi::OsString;
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
 use std::rc::{Rc, Weak};
@@ -45,6 +46,7 @@ pub const CONSUMER_MAVEN_LOCK_ENV: &str = "DX_CONSUMER_MAVEN_LOCK";
 /// The `maven` extension block every nested consumer module uses, pinned to the root `lock`.
 ///
 /// `stage_consumer_maven_lock` copies `tools/testing/fixtures/consumer_maven/<lock>` there.
+#[must_use]
 pub fn consumer_maven(lock: &str) -> String {
     format!(
         r#"maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
@@ -61,6 +63,10 @@ use_repo(maven, "maven")
 }
 
 /// Copies the pinned consumer Maven lock into the nested workspace at `root` under its own name.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
 pub fn stage_consumer_maven_lock(root: &Path) {
     let key = std::env::var(CONSUMER_MAVEN_LOCK_ENV)
         .unwrap_or_else(|_| panic!("{CONSUMER_MAVEN_LOCK_ENV} is not set; add CONSUMER_MAVEN_ENV"));
@@ -118,11 +124,19 @@ pub struct Config {
 
 impl Config {
     /// Reads the settings from the test environment.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the operation fails.
     pub fn from_env() -> Result<Config, String> {
         Self::from_parts(&|name| std::env::var_os(name), &resolve_runfile)
     }
 
     /// Builds the settings from an environment lookup and a runfiles resolver.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the operation fails.
     pub fn from_parts(
         lookup: &dyn Fn(&str) -> Option<OsString>,
         resolve: &dyn Fn(&str, &str) -> Result<PathBuf, String>,
@@ -188,6 +202,10 @@ impl Config {
 }
 
 /// Resolves the runfiles key in the variable `name` to an absolute path.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn resolve_runfile(name: &str, key: &str) -> Result<PathBuf, String> {
     let found = dx_testing::rlocation(key)
         .map_err(|error| format!("{name} {key} is not in the runfiles: {error}"))?;
@@ -201,6 +219,10 @@ fn env_path(lookup: &dyn Fn(&str) -> Option<OsString>, name: &str) -> Option<Pat
 }
 
 /// Returns the pinned binary `pinned`, or an error when it is not a file.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn pinned_bazel(pinned: PathBuf) -> Result<PathBuf, String> {
     if pinned.is_file() {
         return Ok(pinned);
@@ -229,6 +251,10 @@ fn write(path: &Path, text: &str) -> Result<(), String> {
 }
 
 /// Empties `root`, keeping the directory itself.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn reset(root: &Path) -> Result<(), String> {
     std::fs::create_dir_all(root)
         .map_err(|error| format!("cannot create {}: {error}", root.display()))?;
@@ -236,9 +262,7 @@ pub fn reset(root: &Path) -> Result<(), String> {
         .map_err(|error| format!("cannot list {}: {error}", root.display()))?;
     for entry in entries.filter_map(Result::ok) {
         let path = entry.path();
-        let is_dir = std::fs::symlink_metadata(&path)
-            .map(|meta| meta.is_dir())
-            .unwrap_or(false);
+        let is_dir = std::fs::symlink_metadata(&path).is_ok_and(|meta| meta.is_dir());
         let removed = if is_dir {
             dx_process::make_writable(&path);
             std::fs::remove_dir_all(&path)
@@ -258,6 +282,7 @@ pub fn reset(root: &Path) -> Result<(), String> {
 }
 
 /// The real Bazel followed by every pinned nested startup option; the sidecar's contents.
+#[must_use]
 pub fn wrapper_argv(config: &Config, user_root: &Path, rc: &Path) -> Vec<String> {
     vec![
         config.bazel.to_string_lossy().into_owned(),
@@ -269,6 +294,10 @@ pub fn wrapper_argv(config: &Config, user_root: &Path, rc: &Path) -> Vec<String>
 }
 
 /// Renders the shim's sidecar `.args` file: one argument per line, the real Bazel first.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn shim_args(argv: &[String]) -> Result<String, String> {
     let mut text = String::new();
     for arg in argv {
@@ -387,6 +416,10 @@ fn run_launcher(mut command: Command, program: &std::ffi::OsStr) -> i32 {
 }
 
 /// Copies the shim to `dst` unless it is already identical, moving a busy old copy aside on Windows.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn install_shim(src: &Path, dst: &Path) -> Result<(), String> {
     let wanted =
         std::fs::read(src).map_err(|error| format!("cannot read {}: {error}", src.display()))?;
@@ -453,28 +486,25 @@ fn make_file_writable(path: &Path) {
 }
 
 /// Renders the bazelrc every nested command reads last.
+#[must_use]
 pub fn bazelrc(config: &Config, downloader: &Path, repository_cache: &Path) -> String {
     let mut text = format!("common --local_resources=cpu={CPUS}\n");
     if config.offline {
-        text.push_str(&format!(
-            "common --downloader_config={}\n",
-            slashed(downloader)
-        ));
+        writeln!(text, "common --downloader_config={}", slashed(downloader)).ok();
         text.push_str("common --lockfile_mode=error\n");
     }
     if config.record.is_some() {
         text.push_str("common --lockfile_mode=update\n");
-        text.push_str(&format!(
-            "try-import {}\n",
-            slashed(&record_rc(&config.root))
-        ));
+        writeln!(text, "try-import {}", slashed(&record_rc(&config.root))).ok();
     }
     text.push_str("common --disk_cache=\n");
     text.push_str("common --remote_cache=\n");
-    text.push_str(&format!(
-        "common --repository_cache={}\n",
+    writeln!(
+        text,
+        "common --repository_cache={}",
         slashed(repository_cache)
-    ));
+    )
+    .ok();
     text.push_str("common --repo_env=BAZEL_HTTP_RULES_URLS_AS_DEFAULT_CANONICAL_ID=0\n");
     text.push_str("build --spawn_strategy=local\n");
     text
@@ -647,6 +677,10 @@ pub struct Suspended {
 }
 
 /// Freezes every thread of `pid` until the guard resumes or drops.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn suspend(pid: u32) -> Result<Suspended, String> {
     if signal::suspend(pid) {
         Ok(Suspended { pid, held: true })
@@ -671,6 +705,7 @@ impl Drop for Suspended {
 }
 
 /// Reports whether `pid` is a live process.
+#[must_use]
 pub fn alive(pid: u32) -> bool {
     #[cfg(windows)]
     return signal::alive(pid);
@@ -881,6 +916,7 @@ fn owned_by(pid: u32, user_root: &Path) -> bool {
 }
 
 /// Lists the live Bazel servers under one output user root.
+#[must_use]
 pub fn servers(user_root: &Path) -> Vec<u32> {
     servers_from(&Processes::snapshot(), user_root)
 }
@@ -927,6 +963,7 @@ fn in_workspaces(cmdline: &str, prefixes: &[String]) -> bool {
 }
 
 /// Lists the live Bazel servers whose workspace is under `workspaces`, whatever their output root.
+#[must_use]
 pub fn servers_in_workspaces(workspaces: &Path) -> Vec<u32> {
     servers_in_workspaces_from(&Processes::snapshot(), workspaces)
 }
@@ -972,12 +1009,14 @@ fn kill_slot_servers(user_root: &Path, workspaces: &Path) -> Vec<u32> {
 }
 
 /// Stops every server under `user_root` and returns the ones that survive.
+#[must_use]
 pub fn kill_servers(user_root: &Path) -> Vec<u32> {
     let root = user_root.to_string_lossy();
     kill_pids(servers(user_root), &|line| names_dir(line, "", &root))
 }
 
 /// Stops every server whose workspace is under `workspaces` and returns the ones that survive.
+#[must_use]
 pub fn kill_servers_in_workspaces(workspaces: &Path) -> Vec<u32> {
     let prefixes = workspace_prefixes(workspaces);
     kill_pids(servers_in_workspaces(workspaces), &|line| {
@@ -1027,6 +1066,10 @@ pub struct Server {
 
 impl Server {
     /// Lays out the configured root: the wrapper, the rc file and the repository cache.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the operation fails.
     pub fn acquire(config: Config) -> Result<Server, String> {
         let home = config.root.clone();
         let mut server = Server {
@@ -1077,23 +1120,31 @@ impl Server {
     }
 
     /// The repository cache built from the declared downloads.
+    #[must_use]
     pub fn repository_cache(&self) -> PathBuf {
         self.home.join(REPOSITORY_CACHE)
     }
 
+    #[must_use]
     pub fn home(&self) -> &Path {
         &self.home
     }
 
+    #[must_use]
     pub fn user_root(&self) -> PathBuf {
         self.home.join(USER_ROOT)
     }
 
+    #[must_use]
     pub fn wrapper(&self) -> PathBuf {
         wrapper_at(&self.home)
     }
 
     /// Empties the workspace `name` and makes it current, stopping the server of any other one.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the operation fails.
     pub fn enter(&mut self, name: &str) -> Result<PathBuf, String> {
         let root = self.home.join(WORKSPACES).join(name);
         if self.workspace.as_ref() != Some(&root) {
@@ -1105,6 +1156,7 @@ impl Server {
     }
 
     /// Lists the live servers this slot owns.
+    #[must_use]
     pub fn servers(&self) -> Vec<u32> {
         slot_servers(&self.user_root(), &self.home.join(WORKSPACES))
     }
@@ -1120,11 +1172,19 @@ impl Server {
     }
 
     /// Builds a command for `bin` that reaches Bazel only through this server.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the operation fails.
     pub fn command(&self, bin: &Path, envs: &[(&str, &str)]) -> Result<Command, String> {
         self.command_with_front(bin, envs, &[])
     }
 
     /// Like `command`, with the `front` directories ahead of the server's `bin` on `PATH`.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the operation fails.
     pub fn command_with_front(
         &self,
         bin: &Path,
@@ -1138,6 +1198,7 @@ impl Server {
     }
 
     /// Builds a `bazel` command in `root` with the startup options dx uses.
+    #[must_use]
     pub fn bazel_command(&self, root: &Path, args: &[&str]) -> Command {
         bazel_command_at(&self.home, root, args, &[])
     }
@@ -1307,12 +1368,6 @@ const CALL_DEADLINE: Duration = Duration::from_secs(if cfg!(windows) { 1500 } el
 fn output_within(command: &mut Command, limit: Duration) -> Result<std::process::Output, String> {
     use std::io::Read;
     use std::process::Stdio;
-    let mut child = command
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|error| error.to_string())?;
     fn drain<R: Read + Send + 'static>(stream: Option<R>) -> std::thread::JoinHandle<Vec<u8>> {
         std::thread::spawn(move || {
             let mut bytes = Vec::new();
@@ -1322,9 +1377,15 @@ fn output_within(command: &mut Command, limit: Duration) -> Result<std::process:
             bytes
         })
     }
+    let mut child = command
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|error| error.to_string())?;
     let stdout = drain(child.stdout.take());
     let stderr = drain(child.stderr.take());
-    let start = std::time::Instant::now();
+    let start = Instant::now();
     let status = loop {
         match child.try_wait().map_err(|error| error.to_string())? {
             Some(status) => break status,
@@ -1409,6 +1470,7 @@ pub fn release() {
 static RECORDED: Mutex<Vec<(String, PathBuf)>> = Mutex::new(Vec::new());
 
 /// True when the test runs online with a cache set: the run records the set and the locks.
+#[must_use]
 pub fn recording() -> bool {
     let set = |name: &str| std::env::var_os(name).is_some_and(|value| !value.is_empty());
     set("DX_NESTED_BAZEL_NETWORK") && set(CACHE_SET_ENV)
@@ -1438,8 +1500,10 @@ fn finish_record(server: &Server) -> Result<(), String> {
     }
     let repository_cache = server.repository_cache();
     let fetched = |sha256: &str| std::fs::read(cache::entry(&repository_cache, sha256)).ok();
-    let mut entries: std::collections::BTreeMap<String, String> = Default::default();
-    let mut locks: std::collections::BTreeMap<String, String> = Default::default();
+    let mut entries: std::collections::BTreeMap<String, String> =
+        std::collections::BTreeMap::default();
+    let mut locks: std::collections::BTreeMap<String, String> =
+        std::collections::BTreeMap::default();
     for (stem, root) in &roots {
         let path = root.join("MODULE.bazel.lock");
         let lock = std::fs::read_to_string(&path)
@@ -1471,7 +1535,7 @@ fn finish_record(server: &Server) -> Result<(), String> {
     }
     let mut list = String::new();
     for (url, sha256) in &entries {
-        list.push_str(&format!("{url} {sha256}\n"));
+        writeln!(list, "{url} {sha256}").ok();
     }
     write(&dir.join(format!("{set}.txt")), &list)
 }
@@ -1498,14 +1562,20 @@ pub const HARNESS_QUERY: &[&str] = &[
     "@@rules_py++python_interpreters+python_interpreters//:all",
 ];
 
-/// Starts the consumer of the harness self-test: rules_dx from the `module_srcs` runfiles, with
-/// the rules_py override and its patches.
+/// Starts the consumer of the harness self-test: `rules_dx` from the `module_srcs` runfiles, with
+/// the `rules_py` override and its patches.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
+#[must_use]
 pub fn harness_consumer(name: &str) -> Case {
     let module = dx_testing::resolve_runfiles("MODULE.bazel");
-    let module = std::path::absolute(&module).unwrap_or_else(|error| panic!("{module:?}: {error}"));
+    let module = std::path::absolute(&module)
+        .unwrap_or_else(|error| panic!("{}: {error}", module.display()));
     let rules = module
         .parent()
-        .unwrap_or_else(|| panic!("no directory above {module:?}"));
+        .unwrap_or_else(|| panic!("no directory above {}", module.display()));
     let case = Case::consumer_at(name, rules, &compose::rules_py_override());
     case.write("patches/rules_py/BUILD.bazel", "");
     for patch in compose::RULES_PY_PATCHES {
@@ -1529,16 +1599,21 @@ pub const RULES_DX_FLAGS: &[(&str, bool)] = &[
 /// `MODULE.bazel` text for a fixture whose root module is visible as `@rules_dx`.
 ///
 /// `attrs` is appended inside `module(...)` (for example `, version = "1"`); `body` follows it.
+#[must_use]
 pub fn rules_dx_module(attrs: &str, body: &str) -> String {
     format!("module(name = \"fixture\", repo_name = \"rules_dx\"{attrs})\n{body}")
 }
 
-/// Lock keys a seeded consumer lock keeps from the rules_dx lock; every other top-level key is emptied.
+/// Lock keys a seeded consumer lock keeps from the `rules_dx` lock; every other top-level key is emptied.
 const SEED_LOCK_KEPT: &[&str] = &["lockFileVersion", "facts", "factsVersions"];
 
-/// Turns the rules_dx `MODULE.bazel.lock` text into a consumer lock that carries only its extension facts.
+/// Turns the `rules_dx` `MODULE.bazel.lock` text into a consumer lock that carries only its extension facts.
 ///
-/// Facts hold what extensions downloaded without a checksum (for example the python_interpreters
+/// Facts hold what extensions downloaded without a checksum (for example the `python_interpreters`
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 /// SHA256SUMS), so a seeded consumer resolves offline. Bazel keeps facts across extension changes.
 pub fn seed_lock_json(lock: &str) -> Result<String, String> {
     let parsed: serde_json::Value =
@@ -1570,30 +1645,46 @@ pub fn seed_lock_json(lock: &str) -> Result<String, String> {
     Ok(text)
 }
 
-/// Writes `root/MODULE.bazel.lock` holding the extension facts of the rules_dx checkout at `rules`.
+/// Writes `root/MODULE.bazel.lock` holding the extension facts of the `rules_dx` checkout at `rules`.
 ///
+///
+/// # Panics
+///
+/// Panics when the operation fails.
 /// The consumer must pin the `.bazelversion` of the same checkout, or Bazel ignores the lock.
 pub fn seed_rules_dx_lock(root: &Path, rules: &Path) {
     let source = rules.join("MODULE.bazel.lock");
     let lock = std::fs::read_to_string(&source).unwrap_or_else(|error| {
-        panic!("{source:?}: {error}; add //:module_srcs to the test's data")
+        panic!(
+            "{}: {error}; add //:module_srcs to the test's data",
+            source.display()
+        )
     });
-    let seeded = seed_lock_json(&lock).unwrap_or_else(|error| panic!("{source:?}: {error}"));
+    let seeded =
+        seed_lock_json(&lock).unwrap_or_else(|error| panic!("{}: {error}", source.display()));
     let target = root.join("MODULE.bazel.lock");
-    std::fs::write(&target, seeded).unwrap_or_else(|error| panic!("write {target:?}: {error}"));
+    std::fs::write(&target, seeded)
+        .unwrap_or_else(|error| panic!("write {}: {error}", target.display()));
 }
 
 /// Writes the `config` package declaring [`RULES_DX_FLAGS`] under `root`.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
 pub fn write_rules_dx_config(root: &Path) {
     let dir = root.join("config");
-    std::fs::create_dir_all(&dir).unwrap_or_else(|error| panic!("mkdir {dir:?}: {error}"));
+    std::fs::create_dir_all(&dir)
+        .unwrap_or_else(|error| panic!("mkdir {}: {error}", dir.display()));
     let flags = "def _impl(_ctx):\n    return []\n\nbool_flag = rule(implementation = _impl, build_setting = config.bool(flag = True))\n";
     let mut build = String::from("load(\":flags.bzl\", \"bool_flag\")\n");
     for (name, default) in RULES_DX_FLAGS {
         let default = if *default { "True" } else { "False" };
-        build.push_str(&format!(
+        write!(
+            build,
             "\nbool_flag(name = \"{name}\", build_setting_default = {default})\n"
-        ));
+        )
+        .ok();
     }
     for (file, text) in [("flags.bzl", flags), ("BUILD.bazel", build.as_str())] {
         std::fs::write(dir.join(file), text)
@@ -1608,6 +1699,11 @@ pub struct Case {
 }
 
 /// Starts a case in the workspace `name`; cases run one at a time and share one server.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
+#[must_use]
 pub fn case(name: &str) -> Case {
     let held = HELD.with(|held| held.borrow().upgrade());
     let lease = held.unwrap_or_else(|| {
@@ -1639,6 +1735,10 @@ pub fn case(name: &str) -> Case {
 }
 
 /// Runs `bazel` in `root` through the shared server of this process.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
 pub fn bazel_in(root: &Path, args: &[&str]) -> Run {
     let (home, offline) = HOME
         .lock()
@@ -1654,6 +1754,10 @@ pub fn bazel_in(root: &Path, args: &[&str]) -> Run {
 
 impl Case {
     /// Puts the checked-in lock `stem` into the workspace; in record mode removes it and records the workspace.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the operation fails.
     pub fn use_lock(&self, stem: &str) {
         if recording() {
             drop(std::fs::remove_file(self.root.join("MODULE.bazel.lock")));
@@ -1678,7 +1782,7 @@ impl Case {
         panic!("{LOCKS_ENV} has no {name}");
     }
 
-    /// Seeds this workspace's `MODULE.bazel.lock` with the extension facts of the rules_dx checkout.
+    /// Seeds this workspace's `MODULE.bazel.lock` with the extension facts of the `rules_dx` checkout.
     pub fn seed_rules_dx_lock(&self) {
         seed_rules_dx_lock(&self.root, &dx_testing::rules_dx_source());
     }
@@ -1690,24 +1794,32 @@ impl Case {
         })
     }
 
+    #[must_use]
     pub fn root(&self) -> &Path {
         &self.root
     }
 
+    #[must_use]
     pub fn user_root(&self) -> PathBuf {
         self.server().user_root()
     }
 
     /// The repository cache the server reads, built from the declared downloads.
+    #[must_use]
     pub fn repository_cache(&self) -> PathBuf {
         self.server().repository_cache()
     }
 
+    #[must_use]
     pub fn servers(&self) -> Vec<u32> {
         self.server().servers()
     }
 
     /// Stops the server and asserts that none survives.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the operation fails.
     pub fn shutdown_server(&self) {
         let mut guard = self.lease.borrow_mut();
         let server = guard
@@ -1723,6 +1835,11 @@ impl Case {
 
     /// Stops the server, reruns `args` with the workspace rules log at `log` under `TEST_TMPDIR`, and returns the repository rules that ran,
     /// without the modules that the consumer's MODULE.bazel overrides with `local_path_override`.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the operation fails.
+    #[must_use]
     pub fn refetched_after_restart(&self, args: &[&str], log: &str) -> Vec<String> {
         self.shutdown_server();
         let tmpdir = PathBuf::from(std::env::var_os("TEST_TMPDIR").expect("TEST_TMPDIR"));
@@ -1744,6 +1861,10 @@ impl Case {
     }
 
     /// Stops the server, reruns `args`, and fails with the repository rules that ran.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the operation fails.
     pub fn assert_no_refetch(&self, args: &[&str]) {
         let contexts = self.refetched_after_restart(args, "refetch.log");
         assert!(
@@ -1753,6 +1874,11 @@ impl Case {
     }
 
     /// Builds a command for `bin` that reaches Bazel only through the shared server.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the operation fails.
+    #[must_use]
     pub fn command(&self, bin: &Path, envs: &[(&str, &str)]) -> Command {
         self.server()
             .command(bin, envs)
@@ -1760,6 +1886,7 @@ impl Case {
     }
 
     /// Runs `bin` with the shared server on `PATH`.
+    #[must_use]
     pub fn run(&self, bin: &Path, args: &[&str], envs: &[(&str, &str)]) -> Run {
         let mut command = self.command(bin, envs);
         command.args(args);
@@ -1769,11 +1896,17 @@ impl Case {
 
     /// The server's real `bazel` wrapper. A shim must call it by absolute path, because a bare
     /// `bazel` would find the shim again and recurse.
+    #[must_use]
     pub fn wrapper(&self) -> PathBuf {
         self.server().wrapper()
     }
 
     /// Builds a command for `bin` with `shim_dir` ahead of the server's `bin` on `PATH`.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the operation fails.
+    #[must_use]
     pub fn command_with_shim(&self, bin: &Path, envs: &[(&str, &str)], shim_dir: &Path) -> Command {
         self.server()
             .command_with_front(bin, envs, &[shim_dir])
@@ -1782,6 +1915,7 @@ impl Case {
 
     /// Runs `bin` with `shim_dir` ahead of the server on `PATH`. The shim must call `wrapper()`
     /// by absolute path. Do not use a non-`exec` shim in interrupt tests: signals stop at it.
+    #[must_use]
     pub fn run_with_shim(
         &self,
         bin: &Path,
@@ -1796,11 +1930,13 @@ impl Case {
     }
 
     /// Runs `bazel` in the workspace with the startup options dx uses.
+    #[must_use]
     pub fn bazel(&self, args: &[&str]) -> Run {
         bazel_in(&self.root, args)
     }
 
     /// Runs `bazel` in the workspace with extra environment variables.
+    #[must_use]
     pub fn bazel_with(&self, args: &[&str], envs: &[(&str, &str)]) -> Run {
         let command = bazel_command_at(self.server().home(), &self.root, args, envs);
         let offline = self.server().config.offline;
@@ -1808,18 +1944,21 @@ impl Case {
     }
 
     /// Builds an unspawned `bazel` command in the workspace with the startup options dx uses.
+    #[must_use]
     pub fn bazel_command(&self, args: &[&str]) -> Command {
         bazel_command_at(self.server().home(), &self.root, args, &[])
     }
 
-    /// Starts a case whose workspace depends on this rules_dx checkout, with `extra_module` appended.
+    /// Starts a case whose workspace depends on this `rules_dx` checkout, with `extra_module` appended.
     ///
     /// The workspace imports the preset layers from `.dx/bazelrc`, the way `dx init` lays them out.
+    #[must_use]
     pub fn consumer(name: &str, extra_module: &str) -> Case {
         Case::consumer_at(name, &dx_testing::rules_dx_source(), extra_module)
     }
 
-    /// Like `consumer`, with rules_dx read from `rules`.
+    /// Like `consumer`, with `rules_dx` read from `rules`.
+    #[must_use]
     pub fn consumer_at(name: &str, rules: &Path, extra_module: &str) -> Case {
         let case = case(name);
         case.write(
@@ -1835,7 +1974,7 @@ impl Case {
                 format!(".dx/bazelrc/{file}"),
                 &dx_testing::preset_layer(layer),
             );
-            imports.push_str(&format!("try-import %workspace%/.dx/bazelrc/{file}\n"));
+            writeln!(imports, "try-import %workspace%/.dx/bazelrc/{file}").ok();
         }
         case.write(".bazelrc", &imports);
         case.write(".bazelignore", ".dx\n");
@@ -1848,11 +1987,13 @@ impl Case {
     }
 
     /// Lists every workspace file with its bytes, sorted, without `bazel-*` links or the lockfile.
+    #[must_use]
     pub fn files(&self) -> Vec<(PathBuf, Vec<u8>)> {
         files_under(&self.root)
     }
 
     /// Runs `bazel <verb> --color=no --curses=no <flags> <target>` in the workspace.
+    #[must_use]
     pub fn plain(&self, verb: &str, target: &str, flags: &[&str]) -> Run {
         let mut args = vec![verb, "--color=no", "--curses=no"];
         args.extend_from_slice(flags);
@@ -1861,6 +2002,10 @@ impl Case {
     }
 
     /// Asserts that building `target` exits 1 with every one of `needles` in its output.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the operation fails.
     pub fn build_fails_with(&self, target: &str, needles: &[&str]) {
         let built = self.plain("build", target, &[]);
         let text = built.combined();
@@ -1886,7 +2031,7 @@ fn files_under(root: &Path) -> Vec<(PathBuf, Vec<u8>)> {
 
 fn collect_files(dir: &Path, root: &Path, files: &mut Vec<(PathBuf, Vec<u8>)>) {
     let mut entries: Vec<_> = std::fs::read_dir(dir)
-        .unwrap_or_else(|error| panic!("list {dir:?}: {error}"))
+        .unwrap_or_else(|error| panic!("list {}: {error}", dir.display()))
         .map(|entry| {
             entry
                 .unwrap_or_else(|error| panic!("entry: {error}"))
@@ -2171,7 +2316,7 @@ mod tests {
             config.cache,
             vec![(sha256, PathBuf::from("repo/file/file"))]
         );
-        assert!(fixture.config(&[]).cache.is_empty());
+        assert_eq!(fixture.config(&[]).cache, [] as [(String, PathBuf); 0]);
     }
 
     #[test]
@@ -2533,7 +2678,7 @@ mod tests {
     }
 
     fn stop(mut child: Child, workspaces: &Path) {
-        assert!(kill_servers_in_workspaces(workspaces).is_empty());
+        assert_eq!(kill_servers_in_workspaces(workspaces), [] as [u32; 0]);
         drop(child.wait());
     }
 
@@ -2549,7 +2694,7 @@ mod tests {
             servers_in_workspaces(&workspaces) == vec![stray_pid]
                 && servers_in_workspaces(&outside_root) == vec![other_pid]
         });
-        assert!(kill_servers_in_workspaces(&workspaces).is_empty());
+        assert_eq!(kill_servers_in_workspaces(&workspaces), [] as [u32; 0]);
         drop(stray.wait());
         assert!(!alive(stray_pid));
         assert!(alive(other_pid));
@@ -2563,7 +2708,7 @@ mod tests {
         let mut stray = stand_in(&server.home().join("w/consumer"));
         let pid = stray.id();
         wait_until("the stand-in", || server.servers() == vec![pid]);
-        assert!(server.shutdown().is_empty());
+        assert_eq!(server.shutdown(), [] as [u32; 0]);
         drop(stray.wait());
         assert!(!alive(pid));
     }
@@ -2855,9 +3000,9 @@ mod portable_tests {
     fn alive_treats_an_unreaped_child_as_dead() {
         let mut child = probe_command(&["exit", "0"]).spawn().expect("spawn");
         let pid = child.id();
-        let start = std::time::Instant::now();
-        while alive(pid) && start.elapsed() < std::time::Duration::from_secs(10) {
-            std::thread::sleep(std::time::Duration::from_millis(20));
+        let start = Instant::now();
+        while alive(pid) && start.elapsed() < Duration::from_secs(10) {
+            std::thread::sleep(Duration::from_millis(20));
         }
         assert!(!alive(pid), "exited but unreaped child counted as alive");
         child.wait().expect("reap");
@@ -3005,7 +3150,7 @@ mod suspend_tests {
     use super::*;
     use std::time::Duration;
 
-    fn heartbeat(file: &Path) -> std::process::Child {
+    fn heartbeat(file: &Path) -> Child {
         let mut command = probe_command(&["heartbeat", &file.to_string_lossy()]);
         command.spawn().expect("spawn heartbeat")
     }
@@ -3015,8 +3160,8 @@ mod suspend_tests {
     }
 
     fn wait_for_growth(file: &Path, from: u64) -> bool {
-        let deadline = std::time::Instant::now() + Duration::from_secs(10);
-        while std::time::Instant::now() < deadline {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while Instant::now() < deadline {
             if size(file) > from {
                 return true;
             }

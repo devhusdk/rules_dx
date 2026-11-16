@@ -6,15 +6,19 @@
 //! `footprint::check_budget`.
 
 /// Returns `Ok` when `module_bazel` depends only on `rules_<lang>` and `files` has no `.dx/` path.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn check_plain_consumer(lang: &str, module_bazel: &str, files: &[&str]) -> Result<(), String> {
     let wanted = format!("rules_{lang}");
     let mut problems = Vec::new();
     for line in module_bazel.lines() {
         let code = line.split('#').next().unwrap_or("").trim();
-        if let Some(name) = bazel_dep_name(code) {
-            if name != wanted {
-                problems.push(format!("bazel_dep on {name} is not {wanted}: {code}"));
-            }
+        if let Some(name) = bazel_dep_name(code)
+            && name != wanted
+        {
+            problems.push(format!("bazel_dep on {name} is not {wanted}: {code}"));
         }
         if uses_dx_extension(code) {
             problems.push(format!("dx extension use: {code}"));

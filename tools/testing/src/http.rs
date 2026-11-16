@@ -17,6 +17,10 @@ pub struct Reply {
 /// Starts a server on an ephemeral loopback port. `respond` maps a request
 /// target to a [`Reply`], or `None` for a 404. Returns the base URL and the
 /// request log.
+///
+/// # Errors
+///
+/// Returns `Err` when the operation fails.
 pub fn serve<F>(respond: F) -> std::io::Result<(String, RequestLog)>
 where
     F: Fn(&str) -> Option<Reply> + Send + Sync + 'static,

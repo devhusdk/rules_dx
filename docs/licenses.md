@@ -57,6 +57,8 @@ Terraform is BUSL-1.1. That is not an open-source license and it restricts some 
 | terraform | 1.17.1 | BUSL-1.1 |
 | tflint | 0.66.0 | MPL-2.0 |
 | tinymist | 0.15.12 | Apache-2.0 |
+| tree-sitter | 0.26.8 | MIT |
+| tree-sitter-pkl | 0.22.0 | Apache-2.0 |
 | trivy | 0.76.2 | Apache-2.0 |
 | ty | 0.0.100 | MIT |
 | typos | 1.52.1 | Apache-2.0, MIT |

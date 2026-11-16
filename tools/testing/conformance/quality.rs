@@ -76,7 +76,7 @@ pub fn check(mode: &str, key: &str, text: &str) {
                         let end = usize::try_from(start)
                             .unwrap_or(usize::MAX)
                             .min(bytes.len());
-                        bytes[..end].split(|b| *b == b'\n').count() + 1 == line
+                        bytes[..end].split(|b| *b == b'\n').count() == line
                     })
             });
             assert!(found, "missing {rule} at {file}:{line} in:\n{}", report());

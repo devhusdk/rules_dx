@@ -85,7 +85,23 @@ jar_lsp_tool(
     name = "pkl_lsp",
     driver = "@dx_prebuilt//:lsp_check",
     jar = "@jvm_pkl_lsp//file",
+    native_prefix = "NATIVE/org/pkl/lsp/treesitter/windows-aarch64",
+    natives = select({
+        ":windows_arm64": [
+            "@jvm_tree_sitter//:tree-sitter.dll",
+            "@jvm_tree_sitter_pkl//:tree-sitter-pkl.dll",
+        ],
+        "//conditions:default": [],
+    }),
     runtime = ":jdk25",
+)
+
+config_setting(
+    name = "windows_arm64",
+    constraint_values = [
+        "@platforms//cpu:arm64",
+        "@platforms//os:windows",
+    ],
 )
 
 filegroup(
@@ -98,6 +114,12 @@ filegroup(
     name = "pkl_lsp_jar",
     srcs = [":pkl_lsp"],
     output_group = "jar",
+)
+
+filegroup(
+    name = "pkl_lsp_natives",
+    srcs = [":pkl_lsp"],
+    output_group = "natives",
 )
 
 real_source_target(

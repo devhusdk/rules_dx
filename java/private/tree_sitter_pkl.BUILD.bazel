@@ -1,0 +1,16 @@
+"""tree-sitter-pkl grammar as the shared library pkl-lsp loads."""
+
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_binary(
+    name = "tree-sitter-pkl.dll",
+    srcs = [
+        "src/parser.c",
+        "src/scanner.c",
+    ] + glob(["src/tree_sitter/*.h"]),
+    includes = ["src"],
+    linkshared = True,
+    target_compatible_with = ["@platforms//os:windows"],
+)

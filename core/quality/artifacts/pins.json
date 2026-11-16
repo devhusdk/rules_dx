@@ -2706,6 +2706,42 @@
       ],
       "version": "4.10.5"
     },
+    "tree_sitter": {
+      "build_file": "//java/private:tree_sitter.BUILD.bazel",
+      "kind": "archive",
+      "licenses": [
+        {
+          "name": "MIT",
+          "source": "https://github.com/tree-sitter/tree-sitter/blob/v{version}/LICENSE"
+        }
+      ],
+      "repo": "jvm_tree_sitter",
+      "sha256": "e6826b7533ec3a885aba598377a6d20b5a6321ff3db76968e960c2352d3a5077",
+      "strip_prefix": "tree-sitter-{version}",
+      "tool": "tree-sitter",
+      "urls": [
+        "https://github.com/tree-sitter/tree-sitter/archive/refs/tags/v{version}.tar.gz"
+      ],
+      "version": "0.26.8"
+    },
+    "tree_sitter_pkl": {
+      "build_file": "//java/private:tree_sitter_pkl.BUILD.bazel",
+      "kind": "archive",
+      "licenses": [
+        {
+          "name": "Apache-2.0",
+          "source": "https://github.com/apple/tree-sitter-pkl/blob/v{version}/LICENSE.txt"
+        }
+      ],
+      "repo": "jvm_tree_sitter_pkl",
+      "sha256": "28e2ba932d889997488ab15635039b5f016292c12872a1f717f4ff11c4176ef8",
+      "strip_prefix": "tree-sitter-pkl-{version}",
+      "tool": "tree-sitter-pkl",
+      "urls": [
+        "https://github.com/apple/tree-sitter-pkl/archive/refs/tags/v{version}.tar.gz"
+      ],
+      "version": "0.22.0"
+    },
     "zanuda": {
       "kind": "duniverse",
       "licenses": [

@@ -1743,11 +1743,15 @@ pub fn pkl_lsp_check(
     lsp_check: &Path,
     java: &Path,
     jar: &Path,
+    natives: &Path,
     home: &Path,
     files: &[&Path],
 ) -> Invocation {
     let mut user_home = OsString::from("-Duser.home=");
     user_home.push(home);
+    let mut classpath = jar.as_os_str().to_owned();
+    classpath.push(if cfg!(windows) { ";" } else { ":" });
+    classpath.push(natives);
     let mut argv = vec![
         lsp_check.as_os_str().to_owned(),
         OsString::from("--language-id"),
@@ -1755,8 +1759,10 @@ pub fn pkl_lsp_check(
         OsString::from("--"),
         java.as_os_str().to_owned(),
         user_home,
-        OsString::from("-jar"),
-        jar.as_os_str().to_owned(),
+        OsString::from("--enable-native-access=ALL-UNNAMED"),
+        OsString::from("-cp"),
+        classpath,
+        OsString::from("org.pkl.lsp.cli.Main"),
         OsString::from("--"),
     ];
     argv.extend(files.iter().map(|path| path.as_os_str().to_owned()));

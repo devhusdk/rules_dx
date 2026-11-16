@@ -434,6 +434,8 @@ real_source_target(
         "jazzer.bzl",
         "pmd_dist.BUILD.bazel",
         "spotbugs_dist.BUILD.bazel",
+        "tree_sitter.BUILD.bazel",
+        "tree_sitter_pkl.BUILD.bazel",
     ],
     tags = ["corpus"],
 )

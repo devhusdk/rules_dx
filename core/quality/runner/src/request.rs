@@ -29,7 +29,7 @@ pub const PATH_TOOL_ALLOWLIST: &[(&str, &[&str])] = &[
     ("vale", &["rst2html", "asciidoctor"]),
     ("helm", &["kubeconform"]),
     ("trivy_config", &["bicep"]),
-    ("pkl_lsp", &["java", "pkl-lsp.jar"]),
+    ("pkl_lsp", &["java", "pkl-lsp.jar", "pkl-lsp-natives.jar"]),
     ("buf", &["diff"]),
     ("actionlint", &["shellcheck"]),
 ];

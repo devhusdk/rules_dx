@@ -54,6 +54,8 @@ def dx_native_test_coverage(ctx, upstream, gcov = False, llvm_cov = None, llvm_p
     collector = ctx.executable._collect_cc_coverage
     cc_toolchain = _cc_toolchain(ctx)
     gcov_tool = None
+    cc_cov = None
+    cc_profdata = None
     if gcov:
         gcov_tool = dx_gcov_tool(cc_toolchain)
         llvm_cov = None
@@ -61,9 +63,14 @@ def dx_native_test_coverage(ctx, upstream, gcov = False, llvm_cov = None, llvm_p
         metadata = [collector, gcov_tool]
     else:
         macos = ctx.target_platform_has_constraint(ctx.attr._macos[platform_common.ConstraintValueInfo])
-        llvm_cov = llvm_cov or (None if macos else dx_toolchain_tool(cc_toolchain, "llvm-cov")) or ctx.executable._llvm_cov
-        llvm_profdata = llvm_profdata or (None if macos else dx_toolchain_tool(cc_toolchain, "llvm-profdata")) or ctx.executable._llvm_profdata
-        metadata = [collector, llvm_cov, llvm_profdata]
+        toolchain_cov = dx_toolchain_tool(cc_toolchain, "llvm-cov")
+        toolchain_profdata = dx_toolchain_tool(cc_toolchain, "llvm-profdata")
+        if macos and toolchain_cov and toolchain_profdata:
+            cc_cov = toolchain_cov
+            cc_profdata = toolchain_profdata
+        llvm_cov = llvm_cov or (None if macos else toolchain_cov) or ctx.executable._llvm_cov
+        llvm_profdata = llvm_profdata or (None if macos else toolchain_profdata) or ctx.executable._llvm_profdata
+        metadata = [collector, llvm_cov, llvm_profdata] + ([cc_cov, cc_profdata] if cc_cov else [])
     transitive = []
     if DxDataCoverageInfo in upstream:
         data = upstream[DxDataCoverageInfo]
@@ -86,6 +93,9 @@ def dx_native_test_coverage(ctx, upstream, gcov = False, llvm_cov = None, llvm_p
             env["DX_COVERAGE_CLANG_OBJECTS"] = "test_binary"
         env["LLVM_COV"] = llvm_cov.path
         env["LLVM_PROFDATA"] = llvm_profdata.path
+        if cc_cov:
+            env["DX_CC_LLVM_COV"] = cc_cov.path
+            env["DX_CC_LLVM_PROFDATA"] = cc_profdata.path
     return struct(
         instrumented = instrumented,
         env = RunEnvironmentInfo(environment = env, inherited_environment = inherited),

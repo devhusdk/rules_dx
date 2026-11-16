@@ -264,12 +264,29 @@ fn collect_all() -> Result<(), String> {
     }
 
     let merged = ctx.coverage_dir.join("_dx_merged.profdata");
-    merge(&profdata, &profraw, &merged).map_err(|stderr| {
-        format!(
-            "llvm-profdata merge failed ({}):\n{stderr}",
-            profdata.display()
-        )
-    })?;
+    let cc_tools = match (env::var("DX_CC_LLVM_PROFDATA"), env::var("DX_CC_LLVM_COV")) {
+        (Ok(profdata), Ok(cov)) => Some((ctx.tool(&profdata), ctx.tool(&cov))),
+        _ => None,
+    };
+    let cov = match (merge(&profdata, &profraw, &merged), cc_tools) {
+        (Ok(()), _) => cov,
+        (Err(stderr), None) => {
+            return Err(format!(
+                "llvm-profdata merge failed ({}):\n{stderr}",
+                profdata.display()
+            ));
+        }
+        (Err(stderr), Some((cc_profdata, cc_cov))) => {
+            merge(&cc_profdata, &profraw, &merged).map_err(|cc_stderr| {
+                format!(
+                    "llvm-profdata merge failed ({}):\n{stderr}\nllvm-profdata merge failed ({}):\n{cc_stderr}",
+                    profdata.display(),
+                    cc_profdata.display()
+                )
+            })?;
+            cc_cov
+        }
+    };
     let report = if objects.is_empty() {
         eprintln!(
             "dx coverage collector: no instrumented objects to export; writing an empty report"

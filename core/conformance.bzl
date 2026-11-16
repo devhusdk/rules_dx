@@ -45,7 +45,7 @@ def dx_forwarder_checks():
         expect_equal("test kwargs empty stays empty", dx_forwarded_test_kwargs({}), {}),
     ]
 
-DX_COVERAGE_ENV = ["CC_CODE_COVERAGE_SCRIPT", "DX_COVERAGE_CLANG_OBJECTS", "LLVM_COV", "LLVM_PROFDATA"]
+DX_COVERAGE_ENV = ["CC_CODE_COVERAGE_SCRIPT", "DX_CC_LLVM_COV", "DX_CC_LLVM_PROFDATA", "DX_COVERAGE_CLANG_OBJECTS", "LLVM_COV", "LLVM_PROFDATA"]
 
 def dx_render_run_env(info):
     """Renders a RunEnvironmentInfo env as sorted K=V text, without the dx coverage collector env."""

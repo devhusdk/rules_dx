@@ -150,7 +150,6 @@ fn copy_rules_py_patches(source: &std::path::Path, case: &Case) {
         "rules_flutter",
         "rules_rust",
         "llvm",
-        "protobuf",
         "windows_support",
         "ring",
         "gomod-parser",

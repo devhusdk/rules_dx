@@ -333,13 +333,13 @@ fn consumer_module_problems(path: &str, source: &str) -> Vec<String> {
                 (AssignTargetP::Identifier(proxy), ExprP::Call(callee, args)) => {
                     let args = Args::of(&args.args);
                     let texts: Vec<_> = args.positional.iter().map(|v| string_literal(v)).collect();
-                    let licensed = identifier(callee) == Some("use_extension")
+                    let accepts_licenses = identifier(callee) == Some("use_extension")
                         && args.named.is_empty()
                         && texts == [Some(LICENSES[0]), Some(LICENSES[1])];
-                    if licensed {
+                    if accepts_licenses {
                         licenses = Some(proxy.node.ident.clone());
                     }
-                    licensed
+                    accepts_licenses
                 }
                 _ => false,
             },

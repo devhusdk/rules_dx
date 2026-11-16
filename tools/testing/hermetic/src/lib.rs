@@ -1448,7 +1448,7 @@ impl Session {
     /// # Errors
     ///
     /// Returns `Err` when the operation fails.
-    pub fn run_dx(&mut self, run: DxRun<'_>) -> Result<Outcome, String> {
+    pub fn run_dx(&mut self, run: &DxRun<'_>) -> Result<Outcome, String> {
         let DxRun {
             name,
             net,
@@ -1457,7 +1457,7 @@ impl Session {
             home,
             output_root,
             repos,
-        } = run;
+        } = *run;
         let bin = self.bazel_bin(output_root)?;
         let mut args = vec![command.to_owned()];
         args.extend(targets.iter().cloned());
@@ -1488,8 +1488,8 @@ impl Session {
         args.extend(self.shell_flag());
         if cfg!(windows) {
             let path = dx_windows_path(&bin, self.bash.as_deref(), &self.action_path());
-            let mut argv = vec![self.manifest.dx.to_string_lossy().into_owned()];
-            argv.extend(args);
+            let mut invocation = vec![self.manifest.dx.to_string_lossy().into_owned()];
+            invocation.extend(args);
             let expect = if command == "lint" {
                 Expect::Findings
             } else {
@@ -1505,13 +1505,13 @@ impl Session {
                 name,
                 net,
                 home,
-                argv: &argv,
-                recorded: argv.clone(),
+                argv: &invocation,
+                recorded: invocation.clone(),
                 expect: &expect,
                 windows: Some(run),
             });
         }
-        let mut argv = vec![
+        let mut invocation = vec![
             "/usr/bin/env".to_owned(),
             "-i".to_owned(),
             format!("HOME={}", home.display()),
@@ -1525,8 +1525,8 @@ impl Session {
             self.workspace.to_string_lossy().into_owned(),
             self.manifest.dx.to_string_lossy().into_owned(),
         ];
-        argv.extend(args);
-        let recorded = argv.get(10..).unwrap_or_default().to_vec();
+        invocation.extend(args);
+        let recorded = invocation.get(10..).unwrap_or_default().to_vec();
         // Lint exits 1 when it reports findings, which the manifest then compares.
         let expect = if command == "lint" {
             Expect::Findings
@@ -1537,7 +1537,7 @@ impl Session {
             name,
             net,
             home,
-            argv: &argv,
+            argv: &invocation,
             recorded,
             expect: &expect,
             windows: None,
@@ -1549,9 +1549,9 @@ impl Session {
     /// # Errors
     ///
     /// Returns `Err` when the operation fails.
-    pub fn run(&mut self, probe: Probe<'_>) -> Result<Outcome, String> {
+    pub fn run(&mut self, probe: &Probe<'_>) -> Result<Outcome, String> {
         if cfg!(windows) {
-            let argv = self.bazel_tail(&probe);
+            let argv = self.bazel_tail(probe);
             let mut env = self.windows_env(probe.home, &self.action_path());
             env.push(xdg_cache_home(probe.output_root));
             let run = WindowsRun {
@@ -1568,7 +1568,7 @@ impl Session {
                 windows: Some(run),
             });
         }
-        let argv = self.bazel_argv(&probe);
+        let argv = self.bazel_argv(probe);
         let recorded = argv.get(10..).unwrap_or_default().to_vec();
         self.execute(Exec {
             name: &probe.name,
@@ -1987,6 +1987,56 @@ fn required_probes<'a>(manifest: &'a Manifest, os: &str) -> Vec<(String, &'a str
 ///
 /// Returns `Err` when the operation fails.
 pub fn verify_evidence(evidence: &Value, commit: &str, manifest: &Manifest) -> Result<(), String> {
+    verify_evidence_header(evidence, commit, manifest)?;
+    verify_probes(evidence, manifest)?;
+    if !manifest.coverage.is_empty() {
+        check_coverage(
+            &sources_from_json(at(evidence, "/coverage/sources"))?,
+            manifest,
+        )?;
+    }
+    if !manifest.lint_findings.is_empty() {
+        check_lint(at(evidence, "/lint"), &manifest.lint_findings)?;
+    }
+    if manifest.fetch_fails {
+        if *at(evidence, "/downloads") != json!([]) {
+            return Err(format!(
+                "a consumer that fails at fetch downloaded {}",
+                at(evidence, "/downloads")
+            ));
+        }
+        return Ok(());
+    }
+    let artifacts = at(evidence, "/artifacts")
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    if artifacts.is_empty() {
+        return Err("evidence names no built artifacts".to_owned());
+    }
+    for artifact in &artifacts {
+        let digest = at(artifact, "/sha256").as_str().unwrap_or_default();
+        if digest.len() != 64 || !digest.bytes().all(|b| b.is_ascii_hexdigit()) {
+            return Err(format!("artifact {} has no sha256", at(artifact, "/path")));
+        }
+    }
+    if *at(evidence, "/target/machines") != json!(unique_machines(&artifacts)) {
+        return Err("evidence target machines disagree with its artifacts".to_owned());
+    }
+    if let Some((name, producer)) = &manifest.compiler {
+        check_compiler(name, producer, &artifacts)?;
+    }
+    let native = manifest
+        .languages
+        .iter()
+        .any(|language| NATIVE_LANGUAGES.contains(&language.as_str()));
+    if native && unique_machines(&artifacts).is_empty() {
+        return Err("evidence names no native artifact machine".to_owned());
+    }
+    Ok(())
+}
+
+fn verify_evidence_header(evidence: &Value, commit: &str, manifest: &Manifest) -> Result<(), String> {
     let label = manifest.label.as_str();
     let languages = manifest.languages.as_slice();
     if at(evidence, "/schema") != SCHEMA {
@@ -2032,6 +2082,10 @@ pub fn verify_evidence(evidence: &Value, commit: &str, manifest: &Manifest) -> R
             return Err(format!("evidence names no host {key}"));
         }
     }
+    Ok(())
+}
+
+fn verify_probes(evidence: &Value, manifest: &Manifest) -> Result<(), String> {
     let probes = at(evidence, "/probes")
         .as_array()
         .cloned()
@@ -2073,49 +2127,6 @@ pub fn verify_evidence(evidence: &Value, commit: &str, manifest: &Manifest) -> R
         if !built {
             return Err(format!("probe {name} did not build {label}"));
         }
-    }
-    if !manifest.coverage.is_empty() {
-        check_coverage(
-            &sources_from_json(at(evidence, "/coverage/sources"))?,
-            manifest,
-        )?;
-    }
-    if !manifest.lint_findings.is_empty() {
-        check_lint(at(evidence, "/lint"), &manifest.lint_findings)?;
-    }
-    if manifest.fetch_fails {
-        if *at(evidence, "/downloads") != json!([]) {
-            return Err(format!(
-                "a consumer that fails at fetch downloaded {}",
-                at(evidence, "/downloads")
-            ));
-        }
-        return Ok(());
-    }
-    let artifacts = at(evidence, "/artifacts")
-        .as_array()
-        .cloned()
-        .unwrap_or_default();
-    if artifacts.is_empty() {
-        return Err("evidence names no built artifacts".to_owned());
-    }
-    for artifact in &artifacts {
-        let digest = at(artifact, "/sha256").as_str().unwrap_or_default();
-        if digest.len() != 64 || !digest.bytes().all(|b| b.is_ascii_hexdigit()) {
-            return Err(format!("artifact {} has no sha256", at(artifact, "/path")));
-        }
-    }
-    if *at(evidence, "/target/machines") != json!(unique_machines(&artifacts)) {
-        return Err("evidence target machines disagree with its artifacts".to_owned());
-    }
-    if let Some((name, producer)) = &manifest.compiler {
-        check_compiler(name, producer, &artifacts)?;
-    }
-    let native = languages
-        .iter()
-        .any(|language| NATIVE_LANGUAGES.contains(&language.as_str()));
-    if native && unique_machines(&artifacts).is_empty() {
-        return Err("evidence names no native artifact machine".to_owned());
     }
     Ok(())
 }
@@ -2355,8 +2366,11 @@ fn without_license_tags(fragment: &str) -> String {
             let line = line.trim();
             !line.starts_with("dx_licenses.accept(") && !line.starts_with("dx_licenses = ")
         })
-        .map(|line| format!("{line}\n"))
-        .collect()
+        .fold(String::new(), |mut text, line| {
+            text.push_str(line);
+            text.push('\n');
+            text
+        })
 }
 
 fn run_init(manifest: &Manifest, workspace: &Path) -> Result<(), String> {
@@ -2567,7 +2581,7 @@ pub fn refetch_candidates(contexts: Vec<String>, module: &str) -> Vec<String> {
 /// The longest command line a Windows run account accepts.
 pub const COMMAND_LINE_LIMIT: usize = 1024;
 
-/// The length of `arg` once quoted for CommandLineToArgvW.
+/// The length of `arg` once quoted for `CommandLineToArgvW`.
 #[must_use]
 pub fn quoted_len(arg: &str) -> usize {
     if !arg.is_empty() && !arg.contains([' ', '\t', '\n', '"']) {
@@ -3013,6 +3027,10 @@ pub fn lock_differs(committed: &str, pinned: &str) -> bool {
     committed.replace("\r\n", "\n") != pinned.replace("\r\n", "\n")
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one linear sequence of qualification steps read top to bottom"
+)]
 fn run_all(
     manifest: Manifest,
     root: &Path,
@@ -3243,7 +3261,7 @@ fn run_all(
     if session.manifest.fetch_fails {
         let download_log = root.join("downloads.log");
         for (label, marker) in failures {
-            session.run(Probe {
+            session.run(&Probe {
                 name: failure_probe_name(&label),
                 net: Net::Denied,
                 home: &clean_home,
@@ -3264,7 +3282,7 @@ fn run_all(
         return Ok(());
     }
     if session.manifest.generate {
-        session.run_dx(DxRun {
+        session.run_dx(&DxRun {
             name: "dx_generate",
             net: Net::Allowed,
             command: "generate",
@@ -3274,7 +3292,7 @@ fn run_all(
             repos: &repos,
         })?;
     }
-    session.run(Probe {
+    session.run(&Probe {
         name: "fetch".to_owned(),
         net: Net::Allowed,
         home: &clean_home,
@@ -3291,7 +3309,7 @@ fn run_all(
             "@{}//dx:generate_check",
             session.manifest.repo_name
         ));
-        session.run(Probe {
+        session.run(&Probe {
             name: "fetch_coverage".to_owned(),
             net: Net::Allowed,
             home: &clean_home,
@@ -3328,7 +3346,7 @@ fn run_all(
             "isolated": session.bazel,
         }),
     );
-    session.run(Probe {
+    session.run(&Probe {
         name: "hermetic_test".to_owned(),
         net: Net::Denied,
         home: &clean_home,
@@ -3342,7 +3360,7 @@ fn run_all(
     // From a file: on Windows the run account's command line is capped at 1024 characters.
     let query = clean_home.join("artifacts.query");
     write(&query, &built_query(&patterns))?;
-    let listed = session.run(Probe {
+    let listed = session.run(&Probe {
         name: "artifacts".to_owned(),
         net: Net::Denied,
         home: &clean_home,
@@ -3374,7 +3392,7 @@ fn run_all(
         ("network", network_marker),
         ("home_config", home_marker),
     ] {
-        session.run(Probe {
+        session.run(&Probe {
             name: name.to_owned(),
             net: Net::Denied,
             home: &clean_home,
@@ -3386,7 +3404,7 @@ fn run_all(
             expect: Expect::Fail(marker.to_owned()),
         })?;
     }
-    session.run(Probe {
+    session.run(&Probe {
         name: "home_config_control".to_owned(),
         net: Net::Denied,
         home: &planted_home,
@@ -3397,7 +3415,7 @@ fn run_all(
         extra: Vec::new(),
         expect: Expect::Pass,
     })?;
-    session.run(Probe {
+    session.run(&Probe {
         name: "warm_cache".to_owned(),
         net: Net::Denied,
         home: &clean_home,
@@ -3412,7 +3430,7 @@ fn run_all(
         expect: Expect::Pass,
     })?;
     let refetch_log = root.join("refetch.log");
-    session.run(Probe {
+    session.run(&Probe {
         name: "no_refetch".to_owned(),
         net: Net::Denied,
         home: &clean_home,
@@ -3450,19 +3468,19 @@ fn run_all(
             extra: vec!["--output=streamed_jsonproto".to_owned()],
             expect: Expect::Pass,
         };
-        let base = session
+        let fixed_len = session
             .bazel_tail(&refetch_probe(String::new(), vec!["show_repo".to_owned()]))
             .iter()
             .map(|arg| quoted_len(arg) + 1)
             .sum();
         let mut rules = BTreeMap::new();
-        for (index, batch) in command_line_batches(base, &names, COMMAND_LINE_LIMIT)
+        for (index, batch) in command_line_batches(fixed_len, &names, COMMAND_LINE_LIMIT)
             .into_iter()
             .enumerate()
         {
             let mut targets = vec!["show_repo".to_owned()];
             targets.extend(batch);
-            let shown = session.run(refetch_probe(format!("refetch_rules_{index}"), targets))?;
+            let shown = session.run(&refetch_probe(format!("refetch_rules_{index}"), targets))?;
             rules.extend(show_repo_rules(&shown.stdout));
         }
         let externals = [external_dirs(&warm), external_dirs(&cold)].concat();
@@ -3474,7 +3492,7 @@ fn run_all(
         ));
     }
     if !coverage.is_empty() {
-        session.run(Probe {
+        session.run(&Probe {
             name: "coverage".to_owned(),
             net: Net::Denied,
             home: &clean_home,
@@ -3526,7 +3544,7 @@ fn run_all(
             ("dx_generate_check", "generate", &cold),
             ("dx_coverage", "coverage", &warm),
         ] {
-            session.run_dx(DxRun {
+            session.run_dx(&DxRun {
                 name,
                 net: Net::Denied,
                 command,
@@ -3538,7 +3556,7 @@ fn run_all(
         }
     }
     if !session.manifest.lint_findings.is_empty() {
-        let lint = session.run_dx(DxRun {
+        let lint = session.run_dx(&DxRun {
             name: "dx_lint",
             net: Net::Denied,
             command: "lint",
@@ -3554,7 +3572,7 @@ fn run_all(
         set(evidence, "lint", json!(counts));
     }
     for (label, marker) in failures {
-        session.run(Probe {
+        session.run(&Probe {
             name: failure_probe_name(&label),
             net: Net::Denied,
             home: &clean_home,
@@ -3566,7 +3584,7 @@ fn run_all(
             expect: Expect::Fail(marker),
         })?;
     }
-    session.run(Probe {
+    session.run(&Probe {
         name: "cache_miss".to_owned(),
         net: Net::Denied,
         home: &clean_home,

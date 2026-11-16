@@ -547,13 +547,14 @@ mod tests {
     use super::*;
 
     fn manifest(checks: serde_json::Value, files: serde_json::Value) -> serde_json::Value {
-        serde_json::json!({
+        let mut manifest = serde_json::json!({
             "version": 2,
             "name": "//pkg:probe",
-            "checks": checks,
-            "files": files,
             "observations": [],
-        })
+        });
+        manifest["checks"] = checks;
+        manifest["files"] = files;
+        manifest
     }
 
     fn bare() -> serde_json::Value {
@@ -569,13 +570,13 @@ mod tests {
         path
     }
 
-    fn evaluated(value: serde_json::Value) -> Report {
-        let mut report = evaluate(&value).expect("manifest evaluates");
+    fn evaluated(value: &serde_json::Value) -> Report {
+        let mut report = evaluate(value).expect("manifest evaluates");
         let scratch = dx_test_scratch::scratch("starlark-harness");
         let dir = scratch.path();
         let resolver = Resolver::for_tree(dir).expect("tree resolver");
-        evaluate_files(&value, &resolver, &mut report).expect("files evaluate");
-        evaluate_observations(&value, &mut report).expect("observations evaluate");
+        evaluate_files(value, &resolver, &mut report).expect("files evaluate");
+        evaluate_observations(value, &mut report).expect("observations evaluate");
         summarize(&mut report);
         report
     }
@@ -610,7 +611,7 @@ mod tests {
 
     #[test]
     fn equal_assertions_render_expected_and_actual() {
-        let report = evaluated(manifest(
+        let report = evaluated(&manifest(
             serde_json::json!([
                 {"kind": "equal", "name": "sum", "expected": "3", "actual": "3"},
                 {"kind": "equal", "name": "off", "expected": "3", "actual": "2"},
@@ -630,7 +631,7 @@ mod tests {
 
     #[test]
     fn boolean_assertions_render_the_wanted_value() {
-        let report = evaluated(manifest(
+        let report = evaluated(&manifest(
             serde_json::json!([
                 {"kind": "true", "name": "yes", "actual": "True", "passed": "True"},
                 {"kind": "true", "name": "no", "actual": "False", "passed": "False"},
@@ -653,7 +654,7 @@ mod tests {
 
     #[test]
     fn membership_and_substring_assertions_render_details() {
-        let report = evaluated(manifest(
+        let report = evaluated(&manifest(
             serde_json::json!([
                 {"kind": "contains", "name": "hit", "haystack": "abc", "needle": "b", "passed": "True"},
                 {"kind": "contains", "name": "miss", "haystack": "abc", "needle": "z", "passed": "False"},
@@ -676,7 +677,7 @@ mod tests {
 
     #[test]
     fn multiline_and_quoted_values_compare_exactly() {
-        let report = evaluated(manifest(
+        let report = evaluated(&manifest(
             serde_json::json!([
                 {"kind": "equal", "name": "lines", "expected": "a\nb\nc", "actual": "a\nb\nc"},
                 {"kind": "equal", "name": "quotes", "expected": "say \"hi\" `now` $HOME \\ done", "actual": "say \"hi\" `now` $HOME \\ done"},
@@ -734,7 +735,7 @@ mod tests {
     fn an_observations_only_manifest_prints_them_before_the_summary() {
         let mut value = bare();
         value["observations"] = serde_json::json!(["subject //pkg:a", "file a.txt"]);
-        let report = evaluated(value);
+        let report = evaluated(&value);
         assert_eq!(
             report.lines,
             [

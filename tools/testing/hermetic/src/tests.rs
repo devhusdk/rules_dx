@@ -2350,7 +2350,10 @@ fn fetch_fails_rejects_a_download() {
 fn accepted_licenses_reads_the_fragment_tags() {
     let fragment = "dx_licenses = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_licenses\")\ndx_licenses.accept(ids = [\"a\", \"b-c\"])\n";
     assert_eq!(accepted_licenses(fragment), ["a", "b-c"]);
-    assert!(accepted_licenses("msvc = use_extension(\"x\", \"msvc\")\n").is_empty());
+    assert_eq!(
+        accepted_licenses("msvc = use_extension(\"x\", \"msvc\")\n"),
+        Vec::<String>::new()
+    );
 }
 
 #[test]
@@ -2479,6 +2482,9 @@ fn command_line_batches_stay_within_the_limit() {
         ]
     );
     assert_eq!(command_line_batches(10, &args, 100).len(), 1);
-    assert!(command_line_batches(10, &[], 20).is_empty());
+    assert_eq!(
+        command_line_batches(10, &[], 20),
+        Vec::<Vec<String>>::new()
+    );
     assert_eq!(quoted_len("a b"), 8);
 }

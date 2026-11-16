@@ -34,10 +34,14 @@ fn union_lists(lists: &[(String, String)]) -> Result<String, String> {
             }
         }
     }
-    Ok(merged
-        .iter()
-        .map(|(url, sha)| format!("{url} {sha}\n"))
-        .collect())
+    let mut text = String::new();
+    for (url, sha) in &merged {
+        text.push_str(url);
+        text.push(' ');
+        text.push_str(sha);
+        text.push('\n');
+    }
+    Ok(text)
 }
 
 /// Returns the one lock text shared by all hosts; differing locks are an error.

@@ -2141,6 +2141,10 @@ mod tests {
         }
     }
 
+    #[expect(
+        clippy::unnecessary_wraps,
+        reason = "matches the resolver signature of Config::from_parts"
+    )]
     fn resolve(_name: &str, key: &str) -> Result<PathBuf, String> {
         Ok(PathBuf::from(key))
     }
@@ -2878,9 +2882,9 @@ mod portable_tests {
         };
         let argv = wrapper_argv(&config, Path::new("/b/0/u"), Path::new("/b/0/bazelrc"));
         let text = shim_args(&argv).expect("args");
-        let (program, args) = shim_argv(&text, &os(&["build"])).expect("argv");
+        let (program, forwarded) = shim_argv(&text, &os(&["build"])).expect("argv");
         let mut back = vec![program];
-        back.extend(args);
+        back.extend(forwarded);
         let mut want: Vec<OsString> = argv.iter().map(OsString::from).collect();
         want.push(OsString::from("build"));
         assert_eq!(back, want);

@@ -367,6 +367,7 @@ pub fn write_rules_py_patches(workspace: &Path, rules_dx: &Path) -> Result<(), S
 pub const ROOT_PATCHED_MODULES: [&str; 1] = ["protobuf"];
 
 /// The `single_version_override` of `module` in `root_module` when it applies `//patches/` files.
+#[must_use]
 pub fn root_patch_override(root_module: &str, module: &str) -> Option<String> {
     let start = format!(
         "single_version_override(\n    module_name = {},\n",
@@ -379,6 +380,7 @@ pub fn root_patch_override(root_module: &str, module: &str) -> Option<String> {
 }
 
 /// The `(package, file)` of each `"//patches/<package>:<file>"` label in `block`.
+#[must_use]
 pub fn patch_labels(block: &str) -> Vec<(String, String)> {
     block
         .split("\"//patches/")
@@ -394,6 +396,10 @@ pub fn patch_labels(block: &str) -> Vec<(String, String)> {
 /// Copies the patches of each `ROOT_PATCHED_MODULES` override of `rules_dx`'s MODULE.bazel into `workspace`.
 ///
 /// Returns those overrides.
+///
+/// # Errors
+///
+/// Returns `Err` when `MODULE.bazel` cannot be read or a patch cannot be copied.
 pub fn write_root_patch_overrides(workspace: &Path, rules_dx: &Path) -> Result<String, String> {
     let path = rules_dx.join("MODULE.bazel");
     let root_module = std::fs::read_to_string(&path)

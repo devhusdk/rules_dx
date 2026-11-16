@@ -279,12 +279,13 @@ impl Session {
     pub fn request(&mut self, method: &str, params: serde_json::Value) -> Result<i64, Error> {
         self.next_id += 1;
         let id = self.next_id;
-        self.send(&serde_json::json!({
+        let mut message = serde_json::json!({
             "jsonrpc": "2.0",
             "id": id,
             "method": method,
-            "params": params,
-        }))?;
+        });
+        message["params"] = params;
+        self.send(&message)?;
         Ok(id)
     }
 
@@ -294,11 +295,12 @@ impl Session {
     ///
     /// Returns `Err` when the operation fails.
     pub fn notify(&mut self, method: &str, params: serde_json::Value) -> Result<(), Error> {
-        self.send(&serde_json::json!({
+        let mut message = serde_json::json!({
             "jsonrpc": "2.0",
             "method": method,
-            "params": params,
-        }))
+        });
+        message["params"] = params;
+        self.send(&message)
     }
 
     fn stderr_tail(&self) -> String {

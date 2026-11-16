@@ -15,18 +15,18 @@ pub fn runtime_argv(
     module: &Path,
     args: &[String],
 ) -> Vec<String> {
-    let mut argv = vec!["run".to_owned()];
+    let mut command = vec!["run".to_owned()];
     for (name, value) in declared_env {
-        argv.push("--env".to_owned());
-        argv.push(format!("{name}={value}"));
+        command.push("--env".to_owned());
+        command.push(format!("{name}={value}"));
     }
     for (host, guest) in preopens {
-        argv.push("--dir".to_owned());
-        argv.push(format!("{}::{guest}", host.display()));
+        command.push("--dir".to_owned());
+        command.push(format!("{}::{guest}", host.display()));
     }
-    argv.push(module.display().to_string());
-    argv.extend(args.iter().cloned());
-    argv
+    command.push(module.display().to_string());
+    command.extend(args.iter().cloned());
+    command
 }
 
 fn stage_preopen(host_rel: &str) -> dx_test_scratch::TempDir {
@@ -54,7 +54,7 @@ fn command(
         .iter()
         .map(|(_, host)| stage_preopen(&host.to_string_lossy()))
         .collect();
-    let staged: Vec<(PathBuf, String)> = stages
+    let mounts: Vec<(PathBuf, String)> = stages
         .iter()
         .zip(preopens)
         .map(|(stage, (guest, _))| (stage.path().to_path_buf(), guest.clone()))
@@ -64,7 +64,7 @@ fn command(
     let module = dx_testing::resolve_runfiles(&module.to_string_lossy());
     let mut command = Command::new(runtime);
     command
-        .args(runtime_argv(env, &staged, &module, args))
+        .args(runtime_argv(env, &mounts, &module, args))
         .env_clear()
         .env("DX_WASI_MANAGED_RUNTIME", &managed)
         .env("XDG_CACHE_HOME", cache.path());

@@ -1,7 +1,7 @@
 load("@rules_dx//apple:defs.bzl", "apple_simulator_boot", "apple_simulator_install", "apple_simulator_launch")
 load("@rules_dx//flutter:defs.bzl", "flutter_ios_app")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -45,34 +45,50 @@ apple_simulator_launch(
     simulator = "iPhone 16",
 )
 
-sh_test(
-    name = "ios_simulator_smoke_test",
+rust_test(
+    name = "inspect_ios_app_test",
     size = "small",
-    srcs = ["ios/simulator_smoke.sh"],
-    args = [
-        "boot",
-        "$(rootpath :ios_boot)",
-        "install",
-        "$(rootpath :ios_install)",
-        "launch",
-        "$(rootpath :ios_launch)",
+    srcs = ["ios/inspect_app_test.rs"],
+    crate_root = "ios/inspect_app_test.rs",
+    data = [":ios_install_app"],
+    env = {
+        "DX_IOS_APP": "$(rootpath :ios_install_app)",
+        "DX_IOS_BUNDLE_ID": "dk.devhus.flutterapp",
+    },
+    tags = ["block-network"],
+    target_compatible_with = [
+        "@platforms//cpu:arm64",
+        "@platforms//os:macos",
     ],
+    deps = ["@crates//:zip"],
+)
+
+rust_test(
+    name = "ios_simulator_smoke_test",
+    size = "medium",
+    srcs = ["ios/simulator_smoke_test.rs"],
+    crate_root = "ios/simulator_smoke_test.rs",
     data = [
-        ":ios_boot",
-        ":ios_install",
         ":ios_install_app",
-        ":ios_launch",
+        "//apple:declared_simulator",
     ],
     env = {
+        "DX_IOS_SIMULATOR_FILE": "$(rootpath //apple:declared_simulator)",
         "DX_SIMCTL_APP": "$(rootpath :ios_install_app)",
         "DX_SIMCTL_BUNDLE_ID": "dk.devhus.flutterapp",
-        "DX_SIMCTL_DEVICE": "iPhone 16",
+        "DX_SIMCTL_DEVICE_TYPE": "iPhone 16",
     },
-    tags = [
-        "exclusive",
-        "local",
-        "macos-arm64",
-        "manual",
+    tags = ["resources:ios_simulator:1"],
+    target_compatible_with = select({
+        "//apple:simulator_undeclared": ["@platforms//:incompatible"],
+        "//conditions:default": [
+            "@platforms//cpu:arm64",
+            "@platforms//os:macos",
+        ],
+    }),
+    deps = [
+        "//apple/private/tools/ops",
+        "@crates//:zip",
     ],
 )
 

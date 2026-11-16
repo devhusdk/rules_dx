@@ -40,15 +40,14 @@ The evidence workflow with `android=true` boots the emulator on a `linux_x86_64`
 
 ## iOS simulator
 
-`:ios_app` wraps `flutter_ios_app` over the native app, and simulator builds need no signing. The runner files in `ios/Runner` are the ones rules_flutter ships. `:ios_boot`, `:ios_install` and `:ios_launch` use the `iPhone 16` simulator, and `:ios_simulator_smoke_test` runs the three in order. The test is manual and tagged `macos-arm64`.
+`:ios_app` wraps `flutter_ios_app` over the native app, and simulator builds need no signing. The runner files in `ios/Runner` are the ones rules_flutter ships. `:ios_boot`, `:ios_install` and `:ios_launch` use a host `iPhone 16` simulator under `bazel run`. `:inspect_ios_app_test` checks that the bundle names the bundle id and that the app, `Flutter` and `App` binaries are arm64 iOS simulator Mach-O files. `:ios_simulator_smoke_test` creates an `iPhone 16` on the declared runtime in its own simulator set, installs and launches the app, checks that it still runs five seconds later, and deletes the device. It is incompatible until the machine declares a runtime and takes one `ios_simulator` resource.
 
 `flutter_ios_app` builds the app for the arm64 simulator in debug mode on a macOS arm64 host, with no flag.
 
 ```sh
 bazel build //flutter/tests/fixtures/flutter-app:ios_app
-bazel test //flutter/tests/fixtures/flutter-app:ios_simulator_smoke_test
+bazel test //flutter/tests/fixtures/flutter-app:inspect_ios_app_test
+bazel test --@rules_dx//apple:simulator_runtime=18.5 //flutter/tests/fixtures/flutter-app:ios_simulator_smoke_test
 ```
 
-`:ios_app` builds on the `macos_arm64` runner. The smoke test picks the first available `iPhone 16` by UDID because several runtimes carry one, and sets `DX_SIMCTL_DEVICE`, `DX_SIMCTL_APP` and `DX_SIMCTL_BUNDLE_ID` itself, because a launcher's own `env` only applies under `bazel run`.
-
-Passing run 42077852347 (macos_arm64): macOS 15.8.2, Xcode 16.4 (16F6), the first available `iPhone 16` simulator (iOS 18.x runtimes and later are installed on the runner).
+`:ios_app` builds on the `macos_arm64` runner. The smoke test finds Xcode from the version `//apple:declared_simulator` records.

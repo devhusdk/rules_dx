@@ -1,5 +1,6 @@
-"""Explicit simulator boot, install, and launch launchers that never run at build time."""
+"""Simulator launchers that never run at build time, and the simulator runtime a test machine declares."""
 
+load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("//apple/private/bundle:validate.bzl", "bundle_id_errors")
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
 load("//core:rlocation.bzl", "rlocation_path")
@@ -132,3 +133,28 @@ def apple_simulator_launch(name, bundle_id, simulator = "", visibility = None):
         tags = ["manual"],
         visibility = visibility,
     )
+
+def _declared_simulator_impl(ctx):
+    runtime = ctx.attr._runtime[BuildSettingInfo].value
+    xcode = ctx.attr._xcode_config[apple_common.XcodeVersionConfig].xcode_version()
+    out = ctx.actions.declare_file(ctx.label.name + ".txt")
+    ctx.actions.write(out, "runtime={}\nxcode={}\n".format(runtime, str(xcode) if xcode else ""))
+    return [DefaultInfo(files = depset([out]), runfiles = ctx.runfiles(files = [out]))]
+
+declared_simulator = rule(
+    implementation = _declared_simulator_impl,
+    doc = "Writes the declared iOS simulator runtime and the resolved Xcode version to a file.",
+    attrs = {
+        "_runtime": attr.label(
+            default = Label("//apple:simulator_runtime"),
+            doc = "The iOS simulator runtime flag.",
+        ),
+        "_xcode_config": attr.label(
+            default = configuration_field(
+                name = "xcode_config_label",
+                fragment = "apple",
+            ),
+        ),
+    },
+    fragments = ["apple"],
+)

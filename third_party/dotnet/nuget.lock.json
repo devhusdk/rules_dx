@@ -2754,10 +2754,10 @@
       {
         "archives": [
           {
-            "sha256": "1182590db175f9057707857a1df48b217226d0732716cd353fa4aa4683d38dcb",
+            "sha256": "0c23535795e3c1f9513ecdef746688cba19e9b1bab0712c57ada5c45b7df9ca8",
             "type": "zip",
             "urls": [
-              "https://api.nuget.org/v3-flatcontainer/google.protobuf/3.36.2/google.protobuf.3.36.2.nupkg"
+              "https://api.nuget.org/v3-flatcontainer/google.protobuf/3.37.0-rc3/google.protobuf.3.37.0-rc3.nupkg"
             ]
           }
         ],
@@ -2766,13 +2766,13 @@
           "nuget_frameworks": [
             "net10.0"
           ],
-          "nuget_sha512": "sha512-EmqX4khA/D63NGBn4GYxc6wJjrCeJqx6dbk6rFBudIR987jsq5r1YGRWRrLwyy7qDu4y1/5To/pdDbWwEgekpA=="
+          "nuget_sha512": "sha512-givAGzFWj5ma0LXKF6WGz5v+Z62wYuNQ3L8fr/SB8jTCknsKbKhc9QQz7yGBEAX4MQyXIRqHE/VBOxqNV6m7kA=="
         },
         "name": "Google.Protobuf",
         "provides": [
           "Google.Protobuf"
         ],
-        "version": "3.36.2"
+        "version": "3.37.0-rc3"
       },
       {
         "archives": [
@@ -4661,8 +4661,8 @@
     ]
   },
   "inputs": {
-    "paket.dependencies": "7f7ab5827fd9485a14d98d5bfa9d39ebb9169241c8d9c70ad5cbc6d81774ccaa",
-    "paket.lock": "45e0f18aa459d9caf5cd7507ebc2613249cdf52079da898a2ade705659b2f190"
+    "paket.dependencies": "673022bbb3e0cb71f379b9f51354527c4a8fc20b51a122c727ae28dc54d7f34a",
+    "paket.lock": "e05ab13e934a1cd551e3fe8d0fb601ff92bf6dd03831669eedcffee66f6dcb7a"
   },
   "packages": [],
   "schema": 1

@@ -1,0 +1,150 @@
+diff --git a/BUILD b/BUILD
+--- a/BUILD
++++ b/BUILD
+@@ -4795,6 +4795,7 @@
+         "@com_google_protobuf//upb/json",
+         "@com_google_protobuf//upb/mem",
+         "@com_google_protobuf//upb/reflection",
++        "@com_google_protobuf//upb/reflection:reflection_cc",
+         "@com_google_protobuf//upb/text",
+     ],
+ )
+diff --git a/src/core/BUILD b/src/core/BUILD
+--- a/src/core/BUILD
++++ b/src/core/BUILD
+@@ -1037,6 +1037,7 @@
+         "//src/core:function_signature",
+         "//src/core:json",
+         "@com_google_protobuf//upb/reflection",
++        "@com_google_protobuf//upb/reflection:reflection_cc",
+     ],
+ )
+ 
+@@ -6521,6 +6522,7 @@
+         "xds_common_types",
+         "//:xds_client",
+         "@com_google_protobuf//upb/reflection",
++        "@com_google_protobuf//upb/reflection:reflection_cc",
+     ],
+ )
+ 
+@@ -6539,6 +6541,7 @@
+         "grpc_check",
+         "xds_http_filter",
+         "@com_google_protobuf//upb/reflection",
++        "@com_google_protobuf//upb/reflection:reflection_cc",
+     ],
+ )
+ 
+@@ -6577,6 +6580,7 @@
+         "xds_matcher_parse",
+         "//:xds_client",
+         "@com_google_protobuf//upb/reflection",
++        "@com_google_protobuf//upb/reflection:reflection_cc",
+     ],
+ )
+ 
+@@ -6610,6 +6614,7 @@
+         "//:grpc_base",
+         "//:xds_client",
+         "@com_google_protobuf//upb/reflection",
++        "@com_google_protobuf//upb/reflection:reflection_cc",
+     ],
+ )
+ 
+@@ -6637,6 +6642,7 @@
+         "xds_http_filter",
+         "//:xds_client",
+         "@com_google_protobuf//upb/reflection",
++        "@com_google_protobuf//upb/reflection:reflection_cc",
+     ],
+ )
+ 
+@@ -6680,6 +6686,7 @@
+         "@com_google_protobuf//upb/base",
+         "@com_google_protobuf//upb/message",
+         "@com_google_protobuf//upb/reflection",
++        "@com_google_protobuf//upb/reflection:reflection_cc",
+     ],
+ )
+ 
+@@ -6697,6 +6704,7 @@
+         "re2",
+         "@com_google_protobuf//upb/base",
+         "@com_google_protobuf//upb/reflection",
++        "@com_google_protobuf//upb/reflection:reflection_cc",
+         "@com_google_protobuf//upb/message",
+     ],
+     tags = ["nofixdeps"],
+@@ -6762,6 +6770,7 @@
+         "xds_http_filter",
+         "//:xds_client",
+         "@com_google_protobuf//upb/reflection",
++        "@com_google_protobuf//upb/reflection:reflection_cc",
+     ],
+ )
+ 
+@@ -6840,6 +6849,7 @@
+         "@com_google_protobuf//upb/base",
+         "@com_google_protobuf//upb/message",
+         "@com_google_protobuf//upb/reflection",
++        "@com_google_protobuf//upb/reflection:reflection_cc",
+         "@com_google_protobuf//upb/text",
+     ],
+ )
+@@ -6916,6 +6926,7 @@
+         "//:sockaddr_utils",
+         "//:xds_client",
+         "@com_google_protobuf//upb/reflection",
++        "@com_google_protobuf//upb/reflection:reflection_cc",
+         "@com_google_protobuf//upb/text",
+     ],
+ )
+@@ -7068,6 +7079,7 @@
+         "xds_lb_policy_registry",
+         "//:xds_client",
+         "@com_google_protobuf//upb/reflection",
++        "@com_google_protobuf//upb/reflection:reflection_cc",
+     ],
+ )
+ 
+@@ -7204,6 +7216,7 @@
+         "//:xds_client",
+         "@com_google_protobuf//upb/base",
+         "@com_google_protobuf//upb/reflection",
++        "@com_google_protobuf//upb/reflection:reflection_cc",
+         "@com_google_protobuf//upb/text",
+     ],
+ )
+@@ -7271,6 +7284,7 @@
+         "//:sockaddr_utils",
+         "//:xds_client",
+         "@com_google_protobuf//upb/reflection",
++        "@com_google_protobuf//upb/reflection:reflection_cc",
+         "@com_google_protobuf//upb/text",
+     ],
+ )
+@@ -7503,6 +7517,7 @@
+         "@com_google_protobuf//upb/json",
+         "@com_google_protobuf//upb/mem",
+         "@com_google_protobuf//upb/reflection",
++        "@com_google_protobuf//upb/reflection:reflection_cc",
+     ],
+ )
+ 
+@@ -12222,6 +12237,7 @@
+         "//:channelz_upbdefs",
+         "@com_google_protobuf//upb/mem",
+         "@com_google_protobuf//upb/reflection",
++        "@com_google_protobuf//upb/reflection:reflection_cc",
+         "@com_google_protobuf//upb/text",
+     ],
+ )
+@@ -12572,6 +12588,7 @@
+         "@com_google_protobuf//upb/json",
+         "@com_google_protobuf//upb/mem",
+         "@com_google_protobuf//upb/reflection",
++        "@com_google_protobuf//upb/reflection:reflection_cc",
+     ],
+ )
+ 

@@ -20,7 +20,7 @@ nuget.lock(
 use_repo(nuget, "nuget")
 ```
 
-For `csharp_proto_library`, add `nuget Google.Protobuf 3.36.2` to your `paket.dependencies` to get `@nuget//google.protobuf`.
+For `csharp_proto_library`, add `nuget Google.Protobuf 3.37.0-rc3` to your `paket.dependencies` to get `@nuget//google.protobuf`.
 
 Depend on a package as `@nuget//<lowercase package id>`. `dx update nuget`
 bumps the pins.

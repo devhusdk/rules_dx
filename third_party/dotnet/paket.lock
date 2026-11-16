@@ -34,7 +34,7 @@ NUGET
     fantomas (8.1.1)
     FSharp.Core (10.1.201)
     Gee.External.Capstone (2.3)
-    Google.Protobuf (3.36.2)
+    Google.Protobuf (3.37.0-rc3)
     Iced (1.22)
     Microsoft.ApplicationInsights (3.1.2)
       Azure.Monitor.OpenTelemetry.Exporter (>= 1.8)

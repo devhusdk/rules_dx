@@ -61,8 +61,10 @@ struct Tree {
 /// What the `lang.json` files say about dependency sets.
 #[derive(Default)]
 struct Languages {
-    /// Directories of languages with an ecosystem or a lockfile.
-    with_set: BTreeSet<String>,
+    /// The `extension` labels of `setup.hubs`, without the `@rules_dx` repository.
+    hub_extensions: BTreeSet<String>,
+    /// The language directories of those labels.
+    hub_dirs: BTreeSet<String>,
     /// Ecosystems named by any language.
     ecosystems: BTreeSet<String>,
     /// Ecosystems with a complete `setup.hubs` entry.
@@ -88,17 +90,14 @@ fn languages(files: &BTreeMap<String, String>) -> Languages {
     let mut out = Languages::default();
     let mut declared = Vec::new();
     for (path, text) in files {
-        let Some(dir) = path.strip_suffix("/lang.json") else {
+        if !path.ends_with("/lang.json") {
             continue;
-        };
+        }
         let lang: Value =
             serde_json::from_str(text).unwrap_or_else(|error| panic!("{path}: {error}"));
         let ecosystems = strings(lang.get("ecosystems"));
         let manifests = strings(lang.get("manifests"));
         let lockfiles = strings(lang.get("lockfiles"));
-        if !ecosystems.is_empty() || !lockfiles.is_empty() {
-            out.with_set.insert(dir.to_owned());
-        }
         let hubs = lang.get("setup").and_then(|setup| setup.get("hubs"));
         for entry in hubs.and_then(Value::as_array).into_iter().flatten() {
             let Some(ecosystem) = entry.get("ecosystem").and_then(Value::as_str) else {
@@ -106,6 +105,10 @@ fn languages(files: &BTreeMap<String, String>) -> Languages {
             };
             if ENTRY_KEYS.iter().all(|key| entry.get(key).is_some()) {
                 out.registered.insert(ecosystem.to_owned());
+            }
+            if let Some(label) = entry.get("extension").and_then(Value::as_str).and_then(local_label) {
+                out.hub_dirs.extend(extension_dir(&label).map(str::to_owned));
+                out.hub_extensions.insert(label);
             }
             for key in ["manifest", "lock", "state"] {
                 out.registry_names.extend(strings(entry.get(key)));
@@ -279,17 +282,23 @@ fn banned_tag_attrs(path: &str, source: &str) -> BTreeSet<String> {
     found
 }
 
-/// The language directory a root-module extension label is in, if any.
-fn extension_dir(label: &str) -> Option<&str> {
+/// A rules_dx label as `//<package>:<name>`, if it is one.
+fn local_label(label: &str) -> Option<String> {
     let rest = label
         .strip_prefix("@rules_dx//")
         .or_else(|| label.strip_prefix("//"))?;
-    let package = rest.split(':').next().unwrap_or(rest);
-    Some(package.split('/').next().unwrap_or(package))
+    Some(format!("//{rest}"))
 }
 
-/// `<extension>.<tag>.<attribute>` for every banned keyword on a tag of an extension under `dirs`.
-fn banned_tag_uses(path: &str, source: &str, dirs: &BTreeSet<String>) -> BTreeSet<String> {
+/// The language directory of a `//<package>:<name>` label.
+fn extension_dir(label: &str) -> Option<&str> {
+    let rest = label.strip_prefix("//")?;
+    let package = rest.split(':').next().unwrap_or(rest);
+    package.split('/').next()
+}
+
+/// `<extension>.<tag>.<attribute>` for every banned keyword on a tag of an extension loaded from one of `labels`.
+fn banned_tag_uses(path: &str, source: &str, labels: &BTreeSet<String>) -> BTreeSet<String> {
     let module = parse(path, source);
     let mut proxies = BTreeMap::new();
     for (name, value) in globals(module.statement()) {
@@ -308,7 +317,7 @@ fn banned_tag_uses(path: &str, source: &str, dirs: &BTreeSet<String>) -> BTreeSe
             })
             .collect();
         if let [label, extension, ..] = positional.as_slice()
-            && extension_dir(label).is_some_and(|dir| dirs.contains(dir))
+            && local_label(label).is_some_and(|label| labels.contains(&label))
         {
             proxies.insert(name, (*extension).to_owned());
         }
@@ -413,7 +422,7 @@ fn violations(tree: &Tree) -> BTreeSet<String> {
                 out.insert(format!("name {path} {name}"));
             }
         }
-        if langs.with_set.contains(top_dir(path)) {
+        if langs.hub_dirs.contains(top_dir(path)) {
             for attr in banned_tag_attrs(path, source) {
                 out.insert(format!("tag-attr {path} {attr}"));
             }
@@ -439,7 +448,7 @@ fn violations(tree: &Tree) -> BTreeSet<String> {
         {
             continue;
         }
-        for used in banned_tag_uses(path, source, &langs.with_set) {
+        for used in banned_tag_uses(path, source, &langs.hub_extensions) {
             out.insert(format!("tag-use {path} {used}"));
         }
     }
@@ -682,6 +691,20 @@ _repo = repository_rule(implementation = _impl, attrs = {"sha256": attr.string()
             "tag-attr php/private/composer/more.bzl version",
         ]
     );
+}
+
+#[test]
+fn a_tag_of_an_extension_outside_setup_hubs_passes() {
+    let module = r#"
+php_toolchain = use_extension("//php:toolchains.bzl", "php_toolchain")
+php_toolchain.download(version = "8.4", sha256 = "x")
+"#;
+    let tree = tree(
+        &[],
+        &[("php/lang.json", PHP_LANG), ("MODULE.bazel", module)],
+        &[],
+    );
+    assert_eq!(found(&tree), Vec::<String>::new());
 }
 
 #[test]

@@ -3155,6 +3155,8 @@ use_repo(
     "jvm_pkl_lsp",
     "jvm_pmd_dist",
     "jvm_spotbugs_dist",
+    "jvm_tree_sitter",
+    "jvm_tree_sitter_pkl",
 )
 
 yard = use_extension("//tools/docs/ruby:extensions.bzl", "yard", dev_dependency = True)

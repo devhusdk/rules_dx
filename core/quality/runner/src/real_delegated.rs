@@ -738,8 +738,14 @@ fn pkl_lsp_behavior(
     assert_eq!(text[dashes + 1], "/fake/jdk/bin/java");
     assert!(text[dashes + 2].starts_with("-Duser.home="));
     assert!(text[dashes + 2].contains(".dx-pkl-lsp"));
-    assert_eq!(text[dashes + 3], "-jar");
-    assert_eq!(text[dashes + 4], "/fake/pkl-lsp.jar");
+    assert_eq!(text[dashes + 3], "--enable-native-access=ALL-UNNAMED");
+    assert_eq!(text[dashes + 4], "-cp");
+    let separator = if cfg!(windows) { ";" } else { ":" };
+    assert_eq!(
+        text[dashes + 5],
+        format!("/fake/pkl-lsp.jar{separator}/fake/natives.jar")
+    );
+    assert_eq!(text[dashes + 6], "org.pkl.lsp.cli.Main");
     let file = last_file(argv);
     let source = std::fs::read_to_string(&file).expect("read staged file");
     let (code, stdout) = if source.contains("crash") {
@@ -761,10 +767,14 @@ fn pkl_lsp_behavior(
 }
 
 #[test]
-pub(super) fn pkl_lsp_maps_findings_and_needs_both_companions() {
+pub(super) fn pkl_lsp_maps_findings_and_needs_every_companion() {
     let companions = vec![
         ("java".to_owned(), PathBuf::from("/fake/jdk/bin/java")),
         ("pkl-lsp.jar".to_owned(), PathBuf::from("/fake/pkl-lsp.jar")),
+        (
+            "pkl-lsp-natives.jar".to_owned(),
+            PathBuf::from("/fake/natives.jar"),
+        ),
     ];
     let tool = RealTool {
         path_tools: companions.clone(),

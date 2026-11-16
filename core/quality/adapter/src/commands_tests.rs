@@ -1561,6 +1561,7 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags_part6() {
             Path::new(BIN),
             Path::new("/jdk/bin/java"),
             Path::new("/pins/pkl-lsp.jar"),
+            Path::new("/pins/natives.jar"),
             Path::new("/scratch/home"),
             &[Path::new("/scratch/a.pkl")]
         )),
@@ -1571,8 +1572,10 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags_part6() {
             "--",
             "/jdk/bin/java",
             "-Duser.home=/scratch/home",
-            "-jar",
-            "/pins/pkl-lsp.jar",
+            "--enable-native-access=ALL-UNNAMED",
+            "-cp",
+            "/pins/pkl-lsp.jar:/pins/natives.jar",
+            "org.pkl.lsp.cli.Main",
             "--",
             "/scratch/a.pkl"
         ]

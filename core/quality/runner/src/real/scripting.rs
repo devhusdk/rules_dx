@@ -278,10 +278,11 @@ fn pkl_lsp(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFindin
     let java = companion("java")?;
     let java = real_launcher(&java);
     let jar = companion("pkl-lsp.jar")?;
+    let natives = companion("pkl-lsp-natives.jar")?;
     let home = scratch.root().join(PKL_LSP_HOME_REL);
     std::fs::create_dir_all(&home)
         .map_err(|err| execution(tool_id, format!("stage pkl-lsp home: {err}")))?;
-    let invocation = commands::pkl_lsp_check(&tool.binary, &java, &jar, &home, &refs);
+    let invocation = commands::pkl_lsp_check(&tool.binary, &java, &jar, &natives, &home, &refs);
     // The companions are named by absolute path, so the child needs no PATH shims.
     let bare = RealTool {
         binary: tool.binary.clone(),

@@ -237,7 +237,7 @@ def _pkl_lsp_hook(target, ctx, resolved, capability, what, shared):
     bundle = ctx.attr._pkl_lsp[PklLspToolInfo]
     return real_context(
         resolve_pairs = context.resolve_pairs,
-        options = {"path_tools": [("java", bundle.java), ("pkl-lsp.jar", bundle.jar)]},
+        options = {"path_tools": [("java", bundle.java), ("pkl-lsp.jar", bundle.jar), ("pkl-lsp-natives.jar", bundle.natives)]},
     )
 
 HOOK_ORDER = ["spotbugs", "scalafix", "javac", "kotlinc", "scalac", "pkl_lsp"]

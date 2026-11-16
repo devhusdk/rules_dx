@@ -1,4 +1,4 @@
-//! Usage: tiers MANIFEST STANDARD_OUT STRICT_OUT. Tier paths in the manifest resolve against the working directory.
+//! Usage: tiers MANIFEST `STANDARD_OUT` `STRICT_OUT`. Tier paths in the manifest resolve against the working directory.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 

@@ -76,16 +76,28 @@ fn rejects_bad_input() {
     assert!(convert("{", "geo").unwrap_err().contains("malformed"));
     let wrong = json!({"format": 2, "julia": "1", "documenter": "1", "objects": []}).to_string();
     assert!(convert(&wrong, "geo").unwrap_err().contains("format 2"));
-    assert!(convert(&document(vec![]), "geo").unwrap_err().contains("no public"));
-    assert!(convert(&document(base()), "a b").unwrap_err().contains("invalid package"));
+    assert!(
+        convert(&document(vec![]), "geo")
+            .unwrap_err()
+            .contains("no public")
+    );
+    assert!(
+        convert(&document(base()), "a b")
+            .unwrap_err()
+            .contains("invalid package")
+    );
     let mut objects = base();
     objects[0]["kind"] = json!("weird");
-    assert!(convert(&document(objects), "geo").unwrap_err().contains("unknown kind"));
+    assert!(
+        convert(&document(objects), "geo")
+            .unwrap_err()
+            .contains("unknown kind")
+    );
 }
 
 #[test]
 fn parse_reads_every_flag() {
-    let args = |list: &[&str]| list.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+    let args = |list: &[&str]| list.iter().map(ToString::to_string).collect::<Vec<_>>();
     let ok = parse(&args(&["--json", "a", "--package", "p", "--out", "o"])).unwrap();
     assert_eq!(ok.package, "p");
 }

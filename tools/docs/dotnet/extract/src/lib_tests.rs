@@ -276,8 +276,8 @@ fn run_writes_nothing_on_error() {
     let api_path = dir.join("api.json");
     let srcs = dir.join("srcs.tsv");
     let out = dir.join("out.bin");
-    std::fs::write(&api_path, "{").unwrap();
-    std::fs::write(&srcs, "lib/A.cs\tlib/A.cs\t0\n").unwrap();
+    fs::write(&api_path, "{").unwrap();
+    fs::write(&srcs, "lib/A.cs\tlib/A.cs\t0\n").unwrap();
     let options = Options {
         api: api_path.display().to_string(),
         language: "csharp".to_owned(),
@@ -288,7 +288,7 @@ fn run_writes_nothing_on_error() {
     };
     assert!(run(&options).is_err());
     assert!(!out.exists());
-    std::fs::write(&api_path, api(&[item("T:A.X", "class", "X", None)])).unwrap();
+    fs::write(&api_path, api(&[item("T:A.X", "class", "X", None)])).unwrap();
     run(&options).unwrap();
-    assert!(documentation_ir::decode_shard(&std::fs::read(&out).unwrap()).is_ok());
+    assert!(documentation_ir::decode_shard(&fs::read(&out).unwrap()).is_ok());
 }

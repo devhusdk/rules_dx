@@ -43,7 +43,7 @@ fn ids_are_sorted_and_private_names_are_absent() {
     let shard = google();
     let all = ids(&shard);
     let mut sorted = all.clone();
-    sorted.sort();
+    sorted.sort_unstable();
     assert_eq!(all, sorted);
     assert_eq!(
         all,
@@ -157,7 +157,10 @@ fn reexports_of_private_definitions_use_the_first_public_path() {
         area.relations.as_ref().unwrap().member_of,
         vec![format!("{P}__init__")]
     );
-    assert!(area.relations.as_ref().unwrap().reexported_as.is_empty());
+    assert_eq!(
+        area.relations.as_ref().unwrap().reexported_as,
+        [] as [String; 0]
+    );
     assert_eq!(symbol(&shard, "Helper").display_name, "mylib.Helper");
     assert_eq!(symbol(&shard, "__init__").display_name, "mylib");
     assert!(shard.symbols.iter().all(|s| !s.id.contains("_impl")));
@@ -288,7 +291,10 @@ fn parse_reads_every_flag() {
 fn bare_star_is_kept_before_leading_keyword_only_parameters() {
     let keyword = json!({"name": "a", "kind": "keyword-only"});
     let this = json!({"name": "self", "kind": "positional or keyword"});
-    assert_eq!(render_parameters(std::slice::from_ref(&keyword), false), "*, a");
+    assert_eq!(
+        render_parameters(std::slice::from_ref(&keyword), false),
+        "*, a"
+    );
     assert_eq!(render_parameters(&[this, keyword.clone()], true), "*, a");
     let star = json!({"name": "args", "kind": "variadic positional"});
     assert_eq!(render_parameters(&[star, keyword], false), "*args, a");

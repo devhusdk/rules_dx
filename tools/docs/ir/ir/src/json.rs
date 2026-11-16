@@ -1,11 +1,17 @@
 use serde_json::{Map, Value};
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn field<'a>(object: &'a Map<String, Value>, key: &str, at: &str) -> Result<&'a Value, String> {
     object
         .get(key)
         .ok_or_else(|| format!("{at} has no '{key}'"))
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn string(object: &Map<String, Value>, key: &str, at: &str) -> Result<String, String> {
     field(object, key, at)?
         .as_str()
@@ -13,18 +19,27 @@ pub fn string(object: &Map<String, Value>, key: &str, at: &str) -> Result<String
         .ok_or_else(|| format!("{at} '{key}' is not a string"))
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn number(object: &Map<String, Value>, key: &str, at: &str) -> Result<u64, String> {
     field(object, key, at)?
         .as_u64()
         .ok_or_else(|| format!("{at} '{key}' is not a number"))
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn boolean(object: &Map<String, Value>, key: &str, at: &str) -> Result<bool, String> {
     field(object, key, at)?
         .as_bool()
         .ok_or_else(|| format!("{at} '{key}' is not a boolean"))
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn strings(object: &Map<String, Value>, key: &str, at: &str) -> Result<Vec<String>, String> {
     field(object, key, at)?
         .as_array()

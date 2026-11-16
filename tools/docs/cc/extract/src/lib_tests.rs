@@ -105,7 +105,8 @@ const NAMESPACE_XML: &str = r#"<doxygen version="1.18.0">
   </compounddef>
 </doxygen>"#;
 
-const MANIFEST: &str = "bazel-out/bin/include/shapes.h\tinclude/shapes.h\t1\ninclude/shapes.h\tinclude/shapes.h\t0\n";
+const MANIFEST: &str =
+    "bazel-out/bin/include/shapes.h\tinclude/shapes.h\t1\ninclude/shapes.h\tinclude/shapes.h\t0\n";
 
 fn shard() -> DocIr {
     convert(
@@ -122,7 +123,12 @@ fn symbol<'a>(shard: &'a DocIr, id: &str) -> &'a Symbol {
         .symbols
         .iter()
         .find(|s| s.id == id)
-        .unwrap_or_else(|| panic!("no {id} in {:?}", shard.symbols.iter().map(|s| &s.id).collect::<Vec<_>>()))
+        .unwrap_or_else(|| {
+            panic!(
+                "no {id} in {:?}",
+                shard.symbols.iter().map(|s| &s.id).collect::<Vec<_>>()
+            )
+        })
 }
 
 #[test]
@@ -163,7 +169,10 @@ fn reads_function_params_returns_and_gaps() {
     assert_eq!(area.params[0].name, "radius");
     assert_eq!(area.params[0].r#type, "double");
     assert_eq!(area.params[0].doc, "The radius.");
-    assert_eq!(area.returns.as_ref().map(|r| r.doc.as_str()), Some("The area."));
+    assert_eq!(
+        area.returns.as_ref().map(|r| r.doc.as_str()),
+        Some("The area.")
+    );
     let add = symbol(&shard, "cc:shapes:add");
     let incomplete = add
         .extensions
@@ -209,7 +218,10 @@ fn nests_classes_and_methods_in_namespaces() {
 #[test]
 fn keeps_source_locations_workspace_relative() {
     let shard = shard();
-    let source = symbol(&shard, "cc:shapes:add").source.clone().expect("source");
+    let source = symbol(&shard, "cc:shapes:add")
+        .source
+        .clone()
+        .expect("source");
     assert_eq!(source.file, "include/shapes.h");
     assert_eq!(source.line, 33);
 }
@@ -218,7 +230,12 @@ fn keeps_source_locations_workspace_relative() {
 fn numbers_ids_that_collide() {
     let twice = FILE_XML.replace("<name>add</name>", "<name>circle_area</name>");
     let shard = convert(&[&twice], MANIFEST, "shapes", "cc").expect("converts");
-    assert!(shard.symbols.iter().any(|s| s.id == "cc:shapes:circle_area@2"));
+    assert!(
+        shard
+            .symbols
+            .iter()
+            .any(|s| s.id == "cc:shapes:circle_area@2")
+    );
 }
 
 #[test]
@@ -234,7 +251,16 @@ fn rejects_empty_and_bad_input() {
 #[test]
 fn parses_arguments() {
     let args: Vec<String> = [
-        "--xml", "x", "--srcs", "s", "--package", "p", "--language", "cuda", "--out", "o",
+        "--xml",
+        "x",
+        "--srcs",
+        "s",
+        "--package",
+        "p",
+        "--language",
+        "cuda",
+        "--out",
+        "o",
     ]
     .iter()
     .map(|a| (*a).to_owned())

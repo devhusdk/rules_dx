@@ -135,7 +135,7 @@ fn every_kind_maps_with_its_display_name() {
     );
     let sorted: Vec<&str> = {
         let mut sorted = ids(&shard);
-        sorted.sort();
+        sorted.sort_unstable();
         sorted
     };
     assert_eq!(ids(&shard), sorted);
@@ -180,7 +180,7 @@ fn attribute_pairs_become_one_property() {
     let secret = symbol(&shard, "Geo.Circle.secret~3D");
     assert_eq!(secret.signature_text, "attr_writer :secret");
     assert_eq!(secret.display_name, "Geo::Circle#secret=");
-    assert!(secret.params.is_empty());
+    assert_eq!(secret.params, [] as [Param; 0]);
     assert_eq!(extension(secret, KEY_INCOMPLETE), None);
 }
 
@@ -419,7 +419,7 @@ fn run_writes_no_shard_on_failure() {
 
 #[test]
 fn arguments_parse() {
-    let args = |list: &[&str]| list.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+    let args = |list: &[&str]| list.iter().map(ToString::to_string).collect::<Vec<_>>();
     assert_eq!(
         parse(&args(&["--json", "a", "--package", "p", "--out", "b"])).unwrap(),
         Options {

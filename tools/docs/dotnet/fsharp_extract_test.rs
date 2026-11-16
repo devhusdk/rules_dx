@@ -118,7 +118,7 @@ fn undocumented_members_are_marked_incomplete() {
 fn the_defines_select_the_members() {
     let base = shard("DX_FIXTURE_FSHARP_SHARD");
     let extra = shard("DX_FIXTURE_FSHARP_EXTRA_SHARD");
-    assert!(symbols(&base, "Amounts.extra").is_empty());
+    assert_eq!(symbols(&base, "Amounts.extra"), [] as [&Symbol; 0]);
     let found = symbol(&extra, "Amounts.extra");
     assert!(
         extension(found, "fsharp.config")

@@ -13,7 +13,13 @@ fn options() -> Options {
 fn shard_of(schemas: &[&str]) -> DocIr {
     let inputs: Vec<(String, String, String)> = schemas
         .iter()
-        .map(|text| ((*text).to_owned(), "shop.avsc".to_owned(), "shop.avsc".to_owned()))
+        .map(|text| {
+            (
+                (*text).to_owned(),
+                "shop.avsc".to_owned(),
+                "shop.avsc".to_owned(),
+            )
+        })
         .collect();
     convert(&inputs, &options()).expect("converts")
 }
@@ -73,7 +79,10 @@ fn every_kind_maps_to_its_symbol_kind_with_its_doc() {
 #[test]
 fn signatures_show_types_defaults_and_sizes() {
     let shard = shard_of(&[ORDER]);
-    assert_eq!(symbol(&shard, "shop.v1.Order").signature_text, "record Order");
+    assert_eq!(
+        symbol(&shard, "shop.v1.Order").signature_text,
+        "record Order"
+    );
     assert_eq!(
         symbol(&shard, "shop.v1.Order.tags").signature_text,
         "array<string> tags"
@@ -103,7 +112,7 @@ fn a_missing_doc_gives_an_empty_doc_marked_incomplete() {
     assert_eq!(tags.doc_markdown, "");
     assert!(tags.extensions.iter().any(|e| e.key == KEY_INCOMPLETE));
     let documented = symbol(&shard, "shop.v1.Order.id");
-    assert!(documented.extensions.is_empty());
+    assert_eq!(documented.extensions, [] as [Extension; 0]);
 }
 
 #[test]
@@ -130,7 +139,10 @@ fn a_protocol_message_is_a_method_of_its_protocol() {
         "getOrder(string id) returns string throws NoSuchOrder"
     );
     assert_eq!(method.params.len(), 1);
-    assert_eq!(symbol(&shard, "shop.v1.NoSuchOrder").kind, SymbolKind::Class as i32);
+    assert_eq!(
+        symbol(&shard, "shop.v1.NoSuchOrder").kind,
+        SymbolKind::Class as i32
+    );
 }
 
 #[test]
@@ -166,8 +178,20 @@ fn the_documented_copy_of_a_repeated_type_wins() {
 #[test]
 fn lines_point_at_the_name_in_the_source() {
     let shard = shard_of(&[ORDER]);
-    assert_eq!(symbol(&shard, "shop.v1.Order").source.as_ref().map(|s| s.line), Some(3));
-    assert_eq!(symbol(&shard, "shop.v1.Order.id").source.as_ref().map(|s| s.line), Some(7));
+    assert_eq!(
+        symbol(&shard, "shop.v1.Order")
+            .source
+            .as_ref()
+            .map(|s| s.line),
+        Some(3)
+    );
+    assert_eq!(
+        symbol(&shard, "shop.v1.Order.id")
+            .source
+            .as_ref()
+            .map(|s| s.line),
+        Some(7)
+    );
 }
 
 #[test]
@@ -175,7 +199,11 @@ fn bad_input_is_rejected_with_a_reason() {
     let inputs = vec![("{".to_owned(), "x.avsc".to_owned(), "x.avsc".to_owned())];
     let error = convert(&inputs, &options()).expect_err("malformed JSON");
     assert!(error.contains("not valid JSON"), "{error}");
-    let inputs = vec![("\"string\"".to_owned(), "x.avsc".to_owned(), "x.avsc".to_owned())];
+    let inputs = vec![(
+        "\"string\"".to_owned(),
+        "x.avsc".to_owned(),
+        "x.avsc".to_owned(),
+    )];
     let error = convert(&inputs, &options()).expect_err("no named type");
     assert!(error.contains("no named Avro type"), "{error}");
     let mut bad = options();
@@ -188,11 +216,22 @@ fn bad_input_is_rejected_with_a_reason() {
 fn parse_reads_flags_and_rejects_bad_ones() {
     let args = |list: &[&str]| list.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
     let parsed = parse(&args(&[
-        "--package", "shop", "--out", "o", "--schema", "a.avsc=src/a.avsc", "--schema-dir",
-        "tree=src/b.avdl", "--generated", "src/b.avdl",
+        "--package",
+        "shop",
+        "--out",
+        "o",
+        "--schema",
+        "a.avsc=src/a.avsc",
+        "--schema-dir",
+        "tree=src/b.avdl",
+        "--generated",
+        "src/b.avdl",
     ]))
     .expect("parses");
-    assert_eq!(parsed.schemas, vec![("a.avsc".to_owned(), "src/a.avsc".to_owned())]);
+    assert_eq!(
+        parsed.schemas,
+        vec![("a.avsc".to_owned(), "src/a.avsc".to_owned())]
+    );
     assert_eq!(parsed.schema_dirs.len(), 1);
     assert_eq!(parsed.generated, vec!["src/b.avdl".to_owned()]);
     assert!(parse(&args(&["--package", "p", "--out", "o"])).is_err());

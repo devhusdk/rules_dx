@@ -114,32 +114,54 @@ fn constants_follow_the_parameter_attribute() {
         json!("real, parameter :: pi = 3.14"),
     );
     let shard = convert(
-        &document(vec![obj("module", "geo", ""), constant, obj("variable", "geo.n", "geo")]),
+        &document(vec![
+            obj("module", "geo", ""),
+            constant,
+            obj("variable", "geo.n", "geo"),
+        ]),
         "geo",
     )
     .unwrap();
-    assert_eq!(find(&shard, "fortran:geo:geo.pi").kind, SymbolKind::Constant as i32);
-    assert_eq!(find(&shard, "fortran:geo:geo.n").kind, SymbolKind::Variable as i32);
+    assert_eq!(
+        find(&shard, "fortran:geo:geo.pi").kind,
+        SymbolKind::Constant as i32
+    );
+    assert_eq!(
+        find(&shard, "fortran:geo:geo.n").kind,
+        SymbolKind::Variable as i32
+    );
 }
 
 #[test]
 fn rejects_bad_input() {
     assert!(convert("{", "geo").unwrap_err().contains("malformed"));
-    assert!(convert(&document(vec![]), "geo").unwrap_err().contains("no public"));
+    assert!(
+        convert(&document(vec![]), "geo")
+            .unwrap_err()
+            .contains("no public")
+    );
     assert!(convert(&document(vec![obj("module", "geo", "")]), "a b").is_err());
     let twice = document(vec![obj("module", "geo", ""), obj("module", "geo", "")]);
     assert!(convert(&twice, "geo").unwrap_err().contains("repeats"));
     let unknown = document(vec![obj("block", "geo", "")]);
-    assert!(convert(&unknown, "geo").unwrap_err().contains("unknown kind"));
+    assert!(
+        convert(&unknown, "geo")
+            .unwrap_err()
+            .contains("unknown kind")
+    );
     let format = json!({"format": 2, "ford": "x", "objects": []}).to_string();
-    assert!(convert(&format, "geo").unwrap_err().contains("not supported"));
+    assert!(
+        convert(&format, "geo")
+            .unwrap_err()
+            .contains("not supported")
+    );
 }
 
 #[test]
 fn parses_arguments() {
     let args: Vec<String> = ["--json", "a", "--package", "p", "--out", "o"]
         .iter()
-        .map(|s| s.to_string())
+        .map(ToString::to_string)
         .collect();
     assert_eq!(parse(&args).unwrap().package, "p");
 }

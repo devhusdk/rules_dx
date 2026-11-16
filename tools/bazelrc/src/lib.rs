@@ -1,6 +1,7 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::BTreeSet;
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 pub const PRESET_BAZEL_VERSION: &str = env!("DX_PRESET_BAZEL_VERSION");
@@ -298,6 +299,7 @@ impl Layer {
     pub const ALL: [Layer; 3] = [Layer::Correctness, Layer::Performance, Layer::Resources];
 
     /// The layer name, as used in its file name.
+    #[must_use]
     pub fn name(self) -> &'static str {
         match self {
             Layer::Correctness => "correctness",
@@ -307,6 +309,7 @@ impl Layer {
     }
 
     /// The layer's file name, for example `correctness.bazelrc`.
+    #[must_use]
     pub fn file_name(self) -> &'static str {
         match self {
             Layer::Correctness => "correctness.bazelrc",
@@ -346,16 +349,17 @@ impl Layer {
     }
 }
 
-/// The name rules_dx has in its own workspace.
+/// The name `rules_dx` has in its own workspace.
 pub const DEFAULT_REPO: &str = "rules_dx";
 
-/// Renders one layer file for a workspace that names rules_dx `repo`.
+/// Renders one layer file for a workspace that names `rules_dx` `repo`.
 /// Labels follow `repo`; the bytes are otherwise the same everywhere.
+#[must_use]
 pub fn render_layer(layer: Layer, repo: &str) -> String {
     render_layer_with(layer, repo, None)
 }
 
-/// The flag that sets `warnings_as_errors` for a workspace that names rules_dx `repo`.
+/// The flag that sets `warnings_as_errors` for a workspace that names `rules_dx` `repo`.
 fn warnings_flag(repo: &str, on: bool) -> String {
     format!("common --@{repo}//config:warnings_as_errors={on}")
 }
@@ -370,6 +374,7 @@ fn config_tier_flag(repo: &str, strict: bool) -> String {
 const WARNINGS_COMMENT: &str = "Compiler warnings fail the build under the strict profile.";
 
 /// Like [`render_layer`]; the correctness layer also pins `warnings_as_errors` when it is `Some`.
+#[must_use]
 pub fn render_layer_with(layer: Layer, repo: &str, warnings_as_errors: Option<bool>) -> String {
     let mut out = format!(
         "{HEADER_MARKER}, do not edit.\n\
@@ -387,16 +392,19 @@ pub fn render_layer_with(layer: Layer, repo: &str, warnings_as_errors: Option<bo
         out.push('\n');
     }
     if let (Layer::Correctness, Some(on)) = (layer, warnings_as_errors) {
-        out.push_str(&format!(
-            "\n# {WARNINGS_COMMENT}\n{}\n{}\n",
+        writeln!(
+            out,
+            "\n# {WARNINGS_COMMENT}\n{}\n{}",
             warnings_flag(repo, on),
             config_tier_flag(repo, on)
-        ));
+        )
+        .unwrap_or_default();
     }
     out
 }
 
 /// The `warnings_as_errors` value a rendered correctness layer pins, if any.
+#[must_use]
 pub fn layer_warnings_as_errors(text: &str) -> Option<bool> {
     normalized(text).lines().find_map(|line| {
         let (flag, value) = line.split_once("config:warnings_as_errors=")?;
@@ -406,6 +414,7 @@ pub fn layer_warnings_as_errors(text: &str) -> Option<bool> {
 }
 
 /// Renders every layer in import order, for collision checks over the whole preset.
+#[must_use]
 pub fn render_all(repo: &str) -> String {
     Layer::ALL
         .iter()
@@ -414,6 +423,7 @@ pub fn render_all(repo: &str) -> String {
 }
 
 /// The root `.bazelrc` line that imports `layer` from `dir`.
+#[must_use]
 pub fn import_line(dir: &str, layer: Layer) -> String {
     format!("try-import %workspace%/{dir}/{}", layer.file_name())
 }
@@ -432,6 +442,7 @@ fn normalized(text: &str) -> String {
 }
 
 /// Whether `text` is a dx-generated layer file (starts with the header, ignoring a BOM).
+#[must_use]
 pub fn is_generated(text: &str) -> bool {
     text.strip_prefix('\u{feff}')
         .unwrap_or(text)
@@ -440,6 +451,7 @@ pub fn is_generated(text: &str) -> bool {
 
 /// Whether `text` is what dx renders for `layer`, ignoring a BOM and CRLF line endings.
 /// A correctness layer that pins `warnings_as_errors` either way counts as current.
+#[must_use]
 pub fn layer_is_current(text: &str, layer: Layer, repo: &str) -> bool {
     [None, Some(false), Some(true)]
         .into_iter()
@@ -447,6 +459,7 @@ pub fn layer_is_current(text: &str, layer: Layer, repo: &str) -> bool {
 }
 
 /// Whether `text` is what dx renders for `layer` with the given `warnings_as_errors` pin.
+#[must_use]
 pub fn layer_is_current_with(
     text: &str,
     layer: Layer,
@@ -459,6 +472,7 @@ pub fn layer_is_current_with(
 /// Puts the import block for `layers` from `dir` at the top of `text`, after any BOM.
 ///
 /// Uses the line ending of `text`; the rest of `text` stays byte-identical.
+#[must_use]
 pub fn prepend_imports(text: &str, dir: &str, layers: &[Layer]) -> String {
     let (bom, rest) = match text.strip_prefix('\u{feff}') {
         Some(rest) => ("\u{feff}", rest),
@@ -513,6 +527,7 @@ fn joined_lines(text: &str) -> String {
 }
 
 /// The workspace-relative file one rc line imports through `%workspace%`, if it is such an import.
+#[must_use]
 pub fn workspace_import(line: &str) -> Option<String> {
     let rest = line
         .strip_prefix("import")
@@ -527,6 +542,7 @@ pub fn workspace_import(line: &str) -> Option<String> {
 }
 
 /// Lists the workspace-relative files a root `.bazelrc` imports through `%workspace%`.
+#[must_use]
 pub fn bazelrc_imports(text: &str) -> Vec<String> {
     joined_lines(text)
         .lines()
@@ -535,6 +551,7 @@ pub fn bazelrc_imports(text: &str) -> Vec<String> {
 }
 
 /// Reports, for every layer, whether `text` imports it from `dir`, comments the import out, or omits it.
+#[must_use]
 pub fn layer_import_state(text: &str, dir: &str) -> [(Layer, ImportState); 3] {
     let joined = joined_lines(text);
     let mut active = BTreeSet::new();
@@ -565,6 +582,7 @@ pub fn layer_import_state(text: &str, dir: &str) -> [(Layer, ImportState); 3] {
     })
 }
 
+#[must_use]
 pub fn rendered_flag_lines(rendered: &str) -> BTreeSet<String> {
     rendered
         .lines()
@@ -582,6 +600,7 @@ pub fn rendered_flag_lines(rendered: &str) -> BTreeSet<String> {
 /// which the quickstart asks users to set before `dx init` runs, the JDK lines, which older
 /// READMEs told JVM users to copy into their root, and the `ci` config lines, which the remote
 /// cache guide had users copy.
+#[must_use]
 pub fn collision_lines(rendered: &str) -> BTreeSet<String> {
     let mut lines = rendered_flag_lines(rendered);
     let exempt = [
@@ -598,6 +617,7 @@ pub fn collision_lines(rendered: &str) -> BTreeSet<String> {
 }
 
 /// Lists root .bazelrc lines that exactly repeat a generated preset line.
+#[must_use]
 pub fn owned_collisions_in_content(root_content: &str, rendered: &str) -> Vec<String> {
     let owned = collision_lines(rendered);
     let joined = root_content.replace("\\\r\n", "").replace("\\\n", "");
@@ -620,6 +640,7 @@ pub fn owned_collisions_in_content(root_content: &str, rendered: &str) -> Vec<St
 }
 
 /// The path of every layer file under `dir` in `workspace`, in import order.
+#[must_use]
 pub fn preset_paths(workspace: &Path, dir: &str) -> Vec<(Layer, PathBuf)> {
     Layer::ALL
         .iter()
@@ -660,9 +681,7 @@ mod tests {
             )));
             assert_eq!(layer_warnings_as_errors(&text), Some(on));
             let profile = if on { "strict" } else { "standard" };
-            assert!(text.contains(&format!(
-                "common --@my_dx//config:config_tier={profile}\n"
-            )));
+            assert!(text.contains(&format!("common --@my_dx//config:config_tier={profile}\n")));
             assert!(layer_is_current_with(
                 &text,
                 Layer::Correctness,
@@ -1000,30 +1019,45 @@ mod tests {
         let collisions = owned_collisions_in_content(root, &rendered);
         assert_eq!(collisions, vec!["build --verbose_failures".to_owned()]);
         let clean = "import %workspace%/.dx/bazelrc/correctness.bazelrc\nbuild --@rules_rust//rust/settings:extra_rustc_flags=--deny=warnings\n";
-        assert!(owned_collisions_in_content(clean, &rendered).is_empty());
+        assert_eq!(
+            owned_collisions_in_content(clean, &rendered),
+            [] as [String; 0]
+        );
         let blank = "# only\n\n";
-        assert!(owned_collisions_in_content(blank, &rendered).is_empty());
+        assert_eq!(
+            owned_collisions_in_content(blank, &rendered),
+            [] as [String; 0]
+        );
     }
 
     #[test]
     fn telemetry_opt_out_is_not_a_collision() {
         let rendered = render_all(DEFAULT_REPO);
         let root = "common --repo_env=DO_NOT_TRACK=1\n";
-        assert!(owned_collisions_in_content(root, &rendered).is_empty());
+        assert_eq!(
+            owned_collisions_in_content(root, &rendered),
+            [] as [String; 0]
+        );
     }
 
     #[test]
     fn jdk_lines_are_not_a_collision() {
         let rendered = render_all(DEFAULT_REPO);
         let root = "build --java_runtime_version=remotejdk_21\nbuild --tool_java_runtime_version=remotejdk_21\nbuild --tool_java_language_version=17\n";
-        assert!(owned_collisions_in_content(root, &rendered).is_empty());
+        assert_eq!(
+            owned_collisions_in_content(root, &rendered),
+            [] as [String; 0]
+        );
     }
 
     #[test]
     fn ci_config_lines_are_not_a_collision() {
         let rendered = render_all(DEFAULT_REPO);
         let root = "common:ci --remote_cache=grpcs://remote.buildbuddy.io\ncommon:ci --remote_cache_compression\ncommon:ci --remote_timeout=10m\ncommon:ci --remote_local_fallback\ncommon:ci --remote_retries=5\ncommon:ci-pr --noremote_upload_local_results\n";
-        assert!(owned_collisions_in_content(root, &rendered).is_empty());
+        assert_eq!(
+            owned_collisions_in_content(root, &rendered),
+            [] as [String; 0]
+        );
     }
 
     #[test]

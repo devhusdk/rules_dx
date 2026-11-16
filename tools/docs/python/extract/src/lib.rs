@@ -1,8 +1,9 @@
-//! Converts the griffe driver's JSON into one validated DocIr shard.
+//! Converts the griffe driver's JSON into one validated `DocIr` shard.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write as _;
 use std::fs;
 
 use documentation_ir::proto::{
@@ -27,11 +28,16 @@ pub struct Options {
 }
 
 /// The usage line shown for a rejected invocation.
+#[must_use]
 pub fn usage() -> &'static str {
     "usage: python_extract --json FILE --package NAME --root DIR --srcs FILE --out FILE"
 }
 
 /// Parses argv into inputs, or returns the rejection text.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Options, String> {
     let mut flags =
         documentation_ir::tool::flags(args, &["--json", "--package", "--root", "--srcs", "--out"])?;
@@ -45,6 +51,10 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
 }
 
 /// Reads, converts, validates and writes one shard, returning the failure text on error.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), String> {
     let json = fs::read_to_string(&options.json)
         .map_err(|error| format!("cannot read {}: {error}", options.json))?;
@@ -68,6 +78,10 @@ fn staged_path(root: &str, file: &str) -> String {
 }
 
 /// Parses a srcs manifest into staged path -> (repo-relative path, generated).
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse_sources(manifest: &str) -> Result<BTreeMap<String, (String, bool)>, String> {
     let mut sources = BTreeMap::new();
     for line in manifest.lines().filter(|line| !line.is_empty()) {
@@ -91,13 +105,14 @@ pub fn parse_sources(manifest: &str) -> Result<BTreeMap<String, (String, bool)>,
 }
 
 /// Escapes one id segment: every byte outside `[A-Za-z0-9_]` becomes `~` plus two hex digits.
+#[must_use]
 pub fn escape_segment(segment: &str) -> String {
     let mut out = String::with_capacity(segment.len());
     for byte in segment.bytes() {
         if byte.is_ascii_alphanumeric() || byte == b'_' {
             out.push(char::from(byte));
         } else {
-            out.push_str(&format!("~{byte:02X}"));
+            write!(out, "~{byte:02X}").unwrap_or_default();
         }
     }
     out
@@ -269,11 +284,11 @@ fn render_parameters(parameters: &[Value], in_class: bool) -> String {
         let annotation = text(parameter, "annotation");
         let default = text(parameter, "default");
         if !annotation.is_empty() {
-            rendered.push_str(&format!(": {annotation}"));
+            write!(rendered, ": {annotation}").unwrap_or_default();
         }
         if !default.is_empty() && !prefix.starts_with('*') {
             let spacing = if annotation.is_empty() { "=" } else { " = " };
-            rendered.push_str(&format!("{spacing}{default}"));
+            write!(rendered, "{spacing}{default}").unwrap_or_default();
         }
         out.push(rendered);
         if index + 1 == shown.len() && after_positional_only {
@@ -548,6 +563,10 @@ fn draft(def: &Value, parent: Option<&Value>) -> Draft {
 }
 
 /// Converts one driver JSON document into a validated IR shard of one package.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
     convert_mapped(json, package, &|file| Ok((file.to_owned(), false)))
 }
@@ -556,7 +575,11 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
 pub type SourceMap<'a> = &'a dyn Fn(&str) -> Result<(String, bool), String>;
 
 /// Like [`convert`], with every source path mapped through `map`.
-pub fn convert_mapped(json: &str, package: &str, map: SourceMap) -> Result<DocIr, String> {
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
+pub fn convert_mapped(json: &str, package: &str, map: SourceMap<'_>) -> Result<DocIr, String> {
     if package.is_empty()
         || package.contains([':', '.'])
         || package.chars().any(char::is_whitespace)
@@ -626,7 +649,7 @@ pub fn convert_mapped(json: &str, package: &str, map: SourceMap) -> Result<DocIr
         }
     }
 
-    let canonical = |def: &str, reach: &Reach| -> Option<String> {
+    let canonical = |def: &str, reach: &Reach<'_>| -> Option<String> {
         if reach.paths.contains_key(def) {
             Some(def.to_owned())
         } else {

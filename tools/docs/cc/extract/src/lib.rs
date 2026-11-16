@@ -1,8 +1,9 @@
-//! Converts the XML tree Doxygen writes for the public headers of a library into one validated DocIr shard.
+//! Converts the XML tree Doxygen writes for the public headers of a library into one validated `DocIr` shard.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write as _;
 use std::fs;
 
 use documentation_ir::proto::{
@@ -24,11 +25,16 @@ pub struct Options {
 }
 
 /// The usage line shown for a rejected invocation.
+#[must_use]
 pub fn usage() -> &'static str {
     "usage: cc_extract --xml DIR --srcs FILE --package NAME --language cc|cuda --out FILE"
 }
 
 /// Parses argv into inputs, or returns the rejection text.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Options, String> {
     let mut flags = documentation_ir::tool::flags(
         args,
@@ -44,6 +50,10 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
 }
 
 /// Reads, converts, validates and writes one shard, returning the failure text on error.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), String> {
     let mut documents = Vec::new();
     let entries = fs::read_dir(&options.xml)
@@ -57,7 +67,12 @@ pub fn run(options: &Options) -> Result<(), String> {
             .and_then(|n| n.to_str())
             .unwrap_or_default()
             .to_owned();
-        if !name.ends_with(".xml") || name == "index.xml" || name == "Doxyfile.xml" {
+        if !std::path::Path::new(&name)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("xml"))
+            || name == "index.xml"
+            || name == "Doxyfile.xml"
+        {
             continue;
         }
         let text = fs::read_to_string(&path)
@@ -124,7 +139,7 @@ impl Node {
     }
 }
 
-fn element(start: &quick_xml::events::BytesStart) -> Result<Node, String> {
+fn element(start: &quick_xml::events::BytesStart<'_>) -> Result<Node, String> {
     let mut node = Node {
         name: String::from_utf8_lossy(start.local_name().as_ref()).into_owned(),
         ..Node::default()
@@ -188,19 +203,18 @@ fn parse_xml(text: &str) -> Result<Node, String> {
                 push_text(&mut stack, &text);
             }
             Event::GeneralRef(reference) => {
-                let resolved = match reference
+                let resolved = if let Some(ch) = reference
                     .resolve_char_ref()
                     .map_err(|error| format!("Doxygen XML text is not valid: {error}"))?
                 {
-                    Some(ch) => ch.to_string(),
-                    None => {
-                        let name = reference
-                            .decode()
-                            .map_err(|error| format!("Doxygen XML text is not valid: {error}"))?;
-                        quick_xml::escape::resolve_predefined_entity(&name)
-                            .ok_or_else(|| format!("Doxygen XML uses unknown entity &{name};"))?
-                            .to_owned()
-                    }
+                    ch.to_string()
+                } else {
+                    let name = reference
+                        .decode()
+                        .map_err(|error| format!("Doxygen XML text is not valid: {error}"))?;
+                    quick_xml::escape::resolve_predefined_entity(&name)
+                        .ok_or_else(|| format!("Doxygen XML uses unknown entity &{name};"))?
+                        .to_owned()
                 };
                 push_text(&mut stack, &resolved);
             }
@@ -250,7 +264,7 @@ fn inline(node: &Node, out: &mut String) {
                 "ulink" => {
                     let mut label = String::new();
                     inline(inner, &mut label);
-                    out.push_str(&format!("[{}]({})", label.trim(), inner.attr("url")));
+                    write!(out, "[{}]({})", label.trim(), inner.attr("url")).unwrap_or_default();
                 }
                 "parameterlist" | "simplesect" | "itemizedlist" | "orderedlist"
                 | "programlisting" => {}
@@ -488,7 +502,7 @@ struct Context<'a> {
     config: String,
 }
 
-fn location(node: &Node, context: &Context) -> Option<(String, u64, bool)> {
+fn location(node: &Node, context: &Context<'_>) -> Option<(String, u64, bool)> {
     let at = node.first("location")?;
     let file = if at.attr("declfile").is_empty() {
         at.attr("file")
@@ -504,7 +518,7 @@ fn location(node: &Node, context: &Context) -> Option<(String, u64, bool)> {
     Some((rel.clone(), line.parse().unwrap_or(0), *generated))
 }
 
-fn incomplete_extensions(context: &Context, undocumented: Vec<String>) -> Vec<Extension> {
+fn incomplete_extensions(context: &Context<'_>, undocumented: Vec<String>) -> Vec<Extension> {
     let mut extensions = vec![extension(
         &format!("{}.config", context.language),
         &context.config,
@@ -523,7 +537,7 @@ fn member_draft(
     compound_path: &[String],
     compound_id: &str,
     in_class: bool,
-    context: &Context,
+    context: &Context<'_>,
     prefix: &str,
 ) -> Option<Draft> {
     if member.attr("prot") != "public" {
@@ -634,10 +648,8 @@ fn member_draft(
             if member.attr("static") == "yes" {
                 head.push_str("static ");
             }
-            head.push_str(&format!(
-                "{ty} {name}{}",
-                type_text(member.first("argsstring"))
-            ));
+            write!(head, "{ty} {name}{}", type_text(member.first("argsstring")))
+                .unwrap_or_default();
             let init = type_text(member.first("initializer"));
             if !init.is_empty() {
                 head.push(' ');
@@ -711,7 +723,12 @@ fn member_draft(
     })
 }
 
-fn enum_values(member: &Node, enum_path: &[String], context: &Context, prefix: &str) -> Vec<Draft> {
+fn enum_values(
+    member: &Node,
+    enum_path: &[String],
+    context: &Context<'_>,
+    prefix: &str,
+) -> Vec<Draft> {
     let Some((file, line, generated)) = location(member, context) else {
         return Vec::new();
     };
@@ -764,6 +781,10 @@ fn enum_values(member: &Node, enum_path: &[String], context: &Context, prefix: &
 }
 
 /// Converts the Doxygen XML documents of one package into a validated IR shard.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn convert(
     documents: &[&str],
     manifest: &str,
@@ -791,7 +812,7 @@ pub fn convert(
             ));
         }
         if version.is_empty() {
-            version = root.attr("version").to_owned();
+            root.attr("version").clone_into(&mut version);
         }
         compounds.extend(root.all("compounddef").cloned());
     }

@@ -23,6 +23,10 @@ pub struct Settings {
 }
 
 /// Converts one metadata document into a shard, sorted by symbol id.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn convert(json: &str, settings: &Settings) -> Result<DocIr, String> {
     let root: Value =
         serde_json::from_str(json).map_err(|error| format!("invalid JSON: {error}"))?;

@@ -191,7 +191,7 @@ fn every_kind_maps_with_its_comment_and_line() {
     assert_eq!(source.file, "api/shop/v1/shop.proto");
     assert_eq!(source.line, 6);
     assert!(!source.generated);
-    assert!(members(order).is_empty());
+    assert_eq!(members(order), [] as [&str; 0]);
 
     let id = symbol(&shard, "shop.v1.Order.id");
     assert_eq!(id.kind, SymbolKind::Field as i32);
@@ -264,7 +264,7 @@ fn streaming_rpcs_are_marked() {
 fn missing_comments_are_flagged_incomplete_not_invented() {
     let shard = convert_one();
     let status_field = symbol(&shard, "shop.v1.Order.status");
-    assert!(status_field.doc_markdown.is_empty());
+    assert_eq!(status_field.doc_markdown, "");
     assert_eq!(status_field.extensions[0].key, KEY_INCOMPLETE);
     assert!(
         !symbol(&shard, "shop.v1.Order")
@@ -314,7 +314,7 @@ fn trailing_comments_document_an_item_without_a_leading_one() {
 fn symbols_are_sorted_and_the_shard_validates() {
     let shard = convert_one();
     let mut sorted = ids(&shard);
-    sorted.sort();
+    sorted.sort_unstable();
     assert_eq!(ids(&shard), sorted);
     documentation_ir::validate_shard(&shard).unwrap();
 }

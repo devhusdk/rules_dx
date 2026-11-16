@@ -18,6 +18,10 @@ pub struct Tier {
 }
 
 /// Reads one tab separated line per tool: tool, source, native file, standard path, strict path.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse_manifest(text: &str) -> Result<Vec<Tier>, String> {
     let mut tiers = Vec::new();
     for line in text.lines().filter(|line| !line.is_empty()) {
@@ -83,6 +87,9 @@ fn intro(title: &str, text: &str) -> String {
     )
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn standard_page(tiers: &[Tier], files: &BTreeMap<String, String>) -> Result<String, String> {
     let mut out = intro(
         "Standard tiers",
@@ -96,6 +103,9 @@ pub fn standard_page(tiers: &[Tier], files: &BTreeMap<String, String>) -> Result
     Ok(trim(out))
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn strict_page(tiers: &[Tier], files: &BTreeMap<String, String>) -> Result<String, String> {
     let mut out = intro(
         "Strict tiers",

@@ -19,6 +19,7 @@ pub struct Inputs {
 }
 
 /// The usage line shown for a rejected invocation.
+#[must_use]
 pub fn usage() -> String {
     let mut line = String::from("usage: site_check --book FILE --api FILE --shard FILE");
     line.push_str(" [--shard FILE] [--prose FILE] [--data FILE] [--records FILE]");
@@ -26,6 +27,10 @@ pub fn usage() -> String {
 }
 
 /// Parses argv into inputs, or returns the usage rejection text.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse_args(args: &[String]) -> Result<Inputs, (String, String)> {
     let mut inputs = Inputs::default();
     let mut index = 0;
@@ -66,6 +71,7 @@ pub fn parse_args(args: &[String]) -> Result<Inputs, (String, String)> {
 }
 
 /// Returns the check refusal text, or an empty string when the site holds together.
+#[must_use]
 pub fn check(inputs: &Inputs) -> String {
     let book_text = read(inputs.book.as_deref().unwrap_or_default());
     let api = inputs.api.as_deref().unwrap_or_default();
@@ -280,8 +286,7 @@ fn route_under(root: &str, path: &str) -> String {
         return path.to_string();
     }
     path.strip_prefix(root)
-        .map(|rest| rest.trim_start_matches('/'))
-        .unwrap_or(path)
+        .map_or(path, |rest| rest.trim_start_matches('/'))
         .to_string()
 }
 

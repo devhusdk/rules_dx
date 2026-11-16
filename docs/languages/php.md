@@ -211,7 +211,7 @@ LCOV. The pinned Linux PHP is the glibc `gnu-bulk` build and the pinned macOS PH
 the static-php.dev `bulk` build; both can load extensions. PCOV is built from source
 against the conda-forge PHP headers and records lines through user opcode handlers.
 On Windows, coverage runs on the official windows.php.net NTS build with the prebuilt
-`php_pcov.dll` and the MSVC runtime from `@msvc_runtime`; every other Windows action
+`php_pcov.dll` and the MSVC runtime from `@dx_msvc_runtime`; every other Windows action
 uses the static `spc-max` build.
 
 ## License

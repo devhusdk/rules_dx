@@ -84,7 +84,7 @@ fn check_rendered(root: &Path, extra: &[&str]) -> Run {
 
 fn read(root: &Path, route: &str) -> String {
     std::fs::read_to_string(root.join(route))
-        .unwrap_or_else(|error| panic!("read {}: {error}", route))
+        .unwrap_or_else(|error| panic!("read {route}: {error}"))
 }
 
 fn read_asset(root: &Path, logical: &str) -> String {

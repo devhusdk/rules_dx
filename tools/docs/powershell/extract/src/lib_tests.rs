@@ -412,7 +412,7 @@ fn no_output_on_error() {
     let out = dir.join("out.ir.pb");
     let mut f = file("m.psm1", vec![function("Get-A", 1)]);
     f["exports"] = json!({"kind": "dynamic", "functions": []});
-    std::fs::write(&input, api(vec![f]).to_string()).expect("write input");
+    fs::write(&input, api(vec![f]).to_string()).expect("write input");
     let options = Options {
         api: input.to_string_lossy().into_owned(),
         out: out.to_string_lossy().into_owned(),
@@ -429,7 +429,7 @@ fn no_output_on_error_but_written_on_success() {
     let dir = scratch.path();
     let input = dir.join("api.json");
     let out = dir.join("out.ir.pb");
-    std::fs::write(
+    fs::write(
         &input,
         api(vec![file("m.psm1", vec![function("Get-A", 1)])]).to_string(),
     )
@@ -441,8 +441,7 @@ fn no_output_on_error_but_written_on_success() {
         config: String::new(),
     };
     run(&options).expect("runs");
-    let decoded =
-        documentation_ir::decode_shard(&std::fs::read(&out).expect("read")).expect("decodes");
+    let decoded = documentation_ir::decode_shard(&fs::read(&out).expect("read")).expect("decodes");
     assert_eq!(decoded.symbols.len(), 1);
 }
 

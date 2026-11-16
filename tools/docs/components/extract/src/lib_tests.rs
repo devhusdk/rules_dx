@@ -71,13 +71,9 @@ fn maps_every_kind_with_ids_signatures_and_membership() {
     assert_eq!(component.signature_text, "component Button");
     assert_eq!(component.display_name, "Button.vue");
     assert_eq!(component.doc_markdown, "A button.");
-    assert!(
-        component
-            .relations
-            .as_ref()
-            .expect("relations")
-            .member_of
-            .is_empty()
+    assert_eq!(
+        component.relations.as_ref().expect("relations").member_of,
+        [] as [String; 0]
     );
     let kinds = |id: &str| find(&shard, id).kind;
     assert_eq!(kinds("vue:ui:Button.event_click"), SymbolKind::Event as i32);
@@ -219,7 +215,7 @@ fn run_writes_nothing_on_failure() {
     let dir = scratch.path();
     let meta = dir.join("meta.json");
     let out = dir.join("out.pb");
-    std::fs::write(&meta, doc(json!([]))).expect("write");
+    fs::write(&meta, doc(json!([]))).expect("write");
     let options = Options {
         meta: meta.display().to_string(),
         out: out.display().to_string(),
@@ -229,10 +225,9 @@ fn run_writes_nothing_on_failure() {
     };
     assert!(run(&options).is_err());
     assert!(!out.exists());
-    std::fs::write(&meta, doc(json!([button()]))).expect("write");
+    fs::write(&meta, doc(json!([button()]))).expect("write");
     run(&options).expect("run");
-    let shard =
-        documentation_ir::decode_shard(&std::fs::read(&out).expect("read")).expect("decode");
+    let shard = documentation_ir::decode_shard(&fs::read(&out).expect("read")).expect("decode");
     assert_eq!(shard.symbols.len(), 7);
 }
 

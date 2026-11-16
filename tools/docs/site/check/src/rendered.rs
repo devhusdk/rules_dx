@@ -30,6 +30,7 @@ pub struct Page {
 }
 
 /// The usage line for one rendered-site inspection.
+#[must_use]
 pub fn usage() -> String {
     let mut line = String::from("usage: site_check --rendered DIR [--landing] [--forbid TEXT]");
     line.push_str("...");
@@ -37,6 +38,7 @@ pub fn usage() -> String {
 }
 
 /// Every `.html` page of one rendered site, sorted by route.
+#[must_use]
 pub fn pages(root: &Path) -> Vec<Page> {
     let mut out = Vec::new();
     walk(root, root, &mut out);
@@ -170,6 +172,7 @@ fn attribute_values(html: &str, name: &str) -> Vec<String> {
 }
 
 /// Splits one rendered target into its route and its anchor.
+#[must_use]
 pub fn split_target(target: &str) -> (String, String) {
     match target.split_once('#') {
         Some((route, anchor)) => (route.to_string(), anchor.to_string()),
@@ -178,6 +181,7 @@ pub fn split_target(target: &str) -> (String, String) {
 }
 
 /// Returns True when one link target never leaves the site.
+#[must_use]
 pub fn is_internal(target: &str) -> bool {
     !target.is_empty()
         && !target.starts_with('#')
@@ -187,6 +191,7 @@ pub fn is_internal(target: &str) -> bool {
 }
 
 /// Percent-decodes one URL fragment, or None when the encoding is malformed.
+#[must_use]
 pub fn decode_fragment(fragment: &str) -> Option<String> {
     let bytes = fragment.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
@@ -205,6 +210,7 @@ pub fn decode_fragment(fragment: &str) -> Option<String> {
 }
 
 /// Resolves one relative link to the route it addresses inside the site.
+#[must_use]
 pub fn resolve(from: &str, target: &str) -> String {
     let base = from.rsplit_once('/').map_or("", |(dir, _)| dir);
     let mut segments: Vec<&str> = base.split('/').filter(|part| !part.is_empty()).collect();
@@ -226,6 +232,7 @@ pub fn resolve(from: &str, target: &str) -> String {
 }
 
 /// Returns the file one resolved link addresses inside the site.
+#[must_use]
 pub fn page_name(root: &Path, target: &str) -> String {
     if target.is_empty() || target == "./" || target == "." {
         return "index.html".to_string();
@@ -241,12 +248,17 @@ pub fn page_name(root: &Path, target: &str) -> String {
 }
 
 /// Returns True when one page is a fragment the site serves beside its chapters.
+#[must_use]
 pub fn is_fragment(route: &str) -> bool {
     matches!(route, "toc.html" | "print.html" | "404.html")
 }
 
 /// Resolves one logical asset path such as `css/general.css` to the single exact or
 /// `<stem>-<hex>.<ext>` file under `root`.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn asset(root: &Path, logical: &str) -> Result<PathBuf, String> {
     let (dir, name) = logical.rsplit_once('/').unwrap_or(("", logical));
     let (stem, ext) = name.split_once('.').unwrap_or((name, ""));
@@ -273,6 +285,7 @@ pub fn asset(root: &Path, logical: &str) -> Result<PathBuf, String> {
 }
 
 /// Returns the diagnostics for one rendered site, or an empty string when it holds.
+#[must_use]
 pub fn check_rendered(rendered: &Rendered, forbid: &[String]) -> String {
     let root = rendered.root.as_path();
     let pages = pages(root);
@@ -425,6 +438,7 @@ pub fn check_rendered(rendered: &Rendered, forbid: &[String]) -> String {
 }
 
 /// Returns a report naming one route per rendered page, for negative-case fixtures.
+#[must_use]
 pub fn route_report(rendered: &Rendered) -> String {
     let mut text = String::new();
     for page in pages(rendered.root.as_path()) {

@@ -101,7 +101,10 @@ fn smoke(browser: &mut Browser, base: &str, staged: &Path) {
         "the site at {base} answered no HTTP 200 within {READINESS_ATTEMPTS} attempts"
     );
 
-    let identity_routes = ["index.html".to_string(), asset_route(staged, "searchindex.js")];
+    let identity_routes = [
+        "index.html".to_string(),
+        asset_route(staged, "searchindex.js"),
+    ];
     for route in &identity_routes {
         let url = format!("{base}{route}");
         let served = fetch(browser, &url);
@@ -185,9 +188,8 @@ fn the_served_site_matches_the_staged_artifact_and_searches() {
     let local = server.url("/rules_dx/");
     smoke(&mut browser, &local, &staged);
 
-    let deployed = match std::env::var(DEPLOYED_URL) {
-        Ok(value) => value,
-        Err(_) => return,
+    let Ok(deployed) = std::env::var(DEPLOYED_URL) else {
+        return;
     };
     assert!(
         !deployed.is_empty(),

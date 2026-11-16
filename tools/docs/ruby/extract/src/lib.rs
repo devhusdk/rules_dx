@@ -1,4 +1,4 @@
-//! Converts the YARD driver's JSON into one validated DocIr shard.
+//! Converts the YARD driver's JSON into one validated `DocIr` shard.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
@@ -25,11 +25,16 @@ pub struct Options {
 }
 
 /// The usage line shown for a rejected invocation.
+#[must_use]
 pub fn usage() -> &'static str {
     "usage: ruby_extract --json FILE --package NAME --out FILE"
 }
 
 /// Parses argv into inputs, or returns the rejection text.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Options, String> {
     let mut flags = documentation_ir::tool::flags(args, &["--json", "--package", "--out"])?;
     Ok(Options {
@@ -40,6 +45,10 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
 }
 
 /// Reads, converts, validates and writes one shard, returning the failure text on error.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), String> {
     let json = fs::read_to_string(&options.json)
         .map_err(|error| format!("cannot read {}: {error}", options.json))?;
@@ -300,7 +309,7 @@ fn draft(object: &Object) -> Option<Draft<'_>> {
     })
 }
 
-fn params_and_incomplete(draft: &Draft, incomplete: &mut Vec<String>) -> Vec<Param> {
+fn params_and_incomplete(draft: &Draft<'_>, incomplete: &mut Vec<String>) -> Vec<Param> {
     let object = draft.object;
     if draft.kind != SymbolKind::Method {
         return Vec::new();
@@ -333,7 +342,7 @@ fn params_and_incomplete(draft: &Draft, incomplete: &mut Vec<String>) -> Vec<Par
     params
 }
 
-fn returns_and_incomplete(draft: &Draft, incomplete: &mut Vec<String>) -> Option<Returns> {
+fn returns_and_incomplete(draft: &Draft<'_>, incomplete: &mut Vec<String>) -> Option<Returns> {
     let object = draft.object;
     let callable = matches!(draft.kind, SymbolKind::Method | SymbolKind::Property);
     if !callable {
@@ -359,6 +368,10 @@ fn extension(key: &str, value: &str) -> Extension {
 }
 
 /// Converts one driver JSON document into a validated IR shard of one package.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
     if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {
         return Err(format!("invalid package '{package}'"));

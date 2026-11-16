@@ -49,7 +49,7 @@ fn scale() -> Value {
 
 fn unit_alias() -> Value {
     json!({
-        "id": 4, "name": "Unit", "variant": "declaration", "kind": 2097152, "flags": {},
+        "id": 4, "name": "Unit", "variant": "declaration", "kind": 2_097_152, "flags": {},
         "sources": source("src/a.ts", 1),
         "children": [{
             "id": 5, "name": "x", "variant": "declaration", "kind": 1024, "flags": {},
@@ -154,7 +154,7 @@ fn private_members_are_not_documented() {
 #[test]
 fn a_re_export_points_at_its_target() {
     let alias = json!({
-        "id": 20, "name": "resize", "variant": "declaration", "kind": 4194304,
+        "id": 20, "name": "resize", "variant": "declaration", "kind": 4_194_304,
         "flags": {}, "target": 1, "sources": source("src/index.ts", 1)
     });
     let shard = convert_ok(json!([scale(), alias]));
@@ -179,7 +179,7 @@ fn a_re_export_points_at_its_target() {
 #[test]
 fn a_dangling_re_export_is_an_error() {
     let alias = json!({
-        "id": 20, "name": "resize", "variant": "declaration", "kind": 4194304,
+        "id": 20, "name": "resize", "variant": "declaration", "kind": 4_194_304,
         "flags": {}, "target": 99
     });
     let error = convert(&project(json!([alias])), &settings()).expect_err("no target");
@@ -194,7 +194,7 @@ fn a_value_and_a_type_with_one_name_get_distinct_ids() {
         "sources": source("src/c.ts", 1)
     });
     let alias = json!({
-        "id": 31, "name": "Color", "variant": "declaration", "kind": 2097152,
+        "id": 31, "name": "Color", "variant": "declaration", "kind": 2_097_152,
         "flags": {}, "type": number(), "sources": source("src/c.ts", 2)
     });
     let shard = convert_ok(json!([value, alias]));
@@ -219,7 +219,7 @@ fn a_namespace_merged_with_a_value_gets_a_distinct_id() {
         "id": 42, "name": "Canvas", "variant": "declaration", "kind": 4, "flags": {},
         "sources": source("src/d.ts", 4),
         "children": [{
-            "id": 43, "name": "Options", "variant": "declaration", "kind": 2097152,
+            "id": 43, "name": "Options", "variant": "declaration", "kind": 2_097_152,
             "flags": {}, "type": number(), "sources": source("src/d.ts", 5)
         }]
     });
@@ -250,7 +250,7 @@ fn a_re_export_of_overloads_points_at_the_first_overload() {
         .expect("signatures")
         .push(second);
     let alias = json!({
-        "id": 20, "name": "resize", "variant": "declaration", "kind": 4194304,
+        "id": 20, "name": "resize", "variant": "declaration", "kind": 4_194_304,
         "flags": {}, "target": 1, "sources": source("src/index.ts", 1)
     });
     let shard = convert_ok(json!([overloaded, alias]));

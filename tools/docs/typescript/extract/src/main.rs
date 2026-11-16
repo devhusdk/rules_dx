@@ -1,4 +1,4 @@
-//! Command line entry for the TypeDoc extractor.
+//! Command line entry for the `TypeDoc` extractor.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 

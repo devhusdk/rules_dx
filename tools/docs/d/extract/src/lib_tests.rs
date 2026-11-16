@@ -51,7 +51,10 @@ fn signature_params_and_sections() {
     assert_eq!(add.params[0].r#type, "int");
     assert_eq!(add.params[1].doc, "second");
     assert_eq!(add.examples, ["```d\n---\nadd(1, 2);\n---\n```"]);
-    assert_eq!(shard.symbols[2].returns.as_ref().expect("returns").doc, "the area");
+    assert_eq!(
+        shard.symbols[2].returns.as_ref().expect("returns").doc,
+        "the area"
+    );
     assert_eq!(
         shard.symbols[0].extensions[0].value,
         b"ldc-json=1;package=geometry;config=x"
@@ -71,7 +74,16 @@ fn unknown_module_file_is_rejected() {
 #[test]
 fn parse_reads_every_flag() {
     let args = |list: &[&str]| list.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
-    let all = args(&["--api", "a", "--sources", "s", "--out", "o", "--package", "p"]);
+    let all = args(&[
+        "--api",
+        "a",
+        "--sources",
+        "s",
+        "--out",
+        "o",
+        "--package",
+        "p",
+    ]);
     assert_eq!(parse(&all).expect("parses").package, "p");
 }
 
@@ -83,7 +95,8 @@ fn declaration_stops_at_body_or_arrow() {
 
 #[test]
 fn inline_returns_heading_is_a_section() {
-    let sections = Sections::parse("Scales.\n\nParams:\n    v = value\n\nReturns: the scaled value\n");
+    let sections =
+        Sections::parse("Scales.\n\nParams:\n    v = value\n\nReturns: the scaled value\n");
     assert_eq!(sections.summary, "Scales.");
     assert_eq!(sections.returns.as_deref(), Some("the scaled value"));
 }

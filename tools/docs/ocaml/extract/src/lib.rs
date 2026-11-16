@@ -1,4 +1,4 @@
-//! Converts the JSON pages of `odoc html-generate --as-json` into one validated DocIr shard.
+//! Converts the JSON pages of `odoc html-generate --as-json` into one validated `DocIr` shard.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
@@ -29,11 +29,16 @@ pub struct Options {
 }
 
 /// The usage line shown for a rejected invocation.
+#[must_use]
 pub fn usage() -> &'static str {
     "usage: ocaml_extract --html DIR... --package NAME [--config TEXT] --out FILE"
 }
 
 /// Parses argv into inputs, or returns the rejection text.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse_args(args: &[String]) -> Result<Options, String> {
     let mut flags =
         documentation_ir::tool::flags(args, &["--html", "--package", "--config", "--out"])?;
@@ -53,6 +58,10 @@ pub fn parse_args(args: &[String]) -> Result<Options, String> {
 }
 
 /// Reads, converts, validates and writes one shard, returning the failure text on error.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), String> {
     let mut pages = Vec::new();
     for html in &options.html {
@@ -162,15 +171,12 @@ fn page_names(key: &str) -> Result<(Vec<String>, &'static str), String> {
     let mut names = Vec::new();
     let mut label = "module";
     for segment in segments {
-        match split_anchor(segment) {
-            Some((found, name)) => {
-                label = found;
-                names.push(name.to_owned());
-            }
-            None => {
-                label = "module";
-                names.push(segment.to_owned());
-            }
+        if let Some((found, name)) = split_anchor(segment) {
+            label = found;
+            names.push(name.to_owned());
+        } else {
+            label = "module";
+            names.push(segment.to_owned());
         }
     }
     Ok((names, label))
@@ -235,6 +241,10 @@ fn qualified(path: &str) -> String {
 }
 
 /// Converts the pages (directory key, JSON text) of one odoc package into a validated shard.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn convert(pages: &[(String, String)], package: &str, config: &str) -> Result<DocIr, String> {
     if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {
         return Err(format!("invalid package '{package}'"));

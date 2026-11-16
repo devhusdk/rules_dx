@@ -151,6 +151,7 @@ fn has_wildcard(pattern: &str) -> bool {
 }
 
 /// Matches one PowerShell wildcard (`*` and `?`) against a name, ignoring case.
+#[must_use]
 pub fn wildcard_match(pattern: &str, name: &str) -> bool {
     let pattern: Vec<char> = pattern.to_lowercase().chars().collect();
     let name: Vec<char> = name.to_lowercase().chars().collect();

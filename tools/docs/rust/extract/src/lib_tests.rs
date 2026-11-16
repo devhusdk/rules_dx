@@ -7,7 +7,7 @@ use documentation_ir::proto::SymbolKind;
 use rustdoc_types::{FORMAT_VERSION, Type};
 
 fn args(list: &[&str]) -> Vec<String> {
-    list.iter().map(|s| s.to_string()).collect()
+    list.iter().map(ToString::to_string).collect()
 }
 
 fn sources() -> Vec<Source> {

@@ -66,7 +66,7 @@ fn every_kind_maps_onto_the_ir() {
     assert_eq!(shard.symbols.len(), 11);
     let ids: Vec<&str> = shard.symbols.iter().map(|s| s.id.as_str()).collect();
     let mut sorted = ids.clone();
-    sorted.sort();
+    sorted.sort_unstable();
     assert_eq!(ids, sorted);
 }
 

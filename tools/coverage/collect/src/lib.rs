@@ -39,28 +39,25 @@ impl Context {
 
     fn test_binary(&self) -> Result<PathBuf, String> {
         let binary = required("TEST_BINARY")?;
-        Ok(match self.runfiles_dir {
-            Some(ref rd) => {
-                let in_runfiles = rd.join(required("TEST_WORKSPACE")?).join(&binary);
-                if in_runfiles.exists() {
-                    return Ok(in_runfiles);
-                }
-                let configuration: PathBuf = rd
-                    .strip_prefix(&self.execroot)
-                    .unwrap_or(rd)
-                    .components()
-                    .take(3)
-                    .collect();
-                self.execroot.join(configuration).join(binary)
+        Ok(if let Some(ref rd) = self.runfiles_dir {
+            let in_runfiles = rd.join(required("TEST_WORKSPACE")?).join(&binary);
+            if in_runfiles.exists() {
+                return Ok(in_runfiles);
             }
-            None => {
-                let rel = self
-                    .coverage_dir
-                    .strip_prefix(&self.execroot)
-                    .unwrap_or(&self.coverage_dir);
-                let config: PathBuf = rel.components().take(2).collect();
-                self.execroot.join(config).join("bin").join(binary)
-            }
+            let configuration: PathBuf = rd
+                .strip_prefix(&self.execroot)
+                .unwrap_or(rd)
+                .components()
+                .take(3)
+                .collect();
+            self.execroot.join(configuration).join(binary)
+        } else {
+            let rel = self
+                .coverage_dir
+                .strip_prefix(&self.execroot)
+                .unwrap_or(&self.coverage_dir);
+            let config: PathBuf = rel.components().take(2).collect();
+            self.execroot.join(config).join("bin").join(binary)
         })
     }
 
@@ -200,6 +197,7 @@ fn collect_gcov(ctx: &Context, gcov: &str) -> Result<String, String> {
 
 // LCOV_EXCL_START - reason: process orchestration over env and external llvm tools, covered by native_coverage_test, issue: 3460, policy: docs/cli/commands/build-test-coverage.md
 /// Collects coverage for the test that just ran and returns the exit code.
+#[must_use]
 pub fn run_process(_args: Vec<String>) -> i32 {
     match collect_all() {
         Ok(()) => 0,
@@ -225,9 +223,7 @@ fn collect_all() -> Result<(), String> {
     let output = ctx.coverage_dir.join("coverage.dat");
     if let Ok(reported) = env::var("COVERAGE_OUTPUT_FILE") {
         let reported = collect::resolve(&ctx.execroot, &reported);
-        let written = fs::metadata(&reported)
-            .map(|m| m.len() > 0)
-            .unwrap_or(false);
+        let written = fs::metadata(&reported).is_ok_and(|m| m.len() > 0);
         if let Some(kept) =
             collect::preserved_report(&reported, &ctx.coverage_dir).filter(|_| written)
         {

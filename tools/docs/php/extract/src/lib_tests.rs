@@ -78,7 +78,11 @@ fn namespaces_become_dotted_escaped_ids() {
 #[test]
 fn kinds_signatures_and_members() {
     let class = with(
-        with(element("class", "Geo\\Circle", "Circle", ""), "final", json!(true)),
+        with(
+            element("class", "Geo\\Circle", "Circle", ""),
+            "final",
+            json!(true),
+        ),
         "interfaces",
         json!(["Geo\\Shape"]),
     );
@@ -110,17 +114,26 @@ fn kinds_signatures_and_members() {
     ]);
     let class = symbol(&shard, "Geo.Circle");
     assert_eq!(class.kind, SymbolKind::Class as i32);
-    assert_eq!(class.signature_text, "final class Geo\\Circle implements \\Geo\\Shape");
+    assert_eq!(
+        class.signature_text,
+        "final class Geo\\Circle implements \\Geo\\Shape"
+    );
     let relations = class.relations.as_ref().unwrap();
     assert_eq!(relations.implements, vec![format!("{P}Geo.Shape")]);
-    assert_eq!(symbol(&shard, "Geo.Shape").kind, SymbolKind::Interface as i32);
+    assert_eq!(
+        symbol(&shard, "Geo.Shape").kind,
+        SymbolKind::Interface as i32
+    );
     let method = symbol(&shard, "Geo.Circle.scale");
     assert_eq!(method.kind, SymbolKind::Method as i32);
     assert_eq!(
         method.signature_text,
         "public function scale(float $factor = 1.0): self"
     );
-    assert_eq!(method.relations.as_ref().unwrap().member_of, vec![format!("{P}Geo.Circle")]);
+    assert_eq!(
+        method.relations.as_ref().unwrap().member_of,
+        vec![format!("{P}Geo.Circle")]
+    );
     let property = symbol(&shard, "Geo.Circle.~24radius");
     assert_eq!(property.kind, SymbolKind::Property as i32);
     assert_eq!(property.signature_text, "public float $radius");
@@ -132,10 +145,21 @@ fn kinds_signatures_and_members() {
 
 #[test]
 fn enums_list_their_cases() {
-    let unit = with(element("enum", "Geo\\Unit", "Unit", ""), "value_type", json!("string"));
-    let case = with(element("case", "Geo\\Unit::Metre", "Metre", "Geo\\Unit"), "value", json!("'m'"));
+    let unit = with(
+        element("enum", "Geo\\Unit", "Unit", ""),
+        "value_type",
+        json!("string"),
+    );
+    let case = with(
+        element("case", "Geo\\Unit::Metre", "Metre", "Geo\\Unit"),
+        "value",
+        json!("'m'"),
+    );
     let shard = convert_all(vec![unit, case]);
-    assert_eq!(symbol(&shard, "Geo.Unit").signature_text, "enum Geo\\Unit: string");
+    assert_eq!(
+        symbol(&shard, "Geo.Unit").signature_text,
+        "enum Geo\\Unit: string"
+    );
     let case = symbol(&shard, "Geo.Unit.Metre");
     assert_eq!(case.kind, SymbolKind::EnumVariant as i32);
     assert_eq!(case.signature_text, "case Metre = 'm'");
@@ -164,7 +188,10 @@ fn hidden_elements_are_dropped() {
         member,
         element("method", "Geo\\Circle::d()", "d", "Geo\\Circle"),
     ]);
-    assert_eq!(ids(&shard), vec!["php:geo:Geo.Circle", "php:geo:Geo.Circle.d"]);
+    assert_eq!(
+        ids(&shard),
+        vec!["php:geo:Geo.Circle", "php:geo:Geo.Circle.d"]
+    );
 }
 
 #[test]
@@ -177,7 +204,10 @@ fn docs_params_and_returns_are_read_from_tags() {
                 json!([{"name": "r", "type": "", "default": "", "variadic": false, "by_ref": false}]),
             ),
             "tags",
-            json!([tag("param", "r", "float", "The radius."), tag("return", "", "float", "The area.")]),
+            json!([
+                tag("param", "r", "float", "The radius."),
+                tag("return", "", "float", "The area.")
+            ]),
         ),
         "description",
         json!("Longer text.\r\n"),
@@ -224,9 +254,25 @@ fn rejects_malformed_input() {
     assert!(convert("{", "geo").unwrap_err().contains("malformed"));
     assert!(convert("[]", "geo").unwrap_err().contains("not an object"));
     let wrong = json!({"format": 2, "php": "", "phpdocumentor": "", "objects": []});
-    assert!(convert(&wrong.to_string(), "geo").unwrap_err().contains("not supported"));
-    assert!(convert(&document(vec![]).to_string(), "bad pkg").unwrap_err().contains("invalid package"));
-    assert!(convert(&document(vec![]).to_string(), "geo").unwrap_err().contains("no public PHP API"));
+    assert!(
+        convert(&wrong.to_string(), "geo")
+            .unwrap_err()
+            .contains("not supported")
+    );
+    assert!(
+        convert(&document(vec![]).to_string(), "bad pkg")
+            .unwrap_err()
+            .contains("invalid package")
+    );
+    assert!(
+        convert(&document(vec![]).to_string(), "geo")
+            .unwrap_err()
+            .contains("no public PHP API")
+    );
     let unknown = document(vec![element("alien", "A", "A", "")]);
-    assert!(convert(&unknown.to_string(), "geo").unwrap_err().contains("unknown type"));
+    assert!(
+        convert(&unknown.to_string(), "geo")
+            .unwrap_err()
+            .contains("unknown type")
+    );
 }

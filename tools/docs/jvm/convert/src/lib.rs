@@ -1,4 +1,4 @@
-//! Converts a JVM doc adapter's "jvm api v1" JSON into one validated DocIr shard.
+//! Converts a JVM doc adapter's "jvm api v1" JSON into one validated `DocIr` shard.
 //!
 //! Id rules: Kotlin top-level declarations use the Kotlin FQ name, never `FileKt`. An
 //! overload list holds erased simple types without `?` or generics. An extension's receiver
@@ -11,6 +11,7 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
 
@@ -36,12 +37,17 @@ pub struct Options {
 }
 
 /// The usage line shown for a rejected invocation.
+#[must_use]
 pub fn usage() -> &'static str {
     "usage: jvm_convert --json FILE --language java|kotlin|scala --package NAME \
      --srcs-manifest FILE [--dep-shard FILE]... --out FILE"
 }
 
 /// Parses argv into inputs, or returns the rejection text.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Options, String> {
     let mut flags = documentation_ir::tool::flags(
         args,
@@ -72,6 +78,10 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
 }
 
 /// Reads, converts, validates and writes one shard, leaving no output on failure.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), String> {
     let read = |path: &str| fs::read(path).map_err(|error| format!("cannot read {path}: {error}"));
     let json = String::from_utf8(read(&options.json)?)
@@ -275,8 +285,8 @@ impl Resolver {
                 {
                     out.truncate(open);
                     match self.resolve(target) {
-                        Some(id) => out.push_str(&format!("[{label}](dx:{id})")),
-                        None => out.push_str(&format!("`{label}`")),
+                        Some(id) => write!(out, "[{label}](dx:{id})").unwrap_or_default(),
+                        None => write!(out, "`{label}`").unwrap_or_default(),
                     }
                     rest = next;
                     continue;
@@ -446,6 +456,10 @@ fn record(
 }
 
 /// Converts one adapter JSON document into a validated IR shard.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn convert(
     json: &str,
     language: &str,

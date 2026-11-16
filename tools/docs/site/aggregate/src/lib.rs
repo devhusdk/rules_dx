@@ -1,8 +1,9 @@
-//! Renders DocIr shards into API pages, an index, a SUMMARY fragment and search records.
+//! Renders `DocIr` shards into API pages, an index, a SUMMARY fragment and search records.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
 
@@ -30,11 +31,16 @@ pub struct Rendered {
 }
 
 /// The usage line shown for a rejected invocation.
+#[must_use]
 pub fn usage() -> &'static str {
     "usage: site_aggregate --shard FILE [--shard FILE] [--source-url URL] --summary FILE --api FILE --api-tree DIR --records FILE"
 }
 
 /// Parses argv into inputs, or returns the rejection text.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Options, String> {
     let mut options = Options::default();
     let mut index = 0;
@@ -44,11 +50,11 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
         };
         match flag {
             "--shard" => options.shards.push(value.clone()),
-            "--source-url" => options.source_url = value.clone(),
-            "--summary" => options.summary = value.clone(),
-            "--api" => options.api = value.clone(),
-            "--api-tree" => options.api_tree = value.clone(),
-            "--records" => options.records = value.clone(),
+            "--source-url" => options.source_url.clone_from(value),
+            "--summary" => options.summary.clone_from(value),
+            "--api" => options.api.clone_from(value),
+            "--api-tree" => options.api_tree.clone_from(value),
+            "--records" => options.records.clone_from(value),
             _ => return Err(format!("unknown argument '{flag}'")),
         }
         index += 2;
@@ -70,6 +76,7 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
 }
 
 /// Returns the API page path of one symbol ID, relative to the book source root.
+#[must_use]
 pub fn api_path(id: &str) -> String {
     format!("api/{}.md", id.replace(':', "/"))
 }
@@ -102,6 +109,7 @@ pub fn title(id: &str) -> String {
 }
 
 /// Returns one inline code span of `text`, fenced with more backticks than the text holds.
+#[must_use]
 pub fn code(text: &str) -> String {
     let mut longest = 0;
     let mut run = 0;
@@ -145,6 +153,7 @@ impl Titles<'_> {
 }
 
 /// Reads, renders and writes every output, returning "" on success.
+#[must_use]
 pub fn run(options: &Options) -> String {
     let mut shards = Vec::new();
     for path in &options.shards {
@@ -192,8 +201,12 @@ struct Page<'a> {
 }
 
 /// Renders every output of one site's shards.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn render(shards: &[DocIr], source_url: &str) -> Result<Rendered, String> {
-    let mut pages: BTreeMap<String, Page> = BTreeMap::new();
+    let mut pages: BTreeMap<String, Page<'_>> = BTreeMap::new();
     let mut groups: BTreeMap<String, Vec<String>> = BTreeMap::new();
     for shard in shards {
         let group = format!("{}:{}", shard.language, shard.package);
@@ -320,15 +333,22 @@ fn first_line(doc: &str) -> Option<&str> {
         .filter(|line| !line.starts_with('#') && !line.starts_with("```"))
 }
 
-fn page_text(page: &Page, known: &BTreeSet<&str>, titles: &Titles, source_url: &str) -> String {
+fn page_text(
+    page: &Page<'_>,
+    known: &BTreeSet<&str>,
+    titles: &Titles<'_>,
+    source_url: &str,
+) -> String {
     let symbol = page.symbol;
     let from = api_path(&page.id);
     let mut text = format!("# {}\n\n", code(&titles.of(&page.id)));
     if let Some(canonical) = &page.canonical {
-        text.push_str(&format!(
-            "Re-export of {}.\n\n",
+        writeln!(
+            text,
+            "Re-export of {}.\n",
             link(&from, canonical, known, titles)
-        ));
+        )
+        .unwrap_or_default();
     }
     if !symbol.signature_text.is_empty() {
         let fence = match page.id.split_once(':') {
@@ -347,25 +367,27 @@ fn page_text(page: &Page, known: &BTreeSet<&str>, titles: &Titles, source_url: &
             Some(("zig", _)) => "zig",
             _ => "text",
         };
-        text.push_str(&format!("```{fence}\n{}\n```\n\n", symbol.signature_text));
+        writeln!(text, "```{fence}\n{}\n```\n", symbol.signature_text).unwrap_or_default();
     }
-    if !symbol.doc_markdown.trim().is_empty() {
+    if symbol.doc_markdown.trim().is_empty() {
+        text.push_str("Undocumented.\n\n");
+    } else {
         let doc = demote_headings(symbol.doc_markdown.trim_end());
         text.push_str(&rewrite_dx_links(&doc, &from, known, titles));
         text.push_str("\n\n");
-    } else {
-        text.push_str("Undocumented.\n\n");
     }
     if let Some(source) = &symbol.source {
         let place = format!("{}:{}", source.file, source.line);
         if source.generated || source_url.is_empty() {
             let note = if source.generated { " (generated)" } else { "" };
-            text.push_str(&format!("Source: `{place}`{note}\n\n"));
+            writeln!(text, "Source: `{place}`{note}\n").unwrap_or_default();
         } else {
-            text.push_str(&format!(
-                "Source: [{place}]({}{}#L{})\n\n",
+            writeln!(
+                text,
+                "Source: [{place}]({}{}#L{})\n",
                 source_url, source.file, source.line
-            ));
+            )
+            .unwrap_or_default();
         }
     }
     if let Some(relations) = &symbol.relations {
@@ -382,7 +404,7 @@ fn page_text(page: &Page, known: &BTreeSet<&str>, titles: &Titles, source_url: &
                     .iter()
                     .map(|id| link(&from, id, known, titles))
                     .collect();
-                text.push_str(&format!("{label}: {}\n\n", links.join(", ")));
+                writeln!(text, "{label}: {}\n", links.join(", ")).unwrap_or_default();
             }
         }
     }
@@ -421,17 +443,17 @@ fn page_text(page: &Page, known: &BTreeSet<&str>, titles: &Titles, source_url: &
                     })
                     .collect();
                 if !ids.is_empty() {
-                    text.push_str(&format!("{label}: {}\n\n", links(&ids)));
+                    writeln!(text, "{label}: {}\n", links(&ids)).unwrap_or_default();
                 }
             }
         } else {
-            text.push_str(&format!("Members: {}\n\n", links(&members)));
+            writeln!(text, "Members: {}\n", links(&members)).unwrap_or_default();
         }
     }
     text.trim_end().to_string() + "\n"
 }
 
-fn link(from: &str, id: &str, known: &BTreeSet<&str>, titles: &Titles) -> String {
+fn link(from: &str, id: &str, known: &BTreeSet<&str>, titles: &Titles<'_>) -> String {
     let name = code(&titles.of(id));
     if !known.contains(id) {
         return name;
@@ -440,6 +462,7 @@ fn link(from: &str, id: &str, known: &BTreeSet<&str>, titles: &Titles) -> String
 }
 
 /// Returns the link from one book page to another, relative to the first page's folder.
+#[must_use]
 pub fn relative(from: &str, to: &str) -> String {
     let mut from_dirs: Vec<&str> = from.split('/').collect();
     from_dirs.pop();
@@ -457,7 +480,7 @@ pub fn relative(from: &str, to: &str) -> String {
 
 /// Rewrites `](dx:<id>)` link targets outside code fences and code spans. A known id becomes a
 /// relative page link; an unknown id degrades to a code span of its title.
-fn rewrite_dx_links(doc: &str, from: &str, known: &BTreeSet<&str>, titles: &Titles) -> String {
+fn rewrite_dx_links(doc: &str, from: &str, known: &BTreeSet<&str>, titles: &Titles<'_>) -> String {
     let mut fenced = false;
     let lines: Vec<String> = doc
         .lines()
@@ -475,7 +498,7 @@ fn rewrite_dx_links(doc: &str, from: &str, known: &BTreeSet<&str>, titles: &Titl
     lines.join("\n")
 }
 
-fn rewrite_dx_line(line: &str, from: &str, known: &BTreeSet<&str>, titles: &Titles) -> String {
+fn rewrite_dx_line(line: &str, from: &str, known: &BTreeSet<&str>, titles: &Titles<'_>) -> String {
     let mut out = String::with_capacity(line.len());
     let mut rest = line;
     while !rest.is_empty() {
@@ -501,7 +524,7 @@ fn rewrite_dx_line(line: &str, from: &str, known: &BTreeSet<&str>, titles: &Titl
             && let Some((id, tail)) = target.split_once(')')
         {
             if known.contains(id) {
-                out.push_str(&format!("[{label}]({})", relative(from, &api_path(id))));
+                write!(out, "[{label}]({})", relative(from, &api_path(id))).unwrap_or_default();
             } else {
                 out.push_str(&code(&titles.of(id)));
             }

@@ -80,7 +80,11 @@ fn the_site_navigates_searches_and_reaches_every_command_page_in_a_browser() {
             items
                 .iter()
                 .filter_map(|item| item.as_str())
-                .filter(|href| href.ends_with(".html"))
+                .filter(|href| {
+                    std::path::Path::new(href)
+                        .extension()
+                        .is_some_and(|ext| ext.eq_ignore_ascii_case("html"))
+                })
                 .map(str::to_string)
                 .collect()
         })
@@ -131,7 +135,9 @@ fn the_site_navigates_searches_and_reaches_every_command_page_in_a_browser() {
         .expect("the first result");
     let route = first.split(['?', '#']).next().unwrap_or_default();
     assert!(
-        route.ends_with(".html"),
+        std::path::Path::new(route)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("html")),
         "a search hit must link a page: {first}"
     );
     browser
@@ -200,7 +206,9 @@ fn the_sidebar_toggle_hides_the_navigation_and_focus_is_visible() {
     assert_ne!(shown, "none", "the sidebar must start open");
     assert!(
         browser
-            .truthy("return document.getElementById('mdbook-sidebar').getBoundingClientRect().right > 0")
+            .truthy(
+                "return document.getElementById('mdbook-sidebar').getBoundingClientRect().right > 0"
+            )
             .expect("the open sidebar box"),
         "the sidebar must start on screen"
     );
@@ -315,7 +323,9 @@ fn a_phone_sized_viewport_collapses_the_navigation() {
     );
     assert_ne!(
         browser
-            .text("return getComputedStyle(document.getElementById('mdbook-sidebar-toggle')).display")
+            .text(
+                "return getComputedStyle(document.getElementById('mdbook-sidebar-toggle')).display"
+            )
             .expect("the toggle display"),
         "none",
         "a phone must still be able to open the navigation"

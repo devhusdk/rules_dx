@@ -1,4 +1,4 @@
-//! Converts the PowerShell API facts of extract.ps1 into one validated DocIr shard.
+//! Converts the PowerShell API facts of extract.ps1 into one validated `DocIr` shard.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
@@ -22,11 +22,16 @@ pub struct Options {
 }
 
 /// The usage line shown for a rejected invocation.
+#[must_use]
 pub fn usage() -> &'static str {
     "usage: powershell_extract --api FILE --out FILE --package NAME [--config TEXT]"
 }
 
 /// Parses argv into inputs, or returns the rejection text.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Options, String> {
     let mut flags =
         documentation_ir::tool::flags(args, &["--api", "--out", "--package", "--config"])?;
@@ -39,6 +44,10 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
 }
 
 /// Reads, converts, validates and writes one shard. Nothing is written on error.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), String> {
     let json = fs::read_to_string(&options.api)
         .map_err(|error| format!("cannot read {}: {error}", options.api))?;

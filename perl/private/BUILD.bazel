@@ -1,6 +1,7 @@
 load("@bazel_skylib//lib:selects.bzl", "selects")
 load("//core:cells.bzl", "unsupported_value")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_perl//perl:perl_library.bzl", _rules_perl_library = "perl_library")
 load(":defs.bzl", "perl_library")
 load(":platforms.bzl", "PERL_PLATFORMS")
 
@@ -16,6 +17,19 @@ exports_files([
     "defs.bzl",
     "platforms.bzl",
 ])
+
+alias(
+    name = "pod",
+    actual = select({
+        "@platforms//os:macos": "@dx_perl_pod//:pod",
+        "//conditions:default": ":no_pod",
+    }),
+    visibility = ["//visibility:public"],
+)
+
+_rules_perl_library(
+    name = "no_pod",
+)
 
 perl_library(
     name = "bench",

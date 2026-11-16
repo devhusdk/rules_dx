@@ -75,16 +75,16 @@ def _impl(ctx):
 own_cc_config = rule(implementation = _impl, attrs = {"tool": attr.string(mandatory = True)})
 "#;
 
-/// The compiler of `own_cc`: writes `own_cc` to every `-o` output and an empty `-MF` file.
+/// The compiler of `own_cc`: writes `own_cc` to every `-o` output and an empty `-MF` file, also inside `@` parameter files.
 #[cfg(not(windows))]
 const OWN_CC_TOOL: (&str, &str) = (
     "cc.sh",
-    "#!/bin/sh\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n    -o) printf 'own_cc\\n' > \"$2\"; shift ;;\n    -MF) : > \"$2\"; shift ;;\n  esac\n  shift\ndone\n",
+    "#!/bin/sh\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n    @*) params=\"${1#@}\"; shift; set -- $(cat \"$params\") \"$@\"; continue ;;\n    -o) printf 'own_cc\\n' > \"$2\"; shift ;;\n    -MF) : > \"$2\"; shift ;;\n  esac\n  shift\ndone\n",
 );
 #[cfg(windows)]
 const OWN_CC_TOOL: (&str, &str) = (
     "cc.bat",
-    "@echo off\r\n:loop\r\nif \"%~1\"==\"\" exit /b 0\r\nif \"%~1\"==\"-o\" echo own_cc> \"%~2\"\r\nif \"%~1\"==\"-MF\" type nul> \"%~2\"\r\nshift\r\ngoto loop\r\n",
+    "@echo off\r\n:loop\r\nif \"%~1\"==\"\" exit /b 0\r\nset \"arg=%~1\"\r\nif \"%arg:~0,1%\"==\"@\" call :params \"%arg:~1%\"\r\nif \"%~1\"==\"-o\" echo own_cc> \"%~2\"\r\nif \"%~1\"==\"-MF\" type nul> \"%~2\"\r\nshift\r\ngoto loop\r\n:params\r\nset next=\r\nfor /f \"usebackq delims=\" %%L in (\"%~1\") do (\r\n  if defined next (echo own_cc> \"%%~L\"& set next=)\r\n  if \"%%~L\"==\"-o\" set next=1\r\n)\r\nexit /b 0\r\n",
 );
 
 /// Writes `own_cc`, the module that registers the consumer's own C++ toolchain.

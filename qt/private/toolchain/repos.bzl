@@ -817,7 +817,7 @@ def _acquire_runtime(ctx, extractor, cells):
 
 def _place_vcruntime(ctx):
     arch = "arm64" if "arm64" in ctx.attr.cell else "x64"
-    redist = ctx.path(Label("@msvc_runtime//:BUILD.bazel")).dirname.get_child("sysroot/Contents/VC/Redist/MSVC/{}/{}".format(VC_REDIST_VERSION, arch))
+    redist = ctx.path(Label("@dx_msvc_runtime//:BUILD.bazel")).dirname.get_child("sysroot/Contents/VC/Redist/MSVC/{}/{}".format(VC_REDIST_VERSION, arch))
     if not redist.exists:
         return
     for directory in redist.readdir():

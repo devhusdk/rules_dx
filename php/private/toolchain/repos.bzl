@@ -144,7 +144,7 @@ php_coverage_runtime = repository_rule(
     attrs = {
         "pcov": attr.string_list(mandatory = True, doc = "The PCOV zip: its sha256 and then its URLs."),
         "php": attr.string_list(mandatory = True, doc = "The PHP zip: its sha256 and then its URLs."),
-        "_msvc_runtime": attr.label(default = "@msvc_runtime//:BUILD.bazel", doc = "The hermetic MSVC redistributable."),
+        "_msvc_runtime": attr.label(default = "@dx_msvc_runtime//:BUILD.bazel", doc = "The hermetic MSVC redistributable."),
     },
 )
 

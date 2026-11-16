@@ -1,3 +1,4 @@
+load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@rules_cc//cc:defs.bzl", "cc_import")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":build_script_cc_env.bzl", "build_script_cc_env")
@@ -59,8 +60,32 @@ config_setting(
     visibility = ["//visibility:public"],
 )
 
+selects.config_setting_group(
+    name = "fuzz_sanitizer_runtime",
+    match_any = [
+        "@llvm//config:asan_enabled",
+        "@platforms//os:windows",
+    ],
+    visibility = ["//visibility:public"],
+)
+
 build_script_cc_env(
     name = "build_script_cc_env",
+    visibility = ["//visibility:public"],
+)
+
+cc_import(
+    name = "fuzz_asan_runtime_macos",
+    shared_library = "@llvm//runtimes/compiler-rt:clang_rt.asan.shared",
+    target_compatible_with = ["@platforms//os:macos"],
+    visibility = ["//visibility:public"],
+)
+
+cc_import(
+    name = "fuzz_libfuzzer_macos",
+    alwayslink = True,
+    static_library = "@llvm//runtimes/compiler-rt:clang_rt.fuzzer.static",
+    target_compatible_with = ["@platforms//os:macos"],
     visibility = ["//visibility:public"],
 )
 

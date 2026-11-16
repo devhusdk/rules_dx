@@ -399,11 +399,12 @@ impl LockPaths {
     }
 }
 
-fn parse_locked_for_configured(
-    set: &dx_adopt::dependency_sets::ResolvedSet,
-    locks: &[(String, String)],
-) -> Result<(Vec<dx_audit::vuln::LockedPackage>, LockPaths), AuditError> {
-    let expected = match set.ecosystem {
+type ExpectedLock = Option<(&'static str, Option<&'static str>)>;
+
+fn expected_lock(
+    ecosystem: dx_adopt::dependency_sets::Ecosystem,
+) -> Result<ExpectedLock, AuditError> {
+    Ok(match ecosystem {
         dx_adopt::dependency_sets::Ecosystem::Maven => Some(("a maven .json lock", None)),
         dx_adopt::dependency_sets::Ecosystem::Nuget => Some((
             dx_adopt::dependency_sets::paket_lock()?,
@@ -433,7 +434,117 @@ fn parse_locked_for_configured(
         | dx_adopt::dependency_sets::Ecosystem::Cabal
         | dx_adopt::dependency_sets::Ecosystem::Ansible
         | dx_adopt::dependency_sets::Ecosystem::Bicep => None,
-    };
+    })
+}
+
+fn parse_one_lock(
+    ecosystem: dx_adopt::dependency_sets::Ecosystem,
+    rel: &str,
+    text: &str,
+) -> Result<Vec<dx_audit::vuln::LockedPackage>, AuditError> {
+    match ecosystem {
+        dx_adopt::dependency_sets::Ecosystem::Uv => dx_audit::locks::parse_uv_lock(text),
+        dx_adopt::dependency_sets::Ecosystem::Npm => match rel.rsplit('/').next() {
+            Some("package-lock.json") => dx_audit::locks::parse_package_lock(text),
+            Some("yarn.lock") => dx_audit::locks::parse_yarn_lock(text),
+            _ => dx_audit::locks::parse_pnpm_lock(text),
+        },
+        dx_adopt::dependency_sets::Ecosystem::Ruby => dx_audit::locks::parse_gemfile_lock(text),
+        dx_adopt::dependency_sets::Ecosystem::Cpan => match rel.rsplit('/').next() {
+            Some(name) if name == dx_adopt::dependency_sets::cpanfile_snapshot()? => {
+                dx_audit::locks::parse_cpanfile_snapshot(text)
+            }
+            _ => Ok(Vec::new()),
+        },
+        dx_adopt::dependency_sets::Ecosystem::Pub => dx_audit::locks::parse_pubspec_lock(text),
+        dx_adopt::dependency_sets::Ecosystem::Hex => dx_audit::locks::parse_hex_lock(text),
+        dx_adopt::dependency_sets::Ecosystem::Fpm => dx_audit::locks::parse_fpm_lock(text),
+        dx_adopt::dependency_sets::Ecosystem::Zig
+        | dx_adopt::dependency_sets::Ecosystem::Bazel
+        | dx_adopt::dependency_sets::Ecosystem::Ansible
+        | dx_adopt::dependency_sets::Ecosystem::Bicep => Ok(Vec::new()),
+        dx_adopt::dependency_sets::Ecosystem::Dub => match rel.rsplit('/').next() {
+            Some(name) if name == dx_adopt::dependency_sets::dub_selections()? => {
+                dx_audit::locks::parse_dub_selections(text)
+            }
+            _ => Ok(Vec::new()),
+        },
+        dx_adopt::dependency_sets::Ecosystem::Julia => match rel.rsplit('/').next() {
+            Some(name) if name == dx_adopt::dependency_sets::julia_manifest()? => {
+                dx_audit::locks::parse_julia_manifest(text)
+            }
+            _ => Ok(Vec::new()),
+        },
+        dx_adopt::dependency_sets::Ecosystem::Composer => match rel.rsplit('/').next() {
+            Some(name) if name == dx_adopt::dependency_sets::composer_lock()? => {
+                dx_audit::locks::parse_composer_lock(text)
+            }
+            _ => Ok(Vec::new()),
+        },
+        dx_adopt::dependency_sets::Ecosystem::Cabal => match rel.rsplit('/').next() {
+            Some(name) if name == dx_adopt::dependency_sets::cabal_freeze()? => {
+                dx_audit::locks::parse_cabal_freeze(text)
+            }
+            Some(dx_adopt::dependency_sets::STACK_LOCK) => dx_audit::locks::parse_stack_lock(text),
+            _ => Ok(Vec::new()),
+        },
+        dx_adopt::dependency_sets::Ecosystem::Opam => match rel.rsplit('/').next() {
+            Some(name) if name.ends_with(".opam.locked") => {
+                dx_audit::locks::parse_opam_locked(text)
+            }
+            _ => Ok(Vec::new()),
+        },
+        dx_adopt::dependency_sets::Ecosystem::SwiftPm => match rel.rsplit('/').next() {
+            Some(name) if name == dx_adopt::dependency_sets::package_resolved()? => {
+                dx_audit::locks::parse_package_resolved(text)
+            }
+            _ => Ok(Vec::new()),
+        },
+        dx_adopt::dependency_sets::Ecosystem::PowerShell => {
+            dx_audit::locks::parse_psgallery_lock(text)
+        }
+        dx_adopt::dependency_sets::Ecosystem::LuaRocks => match rel.rsplit('/').next() {
+            Some(name) if name == dx_adopt::dependency_sets::luarocks_lock()? => {
+                dx_audit::locks::parse_luarocks_lock(text)
+            }
+            _ => Ok(Vec::new()),
+        },
+        // The versions live in the manifest; the lock only holds hashes (see the builtin set).
+        dx_adopt::dependency_sets::Ecosystem::Go => dx_audit::locks::go_locked_packages(text),
+        dx_adopt::dependency_sets::Ecosystem::Maven => match rel.rsplit('/').next() {
+            Some(name)
+                if Path::new(name)
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("json")) =>
+            {
+                dx_audit::locks::parse_maven_install(text)
+            }
+            _ => Ok(Vec::new()),
+        },
+        dx_adopt::dependency_sets::Ecosystem::Nuget => match rel.rsplit('/').next() {
+            Some(name) if name == dx_adopt::dependency_sets::paket_lock()? => {
+                dx_audit::locks::parse_paket_lock(text)
+            }
+            _ => Ok(Vec::new()),
+        },
+        dx_adopt::dependency_sets::Ecosystem::Cargo => match rel.rsplit('/').next() {
+            Some(name) if name == dx_adopt::dependency_sets::cargo_lock()? => {
+                dx_audit::locks::parse_cargo_lock(text)
+            }
+            _ => Ok(Vec::new()),
+        },
+    }
+    .map_err(|detail| AuditError::LockParse {
+        rel: rel.to_owned(),
+        detail: detail.to_string(),
+    })
+}
+
+fn parse_locked_for_configured(
+    set: &dx_adopt::dependency_sets::ResolvedSet,
+    locks: &[(String, String)],
+) -> Result<(Vec<dx_audit::vuln::LockedPackage>, LockPaths), AuditError> {
+    let expected = expected_lock(set.ecosystem)?;
     if let Some((label, exact)) = expected {
         let parsed = locks.iter().any(|(rel, _)| {
             let name = rel.rsplit('/').next().unwrap_or(rel);
@@ -456,104 +567,7 @@ fn parse_locked_for_configured(
     let mut all = Vec::new();
     let mut by_package: BTreeMap<(String, String), String> = BTreeMap::new();
     for (rel, text) in locks {
-        let mut packages = match set.ecosystem {
-            dx_adopt::dependency_sets::Ecosystem::Uv => dx_audit::locks::parse_uv_lock(text),
-            dx_adopt::dependency_sets::Ecosystem::Npm => match rel.rsplit('/').next() {
-                Some("package-lock.json") => dx_audit::locks::parse_package_lock(text),
-                Some("yarn.lock") => dx_audit::locks::parse_yarn_lock(text),
-                _ => dx_audit::locks::parse_pnpm_lock(text),
-            },
-            dx_adopt::dependency_sets::Ecosystem::Ruby => dx_audit::locks::parse_gemfile_lock(text),
-            dx_adopt::dependency_sets::Ecosystem::Cpan => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::cpanfile_snapshot()? => {
-                    dx_audit::locks::parse_cpanfile_snapshot(text)
-                }
-                _ => Ok(Vec::new()),
-            },
-            dx_adopt::dependency_sets::Ecosystem::Pub => dx_audit::locks::parse_pubspec_lock(text),
-            dx_adopt::dependency_sets::Ecosystem::Hex => dx_audit::locks::parse_hex_lock(text),
-            dx_adopt::dependency_sets::Ecosystem::Fpm => dx_audit::locks::parse_fpm_lock(text),
-            dx_adopt::dependency_sets::Ecosystem::Zig
-            | dx_adopt::dependency_sets::Ecosystem::Bazel
-            | dx_adopt::dependency_sets::Ecosystem::Ansible
-            | dx_adopt::dependency_sets::Ecosystem::Bicep => Ok(Vec::new()),
-            dx_adopt::dependency_sets::Ecosystem::Dub => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::dub_selections()? => {
-                    dx_audit::locks::parse_dub_selections(text)
-                }
-                _ => Ok(Vec::new()),
-            },
-            dx_adopt::dependency_sets::Ecosystem::Julia => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::julia_manifest()? => {
-                    dx_audit::locks::parse_julia_manifest(text)
-                }
-                _ => Ok(Vec::new()),
-            },
-            dx_adopt::dependency_sets::Ecosystem::Composer => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::composer_lock()? => {
-                    dx_audit::locks::parse_composer_lock(text)
-                }
-                _ => Ok(Vec::new()),
-            },
-            dx_adopt::dependency_sets::Ecosystem::Cabal => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::cabal_freeze()? => {
-                    dx_audit::locks::parse_cabal_freeze(text)
-                }
-                Some(dx_adopt::dependency_sets::STACK_LOCK) => {
-                    dx_audit::locks::parse_stack_lock(text)
-                }
-                _ => Ok(Vec::new()),
-            },
-            dx_adopt::dependency_sets::Ecosystem::Opam => match rel.rsplit('/').next() {
-                Some(name) if name.ends_with(".opam.locked") => {
-                    dx_audit::locks::parse_opam_locked(text)
-                }
-                _ => Ok(Vec::new()),
-            },
-            dx_adopt::dependency_sets::Ecosystem::SwiftPm => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::package_resolved()? => {
-                    dx_audit::locks::parse_package_resolved(text)
-                }
-                _ => Ok(Vec::new()),
-            },
-            dx_adopt::dependency_sets::Ecosystem::PowerShell => {
-                dx_audit::locks::parse_psgallery_lock(text)
-            }
-            dx_adopt::dependency_sets::Ecosystem::LuaRocks => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::luarocks_lock()? => {
-                    dx_audit::locks::parse_luarocks_lock(text)
-                }
-                _ => Ok(Vec::new()),
-            },
-            // The versions live in the manifest; the lock only holds hashes (see the builtin set).
-            dx_adopt::dependency_sets::Ecosystem::Go => dx_audit::locks::go_locked_packages(text),
-            dx_adopt::dependency_sets::Ecosystem::Maven => match rel.rsplit('/').next() {
-                Some(name)
-                    if Path::new(name)
-                        .extension()
-                        .is_some_and(|ext| ext.eq_ignore_ascii_case("json")) =>
-                {
-                    dx_audit::locks::parse_maven_install(text)
-                }
-                _ => Ok(Vec::new()),
-            },
-            dx_adopt::dependency_sets::Ecosystem::Nuget => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::paket_lock()? => {
-                    dx_audit::locks::parse_paket_lock(text)
-                }
-                _ => Ok(Vec::new()),
-            },
-            dx_adopt::dependency_sets::Ecosystem::Cargo => match rel.rsplit('/').next() {
-                Some(name) if name == dx_adopt::dependency_sets::cargo_lock()? => {
-                    dx_audit::locks::parse_cargo_lock(text)
-                }
-                _ => Ok(Vec::new()),
-            },
-        }
-        .map_err(|detail| AuditError::LockParse {
-            rel: rel.clone(),
-            detail: detail.to_string(),
-        })?;
+        let mut packages = parse_one_lock(set.ecosystem, rel, text)?;
         for package in &packages {
             by_package
                 .entry((package.name.clone(), package.version.clone()))
@@ -965,95 +979,96 @@ fn run_secrets(
         }
         Ok(status) => status,
     };
-    let code = status.code;
     let sarif_text = std::fs::read(&report_file)
         .ok()
         .and_then(|bytes| String::from_utf8(bytes).ok());
+    secrets_outcome(status.code, sarif_text, trust_warning)
+}
+
+type SecretsOutcome = (
+    Vec<dx_audit::secrets::SecretFinding>,
+    Option<String>,
+    Vec<DiagnosticEvent>,
+);
+
+fn finding_diagnostics(
+    findings: &[dx_audit::secrets::SecretFinding],
+    trust_warning: Vec<DiagnosticEvent>,
+) -> Vec<DiagnosticEvent> {
+    let mut diagnostics: Vec<DiagnosticEvent> = findings
+        .iter()
+        .map(|finding| DiagnosticEvent {
+            rule: Some(finding.rule.clone()),
+            path: finding.path.clone(),
+            ..DiagnosticEvent::new(
+                Severity::Error,
+                "gitleaks",
+                format!("{}: {}", finding.rule, finding.message),
+            )
+        })
+        .collect();
+    diagnostics.extend(trust_warning);
+    diagnostics
+}
+
+fn secrets_outcome(
+    code: Option<i32>,
+    sarif_text: Option<String>,
+    trust_warning: Vec<DiagnosticEvent>,
+) -> SecretsOutcome {
+    let clean = matches!(code, Some(0));
     match code {
-        Some(0) => match sarif_text {
-            None => (Vec::new(), None, Vec::new()),
-            Some(text) => match dx_audit::secrets::triage_sarif(&text) {
-                Err(detail) => (
-                    Vec::new(),
-                    Some(format!("invalid gitleaks SARIF: {detail}")),
-                    Vec::new(),
-                ),
-                Ok(findings) => {
-                    if findings.is_empty() {
-                        (Vec::new(), None, trust_warning.clone())
-                    } else {
-                        let mut diagnostics: Vec<DiagnosticEvent> = findings
-                            .iter()
-                            .map(|finding| DiagnosticEvent {
-                                rule: Some(finding.rule.clone()),
-                                path: finding.path.clone(),
-                                ..DiagnosticEvent::new(
-                                    Severity::Error,
-                                    "gitleaks",
-                                    format!("{}: {}", finding.rule, finding.message),
-                                )
-                            })
-                            .collect();
-                        diagnostics.extend(trust_warning.clone());
-                        (findings, None, diagnostics)
-                    }
-                }
-            },
-        },
-        Some(1 | 2) => match sarif_text {
-            None => (
+        Some(0..=2) => {}
+        Some(other) => {
+            return (
+                Vec::new(),
+                Some(format!("secrets auditor exited {other}")),
+                Vec::new(),
+            );
+        }
+        None => {
+            return (
+                Vec::new(),
+                Some("secrets auditor terminated by signal".to_owned()),
+                Vec::new(),
+            );
+        }
+    }
+    let Some(text) = sarif_text else {
+        return if clean {
+            (Vec::new(), None, Vec::new())
+        } else {
+            (
                 Vec::new(),
                 Some("secrets auditor reported leaks-or-errors without a SARIF report".to_owned()),
                 Vec::new(),
-            ),
-            Some(text) => match dx_audit::secrets::triage_sarif(&text) {
-                Err(detail) => (
-                    Vec::new(),
-                    Some(format!("invalid gitleaks SARIF: {detail}")),
-                    Vec::new(),
-                ),
-                Ok(findings) => {
-                    if findings.is_empty() {
-                        (
-                            Vec::new(),
-                            Some(format!(
-                                "secrets auditor exited {} with no SARIF results",
-                                code.unwrap_or(1)
-                            )),
-                            trust_warning.clone(),
-                        )
-                    } else {
-                        let mut diagnostics: Vec<DiagnosticEvent> = findings
-                            .iter()
-                            .map(|finding| DiagnosticEvent {
-                                rule: Some(finding.rule.clone()),
-                                path: finding.path.clone(),
-                                ..DiagnosticEvent::new(
-                                    Severity::Error,
-                                    "gitleaks",
-                                    format!("{}: {}", finding.rule, finding.message),
-                                )
-                            })
-                            .collect();
-                        diagnostics.extend(trust_warning.clone());
-                        (findings, None, diagnostics)
-                    }
-                }
-            },
-        },
-        Some(other) => (
-            Vec::new(),
-            Some(format!("secrets auditor exited {other}")),
-            Vec::new(),
-        ),
-        None => (
-            Vec::new(),
-            Some("secrets auditor terminated by signal".to_owned()),
-            Vec::new(),
-        ),
+            )
+        };
+    };
+    let findings = match dx_audit::secrets::triage_sarif(&text) {
+        Ok(findings) => findings,
+        Err(detail) => {
+            return (
+                Vec::new(),
+                Some(format!("invalid gitleaks SARIF: {detail}")),
+                Vec::new(),
+            );
+        }
+    };
+    if findings.is_empty() {
+        let message = (!clean).then(|| {
+            format!(
+                "secrets auditor exited {} with no SARIF results",
+                code.unwrap_or(1)
+            )
+        });
+        return (Vec::new(), message, trust_warning);
     }
+    let diagnostics = finding_diagnostics(&findings, trust_warning);
+    (findings, None, diagnostics)
 }
 
+#[derive(Clone, Copy)]
 struct SecurityInputs<'a> {
     workspace: &'a Path,
     runner: &'a dyn dx_process::Runner,
@@ -1184,69 +1199,110 @@ fn collect_target(
     }))
 }
 
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "the bundle is built for this one call"
-)]
-fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
-    let SecurityInputs {
-        workspace,
-        runner,
-        temp_dir,
-        pid,
-        nonce,
-        sets,
-        scopes,
-        excludes,
-        fail_on,
-        unowned,
-        today,
-        offline,
-        query_runner,
-        startup,
-    } = inputs;
-    let bazel = QueryBazel {
-        query_runner,
-        workspace,
-        startup,
+fn pin_diagnostics(
+    pin: &dx_audit::advisory::AdvisoryPin,
+    label: &str,
+    today: &str,
+) -> Option<DiagnosticEvent> {
+    let age = pin.age_days(today)?;
+    (age > dx_audit::advisory::PIN_MAX_AGE_DAYS).then(|| DiagnosticEvent {
+        rule: Some(format!("{}/advisory_pin_old", dx_audit::vuln::VULN_RULE_PREFIX)),
+        ..DiagnosticEvent::new(
+            Severity::Warning,
+            "vuln",
+            format!(
+                "advisory_pin_old: the {} advisory pin for {label} is from {} ({age} days old, over {}); refresh the advisory lines in .dx/pins",
+                pin.family,
+                pin.date,
+                dx_audit::advisory::PIN_MAX_AGE_DAYS
+            ),
+        )
+    })
+}
+
+fn yanked_unprepared_diagnostic(label: &str) -> DiagnosticEvent {
+    DiagnosticEvent {
+        rule: Some(format!(
+            "{}/yanked_unprepared",
+            dx_audit::vuln::VULN_RULE_PREFIX
+        )),
+        ..DiagnosticEvent::new(
+            Severity::Warning,
+            "vuln",
+            format!(
+                "yanked_unprepared: no yanked-version snapshot for {label}; run {} to check yanked versions",
+                dx_audit::advisory::REFRESH_COMMAND
+            ),
+        )
+    }
+}
+
+fn vuln_diagnostic(
+    finding: &dx_audit::vuln::VulnFinding,
+    lock_paths: &LockPaths,
+) -> DiagnosticEvent {
+    let lock_path = lock_paths.of(&finding.package, &finding.version);
+    let fixed = if finding.fixed.is_empty() {
+        "no fixed version available".to_owned()
+    } else {
+        format!("fixed in {}", finding.fixed.join(", "))
     };
-    let (secret_findings, secrets_incomplete, mut diagnostics) = run_secrets(
-        workspace,
-        runner,
-        query_runner,
-        &bazel,
-        temp_dir,
-        pid,
-        nonce,
-        offline,
-    );
-    let mut vuln_findings_all: Vec<dx_audit::vuln::VulnFinding> = Vec::new();
-    let mut unassessed_all: Vec<dx_audit::vuln::Unassessed> = Vec::new();
-    let mut candidates: Vec<VulnCandidate> = Vec::new();
-    let mut incomplete: Option<String> = secrets_incomplete;
-    let mut incomplete_code = CODE_AUDIT_FAILED;
-    let policy = match load_security_policy(workspace) {
-        Ok(policy) => policy,
-        Err(error) => {
-            diagnostics.push(DiagnosticEvent {
-                path: Some("security.toml".to_owned()),
-                ..DiagnosticEvent::new(Severity::Error, "vuln", error.to_string())
-            });
-            return SecurityResult {
-                status: dx_audit::outcome::FamilyStatus::Incomplete,
-                diagnostics,
-                detail: error.to_string(),
-                code: error.code(),
-                candidates: Vec::new(),
-                uncovered_sets: Vec::new(),
-            };
-        }
-    };
-    let uncovered: Vec<&str> = sets
-        .iter()
-        .filter(|target| !target.advisory_covered())
-        .map(AuditTarget::name)
-        .collect();
+    DiagnosticEvent {
+        rule: Some(format!(
+            "{}/{}",
+            dx_audit::vuln::VULN_RULE_PREFIX,
+            finding.advisory
+        )),
+        path: Some(lock_path.to_owned()),
+        package: package_ref(
+            &finding.package,
+            &finding.version,
+            Some(finding.fixed.clone()),
+            None,
+        ),
+        ..DiagnosticEvent::new(
+            severity_for_level(finding.level),
+            "vuln",
+            if finding.kind == dx_audit::vuln::AdvisoryKind::Yanked {
+                format!(
+                    "{}@{} is yanked from {}",
+                    finding.package,
+                    finding.version,
+                    if finding.set == "uv" {
+                        "PyPI"
+                    } else {
+                        "crates.io"
+                    }
+                )
+            } else if finding.kind == dx_audit::vuln::AdvisoryKind::Vulnerability {
+                format!(
+                    "{}@{} vulnerable to {} (severity {}; {fixed})",
+                    finding.package, finding.version, finding.advisory, finding.severity
+                )
+            } else {
+                format!(
+                    "{}@{} has {} advisory {} (severity {}; {fixed})",
+                    finding.package,
+                    finding.version,
+                    finding.kind.name(),
+                    finding.advisory,
+                    finding.severity
+                )
+            },
+        )
+    }
+}
+
+struct PolicyChecks<'a> {
+    accepted_uncovered: Vec<&'a str>,
+    live_exceptions: Vec<&'a dx_audit::exception::RiskException>,
+    problems: Vec<String>,
+}
+
+fn check_policy<'a>(
+    policy: &'a dx_audit::exception::SecurityPolicy,
+    today: &str,
+) -> PolicyChecks<'a> {
     let mut accepted_uncovered: Vec<&str> = Vec::new();
     let mut exception_problems: Vec<String> = Vec::new();
     for acceptance in &policy.uncovered {
@@ -1270,245 +1326,323 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
             )),
         }
     }
-    if !exception_problems.is_empty() {
-        incomplete = Some(exception_problems.join("\n"));
+    PolicyChecks {
+        accepted_uncovered,
+        live_exceptions,
+        problems: exception_problems,
     }
-    for target in sets {
-        let AuditTarget::Configured(set) = target;
-        if set.ecosystem == dx_adopt::dependency_sets::Ecosystem::Bazel {
-            match bazel_inputs_for_configured(workspace, set) {
-                Err(error) => {
-                    if incomplete.is_none() {
-                        incomplete = Some(format!("failed to assess {}: {error}", set.name));
-                    }
-                }
-                Ok((inventory, lock_rel)) => {
-                    diagnostics.push(bazel_coverage_diagnostic(set, &inventory, &lock_rel));
-                }
+}
+
+#[derive(Clone, Copy)]
+struct TargetCtx<'a> {
+    workspace: &'a Path,
+    policy: &'a dx_audit::exception::SecurityPolicy,
+    accepted_uncovered: &'a [&'a str],
+    live_exceptions: &'a [&'a dx_audit::exception::RiskException],
+    today: &'a str,
+    offline: bool,
+}
+
+struct SecurityAcc {
+    diagnostics: Vec<DiagnosticEvent>,
+    vuln_findings: Vec<dx_audit::vuln::VulnFinding>,
+    unassessed: Vec<dx_audit::vuln::Unassessed>,
+    candidates: Vec<VulnCandidate>,
+    incomplete: Option<String>,
+    incomplete_code: &'static str,
+}
+
+fn assess_bazel_set(
+    workspace: &Path,
+    set: &dx_adopt::dependency_sets::ResolvedSet,
+    acc: &mut SecurityAcc,
+) {
+    match bazel_inputs_for_configured(workspace, set) {
+        Err(error) => {
+            if acc.incomplete.is_none() {
+                acc.incomplete = Some(format!("failed to assess {}: {error}", set.name));
             }
-            continue;
         }
-        let assessable = match collect_target(workspace, target, &accepted_uncovered, offline) {
-            Err((code, error)) => {
-                if incomplete.is_none() {
-                    incomplete = Some(error.to_string());
-                    incomplete_code = code;
-                }
-                continue;
+        Ok((inventory, lock_rel)) => {
+            acc.diagnostics
+                .push(bazel_coverage_diagnostic(set, &inventory, &lock_rel));
+        }
+    }
+}
+
+fn assess_target(ctx: &TargetCtx<'_>, target: &AuditTarget<'_>, acc: &mut SecurityAcc) {
+    let TargetCtx {
+        workspace,
+        policy,
+        accepted_uncovered,
+        live_exceptions,
+        today,
+        offline,
+    } = *ctx;
+    let AuditTarget::Configured(set) = target;
+    if set.ecosystem == dx_adopt::dependency_sets::Ecosystem::Bazel {
+        assess_bazel_set(workspace, set, acc);
+        return;
+    }
+    let assessable = match collect_target(workspace, target, accepted_uncovered, offline) {
+        Err((code, error)) => {
+            if acc.incomplete.is_none() {
+                acc.incomplete = Some(error.to_string());
+                acc.incomplete_code = code;
             }
-            Ok(None) => continue,
-            Ok(Some(assessable)) => assessable,
-        };
-        let Assessable {
-            label,
-            packages,
-            lock_paths,
-            advisories,
-            pin,
-            exception_set,
-            yanked_missing,
-        } = assessable;
-        if let Some(age) = pin.age_days(today)
-            && age > dx_audit::advisory::PIN_MAX_AGE_DAYS
-        {
-            diagnostics.push(DiagnosticEvent {
-                    rule: Some(format!("{}/advisory_pin_old", dx_audit::vuln::VULN_RULE_PREFIX)),
-                    ..DiagnosticEvent::new(
-                        Severity::Warning,
-                        "vuln",
-                        format!(
-                            "advisory_pin_old: the {} advisory pin for {label} is from {} ({age} days old, over {}); refresh the advisory lines in .dx/pins",
-                            pin.family,
-                            pin.date,
-                            dx_audit::advisory::PIN_MAX_AGE_DAYS
-                        ),
-                    )
-                });
+            return;
         }
-        if yanked_missing && policy.fails_on(dx_audit::vuln::AdvisoryKind::Yanked) {
-            if incomplete.is_none() {
-                incomplete = Some(format!(
-                    "failed to assess {label}: no yanked-version snapshot; run {}",
-                    dx_audit::advisory::REFRESH_COMMAND
-                ));
-            }
-        } else if yanked_missing {
-            diagnostics.push(DiagnosticEvent {
-                rule: Some(format!(
-                    "{}/yanked_unprepared",
-                    dx_audit::vuln::VULN_RULE_PREFIX
-                )),
-                ..DiagnosticEvent::new(
-                    Severity::Warning,
-                    "vuln",
-                    format!(
-                        "yanked_unprepared: no yanked-version snapshot for {label}; run {} to check yanked versions",
-                        dx_audit::advisory::REFRESH_COMMAND
-                    ),
-                )
-            });
+        Ok(None) => return,
+        Ok(Some(assessable)) => assessable,
+    };
+    let Assessable {
+        label,
+        packages,
+        lock_paths,
+        advisories,
+        pin,
+        exception_set,
+        yanked_missing,
+    } = assessable;
+    acc.diagnostics.extend(pin_diagnostics(&pin, &label, today));
+    if yanked_missing && policy.fails_on(dx_audit::vuln::AdvisoryKind::Yanked) {
+        if acc.incomplete.is_none() {
+            acc.incomplete = Some(format!(
+                "failed to assess {label}: no yanked-version snapshot; run {}",
+                dx_audit::advisory::REFRESH_COMMAND
+            ));
         }
-        let (findings, unassessed) = dx_audit::vuln::match_packages(&packages, &advisories);
-        candidates.extend(findings.iter().map(|finding| VulnCandidate {
+    } else if yanked_missing {
+        acc.diagnostics.push(yanked_unprepared_diagnostic(&label));
+    }
+    let (findings, unassessed) = dx_audit::vuln::match_packages(&packages, &advisories);
+    acc.candidates
+        .extend(findings.iter().map(|finding| VulnCandidate {
             advisory: finding.advisory.clone(),
             package: finding.package.clone(),
             set: label.clone(),
             lock_set: exception_set.clone(),
             version: finding.version.clone(),
         }));
-        let set_exceptions: Vec<dx_audit::exception::RiskException> = live_exceptions
-            .iter()
-            .filter(|exception| exception.set == label)
-            .map(|exception| {
-                let mut exception = (*exception).clone();
-                exception.set.clone_from(&exception_set);
-                exception
-            })
-            .collect();
-        let (mut unexempted, problems) =
-            dx_audit::vuln::apply_exceptions(&findings, &set_exceptions, today);
-        for finding in &mut unexempted {
-            if !policy.fails_on(finding.kind) {
-                finding.level = "info";
-            }
+    let set_exceptions: Vec<dx_audit::exception::RiskException> = live_exceptions
+        .iter()
+        .filter(|exception| exception.set == label)
+        .map(|exception| {
+            let mut exception = (*exception).clone();
+            exception.set.clone_from(&exception_set);
+            exception
+        })
+        .collect();
+    let (mut unexempted, problems) =
+        dx_audit::vuln::apply_exceptions(&findings, &set_exceptions, today);
+    for finding in &mut unexempted {
+        if !policy.fails_on(finding.kind) {
+            finding.level = "info";
         }
-        if !problems.is_empty() {
-            let first = problems.first().map_or_else(
-                || "exception validation failed".to_owned(),
-                ToString::to_string,
-            );
-            if incomplete.is_none() {
-                incomplete = Some(format!("failed to assess {label}: {first}"));
-            }
-        }
-        for finding in &unexempted {
-            let lock_path = lock_paths.of(&finding.package, &finding.version);
-            let fixed = if finding.fixed.is_empty() {
-                "no fixed version available".to_owned()
-            } else {
-                format!("fixed in {}", finding.fixed.join(", "))
-            };
-            diagnostics.push(DiagnosticEvent {
-                rule: Some(format!(
-                    "{}/{}",
-                    dx_audit::vuln::VULN_RULE_PREFIX,
-                    finding.advisory
-                )),
-                path: Some(lock_path.to_owned()),
-                package: package_ref(
-                    &finding.package,
-                    &finding.version,
-                    Some(finding.fixed.clone()),
-                    None,
-                ),
-                ..DiagnosticEvent::new(
-                    severity_for_level(finding.level),
-                    "vuln",
-                    if finding.kind == dx_audit::vuln::AdvisoryKind::Yanked {
-                        format!(
-                            "{}@{} is yanked from {}",
-                            finding.package,
-                            finding.version,
-                            if finding.set == "uv" {
-                                "PyPI"
-                            } else {
-                                "crates.io"
-                            }
-                        )
-                    } else if finding.kind == dx_audit::vuln::AdvisoryKind::Vulnerability {
-                        format!(
-                            "{}@{} vulnerable to {} (severity {}; {fixed})",
-                            finding.package, finding.version, finding.advisory, finding.severity
-                        )
-                    } else {
-                        format!(
-                            "{}@{} has {} advisory {} (severity {}; {fixed})",
-                            finding.package,
-                            finding.version,
-                            finding.kind.name(),
-                            finding.advisory,
-                            finding.severity
-                        )
-                    },
-                )
-            });
-        }
-        for item in &unassessed {
-            if incomplete.is_none() {
-                incomplete = Some(format!(
-                    "incomplete assessment: {} in {label} ({})",
-                    item.package, item.reason
-                ));
-            }
-        }
-        vuln_findings_all.extend(unexempted);
-        unassessed_all.extend(unassessed);
     }
-    let images = audit_images::run_images(&audit_images::ImagesInputs {
-        workspace,
-        runner,
-        bazel: &bazel,
-        temp_dir,
-        pid,
-        nonce,
-        scopes,
-        excludes,
-        policy: &policy,
-        exceptions: &live_exceptions,
-        fail_on,
-        today,
-        offline,
-    });
-    diagnostics.extend(images.diagnostics);
-    candidates.extend(images.candidates);
-    if incomplete.is_none() {
-        incomplete = images.incomplete;
-    }
-    let mut unowned_count = 0;
-    for lock in unowned {
-        if accepted_uncovered.contains(&lock.path.as_str()) {
-            continue;
+    if !problems.is_empty() {
+        let first = problems.first().map_or_else(
+            || "exception validation failed".to_owned(),
+            ToString::to_string,
+        );
+        if acc.incomplete.is_none() {
+            acc.incomplete = Some(format!("failed to assess {label}: {first}"));
         }
-        unowned_count += 1;
-        diagnostics.push(DiagnosticEvent {
+    }
+    for finding in &unexempted {
+        acc.diagnostics.push(vuln_diagnostic(finding, &lock_paths));
+    }
+    for item in &unassessed {
+        if acc.incomplete.is_none() {
+            acc.incomplete = Some(format!(
+                "acc.incomplete assessment: {} in {label} ({})",
+                item.package, item.reason
+            ));
+        }
+    }
+    acc.vuln_findings.extend(unexempted);
+    acc.unassessed.extend(unassessed);
+}
+
+fn status_and_detail(
+    incomplete: Option<&str>,
+    has_incomplete: bool,
+    secrets: usize,
+    vulns: usize,
+    unowned: Option<usize>,
+) -> (dx_audit::outcome::FamilyStatus, String) {
+    let failing = secrets > 0 || vulns > 0 || unowned.is_some();
+    if has_incomplete {
+        return (
+            dx_audit::outcome::FamilyStatus::Incomplete,
+            incomplete.unwrap_or("incomplete assessment").to_owned(),
+        );
+    }
+    if failing {
+        return (
+            dx_audit::outcome::FamilyStatus::Findings,
+            format!(
+                "{secrets} secret findings, {vulns} vulnerability findings, {} lock files without a dependency set",
+                unowned.unwrap_or(0)
+            ),
+        );
+    }
+    (dx_audit::outcome::FamilyStatus::Clean, "clean".to_owned())
+}
+
+fn unowned_diagnostics(
+    unowned: &[audit_uncovered::UnownedLock],
+    accepted_uncovered: &[&str],
+) -> Vec<DiagnosticEvent> {
+    unowned
+        .iter()
+        .filter(|lock| !accepted_uncovered.contains(&lock.path.as_str()))
+        .map(|lock| DiagnosticEvent {
             rule: Some(format!("{}/unowned-lock", dx_audit::vuln::VULN_RULE_PREFIX)),
             path: Some(lock.path.clone()),
             ..DiagnosticEvent::new(Severity::Warning, "vuln", lock.message())
-        });
+        })
+        .collect()
+}
+
+impl<'a> SecurityInputs<'a> {
+    fn bazel(&self) -> QueryBazel<'a> {
+        QueryBazel {
+            query_runner: self.query_runner,
+            workspace: self.workspace,
+            startup: self.startup,
+        }
     }
+
+    fn secrets(&self, bazel: &QueryBazel<'_>) -> SecretsOutcome {
+        run_secrets(
+            self.workspace,
+            self.runner,
+            self.query_runner,
+            bazel,
+            self.temp_dir,
+            self.pid,
+            self.nonce,
+            self.offline,
+        )
+    }
+
+    fn images(
+        &self,
+        bazel: &QueryBazel<'_>,
+        policy: &dx_audit::exception::SecurityPolicy,
+        exceptions: &[&dx_audit::exception::RiskException],
+    ) -> audit_images::ImagesResult {
+        audit_images::run_images(&audit_images::ImagesInputs {
+            workspace: self.workspace,
+            runner: self.runner,
+            bazel,
+            temp_dir: self.temp_dir,
+            pid: self.pid,
+            nonce: self.nonce,
+            scopes: self.scopes,
+            excludes: self.excludes,
+            policy,
+            exceptions,
+            fail_on: self.fail_on,
+            today: self.today,
+            offline: self.offline,
+        })
+    }
+}
+
+fn policy_failure(error: &AuditError, mut diagnostics: Vec<DiagnosticEvent>) -> SecurityResult {
+    diagnostics.push(DiagnosticEvent {
+        path: Some("security.toml".to_owned()),
+        ..DiagnosticEvent::new(Severity::Error, "vuln", error.to_string())
+    });
+    SecurityResult {
+        status: dx_audit::outcome::FamilyStatus::Incomplete,
+        diagnostics,
+        detail: error.to_string(),
+        code: error.code(),
+        candidates: Vec::new(),
+        uncovered_sets: Vec::new(),
+    }
+}
+
+fn run_security(inputs: &SecurityInputs<'_>) -> SecurityResult {
+    let SecurityInputs {
+        workspace,
+        sets,
+        fail_on,
+        unowned,
+        today,
+        offline,
+        ..
+    } = *inputs;
+    let bazel = inputs.bazel();
+    let (secret_findings, secrets_incomplete, diagnostics) = inputs.secrets(&bazel);
+    let policy = match load_security_policy(workspace) {
+        Ok(policy) => policy,
+        Err(error) => return policy_failure(&error, diagnostics),
+    };
+    let uncovered: Vec<&str> = sets
+        .iter()
+        .filter(|target| !target.advisory_covered())
+        .map(AuditTarget::name)
+        .collect();
+    let PolicyChecks {
+        accepted_uncovered,
+        live_exceptions,
+        problems: exception_problems,
+    } = check_policy(&policy, today);
+    let incomplete = if exception_problems.is_empty() {
+        secrets_incomplete
+    } else {
+        Some(exception_problems.join("\n"))
+    };
+    let ctx = TargetCtx {
+        workspace,
+        policy: &policy,
+        accepted_uncovered: &accepted_uncovered,
+        live_exceptions: &live_exceptions,
+        today,
+        offline,
+    };
+    let mut acc = SecurityAcc {
+        diagnostics,
+        vuln_findings: Vec::new(),
+        unassessed: Vec::new(),
+        candidates: Vec::new(),
+        incomplete,
+        incomplete_code: CODE_AUDIT_FAILED,
+    };
+    for target in sets {
+        assess_target(&ctx, target, &mut acc);
+    }
+    let images = inputs.images(&bazel, &policy, &live_exceptions);
+    acc.diagnostics.extend(images.diagnostics);
+    acc.candidates.extend(images.candidates);
+    if acc.incomplete.is_none() {
+        acc.incomplete = images.incomplete;
+    }
+    let unowned_events = unowned_diagnostics(unowned, &accepted_uncovered);
+    let unowned_count = unowned_events.len();
+    acc.diagnostics.extend(unowned_events);
     let failing_unowned =
         dx_output::meets_threshold(Severity::Warning, fail_on) && unowned_count > 0;
-    let failing_secrets = !secret_findings.is_empty();
-    let failing_vuln_count = vuln_findings_all
+    let failing_vuln_count = acc
+        .vuln_findings
         .iter()
         .filter(|finding| {
             policy.fails_on(finding.kind) && meets_audit_threshold(finding.level, fail_on)
         })
         .count()
         + images.failing;
-    let failing_vuln = failing_vuln_count > 0;
-    let has_incomplete = incomplete.is_some() || !unassessed_all.is_empty();
-    let status = if has_incomplete {
-        dx_audit::outcome::FamilyStatus::Incomplete
-    } else if failing_secrets || failing_vuln || failing_unowned {
-        dx_audit::outcome::FamilyStatus::Findings
-    } else {
-        dx_audit::outcome::FamilyStatus::Clean
-    };
-    let base_detail = if has_incomplete {
-        incomplete
-            .clone()
-            .unwrap_or_else(|| "incomplete assessment".to_owned())
-    } else if failing_secrets || failing_vuln || failing_unowned {
-        format!(
-            "{} secret findings, {} vulnerability findings, {} lock files without a dependency set",
-            secret_findings.len(),
-            failing_vuln_count,
-            if failing_unowned { unowned_count } else { 0 }
-        )
-    } else {
-        "clean".to_owned()
-    };
+    let has_incomplete = acc.incomplete.is_some() || !acc.unassessed.is_empty();
+    let (status, base_detail) = status_and_detail(
+        acc.incomplete.as_deref(),
+        has_incomplete,
+        secret_findings.len(),
+        failing_vuln_count,
+        failing_unowned.then_some(unowned_count),
+    );
     let mut detail = coverage_detail(base_detail, &uncovered);
     for row in &images.rows {
         detail.push_str("; ");
@@ -1516,10 +1650,10 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
     }
     SecurityResult {
         status,
-        diagnostics,
+        diagnostics: acc.diagnostics,
         detail,
-        code: incomplete_code,
-        candidates,
+        code: acc.incomplete_code,
+        candidates: acc.candidates,
         uncovered_sets: uncovered.iter().map(|name| (*name).to_owned()).collect(),
     }
 }
@@ -1571,26 +1705,10 @@ fn report_accepted(
     0
 }
 
-pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
-    debug_assert!(
-        matches!(invocation.command, Command::Security | Command::License),
-        "audit dispatch guards commands"
-    );
-    let Env {
-        workspace,
-        runner,
-        query_runner,
-        temp_dir,
-        pid,
-        nonce,
-        out,
-        err,
-        audit_today,
-        ..
-    } = env;
-    let family = match invocation.command {
-        Command::Security => dx_audit::AuditFamily::Security,
-        Command::License => dx_audit::AuditFamily::License,
+fn audit_family_of(command: Command) -> Option<dx_audit::AuditFamily> {
+    match command {
+        Command::Security => Some(dx_audit::AuditFamily::Security),
+        Command::License => Some(dx_audit::AuditFamily::License),
         Command::Lint
         | Command::Typecheck
         | Command::Format
@@ -1613,23 +1731,542 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         | Command::Docs
         | Command::Worktree
         | Command::Fuzz
-        | Command::Config => {
-            return pre_exec(
-                invocation.output,
+        | Command::Config => None,
+    }
+}
+
+struct AuditInputs<'a> {
+    workspace: &'a Path,
+    runner: &'a dyn dx_process::Runner,
+    query_runner: &'a dyn QueryRunner,
+    temp_dir: &'a Path,
+    pid: u32,
+    nonce: u64,
+    sets: &'a [AuditTarget<'a>],
+    effective: &'a [String],
+    excludes: &'a [String],
+    unowned: &'a [audit_uncovered::UnownedLock],
+    today: &'a str,
+}
+
+#[derive(Default)]
+struct FamilyRun {
+    outcomes: Vec<dx_audit::outcome::FamilyOutcome>,
+    diagnostics: Vec<DiagnosticEvent>,
+    sarif_tools: BTreeSet<String>,
+    family_messages: BTreeMap<String, String>,
+    family_codes: BTreeMap<String, &'static str>,
+    licensed: Vec<dx_audit::locks::LicensedPackage>,
+    any_incomplete: bool,
+    accepted: Option<Result<Vec<String>, DxError>>,
+}
+
+impl FamilyRun {
+    fn record(
+        &mut self,
+        family: dx_audit::AuditFamily,
+        status: dx_audit::outcome::FamilyStatus,
+        detail: String,
+        code: &'static str,
+    ) {
+        if status == dx_audit::outcome::FamilyStatus::Incomplete {
+            self.any_incomplete = true;
+        }
+        self.family_messages
+            .insert(family.as_str().to_owned(), detail);
+        self.family_codes.insert(family.as_str().to_owned(), code);
+        self.outcomes
+            .push(dx_audit::outcome::FamilyOutcome { family, status });
+    }
+}
+
+fn run_security_family(invocation: &Invocation, a: &AuditInputs<'_>, run: &mut FamilyRun) {
+    let result = run_security(&SecurityInputs {
+        workspace: a.workspace,
+        runner: a.runner,
+        temp_dir: a.temp_dir,
+        pid: a.pid,
+        nonce: a.nonce,
+        sets: a.sets,
+        scopes: a.effective,
+        excludes: a.excludes,
+        fail_on: invocation.fail_on,
+        unowned: a.unowned,
+        today: a.today,
+        offline: invocation.offline,
+        query_runner: a.query_runner,
+        startup: &invocation.bazel_startup_options,
+    });
+    if let Some((specs, reason, expires)) = accept_request(invocation) {
+        run.accepted = Some(accept_security(
+            a.workspace,
+            &Acceptance {
+                specs,
+                reason,
+                expires,
+                today: a.today,
+            },
+            &result.candidates,
+            &result.uncovered_sets,
+        ));
+    }
+    for tool in ["gitleaks", "trivy", "vuln"] {
+        run.sarif_tools.insert(tool.to_owned());
+    }
+    run.diagnostics.extend(result.diagnostics);
+    run.record(
+        dx_audit::AuditFamily::Security,
+        result.status,
+        result.detail,
+        result.code,
+    );
+}
+
+fn run_license_family(invocation: &Invocation, a: &AuditInputs<'_>, run: &mut FamilyRun) {
+    let result = run_license(
+        a.workspace,
+        a.sets,
+        a.effective,
+        invocation.fail_on,
+        a.today,
+    );
+    if let Some((specs, reason, expires)) = accept_request(invocation) {
+        run.accepted = Some(accept_license(
+            a.workspace,
+            &Acceptance {
+                specs,
+                reason,
+                expires,
+                today: a.today,
+            },
+            &result.candidates,
+        ));
+    }
+    run.sarif_tools.insert("license".to_owned());
+    run.licensed = result.licensed;
+    run.diagnostics.extend(result.diagnostics);
+    run.record(
+        dx_audit::AuditFamily::License,
+        result.status,
+        result.detail,
+        result.code,
+    );
+}
+
+fn emit_diagnostics(
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    invocation: &Invocation,
+    diagnostics: &[DiagnosticEvent],
+    stdout_report: bool,
+) -> Result<bool, i32> {
+    let mut valid = true;
+    if invocation.output == OutputMode::Json {
+        for diagnostic in diagnostics {
+            match diagnostic_event(diagnostic) {
+                Ok(event) => emit_event(out, &event)?,
+                Err(error) => {
+                    valid = false;
+                    emit_built(
+                        out,
+                        error_event(
+                            CODE_INVALID_RESULT,
+                            &format!("invalid {} finding: {error}", diagnostic.tool),
+                            None,
+                            None,
+                            Some("execute"),
+                        ),
+                    )?;
+                }
+            }
+        }
+    } else {
+        let human: &mut dyn Write = if stdout_report { &mut *err } else { &mut *out };
+        for diagnostic in diagnostics {
+            let written = writeln!(
+                human,
+                "{}",
+                text_finding(&FindingRecord::single(diagnostic.clone()))
+            );
+            if !stdout_report {
+                check_stdout_write(written)?;
+            }
+        }
+    }
+    Ok(valid)
+}
+
+struct ReportCtx<'a> {
+    invocation: &'a Invocation,
+    workspace: &'a Path,
+    verbose: bool,
+    today: &'a str,
+    effective: &'a [String],
+    run: &'a FamilyRun,
+    sarif_complete: bool,
+}
+
+fn announce_report(
+    out: &mut dyn Write,
+    ctx: &ReportCtx<'_>,
+    planned: &dx_plan::reports::PlannedReport,
+    name: &str,
+    complete: bool,
+) -> Result<(), i32> {
+    if ctx.invocation.output == OutputMode::Json {
+        emit_built(
+            out,
+            report_event(name, planned.destination.display(), complete),
+        )
+    } else if ctx.verbose && planned.destination != Destination::Stdout {
+        check_stdout_write(writeln!(
+            out,
+            "Wrote {name} report to {}.",
+            planned.destination.display()
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+fn fail_report(
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    ctx: &ReportCtx<'_>,
+    message: &str,
+) -> Result<bool, i32> {
+    report_failed(out, err, ctx.invocation.output, message)?;
+    Ok(false)
+}
+
+fn write_inventory_report(
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    ctx: &ReportCtx<'_>,
+    planned: &dx_plan::reports::PlannedReport,
+    name: &str,
+) -> Result<bool, i32> {
+    let created = audit_spdx::created_time(
+        std::env::var("SOURCE_DATE_EPOCH").ok().as_deref(),
+        ctx.today,
+    );
+    let rendered = if name == "spdx" {
+        audit_spdx::license_spdx(ctx.effective, &ctx.run.licensed, &created)
+    } else {
+        audit_cyclonedx::license_cyclonedx(ctx.effective, &ctx.run.licensed, &created)
+    };
+    let document = match rendered {
+        Ok(document) => document,
+        Err(error) => {
+            return fail_report(
                 out,
                 err,
-                "audit dispatch guards commands",
+                ctx,
+                &format!("failed to render {name} report: {error}"),
             );
         }
     };
-    let request = dx_audit::AuditRequest {
+    if let Err(error) = write_report_document(out, ctx.workspace, &planned.destination, &document) {
+        return fail_report(
+            out,
+            err,
+            ctx,
+            &format!("failed to write {name} report to {error}"),
+        );
+    }
+    announce_report(out, ctx, planned, name, !ctx.run.any_incomplete)?;
+    Ok(true)
+}
+
+fn write_sarif_report(
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    ctx: &ReportCtx<'_>,
+    planned: &dx_plan::reports::PlannedReport,
+) -> Result<bool, i32> {
+    let tools: Vec<String> = ctx.run.sarif_tools.iter().cloned().collect();
+    let snapshots = BTreeMap::new();
+    let document = match dx_plan::reports::render_sarif(
+        &tools,
+        &ctx.run.diagnostics,
+        &snapshots,
+        ctx.sarif_complete,
+    ) {
+        Ok(document) => document,
+        Err(error) => {
+            return fail_report(
+                out,
+                err,
+                ctx,
+                &format!("failed to render SARIF report: {error}"),
+            );
+        }
+    };
+    if let Err(error) = write_report_document(out, ctx.workspace, &planned.destination, &document) {
+        return fail_report(
+            out,
+            err,
+            ctx,
+            &format!("failed to write sarif report to {error}"),
+        );
+    }
+    announce_report(out, ctx, planned, "sarif", ctx.sarif_complete)?;
+    Ok(true)
+}
+
+fn write_reports(
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    ctx: &ReportCtx<'_>,
+    planned_reports: &[dx_plan::reports::PlannedReport],
+) -> Result<bool, i32> {
+    let mut reports_ok = true;
+    for planned in planned_reports {
+        let name = planned.format.name();
+        let written = if name == "spdx" || name == "cyclonedx" {
+            write_inventory_report(out, err, ctx, planned, name)?
+        } else if name == "sarif" {
+            write_sarif_report(out, err, ctx, planned)?
+        } else {
+            true
+        };
+        reports_ok &= written;
+    }
+    Ok(reports_ok)
+}
+
+struct AuditSummary<'a> {
+    invocation: &'a Invocation,
+    effective: &'a [String],
+    run: &'a FamilyRun,
+    report: &'a dx_audit::outcome::AuditReport,
+    exit: i32,
+    complete: bool,
+    counts: [u64; 3],
+    verbose: bool,
+}
+
+impl AuditSummary<'_> {
+    fn message(&self, family_name: &str, fallback: &str) -> String {
+        self.run
+            .family_messages
+            .get(family_name)
+            .cloned()
+            .unwrap_or_else(|| fallback.to_owned())
+    }
+
+    fn failure_code(&self, family_name: &str) -> &'static str {
+        self.run
+            .family_codes
+            .get(family_name)
+            .copied()
+            .unwrap_or(CODE_AUDIT_FAILED)
+    }
+}
+
+fn json_summary(out: &mut dyn Write, err: &mut dyn Write, s: &AuditSummary<'_>) -> Result<(), i32> {
+    for outcome in &s.report.outcomes {
+        let family_name = outcome.family.as_str();
+        let message = s.message(family_name, "audit complete");
+        match outcome.status {
+            dx_audit::outcome::FamilyStatus::Clean => emit_built(
+                out,
+                notice_event(&NoticeEvent {
+                    related_command: Some(s.invocation.command.name().to_owned()),
+                    scope: Some(s.effective.to_vec()),
+                    ..NoticeEvent::info(audit_clean_code(outcome.family), message)
+                }),
+            )?,
+            dx_audit::outcome::FamilyStatus::Findings
+            | dx_audit::outcome::FamilyStatus::Incomplete => {
+                let code = s.failure_code(family_name);
+                emit_built(
+                    out,
+                    error_event(
+                        code,
+                        &format!("audit {family_name}: {message}"),
+                        None,
+                        None,
+                        Some("execute"),
+                    ),
+                )?;
+                for line in message.lines() {
+                    writeln!(err, "dx: {code}: audit {family_name}: {line}").ok();
+                }
+            }
+        }
+    }
+    let finished = command_finished(
+        s.exit,
+        &FinishedCounts {
+            results_complete: Some(s.complete),
+            diagnostics: Some(s.counts),
+            ..FinishedCounts::default()
+        },
+    );
+    emit_event(out, &finished)
+}
+
+fn text_summary(out: &mut dyn Write, err: &mut dyn Write, s: &AuditSummary<'_>) -> Result<(), i32> {
+    for outcome in &s.report.outcomes {
+        let family_name = outcome.family.as_str();
+        let message = s.message(family_name, "clean");
+        match outcome.status {
+            dx_audit::outcome::FamilyStatus::Clean => {
+                if s.verbose {
+                    check_stdout_write(writeln!(out, "audit {family_name}: {message}"))?;
+                }
+            }
+            dx_audit::outcome::FamilyStatus::Findings
+            | dx_audit::outcome::FamilyStatus::Incomplete => {
+                let code = s.failure_code(family_name);
+                for line in message.lines() {
+                    writeln!(err, "dx: {code}: audit {family_name}: {line}").ok();
+                }
+            }
+        }
+    }
+    if s.verbose {
+        let clean = s
+            .report
+            .outcomes
+            .iter()
+            .filter(|outcome| outcome.status == dx_audit::outcome::FamilyStatus::Clean)
+            .count();
+        let failed = s.report.outcomes.len().saturating_sub(clean);
+        check_stdout_write(writeln!(
+            out,
+            "dx security/license: {clean} clean, {failed} failed"
+        ))?;
+    }
+    Ok(())
+}
+
+fn severity_counts(diagnostics: &[DiagnosticEvent]) -> [u64; 3] {
+    let mut counts = [0_u64; 3];
+    for diagnostic in diagnostics {
+        match diagnostic.severity {
+            Severity::Info => counts[0] += 1,
+            Severity::Warning => counts[1] += 1,
+            Severity::Error => counts[2] += 1,
+        }
+    }
+    counts
+}
+
+fn run_summary_line(
+    request: &dx_audit::AuditRequest,
+    effective: &[String],
+    invocation: &Invocation,
+) -> String {
+    let families = request
+        .families
+        .iter()
+        .map(|family| family.as_str())
+        .collect::<Vec<_>>()
+        .join("+");
+    let scopes = if effective.is_empty() {
+        "no dependency sets".to_owned()
+    } else {
+        effective.join(", ")
+    };
+    frozen_summary(
+        offline_summary(
+            format!("Running audit {families} for {scopes}"),
+            invocation.offline,
+        ),
+        invocation.frozen,
+    )
+}
+
+struct LoadedAudit {
+    configured_sets: Vec<dx_adopt::dependency_sets::ResolvedSet>,
+    excludes: Vec<String>,
+    unowned: Vec<audit_uncovered::UnownedLock>,
+}
+
+fn load_audit(
+    invocation: &Invocation,
+    workspace: &Path,
+    effective: &[String],
+) -> Result<LoadedAudit, String> {
+    let registry = dx_adopt::dependency_sets::load(workspace).map_err(|error| error.to_string())?;
+    let Some(registry) = registry else {
+        return Err(no_dependency_sets());
+    };
+    let excludes = dx_plan::resolve::exclude::load(workspace).map_err(|error| error.to_string())?;
+    let configured_sets = resolve_configured_audit_sets(&registry, effective, &excludes)
+        .map_err(|error| error.to_string())?;
+    let owned: Vec<&str> = registry
+        .sets
+        .iter()
+        .flat_map(|set| set.locks.iter().chain(&set.manifests))
+        .map(String::as_str)
+        .collect();
+    let unowned = if invocation.command == Command::Security {
+        audit_uncovered::find_unowned(workspace, &owned).map_err(|error| error.to_string())?
+    } else {
+        Vec::new()
+    };
+    Ok(LoadedAudit {
+        configured_sets,
+        excludes,
+        unowned,
+    })
+}
+
+fn audit_request(invocation: &Invocation, family: dx_audit::AuditFamily) -> dx_audit::AuditRequest {
+    dx_audit::AuditRequest {
         families: vec![family],
         scope: if invocation.targets.is_empty() && !invocation.is_affected_plan() {
             dx_audit::AuditScope::Default
         } else {
             dx_audit::AuditScope::Only(invocation.targets.clone())
         },
+    }
+}
+
+fn run_families(
+    invocation: &Invocation,
+    request: &dx_audit::AuditRequest,
+    inputs: &AuditInputs<'_>,
+) -> FamilyRun {
+    let mut run = FamilyRun::default();
+    for family in &request.families {
+        match *family {
+            dx_audit::AuditFamily::Security => run_security_family(invocation, inputs, &mut run),
+            dx_audit::AuditFamily::License => run_license_family(invocation, inputs, &mut run),
+        }
+    }
+    run
+}
+
+pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
+    debug_assert!(
+        matches!(invocation.command, Command::Security | Command::License),
+        "audit dispatch guards commands"
+    );
+    let Env {
+        workspace,
+        runner,
+        query_runner,
+        temp_dir,
+        pid,
+        nonce,
+        out,
+        err,
+        audit_today,
+        ..
+    } = env;
+    let Some(family) = audit_family_of(invocation.command) else {
+        return pre_exec(
+            invocation.output,
+            out,
+            err,
+            "audit dispatch guards commands",
+        );
     };
+    let request = audit_request(invocation, family);
     let planned_reports = match plan_reports(
         workspace,
         invocation.command,
@@ -1639,63 +2276,21 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(planned) => planned,
         Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
     };
-    let families = request
-        .families
-        .iter()
-        .map(|family| family.as_str())
-        .collect::<Vec<_>>()
-        .join("+");
     let effective = request.effective_scopes();
-    let scopes = if effective.is_empty() {
-        "no dependency sets".to_owned()
-    } else {
-        effective.join(", ")
-    };
-    let summary = frozen_summary(
-        offline_summary(
-            format!("Running audit {families} for {scopes}"),
-            invocation.offline,
-        ),
-        invocation.frozen,
-    );
+    let summary = run_summary_line(&request, &effective, invocation);
     let stdout_report = planned_reports
         .iter()
         .any(|report| report.destination == Destination::Stdout);
     let verbose = invocation.chatty() && !stdout_report;
-    let registry = match dx_adopt::dependency_sets::load(workspace) {
-        Ok(registry) => registry,
-        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
+    let loaded = match load_audit(invocation, workspace, &effective) {
+        Ok(loaded) => loaded,
+        Err(message) => return pre_exec(invocation.output, out, err, &message),
     };
-    let Some(registry) = registry else {
-        return pre_exec(invocation.output, out, err, &no_dependency_sets());
-    };
-    let excludes = match dx_plan::resolve::exclude::load(workspace) {
-        Ok(excludes) => excludes,
-        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
-    };
-    let configured_sets = match resolve_configured_audit_sets(&registry, &effective, &excludes) {
-        Ok(sets) => sets,
-        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
-    };
-    let targets: Vec<AuditTarget<'_>> = configured_sets
+    let sets: Vec<AuditTarget<'_>> = loaded
+        .configured_sets
         .iter()
         .map(AuditTarget::Configured)
         .collect();
-    let sets = targets;
-    let owned: Vec<&str> = registry
-        .sets
-        .iter()
-        .flat_map(|set| set.locks.iter().chain(&set.manifests))
-        .map(String::as_str)
-        .collect();
-    let unowned = if invocation.command == Command::Security {
-        match audit_uncovered::find_unowned(workspace, &owned) {
-            Ok(unowned) => unowned,
-            Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
-        }
-    } else {
-        Vec::new()
-    };
     if invocation.output == OutputMode::Json {
         if let Err(exit) = emit_built(out, command_started(invocation.command.name(), "default")) {
             return exit;
@@ -1704,378 +2299,119 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         return exit;
     }
     let today = today_utc(audit_today);
-    let mut outcomes: Vec<dx_audit::outcome::FamilyOutcome> = Vec::new();
-    let mut diagnostics: Vec<DiagnosticEvent> = Vec::new();
-    let mut sarif_tools: BTreeSet<String> = BTreeSet::new();
-    let mut family_messages: BTreeMap<String, String> = BTreeMap::new();
-    let mut family_codes: BTreeMap<String, &'static str> = BTreeMap::new();
-    let mut licensed: Vec<dx_audit::locks::LicensedPackage> = Vec::new();
-    let mut any_incomplete = false;
-    let mut accepted: Option<Result<Vec<String>, DxError>> = None;
-    for family in &request.families {
-        match *family {
-            dx_audit::AuditFamily::Security => {
-                let result = run_security(SecurityInputs {
-                    workspace,
-                    runner,
-                    temp_dir,
-                    pid,
-                    nonce,
-                    sets: &sets,
-                    scopes: &effective,
-                    excludes: &excludes,
-                    fail_on: invocation.fail_on,
-                    unowned: &unowned,
-                    today: &today,
-                    offline: invocation.offline,
-                    query_runner,
-                    startup: &invocation.bazel_startup_options,
-                });
-                if let Some((specs, reason, expires)) = accept_request(invocation) {
-                    accepted = Some(accept_security(
-                        workspace,
-                        &Acceptance {
-                            specs,
-                            reason,
-                            expires,
-                            today: &today,
-                        },
-                        &result.candidates,
-                        &result.uncovered_sets,
-                    ));
-                }
-                sarif_tools.insert("gitleaks".to_owned());
-                sarif_tools.insert("trivy".to_owned());
-                sarif_tools.insert("vuln".to_owned());
-                diagnostics.extend(result.diagnostics.clone());
-                if result.status == dx_audit::outcome::FamilyStatus::Incomplete {
-                    any_incomplete = true;
-                }
-                family_messages.insert("security".to_owned(), result.detail.clone());
-                family_codes.insert("security".to_owned(), result.code);
-                outcomes.push(dx_audit::outcome::FamilyOutcome {
-                    family: *family,
-                    status: result.status,
-                });
-            }
-            dx_audit::AuditFamily::License => {
-                let result = run_license(workspace, &sets, &effective, invocation.fail_on, &today);
-                if let Some((specs, reason, expires)) = accept_request(invocation) {
-                    accepted = Some(accept_license(
-                        workspace,
-                        &Acceptance {
-                            specs,
-                            reason,
-                            expires,
-                            today: &today,
-                        },
-                        &result.candidates,
-                    ));
-                }
-                sarif_tools.insert("license".to_owned());
-                licensed.clone_from(&result.licensed);
-                diagnostics.extend(result.diagnostics.clone());
-                if result.status == dx_audit::outcome::FamilyStatus::Incomplete {
-                    any_incomplete = true;
-                }
-                family_messages.insert("license".to_owned(), result.detail.clone());
-                family_codes.insert("license".to_owned(), result.code);
-                outcomes.push(dx_audit::outcome::FamilyOutcome {
-                    family: *family,
-                    status: result.status,
-                });
-            }
-        }
-    }
-    if let Some(accepted) = accepted {
+    let inputs = AuditInputs {
+        workspace,
+        runner,
+        query_runner,
+        temp_dir,
+        pid,
+        nonce,
+        sets: &sets,
+        effective: &effective,
+        excludes: &loaded.excludes,
+        unowned: &loaded.unowned,
+        today: &today,
+    };
+    let run = run_families(invocation, &request, &inputs);
+    conclude_audit(
+        invocation,
+        &inputs,
+        out,
+        err,
+        run,
+        &planned_reports,
+        OutputFlags {
+            verbose,
+            stdout_report,
+        },
+    )
+}
+
+#[derive(Clone, Copy)]
+struct OutputFlags {
+    verbose: bool,
+    stdout_report: bool,
+}
+
+fn conclude_audit(
+    invocation: &Invocation,
+    a: &AuditInputs<'_>,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    mut run: FamilyRun,
+    planned_reports: &[dx_plan::reports::PlannedReport],
+    flags: OutputFlags,
+) -> i32 {
+    if let Some(accepted) = run.accepted.take() {
         return report_accepted(invocation, out, err, accepted);
     }
-    let report = dx_audit::outcome::AuditReport::aggregate(outcomes);
+    let report = dx_audit::outcome::AuditReport::aggregate(std::mem::take(&mut run.outcomes));
     let mut exit = dx_audit::outcome::exit_code(&report);
-    let mut sarif_complete = !any_incomplete && report.incomplete().is_empty();
-    let mut severity_counts = [0_u64; 3];
-    for diagnostic in &diagnostics {
-        match diagnostic.severity {
-            Severity::Info => severity_counts[0] += 1,
-            Severity::Warning => severity_counts[1] += 1,
-            Severity::Error => severity_counts[2] += 1,
+    let mut sarif_complete = !run.any_incomplete && report.incomplete().is_empty();
+    let counts = severity_counts(&run.diagnostics);
+    match emit_diagnostics(out, err, invocation, &run.diagnostics, flags.stdout_report) {
+        Ok(true) => {}
+        Ok(false) => {
+            exit = 1;
+            sarif_complete = false;
         }
+        Err(exit) => return exit,
     }
-    if invocation.output == OutputMode::Json {
-        for diagnostic in &diagnostics {
-            match diagnostic_event(diagnostic) {
-                Ok(event) => {
-                    if let Err(exit) = emit_event(out, &event) {
-                        return exit;
-                    }
-                }
-                Err(error) => {
-                    exit = 1;
-                    sarif_complete = false;
-                    if let Err(exit) = emit_built(
-                        out,
-                        error_event(
-                            CODE_INVALID_RESULT,
-                            &format!("invalid {} finding: {error}", diagnostic.tool),
-                            None,
-                            None,
-                            Some("execute"),
-                        ),
-                    ) {
-                        return exit;
-                    }
-                }
-            }
+    let ctx = ReportCtx {
+        invocation,
+        workspace: a.workspace,
+        verbose: flags.verbose,
+        today: a.today,
+        effective: a.effective,
+        run: &run,
+        sarif_complete,
+    };
+    match write_reports(out, err, &ctx, planned_reports) {
+        Ok(true) => {}
+        Ok(false) => {
+            return report_write_failed(out, invocation, flags.verbose, counts)
+                .unwrap_or_else(|exit| exit);
         }
+        Err(exit) => return exit,
+    }
+    let summary = AuditSummary {
+        invocation,
+        effective: a.effective,
+        run: &run,
+        report: &report,
+        exit,
+        complete: sarif_complete,
+        counts,
+        verbose: flags.verbose,
+    };
+    let finished = if invocation.output == OutputMode::Json {
+        json_summary(out, err, &summary)
     } else {
-        let human: &mut dyn Write = if stdout_report { &mut *err } else { &mut *out };
-        for diagnostic in &diagnostics {
-            let written = writeln!(
-                human,
-                "{}",
-                text_finding(&FindingRecord::single(diagnostic.clone()))
-            );
-            if !stdout_report && let Err(exit) = check_stdout_write(written) {
-                return exit;
-            }
-        }
-    }
-    let mut reports_ok = true;
-    for planned in &planned_reports {
-        let name = planned.format.name();
-        if name == "spdx" || name == "cyclonedx" {
-            let created = audit_spdx::created_time(
-                std::env::var("SOURCE_DATE_EPOCH").ok().as_deref(),
-                &today,
-            );
-            let rendered = if name == "spdx" {
-                audit_spdx::license_spdx(&effective, &licensed, &created)
-            } else {
-                audit_cyclonedx::license_cyclonedx(&effective, &licensed, &created)
-            };
-            let document = match rendered {
-                Ok(document) => document,
-                Err(error) => {
-                    reports_ok = false;
-                    if let Err(exit) = report_failed(
-                        out,
-                        err,
-                        invocation.output,
-                        &format!("failed to render {name} report: {error}"),
-                    ) {
-                        return exit;
-                    }
-                    continue;
-                }
-            };
-            if let Err(error) =
-                write_report_document(out, workspace, &planned.destination, &document)
-            {
-                reports_ok = false;
-                if let Err(exit) = report_failed(
-                    out,
-                    err,
-                    invocation.output,
-                    &format!("failed to write {name} report to {error}"),
-                ) {
-                    return exit;
-                }
-                continue;
-            }
-            if invocation.output == OutputMode::Json {
-                if let Err(exit) = emit_built(
-                    out,
-                    report_event(name, planned.destination.display(), !any_incomplete),
-                ) {
-                    return exit;
-                }
-            } else if verbose
-                && planned.destination != Destination::Stdout
-                && let Err(exit) = check_stdout_write(writeln!(
-                    out,
-                    "Wrote {name} report to {}.",
-                    planned.destination.display()
-                ))
-            {
-                return exit;
-            }
-            continue;
-        }
-        if name == "sarif" {
-            let tools: Vec<String> = sarif_tools.iter().cloned().collect();
-            let snapshots = BTreeMap::new();
-            let document = match dx_plan::reports::render_sarif(
-                &tools,
-                &diagnostics,
-                &snapshots,
-                sarif_complete,
-            ) {
-                Ok(document) => document,
-                Err(error) => {
-                    reports_ok = false;
-                    if let Err(exit) = report_failed(
-                        out,
-                        err,
-                        invocation.output,
-                        &format!("failed to render SARIF report: {error}"),
-                    ) {
-                        return exit;
-                    }
-                    continue;
-                }
-            };
-            let written = write_report_document(out, workspace, &planned.destination, &document);
-            if let Err(error) = written {
-                reports_ok = false;
-                if let Err(exit) = report_failed(
-                    out,
-                    err,
-                    invocation.output,
-                    &format!("failed to write sarif report to {error}"),
-                ) {
-                    return exit;
-                }
-                continue;
-            }
-            if invocation.output == OutputMode::Json {
-                if let Err(exit) = emit_built(
-                    out,
-                    report_event("sarif", planned.destination.display(), sarif_complete),
-                ) {
-                    return exit;
-                }
-            } else if verbose
-                && planned.destination != Destination::Stdout
-                && let Err(exit) = check_stdout_write(writeln!(
-                    out,
-                    "Wrote sarif report to {}.",
-                    planned.destination.display()
-                ))
-            {
-                return exit;
-            }
-        }
-    }
-    if !reports_ok {
-        if invocation.output == OutputMode::Json {
-            let finished = command_finished(
-                1,
-                &FinishedCounts {
-                    results_complete: Some(false),
-                    diagnostics: Some(severity_counts),
-                    ..FinishedCounts::default()
-                },
-            );
-            if let Err(exit) = emit_event(out, &finished) {
-                return exit;
-            }
-        } else if verbose
-            && let Err(exit) =
-                check_stdout_write(writeln!(out, "dx security/license: report write failed"))
-        {
-            return exit;
-        }
-        return 1;
-    }
+        text_summary(out, err, &summary)
+    };
+    finished.map_or_else(|exit| exit, |()| exit)
+}
+
+fn report_write_failed(
+    out: &mut dyn Write,
+    invocation: &Invocation,
+    verbose: bool,
+    counts: [u64; 3],
+) -> Result<i32, i32> {
     if invocation.output == OutputMode::Json {
-        for outcome in &report.outcomes {
-            let family_name = outcome.family.as_str();
-            let message = family_messages
-                .get(family_name)
-                .cloned()
-                .unwrap_or_else(|| "audit complete".to_owned());
-            match outcome.status {
-                dx_audit::outcome::FamilyStatus::Clean => {
-                    if let Err(exit) = emit_built(
-                        out,
-                        notice_event(&NoticeEvent {
-                            related_command: Some(invocation.command.name().to_owned()),
-                            scope: Some(effective.clone()),
-                            ..NoticeEvent::info(audit_clean_code(outcome.family), message)
-                        }),
-                    ) {
-                        return exit;
-                    }
-                }
-                dx_audit::outcome::FamilyStatus::Findings
-                | dx_audit::outcome::FamilyStatus::Incomplete => {
-                    let code = family_codes
-                        .get(family_name)
-                        .copied()
-                        .unwrap_or(CODE_AUDIT_FAILED);
-                    if let Err(exit) = emit_built(
-                        out,
-                        error_event(
-                            code,
-                            &format!("audit {family_name}: {message}"),
-                            None,
-                            None,
-                            Some("execute"),
-                        ),
-                    ) {
-                        return exit;
-                    }
-                    for line in message.lines() {
-                        writeln!(err, "dx: {code}: audit {family_name}: {line}").ok();
-                    }
-                }
-            }
-        }
         let finished = command_finished(
-            exit,
+            1,
             &FinishedCounts {
-                results_complete: Some(sarif_complete),
-                diagnostics: Some(severity_counts),
+                results_complete: Some(false),
+                diagnostics: Some(counts),
                 ..FinishedCounts::default()
             },
         );
-        if let Err(exit) = emit_event(out, &finished) {
-            return exit;
-        }
-        return exit;
+        emit_event(out, &finished)?;
+    } else if verbose {
+        check_stdout_write(writeln!(out, "dx security/license: report write failed"))?;
     }
-    for outcome in &report.outcomes {
-        let family_name = outcome.family.as_str();
-        let message = family_messages
-            .get(family_name)
-            .cloned()
-            .unwrap_or_else(|| "clean".to_owned());
-        match outcome.status {
-            dx_audit::outcome::FamilyStatus::Clean => {
-                if verbose
-                    && let Err(exit) =
-                        check_stdout_write(writeln!(out, "audit {family_name}: {message}"))
-                {
-                    return exit;
-                }
-            }
-            dx_audit::outcome::FamilyStatus::Findings
-            | dx_audit::outcome::FamilyStatus::Incomplete => {
-                let code = family_codes
-                    .get(family_name)
-                    .copied()
-                    .unwrap_or(CODE_AUDIT_FAILED);
-                for line in message.lines() {
-                    writeln!(err, "dx: {code}: audit {family_name}: {line}").ok();
-                }
-            }
-        }
-    }
-    if verbose {
-        let clean = report
-            .outcomes
-            .iter()
-            .filter(|outcome| outcome.status == dx_audit::outcome::FamilyStatus::Clean)
-            .count();
-        let failed = report.outcomes.len().saturating_sub(clean);
-        if let Err(exit) = check_stdout_write(writeln!(
-            out,
-            "dx security/license: {clean} clean, {failed} failed"
-        )) {
-            return exit;
-        }
-    }
-    exit
+    Ok(1)
 }
 
 #[path = "audit_accept.rs"]

@@ -16,7 +16,7 @@ pub(crate) fn ok(run: &Run, what: &str) {
         let combined = run.combined();
         let lines: Vec<&str> = combined.lines().collect();
         let tail = lines[lines.len().saturating_sub(80)..].join("\n");
-        let _ = writeln!(std::io::stderr(), "{what} failed:\n{tail}");
+        drop(writeln!(std::io::stderr(), "{what} failed:\n{tail}"));
     }
     assert_eq!(run.status.code(), Some(0), "{what}: {}", run.combined());
 }
@@ -138,6 +138,7 @@ fn initial_rc() -> &'static str {
 }
 
 fn run_in(case: &Case, args: &[&str], what: &str) -> Run {
+    crate::stage("quickstart_consumer_test", what);
     let run = bazel(case, args);
     ok(&run, what);
     run
@@ -253,6 +254,7 @@ fn the_readme_quickstart_runs_as_written() {
     } else {
         &["init", "--apply"]
     };
+    crate::stage("quickstart_consumer_test", "dx init --apply");
     let init = case.run(&dx, init_args, &pairs);
     ok(&init, "dx init --apply");
     run_in(
@@ -264,6 +266,7 @@ fn the_readme_quickstart_runs_as_written() {
     let python = load_budget("DX_PYTHON_CONSUMER_BUDGET");
     let mut failures = Vec::new();
     let mut within_budget = |name: &str, budget: &serde_json::Value, stage: &str| {
+        crate::stage("quickstart_consumer_test", &format!("measure {name} {stage}"));
         let measured = plain_fixture::measure_case(&case);
         eprintln!("footprint {name} {stage}: {}", measured.to_json());
         if cfg!(target_os = "linux")

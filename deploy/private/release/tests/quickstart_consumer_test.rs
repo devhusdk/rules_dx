@@ -235,11 +235,6 @@ fn the_readme_quickstart_runs_as_written() {
         "dx --help",
     );
     let dx = built_dx(&case);
-    let module = case.root().join("MODULE.bazel");
-    write_text(
-        &module,
-        &read_text(&module).replace(&rules_py_override(), ""),
-    );
     write_text(&case.root().join(".bazelrc"), initial_rc());
     let root = case.root().to_string_lossy().into_owned();
     let env = nested_env();

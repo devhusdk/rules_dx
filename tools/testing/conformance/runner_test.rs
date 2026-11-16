@@ -371,19 +371,41 @@ fn launcher_stem_strips_exe() {
 }
 
 fn collector_path(value: &str) -> String {
-    let rest = if let Some(rest) = value.strip_prefix("external/") {
-        rest.to_owned()
-    } else if let Some(rest) = value.strip_prefix("bazel-out/") {
-        match rest.splitn(3, '/').nth(2) {
-            Some(rest) => format!("_main/{rest}"),
-            None => return value.to_owned(),
-        }
-    } else {
-        return value.to_owned();
-    };
-    dx_testing::rlocation(&rest)
+    collector_rlocation(value)
+        .and_then(|rest| dx_testing::rlocation(&rest).ok())
         .map(|path| path.to_string_lossy().into_owned())
-        .unwrap_or_else(|_| value.to_owned())
+        .unwrap_or_else(|| value.to_owned())
+}
+
+fn collector_rlocation(value: &str) -> Option<String> {
+    if let Some(rest) = value.strip_prefix("external/") {
+        return Some(rest.to_owned());
+    }
+    let rest = value.strip_prefix("bazel-out/")?.splitn(3, '/').nth(2)?;
+    Some(match rest.strip_prefix("external/") {
+        Some(rest) => rest.to_owned(),
+        None => format!("_main/{rest}"),
+    })
+}
+
+#[test]
+fn collector_rlocation_maps_exec_paths() {
+    assert_eq!(
+        collector_rlocation("external/llvm+/bin/llvm-cov").as_deref(),
+        Some("llvm+/bin/llvm-cov")
+    );
+    assert_eq!(
+        collector_rlocation("bazel-out/k8-fastbuild/bin/tools/collect").as_deref(),
+        Some("_main/tools/collect")
+    );
+    assert_eq!(
+        collector_rlocation(
+            "bazel-out/darwin_arm64-fastbuild-exec/bin/external/apple_support+/crosstool/llvm-cov"
+        )
+        .as_deref(),
+        Some("apple_support+/crosstool/llvm-cov")
+    );
+    assert_eq!(collector_rlocation("/abs/llvm-cov"), None);
 }
 
 fn sources(report: &str) -> Vec<&str> {

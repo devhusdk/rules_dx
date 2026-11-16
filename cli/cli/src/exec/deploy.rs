@@ -102,7 +102,7 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         };
         writeln!(err, "{summary}").ok();
     }
-    let build_code = match run_bazel(
+    let built = match run_bazel(
         invocation,
         out,
         err,
@@ -114,8 +114,8 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(code) => code,
         Err(exit) => return exit,
     };
-    if build_code != 0 {
-        return build_code;
+    if built != 0 {
+        return built;
     }
     if !invocation.applies() && !invocation.quiet {
         if !info.size_budget.is_empty() {

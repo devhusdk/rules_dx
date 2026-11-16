@@ -90,9 +90,9 @@ pub fn cache_off_argv(argv: &[String]) -> Option<Vec<String>> {
         .iter()
         .position(|arg| arg == "--")
         .unwrap_or(rest.len());
-    let (args, tail) = rest.split_at_checked(end)?;
+    let (kept, tail) = rest.split_at_checked(end)?;
     let mut off = head.to_vec();
-    off.extend_from_slice(args);
+    off.extend_from_slice(kept);
     off.extend(CACHE_OFF_FLAGS.map(String::from));
     off.extend_from_slice(tail);
     Some(off)

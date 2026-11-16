@@ -24,7 +24,7 @@ impl dx_tool_resolve::Bazel for QueryBazel<'_> {
         };
         let mut options = vec!["--output=files".to_owned()];
         options.extend(args.iter().cloned());
-        let argv = dx_plan::plan::bazel_argv(
+        let cquery_argv = dx_plan::plan::bazel_argv(
             "cquery",
             &options,
             &[],
@@ -32,10 +32,10 @@ impl dx_tool_resolve::Bazel for QueryBazel<'_> {
             &[label.to_owned()],
             self.startup,
         )
-        .map_err(|error| failed(format!("could not build the cquery argv: {error}")))?;
+        .map_err(|error| failed(format!("could not build the cquery cquery_argv: {error}")))?;
         let result = self
             .query_runner
-            .run_query(&argv, self.workspace)
+            .run_query(&cquery_argv, self.workspace)
             .map_err(|error| failed(format!("could not run bazel: {error}")))?;
         if result.code != Some(0) {
             return Err(failed(dx_tool_resolve::exit_detail(

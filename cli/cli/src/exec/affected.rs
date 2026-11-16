@@ -136,9 +136,9 @@ fn tests_only(command: Command) -> bool {
 }
 
 fn git_text(runner: &dyn QueryRunner, workspace: &Path, args: &[&str]) -> Option<String> {
-    let mut argv = vec!["git".to_owned()];
-    argv.extend(args.iter().map(ToString::to_string));
-    let result = runner.run_query(&argv, workspace).ok()?;
+    let mut git_argv = vec!["git".to_owned()];
+    git_argv.extend(args.iter().map(ToString::to_string));
+    let result = runner.run_query(&git_argv, workspace).ok()?;
     if result.code != Some(0) {
         return None;
     }

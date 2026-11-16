@@ -241,12 +241,12 @@ fn opam_snapshot_dir(workspace: &Path) -> Result<PathBuf, DxError> {
     }
     let mut argv = dx_process::BazelHead::default().argv("run");
     argv.extend(["@rules_dx//ocaml/private/tools:opam", "--", "snapshot-dir"].map(str::to_owned));
-    let Some((program, args)) = argv.split_first() else {
+    let Some((program, tail)) = argv.split_first() else {
         return Err(DxError::infra("bazel run has no program".to_owned()));
     };
     let output = dx_process::capture::run_checked_with(
         std::process::Command::new(program)
-            .args(args)
+            .args(tail)
             .current_dir(workspace),
         BAZEL_TIMEOUT,
         dx_process::capture::RunOptions {

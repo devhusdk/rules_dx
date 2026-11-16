@@ -75,14 +75,14 @@ fn uv(args: &[String]) {
 fn main() {
     let mut argv = std::env::args();
     let program = argv.next().unwrap_or_default();
-    let args: Vec<String> = argv.collect();
+    let params: Vec<String> = argv.collect();
     let name = Path::new(&program)
         .file_stem()
         .and_then(|n| n.to_str())
         .unwrap_or_default();
     match name {
-        "bazel" => bazel(&args),
-        "uv" => uv(&args),
+        "bazel" => bazel(&params),
+        "uv" => uv(&params),
         _ => {}
     }
 }

@@ -85,6 +85,10 @@ const EXIT_ENV_SET: i32 = 71;
 #[cfg(unix)]
 const EXIT_BACKGROUND: i32 = 3;
 
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "one field per command-line switch"
+)]
 #[derive(Debug, Default)]
 struct Plan {
     exit_code: i32,
@@ -167,6 +171,21 @@ const SWITCH_FLAGS: &[&str] = &[
     "--ignore-console-ctrl",
 ];
 
+fn non_empty(value: &str, flag: &str, what: &str) -> Result<String, String> {
+    if value.is_empty() {
+        return Err(format!("{flag} needs {what}"));
+    }
+    Ok(value.to_owned())
+}
+
+fn exit_status(value: &str, flag: &str) -> Result<i32, String> {
+    let code: i32 = count(value, flag)?;
+    if !(0..=255).contains(&code) {
+        return Err(format!("{flag} needs 0-255, got {value}"));
+    }
+    Ok(code)
+}
+
 fn parse(args: &[String]) -> Result<Plan, String> {
     let mut plan = Plan::default();
     for arg in args {
@@ -198,24 +217,13 @@ fn parse(args: &[String]) -> Result<Plan, String> {
             return Err(format!("{flag} needs a value"));
         }
         match flag {
-            "--exit-code" => {
-                let code: i32 = count(value, flag)?;
-                if !(0..=255).contains(&code) {
-                    return Err(format!("{flag} needs 0-255, got {value}"));
-                }
-                plan.exit_code = code;
-            }
+            "--exit-code" => plan.exit_code = exit_status(value, flag)?,
             "--stdout-bytes" => plan.stdout_bytes = count(value, flag)?,
             "--stderr-bytes" => plan.stderr_bytes = count(value, flag)?,
             "--stdout-text" => plan.stdout_text = value.as_bytes().to_vec(),
             "--stderr-text" => plan.stderr_text = value.as_bytes().to_vec(),
             "--sleep-ms" => plan.sleep = Duration::from_millis(count(value, flag)?),
-            "--gate" => {
-                if value.is_empty() {
-                    return Err(format!("{flag} needs a path"));
-                }
-                plan.gate = Some(value.to_owned());
-            }
+            "--gate" => plan.gate = Some(non_empty(value, flag, "a path")?),
             "--require-env" => {
                 let (name, expected) = match value.split_once('=') {
                     Some((name, expected)) => (name, Some(expected.to_owned())),
@@ -226,50 +234,14 @@ fn parse(args: &[String]) -> Result<Plan, String> {
                 }
                 plan.required.push((name.to_owned(), expected));
             }
-            "--forbid-env" => {
-                if value.is_empty() {
-                    return Err(format!("{flag} needs a name"));
-                }
-                plan.forbidden.push(value.to_owned());
-            }
-            "--print-env" => {
-                if value.is_empty() {
-                    return Err(format!("{flag} needs a name"));
-                }
-                plan.print_env.push(value.to_owned());
-            }
-            "--descendant-exit" => {
-                let code: i32 = count(value, flag)?;
-                if !(0..=255).contains(&code) {
-                    return Err(format!("{flag} needs 0-255, got {value}"));
-                }
-                plan.descendant_exit = code;
-            }
+            "--forbid-env" => plan.forbidden.push(non_empty(value, flag, "a name")?),
+            "--print-env" => plan.print_env.push(non_empty(value, flag, "a name")?),
+            "--descendant-exit" => plan.descendant_exit = exit_status(value, flag)?,
             "--descendant-sleep-ms" => plan.descendant_sleep_ms = count(value, flag)?,
-            "--marker" => {
-                if value.is_empty() {
-                    return Err(format!("{flag} needs a path"));
-                }
-                plan.marker = Some(value.to_owned());
-            }
-            "--descendant-marker" => {
-                if value.is_empty() {
-                    return Err(format!("{flag} needs a path"));
-                }
-                plan.descendant_marker = Some(value.to_owned());
-            }
-            "--alive-lock" => {
-                if value.is_empty() {
-                    return Err(format!("{flag} needs a path"));
-                }
-                plan.alive_lock = Some(value.to_owned());
-            }
-            "--descendant-alive-lock" => {
-                if value.is_empty() {
-                    return Err(format!("{flag} needs a path"));
-                }
-                plan.descendant_alive_lock = Some(value.to_owned());
-            }
+            "--marker" => plan.marker = Some(non_empty(value, flag, "a path")?),
+            "--descendant-marker" => plan.descendant_marker = Some(non_empty(value, flag, "a path")?),
+            "--alive-lock" => plan.alive_lock = Some(non_empty(value, flag, "a path")?),
+            "--descendant-alive-lock" => plan.descendant_alive_lock = Some(non_empty(value, flag, "a path")?),
             "--nested-server-lock" => {
                 if value.is_empty() {
                     return Err(format!("{flag} needs a path"));
@@ -278,26 +250,11 @@ fn parse(args: &[String]) -> Result<Plan, String> {
                 plan.spawn_descendant = true;
                 plan.detached_descendant = true;
             }
-            "--descendant-gate" => {
-                if value.is_empty() {
-                    return Err(format!("{flag} needs a path"));
-                }
-                plan.descendant_gate = Some(value.to_owned());
-            }
+            "--descendant-gate" => plan.descendant_gate = Some(non_empty(value, flag, "a path")?),
             "--ctrl-c-console" => plan.ctrl_c_console = Some(count(value, flag)?),
             "--raise-signal" => plan.raise_signal = Some(count(value, flag)?),
-            "--descendant-count-sigint" => {
-                if value.is_empty() {
-                    return Err(format!("{flag} needs a path"));
-                }
-                plan.descendant_count_sigint = Some(value.to_owned());
-            }
-            "--count-sigint" => {
-                if value.is_empty() {
-                    return Err(format!("{flag} needs a path"));
-                }
-                plan.count_sigint = Some(value.to_owned());
-            }
+            "--descendant-count-sigint" => plan.descendant_count_sigint = Some(non_empty(value, flag, "a path")?),
+            "--count-sigint" => plan.count_sigint = Some(non_empty(value, flag, "a path")?),
             _ => plan.descendant_stdout_bytes = count(value, flag)?,
         }
     }
@@ -617,7 +574,7 @@ fn fail(code: i32, message: &str) -> ! {
     std::process::exit(code);
 }
 
-fn report_output_error(error: io::Error) -> ! {
+fn report_output_error(error: &io::Error) -> ! {
     fail(EXIT_OUTPUT, &format!("cannot write the report: {error}"));
 }
 
@@ -721,6 +678,60 @@ fn fake_bazel_launch(dir: &std::path::Path, app: bool, args: &str) -> Result<i32
     Ok(status.code().unwrap_or(EXIT_USAGE))
 }
 
+fn check_environment(plan: &Plan) {
+    for name in &plan.forbidden {
+        if env::var_os(name).is_some() {
+            fail(EXIT_ENV_SET, &format!("{name} is set"));
+        }
+    }
+    for (name, expected) in &plan.required {
+        let holds = match (env::var(name), expected) {
+            (Ok(_), None) => true,
+            (Ok(have), Some(want)) => have == *want,
+            (Err(_), _) => false,
+        };
+        if !holds {
+            let wanted = expected.clone().unwrap_or_else(|| "<any>".to_owned());
+            fail(
+                EXIT_ENV_MISSING,
+                &format!("{name} must hold {wanted}, holds {}", env_value(name)),
+            );
+        }
+    }
+}
+
+fn apply_signal_flags(plan: &Plan) {
+    #[cfg(unix)]
+    if plan.require_foreground && !holds_terminal() {
+        fail(
+            EXIT_BACKGROUND,
+            "this probe's group does not hold the terminal",
+        );
+    }
+    #[cfg(not(unix))]
+    if plan.require_foreground {
+        fail(EXIT_USAGE, "--require-foreground needs unix");
+    }
+    #[cfg(unix)]
+    if let Some(path) = &plan.count_sigint
+        && let Err(error) = start_counting_sigint(path)
+    {
+        fail(EXIT_OUTPUT, &format!("cannot count SIGINT: {error}"));
+    }
+    #[cfg(not(unix))]
+    if plan.count_sigint.is_some() {
+        fail(EXIT_USAGE, "--count-sigint needs unix");
+    }
+    #[cfg(unix)]
+    if let Some(signo) = plan.raise_signal {
+        raise_signal(signo);
+    }
+    #[cfg(not(unix))]
+    if plan.raise_signal.is_some() {
+        fail(EXIT_USAGE, "--raise-signal needs unix");
+    }
+}
+
 fn main() {
     if let Some(dir) = env::var_os(BAZEL_DIR).filter(|dir| !dir.is_empty()) {
         run_fake_bazel(std::path::Path::new(&dir));
@@ -760,58 +771,12 @@ fn main() {
     if plan.ctrl_c_console.is_some() || plan.ignore_console_ctrl {
         fail(EXIT_USAGE, "the console Ctrl-C flags need windows");
     }
-    for name in &plan.forbidden {
-        if env::var_os(name).is_some() {
-            fail(EXIT_ENV_SET, &format!("{name} is set"));
-        }
-    }
-    for (name, expected) in &plan.required {
-        let holds = match (env::var(name), expected) {
-            (Ok(_), None) => true,
-            (Ok(have), Some(want)) => have == *want,
-            (Err(_), _) => false,
-        };
-        if !holds {
-            let wanted = expected.clone().unwrap_or_else(|| "<any>".to_owned());
-            fail(
-                EXIT_ENV_MISSING,
-                &format!("{name} must hold {wanted}, holds {}", env_value(name)),
-            );
-        }
-    }
+    check_environment(&plan);
     let _alive = match plan.alive_lock.as_deref().map(hold_alive_lock) {
         Some(Err(error)) => fail(EXIT_OUTPUT, &format!("cannot hold the alive lock: {error}")),
         held => held,
     };
-    #[cfg(unix)]
-    if plan.require_foreground && !holds_terminal() {
-        fail(
-            EXIT_BACKGROUND,
-            "this probe's group does not hold the terminal",
-        );
-    }
-    #[cfg(not(unix))]
-    if plan.require_foreground {
-        fail(EXIT_USAGE, "--require-foreground needs unix");
-    }
-    #[cfg(unix)]
-    if let Some(path) = &plan.count_sigint
-        && let Err(error) = start_counting_sigint(path)
-    {
-        fail(EXIT_OUTPUT, &format!("cannot count SIGINT: {error}"));
-    }
-    #[cfg(not(unix))]
-    if plan.count_sigint.is_some() {
-        fail(EXIT_USAGE, "--count-sigint needs unix");
-    }
-    #[cfg(unix)]
-    if let Some(signo) = plan.raise_signal {
-        raise_signal(signo);
-    }
-    #[cfg(not(unix))]
-    if plan.raise_signal.is_some() {
-        fail(EXIT_USAGE, "--raise-signal needs unix");
-    }
+    apply_signal_flags(&plan);
     let stdout = io::stdout();
     let stderr = io::stderr();
     let mut out = stdout.lock();
@@ -822,14 +787,14 @@ fn main() {
         .and_then(|()| write_report(&plan, &mut out))
         .and_then(|()| out.flush())
     {
-        report_output_error(error);
+        report_output_error(&error);
     }
     if let Err(error) = err
         .write_all(&plan.stderr_text)
         .and_then(|()| write_zeros(&mut err, plan.stderr_bytes))
         .and_then(|()| err.flush())
     {
-        report_output_error(error);
+        report_output_error(&error);
     }
     drop(out);
     drop(err);

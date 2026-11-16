@@ -276,8 +276,6 @@ def _generate_hub_and_spokes(
         ),
     )
 
-    # TODO: Repins should never be allowed if the lockfile is not within
-
     # Determine whether or not to repin dependencies. Transitive (non-root)
     # modules are taken as-is: the digest check would fail across rust /
     # cargo / rules_rust version differences between the producing module

@@ -142,6 +142,14 @@ filegroup(
 )
 
 rust_binary(
+    name = "own_cc_tool",
+    testonly = True,
+    srcs = ["own_cc_tool.rs"],
+    crate_name = "own_cc_tool",
+    crate_root = "own_cc_tool.rs",
+)
+
+rust_binary(
     name = "nested_bazel_probe",
     testonly = True,
     srcs = ["nested_bazel_probe.rs"],
@@ -345,9 +353,13 @@ nested_bazel_test(
     crate_root = "nested_bazel_harness_test.rs",
     data = [
         ":nested_bazel_probe",
+        ":own_cc_tool",
         "//:.bazelversion",
     ] + _HARNESS_CONSUMER_DATA,
-    env = {"DX_NESTED_PROBE": "$(rootpath :nested_bazel_probe)"},
+    env = {
+        "DX_NESTED_PROBE": "$(rootpath :nested_bazel_probe)",
+        "DX_OWN_CC_TOOL": "$(rootpath :own_cc_tool)",
+    },
     deps = all_crate_deps(
         package_name = "tools/dx_testing",
         normal = True,

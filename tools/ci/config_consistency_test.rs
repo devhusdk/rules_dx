@@ -1169,11 +1169,11 @@ fn root_extensions_do_not_record_the_host_platform() {
 }
 
 #[test]
-fn lock_refresh_merges_with_lock_merge_sh() {
+fn lock_refresh_merges_with_the_producers_lock_merge() {
     let workflow = read_runfiles(".github/workflows/lock-refresh.yml");
     assert!(
-        workflow.contains("bash tools/ci/lock_merge.sh \"$LOCKS\" MODULE.bazel.lock"),
-        "lock-refresh.yml must merge the platform locks with tools/ci/lock_merge.sh"
+        workflow.contains("--lock-merge \"$LOCKS\" MODULE.bazel.lock"),
+        "lock-refresh.yml must merge the platform locks with producers_bin --lock-merge"
     );
 }
 

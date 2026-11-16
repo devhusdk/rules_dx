@@ -128,8 +128,8 @@ def cc_action_tests(name, compile_target, link_target):
     native.test_suite(name = name, tests = tests, testonly = True)
 
 _MSVC_TOOLS = {"CppCompile": "cl.exe", "CppLink": "link.exe", "CppArchive": "lib.exe"}
-_MSVC_REPO = Label("@msvc_runtime//:BUILD.bazel").repo_name
-_SDK_REPO = Label("@windows_sdk//:BUILD.bazel").repo_name
+_MSVC_REPO = Label("@dx_msvc_runtime//:BUILD.bazel").repo_name
+_SDK_REPO = Label("@dx_windows_sdk//:BUILD.bazel").repo_name
 
 def _pinned(path):
     return "external/{}/".format(_MSVC_REPO) in path or "external/{}/".format(_SDK_REPO) in path

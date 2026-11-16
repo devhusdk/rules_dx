@@ -22,7 +22,7 @@ pub fn listing(ipa: &Path) -> Option<BTreeSet<String>> {
             .file_names()
             .filter_map(Result::ok)
             .filter(|name| !name.ends_with('/') && !name.contains("/_CodeSignature/"))
-            .map(|name| name.into_owned())
+            .map(std::borrow::Cow::into_owned)
             .collect(),
     )
 }
@@ -36,6 +36,7 @@ fn digits(stamp: &str) -> String {
 }
 
 /// The current UTC time as `YYYY-MM-DDTHH:MM:SSZ`.
+#[must_use]
 pub fn now() -> String {
     let seconds = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -64,6 +65,7 @@ pub fn now() -> String {
 }
 
 /// The platform and minimum OS of the first `LC_BUILD_VERSION` in `otool -l` output.
+#[must_use]
 pub fn build_version(listing: &str) -> (String, String) {
     let (mut command, mut platform, mut minos) = (String::new(), String::new(), String::new());
     for line in listing.lines() {
@@ -72,11 +74,11 @@ pub fn build_version(listing: &str) -> (String, String) {
             continue;
         };
         if first == "cmd" {
-            command = second.to_owned();
+            second.clone_into(&mut command);
         } else if command == "LC_BUILD_VERSION" && first == "platform" && platform.is_empty() {
-            platform = second.to_owned();
+            second.clone_into(&mut platform);
         } else if command == "LC_BUILD_VERSION" && first == "minos" && minos.is_empty() {
-            minos = second.to_owned();
+            second.clone_into(&mut minos);
         }
     }
     (platform, minos)
@@ -91,7 +93,11 @@ fn covers(app_identifier: &str, team: &str, bundle_id: &str) -> bool {
 }
 
 /// Exports the IPA `args[1]` signed with the profile `args[2]` as bundle id `args[0]`; the flags follow.
-pub fn run(tools: &Tools, args: &[String], env: Env) -> Outcome {
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
+pub fn run(tools: &Tools<'_>, args: &[String], env: Env<'_>) -> Outcome {
     private_files();
     let [bundle_id, ipa, profile, flag_args @ ..] = args else {
         return Err(usage("run the export launcher with bazel run"));

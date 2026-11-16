@@ -7,6 +7,7 @@ use crate::xcode::Tools;
 pub const PREFIX: &str = "dx-apple-test-simulator";
 
 /// The process group a simulator name records, when `name` is one dx created.
+#[must_use]
 pub fn owner(name: &str) -> Option<i32> {
     let (head, group) = name.strip_prefix("dx ")?.rsplit_once(" pgid ")?;
     if group.is_empty() || !group.chars().all(|c| c.is_ascii_digit()) {
@@ -20,11 +21,11 @@ pub fn owner(name: &str) -> Option<i32> {
     group.parse().ok()
 }
 
-fn quiet(tools: &Tools, args: &[&str]) {
+fn quiet(tools: &Tools<'_>, args: &[&str]) {
     let _ = tools.xcrun(args);
 }
 
-fn sweep(tools: &Tools, alive: &dyn Fn(i32) -> bool) {
+fn sweep(tools: &Tools<'_>, alive: &dyn Fn(i32) -> bool) {
     let Ok(listing) = list(tools, &["devices", "available"], "simulators") else {
         return;
     };
@@ -37,9 +38,13 @@ fn sweep(tools: &Tools, alive: &dyn Fn(i32) -> bool) {
 }
 
 /// Creates and boots one simulator; its UDID is the first line of the returned stdout.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn create(
-    tools: &Tools,
-    env: Env,
+    tools: &Tools<'_>,
+    env: Env<'_>,
     group: i32,
     alive: &dyn Fn(i32) -> bool,
 ) -> Result<String, Failure> {
@@ -93,7 +98,11 @@ pub fn create(
 }
 
 /// Shuts down and deletes the simulator `SIMULATOR_UDID` names; a failed delete only warns.
-pub fn delete(tools: &Tools, env: Env) -> Outcome {
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
+pub fn delete(tools: &Tools<'_>, env: Env<'_>) -> Outcome {
     let udid = env("SIMULATOR_UDID")
         .ok_or_else(|| usage("SIMULATOR_UDID names the simulator to delete"))?;
     quiet(tools, &["simctl", "shutdown", &udid]);

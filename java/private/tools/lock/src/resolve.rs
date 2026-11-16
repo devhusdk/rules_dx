@@ -1,4 +1,4 @@
-//! Runs the rules_jvm_external Maven resolver on a version catalog with the pinned JDK.
+//! Runs the `rules_jvm_external` Maven resolver on a version catalog with the pinned JDK.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::path::{Path, PathBuf};
@@ -16,6 +16,10 @@ pub struct Tools {
 
 impl Tools {
     /// Reads `DX_MAVEN_JAVA` and `DX_MAVEN_RESOLVER` as runfiles paths.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn from_env() -> Result<Self, String> {
         Ok(Tools {
             java: runfile("DX_MAVEN_JAVA")?,
@@ -140,6 +144,10 @@ fn coordinates(
 }
 
 /// Renders the resolver's config file for one manifest.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn config(manifest: &str, repositories: &[String]) -> Result<String, String> {
     let parsed: toml::Table = manifest
         .parse()
@@ -160,9 +168,9 @@ pub fn config(manifest: &str, repositories: &[String]) -> Result<String, String>
             items
                 .iter()
                 .map(|item| {
-                    item.as_str()
-                        .map(str::to_owned)
-                        .ok_or_else(|| "excluded_artifacts holds only group:artifact strings".to_owned())
+                    item.as_str().map(str::to_owned).ok_or_else(|| {
+                        "excluded_artifacts holds only group:artifact strings".to_owned()
+                    })
                 })
                 .collect::<Result<Vec<_>, _>>()
         })
@@ -181,9 +189,9 @@ pub fn config(manifest: &str, repositories: &[String]) -> Result<String, String>
             .and_then(|object| object.remove("bom"))
             .is_some();
         if bom {
-            boms.push(entry)
+            boms.push(entry);
         } else {
-            artifacts.push(entry)
+            artifacts.push(entry);
         }
     }
     let repositories = if repositories.is_empty() {
@@ -203,12 +211,18 @@ pub fn config(manifest: &str, repositories: &[String]) -> Result<String, String>
 }
 
 /// Resolves the set's manifest and writes, or with `check` compares, its lock.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn lock(tools: &Tools, request: &Request) -> Result<Outcome, String> {
     let manifest_path = request.dir.join(&request.manifest);
     let manifest = std::fs::read_to_string(&manifest_path)
         .map_err(|error| format!("{}: {error}", manifest_path.display()))?;
     let config = config(&manifest, &request.repositories)?;
-    let scratch = request.dir.join(format!(".dx-maven-lock-{}", std::process::id()));
+    let scratch = request
+        .dir
+        .join(format!(".dx-maven-lock-{}", std::process::id()));
     std::fs::create_dir_all(scratch.join("home")).map_err(|error| error.to_string())?;
     let result = resolve(tools, &config, &scratch);
     let outcome = result.and_then(|resolved| {

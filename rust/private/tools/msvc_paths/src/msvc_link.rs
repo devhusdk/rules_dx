@@ -47,7 +47,7 @@ fn run() -> io::Result<ExitCode> {
             None => Ok(arg.to_string()),
         }
     })?;
-    for arg in args.iter_mut() {
+    for arg in &mut args {
         if let Some(path) = arg.strip_prefix('@') {
             let path = rewriter.rewrite(path);
             *arg = match rustc_temp_file(&path) {

@@ -17,6 +17,7 @@ fn var(name: &str) -> String {
 }
 
 /// The value of `--<flag>=` among `args`; the last one wins.
+#[must_use]
 pub fn flag(args: &[String], flag: &str) -> String {
     args.iter()
         .rev()
@@ -117,6 +118,10 @@ fn publish(from: &Path, to: &Path) -> Result<(), Failure> {
 }
 
 /// Whether the schemes ask for a v4 signature; v4 alone is an error.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn wants_v4(schemes: &[&str]) -> Result<bool, &'static str> {
     if !schemes.contains(&"v4") {
         return Ok(false);
@@ -128,6 +133,7 @@ pub fn wants_v4(schemes: &[&str]) -> Result<bool, &'static str> {
 }
 
 /// The apksigner flags that turn each scheme on or off.
+#[must_use]
 pub fn scheme_flags(schemes: &[&str]) -> Vec<String> {
     SCHEMES
         .iter()
@@ -140,6 +146,9 @@ pub fn scheme_flags(schemes: &[&str]) -> Vec<String> {
         .collect()
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn run_apk(args: &[String]) -> Outcome {
     let apk = setting(args, "apk", "DX_SIGN_APK");
     if apk.is_empty() {
@@ -154,7 +163,7 @@ pub fn run_apk(args: &[String]) -> Outcome {
     let java = PathBuf::from(setting(args, "java", "DX_SIGN_JAVA"));
     let mut build_tools = setting(args, "build-tools", "DX_SIGN_BUILD_TOOLS");
     if build_tools.is_empty() {
-        build_tools = "unknown".to_owned();
+        "unknown".clone_into(&mut build_tools);
     }
     let fix = format!(
         "build-tools {build_tools} is missing; configure the android_sdk extension to acquire build-tools"
@@ -181,7 +190,7 @@ pub fn run_apk(args: &[String]) -> Outcome {
     }
     let mut chosen = setting(args, "schemes", "DX_SIGN_SCHEMES");
     if chosen.is_empty() {
-        chosen = "v1,v2,v3".to_owned();
+        "v1,v2,v3".clone_into(&mut chosen);
     }
     let schemes: Vec<&str> = chosen.split(',').collect();
     let v4 = wants_v4(&schemes).map_err(usage)?;
@@ -251,6 +260,7 @@ pub fn run_apk(args: &[String]) -> Outcome {
 }
 
 /// The jarsigner signature algorithm for the key `keytool -list -v` describes.
+#[must_use]
 pub fn signature_algorithm(listing: &str) -> Option<&'static str> {
     let line = listing
         .lines()
@@ -265,6 +275,7 @@ pub fn signature_algorithm(listing: &str) -> Option<&'static str> {
 }
 
 /// Why `jarsigner -verify -strict` output does not prove a signed bundle, if it does not.
+#[must_use]
 pub fn verify_error(ran: &Captured) -> Option<&'static str> {
     let plain = "signed App Bundle failed verification";
     match ran.code {
@@ -300,6 +311,9 @@ fn java_home(args: &[String]) -> PathBuf {
         .unwrap_or_default()
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn run_aab(args: &[String]) -> Outcome {
     let aab = setting(args, "aab", "DX_SIGN_AAB");
     if aab.is_empty() {

@@ -20,6 +20,10 @@ pub struct Flags {
 }
 
 /// Reads `--name=value` flags; a later flag replaces an earlier one.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Flags, String> {
     let mut flags = Flags::default();
     for arg in args {
@@ -42,6 +46,10 @@ pub fn parse(args: &[String]) -> Result<Flags, String> {
 }
 
 /// The adb arguments of one operation.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn adb_args(flags: &Flags) -> Result<Vec<String>, String> {
     if flags.serial.is_empty() {
         return Err("--serial names the target device or emulator".to_owned());
@@ -79,6 +87,9 @@ pub fn adb_args(flags: &Flags) -> Result<Vec<String>, String> {
     Ok(args)
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn run(args: &[String]) -> Outcome {
     let mut flags = parse(args).map_err(usage)?;
     if let Some(named) = std::env::var("ADB").ok().filter(|value| !value.is_empty()) {

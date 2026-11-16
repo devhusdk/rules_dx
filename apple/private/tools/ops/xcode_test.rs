@@ -94,9 +94,9 @@ fn tools_start_the_absolute_paths_with_the_developer_directory() {
         developer_dir: Some(PathBuf::from("/x/Developer")),
         runner: &fake,
     };
-    tools.xcrun(&["simctl", "list"]);
-    tools.tool(DITTO, &["-x"]);
-    tools.tool(PLUTIL, &[]);
+    drop(tools.xcrun(&["simctl", "list"]));
+    drop(tools.tool(DITTO, &["-x"]));
+    drop(tools.tool(PLUTIL, &[]));
     let calls = fake.calls.borrow();
     let programs: Vec<&str> = calls.iter().map(|cmd| cmd.program.as_str()).collect();
     assert_eq!(programs, [XCRUN, DITTO, PLUTIL]);

@@ -10,6 +10,7 @@
 //! Resolves a cabal project into its freeze file and the packages of its lock.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write as _;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
@@ -31,8 +32,7 @@ pub fn index_state(project: &str) -> Result<String, Error> {
         .lines()
         .filter_map(|line| line.trim().strip_prefix("index-state"))
         .filter_map(|rest| rest.trim_start().strip_prefix(':'))
-        .filter_map(|value| value.split_whitespace().next())
-        .next()
+        .find_map(|value| value.split_whitespace().next())
         .map(str::to_owned)
         .ok_or_else(|| Error::new("the project pins no index-state"))
 }
@@ -417,7 +417,7 @@ pub fn freeze_text(pins: &BTreeMap<String, String>, state: Option<&str>) -> Stri
         .join(",\n             ");
     let mut out = format!("constraints: {body}\n");
     if let Some(state) = state {
-        out.push_str(&format!("index-state: hackage.haskell.org {state}\n"));
+        writeln!(out, "index-state: hackage.haskell.org {state}").ok();
     }
     out
 }
@@ -536,7 +536,7 @@ pub fn packages(plan: &Value, revisions: &Revisions) -> Result<Vec<Package>, Err
         let name = text(entry, "pkg-name");
         let key = (name.to_owned(), text(entry, "pkg-version").to_owned());
         let package = merged.entry(key).or_default();
-        package.source = source(entry).to_owned();
+        source(entry).clone_into(&mut package.source);
         if package.source == "url" {
             text(entry, "pkg-src-sha256").clone_into(&mut package.sdist);
             entry
@@ -746,7 +746,7 @@ impl Resolver for Cabal {
         std::fs::remove_dir_all(set.join("dist-newstyle"))
             .map_err(|error| Error::new(format!("dist-newstyle: {error}")))?;
         Ok(Resolution {
-            groups: std::collections::BTreeMap::new(),
+            groups: BTreeMap::new(),
             packages: packages(&plan, &found)?,
         })
     }

@@ -345,11 +345,7 @@ impl Members {
     }
 }
 
-fn tar_members(
-    source: impl Read,
-    wanted: &[String],
-    members: &mut Members,
-) -> Result<(), String> {
+fn tar_members(source: impl Read, wanted: &[String], members: &mut Members) -> Result<(), String> {
     let mut archive = tar::Archive::new(source);
     for entry in archive.entries().map_err(|error| error.to_string())? {
         let mut entry = entry.map_err(|error| error.to_string())?;
@@ -496,7 +492,7 @@ impl Resolver for Zig<'_> {
             });
         }
         Ok(Resolution {
-            groups: std::collections::BTreeMap::new(),
+            groups: BTreeMap::new(),
             packages,
             ..Resolution::default()
         })

@@ -54,7 +54,7 @@ impl Runner {
         let bazel = self.bazel.clone();
         let args: Vec<String> = verb
             .iter()
-            .map(|s| s.to_string())
+            .map(ToString::to_string)
             .chain(extra.iter().cloned())
             .collect();
         Ok(self.exec(&bazel, &args)?.0)
@@ -106,7 +106,7 @@ fn run(args: Vec<String>) -> Result<(), Error> {
     };
     let mut build: Vec<String> = flags.clone();
     build.extend(targets.iter().cloned());
-    build.extend(IDENTITIES.iter().map(|s| s.to_string()));
+    build.extend(IDENTITIES.iter().map(ToString::to_string));
     runner.bazel(&["build"], &build)?;
 
     let mut cquery = vec!["--output=files".to_string()];
@@ -178,7 +178,7 @@ fn run(args: Vec<String>) -> Result<(), Error> {
             std::fs::write(&path, text + "\n").map_err(|err| Error::UnwritableOutput {
                 path,
                 reason: err.to_string(),
-            })?
+            })?;
         }
         None => println!("{text}"),
     }

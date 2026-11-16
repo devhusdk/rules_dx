@@ -97,7 +97,7 @@ fn check_exec_path(producer: &str, path: &str) -> Result<(), Error> {
             Some("must not contain a control character")
         }
         Some(dx_path::PathProblem::EmptyComponent) => None,
-        Some(dx_path::PathProblem::Dot) | Some(dx_path::PathProblem::DotDot) => {
+        Some(dx_path::PathProblem::Dot | dx_path::PathProblem::DotDot) => {
             Some("must not contain '.' or '..' segments")
         }
     };
@@ -155,6 +155,7 @@ pub fn decode_validated(bytes: &[u8]) -> Result<DxEnvShard, Error> {
 
 pub const ENTRY_SHAPE: &str = "KEY|VALUE[|EXEC_PATH]";
 
+#[must_use]
 pub fn parse_entry(raw: &str) -> Option<DxEnvEntry> {
     let parts: Vec<&str> = raw.split('|').collect();
     match parts.as_slice() {
@@ -172,6 +173,7 @@ pub fn parse_entry(raw: &str) -> Option<DxEnvEntry> {
     }
 }
 
+#[must_use]
 pub fn shard(producer: String, integration: String, entries: Vec<DxEnvEntry>) -> DxEnvShard {
     DxEnvShard {
         producer,

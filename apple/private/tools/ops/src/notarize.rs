@@ -17,7 +17,11 @@ fn combined(out: &crate::util::Output) -> String {
 }
 
 /// Notarizes the app `--app` names; `args[0]` is the declared bundle id.
-pub fn run(tools: &Tools, args: &[String], env: Env) -> Outcome {
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
+pub fn run(tools: &Tools<'_>, args: &[String], env: Env<'_>) -> Outcome {
     private_files();
     let [bundle_id, flag_args @ ..] = args else {
         return Err(usage("run the notarize launcher with bazel run"));

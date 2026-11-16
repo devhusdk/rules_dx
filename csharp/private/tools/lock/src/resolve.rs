@@ -9,7 +9,7 @@ use dx_lock::{Archive, Error, HttpFetch, Lock, Package, Resolution, Resolver, Sc
 use serde_json::Value;
 use sha2::{Digest as _, Sha512};
 
-/// The NuGet v3 service index that every Paket `source` names.
+/// The `NuGet` v3 service index that every Paket `source` names.
 pub const SOURCE: &str = "https://api.nuget.org/v3/index.json";
 
 /// The flat container of [`SOURCE`].
@@ -27,7 +27,7 @@ pub trait Download {
     fn bytes(&self, url: &str) -> Result<Vec<u8>, Error>;
 }
 
-/// The NuGet registry over HTTPS.
+/// The `NuGet` registry over HTTPS.
 pub struct Registry(HttpFetch);
 
 impl Registry {
@@ -55,7 +55,7 @@ impl Download for Registry {
 pub struct Pinned {
     /// The package id as Paket writes it.
     pub name: String,
-    /// The normalized NuGet version.
+    /// The normalized `NuGet` version.
     pub version: String,
     /// The ids of the packages it needs.
     pub deps: Vec<String>,
@@ -112,7 +112,7 @@ pub fn manifest_frameworks(text: &str) -> BTreeMap<String, Vec<String>> {
     frameworks
 }
 
-/// The NuGet normal form of a version: three or four numeric parts, a fourth only when not zero.
+/// The `NuGet` normal form of a version: three or four numeric parts, a fourth only when not zero.
 #[must_use]
 pub fn normalize_version(version: &str) -> String {
     let (release, label) = match version.find(['-', '+']) {
@@ -152,7 +152,7 @@ pub fn lock_groups(text: &str) -> Result<BTreeMap<String, Vec<Pinned>>, Error> {
         }
         if indent == 0 {
             if let Some(name) = body.strip_prefix("GROUP ") {
-                group = name.trim().to_owned();
+                name.trim().clone_into(&mut group);
                 groups.entry(group.clone()).or_default();
                 in_nuget = false;
             } else if body == "NUGET" {
@@ -318,7 +318,11 @@ pub fn tools(bytes: &[u8]) -> Result<BTreeMap<String, Vec<Tool>>, Error> {
     };
     let is_tool = elements(&read(nuspec)?, "packageType")
         .iter()
-        .any(|attributes| attributes.get("name").is_some_and(|name| name == "DotnetTool"));
+        .any(|attributes| {
+            attributes
+                .get("name")
+                .is_some_and(|name| name == "DotnetTool")
+        });
     let mut found = BTreeMap::new();
     if !is_tool {
         return Ok(found);

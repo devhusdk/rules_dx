@@ -152,7 +152,8 @@ pub fn read_archive(bytes: &[u8], manifest_name: &str) -> Result<(String, String
         }
     }
     let top = top.ok_or_else(|| Error::new("the archive is empty"))?;
-    let manifest = manifest.ok_or_else(|| Error::new(format!("the archive has no {manifest_name}")))?;
+    let manifest =
+        manifest.ok_or_else(|| Error::new(format!("the archive has no {manifest_name}")))?;
     Ok((top, manifest))
 }
 
@@ -267,7 +268,7 @@ impl Resolver for Fpm<'_> {
             packages.insert(package.name.clone(), package);
         }
         Ok(Resolution {
-            groups: std::collections::BTreeMap::new(),
+            groups: BTreeMap::new(),
             packages: packages.into_values().collect(),
         })
     }

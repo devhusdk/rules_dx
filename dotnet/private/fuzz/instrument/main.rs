@@ -1,5 +1,5 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
-//! Copies an assembly and runs SharpFuzz on the copy: `instrument <sharpfuzz> <input> <output>`.
+//! Copies an assembly and runs `SharpFuzz` on the copy: `instrument <sharpfuzz> <input> <output>`.
 
 use std::process::{Command, ExitCode};
 use std::{env, fs};

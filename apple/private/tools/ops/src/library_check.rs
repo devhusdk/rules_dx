@@ -1,5 +1,6 @@
 //! Checks that imported Mach-O libraries and framework binaries belong to one app cell.
 
+use std::fmt::Write as _;
 use std::path::Path;
 
 use crate::util::{Failure, Outcome, reject, usage};
@@ -15,6 +16,7 @@ pub struct Declared {
 /// Reads the build platforms and minimum versions out of `otool -l` text.
 ///
 /// `version_min` is the platform number the old iOS version-min command stands for.
+#[must_use]
 pub fn declared(loads: &str, version_min: &str) -> Declared {
     let mut found = Declared::default();
     let mut command = "";
@@ -66,7 +68,11 @@ fn newest(versions: &[String]) -> &str {
 /// Checks the inputs `args` name and writes the cell report on success.
 ///
 /// Failures read `<what> ...`; the caller prefixes the kind.
-pub fn run(tools: &Tools, args: &[String]) -> Outcome {
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
+pub fn run(tools: &Tools<'_>, args: &[String]) -> Outcome {
     let [
         kind,
         report,
@@ -142,9 +148,11 @@ pub fn run(tools: &Tools, args: &[String]) -> Outcome {
                 "{what} needs {os} {newest}, above the {owner} deployment {deployment}"
             )));
         }
-        text.push_str(&format!(
-            "{key}={name} arch={arch} platform={sdk} minos={newest}\n"
-        ));
+        writeln!(
+            text,
+            "{key}={name} arch={arch} platform={sdk} minos={newest}"
+        )
+        .ok();
     }
     std::fs::write(Path::new(report), text).map_err(|error: std::io::Error| -> Failure {
         usage(format!("cannot write {report}: {error}"))

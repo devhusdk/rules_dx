@@ -1,10 +1,11 @@
-//! Runs PHPUnit with PCOV loaded and turns the Clover report it writes into the LCOV file Bazel collects.
+//! Runs `PHPUnit` with PCOV loaded and turns the Clover report it writes into the LCOV file Bazel collects.
 //!
 //! Arguments: `<tree> <pcov> <php> [<php flag>...] -- <phpunit> [<phpunit argument>...]`.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::env;
 use std::ffi::OsString;
+use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{self, Command};
@@ -24,7 +25,7 @@ fn rebase(lcov: &str, marker: &str) -> String {
                 .filter(|rest| !DROPPED.iter().any(|dir| rest.starts_with(dir)));
             keep = rest.is_some();
             if let Some(rest) = rest {
-                out.push_str(&format!("SF:{rest}\n"));
+                writeln!(out, "SF:{rest}").ok();
             }
         } else if keep {
             out.push_str(line);
@@ -35,12 +36,15 @@ fn rebase(lcov: &str, marker: &str) -> String {
 }
 
 fn convert(clover: &Path, output: &Path, marker: &str) -> Result<(), String> {
-    let xml = fs::read_to_string(clover).map_err(|err| format!("read {}: {err}", clover.display()))?;
-    let lcov = dx_lcov::clover_to_lcov(&xml).map_err(|err| format!("{}: {err}", clover.display()))?;
-    fs::write(output, rebase(&lcov, marker)).map_err(|err| format!("write {}: {err}", output.display()))
+    let xml =
+        fs::read_to_string(clover).map_err(|err| format!("read {}: {err}", clover.display()))?;
+    let lcov =
+        dx_lcov::clover_to_lcov(&xml).map_err(|err| format!("{}: {err}", clover.display()))?;
+    fs::write(output, rebase(&lcov, marker))
+        .map_err(|err| format!("write {}: {err}", output.display()))
 }
 
-/// What the launcher asks for: the autoload tree, PCOV, PHP with its flags and PHPUnit with its arguments.
+/// What the launcher asks for: the autoload tree, PCOV, PHP with its flags and `PHPUnit` with its arguments.
 #[derive(Debug, PartialEq, Eq)]
 struct Request {
     tree: PathBuf,
@@ -132,7 +136,9 @@ fn run(request: &Request) -> Result<i32, String> {
         .status()
         .map_err(|err| format!("cannot run {}: {err}", Path::new(&request.php).display()))?;
     let written = fs::metadata(&clover).is_ok_and(|meta| meta.len() > 0);
-    if let Some(output) = env::var_os("COVERAGE_OUTPUT_FILE").filter(|value| written && !value.is_empty()) {
+    if let Some(output) =
+        env::var_os("COVERAGE_OUTPUT_FILE").filter(|value| written && !value.is_empty())
+    {
         convert(&clover, Path::new(&output), &marker(&request.tree))?;
     }
     Ok(status.code().unwrap_or(1))
@@ -141,7 +147,9 @@ fn run(request: &Request) -> Result<i32, String> {
 fn main() {
     let args: Vec<OsString> = env::args_os().skip(1).collect();
     let Some(request) = request(&args) else {
-        eprintln!("usage: coverage_run <tree> <pcov> <php> [<php flag>...] -- <phpunit> [<argument>...]");
+        eprintln!(
+            "usage: coverage_run <tree> <pcov> <php> [<php flag>...] -- <phpunit> [<argument>...]"
+        );
         process::exit(2);
     };
     match run(&request) {
@@ -170,15 +178,24 @@ mod tests {
     #[test]
     fn windows_source_paths_match_the_tree() {
         assert_eq!(
-            rebase("SF:C:\\o\\t.php\\app\\A.php\nDA:1,1\nend_of_record\n", "/t.php/"),
+            rebase(
+                "SF:C:\\o\\t.php\\app\\A.php\nDA:1,1\nend_of_record\n",
+                "/t.php/"
+            ),
             "SF:app/A.php\nDA:1,1\nend_of_record\n"
         );
     }
 
     #[test]
     fn a_verbatim_drive_path_loses_its_prefix() {
-        assert_eq!(plain(PathBuf::from(r"\\?\C:\o\t.php")), PathBuf::from(r"C:\o\t.php"));
-        assert_eq!(plain(PathBuf::from(r"\\?\UNC\h\s")), PathBuf::from(r"\\?\UNC\h\s"));
+        assert_eq!(
+            plain(PathBuf::from(r"\\?\C:\o\t.php")),
+            PathBuf::from(r"C:\o\t.php")
+        );
+        assert_eq!(
+            plain(PathBuf::from(r"\\?\UNC\h\s")),
+            PathBuf::from(r"\\?\UNC\h\s")
+        );
         assert_eq!(plain(PathBuf::from("/o/t.php")), PathBuf::from("/o/t.php"));
     }
 
@@ -213,7 +230,11 @@ mod tests {
         fs::create_dir_all(real.join("vendor")).unwrap();
         fs::create_dir_all(linked.join("vendor")).unwrap();
         fs::write(real.join("vendor").join("autoload.php"), "<?php\n").unwrap();
-        std::os::unix::fs::symlink(real.join("vendor").join("autoload.php"), linked.join("vendor").join("autoload.php")).unwrap();
+        std::os::unix::fs::symlink(
+            real.join("vendor").join("autoload.php"),
+            linked.join("vendor").join("autoload.php"),
+        )
+        .unwrap();
         let resolved = real_tree(&linked);
         let expected = real.canonicalize().unwrap();
         fs::remove_dir_all(&dir).unwrap();
@@ -227,7 +248,14 @@ mod tests {
 
     #[test]
     fn a_missing_report_is_an_error() {
-        assert!(convert(Path::new("no/such/clover.xml"), Path::new("out.lcov"), "/t.php/").is_err());
+        assert!(
+            convert(
+                Path::new("no/such/clover.xml"),
+                Path::new("out.lcov"),
+                "/t.php/"
+            )
+            .is_err()
+        );
     }
 
     fn words(text: &str) -> Vec<OsString> {
@@ -236,7 +264,10 @@ mod tests {
 
     #[test]
     fn splits_the_php_flags_from_the_phpunit_arguments() {
-        let parsed = request(&words("o/t.php pcov.so bin/php -n -d a=b -- phpunit.phar --bootstrap x T.php --filter y")).unwrap();
+        let parsed = request(&words(
+            "o/t.php pcov.so bin/php -n -d a=b -- phpunit.phar --bootstrap x T.php --filter y",
+        ))
+        .unwrap();
         assert_eq!(parsed.tree, PathBuf::from("o/t.php"));
         assert_eq!(parsed.flags, words("-n -d a=b"));
         assert_eq!(parsed.phpunit, "phpunit.phar");
@@ -253,10 +284,19 @@ mod tests {
 
     #[test]
     fn php_loads_pcov_on_the_tree_and_phpunit_writes_clover() {
-        let parsed = request(&words("o/t.php pcov.so bin/php -n -- phpunit.phar --bootstrap x T.php")).unwrap();
+        let parsed = request(&words(
+            "o/t.php pcov.so bin/php -n -- phpunit.phar --bootstrap x T.php",
+        ))
+        .unwrap();
         assert_eq!(
-            php_args(&parsed, Path::new("/real/t.php"), Path::new("/scratch/c.xml")),
-            words("-n -d extension=pcov.so -d pcov.enabled=1 -d pcov.directory=/real/t.php phpunit.phar --coverage-filter /real/t.php --coverage-clover /scratch/c.xml --bootstrap x T.php")
+            php_args(
+                &parsed,
+                Path::new("/real/t.php"),
+                Path::new("/scratch/c.xml")
+            ),
+            words(
+                "-n -d extension=pcov.so -d pcov.enabled=1 -d pcov.directory=/real/t.php phpunit.phar --coverage-filter /real/t.php --coverage-clover /scratch/c.xml --bootstrap x T.php"
+            )
         );
     }
 }

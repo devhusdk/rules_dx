@@ -16,6 +16,7 @@ pub fn private_files() {
 }
 
 /// The text of a path.
+#[must_use]
 pub fn text(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
@@ -25,6 +26,10 @@ pub struct Flags(HashMap<String, String>);
 
 impl Flags {
     /// Reads `--name value` and `--name=value` for the `names` given.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn parse(args: &[String], names: &[&str], help: &str) -> Result<Flags, Failure> {
         let mut found = HashMap::new();
         let mut rest = args.iter();
@@ -58,7 +63,7 @@ impl Flags {
 }
 
 /// The directory the user ran the program from.
-pub fn caller(env: Env) -> PathBuf {
+pub fn caller(env: Env<'_>) -> PathBuf {
     env("BUILD_WORKING_DIRECTORY")
         .map(PathBuf::from)
         .or_else(|| std::env::current_dir().ok())
@@ -66,6 +71,7 @@ pub fn caller(env: Env) -> PathBuf {
 }
 
 /// `path` below `base` unless it is absolute.
+#[must_use]
 pub fn absolute(path: &str, base: &Path) -> PathBuf {
     let path = Path::new(path);
     if path.is_absolute() {
@@ -76,7 +82,11 @@ pub fn absolute(path: &str, base: &Path) -> PathBuf {
 }
 
 /// The checked location of the file or bundle `out`: its directory exists and is outside bazel-out.
-pub fn output_path(out: &Path, env: Env, suffix: &str, what: &str) -> Result<PathBuf, Failure> {
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
+pub fn output_path(out: &Path, env: Env<'_>, suffix: &str, what: &str) -> Result<PathBuf, Failure> {
     if !text(out).ends_with(suffix) {
         return Err(usage(format!("--out {} must name {what}", out.display())));
     }
@@ -93,10 +103,14 @@ pub fn output_path(out: &Path, env: Env, suffix: &str, what: &str) -> Result<Pat
 }
 
 /// Fails when `dir` is inside the Bazel output base.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn outside_bazel_out(
     dir: &Path,
     shown: &Path,
-    env: Env,
+    env: Env<'_>,
     flag: &str,
     advice: &str,
 ) -> Result<(), Failure> {
@@ -122,6 +136,7 @@ pub fn outside_bazel_out(
 }
 
 /// The sorted entries of `dir`.
+#[must_use]
 pub fn entries(dir: &Path) -> Vec<PathBuf> {
     let mut found: Vec<PathBuf> = std::fs::read_dir(dir)
         .map(|read| {
@@ -135,12 +150,14 @@ pub fn entries(dir: &Path) -> Vec<PathBuf> {
 }
 
 /// Whether `path` is a symbolic link.
+#[must_use]
 pub fn is_link(path: &Path) -> bool {
     path.symlink_metadata()
         .is_ok_and(|meta| meta.file_type().is_symlink())
 }
 
 /// Every file or directory below `dir`, without following links.
+#[must_use]
 pub fn descendants(dir: &Path) -> Vec<PathBuf> {
     let mut found = Vec::new();
     for entry in entries(dir) {
@@ -154,6 +171,7 @@ pub fn descendants(dir: &Path) -> Vec<PathBuf> {
 }
 
 /// Whether `path` is a regular file that starts with a Mach-O or universal magic.
+#[must_use]
 pub fn macho(path: &Path) -> bool {
     use std::io::Read;
     if is_link(path) || !path.is_file() {
@@ -164,23 +182,22 @@ pub fn macho(path: &Path) -> bool {
     read.is_ok()
         && matches!(
             magic,
-            [0xce, 0xfa, 0xed, 0xfe]
-                | [0xcf, 0xfa, 0xed, 0xfe]
-                | [0xfe, 0xed, 0xfa, 0xce]
-                | [0xfe, 0xed, 0xfa, 0xcf]
-                | [0xca, 0xfe, 0xba, 0xbe]
-                | [0xca, 0xfe, 0xba, 0xbf]
+            [0xce | 0xcf, 0xfa, 0xed, 0xfe]
+                | [0xfe, 0xed, 0xfa, 0xce | 0xcf]
+                | [0xca, 0xfe, 0xba, 0xbe | 0xbf]
         )
 }
 
 /// The value of `key` in the plist `file`.
-pub fn value(tools: &Tools, key: &str, file: &Path) -> Option<String> {
+#[must_use]
+pub fn value(tools: &Tools<'_>, key: &str, file: &Path) -> Option<String> {
     let out = tools.tool(PLUTIL, &["-extract", key, "raw", "-o", "-", &text(file)]);
     out.success()
         .then(|| out.stdout.trim_end_matches('\n').to_owned())
 }
 
 /// The top-level keys of an XML plist.
+#[must_use]
 pub fn keys(plist: &str) -> BTreeSet<String> {
     let mut depth = 0i32;
     let mut found = BTreeSet::new();
@@ -203,12 +220,14 @@ pub fn keys(plist: &str) -> BTreeSet<String> {
 }
 
 /// Whether the entitlements plist sets `com.apple.security.get-task-allow` to true.
+#[must_use]
 pub fn debuggable(plist: &str) -> bool {
     let squeezed: String = plist.chars().filter(|c| !" \t\r\n".contains(*c)).collect();
     squeezed.contains("<key>com.apple.security.get-task-allow</key><true/>")
 }
 
 /// The first value of `name=` in codesign details.
+#[must_use]
 pub fn detail(details: &str, name: &str) -> String {
     details
         .lines()
@@ -218,6 +237,7 @@ pub fn detail(details: &str, name: &str) -> String {
 }
 
 /// Whether the codesign details show the hardened runtime flag.
+#[must_use]
 pub fn hardened(details: &str) -> bool {
     details.lines().any(|line| {
         line.starts_with("CodeDirectory ")
@@ -230,6 +250,7 @@ pub fn hardened(details: &str) -> bool {
 }
 
 /// Reads the base64 `encoded` text.
+#[must_use]
 pub fn base64_decode(encoded: &str) -> Option<Vec<u8>> {
     let mut bytes = Vec::new();
     let (mut bits, mut count) = (0u32, 0);
@@ -253,7 +274,8 @@ pub fn base64_decode(encoded: &str) -> Option<Vec<u8>> {
 }
 
 /// The SHA-1 fingerprint of the certificate in `file`, upper case without colons.
-pub fn fingerprint(tools: &Tools, file: &Path, form: &str) -> Option<String> {
+#[must_use]
+pub fn fingerprint(tools: &Tools<'_>, file: &Path, form: &str) -> Option<String> {
     let out = tools.tool(
         OPENSSL,
         &[
@@ -279,7 +301,7 @@ pub fn fingerprint(tools: &Tools, file: &Path, form: &str) -> Option<String> {
 }
 
 /// A random hex string from openssl.
-fn random(tools: &Tools) -> Result<String, Failure> {
+fn random(tools: &Tools<'_>) -> Result<String, Failure> {
     let out = tools.tool(OPENSSL, &["rand", "-hex", "24"]);
     let secret = out.stdout.trim().to_owned();
     if out.success() && !secret.is_empty() {
@@ -297,8 +319,12 @@ pub struct Identity {
 }
 
 /// Reads the .p12 `cert` with the password in `password_file`.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn read_identity(
-    tools: &Tools,
+    tools: &Tools<'_>,
     work: &Path,
     cert: &Path,
     password_file: &Path,
@@ -400,6 +426,10 @@ fn search_list(listing: &str) -> Vec<String> {
 
 impl<'a> Keychain<'a> {
     /// Imports `identity` into a new keychain called `label` and searches it first.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn open(
         tools: &'a Tools<'a>,
         work: &Path,
@@ -501,7 +531,11 @@ impl Drop for Keychain<'_> {
 }
 
 /// Runs codesign with `args`; prints its errors and maps a missing timestamp service to exit code 3.
-pub fn codesign(tools: &Tools, args: &[&str]) -> Result<(), Failure> {
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
+pub fn codesign(tools: &Tools<'_>, args: &[&str]) -> Result<(), Failure> {
     let out = tools.tool(crate::xcode::CODESIGN, args);
     if out.success() {
         return Ok(());
@@ -520,7 +554,8 @@ pub fn codesign(tools: &Tools, args: &[&str]) -> Result<(), Failure> {
 }
 
 /// The combined output of codesign when it describes `target`.
-pub fn describe(tools: &Tools, flags: &[&str], target: &Path) -> Option<String> {
+#[must_use]
+pub fn describe(tools: &Tools<'_>, flags: &[&str], target: &Path) -> Option<String> {
     let mut args = flags.to_vec();
     let at = text(target);
     args.push(&at);

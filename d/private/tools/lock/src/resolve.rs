@@ -608,7 +608,7 @@ impl Resolver for Dub<'_> {
                     .map(String::as_str);
                 let version = self.pick(name, ranges, selected, &mut listed)?;
                 let key = (name.clone(), version.clone());
-                if !described.contains_key(&key) {
+                if let std::collections::btree_map::Entry::Vacant(e) = described.entry(key) {
                     let entry = match old.and_then(|lock| unchanged(lock, name, &version)) {
                         Some(package) => Described {
                             nested: package
@@ -620,7 +620,7 @@ impl Resolver for Dub<'_> {
                         },
                         None => self.describe(name, &version)?,
                     };
-                    described.insert(key, entry);
+                    e.insert(entry);
                 }
                 next.insert(name.clone(), version);
             }
@@ -633,7 +633,7 @@ impl Resolver for Dub<'_> {
         std::fs::write(scratch.set().join(&self.state), state)
             .map_err(|error| Error::new(format!("{}: {error}", self.state)))?;
         Ok(Resolution {
-            groups: std::collections::BTreeMap::new(),
+            groups: BTreeMap::new(),
             packages: chosen
                 .iter()
                 .map(|(name, version)| {

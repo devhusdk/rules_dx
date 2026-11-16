@@ -176,7 +176,7 @@ fn app_in(dir: &Path, archive: &Path) -> Result<PathBuf, Failure> {
 }
 
 fn identity_sha1(
-    tools: &Tools,
+    tools: &Tools<'_>,
     work: &Path,
     identity: &str,
     keychain: &str,
@@ -228,7 +228,11 @@ fn identity_sha1(
 }
 
 /// Signs the app `args[1]` for bundle id `args[0]` with entitlements `args[2]`; the flags follow.
-pub fn run(tools: &Tools, args: &[String], env: Env) -> Outcome {
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
+pub fn run(tools: &Tools<'_>, args: &[String], env: Env<'_>) -> Outcome {
     private_files();
     let [bundle_id, archive, declared, flag_args @ ..] = args else {
         return Err(usage("run the signing launcher with bazel run"));
@@ -259,15 +263,7 @@ pub fn run(tools: &Tools, args: &[String], env: Env) -> Outcome {
         identity = env("DX_APPLE_SIGN_IDENTITY").unwrap_or_default();
         user_keychain = env("DX_APPLE_KEYCHAIN").unwrap_or_default();
     }
-    if !identity.is_empty() {
-        if !cert.is_empty() || !password_file.is_empty() {
-            return Err(usage(format!(
-                "pass --identity or --certificate with --password-file, not both; {HELP}"
-            )));
-        }
-        cert = "";
-        password_file = "";
-    } else {
+    if identity.is_empty() {
         if !user_keychain.is_empty() {
             return Err(usage(format!(
                 "--keychain only goes with --identity; {HELP}"
@@ -283,6 +279,14 @@ pub fn run(tools: &Tools, args: &[String], env: Env) -> Outcome {
                 "--password-file names the file holding the .p12 password; {HELP}"
             )));
         }
+    } else {
+        if !cert.is_empty() || !password_file.is_empty() {
+            return Err(usage(format!(
+                "pass --identity or --certificate with --password-file, not both; {HELP}"
+            )));
+        }
+        cert = "";
+        password_file = "";
     }
     if flags.get("out").is_empty() {
         return Err(usage(format!("--out names the .app to write; {HELP}")));

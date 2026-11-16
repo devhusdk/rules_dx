@@ -84,6 +84,7 @@ const K: [u32; 64] = [
 ];
 
 /// The lowercase hex SHA-256 of `data`.
+#[must_use]
 pub fn sha256(data: &[u8]) -> String {
     let mut state: [u32; 8] = [
         0x6a09_e667,
@@ -109,12 +110,12 @@ pub fn sha256(data: &[u8]) -> String {
             *slot = u32::from_be_bytes(*word);
         }
         for i in 16..64 {
-            if let Some((done, [next, ..])) = w.split_at_mut_checked(i) {
-                if let Some(&[w16, w15, .., w7, _, _, _, _, w2, _]) = done.last_chunk::<16>() {
-                    let s0 = w15.rotate_right(7) ^ w15.rotate_right(18) ^ (w15 >> 3);
-                    let s1 = w2.rotate_right(17) ^ w2.rotate_right(19) ^ (w2 >> 10);
-                    *next = w16.wrapping_add(s0).wrapping_add(w7).wrapping_add(s1);
-                }
+            if let Some((done, [next, ..])) = w.split_at_mut_checked(i)
+                && let Some(&[w16, w15, .., w7, _, _, _, _, w2, _]) = done.last_chunk::<16>()
+            {
+                let s0 = w15.rotate_right(7) ^ w15.rotate_right(18) ^ (w15 >> 3);
+                let s1 = w2.rotate_right(17) ^ w2.rotate_right(19) ^ (w2 >> 10);
+                *next = w16.wrapping_add(s0).wrapping_add(w7).wrapping_add(s1);
             }
         }
         let [mut a, mut b, mut c, mut d, mut e, mut f, mut g, mut h] = state;
@@ -159,6 +160,7 @@ pub struct Loads {
 }
 
 /// Reads the load commands out of `otool -l` text.
+#[must_use]
 pub fn parse_loads(text: &str) -> Loads {
     let mut found = Loads::default();
     let mut command = "";
@@ -194,6 +196,7 @@ fn newest(versions: &[String]) -> &str {
 }
 
 /// Escapes `text` for a JSON string, dropping control characters.
+#[must_use]
 pub fn esc(text: &str) -> String {
     let mut out = String::new();
     for char in text.chars().filter(|char| !char.is_control()) {
@@ -380,7 +383,7 @@ fn unpack(archive: &Path, tree: &Path) -> Result<(), String> {
     zip.extract(tree).map_err(|error| error.to_string())
 }
 
-fn verify(tools: &Tools, args: &[String], scratch: &Path, tmp: &Path) -> Result<(), Failure> {
+fn verify(tools: &Tools<'_>, args: &[String], scratch: &Path, tmp: &Path) -> Result<(), Failure> {
     let [
         identity,
         out,
@@ -532,7 +535,11 @@ fn verify(tools: &Tools, args: &[String], scratch: &Path, tmp: &Path) -> Result<
 /// Checks the app archive `args` name, publishes the zip and writes the identity on success.
 ///
 /// Failures read `<what> ...`; the caller prefixes [`PREFIX`].
-pub fn run(tools: &Tools, args: &[String]) -> Outcome {
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
+pub fn run(tools: &Tools<'_>, args: &[String]) -> Outcome {
     let identity = args.first().map_or("", String::as_str);
     let scratch = PathBuf::from(format!("{identity}.scratch"));
     let tmp = PathBuf::from(format!("{identity}.tmp"));

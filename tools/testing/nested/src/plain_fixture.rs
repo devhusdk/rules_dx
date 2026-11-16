@@ -81,6 +81,58 @@ pub fn measure_case(case: &Case) -> footprint::Footprint {
     footprint::measure(&graph.stdout, &lock, &external).unwrap_or_else(|error| panic!("{error}"))
 }
 
+/// Returns `Ok` when every C++ toolchain selected in `resolution` comes from a `local_config_cc` repository.
+///
+/// # Errors
+///
+/// Returns `Err` when no C++ toolchain was selected or one comes from another repository.
+pub fn check_own_cc(resolution: &str) -> Result<(), String> {
+    let selected: Vec<&str> = resolution
+        .lines()
+        .filter(|line| line.contains("Selected") && line.contains("tools/cpp:toolchain_type"))
+        .collect();
+    if selected.is_empty() {
+        return Err(format!("no C++ toolchain selected:\n{resolution}"));
+    }
+    let foreign: Vec<&str> = selected
+        .iter()
+        .copied()
+        .filter(|line| !selected_repo(line).is_some_and(|repo| repo.rsplit('+').next() == Some("local_config_cc")))
+        .collect();
+    if foreign.is_empty() {
+        Ok(())
+    } else {
+        Err(format!("C++ toolchain is not local_config_cc:\n{}", foreign.join("\n")))
+    }
+}
+
+fn selected_repo(line: &str) -> Option<&str> {
+    let label = line.split("-> toolchain ").nth(1)?.split_whitespace().next()?;
+    label.trim_start_matches('@').split("//").next()
+}
+
+/// Asserts that `target` in the case resolves its C++ toolchain to `local_config_cc`.
+///
+/// # Panics
+///
+/// Panics when the cquery fails or another C++ toolchain is selected.
+pub fn assert_own_cc(case: &Case, target: &str) {
+    let run = run_ok(
+        case,
+        &[
+            "cquery",
+            "--color=no",
+            "--curses=no",
+            "--toolchain_resolution_debug=@bazel_tools//tools/cpp:toolchain_type",
+            target,
+        ],
+        "cquery toolchain resolution",
+    );
+    if let Err(error) = check_own_cc(&run.combined()) {
+        panic!("{target}: {error}");
+    }
+}
+
 fn run_ok(case: &Case, args: &[&str], what: &str) -> dx_testing::Run {
     let run = case.bazel(args);
     assert_eq!(run.status.code(), Some(0), "{what}: {}", run.combined());
@@ -146,6 +198,35 @@ mod tests {
     fn rejects_a_stale_high_budget() {
         let error = check("rules_lua", &[], &budget(3)).expect_err("budget");
         assert!(error.contains("lower the budget"), "{error}");
+    }
+
+    const SELECTED: &str = "INFO: ToolchainResolution: Target platform @@platforms//host:host: Selected execution platform @@platforms//host:host, type @@bazel_tools//tools/cpp:toolchain_type -> toolchain ";
+
+    #[test]
+    fn accepts_local_config_cc() {
+        let text = format!("{SELECTED}@@rules_cc++cc_configure_extension+local_config_cc//:cc-compiler-k8\n");
+        assert_eq!(check_own_cc(&text), Ok(()));
+    }
+
+    #[test]
+    fn rejects_a_rules_dx_cc_toolchain() {
+        let text = format!(
+            "{SELECTED}@@rules_cc++cc_configure_extension+local_config_cc//:cc-compiler-k8\n{SELECTED}@@llvm+//toolchain:cc\n"
+        );
+        let error = check_own_cc(&text).expect_err("llvm");
+        assert!(error.contains("@@llvm+//toolchain:cc") && !error.contains("cc-compiler-k8"), "{error}");
+    }
+
+    #[test]
+    fn rejects_a_lookalike_repo() {
+        let text = format!("{SELECTED}@@other+local_config_cc_x//:cc\n");
+        assert!(check_own_cc(&text).is_err());
+    }
+
+    #[test]
+    fn rejects_no_selection() {
+        let error = check_own_cc("INFO: nothing\n").expect_err("empty");
+        assert!(error.contains("no C++ toolchain"), "{error}");
     }
 
     #[test]

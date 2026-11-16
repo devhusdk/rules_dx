@@ -1,7 +1,8 @@
-# gazelle:exclude Dependent.php
-load("//php/private/quality:corpus.bzl", "php_corpus")
 load("@rules_dx//php:defs.bzl", "php_binary", "php_library")
+load("//php/private/quality:corpus.bzl", "php_corpus")
 load("//php/tests/negative:negative_tests.bzl", "php_autoload_input_test", "php_failure_test")
+
+# gazelle:exclude Dependent.php
 
 package(default_visibility = ["//visibility:public"])
 

@@ -288,9 +288,6 @@ fn assert_gcc_consumer(case: &Case) {
 
     let gcc_dir = dx_test_scratch::scratch("candidate-gcc-bin");
     let bin = gcc_dir.path();
-    let ldd = Path::new(&crate::quickstart_consumer_test::ldd_path()).join("ldd");
-    std::os::unix::fs::symlink(&ldd, bin.join("ldd"))
-        .unwrap_or_else(|error| panic!("link ldd into {bin:?}: {error}"));
     for name in ["gcc", "g++", "cc", "c++"] {
         let path = bin.join(name);
         write(&path, b"#!/bin/sh\nexit 97\n");

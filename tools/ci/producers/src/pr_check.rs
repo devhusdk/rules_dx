@@ -2,6 +2,8 @@
 
 use std::process::Command;
 
+const BAZEL: &str = "bazel";
+
 pub const SETS: [&str; 7] = [
     "workflow",
     "preflight",
@@ -39,7 +41,7 @@ pub const WINDOWS_ARM64_TARGETS: &str = "//cc/tests/fixtures/hello:hello //cc/te
     //julia/tests/fixtures/julia-app/... //julia/private/tools/... //haskell/private/tools/weeder:weeder_build_test";
 
 /// Preflight labels left out of `WINDOWS_ARM64_TARGETS`.
-/// #7384: `runner_matrix_windows_arm64` has no erlang toolchain for `windows_arm64` (`//erlang/private/tools:dialyzer_bin`).
+/// `runner_matrix_windows_arm64` has no erlang toolchain for `windows_arm64` (`//erlang/private/tools:dialyzer_bin`).
 pub const WINDOWS_ARM64_BLOCKED: &str = "//core/quality/testdata:runner_matrix_windows_arm64";
 
 pub const WINDOWS_ARM64_PLATFORM: &str = "--platforms=@llvm//platforms:windows_aarch64";
@@ -75,9 +77,9 @@ fn words(list: &[&str], flags: &[String], tail: &str) -> Vec<String> {
 /// Returns `Err` when `set` names no set.
 pub fn plan(set: &str, flags: &[String]) -> Result<Vec<Step>, String> {
     let steps = match set {
-        "workflow" => vec![Step::Run("bazel", words(&["test"], flags, WORKFLOW_TARGETS))],
+        "workflow" => vec![Step::Run(BAZEL, words(&["test"], flags, WORKFLOW_TARGETS))],
         "preflight" => vec![Step::Run(
-            "bazel",
+            BAZEL,
             words(
                 &["build", "--nobuild", "--lockfile_mode=error"],
                 flags,
@@ -101,14 +103,14 @@ pub fn plan(set: &str, flags: &[String]) -> Result<Vec<Step>, String> {
                     .filter(|label| !WINDOWS_ARM64_BLOCKED.split_whitespace().any(|b| b == *label))
                     .map(str::to_owned),
             );
-            vec![Step::Run("bazel", args)]
+            vec![Step::Run(BAZEL, args)]
         }
         "starter" => {
             let mut query = words(&["query"], flags, "");
             query.extend([STARTER_QUERY.to_owned(), "--output=label".to_owned()]);
             vec![
                 Step::Query(query),
-                Step::Run("bazel", words(&["build", "--nobuild"], flags, "")),
+                Step::Run(BAZEL, words(&["build", "--nobuild"], flags, "")),
             ]
         }
         "hermetic" => {
@@ -117,7 +119,7 @@ pub fn plan(set: &str, flags: &[String]) -> Result<Vec<Step>, String> {
             vec![
                 Step::Query(query),
                 Step::Run(
-                    "bazel",
+                    BAZEL,
                     words(
                         &["build", "--nobuild", "--lockfile_mode=error"],
                         flags,
@@ -131,9 +133,9 @@ pub fn plan(set: &str, flags: &[String]) -> Result<Vec<Step>, String> {
                 "tools/dx",
                 words(&["lint", "//docs/...", "//tools/docs/...", "--", "--nobuild"], flags, ""),
             ),
-            Step::Run("bazel", words(&["build"], flags, "//tools/docs/site:user_api")),
+            Step::Run(BAZEL, words(&["build"], flags, "//tools/docs/site:user_api")),
         ],
-        "cli" => vec![Step::Run("bazel", words(&["test"], flags, "//cli/cli:dx_cli_test"))],
+        "cli" => vec![Step::Run(BAZEL, words(&["test"], flags, "//cli/cli:dx_cli_test"))],
         other => {
             return Err(format!(
                 "unknown set: {other}; pick one of {} or all",
@@ -149,7 +151,7 @@ fn execute(steps: Vec<Step>) -> Result<(), String> {
     for step in steps {
         match step {
             Step::Query(args) => {
-                let out = Command::new("bazel")
+                let out = Command::new(BAZEL)
                     .args(&args)
                     .output()
                     .map_err(|error| format!("spawn bazel: {error}"))?;

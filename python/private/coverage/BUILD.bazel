@@ -10,8 +10,12 @@ config_setting(
 
 python_library(
     name = "sitecustomize",
-    srcs = ["sitecustomize.py"],
+    srcs = select({
+        ":coverage_on": ["sitecustomize.py"],
+        "//conditions:default": [],
+    }),
     imports = ["."],
+    visibility = ["//visibility:public"],
 )
 
 real_source_target(

@@ -50,20 +50,26 @@ python_test(
     name = "pass_subject_test",
     size = "small",
     srcs = ["pass_test.py"],
+    dep_group = "hello",
     imports = ["."],
-    runner = "plain",
     target_compatible_with = subject_compatible_with(),
-    deps = [":conformance"],
+    deps = [
+        ":conformance",
+        "@dx_pypi_fixtures//pytest",
+    ],
 )
 
 python_test(
     name = "fail_subject_test",
     size = "small",
     srcs = ["fail_test.py"],
+    dep_group = "hello",
     imports = ["."],
-    runner = "plain",
     target_compatible_with = subject_compatible_with(),
-    deps = [":conformance"],
+    deps = [
+        ":conformance",
+        "@dx_pypi_fixtures//pytest",
+    ],
 )
 
 dx_conformance_suite(
@@ -73,7 +79,7 @@ dx_conformance_suite(
     covered_source = "greet.py",
     expected = "hello world",
     failing_case = "test_failing_case",
-    failing_pattern = "FAIL: {case} (",
+    failing_pattern = "FailTest::{case}",
     failing_test = ":fail_subject_test",
     lang = "python",
     lock = {

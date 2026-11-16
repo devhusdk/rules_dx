@@ -628,9 +628,6 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
     } else {
         Some(base.join(fragment))
     };
-    if module_fragment.is_none() {
-        return Err("manifest needs a module_fragment".to_owned());
-    }
     Ok(Manifest {
         label: string(&value, "label")?,
         languages,
@@ -2411,12 +2408,11 @@ fn materialize_init(manifest: &Manifest, workspace: &Path, source: &Path) -> Res
     run_init(manifest, workspace)?;
     let snippet = std::fs::read_to_string(workspace.join("MODULE.bazel"))
         .map_err(|err| format!("dx init wrote no MODULE.bazel: {err}"))?;
-    let fragment_path = manifest
-        .module_fragment
-        .as_ref()
-        .ok_or("manifest needs a module_fragment")?;
-    let fragment = std::fs::read_to_string(fragment_path)
-        .map_err(|err| format!("cannot read {}: {err}", fragment_path.display()))?;
+    let fragment = match &manifest.module_fragment {
+        Some(path) => std::fs::read_to_string(path)
+            .map_err(|err| format!("cannot read {}: {err}", path.display()))?,
+        None => String::new(),
+    };
     let fragment = without_license_tags(&fragment);
     let module = compose_module(
         &snippet,

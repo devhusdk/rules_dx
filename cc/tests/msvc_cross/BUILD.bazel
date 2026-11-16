@@ -1,3 +1,4 @@
+load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@rules_cc//cc:defs.bzl", "cc_shared_library")
 load("//cc:defs.bzl", "cc_binary", "cc_library")
 load("//cc/private/toolchain:action_tests.bzl", "cc_msvc_arm64_action_tests")
@@ -61,6 +62,17 @@ cc_binary(
         ":greet_api",
         ":greet_static",
     ],
+)
+
+platform_transition_filegroup(
+    name = "app_arm64",
+    srcs = [
+        ":app",
+        ":greet_dll",
+    ],
+    tags = ["manual"],
+    target_compatible_with = _WINDOWS,
+    target_platform = "//tools/platforms:windows_arm64",
 )
 
 cc_msvc_arm64_action_tests(

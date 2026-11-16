@@ -25,9 +25,6 @@ real_source_target(
 
 filegroup(
     name = "module_srcs",
-    srcs = glob([
-        "*.bzl",
-        "BUILD.bazel",
-    ]),
+    srcs = ["BUILD.bazel"] + glob(["*.bzl"]),
     visibility = ["//:__subpackages__"],
 )

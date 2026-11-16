@@ -848,7 +848,7 @@ pub fn convert(
             let member_of = if parent.is_empty() {
                 Vec::new()
             } else {
-                vec![format!("{prefix}{}", qualified(&parent))]
+                vec![format!("{prefix}{}", qualified(parent))]
             };
             let relations =
                 (!member_of.is_empty() || !implements.is_empty()).then_some(Relations {
@@ -936,7 +936,7 @@ pub fn convert(
             continue;
         };
         let relations = (!parent.is_empty()).then(|| Relations {
-            member_of: vec![format!("{prefix}{}", qualified(&parent))],
+            member_of: vec![format!("{prefix}{}", qualified(parent))],
             implements: Vec::new(),
             reexported_as: Vec::new(),
         });

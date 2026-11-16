@@ -12,6 +12,7 @@ exports_files(
 fortran_library(
     name = "geom",
     srcs = ["src/geom.f90"],
+    tags = ["no-lint"],
 )
 
 fortran_doc_shard(

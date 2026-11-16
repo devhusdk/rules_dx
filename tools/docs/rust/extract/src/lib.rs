@@ -87,10 +87,9 @@ pub fn map_source(sources: &[Source], span_file: &str) -> Option<(String, bool)>
             };
             if let Some(at) = at
                 && let Some(rest) = file.get(at + dir.len()..)
+                && !rest.is_empty()
             {
-                if !rest.is_empty() {
-                    return Some((format!("{}{rest}", source.file), source.generated));
-                }
+                return Some((format!("{}{rest}", source.file), source.generated));
             }
         } else if file == source.exec_path || file.ends_with(&format!("/{}", source.exec_path)) {
             return Some((source.file.clone(), source.generated));

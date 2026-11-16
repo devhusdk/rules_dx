@@ -2,6 +2,8 @@
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
+use support_matrix as _;
+use yaml_serde as _;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::process::{Command, ExitCode};

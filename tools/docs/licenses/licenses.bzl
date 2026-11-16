@@ -2,8 +2,8 @@
 
 load("@bazel_lib//lib:write_source_files.bzl", "write_source_files")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
-load("//appimage/private:pins.bzl", "MKSQUASHFS_LICENSE", "MKSQUASHFS_VERSION", "RUNTIME_LICENSE", "RUNTIME_VERSION", "TOOL_LICENSE", "TOOL_VERSION")
 load("@dx_pins_data//:pins.bzl", "DATA")
+load("//appimage/private:pins.bzl", "MKSQUASHFS_LICENSE", "MKSQUASHFS_VERSION", "RUNTIME_LICENSE", "RUNTIME_VERSION", "TOOL_LICENSE", "TOOL_VERSION")
 
 _WRITE_GOOD_VERSION = "0.4.1"
 

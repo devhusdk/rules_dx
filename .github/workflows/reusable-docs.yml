@@ -19,7 +19,7 @@ on:
         default: "github-pages"
         type: string
       site:
-        description: "One target label in the calling repository whose output is the rendered mdBook tree (index.html and searchindex.js at its root)."
+        description: "One target label in the calling repository whose output is the rendered mdBook tree (index.html at its root)."
         required: true
         type: string
       site_check:
@@ -116,7 +116,6 @@ jobs:
           stage="$RUNNER_TEMP/pages"
           site="$(bazel cquery "$@" --output=files "$DX_DOCS_SITE")"
           test -f "$site/index.html"
-          test -f "$site/searchindex.js"
           rm -rf "$stage"
           mkdir -p "$stage"
           cp -R "$site/." "$stage/"
@@ -165,9 +164,6 @@ jobs:
           stage="$RUNNER_TEMP/pages"
           site="$(bazel cquery "$@" --output=files "$DX_DOCS_SITE")"
           test -f "$site/index.html"
-          test -f "$site/searchindex.js"
-          test -f "$site/css/general.css"
-          test -f "$site/book.js"
           rm -rf "$stage"
           mkdir -p "$stage"
           cp -R "$site/." "$stage/"
@@ -206,9 +202,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$PAGES_URL"
-          for file in index.html searchindex.js; do
-            curl --fail --silent --show-error --location --retry 10 --retry-delay 3 --retry-all-errors -o /dev/null "${PAGES_URL%/}/$file"
-          done
+          curl --fail --silent --show-error --location --retry 10 --retry-delay 3 --retry-all-errors -o /dev/null "${PAGES_URL%/}/index.html"
           if [ -n "$DX_DOCS_SMOKE_TEST" ]; then
             # shellcheck disable=SC2086
             set -- $BAZEL_CONFIG $BB_ARGS

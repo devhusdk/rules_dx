@@ -68,10 +68,9 @@ exports_files(
 
 filegroup(
     name = "module_srcs",
-    srcs = glob([
-        "*.bzl",
+    srcs = [
         "BUILD.bazel",
         "Cargo.toml",
-    ]),
+    ] + glob(["*.bzl"]),
     visibility = ["//:__subpackages__"],
 )

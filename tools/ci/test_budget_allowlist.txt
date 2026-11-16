@@ -225,7 +225,6 @@ deploy/private/release/matrix_tests.bzl no-size 1
 deploy/private/release/notice_tests.bzl no-size 2
 deploy/private/release/sbom_tests.bzl no-size 2
 deploy/private/release/signing_tests.bzl no-size 1
-deploy/private/release/tests/BUILD.bazel no-size 1
 deploy/private/resources_tests.bzl no-size 3
 deploy/private/rubygems_tests.bzl no-size 1
 deploy/private/sbom_demo/BUILD.bazel no-size 1

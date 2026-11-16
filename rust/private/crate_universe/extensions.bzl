@@ -277,7 +277,6 @@ def _generate_hub_and_spokes(
     )
 
     # TODO: Repins should never be allowed if the lockfile is not within
-    # https://github.com/bazelbuild/rules_rust/issues/1738
 
     # Determine whether or not to repin dependencies. Transitive (non-root)
     # modules are taken as-is: the digest check would fail across rust /
@@ -676,7 +675,6 @@ def _filter_dict(dict):
         for k, v in dict.items()
         # Tag classes can't take in None, but the function requires None
         # instead of the empty values in many cases.
-        # https://github.com/bazelbuild/bazel/issues/20744
         if v != "" and v != [] and v != {}
     }
 

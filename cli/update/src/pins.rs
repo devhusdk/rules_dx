@@ -135,13 +135,12 @@ pub fn rewrite(
         let first = urls
             .first()
             .ok_or_else(|| DxError::failure("a cell lists no url"))?;
-        let digest = match digests.get(first) {
-            Some(digest) => digest.clone(),
-            None => {
-                let digest = download(first)?;
-                digests.insert(first.clone(), digest.clone());
-                digest
-            }
+        let digest = if let Some(digest) = digests.get(first) {
+            digest.clone()
+        } else {
+            let digest = download(first)?;
+            digests.insert(first.clone(), digest.clone());
+            digest
         };
         cell.insert("sha256".to_owned(), Value::String(digest));
         cell.insert(
@@ -175,10 +174,9 @@ fn sorted(value: &Value) -> Value {
             Value::Object(out)
         }
         Value::Array(items) => Value::Array(items.iter().map(sorted).collect()),
-        other @ Value::Null
-        | other @ Value::Bool(_)
-        | other @ Value::Number(_)
-        | other @ Value::String(_) => other.clone(),
+        other @ (Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_)) => {
+            other.clone()
+        }
     }
 }
 

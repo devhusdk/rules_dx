@@ -1,4 +1,7 @@
-use super::*;
+use super::{
+    BackendError, BackendPlan, CheckPlan, Path, ResolvedSet, Run, Selection, UvClosure, bazel,
+    carton_argv, carton_env,
+};
 
 const RESOLVER: &str = "@rules_dx//perl/private/tools/lock";
 

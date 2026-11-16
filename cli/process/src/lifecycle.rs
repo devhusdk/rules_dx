@@ -86,6 +86,7 @@ pub enum Exit {
 }
 
 impl Exit {
+    #[must_use]
     pub fn code(&self) -> Option<i32> {
         match self {
             Exit::Code(code) => Some(*code),
@@ -130,6 +131,7 @@ impl CleanupBudget {
     };
 
     /// The whole cleanup bound.
+    #[must_use]
     pub fn total(&self) -> Duration {
         self.graceful + self.forced + self.drain
     }
@@ -259,39 +261,33 @@ pub fn run_command_with_input(
         return Err(err);
     }
     // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-    match status {
-        Some(exit) => {
-            backend::end_owned_descendants(&mut owned);
-            let stdout = collect(&stdout_rx, hard);
-            let stderr = collect(&stderr_rx, hard);
-            match (stdout, stderr) {
-                (Drain::Ready(stdout), Drain::Ready(stderr)) => {
-                    if stdout.len() > limit || stderr.len() > limit {
-                        backend::terminate_forced(&mut owned);
-                        Ok(ChildOutcome::OutputTooLarge { limit })
-                    } else {
-                        Ok(ChildOutcome::Finished {
-                            exit: exit_of(&exit),
-                            stdout,
-                            stderr,
-                        })
-                    }
-                }
-                _ => {
-                    backend::terminate_forced(&mut owned);
-                    Ok(ChildOutcome::TimedOut)
-                }
+    if let Some(exit) = status {
+        backend::end_owned_descendants(&mut owned);
+        let stdout = collect(&stdout_rx, hard);
+        let stderr = collect(&stderr_rx, hard);
+        if let (Drain::Ready(stdout), Drain::Ready(stderr)) = (stdout, stderr) {
+            if stdout.len() > limit || stderr.len() > limit {
+                backend::terminate_forced(&mut owned);
+                Ok(ChildOutcome::OutputTooLarge { limit })
+            } else {
+                Ok(ChildOutcome::Finished {
+                    exit: exit_of(&exit),
+                    stdout,
+                    stderr,
+                })
             }
-        }
-        None => {
-            backend::terminate_graceful(&mut owned);
-            let _ = poll_exit(&mut owned, hard.min(Instant::now() + cleanup.graceful));
+        } else {
             backend::terminate_forced(&mut owned);
-            let _ = poll_exit(&mut owned, hard.min(Instant::now() + cleanup.forced));
-            let _ = collect(&stdout_rx, hard);
-            let _ = collect(&stderr_rx, hard);
             Ok(ChildOutcome::TimedOut)
         }
+    } else {
+        backend::terminate_graceful(&mut owned);
+        let _ = poll_exit(&mut owned, hard.min(Instant::now() + cleanup.graceful));
+        backend::terminate_forced(&mut owned);
+        let _ = poll_exit(&mut owned, hard.min(Instant::now() + cleanup.forced));
+        let _ = collect(&stdout_rx, hard);
+        let _ = collect(&stderr_rx, hard);
+        Ok(ChildOutcome::TimedOut)
     }
 }
 
@@ -481,6 +477,7 @@ pub const STOP_SIGNALS: [i32; 3] = [2, 15, 1];
 pub use backend::install_console_stop;
 
 /// Maps a Windows console control event to the signal it acts as: Ctrl-C and Ctrl-Break are SIGINT.
+#[must_use]
 pub fn console_stop_signal(ctrl_type: u32) -> Option<i32> {
     match ctrl_type {
         0 | 1 => Some(2),
@@ -513,11 +510,13 @@ fn forward_from(slots: &[Slot], signo: i32, record: fn(i32), send: fn(i32, i32))
 }
 
 /// Whether this process is in the foreground group of its controlling terminal.
+#[must_use]
 pub fn terminal_foreground() -> bool {
     backend::terminal_foreground()
 }
 
 /// The group a streamed child joins: the terminal foreground when this process holds it, else its own.
+#[must_use]
 pub fn stream_group() -> StreamGroup {
     stream_group_for(terminal_foreground())
 }
@@ -546,7 +545,7 @@ impl Forwarding {
         if target != 0 {
             let _guard = REGISTER
                 .lock()
-                .unwrap_or_else(|poisoned| poisoned.into_inner());
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             for candidate in slots {
                 if candidate.target.load(Ordering::SeqCst) == 0 {
                     candidate.claimed.store(false, Ordering::SeqCst);

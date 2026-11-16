@@ -1,4 +1,4 @@
-//! Keeps the dependency sets rules_dx finds in its own MODULE.bazel stable.
+//! Keeps the dependency sets `rules_dx` finds in its own MODULE.bazel stable.
 
 use dx_adopt::dependency_sets::{DependencySet, Ecosystem, discover};
 

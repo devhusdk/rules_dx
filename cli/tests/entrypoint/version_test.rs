@@ -14,7 +14,7 @@ fn status_fixtures_take_the_release_version_from_pins() {
         .find_map(|line| line.strip_prefix("DX_VERSION = \""))
         .and_then(|rest| rest.strip_suffix('"'))
         .expect("pins.bzl must define DX_VERSION");
-    assert!(!version.is_empty());
+    assert_ne!(version, "");
     assert!(repos.contains("load(\"//cli/prebuilt:pins.bzl\", \"DX_VERSION\")"));
     for line in repos.lines() {
         let tracks_rules_dx = line.contains("bazel_dep(name = \"rules_dx\"")

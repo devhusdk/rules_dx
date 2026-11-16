@@ -73,6 +73,7 @@ pub trait Host {
 }
 
 /// Compares two paths the way Bazel prints them.
+#[must_use]
 pub fn same_path(left: &Path, right: &Path) -> bool {
     normalize(&resolved(left)) == normalize(&resolved(right))
 }
@@ -248,6 +249,7 @@ pub(crate) fn scan_output_bases(roots: &[PathBuf]) -> Vec<OutputBase> {
 }
 
 /// Whether any output base under `roots` was made for `workspace`.
+#[must_use]
 pub fn has_output_base(roots: &[PathBuf], workspace: &Path) -> bool {
     scan_output_bases(roots)
         .iter()
@@ -627,8 +629,7 @@ impl Host for SystemHost {
     fn now(&self) -> u64 {
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map(|elapsed| elapsed.as_secs())
-            .unwrap_or(0)
+            .map_or(0, |elapsed| elapsed.as_secs())
     }
 
     fn process_alive(&self, pid: u32) -> bool {
@@ -1078,7 +1079,10 @@ mod tests {
         let root = scratch.path().join("root");
         std::fs::create_dir_all(root.join("cache").join("repos").join("v1").join("contents"))
             .expect("contents");
-        assert!(scan_downloads(&[root], &|| None).is_empty());
+        assert_eq!(
+            scan_downloads(&[root], &|| None),
+            [] as [crate::host::Download; 0]
+        );
     }
 
     #[test]
@@ -1091,7 +1095,10 @@ mod tests {
             scan_downloads(std::slice::from_ref(&root), &|| None).len(),
             2
         );
-        assert!(scan_downloads(&[root], &|| Some(15)).is_empty());
+        assert_eq!(
+            scan_downloads(&[root], &|| Some(15)),
+            [] as [crate::host::Download; 0]
+        );
     }
 
     #[cfg(unix)]

@@ -100,6 +100,7 @@ const ALLOW: [&str; 4] = ["check", "test", "build", "status"];
 const EXPORT_ALLOW: [&str; 2] = ["DX_WORKTREE_SESSION", "DX_WORKTREE_HOLDER"];
 
 /// The `permissions.allow` rules a fresh settings file carries.
+#[must_use]
 pub fn allow_rules() -> Vec<String> {
     ALLOW
         .into_iter()
@@ -144,16 +145,19 @@ fn missing_rules(existing: &str, list: &str, rules: Vec<String>) -> Vec<String> 
 }
 
 /// Allow rules an existing settings file lacks.
+#[must_use]
 pub fn missing_allow(existing: &str) -> Vec<String> {
     missing_rules(existing, "allow", allow_rules())
 }
 
 /// Ask rules an existing settings file lacks.
+#[must_use]
 pub fn missing_ask(existing: &str) -> Vec<String> {
     missing_rules(existing, "ask", ask_rules())
 }
 
 /// The hooks file a fresh repository gets.
+#[must_use]
 pub fn settings_text(file: &HookFile) -> String {
     let mut hooks = serde_json::Map::new();
     for (event, matcher, command) in entries(file) {
@@ -201,6 +205,7 @@ fn has_command(file: &HookFile, existing: &Value, event: &str, command: &str) ->
 }
 
 /// Hook entries an existing hooks file lacks, as `event: command` lines.
+#[must_use]
 pub fn missing_entries(file: &HookFile, existing: &str) -> Vec<String> {
     let parsed = parse(existing);
     entries(file)
@@ -216,6 +221,7 @@ pub fn missing_entries(file: &HookFile, existing: &str) -> Vec<String> {
 /// The existing workspace hooks files that lack entries, with the entries each lacks.
 ///
 /// An absent file is never reported; the agent it belongs to was not chosen.
+#[must_use]
 pub fn workspace_missing(workspace: &Path) -> Vec<(&'static str, Vec<String>)> {
     HOOK_FILES
         .into_iter()
@@ -365,7 +371,10 @@ mod tests {
             let text = std::fs::read_to_string(dir.path().join(file.path)).expect("file");
             assert!(missing_entries(file, &text).is_empty(), "{}", file.path);
         }
-        assert!(workspace_missing(dir.path()).is_empty());
+        assert_eq!(
+            workspace_missing(dir.path()),
+            [] as [(&str, std::vec::Vec<std::string::String>); 0]
+        );
     }
 
     #[test]
@@ -374,7 +383,10 @@ mod tests {
         let outcome = apply(dir.path(), &[CODEX.path]).expect("apply");
         assert_eq!(outcome.wrote, vec![CODEX.path.to_owned()]);
         assert!(!dir.path().join(CLAUDE.path).exists());
-        assert!(workspace_missing(dir.path()).is_empty());
+        assert_eq!(
+            workspace_missing(dir.path()),
+            [] as [(&str, std::vec::Vec<std::string::String>); 0]
+        );
     }
 
     #[test]
@@ -401,9 +413,9 @@ mod tests {
         assert!(text.contains("// mine"));
         assert!(text.contains("/* keep */"));
         assert!(text.contains("\"command\": \"mine\""));
-        assert!(missing_entries(&CLAUDE, &text).is_empty());
-        assert!(missing_allow(&text).is_empty());
-        assert!(missing_ask(&text).is_empty());
+        assert_eq!(missing_entries(&CLAUDE, &text), [] as [String; 0]);
+        assert_eq!(missing_allow(&text), [] as [String; 0]);
+        assert_eq!(missing_ask(&text), [] as [String; 0]);
         let parsed = parse(&text);
         assert_eq!(commands(&parsed, "PreToolUse").len(), 2);
         assert_eq!(parsed["model"], "opus");
@@ -451,7 +463,7 @@ mod tests {
         assert!(outcome.wrote.contains(&GEMINI.path.to_owned()));
         let text = std::fs::read_to_string(dir.path().join(GEMINI.path)).expect("read");
         assert_eq!(parse(&text)["general"]["vimMode"], true);
-        assert!(missing_entries(&GEMINI, &text).is_empty());
+        assert_eq!(missing_entries(&GEMINI, &text), [] as [String; 0]);
         assert!(!text.contains("permissions"));
     }
 
@@ -475,7 +487,7 @@ mod tests {
         apply(dir.path(), &ALL).expect("apply");
         let text = std::fs::read_to_string(dir.path().join(COPILOT.path)).expect("read");
         assert!(text.contains("\"mine\""));
-        assert!(missing_entries(&COPILOT, &text).is_empty());
+        assert_eq!(missing_entries(&COPILOT, &text), [] as [String; 0]);
         assert_eq!(
             parse(&text)["hooks"]["PreToolUse"].as_array().map(Vec::len),
             Some(2)
@@ -498,7 +510,10 @@ mod tests {
     #[test]
     fn no_file_is_reported_when_absent() {
         let dir = scratch("dx-worktree-setup-absent-");
-        assert!(workspace_missing(dir.path()).is_empty());
+        assert_eq!(
+            workspace_missing(dir.path()),
+            [] as [(&str, std::vec::Vec<std::string::String>); 0]
+        );
     }
 
     #[test]
@@ -518,8 +533,8 @@ mod tests {
         let dir = scratch("dx-worktree-setup-allow-");
         apply(dir.path(), &ALL).expect("apply");
         let settings = std::fs::read_to_string(dir.path().join(SETTINGS)).expect("settings");
-        assert!(missing_allow(&settings).is_empty());
-        assert!(missing_ask(&settings).is_empty());
+        assert_eq!(missing_allow(&settings), [] as [String; 0]);
+        assert_eq!(missing_ask(&settings), [] as [String; 0]);
         assert_eq!(allow_rules().len(), 6);
         assert!(!allow_rules().iter().any(|rule| rule.contains("deploy")));
         assert!(
@@ -557,7 +572,7 @@ mod tests {
         assert!(outcome.wrote.contains(&CLAUDE.path.to_owned()));
         let text = std::fs::read_to_string(dir.path().join(CLAUDE.path)).expect("read");
         assert_eq!(parse(&text)["permissions"]["ask"], json!(ask_rules()));
-        assert!(missing_allow(&text).is_empty());
+        assert_eq!(missing_allow(&text), [] as [String; 0]);
     }
 
     fn commands(settings: &Value, event: &str) -> Vec<String> {

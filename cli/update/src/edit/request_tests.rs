@@ -1,3 +1,4 @@
+use super::cargo::cargo_set_version;
 use super::*;
 
 const MAVEN_HEAD: &str =

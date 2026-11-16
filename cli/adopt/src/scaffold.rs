@@ -86,6 +86,7 @@ pub(crate) fn with_header(ownership: Ownership, path: &str, body: &str) -> Strin
 }
 
 /// The `.bazelignore` lines `dx init` writes, without the header.
+#[must_use]
 pub fn bazelignore_content() -> String {
     format!("{}\n", BAZELIGNORE_LINES.join("\n"))
 }
@@ -197,6 +198,7 @@ fn render_editor_recommendations(extensions: &BTreeSet<String>, tools: &EditorTo
 
 const DX_UPDATE_WORKFLOW: &str = include_str!("../../../.github/workflows/dx-update.yml");
 
+#[must_use]
 pub fn render_consumer_module_setup() -> String {
     format!("bazel_dep(name = \"rules_dx\", version = \"{DX_VERSION}\")\n")
 }
@@ -248,6 +250,7 @@ pub enum CiProvider {
 
 impl CiProvider {
     /// The provider for a repo that did not pick one: the CI file it already has, else its remote.
+    #[must_use]
     pub fn detect(root: &Path) -> Self {
         if root.join(GITLAB_CI_PATH).exists() {
             return Self::Gitlab;
@@ -271,6 +274,7 @@ impl CiProvider {
 pub const DEFAULT_BRANCH_FALLBACK: &str = "main";
 
 /// The repo's default branch: `origin/HEAD`, then `init.defaultBranch`, then `main`.
+#[must_use]
 pub fn detect_default_branch(root: &Path) -> String {
     let git = |args: &[&str]| -> Option<String> {
         let out = dx_process::capture::run_checked(
@@ -304,22 +308,21 @@ fn is_plain_branch(name: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_' | '/'))
 }
 
+#[must_use]
 pub fn render_consumer_caller() -> String {
     render_consumer_caller_for(DEFAULT_BRANCH_FALLBACK)
 }
 
+#[must_use]
 pub fn render_consumer_caller_for(branch: &str) -> String {
     let body = format!(
-        "name: ci\non:\n  pull_request: {{}}\n  merge_group:\n    types: [checks_requested]\n  push:\n    branches: [{branch}]\n  workflow_dispatch: {{}}\njobs:\n  dx:\n    uses: {owner}/{repo}/{path}@{pin}\n    with:\n      remote_cache: ${{{{ vars.DX_REMOTE_CACHE }}}}\n      deploy_dry_run: true\n    secrets:\n      BUILDBUDDY_API_KEY: ${{{{ secrets.BUILDBUDDY_API_KEY }}}}\n      REMOTE_CACHE_HEADER: ${{{{ secrets.REMOTE_CACHE_HEADER }}}}\n    permissions:\n      actions: read\n      contents: write\n      pull-requests: write\n",
-        owner = CONSUMER_WORKFLOW_OWNER,
-        repo = CONSUMER_WORKFLOW_REPO,
-        path = CONSUMER_WORKFLOW_PATH,
-        pin = CONSUMER_WORKFLOW_PIN,
+        "name: ci\non:\n  pull_request: {{}}\n  merge_group:\n    types: [checks_requested]\n  push:\n    branches: [{branch}]\n  workflow_dispatch: {{}}\njobs:\n  dx:\n    uses: {CONSUMER_WORKFLOW_OWNER}/{CONSUMER_WORKFLOW_REPO}/{CONSUMER_WORKFLOW_PATH}@{CONSUMER_WORKFLOW_PIN}\n    with:\n      remote_cache: ${{{{ vars.DX_REMOTE_CACHE }}}}\n      deploy_dry_run: true\n    secrets:\n      BUILDBUDDY_API_KEY: ${{{{ secrets.BUILDBUDDY_API_KEY }}}}\n      REMOTE_CACHE_HEADER: ${{{{ secrets.REMOTE_CACHE_HEADER }}}}\n    permissions:\n      actions: read\n      contents: write\n      pull-requests: write\n",
     );
     with_header(Ownership::Pin, ".github/workflows/ci.yml", &body)
 }
 
-/// The `.gitlab-ci.yml` that includes the GitLab template at the pinned rules_dx commit.
+/// The `.gitlab-ci.yml` that includes the GitLab template at the pinned `rules_dx` commit.
+#[must_use]
 pub fn render_gitlab_caller() -> String {
     let body = format!(
         "include:\n  - remote: {GITLAB_TEMPLATE_URL}{CONSUMER_WORKFLOW_PIN}{GITLAB_TEMPLATE_PATH}\n"
@@ -327,13 +330,10 @@ pub fn render_gitlab_caller() -> String {
     with_header(Ownership::Pin, GITLAB_CI_PATH, &body)
 }
 
+#[must_use]
 pub fn render_release_caller() -> String {
     let body = format!(
-        "name: release\non:\n  push:\n    tags: ['v*']\n  workflow_dispatch:\n    inputs:\n      deployables:\n        description: 'JSON array of dx_deployment labels to publish, in order. Empty publishes every dx_deployment tagged release.'\n        required: false\n        default: ''\n      publish:\n        description: 'Publish after the dry run. A dispatch from a branch only plans and dry-runs; publishing needs a tag.'\n        type: boolean\n        default: false\njobs:\n  release:\n    uses: {owner}/{repo}/{path}@{pin}\n    with:\n      deployables: ${{{{ inputs.deployables }}}}\n      publish: ${{{{ github.event_name != 'workflow_dispatch' || inputs.publish }}}}\n    secrets: inherit\n    permissions:\n      contents: write\n      id-token: write\n      attestations: write\n      packages: write\n",
-        owner = CONSUMER_WORKFLOW_OWNER,
-        repo = CONSUMER_WORKFLOW_REPO,
-        path = RELEASE_WORKFLOW_PATH,
-        pin = CONSUMER_WORKFLOW_PIN,
+        "name: release\non:\n  push:\n    tags: ['v*']\n  workflow_dispatch:\n    inputs:\n      deployables:\n        description: 'JSON array of dx_deployment labels to publish, in order. Empty publishes every dx_deployment tagged release.'\n        required: false\n        default: ''\n      publish:\n        description: 'Publish after the dry run. A dispatch from a branch only plans and dry-runs; publishing needs a tag.'\n        type: boolean\n        default: false\njobs:\n  release:\n    uses: {CONSUMER_WORKFLOW_OWNER}/{CONSUMER_WORKFLOW_REPO}/{RELEASE_WORKFLOW_PATH}@{CONSUMER_WORKFLOW_PIN}\n    with:\n      deployables: ${{{{ inputs.deployables }}}}\n      publish: ${{{{ github.event_name != 'workflow_dispatch' || inputs.publish }}}}\n    secrets: inherit\n    permissions:\n      contents: write\n      id-token: write\n      attestations: write\n      packages: write\n",
     );
     with_header(Ownership::Pin, ".github/workflows/release.yml", &body)
 }
@@ -345,7 +345,7 @@ pub struct EditorTools {
     pub strict: bool,
     /// The ruff config the editor reads; `.dx/config/ruff/base.toml` when empty.
     pub ruff_config: String,
-    /// The root ESLint flat config; `.dx/config/eslint/base.mjs` when empty.
+    /// The root `ESLint` flat config; `.dx/config/eslint/base.mjs` when empty.
     pub eslint_config: String,
     /// The root stylelint config; `.dx/config/stylelint/base.json` when empty.
     pub stylelint_config: String,
@@ -364,6 +364,7 @@ impl EditorTools {
     }
 
     /// Reads the tier from `dx.toml` and the ruff config from the root of `root`.
+    #[must_use]
     pub fn detect(root: &Path) -> Self {
         let strict = std::fs::read_to_string(root.join("dx.toml"))
             .ok()
@@ -550,6 +551,7 @@ fn editor_settings_value(extensions: &BTreeSet<String>, tools: &EditorTools) -> 
 }
 
 /// The `.vscode/settings.json` text for the languages in `extensions`, pretty-printed.
+#[must_use]
 pub fn render_editor_settings(extensions: &BTreeSet<String>, tools: &EditorTools) -> String {
     let mut text =
         serde_json::to_string_pretty(&editor_settings_value(extensions, tools)).unwrap_or_default();
@@ -1437,8 +1439,14 @@ mod tests {
 
     #[test]
     fn init_keeps_an_existing_root_build() {
-        assert!(root_builds(&[("BUILD", "")]).is_empty());
-        assert!(root_builds(&[("BUILD.bazel", "")]).is_empty());
+        assert_eq!(
+            root_builds(&[("BUILD", "")]),
+            [] as [(String, crate::scaffold::FileKind); 0]
+        );
+        assert_eq!(
+            root_builds(&[("BUILD.bazel", "")]),
+            [] as [(String, crate::scaffold::FileKind); 0]
+        );
     }
 
     #[test]
@@ -1679,7 +1687,7 @@ mod tests {
         assert_eq!(pick(Some("trunk".into()), Some("dev".into())), "trunk");
         assert_eq!(pick(None, Some("dev".into())), "dev");
         assert_eq!(pick(None, None), "main");
-        assert_eq!(pick(Some("a b".into()), Some("".into())), "main");
+        assert_eq!(pick(Some("a b".into()), Some(String::new())), "main");
     }
 
     #[test]
@@ -2509,7 +2517,7 @@ mod tests {
                 err.to_string().contains(".github/workflows/ci.yml"),
                 "{err}"
             );
-            assert!(entries(&outside).is_empty());
+            assert_eq!(entries(&outside), [] as [String; 0]);
             assert_eq!(entries(&root), vec![".github".to_owned()]);
             scratch.close().expect("cleanup");
         }

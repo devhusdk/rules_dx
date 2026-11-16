@@ -32,6 +32,7 @@ struct DbMetadata {
 }
 
 /// The arguments of the two download steps, vulnerability database then checks.
+#[must_use]
 pub fn download_args(cache: &Path) -> [Vec<String>; 2] {
     let cache = cache.display().to_string();
     let base = |flag: &str| {

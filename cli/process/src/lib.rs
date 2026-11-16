@@ -41,6 +41,7 @@ pub use stderr_tail::last_bazel_stderr;
 /// This thread's `errno`, for a signal handler to save on entry and restore on exit.
 #[cfg(unix)]
 #[expect(unsafe_code, reason = "the errno location is only exposed by libc")]
+#[must_use]
 pub fn errno_slot() -> *mut libc::c_int {
     #[cfg(any(target_os = "linux", target_os = "android"))]
     // SAFETY: __errno_location has no preconditions.
@@ -113,6 +114,7 @@ fn legacy_marker(fs: &dyn Fs, dir: &Path) -> bool {
     fs.is_file(&dir.join("WORKSPACE")) || fs.is_file(&dir.join("WORKSPACE.bazel"))
 }
 
+#[must_use]
 pub fn expand_tilde(path: &Path) -> PathBuf {
     let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE"));
     expand_tilde_with(path, home)
@@ -136,10 +138,12 @@ fn expand_tilde_with(path: &Path, home: Option<OsString>) -> PathBuf {
     PathBuf::from(home).join(text.get(2..).unwrap_or_default())
 }
 
+#[must_use]
 pub fn canonicalize_or_keep(path: &Path) -> PathBuf {
     std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
 }
 
+#[must_use]
 pub fn resolve_override_display(raw: &Path, base: &Path) -> PathBuf {
     let expanded = expand_tilde(raw);
     if expanded.is_absolute() {
@@ -149,6 +153,7 @@ pub fn resolve_override_display(raw: &Path, base: &Path) -> PathBuf {
     }
 }
 
+#[must_use]
 pub fn resolve_override_effective(raw: &Path, base: &Path) -> (PathBuf, PathBuf) {
     let display = resolve_override_display(raw, base);
     let effective = canonicalize_or_keep(&display);
@@ -252,6 +257,7 @@ pub fn output_base_of_execroot(execroot: &Path) -> Option<PathBuf> {
 }
 
 /// Returns the output base of the enclosing `bazel run`, read from `BUILD_EXECROOT`.
+#[must_use]
 pub fn run_output_base() -> Option<PathBuf> {
     output_base_of_value(std::env::var_os("BUILD_EXECROOT"))
 }
@@ -261,6 +267,7 @@ fn output_base_of_value(value: Option<OsString>) -> Option<PathBuf> {
     output_base_of_execroot(Path::new(&value))
 }
 
+#[must_use]
 pub fn workspace_start(cwd: &Path) -> PathBuf {
     bazel_run_dir(
         std::env::var_os("BUILD_WORKSPACE_DIRECTORY").as_deref(),
@@ -276,12 +283,14 @@ pub fn current_directory() -> std::io::Result<PathBuf> {
     ))
 }
 
+#[must_use]
 pub fn is_ci_value(value: Option<&str>) -> bool {
     value.is_some_and(|value| {
         value.eq_ignore_ascii_case("true") || value == "1" || value.eq_ignore_ascii_case("yes")
     })
 }
 
+#[must_use]
 pub fn is_ci() -> bool {
     is_ci_value(std::env::var("CI").ok().as_deref())
 }
@@ -291,8 +300,7 @@ pub fn bazel_env_defaults(
     linux: bool,
 ) -> Vec<(&'static str, &'static str)> {
     let tunables = get("GLIBC_TUNABLES")
-        .map(|value| value.to_string_lossy().contains("glibc.malloc.arena_max"))
-        .unwrap_or(false);
+        .is_some_and(|value| value.to_string_lossy().contains("glibc.malloc.arena_max"));
     if linux && get("MALLOC_ARENA_MAX").is_none() && !tunables {
         vec![("MALLOC_ARENA_MAX", "2")]
     } else {
@@ -300,6 +308,7 @@ pub fn bazel_env_defaults(
     }
 }
 
+#[must_use]
 pub fn launcher_argv0() -> &'static str {
     "bazel"
 }
@@ -319,6 +328,7 @@ pub enum StartupOptionError {
 }
 
 /// Replaces the user and password of every `scheme://user:pass@host` in `text`.
+#[must_use]
 pub fn redact_url_credentials(text: &str) -> String {
     let mut redacted = String::with_capacity(text.len());
     let mut rest = text;
@@ -366,12 +376,14 @@ pub fn validate_startup_option(token: &str) -> Result<String, StartupOptionError
     }
 }
 
+#[must_use]
 pub fn startup_argv(startup_options: &[String]) -> Vec<String> {
     launcher_head(current(), startup_options)
 }
 
 /// The launcher and startup flags under an explicit rc policy.
 #[cfg(test)]
+#[must_use]
 pub fn startup_argv_with(policy: &RcPolicy, startup_options: &[String]) -> Vec<String> {
     launcher_head(policy, startup_options)
 }
@@ -381,6 +393,7 @@ pub const SHARED_SETTINGS_VERBS: [&str; 6] =
     ["build", "test", "coverage", "run", "cquery", "aquery"];
 
 /// Whether `verb` must carry the shared dx settings.
+#[must_use]
 pub fn takes_shared_settings(verb: &str) -> bool {
     SHARED_SETTINGS_VERBS.contains(&verb)
 }
@@ -393,6 +406,7 @@ pub const RUSTC_DIAGNOSTICS_FLAG: &str = "--@rules_dx//config:rustc_output_diagn
 pub const BAZEL_SETTINGS: [&str; 2] = [CLIPPY_DIAGNOSTICS_FLAG, RUSTC_DIAGNOSTICS_FLAG];
 
 /// The shared settings spelled with `repo`, for a `BazelHead`.
+#[must_use]
 pub fn head_settings(repo: &str) -> Vec<String> {
     BAZEL_SETTINGS
         .iter()
@@ -425,6 +439,7 @@ pub struct BazelHead {
 
 impl BazelHead {
     /// The launcher, startup flags, verb, verb options, then the head options.
+    #[must_use]
     pub fn argv(&self, verb: &str) -> Vec<String> {
         let mut argv = launcher_head(current(), &self.startup);
         argv.push(verb.to_owned());
@@ -446,6 +461,7 @@ pub enum Scope {
     Count(usize),
 }
 
+#[must_use]
 pub fn describe_scope(scope: &Scope) -> String {
     match scope {
         Scope::Repository => "//...".to_owned(),
@@ -462,6 +478,7 @@ pub fn describe_scope(scope: &Scope) -> String {
     }
 }
 
+#[must_use]
 pub fn operation_summary(command: &str, phase: &str, scope: &Scope) -> String {
     format!("Running {command} {phase} for {}", describe_scope(scope))
 }
@@ -527,6 +544,7 @@ pub fn unsupported_command(command: impl AsRef<str>) -> DxError {
 }
 
 /// Returns the option name of a `--name` or `--name=value` token.
+#[must_use]
 pub fn flag_name(arg: &str) -> Option<String> {
     let bare = arg.strip_prefix("--")?;
     if bare.is_empty() {
@@ -548,6 +566,7 @@ pub const STARTUP_OPTIONS: &[&str] = &[
     "server_jvm_out",
 ];
 
+#[must_use]
 pub fn is_startup_option(arg: &str) -> bool {
     match flag_name(arg) {
         Some(name) => STARTUP_OPTIONS.contains(&name.as_str()),
@@ -555,6 +574,7 @@ pub fn is_startup_option(arg: &str) -> bool {
     }
 }
 
+#[must_use]
 pub fn is_test_binary_arg(arg: &str) -> bool {
     match flag_name(arg) {
         Some(name) => name == "test_arg",
@@ -668,14 +688,17 @@ pub const EXIT_OPERATIONAL: i32 = dx_error::EXIT_FAILURE;
 pub const EXIT_PRE_EXEC: i32 = dx_error::EXIT_USAGE;
 pub const EXIT_BROKEN_PIPE: i32 = 128 + 13;
 
+#[must_use]
 pub fn pre_exec_code() -> i32 {
     EXIT_PRE_EXEC
 }
 
+#[must_use]
 pub fn operational_code() -> i32 {
     EXIT_OPERATIONAL
 }
 
+#[must_use]
 pub fn broken_pipe_code() -> i32 {
     EXIT_BROKEN_PIPE
 }
@@ -696,14 +719,17 @@ pub fn interrupted() -> Option<i32> {
 }
 
 /// The exit code for a run stopped by `signo`.
+#[must_use]
 pub fn interrupted_code(signo: i32) -> i32 {
     128 + signo
 }
 
+#[must_use]
 pub fn is_broken_pipe_io(error: &io::Error) -> bool {
     error.kind() == io::ErrorKind::BrokenPipe
 }
 
+#[must_use]
 pub fn stdout_io_code(error: &io::Error) -> i32 {
     if is_broken_pipe_io(error) {
         EXIT_BROKEN_PIPE
@@ -721,6 +747,7 @@ pub struct ChildStatus {
 
 impl ChildStatus {
     /// A child that exited with `code`.
+    #[must_use]
     pub fn exited(code: i32) -> Self {
         Self {
             code: Some(code),
@@ -729,6 +756,7 @@ impl ChildStatus {
     }
 
     /// A child that died by `signal`; `None` or 0 means the signal is unknown.
+    #[must_use]
     pub fn signalled(signal: Option<i32>) -> Self {
         Self {
             code: None,
@@ -818,6 +846,7 @@ pub struct DiskSpace {
 }
 
 /// Reads the free and total bytes on the disk holding `path` or its nearest existing ancestor.
+#[must_use]
 pub fn disk_space(path: &Path) -> Option<DiskSpace> {
     let dir = path.ancestors().find(|ancestor| ancestor.is_dir())?;
     dir_disk_space(dir)
@@ -888,6 +917,7 @@ pub enum PinnedVar {
 
 impl PinnedVar {
     /// Sorts a raw variable value into its state.
+    #[must_use]
     pub fn classify(value: Option<std::ffi::OsString>) -> Self {
         match value {
             None => Self::Unset,
@@ -904,6 +934,7 @@ impl PinnedVar {
     }
 
     /// The absolute path, when there is one.
+    #[must_use]
     pub fn path(self) -> Option<PathBuf> {
         match self {
             Self::Path(path) => Some(path),
@@ -913,6 +944,7 @@ impl PinnedVar {
 }
 
 /// Reads one pinned-tool variable exactly once.
+#[must_use]
 pub fn pinned_env(var: &str) -> PinnedVar {
     PinnedVar::classify(std::env::var_os(var))
 }
@@ -995,6 +1027,7 @@ pub fn make_writable(path: &Path) {
 }
 
 /// Removes a directory tree, including read-only entries, and reports whether it is gone.
+#[must_use]
 pub fn remove_tree(path: &Path) -> bool {
     if std::fs::remove_dir_all(path).is_err() {
         make_writable(path);

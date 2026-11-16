@@ -224,7 +224,7 @@ fn calls_read_literals_bindings_and_repo_aliases() {
     assert_eq!(toolchain.str("edition"), Some("2021"));
     assert_eq!(toolchain.str("versions"), None);
     assert_eq!(toolchain.str_list("versions"), ["1.98.0"]);
-    assert!(toolchain.str_list("edition").is_empty());
+    assert_eq!(toolchain.str_list("edition"), [] as [&str; 0]);
     let start = source.rfind("\"rust_toolchains\"").expect("repo");
     assert_eq!(
         file.calls()[5].positional,
@@ -304,7 +304,7 @@ fn maven_artifacts_of_returns_only_the_named_install() {
     };
     assert_eq!(values("maven"), ["junit:junit:4.13.2"]);
     assert_eq!(values("other"), ["junit:junit:4.12", "a:b:1"]);
-    assert!(values("missing").is_empty());
+    assert_eq!(values("missing"), [] as [String; 0]);
     let computed = parse(
         "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(name = NAME, artifacts = [\"a:b:1\"])\n",
     );
@@ -321,7 +321,7 @@ fn load_labels_lists_plain_and_relative_loads_in_order() {
         load_labels(source).expect("parses"),
         ["//tools:defs.bzl", ":local.bzl", "@rules_cc//cc:defs.bzl"]
     );
-    assert!(load_labels("x = 1\n").expect("no loads").is_empty());
+    assert_eq!(load_labels("x = 1\n").expect("no loads"), [] as [String; 0]);
 }
 
 #[test]
@@ -339,10 +339,9 @@ fn dict_arguments_keep_literal_keys_and_values() {
     let call = &file.calls()[0];
     let text = |value: &Value| match value {
         Value::Str(literal) => literal.value.clone(),
-        other @ Value::List(_)
-        | other @ Value::Dict(_)
-        | other @ Value::Ident(_)
-        | other @ Value::Computed { .. } => panic!("not a string: {other:?}"),
+        other @ (Value::List(_) | Value::Dict(_) | Value::Ident(_) | Value::Computed { .. }) => {
+            panic!("not a string: {other:?}")
+        }
     };
     let Some(Value::Dict(settings)) = call.arg("target_settings") else {
         panic!("target_settings is not a dict");
@@ -1046,7 +1045,7 @@ fn extension_bindings_and_use_repos_follow_the_binding() {
     );
     assert_eq!(module.use_repos("rust"), [("a", 2), ("b", 2)]);
     assert_eq!(module.use_repos("other"), [("c", 5)]);
-    assert!(module.use_repos("missing").is_empty());
+    assert_eq!(module.use_repos("missing"), [] as [(&str, usize); 0]);
 }
 
 #[test]
@@ -1358,10 +1357,7 @@ fn nuget_locks_are_the_nuget_extension_lock_tags() {
         .iter()
         .map(|entry| (entry.name, entry.lock))
         .collect();
-    assert_eq!(
-        locks,
-        [("nuget", "//third_party/dotnet:nuget.lock.json")]
-    );
+    assert_eq!(locks, [("nuget", "//third_party/dotnet:nuget.lock.json")]);
 }
 
 const DX_DEP: &str = "bazel_dep(name = \"rules_dx\", version = \"0.0.0\", repo_name = \"my_dx\")\n";

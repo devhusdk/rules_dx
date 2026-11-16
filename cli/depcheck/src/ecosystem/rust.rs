@@ -30,7 +30,7 @@ pub fn parse_rust_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Dep
                             .get("version")
                             .and_then(toml_string)
                             .unwrap_or_else(|| "*".to_owned());
-                        let optional = t.get("optional").map(toml_bool).unwrap_or(false);
+                        let optional = t.get("optional").is_some_and(toml_bool);
                         (spec, optional, package_name(t))
                     }
                     toml::Value::Integer(_)

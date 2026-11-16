@@ -21,6 +21,7 @@ pub enum FailureStage {
 }
 
 impl FailureStage {
+    #[must_use]
     pub fn name(self) -> &'static str {
         match self {
             FailureStage::Analysis => "analysis",
@@ -43,6 +44,7 @@ pub enum FailedTargetKind {
 }
 
 impl FailedTargetKind {
+    #[must_use]
     pub fn name(self) -> &'static str {
         match self {
             FailedTargetKind::Test => "test",
@@ -526,7 +528,7 @@ mod tests {
     #[test]
     fn a_non_object_event_is_a_problem() {
         let found = collect(&["[1]"]);
-        assert!(found.failures.is_empty());
+        assert_eq!(found.failures, [] as [crate::failures::BuildFailure; 0]);
         assert!(found.problem.is_some());
     }
 
@@ -557,7 +559,10 @@ mod tests {
     fn successful_actions_and_targets_report_nothing() {
         let ok = r#"{"id":{"targetCompleted":{"label":"//a:t"}},"completed":{"success":true}}"#;
         let action = r#"{"id":{"actionCompleted":{"label":"//a:t"}},"action":{"success":true,"type":"Rustc"}}"#;
-        assert!(collect(&[ok, action]).failures.is_empty());
+        assert_eq!(
+            collect(&[ok, action]).failures,
+            [] as [crate::failures::BuildFailure; 0]
+        );
     }
 
     #[test]
@@ -669,7 +674,7 @@ mod tests {
         let mut bytes = b"\n{\"note\":1}\n".to_vec();
         bytes.extend_from_slice(&[0xff, 0xfe, b'\n']);
         let found = collect_build_failures(bytes.as_slice());
-        assert!(found.failures.is_empty());
+        assert_eq!(found.failures, [] as [crate::failures::BuildFailure; 0]);
         let problem = found.problem.expect("problem");
         assert!(problem.starts_with("line 3: unreadable"), "{problem}");
     }
@@ -695,7 +700,7 @@ mod tests {
             r#"{"id":{"targetCompleted":{"label":"//a:t"}},"aborted":{"reason":"NO_BUILD"}}"#;
         let nameless_completion = r#"{"id":{"progress":{}},"completed":{"success":false}}"#;
         let found = collect(&[nameless_abort, silent_abort, nameless_completion]);
-        assert!(found.failures.is_empty());
+        assert_eq!(found.failures, [] as [crate::failures::BuildFailure; 0]);
     }
 
     #[test]
@@ -719,6 +724,9 @@ mod tests {
         let found = collect(&[blank]);
         assert_eq!(found.failures[0].message, None);
         let other_id = r#"{"id":{"progress":{}},"configured":{"targetKind":"rust_test rule"}}"#;
-        assert!(collect(&[other_id]).failures.is_empty());
+        assert_eq!(
+            collect(&[other_id]).failures,
+            [] as [crate::failures::BuildFailure; 0]
+        );
     }
 }

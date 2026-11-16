@@ -10,6 +10,7 @@ pub const RESERVED_STEMS: &[&str] = &[
 ];
 
 /// Maps one logical tool name to its filename on the named platform.
+#[must_use]
 pub fn host_filename_for(name: &str, windows: bool) -> String {
     if windows {
         format!("{name}.exe")
@@ -19,6 +20,7 @@ pub fn host_filename_for(name: &str, windows: bool) -> String {
 }
 
 /// Returns the executable suffix one name carries.
+#[must_use]
 pub fn executable_suffix(name: &str) -> Option<&'static str> {
     let lower = name.to_ascii_lowercase();
     EXECUTABLE_SUFFIXES
@@ -28,6 +30,7 @@ pub fn executable_suffix(name: &str) -> Option<&'static str> {
 }
 
 /// Reports whether one name is a device Windows reserves.
+#[must_use]
 pub fn is_reserved_device(name: &str) -> bool {
     let stem = name.split('.').next().unwrap_or(name).to_ascii_lowercase();
     RESERVED_STEMS.contains(&stem.as_str())

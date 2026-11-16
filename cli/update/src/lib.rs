@@ -27,12 +27,14 @@ pub enum UpdateSelection {
 }
 
 impl UpdateRequest {
+    #[must_use]
     pub fn plan(args: &[String]) -> UpdateRequest {
         UpdateRequest {
             selectors: args.to_vec(),
         }
     }
 
+    #[must_use]
     pub fn selection(&self) -> UpdateSelection {
         if self.selectors.is_empty() {
             UpdateSelection::AllSets
@@ -53,7 +55,7 @@ mod tests {
     #[test]
     fn bare_update_selects_all_sets() {
         let request = UpdateRequest::plan(&[]);
-        assert!(request.selectors.is_empty());
+        assert_eq!(request.selectors, [] as [String; 0]);
         assert_eq!(request.selection(), UpdateSelection::AllSets);
     }
 

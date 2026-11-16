@@ -10,6 +10,7 @@ pub enum ColorMode {
 }
 
 impl ColorMode {
+    #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
             ColorMode::Auto => "auto",
@@ -66,10 +67,12 @@ pub fn init_diagnostics(verbose: bool) {
     tracing::debug!(verbose, "dx diagnostics initialised");
 }
 
+#[must_use]
 pub fn colors_allowed(no_color_present: bool, tty: bool) -> bool {
     colors_allowed_for(ColorMode::Auto, no_color_present, tty)
 }
 
+#[must_use]
 pub fn colors_allowed_for(mode: ColorMode, no_color_present: bool, tty: bool) -> bool {
     match mode {
         ColorMode::Always => true,
@@ -78,14 +81,13 @@ pub fn colors_allowed_for(mode: ColorMode, no_color_present: bool, tty: bool) ->
     }
 }
 
+#[must_use]
 pub fn color_enabled_for(mode: ColorMode) -> bool {
     match mode {
         ColorMode::Auto => {
             colors_allowed_for(mode, no_color_present(), console::colors_enabled_stderr())
         }
-        other @ ColorMode::Always | other @ ColorMode::Never => {
-            colors_allowed_for(other, false, false)
-        }
+        other @ (ColorMode::Always | ColorMode::Never) => colors_allowed_for(other, false, false),
     }
 }
 
@@ -93,11 +95,13 @@ fn no_color_present() -> bool {
     std::env::var_os("NO_COLOR").is_some_and(|value| !value.is_empty())
 }
 
+#[must_use]
 pub fn color_enabled() -> bool {
     color_enabled_for(color_override())
 }
 
 /// Shortens a tool's diagnostic line to at most `limit` bytes plus `...`.
+#[must_use]
 pub fn truncate_line(line: &str, limit: usize) -> String {
     if line.len() <= limit {
         return line.to_owned();

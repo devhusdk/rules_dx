@@ -390,10 +390,10 @@ fn pnpm_lock_handles_quoted_bare_scoped_peer_and_link_keys() {
 fn pnpm_lock_missing_packages_is_empty_and_invalid_fails() {
     let missing = "lockfileVersion: '9.0'\nimporters:\n  .:\n    specifier: 1.0.0\n";
     let packages = parse_pnpm_lock(missing).expect("missing packages is empty");
-    assert!(packages.is_empty());
+    assert_eq!(packages, [] as [crate::vuln::LockedPackage; 0]);
     let empty_packages = "lockfileVersion: '9.0'\npackages: {}\n";
     let packages = parse_pnpm_lock(empty_packages).expect("empty packages is empty");
-    assert!(packages.is_empty());
+    assert_eq!(packages, [] as [crate::vuln::LockedPackage; 0]);
     assert!(parse_pnpm_lock("lockfileVersion: '9.0'\npackages: [unclosed").is_err());
     assert!(parse_pnpm_lock("lockfileVersion: '9.0'\npackages: ['a', 'b']").is_err());
 }
@@ -416,7 +416,7 @@ fn pnpm_lock_git_resolutions_are_incomplete_never_dropped() {
     }
     assert!(!packages.iter().any(|package| package.name == "local"));
     let (findings, unassessed) = crate::vuln::match_packages(&packages, &[]);
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [crate::vuln::VulnFinding; 0]);
     assert_eq!(unassessed.len(), 3);
     assert!(
         unassessed
@@ -485,7 +485,7 @@ fn package_lock_parses_registry_skips_links_and_flags_git() {
     assert!(!packages.iter().any(|package| package.name == "local"));
     assert!(!packages.iter().any(|package| package.name.is_empty()));
     let (findings, unassessed) = crate::vuln::match_packages(&packages, &[]);
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [crate::vuln::VulnFinding; 0]);
     assert_eq!(unassessed.len(), 2);
     assert!(
         unassessed
@@ -515,7 +515,7 @@ fn yarn_lock_parses_registry_skips_file_and_flags_git() {
     assert!(git.is_git);
     assert!(!packages.iter().any(|package| package.name == "local"));
     let (findings, unassessed) = crate::vuln::match_packages(&packages, &[]);
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [crate::vuln::VulnFinding; 0]);
     assert_eq!(unassessed.len(), 1);
     assert_eq!(unassessed[0].reason, crate::vuln::REASON_GIT);
 }
@@ -599,7 +599,7 @@ fn npm_private_packages_are_incomplete_never_clean() {
         },
     ];
     let (findings, unassessed) = crate::vuln::match_packages(&pkgs, &[]);
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [crate::vuln::VulnFinding; 0]);
     assert_eq!(unassessed.len(), 1);
     assert_eq!(unassessed[0].package, "@internal/pkg");
     assert_eq!(unassessed[0].reason, crate::vuln::REASON_PRIVATE);
@@ -652,7 +652,7 @@ fn paket_lock_git_section_is_incomplete_never_dropped() {
     assert!(git.is_git);
     assert!(!packages.iter().any(|package| package.name == "Other"));
     let (findings, unassessed) = crate::vuln::match_packages(&packages, &[]);
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [crate::vuln::VulnFinding; 0]);
     assert_eq!(unassessed.len(), 1);
     assert_eq!(unassessed[0].package, "Git.Lib");
     assert_eq!(unassessed[0].reason, crate::vuln::REASON_GIT);
@@ -721,7 +721,7 @@ fn gemfile_lock_git_and_path_specs_are_incomplete_never_dropped() {
         .expect("path entry");
     assert!(local.is_private);
     let (findings, unassessed) = crate::vuln::match_packages(&packages, &[]);
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [crate::vuln::VulnFinding; 0]);
     assert_eq!(unassessed.len(), 2);
     assert_eq!(unassessed[0].package, "git.lib");
     assert_eq!(unassessed[0].reason, crate::vuln::REASON_GIT);
@@ -766,10 +766,9 @@ fn psgallery_lock_missing_packages_or_versions_fails_closed() {
         parse_psgallery_lock("{\"packages\": [{\"name\": \"Pester\", \"version\": \"\"}]}")
             .is_err()
     );
-    assert!(
-        parse_psgallery_lock("{\"packages\": []}")
-            .expect("an empty lock is valid")
-            .is_empty()
+    assert_eq!(
+        parse_psgallery_lock("{\"packages\": []}").expect("an empty lock is valid"),
+        [] as [crate::vuln::LockedPackage; 0]
     );
 }
 
@@ -830,14 +829,14 @@ fn go_mod_replace_paths_skip_while_versioned_replacements_assess() {
 fn go_mod_replace_block_paths_skip() {
     let text = "module example.com/root\n\ngo 1.24.12\n\nrequire example.com/local v1.0.0\n\nreplace (\n\texample.com/local => ./local\n)\n";
     let packages = go_locked_packages(text).expect("parses");
-    assert!(packages.is_empty());
+    assert_eq!(packages, [] as [crate::vuln::LockedPackage; 0]);
 }
 
 #[test]
 fn go_mod_ignores_non_dependency_directives_and_missing_module_fails() {
     let text = "module example.com/root\n\ngo 1.24.12\n\ntoolchain go1.24.12\n\nexclude example.com/bad v1.0.0\n\nretract v1.0.0-bad\n";
     let packages = go_locked_packages(text).expect("parses");
-    assert!(packages.is_empty());
+    assert_eq!(packages, [] as [crate::vuln::LockedPackage; 0]);
     let blocked = "module example.com/root\n\ngo 1.24.12\n\nexclude (\n\texample.com/bad v9.9.9\n)\n\nrequire example.com/kept v1.0.0\n";
     let packages = go_locked_packages(blocked).expect("parses");
     assert_eq!(packages.len(), 1);
@@ -938,8 +937,14 @@ fn license_extractors_skip_malformed_entries_without_inventing_ids() {
 
     let text = r#"{"packages":{"node_modules/str":"1.0.0","node_modules/nov":{"license":"MIT"},"node_modules/nolic":{"version":"1.0.0","license":" "}},"dependencies":{"  ":{"version":"1.0.0"},"obj":"1.0.0","nover":{"license":"MIT"},"nolic":{"version":"1.0.0","license":""}}}"#;
     let licensed = npm_licenses(text, &[]);
-    assert!(licensed.is_empty());
-    assert!(npm_licenses("[]", &[]).is_empty());
+    assert_eq!(
+        licensed,
+        [] as [crate::locks::locks_licenses::LicensedPackage; 0]
+    );
+    assert_eq!(
+        npm_licenses("[]", &[]),
+        [] as [crate::locks::locks_licenses::LicensedPackage; 0]
+    );
 }
 
 #[test]
@@ -1254,7 +1259,7 @@ fn go_mod_nonselected_replacement_reports_the_original_version() {
         kind: Default::default(),
     };
     let (findings, unassessed) = crate::vuln::match_packages(&packages, &[advisory]);
-    assert!(unassessed.is_empty());
+    assert_eq!(unassessed, [] as [crate::vuln::Unassessed; 0]);
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].version, "v1.2.0");
 }
@@ -1560,10 +1565,9 @@ fn luarocks_lock_reads_the_packages() {
 
 #[test]
 fn luarocks_lock_accepts_no_packages_and_rejects_malformed_input() {
-    assert!(
-        parse_luarocks_lock(r#"{"packages":[]}"#)
-            .expect("parses")
-            .is_empty()
+    assert_eq!(
+        parse_luarocks_lock(r#"{"packages":[]}"#).expect("parses"),
+        [] as [crate::vuln::LockedPackage; 0]
     );
     for bad in [
         "",
@@ -1588,7 +1592,7 @@ fn npm_name_ending_in_git_is_assessed() {
         assert_eq!(packages.len(), 1);
         assert!(!packages[0].is_git);
         let (_, unassessed) = crate::vuln::match_packages(&packages, &[]);
-        assert!(unassessed.is_empty());
+        assert_eq!(unassessed, [] as [crate::vuln::Unassessed; 0]);
     }
 }
 

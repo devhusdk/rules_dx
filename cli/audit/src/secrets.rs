@@ -53,6 +53,7 @@ pub fn parse_ignored(stdout: &[u8]) -> Vec<String> {
 /// Turns ignored paths into anchored gitleaks path regexes. A directory entry
 /// (trailing `/`) also matches the bare directory name, so gitleaks prunes the
 /// whole tree before reading it.
+#[must_use]
 pub fn ignored_path_patterns(paths: &[String]) -> Vec<String> {
     paths
         .iter()
@@ -169,7 +170,7 @@ pub fn triage_sarif(text: &str) -> Result<Vec<SecretFinding>, DxError> {
         .map_err(|error| DxError::failure(format!("invalid gitleaks SARIF: {error}")))?;
     let mut findings = Vec::new();
     for run in &document.runs {
-        let results = run.results.as_ref().cloned().unwrap_or_default();
+        let results = run.results.clone().unwrap_or_default();
         for result in &results {
             let rule = result
                 .rule_id
@@ -241,7 +242,7 @@ mod tests {
                 "a b/c.txt".to_owned()
             ]
         );
-        assert!(parse_ignored(b"").is_empty());
+        assert_eq!(parse_ignored(b""), [] as [String; 0]);
     }
 
     #[test]
@@ -388,7 +389,10 @@ paths = ['''vendor/.*''']
     #[test]
     fn sarif_triage_counts_results_and_never_surfaces_secrets() {
         let clean = r#"{"version": "2.1.0", "runs": [{"tool": {"driver": {"name": "gitleaks"}}, "results": []}]}"#;
-        assert!(triage_sarif(clean).expect("clean").is_empty());
+        assert_eq!(
+            triage_sarif(clean).expect("clean"),
+            [] as [crate::secrets::SecretFinding; 0]
+        );
         let leaks = r#"{"version": "2.1.0", "runs": [{"tool": {"driver": {"name": "gitleaks"}}, "results": [{"ruleId": "gitleaks/generic-api-key", "message": {"text": "Generic API Key"}, "locations": [{"physicalLocation": {"artifactLocation": {"uri": "src/app.py"}}}]}, {"ruleId": "gitleaks/aws-key", "message": {"text": "AWS key"}, "fingerprint": "secret:AKIAIOSFODNN7EXAMPLE"}]}]}"#;
         let findings = triage_sarif(leaks).expect("leaks");
         assert_eq!(findings.len(), 2);
@@ -397,7 +401,7 @@ paths = ['''vendor/.*''']
         for finding in &findings {
             assert!(!finding.rule.contains("AKIAIOSFODNN7EXAMPLE"));
             assert!(!finding.message.contains("AKIAIOSFODNN7EXAMPLE"));
-            assert!(finding.path.as_deref() != Some("AKIAIOSFODNN7EXAMPLE"));
+            assert_ne!(finding.path.as_deref(), Some("AKIAIOSFODNN7EXAMPLE"));
         }
         assert_eq!(
             findings[1].message,
@@ -475,8 +479,11 @@ paths = ['''vendor/.*''']
         let empty_runs = r#"{"version": "2.1.0", "$schema": "https://json.schemastore.org/sarif-2.1.0.json", "runs": []}"#;
         let typed: serde_sarif::sarif::Sarif =
             serde_json::from_str(empty_runs).expect("schema-valid empty runs");
-        assert!(typed.runs.is_empty());
-        assert!(triage_sarif(empty_runs).expect("empty runs").is_empty());
+        assert_eq!(typed.runs, [] as [serde_sarif::sarif::Run; 0]);
+        assert_eq!(
+            triage_sarif(empty_runs).expect("empty runs"),
+            [] as [crate::secrets::SecretFinding; 0]
+        );
 
         let multi = r#"{"version": "2.1.0", "runs": [{"tool": {"driver": {"name": "gitleaks"}}, "results": [{"ruleId": "gitleaks/a", "message": {"text": "A"}}]}, {"tool": {"driver": {"name": "gitleaks"}}, "results": [{"ruleId": "gitleaks/b", "message": {"text": "B"}, "locations": [{"physicalLocation": {"artifactLocation": {"uri": "src/b.py"}}}]}]}]}"#;
         let typed_multi: serde_sarif::sarif::Sarif =

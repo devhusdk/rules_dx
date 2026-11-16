@@ -26,9 +26,9 @@ fn blocked_signals_come_back_when_dropped() {
         // SAFETY: sigset_t is plain C data for which all-zero is valid.
         let mut current: libc::sigset_t = unsafe { std::mem::zeroed() };
         // SAFETY: current is a valid sigset_t out-pointer and the new set is null.
-        unsafe { libc::pthread_sigmask(libc::SIG_BLOCK, std::ptr::null(), &mut current) };
+        unsafe { libc::pthread_sigmask(libc::SIG_BLOCK, std::ptr::null(), &raw mut current) };
         // SAFETY: current was filled by pthread_sigmask above.
-        unsafe { libc::sigismember(&current, signo) == 1 }
+        unsafe { libc::sigismember(&raw const current, signo) == 1 }
     }
     assert!(!is_blocked(libc::SIGUSR2));
     {
@@ -45,9 +45,12 @@ fn background_tty_writes_block_sigttou_in_this_thread() {
         // SAFETY: sigset_t is plain C data for which all-zero is valid.
         let mut current: libc::sigset_t = unsafe { std::mem::zeroed() };
         // SAFETY: current is a valid sigset_t out-pointer and the new set is null.
-        unsafe { libc::pthread_sigmask(libc::SIG_BLOCK, std::ptr::null(), &mut current) };
+        unsafe { libc::pthread_sigmask(libc::SIG_BLOCK, std::ptr::null(), &raw mut current) };
         // SAFETY: current was filled by pthread_sigmask above.
-        assert_eq!(unsafe { libc::sigismember(&current, libc::SIGTTOU) }, 1);
+        assert_eq!(
+            unsafe { libc::sigismember(&raw const current, libc::SIGTTOU) },
+            1
+        );
     })
     .join()
     .expect("thread");
@@ -95,13 +98,13 @@ fn only_user_sent_signals_from_dx_are_filtered() {
     WATCHER_PARENT.store(4242, Ordering::SeqCst);
     let user = info_from(4242, 0);
     // SAFETY: user is a valid siginfo_t.
-    assert!(unsafe { from_parent(&user) });
+    assert!(unsafe { from_parent(&raw const user) });
     let kernel = info_from(4242, KERNEL.0);
     // SAFETY: kernel is a valid siginfo_t.
-    assert_eq!(unsafe { from_parent(&kernel) }, KERNEL.1);
+    assert_eq!(unsafe { from_parent(&raw const kernel) }, KERNEL.1);
     let stranger = info_from(77, 0);
     // SAFETY: stranger is a valid siginfo_t.
-    assert!(!unsafe { from_parent(&stranger) });
+    assert!(!unsafe { from_parent(&raw const stranger) });
 }
 
 #[test]
@@ -141,9 +144,9 @@ fn settling_reports_pending_stop_signals_before_the_settled_byte() {
         let mut taken = 0;
         // SAFETY: hup and taken are valid; SIGHUP is pending and blocked, so sigwait returns.
         unsafe {
-            libc::sigemptyset(&mut hup);
-            libc::sigaddset(&mut hup, libc::SIGHUP);
-            libc::sigwait(&hup, &mut taken);
+            libc::sigemptyset(&raw mut hup);
+            libc::sigaddset(&raw mut hup, libc::SIGHUP);
+            libc::sigwait(&raw const hup, &raw mut taken);
         }
         assert_eq!(taken, libc::SIGHUP);
         drop(blocked);

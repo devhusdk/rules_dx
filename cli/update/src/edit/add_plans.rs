@@ -81,69 +81,63 @@ pub(super) fn insert_npm_dependency(
     };
     let unit = line_indent(content, last_root_value)?;
     let multiline = part(content, root_open..root_close)?.contains('\n');
-    let out = match members.iter().find(|(name, _)| name == "dependencies") {
-        Some(&(_, at)) => {
-            if !part(content, at..)?.starts_with('{') {
-                return Err(DxError::failure("dependency section is not an object"));
-            }
-            scan.at = at;
-            let entries = scan
-                .members()
-                .map_err(|_| DxError::failure("manifest is not valid JSON"))?;
-            let close = scan.at;
-            match entries.last() {
-                Some(&(_, last)) => {
-                    scan.at = last;
-                    scan.skip_value()
-                        .map_err(|_| DxError::failure("manifest is not valid JSON"))?;
-                    let end = scan.at;
-                    let entry = if part(content, at..close)?.contains('\n') {
-                        format!(",{eol}{}{key}: {value}", line_indent(content, last)?)
-                    } else {
-                        format!(", {key}: {value}")
-                    };
-                    splice(content, end, &entry)?
-                }
-                None => {
-                    let parent = line_indent(content, at)?;
-                    let entry = if multiline {
-                        format!("{{{eol}{parent}{unit}{key}: {value}{eol}{parent}}}")
-                    } else {
-                        format!("{{ {key}: {value} }}")
-                    };
-                    format!(
-                        "{}{entry}{}",
-                        part(content, ..at)?,
-                        part(content, close + 1..)?
-                    )
-                }
-            }
+    let out = if let Some(&(_, at)) = members.iter().find(|(name, _)| name == "dependencies") {
+        if !part(content, at..)?.starts_with('{') {
+            return Err(DxError::failure("dependency section is not an object"));
         }
-        None => {
-            let section = if multiline {
-                format!("\"dependencies\": {{{eol}{unit}{unit}{key}: {value}{eol}{unit}}}")
-            } else {
-                format!("\"dependencies\": {{ {key}: {value} }}")
-            };
-            let before_dev = members
-                .iter()
-                .position(|(name, _)| name == "devDependencies")
-                .filter(|index| *index > 0);
-            let after = match before_dev.and_then(|index| members.get(index - 1)) {
-                Some(member) => member.1,
-                None => last_root_value,
-            };
-            scan.at = after;
+        scan.at = at;
+        let entries = scan
+            .members()
+            .map_err(|_| DxError::failure("manifest is not valid JSON"))?;
+        let close = scan.at;
+        if let Some(&(_, last)) = entries.last() {
+            scan.at = last;
             scan.skip_value()
                 .map_err(|_| DxError::failure("manifest is not valid JSON"))?;
             let end = scan.at;
-            let entry = if multiline {
-                format!(",{eol}{unit}{section}")
+            let entry = if part(content, at..close)?.contains('\n') {
+                format!(",{eol}{}{key}: {value}", line_indent(content, last)?)
             } else {
-                format!(", {section}")
+                format!(", {key}: {value}")
             };
             splice(content, end, &entry)?
+        } else {
+            let parent = line_indent(content, at)?;
+            let entry = if multiline {
+                format!("{{{eol}{parent}{unit}{key}: {value}{eol}{parent}}}")
+            } else {
+                format!("{{ {key}: {value} }}")
+            };
+            format!(
+                "{}{entry}{}",
+                part(content, ..at)?,
+                part(content, close + 1..)?
+            )
         }
+    } else {
+        let section = if multiline {
+            format!("\"dependencies\": {{{eol}{unit}{unit}{key}: {value}{eol}{unit}}}")
+        } else {
+            format!("\"dependencies\": {{ {key}: {value} }}")
+        };
+        let before_dev = members
+            .iter()
+            .position(|(name, _)| name == "devDependencies")
+            .filter(|index| *index > 0);
+        let after = match before_dev.and_then(|index| members.get(index - 1)) {
+            Some(member) => member.1,
+            None => last_root_value,
+        };
+        scan.at = after;
+        scan.skip_value()
+            .map_err(|_| DxError::failure("manifest is not valid JSON"))?;
+        let end = scan.at;
+        let entry = if multiline {
+            format!(",{eol}{unit}{section}")
+        } else {
+            format!(", {section}")
+        };
+        splice(content, end, &entry)?
     };
     let reparsed: serde_json::Value =
         serde_json::from_str(&out).map_err(|_| DxError::failure("edit did not round-trip"))?;

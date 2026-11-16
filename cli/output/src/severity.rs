@@ -8,6 +8,7 @@ pub enum Severity {
 }
 
 impl Severity {
+    #[must_use]
     pub fn rank(self) -> u32 {
         match self {
             Severity::Info => 0,
@@ -16,6 +17,7 @@ impl Severity {
         }
     }
 
+    #[must_use]
     pub fn name(self) -> &'static str {
         match self {
             Severity::Info => "info",
@@ -44,6 +46,7 @@ pub enum Threshold {
 }
 
 impl Threshold {
+    #[must_use]
     pub fn rank(self) -> u32 {
         match self {
             Threshold::Info => 0,
@@ -52,6 +55,7 @@ impl Threshold {
         }
     }
 
+    #[must_use]
     pub fn name(self) -> &'static str {
         match self {
             Threshold::Info => "info",
@@ -68,6 +72,7 @@ impl Threshold {
     }
 }
 
+#[must_use]
 pub fn meets_threshold(severity: Severity, threshold: Threshold) -> bool {
     severity.rank() >= threshold.rank()
 }
@@ -89,7 +94,7 @@ mod tests {
             Threshold::Warning
         );
         assert!(Threshold::parse("never").is_err());
-        assert!(Severity::parse("error").expect("error") == Severity::Error);
+        assert_eq!(Severity::parse("error").expect("error"), Severity::Error);
     }
 
     #[test]

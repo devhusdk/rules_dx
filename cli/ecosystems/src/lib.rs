@@ -107,21 +107,25 @@ impl Language {
     }
 
     /// Names the language as depcheck spells it.
+    #[must_use]
     pub fn name(self) -> &'static str {
         self.row().map_or("", |row| row.depcheck.as_str())
     }
 
     /// Parses a depcheck language name, returning `None` when it is not one of them.
+    #[must_use]
     pub fn parse(text: &str) -> Option<Language> {
         language_rows().iter().find(|row| row.depcheck == text)?.id
     }
 
     /// Names the language directory that holds this language's `lang.json`.
+    #[must_use]
     pub fn directory(self) -> &'static str {
         self.row().map_or("", |row| row.name.as_str())
     }
 
     /// Picks the language that reads `ecosystem`, `prefer` first when it reads it too.
+    #[must_use]
     pub fn of_ecosystem(ecosystem: Ecosystem, prefer: Option<Language>) -> Option<Language> {
         let reads = |row: &&LanguageRow| row.ecosystems.contains(&ecosystem);
         let rows = language_rows();
@@ -136,11 +140,13 @@ impl Language {
     }
 
     /// Lists the ecosystems whose packages this language depends on.
+    #[must_use]
     pub fn ecosystems(self) -> &'static [Ecosystem] {
         self.row().map_or(&[], |row| row.ecosystems.as_slice())
     }
 
     /// Whether this language states its requirements in the semver grammar.
+    #[must_use]
     pub fn uses_semver_grammar(self) -> bool {
         self.row().is_some_and(|row| row.semver)
     }
@@ -202,6 +208,7 @@ fn rows() -> &'static [Row] {
 }
 
 /// Names the OSV archive URL of an advisory family.
+#[must_use]
 pub fn osv_source_of_family(family: &str) -> Option<&'static str> {
     rows()
         .iter()
@@ -211,6 +218,7 @@ pub fn osv_source_of_family(family: &str) -> Option<&'static str> {
 }
 
 /// Returns the table's spelling of an advisory family name.
+#[must_use]
 pub fn advisory_family_named(family: &str) -> Option<&'static str> {
     rows().iter().find_map(|row| {
         row.advisory_family
@@ -274,10 +282,12 @@ impl Ecosystem {
         Ecosystem::Bicep,
     ];
 
+    #[must_use]
     pub fn name(self) -> &'static str {
         self.row().map_or("", |row| row.name.as_str())
     }
 
+    #[must_use]
     pub fn parse(text: &str) -> Option<Ecosystem> {
         rows().iter().find(|row| row.name == text)?.id
     }
@@ -293,19 +303,23 @@ impl Ecosystem {
         }
     }
 
+    #[must_use]
     pub fn supported_check(self) -> &'static str {
         self.operation(|row| row.check, "check")
     }
 
+    #[must_use]
     pub fn supported_update(self) -> &'static str {
         self.operation(|row| row.update, "update")
     }
 
+    #[must_use]
     pub fn supported_audit(self) -> &'static str {
         self.operation(|row| row.audit, "audit")
     }
 
     /// Lists what dx does for this ecosystem, folding pinned check and update into one clause.
+    #[must_use]
     pub fn supported_operations(self) -> String {
         let (check, update, audit) = (
             self.supported_check(),
@@ -320,11 +334,13 @@ impl Ecosystem {
     }
 
     /// Names the advisory snapshot family that covers this ecosystem's locks.
+    #[must_use]
     pub fn advisory_family(self) -> Option<&'static str> {
         self.row()?.advisory_family.as_deref()
     }
 
     /// Lists the lock file names of this ecosystem, preferred backend first.
+    #[must_use]
     pub fn lockfiles(self) -> &'static [String] {
         self.row().map_or(&[], |row| row.locks.as_slice())
     }
@@ -335,16 +351,19 @@ impl Ecosystem {
     }
 
     /// Names the OSV archive URL of this ecosystem's advisories.
+    #[must_use]
     pub fn osv_source(self) -> Option<&'static str> {
         self.row()?.osv_source.as_deref()
     }
 
     /// Names the file every manifest of this ecosystem must have.
+    #[must_use]
     pub fn manifest_name(self) -> &'static str {
         self.row().map_or("", |row| row.manifest.as_str())
     }
 
     /// Names the other file names a manifest of this ecosystem may have.
+    #[must_use]
     pub fn alt_manifests(self) -> &'static [String] {
         self.row().map_or(&[], |row| row.alt_manifests.as_slice())
     }
@@ -366,37 +385,44 @@ impl Ecosystem {
     }
 
     /// Tells whether this ecosystem's manifest is a file other ecosystems write too.
+    #[must_use]
     pub fn shared_manifest(self) -> bool {
         self.row().is_some_and(|row| row.shared_manifest)
     }
 
     /// Names the backend module that plans updates of this ecosystem, or `pinned`.
+    #[must_use]
     pub fn plan_backend(self) -> &'static str {
         self.row().map_or("pinned", |row| row.plan_backend.as_str())
     }
 
     /// Names the backend module that checks this ecosystem, or `pinned`.
+    #[must_use]
     pub fn check_backend(self) -> &'static str {
         self.row()
             .map_or("pinned", |row| row.check_backend.as_str())
     }
 
     /// Tells whether only the Bazel graph can say which packages of this ecosystem are used.
+    #[must_use]
     pub fn graph_only(self) -> bool {
         self.row().is_some_and(|row| row.graph_only)
     }
 
     /// Tells whether the license audit reads this ecosystem's locks.
+    #[must_use]
     pub fn license_audit(self) -> bool {
         self.row().is_some_and(|row| row.license_audit)
     }
 
     /// Tells whether every set of this ecosystem must list its first lock file.
+    #[must_use]
     pub fn lock_required(self) -> bool {
         self.row().is_some_and(|row| row.lock_required)
     }
 
     /// Tells whether records of this ecosystem name the Bazel repository dx resolves through.
+    #[must_use]
     pub fn uses_repository(self) -> bool {
         self.row().is_some_and(|row| row.uses_repository)
     }

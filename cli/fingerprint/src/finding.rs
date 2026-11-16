@@ -8,10 +8,12 @@ pub struct Finding {
     pub context: Option<[u8; 32]>,
 }
 
+#[must_use]
 pub fn normalize_message(message: &str) -> String {
     message.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
+#[must_use]
 pub fn line_context_digest(file_bytes: &[u8], start_byte: u64) -> Option<[u8; 32]> {
     if file_bytes.is_empty() {
         return None;
@@ -34,6 +36,7 @@ pub fn line_context_digest(file_bytes: &[u8], start_byte: u64) -> Option<[u8; 32
     Some(dx_digest::blake3(line))
 }
 
+#[must_use]
 pub fn finding_key(finding: &Finding) -> Option<String> {
     let context = finding.context?;
     Some(key_of(
@@ -46,6 +49,7 @@ pub fn finding_key(finding: &Finding) -> Option<String> {
     ))
 }
 
+#[must_use]
 pub fn finding_fingerprint(finding: &Finding) -> Option<String> {
     finding_key(finding).map(|key| dx_digest::to_hex(&dx_digest::blake3(key.as_bytes())))
 }

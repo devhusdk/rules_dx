@@ -859,13 +859,16 @@ mod tests {
         ]
         .join("\n");
         let got = outputs(Cursor::new(stream), || None).expect("collect");
-        assert!(got.is_empty());
+        assert_eq!(got, [] as [crate::test_outputs::tests::Output; 0]);
     }
 
     #[test]
     fn test_output_shape_failures_fail_collection() {
         let events = collect_test_events(Cursor::new("not json"), || None).expect("cut-off tail");
-        assert!(events.results.is_empty());
+        assert_eq!(
+            events.results,
+            [] as [crate::test_outputs::TestResultRecord; 0]
+        );
         assert!(
             events
                 .problem
@@ -1144,9 +1147,7 @@ mod tests {
         locations.apply_bazel_info(
             b"bazel-testlogs: /out/k8-fastbuild/testlogs\nexecution_root: /out/execroot\n",
         );
-        let stream = [format!(
-            r#"{{"id":{{"testResult":{{"label":"//a:t","run":1,"shard":1,"attempt":1}}}},"testResult":{{"status":"PASSED","testActionOutput":[{{"name":"test.xml","uri":"bytestream://remote.buildbuddy.io/blobs/abc/10","pathPrefix":["bazel-out","k8-fastbuild","testlogs"]}}]}}}}"#
-        )]
+        let stream = [r#"{"id":{"testResult":{"label":"//a:t","run":1,"shard":1,"attempt":1}},"testResult":{"status":"PASSED","testActionOutput":[{"name":"test.xml","uri":"bytestream://remote.buildbuddy.io/blobs/abc/10","pathPrefix":["bazel-out","k8-fastbuild","testlogs"]}]}}"#.to_string()]
         .join("\n");
         let got = outputs(Cursor::new(stream), || Some(locations.clone())).expect("path prefix");
         assert_eq!(
@@ -1166,9 +1167,7 @@ mod tests {
         );
         let mut workspace_only = OutputLocations::new(Path::new("/ws"));
         workspace_only.apply_bazel_info(b"bazel-testlogs: /out/k8-fastbuild/testlogs\n");
-        let stream = [format!(
-            r#"{{"id":{{"testResult":{{"label":"//a:t","run":1,"shard":1,"attempt":1}}}},"testResult":{{"status":"PASSED","testActionOutput":[{{"name":"test.xml","uri":"bytestream://remote.buildbuddy.io/blobs/abc/10","pathPrefix":["bazel-out","k8-fastbuild","testlogs","a","t"]}}]}}}}"#
-        )]
+        let stream = [r#"{"id":{"testResult":{"label":"//a:t","run":1,"shard":1,"attempt":1}},"testResult":{"status":"PASSED","testActionOutput":[{"name":"test.xml","uri":"bytestream://remote.buildbuddy.io/blobs/abc/10","pathPrefix":["bazel-out","k8-fastbuild","testlogs","a","t"]}]}}"#.to_string()]
         .join("\n");
         let got =
             outputs(Cursor::new(stream), || Some(workspace_only.clone())).expect("no execroot");
@@ -1535,7 +1534,10 @@ mod tests {
         assert_eq!(result.cached_locally, Some(true));
         assert_eq!(result.duration_millis, Some(29));
         assert_eq!(result.strategy.as_deref(), Some("remote"));
-        assert!(events.summaries.is_empty());
+        assert_eq!(
+            events.summaries,
+            [] as [crate::test_outputs::TestSummaryRecord; 0]
+        );
     }
 
     #[test]
@@ -1757,6 +1759,9 @@ mod tests {
         let stream = r#"{"id":{"testResult":{"label":"//a:t"}},"testResult":{"status":"PASSED"}}"#;
         let events = collect_test_events(Cursor::new(stream), || None).expect("events");
         assert_eq!(events.results.len(), 1);
-        assert!(events.results[0].files.is_empty());
+        assert_eq!(
+            events.results[0].files,
+            [] as [crate::test_outputs::TestResultFile; 0]
+        );
     }
 }

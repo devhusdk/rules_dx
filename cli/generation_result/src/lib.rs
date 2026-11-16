@@ -98,6 +98,7 @@ pub enum Error {
     CompleteScopeWithErrors { index: usize },
 }
 
+#[must_use]
 pub fn digest(bytes: &[u8]) -> [u8; DIGEST_LEN] {
     dx_digest::blake3(bytes)
 }
@@ -885,7 +886,7 @@ mod tests {
 
         let cases: Vec<(Box<dyn Fn(&mut Modification)>, Error)> = vec![
             (
-                Box::new(|m| m.original_digest.pop().map(drop).unwrap_or(())),
+                Box::new(|m| m.original_digest.pop().map_or((), drop)),
                 Error::BadDigestLen {
                     path: "pkg/BUILD.bazel".into(),
                     found: 31,

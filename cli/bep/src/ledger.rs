@@ -17,11 +17,13 @@ pub struct EventGap {
 
 impl EventGap {
     /// True when Bazel skipped the work on purpose, such as an incompatible target.
+    #[must_use]
     pub fn is_skipped(&self) -> bool {
         self.aborted.as_deref() == Some("SKIPPED")
     }
 
     /// The machine outcome for this gap.
+    #[must_use]
     pub fn outcome(&self) -> &'static str {
         match self.aborted.as_deref() {
             None => "not_reported",
@@ -34,6 +36,7 @@ impl EventGap {
     }
 
     /// Names the gap for a human: its kind, identity, and why it is missing.
+    #[must_use]
     pub fn describe(&self) -> String {
         let mut text = self.kind.clone();
         if let Some(label) = &self.label {
@@ -77,10 +80,9 @@ fn canonical(value: &Value) -> String {
             let items: Vec<String> = items.iter().map(canonical).collect();
             format!("[{}]", items.join(","))
         }
-        other @ Value::Null
-        | other @ Value::Bool(_)
-        | other @ Value::Number(_)
-        | other @ Value::String(_) => other.to_string(),
+        other @ (Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_)) => {
+            other.to_string()
+        }
     }
 }
 
@@ -136,11 +138,13 @@ impl EventLedger {
     }
 
     /// True once Bazel's last event arrived.
+    #[must_use]
     pub fn ended(&self) -> bool {
         self.ended
     }
 
     /// Every announced or aborted event of these kinds that never delivered its payload.
+    #[must_use]
     pub fn gaps(&self, kinds: &[&str]) -> Vec<EventGap> {
         let mut gaps = Vec::new();
         for (key, (kind, body)) in &self.announced {
@@ -217,7 +221,10 @@ mod tests {
             r#"{"id":{"targetCompleted":{"label":"//a:t","configuration":{"id":"c"}}},"children":[{"testResult":{"label":"//a:t","run":1,"shard":1,"attempt":1,"configuration":{"id":"c"}}}]}"#,
             r#"{"id":{"testResult":{"configuration":{"id":"c"},"attempt":1,"shard":1,"run":1,"label":"//a:t"}},"testResult":{"status":"PASSED"}}"#,
         ]);
-        assert!(found.gaps(&["testResult"]).is_empty());
+        assert_eq!(
+            found.gaps(&["testResult"]),
+            [] as [crate::ledger::EventGap; 0]
+        );
     }
 
     #[test]
@@ -274,7 +281,7 @@ mod tests {
             r#"{"id":{"a":{},"b":{}},"aborted":{}}"#,
             r#"{"id":{"started":{}},"children":[{"a":{},"b":{}}]}"#,
         ]);
-        assert!(found.gaps(&["a", "b"]).is_empty());
+        assert_eq!(found.gaps(&["a", "b"]), [] as [crate::ledger::EventGap; 0]);
     }
 
     #[test]
@@ -288,6 +295,9 @@ mod tests {
     fn an_event_without_an_id_records_nothing_but_the_end() {
         let found = ledger(&[r#"{"lastMessage":true}"#]);
         assert!(found.ended());
-        assert!(found.gaps(&["targetCompleted"]).is_empty());
+        assert_eq!(
+            found.gaps(&["targetCompleted"]),
+            [] as [crate::ledger::EventGap; 0]
+        );
     }
 }

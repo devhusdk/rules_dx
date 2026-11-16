@@ -12,7 +12,7 @@ fn shipped_table_has_every_ecosystem() {
 fn rows_are_complete_and_unique() {
     let mut seen = BTreeSet::new();
     for row in rows() {
-        assert!(!row.name.is_empty());
+        assert_ne!(row.name, "");
         assert!(!row.manifest.is_empty(), "{} has no manifest", row.name);
         assert!(
             row.alt_manifests
@@ -168,7 +168,7 @@ fn manifest_columns_resolve() {
     assert_eq!(Ecosystem::Dub.alt_manifests(), ["dub.sdl"]);
     assert_eq!(Ecosystem::Hex.alt_manifests(), ["rebar.config"]);
     assert_eq!(Ecosystem::Maven.alt_manifests(), ["MODULE.bazel"]);
-    assert!(Ecosystem::Uv.alt_manifests().is_empty());
+    assert_eq!(Ecosystem::Uv.alt_manifests(), [] as [String; 0]);
     assert!(Ecosystem::Maven.shared_manifest());
     assert!(!Ecosystem::Ansible.shared_manifest());
     assert!(!Ecosystem::Bicep.shared_manifest());

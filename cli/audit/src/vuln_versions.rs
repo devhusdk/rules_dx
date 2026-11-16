@@ -13,6 +13,7 @@ pub const VERSION_FAMILIES: &[&str] = &[
     "cran",
 ];
 
+#[must_use]
 pub fn is_version_family(set: &str) -> bool {
     VERSION_FAMILIES.contains(&set)
 }

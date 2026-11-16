@@ -86,6 +86,7 @@ fn env_get(name: &str) -> Option<OsString> {
     std::env::var_os(name)
 }
 
+#[must_use]
 pub fn main(args: Vec<OsString>) -> i32 {
     match run(args) {
         Ok(code) => code,

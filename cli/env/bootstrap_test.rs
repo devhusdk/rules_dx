@@ -32,9 +32,7 @@ fn host(name: &str) -> String {
 }
 
 fn is_symlink(path: &Path) -> bool {
-    std::fs::symlink_metadata(path)
-        .map(|meta| meta.file_type().is_symlink())
-        .unwrap_or(false)
+    std::fs::symlink_metadata(path).is_ok_and(|meta| meta.file_type().is_symlink())
 }
 
 #[test]

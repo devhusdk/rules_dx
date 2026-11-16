@@ -156,6 +156,7 @@ fn parse_pattern(text: &str) -> Option<ParsedPattern<'_>> {
 }
 
 /// Whether the label pattern `entry` covers the scope `root`.
+#[must_use]
 pub fn pattern_covers(entry: &str, root: &str) -> bool {
     let (Some(entry), Some(root)) = (parse_pattern(entry), parse_pattern(root)) else {
         return false;
@@ -185,6 +186,7 @@ pub fn pattern_covers(entry: &str, root: &str) -> bool {
 
 /// The workspace-relative directory of a recursive pattern in the main repository, such as
 /// `vendor` for `//vendor/...:all`. `//...` and external patterns have none.
+#[must_use]
 pub fn recursive_dir(text: &str) -> Option<&str> {
     let pattern = parse_pattern(text)?;
     (pattern.kind == PatternKind::Recursive
@@ -194,6 +196,7 @@ pub fn recursive_dir(text: &str) -> Option<&str> {
 }
 
 /// Whether `text` is a Bazel label pattern dx understands.
+#[must_use]
 pub fn is_valid_pattern(text: &str) -> bool {
     parse_pattern(text).is_some()
 }

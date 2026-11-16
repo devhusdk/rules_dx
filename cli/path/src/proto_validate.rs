@@ -72,21 +72,21 @@ mod tests {
     #[test]
     fn encode_runs_the_validator_before_encoding() {
         assert_eq!(
-            encode_with_validation(&(), |_| Ok::<_, &str>(())),
+            encode_with_validation(&(), |()| Ok::<_, &str>(())),
             Ok(vec![])
         );
-        assert_eq!(encode_with_validation(&(), |_| Err("bad")), Err("bad"));
+        assert_eq!(encode_with_validation(&(), |()| Err("bad")), Err("bad"));
     }
 
     #[test]
     fn decode_maps_malformed_bytes_and_runs_the_validator() {
-        let ok: Result<(), String> = decode_with_validation(&[], |_| Ok(()), |text| text);
+        let ok: Result<(), String> = decode_with_validation(&[], |()| Ok(()), |text| text);
         assert_eq!(ok, Ok(()));
         let malformed: Result<(), String> =
-            decode_with_validation(&[0xff], |_| Ok(()), |text| format!("decode: {text}"));
+            decode_with_validation(&[0xff], |()| Ok(()), |text| format!("decode: {text}"));
         assert!(malformed.unwrap_err().starts_with("decode: "));
         let invalid: Result<(), String> =
-            decode_with_validation(&[], |_| Err("invalid".to_owned()), |text| text);
+            decode_with_validation(&[], |()| Err("invalid".to_owned()), |text| text);
         assert_eq!(invalid, Err("invalid".to_owned()));
     }
 

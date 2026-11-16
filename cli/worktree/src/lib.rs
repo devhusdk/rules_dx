@@ -20,6 +20,7 @@ pub use hook::HookKind;
 pub use pool::{Record, Who, hold_busy, lease_for_dir, lease_for_workspace, slots_for_primary};
 
 /// Reclaims output bases before a build on low disk (without a pool, only host-wide leftovers); returns a message only when it acted or failed.
+#[must_use]
 pub fn reclaim_for_build(workspace: &Path) -> Option<String> {
     let env = |name: &str| std::env::var(name).ok();
     let cache_base = pool::cache_base(&env).ok()?;
@@ -55,6 +56,7 @@ pub struct WorktreeError {
 }
 
 impl WorktreeError {
+    #[must_use]
     pub fn usage(code: &'static str, message: &str) -> WorktreeError {
         WorktreeError {
             code,
@@ -74,6 +76,7 @@ impl WorktreeError {
     }
 
     /// A stop by `signo` before the command finished.
+    #[must_use]
     pub fn stopped(signo: i32) -> WorktreeError {
         WorktreeError {
             code: "cancelled",
@@ -94,6 +97,7 @@ impl WorktreeError {
         WorktreeError::refused("io_failed", &error.to_string())
     }
 
+    #[must_use]
     pub fn exit(&self) -> i32 {
         if let Some(signo) = self.signal {
             dx_process::interrupted_code(signo)

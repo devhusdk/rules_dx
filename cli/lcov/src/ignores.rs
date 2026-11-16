@@ -6,6 +6,7 @@ pub struct Ignores {
     pub ranges: Vec<(u32, u32, String)>,
 }
 
+#[must_use]
 pub fn is_ignored(ignores: &Ignores, line: u32) -> bool {
     if ignores.singles.contains_key(&line) {
         return true;

@@ -32,6 +32,7 @@ pub enum PathProblem {
 
 impl PathProblem {
     /// The user-facing sentence for one rung.
+    #[must_use]
     pub fn reason(self) -> &'static str {
         match self {
             PathProblem::Empty => "path must be non-empty",
@@ -45,10 +46,12 @@ impl PathProblem {
     }
 }
 
+#[must_use]
 pub fn drive_prefix(path: &str) -> bool {
     matches!(path.as_bytes(), [letter, b':', ..] if letter.is_ascii_alphabetic())
 }
 
+#[must_use]
 pub fn is_absolute(path: &str) -> bool {
     path.starts_with('/') || drive_prefix(path)
 }
@@ -56,6 +59,7 @@ pub fn is_absolute(path: &str) -> bool {
 /// Whether a path is rooted at a drive root, in either slash spelling.
 ///
 /// A drive prefix alone names the drive, not a root, so `C:notes` is not rooted.
+#[must_use]
 pub fn drive_rooted(path: &str) -> bool {
     drive_prefix(path) && matches!(path.as_bytes().get(2), Some(b'/' | b'\\'))
 }

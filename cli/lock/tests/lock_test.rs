@@ -627,22 +627,22 @@ fn the_schema_rejects_what_the_design_bans() {
                 .remove("sha256");
         }),
         ("short digest", |lock| {
-            lock["packages"][0]["archives"][0]["sha256"] = "abc".into()
+            lock["packages"][0]["archives"][0]["sha256"] = "abc".into();
         }),
         ("no archive", |lock| {
-            lock["packages"][0]["archives"] = serde_json::json!([])
+            lock["packages"][0]["archives"] = serde_json::json!([]);
         }),
         ("plain http", |lock| {
-            lock["packages"][0]["archives"][0]["urls"][0] = "http://registry.example/a".into()
+            lock["packages"][0]["archives"][0]["urls"][0] = "http://registry.example/a".into();
         }),
         ("unknown platform", |lock| {
-            lock["packages"][0]["archives"][0]["platform"] = "plan9".into()
+            lock["packages"][0]["archives"][0]["platform"] = "plan9".into();
         }),
         ("unknown package key", |lock| {
-            lock["packages"][0]["integrity"] = "sha512-x".into()
+            lock["packages"][0]["integrity"] = "sha512-x".into();
         }),
         ("unlisted extra key", |lock| {
-            lock["packages"][0]["extra"] = serde_json::json!({"main": "a"})
+            lock["packages"][0]["extra"] = serde_json::json!({"main": "a"});
         }),
         ("swift target without a module", |lock| {
             lock["packages"][0]["extra"] = serde_json::json!({"swift_targets": {"A": {"deps": [], "path": "p", "product_deps": [], "srcs": []}}});

@@ -28,6 +28,7 @@ pub struct LauncherPins {
 
 impl LauncherPins {
     /// All-empty pins, for a version that has no release yet.
+    #[must_use]
     pub fn unreleased() -> Self {
         Self::default()
     }
@@ -131,6 +132,7 @@ impl LauncherPins {
 
     /// One `<version> <sha256> <asset>` line per non-empty pin, in `RELEASE_ASSETS`
     /// order; a bare `<version>` line when there is no pin.
+    #[must_use]
     pub fn to_lines(&self, version: &str) -> String {
         let lines: String = RELEASE_ASSETS
             .iter()
@@ -269,7 +271,7 @@ fn pins_error(detail: String) -> AdoptError {
     AdoptError::LauncherPins { detail }
 }
 
-const LAUNCHER_SH: &str = r##"#!/bin/sh
+const LAUNCHER_SH: &str = r#"#!/bin/sh
 set -eu
 DX_PINS=.dx/pins
 fail() {
@@ -464,9 +466,9 @@ if ! mv "$tmp" "$bin" && [ -x "$bin" ]; then
 fi
 [ -x "$bin" ] || fail "$noexec"
 exec "$bin" "$@"
-"##;
+"#;
 
-const LAUNCHER_CMD: &str = r##"@echo off
+const LAUNCHER_CMD: &str = r#"@echo off
 setlocal
 set "DX_PINS=.dx\pins"
 set "ARCH=x86_64"
@@ -557,12 +559,14 @@ exit /b 0
 :bazel
 bazel run @rules_dx//:dx -- %*
 exit /b %errorlevel%
-"##;
+"#;
 
+#[must_use]
 pub fn render_launcher_sh() -> String {
     LAUNCHER_SH.to_owned()
 }
 
+#[must_use]
 pub fn render_launcher_cmd() -> String {
     LAUNCHER_CMD.replace('\n', "\r\n")
 }
@@ -628,6 +632,7 @@ fn static_launcher(rel: &str) -> String {
 }
 
 /// The command that runs `dx init --apply` in `root`: the launcher when it is there, else Bazel.
+#[must_use]
 pub fn init_apply_command(root: &Path) -> String {
     if root.join(LAUNCHER_SH_REL).is_file() {
         format!("{LAUNCHER_SH_REL} init --apply")
@@ -637,6 +642,7 @@ pub fn init_apply_command(root: &Path) -> String {
 }
 
 /// `None` when the file is absent or custom; dx-owned files are `Current` or `Stale`.
+#[must_use]
 pub fn launcher_state(root: &Path, rel: &str) -> Option<LauncherState> {
     let dest = crate::scaffold::scaffold_dest_within_root(root, rel).ok()?;
     let text = std::fs::read_to_string(&dest).ok()?;
@@ -1114,7 +1120,10 @@ mod tests {
     #[test]
     fn an_edited_launcher_is_stale_then_rewritten() {
         let dir = dx_test_scratch::scratch("dx-launcher-refresh-");
-        assert!(refresh_launcher_files(dir.path()).expect("none").is_empty());
+        assert_eq!(
+            refresh_launcher_files(dir.path()).expect("none"),
+            [] as [String; 0]
+        );
         assert!(!dir.path().join(LAUNCHER_SH_REL).exists());
         std::fs::create_dir_all(dir.path().join("tools")).expect("tools");
         std::fs::write(
@@ -1130,11 +1139,10 @@ mod tests {
         let wrote = refresh_launcher_files(dir.path()).expect("refresh");
         assert_eq!(wrote, vec!["tools/dx"]);
         assert!(!dir.path().join(LAUNCHER_CMD_REL).exists());
-        assert!(stale_launchers(dir.path()).is_empty());
-        assert!(
-            refresh_launcher_files(dir.path())
-                .expect("current")
-                .is_empty()
+        assert_eq!(stale_launchers(dir.path()), [] as [String; 0]);
+        assert_eq!(
+            refresh_launcher_files(dir.path()).expect("current"),
+            [] as [String; 0]
         );
         #[cfg(unix)]
         {
@@ -1164,7 +1172,7 @@ mod tests {
             .permissions()
             .mode();
         assert_eq!(mode & 0o777, 0o755);
-        assert!(stale_launchers(dir.path()).is_empty());
+        assert_eq!(stale_launchers(dir.path()), [] as [String; 0]);
     }
 
     #[test]
@@ -1183,7 +1191,7 @@ mod tests {
         .expect("self-build cmd");
         assert_eq!(launcher_state(dir.path(), LAUNCHER_SH_REL), None);
         assert_eq!(launcher_state(dir.path(), LAUNCHER_CMD_REL), None);
-        assert!(stale_launchers(dir.path()).is_empty());
+        assert_eq!(stale_launchers(dir.path()), [] as [String; 0]);
         assert_eq!(launcher_state(dir.path(), "tools/missing"), None);
         std::fs::write(
             dir.path().join(LAUNCHER_SH_REL),
@@ -1191,10 +1199,9 @@ mod tests {
         )
         .expect("custom with VERSION");
         assert_eq!(launcher_state(dir.path(), LAUNCHER_SH_REL), None);
-        assert!(
-            refresh_launcher_files(dir.path())
-                .expect("custom kept")
-                .is_empty()
+        assert_eq!(
+            refresh_launcher_files(dir.path()).expect("custom kept"),
+            [] as [String; 0]
         );
     }
 
@@ -1205,10 +1212,9 @@ mod tests {
             plan_launcher_files(dir.path(), true).expect("plan"),
             vec!["tools/dx", "tools/dx.cmd"]
         );
-        assert!(
-            plan_launcher_files(dir.path(), false)
-                .expect("plan")
-                .is_empty()
+        assert_eq!(
+            plan_launcher_files(dir.path(), false).expect("plan"),
+            [] as [String; 0]
         );
         assert!(!dir.path().join("tools").exists());
     }
@@ -1659,7 +1665,7 @@ mod tests {
             fx.set_module("bazel_dep(name = \"rules_dx\", version = \"1.2.3\")");
             let (code, out, err) = fx.run(&["status"]);
             assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
-            assert!(fx.bazel_calls().is_empty());
+            assert_eq!(fx.bazel_calls(), [] as [String; 0]);
         }
 
         #[test]
@@ -1670,7 +1676,7 @@ mod tests {
             );
             let (code, out, err) = fx.run(&["status"]);
             assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
-            assert!(fx.bazel_calls().is_empty());
+            assert_eq!(fx.bazel_calls(), [] as [String; 0]);
         }
 
         #[test]

@@ -87,6 +87,7 @@ pub enum RefreshOutcome {
     InstalledReplacement,
 }
 
+#[must_use]
 pub fn canonical_identity_bytes(tools: &[ToolPlan]) -> Vec<u8> {
     let mut sorted: Vec<&ToolPlan> = tools.iter().collect();
     sorted.sort_by(|a, b| {
@@ -111,10 +112,12 @@ fn identity_digest(canonical: &[u8]) -> [u8; 32] {
     dx_digest::blake3(canonical)
 }
 
+#[must_use]
 pub fn identity_hex(tools: &[ToolPlan]) -> String {
     dx_digest::to_hex(&identity_digest(&canonical_identity_bytes(tools)))
 }
 
+#[must_use]
 pub fn encode_marker(identity: &[u8; 32]) -> Vec<u8> {
     EnvMarker {
         identity: identity.to_vec(),

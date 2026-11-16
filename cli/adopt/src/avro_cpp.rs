@@ -54,8 +54,7 @@ fn scan(root: &Path) -> Found {
                 continue;
             };
             if ModuleFile::parse_build(&text)
-                .ok()
-                .is_some_and(|file| file.calls_named("avro_cc_library").next().is_some())
+                .is_ok_and(|file| file.calls_named("avro_cc_library").next().is_some())
             {
                 found.avro_cc = true;
                 return found;

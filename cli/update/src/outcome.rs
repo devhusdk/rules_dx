@@ -38,6 +38,7 @@ pub struct UpdateReport {
 }
 
 impl UpdateReport {
+    #[must_use]
     pub fn successes(&self) -> Vec<String> {
         self.outcomes
             .iter()
@@ -51,6 +52,7 @@ impl UpdateReport {
             .collect()
     }
 
+    #[must_use]
     pub fn failures(&self) -> Vec<String> {
         self.outcomes
             .iter()
@@ -64,6 +66,7 @@ impl UpdateReport {
             .collect()
     }
 
+    #[must_use]
     pub fn blocked(&self) -> Vec<String> {
         self.outcomes
             .iter()
@@ -140,6 +143,7 @@ pub fn aggregate(
     })
 }
 
+#[must_use]
 pub fn depends_on_failed(
     set: &str,
     depends_on: &BTreeMap<String, Vec<String>>,
@@ -161,6 +165,7 @@ pub fn depends_on_failed(
     false
 }
 
+#[must_use]
 pub fn results_missing(set: &str, results: &[SetOutcome]) -> bool {
     !results.iter().any(|result| result.set == set)
 }
@@ -201,7 +206,7 @@ mod tests {
         assert!(report.overall_failure);
         assert_eq!(report.successes(), vec!["cargo-lock".to_owned()]);
         assert_eq!(report.failures(), vec!["npm-root".to_owned()]);
-        assert!(report.blocked().is_empty());
+        assert_eq!(report.blocked(), [] as [String; 0]);
     }
 
     #[test]
@@ -216,8 +221,8 @@ mod tests {
         )
         .expect("complete results aggregate");
         assert!(!report.overall_failure);
-        assert!(report.failures().is_empty());
-        assert!(report.blocked().is_empty());
+        assert_eq!(report.failures(), [] as [String; 0]);
+        assert_eq!(report.blocked(), [] as [String; 0]);
     }
 
     #[test]
@@ -233,7 +238,7 @@ mod tests {
         assert!(report.overall_failure);
         assert_eq!(report.failures(), vec!["base-set".to_owned()]);
         assert_eq!(report.blocked(), vec!["app-set".to_owned()]);
-        assert!(report.successes().is_empty());
+        assert_eq!(report.successes(), [] as [String; 0]);
     }
 
     #[test]
@@ -279,7 +284,7 @@ mod tests {
         .expect("pinned and current aggregate");
         assert!(!report.overall_failure);
         assert_eq!(report.successes(), vec!["go".to_owned(), "uv".to_owned()]);
-        assert!(report.failures().is_empty());
+        assert_eq!(report.failures(), [] as [String; 0]);
     }
 
     #[test]
@@ -296,7 +301,7 @@ mod tests {
         assert!(report.overall_failure);
         assert_eq!(report.failures(), vec!["cargo".to_owned()]);
         assert_eq!(report.successes(), vec!["npm".to_owned()]);
-        assert!(report.blocked().is_empty());
+        assert_eq!(report.blocked(), [] as [String; 0]);
     }
 
     #[test]

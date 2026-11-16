@@ -12,6 +12,7 @@ struct GemVersion {
     segments: Vec<Segment>,
 }
 
+#[must_use]
 pub fn split_gem_lock_version(text: &str) -> (&str, Option<&str>) {
     match text.split_once('-') {
         Some((version, platform)) if !platform.is_empty() => (version, Some(platform)),
@@ -202,6 +203,7 @@ fn satisfies(op: Op, bound: &GemVersion, version: &GemVersion) -> Option<bool> {
     })
 }
 
+#[must_use]
 pub fn ruby_assess(scope: &str, version: &str, platform: Option<&str>) -> VersionScope {
     let scope = scope.trim();
     let version = version.trim();
@@ -235,6 +237,7 @@ pub fn ruby_assess(scope: &str, version: &str, platform: Option<&str>) -> Versio
 }
 
 #[cfg(test)]
+#[must_use]
 pub fn ruby_in_scope(scope: &str, version: &str) -> bool {
     let (bare, platform) = split_gem_lock_version(version.trim());
     ruby_assess(scope, bare, platform) == VersionScope::Affected

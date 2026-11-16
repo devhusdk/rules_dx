@@ -12,6 +12,7 @@ pub struct Scope {
 
 impl Scope {
     /// Builds a scope from the sets this run updates whole.
+    #[must_use]
     pub fn new(sets: Vec<String>) -> Scope {
         Scope { sets }
     }
@@ -26,6 +27,7 @@ impl Scope {
     }
 
     /// Tells whether this run may close the pull request on `branch`.
+    #[must_use]
     pub fn covers(&self, branch: &str) -> bool {
         self.sets
             .iter()
@@ -51,6 +53,7 @@ pub struct GroupPlan {
 }
 
 /// Splits items into one plan per set, in branch order.
+#[must_use]
 pub fn plan(items: &[Item]) -> Vec<GroupPlan> {
     let mut plans: BTreeMap<String, GroupPlan> = BTreeMap::new();
     for item in items {
@@ -83,6 +86,7 @@ fn slug(text: &str) -> String {
 }
 
 /// Writes the pull request body: one line per package, then the lock file changes.
+#[must_use]
 pub fn body(plan: &GroupPlan, numstat: &[(String, u64, u64)]) -> String {
     let mut text = String::new();
     for item in &plan.items {
@@ -127,6 +131,7 @@ pub fn body(plan: &GroupPlan, numstat: &[(String, u64, u64)]) -> String {
 }
 
 /// Picks the old and new tag names from `git ls-remote --tags --refs` output.
+#[must_use]
 pub fn pick_tags(listing: &str, package: &str, old: &str, new: &str) -> Option<(String, String)> {
     let tags: std::collections::BTreeSet<&str> = listing
         .lines()
@@ -147,6 +152,7 @@ pub fn pick_tags(listing: &str, package: &str, old: &str, new: &str) -> Option<(
 }
 
 /// Reads `git diff --numstat` lines, keeping the lock files the sets own.
+#[must_use]
 pub fn lock_numstat(text: &str, locks: &[String]) -> Vec<(String, u64, u64)> {
     text.lines()
         .filter_map(|line| {
@@ -226,7 +232,7 @@ mod tests {
     fn odd_characters_become_dashes() {
         let got = plan(&[item("c++/x", "pkg", "2.0.0", Registry::Npm)]);
         assert_eq!(got[0].branch, "dx-update/c---x");
-        assert!(plan(&[]).is_empty());
+        assert_eq!(plan(&[]), [] as [crate::pr::GroupPlan; 0]);
     }
 
     #[test]
@@ -282,7 +288,10 @@ mod tests {
             lock_numstat(text, &owned),
             vec![(cargo.to_owned(), 4, 2), (swift.clone(), 2, 1)]
         );
-        assert!(lock_numstat(text, &[]).is_empty());
+        assert_eq!(
+            lock_numstat(text, &[]),
+            [] as [(std::string::String, u64, u64); 0]
+        );
     }
 
     const LISTING: &str = "a\trefs/tags/v1.0.0\nb\trefs/tags/v1.1.0\nc\trefs/tags/pkg@1.0.0\nd\trefs/tags/pkg@1.1.0\n";

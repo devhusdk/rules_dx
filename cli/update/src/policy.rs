@@ -13,6 +13,7 @@ pub enum Level {
 
 impl Level {
     /// Reads `patch`, `minor` or `all`. `none` and anything else give `None`.
+    #[must_use]
     pub fn limit(text: &str) -> Option<Level> {
         match text {
             "patch" => Some(Level::Patch),
@@ -39,6 +40,7 @@ fn numbers(version: &str) -> Option<(u64, u64)> {
 }
 
 /// Sizes the move from `current` to `latest`. Zero-major versions treat a minor bump as major.
+#[must_use]
 pub fn level(current: &str, latest: &str) -> Level {
     let (Some((cm, cn)), Some((lm, ln))) = (numbers(current), numbers(latest)) else {
         return Level::Major;
@@ -67,6 +69,7 @@ pub struct Skip {
 }
 
 /// Splits candidates into the ones to update and the ones skipped.
+#[must_use]
 pub fn filter(candidates: &[Candidate], policy: &Policy) -> (Vec<Candidate>, Vec<Skip>) {
     let mut kept = Vec::new();
     let mut skipped = Vec::new();
@@ -110,6 +113,7 @@ fn too_new(candidate: &Candidate, cutoff: Option<&str>) -> bool {
 }
 
 /// Says whether every package in the group is within `limit`. `None` means never.
+#[must_use]
 pub fn automerge(limit: Option<Level>, plan: &GroupPlan) -> bool {
     let Some(limit) = limit else {
         return false;

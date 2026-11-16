@@ -380,11 +380,7 @@ fn unscoped_pnpm_re() -> Option<&'static Regex> {
 }
 
 pub(crate) fn split_pnpm_key(key: &str) -> Option<(String, String)> {
-    let base = key
-        .split_once('(')
-        .map(|(stem, _)| stem)
-        .unwrap_or(key)
-        .trim();
+    let base = key.split_once('(').map_or(key, |(stem, _)| stem).trim();
     if base.is_empty() {
         return None;
     }

@@ -1,4 +1,4 @@
-use super::*;
+use super::{BackendError, BackendPlan, Path, ResolvedSet, Selection, bazel};
 
 const RESOLVER: &str = "@rules_dx//d/private/tools/lock";
 

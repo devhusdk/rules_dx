@@ -31,7 +31,7 @@ fn a_lease_without_a_live_dx_stops_its_group() {
     assert_eq!(reaped, vec![Reaped { pid: 424242, pgid }]);
     assert!(!group_alive(pgid));
     assert!(!dir.join("424242-0.lock").exists());
-    assert!(reap_in(&dir).is_empty());
+    assert_eq!(reap_in(&dir), [] as [crate::groups::Reaped; 0]);
 }
 
 #[cfg(unix)]
@@ -47,7 +47,7 @@ fn a_lease_held_by_a_live_dx_is_left_alone() {
         .expect("lock")
         .expect("free");
     std::fs::write(&path, format!("{}\n", lease_line(pgid).expect("line"))).expect("lease");
-    assert!(reap_in(&dir).is_empty());
+    assert_eq!(reap_in(&dir), [] as [crate::groups::Reaped; 0]);
     assert!(group_alive(pgid));
     sys::signal_group(pgid, 9);
     drop(child.wait());
@@ -68,7 +68,7 @@ fn a_lease_for_a_finished_group_is_dropped_quietly() {
     let line = lease_line(pgid).expect("line");
     drop(child.wait());
     std::fs::write(dir.join("424244-0.lock"), format!("{line}\n")).expect("lease");
-    assert!(reap_in(&dir).is_empty());
+    assert_eq!(reap_in(&dir), [] as [crate::groups::Reaped; 0]);
     assert!(!dir.join("424244-0.lock").exists());
 }
 
@@ -78,7 +78,7 @@ fn unrelated_files_are_ignored() {
     let dir = scratch.path().join("groups");
     std::fs::create_dir_all(&dir).expect("dir");
     std::fs::write(dir.join("notes.txt"), "1\n").expect("file");
-    assert!(reap_in(&dir).is_empty());
+    assert_eq!(reap_in(&dir), [] as [crate::groups::Reaped; 0]);
     assert!(dir.join("notes.txt").exists());
 }
 
@@ -96,7 +96,7 @@ fn a_lease_naming_a_reused_group_number_is_dropped_without_a_signal() {
     let alive = group_alive(pgid);
     sys::signal_group(pgid, 9);
     drop(child.wait());
-    assert!(reaped.is_empty());
+    assert_eq!(reaped, [] as [crate::groups::Reaped; 0]);
     assert!(alive, "an unrelated group must survive");
     assert!(!dir.join("424245-0.lock").exists());
 }
@@ -111,7 +111,7 @@ fn a_lease_from_another_pid_namespace_is_left_alone() {
     let pgid = child.id() as i32;
     let path = dir.join("424246-0.lock");
     std::fs::write(&path, format!("{pgid} pid:[1] 77 boot-a\n")).expect("lease");
-    assert!(reap_in(&dir).is_empty());
+    assert_eq!(reap_in(&dir), [] as [crate::groups::Reaped; 0]);
     let alive = group_alive(pgid);
     sys::signal_group(pgid, 9);
     drop(child.wait());
@@ -129,7 +129,7 @@ fn a_lease_dropped_with_its_group_still_running_leaves_nothing_to_reap() {
     let lease = GroupLease::acquire_in(&dir).expect("lease");
     lease.record(pgid);
     drop(lease);
-    assert!(reap_in(&dir).is_empty());
+    assert_eq!(reap_in(&dir), [] as [crate::groups::Reaped; 0]);
     let alive = group_alive(pgid);
     sys::signal_group(pgid, 9);
     drop(child.wait());
@@ -220,7 +220,7 @@ fn an_owned_run_holds_a_lease_naming_its_group_and_removes_it() {
     assert_ne!(pgid, std::process::id() as i32);
     assert!(reaped_none.get(), "a held lease is not reaped");
     assert!(alive.get(), "the group runs while the lease is held");
-    assert!(leases(&dir).is_empty());
+    assert_eq!(leases(&dir), [] as [std::path::PathBuf; 0]);
     assert!(!group_alive(pgid));
 }
 
@@ -261,7 +261,7 @@ fn a_failed_owned_spawn_leaves_no_lease() {
     spec.argv = vec![scratch.path().join("missing-binary").into_os_string()];
     let result = crate::lifecycle::run_streamed_in(spec, QUICK, &|| None, &|| false, Some(&dir));
     assert!(result.is_err());
-    assert!(leases(&dir).is_empty());
+    assert_eq!(leases(&dir), [] as [std::path::PathBuf; 0]);
 }
 
 fn backdate(path: &Path) {
@@ -281,7 +281,7 @@ fn an_old_empty_lease_is_removed() {
     let path = dir.join("424247-0.lock");
     std::fs::write(&path, "").expect("lease");
     backdate(&path);
-    assert!(reap_in(&dir).is_empty());
+    assert_eq!(reap_in(&dir), [] as [crate::groups::Reaped; 0]);
     assert!(!path.exists());
 }
 
@@ -292,7 +292,7 @@ fn a_fresh_empty_lease_is_kept() {
     std::fs::create_dir_all(&dir).expect("dir");
     let path = dir.join("424248-0.lock");
     std::fs::write(&path, "").expect("lease");
-    assert!(reap_in(&dir).is_empty());
+    assert_eq!(reap_in(&dir), [] as [crate::groups::Reaped; 0]);
     assert!(path.exists());
 }
 
@@ -306,7 +306,7 @@ fn an_old_empty_lease_held_by_a_live_dx_is_kept() {
         .expect("lock")
         .expect("free");
     backdate(&path);
-    assert!(reap_in(&dir).is_empty());
+    assert_eq!(reap_in(&dir), [] as [crate::groups::Reaped; 0]);
     assert!(path.exists());
     drop(held);
 }
@@ -389,7 +389,7 @@ fn a_lease_with_unknown_start_is_dropped_without_a_signal() {
     let alive = group_alive(pgid);
     sys::signal_group(pgid, 9);
     drop(child.wait());
-    assert!(reaped.is_empty());
+    assert_eq!(reaped, [] as [crate::groups::Reaped; 0]);
     assert!(alive);
     assert!(!path.exists());
 }
@@ -411,7 +411,7 @@ fn a_lease_from_another_boot_is_dropped_without_a_signal() {
     let alive = group_alive(pgid);
     sys::signal_group(pgid, 9);
     drop(child.wait());
-    assert!(reaped.is_empty());
+    assert_eq!(reaped, [] as [crate::groups::Reaped; 0]);
     assert!(alive);
     assert!(!path.exists());
 }
@@ -458,12 +458,12 @@ fn the_reap_message_names_the_group_and_the_dead_run() {
 
 #[test]
 fn the_lease_root_names_the_groups_directory() {
-    assert!(reap_orphans().is_empty());
+    assert_eq!(reap_orphans(), [] as [crate::groups::Reaped; 0]);
     let scratch = dx_test_scratch::scratch("dx-groups-root-");
     set_lease_root(scratch.path());
     let dir = lease_dir().expect("set");
     assert!(dir.ends_with(GROUPS_DIR_NAME));
-    assert!(reap_orphans().is_empty());
+    assert_eq!(reap_orphans(), [] as [crate::groups::Reaped; 0]);
 }
 
 #[test]
@@ -653,7 +653,10 @@ fn a_provably_orphaned_group_is_stopped_and_its_lease_removed() {
 fn a_group_with_an_unreadable_leader_keeps_its_lease_and_is_logged() {
     let scratch = dx_test_scratch::scratch("dx-groups-unknown-");
     let path = one_lease(scratch.path());
-    assert!(reap_with(scratch.path(), unreadable_leader, fake_stop).is_empty());
+    assert_eq!(
+        reap_with(scratch.path(), unreadable_leader, fake_stop),
+        [] as [crate::groups::Reaped; 0]
+    );
     assert!(path.exists());
     let log = std::fs::read_to_string(scratch.path().join(LOG_NAME)).expect("log");
     assert!(log.contains(" keep-unknown "));

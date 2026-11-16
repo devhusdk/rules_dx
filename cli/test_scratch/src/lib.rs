@@ -40,13 +40,13 @@ fn bounded_prefix(prefix: &str) -> String {
 fn scratch_base(lookup: impl Fn(&str) -> Option<std::ffi::OsString>) -> std::path::PathBuf {
     lookup("TEST_TMPDIR")
         .filter(|dir| !dir.is_empty())
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(std::env::temp_dir)
+        .map_or_else(std::env::temp_dir, std::path::PathBuf::from)
 }
 
 /// Creates a temp dir under `$TEST_TMPDIR` (or the system temp dir) that is
 /// removed when the returned guard drops. Keep the guard bound for as long as
 /// anything, including child processes, uses paths inside it.
+#[must_use]
 pub fn scratch(prefix: &str) -> TempDir {
     let bounded = bounded_prefix(prefix);
     let base = scratch_base(|key| std::env::var_os(key));
@@ -370,7 +370,7 @@ mod tests {
             .args(["config", "--global", "--list"]);
         isolate_git(&mut list, &sandbox);
         let out = list.output().expect("git");
-        assert!(String::from_utf8_lossy(&out.stdout).trim().is_empty());
+        assert_eq!(String::from_utf8_lossy(&out.stdout).trim(), "");
     }
 
     #[test]

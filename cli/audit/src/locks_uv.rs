@@ -122,11 +122,9 @@ fn classify(source: &toml::Table, name: &str, members: &[String]) -> Result<Sour
 }
 
 fn is_pypi(url: &str) -> bool {
-    url::Url::parse(url)
-        .map(|parsed| {
-            parsed.scheme() == "https"
-                && parsed.host_str() == Some(PYPI_HOST)
-                && parsed.path().trim_end_matches('/') == "/simple"
-        })
-        .unwrap_or(false)
+    url::Url::parse(url).is_ok_and(|parsed| {
+        parsed.scheme() == "https"
+            && parsed.host_str() == Some(PYPI_HOST)
+            && parsed.path().trim_end_matches('/') == "/simple"
+    })
 }

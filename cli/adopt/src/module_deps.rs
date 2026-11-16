@@ -5,6 +5,7 @@ use std::path::Path;
 
 /// The `bazel_dep` names of the consumer's `MODULE.bazel`, includes followed, plus its own
 /// module name. Empty when it cannot be read.
+#[must_use]
 pub fn module_deps(root: &Path) -> BTreeSet<String> {
     let mut deps = load_calls(root, "bazel_dep");
     deps.extend(load_calls(root, "module"));
@@ -12,6 +13,7 @@ pub fn module_deps(root: &Path) -> BTreeSet<String> {
 }
 
 /// Whether the workspace at `root` is the `rules_dx` module itself, which carries every family.
+#[must_use]
 pub fn is_rules_dx_root(root: &Path) -> bool {
     load_calls(root, "module").contains("rules_dx")
 }
@@ -30,7 +32,7 @@ fn load_calls(root: &Path, call_name: &str) -> BTreeSet<String> {
     };
     modules
         .iter()
-        .flat_map(|module| module.calls())
+        .flat_map(dx_module_bazel::ModuleFile::calls)
         .filter(|call| call.name == call_name)
         .filter_map(|call| call.str("name").map(str::to_owned))
         .collect()

@@ -1,4 +1,4 @@
-use super::*;
+use super::{BackendError, BackendPlan, Path, ResolvedSet, Selection, UvClosure, bazel};
 
 const RESOLVER: &str = "@rules_dx//csharp/private/tools/lock";
 

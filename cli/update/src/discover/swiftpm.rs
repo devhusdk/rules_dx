@@ -177,7 +177,10 @@ mod tests {
             "https://github.com/apple/swift-argument-parser",
             "1.8.3",
         )];
-        assert!(run(&pins, false).candidates.is_empty());
+        assert_eq!(
+            run(&pins, false).candidates,
+            [] as [crate::discover::Candidate; 0]
+        );
         let found = run(&pins, true);
         assert!(found.candidates[0].prerelease);
         assert_eq!(found.candidates[0].latest, "1.9.0-beta.1");
@@ -185,10 +188,9 @@ mod tests {
 
     #[test]
     fn a_current_pin_is_not_listed_and_v_tags_keep_their_prefix() {
-        assert!(
-            run(&[pin("https://github.com/vapor/vapor", "4.50.0")], false)
-                .candidates
-                .is_empty()
+        assert_eq!(
+            run(&[pin("https://github.com/vapor/vapor", "4.50.0")], false).candidates,
+            [] as [crate::discover::Candidate; 0]
         );
         let found = run(&[pin("https://github.com/vapor/vapor", "4.49.0")], false);
         assert_eq!(
@@ -206,7 +208,7 @@ mod tests {
             ],
             false,
         );
-        assert!(found.candidates.is_empty());
+        assert_eq!(found.candidates, [] as [crate::discover::Candidate; 0]);
         assert_eq!(found.errors.len(), 1);
         assert_eq!(found.errors[0].package, "github.com/o/gone");
     }

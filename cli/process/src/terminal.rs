@@ -135,7 +135,7 @@ impl TerminalJob {
                 revents: 0,
             };
             // SAFETY: ready is one valid pollfd and the count passed is 1.
-            if unsafe { libc::poll(&mut ready, 1, SETTLE_WAIT_MS) } <= 0 {
+            if unsafe { libc::poll(&raw mut ready, 1, SETTLE_WAIT_MS) } <= 0 {
                 return reported;
             }
             let mut byte = 0u8;
@@ -159,7 +159,7 @@ impl TerminalJob {
             libc::waitid(
                 libc::P_PID,
                 child as libc::id_t,
-                &mut info,
+                &raw mut info,
                 libc::WSTOPPED | libc::WNOHANG,
             )
         };
@@ -214,9 +214,9 @@ pub fn allow_background_tty_writes() {
     let mut set: libc::sigset_t = unsafe { std::mem::zeroed() };
     // SAFETY: set is a valid sigset_t and a null old-set pointer is permitted.
     unsafe {
-        libc::sigemptyset(&mut set);
-        libc::sigaddset(&mut set, libc::SIGTTOU);
-        libc::pthread_sigmask(libc::SIG_BLOCK, &set, std::ptr::null_mut());
+        libc::sigemptyset(&raw mut set);
+        libc::sigaddset(&raw mut set, libc::SIGTTOU);
+        libc::pthread_sigmask(libc::SIG_BLOCK, &raw const set, std::ptr::null_mut());
     }
 }
 
@@ -233,11 +233,11 @@ impl Blocked {
         let mut previous: libc::sigset_t = unsafe { std::mem::zeroed() };
         // SAFETY: set and previous are valid sigset_t values for these calls.
         unsafe {
-            libc::sigemptyset(&mut set);
+            libc::sigemptyset(&raw mut set);
             for &signo in signals {
-                libc::sigaddset(&mut set, signo);
+                libc::sigaddset(&raw mut set, signo);
             }
-            libc::pthread_sigmask(libc::SIG_BLOCK, &set, &mut previous);
+            libc::pthread_sigmask(libc::SIG_BLOCK, &raw const set, &raw mut previous);
         }
         Blocked { previous }
     }
@@ -247,7 +247,11 @@ impl Drop for Blocked {
     fn drop(&mut self) {
         // SAFETY: previous was saved by pthread_sigmask; a null old-set pointer is permitted.
         unsafe {
-            libc::pthread_sigmask(libc::SIG_SETMASK, &self.previous, std::ptr::null_mut());
+            libc::pthread_sigmask(
+                libc::SIG_SETMASK,
+                &raw const self.previous,
+                std::ptr::null_mut(),
+            );
         }
     }
 }
@@ -331,10 +335,10 @@ extern "C" fn report_settled(_: libc::c_int, _: *mut libc::siginfo_t, _: *mut li
     let mut pending: libc::sigset_t = unsafe { std::mem::zeroed() };
     // SAFETY: pending is a valid sigset_t; report only writes to the watcher pipe.
     unsafe {
-        libc::sigemptyset(&mut pending);
-        libc::sigpending(&mut pending);
+        libc::sigemptyset(&raw mut pending);
+        libc::sigpending(&raw mut pending);
         for signo in STOP_SIGNALS {
-            if libc::sigismember(&pending, signo) == 1 {
+            if libc::sigismember(&raw const pending, signo) == 1 {
                 report(signo);
             }
         }
@@ -385,7 +389,7 @@ unsafe fn close_others(keep: i32) {
     let mut limit: libc::rlimit = unsafe { std::mem::zeroed() };
     let mut top = MAX_CLOSE;
     // SAFETY: limit is a valid rlimit out-pointer.
-    if unsafe { libc::getrlimit(libc::RLIMIT_NOFILE, &mut limit) } == 0
+    if unsafe { libc::getrlimit(libc::RLIMIT_NOFILE, &raw mut limit) } == 0
         && limit.rlim_cur < MAX_CLOSE as libc::rlim_t
     {
         top = limit.rlim_cur as i32;
@@ -417,9 +421,9 @@ unsafe fn watch(parent: i32, report: i32) -> ! {
             libc::signal(signo, libc::SIG_IGN);
         }
         let mut unblock: libc::sigset_t = std::mem::zeroed();
-        libc::sigemptyset(&mut unblock);
+        libc::sigemptyset(&raw mut unblock);
         for signo in WATCHED {
-            libc::sigaddset(&mut unblock, signo);
+            libc::sigaddset(&raw mut unblock, signo);
         }
         for signo in WATCHED {
             let mut action: libc::sigaction = std::mem::zeroed();
@@ -430,9 +434,9 @@ unsafe fn watch(parent: i32, report: i32) -> ! {
             };
             action.sa_flags = libc::SA_SIGINFO | libc::SA_RESTART;
             action.sa_mask = unblock;
-            libc::sigaction(signo, &action, std::ptr::null_mut());
+            libc::sigaction(signo, &raw const action, std::ptr::null_mut());
         }
-        libc::pthread_sigmask(libc::SIG_UNBLOCK, &unblock, std::ptr::null_mut());
+        libc::pthread_sigmask(libc::SIG_UNBLOCK, &raw const unblock, std::ptr::null_mut());
         let second = libc::timespec {
             tv_sec: 1,
             tv_nsec: 0,
@@ -441,7 +445,7 @@ unsafe fn watch(parent: i32, report: i32) -> ! {
             if libc::getppid() != parent {
                 libc::_exit(0);
             }
-            libc::nanosleep(&second, std::ptr::null_mut());
+            libc::nanosleep(&raw const second, std::ptr::null_mut());
         }
     }
 }

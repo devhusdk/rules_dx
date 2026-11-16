@@ -45,10 +45,12 @@ pub fn validate(op: &FileOperation, existing: Option<&[u8]>) -> Result<(), Valid
         None => {}
         Some(dx_path::PathProblem::Empty) => return Err(ValidationError::EmptyPath),
         Some(dx_path::PathProblem::Absolute) => return Err(ValidationError::AbsolutePath),
-        Some(dx_path::PathProblem::Backslash)
-        | Some(dx_path::PathProblem::EmptyComponent)
-        | Some(dx_path::PathProblem::ControlCharacter)
-        | Some(dx_path::PathProblem::Dot) => return Err(ValidationError::MalformedPath),
+        Some(
+            dx_path::PathProblem::Backslash
+            | dx_path::PathProblem::EmptyComponent
+            | dx_path::PathProblem::ControlCharacter
+            | dx_path::PathProblem::Dot,
+        ) => return Err(ValidationError::MalformedPath),
         Some(dx_path::PathProblem::DotDot) => return Err(ValidationError::EscapesWorkspace),
     }
     if let Some(extension) = extension_of(&op.path)

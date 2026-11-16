@@ -50,11 +50,13 @@ pub(crate) fn push_version(pkgs: &mut crate::LockVersions, name: String, ver: St
 }
 
 /// Lowercase-only package key (Go, JVM, .NET, JS/TS, Ruby, Rust).
+#[must_use]
 pub fn normalize_lower(name: &str) -> String {
     name.to_lowercase()
 }
 
 /// Lowercase package key with `-` folded to `_` (C/C++).
+#[must_use]
 pub fn normalize_snake(name: &str) -> String {
     name.to_lowercase().replace('-', "_")
 }

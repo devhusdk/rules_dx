@@ -11,17 +11,22 @@ static TAIL: Mutex<Vec<u8>> = Mutex::new(Vec::new());
 #[cfg(test)]
 pub(crate) fn tail_lock() -> std::sync::MutexGuard<'static, ()> {
     static LOCK: Mutex<()> = Mutex::new(());
-    LOCK.lock().unwrap_or_else(|e| e.into_inner())
+    LOCK.lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
 /// Forgets the previous run's stderr.
 pub(crate) fn clear() {
-    TAIL.lock().unwrap_or_else(|e| e.into_inner()).clear();
+    TAIL.lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clear();
 }
 
 /// The stderr of the latest Bazel run; empty before any run.
 pub fn last_bazel_stderr() -> String {
-    let tail = TAIL.lock().unwrap_or_else(|e| e.into_inner());
+    let tail = TAIL
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     String::from_utf8_lossy(&tail).into_owned()
 }
 
@@ -124,7 +129,9 @@ impl Write for Tee {
 }
 
 pub(crate) fn push(bytes: &[u8]) {
-    let mut tail = TAIL.lock().unwrap_or_else(|e| e.into_inner());
+    let mut tail = TAIL
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     tail.extend_from_slice(bytes);
     if tail.len() > KEEP_BYTES {
         let drop = tail.len() - KEEP_BYTES;

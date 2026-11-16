@@ -92,6 +92,6 @@ mod tests {
         let (other_hex, _, _) = pair_env_gen('3', '4');
         let error = validate_record(&other_hex, &env_hex, &gen_hex).unwrap_err();
         assert!(matches!(error, RecordProblem::Spoofed { .. }));
-        assert!(!format!("{error}").is_empty());
+        assert_ne!(format!("{error}"), "");
     }
 }

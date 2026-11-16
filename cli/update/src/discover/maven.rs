@@ -234,7 +234,7 @@ mod tests {
     fn the_package_filter_limits_lookups() {
         let found = run(&["junit:junit".to_owned()]);
         assert_eq!(found.candidates.len(), 1);
-        assert!(found.errors.is_empty());
+        assert_eq!(found.errors, [] as [crate::discover::LookupError; 0]);
     }
 
     #[test]

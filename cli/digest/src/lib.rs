@@ -23,22 +23,27 @@ pub enum DigestError {
 pub struct Digest(pub RawDigest);
 
 impl Digest {
+    #[must_use]
     pub fn new(bytes: RawDigest) -> Self {
         Self(bytes)
     }
 
+    #[must_use]
     pub fn as_bytes(&self) -> &RawDigest {
         &self.0
     }
 
+    #[must_use]
     pub fn into_bytes(self) -> RawDigest {
         self.0
     }
 
+    #[must_use]
     pub fn blake3(bytes: &[u8]) -> Self {
         Self(blake3(bytes))
     }
 
+    #[must_use]
     pub fn to_hex(&self) -> String {
         to_hex(&self.0)
     }
@@ -60,10 +65,12 @@ impl From<Digest> for RawDigest {
     }
 }
 
+#[must_use]
 pub fn blake3(bytes: &[u8]) -> RawDigest {
     *blake3::hash(bytes).as_bytes()
 }
 
+#[must_use]
 pub fn sha256_hex(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
@@ -77,10 +84,12 @@ pub struct Sha256Writer {
 }
 
 impl Sha256Writer {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    #[must_use]
     pub fn finish_hex(self) -> String {
         hex::encode(self.hasher.finalize())
     }
@@ -123,10 +132,12 @@ pub fn sha256_file_hex(path: &Path) -> io::Result<String> {
     sha256_reader_hex(std::fs::File::open(path)?)
 }
 
+#[must_use]
 pub fn is_hex(text: &str) -> bool {
     is_lower_hex(text, DIGEST_LEN)
 }
 
+#[must_use]
 pub fn is_lower_hex(text: &str, byte_len: usize) -> bool {
     match hex::decode(text) {
         Ok(bytes) => bytes.len() == byte_len && hex::encode(&bytes) == text,
@@ -134,6 +145,7 @@ pub fn is_lower_hex(text: &str, byte_len: usize) -> bool {
     }
 }
 
+#[must_use]
 pub fn is_hex_any_case(text: &str, byte_len: usize) -> bool {
     match hex::decode(text) {
         Ok(bytes) => bytes.len() == byte_len,
@@ -141,14 +153,17 @@ pub fn is_hex_any_case(text: &str, byte_len: usize) -> bool {
     }
 }
 
+#[must_use]
 pub fn is_commit_sha(text: &str) -> bool {
     is_hex_any_case(text, SHA1_LEN) || is_hex_any_case(text, DIGEST_LEN)
 }
 
+#[must_use]
 pub fn to_hex(bytes: &RawDigest) -> String {
     hex::encode(bytes)
 }
 
+#[must_use]
 pub fn to_hex_bytes(bytes: &[u8]) -> String {
     hex::encode(bytes)
 }

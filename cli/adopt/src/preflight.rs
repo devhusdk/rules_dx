@@ -1,11 +1,11 @@
-//! The read-only "init plan" for a foreign `MODULE.bazel`: what adopting rules_dx
+//! The read-only "init plan" for a foreign `MODULE.bazel`: what adopting `rules_dx`
 //! would conflict with, found from the declared files. No Bazel runs and nothing is written.
 
 use std::path::Path;
 
 use dx_module_bazel::{ModuleFile, Value, compare_module_versions};
 
-/// rules_dx's own non-dev `bazel_dep` versions, the floors an override must meet.
+/// `rules_dx`'s own non-dev `bazel_dep` versions, the floors an override must meet.
 /// The drift test keeps this equal to `//:MODULE.bazel`.
 pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("rules_rust", "0.75.0"),
@@ -68,6 +68,7 @@ pub enum Kind {
 
 impl Kind {
     /// Stable id for machine output.
+    #[must_use]
     pub fn id(self) -> &'static str {
         match self {
             Kind::OverrideConflict => "override_conflict",
@@ -94,7 +95,7 @@ pub struct Finding {
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Preflight {
-    /// False when there is no plan to show (no `MODULE.bazel`, or the rules_dx workspace).
+    /// False when there is no plan to show (no `MODULE.bazel`, or the `rules_dx` workspace).
     pub applicable: bool,
     pub findings: Vec<Finding>,
     pub notes: Vec<String>,
@@ -127,6 +128,7 @@ pub(crate) fn full_consumer_setup() -> String {
 }
 
 /// Plans against the `MODULE.bazel` under `root`, using `snippet` as what init would add.
+#[must_use]
 pub fn preflight(root: &Path, snippet: &str) -> Preflight {
     let mut result = Preflight::default();
     let Ok(text) = std::fs::read_to_string(root.join("MODULE.bazel")) else {
@@ -176,6 +178,7 @@ pub fn preflight(root: &Path, snippet: &str) -> Preflight {
 
 /// An advisory finding when `root` still has a `WORKSPACE` or `WORKSPACE.bazel`, which Bazel 9
 /// does not read. Independent of `MODULE.bazel`, since adopting usually creates that file.
+#[must_use]
 pub fn workspace_finding(root: &Path) -> Option<Finding> {
     let file = ["WORKSPACE", "WORKSPACE.bazel"]
         .into_iter()
@@ -478,6 +481,7 @@ fn toolchain_conflicts(sources: &[Source], snippet: Option<&ModuleFile>) -> Vec<
 
 /// The plan as text: one section per kind, `none` when empty, then the next step.
 /// `apply` is the command the user runs to apply the plan.
+#[must_use]
 pub fn render_plan_text(module: &str, apply: &str, plan: &Preflight) -> String {
     let mut out = format!("init plan: {module}\n");
     for (title, kind) in [
@@ -731,7 +735,10 @@ mod tests {
 
     #[test]
     fn no_toolchains_no_findings() {
-        assert!(toolchain_findings("module(name = \"app\")\n").is_empty());
+        assert_eq!(
+            toolchain_findings("module(name = \"app\")\n"),
+            [] as [crate::preflight::Finding; 0]
+        );
     }
 
     #[test]
@@ -781,8 +788,14 @@ mod tests {
 
     #[test]
     fn unknown_registration_is_not_flagged() {
-        assert!(toolchain_findings("register_toolchains(\"//my:cc_toolchain\")\n").is_empty());
-        assert!(toolchain_findings("register_toolchains(\"@whatever//:all\")\n").is_empty());
+        assert_eq!(
+            toolchain_findings("register_toolchains(\"//my:cc_toolchain\")\n"),
+            [] as [crate::preflight::Finding; 0]
+        );
+        assert_eq!(
+            toolchain_findings("register_toolchains(\"@whatever//:all\")\n"),
+            [] as [crate::preflight::Finding; 0]
+        );
     }
 
     #[test]
@@ -816,7 +829,10 @@ mod tests {
     #[test]
     fn adopted_repo_has_no_toolchain_findings() {
         let module = format!("module(name = \"app\")\n{}", snippet());
-        assert!(toolchain_findings(&module).is_empty());
+        assert_eq!(
+            toolchain_findings(&module),
+            [] as [crate::preflight::Finding; 0]
+        );
     }
 
     #[test]

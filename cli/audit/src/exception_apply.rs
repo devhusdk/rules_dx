@@ -1,5 +1,6 @@
 use super::{ExceptionProblem, FindingRef, RiskException};
 
+#[must_use]
 pub fn is_obsolete(exception: &RiskException, findings: &[FindingRef]) -> bool {
     !findings.iter().any(|finding| {
         finding.advisory == exception.advisory && finding.package == exception.package

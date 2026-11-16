@@ -599,7 +599,7 @@ mod tests {
         write(&root, "src/lib.rs", b"x");
         git(&root, &["add", "-A"]);
         git(&root, &["commit", "-q", "-m", "work"]);
-        assert!(found(&root).is_empty());
+        assert_eq!(found(&root), [] as [String; 0]);
         git(&root, &["switch", "-q", "main"]);
         assert!(
             scan_isolated(&root)
@@ -626,7 +626,7 @@ mod tests {
         let root = repo_on_main();
         write(&root, ".gitignore", b"target/\n");
         write(&root, "target/debug/out", b"x");
-        assert!(found(&root).is_empty());
+        assert_eq!(found(&root), [] as [String; 0]);
     }
 
     #[test]
@@ -637,7 +637,7 @@ mod tests {
         git(&root, &["commit", "-q", "-m", "legacy"]);
         git(&root, &["switch", "-q", "-c", "feature"]);
         write(&root, "target/x", b"y");
-        assert!(found(&root).is_empty());
+        assert_eq!(found(&root), [] as [String; 0]);
         write(&root, "target/x", &big());
         assert_eq!(found(&root), ["target/x"]);
     }
@@ -718,7 +718,7 @@ mod tests {
         let root = repo_on_main();
         std::fs::write(root.join(".git/index"), b"garbage").expect("index");
         let error = scan_isolated(&root).expect_err("error");
-        assert!(!error.message().is_empty());
+        assert_ne!(error.message(), "");
     }
 
     #[test]

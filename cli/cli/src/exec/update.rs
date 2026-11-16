@@ -456,7 +456,7 @@ fn emit_settled_json(
     let message = details
         .get(set_name)
         .map_or(fallback, |detail| detail.message.clone());
-    if let Err(exit) = emit_built(
+    emit_built(
         out,
         notice_event(&NoticeEvent {
             related_command: Some("update".to_owned()),
@@ -464,9 +464,7 @@ fn emit_settled_json(
             ..NoticeEvent::info(code, message)
         })
         .map(|event| with_correlation(event.clone(), correlation).unwrap_or(event)),
-    ) {
-        return Err(exit);
-    }
+    )?;
     Ok(())
 }
 
@@ -491,9 +489,7 @@ fn emit_outcome_json(
                 ..NoticeEvent::info(CODE_UPDATE_SET_SUCCESS, message)
             })
             .map(|event| with_correlation(event.clone(), &correlation).unwrap_or(event));
-            if let Err(exit) = emit_built(out, built) {
-                return Err(exit);
-            }
+            emit_built(out, built)?;
         }
         dx_update::outcome::ReportedStatus::Current
         | dx_update::outcome::ReportedStatus::Pinned => {
@@ -504,7 +500,7 @@ fn emit_outcome_json(
                 || format!("cannot update {set_name}"),
                 |detail| detail.message.clone(),
             );
-            if let Err(exit) = emit_built(
+            emit_built(
                 out,
                 error_event(
                     "update_set_unsupported",
@@ -514,9 +510,7 @@ fn emit_outcome_json(
                     Some("execute"),
                 )
                 .map(|event| with_correlation(event.clone(), &correlation).unwrap_or(event)),
-            ) {
-                return Err(exit);
-            }
+            )?;
             writeln!(err, "dx: update_set_unsupported: {message}").ok();
         }
         dx_update::outcome::ReportedStatus::Failed => {
@@ -528,18 +522,16 @@ fn emit_outcome_json(
                 .get(set_name)
                 .and_then(|detail| detail.failure_code)
                 .unwrap_or(CODE_UPDATE_FAILED);
-            if let Err(exit) = emit_built(
+            emit_built(
                 out,
                 error_event(code, &message, None, None, Some("execute"))
                     .map(|event| with_correlation(event.clone(), &correlation).unwrap_or(event)),
-            ) {
-                return Err(exit);
-            }
+            )?;
             writeln!(err, "dx: {code}: {message}").ok();
         }
         dx_update::outcome::ReportedStatus::Blocked => {
             let message = format!("blocked {set_name} (depends on a failed update)");
-            if let Err(exit) = emit_built(
+            emit_built(
                 out,
                 notice_event(&NoticeEvent {
                     related_command: Some("update".to_owned()),
@@ -547,9 +539,7 @@ fn emit_outcome_json(
                     ..NoticeEvent::warning(CODE_UPDATE_SET_BLOCKED, message.clone())
                 })
                 .map(|event| with_correlation(event.clone(), &correlation).unwrap_or(event)),
-            ) {
-                return Err(exit);
-            }
+            )?;
             if verbose && let Err(exit) = check_stdout_write(writeln!(out, "{message}")) {
                 return Err(exit);
             }

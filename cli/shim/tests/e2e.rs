@@ -350,7 +350,7 @@ fn checksum_mismatch_exits_1_and_runs_nothing() {
     assert!(stderr(&output).starts_with("dx: sha256 mismatch for "));
     let dir = fixture.cache.path().join("bin").join(VERSION);
     assert!(!dir.join(file).exists());
-    assert!(support::leftovers(&dir).is_empty());
+    assert_eq!(support::leftovers(&dir), [] as [String; 0]);
 }
 
 #[test]
@@ -371,7 +371,7 @@ fn concurrent_first_runs_share_one_download() {
         assert_eq!(output.status.code(), Some(i as i32), "{}", stderr(&output));
     }
     let dir = fixture.cache.path().join("bin").join(VERSION);
-    assert!(support::leftovers(&dir).is_empty());
+    assert_eq!(support::leftovers(&dir), [] as [String; 0]);
     assert_eq!(std::fs::read_dir(&dir).expect("dir").count(), 1);
 }
 

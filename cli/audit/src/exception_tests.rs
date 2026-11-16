@@ -45,7 +45,10 @@ fn live_exceptions_keep_only_unexpired_entries_of_the_set() {
         live_exceptions_for_set(&policy, "oci", "2026-09-14").len(),
         1
     );
-    assert!(live_exceptions_for_set(&policy, "npm", "2026-09-14").is_empty());
+    assert_eq!(
+        live_exceptions_for_set(&policy, "npm", "2026-09-14"),
+        [] as [&crate::exception::RiskException; 0]
+    );
 }
 
 #[test]
@@ -429,7 +432,10 @@ fn security_toml_loads_uncovered_acceptances() {
             expires: "2027-01-01".to_owned(),
         }]
     );
-    assert!(policy.exceptions.is_empty());
+    assert_eq!(
+        policy.exceptions,
+        [] as [crate::exception::RiskException; 0]
+    );
     let text = format!("{text}extra = 1\n");
     assert!(matches!(
         load(&text),

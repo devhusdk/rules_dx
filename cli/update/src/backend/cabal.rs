@@ -1,4 +1,4 @@
-use super::*;
+use super::{BackendError, BackendPlan, CheckPlan, Path, ResolvedSet, Selection, UvClosure, bazel};
 
 const RESOLVER: &str = "@rules_dx//haskell/private/tools/lock";
 

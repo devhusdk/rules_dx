@@ -9,6 +9,7 @@ use runfiles::{Runfiles, RunfilesBuilder};
 ///
 /// A launcher keeps its own suffix on some hosts and drops it on others, so try
 /// the name as written and the name without its suffix.
+#[must_use]
 pub fn manifest_beside(binary: &Path) -> Option<PathBuf> {
     names_beside(binary)
         .into_iter()
@@ -28,6 +29,7 @@ fn names_beside(binary: &Path) -> Vec<PathBuf> {
 }
 
 /// Names the runfiles manifest for one binary, preferring the one on disk.
+#[must_use]
 pub fn manifest_for(binary: &Path) -> PathBuf {
     manifest_beside(binary).unwrap_or_else(|| with_suffix(binary, ".runfiles_manifest"))
 }
@@ -100,6 +102,7 @@ impl Resolver {
     }
 
     /// Names the manifest or tree this resolver read.
+    #[must_use]
     pub fn source(&self) -> &Path {
         &self.source
     }

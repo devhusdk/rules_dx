@@ -1,4 +1,4 @@
-//! Lists LuaRocks pins whose newest version in the luarocks.org manifest is newer than the locked one.
+//! Lists `LuaRocks` pins whose newest version in the luarocks.org manifest is newer than the locked one.
 
 use super::{Candidate, Fetch, Findings, LookupError, wanted};
 use dx_error::DxError;
@@ -105,7 +105,7 @@ fn is_prerelease(version: &str) -> bool {
         .any(|part| matches!(part, Part::Delta(_)))
 }
 
-/// Splits `1.2beta3-1` into its components and the revision, as LuaRocks does.
+/// Splits `1.2beta3-1` into its components and the revision, as `LuaRocks` does.
 fn parts(version: &str) -> (Vec<Part>, u64) {
     let (core, revision) = match version.rsplit_once('-') {
         Some((core, revision)) if revision.chars().all(|c| c.is_ascii_digit()) => {
@@ -137,7 +137,8 @@ fn parts(version: &str) -> (Vec<Part>, u64) {
     (out, revision)
 }
 
-/// LuaRocks version ordering: components first, then the rockspec revision.
+/// `LuaRocks` version ordering: components first, then the rockspec revision.
+#[must_use]
 pub fn version_cmp(a: &str, b: &str) -> Ordering {
     let ((parts_a, rev_a), (parts_b, rev_b)) = (parts(a), parts(b));
     for i in 0..parts_a.len().max(parts_b.len()) {
@@ -206,7 +207,7 @@ mod tests {
                 ("penlight", "1.13.1-1", "1.14.0-1")
             ]
         );
-        assert!(found.errors.is_empty());
+        assert_eq!(found.errors, [] as [crate::discover::LookupError; 0]);
     }
 
     #[test]
@@ -224,6 +225,6 @@ mod tests {
         assert_eq!(found.errors.len(), 1);
         let found = outdated("lua", &pins(), &[], false, "https://x", &registry);
         assert_eq!(found.errors.len(), 1);
-        assert!(found.candidates.is_empty());
+        assert_eq!(found.candidates, [] as [crate::discover::Candidate; 0]);
     }
 }

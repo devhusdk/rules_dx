@@ -1,4 +1,7 @@
-use super::*;
+use super::{
+    BackendError, BackendPlan, CheckPlan, Path, ResolvedSet, Selection, UvClosure, hex_staged,
+    hex_whole_lock, is_rebar, rebar_staged,
+};
 
 pub(super) fn plan(
     _workspace: &Path,

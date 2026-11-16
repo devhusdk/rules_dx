@@ -191,7 +191,7 @@ fn markers_inside_string_literals_are_ignored() {
     let source = file_lines(&[tricky, "real();".to_string()]);
     let ignores = find_ignores("t.rs", &source).unwrap();
     assert!(ignores.singles.is_empty());
-    assert!(ignores.ranges.is_empty());
+    assert_eq!(ignores.ranges, [] as [(u32, u32, std::string::String); 0]);
 }
 
 #[test]
@@ -253,7 +253,7 @@ fn hash_markers_inside_python_strings_are_ignored() {
     let source = file_lines(&[tricky, "real();".to_string()]);
     let ignores = find_ignores("t.py", &source).unwrap();
     assert!(ignores.singles.is_empty());
-    assert!(ignores.ranges.is_empty());
+    assert_eq!(ignores.ranges, [] as [(u32, u32, std::string::String); 0]);
 }
 
 #[test]
@@ -261,7 +261,7 @@ fn slash_markers_are_not_honored_for_python() {
     let source = file_lines(&[format!("// {} - reason: wrong style.", marker("_LINE"))]);
     let ignores = find_ignores("t.py", &source).unwrap();
     assert!(ignores.singles.is_empty());
-    assert!(ignores.ranges.is_empty());
+    assert_eq!(ignores.ranges, [] as [(u32, u32, std::string::String); 0]);
 }
 
 #[test]
@@ -384,7 +384,7 @@ fn slash_markers_are_not_honored_for_erlang() {
     let source = file_lines(&[format!("// {} - reason: wrong style.", marker("_LINE"))]);
     let ignores = find_ignores("t.erl", &source).unwrap();
     assert!(ignores.singles.is_empty());
-    assert!(ignores.ranges.is_empty());
+    assert_eq!(ignores.ranges, [] as [(u32, u32, std::string::String); 0]);
 }
 
 #[test]
@@ -514,7 +514,7 @@ fn block_comment_markers_are_inert_wontfix() {
     ]);
     let ignores = find_ignores("t.rs", &source).unwrap();
     assert!(ignores.singles.is_empty());
-    assert!(ignores.ranges.is_empty());
+    assert_eq!(ignores.ranges, [] as [(u32, u32, std::string::String); 0]);
 }
 
 #[test]
@@ -523,7 +523,7 @@ fn raw_string_markers_are_inert_wontfix() {
     let source = file_lines(&[tricky, "real();".to_string()]);
     let ignores = find_ignores("t.rs", &source).unwrap();
     assert!(ignores.singles.is_empty());
-    assert!(ignores.ranges.is_empty());
+    assert_eq!(ignores.ranges, [] as [(u32, u32, std::string::String); 0]);
 }
 
 #[test]

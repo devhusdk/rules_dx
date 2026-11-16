@@ -55,6 +55,7 @@ pub enum ConfiguredKind {
 
 impl ConfiguredKind {
     /// The selector and version grammar of this ecosystem.
+    #[must_use]
     pub fn grammar(self) -> UpdateSet {
         match self {
             ConfiguredKind::Cargo => UpdateSet::Cargo,
@@ -199,6 +200,7 @@ pub enum EditError {
 
 impl EditError {
     /// Whether this is an argument error rather than a manifest or network failure.
+    #[must_use]
     pub fn is_usage(&self) -> bool {
         matches!(
             self,
@@ -223,6 +225,7 @@ pub struct DepTarget {
 }
 
 impl DepTarget {
+    #[must_use]
     pub fn needs_update_refresh(&self) -> bool {
         match &self.configured {
             Some(set) => set.kind != ConfiguredKind::Nuget,
@@ -230,17 +233,20 @@ impl DepTarget {
         }
     }
 
+    #[must_use]
     pub fn refresh_selector(&self) -> String {
         configured_refresh_selector(self.configured.as_ref(), &self.package)
             .unwrap_or_else(|| refresh_selector(self.set, &self.package))
     }
 
     /// Whether the dependency belongs to a configured bazel-modules set.
+    #[must_use]
     pub fn is_configured_bazel(&self) -> bool {
         matches!(&self.configured, Some(set) if set.kind == ConfiguredKind::Bazel)
     }
 
     /// Whether the dependency belongs to a configured ruby set.
+    #[must_use]
     pub fn is_configured_ruby(&self) -> bool {
         matches!(&self.configured, Some(set) if set.kind == ConfiguredKind::Ruby)
     }
@@ -266,6 +272,7 @@ impl DepTarget {
     }
 
     /// The command that refreshes this dependency's lock, as shown to the user.
+    #[must_use]
     pub fn refresh_command(&self) -> String {
         if self.is_configured_bazel() {
             "bazel mod deps".to_owned()
@@ -276,6 +283,7 @@ impl DepTarget {
         }
     }
 
+    #[must_use]
     pub fn target_manifest(&self) -> &str {
         target_manifest(self.set, &self.package, self.manifest.as_deref())
     }
@@ -313,19 +321,19 @@ fn refresh_selector(set: UpdateSet, package: &str) -> String {
         UpdateSet::Bazel | UpdateSet::Containers | UpdateSet::GithubActions | UpdateSet::Pins => {
             String::new()
         }
-        set @ UpdateSet::Cabal
-        | set @ UpdateSet::Cargo
-        | set @ UpdateSet::Composer
-        | set @ UpdateSet::Cpan
-        | set @ UpdateSet::Go
-        | set @ UpdateSet::Hex
-        | set @ UpdateSet::Julia
-        | set @ UpdateSet::Maven
-        | set @ UpdateSet::NuGet
-        | set @ UpdateSet::Opam
-        | set @ UpdateSet::Pub
-        | set @ UpdateSet::Ruby
-        | set @ UpdateSet::SwiftPm => set.name().to_owned(),
+        set @ (UpdateSet::Cabal
+        | UpdateSet::Cargo
+        | UpdateSet::Composer
+        | UpdateSet::Cpan
+        | UpdateSet::Go
+        | UpdateSet::Hex
+        | UpdateSet::Julia
+        | UpdateSet::Maven
+        | UpdateSet::NuGet
+        | UpdateSet::Opam
+        | UpdateSet::Pub
+        | UpdateSet::Ruby
+        | UpdateSet::SwiftPm) => set.name().to_owned(),
     }
 }
 
@@ -472,29 +480,35 @@ impl UpdateRequest {
         })
     }
 
+    #[must_use]
     pub fn needs_update_refresh(&self) -> bool {
         self.target().needs_update_refresh()
     }
 
+    #[must_use]
     pub fn refresh_selector(&self) -> String {
         self.target().refresh_selector()
     }
 
+    #[must_use]
     pub fn target_manifest(&self) -> &str {
         target_manifest(self.set, &self.package, self.manifest.as_deref())
     }
 
     /// Every manifest of the configured set this request edits, if it has one.
+    #[must_use]
     pub fn configured_manifests(&self) -> Option<&[String]> {
         self.configured.as_ref().map(|set| set.manifests.as_slice())
     }
 
     /// The name of the configured set this request edits, if it has one.
+    #[must_use]
     pub fn configured_name(&self) -> Option<&str> {
         self.configured.as_ref().map(|set| set.name.as_str())
     }
 
     /// The set, package and manifest this request edits.
+    #[must_use]
     pub fn target(&self) -> DepTarget {
         DepTarget {
             set: self.set,
@@ -505,6 +519,7 @@ impl UpdateRequest {
     }
 
     /// A request that widens `target` to `version`.
+    #[must_use]
     pub fn for_target(
         target: &DepTarget,
         version: WidenVersion,
@@ -525,7 +540,7 @@ impl UpdateRequest {
         }
     }
 
-    /// This request aimed at `dep_version`; a floor applies only to a MODULE.bazel bazel_dep.
+    /// This request aimed at `dep_version`; a floor applies only to a MODULE.bazel `bazel_dep`.
     pub fn with_dep_version(mut self, dep_version: DepVersion) -> Result<UpdateRequest, EditError> {
         if dep_version != DepVersion::Tested
             && (self.set != UpdateSet::Bazel
@@ -551,6 +566,7 @@ impl UpdateRequest {
     }
 
     /// This pins request carrying the rewritten `pins.json` text.
+    #[must_use]
     pub fn with_resolved_pins(&self, text: String) -> UpdateRequest {
         UpdateRequest {
             resolved_pins: Some(text),
@@ -794,9 +810,14 @@ pub(crate) mod plans;
 #[path = "request_pyproject.rs"]
 pub(crate) mod pyproject;
 
-use cargo::*;
+use cargo::plan_cargo_toml;
 use opam::plan_opam;
-use plans::*;
+use plans::{
+    is_target_shape, plan_bazelversion, plan_cabal, plan_composer_json, plan_cpanfile,
+    plan_gemfile, plan_github_workflow, plan_go_mod, plan_julia_project, plan_maven_module_bazel,
+    plan_mix_exs, plan_module_bazel, plan_oci_pull, plan_package_json, plan_package_swift,
+    plan_paket_dependencies, plan_pubspec, validate_package,
+};
 use pyproject::plan_pyproject_toml;
 
 #[cfg(test)]

@@ -1,3 +1,4 @@
+#[must_use]
 pub fn invalid_token(error: &clap::Error) -> String {
     match error.get(clap::error::ContextKind::InvalidArg) {
         Some(clap::error::ContextValue::String(token)) => token.clone(),
@@ -8,6 +9,7 @@ pub fn invalid_token(error: &clap::Error) -> String {
     }
 }
 
+#[must_use]
 pub fn rejected_value(error: &clap::Error) -> Option<String> {
     let invalid = error.get(clap::error::ContextKind::InvalidValue)?;
     let raw = if let clap::error::ContextValue::String(value) = invalid {
@@ -30,18 +32,22 @@ pub fn recover_unknown_token(args: &[String], token: &str) -> String {
         .map_or(token.to_owned(), Clone::clone)
 }
 
+#[must_use]
 pub fn leading_flag(token: &str) -> &str {
     token.split_whitespace().next().unwrap_or(token)
 }
 
+#[must_use]
 pub fn unknown_token(error: &clap::Error, args: &[String]) -> String {
     recover_unknown_token(args, &invalid_token(error))
 }
 
+#[must_use]
 pub fn missing_value_flag(error: &clap::Error) -> String {
     leading_flag(&invalid_token(error)).to_owned()
 }
 
+#[must_use]
 pub fn parse_error(error: &clap::Error, args: &[String]) -> String {
     let kind = error.kind();
     if kind == clap::error::ErrorKind::UnknownArgument {
@@ -59,6 +65,7 @@ pub fn parse_error(error: &clap::Error, args: &[String]) -> String {
     }
 }
 
+#[must_use]
 pub fn first_line(error: &clap::Error) -> String {
     error
         .to_string()
@@ -148,7 +155,7 @@ mod tests {
         let help = clap::Error::new(clap::error::ErrorKind::MissingRequiredArgument);
         let line = parse_error(&help, &[]);
         assert_eq!(line, first_line(&help));
-        assert!(!line.is_empty());
+        assert_ne!(line, "");
     }
 
     #[test]

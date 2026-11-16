@@ -45,6 +45,7 @@ pub fn uri(path: &Path) -> Result<String, UriError> {
 }
 
 /// Returns one path without its verbatim prefix.
+#[must_use]
 pub fn without_verbatim(path: &Path) -> PathBuf {
     let Some(text) = path.to_str() else {
         return path.to_path_buf();

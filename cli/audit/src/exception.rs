@@ -18,6 +18,7 @@ pub struct RiskException {
 }
 
 impl RiskException {
+    #[must_use]
     pub fn entry_label(&self) -> String {
         format!(
             "{} on {}",
@@ -38,15 +39,18 @@ pub struct UncoveredAcceptance {
 }
 
 impl UncoveredAcceptance {
+    #[must_use]
     pub fn entry_label(&self) -> String {
         or_unknown(&self.set).to_owned()
     }
 }
 
+#[must_use]
 pub fn or_unknown(value: &str) -> &str {
     if value.trim().is_empty() { "?" } else { value }
 }
 
+#[must_use]
 pub fn line_of(text: &str, offset: usize) -> usize {
     let end = offset.min(text.len());
     1 + text
@@ -75,6 +79,7 @@ impl Default for SecurityPolicy {
 }
 
 impl SecurityPolicy {
+    #[must_use]
     pub fn fails_on(&self, kind: AdvisoryKind) -> bool {
         self.fail_on.contains(&kind)
     }
@@ -134,6 +139,7 @@ pub fn validate_exception(exception: &RiskException, today: &str) -> Result<(), 
 }
 
 /// The exceptions in `set` that are complete and not yet expired on `today`.
+#[must_use]
 pub fn live_exceptions_for_set<'a>(
     policy: &'a SecurityPolicy,
     set: &str,
@@ -168,11 +174,11 @@ pub fn validate_uncovered(
             set: acceptance.set.clone(),
             value,
         },
-        other @ ExceptionProblem::MissingField { .. }
-        | other @ ExceptionProblem::MissingUncoveredField { .. }
-        | other @ ExceptionProblem::UncoveredInvalidDate { .. }
-        | other @ ExceptionProblem::UncoveredExpired { .. }
-        | other @ ExceptionProblem::Obsolete { .. } => other,
+        other @ (ExceptionProblem::MissingField { .. }
+        | ExceptionProblem::MissingUncoveredField { .. }
+        | ExceptionProblem::UncoveredInvalidDate { .. }
+        | ExceptionProblem::UncoveredExpired { .. }
+        | ExceptionProblem::Obsolete { .. }) => other,
     })
 }
 
@@ -183,16 +189,17 @@ pub fn check_expiry(expires: &str, today: &str) -> Result<(), ExceptionProblem> 
             ExceptionProblem::Expired { expires, today }
         }
         ConventionProblem::InvalidDate { value } => ExceptionProblem::InvalidDate { value },
-        other @ ConventionProblem::MissingSchemaVersion
-        | other @ ConventionProblem::BadSchemaVersion { .. }
-        | other @ ConventionProblem::UnsupportedSchemaVersion { .. }
-        | other @ ConventionProblem::EmptyField { .. }
-        | other @ ConventionProblem::BadPattern { .. } => ExceptionProblem::InvalidDate {
+        other @ (ConventionProblem::MissingSchemaVersion
+        | ConventionProblem::BadSchemaVersion { .. }
+        | ConventionProblem::UnsupportedSchemaVersion { .. }
+        | ConventionProblem::EmptyField { .. }
+        | ConventionProblem::BadPattern { .. }) => ExceptionProblem::InvalidDate {
             value: other.to_string(),
         },
     })
 }
 
+#[must_use]
 pub fn cargo_assess(scope: &str, version: &str) -> VersionScope {
     if scope.trim().is_empty() {
         return VersionScope::Unaffected;
@@ -211,6 +218,7 @@ pub fn cargo_assess(scope: &str, version: &str) -> VersionScope {
 }
 
 #[cfg(test)]
+#[must_use]
 pub fn version_in_scope(scope: &str, version: &str) -> bool {
     cargo_assess(scope, version) == VersionScope::Affected
 }

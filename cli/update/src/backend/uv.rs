@@ -1,4 +1,7 @@
-use super::*;
+use super::{
+    BackendError, BackendPlan, CheckPlan, Path, ResolvedSet, Selection, UV_HOST_ENV,
+    UV_HOST_ENV_REASON, UvClosure, configured_uv_argv,
+};
 
 pub(super) fn plan(
     _workspace: &Path,

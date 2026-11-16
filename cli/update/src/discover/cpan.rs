@@ -1,4 +1,4 @@
-//! Lists modules whose newest release on MetaCPAN is newer than the version in the manifest.
+//! Lists modules whose newest release on `MetaCPAN` is newer than the version in the manifest.
 
 use dx_error::DxError;
 
@@ -161,10 +161,9 @@ mod tests {
     fn developer_releases_need_the_prerelease_flag() {
         let only = ["Dev".to_owned()];
         let text = [CPANFILE.to_owned()];
-        assert!(
-            outdated("perl", &text, &only, false, DEFAULT_BASE, &api)
-                .candidates
-                .is_empty()
+        assert_eq!(
+            outdated("perl", &text, &only, false, DEFAULT_BASE, &api).candidates,
+            [] as [crate::discover::Candidate; 0]
         );
         let found = outdated("perl", &text, &only, true, DEFAULT_BASE, &api);
         assert!(found.candidates[0].prerelease);

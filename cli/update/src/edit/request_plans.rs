@@ -1,4 +1,4 @@
-use super::*;
+use super::{DepVersion, EditError, UpdateSet, WORKFLOW_DIR, WidenVersion};
 use dx_adopt::lock_hubs::manifest_of;
 use dx_error::DxError;
 
@@ -169,29 +169,27 @@ fn module_error(package: &str) -> impl Fn(dx_module_bazel::ModuleError) -> EditE
             package: package.to_owned(),
             count,
         },
-        other @ dx_module_bazel::ModuleError::Syntax { .. }
-        | other @ dx_module_bazel::ModuleError::StarlarkSyntax { .. }
-        | other @ dx_module_bazel::ModuleError::ComputedName { .. }
-        | other @ dx_module_bazel::ModuleError::MissingVersion { .. }
-        | other @ dx_module_bazel::ModuleError::ComputedVersion { .. }
-        | other @ dx_module_bazel::ModuleError::ComputedArtifacts { .. }
-        | other @ dx_module_bazel::ModuleError::ComputedCargoHub { .. }
-        | other @ dx_module_bazel::ModuleError::ComputedMavenHub { .. }
-        | other @ dx_module_bazel::ModuleError::ComputedHub { .. }
-        | other @ dx_module_bazel::ModuleError::UnsafeString { .. }
-        | other @ dx_module_bazel::ModuleError::AlreadyDeclared { .. }
-        | other @ dx_module_bazel::ModuleError::NoInsertPoint { .. }
-        | other @ dx_module_bazel::ModuleError::OverrideNotFound { .. }
-        | other @ dx_module_bazel::ModuleError::OverrideAmbiguous { .. }
-        | other @ dx_module_bazel::ModuleError::OverrideComputedName { .. }
-        | other @ dx_module_bazel::ModuleError::OverrideMissingVersion { .. }
-        | other @ dx_module_bazel::ModuleError::OverrideComputedVersion { .. }
-        | other @ dx_module_bazel::ModuleError::UnsafeComment { .. } => {
-            EditError::UnsupportedManifest {
-                manifest: "MODULE.bazel".to_owned(),
-                reason: other.to_string(),
-            }
-        }
+        other @ (dx_module_bazel::ModuleError::Syntax { .. }
+        | dx_module_bazel::ModuleError::StarlarkSyntax { .. }
+        | dx_module_bazel::ModuleError::ComputedName { .. }
+        | dx_module_bazel::ModuleError::MissingVersion { .. }
+        | dx_module_bazel::ModuleError::ComputedVersion { .. }
+        | dx_module_bazel::ModuleError::ComputedArtifacts { .. }
+        | dx_module_bazel::ModuleError::ComputedCargoHub { .. }
+        | dx_module_bazel::ModuleError::ComputedMavenHub { .. }
+        | dx_module_bazel::ModuleError::ComputedHub { .. }
+        | dx_module_bazel::ModuleError::UnsafeString { .. }
+        | dx_module_bazel::ModuleError::AlreadyDeclared { .. }
+        | dx_module_bazel::ModuleError::NoInsertPoint { .. }
+        | dx_module_bazel::ModuleError::OverrideNotFound { .. }
+        | dx_module_bazel::ModuleError::OverrideAmbiguous { .. }
+        | dx_module_bazel::ModuleError::OverrideComputedName { .. }
+        | dx_module_bazel::ModuleError::OverrideMissingVersion { .. }
+        | dx_module_bazel::ModuleError::OverrideComputedVersion { .. }
+        | dx_module_bazel::ModuleError::UnsafeComment { .. }) => EditError::UnsupportedManifest {
+            manifest: "MODULE.bazel".to_owned(),
+            reason: other.to_string(),
+        },
     }
 }
 
@@ -1129,7 +1127,7 @@ pub(super) fn plan_julia_project(
             }
             match old.chars().next() {
                 Some(prefix @ ('=' | '~')) => format!("{prefix}{new}"),
-                Some('^') | Some('0'..='9') => new.to_string(),
+                Some('^' | '0'..='9') => new.to_string(),
                 _ => return Err(unsupported("the compat entry is not a plain version")),
             }
         }

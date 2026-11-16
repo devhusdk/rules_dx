@@ -1,4 +1,4 @@
-//! Lists PyPI dependencies whose latest release is outside the declared specifier.
+//! Lists `PyPI` dependencies whose latest release is outside the declared specifier.
 
 use dx_error::DxError;
 
@@ -11,7 +11,7 @@ use toml_edit::{DocumentMut, Item};
 
 pub const DEFAULT_BASE: &str = "https://pypi.org/pypi";
 
-/// Checks each registry requirement of the manifest files against PyPI at `base`.
+/// Checks each registry requirement of the manifest files against `PyPI` at `base`.
 pub fn outdated(
     set: &str,
     manifests: &[String],
@@ -91,7 +91,7 @@ pub fn outdated(
     found
 }
 
-/// The newest stable release of `name` on PyPI at `base`.
+/// The newest stable release of `name` on `PyPI` at `base`.
 pub fn latest_stable(name: &str, base: &str, fetch: &dyn Fetch) -> Result<String, DxError> {
     let body = fetch.get(&format!("{base}/{name}/json"))?;
     newest(&body, false).map(|(version, _)| version.to_string())
@@ -287,7 +287,10 @@ test = ["grouped<3", { include-group = "dev" }]
         let found = run_with(&["pre".to_owned()], true);
         assert_eq!(found.candidates[0].latest, "2.0rc1");
         assert!(found.candidates[0].prerelease);
-        assert!(run(&["pre".to_owned()]).candidates.is_empty());
+        assert_eq!(
+            run(&["pre".to_owned()]).candidates,
+            [] as [crate::discover::Candidate; 0]
+        );
     }
 
     #[test]
@@ -352,7 +355,7 @@ test = ["grouped<3", { include-group = "dev" }]
     fn the_package_filter_limits_lookups() {
         let found = run(&["old-pkg".to_owned()]);
         assert_eq!(found.candidates.len(), 1);
-        assert!(found.errors.is_empty());
+        assert_eq!(found.errors, [] as [crate::discover::LookupError; 0]);
     }
 
     #[test]

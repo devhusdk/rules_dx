@@ -1,4 +1,4 @@
-use super::*;
+use super::{EditError, WidenVersion};
 
 pub(super) fn plan_cargo_toml(
     manifest: &str,
@@ -145,7 +145,7 @@ pub(super) fn cargo_table_shape(table: &toml_edit::Table) -> CargoDepShape {
 pub(super) fn cargo_dependency_table_paths(doc: &toml_edit::DocumentMut) -> Vec<Vec<String>> {
     let mut paths: Vec<Vec<String>> = Vec::new();
     for name in ["dependencies", "dev-dependencies", "build-dependencies"] {
-        if doc.get(name).is_some_and(|item| item.is_table()) {
+        if doc.get(name).is_some_and(toml_edit::Item::is_table) {
             paths.push(vec![name.to_owned()]);
         }
     }
@@ -155,18 +155,21 @@ pub(super) fn cargo_dependency_table_paths(doc: &toml_edit::DocumentMut) -> Vec<
         .is_some_and(|workspace| {
             workspace
                 .get("dependencies")
-                .is_some_and(|item| item.is_table())
+                .is_some_and(toml_edit::Item::is_table)
         })
     {
         paths.push(vec!["workspace".to_owned(), "dependencies".to_owned()]);
     }
     if let Some(targets) = doc.get("target").and_then(|item| item.as_table()) {
-        for (target_name, target_item) in targets.iter() {
+        for (target_name, target_item) in targets {
             let Some(target_table) = target_item.as_table() else {
                 continue;
             };
             for kind in ["dependencies", "dev-dependencies", "build-dependencies"] {
-                if target_table.get(kind).is_some_and(|item| item.is_table()) {
+                if target_table
+                    .get(kind)
+                    .is_some_and(toml_edit::Item::is_table)
+                {
                     paths.push(vec![
                         "target".to_owned(),
                         target_name.to_owned(),
@@ -177,7 +180,7 @@ pub(super) fn cargo_dependency_table_paths(doc: &toml_edit::DocumentMut) -> Vec<
         }
     }
     if let Some(patch) = doc.get("patch").and_then(|item| item.as_table()) {
-        for (source, _) in patch.iter() {
+        for (source, _) in patch {
             paths.push(vec!["patch".to_owned(), source.to_owned()]);
         }
     }

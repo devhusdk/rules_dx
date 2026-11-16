@@ -163,7 +163,7 @@ fn parse_staged_rejects_syntax_and_shape() {
         Err(Error::Staged { .. })
     ));
     assert!(matches!(
-        parse_staged(r#"{}"#, false),
+        parse_staged(r"{}", false),
         Err(Error::Staged { .. })
     ));
 }
@@ -293,7 +293,7 @@ fn generated_metadata_parses_on_its_platform() {
         let rel = std::env::var(var).expect("generated metadata path");
         let text = fs::read_to_string(&rel).expect("read generated metadata");
         let plans = parse_staged(&text, windows).expect("generated metadata accepted");
-        assert!(!plans.is_empty());
+        assert_ne!(plans, [] as [ToolPlan; 0]);
         let suffix_count = plans
             .iter()
             .flat_map(|plan| &plan.host_names)
@@ -339,7 +339,7 @@ fn error_display_names_every_variant() {
         },
     ];
     for error in &errors {
-        assert!(!format!("{error}").is_empty());
+        assert_ne!(format!("{error}"), "");
     }
     assert!(matches!(
         &errors[3],

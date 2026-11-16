@@ -3,6 +3,7 @@
 use crate::Error;
 
 /// The byte range of the block, including one trailing line break.
+#[must_use]
 pub fn span(text: &str, begin: &str, end: &str) -> Option<(usize, usize)> {
     let start = text.find(begin)?;
     let stop = start + text.get(start..)?.find(end)? + end.len();
@@ -18,11 +19,13 @@ pub fn span(text: &str, begin: &str, end: &str) -> Option<(usize, usize)> {
 }
 
 /// Whether the text has the begin marker but no end marker after it.
+#[must_use]
 pub fn orphaned(text: &str, begin: &str, end: &str) -> bool {
     text.contains(begin) && span(text, begin, end).is_none()
 }
 
 /// The line break the text uses.
+#[must_use]
 pub fn eol(text: &str) -> &'static str {
     if text.contains("\r\n") { "\r\n" } else { "\n" }
 }
@@ -37,24 +40,23 @@ pub fn merge(text: &str, begin: &str, end: &str, block: &str) -> Result<String, 
     }
     let eol = eol(text);
     let block = block.replace('\n', eol);
-    Ok(match span(text, begin, end) {
-        Some((start, stop)) => format!(
+    Ok(if let Some((start, stop)) = span(text, begin, end) {
+        format!(
             "{}{}{}",
             text.get(..start).unwrap_or_default(),
             block,
             text.get(stop..).unwrap_or_default()
-        ),
-        None => {
-            let mut out = text.to_owned();
-            if !out.is_empty() && !out.ends_with('\n') {
-                out.push_str(eol);
-            }
-            if !out.is_empty() {
-                out.push_str(eol);
-            }
-            out.push_str(&block);
-            out
+        )
+    } else {
+        let mut out = text.to_owned();
+        if !out.is_empty() && !out.ends_with('\n') {
+            out.push_str(eol);
         }
+        if !out.is_empty() {
+            out.push_str(eol);
+        }
+        out.push_str(&block);
+        out
     })
 }
 

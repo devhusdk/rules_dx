@@ -229,12 +229,12 @@ fn resolve_refuses_a_missing_artifact_file() {
             assert_eq!(label, "@dx_tools//:gitleaks");
             assert!(Path::new(&path).ends_with("external/gone/tool"), "{path}");
         }
-        other @ ResolveError::Usage { .. }
-        | other @ ResolveError::CqueryFailed { .. }
-        | other @ ResolveError::NoArtifact { .. }
-        | other @ ResolveError::InfoFailed { .. }
-        | other @ ResolveError::MissingOutput { .. }
-        | other @ ResolveError::EnvWrite { .. } => {
+        other @ (ResolveError::Usage { .. }
+        | ResolveError::CqueryFailed { .. }
+        | ResolveError::NoArtifact { .. }
+        | ResolveError::InfoFailed { .. }
+        | ResolveError::MissingOutput { .. }
+        | ResolveError::EnvWrite { .. }) => {
             panic!("missing files must fail closed: {other}")
         }
     }

@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::LcovError;
 
-/// Converts a Clover XML report (PHPUnit, Xdebug, pcov) to LCOV text.
+/// Converts a Clover XML report (`PHPUnit`, Xdebug, pcov) to LCOV text.
 ///
 /// Only `stmt` lines count. Files appear in path order, lines in line order.
 pub fn clover_to_lcov(xml: &str) -> Result<String, LcovError> {

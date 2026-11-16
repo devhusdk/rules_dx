@@ -85,14 +85,17 @@ pub struct Registry {
 }
 
 impl Registry {
+    #[must_use]
     pub fn find(&self, name: &str) -> Option<&DependencySet> {
         self.sets.iter().find(|set| set.name == name)
     }
 
+    #[must_use]
     pub fn names(&self) -> Vec<&str> {
         self.sets.iter().map(|set| set.name.as_str()).collect()
     }
 
+    #[must_use]
     pub fn name_list(&self) -> String {
         self.names().join(", ")
     }
@@ -115,6 +118,7 @@ pub struct ResolvedSet {
 }
 
 impl ResolvedSet {
+    #[must_use]
     pub fn of(set: &DependencySet) -> ResolvedSet {
         ResolvedSet {
             name: set.name.clone(),
@@ -658,7 +662,7 @@ fn has_drive_prefix(path: &str) -> bool {
 }
 
 pub fn manifest_dir(manifests: &[String]) -> String {
-    let first = manifests.first().map(String::as_str).unwrap_or("");
+    let first = manifests.first().map_or("", String::as_str);
     match first.rsplit_once('/') {
         Some((dir, _)) => dir.to_owned(),
         None => ".".to_owned(),
@@ -689,7 +693,7 @@ fn check_conflicts(sets: &[DependencySet]) -> Result<(), DependencySetsError> {
         }
     }
     for (path, mut names) in writers {
-        names.sort();
+        names.sort_unstable();
         names.dedup();
         if names.len() > 1 {
             return Err(DependencySetsError::ConflictingOwnership {
@@ -1032,6 +1036,7 @@ fn declared_file_path(target: &str) -> Option<String> {
     (!path.is_empty() && !path.contains(':')).then(|| path.to_owned())
 }
 
+#[must_use]
 pub fn owning_sets<'a>(registry: &'a Registry, target: &str) -> Vec<&'a str> {
     if target.starts_with('@') {
         return Vec::new();
@@ -1051,7 +1056,7 @@ pub fn owning_sets<'a>(registry: &'a Registry, target: &str) -> Vec<&'a str> {
             .map(|set| set.name.as_str())
             .collect();
         if !owners.is_empty() {
-            owners.sort();
+            owners.sort_unstable();
             return owners;
         }
     }
@@ -1096,7 +1101,7 @@ pub fn owning_sets<'a>(registry: &'a Registry, target: &str) -> Vec<&'a str> {
         .map(|set| set.name.as_str())
         .filter(|name| owners.contains(name))
         .collect();
-    ordered.sort();
+    ordered.sort_unstable();
     ordered
 }
 
@@ -1233,17 +1238,17 @@ pub fn check_backend_settings(
         }
         Ecosystem::Maven => check_maven_hub(workspace, set).map(|_| ()),
         Ecosystem::Go => check_go_layout(workspace, set),
-        other @ Ecosystem::Bazel
-        | other @ Ecosystem::Ruby
-        | other @ Ecosystem::PowerShell
-        | other @ Ecosystem::Nuget
-        | other @ Ecosystem::Pub
-        | other @ Ecosystem::Dub
-        | other @ Ecosystem::Fpm
-        | other @ Ecosystem::Zig
-        | other @ Ecosystem::LuaRocks
-        | other @ Ecosystem::SwiftPm
-        | other @ Ecosystem::Bicep => match other.lockfiles().first() {
+        other @ (Ecosystem::Bazel
+        | Ecosystem::Ruby
+        | Ecosystem::PowerShell
+        | Ecosystem::Nuget
+        | Ecosystem::Pub
+        | Ecosystem::Dub
+        | Ecosystem::Fpm
+        | Ecosystem::Zig
+        | Ecosystem::LuaRocks
+        | Ecosystem::SwiftPm
+        | Ecosystem::Bicep) => match other.lockfiles().first() {
             Some(lock) if other.lock_required() => check_pinned_lock(set, lock),
             _ => Ok(()),
         },
@@ -1304,11 +1309,13 @@ fn cpan_json_lock(set: &ResolvedSet) -> Option<&String> {
 }
 
 /// The `//pkg:name` of the first `rule` call in the BUILD file of the set's directory.
+#[must_use]
 pub fn julia_target_label(workspace: &Path, set: &ResolvedSet, rule: &str) -> Option<String> {
     target_label_in(workspace, &set.dir, rule)
 }
 
 /// The `//pkg:name` of the first `rule` call in the BUILD file of `dir`.
+#[must_use]
 pub fn target_label_in(workspace: &Path, dir: &str, rule: &str) -> Option<String> {
     let package = if dir == "." { "" } else { dir };
     let text = ["BUILD.bazel", "BUILD"]
@@ -1439,11 +1446,12 @@ fn check_composer_layout(set: &ResolvedSet) -> Result<(), DependencySetsError> {
     check_pinned_lock(set, composer_lock()?)
 }
 
-/// The name `@<name>` resolves the set's crate_universe hub by in the root module.
+/// The name `@<name>` resolves the set's `crate_universe` hub by in the root module.
 ///
 /// This is the `use_repo` name, which differs from the hub's own `name` (the value
 /// `CARGO_BAZEL_REPIN_ONLY` must carry) when the module renames it. None when the set
 /// is not a valid cargo set; callers run `check_backend_settings` first.
+#[must_use]
 pub fn cargo_fetch_repository(workspace: &Path, set: &ResolvedSet) -> Option<String> {
     check_cargo_hub(workspace, set).ok()
 }
@@ -1623,7 +1631,7 @@ fn check_maven_hub(workspace: &Path, set: &ResolvedSet) -> Result<MavenHub, Depe
 
 /// Refuses a check when the pinned state cannot prove a stale lock fails closed.
 ///
-/// rules_jvm_external only fails a stale lock when `fail_if_repin_required` is true and the
+/// `rules_jvm_external` only fails a stale lock when `fail_if_repin_required` is true and the
 /// lock carries its signatures; an empty or old-format lock merely prints a note.
 pub fn check_lock_ready(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
     match set.ecosystem {

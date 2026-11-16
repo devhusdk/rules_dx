@@ -1,4 +1,4 @@
-use super::*;
+use super::{EditError, WidenVersion};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Kind {
@@ -116,7 +116,7 @@ pub(super) fn plan_opam(
                 if depth == 0
                     && text_of(token).is_some_and(|text| text.trim_matches('"') == package) =>
             {
-                hits.push(i)
+                hits.push(i);
             }
             Kind::Str | Kind::Op | Kind::Other(_) => {}
         }

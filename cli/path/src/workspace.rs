@@ -25,11 +25,13 @@ impl WorkspaceRelativePath {
     }
 
     /// The canonical spelling, with forward slashes and no empty component.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
 
     /// Joins the path onto a root the caller owns.
+    #[must_use]
     pub fn join_to_root(&self, root: &Path) -> PathBuf {
         root.join(&self.0)
     }

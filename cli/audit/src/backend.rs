@@ -361,8 +361,11 @@ mod tests {
             sets_without_coverage(["uv", "cargo", "uv", "npm-adopt", "npm"]),
             vec!["uv"]
         );
-        assert!(sets_without_coverage(["cargo", "npm", "maven", "nuget", "go"]).is_empty());
-        assert!(
+        assert_eq!(
+            sets_without_coverage(["cargo", "npm", "maven", "nuget", "go"]),
+            [] as [&str; 0]
+        );
+        assert_eq!(
             sets_without_coverage([
                 "cargo",
                 "npm",
@@ -374,8 +377,8 @@ mod tests {
                 "powershell",
                 "go",
                 "ruby"
-            ])
-            .is_empty()
+            ]),
+            [] as [&str; 0]
         );
         assert_eq!(sets_without_coverage(["unknown-set"]), vec!["unknown-set"]);
     }

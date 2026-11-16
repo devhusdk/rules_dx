@@ -44,6 +44,7 @@ pub struct Call {
 
 impl Call {
     /// The value passed for keyword `key`.
+    #[must_use]
     pub fn arg(&self, key: &str) -> Option<&Value> {
         self.named
             .iter()
@@ -52,6 +53,7 @@ impl Call {
     }
 
     /// The literal string passed for keyword `key`.
+    #[must_use]
     pub fn str(&self, key: &str) -> Option<&str> {
         match self.arg(key) {
             Some(Value::Str(literal)) => Some(&literal.value),
@@ -60,6 +62,7 @@ impl Call {
     }
 
     /// The literal strings of the list passed for keyword `key`.
+    #[must_use]
     pub fn str_list(&self, key: &str) -> Vec<&str> {
         match self.arg(key) {
             Some(Value::List(items)) => items
@@ -186,7 +189,7 @@ impl NewTag {
     }
 }
 
-/// One rules_rust `crate.from_cargo` tag: a crate_universe hub and the manifests it reads.
+/// One `rules_rust` `crate.from_cargo` tag: a `crate_universe` hub and the manifests it reads.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CargoHub<'a> {
     pub name: &'a str,
@@ -200,14 +203,14 @@ pub struct CargoHub<'a> {
 /// How a `maven.install` tag sets `fail_if_repin_required`.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RepinPolicy {
-    /// Not set, so the rules_jvm_external default (true) applies.
+    /// Not set, so the `rules_jvm_external` default (true) applies.
     Unset,
     True,
     False,
     Computed,
 }
 
-/// One rules_jvm_external `maven.install` tag: a hub and its literal lock file label.
+/// One `rules_jvm_external` `maven.install` tag: a hub and its literal lock file label.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MavenInstall<'a> {
     pub name: &'a str,
@@ -216,7 +219,7 @@ pub struct MavenInstall<'a> {
     pub line: usize,
 }
 
-/// One aspect_rules_js `npm.npm_translate_lock` tag.
+/// One `aspect_rules_js` `npm.npm_translate_lock` tag.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NpmLock<'a> {
     pub name: &'a str,
@@ -224,7 +227,7 @@ pub struct NpmLock<'a> {
     pub line: usize,
 }
 
-/// One rules_py `uv.project` tag.
+/// One `rules_py` `uv.project` tag.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct UvProject<'a> {
     pub hub_name: &'a str,
@@ -257,7 +260,7 @@ pub struct CpanInstall<'a> {
     pub line: usize,
 }
 
-/// One `from_manifest` tag of the rules_julia `pkg` extension.
+/// One `from_manifest` tag of the `rules_julia` `pkg` extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct JuliaManifest<'a> {
     pub name: &'a str,
@@ -265,7 +268,7 @@ pub struct JuliaManifest<'a> {
     pub line: usize,
 }
 
-/// One `lock` tag of the rules_dx composer extension.
+/// One `lock` tag of the `rules_dx` composer extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ComposerLock<'a> {
     pub name: &'a str,
@@ -273,7 +276,7 @@ pub struct ComposerLock<'a> {
     pub line: usize,
 }
 
-/// One `luarocks.lock` tag of the rules_dx luarocks extension.
+/// One `luarocks.lock` tag of the `rules_dx` luarocks extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LuaRocksLock<'a> {
     pub name: &'a str,
@@ -281,7 +284,7 @@ pub struct LuaRocksLock<'a> {
     pub line: usize,
 }
 
-/// One `fpm.lock` tag of the rules_dx Fortran extension.
+/// One `fpm.lock` tag of the `rules_dx` Fortran extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FpmLock<'a> {
     pub name: &'a str,
@@ -289,7 +292,7 @@ pub struct FpmLock<'a> {
     pub line: usize,
 }
 
-/// One `zig.lock` tag of the rules_dx zig extension.
+/// One `zig.lock` tag of the `rules_dx` zig extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ZigLock<'a> {
     pub name: &'a str,
@@ -297,7 +300,7 @@ pub struct ZigLock<'a> {
     pub line: usize,
 }
 
-/// One `dub.lock` tag of the rules_dx dub extension.
+/// One `dub.lock` tag of the `rules_dx` dub extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DubLock<'a> {
     pub name: &'a str,
@@ -305,7 +308,7 @@ pub struct DubLock<'a> {
     pub line: usize,
 }
 
-/// One `nuget.lock` tag of the rules_dx nuget extension.
+/// One `nuget.lock` tag of the `rules_dx` nuget extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NugetLock<'a> {
     pub name: &'a str,
@@ -313,7 +316,7 @@ pub struct NugetLock<'a> {
     pub line: usize,
 }
 
-/// One `ansible.lock` tag of the rules_dx ansible extension.
+/// One `ansible.lock` tag of the `rules_dx` ansible extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AnsibleCollections<'a> {
     pub name: &'a str,
@@ -321,7 +324,7 @@ pub struct AnsibleCollections<'a> {
     pub line: usize,
 }
 
-/// One `bicep.lock` tag of the rules_dx bicep extension.
+/// One `bicep.lock` tag of the `rules_dx` bicep extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BicepLock<'a> {
     pub name: &'a str,
@@ -353,7 +356,7 @@ pub struct HaskellPackages<'a> {
     pub line: usize,
 }
 
-/// One `pub.from_lock` tag of rules_dart or `flutter.pub` tag of rules_flutter.
+/// One `pub.from_lock` tag of `rules_dart` or `flutter.pub` tag of `rules_flutter`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PubLock<'a> {
     pub name: &'a str,
@@ -361,7 +364,7 @@ pub struct PubLock<'a> {
     pub line: usize,
 }
 
-/// One `hex.lock` tag of rules_dx or this repository.
+/// One `hex.lock` tag of `rules_dx` or this repository.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MixLock<'a> {
     pub name: &'a str,
@@ -429,11 +432,13 @@ impl ModuleFile {
     }
 
     /// The source the file was parsed from.
+    #[must_use]
     pub fn source(&self) -> &str {
         &self.source
     }
 
     /// Every top-level call in source order.
+    #[must_use]
     pub fn calls(&self) -> &[Call] {
         &self.calls
     }
@@ -632,6 +637,7 @@ impl ModuleFile {
     }
 
     /// The repository name module `name` is visible as, if it is declared.
+    #[must_use]
     pub fn repo_name(&self, name: &str) -> Option<&str> {
         self.calls_named("bazel_dep")
             .find(|call| call.str("name") == Some(name))
@@ -639,6 +645,7 @@ impl ModuleFile {
     }
 
     /// The `use_extension` calls with literal arguments, as `(bzl_file label, extension name)`.
+    #[must_use]
     pub fn extensions(&self) -> Vec<(&str, &str)> {
         self.calls_named("use_extension")
             .filter_map(|call| {
@@ -651,6 +658,7 @@ impl ModuleFile {
     }
 
     /// The variables bound to `use_extension(bzl, name)` calls, with their line.
+    #[must_use]
     pub fn extension_bindings(&self, bzl: &str, name: &str) -> Vec<(&str, usize)> {
         self.calls_named("use_extension")
             .filter_map(|call| {
@@ -664,8 +672,9 @@ impl ModuleFile {
             .collect()
     }
 
-    /// The variables bound to the rules_dx hub extension `extension` (like
+    /// The variables bound to the `rules_dx` hub extension `extension` (like
     /// `@rules_dx//rust:extensions.bzl`) or to the upstream extension it wraps, with their line.
+    #[must_use]
     pub fn hub_bindings(&self, extension: &str, name: &str) -> Vec<(&str, usize)> {
         let Some(lang) = extension
             .strip_prefix("@rules_dx//")
@@ -695,6 +704,7 @@ impl ModuleFile {
     }
 
     /// The literal repo names `use_repo(binding, ...)` imports, with the call's line.
+    #[must_use]
     pub fn use_repos(&self, binding: &str) -> Vec<(&str, usize)> {
         let mut out = Vec::new();
         for call in self.calls_named("use_repo") {
@@ -710,7 +720,7 @@ impl ModuleFile {
         out
     }
 
-    /// Every literal coordinate in the `artifacts` of rules_jvm_external `maven.install` tags.
+    /// Every literal coordinate in the `artifacts` of `rules_jvm_external` `maven.install` tags.
     pub fn maven_artifacts(&self) -> Result<Vec<&Str>, ModuleError> {
         self.maven_artifacts_matching(None)
     }
@@ -766,7 +776,7 @@ impl ModuleFile {
         Ok(artifacts)
     }
 
-    /// Every rules_rust `crate.from_cargo` tag in source order, with its literal manifests.
+    /// Every `rules_rust` `crate.from_cargo` tag in source order, with its literal manifests.
     pub fn cargo_hubs(&self) -> Result<Vec<CargoHub<'_>>, ModuleError> {
         let proxies = self.crate_proxies();
         let mut hubs = Vec::new();
@@ -824,8 +834,9 @@ impl ModuleFile {
     /// The name a `from_cargo` hub is visible under in the root module: `x` for
     /// `use_repo(crate, "x")`, `alias` for `use_repo(crate, alias = "x")`. None when
     /// the hub is not imported. Bazel resolves `@<name>` in the root module by this
-    /// visible name, while crate_universe compares `CARGO_BAZEL_REPIN_ONLY` with the
+    /// visible name, while `crate_universe` compares `CARGO_BAZEL_REPIN_ONLY` with the
     /// hub's own name.
+    #[must_use]
     pub fn cargo_apparent(&self, hub: &CargoHub<'_>) -> Option<&str> {
         let proxies = self.crate_proxies();
         for call in self.calls_named("use_repo") {
@@ -850,6 +861,7 @@ impl ModuleFile {
     }
 
     /// The hub name and literal `libs_versions_toml` label of every `maven.from_toml` tag.
+    #[must_use]
     pub fn maven_from_tomls(&self) -> Vec<(&str, &str)> {
         let proxies = self.maven_proxies();
         self.calls
@@ -868,8 +880,8 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every rules_jvm_external `maven.install` tag in source order. The name defaults
-    /// to `maven`; a computed name or lock_file is an error.
+    /// Every `rules_jvm_external` `maven.install` tag in source order. The name defaults
+    /// to `maven`; a computed name or `lock_file` is an error.
     pub fn maven_installs(&self) -> Result<Vec<MavenInstall<'_>>, ModuleError> {
         let proxies = self.maven_proxies();
         let mut installs = Vec::new();
@@ -910,7 +922,7 @@ impl ModuleFile {
         Ok(installs)
     }
 
-    /// Every aspect_rules_js `npm.npm_translate_lock` tag in source order.
+    /// Every `aspect_rules_js` `npm.npm_translate_lock` tag in source order.
     pub fn npm_translate_locks(&self) -> Result<Vec<NpmLock<'_>>, ModuleError> {
         const TAG: &str = "npm.npm_translate_lock";
         self.tags(JS_MODULE, "npm:extensions.bzl", "npm", "npm_translate_lock")
@@ -925,7 +937,7 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every rules_py `uv.project` tag in source order.
+    /// Every `rules_py` `uv.project` tag in source order.
     pub fn uv_projects(&self) -> Result<Vec<UvProject<'_>>, ModuleError> {
         const TAG: &str = "uv.project";
         self.tags(PY_MODULE, "uv:extensions.bzl", "uv", "project")
@@ -941,7 +953,7 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every gazelle `go_deps.from_file` or rules_dx `go.from_file` tag that names a `go_mod`, in source order.
+    /// Every gazelle `go_deps.from_file` or `rules_dx` `go.from_file` tag that names a `go_mod`, in source order.
     pub fn go_deps_files(&self) -> Result<Vec<GoModFile<'_>>, ModuleError> {
         const TAG: &str = "go_deps.from_file";
         let mut out = Vec::new();
@@ -974,8 +986,8 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `pub.from_lock` tag of rules_dart or the rules_dx `dart/extensions.bzl` and
-    /// `flutter.pub` tag of rules_flutter, in source order within each extension.
+    /// Every `pub.from_lock` tag of `rules_dart` or the `rules_dx` `dart/extensions.bzl` and
+    /// `flutter.pub` tag of `rules_flutter`, in source order within each extension.
     pub fn pub_locks(&self) -> Result<Vec<PubLock<'_>>, ModuleError> {
         let dart = self
             .tags(DART_MODULE, "dart/pub:extensions.bzl", "pub", "from_lock")
@@ -998,7 +1010,7 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `hex.lock` tag of rules_dx or this repository's `//elixir:extensions.bzl`.
+    /// Every `hex.lock` tag of `rules_dx` or this repository's `//elixir:extensions.bzl`.
     pub fn mix_locks(&self) -> Result<Vec<MixLock<'_>>, ModuleError> {
         const TAG: &str = "hex.lock";
         let external = self.tags(RUBY_MODULE, "elixir:extensions.bzl", "hex", "lock");
@@ -1015,7 +1027,7 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `lock` tag of the rules_dx composer extension in source order.
+    /// Every `lock` tag of the `rules_dx` composer extension in source order.
     pub fn composer_locks(&self) -> Result<Vec<ComposerLock<'_>>, ModuleError> {
         const TAG: &str = "php:extensions.bzl composer lock";
         self.tags(RUBY_MODULE, "php:extensions.bzl", "composer", "lock")
@@ -1029,7 +1041,7 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `luarocks.lock` tag of the rules_dx luarocks extension in source order.
+    /// Every `luarocks.lock` tag of the `rules_dx` luarocks extension in source order.
     pub fn luarocks_locks(&self) -> Result<Vec<LuaRocksLock<'_>>, ModuleError> {
         const TAG: &str = "luarocks.lock";
         self.tags(RUBY_MODULE, "lua:extensions.bzl", "luarocks", "lock")
@@ -1043,7 +1055,7 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `from_manifest` tag of the rules_julia `pkg` extension in source order.
+    /// Every `from_manifest` tag of the `rules_julia` `pkg` extension in source order.
     pub fn julia_manifests(&self) -> Result<Vec<JuliaManifest<'_>>, ModuleError> {
         const TAG: &str = "julia_pkg.from_manifest";
         self.tags(
@@ -1063,7 +1075,7 @@ impl ModuleFile {
         .collect()
     }
 
-    /// Every `swiftpm.lock` tag of the rules_dx swift extension in source order.
+    /// Every `swiftpm.lock` tag of the `rules_dx` swift extension in source order.
     pub fn swiftpm_locks(&self) -> Result<Vec<SwiftPmLock<'_>>, ModuleError> {
         const TAG: &str = "swiftpm.lock";
         self.dx_tags("swift", "swiftpm", "lock")
@@ -1077,7 +1089,7 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `cpan.lock` tag of the rules_dx extension in source order.
+    /// Every `cpan.lock` tag of the `rules_dx` extension in source order.
     pub fn cpan_installs(&self) -> Result<Vec<CpanInstall<'_>>, ModuleError> {
         const TAG: &str = "cpan.lock";
         self.dx_tags("perl", "cpan", "lock")
@@ -1091,7 +1103,7 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `fpm.lock` tag of the rules_dx Fortran extension in source order.
+    /// Every `fpm.lock` tag of the `rules_dx` Fortran extension in source order.
     pub fn fpm_locks(&self) -> Result<Vec<FpmLock<'_>>, ModuleError> {
         const TAG: &str = "fpm.lock";
         let own = self.tags_of("//fortran:extensions.bzl".to_owned(), "fpm", "lock");
@@ -1107,7 +1119,7 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `dub.lock` tag of the rules_dx dub extension in source order.
+    /// Every `dub.lock` tag of the `rules_dx` dub extension in source order.
     pub fn dub_locks(&self) -> Result<Vec<DubLock<'_>>, ModuleError> {
         const TAG: &str = "dub.lock";
         let own = self.tags_of("//d:extensions.bzl".to_owned(), "dub", "lock");
@@ -1123,7 +1135,7 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `nuget.lock` tag of the rules_dx nuget extension in source order.
+    /// Every `nuget.lock` tag of the `rules_dx` nuget extension in source order.
     pub fn nuget_locks(&self) -> Result<Vec<NugetLock<'_>>, ModuleError> {
         const TAG: &str = "nuget.lock";
         let own = self.tags_of("//csharp:extensions.bzl".to_owned(), "nuget", "lock");
@@ -1139,7 +1151,7 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `zig.lock` tag of the rules_dx zig extension in source order.
+    /// Every `zig.lock` tag of the `rules_dx` zig extension in source order.
     pub fn zig_locks(&self) -> Result<Vec<ZigLock<'_>>, ModuleError> {
         const TAG: &str = "zig.lock";
         let own = self.tags_of("//zig:extensions.bzl".to_owned(), "zig", "lock");
@@ -1155,7 +1167,7 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `ansible.lock` tag of the rules_dx ansible extension in source order.
+    /// Every `ansible.lock` tag of the `rules_dx` ansible extension in source order.
     pub fn ansible_collections(&self) -> Result<Vec<AnsibleCollections<'_>>, ModuleError> {
         const TAG: &str = "ansible.lock";
         let own = self.tags_of("//ansible:extensions.bzl".to_owned(), "ansible", "lock");
@@ -1176,7 +1188,7 @@ impl ModuleFile {
         .collect()
     }
 
-    /// Every `bicep.lock` tag of the rules_dx bicep extension in source order.
+    /// Every `bicep.lock` tag of the `rules_dx` bicep extension in source order.
     pub fn bicep_locks(&self) -> Result<Vec<BicepLock<'_>>, ModuleError> {
         const TAG: &str = "bicep.lock";
         let own = self.tags_of("//bicep:extensions.bzl".to_owned(), "bicep", "lock");
@@ -1224,7 +1236,7 @@ impl ModuleFile {
             .collect()
     }
 
-    /// The calls of `tag` on every binding of the rules_dx extension `name` in
+    /// The calls of `tag` on every binding of the `rules_dx` extension `name` in
     /// `<lang>/extensions.bzl`, named from a consumer or from this repository.
     fn dx_tags<'a>(
         &'a self,
@@ -1294,32 +1306,29 @@ impl ModuleFile {
                     .last()
                     .map(|call| (call.span.end, true))
             });
-        let out = match anchor {
-            Some((end, after_module)) => {
-                let at = line_end(&self.source, end);
-                let mut text = String::new();
-                if at == self.source.len() && !self.source.ends_with('\n') {
-                    text.push_str(eol);
-                }
-                if after_module {
-                    text.push_str(eol);
-                }
-                text.push_str(&line);
+        let out = if let Some((end, after_module)) = anchor {
+            let at = line_end(&self.source, end);
+            let mut text = String::new();
+            if at == self.source.len() && !self.source.ends_with('\n') {
                 text.push_str(eol);
-                splice(&self.source, at, &text)?
             }
-            None => {
-                let mut text = String::new();
-                if !self.source.is_empty() && !self.source.ends_with('\n') {
-                    text.push_str(eol);
-                }
-                if !self.source.trim().is_empty() {
-                    text.push_str(eol);
-                }
-                text.push_str(&line);
+            if after_module {
                 text.push_str(eol);
-                splice(&self.source, self.source.len(), &text)?
             }
+            text.push_str(&line);
+            text.push_str(eol);
+            splice(&self.source, at, &text)?
+        } else {
+            let mut text = String::new();
+            if !self.source.is_empty() && !self.source.ends_with('\n') {
+                text.push_str(eol);
+            }
+            if !self.source.trim().is_empty() {
+                text.push_str(eol);
+            }
+            text.push_str(&line);
+            text.push_str(eol);
+            splice(&self.source, self.source.len(), &text)?
         };
         let reparsed = ModuleFile::parse(&out)?;
         if reparsed.bazel_dep_version(name).map(|v| v.value.as_str()) != Ok(version) {
@@ -1406,7 +1415,7 @@ impl ModuleFile {
     }
 
     /// The source with Maven coordinate `coordinate` appended to the `artifacts` list of the
-    /// one rules_jvm_external `maven.install` tag that feeds the default `@maven` repository.
+    /// one `rules_jvm_external` `maven.install` tag that feeds the default `@maven` repository.
     pub fn insert_maven_artifact(&self, coordinate: &str) -> Result<String, ModuleError> {
         self.insert_maven_artifact_in("maven", coordinate)
     }
@@ -1536,7 +1545,8 @@ impl ModuleFile {
         Ok(out)
     }
 
-    /// The bindings of the `use_extension` calls for rules_jvm_external's `maven`.
+    /// The bindings of the `use_extension` calls for `rules_jvm_external`'s `maven`.
+    #[must_use]
     pub fn maven_proxies(&self) -> Vec<&str> {
         let repo = self.repo_name(MAVEN_MODULE).unwrap_or(MAVEN_MODULE);
         let label = format!("@{repo}//:extensions.bzl");
@@ -1557,7 +1567,10 @@ impl ModuleFile {
             (format!("@{repo}//crate_universe:extensions.bzl"), "crate"),
             (format!("@{dx}//rust:extensions.bzl"), "cargo"),
             ("//rust:extensions.bzl".to_owned(), "cargo"),
-            ("//third_party/rules_rust/crate_universe:extensions.bzl".to_owned(), "crate"),
+            (
+                "//third_party/rules_rust/crate_universe:extensions.bzl".to_owned(),
+                "crate",
+            ),
         ];
         self.calls_named("use_extension")
             .filter(|call| {
@@ -1606,6 +1619,7 @@ impl ModuleFile {
 /// (<https://bazel.build/external/module#version_format>): release identifiers first,
 /// numeric before alphanumeric and numerically among themselves, a prerelease below its
 /// release, build metadata ignored, and the empty version above every other.
+#[must_use]
 pub fn compare_module_versions(a: &str, b: &str) -> std::cmp::Ordering {
     use std::cmp::Ordering;
     fn split(version: &str) -> (Vec<&str>, Option<Vec<&str>>) {
@@ -1978,7 +1992,7 @@ fn include_parts(label: &str) -> Result<(&str, &str), String> {
     Ok((package, file))
 }
 
-/// Resolves an include label to a workspace-relative path under module_dir.
+/// Resolves an include label to a workspace-relative path under `module_dir`.
 pub fn include_rel(module_dir: &str, label: &str) -> Result<String, String> {
     let (package, file) = include_parts(label)?;
     let mut rel = module_dir.to_owned();
@@ -2042,8 +2056,9 @@ mod tests;
 
 const RULES_DX: &str = "rules_dx";
 
-/// The name the workspace MODULE.bazel (and the files it includes) gives rules_dx,
+/// The name the workspace MODULE.bazel (and the files it includes) gives `rules_dx`,
 /// or `rules_dx` when it declares none.
+#[must_use]
 pub fn rules_dx_repo(workspace: &std::path::Path) -> String {
     let read_include = |label: &str| {
         label_path(label)
@@ -2056,12 +2071,13 @@ pub fn rules_dx_repo(workspace: &std::path::Path) -> String {
     )
 }
 
-/// The name a MODULE.bazel source gives rules_dx, ignoring any includes.
+/// The name a MODULE.bazel source gives `rules_dx`, ignoring any includes.
+#[must_use]
 pub fn rules_dx_repo_of(module_text: &str) -> String {
     rules_dx_repo_with(module_text, &|_| Err("no includes".to_owned()))
 }
 
-/// The name rules_dx gets across a MODULE.bazel and its includes, in include order.
+/// The name `rules_dx` gets across a MODULE.bazel and its includes, in include order.
 /// When the includes cannot be loaded, falls back to the root file alone.
 fn rules_dx_repo_with(
     module_text: &str,
@@ -2079,7 +2095,7 @@ fn rules_dx_repo_with(
     }
 }
 
-/// The repo name one module file gives rules_dx, if the file declares rules_dx.
+/// The repo name one module file gives `rules_dx`, if the file declares `rules_dx`.
 fn repo_in_file(file: &ModuleFile) -> Option<&str> {
     match file
         .calls_named("module")

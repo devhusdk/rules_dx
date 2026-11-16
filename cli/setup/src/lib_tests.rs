@@ -737,7 +737,7 @@ fn commit_errors_display() {
         CommitError::NoCapability,
     ];
     for error in &errors {
-        assert!(!format!("{error}").is_empty());
+        assert_ne!(format!("{error}"), "");
     }
 }
 

@@ -16,6 +16,7 @@ pub const BYTES_PER_NESTED_BAZEL: u64 = 2 << 30;
 pub const MAX_SLOTS: usize = 16;
 
 /// Slots for a machine with `memory` bytes, `reserved` of them kept aside.
+#[must_use]
 pub fn slot_count(memory: u64, reserved: u64) -> usize {
     usize::try_from(memory.saturating_sub(reserved) / BYTES_PER_SLOT)
         .unwrap_or(MAX_SLOTS)
@@ -28,6 +29,7 @@ pub fn slots_dir(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
     Some(cache.join("dx").join("slots"))
 }
 
+#[must_use]
 pub fn slot_path(dir: &Path, index: usize) -> PathBuf {
     dir.join(format!("slot-{index}.lock"))
 }
@@ -72,6 +74,7 @@ fn tightest(total: Option<u64>, limit: Option<u64>) -> Option<u64> {
 
 /// Total memory visible to this process, honoring a cgroup limit.
 #[cfg(target_os = "linux")]
+#[must_use]
 pub fn available_memory() -> Option<u64> {
     let total = std::fs::read_to_string("/proc/meminfo")
         .ok()
@@ -140,6 +143,7 @@ pub fn available_memory() -> Option<u64> {
 }
 
 /// Reads `MemTotal` from `/proc/meminfo` text, in bytes.
+#[must_use]
 pub fn parse_meminfo(text: &str) -> Option<u64> {
     let line = text.lines().find(|line| line.starts_with("MemTotal:"))?;
     let kib: u64 = line.split_whitespace().nth(1)?.parse().ok()?;
@@ -147,6 +151,7 @@ pub fn parse_meminfo(text: &str) -> Option<u64> {
 }
 
 /// Reads a cgroup memory limit; `max` or the v1 unlimited value means no limit.
+#[must_use]
 pub fn parse_cgroup_limit(text: &str) -> Option<u64> {
     text.trim().parse().ok().filter(|value| *value < 1 << 62)
 }
@@ -158,6 +163,7 @@ fn cgroup_limit() -> Option<u64> {
 }
 
 /// Reads the memory limit of the cgroup named in `own` under `root`.
+#[must_use]
 pub fn cgroup_limit_in(own: &str, root: &Path) -> Option<u64> {
     let v2 = own
         .lines()
@@ -202,6 +208,7 @@ fn walk_limit(base: &Path, relative: &str, file: &str) -> Option<u64> {
 /// The slot indices kept for `servers` nested Bazel test servers on a machine with `memory` bytes.
 ///
 /// Empty when `servers` is 0. dx gates leave these indices to nested test harnesses.
+#[must_use]
 pub fn reserve_range(memory: u64, servers: u64) -> Range<usize> {
     let reserved = servers.saturating_mul(BYTES_PER_NESTED_BAZEL);
     slot_count(memory, reserved)..slot_count(memory, 0)
@@ -220,6 +227,7 @@ pub struct Reserve {
 ///
 /// Shared locks coexist with other reserve holders and with dx runs inside a gated run, and block
 /// consumer dx runs from taking those indices exclusively.
+#[must_use]
 pub fn hold_reserve(dir: &Path, range: Range<usize>) -> Reserve {
     let mut reserve = Reserve::default();
     if range.is_empty() || std::fs::create_dir_all(dir).is_err() {

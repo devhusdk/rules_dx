@@ -5,6 +5,7 @@ use crate::config::DxConfig;
 use crate::curated_defaults_gen::{FAMILIES, OPT_IN_FAMILIES, TOOLS};
 
 /// Returns the JSON Schema for `dx.toml`.
+#[must_use]
 pub fn dx_schema() -> String {
     let generator = SchemaSettings::draft07().into_generator();
     let mut schema = generator.into_root_schema_for::<DxConfig>();
@@ -12,7 +13,7 @@ pub fn dx_schema() -> String {
     let mut value = schema.to_value();
     add_family_ids(&mut value);
     add_tool_ids(&mut value);
-    format!("{:#}\n", value)
+    format!("{value:#}\n")
 }
 
 fn add_family_ids(schema: &mut Value) {

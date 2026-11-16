@@ -35,23 +35,23 @@ impl From<EditError> for AddError {
             EditError::UnsupportedManifest { manifest, reason } => {
                 AddError::UnsupportedManifest { manifest, reason }
             }
-            other @ EditError::Hubs { .. }
-            | other @ EditError::Empty
-            | other @ EditError::UnknownSelector { .. }
-            | other @ EditError::InvalidPackage { .. }
-            | other @ EditError::BareSet { .. }
-            | other @ EditError::NotAPackage { .. }
-            | other @ EditError::NotFound { .. }
-            | other @ EditError::Ambiguous { .. }
-            | other @ EditError::NeedsSha { .. }
-            | other @ EditError::PinsUnresolved { .. }
-            | other @ EditError::Version(_)
-            | other @ EditError::FloorNeedsReason
-            | other @ EditError::ReasonNeedsFloor
-            | other @ EditError::FloorNotBazelDep { .. }
-            | other @ EditError::UnsafeReason { .. }
-            | other @ EditError::FloorAboveTested { .. }
-            | other @ EditError::TestedBelowFloor { .. } => AddError::Update(other),
+            other @ (EditError::Hubs { .. }
+            | EditError::Empty
+            | EditError::UnknownSelector { .. }
+            | EditError::InvalidPackage { .. }
+            | EditError::BareSet { .. }
+            | EditError::NotAPackage { .. }
+            | EditError::NotFound { .. }
+            | EditError::Ambiguous { .. }
+            | EditError::NeedsSha { .. }
+            | EditError::PinsUnresolved { .. }
+            | EditError::Version(_)
+            | EditError::FloorNeedsReason
+            | EditError::ReasonNeedsFloor
+            | EditError::FloorNotBazelDep { .. }
+            | EditError::UnsafeReason { .. }
+            | EditError::FloorAboveTested { .. }
+            | EditError::TestedBelowFloor { .. }) => AddError::Update(other),
         }
     }
 }
@@ -60,6 +60,7 @@ const GITHUB_ACTIONS_HINT: &str = "add the `uses:` step to the workflow, then pi
 
 impl AddRequest {
     /// The insert request for the package an update request names.
+    #[must_use]
     pub fn from_request(request: &UpdateRequest) -> AddRequest {
         AddRequest {
             target: request.target(),
@@ -69,27 +70,33 @@ impl AddRequest {
         }
     }
 
+    #[must_use]
     pub fn set(&self) -> UpdateSet {
         self.target.set
     }
 
+    #[must_use]
     pub fn package(&self) -> &str {
         &self.target.package
     }
 
+    #[must_use]
     pub fn needs_update_refresh(&self) -> bool {
         self.target.needs_update_refresh()
     }
 
+    #[must_use]
     pub fn refresh_selector(&self) -> String {
         self.target.refresh_selector()
     }
 
+    #[must_use]
     pub fn target_manifest(&self) -> &str {
         self.target.target_manifest()
     }
 
     /// The `dx update` request for the same package and version.
+    #[must_use]
     pub fn as_request(&self) -> UpdateRequest {
         UpdateRequest::for_target(
             &self.target,
@@ -161,10 +168,8 @@ impl AddRequest {
             UpdateSet::Go => dx_gomod::insert_require(content, package, &format!("v{version}"))
                 .map_err(|error| match error {
                     dx_gomod::GoEditError::Invalid(reason) => unsupported(reason),
-                    other @ dx_gomod::GoEditError::NotFound
-                    | other @ dx_gomod::GoEditError::Ambiguous(_) => {
-                        unsupported(format!("{other:?}"))
-                    }
+                    other @ (dx_gomod::GoEditError::NotFound
+                    | dx_gomod::GoEditError::Ambiguous(_)) => unsupported(format!("{other:?}")),
                 }),
             UpdateSet::Cargo => plans::insert_cargo_dependency(content, package, &version)
                 .map_err(|error| unsupported(error.to_string())),

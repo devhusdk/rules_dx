@@ -333,7 +333,10 @@ fn ruby_set() -> ResolvedSet {
 fn ruby_lock_runs_bundler_from_the_toolchain_in_the_gemfile_dir() {
     let plan = plan_ruby_lock(&ruby_set(), "rake", false, false, &no_head()).expect("plan");
     assert_eq!(plan.dir, "app");
-    assert!(plan.env.is_empty());
+    assert_eq!(
+        plan.env,
+        [] as [(std::string::String, std::string::String); 0]
+    );
     let tail = plan.argv.iter().position(|arg| arg == "@ruby//:bundle");
     let tail = &plan.argv[tail.expect("bundle target")..];
     assert_eq!(
@@ -2279,7 +2282,10 @@ fn hex_check_stages_deps_get_and_update_names_the_packages() {
     assert_eq!(check.outputs, ["third_party/elixir/hex.lock.json"]);
     assert_eq!(
         check.inputs,
-        ["third_party/elixir/mix.exs", "third_party/elixir/hex.lock.json"]
+        [
+            "third_party/elixir/mix.exs",
+            "third_party/elixir/hex.lock.json"
+        ]
     );
     let env = check.env(scratch);
     assert!(env.contains(&("MIX_HOME".to_owned(), "/scratch/1/mix_home".to_owned())));

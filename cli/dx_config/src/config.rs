@@ -15,6 +15,7 @@ pub enum Tier {
 }
 
 impl Tier {
+    #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
             Tier::Standard => "standard",

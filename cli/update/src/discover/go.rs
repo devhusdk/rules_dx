@@ -304,14 +304,14 @@ mod tests {
             &proxy,
         );
         assert_eq!(found.candidates[0].published, None);
-        assert!(found.errors.is_empty());
+        assert_eq!(found.errors, [] as [crate::discover::LookupError; 0]);
     }
 
     #[test]
     fn the_package_filter_limits_lookups() {
         let found = run(&["github.com/Foo/bar".to_owned()]);
         assert_eq!(found.candidates.len(), 1);
-        assert!(found.errors.is_empty());
+        assert_eq!(found.errors, [] as [crate::discover::LookupError; 0]);
     }
 
     #[test]

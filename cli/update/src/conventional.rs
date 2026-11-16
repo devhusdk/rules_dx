@@ -61,6 +61,7 @@ pub const DEFAULT_GROUPS: &[(Kind, &str)] = &[
     (Kind::Other, "Other"),
 ];
 
+#[must_use]
 pub fn parse(log: &str) -> Vec<Commit> {
     log.split('\x1e')
         .filter_map(|record| {
@@ -125,6 +126,7 @@ fn parse_subject(subject: &str) -> Option<(Kind, Option<String>, bool, &str)> {
 }
 
 /// The commits in `log` whose subject is not a conventional commit, as `(hash, subject)`.
+#[must_use]
 pub fn lint(log: &str) -> Vec<(String, String)> {
     parse(log)
         .into_iter()
@@ -133,6 +135,7 @@ pub fn lint(log: &str) -> Vec<(String, String)> {
         .collect()
 }
 
+#[must_use]
 pub fn notes(commits: &[Commit], groups: &[(Kind, &str)]) -> String {
     let mut out = String::new();
     let breaking: Vec<&Commit> = commits.iter().filter(|c| c.breaking).collect();

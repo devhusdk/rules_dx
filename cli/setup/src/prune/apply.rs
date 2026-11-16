@@ -165,13 +165,22 @@ mod tests {
         let root = scratch.path().to_path_buf();
         let workspace = workspace_of(&root);
         let inventory = collect_inventory(&workspace, &[], &[]).expect("collect");
-        assert!(inventory.records.is_empty());
-        assert!(inventory.generations.is_empty());
+        assert_eq!(
+            inventory.records,
+            [] as [crate::prune::records::SetupRecordView; 0]
+        );
+        assert_eq!(
+            inventory.generations,
+            [] as [crate::prune::planning::GenerationView; 0]
+        );
         assert_eq!(inventory.current_hex, None);
-        assert!(inventory.unmanaged_names.is_empty());
+        assert_eq!(inventory.unmanaged_names, [] as [String; 0]);
         let plan = inventory.plan();
-        assert!(plan.prune_setup_records.is_empty());
-        assert!(plan.prune_generations.is_empty());
+        assert_eq!(plan.prune_setup_records, [] as [String; 0]);
+        assert_eq!(
+            plan.prune_generations,
+            [] as [crate::prune::planning::GenerationView; 0]
+        );
         let outcome = apply_plan(&workspace, &plan).expect("apply empty");
         assert_eq!(outcome, PruneOutcome::default());
         drop(fs::remove_dir_all(&root));
@@ -279,7 +288,7 @@ mod tests {
         assert_eq!(plan.prune_setup_records, vec![crate::setup_hex(&first)]);
         crate::commit_pair(&workspace, &first).expect("reselect first");
         let outcome = apply_plan(&workspace, &plan).expect("apply");
-        assert!(outcome.removed_setup_records.is_empty());
+        assert_eq!(outcome.removed_setup_records, [] as [String; 0]);
         assert_eq!(
             crate::read_current_pair(&workspace).expect("read"),
             Some(first)
@@ -314,7 +323,10 @@ mod tests {
         assert_eq!(plan.prune_generations.len(), 2);
         let outcome = apply_plan(&workspace, &plan).expect("apply");
         assert_eq!(outcome.removed_setup_records, vec![stale_hex]);
-        assert!(outcome.removed_generations.is_empty());
+        assert_eq!(
+            outcome.removed_generations,
+            [] as [crate::prune::planning::GenerationView; 0]
+        );
         assert!(
             dx_path::state::local_dir(&workspace)
                 .join("environments")
@@ -327,9 +339,10 @@ mod tests {
     fn wait_for(path: &Path, what: &str) {
         let start = std::time::Instant::now();
         while !path.exists() {
-            if start.elapsed() > Duration::from_secs(30) {
-                panic!("timed out waiting for {what}");
-            }
+            assert!(
+                start.elapsed() <= Duration::from_secs(30),
+                "timed out waiting for {what}"
+            );
             std::thread::sleep(Duration::from_millis(25));
         }
     }
@@ -399,7 +412,10 @@ mod tests {
         let status = child.wait().expect("reap the reader");
         assert!(status.success(), "the reader exits cleanly");
         let outcome = apply_plan(&workspace, &plan).expect("re-apply");
-        assert!(outcome.skipped_leased_generations.is_empty());
+        assert_eq!(
+            outcome.skipped_leased_generations,
+            [] as [crate::prune::planning::GenerationView; 0]
+        );
         assert_eq!(outcome.removed_generations.len(), 1);
         assert_eq!(outcome.removed_generations[0].hex, stale_gen);
         assert!(!stale_dir.exists(), "the released generation prunes");
@@ -493,7 +509,7 @@ mod tests {
             },
         ];
         for error in &errors {
-            assert!(!format!("{error}").is_empty());
+            assert_ne!(format!("{error}"), "");
         }
     }
 }

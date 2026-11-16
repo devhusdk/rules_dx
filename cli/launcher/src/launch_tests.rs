@@ -154,8 +154,11 @@ fn names_the_runfiles_keys_of_the_descriptor() {
             "_main/pkg/app.run_upstream.launch"
         ]
     );
-    assert!(descriptor_keys(Path::new("out/pkg/app")).is_empty());
-    assert!(descriptor_keys(Path::new("bazel-out/cfg/bin")).is_empty());
+    assert_eq!(descriptor_keys(Path::new("out/pkg/app")), [] as [String; 0]);
+    assert_eq!(
+        descriptor_keys(Path::new("bazel-out/cfg/bin")),
+        [] as [String; 0]
+    );
 }
 
 #[cfg(unix)]
@@ -294,7 +297,7 @@ fn runs_the_program_and_passes_the_exit_code() {
 fn parses_unset_lines_apart_from_items() {
     let parsed = parse("program=x\nunset=QT_PLUGIN_PATH\n").unwrap();
     assert_eq!(parsed.unset, ["QT_PLUGIN_PATH"]);
-    assert!(parsed.items.is_empty());
+    assert_eq!(parsed.items, [] as [crate::launch::Item; 0]);
 }
 
 #[test]
@@ -351,7 +354,7 @@ fn run_scrubs_unset_variables() {
 fn parses_env_lines_apart_from_items() {
     let parsed = parse("program=x\nenv=MIX_HOME\tC:/a b\n").unwrap();
     assert_eq!(parsed.env, [("MIX_HOME".to_owned(), "C:/a b".to_owned())]);
-    assert!(parsed.items.is_empty());
+    assert_eq!(parsed.items, [] as [crate::launch::Item; 0]);
 }
 
 #[test]
@@ -399,7 +402,7 @@ fn parses_env_dir_and_env_default_lines() {
         [("ERL_ROOTDIR".to_owned(), "_main/otp/bin/erl".to_owned())]
     );
     assert_eq!(parsed.env_default, [("HOME".to_owned(), "/tmp".to_owned())]);
-    assert!(parsed.items.is_empty());
+    assert_eq!(parsed.items, [] as [crate::launch::Item; 0]);
 }
 
 #[test]
@@ -413,7 +416,7 @@ fn env_default_applies_only_when_unset_or_empty() {
     let empty = child_env(&resolver, &descriptor, &|_| Some(OsString::new())).unwrap();
     assert_eq!(empty, unset);
     let set = child_env(&resolver, &descriptor, &|_| Some(OsString::from("/h"))).unwrap();
-    assert!(set.is_empty());
+    assert_eq!(set, [] as [(std::string::String, std::string::String); 0]);
 }
 
 #[test]

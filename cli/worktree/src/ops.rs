@@ -25,6 +25,7 @@ pub enum State {
 }
 
 impl State {
+    #[must_use]
     pub fn name(self) -> &'static str {
         match self {
             State::Held => "held",
@@ -135,6 +136,7 @@ pub enum BaseOwner {
 
 impl BaseOwner {
     /// The pool slot, if a pool slot owns the base.
+    #[must_use]
     pub fn slot(&self) -> Option<u32> {
         match self {
             BaseOwner::Slot(slot) => Some(*slot),
@@ -242,6 +244,7 @@ pub struct PrunePlan {
 }
 
 impl PrunePlan {
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.slots.is_empty()
             && self.externals.is_empty()
@@ -250,6 +253,7 @@ impl PrunePlan {
             && self.downloads.is_empty()
     }
 
+    #[must_use]
     pub fn bytes(&self) -> u64 {
         self.slots.iter().map(|slot| slot.bytes).sum::<u64>()
             + self
@@ -746,9 +750,7 @@ pub(crate) fn lease_locked(
         })
         .map(|record| record.slot)
         .collect();
-    let slot = chosen
-        .map(|record| record.slot)
-        .unwrap_or_else(|| pool.next_slot(&records));
+    let slot = chosen.map_or_else(|| pool.next_slot(&records), |record| record.slot);
     let fresh = chosen.is_none();
     if fresh {
         quiet = pool.try_quiet(slot)?;
@@ -768,7 +770,7 @@ pub(crate) fn lease_locked(
                 reclaim_warning = Some(Warning {
                     code: "disk_low",
                     message: dropped,
-                })
+                });
             }
         }
     }
@@ -831,7 +833,10 @@ pub(crate) fn lease_locked(
                 ],
             ));
             // Best-effort cleanup of the slot this call failed to set up.
-            host.remove_tree(&path).then_some(()).unwrap_or_default();
+            if host.remove_tree(&path) {
+            } else {
+                Default::default()
+            }
             drop(git::run(&pool.main, &["worktree", "prune"]));
         } else {
             let mut freed = placeholder.clone();
@@ -904,15 +909,14 @@ fn make_room(
             // The free-space reading below decides whether this helped.
             let _ = drop_bases(host, &owned);
             let after = host.disk_space(&pool.base);
-            match full(after) {
-                Some(still) => space = still,
-                None => {
-                    let free = after.map_or_else(|| "unknown".to_owned(), |after| size(after.free));
-                    return Ok(Some(format!(
-                        "disk full: {} free; removed the output bases of slot {slot}, which this lease reuses; {free} free now",
-                        size(space.free)
-                    )));
-                }
+            if let Some(still) = full(after) {
+                space = still
+            } else {
+                let free = after.map_or_else(|| "unknown".to_owned(), |after| size(after.free));
+                return Ok(Some(format!(
+                    "disk full: {} free; removed the output bases of slot {slot}, which this lease reuses; {free} free now",
+                    size(space.free)
+                )));
             }
         }
     }
@@ -1915,7 +1919,7 @@ pub(crate) fn prune_apply(
             reason,
         };
         if let Some(slot) = base.owner.slot() {
-            if !pool.record(slot).is_some_and(|record| !record.held) {
+            if pool.record(slot).is_none_or(|record| record.held) {
                 skipped.push(skip("held"));
                 continue;
             }
@@ -1936,7 +1940,7 @@ pub(crate) fn prune_apply(
     let mut skipped_caches = Vec::new();
     for cache in &plan.caches {
         stop_check(host)?;
-        let reason = if !pool.record(cache.slot).is_some_and(|record| !record.held) {
+        let reason = if pool.record(cache.slot).is_none_or(|record| record.held) {
             Some("held")
         } else if pool.busy(cache.slot) || !host.remove_tree(&cache.path) {
             Some("busy")
@@ -2063,7 +2067,7 @@ fn drop_bases(host: &dyn Host, owned: &[&OutputBase]) -> bool {
     gone
 }
 
-/// Reclaims output bases on low disk, reporting a failure as a disk_low warning.
+/// Reclaims output bases on low disk, reporting a failure as a `disk_low` warning.
 pub(crate) fn reclaim(pool: &Pool, host: &dyn Host, keep: Option<u32>) -> Option<Reclaim> {
     match reclaim_if_low(pool, host, keep) {
         Ok(reclaimed) => reclaimed,
@@ -2075,7 +2079,7 @@ pub(crate) fn reclaim(pool: &Pool, host: &dyn Host, keep: Option<u32>) -> Option
     }
 }
 
-/// The disk_low warning for a reclaim that could not run.
+/// The `disk_low` warning for a reclaim that could not run.
 pub(crate) fn reclaim_failed(error: &WorktreeError) -> Warning {
     Warning {
         code: "disk_low",
@@ -2185,14 +2189,14 @@ fn reclaim_host_wide(
         ));
     }
     let reclaimed = !removed.is_empty();
-    if !reclaimed {
-        message.push_str("; nothing to reclaim");
-    } else {
+    if reclaimed {
         message.push_str(&format!(
             "; removed {}; {} free now",
             removed.join(" and "),
             size(after.free)
         ));
+    } else {
+        message.push_str("; nothing to reclaim");
     }
     if !kept.is_empty() {
         let numbers: Vec<String> = kept.iter().map(u32::to_string).collect();
@@ -2215,6 +2219,7 @@ fn reclaim_host_wide(
 }
 
 /// A byte count in binary units.
+#[must_use]
 pub fn size(bytes: u64) -> String {
     const UNITS: [&str; 5] = ["B", "KiB", "MiB", "GiB", "TiB"];
     let mut value = bytes as f64;

@@ -69,6 +69,7 @@ pub(crate) fn line_comment_syntax(path: &str) -> Option<LineComment> {
         .map(|(_, syntax)| *syntax)
 }
 
+#[must_use]
 pub fn is_covered_language(path: &str) -> bool {
     line_comment_syntax(path).is_some()
 }

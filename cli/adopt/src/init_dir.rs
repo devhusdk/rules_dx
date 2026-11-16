@@ -82,6 +82,7 @@ pub fn validate_init_dir(dir: &str) -> Result<String, AdoptError> {
 
 /// The module name for `dir`: its last segment folded to `[a-z0-9._-]`, or
 /// [`DEFAULT_INIT_MODULE`] for the current directory.
+#[must_use]
 pub fn init_dir_module(dir: &str) -> String {
     let Some(stem) = dir.rsplit('/').next().filter(|stem| !stem.is_empty()) else {
         return DEFAULT_INIT_MODULE.to_owned();
@@ -103,6 +104,7 @@ pub fn init_dir_module(dir: &str) -> String {
 /// Whether `root` is missing or holds nothing but `.git`, repository files and the files a
 /// fresh init writes itself: a workspace to start, not adopt. A run cut short after
 /// `MODULE.bazel` stays fresh.
+#[must_use]
 pub fn is_fresh_dir(root: &Path) -> bool {
     fresh_blocker(root).is_none()
 }
@@ -164,8 +166,9 @@ fn is_fresh_module(path: &Path) -> bool {
         .is_some_and(|file| file.content == text)
 }
 
-/// The files only a fresh workspace gets: a `MODULE.bazel` that depends on rules_dx and
-/// a `.bazelversion`. Language rules come from rules_dx once sources appear.
+/// The files only a fresh workspace gets: a `MODULE.bazel` that depends on `rules_dx` and
+/// a `.bazelversion`. Language rules come from `rules_dx` once sources appear.
+#[must_use]
 pub fn plan_fresh_files(module: &str) -> Vec<ScaffoldFile> {
     vec![
         ScaffoldFile {

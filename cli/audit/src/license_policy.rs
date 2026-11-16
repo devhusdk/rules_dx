@@ -86,6 +86,7 @@ impl PolicyTables {
 }
 
 impl Distribution {
+    #[must_use]
     pub fn tier_of(&self, label: &str) -> Tier {
         if self
             .internal
@@ -113,6 +114,7 @@ pub struct LicenseException {
 }
 
 impl LicenseException {
+    #[must_use]
     pub fn entry_label(&self) -> String {
         use crate::exception::or_unknown;
         format!(
@@ -151,6 +153,7 @@ pub fn validate_license_exception(
     Ok(())
 }
 
+#[must_use]
 pub fn license_exception_covers(exception: &LicenseException, finding: &LicenseFinding) -> bool {
     if exception.set != finding.set
         || !crate::vuln::same_package(&finding.set, &exception.package, &finding.package)
@@ -161,6 +164,7 @@ pub fn license_exception_covers(exception: &LicenseException, finding: &LicenseF
     crate::vuln::version_affected(&exception.set, &exception.versions, &finding.version)
 }
 
+#[must_use]
 pub fn is_obsolete(exception: &LicenseException, findings: &[LicenseFinding]) -> bool {
     !findings.iter().any(|finding| {
         crate::vuln::same_package(&finding.set, &exception.package, &finding.package)

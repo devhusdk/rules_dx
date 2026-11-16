@@ -28,6 +28,7 @@ pub struct RecoveryPlan {
     pub message: String,
 }
 
+#[must_use]
 pub fn retry_sets(report: &UpdateReport) -> Vec<String> {
     let mut sets = BTreeSet::new();
     for outcome in &report.outcomes {
@@ -43,6 +44,7 @@ pub fn retry_sets(report: &UpdateReport) -> Vec<String> {
 
 /// Lock paths to restore for every Updated outcome, looked up by set name in
 /// `locks`; sets missing from the map contribute nothing.
+#[must_use]
 pub fn restore_paths(report: &UpdateReport, locks: &BTreeMap<String, Vec<String>>) -> Vec<String> {
     let mut paths = BTreeSet::new();
     for outcome in &report.outcomes {
@@ -56,6 +58,7 @@ pub fn restore_paths(report: &UpdateReport, locks: &BTreeMap<String, Vec<String>
     paths.into_iter().collect()
 }
 
+#[must_use]
 pub fn retry_command(retry: &[String], mode: RetryMode) -> String {
     let mut command = String::from(mode.prefix());
     for set in retry {
@@ -65,6 +68,7 @@ pub fn retry_command(retry: &[String], mode: RetryMode) -> String {
     command
 }
 
+#[must_use]
 pub fn restore_command(paths: &[String]) -> Option<String> {
     if paths.is_empty() {
         return None;
@@ -77,6 +81,7 @@ pub fn restore_command(paths: &[String]) -> Option<String> {
     Some(command)
 }
 
+#[must_use]
 pub fn recovery_message(plan: &RecoveryPlan, succeeded: usize, failed: usize) -> String {
     let mut message = format!(
         "recovery: rerun `{}` for {} not-updated set(s) ({} succeeded, {} failed); retry is idempotent",
@@ -96,6 +101,7 @@ pub fn recovery_message(plan: &RecoveryPlan, succeeded: usize, failed: usize) ->
     message
 }
 
+#[must_use]
 pub fn plan(
     report: &UpdateReport,
     mode: RetryMode,
@@ -296,7 +302,7 @@ mod tests {
             plan(&report, RetryMode::Apply, &builtin_locks()).expect("unsupported plans recovery");
         assert_eq!(plan.retry_sets, vec!["cargo".to_owned()]);
         assert_eq!(plan.retry_command, "dx update --apply cargo");
-        assert!(plan.restore_paths.is_empty());
+        assert_eq!(plan.restore_paths, [] as [String; 0]);
         assert!(plan.restore_command.is_none());
         assert!(plan.message.contains("; nothing to roll back"));
         assert!(plan.message.contains("2 succeeded, 1 failed"));
@@ -331,7 +337,7 @@ mod tests {
     fn updated_set_without_locks_restores_nothing() {
         let locks = BTreeMap::new();
         let plan = plan(&report(), RetryMode::Apply, &locks).expect("recovery");
-        assert!(plan.restore_paths.is_empty());
+        assert_eq!(plan.restore_paths, [] as [String; 0]);
         assert!(plan.restore_command.is_none());
         assert!(plan.message.contains("nothing to roll back"));
     }

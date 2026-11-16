@@ -580,7 +580,7 @@ fn collect_plan_rejects_conflicts() {
 #[test]
 fn empty_outputs_select_an_empty_plan() {
     let plan = collect_plan(&[]).expect("empty plan");
-    assert!(plan.records.is_empty());
+    assert_eq!(plan.records, [] as [EnvRecord; 0]);
     assert_eq!(plan.fingerprint, "[]");
     assert_eq!(plan.digest, dx_digest::blake3(b"[]"));
 }

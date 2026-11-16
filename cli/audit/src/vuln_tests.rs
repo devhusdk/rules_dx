@@ -86,11 +86,11 @@ fn osv_projection_skips_incomplete_packages_and_uses_severity_precedence() {
         match source {
             "affected" => {
                 value["affected"][0]["severity"] =
-                    serde_json::json!([{"type":"CVSS_V3","score":"high"}])
+                    serde_json::json!([{"type":"CVSS_V3","score":"high"}]);
             }
             "top" => value["severity"] = serde_json::json!([{"type":"CVSS_V3","score":"medium"}]),
             "ecosystem" => {
-                value["affected"][0]["ecosystem_specific"] = serde_json::json!({"severity":"low"})
+                value["affected"][0]["ecosystem_specific"] = serde_json::json!({"severity":"low"});
             }
             _ => unreachable!(),
         }
@@ -232,7 +232,7 @@ fn advisories() -> Vec<Advisory> {
 #[test]
 fn matching_reports_findings_with_and_without_fix() {
     let (findings, unassessed) = match_packages(&packages(), &advisories());
-    assert!(unassessed.is_empty());
+    assert_eq!(unassessed, [] as [crate::vuln::Unassessed; 0]);
     assert_eq!(findings.len(), 2);
     let serde_finding = findings
         .iter()
@@ -248,7 +248,7 @@ fn matching_reports_findings_with_and_without_fix() {
         .expect("react");
     assert_eq!(react_finding.severity, "unknown");
     assert_eq!(react_finding.level, "error");
-    assert!(react_finding.fixed.is_empty());
+    assert_eq!(react_finding.fixed, [] as [String; 0]);
 }
 
 #[test]
@@ -402,7 +402,7 @@ fn npm_range_advisories_report_findings() {
         },
     ];
     let (findings, unassessed) = match_packages(&packages, &advisories);
-    assert!(unassessed.is_empty());
+    assert_eq!(unassessed, [] as [crate::vuln::Unassessed; 0]);
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].advisory, "GHSA-npm-range");
     assert_eq!(findings[0].version, "18.2.0");
@@ -475,8 +475,8 @@ fn scoped_set_exceptions_exempt_a_base_ecosystem_finding() {
         ..exception("npm-adopt", "GHSA-npm-scoped", "braces", "<=3.0.3")
     };
     let (unexempted, problems) = apply_exceptions(&findings, &[scoped], "2026-09-18");
-    assert!(problems.is_empty());
-    assert!(unexempted.is_empty());
+    assert_eq!(problems, [] as [crate::exception::ExceptionProblem; 0]);
+    assert_eq!(unexempted, [] as [crate::vuln::VulnFinding; 0]);
 }
 
 #[test]
@@ -487,21 +487,33 @@ fn maven_version_ordering_follows_upstream_subset() {
     assert!(maven_version_eq("1-final", "1"));
     assert!(maven_version_eq("1.0.0-foo.0.0", "1-foo"));
     assert!(maven_version_eq("1-a1", "1-alpha-1"));
-    assert!(maven_compare("1-alpha", "1-beta") == std::cmp::Ordering::Less);
-    assert!(maven_compare("1-beta", "1-milestone") == std::cmp::Ordering::Less);
-    assert!(maven_compare("1-milestone", "1-rc") == std::cmp::Ordering::Less);
-    assert!(maven_compare("1-rc", "1-snapshot") == std::cmp::Ordering::Less);
-    assert!(maven_compare("1-snapshot", "1") == std::cmp::Ordering::Less);
-    assert!(maven_compare("1", "1-sp") == std::cmp::Ordering::Less);
-    assert!(maven_compare("1", "1-foo") == std::cmp::Ordering::Less);
-    assert!(maven_compare("5.aardvark", "5.zebra") == std::cmp::Ordering::Less);
-    assert!(maven_compare("1-K", "1.7") == std::cmp::Ordering::Less);
-    assert!(maven_compare("1-foo2", "1-foo10") == std::cmp::Ordering::Less);
+    assert_eq!(maven_compare("1-alpha", "1-beta"), std::cmp::Ordering::Less);
+    assert_eq!(
+        maven_compare("1-beta", "1-milestone"),
+        std::cmp::Ordering::Less
+    );
+    assert_eq!(
+        maven_compare("1-milestone", "1-rc"),
+        std::cmp::Ordering::Less
+    );
+    assert_eq!(
+        maven_compare("1-rc", "1-snapshot"),
+        std::cmp::Ordering::Less
+    );
+    assert_eq!(maven_compare("1-snapshot", "1"), std::cmp::Ordering::Less);
+    assert_eq!(maven_compare("1", "1-sp"), std::cmp::Ordering::Less);
+    assert_eq!(maven_compare("1", "1-foo"), std::cmp::Ordering::Less);
+    assert_eq!(
+        maven_compare("5.aardvark", "5.zebra"),
+        std::cmp::Ordering::Less
+    );
+    assert_eq!(maven_compare("1-K", "1.7"), std::cmp::Ordering::Less);
+    assert_eq!(maven_compare("1-foo2", "1-foo10"), std::cmp::Ordering::Less);
     assert_eq!(maven_compare("1.foo", "1-foo"), std::cmp::Ordering::Equal);
-    assert!(maven_compare("1-1", "1.1") == std::cmp::Ordering::Less);
-    assert!(maven_compare("1", "1.1") == std::cmp::Ordering::Less);
-    assert!(maven_compare("2.0-rc1", "2.0") == std::cmp::Ordering::Less);
-    assert!(maven_compare("1.10", "1.9") == std::cmp::Ordering::Greater);
+    assert_eq!(maven_compare("1-1", "1.1"), std::cmp::Ordering::Less);
+    assert_eq!(maven_compare("1", "1.1"), std::cmp::Ordering::Less);
+    assert_eq!(maven_compare("2.0-rc1", "2.0"), std::cmp::Ordering::Less);
+    assert_eq!(maven_compare("1.10", "1.9"), std::cmp::Ordering::Greater);
 }
 
 #[test]
@@ -522,11 +534,23 @@ fn maven_ordering_matches_comparable_version() {
     assert!(maven_version_eq("2.4.0.RELEASE", "2.4.0"));
     assert!(maven_version_eq("1.0.0-cr1", "1.0.0-rc1"));
     assert!(maven_version_eq("1.0.0-M1", "1.0.0-milestone-1"));
-    assert!(maven_compare("1.0_rc1", "1.0") == std::cmp::Ordering::Greater);
-    assert!(maven_compare("1.0_rc1", "1.0-cr1") == std::cmp::Ordering::Greater);
-    assert!(maven_compare("0-rc", "0.milestone") == std::cmp::Ordering::Greater);
-    assert!(maven_compare("1.0.0.beta", "1-alpha") == std::cmp::Ordering::Greater);
-    assert!(maven_compare("1.0.0-beta", "1.0.0-alpha") == std::cmp::Ordering::Greater);
+    assert_eq!(maven_compare("1.0_rc1", "1.0"), std::cmp::Ordering::Greater);
+    assert_eq!(
+        maven_compare("1.0_rc1", "1.0-cr1"),
+        std::cmp::Ordering::Greater
+    );
+    assert_eq!(
+        maven_compare("0-rc", "0.milestone"),
+        std::cmp::Ordering::Greater
+    );
+    assert_eq!(
+        maven_compare("1.0.0.beta", "1-alpha"),
+        std::cmp::Ordering::Greater
+    );
+    assert_eq!(
+        maven_compare("1.0.0-beta", "1.0.0-alpha"),
+        std::cmp::Ordering::Greater
+    );
 }
 
 #[test]
@@ -610,7 +634,7 @@ fn maven_range_advisories_report_findings() {
         },
     ];
     let (findings, unassessed) = match_packages(&packages, &advisories);
-    assert!(unassessed.is_empty());
+    assert_eq!(unassessed, [] as [crate::vuln::Unassessed; 0]);
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].advisory, "GHSA-maven-range");
     assert_eq!(findings[0].version, "32.0.0");
@@ -630,18 +654,42 @@ fn nuget_version_ordering_follows_upstream_subset() {
         nuget_compare("1.0.0+build", "1.0.0"),
         std::cmp::Ordering::Equal
     );
-    assert!(nuget_compare("1.10", "1.9") == std::cmp::Ordering::Greater);
-    assert!(nuget_compare("2.0.0.1", "2.0.0") == std::cmp::Ordering::Greater);
-    assert!(nuget_compare("1.0.0", "1.0.0.1") == std::cmp::Ordering::Less);
-    assert!(nuget_compare("1.0.0", "1.0.0-alpha") == std::cmp::Ordering::Greater);
-    assert!(nuget_compare("1.0.0-alpha", "1.0.0") == std::cmp::Ordering::Less);
-    assert!(nuget_compare("1.0.0-alpha.9", "1.0.0-alpha.10") == std::cmp::Ordering::Less);
-    assert!(nuget_compare("1.0.0-1", "1.0.0-alpha") == std::cmp::Ordering::Less);
+    assert_eq!(nuget_compare("1.10", "1.9"), std::cmp::Ordering::Greater);
+    assert_eq!(
+        nuget_compare("2.0.0.1", "2.0.0"),
+        std::cmp::Ordering::Greater
+    );
+    assert_eq!(nuget_compare("1.0.0", "1.0.0.1"), std::cmp::Ordering::Less);
+    assert_eq!(
+        nuget_compare("1.0.0", "1.0.0-alpha"),
+        std::cmp::Ordering::Greater
+    );
+    assert_eq!(
+        nuget_compare("1.0.0-alpha", "1.0.0"),
+        std::cmp::Ordering::Less
+    );
+    assert_eq!(
+        nuget_compare("1.0.0-alpha.9", "1.0.0-alpha.10"),
+        std::cmp::Ordering::Less
+    );
+    assert_eq!(
+        nuget_compare("1.0.0-1", "1.0.0-alpha"),
+        std::cmp::Ordering::Less
+    );
     assert!(nuget_version_eq("1.0.0-alpha", "1.0.0-Alpha"));
     assert!(nuget_version_eq("1.0.0-ALPHA", "1.0.0-alpha"));
-    assert!(nuget_compare("1.0.0-alpha", "1.0.0-alpha.1") == std::cmp::Ordering::Less);
-    assert!(nuget_compare("1.0.0-beta", "1.0.0-alpha") == std::cmp::Ordering::Greater);
-    assert!(nuget_compare("2.0.0-alpha", "1.9.9") == std::cmp::Ordering::Greater);
+    assert_eq!(
+        nuget_compare("1.0.0-alpha", "1.0.0-alpha.1"),
+        std::cmp::Ordering::Less
+    );
+    assert_eq!(
+        nuget_compare("1.0.0-beta", "1.0.0-alpha"),
+        std::cmp::Ordering::Greater
+    );
+    assert_eq!(
+        nuget_compare("2.0.0-alpha", "1.9.9"),
+        std::cmp::Ordering::Greater
+    );
 }
 
 #[test]
@@ -755,7 +803,7 @@ fn nuget_range_advisories_report_findings() {
         },
     ];
     let (findings, unassessed) = match_packages(&packages, &advisories);
-    assert!(unassessed.is_empty());
+    assert_eq!(unassessed, [] as [crate::vuln::Unassessed; 0]);
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].advisory, "GHSA-nuget-range");
     assert_eq!(findings[0].version, "13.0.1");
@@ -789,19 +837,22 @@ fn git_and_private_packages_are_incomplete_never_clean() {
         },
     ];
     let (findings, unassessed) = match_packages(&pkgs, &advisories());
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [crate::vuln::VulnFinding; 0]);
     assert_eq!(unassessed.len(), 4);
     assert!(unassessed.iter().any(|u| u.reason == REASON_GIT));
     assert!(unassessed.iter().any(|u| u.reason == REASON_PRIVATE));
-    assert!(unassessed.iter().filter(|u| u.reason == REASON_GIT).count() == 2);
+    assert_eq!(
+        unassessed.iter().filter(|u| u.reason == REASON_GIT).count(),
+        2
+    );
 }
 
 #[test]
 fn clean_package_with_no_matching_advisory_is_clean() {
     let pkgs = vec![LockedPackage::new("cargo", "clean", "9.9.9")];
     let (findings, unassessed) = match_packages(&pkgs, &advisories());
-    assert!(findings.is_empty());
-    assert!(unassessed.is_empty());
+    assert_eq!(findings, [] as [crate::vuln::VulnFinding; 0]);
+    assert_eq!(unassessed, [] as [crate::vuln::Unassessed; 0]);
 }
 
 #[test]
@@ -809,7 +860,7 @@ fn exceptions_exempt_only_matching_versioned_findings() {
     let (findings, _) = match_packages(&packages(), &advisories());
     let exception = exception("cargo", "GHSA-aaaa-bbbb-cccc", "serde", ">=1.0.0, <1.0.150");
     let (unexempted, problems) = apply_exceptions(&findings, &[exception], "2026-09-18");
-    assert!(problems.is_empty());
+    assert_eq!(problems, [] as [crate::exception::ExceptionProblem; 0]);
     assert_eq!(unexempted.len(), 1);
     assert_eq!(unexempted[0].package, "react");
 }
@@ -824,7 +875,7 @@ fn exception_problems_fail_and_obsolete_is_reported() {
         ..exception("cargo", "GHSA-aaaa-bbbb-cccc", "serde", ">=1.0.0, <1.0.150")
     };
     let (_, problems) = apply_exceptions(&findings, &[expired], "2026-09-18");
-    assert!(!problems.is_empty());
+    assert_ne!(problems, [] as [crate::exception::ExceptionProblem; 0]);
     let obsolete = RiskException {
         line: 0,
         reason: "Stale.".to_owned(),
@@ -1129,7 +1180,7 @@ fn nuget_distinct_and_malformed_ids_do_not_match() {
         assert!(findings.is_empty(), "{name:?}");
     }
     let (findings, _) = match_packages(&[nuget_package("Newtonsoft.Json")], &[nuget_advisory("")]);
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [crate::vuln::VulnFinding; 0]);
 }
 
 #[test]
@@ -1140,7 +1191,7 @@ fn case_sensitive_ecosystems_keep_exact_identity() {
     advisory.set = "npm".to_owned();
     advisory.versions = "<=12.0.1".to_owned();
     let (findings, _) = match_packages(&[package], &[advisory]);
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [crate::vuln::VulnFinding; 0]);
 }
 
 #[test]
@@ -1159,8 +1210,8 @@ fn nuget_exceptions_match_case_insensitively_without_widening() {
         &[exception("NEWTONSOFT.JSON", "(,13.0.0)")],
         "2026-09-18",
     );
-    assert!(problems.is_empty());
-    assert!(left.is_empty());
+    assert_eq!(problems, [] as [crate::exception::ExceptionProblem; 0]);
+    assert_eq!(left, [] as [crate::vuln::VulnFinding; 0]);
     let (left, _) = apply_exceptions(
         &findings,
         &[exception("NEWTONSOFT.JSON", "[13.0.0,)")],
@@ -1209,11 +1260,14 @@ fn ruby_platform_gem_matches_upstream_range_and_keeps_platform() {
         &ruby_lock("nokogiri (1.16.8-x86_64-linux)"),
         &ruby_osv(events),
     );
-    assert!(unassessed.is_empty());
+    assert_eq!(unassessed, [] as [crate::vuln::Unassessed; 0]);
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].version, "1.16.8-x86_64-linux");
     let fixed = ruby_lock("nokogiri (1.16.9-x86_64-linux)");
-    assert!(match_packages(&fixed, &ruby_osv(events)).0.is_empty());
+    assert_eq!(
+        match_packages(&fixed, &ruby_osv(events)).0,
+        [] as [crate::vuln::VulnFinding; 0]
+    );
     let java = ruby_lock("nokogiri (1.16.8-java)");
     assert_eq!(match_packages(&java, &ruby_osv(events)).0.len(), 1);
 }
@@ -1241,7 +1295,7 @@ fn ruby_unsupported_syntax_is_incomplete_not_clean() {
         ..advisory("ruby", "GHSA-ruby-bad", "nokogiri", ">=1.0, <banana")
     }];
     let (findings, unassessed) = match_packages(&ruby_lock("nokogiri (1.5.0)"), &bad_scope);
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [crate::vuln::VulnFinding; 0]);
     assert_eq!(unassessed.len(), 1);
     assert_eq!(unassessed[0].reason, REASON_VERSION_SYNTAX);
     let events = r#"[{"introduced": "1.0.0"}, {"fixed": "2.0.0"}]"#;
@@ -1249,7 +1303,7 @@ fn ruby_unsupported_syntax_is_incomplete_not_clean() {
     let mut odd = ruby_lock("nokogiri (1.5.0)");
     odd[0].version = "not a version".to_owned();
     let (findings, unassessed) = match_packages(&odd, &ruby_osv(events));
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [crate::vuln::VulnFinding; 0]);
     assert_eq!(unassessed.len(), 1);
 }
 
@@ -1322,7 +1376,7 @@ fn malformed_advisories_mark_packages_unassessed_not_clean() {
         advisory("nuget", "GHSA-nuget-bad", "Newtonsoft.Json", "1.*"),
     ];
     let (findings, unassessed) = match_packages(&packages, &advisories);
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [crate::vuln::VulnFinding; 0]);
     assert_eq!(unassessed.len(), 4);
     assert!(
         unassessed
@@ -1440,8 +1494,8 @@ fn a_nuget_advisory_never_matches_a_powershell_module_of_the_same_name_and_versi
         )
     };
     let (findings, unassessed) = match_packages(&[module], &[advisory]);
-    assert!(findings.is_empty());
-    assert!(unassessed.is_empty());
+    assert_eq!(findings, [] as [crate::vuln::VulnFinding; 0]);
+    assert_eq!(unassessed, [] as [crate::vuln::Unassessed; 0]);
 }
 
 fn pypi_osv(events: &str) -> Vec<Advisory> {
@@ -1540,7 +1594,10 @@ fn pypi_findings_carry_fixed_versions_and_skip_withdrawn() {
         "affected": [{"package": {"ecosystem": "PyPI", "name": "x"},
         "versions": ["1.0"]}]
     }]"#;
-    assert!(parse_snapshot(withdrawn).expect("parses").is_empty());
+    assert_eq!(
+        parse_snapshot(withdrawn).expect("parses"),
+        [] as [crate::vuln::Advisory; 0]
+    );
     let listed = r#"[{
         "id": "PYSEC-2", "modified": "2026-09-18T00:00:00Z",
         "affected": [{"package": {"ecosystem": "PyPI", "name": "x"},

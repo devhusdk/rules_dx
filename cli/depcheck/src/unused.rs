@@ -203,7 +203,7 @@ mod tests {
         );
         let found = find_unused(Language::Rust, &manifest, dir.path(), &["regex".into()])
             .expect("find unused");
-        assert!(found.is_empty());
+        assert_eq!(found, [] as [crate::unused::UnusedDep; 0]);
     }
 
     #[test]

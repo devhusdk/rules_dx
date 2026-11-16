@@ -15,6 +15,7 @@ pub struct UpgradeIntent {
 }
 
 /// The command that reruns this upgrade.
+#[must_use]
 pub fn upgrade_retry_command(to: &str, intent: &UpgradeIntent) -> String {
     let mut command = format!("dx upgrade --to {}", shell_word(to));
     if intent.apply {
@@ -28,6 +29,7 @@ pub fn upgrade_retry_command(to: &str, intent: &UpgradeIntent) -> String {
 }
 
 /// The recovery line for an upgrade that stopped part way.
+#[must_use]
 pub fn upgrade_recovery_message(to: &str, intent: &UpgradeIntent) -> String {
     format!(
         "recovery: rerun `{}` (idempotent)",
@@ -37,6 +39,7 @@ pub fn upgrade_recovery_message(to: &str, intent: &UpgradeIntent) -> String {
 
 /// The lines that report how the bases differ between two `.dx/config` snapshots keyed by path.
 /// A changed base with rule keys gets a rule summary and one line per rule.
+#[must_use]
 pub fn base_changes(
     old: &BTreeMap<String, Vec<u8>>,
     new: &BTreeMap<String, Vec<u8>>,
@@ -98,6 +101,7 @@ pub struct ToolSwap {
 }
 
 impl ToolSwap {
+    #[must_use]
     pub fn warning(&self) -> String {
         let Self {
             family,
@@ -178,6 +182,7 @@ pub fn suppression_lines<'a>(
 /// Merges the change from the old base to `new_base` into an override copy. The
 /// `dx: override of base <old_sha>` header line stays out of the merge and comes back
 /// pointing at `new_sha`.
+#[must_use]
 pub fn merge_override(
     root: &str,
     ancestor: &str,
@@ -207,11 +212,13 @@ pub fn merge_override(
 }
 
 /// The line for an override copy left with conflict markers.
+#[must_use]
 pub fn override_conflict_message(file: &str) -> String {
     format!("{file}: merge conflict, resolve the markers")
 }
 
 /// The note for an override copy whose old base cannot be found.
+#[must_use]
 pub fn override_missing_base_message(file: &str, sha: &str, tool: &str) -> String {
     format!("{file}: base {sha} not in history; compare with dx config diff {tool}")
 }
@@ -247,7 +254,7 @@ mod tests {
                 "tsc: base removed (.dx/config/tsconfig/base.json)",
             ]
         );
-        assert!(base_changes(&old, &old).is_empty());
+        assert_eq!(base_changes(&old, &old), [] as [String; 0]);
     }
 
     #[test]
@@ -298,10 +305,16 @@ mod tests {
             swaps[0].warning(),
             "dx: warning: javascript lint: eslint replaced by biome; rule IDs eslint/<code> become biome/<code>, migrate native inline suppressions"
         );
-        assert!(tool_swaps(&old, &old).is_empty());
+        assert_eq!(tool_swaps(&old, &old), [] as [crate::upgrade::ToolSwap; 0]);
         let dropped = selections("javascript", "lint", &["typos"]);
-        assert!(tool_swaps(&old, &dropped).is_empty());
-        assert!(tool_swaps(&old, &Selections::new()).is_empty());
+        assert_eq!(
+            tool_swaps(&old, &dropped),
+            [] as [crate::upgrade::ToolSwap; 0]
+        );
+        assert_eq!(
+            tool_swaps(&old, &Selections::new()),
+            [] as [crate::upgrade::ToolSwap; 0]
+        );
     }
 
     #[test]
@@ -312,7 +325,10 @@ mod tests {
             suppression_lines("eslint", files),
             ["  web/a.js:2", "  web/a.js:4"]
         );
-        assert!(suppression_lines("eslint", [("web/a.py", js)]).is_empty());
+        assert_eq!(
+            suppression_lines("eslint", [("web/a.py", js)]),
+            [] as [String; 0]
+        );
     }
 
     #[test]

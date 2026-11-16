@@ -140,5 +140,8 @@ fn setup_flags_follow_the_named_languages() {
             vec!["common --modify_execution_info=PySdist.*=+block-network".to_owned()]
         )]
     );
-    assert!(setup_flags(["rust"]).is_empty());
+    assert_eq!(
+        setup_flags(["rust"]),
+        [] as [(std::string::String, std::vec::Vec<std::string::String>); 0]
+    );
 }

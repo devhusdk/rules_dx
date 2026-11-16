@@ -45,6 +45,7 @@ pub enum AdvisoryKind {
 }
 
 impl AdvisoryKind {
+    #[must_use]
     pub fn name(self) -> &'static str {
         match self {
             AdvisoryKind::Vulnerability => "vulnerability",
@@ -117,6 +118,7 @@ pub const UNKNOWN_SEVERITY: &str = "unknown";
 
 pub const VULN_RULE_PREFIX: &str = "vuln";
 
+#[must_use]
 pub fn normalize_level(severity: &str) -> &'static str {
     match severity.trim().to_ascii_lowercase().as_str() {
         "critical" | "high" | "error" => "error",
@@ -126,6 +128,7 @@ pub fn normalize_level(severity: &str) -> &'static str {
     }
 }
 
+#[must_use]
 pub fn canonical_severity(severity: &str) -> String {
     let trimmed = severity.trim();
     if trimmed.is_empty() {

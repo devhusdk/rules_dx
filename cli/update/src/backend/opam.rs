@@ -1,4 +1,7 @@
-use super::*;
+use super::{
+    BackendError, BackendPlan, CheckPlan, Path, ResolvedSet, Run, Selection, UvClosure, bazel,
+    opam_argv, opam_env,
+};
 
 const RESOLVER: &str = "@rules_dx//ocaml/private/tools/lock";
 
@@ -45,7 +48,12 @@ pub(super) fn plan(
                     argv: bazel(
                         head,
                         "run",
-                        &[RESOLVER, "--", "--dir", &workspace.join(&set.dir).to_string_lossy()],
+                        &[
+                            RESOLVER,
+                            "--",
+                            "--dir",
+                            &workspace.join(&set.dir).to_string_lossy(),
+                        ],
                     ),
                     env: Vec::new(),
                 },

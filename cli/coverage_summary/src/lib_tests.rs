@@ -150,10 +150,14 @@ fn a_failed_changed_line_gate_fails_the_cell() {
     let mut cell = inputs("");
     cell.changed_lines_configured = true;
     cell.changed_rc = Some("1\n".to_owned());
-    cell.changed_lines = "\n  \nchanged-line coverage fail: 1/2 lines\nchanged_line_uncovered: a:1\n".to_owned();
+    cell.changed_lines =
+        "\n  \nchanged-line coverage fail: 1/2 lines\nchanged_line_uncovered: a:1\n".to_owned();
     let body = render(&cell);
     assert!(body.contains("— FAIL\n"), "{body}");
-    assert!(body.contains("Changed-line gate exit: 1\n\nchanged-line coverage fail: 1/2 lines\n\n"), "{body}");
+    assert!(
+        body.contains("Changed-line gate exit: 1\n\nchanged-line coverage fail: 1/2 lines\n\n"),
+        "{body}"
+    );
     assert!(!body.contains("changed_line_uncovered"), "{body}");
 }
 
@@ -165,7 +169,10 @@ fn a_skipped_or_missing_changed_line_gate_does_not_fail_the_cell() {
         cell.changed_rc = rc.map(str::to_owned);
         let body = render(&cell);
         assert!(body.contains("— PASS\n"), "{body}");
-        assert!(body.contains(&format!("Changed-line gate exit: {shown}\n")), "{body}");
+        assert!(
+            body.contains(&format!("Changed-line gate exit: {shown}\n")),
+            "{body}"
+        );
     }
 }
 

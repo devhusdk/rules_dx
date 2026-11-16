@@ -40,7 +40,9 @@ fn missing_github_env_without_print_or_file_is_a_usage_error() {
     let mut cli = cli("@dx_tools//:gitleaks", "DX_GITLEAKS_BIN");
     cli.print = false;
     cli.env_file = None;
-    let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _guard = ENV_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let saved = std::env::var_os("GITHUB_ENV");
     // SAFETY: the process is single-threaded here or the env lock is held.
     unsafe { std::env::remove_var("GITHUB_ENV") };
@@ -54,12 +56,12 @@ fn missing_github_env_without_print_or_file_is_a_usage_error() {
         dx_tool_resolve::ResolveError::Usage { detail } => {
             assert!(detail.contains("GITHUB_ENV"), "{detail}");
         }
-        other @ dx_tool_resolve::ResolveError::CqueryFailed { .. }
-        | other @ dx_tool_resolve::ResolveError::NoArtifact { .. }
-        | other @ dx_tool_resolve::ResolveError::InfoFailed { .. }
-        | other @ dx_tool_resolve::ResolveError::MissingArtifact { .. }
-        | other @ dx_tool_resolve::ResolveError::MissingOutput { .. }
-        | other @ dx_tool_resolve::ResolveError::EnvWrite { .. } => {
+        other @ (dx_tool_resolve::ResolveError::CqueryFailed { .. }
+        | dx_tool_resolve::ResolveError::NoArtifact { .. }
+        | dx_tool_resolve::ResolveError::InfoFailed { .. }
+        | dx_tool_resolve::ResolveError::MissingArtifact { .. }
+        | dx_tool_resolve::ResolveError::MissingOutput { .. }
+        | dx_tool_resolve::ResolveError::EnvWrite { .. }) => {
             panic!("a missing GITHUB_ENV must be a usage error: {other}")
         }
     }

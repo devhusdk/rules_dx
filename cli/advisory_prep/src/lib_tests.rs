@@ -507,7 +507,7 @@ fn a_workspace_without_audited_locks_prepares_an_explicit_empty_status() {
     options.workspace = dir.path().to_path_buf();
     options.out = dir.path().join(DEFAULT_OUT);
     let prepared = prepare(&options).expect("empty preparation succeeds");
-    assert!(prepared.is_empty());
+    assert_eq!(prepared, [] as [Prepared; 0]);
     assert!(!options.out.exists(), "no snapshot is written");
     let summary = Summary::of(&prepared);
     assert_eq!(summary.status, "empty");

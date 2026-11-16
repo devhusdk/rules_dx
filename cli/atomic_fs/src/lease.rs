@@ -20,6 +20,7 @@ pub enum GenerationUse {
 
 impl GenerationUse {
     /// Generation directory this use protects.
+    #[must_use]
     pub const fn dir_name(self) -> &'static str {
         match self {
             GenerationUse::Environment => dx_path::state::ENVIRONMENTS,
@@ -28,6 +29,7 @@ impl GenerationUse {
     }
 
     /// Parses the `kind` half of a `kind:hex` lease entry.
+    #[must_use]
     pub fn parse(kind: &str) -> Option<GenerationUse> {
         [GenerationUse::Environment, GenerationUse::Generated]
             .into_iter()
@@ -43,6 +45,7 @@ pub struct SharedLease {
 
 impl SharedLease {
     /// Hands the locked file to a caller that keeps the raw handle.
+    #[must_use]
     pub fn into_file(self) -> File {
         self.file
     }
@@ -56,6 +59,7 @@ pub struct ExclusiveLease {
 
 impl ExclusiveLease {
     /// Hands the locked file to a caller that keeps the raw handle.
+    #[must_use]
     pub fn into_file(self) -> File {
         self.file
     }
@@ -411,9 +415,10 @@ mod tests {
         let start = std::time::Instant::now();
         while !path.exists() {
             // LCOV_EXCL_START - reason: test timeout, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-            if start.elapsed() > Duration::from_secs(30) {
-                panic!("timed out waiting for {what}");
-            }
+            assert!(
+                start.elapsed() <= Duration::from_secs(30),
+                "timed out waiting for {what}"
+            );
             // LCOV_EXCL_STOP - reason: end test timeout, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             std::thread::sleep(Duration::from_millis(25));
         }
@@ -426,9 +431,10 @@ mod tests {
                 return value;
             } // LCOV_EXCL_LINE - reason: the probe succeeds on the first poll, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             // LCOV_EXCL_START - reason: test timeout, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-            if start.elapsed() > Duration::from_secs(30) {
-                panic!("timed out waiting for {what}");
-            }
+            assert!(
+                start.elapsed() <= Duration::from_secs(30),
+                "timed out waiting for {what}"
+            );
             std::thread::sleep(Duration::from_millis(25));
             // LCOV_EXCL_STOP - reason: end test timeout, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         }

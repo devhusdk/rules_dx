@@ -53,19 +53,19 @@ struct Cli {
     /// Convert a local archive instead of fetching it.
     #[arg(long = "archive", value_name = "FAMILY=PATH")]
     archives: Vec<String>,
-    /// File holding the cpansa_dump output (version line, then the database JSON) instead of running the binary.
+    /// File holding the `cpansa_dump` output (version line, then the database JSON) instead of running the binary.
     #[arg(long)]
     cpansa_output: Option<PathBuf>,
-    /// The cpansa_dump binary; defaults to the one in the runfiles (DX_CPANSA_DUMP).
+    /// The `cpansa_dump` binary; defaults to the one in the runfiles (`DX_CPANSA_DUMP`).
     #[arg(long, value_name = "BINARY")]
     cpansa_dump: Option<PathBuf>,
     /// The pinned trivy binary; downloads its vulnerability and checks databases under --out.
     #[arg(long, value_name = "BINARY")]
     trivy: Option<PathBuf>,
-    /// Base URL of the cargo sparse index the yanked flags are read from (default https://index.crates.io).
+    /// Base URL of the cargo sparse index the yanked flags are read from (default <https://index.crates.io>).
     #[arg(long)]
     cargo_index: Option<String>,
-    /// Base URL of the PyPI JSON API the yanked flags are read from (default https://pypi.org/pypi).
+    /// Base URL of the `PyPI` JSON API the yanked flags are read from (default <https://pypi.org/pypi>).
     #[arg(long)]
     pypi_index: Option<String>,
     /// Directory the snapshot assets are written to as `<date>/<family>.json`; the `.dx/pins` lines are printed.

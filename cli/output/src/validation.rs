@@ -54,6 +54,7 @@ pub enum OutputError {
 }
 
 impl OutputError {
+    #[must_use]
     pub fn is_broken_pipe(&self) -> bool {
         match self {
             OutputError::Io { kind, .. } => *kind == std::io::ErrorKind::BrokenPipe,

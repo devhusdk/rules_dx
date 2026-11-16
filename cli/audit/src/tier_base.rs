@@ -1,6 +1,6 @@
 pub use dx_config::Tier;
 
-/// The base text that ships inside dx_audit; `None` for a file without bases.
+/// The base text that ships inside `dx_audit`; `None` for a file without bases.
 pub(crate) fn base_text(file: &str, tier: Tier) -> Option<&'static str> {
     match (file, tier) {
         ("licenses", Tier::Standard) => Some(include_str!("../tiers/licenses/standard.toml")),

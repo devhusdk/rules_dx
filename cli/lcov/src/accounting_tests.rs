@@ -269,10 +269,9 @@ fn cell_only_file_is_required_in_that_cell_only() {
         "v1 cell linux_arm64\nprod source a.rs\nprod source arm.rs\n",
     )];
     let documents = [lcov("a.rs", &[(1, 1)])];
-    assert!(
-        account(&x86, &documents, &blank_sources())
-            .errors
-            .is_empty()
+    assert_eq!(
+        account(&x86, &documents, &blank_sources()).errors,
+        [] as [String; 0]
     );
     let result = account(&arm, &documents, &blank_sources());
     assert_eq!(result.cell, "linux_arm64");
@@ -494,7 +493,7 @@ fn whole_file_excluded_source_is_not_absent() {
     let manifests = [manifest("v1 cell linux_x86_64\nprod source a.rs\n")];
     let source = format!("\n{}", excluded_source());
     let result = account(&manifests, &[], &sources(&[("a.rs", source.as_str())]));
-    assert!(result.absent.is_empty());
+    assert_eq!(result.absent, [] as [String; 0]);
 }
 
 #[test]
@@ -744,5 +743,5 @@ fn ignore_on_an_instrumented_line_is_clean() {
         "fn a() {{}}\nfn b() {{}} // {} - reason: defensive, issue: 1.\n",
         marker("_LINE")
     );
-    assert!(hygiene_errors(source, &[(1, 1), (2, 0)]).is_empty());
+    assert_eq!(hygiene_errors(source, &[(1, 1), (2, 0)]), [] as [String; 0]);
 }

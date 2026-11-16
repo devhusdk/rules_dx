@@ -6,6 +6,7 @@ use std::path::Path;
 pub const PACKAGE_FILES: [&str; 2] = ["BUILD.bazel", "BUILD"];
 
 /// Whether a directory entry is a BUILD marker that is a file after following symlinks.
+#[must_use]
 pub fn is_package_marker(entry: &std::fs::DirEntry) -> bool {
     let name = entry.file_name();
     PACKAGE_FILES

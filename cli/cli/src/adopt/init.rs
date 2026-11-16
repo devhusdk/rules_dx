@@ -441,9 +441,7 @@ fn emit_check_plan(
                 hint: f.hint,
                 strength: "advisory".to_owned(),
             });
-            if let Err(exit) = emit_built(out, event) {
-                return Err(exit);
-            }
+            emit_built(out, event)?;
         } else if !summaries_suppressed(invocation) {
             writeln!(err, "advisory: {} ({}:{})", f.hint, f.file, f.line).ok();
         }
@@ -460,17 +458,13 @@ fn emit_check_plan(
                 hint: f.hint.clone(),
                 strength: if f.hard { "hard" } else { "advisory" }.to_owned(),
             });
-            if let Err(exit) = emit_built(out, event) {
-                return Err(exit);
-            }
+            emit_built(out, event)?;
         }
         for note in &plan.notes {
-            if let Err(exit) = emit_built(
+            emit_built(
                 out,
                 notice_event(&NoticeEvent::info(CODE_INIT_PLAN_PARTIAL, note.clone())),
-            ) {
-                return Err(exit);
-            }
+            )?;
         }
     } else if let Some(plan) = plan
         && !summaries_suppressed(invocation)
@@ -520,7 +514,6 @@ fn drift_message(
     };
     format!("init drift: {} ({fix})", clauses.join("; "))
 }
-
 
 fn check_init(
     invocation: &Invocation,

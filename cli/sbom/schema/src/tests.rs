@@ -91,7 +91,7 @@ fn a_package_without_download_location_fails_the_schema() {
 fn a_null_field_fails_the_schema() {
     let mut value = minimal();
     value["packages"][0]["filesAnalyzed"] = Value::Null;
-    assert!(!schema_errors(&value).is_empty());
+    assert_ne!(schema_errors(&value), [] as [String; 0]);
 }
 
 #[test]
@@ -138,14 +138,14 @@ fn the_cyclonedx_builder_output_passes() {
 fn a_cyclonedx_document_with_a_bad_license_id_fails_the_schema() {
     let mut value = serde_json::to_value(cyclonedx_document()).expect("value");
     value["components"][0]["licenses"] = json!([{"license": {"id": "Not-A-License"}}]);
-    assert!(!cyclonedx_schema_errors(&value).is_empty());
+    assert_ne!(cyclonedx_schema_errors(&value), [] as [String; 0]);
 }
 
 #[test]
 fn a_cyclonedx_document_without_a_spec_version_fails_the_schema() {
     let mut value = serde_json::to_value(cyclonedx_document()).expect("value");
     value.as_object_mut().expect("object").remove("specVersion");
-    assert!(!cyclonedx_schema_errors(&value).is_empty());
+    assert_ne!(cyclonedx_schema_errors(&value), [] as [String; 0]);
 }
 
 #[test]

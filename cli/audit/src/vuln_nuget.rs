@@ -113,6 +113,7 @@ fn parse_nuget_version(version: &str) -> Option<NugetVersion> {
     Some(NugetVersion { parts, prerelease })
 }
 
+#[must_use]
 pub fn nuget_compare(left: &str, right: &str) -> std::cmp::Ordering {
     let left_parsed = parse_nuget_version(left);
     let right_parsed = parse_nuget_version(right);
@@ -169,6 +170,7 @@ pub fn nuget_compare(left: &str, right: &str) -> std::cmp::Ordering {
     }
 }
 
+#[must_use]
 pub fn nuget_version_eq(left: &str, right: &str) -> bool {
     let left_trimmed = left.trim();
     let right_trimmed = right.trim();
@@ -185,10 +187,12 @@ pub fn nuget_version_eq(left: &str, right: &str) -> bool {
 }
 
 #[cfg(test)]
+#[must_use]
 pub fn nuget_in_scope(scope: &str, version: &str) -> bool {
     nuget_assess(scope, version) == VersionScope::Affected
 }
 
+#[must_use]
 pub fn nuget_assess(scope: &str, version: &str) -> VersionScope {
     let scope_trimmed = scope.trim();
     let version_trimmed = version.trim();

@@ -31,6 +31,7 @@ pub enum BazelSource {
 }
 
 impl BazelSource {
+    #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
             BazelSource::Registry => "registry",
@@ -57,6 +58,7 @@ pub struct BazelInput {
 
 impl BazelInput {
     /// The origin, digest, and patch facts as one line.
+    #[must_use]
     pub fn provenance(&self) -> String {
         let mut text = format!("{} {}", self.source.as_str(), self.origin);
         if let Some(digest) = &self.digest {
@@ -69,6 +71,7 @@ impl BazelInput {
         text
     }
 
+    #[must_use]
     pub fn locked(&self) -> LockedPackage {
         LockedPackage {
             is_git: self.source == BazelSource::GitOverride,
@@ -262,7 +265,7 @@ fn unrecorded_extensions(modules: &[ModuleFile], lock: &serde_json::Value) -> Ve
 fn selected_modules(root: &serde_json::Value) -> Result<Vec<Selected>, DxError> {
     if root
         .get("lockFileVersion")
-        .and_then(|v| v.as_u64())
+        .and_then(serde_json::Value::as_u64)
         .is_none()
     {
         return Err(DxError::failure(
@@ -739,6 +742,7 @@ fn is_sha256_hex(text: &str) -> bool {
 }
 
 /// Orders two Bazel module versions the way Bazel does.
+#[must_use]
 pub fn bazel_version_cmp(left: &str, right: &str) -> Ordering {
     fn split(version: &str) -> (&str, &str) {
         let main = version.split('+').next().unwrap_or_default();

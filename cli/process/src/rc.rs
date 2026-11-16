@@ -38,6 +38,7 @@ impl VerbMask {
     pub const NONE: VerbMask = VerbMask(0);
 
     /// Whether `verb` is in the set.
+    #[must_use]
     pub fn contains(self, verb: &str) -> bool {
         RESOURCE_VERBS
             .iter()
@@ -46,6 +47,7 @@ impl VerbMask {
     }
 
     /// The set with `verb` added; other verbs are ignored.
+    #[must_use]
     pub fn with(self, verb: &str) -> VerbMask {
         match RESOURCE_VERBS.iter().position(|known| *known == verb) {
             Some(bit) => VerbMask(self.0 | (1 << bit)),
@@ -230,11 +232,13 @@ pub struct LocalShare {
 
 impl LocalShare {
     /// The share as `cpu=N,memory=M`.
+    #[must_use]
     pub fn to_env(&self) -> String {
         format!("cpu={},memory={}", self.cpus, self.memory_mb)
     }
 
     /// Parses `cpu=N,memory=M`; anything else is `None`.
+    #[must_use]
     pub fn parse(text: &str) -> Option<LocalShare> {
         let (cpu, memory) = text.trim().split_once(',')?;
         let cpus = cpu.strip_prefix("cpu=")?.parse().ok()?;
@@ -291,6 +295,7 @@ pub fn share() -> Option<LocalShare> {
 
 impl RcPolicy {
     /// The policy that skips user rc files and adds no disk cache.
+    #[must_use]
     pub fn hermetic() -> RcPolicy {
         HERMETIC.clone()
     }
@@ -364,6 +369,7 @@ impl RcPolicy {
     }
 
     /// The startup flags every Bazel call starts with.
+    #[must_use]
     pub fn startup_opts(&self) -> &'static [&'static str] {
         if self.read_user_rc {
             &[]
@@ -373,6 +379,7 @@ impl RcPolicy {
     }
 
     /// The cache, cache gc, and resource flags added right after a build, test, coverage, or run verb.
+    #[must_use]
     pub fn verb_options(
         &self,
         bazel_command: &str,
@@ -486,6 +493,7 @@ pub fn configure_real_in(workspace: &Path, slot_idle_secs: Option<u64>) {
 
 /// Reads an rc file the way Bazel does. A missing file is `None`; any other read error is
 /// reported once per path and also read as `None`.
+#[must_use]
 pub fn read_file(path: &Path) -> Option<String> {
     match std::fs::read(path) {
         Ok(bytes) => Some(decode(&bytes)),
@@ -517,11 +525,12 @@ pub fn current() -> &'static RcPolicy {
 }
 
 /// The cache and resource flags this process adds after `bazel_command`.
+#[must_use]
 pub fn build_verb_options(bazel_command: &str, user_options: &[String]) -> Vec<String> {
     current().verb_options(bazel_command, share().as_ref(), user_options)
 }
 
-/// The user cache directory: XDG_CACHE_HOME, then HOME/.cache, then LOCALAPPDATA.
+/// The user cache directory: `XDG_CACHE_HOME`, then HOME/.cache, then LOCALAPPDATA.
 pub fn user_cache_dir(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
     let non_empty = |name: &str| env_get(name).filter(|value| !value.is_empty());
     match non_empty("XDG_CACHE_HOME") {
@@ -534,6 +543,7 @@ pub fn user_cache_dir(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBu
 }
 
 /// The disk cache dx shares across every checkout under `cache`.
+#[must_use]
 pub fn default_disk_cache(cache: &Path) -> PathBuf {
     cache.join("dx").join("disk-cache")
 }
@@ -665,6 +675,7 @@ fn rc_min_max_idle_secs(lines: &[sections::Line]) -> Option<u64> {
 }
 
 /// Splits an rc line on whitespace outside quotes, removing the quotes.
+#[must_use]
 pub fn tokenize(line: &str) -> Vec<String> {
     let mut tokens = Vec::new();
     let mut current = String::new();

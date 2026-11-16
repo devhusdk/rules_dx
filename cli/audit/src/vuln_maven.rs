@@ -30,7 +30,7 @@ fn maven_dot_qualifiers_are_dashes(version: &str) -> String {
             {
                 after += 1;
             }
-            if bytes.get(after).is_none_or(|b| b.is_ascii_digit()) {
+            if bytes.get(after).is_none_or(u8::is_ascii_digit) {
                 out.push(b'-');
                 index += 1;
                 continue;
@@ -46,10 +46,12 @@ fn comparable_maven(version: &str) -> ComparableVersion {
     ComparableVersion::new(maven_dot_qualifiers_are_dashes(version.trim()).as_str())
 }
 
+#[must_use]
 pub fn maven_compare(left: &str, right: &str) -> Ordering {
     comparable_maven(left).cmp(&comparable_maven(right))
 }
 
+#[must_use]
 pub fn maven_version_eq(left: &str, right: &str) -> bool {
     let left_trimmed = left.trim();
     let right_trimmed = right.trim();
@@ -155,10 +157,12 @@ fn interval_matches(interval: &MavenInterval, version: &ComparableVersion) -> bo
 }
 
 #[cfg(test)]
+#[must_use]
 pub fn maven_in_scope(scope: &str, version: &str) -> bool {
     maven_assess(scope, version) == VersionScope::Affected
 }
 
+#[must_use]
 pub fn maven_assess(scope: &str, version: &str) -> VersionScope {
     let scope_trimmed = scope.trim();
     let version_trimmed = version.trim();

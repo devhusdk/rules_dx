@@ -47,16 +47,19 @@ pub fn resolve_scope(targets: &[String]) -> Result<EnvScope, ScopeError> {
     }
 }
 
-/// Returns the aspect label in the rules_dx repository named `repo`.
+/// Returns the aspect label in the `rules_dx` repository named `repo`.
+#[must_use]
 pub fn aspect_label(repo: &str) -> String {
     format!("@{repo}//{ENV_ASPECT}")
 }
 
-/// Returns the repository target in the rules_dx repository named `repo`.
+/// Returns the repository target in the `rules_dx` repository named `repo`.
+#[must_use]
 pub fn repository_target(repo: &str) -> String {
     format!("@{repo}//{REPOSITORY_TARGET}")
 }
 
+#[must_use]
 pub fn scope_targets(scope: &EnvScope, repo: &str) -> Vec<String> {
     match scope {
         EnvScope::Repository => vec![repository_target(repo)],
@@ -101,10 +104,12 @@ pub enum CollectError {
     Fingerprint(#[from] dx_fingerprint::FingerprintError),
 }
 
+#[must_use]
 pub fn is_shard_artifact(path: &Path) -> bool {
     dx_bep::is_shard_artifact(path, SHARD_SUFFIX)
 }
 
+#[must_use]
 pub fn exec_matches(artifact_path: &Path, exec_path: &str) -> bool {
     dx_bep::exec_matches(artifact_path, exec_path)
 }
@@ -193,6 +198,7 @@ fn bind_artifacts<'p>(
 type MergeIndex<'a> =
     BTreeMap<(&'a str, &'a str), BTreeMap<(&'a str, &'a str, &'a str), &'a EnvEntry>>;
 
+#[must_use]
 pub fn merge_records(records: &[EnvRecord]) -> Vec<EnvRecord> {
     let mut owners: MergeIndex<'_> = BTreeMap::new();
     for record in records {
@@ -221,6 +227,7 @@ pub fn merge_records(records: &[EnvRecord]) -> Vec<EnvRecord> {
 
 type Claim<'a> = (&'a str, &'a str, &'a str, &'a str, &'a str);
 
+#[must_use]
 pub fn conflict_error(records: &[EnvRecord]) -> String {
     let mut by_key: BTreeMap<&str, BTreeSet<Claim<'_>>> = BTreeMap::new();
     for record in records {
@@ -286,6 +293,7 @@ pub fn fingerprint(records: &[EnvRecord]) -> Result<String, dx_fingerprint::Fing
     dx_fingerprint::to_json(&view)
 }
 
+#[must_use]
 pub fn plan_digest(fingerprint: &str) -> [u8; 32] {
     digest(fingerprint.as_bytes())
 }

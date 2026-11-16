@@ -10,6 +10,7 @@ import java.lang.reflect.Proxy;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
@@ -333,8 +334,16 @@ public final class KotlincCheck {
 
   /** kotlinc reports absolute paths; the runner matches the working-directory-relative ones. */
   private static String relative(String path) {
-    String cwd = Path.of("").toAbsolutePath().toString() + File.separator;
-    return path.startsWith(cwd) ? path.substring(cwd.length()) : path;
+    Path cwd = Path.of("").toAbsolutePath();
+    Path absolute;
+    try {
+      absolute = Path.of(path);
+    } catch (InvalidPathException e) {
+      return path;
+    }
+    return absolute.isAbsolute() && absolute.startsWith(cwd)
+        ? cwd.relativize(absolute).toString()
+        : path;
   }
 
   /** Replaces temp extraction paths with their stable srcjar names. */

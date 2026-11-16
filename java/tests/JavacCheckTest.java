@@ -53,8 +53,7 @@ public final class JavacCheckTest {
     expect(log.contains("\"line\":2"), "error is on line 2", log);
     expect(log.contains("\"severity\":\"error\""), "severity error", log);
     expect(log.contains("compiler.err.prob.found.req"), "error code", log);
-    expect(
-        log.contains(a.toString().replace("\\", "\\\\")), "file is the path javac received", log);
+    expect(log.contains(a.toString().replace('\\', '/')), "file is the path javac received", log);
   }
 
   private static void werror(Path dir) throws IOException {

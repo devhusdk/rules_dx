@@ -271,13 +271,10 @@ fixture-referenced zig/tests/fixtures/bench
 fixture-referenced zig/tests/fixtures/calc
 outside-lang core/quality/tools/cc
 outside-lang core/quality/tools/python
-platforms-option android/private/library/defs.bzl
 platforms-option apple/private/bundle/cell_tests.bzl
 platforms-option apple/private/ios/defs.bzl
 platforms-option apple/private/ios/lib_tests.bzl
 platforms-option cc/private/toolchain/action_tests.bzl
-platforms-option cc/private/toolchain/select.bzl
-platforms-option erlang/private/defs.bzl
 private-visibility android/private/library/BUILD.bazel
 private-visibility android/private/packaging/BUILD.bazel
 private-visibility android/private/packaging/ops/BUILD.bazel

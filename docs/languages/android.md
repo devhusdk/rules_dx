@@ -147,9 +147,11 @@ android_native_library(
 )
 ```
 
-Each tuple in `platforms` (default all tuples) gets a `:name_<tuple>`
-shared library, and `:name` groups them. `edition` defaults to the
-repo Rust edition. Unknown tuples,
+Each Android platform label in `platforms` (default
+`@rules_dx//android:android_device` and
+`@rules_dx//android:android_emulator`) gets a `:name_<tuple>` shared
+library, and `:name` groups them. `edition` defaults to the
+repo Rust edition. Unknown platforms,
 downgraded API levels, and unknown C++ runtimes fail at analysis.
 `api_level` chooses the NDK level the library is compiled and linked
 against (default 31, the floor); each level builds in its own

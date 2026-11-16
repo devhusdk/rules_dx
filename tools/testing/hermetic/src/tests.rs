@@ -1137,7 +1137,7 @@ fn check_windows_sh_rejects_the_wsl_stub_and_an_empty_path() {
 fn bazel_argv_pins_startup_and_build_flags_before_the_targets() {
     let argv = fixture_session().bazel_argv(&fixture_probe());
     assert_eq!(
-        argv[..6],
+        argv[..7],
         [
             "/usr/bin/env",
             "-i",
@@ -1145,6 +1145,7 @@ fn bazel_argv_pins_startup_and_build_flags_before_the_targets() {
             "PATH=/q/applets",
             "BAZELISK_HOME=/q/bazelisk",
             "XDG_CACHE_HOME=/q/cold_cache",
+            "BAZEL_SH=/bin/bash",
         ]
     );
     let gc_size = format!(
@@ -1156,7 +1157,7 @@ fn bazel_argv_pins_startup_and_build_flags_before_the_targets() {
         dx_process::DISK_CACHE_GC_MAX_AGE
     );
     assert_eq!(
-        argv[9..],
+        argv[10..],
         [
             "/q/consumer ws",
             "/q/bin/bazelisk",
@@ -1180,7 +1181,7 @@ fn bazel_argv_pins_startup_and_build_flags_before_the_targets() {
             "//...",
         ]
     );
-    assert!(argv[8].contains("shutdown"), "{}", argv[8]);
+    assert!(argv[9].contains("shutdown"), "{}", argv[9]);
 }
 
 #[test]

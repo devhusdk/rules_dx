@@ -19,6 +19,7 @@ BUILD_SCRIPT_CC_ENV = {
 }
 
 _UNDEF_ISO_STDIO = "/U_CRT_STDIO_ISO_WIDE_SPECIFIERS"
+_FILE_PREFIX_MAP = "-ffile-prefix-map=${pwd}=."
 
 _PATH_PLACEHOLDERS = [
     apple_support.path_placeholders.xcode(),
@@ -145,8 +146,9 @@ def _build_script_cc_env_impl(ctx):
         host_tools = target_tools
         host_cflags = ""
         host_cxxflags = ""
+    msvc = rust.target_triple.str.endswith("-windows-msvc")
     variables = {
-        "DX_BS_CFLAGS": _UNDEF_ISO_STDIO if coverage and rust.target_triple.str.endswith("-windows-msvc") else "",
+        "DX_BS_CFLAGS": _UNDEF_ISO_STDIO if coverage and msvc else ("" if msvc else _FILE_PREFIX_MAP),
         "DX_BS_HOST_CFLAGS": host_cflags,
         "DX_BS_HOST_CXXFLAGS": host_cxxflags,
     }

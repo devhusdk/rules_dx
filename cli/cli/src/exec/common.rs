@@ -247,10 +247,10 @@ pub(super) fn git_output(
     what: &str,
     args: &[&str],
 ) -> Result<Vec<u8>, dx_error::DxError> {
-    let mut argv = vec!["git".to_owned()];
-    argv.extend(args.iter().map(ToString::to_string));
+    let mut git_argv = vec!["git".to_owned()];
+    git_argv.extend(args.iter().map(ToString::to_string));
     let result = runner
-        .run_query(&argv, workspace)
+        .run_query(&git_argv, workspace)
         .map_err(|error| dx_error::DxError::infra(format!("git {what} failed: {error}")))?;
     if result.code != Some(0) {
         let detail = dx_output::first_diagnostic_line(&result.stderr, 200, "no Git diagnostic");

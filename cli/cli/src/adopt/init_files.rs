@@ -679,10 +679,10 @@ mod tests {
                 assert!(!file.content.starts_with("# dx:"), "{}", file.path);
                 continue;
             }
-            let header = file.ownership().header(&file.path, None).expect(&file.path);
+            let expected = file.ownership().header(&file.path, None).expect(&file.path);
             assert_eq!(
                 file.content.lines().next(),
-                Some(header.as_str()),
+                Some(expected.as_str()),
                 "{}",
                 file.path
             );

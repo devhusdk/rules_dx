@@ -184,9 +184,9 @@ impl Consumer {
 
     fn dx(&self, args: &[&str], uv: Option<&str>) -> Run {
         let workspace = self.root.to_string_lossy().into_owned();
-        let mut argv: Vec<&str> = args.to_vec();
-        argv.push("--workspace");
-        argv.push(workspace.as_str());
+        let mut full: Vec<&str> = args.to_vec();
+        full.push("--workspace");
+        full.push(workspace.as_str());
         let pinned_uv = runfile("UV_SETS_UV").to_string_lossy().into_owned();
         let python = runfile("UV_SETS_PYTHON").to_string_lossy().into_owned();
         let home = self.ambient.join("home").to_string_lossy().into_owned();
@@ -208,7 +208,7 @@ impl Consumer {
             ("UV_OFFLINE", "1"),
             ("PATH", path.as_str()),
         ];
-        run(&env_file("DX_BIN"), &argv, &envs).unwrap_or_else(|error| panic!("run dx: {error}"))
+        run(&env_file("DX_BIN"), &full, &envs).unwrap_or_else(|error| panic!("run dx: {error}"))
     }
 
     fn ambient_uv_ran(&self) -> bool {

@@ -111,7 +111,7 @@ pub(super) fn target(workspace: &Path, rel: &str) -> io::Result<std::path::PathB
     let path = workspace.join(rel);
     match std::fs::symlink_metadata(&path) {
         Ok(meta) if meta.file_type().is_symlink() => match std::fs::canonicalize(&path) {
-            Ok(real) => Ok(real),
+            Ok(resolved) => Ok(resolved),
             Err(error) if error.kind() == io::ErrorKind::NotFound => {
                 Ok(workspace.join(std::fs::read_link(&path)?))
             }
@@ -175,9 +175,9 @@ mod tests {
         let fix = dx_plan::args::parse(&line("- Fix first:")).expect("fix parses");
         assert_eq!(fix.command, Command::Check);
         assert!(fix.applies() && fix.affected);
-        let test = dx_plan::args::parse(&line("- Then verify:")).expect("test parses");
-        assert_eq!(test.command, Command::Test);
-        assert!(!test.applies() && test.affected);
+        let verify = dx_plan::args::parse(&line("- Then verify:")).expect("verify parses");
+        assert_eq!(verify.command, Command::Test);
+        assert!(!verify.applies() && verify.affected);
     }
 
     #[cfg(unix)]

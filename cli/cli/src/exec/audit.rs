@@ -214,10 +214,10 @@ fn resolve_configured_audit_sets(
             });
         }
         for name in owners {
-            let excluded = registry
+            let is_covered = registry
                 .find(name)
                 .is_some_and(|set| dx_plan::resolve::exclude::covered(excludes, &set_package(set)));
-            if !excluded {
+            if !is_covered {
                 union.insert(name.to_owned());
             }
         }

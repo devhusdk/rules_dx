@@ -496,7 +496,7 @@ pub(crate) fn write_and_refresh(
             verbose,
         ) {
             Ok(()) => 0,
-            Err(exit) => exit,
+            Err(status) => status,
         },
         Err(failure) => refresh_failed(edit, invocation, out, err, manifest, &failure),
     };

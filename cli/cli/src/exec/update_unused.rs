@@ -536,13 +536,13 @@ fn missing_hubs(
                 continue;
             }
             let expression = format!("rdeps(//..., {label}, 1) - {label}");
-            let user = run_label_query_file(&expression, &expression, workspace, query, startup)
+            let consumer = run_label_query_file(&expression, &expression, workspace, query, startup)
                 .ok()
                 .and_then(|labels| labels.into_iter().next());
             out.push(Missing {
                 set: target.set.name.clone(),
                 name: name.to_owned(),
-                via: Via::Label(user.unwrap_or_else(|| label.clone())),
+                via: Via::Label(consumer.unwrap_or_else(|| label.clone())),
             });
         }
     }
@@ -1050,8 +1050,8 @@ mod tests {
                 .collect()
         };
         assert_eq!(names(&NoQuery), ["github.com/a/b", "github.com/c/d"]);
-        let named = Labels("@@gazelle++go_deps+com_github_a_b//pkg:pkg\n");
-        assert_eq!(names(&named), ["github.com/c/d"]);
+        let labeled = Labels("@@gazelle++go_deps+com_github_a_b//pkg:pkg\n");
+        assert_eq!(names(&labeled), ["github.com/c/d"]);
     }
 
     #[test]

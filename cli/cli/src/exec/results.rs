@@ -447,10 +447,10 @@ fn build_dep_producer(
         let Ok(mut after) = String::from_utf8(removed) else {
             continue;
         };
-        let removes = !edits.is_empty();
+        let has_edits = !edits.is_empty();
         for (key, fix) in &items {
             match fix {
-                None if removes => {
+                None if has_edits => {
                     fixed.insert((*key).clone());
                 }
                 None => {}
@@ -643,10 +643,10 @@ pub(crate) fn collect_results_in(
         .iter()
         .flat_map(|producer| producer.changes.iter().map(|change| change.path.as_str()))
         .collect();
-    let removes =
+    let is_fixed =
         |event: &DiagnosticEvent| build_dep_key(event).is_some_and(|key| fixed.contains(&key));
     for producer in &mut producers {
-        producer.terminal.retain(|event| !removes(event));
+        producer.terminal.retain(|event| !is_fixed(event));
     }
     let removed_paths: BTreeSet<String> = removed.iter().map(|path| (*path).to_owned()).collect();
     if let Some(producer) = removal {
@@ -771,10 +771,10 @@ mod tests {
         pathless.path = String::new();
         assert!(map_diagnostic(&pathless, Snapshot::Initial, Path::new(".")).is_none());
         assert!(map_diagnostic(&pathless, Snapshot::Terminal, Path::new(".")).is_none());
-        let mut bare = pathless.clone();
-        bare.start_byte = None;
-        bare.end_byte = None;
-        assert!(map_diagnostic(&bare, Snapshot::Terminal, Path::new(".")).is_some());
+        let mut stripped = pathless.clone();
+        stripped.start_byte = None;
+        stripped.end_byte = None;
+        assert!(map_diagnostic(&stripped, Snapshot::Terminal, Path::new(".")).is_some());
     }
 
     #[test]

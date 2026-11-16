@@ -4,6 +4,8 @@ load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_co
 # gazelle:exclude main.go
 # gazelle:exclude runfiles_main.go
 # gazelle:exclude lock_main.go
+# gazelle:exclude lint_dirty.go
+# gazelle:exclude format_dirty.go
 
 package(
     default_testonly = True,
@@ -14,6 +16,20 @@ go_library(
     name = "conformance",
     srcs = ["greet.go"],
     importpath = "rules_dx/go/tests/conformance",
+)
+
+go_library(
+    name = "lint_dirty",
+    srcs = ["lint_dirty.go"],
+    importpath = "rules_dx/go/tests/conformance/lintdirty",
+    tags = ["manual"],
+)
+
+go_library(
+    name = "format_dirty",
+    srcs = ["format_dirty.go"],
+    importpath = "rules_dx/go/tests/conformance/formatdirty",
+    tags = ["manual"],
 )
 
 go_binary(
@@ -72,6 +88,15 @@ dx_conformance_suite(
         "stale": "go.stale.sum",
     },
     passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "format_dirty.go",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 10,
+        "lint_rule": "SA4017",
+        "lint_source": "lint_dirty.go",
+    },
     runfiles = {
         "binary": ":runfiles_hello",
         "data": "data.txt",

@@ -37,7 +37,7 @@ on:
         required: false
         default: false
       relocate:
-        description: "test or build only: run the task a second time under a fresh output base with caches bypassed, logged to relocated.log."
+        description: "test or build only: test reruns the task under a fresh output base with caches bypassed, logged to relocated.log; build runs //tools/testing:determinism_check on the scope, logged to determinism.txt."
         type: boolean
         required: false
         default: false
@@ -283,9 +283,7 @@ jobs:
           export DX_HERMETIC_BAZELISK
           startup=()
           extra=(--notrack_incremental_state --nokeep_state_after_build)
-          downloads=()
-          # The determinism check reads outputs from the execution root, so only a plain run leaves them remote.
-          [ "$DX_RELOCATE" = true ] || downloads=(--remote_download_minimal "--remote_download_regex=.*/testlogs/.*")
+          downloads=(--remote_download_minimal "--remote_download_regex=.*/testlogs/.*")
           profile=("--profile=$RUNNER_TEMP/evidence/profile.gz" --noslim_profile --experimental_profile_include_target_label --experimental_profile_include_primary_output)
           run_task() {
             log="$1"
@@ -298,40 +296,16 @@ jobs:
             fi
           }
           run_task "$RUNNER_TEMP/evidence/evidence.log"
-          if [ "$DX_RELOCATE" = true ]; then
+          if [ "$DX_RELOCATE" = true ] && [ "$DX_TASK" = build ]; then
+            bazel run --noshow_progress "${flags[@]}" //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" "${flags[@]}" "${patterns[@]}" 2>&1 | tee "$RUNNER_TEMP/evidence/determinism.txt"
+          elif [ "$DX_RELOCATE" = true ]; then
             base="$RUNNER_TEMP/relocated-base"
             rm -rf "$base"
             startup=("--output_base=$base")
             extra=(--disk_cache= --noremote_accept_cached)
             profile=()
             run_task "$RUNNER_TEMP/evidence/relocated.log"
-            differ=0
-            if [ "$DX_TASK" = build ]; then
-              det="$RUNNER_TEMP/evidence/determinism"
-              mkdir -p "$det"
-              first_root="$(bazel info "${flags[@]}" execution_root | tr -d '\r')"
-              second_root="$(bazel "--output_base=$base" info "${flags[@]}" execution_root | tr -d '\r')"
-              bazel cquery --noshow_progress --output=files "${DX_SCOPE// / + }" "${flags[@]}" | tr -d '\r' > "$det/first.txt"
-              bazel "--output_base=$base" cquery --noshow_progress --output=files "${DX_SCOPE// / + }" "${flags[@]}" | tr -d '\r' > "$det/relocated.txt"
-              sort -u "$det/first.txt" "$det/relocated.txt" > "$det/files.txt"
-              while read -r f; do
-                [ -d "$first_root/$f" ] && continue
-                a="$(sha256sum < "$first_root/$f" 2>/dev/null | cut -d' ' -f1)" || a=missing
-                b="$(sha256sum < "$second_root/$f" 2>/dev/null | cut -d' ' -f1)" || b=missing
-                if [ "$a" = "$b" ]; then
-                  echo "match $f $a $b"
-                  continue
-                fi
-                echo "differ $f $a $b"
-                differ=1
-                mkdir -p "$det/first/$(dirname "$f")" "$det/relocated/$(dirname "$f")"
-                cp "$first_root/$f" "$det/first/$f" 2>/dev/null || true
-                cp "$second_root/$f" "$det/relocated/$f" 2>/dev/null || true
-              done < "$det/files.txt" > "$RUNNER_TEMP/evidence/determinism.txt"
-              cat "$RUNNER_TEMP/evidence/determinism.txt"
-            fi
             bazel "--output_base=$base" shutdown
-            exit "$differ"
           fi
       - name: Record the Apple executor
         if: ${{ always() && matrix.platform == 'macos_arm64' }}

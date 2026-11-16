@@ -470,7 +470,7 @@ fn no_other_workflow_job_reports_the_gate_context() {
 }
 
 /// Failures the workflows may swallow: (workflow file, job, step, kind, reason).
-const ALLOWED_SWALLOWS: [(&str, &str, &str, &str, &str); 17] = [
+const ALLOWED_SWALLOWS: [(&str, &str, &str, &str, &str); 16] = [
     (
         "ci.yml",
         "preflight",
@@ -505,13 +505,6 @@ const ALLOWED_SWALLOWS: [(&str, &str, &str, &str, &str); 17] = [
         "Install the Android SDK packages",
         "|| true",
         "sdkmanager exits non-zero when the pipe closes after the licenses are accepted",
-    ),
-    (
-        "evidence.yml",
-        "evidence",
-        "Run evidence task",
-        "|| true",
-        "the task's own exit status is recorded and reported by a later step",
     ),
     (
         "evidence.yml",

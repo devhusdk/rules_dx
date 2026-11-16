@@ -469,6 +469,16 @@ fn a_fail_descriptor_prints_its_message_and_exits_2_without_runfiles() {
 }
 
 #[test]
+fn a_copy_without_a_descriptor_or_runfiles_names_the_missing_runfiles() {
+    let scratch = dx_test_scratch::scratch("exec_launcher_bare_");
+    let dir = scratch.path().to_path_buf();
+    for name in ["qmllint", "qmllint.exe"] {
+        let error = run(&dir.join(name), &[]).unwrap_err().to_string();
+        assert!(error.starts_with("no runfiles beside "), "{error}");
+    }
+}
+
+#[test]
 fn copy_lines_write_runfiles_below_the_workspace() {
     let scratch = dx_test_scratch::scratch("exec_launcher_copy_");
     let dir = scratch.path().to_path_buf();

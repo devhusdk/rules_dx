@@ -475,28 +475,33 @@ _FORWARDED_DEFAULTS = {
     "ambient_files": {},
 }
 
-def matrix_case(name, capability, tool, binary, source_class, src = None, generated = None, config = None, platforms = SUPPORT_PLATFORMS, **extra):
-    """Returns one matrix case row."""
-    if (src == None) == (generated == None) or generated == {}:
-        fail("matrix_case " + name + ": set exactly one of src and generated")
+def matrix_case(name, capability, tool, source_class, binary = None, src = None, srcs = None, generated = None, path = None, config = None, platforms = SUPPORT_PLATFORMS, **extra):
+    """Returns one matrix case row; a list `tool` with a list `binary` makes one stage per tool."""
+    if len([x for x in [src, srcs, generated] if x != None]) != 1 or generated == {}:
+        fail("matrix_case " + name + ": set exactly one of src, srcs and generated")
+    tools = tool if type(tool) == "list" else [tool]
+    binaries = binary if type(binary) == "list" else ([binary] if binary else [])
     case = {
         "name": name,
         "capability": capability,
-        "tool_names": [tool],
-        "tool_binaries": [binary],
         "expected_file": ":matrix/" + name + ".expected.txt",
         "linux_arm64": "linux_arm64" in platforms,
         "macos_arm64": "macos_arm64" in platforms,
         "windows_x86_64": "windows_x86_64" in platforms,
         "windows_arm64": "windows_arm64" in platforms,
     }
+    if binaries:
+        case["tool_names"] = tools
+        case["tool_binaries"] = binaries
     if src != None:
         case["srcs"] = [src]
         path = "core/quality/testdata/" + src.removeprefix(":")
+    elif srcs != None:
+        case["srcs"] = srcs
     else:
         case["generated"] = generated
-        path = ",".join(sorted(generated.keys()))
-    case["stages"] = ["%s;%s;%s" % (tool, source_class, path)]
+        path = path or ",".join(sorted(generated.keys()))
+    case["stages"] = ["%s;%s;%s" % (t, source_class, path) for t in tools]
     if config != None:
         case["toolfile_tools"] = [tool]
         case["toolfile_srcs"] = [config]

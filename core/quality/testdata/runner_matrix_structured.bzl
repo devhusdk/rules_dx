@@ -792,28 +792,30 @@ STRUCTURED_CASES = [
         toolfile_rels = ["analysis_options.yaml", ".dart_tool/package_config.json"],
         runner_failure = True,
     ),
-    {
-        "name": "matrix_qml_lint_pass",
-        "generated": {
+    matrix_case(
+        name = "matrix_qml_lint_pass",
+        capability = "lint",
+        tool = "qmllint",
+        source_class = "qml",
+        generated = {
             "matrix/qmllint_clean.qml": "import QtQuick\n\nItem {\n    property string greet: \"hello\"\n}\n",
         },
-        "capability": "lint",
-        "stages": ["qmllint;qml;matrix/qmllint_clean.qml"],
-        "upstream_tools": ["qmllint"],
-        "upstream_srcs": [":matrix/matrix_qml_lint_pass.upstream.qmllint.txt"],
-        "expected_file": ":matrix/matrix_qml_lint_pass.expected.txt",
-    },
-    {
-        "name": "matrix_qml_lint_fail",
-        "generated": {
+        platforms = ["linux_x86_64"],
+        upstream_tools = ["qmllint"],
+        upstream_srcs = [":matrix/matrix_qml_lint_pass.upstream.qmllint.txt"],
+    ),
+    matrix_case(
+        name = "matrix_qml_lint_fail",
+        capability = "lint",
+        tool = "qmllint",
+        source_class = "qml",
+        generated = {
             "matrix/qmllint_dirty.qml": "import QtQuick\n\nItem {\n    property string greet: foo\n}\n",
         },
-        "capability": "lint",
-        "stages": ["qmllint;qml;matrix/qmllint_dirty.qml"],
-        "upstream_tools": ["qmllint"],
-        "upstream_srcs": [":matrix/matrix_qml_lint_fail.upstream.qmllint.txt"],
-        "expected_file": ":matrix/matrix_qml_lint_fail.expected.txt",
-    },
+        platforms = ["linux_x86_64"],
+        upstream_tools = ["qmllint"],
+        upstream_srcs = [":matrix/matrix_qml_lint_fail.upstream.qmllint.txt"],
+    ),
     matrix_case(
         name = "matrix_qml_lint_binary_pass",
         capability = "lint",

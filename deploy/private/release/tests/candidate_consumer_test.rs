@@ -275,6 +275,17 @@ fn assert_swift_consumer(case: &Case) {
         "{}",
         explain.combined()
     );
+    let extension = case.bazel(&[
+        "mod",
+        "show_extension",
+        "@my_dx//swift:extensions.bzl%swift_linux",
+    ]);
+    ok(&extension, "mod show_extension swift_linux");
+    assert!(
+        extension.stdout.contains("dx_swift_linux_x86_64"),
+        "{}",
+        extension.combined()
+    );
     ok(
         &case.bazel(&["test", "//swift:greet_tests", "--test_output=errors"]),
         "swift test",

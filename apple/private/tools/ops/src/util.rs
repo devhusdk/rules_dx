@@ -140,3 +140,11 @@ impl Drop for Scratch {
         drop(std::fs::remove_dir_all(&self.0));
     }
 }
+
+/// Whether `name` ends in `.ext`, ignoring ASCII case.
+#[must_use]
+pub fn has_extension(name: &str, ext: &str) -> bool {
+    Path::new(name)
+        .extension()
+        .is_some_and(|found| found.eq_ignore_ascii_case(ext))
+}

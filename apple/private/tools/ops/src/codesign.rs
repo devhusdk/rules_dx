@@ -7,7 +7,7 @@ use crate::signing::{
     entries, hardened, is_link, keys, macho, output_path, private_files, read_identity, text,
     value,
 };
-use crate::util::{Env, Failure, Outcome, Scratch, missing, reject, usage};
+use crate::util::{Env, Failure, Outcome, Scratch, has_extension, missing, reject, usage};
 use crate::xcode::{CODESIGN, DITTO, PLUTIL, SECURITY, Tools};
 
 pub const PREFIX: &str = "dx-apple-sign";
@@ -153,10 +153,9 @@ fn inner_code(path: &Path) -> bool {
         .file_name()
         .map(|name| name.to_string_lossy().into_owned())
         .unwrap_or_default();
-    name.ends_with(".app")
-        || name.ends_with(".appex")
-        || name.ends_with(".framework")
-        || name.ends_with(".xpc")
+    ["app", "appex", "framework", "xpc"]
+        .iter()
+        .any(|ext| has_extension(&name, ext))
         || ["Helpers", "XPCServices", "PlugIns"].contains(&name.as_str())
 }
 
@@ -348,7 +347,7 @@ pub fn run(tools: &Tools<'_>, args: &[String], env: Env<'_>) -> Outcome {
     std::fs::create_dir_all(&unpacked)
         .map_err(|e| usage(format!("cannot create {}: {e}", unpacked.display())))?;
     let archive_text = text(&archive);
-    let unpack = if archive_text.ends_with(".app") {
+    let unpack = if has_extension(&archive_text, "app") {
         if !archive.is_dir() {
             return Err(usage(format!(
                 "built app {} is not a bundle directory",

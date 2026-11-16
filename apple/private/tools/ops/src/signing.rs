@@ -522,11 +522,12 @@ impl Drop for Keychain<'_> {
         if let Some(saved) = &self.saved {
             let mut list = vec!["list-keychains", "-d", "user", "-s"];
             list.extend(saved.iter().map(String::as_str));
-            let _ = self.tools.tool(SECURITY, &list);
+            drop(self.tools.tool(SECURITY, &list));
         }
-        let _ = self
-            .tools
-            .tool(SECURITY, &["delete-keychain", &text(&self.path)]);
+        drop(
+            self.tools
+                .tool(SECURITY, &["delete-keychain", &text(&self.path)]),
+        );
     }
 }
 

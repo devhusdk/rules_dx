@@ -2,7 +2,9 @@
 
 use std::path::Path;
 
-use crate::util::{Env, Failure, Outcome, Scratch, exit_code, missing, reject, usage};
+use crate::util::{
+    Env, Failure, Outcome, Scratch, exit_code, has_extension, missing, reject, usage,
+};
 use crate::xcode::{Tools, XCRUN};
 
 pub const PREFIX: &str = "dx-apple-simctl";
@@ -78,10 +80,10 @@ fn install(tools: &Tools<'_>, env: Env<'_>, udid: &str, app: &str) -> Outcome {
     if !app_path.exists() {
         return Err(usage("the built .ipa or .app is missing"));
     }
-    if app.ends_with(".app") {
+    if has_extension(app, "app") {
         return done(tools.xcrun_inherit(&["simctl", "install", udid, app]));
     }
-    if !app.ends_with(".ipa") {
+    if !has_extension(app, "ipa") {
         return Err(usage(format!("{app} is neither an .ipa nor an .app")));
     }
     let work = Scratch::new(env, "simctl")?;

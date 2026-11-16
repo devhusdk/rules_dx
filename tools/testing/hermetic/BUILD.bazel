@@ -1029,6 +1029,7 @@ hermetic_qualification(
         "//:tool_wasi",
         "//:tool_web",
     ],
+    smoke = True,
 )
 
 hermetic_qualification(

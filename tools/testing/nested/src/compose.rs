@@ -46,14 +46,14 @@ pub const RULES_PY_PATCHES: [&str; 8] = [
     "win32_x86_32",
 ];
 
-/// Pins the patched `rules_py` the way the root MODULE.bazel does, until the BCR serves alpha.11.
+/// Pins the patched `rules_py` the way the root MODULE.bazel does.
 #[must_use]
 pub fn rules_py_override() -> String {
     let patches = RULES_PY_PATCHES
         .map(|name| format!("        \"//patches/rules_py:{name}.patch\",\n"))
         .concat();
     format!(
-        "archive_override(\n    module_name = \"rules_py\",\n    integrity = \"sha256-TlCUj7uFZKizo7HzVM2ex//f4wT2PGpf6x/bz7/Hgr0=\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    strip_prefix = \"rules_py-2.0.0-alpha.11\",\n    urls = [\"https://github.com/aspect-build/rules_py/releases/download/v2.0.0-alpha.11/rules_py-v2.0.0-alpha.11.tar.gz\"],\n)\n"
+        "single_version_override(\n    module_name = \"rules_py\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    version = \"2.0.0-alpha.11\",\n)\n"
     )
 }
 

@@ -400,6 +400,9 @@ https://bcr.bazel.build/modules/rules_proto/7.1.0/MODULE.bazel 002d62d9108f75bb8
 https://bcr.bazel.build/modules/rules_proto/7.1.0/patches/MODULE.bazel.patch 402e618f1fd065367775e8a5d71f6a4f4362e86d7e66215a43ec461ed5d1d071
 https://bcr.bazel.build/modules/rules_proto/7.1.0/patches/module_dot_bazel_version.patch 185b5f3678d79528449a9de8d07893abc0167f46293712e498654cb7df1071f2
 https://bcr.bazel.build/modules/rules_proto/7.1.0/source.json 39f89066c12c24097854e8f57ab8558929f9c8d474d34b2c00ac04630ad8940e
+https://bcr.bazel.build/modules/rules_py/2.0.0-alpha.11/MODULE.bazel 8b4fa9758b0cdb9a7a555317a00ea3a844348acc891eacdab65d97f3cb1f9a07
+https://bcr.bazel.build/modules/rules_py/2.0.0-alpha.11/patches/module_dot_bazel_version.patch 476ebfa66286688c0a43ee668013755983cb1761ff2f8a0669ee67b197a6a508
+https://bcr.bazel.build/modules/rules_py/2.0.0-alpha.11/source.json 1e9c9cca2c0c25ef92f7a43ef615b475691b723eb1b5e7e8ea4f347f2eef96f2
 https://bcr.bazel.build/modules/rules_python/0.10.2/MODULE.bazel cc82bc96f2997baa545ab3ce73f196d040ffb8756fd2d66125a530031cd90e5f
 https://bcr.bazel.build/modules/rules_python/0.23.1/MODULE.bazel 49ffccf0511cb8414de28321f5fcf2a31312b47c40cc21577144b7447f2bf300
 https://bcr.bazel.build/modules/rules_python/0.25.0/MODULE.bazel 72f1506841c920a1afec76975b35312410eea3aa7b63267436bfb1dd91d2d382

@@ -17,6 +17,7 @@ fn build_argv(bazel: &str, out: &Path, name: &str, patterns: &[String]) -> Vec<S
         "--disk_cache=".to_owned(),
         "--remote_cache=".to_owned(),
         "--remote_executor=".to_owned(),
+        "--experimental_remote_downloader=".to_owned(),
         "--noshow_progress".to_owned(),
         format!("--execution_log_compact_file={out}/{name}.log"),
     ];
@@ -122,6 +123,7 @@ mod tests {
                 "--disk_cache=",
                 "--remote_cache=",
                 "--remote_executor=",
+                "--experimental_remote_downloader=",
                 "--noshow_progress",
                 "--execution_log_compact_file=/o/first.log",
                 "//a/...",

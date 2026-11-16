@@ -2,6 +2,8 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//python:defs.bzl", "python_binary", "python_library", "python_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 
+# gazelle:resolve python pytest @dx_pypi_fixtures//pytest
+
 package(
     default_testonly = True,
     default_visibility = ["//:__subpackages__"],
@@ -79,7 +81,7 @@ dx_conformance_suite(
     covered_source = "greet.py",
     expected = "hello world",
     failing_case = "test_failing_case",
-    failing_pattern = "FailTest::{case}",
+    failing_pattern = "fail_test.py::{case}",
     failing_test = ":fail_subject_test",
     lang = "python",
     lock = {

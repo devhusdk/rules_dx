@@ -13,7 +13,7 @@ python_library(
     srcs = select({
         ":coverage_on": ["sitecustomize.py"],
         "//conditions:default": [],
-    }),
+    }),  # keep
     imports = ["."],
     visibility = ["//visibility:public"],
 )

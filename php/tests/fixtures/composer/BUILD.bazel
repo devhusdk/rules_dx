@@ -1,7 +1,7 @@
-load("//php/private/quality:corpus.bzl", "php_corpus")
 load("@rules_dx//php:defs.bzl", "php_binary", "php_library", "php_test")
 load("@rules_dx//php/private:defs.bzl", "PHP_COMPATIBLE_WITH")
 load("@rules_dx//php/private:php.bzl", "php_autoload_tree")
+load("//php/private/quality:corpus.bzl", "php_corpus")
 
 # gazelle:exclude bin
 # gazelle:dx_external composer //php/tests/fixtures/composer/composer.lock.json php_fixture_vendor

@@ -83,10 +83,10 @@ cc_import(
 
 cc_import(
     name = "fuzz_libfuzzer_macos",
-    alwayslink = True,
     static_library = "@llvm//runtimes/compiler-rt:clang_rt.fuzzer.static",
     target_compatible_with = ["@platforms//os:macos"],
     visibility = ["//visibility:public"],
+    alwayslink = True,
 )
 
 cc_import(

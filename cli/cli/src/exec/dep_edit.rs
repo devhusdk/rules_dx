@@ -63,33 +63,11 @@ pub(crate) fn unknown_set_error(workspace: &std::path::Path, head: &str) -> Stri
     )
 }
 
-/// The single manifest of a dependency set the selector names, if any.
-///
-/// Bazel sets always qualify; uv, npm, cargo, maven and nuget sets only when `foreign`
-/// is set, and then their kind comes back.
-pub(crate) fn configured_set(
-    verb: &EditVerb,
-    invocation: &Invocation,
-    out: &mut dyn std::io::Write,
-    err: &mut dyn std::io::Write,
-    workspace: &std::path::Path,
+fn configured_kind(
+    ecosystem: dx_adopt::dependency_sets::Ecosystem,
     foreign: bool,
-) -> Result<Option<ConfiguredTarget>, i32> {
-    let registry = match dx_adopt::dependency_sets::load(workspace) {
-        Ok(Some(registry)) => registry,
-        Ok(None) => return Ok(None),
-        Err(error) => return Err(pre_exec(invocation.output, out, err, &error.to_string())),
-    };
-    let Some(selector) = invocation.targets.first() else {
-        return Ok(None);
-    };
-    let head = selector
-        .split_once(':')
-        .map_or(selector.as_str(), |(head, _)| head);
-    let Some(set) = registry.find(head) else {
-        return Ok(None);
-    };
-    let kind = match set.ecosystem {
+) -> Option<dx_update::edit::ConfiguredKind> {
+    match ecosystem {
         dx_adopt::dependency_sets::Ecosystem::Bazel => Some(dx_update::edit::ConfiguredKind::Bazel),
         dx_adopt::dependency_sets::Ecosystem::Uv if foreign => {
             Some(dx_update::edit::ConfiguredKind::Uv)
@@ -158,7 +136,36 @@ pub(crate) fn configured_set(
         | dx_adopt::dependency_sets::Ecosystem::Cabal
         | dx_adopt::dependency_sets::Ecosystem::Ansible
         | dx_adopt::dependency_sets::Ecosystem::Bicep => None,
+    }
+}
+
+/// The single manifest of a dependency set the selector names, if any.
+///
+/// Bazel sets always qualify; uv, npm, cargo, maven and nuget sets only when `foreign`
+/// is set, and then their kind comes back.
+pub(crate) fn configured_set(
+    verb: &EditVerb,
+    invocation: &Invocation,
+    out: &mut dyn std::io::Write,
+    err: &mut dyn std::io::Write,
+    workspace: &std::path::Path,
+    foreign: bool,
+) -> Result<Option<ConfiguredTarget>, i32> {
+    let registry = match dx_adopt::dependency_sets::load(workspace) {
+        Ok(Some(registry)) => registry,
+        Ok(None) => return Ok(None),
+        Err(error) => return Err(pre_exec(invocation.output, out, err, &error.to_string())),
     };
+    let Some(selector) = invocation.targets.first() else {
+        return Ok(None);
+    };
+    let head = selector
+        .split_once(':')
+        .map_or(selector.as_str(), |(head, _)| head);
+    let Some(set) = registry.find(head) else {
+        return Ok(None);
+    };
+    let kind = configured_kind(set.ecosystem, foreign);
     match (set.ecosystem, kind) {
         (_, Some(kind)) => {
             let cabal_manifests;

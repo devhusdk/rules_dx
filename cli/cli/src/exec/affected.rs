@@ -252,6 +252,73 @@ pub(crate) fn named_base(
     Ok((branch, base))
 }
 
+fn scope_to_graph(
+    plan: &mut AffectedPlan,
+    selection: &mut AffectedSelection,
+    command: Command,
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+    startup_options: &[String],
+) -> Result<(), PlanError> {
+    let secrets_scan = command == Command::Security;
+    if selection.targets.is_empty() {
+        plan.unscoped = secrets_scan;
+        return Ok(());
+    }
+    let graph = selection
+        .graph
+        .take()
+        .map_or_else(|| RuleGraph::load(workspace, runner, startup_options), Ok)?;
+    let excludes = exclude::load(workspace)?;
+    if command == Command::Deploy {
+        let mut deployments = graph.deployments(&selection.targets);
+        deployments.retain(|rule| !exclude::covered(&excludes, rule));
+        plan.targets = deployments;
+        return Ok(());
+    }
+    let mut rules = graph.affected(&selection.targets);
+    rules.retain(|rule| !exclude::covered(&excludes, rule));
+    let tests = if tests_only(command) || command == Command::Check {
+        let (mut tests, external) =
+            split_external(tests_of(&rules, workspace, runner, startup_options)?);
+        tests.retain(|test| !exclude::covered(&excludes, test));
+        plan.skipped_external = external;
+        tests
+    } else {
+        Vec::new()
+    };
+    let mut owners = if matches!(command, Command::Format | Command::Check) {
+        graph.selected(&selection.targets)
+    } else {
+        Vec::new()
+    };
+    owners.retain(|rule| !exclude::covered(&excludes, rule));
+    plan.targets = if tests_only(command) {
+        tests.clone()
+    } else if command == Command::Format {
+        owners.clone()
+    } else {
+        rules
+    };
+    if command == Command::Check && !plan.targets.is_empty() {
+        plan.tests = tests;
+        plan.generate = generate_scope(workspace, &plan.changed_files);
+        if plan.generate.is_empty() {
+            plan.generate = dx_plan::plan::generate_package_scope(&plan.targets);
+        }
+        plan.format = if owners.is_empty() {
+            plan.targets.clone()
+        } else {
+            owners
+        };
+    }
+    if matches!(command, Command::Security | Command::License) {
+        plan.targets.retain(|target| audit_owned(workspace, target));
+        plan.unscoped = secrets_scan && plan.targets.is_empty();
+    }
+    Ok(())
+}
+
 pub(crate) fn plan(
     command: Command,
     workspace: &Path,
@@ -332,62 +399,14 @@ pub(crate) fn plan(
         plan.targets = vec!["//...".to_owned()];
         return Ok(plan);
     }
-    let secrets_scan = command == Command::Security;
-    if selection.targets.is_empty() {
-        plan.unscoped = secrets_scan;
-        return Ok(plan);
-    }
-    let graph = selection
-        .graph
-        .take()
-        .map_or_else(|| RuleGraph::load(workspace, runner, startup_options), Ok)?;
-    let excludes = exclude::load(workspace)?;
-    if command == Command::Deploy {
-        let mut deployments = graph.deployments(&selection.targets);
-        deployments.retain(|rule| !exclude::covered(&excludes, rule));
-        plan.targets = deployments;
-        return Ok(plan);
-    }
-    let mut rules = graph.affected(&selection.targets);
-    rules.retain(|rule| !exclude::covered(&excludes, rule));
-    let tests = if tests_only(command) || command == Command::Check {
-        let (mut tests, external) =
-            split_external(tests_of(&rules, workspace, runner, startup_options)?);
-        tests.retain(|test| !exclude::covered(&excludes, test));
-        plan.skipped_external = external;
-        tests
-    } else {
-        Vec::new()
-    };
-    let mut owners = if matches!(command, Command::Format | Command::Check) {
-        graph.selected(&selection.targets)
-    } else {
-        Vec::new()
-    };
-    owners.retain(|rule| !exclude::covered(&excludes, rule));
-    plan.targets = if tests_only(command) {
-        tests.clone()
-    } else if command == Command::Format {
-        owners.clone()
-    } else {
-        rules
-    };
-    if command == Command::Check && !plan.targets.is_empty() {
-        plan.tests = tests;
-        plan.generate = generate_scope(workspace, &plan.changed_files);
-        if plan.generate.is_empty() {
-            plan.generate = dx_plan::plan::generate_package_scope(&plan.targets);
-        }
-        plan.format = if owners.is_empty() {
-            plan.targets.clone()
-        } else {
-            owners
-        };
-    }
-    if matches!(command, Command::Security | Command::License) {
-        plan.targets.retain(|target| audit_owned(workspace, target));
-        plan.unscoped = secrets_scan && plan.targets.is_empty();
-    }
+    scope_to_graph(
+        &mut plan,
+        &mut selection,
+        command,
+        workspace,
+        runner,
+        startup_options,
+    )?;
     Ok(plan)
 }
 
@@ -545,6 +564,48 @@ fn finished_empty(
     code
 }
 
+impl PlanError {
+    fn report(&self, output: OutputMode, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+        match self {
+            Self::Git(message) => refusal(output, out, err, message),
+            Self::Resolve(error) => resolve_failed(output, out, err, error),
+        }
+    }
+}
+
+fn resolve_plan(
+    invocation: &Invocation,
+    workspace: &Path,
+    query_runner: &dyn QueryRunner,
+    err: &mut dyn Write,
+    text: bool,
+) -> Result<AffectedPlan, PlanError> {
+    let base = match &invocation.since {
+        Some(rev) => since_base(workspace, query_runner, rev),
+        None => affected_base(workspace, query_runner),
+    }?;
+    if text {
+        writeln!(err, "{}", resolving_line(&base)).ok();
+    }
+    plan(
+        invocation.command,
+        workspace,
+        query_runner,
+        &invocation.bazel_startup_options,
+        base,
+    )
+}
+
+fn scope_handoff(next: &mut Invocation, plan: &AffectedPlan) {
+    next.targets.clone_from(&plan.targets);
+    next.affected_handoff = Some(dx_plan::args::AffectedHandoff {
+        tests: plan.tests.clone(),
+        base: Some(plan.base.clone()),
+        generate: plan.generate.clone(),
+        format: plan.format.clone(),
+    });
+}
+
 pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
     let Env {
         workspace,
@@ -562,32 +623,9 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
         edit_commit_json,
     } = env;
     let text = !invocation.quiet && matches!(invocation.output, OutputMode::Text { .. });
-    let base = match &invocation.since {
-        Some(rev) => since_base(workspace, query_runner, rev),
-        None => affected_base(workspace, query_runner),
-    };
-    let base = match base {
-        Ok(base) => base,
-        Err(PlanError::Git(message)) => return refusal(invocation.output, out, err, &message),
-        Err(PlanError::Resolve(error)) => {
-            return resolve_failed(invocation.output, out, err, &error);
-        }
-    };
-    if text {
-        writeln!(err, "{}", resolving_line(&base)).ok();
-    }
-    let plan = match plan(
-        invocation.command,
-        workspace,
-        query_runner,
-        &invocation.bazel_startup_options,
-        base,
-    ) {
+    let plan = match resolve_plan(invocation, workspace, query_runner, err, text) {
         Ok(plan) => plan,
-        Err(PlanError::Git(message)) => return refusal(invocation.output, out, err, &message),
-        Err(PlanError::Resolve(error)) => {
-            return resolve_failed(invocation.output, out, err, &error);
-        }
+        Err(failure) => return failure.report(invocation.output, out, err),
     };
     if plan.empty() {
         return finished_empty(invocation, &plan, workspace, out, err);
@@ -623,13 +661,7 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         return code;
     }
-    next.targets.clone_from(&plan.targets);
-    next.affected_handoff = Some(dx_plan::args::AffectedHandoff {
-        tests: plan.tests.clone(),
-        base: Some(plan.base.clone()),
-        generate: plan.generate.clone(),
-        format: plan.format.clone(),
-    });
+    scope_handoff(&mut next, &plan);
     if invocation.output != OutputMode::Json {
         return execute(
             &next,

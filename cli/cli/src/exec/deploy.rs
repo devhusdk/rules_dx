@@ -3,13 +3,115 @@ use super::common::{
     resolve_failed, run_bazel, run_bazel_app,
 };
 use dx_plan::args::{BuildMode, Command, DX_BUILD_MODE_ENV, Invocation, resolve_build_mode};
-use dx_plan::plan::{plan_deploy_build, plan_deploy_run, shell_join};
+use dx_plan::plan::{BuildPlan, plan_deploy_build, plan_deploy_run, shell_join};
 use dx_plan::reports::plan_reports;
 use dx_plan::resolve::{ResolveError, check_deployable, deploy_label_hint, resolve_deploy};
 use std::io::Write;
 
 /// Tells the deploy launcher to publish (1) or dry run (0).
 const DEPLOY_LIVE_ENV: &str = "DX_DEPLOY_LIVE";
+
+fn deploy_label(
+    invocation: &Invocation,
+    workspace: &std::path::Path,
+    query_runner: &dyn dx_plan::resolve::QueryRunner,
+) -> Result<String, Failure> {
+    resolve_deploy(&invocation.targets).map_err(|error| {
+        let mut failure = Failure::resolve(&error);
+        if matches!(
+            error,
+            ResolveError::DeployCount { .. } | ResolveError::DeployScope { .. }
+        ) {
+            failure.message.push_str(&deploy_label_hint(
+                workspace,
+                query_runner,
+                &invocation.bazel_startup_options,
+            ));
+        }
+        failure
+    })
+}
+
+fn deploy_build_mode(invocation: &Invocation, build_mode_raw: &str) -> BuildMode {
+    let attr = if build_mode_raw == "NONE" || build_mode_raw == "None" {
+        None
+    } else {
+        BuildMode::parse_attr(build_mode_raw)
+    };
+    resolve_build_mode(
+        invocation.build_mode_flag(),
+        attr,
+        BuildMode::default_for(Command::Deploy),
+    )
+}
+
+fn write_artifact_notes(
+    err: &mut dyn Write,
+    workspace: &std::path::Path,
+    label: &str,
+    info: &dx_plan::resolve::DeployInfo,
+) {
+    if !info.size_budget.is_empty() {
+        writeln!(
+            err,
+            "Size of {label}: {}",
+            size_line(workspace, &info.size_stamp, &info.size_budget)
+        )
+        .ok();
+    }
+    if !info.sbom.is_empty() {
+        writeln!(err, "SBOM of {label}: {}", sbom_line(workspace, &info.sbom)).ok();
+    }
+}
+
+fn deploy_plans(
+    invocation: &Invocation,
+    label: &str,
+    build_mode: BuildMode,
+) -> Result<(BuildPlan, BuildPlan), dx_error::DxError> {
+    plan_deploy_build(label, build_mode, &invocation.bazel_startup_options).and_then(|build| {
+        plan_deploy_run(
+            label,
+            invocation.app_args(),
+            build_mode,
+            &invocation.bazel_startup_options,
+        )
+        .map(|run| (build, run))
+    })
+}
+
+fn run_deploy_app(
+    invocation: &Invocation,
+    (out, err): (&mut dyn Write, &mut dyn Write),
+    (workspace, runner): (&std::path::Path, &dyn dx_process::Runner),
+    label: &str,
+    argv: &[String],
+    build_mode: BuildMode,
+) -> i32 {
+    let live = if invocation.applies() { "1" } else { "0" };
+    match run_bazel_app(
+        invocation,
+        out,
+        err,
+        workspace,
+        runner,
+        argv,
+        &[
+            (DX_BUILD_MODE_ENV, build_mode.name()),
+            (DEPLOY_LIVE_ENV, live),
+        ],
+    ) {
+        Ok(AppExit {
+            code,
+            signal: Some(signo),
+        }) => {
+            app_signalled_line(err, label, signo);
+            code
+        }
+        Ok(app) => app.code,
+        Err(exit) => exit,
+    }
+}
 
 pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
     let Env {
@@ -37,22 +139,9 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
     };
     debug_assert!(planned_reports.is_empty(), "dx deploy takes no --report");
-    let label = match resolve_deploy(&invocation.targets) {
+    let label = match deploy_label(invocation, workspace, query_runner) {
         Ok(label) => label,
-        Err(error) => {
-            let mut failure = Failure::resolve(&error);
-            if matches!(
-                error,
-                ResolveError::DeployCount { .. } | ResolveError::DeployScope { .. }
-            ) {
-                failure.message.push_str(&deploy_label_hint(
-                    workspace,
-                    query_runner,
-                    &invocation.bazel_startup_options,
-                ));
-            }
-            return report_failure(invocation.output, out, err, &failure);
-        }
+        Err(failure) => return report_failure(invocation.output, out, err, &failure),
     };
     if let Some(code) = refuse_agent_apply(invocation, ci, &label, out, err) {
         return code;
@@ -66,27 +155,8 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(info) => info,
         Err(error) => return resolve_failed(invocation.output, out, err, &error),
     };
-    let attr = if info.build_mode_raw == "NONE" || info.build_mode_raw == "None" {
-        None
-    } else {
-        BuildMode::parse_attr(&info.build_mode_raw)
-    };
-    let build_mode = resolve_build_mode(
-        invocation.build_mode_flag(),
-        attr,
-        BuildMode::default_for(Command::Deploy),
-    );
-    let plans = plan_deploy_build(&label, build_mode, &invocation.bazel_startup_options).and_then(
-        |build| {
-            plan_deploy_run(
-                &label,
-                invocation.app_args(),
-                build_mode,
-                &invocation.bazel_startup_options,
-            )
-            .map(|run| (build, run))
-        },
-    );
+    let build_mode = deploy_build_mode(invocation, &info.build_mode_raw);
+    let plans = deploy_plans(invocation, &label, build_mode);
     let (build_plan, run_plan) = match plans {
         Ok(plans) => plans,
         Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
@@ -118,17 +188,7 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         return built;
     }
     if !invocation.applies() && !invocation.quiet {
-        if !info.size_budget.is_empty() {
-            writeln!(
-                err,
-                "Size of {label}: {}",
-                size_line(workspace, &info.size_stamp, &info.size_budget)
-            )
-            .ok();
-        }
-        if !info.sbom.is_empty() {
-            writeln!(err, "SBOM of {label}: {}", sbom_line(workspace, &info.sbom)).ok();
-        }
+        write_artifact_notes(err, workspace, &label, &info);
     }
     if !invocation.applies() && !info.has_provider {
         if !invocation.quiet {
@@ -141,29 +201,14 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         return 0;
     }
-    let live = if invocation.applies() { "1" } else { "0" };
-    let code = match run_bazel_app(
+    let code = run_deploy_app(
         invocation,
-        out,
-        err,
-        workspace,
-        runner,
+        (out, err),
+        (workspace, runner),
+        &label,
         &run_plan.argv,
-        &[
-            (DX_BUILD_MODE_ENV, build_mode.name()),
-            (DEPLOY_LIVE_ENV, live),
-        ],
-    ) {
-        Ok(AppExit {
-            code,
-            signal: Some(signo),
-        }) => {
-            app_signalled_line(err, &label, signo);
-            code
-        }
-        Ok(app) => app.code,
-        Err(exit) => exit,
-    };
+        build_mode,
+    );
     if code == 0 && !invocation.applies() && !invocation.quiet {
         writeln!(
             err,

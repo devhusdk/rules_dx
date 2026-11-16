@@ -7,255 +7,297 @@ use super::{
     parse_locked_for_configured, tier_for_roots,
 };
 
-pub(super) fn run_license(
-    workspace: &Path,
-    sets: &[AuditTarget<'_>],
-    roots: &[String],
-    fail_on: Threshold,
-    today: &str,
-) -> LicenseResult {
-    let policy = match load_license_policy(workspace) {
-        Err(error) => {
-            return LicenseResult {
-                status: dx_audit::outcome::FamilyStatus::Incomplete,
-                diagnostics: Vec::new(),
-                detail: error.to_string(),
-                code: CODE_AUDIT_FAILED,
-                licensed: Vec::new(),
-                candidates: Vec::new(),
-            };
+type Policy = dx_audit::license_policy::LicensePolicy;
+type Ecosystem = dx_adopt::dependency_sets::Ecosystem;
+type Licensed = dx_audit::locks::LicensedPackage;
+
+fn incomplete_result(detail: String) -> LicenseResult {
+    LicenseResult {
+        status: dx_audit::outcome::FamilyStatus::Incomplete,
+        diagnostics: Vec::new(),
+        detail,
+        code: CODE_AUDIT_FAILED,
+        licensed: Vec::new(),
+        candidates: Vec::new(),
+    }
+}
+
+fn policy_problem(policy: &Policy) -> Option<String> {
+    let error = policy
+        .tables
+        .validate()
+        .err()
+        .or_else(|| {
+            policy
+                .sets
+                .iter()
+                .find_map(|adjustment| policy.tables.validate_set(adjustment).err())
+        })
+        .or_else(|| {
+            policy
+                .inventory
+                .iter()
+                .find_map(|entry| dx_audit::license_policy::validate_license_inventory(entry).err())
+        })?;
+    Some(format!("invalid license policy: {error}"))
+}
+
+#[derive(Default)]
+struct Collected {
+    incomplete: Option<String>,
+    licensed_all: Vec<Licensed>,
+    lock_paths: BTreeMap<String, LockPaths>,
+    notice_present: BTreeMap<(String, String, String), bool>,
+    bazel_seen: BTreeSet<(String, String)>,
+    bazel_lock_of: BTreeMap<(String, String), String>,
+    bazel_fallback: Option<String>,
+}
+
+impl Collected {
+    fn note_incomplete(&mut self, name: &str, error: &dyn std::fmt::Display) {
+        if self.incomplete.is_none() {
+            self.incomplete = Some(format!("failed to assess {name}: {error}"));
         }
-        Ok(policy) => policy,
-    };
-    if let Err(error) = policy.tables.validate() {
-        let detail = format!("invalid license policy: {error}");
-        return LicenseResult {
-            status: dx_audit::outcome::FamilyStatus::Incomplete,
-            diagnostics: Vec::new(),
-            detail: detail.clone(),
-            code: CODE_AUDIT_FAILED,
-            licensed: Vec::new(),
-            candidates: Vec::new(),
+    }
+
+    fn add_bazel(
+        &mut self,
+        workspace: &Path,
+        set: &dx_adopt::dependency_sets::ResolvedSet,
+        policy: &Policy,
+    ) {
+        let (inventory, lock_rel) = match bazel_inputs_for_configured(workspace, set) {
+            Err(error) => {
+                self.note_incomplete(&set.name, &error);
+                return;
+            }
+            Ok(found) => found,
         };
+        let locked: Vec<dx_audit::vuln::LockedPackage> = inventory
+            .inputs
+            .iter()
+            .map(dx_audit::locks::BazelInput::locked)
+            .collect();
+        let licensed = dx_audit::locks::inventory_licenses(
+            &locked,
+            &policy.inventory,
+            dx_audit::locks::BAZEL_SET,
+        );
+        let mut fresh: Vec<Licensed> = Vec::new();
+        for (probe, entry) in locked.iter().zip(&licensed) {
+            self.notice_present.insert(
+                (entry.set.clone(), entry.name.clone(), entry.version.clone()),
+                dx_audit::locks::inventory_text_present(probe, &policy.inventory),
+            );
+            let key = (entry.name.clone(), entry.version.clone());
+            if self.bazel_seen.insert(key.clone()) {
+                self.bazel_lock_of.insert(key, lock_rel.clone());
+                fresh.push(entry.clone());
+            }
+        }
+        self.bazel_fallback.get_or_insert(lock_rel);
+        self.licensed_all.extend(fresh);
+    }
+
+    fn add_locked(
+        &mut self,
+        workspace: &Path,
+        set: &dx_adopt::dependency_sets::ResolvedSet,
+        policy: &Policy,
+    ) {
+        let ecosystem = set.ecosystem.name();
+        let parsed = lock_texts_for_configured(workspace, set).and_then(|locks| {
+            parse_locked_for_configured(set, &locks).map(|parsed| (locks, parsed))
+        });
+        let (locks, (locked, paths)) = match parsed {
+            Err(error) => {
+                self.note_incomplete(&set.name, &error);
+                return;
+            }
+            Ok(found) => found,
+        };
+        let licensed = match set.ecosystem {
+            Ecosystem::Npm => configured_npm_licenses(&locks, &locked, &policy.inventory),
+            Ecosystem::Cargo => configured_cargo_licenses(&locks, &locked, &policy.inventory),
+            Ecosystem::Uv
+            | Ecosystem::Bazel
+            | Ecosystem::Ruby
+            | Ecosystem::PowerShell
+            | Ecosystem::Maven
+            | Ecosystem::Nuget
+            | Ecosystem::Go
+            | Ecosystem::Cpan
+            | Ecosystem::Pub
+            | Ecosystem::Julia
+            | Ecosystem::Hex
+            | Ecosystem::Composer
+            | Ecosystem::Dub
+            | Ecosystem::Fpm
+            | Ecosystem::Zig
+            | Ecosystem::LuaRocks
+            | Ecosystem::Opam
+            | Ecosystem::SwiftPm
+            | Ecosystem::Cabal
+            | Ecosystem::Ansible
+            | Ecosystem::Bicep => {
+                dx_audit::locks::inventory_licenses(&locked, &policy.inventory, ecosystem)
+            }
+        };
+        let entry = self
+            .lock_paths
+            .entry(ecosystem.to_owned())
+            .or_insert(LockPaths {
+                by_package: BTreeMap::new(),
+                fallback: paths.fallback.clone(),
+            });
+        for (key, rel) in paths.by_package {
+            entry.by_package.entry(key).or_insert(rel);
+        }
+        for entry in licensed {
+            let probe = dx_audit::vuln::LockedPackage::new(
+                entry.set.clone(),
+                entry.name.clone(),
+                entry.version.clone(),
+            );
+            let key = (entry.set.clone(), entry.name.clone(), entry.version.clone());
+            if self.notice_present.contains_key(&key) {
+                continue;
+            }
+            self.notice_present.insert(
+                key,
+                dx_audit::locks::inventory_text_present(&probe, &policy.inventory),
+            );
+            self.licensed_all.push(entry);
+        }
+    }
+
+    fn collect(workspace: &Path, sets: &[AuditTarget<'_>], policy: &Policy) -> Self {
+        let mut collected = Self::default();
+        for target in sets {
+            let AuditTarget::Configured(set) = target;
+            if set.ecosystem == Ecosystem::Bazel {
+                collected.add_bazel(workspace, set, policy);
+            } else if set.ecosystem.license_audit() {
+                collected.add_locked(workspace, set, policy);
+            } else if let Err(error) = lock_texts_for_configured(workspace, set) {
+                collected.note_incomplete(target.name(), &error);
+            }
+        }
+        if let Some(fallback) = collected.bazel_fallback.take() {
+            collected.lock_paths.insert(
+                dx_audit::locks::BAZEL_SET.to_owned(),
+                LockPaths {
+                    by_package: std::mem::take(&mut collected.bazel_lock_of),
+                    fallback,
+                },
+            );
+        }
+        collected
+            .licensed_all
+            .sort_by(|a, b| (&a.set, &a.name, &a.version).cmp(&(&b.set, &b.name, &b.version)));
+        collected
+    }
+}
+
+fn finding_of(licensed: &Licensed) -> dx_audit::license_policy::LicenseFinding {
+    dx_audit::license_policy::LicenseFinding {
+        package: licensed.name.clone(),
+        set: licensed.set.clone(),
+        license: licensed.license.clone(),
+        version: licensed.version.clone(),
+    }
+}
+
+fn license_class(policy: &Policy, set: &str, id: &str) -> dx_audit::license_expr::IdClass {
+    use dx_audit::license_expr::IdClass;
+    if policy.tables.blocked.contains(id) {
+        return IdClass::Blocked;
+    }
+    if policy.tables.allow.contains(id) {
+        return IdClass::Allow;
+    }
+    if policy.tables.review.contains(id) {
+        return IdClass::Review;
+    }
+    if policy.tables.deny.contains(id) {
+        return IdClass::Deny;
     }
     for adjustment in &policy.sets {
-        if let Err(error) = policy.tables.validate_set(adjustment) {
-            let detail = format!("invalid license policy: {error}");
-            return LicenseResult {
-                status: dx_audit::outcome::FamilyStatus::Incomplete,
-                diagnostics: Vec::new(),
-                detail: detail.clone(),
-                code: CODE_AUDIT_FAILED,
-                licensed: Vec::new(),
-                candidates: Vec::new(),
-            };
+        if adjustment.set == set && adjustment.review.contains(id) {
+            return IdClass::Review;
         }
     }
-    for entry in &policy.inventory {
-        if let Err(error) = dx_audit::license_policy::validate_license_inventory(entry) {
-            let detail = format!("invalid license policy: {error}");
-            return LicenseResult {
-                status: dx_audit::outcome::FamilyStatus::Incomplete,
-                diagnostics: Vec::new(),
-                detail: detail.clone(),
-                code: CODE_AUDIT_FAILED,
-                licensed: Vec::new(),
-                candidates: Vec::new(),
-            };
-        }
+    IdClass::Unlisted
+}
+
+fn tier_label(tier: dx_audit::license_expr::Tier) -> &'static str {
+    match tier {
+        dx_audit::license_expr::Tier::Distributed => "distributed",
+        dx_audit::license_expr::Tier::Internal => "internal",
     }
-    let tier = tier_for_roots(&policy, roots);
-    let mut candidates: Vec<LicenseCandidate> = Vec::new();
-    let mut finding_count: usize = 0;
-    let mut diagnostics: Vec<DiagnosticEvent> = Vec::new();
-    let mut incomplete: Option<String> = None;
-    let mut licensed_all: Vec<dx_audit::locks::LicensedPackage> = Vec::new();
-    let mut lock_paths: BTreeMap<String, LockPaths> = BTreeMap::new();
-    let mut notice_present: BTreeMap<(String, String, String), bool> = BTreeMap::new();
-    let mut bazel_seen: BTreeSet<(String, String)> = BTreeSet::new();
-    let mut bazel_lock_of: BTreeMap<(String, String), String> = BTreeMap::new();
-    let mut bazel_fallback: Option<String> = None;
-    let uncovered: Vec<&str> = sets
-        .iter()
-        .filter(|target| !target.lock_covered())
-        .map(AuditTarget::name)
-        .collect();
-    for target in sets {
-        let AuditTarget::Configured(set) = target;
-        if set.ecosystem == dx_adopt::dependency_sets::Ecosystem::Bazel {
-            match bazel_inputs_for_configured(workspace, set) {
-                Err(error) => {
-                    if incomplete.is_none() {
-                        incomplete = Some(format!("failed to assess {}: {error}", target.name()));
-                    }
-                }
-                Ok((inventory, lock_rel)) => {
-                    let inputs = inventory.inputs;
-                    let locked: Vec<dx_audit::vuln::LockedPackage> = inputs
-                        .iter()
-                        .map(dx_audit::locks::BazelInput::locked)
-                        .collect();
-                    let licensed = dx_audit::locks::inventory_licenses(
-                        &locked,
-                        &policy.inventory,
-                        dx_audit::locks::BAZEL_SET,
-                    );
-                    let mut fresh: Vec<dx_audit::locks::LicensedPackage> = Vec::new();
-                    for (probe, entry) in locked.iter().zip(&licensed) {
-                        notice_present.insert(
-                            (entry.set.clone(), entry.name.clone(), entry.version.clone()),
-                            dx_audit::locks::inventory_text_present(probe, &policy.inventory),
-                        );
-                        let key = (entry.name.clone(), entry.version.clone());
-                        if bazel_seen.insert(key.clone()) {
-                            bazel_lock_of.insert(key, lock_rel.clone());
-                            fresh.push(entry.clone());
-                        }
-                    }
-                    bazel_fallback.get_or_insert(lock_rel);
-                    licensed_all.extend(fresh);
-                }
-            }
-            continue;
-        }
-        if set.ecosystem.license_audit() {
-            let ecosystem = set.ecosystem.name();
-            let parsed = lock_texts_for_configured(workspace, set).and_then(|locks| {
-                parse_locked_for_configured(set, &locks).map(|parsed| (locks, parsed))
-            });
-            match parsed {
-                Err(error) => {
-                    if incomplete.is_none() {
-                        incomplete = Some(format!("failed to assess {}: {error}", target.name()));
-                    }
-                }
-                Ok((locks, (locked, paths))) => {
-                    let licensed = match set.ecosystem {
-                        dx_adopt::dependency_sets::Ecosystem::Npm => {
-                            configured_npm_licenses(&locks, &locked, &policy.inventory)
-                        }
-                        dx_adopt::dependency_sets::Ecosystem::Cargo => {
-                            configured_cargo_licenses(&locks, &locked, &policy.inventory)
-                        }
-                        dx_adopt::dependency_sets::Ecosystem::Uv
-                        | dx_adopt::dependency_sets::Ecosystem::Bazel
-                        | dx_adopt::dependency_sets::Ecosystem::Ruby
-                        | dx_adopt::dependency_sets::Ecosystem::PowerShell
-                        | dx_adopt::dependency_sets::Ecosystem::Maven
-                        | dx_adopt::dependency_sets::Ecosystem::Nuget
-                        | dx_adopt::dependency_sets::Ecosystem::Go
-                        | dx_adopt::dependency_sets::Ecosystem::Cpan
-                        | dx_adopt::dependency_sets::Ecosystem::Pub
-                        | dx_adopt::dependency_sets::Ecosystem::Julia
-                        | dx_adopt::dependency_sets::Ecosystem::Hex
-                        | dx_adopt::dependency_sets::Ecosystem::Composer
-                        | dx_adopt::dependency_sets::Ecosystem::Dub
-                        | dx_adopt::dependency_sets::Ecosystem::Fpm
-                        | dx_adopt::dependency_sets::Ecosystem::Zig
-                        | dx_adopt::dependency_sets::Ecosystem::LuaRocks
-                        | dx_adopt::dependency_sets::Ecosystem::Opam
-                        | dx_adopt::dependency_sets::Ecosystem::SwiftPm
-                        | dx_adopt::dependency_sets::Ecosystem::Cabal
-                        | dx_adopt::dependency_sets::Ecosystem::Ansible
-                        | dx_adopt::dependency_sets::Ecosystem::Bicep => {
-                            dx_audit::locks::inventory_licenses(
-                                &locked,
-                                &policy.inventory,
-                                ecosystem,
-                            )
-                        }
-                    };
-                    let entry = lock_paths.entry(ecosystem.to_owned()).or_insert(LockPaths {
-                        by_package: BTreeMap::new(),
-                        fallback: paths.fallback.clone(),
-                    });
-                    for (key, rel) in paths.by_package {
-                        entry.by_package.entry(key).or_insert(rel);
-                    }
-                    for entry in licensed {
-                        let probe = dx_audit::vuln::LockedPackage::new(
-                            entry.set.clone(),
-                            entry.name.clone(),
-                            entry.version.clone(),
-                        );
-                        let key = (entry.set.clone(), entry.name.clone(), entry.version.clone());
-                        if notice_present.contains_key(&key) {
-                            continue;
-                        }
-                        notice_present.insert(
-                            key,
-                            dx_audit::locks::inventory_text_present(&probe, &policy.inventory),
-                        );
-                        licensed_all.push(entry);
-                    }
-                }
-            }
-            continue;
-        }
-        if let Err(error) = lock_texts_for_configured(workspace, set)
-            && incomplete.is_none()
-        {
-            incomplete = Some(format!("failed to assess {}: {error}", target.name()));
-        }
+}
+
+fn license_diagnostic(
+    licensed: &Licensed,
+    lock_path: &str,
+    rule: String,
+    verdict: &str,
+    tier: dx_audit::license_expr::Tier,
+) -> DiagnosticEvent {
+    DiagnosticEvent {
+        rule: Some(rule),
+        path: Some(lock_path.to_owned()),
+        package: package_ref(
+            &licensed.name,
+            &licensed.version,
+            None,
+            Some(&licensed.license),
+        ),
+        ..DiagnosticEvent::new(
+            Severity::Error,
+            "license",
+            format!(
+                "{}@{} license {} {verdict} in {}",
+                licensed.name,
+                licensed.version,
+                licensed.license,
+                tier_label(tier)
+            ),
+        )
     }
-    if let Some(fallback) = bazel_fallback {
-        lock_paths.insert(
-            dx_audit::locks::BAZEL_SET.to_owned(),
-            LockPaths {
-                by_package: bazel_lock_of,
-                fallback,
-            },
-        );
-    }
-    licensed_all.sort_by(|a, b| (&a.set, &a.name, &a.version).cmp(&(&b.set, &b.name, &b.version)));
-    for licensed in &licensed_all {
-        let lookup = |id: &str| -> dx_audit::license_expr::IdClass {
-            use dx_audit::license_expr::IdClass;
-            if policy.tables.blocked.contains(id) {
-                return IdClass::Blocked;
-            }
-            if policy.tables.allow.contains(id) {
-                return IdClass::Allow;
-            }
-            if policy.tables.review.contains(id) {
-                return IdClass::Review;
-            }
-            if policy.tables.deny.contains(id) {
-                return IdClass::Deny;
-            }
-            for adjustment in &policy.sets {
-                if adjustment.set == licensed.set && adjustment.review.contains(id) {
-                    return IdClass::Review;
-                }
-            }
-            IdClass::Unlisted
-        };
-        let mut approved_hit = false;
-        for exception in &policy.exceptions {
-            if dx_audit::license_policy::validate_license_exception(exception, today).is_err() {
-                continue;
-            }
-            if !dx_audit::license_policy::license_exception_covers(
-                exception,
-                &dx_audit::license_policy::LicenseFinding {
-                    package: licensed.name.clone(),
-                    set: licensed.set.clone(),
-                    license: licensed.license.clone(),
-                    version: licensed.version.clone(),
-                },
-            ) {
-                continue;
-            }
-            approved_hit = true;
-            break;
-        }
+}
+
+struct Evaluation {
+    candidates: Vec<LicenseCandidate>,
+    diagnostics: Vec<DiagnosticEvent>,
+}
+
+fn evaluate_licenses(
+    policy: &Policy,
+    collected: &Collected,
+    tier: dx_audit::license_expr::Tier,
+    fail_on: Threshold,
+    today: &str,
+) -> Evaluation {
+    let mut evaluation = Evaluation {
+        candidates: Vec::new(),
+        diagnostics: Vec::new(),
+    };
+    for licensed in &collected.licensed_all {
+        let lookup = |id: &str| license_class(policy, &licensed.set, id);
+        let finding = finding_of(licensed);
+        let approved_hit = policy.exceptions.iter().any(|exception| {
+            dx_audit::license_policy::validate_license_exception(exception, today).is_ok()
+                && dx_audit::license_policy::license_exception_covers(exception, &finding)
+        });
         // The exception matches the whole expression, so it approves every leaf.
         let approved = |_: &str| -> bool { approved_hit };
         let outcome =
             dx_audit::license_expr::evaluate_license(&licensed.license, tier, &lookup, &approved);
         let fails = dx_audit::license_expr::fails_in_tier(outcome, tier);
         let level = if fails { "error" } else { "info" };
-        let text_present = notice_present
+        let text_present = collected
+            .notice_present
             .get(&(
                 licensed.set.clone(),
                 licensed.name.clone(),
@@ -272,89 +314,58 @@ pub(super) fn run_license(
             dx_audit::license_notice::evaluate_notice(&notice_input, tier, &approved);
         let notice_fails = dx_audit::license_notice::notice_fails(notice_outcome, tier);
         if fails || approved_hit {
-            candidates.push(LicenseCandidate {
-                package: licensed.name.clone(),
-                set: licensed.set.clone(),
-                license: licensed.license.clone(),
-                version: licensed.version.clone(),
+            evaluation.candidates.push(LicenseCandidate {
+                package: finding.package,
+                set: finding.set,
+                license: finding.license,
+                version: finding.version,
             });
         }
-        if fails && meets_audit_threshold(level, fail_on) {
-            let lock_path = lock_paths
-                .get(&licensed.set)
-                .map_or("unknown lockfile", |paths| {
-                    paths.of(&licensed.name, &licensed.version)
-                });
-            finding_count += 1;
-            diagnostics.push(DiagnosticEvent {
-                rule: Some(format!("license/{}", licensed.license)),
-                path: Some(lock_path.to_owned()),
-                package: package_ref(
-                    &licensed.name,
-                    &licensed.version,
-                    None,
-                    Some(&licensed.license),
-                ),
-                ..DiagnosticEvent::new(
-                    Severity::Error,
-                    "license",
-                    format!(
-                        "{}@{} license {} denied in {}",
-                        licensed.name,
-                        licensed.version,
-                        licensed.license,
-                        match tier {
-                            dx_audit::license_expr::Tier::Distributed => "distributed",
-                            dx_audit::license_expr::Tier::Internal => "internal",
-                        }
-                    ),
-                )
+        let lock_path = collected
+            .lock_paths
+            .get(&licensed.set)
+            .map_or("unknown lockfile", |paths| {
+                paths.of(&licensed.name, &licensed.version)
             });
+        if fails && meets_audit_threshold(level, fail_on) {
+            evaluation.diagnostics.push(license_diagnostic(
+                licensed,
+                lock_path,
+                format!("license/{}", licensed.license),
+                "denied",
+                tier,
+            ));
         }
         if notice_fails && meets_audit_threshold("error", fail_on) {
-            let lock_path = lock_paths
-                .get(&licensed.set)
-                .map_or("unknown lockfile", |paths| {
-                    paths.of(&licensed.name, &licensed.version)
-                });
-            finding_count += 1;
-            diagnostics.push(DiagnosticEvent {
-                rule: Some("license/missing-notice-text".to_owned()),
-                path: Some(lock_path.to_owned()),
-                package: package_ref(
-                    &licensed.name,
-                    &licensed.version,
-                    None,
-                    Some(&licensed.license),
-                ),
-                ..DiagnosticEvent::new(
-                    Severity::Error,
-                    "license",
-                    format!(
-                        "{}@{} license {} missing-notice-text in {}",
-                        licensed.name,
-                        licensed.version,
-                        licensed.license,
-                        match tier {
-                            dx_audit::license_expr::Tier::Distributed => "distributed",
-                            dx_audit::license_expr::Tier::Internal => "internal",
-                        }
-                    ),
-                )
-            });
+            evaluation.diagnostics.push(license_diagnostic(
+                licensed,
+                lock_path,
+                "license/missing-notice-text".to_owned(),
+                "missing-notice-text",
+                tier,
+            ));
         }
     }
+    evaluation
+}
+
+fn exception_problems(
+    policy: &Policy,
+    sets: &[AuditTarget<'_>],
+    licensed_all: &[Licensed],
+    today: &str,
+) -> Vec<String> {
     let mut selected_sets: BTreeSet<&str> = BTreeSet::new();
     for target in sets {
         selected_sets.insert(target.name());
         let AuditTarget::Configured(set) = target;
-        if set.ecosystem == dx_adopt::dependency_sets::Ecosystem::Bazel {
+        if set.ecosystem == Ecosystem::Bazel {
             selected_sets.insert(dx_audit::locks::BAZEL_SET);
         } else if set.ecosystem.license_audit() {
             selected_sets.insert(set.ecosystem.name());
         }
     }
-    let mut exception_problems: Vec<String> = Vec::new();
+    let mut problems: Vec<String> = Vec::new();
     for exception in &policy.exceptions {
         let problem = |error: &dx_audit::license_policy::PolicyProblem| {
             format!(
@@ -364,52 +375,71 @@ pub(super) fn run_license(
             )
         };
         if let Err(error) = dx_audit::license_policy::validate_license_exception(exception, today) {
-            exception_problems.push(problem(&error));
+            problems.push(problem(&error));
             continue;
         }
         if !selected_sets.contains(exception.set.as_str()) {
             continue;
         }
-        let refs: Vec<dx_audit::license_policy::LicenseFinding> = licensed_all
-            .iter()
-            .map(|licensed| dx_audit::license_policy::LicenseFinding {
-                package: licensed.name.clone(),
-                set: licensed.set.clone(),
-                license: licensed.license.clone(),
-                version: licensed.version.clone(),
-            })
-            .collect();
+        let refs: Vec<dx_audit::license_policy::LicenseFinding> =
+            licensed_all.iter().map(finding_of).collect();
         if let Err(error) = dx_audit::license_policy::check_applies(exception, &refs) {
-            exception_problems.push(problem(&error));
+            problems.push(problem(&error));
         }
     }
-    if !exception_problems.is_empty() {
-        incomplete = Some(exception_problems.join("\n"));
+    problems
+}
+
+pub(super) fn run_license(
+    workspace: &Path,
+    sets: &[AuditTarget<'_>],
+    roots: &[String],
+    fail_on: Threshold,
+    today: &str,
+) -> LicenseResult {
+    let policy = match load_license_policy(workspace) {
+        Err(error) => return incomplete_result(error.to_string()),
+        Ok(policy) => policy,
+    };
+    if let Some(detail) = policy_problem(&policy) {
+        return incomplete_result(detail);
     }
-    let has_incomplete = incomplete.is_some();
-    let status = if has_incomplete {
+    let tier = tier_for_roots(&policy, roots);
+    let uncovered: Vec<&str> = sets
+        .iter()
+        .filter(|target| !target.lock_covered())
+        .map(AuditTarget::name)
+        .collect();
+    let mut collected = Collected::collect(workspace, sets, &policy);
+    let Evaluation {
+        candidates,
+        diagnostics,
+    } = evaluate_licenses(&policy, &collected, tier, fail_on, today);
+    let finding_count = diagnostics.len();
+    let problems = exception_problems(&policy, sets, &collected.licensed_all, today);
+    if !problems.is_empty() {
+        collected.incomplete = Some(problems.join("\n"));
+    }
+    let status = if collected.incomplete.is_some() {
         dx_audit::outcome::FamilyStatus::Incomplete
     } else if finding_count > 0 {
         dx_audit::outcome::FamilyStatus::Findings
     } else {
         dx_audit::outcome::FamilyStatus::Clean
     };
-    let base_detail = if has_incomplete {
+    let base_detail = if let Some(incomplete) = collected.incomplete.take() {
         incomplete
-            .clone()
-            .unwrap_or_else(|| "incomplete assessment".to_owned())
     } else if finding_count > 0 {
         format!("{finding_count} license findings")
     } else {
         "clean".to_owned()
     };
-    let detail = coverage_detail(base_detail, &uncovered);
     LicenseResult {
         status,
         diagnostics,
-        detail,
+        detail: coverage_detail(base_detail, &uncovered),
         code: CODE_AUDIT_FAILED,
-        licensed: licensed_all,
+        licensed: collected.licensed_all,
         candidates,
     }
 }

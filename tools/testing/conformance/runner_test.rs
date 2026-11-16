@@ -590,7 +590,6 @@ fn stage(subject: &std::path::Path, key: &str, tmp: &std::path::Path) -> std::pa
             }
         }
     }
-    #[cfg(unix)]
     if let Ok(tree) = std::env::var("RUNFILES_DIR") {
         for suffix in [".runfiles", "_upstream.runfiles"] {
             let mirror = with_suffix(&staged, suffix);
@@ -599,7 +598,7 @@ fn stage(subject: &std::path::Path, key: &str, tmp: &std::path::Path) -> std::pa
                 .expect("runfiles must be readable")
                 .flatten()
             {
-                std::os::unix::fs::symlink(entry.path(), mirror.join(entry.file_name()))
+                link_entry(&entry.path(), &mirror.join(entry.file_name()))
                     .expect("runfiles entry must link");
             }
         }
@@ -623,6 +622,20 @@ fn stage(subject: &std::path::Path, key: &str, tmp: &std::path::Path) -> std::pa
             .expect("manifest must be writable");
     }
     staged
+}
+
+#[cfg(unix)]
+fn link_entry(target: &std::path::Path, link: &std::path::Path) -> std::io::Result<()> {
+    std::os::unix::fs::symlink(target, link)
+}
+
+#[cfg(windows)]
+fn link_entry(target: &std::path::Path, link: &std::path::Path) -> std::io::Result<()> {
+    if target.is_dir() {
+        std::os::windows::fs::symlink_dir(target, link)
+    } else {
+        std::os::windows::fs::symlink_file(target, link)
+    }
 }
 
 fn tree_manifest(root: &std::path::Path) -> String {

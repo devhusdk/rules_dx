@@ -1,5 +1,6 @@
 """Identity tests pinning the hermetic C++ toolchain binding."""
 
+load("@platforms//host:constraints.bzl", "HOST_CONSTRAINTS")
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_compiler_identity", "cc_toolchain_identity")
 load(":pins.bzl", "GCC_GLIBC", "GCC_VERSION", "LLVM_CLANG_VERSION")
@@ -80,7 +81,7 @@ aspect_field transitive_count=0""")
 
 EXPECTED_MSVC_IDENTITY_OBSERVATIONS = """subject //cc/private/toolchain:identity_under_test_msvc
 field cc.abi=msvc
-field cc.builtin_includes=external/windows_support++msvc_runtime+msvc_runtime/sysroot/Contents/VC/Tools/MSVC/14.50.35717/include | external/windows_support++windows_sdk+windows_sdk/sysroot/base/c/Include/10.0.26100.0/shared | external/windows_support++windows_sdk+windows_sdk/sysroot/base/c/Include/10.0.26100.0/ucrt | external/windows_support++windows_sdk+windows_sdk/sysroot/base/c/Include/10.0.26100.0/um | external/windows_support++windows_sdk+windows_sdk/sysroot/base/c/Include/10.0.26100.0/winrt
+field cc.builtin_includes=external/+msvc_runtime+msvc_runtime/sysroot/Contents/VC/Tools/MSVC/14.50.35717/include | external/+windows_sdk+windows_sdk/sysroot/base/c/Include/10.0.26100.0/shared | external/+windows_sdk+windows_sdk/sysroot/base/c/Include/10.0.26100.0/ucrt | external/+windows_sdk+windows_sdk/sysroot/base/c/Include/10.0.26100.0/um | external/+windows_sdk+windows_sdk/sysroot/base/c/Include/10.0.26100.0/winrt
 field cc.compiler=msvc-cl
 field cc.coverage=
 field cc.driver=msvc
@@ -108,6 +109,14 @@ EXPECTED_MSVC_ARM64_NATIVE_IDENTITY_OBSERVATIONS = EXPECTED_MSVC_ARM64_IDENTITY_
 )
 
 _LINUX_X86_64 = ["@platforms//os:linux", "@platforms//cpu:x86_64"]
+
+def gcc_cross_build_host(host_constraints):
+    """Returns the target_compatible_with that allows only a Linux x86_64 build host."""
+    if "@platforms//os:linux" in host_constraints and "@platforms//cpu:x86_64" in host_constraints:
+        return []
+    return [Label("@platforms//:incompatible")]
+
+GCC_CROSS_BUILD_HOST = gcc_cross_build_host(HOST_CONSTRAINTS)
 
 def cc_toolchain_identity_tests(name):
     starlark_test(

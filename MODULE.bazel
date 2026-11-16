@@ -584,7 +584,7 @@ register_toolchains("//cc/private/toolchain:llvm_fuzzer_macos_x86_64")
 apple_cc_configure = use_extension("@apple_support//crosstool:setup.bzl", "apple_cc_configure_extension")
 use_repo(apple_cc_configure, "local_config_apple_cc_toolchains")
 
-register_toolchains("@local_config_apple_cc_toolchains//:all")
+register_toolchains("//cc/private/toolchain/apple:all")
 
 register_toolchains("//cc/private/toolchain/clang_cl:all")
 

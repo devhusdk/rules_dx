@@ -126,6 +126,9 @@ fn cell_entry(outcome: &CellOutcome) -> serde_json::Value {
     }
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn publish_dry_run_check(inputs: &PublishDryRunInputs) -> Result<PublishDryRunOutcome, String> {
     let matrix_text = read_text(&inputs.matrix, "release matrix")?;
     let matrix =
@@ -335,6 +338,7 @@ fn operations() -> Vec<OpRecord> {
     ]
 }
 
+#[must_use]
 pub fn sha256sum_line(digest: &str, name: &str) -> String {
     format!("{digest}  {name}\n")
 }
@@ -463,7 +467,7 @@ mod tests {
         let inputs = valid_inputs(dir.path(), &release);
         let outcome = publish_dry_run_check(&inputs).expect("valid stage verifies");
         assert!(outcome.qualified, "{}", outcome.verification);
-        assert!(!outcome.sbom_digest.is_empty());
+        assert_ne!(outcome.sbom_digest, "");
         let report = report_of(&outcome);
         assert_eq!(report["schema"], serde_json::json!(REPORT_SCHEMA));
         assert_eq!(report["approved"], serde_json::json!(false));
@@ -485,7 +489,7 @@ mod tests {
                 .all(|op| op["state"] == serde_json::json!("not-authorized"))
         );
         assert_eq!(report["stray"], serde_json::json!([]));
-        let record: crate::cell::CellRecord = serde_json::from_str(
+        let record: cell::CellRecord = serde_json::from_str(
             &std::fs::read_to_string(release.records().join(format!("{TAR}.json")))
                 .expect("read record"),
         )
@@ -615,7 +619,7 @@ mod tests {
     fn unknown_cell_record_is_stray_and_not_qualified() {
         let release = release();
         release.edit(&format!("{TAR}.json"), |value| {
-            value["cell"] = "dx-mystery".into()
+            value["cell"] = "dx-mystery".into();
         });
         std::fs::copy(
             release.records().join(format!("{ZIP}.json")),

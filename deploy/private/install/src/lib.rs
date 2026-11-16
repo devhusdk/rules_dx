@@ -1,5 +1,6 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
+use std::fmt::Write as _;
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -36,6 +37,9 @@ fn help_text() -> String {
     "usage: dx_verify --binary PATH --bundle PATH --identity ID --issuer ISSUER [--attestation PATH] [--owner OWNER] [--sbom PATH --sbom-bundle PATH] [--notice PATH --notice-manifest PATH --notice-bundle PATH]".to_owned()
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse_args(argv: &[String]) -> Result<VerifyArgs, ArgsError> {
     let mut args = VerifyArgs::default();
     let mut i = 1;
@@ -157,6 +161,7 @@ pub fn parse_args(argv: &[String]) -> Result<VerifyArgs, ArgsError> {
     Ok(args)
 }
 
+#[must_use]
 pub fn cosign_argv(
     cosign: &str,
     bundle: &Path,
@@ -177,6 +182,7 @@ pub fn cosign_argv(
     ]
 }
 
+#[must_use]
 pub fn gh_argv(
     gh: &str,
     subject: &Path,
@@ -224,6 +230,9 @@ pub trait Verifier {
     fn cosign_bin(&self) -> String;
     fn gh_bin(&self) -> String;
     fn have(&self, bin: &str) -> bool;
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     fn sha256_file(&self, path: &Path) -> io::Result<String>;
     fn read_text(&self, path: &Path) -> Option<String>;
 }
@@ -323,6 +332,9 @@ fn verify_notice(notice_text: &str, manifest_text: &str) -> Result<usize, String
         .map_err(|error| format!("dx_verify: {error}"))
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn verify(args: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, String> {
     let mut out = String::new();
     let binary = PathBuf::from(&args.binary);
@@ -369,23 +381,25 @@ pub fn verify(args: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, Stri
     if !verifier.is_nonempty_file(&bundle) {
         return Err(format!("dx_verify: bundle is empty: {}", args.bundle));
     }
-    out.push_str(&format!(
-        "dx_verify: trust root {TRUST_ROOT} (Sigstore TUF public-good; verifiers bootstrapped from the trust root, never alongside the binary)\n"
-    ));
+    writeln!(out, "dx_verify: trust root {TRUST_ROOT} (Sigstore TUF public-good; verifiers bootstrapped from the trust root, never alongside the binary)").ok();
     let cosign = verifier.cosign_bin();
     let gh = verifier.gh_bin();
     let verified: String;
     if verifier.have(&cosign) {
-        out.push_str(&format!(
-            "dx_verify: verifying {} against bundle via {cosign} verify-blob\n",
+        writeln!(
+            out,
+            "dx_verify: verifying {} against bundle via {cosign} verify-blob",
             binary.display()
-        ));
+        )
+        .ok();
         if verifier.cosign_verify(&cosign, &bundle, &args.identity, &args.issuer, &binary) {
             verified = "cosign".to_owned();
-            out.push_str(&format!(
-                "dx_verify: cosign publisher-identity OK (identity={} issuer={})\n",
+            writeln!(
+                out,
+                "dx_verify: cosign publisher-identity OK (identity={} issuer={})",
                 args.identity, args.issuer
-            ));
+            )
+            .ok();
         } else {
             return Err(
                 "dx_verify: cosign verification failed (tampered bytes, replaced binary/bundle, or unapproved signer fail closed)".to_owned(),
@@ -398,10 +412,12 @@ pub fn verify(args: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, Stri
                     .to_owned(),
             );
         }
-        out.push_str(&format!(
-            "dx_verify: verifying {} against attestation via {gh} attestation verify\n",
+        writeln!(
+            out,
+            "dx_verify: verifying {} against attestation via {gh} attestation verify",
             binary.display()
-        ));
+        )
+        .ok();
         let attestation = PathBuf::from(&args.attestation);
         if verifier.gh_verify(
             &gh,
@@ -412,10 +428,12 @@ pub fn verify(args: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, Stri
             &args.owner,
         ) {
             verified = "gh-attestation".to_owned();
-            out.push_str(&format!(
-                "dx_verify: attestation publisher-identity OK (identity={} issuer={} owner={})\n",
+            writeln!(
+                out,
+                "dx_verify: attestation publisher-identity OK (identity={} issuer={} owner={})",
                 args.identity, args.issuer, args.owner
-            ));
+            )
+            .ok();
         } else {
             return Err(
                 "dx_verify: attestation verification failed (fail closed before install)"
@@ -435,10 +453,12 @@ pub fn verify(args: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, Stri
                 "dx_verify: SBOM verification needs {cosign} (unavailable)"
             ));
         }
-        out.push_str(&format!(
-            "dx_verify: verifying SBOM {} via {cosign} verify-blob\n",
+        writeln!(
+            out,
+            "dx_verify: verifying SBOM {} via {cosign} verify-blob",
             sbom.display()
-        ));
+        )
+        .ok();
         if verifier.cosign_verify(&cosign, &sbom_bundle, &args.identity, &args.issuer, &sbom) {
             out.push_str("dx_verify: SBOM publisher-identity OK\n");
         } else {
@@ -455,10 +475,12 @@ pub fn verify(args: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, Stri
                 "dx_verify: NOTICE verification needs {cosign} (unavailable)"
             ));
         }
-        out.push_str(&format!(
-            "dx_verify: verifying NOTICE {} via {cosign} verify-blob\n",
+        writeln!(
+            out,
+            "dx_verify: verifying NOTICE {} via {cosign} verify-blob",
             notice_path.display()
-        ));
+        )
+        .ok();
         if verifier.cosign_verify(
             &cosign,
             &notice_bundle,
@@ -486,11 +508,13 @@ pub fn verify(args: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, Stri
             )
         })?;
         let count = verify_notice(&notice_text, &manifest_text)?;
-        out.push_str(&format!("dx_verify: NOTICE OK ({count} entries bundled)\n"));
+        writeln!(out, "dx_verify: NOTICE OK ({count} entries bundled)").ok();
     }
-    out.push_str(&format!(
-        "dx_verify: OK (verified via {verified}; nothing installed, binary never executed)\n"
-    ));
+    writeln!(
+        out,
+        "dx_verify: OK (verified via {verified}; nothing installed, binary never executed)"
+    )
+    .ok();
     Ok(out)
 }
 
@@ -664,13 +688,7 @@ mod tests {
     #[test]
     fn verifier_argv_are_thin_configs_over_spawn_owner() {
         assert_eq!(
-            cosign_argv(
-                "cosign",
-                std::path::Path::new("/u"),
-                "ID",
-                "ISS",
-                std::path::Path::new("/b"),
-            ),
+            cosign_argv("cosign", Path::new("/u"), "ID", "ISS", Path::new("/b"),),
             vec![
                 "cosign",
                 "verify-blob",
@@ -684,14 +702,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            gh_argv(
-                "gh",
-                std::path::Path::new("/b"),
-                std::path::Path::new("/a"),
-                "ID",
-                "ISS",
-                "owner",
-            ),
+            gh_argv("gh", Path::new("/b"), Path::new("/a"), "ID", "ISS", "owner",),
             vec![
                 "gh",
                 "attestation",
@@ -1245,7 +1256,7 @@ mod tests {
         assert!(!verifier.is_file(&scratch.path().join("missing")));
         assert!(verifier.is_nonempty_file(&file));
         assert!(!verifier.is_nonempty_file(&empty));
-        assert!(!verifier.is_nonempty_file(&scratch.path()));
+        assert!(!verifier.is_nonempty_file(scratch.path()));
         assert!(!verifier.is_nonempty_file(&scratch.path().join("missing")));
         assert_eq!(
             verifier.sha256_file(&file).expect("hash"),
@@ -1292,9 +1303,7 @@ mod tests {
             let verifier = SystemVerifier;
             assert_eq!(verifier.cosign_bin(), "pinned-cosign");
             assert_eq!(verifier.gh_bin(), "pinned-gh");
-            if mode == "panic" {
-                panic!("intentional child failure");
-            }
+            assert!(mode != "panic", "intentional child failure");
             std::fs::write(sentinel, b"ok").expect("sentinel");
             // SAFETY: the process is single-threaded here or the env lock is held.
             unsafe { std::env::remove_var("DX_VERIFY_COSIGN") };

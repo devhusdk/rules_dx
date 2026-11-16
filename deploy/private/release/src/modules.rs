@@ -8,10 +8,10 @@ fn calls(text: &str, function: &str) -> Vec<Call> {
     let mut found = Vec::new();
     for (at, _) in text.match_indices(&format!("{function}(")) {
         if at != 0
-            && !text
+            && text
                 .as_bytes()
                 .get(..at)
-                .is_some_and(|before| before.last() == Some(&b'\n'))
+                .is_none_or(|before| before.last() != Some(&b'\n'))
         {
             continue;
         }
@@ -33,6 +33,10 @@ fn field<'a>(call: &'a Call, key: &str) -> Option<&'a str> {
 }
 
 /// Fails when the `module()` version of the root `MODULE.bazel` text is not `version`.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn module_version_error(text: &str, version: &str) -> Result<(), String> {
     let have = calls(text, "module")
         .iter()

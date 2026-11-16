@@ -25,6 +25,7 @@ pub struct OpRecord {
 }
 
 impl OpRecord {
+    #[must_use]
     pub fn new(operation: &str, subject: &str, state: OpState, detail: &str) -> Self {
         Self {
             operation: operation.to_owned(),
@@ -36,6 +37,7 @@ impl OpRecord {
 }
 
 /// Renders the records as sorted JSON under the `release-ledger/v1` schema.
+#[must_use]
 pub fn render_ledger(records: &[OpRecord]) -> String {
     let mut sorted = records.to_vec();
     sorted.sort_by(|a, b| (&a.operation, &a.subject).cmp(&(&b.operation, &b.subject)));
@@ -46,6 +48,7 @@ pub fn render_ledger(records: &[OpRecord]) -> String {
 }
 
 /// Exit code for a ledger: 1 when any record failed or is partial.
+#[must_use]
 pub fn ledger_exit(records: &[OpRecord]) -> i32 {
     let bad = records
         .iter()
@@ -75,6 +78,10 @@ struct AssetJson {
 }
 
 /// Parses `gh api repos/.../releases/tags/<tag>` output; digests are `sha256:<hex>`.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn parse_release_assets(json: &str) -> Result<RemoteRelease, String> {
     let release: ReleaseJson = serde_json::from_str(json)
         .map_err(|err| format!("release: cannot parse release JSON: {err}"))?;
@@ -97,6 +104,7 @@ pub fn parse_release_assets(json: &str) -> Result<RemoteRelease, String> {
 }
 
 /// Compares staged `(name, sha256)` assets with the release; returns records and names still to upload.
+#[must_use]
 pub fn reconcile_assets(
     staged: &[(String, String)],
     remote: &RemoteRelease,
@@ -154,7 +162,13 @@ pub fn reconcile_assets(
 
 /// Live GitHub calls, faked in tests.
 pub trait ReleaseBackend {
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     fn view(&self, tag: &str) -> Result<String, String>;
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     fn upload(&self, tag: &str, path: &str) -> Result<String, String>;
 }
 
@@ -181,7 +195,7 @@ pub fn sync_assets(
     let mut attempted = 0;
     for name in &pending {
         attempted += 1;
-        let path = paths.get(name).map(String::as_str).unwrap_or(name);
+        let path = paths.get(name).map_or(name.as_str(), String::as_str);
         if let Err(err) = backend.upload(tag, path) {
             failures.push((name.clone(), err));
             break;

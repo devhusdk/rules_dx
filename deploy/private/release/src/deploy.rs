@@ -59,6 +59,10 @@ fn resolve_all(
 }
 
 /// Runs the BCR shape check: no extra args, every input resolved, then `bcr_run`.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn bcr_deploy(
     config: &BcrDeployConfig,
     argv: &[String],
@@ -74,6 +78,10 @@ pub fn bcr_deploy(
 }
 
 /// Runs the signing deploy: at most an outdir arg, every rloc resolved, then `signing_run`.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn signing_deploy(
     config: &SigningDeployConfig,
     argv: &[String],
@@ -113,6 +121,7 @@ fn flag(name: &str) -> bool {
 /// Runs the release deploy tool: loads the config named by `DX_DEPLOY_CONFIG`, then dispatches.
 ///
 /// Returns 2 when the config cannot be loaded, 1 when the deploy fails.
+#[must_use]
 pub fn release_deploy_tool_main(argv: &[String]) -> i32 {
     let config = match dx_deploy_tools::load_deploy_config::<ReleaseDeployConfig>() {
         Ok(config) => config,

@@ -1,6 +1,7 @@
 //! Release candidate identity, source archive, local registry and tag checks.
 
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 use std::io::{self, BufRead};
 use std::path::{Path, PathBuf};
 
@@ -15,7 +16,7 @@ use crate::{
     write_bcr_source_for_archive,
 };
 
-/// One release candidate: a SemVer version at one full commit.
+/// One release candidate: a `SemVer` version at one full commit.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Candidate {
     version: String,
@@ -24,6 +25,10 @@ pub struct Candidate {
 
 impl Candidate {
     /// Returns a candidate for a publishable version and a full lowercase commit.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the operation fails.
     pub fn new(version: &str, commit: &str) -> Result<Self, String> {
         bcr_candidate_version_error(version)?;
         if !dx_digest::is_lower_hex(commit, 20) {
@@ -37,27 +42,32 @@ impl Candidate {
         })
     }
 
-    /// Returns the SemVer version.
+    /// Returns the `SemVer` version.
+    #[must_use]
     pub fn version(&self) -> &str {
         &self.version
     }
 
     /// Returns the full commit SHA.
+    #[must_use]
     pub fn commit(&self) -> &str {
         &self.commit
     }
 
     /// Returns the release tag.
+    #[must_use]
     pub fn tag(&self) -> String {
         format!("v{}", self.version)
     }
 
     /// Returns the full tag ref.
+    #[must_use]
     pub fn reference(&self) -> String {
         format!("refs/tags/{}", self.tag())
     }
 
     /// Returns the ls-remote patterns for the tag and its peeled commit.
+    #[must_use]
     pub fn ls_remote_patterns(&self) -> [String; 2] {
         let reference = self.reference();
         let peeled = format!("{reference}^{{}}");
@@ -65,16 +75,19 @@ impl Candidate {
     }
 
     /// Returns the archive strip prefix.
+    #[must_use]
     pub fn strip_prefix(&self) -> String {
         bcr_strip_prefix(BCR_WANT_MODULE, &self.version)
     }
 
     /// Returns the release asset URL.
+    #[must_use]
     pub fn url(&self) -> String {
         bcr_source_url(BCR_WANT_MODULE, &self.version)
     }
 
     /// Returns the canonical release remote.
+    #[must_use]
     pub fn remote(&self) -> &'static str {
         RELEASE_REMOTE
     }
@@ -88,6 +101,10 @@ pub struct SourceArchive {
 }
 
 /// Returns stdout of a git command, or its failure as an error.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn git_output_of(args: &[&str], output: Result<Captured, RunError>) -> Result<String, String> {
     let command = format!("git {}", args.join(" "));
     match output {
@@ -111,12 +128,19 @@ pub fn git_output_of(args: &[&str], output: Result<Captured, RunError>) -> Resul
 }
 
 /// Runs git in a directory and returns its stdout.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn git_in(dir: Option<&Path>, args: &[&str]) -> Result<String, String> {
     let mut cmd = capture::git(dir.unwrap_or(Path::new(".")));
     cmd.args(args);
     git_output_of(args, run_captured(&mut cmd, DEFAULT_TIMEOUT))
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn ls_remote_output(
     dir: Option<&Path>,
     remote: &str,
@@ -214,13 +238,13 @@ fn changes_on_checkout(attr: &[u8], value: &[u8]) -> bool {
 fn git_pipe<T>(
     repo: &Path,
     args: &[&str],
-    input: Vec<u8>,
+    input: &[u8],
     read: impl FnOnce(&[u8]) -> Result<T, String>,
 ) -> Result<T, String> {
     let command = format!("git {}", args.join(" "));
     let mut cmd = capture::git(repo);
     cmd.args(args);
-    let output = run_captured_with_input(&mut cmd, Some(&input), DEFAULT_TIMEOUT)
+    let output = run_captured_with_input(&mut cmd, Some(input), DEFAULT_TIMEOUT)
         .map_err(|error| format!("candidate: {command} failed: {error}"))?;
     if !output.success() {
         return Err(format!(
@@ -246,7 +270,7 @@ fn filtered_paths(
     args.extend_from_slice(&READ_CONFIG);
     args.extend_from_slice(&["check-attr", "-z", "--stdin"]);
     args.extend_from_slice(&FILTER_ATTRS);
-    let raw = git_pipe(repo, &args, input, |stdout| Ok(stdout.to_vec()))?;
+    let raw = git_pipe(repo, &args, &input, |stdout| Ok(stdout.to_vec()))?;
     let fields: Vec<&[u8]> = raw.split(|byte| *byte == 0).collect();
     let mut flagged = std::collections::BTreeSet::new();
     for record in fields.chunks(3) {
@@ -265,14 +289,11 @@ fn filtered_paths(
 fn cat_blobs(repo: &Path, commit: &str, entries: &[(String, u32)]) -> Result<Vec<Vec<u8>>, String> {
     let mut input = String::new();
     for (path, _) in entries {
-        input.push_str(&format!("{commit}:{path}\n"));
+        writeln!(input, "{commit}:{path}").ok();
     }
-    let mut blobs = git_pipe(
-        repo,
-        &["cat-file", "--batch"],
-        input.into_bytes(),
-        |stdout| read_batch(stdout, commit, entries),
-    )?;
+    let mut blobs = git_pipe(repo, &["cat-file", "--batch"], input.as_bytes(), |stdout| {
+        read_batch(stdout, commit, entries)
+    })?;
     let flagged = filtered_paths(repo, commit, entries)?;
     let source = format!("--attr-source={commit}");
     for ((blob, (path, _)), filter) in blobs.iter_mut().zip(entries).zip(flagged) {
@@ -283,7 +304,7 @@ fn cat_blobs(repo: &Path, commit: &str, entries: &[(String, u32)]) -> Result<Vec
         let mut args = vec![source.as_str()];
         args.extend_from_slice(&READ_CONFIG);
         args.extend_from_slice(&["cat-file", "--filters", &object]);
-        *blob = git_pipe(repo, &args, Vec::new(), |stdout| Ok(stdout.to_vec()))?;
+        *blob = git_pipe(repo, &args, &[], |stdout| Ok(stdout.to_vec()))?;
     }
     Ok(blobs)
 }
@@ -334,6 +355,10 @@ pub const PINS_PATH: &str = "cli/prebuilt/pins.bzl";
 /// Builds the source archive of a candidate commit from git blobs.
 ///
 /// With `pins`, the archive holds those bytes for [`PINS_PATH`] instead of the commit's blob.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn build_source_archive(
     repo: &Path,
     candidate: &Candidate,
@@ -369,6 +394,10 @@ pub fn build_source_archive(
 /// Checks that an archive holds exactly the candidate commit's files.
 ///
 /// With `pins`, [`PINS_PATH`] must hold those bytes instead of the commit's blob.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn source_archive_error(
     archive: &Path,
     repo: &Path,
@@ -422,6 +451,7 @@ pub fn source_archive_error(
 }
 
 /// Returns the release source archive file name of a candidate.
+#[must_use]
 pub fn release_source_name(candidate: &Candidate) -> String {
     format!("{BCR_WANT_MODULE}-{}.tar.gz", candidate.version())
 }
@@ -446,6 +476,10 @@ fn conflicting_output_error(path: &Path, bytes: &[u8]) -> Result<(), String> {
 /// Writes `rules_dx-<version>.tar.gz`, its `.sha256` sidecar, and `source.json`.
 /// Refuses an `out_dir` that already holds different bytes under those names.
 /// `pins` replaces [`PINS_PATH`] as in [`build_source_archive`].
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn write_release_source(
     repo: &Path,
     candidate: &Candidate,
@@ -608,12 +642,20 @@ pub(crate) fn string_fields(body: &str, base: usize) -> Vec<(String, String, usi
     fields
 }
 
-/// Rewrites the version of the single rules_dx module() call and keeps the rest.
+/// Rewrites the version of the single `rules_dx` `module()` call and keeps the rest.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn candidate_module_file(text: &str, version: &str) -> Result<String, String> {
     candidate_named_module_file(text, version, BCR_WANT_MODULE)
 }
 
 /// Like [`candidate_module_file`] for the module called `name`.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn candidate_named_module_file(
     text: &str,
     version: &str,
@@ -674,6 +716,7 @@ pub fn candidate_named_module_file(
 }
 
 /// Returns one absolute path as a `file://` URL with forward slashes.
+#[must_use]
 pub fn file_url(path: &Path) -> String {
     let text = path.to_string_lossy().replace('\\', "/");
     if text.starts_with('/') {
@@ -693,6 +736,10 @@ fn write_file(path: &Path, bytes: &[u8]) -> Result<(), String> {
 }
 
 /// Stages a local Bazel registry that serves exactly one candidate archive.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn stage_local_registry(
     dir: &Path,
     candidate: &Candidate,
@@ -769,6 +816,10 @@ pub fn stage_local_registry(
 }
 
 /// Returns the peeled commit of one tag from git ls-remote output.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn remote_tag_commit(output: &str, tag: &str) -> Result<String, String> {
     let want = format!("refs/tags/{tag}");
     let peeled = format!("{want}^{{}}");
@@ -801,10 +852,14 @@ pub fn remote_tag_commit(output: &str, tag: &str) -> Result<String, String> {
         .ok_or_else(|| format!("release: remote has no tag {tag}"))
 }
 
-/// The git for-each-ref format that local_tag_commit parses.
+/// The git for-each-ref format that `local_tag_commit` parses.
 pub const LOCAL_TAG_FORMAT: &str = "--format=%(refname) %(objectname) %(*objectname)";
 
 /// Returns the peeled commit of one local tag from git for-each-ref output.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn local_tag_commit(output: &str, tag: &str) -> Result<Option<String>, String> {
     let want = format!("refs/tags/{tag}");
     let mut found: Option<String> = None;
@@ -833,6 +888,10 @@ pub fn local_tag_commit(output: &str, tag: &str) -> Result<Option<String>, Strin
 }
 
 /// Combines git status, HEAD and tag output into the local release state.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn git_state_of(
     status: Result<String, String>,
     head: Result<String, String>,
@@ -854,6 +913,10 @@ pub fn git_state_of(
 }
 
 /// Reads the local release state of a repository with git.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn read_git_state(repo: Option<&Path>, tag: &str) -> Result<GitState, String> {
     let read = |args: &[&str]| {
         git_in(repo, args).map_err(|error| format!("release: cannot read git state: {error}"))
@@ -1049,7 +1112,7 @@ mod tests {
                 .expect_err("twice")
                 .contains("ambiguous")
         );
-        for bad in ["v1.2.3\n".to_owned(), format!("refs/tags/v1.2.3 xyz \n")] {
+        for bad in ["v1.2.3\n".to_owned(), "refs/tags/v1.2.3 xyz \n".to_string()] {
             assert!(
                 local_tag_commit(&bad, "v1.2.3")
                     .expect_err("malformed")

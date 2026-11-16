@@ -36,14 +36,13 @@ struct ParsedInputs {
 fn parse_inputs(argv: &[String]) -> Result<ParsedInputs, String> {
     let mut missing: Option<String> = None;
     let mut get = |name: &str| -> String {
-        match flag_value(argv, name) {
-            Some(value) => value,
-            None => {
-                missing = Some(format!(
-                    "publish_dry_run_check: missing required {name} <path>"
-                ));
-                String::new()
-            }
+        if let Some(value) = flag_value(argv, name) {
+            value
+        } else {
+            missing = Some(format!(
+                "publish_dry_run_check: missing required {name} <path>"
+            ));
+            String::new()
         }
     };
     let matrix = get("--matrix");
@@ -224,7 +223,7 @@ mod tests {
 
     #[test]
     fn notice_texts_splits_colon_lists_and_keeps_empty_empty() {
-        assert!(notice_texts_of("").is_empty());
+        assert_eq!(notice_texts_of(""), [] as [PathBuf; 0]);
         assert_eq!(notice_texts_of("a"), vec![PathBuf::from("a")]);
         assert_eq!(
             notice_texts_of("a:b"),

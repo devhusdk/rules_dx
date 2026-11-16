@@ -1,5 +1,5 @@
 //! Builds a release candidate archive from the working tree and consumes it through a local
-//! registry in a nested Bazel workspace, with no rules_dx override.
+//! registry in a nested Bazel workspace, with no `rules_dx` override.
 
 use std::path::{Path, PathBuf};
 
@@ -93,7 +93,7 @@ fn stage_registry(candidate: &Candidate, archive: &Path) -> (dx_test_scratch::Te
     (dir, registry)
 }
 
-/// Writes a consumer that reaches rules_dx only through the staged registry.
+/// Writes a consumer that reaches `rules_dx` only through the staged registry.
 fn consumer(candidate: &Candidate, archive: &Path, registry: &Path) -> Case {
     let prefix = candidate.strip_prefix();
     let member = |rel: &str| {
@@ -239,7 +239,11 @@ fn assert_registry_consumer(candidate: &Candidate, archive: &Path, built_integri
     if check.status.code() != Some(0) {
         use std::io::Write;
         let diff = dx(&case, "generate", &["--diff", "//...", "--", policy]);
-        let _ = writeln!(std::io::stderr(), "dx generate --diff:\n{}", diff.combined());
+        let _ = writeln!(
+            std::io::stderr(),
+            "dx generate --diff:\n{}",
+            diff.combined()
+        );
     }
     ok(&check, "dx check");
 

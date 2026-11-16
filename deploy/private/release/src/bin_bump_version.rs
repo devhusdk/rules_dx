@@ -1,6 +1,7 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use dx_process::capture::{DEFAULT_TIMEOUT, run_checked};
+use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -139,7 +140,7 @@ fn redigest(root: &Path, record: &str) -> Result<String, String> {
             .split_once("  ")
             .ok_or_else(|| format!("malformed line `{line}`"))?;
         let bytes = fs::read(root.join(path)).map_err(|e| format!("{path}: {e}"))?;
-        out.push_str(&format!("{}  {path}\n", dx_digest::sha256_hex(&bytes)));
+        writeln!(out, "{}  {path}", dx_digest::sha256_hex(&bytes)).ok();
     }
     Ok(out)
 }
@@ -153,7 +154,7 @@ fn bump(root: &Path, version: &str, commit: &str) -> Result<usize, String> {
     }
     let mut changed = Vec::new();
     for (file, edits) in targets() {
-        let path = root.join(&file);
+        let path = root.join(file);
         let old = fs::read_to_string(&path).map_err(|e| format!("{file}: {e}"))?;
         let mut text = old.clone();
         for edit in &edits {
@@ -218,10 +219,9 @@ fn run(args: &[String], workspace: Option<PathBuf>) -> Result<String, String> {
     while let Some(arg) = iter.next() {
         match arg.as_str() {
             "--workflow-ref" => {
-                reference = iter
-                    .next()
+                iter.next()
                     .ok_or_else(|| "--workflow-ref needs a commit".to_owned())?
-                    .clone();
+                    .clone_into(&mut reference);
             }
             other if !other.starts_with('-') && version.is_none() => version = Some(other),
             other => return Err(format!("unexpected argument `{other}`\n{USAGE}")),

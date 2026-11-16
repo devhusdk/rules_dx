@@ -11,56 +11,147 @@ use dx_output::{
 use dx_plan::args::Invocation;
 use dx_plan::plan::{bep_path, plan_managed, plan_managed_with_roots};
 use dx_plan::resolve::expand_codegen_roots;
+use std::io::Write;
+use std::path::{Path, PathBuf};
 
-pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
+struct CollectionPlan {
+    plan: dx_plan::plan::BuildPlan,
+    bep: PathBuf,
+    op_scope: Option<Vec<String>>,
+}
+
+pub(crate) fn execute_managed(invocation: &Invocation, mut env: Env<'_>) -> i32 {
     debug_assert!(
         invocation.command.is_managed(),
         "managed dispatch guards commands"
     );
-    let Env {
-        workspace,
-        runner,
-        query_runner,
-        temp_dir,
-        pid,
-        nonce,
-        out,
-        err,
-        actions,
-        proc_root,
-        ..
-    } = env;
     if !invocation.command.is_managed() {
         return pre_exec(
             invocation.output,
-            out,
-            err,
+            env.out,
+            env.err,
             &dx_process::unsupported_command(invocation.command.name()).to_string(),
         );
     }
-    let scope = match dx_setup::resolve_scope(&invocation.targets) {
-        Ok(scope) => scope,
-        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
+    let json = invocation.output == OutputMode::Json;
+    let CollectionPlan {
+        plan,
+        bep,
+        op_scope,
+    } = match plan_collection(invocation, &mut env) {
+        Ok(planned) => planned,
+        Err(exit) => return exit,
     };
-    let bep = bep_path(temp_dir, pid, nonce);
+    if json && let Err(exit) = announce_collection(invocation, env.out, op_scope.as_deref()) {
+        return exit;
+    }
+    if !json
+        && invocation.chatty()
+        && let Err(exit) = check_stdout_write(writeln!(env.out, "{}", plan.summary))
+    {
+        return exit;
+    }
+    let bazel_code = match run_bazel(
+        invocation,
+        env.out,
+        env.err,
+        env.workspace,
+        env.runner,
+        &plan.argv,
+        &[],
+    ) {
+        Ok(code) => code,
+        Err(exit) => {
+            std::fs::remove_file(&bep).ok();
+            return exit;
+        }
+    };
+    let action_counts = read_actions(&bep, env.actions);
+    if bazel_code != 0 {
+        std::fs::remove_file(&bep).ok();
+        if json {
+            return report_collection_failure(
+                &mut env,
+                bazel_code,
+                op_scope.as_deref(),
+                action_counts,
+            );
+        }
+        return bazel_code;
+    }
+    let (pair, outcome, previous) = match commit_collection(invocation, &mut env, &bep) {
+        Ok(committed) => committed,
+        Err(exit) => return exit,
+    };
+    let Env {
+        workspace,
+        query_runner,
+        out,
+        err,
+        proc_root,
+        ..
+    } = env;
+    super::sync_prune::prune_and_warn(
+        workspace,
+        proc_root,
+        previous.as_deref(),
+        invocation.output,
+        out,
+        err,
+    );
+    super::ide_refresh::refresh_and_warn(
+        workspace,
+        query_runner,
+        &invocation.bazel_startup_options,
+        invocation.output,
+        out,
+        err,
+    );
+    if json {
+        return announce_selection(out, &pair, action_counts);
+    }
+    if invocation.chatty() {
+        return describe_selection(invocation, out, &pair, outcome);
+    }
+    0
+}
+
+fn announce_collection(
+    invocation: &Invocation,
+    out: &mut dyn Write,
+    op_scope: Option<&[String]>,
+) -> Result<(), i32> {
+    emit_built(out, command_started(invocation.command.name(), "default"))?;
+    emit_built(
+        out,
+        operation_event(invocation.command.name(), "collect", op_scope),
+    )
+}
+
+fn plan_collection(invocation: &Invocation, env: &mut Env<'_>) -> Result<CollectionPlan, i32> {
+    let scope = dx_setup::resolve_scope(&invocation.targets)
+        .map_err(|error| pre_exec(invocation.output, env.out, env.err, &error.to_string()))?;
+    let bep = bep_path(env.temp_dir, env.pid, env.nonce);
     let Some(bep_text) = bep.to_str() else {
-        return operational(
+        return Err(operational(
             invocation,
-            out,
-            err,
+            env.out,
+            env.err,
             CODE_UNREADABLE_BEP,
             &crate::startup::temp_path_not_utf8(),
-        );
+        ));
     };
     let expanded: Option<Vec<String>> = match &scope {
         dx_setup::SetupScope::Exact(label) => match expand_codegen_roots(
             label,
-            workspace,
-            query_runner,
+            env.workspace,
+            env.query_runner,
             &invocation.bazel_startup_options,
         ) {
             Ok(roots) => Some(roots),
-            Err(error) => return resolve_failed(invocation.output, out, err, &error),
+            Err(error) => {
+                return Err(resolve_failed(invocation.output, env.out, env.err, &error));
+            }
         },
         dx_setup::SetupScope::Repository => None,
     };
@@ -80,80 +171,64 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
             bep_text,
             &invocation.bazel_startup_options,
         ),
-    };
-    let plan = match plan {
-        Ok(plan) => plan,
-        Err(error) => return pre_exec(invocation.output, out, err, &format!("{error}")),
-    };
-    let verbose = invocation.chatty();
-    let json = invocation.output == OutputMode::Json;
-    let op_scope: Option<Vec<String>> = match (&scope, &expanded) {
-        (_, Some(roots)) => Some(roots.clone()),
+    }
+    .map_err(|error| pre_exec(invocation.output, env.out, env.err, &format!("{error}")))?;
+    let op_scope: Option<Vec<String>> = match (&scope, expanded) {
+        (_, Some(roots)) => Some(roots),
         (dx_setup::SetupScope::Exact(label), None) => Some(vec![label.clone()]),
         (dx_setup::SetupScope::Repository, None) => None,
     };
-    if json {
-        if let Err(exit) = emit_built(out, command_started(invocation.command.name(), "default")) {
-            return exit;
-        }
-        if let Err(exit) = emit_built(
-            out,
-            operation_event(invocation.command.name(), "collect", op_scope.as_deref()),
-        ) {
-            return exit;
-        }
+    Ok(CollectionPlan {
+        plan,
+        bep,
+        op_scope,
+    })
+}
+
+fn report_collection_failure(
+    env: &mut Env<'_>,
+    bazel_code: i32,
+    op_scope: Option<&[String]>,
+    action_counts: Option<ActionCounts>,
+) -> i32 {
+    let scope_text = op_scope.map_or_else(|| "//...".to_owned(), |scope| scope.join(" "));
+    if let Err(exit) = emit_built(
+        env.out,
+        bazel_exit_event(
+            bazel_failure_code(bazel_code),
+            &format!(
+                "Bazel collection build failed with exit {bazel_code} for {scope_text} (see stderr diagnostics)"
+            ),
+            bazel_code,
+            "collect",
+        ),
+    ) {
+        return kept_child(env.err, bazel_code, exit);
     }
-    if !json
-        && verbose
-        && let Err(exit) = check_stdout_write(writeln!(out, "{}", plan.summary))
-    {
-        return exit;
+    let finished = command_finished(bazel_code, &with_actions(action_counts));
+    if let Err(exit) = emit_event(env.out, &finished) {
+        return kept_child(env.err, bazel_code, exit);
     }
-    let bazel_code = match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
-        Ok(code) => code,
-        Err(exit) => {
-            std::fs::remove_file(&bep).ok();
-            return exit;
-        }
-    };
-    let action_counts = read_actions(&bep, actions);
-    if bazel_code != 0 {
-        std::fs::remove_file(&bep).ok();
-        if json {
-            let scope_text = op_scope
-                .as_deref()
-                .map_or_else(|| "//...".to_owned(), |scope| scope.join(" "));
-            if let Err(exit) = emit_built(
-                out,
-                bazel_exit_event(
-                    bazel_failure_code(bazel_code),
-                    &format!(
-                        "Bazel collection build failed with exit {bazel_code} for {scope_text} (see stderr diagnostics)"
-                    ),
-                    bazel_code,
-                    "collect",
-                ),
-            ) {
-                return kept_child(err, bazel_code, exit);
-            }
-            let finished = command_finished(bazel_code, &with_actions(action_counts));
-            if let Err(exit) = emit_event(out, &finished) {
-                return kept_child(err, bazel_code, exit);
-            }
-        }
-        return bazel_code;
-    }
-    let prepared = match prepare_managed_sides(workspace, workspace, &bep) {
+    bazel_code
+}
+
+fn commit_collection(
+    invocation: &Invocation,
+    env: &mut Env<'_>,
+    bep: &Path,
+) -> Result<(dx_setup::SetupPair, dx_setup::CommitOutcome, Option<String>), i32> {
+    let workspace = env.workspace;
+    let prepared = match prepare_managed_sides(workspace, workspace, bep) {
         Ok(prepared) => prepared,
         Err(error) => {
-            std::fs::remove_file(&bep).ok();
-            return report_dx_error(
+            std::fs::remove_file(bep).ok();
+            return Err(report_dx_error(
                 invocation.output,
-                out,
-                err,
+                env.out,
+                env.err,
                 prepare_error_code(&error),
                 &error,
-            );
+            ));
         }
     };
     let before = dx_setup::read_current_pair(workspace)
@@ -169,12 +244,18 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
                 CODE_MANAGED_COMMIT_FAILED
             };
             let error = map_commit_error(error);
-            std::fs::remove_file(&bep).ok();
-            return report_dx_error(invocation.output, out, err, code, &error);
+            std::fs::remove_file(bep).ok();
+            return Err(report_dx_error(
+                invocation.output,
+                env.out,
+                env.err,
+                code,
+                &error,
+            ));
         }
     };
     drop(prepared.leases);
-    std::fs::remove_file(&bep).ok();
+    std::fs::remove_file(bep).ok();
     let record = super::sync_fingerprint::Record {
         targets: invocation.targets.clone(),
         artifacts: prepared.artifacts,
@@ -182,66 +263,54 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
     };
     super::sync_fingerprint::record(workspace, &record, None).ok();
     let previous = before.filter(|hex| *hex != dx_setup::setup_hex(&pair));
-    super::sync_prune::prune_and_warn(
-        workspace,
-        proc_root,
-        previous.as_deref(),
-        invocation.output,
+    Ok((pair, outcome, previous))
+}
+
+fn announce_selection(
+    out: &mut dyn Write,
+    pair: &dx_setup::SetupPair,
+    action_counts: Option<ActionCounts>,
+) -> i32 {
+    let setup_id = dx_setup::setup_hex(pair);
+    if let Err(exit) = emit_built(
         out,
-        err,
-    );
-    super::ide_refresh::refresh_and_warn(
-        workspace,
-        query_runner,
-        &invocation.bazel_startup_options,
-        invocation.output,
-        out,
-        err,
-    );
-    if json {
-        let setup_id = dx_setup::setup_hex(&pair);
-        if let Err(exit) = emit_built(
-            out,
-            selection_event(
-                &setup_id,
-                pair.environment.as_str(),
-                pair.generated.as_str(),
-            ),
-        ) {
-            return exit;
-        }
-        if let Err(exit) = emit_event(out, &command_finished(0, &with_actions(action_counts))) {
-            return exit;
-        }
-        return 0;
+        selection_event(
+            &setup_id,
+            pair.environment.as_str(),
+            pair.generated.as_str(),
+        ),
+    ) {
+        return exit;
     }
-    if verbose {
-        let setup = dx_setup::setup_hex(&pair);
-        if outcome == dx_setup::CommitOutcome::AlreadyCurrent {
-            let written = writeln!(
-                out,
-                "dx {}: already selected setup {setup} (environment {}, generated {})",
-                invocation.command.name(),
-                pair.environment.as_str(),
-                pair.generated.as_str(),
-            );
-            if let Err(exit) = check_stdout_write(written) {
-                return exit;
-            }
-        } else {
-            let written = writeln!(
-                out,
-                "dx {}: selected setup {setup} (environment {}, generated {})",
-                invocation.command.name(),
-                pair.environment.as_str(),
-                pair.generated.as_str(),
-            );
-            if let Err(exit) = check_stdout_write(written) {
-                return exit;
-            }
-        }
+    if let Err(exit) = emit_event(out, &command_finished(0, &with_actions(action_counts))) {
+        return exit;
     }
     0
+}
+
+fn describe_selection(
+    invocation: &Invocation,
+    out: &mut dyn Write,
+    pair: &dx_setup::SetupPair,
+    outcome: dx_setup::CommitOutcome,
+) -> i32 {
+    let setup = dx_setup::setup_hex(pair);
+    let verb = if outcome == dx_setup::CommitOutcome::AlreadyCurrent {
+        "already selected"
+    } else {
+        "selected"
+    };
+    let written = writeln!(
+        out,
+        "dx {}: {verb} setup {setup} (environment {}, generated {})",
+        invocation.command.name(),
+        pair.environment.as_str(),
+        pair.generated.as_str(),
+    );
+    match check_stdout_write(written) {
+        Ok(()) => 0,
+        Err(exit) => exit,
+    }
 }
 
 fn with_actions(actions: Option<ActionCounts>) -> FinishedCounts {

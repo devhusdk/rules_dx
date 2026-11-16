@@ -1,3 +1,33 @@
+function option(args, name)
+    index = findfirst(==(name), args)
+    (index === nothing || index == length(args)) && return nothing
+    return args[index+1]
+end
+
+function parse_args(args)
+    scratch = option(args, "--scratch")
+    report = option(args, "--report")
+    config = option(args, "--config")
+    files = String[]
+    index = 1
+    while index <= length(args)
+        if args[index] in ("--scratch", "--report", "--config")
+            index += 2
+        else
+            push!(files, args[index])
+            index += 1
+        end
+    end
+    (scratch === nothing || report === nothing || isempty(files)) && return nothing
+    return (; scratch, report, config, files)
+end
+
+const PARSED = parse_args(ARGS)
+if PARSED === nothing
+    println(stderr, "usage: lint.jl --scratch DIR --report OUT [--config JuliaLint.toml] FILE...")
+    exit(2)
+end
+
 # Loading Pkg and REPL first matches the precompile environment, so the
 # prebuilt JuliaWorkspaces cache is reused instead of recompiled.
 using Pkg, REPL
@@ -28,12 +58,6 @@ function json_string(s::AbstractString)
     end
     write(io, '"')
     return String(take!(io))
-end
-
-function option(args, name)
-    index = findfirst(==(name), args)
-    (index === nothing || index == length(args)) && return nothing
-    return args[index+1]
 end
 
 # Diagnostic ranges are 1-based byte offsets; columns count characters.
@@ -76,24 +100,7 @@ function report_line(file, text, diagnostic)
            "\"severity\":$(json_string(severity)),\"rule\":$(json_string(rule)),\"message\":$(json_string(diagnostic.message))}"
 end
 
-function main(args)
-    scratch = option(args, "--scratch")
-    report = option(args, "--report")
-    config = option(args, "--config")
-    files = String[]
-    index = 1
-    while index <= length(args)
-        if args[index] in ("--scratch", "--report", "--config")
-            index += 2
-        else
-            push!(files, args[index])
-            index += 1
-        end
-    end
-    if scratch === nothing || report === nothing || isempty(files)
-        println(stderr, "usage: lint.jl --scratch DIR --report OUT [--config JuliaLint.toml] FILE...")
-        return 2
-    end
+function main((; scratch, report, config, files))
     mkpath(scratch)
     workspace = JuliaWorkspace(
         dynamic = DynamicOff,
@@ -132,7 +139,7 @@ function main(args)
 end
 
 try
-    exit(main(ARGS))
+    exit(main(PARSED))
 catch err
     println(stderr, "lint.jl: error: $(sprint(showerror, err))")
     exit(2)

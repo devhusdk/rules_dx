@@ -10,7 +10,9 @@ fn settings() -> Settings {
 }
 
 fn param(name: &str, ty: Option<&str>, sets: Value) -> Value {
-    json!({"name": name, "type": ty, "sets": sets, "aliases": []})
+    let mut param = json!({"name": name, "type": ty, "aliases": []});
+    param["sets"] = sets;
+    param
 }
 
 fn set(name: &str, mandatory: bool, position: Option<u32>) -> Value {
@@ -18,14 +20,15 @@ fn set(name: &str, mandatory: bool, position: Option<u32>) -> Value {
 }
 
 fn help(synopsis: &str, description: &str, parameters: Value) -> Value {
-    json!({
+    let mut help = json!({
         "synopsis": synopsis,
         "description": description,
-        "parameters": parameters,
         "examples": [],
         "outputs": [],
         "notes": ""
-    })
+    });
+    help["parameters"] = parameters;
+    help
 }
 
 fn function(name: &str, line: u64) -> Value {
@@ -43,14 +46,14 @@ fn function(name: &str, line: u64) -> Value {
 fn file(rel: &str, functions: Vec<Value>) -> Value {
     json!({
         "rel": rel,
-        "functions": functions,
+        "functions": Value::Array(functions),
         "exports": {"kind": "none", "functions": []},
         "unresolved_uses": []
     })
 }
 
 fn api(files: Vec<Value>) -> Value {
-    json!({"schema": SCHEMA, "pwsh": "7.5.4", "manifest": null, "files": files})
+    json!({"schema": SCHEMA, "pwsh": "7.5.4", "manifest": null, "files": Value::Array(files)})
 }
 
 fn shard(value: &Value) -> DocIr {

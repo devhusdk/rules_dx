@@ -4,19 +4,22 @@ use serde_json::json;
 const MANIFEST: &str = "ext/a/Circle.java\ta/Circle.java\t0\nbazel-out/gen/G.java\tgen/G.java\t1\n";
 
 fn sym(qualified: &str, kind: &str, overload: Value, doc: &str) -> Value {
-    json!({
-        "qualified": qualified, "overload": overload, "kind": kind,
+    let mut symbol = json!({
+        "qualified": qualified, "kind": kind,
         "signature": format!("sig {qualified}"), "doc": doc,
         "params": [], "returns": null, "file": "ext/a/Circle.java", "line": 7,
         "member_of": null, "implements": []
-    })
+    });
+    symbol["overload"] = overload;
+    symbol
 }
 
 fn doc(symbols: Value) -> Value {
-    json!({
-        "format": 1, "language": "java", "tool": "javadoc", "tool_version": "21",
-        "symbols": symbols
-    })
+    let mut document = json!({
+        "format": 1, "language": "java", "tool": "javadoc", "tool_version": "21"
+    });
+    document["symbols"] = symbols;
+    document
 }
 
 fn full() -> Value {

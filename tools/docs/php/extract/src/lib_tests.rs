@@ -24,7 +24,7 @@ fn tag(tag: &str, name: &str, types: &str, text: &str) -> Value {
 }
 
 fn document(objects: Vec<Value>) -> Value {
-    json!({"format": 1, "php": "8.5.12", "phpdocumentor": "3.10.0", "objects": objects})
+    json!({"format": 1, "php": "8.5.12", "phpdocumentor": "3.10.0", "objects": Value::Array(objects)})
 }
 
 fn convert_all(objects: Vec<Value>) -> DocIr {

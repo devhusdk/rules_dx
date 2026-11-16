@@ -518,7 +518,7 @@ fn location(node: &Node, context: &Context<'_>) -> Option<(String, u64, bool)> {
     Some((rel.clone(), line.parse().unwrap_or(0), *generated))
 }
 
-fn incomplete_extensions(context: &Context<'_>, undocumented: Vec<String>) -> Vec<Extension> {
+fn incomplete_extensions(context: &Context<'_>, undocumented: &[String]) -> Vec<Extension> {
     let mut extensions = vec![extension(
         &format!("{}.config", context.language),
         &context.config,
@@ -530,6 +530,101 @@ fn incomplete_extensions(context: &Context<'_>, undocumented: Vec<String>) -> Ve
         ));
     }
     extensions
+}
+
+fn define_signature(member: &Node, name: &str, described: &Described) -> (String, Vec<Param>) {
+    let mut params = Vec::new();
+    let args: Vec<String> = member
+        .all("param")
+        .map(|p| squeeze(&p.first("defname").map(Node::text).unwrap_or_default()))
+        .collect();
+    let head = if member.all("param").next().is_some() {
+        format!("{name}({})", args.join(", "))
+    } else {
+        name.to_owned()
+    };
+    for arg in &args {
+        params.push(Param {
+            name: arg.clone(),
+            r#type: String::new(),
+            doc: described.params.get(arg).cloned().unwrap_or_default(),
+        });
+    }
+    let value = squeeze(&type_text(member.first("initializer")));
+    let signature = if value.is_empty() {
+        format!("#define {head}")
+    } else {
+        format!("#define {head} {value}")
+    };
+    (signature, params)
+}
+
+struct Callable {
+    head: String,
+    params: Vec<Param>,
+    returns: Option<Returns>,
+    undocumented: Vec<String>,
+}
+
+fn function_signature(member: &Node, name: &str, ty: &str, described: &Described) -> Callable {
+    let mut head = template_prefix(member);
+    let mut params = Vec::new();
+    let mut returns = None;
+    let mut undocumented = Vec::new();
+    if member.attr("static") == "yes" {
+        head.push_str("static ");
+    }
+    if member.attr("virt") != "non-virtual" {
+        head.push_str("virtual ");
+    }
+    if member.attr("explicit") == "yes" {
+        head.push_str("explicit ");
+    }
+    if !ty.is_empty() {
+        head.push_str(ty);
+        head.push(' ');
+    }
+    head.push_str(name);
+    head.push_str(&squeeze(&type_text(member.first("argsstring"))));
+    let mut missing = Vec::new();
+    for param in member.all("param") {
+        let pname = param
+            .first("declname")
+            .or_else(|| param.first("defname"))
+            .map(|n| squeeze(&n.text()))
+            .unwrap_or_default();
+        if pname.is_empty() {
+            continue;
+        }
+        let doc = described.params.get(&pname).cloned().unwrap_or_default();
+        if doc.is_empty() {
+            missing.push(pname.clone());
+        }
+        params.push(Param {
+            name: pname,
+            r#type: type_text(param.first("type")),
+            doc,
+        });
+    }
+    if !missing.is_empty() {
+        undocumented.push(format!("params={}", missing.join(",")));
+    }
+    let returns_value = !ty.is_empty() && ty != "void" && ty != "auto";
+    if returns_value {
+        if described.returns.is_empty() {
+            undocumented.push("return".to_owned());
+        }
+        returns = Some(Returns {
+            r#type: ty.to_owned(),
+            doc: described.returns.clone(),
+        });
+    }
+    Callable {
+        head,
+        params,
+        returns,
+        undocumented,
+    }
 }
 
 fn member_draft(
@@ -559,86 +654,21 @@ fn member_draft(
     let mut returns = None;
     let (symbol_kind, signature) = match kind {
         "define" => {
-            let args: Vec<String> = member
-                .all("param")
-                .map(|p| squeeze(&p.first("defname").map(Node::text).unwrap_or_default()))
-                .collect();
-            let head = if member.all("param").next().is_some() {
-                format!("{name}({})", args.join(", "))
-            } else {
-                name.clone()
-            };
-            for arg in &args {
-                params.push(Param {
-                    name: arg.clone(),
-                    r#type: String::new(),
-                    doc: described.params.get(arg).cloned().unwrap_or_default(),
-                });
-            }
-            let value = squeeze(&type_text(member.first("initializer")));
-            let signature = if value.is_empty() {
-                format!("#define {head}")
-            } else {
-                format!("#define {head} {value}")
-            };
+            let (signature, defined) = define_signature(member, &name, &described);
+            params = defined;
             (SymbolKind::Macro, signature)
         }
         "function" => {
-            let mut head = template_prefix(member);
-            if member.attr("static") == "yes" {
-                head.push_str("static ");
-            }
-            if member.attr("virt") != "non-virtual" {
-                head.push_str("virtual ");
-            }
-            if member.attr("explicit") == "yes" {
-                head.push_str("explicit ");
-            }
-            if !ty.is_empty() {
-                head.push_str(&ty);
-                head.push(' ');
-            }
-            head.push_str(&name);
-            head.push_str(&squeeze(&type_text(member.first("argsstring"))));
-            let mut missing = Vec::new();
-            for param in member.all("param") {
-                let pname = param
-                    .first("declname")
-                    .or_else(|| param.first("defname"))
-                    .map(|n| squeeze(&n.text()))
-                    .unwrap_or_default();
-                if pname.is_empty() {
-                    continue;
-                }
-                let doc = described.params.get(&pname).cloned().unwrap_or_default();
-                if doc.is_empty() {
-                    missing.push(pname.clone());
-                }
-                params.push(Param {
-                    name: pname,
-                    r#type: type_text(param.first("type")),
-                    doc,
-                });
-            }
-            if !missing.is_empty() {
-                undocumented.push(format!("params={}", missing.join(",")));
-            }
-            let returns_value = !ty.is_empty() && ty != "void" && ty != "auto";
-            if returns_value {
-                if described.returns.is_empty() {
-                    undocumented.push("return".to_owned());
-                }
-                returns = Some(Returns {
-                    r#type: ty.clone(),
-                    doc: described.returns.clone(),
-                });
-            }
+            let callable = function_signature(member, &name, &ty, &described);
+            params = callable.params;
+            returns = callable.returns;
+            undocumented.extend(callable.undocumented);
             let kind = if in_class {
                 SymbolKind::Method
             } else {
                 SymbolKind::Function
             };
-            (kind, head)
+            (kind, callable.head)
         }
         "variable" => {
             let constant = ty.contains("constexpr")
@@ -690,7 +720,7 @@ fn member_draft(
     };
     let mut path = compound_path.to_vec();
     path.push(name.clone());
-    let mut extensions = incomplete_extensions(context, undocumented);
+    let mut extensions = incomplete_extensions(context, &undocumented);
     extensions.sort_by(|a, b| a.key.cmp(&b.key));
     let owner_id = (!compound_path.is_empty() && !compound_id.is_empty())
         .then(|| format!("{prefix}{}", qualified(compound_path)));
@@ -770,7 +800,7 @@ fn enum_values(
                         implements: Vec::new(),
                         reexported_as: Vec::new(),
                     }),
-                    extensions: incomplete_extensions(context, undocumented),
+                    extensions: incomplete_extensions(context, &undocumented),
                     display_name: path.join("::"),
                     ..Symbol::default()
                 },
@@ -778,6 +808,125 @@ fn enum_values(
             })
         })
         .collect()
+}
+
+fn class_draft(
+    compound: &Node,
+    path: &[String],
+    compound_names: &BTreeMap<String, Vec<String>>,
+    context: &Context<'_>,
+    prefix: &str,
+) -> Option<Draft> {
+    let kind = compound.attr("kind");
+    let (file, line, generated) = location(compound, context)?;
+    let described = describe(compound);
+    let mut undocumented = Vec::new();
+    if described.markdown.is_empty() {
+        undocumented.push("doc".to_owned());
+    }
+    let mut implements: Vec<String> = compound
+        .all("basecompoundref")
+        .filter(|base| base.attr("prot") == "public")
+        .filter_map(|base| compound_names.get(base.attr("refid")))
+        .map(|base| format!("{prefix}{}", qualified(base)))
+        .collect();
+    implements.sort();
+    implements.dedup();
+    let (_, parent) = path.split_last()?;
+    let member_of = if parent.is_empty() {
+        Vec::new()
+    } else {
+        vec![format!("{prefix}{}", qualified(parent))]
+    };
+    let relations = (!member_of.is_empty() || !implements.is_empty()).then_some(Relations {
+        member_of,
+        implements,
+        reexported_as: Vec::new(),
+    });
+    let head = format!("{}{} {}", template_prefix(compound), kind, path.join("::"));
+    Some(Draft {
+        order: (0, file.clone(), line),
+        symbol: Symbol {
+            id: String::new(),
+            kind: SymbolKind::Class as i32,
+            signature_text: head,
+            doc_markdown: described.markdown,
+            source: Some(SourceRef {
+                file,
+                line,
+                generated,
+            }),
+            visibility: Visibility::Public as i32,
+            relations,
+            extensions: incomplete_extensions(context, &undocumented),
+            display_name: path.join("::"),
+            ..Symbol::default()
+        },
+        path: path.to_vec(),
+    })
+}
+
+fn namespace_draft(
+    compound: &Node,
+    path: Vec<String>,
+    context: &Context<'_>,
+    prefix: &str,
+) -> Option<Draft> {
+    let described = describe(compound);
+    let mut undocumented = Vec::new();
+    if described.markdown.is_empty() {
+        undocumented.push("doc".to_owned());
+    }
+    let (_, parent) = path.split_last()?;
+    let relations = (!parent.is_empty()).then(|| Relations {
+        member_of: vec![format!("{prefix}{}", qualified(parent))],
+        implements: Vec::new(),
+        reexported_as: Vec::new(),
+    });
+    let source = location(compound, context).map(|(file, line, generated)| SourceRef {
+        file,
+        line,
+        generated,
+    });
+    Some(Draft {
+        order: (
+            0,
+            source.as_ref().map(|s| s.file.clone()).unwrap_or_default(),
+            source.as_ref().map_or(0, |s| s.line),
+        ),
+        symbol: Symbol {
+            id: String::new(),
+            kind: SymbolKind::Module as i32,
+            signature_text: format!("namespace {}", path.join("::")),
+            doc_markdown: described.markdown,
+            source,
+            visibility: Visibility::Public as i32,
+            relations,
+            extensions: incomplete_extensions(context, &undocumented),
+            display_name: path.join("::"),
+            ..Symbol::default()
+        },
+        path,
+    })
+}
+
+fn parse_compounds(documents: &[&str]) -> Result<(String, Vec<Node>), String> {
+    let mut version = String::new();
+    let mut compounds: Vec<Node> = Vec::new();
+    for text in documents {
+        let root = parse_xml(text)?;
+        if root.name != "doxygen" {
+            return Err(format!(
+                "Doxygen XML root is <{}>, want <doxygen>",
+                root.name
+            ));
+        }
+        if version.is_empty() {
+            root.attr("version").clone_into(&mut version);
+        }
+        compounds.extend(root.all("compounddef").cloned());
+    }
+    Ok((version, compounds))
 }
 
 /// Converts the Doxygen XML documents of one package into a validated IR shard.
@@ -801,21 +950,7 @@ pub fn convert(
     }
     let sources = Sources::parse(manifest)?;
     let prefix = format!("{language}:{package}:");
-    let mut version = String::new();
-    let mut compounds: Vec<Node> = Vec::new();
-    for text in documents {
-        let root = parse_xml(text)?;
-        if root.name != "doxygen" {
-            return Err(format!(
-                "Doxygen XML root is <{}>, want <doxygen>",
-                root.name
-            ));
-        }
-        if version.is_empty() {
-            root.attr("version").clone_into(&mut version);
-        }
-        compounds.extend(root.all("compounddef").cloned());
-    }
+    let (version, compounds) = parse_compounds(documents)?;
     let context = Context {
         sources: &sources,
         language,
@@ -846,58 +981,14 @@ pub fn convert(
             continue;
         }
         let in_class = matches!(kind, "class" | "struct" | "union");
-        if matches!(kind, "class" | "struct" | "union") {
-            let Some((file, line, generated)) = location(compound, &context) else {
-                continue;
-            };
-            let described = describe(compound);
-            let mut undocumented = Vec::new();
-            if described.markdown.is_empty() {
-                undocumented.push("doc".to_owned());
-            }
-            let mut implements: Vec<String> = compound
-                .all("basecompoundref")
-                .filter(|base| base.attr("prot") == "public")
-                .filter_map(|base| compound_names.get(base.attr("refid")))
-                .map(|base| format!("{prefix}{}", qualified(base)))
-                .collect();
-            implements.sort();
-            implements.dedup();
-            let Some((_, parent)) = path.split_last() else {
-                continue;
-            };
-            let member_of = if parent.is_empty() {
-                Vec::new()
-            } else {
-                vec![format!("{prefix}{}", qualified(parent))]
-            };
-            let relations =
-                (!member_of.is_empty() || !implements.is_empty()).then_some(Relations {
-                    member_of,
-                    implements,
-                    reexported_as: Vec::new(),
-                });
-            let head = format!("{}{} {}", template_prefix(compound), kind, path.join("::"));
-            drafts.push(Draft {
-                order: (0, file.clone(), line),
-                symbol: Symbol {
-                    id: String::new(),
-                    kind: SymbolKind::Class as i32,
-                    signature_text: head,
-                    doc_markdown: described.markdown,
-                    source: Some(SourceRef {
-                        file,
-                        line,
-                        generated,
-                    }),
-                    visibility: Visibility::Public as i32,
-                    relations,
-                    extensions: incomplete_extensions(&context, undocumented),
-                    display_name: path.join("::"),
-                    ..Symbol::default()
-                },
-                path: path.clone(),
-            });
+        if in_class {
+            drafts.extend(class_draft(
+                compound,
+                &path,
+                &compound_names,
+                &context,
+                &prefix,
+            ));
         }
         let member_path: &[String] = if scoped { &path } else { &[] };
         for section in compound.all("sectiondef") {
@@ -945,47 +1036,9 @@ pub fn convert(
         }
     }
     for path in used {
-        let Some(compound) = namespaces.get(&path) else {
-            continue;
-        };
-        let described = describe(compound);
-        let mut undocumented = Vec::new();
-        if described.markdown.is_empty() {
-            undocumented.push("doc".to_owned());
+        if let Some(compound) = namespaces.get(&path) {
+            drafts.extend(namespace_draft(compound, path, &context, &prefix));
         }
-        let Some((_, parent)) = path.split_last() else {
-            continue;
-        };
-        let relations = (!parent.is_empty()).then(|| Relations {
-            member_of: vec![format!("{prefix}{}", qualified(parent))],
-            implements: Vec::new(),
-            reexported_as: Vec::new(),
-        });
-        let source = location(compound, &context).map(|(file, line, generated)| SourceRef {
-            file,
-            line,
-            generated,
-        });
-        drafts.push(Draft {
-            order: (
-                0,
-                source.as_ref().map(|s| s.file.clone()).unwrap_or_default(),
-                source.as_ref().map_or(0, |s| s.line),
-            ),
-            symbol: Symbol {
-                id: String::new(),
-                kind: SymbolKind::Module as i32,
-                signature_text: format!("namespace {}", path.join("::")),
-                doc_markdown: described.markdown,
-                source,
-                visibility: Visibility::Public as i32,
-                relations,
-                extensions: incomplete_extensions(&context, undocumented),
-                display_name: path.join("::"),
-                ..Symbol::default()
-            },
-            path,
-        });
     }
 
     if drafts.is_empty() {

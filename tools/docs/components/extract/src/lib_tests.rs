@@ -12,8 +12,9 @@ fn settings() -> Settings {
 }
 
 fn doc(components: Value) -> String {
-    json!({"schema": "dx-component-meta/1", "framework": "vue", "components": components})
-        .to_string()
+    let mut document = json!({"schema": "dx-component-meta/1", "framework": "vue"});
+    document["components"] = components;
+    document.to_string()
 }
 
 fn button() -> Value {
@@ -155,41 +156,42 @@ fn components_sort_by_id_regardless_of_input_order() {
     assert_eq!(shard.symbols[1].display_name, "Zed");
 }
 
-fn failure(json: String) -> String {
-    convert(&json, &settings()).expect_err("must fail")
+fn failure(json: &str) -> String {
+    convert(json, &settings()).expect_err("must fail")
 }
 
 #[test]
 fn rejects_malformed_or_mismatched_metadata() {
-    assert!(failure("{".to_owned()).contains("invalid JSON"));
+    assert!(failure("{").contains("invalid JSON"));
     assert!(
         failure(
-            json!({"schema": "x/2", "framework": "vue", "components": [{"name": "A"}]}).to_string()
+            &json!({"schema": "x/2", "framework": "vue", "components": [{"name": "A"}]})
+                .to_string()
         )
         .contains("unsupported schema")
     );
     assert!(
         failure(
-            json!({"schema": SCHEMA, "framework": "svelte", "components": [{"name": "A"}]})
+            &json!({"schema": SCHEMA, "framework": "svelte", "components": [{"name": "A"}]})
                 .to_string()
         )
         .contains("framework 'svelte'")
     );
-    assert!(failure(doc(json!([]))).contains("no components"));
+    assert!(failure(&doc(json!([]))).contains("no components"));
     assert!(
-        failure(json!({"schema": SCHEMA, "framework": "vue"}).to_string())
+        failure(&json!({"schema": SCHEMA, "framework": "vue"}).to_string())
             .contains("components must be an array")
     );
 }
 
 #[test]
 fn rejects_duplicates_and_unusable_names() {
-    assert!(failure(doc(json!([{"name": "A"}, {"name": "A"}]))).contains("duplicate component"));
-    assert!(failure(doc(json!([{"name": ""}]))).contains("empty"));
-    assert!(failure(doc(json!([{"name": "A.B"}]))).contains("'.'"));
+    assert!(failure(&doc(json!([{"name": "A"}, {"name": "A"}]))).contains("duplicate component"));
+    assert!(failure(&doc(json!([{"name": ""}]))).contains("empty"));
+    assert!(failure(&doc(json!([{"name": "A.B"}]))).contains("'.'"));
     let twice =
         json!({"name": "A", "props": [{"name": "x", "type": "t"}, {"name": "x", "type": "t"}]});
-    assert!(failure(doc(json!([twice]))).contains("duplicate prop"));
+    assert!(failure(&doc(json!([twice]))).contains("duplicate prop"));
 }
 
 #[test]

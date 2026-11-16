@@ -140,6 +140,109 @@ fn local_name<'a>(module: &str, name: &'a str) -> &'a str {
         .unwrap_or(name)
 }
 
+struct Parent<'a> {
+    name: &'a str,
+    file: &'a str,
+    generated: bool,
+    id: &'a str,
+    at: &'a str,
+    prefix: &'a str,
+    config: &'a str,
+}
+
+fn member_symbol(item: &Map<String, Value>, parent: &Parent<'_>) -> Result<Option<Symbol>, String> {
+    let item_at = format!("{} item", parent.at);
+    let item_name = string(item, "name", &item_at)?;
+    if item_name.is_empty() {
+        return Err(format!("{item_at} has an empty name"));
+    }
+    let item_at = format!("{} item '{item_name}'", parent.at);
+    let Some(item_kind) = item_kind(&string(item, "kind", &item_at)?, &item_name, &item_at)? else {
+        return Ok(None);
+    };
+    let short = local_name(parent.name, &item_name);
+    let args = string(item, "args", &item_at)?;
+    let params: Vec<Param> = entries(item, "params", &item_at)?
+        .into_iter()
+        .map(|param| {
+            Ok(Param {
+                name: string(param, "name", &item_at)?,
+                r#type: string(param, "type", &item_at)?,
+                doc: normalize(&string(param, "doc", &item_at)?),
+            })
+        })
+        .collect::<Result<_, String>>()?;
+    let returns = entries(item, "returns", &item_at)?;
+    let returns = match returns.as_slice() {
+        [] => None,
+        many => Some(Returns {
+            r#type: many
+                .iter()
+                .map(|r| string(r, "type", &item_at))
+                .collect::<Result<Vec<_>, _>>()?
+                .into_iter()
+                .filter(|t| !t.is_empty())
+                .collect::<Vec<_>>()
+                .join(", "),
+            doc: many
+                .iter()
+                .map(|r| string(r, "doc", &item_at).map(|d| normalize(&d)))
+                .collect::<Result<Vec<_>, _>>()?
+                .into_iter()
+                .filter(|d| !d.is_empty())
+                .collect::<Vec<_>>()
+                .join("\n"),
+        }),
+    };
+    let signature = match item_kind {
+        SymbolKind::Function | SymbolKind::Method => {
+            format!("function {}.{short}{args}", parent.name)
+        }
+        SymbolKind::Unspecified
+        | SymbolKind::Module
+        | SymbolKind::Class
+        | SymbolKind::Interface
+        | SymbolKind::Field
+        | SymbolKind::Property
+        | SymbolKind::Constant
+        | SymbolKind::Enum
+        | SymbolKind::EnumVariant
+        | SymbolKind::TypeAlias
+        | SymbolKind::Macro
+        | SymbolKind::Variable
+        | SymbolKind::Component
+        | SymbolKind::Event
+        | SymbolKind::Slot => format!("{}.{short}", parent.name),
+    };
+    let mut symbol = symbol(
+        format!(
+            "{}{}.{}",
+            parent.prefix,
+            qualified(parent.name),
+            qualified(short)
+        ),
+        item_kind,
+        signature,
+        short.to_owned(),
+        body(
+            &string(item, "summary", &item_at)?,
+            &string(item, "description", &item_at)?,
+        ),
+        params,
+        returns,
+        SourceRef {
+            file: parent.file.to_owned(),
+            line: number(item, "line", &item_at)?,
+            generated: parent.generated,
+        },
+        Some(parent.id.to_owned()),
+        parent.config,
+    );
+    let examples = strings(item, "usage", &item_at)?;
+    symbol.examples = examples.iter().map(|e| normalize(e)).collect();
+    Ok(Some(symbol))
+}
+
 /// Converts one `LDoc` filter document into a validated IR shard of one package.
 ///
 /// # Errors
@@ -203,96 +306,17 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
             None,
             &config,
         ));
+        let parent = Parent {
+            name: &name,
+            file: &file,
+            generated,
+            id: &module_id,
+            at: &at,
+            prefix: &prefix,
+            config: &config,
+        };
         for item in entries(module, "items", &at)? {
-            let item_at = format!("{at} item");
-            let item_name = string(item, "name", &item_at)?;
-            if item_name.is_empty() {
-                return Err(format!("{item_at} has an empty name"));
-            }
-            let item_at = format!("{at} item '{item_name}'");
-            let Some(item_kind) =
-                item_kind(&string(item, "kind", &item_at)?, &item_name, &item_at)?
-            else {
-                continue;
-            };
-            let short = local_name(&name, &item_name);
-            let args = string(item, "args", &item_at)?;
-            let params: Vec<Param> = entries(item, "params", &item_at)?
-                .into_iter()
-                .map(|param| {
-                    Ok(Param {
-                        name: string(param, "name", &item_at)?,
-                        r#type: string(param, "type", &item_at)?,
-                        doc: normalize(&string(param, "doc", &item_at)?),
-                    })
-                })
-                .collect::<Result<_, String>>()?;
-            let returns = entries(item, "returns", &item_at)?;
-            let returns = match returns.as_slice() {
-                [] => None,
-                many => Some(Returns {
-                    r#type: many
-                        .iter()
-                        .map(|r| string(r, "type", &item_at))
-                        .collect::<Result<Vec<_>, _>>()?
-                        .into_iter()
-                        .filter(|t| !t.is_empty())
-                        .collect::<Vec<_>>()
-                        .join(", "),
-                    doc: many
-                        .iter()
-                        .map(|r| string(r, "doc", &item_at).map(|d| normalize(&d)))
-                        .collect::<Result<Vec<_>, _>>()?
-                        .into_iter()
-                        .filter(|d| !d.is_empty())
-                        .collect::<Vec<_>>()
-                        .join("\n"),
-                }),
-            };
-            let signature = match item_kind {
-                SymbolKind::Function | SymbolKind::Method => {
-                    format!("function {name}.{short}{args}")
-                }
-                SymbolKind::Unspecified
-                | SymbolKind::Module
-                | SymbolKind::Class
-                | SymbolKind::Interface
-                | SymbolKind::Field
-                | SymbolKind::Property
-                | SymbolKind::Constant
-                | SymbolKind::Enum
-                | SymbolKind::EnumVariant
-                | SymbolKind::TypeAlias
-                | SymbolKind::Macro
-                | SymbolKind::Variable
-                | SymbolKind::Component
-                | SymbolKind::Event
-                | SymbolKind::Slot => format!("{name}.{short}"),
-            };
-            symbols.push(symbol(
-                format!("{prefix}{}.{}", qualified(&name), qualified(short)),
-                item_kind,
-                signature,
-                short.to_owned(),
-                body(
-                    &string(item, "summary", &item_at)?,
-                    &string(item, "description", &item_at)?,
-                ),
-                params,
-                returns,
-                SourceRef {
-                    file: file.clone(),
-                    line: number(item, "line", &item_at)?,
-                    generated,
-                },
-                Some(module_id.clone()),
-                &config,
-            ));
-            // Usage snippets are examples; they travel with the symbol just pushed.
-            let examples = strings(item, "usage", &item_at)?;
-            if let Some(last) = symbols.last_mut() {
-                last.examples = examples.iter().map(|e| normalize(e)).collect();
-            }
+            symbols.extend(member_symbol(item, &parent)?);
         }
     }
     if symbols.is_empty() {

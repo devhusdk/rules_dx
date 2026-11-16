@@ -13,7 +13,7 @@ fn item(kind: &str, name: &str) -> Value {
 fn document(items: Vec<Value>) -> String {
     json!({"format": 1, "ldoc": "1.5.0", "lua": "Lua 5.4", "modules": [{
         "description": "More text.", "file": "src/geo.lua", "generated": false,
-        "items": items, "kind": "module", "line": 1, "name": "geo", "summary": "Geometry."
+        "items": Value::Array(items), "kind": "module", "line": 1, "name": "geo", "summary": "Geometry."
     }]})
     .to_string()
 }

@@ -218,17 +218,22 @@ impl Driver {
 
     fn manifest(&self, files: &[PathBuf]) -> PathBuf {
         let path = self.dir.join("srcs.tsv");
-        let text: String = files
+        let text = files
             .iter()
             .map(|file| format!("{}\t{}\t0\n", file.display(), file.display()))
-            .collect();
+            .collect::<Vec<_>>()
+            .concat();
         std::fs::write(&path, text).expect("write the manifest");
         path
     }
 
     fn classpath(&self, jars: &[&str]) -> PathBuf {
         let path = self.dir.join("classpath.txt");
-        let text: String = jars.iter().map(|jar| format!("{jar}\n")).collect();
+        let text = jars
+            .iter()
+            .map(|jar| format!("{jar}\n"))
+            .collect::<Vec<_>>()
+            .concat();
         std::fs::write(&path, text).expect("write the classpath");
         path
     }

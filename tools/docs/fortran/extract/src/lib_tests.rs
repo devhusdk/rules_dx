@@ -16,7 +16,8 @@ fn with(mut value: Value, key: &str, field: Value) -> Value {
 }
 
 fn document(objects: Vec<Value>) -> String {
-    json!({"format": 1, "ford": "7.0.13", "python": "3.12", "objects": objects}).to_string()
+    json!({"format": 1, "ford": "7.0.13", "python": "3.12", "objects": Value::Array(objects)})
+        .to_string()
 }
 
 fn ids(shard: &DocIr) -> Vec<&str> {

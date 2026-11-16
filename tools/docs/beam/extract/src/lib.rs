@@ -84,6 +84,78 @@ fn module_id(prefix: &str, module: &str) -> String {
     format!("{prefix}{}", segments.join("."))
 }
 
+fn symbol(index: usize, value: &Value, prefix: &str, config: &str) -> Result<Symbol, String> {
+    let at = format!("driver JSON symbol {index}");
+    let item = value
+        .as_object()
+        .ok_or_else(|| format!("{at} is not an object"))?;
+    let kind_name = string(item, "kind", &at)?;
+    let kind = kind_of(&kind_name, &at)?;
+    let module = string(item, "module", &at)?;
+    let name = string(item, "name", &at)?;
+    if module.is_empty() || (kind != SymbolKind::Module && name.is_empty()) {
+        return Err(format!("{at} has an empty module or name"));
+    }
+    let arity = number(item, "arity", &at)?;
+    let owner = module_id(prefix, &module);
+    let (id, display, member_of) = if kind == SymbolKind::Module {
+        (owner.clone(), module.clone(), Vec::new())
+    } else {
+        (
+            format!(
+                "{owner}.{}@{kind_name}-{arity}",
+                documentation_ir::escape_id_segment(&name)
+            ),
+            format!("{module}.{name}/{arity}"),
+            vec![owner.clone()],
+        )
+    };
+    let doc = normalize(&string(item, "doc", &at)?);
+    let mut incomplete = Vec::new();
+    if doc.is_empty() {
+        incomplete.push("doc".to_owned());
+    }
+    let params = strings(item, "params", &at)?
+        .into_iter()
+        .map(|name| Param {
+            name,
+            ..Param::default()
+        })
+        .collect();
+    let file = string(item, "file", &at)?;
+    let mut extensions = vec![extension(KEY_CONFIG, config)];
+    if !incomplete.is_empty() {
+        extensions.push(extension(KEY_INCOMPLETE, &incomplete.join(";")));
+    }
+    Ok(Symbol {
+        id,
+        kind: kind as i32,
+        signature_text: string(item, "signature", &at)?,
+        doc_markdown: doc,
+        params,
+        source: Some(SourceRef {
+            file,
+            line: number(item, "line", &at)?,
+            generated: item
+                .get("generated")
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
+        }),
+        visibility: Visibility::Public as i32,
+        relations: if member_of.is_empty() {
+            None
+        } else {
+            Some(Relations {
+                member_of,
+                ..Relations::default()
+            })
+        },
+        extensions,
+        display_name: display,
+        ..Symbol::default()
+    })
+}
+
 /// Converts one driver JSON document into a validated IR shard of one package.
 ///
 /// # Errors
@@ -120,75 +192,7 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
         .ok_or("driver JSON 'symbols' is not a list")?;
     let mut symbols = Vec::new();
     for (index, value) in items.iter().enumerate() {
-        let at = format!("driver JSON symbol {index}");
-        let item = value
-            .as_object()
-            .ok_or_else(|| format!("{at} is not an object"))?;
-        let kind_name = string(item, "kind", &at)?;
-        let kind = kind_of(&kind_name, &at)?;
-        let module = string(item, "module", &at)?;
-        let name = string(item, "name", &at)?;
-        if module.is_empty() || (kind != SymbolKind::Module && name.is_empty()) {
-            return Err(format!("{at} has an empty module or name"));
-        }
-        let arity = number(item, "arity", &at)?;
-        let owner = module_id(&prefix, &module);
-        let (id, display, member_of) = if kind == SymbolKind::Module {
-            (owner.clone(), module.clone(), Vec::new())
-        } else {
-            (
-                format!(
-                    "{owner}.{}@{kind_name}-{arity}",
-                    documentation_ir::escape_id_segment(&name)
-                ),
-                format!("{module}.{name}/{arity}"),
-                vec![owner.clone()],
-            )
-        };
-        let doc = normalize(&string(item, "doc", &at)?);
-        let mut incomplete = Vec::new();
-        if doc.is_empty() {
-            incomplete.push("doc".to_owned());
-        }
-        let params = strings(item, "params", &at)?
-            .into_iter()
-            .map(|name| Param {
-                name,
-                ..Param::default()
-            })
-            .collect();
-        let file = string(item, "file", &at)?;
-        let mut extensions = vec![extension(KEY_CONFIG, &config)];
-        if !incomplete.is_empty() {
-            extensions.push(extension(KEY_INCOMPLETE, &incomplete.join(";")));
-        }
-        symbols.push(Symbol {
-            id,
-            kind: kind as i32,
-            signature_text: string(item, "signature", &at)?,
-            doc_markdown: doc,
-            params,
-            source: Some(SourceRef {
-                file,
-                line: number(item, "line", &at)?,
-                generated: item
-                    .get("generated")
-                    .and_then(Value::as_bool)
-                    .unwrap_or(false),
-            }),
-            visibility: Visibility::Public as i32,
-            relations: if member_of.is_empty() {
-                None
-            } else {
-                Some(Relations {
-                    member_of,
-                    ..Relations::default()
-                })
-            },
-            extensions,
-            display_name: display,
-            ..Symbol::default()
-        });
+        symbols.push(symbol(index, value, &prefix, &config)?);
     }
     if symbols.is_empty() {
         return Err(format!(

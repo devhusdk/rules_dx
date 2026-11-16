@@ -152,7 +152,7 @@ pub fn convert(
             source,
             &id,
             SymbolKind::Module,
-            name.to_owned(),
+            name,
         ));
         members(&context, module, source, &id, false, &mut symbols);
     }
@@ -241,7 +241,7 @@ fn members(
             kind,
             SymbolKind::Class | SymbolKind::Interface | SymbolKind::Enum
         );
-        out.push(symbol(context, child, source, &id, kind, name.to_owned()));
+        out.push(symbol(context, child, source, &id, kind, name));
         if aggregate {
             members(context, child, source, &id, true, out);
         } else if text_of(child, "kind") == "template" {
@@ -280,7 +280,7 @@ fn symbol(
     source: &Source,
     id: &str,
     kind: SymbolKind,
-    name: String,
+    name: &str,
 ) -> Symbol {
     let line = node.get("line").and_then(Value::as_u64).unwrap_or(1).max(1);
     let text = context
@@ -295,7 +295,7 @@ fn symbol(
         SymbolKind::Module => format!("module {name};"),
         SymbolKind::EnumVariant => match node.get("value").and_then(Value::as_str) {
             Some(value) => format!("{name} = {value}"),
-            None => name.clone(),
+            None => name.to_owned(),
         },
         SymbolKind::Unspecified
         | SymbolKind::Class
@@ -311,7 +311,7 @@ fn symbol(
         | SymbolKind::Variable
         | SymbolKind::Component
         | SymbolKind::Event
-        | SymbolKind::Slot => declaration(text, line as usize),
+        | SymbolKind::Slot => declaration(text, usize::try_from(line).unwrap_or(usize::MAX)),
     };
     let params = parameter_names(node)
         .into_iter()

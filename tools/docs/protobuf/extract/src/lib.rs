@@ -124,7 +124,10 @@ impl Locations {
             } else {
                 leading
             };
-            let line = location.span.first().map_or(0, |line| *line as u64 + 1);
+            let line = location
+                .span
+                .first()
+                .map_or(0, |line| u64::try_from(*line).unwrap_or(0) + 1);
             by_path
                 .entry(location.path.clone())
                 .or_insert((clean_comment(comment), line));
@@ -264,7 +267,7 @@ impl Builder<'_> {
         );
         for (index, field) in message.field.iter().enumerate() {
             let mut field_path = path.to_vec();
-            field_path.extend([MESSAGE_FIELD, index as i32]);
+            field_path.extend([MESSAGE_FIELD, proto_index(index)]);
             let mut field_segments = segments.clone();
             field_segments.push(field.name().to_owned());
             let ty = type_name(field);
@@ -299,12 +302,12 @@ impl Builder<'_> {
                 continue;
             }
             let mut nested_path = path.to_vec();
-            nested_path.extend([MESSAGE_NESTED, index as i32]);
+            nested_path.extend([MESSAGE_NESTED, proto_index(index)]);
             self.message(&segments, true, &nested_path, nested);
         }
         for (index, nested) in message.enum_type.iter().enumerate() {
             let mut nested_path = path.to_vec();
-            nested_path.extend([MESSAGE_ENUM, index as i32]);
+            nested_path.extend([MESSAGE_ENUM, proto_index(index)]);
             self.enumeration(&segments, true, &nested_path, nested);
         }
     }
@@ -329,7 +332,7 @@ impl Builder<'_> {
         );
         for (index, value) in item.value.iter().enumerate() {
             let mut value_path = path.to_vec();
-            value_path.extend([ENUM_VALUE, index as i32]);
+            value_path.extend([ENUM_VALUE, proto_index(index)]);
             let mut value_segments = segments.clone();
             value_segments.push(value.name().to_owned());
             self.push(
@@ -364,7 +367,7 @@ impl Builder<'_> {
         );
         for (index, method) in item.method.iter().enumerate() {
             let mut method_path = path.to_vec();
-            method_path.extend([SERVICE_METHOD, index as i32]);
+            method_path.extend([SERVICE_METHOD, proto_index(index)]);
             let mut method_segments = segments.clone();
             method_segments.push(method.name().to_owned());
             let input = method.input_type().trim_start_matches('.').to_owned();
@@ -446,13 +449,13 @@ pub fn convert(descriptor: &[u8], options: &Options) -> Result<DocIr, String> {
         };
         builder.collect_maps(&prefix, &file.message_type);
         for (index, message) in file.message_type.iter().enumerate() {
-            builder.message(&scope, false, &[FILE_MESSAGE, index as i32], message);
+            builder.message(&scope, false, &[FILE_MESSAGE, proto_index(index)], message);
         }
         for (index, item) in file.enum_type.iter().enumerate() {
-            builder.enumeration(&scope, false, &[FILE_ENUM, index as i32], item);
+            builder.enumeration(&scope, false, &[FILE_ENUM, proto_index(index)], item);
         }
         for (index, item) in file.service.iter().enumerate() {
-            builder.service(&scope, false, &[FILE_SERVICE, index as i32], item);
+            builder.service(&scope, false, &[FILE_SERVICE, proto_index(index)], item);
         }
         symbols.append(&mut builder.symbols);
     }
@@ -469,6 +472,10 @@ pub fn convert(descriptor: &[u8], options: &Options) -> Result<DocIr, String> {
     };
     documentation_ir::validate_shard(&shard).map_err(|error| format!("invalid IR: {error:?}"))?;
     Ok(shard)
+}
+
+fn proto_index(index: usize) -> i32 {
+    i32::try_from(index).unwrap_or(i32::MAX)
 }
 
 #[cfg(test)]

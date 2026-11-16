@@ -27,6 +27,16 @@ javascript_binary(
     main = "main.js",
 )
 
+javascript_binary(
+    name = "lock_hello",
+    srcs = ["lock_main.js"],
+    data = [
+        "//:node_modules/clsx",
+        "//:package_json",
+    ],
+    main = "lock_main.js",
+)
+
 javascript_test(
     name = "pass_subject_test",
     srcs = ["pass_test.js"],
@@ -66,6 +76,15 @@ dx_conformance_suite(
     failing_pattern = "{case} (",
     failing_test = ":fail_subject_test",
     lang = "javascript",
+    lock = {
+        "binary": ":lock_hello",
+        "ecosystem": "js",
+        "expected": "hello lock",
+        "lockfile": "//:pnpm-lock.yaml",
+        "manifest": "//:package.json",
+        "package": "clsx",
+        "stale": "pnpm-lock.stale.yaml",
+    },
     passing_test = ":pass_subject_test",
     size = "small",
 )

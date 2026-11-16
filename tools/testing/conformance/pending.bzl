@@ -243,7 +243,6 @@ javascript format_error_test *
 javascript format_test *
 javascript lint_error_test *
 javascript lint_test *
-javascript lock_test *
 javascript runfiles_test *
 julia cross_test *
 julia format_error_test *

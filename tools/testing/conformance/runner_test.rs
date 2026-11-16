@@ -189,7 +189,7 @@ fn subject_matches_mode() {
             let ecosystem = std::env::var("DX_CONFORMANCE_ECOSYSTEM").expect("ecosystem");
             let package = std::env::var("DX_CONFORMANCE_PACKAGE").expect("package");
             let manifest = lock_input("DX_CONFORMANCE_MANIFEST");
-            let check = |lock: &std::path::Path| {
+            let check = |manifest: &std::path::Path, lock: &std::path::Path| {
                 let (manifest, lock) = (
                     manifest.to_string_lossy().into_owned(),
                     lock.to_string_lossy().into_owned(),
@@ -205,13 +205,25 @@ fn subject_matches_mode() {
                 ];
                 dx_testing::run(&depcheck, &args, &[]).expect("depcheck must execute")
             };
-            let fresh = check(&lock_input("DX_CONFORMANCE_LOCK"));
+            let lock = lock_input("DX_CONFORMANCE_LOCK");
+            let tmp = std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR must be set");
+            let staged = |source: &std::path::Path, dir: &str| {
+                stage_lock(
+                    &manifest,
+                    source,
+                    &lock,
+                    &std::path::Path::new(&tmp).join(dir),
+                )
+            };
+            let (fresh_manifest, fresh_lock) = staged(&lock, "fresh");
+            let fresh = check(&fresh_manifest, &fresh_lock);
             assert!(
                 fresh.status.success(),
                 "lock check rejected the lockfile:\n{}",
                 fresh.combined()
             );
-            let stale = check(&lock_input("DX_CONFORMANCE_STALE"));
+            let (stale_manifest, stale_lock) = staged(&lock_input("DX_CONFORMANCE_STALE"), "stale");
+            let stale = check(&stale_manifest, &stale_lock);
             assert!(
                 !stale.status.success(),
                 "lock check accepted the stale lockfile:\n{}",
@@ -485,6 +497,53 @@ fn manifest_file(runfiles: &str, tmp: &std::path::Path) -> std::path::PathBuf {
     let manifest = tmp.join("runfiles.manifest");
     std::fs::write(&manifest, lines.join("\n") + "\n").expect("manifest must be writable");
     manifest
+}
+
+fn stage_lock(
+    manifest: &std::path::Path,
+    source: &std::path::Path,
+    lock: &std::path::Path,
+    dir: &std::path::Path,
+) -> (std::path::PathBuf, std::path::PathBuf) {
+    std::fs::create_dir_all(dir).expect("lock stage dir must create");
+    let name = |path: &std::path::Path| {
+        path.file_name()
+            .expect("lock input must name a file")
+            .to_owned()
+    };
+    let staged = (dir.join(name(manifest)), dir.join(name(lock)));
+    std::fs::copy(manifest, &staged.0).expect("manifest must stage");
+    std::fs::copy(source, &staged.1).expect("lock must stage");
+    staged
+}
+
+#[test]
+fn stage_lock_puts_stale_lock_beside_manifest_under_lock_name() {
+    let tmp = std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR must be set");
+    let root = std::path::Path::new(&tmp).join("stage_lock_case");
+    let (src, other) = (root.join("src"), root.join("other"));
+    std::fs::create_dir_all(&src).expect("src must create");
+    std::fs::create_dir_all(&other).expect("other must create");
+    std::fs::write(src.join("package.json"), "{}").expect("manifest must write");
+    std::fs::write(src.join("pnpm-lock.yaml"), "fresh").expect("lock must write");
+    std::fs::write(other.join("pnpm-lock.stale.yaml"), "stale").expect("stale must write");
+    let dir = root.join("staged");
+    let (manifest, lock) = stage_lock(
+        &src.join("package.json"),
+        &other.join("pnpm-lock.stale.yaml"),
+        &src.join("pnpm-lock.yaml"),
+        &dir,
+    );
+    assert_eq!(manifest, dir.join("package.json"));
+    assert_eq!(lock, dir.join("pnpm-lock.yaml"));
+    assert_eq!(
+        std::fs::read_to_string(&manifest).expect("manifest must read"),
+        "{}"
+    );
+    assert_eq!(
+        std::fs::read_to_string(&lock).expect("lock must read"),
+        "stale"
+    );
 }
 
 fn with_suffix(path: &std::path::Path, suffix: &str) -> std::path::PathBuf {

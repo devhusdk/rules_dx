@@ -34,6 +34,8 @@ Each language owns one top-level directory.
 - `defs.bzl` is the only file users load.
 - A module extension is named after its language (`qt`, `ocaml`). An extension that serves one sub-feature is named after that feature (`cuda_license`, `zig_deps`).
 - `private/` holds everything else. Users never load from it.
+- Toolchain code lives in `private/toolchain/`. A coverage package lives in `private/coverage/`.
+- `cc`, `go`, `haskell` and `zig` each keep their own `private/bench_run.sh`. Each script repeats the same prologue and `dx-bench/v1` JSON envelope around its own awk rule.
 - `tests/` holds the language tests and fixtures. Starlark test suites and `testdata/` live there, instantiated from `tests/BUILD.bazel`, not in `private/`.
 - Starlark suites are named `tests/defs_tests.bzl` for rule and macro analysis tests, `tests/failure_tests.bzl` for expected analysis failures, and `tests/toolchain_tests.bzl` for pin and hub checks.
 

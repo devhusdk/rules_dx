@@ -75,7 +75,7 @@ jobs:
           timeout 480 tools/dx test --affected --since 'HEAD^1' -- "$@" 2>&1 | tee "$log" || status=$?
           if [ "$status" -ne 0 ] && grep -qE '^(WARNING|ERROR): .*[Rr]emote([ _][Cc]ache| [Ee]xecution)' "$log"; then
             echo "::warning::remote cache failed; retrying without it"
-            timeout 480 tools/dx test --affected --since 'HEAD^1' -- "$@" --remote_cache= --noremote_accept_cached
+            timeout 480 tools/dx test --affected --since 'HEAD^1' -- "$@" --remote_cache= --experimental_remote_downloader= --noremote_accept_cached
           else
             exit "$status"
           fi

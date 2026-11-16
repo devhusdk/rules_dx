@@ -14,6 +14,7 @@ const OWN_TYPES: &[&str] = &[
     "@dx_ocaml_toolchains//:all",
     "@dx_php_toolchains//:all",
     "@dx_powershell_toolchains//:all",
+    "@julia_toolchains//:all",
 ];
 
 /// Registrations that carry `//config:toolchains_on` or `//cc:compiler` in `target_settings`.

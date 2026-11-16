@@ -323,6 +323,54 @@ struct Record {
     doc: String,
 }
 
+fn params_of(item: &Map<String, Value>, at: &str) -> Result<Vec<Param>, String> {
+    let mut params = Vec::new();
+    if let Some(list) = optional(item, "params") {
+        for param in list
+            .as_array()
+            .ok_or_else(|| format!("{at} 'params' is not a list"))?
+        {
+            let param = param
+                .as_object()
+                .ok_or_else(|| format!("{at} 'params' holds a non-object"))?;
+            params.push(Param {
+                name: string(param, "name", at)?,
+                r#type: string(param, "type", at)?,
+                doc: string(param, "doc", at)?,
+            });
+        }
+    }
+    Ok(params)
+}
+
+fn returns_of(item: &Map<String, Value>, at: &str) -> Result<Option<Returns>, String> {
+    Ok(match optional(item, "returns") {
+        Some(value) => {
+            let object = value
+                .as_object()
+                .ok_or_else(|| format!("{at} 'returns' is not an object"))?;
+            Some(Returns {
+                r#type: string(object, "type", at)?,
+                doc: string(object, "doc", at)?,
+            })
+        }
+        None => None,
+    })
+}
+
+fn receiver_of(item: &Map<String, Value>, at: &str) -> Result<Option<String>, String> {
+    Ok(match optional(item, "receiver") {
+        Some(value) => Some(
+            value
+                .as_str()
+                .filter(|text| !text.is_empty())
+                .ok_or_else(|| format!("{at} 'receiver' is not a non-empty string"))?
+                .to_owned(),
+        ),
+        None => None,
+    })
+}
+
 fn record(
     item: &Value,
     index: usize,
@@ -348,16 +396,7 @@ fn record(
             "{at} '{qualified}' has an overload list that does not match its kind"
         ));
     }
-    let receiver = match optional(item, "receiver") {
-        Some(value) => Some(
-            value
-                .as_str()
-                .filter(|text| !text.is_empty())
-                .ok_or_else(|| format!("{at} 'receiver' is not a non-empty string"))?
-                .to_owned(),
-        ),
-        None => None,
-    };
+    let receiver = receiver_of(item, &at)?;
     if receiver.is_some() && !(language == "kotlin" && kind.kind == SymbolKind::Property) {
         return Err(format!(
             "{at} '{qualified}' has a receiver, valid only for a kotlin property"
@@ -389,34 +428,8 @@ fn record(
         Some(types) => format!("{qualified}({})", types.join(", ")),
         None => qualified.clone(),
     };
-    let mut params = Vec::new();
-    if let Some(list) = optional(item, "params") {
-        for param in list
-            .as_array()
-            .ok_or_else(|| format!("{at} 'params' is not a list"))?
-        {
-            let param = param
-                .as_object()
-                .ok_or_else(|| format!("{at} 'params' holds a non-object"))?;
-            params.push(Param {
-                name: string(param, "name", &at)?,
-                r#type: string(param, "type", &at)?,
-                doc: string(param, "doc", &at)?,
-            });
-        }
-    }
-    let returns = match optional(item, "returns") {
-        Some(value) => {
-            let object = value
-                .as_object()
-                .ok_or_else(|| format!("{at} 'returns' is not an object"))?;
-            Some(Returns {
-                r#type: string(object, "type", &at)?,
-                doc: string(object, "doc", &at)?,
-            })
-        }
-        None => None,
-    };
+    let params = params_of(item, &at)?;
+    let returns = returns_of(item, &at)?;
     let member_of = match optional(item, "member_of") {
         Some(value) => Some(
             value

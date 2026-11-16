@@ -132,6 +132,71 @@ fn extension(key: &str, value: &str) -> Extension {
     }
 }
 
+fn symbol(object: &Object, modules: &BTreeSet<&str>, prefix: &str, config: &str) -> Symbol {
+    let doc = normalize(&object.doc);
+    let mut incomplete = Vec::new();
+    if doc.is_empty() {
+        incomplete.push("doc".to_owned());
+    }
+    let member_of: Vec<String> = if modules.contains(object.module.as_str()) {
+        vec![format!("{prefix}{}", qualified(&object.module))]
+    } else {
+        Vec::new()
+    };
+    let relations = if member_of.is_empty() {
+        None
+    } else {
+        Some(Relations {
+            member_of,
+            implements: Vec::new(),
+            reexported_as: Vec::new(),
+        })
+    };
+    let signature_text = if object.signatures.is_empty() {
+        match object.kind {
+            SymbolKind::Module => format!("module {}", object.path),
+            SymbolKind::Unspecified
+            | SymbolKind::Class
+            | SymbolKind::Interface
+            | SymbolKind::Function
+            | SymbolKind::Method
+            | SymbolKind::Field
+            | SymbolKind::Property
+            | SymbolKind::Constant
+            | SymbolKind::Enum
+            | SymbolKind::EnumVariant
+            | SymbolKind::TypeAlias
+            | SymbolKind::Macro
+            | SymbolKind::Variable
+            | SymbolKind::Component
+            | SymbolKind::Event
+            | SymbolKind::Slot => object.path.clone(),
+        }
+    } else {
+        object.signatures.join("\n")
+    };
+    let mut extensions = vec![extension(KEY_CONFIG, config)];
+    if !incomplete.is_empty() {
+        extensions.push(extension(KEY_INCOMPLETE, &incomplete.join(";")));
+    }
+    Symbol {
+        id: format!("{prefix}{}", qualified(&object.path)),
+        kind: object.kind as i32,
+        signature_text,
+        doc_markdown: doc,
+        source: Some(SourceRef {
+            file: object.file.clone(),
+            line: object.line,
+            generated: object.generated,
+        }),
+        visibility: Visibility::Public as i32,
+        relations,
+        extensions,
+        display_name: object.name.clone(),
+        ..Symbol::default()
+    }
+}
+
 /// Converts one driver JSON document into a validated IR shard of one package.
 ///
 /// # Errors
@@ -174,68 +239,7 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
     let prefix = format!("{LANGUAGE}:{package}:");
     let mut symbols = Vec::new();
     for object in &objects {
-        let doc = normalize(&object.doc);
-        let mut incomplete = Vec::new();
-        if doc.is_empty() {
-            incomplete.push("doc".to_owned());
-        }
-        let member_of: Vec<String> = if modules.contains(object.module.as_str()) {
-            vec![format!("{prefix}{}", qualified(&object.module))]
-        } else {
-            Vec::new()
-        };
-        let relations = if member_of.is_empty() {
-            None
-        } else {
-            Some(Relations {
-                member_of,
-                implements: Vec::new(),
-                reexported_as: Vec::new(),
-            })
-        };
-        let signature_text = if object.signatures.is_empty() {
-            match object.kind {
-                SymbolKind::Module => format!("module {}", object.path),
-                SymbolKind::Unspecified
-                | SymbolKind::Class
-                | SymbolKind::Interface
-                | SymbolKind::Function
-                | SymbolKind::Method
-                | SymbolKind::Field
-                | SymbolKind::Property
-                | SymbolKind::Constant
-                | SymbolKind::Enum
-                | SymbolKind::EnumVariant
-                | SymbolKind::TypeAlias
-                | SymbolKind::Macro
-                | SymbolKind::Variable
-                | SymbolKind::Component
-                | SymbolKind::Event
-                | SymbolKind::Slot => object.path.clone(),
-            }
-        } else {
-            object.signatures.join("\n")
-        };
-        let mut extensions = vec![extension(KEY_CONFIG, &config)];
-        if !incomplete.is_empty() {
-            extensions.push(extension(KEY_INCOMPLETE, &incomplete.join(";")));
-        }
-        symbols.push(Symbol {
-            id: format!("{prefix}{}", qualified(&object.path)),
-            kind: object.kind as i32,
-            signature_text,
-            doc_markdown: doc,
-            source: Some(SourceRef {
-                file: object.file.clone(),
-                line: object.line,
-                generated: object.generated,
-            }),
-            visibility: Visibility::Public as i32,
-            relations,
-            extensions,
-            display_name: object.name.clone(),
-            ..Symbol::default()
-        });
+        symbols.push(symbol(object, &modules, &prefix, &config));
     }
     if symbols.is_empty() {
         return Err(format!(

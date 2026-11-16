@@ -10,7 +10,7 @@ fn object(kind: &str, path: &str, name: &str, namespace: &str, visibility: &str)
 }
 
 fn document(objects: Vec<Value>) -> String {
-    json!({"format": 1, "perl": "5.40.1", "objects": objects}).to_string()
+    json!({"format": 1, "perl": "5.40.1", "objects": Value::Array(objects)}).to_string()
 }
 
 #[test]

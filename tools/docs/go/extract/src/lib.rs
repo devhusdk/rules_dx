@@ -83,6 +83,51 @@ fn kind_of(kind: &str, type_kind: &str, at: &str) -> Result<SymbolKind, String> 
     })
 }
 
+fn item_symbol(index: usize, item: &Value, prefix: &str, config: &str) -> Result<Symbol, String> {
+    let at = format!("Go doc JSON item {index}");
+    let item = item
+        .as_object()
+        .ok_or_else(|| format!("{at} is not an object"))?;
+    let name = string(item, "name", &at)?;
+    let recv = string(item, "recv", &at)?;
+    let kind = kind_of(
+        &string(item, "kind", &at)?,
+        &string(item, "type_kind", &at)?,
+        &at,
+    )?;
+    if name.is_empty() {
+        return Err(format!("{at} has an empty name"));
+    }
+    let member = matches!(kind, SymbolKind::Method | SymbolKind::Field);
+    if member == recv.is_empty() {
+        return Err(format!(
+            "{at} '{name}' has a receiver that does not match its kind"
+        ));
+    }
+    let (qualified, relations) = if member {
+        (
+            format!("{recv}.{name}"),
+            Some(Relations {
+                member_of: vec![format!("{prefix}{recv}")],
+                ..Relations::default()
+            }),
+        )
+    } else {
+        (name, None)
+    };
+    Ok(Symbol {
+        id: format!("{prefix}{qualified}"),
+        kind: kind as i32,
+        signature_text: string(item, "signature", &at)?,
+        doc_markdown: string(item, "doc", &at)?,
+        source: Some(source(item, &at)?),
+        visibility: Visibility::Public as i32,
+        relations,
+        extensions: vec![extension(KEY_CONFIG, config)],
+        ..Symbol::default()
+    })
+}
+
 /// Converts one driver JSON document into a validated IR shard.
 ///
 /// # Errors
@@ -141,48 +186,7 @@ pub fn convert(json: &str) -> Result<DocIr, String> {
         return Err("Go doc JSON lists no exported symbols".to_owned());
     }
     for (index, item) in items.iter().enumerate() {
-        let at = format!("Go doc JSON item {index}");
-        let item = item
-            .as_object()
-            .ok_or_else(|| format!("{at} is not an object"))?;
-        let name = string(item, "name", &at)?;
-        let recv = string(item, "recv", &at)?;
-        let kind = kind_of(
-            &string(item, "kind", &at)?,
-            &string(item, "type_kind", &at)?,
-            &at,
-        )?;
-        if name.is_empty() {
-            return Err(format!("{at} has an empty name"));
-        }
-        let member = matches!(kind, SymbolKind::Method | SymbolKind::Field);
-        if member == recv.is_empty() {
-            return Err(format!(
-                "{at} '{name}' has a receiver that does not match its kind"
-            ));
-        }
-        let (qualified, relations) = if member {
-            (
-                format!("{recv}.{name}"),
-                Some(Relations {
-                    member_of: vec![format!("{prefix}{recv}")],
-                    ..Relations::default()
-                }),
-            )
-        } else {
-            (name, None)
-        };
-        symbols.push(Symbol {
-            id: format!("{prefix}{qualified}"),
-            kind: kind as i32,
-            signature_text: string(item, "signature", &at)?,
-            doc_markdown: string(item, "doc", &at)?,
-            source: Some(source(item, &at)?),
-            visibility: Visibility::Public as i32,
-            relations,
-            extensions: vec![extension(KEY_CONFIG, &config)],
-            ..Symbol::default()
-        });
+        symbols.push(item_symbol(index, item, &prefix, &config)?);
     }
     symbols.sort_by(|a, b| a.id.cmp(&b.id));
     let shard = DocIr {

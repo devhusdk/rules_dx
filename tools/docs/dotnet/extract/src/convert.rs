@@ -154,7 +154,12 @@ fn segment_group(item: &Item, overloaded: bool) -> Result<String, String> {
     let mut segment = escape_id_segment(&item.name);
     if overloaded {
         let digest = Sha256::digest(item.doc_id.as_bytes());
-        let hex: String = digest.iter().take(4).map(|b| format!("{b:02x}")).collect();
+        let hex = digest
+            .iter()
+            .take(4)
+            .map(|b| format!("{b:02x}"))
+            .collect::<Vec<_>>()
+            .concat();
         segment.push_str("~~");
         segment.push_str(&hex);
     }

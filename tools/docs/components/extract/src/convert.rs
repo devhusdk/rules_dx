@@ -115,7 +115,7 @@ fn component_symbols(
             display: display.clone(),
             parent: None,
         },
-    )?);
+    ));
     let groups: [(&str, &str); 4] = [
         ("props", "prop"),
         ("events", "event"),
@@ -177,7 +177,7 @@ fn component_symbols(
                     display: format!("{display} {prefix}_{member}"),
                     parent: Some(id.clone()),
                 },
-            )?);
+            ));
         }
     }
     Ok(())
@@ -214,7 +214,7 @@ fn doc(node: &Value) -> String {
     parts.join("\n\n")
 }
 
-fn symbol(settings: &Settings, draft: Draft<'_>) -> Result<Symbol, String> {
+fn symbol(settings: &Settings, draft: Draft<'_>) -> Symbol {
     let file = text(draft.node, "file");
     let source = if file.is_empty() {
         None
@@ -231,7 +231,7 @@ fn symbol(settings: &Settings, draft: Draft<'_>) -> Result<Symbol, String> {
             generated: false,
         })
     };
-    Ok(Symbol {
+    Symbol {
         id: draft.id,
         kind: draft.kind as i32,
         signature_text: draft.signature,
@@ -251,5 +251,5 @@ fn symbol(settings: &Settings, draft: Draft<'_>) -> Result<Symbol, String> {
             value: settings.config.clone().into_bytes(),
         }],
         display_name: draft.display,
-    })
+    }
 }

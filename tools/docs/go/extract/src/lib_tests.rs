@@ -10,12 +10,14 @@ fn item(kind: &str, name: &str, recv: &str, type_kind: &str) -> Value {
 }
 
 fn document(items: Value) -> Value {
-    json!({
+    let mut document = json!({
         "schema": 1, "importpath": "example.com/pkg", "package": "pkg",
         "config": "goos=linux;goarch=amd64;tags=;cgo=0;json=1",
         "excluded": ["pkg/c.go", "pkg/w.go"], "doc": "Package pkg.",
-        "file": "pkg/a.go", "line": 1, "generated": false, "items": items
-    })
+        "file": "pkg/a.go", "line": 1, "generated": false
+    });
+    document["items"] = items;
+    document
 }
 
 fn full() -> Value {

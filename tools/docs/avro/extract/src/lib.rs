@@ -202,7 +202,7 @@ impl Builder<'_> {
     /// The 1-based line of the first `"name": "<name>"` at or after `from`, or 0.
     fn find_line(&self, name: &str, from: u64) -> u64 {
         let quoted = format!("\"{name}\"");
-        let start = from.saturating_sub(1) as usize;
+        let start = usize::try_from(from.saturating_sub(1)).unwrap_or(usize::MAX);
         self.lines
             .iter()
             .enumerate()

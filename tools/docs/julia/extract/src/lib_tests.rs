@@ -10,7 +10,7 @@ fn obj(kind: &str, path: &str, name: &str, module: &str) -> Value {
 }
 
 fn document(objects: Vec<Value>) -> String {
-    json!({"format": 1, "julia": "1.12.5", "documenter": "1.20.0", "objects": objects}).to_string()
+    json!({"format": 1, "julia": "1.12.5", "documenter": "1.20.0", "objects": Value::Array(objects)}).to_string()
 }
 
 fn base() -> Vec<Value> {

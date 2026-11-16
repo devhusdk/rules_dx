@@ -437,6 +437,85 @@ fn extension(key: &str, value: &str) -> Extension {
     }
 }
 
+fn symbol(
+    element: &Element,
+    id: String,
+    known: &BTreeSet<String>,
+    prefix: &str,
+    config: &str,
+) -> Symbol {
+    let mut incomplete = Vec::new();
+    let doc = doc_markdown(element);
+    if doc.is_empty() {
+        incomplete.push("doc".to_owned());
+    }
+    let callable = matches!(element.kind.as_str(), "function" | "method");
+    let params = if callable {
+        params_and_incomplete(element, &mut incomplete)
+    } else {
+        Vec::new()
+    };
+    let returns = returns_and_incomplete(element, &mut incomplete);
+    let member_of: Vec<String> = if element.parent.is_empty() {
+        Vec::new()
+    } else {
+        vec![format!("{prefix}{}", qualified_name(&element.parent))]
+    };
+    let mut implements: Vec<String> = element
+        .interfaces
+        .iter()
+        .chain(element.traits.iter())
+        .map(|name| format!("{prefix}{}", qualified_name(name)))
+        .filter(|id| known.contains(id))
+        .collect();
+    implements.sort();
+    implements.dedup();
+    let relations = if member_of.is_empty() && implements.is_empty() {
+        None
+    } else {
+        Some(Relations {
+            member_of,
+            implements,
+            reexported_as: Vec::new(),
+        })
+    };
+    let mut extensions = vec![extension(KEY_CONFIG, config)];
+    if !incomplete.is_empty() {
+        extensions.push(extension(KEY_INCOMPLETE, &incomplete.join(";")));
+    }
+    Symbol {
+        id,
+        kind: kind_of(element) as i32,
+        signature_text: signature(element),
+        doc_markdown: doc,
+        params,
+        returns,
+        source: Some(SourceRef {
+            file: element.file.clone(),
+            line: element.line,
+            generated: element.generated,
+        }),
+        visibility: Visibility::Public as i32,
+        relations,
+        extensions,
+        display_name: if element.parent.is_empty() {
+            element
+                .fqsen
+                .trim_matches('\\')
+                .trim_end_matches("()")
+                .to_owned()
+        } else {
+            let sep = if element.kind == "property" {
+                "::$"
+            } else {
+                "::"
+            };
+            format!("{}{sep}{}", element.parent.trim_matches('\\'), element.name)
+        },
+        ..Symbol::default()
+    }
+}
+
 /// Converts one driver JSON document into a validated IR shard of one package.
 ///
 /// # Errors
@@ -504,76 +583,7 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
 
     let mut symbols = Vec::new();
     for element in elements.iter().filter(|element| !hidden(element)) {
-        let mut incomplete = Vec::new();
-        let doc = doc_markdown(element);
-        if doc.is_empty() {
-            incomplete.push("doc".to_owned());
-        }
-        let callable = matches!(element.kind.as_str(), "function" | "method");
-        let params = if callable {
-            params_and_incomplete(element, &mut incomplete)
-        } else {
-            Vec::new()
-        };
-        let returns = returns_and_incomplete(element, &mut incomplete);
-        let member_of: Vec<String> = if element.parent.is_empty() {
-            Vec::new()
-        } else {
-            vec![format!("{prefix}{}", qualified_name(&element.parent))]
-        };
-        let mut implements: Vec<String> = element
-            .interfaces
-            .iter()
-            .chain(element.traits.iter())
-            .map(|name| format!("{prefix}{}", qualified_name(name)))
-            .filter(|id| known.contains(id))
-            .collect();
-        implements.sort();
-        implements.dedup();
-        let relations = if member_of.is_empty() && implements.is_empty() {
-            None
-        } else {
-            Some(Relations {
-                member_of,
-                implements,
-                reexported_as: Vec::new(),
-            })
-        };
-        let mut extensions = vec![extension(KEY_CONFIG, &config)];
-        if !incomplete.is_empty() {
-            extensions.push(extension(KEY_INCOMPLETE, &incomplete.join(";")));
-        }
-        symbols.push(Symbol {
-            id: id_of(element),
-            kind: kind_of(element) as i32,
-            signature_text: signature(element),
-            doc_markdown: doc,
-            params,
-            returns,
-            source: Some(SourceRef {
-                file: element.file.clone(),
-                line: element.line,
-                generated: element.generated,
-            }),
-            visibility: Visibility::Public as i32,
-            relations,
-            extensions,
-            display_name: if element.parent.is_empty() {
-                element
-                    .fqsen
-                    .trim_matches('\\')
-                    .trim_end_matches("()")
-                    .to_owned()
-            } else {
-                let sep = if element.kind == "property" {
-                    "::$"
-                } else {
-                    "::"
-                };
-                format!("{}{sep}{}", element.parent.trim_matches('\\'), element.name)
-            },
-            ..Symbol::default()
-        });
+        symbols.push(symbol(element, id_of(element), &known, &prefix, &config));
     }
     if symbols.is_empty() {
         return Err(format!(

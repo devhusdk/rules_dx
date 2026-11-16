@@ -130,6 +130,90 @@ struct Parent {
     line: usize,
 }
 
+fn type_declaration(
+    context: &Context<'_>,
+    current: &Module<'_>,
+    module_id: &str,
+    line: &str,
+    docs: String,
+) -> Option<(Symbol, Option<Parent>)> {
+    let first = line.split_whitespace().next().unwrap_or_default();
+    let words: Vec<&str> = line.split_whitespace().collect();
+    let skip = words
+        .iter()
+        .skip(1)
+        .take_while(|w| matches!(**w, "family" | "role"))
+        .count();
+    if words.get(1) == Some(&"instance") {
+        return None;
+    }
+    let rest_words = words.get(1 + skip..)?;
+    let name = declared_name(rest_words, first == "class")?;
+    let kind = match first {
+        "class" => SymbolKind::Interface,
+        "type" => SymbolKind::TypeAlias,
+        _ => SymbolKind::Class,
+    };
+    let id = qualified(module_id, &name);
+    let at = line_of(current.text, |l| {
+        let t = l.trim_start();
+        t.starts_with(first) && tokens(t).any(|w| w == name)
+    });
+    let symbol = symbol(context, current, &id, kind, line.to_owned(), docs, at);
+    let parent = matches!(kind, SymbolKind::Class | SymbolKind::Interface).then(|| Parent {
+        id,
+        name,
+        is_class: first == "class",
+        line: at,
+    });
+    Some((symbol, parent))
+}
+
+fn signature_symbols(
+    context: &Context<'_>,
+    current: &Module<'_>,
+    module_id: &str,
+    parent: Option<&Parent>,
+    line: &str,
+    docs: &str,
+) -> Vec<Symbol> {
+    let Some((names, sig)) = line.split_once(" :: ") else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for name in names.trim_matches(['[', ']']).split(',') {
+        let name = name.trim().trim_matches(['(', ')']);
+        if name.is_empty() {
+            continue;
+        }
+        let is_field = names.starts_with('[');
+        let constructor = !is_field
+            && line.starts_with(|c: char| c.is_uppercase() || c == '(')
+            && name.starts_with(|c: char| c.is_uppercase() || c == ':');
+        let method = parent
+            .filter(|p| p.is_class && !is_field && !constructor)
+            .is_some_and(|p| sig.starts_with(&format!("{} ", p.name)));
+        let (kind, base, from) = match (parent, is_field, constructor, method) {
+            (Some(p), true, _, _) => (SymbolKind::Field, p.id.as_str(), p.line),
+            (Some(p), _, true, _) => (SymbolKind::EnumVariant, p.id.as_str(), p.line),
+            (Some(p), _, _, true) => (SymbolKind::Method, p.id.as_str(), p.line),
+            _ => (SymbolKind::Function, module_id, 1),
+        };
+        let at = locate(current.text, name, from, constructor);
+        let id = qualified(base, name);
+        out.push(symbol(
+            context,
+            current,
+            &id,
+            kind,
+            line.to_owned(),
+            docs.to_owned(),
+            at,
+        ));
+    }
+    out
+}
+
 /// Converts Hoogle text into a validated IR shard. `texts` maps each exec path to its text.
 ///
 /// # Errors
@@ -197,84 +281,22 @@ pub fn convert(
         match first {
             "instance" | "infixl" | "infixr" | "infix" | "default" | "deriving" => continue,
             "data" | "newtype" | "type" | "class" => {
-                let words: Vec<&str> = line.split_whitespace().collect();
-                let skip = words
-                    .iter()
-                    .skip(1)
-                    .take_while(|w| matches!(**w, "family" | "role"))
-                    .count();
-                if words.get(1) == Some(&"instance") {
-                    continue;
+                if let Some((declared, declared_parent)) =
+                    type_declaration(&context, current, &module_id, line, docs)
+                {
+                    symbols.push(declared);
+                    parent = declared_parent;
                 }
-                let Some(rest_words) = words.get(1 + skip..) else {
-                    continue;
-                };
-                let Some(name) = declared_name(rest_words, first == "class") else {
-                    continue;
-                };
-                let kind = match first {
-                    "class" => SymbolKind::Interface,
-                    "type" => SymbolKind::TypeAlias,
-                    _ => SymbolKind::Class,
-                };
-                let id = qualified(&module_id, &name);
-                let at = line_of(current.text, |l| {
-                    let t = l.trim_start();
-                    t.starts_with(first) && tokens(t).any(|w| w == name)
-                });
-                symbols.push(symbol(
-                    &context,
-                    current,
-                    &id,
-                    kind,
-                    line.to_owned(),
-                    docs,
-                    at,
-                ));
-                parent =
-                    matches!(kind, SymbolKind::Class | SymbolKind::Interface).then(|| Parent {
-                        id,
-                        name,
-                        is_class: first == "class",
-                        line: at,
-                    });
             }
             _ => {
-                let Some((names, sig)) = line.split_once(" :: ") else {
-                    continue;
-                };
-                for name in names.trim_matches(['[', ']']).split(',') {
-                    let name = name.trim().trim_matches(['(', ')']);
-                    if name.is_empty() {
-                        continue;
-                    }
-                    let is_field = names.starts_with('[');
-                    let constructor = !is_field
-                        && line.starts_with(|c: char| c.is_uppercase() || c == '(')
-                        && name.starts_with(|c: char| c.is_uppercase() || c == ':');
-                    let method = parent
-                        .as_ref()
-                        .filter(|p| p.is_class && !is_field && !constructor)
-                        .as_ref()
-                        .is_some_and(|p| sig.starts_with(&format!("{} ", p.name)));
-                    let (kind, base, from) = match (&parent, is_field, constructor, method) {
-                        (Some(p), true, _, _) => (SymbolKind::Field, p.id.as_str(), p.line),
-                        (Some(p), _, true, _) => (SymbolKind::EnumVariant, p.id.as_str(), p.line),
-                        (Some(p), _, _, true) => (SymbolKind::Method, p.id.as_str(), p.line),
-                        _ => (SymbolKind::Function, module_id.as_str(), 1),
-                    };
-                    let at = locate(current.text, name, from, constructor);
-                    let id = qualified(base, name);
-                    symbols.push(symbol(
-                        &context,
-                        current,
-                        &id,
-                        kind,
-                        line.to_owned(),
-                        docs.clone(),
-                        at,
-                    ));
-                }
+                symbols.extend(signature_symbols(
+                    &context,
+                    current,
+                    &module_id,
+                    parent.as_ref(),
+                    line,
+                    &docs,
+                ));
             }
         }
     }

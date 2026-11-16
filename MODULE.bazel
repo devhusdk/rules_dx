@@ -1063,6 +1063,7 @@ dx_pins.archive(
         "//patches/rules_ruby:coverage.patch",
         "//patches/rules_ruby:rubyinstaller_archive.patch",
         "//patches/rules_ruby:toolchains_gate.patch",
+        "//patches/rules_ruby:toolchains_hub.patch",
     ],
     pins = "//ruby:pins.json",
 )
@@ -1396,9 +1397,9 @@ ruby.bundle_fetch(
     gemfile = "//third_party/ruby:Gemfile",
     gemfile_lock = "//third_party/ruby:Gemfile.lock",
 )
-use_repo(ruby, "bundle", "ruby", "ruby_toolchains")
+use_repo(ruby, "bundle", "dx_ruby_toolchains", "ruby")
 
-register_toolchains("@ruby_toolchains//:all")
+register_toolchains("@dx_ruby_toolchains//:all")
 
 # floor: equals tested
 bazel_dep(name = "rules_zig", version = "0.17.0")

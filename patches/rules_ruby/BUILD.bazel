@@ -5,6 +5,7 @@ exports_files([
     "reproducible.patch",
     "rubyinstaller_archive.patch",
     "toolchains_gate.patch",
+    "toolchains_hub.patch",
 ])
 
 real_source_target(

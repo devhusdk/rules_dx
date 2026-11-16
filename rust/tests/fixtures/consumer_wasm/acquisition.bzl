@@ -10,12 +10,12 @@ _DISABLED_PLATFORM_REPOS = [
     "dx_npm",
     "dx_npm_tools",
     "dx_pypi",
+    "dx_ruby_toolchains",
     "maven",
     "paket.main",
     "pnpm",
     "python_interpreters",
     "ruby",
-    "ruby_toolchains",
 ]
 
 _WASM_PLATFORM = "@rules_rust//rust/platform:wasm32"

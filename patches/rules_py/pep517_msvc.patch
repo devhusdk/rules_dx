@@ -225,6 +225,11 @@ diff -ru a/uv/private/pep517_whl/tools/build_helper.py b/uv/private/pep517_whl/t
      # helper still runs there; bare tool names deliberately remain on PATH.
      _absolutize_tool_paths(env)
  
++    if os.name == "nt" and len(sys.executable) >= 250:
++        # CreateProcess rejects a venv interpreter under the deep runfiles
++        # tree; run the short base interpreter against the venv packages.
++        env["PYTHONPATH"] = pathsep.join(entry for entry in sys.path if entry)
++        sys.executable = sys._base_executable
 +    if msvc:
 +        # setuptools finds cl.exe through PATH, INCLUDE and LIB from the
 +        # toolchain, and only when it is told no Visual Studio is needed.
@@ -233,11 +238,6 @@ diff -ru a/uv/private/pep517_whl/tools/build_helper.py b/uv/private/pep517_whl/t
 +        env["DISTUTILS_USE_SDK"] = "1"
 +        env["MSSdk"] = "1"
 +        _add_cargo_and_ant(env, tmpdir)
-+        if len(sys.executable) >= 250:
-+            # CreateProcess rejects a venv interpreter under the deep runfiles
-+            # tree; run the short base interpreter against the venv packages.
-+            env["PYTHONPATH"] = pathsep.join(entry for entry in sys.path if entry)
-+            sys.executable = sys._base_executable
 +        return env
 +
      cc_path = _resolve_compiler_path(env, "CC", "cc")
@@ -305,7 +305,7 @@ diff -ru a/uv/private/pep517_whl/tools/build_helper.py b/uv/private/pep517_whl/t
  
      t = path.join(tmp_root, "worktree")
 +    msvc_root = None
-+    if opts.msvc:
++    if opts.msvc or os.name == "nt":
 +        msvc_root = _msvc_worktree_root(opts.output)
 +        shutil.rmtree(msvc_root, ignore_errors=True)
 +        t = path.join(msvc_root, "w")

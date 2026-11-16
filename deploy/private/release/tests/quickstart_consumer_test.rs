@@ -66,7 +66,7 @@ fn built_dx(case: &Case) -> std::path::PathBuf {
     std::path::PathBuf::from(info.stdout.trim()).join(files.stdout.trim())
 }
 
-/// The `PATH` of the nested commands: a directory holding only the host `ldd`, which the `rules_py`
+/// The `PATH` of the nested commands: a directory holding only the host `ldd` from `/usr/bin` or `/bin`, which the `rules_py`
 /// host platform repository runs on Linux.
 pub(crate) fn ldd_path() -> String {
     let dir = scratch_dir("quickstart-ldd");
@@ -74,10 +74,11 @@ pub(crate) fn ldd_path() -> String {
     {
         let link = dir.join("ldd");
         if !link.exists() {
-            let ldd = std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default())
-                .map(|dir| dir.join("ldd"))
+            let ldd = ["/usr/bin/ldd", "/bin/ldd"]
+                .iter()
+                .map(std::path::Path::new)
                 .find(|candidate| candidate.is_file())
-                .unwrap_or_else(|| panic!("no host ldd on the test PATH"));
+                .unwrap_or_else(|| panic!("no host ldd in /usr/bin or /bin"));
             if let Err(error) = std::os::unix::fs::symlink(ldd, &link)
                 && !link.exists()
             {

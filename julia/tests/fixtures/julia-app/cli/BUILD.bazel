@@ -56,7 +56,7 @@ julia_test(
 
 julia_test(
     name = "cli_test",
-    size = "medium",
+    size = "small",
     srcs = ["cli_test.jl"],
     data = [":readings"],
     env = select({

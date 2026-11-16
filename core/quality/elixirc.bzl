@@ -1,12 +1,12 @@
 """Replays the elixirc compilation of a target and records the compiler warnings."""
 
-load("@bazel_skylib//lib:shell.bzl", "shell")
-load("@rules_elixir//private:elixir_toolchain.bzl", "elixir_dirs", "erlang_dirs", "maybe_install_erlang")
+load("@rules_elixir//private:elixir_toolchain.bzl", "elixir_dirs", "erlang_dirs")
 load("@rules_erlang//:erlang_app_info.bzl", "flat_deps")
 load("@rules_erlang//:util.bzl", "path_join")
 load("@rules_erlang//private:util.bzl", "erl_libs_contents")
+load("@rules_erlang//tools:erlang_toolchain.bzl", "TREE_ERLANG_HOME")
 load("//core:resources.bzl", "dx_medium_resources")
-load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE", "coreutils")
+load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE", "applet_file_name", "coreutils")
 
 _TOOLCHAIN = Label("@rules_elixir//:toolchain_type")
 
@@ -25,36 +25,19 @@ def _targets(attrs, name):
         return []
     return value if type(value) == "list" else [value]
 
-def elixirc_script(maybe_install_erlang, elixir_home, erlang_home, coreutils_path, erl_libs_path, env, setup, elixirc_opts):
-    """Returns the shell script of one elixirc replay action."""
-    return """log="$1"; status="$2"; out="$3"; shift 3
-{maybe_install_erlang}
-case "{elixir_home}" in
-    /*) ABS_ELIXIR_HOME="{elixir_home}" ;;
-    *) ABS_ELIXIR_HOME="$PWD/{elixir_home}" ;;
-esac
-case "{coreutils_path}" in
-    /*) ABS_COREUTILS="{coreutils_path}" ;;
-    *) ABS_COREUTILS="$PWD/{coreutils_path}" ;;
-esac
-export PATH="$ABS_ELIXIR_HOME"/bin:"{erlang_home}"/bin:"$ABS_COREUTILS"
-if [ -n "{erl_libs_path}" ]; then
-    export ERL_LIBS="{erl_libs_path}"
-fi
-{env}
-{setup}
-"$ABS_ELIXIR_HOME"/bin/elixirc -o "$out" {elixirc_opts} "$@" > "$log" 2>&1
-echo "$?" > "$status"
-""".format(
-        maybe_install_erlang = maybe_install_erlang,
-        elixir_home = elixir_home,
-        erlang_home = erlang_home,
-        coreutils_path = coreutils_path,
-        erl_libs_path = erl_libs_path,
-        env = "\n".join(["export %s=%s" % (k, shell.quote(v)) for k, v in env.items()]),
-        setup = setup,
-        elixirc_opts = " ".join(elixirc_opts),
-    )
+def _absolute(path):
+    if path.startswith("/"):
+        return path
+    return "__BAZEL_EXECUTION_ROOT__/" + path
+
+def elixirc_command(env_program, elixir_home, erlang_root, coreutils_path, erl_libs_path, env, out, elixirc_opts, srcs):
+    """Returns the argv of one elixirc replay, with placeholders for the execution root."""
+    path = ":".join([_absolute(elixir_home) + "/bin", _absolute(erlang_root) + "/bin", _absolute(coreutils_path)])
+    command = [_absolute(env_program), "PATH=" + path, "RULES_ERLANG_HOME=" + _absolute(erlang_root)]
+    if erl_libs_path:
+        command.append("ERL_LIBS=" + _absolute(erl_libs_path))
+    command += ["%s=%s" % (k, v) for k, v in env.items()]
+    return command + [_absolute(elixir_home) + "/bin/elixirc", "-o", out] + elixirc_opts + srcs
 
 def _elixirc_impl(target, ctx):
     attrs = ctx.rule.attr
@@ -91,30 +74,34 @@ def _elixirc_impl(target, ctx):
 
     (erlang_home, _, erlang_runfiles) = erlang_dirs(elixir_ctx)
     (elixir_home, elixir_runfiles) = elixir_dirs(elixir_ctx)
-    opts = [shell.quote(o) for o in attrs.elixirc_opts if o != "--warnings-as-errors"]
+    if erlang_home != TREE_ERLANG_HOME:
+        fail("%s: the elixirc replay needs an OTP tree toolchain" % target.label)
+    if attrs.setup != "":
+        fail("%s: the elixirc replay does not run the setup attribute" % target.label)
+    erlang_root = elixir_ctx.toolchains["//:toolchain_type"].otpinfo.version_file.dirname
+    opts = [o for o in attrs.elixirc_opts if o != "--warnings-as-errors"]
 
     applets = coreutils(ctx)
     log = ctx.actions.declare_file("dx_elixirc/%s/%s.log" % (name, name))
     status = ctx.actions.declare_file("dx_elixirc/%s/%s.exit" % (name, name))
     out_tree = ctx.actions.declare_directory("dx_elixirc/%s/out" % name)
 
-    script = elixirc_script(
-        maybe_install_erlang = maybe_install_erlang(elixir_ctx),
+    command = elixirc_command(
+        env_program = applets.path + "/" + applet_file_name("env", applets.binary.basename),
         elixir_home = elixir_home,
-        erlang_home = erlang_home,
+        erlang_root = erlang_root,
         coreutils_path = applets.path,
         erl_libs_path = erl_libs_path,
         env = attrs.env,
-        setup = attrs.setup,
+        out = out_tree.path,
         elixirc_opts = opts,
+        srcs = [f.path for f in ctx.rule.files.srcs],
     )
-    srcs = ctx.actions.args()
-    srcs.add_all(ctx.rule.files.srcs)
-    ctx.actions.run_shell(
+    ctx.actions.run(
         mnemonic = "ElixircWarnings",
         progress_message = "elixirc diagnostics %{label}",
-        command = script,
-        arguments = [log.path, status.path, out_tree.path, srcs],
+        executable = ctx.executable._capture,
+        arguments = ["--stdout", log.path, "--stderr", log.path, "--status", status.path, "--expand-bazel", "--"] + command,
         inputs = depset(
             direct = ctx.rule.files.srcs + ctx.rule.files.data + erl_libs_files,
             transitive = [erlang_runfiles.files, elixir_runfiles.files, applets.files],
@@ -129,6 +116,14 @@ elixirc_aspect = aspect(
     implementation = _elixirc_impl,
     doc = "Replays the elixirc compilation of a target and records the compiler warnings.",
     attr_aspects = ["upstream", "beam", "beam_files_dir"],
-    attrs = {"_windows_constraint": attr.label(default = "@platforms//os:windows")},
+    attrs = {
+        "_capture": attr.label(
+            default = "//core/quality/capture",
+            executable = True,
+            cfg = "exec",
+            doc = "Runs one program with its streams and exit code written to files.",
+        ),
+        "_windows_constraint": attr.label(default = "@platforms//os:windows"),
+    },
     toolchains = [config_common.toolchain_type(_TOOLCHAIN, mandatory = False), COREUTILS_TOOLCHAIN_TYPE],
 )

@@ -2862,9 +2862,10 @@ fn xdg_cache_home(output_root: &Path) -> (String, String) {
     )
 }
 
-/// Removes a qualification root, including Bazel's read-only trees.
-pub fn remove_root(root: &Path) {
-    dx_process::remove_tree(root);
+/// Removes a qualification root, including Bazel's read-only trees, and reports whether it is gone.
+#[must_use]
+pub fn remove_root(root: &Path) -> bool {
+    dx_process::remove_tree(root)
 }
 
 /// The `.cmd` file that runs every Windows isolation check in one launch. Each deny is a

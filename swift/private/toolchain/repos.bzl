@@ -233,7 +233,7 @@ filegroup(
 
 filegroup(
     name = "profile_runtime",
-    srcs = ["toolchain/usr/lib/clang/21/lib/windows/clang_rt.profile-x86_64.lib"],
+    srcs = ["toolchain/usr/lib/clang/21/lib/x86_64-unknown-windows-msvc/clang_rt.profile.lib"],
 )
 
 filegroup(

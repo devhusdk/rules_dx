@@ -39,7 +39,7 @@ def _cc_case(tool, capability, name, target, contains, absent, config = "cc_synt
         "windows_arm64": True,
     }
 
-def _iac_dirty_case(tool, cls, package, target, contains, config = "default"):
+def _iac_dirty_case(tool, cls, package, target, contains, config = "default", windows_x86_64 = True):
     return {
         "name": "real_result_%s_dirty" % tool,
         "target": "//%s:%s" % (package, target),
@@ -51,7 +51,7 @@ def _iac_dirty_case(tool, cls, package, target, contains, config = "default"):
         "absent": [],
         "linux_arm64": True,
         "macos_arm64": True,
-        "windows_x86_64": True,
+        "windows_x86_64": windows_x86_64,
     }
 
 def _ruff_tier_case(tier, name, contains, absent):
@@ -232,7 +232,7 @@ REAL_RESULT_CASES = [
         "contains": ["core/quality/testdata/ocaml_owned/shadow.ml", "shadows"],
         "absent": [],
     },
-    _iac_dirty_case("ansible_lint", "ansible", "ansible/tests", "dirty", ["command-instead-of-shell"], "shared_standard"),
+    _iac_dirty_case("ansible_lint", "ansible", "ansible/tests", "dirty", ["command-instead-of-shell"], "shared_standard", windows_x86_64 = False),
     _iac_dirty_case("bicep", "bicep", "bicep/tests", "dirty", ["no-unused-params", "BCP033"], "shared_standard"),
     _iac_dirty_case("cfn_lint", "cloudformation", "cloudformation/tests", "dirty", ["E3002"]),
     _iac_dirty_case("cmakelint", "cmake", "cmake/tests", "dirty", ["readability/mixedcase"], "shared_standard"),

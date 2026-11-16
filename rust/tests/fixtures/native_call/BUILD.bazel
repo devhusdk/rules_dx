@@ -349,7 +349,6 @@ rust_msvc_crt_tests(
 
 mixed_crt_actions(
     name = "native_mixed_crt",
-    tags = ["manual"],
     testonly = True,
 )
 

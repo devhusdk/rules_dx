@@ -330,7 +330,7 @@ def _link_gcc_impl(ctx):
         asserts.true(env, link_args.index("-l:libgcc.a") > link_args.index("-l:libstdc++.a"), "libgcc.a must follow libstdc++.a: {}".format(link_args))
     for arg in link_args:
         if arg.startswith("-L") or arg.startswith("-B"):
-            asserts.true(env, arg[2:].startswith("external/+gcc+" + ctx.attr.gcc), "search path outside the pinned GCC: {}".format(arg))
+            asserts.true(env, arg[2:].startswith("external/+cc+" + ctx.attr.gcc), "search path outside the pinned GCC: {}".format(arg))
     for part in action.argv:
         for prefix in ["/usr", "/lib", "-L/usr", "-L/lib"]:
             asserts.false(env, part.startswith(prefix), "host path in rustc argv: {}".format(part))

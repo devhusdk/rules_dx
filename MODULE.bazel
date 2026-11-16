@@ -563,37 +563,10 @@ use_repo(osx, "macos_sdk")
 # Gated on the Haskell-only flag, so it must come before the general C toolchains.
 register_toolchains("@dx_haskell_toolchains//:all")
 
-register_toolchains("//cc/private/toolchain:gcc_linux_x86_64")
-
-register_toolchains("//cc/private/toolchain:gcc_linux_x86_64_to_arm64")
-
-register_toolchains("//cc/private/toolchain:gcc_linux_arm64")
-
-register_toolchains("//cc/private/toolchain:gcc_unsupported")
-
-register_toolchains("//cc/private/toolchain:msvc_windows_x86_64")
-
-register_toolchains("//cc/private/toolchain:msvc_windows_x86_64_to_arm64")
-
-register_toolchains("//cc/private/toolchain:msvc_windows_arm64")
-
-# The guard must stay last among the MSVC entries.
-register_toolchains("//cc/private/toolchain:msvc_unsupported")
-
-# Builds with the pinned libFuzzer use @llvm on a macOS exec.
-register_toolchains("//cc/private/toolchain:llvm_fuzzer_macos_arm64")
-
-register_toolchains("//cc/private/toolchain:llvm_fuzzer_macos_x86_64")
-
-# On a macOS exec the Xcode toolchain wins for Apple targets; @llvm serves macOS targets from other execs.
 apple_cc_configure = use_extension("@apple_support//crosstool:setup.bzl", "apple_cc_configure_extension")
 use_repo(apple_cc_configure, "local_config_apple_cc_toolchains")
 
-register_toolchains("//cc/private/toolchain/apple:all")
-
-register_toolchains("//cc/private/toolchain/clang_cl:all")
-
-register_toolchains("//cc/private/toolchain/llvm:all")
+register_toolchains("@dx_cc_toolchains//:all")
 
 # A consumer-declared GCC distribution, selected only through --extra_toolchains in tests.
 gcc_toolchains = use_extension("@gcc_toolchain//toolchain:module_extensions.bzl", "gcc_toolchains", dev_dependency = True)
@@ -608,8 +581,8 @@ gcc_toolchains.toolchain(
 )
 use_repo(gcc_toolchains, "custom_gcc_x86_64")
 
-gcc = use_extension("//cc:extensions.bzl", "gcc")
-use_repo(gcc, "dx_gcc_linux_aarch64", "dx_gcc_linux_aarch64_cross", "dx_gcc_linux_x86_64")
+cc = use_extension("//cc:extensions.bzl", "cc")
+use_repo(cc, "dx_cc_toolchains", "dx_gcc_linux_aarch64", "dx_gcc_linux_aarch64_cross", "dx_gcc_linux_x86_64")
 
 protoc_prebuilt = use_extension("@protobuf//bazel/private/oss/toolchains/prebuilt:protoc_extension.bzl", "protoc")
 use_repo(

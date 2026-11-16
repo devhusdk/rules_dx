@@ -20,7 +20,10 @@ cc_toolchain_unavailable(
     name = "unsupported",
     error = UNSUPPORTED,
     tags = ["manual"],
-    visibility = ["//cc/private/toolchain:__pkg__"],
+    visibility = [
+        "//cc/private/toolchain:__pkg__",
+        "@dx_cc_toolchains//:__pkg__",
+    ],
 )
 
 real_source_target(
@@ -34,7 +37,6 @@ real_source_target(
         "subject.bzl",
         "tests.bzl",
         "toolchain.bzl",
-        "toolchains.bzl",
         "unavailable.bzl",
     ],
     tags = ["corpus"],

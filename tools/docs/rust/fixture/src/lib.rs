@@ -5,6 +5,7 @@ pub mod shapes;
 pub use shapes::Circle;
 
 /// Adds two lengths in meters.
+#[must_use]
 pub fn add(left: u64, right: u64) -> u64 {
     left + private_offset(right)
 }

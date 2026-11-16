@@ -5,6 +5,7 @@ pub mod shapes;
 pub use shapes::Circle;
 
 /// Adds two lengths and a carry, wrapping on overflow.
+#[must_use]
 pub fn add(left: u64, right: u64, carry: u32) -> u64 {
     left.wrapping_add(private_offset(right))
         .wrapping_add(u64::from(carry))

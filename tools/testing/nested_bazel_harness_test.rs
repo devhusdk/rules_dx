@@ -98,6 +98,7 @@ fn selected_cc(case: &Case, flags: &[&str]) -> Vec<String> {
         "--color=no",
         "--curses=no",
         "--toolchain_resolution_debug=@bazel_tools//tools/cpp:toolchain_type",
+        "--repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1",
     ];
     args.extend_from_slice(flags);
     args.push("//:probe");
@@ -114,13 +115,10 @@ fn selected_cc(case: &Case, flags: &[&str]) -> Vec<String> {
 fn an_indirect_consumer_resolves_no_gated_rules_dx_toolchain() {
     let case = indirect_consumer("indirect");
     let selected = selected_cc(&case, &[]);
-    assert!(
-        !selected.is_empty() && selected.iter().all(|line| line.contains("local_config_cc")),
-        "{selected:?}"
-    );
+    assert!(selected.is_empty(), "{selected:?}");
     let enabled = selected_cc(&case, &["--@@rules_dx+//config:toolchains=true"]);
     assert!(
-        !enabled.is_empty() && enabled.iter().all(|line| !line.contains("local_config_cc")),
+        !enabled.is_empty() && enabled.iter().all(|line| line.contains("@@llvm+//toolchain:")),
         "{enabled:?}"
     );
 }

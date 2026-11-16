@@ -62973,7 +62973,7 @@
         }
       },
       "os:linux,arch:amd64": {
-        "bzlTransitiveDigest": "QgUTRy/OdnNi7uR9hLrlfSTb7bBo5YV16nhznd8HKdE=",
+        "bzlTransitiveDigest": "8Z7mqxfm12rhCiU+Iz5KRfyXKcINNwgXCJFj0r8VpHI=",
         "usagesDigest": "Ly043mKod3pIlMqbsOauaTJWdMSwoX0jfjq354u2r7g=",
         "recordedInputs": [
           "ENV:RULES_PYTHON_BZLMOD_DEBUG \\0",

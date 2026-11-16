@@ -1,11 +1,22 @@
 --- a/python/private/python_repository.bzl
 +++ b/python/private/python_repository.bzl
-@@ -218,7 +218,7 @@
-         repo_utils.execute_checked(
-             rctx,
-             op = "python_repository.FixUpDyldIdPath",
+@@ -215,12 +215,13 @@
+         # it appears in the Bazel workspace as its LC_ID_DYLIB using
+         # the `install_name_tool` bundled with macOS.
+         dylib = "libpython{}.dylib".format(python_short_version)
+-        repo_utils.execute_checked(
+-            rctx,
+-            op = "python_repository.FixUpDyldIdPath",
 -            arguments = [repo_utils.which_checked(rctx, "install_name_tool"), "-id", "@rpath/{}".format(dylib), "lib/{}".format(dylib)],
-+            arguments = ["/usr/bin/install_name_tool", "-id", "@rpath/{}".format(dylib), "lib/{}".format(dylib)],
-             logger = logger,
-         )
+-            logger = logger,
+-        )
++        if "@rpath/{}".format(dylib) not in rctx.read("lib/{}".format(dylib)):
++            repo_utils.execute_checked(
++                rctx,
++                op = "python_repository.FixUpDyldIdPath",
++                arguments = [repo_utils.which_checked(rctx, "install_name_tool"), "-id", "@rpath/{}".format(dylib), "lib/{}".format(dylib)],
++                logger = logger,
++            )
  
+     _create_pycache_symlinks(rctx, logger)
+     python_bin = "python.exe" if ("windows" in platform) else "bin/python3"

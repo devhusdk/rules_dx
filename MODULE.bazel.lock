@@ -38407,7 +38407,7 @@
       },
       "os:osx,arch:aarch64": {
         "bzlTransitiveDigest": "T84h6d0yQeT/AOyIWS8NagtobEg9RpCrbuzBCaosmdM=",
-        "usagesDigest": "g9Q8VSWeoeEVs6exa2gimNqHT5FRP72LV0FpChfMP/I=",
+        "usagesDigest": "AAAAVSWeoeEVs6exa2gimNqHT5FRP72LV0FpChfMP/I=",
         "recordedInputs": [
           "REPO_MAPPING:rules_go+,bazel_tools bazel_tools",
           "REPO_MAPPING:rules_go+,io_bazel_rules_go rules_go+",

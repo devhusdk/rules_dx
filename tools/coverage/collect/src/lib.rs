@@ -125,6 +125,18 @@ fn merge_with_fallback(
     inputs: &[PathBuf],
     output: &Path,
 ) -> Result<PathBuf, String> {
+    merge_using(&merge, primary, fallback, inputs, output)
+}
+
+type Merger<'a> = &'a dyn Fn(&Path, &[PathBuf], &Path) -> Result<(), String>;
+
+fn merge_using(
+    merge: Merger,
+    primary: (&Path, &Path),
+    fallback: Option<(PathBuf, PathBuf)>,
+    inputs: &[PathBuf],
+    output: &Path,
+) -> Result<PathBuf, String> {
     let (profdata, cov) = primary;
     match (merge(profdata, inputs, output), fallback) {
         (Ok(()), _) => Ok(cov.to_path_buf()),
@@ -314,70 +326,73 @@ fn collect_all() -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::os::unix::fs::PermissionsExt;
 
-    fn tool(dir: &Path, name: &str, body: &str) -> PathBuf {
-        let path = dir.join(name);
-        fs::write(&path, format!("#!/bin/sh\n{body}\n")).unwrap();
-        fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
-        path
-    }
-
-    fn scratch(name: &str) -> PathBuf {
-        let dir = PathBuf::from(env::var("TEST_TMPDIR").unwrap()).join(name);
-        fs::create_dir_all(&dir).unwrap();
-        dir
+    fn runner(path: &Path, _: &[PathBuf], _: &Path) -> Result<(), String> {
+        match path.to_str() {
+            Some("ok") => Ok(()),
+            Some("bad") => Err("version mismatch".to_string()),
+            Some("worse") => Err("cc broke".to_string()),
+            other => Err(format!("unknown tool {other:?}")),
+        }
     }
 
     #[test]
     fn merge_uses_primary_when_it_succeeds() {
-        let dir = scratch("primary_ok");
-        let ok = tool(&dir, "ok", "exit 0");
-        let bad = tool(&dir, "bad", "exit 1");
-        let picked = merge_with_fallback(
+        let ok = PathBuf::from("ok");
+        let bad = PathBuf::from("bad");
+        let picked = merge_using(
+            &runner,
             (&ok, Path::new("primary_cov")),
             Some((bad, PathBuf::from("cc_cov"))),
             &[],
-            &dir.join("out"),
+            Path::new("out"),
         );
         assert_eq!(picked, Ok(PathBuf::from("primary_cov")));
     }
 
     #[test]
     fn merge_falls_back_to_cc_tools_when_primary_fails() {
-        let dir = scratch("fallback_ok");
-        let bad = tool(&dir, "bad", "echo version mismatch >&2; exit 1");
-        let ok = tool(&dir, "ok", "exit 0");
-        let picked = merge_with_fallback(
+        let bad = PathBuf::from("bad");
+        let ok = PathBuf::from("ok");
+        let picked = merge_using(
+            &runner,
             (&bad, Path::new("primary_cov")),
             Some((ok, PathBuf::from("cc_cov"))),
             &[],
-            &dir.join("out"),
+            Path::new("out"),
         );
         assert_eq!(picked, Ok(PathBuf::from("cc_cov")));
     }
 
     #[test]
     fn merge_reports_primary_failure_without_fallback() {
-        let dir = scratch("no_fallback");
-        let bad = tool(&dir, "bad", "echo primary broke >&2; exit 1");
-        let err =
-            merge_with_fallback((&bad, Path::new("cov")), None, &[], &dir.join("out")).unwrap_err();
-        assert!(err.contains("primary broke"), "{err}");
+        let bad = PathBuf::from("bad");
+        let err = merge_using(
+            &runner,
+            (&bad, Path::new("cov")),
+            None,
+            &[],
+            Path::new("out"),
+        )
+        .unwrap_err();
+        assert!(err.contains("version mismatch"), "{err}");
     }
 
     #[test]
     fn merge_reports_both_failures_when_fallback_fails() {
-        let dir = scratch("both_fail");
-        let bad = tool(&dir, "bad", "echo primary broke >&2; exit 1");
-        let worse = tool(&dir, "worse", "echo cc broke >&2; exit 1");
-        let err = merge_with_fallback(
+        let bad = PathBuf::from("bad");
+        let worse = PathBuf::from("worse");
+        let err = merge_using(
+            &runner,
             (&bad, Path::new("cov")),
             Some((worse, PathBuf::from("cc_cov"))),
             &[],
-            &dir.join("out"),
+            Path::new("out"),
         )
         .unwrap_err();
-        assert!(err.contains("primary broke") && err.contains("cc broke"), "{err}");
+        assert!(
+            err.contains("version mismatch") && err.contains("cc broke"),
+            "{err}"
+        );
     }
 }

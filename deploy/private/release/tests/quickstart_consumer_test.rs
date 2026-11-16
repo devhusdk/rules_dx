@@ -66,27 +66,11 @@ fn built_dx(case: &Case) -> std::path::PathBuf {
     std::path::PathBuf::from(info.stdout.trim()).join(files.stdout.trim())
 }
 
-/// The `PATH` of the nested commands: a directory holding only the host `ldd` found on the test's `PATH`, which the `rules_py`
-/// host platform repository runs on Linux.
-pub(crate) fn ldd_path() -> String {
-    let dir = scratch_dir("quickstart-ldd");
-    #[cfg(target_os = "linux")]
-    {
-        let link = dir.join("ldd");
-        if !link.exists() {
-            let search = std::env::var_os("PATH").unwrap_or_default();
-            let ldd = std::env::split_paths(&search)
-                .map(|dir| dir.join("ldd"))
-                .find(|candidate| candidate.is_file())
-                .unwrap_or_else(|| panic!("no host ldd on the PATH"));
-            if let Err(error) = std::os::unix::fs::symlink(ldd, &link)
-                && !link.exists()
-            {
-                panic!("{}: {error}", link.display());
-            }
-        }
-    }
-    dir.to_string_lossy().into_owned()
+/// The `PATH` of the nested commands: an empty directory.
+pub(crate) fn nested_path() -> String {
+    scratch_dir("quickstart-path")
+        .to_string_lossy()
+        .into_owned()
 }
 
 /// On Windows, the MSYS bash the nested Bazel runs shell rules with: `BAZEL_SH`, then Git's
@@ -106,10 +90,10 @@ fn windows_bash() -> Option<String> {
         .find(|bash| std::path::Path::new(bash).is_file())
 }
 
-/// The environment of the nested commands: `PATH` is `ldd_path`, and on Windows `BAZEL_SH`
+/// The environment of the nested commands: `PATH` is `nested_path`, and on Windows `BAZEL_SH`
 /// names `windows_bash`.
 pub(crate) fn nested_env() -> Vec<(&'static str, String)> {
-    let mut env = vec![("PATH", ldd_path())];
+    let mut env = vec![("PATH", nested_path())];
     if cfg!(windows) {
         let bash = windows_bash().unwrap_or_else(|| panic!("no MSYS bash: set BAZEL_SH"));
         env.push(("BAZEL_SH", bash));

@@ -1,4 +1,6 @@
+load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//apple/private/ios:simulator.bzl", "declared_simulator")
 
 exports_files([
     "README.md",
@@ -21,6 +23,24 @@ filegroup(
         "//apple/private/signing:module_srcs",
     ],
     visibility = ["//:__subpackages__"],
+)
+
+string_flag(
+    name = "simulator_runtime",
+    build_setting_default = "",
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "simulator_undeclared",
+    flag_values = {":simulator_runtime": ""},
+    visibility = ["//visibility:public"],
+)
+
+declared_simulator(
+    name = "declared_simulator",
+    testonly = True,
+    visibility = ["//visibility:public"],
 )
 
 platform(

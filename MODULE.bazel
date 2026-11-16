@@ -2295,7 +2295,7 @@ use_repo(
 rust_host_tools = use_extension("@rules_rust//rust:extensions.bzl", "rust_host_tools")
 use_repo(rust_host_tools, "rust_host_tools")
 
-crate = use_extension("//rust/private/crate_universe:extensions.bzl", "crate")
+crate = use_extension("//third_party/rules_rust/crate_universe:extensions.bzl", "crate")
 crate.annotation(
     build_script_env = {
         "CFLAGS": "$(DX_BS_CFLAGS)",
@@ -2685,7 +2685,7 @@ _fixture_repo(
     path = "rust/tests/fixtures/consumer_abi/repo",
 )
 
-crate_fixtures = use_extension("//rust/private/crate_universe:extensions.bzl", "crate", dev_dependency = True)
+crate_fixtures = use_extension("//third_party/rules_rust/crate_universe:extensions.bzl", "crate", dev_dependency = True)
 crate_fixtures.from_cargo(
     name = "dx_rust_fixture_crates",
     cargo_lockfile = "//rust/tests/fixtures/hello:Cargo.lock",

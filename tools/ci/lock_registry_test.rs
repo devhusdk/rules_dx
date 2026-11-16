@@ -124,12 +124,12 @@ fn languages(files: &BTreeMap<String, String>) -> Languages {
     out
 }
 
-/// Whether `path` is test or fixture Starlark.
+/// Whether `path` is test, fixture, patch or vendored Starlark.
 fn test_path(path: &str) -> bool {
     path.starts_with("examples/")
-        || ["/tests/", "/fixtures/", "/testdata/"]
-            .iter()
-            .any(|part| path.contains(part))
+        || path
+            .split('/')
+            .any(|part| ["tests", "fixtures", "testdata", "third_party", "patches"].contains(&part))
         || ["_test.bzl", "_tests.bzl"]
             .iter()
             .any(|end| path.ends_with(end))
@@ -797,6 +797,7 @@ fn a_manifest_or_lock_name_outside_the_registry_fails() {
                 "X = \"Gemfile.lock\"\nY = \"Gemfile.locked\"\n",
             ),
             ("ruby/tests/gems.bzl", "X = \"Gemfile\"\n"),
+            ("third_party/gems/extensions.bzl", "X = \"Gemfile.lock\"\n"),
             ("ruby/BUILD.bazel", "exports_files([\"Gemfile\"])\n"),
         ],
         &[

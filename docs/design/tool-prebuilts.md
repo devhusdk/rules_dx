@@ -43,6 +43,25 @@ Each tool and host takes the first rule that applies.
 - The hub is the only place that chooses between an upstream artifact and a release-built one. Tool packages hold no `select()` over hosts.
 - A core default is one alias into `@dx_tools`. Its package leaves `PENDING_TOOL_PACKAGES` in the same change.
 
+## Rule-set tools
+
+A rule-set module (`rules_php`, `rules_lua`, `rules_qt`) builds its Rust tools with `@rules_dx//rust:defs.bzl`.
+
+- Each rule-set release builds its Rust tools on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` and `windows_arm64`.
+- The asset name is `rules_<lang>-<tool>-<version>-<host>`. `rules_<lang>-sha256sums.txt` in the same release lists each asset's sha256.
+- The rule-set extension pins each asset as `dx_prebuilt` pins the dx binary. A host with a pin fetches it.
+- A host with no pin builds the tool from source with rules_dx's Rust and C toolchains. A root module that sets `from_source()` on the rule-set extension builds every host from source.
+- A C or C++ tool that needs only the language's own C++ toolchain is built from source and never prebuilt.
+- A fixture fetches each pinned tool on each host, and a `from_source()` fixture builds it.
+
+| Rule set | Tool | Source | Prebuilt |
+| --- | --- | --- | --- |
+| rules_php | PHP launcher | Rust | yes |
+| rules_php | composer lock resolver | Rust | yes |
+| rules_lua | luarocks lock resolver | Rust | yes |
+| rules_lua | Lua launcher | C | no |
+| rules_qt | Qt launcher | C++ | no |
+
 ## Licences
 
 - Every redistributed asset ships the upstream licence text, and the artifact record names the licence and its source URL.

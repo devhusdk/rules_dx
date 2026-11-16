@@ -1,6 +1,7 @@
 """Matrix cases: every tier file is already formatted, so a format run changes nothing."""
 
 load(":runner_matrix_file_family.bzl", "TFLINT_HEADER")
+load(":runner_matrix_tests.bzl", "matrix_case")
 load("//core/quality/tiers:corpora.bzl", "TIER_JAVASCRIPT", "TIER_JSON", "TIER_TOML", "TIER_YAML", "tier_labels")
 
 def _fixpoint_case(name, tool, binary, source_class, paths, config = None):
@@ -43,36 +44,27 @@ _TFLINT_DOCUMENTED = {
 _SELENE_CLEAN = {"matrix/selene_tier/add.lua": "local function add(a, b)\n    return a + b\nend\n\nprint(add(1, 2))\n"}
 _DART_CLEAN = {"matrix/dart_tier/main.dart": "void main() {\n  print(1);\n}\n"}
 _SWIFT_CLEAN = {"matrix/swift_lint_tier/add.swift": "func add(a: Int, b: Int) -> Int {\n  return a + b\n}\n"}
-_NO_PLATFORMS = {"linux_arm64": False, "macos_arm64": False, "windows_x86_64": False, "windows_arm64": False}
+_NO_PLATFORMS = ["linux_x86_64"]
 _TRIVY_CLEAN = {"matrix/trivy_tier/Dockerfile": "FROM scratch\nUSER 1000\nHEALTHCHECK NONE\n"}
 
-def _lint_case(name, generated, stage, tool, binary, config, **extra):
-    case = {
-        "name": name,
-        "generated": generated,
-        "capability": "lint",
-        "stages": [stage],
-        "tool_names": [tool],
-        "tool_binaries": [binary],
-        "toolfile_tools": [tool],
-        "toolfile_srcs": [config],
-        "config_tools": [tool],
-        "config_files": [config],
-        "expected_file": ":matrix/%s.expected.txt" % name,
-        "linux_arm64": True,
-        "macos_arm64": True,
-        "windows_x86_64": True,
-        "windows_arm64": True,
-    }
-    case.update(extra)
-    return case
+def _lint_case(name, generated, source_class, tool, binary, config, **extra):
+    return matrix_case(
+        name = name,
+        capability = "lint",
+        tool = tool,
+        binary = binary,
+        source_class = source_class,
+        generated = generated,
+        config = config,
+        **extra
+    )
 
 def _lint_cases(tier):
     return [
         _lint_case(
             "matrix_dockerfile_lint_clean_" + tier,
             _HADOLINT_CLEAN,
-            "hadolint;dockerfile;matrix/hadolint_tier/Dockerfile",
+            "dockerfile",
             "hadolint",
             "@dx_tools//:hadolint",
             "//core/quality/tiers/hadolint:%s.yaml" % tier,
@@ -80,7 +72,7 @@ def _lint_cases(tier):
         _lint_case(
             "matrix_dockerfile_lint_style_" + tier,
             _HADOLINT_STYLE,
-            "hadolint;dockerfile;matrix/hadolint_style/Dockerfile",
+            "dockerfile",
             "hadolint",
             "@dx_tools//:hadolint",
             "//core/quality/tiers/hadolint:%s.yaml" % tier,
@@ -88,7 +80,7 @@ def _lint_cases(tier):
         _lint_case(
             "matrix_terraform_lint_clean_" + tier,
             _TFLINT_DOCUMENTED,
-            "tflint;terraform;matrix/tflint_tier/main.tf,matrix/tflint_tier/variables.tf",
+            "terraform",
             "tflint",
             "@dx_tools//:tflint",
             "//core/quality/tiers/tflint:%s.hcl" % tier,
@@ -97,7 +89,7 @@ def _lint_cases(tier):
         _lint_case(
             "matrix_dockerfile_trivy_lint_clean_" + tier,
             _TRIVY_CLEAN,
-            "trivy_config;dockerfile;matrix/trivy_tier/Dockerfile",
+            "dockerfile",
             "trivy_config",
             "@dx_tools//:trivy",
             "//core/quality/tiers/trivy_config:%s.txt" % tier,
@@ -106,32 +98,32 @@ def _lint_cases(tier):
         _lint_case(
             "matrix_lua_selene_clean_" + tier,
             _SELENE_CLEAN,
-            "selene;lua;matrix/selene_tier/add.lua",
+            "lua",
             "selene",
             "//rust/private/quality/tools:selene",
             "//core/quality/tiers/selene:%s.toml" % tier,
-            **_NO_PLATFORMS
+            platforms = _NO_PLATFORMS
         ),
         _lint_case(
             "matrix_dart_lint_clean_" + tier,
             _DART_CLEAN,
-            "dart;dart;matrix/dart_tier/main.dart",
+            "dart",
             "dart",
             "//dart/private/tools:dart",
             "//core/quality/tiers/dart:%s.yaml" % tier,
             toolfile_tools = ["dart", "dart"],
             toolfile_srcs = ["//core/quality/tiers/dart:%s.yaml" % tier, "//core/quality/tests/testdata:dart_cfg/package_config.json"],
             toolfile_rels = ["analysis_options.yaml", ".dart_tool/package_config.json"],
-            windows_arm64 = False,
+            platforms = ["linux_arm64", "macos_arm64", "windows_x86_64"],
         ),
         _lint_case(
             "matrix_swift_lint_clean_" + tier,
             _SWIFT_CLEAN,
-            "swift_lint;swift;matrix/swift_lint_tier/add.swift",
+            "swift",
             "swift_lint",
             "//swift/private/tools:swift_format",
             "//core/quality/tiers/swift_lint:%s.json" % tier,
-            **_NO_PLATFORMS
+            platforms = _NO_PLATFORMS
         ),
     ]
 

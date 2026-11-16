@@ -281,6 +281,38 @@ fn announce_round(
     Ok(started)
 }
 
+type Change = Result<Vec<PathBuf>, AdoptError>;
+
+fn withdraw_requested(
+    wait: &RefCell<impl FnMut(&dx_adopt::watch::WatchSession, Duration) -> Change>,
+    session: &dx_adopt::watch::WatchSession,
+    pending: &RefCell<Option<Change>>,
+) -> bool {
+    if pending.borrow().is_some() {
+        return true;
+    }
+    match (wait.borrow_mut())(session, Duration::ZERO) {
+        Ok(paths) if paths.is_empty() => false,
+        change => {
+            *pending.borrow_mut() = Some(change);
+            true
+        }
+    }
+}
+
+fn start_session(
+    invocation: &Invocation,
+    workspace: &Path,
+    iteration: &Invocation,
+) -> Result<dx_adopt::watch::WatchSession, String> {
+    dx_adopt::watch::WatchSession::start(
+        workspace,
+        &report_paths(iteration, workspace),
+        invocation.poll,
+    )
+    .map_err(|error| error.to_string())
+}
+
 fn watch(
     invocation: &Invocation,
     env: Env<'_>,
@@ -321,15 +353,9 @@ fn watch(
         Err(error) => return refuse(invocation, out, err, error.message()),
     };
     let scope = scope_label(&iteration);
-    let session = match dx_adopt::watch::WatchSession::start(
-        workspace,
-        &report_paths(&iteration, workspace),
-        invocation.poll,
-    ) {
+    let session = match start_session(invocation, workspace, &iteration) {
         Ok(session) => session,
-        Err(error) => {
-            return watch_failed(invocation, out, err, &error.to_string());
-        }
+        Err(error) => return watch_failed(invocation, out, err, &error),
     };
     let wait = RefCell::new(wait_for_change);
     let waiter = Waiter {
@@ -356,18 +382,7 @@ fn watch(
             Err(exit) => return exit,
         };
         let pending = RefCell::new(None);
-        let withdraw = || {
-            if pending.borrow().is_some() {
-                return true;
-            }
-            match (wait.borrow_mut())(&session, Duration::ZERO) {
-                Ok(paths) if paths.is_empty() => false,
-                change => {
-                    *pending.borrow_mut() = Some(change);
-                    true
-                }
-            }
-        };
+        let withdraw = || withdraw_requested(&wait, &session, &pending);
         let iteration_env = Env {
             workspace,
             runner,

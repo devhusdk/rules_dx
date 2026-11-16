@@ -1659,7 +1659,6 @@ fn live_json_emits_planned_or_widened_and_finished() {
     );
 }
 
-const GHA_SHA: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
 /// One already-current declaration per set: selector, version, manifest, text.
 fn current_pins() -> Vec<(&'static str, &'static str, &'static str, String)> {

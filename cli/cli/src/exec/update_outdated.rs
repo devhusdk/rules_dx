@@ -587,7 +587,7 @@ fn collect_cabal(acc: &mut Acc, cx: &Ctx<'_>) {
         .cloned()
         .collect();
     if freezes.is_empty() {
-        read_errors.extend(stack_lock_errors(name, &target.set.locks));
+        acc.read_errors.extend(stack_lock_errors(name, &target.set.locks));
     }
     merge(
         &mut acc.found,
@@ -765,7 +765,7 @@ fn collect_luarocks(acc: &mut Acc, cx: &Ctx<'_>) {
             Ok(parsed) => {
                 pins.extend(parsed.into_iter().map(|p| (p.name, p.version)));
             }
-            Err(reason) => read_errors.push(dx_update::discover::LookupError {
+            Err(reason) => acc.read_errors.push(dx_update::discover::LookupError {
                 set: name.to_owned(),
                 package: lock_name.to_owned(),
                 reason: reason.message().to_owned(),

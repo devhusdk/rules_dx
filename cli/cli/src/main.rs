@@ -6,7 +6,7 @@
 )]
 
 use std::io::{self, IsTerminal, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use dx_cli::bazel_restart::{RestartingQueryRunner, RestartingRunner};
 use dx_cli::exec::common::flush_out;
@@ -293,7 +293,7 @@ fn report_reaped(
     err: &mut dyn Write,
 ) -> Vec<u8> {
     let mut pending = Vec::new();
-    for group in &reaped {
+    for group in reaped {
         let message = dx_process::groups::reaped_message(group);
         drop(writeln!(err, "dx: {message}"));
         if invocation.output == OutputMode::Json {
@@ -459,6 +459,20 @@ fn remove_run_dir(temp_dir: dx_plan::plan::run_temp::RunTempDir) {
     }
 }
 
+fn locate_workspace(invocation: &mut dx_plan::args::Invocation) -> Result<PathBuf, i32> {
+    let cwd = current_dir_or_fail(invocation)?;
+    let workspace = resolve_workspace(invocation, &cwd)?;
+    dx_process::configure_real_in(&workspace, dx_plan::slots::slot_idle_secs(&workspace));
+    dx_plan::plan::set_rules_dx_repo(&workspace);
+    if let Some(note) = dx_plan::args::bare_scope_note(invocation, &workspace, &cwd) {
+        eprintln!("{note}");
+    }
+    if invocation.here {
+        *invocation = apply_here(invocation, &workspace, &cwd)?;
+    }
+    Ok(workspace)
+}
+
 fn run() -> i32 {
     let env_get = |name: &str| std::env::var(name).ok();
     let is_ci = dx_process::is_ci();
@@ -469,25 +483,10 @@ fn run() -> i32 {
     if let Some(code) = init_run(&invocation) {
         return code;
     }
-    let cwd = match current_dir_or_fail(&invocation) {
-        Ok(cwd) => cwd,
-        Err(code) => return code,
-    };
-    let workspace = match resolve_workspace(&invocation, &cwd) {
+    let workspace = match locate_workspace(&mut invocation) {
         Ok(workspace) => workspace,
         Err(code) => return code,
     };
-    dx_process::configure_real_in(&workspace, dx_plan::slots::slot_idle_secs(&workspace));
-    dx_plan::plan::set_rules_dx_repo(&workspace);
-    if let Some(note) = dx_plan::args::bare_scope_note(&invocation, &workspace, &cwd) {
-        eprintln!("{note}");
-    }
-    if invocation.here {
-        invocation = match apply_here(&invocation, &workspace, &cwd) {
-            Ok(resolved) => resolved,
-            Err(code) => return code,
-        };
-    }
     let pid = std::process::id();
     let temp_base = std::env::temp_dir();
     let (temp_dir, nonce) = match make_run_dir(&invocation, &temp_base, pid) {

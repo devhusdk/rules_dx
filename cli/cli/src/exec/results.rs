@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use dx_output::{DiagnosticEvent, Origin, RelatedEvent, Severity, Snapshot};
 use dx_plan::plan::OUTPUT_GROUP;
@@ -589,7 +589,7 @@ fn merge_originals(
 fn stage_target(
     target: &dx_bep::TargetOutput,
     workspace: &Path,
-    seen: &mut BTreeSet<String>,
+    seen: &mut BTreeSet<PathBuf>,
 ) -> Option<Staged> {
     let mut staged = Staged::default();
     for artifact in &target.artifacts {

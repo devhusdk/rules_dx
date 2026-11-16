@@ -31,7 +31,7 @@ Each suite column names the platforms the conformance test runs on, `n/a` with i
 | Go | none | `go`; cgo is not supported on `windows_x86_64` and `windows_arm64`: the hermetic Windows toolchain is MSVC ABI only, and cgo needs the MinGW (GNU) ABI | `go_bench` | `go_fuzz_test` | all | all | all | all | all | all |
 | Haskell | `windows_arm64`: GHC 9.10.3 ships no Windows arm64 bindist | `hackage` from `cabal.project.freeze`; none for `stack.yaml.lock` | `haskell_bench` | n/a | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | pending | pending |
 | Java | none | `maven` | `java_bench` | `java_fuzz_test` | all | all | all | all | pending | all |
-| JavaScript | none | `npm` | `javascript_bench` | `javascript_fuzz_test` | all | all | all | all | pending | pending |
+| JavaScript | none | `npm` | `javascript_bench` | `javascript_fuzz_test` | all | all | all | all | pending | all |
 | Julia | `windows_arm64`: julialang.org and rules_julia 0.8.0 ship no Windows arm64 Julia build | `julia` | `julia_bench` | n/a | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | pending | pending |
 | Kotlin | none | `maven` | `kotlin_bench` | `kotlin_fuzz_test` | all | all | all | all | pending | all |
 | Lua | none | `luarocks` (pinned, no advisories) | `lua_bench` | n/a | all | all | all | all | n/a: lua_binary is a script the interpreter runs; it has no object format | all |
@@ -139,7 +139,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Kubernetes | `kubeconform`, `trivy_config`, `typos` | `yamlfmt` | n/a | n/a | n/a |
 | LaTeX | `chktex`, `typos` | `latexindent` | n/a | n/a | n/a |
 | Markdown | `lychee`, `markdown_check`, `typos`, `vale` | `prettier` | n/a | n/a | n/a |
-| Nix | `deadnix` (not on `windows_arm64`: the dx_quality_crates hub has no windows_arm64 cell), `typos` | `nixfmt` (not on `macos_arm64`: nixfmt builds from source with the managed GHC, which has no hermetic macOS cabal path yet; `windows_x86_64`: nixfmt depends on the unix package and does not build on Windows; `windows_arm64`: nixfmt depends on the unix package and does not build on Windows) | n/a | n/a | `deadnix` |
+| Nix | `deadnix` (not on `windows_arm64`: the dx_quality_crates hub has no windows_arm64 cell), `typos` | `nixfmt` (not on `windows_x86_64`: nixfmt depends on the unix package and does not build on Windows; `windows_arm64`: nixfmt depends on the unix package and does not build on Windows) | n/a | n/a | `deadnix` |
 | OCI images | `trivy_image_config` | n/a | `container_structure_test` | n/a | n/a |
 | Pkl | `pkl_lsp`, `typos` | `pkl` | `pkl` | n/a | n/a |
 | Rego | `regal`, `typos` | `opa` | `opa` | n/a | n/a |

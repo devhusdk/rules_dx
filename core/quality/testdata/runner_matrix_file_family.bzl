@@ -3136,7 +3136,7 @@ FILE_FAMILY_CASES = [
         generated = {
             "matrix/nixfmt_clean.nix": "{ a = 1; }\n",
         },
-        platforms = ["linux_x86_64", "linux_arm64"],
+        platforms = ["linux_x86_64", "linux_arm64", "macos_arm64"],
     ),
     matrix_case(
         name = "matrix_nix_format_fail",
@@ -3147,7 +3147,7 @@ FILE_FAMILY_CASES = [
         generated = {
             "matrix/nixfmt_dirty.nix": "{a=1;}\n",
         },
-        platforms = ["linux_x86_64", "linux_arm64"],
+        platforms = ["linux_x86_64", "linux_arm64", "macos_arm64"],
     ),
     matrix_case(
         name = "matrix_nix_format_syntax_error",
@@ -3158,7 +3158,7 @@ FILE_FAMILY_CASES = [
         generated = {
             "matrix/nixfmt_broken.nix": "{ a = ; }\n",
         },
-        platforms = ["linux_x86_64", "linux_arm64"],
+        platforms = ["linux_x86_64", "linux_arm64", "macos_arm64"],
     ),
     matrix_case(
         name = "matrix_text_lint_pass",

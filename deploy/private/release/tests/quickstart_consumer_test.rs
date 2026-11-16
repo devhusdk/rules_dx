@@ -323,6 +323,10 @@ fn bcr_test_module_runs_its_presubmit_targets() {
         if verb == "run" {
             args.extend(flags.iter().map(String::as_str));
         }
+        let build_flags = presubmit::host_build_flags(&presubmit, host, &target);
+        if verb == "build" {
+            args.extend(build_flags.iter().map(String::as_str));
+        }
         run_in(&case, &args, &target);
     }
 }

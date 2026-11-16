@@ -101,3 +101,28 @@ pub fn host_run_flags(presubmit: &str, host: &[&str]) -> Vec<String> {
     }
     flags
 }
+
+/// The `build_flags` of the tasks that run on `host` and build `target`.
+#[must_use]
+pub fn host_build_flags(presubmit: &str, host: &[&str], target: &str) -> Vec<String> {
+    let tasks = tasks(presubmit);
+    let mut flags: Vec<String> = Vec::new();
+    for task in selected(&tasks, host) {
+        let builds = task.lists.iter().any(|(name, items)| {
+            name == "build_targets" && items.iter().any(|item| item == target)
+        });
+        if !builds {
+            continue;
+        }
+        for (name, items) in &task.lists {
+            if name == "build_flags" {
+                for item in items {
+                    if !flags.contains(item) {
+                        flags.push(item.clone());
+                    }
+                }
+            }
+        }
+    }
+    flags
+}

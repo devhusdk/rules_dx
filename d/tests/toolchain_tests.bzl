@@ -55,7 +55,7 @@ def _checks():
         expect_equal("tool sources", sorted(TOOL_SOURCES.keys()), ["dx_d_containers", "dx_d_dcd", "dx_d_inifiled", "dx_d_libddoc", "dx_d_libdparse"]),
         expect_equal("dcd version", DCD_VERSION, "0.19.4"),
         expect_equal("containers version", CONTAINERS_VERSION, "0.9.0"),
-        expect_equal("inifiled version", INIFILED_VERSION, "1.3.3"),
+        expect_equal("inifiled version", INIFILED_VERSION, "2.0.0"),
         expect_equal("libddoc version", LIBDDOC_VERSION, "0.8.0"),
         expect_true("only dsymbol of the GPL-3.0 dcd is compiled", "src/dcd" not in TOOL_BUILDS["dx_d_dcd"] and "dsymbol/src/**" in TOOL_BUILDS["dx_d_dcd"]),
         expect_true("the dcd client and server sources are dropped", "src" in TOOL_SOURCES["dx_d_dcd"].dropped),

@@ -1,14 +1,23 @@
 use std::fmt::Write as _;
 #[test]
 fn log_tail_keeps_last_forty_lines() {
-    let text: String = (1..=50).map(|n| format!("line {n}\n")).collect();
+    let text: String = (1..=50)
+        .map(|n| format!("line {n}\n"))
+        .collect::<Vec<_>>()
+        .concat();
     let want: Vec<String> = (11..=50).map(|n| format!("line {n}")).collect();
-    assert_eq!(super::account::log_tail(text.as_bytes()), Some(want.join("\n")));
+    assert_eq!(
+        super::account::log_tail(text.as_bytes()),
+        Some(want.join("\n"))
+    );
 }
 
 #[test]
 fn log_tail_returns_short_logs_whole() {
-    assert_eq!(super::account::log_tail(b"a\nb\nc\n"), Some("a\nb\nc".to_owned()));
+    assert_eq!(
+        super::account::log_tail(b"a\nb\nc\n"),
+        Some("a\nb\nc".to_owned())
+    );
 }
 
 #[test]

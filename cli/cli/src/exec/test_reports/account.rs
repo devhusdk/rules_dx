@@ -561,7 +561,7 @@ pub(super) fn results_document(
 pub(super) type Summaries<'a> = BTreeMap<(&'a str, Option<&'a str>), &'a str>;
 
 /// The outcome of one test result before any of its artifacts are read.
-pub(super) fn outcome_for(result: &TestResultRecord, summaries: &Summaries) -> TestOutcome {
+pub(super) fn outcome_for(result: &TestResultRecord, summaries: &Summaries<'_>) -> TestOutcome {
     let summary = summaries
         .get(&(result.label.as_str(), result.configuration.as_deref()))
         .copied();

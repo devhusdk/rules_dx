@@ -1,6 +1,6 @@
+use super::super::common::CODE_FROZEN_LOCKED;
 use super::super::test_support::*;
 use super::*;
-use super::super::common::CODE_FROZEN_LOCKED;
 
 const HELLO_CARGO: &str = "rust/tests/fixtures/hello/Cargo.toml";
 
@@ -9,7 +9,8 @@ fn cargo_module(labels: &[&str]) -> String {
     let manifests = labels
         .iter()
         .map(|label| format!("        \"{label}\",\n"))
-        .collect::<String>();
+        .collect::<Vec<_>>()
+        .concat();
     format!(
         "bazel_dep(name = \"rules_rust\", version = \"0.74.0\")\n\ncrate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(\n    name = \"dx_crates\",\n    cargo_lockfile = \"//rust/tests/fixtures/hello:Cargo.lock\",\n    manifests = [\n{manifests}    ],\n)\n"
     )
@@ -772,8 +773,8 @@ impl GoRunner {
                 .iter()
                 .map(|(name, text)| (*name, (*text).to_owned()))
                 .collect(),
-            launches: Default::default(),
-            scratch: Default::default(),
+            launches: std::cell::RefCell::default(),
+            scratch: std::cell::RefCell::default(),
         }
     }
 }

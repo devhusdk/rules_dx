@@ -76,6 +76,10 @@ fn built_sites(bep: &Path, workspace: &Path) -> Result<Vec<PathBuf>, dx_error::D
 }
 
 /// The tree to preview: the one built site, else the API index.
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "the value is built for this one call"
+)]
 fn serve_tree(
     sites: Vec<PathBuf>,
     index: Option<PathBuf>,

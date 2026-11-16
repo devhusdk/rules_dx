@@ -154,6 +154,10 @@ pub(crate) fn finding_records(
     records
 }
 
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "the value is built for this one call"
+)]
 pub(crate) fn emit_findings(
     inputs: EmitInputs<'_>,
     out: &mut dyn Write,

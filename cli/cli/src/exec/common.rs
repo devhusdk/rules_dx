@@ -28,6 +28,9 @@ pub(crate) fn stdout_output_code(error: &dx_output::OutputError) -> i32 {
     }
 }
 
+/// # Errors
+///
+/// Returns the exit code for a failed stdout write.
 pub fn emit_event(out: &mut dyn Write, event: &serde_json::Value) -> Result<(), i32> {
     write_event(out, event).map_err(|error| stdout_output_code(&error))
 }
@@ -149,6 +152,9 @@ pub(crate) fn frozen_summary(summary: String, frozen: bool) -> String {
     }
 }
 
+/// # Errors
+///
+/// Returns the exit code for a failed stdout flush.
 pub fn flush_out(out: &mut dyn Write) -> Result<(), i32> {
     out.flush().map_err(|error| stdout_io_code(&error))
 }
@@ -529,7 +535,10 @@ pub(crate) fn apply_to_bytes(original: &[u8], edits: &[(u64, u64, String)]) -> O
     let mut candidate = Vec::with_capacity(original.len());
     let mut cursor = 0usize;
     for (start, end, replacement) in edits {
-        let (start, end) = (*start as usize, *end as usize);
+        let (start, end) = (
+            usize::try_from(*start).unwrap_or(usize::MAX),
+            usize::try_from(*end).unwrap_or(usize::MAX),
+        );
         if start < cursor || start > end {
             return None;
         }
@@ -876,6 +885,9 @@ pub(crate) fn report_dx_error(
 }
 
 /// Emits the `error` and `command_finished` pair for a failure before the command starts.
+/// # Errors
+///
+/// Returns the exit code for a failed stdout write.
 pub fn emit_startup_outcome(
     out: &mut dyn Write,
     code: &str,

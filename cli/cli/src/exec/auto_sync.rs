@@ -11,6 +11,10 @@ use super::notice_codes::CODE_SYNC_FAILED;
 use super::sync_fingerprint::{self, Check, Record};
 
 /// Runs after `invocation` exited 0; never changes its exit code.
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "the bundle is built for this one call"
+)]
 pub(crate) fn after_success(invocation: &Invocation, env: Env<'_>) {
     let builds = matches!(
         invocation.command,

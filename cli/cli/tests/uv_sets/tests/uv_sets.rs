@@ -91,14 +91,14 @@ impl Index {
 
 fn runfile(var: &str) -> PathBuf {
     let path = env_file(var);
-    std::fs::canonicalize(&path).unwrap_or_else(|error| panic!("{var} {path:?}: {error}"))
+    std::fs::canonicalize(&path).unwrap_or_else(|error| panic!("{var} {}: {error}", path.display()))
 }
 
 fn write(path: &Path, text: &str) {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir: {error}"));
     }
-    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
+    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {}: {error}", path.display()));
 }
 
 fn read(path: &Path) -> Option<Vec<u8>> {
@@ -131,10 +131,12 @@ impl Consumer {
                     .arg(&path)
                     .arg(name)
                     .status()
-                    .unwrap_or_else(|error| panic!("build wheel with {python:?}: {error}"));
+                    .unwrap_or_else(|error| {
+                        panic!("build wheel with {}: {error}", python.display())
+                    });
                 assert!(built.success(), "wheel build failed");
-                let bytes =
-                    std::fs::read(&path).unwrap_or_else(|error| panic!("wheel {path:?}: {error}"));
+                let bytes = std::fs::read(&path)
+                    .unwrap_or_else(|error| panic!("wheel {}: {error}", path.display()));
                 (file.to_owned(), bytes)
             })
             .collect();

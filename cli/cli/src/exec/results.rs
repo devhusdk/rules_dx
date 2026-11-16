@@ -35,6 +35,10 @@ struct Insert {
 
 /// The fix for a dependency finding: None removes the entry, Some adds a label.
 /// A missing dependency that cannot be written in a BUILD file has no fix.
+#[expect(
+    clippy::option_option,
+    reason = "None skips the finding, Some(None) removes the entry"
+)]
 fn build_dep_fix(dep: &proto::BuildDep) -> Option<Option<Insert>> {
     if !dep.missing {
         return Some(None);
@@ -416,7 +420,12 @@ fn build_dep_producer(
         let mut cuts: Vec<(usize, usize)> = items
             .iter()
             .filter(|(_, fix)| fix.is_none())
-            .map(|(key, _)| (key.1 as usize, key.2 as usize))
+            .map(|(key, _)| {
+                (
+                    usize::try_from(key.1).unwrap_or(usize::MAX),
+                    usize::try_from(key.2).unwrap_or(usize::MAX),
+                )
+            })
             .filter(|(start, end)| start <= end && *end <= text.len())
             .filter(|(start, end)| text.is_char_boundary(*start) && text.is_char_boundary(*end))
             .map(|(start, end)| build_deps::removal(text, start, end))
@@ -787,7 +796,10 @@ mod tests {
         let placed = map_diagnostic(&diagnostic, Snapshot::Terminal, root.path()).expect("mapped");
         let (start, end) = placed.range.expect("range");
         assert_eq!(placed.path.as_deref(), Some("p/BUILD.bazel"));
-        assert_eq!(build.get(start as usize..end as usize), Some("\"//a:a\""));
+        assert_eq!(
+            build.get(usize::try_from(start).expect("start")..usize::try_from(end).expect("end")),
+            Some("\"//a:a\"")
+        );
 
         std::fs::remove_file(root.path().join("p/BUILD.bazel")).expect("remove");
         let kept = map_diagnostic(&diagnostic, Snapshot::Terminal, root.path()).expect("mapped");

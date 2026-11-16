@@ -70,7 +70,7 @@ fn resolve_logical_entries(
             replaces,
         });
     }
-    let mut seen: BTreeMap<String, &LogicalEntry> = BTreeMap::new();
+    let mut seen: BTreeMap<String, &LogicalEntry<'_>> = BTreeMap::new();
     for resolved in &entries {
         let folded = resolved.path.as_str().to_lowercase();
         if let Some(previous) = seen.insert(folded, resolved) {

@@ -626,14 +626,14 @@ mod tests {
         let mut central = Vec::new();
         for (name, content) in entries {
             let crc = crc32(content);
-            let size = content.len() as u32;
-            let offset = zip.len() as u32;
+            let size = u32::try_from(content.len()).unwrap_or(u32::MAX);
+            let offset = u32::try_from(zip.len()).unwrap_or(u32::MAX);
             zip.extend(0x0403_4b50u32.to_le_bytes());
             zip.extend([20, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
             zip.extend(crc.to_le_bytes());
             zip.extend(size.to_le_bytes());
             zip.extend(size.to_le_bytes());
-            zip.extend((name.len() as u16).to_le_bytes());
+            zip.extend(u16::try_from(name.len()).unwrap_or(u16::MAX).to_le_bytes());
             zip.extend([0, 0]);
             zip.extend(name.as_bytes());
             zip.extend(*content);
@@ -642,18 +642,26 @@ mod tests {
             central.extend(crc.to_le_bytes());
             central.extend(size.to_le_bytes());
             central.extend(size.to_le_bytes());
-            central.extend((name.len() as u16).to_le_bytes());
+            central.extend(u16::try_from(name.len()).unwrap_or(u16::MAX).to_le_bytes());
             central.extend([0; 12]);
             central.extend(offset.to_le_bytes());
             central.extend(name.as_bytes());
         }
-        let offset = zip.len() as u32;
+        let offset = u32::try_from(zip.len()).unwrap_or(u32::MAX);
         zip.extend(&central);
         zip.extend(0x0605_4b50u32.to_le_bytes());
         zip.extend([0, 0, 0, 0]);
-        zip.extend((entries.len() as u16).to_le_bytes());
-        zip.extend((entries.len() as u16).to_le_bytes());
-        zip.extend((central.len() as u32).to_le_bytes());
+        zip.extend(
+            u16::try_from(entries.len())
+                .unwrap_or(u16::MAX)
+                .to_le_bytes(),
+        );
+        zip.extend(
+            u16::try_from(entries.len())
+                .unwrap_or(u16::MAX)
+                .to_le_bytes(),
+        );
+        zip.extend((u32::try_from(central.len()).unwrap_or(u32::MAX)).to_le_bytes());
         zip.extend(offset.to_le_bytes());
         zip.extend([0, 0]);
         zip

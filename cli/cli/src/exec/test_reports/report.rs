@@ -209,6 +209,7 @@ pub(super) fn announce_incomplete(
 }
 
 /// Checks the cell's owned-source line coverage against `--min-coverage`; true when there is no minimum.
+#[expect(clippy::cast_precision_loss, reason = "display only")]
 pub(super) fn coverage_threshold(
     minimum: Option<u32>,
     account: Option<&CellAccount>,
@@ -265,6 +266,7 @@ pub(super) fn coverage_threshold(
 pub(super) const WORST_FILES: usize = 10;
 
 /// Prints the total coverage line (when no minimum prints it) and the least covered files.
+#[expect(clippy::cast_precision_loss, reason = "display only")]
 pub(super) fn coverage_summary(
     account: &CellAccount,
     show_total: bool,

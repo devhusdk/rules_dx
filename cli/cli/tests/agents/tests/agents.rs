@@ -23,14 +23,14 @@ fn repo_root() -> PathBuf {
 }
 
 fn read(path: &Path) -> String {
-    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
+    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {}: {error}", path.display()))
 }
 
 fn write(path: &Path, text: &str) {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir: {error}"));
     }
-    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
+    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {}: {error}", path.display()));
 }
 
 struct Env {
@@ -167,7 +167,8 @@ fn hook_commands(settings: &str) -> Vec<(String, String)> {
 fn hook(commands: &[(String, String)], event: &str) -> String {
     commands
         .iter()
-        .find(|(name, _)| name == event).map_or_else(|| panic!("no {event} hook"), |(_, command)| command.clone())
+        .find(|(name, _)| name == event)
+        .map_or_else(|| panic!("no {event} hook"), |(_, command)| command.clone())
 }
 
 fn cache_dx(env: &Env) {

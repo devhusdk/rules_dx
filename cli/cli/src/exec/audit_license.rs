@@ -9,7 +9,7 @@ use super::{
 
 pub(super) fn run_license(
     workspace: &Path,
-    sets: &[AuditTarget],
+    sets: &[AuditTarget<'_>],
     roots: &[String],
     fail_on: Threshold,
     today: &str,
@@ -72,8 +72,7 @@ pub(super) fn run_license(
     let mut licensed_all: Vec<dx_audit::locks::LicensedPackage> = Vec::new();
     let mut lock_paths: BTreeMap<String, LockPaths> = BTreeMap::new();
     let mut notice_present: BTreeMap<(String, String, String), bool> = BTreeMap::new();
-    let mut bazel_seen: std::collections::BTreeSet<(String, String)> =
-        std::collections::BTreeSet::new();
+    let mut bazel_seen: BTreeSet<(String, String)> = BTreeSet::new();
     let mut bazel_lock_of: BTreeMap<(String, String), String> = BTreeMap::new();
     let mut bazel_fallback: Option<String> = None;
     let uncovered: Vec<&str> = sets
@@ -198,7 +197,6 @@ pub(super) fn run_license(
         {
             incomplete = Some(format!("failed to assess {}: {error}", target.name()));
         }
-        continue;
     }
     if let Some(fallback) = bazel_fallback {
         lock_paths.insert(

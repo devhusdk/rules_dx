@@ -1,5 +1,7 @@
 use super::common::{Env, check_stdout_write, emit_built, pre_exec, report_dx_error};
-use super::update_outdated::{Collected, collect, registry_fetch, registry_for, split_builtin};
+use super::update_outdated::{
+    Builtins, Collected, collect, registry_fetch, registry_for, split_builtin,
+};
 use dx_adopt::dependency_sets::{self, Selection};
 use dx_error::DxError;
 use dx_output::{
@@ -7,7 +9,7 @@ use dx_output::{
     notice_event,
 };
 use dx_plan::args::Invocation;
-use dx_update::discover::Fetch;
+use dx_update::discover::{Candidate, Fetch, Findings, Registry};
 use dx_update::policy::{Level, Policy, automerge, filter};
 use dx_update::pr::{GroupPlan, Item, Scope, body, lock_numstat, pick_tags, plan};
 use std::collections::BTreeMap;
@@ -75,21 +77,9 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
     } = env;
     let (builtins, selectors) = split_builtin(&invocation.targets);
     let only_builtins = !invocation.targets.is_empty() && selectors.is_empty();
-    let resolved = if only_builtins {
-        Vec::new()
-    } else {
-        match dependency_sets::load(workspace) {
-            Ok(Some(registry)) => match dependency_sets::resolve(&registry, &selectors) {
-                Ok(resolved) => resolved,
-                Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
-            },
-            Ok(None) if selectors.is_empty() => Vec::new(),
-            Ok(None) => {
-                let message = super::update::no_sets_message(workspace);
-                return pre_exec(invocation.output, out, err, &message);
-            }
-            Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
-        }
+    let resolved = match load_resolved(workspace, &selectors, only_builtins) {
+        Ok(resolved) => resolved,
+        Err(message) => return pre_exec(invocation.output, out, err, &message),
     };
     let json = invocation.output == OutputMode::Json;
     if json && let Err(exit) = emit_built(out, command_started("update", "default")) {
@@ -99,37 +89,14 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
         found, registries, ..
     } = collect(workspace, &resolved, &builtins, false, fetch);
     let min_age = invocation.min_age.unwrap_or(DEFAULT_MIN_AGE);
-    let cutoff = (min_age > 0)
-        .then(|| {
-            let today = super::audit::today_utc(audit_today);
-            let date = chrono::NaiveDate::parse_from_str(&today, "%Y-%m-%d").ok()?;
-            let back = date.checked_sub_days(chrono::Days::new(u64::from(min_age)))?;
-            Some(back.format("%Y-%m-%d").to_string())
-        })
-        .flatten();
+    let cutoff = cutoff_date(min_age, audit_today);
     let policy = Policy {
         allow_major: invocation.allow_major,
         cutoff,
     };
     let (kept, skipped) = filter(&found.candidates, &policy);
     for skip in &skipped {
-        let c = &skip.candidate;
-        let line = format!(
-            "skipped {}:{} {} -> {}: {}",
-            c.set, c.package, c.current, c.latest, skip.reason
-        );
-        let written = if json {
-            emit_built(
-                out,
-                notice_event(&NoticeEvent {
-                    scope: Some(vec![format!("{}:{}", c.set, c.package)]),
-                    ..NoticeEvent::info(CODE_UPDATE_PR_SKIPPED, line)
-                }),
-            )
-        } else {
-            check_stdout_write(writeln!(out, "{line}"))
-        };
-        if let Err(exit) = written {
+        if let Err(exit) = emit_skip(out, json, &skip.candidate, &skip.reason) {
             return exit;
         }
     }
@@ -137,34 +104,187 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
         automerge: Level::limit(invocation.automerge.as_deref().unwrap_or("patch")),
         max_prs: invocation.max_prs.map_or(DEFAULT_MAX_PRS, usize::from),
     };
+    let items = match build_items(&kept, &registries, tools, workspace, json, out) {
+        Ok(items) => items,
+        Err(exit) => return exit,
+    };
+    let plans = plan(&items);
+    let locks = lock_paths(&resolved);
+    let full_sets = full_set_names(&resolved, &builtins);
+    let scope = scope_of(full_sets, &found);
+    let mut step = |words: &[String]| -> Result<(), DxError> {
+        let inner =
+            dx_plan::args::parse(words).map_err(|error| DxError::failure(format!("{error:?}")))?;
+        let mut step_out = Vec::new();
+        let mut step_err = Vec::new();
+        let code = super::dispatch_inner(
+            &inner,
+            Env {
+                workspace,
+                runner,
+                query_runner,
+                temp_dir,
+                pid,
+                nonce,
+                out: &mut step_out,
+                err: &mut step_err,
+                ci,
+                audit_today,
+                actions,
+                proc_root,
+                edit_commit_json,
+            },
+        );
+        if code == 0 {
+            return Ok(());
+        }
+        Err(step_failure(words, code, &step_err, &step_out))
+    };
+    let outcomes = match publish(workspace, tools, &plans, &scope, &rules, &locks, &mut step) {
+        Ok(outcomes) => outcomes,
+        Err(reason) => {
+            return report_dx_error(invocation.output, out, err, CODE_UPDATE_PR_FAILED, &reason);
+        }
+    };
+    report_outcomes(out, err, &outcomes, &found.errors, json)
+}
+
+fn step_failure(words: &[String], code: i32, step_err: &[u8], step_out: &[u8]) -> DxError {
+    let mut text = String::from_utf8_lossy(step_err).into_owned();
+    text.push_str(&String::from_utf8_lossy(step_out));
+    DxError::failure(format!(
+        "dx {} exited {code}: {}",
+        words.join(" "),
+        tail(&text)
+    ))
+}
+
+fn scope_of(full_sets: Vec<String>, found: &Findings) -> Scope {
+    let pending = found
+        .errors
+        .iter()
+        .map(|error| error.set.as_str())
+        .chain(found.candidates.iter().map(|c| c.set.as_str()));
+    Scope::new(full_sets).without(pending)
+}
+
+fn lock_paths(resolved: &[dependency_sets::ResolvedTarget]) -> Vec<String> {
+    resolved
+        .iter()
+        .flat_map(|target| target.set.locks.iter().cloned())
+        .collect()
+}
+
+fn full_set_names(
+    resolved: &[dependency_sets::ResolvedTarget],
+    builtins: &Builtins,
+) -> Vec<String> {
+    let mut full_sets: Vec<String> = resolved
+        .iter()
+        .filter(|target| matches!(target.request, Selection::Full))
+        .map(|target| target.set.name.clone())
+        .collect();
+    if builtins.selects_all_actions() {
+        full_sets.push(dx_update::discover::github::ACTIONS_SET.to_owned());
+    }
+    if builtins.selects_all_containers() {
+        full_sets.push(dx_update::discover::containers::SET.to_owned());
+    }
+    if builtins.selects_all_pins() {
+        full_sets.push(dx_update::pins::SET.to_owned());
+    }
+    full_sets
+}
+
+fn report_outcomes(
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    outcomes: &[Outcome],
+    errors: &[dx_update::discover::LookupError],
+    json: bool,
+) -> i32 {
+    let failed = outcomes.iter().any(|outcome| outcome.result.is_err());
+    let exit = i32::from(failed || !errors.is_empty());
+    for error in errors {
+        writeln!(
+            err,
+            "dx: {CODE_UPDATE_PR_LOOKUP}: {}:{} ({})",
+            error.set, error.package, error.reason
+        )
+        .ok();
+    }
+    if let Err(code) = emit(out, outcomes, json, exit) {
+        return code;
+    }
+    exit
+}
+
+fn load_resolved(
+    workspace: &Path,
+    selectors: &[String],
+    only_builtins: bool,
+) -> Result<Vec<dependency_sets::ResolvedTarget>, String> {
+    if only_builtins {
+        return Ok(Vec::new());
+    }
+    match dependency_sets::load(workspace) {
+        Ok(Some(registry)) => {
+            dependency_sets::resolve(&registry, selectors).map_err(|error| error.to_string())
+        }
+        Ok(None) if selectors.is_empty() => Ok(Vec::new()),
+        Ok(None) => Err(super::update::no_sets_message(workspace)),
+        Err(error) => Err(error.to_string()),
+    }
+}
+
+fn cutoff_date(min_age: u32, audit_today: Option<&str>) -> Option<String> {
+    (min_age > 0)
+        .then(|| {
+            let today = super::audit::today_utc(audit_today);
+            let date = chrono::NaiveDate::parse_from_str(&today, "%Y-%m-%d").ok()?;
+            let back = date.checked_sub_days(chrono::Days::new(u64::from(min_age)))?;
+            Some(back.format("%Y-%m-%d").to_string())
+        })
+        .flatten()
+}
+
+fn emit_skip(
+    out: &mut dyn Write,
+    json: bool,
+    c: &Candidate,
+    reason: &dyn std::fmt::Display,
+) -> Result<(), i32> {
+    let line = format!(
+        "skipped {}:{} {} -> {}: {}",
+        c.set, c.package, c.current, c.latest, reason
+    );
+    if json {
+        emit_built(
+            out,
+            notice_event(&NoticeEvent {
+                scope: Some(vec![format!("{}:{}", c.set, c.package)]),
+                ..NoticeEvent::info(CODE_UPDATE_PR_SKIPPED, line)
+            }),
+        )
+    } else {
+        check_stdout_write(writeln!(out, "{line}"))
+    }
+}
+
+fn build_items(
+    kept: &[Candidate],
+    registries: &BTreeMap<String, Registry>,
+    tools: &Tools,
+    workspace: &Path,
+    json: bool,
+    out: &mut dyn Write,
+) -> Result<Vec<Item>, i32> {
     let mut items: Vec<Item> = Vec::new();
     let mut listings: BTreeMap<String, String> = BTreeMap::new();
-    for candidate in &kept {
-        let registry = registry_for(&registries, candidate).ok_or("no registry");
-        let registry = match registry {
-            Ok(registry) => registry,
-            Err(reason) => {
-                let c = candidate;
-                let line = format!(
-                    "skipped {}:{} {} -> {}: {}",
-                    c.set, c.package, c.current, c.latest, reason
-                );
-                let written = if json {
-                    emit_built(
-                        out,
-                        notice_event(&NoticeEvent {
-                            scope: Some(vec![format!("{}:{}", c.set, c.package)]),
-                            ..NoticeEvent::info(CODE_UPDATE_PR_SKIPPED, line)
-                        }),
-                    )
-                } else {
-                    check_stdout_write(writeln!(out, "{line}"))
-                };
-                if let Err(exit) = written {
-                    return exit;
-                }
-                continue;
-            }
+    for candidate in kept {
+        let Some(registry) = registry_for(registries, candidate) else {
+            emit_skip(out, json, candidate, &"no registry")?;
+            continue;
         };
         let mut candidate = candidate.clone();
         let mut untagged = false;
@@ -192,85 +312,7 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
             untagged,
         });
     }
-    let plans = plan(&items);
-    let locks: Vec<String> = resolved
-        .iter()
-        .flat_map(|target| target.set.locks.iter().cloned())
-        .collect();
-    let mut full_sets: Vec<String> = resolved
-        .iter()
-        .filter(|target| matches!(target.request, Selection::Full))
-        .map(|target| target.set.name.clone())
-        .collect();
-    if builtins.selects_all_actions() {
-        full_sets.push(dx_update::discover::github::ACTIONS_SET.to_owned());
-    }
-    if builtins.selects_all_containers() {
-        full_sets.push(dx_update::discover::containers::SET.to_owned());
-    }
-    if builtins.selects_all_pins() {
-        full_sets.push(dx_update::pins::SET.to_owned());
-    }
-    let pending = found
-        .errors
-        .iter()
-        .map(|error| error.set.as_str())
-        .chain(found.candidates.iter().map(|c| c.set.as_str()));
-    let scope = Scope::new(full_sets).without(pending);
-    let mut step = |words: &[String]| -> Result<(), DxError> {
-        let inner =
-            dx_plan::args::parse(words).map_err(|error| DxError::failure(format!("{error:?}")))?;
-        let mut step_out = Vec::new();
-        let mut step_err = Vec::new();
-        let code = super::dispatch_inner(
-            &inner,
-            Env {
-                workspace,
-                runner,
-                query_runner,
-                temp_dir,
-                pid,
-                nonce,
-                out: &mut step_out,
-                err: &mut step_err,
-                ci,
-                audit_today,
-                actions,
-                proc_root,
-                edit_commit_json,
-            },
-        );
-        if code == 0 {
-            return Ok(());
-        }
-        let mut text = String::from_utf8_lossy(&step_err).into_owned();
-        text.push_str(&String::from_utf8_lossy(&step_out));
-        Err(DxError::failure(format!(
-            "dx {} exited {code}: {}",
-            words.join(" "),
-            tail(&text)
-        )))
-    };
-    let outcomes = match publish(workspace, tools, &plans, &scope, &rules, &locks, &mut step) {
-        Ok(outcomes) => outcomes,
-        Err(reason) => {
-            return report_dx_error(invocation.output, out, err, CODE_UPDATE_PR_FAILED, &reason);
-        }
-    };
-    let failed = outcomes.iter().any(|outcome| outcome.result.is_err());
-    let exit = i32::from(failed || !found.errors.is_empty());
-    for error in &found.errors {
-        writeln!(
-            err,
-            "dx: {CODE_UPDATE_PR_LOOKUP}: {}:{} ({})",
-            error.set, error.package, error.reason
-        )
-        .ok();
-    }
-    if let Err(code) = emit(out, &outcomes, json, exit) {
-        return code;
-    }
-    exit
+    Ok(items)
 }
 
 pub(super) fn tail(text: &str) -> String {
@@ -534,23 +576,7 @@ pub(super) fn open_update_prs(
         .collect())
 }
 
-fn publish_one(
-    root: &Path,
-    tools: &Tools,
-    group: &GroupPlan,
-    target: &Target<'_>,
-    step: &mut Step<'_>,
-) -> Result<String, DxError> {
-    let Target {
-        base,
-        sha,
-        existing,
-        rules,
-        locks,
-    } = *target;
-    let git = |args: &[&str]| program(&tools.git, root, args);
-    let branch = group.branch.as_str();
-    git(&["checkout", "-B", branch, sha])?;
+fn apply_updates(group: &GroupPlan, step: &mut Step<'_>) -> Result<(), DxError> {
     let mut sets: Vec<&str> = Vec::new();
     for item in &group.items {
         let c = &item.candidate;
@@ -574,10 +600,13 @@ fn publish_one(
     }
     step(&["check".to_owned(), "--affected".to_owned()])?;
     step(&["test".to_owned(), "--affected".to_owned()])?;
-    if git(&["status", "--porcelain"])?.trim().is_empty() {
-        return Ok("nothing to change".to_owned());
-    }
-    git(&["add", "-A"])?;
+    Ok(())
+}
+
+fn commit_all(
+    git: &dyn Fn(&[&str]) -> Result<String, DxError>,
+    group: &GroupPlan,
+) -> Result<(), DxError> {
     let identity = git(&["config", "user.email"]).map_or(true, |email| email.trim().is_empty());
     let mut commit = Vec::new();
     if identity {
@@ -591,8 +620,10 @@ fn publish_one(
     commit.extend(["commit".to_owned(), "-m".to_owned(), group.title.clone()]);
     let commit: Vec<&str> = commit.iter().map(String::as_str).collect();
     git(&commit)?;
-    let numstat = git(&["diff", "--numstat", sha, "HEAD"])?;
-    let text = body(group, &lock_numstat(&numstat, locks));
+    Ok(())
+}
+
+fn refresh_tracking(git: &dyn Fn(&[&str]) -> Result<String, DxError>, branch: &str) {
     let tracking = format!("refs/remotes/origin/{branch}");
     let fetched = git(&[
         "fetch",
@@ -603,16 +634,52 @@ fn publish_one(
         // The remote branch is gone; a stale tracking ref would fail the lease.
         git(&["update-ref", "-d", &tracking]).ok();
     }
-    if let Some(number) = existing {
-        let remote = format!("origin/{branch}");
-        let same_tree = git(&["rev-parse", &format!("{remote}^{{tree}}")])
-            .ok()
-            .zip(git(&["rev-parse", "HEAD^{tree}"]).ok())
-            .is_some_and(|(a, b)| a == b);
-        let same_parent = git(&["rev-parse", &format!("{remote}^")]).is_ok_and(|p| p.trim() == sha);
-        if same_tree && same_parent {
-            return Ok(format!("unchanged #{number}"));
-        }
+}
+
+fn remote_unchanged(
+    git: &dyn Fn(&[&str]) -> Result<String, DxError>,
+    branch: &str,
+    sha: &str,
+) -> bool {
+    let remote = format!("origin/{branch}");
+    let same_tree = git(&["rev-parse", &format!("{remote}^{{tree}}")])
+        .ok()
+        .zip(git(&["rev-parse", "HEAD^{tree}"]).ok())
+        .is_some_and(|(a, b)| a == b);
+    let same_parent = git(&["rev-parse", &format!("{remote}^")]).is_ok_and(|p| p.trim() == sha);
+    same_tree && same_parent
+}
+
+fn publish_one(
+    root: &Path,
+    tools: &Tools,
+    group: &GroupPlan,
+    target: &Target<'_>,
+    step: &mut Step<'_>,
+) -> Result<String, DxError> {
+    let Target {
+        base,
+        sha,
+        existing,
+        rules,
+        locks,
+    } = *target;
+    let git = |args: &[&str]| program(&tools.git, root, args);
+    let branch = group.branch.as_str();
+    git(&["checkout", "-B", branch, sha])?;
+    apply_updates(group, step)?;
+    if git(&["status", "--porcelain"])?.trim().is_empty() {
+        return Ok("nothing to change".to_owned());
+    }
+    git(&["add", "-A"])?;
+    commit_all(&git, group)?;
+    let numstat = git(&["diff", "--numstat", sha, "HEAD"])?;
+    let text = body(group, &lock_numstat(&numstat, locks));
+    refresh_tracking(&git, branch);
+    if let Some(number) = existing
+        && remote_unchanged(&git, branch, sha)
+    {
+        return Ok(format!("unchanged #{number}"));
     }
     if !push(tools, root, branch)? {
         return Ok(WORKFLOW_SKIP.to_owned());
@@ -670,7 +737,6 @@ fn publish_one(
 mod tests {
     use super::*;
     use dx_adopt::dependency_sets::Ecosystem;
-    use dx_update::discover::{Candidate, Registry};
 
     fn manifest_of(ecosystem: Ecosystem) -> &'static str {
         ecosystem.manifest_name()

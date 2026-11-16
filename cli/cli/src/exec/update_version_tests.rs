@@ -1346,8 +1346,13 @@ fn gha_tag_fetch_error_and_offline_resolve_nothing() {
     assert_eq!(calls.get(), 0);
 }
 
-#[test]
-fn live_github_tag_resolution_matrix() {
+const GHA_SHA: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+fn gha_commit_json() -> String {
+    format!("{{\"sha\": \"{GHA_SHA}\", \"commit\": {{\"message\": \"v5\"}}}}")
+}
+
+fn gha_tag_offline_is_refused() {
     let harness = Harness::new("update-live-gha-tag");
     harness.write_source(
         ".github/workflows/ci.yml",
@@ -1362,9 +1367,11 @@ fn live_github_tag_resolution_matrix() {
     ]);
     assert_eq!(code, 1, "{err}");
     assert!(err.contains("offline_required"), "{err}");
+}
 
-    let sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-    let commit_json = format!("{{\"sha\": \"{sha}\", \"commit\": {{\"message\": \"v5\"}}}}");
+fn gha_tag_resolves_and_widens_every_workflow() {
+    let sha = GHA_SHA;
+    let commit_json = gha_commit_json();
     let mut harness = Harness::new("update-live-gha-resolved");
     harness.write_source(
         ".github/workflows/ci.yml",
@@ -1409,7 +1416,11 @@ fn live_github_tag_resolution_matrix() {
         "{out}"
     );
     assert_eq!(events.last().expect("finished")["exit_code"], 0);
+}
 
+fn gha_tag_already_current_is_no_change() {
+    let sha = GHA_SHA;
+    let commit_json = gha_commit_json();
     let mut harness = Harness::new("update-live-gha-nochange");
     harness.write_source(
         ".github/workflows/ci.yml",
@@ -1445,7 +1456,9 @@ fn live_github_tag_resolution_matrix() {
     assert_eq!(code, 0, "{out}{err}");
     assert!(out.contains("no-change"), "{out}");
     assert!(err.is_empty(), "{err}");
+}
 
+fn gha_tag_failed_lookup_does_not_widen() {
     for (name, body) in [
         ("missing-file", None),
         ("invalid-json", Some("not json")),
@@ -1480,6 +1493,14 @@ fn live_github_tag_resolution_matrix() {
             "{name}: failed lookup must not widen"
         );
     }
+}
+
+#[test]
+fn live_github_tag_resolution_matrix() {
+    gha_tag_offline_is_refused();
+    gha_tag_resolves_and_widens_every_workflow();
+    gha_tag_already_current_is_no_change();
+    gha_tag_failed_lookup_does_not_widen();
 }
 
 #[test]

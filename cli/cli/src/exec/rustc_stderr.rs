@@ -329,17 +329,7 @@ fn parse_rendered(text: &str) -> Vec<ActionDiagnostic> {
         if let Some((path, row, column)) = rendered_location(line) {
             file = Some(path.clone());
             source_line = None;
-            if let Some(index) = pending.take() {
-                if let Some(item) = last.related.get_mut(index) {
-                    item.file = Some(path);
-                    item.line = positive(row);
-                    item.column = positive(column);
-                }
-            } else if last.file.is_none() {
-                last.file = Some(path);
-                last.line = positive(row);
-                last.column = positive(column);
-            }
+            place_location(last, pending.take(), path, row, column);
             continue;
         }
         let trimmed = line.trim_start();
@@ -381,6 +371,30 @@ fn parse_rendered(text: &str) -> Vec<ActionDiagnostic> {
         }
         connector = !content.is_empty() && content.chars().all(|c| c == '|' || c == ' ');
     }
+    prune_summaries(found)
+}
+
+fn place_location(
+    last: &mut ActionDiagnostic,
+    pending: Option<usize>,
+    path: String,
+    row: u64,
+    column: u64,
+) {
+    if let Some(index) = pending {
+        if let Some(item) = last.related.get_mut(index) {
+            item.file = Some(path);
+            item.line = positive(row);
+            item.column = positive(column);
+        }
+    } else if last.file.is_none() {
+        last.file = Some(path);
+        last.line = positive(row);
+        last.column = positive(column);
+    }
+}
+
+fn prune_summaries(mut found: Vec<ActionDiagnostic>) -> Vec<ActionDiagnostic> {
     for item in &mut found {
         if item.message.starts_with("linking with") {
             item.related.clear();

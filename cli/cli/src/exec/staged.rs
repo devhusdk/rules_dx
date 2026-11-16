@@ -127,20 +127,10 @@ pub(super) fn run_staged_core(
         Ok(scratch) => scratch,
         Err(error) => fail!("cannot create scratch directory: {error}"),
     };
-    let inputs_dir = run.inputs_dir(&scratch.0);
-    let mut staged_inputs: BTreeMap<String, Vec<u8>> = BTreeMap::new();
-    for rel in &run.inputs {
-        let copied = dx_path::workspace::resolve_target_in_workspace(workspace, rel)
-            .and_then(std::fs::read)
-            .and_then(|bytes| {
-                std::fs::write(inputs_dir.join(file_name(rel)), &bytes)?;
-                staged_inputs.insert(file_name(rel).to_owned(), bytes);
-                Ok(())
-            });
-        if let Err(error) = copied {
-            fail!("cannot stage {rel}: {error}");
-        }
-    }
+    let staged_inputs = match stage_inputs(run, workspace, &scratch.0) {
+        Ok(staged) => staged,
+        Err(error) => fail!("{error}"),
+    };
     let argv = match run.argv(&scratch.0) {
         Ok(argv) => argv,
         Err(error) => fail!("{error}"),
@@ -164,31 +154,65 @@ pub(super) fn run_staged_core(
             None => fail!("updater terminated by signal"),
         },
     }
-    let mut generated: BTreeMap<String, Vec<u8>> = BTreeMap::new();
-    match std::fs::read_dir(scratch.0.join("out")) {
-        Ok(entries) => {
-            for entry in entries.flatten() {
-                let name = entry.file_name().to_string_lossy().into_owned();
-                match std::fs::read(entry.path()) {
-                    Ok(bytes) => {
-                        generated.insert(name, bytes);
-                    }
-                    Err(error) => {
-                        fail!("cannot read generated {name}: {error}");
-                    }
-                }
-            }
-        }
-        Err(error) => {
-            fail!("cannot read generated files: {error}");
-        }
-    }
+    let mut generated = match read_generated(&scratch.0) {
+        Ok(generated) => generated,
+        Err(error) => fail!("{error}"),
+    };
     let declared: BTreeMap<&str, &String> = run
         .outputs
         .iter()
         .map(|rel| (file_name(rel), rel))
         .collect();
-    // An input the tool left as it found it is not output.
+    if let Err(error) = check_generated(run, &declared, &staged_inputs, &mut generated) {
+        fail!("{error}");
+    }
+    Ok(differing_locks(workspace, &declared, &generated))
+}
+
+fn stage_inputs(
+    run: &StagedRun,
+    workspace: &std::path::Path,
+    scratch: &std::path::Path,
+) -> Result<BTreeMap<String, Vec<u8>>, String> {
+    let inputs_dir = run.inputs_dir(scratch);
+    let mut staged_inputs: BTreeMap<String, Vec<u8>> = BTreeMap::new();
+    for rel in &run.inputs {
+        let copied = dx_path::workspace::resolve_target_in_workspace(workspace, rel)
+            .and_then(std::fs::read)
+            .and_then(|bytes| {
+                std::fs::write(inputs_dir.join(file_name(rel)), &bytes)?;
+                staged_inputs.insert(file_name(rel).to_owned(), bytes);
+                Ok(())
+            });
+        if let Err(error) = copied {
+            return Err(format!("cannot stage {rel}: {error}"));
+        }
+    }
+    Ok(staged_inputs)
+}
+
+fn read_generated(scratch: &std::path::Path) -> Result<BTreeMap<String, Vec<u8>>, String> {
+    let mut generated: BTreeMap<String, Vec<u8>> = BTreeMap::new();
+    let entries = std::fs::read_dir(scratch.join("out"))
+        .map_err(|error| format!("cannot read generated files: {error}"))?;
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        match std::fs::read(entry.path()) {
+            Ok(bytes) => {
+                generated.insert(name, bytes);
+            }
+            Err(error) => return Err(format!("cannot read generated {name}: {error}")),
+        }
+    }
+    Ok(generated)
+}
+
+fn check_generated(
+    run: &StagedRun,
+    declared: &BTreeMap<&str, &String>,
+    staged_inputs: &BTreeMap<String, Vec<u8>>,
+    generated: &mut BTreeMap<String, Vec<u8>>,
+) -> Result<(), String> {
     let mut changed_inputs: Vec<String> = Vec::new();
     generated.retain(|name, bytes| match staged_inputs.get(name) {
         Some(original) if !declared.contains_key(name.as_str()) => {
@@ -201,10 +225,10 @@ pub(super) fn run_staged_core(
     });
     if !changed_inputs.is_empty() {
         let names = changed_inputs.join(", ");
-        fail!(
+        return Err(format!(
             "{} changed {names}; dx writes only declared locks",
             run.tool_name()
-        );
+        ));
     }
     let undeclared: Vec<&str> = generated
         .keys()
@@ -212,11 +236,11 @@ pub(super) fn run_staged_core(
         .filter(|name| !declared.contains_key(name))
         .collect();
     if !undeclared.is_empty() {
-        fail!(
+        return Err(format!(
             "{} generated files not declared in locks: {}; list them in the set's locks",
             run.tool_name(),
             undeclared.join(", ")
-        );
+        ));
     }
     let missing: Vec<&str> = declared
         .iter()
@@ -224,14 +248,22 @@ pub(super) fn run_staged_core(
         .map(|(_, rel)| rel.as_str())
         .collect();
     if !missing.is_empty() {
-        fail!(
+        return Err(format!(
             "{} did not generate declared locks: {}",
             run.tool_name(),
             missing.join(", ")
-        );
+        ));
     }
+    Ok(())
+}
+
+fn differing_locks(
+    workspace: &std::path::Path,
+    declared: &BTreeMap<&str, &String>,
+    generated: &BTreeMap<String, Vec<u8>>,
+) -> Vec<Differing> {
     let mut differing: Vec<Differing> = Vec::new();
-    for (name, rel) in &declared {
+    for (name, rel) in declared {
         let Some(bytes) = generated.get(*name) else {
             continue;
         };
@@ -242,7 +274,7 @@ pub(super) fn run_staged_core(
             differing.push(((*rel).clone(), bytes.clone()));
         }
     }
-    Ok(differing)
+    differing
 }
 
 /// Writes each differing lock into the workspace. The error is the failure detail.

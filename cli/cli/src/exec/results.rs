@@ -542,6 +542,85 @@ pub(crate) fn collect_results(
     collect_results_in(bep, OUTPUT_GROUP, workspace, repo_mapping)
 }
 
+fn account_problems(account: &dx_bep::OutputAccount) -> Vec<String> {
+    let mut problems = Vec::new();
+    if let Some(problem) = &account.problem {
+        problems.push(format!("build events cut off at {problem}"));
+    }
+    let missing =
+        |gap: &&dx_bep::EventGap| !gap.is_skipped() && gap.aborted.as_deref() != Some("NO_BUILD");
+    for gap in account.gaps.iter().filter(missing) {
+        problems.push(gap.describe());
+    }
+    if !account.ended {
+        problems.push("build events ended before Bazel's last event".to_owned());
+    }
+    problems
+}
+
+fn label_origins(staged: &mut Staged, target: &dx_bep::TargetOutput) {
+    for origin in staged
+        .initial
+        .iter_mut()
+        .chain(staged.terminal.iter_mut())
+        .flat_map(|diagnostic| diagnostic.origins.iter_mut())
+    {
+        origin.target.clone_from(&target.label);
+        origin.configuration.clone_from(&target.configuration);
+    }
+}
+
+fn merge_originals(
+    originals: &mut BTreeMap<String, Option<[u8; 32]>>,
+    incoming: &[(String, [u8; 32])],
+) {
+    for (path, digest) in incoming {
+        originals
+            .entry(path.clone())
+            .and_modify(|held| {
+                if *held != Some(*digest) {
+                    *held = None;
+                }
+            })
+            .or_insert(Some(*digest));
+    }
+}
+
+fn stage_target(
+    target: &dx_bep::TargetOutput,
+    workspace: &Path,
+    seen: &mut BTreeSet<String>,
+) -> Option<Staged> {
+    let mut staged = Staged::default();
+    for artifact in &target.artifacts {
+        if !seen.insert(artifact.exec_path.clone()) {
+            continue;
+        }
+        staged.absorb(stage_artifact(&artifact.bytes, workspace)?);
+    }
+    Some(staged)
+}
+
+fn mark_removals_fixable(
+    initial: &mut [DiagnosticEvent],
+    changes: &[FileChange],
+    removed_paths: &BTreeSet<String>,
+    fixed: &BTreeSet<BuildDepKey>,
+) {
+    for event in initial {
+        let applied = event
+            .path
+            .as_ref()
+            .is_some_and(|path| changes.iter().any(|change| &change.path == path));
+        if applied
+            && removed_paths.contains(event.path.as_deref().unwrap_or(""))
+            && build_dep_key(event).is_some_and(|key| fixed.contains(&key))
+        {
+            event.fixable = true;
+        }
+    }
+}
+
 pub(crate) fn collect_results_in(
     bep: &Path,
     group: &str,
@@ -557,19 +636,7 @@ pub(crate) fn collect_results_in(
     let mut build_dep_keys = BTreeMap::new();
     let mut complete = true;
     let mut seen = BTreeSet::new();
-    let mut problems = Vec::new();
-    if let Some(problem) = &account.problem {
-        problems.push(format!("build events cut off at {problem}"));
-    }
-    // `--nobuild` stops after analysis, so no target reports a result and none is missing.
-    let missing =
-        |gap: &&dx_bep::EventGap| !gap.is_skipped() && gap.aborted.as_deref() != Some("NO_BUILD");
-    for gap in account.gaps.iter().filter(missing) {
-        problems.push(gap.describe());
-    }
-    if !account.ended {
-        problems.push("build events ended before Bazel's last event".to_owned());
-    }
+    let mut problems = account_problems(&account);
     for target in &account.targets {
         if target.incomplete {
             problems.push(format!(
@@ -581,50 +648,21 @@ pub(crate) fn collect_results_in(
             complete = false;
             continue;
         }
-        let mut staged = Staged::default();
-        let mut staged_ok = true;
-        for artifact in &target.artifacts {
-            if !seen.insert(artifact.exec_path.clone()) {
-                continue;
-            }
-            let Some(part) = stage_artifact(&artifact.bytes, workspace) else {
-                staged_ok = false;
-                break;
-            };
-            staged.absorb(part);
-        }
-        if !staged_ok {
+        let Some(mut staged) = stage_target(target, workspace, &mut seen) else {
             problems.push(format!(
                 "{} reported an invalid quality result",
                 target.label
             ));
             continue;
-        }
-        for origin in staged
-            .initial
-            .iter_mut()
-            .chain(staged.terminal.iter_mut())
-            .flat_map(|diagnostic| diagnostic.origins.iter_mut())
-        {
-            origin.target.clone_from(&target.label);
-            origin.configuration.clone_from(&target.configuration);
-        }
+        };
+        label_origins(&mut staged, target);
         tools.extend(staged.tools.iter().cloned());
         for mut item in staged.unstable {
             item.label.clone_from(&target.label);
             item.configuration.clone_from(&target.configuration);
             unstable.push(item);
         }
-        for (path, digest) in &staged.originals {
-            originals
-                .entry(path.clone())
-                .and_modify(|held| {
-                    if *held != Some(*digest) {
-                        *held = None;
-                    }
-                })
-                .or_insert(Some(*digest));
-        }
+        merge_originals(&mut originals, &staged.originals);
         build_dep_keys.extend(staged.build_deps);
         initial.extend(staged.initial);
         producers.push(Producer {
@@ -650,31 +688,11 @@ pub(crate) fn collect_results_in(
     }
     let removed_paths: BTreeSet<String> = removed.iter().map(|path| (*path).to_owned()).collect();
     if let Some(producer) = removal {
-        for (path, digest) in &producer.originals {
-            originals
-                .entry(path.clone())
-                .and_modify(|held| {
-                    if *held != Some(*digest) {
-                        *held = None;
-                    }
-                })
-                .or_insert(Some(*digest));
-        }
+        merge_originals(&mut originals, &producer.originals);
         producers.push(producer);
     }
     let reconciled = reconcile(workspace, producers);
-    for event in &mut initial {
-        let applied = event
-            .path
-            .as_ref()
-            .is_some_and(|path| reconciled.changes.iter().any(|change| &change.path == path));
-        if applied
-            && removed_paths.contains(event.path.as_deref().unwrap_or(""))
-            && build_dep_key(event).is_some_and(|key| fixed.contains(&key))
-        {
-            event.fixable = true;
-        }
-    }
+    mark_removals_fixable(&mut initial, &reconciled.changes, &removed_paths, &fixed);
     let mut terminal_digests = reconciled.digests;
     record_placed_build_files(
         workspace,

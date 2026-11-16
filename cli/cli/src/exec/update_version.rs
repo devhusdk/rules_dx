@@ -44,52 +44,16 @@ pub(crate) fn execute_update_version(invocation: &Invocation, env: Env<'_>) -> i
             "update needs exactly <selector> <version>",
         );
     };
-    let request = match configured_request(invocation, out, err, workspace) {
-        Ok(Some(request)) => request,
-        Ok(None) => {
-            let head = selector
-                .split_once(':')
-                .map_or(selector.as_str(), |(h, _)| h);
-            if !head.is_empty()
-                && !version.is_empty()
-                && !dx_update::edit::UpdateSet::builtin_names().contains(&head)
-            {
-                let message = dep_edit::unknown_set_error(workspace, head);
-                return pre_exec(invocation.output, out, err, &message);
-            }
-            match dx_update::edit::UpdateRequest::parse(selector, version) {
-                Ok(request) => request,
-                Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
-            }
-        }
-        Err(exit) => return exit,
-    };
-    let request = match dx_update::edit::DepVersion::from_flags(
-        invocation.floor,
-        invocation.reason.as_deref(),
-    )
-    .and_then(|target| request.with_dep_version(target))
-    {
-        Ok(request) => request,
-        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
-    };
-    let lazy_fetch = |url: &str| super::update_outdated::registry_fetch().get(url);
-    let request = match resolve_gha_tag_request(
-        &request,
+    let request = match build_request(
+        invocation,
+        out,
+        err,
+        workspace,
         edit_commit_json,
-        invocation.offline,
-        &lazy_fetch,
+        (selector, version),
     ) {
         Ok(request) => request,
-        Err((code, error)) => {
-            return report_dx_error(invocation.output, out, err, code, &error);
-        }
-    };
-    let request = match resolve_pins_request(&request, workspace, invocation.offline) {
-        Ok(request) => request,
-        Err((code, error)) => {
-            return report_dx_error(invocation.output, out, err, code, &error);
-        }
+        Err(exit) => return exit,
     };
     let request_summary = match request.summary() {
         Ok(summary) => summary,
@@ -149,6 +113,35 @@ pub(crate) fn execute_update_version(invocation: &Invocation, env: Env<'_>) -> i
     if planned.iter().all(|(_, _, changed)| !changed) {
         return emit_update_no_change(invocation, out, &request, &planned, verbose);
     }
+    apply_widen(
+        invocation,
+        dep_edit::EditIo {
+            workspace,
+            runner,
+            query_runner,
+            out,
+            err,
+        },
+        &request,
+        planned,
+        verbose,
+    )
+}
+
+fn apply_widen(
+    invocation: &Invocation,
+    io: dep_edit::EditIo<'_>,
+    request: &dx_update::edit::UpdateRequest,
+    planned: Vec<(String, String, bool)>,
+    verbose: bool,
+) -> i32 {
+    let dep_edit::EditIo {
+        workspace,
+        runner,
+        query_runner,
+        out,
+        err,
+    } = io;
     let target = request.target();
     if let Err(exit) = dep_edit::preflight(
         &EDIT_VERB,
@@ -190,6 +183,66 @@ pub(crate) fn execute_update_version(invocation: &Invocation, env: Env<'_>) -> i
         err,
     };
     dep_edit::write_and_refresh(&edit, invocation, io, &changed, verbose)
+}
+
+fn build_request(
+    invocation: &Invocation,
+    out: &mut dyn std::io::Write,
+    err: &mut dyn std::io::Write,
+    workspace: &std::path::Path,
+    edit_commit_json: Option<&str>,
+    (selector, version): (&String, &String),
+) -> Result<dx_update::edit::UpdateRequest, i32> {
+    let request = match configured_request(invocation, out, err, workspace) {
+        Ok(Some(request)) => request,
+        Ok(None) => {
+            let head = selector
+                .split_once(':')
+                .map_or(selector.as_str(), |(h, _)| h);
+            if !head.is_empty()
+                && !version.is_empty()
+                && !dx_update::edit::UpdateSet::builtin_names().contains(&head)
+            {
+                let message = dep_edit::unknown_set_error(workspace, head);
+                return Err(pre_exec(invocation.output, out, err, &message));
+            }
+            match dx_update::edit::UpdateRequest::parse(selector, version) {
+                Ok(request) => request,
+                Err(error) => {
+                    return Err(pre_exec(invocation.output, out, err, &error.to_string()));
+                }
+            }
+        }
+        Err(exit) => return Err(exit),
+    };
+    let request = match dx_update::edit::DepVersion::from_flags(
+        invocation.floor,
+        invocation.reason.as_deref(),
+    )
+    .and_then(|target| request.with_dep_version(target))
+    {
+        Ok(request) => request,
+        Err(error) => return Err(pre_exec(invocation.output, out, err, &error.to_string())),
+    };
+    let lazy_fetch = |url: &str| super::update_outdated::registry_fetch().get(url);
+    let request = match resolve_gha_tag_request(
+        &request,
+        edit_commit_json,
+        invocation.offline,
+        &lazy_fetch,
+    ) {
+        Ok(request) => request,
+        Err((code, error)) => {
+            return Err(report_dx_error(invocation.output, out, err, code, &error));
+        }
+    };
+    let request = match resolve_pins_request(&request, workspace, invocation.offline) {
+        Ok(request) => request,
+        Err((code, error)) => {
+            return Err(report_dx_error(invocation.output, out, err, code, &error));
+        }
+    };
+    Ok(request)
 }
 
 const EDIT_VERB: dep_edit::EditVerb = dep_edit::EditVerb {

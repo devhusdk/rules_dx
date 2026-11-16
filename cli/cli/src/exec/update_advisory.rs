@@ -58,31 +58,13 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
             reason,
         )
     };
-    let before = match std::fs::read_to_string(workspace.join(PINS)) {
+    let before = match read_pins(workspace) {
         Ok(text) => text,
-        Err(error) => {
-            return fail(
-                out,
-                err,
-                &DxError::from_io(format!("cannot read {PINS}: {error}"), &error),
-            );
-        }
+        Err(reason) => return fail(out, err, &reason),
     };
-    let release = match fetch
-        .get(advisory::LATEST_RELEASE_URL)
-        .and_then(|text| advisory::parse_release(&text))
-    {
+    let release = match fetch_release(fetch) {
         Ok(release) => release,
-        Err(reason) => {
-            return fail(
-                out,
-                err,
-                &DxError::new(
-                    reason.kind(),
-                    format!("cannot read the newest release: {reason}"),
-                ),
-            );
-        }
+        Err(reason) => return fail(out, err, &reason),
     };
     let after = advisory::rewrite(&before, &release);
     let today = super::audit::today_utc(audit_today);
@@ -124,27 +106,14 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
     let result = if invocation.pr {
         open_pull_request(workspace, tools, &release, &after, &diff, &mut security)
     } else if invocation.applies() {
-        write_pins(workspace, &after).map(|()| {
-            if diff.is_empty() {
-                "the advisory pins are current".to_owned()
-            } else {
-                format!("moved the advisory pins to release {}", release.tag)
-            }
-        })
+        apply_pins(workspace, &after, &diff, &release)
     } else {
         lines.push(format!("{BRANCH}: would be {}", plan_word(&diff)));
         lines.extend(diff.iter().cloned());
-        if !diff.is_empty() {
-            let old = security();
-            let swap = write_pins(workspace, &after);
-            let new = if swap.is_ok() { security() } else { Vec::new() };
-            let restore = write_pins(workspace, &before);
-            if let Err(reason) = swap.and(restore) {
-                return fail(out, err, &reason);
-            }
-            let found = advisory::new_findings(&old, &new);
-            lines.push(format!("new advisories: {}", found.len()));
-            lines.extend(found.iter().map(|line| format!("  {line}")));
+        if !diff.is_empty()
+            && let Err(reason) = preview(workspace, &before, &after, &mut security, &mut lines)
+        {
+            return fail(out, err, &reason);
         }
         Ok(String::new())
     };
@@ -154,7 +123,11 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
         Err(reason) => lines.push(format!("failed: {reason}")),
         Ok(_) => {}
     }
-    for line in &lines {
+    emit_report(out, json, &lines, exit)
+}
+
+fn emit_report(out: &mut dyn Write, json: bool, lines: &[String], exit: i32) -> i32 {
+    for line in lines {
         let written = if json {
             emit_built(
                 out,
@@ -184,12 +157,62 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
     exit
 }
 
+fn fetch_release(fetch: &dyn Fetch) -> Result<advisory::Release, DxError> {
+    fetch
+        .get(advisory::LATEST_RELEASE_URL)
+        .and_then(|text| advisory::parse_release(&text))
+        .map_err(|reason| {
+            DxError::new(
+                reason.kind(),
+                format!("cannot read the newest release: {reason}"),
+            )
+        })
+}
+
+fn preview(
+    workspace: &std::path::Path,
+    before: &str,
+    after: &str,
+    security: &mut dyn FnMut() -> Vec<String>,
+    lines: &mut Vec<String>,
+) -> Result<(), DxError> {
+    let old = security();
+    let swap = write_pins(workspace, after);
+    let new = if swap.is_ok() { security() } else { Vec::new() };
+    let restore = write_pins(workspace, before);
+    swap.and(restore)?;
+    let found = advisory::new_findings(&old, &new);
+    lines.push(format!("new advisories: {}", found.len()));
+    lines.extend(found.iter().map(|line| format!("  {line}")));
+    Ok(())
+}
+
 fn plan_word(diff: &[String]) -> &'static str {
     if diff.is_empty() {
         "left alone: the pins are current"
     } else {
         "opened or refreshed by --pr"
     }
+}
+
+fn read_pins(workspace: &Path) -> Result<String, DxError> {
+    std::fs::read_to_string(workspace.join(PINS))
+        .map_err(|error| DxError::from_io(format!("cannot read {PINS}: {error}"), &error))
+}
+
+fn apply_pins(
+    workspace: &Path,
+    after: &str,
+    diff: &[String],
+    release: &Release,
+) -> Result<String, DxError> {
+    write_pins(workspace, after).map(|()| {
+        if diff.is_empty() {
+            "the advisory pins are current".to_owned()
+        } else {
+            format!("moved the advisory pins to release {}", release.tag)
+        }
+    })
 }
 
 fn write_pins(workspace: &Path, text: &str) -> Result<(), DxError> {

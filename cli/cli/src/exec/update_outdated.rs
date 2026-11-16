@@ -300,6 +300,25 @@ fn hub_name(
     }
 }
 
+#[derive(Default)]
+struct Acc {
+    found: Findings,
+    read_errors: Vec<dx_update::discover::LookupError>,
+    unsupported: Vec<String>,
+    registries: BTreeMap<String, Registry>,
+    ecosystems: BTreeMap<String, Ecosystem>,
+}
+
+#[derive(Clone, Copy)]
+struct Ctx<'a> {
+    workspace: &'a Path,
+    target: &'a dependency_sets::ResolvedTarget,
+    only: &'a [String],
+    name: &'a str,
+    prereleases: bool,
+    fetch: &'a dyn Fetch,
+}
+
 pub(super) fn collect(
     workspace: &Path,
     resolved: &[dependency_sets::ResolvedTarget],
@@ -307,360 +326,32 @@ pub(super) fn collect(
     prereleases: bool,
     fetch: &dyn Fetch,
 ) -> Collected {
-    let mut found = Findings::default();
-    let mut read_errors = Vec::new();
-    let mut unsupported = Vec::new();
-    let mut ecosystems = BTreeMap::new();
-    let mut registries = BTreeMap::new();
-    run_builtins(builtins, workspace, fetch, &mut found);
+    let mut acc = Acc::default();
+    run_builtins(builtins, workspace, fetch, &mut acc.found);
     for target in resolved {
         let only: &[String] = match &target.request {
             Selection::Full => &[],
             Selection::Packages(names) => names,
         };
         let name = target.set.name.as_str();
-        ecosystems.insert(name.to_owned(), target.set.ecosystem);
-        match target.set.ecosystem {
-            Ecosystem::Bazel => {
-                registries.insert(name.to_owned(), Registry::Bcr);
-                for manifest in &target.set.manifests {
-                    let parsed = std::fs::read_to_string(workspace.join(manifest))
-                        .map_err(|e| e.to_string())
-                        .and_then(|text| {
-                            dx_module_bazel::ModuleFile::parse(&text).map_err(|e| e.to_string())
-                        });
-                    match parsed {
-                        Ok(module) => merge(
-                            &mut found,
-                            bcr::outdated(
-                                name,
-                                &module,
-                                only,
-                                prereleases,
-                                bcr::DEFAULT_BASE,
-                                fetch,
-                            ),
-                        ),
-                        Err(reason) => found.errors.push(dx_update::discover::LookupError {
-                            set: name.to_owned(),
-                            package: manifest.clone(),
-                            reason,
-                        }),
-                    }
-                }
-            }
-            Ecosystem::Cargo => {
-                registries.insert(name.to_owned(), Registry::Crates);
-                let texts = read_texts(workspace, name, &target.set.manifests, &mut read_errors);
-                merge(
-                    &mut found,
-                    cargo::outdated(
-                        name,
-                        &texts,
-                        only,
-                        prereleases,
-                        cargo::DEFAULT_BASE,
-                        cargo::API_BASE,
-                        fetch,
-                    ),
-                );
-            }
-            Ecosystem::Go => {
-                registries.insert(name.to_owned(), Registry::Go);
-                let texts = read_texts(workspace, name, &target.set.manifests, &mut read_errors);
-                merge(
-                    &mut found,
-                    go::outdated(name, &texts, only, prereleases, go::DEFAULT_BASE, fetch),
-                );
-            }
-            Ecosystem::Nuget => {
-                registries.insert(name.to_owned(), Registry::Nuget);
-                let texts = read_texts(workspace, name, &target.set.manifests, &mut read_errors);
-                merge(
-                    &mut found,
-                    nuget::outdated(name, &texts, only, prereleases, nuget::DEFAULT_BASE, fetch),
-                );
-            }
-            Ecosystem::Ruby => {
-                registries.insert(name.to_owned(), Registry::Rubygems);
-                let texts = read_texts(workspace, name, &target.set.manifests, &mut read_errors);
-                merge(
-                    &mut found,
-                    ruby::outdated(name, &texts, only, prereleases, ruby::DEFAULT_BASE, fetch),
-                );
-            }
-            Ecosystem::Composer => {
-                registries.insert(name.to_owned(), Registry::Packagist);
-                let texts = read_texts(workspace, name, &target.set.manifests, &mut read_errors);
-                let Some(lock_name) =
-                    hub_name(dependency_sets::composer_lock(), name, &mut read_errors)
-                else {
-                    continue;
-                };
-                let locks: Vec<String> = target
-                    .set
-                    .locks
-                    .iter()
-                    .filter(|lock| lock.ends_with(lock_name))
-                    .cloned()
-                    .collect();
-                merge(
-                    &mut found,
-                    composer::outdated(
-                        name,
-                        &texts,
-                        &read_texts(workspace, name, &locks, &mut read_errors),
-                        only,
-                        prereleases,
-                        composer::DEFAULT_BASE,
-                        fetch,
-                    ),
-                );
-            }
-            Ecosystem::Cpan => {
-                registries.insert(name.to_owned(), Registry::Metacpan);
-                let texts = read_texts(workspace, name, &target.set.manifests, &mut read_errors);
-                merge(
-                    &mut found,
-                    cpan::outdated(name, &texts, only, prereleases, cpan::DEFAULT_BASE, fetch),
-                );
-            }
-            Ecosystem::Cabal => {
-                registries.insert(name.to_owned(), Registry::Hackage);
-                let cabal_files = cabal_files(workspace, &target.set.manifests);
-                let freezes: Vec<String> = target
-                    .set
-                    .locks
-                    .iter()
-                    .filter(|lock| lock.ends_with(first_lock(Ecosystem::Cabal)))
-                    .cloned()
-                    .collect();
-                if freezes.is_empty() {
-                    read_errors.extend(stack_lock_errors(name, &target.set.locks));
-                }
-                merge(
-                    &mut found,
-                    cabal::outdated(
-                        name,
-                        &read_texts(workspace, name, &cabal_files, &mut read_errors),
-                        &read_texts(workspace, name, &freezes, &mut read_errors),
-                        only,
-                        cabal::DEFAULT_BASE,
-                        fetch,
-                    ),
-                );
-            }
-            Ecosystem::SwiftPm => {
-                registries.insert(name.to_owned(), Registry::SwiftUrl);
-                let Some(lock_name) =
-                    hub_name(dependency_sets::package_resolved(), name, &mut read_errors)
-                else {
-                    continue;
-                };
-                let resolved: Vec<String> = target
-                    .set
-                    .locks
-                    .iter()
-                    .filter(|lock| lock.rsplit('/').next() == Some(lock_name))
-                    .cloned()
-                    .collect();
-                let texts = read_texts(workspace, name, &resolved, &mut read_errors);
-                merge(
-                    &mut found,
-                    swiftpm::outdated(
-                        name,
-                        &texts,
-                        only,
-                        prereleases,
-                        swiftpm::DEFAULT_BASE,
-                        fetch,
-                    ),
-                );
-            }
-            Ecosystem::Opam => {
-                registries.insert(name.to_owned(), Registry::Opam);
-                let texts = read_texts(workspace, name, &target.set.locks, &mut read_errors);
-                match opam_snapshot_dir(workspace) {
-                    Ok(snapshot) => merge(
-                        &mut found,
-                        opam::outdated(name, &texts, only, prereleases, &snapshot),
-                    ),
-                    Err(reason) => found.errors.push(dx_update::discover::LookupError {
-                        set: name.to_owned(),
-                        package: String::new(),
-                        reason: reason.message().to_owned(),
-                    }),
-                }
-            }
-            Ecosystem::Julia => {
-                registries.insert(name.to_owned(), Registry::JuliaGeneral);
-                let manifests: Vec<String> = target
-                    .set
-                    .locks
-                    .iter()
-                    .filter(|lock| lock.ends_with(first_lock(Ecosystem::Julia)))
-                    .cloned()
-                    .collect();
-                merge(
-                    &mut found,
-                    julia::outdated(
-                        name,
-                        &read_texts(workspace, name, &target.set.manifests, &mut read_errors),
-                        &read_texts(workspace, name, &manifests, &mut read_errors),
-                        only,
-                        prereleases,
-                        julia::DEFAULT_BASE,
-                        fetch,
-                    ),
-                );
-            }
-            Ecosystem::Dub => {
-                registries.insert(name.to_owned(), Registry::CodeDlang);
-                let Some(lock_name) =
-                    hub_name(dependency_sets::dub_selections(), name, &mut read_errors)
-                else {
-                    continue;
-                };
-                let locks: Vec<String> = target
-                    .set
-                    .locks
-                    .iter()
-                    .filter(|lock| lock.ends_with(lock_name))
-                    .cloned()
-                    .collect();
-                merge(
-                    &mut found,
-                    dub::outdated(
-                        name,
-                        &read_texts(workspace, name, &locks, &mut read_errors),
-                        only,
-                        prereleases,
-                        dub::DEFAULT_BASE,
-                        fetch,
-                    ),
-                );
-            }
-            Ecosystem::LuaRocks => {
-                registries.insert(name.to_owned(), Registry::LuaRocksOrg);
-                let Some(lock_name) =
-                    hub_name(dependency_sets::luarocks_lock(), name, &mut read_errors)
-                else {
-                    continue;
-                };
-                let locks: Vec<String> = target
-                    .set
-                    .locks
-                    .iter()
-                    .filter(|lock| lock.ends_with(lock_name))
-                    .cloned()
-                    .collect();
-                let mut pins = Vec::new();
-                for text in read_texts(workspace, name, &locks, &mut read_errors) {
-                    match dx_audit::locks::parse_luarocks_lock(&text) {
-                        Ok(parsed) => {
-                            pins.extend(parsed.into_iter().map(|p| (p.name, p.version)));
-                        }
-                        Err(reason) => read_errors.push(dx_update::discover::LookupError {
-                            set: name.to_owned(),
-                            package: lock_name.to_owned(),
-                            reason: reason.message().to_owned(),
-                        }),
-                    }
-                }
-                merge(
-                    &mut found,
-                    luarocks::outdated(
-                        name,
-                        &pins,
-                        only,
-                        prereleases,
-                        luarocks::DEFAULT_BASE,
-                        fetch,
-                    ),
-                );
-            }
-            Ecosystem::Pub => {
-                registries.insert(name.to_owned(), Registry::PubDev);
-                let texts = read_texts(workspace, name, &target.set.locks, &mut read_errors);
-                merge(
-                    &mut found,
-                    pub_dev::outdated(
-                        name,
-                        &texts,
-                        only,
-                        prereleases,
-                        pub_dev::DEFAULT_BASE,
-                        fetch,
-                    ),
-                );
-            }
-            Ecosystem::Hex => {
-                registries.insert(name.to_owned(), Registry::Hex);
-                let texts = read_texts(workspace, name, &target.set.locks, &mut read_errors);
-                merge(
-                    &mut found,
-                    hex::outdated(name, &texts, only, prereleases, hex::DEFAULT_BASE, fetch),
-                );
-            }
-            Ecosystem::Maven => {
-                registries.insert(name.to_owned(), Registry::Maven);
-                let resolved: BTreeMap<String, String> =
-                    read_texts(workspace, name, &target.set.locks, &mut read_errors)
-                        .iter()
-                        .filter_map(|text| dx_audit::locks::parse_maven_install(text).ok())
-                        .flatten()
-                        .map(|package| (package.name, package.version))
-                        .collect();
-                for manifest in &target.set.manifests {
-                    let parsed = std::fs::read_to_string(workspace.join(manifest))
-                        .map_err(|e| e.to_string())
-                        .and_then(|text| {
-                            dx_module_bazel::ModuleFile::parse(&text).map_err(|e| e.to_string())
-                        });
-                    match parsed {
-                        Ok(module) => merge(
-                            &mut found,
-                            maven::outdated(
-                                name,
-                                &module,
-                                &resolved,
-                                only,
-                                prereleases,
-                                maven::DEFAULT_BASE,
-                                fetch,
-                            ),
-                        ),
-                        Err(reason) => found.errors.push(dx_update::discover::LookupError {
-                            set: name.to_owned(),
-                            package: manifest.clone(),
-                            reason,
-                        }),
-                    }
-                }
-            }
-            Ecosystem::Npm => {
-                registries.insert(name.to_owned(), Registry::Npm);
-                let texts = read_texts(workspace, name, &target.set.manifests, &mut read_errors);
-                merge(
-                    &mut found,
-                    npm::outdated(name, &texts, only, prereleases, npm::DEFAULT_BASE, fetch),
-                );
-            }
-            Ecosystem::Uv => {
-                registries.insert(name.to_owned(), Registry::Pypi);
-                let texts = read_texts(workspace, name, &target.set.manifests, &mut read_errors);
-                merge(
-                    &mut found,
-                    pypi::outdated(name, &texts, only, prereleases, pypi::DEFAULT_BASE, fetch),
-                );
-            }
-            Ecosystem::PowerShell
-            | Ecosystem::Fpm
-            | Ecosystem::Zig
-            | Ecosystem::Ansible
-            | Ecosystem::Bicep => unsupported.push(name.to_owned()),
-        }
+        acc.ecosystems.insert(name.to_owned(), target.set.ecosystem);
+        let cx = Ctx {
+            workspace,
+            target,
+            only,
+            name,
+            prereleases,
+            fetch,
+        };
+        collect_set(&mut acc, &cx);
     }
+    let Acc {
+        mut found,
+        read_errors,
+        unsupported,
+        registries,
+        ecosystems,
+    } = acc;
     found.errors.extend(read_errors);
     found
         .candidates
@@ -672,6 +363,469 @@ pub(super) fn collect(
         registries,
         ecosystems,
     }
+}
+
+fn collect_set(acc: &mut Acc, cx: &Ctx<'_>) {
+    let Ctx {
+        workspace,
+        target,
+        only,
+        name,
+        prereleases,
+        fetch,
+    } = *cx;
+    match target.set.ecosystem {
+        Ecosystem::Cargo => {
+            acc.registries.insert(name.to_owned(), Registry::Crates);
+            let texts = read_texts(workspace, name, &target.set.manifests, &mut acc.read_errors);
+            merge(
+                &mut acc.found,
+                cargo::outdated(
+                    name,
+                    &texts,
+                    only,
+                    prereleases,
+                    cargo::DEFAULT_BASE,
+                    cargo::API_BASE,
+                    fetch,
+                ),
+            );
+        }
+        Ecosystem::Go => {
+            acc.registries.insert(name.to_owned(), Registry::Go);
+            let texts = read_texts(workspace, name, &target.set.manifests, &mut acc.read_errors);
+            merge(
+                &mut acc.found,
+                go::outdated(name, &texts, only, prereleases, go::DEFAULT_BASE, fetch),
+            );
+        }
+        Ecosystem::Nuget => {
+            acc.registries.insert(name.to_owned(), Registry::Nuget);
+            let texts = read_texts(workspace, name, &target.set.manifests, &mut acc.read_errors);
+            merge(
+                &mut acc.found,
+                nuget::outdated(name, &texts, only, prereleases, nuget::DEFAULT_BASE, fetch),
+            );
+        }
+        Ecosystem::Ruby => {
+            acc.registries.insert(name.to_owned(), Registry::Rubygems);
+            let texts = read_texts(workspace, name, &target.set.manifests, &mut acc.read_errors);
+            merge(
+                &mut acc.found,
+                ruby::outdated(name, &texts, only, prereleases, ruby::DEFAULT_BASE, fetch),
+            );
+        }
+        Ecosystem::Cpan => {
+            acc.registries.insert(name.to_owned(), Registry::Metacpan);
+            let texts = read_texts(workspace, name, &target.set.manifests, &mut acc.read_errors);
+            merge(
+                &mut acc.found,
+                cpan::outdated(name, &texts, only, prereleases, cpan::DEFAULT_BASE, fetch),
+            );
+        }
+        Ecosystem::Npm => {
+            acc.registries.insert(name.to_owned(), Registry::Npm);
+            let texts = read_texts(workspace, name, &target.set.manifests, &mut acc.read_errors);
+            merge(
+                &mut acc.found,
+                npm::outdated(name, &texts, only, prereleases, npm::DEFAULT_BASE, fetch),
+            );
+        }
+        Ecosystem::Uv => {
+            acc.registries.insert(name.to_owned(), Registry::Pypi);
+            let texts = read_texts(workspace, name, &target.set.manifests, &mut acc.read_errors);
+            merge(
+                &mut acc.found,
+                pypi::outdated(name, &texts, only, prereleases, pypi::DEFAULT_BASE, fetch),
+            );
+        }
+        Ecosystem::Bazel => collect_bazel(acc, cx),
+        Ecosystem::Maven => collect_maven(acc, cx),
+        Ecosystem::Composer => collect_composer(acc, cx),
+        Ecosystem::Cabal => collect_cabal(acc, cx),
+        Ecosystem::SwiftPm => collect_swiftpm(acc, cx),
+        Ecosystem::Opam => collect_opam(acc, cx),
+        Ecosystem::Julia => collect_julia(acc, cx),
+        Ecosystem::Dub => collect_dub(acc, cx),
+        Ecosystem::LuaRocks => collect_luarocks(acc, cx),
+        Ecosystem::Pub => collect_pub_dev(acc, cx),
+        Ecosystem::Hex => collect_hex(acc, cx),
+        Ecosystem::PowerShell
+        | Ecosystem::Fpm
+        | Ecosystem::Zig
+        | Ecosystem::Ansible
+        | Ecosystem::Bicep => acc.unsupported.push(name.to_owned()),
+    }
+}
+
+fn collect_bazel(acc: &mut Acc, cx: &Ctx<'_>) {
+    let Ctx {
+        workspace,
+        target,
+        only,
+        name,
+        prereleases,
+        fetch,
+        ..
+    } = *cx;
+    acc.registries.insert(name.to_owned(), Registry::Bcr);
+    for manifest in &target.set.manifests {
+        let parsed = std::fs::read_to_string(workspace.join(manifest))
+            .map_err(|e| e.to_string())
+            .and_then(|text| dx_module_bazel::ModuleFile::parse(&text).map_err(|e| e.to_string()));
+        match parsed {
+            Ok(module) => merge(
+                &mut acc.found,
+                bcr::outdated(name, &module, only, prereleases, bcr::DEFAULT_BASE, fetch),
+            ),
+            Err(reason) => acc.found.errors.push(dx_update::discover::LookupError {
+                set: name.to_owned(),
+                package: manifest.clone(),
+                reason,
+            }),
+        }
+    }
+}
+
+fn collect_maven(acc: &mut Acc, cx: &Ctx<'_>) {
+    let Ctx {
+        workspace,
+        target,
+        only,
+        name,
+        prereleases,
+        fetch,
+        ..
+    } = *cx;
+    acc.registries.insert(name.to_owned(), Registry::Maven);
+    let resolved: BTreeMap<String, String> =
+        read_texts(workspace, name, &target.set.locks, &mut acc.read_errors)
+            .iter()
+            .filter_map(|text| dx_audit::locks::parse_maven_install(text).ok())
+            .flatten()
+            .map(|package| (package.name, package.version))
+            .collect();
+    for manifest in &target.set.manifests {
+        let parsed = std::fs::read_to_string(workspace.join(manifest))
+            .map_err(|e| e.to_string())
+            .and_then(|text| dx_module_bazel::ModuleFile::parse(&text).map_err(|e| e.to_string()));
+        match parsed {
+            Ok(module) => merge(
+                &mut acc.found,
+                maven::outdated(
+                    name,
+                    &module,
+                    &resolved,
+                    only,
+                    prereleases,
+                    maven::DEFAULT_BASE,
+                    fetch,
+                ),
+            ),
+            Err(reason) => acc.found.errors.push(dx_update::discover::LookupError {
+                set: name.to_owned(),
+                package: manifest.clone(),
+                reason,
+            }),
+        }
+    }
+}
+
+fn collect_composer(acc: &mut Acc, cx: &Ctx<'_>) {
+    let Ctx {
+        workspace,
+        target,
+        only,
+        name,
+        prereleases,
+        fetch,
+        ..
+    } = *cx;
+    acc.registries.insert(name.to_owned(), Registry::Packagist);
+    let texts = read_texts(workspace, name, &target.set.manifests, &mut acc.read_errors);
+    let Some(lock_name) = hub_name(dependency_sets::composer_lock(), name, &mut acc.read_errors)
+    else {
+        return;
+    };
+    let locks: Vec<String> = target
+        .set
+        .locks
+        .iter()
+        .filter(|lock| lock.ends_with(lock_name))
+        .cloned()
+        .collect();
+    merge(
+        &mut acc.found,
+        composer::outdated(
+            name,
+            &texts,
+            &read_texts(workspace, name, &locks, &mut acc.read_errors),
+            only,
+            prereleases,
+            composer::DEFAULT_BASE,
+            fetch,
+        ),
+    );
+}
+
+fn collect_cabal(acc: &mut Acc, cx: &Ctx<'_>) {
+    let Ctx {
+        workspace,
+        target,
+        only,
+        name,
+        fetch,
+        ..
+    } = *cx;
+    acc.registries.insert(name.to_owned(), Registry::Hackage);
+    let cabal_files = cabal_files(workspace, &target.set.manifests);
+    let freezes: Vec<String> = target
+        .set
+        .locks
+        .iter()
+        .filter(|lock| lock.ends_with(first_lock(Ecosystem::Cabal)))
+        .cloned()
+        .collect();
+    if freezes.is_empty() {
+        read_errors.extend(stack_lock_errors(name, &target.set.locks));
+    }
+    merge(
+        &mut acc.found,
+        cabal::outdated(
+            name,
+            &read_texts(workspace, name, &cabal_files, &mut acc.read_errors),
+            &read_texts(workspace, name, &freezes, &mut acc.read_errors),
+            only,
+            cabal::DEFAULT_BASE,
+            fetch,
+        ),
+    );
+}
+
+fn collect_swiftpm(acc: &mut Acc, cx: &Ctx<'_>) {
+    let Ctx {
+        workspace,
+        target,
+        only,
+        name,
+        prereleases,
+        fetch,
+        ..
+    } = *cx;
+    acc.registries.insert(name.to_owned(), Registry::SwiftUrl);
+    let Some(lock_name) = hub_name(
+        dependency_sets::package_resolved(),
+        name,
+        &mut acc.read_errors,
+    ) else {
+        return;
+    };
+    let resolved: Vec<String> = target
+        .set
+        .locks
+        .iter()
+        .filter(|lock| lock.rsplit('/').next() == Some(lock_name))
+        .cloned()
+        .collect();
+    let texts = read_texts(workspace, name, &resolved, &mut acc.read_errors);
+    merge(
+        &mut acc.found,
+        swiftpm::outdated(
+            name,
+            &texts,
+            only,
+            prereleases,
+            swiftpm::DEFAULT_BASE,
+            fetch,
+        ),
+    );
+}
+
+fn collect_opam(acc: &mut Acc, cx: &Ctx<'_>) {
+    let Ctx {
+        workspace,
+        target,
+        only,
+        name,
+        prereleases,
+        ..
+    } = *cx;
+    acc.registries.insert(name.to_owned(), Registry::Opam);
+    let texts = read_texts(workspace, name, &target.set.locks, &mut acc.read_errors);
+    match opam_snapshot_dir(workspace) {
+        Ok(snapshot) => merge(
+            &mut acc.found,
+            opam::outdated(name, &texts, only, prereleases, &snapshot),
+        ),
+        Err(reason) => acc.found.errors.push(dx_update::discover::LookupError {
+            set: name.to_owned(),
+            package: String::new(),
+            reason: reason.message().to_owned(),
+        }),
+    }
+}
+
+fn collect_julia(acc: &mut Acc, cx: &Ctx<'_>) {
+    let Ctx {
+        workspace,
+        target,
+        only,
+        name,
+        prereleases,
+        fetch,
+        ..
+    } = *cx;
+    acc.registries
+        .insert(name.to_owned(), Registry::JuliaGeneral);
+    let manifests: Vec<String> = target
+        .set
+        .locks
+        .iter()
+        .filter(|lock| lock.ends_with(first_lock(Ecosystem::Julia)))
+        .cloned()
+        .collect();
+    merge(
+        &mut acc.found,
+        julia::outdated(
+            name,
+            &read_texts(workspace, name, &target.set.manifests, &mut acc.read_errors),
+            &read_texts(workspace, name, &manifests, &mut acc.read_errors),
+            only,
+            prereleases,
+            julia::DEFAULT_BASE,
+            fetch,
+        ),
+    );
+}
+
+fn collect_dub(acc: &mut Acc, cx: &Ctx<'_>) {
+    let Ctx {
+        workspace,
+        target,
+        only,
+        name,
+        prereleases,
+        fetch,
+        ..
+    } = *cx;
+    acc.registries.insert(name.to_owned(), Registry::CodeDlang);
+    let Some(lock_name) = hub_name(
+        dependency_sets::dub_selections(),
+        name,
+        &mut acc.read_errors,
+    ) else {
+        return;
+    };
+    let locks: Vec<String> = target
+        .set
+        .locks
+        .iter()
+        .filter(|lock| lock.ends_with(lock_name))
+        .cloned()
+        .collect();
+    merge(
+        &mut acc.found,
+        dub::outdated(
+            name,
+            &read_texts(workspace, name, &locks, &mut acc.read_errors),
+            only,
+            prereleases,
+            dub::DEFAULT_BASE,
+            fetch,
+        ),
+    );
+}
+
+fn collect_luarocks(acc: &mut Acc, cx: &Ctx<'_>) {
+    let Ctx {
+        workspace,
+        target,
+        only,
+        name,
+        prereleases,
+        fetch,
+        ..
+    } = *cx;
+    acc.registries
+        .insert(name.to_owned(), Registry::LuaRocksOrg);
+    let Some(lock_name) = hub_name(dependency_sets::luarocks_lock(), name, &mut acc.read_errors)
+    else {
+        return;
+    };
+    let locks: Vec<String> = target
+        .set
+        .locks
+        .iter()
+        .filter(|lock| lock.ends_with(lock_name))
+        .cloned()
+        .collect();
+    let mut pins = Vec::new();
+    for text in read_texts(workspace, name, &locks, &mut acc.read_errors) {
+        match dx_audit::locks::parse_luarocks_lock(&text) {
+            Ok(parsed) => {
+                pins.extend(parsed.into_iter().map(|p| (p.name, p.version)));
+            }
+            Err(reason) => read_errors.push(dx_update::discover::LookupError {
+                set: name.to_owned(),
+                package: lock_name.to_owned(),
+                reason: reason.message().to_owned(),
+            }),
+        }
+    }
+    merge(
+        &mut acc.found,
+        luarocks::outdated(
+            name,
+            &pins,
+            only,
+            prereleases,
+            luarocks::DEFAULT_BASE,
+            fetch,
+        ),
+    );
+}
+
+fn collect_pub_dev(acc: &mut Acc, cx: &Ctx<'_>) {
+    let Ctx {
+        workspace,
+        target,
+        only,
+        name,
+        prereleases,
+        fetch,
+        ..
+    } = *cx;
+    acc.registries.insert(name.to_owned(), Registry::PubDev);
+    let texts = read_texts(workspace, name, &target.set.locks, &mut acc.read_errors);
+    merge(
+        &mut acc.found,
+        pub_dev::outdated(
+            name,
+            &texts,
+            only,
+            prereleases,
+            pub_dev::DEFAULT_BASE,
+            fetch,
+        ),
+    );
+}
+
+fn collect_hex(acc: &mut Acc, cx: &Ctx<'_>) {
+    let Ctx {
+        workspace,
+        target,
+        only,
+        name,
+        prereleases,
+        fetch,
+        ..
+    } = *cx;
+    acc.registries.insert(name.to_owned(), Registry::Hex);
+    let texts = read_texts(workspace, name, &target.set.locks, &mut acc.read_errors);
+    merge(
+        &mut acc.found,
+        hex::outdated(name, &texts, only, prereleases, hex::DEFAULT_BASE, fetch),
+    );
 }
 
 /// The registry page for a candidate, including the built-in items.

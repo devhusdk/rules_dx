@@ -62,19 +62,188 @@ fn execute_checked(
         nonce,
         out,
         err,
-        ci: _,
-        audit_today: _,
         actions,
-        proc_root: _,
-        edit_commit_json: _,
+        ..
     } = env;
+    let run_id = run_id(pid, nonce, temp_dir);
+    let reports = match plan_report_set(invocation, workspace) {
+        Ok(reports) => reports,
+        Err(message) => return pre_exec(invocation.output, out, err, &message),
+    };
+    let selection = selection_context(invocation);
+    let resolved = match resolve_scope(
+        invocation,
+        selection.as_ref(),
+        workspace,
+        query_runner,
+        out,
+        err,
+    ) {
+        Ok(resolved) => resolved,
+        Err(exit) => return exit,
+    };
+    let Some(verb) = invocation.command.workflow_verb() else {
+        return pre_exec(
+            invocation.output,
+            out,
+            err,
+            &dx_process::unsupported_command(invocation.command.name()).to_string(),
+        );
+    };
+    let bep = bep_path(temp_dir, pid, nonce);
+    let Some(bep_text) = bep.to_str().map(ToString::to_string) else {
+        return operational(
+            invocation,
+            out,
+            err,
+            CODE_UNREADABLE_BEP,
+            &crate::startup::temp_path_not_utf8(),
+        );
+    };
+    let scope = OptionScope {
+        verb,
+        selection: selection.as_ref(),
+        resolved: &resolved,
+        workspace,
+        query_runner,
+        run_id: &run_id,
+    };
+    let (bazel_options, trace) = match workflow_options(invocation, &scope, out, err) {
+        Ok(parts) => parts,
+        Err(exit) => return exit,
+    };
+    let plan = match plan_for(invocation, verb, &resolved, &bazel_options, &bep_text) {
+        Ok(plan) => plan,
+        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
+    };
+    if let Err(exit) = announce_plan(invocation, out, reports.stdout, &plan.summary) {
+        return exit;
+    }
+    if let Err(exit) = warn_scope_excluded(invocation.output, out, err, &resolved.kept) {
+        return exit;
+    }
+    let launch = Launch {
+        workspace,
+        runner,
+        query_runner,
+        tally: actions,
+        verb,
+        bep: &bep,
+        trace: trace.as_deref(),
+        reports: &reports,
+        run_id: &run_id,
+        whole_repo: resolved.targets == ["//..."],
+        argv: &plan.argv,
+    };
+    launch_plan(invocation, &launch, out, err, complete, host)
+}
+
+struct Launch<'a> {
+    workspace: &'a std::path::Path,
+    runner: &'a dyn dx_process::Runner,
+    query_runner: &'a dyn dx_plan::resolve::QueryRunner,
+    tally: &'a super::common::ActionTally,
+    verb: WorkflowVerb,
+    bep: &'a std::path::Path,
+    trace: Option<&'a str>,
+    reports: &'a ReportSet,
+    run_id: &'a str,
+    whole_repo: bool,
+    argv: &'a [String],
+}
+
+fn launch_plan(
+    invocation: &Invocation,
+    launch: &Launch<'_>,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    complete: &mut bool,
+    host: &mut bool,
+) -> i32 {
+    let Launch {
+        workspace,
+        runner,
+        query_runner,
+        tally,
+        verb,
+        bep,
+        trace,
+        reports,
+        run_id,
+        whole_repo,
+        argv,
+    } = *launch;
+    let bazel_code = match run_bazel(invocation, out, err, workspace, runner, argv, &[]) {
+        Ok(code) => code,
+        Err(exit) => {
+            std::fs::remove_file(bep).ok();
+            *host = true;
+            return exit;
+        }
+    };
+    let action_counts = read_actions(bep, tally);
+    if let Some(trace) = trace
+        && let Err(exit) = announce_profile(
+            invocation,
+            workspace,
+            out,
+            err,
+            trace,
+            Some(bep),
+            action_counts,
+        )
+    {
+        std::fs::remove_file(bep).ok();
+        return kept_child(err, bazel_code, exit);
+    }
+    if verb == WorkflowVerb::Build {
+        let tail = BuildTail {
+            workspace,
+            query_runner,
+            bep,
+            bazel_code,
+            actions: action_counts,
+            failure_reports: &reports.failure,
+        };
+        return finish_build(invocation, out, err, &tail);
+    }
+    execute_test_reports(TestReportsRequest {
+        invocation,
+        workspace,
+        out,
+        err,
+        verb,
+        bep,
+        planned_reports: &reports.planned,
+        failure_reports: &reports.failure,
+        results_reports: &reports.results,
+        run_id,
+        stdout_report: reports.stdout,
+        bazel_code,
+        query_runner,
+        results_complete: complete,
+        actions: action_counts,
+        whole_repo,
+    })
+}
+
+struct ReportSet {
+    failure: Vec<PlannedReport>,
+    planned: Vec<PlannedReport>,
+    results: Vec<PlannedReport>,
+    stdout: bool,
+}
+
+fn plan_report_set(
+    invocation: &Invocation,
+    workspace: &std::path::Path,
+) -> Result<ReportSet, String> {
     let results_default = invocation.output == OutputMode::Json
         && invocation.command != Command::Build
         && !invocation
             .reports
             .iter()
             .any(|report| StandardFormat::parse(&report.format) == Some(StandardFormat::Results));
-    let run_id = run_id(pid, nonce, temp_dir);
     if results_default {
         std::fs::remove_file(results_path(workspace)).ok();
     }
@@ -85,7 +254,7 @@ fn execute_checked(
         &invocation.output,
     ) {
         Ok(planned) => planned,
-        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
+        Err(error) => return Err(error.to_string()),
     };
     let (failure_reports, planned_reports): (Vec<_>, Vec<_>) = planned_reports
         .into_iter()
@@ -107,7 +276,93 @@ fn execute_checked(
             path: Some(path),
         });
     }
-    let selection = match invocation.command {
+    Ok(ReportSet {
+        failure: failure_reports,
+        planned: planned_reports,
+        results: results_reports,
+        stdout: stdout_report,
+    })
+}
+
+fn announce_plan(
+    invocation: &Invocation,
+    out: &mut dyn Write,
+    stdout_report: bool,
+    summary: &str,
+) -> Result<(), i32> {
+    if invocation.output == OutputMode::Json {
+        emit_started(invocation, out)
+    } else if invocation.chatty() && !stdout_report {
+        check_stdout_write(writeln!(out, "{summary}"))
+    } else {
+        Ok(())
+    }
+}
+
+fn plan_for(
+    invocation: &Invocation,
+    verb: WorkflowVerb,
+    resolved: &dx_plan::resolve::ResolvedScope,
+    bazel_options: &[String],
+    bep_text: &str,
+) -> Result<dx_plan::plan::BuildPlan, dx_error::DxError> {
+    let build_mode = if verb == WorkflowVerb::Coverage {
+        None
+    } else {
+        Some(invocation.build_mode())
+    };
+    plan_workflow(
+        verb,
+        resolved,
+        bazel_options,
+        Some(bep_text),
+        build_mode,
+        &invocation.bazel_startup_options,
+    )
+}
+
+struct OptionScope<'a> {
+    verb: WorkflowVerb,
+    selection: Option<&'a SelectionContext>,
+    resolved: &'a dx_plan::resolve::ResolvedScope,
+    workspace: &'a std::path::Path,
+    query_runner: &'a dyn dx_plan::resolve::QueryRunner,
+    run_id: &'a str,
+}
+
+fn workflow_options(
+    invocation: &Invocation,
+    scope: &OptionScope<'_>,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> Result<(Vec<String>, Option<String>), i32> {
+    let OptionScope {
+        verb,
+        selection,
+        resolved,
+        workspace,
+        query_runner,
+        run_id,
+    } = *scope;
+    let mut bazel_options = invocation.quiet_bazel_options();
+    if let Some(selection) = selection.filter(|_| verb != WorkflowVerb::Build)
+        && let Err(error) = crate::exec::test_filter::rust_filter_args(
+            invocation.raw_bazel_options(),
+            &resolved.targets,
+            workspace,
+            query_runner,
+            selection,
+        )
+        .map(|extra| bazel_options.extend(extra))
+    {
+        return Err(resolve_failed(invocation.output, out, err, &error));
+    }
+    let trace = start_profile(invocation, workspace, run_id, &mut bazel_options, out, err)?;
+    Ok((bazel_options, trace))
+}
+
+fn selection_context(invocation: &Invocation) -> Option<SelectionContext> {
+    match invocation.command {
         Command::Test => Some(SelectionContext::for_test_execution(
             invocation.build_mode(),
             invocation.raw_bazel_options(),
@@ -140,8 +395,18 @@ fn execute_checked(
         | Command::Worktree
         | Command::Fuzz
         | Command::Config => None,
-    };
-    let resolved = match (invocation.command, &selection) {
+    }
+}
+
+fn resolve_scope(
+    invocation: &Invocation,
+    selection: Option<&SelectionContext>,
+    workspace: &std::path::Path,
+    query_runner: &dyn dx_plan::resolve::QueryRunner,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> Result<dx_plan::resolve::ResolvedScope, i32> {
+    let resolved = match (invocation.command, selection) {
         (Command::Build, _) => resolve(
             &invocation.targets,
             workspace,
@@ -156,193 +421,111 @@ fn execute_checked(
             selection,
         ),
         _ => {
-            return pre_exec(
+            return Err(pre_exec(
                 invocation.output,
                 out,
                 err,
                 &dx_process::unsupported_command(invocation.command.name()).to_string(),
-            );
+            ));
         }
     };
-    let resolved = match resolved {
-        Ok(resolved) => resolved,
-        Err(error) => return resolve_failed(invocation.output, out, err, &error),
-    };
-    let Some(verb) = invocation.command.workflow_verb() else {
-        return pre_exec(
+    resolved.map_err(|error| resolve_failed(invocation.output, out, err, &error))
+}
+
+fn start_profile(
+    invocation: &Invocation,
+    workspace: &std::path::Path,
+    run_id: &str,
+    bazel_options: &mut Vec<String>,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> Result<Option<String>, i32> {
+    if !invocation.timings {
+        return Ok(None);
+    }
+    match prepare_trace(workspace, run_id) {
+        Ok(path) => {
+            bazel_options.push(format!("--profile={path}"));
+            bazel_options.push("--experimental_collect_local_sandbox_action_metrics".to_string());
+            Ok(Some(path))
+        }
+        Err(error) => Err(report_dx_error(
             invocation.output,
             out,
             err,
-            &dx_process::unsupported_command(invocation.command.name()).to_string(),
-        );
-    };
-    let bep = bep_path(temp_dir, pid, nonce);
-    let bep_text = bep.to_str().map(ToString::to_string);
-    let Some(bep_text) = bep_text else {
-        return operational(
-            invocation,
-            out,
-            err,
-            CODE_UNREADABLE_BEP,
-            &crate::startup::temp_path_not_utf8(),
-        );
-    };
-    let bep_arg = Some(bep_text.as_str());
-    let build_mode = if verb == WorkflowVerb::Coverage {
-        None
-    } else {
-        Some(invocation.build_mode())
-    };
-    let mut bazel_options = invocation.quiet_bazel_options();
-    if let Some(selection) = selection.as_ref().filter(|_| verb != WorkflowVerb::Build) {
-        match crate::exec::test_filter::rust_filter_args(
-            invocation.raw_bazel_options(),
-            &resolved.targets,
-            workspace,
-            query_runner,
-            selection,
-        ) {
-            Ok(extra) => bazel_options.extend(extra),
-            Err(error) => {
-                return resolve_failed(invocation.output, out, err, &error);
-            }
-        }
+            profile_report::CODE_PROFILE_UNREADABLE,
+            &error,
+        )),
     }
-    let trace = if invocation.timings {
-        match prepare_trace(workspace, &run_id) {
-            Ok(path) => {
-                bazel_options.push(format!("--profile={path}"));
-                bazel_options
-                    .push("--experimental_collect_local_sandbox_action_metrics".to_string());
-                Some(path)
-            }
-            Err(error) => {
-                return report_dx_error(
-                    invocation.output,
-                    out,
-                    err,
-                    profile_report::CODE_PROFILE_UNREADABLE,
-                    &error,
-                );
-            }
-        }
-    } else {
-        None
-    };
-    let plan = match plan_workflow(
-        verb,
-        &resolved,
-        &bazel_options,
-        bep_arg,
-        build_mode,
-        &invocation.bazel_startup_options,
-    ) {
-        Ok(plan) => plan,
-        Err(error) => {
-            return pre_exec(invocation.output, out, err, &format!("{error}"));
-        }
-    };
-    if invocation.output == OutputMode::Json {
-        if let Err(exit) = emit_started(invocation, out) {
-            return exit;
-        }
-    } else if invocation.chatty()
-        && !stdout_report
-        && let Err(exit) = check_stdout_write(writeln!(out, "{}", plan.summary))
+}
+
+struct BuildTail<'a> {
+    workspace: &'a std::path::Path,
+    query_runner: &'a dyn dx_plan::resolve::QueryRunner,
+    bep: &'a std::path::Path,
+    bazel_code: i32,
+    actions: Option<ActionCounts>,
+    failure_reports: &'a [PlannedReport],
+}
+
+fn finish_build(
+    invocation: &Invocation,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    tail: &BuildTail<'_>,
+) -> i32 {
+    let BuildTail {
+        workspace,
+        query_runner,
+        bep,
+        bazel_code,
+        actions,
+        failure_reports,
+    } = *tail;
+    if bazel_code != 0
+        && let Err(exit) = report_build_failures(bep, invocation.output, out, err)
     {
-        return exit;
-    }
-    if let Err(exit) = warn_scope_excluded(invocation.output, out, err, &resolved.kept) {
-        return exit;
-    }
-    let bazel_code = match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
-        Ok(code) => code,
-        Err(exit) => {
-            std::fs::remove_file(&bep).ok();
-            *host = true;
-            return exit;
-        }
-    };
-    let action_counts = read_actions(&bep, actions);
-    if let Some(trace) = &trace
-        && let Err(exit) = announce_profile(
-            invocation,
-            workspace,
-            out,
-            err,
-            trace,
-            Some(&bep),
-            action_counts,
-        )
-    {
-        std::fs::remove_file(&bep).ok();
+        std::fs::remove_file(bep).ok();
         return kept_child(err, bazel_code, exit);
     }
-    if verb == WorkflowVerb::Build {
-        if bazel_code != 0
-            && let Err(exit) = report_build_failures(&bep, invocation.output, out, err)
-        {
-            std::fs::remove_file(&bep).ok();
-            return kept_child(err, bazel_code, exit);
-        }
-        let groups = group_skipped(&read_skipped(&bep), invocation, workspace, query_runner);
-        if let Err(exit) = skipped_notice(invocation.output, out, err, &groups) {
-            std::fs::remove_file(&bep).ok();
-            return kept_child(err, bazel_code, exit);
-        }
-        let reports = write_failure_reports(
-            invocation,
-            workspace,
-            &bep,
-            bazel_code,
-            &failure_reports,
-            out,
-            err,
-        );
-        std::fs::remove_file(&bep).ok();
-        let reports_ok = match reports {
-            Ok(landed) => landed,
-            Err(exit) => return kept_child(err, bazel_code, exit),
-        };
-        let code = if bazel_code == 0 && !reports_ok {
-            1
-        } else {
-            bazel_code
-        };
-        if invocation.output == OutputMode::Json
-            && let Err(exit) =
-                emit_build_completion(invocation, out, bazel_code, code, action_counts)
-        {
-            if code == 0 {
-                return exit;
-            }
-            writeln!(
-                err,
-                "dx: could not write the final events to stdout; keeping exit {code}"
-            )
-            .ok();
-            return code;
-        }
-        return code;
+    let groups = group_skipped(&read_skipped(bep), invocation, workspace, query_runner);
+    if let Err(exit) = skipped_notice(invocation.output, out, err, &groups) {
+        std::fs::remove_file(bep).ok();
+        return kept_child(err, bazel_code, exit);
     }
-    execute_test_reports(TestReportsRequest {
+    let reports = write_failure_reports(
         invocation,
         workspace,
+        bep,
+        bazel_code,
+        failure_reports,
         out,
         err,
-        verb,
-        bep: &bep,
-        planned_reports: &planned_reports,
-        failure_reports: &failure_reports,
-        results_reports: &results_reports,
-        run_id: &run_id,
-        stdout_report,
-        bazel_code,
-        query_runner,
-        results_complete: complete,
-        actions: action_counts,
-        whole_repo: resolved.targets == ["//..."],
-    })
+    );
+    std::fs::remove_file(bep).ok();
+    let reports_ok = match reports {
+        Ok(landed) => landed,
+        Err(exit) => return kept_child(err, bazel_code, exit),
+    };
+    let code = if bazel_code == 0 && !reports_ok {
+        1
+    } else {
+        bazel_code
+    };
+    if invocation.output == OutputMode::Json
+        && let Err(exit) = emit_build_completion(invocation, out, bazel_code, code, actions)
+    {
+        if code == 0 {
+            return exit;
+        }
+        writeln!(
+            err,
+            "dx: could not write the final events to stdout; keeping exit {code}"
+        )
+        .ok();
+        return code;
+    }
+    code
 }
 
 /// Creates `.dx/local/timings` and returns the trace file Bazel should write.

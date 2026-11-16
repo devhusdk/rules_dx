@@ -137,78 +137,8 @@ fn run_configured_target(
     let mode = RunMode::of(invocation);
     let set = &target.set;
     let verb = mode.verb();
-    if mode == RunMode::Update {
-        if let Err(error) = dependency_sets::check_files(workspace, set, false) {
-            record_named(
-                attempted,
-                details,
-                &set.name,
-                dx_update::outcome::SetStatus::Failed,
-                format!("failed to {verb} {}: {error}", set.name),
-            );
-            return Ok(());
-        }
-    } else if let Err(error) = dependency_sets::check_files(workspace, set, true) {
-        record_named(
-            attempted,
-            details,
-            &set.name,
-            dx_update::outcome::SetStatus::Failed,
-            format!("failed to {verb} {}: {error}", set.name),
-        );
-        return Ok(());
-    }
-    if let Err(error) = dependency_sets::check_backend_settings(workspace, set) {
-        let status = match error {
-            dependency_sets::DependencySetsError::UnsupportedSettings { .. }
-            | dependency_sets::DependencySetsError::UnsupportedNpmLayout { .. }
-            | dependency_sets::DependencySetsError::MissingPinnedLock { .. }
-            | dependency_sets::DependencySetsError::UnsupportedMavenHub { .. }
-            | dependency_sets::DependencySetsError::UnsupportedCargoHub { .. }
-            | dependency_sets::DependencySetsError::UnsupportedGoLayout { .. } => {
-                dx_update::outcome::SetStatus::Unsupported
-            }
-            dependency_sets::DependencySetsError::Read { .. }
-            | dependency_sets::DependencySetsError::NotUtf8 { .. }
-            | dependency_sets::DependencySetsError::InvalidToml { .. }
-            | dependency_sets::DependencySetsError::Module { .. }
-            | dependency_sets::DependencySetsError::InvalidName { .. }
-            | dependency_sets::DependencySetsError::EscapingPath { .. }
-            | dependency_sets::DependencySetsError::InvalidManifest { .. }
-            | dependency_sets::DependencySetsError::DuplicateName { .. }
-            | dependency_sets::DependencySetsError::ConflictingOwnership { .. }
-            | dependency_sets::DependencySetsError::UnknownSelector { .. }
-            | dependency_sets::DependencySetsError::InvalidPackage { .. }
-            | dependency_sets::DependencySetsError::NoOwningSet { .. }
-            | dependency_sets::DependencySetsError::MissingFile { .. }
-            | dependency_sets::DependencySetsError::OutsideWorkspace { .. }
-            | dependency_sets::DependencySetsError::StaleJuliaLock { .. }
-            | dependency_sets::DependencySetsError::StaleCpanLock { .. }
-            | dependency_sets::DependencySetsError::StaleCabalLock { .. }
-            | dependency_sets::DependencySetsError::InvalidRepository { .. }
-            | dependency_sets::DependencySetsError::Hubs { .. } => {
-                dx_update::outcome::SetStatus::Failed
-            }
-        };
-        record_named(
-            attempted,
-            details,
-            &set.name,
-            status,
-            format!("cannot {verb} {}: {error}", set.name),
-        );
-        return Ok(());
-    }
-    if mode == RunMode::Check
-        && let Err(error) = dependency_sets::check_lock_ready(workspace, set)
-    {
-        record_named(
-            attempted,
-            details,
-            &set.name,
-            dx_update::outcome::SetStatus::Unsupported,
-            format!("cannot {verb} {}: {error}", set.name),
-        );
+    if let Some((status, message)) = precheck(workspace, set, mode) {
+        record_named(attempted, details, &set.name, status, message);
         return Ok(());
     }
     if let Some(error) = dx_update::backend::host_env_refusal(set, mode == RunMode::Check, &|key| {
@@ -219,69 +149,8 @@ fn run_configured_target(
     }
     // An apply the plan rejects anyway never needs the tools, so skip Bazel.
     let rejected = mode == RunMode::Update && (invocation.offline || invocation.frozen);
-    let closure = match set.ecosystem {
-        Ecosystem::Uv if !rejected => tools.closure(),
-        Ecosystem::Npm => dx_update::backend::UvClosure {
-            yarn: std::env::var(dx_update::backend::YARN_BIN_VAR).ok(),
-            npm: std::env::var(dx_update::backend::NPM_BIN_VAR).ok(),
-            ..Default::default()
-        },
-        Ecosystem::Uv
-        | Ecosystem::Bazel
-        | Ecosystem::Ruby
-        | Ecosystem::PowerShell
-        | Ecosystem::Cargo
-        | Ecosystem::Maven
-        | Ecosystem::Nuget
-        | Ecosystem::Go
-        | Ecosystem::Cpan
-        | Ecosystem::Pub
-        | Ecosystem::Julia
-        | Ecosystem::Hex
-        | Ecosystem::Composer
-        | Ecosystem::Dub
-        | Ecosystem::Fpm
-        | Ecosystem::Zig
-        | Ecosystem::LuaRocks
-        | Ecosystem::Opam
-        | Ecosystem::SwiftPm
-        | Ecosystem::Cabal
-        | Ecosystem::Ansible
-        | Ecosystem::Bicep => dx_update::backend::UvClosure::default(),
-    };
-    let head = invocation.bazel_head();
-    let planned = match mode {
-        RunMode::Update => dx_update::backend::plan_configured(
-            workspace,
-            set,
-            &target.request,
-            invocation.offline,
-            invocation.frozen,
-            &head,
-            &closure,
-        )
-        .map(|plan| match plan {
-            dx_update::backend::BackendPlan::Run { argv, env } => {
-                dx_update::backend::CheckPlan::Run { argv, env }
-            }
-            dx_update::backend::BackendPlan::Staged(run) => {
-                dx_update::backend::CheckPlan::Staged(run)
-            }
-            dx_update::backend::BackendPlan::Sequence(runs) => {
-                dx_update::backend::CheckPlan::Sequence(runs)
-            }
-            dx_update::backend::BackendPlan::Noop => dx_update::backend::CheckPlan::Pinned,
-        }),
-        RunMode::Check => dx_update::backend::check_configured(
-            workspace,
-            set,
-            &target.request,
-            invocation.offline,
-            invocation.frozen,
-            &head,
-            &closure,
-        ),
-    };
+    let closure = closure_for(set.ecosystem, tools, rejected);
+    let planned = plan_target(workspace, target, invocation, mode, &closure);
     let runs = match planned {
         Err(error) => {
             record_backend_error(attempted, details, &error, verb, &set.name);
@@ -319,16 +188,7 @@ fn run_configured_target(
         .iter()
         .any(|run| dx_update::backend::runs_bazel(&run.argv));
     let guarded = (mode == RunMode::Check && bazel).then(|| CheckGuard::take(workspace, set));
-    let mut launched = Ok(dx_process::ChildStatus::exited(0));
-    for run in &runs {
-        if let Err(code) = gate.before(&run.argv) {
-            return Err(stop_of(gate, code));
-        }
-        launched = launch(gate, runner, workspace, &run.argv, &run.env);
-        if !matches!(&launched, Ok(status) if status.code == Some(0)) {
-            break;
-        }
-    }
+    let launched = launch_all(gate, runner, workspace, &runs)?;
     let ok = match mode {
         RunMode::Update => (
             dx_update::outcome::SetStatus::Updated,
@@ -338,53 +198,228 @@ fn run_configured_target(
     };
     let (status, message) = runner_status(launched, verb, &set.name, ok);
     if let Some(wrote) = guarded.and_then(|guard| guard.restore(workspace)) {
-        let hint = match set.ecosystem {
-            Ecosystem::Cargo => {
-                "; declare `lockfile` in crate.from_cargo and list it in the set's locks"
-            }
-            Ecosystem::Maven => {
-                "; the maven.install lock_file must be listed in the set's locks and MODULE.bazel must not change"
-            }
-            Ecosystem::Uv
-            | Ecosystem::Npm
-            | Ecosystem::Bazel
-            | Ecosystem::Ruby
-            | Ecosystem::PowerShell
-            | Ecosystem::Go
-            | Ecosystem::Cpan
-            | Ecosystem::Pub
-            | Ecosystem::Julia
-            | Ecosystem::Hex
-            | Ecosystem::Composer
-            | Ecosystem::Dub
-            | Ecosystem::Nuget
-            | Ecosystem::Fpm
-            | Ecosystem::Zig
-            | Ecosystem::LuaRocks
-            | Ecosystem::Opam
-            | Ecosystem::SwiftPm
-            | Ecosystem::Cabal
-            | Ecosystem::Ansible
-            | Ecosystem::Bicep => "",
-        };
-        record_named(
-            attempted,
-            details,
-            &set.name,
-            dx_update::outcome::SetStatus::Failed,
-            format!(
-                "failed to {verb} {}: check_wrote: {} (restored){hint}",
-                set.name,
-                wrote.join(", ")
-            ),
-        );
-        if let Some(detail) = details.get_mut(&set.name) {
-            detail.failure_code = Some("check_wrote");
-        }
+        record_check_wrote(attempted, details, set, verb, &wrote);
         return Ok(());
     }
     record_named(attempted, details, &set.name, status, message);
     Ok(())
+}
+
+fn launch_all(
+    gate: &mut SlotGate<'_>,
+    runner: &dyn dx_process::Runner,
+    workspace: &std::path::Path,
+    runs: &[dx_update::backend::Run],
+) -> Result<std::io::Result<dx_process::ChildStatus>, dx_plan::slots::Stop> {
+    let mut launched = Ok(dx_process::ChildStatus::exited(0));
+    for run in runs {
+        if let Err(code) = gate.before(&run.argv) {
+            return Err(stop_of(gate, code));
+        }
+        launched = launch(gate, runner, workspace, &run.argv, &run.env);
+        if !matches!(&launched, Ok(status) if status.code == Some(0)) {
+            break;
+        }
+    }
+    Ok(launched)
+}
+
+fn record_check_wrote(
+    attempted: &mut Vec<dx_update::outcome::SetOutcome>,
+    details: &mut BTreeMap<String, SetDetail>,
+    set: &dependency_sets::ResolvedSet,
+    verb: &str,
+    wrote: &[String],
+) {
+    let hint = check_wrote_hint(set.ecosystem);
+    record_named(
+        attempted,
+        details,
+        &set.name,
+        dx_update::outcome::SetStatus::Failed,
+        format!(
+            "failed to {verb} {}: check_wrote: {} (restored){hint}",
+            set.name,
+            wrote.join(", ")
+        ),
+    );
+    if let Some(detail) = details.get_mut(&set.name) {
+        detail.failure_code = Some("check_wrote");
+    }
+}
+
+fn plan_target(
+    workspace: &std::path::Path,
+    target: &ResolvedTarget,
+    invocation: &Invocation,
+    mode: RunMode,
+    closure: &dx_update::backend::UvClosure,
+) -> Result<dx_update::backend::CheckPlan, dx_update::backend::BackendError> {
+    let head = invocation.bazel_head();
+    match mode {
+        RunMode::Update => dx_update::backend::plan_configured(
+            workspace,
+            &target.set,
+            &target.request,
+            invocation.offline,
+            invocation.frozen,
+            &head,
+            closure,
+        )
+        .map(|plan| match plan {
+            dx_update::backend::BackendPlan::Run { argv, env } => {
+                dx_update::backend::CheckPlan::Run { argv, env }
+            }
+            dx_update::backend::BackendPlan::Staged(run) => {
+                dx_update::backend::CheckPlan::Staged(run)
+            }
+            dx_update::backend::BackendPlan::Sequence(runs) => {
+                dx_update::backend::CheckPlan::Sequence(runs)
+            }
+            dx_update::backend::BackendPlan::Noop => dx_update::backend::CheckPlan::Pinned,
+        }),
+        RunMode::Check => dx_update::backend::check_configured(
+            workspace,
+            &target.set,
+            &target.request,
+            invocation.offline,
+            invocation.frozen,
+            &head,
+            closure,
+        ),
+    }
+}
+
+fn precheck(
+    workspace: &std::path::Path,
+    set: &dependency_sets::ResolvedSet,
+    mode: RunMode,
+) -> Option<(dx_update::outcome::SetStatus, String)> {
+    let verb = mode.verb();
+    if let Err(error) = dependency_sets::check_files(workspace, set, mode == RunMode::Check) {
+        return Some((
+            dx_update::outcome::SetStatus::Failed,
+            format!("failed to {verb} {}: {error}", set.name),
+        ));
+    }
+    if let Err(error) = dependency_sets::check_backend_settings(workspace, set) {
+        return Some((
+            settings_status(&error),
+            format!("cannot {verb} {}: {error}", set.name),
+        ));
+    }
+    if mode == RunMode::Check
+        && let Err(error) = dependency_sets::check_lock_ready(workspace, set)
+    {
+        return Some((
+            dx_update::outcome::SetStatus::Unsupported,
+            format!("cannot {verb} {}: {error}", set.name),
+        ));
+    }
+    None
+}
+
+fn settings_status(error: &dependency_sets::DependencySetsError) -> dx_update::outcome::SetStatus {
+    match error {
+        dependency_sets::DependencySetsError::UnsupportedSettings { .. }
+        | dependency_sets::DependencySetsError::UnsupportedNpmLayout { .. }
+        | dependency_sets::DependencySetsError::MissingPinnedLock { .. }
+        | dependency_sets::DependencySetsError::UnsupportedMavenHub { .. }
+        | dependency_sets::DependencySetsError::UnsupportedCargoHub { .. }
+        | dependency_sets::DependencySetsError::UnsupportedGoLayout { .. } => {
+            dx_update::outcome::SetStatus::Unsupported
+        }
+        dependency_sets::DependencySetsError::Read { .. }
+        | dependency_sets::DependencySetsError::NotUtf8 { .. }
+        | dependency_sets::DependencySetsError::InvalidToml { .. }
+        | dependency_sets::DependencySetsError::Module { .. }
+        | dependency_sets::DependencySetsError::InvalidName { .. }
+        | dependency_sets::DependencySetsError::EscapingPath { .. }
+        | dependency_sets::DependencySetsError::InvalidManifest { .. }
+        | dependency_sets::DependencySetsError::DuplicateName { .. }
+        | dependency_sets::DependencySetsError::ConflictingOwnership { .. }
+        | dependency_sets::DependencySetsError::UnknownSelector { .. }
+        | dependency_sets::DependencySetsError::InvalidPackage { .. }
+        | dependency_sets::DependencySetsError::NoOwningSet { .. }
+        | dependency_sets::DependencySetsError::MissingFile { .. }
+        | dependency_sets::DependencySetsError::OutsideWorkspace { .. }
+        | dependency_sets::DependencySetsError::StaleJuliaLock { .. }
+        | dependency_sets::DependencySetsError::StaleCpanLock { .. }
+        | dependency_sets::DependencySetsError::StaleCabalLock { .. }
+        | dependency_sets::DependencySetsError::InvalidRepository { .. }
+        | dependency_sets::DependencySetsError::Hubs { .. } => {
+            dx_update::outcome::SetStatus::Failed
+        }
+    }
+}
+
+fn closure_for(
+    ecosystem: Ecosystem,
+    tools: &mut UvTools<'_>,
+    rejected: bool,
+) -> dx_update::backend::UvClosure {
+    match ecosystem {
+        Ecosystem::Uv if !rejected => tools.closure(),
+        Ecosystem::Npm => dx_update::backend::UvClosure {
+            yarn: std::env::var(dx_update::backend::YARN_BIN_VAR).ok(),
+            npm: std::env::var(dx_update::backend::NPM_BIN_VAR).ok(),
+            ..Default::default()
+        },
+        Ecosystem::Uv
+        | Ecosystem::Bazel
+        | Ecosystem::Ruby
+        | Ecosystem::PowerShell
+        | Ecosystem::Cargo
+        | Ecosystem::Maven
+        | Ecosystem::Nuget
+        | Ecosystem::Go
+        | Ecosystem::Cpan
+        | Ecosystem::Pub
+        | Ecosystem::Julia
+        | Ecosystem::Hex
+        | Ecosystem::Composer
+        | Ecosystem::Dub
+        | Ecosystem::Fpm
+        | Ecosystem::Zig
+        | Ecosystem::LuaRocks
+        | Ecosystem::Opam
+        | Ecosystem::SwiftPm
+        | Ecosystem::Cabal
+        | Ecosystem::Ansible
+        | Ecosystem::Bicep => dx_update::backend::UvClosure::default(),
+    }
+}
+
+fn check_wrote_hint(ecosystem: Ecosystem) -> &'static str {
+    match ecosystem {
+        Ecosystem::Cargo => {
+            "; declare `lockfile` in crate.from_cargo and list it in the set's locks"
+        }
+        Ecosystem::Maven => {
+            "; the maven.install lock_file must be listed in the set's locks and MODULE.bazel must not change"
+        }
+        Ecosystem::Uv
+        | Ecosystem::Npm
+        | Ecosystem::Bazel
+        | Ecosystem::Ruby
+        | Ecosystem::PowerShell
+        | Ecosystem::Go
+        | Ecosystem::Cpan
+        | Ecosystem::Pub
+        | Ecosystem::Julia
+        | Ecosystem::Hex
+        | Ecosystem::Composer
+        | Ecosystem::Dub
+        | Ecosystem::Nuget
+        | Ecosystem::Fpm
+        | Ecosystem::Zig
+        | Ecosystem::LuaRocks
+        | Ecosystem::Opam
+        | Ecosystem::SwiftPm
+        | Ecosystem::Cabal
+        | Ecosystem::Ansible
+        | Ecosystem::Bicep => "",
+    }
 }
 
 /// Runs `argv` in the workspace, in a Bazel slot when it is a Bazel command. The caller has

@@ -234,7 +234,7 @@ impl Consumer {
             .process_group(0)
             .spawn()
             .expect("dx starts");
-        let pgid = child.id() as i32;
+        let pgid = i32::try_from(child.id()).expect("pid fits i32");
         let done = Arc::new(AtomicBool::new(false));
         let watchdog = Arc::clone(&done);
         std::thread::spawn(move || {
@@ -289,7 +289,7 @@ impl Consumer {
             assert!(Instant::now() < deadline, "bazel never started");
             std::thread::sleep(Duration::from_millis(20));
         }
-        let pgid = child.id() as i32;
+        let pgid = i32::try_from(child.id()).expect("pid fits i32");
         // SAFETY: kill takes plain integers and has no memory preconditions.
         assert_eq!(unsafe { libc::kill(-pgid, signo) }, 0, "signal delivered");
         let output = child.wait_with_output().expect("dx stops");

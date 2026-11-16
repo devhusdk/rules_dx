@@ -75,6 +75,7 @@ pub(super) fn changed_lines(
     Ok(added)
 }
 
+#[expect(clippy::cast_precision_loss, reason = "display only")]
 fn percent(covered: u64, eligible: u64) -> String {
     format!(
         "{:.2}% ({covered}/{eligible} lines)",

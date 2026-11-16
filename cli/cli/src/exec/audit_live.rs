@@ -339,7 +339,8 @@ pub(super) fn write_pin(harness: &Harness, family: &str, url: &str, date: &str, 
         .lines()
         .filter(|line| !line.starts_with(&prefix))
         .map(|line| format!("{line}\n"))
-        .collect();
+        .collect::<Vec<_>>()
+        .concat();
     pins.push_str(&pin.line());
     pins.push('\n');
     harness.write_source(".dx/pins", &pins);

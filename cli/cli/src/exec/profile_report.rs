@@ -120,6 +120,7 @@ pub(crate) struct Report {
 }
 
 /// Builds the report from the trace profile text.
+#[expect(clippy::cast_sign_loss, reason = "display only")]
 pub(crate) fn build(
     trace: &str,
     cache: Option<CacheUse>,
@@ -173,6 +174,7 @@ pub(crate) fn build(
     Ok(report)
 }
 
+#[expect(clippy::cast_precision_loss, reason = "display only")]
 fn seconds(micros: u64) -> String {
     format!("{:.1}s", micros as f64 / 1_000_000.0)
 }
@@ -181,6 +183,7 @@ fn percent(part: u64, total: u64) -> u64 {
     part.saturating_mul(100).checked_div(total).unwrap_or(0)
 }
 
+#[expect(clippy::cast_precision_loss, reason = "display only")]
 fn megabytes(bytes: u64) -> String {
     format!("{:.1} MB", bytes as f64 / 1_000_000.0)
 }
@@ -333,13 +336,13 @@ mod tests {
         {"ph":"M","name":"thread_name"}
     ]}"#;
 
-    fn cache() -> Option<CacheUse> {
-        Some(CacheUse {
+    fn cache() -> CacheUse {
+        CacheUse {
             executed: 2,
             disk: 1,
             remote: 5,
             local: 2,
-        })
+        }
     }
 
     #[test]
@@ -393,7 +396,7 @@ mod tests {
 
     #[test]
     fn report_orders_critical_path_and_slowest_actions() {
-        let report = build(TRACE, cache(), Some(2_500_000)).expect("report");
+        let report = build(TRACE, Some(cache()), Some(2_500_000)).expect("report");
         assert_eq!(report.wall_micros, 4_000_000);
         assert_eq!(report.critical_micros, 4_000_000);
         assert_eq!(report.critical[0].name, "action 'A'");
@@ -405,7 +408,7 @@ mod tests {
 
     #[test]
     fn report_text_shows_cache_percent_and_bytes() {
-        let text = build(TRACE, cache(), Some(2_500_000))
+        let text = build(TRACE, Some(cache()), Some(2_500_000))
             .expect("report")
             .text();
         assert!(text.contains("wall time 4.0s"), "{text}");
@@ -435,7 +438,7 @@ mod tests {
 
     #[test]
     fn report_json_carries_the_same_numbers() {
-        let value = build(TRACE, cache(), None).expect("report").json();
+        let value = build(TRACE, Some(cache()), None).expect("report").json();
         assert_eq!(value["cache"]["hit_percent"], 80);
         assert_eq!(value["cache"]["actions"], 10);
         assert_eq!(value["bytes_downloaded"], Value::Null);

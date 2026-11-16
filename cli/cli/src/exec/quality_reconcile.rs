@@ -88,8 +88,8 @@ pub(crate) fn reconcile(workspace: &Path, mut producers: Vec<Producer>) -> Recon
     };
     let mut retag: BTreeSet<(usize, String)> = BTreeSet::new();
     for path in paths {
-        let path_changes = changes.get(&path).map(Vec::as_slice).unwrap_or(&[]);
-        let path_digests = digests.get(&path).map(Vec::as_slice).unwrap_or(&[]);
+        let path_changes = changes.get(&path).map_or(&[][..], Vec::as_slice);
+        let path_digests = digests.get(&path).map_or(&[][..], Vec::as_slice);
         let originals: BTreeSet<[u8; 32]> = path_changes
             .iter()
             .map(|(_, change)| change.original_digest)

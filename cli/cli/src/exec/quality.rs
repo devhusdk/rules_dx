@@ -212,7 +212,7 @@ fn probe_shards(
     nonce: u64,
     actions: &ActionTally,
     probe_counts: &mut Option<ActionCounts>,
-    consumer: Option<Consumer>,
+    consumer: Option<Consumer<'_>>,
 ) -> Result<Option<BTreeSet<String>>, ProbeStop> {
     let bep = temp_dir.join(format!("dx-bep-{pid}-{nonce}-probe.json"));
     let Some(bep_text) = bep.to_str() else {

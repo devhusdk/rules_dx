@@ -22,6 +22,10 @@ fn io_refresh(what: &str, error: &std::io::Error) -> DxError {
     DxError::from_io(format!("{what} not refreshed: {error}"), error)
 }
 
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "used as a map_err function pointer"
+)]
 fn io_error(error: std::io::Error) -> DxError {
     DxError::from_io(error.to_string(), &error)
 }

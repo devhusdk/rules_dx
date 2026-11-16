@@ -135,6 +135,10 @@ pub(crate) fn verified_snapshots(
         .collect()
 }
 
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "the value is built for this one call"
+)]
 pub(crate) fn write_standard_reports(
     inputs: StandardReports<'_>,
     out: &mut dyn Write,

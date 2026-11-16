@@ -85,7 +85,7 @@ pub(super) struct Collected {
 /// Reads every result's test.xml into suites and outcomes for `dx test`.
 pub(super) fn collect_test_xml(
     events: &TestEvents,
-    summaries: &Summaries,
+    summaries: &Summaries<'_>,
     reader: &dyn ArtifactReader,
     mut evidence: Evidence,
     err: &mut dyn Write,
@@ -182,7 +182,7 @@ pub(super) fn collect_test_xml(
 /// Reads every result's final coverage output into LCOV documents and outcomes for `dx coverage`.
 pub(super) fn collect_lcov(
     events: &TestEvents,
-    summaries: &Summaries,
+    summaries: &Summaries<'_>,
     reader: &dyn ArtifactReader,
     mut evidence: Evidence,
     sources: Sources,

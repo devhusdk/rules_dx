@@ -59,6 +59,10 @@ impl dx_apply::FileSystem for FailingWrites {
 /// The event Bazel ends every complete build event stream with.
 pub(crate) const LAST_EVENT: &str = r#"{"id":{"buildMetrics":{}},"lastMessage":true}"#;
 
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "each flag switches one fake behavior"
+)]
 pub(crate) struct Harness {
     pub(crate) workspace: PathBuf,
     pub(crate) temp: PathBuf,
@@ -374,6 +378,7 @@ impl Harness {
         self.result_full(initial, vec![], changes, snapshots)
     }
 
+    #[expect(clippy::unused_self, reason = "Harness methods keep one call shape")]
     pub(crate) fn result_full(
         &self,
         initial: Vec<proto::Diagnostic>,
@@ -450,6 +455,7 @@ impl Harness {
         )
     }
 
+    #[expect(clippy::unused_self, reason = "Harness methods keep one call shape")]
     pub(crate) fn replacement_at(
         &self,
         path: &str,

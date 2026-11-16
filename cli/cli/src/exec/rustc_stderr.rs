@@ -25,6 +25,10 @@ pub(super) struct ActionRelated {
 const MAX_RELATED: usize = 32;
 
 #[derive(Deserialize)]
+#[expect(
+    clippy::struct_field_names,
+    reason = "field names mirror the rustc JSON diagnostic"
+)]
 struct Message {
     message: String,
     code: Option<Code>,

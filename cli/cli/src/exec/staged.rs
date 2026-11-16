@@ -35,37 +35,38 @@ impl Drop for Scratch {
     }
 }
 
+fn open_up(dir: &std::path::Path) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let Ok(meta) = std::fs::symlink_metadata(&path) else {
+            continue;
+        };
+        if meta.is_dir() {
+            let mut permissions = meta.permissions();
+            #[expect(
+                clippy::permissions_set_readonly_false,
+                reason = "the directory must be writable to be removed"
+            )]
+            permissions.set_readonly(false);
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                permissions.set_mode(0o700);
+            }
+            std::fs::set_permissions(&path, permissions).ok();
+            open_up(&path);
+        }
+    }
+}
+
 /// Removes a scratch tree, making read-only entries writable and retrying once
 /// (a go module cache is read-only unless it was created with `-modcacherw`).
 fn remove_tree(dir: &std::path::Path) {
     if std::fs::remove_dir_all(dir).is_ok() {
         return;
-    }
-    fn open_up(dir: &std::path::Path) {
-        let Ok(entries) = std::fs::read_dir(dir) else {
-            return;
-        };
-        for entry in entries.flatten() {
-            let path = entry.path();
-            let Ok(meta) = std::fs::symlink_metadata(&path) else {
-                continue;
-            };
-            if meta.is_dir() {
-                let mut permissions = meta.permissions();
-                #[expect(
-                    clippy::permissions_set_readonly_false,
-                    reason = "the directory must be writable to be removed"
-                )]
-                permissions.set_readonly(false);
-                #[cfg(unix)]
-                {
-                    use std::os::unix::fs::PermissionsExt;
-                    permissions.set_mode(0o700);
-                }
-                std::fs::set_permissions(&path, permissions).ok();
-                open_up(&path);
-            }
-        }
     }
     if let Ok(meta) = std::fs::metadata(dir) {
         std::fs::set_permissions(dir, meta.permissions()).ok();

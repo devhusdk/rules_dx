@@ -50,11 +50,11 @@ fn dx_with_env(root: &Path, home: &Path, args: &[&str], env: &[(&str, &str)]) ->
 }
 
 fn read(path: &Path) -> String {
-    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
+    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {}: {error}", path.display()))
 }
 
 fn write(path: &Path, text: &str) {
-    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
+    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {}: {error}", path.display()));
 }
 
 fn tree(dir: &Path, root: &Path, out: &mut BTreeMap<PathBuf, Vec<u8>>) {

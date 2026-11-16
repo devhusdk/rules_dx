@@ -85,8 +85,7 @@ pub(crate) fn configured_set(
     };
     let head = selector
         .split_once(':')
-        .map(|(head, _)| head)
-        .unwrap_or(selector);
+        .map_or(selector.as_str(), |(head, _)| head);
     let Some(set) = registry.find(head) else {
         return Ok(None);
     };
@@ -733,6 +732,10 @@ fn refresh_failed(
     error.exit_code()
 }
 
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "the value is built for this one call"
+)]
 fn backend_failed(
     edit: &DepEdit<'_>,
     invocation: &Invocation,
@@ -886,8 +889,8 @@ fn manifest_need(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::common::{CODE_INVALID_RESULT, CODE_UPDATE_WIDEN_FAILED};
+    use super::*;
     use std::io;
 
     const VERB: EditVerb = EditVerb {

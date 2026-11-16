@@ -658,9 +658,9 @@ fn bazel_coverage_diagnostic(
     inventory: &dx_audit::locks::BazelInventory,
     lock_rel: &str,
 ) -> DiagnosticEvent {
+    use dx_audit::locks::BazelSource;
     let inputs = &inventory.inputs;
     let count = |source: BazelSource| inputs.iter().filter(|input| input.source == source).count();
-    use dx_audit::locks::BazelSource;
     let mut message = format!(
         "{}: {} Bazel inputs not assessed ({} registry, {} archive override, {} http archive, {} git, {} local, {} repo rule, {} module extension); no advisory source maps Bazel module or archive identities",
         set.name,
@@ -1184,6 +1184,10 @@ fn collect_target(
     }))
 }
 
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "the bundle is built for this one call"
+)]
 fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
     let SecurityInputs {
         workspace,
@@ -1673,7 +1677,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(sets) => sets,
         Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
     };
-    let targets: Vec<AuditTarget> = configured_sets
+    let targets: Vec<AuditTarget<'_>> = configured_sets
         .iter()
         .map(AuditTarget::Configured)
         .collect();

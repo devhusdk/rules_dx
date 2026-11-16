@@ -164,7 +164,7 @@ impl PhaseCollector {
     }
 
     /// Reports whether a phase finished with ordinary findings.
-    fn is_findings(&self, phase: &PhaseOutcome) -> bool {
+    fn is_findings(phase: &PhaseOutcome) -> bool {
         phase.kind == Some(PhaseKind::Findings)
     }
 
@@ -172,7 +172,7 @@ impl PhaseCollector {
     fn with_findings(&self) -> Vec<&'static str> {
         self.phases
             .iter()
-            .filter(|phase| self.is_findings(phase))
+            .filter(|phase| Self::is_findings(phase))
             .map(|phase| phase.label)
             .collect()
     }
@@ -213,7 +213,7 @@ impl PhaseCollector {
                 let capture = phase.capture.as_ref()?;
                 let owed = match phase.state {
                     PhaseState::Executed => true,
-                    PhaseState::Failed if self.is_findings(phase) => true,
+                    PhaseState::Failed if Self::is_findings(phase) => true,
                     PhaseState::Failed => capture.state != CaptureState::Absent,
                     PhaseState::Planned | PhaseState::Skipped => false,
                 };
@@ -231,7 +231,7 @@ impl PhaseCollector {
         for phase in &self.phases {
             let name = phase.label;
             if phase.state == PhaseState::Failed {
-                let findings = self.is_findings(phase);
+                let findings = Self::is_findings(phase);
                 if !findings {
                     reasons.push(format!("{name} failed"));
                 }
@@ -717,7 +717,7 @@ fn verify_fix(
             code,
         );
         if let Ok(readable) = forwarded {
-            outcome.readable &= readable
+            outcome.readable &= readable;
         } else {
             outcome.readable = false;
             let message = format!("{verify_phase} events could not be forwarded");

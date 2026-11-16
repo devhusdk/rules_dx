@@ -174,7 +174,7 @@ impl Probe {
     #[expect(unsafe_code, reason = "kill has no safe std API")]
     fn signal(&mut self, signo: i32, group: bool) {
         self.signalled = Some(Instant::now());
-        let pid = self.child.id() as i32;
+        let pid = i32::try_from(self.child.id()).expect("pid fits i32");
         let target = if group { -pid } else { pid };
         // SAFETY: kill(2) takes plain integers and touches no memory.
         let delivered = unsafe { libc::kill(target, signo) };
@@ -226,7 +226,10 @@ impl Drop for Probe {
         if let Ok(None) = self.child.try_wait() {
             // SAFETY: kill(2) takes plain integers and touches no memory.
             unsafe {
-                libc::kill(-(self.child.id() as i32), libc::SIGKILL);
+                libc::kill(
+                    -(i32::try_from(self.child.id()).expect("pid fits i32")),
+                    libc::SIGKILL,
+                );
             }
             self.child.wait().ok();
         }

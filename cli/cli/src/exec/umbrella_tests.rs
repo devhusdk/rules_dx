@@ -1341,6 +1341,10 @@ fn fix_runs_every_phase_after_a_tool_failure() {
 
 /// Runs `fix --apply --output=<output>` where lint (launch 2) exits 7 and
 /// the verification launches see `verify_result`; only format edits.
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "the value is built for this one call"
+)]
 fn fix_apply_lint_fails(
     harness: &Harness,
     verify_result: Vec<u8>,

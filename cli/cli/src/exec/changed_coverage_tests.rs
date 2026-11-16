@@ -324,7 +324,10 @@ fn real_git_counts_renames_untracked_files_and_a_nested_workspace() {
         std::fs::create_dir_all(full.parent().expect("parent")).expect("mkdir");
         std::fs::write(full, text).expect("write");
     };
-    let body: String = (1..=20).map(|n| format!("line_{n} = {n}\n")).collect();
+    let body: String = (1..=20)
+        .map(|n| format!("line_{n} = {n}\n"))
+        .collect::<Vec<_>>()
+        .concat();
     write("ws/src/old.py", &body);
     write("ws/src/keep.py", "a = 1\n");
     write("outside.py", "a = 1\n");

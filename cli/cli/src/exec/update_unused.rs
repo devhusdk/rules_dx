@@ -732,7 +732,7 @@ mod tests {
         fn run_query(
             &self,
             argv: &[String],
-            _cwd: &Path,
+            cwd: &Path,
         ) -> std::io::Result<dx_plan::resolve::QueryResult> {
             for arg in argv {
                 if let Some(file) = arg.strip_prefix("--query_file=") {
@@ -743,7 +743,7 @@ mod tests {
                         .push(text);
                 }
             }
-            Labels(self.1).run_query(argv, _cwd)
+            Labels(self.1).run_query(argv, cwd)
         }
     }
 
@@ -811,7 +811,7 @@ mod tests {
             "[package]\nname = \"x\"\n\n[dependencies]\ncc = \"1\"\n",
             "deps",
         );
-        let query = Recorded(Default::default(), "@@m++crate+dx_crates//:cc\n");
+        let query = Recorded(std::sync::Mutex::default(), "@@m++crate+dx_crates//:cc\n");
         assert!(
             find(root, &resolved, &query, &[]).expect("hubs").is_empty(),
             "{:?}",

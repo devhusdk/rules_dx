@@ -187,7 +187,7 @@ mod tests {
             first_run(&self.workspace, &startup, &self.get())
         }
 
-        fn base(&self, root: &Path, name: &str, workspace: &Path) -> PathBuf {
+        fn base(root: &Path, name: &str, workspace: &Path) -> PathBuf {
             let base = root.join(name);
             std::fs::create_dir_all(&base).expect("base");
             std::fs::write(
@@ -211,14 +211,14 @@ mod tests {
     #[test]
     fn an_output_base_for_this_workspace_is_not_a_first_run() {
         let host = Host::new();
-        host.base(&host.default_root(), "abc", &host.workspace);
+        Host::base(&host.default_root(), "abc", &host.workspace);
         assert_eq!(host.first_run(&[]), Some(false));
     }
 
     #[test]
     fn another_workspace_base_is_still_a_first_run() {
         let host = Host::new();
-        host.base(&host.default_root(), "abc", Path::new("/elsewhere/ws"));
+        Host::base(&host.default_root(), "abc", Path::new("/elsewhere/ws"));
         assert_eq!(host.first_run(&[]), Some(true));
     }
 
@@ -228,18 +228,18 @@ mod tests {
         let base = host.home.join("ob");
         let flag = format!("--output_base={}", base.display());
         assert_eq!(host.first_run(&[&flag]), Some(true));
-        host.base(&host.home, "ob", &host.workspace);
+        Host::base(&host.home, "ob", &host.workspace);
         assert_eq!(host.first_run(&[&flag]), Some(false));
     }
 
     #[test]
     fn explicit_output_user_root_replaces_the_default_roots() {
         let host = Host::new();
-        host.base(&host.default_root(), "abc", &host.workspace);
+        Host::base(&host.default_root(), "abc", &host.workspace);
         let root = host.home.join("our");
         let flag = format!("--output_user_root={}", root.display());
         assert_eq!(host.first_run(&[&flag]), Some(true));
-        host.base(&root, "abc", &host.workspace);
+        Host::base(&root, "abc", &host.workspace);
         assert_eq!(host.first_run(&[&flag]), Some(false));
     }
 

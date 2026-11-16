@@ -53,6 +53,10 @@ pub enum Evidence<'a> {
 
 /// Reports whether a call that ended with `code` may run again.
 #[must_use]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "the bundle is built for this one call"
+)]
 pub fn restartable(code: Option<i32>, evidence: Evidence<'_>) -> bool {
     if code != Some(RESTART_EXIT) {
         return false;

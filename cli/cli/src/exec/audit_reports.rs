@@ -696,7 +696,8 @@ fn audit_live_names_the_lockfile_each_finding_came_from() {
                 run["tool"]["driver"]["name"] == serde_json::Value::String(driver.to_owned())
             })
             .unwrap_or_else(|| panic!("{driver} run in {value}"));
-        let mut by_package: std::collections::BTreeMap<String, String> = Default::default();
+        let mut by_package: std::collections::BTreeMap<String, String> =
+            std::collections::BTreeMap::default();
         for result in run["results"].as_array().expect("results") {
             let message = result["message"]["text"].as_str().expect("message");
             let package = message.split('@').next().expect("package").to_owned();

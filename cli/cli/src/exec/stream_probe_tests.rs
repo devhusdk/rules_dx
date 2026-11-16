@@ -240,7 +240,7 @@ impl Run {
     }
 
     fn signal(&mut self, signo: i32) -> Instant {
-        let pid = self.child.id() as i32;
+        let pid = i32::try_from(self.child.id()).expect("pid fits i32");
         // SAFETY: kill takes plain integers and has no memory preconditions.
         assert_eq!(unsafe { libc::kill(pid, signo) }, 0, "signal delivered");
         Instant::now()
@@ -312,6 +312,7 @@ fn run_dirs_in(base: &Path) -> Vec<PathBuf> {
         .collect()
 }
 
+#[expect(clippy::naive_bytecount, reason = "no bytecount dependency")]
 fn zeros(bytes: &[u8]) -> usize {
     bytes.iter().filter(|byte| **byte == 0).count()
 }
@@ -503,6 +504,10 @@ fn recorded_groups(run: &Run) -> Vec<i32> {
 }
 
 /// Waits until dx holds a written lease for `pgid`; on Linux it must already be written.
+#[expect(
+    clippy::assertions_on_constants,
+    reason = "only Linux must already hold the lease"
+)]
 fn wait_for_lease(run: &mut Run, pgid: i32) {
     let deadline = Instant::now() + Duration::from_secs(30);
     while !recorded_groups(run).contains(&pgid) {
@@ -597,14 +602,20 @@ fn a_terminal_child_gets_sigint_once(sender: Sender) {
         }
         // SAFETY: kill takes plain integers and has no memory preconditions.
         Sender::GroupKill => unsafe {
-            libc::kill(-(run.child.id() as i32), libc::SIGINT);
+            libc::kill(
+                -(i32::try_from(run.child.id()).expect("pid fits i32")),
+                libc::SIGINT,
+            );
         },
         // SAFETY: kill takes plain integers and has no memory preconditions.
         Sender::BuildGroup => unsafe {
             libc::kill(-build_pgid, libc::SIGINT);
         },
         #[cfg(target_os = "linux")]
-        Sender::Unattributed => queue_unattributed(run.child.id() as i32, libc::SIGINT),
+        Sender::Unattributed => queue_unattributed(
+            i32::try_from(run.child.id()).expect("pid fits i32"),
+            libc::SIGINT,
+        ),
     }
     let expected = b"I";
     let status = run.exit();
@@ -668,7 +679,7 @@ fn assert_foreground_build(run: &Run, pty: &Pty, build: i32) -> i32 {
     let build_pgid = unsafe { libc::getpgid(build) };
     assert_ne!(
         build_pgid,
-        run.child.id() as i32,
+        i32::try_from(run.child.id()).expect("pid fits i32"),
         "the build must leave dx's group\n{}",
         run.context()
     );
@@ -702,7 +713,7 @@ fn a_terminal_build_resumes_after_ctrl_z() {
     let log = run.dir().join("sigint");
     wait_for_file(&mut run, &log);
     let build_pgid = assert_foreground_build(&run, &pty, build);
-    let dx = run.child.id() as i32;
+    let dx = i32::try_from(run.child.id()).expect("pid fits i32");
     let mut held = 0;
     // SAFETY: kill and waitpid take plain integers; held is a valid status out-pointer.
     unsafe {
@@ -1114,7 +1125,10 @@ fn an_ignored_hangup_does_not_stop_dx() {
     assert_eq!(bazel_starts(scratch.path()), 1);
     // SAFETY: kill takes plain integers and has no memory preconditions.
     unsafe {
-        libc::kill(child.id() as i32, libc::SIGHUP);
+        libc::kill(
+            i32::try_from(child.id()).expect("pid fits i32"),
+            libc::SIGHUP,
+        );
     }
     assert!(child.try_wait().expect("poll").is_none(), "dx stopped");
     fs::write(&gate, "").expect("gate open");

@@ -135,6 +135,7 @@ impl Truncated {
 }
 
 impl Write for Truncated {
+    #[expect(clippy::naive_bytecount, reason = "no bytecount dependency")]
     fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
         if self.remaining == 0 {
             return Err(io::Error::new(io::ErrorKind::BrokenPipe, "broken pipe"));

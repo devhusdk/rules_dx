@@ -430,7 +430,7 @@ const BCR_NEWEST: &str = "core/modules/bcr_newest.json";
 const NON_REGISTRY_OVERRIDES: [&str; 3] =
     ["archive_override", "git_override", "local_path_override"];
 
-/// True when the comment lines directly above line `line` of `source` are one `# floor: <reason>` line.
+/// True when the comment lines directly above line `line` of `source`, apart from `# needed: ` lines, are one `# floor: <reason>` line.
 fn has_one_floor_comment(source: &str, line: usize) -> bool {
     let lines: Vec<&str> = source.lines().collect();
     let comments: Vec<&str> = lines
@@ -438,6 +438,7 @@ fn has_one_floor_comment(source: &str, line: usize) -> bool {
         .take(line.saturating_sub(1))
         .rev()
         .take_while(|above| above.starts_with('#'))
+        .filter(|above| !above.starts_with("# needed: "))
         .copied()
         .collect();
     matches!(
@@ -548,6 +549,20 @@ fn allowlist_problems(gaps: &BTreeSet<String>, allowlist: &str) -> Vec<String> {
 
 fn newest(json: &str) -> BTreeMap<String, String> {
     serde_json::from_str(json).unwrap_or_else(|error| panic!("{BCR_NEWEST}: {error}"))
+}
+
+#[test]
+fn a_needed_line_beside_the_floor_comment_keeps_one_floor() {
+    let source = "# needed: @loader (ext extension) loads @demo\n# floor: equals tested\nbazel_dep(name = \"demo\", version = \"1\")\n";
+    assert!(has_one_floor_comment(source, 3));
+    assert!(!has_one_floor_comment(
+        "# needed: @loader (ext extension) loads @demo\nbazel_dep(name = \"demo\", version = \"1\")\n",
+        2
+    ));
+    assert!(!has_one_floor_comment(
+        "# floor: a\n# floor: b\nbazel_dep(name = \"demo\", version = \"1\")\n",
+        3
+    ));
 }
 
 #[test]

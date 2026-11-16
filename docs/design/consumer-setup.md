@@ -27,7 +27,7 @@ This page fixes what a consumer writes to use rules_dx, and what rules_dx writes
 
 ## Crate hubs
 
-- `@rules_dx//rust:extensions.bzl` `cargo` is the upstream `crate` extension. rules_dx does not wrap it.
+- `@rules_dx//rust:extensions.bzl` `cargo` is the `crate` extension of `//third_party/rules_rust/crate_universe:extensions.bzl`. Its crate BUILD files pass `NO_COVERAGE_FEATURES` to `cargo_build_script`.
 - A consumer hub that builds crates with a `build.rs` that calls `cc` adds one annotation next to its `cargo.from_cargo` tag:
 
 ```starlark

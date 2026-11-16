@@ -1,4 +1,4 @@
-"""The rules_rust 0.75.0 crate_universe `crate` extension with patches/rules_rust/crate_universe_lazy_host_tools.patch, patches/rules_rust/crate_universe_module_labels.patch and bazelbuild/rules_rust#4386 applied; crate BUILD files pass NO_COVERAGE_FEATURES to cargo_build_script."""
+"""The rules_rust 0.75.0 crate_universe `crate` extension with patches/rules_rust/crate_universe_lazy_host_tools.patch, patches/rules_rust/crate_universe_module_labels.patch and bazelbuild/rules_rust#4386 applied; Http, Git and Path crate BUILD files pass NO_COVERAGE_FEATURES to cargo_build_script."""
 
 load("@bazel_features//:features.bzl", "bazel_features")
 load("@bazel_skylib//lib:structs.bzl", "structs")
@@ -31,7 +31,6 @@ load(
     "execute_generator",
     generate_render_config = "render_config",
 )
-load("@rules_rust//crate_universe/private:local_crate_mirror.bzl", "local_crate_mirror")
 load(
     "@rules_rust//crate_universe/private:splicing_utils.bzl",
     "splice_workspace_manifest",
@@ -39,6 +38,7 @@ load(
 )
 load("@rules_rust//crate_universe/private:urls.bzl", "CARGO_BAZEL_SHA256S", "CARGO_BAZEL_URLS")
 load(":build_script_features.bzl", "build_scripts_without_coverage")
+load(":local_crate_mirror.bzl", "local_crate_mirror")
 load("@rules_rust//rust/platform:triple.bzl", "get_host_triple")
 load("@rules_rust//rust/platform:triple_mappings.bzl", "system_to_binary_ext")
 

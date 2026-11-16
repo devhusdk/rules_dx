@@ -1,3 +1,4 @@
+load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@rules_cc//cc:defs.bzl", "cc_import")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":build_script_cc_env.bzl", "build_script_cc_env")
@@ -56,6 +57,15 @@ config_setting(
     name = "libstdcxx_ready",
     constraint_values = ["@llvm//constraints/cxxstdlib:libstdcxx"],
     values = {"features": "-static_link_cpp_runtimes"},
+    visibility = ["//visibility:public"],
+)
+
+selects.config_setting_group(
+    name = "fuzz_sanitizer_runtime",
+    match_any = [
+        "@llvm//config:asan_enabled",
+        "@platforms//os:windows",
+    ],
     visibility = ["//visibility:public"],
 )
 

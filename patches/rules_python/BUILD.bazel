@@ -1,6 +1,7 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 exports_files([
+    "install_name_tool.patch",
     "lock_extension.patch",
     "single_import_lib.patch",
 ])

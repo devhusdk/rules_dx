@@ -1,0 +1,11 @@
+--- a/python/private/python_repository.bzl
++++ b/python/private/python_repository.bzl
+@@ -218,7 +218,7 @@
+         repo_utils.execute_checked(
+             rctx,
+             op = "python_repository.FixUpDyldIdPath",
+-            arguments = [repo_utils.which_checked(rctx, "install_name_tool"), "-id", "@rpath/{}".format(dylib), "lib/{}".format(dylib)],
++            arguments = ["/usr/bin/install_name_tool", "-id", "@rpath/{}".format(dylib), "lib/{}".format(dylib)],
+             logger = logger,
+         )
+ 

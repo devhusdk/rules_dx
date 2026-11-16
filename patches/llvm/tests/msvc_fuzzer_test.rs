@@ -1,4 +1,4 @@
-//! The MSVC ABI accepts fuzzer but not asan, stages clang_rt.fuzzer*, and builds libFuzzer against libc++ without mingw headers (#9943).
+//! The MSVC ABI accepts fuzzer but not asan, stages clang_rt.fuzzer*, and builds libFuzzer against libc++ without mingw headers.
 
 fn patch() -> Vec<String> {
     let path = std::env::args().nth(1).expect("the patch path argument");

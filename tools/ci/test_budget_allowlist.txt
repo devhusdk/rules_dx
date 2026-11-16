@@ -406,7 +406,7 @@ julia/tests/BUILD.bazel no-size 1
 julia/tests/fixtures/bench/BUILD.bazel no-size 3
 julia/tests/fixtures/hello/BUILD.bazel no-size 8
 julia/tests/fixtures/julia-app/archive/BUILD.bazel no-size 1
-julia/tests/fixtures/julia-app/cli/BUILD.bazel no-size 2
+julia/tests/fixtures/julia-app/cli/BUILD.bazel no-size 1
 julia/tests/fixtures/julia-app/diagnostics/BUILD.bazel no-size 1
 julia/tests/fixtures/julia-app/stats/BUILD.bazel no-size 1
 julia/tests/fixtures/julia-app/third_party/BUILD.bazel no-size 1

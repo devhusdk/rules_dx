@@ -11,9 +11,7 @@ load(":languages.bzl", "API_COMPAT_TOOLS", "BENCH", "COMPILER_BLOCKERS", "COMPIL
 
 _CAPABILITIES = ["lint", "format", "typecheck"]
 
-_ROW_KEYS = ["ci_tests", "compiler", "families", "name", "section", "title", "workflows"]
-
-_BUILD_KEYS = ["ci_tests", "workflows"]
+_ROW_KEYS = ["compiler", "families", "name", "section", "title", "workflows"]
 
 def _doc(name):
     if name not in DOC_TOOLS:
@@ -109,9 +107,8 @@ def support_matrix_facts_dict():
             if family not in quality:
                 fail("support matrix: row " + row["name"] + " names unknown quality family " + family)
         if row["section"] == "formats":
-            for key in _BUILD_KEYS:
-                if row.get(key, []):
-                    fail("support matrix: format row " + row["name"] + " sets " + key)
+            if row.get("workflows", []):
+                fail("support matrix: format row " + row["name"] + " sets workflows")
         if row["section"] == "compilers":
             for key in ["families", "workflows"]:
                 if row.get(key, []):
@@ -193,7 +190,6 @@ def support_matrix_facts_dict():
         "unsupported_constraints": UNSUPPORTED_CONSTRAINTS,
         "rows": [
             {
-                "ci_tests": row.get("ci_tests", []),
                 "dead_code": _dead_code(row),
                 "doc": _doc(row["name"]),
                 "doc_shard": _doc_shard(row["name"]),

@@ -1,6 +1,7 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 exports_files([
+    "gcov_gcno_file.patch",
     "toolchains_gate.patch",
 ])
 

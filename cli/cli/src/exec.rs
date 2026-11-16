@@ -289,7 +289,7 @@ fn init_then_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
     let mut generate = invocation.clone();
     generate.command = Command::Generate;
     generate.targets = Vec::new();
-    generate::execute_generate(
+    let code = generate::execute_generate(
         &generate,
         Env {
             workspace: &root,
@@ -299,14 +299,24 @@ fn init_then_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
             pid,
             nonce,
             out,
-            err,
+            err: &mut *err,
             ci,
             audit_today,
             actions,
             proc_root,
             edit_commit_json,
         },
-    )
+    );
+    if code != 0 {
+        return code;
+    }
+    match dx_generate::sync(&root, dx_generate::Mode::Full, &mut dx_adopt::detected_families) {
+        Ok(_) => 0,
+        Err(error) => {
+            writeln!(err, "dx: .dx not synced after generate: {error}").ok();
+            1
+        }
+    }
 }
 
 fn dispatch_inner(invocation: &Invocation, env: Env<'_>) -> i32 {

@@ -54,8 +54,9 @@ def _test_impl(ctx):
     inner = src[DefaultInfo].files_to_run.executable
     upstream_runfiles = src[DefaultInfo].default_runfiles
     dll_srcs = [f for f in upstream_runfiles.files.to_list() if f.extension == "dll"]
-    if dll_srcs:
-        exe = ctx.actions.declare_file(ctx.label.name + "_bin/" + dx_symlink_executable_name(ctx.label.name, inner))
+    pad = inner.short_path.count("/") - (ctx.label.package.count("/") + 1 if ctx.label.package else 0)
+    if dll_srcs or pad > 0:
+        exe = ctx.actions.declare_file(ctx.label.name + "_bin/" + "_/" * (pad - 1) + dx_symlink_executable_name(ctx.label.name, inner))
         ctx.actions.symlink(output = exe, target_file = inner, is_executable = True)
     else:
         exe = dx_symlink_executable(ctx, inner)

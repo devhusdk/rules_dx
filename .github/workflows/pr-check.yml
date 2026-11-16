@@ -30,34 +30,41 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: false
+      - name: pr-check tool
+        run: |
+          # shellcheck disable=SC2086
+          bazel build --noshow_progress $BAZEL_CONFIG $BB_ARGS //tools/ci/producers:producers_bin
+          mkdir -p "$RUNNER_TEMP/pr-check"
+          # shellcheck disable=SC2086
+          cp "$(bazel info $BAZEL_CONFIG $BB_ARGS bazel-bin)/tools/ci/producers/producers_bin" "$RUNNER_TEMP/pr-check/producers_bin"
       - name: workflow
         run: |
           # shellcheck disable=SC2086
-          tools/ci/pr_check.sh workflow $BAZEL_CONFIG $BB_ARGS
+          "$RUNNER_TEMP/pr-check/producers_bin" --pr-check workflow $BAZEL_CONFIG $BB_ARGS
       - name: preflight
         run: |
           # shellcheck disable=SC2086
-          tools/ci/pr_check.sh preflight $BAZEL_CONFIG $BB_ARGS
+          "$RUNNER_TEMP/pr-check/producers_bin" --pr-check preflight $BAZEL_CONFIG $BB_ARGS
       - name: preflight-windows-arm64
         run: |
           # shellcheck disable=SC2086
-          tools/ci/pr_check.sh preflight-windows-arm64 $BAZEL_CONFIG $BB_ARGS
+          "$RUNNER_TEMP/pr-check/producers_bin" --pr-check preflight-windows-arm64 $BAZEL_CONFIG $BB_ARGS
       - name: starter
         run: |
           # shellcheck disable=SC2086
-          tools/ci/pr_check.sh starter $BAZEL_CONFIG $BB_ARGS
+          "$RUNNER_TEMP/pr-check/producers_bin" --pr-check starter $BAZEL_CONFIG $BB_ARGS
       - name: hermetic
         run: |
           # shellcheck disable=SC2086
-          tools/ci/pr_check.sh hermetic $BAZEL_CONFIG $BB_ARGS
+          "$RUNNER_TEMP/pr-check/producers_bin" --pr-check hermetic $BAZEL_CONFIG $BB_ARGS
       - name: docs
         run: |
           # shellcheck disable=SC2086
-          tools/ci/pr_check.sh docs $BAZEL_CONFIG $BB_ARGS
+          "$RUNNER_TEMP/pr-check/producers_bin" --pr-check docs $BAZEL_CONFIG $BB_ARGS
       - name: cli
         run: |
           # shellcheck disable=SC2086
-          tools/ci/pr_check.sh cli $BAZEL_CONFIG $BB_ARGS
+          "$RUNNER_TEMP/pr-check/producers_bin" --pr-check cli $BAZEL_CONFIG $BB_ARGS
       - name: affected tests
         if: ${{ !cancelled() && github.event_name == 'pull_request' }}
         shell: bash

@@ -13,6 +13,7 @@ rust_binary(
         "src/evidence.rs",
         "src/lock_merge.rs",
         "src/main.rs",
+        "src/pr_check.rs",
         "src/release_cell.rs",
         "src/review_paths.rs",
         "src/table.rs",
@@ -70,6 +71,11 @@ exports_files(
         "src/main.rs",
     ],
     visibility = ["//core/quality:__pkg__"],
+)
+
+exports_files(
+    ["src/pr_check.rs"],
+    visibility = ["//tools/ci:__pkg__"],
 )
 
 filegroup(

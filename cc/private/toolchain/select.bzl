@@ -3,6 +3,7 @@
 load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolchain")
 load("//core:wrapper.bzl", "dx_lcov_merger_attr", "dx_symlink_executable", "dx_symlink_executable_name")
 load("//core:native_coverage.bzl", "dx_gcov_tool")
+load("//core:platform.bzl", "platforms_transition")
 
 _COMPILER = str(Label("//cc:compiler"))
 
@@ -10,7 +11,6 @@ _FEATURES = "//command_line_option:features"
 
 _EXTRA_TOOLCHAINS = "//command_line_option:extra_toolchains"
 
-_PLATFORMS = "//command_line_option:platforms"
 _MODE = "//command_line_option:compilation_mode"
 
 _LLVM_SANITIZERS = {
@@ -26,7 +26,7 @@ def _features(inherited, extra):
             features.append(f)
     return features
 
-def _impl(settings, attr):
+def _impl(settings, attr, _platforms):
     features = _features(settings[_FEATURES], getattr(attr, "extra_features", []))
     extra_toolchains = list(getattr(attr, "extra_toolchains", []))
     for t in settings[_EXTRA_TOOLCHAINS]:
@@ -36,17 +36,16 @@ def _impl(settings, attr):
         _COMPILER: attr.compiler or settings[_COMPILER],
         _EXTRA_TOOLCHAINS: extra_toolchains,
         _FEATURES: features,
-        _PLATFORMS: getattr(attr, "platforms", []) or settings[_PLATFORMS],
         _MODE: getattr(attr, "compilation_mode", "") or settings[_MODE],
     }
     for name, label in _LLVM_SANITIZERS.items():
         out[label] = settings[label] or name in getattr(attr, "llvm_sanitizers", [])
     return out
 
-toolchain_transition = transition(
-    implementation = _impl,
-    inputs = [_COMPILER, _EXTRA_TOOLCHAINS, _FEATURES, _MODE, _PLATFORMS] + _LLVM_SANITIZERS.values(),
-    outputs = [_COMPILER, _EXTRA_TOOLCHAINS, _FEATURES, _MODE, _PLATFORMS] + _LLVM_SANITIZERS.values(),
+toolchain_transition = platforms_transition(
+    _impl,
+    inputs = [_COMPILER, _EXTRA_TOOLCHAINS, _FEATURES, _MODE] + _LLVM_SANITIZERS.values(),
+    outputs = [_COMPILER, _EXTRA_TOOLCHAINS, _FEATURES, _MODE] + _LLVM_SANITIZERS.values(),
 )
 
 def _test_impl(ctx):
@@ -90,18 +89,17 @@ cc_toolchain_test = rule(
     test = True,
 )
 
-def _files_transition_impl(settings, attr):
+def _files_transition_impl(settings, attr, _platforms):
     features = _features(settings[_FEATURES], getattr(attr, "extra_features", []))
     return {
         _COMPILER: attr.compiler,
         _FEATURES: features,
-        _PLATFORMS: attr.platforms,
     }
 
-_files_transition = transition(
-    implementation = _files_transition_impl,
+_files_transition = platforms_transition(
+    _files_transition_impl,
     inputs = [_FEATURES],
-    outputs = [_COMPILER, _FEATURES, _PLATFORMS],
+    outputs = [_COMPILER, _FEATURES],
 )
 
 def _files_impl(ctx):

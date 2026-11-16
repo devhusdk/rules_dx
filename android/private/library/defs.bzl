@@ -10,24 +10,22 @@ load("@rules_kotlin//kotlin:android.bzl", _kt_android_library = "kt_android_libr
 load("//android/private/platforms:defs.bzl", "effective_api_level", "platform_label")
 load("//android/private/platforms:validate.bzl", "android_tuple_errors", "android_tuples")
 load(":kwargs.bzl", "android_split_native_kwargs")
+load("//core:platform.bzl", "platforms_transition")
 load("//core/quality:sources.bzl", "single_target")
 
 _ANDROID_PLATFORMS = {name: platform_label(name) for name in android_tuples()}
 
 _API_LEVEL_SETTING = str(Label("//android:api_level"))
 
-def _android_transition_impl(_settings, attr):
-    if attr.tuple not in _ANDROID_PLATFORMS:
-        fail("android_native_library: unknown tuple '" + attr.tuple + "': want " + ", ".join(android_tuples()))
-    return {
-        "//command_line_option:platforms": [_ANDROID_PLATFORMS[attr.tuple]],
-        _API_LEVEL_SETTING: effective_api_level(attr.api_level),
-    }
+_TUPLES_BY_PLATFORM = {label: name for name, label in _ANDROID_PLATFORMS.items()}
 
-android_transition = transition(
-    implementation = _android_transition_impl,
-    inputs = [],
-    outputs = ["//command_line_option:platforms", _API_LEVEL_SETTING],
+def _android_settings(_settings, attr, _platforms):
+    return {_API_LEVEL_SETTING: effective_api_level(attr.api_level)}
+
+android_transition = platforms_transition(
+    _android_settings,
+    outputs = [_API_LEVEL_SETTING],
+    single = "android_native_library",
 )
 
 def _android_library_proxy_impl(ctx):
@@ -62,6 +60,10 @@ _android_library_proxy = rule(
             mandatory = True,
             cfg = android_transition,
         ),
+        "platforms": attr.string_list(
+            doc = "The one Android platform label the native library is built for.",
+            mandatory = True,
+        ),
         "tuple": attr.string(
             doc = "Supported Android native tuple that selects the target platform.",
             mandatory = True,
@@ -86,11 +88,12 @@ def android_native_library(
         **kwargs):
     """Builds one mixed Rust and C shared library per Android tuple."""
     crate_features = crate_features or []
-    platforms = android_tuples() if platforms == None else platforms
-    unknown = [tuple for tuple in platforms if tuple not in _ANDROID_PLATFORMS]
-    if len(platforms) == 0 or len(unknown) > 0:
-        fail("android_native_library: platforms must be a non-empty subset of " + ", ".join(android_tuples()) +
+    labels = [_ANDROID_PLATFORMS[t] for t in android_tuples()] if platforms == None else [str(native.package_relative_label(p)) for p in platforms]
+    unknown = [label for label in labels if label not in _TUPLES_BY_PLATFORM]
+    if len(labels) == 0 or len(unknown) > 0:
+        fail("android_native_library: platforms must be a non-empty subset of " + ", ".join([_ANDROID_PLATFORMS[t] for t in android_tuples()]) +
              (", got unknown " + ", ".join(unknown) if len(unknown) > 0 else ""))
+    tuples = [_TUPLES_BY_PLATFORM[label] for label in labels]
     shared, rust_kwargs = android_split_native_kwargs(kwargs)
     proxy_shared = dict(shared)
     proxy_shared["tags"] = sorted({tag: True for tag in shared.get("tags", []) + ["manual"]}.keys())
@@ -123,10 +126,11 @@ def android_native_library(
         visibility = ["//visibility:private"],
         **shared
     )
-    for tuple in platforms:
+    for tuple in tuples:
         _android_library_proxy(
             name = name + "_" + tuple,
             link = ":" + name + "_link",
+            platforms = [_ANDROID_PLATFORMS[tuple]],
             tuple = tuple,
             api_level = api_level,
             visibility = visibility,
@@ -134,7 +138,7 @@ def android_native_library(
         )
     native.filegroup(
         name = name,
-        srcs = [name + "_" + tuple for tuple in platforms],
+        srcs = [name + "_" + tuple for tuple in tuples],
         visibility = visibility,
         **shared
     )

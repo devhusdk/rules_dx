@@ -15,6 +15,7 @@ load("//cc/private:defs.bzl", "CC_COVERAGE_TRANSITION")
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "target_is_windows", "write_native_launcher")
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
 load("//core:native_coverage.bzl", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage")
+load("//core:platform.bzl", "platforms_transition")
 load("//core:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_forward_data_attr", "dx_language_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_setdefaults", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//erlang/private:beam.bzl", "beam_info")
@@ -283,17 +284,17 @@ def nif_linkopt_cases(version_script):
         "//conditions:default": [],
     }
 
-def _x64_windows_impl(settings, _attr):
-    platform = str(Label("//erlang/private:windows_x86_64"))
-    return {
-        "//command_line_option:extra_execution_platforms": settings["//command_line_option:extra_execution_platforms"] + [platform],
-        "//command_line_option:platforms": [platform],
-    }
+_X64_WINDOWS = str(Label("//erlang/private:windows_x86_64"))
+_EXTRA_EXECUTION_PLATFORMS = "//command_line_option:extra_execution_platforms"
 
-_x64_windows = transition(
-    implementation = _x64_windows_impl,
-    inputs = ["//command_line_option:extra_execution_platforms"],
-    outputs = ["//command_line_option:extra_execution_platforms", "//command_line_option:platforms"],
+def _x64_windows_impl(settings, _attr, _platforms):
+    return {_EXTRA_EXECUTION_PLATFORMS: settings[_EXTRA_EXECUTION_PLATFORMS] + [_X64_WINDOWS]}
+
+_x64_windows = platforms_transition(
+    _x64_windows_impl,
+    inputs = [_EXTRA_EXECUTION_PLATFORMS],
+    outputs = [_EXTRA_EXECUTION_PLATFORMS],
+    platforms = lambda _attr: [_X64_WINDOWS],
 )
 
 def _nif_x64_lib_impl(ctx):

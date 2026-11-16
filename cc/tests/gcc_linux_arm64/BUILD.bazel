@@ -17,7 +17,6 @@ cc_toolchain_binary(
     binary = ":hello_c",
     compiler = "gcc",
     platforms = ["//tools/platforms:linux_arm64"],
-    target_compatible_with = ["@platforms//os:linux"],
 )
 
 consumer_archive(
@@ -45,7 +44,6 @@ cc_toolchain_binary(
     compiler = "gcc",
     extra_features = ["dynamic_libstdcxx"],
     platforms = ["//tools/platforms:linux_arm64"],
-    target_compatible_with = ["@platforms//os:linux"],
 )
 
 consumer_archive(

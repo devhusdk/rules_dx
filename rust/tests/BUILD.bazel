@@ -1,5 +1,6 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load(":crate_build_script_tests.bzl", "crate_build_scripts_no_coverage_test")
 load(":cross_link_tests.bzl", "cross_link_tests")
 load(":defs_tests.bzl", "rust_wrapper_registry_tests")
 load(":rust_clippy_tests.bzl", "rust_clippy_test_suite")
@@ -14,12 +15,19 @@ real_source_target(
     testonly = True,
     starlark_srcs = [
         "BUILD.bazel",
+        "crate_build_script_tests.bzl",
         "cross_link_tests.bzl",
         "defs_tests.bzl",
         "rust_clippy_tests.bzl",
         "toolchain_tests.bzl",
     ],
     tags = ["corpus"],
+)
+
+crate_build_scripts_no_coverage_test(
+    name = "crate_build_scripts_no_coverage_test",
+    size = "small",
+    target_under_test = "@dx_crates__anyhow-1.0.104//:anyhow",
 )
 
 rust_wrapper_registry_tests(

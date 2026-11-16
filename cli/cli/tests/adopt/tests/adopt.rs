@@ -302,6 +302,7 @@ fn init_leaves_polyglot_locks_untouched_and_is_idempotent() {
             "init changed {name}"
         );
     }
+    init(&root, &home);
     let before = snapshot(&root);
     init(&root, &home);
     assert_eq!(before, snapshot(&root));

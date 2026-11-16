@@ -274,6 +274,7 @@ locale = "en"
 [files]
 extend-exclude = ["*.lock", "*.min.js", "*.svg"]
 === .dx/config/yamlfmt/base.yaml
+line_ending: lf
 formatter:
   type: basic
   indent: 2

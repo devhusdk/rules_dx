@@ -517,7 +517,8 @@ fn stage(subject: &std::path::Path, key: &str, tmp: &std::path::Path) -> std::pa
         }
     }
     let tree = std::env::var("RUNFILES_DIR").unwrap_or_default();
-    let manifest = if std::path::Path::new(&tree).join("_main").is_dir() {
+    let linked = cfg!(unix) && std::path::Path::new(&tree).join("_main").is_dir();
+    let manifest = if linked {
         None
     } else {
         manifest_source(
@@ -526,11 +527,50 @@ fn stage(subject: &std::path::Path, key: &str, tmp: &std::path::Path) -> std::pa
             &std::env::var("TEST_SRCDIR").unwrap_or_default(),
         )
     };
+    let staged_manifest = with_suffix(&staged, ".runfiles_manifest");
     if let Some(manifest) = manifest {
-        std::fs::copy(&manifest, with_suffix(&staged, ".runfiles_manifest"))
-            .expect("manifest must copy");
+        std::fs::copy(&manifest, &staged_manifest).expect("manifest must copy");
+    } else if !linked && std::path::Path::new(&tree).is_dir() {
+        std::fs::write(&staged_manifest, tree_manifest(std::path::Path::new(&tree)))
+            .expect("manifest must be writable");
     }
     staged
+}
+
+fn tree_manifest(root: &std::path::Path) -> String {
+    let mut lines = Vec::new();
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(dir) = pending.pop() {
+        for entry in std::fs::read_dir(&dir)
+            .expect("runfiles must be readable")
+            .flatten()
+        {
+            let path = entry.path();
+            if path.is_dir() {
+                pending.push(path);
+            } else if let Ok(rel) = path.strip_prefix(root) {
+                let key: Vec<_> = rel
+                    .components()
+                    .map(|part| part.as_os_str().to_string_lossy())
+                    .collect();
+                lines.push(format!("{} {}", key.join("/"), path.to_string_lossy()));
+            }
+        }
+    }
+    lines.sort();
+    lines.join("\n") + "\n"
+}
+
+#[test]
+fn tree_manifest_lists_every_file_under_its_key() {
+    let tmp = std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR must be set");
+    let root = std::path::Path::new(&tmp).join("tree_manifest");
+    let nested = root.join("_main").join("pkg");
+    std::fs::create_dir_all(&nested).expect("tree must be creatable");
+    std::fs::write(nested.join("tool.exe"), "").expect("file must write");
+    let text = tree_manifest(&root);
+    let expected = format!("_main/pkg/tool.exe {}\n", nested.join("tool.exe").display());
+    assert_eq!(text, expected);
 }
 
 fn manifest_source(

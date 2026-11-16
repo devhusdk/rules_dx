@@ -55,7 +55,6 @@ pub struct Row {
     pub dead_code: Option<Vec<String>>,
     #[serde(default)]
     pub identity: Identity,
-    pub ci_tests: Vec<String>,
     pub workflows: Vec<String>,
 }
 
@@ -497,9 +496,9 @@ mod tests {
               "sections": [],
               "rows": [
                 {"name": "hs", "title": "Haskell", "section": "languages", "families": [],
-                 "ci_tests": [], "workflows": []},
+                 "workflows": []},
                 {"name": "go", "title": "Go", "section": "languages", "families": [],
-                 "ci_tests": [], "workflows": []}
+                 "workflows": []}
               ],
               "quality": {}, "support": [], "deferred_families": [],
               "platform_not_applicable": {"hs": {"b": "no bindist"}, "go": {"a": "x"}},

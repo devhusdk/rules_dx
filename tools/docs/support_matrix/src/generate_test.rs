@@ -73,7 +73,7 @@ fn a_row_test_missing_from_every_platform_file_fails() {
 }
 
 #[test]
-fn row_labels_match_the_ci_tests_of_every_compiler_and_target_row() {
+fn every_compiler_and_target_row_has_a_row_tagged_test() {
     let source = RunfilesSource::create().expect("runfiles");
     let facts = parse_facts(
         &source
@@ -89,14 +89,9 @@ fn row_labels_match_the_ci_tests_of_every_compiler_and_target_row() {
         .iter()
         .filter(|row| row.section == "compilers" || row.section == "targets")
     {
-        let mut want = row.ci_tests.clone();
-        want.sort();
-        let have = labels.get(&row.name).cloned().unwrap_or_default();
-        let missing: Vec<_> = want.iter().filter(|l| !have.contains(l)).collect();
-        let extra: Vec<_> = have.iter().filter(|l| !want.contains(l)).collect();
         assert!(
-            missing.is_empty() && extra.is_empty(),
-            "row {} differs from its row:{} tags; missing the tag: {missing:?}; tagged but not in ci_tests: {extra:?}; run `bazel run //tools/docs/support_matrix:row_tests -- <platform>`",
+            labels.get(&row.name).is_some_and(|have| !have.is_empty()),
+            "row {} has no test tagged row:{}; tag its tests and run `bazel run //tools/docs/support_matrix:row_tests -- <platform>`",
             row.name,
             row.name
         );

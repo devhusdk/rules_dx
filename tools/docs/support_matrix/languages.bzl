@@ -31,9 +31,6 @@ API_COMPAT_TOOLS = {
     "rubygems_deploy": "not available",
 }
 
-def _hello(lang, repo = ""):
-    return [repo + "//" + lang + "/tests/fixtures/hello:hello_test"]
-
 ROWS = [
     {"name": "astro", "section": "languages", "title": LANGS["astro"]["title"]},
     {
@@ -42,21 +39,6 @@ ROWS = [
         "title": LANGS["cc"]["title"],
     },
     {
-        "ci_tests": [
-            "//cc/tests/gcc_linux_arm64:native_arm64_test",
-            "//cc/private/toolchain:gcc_arm64_asan_test",
-            "//cc/private/toolchain:gcc_arm64_dynamic_libstdcxx_test",
-            "//cc/private/toolchain:gcc_arm64_hello_c_test",
-            "//cc/private/toolchain:gcc_arm64_hello_test",
-            "//cc/private/toolchain:gcc_arm64_shared_test",
-            "//cc/private/toolchain:gcc_arm64_ubsan_test",
-            "//cc/private/toolchain:gcc_asan_test",
-            "//cc/private/toolchain:gcc_hello_test",
-            "//cc/private/toolchain:gcc_hello_c_test",
-            "//cc/private/toolchain:gcc_hello_lib_test",
-            "//cc/private/toolchain:gcc_shared_test",
-            "//cc/private/toolchain:gcc_ubsan_test",
-        ],
         "compiler": "gcc",
         "families": [],
         "name": "cc_gcc",
@@ -64,7 +46,6 @@ ROWS = [
         "title": "GCC " + GCC_VERSION + " (`gcc`)",
     },
     {
-        "ci_tests": _hello("cc"),
         "compiler": "llvm",
         "families": [],
         "name": "cc_llvm",
@@ -72,19 +53,6 @@ ROWS = [
         "title": "LLVM " + LLVM_CLANG_VERSION + " (`llvm`, default)",
     },
     {
-        "ci_tests": [
-            "//cc/private/toolchain:msvc_arm64_hello_test",
-            "//cc/private/toolchain:msvc_arm64_pe_machine_test",
-            "//cc/private/toolchain:msvc_c_test",
-            "//cc/private/toolchain:msvc_hello_c_test",
-            "//cc/private/toolchain:msvc_hello_lib_test",
-            "//cc/private/toolchain:msvc_hello_test",
-            "//cc/private/toolchain:msvc_shared_dbg_test",
-            "//cc/private/toolchain:msvc_shared_opt_test",
-            "//cc/private/toolchain:msvc_shared_test",
-            "//cc/private/toolchain:msvc_spaced_test",
-            "//cc/private/toolchain:msvc_static_crt_test",
-        ],
         "compiler": "msvc",
         "families": [],
         "name": "cc_msvc",
@@ -148,29 +116,18 @@ ROWS = [
     {"name": "vue", "section": "languages", "title": LANGS["vue"]["title"]},
     {"name": "zig", "section": "languages", "title": LANGS["zig"]["title"]},
     {
-        "ci_tests": [
-            "//android/tests/fixtures/rust_apk:check_unsigned_test",
-            "//android/tests/fixtures/rust_apk:sign_test",
-        ],
         "families": [],
         "name": "android",
         "section": "targets",
         "title": "Android",
     },
     {
-        "ci_tests": ["//appimage/tests:appimage_test"],
         "families": [],
         "name": "appimage",
         "section": "targets",
         "title": "AppImage",
     },
     {
-        "ci_tests": [
-            "//apple/tests/fixtures/macos_ledger:ledger_test",
-            "//apple/tests/fixtures/swift_app:ledger_app_test",
-            "//apple/tests/fixtures/swift_app:ledger_device_ipa_test",
-            "//swift/tests/fixtures/hello:xctest",
-        ],
         "families": ["objc"],
         "name": "apple",
         "section": "targets",
@@ -178,35 +135,31 @@ ROWS = [
         "workflows": ["evidence.yml"],
     },
     {
-        "ci_tests": ["//dockerfile/tests:bad_name_fails", "//dockerfile/tests:owns_dockerfile_class_test"],
         "families": ["dockerfile"],
         "name": "dockerfile",
         "section": "targets",
         "title": "Dockerfile",
     },
     {
-        "ci_tests": ["//make/tests:bad_name_fails", "//make/tests:owns_make_class_test"],
         "families": ["make"],
         "name": "make",
         "section": "targets",
         "title": "Make",
     },
     {
-        "ci_tests": ["//cmake/tests:bad_name_fails", "//cmake/tests:owns_cmake_class_test"],
         "families": ["cmake"],
         "name": "cmake",
         "section": "targets",
         "title": "CMake",
     },
-    {"ci_tests": ["//msix/tests:pack_test"], "families": [], "name": "msix", "section": "targets", "title": "MSIX"},
+    {"families": [], "name": "msix", "section": "targets", "title": "MSIX"},
     {
-        "ci_tests": ["//qt/tests:qt_test"],
         "families": ["qml"],
         "name": "qt",
         "section": "targets",
         "title": "Qt",
     },
-    {"ci_tests": ["//tools/testing/wasi:wasi_run_unit_test", "//rust/tests/fixtures/wasi_guest:wasi_guest_test", "//rust/tests/fixtures/wasi_guest:wasi_guest_analysis_test"], "families": [], "name": "wasi", "section": "targets", "title": "WASI"},
+    {"families": [], "name": "wasi", "section": "targets", "title": "WASI"},
     {"name": "css", "section": "formats", "title": "CSS"},
     {"name": "graphql", "section": "formats", "title": "GraphQL"},
     {"name": "markdown", "section": "formats", "title": "Markdown"},

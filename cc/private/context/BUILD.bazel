@@ -97,48 +97,6 @@ real_source_target(
     toml_srcs = ["Cargo.toml"],
 )
 
-rust_test(
-    name = "context_clang_tidy_test",
-    size = "small",
-    srcs = ["tests/context_clang_tidy.rs"],
-    aliases = aliases(
-        package_name = "cc/private/cc_context",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "context_clang_tidy_test",
-    crate_root = "tests/context_clang_tidy.rs",
-    data = [
-        ":identity",
-        ":identity_exec",
-        "//cc/tests/fixtures/compilation_db:.clang-tidy",
-        "//cc/tests/fixtures/compilation_db:limits_h",
-        "//cc/tests/fixtures/compilation_db:probe.c",
-        "//cc/tests/fixtures/compilation_db:probe_consumer_toolchain.aquery.json",
-        "//cc/tests/fixtures/compilation_db:probe_legacy.aquery.json",
-        "//cc/tests/fixtures/compilation_db:probe_plain.aquery.json",
-        "@llvm//tools:clang-tidy",
-    ],
-    env = {
-        "DX_CLANG_TIDY": "$(rootpath @llvm//tools:clang-tidy)",
-        "DX_IDENTITY": "$(rootpath :identity)",
-        "DX_IDENTITY_EXEC": "$(rootpath :identity_exec)",
-        "DX_GENERATED_HEADER": "$(rootpath //cc/tests/fixtures/compilation_db:limits_h)",
-    },
-    target_compatible_with = [
-        "@platforms//cpu:x86_64",
-        "@platforms//os:linux",
-    ],
-    deps = all_crate_deps(
-        package_name = "cc/private/cc_context",
-        normal = True,
-        normal_dev = True,
-    ) + [
-        ":cc_context",
-        "//cli/test_scratch:dx_test_scratch",
-    ],
-)
-
 real_source_target(
     name = "corpus_markdown",
     markdown_srcs = ["README.md"],

@@ -1,7 +1,7 @@
 load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//rust:defs.bzl", "rust_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load(":defs_tests.bzl", "cc_wrapper_contract_tests")
+load(":defs_tests.bzl", "cc_wrapper_contract_tests", "objc_library_tests")
 load(":resolved_toolchain.bzl", "APPLE_SUPPORT_TOOLCHAIN_ID", "resolved_cc_toolchain")
 
 # gazelle:lang rust,dx_dispatch
@@ -126,6 +126,50 @@ rust_test(
 cc_wrapper_contract_tests(
     name = "wrapper_contract_tests",
     size = "small",
+)
+
+rust_test(
+    name = "context_clang_tidy_test",
+    size = "small",
+    srcs = ["context_clang_tidy.rs"],
+    aliases = aliases(
+        package_name = "cc/cc_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "context_clang_tidy_test",
+    crate_root = "context_clang_tidy.rs",
+    data = [
+        "//cc/private/context:identity",
+        "//cc/private/context:identity_exec",
+        "//cc/tests/fixtures/compilation_db:.clang-tidy",
+        "//cc/tests/fixtures/compilation_db:limits_h",
+        "//cc/tests/fixtures/compilation_db:probe.c",
+        "//cc/tests/fixtures/compilation_db:probe_consumer_toolchain.aquery.json",
+        "//cc/tests/fixtures/compilation_db:probe_legacy.aquery.json",
+        "//cc/tests/fixtures/compilation_db:probe_plain.aquery.json",
+        "@llvm//tools:clang-tidy",
+    ],
+    env = {
+        "DX_CLANG_TIDY": "$(rootpath @llvm//tools:clang-tidy)",
+        "DX_IDENTITY": "$(rootpath //cc/private/context:identity)",
+        "DX_IDENTITY_EXEC": "$(rootpath //cc/private/context:identity_exec)",
+        "DX_GENERATED_HEADER": "$(rootpath //cc/tests/fixtures/compilation_db:limits_h)",
+    },
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    deps = [
+        "//cc/private/context:cc_context",
+        "//cli/test_scratch:dx_test_scratch",
+    ],
+)
+
+objc_library_tests(
+    name = "objc_library_test",
+    target = "//cc/tests/fixtures/objc_forward:objc_library_fixture",
+    target_compatible_with = ["@platforms//os:macos"],
 )
 
 real_source_target(

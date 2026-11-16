@@ -4,15 +4,23 @@ load("@bazel_tools//tools/cpp:toolchain_utils.bzl", "find_cpp_toolchain", "use_c
 
 APPLE_SUPPORT_TOOLCHAIN_ID = str(Label("@apple_support//toolchain:toolchain"))
 
+_TOOLCHAINS = "@rules_dx//config:toolchains"
+
 def _platform_impl(settings, attr):
     if not attr.platform:
-        return {"//command_line_option:platforms": settings["//command_line_option:platforms"]}
-    return {"//command_line_option:platforms": [attr.platform]}
+        return {
+            "//command_line_option:platforms": settings["//command_line_option:platforms"],
+            _TOOLCHAINS: settings[_TOOLCHAINS],
+        }
+    return {
+        "//command_line_option:platforms": [attr.platform],
+        _TOOLCHAINS: True,
+    }
 
 _to_platform = transition(
     implementation = _platform_impl,
-    inputs = ["//command_line_option:platforms"],
-    outputs = ["//command_line_option:platforms"],
+    inputs = ["//command_line_option:platforms", _TOOLCHAINS],
+    outputs = ["//command_line_option:platforms", _TOOLCHAINS],
 )
 
 def _impl(ctx):

@@ -50,6 +50,17 @@ dx_wrapper_contract_tests(
     },
 )
 
+filegroup(
+    name = "consumer_srcs",
+    testonly = True,
+    srcs = [
+        "consumer/BUILD.bazel",
+        "consumer/Greet.swift",
+        "consumer/GreetTests.swift",
+    ],
+    visibility = ["//deploy/private/release/tests:__pkg__"],
+)
+
 swift_hub_tests(
     name = "hub",
     size = "small",

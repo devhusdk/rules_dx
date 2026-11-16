@@ -43,7 +43,7 @@ Measured on Linux x86_64 with the pinned Bazel 9.3.1, an empty module and one wr
 | `//tools/testing/hermetic:cuda_gpu_nested_test` | A GPU test runs through a consumer | Deleted. `cuda_gpu_facts_test` stays |
 | `//tools/testing:nested_bazel_harness_test` | The harness runs the pinned Bazel offline and stops its server | Stays nested |
 | `//core/quality/tests:quality_check_smoke_test` | `dx check` reports each phase and diagnostic | Unit test for the events, in-graph fixtures for the diagnostics |
-| `//deploy/private/release/tests:release_consumer_smoke_test` | A release archive works through a registry with no override. The README quickstart and `bcr_test_module` run as written | One target. Stays nested, on the harness |
+| `//deploy/private/release/tests:release_consumer_smoke_test` | A release archive works through a registry with no override. The README quickstart and `bcr_test_module` run as written, and builds and tests a Swift package on BCR rules_swift (Linux x86_64) | One target. Stays nested, on the harness |
 | `//examples/adopt-polyglot:consumer_test` | `dx init` and `dx generate` adopt a tree with no BUILD files, twice with no change | Stays nested, on the harness |
 
 - `tools/docs/support_matrix` lists the in-graph test of a language once its nested test is converted.

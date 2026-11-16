@@ -62,6 +62,6 @@ filegroup(
     srcs = [
         "BUILD.bazel",
         "workflows/dx-update.yml",
-    ],
+    ] + glob(["actions/*/action.yml"]),
     visibility = ["//:__subpackages__"],
 )

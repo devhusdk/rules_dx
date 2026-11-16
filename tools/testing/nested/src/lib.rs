@@ -1361,8 +1361,19 @@ fn blocked_download(offline: bool, run: &Run) -> Option<String> {
     ))
 }
 
-/// The longest one captured command may run.
-const CALL_DEADLINE: Duration = Duration::from_secs(if cfg!(windows) { 1500 } else { 300 });
+/// The shortest per-command limit.
+const CALL_DEADLINE_FLOOR: Duration = Duration::from_secs(if cfg!(windows) { 1500 } else { 300 });
+
+/// Time kept between a killed command and the test's own timeout.
+const CALL_DEADLINE_MARGIN: Duration = Duration::from_secs(30);
+
+/// The longest one captured command may run: the test's `TEST_TIMEOUT` less a margin, never under the floor.
+fn call_deadline(test_timeout: Option<&str>) -> Duration {
+    test_timeout
+        .and_then(|value| value.trim().parse::<u64>().ok())
+        .map(|secs| Duration::from_secs(secs).saturating_sub(CALL_DEADLINE_MARGIN))
+        .map_or(CALL_DEADLINE_FLOOR, |limit| limit.max(CALL_DEADLINE_FLOOR))
+}
 
 /// Like `Command::output`, but kills the child and returns an error naming the command and its output so far once `limit` passes.
 fn output_within(command: &mut Command, limit: Duration) -> Result<std::process::Output, String> {
@@ -1416,7 +1427,8 @@ fn output_within(command: &mut Command, limit: Duration) -> Result<std::process:
 }
 
 fn capture(mut command: Command, what: &str, offline: bool) -> Run {
-    let output = output_within(&mut command, CALL_DEADLINE)
+    let limit = call_deadline(std::env::var("TEST_TIMEOUT").ok().as_deref());
+    let output = output_within(&mut command, limit)
         .unwrap_or_else(|error| panic!("run {what}: {error}"));
     let run = Run {
         status: output.status,
@@ -2098,6 +2110,14 @@ mod tests {
         std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(0o700))
             .expect("private scratch");
         dir
+    }
+
+    #[test]
+    fn call_deadline_follows_the_test_timeout_above_the_floor() {
+        assert_eq!(call_deadline(None), CALL_DEADLINE_FLOOR);
+        assert_eq!(call_deadline(Some("junk")), CALL_DEADLINE_FLOOR);
+        assert_eq!(call_deadline(Some("60")), CALL_DEADLINE_FLOOR);
+        assert_eq!(call_deadline(Some("3000")), Duration::from_secs(2970));
     }
 
     #[test]

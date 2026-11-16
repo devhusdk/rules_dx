@@ -574,11 +574,18 @@ fn stage(subject: &std::path::Path, key: &str, tmp: &std::path::Path) -> std::pa
             .expect("descriptor must copy");
     }
     std::fs::copy(subject, &staged).expect("subject must copy");
+    let sibling_dir = subject
+        .parent()
+        .and_then(|parent| parent.file_name())
+        .and_then(|parent| parent.to_str())
+        .is_some_and(|parent| parent.ends_with(".siblings"));
     if let Some(Ok(siblings)) = subject.parent().map(std::fs::read_dir) {
         for sibling in siblings.flatten() {
             let file = sibling.file_name();
             let Some(file) = file.to_str() else { continue };
-            if file.starts_with(&format!("{stem}.")) && !dir.join(file).exists() {
+            let wanted = file.starts_with(&format!("{stem}."))
+                || (sibling_dir && sibling.path().is_file());
+            if wanted && !dir.join(file).exists() {
                 std::fs::copy(sibling.path(), dir.join(file)).expect("sibling must copy");
             }
         }
@@ -687,4 +694,21 @@ fn manifest_source_falls_back_to_runfiles_dir() {
     assert_eq!(manifest_source(None, missing, tree), expected);
     assert_eq!(manifest_source(None, missing, missing), None);
     assert_eq!(manifest_source(None, "", ""), None);
+}
+
+#[test]
+fn stage_copies_every_file_of_a_siblings_dir() {
+    let tmp = std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR must be set");
+    let root = std::path::Path::new(&tmp).join("stage_siblings");
+    let siblings = root.join("tool.siblings");
+    std::fs::create_dir_all(&siblings).expect("siblings dir must create");
+    std::fs::write(siblings.join("tool.exe"), "exe").expect("subject must write");
+    std::fs::write(siblings.join("runtime.dll"), "dll").expect("sibling must write");
+    let out = root.join("out");
+    let staged = stage(&siblings.join("tool.exe"), "_main/pkg/tool.exe", &out);
+    let dir = staged.parent().expect("staged subject must have a dir");
+    assert_eq!(
+        std::fs::read_to_string(dir.join("runtime.dll")).expect("sibling must stage"),
+        "dll"
+    );
 }

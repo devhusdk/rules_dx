@@ -1,8 +1,9 @@
 load("@gazelle//:def.bzl", "gazelle_generation_test")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//php:defs.bzl", "php_binary")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//php:defs.bzl", "php_binary")
+load("//rust:defs.bzl", "rust_test")
+load("//tools/testing:child_runfiles.bzl", "child_runfiles")
 
 go_library(
     name = "php",
@@ -81,18 +82,26 @@ php_binary(
     main = "builtins_dump.php",
 )
 
-sh_test(
+child_runfiles(
+    name = "builtins_dump_child",
+    testonly = True,
+    binary = ":builtins_dump",
+)
+
+rust_test(
     name = "builtins_test",
     size = "small",
-    srcs = ["builtins_test.sh"],
-    args = [
-        "$(rootpath :builtins_dump)",
-        "$(rootpath builtins.txt)",
-    ],
+    srcs = ["builtins_test.rs"],
     data = [
         "builtins.txt",
         ":builtins_dump",
+        ":builtins_dump_child",
     ],
+    env = {
+        "DX_PHP_BUILTINS_DUMP": "$(rootpath :builtins_dump)",
+        "DX_PHP_BUILTINS_LIST": "$(rootpath builtins.txt)",
+    },
+    deps = ["//tools/testing:dx_testing"],
 )
 
 filegroup(

@@ -1,4 +1,4 @@
-use dx_testing::{read_runfiles, runfiles_root};
+use dx_testing::{read_runfiles, resolve_runfiles, runfiles_root};
 use starlark_syntax as _;
 use yaml_serde as _;
 
@@ -890,9 +890,11 @@ fn windows_overrides_point_at_tracked_dirs() {
         ".bazelrc no longer replaces local_config_winsdk, so Windows jobs run vcvars again"
     );
     for (repo, dir) in overrides {
-        read_runfiles(&format!("{dir}/BUILD.bazel"));
-        // Without a repo boundary file Bazel refuses the directory as a repository.
-        read_runfiles(&format!("{dir}/REPO.bazel"));
+        for name in ["BUILD.bazel", "REPO.bazel"] {
+            // Without a repo boundary file Bazel refuses the directory as a repository.
+            let file = resolve_runfiles(&format!("{dir}/{name}"));
+            assert!(file.is_file(), "{} is not a file", file.display());
+        }
         if repo.ends_with("local_config_winsdk") {
             // bazel_tools loads register_local_rc_exe_toolchains from the replacement.
             let bzl = read_runfiles(&format!("{dir}/toolchains.bzl"));

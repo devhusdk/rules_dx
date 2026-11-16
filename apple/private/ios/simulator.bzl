@@ -23,7 +23,7 @@ def _simctl_impl(ctx):
         "arg=simctl",
         "arg=" + ctx.attr.op,
         "env=DX_XCODE_VERSION\t" + (str(xcode) if xcode else ""),
-        "env=DX_SIMCTL_DEVICE\t" + ctx.attr.simulator,
+        "env_default=DX_SIMCTL_DEVICE\t" + ctx.attr.simulator,
     ]
     runfiles = [ctx.attr._ops[DefaultInfo].default_runfiles]
     if ctx.attr.bundle_id:

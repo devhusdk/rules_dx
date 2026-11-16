@@ -23,7 +23,9 @@ fn constant(source: &str, name: &str) -> String {
         .unwrap_or_else(|| panic!("{SCRIPT} has no {name}"));
     let rest = source.get(start..).expect("string slice within bounds");
     let end = rest.find(";\n").expect("end of constant");
-    rest.get(..end).expect("string slice within bounds").to_owned()
+    rest.get(..end)
+        .expect("string slice within bounds")
+        .to_owned()
 }
 
 /// Returns every `//` label in the text.
@@ -208,7 +210,11 @@ fn cacheless_retry_drops_the_remote_downloader() {
         .collect();
     assert_eq!(retries.len(), 1, "{run}");
     for flag in ["--remote_cache= ", "--experimental_remote_downloader= "] {
-        assert!(retries[0].contains(flag), "retry lacks {flag}: {}", retries[0]);
+        assert!(
+            retries[0].contains(flag),
+            "retry lacks {flag}: {}",
+            retries[0]
+        );
     }
 }
 

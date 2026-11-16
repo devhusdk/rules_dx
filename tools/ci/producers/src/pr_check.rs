@@ -100,7 +100,11 @@ pub fn plan(set: &str, flags: &[String]) -> Result<Vec<Step>, String> {
             args.extend(
                 WINDOWS_ARM64_TARGETS
                     .split_whitespace()
-                    .filter(|label| !WINDOWS_ARM64_BLOCKED.split_whitespace().any(|b| b == *label))
+                    .filter(|label| {
+                        !WINDOWS_ARM64_BLOCKED
+                            .split_whitespace()
+                            .any(|b| b == *label)
+                    })
                     .map(str::to_owned),
             );
             vec![Step::Run(BAZEL, args)]
@@ -131,11 +135,21 @@ pub fn plan(set: &str, flags: &[String]) -> Result<Vec<Step>, String> {
         "docs" => vec![
             Step::Run(
                 "tools/dx",
-                words(&["lint", "//docs/...", "//tools/docs/...", "--", "--nobuild"], flags, ""),
+                words(
+                    &["lint", "//docs/...", "//tools/docs/...", "--", "--nobuild"],
+                    flags,
+                    "",
+                ),
             ),
-            Step::Run(BAZEL, words(&["build"], flags, "//tools/docs/site:user_api")),
+            Step::Run(
+                BAZEL,
+                words(&["build"], flags, "//tools/docs/site:user_api"),
+            ),
         ],
-        "cli" => vec![Step::Run(BAZEL, words(&["test"], flags, "//cli/cli:dx_cli_test"))],
+        "cli" => vec![Step::Run(
+            BAZEL,
+            words(&["test"], flags, "//cli/cli:dx_cli_test"),
+        )],
         other => {
             return Err(format!(
                 "unknown set: {other}; pick one of {} or all",
@@ -271,9 +285,16 @@ mod tests {
             steps.first(),
             Some(&Step::Run(
                 "tools/dx",
-                ["lint", "//docs/...", "//tools/docs/...", "--", "--nobuild", "--config=ci"]
-                    .map(str::to_owned)
-                    .to_vec()
+                [
+                    "lint",
+                    "//docs/...",
+                    "//tools/docs/...",
+                    "--",
+                    "--nobuild",
+                    "--config=ci"
+                ]
+                .map(str::to_owned)
+                .to_vec()
             ))
         );
     }

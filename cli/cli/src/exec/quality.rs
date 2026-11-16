@@ -15,25 +15,25 @@ use super::link_check;
 use super::notice_codes::{CODE_CHANGES_PROPOSED, CODE_TOOL_SKIPPED};
 use super::pinned_tool::QueryBazel;
 use super::quality_apply::{apply_collected_changes, project_status, terminal_on_disk};
-use super::quality_emit::{EmitInputs, emit_findings};
+use super::quality_emit::{EmitCounts, EmitInputs, emit_findings};
 use super::quality_patch::render_diff_patch;
 use super::quality_reports::{
     Snapshots, StandardReports, verified_snapshots, write_standard_reports,
 };
-use super::results::{collect_results, invert_repo_mapping};
+use super::results::{Collected, collect_results, invert_repo_mapping};
 use dx_apply::{FileSystem, RealFileSystem};
 use dx_output::{
-    ActionCounts, FindingCounts, FinishedCounts, NoticeEvent, OutputMode, Severity,
-    command_finished, meets_threshold, notice_event, quality_started,
+    ActionCounts, DiagnosticEvent, FindingCounts, FinishedCounts, NoticeEvent, OutputMode,
+    Severity, command_finished, meets_threshold, notice_event, quality_started,
 };
 use dx_plan::args::{BREAKING_AGAINST_OPTION, Command, Invocation, QualityRequest};
 use dx_plan::plan::{
-    Consumer, SHARD_OUTPUT_GROUP, SKIP_OUTPUT_GROUP, Selection, bep_path, plan_build_with,
-    plan_probe,
+    BuildPlan, Consumer, SHARD_OUTPUT_GROUP, SKIP_OUTPUT_GROUP, Selection, bep_path,
+    plan_build_with, plan_probe,
 };
-use dx_plan::reports::{Destination, plan_reports};
-use dx_plan::resolve::{path_filter, resolve};
-use std::collections::BTreeSet;
+use dx_plan::reports::{Destination, PlannedReport, plan_reports};
+use dx_plan::resolve::{ResolvedScope, path_filter, resolve};
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
 use std::path::Path;
 
@@ -291,99 +291,271 @@ pub(super) fn skip_notice(command: &str, note: &str) -> NoticeEvent {
     }
 }
 
+struct Settled {
+    sources: BTreeMap<String, SourceRead>,
+    applied: BTreeMap<String, bool>,
+    not_applied: Vec<(String, &'static str)>,
+    status: Vec<DiagnosticEvent>,
+    failed: bool,
+}
+
 fn run_quality_request(
     request: &QualityRequest,
-    env: Env<'_>,
+    mut env: Env<'_>,
     fs: &dyn FileSystem,
     kind: &mut PhaseKind,
     effects: &mut PhaseEffects,
 ) -> i32 {
-    let Env {
-        workspace,
-        runner,
-        query_runner,
-        temp_dir,
-        pid,
-        nonce,
-        out,
-        err,
-        ci: _,
-        audit_today,
-        actions,
-        proc_root: _,
-        edit_commit_json: _,
-    } = env;
-    let planned_reports = match plan_reports(
-        workspace,
-        request.command,
-        &request.common.reports,
-        &request.common.output,
-    ) {
+    let planned_reports = match plan_quality_reports(request, &mut env) {
         Ok(planned) => planned,
-        Err(error) => return pre_exec(request.common.output, out, err, &error.to_string()),
+        Err(exit) => return exit,
     };
-    if request.command == Command::Lint
-        && !request.applies()
-        && let Some(exit) = guard_build_output(workspace, request.common.output, out, err)
-    {
-        return exit;
-    }
     let stdout_report = planned_reports
         .iter()
         .any(|report| report.destination == Destination::Stdout);
-    let bep = bep_path(temp_dir, pid, nonce);
+    let bep = bep_path(env.temp_dir, env.pid, env.nonce);
     let Some(bep_text) = bep.to_str() else {
         return operational_output(
             request.common.output,
-            out,
-            err,
+            env.out,
+            env.err,
             CODE_UNREADABLE_BEP,
             &crate::startup::temp_path_not_utf8(),
         );
     };
-    let rewritten;
-    let request = if request
+    let rewritten = match rewrite_breaking_base(request, &mut env) {
+        Ok(rewritten) => rewritten,
+        Err(exit) => return exit,
+    };
+    let request = rewritten.as_ref().unwrap_or(request);
+    let resolved = match resolve(
+        &request.targets,
+        env.workspace,
+        env.query_runner,
+        &request.bazel_startup_options,
+    ) {
+        Ok(resolved) => resolved,
+        Err(error) => {
+            return resolve_failed(request.common.output, env.out, env.err, &error);
+        }
+    };
+    let (build, probe_counts) =
+        match plan_quality_build(request, &mut env, kind, &resolved, bep_text, stdout_report) {
+            Ok(planned) => planned,
+            Err(exit) => return exit,
+        };
+    let build_run = match run_quality_build(request, &mut env, kind, &build, &bep, probe_counts) {
+        Ok(run) => run,
+        Err(exit) => return exit,
+    };
+    let bazel_code = build_run.code;
+    let compile_only = build_run.compile_only;
+    let action_counts = build_run.actions;
+    let mut collected = match collect_run(request, &mut env, kind, &bep) {
+        Ok(collected) => collected,
+        Err(exit) => return exit,
+    };
+    if let Err(exit) = report_bazel_failure(request, &mut env, &build_run) {
+        return exit;
+    }
+    collected.complete = collected.complete && bazel_code == 0;
+    let apply = request.applies();
+    let settled = settle_changes(request, &mut env, fs, &mut collected, effects);
+    let (emit_counts, reports_ok) = match emit_results(
+        request,
+        &mut env,
+        &collected,
+        &settled,
+        (&planned_reports, stdout_report),
+    ) {
+        Ok(emitted) => emitted,
+        Err(exit) => return exit,
+    };
+    let Settled { status, failed, .. } = &settled;
+    let (diagnostics, finding_counts) = tally_findings(status, emit_counts.findings_omitted);
+    if matches!(request.common.output, OutputMode::Text { .. }) && collected.complete && !failed {
+        writeln!(env.err, "{}", findings_summary(status, resolved.kept.len())).ok();
+    }
+    if let Err(exit) = report_incomplete(request, &mut env, &collected, bazel_code) {
+        return exit;
+    }
+    let exit_code = if collected.complete && !failed && reports_ok {
+        0
+    } else if bazel_code != 0 {
+        bazel_code
+    } else {
+        1
+    };
+    if request.common.output == OutputMode::Json {
+        let counts = FinishedCounts {
+            results_complete: Some(collected.complete),
+            run_id: None,
+            diagnostics: Some(diagnostics),
+            findings: Some(finding_counts),
+            changes: Some([0, collected.changes.len() as u64]),
+            effects: apply.then_some([emit_counts.applied_count, emit_counts.not_applied_count]),
+            tests: None,
+            actions: action_counts,
+        };
+        if let Err(exit) = emit_event(env.out, &command_finished(exit_code, &counts)) {
+            return exit;
+        }
+    }
+    *kind = quality_phase(&collected, bazel_code, compile_only, reports_ok, *failed);
+    exit_code
+}
+
+struct BuildRun {
+    code: i32,
+    compile_only: bool,
+    build_stage: bool,
+    actions: Option<ActionCounts>,
+}
+
+fn run_quality_build(
+    request: &QualityRequest,
+    env: &mut Env<'_>,
+    kind: &mut PhaseKind,
+    build: &BuildPlan,
+    bep: &Path,
+    probe_counts: Option<ActionCounts>,
+) -> Result<BuildRun, i32> {
+    let bazel_code = match run_bazel_output(
+        request.common.output,
+        env.out,
+        env.err,
+        env.workspace,
+        env.runner,
+        &build.argv,
+        &[],
+    ) {
+        Ok(code) => code,
+        Err(exit) => {
+            std::fs::remove_file(bep).ok();
+            *kind = PhaseKind::Host;
+            return Err(exit);
+        }
+    };
+    let action_counts = match (probe_counts, read_actions(bep, env.actions)) {
+        (Some(probe), Some(build)) => Some(probe + build),
+        (probe, build) => probe.or(build),
+    };
+    let (compile_only, build_stage) = if bazel_code == 0 {
+        (false, false)
+    } else {
+        match report_build_failures(bep, request.common.output, env.out, env.err) {
+            Ok(reported) => (reported.compile_only, reported.build_stage),
+            Err(exit) => {
+                std::fs::remove_file(bep).ok();
+                return Err(exit);
+            }
+        }
+    };
+    Ok(BuildRun {
+        code: bazel_code,
+        compile_only,
+        build_stage,
+        actions: action_counts,
+    })
+}
+
+fn plan_quality_reports(
+    request: &QualityRequest,
+    env: &mut Env<'_>,
+) -> Result<Vec<PlannedReport>, i32> {
+    let planned_reports = plan_reports(
+        env.workspace,
+        request.command,
+        &request.common.reports,
+        &request.common.output,
+    )
+    .map_err(|error| pre_exec(request.common.output, env.out, env.err, &error.to_string()))?;
+    if request.command == Command::Lint
+        && !request.applies()
+        && let Some(exit) =
+            guard_build_output(env.workspace, request.common.output, env.out, env.err)
+    {
+        return Err(exit);
+    }
+    Ok(planned_reports)
+}
+
+/// The request with a `--breaking-against` ref resolved to a base, or `None` when it has none.
+fn rewrite_breaking_base(
+    request: &QualityRequest,
+    env: &mut Env<'_>,
+) -> Result<Option<QualityRequest>, i32> {
+    if !request
         .bazel_options
         .iter()
         .any(|option| option.starts_with(BREAKING_AGAINST_OPTION))
     {
-        let context = breaking_base::Context {
-            workspace,
-            runner,
-            query_runner,
-            startup: &request.bazel_startup_options,
-            temp_dir,
-        };
-        match breaking_base::resolve_options(&request.bazel_options, &context) {
-            Ok(bazel_options) => {
-                rewritten = QualityRequest {
-                    bazel_options,
-                    ..request.clone()
-                };
-                &rewritten
-            }
-            Err(error) => {
-                return report_dx_error(
-                    request.common.output,
-                    out,
-                    err,
-                    CODE_INVALID_ARGUMENTS,
-                    &error,
-                );
-            }
-        }
-    } else {
-        request
+        return Ok(None);
+    }
+    let context = breaking_base::Context {
+        workspace: env.workspace,
+        runner: env.runner,
+        query_runner: env.query_runner,
+        startup: &request.bazel_startup_options,
+        temp_dir: env.temp_dir,
     };
-    let resolved = match resolve(
-        &request.targets,
-        workspace,
-        query_runner,
-        &request.bazel_startup_options,
-    ) {
-        Ok(resolved) => resolved,
-        Err(error) => return resolve_failed(request.common.output, out, err, &error),
-    };
+    match breaking_base::resolve_options(&request.bazel_options, &context) {
+        Ok(bazel_options) => Ok(Some(QualityRequest {
+            bazel_options,
+            ..request.clone()
+        })),
+        Err(error) => Err(report_dx_error(
+            request.common.output,
+            env.out,
+            env.err,
+            CODE_INVALID_ARGUMENTS,
+            &error,
+        )),
+    }
+}
+
+fn announce_quality_start(
+    request: &QualityRequest,
+    env: &mut Env<'_>,
+    resolved: &ResolvedScope,
+    summary: &str,
+    stdout_report: bool,
+) -> Result<(), i32> {
+    let out = &mut *env.out;
+    let err = &mut *env.err;
+    let apply = request.applies();
+    let mode = if apply { "default" } else { "check" };
+    if request.common.output == OutputMode::Json {
+        emit_built(
+            out,
+            quality_started(request.command.name(), mode, request.unsafe_fixes),
+        )?;
+    } else if request.chatty()
+        && !stdout_report
+        && let Err(exit) = check_stdout_write(writeln!(out, "{summary}"))
+    {
+        return Err(exit);
+    }
+    warn_scope_excluded(request.common.output, out, err, &resolved.kept)?;
+    Ok(())
+}
+
+fn plan_quality_build(
+    request: &QualityRequest,
+    env: &mut Env<'_>,
+    kind: &mut PhaseKind,
+    resolved: &ResolvedScope,
+    bep_text: &str,
+    stdout_report: bool,
+) -> Result<(BuildPlan, Option<ActionCounts>), i32> {
+    let (workspace, runner, temp_dir, pid, nonce, actions) = (
+        env.workspace,
+        env.runner,
+        env.temp_dir,
+        env.pid,
+        env.nonce,
+        env.actions,
+    );
     // An unreadable MODULE.bazel gives no deps, and the rules_dx root carries every family.
     let deps: Vec<String> = dx_adopt::module_deps(workspace).into_iter().collect();
     let extensions = (!deps.is_empty() && !dx_adopt::is_rules_dx_root(workspace))
@@ -393,7 +565,7 @@ fn run_quality_request(
         .map(|extensions| Consumer { extensions });
     let mut build = match plan_build_with(
         request.command,
-        &resolved,
+        resolved,
         &request.bazel_options,
         bep_text,
         &request.bazel_startup_options,
@@ -407,32 +579,15 @@ fn run_quality_request(
     .map_err(|error| format!("{error}"))
     {
         Ok(build) => build,
-        Err(message) => return pre_exec(request.common.output, out, err, &message),
+        Err(message) => return Err(pre_exec(request.common.output, env.out, env.err, &message)),
     };
     *kind = PhaseKind::Tool;
-    let apply = request.applies();
-    let mode = if apply { "default" } else { "check" };
-    if request.common.output == OutputMode::Json {
-        if let Err(exit) = emit_built(
-            out,
-            quality_started(request.command.name(), mode, request.unsafe_fixes),
-        ) {
-            return exit;
-        }
-    } else if request.chatty()
-        && !stdout_report
-        && let Err(exit) = check_stdout_write(writeln!(out, "{}", build.summary))
-    {
-        return exit;
-    }
-    if let Err(exit) = warn_scope_excluded(request.common.output, out, err, &resolved.kept) {
-        return exit;
-    }
+    announce_quality_start(request, env, resolved, &build.summary, stdout_report)?;
     // The probe runs after the start event, so a run whose stdout already failed starts no Bazel.
     let mut probe_counts = None;
     match probe_shards(
         request,
-        &resolved,
+        resolved,
         workspace,
         runner,
         temp_dir,
@@ -445,7 +600,7 @@ fn run_quality_request(
         Ok(Some(shards)) => {
             if let Ok(narrowed) = plan_build_with(
                 request.command,
-                &resolved,
+                resolved,
                 &request.bazel_options,
                 bep_text,
                 &request.bazel_startup_options,
@@ -462,56 +617,43 @@ fn run_quality_request(
         Ok(None) => {}
         Err(ProbeStop::Signalled) => {
             *kind = PhaseKind::Host;
-            return operational_output(
+            return Err(operational_output(
                 request.common.output,
-                out,
-                err,
+                env.out,
+                env.err,
                 CODE_BAZEL_SIGNALLED,
                 "Bazel terminated by signal",
-            );
+            ));
         }
         Err(ProbeStop::Interrupted) => {
             *kind = PhaseKind::Cancelled;
-            return operational_output(
+            return Err(operational_output(
                 request.common.output,
-                out,
-                err,
+                env.out,
+                env.err,
                 CODE_BAZEL_FAILED,
                 "the shard probe was interrupted",
-            );
+            ));
         }
     }
-    let bazel_code = match run_bazel_output(
-        request.common.output,
-        out,
-        err,
-        workspace,
-        runner,
-        &build.argv,
-        &[],
-    ) {
-        Ok(code) => code,
-        Err(exit) => {
-            std::fs::remove_file(&bep).ok();
-            *kind = PhaseKind::Host;
-            return exit;
-        }
-    };
-    let action_counts = match (probe_counts, read_actions(&bep, actions)) {
-        (Some(probe), Some(build)) => Some(probe + build),
-        (probe, build) => probe.or(build),
-    };
-    let (compile_only, build_stage) = if bazel_code == 0 {
-        (false, false)
-    } else {
-        match report_build_failures(&bep, request.common.output, out, err) {
-            Ok(reported) => (reported.compile_only, reported.build_stage),
-            Err(exit) => {
-                std::fs::remove_file(&bep).ok();
-                return exit;
-            }
-        }
-    };
+    Ok((build, probe_counts))
+}
+
+fn collect_run(
+    request: &QualityRequest,
+    env: &mut Env<'_>,
+    kind: &mut PhaseKind,
+    bep: &Path,
+) -> Result<Collected, i32> {
+    let (workspace, query_runner, temp_dir, pid, nonce) = (
+        env.workspace,
+        env.query_runner,
+        env.temp_dir,
+        env.pid,
+        env.nonce,
+    );
+    let out = &mut *env.out;
+    let err = &mut *env.err;
     #[expect(
         clippy::disallowed_methods,
         reason = "dump_repo_mapping takes no build settings"
@@ -524,37 +666,37 @@ fn run_quality_request(
             .then(|| invert_repo_mapping(&result.stdout))
             .flatten()
     };
-    let mut collected = match collect_results(&bep, workspace, &repo_mapping) {
+    let mut collected = match collect_results(bep, workspace, &repo_mapping) {
         Ok(collected) => collected,
         Err(error) => {
-            std::fs::remove_file(&bep).ok();
+            std::fs::remove_file(bep).ok();
             *kind = PhaseKind::Incomplete;
-            return report_dx_error(
+            return Err(report_dx_error(
                 request.common.output,
                 out,
                 err,
                 bep_error_code(&error),
                 &error,
-            );
+            ));
         }
     };
-    for note in read_skip_notes(&bep, workspace) {
+    for note in read_skip_notes(bep, workspace) {
         if request.common.output == OutputMode::Json {
             let notice = skip_notice(request.command.name(), &note);
             if let Err(exit) = emit_built(out, notice_event(&notice)) {
-                std::fs::remove_file(&bep).ok();
-                return exit;
+                std::fs::remove_file(bep).ok();
+                return Err(exit);
             }
         } else {
             writeln!(err, "dx: note: {note}").ok();
         }
     }
     let link_requests = if request.online {
-        link_check::read_requests(&bep, workspace)
+        link_check::read_requests(bep, workspace)
     } else {
         Vec::new()
     };
-    std::fs::remove_file(&bep).ok();
+    std::fs::remove_file(bep).ok();
     if !link_requests.is_empty() {
         let bazel = QueryBazel {
             query_runner,
@@ -584,56 +726,80 @@ fn run_quality_request(
             )),
         }
     }
-    if bazel_code != 0 {
-        let crashed = server_died(bazel_code);
-        let (code, failed, fix) = if crashed {
-            (
-                bazel_failure_code(bazel_code),
-                "run",
-                "run the command again, or raise the Bazel server heap if it ran out of memory",
-            )
-        } else if compile_only {
-            (
-                refine(CODE_BAZEL_FAILED),
-                "build",
-                "fix the compile errors above",
-            )
-        } else if build_stage {
-            (
-                refine(CODE_BAZEL_FAILED),
-                "build",
-                "fix the build errors above",
-            )
-        } else {
-            (
-                refine(CODE_ANALYSIS_FAILED),
-                "analysis",
-                "fix the Bazel error above",
-            )
-        };
-        let detail = format!(
-            "{} {failed} failed with Bazel exit {bazel_code}; results are incomplete",
-            request.command.name()
-        );
-        if request.common.output == OutputMode::Json {
-            if let Err(exit) =
-                emit_built(out, bazel_exit_event(code, &detail, bazel_code, "execute"))
-            {
-                return exit;
+    Ok(collected)
+}
+
+fn report_bazel_failure(
+    request: &QualityRequest,
+    env: &mut Env<'_>,
+    run: &BuildRun,
+) -> Result<(), i32> {
+    let BuildRun {
+        code: bazel_code,
+        compile_only,
+        build_stage,
+        ..
+    } = *run;
+    if bazel_code == 0 {
+        return Ok(());
+    }
+    let out = &mut *env.out;
+    let err = &mut *env.err;
+    let crashed = server_died(bazel_code);
+    let (code, failed, fix) = if crashed {
+        (
+            bazel_failure_code(bazel_code),
+            "run",
+            "run the command again, or raise the Bazel server heap if it ran out of memory",
+        )
+    } else if compile_only {
+        (
+            refine(CODE_BAZEL_FAILED),
+            "build",
+            "fix the compile errors above",
+        )
+    } else if build_stage {
+        (
+            refine(CODE_BAZEL_FAILED),
+            "build",
+            "fix the build errors above",
+        )
+    } else {
+        (
+            refine(CODE_ANALYSIS_FAILED),
+            "analysis",
+            "fix the Bazel error above",
+        )
+    };
+    let detail = format!(
+        "{} {failed} failed with Bazel exit {bazel_code}; results are incomplete",
+        request.command.name()
+    );
+    if request.common.output == OutputMode::Json {
+        emit_built(out, bazel_exit_event(code, &detail, bazel_code, "execute"))?;
+    } else {
+        writeln!(err, "dx: {code}: {detail}").ok();
+        match recorded().filter(|hint| hint.code == code) {
+            Some(hint) => {
+                writeln!(err, "{}", hint.next).ok();
             }
-        } else {
-            writeln!(err, "dx: {code}: {detail}").ok();
-            match recorded().filter(|hint| hint.code == code) {
-                Some(hint) => {
-                    writeln!(err, "{}", hint.next).ok();
-                }
-                None => {
-                    writeln!(err, "{}", rerun_hint(request, fix)).ok();
-                }
+            None => {
+                writeln!(err, "{}", rerun_hint(request, fix)).ok();
             }
         }
     }
-    collected.complete = collected.complete && bazel_code == 0;
+    Ok(())
+}
+
+fn settle_changes(
+    request: &QualityRequest,
+    env: &mut Env<'_>,
+    fs: &dyn FileSystem,
+    collected: &mut Collected,
+    effects: &mut PhaseEffects,
+) -> Settled {
+    let (workspace, query_runner, audit_today) = (env.workspace, env.query_runner, env.audit_today);
+    let apply = request.applies();
     if let Some(filter) = path_filter(&request.targets, workspace) {
         collected.keep_paths(&filter);
     }
@@ -690,7 +856,34 @@ fn run_quality_request(
     {
         failed = true;
     }
+    Settled {
+        sources,
+        applied,
+        not_applied,
+        status,
+        failed,
+    }
+}
 
+fn emit_results(
+    request: &QualityRequest,
+    env: &mut Env<'_>,
+    collected: &Collected,
+    settled: &Settled,
+    reports: (&[PlannedReport], bool),
+) -> Result<(EmitCounts, bool), i32> {
+    let (planned_reports, stdout_report) = reports;
+    let Settled {
+        sources,
+        applied,
+        not_applied,
+        status,
+        ..
+    } = settled;
+    let workspace = env.workspace;
+    let apply = request.applies();
+    let out = &mut *env.out;
+    let err = &mut *env.err;
     let mut patch = String::new();
     if request.common.output == OutputMode::Diff {
         let verified: Vec<FileChange> = collected
@@ -701,16 +894,16 @@ fn run_quality_request(
             })
             .cloned()
             .collect();
-        match render_diff_patch(&sources, &verified) {
+        match render_diff_patch(sources, &verified) {
             Ok(rendered) => patch = rendered,
             Err(error) => {
-                return operational_output(
+                return Err(operational_output(
                     request.common.output,
                     out,
                     err,
                     CODE_DIFF_FAILED,
                     &error.to_string(),
-                );
+                ));
             }
         }
     }
@@ -719,17 +912,17 @@ fn run_quality_request(
         request.common.output,
         OutputMode::Json | OutputMode::Text { .. }
     ) {
-        verified_snapshots(workspace, &collected, &sources, &status)
+        verified_snapshots(workspace, collected, sources, status)
     } else {
         Snapshots::new()
     };
-    let emit_counts = match emit_findings(
+    let emit_counts = emit_findings(
         EmitInputs {
             request,
-            status: &status,
+            status,
             changes: &collected.changes,
-            applied: &applied,
-            not_applied: &not_applied,
+            applied,
+            not_applied,
             conflicts: &collected.conflicts,
             patch: &patch,
             stdout_report,
@@ -739,13 +932,7 @@ fn run_quality_request(
         },
         out,
         err,
-    ) {
-        Ok(counts) => counts,
-        Err(exit) => return exit,
-    };
-    let applied_count = emit_counts.applied_count;
-    let not_applied_count = emit_counts.not_applied_count;
-    let change_count = collected.changes.len() as u64;
+    )?;
 
     if !apply && !collected.changes.is_empty() {
         if matches!(request.common.output, OutputMode::Text { .. }) {
@@ -758,9 +945,7 @@ fn run_quality_request(
                     apply_hint(request, collected.changes.len()),
                 )
             };
-            if let Err(exit) = emit_built(out, notice_event(&notice)) {
-                return exit;
-            }
+            emit_built(out, notice_event(&notice))?;
         }
     }
     if request.common.output != OutputMode::Json
@@ -771,31 +956,29 @@ fn run_quality_request(
         let action = "resolve the Not applied files listed above";
         writeln!(err, "{}", rerun_hint(request, action)).ok();
     }
-    let reports_ok = match write_standard_reports(
+    let reports_ok = write_standard_reports(
         StandardReports {
             workspace,
-            collected: &collected,
-            sources: &sources,
-            status: &status,
-            planned: &planned_reports,
+            collected,
+            sources,
+            status,
+            planned: planned_reports,
             output: &request.common.output,
             stdout_report,
         },
         out,
         err,
-    ) {
-        Ok(ok) => ok,
-        Err(exit) => return exit,
-    };
+    )?;
+    Ok((emit_counts, reports_ok))
+}
 
-    let mut info = 0u64;
-    let mut warning = 0u64;
-    let mut error = 0u64;
+fn tally_findings(status: &[DiagnosticEvent], omitted: u64) -> ([u64; 3], FindingCounts) {
+    let mut counts = (0u64, 0u64, 0u64);
     let mut finding_counts = FindingCounts {
-        omitted: emit_counts.findings_omitted,
+        omitted,
         ..FindingCounts::default()
     };
-    for diagnostic in &status {
+    for diagnostic in status {
         *finding_counts
             .by_tool
             .entry(diagnostic.tool.clone())
@@ -804,23 +987,29 @@ fn run_quality_request(
             *finding_counts.by_rule.entry(rule.clone()).or_insert(0) += 1;
         }
         match diagnostic.severity {
-            Severity::Info => info += 1,
-            Severity::Warning => warning += 1,
-            Severity::Error => error += 1,
+            Severity::Info => counts.0 += 1,
+            Severity::Warning => counts.1 += 1,
+            Severity::Error => counts.2 += 1,
         }
     }
-    if matches!(request.common.output, OutputMode::Text { .. }) && collected.complete && !failed {
-        writeln!(err, "{}", findings_summary(&status, resolved.kept.len())).ok();
-    }
+    ([counts.0, counts.1, counts.2], finding_counts)
+}
+
+fn report_incomplete(
+    request: &QualityRequest,
+    env: &mut Env<'_>,
+    collected: &Collected,
+    bazel_code: i32,
+) -> Result<(), i32> {
+    let out = &mut *env.out;
+    let err = &mut *env.err;
     for item in &collected.unstable {
         let detail = item.describe();
         if request.common.output == OutputMode::Json {
-            if let Err(exit) = emit_built(
+            emit_built(
                 out,
                 dx_output::error_event(CODE_NOT_CONVERGED, &detail, None, None, None),
-            ) {
-                return exit;
-            }
+            )?;
         } else {
             writeln!(err, "dx: {CODE_NOT_CONVERGED}: {detail}").ok();
             writeln!(
@@ -833,12 +1022,10 @@ fn run_quality_request(
     }
     if let Some(detail) = collected.problem_detail() {
         if request.common.output == OutputMode::Json {
-            if let Err(exit) = emit_built(
+            emit_built(
                 out,
                 dx_output::error_event("incomplete_results", &detail, None, None, None),
-            ) {
-                return exit;
-            }
+            )?;
         } else {
             writeln!(err, "dx: incomplete_results: {detail}").ok();
             if bazel_code == 0 {
@@ -847,36 +1034,17 @@ fn run_quality_request(
             }
         }
     }
-    let exit_code = if collected.complete && !failed && reports_ok {
-        0
-    } else if bazel_code != 0 {
-        bazel_code
-    } else {
-        1
-    };
-    if request.common.output == OutputMode::Json {
-        let finished = command_finished(
-            exit_code,
-            &FinishedCounts {
-                results_complete: Some(collected.complete),
-                run_id: None,
-                diagnostics: Some([info, warning, error]),
-                findings: Some(finding_counts),
-                changes: Some([0, change_count]),
-                effects: if apply {
-                    Some([applied_count, not_applied_count])
-                } else {
-                    None
-                },
-                tests: None,
-                actions: action_counts,
-            },
-        );
-        if let Err(exit) = emit_event(out, &finished) {
-            return exit;
-        }
-    }
-    *kind = if !collected.complete {
+    Ok(())
+}
+
+fn quality_phase(
+    collected: &Collected,
+    bazel_code: i32,
+    compile_only: bool,
+    reports_ok: bool,
+    failed: bool,
+) -> PhaseKind {
+    if !collected.complete {
         if server_died(bazel_code) {
             PhaseKind::Host
         } else if compile_only {
@@ -894,8 +1062,7 @@ fn run_quality_request(
         PhaseKind::Findings
     } else {
         PhaseKind::Clean
-    };
-    exit_code
+    }
 }
 
 #[cfg(test)]

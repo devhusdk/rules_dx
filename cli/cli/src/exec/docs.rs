@@ -107,69 +107,41 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
     execute_docs_with(invocation, env, &StdPreview)
 }
 
-fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn PreviewServer) -> i32 {
-    let Env {
-        workspace,
-        runner,
-        query_runner,
-        temp_dir,
-        pid,
-        nonce,
-        out,
-        err,
-        ..
-    } = env;
+struct DocsPlan {
+    argv: Vec<String>,
+    bep: PathBuf,
+    scope_text: String,
+    labels: Vec<String>,
+}
+
+type BuiltSites = Result<Vec<PathBuf>, dx_error::DxError>;
+
+fn execute_docs_with(
+    invocation: &Invocation,
+    mut env: Env<'_>,
+    preview: &dyn PreviewServer,
+) -> i32 {
     let json = invocation.output == OutputMode::Json;
-    let resolved = match resolve(
-        &invocation.targets,
-        workspace,
-        query_runner,
-        &invocation.bazel_startup_options,
-    ) {
-        Ok(resolved) => resolved,
-        Err(error) => return resolve_failed(invocation.output, out, err, &error),
+    let DocsPlan {
+        argv,
+        bep,
+        scope_text,
+        labels,
+    } = match plan_docs_build(invocation, &mut env) {
+        Ok(planned) => planned,
+        Err(exit) => return exit,
     };
-    let scope_text = if resolved.targets.is_empty() {
-        "//...".to_owned()
-    } else {
-        resolved.targets.join(" ")
-    };
-    let labels = resolved.targets.clone();
-    let actions: &[&str] = &["summary", "render"];
-    let bep = bep_path(temp_dir, pid, nonce);
-    let Some(bep_text) = bep.to_str() else {
-        return pre_exec(
-            invocation.output,
-            out,
-            err,
-            &crate::startup::temp_path_not_utf8(),
-        );
-    };
-    let deps: Vec<String> = dx_adopt::module_deps(workspace).into_iter().collect();
-    let extensions = (!deps.is_empty() && !dx_adopt::is_rules_dx_root(workspace))
-        .then(|| dx_adopt::file_extensions(workspace));
-    let consumer = extensions
-        .as_ref()
-        .map(|extensions| Consumer { extensions });
-    let plan = match plan_docs(
-        &resolved,
-        &invocation.quiet_bazel_options(),
-        bep_text,
-        &invocation.bazel_startup_options,
-        consumer,
-    ) {
-        Ok(plan) => plan,
-        Err(error) => return pre_exec(invocation.output, out, err, &format!("{error}")),
-    };
-    let argv = plan.argv;
     let summary = format!("Running docs build for {scope_text} (mdBook render)");
     if json {
-        if let Err(exit) = emit_built(out, command_started(invocation.command.name(), "default")) {
+        if let Err(exit) = emit_built(
+            env.out,
+            command_started(invocation.command.name(), "default"),
+        ) {
             return exit;
         }
-        for action in actions {
+        for action in ["summary", "render"] {
             if let Err(exit) = emit_built(
-                out,
+                env.out,
                 operation_event(invocation.command.name(), action, Some(&labels)),
             ) {
                 return exit;
@@ -178,97 +150,195 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
     }
     if !json
         && invocation.chatty()
-        && let Err(exit) = check_stdout_write(writeln!(out, "{summary}"))
+        && let Err(exit) = check_stdout_write(writeln!(env.out, "{summary}"))
     {
         return exit;
     }
-    let bazel_code = match run_bazel(invocation, out, err, workspace, runner, &argv, &[]) {
+    let bazel_code = match run_bazel(
+        invocation,
+        env.out,
+        env.err,
+        env.workspace,
+        env.runner,
+        &argv,
+        &[],
+    ) {
         Ok(code) => code,
         Err(exit) => return exit,
     };
     if bazel_code != 0 {
         std::fs::remove_file(&bep).ok();
         if json {
-            if let Err(exit) = emit_built(
-                out,
-                bazel_exit_event(
-                    bazel_failure_code(bazel_code),
-                    &format!(
-                        "Bazel docs build failed with exit {bazel_code} for {scope_text} (see stderr diagnostics)"
-                    ),
-                    bazel_code,
-                    "execute",
-                ),
-            ) {
-                return kept_child(err, bazel_code, exit);
-            }
-            if let Err(exit) = emit_event(
-                out,
-                &command_finished(bazel_code, &FinishedCounts::default()),
-            ) {
-                return kept_child(err, bazel_code, exit);
-            }
+            return report_docs_failure(&mut env, bazel_code, &scope_text);
         }
         return bazel_code;
     }
-    let sites = built_sites(&bep, workspace);
-    let mut index = None;
-    if matches!(&sites, Ok(sites) if sites.is_empty()) {
-        match built_shards(&bep, workspace) {
-            Ok(shards) if shards.is_empty() => {}
-            Ok(shards) => match build_index(
-                &bep,
-                workspace,
-                execution_root(query_runner, workspace, &invocation.bazel_startup_options)
-                    .as_deref(),
-                &shards,
-                runner,
-            ) {
-                Ok(dir) => {
-                    if !json && invocation.chatty() {
-                        let page = dir.join("index.html");
-                        if let Err(exit) =
-                            check_stdout_write(writeln!(out, "Docs index: {}", page.display()))
-                        {
-                            return exit;
-                        }
-                    }
-                    index = Some(dir);
-                }
-                Err(error) => {
-                    std::fs::remove_file(&bep).ok();
-                    return report_dx_error(invocation.output, out, err, CODE_INDEX_FAILED, &error);
-                }
-            },
-            Err(error) => {
-                std::fs::remove_file(&bep).ok();
-                return report_dx_error(
-                    invocation.output,
-                    out,
-                    err,
-                    bep_error_code(&error),
-                    &error,
-                );
-            }
-        }
-    }
+    let (sites, index) = match locate_sites(invocation, &mut env, &bep) {
+        Ok(located) => located,
+        Err(exit) => return exit,
+    };
     if !invocation.serve {
         std::fs::remove_file(&bep).ok();
-        if json && let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default()))
+        if json
+            && let Err(exit) = emit_event(env.out, &command_finished(0, &FinishedCounts::default()))
         {
             return exit;
         }
         return 0;
     }
+    std::fs::remove_file(&bep).ok();
+    serve_docs(invocation, &mut env, preview, sites, index, &scope_text)
+}
+
+fn plan_docs_build(invocation: &Invocation, env: &mut Env<'_>) -> Result<DocsPlan, i32> {
+    let workspace = env.workspace;
+    let resolved = resolve(
+        &invocation.targets,
+        workspace,
+        env.query_runner,
+        &invocation.bazel_startup_options,
+    )
+    .map_err(|error| resolve_failed(invocation.output, env.out, env.err, &error))?;
+    let scope_text = if resolved.targets.is_empty() {
+        "//...".to_owned()
+    } else {
+        resolved.targets.join(" ")
+    };
+    let labels = resolved.targets.clone();
+    let bep = bep_path(env.temp_dir, env.pid, env.nonce);
+    let Some(bep_text) = bep.to_str() else {
+        return Err(pre_exec(
+            invocation.output,
+            env.out,
+            env.err,
+            &crate::startup::temp_path_not_utf8(),
+        ));
+    };
+    let deps: Vec<String> = dx_adopt::module_deps(workspace).into_iter().collect();
+    let extensions = (!deps.is_empty() && !dx_adopt::is_rules_dx_root(workspace))
+        .then(|| dx_adopt::file_extensions(workspace));
+    let consumer = extensions
+        .as_ref()
+        .map(|extensions| Consumer { extensions });
+    let plan = plan_docs(
+        &resolved,
+        &invocation.quiet_bazel_options(),
+        bep_text,
+        &invocation.bazel_startup_options,
+        consumer,
+    )
+    .map_err(|error| pre_exec(invocation.output, env.out, env.err, &format!("{error}")))?;
+    Ok(DocsPlan {
+        argv: plan.argv,
+        bep,
+        scope_text,
+        labels,
+    })
+}
+
+fn report_docs_failure(env: &mut Env<'_>, bazel_code: i32, scope_text: &str) -> i32 {
+    if let Err(exit) = emit_built(
+        env.out,
+        bazel_exit_event(
+            bazel_failure_code(bazel_code),
+            &format!(
+                "Bazel docs build failed with exit {bazel_code} for {scope_text} (see stderr diagnostics)"
+            ),
+            bazel_code,
+            "execute",
+        ),
+    ) {
+        return kept_child(env.err, bazel_code, exit);
+    }
+    if let Err(exit) = emit_event(
+        env.out,
+        &command_finished(bazel_code, &FinishedCounts::default()),
+    ) {
+        return kept_child(env.err, bazel_code, exit);
+    }
+    bazel_code
+}
+
+fn locate_sites(
+    invocation: &Invocation,
+    env: &mut Env<'_>,
+    bep: &Path,
+) -> Result<(BuiltSites, Option<PathBuf>), i32> {
+    let workspace = env.workspace;
+    let json = invocation.output == OutputMode::Json;
+    let sites = built_sites(bep, workspace);
+    let mut index = None;
+    if matches!(&sites, Ok(sites) if sites.is_empty()) {
+        match built_shards(bep, workspace) {
+            Ok(shards) if shards.is_empty() => {}
+            Ok(shards) => match build_index(
+                bep,
+                workspace,
+                execution_root(
+                    env.query_runner,
+                    workspace,
+                    &invocation.bazel_startup_options,
+                )
+                .as_deref(),
+                &shards,
+                env.runner,
+            ) {
+                Ok(dir) => {
+                    if !json && invocation.chatty() {
+                        let page = dir.join("index.html");
+                        check_stdout_write(writeln!(env.out, "Docs index: {}", page.display()))?;
+                    }
+                    index = Some(dir);
+                }
+                Err(error) => {
+                    std::fs::remove_file(bep).ok();
+                    return Err(report_dx_error(
+                        invocation.output,
+                        env.out,
+                        env.err,
+                        CODE_INDEX_FAILED,
+                        &error,
+                    ));
+                }
+            },
+            Err(error) => {
+                std::fs::remove_file(bep).ok();
+                return Err(report_dx_error(
+                    invocation.output,
+                    env.out,
+                    env.err,
+                    bep_error_code(&error),
+                    &error,
+                ));
+            }
+        }
+    }
+    Ok((sites, index))
+}
+
+fn serve_docs(
+    invocation: &Invocation,
+    env: &mut Env<'_>,
+    preview: &dyn PreviewServer,
+    sites: BuiltSites,
+    index: Option<PathBuf>,
+    scope_text: &str,
+) -> i32 {
+    let json = invocation.output == OutputMode::Json;
     let port = invocation.port.unwrap_or(DOCS_DEFAULT_PORT);
     let host = invocation.host.as_deref().unwrap_or(DOCS_DEFAULT_HOST);
     let url = preview_url(host, port);
-    std::fs::remove_file(&bep).ok();
-    let site = sites.and_then(|sites| serve_tree(sites, index, &scope_text));
+    let site = sites.and_then(|sites| serve_tree(sites, index, scope_text));
     let serve_dir = match site {
         Ok(dir) => dir,
         Err(error) => {
-            return report_dx_error(invocation.output, out, err, CODE_SERVE_FAILED, &error);
+            return report_dx_error(
+                invocation.output,
+                env.out,
+                env.err,
+                CODE_SERVE_FAILED,
+                &error,
+            );
         }
     };
     let serve_dir_text = serve_dir.display().to_string();
@@ -277,8 +347,8 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
         Err(error) => {
             return operational(
                 invocation,
-                out,
-                err,
+                env.out,
+                env.err,
                 CODE_SERVE_FAILED,
                 &format!(
                     "failed to bind docs preview at {url}: {error} (port in use? retry another --port)"
@@ -287,58 +357,64 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
         }
     };
     if !json && invocation.chatty() {
-        if let Err(exit) =
-            check_stdout_write(writeln!(out, "Serving docs at {url} ({serve_dir_text})"))
-        {
+        if let Err(exit) = check_stdout_write(writeln!(
+            env.out,
+            "Serving docs at {url} ({serve_dir_text})"
+        )) {
             return exit;
         }
         if invocation.open
-            && let Err(exit) = check_stdout_write(writeln!(out, "Opening {url}"))
+            && let Err(exit) = check_stdout_write(writeln!(env.out, "Opening {url}"))
         {
             return exit;
         }
     }
     if invocation.open {
-        let open_argv = opener_argv(&url);
-        match runner.run(&open_argv, workspace, &[]) {
-            Ok(status) if status.code == Some(0) => {}
-            Ok(status) => {
-                match status.code {
-                    Some(code) => writeln!(
-                        err,
-                        "dx: warning: browser open exited with code {code} for {url} (continuing preview)"
-                    ),
-                    None => writeln!(
-                        err,
-                        "dx: warning: browser open was terminated by a signal for {url} (continuing preview)"
-                    ),
-                }
-                .ok();
-            }
-            Err(error) => {
-                writeln!(
-                    err,
-                    "dx: warning: failed to open browser for {url}: {error} (continuing preview)",
-                )
-                .ok();
-            }
-        }
+        open_browser(env, &url);
     }
     if let Err(error) = running.run() {
         return operational(
             invocation,
-            out,
-            err,
+            env.out,
+            env.err,
             CODE_SERVE_FAILED,
             &format!("docs preview at {url} stopped: {error}"),
         );
     }
     let code = dx_process::interrupted().map_or(0, dx_process::interrupted_code);
-    if json && let Err(exit) = emit_event(out, &command_finished(code, &FinishedCounts::default()))
+    if json
+        && let Err(exit) = emit_event(env.out, &command_finished(code, &FinishedCounts::default()))
     {
         return exit;
     }
     code
+}
+
+fn open_browser(env: &mut Env<'_>, url: &str) {
+    let open_argv = opener_argv(url);
+    match env.runner.run(&open_argv, env.workspace, &[]) {
+        Ok(status) if status.code == Some(0) => {}
+        Ok(status) => {
+            match status.code {
+                Some(code) => writeln!(
+                    env.err,
+                    "dx: warning: browser open exited with code {code} for {url} (continuing preview)"
+                ),
+                None => writeln!(
+                    env.err,
+                    "dx: warning: browser open was terminated by a signal for {url} (continuing preview)"
+                ),
+            }
+            .ok();
+        }
+        Err(error) => {
+            writeln!(
+                env.err,
+                "dx: warning: failed to open browser for {url}: {error} (continuing preview)",
+            )
+            .ok();
+        }
+    }
 }
 
 #[cfg(test)]

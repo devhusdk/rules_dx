@@ -385,38 +385,7 @@ pub(crate) fn write_and_refresh(
         .join(", ");
     let manifest = manifest.as_str();
     if !request.needs_update_refresh() {
-        let message = match request.follow_up() {
-            Err(error) => {
-                return operational(invocation, out, err, verb.failure_code, &error.to_string());
-            }
-            Ok(Some(follow_up)) => format!("{} ({follow_up})", edit.edited),
-            Ok(None) => format!(
-                "{} (then run preset flag-diff review plus `bazel build //...`)",
-                edit.edited
-            ),
-        };
-        if invocation.output == OutputMode::Json {
-            if let Err(exit) =
-                emit_built(out, notice_event(&edited_notice(edit, manifest, &message)))
-            {
-                return exit;
-            }
-            let finished = command_finished(
-                0,
-                &FinishedCounts {
-                    results_complete: Some(true),
-                    ..FinishedCounts::default()
-                },
-            );
-            if let Err(exit) = emit_event(out, &finished) {
-                return exit;
-            }
-            return 0;
-        }
-        if verbose && let Err(exit) = check_stdout_write(writeln!(out, "{message}")) {
-            return exit;
-        }
-        return 0;
+        return report_edit_only(edit, invocation, out, err, manifest, verbose);
     }
     let Some((update_name, planned_refresh)) =
         refresh_plan(workspace, invocation, request, Some((runner, query_runner)))
@@ -432,59 +401,138 @@ pub(crate) fn write_and_refresh(
             ),
         );
     };
-    let update_selector = request.refresh_selector();
-    let refresh_command = request.refresh_command();
     let plan = match planned_refresh {
         Ok(plan) => plan,
-        Err(error) => match error {
-            dx_update::backend::BackendError::Unsupported { reason, .. } => {
-                return refresh_failed(
-                    edit,
-                    invocation,
-                    out,
-                    err,
-                    manifest,
-                    &DxError::failure(format!("unsupported refresh: {reason}")),
-                );
-            }
-            dx_update::backend::BackendError::OfflineRequired { .. } => {
-                return backend_failed(
-                    edit,
-                    invocation,
-                    out,
-                    err,
-                    manifest,
-                    dx_update::backend::BackendError::OfflineRequired {
-                        set: update_name.clone(),
-                    },
-                );
-            }
-            dx_update::backend::BackendError::FrozenLocked { .. } => {
-                return backend_failed(
-                    edit,
-                    invocation,
-                    out,
-                    err,
-                    manifest,
-                    dx_update::backend::BackendError::FrozenLocked {
-                        set: update_name.clone(),
-                    },
-                );
-            }
-            unavailable @ (dx_update::backend::BackendError::BackendUnavailable { .. }
-            | dx_update::backend::BackendError::NonUtf8Path { .. }
-            | dx_update::backend::BackendError::Hubs { .. }) => {
-                return refresh_failed(
-                    edit,
-                    invocation,
-                    out,
-                    err,
-                    manifest,
-                    &DxError::failure(unavailable.to_string()),
-                );
-            }
-        },
+        Err(error) => {
+            return report_plan_failure(edit, invocation, out, err, manifest, &update_name, error);
+        }
     };
+    let io = EditIo {
+        workspace,
+        runner,
+        query_runner,
+        out,
+        err,
+    };
+    run_refresh(edit, invocation, io, manifest, &update_name, plan, verbose)
+}
+
+/// Reports an edit that needs no lock refresh.
+fn report_edit_only(
+    edit: &DepEdit<'_>,
+    invocation: &Invocation,
+    out: &mut dyn std::io::Write,
+    err: &mut dyn std::io::Write,
+    manifest: &str,
+    verbose: bool,
+) -> i32 {
+    let request = edit.target;
+    let verb = edit.verb;
+    let message = match request.follow_up() {
+        Err(error) => {
+            return operational(invocation, out, err, verb.failure_code, &error.to_string());
+        }
+        Ok(Some(follow_up)) => format!("{} ({follow_up})", edit.edited),
+        Ok(None) => format!(
+            "{} (then run preset flag-diff review plus `bazel build //...`)",
+            edit.edited
+        ),
+    };
+    if invocation.output == OutputMode::Json {
+        if let Err(exit) = emit_built(out, notice_event(&edited_notice(edit, manifest, &message))) {
+            return exit;
+        }
+        let finished = command_finished(
+            0,
+            &FinishedCounts {
+                results_complete: Some(true),
+                ..FinishedCounts::default()
+            },
+        );
+        if let Err(exit) = emit_event(out, &finished) {
+            return exit;
+        }
+        return 0;
+    }
+    if verbose && let Err(exit) = check_stdout_write(writeln!(out, "{message}")) {
+        return exit;
+    }
+    0
+}
+
+/// Maps a backend refusal to the failure the edit reports.
+fn report_plan_failure(
+    edit: &DepEdit<'_>,
+    invocation: &Invocation,
+    out: &mut dyn std::io::Write,
+    err: &mut dyn std::io::Write,
+    manifest: &str,
+    update_name: &str,
+    error: dx_update::backend::BackendError,
+) -> i32 {
+    match error {
+        dx_update::backend::BackendError::Unsupported { reason, .. } => refresh_failed(
+            edit,
+            invocation,
+            out,
+            err,
+            manifest,
+            &DxError::failure(format!("unsupported refresh: {reason}")),
+        ),
+        dx_update::backend::BackendError::OfflineRequired { .. } => backend_failed(
+            edit,
+            invocation,
+            out,
+            err,
+            manifest,
+            dx_update::backend::BackendError::OfflineRequired {
+                set: update_name.to_owned(),
+            },
+        ),
+        dx_update::backend::BackendError::FrozenLocked { .. } => backend_failed(
+            edit,
+            invocation,
+            out,
+            err,
+            manifest,
+            dx_update::backend::BackendError::FrozenLocked {
+                set: update_name.to_owned(),
+            },
+        ),
+        unavailable @ (dx_update::backend::BackendError::BackendUnavailable { .. }
+        | dx_update::backend::BackendError::NonUtf8Path { .. }
+        | dx_update::backend::BackendError::Hubs { .. }) => refresh_failed(
+            edit,
+            invocation,
+            out,
+            err,
+            manifest,
+            &DxError::failure(unavailable.to_string()),
+        ),
+    }
+}
+
+/// Runs the planned refresh and reports the edit.
+fn run_refresh(
+    edit: &DepEdit<'_>,
+    invocation: &Invocation,
+    io: EditIo<'_>,
+    manifest: &str,
+    update_name: &str,
+    plan: RefreshPlan,
+    verbose: bool,
+) -> i32 {
+    let EditIo {
+        workspace,
+        runner,
+        out,
+        err,
+        ..
+    } = io;
+    let verb = edit.verb;
+    let request = edit.target;
+    let update_selector = request.refresh_selector();
+    let refresh_command = request.refresh_command();
     let refreshed = |note: &str| {
         format!(
             "{} and refreshed {update_selector} via `{refresh_command}` automatically ({note})",
@@ -493,18 +541,17 @@ pub(crate) fn write_and_refresh(
     };
     let kept = &edit.kept;
     let mut finish = |result: Result<(), DxError>, message: String| match result {
-        Ok(()) => match emit_refreshed(
+        Ok(()) => emit_refreshed(
             edit,
             invocation,
             out,
             manifest,
             &message,
-            &update_name,
+            update_name,
             verbose,
-        ) {
-            Ok(()) => 0,
-            Err(status) => status,
-        },
+        )
+        .err()
+        .unwrap_or(0),
         Err(failure) => refresh_failed(edit, invocation, out, err, manifest, &failure),
     };
     match plan {
@@ -517,7 +564,7 @@ pub(crate) fn write_and_refresh(
                 &run,
                 runner,
                 workspace,
-                &update_name,
+                update_name,
                 &update_selector,
                 request.target_manifest(),
                 kept,
@@ -551,18 +598,7 @@ pub(crate) fn write_and_refresh(
             finish(result, refreshed("resolver-owned"))
         }
         RefreshPlan::InDir(run) => {
-            let lock_name = if request.is_configured_ruby() {
-                dx_adopt::dependency_sets::Ecosystem::Ruby
-                    .lockfiles()
-                    .first()
-                    .map_or("", String::as_str)
-            } else {
-                "MODULE.bazel.lock"
-            };
-            let lock = match run.dir.as_str() {
-                "." => lock_name.to_owned(),
-                dir => format!("{dir}/{lock_name}"),
-            };
+            let lock = in_dir_lock(request, &run.dir);
             let result = launch_refresh(
                 runner,
                 &run.argv,
@@ -578,6 +614,22 @@ pub(crate) fn write_and_refresh(
             );
             finish(result, message)
         }
+    }
+}
+
+/// The lockfile an in-directory refresh rewrites, relative to the workspace.
+fn in_dir_lock(request: &dx_update::edit::DepTarget, dir: &str) -> String {
+    let lock_name = if request.is_configured_ruby() {
+        dx_adopt::dependency_sets::Ecosystem::Ruby
+            .lockfiles()
+            .first()
+            .map_or("", String::as_str)
+    } else {
+        "MODULE.bazel.lock"
+    };
+    match dir {
+        "." => lock_name.to_owned(),
+        dir => format!("{dir}/{lock_name}"),
     }
 }
 

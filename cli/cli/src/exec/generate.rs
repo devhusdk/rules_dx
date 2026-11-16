@@ -15,7 +15,7 @@ use dx_plan::plan::{
     intended_path, patch_path, plan_generate,
 };
 use dx_plan::reports::plan_reports;
-use dx_plan::resolve::resolve_for_generate;
+use dx_plan::resolve::{ResolvedScope, resolve_for_generate};
 use std::io::Write;
 use std::path::Path;
 
@@ -467,105 +467,13 @@ fn run_generate_request(
     };
     let apply = request.applies();
     let mut wiring = wire_module(request, &mut env);
-    let patch = patch_path(env.temp_dir, env.pid, env.nonce);
-    let patch_arg = (!apply).then(|| patch.display().to_string());
-    std::fs::remove_file(&patch).ok();
-    let plan = match plan_generate(
-        &resolved,
-        &request.bazel_options,
-        !apply,
-        &request.bazel_startup_options,
-        patch_arg.as_deref(),
-    ) {
-        Ok(plan) => plan,
-        Err(error) => {
-            return pre_exec(request.common.output, env.out, env.err, &format!("{error}"));
-        }
-    };
-    *kind = PhaseKind::Tool;
-    let mode = if apply { "default" } else { "check" };
-    if request.common.output == OutputMode::Json {
-        if let Err(exit) = emit_built(env.out, command_started("generate", mode)) {
-            return exit;
-        }
-    } else if request.chatty()
-        && let Err(exit) = check_stdout_write(writeln!(env.out, "{}", plan.summary))
-    {
-        return exit;
-    }
-    let intended = intended_path(env.temp_dir, env.pid, env.nonce);
-    let intended_str = intended.display().to_string();
-    let scope_json = generate_scope_json(&resolved);
-    let dispatch = [
-        (GENERATE_ENV_INTENDED, intended_str.as_str()),
-        (GENERATE_ENV_SCOPE, scope_json.as_str()),
-        (GENERATE_ENV_MODE, mode),
-    ];
-    let bazel_code = match run_bazel_output(
-        request.common.output,
-        env.out,
-        env.err,
-        env.workspace,
-        env.runner,
-        &plan.argv,
-        &dispatch,
-    ) {
-        Ok(code) => code,
-        Err(exit) => {
-            std::fs::remove_file(&intended).ok();
-            std::fs::remove_file(&patch).ok();
-            *kind = PhaseKind::Host;
-            return exit;
-        }
-    };
-    let patch_written = std::fs::metadata(&patch).is_ok_and(|meta| meta.len() > 0);
-    std::fs::remove_file(&patch).ok();
-    let Some(witness) = std::fs::read(&intended).ok() else {
-        if bazel_code != 0 {
-            *kind = PhaseKind::from_bazel_exit(bazel_code, false);
-            return finish_incomplete_generate(request.common.output, env.out, env.err, bazel_code);
-        }
-        *kind = PhaseKind::Incomplete;
-        return operational_output(
-            request.common.output,
-            env.out,
-            env.err,
-            CODE_INVALID_RESULT,
-            "generate completed without a result manifest",
-        );
-    };
-    let finalized = finalize(&FinalizeInput {
-        intended_json: &witness,
-        workspace: env.workspace,
-        check: !apply,
+    let Generated {
         bazel_code,
-        patch_written,
-    })
-    .and_then(|finalized| {
-        project(&finalized.manifest)
-            .map(|projected| (projected, finalized.gazelle))
-            .map_err(FinalizeError::Invalid)
-    });
-    let (projected, gazelle) = match finalized {
-        Ok(result) => result,
-        Err(FinalizeError::IncompleteCheck) => {
-            *kind = if bazel_code == 0 {
-                PhaseKind::Incomplete
-            } else {
-                failed_generate(PhaseKind::from_bazel_exit(bazel_code, false))
-            };
-            return finish_incomplete_generate(request.common.output, env.out, env.err, bazel_code);
-        }
-        Err(error) => {
-            *kind = PhaseKind::Incomplete;
-            return operational_output(
-                request.common.output,
-                env.out,
-                env.err,
-                CODE_INVALID_RESULT,
-                &format!("invalid generation manifest: {error}"),
-            );
-        }
+        projected,
+        gazelle,
+    } = match launch_generate(request, &mut env, kind, &resolved) {
+        Ok(generated) => generated,
+        Err(exit) => return exit,
     };
     wire(
         env.workspace,
@@ -590,53 +498,10 @@ fn run_generate_request(
         not_applied: projected.not_applied(),
     };
     if request.common.output == OutputMode::Json {
-        for file in projected.sorted_files() {
-            let (effect, reason) = ProjectedManifest::effect_of(file);
-            let change = change_value(&file.change, effect, reason, request.common.include_edits);
-            if let Err(exit) = emit_event(env.out, &change) {
-                return kept_child(env.err, bazel_code, exit);
-            }
-        }
-        for notice in wiring.notices.iter().chain(&projected.notices) {
-            if let Err(exit) = emit_event(env.out, &notice_value(notice)) {
-                return kept_child(env.err, bazel_code, exit);
-            }
-        }
-        for generation_error in &projected.errors {
-            let package = generation_error
-                .package
-                .as_deref()
-                .filter(|p| !p.is_empty());
-            if let Err(exit) = emit_built(
-                env.out,
-                dx_output::generation_error_event(
-                    CODE_GENERATION_FAILED,
-                    &generation_error.message,
-                    package,
-                    Some("execute"),
-                    &dx_output::GenerationDetail {
-                        language: &generation_error.language,
-                        kind: generation_error.kind.as_deref(),
-                        import: generation_error.import.as_deref(),
-                        fix: generation_error
-                            .fix
-                            .as_ref()
-                            .map(|(file, directive)| (file.as_str(), directive.as_str())),
-                    },
-                ),
-            ) {
-                return kept_child(env.err, bazel_code, exit);
-            }
-        }
-        if let (GazelleStatus::Failed(failed), true) = (gazelle, projected.errors.is_empty())
-            && let Err(exit) = emit_bazel_exit(
-                env.out,
-                bazel_failure_code(failed),
-                &bazel_failed_message(failed),
-                failed,
-            )
+        if let Err(exit) =
+            emit_generate_events(request, &mut env, &wiring, &projected, gazelle, bazel_code)
         {
-            return kept_child(env.err, bazel_code, exit);
+            return exit;
         }
         *kind = next_kind;
         let finished = command_finished(code, &projected.finished_counts());
@@ -645,35 +510,249 @@ fn run_generate_request(
         }
         return code;
     }
+    if let Err(exit) = emit_generate_report(request, &mut env, &projected, bazel_code) {
+        return exit;
+    }
+    *kind = next_kind;
+    code
+}
+
+struct Generated {
+    bazel_code: i32,
+    projected: ProjectedManifest,
+    gazelle: GazelleStatus,
+}
+
+fn launch_generate(
+    request: &GenerateRequest,
+    env: &mut Env<'_>,
+    kind: &mut PhaseKind,
+    resolved: &ResolvedScope,
+) -> Result<Generated, i32> {
+    let apply = request.applies();
+    let patch = patch_path(env.temp_dir, env.pid, env.nonce);
+    let patch_arg = (!apply).then(|| patch.display().to_string());
+    std::fs::remove_file(&patch).ok();
+    let plan = match plan_generate(
+        resolved,
+        &request.bazel_options,
+        !apply,
+        &request.bazel_startup_options,
+        patch_arg.as_deref(),
+    ) {
+        Ok(plan) => plan,
+        Err(error) => {
+            return Err(pre_exec(
+                request.common.output,
+                env.out,
+                env.err,
+                &format!("{error}"),
+            ));
+        }
+    };
+    *kind = PhaseKind::Tool;
+    let mode = if apply { "default" } else { "check" };
+    if request.common.output == OutputMode::Json {
+        emit_built(env.out, command_started("generate", mode))?;
+    } else if request.chatty() {
+        check_stdout_write(writeln!(env.out, "{}", plan.summary))?;
+    }
+    let intended = intended_path(env.temp_dir, env.pid, env.nonce);
+    let intended_str = intended.display().to_string();
+    let scope_json = generate_scope_json(resolved);
+    let dispatch = [
+        (GENERATE_ENV_INTENDED, intended_str.as_str()),
+        (GENERATE_ENV_SCOPE, scope_json.as_str()),
+        (GENERATE_ENV_MODE, mode),
+    ];
+    let bazel_code = match run_bazel_output(
+        request.common.output,
+        env.out,
+        env.err,
+        env.workspace,
+        env.runner,
+        &plan.argv,
+        &dispatch,
+    ) {
+        Ok(code) => code,
+        Err(exit) => {
+            std::fs::remove_file(&intended).ok();
+            std::fs::remove_file(&patch).ok();
+            *kind = PhaseKind::Host;
+            return Err(exit);
+        }
+    };
+    let patch_written = std::fs::metadata(&patch).is_ok_and(|meta| meta.len() > 0);
+    std::fs::remove_file(&patch).ok();
+    read_generated(request, env, kind, &intended, bazel_code, patch_written)
+}
+
+fn read_generated(
+    request: &GenerateRequest,
+    env: &mut Env<'_>,
+    kind: &mut PhaseKind,
+    intended: &Path,
+    bazel_code: i32,
+    patch_written: bool,
+) -> Result<Generated, i32> {
+    let apply = request.applies();
+    let Some(witness) = std::fs::read(intended).ok() else {
+        if bazel_code != 0 {
+            *kind = PhaseKind::from_bazel_exit(bazel_code, false);
+            return Err(finish_incomplete_generate(
+                request.common.output,
+                env.out,
+                env.err,
+                bazel_code,
+            ));
+        }
+        *kind = PhaseKind::Incomplete;
+        return Err(operational_output(
+            request.common.output,
+            env.out,
+            env.err,
+            CODE_INVALID_RESULT,
+            "generate completed without a result manifest",
+        ));
+    };
+    let finalized = finalize(&FinalizeInput {
+        intended_json: &witness,
+        workspace: env.workspace,
+        check: !apply,
+        bazel_code,
+        patch_written,
+    })
+    .and_then(|finalized| {
+        project(&finalized.manifest)
+            .map(|projected| (projected, finalized.gazelle))
+            .map_err(FinalizeError::Invalid)
+    });
+    let (projected, gazelle) = match finalized {
+        Ok(result) => result,
+        Err(FinalizeError::IncompleteCheck) => {
+            *kind = if bazel_code == 0 {
+                PhaseKind::Incomplete
+            } else {
+                failed_generate(PhaseKind::from_bazel_exit(bazel_code, false))
+            };
+            return Err(finish_incomplete_generate(
+                request.common.output,
+                env.out,
+                env.err,
+                bazel_code,
+            ));
+        }
+        Err(error) => {
+            *kind = PhaseKind::Incomplete;
+            return Err(operational_output(
+                request.common.output,
+                env.out,
+                env.err,
+                CODE_INVALID_RESULT,
+                &format!("invalid generation manifest: {error}"),
+            ));
+        }
+    };
+    Ok(Generated {
+        bazel_code,
+        projected,
+        gazelle,
+    })
+}
+
+fn emit_generate_events(
+    request: &GenerateRequest,
+    env: &mut Env<'_>,
+    wiring: &Wiring,
+    projected: &ProjectedManifest,
+    gazelle: GazelleStatus,
+    bazel_code: i32,
+) -> Result<(), i32> {
+    for file in projected.sorted_files() {
+        let (effect, reason) = ProjectedManifest::effect_of(file);
+        let change = change_value(&file.change, effect, reason, request.common.include_edits);
+        if let Err(exit) = emit_event(env.out, &change) {
+            return Err(kept_child(env.err, bazel_code, exit));
+        }
+    }
+    for notice in wiring.notices.iter().chain(&projected.notices) {
+        if let Err(exit) = emit_event(env.out, &notice_value(notice)) {
+            return Err(kept_child(env.err, bazel_code, exit));
+        }
+    }
+    for generation_error in &projected.errors {
+        let package = generation_error
+            .package
+            .as_deref()
+            .filter(|p| !p.is_empty());
+        if let Err(exit) = emit_built(
+            env.out,
+            dx_output::generation_error_event(
+                CODE_GENERATION_FAILED,
+                &generation_error.message,
+                package,
+                Some("execute"),
+                &dx_output::GenerationDetail {
+                    language: &generation_error.language,
+                    kind: generation_error.kind.as_deref(),
+                    import: generation_error.import.as_deref(),
+                    fix: generation_error
+                        .fix
+                        .as_ref()
+                        .map(|(file, directive)| (file.as_str(), directive.as_str())),
+                },
+            ),
+        ) {
+            return Err(kept_child(env.err, bazel_code, exit));
+        }
+    }
+    if let (GazelleStatus::Failed(failed), true) = (gazelle, projected.errors.is_empty())
+        && let Err(exit) = emit_bazel_exit(
+            env.out,
+            bazel_failure_code(failed),
+            &bazel_failed_message(failed),
+            failed,
+        )
+    {
+        return Err(kept_child(env.err, bazel_code, exit));
+    }
+    Ok(())
+}
+
+fn emit_generate_report(
+    request: &GenerateRequest,
+    env: &mut Env<'_>,
+    projected: &ProjectedManifest,
+    bazel_code: i32,
+) -> Result<(), i32> {
     if request.common.output == OutputMode::Diff {
-        match render_diff(&projected) {
+        match render_diff(projected) {
             Ok(patch) => {
                 if let Err(exit) = check_stdout_write(env.out.write_all(patch.as_bytes())) {
-                    return kept_child(env.err, bazel_code, exit);
+                    return Err(kept_child(env.err, bazel_code, exit));
                 }
             }
             Err(error) => {
-                return operational_output(
+                return Err(operational_output(
                     request.common.output,
                     env.out,
                     env.err,
                     CODE_DIFF_FAILED,
                     &format!("failed to render generate patch: {error}"),
-                );
+                ));
             }
         }
     } else {
-        for line in text_lines(&projected) {
+        for line in text_lines(projected) {
             if let Err(exit) = check_stdout_write(writeln!(env.out, "{line}")) {
-                return kept_child(env.err, bazel_code, exit);
+                return Err(kept_child(env.err, bazel_code, exit));
             }
         }
-        for line in refused_lines(&projected) {
+        for line in refused_lines(projected) {
             writeln!(env.err, "{line}").ok();
         }
     }
-    *kind = next_kind;
-    code
+    Ok(())
 }
 
 fn failed_generate(kind: PhaseKind) -> PhaseKind {

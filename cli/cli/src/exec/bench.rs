@@ -14,7 +14,7 @@ use dx_plan::resolve::{
 use dx_process::Scope;
 use serde::{Deserialize, Serialize};
 use std::io::BufReader;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 const SCHEMA: &str = "dx-bench/v1";
 const BENCH_FILE: &str = "dx-bench.json";
@@ -341,113 +341,32 @@ fn write_last(workspace: &Path, document: &serde_json::Value) -> std::io::Result
     std::fs::write(dir.join("last.json"), text)
 }
 
-pub(crate) fn execute_bench(invocation: &Invocation, env: Env<'_>) -> i32 {
-    let Env {
-        workspace,
-        runner,
-        query_runner,
-        temp_dir,
-        pid,
-        nonce,
-        out,
-        err,
-        ..
-    } = env;
+pub(crate) fn execute_bench(invocation: &Invocation, mut env: Env<'_>) -> i32 {
     if invocation.bench_regression.is_some() && invocation.bench_compare.is_none() {
         return operational(
             invocation,
-            out,
-            err,
+            env.out,
+            env.err,
             CODE_BENCH_COMPARE,
             "--max-regression needs --compare",
         );
     }
-    let baseline = match &invocation.bench_compare {
-        Some(reference) => {
-            let loaded = tempfile::tempdir()
-                .map_err(|error| DxError::from_io(error.to_string(), &error))
-                .and_then(|scratch| {
-                    load_baseline(reference, workspace, Path::new("gh"), scratch.path())
-                });
-            match loaded {
-                Ok(baseline) => Some(baseline),
-                Err(error) => {
-                    let error = DxError::new(
-                        error.kind(),
-                        format!("cannot compare with {reference:?}: {error}"),
-                    );
-                    return report_dx_error(
-                        invocation.output,
-                        out,
-                        err,
-                        CODE_BENCH_COMPARE,
-                        &error,
-                    );
-                }
-            }
-        }
-        None => None,
+    let baseline = match load_compare_baseline(invocation, &mut env) {
+        Ok(baseline) => baseline,
+        Err(exit) => return exit,
     };
-    let selection = SelectionContext::unconfigured_with_options(
-        invocation.raw_bazel_options(),
-        &invocation.bazel_startup_options,
-    );
-    let resolved = match resolve_for_test_with_selection(
-        &invocation.targets,
+    let (plan, bep) = match plan_bench(invocation, &mut env) {
+        Ok(planned) => planned,
+        Err(exit) => return exit,
+    };
+    let Env {
         workspace,
+        runner,
         query_runner,
-        &invocation.bazel_startup_options,
-        &selection,
-    ) {
-        Ok(resolved) => resolved,
-        Err(error) => return resolve_failed(invocation.output, out, err, &error),
-    };
-    let tests = match run_label_query_file(
-        &bench_expression(&resolved),
-        "dx-bench tests",
-        workspace,
-        query_runner,
-        &invocation.bazel_startup_options,
-    ) {
-        Ok(tests) => tests,
-        Err(error) => return resolve_failed(invocation.output, out, &mut *err, &error),
-    };
-    if tests.is_empty() {
-        return operational(
-            invocation,
-            out,
-            err,
-            CODE_NO_TESTS,
-            "no test tagged dx-bench matches the scope",
-        );
-    }
-    let bep = bep_path(temp_dir, pid, nonce);
-    let Some(bep_text) = bep.to_str().map(ToOwned::to_owned) else {
-        return operational(
-            invocation,
-            out,
-            err,
-            CODE_UNREADABLE_BEP,
-            &crate::startup::temp_path_not_utf8(),
-        );
-    };
-    let scope = ResolvedScope {
-        scope: Scope::Labels(tests.clone()),
-        targets: tests,
-        excluded: Vec::new(),
-        kept: Vec::new(),
-    };
-    let plan = match plan_workflow(
-        WorkflowVerb::Bench,
-        &scope,
-        &invocation.quiet_bazel_options(),
-        Some(&bep_text),
-        Some(invocation.build_mode()),
-        &invocation.bazel_startup_options,
-    ) {
-        Ok(plan) => plan,
-        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
-    };
+        out,
+        err,
+        ..
+    } = env;
     if invocation.chatty()
         && let Err(exit) = check_stdout_write(writeln!(out, "{}", plan.summary))
     {
@@ -481,25 +400,7 @@ pub(crate) fn execute_bench(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         Err(_) => return bazel_code,
     };
-    let mut targets: Vec<TargetResults> = Vec::new();
-    let mut problems: Vec<String> = Vec::new();
-    for result in events
-        .results
-        .iter()
-        .filter(|result| result.status.as_deref() == Some("PASSED"))
-    {
-        if targets.iter().any(|seen| seen.label == result.label) {
-            continue;
-        }
-        match read_result(result) {
-            Ok(results) => targets.push(TargetResults {
-                label: result.label.clone(),
-                results,
-            }),
-            Err(problem) => problems.push(format!("{}: {problem}", result.label)),
-        }
-    }
-    targets.sort_by(|a, b| a.label.cmp(&b.label));
+    let (targets, problems) = passed_targets(&events.results);
     let mut document = merged_document(&targets);
     if let Err(error) = write_last(workspace, &document) {
         return operational(
@@ -539,6 +440,119 @@ pub(crate) fn execute_bench(invocation: &Invocation, env: Env<'_>) -> i32 {
         return 1;
     }
     bazel_code
+}
+
+fn load_compare_baseline(
+    invocation: &Invocation,
+    env: &mut Env<'_>,
+) -> Result<Option<Baseline>, i32> {
+    let Some(reference) = &invocation.bench_compare else {
+        return Ok(None);
+    };
+    let workspace = env.workspace;
+    let loaded = tempfile::tempdir()
+        .map_err(|error| DxError::from_io(error.to_string(), &error))
+        .and_then(|scratch| load_baseline(reference, workspace, Path::new("gh"), scratch.path()));
+    match loaded {
+        Ok(baseline) => Ok(Some(baseline)),
+        Err(error) => {
+            let error = DxError::new(
+                error.kind(),
+                format!("cannot compare with {reference:?}: {error}"),
+            );
+            Err(report_dx_error(
+                invocation.output,
+                env.out,
+                env.err,
+                CODE_BENCH_COMPARE,
+                &error,
+            ))
+        }
+    }
+}
+
+fn plan_bench(
+    invocation: &Invocation,
+    env: &mut Env<'_>,
+) -> Result<(dx_plan::plan::BuildPlan, PathBuf), i32> {
+    let workspace = env.workspace;
+    let selection = SelectionContext::unconfigured_with_options(
+        invocation.raw_bazel_options(),
+        &invocation.bazel_startup_options,
+    );
+    let resolved = resolve_for_test_with_selection(
+        &invocation.targets,
+        workspace,
+        env.query_runner,
+        &invocation.bazel_startup_options,
+        &selection,
+    )
+    .map_err(|error| resolve_failed(invocation.output, env.out, env.err, &error))?;
+    let tests = run_label_query_file(
+        &bench_expression(&resolved),
+        "dx-bench tests",
+        workspace,
+        env.query_runner,
+        &invocation.bazel_startup_options,
+    )
+    .map_err(|error| resolve_failed(invocation.output, env.out, env.err, &error))?;
+    if tests.is_empty() {
+        return Err(operational(
+            invocation,
+            env.out,
+            env.err,
+            CODE_NO_TESTS,
+            "no test tagged dx-bench matches the scope",
+        ));
+    }
+    let bep = bep_path(env.temp_dir, env.pid, env.nonce);
+    let Some(bep_text) = bep.to_str().map(ToOwned::to_owned) else {
+        return Err(operational(
+            invocation,
+            env.out,
+            env.err,
+            CODE_UNREADABLE_BEP,
+            &crate::startup::temp_path_not_utf8(),
+        ));
+    };
+    let scope = ResolvedScope {
+        scope: Scope::Labels(tests.clone()),
+        targets: tests,
+        excluded: Vec::new(),
+        kept: Vec::new(),
+    };
+    let plan = plan_workflow(
+        WorkflowVerb::Bench,
+        &scope,
+        &invocation.quiet_bazel_options(),
+        Some(&bep_text),
+        Some(invocation.build_mode()),
+        &invocation.bazel_startup_options,
+    )
+    .map_err(|error| pre_exec(invocation.output, env.out, env.err, &error.to_string()))?;
+    Ok((plan, bep))
+}
+
+fn passed_targets(results: &[TestResultRecord]) -> (Vec<TargetResults>, Vec<String>) {
+    let mut targets: Vec<TargetResults> = Vec::new();
+    let mut problems: Vec<String> = Vec::new();
+    for result in results
+        .iter()
+        .filter(|result| result.status.as_deref() == Some("PASSED"))
+    {
+        if targets.iter().any(|seen| seen.label == result.label) {
+            continue;
+        }
+        match read_result(result) {
+            Ok(results) => targets.push(TargetResults {
+                label: result.label.clone(),
+                results,
+            }),
+            Err(problem) => problems.push(format!("{}: {problem}", result.label)),
+        }
+    }
+    targets.sort_by(|a, b| a.label.cmp(&b.label));
+    (targets, problems)
 }
 
 #[cfg(test)]

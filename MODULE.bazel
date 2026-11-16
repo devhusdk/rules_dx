@@ -495,7 +495,6 @@ maven.install(
         "https://repo1.maven.org/maven2",
     ],
 )
-
 maven.from_toml(
     name = "dx_scala3_test",
     libs_versions_toml = "//third_party/jvm:scala3_test/libs.versions.toml",
@@ -2686,7 +2685,7 @@ _fixture_repo(
     path = "rust/tests/fixtures/consumer_abi/repo",
 )
 
-crate_fixtures = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate", dev_dependency = True)
+crate_fixtures = use_extension("//rust/private/crate_universe:extensions.bzl", "crate", dev_dependency = True)
 crate_fixtures.from_cargo(
     name = "dx_rust_fixture_crates",
     cargo_lockfile = "//rust/tests/fixtures/hello:Cargo.lock",
@@ -3245,6 +3244,7 @@ use_repo(dx_msvc_runtime_ext, dx_msvc_runtime = "msvc_runtime")
 
 dx_windows_sdk_ext = use_extension("//cc:extensions.bzl", "windows_sdk")
 dx_windows_sdk_ext.configure(
+    pins = "//cc:pins.json",
     transformations = {
         "base/c/Include/10.0.26100.0/shared/driverspecs.h": "base/c/Include/10.0.26100.0/shared/DriverSpecs.h",
         "base/c/Include/10.0.26100.0/shared/specstrings.h": "base/c/Include/10.0.26100.0/shared/SpecStrings.h",
@@ -3254,7 +3254,6 @@ dx_windows_sdk_ext.configure(
         "**/*.lib": "lowercase",
         "**/*.Lib": "lowercase",
     },
-    pins = "//cc:pins.json",
     windows_sdk_version = "10.0.26100.7705",
 )
 use_repo(dx_windows_sdk_ext, dx_windows_sdk = "windows_sdk")

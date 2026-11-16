@@ -204,6 +204,174 @@ pub(crate) fn execute_upgrade(
     )
 }
 
+fn refuse(
+    invocation: &Invocation,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    error: &DxError,
+) -> i32 {
+    let message = format!("upgrade refused: {} (nothing was written)", error.message());
+    fail(
+        invocation,
+        out,
+        err,
+        CODE_UPGRADE_FAILED,
+        &DxError::new(error.kind(), message),
+    )
+}
+
+struct Preview<'a> {
+    invocation: &'a Invocation,
+    workspace: &'a Path,
+    to: &'a str,
+    pin: &'a str,
+    rerun: bool,
+    edit: &'a dx_adopt::ModuleEdit,
+}
+
+fn preview_lines(
+    preview: &Preview<'_>,
+    files: &[init_files::InitFile],
+) -> (Vec<String>, usize) {
+    let Preview {
+        workspace,
+        to,
+        pin,
+        rerun,
+        edit,
+        ..
+    } = *preview;
+    let edits_module = edit.old != edit.new;
+    let mut lines = Vec::new();
+    if edits_module {
+        lines.extend(module_lines(edit, to));
+    }
+    if !rerun {
+        lines.push(format!(".dx/pins: {pin} -> {to}"));
+    }
+    let mut counted = 0;
+    let mut notes = Vec::new();
+    if dx_adopt::version_pin_matches_module(to, dx_adopt::MODULE_VERSION) {
+        for entry in init_files::drift(workspace, files).stale {
+            let path = entry.split(" (").next().unwrap_or(&entry);
+            if path == ".dx/pins" {
+                if rerun {
+                    lines.push(format!("{path}: refresh"));
+                    counted += 1;
+                }
+            } else if path == "MODULE.bazel" {
+            } else if files
+                .iter()
+                .any(|file| file.path == path && init_files::refreshable(workspace, file))
+            {
+                lines.push(format!("{entry}: refresh"));
+                counted += 1;
+            } else {
+                notes.push(format!("note: {entry}: fix by hand"));
+            }
+        }
+    } else {
+        for file in files
+            .iter()
+            .filter(|file| init_files::refreshable(workspace, file))
+        {
+            lines.push(format!("{}: refreshed by rules_dx {to}", file.path));
+            counted += 1;
+        }
+    }
+    if edits_module {
+        lines.push(format!("then: {REFRESH}"));
+    }
+    lines.extend(notes);
+    (lines, counted)
+}
+
+fn preview_upgrade(preview: &Preview<'_>, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+    let Preview {
+        invocation,
+        workspace,
+        to,
+        pin,
+        rerun,
+        edit,
+    } = *preview;
+    let is_json = invocation.output == OutputMode::Json;
+    let edits_module = edit.old != edit.new;
+    let files = match init_files::plan(workspace, "refresh", false, &[]) {
+        Ok(files) => files,
+        Err(error) => return refuse(invocation, out, err, &from_adopt("", &error)),
+    };
+    let (lines, counted) = preview_lines(preview, &files);
+    if rerun && !edits_module && counted == 0 {
+        if is_json {
+            return json_pin(invocation, out, "check", to, None).map_or_else(|exit| exit, |()| 0);
+        }
+        if !summaries_suppressed(invocation) {
+            if let Err(exit) = check_stdout_write(writeln!(out, "upgrade current: {to}")) {
+                return exit;
+            }
+            if !lines.is_empty()
+                && let Err(exit) = check_stdout_write(writeln!(out, "{}", lines.join("\n")))
+            {
+                return exit;
+            }
+        }
+        return 0;
+    }
+    let retry = dx_adopt::upgrade_retry_command(
+        to,
+        &dx_adopt::UpgradeIntent {
+            apply: true,
+            workspace: invocation.workspace.clone(),
+        },
+    );
+    let mut message = if rerun && !edits_module {
+        format!("pin {to} has stale files (run `{retry}`)")
+    } else if rerun {
+        format!("rules_dx in {} can move to {to} (run `{retry}`)", edit.path)
+    } else {
+        format!("pin {pin} can move to {to} (run `{retry}`)")
+    };
+    if !lines.is_empty() {
+        if is_json {
+            message = format!("{message}; {}", lines.join("; "));
+        } else if let Err(exit) = check_stdout_write(writeln!(out, "{}", lines.join("\n"))) {
+            return exit;
+        }
+    }
+    fail(
+        invocation,
+        out,
+        err,
+        CODE_UPGRADE_PENDING,
+        &DxError::failure(message),
+    )
+}
+
+fn print_applied(
+    out: &mut dyn Write,
+    line: &str,
+    wrote: Vec<String>,
+    bases: Vec<String>,
+    quiet: bool,
+) -> Result<(), i32> {
+    check_stdout_write(writeln!(out, "{line}"))?;
+    if quiet {
+        return Ok(());
+    }
+    for rel in wrote {
+        let line = match rel.strip_prefix("removed:") {
+            Some(path) => format!("removed {path}"),
+            None => format!("wrote {rel}"),
+        };
+        check_stdout_write(writeln!(out, "{line}"))?;
+    }
+    for line in bases {
+        check_stdout_write(writeln!(out, "{line}"))?;
+    }
+    Ok(())
+}
+
 fn upgrade_with(
     invocation: &Invocation,
     workspace: &Path,
@@ -230,128 +398,37 @@ fn upgrade_with(
         apply: invocation.applies(),
         workspace: invocation.workspace.clone(),
     };
-    let refuse = |out: &mut dyn Write, err: &mut dyn Write, error: &DxError| {
-        let message = format!("upgrade refused: {} (nothing was written)", error.message());
-        fail(
-            invocation,
-            out,
-            err,
-            CODE_UPGRADE_FAILED,
-            &DxError::new(error.kind(), message),
-        )
-    };
     let Some(pin) = dx_adopt::module_rules_dx_version(workspace) else {
         return refuse(
+            invocation,
             out,
             err,
             &DxError::failure("no rules_dx bazel_dep; run `dx init --apply`"),
         );
     };
     let rerun = dx_adopt::version_pin_matches_module(&pin, to);
-    let is_json = invocation.output == OutputMode::Json;
     let edit = match dx_adopt::plan_rules_dx_version(workspace, to) {
         Ok(edit) => edit,
-        Err(error) => return refuse(out, err, &from_adopt("", &error)),
+        Err(error) => return refuse(invocation, out, err, &from_adopt("", &error)),
     };
     let edits_module = edit.old != edit.new;
+    let preview = Preview {
+        invocation,
+        workspace,
+        to,
+        pin: &pin,
+        rerun,
+        edit: &edit,
+    };
     if !invocation.applies() {
-        let files = match init_files::plan(workspace, "refresh", false, &[]) {
-            Ok(files) => files,
-            Err(error) => return refuse(out, err, &from_adopt("", &error)),
-        };
-        let mut lines = Vec::new();
-        if edits_module {
-            lines.extend(module_lines(&edit, to));
-        }
-        if !rerun {
-            lines.push(format!(".dx/pins: {pin} -> {to}"));
-        }
-        let mut counted = 0;
-        let mut notes = Vec::new();
-        if dx_adopt::version_pin_matches_module(to, dx_adopt::MODULE_VERSION) {
-            for entry in init_files::drift(workspace, &files).stale {
-                let path = entry.split(" (").next().unwrap_or(&entry);
-                if path == ".dx/pins" {
-                    if rerun {
-                        lines.push(format!("{path}: refresh"));
-                        counted += 1;
-                    }
-                } else if path == "MODULE.bazel" {
-                } else if files
-                    .iter()
-                    .any(|file| file.path == path && init_files::refreshable(workspace, file))
-                {
-                    lines.push(format!("{entry}: refresh"));
-                    counted += 1;
-                } else {
-                    notes.push(format!("note: {entry}: fix by hand"));
-                }
-            }
-        } else {
-            for file in files
-                .iter()
-                .filter(|file| init_files::refreshable(workspace, file))
-            {
-                lines.push(format!("{}: refreshed by rules_dx {to}", file.path));
-                counted += 1;
-            }
-        }
-        if edits_module {
-            lines.push(format!("then: {REFRESH}"));
-        }
-        lines.extend(notes);
-        if rerun && !edits_module && counted == 0 {
-            if is_json {
-                return json_pin(invocation, out, "check", to, None)
-                    .map_or_else(|exit| exit, |()| 0);
-            }
-            if !summaries_suppressed(invocation) {
-                if let Err(exit) = check_stdout_write(writeln!(out, "upgrade current: {to}")) {
-                    return exit;
-                }
-                if !lines.is_empty()
-                    && let Err(exit) = check_stdout_write(writeln!(out, "{}", lines.join("\n")))
-                {
-                    return exit;
-                }
-            }
-            return 0;
-        }
-        let retry = dx_adopt::upgrade_retry_command(
-            to,
-            &dx_adopt::UpgradeIntent {
-                apply: true,
-                ..intent
-            },
-        );
-        let mut message = if rerun && !edits_module {
-            format!("pin {to} has stale files (run `{retry}`)")
-        } else if rerun {
-            format!("rules_dx in {} can move to {to} (run `{retry}`)", edit.path)
-        } else {
-            format!("pin {pin} can move to {to} (run `{retry}`)")
-        };
-        if !lines.is_empty() {
-            if is_json {
-                message = format!("{message}; {}", lines.join("; "));
-            } else if let Err(exit) = check_stdout_write(writeln!(out, "{}", lines.join("\n"))) {
-                return exit;
-            }
-        }
-        return fail(
-            invocation,
-            out,
-            err,
-            CODE_UPGRADE_PENDING,
-            &DxError::failure(message),
-        );
+        return preview_upgrade(&preview, out, err);
     }
     if let Err(error) = dx_adopt::plan_launcher_files(workspace, false) {
-        return refuse(out, err, &from_adopt("", &error));
+        return refuse(invocation, out, err, &from_adopt("", &error));
     }
     let files = match init_files::plan(workspace, "refresh", false, &[]) {
         Ok(files) => files,
-        Err(error) => return refuse(out, err, &from_adopt("", &error)),
+        Err(error) => return refuse(invocation, out, err, &from_adopt("", &error)),
     };
     let recovery = dx_adopt::upgrade_recovery_message(to, &intent);
     let landed = |out: &mut dyn Write, err: &mut dyn Write, what: &DxError| {
@@ -367,7 +444,7 @@ fn upgrade_with(
     let mut wrote = Vec::new();
     if edits_module {
         if let Err(error) = write_module(invocation, workspace, runner, &edit) {
-            return refuse(out, err, &error);
+            return refuse(invocation, out, err, &error);
         }
         wrote.push(edit.path.clone());
         if workspace.join(LOCKFILE).is_file() {
@@ -378,7 +455,7 @@ fn upgrade_with(
         return hand_off(invocation, workspace, runner, to, &wrote, out, err);
     }
     if let Err(error) = dx_adopt::write_version_pin(workspace, to) {
-        return refuse(out, err, &from_adopt("", &error));
+        return refuse(invocation, out, err, &from_adopt("", &error));
     }
     let before = dx_snapshot(workspace);
     let mut applied = dx_adopt::Applied::default();
@@ -394,37 +471,53 @@ fn upgrade_with(
     }
     wrote.extend(applied.wrote);
     let (bases, swaps) = dx_changes(&before, &dx_snapshot(workspace));
-    let tracked = (!swaps.is_empty()).then(|| tracked_texts(workspace));
-    for swap in swaps {
-        writeln!(err, "{}", swap.warning()).ok();
-        let files = tracked
-            .iter()
-            .flatten()
-            .map(|(path, text)| (path.as_str(), text.as_str()));
-        for line in dx_adopt::suppression_lines(&swap.gone, files) {
-            writeln!(err, "{line}").ok();
-        }
-    }
+    warn_swaps(workspace, swaps, err);
     let conflicts = merge_overrides(workspace, &before, &mut wrote, err);
-    let conflicted = |out: &mut dyn Write, err: &mut dyn Write| {
-        let message = format!(
-            "pinned {to} but {conflicts} override(s) have merge conflicts; resolve the markers"
-        );
-        fail(
-            invocation,
-            out,
-            err,
-            CODE_UPGRADE_FAILED,
-            &DxError::failure(message),
-        )
-    };
     let ide_warning = query_runner.and_then(|runner| {
         crate::exec::ide_refresh::refresh(workspace, runner, &invocation.bazel_startup_options)
             .map(|error| error.message().to_owned())
     });
-    if is_json {
+    finish_upgrade(&preview, ide_warning, conflicts, wrote, bases, out, err)
+}
+
+fn conflicted(
+    invocation: &Invocation,
+    to: &str,
+    conflicts: usize,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> i32 {
+    let message = format!(
+        "pinned {to} but {conflicts} override(s) have merge conflicts; resolve the markers"
+    );
+    fail(
+        invocation,
+        out,
+        err,
+        CODE_UPGRADE_FAILED,
+        &DxError::failure(message),
+    )
+}
+
+fn finish_upgrade(
+    preview: &Preview<'_>,
+    ide_warning: Option<String>,
+    conflicts: usize,
+    wrote: Vec<String>,
+    bases: Vec<String>,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> i32 {
+    let Preview {
+        invocation,
+        to,
+        pin,
+        rerun,
+        ..
+    } = *preview;
+    if invocation.output == OutputMode::Json {
         if conflicts > 0 {
-            return conflicted(out, err);
+            return conflicted(invocation, to, conflicts, out, err);
         }
         return json_pin(invocation, out, "default", to, ide_warning.as_deref())
             .map_or_else(|exit| exit, |()| 0);
@@ -442,29 +535,27 @@ fn upgrade_with(
     } else {
         format!("pinned {to} (upgrade from {pin})")
     };
-    if let Err(exit) = check_stdout_write(writeln!(out, "{line}")) {
+    if let Err(exit) = print_applied(out, &line, wrote, bases, summaries_suppressed(invocation)) {
         return exit;
     }
-    if !summaries_suppressed(invocation) {
-        for rel in wrote {
-            let line = match rel.strip_prefix("removed:") {
-                Some(path) => format!("removed {path}"),
-                None => format!("wrote {rel}"),
-            };
-            if let Err(exit) = check_stdout_write(writeln!(out, "{line}")) {
-                return exit;
-            }
-        }
-        for line in bases {
-            if let Err(exit) = check_stdout_write(writeln!(out, "{line}")) {
-                return exit;
-            }
-        }
-    }
     if conflicts > 0 {
-        return conflicted(out, err);
+        return conflicted(invocation, to, conflicts, out, err);
     }
     0
+}
+
+fn warn_swaps(workspace: &Path, swaps: Vec<dx_adopt::ToolSwap>, err: &mut dyn Write) {
+    let tracked = (!swaps.is_empty()).then(|| tracked_texts(workspace));
+    for swap in swaps {
+        writeln!(err, "{}", swap.warning()).ok();
+        let files = tracked
+            .iter()
+            .flatten()
+            .map(|(path, text)| (path.as_str(), text.as_str()));
+        for line in dx_adopt::suppression_lines(&swap.gone, files) {
+            writeln!(err, "{line}").ok();
+        }
+    }
 }
 
 const DX_BUILD: &str = ".dx/BUILD.bazel";

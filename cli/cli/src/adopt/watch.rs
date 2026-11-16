@@ -144,6 +144,175 @@ fn stopped(progress: Progress, out: &mut dyn Write, err: &mut dyn Write, signo: 
     dx_process::interrupted_code(signo)
 }
 
+struct Waiter<'a, F> {
+    invocation: &'a Invocation,
+    progress: Progress,
+    session: &'a dx_adopt::watch::WatchSession,
+    wait: &'a RefCell<F>,
+    stop: &'a dyn Fn() -> Option<i32>,
+}
+
+fn wait_for_edit<F>(
+    waiter: &Waiter<'_, F>,
+    mut quiet: Option<QuietStretch<'_>>,
+    mut change: Option<Result<Vec<PathBuf>, AdoptError>>,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> Result<(), i32>
+where
+    F: FnMut(&dx_adopt::watch::WatchSession, Duration) -> Result<Vec<PathBuf>, AdoptError>,
+{
+    let Waiter {
+        invocation,
+        progress,
+        session,
+        wait,
+        stop,
+    } = *waiter;
+
+    loop {
+        let paths = if let Some(change) = change.take() {
+            change
+        } else {
+            if let Some(signo) = stop() {
+                return Err(stopped(progress, out, err, signo));
+            }
+            if quiet
+                .as_mut()
+                .is_some_and(|quiet| quiet.missed_save(Instant::now()))
+            {
+                progress.say(&mut *out, &mut *err, POLL_HINT)?;
+            }
+            (wait.borrow_mut())(session, WATCH_POLL)
+        };
+        match paths {
+            Ok(paths) if paths.is_empty() => {}
+            Ok(paths) => {
+                progress.say(&mut *out, &mut *err, &changed_line(&paths))?;
+                break;
+            }
+            Err(error) => {
+                return Err(watch_failed(invocation, out, err, &error.to_string()));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn run_iteration(
+    iteration: &Invocation,
+    progress: Progress,
+    env: Env<'_>,
+    withdraw: &dyn Fn() -> bool,
+) -> Result<i32, i32> {
+    let Env {
+        workspace,
+        runner,
+        query_runner,
+        temp_dir,
+        pid,
+        nonce,
+        out,
+        mut err,
+        ci,
+        audit_today,
+        actions: _,
+        proc_root,
+        edit_commit_json,
+    } = env;
+    let mut notices = Vec::new();
+    let mut phase = dx_plan::slots::Phase::new(iteration.command);
+    if let Err(stop) = phase.need(
+        dx_plan::slots::needs_slot(iteration.command),
+        &mut *err,
+        &mut notices,
+    ) {
+        return Err(match stop {
+            dx_plan::slots::Stop::Signal(signo) => stopped(progress, out, err, signo),
+            busy @ dx_plan::slots::Stop::Busy(_) => {
+                crate::exec::slot_stop(iteration.output, out, err, busy)
+            }
+        });
+    }
+    let held = phase.slot().map(|slot| slot.runner(runner));
+    let mut iteration_out = dx_plan::slots::AfterFirstLine::new(&mut *out, notices);
+    let tally = ActionTally::default();
+    let code = crate::exec::execute_until(
+        iteration,
+        Env {
+            workspace,
+            runner: held
+                .as_ref()
+                .map_or(runner, |held| held as &dyn dx_process::Runner),
+            query_runner,
+            temp_dir,
+            pid,
+            nonce,
+            out: &mut iteration_out,
+            err: &mut err,
+            ci,
+            audit_today,
+            actions: &tally,
+            proc_root,
+            edit_commit_json,
+        },
+        withdraw,
+    );
+    drop(phase);
+    print_actions(iteration.output, &tally, &mut *err);
+    Ok(code)
+}
+
+fn announce_round(
+    progress: Progress,
+    round: u32,
+    header: &str,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> Result<Instant, i32> {
+    if round > 1 {
+        if std::io::stdout().is_terminal() && progress != Progress::Silent {
+            write!(out, "\x1b[2J\x1b[H").ok();
+        }
+        progress.say(&mut *out, &mut *err, SEPARATOR)?;
+    }
+    let started = Instant::now();
+    progress.say(out, err, header)?;
+    Ok(started)
+}
+
+type Change = Result<Vec<PathBuf>, AdoptError>;
+
+fn withdraw_requested(
+    wait: &RefCell<impl FnMut(&dx_adopt::watch::WatchSession, Duration) -> Change>,
+    session: &dx_adopt::watch::WatchSession,
+    pending: &RefCell<Option<Change>>,
+) -> bool {
+    if pending.borrow().is_some() {
+        return true;
+    }
+    match (wait.borrow_mut())(session, Duration::ZERO) {
+        Ok(paths) if paths.is_empty() => false,
+        change => {
+            *pending.borrow_mut() = Some(change);
+            true
+        }
+    }
+}
+
+fn start_session(
+    invocation: &Invocation,
+    workspace: &Path,
+    iteration: &Invocation,
+) -> Result<dx_adopt::watch::WatchSession, String> {
+    dx_adopt::watch::WatchSession::start(
+        workspace,
+        &report_paths(iteration, workspace),
+        invocation.poll,
+    )
+    .map_err(|error| error.to_string())
+}
+
 fn watch(
     invocation: &Invocation,
     env: Env<'_>,
@@ -162,7 +331,7 @@ fn watch(
         pid,
         nonce,
         out,
-        mut err,
+        err,
         ci,
         audit_today,
         actions: _,
@@ -184,99 +353,62 @@ fn watch(
         Err(error) => return refuse(invocation, out, err, error.message()),
     };
     let scope = scope_label(&iteration);
-    let session = match dx_adopt::watch::WatchSession::start(
-        workspace,
-        &report_paths(&iteration, workspace),
-        invocation.poll,
-    ) {
+    let session = match start_session(invocation, workspace, &iteration) {
         Ok(session) => session,
-        Err(error) => {
-            return watch_failed(invocation, out, err, &error.to_string());
-        }
+        Err(error) => return watch_failed(invocation, out, err, &error),
     };
     let wait = RefCell::new(wait_for_change);
+    let waiter = Waiter {
+        invocation,
+        progress,
+        session: &session,
+        wait: &wait,
+        stop,
+    };
     let mut round = 0u32;
     loop {
         if let Some(signo) = stop() {
             return stopped(progress, out, err, signo);
         }
         round += 1;
-        if round > 1 {
-            if std::io::stdout().is_terminal() && progress != Progress::Silent {
-                write!(out, "\x1b[2J\x1b[H").ok();
-            }
-            if let Err(exit) = progress.say(&mut *out, &mut *err, SEPARATOR) {
-                return exit;
-            }
-        }
-        let started = Instant::now();
-        if let Err(exit) = progress.say(
+        let started = match announce_round(
+            progress,
+            round,
+            &format!("{plan} scope={scope} iteration={round}"),
             &mut *out,
             &mut *err,
-            &format!("{plan} scope={scope} iteration={round}"),
         ) {
-            return exit;
-        }
-        let pending = RefCell::new(None);
-        let withdraw = || {
-            if pending.borrow().is_some() {
-                return true;
-            }
-            match (wait.borrow_mut())(&session, Duration::ZERO) {
-                Ok(paths) if paths.is_empty() => false,
-                change => {
-                    *pending.borrow_mut() = Some(change);
-                    true
-                }
-            }
+            Ok(started) => started,
+            Err(exit) => return exit,
         };
-        let mut notices = Vec::new();
-        let mut phase = dx_plan::slots::Phase::new(iteration.command);
-        if let Err(stop) = phase.need(
-            dx_plan::slots::needs_slot(iteration.command),
-            &mut *err,
-            &mut notices,
-        ) {
-            return match stop {
-                dx_plan::slots::Stop::Signal(signo) => stopped(progress, out, err, signo),
-                busy @ dx_plan::slots::Stop::Busy(_) => {
-                    crate::exec::slot_stop(iteration.output, out, err, busy)
-                }
-            };
-        }
-        let held = phase.slot().map(|slot| slot.runner(runner));
-        let mut iteration_out = dx_plan::slots::AfterFirstLine::new(&mut *out, notices);
-        let tally = ActionTally::default();
-        let code = crate::exec::execute_until(
-            &iteration,
-            Env {
-                workspace,
-                runner: held
-                    .as_ref()
-                    .map_or(runner, |held| held as &dyn dx_process::Runner),
-                query_runner,
-                temp_dir,
-                pid,
-                nonce,
-                out: &mut iteration_out,
-                err: &mut err,
-                ci,
-                audit_today,
-                actions: &tally,
-                proc_root,
-                edit_commit_json,
-            },
-            &withdraw,
-        );
-        drop(phase);
-        print_actions(iteration.output, &tally, &mut *err);
+        let pending = RefCell::new(None);
+        let withdraw = || withdraw_requested(&wait, &session, &pending);
+        let iteration_env = Env {
+            workspace,
+            runner,
+            query_runner,
+            temp_dir,
+            pid,
+            nonce,
+            out: &mut *out,
+            err: &mut *err,
+            ci,
+            audit_today,
+            actions: &ActionTally::default(),
+            proc_root,
+            edit_commit_json,
+        };
+        let code = match run_iteration(&iteration, progress, iteration_env, &withdraw) {
+            Ok(code) => code,
+            Err(exit) => return exit,
+        };
         if max_iterations == Some(round) {
             return code;
         }
         if let Some(signo) = stop() {
             return stopped(progress, out, err, signo);
         }
-        let mut quiet = (!session.polling())
+        let quiet = (!session.polling())
             .then(|| QuietStretch::begin(query_runner, workspace, Instant::now()));
         if let Err(exit) = progress.say(
             &mut *out,
@@ -285,35 +417,9 @@ fn watch(
         ) {
             return exit;
         }
-        let mut change = pending.into_inner();
-        loop {
-            let paths = if let Some(change) = change.take() {
-                change
-            } else {
-                if let Some(signo) = stop() {
-                    return stopped(progress, out, err, signo);
-                }
-                if quiet
-                    .as_mut()
-                    .is_some_and(|quiet| quiet.missed_save(Instant::now()))
-                    && let Err(exit) = progress.say(&mut *out, &mut *err, POLL_HINT)
-                {
-                    return exit;
-                }
-                (wait.borrow_mut())(&session, WATCH_POLL)
-            };
-            match paths {
-                Ok(paths) if paths.is_empty() => {}
-                Ok(paths) => {
-                    if let Err(exit) = progress.say(&mut *out, &mut *err, &changed_line(&paths)) {
-                        return exit;
-                    }
-                    break;
-                }
-                Err(error) => {
-                    return watch_failed(invocation, out, err, &error.to_string());
-                }
-            }
+        let change = pending.into_inner();
+        if let Err(exit) = wait_for_edit(&waiter, quiet, change, &mut *out, &mut *err) {
+            return exit;
         }
     }
 }

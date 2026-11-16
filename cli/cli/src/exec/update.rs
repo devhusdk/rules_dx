@@ -432,6 +432,132 @@ impl SlotGate<'_> {
     }
 }
 
+fn emit_settled_json(
+    out: &mut dyn std::io::Write,
+    status: &dx_update::outcome::ReportedStatus,
+    set_name: &str,
+    details: &BTreeMap<String, SetDetail>,
+    correlation: &str,
+) -> Result<(), i32> {
+    let (code, fallback) = match status {
+        dx_update::outcome::ReportedStatus::Current => (
+            CODE_UPDATE_SET_CURRENT,
+            format!("{set_name} lockfile current"),
+        ),
+        dx_update::outcome::ReportedStatus::Updated
+        | dx_update::outcome::ReportedStatus::Pinned
+        | dx_update::outcome::ReportedStatus::Unsupported
+        | dx_update::outcome::ReportedStatus::Failed
+        | dx_update::outcome::ReportedStatus::Blocked => (
+            CODE_UPDATE_SET_PINNED,
+            format!("{set_name} pins are manual; nothing to resolve"),
+        ),
+    };
+    let message = details
+        .get(set_name)
+        .map_or(fallback, |detail| detail.message.clone());
+    if let Err(exit) = emit_built(
+        out,
+        notice_event(&NoticeEvent {
+            related_command: Some("update".to_owned()),
+            scope: Some(vec![set_name.to_owned()]),
+            ..NoticeEvent::info(code, message)
+        })
+        .map(|event| with_correlation(event.clone(), correlation).unwrap_or(event)),
+    ) {
+        return Err(exit);
+    }
+    Ok(())
+}
+
+fn emit_outcome_json(
+    out: &mut dyn std::io::Write,
+    err: &mut dyn std::io::Write,
+    outcome: &dx_update::outcome::ReportedOutcome,
+    details: &BTreeMap<String, SetDetail>,
+    verbose: bool,
+) -> Result<(), i32> {
+    let set_name = outcome.set.as_str();
+    let correlation = format!("update:{set_name}");
+    match outcome.status {
+        dx_update::outcome::ReportedStatus::Updated => {
+            let message = details.get(set_name).map_or_else(
+                || format!("updated {set_name}"),
+                |detail| detail.message.clone(),
+            );
+            let built = notice_event(&NoticeEvent {
+                related_command: Some("update".to_owned()),
+                scope: Some(vec![set_name.to_owned()]),
+                ..NoticeEvent::info(CODE_UPDATE_SET_SUCCESS, message)
+            })
+            .map(|event| with_correlation(event.clone(), &correlation).unwrap_or(event));
+            if let Err(exit) = emit_built(out, built) {
+                return Err(exit);
+            }
+        }
+        dx_update::outcome::ReportedStatus::Current
+        | dx_update::outcome::ReportedStatus::Pinned => {
+            emit_settled_json(out, &outcome.status, set_name, details, &correlation)?;
+        }
+        dx_update::outcome::ReportedStatus::Unsupported => {
+            let message = details.get(set_name).map_or_else(
+                || format!("cannot update {set_name}"),
+                |detail| detail.message.clone(),
+            );
+            if let Err(exit) = emit_built(
+                out,
+                error_event(
+                    "update_set_unsupported",
+                    &message,
+                    None,
+                    None,
+                    Some("execute"),
+                )
+                .map(|event| with_correlation(event.clone(), &correlation).unwrap_or(event)),
+            ) {
+                return Err(exit);
+            }
+            writeln!(err, "dx: update_set_unsupported: {message}").ok();
+        }
+        dx_update::outcome::ReportedStatus::Failed => {
+            let message = details.get(set_name).map_or_else(
+                || format!("failed to update {set_name}"),
+                |detail| detail.message.clone(),
+            );
+            let code = details
+                .get(set_name)
+                .and_then(|detail| detail.failure_code)
+                .unwrap_or(CODE_UPDATE_FAILED);
+            if let Err(exit) = emit_built(
+                out,
+                error_event(code, &message, None, None, Some("execute"))
+                    .map(|event| with_correlation(event.clone(), &correlation).unwrap_or(event)),
+            ) {
+                return Err(exit);
+            }
+            writeln!(err, "dx: {code}: {message}").ok();
+        }
+        dx_update::outcome::ReportedStatus::Blocked => {
+            let message = format!("blocked {set_name} (depends on a failed update)");
+            if let Err(exit) = emit_built(
+                out,
+                notice_event(&NoticeEvent {
+                    related_command: Some("update".to_owned()),
+                    scope: Some(vec![set_name.to_owned()]),
+                    ..NoticeEvent::warning(CODE_UPDATE_SET_BLOCKED, message.clone())
+                })
+                .map(|event| with_correlation(event.clone(), &correlation).unwrap_or(event)),
+            ) {
+                return Err(exit);
+            }
+            if verbose && let Err(exit) = check_stdout_write(writeln!(out, "{message}")) {
+                return Err(exit);
+            }
+        }
+    }
+    Ok(())
+}
+
 fn emit_update_json(
     out: &mut dyn std::io::Write,
     err: &mut dyn std::io::Write,
@@ -442,111 +568,8 @@ fn emit_update_json(
 ) -> i32 {
     let exit = dx_update::report::exit_code(report);
     for outcome in &report.outcomes {
-        let set_name = outcome.set.as_str();
-        let correlation = format!("update:{set_name}");
-        match outcome.status {
-            dx_update::outcome::ReportedStatus::Updated => {
-                let message = details.get(set_name).map_or_else(
-                    || format!("updated {set_name}"),
-                    |detail| detail.message.clone(),
-                );
-                let built = notice_event(&NoticeEvent {
-                    related_command: Some("update".to_owned()),
-                    scope: Some(vec![set_name.to_owned()]),
-                    ..NoticeEvent::info(CODE_UPDATE_SET_SUCCESS, message)
-                })
-                .map(|event| with_correlation(event.clone(), &correlation).unwrap_or(event));
-                if let Err(exit) = emit_built(out, built) {
-                    return exit;
-                }
-            }
-            dx_update::outcome::ReportedStatus::Current
-            | dx_update::outcome::ReportedStatus::Pinned => {
-                let (code, fallback) = match outcome.status {
-                    dx_update::outcome::ReportedStatus::Current => (
-                        CODE_UPDATE_SET_CURRENT,
-                        format!("{set_name} lockfile current"),
-                    ),
-                    dx_update::outcome::ReportedStatus::Updated
-                    | dx_update::outcome::ReportedStatus::Pinned
-                    | dx_update::outcome::ReportedStatus::Unsupported
-                    | dx_update::outcome::ReportedStatus::Failed
-                    | dx_update::outcome::ReportedStatus::Blocked => (
-                        CODE_UPDATE_SET_PINNED,
-                        format!("{set_name} pins are manual; nothing to resolve"),
-                    ),
-                };
-                let message = details
-                    .get(set_name)
-                    .map_or(fallback, |detail| detail.message.clone());
-                if let Err(exit) = emit_built(
-                    out,
-                    notice_event(&NoticeEvent {
-                        related_command: Some("update".to_owned()),
-                        scope: Some(vec![set_name.to_owned()]),
-                        ..NoticeEvent::info(code, message)
-                    })
-                    .map(|event| with_correlation(event.clone(), &correlation).unwrap_or(event)),
-                ) {
-                    return exit;
-                }
-            }
-            dx_update::outcome::ReportedStatus::Unsupported => {
-                let message = details.get(set_name).map_or_else(
-                    || format!("cannot update {set_name}"),
-                    |detail| detail.message.clone(),
-                );
-                if let Err(exit) = emit_built(
-                    out,
-                    error_event(
-                        "update_set_unsupported",
-                        &message,
-                        None,
-                        None,
-                        Some("execute"),
-                    )
-                    .map(|event| with_correlation(event.clone(), &correlation).unwrap_or(event)),
-                ) {
-                    return exit;
-                }
-                writeln!(err, "dx: update_set_unsupported: {message}").ok();
-            }
-            dx_update::outcome::ReportedStatus::Failed => {
-                let message = details.get(set_name).map_or_else(
-                    || format!("failed to update {set_name}"),
-                    |detail| detail.message.clone(),
-                );
-                let code = details
-                    .get(set_name)
-                    .and_then(|detail| detail.failure_code)
-                    .unwrap_or(CODE_UPDATE_FAILED);
-                if let Err(exit) = emit_built(
-                    out,
-                    error_event(code, &message, None, None, Some("execute")).map(|event| {
-                        with_correlation(event.clone(), &correlation).unwrap_or(event)
-                    }),
-                ) {
-                    return exit;
-                }
-                writeln!(err, "dx: {code}: {message}").ok();
-            }
-            dx_update::outcome::ReportedStatus::Blocked => {
-                let message = format!("blocked {set_name} (depends on a failed update)");
-                if let Err(exit) = emit_built(
-                    out,
-                    notice_event(&NoticeEvent {
-                        related_command: Some("update".to_owned()),
-                        scope: Some(vec![set_name.to_owned()]),
-                        ..NoticeEvent::warning(CODE_UPDATE_SET_BLOCKED, message.clone())
-                    })
-                    .map(|event| with_correlation(event.clone(), &correlation).unwrap_or(event)),
-                ) {
-                    return exit;
-                }
-                if verbose && let Err(exit) = check_stdout_write(writeln!(out, "{message}")) {
-                    return exit;
-                }
-            }
+        if let Err(exit) = emit_outcome_json(out, err, outcome, details, verbose) {
+            return exit;
         }
     }
     if let Some(plan) = recovery {

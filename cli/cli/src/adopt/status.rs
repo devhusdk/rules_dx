@@ -381,6 +381,137 @@ fn share_check(
     })
 }
 
+fn emit_status_json(
+    invocation: &Invocation,
+    checks: &[dx_adopt::StatusCheck],
+    bound: &Bindings,
+    records: &[CapabilityEvent],
+    owned: &[OwnedFileEvent],
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> i32 {
+    if let Err(exit) = emit_built(out, command_started(invocation.command.name(), "default")) {
+        return exit;
+    }
+    for check in checks {
+        if let Err(exit) = emit_built(
+            out,
+            status_event(&StatusEvent {
+                name: check.name.clone(),
+                severity: severity(&check.status).to_owned(),
+                detail: check.detail.clone(),
+                hint: check.hint.clone(),
+            }),
+        ) {
+            return exit;
+        }
+    }
+    let events = bound
+        .tiers
+        .iter()
+        .map(tier_event)
+        .chain(bound.configs.iter().map(config_file_event))
+        .chain(bound.tools.iter().map(family_tools_event));
+    for event in events {
+        match event {
+            Ok(event) => {
+                if let Err(exit) = emit_event(out, &event) {
+                    return exit;
+                }
+            }
+            Err(error) => {
+                return operational(invocation, out, err, "invalid_result", &error.to_string());
+            }
+        }
+    }
+    for capability in records {
+        match capability_event(capability) {
+            Ok(event) => {
+                if let Err(exit) = emit_event(out, &event) {
+                    return exit;
+                }
+            }
+            Err(error) => {
+                return operational(invocation, out, err, "invalid_result", &error.to_string());
+            }
+        }
+    }
+    for file in owned {
+        match owned_file_event(file) {
+            Ok(event) => {
+                if let Err(exit) = emit_event(out, &event) {
+                    return exit;
+                }
+            }
+            Err(error) => {
+                return operational(invocation, out, err, "invalid_result", &error.to_string());
+            }
+        }
+    }
+    if let Some((code, message)) = failure(checks) {
+        return operational(invocation, out, err, code, &message);
+    }
+    if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
+        return exit;
+    }
+    0
+}
+
+fn print_status_text(
+    invocation: &Invocation,
+    checks: &[dx_adopt::StatusCheck],
+    bound: &Bindings,
+    records: &[CapabilityEvent],
+    owned: &[OwnedFileEvent],
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> i32 {
+    if let Err(exit) =
+        check_stdout_write(writeln!(out, "{}", dx_adopt::render_status_text(checks)))
+    {
+        return exit;
+    }
+    let tier_lines = bound.tiers.iter().map(|tier| match &tier.family {
+        Some(family) => format!("tier {family}: {} [source: {}]", tier.tier, tier.source),
+        None => format!("tier: {} [source: {}]", tier.tier, tier.source),
+    });
+    let config_lines = bound
+        .configs
+        .iter()
+        .map(|config| format!("config {}: {}", config.tool, config.file));
+    let tool_lines = bound.tools.iter().map(|entry| {
+        format!(
+            "tools {} {}: {}",
+            entry.family,
+            entry.capability,
+            entry.tools.join(", ")
+        )
+    });
+    for line in tier_lines.chain(config_lines).chain(tool_lines) {
+        if let Err(exit) = check_stdout_write(writeln!(out, "{line}")) {
+            return exit;
+        }
+    }
+    for capability in records {
+        if let Err(exit) = check_stdout_write(writeln!(out, "{}", capability_line(capability))) {
+            return exit;
+        }
+    }
+    for file in owned {
+        if let Err(exit) = check_stdout_write(writeln!(
+            out,
+            "file {} {} {}",
+            file.path, file.owns, file.state
+        )) {
+            return exit;
+        }
+    }
+    if let Some((code, message)) = failure(checks) {
+        return operational(invocation, out, err, code, &message);
+    }
+    0
+}
+
 pub(crate) fn execute_status(
     invocation: &Invocation,
     workspace: &std::path::Path,
@@ -425,116 +556,9 @@ pub(crate) fn execute_status(
         checks.push(check);
     }
     if invocation.output == OutputMode::Json {
-        if let Err(exit) = emit_built(out, command_started(invocation.command.name(), "default")) {
-            return exit;
-        }
-        for check in &checks {
-            if let Err(exit) = emit_built(
-                out,
-                status_event(&StatusEvent {
-                    name: check.name.clone(),
-                    severity: severity(&check.status).to_owned(),
-                    detail: check.detail.clone(),
-                    hint: check.hint.clone(),
-                }),
-            ) {
-                return exit;
-            }
-        }
-        let events = bound
-            .tiers
-            .iter()
-            .map(tier_event)
-            .chain(bound.configs.iter().map(config_file_event))
-            .chain(bound.tools.iter().map(family_tools_event));
-        for event in events {
-            match event {
-                Ok(event) => {
-                    if let Err(exit) = emit_event(out, &event) {
-                        return exit;
-                    }
-                }
-                Err(error) => {
-                    return operational(invocation, out, err, "invalid_result", &error.to_string());
-                }
-            }
-        }
-        for capability in &records {
-            match capability_event(capability) {
-                Ok(event) => {
-                    if let Err(exit) = emit_event(out, &event) {
-                        return exit;
-                    }
-                }
-                Err(error) => {
-                    return operational(invocation, out, err, "invalid_result", &error.to_string());
-                }
-            }
-        }
-        for file in &owned {
-            match owned_file_event(file) {
-                Ok(event) => {
-                    if let Err(exit) = emit_event(out, &event) {
-                        return exit;
-                    }
-                }
-                Err(error) => {
-                    return operational(invocation, out, err, "invalid_result", &error.to_string());
-                }
-            }
-        }
-        if let Some((code, message)) = failure(&checks) {
-            return operational(invocation, out, err, code, &message);
-        }
-        if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
-            return exit;
-        }
-        return 0;
+        return emit_status_json(invocation, &checks, &bound, &records, &owned, out, err);
     }
-    if let Err(exit) =
-        check_stdout_write(writeln!(out, "{}", dx_adopt::render_status_text(&checks)))
-    {
-        return exit;
-    }
-    let tier_lines = bound.tiers.iter().map(|tier| match &tier.family {
-        Some(family) => format!("tier {family}: {} [source: {}]", tier.tier, tier.source),
-        None => format!("tier: {} [source: {}]", tier.tier, tier.source),
-    });
-    let config_lines = bound
-        .configs
-        .iter()
-        .map(|config| format!("config {}: {}", config.tool, config.file));
-    let tool_lines = bound.tools.iter().map(|entry| {
-        format!(
-            "tools {} {}: {}",
-            entry.family,
-            entry.capability,
-            entry.tools.join(", ")
-        )
-    });
-    for line in tier_lines.chain(config_lines).chain(tool_lines) {
-        if let Err(exit) = check_stdout_write(writeln!(out, "{line}")) {
-            return exit;
-        }
-    }
-    for capability in &records {
-        if let Err(exit) = check_stdout_write(writeln!(out, "{}", capability_line(capability))) {
-            return exit;
-        }
-    }
-    for file in &owned {
-        if let Err(exit) = check_stdout_write(writeln!(
-            out,
-            "file {} {} {}",
-            file.path, file.owns, file.state
-        )) {
-            return exit;
-        }
-    }
-    if let Some((code, message)) = failure(&checks) {
-        return operational(invocation, out, err, code, &message);
-    }
-    0
+    print_status_text(invocation, &checks, &bound, &records, &owned, out, err)
 }
 
 #[cfg(test)]

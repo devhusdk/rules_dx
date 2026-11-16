@@ -875,6 +875,340 @@ pub(crate) fn execute_umbrella_request(request: &UmbrellaRequest, env: Env<'_>) 
     latched.exit_code(code)
 }
 
+struct Base<'a> {
+    request: &'a UmbrellaRequest,
+    workspace: &'a Path,
+    runner: &'a dyn Runner,
+    query_runner: &'a dyn QueryRunner,
+    temp_dir: &'a Path,
+    pid: u32,
+    nonce: u64,
+    ci: bool,
+    audit_today: Option<&'a str>,
+    actions: &'a ActionTally,
+    proc_root: &'a Path,
+    edit_commit_json: Option<&'a str>,
+    fix_apply: bool,
+    command: &'static str,
+    mode: &'static str,
+}
+
+impl Base<'_> {
+    fn env<'b>(&'b self, nonce: u64, out: &'b mut dyn Write, err: &'b mut dyn Write) -> Env<'b> {
+        Env {
+            workspace: self.workspace,
+            runner: self.runner,
+            query_runner: self.query_runner,
+            temp_dir: self.temp_dir,
+            pid: self.pid,
+            nonce,
+            out,
+            err,
+            ci: self.ci,
+            audit_today: self.audit_today,
+            actions: self.actions,
+            proc_root: self.proc_root,
+            edit_commit_json: self.edit_commit_json,
+        }
+    }
+
+    fn verify_context(&self, nonce: u64) -> VerifyContext<'_> {
+        VerifyContext {
+            workspace: self.workspace,
+            runner: self.runner,
+            query_runner: self.query_runner,
+            temp_dir: self.temp_dir,
+            pid: self.pid,
+            nonce,
+            ci: self.ci,
+            audit_today: self.audit_today,
+            actions: self.actions,
+            proc_root: self.proc_root,
+            edit_commit_json: self.edit_commit_json,
+        }
+    }
+}
+
+struct Run {
+    phases: Vec<(Command, &'static str)>,
+    collector: PhaseCollector,
+    index: usize,
+    stop_code: Option<i32>,
+    failed_code: Option<i32>,
+    skip_cause: String,
+    stdout_exit: Option<i32>,
+    reports_ok: bool,
+    last_touched: Option<usize>,
+    failed_phases: Vec<(Command, &'static str)>,
+    quality_applied: bool,
+    generate_clean: bool,
+    rerun_planned: bool,
+}
+
+enum Step {
+    Next,
+    Stop,
+    Exit(i32),
+}
+
+impl Run {
+    fn new(request: &UmbrellaRequest) -> Self {
+        let mut phases: Vec<(Command, &'static str)> = UMBRELLA_PHASES
+            .iter()
+            .map(|phase| (*phase, phase.name()))
+            .collect();
+        if request.test.is_some() {
+            phases.push((Command::Test, Command::Test.name()));
+        }
+        let mut collector = PhaseCollector::default();
+        for (phase, label) in &phases {
+            collector.plan(*phase, label);
+        }
+        Self {
+            phases,
+            collector,
+            index: 0,
+            stop_code: None,
+            failed_code: None,
+            skip_cause: String::from("an earlier phase failed"),
+            stdout_exit: None,
+            reports_ok: true,
+            last_touched: None,
+            failed_phases: Vec::new(),
+            quality_applied: false,
+            generate_clean: false,
+            rerun_planned: false,
+        }
+    }
+
+    fn plan_rerun(&mut self) {
+        self.rerun_planned = true;
+        self.phases.push((Command::Generate, RERUN_GENERATE));
+        self.collector.plan(Command::Generate, RERUN_GENERATE);
+    }
+
+    fn rerun_due(&self, fix_apply: bool) -> bool {
+        fix_apply && self.generate_clean && self.quality_applied && !self.rerun_planned
+    }
+
+    fn on_failure(
+        &mut self,
+        fix_apply: bool,
+        (phase, label): (Command, &'static str),
+        code: i32,
+        kind: PhaseKind,
+    ) -> Option<Step> {
+        let failed_rerun = kind == PhaseKind::GenerateFailed && label == RERUN_GENERATE;
+        if !kind.continues(fix_apply) && !failed_rerun {
+            self.stop_code = Some(code);
+            self.skip_cause = format!("{label} {}", kind.stop_reason());
+            if kind == PhaseKind::Compile && self.rerun_due(fix_apply) {
+                self.collector.skip_remaining(self.skip_cause.clone());
+                self.plan_rerun();
+                self.index = self.phases.len() - 1;
+                return Some(Step::Next);
+            }
+            return Some(Step::Stop);
+        }
+        self.failed_code.get_or_insert(code);
+        self.failed_phases.push((phase, label));
+        None
+    }
+}
+
+fn preflight(base: &Base<'_>, out: &mut dyn Write, err: &mut dyn Write) -> Option<i32> {
+    let request = base.request;
+    if let Err(error) = plan_reports(
+        base.workspace,
+        request.command,
+        &request.common.reports,
+        &request.common.output,
+    ) {
+        return Some(pre_exec(
+            request.common.output,
+            out,
+            err,
+            &error.to_string(),
+        ));
+    }
+    for report in &request.common.reports {
+        if report.destination == "-" {
+            return Some(pre_exec(
+                request.common.output,
+                out,
+                err,
+                &format!(
+                    "option \"--report={}={}\" is not supported by dx {}: phases share one stdout document",
+                    report.format, report.destination, base.command,
+                ),
+            ));
+        }
+    }
+    if let Some(exit) = guard_build_output(base.workspace, request.common.output, out, err) {
+        return Some(exit);
+    }
+    if request.common.output == OutputMode::Json
+        && let Err(exit) = emit_built(
+            out,
+            quality_started(base.command, base.mode, request.unsafe_fixes),
+        )
+    {
+        return Some(exit);
+    }
+    None
+}
+
+fn capture_reports(
+    base: &Base<'_>,
+    phase: Command,
+    phase_nonce: u64,
+) -> Option<(Vec<ReportRequest>, Option<PathBuf>)> {
+    let accepted = base
+        .request
+        .common
+        .reports
+        .iter()
+        .find(|report| phase != Command::Test && spec(phase).accepts_report(&report.format));
+    let Some(report) = accepted else {
+        return Some((Vec::new(), None));
+    };
+    let capture = base.temp_dir.join(format!(
+        "umbrella-{}-{}-{phase_nonce}.sarif",
+        phase.name(),
+        base.pid
+    ));
+    let capture_text = capture.to_str()?.to_owned();
+    let request = ReportRequest {
+        format: report.format.clone(),
+        destination: capture_text,
+    };
+    Some((vec![request], Some(capture)))
+}
+
+fn execute_phase(
+    base: &Base<'_>,
+    phase: Command,
+    phase_nonce: u64,
+    phase_reports: Vec<ReportRequest>,
+    phase_out: &mut Vec<u8>,
+    phase_err: &mut Vec<u8>,
+) -> PhaseRun {
+    let request = base.request;
+    let phase_env = base.env(phase_nonce, phase_out, phase_err);
+    if phase == Command::Generate {
+        let generate = request.phase_generate_request(phase_reports);
+        execute_generate_phase(&generate, phase_env)
+    } else if let (Command::Test, Some(test)) = (phase, request.test.as_deref()) {
+        execute_test_phase(test, phase_env)
+    } else {
+        match request.phase_quality_request(phase, phase_reports) {
+            Ok(phase_request) => execute_quality_phase(&phase_request, phase_env),
+            Err(message) if request.common.output == OutputMode::Json => PhaseRun {
+                code: pre_exec(
+                    request.common.output,
+                    phase_env.out,
+                    phase_env.err,
+                    message.message(),
+                ),
+                kind: PhaseKind::Selection,
+                effects: PhaseEffects::default(),
+            },
+            Err(message) => {
+                writeln!(phase_env.err, "dx: {message}").ok();
+                PhaseRun {
+                    code: 2,
+                    kind: PhaseKind::Selection,
+                    effects: PhaseEffects::default(),
+                }
+            }
+        }
+    }
+}
+
+fn run_step(
+    base: &Base<'_>,
+    memo: &MemoizedGraphQuery<'_>,
+    run: &mut Run,
+    current: (Command, &'static str),
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> Step {
+    let (phase, label) = current;
+    let output = base.request.common.output;
+    let index = run.index;
+    let phase_nonce = base.nonce.wrapping_add(index as u64);
+    let Some((phase_reports, capture)) = capture_reports(base, phase, phase_nonce) else {
+        return Step::Exit(pre_exec(
+            output,
+            out,
+            err,
+            "temporary report path is not UTF-8",
+        )); // LCOV_EXCL_LINE - reason: defensive branch, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+    };
+    if let Some(capture) = capture {
+        run.collector.require_capture(index, capture);
+    }
+    let mut phase_out = Vec::new();
+    let mut phase_err = Vec::new();
+    let PhaseRun {
+        code,
+        mut kind,
+        effects,
+    } = execute_phase(
+        base,
+        phase,
+        phase_nonce,
+        phase_reports,
+        &mut phase_out,
+        &mut phase_err,
+    );
+    if code != 0 && interrupted().is_some() {
+        kind = PhaseKind::Cancelled;
+    }
+    if effects.touched() {
+        run.last_touched = Some(index);
+    }
+    if base.fix_apply && (code != 0 || effects.changes + effects.applied + effects.not_applied > 0)
+    {
+        memo.invalidate();
+    }
+    if phase == Command::Generate {
+        run.generate_clean |= code == 0 && label == phase.name();
+    } else {
+        run.quality_applied |= effects.applied > 0;
+    }
+    if kind == PhaseKind::Selection && code != 0 {
+        explain_selection_stop(output, label, code, (&mut phase_out, &mut phase_err));
+    }
+    run.collector.record_exit(index, code, kind);
+    match forward_phase(
+        out,
+        err,
+        output,
+        (base.command, base.mode),
+        label,
+        (&phase_out, &phase_err),
+        code,
+    ) {
+        Ok(readable) => run.reports_ok &= readable,
+        Err(exit) => {
+            run.stdout_exit = Some(exit);
+            run.skip_cause = String::from("output delivery failed");
+            return Step::Stop;
+        }
+    }
+    run.index += 1;
+    if code != 0
+        && let Some(step) = run.on_failure(base.fix_apply, current, code, kind)
+    {
+        return step;
+    }
+    if run.index == run.phases.len() && run.rerun_due(base.fix_apply) {
+        run.plan_rerun();
+    }
+    Step::Next
+}
+
 fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
     let Env {
         workspace,
@@ -891,222 +1225,53 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         proc_root,
         edit_commit_json,
     } = env;
-    let fix_apply = request.applies();
-    // One rule-graph load serves every phase until a phase may have rewritten BUILD files.
     let graph_memo = MemoizedGraphQuery::new(query_runner);
-    let query_runner: &dyn QueryRunner = &graph_memo;
-    let phase_check = !fix_apply;
-    let mode = if phase_check { "check" } else { "default" };
-    let command = request.command.name();
-    if let Err(error) = plan_reports(
+    let fix_apply = request.applies();
+    let base = Base {
+        request,
         workspace,
-        request.command,
-        &request.common.reports,
-        &request.common.output,
-    ) {
-        return pre_exec(request.common.output, out, err, &error.to_string());
-    }
-    for report in &request.common.reports {
-        if report.destination == "-" {
-            return pre_exec(
-                request.common.output,
-                out,
-                err,
-                &format!(
-                    "option \"--report={}={}\" is not supported by dx {}: phases share one stdout document",
-                    report.format, report.destination, command,
-                ),
-            );
-        }
-    }
-    if let Some(exit) = guard_build_output(workspace, request.common.output, out, err) {
+        runner,
+        query_runner: &graph_memo,
+        temp_dir,
+        pid,
+        nonce,
+        ci,
+        audit_today,
+        actions,
+        proc_root,
+        edit_commit_json,
+        fix_apply,
+        command: request.command.name(),
+        mode: if fix_apply { "default" } else { "check" },
+    };
+    if let Some(exit) = preflight(&base, out, err) {
         return exit;
     }
-    if request.common.output == OutputMode::Json
-        && let Err(exit) = emit_built(out, quality_started(command, mode, request.unsafe_fixes))
-    {
-        return exit;
-    }
-    let mut phases: Vec<(Command, &'static str)> = UMBRELLA_PHASES
-        .iter()
-        .map(|phase| (*phase, phase.name()))
-        .collect();
-    if request.test.is_some() {
-        phases.push((Command::Test, Command::Test.name()));
-    }
-    let mut collector = PhaseCollector::default();
-    for (phase, label) in &phases {
-        collector.plan(*phase, label);
-    }
-    let mut stop_code: Option<i32> = None;
-    let mut failed_code: Option<i32> = None;
-    let mut skip_cause = String::from("an earlier phase failed");
-    let mut stdout_exit: Option<i32> = None;
-    let mut reports_ok = true;
-    let mut last_touched: Option<usize> = None;
-    let mut failed_phases: Vec<(Command, &'static str)> = Vec::new();
-    let mut quality_applied = false;
-    let mut generate_clean = false;
-    let mut rerun_planned = false;
-    let mut index = 0;
-    while let Some(&(phase, label)) = phases.get(index) {
-        let phase_nonce = nonce.wrapping_add(index as u64);
-        let mut phase_reports = Vec::new();
-        let mut sarif_capture: Option<PathBuf> = None;
-        for report in &request.common.reports {
-            if phase == Command::Test || !spec(phase).accepts_report(&report.format) {
-                continue;
-            }
-            if sarif_capture.is_none() {
-                let capture = temp_dir.join(format!(
-                    "umbrella-{}-{pid}-{phase_nonce}.sarif",
-                    phase.name()
-                ));
-                let Some(capture_text) = capture.to_str() else {
-                    return pre_exec(
-                        request.common.output,
-                        out,
-                        err,
-                        "temporary report path is not UTF-8",
-                    ); // LCOV_EXCL_LINE - reason: defensive branch, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                };
-                phase_reports.push(ReportRequest {
-                    format: report.format.clone(),
-                    destination: capture_text.to_owned(),
-                });
-                sarif_capture = Some(capture);
-            }
-        }
-        if let Some(capture) = sarif_capture {
-            collector.require_capture(index, capture);
-        }
-        let mut phase_out = Vec::new();
-        let mut phase_err = Vec::new();
-        let PhaseRun {
-            code,
-            mut kind,
-            effects,
-        } = {
-            let phase_env = Env {
-                workspace,
-                runner,
-                query_runner,
-                temp_dir,
-                pid,
-                nonce: phase_nonce,
-                out: &mut phase_out,
-                err: &mut phase_err,
-                ci,
-                audit_today,
-                actions,
-                proc_root,
-                edit_commit_json,
-            };
-            if phase == Command::Generate {
-                let generate = request.phase_generate_request(phase_reports);
-                execute_generate_phase(&generate, phase_env)
-            } else if let (Command::Test, Some(test)) = (phase, request.test.as_deref()) {
-                execute_test_phase(test, phase_env)
-            } else {
-                match request.phase_quality_request(phase, phase_reports) {
-                    Ok(phase_request) => execute_quality_phase(&phase_request, phase_env),
-                    Err(message) if request.common.output == OutputMode::Json => PhaseRun {
-                        code: pre_exec(
-                            request.common.output,
-                            phase_env.out,
-                            phase_env.err,
-                            message.message(),
-                        ),
-                        kind: PhaseKind::Selection,
-                        effects: PhaseEffects::default(),
-                    },
-                    Err(message) => {
-                        writeln!(phase_env.err, "dx: {message}").ok();
-                        PhaseRun {
-                            code: 2,
-                            kind: PhaseKind::Selection,
-                            effects: PhaseEffects::default(),
-                        }
-                    }
-                }
-            }
-        };
-        if code != 0 && interrupted().is_some() {
-            kind = PhaseKind::Cancelled;
-        }
-        if effects.touched() {
-            last_touched = Some(index);
-        }
-        if fix_apply && (code != 0 || effects.changes + effects.applied + effects.not_applied > 0) {
-            graph_memo.invalidate();
-        }
-        if phase == Command::Generate {
-            generate_clean |= code == 0 && label == phase.name();
-        } else {
-            quality_applied |= effects.applied > 0;
-        }
-        if kind == PhaseKind::Selection && code != 0 {
-            explain_selection_stop(
-                request.common.output,
-                label,
-                code,
-                (&mut phase_out, &mut phase_err),
-            );
-        }
-        collector.record_exit(index, code, kind);
-        match forward_phase(
-            out,
-            err,
-            request.common.output,
-            (command, mode),
-            label,
-            (&phase_out, &phase_err),
-            code,
-        ) {
-            Ok(readable) => reports_ok &= readable,
-            Err(exit) => {
-                stdout_exit = Some(exit);
-                skip_cause = String::from("output delivery failed");
-                break;
-            }
-        }
-        index += 1;
-        if code != 0 {
-            let failed_rerun = kind == PhaseKind::GenerateFailed && label == RERUN_GENERATE;
-            if !kind.continues(fix_apply) && !failed_rerun {
-                stop_code = Some(code);
-                skip_cause = format!("{label} {}", kind.stop_reason());
-                if kind == PhaseKind::Compile
-                    && fix_apply
-                    && generate_clean
-                    && quality_applied
-                    && !rerun_planned
-                {
-                    // Skip the later phases and rerun generate.
-                    rerun_planned = true;
-                    collector.skip_remaining(skip_cause.clone());
-                    phases.push((Command::Generate, RERUN_GENERATE));
-                    collector.plan(Command::Generate, RERUN_GENERATE);
-                    index = phases.len() - 1;
-                    continue;
-                }
-                break;
-            }
-            failed_code.get_or_insert(code);
-            failed_phases.push((phase, label));
-        }
-        if index == phases.len() && fix_apply && generate_clean && quality_applied && !rerun_planned
-        {
-            rerun_planned = true;
-            phases.push((Command::Generate, RERUN_GENERATE));
-            collector.plan(Command::Generate, RERUN_GENERATE);
+    let mut run = Run::new(request);
+    while let Some(&current) = run.phases.get(run.index) {
+        match run_step(&base, &graph_memo, &mut run, current, out, err) {
+            Step::Next => {}
+            Step::Stop => break,
+            Step::Exit(exit) => return exit,
         }
     }
-    collector.skip_remaining(skip_cause);
-    collector.collect();
-    let complete = collector.complete();
-    let reasons = collector.reasons();
-    let collection_failures: Vec<(&'static str, String)> = collector
+    let complete = write_phase_reports(&base, &mut run, out, err);
+    finish_umbrella(&base, &graph_memo, &mut run, complete, out, err)
+}
+
+fn write_phase_reports(
+    base: &Base<'_>,
+    run: &mut Run,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> bool {
+    let request = base.request;
+    run.collector.skip_remaining(run.skip_cause.clone());
+    run.collector.collect();
+    let complete = run.collector.complete();
+    let reasons = run.collector.reasons();
+    let collection_failures: Vec<(&'static str, String)> = run
+        .collector
         .collection_failures()
         .into_iter()
         .map(|(phase, reason)| {
@@ -1115,31 +1280,31 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
             (phase, message)
         })
         .collect();
-    reports_ok &= collection_failures.is_empty();
-    if stdout_exit.is_none() {
+    run.reports_ok &= collection_failures.is_empty();
+    if run.stdout_exit.is_none() {
         let announced = announce_outcome(
             out,
             request.common.output,
-            command,
-            &collector,
+            base.command,
+            &run.collector,
             &collection_failures,
         );
         if let Err(exit) = announced {
-            stdout_exit = Some(exit);
+            run.stdout_exit = Some(exit);
         }
     }
-    if stdout_exit.is_none() {
-        let document = collector.document();
+    if run.stdout_exit.is_none() {
+        let document = run.collector.document();
         for report in &request.common.reports {
-            if let Err(error) = write_report_file(workspace, &report.destination, &document) {
-                reports_ok = false;
+            if let Err(error) = write_report_file(base.workspace, &report.destination, &document) {
+                run.reports_ok = false;
                 if let Err(exit) = report_failed(
                     out,
                     err,
                     request.common.output,
                     &format!("failed to write {} report to {error}", report.format),
                 ) {
-                    stdout_exit = Some(exit);
+                    run.stdout_exit = Some(exit);
                     break;
                 }
                 continue;
@@ -1154,75 +1319,72 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
                 &reasons,
             );
             if let Err(exit) = announced {
-                stdout_exit = Some(exit);
+                run.stdout_exit = Some(exit);
                 break;
             }
         }
     }
-    collector.cleanup();
+    run.collector.cleanup();
     if !matches!(request.common.output, OutputMode::Json)
-        && (stop_code.is_some() || failed_code.is_some())
+        && (run.stop_code.is_some() || run.failed_code.is_some())
     {
-        writeln!(err, "dx: phases: {}", collector.summary()).ok();
+        writeln!(err, "dx: phases: {}", run.collector.summary()).ok();
     }
+    complete
+}
+
+fn finish_umbrella(
+    base: &Base<'_>,
+    memo: &MemoizedGraphQuery<'_>,
+    run: &mut Run,
+    complete: bool,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> i32 {
+    let request = base.request;
     let mut verify_forward_exit: Option<i32> = None;
     let mut verification_failed = false;
-    let verify_through = if fix_apply && stdout_exit.is_none() && stop_code.is_none() {
-        last_touched
+    let verify_through = if base.fix_apply && run.stdout_exit.is_none() && run.stop_code.is_none() {
+        run.last_touched
     } else {
         None
     };
     if let Some(through) = verify_through {
-        graph_memo.invalidate();
-        let context = VerifyContext {
-            workspace,
-            runner,
-            query_runner,
-            temp_dir,
-            pid,
-            nonce: nonce.wrapping_add(phases.len() as u64),
-            ci,
-            audit_today,
-            actions,
-            proc_root,
-            edit_commit_json,
-        };
-        let verification = verify_fix(request, &context, through, &failed_phases);
-        reports_ok &= verification.readable;
+        memo.invalidate();
+        let context = base.verify_context(base.nonce.wrapping_add(run.phases.len() as u64));
+        let verification = verify_fix(request, &context, through, &run.failed_phases);
+        run.reports_ok &= verification.readable;
         verification_failed = verification.failed_phase.is_some();
         if let Err(exit) =
-            deliver_verification(out, err, request.common.output, command, &verification)
+            deliver_verification(out, err, request.common.output, base.command, &verification)
         {
             verify_forward_exit = Some(exit);
         }
     }
     let mut commits_flagged = false;
-    if stdout_exit.is_none() && !fix_apply {
-        match lint_commit_subjects(request, workspace, out, err) {
+    if run.stdout_exit.is_none() && !base.fix_apply {
+        match lint_commit_subjects(request, base.workspace, out, err) {
             Ok(flagged) => commits_flagged = flagged,
-            Err(exit) => stdout_exit = Some(exit),
+            Err(exit) => run.stdout_exit = Some(exit),
         }
     }
-    let code = match stdout_exit {
-        Some(exit) => exit,
-        None => match verify_forward_exit {
-            Some(exit) => exit,
-            None => match stop_code.or(failed_code) {
-                Some(phase_code) => phase_code,
-                None if reports_ok && !verification_failed && !commits_flagged => 0,
-                None => 1,
-            },
+    let code = match (run.stdout_exit, verify_forward_exit) {
+        (Some(exit), _) | (None, Some(exit)) => exit,
+        (None, None) => match run.stop_code.or(run.failed_code) {
+            Some(phase_code) => phase_code,
+            None if run.reports_ok && !verification_failed && !commits_flagged => 0,
+            None => 1,
         },
     };
     if request.common.output == OutputMode::Json
-        && stdout_exit.is_none()
+        && run.stdout_exit.is_none()
         && verify_forward_exit.is_none()
     {
         let finished = command_finished(
             code,
             &FinishedCounts {
                 results_complete: Some(complete),
-                actions: actions.total(),
+                actions: base.actions.total(),
                 ..FinishedCounts::default()
             },
         );

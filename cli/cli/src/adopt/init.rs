@@ -176,6 +176,88 @@ fn prefixed(prefix: &str, paths: Vec<String>) -> impl Iterator<Item = String> + 
     paths.into_iter().map(move |path| format!("{prefix}{path}"))
 }
 
+fn validate_init_args(
+    invocation: &Invocation,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> Option<i32> {
+    if invocation.applies() && invocation.output == OutputMode::Json {
+        return Some(refusal(
+            invocation.output,
+            out,
+            err,
+            "dx init --apply has no JSON output; drop --output=json",
+        ));
+    }
+    if !invocation.accept_license.is_empty() && !invocation.applies() {
+        return Some(refusal(
+            invocation.output,
+            out,
+            err,
+            "dx init --accept-license writes MODULE.bazel; add --apply",
+        ));
+    }
+    let known = dx_adopt::known_license_ids();
+    let unknown = invocation
+        .accept_license
+        .iter()
+        .find(|id| !known.contains(*id))?;
+    let ids: Vec<&str> = known.iter().map(String::as_str).collect();
+    Some(refusal(
+        invocation.output,
+        out,
+        err,
+        &format!(
+            "dx init: unknown license id {unknown}; the ids are {}",
+            ids.join(", ")
+        ),
+    ))
+}
+
+fn collect_init_notes(
+    invocation: &Invocation,
+    target: &Target,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> Result<Vec<String>, i32> {
+    let root = target.root.as_path();
+    let mut notes = Vec::new();
+    notes.extend(
+        dx_adopt::workspace_finding(root).map(|f| format!("{} ({}:{})", f.hint, f.file, f.line)),
+    );
+    let plan = dx_adopt::preflight(root, &dx_adopt::render_consumer_module_setup());
+    if plan.applicable {
+        let hard: Vec<&str> = plan.hard().map(|f| f.subject.as_str()).collect();
+        if !hard.is_empty() {
+            write!(
+                err,
+                "{}",
+                dx_adopt::render_plan_text(&target.module, &target.apply_command(), &plan)
+            )
+            .ok();
+            return Err(operational(
+                invocation,
+                out,
+                err,
+                CODE_INIT_FAILED,
+                &format!(
+                    "init plan: {} hard conflicts ({}); next: resolve {} hard conflict(s), then run `{}`",
+                    hard.len(),
+                    hard.join(", "),
+                    hard.len(),
+                    target.apply_command()
+                ),
+            ));
+        }
+        notes.extend(
+            plan.findings
+                .iter()
+                .map(|f| format!("{} ({}:{})", f.hint, f.file, f.line)),
+        );
+    }
+    Ok(notes)
+}
+
 pub(crate) fn execute_init(
     invocation: &Invocation,
     workspace: &std::path::Path,
@@ -187,38 +269,8 @@ pub(crate) fn execute_init(
         Err(error) => return invalid_module_code(invocation, out, err, &error),
     };
     let root = target.root.as_path();
-    if invocation.applies() && invocation.output == OutputMode::Json {
-        return refusal(
-            invocation.output,
-            out,
-            err,
-            "dx init --apply has no JSON output; drop --output=json",
-        );
-    }
-    if !invocation.accept_license.is_empty() && !invocation.applies() {
-        return refusal(
-            invocation.output,
-            out,
-            err,
-            "dx init --accept-license writes MODULE.bazel; add --apply",
-        );
-    }
-    let known = dx_adopt::known_license_ids();
-    if let Some(unknown) = invocation
-        .accept_license
-        .iter()
-        .find(|id| !known.contains(*id))
-    {
-        let ids: Vec<&str> = known.iter().map(String::as_str).collect();
-        return refusal(
-            invocation.output,
-            out,
-            err,
-            &format!(
-                "dx init: unknown license id {unknown}; the ids are {}",
-                ids.join(", ")
-            ),
-        );
+    if let Some(code) = validate_init_args(invocation, out, err) {
+        return code;
     }
     if !invocation.applies() {
         return check_init(invocation, &target, out, err);
@@ -242,40 +294,10 @@ pub(crate) fn execute_init(
     if let Err(error) = super::init_files::preflight(root, &target.prefix, &planned) {
         return report_dx_error(invocation.output, out, err, CODE_INIT_FAILED, &error);
     }
-    let mut notes = Vec::new();
-    notes.extend(
-        dx_adopt::workspace_finding(root).map(|f| format!("{} ({}:{})", f.hint, f.file, f.line)),
-    );
-    let plan = dx_adopt::preflight(root, &dx_adopt::render_consumer_module_setup());
-    if plan.applicable {
-        let hard: Vec<&str> = plan.hard().map(|f| f.subject.as_str()).collect();
-        if !hard.is_empty() {
-            write!(
-                err,
-                "{}",
-                dx_adopt::render_plan_text(&target.module, &target.apply_command(), &plan)
-            )
-            .ok();
-            return operational(
-                invocation,
-                out,
-                err,
-                CODE_INIT_FAILED,
-                &format!(
-                    "init plan: {} hard conflicts ({}); next: resolve {} hard conflict(s), then run `{}`",
-                    hard.len(),
-                    hard.join(", "),
-                    hard.len(),
-                    target.apply_command()
-                ),
-            );
-        }
-        notes.extend(
-            plan.findings
-                .iter()
-                .map(|f| format!("{} ({}:{})", f.hint, f.file, f.line)),
-        );
-    }
+    let mut notes = match collect_init_notes(invocation, &target, out, err) {
+        Ok(notes) => notes,
+        Err(code) => return code,
+    };
     let mut applied = dx_adopt::Applied::default();
     let result = super::init_files::apply(
         root,
@@ -397,6 +419,109 @@ fn absent_message(absent: &[String], apply: &str) -> String {
     )
 }
 
+fn emit_check_plan(
+    invocation: &Invocation,
+    target: &Target,
+    plan: Option<&dx_adopt::Preflight>,
+    json: bool,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> Result<(), i32> {
+    let workspace = target.root.as_path();
+    let module = target.module.as_str();
+    if let Some(f) = dx_adopt::workspace_finding(workspace) {
+        if json {
+            let event = init_plan_event(&PlanFindingEvent {
+                kind: f.kind.id().to_owned(),
+                subject: f.subject,
+                before: f.before,
+                after: f.after,
+                file: f.file,
+                line: f.line,
+                hint: f.hint,
+                strength: "advisory".to_owned(),
+            });
+            if let Err(exit) = emit_built(out, event) {
+                return Err(exit);
+            }
+        } else if !summaries_suppressed(invocation) {
+            writeln!(err, "advisory: {} ({}:{})", f.hint, f.file, f.line).ok();
+        }
+    }
+    if let (Some(plan), true) = (plan, json) {
+        for f in &plan.findings {
+            let event = init_plan_event(&PlanFindingEvent {
+                kind: f.kind.id().to_owned(),
+                subject: f.subject.clone(),
+                before: f.before.clone(),
+                after: f.after.clone(),
+                file: f.file.clone(),
+                line: f.line,
+                hint: f.hint.clone(),
+                strength: if f.hard { "hard" } else { "advisory" }.to_owned(),
+            });
+            if let Err(exit) = emit_built(out, event) {
+                return Err(exit);
+            }
+        }
+        for note in &plan.notes {
+            if let Err(exit) = emit_built(
+                out,
+                notice_event(&NoticeEvent::info(CODE_INIT_PLAN_PARTIAL, note.clone())),
+            ) {
+                return Err(exit);
+            }
+        }
+    } else if let Some(plan) = plan
+        && !summaries_suppressed(invocation)
+        && let Err(exit) = check_stdout_write(write!(
+            out,
+            "{}",
+            dx_adopt::render_plan_text(module, &target.apply_command(), plan)
+        ))
+    {
+        return Err(exit);
+    }
+    Ok(())
+}
+
+fn drift_message(
+    apply: &str,
+    missing: Vec<String>,
+    stale: Vec<String>,
+    absent: Vec<String>,
+    other: Vec<String>,
+    invalid_pin: Option<&str>,
+    conflicts: &[String],
+) -> String {
+    let rewrite = dx_adopt::pin_rewrite_hint();
+    let mut clauses: Vec<String> = [("missing", missing), ("stale", stale), ("absent", absent)]
+        .into_iter()
+        .filter(|(_, paths)| !paths.is_empty())
+        .map(|(kind, paths)| format!("{kind} {}", paths.join(", ")))
+        .chain(other)
+        .collect();
+    let has_entries = !clauses.is_empty();
+    if let Some(pin) = invalid_pin {
+        clauses.push(format!("invalid .dx/pins ({pin:?})"));
+    }
+    if !conflicts.is_empty() {
+        clauses.push(format!(
+            "init plan: {} hard conflicts ({})",
+            conflicts.len(),
+            conflicts.join(", ")
+        ));
+    }
+    let fix = match (has_entries, invalid_pin.is_some()) {
+        (true, true) => format!("run `{apply}`, then {rewrite}"),
+        (false, true) => rewrite,
+        (false, false) => "resolve the conflicts in the init plan above".to_owned(),
+        _ => format!("run `{apply}`"),
+    };
+    format!("init drift: {} ({fix})", clauses.join("; "))
+}
+
+
 fn check_init(
     invocation: &Invocation,
     target: &Target,
@@ -428,57 +553,7 @@ fn check_init(
     {
         return exit;
     }
-    if let Some(f) = dx_adopt::workspace_finding(workspace) {
-        if json {
-            let event = init_plan_event(&PlanFindingEvent {
-                kind: f.kind.id().to_owned(),
-                subject: f.subject,
-                before: f.before,
-                after: f.after,
-                file: f.file,
-                line: f.line,
-                hint: f.hint,
-                strength: "advisory".to_owned(),
-            });
-            if let Err(exit) = emit_built(out, event) {
-                return exit;
-            }
-        } else if !summaries_suppressed(invocation) {
-            writeln!(err, "advisory: {} ({}:{})", f.hint, f.file, f.line).ok();
-        }
-    }
-    if let (Some(plan), true) = (&plan, json) {
-        for f in &plan.findings {
-            let event = init_plan_event(&PlanFindingEvent {
-                kind: f.kind.id().to_owned(),
-                subject: f.subject.clone(),
-                before: f.before.clone(),
-                after: f.after.clone(),
-                file: f.file.clone(),
-                line: f.line,
-                hint: f.hint.clone(),
-                strength: if f.hard { "hard" } else { "advisory" }.to_owned(),
-            });
-            if let Err(exit) = emit_built(out, event) {
-                return exit;
-            }
-        }
-        for note in &plan.notes {
-            if let Err(exit) = emit_built(
-                out,
-                notice_event(&NoticeEvent::info(CODE_INIT_PLAN_PARTIAL, note.clone())),
-            ) {
-                return exit;
-            }
-        }
-    } else if let Some(plan) = &plan
-        && !summaries_suppressed(invocation)
-        && let Err(exit) = check_stdout_write(write!(
-            out,
-            "{}",
-            dx_adopt::render_plan_text(module, &target.apply_command(), plan)
-        ))
-    {
+    if let Err(exit) = emit_check_plan(invocation, target, plan.as_ref(), json, out, err) {
         return exit;
     }
     let conflicts: Vec<String> = plan
@@ -527,38 +602,16 @@ fn check_init(
         }
         return 1;
     }
-    let rewrite = dx_adopt::pin_rewrite_hint();
-    let mut clauses: Vec<String> = [("missing", missing), ("stale", stale), ("absent", absent)]
-        .into_iter()
-        .filter(|(_, paths)| !paths.is_empty())
-        .map(|(kind, paths)| format!("{kind} {}", paths.join(", ")))
-        .chain(other)
-        .collect();
-    let has_entries = !clauses.is_empty();
-    if let Some(pin) = &invalid_pin {
-        clauses.push(format!("invalid .dx/pins ({pin:?})"));
-    }
-    if !conflicts.is_empty() {
-        clauses.push(format!(
-            "init plan: {} hard conflicts ({})",
-            conflicts.len(),
-            conflicts.join(", ")
-        ));
-    }
-    let apply = target.apply_command();
-    let fix = match (has_entries, invalid_pin.is_some()) {
-        (true, true) => format!("run `{apply}`, then {rewrite}"),
-        (false, true) => rewrite,
-        (false, false) => "resolve the conflicts in the init plan above".to_owned(),
-        _ => format!("run `{apply}`"),
-    };
-    operational(
-        invocation,
-        out,
-        err,
-        CODE_INIT_FAILED,
-        &format!("init drift: {} ({fix})", clauses.join("; ")),
-    )
+    let fix_message = drift_message(
+        &target.apply_command(),
+        missing,
+        stale,
+        absent,
+        other,
+        invalid_pin.as_deref(),
+        &conflicts,
+    );
+    operational(invocation, out, err, CODE_INIT_FAILED, &fix_message)
 }
 
 #[cfg(test)]

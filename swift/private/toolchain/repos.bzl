@@ -224,8 +224,17 @@ filegroup(
         [
             "platform/Developer/SDKs/Windows.sdk/usr/lib/swift/windows/**",
             "platform/Developer/Library/XCTest-*/usr/lib/swift/windows/**",
+            "platform/Developer/Library/Testing-*/usr/lib/swift/windows/**",
         ],
         exclude = ["**/*.pdb"],
+        allow_empty = True,
+    ),
+)
+
+filegroup(
+    name = "profile_runtime",
+    srcs = glob(
+        ["toolchain/usr/lib/clang/*/lib/windows/clang_rt.profile-x86_64.lib"],
         allow_empty = True,
     ),
 )

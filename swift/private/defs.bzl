@@ -164,12 +164,18 @@ def _swift_runtime_kwargs(kwargs, platforms):
 def _swift_coverage_kwargs(kwargs):
     """Links Swift's own profile runtime into a swift_test under bazel coverage."""
     out = _swift_upstream_kwargs(kwargs)
+    out = dx_append_flags(out, "linkopts", select({
+        Label("//swift/private/platforms:is_windows_x86_64_static_crt"): ["-NODEFAULTLIB:msvcrt.lib", "-NODEFAULTLIB:msvcprt.lib"],
+        "//conditions:default": [],
+    }))
     out = dx_append_flags(out, "features", select({
         Label("//swift/private:coverage_linux"): ["-llvm_coverage_map_format"],
+        Label("//swift/private:coverage_windows"): ["-llvm_coverage_map_format"],
         "//conditions:default": [],
     }))
     return dx_append_flags(out, "deps", select({
         Label("//swift/private:coverage_linux"): [Label("//swift/private/toolchain:profile_runtime")],
+        Label("//swift/private:coverage_windows"): [Label("//swift/private/toolchain:profile_runtime")],
         "//conditions:default": [],
     }))
 

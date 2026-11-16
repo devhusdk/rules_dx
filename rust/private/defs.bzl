@@ -726,7 +726,13 @@ def rust_fuzz_test(name, *, srcs, deps = None, visibility = None, tags = None, r
     """A libFuzzer binary built with sancov and AddressSanitizer plus a `<name>_run` runner for `dx fuzz`."""
     binary_kwargs = {
         "srcs": srcs,
-        "deps": (deps or []) + [libfuzzer_sys],
+        "deps": (deps or []) + [libfuzzer_sys] + select({
+            Label("@platforms//os:macos"): [
+                Label("//rust/private:fuzz_asan_runtime_macos"),
+                Label("//rust/private:fuzz_libfuzzer_macos"),
+            ],
+            "//conditions:default": [],
+        }),
         "rustc_flags": _FUZZ_RUSTC_FLAGS + (rustc_flags or []),
         "rustc_env": dict(rustc_env or {}, RUSTC_BOOTSTRAP = "1"),
         "target_compatible_with": select({

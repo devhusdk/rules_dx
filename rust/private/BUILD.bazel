@@ -75,6 +75,21 @@ build_script_cc_env(
 )
 
 cc_import(
+    name = "fuzz_asan_runtime_macos",
+    shared_library = "@llvm//runtimes/compiler-rt:clang_rt.asan.shared",
+    target_compatible_with = ["@platforms//os:macos"],
+    visibility = ["//visibility:public"],
+)
+
+cc_import(
+    name = "fuzz_libfuzzer_macos",
+    alwayslink = True,
+    static_library = "@llvm//runtimes/compiler-rt:clang_rt.fuzzer.static",
+    target_compatible_with = ["@platforms//os:macos"],
+    visibility = ["//visibility:public"],
+)
+
+cc_import(
     name = "unwind",
     static_library = "@llvm//runtimes/libunwind:libunwind.static",
     visibility = ["//visibility:public"],

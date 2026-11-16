@@ -1,4 +1,3 @@
 parser python/private/sdist_cargo_vendor.bzl
-tag-use MODULE.bazel ruby.bundle_fetch.gem_checksums
 tag-use MODULE.bazel ruby.toolchain.portable_ruby_checksums
 tag-use MODULE.bazel ruby.toolchain.version

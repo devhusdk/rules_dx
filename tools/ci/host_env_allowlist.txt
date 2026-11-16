@@ -92,8 +92,6 @@ core/quality/adapter/src/exec.rs host-path 9
 core/quality/compile_check_exec.sh shebang 1
 core/quality/consumer_policy_tests.bzl shebang 1
 core/quality/elixirc.bzl host-path 1
-core/quality/elixirc.bzl run-shell 1
-core/quality/elixirc_script_tests.bzl host-path 2
 core/quality/nvcc_syntax_tests.bzl host-path 2
 core/quality/runner/src/entry.rs host-path 2
 core/quality/runner/src/lib_determinism.rs host-path 3

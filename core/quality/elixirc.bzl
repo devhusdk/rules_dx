@@ -25,6 +25,8 @@ def _targets(attrs, name):
         return []
     return value if type(value) == "list" else [value]
 
+_BIN = "/bin"
+
 def _absolute(path):
     if path.startswith("/"):
         return path
@@ -32,12 +34,12 @@ def _absolute(path):
 
 def elixirc_command(env_program, elixir_home, erlang_root, coreutils_path, erl_libs_path, env, out, elixirc_opts, srcs):
     """Returns the argv of one elixirc replay, with placeholders for the execution root."""
-    path = ":".join([_absolute(elixir_home) + "/bin", _absolute(erlang_root) + "/bin", _absolute(coreutils_path)])
+    path = ":".join([_absolute(elixir_home) + _BIN, _absolute(erlang_root) + _BIN, _absolute(coreutils_path)])
     command = [_absolute(env_program), "PATH=" + path, "RULES_ERLANG_HOME=" + _absolute(erlang_root)]
     if erl_libs_path:
         command.append("ERL_LIBS=" + _absolute(erl_libs_path))
     command += ["%s=%s" % (k, v) for k, v in env.items()]
-    return command + [_absolute(elixir_home) + "/bin/elixirc", "-o", out] + elixirc_opts + srcs
+    return command + [_absolute(elixir_home) + _BIN + "/elixirc", "-o", out] + elixirc_opts + srcs
 
 def _elixirc_impl(target, ctx):
     attrs = ctx.rule.attr

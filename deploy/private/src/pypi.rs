@@ -10,6 +10,7 @@ use crate::run::{
     run_publish, scrubbed_command,
 };
 use crate::stage::*;
+use std::fmt::Write as _;
 use std::io;
 use std::path::Path;
 
@@ -290,9 +291,11 @@ pub fn pypi_build_wheelhouse(
     std::fs::create_dir_all(&index_dir)?;
     let mut body = String::from("<!DOCTYPE html>\n<html><body>\n");
     for (base, digest) in &entries {
-        body.push_str(&format!(
+        write!(
+            body,
             "<a href=\"../../{base}#sha256={digest}\">{base}</a><br/>\n"
-        ));
+        )
+        .ok();
     }
     body.push_str("</body></html>\n");
     std::fs::write(index_dir.join("index.html"), body.as_bytes())?;
@@ -950,7 +953,7 @@ mod tests {
     fn wheel_bytes_with(files: &[&str], wheel_file: Option<&str>) -> Vec<u8> {
         let mut record = String::from("pkg-1.0.dist-info/RECORD,,\n");
         for file in files {
-            record.push_str(&format!("{file},sha256=x,1\n"));
+            write!(record, "{file},sha256=x,1\n").ok();
         }
         let mut members = vec![("pkg-1.0.dist-info/RECORD", record.as_bytes(), 0o644)];
         if let Some(wheel_file) = wheel_file {
@@ -962,7 +965,7 @@ mod tests {
     fn wheel_file(tags: &[&str], purelib: bool) -> String {
         let mut text = format!("Wheel-Version: 1.0\nRoot-Is-Purelib: {purelib}\n");
         for tag in tags {
-            text.push_str(&format!("Tag: {tag}\n"));
+            write!(text, "Tag: {tag}\n").ok();
         }
         text
     }

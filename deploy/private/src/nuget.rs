@@ -10,6 +10,7 @@ use crate::run::{
     env_or_empty, exit_text, print_redacted, run_publish, scrubbed_command,
 };
 use crate::stage::*;
+use std::fmt::Write as _;
 use std::io;
 use std::path::Path;
 
@@ -40,7 +41,7 @@ pub fn nuget_normalize_version(raw: &str) -> Result<String, String> {
     }
     let mut out = format!("{}.{}.{}", numbers[0], numbers[1], numbers[2]);
     if numbers[3] != 0 {
-        out.push_str(&format!(".{}", numbers[3]));
+        write!(out, ".{}", numbers[3]).ok();
     }
     if let Some(release) = release {
         let valid = !release.is_empty()

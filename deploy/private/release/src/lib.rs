@@ -89,6 +89,7 @@ pub fn render_spdx_with_crates(
     render_spdx_full(base, digest, package, supplier, crates, &[])
 }
 
+#[must_use]
 pub fn render_spdx_full(
     base: &str,
     digest: &str,
@@ -201,6 +202,7 @@ fn add_runtimes(document: &mut spdx::Document, runtimes: &[runtimes::RuntimeReco
     }
 }
 
+#[must_use]
 pub fn render_provenance(base: &str, digest: &str, builder: &str) -> String {
     render_pretty(&serde_json::json!({
         "_type": "https://in-toto.io/Statement/v1",
@@ -219,6 +221,7 @@ pub fn render_provenance(base: &str, digest: &str, builder: &str) -> String {
     }))
 }
 
+#[must_use]
 pub fn render_bcr_source(module: &str, version: &str) -> String {
     render_pretty(&serde_json::json!({
         "integrity": "<integrity-filled-at-release>",
@@ -280,6 +283,10 @@ pub fn write_spdx_full(
 }
 
 /// Reads the packages a lock file pins as SBOM entries; `kind` is npm, go, maven or pip.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn lock_entries(kind: &str, text: &str) -> Result<Vec<NoticeEntry>, String> {
     let (set, packages) = match kind {
         "npm" => (
@@ -318,6 +325,9 @@ pub fn lock_entries(kind: &str, text: &str) -> Result<Vec<NoticeEntry>, String> 
         .collect())
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn write_spdx_locked(
     src: &Path,
     dst: &Path,
@@ -350,6 +360,9 @@ pub fn write_spdx_locked(
     Ok(())
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn write_provenance(src: &Path, dst: &Path, builder: &str) -> io::Result<()> {
     if let Err(problem) = provenance_builder_error(builder) {
         return Err(io::Error::other(problem));
@@ -360,11 +373,17 @@ pub fn write_provenance(src: &Path, dst: &Path, builder: &str) -> io::Result<()>
     Ok(())
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn write_bcr_source(dst: &Path, module: &str, version: &str) -> io::Result<()> {
     std::fs::write(dst, render_bcr_source(module, version).as_bytes())?;
     Ok(())
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn bcr_integrity_of_digest(digest: &str) -> Result<String, String> {
     let raw = dx_digest::parse_hex(digest).map_err(|_| {
         format!("bcr: invalid sha256 digest {digest:?}: want 64 lowercase hex chars")
@@ -389,14 +408,19 @@ fn bcr_candidate_version_error(version: &str) -> Result<(), String> {
     Ok(())
 }
 
+#[must_use]
 pub fn bcr_source_url(module: &str, version: &str) -> String {
     format!("{RELEASE_REPOSITORY}/releases/download/v{version}/{module}-{version}.tar.gz")
 }
 
+#[must_use]
 pub fn bcr_strip_prefix(module: &str, version: &str) -> String {
     format!("{module}-{version}")
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn render_bcr_source_for_digest(
     module: &str,
     version: &str,
@@ -414,6 +438,9 @@ pub fn render_bcr_source_for_digest(
     })))
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn write_bcr_source_for_archive(
     dst: &Path,
     version: &str,
@@ -426,6 +453,9 @@ pub fn write_bcr_source_for_archive(
     bcr_integrity_of_digest(&digest).map_err(io::Error::other)
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn bcr_candidate_error(
     source_text: &str,
     module: &str,
@@ -481,6 +511,9 @@ fn bcr_source_error(
     Ok(())
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn release_remote_error(
     candidate: &candidate::Candidate,
     ls_remote: Result<String, String>,
@@ -502,6 +535,7 @@ pub fn release_remote_error(
     Ok(sha)
 }
 
+#[must_use]
 pub fn release_remote_record(
     candidate: &candidate::Candidate,
     ls_remote: Result<String, String>,
@@ -525,6 +559,9 @@ pub const SIGNING_ISSUER_DEFAULT: &str = "https://token.actions.githubuserconten
 pub const PROVENANCE_BUILDER_RELEASE: &str =
     concat!(release_repository!(), "/.github/workflows/release.yml");
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn provenance_builder_error(builder: &str) -> Result<(), String> {
     if builder == PROVENANCE_BUILDER_RELEASE {
         return Ok(());
@@ -542,6 +579,7 @@ fn basename_of(path: &str) -> String {
         .to_owned()
 }
 
+#[must_use]
 pub fn render_bcr_dry_run(module: &str, version: &str, inputs: &[String]) -> String {
     let mut out = String::new();
     out.push_str("bcr: dry run (BCR_DRY_RUN=1); would submit, submitting nothing:\n");
@@ -570,6 +608,9 @@ pub fn render_bcr_dry_run(module: &str, version: &str, inputs: &[String]) -> Str
     out
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn bcr_run(
     module: &str,
     version: &str,
@@ -615,6 +656,7 @@ const BCR_PR_PREFIX: &str = "https://github.com/bazelbuild/bazel-central-registr
 
 /// Ledger record for the publish-to-bcr job: executed only for a successful
 /// run that reported a pull request on the central registry.
+#[must_use]
 pub fn bcr_submit_record(subject: &str, result: &str, pr_url: &str) -> OpRecord {
     let (state, detail) = match (result, pr_url) {
         ("success", url) if url.starts_with(BCR_PR_PREFIX) => (OpState::Executed, url.to_owned()),
@@ -636,6 +678,7 @@ pub struct CosignPin<'a> {
     pub sha256: &'a str,
 }
 
+#[must_use]
 pub fn render_signing_dry_run(
     identity: &str,
     issuer: &str,
@@ -677,6 +720,9 @@ pub fn render_signing_dry_run(
     out
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn signing_run(
     identity: &str,
     issuer: &str,
@@ -706,6 +752,7 @@ pub fn signing_run(
     signing_live(identity, issuer, assets, pin, outdir)
 }
 
+#[must_use]
 pub fn signing_sign_argv(cosign: &str, asset: &str, bundle: &str) -> Vec<String> {
     vec![
         cosign.to_owned(),
@@ -718,6 +765,7 @@ pub fn signing_sign_argv(cosign: &str, asset: &str, bundle: &str) -> Vec<String>
     ]
 }
 
+#[must_use]
 pub fn signing_verify_argv(
     cosign: &str,
     asset: &str,
@@ -745,6 +793,7 @@ pub fn cosign_git_version(version_output: &str) -> Option<&str> {
         .map(str::trim)
 }
 
+#[must_use]
 pub fn signing_version_ok(version_output: &str, want: &str) -> bool {
     cosign_git_version(version_output) == Some(want)
 }
@@ -817,6 +866,7 @@ fn signing_live(
 }
 
 /// Ledger records for a dry run: nothing is signed, so nothing is authorized.
+#[must_use]
 pub fn signing_dry_run_records(assets: &[String]) -> Vec<OpRecord> {
     assets
         .iter()
@@ -833,6 +883,7 @@ pub fn signing_dry_run_records(assets: &[String]) -> Vec<OpRecord> {
 
 /// Signs and verifies each asset in order, stopping at the first failure.
 /// A failure after an earlier asset was signed is `Partial`, otherwise `Failed`.
+#[must_use]
 pub fn signing_sign_assets(
     identity: &str,
     issuer: &str,
@@ -893,6 +944,7 @@ fn signing_sign_one(
     Ok(())
 }
 
+#[must_use]
 pub fn render_release_dry_run(tag: &str, approve: &str) -> String {
     let mut out = String::new();
     out.push_str("release: dry run (RELEASE_DRY_RUN=1); would release, publishing nothing:\n");
@@ -941,6 +993,10 @@ pub struct GitState {
 }
 
 /// Returns the candidate a live release tag and commit name.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn release_candidate(
     tag: &str,
     candidate_commit: Option<&str>,
@@ -954,6 +1010,9 @@ pub fn release_candidate(
     candidate::Candidate::new(version, commit).map_err(|error| format!("release: {error}"))
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn release_live_records(
     tag: &str,
     candidate_commit: Option<&str>,
@@ -1012,6 +1071,9 @@ pub fn release_live_records(
     )])
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn release_run(
     tag: &str,
     candidate_commit: Option<&str>,
@@ -1026,6 +1088,9 @@ pub fn release_run(
     Ok(render_ledger(&records))
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn sbom_verify_files(
     artifact: &Path,
     spdx_path: &Path,
@@ -1060,6 +1125,7 @@ pub use dx_audit::notice_manifest::{
 };
 
 /// The NOTICE section header one inventory entry renders as.
+#[must_use]
 pub fn notice_entry_header(entry: &NoticeEntry) -> String {
     format!(
         "=== {} {} ({}) [{}] ===",
@@ -1068,6 +1134,7 @@ pub fn notice_entry_header(entry: &NoticeEntry) -> String {
 }
 
 /// How many lines of `text` are exactly `header` (ignoring a trailing '\r').
+#[must_use]
 pub fn notice_header_count(text: &str, header: &str) -> usize {
     text.lines()
         .filter(|line| line.trim_end_matches('\r') == header)
@@ -1075,6 +1142,7 @@ pub fn notice_header_count(text: &str, header: &str) -> usize {
 }
 
 /// The body text under one NOTICE entry header, up to the next known header.
+#[must_use]
 pub fn notice_entry_body<'a>(
     notice_text: &'a str,
     header: &str,
@@ -1098,6 +1166,10 @@ pub fn notice_entry_body<'a>(
 
 /// Shared NOTICE verifier for the release and install sides. Errors carry no
 /// prefix; callers add their own.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn verify_notice_text(notice_text: &str, entries: &[NoticeEntry]) -> Result<usize, String> {
     let notice_text = runtimes::strip_section(notice_text);
     if entries.is_empty() {
@@ -1155,6 +1227,7 @@ pub fn verify_notice_text(notice_text: &str, entries: &[NoticeEntry]) -> Result<
     Ok(entries.len())
 }
 
+#[must_use]
 pub fn render_notice(root: &str, entries: &[(NoticeEntry, String)]) -> String {
     let mut sorted = entries.to_vec();
     sorted.sort_by(|a, b| {
@@ -1283,6 +1356,9 @@ pub(crate) fn join_notice_entries(
     Ok(joined)
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn write_notice(
     manifest: &Path,
     dst: &Path,
@@ -1300,6 +1376,9 @@ pub fn write_notice(
     Ok(())
 }
 
+/// # Errors
+///
+/// Returns an error when the operation fails.
 pub fn notice_verify_files(
     notice: &Path,
     manifest: &Path,

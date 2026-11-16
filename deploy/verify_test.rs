@@ -418,8 +418,7 @@ fn oci_stage(prog: &Path, config_var: &str, name: &str) -> (dx_test_scratch::Tem
     let layout = out
         .lines()
         .find_map(|line| line.strip_prefix("  layout: "))
-        .map(PathBuf::from)
-        .unwrap_or_else(|| panic!("no layout line\n{out}"));
+        .map_or_else(|| panic!("no layout line\n{out}"), PathBuf::from);
     (outdir, layout)
 }
 

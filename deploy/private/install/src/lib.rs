@@ -367,9 +367,27 @@ pub fn verify(request: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, S
     let bundle = PathBuf::from(&request.bundle);
     check_inputs(request, verifier, &binary, &bundle)?;
     writeln!(out, "dx_verify: trust root {TRUST_ROOT} (Sigstore TUF public-good; verifiers bootstrapped from the trust root, never alongside the binary)").ok();
+    let method = verify_binary(request, verifier, &binary, &bundle, &mut out)?;
+    verify_sbom(request, verifier, &mut out)?;
+    verify_notice_files(request, verifier, &mut out)?;
+    writeln!(
+        out,
+        "dx_verify: OK (verified via {method}; nothing installed, binary never executed)"
+    )
+    .ok();
+    Ok(out)
+}
+
+fn verify_binary(
+    request: &VerifyArgs,
+    verifier: &dyn Verifier,
+    binary: &Path,
+    bundle: &Path,
+    out: &mut String,
+) -> Result<&'static str, String> {
     let cosign = verifier.cosign_bin();
     let gh = verifier.gh_bin();
-    let verified: String;
+    let method: &'static str;
     if verifier.have(&cosign) {
         writeln!(
             out,
@@ -377,14 +395,8 @@ pub fn verify(request: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, S
             binary.display()
         )
         .ok();
-        if verifier.cosign_verify(
-            &cosign,
-            &bundle,
-            &request.identity,
-            &request.issuer,
-            &binary,
-        ) {
-            verified = "cosign".to_owned();
+        if verifier.cosign_verify(&cosign, bundle, &request.identity, &request.issuer, binary) {
+            method = "cosign";
             writeln!(
                 out,
                 "dx_verify: cosign publisher-identity OK (identity={} issuer={})",
@@ -412,13 +424,13 @@ pub fn verify(request: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, S
         let attestation = PathBuf::from(&request.attestation);
         if verifier.gh_verify(
             &gh,
-            &binary,
+            binary,
             &attestation,
             &request.identity,
             &request.issuer,
             &request.owner,
         ) {
-            verified = "gh-attestation".to_owned();
+            method = "gh-attestation";
             writeln!(
                 out,
                 "dx_verify: attestation publisher-identity OK (identity={} issuer={} owner={})",
@@ -436,6 +448,15 @@ pub fn verify(request: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, S
             "dx_verify: no verifier available (want {cosign} verify-blob or {gh} attestation verify); missing, invalid, or unavailable verification inputs fail closed"
         ));
     }
+    Ok(method)
+}
+
+fn verify_sbom(
+    request: &VerifyArgs,
+    verifier: &dyn Verifier,
+    out: &mut String,
+) -> Result<(), String> {
+    let cosign = verifier.cosign_bin();
     if !request.sbom.is_empty() {
         let sbom = PathBuf::from(&request.sbom);
         let sbom_bundle = PathBuf::from(&request.sbom_bundle);
@@ -464,6 +485,15 @@ pub fn verify(request: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, S
             );
         }
     }
+    Ok(())
+}
+
+fn verify_notice_files(
+    request: &VerifyArgs,
+    verifier: &dyn Verifier,
+    out: &mut String,
+) -> Result<(), String> {
+    let cosign = verifier.cosign_bin();
     if !request.notice.is_empty() {
         let notice_path = PathBuf::from(&request.notice);
         let notice_bundle = PathBuf::from(&request.notice_bundle);
@@ -507,12 +537,7 @@ pub fn verify(request: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, S
         let count = verify_notice(&notice_text, &manifest_text)?;
         writeln!(out, "dx_verify: NOTICE OK ({count} entries bundled)").ok();
     }
-    writeln!(
-        out,
-        "dx_verify: OK (verified via {verified}; nothing installed, binary never executed)"
-    )
-    .ok();
-    Ok(out)
+    Ok(())
 }
 
 #[cfg(test)]
@@ -727,11 +752,11 @@ mod tests {
         .iter()
         .map(ToString::to_string)
         .collect::<Vec<_>>();
-        let args = parse_args(&argv).expect("parse");
-        assert_eq!(args.binary, "/b");
-        assert_eq!(args.bundle, "/u");
-        assert_eq!(args.identity, "ID");
-        assert_eq!(args.issuer, "ISS");
+        let parsed = parse_args(&argv).expect("parse");
+        assert_eq!(parsed.binary, "/b");
+        assert_eq!(parsed.bundle, "/u");
+        assert_eq!(parsed.identity, "ID");
+        assert_eq!(parsed.issuer, "ISS");
     }
 
     #[test]
@@ -878,28 +903,28 @@ mod tests {
     }
 
     fn notice_fake() -> (VerifyArgs, FakeVerifier) {
-        let mut args = valid_args();
-        args.notice = "/tmp/NOTICE".to_owned();
-        args.notice_manifest = "/tmp/inventory.txt".to_owned();
-        args.notice_bundle = "/tmp/NOTICE.bundle".to_owned();
+        let mut request = valid_args();
+        request.notice = "/tmp/NOTICE".to_owned();
+        request.notice_manifest = "/tmp/inventory.txt".to_owned();
+        request.notice_bundle = "/tmp/NOTICE.bundle".to_owned();
         let mut fake = valid_fake();
         fake.write("/tmp/inventory.txt", notice_manifest_text().as_bytes());
         write_signed_notice(&mut fake, notice_text().as_bytes());
-        (args, fake)
+        (request, fake)
     }
 
     #[test]
     fn binds_notice_to_manifest() {
-        let (args, fake) = notice_fake();
-        let out = verify(&args, &fake).expect("notice valid");
+        let (request, fake) = notice_fake();
+        let out = verify(&request, &fake).expect("notice valid");
         assert!(out.contains("NOTICE publisher-identity OK"));
         assert!(out.contains("NOTICE OK (2 entries bundled)"));
     }
 
     fn notice_err(edit: impl FnOnce(&mut FakeVerifier)) -> String {
-        let (args, mut fake) = notice_fake();
+        let (request, mut fake) = notice_fake();
         edit(&mut fake);
-        verify(&args, &fake).expect_err("notice must fail closed")
+        verify(&request, &fake).expect_err("notice must fail closed")
     }
 
     #[test]
@@ -965,34 +990,34 @@ mod tests {
 
         let err = notice_err(|fake| fake.write("/tmp/NOTICE.bundle", b"bundle-for-wrong"));
         assert!(err.contains("NOTICE verification failed"), "got {err}");
-        let (mut args, mut fake) = notice_fake();
-        args.attestation = "/tmp/dx-fake.attestation".to_owned();
-        args.owner = "owner".to_owned();
+        let (mut request, mut fake) = notice_fake();
+        request.attestation = "/tmp/dx-fake.attestation".to_owned();
+        request.owner = "owner".to_owned();
         fake.write("/tmp/dx-fake.attestation", b"attestation-bytes");
         fake.absent = vec!["cosign"];
         fake.gh_ok = true;
-        let err = verify(&args, &fake).expect_err("no cosign for NOTICE");
+        let err = verify(&request, &fake).expect_err("no cosign for NOTICE");
         assert!(err.contains("needs cosign"), "got {err}");
         let err = notice_err(|fake| {
             fake.files.remove(Path::new("/tmp/NOTICE.bundle"));
         });
         assert!(err.contains("notice bundle not found"), "got {err}");
 
-        let (args, mut fake) = notice_fake();
+        let (request, mut fake) = notice_fake();
         fake.write("/tmp/NOTICE", &[0xff]);
-        let err = verify(&args, &fake).expect_err("bad signature");
+        let err = verify(&request, &fake).expect_err("bad signature");
         assert!(err.contains("NOTICE verification failed"), "got {err}");
     }
 
     #[test]
     fn notice_missing_text_fails_actionable() {
-        let (args, mut fake) = notice_fake();
+        let (request, mut fake) = notice_fake();
         fake.write("/tmp/inventory.txt", b"demo-lib-a|cargo|1.0.0|MIT||\n");
-        let err = verify(&args, &fake).expect_err("missing text");
+        let err = verify(&request, &fake).expect_err("missing text");
         assert!(err.contains("missing-notice-text"), "got {err}");
-        let (args, mut fake) = notice_fake();
+        let (request, mut fake) = notice_fake();
         write_signed_notice(&mut fake, b"tampered notice\n");
-        let err = verify(&args, &fake).expect_err("tampered notice");
+        let err = verify(&request, &fake).expect_err("tampered notice");
         assert!(err.contains("NOTICE"), "got {err}");
     }
 
@@ -1028,12 +1053,12 @@ mod tests {
             argv.push(flag.to_owned());
             argv.push(value.to_owned());
         }
-        let args = parse_args(&argv).expect("all flags parse");
-        assert_eq!(args.attestation, "/a");
-        assert_eq!(args.owner, "owner");
-        assert_eq!(args.sbom_bundle, "/sb");
-        assert_eq!(args.notice_manifest, "/nm");
-        assert_eq!(args.notice_bundle, "/nb");
+        let parsed = parse_args(&argv).expect("all flags parse");
+        assert_eq!(parsed.attestation, "/a");
+        assert_eq!(parsed.owner, "owner");
+        assert_eq!(parsed.sbom_bundle, "/sb");
+        assert_eq!(parsed.notice_manifest, "/nm");
+        assert_eq!(parsed.notice_bundle, "/nb");
         let help = parse_args(&["dx_verify".to_owned(), "--help".to_owned()]).expect_err("help");
         assert!(help.to_string().contains("usage: dx_verify --binary PATH"));
         let unknown =
@@ -1060,8 +1085,8 @@ mod tests {
 
     #[test]
     fn verify_fails_closed_on_missing_or_empty_inputs() {
-        let check = |args: VerifyArgs, fake: FakeVerifier, want: &str| {
-            let err = verify(&args, &fake).expect_err(want);
+        let check = |request: VerifyArgs, fake: FakeVerifier, want: &str| {
+            let err = verify(&request, &fake).expect_err(want);
             assert!(err.contains(want), "want {want}, got {err}");
         };
         let mut fake = valid_fake();
@@ -1070,35 +1095,35 @@ mod tests {
         let mut fake = valid_fake();
         fake.files.remove(Path::new("/tmp/dx-fake.bundle"));
         check(valid_args(), fake, "bundle not found");
-        let mut args = valid_args();
-        args.attestation = "/tmp/dx-fake.attestation".to_owned();
-        check(args, valid_fake(), "attestation not found");
-        let mut args = valid_args();
-        args.sbom = "/tmp/sbom".to_owned();
-        check(args, valid_fake(), "sbom not found");
-        let mut args = valid_args();
-        args.sbom = "/tmp/sbom".to_owned();
-        args.sbom_bundle = "/tmp/sbom.bundle".to_owned();
+        let mut request = valid_args();
+        request.attestation = "/tmp/dx-fake.attestation".to_owned();
+        check(request, valid_fake(), "attestation not found");
+        let mut request = valid_args();
+        request.sbom = "/tmp/sbom".to_owned();
+        check(request, valid_fake(), "sbom not found");
+        let mut request = valid_args();
+        request.sbom = "/tmp/sbom".to_owned();
+        request.sbom_bundle = "/tmp/sbom.bundle".to_owned();
         let mut fake = valid_fake();
         fake.write("/tmp/sbom", b"sbom-bytes");
-        check(args, fake, "sbom bundle not found");
-        let mut args = valid_args();
-        args.notice = "/tmp/NOTICE".to_owned();
-        check(args, valid_fake(), "notice not found");
-        let mut args = valid_args();
-        args.notice = "/tmp/NOTICE".to_owned();
-        args.notice_manifest = "/tmp/inventory.txt".to_owned();
+        check(request, fake, "sbom bundle not found");
+        let mut request = valid_args();
+        request.notice = "/tmp/NOTICE".to_owned();
+        check(request, valid_fake(), "notice not found");
+        let mut request = valid_args();
+        request.notice = "/tmp/NOTICE".to_owned();
+        request.notice_manifest = "/tmp/inventory.txt".to_owned();
         let mut fake = valid_fake();
         fake.write("/tmp/NOTICE", b"NOTICE for //demo:root\n");
-        check(args, fake, "notice manifest not found");
-        let mut args = valid_args();
-        args.notice = "/tmp/NOTICE".to_owned();
-        args.notice_manifest = "/tmp/inventory.txt".to_owned();
-        args.notice_bundle = "/tmp/NOTICE.bundle".to_owned();
+        check(request, fake, "notice manifest not found");
+        let mut request = valid_args();
+        request.notice = "/tmp/NOTICE".to_owned();
+        request.notice_manifest = "/tmp/inventory.txt".to_owned();
+        request.notice_bundle = "/tmp/NOTICE.bundle".to_owned();
         let mut fake = valid_fake();
         fake.write("/tmp/NOTICE", b"NOTICE for //demo:root\n");
         fake.write("/tmp/inventory.txt", b"# empty\n");
-        check(args, fake, "notice bundle not found");
+        check(request, fake, "notice bundle not found");
         let mut fake = valid_fake();
         fake.write("/tmp/dx-fake.bundle", b"");
         check(valid_args(), fake, "bundle is empty");
@@ -1222,17 +1247,17 @@ mod tests {
 
     #[test]
     fn notice_inputs_fail_closed_when_unreadable() {
-        let (args, mut fake) = notice_fake();
+        let (request, mut fake) = notice_fake();
         write_signed_notice(&mut fake, b"   \n");
-        let err = verify(&args, &fake).expect_err("empty notice");
+        let err = verify(&request, &fake).expect_err("empty notice");
         assert!(err.contains("notice is empty"), "got {err}");
-        let (args, mut fake) = notice_fake();
+        let (request, mut fake) = notice_fake();
         fake.write("/tmp/inventory.txt", &[0xff, 0xfe]);
-        let err = verify(&args, &fake).expect_err("manifest not utf-8");
+        let err = verify(&request, &fake).expect_err("manifest not utf-8");
         assert!(err.contains("notice manifest not readable"), "got {err}");
-        let (args, mut fake) = notice_fake();
+        let (request, mut fake) = notice_fake();
         write_signed_notice(&mut fake, &[0xff]);
-        let err = verify(&args, &fake).expect_err("notice not utf-8");
+        let err = verify(&request, &fake).expect_err("notice not utf-8");
         assert!(err.contains("notice not readable"), "got {err}");
     }
 

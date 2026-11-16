@@ -1,0 +1,28 @@
+diff --git a/ruby/extensions.bzl b/ruby/extensions.bzl
+--- a/ruby/extensions.bzl
++++ b/ruby/extensions.bzl
+@@ -146,10 +146,10 @@
+                 )
+                 if module_ctx.is_dev_dependency(toolchain):
+                     direct_dev_dep_names.append(toolchain.name)
+-                    direct_dev_dep_names.append("%s_toolchains" % toolchain.name)
++                    direct_dev_dep_names.append("dx_%s_toolchains" % toolchain.name)
+                 else:
+                     direct_dep_names.append(toolchain.name)
+-                    direct_dep_names.append("%s_toolchains" % toolchain.name)
++                    direct_dep_names.append("dx_%s_toolchains" % toolchain.name)
+ 
+     for name, config in registrations.items():
+         (
+diff --git a/ruby/private/toolchain.bzl b/ruby/private/toolchain.bzl
+--- a/ruby/private/toolchain.bzl
++++ b/ruby/private/toolchain.bzl
+@@ -94,7 +94,7 @@
+         register: whether to register the resulting toolchains, should be False under bzlmod
+         **kwargs: additional parameters to the downloader for this interpreter type
+     """
+-    proxy_repo_name = name + "_toolchains"
++    proxy_repo_name = "dx_" + name + "_toolchains"
+ 
+     # Multi-platform mode is only meaningful for MRI + portable_ruby. JRuby's
+     # archive is platform-independent, TruffleRuby and "system" can't cross-

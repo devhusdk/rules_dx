@@ -41,18 +41,24 @@ bcr_test_module:
       name: Build Qt hello
       platform: debian11
       bazel: ${{ bazel }}
+      build_flags:
+        - "--platforms=@rules_dx//qt:linux_x86_64"
       build_targets:
         - "//qt_hello"
     build_qt_hello_ubuntu2204:
       name: Build Qt hello
       platform: ubuntu2204
       bazel: ${{ bazel }}
+      build_flags:
+        - "--platforms=@rules_dx//qt:linux_x86_64"
       build_targets:
         - "//qt_hello"
     build_qt_hello_ubuntu2204_arm64:
       name: Build Qt hello
       platform: ubuntu2204_arm64
       bazel: ${{ bazel }}
+      build_flags:
+        - "--platforms=@rules_dx//qt:linux_arm64"
       build_targets:
         - "//qt_hello"
     build_main_in_dep:

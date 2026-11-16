@@ -1,4 +1,4 @@
-use dx_release_tools::presubmit::{host_run_flags, host_targets};
+use dx_release_tools::presubmit::{host_build_flags, host_run_flags, host_targets};
 use dx_release_tools::render_bcr_source_for_digest;
 
 fn template(name: &str) -> String {
@@ -110,6 +110,20 @@ fn presubmit_run_flags_belong_to_the_run_task() {
             .iter()
             .any(|pair| pair == &("run".to_owned(), "@rules_dx//:dx".to_owned()))
     );
+}
+
+#[test]
+fn presubmit_qt_builds_for_the_qt_platform_of_the_host() {
+    let text = template("presubmit.yml");
+    assert_eq!(
+        host_build_flags(&text, LINUX, "//qt_hello"),
+        ["--platforms=@rules_dx//qt:linux_x86_64"]
+    );
+    assert_eq!(
+        host_build_flags(&text, &["ubuntu2204_arm64"], "//qt_hello"),
+        ["--platforms=@rules_dx//qt:linux_arm64"]
+    );
+    assert!(host_build_flags(&text, LINUX, "//main_in_dep").is_empty());
 }
 
 #[test]

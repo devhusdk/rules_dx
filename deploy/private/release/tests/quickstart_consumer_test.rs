@@ -1,7 +1,7 @@
 //! Runs the README quickstart and `bcr_test_module` as written, against this checkout.
 
 use dx_nested::compose::{
-    llvm_override, protobuf_override, rules_dx_override, rules_flutter_override, rules_py_override,
+    llvm_override, rules_dx_override, rules_flutter_override, rules_py_override,
     rules_rust_override, windows_support_override,
 };
 use dx_nested::{self as nested, Case, footprint, plain_fixture};
@@ -150,7 +150,6 @@ fn copy_rules_py_patches(source: &std::path::Path, case: &Case) {
         "rules_flutter",
         "rules_rust",
         "llvm",
-        "protobuf",
         "windows_support",
         "ring",
         "gomod-parser",
@@ -205,7 +204,6 @@ fn the_readme_quickstart_runs_as_written() {
             text.push_str(&rules_flutter_override());
             text.push_str(&rules_rust_override());
             text.push_str(&llvm_override());
-            text.push_str(&protobuf_override());
             text.push_str(&windows_support_override());
             text.push_str(&rules_dx_override(&source));
         }
@@ -315,7 +313,6 @@ fn bcr_test_module_runs_its_presubmit_targets() {
             + &rules_flutter_override()
             + &rules_rust_override()
             + &llvm_override()
-            + &protobuf_override()
             + &windows_support_override()),
     );
 
@@ -325,6 +322,10 @@ fn bcr_test_module_runs_its_presubmit_targets() {
         let mut args = vec![verb.as_str(), target.as_str()];
         if verb == "run" {
             args.extend(flags.iter().map(String::as_str));
+        }
+        let build_flags = presubmit::host_build_flags(&presubmit, host, &target);
+        if verb == "build" {
+            args.extend(build_flags.iter().map(String::as_str));
         }
         run_in(&case, &args, &target);
     }

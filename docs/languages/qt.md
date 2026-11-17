@@ -168,7 +168,7 @@ nothing on cells without DLLs.
 `qt_consumer_archive` takes the arguments of `consumer_archive`. It records the
 os and cpu of the target platform. `min_runtime` defaults to the minimum runtime
 of the targeted cell:
-`glibc-2.34` on `linux_x86_64`, `glibc-2.39` on `linux_arm64` and `macos-13.0`
+`glibc-2.34` on `linux_x86_64`, `glibc-2.39` on `linux_arm64` and `macos-14.4`
 on `macos_arm64`. `runtime` gains the OS runtime of the targeted cell. `qt_bundle` is skipped on
 cells without a needs table, such as the Windows cells for now. On macOS, any
 non-empty `display` ships the `cocoa` platform plugin.
@@ -235,7 +235,7 @@ cp "$(bazel cquery --output=files @rules_dx//qt:linux_x86_64_cell)" third_party/
 The spec is checked like the pinned cells. Every archive and runtime package
 needs a sha256. Archives come from `mirror` (or `download.qt.io`) under
 `directory`. Runtime packages come from `runtime_mirror` (or
-`vault.almalinux.org`). The Qt release must be 6.11.3. Unknown keys fail.
+`vault.almalinux.org`). The Qt release must be 6.12.0. Unknown keys fail.
 
 Only the root module may declare cells. `qt_bundle` packages a cell only
 when its spec carries `needs`, and those tables must match its archives;

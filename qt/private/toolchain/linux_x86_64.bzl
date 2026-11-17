@@ -2,7 +2,7 @@
 
 load(":layout_linux.bzl", "LAYOUT")
 
-_RELEASE = "6.11.3-0-202610220312"
+_RELEASE = "6.12.0-0-202609280346"
 
 _LIBRARY_NEEDS = {
     "libEGL.so.1": ["libGLdispatch.so.0"],
@@ -22,8 +22,8 @@ _LIBRARY_NEEDS = {
     "libQt6LabsQmlModels.so.6": ["libQt6Core.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libQt6QmlModels.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "libQt6LabsSettings.so.6": ["libQt6Core.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "libQt6LabsSharedImage.so.6": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6QmlMeta.so.6", "libQt6QmlModels.so.6", "libQt6QmlWorkerScript.so.6", "libQt6Quick.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
-    "libQt6LabsStyleKit.so.6": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6QmlMeta.so.6", "libQt6QmlModels.so.6", "libQt6QmlWorkerScript.so.6", "libQt6Quick.so.6", "libQt6QuickControls2Impl.so.6", "libQt6QuickTemplates2.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
-    "libQt6LabsStyleKitImpl.so.6": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6LabsStyleKit.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6QmlMeta.so.6", "libQt6QmlModels.so.6", "libQt6QmlWorkerScript.so.6", "libQt6Quick.so.6", "libQt6QuickTemplates2.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
+    "libQt6LabsStyleKit.so.6": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6QmlMeta.so.6", "libQt6QmlModels.so.6", "libQt6QmlWorkerScript.so.6", "libQt6Quick.so.6", "libQt6QuickControls2Impl.so.6", "libQt6QuickTemplates2.so.6", "libQt6Widgets.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
+    "libQt6LabsStyleKitImpl.so.6": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6LabsStyleKit.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6QmlMeta.so.6", "libQt6QmlModels.so.6", "libQt6QmlWorkerScript.so.6", "libQt6Quick.so.6", "libQt6QuickTemplates2.so.6", "libQt6Widgets.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
     "libQt6LabsSynchronizer.so.6": ["libQt6Core.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "libQt6LabsWavefrontMesh.so.6": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6QmlMeta.so.6", "libQt6QmlModels.so.6", "libQt6QmlWorkerScript.so.6", "libQt6Quick.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
     "libQt6Network.so.6": ["libQt6Core.so.6", "libbrotlicommon.so.1", "libbrotlidec.so.1", "libgcc_s.so.1", "libgssapi_krb5.so.2", "libstdc++.so.6", "libz.so.1", "libzstd.so.1"],
@@ -33,6 +33,7 @@ _LIBRARY_NEEDS = {
     "libQt6Qml.so.6": ["libQt6Core.so.6", "libQt6Network.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "libQt6QmlCompiler.so.6": ["libQt6Core.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "libQt6QmlCore.so.6": ["libQt6Core.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
+    "libQt6QmlDesignSupport.so.6": ["libQt6Core.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "libQt6QmlLocalStorage.so.6": ["libQt6Core.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libQt6Sql.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "libQt6QmlMeta.so.6": ["libQt6Core.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libQt6QmlModels.so.6", "libQt6QmlWorkerScript.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "libQt6QmlModels.so.6": ["libQt6Core.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
@@ -43,6 +44,7 @@ _LIBRARY_NEEDS = {
     "libQt6QuickControls2.so.6": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6QmlMeta.so.6", "libQt6QmlModels.so.6", "libQt6QmlWorkerScript.so.6", "libQt6Quick.so.6", "libQt6QuickTemplates2.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
     "libQt6QuickControls2Basic.so.6": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6QmlMeta.so.6", "libQt6QmlModels.so.6", "libQt6QmlWorkerScript.so.6", "libQt6Quick.so.6", "libQt6QuickControls2.so.6", "libQt6QuickControls2BasicStyleImpl.so.6", "libQt6QuickTemplates2.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
     "libQt6QuickControls2BasicStyleImpl.so.6": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6QmlMeta.so.6", "libQt6QmlModels.so.6", "libQt6QmlWorkerScript.so.6", "libQt6Quick.so.6", "libQt6QuickControls2Impl.so.6", "libQt6QuickTemplates2.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
+    "libQt6QuickControls2FluentWinUI3.so.6": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6QmlModels.so.6", "libQt6Quick.so.6", "libQt6QuickControls2FluentWinUI3StyleImpl.so.6", "libQt6QuickControls2Fusion.so.6", "libQt6QuickControls2Impl.so.6", "libQt6QuickTemplates2.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
     "libQt6QuickControls2FluentWinUI3StyleImpl.so.6": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6QmlMeta.so.6", "libQt6QmlModels.so.6", "libQt6QmlWorkerScript.so.6", "libQt6Quick.so.6", "libQt6QuickTemplates2.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
     "libQt6QuickControls2Fusion.so.6": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6QmlMeta.so.6", "libQt6QmlModels.so.6", "libQt6QmlWorkerScript.so.6", "libQt6Quick.so.6", "libQt6QuickControls2.so.6", "libQt6QuickControls2Basic.so.6", "libQt6QuickControls2FusionStyleImpl.so.6", "libQt6QuickTemplates2.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
     "libQt6QuickControls2FusionStyleImpl.so.6": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6QmlMeta.so.6", "libQt6QmlModels.so.6", "libQt6QmlWorkerScript.so.6", "libQt6Quick.so.6", "libQt6QuickControls2Impl.so.6", "libQt6QuickTemplates2.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
@@ -51,6 +53,7 @@ _LIBRARY_NEEDS = {
     "libQt6QuickControls2Impl.so.6": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6QmlMeta.so.6", "libQt6QmlModels.so.6", "libQt6QmlWorkerScript.so.6", "libQt6Quick.so.6", "libQt6QuickTemplates2.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
     "libQt6QuickControls2Material.so.6": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6QmlMeta.so.6", "libQt6QmlModels.so.6", "libQt6QmlWorkerScript.so.6", "libQt6Quick.so.6", "libQt6QuickControls2.so.6", "libQt6QuickControls2Basic.so.6", "libQt6QuickControls2Impl.so.6", "libQt6QuickControls2MaterialStyleImpl.so.6", "libQt6QuickTemplates2.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
     "libQt6QuickControls2MaterialStyleImpl.so.6": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6QmlMeta.so.6", "libQt6QmlModels.so.6", "libQt6QmlWorkerScript.so.6", "libQt6Quick.so.6", "libQt6QuickControls2Impl.so.6", "libQt6QuickTemplates2.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
+    "libQt6QuickControls2Native.so.6": ["libQt6Core.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libQt6QuickControls2Fusion.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "libQt6QuickControls2Universal.so.6": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6QmlMeta.so.6", "libQt6QmlModels.so.6", "libQt6QmlWorkerScript.so.6", "libQt6Quick.so.6", "libQt6QuickControls2.so.6", "libQt6QuickControls2Basic.so.6", "libQt6QuickControls2Impl.so.6", "libQt6QuickControls2UniversalStyleImpl.so.6", "libQt6QuickTemplates2.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
     "libQt6QuickControls2UniversalStyleImpl.so.6": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6QmlMeta.so.6", "libQt6QmlModels.so.6", "libQt6QmlWorkerScript.so.6", "libQt6Quick.so.6", "libQt6QuickControls2Impl.so.6", "libQt6QuickTemplates2.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
     "libQt6QuickDialogs2.so.6": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6QmlMeta.so.6", "libQt6QmlModels.so.6", "libQt6QmlWorkerScript.so.6", "libQt6Quick.so.6", "libQt6QuickControls2Impl.so.6", "libQt6QuickDialogs2QuickImpl.so.6", "libQt6QuickDialogs2Utils.so.6", "libQt6QuickTemplates2.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
@@ -156,7 +159,7 @@ _RUNTIME_PLUGIN_NEEDS = {
 
 _PLUGIN_NEEDS = {
     "Qt/labs/StyleKit/impl/liblabsstylekitimplplugin.so": ["libQt6Core.so.6", "libQt6LabsStyleKitImpl.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
-    "Qt/labs/StyleKit/liblabsstylekitplugin.so": ["libQt6Core.so.6", "libQt6LabsStyleKit.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
+    "Qt/labs/StyleKit/liblabsstylekitplugin.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6LabsStyleKit.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libQt6Widgets.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "Qt/labs/animation/liblabsanimationplugin.so": ["libQt6Core.so.6", "libQt6LabsAnimation.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "Qt/labs/folderlistmodel/libqmlfolderlistmodelplugin.so": ["libQt6Core.so.6", "libQt6LabsFolderListModel.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "Qt/labs/platform/liblabsplatformplugin.so": ["libQt6Core.so.6", "libQt6LabsPlatform.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
@@ -168,6 +171,7 @@ _PLUGIN_NEEDS = {
     "Qt/test/controls/libquickcontrolstestutilsprivateplugin.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6QmlMeta.so.6", "libQt6QmlModels.so.6", "libQt6QmlWorkerScript.so.6", "libQt6Quick.so.6", "libQt6QuickControls2.so.6", "libQt6QuickDialogs2QuickImpl.so.6", "libQt6QuickTemplates2.so.6", "libQt6QuickTest.so.6", "libQt6Test.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
     "QtCore/libqtqmlcoreplugin.so": ["libQt6Core.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libQt6QmlCore.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "QtNetwork/libqmlnetworkplugin.so": ["libQt6Core.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libQt6QmlNetwork.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
+    "QtQml/DesignSupport/libqmldesignsupportplugin.so": ["libQt6Core.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libQt6QmlDesignSupport.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "QtQml/Models/libmodelsplugin.so": ["libQt6Core.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libQt6QmlModels.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "QtQml/WorkerScript/libworkerscriptplugin.so": ["libQt6Core.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libQt6QmlWorkerScript.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "QtQml/XmlListModel/libqmlxmllistmodelplugin.so": ["libQt6Core.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libQt6QmlXmlListModel.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
@@ -175,13 +179,14 @@ _PLUGIN_NEEDS = {
     "QtQuick/Controls/Basic/impl/libqtquickcontrols2basicstyleimplplugin.so": ["libQt6Core.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libQt6QuickControls2BasicStyleImpl.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "QtQuick/Controls/Basic/libqtquickcontrols2basicstyleplugin.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6Quick.so.6", "libQt6QuickControls2.so.6", "libQt6QuickControls2Basic.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "QtQuick/Controls/FluentWinUI3/impl/libqtquickcontrols2fluentwinui3styleimplplugin.so": ["libQt6Core.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libQt6QuickControls2FluentWinUI3StyleImpl.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
-    "QtQuick/Controls/FluentWinUI3/libqtquickcontrols2fluentwinui3styleplugin.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6QmlMeta.so.6", "libQt6QmlModels.so.6", "libQt6QmlWorkerScript.so.6", "libQt6Quick.so.6", "libQt6QuickControls2.so.6", "libQt6QuickControls2FluentWinUI3StyleImpl.so.6", "libQt6QuickControls2Fusion.so.6", "libQt6QuickControls2Impl.so.6", "libQt6QuickTemplates2.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
+    "QtQuick/Controls/FluentWinUI3/libqtquickcontrols2fluentwinui3styleplugin.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6QmlMeta.so.6", "libQt6QmlModels.so.6", "libQt6QmlWorkerScript.so.6", "libQt6Quick.so.6", "libQt6QuickControls2.so.6", "libQt6QuickControls2FluentWinUI3.so.6", "libQt6QuickControls2FluentWinUI3StyleImpl.so.6", "libQt6QuickTemplates2.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
     "QtQuick/Controls/Fusion/impl/libqtquickcontrols2fusionstyleimplplugin.so": ["libQt6Core.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libQt6QuickControls2FusionStyleImpl.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "QtQuick/Controls/Fusion/libqtquickcontrols2fusionstyleplugin.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6Quick.so.6", "libQt6QuickControls2.so.6", "libQt6QuickControls2Fusion.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "QtQuick/Controls/Imagine/impl/libqtquickcontrols2imaginestyleimplplugin.so": ["libQt6Core.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libQt6QuickControls2ImagineStyleImpl.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "QtQuick/Controls/Imagine/libqtquickcontrols2imaginestyleplugin.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6Quick.so.6", "libQt6QuickControls2.so.6", "libQt6QuickControls2Imagine.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "QtQuick/Controls/Material/impl/libqtquickcontrols2materialstyleimplplugin.so": ["libQt6Core.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libQt6QuickControls2MaterialStyleImpl.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "QtQuick/Controls/Material/libqtquickcontrols2materialstyleplugin.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6Quick.so.6", "libQt6QuickControls2.so.6", "libQt6QuickControls2Material.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
+    "QtQuick/Controls/Native/libqtquickcontrols2nativestyleplugin.so": ["libQt6Core.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libQt6QuickControls2Native.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "QtQuick/Controls/Universal/impl/libqtquickcontrols2universalstyleimplplugin.so": ["libQt6Core.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libQt6QuickControls2UniversalStyleImpl.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "QtQuick/Controls/Universal/libqtquickcontrols2universalstyleplugin.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6Quick.so.6", "libQt6QuickControls2.so.6", "libQt6QuickControls2Universal.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "QtQuick/Controls/impl/libqtquickcontrols2implplugin.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6Quick.so.6", "libQt6QuickControls2Impl.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
@@ -191,8 +196,8 @@ _PLUGIN_NEEDS = {
     "QtQuick/Effects/libeffectsplugin.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6Quick.so.6", "libQt6QuickEffects.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "QtQuick/Layouts/libqquicklayoutsplugin.so": ["libQt6Core.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libQt6QuickLayouts.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "QtQuick/LocalStorage/libqmllocalstorageplugin.so": ["libQt6Core.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libQt6QmlLocalStorage.so.6", "libQt6Sql.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
-    "QtQuick/Particles/libparticlesplugin.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6QmlMeta.so.6", "libQt6QmlModels.so.6", "libQt6QmlWorkerScript.so.6", "libQt6Quick.so.6", "libQt6QuickParticles.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
-    "QtQuick/Shapes/DesignHelpers/libqtquickshapesdesignhelpersplugin.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6QmlMeta.so.6", "libQt6QmlModels.so.6", "libQt6QmlWorkerScript.so.6", "libQt6Quick.so.6", "libQt6QuickShapes.so.6", "libQt6QuickShapesDesignHelpers.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
+    "QtQuick/Particles/libparticlesplugin.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6Quick.so.6", "libQt6QuickParticles.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
+    "QtQuick/Shapes/DesignHelpers/libqtquickshapesdesignhelpersplugin.so": ["libQt6Core.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libQt6QuickShapesDesignHelpers.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "QtQuick/Shapes/libqmlshapesplugin.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6QmlMeta.so.6", "libQt6QmlModels.so.6", "libQt6QmlWorkerScript.so.6", "libQt6Quick.so.6", "libQt6QuickShapes.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
     "QtQuick/Templates/libqtquicktemplates2plugin.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6QmlModels.so.6", "libQt6Quick.so.6", "libQt6QuickTemplates2.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "QtQuick/VectorImage/Helpers/libqquickvectorimagehelpersplugin.so": ["libQt6Core.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libQt6QuickVectorImageHelpers.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
@@ -788,24 +793,24 @@ CELL = struct(
     archives = {
         "icu": struct(
             archive = _RELEASE + "icu-linux-Rhel8.6-x86_64.7z",
-            sha256 = "16f1e8f409bd9f0b248e36d10deab498d0c1b33d25e0a515a076b1f6b5a1ab28",
+            sha256 = "1fdbcd67b1760f3a3f031c64637a9f19992aed2f35aa615e12a468f8c655d4da",
         ),
         "qtbase": struct(
             archive = _RELEASE + "qtbase-Linux-RHEL_9_6-GCC-Linux-RHEL_9_6-X86_64.7z",
-            sha256 = "ce282da4d8a83dc216ed96b715202872d655177189c16205dc5fab09b41a9f09",
+            sha256 = "943023b929d0c08eafe7341700b5ed7601284410b7afd6093f950be291d1d7cd",
         ),
         "qtdeclarative": struct(
             archive = _RELEASE + "qtdeclarative-Linux-RHEL_9_6-GCC-Linux-RHEL_9_6-X86_64.7z",
-            sha256 = "424a4012edd475e21c108df6e297ab034cb786ec91f5fe451d20e3a5540e486d",
+            sha256 = "0c719e17ea9fbd37aa615595149dca2578985656433f27bf2846cffe4b687d3e",
         ),
         "qttools": struct(
             archive = _RELEASE + "qttools-Linux-RHEL_9_6-GCC-Linux-RHEL_9_6-X86_64.7z",
-            sha256 = "b511ad14e672bebbc6457fbaac2eb69100e2d864c6015fde1c305a699db89021",
+            sha256 = "5d6f90961df3a1e5a57fac69bbbe6983860bad11c419a49736b84914588b4334",
         ),
     },
     blocker = "",
     constraints = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
-    directory = "linux_x64/desktop/qt6_6113/qt6_6113/qt.qt6.6113.linux_gcc_64",
+    directory = "linux_x64/desktop/qt6_6120/qt6_6120/qt.qt6.6120.linux_gcc_64",
     layout = LAYOUT,
     needs = struct(
         library = _LIBRARY_NEEDS,

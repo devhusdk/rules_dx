@@ -24,7 +24,7 @@ def _unit_checks():
     return [
         expect_equal("consumer identity linux_arm64", qt_consumer_identity("linux_arm64"), struct(arch = "aarch64", os = "linux", min_runtime = "glibc-2.39")),
         expect_equal("consumer identity linux_x86_64", qt_consumer_identity("linux_x86_64"), struct(arch = "x86_64", os = "linux", min_runtime = "glibc-2.34")),
-        expect_equal("consumer identity macos_arm64", qt_consumer_identity("macos_arm64"), struct(arch = "aarch64", os = "macos", min_runtime = "macos-13.0")),
+        expect_equal("consumer identity macos_arm64", qt_consumer_identity("macos_arm64"), struct(arch = "aarch64", os = "macos", min_runtime = "macos-14.4")),
         expect_equal("library stem linux", qt_library_stem("libQt6Gui.so.6"), "Qt6Gui"),
         expect_equal("library stem linux plugin", qt_library_stem("libqoffscreen.so"), "qoffscreen"),
         expect_equal("library stem macos plugin", qt_library_stem("libqoffscreen.dylib"), "qoffscreen"),

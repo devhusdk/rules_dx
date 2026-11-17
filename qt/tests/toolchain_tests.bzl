@@ -323,7 +323,7 @@ def _layout(**kwargs):
     return struct(**fields)
 
 def _cell(layout, runtime = None):
-    archive = struct(archive = "6.11.3-0-1qt.7z", sha256 = "0" * 64)
+    archive = struct(archive = "6.12.0-0-1qt.7z", sha256 = "0" * 64)
     return struct(
         archives = {key: archive for key in MODULES},
         blocker = "",
@@ -331,7 +331,7 @@ def _cell(layout, runtime = None):
         directory = "mac_x64/desktop",
         layout = layout,
         needs = None,
-        release = "6.11.3-0-1",
+        release = "6.12.0-0-1",
         runtime = runtime,
     )
 
@@ -360,14 +360,14 @@ def _url_checks():
         expect_equal(
             "qtbase url",
             url_for("linux_x86_64", "qtbase"),
-            "https://download.qt.io/online/qtsdkrepository/linux_x64/desktop/qt6_6113/qt6_6113/qt.qt6.6113.linux_gcc_64/" +
-            "6.11.3-0-202610220312qtbase-Linux-RHEL_9_6-GCC-Linux-RHEL_9_6-X86_64.7z",
+            "https://download.qt.io/online/qtsdkrepository/linux_x64/desktop/qt6_6120/qt6_6120/qt.qt6.6120.linux_gcc_64/" +
+            "6.12.0-0-202609280346qtbase-Linux-RHEL_9_6-GCC-Linux-RHEL_9_6-X86_64.7z",
         ),
         expect_equal(
             "mirrored icu url",
             url_for("linux_x86_64", "icu", "https://mirror.example.com/qt"),
-            "https://mirror.example.com/qt/linux_x64/desktop/qt6_6113/qt6_6113/qt.qt6.6113.linux_gcc_64/" +
-            "6.11.3-0-202610220312icu-linux-Rhel8.6-x86_64.7z",
+            "https://mirror.example.com/qt/linux_x64/desktop/qt6_6120/qt6_6120/qt.qt6.6120.linux_gcc_64/" +
+            "6.12.0-0-202609280346icu-linux-Rhel8.6-x86_64.7z",
         ),
         expect_equal(
             "runtime url escapes plus",
@@ -387,8 +387,8 @@ def _url_checks():
         expect_equal(
             "arm64 qtbase url",
             url_for("linux_arm64", "qtbase"),
-            "https://download.qt.io/online/qtsdkrepository/linux_arm64/desktop/qt6_6113/qt6_6113/qt.qt6.6113.linux_gcc_arm64/" +
-            "6.11.3-0-202610231039qtbase-Linux-Ubuntu_24_04-GCC-Linux-Ubuntu_24_04-AARCH64.7z",
+            "https://download.qt.io/online/qtsdkrepository/linux_arm64/desktop/qt6_6120/qt6_6120/qt.qt6.6120.linux_gcc_arm64/" +
+            "6.12.0-0-202609280346qtbase-Linux-Ubuntu_24_04-GCC-Linux-Ubuntu_24_04-AARCH64.7z",
         ),
         expect_equal(
             "arm64 runtime url",
@@ -398,8 +398,8 @@ def _url_checks():
         expect_equal(
             "macos qtbase url",
             url_for("macos_arm64", "qtbase"),
-            "https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_6113/qt6_6113/qt.qt6.6113.clang_64/" +
-            "6.11.3-0-202610220312qtbase-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z",
+            "https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_6120/qt6_6120/qt.qt6.6120.clang_64/" +
+            "6.12.0-0-202609280346qtbase-MacOS-MacOS_26-Clang-MacOS-MacOS_26-X86_64-ARM64.7z",
         ),
         expect_equal("cache identity", canonical_id_for("https://x/y.7z"), "dx-qt-archive:https://x/y.7z"),
     ]
@@ -408,7 +408,7 @@ def _request_checks():
     return [
         expect_equal("default request is clean", request_errors(default_request()), []),
         expect_equal("other version fails", request_errors(_request(version = "6.8.3")), [
-            "qt: version '6.8.3' is not pinned; want 6.11.3",
+            "qt: version '6.8.3' is not pinned; want 6.12.0",
         ]),
         expect_equal("plain http mirrors fail", request_errors(_request(mirror = "http://a", runtime_mirror = "http://b")), [
             "qt: mirror 'http://a' must use https",
@@ -673,7 +673,7 @@ def _consumer_checks():
         expect_equal("a clean consumer cell passes", _errors(_spec()), []),
         expect_equal("consumer sha256 is checked", _errors(sha), ["cell 'custom' archive 'qtbase' sha256 is not 64 hex characters"]),
         expect_equal("consumer archives are 7z", _errors(seven), ["cell 'custom' archive 'qtbase' is not a .7z archive"]),
-        expect_contains("consumer release is checked", _errors(release), "cell 'custom' release '6.8.3-0-1' is not a 6.11.3 release"),
+        expect_contains("consumer release is checked", _errors(release), "cell 'custom' release '6.8.3-0-1' is not a 6.12.0 release"),
         expect_equal("consumer cells pin every module", _errors(missing), ["cell 'custom' pins no 'qttools' archive"]),
         expect_equal("consumer runtime packages are sorted", _errors(unsorted), ["cell 'custom' runtime packages are not sorted by name"]),
         expect_equal("consumer license texts use https", _errors(http), ["license text 'custom: pcre2/LICENCE' does not use https"]),

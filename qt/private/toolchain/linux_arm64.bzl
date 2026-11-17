@@ -2,7 +2,7 @@
 
 load(":layout_linux.bzl", "LAYOUT")
 
-_RELEASE = "6.11.3-0-202610231039"
+_RELEASE = "6.12.0-0-202609280346"
 
 _LIBRARY_NEEDS = {
     "libEGL.so.1": ["libGLdispatch.so.0"],
@@ -23,7 +23,7 @@ _LIBRARY_NEEDS = {
     "libQt6LabsQmlModels.so.6": ["libQt6Core.so.6", "libQt6Qml.so.6", "libQt6QmlModels.so.6", "libstdc++.so.6"],
     "libQt6LabsSettings.so.6": ["libQt6Core.so.6", "libQt6Qml.so.6", "libstdc++.so.6"],
     "libQt6LabsSharedImage.so.6": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Qml.so.6", "libQt6Quick.so.6", "libstdc++.so.6"],
-    "libQt6LabsStyleKit.so.6": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Qml.so.6", "libQt6Quick.so.6", "libQt6QuickTemplates2.so.6", "libstdc++.so.6"],
+    "libQt6LabsStyleKit.so.6": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Qml.so.6", "libQt6Quick.so.6", "libQt6QuickTemplates2.so.6", "libQt6Widgets.so.6", "libstdc++.so.6"],
     "libQt6LabsStyleKitImpl.so.6": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6LabsStyleKit.so.6", "libQt6Qml.so.6", "libQt6Quick.so.6", "libstdc++.so.6"],
     "libQt6LabsSynchronizer.so.6": ["libQt6Core.so.6", "libQt6Qml.so.6", "libstdc++.so.6"],
     "libQt6LabsWavefrontMesh.so.6": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Qml.so.6", "libQt6Quick.so.6", "libstdc++.so.6"],
@@ -34,6 +34,7 @@ _LIBRARY_NEEDS = {
     "libQt6Qml.so.6": ["libQt6Core.so.6", "libQt6Network.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "libQt6QmlCompiler.so.6": ["libQt6Core.so.6", "libQt6Qml.so.6", "libstdc++.so.6"],
     "libQt6QmlCore.so.6": ["libQt6Core.so.6", "libQt6Qml.so.6", "libstdc++.so.6"],
+    "libQt6QmlDesignSupport.so.6": ["libQt6Core.so.6", "libQt6Qml.so.6", "libstdc++.so.6"],
     "libQt6QmlLocalStorage.so.6": ["libQt6Core.so.6", "libQt6Qml.so.6", "libQt6Sql.so.6", "libstdc++.so.6"],
     "libQt6QmlMeta.so.6": ["libQt6Core.so.6", "libQt6Qml.so.6", "libQt6QmlModels.so.6", "libQt6QmlWorkerScript.so.6", "libstdc++.so.6"],
     "libQt6QmlModels.so.6": ["libQt6Core.so.6", "libQt6Qml.so.6", "libstdc++.so.6"],
@@ -42,8 +43,9 @@ _LIBRARY_NEEDS = {
     "libQt6QmlXmlListModel.so.6": ["libQt6Core.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libstdc++.so.6"],
     "libQt6Quick.so.6": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Network.so.6", "libQt6OpenGL.so.6", "libQt6Qml.so.6", "libQt6QmlMeta.so.6", "libQt6QmlModels.so.6", "libstdc++.so.6"],
     "libQt6QuickControls2.so.6": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Qml.so.6", "libQt6Quick.so.6", "libQt6QuickTemplates2.so.6", "libstdc++.so.6"],
-    "libQt6QuickControls2Basic.so.6": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Qml.so.6", "libQt6Quick.so.6", "libQt6QuickControls2.so.6", "libQt6QuickTemplates2.so.6", "libstdc++.so.6"],
+    "libQt6QuickControls2Basic.so.6": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Qml.so.6", "libQt6QuickControls2.so.6", "libQt6QuickTemplates2.so.6", "libstdc++.so.6"],
     "libQt6QuickControls2BasicStyleImpl.so.6": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Qml.so.6", "libQt6Quick.so.6", "libQt6QuickControls2Impl.so.6", "libstdc++.so.6"],
+    "libQt6QuickControls2FluentWinUI3.so.6": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Qml.so.6", "libQt6QuickTemplates2.so.6", "libstdc++.so.6"],
     "libQt6QuickControls2FluentWinUI3StyleImpl.so.6": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Qml.so.6", "libQt6Quick.so.6", "libQt6QuickTemplates2.so.6", "libstdc++.so.6"],
     "libQt6QuickControls2Fusion.so.6": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Qml.so.6", "libQt6Quick.so.6", "libstdc++.so.6"],
     "libQt6QuickControls2FusionStyleImpl.so.6": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Qml.so.6", "libQt6Quick.so.6", "libstdc++.so.6"],
@@ -52,6 +54,7 @@ _LIBRARY_NEEDS = {
     "libQt6QuickControls2Impl.so.6": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Qml.so.6", "libQt6Quick.so.6", "libQt6QuickTemplates2.so.6", "libstdc++.so.6"],
     "libQt6QuickControls2Material.so.6": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Qml.so.6", "libQt6QuickControls2.so.6", "libQt6QuickTemplates2.so.6", "libstdc++.so.6"],
     "libQt6QuickControls2MaterialStyleImpl.so.6": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Qml.so.6", "libQt6Quick.so.6", "libQt6QuickControls2Impl.so.6", "libQt6QuickTemplates2.so.6", "libstdc++.so.6"],
+    "libQt6QuickControls2Native.so.6": ["libQt6Core.so.6", "libQt6Qml.so.6"],
     "libQt6QuickControls2Universal.so.6": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Qml.so.6", "libQt6QuickControls2.so.6", "libQt6QuickTemplates2.so.6", "libstdc++.so.6"],
     "libQt6QuickControls2UniversalStyleImpl.so.6": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Qml.so.6", "libQt6Quick.so.6", "libQt6QuickControls2Impl.so.6", "libstdc++.so.6"],
     "libQt6QuickDialogs2.so.6": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Qml.so.6", "libQt6Quick.so.6", "libQt6QuickDialogs2QuickImpl.so.6", "libQt6QuickDialogs2Utils.so.6", "libQt6QuickTemplates2.so.6", "libstdc++.so.6"],
@@ -65,7 +68,7 @@ _LIBRARY_NEEDS = {
     "libQt6QuickTemplates2.so.6": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Qml.so.6", "libQt6QmlModels.so.6", "libQt6Quick.so.6", "libstdc++.so.6"],
     "libQt6QuickTest.so.6": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Qml.so.6", "libQt6Quick.so.6", "libQt6Test.so.6", "libstdc++.so.6"],
     "libQt6QuickVectorImage.so.6": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Qml.so.6", "libQt6Quick.so.6", "libQt6QuickVectorImageGenerator.so.6", "libstdc++.so.6"],
-    "libQt6QuickVectorImageGenerator.so.6": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Qml.so.6", "libQt6Quick.so.6", "libstdc++.so.6"],
+    "libQt6QuickVectorImageGenerator.so.6": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Quick.so.6", "libstdc++.so.6"],
     "libQt6QuickVectorImageHelpers.so.6": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Qml.so.6", "libQt6Quick.so.6", "libstdc++.so.6"],
     "libQt6QuickWidgets.so.6": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Qml.so.6", "libQt6Quick.so.6", "libQt6Widgets.so.6", "libstdc++.so.6"],
     "libQt6Sql.so.6": ["libQt6Core.so.6", "libstdc++.so.6"],
@@ -158,6 +161,7 @@ _PLUGIN_NEEDS = {
     "Qt/test/controls/libquickcontrolstestutilsprivateplugin.so": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Qml.so.6", "libQt6Quick.so.6", "libQt6QuickControls2.so.6", "libQt6QuickTemplates2.so.6", "libQt6QuickTest.so.6", "libQt6Test.so.6", "libstdc++.so.6"],
     "QtCore/libqtqmlcoreplugin.so": ["libQt6Core.so.6", "libQt6Qml.so.6", "libQt6QmlCore.so.6", "libstdc++.so.6"],
     "QtNetwork/libqmlnetworkplugin.so": ["libQt6Core.so.6", "libQt6Qml.so.6", "libQt6QmlNetwork.so.6", "libstdc++.so.6"],
+    "QtQml/DesignSupport/libqmldesignsupportplugin.so": ["libQt6Core.so.6", "libQt6Qml.so.6", "libQt6QmlDesignSupport.so.6", "libstdc++.so.6"],
     "QtQml/Models/libmodelsplugin.so": ["libQt6Core.so.6", "libQt6Qml.so.6", "libQt6QmlModels.so.6", "libstdc++.so.6"],
     "QtQml/WorkerScript/libworkerscriptplugin.so": ["libQt6Core.so.6", "libQt6Qml.so.6", "libQt6QmlWorkerScript.so.6", "libstdc++.so.6"],
     "QtQml/XmlListModel/libqmlxmllistmodelplugin.so": ["libQt6Core.so.6", "libQt6Qml.so.6", "libQt6QmlXmlListModel.so.6", "libstdc++.so.6"],
@@ -165,13 +169,14 @@ _PLUGIN_NEEDS = {
     "QtQuick/Controls/Basic/impl/libqtquickcontrols2basicstyleimplplugin.so": ["libQt6Core.so.6", "libQt6Qml.so.6", "libQt6QuickControls2BasicStyleImpl.so.6", "libstdc++.so.6"],
     "QtQuick/Controls/Basic/libqtquickcontrols2basicstyleplugin.so": ["libQt6Core.so.6", "libQt6Qml.so.6", "libQt6QuickControls2.so.6", "libQt6QuickControls2Basic.so.6", "libstdc++.so.6"],
     "QtQuick/Controls/FluentWinUI3/impl/libqtquickcontrols2fluentwinui3styleimplplugin.so": ["libQt6Core.so.6", "libQt6Qml.so.6", "libQt6QuickControls2FluentWinUI3StyleImpl.so.6", "libstdc++.so.6"],
-    "QtQuick/Controls/FluentWinUI3/libqtquickcontrols2fluentwinui3styleplugin.so": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Qml.so.6", "libQt6QuickControls2.so.6", "libQt6QuickControls2FluentWinUI3StyleImpl.so.6", "libQt6QuickTemplates2.so.6", "libstdc++.so.6"],
+    "QtQuick/Controls/FluentWinUI3/libqtquickcontrols2fluentwinui3styleplugin.so": ["libQt6Core.so.6", "libQt6Gui.so.6", "libQt6Qml.so.6", "libQt6QuickControls2.so.6", "libQt6QuickControls2FluentWinUI3.so.6", "libQt6QuickControls2FluentWinUI3StyleImpl.so.6", "libQt6QuickTemplates2.so.6", "libstdc++.so.6"],
     "QtQuick/Controls/Fusion/impl/libqtquickcontrols2fusionstyleimplplugin.so": ["libQt6Core.so.6", "libQt6Qml.so.6", "libQt6QuickControls2FusionStyleImpl.so.6", "libstdc++.so.6"],
     "QtQuick/Controls/Fusion/libqtquickcontrols2fusionstyleplugin.so": ["libQt6Core.so.6", "libQt6Qml.so.6", "libQt6QuickControls2.so.6", "libQt6QuickControls2Fusion.so.6", "libstdc++.so.6"],
     "QtQuick/Controls/Imagine/impl/libqtquickcontrols2imaginestyleimplplugin.so": ["libQt6Core.so.6", "libQt6Qml.so.6", "libQt6QuickControls2ImagineStyleImpl.so.6", "libstdc++.so.6"],
     "QtQuick/Controls/Imagine/libqtquickcontrols2imaginestyleplugin.so": ["libQt6Core.so.6", "libQt6Qml.so.6", "libQt6QuickControls2.so.6", "libQt6QuickControls2Imagine.so.6", "libstdc++.so.6"],
     "QtQuick/Controls/Material/impl/libqtquickcontrols2materialstyleimplplugin.so": ["libQt6Core.so.6", "libQt6Qml.so.6", "libQt6QuickControls2MaterialStyleImpl.so.6", "libstdc++.so.6"],
     "QtQuick/Controls/Material/libqtquickcontrols2materialstyleplugin.so": ["libQt6Core.so.6", "libQt6Qml.so.6", "libQt6QuickControls2.so.6", "libQt6QuickControls2Material.so.6", "libstdc++.so.6"],
+    "QtQuick/Controls/Native/libqtquickcontrols2nativestyleplugin.so": ["libQt6Core.so.6", "libQt6Qml.so.6", "libQt6QuickControls2Native.so.6", "libstdc++.so.6"],
     "QtQuick/Controls/Universal/impl/libqtquickcontrols2universalstyleimplplugin.so": ["libQt6Core.so.6", "libQt6Qml.so.6", "libQt6QuickControls2UniversalStyleImpl.so.6", "libstdc++.so.6"],
     "QtQuick/Controls/Universal/libqtquickcontrols2universalstyleplugin.so": ["libQt6Core.so.6", "libQt6Qml.so.6", "libQt6QuickControls2.so.6", "libQt6QuickControls2Universal.so.6", "libstdc++.so.6"],
     "QtQuick/Controls/impl/libqtquickcontrols2implplugin.so": ["libQt6Core.so.6", "libQt6Qml.so.6", "libQt6QuickControls2Impl.so.6", "libstdc++.so.6"],
@@ -716,24 +721,24 @@ CELL = struct(
     archives = {
         "icu": struct(
             archive = _RELEASE + "icu-linux-Debian11.6-arm64.7z",
-            sha256 = "fb5cf7ec5497dc437e5f6c395a90601ebe09ee8f5fb7add0d04c4d3b7a319099",
+            sha256 = "7f0650e312f06949999e60fa20609650f39f120412c61d930ec88002991fdb4e",
         ),
         "qtbase": struct(
             archive = _RELEASE + "qtbase-Linux-Ubuntu_24_04-GCC-Linux-Ubuntu_24_04-AARCH64.7z",
-            sha256 = "cea095aa0bfe6e60032573874db89a55eaddfcb641b2e5226e9605f5f241d5b9",
+            sha256 = "d73c10b46bfb81b7bd15e143c7d5b87d5f21ab6180b305709d67b2b356b4d38a",
         ),
         "qtdeclarative": struct(
             archive = _RELEASE + "qtdeclarative-Linux-Ubuntu_24_04-GCC-Linux-Ubuntu_24_04-AARCH64.7z",
-            sha256 = "b02f11a68ce3c734f8a5cadad021d7abbd8109bdac3572d667bbe85edebe2146",
+            sha256 = "a5ca21e64e43ba72ee2586323c4720afa278e127f07a3d1c89006c66bf8e0009",
         ),
         "qttools": struct(
             archive = _RELEASE + "qttools-Linux-Ubuntu_24_04-GCC-Linux-Ubuntu_24_04-AARCH64.7z",
-            sha256 = "819ab5d592e69b3e6de20d6973542a4a6d68dce3e631ecebe4d678db7e0a32d9",
+            sha256 = "79eabc7267e96a5da68b73e2d724e919680466463219c0bf82c4621cac723bba",
         ),
     },
     blocker = "",
     constraints = ["@platforms//os:linux", "@platforms//cpu:arm64"],
-    directory = "linux_arm64/desktop/qt6_6113/qt6_6113/qt.qt6.6113.linux_gcc_arm64",
+    directory = "linux_arm64/desktop/qt6_6120/qt6_6120/qt.qt6.6120.linux_gcc_arm64",
     layout = LAYOUT,
     needs = struct(
         library = _LIBRARY_NEEDS,

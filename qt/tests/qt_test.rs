@@ -50,10 +50,10 @@ const HOST_ROUTES: [(&str, &str); 4] = [
 
 #[cfg(windows)]
 const HOST_ROUTES: [(&str, &str); 4] = [
-    ("PATH", "C:/Qt/6.11.3/msvc2022_64/bin"),
-    ("QML_IMPORT_PATH", "C:/Qt/6.11.3/msvc2022_64/qml"),
-    ("QT_PLUGIN_PATH", "C:/Qt/6.11.3/msvc2022_64/plugins"),
-    ("QT_CONF_PATH", "C:/Qt/6.11.3/msvc2022_64/bin/qt.conf"),
+    ("PATH", "C:/Qt/6.12.0/msvc2022_64/bin"),
+    ("QML_IMPORT_PATH", "C:/Qt/6.12.0/msvc2022_64/qml"),
+    ("QT_PLUGIN_PATH", "C:/Qt/6.12.0/msvc2022_64/plugins"),
+    ("QT_CONF_PATH", "C:/Qt/6.12.0/msvc2022_64/bin/qt.conf"),
 ];
 
 #[cfg(target_os = "linux")]

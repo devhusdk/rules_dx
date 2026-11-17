@@ -1,19 +1,19 @@
 {
 	"archives": {
 		"qtbase": {
-			"archive": "6.11.3-0-202610220312qtbase-Windows-Windows_11_23H2-MSVC2022-Windows-Windows_11_23H2-AARCH64.7z",
-			"sha256": "bc9b963b0c2d2b0799ea60caf4b6c3a0819042f1b65638d16fdb429991642cf6"
+			"archive": "6.12.0-0-202609280346qtbase-Windows-Windows_11_23H2-MSVC2022-Windows-Windows_11_23H2-AARCH64.7z",
+			"sha256": "4734f7292a0b86ac2bf1a084fa864da521b7ef4467ba8af772f5d93903f9e6c1"
 		},
 		"qtdeclarative": {
-			"archive": "6.11.3-0-202610220312qtdeclarative-Windows-Windows_11_23H2-MSVC2022-Windows-Windows_11_23H2-AARCH64.7z",
-			"sha256": "366e0583c087ef107af6e98f79b2d58d7ba5cf10130238cbaf3fad057a7cccad"
+			"archive": "6.12.0-0-202609280346qtdeclarative-Windows-Windows_11_23H2-MSVC2022-Windows-Windows_11_23H2-AARCH64.7z",
+			"sha256": "12a454d34aea92cd7f54ee584337b293b22ffd8138b0e24a6ae47d355dbdd833"
 		},
 		"qttools": {
-			"archive": "6.11.3-0-202610220312qttools-Windows-Windows_11_23H2-MSVC2022-Windows-Windows_11_23H2-AARCH64.7z",
-			"sha256": "24d2f168adf271da8218d065e2f351e75467b9c603fd8171bbbb41bd499546e7"
+			"archive": "6.12.0-0-202609280346qttools-Windows-Windows_11_23H2-MSVC2022-Windows-Windows_11_23H2-AARCH64.7z",
+			"sha256": "2df8376a2ddec62731890fbac3cc0a96a951f234707692d572f46e981d412f6d"
 		}
 	},
-	"directory": "windows_arm64/desktop/qt6_6113/qt6_6113/qt.qt6.6113.win64_msvc2022_arm64",
+	"directory": "windows_arm64/desktop/qt6_6120/qt6_6120/qt.qt6.6120.win64_msvc2022_arm64",
 	"needs": {
 		"library": {
 			"Qt6Concurrent.dll": [
@@ -62,7 +62,8 @@
 				"Qt6Gui.dll",
 				"Qt6Qml.dll",
 				"Qt6Quick.dll",
-				"Qt6QuickTemplates2.dll"
+				"Qt6QuickTemplates2.dll",
+				"Qt6Widgets.dll"
 			],
 			"Qt6LabsStyleKitImpl.dll": [
 				"Qt6Core.dll",
@@ -108,6 +109,10 @@
 				"Qt6Qml.dll"
 			],
 			"Qt6QmlCore.dll": [
+				"Qt6Core.dll",
+				"Qt6Qml.dll"
+			],
+			"Qt6QmlDesignSupport.dll": [
 				"Qt6Core.dll",
 				"Qt6Qml.dll"
 			],
@@ -160,7 +165,6 @@
 				"Qt6Core.dll",
 				"Qt6Gui.dll",
 				"Qt6Qml.dll",
-				"Qt6Quick.dll",
 				"Qt6QuickControls2.dll",
 				"Qt6QuickTemplates2.dll"
 			],
@@ -170,6 +174,12 @@
 				"Qt6Qml.dll",
 				"Qt6Quick.dll",
 				"Qt6QuickControls2Impl.dll"
+			],
+			"Qt6QuickControls2FluentWinUI3.dll": [
+				"Qt6Core.dll",
+				"Qt6Gui.dll",
+				"Qt6Qml.dll",
+				"Qt6QuickTemplates2.dll"
 			],
 			"Qt6QuickControls2FluentWinUI3StyleImpl.dll": [
 				"Qt6Core.dll",
@@ -223,6 +233,10 @@
 				"Qt6QuickControls2Impl.dll",
 				"Qt6QuickTemplates2.dll"
 			],
+			"Qt6QuickControls2Native.dll": [
+				"Qt6Core.dll",
+				"Qt6Qml.dll"
+			],
 			"Qt6QuickControls2Universal.dll": [
 				"Qt6Core.dll",
 				"Qt6Gui.dll",
@@ -236,6 +250,10 @@
 				"Qt6Qml.dll",
 				"Qt6Quick.dll",
 				"Qt6QuickControls2Impl.dll"
+			],
+			"Qt6QuickControls2Windows.dll": [
+				"Qt6Core.dll",
+				"Qt6Qml.dll"
 			],
 			"Qt6QuickControls2WindowsStyleImpl.dll": [
 				"Qt6Core.dll",
@@ -274,6 +292,13 @@
 				"Qt6Gui.dll",
 				"Qt6Qml.dll",
 				"Qt6Quick.dll"
+			],
+			"Qt6QuickNativeStyle.dll": [
+				"Qt6Core.dll",
+				"Qt6Gui.dll",
+				"Qt6Qml.dll",
+				"Qt6Quick.dll",
+				"Qt6QuickTemplates2.dll"
 			],
 			"Qt6QuickParticles.dll": [
 				"Qt6Core.dll",
@@ -317,7 +342,6 @@
 			"Qt6QuickVectorImageGenerator.dll": [
 				"Qt6Core.dll",
 				"Qt6Gui.dll",
-				"Qt6Qml.dll",
 				"Qt6Quick.dll"
 			],
 			"Qt6QuickVectorImageHelpers.dll": [
@@ -414,6 +438,11 @@
 				"Qt6Qml.dll",
 				"Qt6QmlNetwork.dll"
 			],
+			"QtQml/DesignSupport/qmldesignsupportplugin.dll": [
+				"Qt6Core.dll",
+				"Qt6Qml.dll",
+				"Qt6QmlDesignSupport.dll"
+			],
 			"QtQml/Models/modelsplugin.dll": [
 				"Qt6Core.dll",
 				"Qt6Qml.dll",
@@ -455,6 +484,7 @@
 				"Qt6Gui.dll",
 				"Qt6Qml.dll",
 				"Qt6QuickControls2.dll",
+				"Qt6QuickControls2FluentWinUI3.dll",
 				"Qt6QuickControls2FluentWinUI3StyleImpl.dll",
 				"Qt6QuickTemplates2.dll"
 			],
@@ -491,6 +521,11 @@
 				"Qt6QuickControls2.dll",
 				"Qt6QuickControls2Material.dll"
 			],
+			"QtQuick/Controls/Native/qtquickcontrols2nativestyleplugin.dll": [
+				"Qt6Core.dll",
+				"Qt6Qml.dll",
+				"Qt6QuickControls2Native.dll"
+			],
 			"QtQuick/Controls/Universal/impl/qtquickcontrols2universalstyleimplplugin.dll": [
 				"Qt6Core.dll",
 				"Qt6Qml.dll",
@@ -510,7 +545,8 @@
 			"QtQuick/Controls/Windows/qtquickcontrols2windowsstyleplugin.dll": [
 				"Qt6Core.dll",
 				"Qt6Qml.dll",
-				"Qt6QuickControls2.dll"
+				"Qt6QuickControls2.dll",
+				"Qt6QuickControls2Windows.dll"
 			],
 			"QtQuick/Controls/impl/qtquickcontrols2implplugin.dll": [
 				"Qt6Core.dll",
@@ -547,13 +583,10 @@
 				"Qt6Qml.dll",
 				"Qt6QmlLocalStorage.dll"
 			],
-			"QtQuick/NativeStyle/qtquickcontrols2nativestyleplugin.dll": [
+			"QtQuick/NativeStyle/qtquicknativestyleplugin.dll": [
 				"Qt6Core.dll",
-				"Qt6Gui.dll",
-				"Qt6Qml.dll",
-				"Qt6Quick.dll",
 				"Qt6QuickControls2.dll",
-				"Qt6QuickTemplates2.dll"
+				"Qt6QuickNativeStyle.dll"
 			],
 			"QtQuick/Particles/particlesplugin.dll": [
 				"Qt6Core.dll",
@@ -640,6 +673,6 @@
 			]
 		}
 	},
-	"release": "6.11.3-0-202610220312",
+	"release": "6.12.0-0-202609280346",
 	"runtime": null
 }

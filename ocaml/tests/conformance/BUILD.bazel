@@ -42,6 +42,19 @@ ocaml_binary(
 )
 
 ocaml_module(
+    name = "lock_main",
+    struct = "lock_main.ml",
+    target_compatible_with = OCAML_COMPATIBLE_WITH,
+    deps = ["@ocaml_app//astring"],
+)
+
+ocaml_binary(
+    name = "lock_hello",
+    main = ":lock_main",
+    target_compatible_with = OCAML_COMPATIBLE_WITH,
+)
+
+ocaml_module(
     name = "passing",
     struct = "passing.ml",
     target_compatible_with = OCAML_COMPATIBLE_WITH,
@@ -79,6 +92,15 @@ dx_conformance_suite(
     failing_pattern = "{case}",
     failing_test = ":fail_subject_test",
     lang = "ocaml",
+    lock = {
+        "binary": ":lock_hello",
+        "ecosystem": "ocaml",
+        "expected": "hello lock",
+        "lockfile": "//ocaml/tests/fixtures/ocaml_app:ocaml_app.opam.locked",
+        "manifest": "//ocaml/tests/fixtures/ocaml_app:ocaml_app.opam",
+        "package": "astring",
+        "stale": "ocaml_app.opam.stale.locked",
+    },
     not_applicable = {
         "lint_error_test:windows_x86_64": "zanuda has no Windows build",
         "lint_test:windows_x86_64": "zanuda has no Windows build",

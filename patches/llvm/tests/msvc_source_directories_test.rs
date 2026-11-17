@@ -1,4 +1,4 @@
-//! The MSVC header and library subsets come from @msvc_runtime, not from copy actions (#8912).
+//! The MSVC header and library subsets come from @msvc_runtime, not from copy actions.
 
 #[test]
 fn msvc_subsets_come_from_msvc_runtime() {

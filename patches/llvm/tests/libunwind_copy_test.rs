@@ -1,4 +1,4 @@
-//! libunwind.a must be a regular file; a symlink dangles once its target leaves a reused output base (#7781).
+//! libunwind.a is a regular file, not a symlink.
 
 #[test]
 fn libunwind_archive_is_a_regular_file() {

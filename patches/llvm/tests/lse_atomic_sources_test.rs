@@ -1,5 +1,4 @@
-//! The aarch64 builtins archive keeps one lse_<pat>_<size>_<model>.o per atomic helper,
-//! now compiled from lse.S copies written when llvm-project is fetched (#9080).
+//! The aarch64 builtins archive keeps one lse_<pat>_<size>_<model>.o per atomic helper.
 
 fn digits(bytes: &[u8], from: usize) -> usize {
     bytes[from..]

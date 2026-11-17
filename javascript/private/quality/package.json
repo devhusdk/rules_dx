@@ -23,7 +23,7 @@
     "@redocly/cli": "2.78.0",
     "@typescript-eslint/parser": "8.72.2",
     "@volar/typescript": "2.4.31",
-    "asciidoctor": "3.0.4",
+    "asciidoctor": "4.2.1",
     "astro-eslint-parser": "3.2.0",
     "eslint": "10.14.0",
     "eslint-plugin-astro": "3.2.1",

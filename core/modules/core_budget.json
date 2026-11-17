@@ -3,12 +3,12 @@
     "modules": 75,
     "lock_bytes": 880439,
     "lock_extensions": 16,
-    "external_repos": 691
+    "external_repos": 628
   },
   "after_check": {
     "modules": 75,
     "lock_bytes": 880439,
     "lock_extensions": 16,
-    "external_repos": 778
+    "external_repos": 715
   }
 }

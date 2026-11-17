@@ -1,6 +1,7 @@
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//core/tests:no_coverage_tests.bzl", "no_coverage_build_scripts_test")
 load("//powershell:defs.bzl", "powershell_test")
 load("//rust:defs.bzl", "rust_test")
 load("//swift/private:defs.bzl", "swift_kwargs")
@@ -150,4 +151,11 @@ test_suite(
 swift_platform_config_test(
     name = "platform_config_analysis",
     size = "small",
+)
+
+no_coverage_build_scripts_test(
+    name = "xcode_launcher_build_scripts_no_coverage_test",
+    size = "small",
+    target_compatible_with = ["@platforms//os:macos"],
+    target_under_test = "//swift/private/tools:swift_macos",
 )

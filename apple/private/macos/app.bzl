@@ -11,6 +11,7 @@ load("//apple/private/bundle:defs.bzl", "EXTRA_TOOLCHAINS_SETTING", "NO_PATH", "
 load("//apple/private/bundle:pins.bzl", "MACOS_DEPLOYMENT", "XCODE_VERSION")
 load("//apple/private/xcode:license.bzl", "XCODE_LICENSE_ATTR")
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
+load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//core:platform.bzl", "PLATFORM_ATTRS", "platform_identity")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//core:rlocation.bzl", "repo_relative_path", "rlocation_path")
@@ -258,7 +259,7 @@ def _macos_app_check_impl(ctx):
             executable = launcher,
             runfiles = launcher_runfiles.merge_all([
                 ctx.runfiles(files = [zipped]),
-                ctx.attr._ops[DefaultInfo].default_runfiles,
+                ctx.attr._ops[0][DefaultInfo].default_runfiles,
             ]),
         ),
         info,
@@ -313,7 +314,7 @@ _macos_app_check = rule(
         "_ops": attr.label(
             default = Label("//apple/private/tools/ops:apple_ops"),
             executable = True,
-            cfg = "target",
+            cfg = no_coverage_transition,
         ),
         "_xcode_config": attr.label(
             default = configuration_field(

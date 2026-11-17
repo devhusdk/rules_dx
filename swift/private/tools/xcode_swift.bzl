@@ -1,6 +1,7 @@
 """The macOS `swift` command: a native launcher that runs an Xcode tool through `apple_ops`."""
 
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
+load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//core:rlocation.bzl", "rlocation_path")
 
 def _swift_xcode_launcher_impl(ctx):
@@ -12,7 +13,7 @@ def _swift_xcode_launcher_impl(ctx):
     ]) + "\n")
     return DefaultInfo(
         executable = launcher,
-        runfiles = launcher_runfiles.merge(ctx.attr._ops[DefaultInfo].default_runfiles),
+        runfiles = launcher_runfiles.merge(ctx.attr._ops[0][DefaultInfo].default_runfiles),
     )
 
 swift_xcode_launcher = rule(
@@ -23,7 +24,7 @@ swift_xcode_launcher = rule(
         "_ops": attr.label(
             default = Label("//apple/private/tools/ops:apple_ops"),
             executable = True,
-            cfg = "target",
+            cfg = no_coverage_transition,
         ),
         "_xcode_config": attr.label(
             default = configuration_field(name = "xcode_config_label", fragment = "apple"),

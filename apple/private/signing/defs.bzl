@@ -4,6 +4,7 @@ load("@rules_apple//apple:providers.bzl", "AppleBundleInfo")
 load("//apple/private/bundle:defs.bzl", "display")
 load("//apple/private/xcode:license.bzl", "XCODE_LICENSE_ATTR")
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
+load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//core:rlocation.bzl", "rlocation_path")
 load(":validate.bzl", "macos_bundle_errors")
 
@@ -53,7 +54,7 @@ def _launcher_impl(ctx):
         lines.append("path=" + rlocation_path(ctx, info.entitlements) if info.entitlements else "arg=")
     lines.append("env=DX_XCODE_VERSION\t" + (str(xcode) if xcode else ""))
     launcher, _, launcher_runfiles = write_native_launcher(ctx, "\n".join(lines) + "\n")
-    runfiles = [ctx.attr._ops[DefaultInfo].default_runfiles]
+    runfiles = [ctx.attr._ops[0][DefaultInfo].default_runfiles]
     if ctx.attr.op == "codesign":
         runfiles.append(ctx.attr.meta[DefaultInfo].default_runfiles)
     return DefaultInfo(executable = launcher, runfiles = launcher_runfiles.merge_all(runfiles))
@@ -67,7 +68,7 @@ _launcher_rule = rule(
         "_ops": attr.label(
             default = Label("//apple/private/tools/ops:apple_ops"),
             executable = True,
-            cfg = "target",
+            cfg = no_coverage_transition,
         ),
         "_xcode_config": attr.label(
             default = configuration_field(name = "xcode_config_label", fragment = "apple"),

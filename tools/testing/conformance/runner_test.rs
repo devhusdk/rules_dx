@@ -748,15 +748,17 @@ fn link_entry(target: &std::path::Path, link: &std::path::Path) -> std::io::Resu
 /// Points each manifest entry the runfiles tree holds at its path in the tree.
 fn tree_rooted_manifest(text: &str, tree: &std::path::Path) -> String {
     let rooted = !tree.as_os_str().is_empty() && tree.is_dir();
+    let root = tree.to_string_lossy();
+    let root = root.trim_end_matches('/');
     let mut out = String::with_capacity(text.len());
     for line in text.lines() {
         let in_tree = line
             .split_once(' ')
             .filter(|(key, _)| rooted && !key.is_empty() && !line.starts_with(' '))
-            .map(|(key, _)| (key, tree.join(key)))
-            .filter(|(_, path)| path.symlink_metadata().is_ok());
+            .map(|(key, _)| (key, format!("{root}/{key}")))
+            .filter(|(_, path)| std::path::Path::new(path).symlink_metadata().is_ok());
         match in_tree {
-            Some((key, path)) => out.push_str(&format!("{key} {}", path.to_string_lossy())),
+            Some((key, path)) => out.push_str(&format!("{key} {path}")),
             None => out.push_str(line),
         }
         out.push('\n');
@@ -778,8 +780,8 @@ fn tree_rooted_manifest_maps_entries_into_the_tree() {
     let expected = format!(
         "_main/pkg/.hello.venv/pyvenv.cfg {}\n_main/pkg/.hello.venv {}\n\
          _main/pkg/absent /out/bin/pkg/absent\n_main/pkg/empty \n",
-        tree.join("_main/pkg/.hello.venv/pyvenv.cfg").display(),
-        tree.join("_main/pkg/.hello.venv").display(),
+        format!("{}/_main/pkg/.hello.venv/pyvenv.cfg", tree.display()),
+        format!("{}/_main/pkg/.hello.venv", tree.display()),
     );
     assert_eq!(tree_rooted_manifest(text, &tree), expected);
     let missing = std::path::Path::new(&tmp).join("tree_rooted").join("missing");

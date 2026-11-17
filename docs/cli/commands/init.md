@@ -294,6 +294,16 @@ Without a line for the platform the launcher does not download: it exits `1`
 with the `bazel run @rules_dx//:dx -- ...` command. A binary already in the
 cache still runs.
 
+The launchers read the version from the one top-level `bazel_dep` named
+`rules_dx` in `MODULE.bazel`. It may span several lines and carry `repo_name`,
+a trailing comma or `#` comments. With no such dep, two of them, or an override
+of `rules_dx`, dx runs through Bazel instead.
+
+Set `DX_RELEASE_BASE_URL` to download from a mirror, as with the
+[shim](README.md): `<url>/v<version>/dx-<os>-<arch>`, `https://` or `http://`
+to `127.0.0.1`, `[::1]` or `localhost`. The pinned sha256 still applies. The
+Windows launcher also takes only plain URL characters there.
+
 Run from another checkout of the same git repo (a `dx worktree` slot or a
 `git worktree`), the launcher first runs that checkout's own `tools/dx`, so that
 checkout's `.dx/pins` pin applies. `worktree hook` commands never hand off.

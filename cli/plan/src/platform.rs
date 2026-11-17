@@ -80,45 +80,17 @@ pub fn refusal(os: &str, arch: &str) -> Option<String> {
     }
 }
 
-/// An `x86_64` process on an Apple silicon Mac (Rosetta) runs on arm64 hardware.
-pub fn effective_arch<'a>(
-    os: &str,
-    arch: &'a str,
-    sysctl: &dyn Fn(&str) -> Option<String>,
-) -> &'a str {
-    if os != "macos" || arch != "x86_64" {
-        return arch;
-    }
-    let on_apple_silicon = ["hw.optional.arm64", "sysctl.proc_translated"]
-        .iter()
-        .any(|key| sysctl(key).is_some_and(|value| value.trim() == "1"));
-    if on_apple_silicon { "aarch64" } else { arch }
-}
-
-fn read_sysctl(key: &str) -> Option<String> {
-    let path = std::env::var_os("PATH").unwrap_or_default();
-    let mut dirs: Vec<_> = std::env::split_paths(&path).collect();
-    dirs.extend(["/usr/sbin".into(), "/sbin".into()]);
-    let output = dx_process::capture::run_captured(
-        std::process::Command::new("sysctl")
-            .args(["-n", key])
-            .env("PATH", std::env::join_paths(dirs).ok()?),
-        std::time::Duration::from_secs(5),
-    )
-    .ok()?;
-    String::from_utf8(output.stdout).ok()
-}
-
+/// Refuses a host dx does not run on; Rosetta counts as the arm64 Mac it runs on.
 #[must_use]
 pub fn host_refusal() -> Option<String> {
-    let os = std::env::consts::OS;
-    let arch = std::env::consts::ARCH;
-    refusal(os, effective_arch(os, arch, &read_sysctl))
+    let (os, arch) = dx_shim::protocol::host_platform();
+    refusal(os, arch)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dx_shim::protocol::effective_arch;
 
     #[test]
     fn seed_host_is_qualified() {

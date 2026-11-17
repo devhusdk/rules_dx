@@ -217,6 +217,7 @@ pub fn run_command_with_input(
         })
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    crate::apply_bazel_env(command);
     let mut owned = backend::spawn_owned(command, descendants)?;
     if let (Some(input), Some(mut stdin)) = (input, owned.take_stdin()) {
         let input = input.to_vec();
@@ -634,6 +635,7 @@ pub(crate) fn run_streamed_in(
         .stdout(output_stdio(&spec.stdout))
         .stderr(output_stdio(&spec.stderr));
     apply_env(&mut command, &spec.env);
+    crate::apply_bazel_env(&mut command);
     let owned = spec.group == StreamGroup::Owned;
     let lease = lease_dir
         .filter(|_| owned)

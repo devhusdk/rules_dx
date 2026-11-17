@@ -454,6 +454,7 @@ def _bridge_test_impl(ctx):
     outputs = [f.basename for f in actions[0].outputs.to_list()]
     asserts.equals(env, ["ledger_model.cxx.cpp", "ledger_model.cxx.h", "ledger_model.cxxqt.cpp", "ledger_model.cxxqt.h"], sorted(outputs))
     asserts.equals(env, [f.basename for f in actions[0].outputs.to_list()], [arg.rpartition("/")[2] for arg in argv[4:]])
+    asserts.equals(env, "", actions[0].env.get("CLANG_FORMAT_BINARY"), "the bridge must not run a host clang-format")
     return analysistest.end(env)
 
 _bridge_test = analysistest.make(_bridge_test_impl)

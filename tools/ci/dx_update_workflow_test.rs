@@ -151,3 +151,39 @@ fn every_gh_step_sets_gh_token() {
     }
     assert!(found >= 1, "{WORKFLOW} must carry a step that runs gh");
 }
+
+/// Each update group runs `dx check --affected` and `dx test --affected`, and a
+/// .bazelversion bump affects every target. On one cold runner that outlived the
+/// job timeout (#13136), so the dx step must run on remote execution.
+#[test]
+fn updates_are_verified_on_remote_execution() {
+    let steps = steps(WORKFLOW, "update");
+    let dx = steps
+        .iter()
+        .position(|step| run_of(step).contains("tools/dx update --pr"))
+        .unwrap_or_else(|| panic!("{WORKFLOW} must run tools/dx update --pr"));
+    let setup = steps
+        .iter()
+        .position(|step| step["uses"].as_str() == Some("./.github/actions/setup-bazel"))
+        .unwrap_or_else(|| {
+            panic!("{WORKFLOW} must use ./.github/actions/setup-bazel for the cache helper")
+        });
+    let remote = steps
+        .iter()
+        .position(|step| {
+            let run = run_of(step);
+            run.contains("--config=rbe") && run.contains("$BB_ARGS") && run.contains("user.bazelrc")
+        })
+        .unwrap_or_else(|| {
+            panic!("{WORKFLOW} must write --config=rbe and $BB_ARGS to user.bazelrc")
+        });
+    assert!(
+        setup < remote && remote < dx,
+        "{WORKFLOW} must set up the remote cache helper, then remote execution, then run dx"
+    );
+    let body = text();
+    assert!(
+        body.contains("BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}"),
+        "{WORKFLOW} must pass BUILDBUDDY_API_KEY so the credential helper can read it"
+    );
+}

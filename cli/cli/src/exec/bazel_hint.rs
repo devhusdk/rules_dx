@@ -147,7 +147,6 @@ fn path_too_long(stderr: &str) -> Option<Hint> {
     const SIGNS: &[&str] = &[
         "The filename or extension is too long",
         "The file name is too long",
-        "ERROR_FILENAME_EXCED_RANGE",
         "exceeds MAX_PATH",
     ];
     SIGNS.iter().any(|sign| stderr.contains(sign)).then(|| Hint {
@@ -274,7 +273,8 @@ mod tests {
         assert_eq!(hint.code, "fetch_failed");
         assert!(hint.next.contains("docs/proxy-and-ca.md"), "{}", hint.next);
         assert!(
-            hint.next.contains("https://bcr.bazel.build/modules/x/MODULE.bazel"),
+            hint.next
+                .contains("https://bcr.bazel.build/modules/x/MODULE.bazel"),
             "{}",
             hint.next
         );
@@ -294,7 +294,7 @@ mod tests {
         for stderr in [
             "ERROR: C:/users/me/_bazel_me/abc/external/x/BUILD: java.io.IOException: CreateFile(): The filename or extension is too long.",
             "ERROR: no such package '@@x//a': java.nio.file.FileSystemException: C:/x: The file name is too long",
-            "ERROR: CreateProcessW failed: ERROR_FILENAME_EXCED_RANGE",
+            "ERROR: CreateProcessW(\"C:/x/cl.exe\"): The filename or extension is too long.",
             "ERROR: path C:/very/long exceeds MAX_PATH",
         ] {
             let hint = classify(stderr).unwrap_or_else(|| panic!("no hint for {stderr}"));

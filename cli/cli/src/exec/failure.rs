@@ -93,7 +93,9 @@ impl Cause {
                 Cause::Collection
             }
             "report_failed" => Cause::Report,
-            "disk_full" | "server_crashed" | "server_out_of_memory" | "path_too_long" => Cause::Host,
+            "disk_full" | "server_crashed" | "server_out_of_memory" | "path_too_long" => {
+                Cause::Host
+            }
             "bazel_signalled" => Cause::Unknown,
             _ => Cause::Operational,
         }

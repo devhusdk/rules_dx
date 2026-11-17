@@ -467,7 +467,7 @@ Review a bump pull request by reading the diff of `.dx/pins` and the list of new
 | `dub.lock` of `@rules_dx//d:extensions.bzl` | `name` | `dub.json` beside `lock` | `lock` |
 | `fpm.lock` of `@rules_dx//fortran:extensions.bzl` | `name` | `fpm.toml` beside the lock | `lock` |
 | `luarocks.lock` of `@rules_dx//lua:extensions.bzl` | `name` | `lock` | |
-| `zig_deps.lock` of `@rules_dx//zig:extensions.bzl` | `name` | `build.zig.zon` beside `lock` | `digests` |
+| `zig.lock` of `@rules_dx//zig:extensions.bzl` | `name` | `build.zig.zon` beside `lock` | `lock` |
 | `cpan.lock` of `@rules_dx//perl:extensions.bzl` | `name` | `cpanfile` beside the lock | `cpanfile.snapshot` and `cpan.lock.json` |
 | `pub.from_lock` of `@rules_dart//dart/pub:extensions.bzl`, `flutter.pub` of rules_flutter | `name` | `pubspec.yaml` beside the lock | `pubspec.lock` |
 | `julia.from_manifest` of `@rules_dx//julia:extensions.bzl` or `pkg.from_manifest` of `@rules_julia//julia/pkg:extensions.bzl` | `name` | `Project.toml` beside the lockfile | `Manifest.toml` and `Manifest.bazel.json` beside the lockfile |
@@ -574,12 +574,15 @@ fpm.lock(
 
 ### zig
 
+With `zig.lock.json` beside the root `build.zig.zon`, `dx generate --apply` adds this stanza:
+
 ```starlark
-zig_hub = use_extension("@rules_dx//zig:extensions.bzl", "zig")
-zig_hub.lock(
-    name = "zig_packages",
+zig = use_extension("@rules_dx//zig:extensions.bzl", "zig")
+zig.lock(
+    name = "zig",
     lock = "//:zig.lock.json",
 )
+use_repo(zig, "zig")
 ```
 
 - `zig.lock.json` is `lock`; `build.zig.zon` is the manifest and must sit beside it.

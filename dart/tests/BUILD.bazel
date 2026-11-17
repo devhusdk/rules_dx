@@ -117,3 +117,11 @@ dx_wrapper_contract_tests(
     ],
     file_classes = [file_class for file_class, _ in DART_SOURCE_SPECS],
 )
+
+test_suite(
+    name = "fixture_tests",
+    testonly = True,
+    tests = [
+        "//dart/tests/fixtures/adopt_dart/packages/greet:greet_test",
+    ],
+)

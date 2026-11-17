@@ -125,3 +125,12 @@ dx_wrapper_contract_tests(
     ],
     file_classes = ["csharp"],
 )
+
+test_suite(
+    name = "fixture_tests",
+    testonly = True,
+    tests = [
+        "//csharp/tests/fixtures/adopt_csharp/greet:greet_test",
+        "//csharp/tests/fixtures/adopt_csharp/solo:pure_test",
+    ],
+)

@@ -143,3 +143,12 @@ dx_wrapper_contract_tests(
         "java",
     ],
 )
+
+test_suite(
+    name = "fixture_tests",
+    testonly = True,
+    tests = [
+        "//kotlin/tests/fixtures/adopt_kotlin/greet:greet_test",
+        "//kotlin/tests/fixtures/adopt_kotlin/solo:pure_test",
+    ],
+)

@@ -2,6 +2,8 @@ load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//android:defs.bzl", "android_rust_apk")
 load("//cc:defs.bzl", "cc_library")
 
+package(default_visibility = ["//android/tests:__pkg__"])
+
 cc_library(
     name = "app_jni",
     testonly = True,

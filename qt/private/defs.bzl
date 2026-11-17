@@ -180,6 +180,7 @@ def _qt_executable_forward_impl(ctx):
             dx_symlink_default_info(ctx, "qt_*", ctx.runfiles(files = extra)),
             coverage.instrumented,
             dx_run_environment(ctx, RunEnvironmentInfo(environment = environment, inherited_environment = coverage.env.inherited_environment)),
+            dx_quality_sources(_quality_files(ctx), QT_SOURCE_SPECS, str(ctx.label)),
         ] + ([upstream[OutputGroupInfo]] if OutputGroupInfo in upstream else [])
     out = [
         dx_symlink_default_info(ctx, "qt_*", ctx.runfiles(files = extra)),

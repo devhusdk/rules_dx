@@ -3,6 +3,8 @@ load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//android:defs.bzl", "android_java_library", "android_kotlin_library")
 load(":android_library_tests.bzl", "android_library_providers_test")
 
+package(default_visibility = ["//android/tests:__pkg__"])
+
 android_java_library(
     name = "java_screen",
     testonly = True,

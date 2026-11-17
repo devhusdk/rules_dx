@@ -1,7 +1,7 @@
 """qt_consumer_archive and qt_bundle_runtime: consumer_archive for the targeted Qt cell."""
 
 load("//qt/private:bundle.bzl", "QT_CONF", "qt_runtime_members")
-load("//qt/private:cells.bzl", "QT_BUNDLE_COMPATIBLE_WITH", "qt_consumer_identity")
+load("//qt/private:cells.bzl", "QT_BUNDLE_COMPATIBLE_WITH", "QT_CONSUMER_COMPATIBLE_WITH", "qt_consumer_identity")
 load("//qt/private:constants.bzl", "QT_REPOSITORY")
 load("//qt/private/toolchain:pins.bzl", "CELLS", "IDENTITIES", "QT_VERSION")
 load("//qt/private/toolchain:repos.bzl", "qualified_cells")
@@ -73,5 +73,6 @@ def qt_consumer_archive(name, app, min_runtime = None, runtime = [], **kwargs):
         app = app,
         min_runtime = min_runtime or QT_CONSUMER_MIN_RUNTIME,
         runtime = QT_CONSUMER_RUNTIME + runtime,
+        target_compatible_with = (kwargs.pop("target_compatible_with", None) or []) + QT_CONSUMER_COMPATIBLE_WITH,
         **kwargs
     )

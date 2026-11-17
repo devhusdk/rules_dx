@@ -1673,6 +1673,7 @@ archive_override(
         "//patches/rules_flutter:required_checksums.patch",
         "//patches/rules_flutter:flutter_3_47_9.patch",
         "//patches/rules_flutter:ios_target_compatible_with.patch",
+        "//patches/rules_flutter:coverage_enabled.patch",
     ],
     strip_prefix = "rules_flutter-2b203359a0a79edaae66126ea5c212d1d7b19353",
     urls = ["https://github.com/aran/rules_flutter/archive/2b203359a0a79edaae66126ea5c212d1d7b19353.tar.gz"],

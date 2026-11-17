@@ -41,7 +41,7 @@ use windows_sys::Win32::Security::Authentication::Identity::RtlGenRandom;
 use windows_sys::Win32::Security::Authorization::{
     ConvertSidToStringSidW, ConvertStringSecurityDescriptorToSecurityDescriptorW,
     GetNamedSecurityInfoW, GetSecurityInfo, SDDL_REVISION_1, SE_FILE_OBJECT, SE_KERNEL_OBJECT,
-    SetEntriesInAclW, SetNamedSecurityInfoW, SetSecurityInfo,
+    SetEntriesInAclW, SetSecurityInfo,
 };
 use windows_sys::Win32::Security::{
     ACCESS_ALLOWED_ACE, ACL, AdjustTokenPrivileges, DACL_SECURITY_INFORMATION, DeleteAce, EqualSid,
@@ -70,9 +70,8 @@ use crate::args::{
 };
 use crate::sys::{
     CREATE_SUSPENDED, CREATE_UNICODE_ENVIRONMENT, DENY_ACCESS, GRANT_ACCESS, INFINITE,
-    REVOKE_ACCESS, STARTF_USESTDHANDLES, UNPROTECTED_DACL_SECURITY_INFORMATION, check,
-    drop_inherited, kill_on_close_job, path_lock_name, set_access, trustee_entry, user_defaults,
-    wide, with_acl_lock,
+    REVOKE_ACCESS, STARTF_USESTDHANDLES, check, kill_on_close_job, path_lock_name, set_access,
+    trustee_entry, user_defaults, wide, with_acl_lock, write_acl,
 };
 
 const RPC_C_AUTHN_DEFAULT: u32 = 0xFFFF_FFFF;
@@ -1329,7 +1328,6 @@ fn remove_access(path: &str, sid: *mut c_void) -> Result<(), String> {
 }
 
 fn remove_access_locked(path: &str, sid: *mut c_void) -> Result<(), String> {
-    let wpath = wide(path);
     let (acl, descriptor) = read_acl(path)?;
     let mut removed = false;
     for (index, _) in own_entries(acl, sid) {
@@ -1339,22 +1337,7 @@ fn remove_access_locked(path: &str, sid: *mut c_void) -> Result<(), String> {
         }
     }
     let result = if removed {
-        drop_inherited(acl);
-        check(
-            // SAFETY: wpath outlives the call and acl is the DACL read from the same path.
-            unsafe {
-                SetNamedSecurityInfoW(
-                    wpath.as_ptr(),
-                    SE_FILE_OBJECT,
-                    DACL_SECURITY_INFORMATION | UNPROTECTED_DACL_SECURITY_INFORMATION,
-                    null_mut(),
-                    null_mut(),
-                    acl,
-                    null_mut(),
-                )
-            },
-            &format!("setting the ACL of {path}"),
-        )
+        write_acl(path, descriptor, acl)
     } else {
         Ok(())
     };

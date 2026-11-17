@@ -57,7 +57,8 @@ const TRUSTEE_IS_UNKNOWN: i32 = 0;
 const NO_MULTIPLE_TRUSTEE: i32 = 0;
 const SE_FILE_OBJECT: i32 = 1;
 const DACL_SECURITY_INFORMATION: u32 = 4;
-pub(crate) const UNPROTECTED_DACL_SECURITY_INFORMATION: u32 = 0x2000_0000;
+const UNPROTECTED_DACL_SECURITY_INFORMATION: u32 = 0x2000_0000;
+const PROTECTED_DACL_SECURITY_INFORMATION: u32 = 0x8000_0000;
 const READ_CONTROL: u32 = 0x0002_0000;
 const WRITE_DAC: u32 = 0x0004_0000;
 // GetFinalPathNameByHandleW asks the mount manager for drive letters.
@@ -216,24 +217,7 @@ fn set_access_locked(path: &str, sid: *mut c_void, mode: i32) -> Result<(), Stri
         unsafe { SetEntriesInAclW(1, &entry, old, &mut merged) },
         "building the ACL",
     )
-    .and_then(|()| {
-        drop_inherited(merged);
-        check(
-            // SAFETY: wpath is NUL-terminated and merged is the ACL built above.
-            unsafe {
-                SetNamedSecurityInfoW(
-                    wpath.as_ptr(),
-                    SE_FILE_OBJECT,
-                    DACL_SECURITY_INFORMATION | UNPROTECTED_DACL_SECURITY_INFORMATION,
-                    null_mut(),
-                    null_mut(),
-                    merged,
-                    null_mut(),
-                )
-            },
-            &format!("setting the ACL of {path}"),
-        )
-    });
+    .and_then(|()| write_acl(path, descriptor, merged));
     // SAFETY: merged and descriptor were allocated by the ACL calls above and are freed once.
     unsafe {
         LocalFree(merged as _);
@@ -242,8 +226,75 @@ fn set_access_locked(path: &str, sid: *mut c_void, mode: i32) -> Result<(), Stri
     result
 }
 
+/// Writes `acl` to `path` and its descendants in the inheritance form of `descriptor`.
+pub(crate) fn write_acl(path: &str, descriptor: *mut c_void, acl: *mut ACL) -> Result<(), String> {
+    let wpath = wide(path);
+    let mut control = 0u16;
+    let mut revision = 0u32;
+    // SAFETY: descriptor is a valid security descriptor and both out-pointers are valid.
+    if unsafe { GetSecurityDescriptorControl(descriptor, &mut control, &mut revision) } == 0 {
+        return Err(format!(
+            "reading the ACL control of {path}: {}",
+            std::io::Error::last_os_error()
+        ));
+    }
+    let auto_inherited = control & SE_DACL_AUTO_INHERITED != 0;
+    let protection = if control & SE_DACL_PROTECTED != 0 {
+        PROTECTED_DACL_SECURITY_INFORMATION
+    } else {
+        UNPROTECTED_DACL_SECURITY_INFORMATION
+    };
+    if auto_inherited {
+        drop_inherited(acl);
+    }
+    check(
+        // SAFETY: wpath is NUL-terminated and acl is a valid ACL.
+        unsafe {
+            SetNamedSecurityInfoW(
+                wpath.as_ptr(),
+                SE_FILE_OBJECT,
+                DACL_SECURITY_INFORMATION | if auto_inherited { protection } else { 0 },
+                null_mut(),
+                null_mut(),
+                acl,
+                null_mut(),
+            )
+        },
+        &format!("setting the ACL of {path}"),
+    )?;
+    if auto_inherited {
+        Ok(())
+    } else {
+        write_dacl_here(path, control, acl)
+    }
+}
+
+/// Writes `acl` to `path` alone with the protection and auto-inherit bits of `control`.
+fn write_dacl_here(path: &str, control: u16, acl: *mut ACL) -> Result<(), String> {
+    let wpath = wide(path);
+    // SAFETY: SECURITY_DESCRIPTOR is plain C data for which all-zero is valid.
+    let mut fresh: SECURITY_DESCRIPTOR = unsafe { std::mem::zeroed() };
+    let target = &mut fresh as *mut _ as *mut c_void;
+    let keep = SE_DACL_PROTECTED | SE_DACL_AUTO_INHERITED;
+    // SAFETY: target points to the local security descriptor and acl is a valid ACL.
+    let ok = unsafe {
+        InitializeSecurityDescriptor(target, SECURITY_DESCRIPTOR_REVISION) != 0
+            && SetSecurityDescriptorDacl(target, 1, acl, 0) != 0
+            && SetSecurityDescriptorControl(target, keep, control & keep) != 0
+            && SetFileSecurityW(wpath.as_ptr(), DACL_SECURITY_INFORMATION, target) != 0
+    };
+    if ok {
+        Ok(())
+    } else {
+        Err(format!(
+            "setting the ACL of {path}: {}",
+            std::io::Error::last_os_error()
+        ))
+    }
+}
+
 /// Deletes every inherited entry from `acl`, leaving only the explicit ones.
-pub(crate) fn drop_inherited(acl: *mut ACL) {
+fn drop_inherited(acl: *mut ACL) {
     if acl.is_null() {
         return;
     }
@@ -319,26 +370,14 @@ fn set_traverse(path: &str, sid: *mut c_void, mode: i32) -> Result<(), String> {
     .and_then(|()| {
         let mut control = 0u16;
         let mut revision = 0u32;
-        // SAFETY: SECURITY_DESCRIPTOR is plain C data for which all-zero is valid.
-        let mut fresh: SECURITY_DESCRIPTOR = unsafe { std::mem::zeroed() };
-        let target = &mut fresh as *mut _ as *mut c_void;
-        let keep = SE_DACL_PROTECTED | SE_DACL_AUTO_INHERITED;
-        // SAFETY: descriptor was read above and target points to the local security descriptor.
-        let ok = unsafe {
-            GetSecurityDescriptorControl(descriptor, &mut control, &mut revision) != 0
-                && InitializeSecurityDescriptor(target, SECURITY_DESCRIPTOR_REVISION) != 0
-                && SetSecurityDescriptorDacl(target, 1, merged, 0) != 0
-                && SetSecurityDescriptorControl(target, keep, control & keep) != 0
-                && SetFileSecurityW(wpath.as_ptr(), DACL_SECURITY_INFORMATION, target) != 0
-        };
-        if ok {
-            Ok(())
-        } else {
-            Err(format!(
-                "setting the ACL of {path}: {}",
+        // SAFETY: descriptor was read above and both out-pointers are valid.
+        if unsafe { GetSecurityDescriptorControl(descriptor, &mut control, &mut revision) } == 0 {
+            return Err(format!(
+                "reading the ACL control of {path}: {}",
                 std::io::Error::last_os_error()
-            ))
+            ));
         }
+        write_dacl_here(path, control, merged)
     });
     // SAFETY: merged and descriptor were allocated by the ACL calls above and are freed once.
     unsafe {

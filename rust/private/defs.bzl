@@ -77,14 +77,14 @@ def _rust_binary_settings(settings, attr, _platforms):
     out[_COVERAGE] = settings[_COVERAGE] and attr.wasm != "wasi"
     return out
 
-_rust_binary_transition = platforms_transition(
+rust_binary_transition = platforms_transition(
     _rust_binary_settings,
     inputs = ["//command_line_option:features", _EXTRA_RUSTC_FLAG, MSVC_CRT_FROM_RUST, _COVERAGE],
     outputs = ["//command_line_option:features", MSVC_CRT_FROM_RUST, _COVERAGE],
     platforms = lambda attr, _current: [str(_WASIP1_PLATFORM)] if attr.wasm == "wasi" else [],
 )
 
-_LIBSTDCXX_ATTRS = {
+RUST_LIBSTDCXX_ATTRS = {
     "libstdcxx": attr.bool(doc = "Whether the target platform uses libstdc++."),
     "msvc": attr.bool(doc = "Whether the target uses the MSVC ABI (cl.exe or clang-cl)."),
     "crt_static": attr.bool(doc = "Whether the target's own rustc_flags set +crt-static."),
@@ -148,7 +148,7 @@ _rust_forward = dx_library_forward_rule(
         [_rust_common.crate_info],
         [_rust_common.test_crate_info],
     ],
-    extra_attrs = _LIBSTDCXX_ATTRS,
+    extra_attrs = RUST_LIBSTDCXX_ATTRS,
     quiet_providers = [LintsInfo],
     upstream_cfg = _cpp_runtime_transition,
 )
@@ -167,7 +167,7 @@ _rust_forward_cc = dx_library_forward_rule(
     provides = _DX_CC_FORWARD_PROVIDES,
     required_providers = [(_rust_common.test_crate_info, "TestCrateInfo"), (_rust_common.dep_info, "DepInfo"), (CcInfo, "CcInfo")],
     upstream_providers = [[_rust_common.test_crate_info]],
-    extra_attrs = _LIBSTDCXX_ATTRS,
+    extra_attrs = RUST_LIBSTDCXX_ATTRS,
     upstream_cfg = _cpp_runtime_transition,
     upstream_aspects = [dx_msvc_crt_aspect],
     validate = dx_msvc_crt_validate,
@@ -197,8 +197,8 @@ _rust_forward_binary = dx_executable_forward_rule(
         [_rust_common.crate_info],
         [_rust_common.test_crate_info],
     ],
-    extra_attrs = _LIBSTDCXX_ATTRS | _RUNTIME_DLLS_ATTR | {"wasm": attr.string(doc = "Wasm target, or empty.")},
-    upstream_cfg = _rust_binary_transition,
+    extra_attrs = RUST_LIBSTDCXX_ATTRS | _RUNTIME_DLLS_ATTR | {"wasm": attr.string(doc = "Wasm target, or empty.")},
+    upstream_cfg = rust_binary_transition,
     upstream_aspects = [dx_msvc_crt_aspect],
     validate = dx_msvc_crt_validate,
     runtime = "mandatory",
@@ -214,7 +214,7 @@ _rust_forward_test = dx_executable_forward_rule(
         [_rust_common.crate_info],
         [_rust_common.test_crate_info],
     ],
-    extra_attrs = dx_lcov_merger_attr() | _LIBSTDCXX_ATTRS | _RUNTIME_DLLS_ATTR | dx_native_coverage_attrs() | {
+    extra_attrs = dx_lcov_merger_attr() | RUST_LIBSTDCXX_ATTRS | _RUNTIME_DLLS_ATTR | dx_native_coverage_attrs() | {
         "crate": attr.label(
             doc = "The crate under test, so format checks reach its files.",
             providers = [[_rust_common.crate_info], [_rust_common.test_crate_info]],

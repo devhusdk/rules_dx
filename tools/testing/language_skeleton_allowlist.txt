@@ -9,11 +9,9 @@ extension-name python/extensions.bzl
 fixture-hello android/tests/conformance/BUILD.bazel
 fixture-hello android/tests/consumer
 fixture-hello ansible/tests/conformance/BUILD.bazel
-fixture-hello api_spec/tests/conformance/BUILD.bazel
 fixture-hello appimage/tests/conformance/BUILD.bazel
 fixture-hello apple/tests/conformance/BUILD.bazel
 fixture-hello asciidoc/tests/conformance/BUILD.bazel
-fixture-hello avro/tests/conformance/BUILD.bazel
 fixture-hello bicep/tests/conformance/BUILD.bazel
 fixture-hello capnproto/tests/conformance/BUILD.bazel
 fixture-hello cloudformation/tests/conformance/BUILD.bazel

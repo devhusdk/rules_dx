@@ -23,6 +23,7 @@ _QUALITY_KEYS = {
 _QUALITY_CONFIG = "default"
 
 _QUALITY_CONFIGS = {
+    "api_spec": "shared",
     "avro": "shared",
     "dart": "tool_overrides",
     "flutter": "tool_overrides",

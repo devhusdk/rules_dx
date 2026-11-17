@@ -1,0 +1,56 @@
+# gazelle:ignore
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+proto_library(
+    name = "conformance",
+    srcs = ["proto/conformance/v1/greet.proto"],
+    strip_import_prefix = "proto",
+)
+
+proto_library(
+    name = "lint_dirty",
+    srcs = ["proto/dirty/lint_dirty.proto"],
+    strip_import_prefix = "proto",
+)
+
+proto_library(
+    name = "format_dirty",
+    srcs = ["proto/conformance/v1/format_dirty.proto"],
+    strip_import_prefix = "proto",
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":conformance",
+    covered_source = "",
+    expected = "",
+    failing_case = "",
+    failing_test = ":conformance",
+    lang = "api_spec",
+    not_applicable = {
+        "build_test": "api_spec has no binary rule",
+        "coverage_test": "api_spec has no test rule",
+        "cross_test": "api_spec has no binary rule",
+        "fail_test": "api_spec has no test rule",
+        "lock_test": "api_spec has no package manager",
+        "pass_test": "api_spec has no test rule",
+        "runfiles_test": "api_spec has no binary rule",
+    },
+    passing_test = ":conformance",
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "proto/conformance/v1/format_dirty.proto",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 3,
+        "lint_rule": "PACKAGE_DIRECTORY_MATCH",
+        "lint_source": "proto/dirty/lint_dirty.proto",
+    },
+)

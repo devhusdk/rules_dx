@@ -49,7 +49,6 @@ astro format_error_test *
 astro format_test *
 astro lint_error_test *
 astro lint_test *
-cc lock_test *
 cloudformation build_test *
 cloudformation coverage_test *
 cloudformation cross_test *
@@ -66,7 +65,6 @@ cuda coverage_test *
 cuda cross_test *
 cuda lint_error_test *
 cuda lint_test *
-cuda lock_test *
 d cross_test *
 d format_error_test *
 d format_test *
@@ -182,7 +180,6 @@ svelte format_error_test *
 svelte format_test *
 svelte lint_error_test *
 svelte lint_test *
-swift lock_test *
 vue format_error_test *
 vue format_test *
 vue lint_error_test *

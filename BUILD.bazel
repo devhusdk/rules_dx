@@ -301,6 +301,7 @@ js_library(
 npm_link_all_packages(name = "node_modules")
 
 exports_files([
+    "CODE_OF_CONDUCT.md",
     "CONTRIBUTING.md",
     "LICENSE",
     "RELEASING.md",
@@ -1000,6 +1001,7 @@ real_source_target(
     ],
     markdown_srcs = [
         "AGENTS.md",
+        "CODE_OF_CONDUCT.md",
         "CONTRIBUTING.md",
         "README.md",
         "SECURITY.md",

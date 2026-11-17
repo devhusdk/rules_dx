@@ -4,9 +4,9 @@ load("@dx_pins_data//:pins.bzl", "PINS")
 load("//php/tests:checks.bzl", "expect_contains", "expect_equal", "expect_true", "php_checks_test")
 load("//php/private:defs.bzl", "PHP_COMPATIBLE_WITH")
 load("//php/private:php.bzl", "NATIVE_LAUNCHER_ATTRS", "lit", "rf", "runfiles_path", "write_launcher")
-load("//php:php.bzl", "TOOLCHAIN_TYPE")
-load("//php:cells.bzl", "PHP_CELLS", "cell_cases", "cell_setting")
-load("//php:repos.bzl", "COVERAGE_BUILD", "COVERAGE_PREFIX", "VERSION_FILE", "hub_build", "runtime_build")
+load("//php/private/toolchain:php.bzl", "TOOLCHAIN_TYPE")
+load("//php/private/toolchain:cells.bzl", "PHP_CELLS", "cell_cases", "cell_setting")
+load("//php/private/toolchain:repos.bzl", "COVERAGE_BUILD", "COVERAGE_PREFIX", "VERSION_FILE", "hub_build", "runtime_build")
 
 _PHP = PINS["dx_php"]
 
@@ -28,7 +28,7 @@ def _checks():
         expect_true("pinned tools carry a digest and name their version", all([len(pin["sha256"]) == 64 and all([pin["version"] in url for url in pin["urls"]]) for pin in pins])),
         expect_equal("one case per pinned cell", sorted([str(key) for key in cases]), sorted([str(cell_setting("//php/private/toolchain", cell)) for cell in PHP_CELLS])),
         expect_equal("pinned cells allow the target", cases.values(), [[] for _ in PHP_CELLS]),
-        expect_equal("other platforms are incompatible and unsupported", [str(label) for label in default], [str(Label("@platforms//:incompatible")), str(Label("//php:unsupported"))]),
+        expect_equal("other platforms are incompatible and unsupported", [str(label) for label in default], [str(Label("@platforms//:incompatible")), str(Label("//php/private/toolchain:unsupported"))]),
         expect_equal("pinned cells are the language cells", sorted(cells.keys()), sorted(PHP_CELLS.keys())),
         expect_true("cell urls", all([cells[c]["urls"][0].startswith(MIRROR) and cells[c]["urls"][1].startswith(STATIC_PHP + flavors[c] + "/") for c in PHP_CELLS])),
         expect_equal("cell binaries are the interpreters", {c: cells[c]["binary"] for c in cells}, {c: PHP_CELLS[c].interpreter for c in PHP_CELLS}),
@@ -81,7 +81,7 @@ _php_version_test = rule(
     doc = "Checks that the resolved PHP reports the pinned version and has the extensions Composer and PHPUnit need.",
     test = True,
     attrs = NATIVE_LAUNCHER_ATTRS | {
-        "_script": attr.label(default = Label("//php:version_check.php"), allow_single_file = True),
+        "_script": attr.label(default = Label("//php/private/toolchain:version_check.php"), allow_single_file = True),
     },
     toolchains = [TOOLCHAIN_TYPE],
 )

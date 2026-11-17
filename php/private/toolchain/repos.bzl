@@ -68,7 +68,7 @@ def runtime_build(version, interpreter = "php", pcov = False, coverage = ""):
         coverage = _COVERAGE_ATTRS.format(repo = coverage) if coverage else "",
         interpreter = interpreter,
         pcov = pcov_label,
-        php_bzl = str(Label("//php:php.bzl")),
+        php_bzl = str(Label("//php/private/toolchain:php.bzl")),
         version = version,
         version_file = VERSION_FILE,
     )

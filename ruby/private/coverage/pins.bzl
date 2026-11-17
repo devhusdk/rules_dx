@@ -13,9 +13,6 @@ SIMPLECOV_VERSION = _ARCHIVES["simplecov"]["version"]
 RUBY_COVERAGE_GEMS = [
     _gem("simplecov", "simplecov.rb"),
     _gem("simplecov-lcov", "simplecov-lcov.rb"),
-    _gem("docile", "docile.rb"),
-    _gem("simplecov-html", "simplecov-html.rb"),
-    _gem("simplecov_json_formatter", "simplecov_json_formatter.rb"),
 ]
 
 RUBY_COVERAGE_REPOSITORY = "dx_ruby_coverage_gems"

@@ -28,9 +28,9 @@ def ruby_wrapper_contract_tests(name, **kwargs):
                 [_GEMS_ROOT + "/" + gem_dir(g) + "/lib" for g in RUBY_COVERAGE_GEMS],
             ),
             expect_equal(
-                "coverage pins simplecov 0.22.0 and its four companions",
+                "coverage pins simplecov 1.3.2 and simplecov-lcov",
                 [gem_dir(g) for g in RUBY_COVERAGE_GEMS],
-                ["simplecov-0.22.0", "simplecov-lcov-0.9.0", "docile-1.4.1", "simplecov-html-0.13.2", "simplecov_json_formatter-0.1.4"],
+                ["simplecov-1.3.2", "simplecov-lcov-0.9.0"],
             ),
         ],
         **kwargs

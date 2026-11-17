@@ -62,7 +62,7 @@ apple_macos_app(
 
 failure_test(
     name = "no_entry_test",
-    expected_failure_substring = "apple_macos_app: srcs or library is required",
+    expected_failure_substring = "apple_macos_app: srcs, entry or library is required",
     target = ":no_entry_selection",
 )
 

@@ -53,6 +53,7 @@ def _macos_selection_impl(ctx):
         bundle_id = ctx.attr.bundle_id,
         deployment = ctx.attr.deployment,
         entitlements = ctx.attr.entitlements,
+        entry = ctx.attr.entry,
         frameworks = list(ctx.attr.framework_imports),
         library = ctx.attr.library,
         plugins = list(ctx.attr.plugins),
@@ -73,6 +74,7 @@ _macos_selection = rule(
         "bundle_id": attr.string(doc = "Reverse DNS bundle identifier of the app.", mandatory = True),
         "deployment": attr.string(doc = "Minimum macOS version the app supports.", mandatory = True),
         "entitlements": attr.string(doc = "Entitlements label text, which building rejects.", mandatory = True),
+        "entry": attr.string(doc = "Label text of the Swift @main module of the app.", mandatory = True),
         "framework_imports": attr.string_list(doc = "Label texts of embedded frameworks.", mandatory = True),
         "library": attr.string(doc = "Label text of the Rust library the app links.", mandatory = True),
         "plugins": attr.string_list(doc = "Label texts of plugins placed under PlugIns.", mandatory = True),
@@ -330,6 +332,7 @@ def apple_macos_app(
         srcs = None,
         hdrs = [],
         deps = None,
+        entry = None,
         library = None,
         frameworks = [],
         plugins = [],
@@ -357,6 +360,7 @@ def apple_macos_app(
         bundle_id = bundle_id,
         deployment = deployment,
         entitlements = label_text(entitlements),
+        entry = label_text(entry),
         framework_imports = [label_text(framework) for framework in frameworks],
         library = label_text(library),
         plugins = [label_text(plugin) for plugin in plugins],
@@ -370,6 +374,8 @@ def apple_macos_app(
         visibility = ["//visibility:private"],
     )
     entry_deps = [":" + name + "_selection"]
+    if entry != None:
+        entry_deps.append(entry)
     if library != None:
         _macos_cell(
             name = name + "_library",

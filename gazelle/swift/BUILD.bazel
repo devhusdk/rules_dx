@@ -7,6 +7,7 @@ package(default_visibility = ["//visibility:private"])
 go_library(
     name = "swift",
     srcs = [
+        "apple.go",
         "doc.go",
         "lang.go",
         "naming.go",
@@ -43,6 +44,7 @@ gazelle_generation_test(
 go_test(
     name = "swift_go_test",
     srcs = [
+        "apple_test.go",
         "lang_test.go",
         "parser_test.go",
     ],

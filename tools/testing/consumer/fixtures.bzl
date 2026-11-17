@@ -6,6 +6,7 @@ load("//rust:defs.bzl", "rust_test")
 CONSUMER_FIXTURES = [
     "ansible",
     "api_spec",
+    "apple",
     "asciidoc",
     "astro",
     "avro",

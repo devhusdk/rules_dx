@@ -133,7 +133,19 @@ pub fn parse_taplo_format_check(
     const TOOL: &str = "taplo";
     check_output_size(TOOL, stderr)?;
     let mut findings = parse_taplo_lint(stderr, Some(0), files)?;
-    if code == Some(0) || !findings.is_empty() {
+    if code == Some(0) {
+        return Ok(findings);
+    }
+    if code != Some(1) {
+        return Err(ParseError::Shape {
+            tool: TOOL,
+            detail: format!("exit {} is not a format check result", code_name(code)),
+        });
+    }
+    if files
+        .iter()
+        .all(|file| findings.iter().any(|found| found.file == *file))
+    {
         return Ok(findings);
     }
     match files {
@@ -145,7 +157,7 @@ pub fn parse_taplo_format_check(
         _ => Err(ParseError::Shape {
             tool: TOOL,
             detail: format!(
-                "exit {} across {} files names no file",
+                "exit {} across {} files names no file for every input",
                 code_name(code),
                 files.len()
             ),
@@ -206,6 +218,29 @@ mod tests {
             parse_taplo_format_check(b" INFO collect\n", Some(1), &["/s/a.toml", "/s/b.toml"])
                 .is_err()
         );
+        for code in [None, Some(2), Some(-1)] {
+            assert!(parse_taplo_format_check(b" INFO collect\n", code, &["/s/fmt.toml"]).is_err());
+        }
+    }
+
+    #[test]
+    fn taplo_format_check_mixed_batch_defers_to_per_file_recheck() {
+        let marker = b" INFO collect\nERROR taplo:format_files: the file is not properly formatted path=\"/s/fmt.toml\"\nERROR operation failed\n";
+        let mixed = [TAPLO_DIRTY_STDERR.as_bytes(), &marker[..]].concat();
+        assert!(
+            parse_taplo_format_check(&mixed, Some(1), &["/s/dirty.toml", "/s/fmt.toml"]).is_err()
+        );
+        let both = [
+            TAPLO_DIRTY_STDERR.as_bytes(),
+            TAPLO_DIRTY_STDERR
+                .replace("dirty.toml", "other.toml")
+                .as_bytes(),
+        ]
+        .concat();
+        let findings =
+            parse_taplo_format_check(&both, Some(1), &["/s/dirty.toml", "/s/other.toml"])
+                .expect("parsed");
+        assert_eq!(findings.len(), 2);
     }
 
     #[test]

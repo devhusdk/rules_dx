@@ -12,8 +12,9 @@ version pin in `MODULE.bazel`.
 
 Declare a hub with the `pub` extension from `@rules_dx//dart:extensions.bzl`. The lock pins each package
 to a sha256. `dx generate --apply` writes `pubspec.lock` beside a root `pubspec.yaml`
-that has none with `pub get` of the pinned Dart SDK, and `dx update` moves its
-versions.
+that has none and lists a package in `dependencies` or `dev_dependencies`, with
+`pub get` of the pinned Dart SDK, and `dx update` moves its versions. A pubspec
+that lists no package gets no lock and no hub.
 
 ```python
 pub = use_extension("@rules_dx//dart:extensions.bzl", "pub")

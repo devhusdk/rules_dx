@@ -60,6 +60,7 @@ rust_library(
     # keep
     deps = [
         "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/depcheck:depcheck_lib",
         "//cli/dx_config",
         "//cli/ecosystems:dx_ecosystems",
         "//cli/error:dx_error",
@@ -159,6 +160,7 @@ rust_test(
     # keep
     deps = [
         "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/depcheck:depcheck_lib",
         "//cli/digest:dx_digest",
         "//cli/dx_config",
         "//cli/ecosystems:dx_ecosystems",

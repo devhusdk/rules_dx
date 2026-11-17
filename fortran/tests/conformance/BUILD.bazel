@@ -31,6 +31,12 @@ fortran_binary(
     deps = [":greet"],
 )
 
+fortran_binary(
+    name = "runfiles_hello",
+    srcs = ["runfiles_main.f90"],
+    data = ["data.txt"],
+)
+
 fortran_test(
     name = "pass_subject_test",
     size = "small",
@@ -66,6 +72,11 @@ dx_conformance_suite(
         "lint_line": 1,
         "lint_rule": "C001",
         "lint_source": "lint_dirty.f90",
+    },
+    runfiles = {
+        "binary": ":runfiles_hello",
+        "data": "data.txt",
+        "expected": "hello runfiles",
     },
 )
 

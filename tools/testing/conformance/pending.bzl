@@ -127,7 +127,6 @@ flatbuffers runfiles_test *
 flutter runfiles_test *
 fortran cross_test *
 fortran lock_test *
-fortran runfiles_test *
 fsharp cross_test *
 fsharp lint_error_test *
 fsharp lint_test *
@@ -237,7 +236,6 @@ svelte format_test *
 svelte lint_error_test *
 svelte lint_test *
 swift lock_test *
-swift runfiles_test *
 terraform build_test *
 terraform coverage_test *
 terraform cross_test *
@@ -266,5 +264,4 @@ vue lint_error_test *
 vue lint_test *
 zig coverage_test windows_x86_64
 zig lock_test *
-zig runfiles_test *
 """

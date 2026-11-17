@@ -57,7 +57,8 @@ fn subject_matches_mode() {
         raw.to_string_lossy().into_owned(),
         out.to_string_lossy().into_owned(),
     );
-    if mode == "coverage" {
+    let collecting = mode == "coverage" || mode == "coverage_off";
+    if collecting {
         std::fs::create_dir_all(&raw).expect("coverage dir must be creatable");
         envs.push(("COVERAGE", "1"));
         envs.push(("COVERAGE_DIR", raw_s.as_str()));
@@ -68,7 +69,7 @@ fn subject_matches_mode() {
     let subject_env: Vec<(String, String)> = subject_env
         .into_iter()
         .map(|(name, value)| {
-            let value = if mode == "coverage" {
+            let value = if collecting {
                 collector_path(&value)
             } else {
                 value
@@ -90,7 +91,7 @@ fn subject_matches_mode() {
             .to_string_lossy()
             .into_owned()
     };
-    if mode == "coverage" {
+    if collecting {
         envs.push(("ROOT", source_root.as_str()));
     }
     let profile = raw.join("%h-%p-%m.profraw").to_string_lossy().into_owned();
@@ -98,7 +99,7 @@ fn subject_matches_mode() {
         .split_once('/')
         .map_or("", |(_, rest)| rest)
         .to_owned();
-    if mode == "coverage" && native {
+    if collecting && native {
         envs.push(("LLVM_PROFILE_FILE", profile.as_str()));
         envs.push(("TEST_BINARY", binary.as_str()));
     }
@@ -125,7 +126,7 @@ fn subject_matches_mode() {
             "passing subject failed:\n{}",
             run.combined()
         ),
-        "coverage" => {
+        "coverage" | "coverage_off" => {
             assert_eq!(
                 run.status.code(),
                 Some(0),
@@ -166,6 +167,14 @@ fn subject_matches_mode() {
             }
             let report = report.replace('\\', "/");
             let source = format!("/{text}");
+            if mode == "coverage_off" {
+                assert_eq!(
+                    hits(&report, &source),
+                    0,
+                    "{text} reported hits without collect_code_coverage:\n{report}"
+                );
+                return;
+            }
             assert!(
                 sources(&report).iter().any(|name| name.ends_with(&source)),
                 "no SF: for {text} in:\n{report}"

@@ -1,6 +1,5 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//powershell:defs.bzl", "powershell_library", "powershell_test")
-load("//powershell/tests:defs_tests.bzl", "pwsh_coverage_env_test")
 
 # gazelle:resolve powershell DxCoverage //powershell:dx_coverage
 # gazelle:resolve powershell Pester //powershell:pester
@@ -27,11 +26,6 @@ powershell_test(
         "//powershell:dx_coverage",
         "//powershell:pester",
     ],
-)
-
-pwsh_coverage_env_test(
-    name = "greeter_test_coverage_env_test",
-    target = ":greeter_test",
 )
 
 real_source_target(

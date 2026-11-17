@@ -456,6 +456,17 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
             **kwargs
         )
 
+    rust_test(
+        name = prefix + "coverage_off_test",
+        srcs = [Label("//tools/testing/conformance:runner_test.rs")],
+        data = [":" + prefix + "pass_subject"],
+        deps = [_CONFORMANCE_QUALITY, Label("//tools/testing:dx_testing")],
+        env = _env("coverage_off", ":" + prefix + "pass_subject", covered_source, failing_pattern),
+        size = size,
+        target_compatible_with = _compatible_with(lang, "coverage_test", not_applicable),
+        **kwargs
+    )
+
     if lock:
         rust_test(
             name = prefix + "lock_test",

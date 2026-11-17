@@ -1,0 +1,49 @@
+# gazelle:ignore
+load("//flatbuffers:defs.bzl", "flatbuffers_library")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+flatbuffers_library(
+    name = "conformance",
+    srcs = ["clean.fbs"],
+)
+
+flatbuffers_library(
+    name = "lint_dirty",
+    srcs = ["lint_dirty.fbs"],
+    tags = ["manual"],
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":conformance",
+    covered_source = "",
+    expected = "",
+    failing_case = "",
+    failing_test = ":conformance",
+    lang = "flatbuffers",
+    not_applicable = {
+        "build_test": "flatbuffers has no binary rule",
+        "coverage_test": "flatbuffers has no test rule",
+        "cross_test": "flatbuffers has no binary rule",
+        "fail_test": "flatbuffers has no test rule",
+        "format_error_test": "no maintained .fbs formatter exists",
+        "format_test": "no maintained .fbs formatter exists",
+        "lock_test": "flatbuffers has no package manager",
+        "pass_test": "flatbuffers has no test rule",
+        "runfiles_test": "flatbuffers has no binary rule",
+    },
+    passing_test = ":conformance",
+    quality = {
+        "clean": ":conformance",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 4,
+        "lint_rule": "error",
+        "lint_source": "lint_dirty.fbs",
+    },
+)

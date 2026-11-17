@@ -208,10 +208,6 @@ helm lock_test *
 helm pass_test *
 helm runfiles_test *
 java cross_test *
-java format_error_test *
-java format_test *
-java lint_error_test *
-java lint_test *
 julia cross_test *
 julia format_error_test *
 julia format_test *
@@ -305,8 +301,6 @@ rst pass_test *
 rst runfiles_test *
 ruby runfiles_test *
 scala cross_test *
-scala format_error_test *
-scala format_test *
 scala lint_error_test *
 scala lint_test *
 sql build_test *

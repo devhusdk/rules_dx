@@ -13,6 +13,12 @@ scala_library(
     srcs = ["Greet.scala"],
 )
 
+scala_library(
+    name = "format_dirty",
+    srcs = ["FormatDirty.scala"],
+    tags = ["manual"],
+)
+
 scala_binary(
     name = "hello",
     srcs = ["Main.scala"],
@@ -73,6 +79,11 @@ dx_conformance_suite(
         "stale": "maven_install.stale.json",
     },
     passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "FormatDirty.scala",
+    },
     runfiles = {
         "binary": ":runfiles_hello",
         "data": "data.txt",

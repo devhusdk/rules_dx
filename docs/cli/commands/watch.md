@@ -23,6 +23,7 @@ Flags go to the wrapped command and are checked as `dx <command>` checks them. A
 | `--here` | Resolve the scope once from the current directory. |
 | `--affected` | Re-resolve the affected targets each iteration. |
 | `--since <ref>` | With `--affected`: diff from this ref instead of the merge-base. |
+| `--base <ref>` | With `--affected`: take the merge-base with this branch instead of the default branch. |
 | `--poll` | Poll the tree every second instead of using the platform watcher, on any platform. |
 | `--fail-on`, `--report`, `--diff`, `--unsafe`, `--include-edits`, `--max-findings` | Passed to the wrapped command when it takes them. |
 | `-o, --output text\|json` | Choose the output format. |

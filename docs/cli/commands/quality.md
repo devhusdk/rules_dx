@@ -33,6 +33,7 @@ dx format [flags] [scope...] [-- bazel-options ...]
 | `--here` | Scope to the current directory tree. |
 | `--affected` | Scope to targets your changes reach. With none, prints `no affected targets` and exits `0`. With `--diff`, the line goes to stderr and stdout stays empty. |
 | `--since <ref>` | With `--affected`: diff from this ref instead of the merge-base. Without `--affected`, exit `2`. |
+| `--base <ref>` | With `--affected`: take the merge-base with this branch instead of the default branch. Not with `--since`. |
 | `--workspace <dir>` | Use this workspace dir. |
 | `-q, --quiet` | Hide summaries. Findings and failures still print. |
 | `-v, --verbose` | Show more logs. |
@@ -43,7 +44,7 @@ dx format [flags] [scope...] [-- bazel-options ...]
 
 ## Scopes
 
-No scope means `//...`. Pass Bazel labels or patterns, or workspace-relative files and dirs. `--here` and `--affected` cannot be combined with explicit scopes or with each other. When every scope is a file or directory, findings and fixes are limited to those paths; the rest of the owning target is checked but neither reported nor rewritten. A label or pattern among the scopes reports its whole target. Targets that do not fit the target platform are skipped, even when named. See [Scope Defaults](scope-defaults.md).
+No scope means `//...`. Pass Bazel labels or patterns, or workspace-relative files and dirs. `--here` cannot be combined with explicit scopes or with `--affected`. `--affected` with scopes keeps only the affected targets inside them. When every scope is a file or directory, findings and fixes are limited to those paths; the rest of the owning target is checked but neither reported nor rewritten. A label or pattern among the scopes reports its whole target. Targets that do not fit the target platform are skipped, even when named. See [Scope Defaults](scope-defaults.md).
 
 ## Bazel options
 

@@ -167,7 +167,7 @@ fn verdict(gate: &ChangedGate<'_>, minimum: u32) -> Verdict {
         error: Some((CODE_CHANGED_LINE_UNAVAILABLE, message)),
         lines: Vec::new(),
     };
-    let (branch, merge_base) = match named_base(gate.workspace, gate.runner) {
+    let (branch, merge_base) = match named_base(gate.workspace, gate.runner, None) {
         Ok(named) => named,
         Err(PlanError::Git(message)) => return unavailable(event, message),
         Err(PlanError::Resolve(error)) => return unavailable(event, error.to_string()),

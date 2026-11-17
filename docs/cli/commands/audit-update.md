@@ -27,9 +27,9 @@ tools/dx license --report spdx=sbom.spdx.json --report cyclonedx=sbom.cdx.json
 ```
 
 ```text
-dx security [--here] [--affected [--since <ref>]] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif=<dest>] [--accept <advisory>[:<package>]|uncovered:<set> --reason <text> --expires <YYYY-MM-DD>] [scope...]
+dx security [--here] [--affected [--since <ref>|--base <ref>]] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif=<dest>] [--accept <advisory>[:<package>]|uncovered:<set> --reason <text> --expires <YYYY-MM-DD>] [scope...]
 dx security --verify <file> --repo <owner/name> [--bundle <file>.sigstore.json]
-dx license  [--here] [--affected [--since <ref>]] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif|spdx|cyclonedx=<dest>] [--accept <package> --reason <text> --expires <YYYY-MM-DD>] [scope...]
+dx license  [--here] [--affected [--since <ref>|--base <ref>]] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif|spdx|cyclonedx=<dest>] [--accept <package> --reason <text> --expires <YYYY-MM-DD>] [scope...]
 ```
 
 ### Flags
@@ -38,6 +38,7 @@ dx license  [--here] [--affected [--since <ref>]] [--offline] [--frozen] [--fail
 | --- | --- |
 | `--affected` | Runs the sets that own targets your git changes reach. Not with scopes or `--here`. |
 | `--since <ref>` | With `--affected`: compares against this ref instead of the default branch merge-base. Without `--affected`, exits `2`. |
+| `--base <ref>` | With `--affected`: takes the merge-base with this branch instead of the default branch. Not with `--since`. |
 | `--here` | Uses the current directory tree. Not with scopes. |
 | `--offline` | Runs without network. Uses cached pinned snapshots, or fails with `offline_required`. |
 | `--frozen` | Keeps manifest and lock resolution unchanged. |

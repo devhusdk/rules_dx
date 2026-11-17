@@ -27,6 +27,26 @@ elixir_app(
     deps = [":greet_app"],
 )
 
+elixir_app(
+    name = "lint_dirty",
+    testonly = True,
+    srcs = ["quality/lint_dirty.ex"],
+    app_description = "Conformance lint fixture.",
+    app_name = "lint_dirty",
+    app_version = "1.0.0",
+    tags = ["manual"],
+)
+
+elixir_app(
+    name = "format_dirty",
+    testonly = True,
+    srcs = ["quality/format_dirty.ex"],
+    app_description = "Conformance format fixture.",
+    app_name = "format_dirty",
+    app_version = "1.0.0",
+    tags = ["manual"],
+)
+
 elixir_escript_archive(
     name = "hello",
     testonly = True,
@@ -96,6 +116,15 @@ dx_conformance_suite(
         "stale": "hex.lock.stale.json",
     },
     passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":greet_app",
+        "format_dirty": ":format_dirty",
+        "format_source": "quality/format_dirty.ex",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 5,
+        "lint_rule": "credo/Warning.IoInspect",
+        "lint_source": "quality/lint_dirty.ex",
+    },
     runfiles = {
         "binary": ":hello",
         "data": "data.txt",

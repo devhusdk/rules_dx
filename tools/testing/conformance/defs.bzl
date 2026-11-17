@@ -26,6 +26,8 @@ _QUALITY_CONFIGS = {
     "api_spec": "shared",
     "avro": "shared",
     "dart": "tool_overrides",
+    "elixir": "tool_overrides",
+    "erlang": "tool_overrides",
     "flutter": "tool_overrides",
     "julia": "tool_overrides",
     "lua": "tool_overrides",

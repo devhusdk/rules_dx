@@ -133,15 +133,7 @@ dotnet lint_test *
 dotnet lock_test *
 dotnet runfiles_test *
 elixir cross_test *
-elixir format_error_test *
-elixir format_test *
-elixir lint_error_test *
-elixir lint_test *
 erlang cross_test *
-erlang format_error_test *
-erlang format_test *
-erlang lint_error_test *
-erlang lint_test *
 flatbuffers build_test *
 flatbuffers coverage_test *
 flatbuffers cross_test *

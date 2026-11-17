@@ -50,6 +50,27 @@ erlang_bytecode(
     deps = [":test_erlang_app"],
 )
 
+erlang_bytecode(
+    name = "lint_clean",
+    srcs = ["src/greet.erl"],
+    outs = ["quality/greet.beam"],
+    tags = ["manual"],
+)
+
+erlang_bytecode(
+    name = "lint_dirty",
+    srcs = ["quality/lint_dirty.erl"],
+    outs = ["quality/lint_dirty.beam"],
+    tags = ["manual"],
+)
+
+erlang_bytecode(
+    name = "format_dirty",
+    srcs = ["quality/format_dirty.erl"],
+    outs = ["quality/format_dirty.beam"],
+    tags = ["manual"],
+)
+
 erlang_eunit_test(
     name = "pass_subject_test",
     size = "small",
@@ -86,6 +107,15 @@ dx_conformance_suite(
         "stale": "hex.lock.stale.json",
     },
     passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":lint_clean",
+        "format_dirty": ":format_dirty",
+        "format_source": "quality/format_dirty.erl",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 5,
+        "lint_rule": "no_debug_call",
+        "lint_source": "quality/lint_dirty.erl",
+    },
     runfiles = {
         "binary": ":hello",
         "data": "data.txt",

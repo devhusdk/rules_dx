@@ -3,6 +3,7 @@
 load("//core:platform.bzl", "PLATFORM_ATTRS", "platform_identity")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deployment_budget")
 load("//core:rlocation.bzl", "rlocation_path")
+load("//deploy/private/release:signing.bzl", "CosignInfo", "SIGNING_COSIGN_VERSION")
 load(":deployment.bzl", "dx_deployment")
 load(":validate_oci.bzl", "OCI_DEFAULT_REGISTRY", "oci_image_error", "oci_platform", "oci_platform_error", "oci_registry_error", "oci_repository_error", "oci_tag_error")
 
@@ -33,13 +34,21 @@ def _oci_config_impl(ctx):
         "registry": ctx.attr.registry,
         "repository": ctx.attr.repository,
         "scan": ctx.attr.scan,
+        "sign": ctx.attr.sign,
         "scan_severity": ctx.attr.scan_severity,
         "tag": ctx.attr.image_tag,
     }
     if ctx.file.sbom:
         files.append(ctx.file.sbom)
         fields["sbom_rloc"] = rlocation_path(ctx, ctx.file.sbom)
-    return deploy_config(ctx, "oci", fields, ctx.runfiles(files = files)) + [
+    runfiles = ctx.runfiles(files = files)
+    if ctx.attr.sign != "off":
+        cosign = ctx.attr.cosign[CosignInfo]
+        fields["cosign_rloc"] = rlocation_path(ctx, cosign.file)
+        fields["cosign_sha256"] = cosign.sha256
+        fields["cosign_version"] = SIGNING_COSIGN_VERSION
+        runfiles = runfiles.merge(ctx.runfiles(files = [cosign.file])).merge(ctx.attr.cosign[DefaultInfo].default_runfiles)
+    return deploy_config(ctx, "oci", fields, runfiles) + [
         OutputGroupInfo(dx_oci_image = depset([tar_file])),
     ]
 
@@ -76,10 +85,16 @@ _oci_config = rule(
             doc = "Optional dx_sbom target kept with the deployment for the cosign attestation.",
             allow_single_file = True,
         ),
+        "cosign": attr.label(
+            doc = "The pinned cosign binary; set when sign is not off.",
+            cfg = "exec",
+            providers = [CosignInfo],
+        ),
+        "sign": attr.string(mandatory = True, doc = "'auto', 'off' or 'required'."),
     } | PLATFORM_ATTRS,
 )
 
-def oci_deploy(name, image_tar, platform, image_tag = "latest", registry = OCI_DEFAULT_REGISTRY, repository = "", build_mode = "release", size_budget = None, sbom = None, scan = "fail", scan_severity = "HIGH", tags = None, visibility = None, testonly = False, target_compatible_with = None):
+def oci_deploy(name, image_tar, platform, image_tag = "latest", registry = OCI_DEFAULT_REGISTRY, repository = "", build_mode = "release", size_budget = None, sbom = None, scan = "fail", scan_severity = "HIGH", sign = "auto", tags = None, visibility = None, testonly = False, target_compatible_with = None):
     """Publishes one image archive or layout directory."""
     attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     effective_repo = repository if repository != "" else name
@@ -87,6 +102,8 @@ def oci_deploy(name, image_tar, platform, image_tag = "latest", registry = OCI_D
         fail("oci_deploy: invalid scan '" + str(scan) + "': want off, warn or fail (in " + native.package_name() + ":" + name + ")")
     if scan_severity not in ["LOW", "MEDIUM", "HIGH", "CRITICAL"]:
         fail("oci_deploy: invalid scan_severity '" + str(scan_severity) + "': want LOW, MEDIUM, HIGH or CRITICAL (in " + native.package_name() + ":" + name + ")")
+    if sign not in ["auto", "off", "required"]:
+        fail("oci_deploy: sign must be 'auto', 'off' or 'required', got '" + str(sign) + "' (in " + native.package_name() + ":" + name + ")")
     tag_error = oci_tag_error(image_tag)
     if tag_error != "":
         fail(tag_error + " (in " + native.package_name() + ":" + name + ")")
@@ -108,6 +125,8 @@ def oci_deploy(name, image_tar, platform, image_tag = "latest", registry = OCI_D
         image_tag = image_tag,
         platform = platform,
         sbom = sbom,
+        cosign = Label("//deploy/private/release:cosign") if sign != "off" else None,
+        sign = sign,
         **attrs
     )
 

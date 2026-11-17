@@ -36,6 +36,8 @@ pub struct OciChecks {
     pub scan_severity: String,
     /// The `oci_deploy` label, matched against label patterns in `security.toml`.
     pub label: String,
+    /// How the pushed digest is signed and attested.
+    pub signing: crate::signing::ImageSigning,
 }
 
 impl Default for OciChecks {
@@ -44,6 +46,7 @@ impl Default for OciChecks {
             scan: ScanMode::Off,
             scan_severity: "HIGH".to_owned(),
             label: String::new(),
+            signing: crate::signing::ImageSigning::default(),
         }
     }
 }

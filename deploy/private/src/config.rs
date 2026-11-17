@@ -302,6 +302,19 @@ pub struct OciConfig {
     pub scan_severity: String,
     #[serde(default)]
     pub sbom_rloc: String,
+    /// `auto`, `off` or `required`.
+    #[serde(default = "default_oci_sign")]
+    pub sign: String,
+    #[serde(default)]
+    pub cosign_rloc: String,
+    #[serde(default)]
+    pub cosign_version: String,
+    #[serde(default)]
+    pub cosign_sha256: String,
+}
+
+fn default_oci_sign() -> String {
+    "off".to_owned()
 }
 
 fn default_scan() -> String {
@@ -636,6 +649,13 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
                     scan,
                     scan_severity: oci.scan_severity.clone(),
                     label: oci.label.clone(),
+                    signing: crate::signing::ImageSigning {
+                        mode: oci.sign.clone(),
+                        cosign_rloc: oci.cosign_rloc.clone(),
+                        cosign_version: oci.cosign_version.clone(),
+                        cosign_sha256: oci.cosign_sha256.clone(),
+                        sbom_rloc: oci.sbom_rloc.clone(),
+                    },
                 },
                 argv,
             );
@@ -740,6 +760,10 @@ mod tests {
                 scan: "fail".to_owned(),
                 scan_severity: "HIGH".to_owned(),
                 sbom_rloc: "_main/s.spdx.json".to_owned(),
+                sign: "off".to_owned(),
+                cosign_rloc: String::new(),
+                cosign_version: String::new(),
+                cosign_sha256: String::new(),
             }))
         );
     }
@@ -909,6 +933,10 @@ mod tests {
                 scan: "fail".to_owned(),
                 scan_severity: "HIGH".to_owned(),
                 sbom_rloc: String::new(),
+                sign: "off".to_owned(),
+                cosign_rloc: String::new(),
+                cosign_version: String::new(),
+                cosign_sha256: String::new(),
             }))
         );
         assert_eq!(
@@ -1220,6 +1248,10 @@ mod tests {
                 scan: "fail".to_owned(),
                 scan_severity: "HIGH".to_owned(),
                 sbom_rloc: String::new(),
+                sign: "off".to_owned(),
+                cosign_rloc: String::new(),
+                cosign_version: String::new(),
+                cosign_sha256: String::new(),
             }),
             DeployConfig::Octopus(OctopusConfig {
                 package_rloc: "a".to_owned(),

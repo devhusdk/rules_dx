@@ -1643,6 +1643,7 @@ fn fake_live_push(fake: &FakeRegistry, image: &Path, outdir: &Path, platform: &s
                 user: "me",
                 secret: FAKE_SECRET,
             },
+            sign: None,
         },
     )
 }
@@ -1995,4 +1996,118 @@ fn archive_image_writes_a_deterministic_docker_save_archive() {
     assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
     assert!(error.to_string().contains("is not valid zstd"), "{error}");
     assert!(!out.exists());
+}
+
+#[test]
+fn oci_sign_plan_lines_name_the_two_cosign_commands() {
+    let reference = "ghcr.io/o/app@sha256:ab";
+    let key = oci_sign_plan_lines(
+        "auto",
+        Some(&SignIdentity::Key),
+        reference,
+        Some("s.spdx.json"),
+        "",
+    );
+    assert_eq!(
+        key,
+        [
+            "  sign: key from COSIGN_KEY",
+            "  cosign sign --key env://COSIGN_KEY --yes ghcr.io/o/app@sha256:ab",
+            "  cosign attest --key env://COSIGN_KEY --yes --type spdxjson --predicate s.spdx.json ghcr.io/o/app@sha256:ab",
+        ]
+    );
+    let none = oci_sign_plan_lines("auto", None, reference, None, "ghcr.io/o/sigs");
+    assert_eq!(
+        none,
+        [
+            "  sign: none (auto); a live run with an identity runs:",
+            "  cosign sign --yes ghcr.io/o/app@sha256:ab",
+            "  signatures: ghcr.io/o/sigs (COSIGN_REPOSITORY)",
+        ]
+    );
+    assert_eq!(
+        oci_sign_plan_lines("off", None, reference, None, ""),
+        ["  sign: off"]
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn oci_live_push_signs_and_attests_the_pushed_digest() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let scratch = scratch_dir();
+    let (image, _) = oci_save(
+        scratch.path(),
+        "image.tar.gz",
+        &[oci_test_layer(false)],
+        "linux/amd64",
+    );
+    let log = scratch.path().join("cosign.log");
+    let cosign = scratch.path().join("cosign");
+    std::fs::write(
+        &cosign,
+        format!(
+            "#!/bin/sh\nif [ \"$1\" = version ]; then echo 'GitVersion:    v0.0.1'; exit 0; fi\n\
+             test -f \"$DOCKER_CONFIG/config.json\" || exit 3\necho \"$*\" >> '{}'\n",
+            log.display()
+        ),
+    )
+    .expect("stub");
+    std::fs::set_permissions(&cosign, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+    let sha256 = dx_digest::sha256_file_hex(&cosign).expect("hash");
+    let sbom = scratch.path().join("s.spdx.json");
+    std::fs::write(&sbom, "{}").expect("sbom");
+    let fake = FakeRegistry::start(FakeConfig::default());
+    let target = registry::RegistryRef {
+        endpoint: registry::Endpoint::for_test(&fake.origin),
+        name: "demo/app".to_owned(),
+    };
+    let live = scratch.path().join("live");
+    std::fs::create_dir_all(&live).expect("outdir");
+    let cosign_path = cosign.to_string_lossy().into_owned();
+    let code = oci_live_push_to(
+        &crate::http::upload_agent_with_proxy(None),
+        &target,
+        &image,
+        &live,
+        &OciPush {
+            registry: "registry.invalid",
+            repository: "demo/app",
+            tag: "1.2.3",
+            platform: "linux/amd64",
+            creds: registry::Credentials {
+                user: "me",
+                secret: FAKE_SECRET,
+            },
+            sign: Some(OciSign {
+                pin: CosignPin {
+                    path: &cosign_path,
+                    version: "v0.0.1",
+                    sha256: &sha256,
+                },
+                identity: &SignIdentity::Key,
+                sbom: Some(&sbom),
+            }),
+        },
+    );
+    assert_eq!(code, 0);
+    let digest = fake
+        .requests()
+        .last()
+        .expect("manifest")
+        .body_digest
+        .clone();
+    let reference = format!("registry.invalid/demo/app@{digest}");
+    let logged = std::fs::read_to_string(&log).expect("log");
+    assert_eq!(
+        logged.lines().collect::<Vec<_>>(),
+        [
+            format!("sign --key env://COSIGN_KEY --yes {reference}"),
+            format!(
+                "attest --key env://COSIGN_KEY --yes --type spdxjson --predicate {} {reference}",
+                sbom.display()
+            ),
+        ]
+    );
+    assert!(!live.join("cosign-docker-config").exists());
 }

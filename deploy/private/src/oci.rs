@@ -6,6 +6,9 @@ use crate::registry;
 use crate::run::{
     DeployRun, OwnerGate, deploy_build_mode, env_or_empty, placeholder_refusal, tree_bytes,
 };
+use crate::signing::{
+    CosignPin, SignIdentity, SignMode, image_steps, plan_identity, sign_image, write_docker_config,
+};
 use std::io::{self, Read, Write};
 use std::path::Path;
 
@@ -1045,6 +1048,96 @@ struct OciPush<'a> {
     tag: &'a str,
     platform: &'a str,
     creds: registry::Credentials<'a>,
+    sign: Option<OciSign<'a>>,
+}
+
+/// The pinned cosign, identity and SBOM that sign one pushed image.
+#[derive(Clone, Copy)]
+struct OciSign<'a> {
+    pin: CosignPin<'a>,
+    identity: &'a SignIdentity,
+    sbom: Option<&'a Path>,
+}
+
+/// Signs `registry/repository@digest` and attests the SBOM, with a throwaway registry login.
+fn oci_sign_pushed(
+    sign: &OciSign<'_>,
+    outdir: &Path,
+    push: &OciPush<'_>,
+    digest: &str,
+) -> Result<(), String> {
+    let reference = format!("{}/{}@{digest}", push.registry, push.repository);
+    let docker_config = outdir.join("cosign-docker-config");
+    let result = write_docker_config(
+        &docker_config,
+        push.registry,
+        push.creds.user,
+        push.creds.secret,
+    )
+    .and_then(|()| {
+        let sbom = sign.sbom.map(|path| path.to_string_lossy().into_owned());
+        sign_image(
+            &sign.pin,
+            sign.identity,
+            &reference,
+            sbom.as_deref(),
+            &docker_config,
+        )
+    });
+    let _ = std::fs::remove_dir_all(&docker_config);
+    result?;
+    println!(
+        "oci_deploy: signed {reference} ({})",
+        sign.identity.describe()
+    );
+    if sign.sbom.is_some() {
+        println!("oci_deploy: attested {reference} with the spdxjson SBOM");
+    }
+    Ok(())
+}
+
+/// Reads the manifest digest of the single image in a staged layout.
+fn oci_layout_manifest_digest(layout: &Path) -> Result<String, String> {
+    let bytes = std::fs::read(layout.join("index.json"))
+        .map_err(|error| format!("oci layout: cannot read index.json: {error}"))?;
+    let index: serde_json::Value = serde_json::from_slice(&bytes)
+        .map_err(|error| format!("oci layout: malformed index.json: {error}"))?;
+    index
+        .pointer("/manifests/0/digest")
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_owned)
+        .ok_or_else(|| "oci layout: index.json has no manifest digest".to_owned())
+}
+
+/// The dry-run lines naming the identity and the cosign commands a live run runs.
+fn oci_sign_plan_lines(
+    mode: &str,
+    identity: Option<&SignIdentity>,
+    reference: &str,
+    sbom: Option<&str>,
+    cosign_repository: &str,
+) -> Vec<String> {
+    if mode == "off" {
+        return vec!["  sign: off".to_owned()];
+    }
+    let shown = SignIdentity::Oidc {
+        repository: String::new(),
+    };
+    let mut lines = vec![match identity {
+        Some(identity) => format!("  sign: {}", identity.describe()),
+        None => format!("  sign: none ({mode}); a live run with an identity runs:"),
+    }];
+    for step in image_steps("cosign", identity.unwrap_or(&shown), reference, sbom) {
+        if step[1] == "sign" || step[1] == "attest" {
+            lines.push(format!("  {}", step.join(" ")));
+        }
+    }
+    if !cosign_repository.is_empty() {
+        lines.push(format!(
+            "  signatures: {cosign_repository} (COSIGN_REPOSITORY)"
+        ));
+    }
+    lines
 }
 
 fn oci_live_push(image: &Path, outdir: &Path, push: &OciPush<'_>) -> i32 {
@@ -1072,6 +1165,7 @@ fn oci_live_push_to(
         tag,
         platform,
         creds,
+        sign,
     } = *push;
     let pushed = oci_build_layout(image, outdir, registry, repository, tag, platform)
         .map_err(|error| error.to_string())
@@ -1083,10 +1177,17 @@ fn oci_live_push_to(
     match pushed {
         Ok((digest, config)) => {
             println!("oci_deploy: pushed {registry}/{repository}:{tag}@{digest} (config {config})");
-            println!(
-                "oci_deploy: signing-first: run cosign sign {registry}/{repository}@{digest} plus verify on the release trust root before updating scaffold refs"
-            );
-            0
+            let Some(sign) = sign else {
+                println!("oci_deploy: not signed");
+                return 0;
+            };
+            match oci_sign_pushed(&sign, outdir, push, &digest) {
+                Ok(()) => 0,
+                Err(error) => {
+                    eprintln!("oci_deploy: {error}");
+                    1
+                }
+            }
         }
         Err(error) => {
             eprintln!("oci_deploy: {error}");
@@ -1124,6 +1225,26 @@ pub fn oci_main(
     let Some(image) = run.resolve_anchored(image_rloc, "index.json") else {
         return 1;
     };
+    let signing = &checks.signing;
+    let Some(sign_mode) = SignMode::parse(&signing.mode) else {
+        eprintln!("oci_deploy: invalid sign '{}'", signing.mode);
+        return 1;
+    };
+    let live = OwnerGate::requested(env_or_empty);
+    let identity = match plan_identity(sign_mode, &env_or_empty) {
+        Ok(identity) => identity,
+        Err(error) if live => {
+            eprintln!("oci_deploy: {error}");
+            return 1;
+        }
+        Err(error) => {
+            println!("oci_deploy: {error}; a live run would fail");
+            None
+        }
+    };
+    let Some(sbom) = run.resolve_optional(&signing.sbom_rloc) else {
+        return 1;
+    };
     let bytes = match tree_bytes(&image) {
         Ok(bytes) => bytes,
         Err(error) => {
@@ -1131,7 +1252,7 @@ pub fn oci_main(
             return 1;
         }
     };
-    if OwnerGate::requested(env_or_empty) {
+    if live {
         if let Some(error) = placeholder_refusal("oci_deploy", tag) {
             eprintln!("{error}");
             return 1;
@@ -1157,6 +1278,25 @@ pub fn oci_main(
                 return 1;
             }
         }
+        let cosign = match &identity {
+            Some(_) => match run.resolve(&signing.cosign_rloc) {
+                Some(path) => Some(path.to_string_lossy().into_owned()),
+                None => return 1,
+            },
+            None => None,
+        };
+        let sign = identity
+            .as_ref()
+            .zip(cosign.as_deref())
+            .map(|(identity, path)| OciSign {
+                pin: CosignPin {
+                    path,
+                    version: &signing.cosign_version,
+                    sha256: &signing.cosign_sha256,
+                },
+                identity,
+                sbom: sbom.as_deref(),
+            });
         return oci_live_push(
             &image,
             outdir,
@@ -1169,6 +1309,7 @@ pub fn oci_main(
                     user: secrets.get("OCI_API_USER"),
                     secret: secrets.get("OCI_API_TOKEN"),
                 },
+                sign,
             },
         );
     }
@@ -1179,6 +1320,27 @@ pub fn oci_main(
             println!("  layout: {}", layout.display());
             println!("  index: {}", layout.join("index.json").display());
             println!("  size: {bytes} bytes");
+            match oci_layout_manifest_digest(&layout) {
+                Ok(digest) => {
+                    let sbom_name = sbom
+                        .as_deref()
+                        .and_then(Path::file_name)
+                        .map(|name| name.to_string_lossy().into_owned());
+                    for line in oci_sign_plan_lines(
+                        &signing.mode,
+                        identity.as_ref(),
+                        &format!("{registry}/{repository}@{digest}"),
+                        sbom_name.as_deref(),
+                        &env_or_empty("COSIGN_REPOSITORY"),
+                    ) {
+                        println!("{line}");
+                    }
+                }
+                Err(error) => {
+                    eprintln!("oci_deploy: {error}");
+                    return 1;
+                }
+            }
             scan_and_report(&layout, checks, run_trivy)
         }
         Err(error) => {

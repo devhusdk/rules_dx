@@ -3,6 +3,7 @@
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load(":license.bzl", "LICENSE_IDS", "unknown_ids")
 load(":repo.bzl", "ARCHIVE_TYPES", "hub_repo", "pinned_archive")
+load(":root_only.bzl", "warn_dropped_tags")
 load(":toolchain.bzl", "cell_archive_rule", "cell_repo", "host_archive_rule", "pins_hub")
 
 _FILE_BUILD = """package(default_visibility = ["//visibility:public"])
@@ -170,6 +171,7 @@ dx_source_archives = module_extension(
 
 def _dx_licenses_impl(mctx):
     ids = []
+    warn_dropped_tags("dx_licenses", mctx.modules, ["accept"])
     for mod in mctx.modules:
         if not mod.is_root:
             continue

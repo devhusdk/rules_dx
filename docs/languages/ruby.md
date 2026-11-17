@@ -175,7 +175,7 @@ needed) over `ruby_library`, `ruby_binary` and `ruby_test` sources. Select
 ## Coverage
 
 Ruby tests write LCOV under `bazel coverage` and `dx coverage` through
-SimpleCov. rules_dx brings pinned SimpleCov 0.22.0 and simplecov-lcov 0.9.0
+SimpleCov. rules_dx brings pinned SimpleCov 1.3.2 and simplecov-lcov 0.9.0
 and puts them on the load path only under coverage, so your `Gemfile` needs
 neither and `bazel test` never fetches them. A bundle that has its own
 `simplecov` wins: its SimpleCov then runs with the pinned simplecov-lcov.

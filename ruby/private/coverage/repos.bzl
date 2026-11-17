@@ -13,8 +13,6 @@ def _build_file(gems):
     for d in dirs:
         lines.append("        \"" + d + "/lib/**\",")
     lines += [
-        "        \"simplecov-html-*/public/**\",",
-        "        \"simplecov-html-*/views/**\",",
         "    ], allow_empty = True),",
         "    visibility = [\"//visibility:public\"],",
         ")",

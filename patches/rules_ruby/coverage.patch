@@ -38,3 +38,21 @@ diff -ruN a/ruby/private/coverage.rb b/ruby/private/coverage.rb
      require 'simplecov'
      require 'simplecov-lcov'
  
+@@ -30,13 +40,13 @@
+         root Dir.pwd
+       end
+ 
+-      add_filter '/external/'
+-      add_filter '/spec/'
+-      add_filter '/test/'
++      skip '/external/'
++      skip '/spec/'
++      skip '/test/'
+ 
+       if ENV['COVERAGE_FILTERS']
+         ENV['COVERAGE_FILTERS'].split(',').each do |filter|
+-          add_filter filter.strip
++          skip filter.strip
+         end
+       end
+     end

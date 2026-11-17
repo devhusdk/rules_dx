@@ -242,7 +242,7 @@ single_version_override(
 bazel_dep(name = "gazelle", version = "0.54.0")
 
 # floor: equals tested
-bazel_dep(name = "rules_shell", version = "0.8.0")
+bazel_dep(name = "rules_shell", version = "0.10.0")
 
 # floor: equals tested
 bazel_dep(name = "apple_support", version = "2.12.0")
@@ -427,8 +427,8 @@ terraform.lock(
 )
 use_repo(terraform, "dx_terraform_providers")
 
-# floor: equals tested; forced by rules_dart 0.8.1 MVS (#1783)
-bazel_dep(name = "bazel_lib", version = "3.7.2")
+# floor: equals tested
+bazel_dep(name = "bazel_lib", version = "3.8.0")
 
 dotnet = use_extension("//dotnet:extensions.bzl", "dotnet")
 dotnet.toolchain(
@@ -641,7 +641,7 @@ register_toolchains("@dx_powershell_toolchains//:all")
 register_toolchains("@dx_coreutils//:all")
 
 # needed: @rules_ruby (dx_pins extension) loads @bazel_features
-bazel_dep(name = "bazel_features", version = "1.55.0")
+bazel_dep(name = "bazel_features", version = "1.56.0")
 
 # Pinned SimpleCov gems Ruby tests load under `bazel coverage`; consumers need them.
 ruby_coverage = use_extension("//ruby:extensions.bzl", "ruby_coverage")

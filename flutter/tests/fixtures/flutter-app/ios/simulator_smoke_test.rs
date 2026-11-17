@@ -1,10 +1,11 @@
-//! Installs and launches the Flutter fixture app on a simulator this test creates.
+//! Installs and launches the Flutter fixture app on a simulator this test clones from the host template.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 
+use dx_apple_ops::simctl::device;
 use dx_apple_ops::xcode::{APPLICATIONS, XCRUN, developer_dir};
 
 fn env(name: &str) -> String {
@@ -25,12 +26,23 @@ struct Simulators {
 }
 
 impl Simulators {
+    fn host(&self, args: &[&str]) -> (bool, String) {
+        self.xcrun(None, args)
+    }
+
     fn simctl(&self, args: &[&str]) -> (bool, String) {
-        let output = Command::new(XCRUN)
+        self.xcrun(Some(&self.set), args)
+    }
+
+    fn xcrun(&self, set: Option<&Path>, args: &[&str]) -> (bool, String) {
+        let mut command = Command::new(XCRUN);
+        command
             .env("DEVELOPER_DIR", &self.developer_dir)
-            .arg("simctl")
-            .arg("--set")
-            .arg(&self.set)
+            .arg("simctl");
+        if let Some(set) = set {
+            command.arg("--set").arg(set);
+        }
+        let output = command
             .args(args)
             .output()
             .unwrap_or_else(|error| panic!("run {XCRUN}: {error}"));
@@ -107,8 +119,29 @@ fn bundle(app: &str, scratch: &Path) -> PathBuf {
         .unwrap_or_else(|| panic!("{app} holds no Payload/*.app"))
 }
 
+fn template(simulators: &Simulators, device_type: &str, runtime: &str, runtime_id: &str) -> String {
+    let name = format!("dx-template {device_type} iOS {runtime}");
+    let (ok, listing) = simulators.host(&["list", "devices"]);
+    assert!(ok, "simctl list devices failed: {listing}");
+    let found: Vec<&str> = listing
+        .lines()
+        .filter_map(device)
+        .filter(|(device_name, _)| *device_name == name.as_str())
+        .map(|(_, udid)| udid)
+        .collect();
+    match found.as_slice() {
+        [udid] => (*udid).to_owned(),
+        [] => panic!(
+            "no simulator named {name:?} on {runtime_id}; create it once with \
+             udid=$(xcrun simctl create {name:?} {device_type:?} {runtime_id}) && \
+             xcrun simctl bootstatus \"$udid\" -b && xcrun simctl shutdown \"$udid\""
+        ),
+        _ => panic!("more than one simulator is named {name:?} on {runtime_id}"),
+    }
+}
+
 #[test]
-fn the_app_launches_on_a_fresh_simulator() {
+fn the_app_launches_on_a_clone_of_the_template() {
     let start = Instant::now();
     let file = env("DX_IOS_SIMULATOR_FILE");
     let text =
@@ -133,12 +166,15 @@ fn the_app_launches_on_a_fresh_simulator() {
         runtime.replace('.', "-")
     );
     let device_type = env("DX_SIMCTL_DEVICE_TYPE");
-    let created = simulators.must(&["create", "dx-flutter-smoke", &device_type, &runtime_id]);
+    let template = template(&simulators, &device_type, &runtime, &runtime_id);
+    let set = simulators.set.to_string_lossy().into_owned();
+    let (ok, cloned) = simulators.host(&["clone", &template, "dx-flutter-smoke", &set]);
+    assert!(ok, "simctl clone {template} failed: {cloned}");
     let device = Device {
         simulators: &simulators,
-        udid: created.trim().to_owned(),
+        udid: cloned.trim().to_owned(),
     };
-    step(start, "create");
+    step(start, "clone");
     simulators.must(&["boot", &device.udid]);
     step(start, "boot");
     let deadline = Instant::now() + Duration::from_secs(40);

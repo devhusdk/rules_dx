@@ -561,6 +561,8 @@ for /f "usebackq delims=" %%L in ("%DX_MODULE%") do (
   call :dxdep
 )
 if not "%DX_N%"=="1" goto bazel
+rem `set VERSION` complains on stderr when VERSION is undefined.
+if not defined VERSION goto bazel
 set VERSION | findstr /r /x "VERSION=[0-9A-Za-z+-][0-9A-Za-z.+-]*" >nul
 if errorlevel 1 goto bazel
 set "DX_CACHE=%USERPROFILE%\.cache\dx"

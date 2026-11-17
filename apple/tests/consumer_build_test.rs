@@ -38,6 +38,27 @@ fn module_body(module: &str) -> String {
         .collect()
 }
 
+/// The module lines that point `@bazel_tools//tools/cpp:host_xcodes` at apple_support's
+/// `local_config_xcode`.
+fn host_xcodes_override(apple_support: &str) -> String {
+    let version = apple_support
+        .lines()
+        .find_map(|line| {
+            line.trim()
+                .strip_prefix("version = \"")?
+                .strip_suffix("\",")
+                .map(str::to_owned)
+        })
+        .unwrap_or_else(|| panic!("no version in the apple_support override:\n{apple_support}"));
+    format!(
+        "bazel_dep(name = \"apple_support\", version = \"{version}\")\n\
+         apple_xcode = use_extension(\"@apple_support//xcode:xcode_configure.bzl\", \"xcode_configure_extension\")\n\
+         use_repo(apple_xcode, apple_local_config_xcode = \"local_config_xcode\")\n\
+         bazel_xcode = use_extension(\"@bazel_tools//tools/osx:xcode_configure.bzl\", \"xcode_configure_extension\")\n\
+         override_repo(bazel_xcode, local_config_xcode = \"apple_local_config_xcode\")\n"
+    )
+}
+
 #[test]
 fn one_macro_call_builds_each_app_with_no_flag() {
     let files = fixture();
@@ -61,10 +82,12 @@ fn one_macro_call_builds_each_app_with_no_flag() {
         ("apple_support", &["toolchains_gate.patch"][..]),
         ("rules_swift", &[][..]),
     ] {
-        root_overrides.push_str(
-            &write_root_patch_override(case.root(), &source, module, skip)
-                .unwrap_or_else(|error| panic!("{error}")),
-        );
+        let block = write_root_patch_override(case.root(), &source, module, skip)
+            .unwrap_or_else(|error| panic!("{error}"));
+        if module == "apple_support" {
+            root_overrides.push_str(&host_xcodes_override(&block));
+        }
+        root_overrides.push_str(&block);
     }
     let composed = dx_testing::read_text(&case.root().join("MODULE.bazel"));
     case.write("MODULE.bazel", &format!("{composed}{root_overrides}"));
@@ -85,7 +108,7 @@ fn one_macro_call_builds_each_app_with_no_flag() {
         let xcodes = case.bazel(&[
             "query",
             "--output=build",
-            "@@apple_support++xcode_configure_extension+local_config_xcode//:all",
+            "@bazel_tools//tools/cpp:host_xcodes",
         ]);
         panic!(
             "{}\nlocal_config_xcode:\n{}",

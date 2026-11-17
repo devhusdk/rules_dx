@@ -196,7 +196,9 @@ fn render_editor_recommendations(extensions: &BTreeSet<String>, tools: &EditorTo
     format!("{}\n", serde_json::json!({ "recommendations": ids }))
 }
 
-const DX_UPDATE_WORKFLOW: &str = include_str!("../../../.github/workflows/dx-update.yml");
+// Not this repo's .github/workflows/dx-update.yml: that one runs on BuildBuddy
+// remote execution through ./.github/actions, which a consumer repo does not have.
+const DX_UPDATE_WORKFLOW: &str = include_str!("../templates/dx-update.yml");
 
 #[must_use]
 pub fn render_consumer_module_setup() -> String {

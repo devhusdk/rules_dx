@@ -1,7 +1,11 @@
-# gazelle:ignore
-load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//swift:defs.bzl", "swift_binary", "swift_library", "swift_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+
+# The dirty fixtures stay in their own manual targets; gazelle would merge them
+# into the clean library.
+# gazelle:exclude LintDirty.swift
+# gazelle:exclude FormatDirty.swift
 
 package(
     default_testonly = True,
@@ -10,10 +14,12 @@ package(
 
 swift_library(
     name = "conformance",
+    testonly = True,
     srcs = ["Greet.swift"],
     module_name = "Conformance",
 )
 
+# keep
 swift_library(
     name = "lint_dirty",
     testonly = True,
@@ -22,6 +28,7 @@ swift_library(
     tags = ["manual"],
 )
 
+# keep
 swift_library(
     name = "format_dirty",
     testonly = True,
@@ -79,8 +86,8 @@ dx_conformance_suite(
         "binary": ":lock_hello",
         "ecosystem": "swift",
         "expected": "hello lock",
-        "lockfile": "//swift/tests/fixtures/swift-app:Package.resolved",
-        "manifest": "//swift/tests/fixtures/swift-app:Package.swift",
+        "lockfile": "//swift/tests/fixtures/swift_app:Package.resolved",
+        "manifest": "//swift/tests/fixtures/swift_app:Package.swift",
         "package": "swift-argument-parser",
         "stale": "Package.stale.resolved",
     },

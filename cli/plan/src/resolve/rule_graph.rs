@@ -67,26 +67,34 @@ fn has_tag(rule: &Value, wanted: &str) -> bool {
         })
 }
 
-fn package_of(label: &str) -> &str {
-    label.split_once(':').map_or(label, |(package, _)| package)
-}
-
 fn is_pattern(scope: &str) -> bool {
     scope.ends_with("/...") || scope.ends_with(":all") || scope.ends_with(":*")
 }
 
+/// Whether `label` is `scope` or falls under the pattern `scope` (`//p/...`, `//p:all`, `//p:*`).
 fn matches_scope(scope: &str, label: &str) -> bool {
-    if let Some(root) = scope.strip_suffix("/...") {
-        let package = package_of(label);
-        return package == root || package.starts_with(&format!("{root}/"));
+    if scope == label {
+        return true;
     }
-    if let Some(package) = scope
-        .strip_suffix(":all")
-        .or_else(|| scope.strip_suffix(":*"))
+    let (Some(pattern), Some(rule)) = (Label::parse(scope), Label::parse(label)) else {
+        return false;
+    };
+    if pattern.relative || rule.relative || pattern.repo != rule.repo {
+        return false;
+    }
+    if pattern.package == "..." && pattern.name == "..." {
+        return true;
+    }
+    if let Some(root) = pattern.package.strip_suffix("/...")
+        && pattern.name == "..."
     {
-        return package_of(label) == package;
+        return rule.package == root
+            || rule
+                .package
+                .strip_prefix(root)
+                .is_some_and(|tail| tail.starts_with('/'));
     }
-    scope == label
+    matches!(pattern.name, "all" | "*") && pattern.package == rule.package
 }
 
 impl RuleGraph {
@@ -444,6 +452,37 @@ mod tests {
             argv: RefCell::new(Vec::new()),
         };
         RuleGraph::load(Path::new("/w"), &answer, &[]).expect("graph")
+    }
+
+    #[test]
+    fn scopes_match_by_repo_package_and_name() {
+        for (scope, label) in [
+            ("//p:n", "//p:n"),
+            ("//...", "//p/q:n"),
+            ("//...", "//:n"),
+            ("//p/...", "//p:n"),
+            ("//p/...", "//p/q:n"),
+            ("//p:all", "//p:n"),
+            ("//p:*", "//p:n"),
+            ("@@r+//...", "@@r+//p:n"),
+            ("@@r+//p:all", "@@r+//p:n"),
+            ("@r//p/...", "@r//p/q:n"),
+        ] {
+            assert!(matches_scope(scope, label), "{scope} {label}");
+        }
+        for (scope, label) in [
+            ("//p:n", "//p:m"),
+            ("//...", "@@r+//p:n"),
+            ("@@r+//...", "//p:n"),
+            ("@r//...", "@@r+//p:n"),
+            ("//p/...", "//pq:n"),
+            ("//p:all", "//p/q:n"),
+            ("//p:all", "@@r+//p:n"),
+            (":all", "//p:n"),
+            ("//p/...:x", "//p:x"),
+        ] {
+            assert!(!matches_scope(scope, label), "{scope} {label}");
+        }
     }
 
     #[test]

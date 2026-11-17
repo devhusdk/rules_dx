@@ -1,60 +1,112 @@
 # `dx fuzz`
 
-Runs the fuzz targets in scope for a time budget and keeps their crashes under `.dx/local/fuzz`.
+Use `dx fuzz` to run your fuzz targets for a set time and keep every crash they find.
+
+A fuzz target feeds random input to your code to find crashes. In Bazel, a target is one thing Bazel builds, and a label names it, such as `//pkg:parser`: the package directory `pkg`, then the target name `parser`.
+
+## Examples
+
+Fuzz one target for the default 60 seconds:
 
 ```sh
 dx fuzz //pkg:parser
+```
+
+Fuzz every target under `pkg/` for five minutes each:
+
+```sh
 dx fuzz --budget 5m //pkg/...
+```
+
+Fuzz every target in the repository for 90 seconds each, with 4 jobs per runner:
+
+```sh
 dx fuzz --budget 90s --jobs 4
 ```
+
+Replay a crash dx found:
+
+```sh
+dx run //pkg:parser_run -- --repro .dx/local/fuzz/pkg/parser/crash-<hash>
+```
+
+## Usage
 
 ```text
 dx fuzz [--output json] [--here] [--budget <duration>] [--jobs <n>] [scope ...]
 ```
 
-A fuzz target is a rule tagged `dx-fuzz` with a runner named `<name>_run` next to it. Targets without the tag are skipped. Targets run one after another.
-
-Every `<lang>_fuzz_test` macro has the same shape. `<name>` is the `dx-fuzz` target dx runs, the program is a private `<name>_bin`, and `<name>_run` is the runner. `args` and `target_compatible_with` go to `<name>`; `go_fuzz_test` also takes `size`, `timeout`, `env`, `data`, `flaky` and `shard_count` there. The other attributes go to `<name>_bin`. `tags` are merged with `dx-fuzz`.
-
-Go: `go_fuzz_test(name, target = "FuzzParse", srcs = ..., ...)` from `//go:defs.bzl` declares the test, tags it and adds the `<name>_run` runner.
-
-D: `d_fuzz_test(name, srcs)` from `//d:defs.bzl` builds with LDC's `-fsanitize=fuzzer,address` and the pinned LLVM's libFuzzer. `srcs` define `LLVMFuzzerTestOneInput`, for example through `ldc.libfuzzer`.
-
-Python: `python_fuzz_test(name, srcs, main, deps = ["@pypi//atheris"])` from `//python:defs.bzl` declares a binary that calls `atheris.Setup` and `atheris.Fuzz`, tags it and adds the `<name>_run` runner. Linux x86_64 only: there is no atheris wheel for Windows.
-
-JavaScript and TypeScript: `javascript_fuzz_test(name, srcs, node_modules)` from `//javascript:defs.bzl` and `typescript_fuzz_test` from `//typescript:defs.bzl` run the `fuzz(data)` function that the first source (or `main`) exports with [Jazzer.js](https://github.com/CodeIntelligenceTesting/jazzer.js), tag it and add the `<name>_run` runner. List `@jazzer.js/core` in `package.json` so `node_modules` links it. pnpm needs `packageExtensions` that add `@babel/core` and `@babel/types` to `@jazzer.js/bug-detectors` and `@babel/types` to `@jazzer.js/instrumentor`, which use them without declaring them. Jazzer.js ships native add-ons for Linux, macOS arm64 and x64, and Windows x64.
-
-Rust: `rust_fuzz_test(name, srcs, libfuzzer_sys = ..., crate_root = ...)` from `//rust:defs.bzl` builds a `libfuzzer-sys` binary with sancov and AddressSanitizer using `RUSTC_BOOTSTRAP=1` and the pinned LLVM's libFuzzer, tags it and adds the `<name>_run` runner. The source is `#![no_main]` and calls `fuzz_target!`. `libfuzzer_sys = "@<your_hub>//:libfuzzer-sys"` names the `libfuzzer-sys` crate in your own hub, which also lets you use `arbitrary`. Linux x86_64 only.
-
-C#: `csharp_fuzz_test(name, srcs, deps)` from `//csharp:defs.bzl` declares a harness binary that calls `Fuzzer.LibFuzzer.Run` from SharpFuzz, tags it and adds the `<name>_run` runner. The macro instruments each library in `deps` with SharpFuzz.CommandLine at build time; NuGet packages stay uninstrumented. `<name>` is the harness, and the runner starts it from the libfuzzer-dotnet driver that rules_dx builds from a pinned source archive. Linux only.
-
-OCaml: `ocaml_fuzz_test(name, main, deps)` from `//ocaml:defs.bzl` runs Crowbar in quickcheck mode, tags it and adds the `<name>_run` runner. The runner repeats `-s <seed> -r 500` with fresh seeds until `--time` is up and writes a failing seed to `crash-<hash>`; `--repro` replays it.
-
-F#: `fsharp_fuzz_test(name, srcs, deps)` from `//fsharp:defs.bzl` works like `csharp_fuzz_test` with an F# harness. Linux only.
-
-Java, Kotlin and Scala: `java_fuzz_test`, `kotlin_fuzz_test` and `scala_fuzz_test` from `//java:defs.bzl`, `//kotlin:defs.bzl` and `//scala:defs.bzl` build a Jazzer binary, tag it and add the `<name>_run` runner. Pass `target_class`, a class with a static `fuzzerTestOneInput(byte[])`: a Kotlin `object` method marked `@JvmStatic`, or a top-level Scala `object` method. Linux runs are tested; Jazzer comes from rules_dx's pinned Maven artifacts.
-
-Zig and Haskell have no fuzz macro.
+## Flags
 
 | Flag | What it does |
 | --- | --- |
-| `--budget <duration>` | Time budget per target: `90`, `90s`, `5m` or `1h`. Default: `60s`. |
-| `--jobs <n>` | Jobs each runner may use. Passed to the runner as `--jobs <n>`. |
-| `--output json` | Write NDJSON events on stdout instead of text. |
+| `--budget <duration>` | Time budget per target, such as `90`, `90s`, `5m` or `1h`. A bare number is seconds. Default `60s`. |
+| `--jobs <n>` | Jobs each fuzz runner may use. |
 | `--here` | Run on the current directory tree. |
-| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--build-slots-wait`, `--bazel-startup-option` | Global flags. |
+| `-o, --output text\|json` | Choose the output format. Default `text`. |
+| `--workspace <dir>` | Run in this workspace. |
+| `-q, --quiet` | Hide summaries. |
+| `-v, --verbose` | Show more logs. |
+| `--color auto\|always\|never` | Set color output. |
+| `--build-slots auto\|<n>\|off` | Set build slots. |
+| `--build-slots-wait <duration>` | Give up waiting for a build slot after this long. `0` fails at once. |
+| `--bazel-startup-option <token>` | Pass one Bazel startup option. Repeatable. |
 
-Scopes: labels, patterns, files, or dirs. With no scope, dx fuzz runs `//...`.
+## Scopes
 
-## Runner contract
+Pass labels, patterns such as `//pkg/...`, or workspace-relative files or directories. With no scope, `dx fuzz` runs `//...`, the whole repository. `--here` runs the current directory tree instead.
 
-For each target dx runs:
+Only targets tagged `dx-fuzz` run. Targets under `[scope] exclude` in `dx.toml` are skipped. Targets run one after another.
+
+## Declare a fuzz target
+
+Declare fuzz targets in a `BUILD` file, the file in each package directory that lists its targets. Every `<lang>_fuzz_test` macro has the same shape:
+
+- `<name>` is the `dx-fuzz` target dx runs.
+- `<name>_bin` is the private program.
+- `<name>_run` is the runner dx calls.
+
+`args` and `target_compatible_with` go to `<name>`. `go_fuzz_test` also passes `size`, `timeout`, `env`, `data`, `flaky` and `shard_count` to `<name>`. Other attributes go to `<name>_bin`. Your `tags` are merged with `dx-fuzz`.
+
+| Language | Macro | Load from | Notes |
+| --- | --- | --- | --- |
+| Go | `go_fuzz_test(name, target = "FuzzParse", srcs = ...)` | `@rules_dx//go:defs.bzl` | `target` is the fuzz function. |
+| C and C++ | `cc_fuzz_test(name, srcs)` | `@rules_dx//cc:defs.bzl` | A libFuzzer binary with AddressSanitizer. `srcs` define `LLVMFuzzerTestOneInput`. |
+| D | `d_fuzz_test(name, srcs)` | `@rules_dx//d:defs.bzl` | Builds with LDC's `-fsanitize=fuzzer,address` and the pinned LLVM's libFuzzer. `srcs` define `LLVMFuzzerTestOneInput`, for example through `ldc.libfuzzer`. |
+| Rust | `rust_fuzz_test(name, srcs, libfuzzer_sys = ..., crate_root = ...)` | `@rules_dx//rust:defs.bzl` | A `libfuzzer-sys` binary with AddressSanitizer. The source is `#![no_main]` and calls `fuzz_target!`. `libfuzzer_sys = "@<your_hub>//:libfuzzer-sys"` names the crate in your own crate hub, which also lets you use `arbitrary`. Linux x86_64 only. |
+| Python | `python_fuzz_test(name, srcs, main, deps = ["@pypi//atheris"])` | `@rules_dx//python:defs.bzl` | A binary that calls `atheris.Setup` and `atheris.Fuzz`. Linux x86_64 only. |
+| JavaScript | `javascript_fuzz_test(name, srcs, node_modules)` | `@rules_dx//javascript:defs.bzl` | Runs the `fuzz(data)` function the first source, or `main`, exports with [Jazzer.js](https://github.com/CodeIntelligenceTesting/jazzer.js). |
+| TypeScript | `typescript_fuzz_test(name, srcs, node_modules)` | `@rules_dx//typescript:defs.bzl` | Same as JavaScript. |
+| C# | `csharp_fuzz_test(name, srcs, deps)` | `@rules_dx//csharp:defs.bzl` | A harness that calls `Fuzzer.LibFuzzer.Run` from SharpFuzz. Each library in `deps` is instrumented at build time. NuGet packages are not. Linux only. |
+| F# | `fsharp_fuzz_test(name, srcs, deps)` | `@rules_dx//fsharp:defs.bzl` | Same as C# with an F# harness. Linux only. |
+| OCaml | `ocaml_fuzz_test(name, main, deps)` | `@rules_dx//ocaml:defs.bzl` | Runs Crowbar with fresh seeds until the budget is up. |
+| Java | `java_fuzz_test(name, srcs, target_class)` | `@rules_dx//java:defs.bzl` | A Jazzer binary. `target_class` has a static `fuzzerTestOneInput(byte[])`. |
+| Kotlin | `kotlin_fuzz_test(name, srcs, target_class)` | `@rules_dx//kotlin:defs.bzl` | Same as Java. The method is on an `object` and marked `@JvmStatic`. |
+| Scala | `scala_fuzz_test(name, srcs, target_class)` | `@rules_dx//scala:defs.bzl` | Same as Java. The method is on a top-level `object`. |
+
+Zig and Haskell have no fuzz macro.
+
+For Jazzer.js, list `@jazzer.js/core` in `package.json` so `node_modules` links it. With pnpm, add `packageExtensions` that give `@jazzer.js/bug-detectors` the deps `@babel/core` and `@babel/types`, and give `@jazzer.js/instrumentor` the dep `@babel/types`. Jazzer.js runs on Linux, macOS arm64 and x64, and Windows x64.
+
+## Write your own runner
+
+Any target tagged `dx-fuzz` with a runner named `<name>_run` next to it works. For each target, dx runs:
 
 ```sh
 bazel run //pkg:parser_run -- --time <seconds> --out .dx/local/fuzz/pkg/parser/
 ```
 
-The runner resolves `--out` against `BUILD_WORKSPACE_DIRECTORY` and writes crash files named `crash-<hash>` there. It also accepts `--repro <file>` to replay one crash.
+With `--jobs <n>`, dx also passes the jobs count to the runner:
+
+```sh
+bazel run //pkg:parser_run -- --time <seconds> --out .dx/local/fuzz/pkg/parser/ --jobs <n>
+```
+
+The runner resolves the output directory against `BUILD_WORKSPACE_DIRECTORY` and writes each crash there as `crash-<hash>`. It must also replay one crash file:
+
+```sh
+bazel run //pkg:parser_run -- --repro <file>
+```
 
 | Runner exit | Meaning |
 | --- | --- |
@@ -64,15 +116,17 @@ The runner resolves `--out` against `BUILD_WORKSPACE_DIRECTORY` and writes crash
 
 ## Output
 
-A crash prints one line on stderr:
+Text prints `Fuzzing <label> for <n>s` on stderr before each target. `--quiet` hides it. A crash prints one line on stderr:
 
 ```text
 dx: //pkg:parser crashed; reproduce with: dx run //pkg:parser_run -- --repro .dx/local/fuzz/pkg/parser/crash-<hash>
 ```
 
-`/.dx/local/` is in the `.gitignore` that `dx init` writes.
+A runner error prints `dx: fuzz_failed: <runner> exited <code>`. No `dx-fuzz` target in scope prints `dx: no dx-fuzz targets in scope`.
 
-With `--output json` dx writes `command_started`, one `notice` with code `fuzz_crash` per crash, and `command_finished`. The notice carries `target`, `runner`, `crash_path` and `repro`, the argv that replays the crash.
+Crash files stay under `.dx/local/fuzz/<package>/<name>/`. The `.gitignore` that `dx init` writes ignores `/.dx/local/`.
+
+With `--output json`, dx writes `command_started`, one `notice` with code `fuzz_crash` per crash, and `command_finished`. The notice has `target`, `runner`, `crash_path`, and `repro`, the command that replays the crash.
 
 Reports: none.
 
@@ -80,8 +134,10 @@ Reports: none.
 
 | Code | Meaning |
 | --- | --- |
-| `0` | No target crashed. Also when no target in scope carries `dx-fuzz`. |
+| `0` | No target crashed, or no target in scope is tagged `dx-fuzz`. |
 | `1` | A target crashed. |
-| Runner's code | The fuzz runner exited nonzero without a crash, or Bazel failed. |
-| `128`+N | A signal stopped the runner or dx. |
-| `2` | Usage error. |
+| `2` | Usage or scope error, such as a bad `--budget`. |
+| The runner's code | The runner exited nonzero without a crash, or Bazel failed. |
+| `128`+N | Signal N stopped a runner or dx. |
+
+dx runs every target and exits with the code of the first one that failed.

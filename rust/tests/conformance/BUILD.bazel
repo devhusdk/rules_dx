@@ -1,5 +1,4 @@
-# gazelle:ignore
-load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 
@@ -50,22 +49,22 @@ rust_binary(
 
 rust_test(
     name = "pass_subject_test",
+    size = "small",
     srcs = ["pass_test.rs"],
     crate_name = "pass_subject_test",
     crate_root = "pass_test.rs",
     edition = "2024",
-    size = "small",
     target_compatible_with = subject_compatible_with(),
     deps = [":conformance"],
 )
 
 rust_test(
     name = "fail_subject_test",
+    size = "small",
     srcs = ["fail_test.rs"],
     crate_name = "fail_subject_test",
     crate_root = "fail_test.rs",
     edition = "2024",
-    size = "small",
     target_compatible_with = subject_compatible_with(),
     deps = [":conformance"],
 )
@@ -99,11 +98,6 @@ dx_conformance_suite(
         "stale": "Cargo.stale.lock",
     },
     passing_test = ":pass_subject_test",
-    runfiles = {
-        "binary": ":runfiles_hello",
-        "data": "data.txt",
-        "expected": "hello runfiles",
-    },
     quality = {
         "clean": ":conformance",
         "format_dirty": ":format_dirty",
@@ -112,6 +106,11 @@ dx_conformance_suite(
         "lint_line": 5,
         "lint_rule": "clippy::len_zero",
         "lint_source": "lint_dirty.rs",
+    },
+    runfiles = {
+        "binary": ":runfiles_hello",
+        "data": "data.txt",
+        "expected": "hello runfiles",
     },
 )
 

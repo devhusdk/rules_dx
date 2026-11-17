@@ -155,13 +155,21 @@ pub fn unlocked_manifests(root: &Path) -> Result<Vec<&'static str>, AdoptError> 
         out.push(manifest_of("npm")?);
     }
     for ecosystem in RESOLVER_LOCKS {
-        if root_match(root, manifest_of(ecosystem)?).is_some()
+        if let Some(manifest) = root_match(root, manifest_of(ecosystem)?)
             && root_match(root, lock_of(ecosystem)?).is_none()
+            && (ecosystem != "pub" || pubspec_declares_dependency(&root.join(manifest)))
         {
             out.push(manifest_of(ecosystem)?);
         }
     }
     Ok(out)
+}
+
+/// True when the pubspec at `path` lists a package; one that cannot be parsed counts, so the resolver reports it.
+///
+/// A Dart package often has a pubspec only for its name. Like an npm manifest with no dependency, it gets no lock and no hub.
+fn pubspec_declares_dependency(path: &Path) -> bool {
+    !dx_depcheck::parse_dart_manifest(path).is_ok_and(|deps| deps.is_empty())
 }
 
 /// The ecosystems whose lock comes from the pinned resolver of their `setup.hubs` entry.
@@ -1065,13 +1073,44 @@ mod tests {
 
     #[test]
     fn a_pubspec_without_its_lock_is_unlocked() {
+        let manifest = "name: app\ndependencies:\n  path: ^1.9.0\n";
         assert_eq!(
-            unlocked(&[(t("{pub:manifest}"), "name: app\n")]),
+            unlocked(&[(t("{pub:manifest}"), manifest)]),
             [t("{pub:manifest}")]
         );
         assert_eq!(
-            unlocked(&[(t("{pub:manifest}"), "name: app\n"), (t("{pub:lock}"), "")]),
+            unlocked(&[(
+                t("{pub:manifest}"),
+                "name: app\ndev_dependencies:\n  test: ^1.25.0\n"
+            )]),
+            [t("{pub:manifest}")]
+        );
+        assert_eq!(
+            unlocked(&[(t("{pub:manifest}"), manifest), (t("{pub:lock}"), "")]),
             [] as [&str; 0]
+        );
+    }
+
+    #[test]
+    fn a_pubspec_with_no_package_needs_no_lock() {
+        for manifest in [
+            "name: app\n",
+            "name: app\ndependencies:\n",
+            "name: app\ndependencies: {}\n",
+        ] {
+            assert_eq!(
+                unlocked(&[(t("{pub:manifest}"), manifest)]),
+                [] as [&str; 0],
+                "{manifest}"
+            );
+        }
+    }
+
+    #[test]
+    fn an_unparsable_pubspec_is_unlocked_so_the_resolver_reports_it() {
+        assert_eq!(
+            unlocked(&[(t("{pub:manifest}"), "dependencies: [\n")]),
+            [t("{pub:manifest}")]
         );
     }
 

@@ -228,9 +228,15 @@ pub fn run_output(argv: &[String]) -> Result<dx_process::capture::Captured, Stri
     let (binary, args) = argv
         .split_first()
         .ok_or_else(|| "invocation needs a binary".to_owned())?;
+    dx_process::capture::run_captured(inherited_command(binary).args(args), SIGN_TIMEOUT)
+        .map_err(|error| error.to_string())
+}
+
+/// A child with the inherited environment, minus this tool's own deploy config.
+fn inherited_command(binary: &str) -> std::process::Command {
     let mut command = std::process::Command::new(binary);
-    command.args(args);
-    dx_process::capture::run_captured(&mut command, SIGN_TIMEOUT).map_err(|error| error.to_string())
+    command.env_remove(crate::config::DEPLOY_CONFIG_ENV);
+    command
 }
 
 /// Checks the cosign binary against its pinned sha256 and version.
@@ -527,6 +533,16 @@ pub fn sign_image(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn inherited_children_do_not_see_the_deploy_config() {
+        let command = inherited_command("cosign");
+        let envs: Vec<_> = command.get_envs().collect();
+        assert_eq!(
+            envs,
+            [(std::ffi::OsStr::new(crate::config::DEPLOY_CONFIG_ENV), None)]
+        );
+    }
 
     fn env_of<'a>(pairs: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> String + 'a {
         move |name| {

@@ -1,4 +1,5 @@
 # gazelle:ignore
+# Why: gazelle adds plain javascript_test targets for pass/fail tests the suite runs itself.
 load("//mdx:defs.bzl", "mdx_library", "mdx_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "dx_coverage_test", "subject_compatible_with")
 

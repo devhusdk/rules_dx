@@ -1,6 +1,10 @@
-# gazelle:ignore
-load("//flatbuffers:defs.bzl", "flatbuffers_library")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//flatbuffers:defs.bzl", "flatbuffers_cc_library", "flatbuffers_java_library", "flatbuffers_library", "flatbuffers_rust_library")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
+
+# The dirty fixtures stay in their own manual targets; gazelle would merge them
+# into the clean library.
+# gazelle:exclude lint_dirty.fbs
 
 package(
     default_testonly = True,
@@ -9,9 +13,11 @@ package(
 
 flatbuffers_library(
     name = "conformance",
+    testonly = True,
     srcs = ["clean.fbs"],
 )
 
+# keep
 flatbuffers_library(
     name = "lint_dirty",
     srcs = ["lint_dirty.fbs"],
@@ -46,4 +52,32 @@ dx_conformance_suite(
         "lint_rule": "error",
         "lint_source": "lint_dirty.fbs",
     },
+)
+
+flatbuffers_cc_library(
+    name = "conformance_cc",
+    testonly = True,
+    visibility = ["//visibility:public"],
+    deps = [":conformance"],
+)
+
+flatbuffers_java_library(
+    name = "conformance_java",
+    testonly = True,
+    visibility = ["//visibility:public"],
+    deps = [":conformance"],
+)
+
+flatbuffers_rust_library(
+    name = "conformance_rust",
+    testonly = True,
+    library = ":conformance",
+    visibility = ["//visibility:public"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

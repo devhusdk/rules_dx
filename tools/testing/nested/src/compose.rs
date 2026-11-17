@@ -126,12 +126,13 @@ pub fn windows_support_override() -> String {
 }
 
 /// The patches of `//patches/rules_flutter` that `rules_flutter_override` names, without `.patch`.
-pub const RULES_FLUTTER_PATCHES: [&str; 5] = [
+pub const RULES_FLUTTER_PATCHES: [&str; 6] = [
     "lock_extension",
     "registrant_javacopts",
     "required_checksums",
     "flutter_3_47_9",
     "ios_target_compatible_with",
+    "coverage_enabled",
 ];
 
 /// The `flutter/pins.json` that holds the `rules_flutter` pin.

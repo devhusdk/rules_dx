@@ -387,15 +387,12 @@ pub enum DeployConfig {
     Octopus(OctopusConfig),
 }
 
-/// Reads the deploy config named by `DX_DEPLOY_CONFIG`, then clears the variable.
+/// Reads the deploy config named by `DX_DEPLOY_CONFIG`.
 ///
-/// Clearing it keeps child processes from inheriting it.
-#[expect(unsafe_code, reason = "remove_var is unsafe in edition 2024")]
+/// Children never see the variable: publishers run with a scrubbed
+/// environment (`scrubbed_command`) and `signing::run_output` removes it.
 pub fn load_deploy_config<T: DeserializeOwned>() -> Result<T, String> {
-    let raw = std::env::var_os(DEPLOY_CONFIG_ENV);
-    // SAFETY: the process is single-threaded here or the env lock is held.
-    unsafe { std::env::remove_var(DEPLOY_CONFIG_ENV) };
-    load_deploy_config_from(raw, &crate::resolve_runfile)
+    load_deploy_config_from(std::env::var_os(DEPLOY_CONFIG_ENV), &crate::resolve_runfile)
 }
 
 /// Reads one deploy config from an absolute path or a runfiles rlocation.
@@ -1084,7 +1081,7 @@ mod tests {
     }
 
     #[test]
-    fn loading_clears_the_variable() {
+    fn loading_reads_the_variable() {
         let dir = scratch_dir();
         let path = dir.path().join("demo.deploy.json");
         std::fs::write(
@@ -1096,13 +1093,11 @@ mod tests {
         with_env(&[(DEPLOY_CONFIG_ENV, Some(text.as_str()))], || {
             let config = load_deploy_config::<DeployConfig>();
             assert!(matches!(config, Ok(DeployConfig::Github(_))), "{config:?}");
-            assert_eq!(std::env::var_os(DEPLOY_CONFIG_ENV), None);
         });
         with_env(
             &[(DEPLOY_CONFIG_ENV, Some("/dx-absent/demo.deploy.json"))],
             || {
                 assert!(load_deploy_config::<DeployConfig>().is_err());
-                assert_eq!(std::env::var_os(DEPLOY_CONFIG_ENV), None);
             },
         );
     }

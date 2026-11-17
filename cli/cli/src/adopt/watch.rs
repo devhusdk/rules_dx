@@ -1,6 +1,6 @@
 use crate::exec::{ActionTally, print_actions};
 use std::cell::RefCell;
-use std::io::{IsTerminal, Write};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
@@ -263,16 +263,18 @@ fn run_iteration(
     Ok(code)
 }
 
+/// Prints the round header; from round 2 on it clears the screen first when `clear_screen`.
 fn announce_round(
     progress: Progress,
+    clear_screen: bool,
     round: u32,
     header: &str,
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> Result<Instant, i32> {
     if round > 1 {
-        if std::io::stdout().is_terminal() && progress != Progress::Silent {
-            write!(out, "\x1b[2J\x1b[H").ok();
+        if clear_screen {
+            write!(out, "{CLEAR_SCREEN}").ok();
         }
         progress.say(&mut *out, &mut *err, SEPARATOR)?;
     }
@@ -365,6 +367,7 @@ fn watch(
         wait: &wait,
         stop,
     };
+    let clear_screen = progress != Progress::Silent && dx_output::stdout_is_terminal();
     let mut round = 0u32;
     loop {
         if let Some(signo) = stop() {
@@ -373,6 +376,7 @@ fn watch(
         round += 1;
         let started = match announce_round(
             progress,
+            clear_screen,
             round,
             &format!("{plan} scope={scope} iteration={round}"),
             &mut *out,
@@ -452,6 +456,8 @@ fn scope_label(iteration: &Invocation) -> String {
 }
 
 const SEPARATOR: &str = "----------------------------------------";
+/// Erases the terminal and moves the cursor home.
+const CLEAR_SCREEN: &str = "\x1b[2J\x1b[H";
 
 fn verdict_line(round: u32, code: i32, elapsed: Duration, first: bool) -> String {
     let verdict = if code == 0 {
@@ -489,6 +495,29 @@ mod tests {
             verdict_line(3, 1, took, false),
             "iteration 3: failed (exit 1) in 4.2s; watching"
         );
+    }
+
+    #[test]
+    fn later_rounds_clear_the_screen_only_when_asked() {
+        let announce = |clear_screen: bool, round: u32| {
+            let (mut out, mut err) = (Vec::new(), Vec::new());
+            announce_round(
+                Progress::Stdout,
+                clear_screen,
+                round,
+                "header",
+                &mut out,
+                &mut err,
+            )
+            .expect("announce");
+            String::from_utf8(out).expect("utf-8")
+        };
+        assert_eq!(announce(true, 1), "header\n");
+        assert_eq!(
+            announce(true, 2),
+            format!("{CLEAR_SCREEN}{SEPARATOR}\nheader\n")
+        );
+        assert_eq!(announce(false, 2), format!("{SEPARATOR}\nheader\n"));
     }
     use crate::adopt::test_support::{
         NullQuery, Truncated, event_kinds, events_of_kind, invocation, json_events,

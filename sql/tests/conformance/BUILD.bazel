@@ -1,4 +1,4 @@
-# gazelle:ignore
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//sql:defs.bzl", "sql_library")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
 
@@ -53,4 +53,11 @@ dx_conformance_suite(
         "lint_rule": "LT01",
         "lint_source": "lint_dirty.sql",
     },
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

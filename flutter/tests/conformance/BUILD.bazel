@@ -1,4 +1,4 @@
-# gazelle:ignore
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//flutter:defs.bzl", "flutter_library", "flutter_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 load(":quality.bzl", "flutter_format_subject", "flutter_lint_subject")
@@ -31,8 +31,8 @@ flutter_library(
 
 flutter_test(
     name = "pass_subject_test",
-    size = "small",
     package_name = "conformance",
+    size = "small",
     main = "test/pass_test.dart",
     target_compatible_with = subject_compatible_with(),
     deps = [
@@ -43,8 +43,8 @@ flutter_test(
 
 flutter_test(
     name = "fail_subject_test",
-    size = "small",
     package_name = "conformance",
+    size = "small",
     main = "test/fail_test.dart",
     target_compatible_with = subject_compatible_with(),
     deps = [
@@ -55,6 +55,7 @@ flutter_test(
 
 dx_conformance_suite(
     name = "",
+    size = "small",
     binary = ":conformance",
     covered_source = "greet.dart",
     expected = "",
@@ -79,5 +80,14 @@ dx_conformance_suite(
         "lint_source": "lib/lint_dirty.dart",
         "lint_subject": flutter_lint_subject,
     },
-    size = "small",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = [
+        "BUILD.bazel",
+        "quality.bzl",
+    ],
+    tags = ["corpus"],
 )

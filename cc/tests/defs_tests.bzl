@@ -166,7 +166,9 @@ _coverage_env_gcc_test = analysistest.make(
     },
 )
 
-_coverage_external_gcc_test = _external_coverage_test(str(Label("//cc/tests/fixtures/external_toolchain:gcc_toolchain")), _coverage_mismatch_impl)
+# The mismatch needs the coverage feature on so the transition adds LLVM maps.
+# build:windows in .dx/bazelrc/correctness.bazelrc turns it off, so pin the features.
+_coverage_external_gcc_test = _external_coverage_test(str(Label("//cc/tests/fixtures/external_toolchain:gcc_toolchain")), _coverage_mismatch_impl, **{"//command_line_option:features": []})
 _coverage_external_gcc_flag_test = _external_coverage_test(str(Label("//cc/tests/fixtures/external_toolchain:gcc_toolchain")), _coverage_flag_impl, **{"//command_line_option:compiler": "gcc"})
 _coverage_external_icx_test = _external_coverage_test(str(Label("//cc/tests/fixtures/external_toolchain:icx_toolchain")), _icx_coverage_impl)
 

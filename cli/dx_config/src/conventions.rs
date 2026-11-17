@@ -2,6 +2,7 @@
 //! and exceptions that carry a `reason` and a future `expires` date.
 
 use chrono::{Datelike, NaiveDate};
+use dx_path::label::Label;
 
 /// The schema version this dx writes and reads.
 pub const CURRENT_SCHEMA_VERSION: u32 = 1;
@@ -96,25 +97,22 @@ struct ParsedPattern<'a> {
 }
 
 fn parse_pattern(text: &str) -> Option<ParsedPattern<'_>> {
-    let (repo, rest) = if let Some(stripped) = text.strip_prefix('@') {
-        let stripped = stripped.strip_prefix('@').unwrap_or(stripped);
-        let (repo, rest) = stripped.split_once("//")?;
-        (repo, rest)
-    } else {
-        ("", text.strip_prefix("//")?)
-    };
-    let (path, name) = match rest.split_once(':') {
-        Some((path, name)) => (path, Some(name)),
-        None => (rest, None),
-    };
-    let all = matches!(name, Some("all" | "*" | "all-targets"));
-    if path == "..." || path.ends_with("/...") {
-        if name.is_some() && !all {
+    let label = Label::parse(text)?;
+    if label.relative {
+        return None;
+    }
+    // `@r//` and `@@r//` name the same repository here, and `@//` the main one.
+    let repo = label.repo_name().unwrap_or_default();
+    let (package, name) = (label.package, label.name);
+    let all = matches!(name, "all" | "*" | "all-targets");
+    if package == "..." || package.ends_with("/...") {
+        // `//p/...` leaves the name implicit, which the parser spells `...`.
+        if name != "..." && !all {
             return None;
         }
-        let package = path
+        let package = package
             .strip_suffix("...")
-            .unwrap_or(path)
+            .unwrap_or(package)
             .trim_end_matches('/');
         return Some(ParsedPattern {
             repo,
@@ -123,36 +121,20 @@ fn parse_pattern(text: &str) -> Option<ParsedPattern<'_>> {
             kind: PatternKind::Recursive,
         });
     }
-    if path.contains("...") || path.starts_with('/') || path.ends_with('/') {
+    if package.contains("...") || package.starts_with('/') || package.ends_with('/') {
         return None;
     }
-    match name {
-        Some(name) if all => Some(ParsedPattern {
-            repo,
-            package: path,
-            name,
-            kind: PatternKind::Package,
-        }),
-        Some("") => None,
-        Some(name) => Some(ParsedPattern {
-            repo,
-            package: path,
-            name,
-            kind: PatternKind::Target,
-        }),
-        None => {
-            let name = path.rsplit('/').next().unwrap_or(path);
-            if name.is_empty() {
-                return None;
-            }
-            Some(ParsedPattern {
-                repo,
-                package: path,
-                name,
-                kind: PatternKind::Target,
-            })
-        }
-    }
+    let kind = if all {
+        PatternKind::Package
+    } else {
+        PatternKind::Target
+    };
+    Some(ParsedPattern {
+        repo,
+        package,
+        name,
+        kind,
+    })
 }
 
 /// Whether the label pattern `entry` covers the scope `root`.

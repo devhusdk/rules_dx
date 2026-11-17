@@ -162,6 +162,6 @@ filegroup(
     srcs = glob([
         "*.bzl",
         "BUILD.bazel",
-    ]),
+    ]) + ["swift_format_windows_test.ps1"],
     visibility = ["//:__subpackages__"],
 )

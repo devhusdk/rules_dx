@@ -44,7 +44,7 @@ When the upstream fix is in a release rules_dx uses, delete the patch file, its 
 | `grpc` | 1.85.1 | `pip_parse_no_310.patch` | Root only. grpc's pip hub skips python 3.10, which has no aarch64-pc-windows-msvc runtime, so windows_arm64 lock refresh evaluates |
 | `grpc` | 1.85.1 | `upb_reflection_cc.patch` | Root only. Targets that depend on `@com_google_protobuf//upb/reflection` also depend on `upb/reflection:reflection_cc`, which has `def.hpp` and `message.hpp` from protobuf 37.0 on |
 | `protoc-gen-validate` | 1.2.1.bcr.2 | `pip_parse_no_39_310.patch` | Root only. pgv's pip hub skips python 3.9 and 3.10, which have no aarch64-pc-windows-msvc runtime |
-| `rules_dart` | 0.8.1 | `coverage.patch` | `dart_test` writes LCOV under `bazel coverage`: the test launcher passes `--coverage` to `package:test` and converts the report. Consumer fix: #11417 |
+| `rules_dart` | 0.8.1 | `coverage.patch` | `dart_test` writes LCOV under `bazel coverage`: the test launcher passes `--coverage` to `package:test` and converts the report. Only a test built with coverage collects it, so a subject built without `--collect_code_coverage` reports none. Consumer fix: #11417 |
 | `rules_dart` | 0.8.1 | `external_pkgsrcs.patch` | Sources of packages from an external repository are staged into `.pkgsrcs`, which `copy_to_directory` otherwise drops. Consumer fix: #11417 |
 | `rules_dart` | 0.8.1 | `windows_long_dill.patch` | Root only. On Windows `test_runner.dart` resolves the symlinked kernel snapshot before starting the test |
 | `rules_java` | 9.9.0 | `toolchains_gate.patch` | Root only. The default Java toolchain definitions have `target_settings = ["@@//config:toolchains_on", ...]` |
@@ -53,6 +53,7 @@ When the upstream fix is in a release rules_dx uses, delete the patch file, its 
 | `rules_flutter` | 0.0.8 | `required_checksums.patch` | A Flutter engine download without a sha256 fails the fetch, including the Dart SDK of the web SDK repo. Consumer fix: #11417 |
 | `rules_flutter` | 0.0.8 | `flutter_3_47_9.patch` | Root only. `FLUTTER_VERSIONS` and `ARTIFACT_CHECKSUMS` list Flutter 3.47.9, which no rules_flutter release has yet |
 | `rules_flutter` | 0.0.8 | `ios_target_compatible_with.patch` | `flutter_ios_app` applies its `target_compatible_with` to every target it generates, not only drops it. Consumer fix: #11417 |
+| `rules_flutter` | 0.0.8 | `coverage_enabled.patch` | Root only. Only a `flutter_test` built with `--collect_code_coverage` writes LCOV; one built without it ignores `COVERAGE_OUTPUT_FILE` |
 | `rules_swift` | 4.2.2 | `clang_cl_no_split_cold_code.patch` | The exec worker builds with LLVM clang-cl, which rejects the Apple-only `-fno-split-cold-code` (bazelbuild/rules_swift#2005). Consumer fix: #11817 |
 | `rules_swift` | 4.2.2 | `windows_absolute_sdk.patch` | Root only. Windows Swift actions pass `-sdk` through the wrapper as an absolute path |
 | `rules_swift` | 4.2.2 | `windows_swift_testing.patch` | Root only. The Windows toolchain puts the Swift Testing module and import library directories on the compile and link paths (bazelbuild/rules_swift#2018; drop when a rules_swift release has it) |

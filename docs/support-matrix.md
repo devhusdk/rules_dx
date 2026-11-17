@@ -1,38 +1,41 @@
 # Support matrix
 
-This page lists, for each language, target, and compiler, the platforms it does not support, and its lint, format, typecheck, and API doc tools.
+This page shows you which platforms each language, target, and C/C++ compiler works on, and which tools `dx lint`, `dx format`, and `dx typecheck` run for it.
 
-`none` means all five platforms are supported. `macos_x86_64` is not supported.
+rules_dx supports these platforms: `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64`. `macos_x86_64` is not supported.
 
-`n/a` means the capability does not apply to that language or format.
+## How to read the tables
 
-The platforms are `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64`.
+- `none` in "Not supported on" means the row works on every platform above.
+- `all` in a test column means the test runs on every platform above.
+- `pending` means the test is planned but does not run yet.
+- `n/a` means the column does not apply to that row; a reason follows when there is one.
 
-Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to refresh it.
+This page is generated. Do not edit it by hand. Run `bazel run //tools/docs/support_matrix:update` to refresh it.
 
 ## Languages
 
-Each suite column names the platforms the conformance test runs on, `n/a` with its reason, or `pending`.
+The `build_test` through `lock_test` columns are conformance tests: shared tests every language runs. Each cell names the platforms the test runs on. Bench and Fuzz name the rule you use for benchmarks and fuzz tests.
 
 | Language | Not supported on | Dependencies | Bench | Fuzz | build_test | pass_test | fail_test | coverage_test | cross_test | lock_test |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Astro | none | `npm` | n/a | n/a | n/a: astro has no binary rule | all | all | all | n/a: astro has no binary rule | n/a: astro has no binary rule |
-| Avro | none | none: schemas only, no packages | n/a | n/a | pending | pending | pending | pending | pending | pending |
+| Avro | none | none: schemas only, no packages | n/a | n/a | n/a: avro has no binary rule | n/a: avro has no test rule | n/a: avro has no test rule | n/a: avro has no test rule | n/a: avro has no binary rule | n/a: avro has no package manager |
 | C and C++ | none | none for `vcpkg.json`: there is no vcpkg set | `cc_bench` | `cc_fuzz_test` | all | all | all | all | all | n/a: cc has no package manager |
 | C# | none | `nuget` | `csharp_bench` | `csharp_fuzz_test` | all | all | all | all | pending | all |
 | CUDA | `macos_arm64`: NVIDIA ships no CUDA toolkit for macOS | none: the CUDA toolkit is a pinned download | n/a | n/a | `linux_arm64`, `linux_x86_64`, `windows_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `windows_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `windows_arm64`, `windows_x86_64` | pending | pending | n/a: cuda has no package manager |
 | D | none | `dub` (pinned, no advisories) | `d_bench` | `d_fuzz_test` | all | all | all | all | pending | pending |
 | Dart | `windows_arm64`: rules_dart 0.8.1 ships no Windows arm64 SDK | `pub` | `dart_bench` | n/a | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`; n/a: dart supports no other windows platform | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` |
-| Elixir | none | `hex` | `elixir_bench` | n/a | all | all | all | all | pending | pending |
-| Erlang | none | `hex` from `hex.lock.json` or an `erlang.rebar` `rebar.lock` | `erlang_bench` | n/a | all | all | all | all | pending | pending |
+| Elixir | none | `hex` | `elixir_bench` | n/a | all | all | all | all | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_arm64`; pending on `windows_x86_64` | all |
+| Erlang | none | `hex` from `hex.lock.json` or an `erlang.rebar` `rebar.lock` | `erlang_bench` | n/a | all | all | all | all | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_arm64`; pending on `windows_x86_64` | all |
 | Flutter | `windows_arm64`: rules_flutter 0.0.8 and Flutter 3.47.9 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS) | `pub` | n/a | n/a | n/a: flutter has no binary rule that prints to stdout | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | n/a: flutter has no binary rule that prints to stdout | n/a: flutter has no binary rule that prints to stdout |
 | Fortran | `windows_x86_64`: not in lang.json platforms; `windows_arm64`: flang-releases v21.1.8 ships no Windows arm64 build | the `fpm.lock` tag of the `fpm` extension builds the locked packages; `dx security` and `dx license` read it, `dx update` runs the fpm lock step | n/a | n/a | `linux_arm64`, `linux_x86_64`, `macos_arm64` | `linux_arm64`, `linux_x86_64`, `macos_arm64` | `linux_arm64`, `linux_x86_64`, `macos_arm64` | `linux_arm64`, `linux_x86_64`, `macos_arm64` | pending | pending |
 | F# | none | `nuget` | `fsharp_bench` | `fsharp_fuzz_test` | all | all | all | all | pending | all |
 | Go | none | `go`; cgo is not supported on `windows_x86_64` and `windows_arm64`: the hermetic Windows toolchain is MSVC ABI only, and cgo needs the MinGW (GNU) ABI | `go_bench` | `go_fuzz_test` | all | all | all | all | all | all |
-| Haskell | `windows_arm64`: GHC 9.10.3 ships no Windows arm64 bindist | `hackage` from `cabal.project.freeze`; none for `stack.yaml.lock` | `haskell_bench` | n/a | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | pending | pending |
+| Haskell | `windows_arm64`: GHC 9.10.3 ships no Windows arm64 bindist | `hackage` from `cabal.project.freeze`; none for `stack.yaml.lock` | `haskell_bench` | n/a | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | pending | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` |
 | Java | none | `maven` | `java_bench` | `java_fuzz_test` | all | all | all | all | all | all |
 | JavaScript | none | `npm` | `javascript_bench` | `javascript_fuzz_test` | all | all | all | all | all | all |
-| Julia | `windows_arm64`: julialang.org and rules_julia 0.8.0 ship no Windows arm64 Julia build | `julia` | `julia_bench` | n/a | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | pending | pending |
+| Julia | `windows_arm64`: julialang.org and rules_julia 0.8.0 ship no Windows arm64 Julia build | `julia` | `julia_bench` | n/a | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` |
 | Kotlin | none | `maven` | `kotlin_bench` | `kotlin_fuzz_test` | all | all | all | all | all | all |
 | Lua | none | `luarocks` (pinned, no advisories) | `lua_bench` | n/a | all | all | all | all | n/a: lua_binary is a script the interpreter runs; it has no object format | all |
 | MDX | none | `npm` | n/a | n/a | n/a: mdx has no binary rule | all | all | all | n/a: mdx has no binary rule | n/a: mdx has no binary rule |
@@ -67,7 +70,7 @@ Each suite column names the platforms the conformance test runs on, `n/a` with i
 
 ## Compilers
 
-Select one with `--@rules_dx//cc:compiler=<value>`. Blocked on names a platform the compiler targets whose evidence is still waiting, with the reason.
+Pick a compiler with `--@rules_dx//cc:compiler=<value>`, for example `--@rules_dx//cc:compiler=gcc`. "Blocked on" names a platform the compiler is meant to support but is not yet proven on, with the reason.
 
 | Compiler | Driver | Coverage | Not supported on | Blocked on |
 | --- | --- | --- | --- | --- |
@@ -77,7 +80,7 @@ Select one with `--@rules_dx//cc:compiler=<value>`. Blocked on names a platform 
 
 ## Quality
 
-Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and the tool that builds its API docs. A tool runs on every platform its row supports unless a note says otherwise. Dead code names the tool and rule that report unused code, `no` when none runs yet, or `none` when the language has no such tool.
+Each cell names the tool `dx lint`, `dx format`, or `dx typecheck` runs for that row, and the tool that builds its API docs. A tool runs on every platform its row supports unless a note says otherwise. "Dead code" names the tool and rule that report unused code, `no` when none runs yet, or `none` when the language has no such tool.
 
 | Name | Lint | Format | Typecheck | API docs | Dead code |
 | --- | --- | --- | --- | --- | --- |

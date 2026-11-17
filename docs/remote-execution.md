@@ -1,38 +1,32 @@
 # Use remote execution
 
-Remote execution runs Bazel actions on an executor that speaks the Remote
-Execution API (REAPI), such as BuildBuddy, NativeLink or Buildbarn.
+This page helps you run your build and test actions on a remote executor, such as BuildBuddy, NativeLink or Buildbarn, instead of your own machine. An action is one step Bazel runs, like compiling a file or running a test.
 
-## Configure
+## Set it up
 
-Put the executor flags in a `remote` config in the repo `.bazelrc`. Commit it.
+1. Add a `remote` config to the `.bazelrc` file at the root of your repo, and commit it. A config is a named group of flags that Bazel uses only when you pass `--config=<name>`.
 
-```text
-common:remote --remote_executor=grpcs://executor.example.com
-common:remote --remote_timeout=10m
-common:remote --jobs=200
-common:remote --remote_download_minimal
-```
+   ```text
+   common:remote --remote_executor=grpcs://executor.example.com
+   common:remote --remote_timeout=10m
+   common:remote --jobs=200
+   common:remote --remote_download_minimal
+   common:remote --credential_helper=executor.example.com=%workspace%/tools/remote-helper.sh
+   ```
 
-Authenticate with a credential helper that reads the key from the environment, as in
-[Use a remote cache](remote-cache.md).
+   The executor also serves as the cache, so you need no `--remote_cache`. The credential helper works the same way as in [Use a remote cache](remote-cache.md).
 
-```text
-common:remote --credential_helper=remote.example.com=%workspace%/tools/remote-helper.sh
-```
+2. Declare an execution platform for the executor and register it (see below).
 
-Pass the config after `--`.
+3. Pass the config after `--`.
 
-```sh
-dx test //... -- --config=remote
-```
-
-`--remote_executor` also serves as the cache, so you need no `--remote_cache`.
+   ```sh
+   dx test //... -- --config=remote
+   ```
 
 ## Platforms
 
-Bazel sends each action to an executor that matches its execution platform.
-Declare one that carries your executor's properties, and register it.
+An execution platform describes a machine that can run actions. Bazel sends each action to an executor that matches its execution platform, so declare one that carries your executor's properties.
 
 ```python
 platform(
@@ -47,39 +41,32 @@ platform(
 )
 ```
 
+Register it in the `remote` config.
+
 ```text
 common:remote --extra_execution_platforms=//platforms:linux_x86_64_remote
 common:remote --host_platform=//platforms:linux_x86_64_remote
 ```
 
-The property names, such as `container-image` or `OSFamily`, are defined by
-your executor. Check its documentation.
-
-## What the executor needs
-
-- The executor platform must be one `dx` has pinned tools for: Linux x86_64 or
-  arm64. See the [support matrix](support-matrix.md).
-- Tools are downloaded by Bazel and passed to the executor as action inputs.
-- Rules that run a host toolchain (compilers, interpreters) find it through
-  Bazel toolchains, not the image `PATH`. Keep the image minimal.
-- Quality actions (`dx lint`, `dx typecheck`, `dx format`) are marked
-  `no-remote-exec` and run on the machine that started Bazel. Only `shfmt`
-  formatting is qualified for remote execution.
-- Tests marked `no-remote` or `local` run locally.
-
-## Local slots
-
-When the Bazel config sets `--remote_executor`, `dx` offers more build slots,
-because the executor does the heavy work. See
-[Build slots](cli/commands/README.md#build-slots).
+Your executor defines the property names, such as `container-image` or `OSFamily`. Check its documentation.
 
 ## Check the setup
 
-Run a small target and look at the process summary.
+Build a small target and read the process summary at the end.
 
 ```sh
 dx build //pkg:all -- --config=remote
 ```
 
-The summary should list `remote` for the actions you expect. If it lists
-`linux-sandbox` or `local`, the action did not match the executor platform.
+The summary should list `remote` for the actions you expect. If it lists `linux-sandbox` or `local`, the action did not match the executor platform.
+
+## What runs where
+
+- The executor must run on a platform `dx` has pinned tools for: Linux x86_64 or arm64. See the [support matrix](support-matrix.md).
+- Bazel downloads the tools and sends them to the executor as action inputs. Compilers and interpreters come from Bazel toolchains, not the image `PATH`, so keep the image minimal.
+- `dx lint`, `dx typecheck` and `dx format` actions are tagged `no-remote-exec` and run on your machine. The one exception is `shfmt` formatting, which runs remotely.
+- Tests tagged `no-remote` or `local` run on your machine.
+
+## Local slots
+
+When your Bazel config sets `--remote_executor`, `dx` offers more build slots, because the executor does the heavy work. See [Build slots](cli/commands/README.md#build-slots).

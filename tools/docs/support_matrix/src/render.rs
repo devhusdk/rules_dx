@@ -371,38 +371,47 @@ pub fn render(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> Stri
     let mut out = String::new();
     out.push_str("# Support matrix\n\n");
     out.push_str(
-        "This page lists, for each language, target, and compiler, the platforms it does not support, \
-         and its lint, format, typecheck, and API doc tools.\n\n",
+        "This page shows you which platforms each language, target, and C/C++ compiler works on, \
+         and which tools `dx lint`, `dx format`, and `dx typecheck` run for it.\n\n",
     );
-    out.push_str(
-        "`none` means all five platforms are supported. \
-         `macos_x86_64` is not supported.\n\n",
-    );
-    out.push_str("`n/a` means the capability does not apply to that language or format.\n\n");
-    writeln!(out, "The platforms are {}.\n", ids.join(", ")).unwrap_or_default();
     writeln!(
         out,
-        "Do not edit this page. Run `{UPDATE_COMMAND}` to refresh it.\n"
+        "rules_dx supports these platforms: {}. `macos_x86_64` is not supported.\n",
+        ids.join(", ")
+    )
+    .unwrap_or_default();
+    out.push_str("## How to read the tables\n\n");
+    out.push_str(
+        "- `none` in \"Not supported on\" means the row works on every platform above.\n\
+         - `all` in a test column means the test runs on every platform above.\n\
+         - `pending` means the test is planned but does not run yet.\n\
+         - `n/a` means the column does not apply to that row; a reason follows when there is one.\n\n",
+    );
+    writeln!(
+        out,
+        "This page is generated. Do not edit it by hand. Run `{UPDATE_COMMAND}` to refresh it.\n"
     )
     .unwrap_or_default();
     out.push_str("## Languages\n\n");
     out.push_str(
-        "Each suite column names the platforms the conformance test runs on, `n/a` with its reason, or `pending`.\n\n",
+        "The `build_test` through `lock_test` columns are conformance tests: shared tests every language runs. \
+         Each cell names the platforms the test runs on. \
+         Bench and Fuzz name the rule you use for benchmarks and fuzz tests.\n\n",
     );
     out.push_str(&language_table(facts, platforms));
     out.push_str("\n## Targets\n\n");
     out.push_str(&build_table(facts, platforms, "targets", "Target"));
     out.push_str("\n## Compilers\n\n");
     out.push_str(
-        "Select one with `--@rules_dx//cc:compiler=<value>`. \
-         Blocked on names a platform the compiler targets whose evidence is still waiting, with the reason.\n\n",
+        "Pick a compiler with `--@rules_dx//cc:compiler=<value>`, for example `--@rules_dx//cc:compiler=gcc`. \
+         \"Blocked on\" names a platform the compiler is meant to support but is not yet proven on, with the reason.\n\n",
     );
     out.push_str(&compiler_table(facts, platforms));
     out.push_str("\n## Quality\n\n");
     out.push_str(
-        "Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and the tool that builds its API docs. \
+        "Each cell names the tool `dx lint`, `dx format`, or `dx typecheck` runs for that row, and the tool that builds its API docs. \
          A tool runs on every platform its row supports unless a note says otherwise. \
-         Dead code names the tool and rule that report unused code, `no` when none runs yet, or `none` when the language has no such tool.\n\n",
+         \"Dead code\" names the tool and rule that report unused code, `no` when none runs yet, or `none` when the language has no such tool.\n\n",
     );
     out.push_str(&quality_table(facts));
     out.push_str(&not_applicable_section(facts));

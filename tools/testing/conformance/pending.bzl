@@ -121,7 +121,6 @@ csharp format_error_test *
 csharp format_test *
 csharp lint_error_test *
 csharp lint_test *
-csharp lock_test *
 cuda coverage_test *
 cuda cross_test *
 cuda format_error_test *
@@ -194,7 +193,6 @@ fsharp format_error_test *
 fsharp format_test *
 fsharp lint_error_test *
 fsharp lint_test *
-fsharp lock_test *
 haskell cross_test *
 haskell format_error_test *
 haskell format_test *

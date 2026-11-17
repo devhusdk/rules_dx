@@ -44,6 +44,12 @@ csharp_binary(
     deps = ["@rules_dotnet//tools/runfiles"],
 )
 
+csharp_binary(
+    name = "lock_hello",
+    srcs = ["LockMain.cs"],
+    deps = ["@nuget//google.protobuf"],
+)
+
 dx_conformance_suite(
     name = "",
     size = "small",
@@ -54,6 +60,15 @@ dx_conformance_suite(
     failing_pattern = "{case}",
     failing_test = ":fail_subject_test",
     lang = "csharp",
+    lock = {
+        "binary": ":lock_hello",
+        "ecosystem": "csharp",
+        "expected": "hello lock",
+        "lockfile": "//third_party/dotnet:paket.lock",
+        "manifest": "paket.dependencies",
+        "package": "Google.Protobuf",
+        "stale": "paket.stale.lock",
+    },
     passing_test = ":pass_subject_test",
     runfiles = {
         "binary": ":runfiles_hello",

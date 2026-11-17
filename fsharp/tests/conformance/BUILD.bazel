@@ -57,6 +57,15 @@ fsharp_binary(
     ],
 )
 
+fsharp_binary(
+    name = "lock_hello",
+    srcs = ["LockMain.fs"],
+    deps = [
+        "@nuget//fsharp.core",
+        "@nuget//google.protobuf",
+    ],
+)
+
 dx_conformance_suite(
     name = "",
     size = "small",
@@ -67,6 +76,15 @@ dx_conformance_suite(
     failing_pattern = "{case}",
     failing_test = ":fail_subject_test",
     lang = "fsharp",
+    lock = {
+        "binary": ":lock_hello",
+        "ecosystem": "fsharp",
+        "expected": "hello lock",
+        "lockfile": "//third_party/dotnet:paket.lock",
+        "manifest": "paket.dependencies",
+        "package": "Google.Protobuf",
+        "stale": "paket.stale.lock",
+    },
     passing_test = ":pass_subject_test",
     runfiles = {
         "binary": ":runfiles_hello",

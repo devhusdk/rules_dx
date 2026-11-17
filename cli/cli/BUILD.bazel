@@ -125,6 +125,7 @@ rust_library(
         "//cli/exec_core:dx_exec_core",
         "//cli/families:dx_families",
         "//cli/generate:dx_generate",
+        "//cli/http:dx_http",
         "//cli/ide:dx_ide",
         "//cli/lcov:dx_lcov",
         "//cli/merge:dx_merge",
@@ -150,7 +151,6 @@ rust_library(
         "@crates//:serde_json",
         "@crates//:tempfile",
         "@crates//:thiserror",
-        "@crates//:ureq",
     ],
 )
 
@@ -426,6 +426,7 @@ rust_test(
         "//cli/exec_core:dx_exec_core",
         "//cli/families:dx_families",
         "//cli/generate:dx_generate",
+        "//cli/http:dx_http",
         "//cli/ide:dx_ide",
         "//cli/lcov:dx_lcov",
         "//cli/merge:dx_merge",
@@ -456,7 +457,6 @@ rust_test(
         "@crates//:serde_json",
         "@crates//:tempfile",
         "@crates//:thiserror",
-        "@crates//:ureq",
     ] + select({
         "@platforms//os:windows": [],
         "//conditions:default": ["@crates//:libc"],

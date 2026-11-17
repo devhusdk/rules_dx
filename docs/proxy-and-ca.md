@@ -10,9 +10,10 @@ Most setups need the proxy in the environment and the company CA in two places.
 export HTTPS_PROXY=http://proxy.example.com:3128
 export NO_PROXY=localhost,127.0.0.1
 export CURL_CA_BUNDLE=/etc/ssl/company-ca.pem
+export SSL_CERT_FILE=/etc/ssl/company-ca.pem
 ```
 
-Then import the CA into a Java trust store for Bazel, and install it in the OS trust store for the `dx` shim and deploy uploads. The sections below show each step.
+Then import the CA into a Java trust store for Bazel, and install it in the OS trust store for deploy uploads. The sections below show each step.
 
 ## Which setting each download reads
 
@@ -21,7 +22,8 @@ Then import the CA into a Java trust store for Bazel, and install it in the OS t
 | Bazel | `HTTPS_PROXY`, `NO_PROXY` | Java trust store |
 | `tools/dx` | curl or wget settings | curl or wget settings |
 | `tools/dx.cmd` | PowerShell and Windows settings | Windows certificate store |
-| `dx` shim | `HTTPS_PROXY`, `NO_PROXY` | OS trust store |
+| `dx` shim | `HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY` | `SSL_CERT_FILE`, else OS trust store |
+| `dx update` and lock tools | `HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY` | `SSL_CERT_FILE`, else OS trust store |
 | Deploy uploads | `HTTPS_PROXY`, `NO_PROXY` | OS trust store |
 
 ## Bazel
@@ -71,7 +73,17 @@ When the download fails, `tools/dx.cmd` runs your command through Bazel instead.
 
 ## The dx shim
 
-The shim reads `HTTPS_PROXY` and `NO_PROXY`, and checks certificates with the OS trust store. Install the company CA in the OS store. You need no other setting.
+The shim reads `HTTPS_PROXY` for `https://` URLs, `HTTP_PROXY` for `http://` URLs, and `NO_PROXY`. `ALL_PROXY` covers both when the others are unset. `NO_PROXY` entries cover the host and its subdomains. The shim reaches `http://` URLs through the proxy with `CONNECT` to port 80, so the proxy must allow that, or list the host in `NO_PROXY`.
+
+The shim checks certificates with the OS trust store. To use a PEM bundle instead, set `SSL_CERT_FILE`. The bundle replaces the OS store, so it must also hold the public CAs your downloads need.
+
+```sh
+export SSL_CERT_FILE=/etc/ssl/company-ca.pem
+```
+
+## dx update and lock tools
+
+`dx update` and the lock tools that fetch from registries read the same settings as the shim.
 
 ## Deploy uploads
 

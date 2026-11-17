@@ -1,8 +1,6 @@
-use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime};
-
 
 use crate::protocol::ShimError;
 
@@ -58,16 +56,16 @@ pub fn install(request: &Request<'_>) -> Result<PathBuf, ShimError> {
         ))
     };
     std::fs::create_dir_all(dir).map_err(|e| not_writable(&e))?;
-    let agent = agent(request.url);
+    let client = client(request.url)?;
     let want = match request.checksum {
-        ChecksumSource::Sidecar => sidecar(&agent, request)?,
+        ChecksumSource::Sidecar => sidecar(&client, request)?,
         ChecksumSource::Pinned(hash) => parse_hash(hash).ok_or_else(|| {
             ShimError::failure(format!("bad pinned sha256 for {}: '{hash}'", request.url))
         })?,
     };
     sweep_stale_parts(dir, request.asset);
-    let part = PartFile::create(dir, request.asset).map_err(|e| not_writable(&e))?;
-    let got = download(&agent, request, &part)?;
+    let mut part = PartFile::create(dir, request.asset).map_err(|e| not_writable(&e))?;
+    let got = download(&client, request, &mut part)?;
     if !dx_digest::verify(&want, &got) {
         return Err(ShimError::failure(mismatch_message(
             request.url,
@@ -85,90 +83,61 @@ pub fn install(request: &Request<'_>) -> Result<PathBuf, ShimError> {
     Ok(dest.to_path_buf())
 }
 
-fn tls_config() -> ureq::tls::TlsConfig {
-    ureq::tls::TlsConfig::builder()
-        .root_certs(ureq::tls::RootCerts::PlatformVerifier)
-        .build()
+/// Release downloads may follow a plain `http://` base URL, such as a local mirror,
+/// but an `https://` one never downgrades on a redirect.
+fn client(url: &str) -> Result<dx_http::Client, ShimError> {
+    dx_http::Client::new(dx_http::Settings {
+        https_only: url.starts_with("https://"),
+        user_agent: "rules_dx".to_owned(),
+        ..dx_http::Settings::default()
+    })
+    .map_err(|e| ShimError::failure(format!("{e}{NEXT_STEP}")))
 }
 
-fn agent(url: &str) -> ureq::Agent {
-    let https = url.starts_with("https://");
-    let proxy = if https {
-        ureq::Proxy::try_from_env()
-    } else {
-        None
-    };
-    ureq::Agent::config_builder()
-        .https_only(https)
-        .tls_config(tls_config())
-        .proxy(proxy)
-        .timeout_connect(Some(Duration::from_secs(30)))
-        .timeout_recv_response(Some(Duration::from_secs(60)))
-        // ureq bounds the whole body transfer, not idle time.
-        .timeout_recv_body(Some(Duration::from_hours(1)))
-        .build()
-        .into()
-}
-
-fn get(agent: &ureq::Agent, request: &Request<'_>, url: &str) -> Result<ureq::Body, ShimError> {
-    match agent.get(url).call() {
-        Ok(response) => Ok(response.into_body()),
-        Err(ureq::Error::StatusCode(404)) => Err(ShimError::failure(format!(
+fn fetch_message(request: &Request<'_>, error: dx_http::Error) -> String {
+    match error {
+        dx_http::Error::Status { code: 404, url } => format!(
             "dx {} has no release asset {} (HTTP 404): {url}",
             request.version, request.asset
-        ))),
-        Err(ureq::Error::StatusCode(code)) => {
-            Err(ShimError::failure(http_status_message(code, url)))
+        ),
+        dx_http::Error::Status { code, url } => http_status_message(code, &url),
+        dx_http::Error::Transport { url, message } => download_failed_message(&url, &message),
+        dx_http::Error::TooLarge { url, limit } => {
+            download_failed_message(&url, &format!("larger than {limit} bytes"))
         }
-        Err(e) => Err(ShimError::failure(download_failed_message(url, &e))),
+        dx_http::Error::Write { message, .. } => message,
+        dx_http::Error::Config(message) => format!("{message}{NEXT_STEP}"),
     }
 }
 
 fn download(
-    agent: &ureq::Agent,
+    client: &dx_http::Client,
     request: &Request<'_>,
-    part: &PartFile,
+    part: &mut PartFile,
 ) -> Result<String, ShimError> {
-    let body = get(agent, request, request.url)?;
-    let mut reader = body.into_with_config().limit(MAX_BINARY_BYTES).reader();
-    let mut file = part
-        .file
-        .as_ref()
-        .ok_or_else(|| ShimError::failure("the download part file is not open"))?;
-    let mut hasher = dx_digest::Sha256Writer::new();
-    let mut buf = vec![0u8; 64 * 1024];
-    let failed =
-        |e: &dyn std::fmt::Display| ShimError::failure(download_failed_message(request.url, e));
-    loop {
-        let n = match reader.read(&mut buf) {
-            Ok(n) => n,
-            // A signal landing mid-read is not a failed download; read again.
-            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
-            Err(e) => return Err(failed(&e)),
-        };
-        if n == 0 {
-            break;
-        }
-        let chunk = buf.get(..n).unwrap_or_default();
-        hasher.write_all(chunk).map_err(|e| failed(&e))?;
-        file.write_all(chunk).map_err(|e| {
-            ShimError::failure(format!("cannot write {}: {e}", part.path.display()))
-        })?;
-    }
-    file.sync_all()
-        .map_err(|e| ShimError::failure(format!("cannot write {}: {e}", part.path.display())))?;
-    Ok(hasher.finish_hex())
+    let path = part.path.clone();
+    let cannot_write = |e: &dyn std::fmt::Display| format!("cannot write {}: {e}", path.display());
+    let written = match part.file.as_mut() {
+        None => Err("the download part file is not open".to_owned()),
+        Some(file) => client
+            .download_into(request.url, &[], file, MAX_BINARY_BYTES)
+            .map_err(|e| match e {
+                dx_http::Error::Write { message, .. } => cannot_write(&message),
+                other @ (dx_http::Error::Config(_)
+                | dx_http::Error::Status { .. }
+                | dx_http::Error::Transport { .. }
+                | dx_http::Error::TooLarge { .. }) => fetch_message(request, other),
+            })
+            .and_then(|got| file.sync_all().map(|()| got).map_err(|e| cannot_write(&e))),
+    };
+    written.map_err(ShimError::failure)
 }
 
-fn sidecar(agent: &ureq::Agent, request: &Request<'_>) -> Result<String, ShimError> {
+fn sidecar(client: &dx_http::Client, request: &Request<'_>) -> Result<String, ShimError> {
     let url = format!("{}.sha256", request.url);
-    let body = get(agent, request, &url)?;
-    let mut text = String::new();
-    body.into_with_config()
-        .limit(MAX_SIDECAR_BYTES)
-        .reader()
-        .read_to_string(&mut text)
-        .map_err(|e| ShimError::failure(download_failed_message(&url, &e)))?;
+    let text = client
+        .text(&url, &[], MAX_SIDECAR_BYTES)
+        .map_err(|e| ShimError::failure(fetch_message(request, e)))?;
     let first = text.split_whitespace().next().unwrap_or("");
     parse_hash(first).ok_or_else(|| ShimError::failure(format!("{url} holds no sha256")))
 }
@@ -357,7 +326,7 @@ impl Drop for PartFile {
 
 #[cfg(test)]
 mod tests {
-    use super::{download_failed_message, http_status_message, mismatch_message, tls_config};
+    use super::{download_failed_message, http_status_message, mismatch_message};
 
     const DOC: &str = "see https://github.com/devhusdk/rules_dx/blob/main/docs/proxy-and-ca.md";
 
@@ -389,13 +358,5 @@ mod tests {
                 "download failed: https://h/dx: reset; check network and proxy settings, {DOC}"
             )
         );
-    }
-
-    #[test]
-    fn tls_uses_the_os_trust_store() {
-        assert!(matches!(
-            tls_config().root_certs(),
-            ureq::tls::RootCerts::PlatformVerifier
-        ));
     }
 }

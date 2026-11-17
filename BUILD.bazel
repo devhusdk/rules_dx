@@ -484,6 +484,7 @@ filegroup(
         "//cli/generation_result:module_srcs",
         "//cli/gomod:module_srcs",
         "//cli/hpc_coverage:module_srcs",
+        "//cli/http:module_srcs",
         "//cli/ide:module_srcs",
         "//cli/launcher:module_srcs",
         "//cli/lcov:module_srcs",

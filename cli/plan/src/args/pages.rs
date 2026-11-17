@@ -3,11 +3,14 @@ use super::command::Command;
 /// The page under `docs/cli/commands/` that documents `dx` itself.
 pub const ROOT_PAGE: &str = "README.md";
 
-/// One flag `--help` lists: its long name, or its short one when it has no long name, and its other spellings.
+/// One flag `--help` lists: its long name, or its short one when it has no long name, its other spellings,
+/// the values it accepts when they are a fixed set, and its defaults.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct HelpFlag {
     pub name: String,
     pub aliases: Vec<String>,
+    pub values: Vec<String>,
+    pub defaults: Vec<String>,
 }
 
 /// What `--help` says about `dx` (an empty path), one command or one subcommand, and the page that documents it.
@@ -79,10 +82,26 @@ fn visible_flags(command: &clap::Command) -> Vec<HelpFlag> {
             for alias in arg.get_all_short_aliases().unwrap_or_default() {
                 spellings.push(format!("-{alias}"));
             }
+            // Switches carry clap's implicit `true`/`false` values and `false` default; they say
+            // nothing a user types, so only flags that take a value report them.
+            let takes_value = arg.get_action().takes_values();
             let mut spellings = spellings.into_iter();
             spellings.next().map(|name| HelpFlag {
                 name,
                 aliases: spellings.collect(),
+                values: arg
+                    .get_possible_values()
+                    .iter()
+                    .filter(|_| takes_value)
+                    .filter(|value| !value.is_hide_set())
+                    .map(|value| value.get_name().to_owned())
+                    .collect(),
+                defaults: arg
+                    .get_default_values()
+                    .iter()
+                    .filter(|_| takes_value)
+                    .map(|value| value.to_string_lossy().into_owned())
+                    .collect(),
             })
         })
         .collect();
@@ -169,7 +188,12 @@ mod tests {
         assert_eq!(test.page, Some("build-test-coverage.md"));
         assert!(flag(test, "--affected").is_some(), "{test:?}");
         assert!(
-            flag(test, "--output").is_some_and(|output| output.aliases == ["-o"]),
+            flag(test, "--output")
+                .is_some_and(|output| output.aliases == ["-o"] && output.values == ["text", "json"]),
+            "{test:?}"
+        );
+        assert!(
+            flag(test, "--affected").is_some_and(|affected| affected.values.is_empty()),
             "{test:?}"
         );
         assert!(

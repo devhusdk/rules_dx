@@ -26,7 +26,7 @@ module(name = "my_project")
 bazel_dep(name = "rules_dx", version = "<release>")
 ```
 
-A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small C# package from [`csharp/tests/consumer`](../../csharp/tests/consumer/BUILD.bazel):
+A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small C# package from [`csharp/tests/consumer`](https://github.com/devhusdk/rules_dx/blob/main/csharp/tests/consumer/BUILD.bazel):
 
 ```python
 load("@rules_dx//csharp:defs.bzl", "csharp_library", "csharp_test")
@@ -55,7 +55,7 @@ tools/dx test //...
 
 ### NuGet packages
 
-Keep a `paket.dependencies` file in your module and lock it with `dx lock`
+Keep a `paket.dependencies` file in your module and lock it with `dx update --apply`
 into `nuget.lock.json`. Declare the lock in your `MODULE.bazel`:
 
 ```python

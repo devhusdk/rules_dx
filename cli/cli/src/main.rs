@@ -5,7 +5,7 @@
     clippy::wildcard_enum_match_arm
 )]
 
-use std::io::{self, IsTerminal, Write};
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use dx_cli::bazel_restart::{RestartingQueryRunner, RestartingRunner};
@@ -170,17 +170,9 @@ fn usage_error(
     )
 }
 
-#[expect(unsafe_code, reason = "set_var is unsafe in edition 2024")]
 fn main() {
     if let Some(code) = run_as_tool() {
         std::process::exit(code);
-    }
-    // Must run before any thread starts: set_var is not thread safe.
-    for (key, value) in
-        dx_process::bazel_env_defaults(&|name| std::env::var_os(name), cfg!(target_os = "linux"))
-    {
-        // SAFETY: the process is single-threaded here or the env lock is held.
-        unsafe { std::env::set_var(key, value) };
     }
     install_forwarding();
     dx_cli::exec::install_panic_hint();
@@ -206,8 +198,9 @@ fn run_as_tool() -> Option<i32> {
 }
 // LCOV_EXCL_STOP - reason: end thin multicall shim, issue: 6517, policy: docs/cli/commands/build-test-coverage.md
 
-#[expect(unsafe_code, reason = "set_var is unsafe in edition 2024")]
+/// Decides `BAZEL_SH` for the Bazel calls this run makes; `dx_process` applies it per child.
 fn apply_bazel_sh(invocation: &dx_plan::args::Invocation) -> Option<i32> {
+    use dx_process::EnvChange;
     use dx_process::bazel_sh::{BazelSh, resolve_bazel_sh};
     if !(cfg!(windows) && dx_plan::args::help::runs_bazel(invocation.command)) {
         return None;
@@ -215,10 +208,10 @@ fn apply_bazel_sh(invocation: &dx_plan::args::Invocation) -> Option<i32> {
     let exists = |path: &Path| path.is_file();
     let read = |path: &Path| std::fs::read(path).ok();
     match resolve_bazel_sh(&|name| std::env::var_os(name), &exists, &read) {
-        // SAFETY: startup is single-threaded at this point.
-        Ok(BazelSh::Set(bash)) => unsafe { std::env::set_var("BAZEL_SH", bash) },
-        // SAFETY: startup is single-threaded at this point.
-        Ok(BazelSh::Unset) => unsafe { std::env::remove_var("BAZEL_SH") },
+        Ok(BazelSh::Set(bash)) => {
+            dx_process::init_bazel_env(vec![("BAZEL_SH", EnvChange::Set(bash.into_os_string()))]);
+        }
+        Ok(BazelSh::Unset) => dx_process::init_bazel_env(vec![("BAZEL_SH", EnvChange::Remove)]),
         Ok(BazelSh::Keep) => {}
         Err(error) => {
             let message = error.to_string();
@@ -359,7 +352,7 @@ fn parse_invocation(
             return Err(usage_error(code, &error.to_string(), json, command));
         }
     };
-    invocation.piped = !io::stdout().is_terminal();
+    invocation.piped = !dx_output::stdout_is_terminal();
     Ok(invocation)
 }
 // LCOV_EXCL_STOP - reason: end thin run shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md

@@ -8,7 +8,9 @@ package(default_visibility = VIS_CLI_PLATFORM)
 exports_files([
     "src/bazel_package.rs",
     "src/host.rs",
+    "src/label.rs",
     "src/lib.rs",
+    "src/lookup.rs",
     "src/nested_bazel.rs",
     "src/proto_validate.rs",
     "src/runfiles.rs",
@@ -23,7 +25,9 @@ rust_library(
     srcs = [
         "src/bazel_package.rs",
         "src/host.rs",
+        "src/label.rs",
         "src/lib.rs",
+        "src/lookup.rs",
         "src/nested_bazel.rs",
         "src/proto_validate.rs",
         "src/runfiles.rs",

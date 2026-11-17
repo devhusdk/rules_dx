@@ -1755,14 +1755,16 @@ impl Warm for Warmth {
     fn ping(&self) -> Option<Child> {
         let argv = self.ping_argv();
         let (program, rest) = argv.split_first()?;
-        std::process::Command::new(program)
+        let mut command = std::process::Command::new(program);
+        command
             .args(rest)
             .current_dir(&self.workspace)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .ok()
+            .stderr(Stdio::null());
+        // The ping may start the server, so it gets the same environment as every other Bazel call.
+        dx_process::apply_bazel_env(&mut command);
+        command.spawn().ok()
     }
 
     fn finished(&self, ping: &mut Child) -> bool {

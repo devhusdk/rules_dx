@@ -308,6 +308,56 @@ pub fn bazel_env_defaults(
     }
 }
 
+/// One change dx makes to the environment of each Bazel it starts.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum EnvChange {
+    Set(OsString),
+    Remove,
+}
+
+/// Changes dx decides at startup for every Bazel it starts, such as `BAZEL_SH`.
+///
+/// dx keeps them here instead of writing its own environment: `set_var` is
+/// unsound once any thread runs, and the changes only matter to Bazel.
+static BAZEL_ENV: std::sync::OnceLock<Vec<(&'static str, EnvChange)>> = std::sync::OnceLock::new();
+
+/// Records the startup environment changes for every Bazel this process starts.
+///
+/// The first call wins; dx makes it once, after it parses the command line.
+pub fn init_bazel_env(changes: Vec<(&'static str, EnvChange)>) {
+    drop(BAZEL_ENV.set(changes));
+}
+
+/// Gives `command` the Bazel environment when it runs the Bazel launcher.
+///
+/// That is `bazel_env_defaults` for this host plus the changes recorded by
+/// `init_bazel_env`. Other programs are left alone, and a variable the caller
+/// already set or removed on `command` keeps the caller's choice.
+pub fn apply_bazel_env(command: &mut Command) {
+    let mut changes: Vec<(&'static str, EnvChange)> =
+        bazel_env_defaults(&|name| std::env::var_os(name), cfg!(target_os = "linux"))
+            .into_iter()
+            .map(|(key, value)| (key, EnvChange::Set(OsString::from(value))))
+            .collect();
+    changes.extend(BAZEL_ENV.get().into_iter().flatten().cloned());
+    apply_env_changes(command, &changes);
+}
+
+fn apply_env_changes(command: &mut Command, changes: &[(&'static str, EnvChange)]) {
+    if command.get_program() != OsStr::new(launcher_argv0()) {
+        return;
+    }
+    for (key, change) in changes {
+        if command.get_envs().any(|(name, _)| name == OsStr::new(key)) {
+            continue;
+        }
+        match change {
+            EnvChange::Set(value) => command.env(key, value),
+            EnvChange::Remove => command.env_remove(key),
+        };
+    }
+}
+
 #[must_use]
 pub fn launcher_argv0() -> &'static str {
     "bazel"

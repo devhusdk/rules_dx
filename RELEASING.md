@@ -65,7 +65,7 @@ Run it from the tag: the workflow only attests the files when it runs on the tag
 - the `dx-gazelle-<os>-<cpu>` binaries, listed in `dx-gazelle-sha256sums.txt`
 - the `dx-tool-<tool>-<version>-<host>` quality and coverage tools with their licences, the deadnix source crate, the kcov source archive and the `dx-python-tools-<host>.tar.gz` bundles, listed in `dx-tool-sha256sums.txt`
 
-The source archive's `cli/prebuilt/pins.bzl` has the `SHA256` and `GAZELLE_SHA256` values filled in, so consumers download the prebuilt `dx`. On `main` those pins stay empty. The workflow also unpacks the Linux archive and runs `dx --version`, and uploads a `release-ledger` artifact that records the release.
+The source archive's `cli/prebuilt/pins.bzl` has `PINS` filled in from the release manifests, one sha256 per tool and platform in `cli/prebuilt/tools.bzl`, so consumers download the prebuilt `dx` and gazelle. On `main`, `PINS` stays empty. The workflow also unpacks the Linux archive and runs `dx --version`, and uploads a `release-ledger` artifact that records the release.
 
 It fails when:
 

@@ -26,7 +26,7 @@ module(name = "my_project")
 bazel_dep(name = "rules_dx", version = "<release>")
 ```
 
-A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small Dockerfile package from [`dockerfile/tests/consumer`](../../dockerfile/tests/consumer/BUILD.bazel):
+A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small Dockerfile package from [`dockerfile/tests/consumer`](https://github.com/devhusdk/rules_dx/blob/main/dockerfile/tests/consumer/BUILD.bazel):
 
 ```python
 load("@rules_dx//dockerfile:defs.bzl", "dockerfile_library")

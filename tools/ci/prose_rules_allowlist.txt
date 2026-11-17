@@ -4,10 +4,7 @@ MODULE.bazel issue-number 18
 cli/plan/src/args/invocation.rs link-chain 2
 core/quality/policy.bzl link-chain 1
 docs/AGENTS.md history-word 1
-docs/cli/commands/audit-update.md history-word 1
-docs/cli/commands/generate.md history-word 2
 docs/cli/commands/init.md history-word 2
-docs/github-ci.md history-word 1
 tools/ci/prose_rules_test.rs link-chain 1
 tools/docs/jvm/fixture/jvm_prose.md not-linted 1
 tools/docs/python/fixture/guide.md not-linted 1

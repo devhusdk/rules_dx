@@ -26,7 +26,7 @@ module(name = "my_project")
 bazel_dep(name = "rules_dx", version = "<release>")
 ```
 
-A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small Elixir package from [`elixir/tests/consumer`](../../elixir/tests/consumer/BUILD.bazel):
+A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small Elixir package from [`elixir/tests/consumer`](https://github.com/devhusdk/rules_dx/blob/main/elixir/tests/consumer/BUILD.bazel):
 
 ```python
 load("@rules_dx//elixir:defs.bzl", "elixir_app", "elixir_test")
@@ -81,7 +81,7 @@ The build file declares the package as an `elixir_app` with
 
 #### From hex.lock.json
 
-With `mix.exs` and `mix.lock` or `rebar.lock` in the set, `dx lock` writes `hex.lock.json` and `dx generate --apply` adds the `hex.lock` stanza for the `@hex` hub to `MODULE.bazel`. The hub holds one `elixir_app` per locked package; `rebar.lock` packages have no dependencies.
+With `mix.exs` and `mix.lock` or `rebar.lock` in the set, `dx update --apply` writes `hex.lock.json` and `dx generate --apply` adds the `hex.lock` stanza for the `@hex` hub to `MODULE.bazel`. The hub holds one `elixir_app` per locked package; `rebar.lock` packages have no dependencies.
 
 Depend on `@hex//jason`. An entry that is not from `hexpm` (`:git`, `:path`) fails with a message naming it.
 

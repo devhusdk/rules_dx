@@ -26,7 +26,7 @@ module(name = "my_project")
 bazel_dep(name = "rules_dx", version = "<release>")
 ```
 
-A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small Erlang package from [`erlang/tests/consumer`](../../erlang/tests/consumer/BUILD.bazel):
+A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small Erlang package from [`erlang/tests/consumer`](https://github.com/devhusdk/rules_dx/blob/main/erlang/tests/consumer/BUILD.bazel):
 
 ```python
 load("@rules_dx//erlang:defs.bzl", "erlang_app", "erlang_bytecode", "erlang_erlc_opts", "erlang_eunit_test", "erlang_test_app")
@@ -85,7 +85,7 @@ tools/dx test //...
 
 ### Locked Hex packages
 
-A `rebar.lock` becomes `hex.lock.json` through `dx lock` and is served by the `hex` hub, as `@hex//cowboy`. The lock also becomes a `hex` dependency set for `dx security`, `dx license` and `dx update`; `dx update` refreshes it with the pinned rebar3.
+A `rebar.lock` becomes `hex.lock.json` through `dx update --apply` and is served by the `hex` hub, as `@hex//cowboy`. The lock also becomes a `hex` dependency set for `dx security`, `dx license` and `dx update`; `dx update` refreshes it with the pinned rebar3.
 
 ## Generate
 

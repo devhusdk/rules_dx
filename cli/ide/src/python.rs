@@ -95,8 +95,9 @@ fn locked_labels(lock: &Path) -> Vec<String> {
         .collect()
 }
 
+/// The pip hub repository name: PEP 503 form with `_` as the separator.
 fn normalize(name: &str) -> String {
-    name.to_lowercase().replace(['-', '.'], "_")
+    dx_ecosystems::pep503_name(name).replace('-', "_")
 }
 
 fn site_packages_dirs(install: &Path) -> Vec<PathBuf> {

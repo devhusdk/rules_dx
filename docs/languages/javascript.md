@@ -26,7 +26,7 @@ module(name = "my_project")
 bazel_dep(name = "rules_dx", version = "<release>")
 ```
 
-A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small JavaScript package from [`javascript/tests/consumer`](../../javascript/tests/consumer/BUILD.bazel):
+A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small JavaScript package from [`javascript/tests/consumer`](https://github.com/devhusdk/rules_dx/blob/main/javascript/tests/consumer/BUILD.bazel):
 
 ```python
 load("@rules_dx//javascript:defs.bzl", "javascript_binary", "javascript_library", "js_library")

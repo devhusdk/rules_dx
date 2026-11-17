@@ -1,8 +1,8 @@
 """Creates @dx_gazelle: a pinned release gazelle, or one gazelle_binary of the registered languages plus dispatch."""
 
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
-load("//cli/prebuilt:hub.bzl", "GAZELLE_ASSET_PLATFORMS", "plan_assets", "plan_root")
-load("//cli/prebuilt:pins.bzl", "DX_VERSION", "GAZELLE_SHA256", "URL_TEMPLATE")
+load("//cli/prebuilt:extension.bzl", "ASSET_ATTRS", "declare_downloads")
+load("//cli/prebuilt:hub.bzl", "plan_assets", "plan_root")
+load("//cli/prebuilt:pins.bzl", "DX_VERSION", "PINS", "URL_TEMPLATE")
 load("//core:repo.bzl", "hub_repo")
 load(":hub.bzl", "builds_from_source", "prebuilt_build", "render_hub_build")
 
@@ -14,14 +14,8 @@ _language = tag_class(
 )
 
 _asset = tag_class(
-    doc = "Adds or replaces one gazelle binary; honoured only in the root module.",
-    attrs = {
-        "cpu": attr.string(doc = "The @platforms//cpu value; defaults from a release asset name."),
-        "name": attr.string(doc = "The release asset name, or a new name with os and cpu.", mandatory = True),
-        "os": attr.string(doc = "The @platforms//os value; defaults from a release asset name."),
-        "sha256": attr.string(doc = "The binary's sha256.", mandatory = True),
-        "url": attr.string(doc = "The binary's download URL.", mandatory = True),
-    },
+    doc = "Adds or replaces gazelle for one os and cpu; honoured only in the root module.",
+    attrs = ASSET_ATTRS,
 )
 
 _from_source = tag_class(
@@ -30,32 +24,23 @@ _from_source = tag_class(
 )
 
 def _dx_gazelle_impl(module_ctx):
-    plan = plan_root(module_ctx.modules, "dx_gazelle")
+    plan = plan_root(module_ctx.modules, "dx_gazelle", "gazelle")
     if plan.error:
         fail(plan.error)
     labels = [tag.library for mod in module_ctx.modules for tag in mod.tags.language]
     assets = [] if builds_from_source(plan, module_ctx.modules) else plan_assets(
+        "gazelle",
         DX_VERSION,
-        GAZELLE_SHA256,
+        PINS,
         URL_TEMPLATE,
         plan.overrides,
-        platforms = GAZELLE_ASSET_PLATFORMS,
         exe = "gazelle",
         repo_prefix = "dx_gazelle_",
-        strip = "dx-gazelle-",
     )
     if not [a for a in assets if a.repo]:
         hub_repo(name = "dx_gazelle", files = {"BUILD.bazel": render_hub_build(labels)})
     else:
-        for asset in assets:
-            if asset.repo:
-                http_file(
-                    name = asset.repo,
-                    downloaded_file_path = asset.exe,
-                    executable = True,
-                    sha256 = asset.sha256,
-                    urls = [asset.url],
-                )
+        declare_downloads(assets)
         hub_repo(name = "dx_gazelle", files = {"BUILD.bazel": prebuilt_build(assets, labels)})
     return module_ctx.extension_metadata(reproducible = True)
 

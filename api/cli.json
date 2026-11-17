@@ -1,0 +1,2772 @@
+{
+  "commands": [
+    {
+      "command": "dx",
+      "exit_codes": [],
+      "flags": [
+        {
+          "aliases": [
+            "-V"
+          ],
+          "defaults": [],
+          "name": "--version",
+          "values": []
+        }
+      ]
+    },
+    {
+      "command": "dx security",
+      "exit_codes": [
+        "0",
+        "2",
+        "1"
+      ],
+      "flags": [
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--accept",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--affected",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bazel-startup-option",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots-wait",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bundle",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--color",
+          "values": [
+            "auto",
+            "always",
+            "never"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--expires",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--fail-on",
+          "values": [
+            "info",
+            "warning",
+            "error"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--frozen",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--here",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--offline",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-o"
+          ],
+          "defaults": [],
+          "name": "--output",
+          "values": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "aliases": [
+            "-q"
+          ],
+          "defaults": [],
+          "name": "--quiet",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--reason",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--repo",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--report",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--since",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-v"
+          ],
+          "defaults": [],
+          "name": "--verbose",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--verify",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--workspace",
+          "values": []
+        }
+      ]
+    },
+    {
+      "command": "dx license",
+      "exit_codes": [
+        "0",
+        "2",
+        "1"
+      ],
+      "flags": [
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--accept",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--affected",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bazel-startup-option",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots-wait",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--color",
+          "values": [
+            "auto",
+            "always",
+            "never"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--expires",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--fail-on",
+          "values": [
+            "info",
+            "warning",
+            "error"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--frozen",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--here",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--offline",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-o"
+          ],
+          "defaults": [],
+          "name": "--output",
+          "values": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "aliases": [
+            "-q"
+          ],
+          "defaults": [],
+          "name": "--quiet",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--reason",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--report",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--since",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-v"
+          ],
+          "defaults": [],
+          "name": "--verbose",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--workspace",
+          "values": []
+        }
+      ]
+    },
+    {
+      "command": "dx lint",
+      "exit_codes": [
+        "0",
+        "2",
+        "1"
+      ],
+      "flags": [
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--affected",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--apply",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bazel-startup-option",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--breaking-against",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots-wait",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--color",
+          "values": [
+            "auto",
+            "always",
+            "never"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--diff",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--fail-on",
+          "values": [
+            "info",
+            "warning",
+            "error"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--here",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--include-edits",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--max-findings",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--online",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-o"
+          ],
+          "defaults": [],
+          "name": "--output",
+          "values": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "aliases": [
+            "-q"
+          ],
+          "defaults": [],
+          "name": "--quiet",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--report",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--since",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--unsafe",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-v"
+          ],
+          "defaults": [],
+          "name": "--verbose",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--workspace",
+          "values": []
+        }
+      ]
+    },
+    {
+      "command": "dx typecheck",
+      "exit_codes": [
+        "0",
+        "2",
+        "1"
+      ],
+      "flags": [
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--affected",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--apply",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bazel-startup-option",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots-wait",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--color",
+          "values": [
+            "auto",
+            "always",
+            "never"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--diff",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--fail-on",
+          "values": [
+            "info",
+            "warning",
+            "error"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--here",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--include-edits",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--max-findings",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-o"
+          ],
+          "defaults": [],
+          "name": "--output",
+          "values": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "aliases": [
+            "-q"
+          ],
+          "defaults": [],
+          "name": "--quiet",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--report",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--since",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--unsafe",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-v"
+          ],
+          "defaults": [],
+          "name": "--verbose",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--workspace",
+          "values": []
+        }
+      ]
+    },
+    {
+      "command": "dx format",
+      "exit_codes": [
+        "0",
+        "2",
+        "1"
+      ],
+      "flags": [
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--affected",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--apply",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bazel-startup-option",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots-wait",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--color",
+          "values": [
+            "auto",
+            "always",
+            "never"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--diff",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--fail-on",
+          "values": [
+            "info",
+            "warning",
+            "error"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--here",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--include-edits",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--max-findings",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-o"
+          ],
+          "defaults": [],
+          "name": "--output",
+          "values": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "aliases": [
+            "-q"
+          ],
+          "defaults": [],
+          "name": "--quiet",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--since",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--unsafe",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-v"
+          ],
+          "defaults": [],
+          "name": "--verbose",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--workspace",
+          "values": []
+        }
+      ]
+    },
+    {
+      "command": "dx generate",
+      "exit_codes": [
+        "0",
+        "2",
+        "1"
+      ],
+      "flags": [
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--affected",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--apply",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bazel-startup-option",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots-wait",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--color",
+          "values": [
+            "auto",
+            "always",
+            "never"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--diff",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--here",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-o"
+          ],
+          "defaults": [],
+          "name": "--output",
+          "values": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "aliases": [
+            "-q"
+          ],
+          "defaults": [],
+          "name": "--quiet",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-v"
+          ],
+          "defaults": [],
+          "name": "--verbose",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--workspace",
+          "values": []
+        }
+      ]
+    },
+    {
+      "command": "dx build",
+      "exit_codes": [
+        "0",
+        "2",
+        "1"
+      ],
+      "flags": [
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--affected",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bazel-startup-option",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots-wait",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--color",
+          "values": [
+            "auto",
+            "always",
+            "never"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--debug",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--here",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--no-retry",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-o"
+          ],
+          "defaults": [],
+          "name": "--output",
+          "values": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "aliases": [
+            "-q"
+          ],
+          "defaults": [],
+          "name": "--quiet",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--release",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--report",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--since",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--timings",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-v"
+          ],
+          "defaults": [],
+          "name": "--verbose",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--workspace",
+          "values": []
+        }
+      ]
+    },
+    {
+      "command": "dx test",
+      "exit_codes": [
+        "0",
+        "2",
+        "1"
+      ],
+      "flags": [
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--affected",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bazel-startup-option",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots-wait",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--color",
+          "values": [
+            "auto",
+            "always",
+            "never"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--debug",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--here",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--no-retry",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-o"
+          ],
+          "defaults": [],
+          "name": "--output",
+          "values": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "aliases": [
+            "-q"
+          ],
+          "defaults": [],
+          "name": "--quiet",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--release",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--report",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--since",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--timings",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-v"
+          ],
+          "defaults": [],
+          "name": "--verbose",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--workspace",
+          "values": []
+        }
+      ]
+    },
+    {
+      "command": "dx coverage",
+      "exit_codes": [
+        "0",
+        "2",
+        "1"
+      ],
+      "flags": [
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--affected",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bazel-startup-option",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots-wait",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--color",
+          "values": [
+            "auto",
+            "always",
+            "never"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--fail-on",
+          "values": [
+            "info",
+            "warning",
+            "error"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--here",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--min-changed-line-coverage",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--min-coverage",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--no-retry",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-o"
+          ],
+          "defaults": [],
+          "name": "--output",
+          "values": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "aliases": [
+            "-q"
+          ],
+          "defaults": [],
+          "name": "--quiet",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--report",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--since",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--timings",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-v"
+          ],
+          "defaults": [],
+          "name": "--verbose",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--workspace",
+          "values": []
+        }
+      ]
+    },
+    {
+      "command": "dx bench",
+      "exit_codes": [
+        "0",
+        "2",
+        "1"
+      ],
+      "flags": [
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bazel-startup-option",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots-wait",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--color",
+          "values": [
+            "auto",
+            "always",
+            "never"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--compare",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--here",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--max-regression",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-o"
+          ],
+          "defaults": [],
+          "name": "--output",
+          "values": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "aliases": [
+            "-q"
+          ],
+          "defaults": [],
+          "name": "--quiet",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-v"
+          ],
+          "defaults": [],
+          "name": "--verbose",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--workspace",
+          "values": []
+        }
+      ]
+    },
+    {
+      "command": "dx run",
+      "exit_codes": [
+        "0",
+        "2",
+        "1"
+      ],
+      "flags": [
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bazel-option",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bazel-startup-option",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots-wait",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--color",
+          "values": [
+            "auto",
+            "always",
+            "never"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--debug",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-o"
+          ],
+          "defaults": [],
+          "name": "--output",
+          "values": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "aliases": [
+            "-q"
+          ],
+          "defaults": [],
+          "name": "--quiet",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--release",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--timings",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-v"
+          ],
+          "defaults": [],
+          "name": "--verbose",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--workspace",
+          "values": []
+        }
+      ]
+    },
+    {
+      "command": "dx deploy",
+      "exit_codes": [
+        "0",
+        "2",
+        "1"
+      ],
+      "flags": [
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--affected",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--apply",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bazel-startup-option",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots-wait",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--color",
+          "values": [
+            "auto",
+            "always",
+            "never"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--debug",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-q"
+          ],
+          "defaults": [],
+          "name": "--quiet",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--release",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--since",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-v"
+          ],
+          "defaults": [],
+          "name": "--verbose",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--workspace",
+          "values": []
+        }
+      ]
+    },
+    {
+      "command": "dx check",
+      "exit_codes": [
+        "0",
+        "2",
+        "1"
+      ],
+      "flags": [
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--affected",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--apply",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bazel-startup-option",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots-wait",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--color",
+          "values": [
+            "auto",
+            "always",
+            "never"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--diff",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--fail-on",
+          "values": [
+            "info",
+            "warning",
+            "error"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--here",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--include-edits",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--max-findings",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--no-retry",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-o"
+          ],
+          "defaults": [],
+          "name": "--output",
+          "values": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "aliases": [
+            "-q"
+          ],
+          "defaults": [],
+          "name": "--quiet",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--report",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--since",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--unsafe",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-v"
+          ],
+          "defaults": [],
+          "name": "--verbose",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--workspace",
+          "values": []
+        }
+      ]
+    },
+    {
+      "command": "dx clean",
+      "exit_codes": [
+        "0",
+        "2",
+        "1"
+      ],
+      "flags": [
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bazel",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bazel-startup-option",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots-wait",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--color",
+          "values": [
+            "auto",
+            "always",
+            "never"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--expunge",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-o"
+          ],
+          "defaults": [],
+          "name": "--output",
+          "values": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "aliases": [
+            "-q"
+          ],
+          "defaults": [],
+          "name": "--quiet",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-v"
+          ],
+          "defaults": [],
+          "name": "--verbose",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--workspace",
+          "values": []
+        }
+      ]
+    },
+    {
+      "command": "dx update",
+      "exit_codes": [
+        "0",
+        "2",
+        "1"
+      ],
+      "flags": [
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--add-missing",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--allow-major",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--apply",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--automerge",
+          "values": [
+            "none",
+            "patch",
+            "minor",
+            "all"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bazel-startup-option",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots-wait",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--color",
+          "values": [
+            "auto",
+            "always",
+            "never"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--fail-on",
+          "values": [
+            "info",
+            "warning",
+            "error"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--floor",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--frozen",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--max-prs",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--min-age",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--offline",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--outdated",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-o"
+          ],
+          "defaults": [],
+          "name": "--output",
+          "values": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--pr",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--prune",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-q"
+          ],
+          "defaults": [],
+          "name": "--quiet",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--reason",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-v"
+          ],
+          "defaults": [],
+          "name": "--verbose",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--workspace",
+          "values": []
+        }
+      ]
+    },
+    {
+      "command": "dx sync",
+      "exit_codes": [
+        "0",
+        "2",
+        "1"
+      ],
+      "flags": [
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bazel-startup-option",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots-wait",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--color",
+          "values": [
+            "auto",
+            "always",
+            "never"
+          ]
+        },
+        {
+          "aliases": [
+            "-o"
+          ],
+          "defaults": [],
+          "name": "--output",
+          "values": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "aliases": [
+            "-q"
+          ],
+          "defaults": [],
+          "name": "--quiet",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-v"
+          ],
+          "defaults": [],
+          "name": "--verbose",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--workspace",
+          "values": []
+        }
+      ]
+    },
+    {
+      "command": "dx init",
+      "exit_codes": [
+        "0",
+        "2",
+        "1"
+      ],
+      "flags": [
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--accept-license",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--agents",
+          "values": [
+            "claude",
+            "codex",
+            "gemini",
+            "copilot"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--apply",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bazel-startup-option",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots-wait",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--ci",
+          "values": [
+            "github",
+            "gitlab",
+            "none"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--color",
+          "values": [
+            "auto",
+            "always",
+            "never"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--no-generate",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-o"
+          ],
+          "defaults": [],
+          "name": "--output",
+          "values": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "aliases": [
+            "-q"
+          ],
+          "defaults": [],
+          "name": "--quiet",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-v"
+          ],
+          "defaults": [],
+          "name": "--verbose",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--workspace",
+          "values": []
+        }
+      ]
+    },
+    {
+      "command": "dx upgrade",
+      "exit_codes": [
+        "0",
+        "2",
+        "1"
+      ],
+      "flags": [
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--apply",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bazel-startup-option",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots-wait",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--color",
+          "values": [
+            "auto",
+            "always",
+            "never"
+          ]
+        },
+        {
+          "aliases": [
+            "-o"
+          ],
+          "defaults": [],
+          "name": "--output",
+          "values": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "aliases": [
+            "-q"
+          ],
+          "defaults": [],
+          "name": "--quiet",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--to",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-v"
+          ],
+          "defaults": [],
+          "name": "--verbose",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--workspace",
+          "values": []
+        }
+      ]
+    },
+    {
+      "command": "dx status",
+      "exit_codes": [
+        "0",
+        "2",
+        "1"
+      ],
+      "flags": [
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bazel-startup-option",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots-wait",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--capabilities",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--color",
+          "values": [
+            "auto",
+            "always",
+            "never"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--files",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-o"
+          ],
+          "defaults": [],
+          "name": "--output",
+          "values": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "aliases": [
+            "-q"
+          ],
+          "defaults": [],
+          "name": "--quiet",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-v"
+          ],
+          "defaults": [],
+          "name": "--verbose",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--workspace",
+          "values": []
+        }
+      ]
+    },
+    {
+      "command": "dx watch",
+      "exit_codes": [
+        "2",
+        "3",
+        "141",
+        "129",
+        "130",
+        "143"
+      ],
+      "flags": [
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--affected",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--apply",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bazel-startup-option",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots-wait",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--color",
+          "values": [
+            "auto",
+            "always",
+            "never"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--debug",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--diff",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--fail-on",
+          "values": [
+            "info",
+            "warning",
+            "error"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--here",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--include-edits",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--max-findings",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-o"
+          ],
+          "defaults": [],
+          "name": "--output",
+          "values": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--poll",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-q"
+          ],
+          "defaults": [],
+          "name": "--quiet",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--release",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--report",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--since",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--unsafe",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-v"
+          ],
+          "defaults": [],
+          "name": "--verbose",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--workspace",
+          "values": []
+        }
+      ]
+    },
+    {
+      "command": "dx completion",
+      "exit_codes": [
+        "0",
+        "2",
+        "1"
+      ],
+      "flags": [
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bazel-startup-option",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots-wait",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--color",
+          "values": [
+            "auto",
+            "always",
+            "never"
+          ]
+        },
+        {
+          "aliases": [
+            "-q"
+          ],
+          "defaults": [],
+          "name": "--quiet",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-v"
+          ],
+          "defaults": [],
+          "name": "--verbose",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--workspace",
+          "values": []
+        }
+      ]
+    },
+    {
+      "command": "dx docs",
+      "exit_codes": [
+        "0",
+        "2",
+        "1"
+      ],
+      "flags": [
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bazel-startup-option",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots-wait",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--color",
+          "values": [
+            "auto",
+            "always",
+            "never"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--here",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--host",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--open",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-o"
+          ],
+          "defaults": [],
+          "name": "--output",
+          "values": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--port",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-q"
+          ],
+          "defaults": [],
+          "name": "--quiet",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--serve",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-v"
+          ],
+          "defaults": [],
+          "name": "--verbose",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--workspace",
+          "values": []
+        }
+      ]
+    },
+    {
+      "command": "dx worktree",
+      "exit_codes": [
+        "0",
+        "2",
+        "1"
+      ],
+      "flags": [
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--apply",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bases",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bazel-startup-option",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots-wait",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--color",
+          "values": [
+            "auto",
+            "always",
+            "never"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--create",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--disk",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--force",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-o"
+          ],
+          "defaults": [],
+          "name": "--output",
+          "values": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--path-only",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-q"
+          ],
+          "defaults": [],
+          "name": "--quiet",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-v"
+          ],
+          "defaults": [],
+          "name": "--verbose",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--workspace",
+          "values": []
+        }
+      ]
+    },
+    {
+      "command": "dx fuzz",
+      "exit_codes": [
+        "0",
+        "2",
+        "1"
+      ],
+      "flags": [
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bazel-startup-option",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--budget",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots-wait",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--color",
+          "values": [
+            "auto",
+            "always",
+            "never"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--here",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--jobs",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-o"
+          ],
+          "defaults": [],
+          "name": "--output",
+          "values": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "aliases": [
+            "-q"
+          ],
+          "defaults": [],
+          "name": "--quiet",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-v"
+          ],
+          "defaults": [],
+          "name": "--verbose",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--workspace",
+          "values": []
+        }
+      ]
+    },
+    {
+      "command": "dx config",
+      "exit_codes": [
+        "0",
+        "2",
+        "1"
+      ],
+      "flags": [
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bazel-startup-option",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots-wait",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--color",
+          "values": [
+            "auto",
+            "always",
+            "never"
+          ]
+        },
+        {
+          "aliases": [
+            "-o"
+          ],
+          "defaults": [],
+          "name": "--output",
+          "values": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "aliases": [
+            "-q"
+          ],
+          "defaults": [],
+          "name": "--quiet",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-v"
+          ],
+          "defaults": [],
+          "name": "--verbose",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--workspace",
+          "values": []
+        }
+      ]
+    }
+  ]
+}

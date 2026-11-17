@@ -1,10 +1,9 @@
-//! Every command page under docs/cli/commands documents the commands, flags and exit codes that `dx <command> --help` prints and no other flag, outside `tools/ci/command_docs_allowlist.txt`.
+//! Every command page under docs/cli/commands documents the commands, flags and exit codes that `dx <command> --help` prints and no other flag, outside `tools/ci/command_docs_allowlist.txt`, and every `dx <command>` in the code of any tracked Markdown file names a command and flags the grammar has.
 
 use std::path::Path;
 use std::collections::{BTreeMap, BTreeSet};
 
 use dx_plan::args::{HelpFlag, HelpSurface, help_surface};
-use serde_json as _;
 use starlark_syntax as _;
 use yaml_serde as _;
 
@@ -33,6 +32,87 @@ fn code_text(page: &str) -> Vec<String> {
             out.push(line.trim().to_owned());
         } else {
             out.extend(line.split('`').skip(1).step_by(2).map(|span| span.replace("\\|", "|")));
+        }
+    }
+    out
+}
+
+/// Commands the dx shim answers itself; they never reach the CLI grammar.
+const SHIM_COMMANDS: [&str; 1] = ["shim"];
+
+/// Shell words that end one command.
+const COMMAND_ENDS: [&str; 7] = ["|", "||", "&&", ";", ">", ">>", "2>&1"];
+
+/// The words after each `dx` or `tools/dx` that starts a command in one code text, up to the end of that command.
+///
+/// Only a command position counts: the start of the text, or after `$` or a shell word that ends a command.
+/// A `dx` inside a sentence or a log line, such as `dx: warning: ... which dx does not render`, is prose.
+fn invocations(code: &str) -> Vec<Vec<&str>> {
+    let words: Vec<&str> = code.split_whitespace().take_while(|word| !word.starts_with('#')).collect();
+    let mut out = Vec::new();
+    let mut previous: Option<&str> = None;
+    for (at, word) in words.iter().enumerate() {
+        let starts = previous.is_none_or(|before| before == "$" || COMMAND_ENDS.contains(&before));
+        previous = Some(word);
+        let program = word.trim_start_matches('(').trim_start_matches("./");
+        if !starts || (program != "dx" && program != "tools/dx") {
+            continue;
+        }
+        out.push(
+            words
+                .iter()
+                .skip(at + 1)
+                .take_while(|word| !COMMAND_ENDS.contains(word))
+                .copied()
+                .collect(),
+        );
+    }
+    out
+}
+
+/// Whether `word` is spelled like a command name rather than a placeholder such as `<command>`.
+fn is_name(word: &str) -> bool {
+    word.starts_with(|letter: char| letter.is_ascii_lowercase())
+        && word.chars().all(|letter| letter.is_ascii_lowercase() || letter.is_ascii_digit() || letter == '-')
+}
+
+/// Every `dx <command>` in the code of `files` whose command the grammar lacks, or whose `--flag` neither the command, its subcommands nor `dx` itself takes.
+fn unknown_invocations(surface: &[HelpSurface], files: &BTreeMap<String, String>) -> BTreeSet<String> {
+    let mut root: BTreeSet<&str> = HELP_FLAGS.into_iter().collect();
+    let mut commands: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
+    for entry in surface {
+        let spelled = entry.flags.iter().flat_map(spellings);
+        match entry.path.first() {
+            Some(command) => commands.entry(command.as_str()).or_default().extend(spelled),
+            None => root.extend(spelled),
+        }
+    }
+    let mut out = BTreeSet::new();
+    for (path, text) in files {
+        for code in code_text(text) {
+            for words in invocations(&code) {
+                let (command, rest) = match words.split_first() {
+                    Some((first, rest)) if is_name(first) => (*first, rest),
+                    Some((first, _)) if first.starts_with('-') => ("", words.as_slice()),
+                    _ => continue,
+                };
+                if SHIM_COMMANDS.contains(&command) {
+                    continue;
+                }
+                let flags = if command.is_empty() {
+                    None
+                } else if let Some(flags) = commands.get(command) {
+                    Some(flags)
+                } else {
+                    out.insert(format!("{path}: unknown command `dx {command}`"));
+                    continue;
+                };
+                for flag in flags_in(&rest.join(" ")) {
+                    if !root.contains(flag.as_str()) && !flags.is_some_and(|flags| flags.contains(flag.as_str())) {
+                        out.insert(format!("{path}: unknown flag `dx {command} {flag}`").replace("dx  ", "dx "));
+                    }
+                }
+            }
         }
     }
     out
@@ -209,6 +289,22 @@ fn command_pages_match_help_outside_the_allowlist() {
     );
 }
 
+#[test]
+fn every_dx_command_in_markdown_is_in_the_grammar() {
+    let text = read_runfile(dx_testing::env_text("DX_PROSE_JSON").trim());
+    let parsed: Result<BTreeMap<String, String>, serde_json::Error> = serde_json::from_str(&text);
+    assert!(parsed.is_ok(), "prose.json: {parsed:?}");
+    let files = parsed.unwrap_or_default();
+    assert!(files.len() >= 100, "only {} Markdown files", files.len());
+    let found = unknown_invocations(&help_surface(), &files);
+    assert!(
+        found.is_empty(),
+        "fix the page or the grammar ({} problems):\n{}",
+        found.len(),
+        found.into_iter().collect::<Vec<String>>().join("\n")
+    );
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -222,6 +318,8 @@ mod tests {
                 .map(|flag| HelpFlag {
                     name: (*flag).to_owned(),
                     aliases: if *flag == "--output" { vec!["-o".to_owned()] } else { Vec::new() },
+                    values: Vec::new(),
+                    defaults: Vec::new(),
                 })
                 .collect(),
             exit_codes: exit_codes.iter().map(|code| (*code).to_owned()).collect(),
@@ -313,6 +411,24 @@ mod tests {
         assert_eq!(
             found(&surface, &[("tidy.md", PAGE)]),
             ["tidy.md missing-exit-code 1", "tidy.md missing-exit-code 2"]
+        );
+    }
+
+    #[test]
+    fn an_unknown_command_or_flag_anywhere_in_markdown_is_detected() {
+        let surface = [
+            entry(&[], None, &["--output"], &[]),
+            entry(&["tidy"], Some("tidy.md"), &["--deep"], &[]),
+            entry(&["tidy", "sweep"], Some("tidy.md"), &["--fast"], &[]),
+        ];
+        let readme = "Lock it with `dx lock`.\n\n```sh\n$ tools/dx tidy sweep --fast --deep -o json && dx --output json\ndx tidy --gone | grep --count x # dx lint\n./tools/dx <command> --any\ndx shim where\n```\n\n`dx: warning: dx owns this`, `cargo test -- --deep`, `dx tidy -- --keep_going`\n";
+        let found: Vec<String> = unknown_invocations(&surface, &pages(&[("lang/README.md", readme)])).into_iter().collect();
+        assert_eq!(
+            found,
+            [
+                "lang/README.md: unknown command `dx lock`",
+                "lang/README.md: unknown flag `dx tidy --gone`",
+            ]
         );
     }
 

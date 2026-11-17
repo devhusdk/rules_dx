@@ -26,7 +26,7 @@ module(name = "my_project")
 bazel_dep(name = "rules_dx", version = "<release>")
 ```
 
-A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small C and C++ package from [`cc/tests/consumer`](../../cc/tests/consumer/BUILD.bazel):
+A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small C and C++ package from [`cc/tests/consumer`](https://github.com/devhusdk/rules_dx/blob/main/cc/tests/consumer/BUILD.bazel):
 
 ```python
 load("@rules_dx//cc:defs.bzl", "cc_library", "cc_test")

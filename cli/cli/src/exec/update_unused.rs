@@ -5,6 +5,7 @@ use dx_adopt::dependency_sets::{
 };
 use dx_ecosystems::Language;
 use dx_output::{NoticeEvent, notice_event};
+use dx_path::label::Label;
 use dx_plan::resolve::{QueryRunner, run_label_query_file};
 use std::collections::BTreeMap;
 use std::io::Write;
@@ -54,11 +55,9 @@ fn depcheck_language(set: &ResolvedSet) -> Result<Option<Language>, dx_adopt::Ad
 /// Crate name behind a label of a `crate_universe` hub: `serde-1.0.229` is `serde`, `cc` stays, and
 /// the binary target `ripgrep__rg` of a tool crate is `ripgrep`.
 fn crate_name(label: &str) -> Option<String> {
-    let (repository, rest) = label.split_once("//")?;
-    if !repository.starts_with('@') {
-        return None;
-    }
-    let target = rest.rsplit_once(':').map_or(rest, |(_, target)| target);
+    let parsed = Label::parse(label)?;
+    parsed.repo_name()?;
+    let target = parsed.name;
     let semver = |text: &str| {
         let core = text.split(['-', '+']).next().unwrap_or("");
         let parts: Vec<&str> = core.split('.').collect();
@@ -124,11 +123,7 @@ fn nuget_hubs(workspace: &Path, set: &ResolvedSet) -> Vec<String> {
 /// Labels without repository and without a target that repeats the last package segment, so
 /// `@<hub>//numpy:numpy` and `@<hub>//numpy` agree.
 fn label_key(label: &str) -> Option<String> {
-    let (_, rest) = label.split_once("//")?;
-    let (package, name) = match rest.split_once(':') {
-        Some(parts) => parts,
-        None => (rest, rest.rsplit('/').next().unwrap_or(rest)),
-    };
+    let Label { package, name, .. } = Label::parse(label).filter(|parsed| !parsed.relative)?;
     if package.is_empty() {
         return Some(format!(":{name}"));
     }
@@ -536,9 +531,10 @@ fn missing_hubs(
                 continue;
             }
             let expression = format!("rdeps(//..., {label}, 1) - {label}");
-            let consumer = run_label_query_file(&expression, &expression, workspace, query, startup)
-                .ok()
-                .and_then(|labels| labels.into_iter().next());
+            let consumer =
+                run_label_query_file(&expression, &expression, workspace, query, startup)
+                    .ok()
+                    .and_then(|labels| labels.into_iter().next());
             out.push(Missing {
                 set: target.set.name.clone(),
                 name: name.to_owned(),

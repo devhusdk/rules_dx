@@ -100,6 +100,13 @@ pub fn color_enabled() -> bool {
     color_enabled_for(color_override())
 }
 
+/// Whether dx's stdout is a terminal, so a person and not a pipe or file reads it.
+#[must_use]
+pub fn stdout_is_terminal() -> bool {
+    use std::io::IsTerminal as _;
+    std::io::stdout().is_terminal()
+}
+
 /// Shortens a tool's diagnostic line to at most `limit` bytes plus `...`.
 #[must_use]
 pub fn truncate_line(line: &str, limit: usize) -> String {
@@ -466,6 +473,27 @@ mod tests {
         assert!(color_enabled(), "always mode ignores env and tty");
         set_color_override(prior_override);
         assert_eq!(color_override(), prior_override);
+    }
+
+    #[test]
+    fn a_piped_stdout_is_no_terminal() {
+        if std::env::var_os("DX_OUTPUT_PIPED_CHILD").is_some() {
+            assert!(!stdout_is_terminal(), "the parent pipes this stdout");
+            return;
+        }
+        // A child with a piped stdout, so the answer does not depend on how the runner started us.
+        let child = std::process::Command::new(std::env::current_exe().expect("test binary"))
+            .args([
+                "diagnostics::tests::a_piped_stdout_is_no_terminal",
+                "--exact",
+            ])
+            .env("DX_OUTPUT_PIPED_CHILD", "1")
+            .output()
+            .expect("spawn piped child");
+        let out = String::from_utf8_lossy(&child.stdout);
+        let err = String::from_utf8_lossy(&child.stderr);
+        assert!(child.status.success(), "child failed: {out}{err}");
+        assert!(out.contains("1 passed"), "child ran the test: {out}");
     }
 
     #[expect(

@@ -1,6 +1,9 @@
 use super::*;
 use crate::test_support::*;
 
+/// The files of one OCI layout fixture, as (path, contents) pairs.
+type LayoutFiles<'a> = Vec<(&'a str, &'a [u8])>;
+
 #[test]
 fn oci_layout_builds_index() {
     let scratch = scratch_dir();
@@ -594,7 +597,7 @@ fn oci_archive_image_id_rejects_unsupported_oci_layout_directories() {
         .expect("docker manifest")
     };
     let (dotdot, drive, backslash) = (docker("../x"), docker("C:/x"), docker("a\\b"));
-    let cases: Vec<(&str, Vec<(&str, &[u8])>, &str)> = vec![
+    let cases: Vec<(&str, LayoutFiles<'_>, &str)> = vec![
         (
             "two images",
             vec![("index.json", two.as_slice())],
@@ -819,7 +822,7 @@ fn oci_archive_image_id_rejects_unsupported_oci_layout_archives() {
         .map(|(name, body)| (name.as_str(), body.as_slice()))
         .collect();
     let manifest_blob = oci_blob(&fixture.manifest);
-    let cases: Vec<(&str, Vec<(&str, &[u8])>, &str)> = vec![
+    let cases: Vec<(&str, LayoutFiles<'_>, &str)> = vec![
         (
             "two images",
             vec![("index.json", two.as_slice())],
@@ -917,7 +920,7 @@ fn oci_archive_image_id_rejects_unsupported_oci_layout_archives() {
         "application/vnd.oci.image.index.v1+json",
         &nested_body,
     )]);
-    let positives: Vec<(&str, Vec<(&str, &[u8])>)> = vec![
+    let positives: Vec<(&str, LayoutFiles<'_>)> = vec![
         ("two tags", vec![("index.json", tagged_index.as_slice())]),
         (
             "nested twice",
@@ -1164,7 +1167,12 @@ fn oci_layout_rejects_malformed_gzip_layers() {
         );
         cases.push((name.to_owned(), image));
     }
-    let (valid, _) = oci_save(scratch.path(), "valid.tar", &[tar.clone()], "linux/amd64");
+    let (valid, _) = oci_save(
+        scratch.path(),
+        "valid.tar",
+        std::slice::from_ref(&tar),
+        "linux/amd64",
+    );
     let outer = gzip_compress(&std::fs::read(&valid).expect("read valid")).expect("gzip");
     let mut flipped = outer.clone();
     let mid = flipped.len() / 2;
@@ -1221,7 +1229,12 @@ fn oci_paths_reject_invalid_zstd() {
         ],
         &[],
     );
-    let (valid, _) = oci_save(scratch.path(), "valid.tar", &[tar.clone()], "linux/amd64");
+    let (valid, _) = oci_save(
+        scratch.path(),
+        "valid.tar",
+        std::slice::from_ref(&tar),
+        "linux/amd64",
+    );
     let mut outer = ZSTD_MAGIC.to_vec();
     outer.extend_from_slice(&std::fs::read(&valid).expect("read valid"));
     let archive = scratch.path().join("zstd_image.tar");
@@ -1293,9 +1306,7 @@ fn oci_read_layer_rejects_bad_zstd_tails() {
     let mut short = good;
     short.extend_from_slice(&skippable_frame(8, b"abc"));
     for (name, blob) in [("garbage", garbage), ("short", short)] {
-        let error = oci_read_layer(blob.as_slice(), name, None)
-            .err()
-            .expect(name);
+        let error = oci_read_layer(blob.as_slice(), name, None).expect_err(name);
         assert!(error.to_string().contains("is not valid zstd"), "{error}");
     }
 }

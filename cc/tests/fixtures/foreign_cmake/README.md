@@ -32,7 +32,11 @@ switching compilers reconfigures CMake instead of reusing a stale cache.
 On windows_x86_64 with `--//cc:compiler=msvc`, `zlib_msvc_static` and
 `zlib_msvc_shared` build the same zlib with cl.exe through the Ninja generator
 (`libzs.lib`, `libz.lib` and `libz.dll`). The root MODULE.bazel uses the prebuilt ninja on Windows and noop
-make, m4 and pkgconfig toolchains there. `foreign_cmake_msvc_log_test` checks the
+make, m4 and pkgconfig toolchains there. These targets build only under
+`--//cc:compiler=msvc`: under clang-cl, the default, CMake would hand clang-cl's
+`/clang:` link flags straight to lld-link. `zlib_msvc_static_cl_test`,
+`zlib_msvc_shared_cl_test` and `zlib_msvc_log_cl` switch to msvc for you, so a
+plain `bazel test` on Windows still runs them. `foreign_cmake_msvc_log_test` checks the
 MSVC identification and the /MD flag in the CMake log. Link warnings are not errors
 for these probes (`/WX:NO`).
 Static targets set `ZLIB_BUILD_SHARED=OFF`, shared targets set

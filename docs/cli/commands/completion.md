@@ -1,49 +1,68 @@
 # `dx completion`
 
-Prints the completion script for one shell. Runs outside a workspace.
+Use `dx completion` to get Tab completion for dx commands, flags and Bazel targets in your shell.
 
 ```sh
-dx completion bash > ~/.cache/dx-completion.bash
 source <(dx completion bash)
 source <(dx completion zsh)
 dx completion fish | source
 dx completion powershell | Out-String | Invoke-Expression
+dx completion bash > ~/.cache/dx-completion.bash
 ```
 
-```text
-dx completion <shell>
-```
+`dx completion` prints the completion script for one shell. It works outside a workspace too.
 
-Shells: `bash`, `zsh`, `fish`, `powershell`.
-
-To load completion in every new shell:
+## Load it in every new shell
 
 - Bash: add `source <(dx completion bash)` to `~/.bashrc`.
-- Zsh: add `source <(dx completion zsh)` to `~/.zshrc` after `compinit`.
+- Zsh: add `source <(dx completion zsh)` to `~/.zshrc`, after `compinit`.
 - Fish: add `dx completion fish | source` to `~/.config/fish/config.fish`.
 - PowerShell: add `dx completion powershell | Out-String | Invoke-Expression` to `$PROFILE`.
 
 Keep `dx` on your `PATH`. The script asks `dx` for candidates as you type.
 
+## Usage
+
+```text
+dx completion <shell>
+```
+
+`<shell>` is one of `bash`, `zsh`, `fish` or `powershell`.
+
 ## Flags
 
 | Flag | What it does |
 | --- | --- |
-| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--build-slots-wait`, `--bazel-startup-option` | Global flags. |
+| `--workspace <dir>` | Use this workspace directory. |
+| `-q, --quiet` | Hide summaries. |
+| `-v, --verbose` | Show more logs. |
+| `--color auto\|always\|never` | Set color output. |
+| `--build-slots <auto\|n\|off>` | Set build slots: `auto`, a count, or `off`. |
+| `--build-slots-wait <duration>` | Give up waiting for a build slot after this long. `0` fails at once. |
+| `--bazel-startup-option <token>` | Pass one Bazel startup option. Repeatable. |
 
-No other flag. `--output=json`, `--diff`, and `-- bazel-options` are usage errors. `DX_OUTPUT=json` falls back to text.
+`dx completion` takes no other flag. `--output=json`, `--diff` and `-- bazel-options` are usage errors. `DX_OUTPUT=json` falls back to text.
 
-Scopes: exactly one shell. Unknown shells fail with `unknown shell`.
+## Scopes
+
+Exactly one shell. Any other value fails with `unknown shell`.
 
 ## Candidates
 
-Candidates are every command, every flag, the per-command slots, the package labels of the workspace, and the targets of one package. The workspace is `--workspace`, then the current workspace.
+As you type, completion offers:
 
-Target completion runs one `bazel query` for the typed package. It gives up after about 1.5 seconds or when another Bazel command holds the server, then offers package patterns only. Completion prints no errors while you type.
+- every command and every flag;
+- the values each command takes in each position;
+- the Bazel packages of the workspace, as labels such as `//pkg`. A *package* is a directory with a `BUILD.bazel` file;
+- the targets of one package, such as `//pkg:name`. A *target* is one thing Bazel can build, run or test.
+
+The workspace is the one `--workspace` names, else the one you are in.
+
+To list the targets of a package, completion runs one `bazel query`. It gives up after about 1.5 seconds, or when another Bazel command holds the Bazel server, and offers package patterns only. Completion prints no errors while you type.
 
 ## Output
 
-Text only. Reports: none.
+Text only. `dx completion` writes no reports.
 
 ## Exit codes
 

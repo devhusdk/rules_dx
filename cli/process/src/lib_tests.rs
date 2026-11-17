@@ -1600,3 +1600,45 @@ fn constructors_carry_the_documented_error_kind() {
     assert_eq!(invalid_setting("x").kind(), ErrorKind::Failure);
     assert_eq!(unsupported_command("x").kind(), ErrorKind::Failure);
 }
+
+#[test]
+fn bazel_env_changes_reach_only_bazel_and_yield_to_the_caller() {
+    let changes = [
+        ("MALLOC_ARENA_MAX", EnvChange::Set(OsString::from("2"))),
+        ("BAZEL_SH", EnvChange::Remove),
+    ];
+    let envs = |command: &Command| -> Vec<(OsString, Option<OsString>)> {
+        command
+            .get_envs()
+            .map(|(key, value)| (key.to_owned(), value.map(OsStr::to_owned)))
+            .collect()
+    };
+    let mut bazel = Command::new(launcher_argv0());
+    apply_env_changes(&mut bazel, &changes);
+    assert_eq!(
+        envs(&bazel),
+        [
+            (OsString::from("BAZEL_SH"), None),
+            (
+                OsString::from("MALLOC_ARENA_MAX"),
+                Some(OsString::from("2"))
+            ),
+        ]
+    );
+    let mut chosen = Command::new(launcher_argv0());
+    chosen.env("MALLOC_ARENA_MAX", "8");
+    apply_env_changes(&mut chosen, &changes);
+    assert_eq!(
+        envs(&chosen),
+        [
+            (OsString::from("BAZEL_SH"), None),
+            (
+                OsString::from("MALLOC_ARENA_MAX"),
+                Some(OsString::from("8"))
+            ),
+        ]
+    );
+    let mut git = Command::new("git");
+    apply_env_changes(&mut git, &changes);
+    assert_eq!(envs(&git), []);
+}

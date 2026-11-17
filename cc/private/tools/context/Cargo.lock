@@ -1968,6 +1968,7 @@ dependencies = [
 name = "dx_lock"
 version = "0.0.0"
 dependencies = [
+ "globset",
  "jsonschema",
  "serde",
  "serde_json",

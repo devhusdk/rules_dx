@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
 use dx_module_bazel::{Call, ModuleFile, Value};
+use dx_path::label::repo_of;
 use serde_json::{Map, Value as Json};
 
 /// The modules Bazel's built-in `bazel_tools` depends on, from its `MODULE.tools`.
@@ -394,15 +395,9 @@ pub(crate) fn closure(
     }
 }
 
-fn label_repo(label: &str) -> Option<&str> {
-    let rest = label.strip_prefix('@')?;
-    let rest = rest.strip_prefix('@').unwrap_or(rest);
-    Some(rest.split_once("//").map_or(rest, |(repo, _)| repo))
-}
-
 /// The module a label's repository belongs to, `""` for the root module.
 fn label_module(label: &str, deps: &BTreeMap<String, String>, own: &[String]) -> String {
-    match label_repo(label) {
+    match repo_of(label) {
         None | Some("") => String::new(),
         Some(repo) if own.iter().any(|name| name == repo) => String::new(),
         Some(repo) => deps.get(repo).cloned().unwrap_or_else(|| repo.to_owned()),

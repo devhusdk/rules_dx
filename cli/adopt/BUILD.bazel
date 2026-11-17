@@ -43,7 +43,7 @@ rust_library(
         "//core/quality/tiers:all",
         "//core/quality/tiers/gopls:gopls_standard.json",
         "//core/quality/tiers/gopls:gopls_strict.json",
-        "//.github:workflows/dx-update.yml",
+        "templates/dx-update.yml",
         "//cli/prebuilt:pins.bzl",
         "//patches/avro-cpp:iterator.patch",
     ],
@@ -60,6 +60,7 @@ rust_library(
     # keep
     deps = [
         "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/depcheck:depcheck_lib",
         "//cli/dx_config",
         "//cli/ecosystems:dx_ecosystems",
         "//cli/error:dx_error",
@@ -124,7 +125,7 @@ rust_test(
         "//core/quality/tiers:all",
         "//core/quality/tiers/gopls:gopls_standard.json",
         "//core/quality/tiers/gopls:gopls_strict.json",
-        "//.github:workflows/dx-update.yml",
+        "templates/dx-update.yml",
         "//cli/prebuilt:pins.bzl",
         "//patches/avro-cpp:iterator.patch",
     ],
@@ -159,6 +160,7 @@ rust_test(
     # keep
     deps = [
         "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/depcheck:depcheck_lib",
         "//cli/digest:dx_digest",
         "//cli/dx_config",
         "//cli/ecosystems:dx_ecosystems",

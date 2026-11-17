@@ -34,10 +34,12 @@ rust_library(
     compile_data = ["schema/dx.schema.json"],
     crate_name = "dx_config",
     crate_root = "src/lib.rs",
+    visibility = VIS_CLI + ["//tools/api:__pkg__"],
     deps = all_crate_deps(
         package_name = "cli/dx_config",
         normal = True,
     ) + [
+        "//cli/path:dx_path",
         "@crates//:serde",
         "@crates//:serde_json",
     ],
@@ -72,6 +74,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        "//cli/path:dx_path",
         "//cli/test_scratch:dx_test_scratch",
         "@crates//:serde",
         "@crates//:serde_json",

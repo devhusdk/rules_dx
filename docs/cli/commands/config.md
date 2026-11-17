@@ -1,17 +1,12 @@
 # Config Reference
 
-dx reads two files from the workspace root: `security.toml` for `dx security`
-and `license.toml` for `dx license`. Both are optional. Each is merged over a
-base that ships with dx; the top-level `tier` in `dx.toml` picks it:
-`standard` (the default) or `strict`. An unknown key fails the run. Defaults come from flags and `DX_` variables (see
-[Command Reference](README.md)).
+Use this page to see which config file each tool reads and to set up `dx.toml`, `security.toml` and `license.toml`.
 
-In every table, a key without a default is required. Dates are `YYYY-MM-DD`.
-`versions` uses the range syntax of the `set` ecosystem.
+All three files live in the workspace root, the directory that holds `MODULE.bazel`. All three are optional. An unknown key fails the run. Dates are `YYYY-MM-DD`. In an `[[exception]]`, `[[uncovered]]` or `[[inventory]]` entry, every key whose default is `none` is required.
 
 ## `dx config`
 
-Shows which config file each tool reads and how it relates to the base dx renders under `.dx/config/`.
+Lists the config file each tool reads and the base dx writes for it under `.dx/config/`.
 
 ```sh
 tools/dx config
@@ -25,40 +20,89 @@ tools/dx config --output json
 dx config [<tool> | diff <tool> | override <tool>] [--output text|json]
 ```
 
-| Form | What it prints |
+`<tool>` is a tool id, such as `ruff` or `hlint`. A tool's root file is its config file in the workspace root, such as `ruff.toml`. The base is the file dx renders for it, such as `.dx/config/ruff/base.toml`.
+
+### Forms
+
+| Form | What it does |
 | --- | --- |
-| `dx config` | One line per selected tool: the tool, its root file (`-` when the workspace has none), then `extends <base>`, `override of <base>` or `tier base <base>` when the tool runs on the base itself. `edited` follows when the root file starts with a `dx: override of base <sha>` comment. |
-| `dx config <tool>` | Every file the tool reads, in order: the root file when there is one, then the base. |
-| `dx config diff <tool>` | A unified diff from the current base to the root file, ignoring its `dx: override of base` header line; empty when the copy is unchanged. Fails when the tool has no root file. |
-| `dx config override <tool>` | Copies the base to the tool's root file and starts it with a `dx: override of base <git blob sha>` comment. Refuses when the tool has an extends line (it prints the line to add instead) or when the root file already exists. The only form that writes. |
+| `dx config` | Prints one line per tool your workspace uses. |
+| `dx config <tool>` | Prints every file the tool reads, in order: the root file when there is one, then the base. Works for any tool with a base. |
+| `dx config diff <tool>` | Prints a unified diff from the base to the root file. The `dx: override of base` header line is ignored. Prints nothing when the copy is unchanged. |
+| `dx config override <tool>` | Copies the base to the tool's root file and adds a `dx: override of base <sha>` comment on top. `<sha>` is the git blob sha of the base. This is the only form that writes. |
+
+`dx config override <tool>` refuses when:
+
+- the tool can extend its base. dx prints the line to add to your root file instead.
+- the root file already exists. Remove it first.
+
+### Output
+
+`dx config` prints one line per tool:
 
 ```text
 ruff  ruff.toml  extends .dx/config/ruff/base.toml  edited
 taplo  -  tier base .dx/config/taplo/base.toml
 ```
 
-`--output json` emits one `config_file` event per file (`tool`, `file`, `role` as `root` or `base`, `base`, `edited`). The list form emits the root file of each tool, or the base when the tool has no root file. `dx config diff <tool>` emits the root file's event with `patch`, the unified diff as one string (empty when the copy is unchanged). `dx config override <tool>` emits the event of the root file it wrote. An unknown tool fails with `config_failed`.
+| Column | Meaning |
+| --- | --- |
+| Tool | The tool id. |
+| Root file | The root file, or `-` when the workspace has none. |
+| Relation | `extends <base>`: the root file extends the base. `override of <base>`: the root file replaces the base. `tier base <base>`: the tool reads the base itself. |
+| `edited` | Shown when the root file starts with a `dx: override of base <sha>` comment. |
+
+With `--output json`, dx prints `command_started`, one `config_file` event per file, then `command_finished`. Each `config_file` event has:
+
+| Field | Meaning |
+| --- | --- |
+| `tool` | The tool id. |
+| `file` | The file path. |
+| `role` | `root` or `base`. |
+| `base` | The relation, such as `extends .dx/config/ruff/base.toml`, or `tier base`. |
+| `edited` | `true` when the root file has the override comment. |
+| `patch` | `dx config diff` only: the unified diff as one string, empty when unchanged. |
+
+- `dx config` emits each tool's root file, or its base when the tool has no root file.
+- `dx config <tool>` emits every file the tool reads.
+- `dx config diff <tool>` emits the root file with `patch`.
+- `dx config override <tool>` emits the root file it wrote.
+
+A failure emits one `error` with code `config_failed`.
+
+Reports: none.
+
+### Flags
 
 | Flag | What it does |
 | --- | --- |
-| `-o, --output text\|json` | Choose the output format. |
-| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--build-slots-wait`, `--bazel-startup-option` | Global flags. |
+| `-o, --output text\|json` | Choose the output format. Default `text`. |
+| `--workspace <dir>` | Run in this workspace. |
+| `-q, --quiet` | Hide summaries. |
+| `-v, --verbose` | Show more logs. |
+| `--color auto\|always\|never` | Set color output. |
+| `--build-slots auto\|<n>\|off` | Set build slots. |
+| `--build-slots-wait <duration>` | Give up waiting for a build slot after this long. `0` fails at once. |
+| `--bazel-startup-option <token>` | Pass one Bazel startup option. Repeatable. |
+
+Scopes: none. `dx config` takes a tool name, not scopes.
 
 ### Exit codes
 
 | Code | Meaning |
 | --- | --- |
 | `0` | Success. |
-| `1` | `config_failed`: an unknown tool, `diff` without a root file, or a refused `override`. |
-| `2` | Usage error. |
+| `1` | A refused `override`, a missing base file, or a `dx.toml` dx cannot load. |
+| `2` | Usage error: an unknown tool, `diff` on a tool with no root file, a missing tool name, or an extra word. |
+| `3` | dx could not run git or read a file. |
 
 ## dx.toml
 
-Picks the tier, the tools of each family, and what dx leaves out. Optional:
-with no `dx.toml`, every family found in the tree runs its curated tools at the
-standard tier. dx writes `.dx/` from it; never edit `.dx/`. The JSON Schema is
-[`dx.schema.json`](https://github.com/devhusdk/rules_dx/blob/main/cli/dx_config/schema/dx.schema.json);
-it lists every family and tool id, so an editor with a TOML schema plugin completes them. Start the file with the `#:schema` line below to point the editor at it.
+Picks the tier, the tools of each language family, and what dx leaves out.
+
+With no `dx.toml`, every family found in the tree runs its curated tools at the `standard` tier. dx writes the `.dx/` directory from this file. Never edit `.dx/` by hand.
+
+Start the file with the `#:schema` line below. An editor with a TOML schema plugin then completes every family and tool id. The schema is [`dx.schema.json`](https://github.com/devhusdk/rules_dx/blob/main/cli/dx_config/schema/dx.schema.json).
 
 ```toml
 #:schema https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/dx_config/schema/dx.schema.json
@@ -81,17 +125,16 @@ exclude = ["//third_party/..."]
 | Key | Type | Default | Meaning |
 |---|---|---|---|
 | `schema_version` | integer | none | Must be `1`. |
-| `tier` | string | `"standard"` | `standard` or `strict`. The tier for every family that does not set its own, and for `security.toml` and `license.toml`. |
+| `tier` | string | `"standard"` | `standard` or `strict`. The tier for every family that does not set its own, and the base for `security.toml` and `license.toml`. |
 | `skip_tools` | array of strings | `[]` | Tool ids dropped from every family, such as `["typos"]`. An unknown id fails the run. |
 | `families` | table | empty | Per-family settings, keyed by family id. An unknown id fails the run. |
 | `scope` | table | empty | What dx leaves out. |
-| `large_files` | table | empty | See below. |
-| `check` | table | empty | See below. |
+| `large_files` | table | empty | Files the large-file check skips. |
+| `check` | table | empty | Extra checks for `dx check`. |
 
 ### dx.toml `[families.<id>]`
 
-Replaces the curated tools of one family. A capability left out keeps the
-curated tools; see [Default tools](quality.md#default-tools).
+Replaces the curated tools of one family. A capability you leave out keeps the curated tools. The curated tools are listed in [Default tools](quality.md#default-tools).
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
@@ -99,19 +142,16 @@ curated tools; see [Default tools](quality.md#default-tools).
 | `lint` | array of strings | curated | Tool ids that lint the family. |
 | `format` | array of strings | curated | Tool ids that format the family. |
 | `typecheck` | array of strings | curated | Tool ids that typecheck the family. |
-| `audit` | array of strings | curated | Tool ids that audit the family. One group for the `dx security` and `dx license` tools; the policy lives in `security.toml` and `license.toml`. |
+| `audit` | array of strings | curated | Tool ids that audit the family, for `dx security` and `dx license`. Their policy lives in `security.toml` and `license.toml`. |
 | `disabled` | boolean | `false` | Turns the whole family off. |
 
-A list replaces the curated tools. A list whose entries all start with `+` or `-`
-edits the curated tools instead, so later additions to the curated set still
-reach you: `lint = ["+yamllint", "-typos"]`. Mixing the two forms fails the run.
-An unknown tool id fails the run.
+A plain list replaces the curated tools: `lint = ["clippy"]`. A list whose entries all start with `+` or `-` edits the curated tools instead, so tools added to the curated set later still reach you: `lint = ["+yamllint", "-typos"]`. Mixing the two forms fails the run. An unknown tool id fails the run.
 
 ### dx.toml `[scope]`
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `exclude` | array of strings | `[]` | Bazel label patterns, such as `//third_party/...`, that dx leaves out. |
+| `exclude` | array of strings | `[]` | Bazel label patterns dx leaves out. A target is one thing Bazel builds, and a label names it, such as `//app:server`. `//third_party/...` means every target under `third_party/`. |
 
 ### dx.toml `[large_files]`
 
@@ -123,13 +163,13 @@ An unknown tool id fails the run.
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `commits` | string | off | `"conventional"` makes `dx check --affected` warn about each commit subject since the merge base that is not a conventional commit. See [Check](check.md). |
+| `commits` | string | off | `"conventional"` makes `dx check --affected` report each commit subject since the merge base that is not a conventional commit. See [Check](check.md). |
 
 ## security.toml
 
-Used by `dx security`. See [Audit, Update](audit-update.md).
+Sets the policy for `dx security`. dx merges this file over a base picked by the `tier` in `dx.toml`. The commands are in [Audit, Update](audit-update.md).
 
-The base comes from the `dx.toml` `tier`.
+`versions` uses the version range syntax of the dependency set's ecosystem.
 
 ### security.toml top level
 
@@ -137,42 +177,39 @@ The base comes from the `dx.toml` `tier`.
 |---|---|---|---|
 | `schema_version` | integer | none | Must be `1`. |
 | `exception` | array of tables | none | Accepted advisories. |
-| `uncovered` | array of tables | none | Accepted sets with no advisory source. |
-| `fail_on` | array of strings | the tier's | Advisory kinds that fail the run: `vulnerability`, `unsound`, `unmaintained`, `notice`, `yanked`. Other kinds are reported as `info`. Standard fails on `vulnerability` and `unsound`; strict adds `unmaintained`, `notice` and `yanked`. A list set here replaces the tier's. |
+| `uncovered` | array of tables | none | Accepted dependency sets with no advisory source. |
+| `fail_on` | array of strings | the tier's | Advisory kinds that fail the run: `vulnerability`, `unsound`, `unmaintained`, `notice`, `yanked`. Other kinds are reported as `info`. `standard` fails on `vulnerability` and `unsound`. `strict` adds `unmaintained`, `notice` and `yanked`. A list set here replaces the tier's. |
 
 ### security.toml `[[exception]]`
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `advisory` | string | none | Advisory id, for example `GHSA-aaaa-bbbb-cccc`. |
+| `advisory` | string | none | Advisory id, such as `GHSA-aaaa-bbbb-cccc`. |
 | `package` | string | none | Package the advisory hits. |
 | `set` | string | none | Dependency set that owns the package. |
 | `versions` | string | none | Affected version range. |
-| `reason` | string | none | Why the risk is accepted. |
+| `reason` | string | none | Why you accept the risk. |
 | `expires` | string | none | Date the exception ends. |
 
-Two sets are not dependency sets:
+Three `set` values are not dependency sets:
 
-- `set = "oci"` covers a finding from the `oci_deploy` image scan. `package` is the image package and `versions` is `*` or a range holding the installed version.
-- `set = "trivy_config"` covers a `trivy_config` lint finding. `advisory` is the trivy ID, such as `DS-0002`, `package` is the workspace-relative file or `*` for every file, and `versions` must be `*`. `dx lint` drops covered findings until `expires`.
-- `set = "trivy_image_config"` covers a `trivy_image_config` lint finding. `package` is the workspace-relative `BUILD.bazel` of the image or `*`; the other fields are those of `trivy_config`.
+- `set = "oci"` covers a finding from the `oci_deploy` image scan. `package` is the image package. `versions` is `*` or a range that holds the installed version.
+- `set = "trivy_config"` covers a `trivy_config` lint finding. `advisory` is the trivy ID, such as `DS-0002`. `package` is the workspace-relative file, or `*` for every file. `versions` must be `*`. `dx lint` drops covered findings until `expires`.
+- `set = "trivy_image_config"` covers a `trivy_image_config` lint finding. `package` is the workspace-relative `BUILD.bazel` of the image, or `*`. The other fields work as for `trivy_config`.
 
 ### security.toml `[[uncovered]]`
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
 | `set` | string | none | Dependency set with no advisory source. |
-| `reason` | string | none | Why the gap is accepted. |
+| `reason` | string | none | Why you accept the gap. |
 | `expires` | string | none | Date the acceptance ends. |
 
 ## license.toml
 
-Used by `dx license`. See [Audit, Update](audit-update.md).
+Sets the policy for `dx license`. dx merges this file over a base picked by the `tier` in `dx.toml`. The commands are in [Audit, Update](audit-update.md).
 
-The base comes from the `dx.toml` `tier`.
-
-A list this file sets replaces the tier's list; a list it leaves out comes
-from the tier. The strict tier denies what standard only reviews.
+A list you set here replaces the tier's list. A list you leave out comes from the tier. The `strict` tier denies what `standard` only reviews.
 
 ### license.toml top level
 
@@ -182,7 +219,7 @@ from the tier. The strict tier denies what standard only reviews.
 | `policy` | table | empty | License tiers. |
 | `distribution` | table | empty | Which scopes are internal. |
 | `exception` | array of tables | none | Accepted license findings. |
-| `inventory` | array of tables | none | Licenses declared by hand. |
+| `inventory` | array of tables | none | Licenses you declare by hand. |
 
 ### license.toml `[policy]`
 
@@ -220,7 +257,7 @@ from the tier. The strict tier denies what standard only reviews.
 | `set` | string | none | Dependency set that owns the package. |
 | `license` | string | none | Exact license string of the finding. |
 | `versions` | string | none | Affected version range. |
-| `reason` | string | none | Why the license is accepted. |
+| `reason` | string | none | Why you accept the license. |
 | `expires` | string | none | Date the exception ends. |
 
 ### license.toml `[[inventory]]`

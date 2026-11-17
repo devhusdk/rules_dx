@@ -22,6 +22,7 @@ load(":packaging_tests.bzl", "packaging_unit_tests")
 load(":pins_tests.bzl", "pins_tests")
 load(":platform_tests.bzl", "platform_probe_tests", "platforms_transition_tests")
 load(":repo_tests.bzl", "repo_unit_tests")
+load(":root_only_tests.bzl", "root_only_tests")
 load(":seven_zip_tests.bzl", "seven_zip_tests")
 load(":subject.bzl", "example_subject")
 load(":thin_compare.bzl", "thin_demo_executable_forward", "thin_demo_library_forward")
@@ -106,6 +107,8 @@ lock_hub_tests(
 entry_tests(name = "entry")
 
 license_tests(name = "license")
+
+root_only_tests(name = "root_only")
 
 seven_zip_tests(name = "seven_zip")
 
@@ -299,6 +302,7 @@ real_source_target(
         "packaging_tests.bzl",
         "pins_tests.bzl",
         "repo_tests.bzl",
+        "root_only_tests.bzl",
         "seven_zip_tests.bzl",
         "subject.bzl",
         "thin_compare.bzl",

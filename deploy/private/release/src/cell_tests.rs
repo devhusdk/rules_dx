@@ -413,6 +413,12 @@ fn qualify_passes_the_host_binary_in_tar_gz_and_zip() {
         assert_eq!(record.archive.name, cell.archive_name());
         assert_eq!(record.members.len(), 4 + cell.runtime.len());
         let exe_name = cell.exe.clone();
+        // A Windows cell accepts the Build Tools licence at init, as stage does.
+        let accept = if cell.os == "windows" {
+            " --accept-license visual-studio-build-tools"
+        } else {
+            ""
+        };
         assert_eq!(
             *runner.calls.borrow(),
             vec![
@@ -420,7 +426,7 @@ fn qualify_passes_the_host_binary_in_tar_gz_and_zip() {
                 format!("{exe_name} --version in {INSTALL_DIR}"),
                 format!("{exe_name} --version in {MOVED_DIR}"),
                 format!(
-                    "{exe_name} init --apply --no-generate --workspace {} in consumer",
+                    "{exe_name} init --apply --no-generate --workspace {}{accept} in consumer",
                     fixture.inputs.work.join(CONSUMER_DIR).display()
                 ),
                 format!("{exe_name} build //... in consumer"),

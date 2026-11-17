@@ -1,58 +1,117 @@
 # `dx generate`
 
-Updates `BUILD` declarations from source with Gazelle.
+Use `dx generate` to keep your `BUILD` files in step with your source code.
+
+A `BUILD` file sits in each package directory and declares its targets: the libraries, binaries and tests Bazel builds. `dx generate` runs Gazelle, a tool that reads your source files and their imports and writes those declarations for you. Without `--apply` it only checks.
+
+## Examples
+
+Check the whole repository. Stale `BUILD` files fail the run:
 
 ```sh
 dx generate
+```
+
+Write the updated `BUILD` files under `pkg/`:
+
+```sh
 dx generate --apply //pkg/...
-dx generate --here
+```
+
+Update only the directories of files you changed:
+
+```sh
 dx generate --apply --affected
+```
+
+Add a `BUILD` file for a new source file:
+
+```sh
 dx generate --apply svc/new.py
+```
+
+Check the current directory tree and print the edits as a patch:
+
+```sh
+dx generate --here --diff
+```
+
+Stream JSON events, or pass options to Bazel after `--`:
+
+```sh
 dx generate --output json //pkg/...
 dx generate --apply -- --jobs=4
 ```
 
+## Usage
+
 ```text
-dx generate [--here] [--affected] [--apply] [--diff] [scope...] [-- bazel-options...]
+dx generate [--apply] [--here] [--affected] [--diff] [scope ...] [-- bazel-options ...]
 ```
+
+## Flags
 
 | Flag | What it does |
 | --- | --- |
-| `--apply` | Write the updated BUILD files. Without it, stale files fail the run. |
+| `--apply` | Write the updated `BUILD` files. Without it, stale files fail the run. |
+| `--diff` | Print one unified patch per stale file, or per file `--apply` wrote or refused. Cannot be combined with `--output json`. |
 | `--here` | Use the current directory tree. |
-| `--affected` | Use the directories of files changed since the default branch merge-base. |
-| `--diff` | Print one unified patch per stale file, or per file `--apply` wrote or refused. |
-| `-o, --output text\|json` | Choose the output format. |
-| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--build-slots-wait`, `--bazel-startup-option` | Global flags. |
+| `--affected` | Use the directories of files changed since the merge base with the default branch. Cannot be combined with scopes or `--here`. |
+| `-o, --output text\|json` | Choose the output format. Default `text`. |
+| `--workspace <dir>` | Run in this workspace. |
+| `-q, --quiet` | Hide summaries. |
+| `-v, --verbose` | Show more logs. |
+| `--color auto\|always\|never` | Set color output. |
+| `--build-slots auto\|<n>\|off` | Set build slots. |
+| `--build-slots-wait <duration>` | Give up waiting for a build slot after this long. `0` fails at once. |
+| `--bazel-startup-option <token>` | Pass one Bazel startup option. Repeatable. |
 
-`--affected` does not combine with scopes or `--here`. `--fail-on` and `--report` are usage errors.
+Arguments after `--` go to Bazel unchanged.
 
-Scopes: no scope means the whole repo. Pass labels, patterns, files, or directories of the main repository. A file or directory maps to its own directory without asking Bazel, so a new file or a directory with no `BUILD` file works. Bazel options go after `--`.
+## Scopes
+
+A scope says which directories to generate. It is one of:
+
+- a label in your own repository, such as `//pkg:lib`. A label names one target: the package directory `pkg`, then the target name `lib`. Labels of other repositories, such as `@dep//pkg:lib`, are usage errors.
+- a pattern, such as `//pkg/...` for everything under `pkg/`.
+- a workspace-relative file or directory. It maps to its own directory, so a new file or a directory with no `BUILD` file works.
+
+With no scope, `dx generate` covers the whole repository (`//...`). `--here` uses the current directory tree instead (`//<dir>/...`, or `//...` at the root).
 
 ## Output
 
-Text starts with `Running generate for <scope>`. `--quiet` hides it. It then prints `Created <path>` or `Modified <path>` per file, sorted by path. Without `--apply` these are the stale files. Files not written go to stderr as `Not applied: <path> (<reason>)`.
+Text starts with `Running generate for <scope>`. `--quiet` hides it. Then it prints `Created <path>` or `Modified <path>` per file, sorted by path. Without `--apply`, these are the stale files. Files dx did not write go to stderr as `Not applied: <path> (<reason>)`.
 
 Each ignored import prints `Ignored import '<import>' in <path> [<language>]: ...`.
 
-JSON emits `command_started` with `mode` `check`, or `default` with `--apply`. It then emits one `change` per file with `path`, `kind` (`create` or `modify`), `edit_count`, and `effect` (`proposed`, `applied`, or `refused`). A refused change has a `reason`. A Bazel failure emits `bazel_failed`. A language extension failure emits one `generation_failed` error per entry with `language`. An unresolved or ambiguous import also carries `kind` (`unresolved_import` or `ambiguous_import`), `import`, and `fix` with the BUILD `file` and the `directive` to add; `message` keeps the same text. `command_finished` has `results_complete`, `exit_code`, and `changes` counts.
+With `--output json`:
+
+- `command_started` has `mode` `check`, or `default` with `--apply`.
+- One `change` per file has `path`, `kind` (`create` or `modify`), `edit_count`, and `effect` (`proposed`, `applied` or `refused`). A refused change has a `reason`.
+- A Bazel failure emits `bazel_failed`.
+- A language extension failure emits one `generation_failed` error per entry, with `language`. An unresolved or ambiguous import also has `kind` (`unresolved_import` or `ambiguous_import`), `import`, and `fix` with the `BUILD` `file` and the `directive` to add. `message` holds the same text.
+- `command_finished` has `results_complete`, `exit_code` and `changes` counts.
+
+Reports: none.
 
 ## Exit codes
 
 | Code | Meaning |
 | --- | --- |
 | `0` | Success. |
-| `1` | Stale files, `MODULE.bazel` or a lock file that needs wiring (check), a wiring or lock step that failed (`--apply`), a file `--apply` did not write, incomplete results, `invalid_result`, a generation error, or `diff_failed`. |
+| `1` | Stale files, or a `MODULE.bazel` or lock file that needs wiring (check). A wiring or lock step that failed, or a file `--apply` did not write (`--apply`). Also incomplete results, `invalid_result`, a generation error, or `diff_failed`. |
 | `2` | Usage or scope error. |
 | Bazel's code | Bazel failed. |
 
 ## Add a dependency
 
-Add the package to the manifest (`Cargo.toml`, `pyproject.toml`, or `package.json`), then run `dx generate --apply`. [`dx update`](audit-update.md) adds a missing dependency. dx writes a missing `Cargo.lock`, `uv.lock`, or `pnpm-lock.yaml` with its pinned tool.
+Add the package to the manifest (`Cargo.toml`, `pyproject.toml` or `package.json`), then run:
 
 ```sh
 dx generate --apply
 ```
+
+[`dx update`](audit-update.md) also adds a missing dependency. With `--apply`, dx writes a missing `Cargo.lock`, `uv.lock` or `pnpm-lock.yaml` with its pinned tool. Without `--apply`, it prints `dx: would create <lock>; run dx generate --apply` and exits `1`.
 
 When the root `Cargo.lock`, `uv.lock`, `pnpm-lock.yaml`, `pubspec.lock`, `composer.lock.json`, `luarocks.lock.json`, `dub.lock.json`, `zig.lock.json`, `swiftpm.lock.json`, `mix.lock`, `cabal.lock.json`, `*.opam.locked`, `cpan.lock.json`, or `ruby.lock.json` has its manifest beside it and `MODULE.bazel` has no stanza for it, `dx generate --apply` adds one: a `crates`, `pypi`, `npm`, `pub_deps`, `composer`, `rocks`, `dub`, `zig`, `swiftpkg`, `hex`, `hackage`, `opam`, `cpan`, or `gems` hub plus its `bazel_dep`. A stanza you wrote is left alone. Without `--apply`, dx says what it would add and exits `1`. Each wiring step is also a `notice` in JSON, with code `wiring`, `wiring_pending`, or `wiring_failed`. List Cargo workspace members written as globs in `manifests` yourself.
 
@@ -60,7 +119,19 @@ When a `BUILD` file has an `avro_cc_library`, or `MODULE.bazel` has `bazel_dep(n
 
 ## The `.dx` tree
 
-Every dx command except `init`, `status` and `upgrade` first brings `.dx` in step with `dx.toml`: `.dx/BUILD.bazel` with the workspace policy, the tool bases under `.dx/config/`, the `.dx/bazelrc/` layers, and the marked exports block in the root `BUILD.bazel` when root tool configs exist. Only the families whose files are in the tree are wired. dx removes files under `.dx` it no longer renders and keeps `.dx/local` and `.dx/pins`. A `.dx` file that a root tool config still names is kept too, with `dx: warning: <file> references <path>, which dx does not render; kept it`. A named path that does not exist prints `dx: warning: <file> references <path>, which does not exist`. When nothing it reads has changed, it skips the work. `dx generate` and `dx check` always look at the tree again, so a language added later is wired by the next `dx generate`. When the sync fails, the command prints `dx: warning: .dx not refreshed: <error>` and runs anyway.
+Every dx command except `init`, `status` and `upgrade` first brings `.dx` in step with `dx.toml`. It writes:
+
+- `.dx/BUILD.bazel` with the workspace policy.
+- The tool bases under `.dx/config/`.
+- The `.dx/bazelrc/` layers.
+- The marked exports block in the root `BUILD.bazel`, when root tool configs exist.
+
+Only the language families whose files are in the tree are wired. dx deletes every other file under `.dx`, except `.dx/local` and `.dx/pins`.
+
+- A `.dx` file that a root tool config still names is kept, with `dx: warning: <file> references <path>, which dx does not render; kept it`.
+- A named path that does not exist prints `dx: warning: <file> references <path>, which does not exist`.
+- When nothing dx reads has changed, it skips the work. `dx generate` and `dx check` always look at the tree again, so the next `dx generate` wires a language you add later.
+- When the sync fails, the command prints `dx: warning: .dx not refreshed: <error>` and runs anyway.
 
 ## Directives
 
@@ -77,7 +148,7 @@ Set directives as `# gazelle:<name> <value>` comments in a `BUILD` file. They ap
 | `dx_fixture_testonly true\|false` | Mark generated libraries under a `tests/`, `fixtures/` or `testdata/` directory `testonly`. Off by default. Inherited by child packages. |
 | `lang <languages>` | Must list `dx_dispatch`, for example `go,dx_dispatch`. |
 
-When `.dx/BUILD.bazel` from `dx generate` already has a `ruff_config` for the root ruff file, gazelle writes no root `ruff_config` and no `aspect_hints` for it.
+When `.dx/BUILD.bazel` from `dx generate` already has a `ruff_config` for the root ruff file, Gazelle writes no root `ruff_config` and no `aspect_hints` for it.
 
 `dx_ignore_import` languages: `astro`, `cc`, `csharp`, `dart`, `elixir`, `erlang`, `fsharp`, `go`, `haskell`, `java`, `javascript`, `julia`, `kotlin`, `lua`, `mdx`, `ocaml`, `perl`, `php`, `powershell`, `python`, `ruby`, `rust`, `scala`, `svelte`, `swift`, `typescript`, `vue`, `zig`.
 
@@ -129,7 +200,7 @@ Gazelle sets these attributes only when the rule lacks them. Set one yourself to
 - D: a directory with `.d` files gets a `d_library`. A module-scope `main` gets a `d_binary`. A `unittest` block gets a `d_test` named `<library>_test`.
 - Dart: a `pubspec.yaml` gets a `dart_library`, a `dart_binary` per `bin/*.dart`, and a `dart_test` per `test/**/*_test.dart`. With a `flutter` dependency they become `flutter_library` and `flutter_test`. A `package:` import must name a `pubspec.yaml` dependency.
 - Dockerfile, CMake, Bicep and AsciiDoc: files found by name get one ownership rule per directory so `dx lint` covers them. `Dockerfile`, `Containerfile` and variants give `dockerfile_library` `dockerfile`. `CMakeLists.txt` and `*.cmake` give `cmake_library` `cmake`. `*.bicep` and `*.bicepparam` give `bicep_library` `bicep`. `*.adoc` and `*.asciidoc` give `asciidoc_library` `asciidoc`. A handwritten rule of the same kind that lists a file owns it.
-- `oci_image`: each `oci_image` rule in a BUILD file gets an `oci_image_quality` named `<name>_quality` with `image` set to it and `build_files` set to the package BUILD file. A wrapper whose image the BUILD file no longer declares is removed.
+- `oci_image`: each `oci_image` rule in a BUILD file gets an `oci_image_quality` named `<name>_quality` with `image` set to it and `build_files` set to the package BUILD file. A wrapper whose image the BUILD file does not declare is removed.
 - Julia: a `Project.toml` with `src/<name>.jl` gets a `julia_library`, and `test/runtests.jl` adds a `julia_test`.
 - JavaScript and TypeScript: `*.test.*`, `*.spec.*`, and `*_test.*` sources become `js_test` or `typescript_test`. `.d.ts` files are never tests.
 - Scala: sources ending in `Test`, `Spec`, or `Suite` become `scala_test`.

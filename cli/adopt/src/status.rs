@@ -92,17 +92,10 @@ fn check(name: &str, status: &str, detail: String, hint: &str) -> StatusCheck {
     }
 }
 
+/// The file name of the first of `names` found on `path`.
 fn on_path(names: &[&str], path: Option<std::ffi::OsString>) -> Option<String> {
-    let path = path?;
-    for dir in std::env::split_paths(&path) {
-        for name in names {
-            let candidate = dir.join(name);
-            if candidate.is_file() {
-                return Some((*name).to_owned());
-            }
-        }
-    }
-    None
+    let found = dx_path::lookup::find_in(&path?, names)?;
+    Some(found.file_name()?.to_string_lossy().into_owned())
 }
 
 fn parse_version(text: &str) -> Option<Vec<u64>> {

@@ -77,7 +77,10 @@ rust_library(
     ],
     crate_name = "dx_plan",
     crate_root = "src/lib.rs",
-    visibility = VIS_QUALITY_CLI + ["//tools/ci:__pkg__"],
+    visibility = VIS_QUALITY_CLI + [
+        "//tools/api:__pkg__",
+        "//tools/ci:__pkg__",
+    ],
     # keep
     deps = [
         "//cli/adopt:dx_adopt",
@@ -86,6 +89,7 @@ rust_library(
         "//cli/codegen:dx_codegen",
         "//cli/diff:dx_diff",
         "//cli/digest:dx_digest",
+        "//cli/ecosystems:dx_ecosystems",
         "//cli/dx_config",
         "//cli/env_plan:dx_env_plan",
         "//cli/error:dx_error",
@@ -98,6 +102,7 @@ rust_library(
         "//cli/path:dx_path",
         "//cli/process:dx_process",
         "//cli/setup:dx_setup",
+        "//cli/shim:dx_shim",
         "//cli/update:dx_update",
         "//cli/worktree:dx_worktree",
         "//tools/bazelrc:dx_preset",
@@ -222,6 +227,7 @@ rust_test(
         "//cli/codegen:dx_codegen",
         "//cli/diff:dx_diff",
         "//cli/digest:dx_digest",
+        "//cli/ecosystems:dx_ecosystems",
         "//cli/dx_config",
         "//cli/env_plan:dx_env_plan",
         "//cli/error:dx_error",
@@ -234,6 +240,7 @@ rust_test(
         "//cli/path:dx_path",
         "//cli/process:dx_process",
         "//cli/setup:dx_setup",
+        "//cli/shim:dx_shim",
         "//cli/test_scratch:dx_test_scratch",
         "//cli/update:dx_update",
         "//cli/worktree:dx_worktree",

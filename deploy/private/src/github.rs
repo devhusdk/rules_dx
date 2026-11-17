@@ -1118,6 +1118,8 @@ esac
 #[cfg(test)]
 mod attestation_tests {
     use super::*;
+    // Only the unix-gated dry-run test below needs the helpers.
+    #[cfg(unix)]
     use crate::test_support::*;
 
     #[test]

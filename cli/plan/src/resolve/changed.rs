@@ -6,6 +6,7 @@ use super::lock_inputs::{self, Hub, LockChange, LockKind};
 use super::module_inputs;
 use super::{PackageCache, QueryRunner, ResolveError, RuleGraph};
 use dx_adopt::dependency_sets::Ecosystem;
+use dx_path::label::Label;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WidenedScope {
@@ -805,9 +806,13 @@ fn is_starlark_module(path: &str) -> bool {
         .is_some_and(|ext| ext.eq_ignore_ascii_case("bzl") || ext.eq_ignore_ascii_case("scl"))
 }
 
+/// The `:all` pattern of the package that holds `label`.
 fn package_all(label: &str) -> String {
-    let package = label.split_once(':').map_or(label, |(package, _)| package);
-    format!("{package}:all")
+    match Label::parse(label) {
+        Some(parsed) if !parsed.relative => format!("{}//{}:all", parsed.repo, parsed.package),
+        // `file_label` always answers `//package:name`; anything else widens, the safe direction.
+        _ => "//...".to_owned(),
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -1256,6 +1261,21 @@ mod tests {
     use super::*;
     use crate::resolve::{FakeQuery, NeverQuery, QueryFailure, QueryResult, resolve};
     use dx_test_scratch::write;
+
+    #[test]
+    fn package_all_keeps_the_repo_and_drops_the_name() {
+        for (label, scope) in [
+            ("//p:n", "//p:all"),
+            ("//:n", "//:all"),
+            ("//a/b", "//a/b:all"),
+            ("@r//p:n", "@r//p:all"),
+            ("@@r+//p:n", "@@r+//p:all"),
+            (":n", "//..."),
+            ("p:n", "//..."),
+        ] {
+            assert_eq!(package_all(label), scope, "{label}");
+        }
+    }
     use dx_testing::cli::strings;
 
     /// `@<hub><rest>` for the `setup.hubs` hub of `ecosystem`.

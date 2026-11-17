@@ -1,8 +1,28 @@
 # Standard tiers
 
-This page lists the config each tool gets at the standard tier. This page is generated. To refresh it, run `bazel run //docs:update_tiers`.
+This page shows the config each lint and format tool runs with when you use the standard tier, the default.
 
-## buf
+## Pick the tier
+
+1. Open `dx.toml` at the root of your workspace, the folder that holds `MODULE.bazel`. Create it if it is missing.
+2. Set `tier`:
+
+   ```toml
+   schema_version = 1
+   tier = "standard"
+   ```
+
+3. Run `tools/dx config <tool>`, such as `tools/dx config ruff`, to see the files that tool now reads.
+
+Without `dx.toml`, every tool runs at the standard tier. To give one family, such as `rust`, its own tier, set `tier` under `[families.rust]`. The [config reference](cli/commands/config.md#dxtoml) lists every key.
+
+To change a single setting, edit the tool's own config file at the root of your repo. The [quality page](cli/commands/quality.md) lists the file each tool reads.
+
+## Tools
+
+Each section below shows the full standard config of one tool. Each section names the tool, where its tier config comes from, and the native config file you edit to change it. This page is generated. To refresh it, run `bazel run //docs:update_tiers`.
+
+### buf
 
 Source: dx. Native file: `buf.yaml`.
 
@@ -16,7 +36,7 @@ breaking:
     - WIRE_JSON
 ```
 
-## buildifier
+### buildifier
 
 Source: dx. Native file: `.buildifier.json`.
 
@@ -26,7 +46,7 @@ Source: dx. Native file: `.buildifier.json`.
 }
 ```
 
-## checkmake
+### checkmake
 
 Source: dx. Native file: `checkmake.ini`.
 
@@ -47,7 +67,7 @@ disabled=false
 disabled=false
 ```
 
-## cmakelint
+### cmakelint
 
 Source: dx. Native file: `.cmakelintrc`.
 
@@ -56,7 +76,7 @@ Source: dx. Native file: `.cmakelintrc`.
 filter=-linelength,-whitespace/eol,-whitespace/extra,-whitespace/indent,-whitespace/mismatch,-whitespace/newline,-whitespace/tabs,-convention/filename
 ```
 
-## dart
+### dart
 
 Source: dx. Native file: `analysis_options.yaml`.
 
@@ -158,7 +178,7 @@ linter:
     - void_checks
 ```
 
-## docstrfmt
+### docstrfmt
 
 Source: dx. Native file: `docstrfmt.toml`.
 
@@ -170,7 +190,7 @@ indent-width = 3
 line-length = 88
 ```
 
-## eslint
+### eslint
 
 Source: dx. Native file: `eslint.config.mjs, eslint.config.js, eslint.config.cjs, eslint.config.ts, .eslintrc*`.
 
@@ -352,7 +372,7 @@ export default defineConfig(
 );
 ```
 
-## gersemi
+### gersemi
 
 Source: dx. Native file: `.gersemirc`.
 
@@ -365,7 +385,7 @@ unsafe: true
 warn_about_unknown_commands: false
 ```
 
-## hlint
+### hlint
 
 Source: dx. Native file: `.hlint.yaml`.
 
@@ -378,7 +398,7 @@ Source: dx. Native file: `.hlint.yaml`.
 - ignore: {name: Move brackets to avoid $}
 ```
 
-## lychee
+### lychee
 
 Source: dx. Native file: `lychee.toml`.
 
@@ -389,7 +409,7 @@ max_retries = 3
 max_redirects = 10
 ```
 
-## mbake
+### mbake
 
 Source: dx. Native file: `.bake.toml`.
 
@@ -413,7 +433,7 @@ space_before_colon = false
 tab_width = 2
 ```
 
-## mix_format
+### mix_format
 
 Source: dx. Native file: `.formatter.exs`.
 
@@ -424,7 +444,7 @@ Source: dx. Native file: `.formatter.exs`.
 ]
 ```
 
-## perltidy
+### perltidy
 
 Source: dx. Native file: `.perltidyrc`.
 
@@ -434,7 +454,7 @@ Source: dx. Native file: `.perltidyrc`.
 --maximum-line-length=80
 ```
 
-## psscriptanalyzer
+### psscriptanalyzer
 
 Source: dx. Native file: `PSScriptAnalyzerSettings.psd1`.
 
@@ -447,7 +467,7 @@ Source: dx. Native file: `PSScriptAnalyzerSettings.psd1`.
 }
 ```
 
-## pydoclint
+### pydoclint
 
 Source: dx. Native file: `*.toml`.
 
@@ -459,7 +479,7 @@ skip-checking-short-docstrings = true
 check-arg-order = true
 ```
 
-## ruff
+### ruff
 
 Source: dx. Native file: `ruff.toml, .ruff.toml`.
 
@@ -641,7 +661,7 @@ preview = false
 "test_*.py" = ["S101", "ARG"]
 ```
 
-## shfmt
+### shfmt
 
 Source: dx. Native file: `.editorconfig`.
 
@@ -651,7 +671,7 @@ Source: dx. Native file: `.editorconfig`.
 indent_style = tab
 ```
 
-## sqlfluff
+### sqlfluff
 
 Source: dx. Native file: `.sqlfluff`.
 
@@ -661,7 +681,7 @@ Source: dx. Native file: `.sqlfluff`.
 rules = layout, ambiguous, references, structure
 ```
 
-## stylelint
+### stylelint
 
 Source: dx. Native file: `.stylelintrc.json, .stylelintrc*, stylelint.config.*`.
 
@@ -743,7 +763,7 @@ Source: dx. Native file: `.stylelintrc.json, .stylelintrc*, stylelint.config.*`.
 }
 ```
 
-## taplo
+### taplo
 
 Source: dx. Native file: `.taplo.toml`.
 
@@ -754,7 +774,7 @@ indent_string = "  "
 reorder_keys = false
 ```
 
-## tsc
+### tsc
 
 Source: dx. Native file: `tsconfig.json`.
 
@@ -762,7 +782,7 @@ Source: dx. Native file: `tsconfig.json`.
 { "compilerOptions": { "strict": true } }
 ```
 
-## typos
+### typos
 
 Source: dx. Native file: `typos.toml`.
 
@@ -774,7 +794,7 @@ locale = "en"
 extend-exclude = ["*.lock", "*.min.js", "*.svg"]
 ```
 
-## yamlfmt
+### yamlfmt
 
 Source: dx. Native file: `.yamlfmt`.
 
@@ -786,7 +806,7 @@ formatter:
   retain_line_breaks: false
 ```
 
-## yamllint
+### yamllint
 
 Source: dx. Native file: `.yamllint`.
 

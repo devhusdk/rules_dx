@@ -1,5 +1,5 @@
-# gazelle:ignore
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
 
 package(
@@ -53,4 +53,11 @@ dx_conformance_suite(
         "lint_rule": "PACKAGE_DIRECTORY_MATCH",
         "lint_source": "proto/dirty/lint_dirty.proto",
     },
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

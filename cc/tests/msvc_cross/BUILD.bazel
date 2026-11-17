@@ -75,10 +75,12 @@ platform_transition_filegroup(
     target_platform = "//tools/platforms:windows_arm64",
 )
 
+# The dx wrappers forward the upstream's providers but register no compile or
+# link actions themselves, so the action tests read the upstream targets.
 cc_msvc_arm64_action_tests(
     name = "msvc_arm64_action_test",
-    compile_target = ":greet_static",
-    link_target = ":app",
+    compile_target = ":greet_static_upstream",
+    link_target = ":app_upstream",
 )
 
 real_source_target(

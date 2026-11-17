@@ -7601,12 +7601,16 @@ fn cue_typecheck_vets_per_package_from_the_module_root() {
 #[test]
 fn typos_lint_reports_and_fix_corrects() {
     let backend = backend_for("typos", plain_tool(), typos_behavior);
+    let misspelled = format!("say {MISSPELLED} word\n");
     let findings = backend
-        .diagnose("typos", "lint", &single("notes.txt", "say teh word\n"))
+        .diagnose("typos", "lint", &single("notes.txt", &misspelled))
         .expect("diagnosed");
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].tool_id, "typos");
-    assert_eq!(findings[0].message, "`teh` should be `the`");
+    assert_eq!(
+        findings[0].message,
+        format!("`{MISSPELLED}` should be `the`")
+    );
     assert_eq!(findings[0].path, "notes.txt");
     assert_eq!(
         backend
@@ -7615,7 +7619,7 @@ fn typos_lint_reports_and_fix_corrects() {
         [] as [quality_result::proto::Diagnostic; 0]
     );
     let fixed = backend
-        .apply_fix("typos", "notes.txt", "say teh word\n", "lint")
+        .apply_fix("typos", "notes.txt", &misspelled, "lint")
         .expect("fixed");
     assert_eq!(fixed, "say the word\n");
 }

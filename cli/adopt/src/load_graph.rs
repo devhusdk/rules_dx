@@ -1,4 +1,5 @@
 use dx_error::DxError;
+use dx_path::label::{Label, repo_of};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
@@ -26,21 +27,22 @@ fn main_repo(repo: &str, names: &[String]) -> bool {
     repo.is_empty() || names.iter().any(|name| name == repo)
 }
 
+/// The workspace path a main-repository file label names, and its package. A
+/// label without `//` or `@` is relative to `package`.
 fn label_path(label: &str, package: &str, names: &[String]) -> Option<(String, String)> {
-    let (package, target) = if let Some(rest) = label.strip_prefix('@') {
-        let rest = rest.strip_prefix('@').unwrap_or(rest);
-        let (repo, rest) = rest.split_once("//")?;
-        if !main_repo(repo, names) {
-            return None;
+    let (package, target) = match Label::parse(label) {
+        Some(parsed) if parsed.relative => (package, parsed.name),
+        Some(parsed) => {
+            if parsed
+                .repo_name()
+                .is_some_and(|repo| !main_repo(repo, names))
+            {
+                return None;
+            }
+            (parsed.package, parsed.name)
         }
-        main_label(rest)
-    } else if let Some(rest) = label.strip_prefix("//") {
-        main_label(rest)
-    } else {
-        (
-            package.to_owned(),
-            label.strip_prefix(':').unwrap_or(label).to_owned(),
-        )
+        None if label.starts_with('@') || label.starts_with("//") => return None,
+        None => (package, label.strip_prefix(':').unwrap_or(label)),
     };
     if target.is_empty()
         || format!("{package}/{target}")
@@ -50,21 +52,11 @@ fn label_path(label: &str, package: &str, names: &[String]) -> Option<(String, S
         return None;
     }
     let path = if package.is_empty() {
-        target.clone()
+        target.to_owned()
     } else {
         format!("{package}/{target}")
     };
-    Some((path, package))
-}
-
-fn main_label(rest: &str) -> (String, String) {
-    match rest.split_once(':') {
-        Some((package, target)) => (package.to_owned(), target.to_owned()),
-        None => (
-            rest.to_owned(),
-            rest.rsplit('/').next().unwrap_or(rest).to_owned(),
-        ),
-    }
+    Some((path, package.to_owned()))
 }
 
 fn own_names(file: &ModuleFile) -> Vec<String> {
@@ -115,12 +107,9 @@ fn is_main_label(text: &str, names: &[String]) -> bool {
     if text.starts_with("//") || text.starts_with(':') {
         return true;
     }
-    let Some(rest) = text.strip_prefix('@') else {
-        return false;
-    };
-    let rest = rest.strip_prefix('@').unwrap_or(rest);
-    rest.split_once("//")
-        .is_some_and(|(repo, _)| main_repo(repo, names))
+    Label::parse(text)
+        .and_then(|label| label.repo_name())
+        .is_some_and(|repo| main_repo(repo, names))
 }
 
 fn value_labels<'a>(value: &'a Value, labels: &mut Vec<&'a str>, complete: &mut bool) {
@@ -309,13 +298,6 @@ struct BazelrcRoots {
     repos: BTreeSet<String>,
 }
 
-/// The repository a label names, or `None` for a label in the main repository.
-fn label_repo(label: &str) -> Option<&str> {
-    let rest = label.strip_prefix('@')?;
-    let rest = rest.strip_prefix('@').unwrap_or(rest);
-    Some(rest.split_once("//").map_or(rest, |(repo, _)| repo))
-}
-
 /// Whether `name` is the repository `repo`, or one it owns when `repo` is canonical.
 fn repo_matches(name: &str, repo: &str) -> bool {
     name == repo || (repo.ends_with('+') && name.starts_with(repo))
@@ -362,7 +344,7 @@ fn bazelrc_roots(workspace: &Path) -> Result<BazelrcRoots, DxError> {
                 let named = word
                     .split(['=', ','])
                     .map(|item| item.trim_matches(|c| c == '"' || c == '\''))
-                    .filter_map(label_repo)
+                    .filter_map(repo_of)
                     .filter(|repo| !repo.is_empty())
                     .map(str::to_owned);
                 roots.repos.extend(named);
@@ -405,34 +387,36 @@ fn pattern_builds(
     names: &[String],
     builds: &[(String, String)],
 ) -> Vec<String> {
-    let rest = if let Some(rest) = pattern.strip_prefix('@') {
-        let rest = rest.strip_prefix('@').unwrap_or(rest);
-        let Some((repo, rest)) = rest.split_once("//") else {
-            return Vec::new();
-        };
-        if !main_repo(repo, names) {
-            return Vec::new();
-        }
-        rest.to_owned()
-    } else if let Some(rest) = pattern.strip_prefix("//") {
-        rest.to_owned()
-    } else if pattern.starts_with('-') {
+    if pattern.starts_with('-') {
         return Vec::new();
-    } else if let Some(target) = pattern.strip_prefix(':') {
-        format!("{package}:{target}")
-    } else {
-        let joined = if package.is_empty() {
-            pattern.to_owned()
-        } else {
-            format!("{package}/{pattern}")
-        };
-        let mut found = pattern_builds(&format!("//{joined}"), "", names, builds);
-        if !pattern.contains('/') && !pattern.contains(':') {
-            found.extend(pattern_builds(&format!("//{package}"), "", names, builds));
+    }
+    let spec = match Label::parse(pattern) {
+        Some(label) if label.relative => package,
+        Some(label) => {
+            if label
+                .repo_name()
+                .is_some_and(|repo| !main_repo(repo, names))
+            {
+                return Vec::new();
+            }
+            label.package
         }
-        return found;
+        None if pattern.starts_with(['@', ':']) || pattern.starts_with("//") => {
+            return Vec::new();
+        }
+        None => {
+            let joined = if package.is_empty() {
+                pattern.to_owned()
+            } else {
+                format!("{package}/{pattern}")
+            };
+            let mut found = pattern_builds(&format!("//{joined}"), "", names, builds);
+            if !pattern.contains('/') && !pattern.contains(':') {
+                found.extend(pattern_builds(&format!("//{package}"), "", names, builds));
+            }
+            return found;
+        }
     };
-    let spec = rest.split_once(':').map_or(rest.as_str(), |(spec, _)| spec);
     if spec.split('/').any(|part| part == "..") {
         return Vec::new();
     }
@@ -561,7 +545,7 @@ impl LoadGraph<'_> {
                 if let Some(target) = label_path(&label, &package, &self.names) {
                     targets.push(target.0.clone());
                     pending.push(target);
-                } else if let Some(repo) = label_repo(&label) {
+                } else if let Some(repo) = repo_of(&label) {
                     self.external
                         .entry(rel.clone())
                         .or_default()
@@ -616,7 +600,7 @@ pub fn external_repos(
 pub fn build_file_repos(workspace: &Path) -> Result<BTreeSet<String>, DxError> {
     Ok(build_file_labels(workspace)?
         .iter()
-        .filter_map(|label| label_repo(label).map(str::to_owned))
+        .filter_map(|label| repo_of(label).map(str::to_owned))
         .collect())
 }
 
@@ -631,7 +615,7 @@ pub fn build_file_labels(workspace: &Path) -> Result<BTreeSet<String>, DxError> 
         let labels =
             load_labels(&source).map_err(|error| DxError::failure(format!("{rel}: {error}")))?;
         for label in labels {
-            if label_repo(&label).is_some_and(|repo| !main_repo(repo, &names)) {
+            if repo_of(&label).is_some_and(|repo| !main_repo(repo, &names)) {
                 out.insert(label);
             }
         }
@@ -796,7 +780,7 @@ fn implementation_roots(
                         roots.push(build);
                     }
                 }
-            } else if let Some(repo) = label_repo(label) {
+            } else if let Some(repo) = repo_of(label) {
                 repos.insert(repo.to_owned());
             }
         }
@@ -910,7 +894,7 @@ pub fn repo_impact(
             || graph
                 .aspects
                 .iter()
-                .any(|label| label_repo(label).is_some_and(|name| repo_matches(name, repo)))
+                .any(|label| repo_of(label).is_some_and(|name| repo_matches(name, repo)))
         {
             BzlImpact::Global(format!("aspect loads @{repo}"))
         } else if graph.loads_repo(&graph.toolchain_inputs, repo) {
@@ -941,6 +925,70 @@ mod tests {
     use super::*;
     use crate::lock_hubs::{lock_of, manifest_of};
     use dx_test_scratch::write;
+
+    #[test]
+    fn label_path_reads_every_label_form() {
+        let names = vec!["self".to_owned()];
+        let path = |label| label_path(label, "pkg", &names);
+        let at = |path: &str, package: &str| Some((path.to_owned(), package.to_owned()));
+        assert_eq!(path("//p:n.bzl"), at("p/n.bzl", "p"));
+        assert_eq!(path("//p"), at("p/p", "p"));
+        assert_eq!(path("//:n.bzl"), at("n.bzl", ""));
+        assert_eq!(path(":n.bzl"), at("pkg/n.bzl", "pkg"));
+        assert_eq!(path("n.bzl"), at("pkg/n.bzl", "pkg"));
+        assert_eq!(path("@//p:n.bzl"), at("p/n.bzl", "p"));
+        assert_eq!(path("@self//p:n.bzl"), at("p/n.bzl", "p"));
+        assert_eq!(path("@@self//p:n.bzl"), at("p/n.bzl", "p"));
+        assert_eq!(path("@self"), at("self", ""));
+        for other in [
+            "@r//p:n.bzl",
+            "@@r+//p:n.bzl",
+            "@r",
+            "//p:",
+            "@r:n",
+            ":",
+            "",
+            "//p:../n",
+        ] {
+            assert_eq!(path(other), None, "{other}");
+        }
+    }
+
+    #[test]
+    fn main_labels_name_this_module() {
+        let names = vec!["self".to_owned()];
+        for main in ["//p:n", ":n", "@//p:n", "@self//p", "@@self//p:n", "@self"] {
+            assert!(is_main_label(main, &names), "{main}");
+        }
+        for other in ["@r//p:n", "@@r+//p:n", "@r", "n", "@self//p:"] {
+            assert!(!is_main_label(other, &names), "{other}");
+        }
+    }
+
+    #[test]
+    fn pattern_builds_reads_every_pattern_form() {
+        let names = vec!["self".to_owned()];
+        let builds: Vec<(String, String)> = ["", "a", "a/b", "c"]
+            .iter()
+            .map(|package| (format!("{package}/BUILD"), (*package).to_owned()))
+            .collect();
+        let found = |pattern| pattern_builds(pattern, "a", &names, &builds);
+        let rel = |packages: &[&str]| -> Vec<String> {
+            packages.iter().map(|p| format!("{p}/BUILD")).collect()
+        };
+        assert_eq!(found("//..."), rel(&["", "a", "a/b", "c"]));
+        assert_eq!(found("//a/..."), rel(&["a", "a/b"]));
+        assert_eq!(found("//a/...:all"), rel(&["a", "a/b"]));
+        assert_eq!(found("//c:all"), rel(&["c"]));
+        assert_eq!(found("//c"), rel(&["c"]));
+        assert_eq!(found("@self//c:x"), rel(&["c"]));
+        assert_eq!(found("@@self//c:x"), rel(&["c"]));
+        assert_eq!(found(":x"), rel(&["a"]));
+        assert_eq!(found("b:x"), rel(&["a/b"]));
+        for none in ["@r//...", "@@r+//c:x", "-//c:x", "//c:", "//../c:x"] {
+            assert_eq!(found(none), Vec::<String>::new(), "{none}");
+        }
+    }
 
     #[test]
     fn repo_matches_only_plus_separated_names() {

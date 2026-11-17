@@ -1,5 +1,5 @@
 {
-  "checksum": "8ee5fec7187740ecbaa41ea0bd518c4bef6c5f71766825c743e361a469071b5f",
+  "checksum": "5310d8de48d9e31898345e6db3160db4b930f6afe564421a90d28350baf806cd",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -8898,6 +8898,10 @@
     "dx_lock 0.0.0": {
       "common_attrs": {
         "deps": [
+          {
+            "id": "globset 0.4.20",
+            "target": "globset"
+          },
           {
             "id": "serde 1.0.229",
             "target": "serde"

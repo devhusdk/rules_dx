@@ -225,26 +225,11 @@ fn spawn_success(argv: &[String]) -> bool {
     dx_process::capture::run_captured(&mut command, SPAWN_TIMEOUT).is_ok_and(|out| out.success())
 }
 
-/// True when `bin` names a file inside one of the `path` directories, trying
-/// each of `suffixes` after the bare name.
-fn on_path(bin: &str, path: &std::ffi::OsStr, suffixes: &[&str]) -> bool {
-    std::env::split_paths(path).any(|dir| {
-        dir.join(bin).is_file()
-            || suffixes
-                .iter()
-                .any(|suffix| dir.join(format!("{bin}{suffix}")).is_file())
-    })
-}
-
 fn exe_available(bin: &str) -> bool {
-    let suffixes: &[&str] = if cfg!(windows) {
-        dx_path::host::EXECUTABLE_SUFFIXES
-    } else {
-        &[]
-    };
     spawn_success(&[bin.to_owned(), "--help".to_owned()])
         || Path::new(bin).is_file()
-        || std::env::var_os("PATH").is_some_and(|paths| on_path(bin, &paths, suffixes))
+        || std::env::var_os("PATH")
+            .is_some_and(|paths| dx_path::lookup::find_command_in(&paths, bin).is_some())
 }
 
 impl Verifier for SystemVerifier {
@@ -564,21 +549,6 @@ mod tests {
         assert!(!exe_available(""));
         assert!(!exe_available("/nonexistent-dx-tool-xyz"));
         assert!(exe_available(&self_exe()));
-    }
-
-    #[test]
-    fn on_path_finds_files_suffixes_and_ignores_directories() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().as_os_str();
-        assert!(!on_path("tool", path, &[]));
-        std::fs::create_dir(dir.path().join("tool")).unwrap();
-        assert!(!on_path("tool", path, &[]));
-        std::fs::write(dir.path().join("plain"), b"x").unwrap();
-        assert!(on_path("plain", path, &[]));
-        std::fs::write(dir.path().join("tool.cmd"), b"x").unwrap();
-        assert!(!on_path("tool", path, &[]));
-        assert!(on_path("tool", path, &[".cmd"]));
-        assert!(!on_path("plain", std::ffi::OsStr::new(""), &[]));
     }
 
     struct FakeVerifier {

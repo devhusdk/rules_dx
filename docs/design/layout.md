@@ -63,6 +63,7 @@ This rule covers every public `<lang>_binary`, `<lang>_test`, `<lang>_bench` and
 ## Shared directories
 
 ```text
+api/        the checked-in public API snapshot
 core/       shared Starlark
 config/     public build settings
 cli/        the dx CLI

@@ -4,7 +4,7 @@ bazel_dep(name = "rules_flutter", version = "0.0.8")
 flutter_pub = use_extension("@rules_dx//flutter:extensions.bzl", "pub")
 flutter_pub.lock(
     name = "dx_flutter_app_deps",
-    lock = "//flutter/tests/fixtures/flutter-app:pubspec.lock",
+    lock = "//flutter/tests/fixtures/flutter_app:pubspec.lock",
 )
 use_repo(flutter_pub, "dx_flutter_app_deps")
 

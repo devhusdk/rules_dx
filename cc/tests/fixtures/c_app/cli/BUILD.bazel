@@ -1,0 +1,105 @@
+load("@rules_dx//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_test")
+load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
+load("//tools/testing:test_macros.bzl", "CLANG_FORMAT_ARGS", "dx_format_test")
+
+package(default_visibility = ["//cc/tests/fixtures/c_app:__subpackages__"])
+
+exports_files(
+    [
+        "cli.c",
+        "cli.h",
+        "cli_test.c",
+        "main.c",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "cli",
+    srcs = ["cli.c"],
+    hdrs = ["cli.h"],
+    copts = ["-std=c11"],
+    data = ["//cc/tests/fixtures/c_app/store:stock.json"],
+    local_defines = ['STOCK_RLOCATION=\\"$(rlocationpath //cc/tests/fixtures/c_app/store:stock.json)\\"'],
+    deps = ["//cc/tests/fixtures/c_app/store"],
+)
+
+cc_binary(
+    name = "stock",
+    srcs = ["main.c"],
+    copts = ["-std=c11"],
+    data = ["//cc/tests/fixtures/c_app/store:stock.json"],
+    deps = [":cli"],
+)
+
+cc_test(
+    name = "cli_test",
+    srcs = ["cli_test.c"],
+    copts = ["-std=c11"],
+    data = [
+        "//cc/tests/fixtures/c_app/store:malformed/negative.json",
+        "//cc/tests/fixtures/c_app/store:stock.json",
+    ],
+    local_defines = ['STOCK_RLOCATION=\\"$(rlocationpath //cc/tests/fixtures/c_app/store:stock.json)\\"'],
+    deps = [":cli"],
+)
+
+dx_hello_output_test(
+    name = "stock_output_test",
+    binary = ":stock",
+    expected = "bolt-m6 120 @ 35\nwasher-m6 300 @ 8\nnut-m6 0 @ 22",
+)
+
+rust_test(
+    name = "exit_codes_test",
+    srcs = ["exit_codes_test.rs"],
+    data = [
+        ":stock",
+        "//cc/tests/fixtures/c_app/store:malformed/wrong_type.json",
+        "//cc/tests/fixtures/c_app/store:stock.json",
+    ],
+    env = {
+        "STOCK_BIN": "$(rootpath :stock)",
+        "STOCK_JSON": "$(rootpath //cc/tests/fixtures/c_app/store:stock.json)",
+        "STOCK_WRONG_TYPE": "$(rootpath //cc/tests/fixtures/c_app/store:malformed/wrong_type.json)",
+    },
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+dx_format_test(
+    name = "format_test",
+    srcs = [
+        "cli.c",
+        "cli.h",
+        "cli_test.c",
+        "main.c",
+    ],
+    args = CLANG_FORMAT_ARGS,
+    config = "//:.clang-format",
+    tool = "@llvm//tools:clang-format",
+)
+
+filegroup(
+    name = "consumer_srcs",
+    srcs = glob([
+        "*.c",
+        "*.h",
+    ]) + [
+        "BUILD.bazel",
+    ],
+    visibility = ["//cc/tests/fixtures/c_app:__pkg__"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = [
+        "//tools/ci:__pkg__",
+    ],
+)

@@ -109,7 +109,7 @@ Bind it with `aspect_hints = [":analysis_options"]`. Format ignores `deps`.
 ### Examples
 
 - `dart/tests/fixtures/adopt_dart` adopts a pub workspace with `dx generate`.
-- `dart/tests/fixtures/dart-app` is a multi-package app with a generated source file, runfiles data and failure targets.
+- `dart/tests/fixtures/dart_app` is a multi-package app with a generated source file, runfiles data and failure targets.
 
 ## Platforms
 

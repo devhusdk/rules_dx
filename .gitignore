@@ -50,4 +50,4 @@ opencode.json
 /rules_dx
 
 target/
-/swift/tests/fixtures/swift-app/.build/
+/swift/tests/fixtures/swift_app/.build/

@@ -3,7 +3,7 @@ load("@rules_dx//java:defs.bzl", "java_library")
 java_library(
     name = "indirect",
     testonly = True,
-    srcs = ["//java/tests/fixtures/java-app/cli:cli_srcs"],
+    srcs = ["//java/tests/fixtures/java_app/cli:cli_srcs"],
     tags = ["manual"],
-    deps = ["//java/tests/fixtures/java-app/cli"],
+    deps = ["//java/tests/fixtures/java_app/cli"],
 )

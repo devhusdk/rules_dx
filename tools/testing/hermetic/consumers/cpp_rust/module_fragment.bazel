@@ -23,7 +23,7 @@ http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "ht
 
 http_archive(
     name = "c_app_cjson",
-    build_file = "//cc/tests/fixtures/c-app/store:cjson.build",
+    build_file = "//cc/tests/fixtures/c_app/store:cjson.build",
     sha256 = "7fa616e3046edfa7a28a32d5f9eacfd23f92900fe1f8ccd988c1662f30454562",
     strip_prefix = "cJSON-1.7.19",
     urls = ["https://github.com/DaveGamble/cJSON/archive/refs/tags/v1.7.19.tar.gz"],
@@ -31,7 +31,7 @@ http_archive(
 
 http_archive(
     name = "cpp_app_fmt",
-    build_file = "//cc/tests/fixtures/cpp-app/core:fmt.build",
+    build_file = "//cc/tests/fixtures/cpp_app/core:fmt.build",
     sha256 = "449374d74f31b67796dece454d59b93e6f1538efcce0e9ac78000c98142c139e",
     strip_prefix = "fmt-12.2.1",
     urls = ["https://github.com/fmtlib/fmt/archive/refs/tags/12.2.1.tar.gz"],
@@ -72,7 +72,7 @@ npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
 npm.npm_translate_lock(
     name = "npm_consumer_app",
     npmrc = "//:.npmrc",
-    pnpm_lock = "//javascript/tests/fixtures/node-app:pnpm-lock.yaml",
+    pnpm_lock = "//javascript/tests/fixtures/node_app:pnpm-lock.yaml",
 )
 use_repo(npm, "npm_consumer_app")
 

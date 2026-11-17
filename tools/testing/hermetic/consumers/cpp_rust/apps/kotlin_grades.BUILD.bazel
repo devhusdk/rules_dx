@@ -20,7 +20,7 @@ kotlin_library(
         "Student.kt",
         ":build_info",  # keep
     ],
-    resource_strip_prefix = "kotlin/tests/fixtures/kotlin-app",
+    resource_strip_prefix = "kotlin/tests/fixtures/kotlin_app",
     resources = ["grades.json"],
     visibility = _PUBLIC,
     deps = [

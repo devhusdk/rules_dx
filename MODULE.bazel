@@ -1283,7 +1283,7 @@ dx_pins.archive(
 )
 dx_pins.archive(
     name = "c_app_cjson",
-    build = "//cc/tests/fixtures/c-app:cjson.BUILD.bazel",
+    build = "//cc/tests/fixtures/c_app:cjson.BUILD.bazel",
     pins = "//cc:pins.json",
 )
 dx_pins.archive(
@@ -1362,7 +1362,7 @@ dx_pins.archive(
 )
 dx_pins.archive(
     name = "cpp_app_fmt",
-    build = "//cc/tests/fixtures/cpp-app:fmt.BUILD.bazel",
+    build = "//cc/tests/fixtures/cpp_app:fmt.BUILD.bazel",
     pins = "//cc:pins.json",
 )
 dx_pins.archive(
@@ -1533,7 +1533,7 @@ dx_pins_dev.archive(
 )
 dx_pins_dev.archive(
     name = "zig_app_xxhash",
-    build = "//zig/tests/fixtures/zig-app:xxhash.BUILD.bazel",
+    build = "//zig/tests/fixtures/zig_app:xxhash.BUILD.bazel",
     pins = "//zig:pins.json",
 )
 use_repo(
@@ -1634,7 +1634,7 @@ register_toolchains("@dx_swift_toolchains//:all")
 swiftpm = use_extension("//swift:extensions.bzl", "swiftpm", dev_dependency = True)
 swiftpm.lock(
     name = "swiftpkg",
-    lock = "//swift/tests/fixtures/swift-app:swiftpm.lock.json",
+    lock = "//swift/tests/fixtures/swift_app:swiftpm.lock.json",
 )
 use_repo(swiftpm, "swiftpkg")
 
@@ -1689,7 +1689,7 @@ use_repo(
 flutter_pub = use_extension("//flutter:extensions.bzl", "pub", dev_dependency = True)
 flutter_pub.lock(
     name = "dx_flutter_app_deps",
-    lock = "//flutter/tests/fixtures/flutter-app:pubspec.lock",
+    lock = "//flutter/tests/fixtures/flutter_app:pubspec.lock",
 )
 flutter_pub.lock(
     name = "dx_flutter_deps",
@@ -1758,7 +1758,7 @@ register_toolchains("@julia_toolchains//:all")
 julia_pkg_dev = use_extension("//julia:extensions.bzl", "julia", dev_dependency = True)
 julia_pkg_dev.from_manifest(
     name = "julia_app_pkgs",
-    lockfile = "//julia/tests/fixtures/julia-app/third_party:Manifest.bazel.json",
+    lockfile = "//julia/tests/fixtures/julia_app/third_party:Manifest.bazel.json",
 )
 use_repo(julia_pkg_dev, julia_app_deps = "julia_app_pkgs")
 
@@ -2006,8 +2006,8 @@ register_toolchains("@dx_d_toolchains//:all")
 
 dub = use_extension("//d:extensions.bzl", "dub", dev_dependency = True)
 dub.lock(
-    name = "dub_d.tests.fixtures.d-app",
-    lock = "//d/tests/fixtures/d-app:dub.lock.json",
+    name = "dub_d.tests.fixtures.d_app",
+    lock = "//d/tests/fixtures/d_app:dub.lock.json",
 )
 dub.lock(
     name = "dub_d.tests.fixtures.dub",
@@ -2015,7 +2015,7 @@ dub.lock(
 )
 use_repo(
     dub,
-    "dub_d.tests.fixtures.d-app",
+    "dub_d.tests.fixtures.d_app",
     "dub_d.tests.fixtures.dub",
 )
 
@@ -2200,7 +2200,7 @@ npm_dev.npm_translate_lock(
 npm_dev.npm_translate_lock(
     name = "dx_js_node_app",
     npmrc = "//:.npmrc",
-    pnpm_lock = "//javascript/tests/fixtures/node-app:pnpm-lock.yaml",
+    pnpm_lock = "//javascript/tests/fixtures/node_app:pnpm-lock.yaml",
     verify_node_modules_ignored = "//:.bazelignore",
 )
 use_repo(
@@ -2323,8 +2323,8 @@ uv_fixtures = use_extension("@rules_py//uv:extensions.bzl", "uv", dev_dependency
 uv_fixtures.declare_hub(hub_name = "dx_pypi_fixtures")
 uv_fixtures.project(
     hub_name = "dx_pypi_fixtures",
-    lock = "//python/tests/fixtures/python-service:uv.lock",
-    pyproject = "//python/tests/fixtures/python-service:pyproject.toml",
+    lock = "//python/tests/fixtures/python_service:uv.lock",
+    pyproject = "//python/tests/fixtures/python_service:pyproject.toml",
 )
 uv_fixtures.project(
     hub_name = "dx_pypi_fixtures",
@@ -2718,8 +2718,8 @@ crate.from_cargo(
         "//tools/docs/powershell:Cargo.toml",
         "//tools/docs/rust:Cargo.toml",
         "//apple/tests:Cargo.toml",
-        "//kotlin/tests/fixtures/kotlin-app/cli:Cargo.toml",
-        "//java/tests/fixtures/java-app/cli:Cargo.toml",
+        "//kotlin/tests/fixtures/kotlin_app/cli:Cargo.toml",
+        "//java/tests/fixtures/java_app/cli:Cargo.toml",
         "//typescript/tests/fixtures/scoped:Cargo.toml",
         "//cuda/tests:Cargo.toml",
         "//tools/ci:Cargo.toml",
@@ -3038,7 +3038,7 @@ use_repo(nested_repository_cache, "nested_cache_adopt_polyglot", "nested_cache_a
 _fixture_repo(
     name = "shared_consumer",
     dev_dependency = True,
-    path = "rust/tests/fixtures/shared-rust-checks/repo",
+    path = "rust/tests/fixtures/shared_rust_checks/repo",
 )
 
 dx_source_archives = use_extension("//core:extensions.bzl", "dx_source_archives")

@@ -40,12 +40,12 @@ undeclared_dep_test(
 
 instrumented_sources_test(
     name = "coverage_instrumented_test",
-    target_under_test = "//python/tests/fixtures/python-service/ledger/core:catalog_test",
+    target_under_test = "//python/tests/fixtures/python_service/ledger/core:catalog_test",
 )
 
 no_click_runfiles_test(
     name = "no_click_runfiles_test",
-    target_under_test = "//python/tests/fixtures/python-service/ledger/cli:broken",
+    target_under_test = "//python/tests/fixtures/python_service/ledger/cli:broken",
 )
 
 real_source_target(

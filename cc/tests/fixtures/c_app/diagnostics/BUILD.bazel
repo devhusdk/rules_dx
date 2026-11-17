@@ -1,0 +1,44 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//tools/testing:test_macros.bzl", "dx_diagnostics_test")
+
+package(default_visibility = ["//cc/tests/fixtures/c_app:__subpackages__"])
+
+dx_diagnostics_test(
+    name = "diagnostics_test",
+    language = "clang",
+    data = [
+        "clean.c",
+        "lint_error.c",
+        "syntax_error.c",
+        "type_error.c",
+        "unused.c",
+        "//core/quality/tiers/clang_tidy:standard.clang-tidy",
+        "@llvm//tools:clang",
+        "@llvm//tools:clang-tidy",
+    ],
+    args = ["--skip", "strict_profile_reports_modernize_and_standard_does_not"],
+    env = {
+        "DX_CLANG": "$(rootpath @llvm//tools:clang)",
+        "DX_CLANG_TIDY": "$(rootpath @llvm//tools:clang-tidy)",
+        "DX_CLEAN": "$(rootpath clean.c)",
+        "DX_LINT": "$(rootpath lint_error.c)",
+        "DX_STD": "-std=c11",
+        "DX_SYNTAX": "$(rootpath syntax_error.c)",
+        "DX_TIDY_STANDARD": "$(rootpath //core/quality/tiers/clang_tidy:standard.clang-tidy)",
+        "DX_TYPE": "$(rootpath type_error.c)",
+        "DX_UNUSED": "$(rootpath unused.c)",
+    },
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = [
+        "//tools/ci:__pkg__",
+    ],
+)

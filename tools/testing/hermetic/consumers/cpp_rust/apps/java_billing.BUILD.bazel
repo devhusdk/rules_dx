@@ -21,7 +21,7 @@ java_library(
         "Totals.java",
         ":build_info",  # keep
     ],
-    resource_strip_prefix = "java/tests/fixtures/java-app",
+    resource_strip_prefix = "java/tests/fixtures/java_app",
     resources = ["invoices.json"],
     visibility = _PUBLIC,
     deps = [

@@ -56,4 +56,4 @@ dx deploy --apply //examples/shared-rust:tasks_deploy
 tarball against its checksum and copies it into the workspace root.
 
 Qualification checks, the independent consumer, and the APK inspections are
-in [rust/tests/fixtures/shared-rust-checks](../../rust/tests/fixtures/shared-rust-checks/README.md).
+in [rust/tests/fixtures/shared_rust_checks](../../rust/tests/fixtures/shared_rust_checks/README.md).

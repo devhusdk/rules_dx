@@ -4,13 +4,16 @@
 
 ## Install
 
-Add `rules_dx` to `MODULE.bazel`:
+Run `dx init --apply` in the repository, as in the [Quickstart](../../README.md#quickstart).
+
+For a Android project it writes this `MODULE.bazel`, tested in [`android/tests/consumer`](../../android/tests/consumer/consumer.MODULE.bazel):
 
 ```python
+# dx: yours; dx adds its missing lines
+module(name = "my_project")
+
 bazel_dep(name = "rules_dx", version = "<version>")
 ```
-
-Then run `dx init --apply`, as in the [Quickstart](../../README.md#quickstart).
 
 Load the rules from `@rules_dx//android:defs.bzl`:
 

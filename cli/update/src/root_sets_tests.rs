@@ -6,7 +6,7 @@ const MODULE_BAZEL: &str = include_str!("../../../MODULE.bazel");
 
 const EXPECTED_NAMES: &[&str] = &[
     "dart_apitool_deps",
-    "dub_d.tests.fixtures.d-app",
+    "dub_d.tests.fixtures.d_app",
     "dub_d.tests.fixtures.dub",
     "dx_ansible_test_collections",
     "dx_benchee",
@@ -29,7 +29,7 @@ const EXPECTED_NAMES: &[&str] = &[
     "dx_pypi-python",
     "dx_pypi-sqlfluff",
     "dx_pypi_fixtures-hello",
-    "dx_pypi_fixtures-python-service",
+    "dx_pypi_fixtures-python_service",
     "dx_pypi_rust_sdist-rust_sdist",
     "dx_pypi_sdist-sdist_native",
     "dx_pypi_sdist_nodeps-nodeps",
@@ -39,6 +39,7 @@ const EXPECTED_NAMES: &[&str] = &[
     "dx_scalafix",
     "dx_thrift_crates",
     "elixir_app_deps",
+    "erlang_lock_deps",
     "go",
     "haskell_app_hackage",
     "haskell_bench_hackage",

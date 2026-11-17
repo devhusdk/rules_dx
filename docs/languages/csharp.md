@@ -37,7 +37,7 @@ Compiles a proto_library to C# with protoc; deps should hold Google.Protobuf.
 csharp_library(name, srcs = None, visibility = None, **kwargs)
 ```
 
-Minimal wrapper over csharp_library; target_frameworks defaults to net10.0 and warnings are errors.
+Minimal wrapper over csharp_library; target_frameworks defaults to net10.0, out defaults to name and warnings are errors.
 
 ### `csharp_binary`
 

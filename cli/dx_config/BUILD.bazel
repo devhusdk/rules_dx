@@ -34,6 +34,7 @@ rust_library(
     compile_data = ["schema/dx.schema.json"],
     crate_name = "dx_config",
     crate_root = "src/lib.rs",
+    visibility = VIS_CLI + ["//tools/api:__pkg__"],
     deps = all_crate_deps(
         package_name = "cli/dx_config",
         normal = True,

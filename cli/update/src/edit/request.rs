@@ -33,7 +33,7 @@ pub enum ConfiguredKind {
     Nuget,
     /// A go set; only the `require` line of its manifest is edited, then its lock is refreshed.
     Go,
-    /// A ruby set; only the gem's line in the manifest is edited, then `bundle lock` runs.
+    /// A ruby set; only the gem's line in the manifest is edited, then the ruby lock resolver runs.
     Ruby,
     /// A cpan set; only the module's `requires` line in the manifest is edited.
     Cpan,
@@ -277,7 +277,7 @@ impl DepTarget {
         if self.is_configured_bazel() {
             "bazel mod deps".to_owned()
         } else if self.is_configured_ruby() {
-            format!("bundle lock --update {} --conservative", self.package)
+            "bazel run @rules_dx//ruby/private/tools/lock".to_owned()
         } else {
             format!("dx update {}", self.refresh_selector())
         }

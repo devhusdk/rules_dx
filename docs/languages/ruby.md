@@ -106,9 +106,11 @@ Lockfiles:
 
 ### Gems
 
-`dx update` runs `bazel run @rules_dx//ruby/private/tools/lock -- --dir <set directory>`. It reads
-`Gemfile`, resolves exact versions from the rubygems.org API, downloads each gem and writes
-`ruby.lock.json` and the state file `Gemfile.lock`. Unchanged gems are kept without a download.
+`bazel run @rules_dx//ruby/private/tools/lock -- --dir <absolute set directory>` reads `Gemfile`,
+resolves exact versions from the rubygems.org API, downloads each gem and writes `ruby.lock.json`
+and the state file `Gemfile.lock`. Unchanged gems are kept without a download. `dx update` on a
+ruby set reports `pinned`. `dx update <set>:<gem> <version> --apply` edits the gem's `Gemfile` line
+and runs the resolver with `--upgrade <gem>`.
 
 With `ruby.lock.json` beside the root `Gemfile`, `dx generate --apply` adds the `ruby.lock`
 stanza for the `@gems` hub to `MODULE.bazel`:

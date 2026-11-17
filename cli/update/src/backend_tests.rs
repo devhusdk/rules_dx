@@ -330,24 +330,34 @@ fn ruby_set() -> ResolvedSet {
 }
 
 #[test]
-fn ruby_lock_runs_bundler_from_the_toolchain_in_the_gemfile_dir() {
-    let plan = plan_ruby_lock(&ruby_set(), "rake", false, false, &no_head()).expect("plan");
+fn ruby_lock_runs_the_pinned_resolver_on_the_gemfile_dir() {
+    let plan = plan_ruby_lock(
+        Path::new("/ws"),
+        &ruby_set(),
+        "rake",
+        false,
+        false,
+        &no_head(),
+    )
+    .expect("plan");
     assert_eq!(plan.dir, "app");
     assert_eq!(
         plan.env,
         [] as [(std::string::String, std::string::String); 0]
     );
-    let tail = plan.argv.iter().position(|arg| arg == "@ruby//:bundle");
-    let tail = &plan.argv[tail.expect("bundle target")..];
+    let resolver = "@rules_dx//ruby/private/tools/lock";
+    let tail = plan.argv.iter().position(|arg| arg == resolver);
+    let tail = &plan.argv[tail.expect("resolver target")..];
+    let dir = Path::new("/ws").join("app");
     assert_eq!(
         tail,
         [
-            "@ruby//:bundle",
+            resolver,
             "--",
-            "lock",
-            "--update",
-            "rake",
-            "--conservative"
+            "--dir",
+            &dir.to_string_lossy(),
+            "--upgrade",
+            "rake"
         ]
     );
 }
@@ -355,11 +365,25 @@ fn ruby_lock_runs_bundler_from_the_toolchain_in_the_gemfile_dir() {
 #[test]
 fn ruby_lock_refuses_frozen_and_offline() {
     assert!(matches!(
-        plan_ruby_lock(&ruby_set(), "rake", false, true, &no_head()),
+        plan_ruby_lock(
+            Path::new("/ws"),
+            &ruby_set(),
+            "rake",
+            false,
+            true,
+            &no_head()
+        ),
         Err(BackendError::FrozenLocked { .. })
     ));
     assert!(matches!(
-        plan_ruby_lock(&ruby_set(), "rake", true, false, &no_head()),
+        plan_ruby_lock(
+            Path::new("/ws"),
+            &ruby_set(),
+            "rake",
+            true,
+            false,
+            &no_head()
+        ),
         Err(BackendError::OfflineRequired { .. })
     ));
 }

@@ -875,6 +875,7 @@ fn refresh_plan(
         ),
         dx_update::edit::ConfiguredKind::Ruby => {
             let plan = dx_update::backend::plan_ruby_lock(
+                workspace,
                 &set,
                 &target.package,
                 invocation.offline,

@@ -411,7 +411,7 @@ Without `--apply` it exits `0` when the manifest already declares the version, a
 | `maven` | Literal coordinate in the set's `maven.install`, then `@<set>//:pin`. Use `<set>:<group>:<artifact> <version>`. |
 | `npm`, `uv` | `package.json` or `pyproject.toml`, then refreshes the lock. |
 | `nuget` | `paket.dependencies` only. Run `paket update`, then `dx update <set>`. |
-| `ruby` | Literal requirement on the gem's Gemfile line, then `bundle lock --update <gem> --conservative` with `@ruby//:bundle` in the Gemfile directory. |
+| `ruby` | Literal requirement on the gem's Gemfile line, then `bazel run @rules_dx//ruby/private/tools/lock -- --dir <set directory> --upgrade <gem>`. |
 
 A missing package is inserted in the same manifest and shape: a `bazel_dep` after the last one, a `[dependencies]` entry, a `require` line, a `maven.install` coordinate, a `dependencies` entry in `package.json`, a `nuget` line, a `[project].dependencies` requirement `name>=version` in `pyproject.toml` for configured `uv` sets, or a `gem "name", "~> <major>.<minor>"` line after the last top-level `gem` in the `Gemfile` for `ruby` sets.
 

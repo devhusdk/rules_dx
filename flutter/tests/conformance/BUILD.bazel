@@ -44,7 +44,7 @@ dx_conformance_suite(
     covered_source = "greet.dart",
     expected = "",
     failing_case = "failing_case",
-    failing_pattern = "{case} [E]",
+    failing_pattern = "FAIL  {case}",
     failing_test = ":fail_subject_test",
     lang = "flutter",
     not_applicable = {

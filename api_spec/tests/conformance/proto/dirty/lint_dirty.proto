@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package conformance.v1;
+
+message Dirty {
+  string text = 1;
+}

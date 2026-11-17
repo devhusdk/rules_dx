@@ -23,17 +23,6 @@ ansible lint_test *
 ansible lock_test *
 ansible pass_test *
 ansible runfiles_test *
-api_spec build_test *
-api_spec coverage_test *
-api_spec cross_test *
-api_spec fail_test *
-api_spec format_error_test *
-api_spec format_test *
-api_spec lint_error_test *
-api_spec lint_test *
-api_spec lock_test *
-api_spec pass_test *
-api_spec runfiles_test *
 apple build_test *
 apple coverage_test *
 apple cross_test *

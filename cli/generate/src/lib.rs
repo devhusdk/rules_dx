@@ -8,6 +8,7 @@ mod sync;
 pub mod tools_gen;
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write as _;
 
 use dx_config::{CROSS_FAMILY_TOOLS, DxConfig, SelectionProblem, Tier};
 use dx_preset::Layer;
@@ -328,15 +329,19 @@ fn dx_build(
             .iter()
             .map(|(tool, _)| format!("\"{}_config\"", tool.config.id))
             .collect();
-        text.push_str(&format!(
-            "load(\"@{repo}//core/quality:native_config.bzl\", {})\n",
+        writeln!(
+            text,
+            "load(\"@{repo}//core/quality:native_config.bzl\", {})",
             symbols.join(", ")
-        ));
+        )
+        .ok();
     }
-    text.push_str(&format!(
+    write!(
+        text,
         "load(\"@{repo}//core/quality/private:generated_policy.bzl\", \"dx_generated_policy\")\n\n\
          package(default_visibility = [\"//visibility:public\"])\n"
-    ));
+    )
+    .ok();
     for (tool, file) in bound {
         let mut data: Vec<String> = tool.base().into_iter().collect();
         data.extend(
@@ -346,12 +351,14 @@ fn dx_build(
                 .flatten()
                 .cloned(),
         );
-        text.push_str(&format!(
-            "\n{id}_config(\n    name = \"{id}\",\n    src = \"//:{file}\",\n",
+        writeln!(
+            text,
+            "\n{id}_config(\n    name = \"{id}\",\n    src = \"//:{file}\",",
             id = tool.config.id
-        ));
+        )
+        .ok();
         if !data.is_empty() {
-            text.push_str(&format!("    data = {},\n", list(&data, 4)));
+            writeln!(text, "    data = {},", list(&data, 4)).ok();
         }
         text.push_str(")\n");
     }
@@ -369,18 +376,18 @@ fn dx_build(
         })
         .collect();
     if !bases.is_empty() {
-        text.push_str(&format!("    bases = {{\n{}    }},\n", bases.concat()));
+        writeln!(text, "    bases = {{\n{}    }},", bases.concat()).ok();
     }
     let configs: Vec<String> = bound
         .iter()
         .map(|(tool, _)| format!(":{}", tool.config.id))
         .collect();
     if !configs.is_empty() {
-        text.push_str(&format!("    configs = {},\n", list(&configs, 4)));
+        writeln!(text, "    configs = {},", list(&configs, 4)).ok();
     }
     if !disabled.is_empty() {
         let disabled: Vec<String> = disabled.iter().cloned().collect();
-        text.push_str(&format!("    disabled = {},\n", list(&disabled, 4)));
+        writeln!(text, "    disabled = {},", list(&disabled, 4)).ok();
     }
     text.push_str("    families = {");
     if families.is_empty() {
@@ -388,7 +395,7 @@ fn dx_build(
     } else {
         text.push('\n');
         for (id, family) in families {
-            text.push_str(&format!("        \"{id}\": {{"));
+            write!(text, "        \"{id}\": {{").ok();
             let capabilities = [
                 ("audit", &family.audit),
                 ("format", &family.format),
@@ -421,12 +428,12 @@ fn dx_build(
             if fields.is_empty() {
                 text.push_str("},\n");
             } else {
-                text.push_str(&format!("\n{}        }},\n", fields.concat()));
+                writeln!(text, "\n{}        }},", fields.concat()).ok();
             }
         }
         text.push_str("    },\n");
     }
-    text.push_str(&format!("    tier = \"{}\",\n)\n", root.as_str()));
+    writeln!(text, "    tier = \"{}\",\n)", root.as_str()).ok();
     text
 }
 
@@ -547,11 +554,9 @@ fn bazelrc(
     if layer != Layer::Correctness {
         return text;
     }
-    text.push_str(&format!(
-        "\n# The workspace policy dx generates from dx.toml.\ncommon --@{repo}//config:workspace={POLICY_LABEL}\n"
-    ));
+    writeln!(text, "\n# The workspace policy dx generates from dx.toml.\ncommon --@{repo}//config:workspace={POLICY_LABEL}").ok();
     for tool in tools.iter().filter(|tool| tool.config.kind == "flags") {
-        text.push_str(&format!("\n# The {} tier.\n", tool.config.id));
+        writeln!(text, "\n# The {} tier.", tool.config.id).ok();
         let lines = tool
             .tier()
             .lines()
@@ -559,11 +564,11 @@ fn bazelrc(
             .filter(|line| !line.is_empty() && *line != "-Dwarnings");
         // Setting any clippy_flag drops rules_rust's default `-Dwarnings`, so it comes back last.
         for line in lines.chain(["-Dwarnings"]) {
-            text.push_str(&format!("common --@{repo}//config:clippy_flag={line}\n"));
+            writeln!(text, "common --@{repo}//config:clippy_flag={line}").ok();
         }
     }
     for (language, flags) in dx_families::setup_flags(detected.iter().map(String::as_str)) {
-        text.push_str(&format!("\n# The {language} setup flags.\n"));
+        writeln!(text, "\n# The {language} setup flags.").ok();
         for flag in flags {
             text.push_str(&flag.replace("@rules_dx//", &format!("@{repo}//")));
             text.push('\n');

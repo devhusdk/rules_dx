@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write as _;
 
 use super::outcome::{ReportedStatus, UpdateReport};
 
@@ -92,7 +93,7 @@ pub fn recovery_message(plan: &RecoveryPlan, succeeded: usize, failed: usize) ->
     );
     match &plan.restore_command {
         Some(restore) => {
-            message.push_str(&format!("; to discard kept successes run `{restore}`"));
+            write!(message, "; to discard kept successes run `{restore}`").ok();
         }
         None => {
             message.push_str("; nothing to roll back");

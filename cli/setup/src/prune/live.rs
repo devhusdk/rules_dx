@@ -1,4 +1,5 @@
 use std::ffi::OsString;
+use std::fmt::Write as _;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -223,10 +224,12 @@ fn scan_with(proc: &dyn ProcFs, proc_root: &Path, dx_dir: &Path) -> LiveObservat
     };
     let mut reason = first.clone();
     if unreadable.len() > 1 {
-        reason.push_str(&format!(
+        write!(
+            reason,
             " (+{} more unreadable processes)",
             unreadable.len() - 1
-        ));
+        )
+        .ok();
     }
     LiveObservation::Unknown {
         partial: live,

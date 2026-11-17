@@ -2,6 +2,7 @@
 //! `MODULE.bazel`.
 
 use std::collections::BTreeSet;
+use std::fmt::Write as _;
 use std::path::Path;
 
 /// The `use_extension` line that binds the `dx_licenses` extension.
@@ -150,7 +151,7 @@ pub fn render_license_accept(module: &str, ids: &BTreeSet<String>) -> String {
         "dx_licenses".to_owned()
     };
     let list: Vec<String> = ids.iter().map(|id| format!("\"{id}\"")).collect();
-    lines.push_str(&format!("{name}.accept(ids = [{}])\n", list.join(", ")));
+    writeln!(lines, "{name}.accept(ids = [{}])", list.join(", ")).ok();
     lines
 }
 

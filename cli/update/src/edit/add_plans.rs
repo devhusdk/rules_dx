@@ -1,5 +1,7 @@
 //! Insert planners for the manifests a missing `dx update` package is written to. Each one keeps every other byte.
 
+use std::fmt::Write as _;
+
 use dx_error::DxError;
 
 use crate::edit::request::plans::{JsonScan, NPM_SECTIONS, paket_tokens};
@@ -237,7 +239,7 @@ pub(super) fn insert_paket_dependency(
     if anchor.is_none() {
         entry.push_str(eol);
     }
-    entry.push_str(&format!("{indent}nuget {package} {version}{eol}"));
+    write!(entry, "{indent}nuget {package} {version}{eol}").ok();
     splice(content, end, &entry)
 }
 
@@ -324,7 +326,7 @@ pub(super) fn insert_gem(content: &str, package: &str, version: &str) -> Result<
     if at == content.len() && !content.is_empty() && !content.ends_with('\n') {
         entry.push_str(eol);
     }
-    entry.push_str(&format!("gem \"{package}\", \"~> {requirement}\"{eol}"));
+    write!(entry, "gem \"{package}\", \"~> {requirement}\"{eol}").ok();
     if at < content.len() && !part(content, ..at)?.ends_with('\n') {
         entry.insert_str(0, eol);
     }

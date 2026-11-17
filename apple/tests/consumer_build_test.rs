@@ -81,5 +81,16 @@ fn one_macro_call_builds_each_app_with_no_flag() {
         "//phone:phone_app",
         "//desk:desk_app",
     ]);
-    assert!(built.status.success(), "{}", built.combined());
+    if !built.status.success() {
+        let xcodes = case.bazel(&[
+            "query",
+            "--output=build",
+            "@@apple_support++xcode_configure_extension+local_config_xcode//:all",
+        ]);
+        panic!(
+            "{}\nlocal_config_xcode:\n{}",
+            built.combined(),
+            xcodes.combined()
+        );
+    }
 }

@@ -29,6 +29,7 @@ rust_library(
         package_name = "tools/testing/dx_nested",
         normal = True,
     ) + [
+        "//cli/digest:dx_digest",
         "//cli/path:dx_path",
         "//cli/process:dx_process",
         "//cli/test_scratch:dx_test_scratch",
@@ -71,6 +72,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        "//cli/digest:dx_digest",
         "//cli/path:dx_path",
         "//cli/process:dx_process",
         "//cli/test_scratch:dx_test_scratch",

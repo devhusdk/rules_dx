@@ -3,7 +3,7 @@
 use std::io;
 use std::path::Path;
 
-use sha2::{Digest as _, Sha256};
+use sha2::{Digest as _, Sha256, Sha384, Sha512};
 
 const FILE_CHUNK: usize = 64 << 10;
 
@@ -75,6 +75,16 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
     hex::encode(hasher.finalize())
+}
+
+#[must_use]
+pub fn sha384_hex(bytes: &[u8]) -> String {
+    hex::encode(Sha384::digest(bytes))
+}
+
+#[must_use]
+pub fn sha512_hex(bytes: &[u8]) -> String {
+    hex::encode(Sha512::digest(bytes))
 }
 
 /// Streaming sha256 sink that hashes every byte written to it.
@@ -242,6 +252,18 @@ mod tests {
         assert_eq!(
             sha256_hex(b""),
             "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
+    }
+
+    #[test]
+    fn sha384_and_sha512_known_vectors() {
+        assert_eq!(
+            sha384_hex(b"abc"),
+            "cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7"
+        );
+        assert_eq!(
+            sha512_hex(b"abc"),
+            "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f"
         );
     }
 

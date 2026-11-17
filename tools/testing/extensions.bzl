@@ -60,20 +60,21 @@ def _nested_repository_cache_impl(mctx):
         for cache_set in module.tags.set:
             entries = parse_cache_list(mctx.read(cache_set.list), str(cache_set.list))
             repos = {}
-            for digest, url in entries.items():
+            for digest, urls in entries.items():
                 repo = "nested_cache_" + digest
                 repos[digest] = repo
                 if digest not in declared:
-                    declared[digest] = url
+                    declared[digest] = urls
                     http_file(
                         name = repo,
                         downloaded_file_path = "blob",
                         integrity = digest_integrity(digest),
-                        urls = [url],
+                        urls = urls,
                     )
             nested_repository_cache_set(
                 name = cache_set.name,
                 entries = json.encode(repos),
+                urls = json.encode(entries),
                 rule_bzl = Label(":nested_repository_cache.bzl"),
             )
     return mctx.extension_metadata(reproducible = True)

@@ -116,8 +116,8 @@ pub struct Config {
     pub offline: bool,
     /// The native `bazel` shim installed in the root; without it Unix falls back to a sh wrapper.
     pub shim: Option<PathBuf>,
-    /// The declared downloads, as sha256 and file, that make up the repository cache.
-    pub cache: Vec<(String, PathBuf)>,
+    /// The declared downloads that make up the repository cache.
+    pub cache: Vec<cache::Download<PathBuf>>,
     /// Record mode: the directory that receives the cache set and the locks of this run.
     pub record: Option<PathBuf>,
 }
@@ -171,8 +171,12 @@ impl Config {
             let manifest = resolve(cache::MANIFESTS_ENV, key)?;
             let listed = std::fs::read_to_string(&manifest)
                 .map_err(|error| format!("cannot read {}: {error}", manifest.display()))?;
-            for (sha256, file) in cache::parse_manifest(&listed)? {
-                cache.push((sha256, resolve(cache::MANIFESTS_ENV, &file)?));
+            for download in cache::parse_manifest(&listed)? {
+                cache.push(cache::Download {
+                    file: resolve(cache::MANIFESTS_ENV, &download.file)?,
+                    digest: download.digest,
+                    urls: download.urls,
+                });
             }
         }
         let offline = lookup("DX_NESTED_BAZEL_NETWORK").is_none_or(|v| v.is_empty());
@@ -2236,13 +2240,18 @@ mod tests {
         let fixture = Fixture::new();
         let sha256 = "a".repeat(64);
         let manifest = fixture.dir.path().join("set.manifest");
-        std::fs::write(&manifest, format!("{sha256} repo/file/file\n")).expect("manifest");
+        std::fs::write(&manifest, format!("{sha256} repo/file/file https://a/x\n"))
+            .expect("manifest");
         let config = fixture.config(&[(cache::MANIFESTS_ENV, &manifest.to_string_lossy())]);
         assert_eq!(
             config.cache,
-            vec![(sha256, PathBuf::from("repo/file/file"))]
+            vec![cache::Download {
+                digest: sha256,
+                file: PathBuf::from("repo/file/file"),
+                urls: vec!["https://a/x".to_owned()],
+            }]
         );
-        assert_eq!(fixture.config(&[]).cache, [] as [(String, PathBuf); 0]);
+        assert!(fixture.config(&[]).cache.is_empty());
     }
 
     #[test]
@@ -2441,7 +2450,11 @@ mod tests {
         std::fs::write(&download, "bytes").expect("download");
         let sha256 = "b".repeat(64);
         let declared = Config {
-            cache: vec![(sha256.clone(), download)],
+            cache: vec![cache::Download {
+                digest: sha256.clone(),
+                file: download,
+                urls: Vec::new(),
+            }],
             ..config(&base, &bazel)
         };
         let mut first = Server::acquire(declared).expect("server");

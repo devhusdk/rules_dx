@@ -6,6 +6,7 @@ package(default_visibility = ["//visibility:private"])
 rust_library(
     name = "ruby_lock_lib",
     srcs = ["src/resolve.rs"],
+    compile_data = ["//ruby:pins.json"],
     crate_name = "ruby_lock",
     crate_root = "src/resolve.rs",
     deps = [

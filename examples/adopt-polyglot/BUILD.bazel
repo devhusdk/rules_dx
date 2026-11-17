@@ -61,7 +61,6 @@ filegroup(
 # keep
 nested_bazel_test(
     name = "consumer_test",
-    size = "large",
     timeout = "moderate",
     srcs = ["consumer_test.rs"],
     cache = "adopt_polyglot",

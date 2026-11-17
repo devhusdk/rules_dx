@@ -73,13 +73,38 @@ done
 if [ "$here" != / ] && [ "$here" != "$(cd -P -- "$root" && pwd -P)" ] && [ -x "$here/tools/dx" ]; then
   exec "$here/tools/dx" "$@"
 fi
-# Worktree add and release must stay fast and must not wait on Bazel: run the last built dx without a stale check.
-# Keep this list in sync with tools/dx.cmd.
+# True when an input of the last built dx is newer than that build. With arguments, only inputs under those path
+# prefixes count.
+input_newer() {
+  while IFS= read -r st_p || [ -n "$st_p" ]; do
+    st_p=${st_p#//}
+    st_p=${st_p#:}
+    case $st_p in
+    *:*) st_p=${st_p%%:*}/${st_p#*:} ;;
+    esac
+    [ -n "$st_p" ] || continue
+    if [ $# -gt 0 ]; then
+      st_m=
+      for st_x in "$@"; do
+        case $st_p in "$st_x"*) st_m=1 ;; esac
+      done
+      [ -n "$st_m" ] || continue
+    fi
+    [ "$root/$st_p" -nt "$state/built" ] && return 0
+  done <"$state/inputs"
+  return 1
+}
+# Worktree add and release must stay fast and must not wait on Bazel: run the last built dx without a stale check,
+# unless a worktree source is newer than that dx. Keep this list and the prefixes in sync with tools/dx.cmd.
 if [ "${1:-}" = worktree ]; then
   case "${2:-}" in
   add | release)
-    [ -x "$state/dx$exe" ] && exec "$state/dx$exe" "$@"
-    [ -x "$bin" ] && exec "$bin" "$@"
+    if [ -s "$state/inputs" ] && [ -f "$state/built" ] && input_newer cli/worktree/ cli/process/; then
+      echo "dx: worktree sources are newer than the built dx; rebuilding" >&2
+    else
+      [ -x "$state/dx$exe" ] && exec "$state/dx$exe" "$@"
+      [ -x "$bin" ] && exec "$bin" "$@"
+    fi
     ;;
   esac
 fi
@@ -193,15 +218,7 @@ tag_state() {
 }
 stale() {
   [ -x "$bin" ] && [ -s "$state/inputs" ] && [ -f "$state/built" ] || return 0
-  while IFS= read -r st_p || [ -n "$st_p" ]; do
-    st_p=${st_p#//}
-    st_p=${st_p#:}
-    case $st_p in
-    *:*) st_p=${st_p%%:*}/${st_p#*:} ;;
-    esac
-    [ -n "$st_p" ] || continue
-    [ "$root/$st_p" -nt "$state/built" ] && return 0
-  done <"$state/inputs"
+  input_newer && return 0
   for st_p in .bazelrc .bazelversion user.bazelrc .dx/bazelrc/correctness.bazelrc .dx/bazelrc/performance.bazelrc .dx/bazelrc/resources.bazelrc MODULE.bazel MODULE.bazel.lock cargo-bazel-lock.json; do
     [ "$root/$st_p" -nt "$state/built" ] && return 0
   done

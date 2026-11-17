@@ -60,6 +60,15 @@ dx_conformance_suite(
     failing_pattern = "FAIL {case}",
     failing_test = ":fail_subject_test",
     lang = "haskell",
+    lock = {
+        "binary": "//haskell/tests/conformance/lock:lock_hello",
+        "ecosystem": "haskell",
+        "expected": "hello lock",
+        "lockfile": "//haskell/tests/fixtures/haskell_app/third_party:cabal.project.freeze",
+        "manifest": "//haskell/tests/fixtures/haskell_app/third_party:third_party.cabal",
+        "package": "split",
+        "stale": "cabal.project.stale.freeze",
+    },
     passing_test = ":pass_subject_test",
     runfiles = {
         "binary": ":hello",

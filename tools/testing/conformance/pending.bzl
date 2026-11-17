@@ -132,7 +132,6 @@ haskell format_error_test *
 haskell format_test *
 haskell lint_error_test *
 haskell lint_test *
-haskell lock_test *
 helm build_test *
 helm coverage_test *
 helm cross_test *
@@ -150,7 +149,6 @@ julia format_error_test *
 julia format_test *
 julia lint_error_test *
 julia lint_test *
-julia lock_test *
 kotlin cross_test *
 kotlin format_error_test *
 kotlin format_test *

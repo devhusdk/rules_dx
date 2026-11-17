@@ -7,7 +7,10 @@ _PROJECT = [
     "third_party.cabal",
 ]
 
-exports_files(_PROJECT + ["cabal.lock.json"])
+exports_files(_PROJECT + [
+    "cabal.lock.json",
+    "cabal.project.freeze",
+])
 
 real_source_target(
     name = "corpus_starlark",

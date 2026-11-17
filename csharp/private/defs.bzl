@@ -92,8 +92,9 @@ def csharp_proto_library(name, proto, deps = None, visibility = None, **kwargs):
     )
 
 def csharp_library(name, srcs = None, visibility = None, **kwargs):
-    """Minimal wrapper over csharp_library; target_frameworks defaults to net10.0 and warnings are errors."""
+    """Minimal wrapper over csharp_library; target_frameworks defaults to net10.0, out defaults to name and warnings are errors."""
     upstream = csharp_tfm_with_defaults(kwargs)
+    upstream.setdefault("out", name)
     dx_wrap(name, _csharp_library, _csharp_library_forward, srcs, visibility = visibility, upstream_kwargs = upstream, extra_forward_kwargs = csharp_tfm_forward_kwargs(name, upstream), **kwargs)
 
 def csharp_binary(name, *, srcs = None, visibility = None, upstream_visibility = None, **kwargs):

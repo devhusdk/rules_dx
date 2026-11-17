@@ -9,12 +9,10 @@ package(default_visibility = [
 
 quality_family(
     name = "fsharp_family",
-    disabled = [
-        "audit",
-        "lint",
-    ],
+    disabled = ["audit"],
     family_id = "fsharp",
     format = ["fantomas"],
+    lint = ["fsharplint"],
     typecheck = ["fsc"],
 )
 
@@ -29,6 +27,9 @@ fsharp_library(
     name = "dirty",
     testonly = True,
     srcs = ["Dirty.fs"],
-    tags = ["manual"],
+    tags = [
+        "manual",
+        "no-lint",
+    ],
     deps = ["@nuget//fsharp.core"],
 )

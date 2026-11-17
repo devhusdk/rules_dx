@@ -2,7 +2,7 @@
 
 load("@dx_pins_data//:pins.bzl", "DATA")
 
-_ARCHIVES = DATA["dx_ruby_coverage"]["archives"]
+_ARCHIVES = DATA["dx_ruby"]["archives"]
 
 def _gem(name, entry):
     pin = _ARCHIVES[name]

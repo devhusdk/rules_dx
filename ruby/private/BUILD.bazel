@@ -21,6 +21,7 @@ real_source_target(
         "BUILD.bazel",
         "defs.bzl",
         "sorbet.BUILD.bazel",
+        "toolchain.bzl",
     ],
     tags = ["corpus"],
 )

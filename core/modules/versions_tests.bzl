@@ -58,11 +58,11 @@ def versions_contract_tests(name):
             expect_equal("cuda redist url names the redist version", _CUDA_REDIST_URL.endswith("redistrib_" + _CUDA_REDIST_VERSION + ".json"), True),
             expect_equal("swift linux pins.json follows canonical", _PINS["dx_swift_format_macos_arm64"]["swift_linux"]["version"], _SWIFT_VERSION),
             expect_equal("swift windows pins.json follows canonical", _PINS["dx_swift_format_macos_arm64"]["swift_windows"]["version"], _SWIFT_VERSION),
+            expect_equal("ruby pins.json follows canonical", _DATA["dx_ruby"]["portable_ruby"]["version"], _RUBY_VERSION),
         ],
         file_blocks = {
             "//:MODULE.bazel": [
                 npm_dev_block,
-                "    version = \"" + _RUBY_VERSION + "\",\n",
                 "dx_pins.archive(\n    name = \"cuda_redistrib_json\",\n    key = \"redist_manifest\",\n    pins = \"//cuda:pins.json\",\n)",
             ],
             "//tools/bazelrc:src/lib.rs": [

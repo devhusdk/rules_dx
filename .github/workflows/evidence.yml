@@ -7,7 +7,7 @@ on:
         description: "Space-separated Bazel target patterns such as //cli/cli/... or //pkg:target. Apple on macos_arm64: //apple/... //apple/tests/fixtures/macos_ledger/... //apple/tests/fixtures/macos_bundle/... //apple/tests/fixtures/swift_app/... Android on linux_x86_64: //android/tests:androidsdk_build_test."
         required: true
       task:
-        description: "One of test, build, coverage or build_scripts. build_scripts lists each cargo_build_script in deps(scope) configured with collect_code_coverage on, with a somepath from the scope, in build-scripts.txt."
+        description: "One of test, build, coverage or build_scripts. build_scripts lists each cargo_build_script in deps of the non-manual targets in scope configured with collect_code_coverage on, with a somepath from the scope, in build-scripts.txt."
         required: false
         default: "test"
       platforms:
@@ -304,11 +304,16 @@ jobs:
               for pattern in "${patterns[@]}"; do
                 case "$pattern" in -*) echo "build_scripts: scope cannot hold negative patterns: $pattern" | tee -a "$log"; exit 2 ;; esac
               done
-              universe="set(${patterns[*]})"
               covered="$RUNNER_TEMP/evidence/build-scripts.txt"
+              rc=0
+              bazel query --noshow_progress "set(${patterns[*]}) except attr(tags, '\bmanual\b', set(${patterns[*]}))" 2>"$log" > "$covered.tops" || rc=$?
+              if [ "$rc" -ne 0 ]; then cat "$log"; exit "$rc"; fi
+              if [ ! -s "$covered.tops" ]; then echo "build_scripts: scope holds no targets outside manual" | tee -a "$log"; exit 2; fi
+              universe="set($(sed 's/.*/"&"/' "$covered.tops" | tr '\n' ' '))"
+              printf 'kind("cargo_build_script", deps(%s))\n' "$universe" > "$covered.query"
               partial=0
               rc=0
-              bazel cquery --keep_going --noshow_progress --collect_code_coverage "${flags[@]}" "kind(\"cargo_build_script\", deps($universe))" 2>"$log" > "$covered.raw" || rc=$?
+              bazel cquery --keep_going --noshow_progress --collect_code_coverage "${flags[@]}" --query_file="$covered.query" 2>>"$log" > "$covered.raw" || rc=$?
               if [ "$rc" -eq 3 ]; then partial=1; elif [ "$rc" -ne 0 ]; then cat "$log"; exit "$rc"; fi
               sort -u "$covered.raw" | sed -n 's/^\([^ ]*\) (\([0-9a-f]*\))$/\1 \2/p' > "$covered.instances"
               : > "$covered.labels"
@@ -320,7 +325,8 @@ jobs:
                 [ "$on" = True ] || continue
                 echo "$label $hash" >> "$covered.labels"
                 echo "== $label ($hash)" >> "$covered"
-                bazel cquery --noshow_progress --collect_code_coverage "${flags[@]}" "somepath($universe, config('$label', $hash))" 2>>"$log" >> "$covered" < /dev/null || rc=$?
+                printf "somepath(%s, config('%s', %s))\n" "$universe" "$label" "$hash" > "$covered.path"
+                bazel cquery --noshow_progress --collect_code_coverage "${flags[@]}" --query_file="$covered.path" 2>>"$log" >> "$covered" < /dev/null || rc=$?
                 if [ "$rc" -ne 0 ]; then cat "$log"; exit "$rc"; fi
               done < "$covered.instances"
               if [ "$partial" -eq 1 ]; then

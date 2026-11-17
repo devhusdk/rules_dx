@@ -1,6 +1,20 @@
 # Documentation
 
-Find your task.
+Find the page for what you want to do with `dx`.
+
+## New here
+
+Read these in order:
+
+1. [Quickstart](https://github.com/devhusdk/rules_dx#quickstart): add `rules_dx` to an empty
+   directory and run `dx init --apply`.
+2. [Tutorial](tutorial.md): write two small Python packages and get
+   `dx test` to pass.
+3. [Bazel for dx users](bazel-for-dx-users.md): the Bazel words and messages
+   you will meet, and what to do about each.
+4. [Command reference](cli/commands/README.md): every `dx` command and flag.
+
+## By task
 
 - Start a project: [Tutorial](tutorial.md), [`dx init`](cli/commands/init.md).
 - Build and test: [Build, test, coverage](cli/commands/build-test-coverage.md).

@@ -1,11 +1,13 @@
 # Bazel for dx users
 
-The Bazel terms and behaviours you meet in your first hour with `dx`. Each
-section says what you will see and what to do.
+This page explains the Bazel words and messages you meet in your first hour
+with `dx`, and what to do about each. `dx` runs Bazel for you, so its output
+and errors use Bazel's terms.
 
 ## Workspace, module, package, target, label
 
-- **Module**: the repository root, marked by `MODULE.bazel`.
+- **Workspace** and **module**: the repository root, marked by
+  `MODULE.bazel`. The file names your module and the modules it depends on.
 - **Package**: a directory that contains a `BUILD.bazel` file.
 - **Target**: a named thing in a package, such as a library or a test.
 - **Label**: the full name of a target: `//cli/worktree:worktree_test`.
@@ -13,7 +15,11 @@ section says what you will see and what to do.
   is the target name. Inside a package, `:name` is enough.
 - `//cli/worktree/...` means every target in that package and below.
   `//...` means every target in the repo. Prefer a narrow pattern, since
-  `//...` builds and tests everything.
+  `//...` builds and tests everything:
+
+```sh
+dx test //cli/worktree/...
+```
 
 ## BUILD files are generated
 
@@ -41,7 +47,8 @@ visibility = ["//visibility:public"],   # everyone
 
 ## Tests run in a sandbox
 
-A test sees only what it declares, in a directory of its own.
+A test sees only what it declares, in a directory of its own. Bazel calls
+the files a target can read at run time its runfiles.
 
 - Files: list them in `data`. They appear under the test's runfiles
   directory. Read them through the runfiles library or a path relative to the
@@ -60,9 +67,14 @@ A test sees only what it declares, in a directory of its own.
 `(cached) PASSED` means the inputs of the test did not change since the last
 pass, so Bazel did not run it again. This is correct and not a stale result.
 
-To force a rerun, use `--nocache_test_results`, or `--runs_per_test=1`. To
-rerun after changing only an env var, pass it with `--test_env`. Changing a
-file listed in `data` reruns the test by itself.
+To force a rerun, pass `--nocache_test_results` to Bazel after `--`:
+
+```sh
+dx test //hello:hello_test -- --nocache_test_results
+```
+
+To rerun after changing only an env var, pass it with `--test_env`. Changing
+a file listed in `data` reruns the test by itself.
 
 ## dx run and bazel run
 
@@ -79,8 +91,9 @@ cd "$BUILD_WORKING_DIRECTORY"
 - Build outputs: `bazel-bin/<package>/<target>`.
 - Test logs: `bazel-testlogs/<package>/<test>/test.log`. Failures print the
   path at the end of the run.
-- The `bazel-*` entries in the repo root are symlinks. Add them to
-  `.gitignore`; do not edit them.
+- The `bazel-*` entries in the repo root are symlinks into Bazel's output
+  directory. Do not edit them. The `.gitignore` that `dx init` writes already
+  lists them.
 
 ## The Bazel server and disk use
 
@@ -101,3 +114,10 @@ messages, and `--test_filter`. Do not reuse these names in the same package.
 - `typescript_library`: `tsconfig_<name>.json` (generated file).
 - TypeScript tests: `<name>_ts`. Private.
 - Kotlin with `kotlinc_opts`: `<name>_kotlinc_opts`. Private.
+
+## Next steps
+
+- [Command reference](cli/commands/README.md): every `dx` command and flag.
+- [Scope defaults](cli/commands/scope-defaults.md): what `//...`,
+  `--here` and `--affected` select.
+- [Adopting rules_dx in an existing Bazel repo](adopting-existing-bazel.md).

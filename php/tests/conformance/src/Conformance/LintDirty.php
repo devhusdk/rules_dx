@@ -6,10 +6,8 @@ namespace Conformance;
 
 final class LintDirty
 {
-    public static function check(int $value): int
+    public static function check(): bool
     {
-        if ($value > 0) {
-        }
-        return $value;
+        return TRUE;
     }
 }

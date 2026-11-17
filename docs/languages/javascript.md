@@ -89,7 +89,7 @@ Bundles one staged application through a declared bundler executable.
 
 ### `js_library`
 
-No documentation.
+Re-exported from `@aspect_rules_js//js:defs.bzl`.
 
 ## API docs
 

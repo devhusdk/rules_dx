@@ -115,7 +115,7 @@ Declares an explicit launcher that starts one installed app on one simulator.
 
 ### `apple_dynamic_xcframework_import`
 
-No documentation.
+Re-exported from `@rules_apple//apple:apple.bzl`.
 
 ## Tools
 

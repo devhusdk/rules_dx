@@ -57,7 +57,7 @@ Thin wrapper over the rules_erlang ct_suite macro.
 
 ### `erlang_erlc_opts`
 
-No documentation.
+Re-exported as `erlc_opts` from `@rules_erlang//:erlang_bytecode2.bzl`.
 
 ### `erlang_escript_archive`
 
@@ -102,7 +102,7 @@ Thin wrapper over the rules_erlang test_erlang_app macro.
 
 ### `erlang_xrl_yrl`
 
-No documentation.
+Re-exported from `@rules_erlang//:erlang_xrl_yrl.bzl`.
 
 ## API docs
 

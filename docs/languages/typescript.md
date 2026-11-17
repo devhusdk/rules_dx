@@ -89,7 +89,7 @@ Runs Playwright tests in a pinned headless Chromium; app is started by the confi
 
 ### `ts_config`
 
-No documentation.
+Re-exported from `@aspect_rules_ts//ts:defs.bzl`.
 
 ## API docs
 

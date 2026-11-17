@@ -25,7 +25,7 @@ load("@rules_dx//dart:defs.bzl", "dart_codegen", "dart_library", "dart_binary")
 
 ### `dart_codegen`
 
-No documentation.
+Re-exported from `@rules_dart//dart:defs.bzl`.
 
 ### `dart_library`
 

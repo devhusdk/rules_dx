@@ -22,7 +22,7 @@ load("@rules_dx//flutter:defs.bzl", "flutter_gen_l10n", "flutter_library", "flut
 
 ### `flutter_gen_l10n`
 
-No documentation.
+Re-exported from `@rules_flutter//flutter:defs.bzl`.
 
 ### `flutter_library`
 

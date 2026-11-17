@@ -1,6 +1,5 @@
-import { createRequire } from "node:module";
+import { run } from "asciidoctor/cli";
 
-const require = createRequire(import.meta.url);
 const args = process.argv.slice(2);
 const kept = [];
 for (let i = 0; i < args.length; i++) {
@@ -10,8 +9,4 @@ for (let i = 0; i < args.length; i++) {
     kept.push(args[i]);
   }
 }
-process.argv = process.argv.slice(0, 2).concat(kept);
-
-const core = createRequire(require.resolve("asciidoctor/package.json"));
-const { Options, Invoker } = core("@asciidoctor/cli");
-new Invoker(new Options().parse(process.argv)).invoke();
+await run(process.argv.slice(0, 2).concat(kept));

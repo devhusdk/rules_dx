@@ -3,9 +3,9 @@
 # BEGIN GENERATED LANG ASPECT LOADS
 load("//ansible/private/quality:ansible.bzl", _real_ansible_lint_aspect = "real_ansible_lint_aspect")
 load("//bicep/private/quality:bicep.bzl", _real_bicep_format_aspect = "real_bicep_format_aspect", _real_bicep_lint_aspect = "real_bicep_lint_aspect")
+load("//cc/private/quality:cc.bzl", _real_cc_format_aspect = "real_cc_format_aspect", _real_cc_format_probe_aspect = "real_cc_format_probe_aspect", _real_cc_lint_aspect = "real_cc_lint_aspect", _real_cc_lint_probe_aspect = "real_cc_lint_probe_aspect", _real_cc_typecheck_aspect = "real_cc_typecheck_aspect", _real_cc_typecheck_probe_aspect = "real_cc_typecheck_probe_aspect")
 load("//cloudformation/private/quality:cloudformation.bzl", _real_cloudformation_lint_aspect = "real_cloudformation_lint_aspect")
 load("//cmake/private/quality:cmake.bzl", _real_cmake_format_aspect = "real_cmake_format_aspect", _real_cmake_lint_aspect = "real_cmake_lint_aspect")
-load("//core/quality:families/cc.bzl", _real_cc_format_aspect = "real_cc_format_aspect", _real_cc_format_probe_aspect = "real_cc_format_probe_aspect", _real_cc_lint_aspect = "real_cc_lint_aspect", _real_cc_lint_probe_aspect = "real_cc_lint_probe_aspect", _real_cc_typecheck_aspect = "real_cc_typecheck_aspect", _real_cc_typecheck_probe_aspect = "real_cc_typecheck_probe_aspect")
 load("//core/quality:families/generation.bzl", _real_avro_lint_aspect = "real_avro_lint_aspect", _real_avro_typecheck_aspect = "real_avro_typecheck_aspect", _real_capnp_lint_aspect = "real_capnp_lint_aspect", _real_capnp_typecheck_aspect = "real_capnp_typecheck_aspect", _real_flatbuffers_lint_aspect = "real_flatbuffers_lint_aspect", _real_flatbuffers_typecheck_aspect = "real_flatbuffers_typecheck_aspect", _real_generation_format_probe_aspect = "real_generation_format_probe_aspect", _real_generation_lint_probe_aspect = "real_generation_lint_probe_aspect", _real_generation_typecheck_probe_aspect = "real_generation_typecheck_probe_aspect", _real_protobuf_format_aspect = "real_protobuf_format_aspect", _real_protobuf_lint_aspect = "real_protobuf_lint_aspect", _real_protobuf_typecheck_aspect = "real_protobuf_typecheck_aspect", _real_thrift_lint_aspect = "real_thrift_lint_aspect", _real_thrift_typecheck_aspect = "real_thrift_typecheck_aspect")
 load("//core/quality:families/php.bzl", _real_php_lint_aspect = "real_php_lint_aspect", _real_php_lint_probe_aspect = "real_php_lint_probe_aspect", _real_php_typecheck_aspect = "real_php_typecheck_aspect", _real_php_typecheck_probe_aspect = "real_php_typecheck_probe_aspect")
 load("//d/private/quality:d.bzl", _real_d_format_aspect = "real_d_format_aspect", _real_d_format_probe_aspect = "real_d_format_probe_aspect", _real_d_lint_aspect = "real_d_lint_aspect", _real_d_lint_probe_aspect = "real_d_lint_probe_aspect", _real_d_typecheck_aspect = "real_d_typecheck_aspect", _real_d_typecheck_probe_aspect = "real_d_typecheck_probe_aspect")
@@ -61,7 +61,7 @@ load("//zig/private/quality:zig.bzl", _real_zig_format_aspect = "real_zig_format
 # END GENERATED LANG ASPECT LOADS
 
 load("//core/quality:compile_check.bzl", "COMPILE_CHECK_TOOLS", "compile_check_hook")
-load("//core/quality:families/cc.bzl", _CC_HOOKS = "HOOKS", _CC_RECOGNIZER = "RECOGNIZER", _CC_SHARD_SPECS = "SHARD_SPECS", _CC_TOOLS = "TOOLS")
+load("//cc/private/quality:cc.bzl", _CC_HOOKS = "HOOKS", _CC_RECOGNIZER = "RECOGNIZER", _CC_SHARD_SPECS = "SHARD_SPECS", _CC_TOOLS = "TOOLS")
 load("//core/quality:families/core.bzl", _real_format_aspect = "real_format_aspect", _real_lint_aspect = "real_lint_aspect", _real_typecheck_aspect = "real_typecheck_aspect", _CORE_HOOKS = "HOOKS", _CORE_SHARD_SPECS = "SHARD_SPECS", _CORE_TOOLS = "TOOLS")
 load("//ansible/private/quality:ansible.bzl", _ANSIBLE_SHARD_SPECS = "SHARD_SPECS", _ANSIBLE_TOOLS = "TOOLS")
 load("//cloudformation/private/quality:cloudformation.bzl", _CLOUDFORMATION_SHARD_SPECS = "SHARD_SPECS", _CLOUDFORMATION_TOOLS = "TOOLS")
@@ -119,12 +119,6 @@ real_bicep_format_aspect = _real_bicep_format_aspect
 
 real_bicep_lint_aspect = _real_bicep_lint_aspect
 
-real_cloudformation_lint_aspect = _real_cloudformation_lint_aspect
-
-real_cmake_format_aspect = _real_cmake_format_aspect
-
-real_cmake_lint_aspect = _real_cmake_lint_aspect
-
 real_cc_format_aspect = _real_cc_format_aspect
 
 real_cc_format_probe_aspect = _real_cc_format_probe_aspect
@@ -136,6 +130,12 @@ real_cc_lint_probe_aspect = _real_cc_lint_probe_aspect
 real_cc_typecheck_aspect = _real_cc_typecheck_aspect
 
 real_cc_typecheck_probe_aspect = _real_cc_typecheck_probe_aspect
+
+real_cloudformation_lint_aspect = _real_cloudformation_lint_aspect
+
+real_cmake_format_aspect = _real_cmake_format_aspect
+
+real_cmake_lint_aspect = _real_cmake_lint_aspect
 
 real_avro_lint_aspect = _real_avro_lint_aspect
 

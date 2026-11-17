@@ -2,9 +2,9 @@
 
 load("//ansible/private/quality:ansible.bzl", "real_ansible_lint_aspect")
 load("//bicep/private/quality:bicep.bzl", "real_bicep_format_aspect", "real_bicep_lint_aspect")
+load("//cc/private/quality:cc.bzl", "real_cc_format_aspect", "real_cc_lint_aspect")
 load("//cloudformation/private/quality:cloudformation.bzl", "real_cloudformation_lint_aspect")
 load("//cmake/private/quality:cmake.bzl", "real_cmake_format_aspect", "real_cmake_lint_aspect")
-load("//core/quality:families/cc.bzl", "real_cc_format_aspect", "real_cc_lint_aspect")
 load("//core/quality:families/generation.bzl", "real_avro_lint_aspect", "real_capnp_lint_aspect", "real_flatbuffers_lint_aspect", "real_protobuf_format_aspect", "real_protobuf_lint_aspect", "real_thrift_lint_aspect")
 load("//core/quality:families/php.bzl", "real_php_lint_aspect")
 load("//core/quality/testdata:config_subject.bzl", "config_subject_rule")

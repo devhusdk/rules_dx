@@ -31,7 +31,7 @@
     "qt_rust_library"
   ],
   "quality": {
-    "bzl": "core/quality:families/cc.bzl",
+    "bzl": "cc/private/quality:cc.bzl",
     "file_extensions": [
       ".qml"
     ]

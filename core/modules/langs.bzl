@@ -476,7 +476,7 @@ LANGS = json.decode("""{
           "real_cc_typecheck_aspect"
         ]
       },
-      "bzl": "core/quality:families/cc.bzl",
+      "bzl": "cc/private/quality:cc.bzl",
       "file_extensions": [
         ".c",
         ".cc",
@@ -2635,7 +2635,7 @@ LANGS = json.decode("""{
       "windows_x86_64"
     ],
     "quality": {
-      "bzl": "core/quality:families/cc.bzl",
+      "bzl": "cc/private/quality:cc.bzl",
       "file_extensions": [
         ".qml"
       ]

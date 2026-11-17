@@ -43,7 +43,7 @@
     "cc_bench"
   ],
   "quality": {
-    "bzl": "core/quality:families/cc.bzl",
+    "bzl": "cc/private/quality:cc.bzl",
     "file_extensions": [
       ".c",
       ".cc",

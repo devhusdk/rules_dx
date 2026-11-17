@@ -112,6 +112,15 @@ pub struct LanguageLicenses {
     pub licenses: Vec<License>,
 }
 
+/// The files that mark one `lang.json` language with a `quality` entry present.
+#[derive(Debug, Clone, Default, Eq, PartialEq)]
+pub struct LanguageMarks {
+    /// The `lang.json` name.
+    pub language: String,
+    /// The `quality` file extensions and file names of the language.
+    pub marks: Vec<String>,
+}
+
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 struct Setup {
@@ -153,6 +162,25 @@ pub fn hubs() -> &'static [Hub] {
             .collect();
         hubs.sort_by(|a, b| a.ecosystem.cmp(&b.ecosystem));
         hubs
+    })
+}
+
+/// The languages whose `lang.json` has a `quality` entry, sorted by language.
+pub fn quality_marks() -> &'static [LanguageMarks] {
+    static ALL: OnceLock<Vec<LanguageMarks>> = OnceLock::new();
+    ALL.get_or_init(|| {
+        let mut all: Vec<LanguageMarks> = shipped()
+            .into_iter()
+            .filter_map(|manifest| {
+                let quality = manifest.quality?;
+                Some(LanguageMarks {
+                    language: manifest.name,
+                    marks: [quality.file_extensions, quality.file_names].concat(),
+                })
+            })
+            .collect();
+        all.sort_by(|a, b| a.language.cmp(&b.language));
+        all
     })
 }
 

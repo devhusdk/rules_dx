@@ -1,19 +1,18 @@
 # `dx init`
 
-Empty directory, with Bazel. Create `.bazelversion`, an empty `BUILD.bazel`, and a `MODULE.bazel`
-with `bazel_dep(name = "rules_dx", version = "<release>")`. Then:
+Empty directory, with `dx` installed as in the [tutorial](../../tutorial.md#install):
 
 ```sh
-bazel run @rules_dx//:dx -- init --apply
+dx init --apply
 tools/dx test //...
 ```
 
 Existing tree:
 
 ```sh
-bazel run @rules_dx//:dx -- init
-bazel run @rules_dx//:dx -- init --apply
-bazel run @rules_dx//:dx -- init --apply my-app
+dx init
+dx init --apply
+dx init --apply my-app
 ```
 
 ```text

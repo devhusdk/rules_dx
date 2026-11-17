@@ -218,6 +218,7 @@ _qt_forward_test = rule(
     cfg = QT_PLATFORM_TRANSITION,
     provides = [DefaultInfo, QualitySourcesInfo, RunEnvironmentInfo],
     attrs = dict(_EXECUTABLE_ATTRS, _headless = attr.bool(default = True), upstream = attr.label(mandatory = True, providers = [CcInfo], cfg = QT_COVERAGE_TRANSITION, doc = "Private rules_cc test."), _coverage_probe = attr.label(default = Label("//qt/private:coverage_probe"), cfg = QT_COVERAGE_TRANSITION), **(QT_PLATFORMS_ATTR | dx_lcov_merger_attr() | qt_coverage_attrs() | dx_forward_data_attr() | dx_run_env_attrs())),
+    exec_groups = {"test": exec_group()},
     toolchains = qt_coverage_toolchains(),
 )
 

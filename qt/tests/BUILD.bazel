@@ -162,7 +162,7 @@ _QT_TEST_ENV = {
     "DX_QMLFORMAT": "$(rootpath @dx_qt//:qmlformat)",
     "DX_QMLLINT": "$(rootpath @dx_qt//:qmllint)",
     "DX_QMLTYPEREGISTRAR": "$(rootpath @dx_qt//:qmltyperegistrar)",
-    "DX_QT_FORM": "$(rootpath fixtures/dialog.ui)",
+    "DX_QT_FORM": "$(rootpath fixtures/widgets/dialog.ui)",
     "DX_QT_GUI": "$(rootpath :gui_check_native)",
     "DX_QT_LICENSES": "$(rootpaths @dx_qt//:licenses)",
     "DX_QT_NEEDS": "$(rootpath :needs_native)",
@@ -180,7 +180,7 @@ rust_test(
     name = "qt_test",
     srcs = ["qt_test.rs"],
     data = [
-        "fixtures/dialog.ui",
+        "fixtures/widgets/dialog.ui",
         ":gui_check_native",
         ":needs_native",
         ":probe_native",
@@ -281,7 +281,7 @@ qt_cc_library(
     name = "gui",
     testonly = True,
     srcs = ["gui_test.cc"],
-    forms = ["fixtures/dialog.ui"],
+    forms = ["fixtures/widgets/dialog.ui"],
     moc_hdrs = ["gui_test.h"],
     modules = [
         "quick",
@@ -323,7 +323,7 @@ qt_cc_binary(
     name = "gui_check",
     testonly = True,
     srcs = ["gui_test.cc"],
-    forms = ["fixtures/dialog.ui"],
+    forms = ["fixtures/widgets/dialog.ui"],
     moc_hdrs = ["gui_test.h"],
     modules = [
         "quick",
@@ -395,7 +395,7 @@ alias(
 qt_cc_binary(
     name = "console_fixture",
     testonly = True,
-    srcs = ["fixtures/console_app.cc"],
+    srcs = ["fixtures/widgets/console_app.cc"],
     modules = [
         "core",
         "gui",
@@ -415,23 +415,23 @@ cc_toolchain_binary(
 
 qt_cc_library(
     name = "selected",
-    srcs = ["fixtures/selected.cc"],
+    srcs = ["fixtures/widgets/selected.cc"],
     copts = select({
         "//conditions:default": ["-DDX_QT_SELECTED=1"],
     }),
-    moc_hdrs = ["fixtures/ticker.h"],
+    moc_hdrs = ["fixtures/widgets/ticker.h"],
     tags = ["manual"],
 )
 
 qt_cc_library(
     name = "form",
-    forms = ["fixtures/dialog.ui"],
+    forms = ["fixtures/widgets/dialog.ui"],
     tags = ["manual"],
 )
 
 qt_qml_module(
     name = "bad_uri",
-    qml_srcs = ["fixtures/Thing.qml"],
+    qml_srcs = ["fixtures/widgets/Thing.qml"],
     tags = ["manual"],
     uri = "1Bad",
 )
@@ -439,45 +439,45 @@ qt_qml_module(
 qt_qml_module(
     name = "bad_depends",
     qml_depends = ["QtQml.2Models"],
-    qml_srcs = ["fixtures/Thing.qml"],
+    qml_srcs = ["fixtures/widgets/Thing.qml"],
     tags = ["manual"],
     uri = "Depends",
 )
 
 qt_qml_module(
     name = "foreign",
-    moc_hdrs = ["//qt/tests/other:shared.h"],
+    moc_hdrs = ["//qt/tests/fixtures/other:shared.h"],
     tags = ["manual"],
     uri = "Foreign",
 )
 
 qt_rust_library(
     name = "rust_foreign",
-    bridges = ["//qt/tests/other:bridge.rs"],
+    bridges = ["//qt/tests/fixtures/other:bridge.rs"],
     tags = ["manual"],
     uri = "Foreign.Rust",
 )
 
 qt_cc_binary(
     name = "plain_app",
-    srcs = ["fixtures/app.cc"],
+    srcs = ["fixtures/widgets/app.cc"],
 )
 
 qt_cc_test(
     name = "plain_test",
-    srcs = ["fixtures/app.cc"],
+    srcs = ["fixtures/widgets/app.cc"],
 )
 
 qt_cc_library(
     name = "translated",
     tags = ["manual"],
-    translations = ["fixtures/de.ts"],
+    translations = ["fixtures/widgets/de.ts"],
 )
 
 qt_cc_library(
     name = "translated_other",
     tags = ["manual"],
-    translations = ["fixtures/i18n/de.ts"],
+    translations = ["fixtures/widgets/i18n/de.ts"],
 )
 
 qt_cc_library(
@@ -493,28 +493,28 @@ qt_cc_library(
     name = "twin_translations",
     tags = ["manual"],
     translations = [
-        "fixtures/de.ts",
-        "fixtures/i18n/de.ts",
+        "fixtures/widgets/de.ts",
+        "fixtures/widgets/i18n/de.ts",
     ],
 )
 
 qt_bundle(
     name = "bundle_bad_license",
-    binary = "//qt/tests/fixtures/qt-tasks/app:tasks",
+    binary = "//qt/tests/fixtures/qt_tasks/app:tasks",
     licenses = ["probe.cc"],
     tags = ["manual"],
 )
 
 qt_bundle(
     name = "bundle_unknown_module",
-    binary = "//qt/tests/fixtures/qt-tasks/app:tasks",
+    binary = "//qt/tests/fixtures/qt_tasks/app:tasks",
     qml_modules = ["Tasks.Missing"],
     tags = ["manual"],
 )
 
 cc_library(
     name = "framework_fixture",
-    additional_linker_inputs = ["fixtures/QtFake.framework/Versions/A/QtFake"],
+    additional_linker_inputs = ["fixtures/framework/QtFake.framework/Versions/A/QtFake"],
     tags = ["manual"],
 )
 
@@ -576,7 +576,7 @@ real_source_target(
 
 qt_cc_test(
     name = "plugin_path_test",
-    srcs = ["fixtures/plugin_path.cc"],
+    srcs = ["fixtures/widgets/plugin_path.cc"],
     plugins = ["imageformats"],
 )
 
@@ -584,9 +584,9 @@ qt_cc_test(
     platform_transition_filegroup(
         name = "consumer_archives_" + cell,
         srcs = [
-            "//qt/tests/fixtures/qt-rust/app:ledger_release_archive",
-            "//qt/tests/fixtures/qt-tasks/app:board_release_archive",
-            "//qt/tests/fixtures/qt-tasks/app:tasks_release_archive",
+            "//qt/tests/fixtures/qt_rust/app:ledger_release_archive",
+            "//qt/tests/fixtures/qt_tasks/app:board_release_archive",
+            "//qt/tests/fixtures/qt_tasks/app:tasks_release_archive",
         ],
         tags = ["manual"],
         target_platform = "//qt:" + cell,

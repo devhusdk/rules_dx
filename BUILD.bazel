@@ -162,10 +162,7 @@ load("//javascript:defs.bzl", "js_library")
 # gazelle:exclude examples/shared-rust
 # gazelle:exclude swift/tests/fixtures/swift-app
 # gazelle:exclude haskell/tests/fixtures/haskell_app
-# gazelle:exclude qt/tests/fixtures/qt-app
 # gazelle:exclude ocaml/tests/fixtures/ocaml_app
-# gazelle:exclude qt/tests/fixtures/qt-rust
-# gazelle:exclude qt/tests/fixtures/qt-tasks
 # gazelle:exclude appimage/tests/fixtures/appimage-app
 # gazelle:exclude examples/adopt-polyglot/native_cpp/main
 # gazelle:exclude go/tests/fixtures/hello

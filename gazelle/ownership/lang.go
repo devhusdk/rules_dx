@@ -19,6 +19,16 @@ import (
 const languageName = "ownership"
 
 // The quality wrapper of an oci_image is named after the image with ociQualitySuffix.
+// An appimage_package is named after its desktop entry with appimageSuffix.
+const (
+	appimageKind    = "appimage_package"
+	appimageSuffix  = "_appimage"
+	appimageVersion = "1.0"
+)
+
+// appimageNotices are the file names an appimage_package takes as notice.
+var appimageNotices = []string{"COPYING", "LICENSE", "LICENSE.md", "LICENSE.txt", "NOTICE", "NOTICE.md", "NOTICE.txt"}
+
 const (
 	ociImageKind     = "oci_image"
 	ociQualityKind   = "oci_image_quality"
@@ -188,6 +198,11 @@ func kinds() map[string]rule.KindInfo {
 	for _, f := range families {
 		out[f.kind] = common.LibraryKindInfo()
 	}
+	out[appimageKind] = rule.KindInfo{
+		MatchAttrs:     []string{"desktop"},
+		NonEmptyAttrs:  map[string]bool{"binary": true, "desktop": true, "icon": true, "notice": true},
+		MergeableAttrs: map[string]bool{"binary": true, "desktop": true, "icon": true, "notice": true},
+	}
 	out[ociQualityKind] = rule.KindInfo{
 		MatchAttrs:     []string{"image"},
 		NonEmptyAttrs:  map[string]bool{"image": true},
@@ -227,6 +242,11 @@ func generate(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep co
 			return language.GenerateResult{}
 		}
 	}
+	appimages := appimageRules(args)
+	result.Gen = append(result.Gen, appimages...)
+	for range appimages {
+		result.Imports = append(result.Imports, nil)
+	}
 	images := ociImageNames(args.File)
 	for _, image := range images {
 		r := rule.NewRule(ociQualityKind, image+ociQualitySuffix)
@@ -242,8 +262,96 @@ func generate(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep co
 	return common.MergeStaleOwned(args.File, result, kinds, func(existing *rule.Rule) bool {
 		return !unbuildable[existing.Kind()] && slices.ContainsFunc(families, func(f family) bool {
 			return f.kind == existing.Kind() && (f.target == existing.Name() || len(existing.AttrStrings("srcs")) == 0)
-		}) || ociStale(existing, images)
+		}) || ociStale(existing, images) || appimageStale(existing, args.RegularFiles)
 	})
+}
+
+// appimageRules returns an appimage_package for each <name>.desktop file that
+// has a <name>.png or <name>.svg icon and a notice file next to it, when the
+// package has exactly one *_binary rule.
+func appimageRules(args language.GenerateArgs) []*rule.Rule {
+	var notices []string
+	for _, name := range args.RegularFiles {
+		if slices.Contains(appimageNotices, name) {
+			notices = append(notices, name)
+		}
+	}
+	if len(notices) == 0 {
+		return nil
+	}
+	sort.Strings(notices)
+	binary := soleBinary(args)
+	if binary == "" {
+		return nil
+	}
+	var out []*rule.Rule
+	for _, desktop := range args.RegularFiles {
+		name, ok := strings.CutSuffix(desktop, ".desktop")
+		if !ok || name == "" || strings.Contains(name, "/") {
+			continue
+		}
+		icon := ""
+		for _, ext := range []string{".png", ".svg"} {
+			if slices.Contains(args.RegularFiles, name+ext) {
+				icon = name + ext
+				break
+			}
+		}
+		if icon == "" || handwrittenAppimage(args.File, desktop) {
+			continue
+		}
+		r := rule.NewRule(appimageKind, name+appimageSuffix)
+		r.SetAttr("app_name", name)
+		r.SetAttr("binary", ":"+binary)
+		r.SetAttr("desktop", desktop)
+		r.SetAttr("icon", icon)
+		r.SetAttr("notice", notices)
+		r.SetAttr("version", appimageVersion)
+		out = append(out, r)
+	}
+	return out
+}
+
+// soleBinary names the one *_binary rule the package declares or another
+// language generates for it, or returns "" when there is not exactly one.
+func soleBinary(args language.GenerateArgs) string {
+	names := map[string]bool{}
+	add := func(r *rule.Rule) {
+		if strings.HasSuffix(r.Kind(), "_binary") && r.Name() != "" {
+			names[r.Name()] = true
+		}
+	}
+	if args.File != nil {
+		for _, r := range args.File.Rules {
+			add(r)
+		}
+	}
+	for _, r := range args.OtherGen {
+		add(r)
+	}
+	if len(names) != 1 {
+		return ""
+	}
+	for name := range names {
+		return name
+	}
+	return ""
+}
+
+// handwrittenAppimage reports whether the package already has an
+// appimage_package under another name for the desktop file.
+func handwrittenAppimage(file *rule.File, desktop string) bool {
+	want := strings.TrimSuffix(desktop, ".desktop") + appimageSuffix
+	return file != nil && slices.ContainsFunc(file.Rules, func(r *rule.Rule) bool {
+		return r.Kind() == appimageKind && r.Name() != want && r.AttrString("desktop") == desktop
+	})
+}
+
+// appimageStale reports whether existing is a generated appimage_package whose
+// desktop file is gone.
+func appimageStale(existing *rule.Rule, files []string) bool {
+	desktop := existing.AttrString("desktop")
+	return existing.Kind() == appimageKind && existing.Name() == strings.TrimSuffix(desktop, ".desktop")+appimageSuffix && !slices.Contains(files, desktop)
 }
 
 // ociImageNames lists the oci_image rules the BUILD file declares.
@@ -287,8 +395,9 @@ func NewLanguage() language.Language {
 		extra = append(extra, f.kind)
 		index = append(index, f.kind)
 	}
+	kindDefs[appimageKind] = "appimage:defs.bzl"
 	kindDefs[ociQualityKind] = "deploy:defs.bzl"
-	extra = append(extra, ociQualityKind)
+	extra = append(extra, appimageKind, ociQualityKind)
 	return common.NewSingleLang(common.SingleLangSpec{
 		LanguageName:   languageName,
 		LibraryKind:    families[0].kind,

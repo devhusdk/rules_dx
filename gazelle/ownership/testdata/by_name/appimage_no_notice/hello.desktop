@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=hello
+Exec=hello
+Icon=hello
+Categories=Utility;
+Terminal=true

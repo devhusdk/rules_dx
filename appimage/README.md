@@ -54,6 +54,10 @@ Outputs:
 
 `AppRun` is a link to `usr/bin/<app_name>`. The runtime sets `$APPDIR`.
 
+`dx init` and `tools/dx generate` write `<name>_appimage` for a directory that
+holds `<name>.desktop`, `<name>.png` or `<name>.svg`, a `NOTICE`, `LICENSE` or
+`COPYING` file and exactly one `*_binary` target, with `version = "1.0"`.
+
 ### Build and run
 
 ```sh

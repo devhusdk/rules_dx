@@ -1,6 +1,6 @@
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@rules_dx//cc:defs.bzl", "cc_test")
-load("@rules_dx//cc/private/toolchain:select.bzl", "cc_toolchain_files")
+load("@rules_dx//cc/private/toolchain:select.bzl", "cc_toolchain_files", "cc_toolchain_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_foreign_cc//foreign_cc:defs.bzl", "cmake")
 load(
@@ -149,6 +149,16 @@ _WINDOWS_X86_64 = [
     "@platforms//os:windows",
 ]
 
+# The zlib_msvc_* fixtures pin cl.exe: zlib_msvc_log_test asserts CMake
+# identifies MSVC, and CMake links MSVC-style compilers with the linker
+# directly, so clang-cl's /clang:-wrapped link flags would reach lld-link as
+# file names. They only build under //cc:compiler=msvc; the *_cl targets below
+# transition into it.
+_WINDOWS_X86_64_CL_EXE = _WINDOWS_X86_64 + select({
+    "//cc/private/toolchain:msvc_selected": [],
+    "//conditions:default": ["@platforms//:incompatible"],
+})
+
 cmake(
     name = "zlib_msvc_static",
     build_args = ["--verbose"],
@@ -160,7 +170,7 @@ cmake(
     lib_source = "@foreign_cmake_zlib//:all_srcs",
     out_static_libs = ["libzs.lib"],
     tags = _THIRD_PARTY,
-    target_compatible_with = _WINDOWS_X86_64,
+    target_compatible_with = _WINDOWS_X86_64_CL_EXE,
 )
 
 cmake(
@@ -172,14 +182,14 @@ cmake(
     out_interface_libs = ["libz.lib"],
     out_shared_libs = ["libz.dll"],
     tags = _THIRD_PARTY,
-    target_compatible_with = _WINDOWS_X86_64,
+    target_compatible_with = _WINDOWS_X86_64_CL_EXE,
 )
 
 cc_test(
     name = "zlib_msvc_static_test",
     srcs = ["zlib_test.cc"],
     tags = _THIRD_PARTY,
-    target_compatible_with = _WINDOWS_X86_64,
+    target_compatible_with = _WINDOWS_X86_64_CL_EXE,
     deps = [":zlib_msvc_static"],
 )
 
@@ -187,7 +197,7 @@ cc_test(
     name = "zlib_msvc_shared_test",
     srcs = ["zlib_test.cc"],
     tags = _THIRD_PARTY,
-    target_compatible_with = _WINDOWS_X86_64,
+    target_compatible_with = _WINDOWS_X86_64_CL_EXE,
     deps = [":zlib_msvc_shared"],
 )
 
@@ -195,6 +205,31 @@ filegroup(
     name = "zlib_msvc_log",
     srcs = [":zlib_msvc_static"],
     output_group = "CMake_logs",
+    tags = _THIRD_PARTY,
+    target_compatible_with = _WINDOWS_X86_64_CL_EXE,
+)
+
+cc_toolchain_test(
+    name = "zlib_msvc_static_cl_test",
+    compiler = "msvc",
+    tags = _THIRD_PARTY,
+    target_compatible_with = _WINDOWS_X86_64,
+    test = ":zlib_msvc_static_test",
+)
+
+cc_toolchain_test(
+    name = "zlib_msvc_shared_cl_test",
+    compiler = "msvc",
+    tags = _THIRD_PARTY,
+    target_compatible_with = _WINDOWS_X86_64,
+    test = ":zlib_msvc_shared_test",
+)
+
+cc_toolchain_files(
+    name = "zlib_msvc_log_cl",
+    srcs = [":zlib_msvc_log"],
+    compiler = "msvc",
+    platforms = ["//tools/platforms:windows_x86_64"],
     tags = _THIRD_PARTY,
     target_compatible_with = _WINDOWS_X86_64,
 )

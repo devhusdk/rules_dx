@@ -99,3 +99,4 @@ Measured on Linux x86_64 with the pinned Bazel 9.3.1, an empty module and one wr
 
 - A nested test is `size = "large"` with `timeout = "moderate"`.
 - A nested test that runs past 60 seconds cold is split or converted.
+- `//tools/ci:test_budget_test` fails on a `tools/testing/nested_smoke.txt` line over 60 seconds unless `tools/ci/test_budget_allowlist.txt` holds `<label> nested-cold-over-60 <seconds>` for it, and the allowlist only shrinks.

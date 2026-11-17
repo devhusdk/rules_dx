@@ -217,8 +217,113 @@ fn batch_paths(
     batch
         .map(|events| events.into_iter().map(|event| event.path).collect())
         .map_err(|e| AdoptError::WatchFailed {
-            detail: e.to_string(),
+            detail: watch_error(&e),
         })
+}
+
+/// The error text, naming the sysctl to raise when inotify runs out of watches.
+fn watch_error(error: &notify::Error) -> String {
+    match error.kind {
+        notify::ErrorKind::MaxFilesWatch => format!(
+            "{error}; raise fs.inotify.max_user_watches, for example \
+             `sudo sysctl fs.inotify.max_user_watches=524288`"
+        ),
+        notify::ErrorKind::Generic(_)
+        | notify::ErrorKind::Io(_)
+        | notify::ErrorKind::PathNotFound
+        | notify::ErrorKind::WatchNotFound
+        | notify::ErrorKind::InvalidConfig(_) => error.to_string(),
+    }
+}
+
+/// Whether nothing under this directory can trigger a rerun, so it gets no watch.
+fn is_ignored_dir(relative: &Path, bazelignore: &[PathBuf]) -> bool {
+    !should_watch_path(relative) || bazelignore.iter().any(|dir| relative.starts_with(dir))
+}
+
+/// Directories listed in the root `.bazelignore`, relative to the root.
+fn read_bazelignore(root: &Path) -> Vec<PathBuf> {
+    std::fs::read_to_string(root.join(".bazelignore"))
+        .map(|text| {
+            text.lines()
+                .map(str::trim)
+                .filter(|line| !line.is_empty() && !line.starts_with('#'))
+                .map(|line| {
+                    line.strip_prefix("./")
+                        .unwrap_or(line)
+                        .trim_end_matches('/')
+                })
+                .filter(|line| !line.is_empty() && *line != ".")
+                .map(PathBuf::from)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Appends watches that cover `dir` without any ignored directory or symlink below it,
+/// and returns whether something below `dir` was left out. A subtree with nothing left
+/// out gets one recursive watch, so the watcher adds its new subdirectories itself; a
+/// directory above a left-out one is watched alone and its children are planned in turn.
+fn plan_watches(
+    root: &Path,
+    dir: &Path,
+    bazelignore: &[PathBuf],
+    plan: &mut Vec<(PathBuf, notify::RecursiveMode)>,
+) -> bool {
+    let start = plan.len();
+    let mut pruned = false;
+    // An unreadable directory gets a plain recursive watch so the watcher reports why.
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            // `file_type` does not follow symlinks, so a `bazel-out` link is not a directory here.
+            if !entry.file_type().is_ok_and(|kind| kind.is_dir()) {
+                continue;
+            }
+            let child = entry.path();
+            let ignored = child
+                .strip_prefix(root)
+                .is_ok_and(|relative| is_ignored_dir(relative, bazelignore));
+            pruned |= ignored || plan_watches(root, &child, bazelignore, plan);
+        }
+    }
+    if pruned {
+        plan.push((dir.to_path_buf(), notify::RecursiveMode::NonRecursive));
+    } else {
+        plan.truncate(start);
+        plan.push((dir.to_path_buf(), notify::RecursiveMode::Recursive));
+    }
+    pruned
+}
+
+/// Whether the session plans its own watches instead of one recursive watch on the root.
+/// inotify holds one watch per directory, so ignored trees would use up the user's limit;
+/// FSEvents and ReadDirectoryChangesW watch a whole tree with one handle.
+const PLANS_WATCHES: bool = cfg!(target_os = "linux");
+
+/// The watcher and what decides which directories it watches.
+struct Watches {
+    debouncer: notify_debouncer_mini::Debouncer<ChangeWatcher>,
+    bazelignore: Vec<PathBuf>,
+    /// Directories watched without their children; a directory created in one needs its own watch.
+    shallow: std::collections::BTreeSet<PathBuf>,
+}
+
+impl Watches {
+    fn add(&mut self, root: &Path, dir: &Path) -> notify::Result<()> {
+        let mut plan = Vec::new();
+        if PLANS_WATCHES {
+            plan_watches(root, dir, &self.bazelignore, &mut plan);
+        } else {
+            plan.push((dir.to_path_buf(), notify::RecursiveMode::Recursive));
+        }
+        for (path, mode) in plan {
+            self.debouncer.watcher().watch(&path, mode)?;
+            if mode == notify::RecursiveMode::NonRecursive {
+                self.shallow.insert(path);
+            }
+        }
+        Ok(())
+    }
 }
 
 /// One filesystem observer that stays alive across wrapped executions.
@@ -227,7 +332,7 @@ pub struct WatchSession {
     canonical_root: PathBuf,
     reports: Vec<PathBuf>,
     polling: bool,
-    _debouncer: notify_debouncer_mini::Debouncer<ChangeWatcher>,
+    watches: std::sync::Mutex<Watches>,
     events: std::sync::mpsc::Receiver<
         Result<Vec<notify_debouncer_mini::DebouncedEvent>, notify::Error>,
     >,
@@ -250,30 +355,32 @@ impl WatchSession {
     }
 
     fn start_with(watch_root: &Path, reports: &[PathBuf], poll: bool) -> Result<Self, AdoptError> {
-        use notify::RecursiveMode;
         let (tx, events) = std::sync::mpsc::channel();
-        let mut config = notify_debouncer_mini::Config::default()
-            .with_timeout(Duration::from_millis(WATCH_DEBOUNCE_MS));
+        // Symlinks such as `bazel-out` point at trees that never trigger a rerun.
+        let mut notify_config = notify::Config::default().with_follow_symlinks(false);
         if poll {
             eprintln!(
                 "watching by polling every {}s",
                 WATCH_POLL_INTERVAL.as_secs()
             );
-            config = config.with_notify_config(
-                notify::Config::default().with_poll_interval(WATCH_POLL_INTERVAL),
-            );
+            notify_config = notify_config.with_poll_interval(WATCH_POLL_INTERVAL);
         }
-        let mut debouncer = notify_debouncer_mini::new_debouncer_opt::<_, ChangeWatcher>(
-            config, tx,
-        )
-        .map_err(|e| AdoptError::WatchSpawn {
-            detail: e.to_string(),
-        })?;
-        debouncer
-            .watcher()
-            .watch(watch_root, RecursiveMode::Recursive)
+        let config = notify_debouncer_mini::Config::default()
+            .with_timeout(Duration::from_millis(WATCH_DEBOUNCE_MS))
+            .with_notify_config(notify_config);
+        let debouncer = notify_debouncer_mini::new_debouncer_opt::<_, ChangeWatcher>(config, tx)
             .map_err(|e| AdoptError::WatchSpawn {
-                detail: e.to_string(),
+                detail: watch_error(&e),
+            })?;
+        let mut watches = Watches {
+            debouncer,
+            bazelignore: read_bazelignore(watch_root),
+            shallow: std::collections::BTreeSet::new(),
+        };
+        watches
+            .add(watch_root, watch_root)
+            .map_err(|e| AdoptError::WatchSpawn {
+                detail: watch_error(&e),
             })?;
         if REPLAYS_EARLIER_CHANGES && !poll {
             let marker = watch_root.join(format!(
@@ -305,7 +412,7 @@ impl WatchSession {
             canonical_root,
             reports,
             polling: poll,
-            _debouncer: debouncer,
+            watches: std::sync::Mutex::new(watches),
             events,
         })
     }
@@ -318,7 +425,7 @@ impl WatchSession {
                 .recv_timeout(deadline.saturating_duration_since(Instant::now()));
             self.check_root()?;
             let mut paths = match received {
-                Ok(batch) => batch_paths(batch)?,
+                Ok(batch) => self.receive(batch)?,
                 Err(std::sync::mpsc::RecvTimeoutError::Timeout) => return Ok(Vec::new()),
                 Err(e) => {
                     return Err(AdoptError::WatchFailed {
@@ -327,7 +434,7 @@ impl WatchSession {
                 }
             };
             for batch in self.events.try_iter() {
-                paths.extend(batch_paths(batch)?);
+                paths.extend(self.receive(batch)?);
             }
             let paths = self.coalesce(paths);
             if !paths.is_empty() {
@@ -347,7 +454,7 @@ impl WatchSession {
             }
             match self.events.recv_timeout(until - now) {
                 Ok(batch) => {
-                    let more = self.coalesce(batch_paths(batch)?);
+                    let more = self.coalesce(self.receive(batch)?);
                     if !more.is_empty() {
                         quiet = Instant::now() + WATCH_SETTLE;
                         paths.extend(more);
@@ -375,15 +482,49 @@ impl WatchSession {
         }
     }
 
-    #[must_use]
-    pub fn drain(&self) -> Vec<PathBuf> {
-        let paths: Vec<PathBuf> = self
-            .events
-            .try_iter()
-            .flatten()
-            .flat_map(|events| events.into_iter().map(|event| event.path))
-            .collect();
-        self.coalesce(paths)
+    pub fn drain(&self) -> Result<Vec<PathBuf>, AdoptError> {
+        let mut paths = Vec::new();
+        for batch in self.events.try_iter() {
+            paths.extend(self.receive(batch)?);
+        }
+        Ok(self.coalesce(paths))
+    }
+
+    /// The batch's paths, after watching directories that appeared in a shallow-watched one.
+    fn receive(
+        &self,
+        batch: Result<Vec<notify_debouncer_mini::DebouncedEvent>, notify::Error>,
+    ) -> Result<Vec<PathBuf>, AdoptError> {
+        let paths = batch_paths(batch)?;
+        let mut watches = self
+            .watches
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        for path in &paths {
+            let Ok(relative) = path.strip_prefix(&self.root) else {
+                continue;
+            };
+            let fresh = path
+                .parent()
+                .is_some_and(|parent| watches.shallow.contains(parent))
+                && std::fs::symlink_metadata(path).is_ok_and(|meta| meta.is_dir())
+                && !is_ignored_dir(relative, &watches.bazelignore);
+            if !fresh {
+                continue;
+            }
+            match watches.add(&self.root, path) {
+                Ok(()) => {}
+                Err(e) if matches!(e.kind, notify::ErrorKind::MaxFilesWatch) => {
+                    return Err(AdoptError::WatchFailed {
+                        detail: watch_error(&e),
+                    });
+                }
+                // The directory went away again or cannot be read; its creation
+                // already triggers a rerun.
+                Err(_) => {}
+            }
+        }
+        Ok(paths)
     }
 
     fn coalesce(&self, paths: Vec<PathBuf>) -> Vec<PathBuf> {
@@ -830,6 +971,121 @@ mod tests {
         );
     }
 
+    /// Raw paths the platform watcher reports, before any filter, until one ends in `name`.
+    #[cfg(target_os = "linux")]
+    fn raw_until(session: &WatchSession, name: &str) -> Vec<PathBuf> {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let mut seen = Vec::new();
+        loop {
+            let now = Instant::now();
+            assert!(now < deadline, "sentinel {name} never arrived: {seen:?}");
+            if let Ok(batch) = session.events.recv_timeout(deadline - now) {
+                seen.extend(session.receive(batch).expect("batch"));
+            }
+            if seen.iter().any(|path| path.ends_with(name)) {
+                return seen;
+            }
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn plan_skips_symlinks_and_ignored_dirs() {
+        use notify::RecursiveMode::{NonRecursive, Recursive};
+        let scratch = dx_test_scratch::scratch("dx-watch-plan-");
+        let root = scratch.path().join("ws");
+        let outside = scratch.path().join("output_base");
+        std::fs::create_dir_all(outside.join("k8-fastbuild/bin")).expect("output base");
+        for dir in [
+            "src/lib",
+            "vendor/big",
+            "node/.git/objects",
+            ".git/objects",
+            "docs",
+        ] {
+            std::fs::create_dir_all(root.join(dir)).expect("tree");
+        }
+        std::os::unix::fs::symlink(&outside, root.join("bazel-out")).expect("bazel-out link");
+        std::os::unix::fs::symlink(root.join("src"), root.join("docs/src")).expect("docs link");
+        let bazelignore = [PathBuf::from("vendor")];
+        let mut plan = Vec::new();
+        assert!(plan_watches(&root, &root, &bazelignore, &mut plan));
+        plan.sort_by(|a, b| a.0.cmp(&b.0));
+        assert_eq!(
+            plan,
+            vec![
+                (root.clone(), NonRecursive),
+                (root.join("docs"), Recursive),
+                (root.join("node"), NonRecursive),
+                (root.join("src"), Recursive),
+            ]
+        );
+    }
+
+    #[test]
+    fn bazelignore_lists_relative_dirs() {
+        let scratch = dx_test_scratch::scratch("dx-watch-bazelignore-");
+        let root = scratch.path();
+        std::fs::write(
+            root.join(".bazelignore"),
+            "# comment\n\nvendor/\n./third_party/big\n.\n",
+        )
+        .expect("bazelignore");
+        assert_eq!(
+            read_bazelignore(root),
+            vec![PathBuf::from("vendor"), PathBuf::from("third_party/big")]
+        );
+    }
+
+    #[test]
+    fn running_out_of_inotify_watches_names_the_sysctl() {
+        let error = notify::Error::new(notify::ErrorKind::MaxFilesWatch);
+        assert!(
+            watch_error(&error).contains("fs.inotify.max_user_watches"),
+            "{}",
+            watch_error(&error)
+        );
+        assert_eq!(
+            watch_error(&notify::Error::path_not_found()),
+            notify::Error::path_not_found().to_string()
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn session_adds_no_watches_under_a_bazel_out_symlink_or_ignored_dir() {
+        let scratch = dx_test_scratch::scratch("dx-watch-symlink-");
+        let root = scratch.path().join("ws");
+        let outside = scratch.path().join("output_base");
+        std::fs::create_dir_all(outside.join("bin")).expect("output base");
+        std::fs::create_dir_all(root.join("vendor/pkg")).expect("ignored dir");
+        std::fs::create_dir_all(root.join(".git")).expect("git dir");
+        std::fs::create_dir_all(root.join("src")).expect("source dir");
+        std::fs::write(root.join(".bazelignore"), "vendor\n").expect("bazelignore");
+        std::os::unix::fs::symlink(&outside, root.join("bazel-out")).expect("bazel-out link");
+        let session = WatchSession::start_with(&root, &[], false).expect("session starts");
+        std::fs::write(outside.join("bin/out.o"), "built").expect("output write");
+        std::fs::write(root.join("vendor/pkg/a.rs"), "vendored").expect("vendor write");
+        std::fs::write(root.join(".git/index"), "index").expect("git write");
+        std::fs::create_dir(root.join("src/new")).expect("new dir");
+        std::fs::create_dir(root.join("fresh")).expect("fresh dir");
+        let mut seen = raw_until(&session, "fresh");
+        std::fs::write(root.join("fresh/b.rs"), "b").expect("write in fresh dir");
+        std::fs::write(root.join("src/new/a.rs"), "a").expect("write in new dir");
+        seen.extend(raw_until(&session, "a.rs"));
+        assert!(
+            seen.iter().any(|path| path.ends_with("fresh/b.rs")),
+            "a directory created at a shallow-watched root is watched: {seen:?}"
+        );
+        assert!(
+            !seen.iter().any(|path| path.starts_with(&outside)
+                || path.starts_with(root.join("bazel-out"))
+                || path.starts_with(root.join("vendor"))
+                || path.starts_with(root.join(".git"))),
+            "no watch may sit under a symlink or an ignored dir: {seen:?}"
+        );
+    }
+
     #[test]
     fn session_fails_once_its_root_is_removed() {
         let scratch = dx_test_scratch::scratch("dx-watch-root-gone-");
@@ -891,7 +1147,7 @@ mod tests {
             trigger.iter().any(|path| path.ends_with("sub/out.sarif")),
             "{trigger:?}"
         );
-        let _ = session.drain();
+        let _ = session.drain().expect("drain");
         std::fs::write(root.join(".tmpabc"), "x").expect("write");
         let trigger = session.wait(Duration::from_secs(5)).expect("wait");
         assert!(

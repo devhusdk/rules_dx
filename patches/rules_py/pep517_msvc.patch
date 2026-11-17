@@ -187,7 +187,7 @@ diff -ru a/uv/private/pep517_whl/tools/build_helper.py b/uv/private/pep517_whl/t
  import importlib
  import os
  import platform as _platform
-@@ -576,6 +577,72 @@
+@@ -576,6 +577,101 @@
      return site_dir
  
  
@@ -222,19 +222,48 @@ diff -ru a/uv/private/pep517_whl/tools/build_helper.py b/uv/private/pep517_whl/t
 +    return flag
 +
 +
-+def _clang_cl_env(env: dict[str, str], short_root: str) -> None:
-+    # setuptools on Windows runs cl.exe, link.exe and lib.exe from PATH and
-+    # ignores CC and CFLAGS; clang-cl, lld-link and llvm-lib take those names
-+    # and read the toolchain flags from the CL and _LINK_ variables.
++_CLANG_CL_SITECUSTOMIZE = """\
++import importlib.abc
++import importlib.machinery
++import sys
++
++_TOOLS = {tools!r}
++_MSVC_MODULES = ("distutils.compilers.C.msvc", "setuptools._distutils.compilers.C.msvc")
++
++
++class _ClangClFinder(importlib.abc.MetaPathFinder):
++    def find_spec(self, name, import_path, target=None):
++        if name not in _MSVC_MODULES:
++            return None
++        spec = importlib.machinery.PathFinder.find_spec(name, import_path)
++        if spec is None or spec.loader is None:
++            return spec
++        exec_module = spec.loader.exec_module
++
++        def patched(module):
++            exec_module(module)
++            find_exe = module._find_exe
++            module._find_exe = lambda exe, paths=None: _TOOLS.get(exe.lower()) or find_exe(exe, paths)
++
++        spec.loader.exec_module = patched
++        return spec
++
++
++sys.meta_path.insert(0, _ClangClFinder())
++"""
++
++
++def _clang_cl_env(env: dict[str, str], tmpdir: str) -> None:
 +    cc = _absolutize_path(env["CC"].split(" ")[0])
-+    bin_dir = path.join(short_root, "clang_cl_bin")
-+    makedirs(bin_dir, exist_ok=True)
-+    tools = {"cl.exe": cc, "link.exe": path.join(path.dirname(cc), "lld-link.exe")}
-+    if env.get("AR"):
-+        tools["lib.exe"] = shlex.split(env["AR"])[0]
-+    for name, source in tools.items():
-+        os.link(source, path.join(bin_dir, name))
-+    env["PATH"] = pathsep.join([bin_dir, env.get("PATH", defpath)])
++    llvm_bin = path.dirname(cc)
++    tools = {
++        "cl.exe": cc,
++        "link.exe": path.join(llvm_bin, "lld-link.exe"),
++        "lib.exe": path.join(llvm_bin, "llvm-lib.exe"),
++    }
++    site_dir = path.join(tmpdir, ".clang_cl_site")
++    _write_generated_file(path.join(site_dir, "sitecustomize.py"), _CLANG_CL_SITECUSTOMIZE.format(tools=tools))
++    env["PYTHONPATH"] = pathsep.join(entry for entry in (site_dir, env.get("PYTHONPATH")) if entry)
 +
 +    cxx_flags = env.get("CXXFLAGS", "").split()
 +    libcxx_includes = []
@@ -260,16 +289,15 @@ diff -ru a/uv/private/pep517_whl/tools/build_helper.py b/uv/private/pep517_whl/t
  def _compiler_env(
      tmpdir: str,
      execroot_marker: str | None = None,
-@@ -583,6 +650,8 @@
+@@ -583,6 +679,7 @@
      target_os: str = "",
      target_cpu: str = "",
      toolchain_flags: bool = False,
 +    msvc: bool = False,
-+    short_root: str | None = None,
  ) -> dict[str, str]:
      env = dict(os.environ)
      if execroot_marker:
-@@ -629,6 +698,24 @@
+@@ -629,6 +726,24 @@
      # helper still runs there; bare tool names deliberately remain on PATH.
      _absolutize_tool_paths(env)
  
@@ -278,8 +306,8 @@ diff -ru a/uv/private/pep517_whl/tools/build_helper.py b/uv/private/pep517_whl/t
 +        # tree; run the short base interpreter against the venv packages.
 +        env["PYTHONPATH"] = pathsep.join(entry for entry in sys.path if entry)
 +        sys.executable = sys._base_executable
-+    if os.name == "nt" and short_root and toolchain_flags and not cross and _is_clang_cl(env.get("CC", "")):
-+        _clang_cl_env(env, short_root)
++    if os.name == "nt" and toolchain_flags and not cross and _is_clang_cl(env.get("CC", "")):
++        _clang_cl_env(env, tmpdir)
 +        msvc = True
 +    if msvc:
 +        # setuptools finds cl.exe through PATH, INCLUDE and LIB from the
@@ -294,7 +322,7 @@ diff -ru a/uv/private/pep517_whl/tools/build_helper.py b/uv/private/pep517_whl/t
      cc_path = _resolve_compiler_path(env, "CC", "cc")
      cxx_path = _resolve_compiler_path(env, "CXX", "c++")
      if env.pop("RULES_PY_INFER_CXX_COMPANION", None) == "1":
-@@ -756,22 +843,7 @@
+@@ -756,22 +871,7 @@
      ]:
          _override_tool(env, key, wrapper)
  
@@ -318,7 +346,7 @@ diff -ru a/uv/private/pep517_whl/tools/build_helper.py b/uv/private/pep517_whl/t
  
      return env
  
-@@ -1140,10 +1212,32 @@
+@@ -1140,10 +1240,32 @@
  PARSER.add_argument("--execroot-marker", help="Token in env values to replace with the absolute execroot")
  PARSER.add_argument("--cross", action="store_true", help="Cross-compilation mode: target platform != exec platform")
  PARSER.add_argument("--toolchain-flags", action="store_true", help="CFLAGS/CXXFLAGS/LDFLAGS/LDSHAREDFLAGS carry the C++ toolchain's action flags")
@@ -351,7 +379,7 @@ diff -ru a/uv/private/pep517_whl/tools/build_helper.py b/uv/private/pep517_whl/t
  def main() -> None:
      opts, _ = PARSER.parse_known_args()
  
-@@ -1152,6 +1246,11 @@
+@@ -1152,6 +1274,11 @@
      makedirs(tmp_root, exist_ok=False)
  
      t = path.join(tmp_root, "worktree")
@@ -363,19 +391,18 @@ diff -ru a/uv/private/pep517_whl/tools/build_helper.py b/uv/private/pep517_whl/t
  
      shutil.unpack_archive(opts.srcarchive, t)
  
-@@ -1197,7 +1297,11 @@
+@@ -1197,7 +1324,10 @@
          target_os=opts.target_os,
          target_cpu=opts.target_cpu,
          toolchain_flags=opts.toolchain_flags,
 +        msvc=opts.msvc,
-+        short_root=msvc_root,
      )
 +    if msvc_root:
 +        _shorten_bin_dirs(build_env, msvc_root)
  
      if _legacy_metadata_conflicts_with_pyproject(t):
          print(
-@@ -1306,6 +1409,8 @@
+@@ -1306,6 +1436,8 @@
          exit(1)
  
      os.replace(path.join(outdir, inventory[0]), path.abspath(opts.output))

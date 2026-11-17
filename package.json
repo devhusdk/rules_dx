@@ -29,7 +29,7 @@
     "pinia": "4.1.0",
     "preact": "11.2.0",
     "preact-render-to-string": "6.8.3",
-    "source-map": "0.7.6",
+    "source-map": "0.8.0",
     "svelte": "5.57.3",
     "svelte-check": "4.7.8",
     "tinybench": "6.2.3",

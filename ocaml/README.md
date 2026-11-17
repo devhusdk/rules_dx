@@ -97,7 +97,7 @@ as its own file. `dune` is a label, for example `@rules_dx//ocaml:dune`.
 `deps` names other `ocaml_dune_library` targets; their trees go on `OCAMLPATH`.
 A package with `lib<library>_stubs.a` needs `stubs = True`, which links the
 archive natively (the bytecode cell does not support C stubs). See
-`ocaml/tests/fixtures/dune-lib`.
+`ocaml/tests/fixtures/dune_lib`.
 
 ### Coverage with your own ppx
 

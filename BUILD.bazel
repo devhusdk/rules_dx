@@ -109,7 +109,7 @@ load("//javascript:defs.bzl", "js_library")
 # gazelle:exclude avro/tests/fixtures/closure
 # gazelle:exclude capnproto/tests/fixtures/closure
 # gazelle:exclude thrift/tests/fixtures/closure
-# gazelle:exclude ocaml/tests/fixtures/dune-lib/src
+# gazelle:exclude ocaml/tests/fixtures/dune_lib/src
 # gazelle:exclude php/private/tools/digests/bin
 # gazelle:exclude gazelle/cc/testdata
 # gazelle:exclude gazelle/d/testdata
@@ -163,7 +163,7 @@ load("//javascript:defs.bzl", "js_library")
 # gazelle:exclude swift/tests/fixtures/swift-app
 # gazelle:exclude haskell/tests/fixtures/haskell_app
 # gazelle:exclude ocaml/tests/fixtures/ocaml_app
-# gazelle:exclude appimage/tests/fixtures/appimage-app
+# gazelle:exclude appimage/tests/fixtures/appimage_app
 # gazelle:exclude examples/adopt-polyglot/native_cpp/main
 # gazelle:exclude go/tests/fixtures/hello
 # gazelle:exclude cuda/tests/consumer

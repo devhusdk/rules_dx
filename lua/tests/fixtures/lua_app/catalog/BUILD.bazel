@@ -1,0 +1,51 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//lua:defs.bzl", "lua_library", "lua_test")
+
+APPS = ["//lua/tests/fixtures/lua_app:__subpackages__"]
+
+exports_files(
+    [
+        "BUILD.bazel",
+        "catalog_test.lua",
+        "init.lua",
+        "parse.lua",
+        "units.tsv",
+    ],
+    visibility = ["@rules_dx//tools/testing/hermetic:__pkg__"] + APPS,
+)
+
+filegroup(
+    name = "units",
+    srcs = ["units.tsv"],
+    visibility = APPS,
+)
+
+lua_library(
+    name = "catalog",
+    testonly = True,
+    srcs = [
+        "init.lua",
+        "parse.lua",
+    ],
+    strip_import_prefix = "/lua/tests/fixtures/lua_app",
+    visibility = APPS,
+)
+
+lua_test(
+    name = "catalog_test",
+    size = "small",
+    testonly = True,
+    srcs = ["catalog_test.lua"],
+    data = ["units.tsv"],
+    env = {"UNITS": "$(rlocationpath units.tsv)"},
+    main = "catalog_test.lua",
+    deps = [":catalog"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//:__pkg__"],
+)

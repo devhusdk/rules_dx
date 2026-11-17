@@ -108,12 +108,12 @@ Linux host.
 ### Test
 
 ```sh
-bazel test //appimage/... //appimage/tests/fixtures/appimage-app/...
+bazel test //appimage/... //appimage/tests/fixtures/appimage_app/...
 # Consumer qualification (manual; needs network and a native bazelisk):
 bazel test //tools/testing/hermetic:appimage
 ```
 
-The [appimage-app fixture](tests/fixtures/appimage-app/README.md) is a two-package
+The [appimage_app fixture](tests/fixtures/appimage_app/README.md) is a two-package
 app that is built, relocated and run without FUSE in its tests.
 
 ## Toolchain

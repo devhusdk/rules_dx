@@ -1,0 +1,44 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//lua:defs.bzl", "lua_binary", "lua_test")
+
+APPS = ["//lua/tests/fixtures/lua_app:__subpackages__"]
+
+exports_files(
+    [
+        "BUILD.bazel",
+        "exit_codes_test.lua",
+        "main.lua",
+    ],
+    visibility = ["@rules_dx//tools/testing/hermetic:__pkg__"] + APPS,
+)
+
+lua_binary(
+    name = "units",
+    testonly = True,
+    data = ["//lua/tests/fixtures/lua_app/catalog:units"],
+    env = {"UNITS": "$(rlocationpath //lua/tests/fixtures/lua_app/catalog:units)"},
+    main = "main.lua",
+    deps = [
+        "//lua/tests/fixtures/lua_app/catalog",
+        "//lua/tests/fixtures/lua_app/report",
+    ],
+)
+
+lua_test(
+    name = "exit_codes_test",
+    size = "small",
+    testonly = True,
+    srcs = ["exit_codes_test.lua"],
+    args = ["$(rlocationpath :units)"],
+    data = [":units"],
+    env = {"UNITS": "_main/lua/tests/fixtures/lua_app/catalog/units.tsv"},
+    main = "exit_codes_test.lua",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//:__pkg__"],
+)

@@ -56,7 +56,7 @@ const EXPECTED_NAMES: &[&str] = &[
     "perl_app_cpan",
     "rules_android_maven",
     "swiftpkg",
-    "zig_zig.tests.fixtures.zig-deps",
+    "zig_zig.tests.fixtures.zig_deps",
 ];
 
 fn sets() -> Vec<DependencySet> {

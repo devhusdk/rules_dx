@@ -4,6 +4,6 @@ bazel_dep(name = "rules_perl", version = "2.1.0")
 cpan = use_extension("@rules_dx//perl:extensions.bzl", "cpan")
 cpan.lock(
     name = "perl_app_cpan",
-    lock = "//perl/tests/fixtures/perl-app/third_party:cpan.lock.json",
+    lock = "//perl/tests/fixtures/perl_app/third_party:cpan.lock.json",
 )
 use_repo(cpan, perl_cpan = "perl_app_cpan")

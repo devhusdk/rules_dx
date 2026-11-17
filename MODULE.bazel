@@ -1524,7 +1524,7 @@ dx_pins_dev.archive(
 )
 dx_pins_dev.archive(
     name = "lua_app_inspect",
-    build = "//lua/tests/fixtures/lua-app:inspect.BUILD.bazel",
+    build = "//lua/tests/fixtures/lua_app:inspect.BUILD.bazel",
     pins = "//lua:pins.json",
 )
 dx_pins_dev.archive(
@@ -1844,7 +1844,7 @@ use_repo(perl_tools_cpan, "dx_perl_cpan")
 cpan = use_extension("//perl:extensions.bzl", "cpan", dev_dependency = True)
 cpan.lock(
     name = "perl_app_cpan",
-    lock = "//perl/tests/fixtures/perl-app/third_party:cpan.lock.json",
+    lock = "//perl/tests/fixtures/perl_app/third_party:cpan.lock.json",
 )
 use_repo(cpan, perl_cpan = "perl_app_cpan")
 
@@ -1916,10 +1916,10 @@ zig.toolchain(zig_version = "0.17.0")
 
 zig_hub = use_extension("//zig:extensions.bzl", "zig", dev_dependency = True)
 zig_hub.lock(
-    name = "zig_zig.tests.fixtures.zig-deps",
-    lock = "//zig/tests/fixtures/zig-deps:zig.lock.json",
+    name = "zig_zig.tests.fixtures.zig_deps",
+    lock = "//zig/tests/fixtures/zig_deps:zig.lock.json",
 )
-use_repo(zig_hub, "zig_zig.tests.fixtures.zig-deps")
+use_repo(zig_hub, "zig_zig.tests.fixtures.zig_deps")
 
 register_toolchains(
     "//core/quality:busybox_sh_linux_x86_64",
@@ -1982,7 +1982,7 @@ cabal_dev.lock(
 )
 cabal_dev.lock(
     name = "haskell_exe_hackage",
-    lock = "//haskell/tests/fixtures/hackage-exe:cabal.lock.json",
+    lock = "//haskell/tests/fixtures/hackage_exe:cabal.lock.json",
 )
 cabal_dev.lock(
     name = "haskell_stack_hackage",

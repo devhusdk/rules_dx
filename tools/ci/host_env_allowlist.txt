@@ -20,8 +20,8 @@ android/tests/fixtures/rust_apk/sign_test.sh shebang 1
 api_spec/private/codegen.bzl home 1
 appimage/private/tools/packer/src/lib.rs shebang 2
 appimage/tests/BUILD.bazel sh-rule 1
-appimage/tests/fixtures/appimage-app/app/BUILD.bazel sh-rule 1
-appimage/tests/fixtures/appimage-app/app/run_test.sh shebang 1
+appimage/tests/fixtures/appimage_app/app/BUILD.bazel sh-rule 1
+appimage/tests/fixtures/appimage_app/app/run_test.sh shebang 1
 appimage/tests/fixtures/dxhello/any.sh shebang 1
 apple/tests/fixtures/swift_app/BUILD.bazel sh-rule 1
 apple/tests/fixtures/swift_app/check_ipa.sh shebang 1
@@ -117,8 +117,8 @@ core/tests/wrapper_tests.bzl home 3
 core/wrapper.bzl env-inherit 7
 csharp/tests/fixtures/fuzz/BUILD.bazel sh-rule 2
 csharp/tests/fixtures/fuzz/run_test.sh shebang 1
-cuda/tests/fixtures/cuda-app/app/BUILD.bazel sh-rule 1
-cuda/tests/fixtures/cuda-app/app/output_test.sh shebang 1
+cuda/tests/fixtures/cuda_app/app/BUILD.bazel sh-rule 1
+cuda/tests/fixtures/cuda_app/app/output_test.sh shebang 1
 d/tests/fixtures/bench/BUILD.bazel sh-rule 1
 d/tests/fixtures/bench/run_test.sh shebang 1
 d/tests/fixtures/fuzz/BUILD.bazel sh-rule 1

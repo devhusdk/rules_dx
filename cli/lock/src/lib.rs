@@ -202,17 +202,9 @@ fn read(path: &Path) -> Result<Vec<u8>, Error> {
     std::fs::read(path).map_err(|error| Error::new(format!("{}: {error}", path.display())))
 }
 
-/// Writes `bytes` to `path` through a sibling file, so a reader sees the old or the new file.
 fn write(path: &Path, bytes: &[u8]) -> Result<(), Error> {
-    let failed = |error: std::io::Error| Error::new(format!("{}: {error}", path.display()));
-    let mut sibling = path.as_os_str().to_owned();
-    sibling.push(format!(".{}.tmp", std::process::id()));
-    let sibling = PathBuf::from(sibling);
-    std::fs::write(&sibling, bytes).map_err(failed)?;
-    std::fs::rename(&sibling, path).map_err(|error| {
-        drop(std::fs::remove_file(&sibling));
-        failed(error)
-    })
+    dx_atomic_fs::write_atomic(path, bytes)
+        .map_err(|error| Error::new(format!("{}: {error}", path.display())))
 }
 
 /// The manifest and state files of a set.

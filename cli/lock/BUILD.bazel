@@ -45,6 +45,7 @@ rust_library(
         package_name = "cli/dx_lock",
         normal = True,
     ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "@crates//:serde",
         "@crates//:serde_json",
@@ -64,7 +65,10 @@ rust_test(
         package_name = "cli/dx_lock",
         normal = True,
         normal_dev = True,
-    ) + ["//cli/digest:dx_digest"],
+    ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/digest:dx_digest",
+    ],
 )
 
 rust_binary(

@@ -96,6 +96,8 @@ pub fn remove_stale_staging(target: &Path) {
     }
 }
 
+/// Writes content to path so readers see the old or the new file, never a partial one.
+/// An existing file keeps its mode; a new one gets 0644.
 pub fn write_atomic(path: &Path, content: &[u8]) -> io::Result<()> {
     use std::io::Write as _;
     let mut staging = staging_for(path)?;
@@ -109,7 +111,30 @@ pub fn write_atomic(path: &Path, content: &[u8]) -> io::Result<()> {
             .set_permissions(std::fs::Permissions::from_mode(mode))?;
     }
     staging.write_all(content)?;
-    staging.persist(long_path(path)?).map_err(|err| err.error)?;
+    persist_synced(staging, path)
+}
+
+/// Flushes staging to disk, renames it over dest, then syncs dest's directory.
+/// Without the first sync a crash after the rename can leave dest empty.
+fn persist_synced(staging: tempfile::NamedTempFile, dest: &Path) -> io::Result<()> {
+    staging.as_file().sync_all()?;
+    staging.persist(long_path(dest)?).map_err(|err| err.error)?;
+    sync_parent(dest)
+}
+
+/// Syncs the directory that holds path, so the renamed entry survives a crash.
+#[cfg(unix)]
+fn sync_parent(path: &Path) -> io::Result<()> {
+    let parent = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    File::open(parent)?.sync_all()
+}
+
+/// Nothing to do: Windows cannot open a directory as a plain file to sync it.
+#[cfg(not(unix))]
+fn sync_parent(_path: &Path) -> io::Result<()> {
     Ok(())
 }
 
@@ -128,8 +153,7 @@ pub(crate) fn persist_copy(
             .as_file()
             .set_permissions(std::fs::Permissions::from_mode(bits))?;
     }
-    staging.persist(long_path(dest)?).map_err(|err| err.error)?;
-    Ok(())
+    persist_synced(staging, dest)
 }
 
 /// Copies src to dest through a temp file, staged 0644 or 0755 when src is executable.

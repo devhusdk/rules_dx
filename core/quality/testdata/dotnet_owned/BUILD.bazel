@@ -8,11 +8,9 @@ package(default_visibility = [
 
 quality_family(
     name = "csharp_family",
-    disabled = [
-        "audit",
-        "format",
-    ],
+    disabled = ["audit"],
     family_id = "csharp",
+    format = ["csharpier"],
     lint = ["roslyn"],
 )
 

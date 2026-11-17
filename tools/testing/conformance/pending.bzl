@@ -84,10 +84,6 @@ cloudformation lock_test *
 cloudformation pass_test *
 cloudformation runfiles_test *
 csharp cross_test *
-csharp format_error_test *
-csharp format_test *
-csharp lint_error_test *
-csharp lint_test *
 cuda coverage_test *
 cuda cross_test *
 cuda lint_error_test *
@@ -113,10 +109,6 @@ dockerfile lock_test *
 dockerfile pass_test *
 dockerfile runfiles_test *
 dotnet cross_test *
-dotnet format_error_test *
-dotnet format_test *
-dotnet lint_error_test *
-dotnet lint_test *
 dotnet lock_test *
 dotnet runfiles_test *
 elixir cross_test *
@@ -137,8 +129,6 @@ fortran cross_test *
 fortran lock_test *
 fortran runfiles_test *
 fsharp cross_test *
-fsharp format_error_test *
-fsharp format_test *
 fsharp lint_error_test *
 fsharp lint_test *
 haskell cross_test *

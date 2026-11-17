@@ -1,6 +1,7 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//fsharp:defs.bzl", "fsharp_binary", "fsharp_library", "fsharp_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+load("//tools/testing/conformance:quality.bzl", "dotnet_format_subject", "dotnet_lint_subject")
 
 # gazelle:exclude Greet.fs
 
@@ -13,6 +14,20 @@ package(
 fsharp_library(
     name = "greet",
     srcs = ["Greet.fs"],
+    deps = ["@nuget//fsharp.core"],
+)
+
+fsharp_library(
+    name = "lint_dirty",
+    srcs = ["quality/LintDirty.fs"],
+    tags = ["manual"],
+    deps = ["@nuget//fsharp.core"],
+)
+
+fsharp_library(
+    name = "format_dirty",
+    srcs = ["quality/FormatDirty.fs"],
+    tags = ["manual"],
     deps = ["@nuget//fsharp.core"],
 )
 
@@ -86,6 +101,17 @@ dx_conformance_suite(
         "stale": "paket.stale.lock",
     },
     passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":greet",
+        "format_dirty": ":format_dirty",
+        "format_source": "quality/FormatDirty.fs",
+        "format_subject": dotnet_format_subject,
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 3,
+        "lint_rule": "FL0036",
+        "lint_source": "quality/LintDirty.fs",
+        "lint_subject": dotnet_lint_subject,
+    },
     runfiles = {
         "binary": ":runfiles_hello",
         "data": "data.txt",

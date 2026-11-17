@@ -1,5 +1,5 @@
 {
-  "checksum": "fb7a38070c816a08b39f35b1f7c7a8d2dc8483d4c384856be25a6a780de9a7ad",
+  "checksum": "ee4c85308a1f8d41f8956d982334c68247347e7ea017ace04f5f75ae14afea8a",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -20618,6 +20618,27 @@
       ],
       "version": "0.0.0"
     },
+    "pub_lock 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "library_target_name": "pub_lock",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "pub_lock",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "pub_lock",
+            "crate_root": "src/resolve.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "pulldown-cmark 0.13.5": {
       "build_script_attrs": {
         "build_script_env": {
@@ -33193,6 +33214,7 @@
     "powershell_lock 0.0.0": "powershell/private/tools/powershell_lock",
     "process_probe 0.0.0": "tools/testing/process_probe",
     "protobuf_extract 0.0.0": "tools/docs/protobuf/protobuf_extract",
+    "pub_lock 0.0.0": "dart/private/tools/pub_lock",
     "python_docs_tests 0.0.0": "tools/docs/python_docs_tests",
     "python_extract 0.0.0": "tools/docs/python/python_extract",
     "qt_rust_bridge 0.0.0": "qt/private/qt_rust_bridge",

@@ -2619,6 +2619,7 @@ crate.from_cargo(
         "//swift/private/tools/lock:Cargo.toml",
         "//zig/private/tools/lock:Cargo.toml",
         "//d/private/tools/lock:Cargo.toml",
+        "//dart/private/tools/lock:Cargo.toml",
         "//csharp/private/tools/lock:Cargo.toml",
         "//java/private/tools/lock:Cargo.toml",
         "//php/private/tools/lock:Cargo.toml",

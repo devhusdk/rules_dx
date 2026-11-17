@@ -56,6 +56,7 @@ def _hub_env_impl(ctx):
 build_script_hub_env_test = analysistest.make(_hub_env_impl)
 
 _COMPILER = str(Label("@rules_dx//cc:compiler"))
+_TOOLCHAINS = str(Label("@rules_dx//config:toolchains"))
 _LINKER_PREFERENCE = str(Label("@rules_rust//rust/settings:toolchain_linker_preference"))
 
 def _run_action(env):
@@ -270,7 +271,7 @@ def _cross_llvm_impl(ctx):
 _CROSS = {"//command_line_option:platforms": str(Label("@rules_dx//appimage:linux_arm64"))}
 _cross_gcc_test = analysistest.make(_cross_gcc_impl, config_settings = dict(_CROSS, **{
     _COMPILER: "gcc",
-    "//command_line_option:experimental_propagate_custom_flag": [_COMPILER],
+    "//command_line_option:experimental_propagate_custom_flag": [_COMPILER, _TOOLCHAINS],
 }))
 _cross_llvm_test = analysistest.make(_cross_llvm_impl, config_settings = dict(_CROSS, **{_COMPILER: "llvm"}))
 

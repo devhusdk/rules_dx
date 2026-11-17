@@ -1,0 +1,72 @@
+diff --git a/private/ct.bzl b/private/ct.bzl
+--- a/private/ct.bzl
++++ b/private/ct.bzl
+@@ -131,7 +131,7 @@
+ {maybe_install_erlang}
+ 
+ COVER_ARGS=
+-if [ -n "${{COVERAGE}}" ]; then
++if [ -n "{coverage}" ] && [ -n "${{COVERAGE}}" ]; then
+     cat << EOF > "${{TEST_UNDECLARED_OUTPUTS_DIR}}/ct.cover.spec"
+ {{incl_app, '{app_name}', details}}.
+ {{incl_dirs, {apps_ebin_dirs_term}}}.
+@@ -193,13 +193,14 @@
+     -dir test {pa_args} \\
+     -logdir "{log_dir}"{node_args} ${{COVER_ARGS}} {extra_args}
+ set +x
+-if [ -n "${{COVERAGE}}" ]; then
++if [ -n "{coverage}" ] && [ -n "${{COVERAGE}}" ]; then
+     "{erlang_home}"/bin/escript $TEST_SRCDIR/$TEST_WORKSPACE/{coverdata_to_lcov} \\
+         ${{COVERAGE_OUTPUT_FILE}} \\
+         ${{COVERAGE_OUTPUT_FILE}} \\
+         > ${{TEST_UNDECLARED_OUTPUTS_DIR}}/coverdata_to_lcov.log
+ fi
+ """.format(
++            coverage = "1" if ctx.configuration.coverage_enabled else "",
+             maybe_install_erlang = maybe_install_erlang(ctx, short_path = True),
+             app_name = app_name,
+             apps_ebin_dirs_term = to_erlang_string_list(apps_ebin_dirs),
+diff --git a/private/eunit.bzl b/private/eunit.bzl
+--- a/private/eunit.bzl
++++ b/private/eunit.bzl
+@@ -133,7 +133,7 @@
+ 
+ COVER_PRE=
+ COVER_POST=
+-if [ -n "${{COVERAGE}}" ]; then
++if [ -n "{coverage}" ] && [ -n "${{COVERAGE}}" ]; then
+     COVER_PRE="[case cover:compile_beam_directory(D) of {{error, _}} -> halt(1); _ -> ok end || D <- {apps_ebin_dirs_term}], "
+     COVER_POST="cover:export(\\"${{COVERAGE_OUTPUT_FILE}}\\"), "
+ fi
+@@ -142,13 +142,14 @@
+     {pa_args} {extra_args} \\
+     -eval "${{COVER_PRE}}case eunit:test({eunit_mods_term},{eunit_opts_term}) of ok -> ok; error -> halt(2) end, ${{COVER_POST}}halt()."
+ set +x
+-if [ -n "${{COVERAGE}}" ]; then
++if [ -n "{coverage}" ] && [ -n "${{COVERAGE}}" ]; then
+     "{erlang_home}"/bin/escript $TEST_SRCDIR/$TEST_WORKSPACE/{coverdata_to_lcov} \\
+         ${{COVERAGE_OUTPUT_FILE}} \\
+         ${{COVERAGE_OUTPUT_FILE}} \\
+         > ${{TEST_UNDECLARED_OUTPUTS_DIR}}/coverdata_to_lcov.log
+ fi
+ """.format(
++            coverage = "1" if ctx.configuration.coverage_enabled else "",
+             maybe_install_erlang = maybe_install_erlang(ctx, short_path = True),
+             erlang_home = erlang_home,
+             apps_ebin_dirs_term = _quote(to_erlang_string_list(apps_ebin_dirs)),
+@@ -178,6 +179,7 @@
+ 
+ if NOT [{package}] == [] cd {package}
+ 
++if [{coverage}] == [] set "COVERAGE="
+ set "COVER_PRE="
+ set "COVER_POST="
+ set "COVER_ARGS="
+@@ -195,6 +197,7 @@
+ set "COVERAGE_LOG=%TEST_UNDECLARED_OUTPUTS_DIR:/=\\%\\coverdata_to_lcov.log"
+ "{erlang_home}\\bin\\escript.exe" "%TEST_SRCDIR%/%TEST_WORKSPACE%/{coverdata_to_lcov}" "%COVERAGE_OUTPUT_FILE%" "%COVERAGE_OUTPUT_FILE%" > "%COVERAGE_LOG%" || exit /b 1
+ """.format(
++            coverage = "1" if ctx.configuration.coverage_enabled else "",
+             apps_ebin_dirs_args = " ".join(['"{}"'.format(d.replace("$TEST_SRCDIR", "%TEST_SRCDIR%").replace("$TEST_WORKSPACE", "%TEST_WORKSPACE%")) for d in apps_ebin_dirs]),
+             coverdata_to_lcov = coverdata_to_lcov_path,
+             package = package,

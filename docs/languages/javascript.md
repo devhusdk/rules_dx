@@ -87,6 +87,10 @@ javascript_web_bundle(name, app, bundler, config = None, entry = None, bundler_a
 
 Bundles one staged application through a declared bundler executable.
 
+### `js_library`
+
+No documentation.
+
 ## API docs
 
 Tool: `typedoc`.

@@ -40,6 +40,7 @@
     "apple_macos_notarize",
     "apple_simulator_boot",
     "apple_simulator_install",
-    "apple_simulator_launch"
+    "apple_simulator_launch",
+    "apple_dynamic_xcframework_import"
   ]
 }

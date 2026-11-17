@@ -35,7 +35,8 @@
     "typescript_test",
     "typescript_bench",
     "typescript_fuzz_test",
-    "typescript_playwright_test"
+    "typescript_playwright_test",
+    "ts_config"
   ],
   "quality": {
     "bzl": "javascript/private/quality:js.bzl",

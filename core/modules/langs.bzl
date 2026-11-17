@@ -178,7 +178,8 @@ LANGS = json.decode("""{
       "apple_macos_notarize",
       "apple_simulator_boot",
       "apple_simulator_install",
-      "apple_simulator_launch"
+      "apple_simulator_launch",
+      "apple_dynamic_xcframework_import"
     ],
     "family": "core",
     "lockfiles": [],
@@ -1718,7 +1719,8 @@ LANGS = json.decode("""{
       "javascript_bench",
       "javascript_fuzz_test",
       "javascript_web_app",
-      "javascript_web_bundle"
+      "javascript_web_bundle",
+      "js_library"
     ],
     "family": "core",
     "lockfiles": [
@@ -3326,7 +3328,8 @@ LANGS = json.decode("""{
       "typescript_test",
       "typescript_bench",
       "typescript_fuzz_test",
-      "typescript_playwright_test"
+      "typescript_playwright_test",
+      "ts_config"
     ],
     "family": "core",
     "lockfiles": [

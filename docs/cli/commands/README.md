@@ -269,6 +269,7 @@ dx rule that wraps it.
 | `@rules_apple//apple:ios.bzl` | `ios_application` | `@rules_dx//apple:defs.bzl` | `apple_ios_app` |
 | `@rules_apple//apple:ios.bzl` | `ios_unit_test` | `@rules_dx//apple:defs.bzl` | `apple_ios_app_test` |
 | `@rules_apple//apple:apple.bzl` | `apple_xcframework` | `@rules_dx//apple:defs.bzl` | `apple_ios_xcframework` |
+| `@rules_apple//apple:apple.bzl` | `apple_dynamic_xcframework_import` | `@rules_dx//apple:defs.bzl` | `apple_dynamic_xcframework_import` |
 | `@rules_apple//apple:macos.bzl` | `macos_application` | `@rules_dx//apple:defs.bzl` | `apple_macos_app` |
 | `@rules_cc//cc:defs.bzl` | `cc_binary`, `cc_library`, `cc_test` | `@rules_dx//cc:defs.bzl` | `cc_binary`, `cc_library`, `cc_test` |
 | `@rules_cc//cc:objc_library.bzl` | `objc_library` | `@rules_dx//cc:defs.bzl` | `cc_objc_library` |
@@ -404,6 +405,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//javascript:defs.bzl` | `javascript_wasm_bindgen_library` |
 |  |  | `@rules_dx//javascript:defs.bzl` | `javascript_web_app` |
 |  |  | `@rules_dx//javascript:defs.bzl` | `javascript_web_bundle` |
+|  |  | `@rules_dx//javascript:defs.bzl` | `js_library` |
 |  |  | `@rules_dx//julia:defs.bzl` | `julia_bench` |
 |  |  | `@rules_dx//julia:defs.bzl` | `julia_standalone_binary` |
 |  |  | `@rules_dx//kotlin:defs.bzl` | `kotlin_bench` |
@@ -477,6 +479,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//thrift:defs.bzl` | `thrift_java_library` |
 |  |  | `@rules_dx//thrift:defs.bzl` | `thrift_library` |
 |  |  | `@rules_dx//thrift:defs.bzl` | `thrift_rust_library` |
+|  |  | `@rules_dx//typescript:defs.bzl` | `ts_config` |
 |  |  | `@rules_dx//typescript:defs.bzl` | `typescript_bench` |
 |  |  | `@rules_dx//typescript:defs.bzl` | `typescript_fuzz_test` |
 |  |  | `@rules_dx//typescript:defs.bzl` | `typescript_playwright_test` |

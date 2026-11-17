@@ -87,6 +87,10 @@ typescript_playwright_test(name, *, srcs, config, node_modules, app = None, data
 
 Runs Playwright tests in a pinned headless Chromium; app is started by the config's webServer from DX_PLAYWRIGHT_APP on DX_PLAYWRIGHT_PORT.
 
+### `ts_config`
+
+No documentation.
+
 ## API docs
 
 Tool: `typedoc`.

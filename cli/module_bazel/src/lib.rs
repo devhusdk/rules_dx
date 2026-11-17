@@ -358,7 +358,8 @@ pub struct HaskellPackages<'a> {
     pub line: usize,
 }
 
-/// One `pub.from_lock` tag of `rules_dart` or `flutter.pub` tag of `rules_flutter`.
+/// One `pub.from_lock` tag of `rules_dart`, `rules_flutter` or `rules_dx`, or `flutter.pub` tag of
+/// `rules_flutter`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PubLock<'a> {
     pub name: &'a str,
@@ -987,19 +988,25 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `pub.from_lock` tag of `rules_dart` or the `rules_dx` `dart/extensions.bzl` and
-    /// `flutter.pub` tag of `rules_flutter`, in source order within each extension.
+    /// Every `pub.from_lock` tag of `rules_dart`, `rules_flutter` `flutter/pub:extensions.bzl` and
+    /// the `rules_dx` `dart/extensions.bzl` and `flutter/extensions.bzl`, and `flutter.pub` tag of
+    /// `rules_flutter`, in source order within each extension.
     pub fn pub_locks(&self) -> Result<Vec<PubLock<'_>>, ModuleError> {
         let dart = self
             .tags(DART_MODULE, "dart/pub:extensions.bzl", "pub", "from_lock")
+            .map(|call| ("pub.from_lock", call));
+        let flutter_pub = self
+            .tags(FLUTTER_MODULE, "flutter/pub:extensions.bzl", "pub", "from_lock")
             .map(|call| ("pub.from_lock", call));
         let flutter = self
             .tags(FLUTTER_MODULE, "flutter:extensions.bzl", "flutter", "pub")
             .map(|call| ("flutter.pub", call));
         let own = self
             .dx_tags("dart", "pub", "from_lock")
+            .chain(self.dx_tags("flutter", "pub", "from_lock"))
             .map(|call| ("pub.from_lock", call));
-        dart.chain(flutter)
+        dart.chain(flutter_pub)
+            .chain(flutter)
             .chain(own)
             .map(|(tag, call)| {
                 Ok(PubLock {

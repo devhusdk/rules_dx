@@ -5576,14 +5576,14 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
           "platforms": [
             "linux_arm64",
             "linux_x86_64",
-            "macos_arm64"
+            "macos_arm64",
+            "windows_x86_64"
           ],
           "state": "supported",
           "tool": "weeder",
           "transport": "single",
           "unsupported": {
-            "windows_arm64": "GHC 9.10.3 ships no Windows arm64 bindist",
-            "windows_x86_64": "weeder.exe crashes with an access violation (#9971)"
+            "windows_arm64": "GHC 9.10.3 ships no Windows arm64 bindist"
           }
         }
       ]

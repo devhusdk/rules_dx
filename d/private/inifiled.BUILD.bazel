@@ -1,0 +1,14 @@
+load("@rules_d//d:defs.bzl", "d_library")
+
+package(default_visibility = ["//visibility:public"])
+
+d_library(
+    name = "inifiled",
+    srcs = glob(["source/**/*.d"]),
+    imports = ["source"],
+)
+
+filegroup(
+    name = "d_srcs",
+    srcs = glob(["source/**/*.d"]),
+)

@@ -1,0 +1,21 @@
+load("@rules_d//d:defs.bzl", "d_library")
+
+package(default_visibility = ["//visibility:public"])
+
+d_library(
+    name = "dsymbol",
+    srcs = glob(
+        ["dsymbol/src/**/*.d"],
+        exclude = ["dsymbol/src/dsymbol/tests.d"],
+    ),
+    imports = ["dsymbol/src"],
+    deps = [
+        "@dx_d_containers//:containers",
+        "@dx_d_libdparse//:dparse",
+    ],
+)
+
+filegroup(
+    name = "d_srcs",
+    srcs = glob(["dsymbol/src/**/*.d"]),
+)

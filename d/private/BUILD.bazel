@@ -7,8 +7,13 @@ package(default_visibility = [
 ])
 
 exports_files([
+    "containers.BUILD.bazel",
+    "dcd.BUILD.bazel",
     "defs.bzl",
+    "inifiled.BUILD.bazel",
     "kwargs.bzl",
+    "libddoc.BUILD.bazel",
+    "libdparse.BUILD.bazel",
     "rules_d.BUILD.bazel",
 ])
 
@@ -24,6 +29,11 @@ real_source_target(
         "BUILD.bazel",
         "defs.bzl",
         "kwargs.bzl",
+        "containers.BUILD.bazel",
+        "dcd.BUILD.bazel",
+        "inifiled.BUILD.bazel",
+        "libddoc.BUILD.bazel",
+        "libdparse.BUILD.bazel",
         "rules_d.BUILD.bazel",
     ],
     tags = ["corpus"],

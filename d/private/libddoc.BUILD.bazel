@@ -1,0 +1,24 @@
+load("@rules_d//d:defs.bzl", "d_library")
+
+package(default_visibility = ["//visibility:public"])
+
+d_library(
+    name = "ddoc",
+    srcs = glob([
+        "src/**/*.d",
+        "common/source/**/*.d",
+    ]),
+    imports = [
+        "common/source",
+        "src",
+    ],
+    deps = ["@dx_d_libdparse//:dparse"],
+)
+
+filegroup(
+    name = "d_srcs",
+    srcs = glob([
+        "common/source/**/*.d",
+        "src/**/*.d",
+    ]),
+)

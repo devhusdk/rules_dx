@@ -758,7 +758,6 @@ pub fn signing_sign_argv(cosign: &str, asset: &str, bundle: &str) -> Vec<String>
         cosign.to_owned(),
         "sign-blob".to_owned(),
         "--yes".to_owned(),
-        "--new-bundle-format".to_owned(),
         "--bundle".to_owned(),
         bundle.to_owned(),
         asset.to_owned(),

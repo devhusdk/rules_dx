@@ -20,9 +20,9 @@ def signing_unit_tests(name):
                 "https://token.actions.githubusercontent.com",
             ),
             expect_equal(
-                "signing cosign version is pinned v2.6.5",
+                "signing cosign version is pinned v3.1.4",
                 SIGNING_COSIGN_VERSION,
-                "v2.6.5",
+                "v3.1.4",
             ),
             expect_equal(
                 "signing cosign pins cover exactly the tool platforms",
@@ -32,7 +32,7 @@ def signing_unit_tests(name):
             expect_equal(
                 "signing cosign sha is pinned for linux-amd64",
                 SIGNING_COSIGN_PLATFORMS["linux_x86_64"]["sha256"],
-                "c3b4f5410e608af03a5eb0aaac84a4313d8da131248e08ff1759ac70c79d1644",
+                "424e2c97d0b45fd7a6b608a87f090f35633f4c23ece5f092d48bba11aaf4bbfa",
             ),
             expect_equal(
                 "signing cosign shas are 64 characters",
@@ -55,14 +55,14 @@ def signing_unit_tests(name):
                 "application/vnd.dev.sigstore.bundle.v0.3+json",
             ),
             expect_equal(
-                "signing cosign pin accepts v2.6.5",
-                signing_cosign_error("v2.6.5"),
+                "signing cosign pin accepts v3.1.4",
+                signing_cosign_error("v3.1.4"),
                 "",
             ),
             expect_equal(
                 "signing cosign pin rejects a floating version",
-                signing_cosign_error("v2.6.50"),
-                "signing: invalid cosign version 'v2.6.50': want 'v2.6.5' (pinned)",
+                signing_cosign_error("v3.1.40"),
+                "signing: invalid cosign version 'v3.1.40': want 'v3.1.4' (pinned)",
             ),
             expect_equal(
                 "signing bundle media accepts v0.3",

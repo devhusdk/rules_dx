@@ -867,7 +867,6 @@ fn signing_argv_pins_bundle_and_version() {
             "/pin/cosign",
             "sign-blob",
             "--yes",
-            "--new-bundle-format",
             "--bundle",
             "a.bin.bundle",
             "/tmp/a.bin",
@@ -1562,7 +1561,7 @@ fn signing_live_enforces_pinned_cosign() {
     let bundle = outdir.join("artifact.bin.bundle");
     let ok = scenario(
         "all-ok",
-        &fake_cosign(good, "touch \"$5\"; exit 0", "test -f \"$3\""),
+        &fake_cosign(good, "touch \"$4\"; exit 0", "test -f \"$3\""),
         None,
     )
     .expect("live sign");
@@ -1606,7 +1605,7 @@ fn signing_records_track_failure_and_partial() {
     let run = |name: &str, verify: &str| -> Vec<OpRecord> {
         let script = write_fake_cosign(
             &scratch.path().join(name),
-            &fake_cosign(good, "touch \"$5\"; exit 0", verify),
+            &fake_cosign(good, "touch \"$4\"; exit 0", verify),
         );
         let path = script.to_string_lossy().into_owned();
         let pin = CosignPin {

@@ -2,7 +2,7 @@ load("//php/private:defs.bzl", "PHP_COMPATIBLE_WITH", "PHP_SOURCE_SPECS")
 load("//php/private:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//php/private:php.bzl", "PHP_SOURCE_EXTS", "autoloader_suffix", "coverage_descriptor", "env_flag", "ini_flags", "launcher_descriptor", "lit", "rf", "rf_prefixed", "runfiles_path")
 load("//php/private/quality:corpus.bzl", "php_corpus")
-load("//php/tests:checks.bzl", "expect_contains", "expect_equal", "expect_true", "label_string", "php_checks_test")
+load("//php/tests:checks.bzl", "expect_contains", "expect_equal", "label_string", "php_checks_test")
 
 package(default_visibility = ["//visibility:private"])
 

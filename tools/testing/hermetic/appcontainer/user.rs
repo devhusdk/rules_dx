@@ -70,8 +70,9 @@ use crate::args::{
 };
 use crate::sys::{
     CREATE_SUSPENDED, CREATE_UNICODE_ENVIRONMENT, DENY_ACCESS, GRANT_ACCESS, INFINITE,
-    REVOKE_ACCESS, STARTF_USESTDHANDLES, check, kill_on_close_job, path_lock_name, set_access,
-    trustee_entry, user_defaults, wide, with_acl_lock,
+    REVOKE_ACCESS, STARTF_USESTDHANDLES, UNPROTECTED_DACL_SECURITY_INFORMATION, check,
+    drop_inherited, kill_on_close_job, path_lock_name, set_access, trustee_entry, user_defaults,
+    wide, with_acl_lock,
 };
 
 const RPC_C_AUTHN_DEFAULT: u32 = 0xFFFF_FFFF;
@@ -1338,13 +1339,14 @@ fn remove_access_locked(path: &str, sid: *mut c_void) -> Result<(), String> {
         }
     }
     let result = if removed {
+        drop_inherited(acl);
         check(
             // SAFETY: wpath outlives the call and acl is the DACL read from the same path.
             unsafe {
                 SetNamedSecurityInfoW(
                     wpath.as_ptr(),
                     SE_FILE_OBJECT,
-                    DACL_SECURITY_INFORMATION,
+                    DACL_SECURITY_INFORMATION | UNPROTECTED_DACL_SECURITY_INFORMATION,
                     null_mut(),
                     null_mut(),
                     acl,

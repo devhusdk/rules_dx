@@ -11,10 +11,10 @@ use windows_sys::Win32::Security::Isolation::{
     CreateAppContainerProfile, DeleteAppContainerProfile, DeriveAppContainerSidFromAppContainerName,
 };
 use windows_sys::Win32::Security::{
-    ACL, GetSecurityDescriptorControl, InitializeSecurityDescriptor, SE_DACL_AUTO_INHERITED,
-    SE_DACL_PROTECTED, SECURITY_CAPABILITIES, SECURITY_DESCRIPTOR, SID_AND_ATTRIBUTES,
-    SetFileSecurityW, SetSecurityDescriptorControl, SetSecurityDescriptorDacl, TOKEN_DUPLICATE,
-    TOKEN_QUERY,
+    ACE_HEADER, ACL, DeleteAce, GetAce, GetSecurityDescriptorControl, INHERITED_ACE,
+    InitializeSecurityDescriptor, SE_DACL_AUTO_INHERITED, SE_DACL_PROTECTED, SECURITY_CAPABILITIES,
+    SECURITY_DESCRIPTOR, SID_AND_ATTRIBUTES, SetFileSecurityW, SetSecurityDescriptorControl,
+    SetSecurityDescriptorDacl, TOKEN_DUPLICATE, TOKEN_QUERY,
 };
 use windows_sys::Win32::System::Console::{
     GetStdHandle, STD_ERROR_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE,
@@ -57,6 +57,7 @@ const TRUSTEE_IS_UNKNOWN: i32 = 0;
 const NO_MULTIPLE_TRUSTEE: i32 = 0;
 const SE_FILE_OBJECT: i32 = 1;
 const DACL_SECURITY_INFORMATION: u32 = 4;
+pub(crate) const UNPROTECTED_DACL_SECURITY_INFORMATION: u32 = 0x2000_0000;
 const READ_CONTROL: u32 = 0x0002_0000;
 const WRITE_DAC: u32 = 0x0004_0000;
 // GetFinalPathNameByHandleW asks the mount manager for drive letters.
@@ -216,13 +217,14 @@ fn set_access_locked(path: &str, sid: *mut c_void, mode: i32) -> Result<(), Stri
         "building the ACL",
     )
     .and_then(|()| {
+        drop_inherited(merged);
         check(
             // SAFETY: wpath is NUL-terminated and merged is the ACL built above.
             unsafe {
                 SetNamedSecurityInfoW(
                     wpath.as_ptr(),
                     SE_FILE_OBJECT,
-                    DACL_SECURITY_INFORMATION,
+                    DACL_SECURITY_INFORMATION | UNPROTECTED_DACL_SECURITY_INFORMATION,
                     null_mut(),
                     null_mut(),
                     merged,
@@ -238,6 +240,27 @@ fn set_access_locked(path: &str, sid: *mut c_void, mode: i32) -> Result<(), Stri
         LocalFree(descriptor as _);
     }
     result
+}
+
+/// Deletes every inherited entry from `acl`, leaving only the explicit ones.
+pub(crate) fn drop_inherited(acl: *mut ACL) {
+    if acl.is_null() {
+        return;
+    }
+    // SAFETY: acl was checked non-null and points to a valid ACL header.
+    for index in (0..unsafe { (*acl).AceCount } as u32).rev() {
+        let mut ace: *mut c_void = null_mut();
+        // SAFETY: acl is valid, index is below AceCount and ace is a valid out-pointer.
+        if unsafe { GetAce(acl, index, &mut ace) } == 0 {
+            continue;
+        }
+        // SAFETY: GetAce returned a valid ACE pointer, which starts with an ACE header.
+        let flags = unsafe { (*(ace as *const ACE_HEADER)).AceFlags };
+        if u32::from(flags) & INHERITED_ACE != 0 {
+            // SAFETY: acl is valid and index is below its AceCount.
+            unsafe { DeleteAce(acl, index) };
+        }
+    }
 }
 
 /// Holds the named lock while one ACL is read, changed and written back.

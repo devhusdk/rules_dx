@@ -1,0 +1,14 @@
+load("@rules_dx//android:defs.bzl", "android_java_library")
+
+# dx: written once, yours to edit
+
+android_java_library(
+    name = "my_project",
+    srcs = ["Greeting.java"],
+    custom_package = "consumer",
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    visibility = ["//visibility:public"],
+)

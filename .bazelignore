@@ -38,6 +38,7 @@ deploy/tests/fixtures/consumer_resources/repo
 deploy/tests/fixtures/consumer_archive/repo
 javascript/tests/fixtures/web_app/repo
 # dx init output, read through consumer.json.
+android/tests/consumer
 ansible/tests/consumer
 api_spec/tests/consumer
 appimage/tests/consumer

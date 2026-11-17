@@ -318,8 +318,8 @@ func TestAndroidVariantSelected(t *testing.T) {
 		t.Fatalf("failed = %v errors = %v", l.Failed(), l.Errors())
 	}
 	r := res.Gen[0]
-	if r.Kind() != clsAndroidKind || r.AttrString("custom_package") != "com.x" || !reflect.DeepEqual(r.AttrStrings("tags"), []string{"manual"}) {
-		t.Fatalf("rule = %s %v", r.Kind(), r.AttrStrings("tags"))
+	if r.Kind() != clsAndroidKind || r.AttrString("custom_package") != "com.x" || !reflect.DeepEqual(r.AttrStrings("target_compatible_with"), AndroidSDKHosts) || r.Attr("tags") != nil {
+		t.Fatalf("rule = %s %v %v", r.Kind(), r.AttrStrings("target_compatible_with"), r.AttrStrings("tags"))
 	}
 	if got, _ := UnwrapImportSet(res.Imports[0]); !reflect.DeepEqual(got, []string{"other.Thing"}) {
 		t.Fatalf("imports = %v", got)

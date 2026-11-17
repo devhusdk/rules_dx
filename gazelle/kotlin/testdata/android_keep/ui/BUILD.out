@@ -5,5 +5,9 @@ android_kotlin_library(
     srcs = ["Screen.kt"],
     custom_package = "com.example.custom",
     tags = ["local"],
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
     visibility = ["//visibility:public"],
 )

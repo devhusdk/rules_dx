@@ -404,13 +404,18 @@ fn agent_sessions_keep_text_only_failures_in_text() {
 #[test]
 fn owned_and_unowned_file_scopes_resolve_before_building() {
     let consumer = Consumer::new();
+    // The fake answers the graph query by env, not by BUILD files, so each run starts without
+    // the graph the previous run cached on disk.
+    let cached = dx_path::state::local_dir(&consumer.workspace()).join(dx_path::state::RULE_GRAPH);
     for (flags, env) in JSON_MODES {
+        drop(std::fs::remove_file(&cached));
         let unowned = consumer.run(&with_mode(&["build", "src/main.rs"], flags), env, true);
         assert_terminal_failure(&unowned, "no_owner", "input", 2);
         assert_eq!(unowned.kinds(), ["error", "command_finished"]);
         assert!(!unowned.built(), "{}", unowned.context());
         let mut owner_env = env.to_vec();
         owner_env.push(("FAKE_QUERY", "owner"));
+        drop(std::fs::remove_file(&cached));
         let owned = consumer.run(
             &with_mode(&["build", "src/main.rs"], flags),
             &owner_env,

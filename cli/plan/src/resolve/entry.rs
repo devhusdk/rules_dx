@@ -178,13 +178,10 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
-        let query = FakeQuery::new(vec![
-            FakeQuery::ok(&graph_stdout(&[
-                graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
-                graph_rule("//pkg:unit", &["//pkg:lib"], &[]),
-            ])),
-            FakeQuery::ok("//pkg:unit\n"),
-        ]);
+        let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
+            graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
+            graph_rule_of_kind("//pkg:unit", "py_test", &["//pkg:lib"], &[]),
+        ]))]);
         write(&workspace, "other/BUILD.bazel", "");
         let got = resolve_for_test_with_selection(
             &strings(&["pkg/a.py", "//other/..."]),
@@ -199,7 +196,7 @@ mod tests {
             strings(&["//other/...", "//pkg:unit"]),
             "owners are replaced by mapped tests"
         );
-        assert_eq!(query.calls().len(), 2, "one graph query plus one mapping");
+        assert_eq!(query.calls().len(), 1, "the graph query maps files to tests");
     }
 
     #[test]

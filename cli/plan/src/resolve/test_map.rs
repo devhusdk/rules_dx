@@ -154,7 +154,11 @@ mod tests {
 
         let query = FakeQuery::new(vec![suite_graph(&["small"])]);
         let got = map(&query, &["//pkg:lib"], &SelectionContext::unconfigured(&[]));
-        assert_eq!(got, strings(&["//pkg:unit"]), "unit is a direct user");
+        assert_eq!(
+            got,
+            strings(&["//other:t", "//pkg:unit"]),
+            "unit uses the owner and the untagged nested suite keeps other:t"
+        );
     }
 
     #[test]

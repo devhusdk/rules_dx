@@ -1450,9 +1450,10 @@ mod tests {
         let harness = Harness::new("wf-test-conflict");
         harness.write_source("pkg/BUILD.bazel", "");
         harness.write_source("pkg/a.py", "x = 1\n");
-        harness
-            .query
-            .script_graph(&[graph_rule("//pkg:lib", &["//pkg:a.py"], &[])]);
+        harness.query.script_graph(&[
+            graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
+            graph_rule_of_kind("//pkg:unit", "py_test", &["//pkg:lib"], &[]),
+        ]);
         let (code, _, err) = harness.run(&["test", "pkg/a.py", "--", "--config=dx_build_release"]);
         assert_eq!(code, 2, "{err}");
         assert!(err.contains("config"), "{err}");

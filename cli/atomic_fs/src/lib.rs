@@ -129,7 +129,12 @@ fn sync_parent(path: &Path) -> io::Result<()> {
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())
         .unwrap_or(Path::new("."));
-    File::open(parent)?.sync_all()
+    // A directory the caller may write but not read (mode 0300 or 0711) cannot be opened.
+    // The rename has already landed, so skip the sync rather than report a failed write.
+    match File::open(parent) {
+        Ok(dir) => dir.sync_all(),
+        Err(_) => Ok(()),
+    }
 }
 
 /// Nothing to do: Windows cannot open a directory as a plain file to sync it.
@@ -138,10 +143,20 @@ fn sync_parent(_path: &Path) -> io::Result<()> {
     Ok(())
 }
 
+/// Whether a staged copy is flushed to disk around its rename.
+#[derive(Clone, Copy)]
+pub(crate) enum Durability {
+    Synced,
+    /// For a copy that stands in for a link: links are not synced either, and their
+    /// callers stage scratch trees where a sync per file only costs time.
+    Unsynced,
+}
+
 pub(crate) fn persist_copy(
     mut source: File,
     mut staging: tempfile::NamedTempFile,
     dest: &Path,
+    durability: Durability,
 ) -> io::Result<()> {
     io::copy(&mut source, staging.as_file_mut())?;
     #[cfg(unix)]
@@ -153,13 +168,19 @@ pub(crate) fn persist_copy(
             .as_file()
             .set_permissions(std::fs::Permissions::from_mode(bits))?;
     }
-    persist_synced(staging, dest)
+    match durability {
+        Durability::Synced => persist_synced(staging, dest),
+        Durability::Unsynced => {
+            staging.persist(long_path(dest)?).map_err(|err| err.error)?;
+            Ok(())
+        }
+    }
 }
 
 /// Copies src to dest through a temp file, staged 0644 or 0755 when src is executable.
 pub fn copy_atomic(src: &Path, dest: &Path) -> io::Result<()> {
     let source = File::open(src)?;
-    persist_copy(source, staging_for(dest)?, dest)
+    persist_copy(source, staging_for(dest)?, dest, Durability::Synced)
 }
 
 /// The path spelled so Windows accepts it past the legacy length limit.
@@ -369,6 +390,23 @@ mod tests {
             .permissions()
             .mode()
             & 0o777
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn writes_into_a_directory_it_cannot_read() {
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-write-only-dir-");
+        let dir = scratch.path().join("drop");
+        std::fs::create_dir(&dir).expect("mkdir");
+        chmod(&dir, 0o300);
+        let target = dir.join("out.txt");
+        let first = write_atomic(&target, b"first\n");
+        let second = write_atomic(&target, b"second\n");
+        chmod(&dir, 0o755);
+        first.expect("create in write-only dir");
+        second.expect("replace in write-only dir");
+        assert_eq!(std::fs::read(&target).expect("read back"), b"second\n");
+        scratch.close().expect("cleanup");
     }
 
     #[test]

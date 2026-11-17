@@ -416,7 +416,7 @@ foreach ($assembly in $identities.Keys) {
     }
 }
 
-foreach ($required in @("toolchain\usr\bin\swiftc.exe", "toolchain\usr\bin\llbuildSwift.dll", "toolchain\usr\bin\_InternalSwiftScan.dll", "runtime\usr\bin\swiftCore.dll", "platform\Developer\SDKs\Windows.sdk\usr\lib\swift\windows", "platform\Developer\Library\XCTest-$XCTestVersion\usr", "platform\Developer\Library\Testing-$XCTestVersion\usr\lib\swift\windows\Testing.swiftmodule")) {
+foreach ($required in @("toolchain\usr\bin\swiftc.exe", "toolchain\usr\bin\llvm-cov.exe", "toolchain\usr\bin\llvm-profdata.exe", "toolchain\usr\bin\llbuildSwift.dll", "toolchain\usr\bin\_InternalSwiftScan.dll", "runtime\usr\bin\swiftCore.dll", "platform\Developer\SDKs\Windows.sdk\usr\lib\swift\windows", "platform\Developer\Library\XCTest-$XCTestVersion\usr", "platform\Developer\Library\Testing-$XCTestVersion\usr\lib\swift\windows\Testing.swiftmodule")) {
     if (-not (Test-Path -LiteralPath (Join-Path $Out $required))) { Fail "$required is missing from the extracted layout" }
 }
 

@@ -197,6 +197,8 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files([
     ".swift-version",
+    "toolchain/usr/bin/llvm-cov.exe",
+    "toolchain/usr/bin/llvm-profdata.exe",
     "toolchain/usr/bin/swiftc.exe",
 ])
 

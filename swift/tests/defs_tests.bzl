@@ -94,6 +94,7 @@ def swift_test_coverage_test(name, target_under_test, **kwargs):
         tools_from = select({
             "@platforms//os:linux": "dx_swift",
             "@platforms//os:macos": "_macos",
+            "@platforms//os:windows": "dx_swift_windows",
             "//conditions:default": "",
         }),
         **kwargs

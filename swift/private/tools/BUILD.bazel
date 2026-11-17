@@ -62,6 +62,8 @@ alias(
         actual = select({
             "//swift/private/platforms:is_linux_aarch64": "@dx_swift_linux_aarch64//:usr/bin/llvm-" + tool.replace("_", ""),
             "//swift/private/platforms:is_linux_x86_64": "@dx_swift_linux_x86_64//:usr/bin/llvm-" + tool.replace("_", ""),
+            "//swift/private/platforms:is_windows_aarch64": "@dx_swift_windows_aarch64//:toolchain/usr/bin/llvm-%s.exe" % tool.replace("_", ""),
+            "//swift/private/platforms:is_windows_x86_64": "@dx_swift_windows_x86_64//:toolchain/usr/bin/llvm-%s.exe" % tool.replace("_", ""),
             "@platforms//os:macos": ":llvm_%s_macos" % tool,
             "//conditions:default": "@llvm//tools:llvm-" + tool.replace("_", ""),
         }),

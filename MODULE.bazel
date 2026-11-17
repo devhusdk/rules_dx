@@ -630,7 +630,7 @@ use_repo(
     "prebuilt_protoc.win64",
 )
 
-register_toolchains("//tools/platforms:protoc_windows_arm64")
+register_toolchains("//tools/platforms/protoc:all")
 
 register_toolchains("@dx_powershell_toolchains//:all")
 

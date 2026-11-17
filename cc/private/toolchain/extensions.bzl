@@ -4,6 +4,7 @@ load("@dx_windows_support//windows/private/extensions:msvc_runtime.bzl", "MSVC_R
 load("@dx_windows_support//windows/private/extensions:windows_sdk.bzl", "WINDOWS_SDK_CONFIGURE_ATTRS", "windows_sdk_repository")
 load("//cc/private/toolchain/gcc_repo:defs.bzl", "gcc_declare_toolchain")
 load("//cc/private/toolchain/msvc:extensions.bzl", "msvc_hub")
+load("//core:license.bzl", "ACCEPTED_LABEL")
 load(":hub.bzl", "cc_hub")
 load(":pins.bzl", "GCC_GLIBC", "GCC_LINUX_AARCH64", "GCC_LINUX_X86_64", "GCC_LINUX_X86_64_TO_AARCH64", "GCC_VERSION")
 
@@ -88,7 +89,7 @@ def _cc_impl(mctx):
         extra_known_features = _EXTRA_KNOWN,
     )
     hosts = _host_tools(mctx)
-    msvc_runtime = msvc_runtime_repository(mctx, "dx_msvc_runtime", _tag(mctx, "msvc_runtime"), hosts)
+    msvc_runtime = msvc_runtime_repository(mctx, "dx_msvc_runtime", _tag(mctx, "msvc_runtime"), hosts, Label(ACCEPTED_LABEL))
     windows_sdk = windows_sdk_repository(mctx, "dx_windows_sdk", _tag(mctx, "windows_sdk"), hosts)
     msvc_hub(mctx)
     _hub(name = "dx_cc_toolchains", build = cc_hub())

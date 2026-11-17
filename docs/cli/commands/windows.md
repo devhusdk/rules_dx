@@ -75,15 +75,16 @@ The consumer preset links Rust with rust-lld on Windows. It also sets the host
 and execution platform to `//tools/platforms:windows_msvc_host`, so rustc and
 the C++ toolchain both use the MSVC ABI.
 
-The MSVC runtime and the Windows SDK need their licences accepted. The preset
-does not do that for you. Add this to `user.bazelrc`:
+The MSVC runtime and the Windows SDK need the Visual Studio Build Tools
+license accepted in the root `MODULE.bazel`:
 
-```text
-common:windows --repo_env=BAZEL_MSVC_RUNTIME_VISUAL_STUDIO_EULA=1
-common:windows --repo_env=BAZEL_WINDOWS_SDK_EULA=1
+```python
+dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
+dx_licenses.accept(ids = ["visual-studio-build-tools"])
 ```
 
-Without these lines the toolchain fetch fails and names the missing variable.
+`dx init --apply --accept-license visual-studio-build-tools` writes these lines.
+Without them the toolchain fetch fails and names the license id.
 
 ## Long paths
 

@@ -6,6 +6,7 @@ exports_files([
     "dx_msvc_layout.patch",
     "host_tools.patch",
     "hostarm64_packages.patch",
+    "license_ids.patch",
     "pins.patch",
     "reproducible_extensions.patch",
     "rules_dx_hosts.patch",

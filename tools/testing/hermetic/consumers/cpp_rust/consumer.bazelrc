@@ -4,8 +4,6 @@ build:consumer --copt=-DDX_CONSUMER_CONFIG=1
 build --jvmopt=-Ddx.consumer.choice=kept
 build --enable_platform_specific_config
 common:windows --experimental_override_platform_cpu_name=@my_dx//tools/platforms:windows_msvc_host=wx
-common:windows --repo_env=BAZEL_MSVC_RUNTIME_VISUAL_STUDIO_EULA=1
-common:windows --repo_env=BAZEL_WINDOWS_SDK_EULA=1
 build:windows --per_file_copt=external/protobuf[+]/upb/wire/encode[.]c@-D__SEH__
 build:windows --host_per_file_copt=external/protobuf[+]/upb/wire/encode[.]c@-D__SEH__
 # build, not coverage: the fetch_coverage probe runs build --collect_code_coverage.

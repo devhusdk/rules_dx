@@ -112,10 +112,10 @@ fn consumer(candidate: &Candidate, archive: &Path, registry: &Path) -> Case {
         )
         .as_bytes(),
     );
-    rc.extend_from_slice(crate::quickstart_consumer_test::WINDOWS_LICENCES.as_bytes());
+    rc.extend_from_slice(crate::quickstart_consumer_test::WINDOWS_SYMLINKS.as_bytes());
     write(&root.join(".bazelrc"), &rc);
     let module = format!(
-        "module(name = \"candidate_consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"{}\", repo_name = \"my_dx\")\n{}{}{}{}{}",
+        "module(name = \"candidate_consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"{}\", repo_name = \"my_dx\")\n\ndx_licenses = use_extension(\"@my_dx//core:extensions.bzl\", \"dx_licenses\")\ndx_licenses.accept(ids = [\"visual-studio-build-tools\"])\n{}{}{}{}{}",
         candidate.version(),
         rules_py_override(),
         rules_flutter_override(),

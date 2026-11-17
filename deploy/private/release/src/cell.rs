@@ -31,11 +31,9 @@ pub const CONSUMER_CONFIG_BUILD: &str = "alias(
 )
 ";
 
-/// The Windows flags the repository `.bazelrc` sets: a short output root, symlinks and the MSVC EULAs.
+/// The Windows flags the repository `.bazelrc` sets: a short output root and symlinks.
 const WINDOWS_BAZELRC: &str = "startup --output_user_root=C:/bz
 startup --windows_enable_symlinks
-common --repo_env=BAZEL_MSVC_RUNTIME_VISUAL_STUDIO_EULA=1
-common --repo_env=BAZEL_WINDOWS_SDK_EULA=1
 ";
 
 /// Every check `qualify` records, in run order.
@@ -517,19 +515,17 @@ pub fn stage_consumer(
             .map_err(|error| format!("stage: cannot copy {}: {error}", from.display()))
     };
     let workspace = dir.to_string_lossy().into_owned();
-    ran(
-        runner,
-        exe,
-        &[
-            "init",
-            "--apply",
-            "--no-generate",
-            "--workspace",
-            &workspace,
-        ],
-        &dir,
-    )
-    .map_err(|error| format!("stage: {error}"))?;
+    let mut init = vec![
+        "init",
+        "--apply",
+        "--no-generate",
+        "--workspace",
+        &workspace,
+    ];
+    if windows {
+        init.extend(["--accept-license", "visual-studio-build-tools"]);
+    }
+    ran(runner, exe, &init, &dir).map_err(|error| format!("stage: {error}"))?;
     let written = std::fs::read_to_string(dir.join("MODULE.bazel"))
         .map_err(|error| format!("stage: dx init wrote no MODULE.bazel: {error}"))?;
     let root_path = consumer.checkout.join("MODULE.bazel");

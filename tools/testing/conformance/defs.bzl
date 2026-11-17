@@ -24,6 +24,7 @@ _QUALITY_CONFIG = "default"
 
 _QUALITY_CONFIGS = {
     "dart": "tool_overrides",
+    "flutter": "tool_overrides",
     "julia": "tool_overrides",
     "lua": "tool_overrides",
     "perl": "tool_overrides",
@@ -331,8 +332,8 @@ def _quality_kinds(lang, quality, not_applicable):
         runs = [_compatible_with(lang, test, not_applicable) != ["@platforms//:incompatible"] for test in _QUALITY_TESTS[kind]]
         if not any(runs):
             continue
-        if kind not in QUALITY_SUBJECTS.get(lang, {}):
-            fail("%s: %s tests need a lang.json quality.aspects %s entry, or a pending or not_applicable entry" % (lang, kind, kind))
+        if kind not in QUALITY_SUBJECTS.get(lang, {}) and kind + "_subject" not in quality:
+            fail("%s: %s tests need a lang.json quality.aspects %s entry, a quality %s_subject rule, or a pending or not_applicable entry" % (lang, kind, kind, kind))
         for key in _QUALITY_KEYS[kind]:
             if key not in quality:
                 fail("%s: quality needs %r" % (lang, key))
@@ -346,7 +347,8 @@ def _quality_tests(prefix, lang, quality, not_applicable, size, kwargs):
         source = quality[kind + "_source"]
         text = "%s %d" % (quality["lint_rule"], quality["lint_line"]) if kind == "lint" else ""
         for test, fixture, mode in [(clean, quality["clean"], kind), (error, quality[kind + "_dirty"], kind + "_error")]:
-            _CORE_QUALITY_SUBJECTS.get(lang, QUALITY_SUBJECTS[lang])[kind](
+            subject_rule = quality.get(kind + "_subject") or (_CORE_QUALITY_SUBJECTS[lang] if lang in _CORE_QUALITY_SUBJECTS else QUALITY_SUBJECTS[lang])[kind]
+            subject_rule(
                 name = prefix + test + "_subject",
                 config = _QUALITY_CONFIGS.get(lang, _QUALITY_CONFIG),
                 target = fixture,
@@ -384,6 +386,7 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
     """Declares the conformance tests of one language.
 
     A `cross_runfile` names the runfile, by file stem, whose image cross_test checks instead of the binary's outputs.
+    A quality `<kind>_subject` names the subject rule of a `lint` or `format` kind whose aspect another lang.json declares.
     """
     if lang not in LANGS:
         fail("unknown lang %r" % lang)

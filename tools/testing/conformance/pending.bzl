@@ -181,10 +181,6 @@ flatbuffers lint_test *
 flatbuffers lock_test *
 flatbuffers pass_test *
 flatbuffers runfiles_test *
-flutter format_error_test *
-flutter format_test *
-flutter lint_error_test *
-flutter lint_test *
 flutter runfiles_test *
 fortran cross_test *
 fortran format_error_test *

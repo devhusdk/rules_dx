@@ -1,6 +1,7 @@
 # gazelle:ignore
 load("//flutter:defs.bzl", "flutter_library", "flutter_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+load(":quality.bzl", "flutter_format_subject", "flutter_lint_subject")
 
 package(
     default_testonly = True,
@@ -12,6 +13,20 @@ flutter_library(
     package_name = "conformance",
     srcs = ["lib/greet.dart"],
     deps = ["@dx_flutter_deps//:flutter"],
+)
+
+flutter_library(
+    name = "lint_dirty",
+    package_name = "conformance_lint_dirty",
+    srcs = ["lib/lint_dirty.dart"],
+    tags = ["manual"],
+)
+
+flutter_library(
+    name = "format_dirty",
+    package_name = "conformance_format_dirty",
+    srcs = ["lib/format_dirty.dart"],
+    tags = ["manual"],
 )
 
 flutter_test(
@@ -53,5 +68,16 @@ dx_conformance_suite(
         "lock_test": "flutter has no binary rule that prints to stdout",
     },
     passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "lib/format_dirty.dart",
+        "format_subject": flutter_format_subject,
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 2,
+        "lint_rule": "unused_local_variable",
+        "lint_source": "lib/lint_dirty.dart",
+        "lint_subject": flutter_lint_subject,
+    },
     size = "small",
 )

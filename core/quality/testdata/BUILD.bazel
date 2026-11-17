@@ -1249,11 +1249,9 @@ quality_family(
 
 quality_family(
     name = "tool_override_php_family",
-    disabled = [
-        "audit",
-        "format",
-    ],
+    disabled = ["audit"],
     family_id = "php",
+    format = ["prettier"],
     lint = ["phpcs"],
     typecheck = ["phpstan"],
 )

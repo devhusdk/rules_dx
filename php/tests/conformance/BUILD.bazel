@@ -1,6 +1,7 @@
 load("//php:defs.bzl", "php_binary", "php_library", "php_test")
 load("//php/private/quality:corpus.bzl", "php_corpus")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+load(":quality.bzl", "php_format_subject")
 
 # gazelle:exclude bin
 
@@ -19,6 +20,13 @@ php_library(
     name = "lint_dirty",
     testonly = True,
     srcs = ["src/Conformance/LintDirty.php"],
+    tags = ["manual"],
+)
+
+php_library(
+    name = "format_dirty",
+    testonly = True,
+    srcs = ["src/Conformance/FormatDirty.php"],
     tags = ["manual"],
 )
 
@@ -75,6 +83,9 @@ dx_conformance_suite(
     passing_test = ":pass_subject_test",
     quality = {
         "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "src/Conformance/FormatDirty.php",
+        "format_subject": php_format_subject,
         "lint_dirty": ":lint_dirty",
         "lint_line": 11,
         "lint_rule": "phpcs/Generic.PHP.LowerCaseConstant.Found",

@@ -4,7 +4,7 @@ load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expe
 load("//core:toolchain.bzl", "hub_checks")
 load("//haskell/private/toolchain:packages.bzl", "cabal_libraries", "components", "is_sha256", "package_build", "package_deps", "pin_problems", "render_deps", "tool_labels")
 load("//haskell/private/toolchain:pins.bzl", "CELLS", "GLIBC_FLOOR", "MUSL_CELLS", "qualified_cells")
-load("//haskell/private/toolchain:repos.bzl", "CLOSURE_DIR", "NO_HOST_TOOL", "cell_matches_host", "closure_library_dirs", "drop_host_sdk_dirs", "dropped_import_libs", "ghc_library_dir", "ghc_settings", "host_path", "host_cxx_library_dirs", "hub_files", "musl_wrapper", "os_libraries", "toolchain_libraries")
+load("//haskell/private/toolchain:repos.bzl", "CLOSURE_DIR", "NO_HOST_TOOL", "cell_matches_host", "closure_library_dirs", "drop_host_sdk_dirs", "dropped_import_libs", "ghc_library_dir", "ghc_settings", "host_path", "host_cxx_library_dirs", "hub_files", "links_extra_libraries", "musl_wrapper", "os_libraries", "toolchain_libraries")
 
 _SETTINGS = """[("C compiler command", "/usr/bin/gcc")
 ,("C compiler flags", "--target=x86_64-linux-gnu")
@@ -46,6 +46,11 @@ dynamic-library-dirs:
     ${pkgroot}/../lib/aarch64-osx-ghc-9.10.3
     /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib
 extra-libraries: m dl ffi"""
+
+_RTS_CONF = """name: rts
+library-dirs: ${pkgroot}/../lib/aarch64-linux-ghc-9.10.3/rts-1.0.2
+dynamic-library-dirs: ${pkgroot}/../lib/aarch64-linux-ghc-9.10.3
+extra-libraries: m rt dl ffi"""
 
 def _version_at_least(version, floor):
     return [int(part) for part in version.split(".")] >= [int(part) for part in floor.split(".")]
@@ -134,6 +139,10 @@ def _checks():
         expect_contains("musl unlit takes no extra flags", musl_wrapper("linux_arm64_musl", "unlit-ghc-9.10.3"), "\"$root/bin/unlit-ghc-9.10.3.musl\" \"$@\""),
         expect_equal("musl apks pin sha256", [package.package for package in MUSL_CELLS["linux_arm64_musl"].apks if len(package.sha256) != 64], []),
         expect_equal("host gcc library dirs move into the closure", host_cxx_library_dirs("library-dirs:         /usr/lib/gcc/aarch64-alpine-linux-musl/12.2.1/../../../../lib\nname: x", "dx_closure"), "library-dirs: ${pkgroot}/../dx_closure/lib\nname: x"),
+        expect_equal("closure library dir is added once", closure_library_dirs(closure_library_dirs(_RTS_CONF, CLOSURE_DIR), CLOSURE_DIR), closure_library_dirs(_RTS_CONF, CLOSURE_DIR)),
+        expect_contains("musl rts finds libm in the closure", closure_library_dirs(_RTS_CONF, CLOSURE_DIR), "dynamic-library-dirs: ${pkgroot}/../dx_closure/lib ${pkgroot}/../lib/aarch64-linux-ghc-9.10.3"),
+        expect_true("rts links extra libraries", links_extra_libraries(_RTS_CONF)),
+        expect_false("a conf without extra libraries is left alone", links_extra_libraries("name: x\nlibrary-dirs: y")),
         expect_equal("windows cell gets one gated cc toolchain", hub_files()["BUILD.bazel"].count("@bazel_tools//tools/cpp:toolchain_type"), 1),
         expect_contains("windows cell cc toolchain is gated", hub_files()["BUILD.bazel"], "target_settings = [\"@@//config:toolchains_on\", \"@@//haskell/private/toolchain:ghc_mingw_enabled\"]"),
         expect_true("glibc floor covers the bindist", _version_at_least(GLIBC_FLOOR, "2.28")),

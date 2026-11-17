@@ -328,12 +328,17 @@ def closure_library_dirs(conf, closure):
     for line in conf.split("\n"):
         if line.startswith("library-dirs:") or line.startswith("dynamic-library-dirs:"):
             field, _, value = line.partition(":")
-            line = field + ": " + entry + " " + value.strip()
+            if entry not in value:
+                line = field + ": " + entry + " " + value.strip()
             found += 1
         out.append(line)
     if found != 2:
         fail("package registration has no library-dirs and dynamic-library-dirs pair")
     return "\n".join(out)
+
+def links_extra_libraries(conf):
+    """Returns whether the package .conf text names any extra libraries."""
+    return len([line for line in conf.split("\n") if line.startswith("extra-libraries:")]) > 0
 
 def _execute(rctx, arguments, **kwargs):
     result = rctx.execute(arguments, environment = {"LANG": "C.UTF-8"}, **kwargs)
@@ -476,6 +481,8 @@ def _ghc_repo_impl(rctx):
         if entry.basename.endswith(".conf"):
             conf = rctx.read(entry)
             stripped = host_cxx_library_dirs(drop_host_sdk_dirs(conf), CLOSURE_DIR)
+            if apks and links_extra_libraries(stripped):
+                stripped = closure_library_dirs(stripped, CLOSURE_DIR)
             if stripped != conf:
                 rctx.file(entry, stripped, executable = False)
     _execute(rctx, ["bin/ghc-pkg" + cell.exe_suffix, "recache", "--global"])

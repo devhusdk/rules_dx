@@ -43,7 +43,7 @@ elixir_test(
         "test_helper.exs",
     ],
     target_compatible_with = subject_compatible_with() + ELIXIR_COMPATIBLE_WITH,
-    deps = [":greet_app"],
+    deps = [":hello_app"],
 )
 
 elixir_test(

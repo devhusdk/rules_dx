@@ -7,6 +7,7 @@ package(default_testonly = True)
 _LANGS = [
     "cc",
     "go",
+    "rust",
     "zig",
 ]
 

@@ -75,6 +75,7 @@ The Version column is generated from `MODULE.bazel`, and every patch it applies 
 | `windows_support` | 0.4.1 | `pins.patch` | Root only. `msvc_runtime` reads the Visual Studio installer manifest URL and integrity from the `pins` file when it is set |
 | `apple_support` | 2.12.0 | `gcov_gcno_file.patch` | `GCOV_GCNO_FILE` is set only when `gcov_gcno_file` is available, so `cc_common.get_environment_variables` without it (rules_go `cgo_context_data`, rules_rust build scripts) does not fail analysis on macOS under coverage (drop when an apple_support release has it). Consumer fix: #12155 |
 | `apple_support` | 2.12.0 | `toolchains_gate.patch` | Root only. The Apple C++ toolchains have `target_settings = ["@@//config:toolchains_on"]` |
+| `elfutils` | 0.195 | `musl.patch` | Root only. libdwfl compiles without argp, fts and GNU `strerror_r` on musl, so `//tools/coverage/kcov:kcov_static` links fully static |
 | `rules_go` | 0.65.0 | `lazy_nogo.patch` | Toolchain registration does not load the Go rules, so builds without Go targets never fetch `@io_bazel_rules_nogo`. Consumer fix: #11418 |
 | `rules_go` | 0.65.0 | `lock_extension.patch` | Root only. The `go_sdk` extension is not reproducible, so the lockfile keeps its result per platform |
 | `rules_oci` | 2.3.0 | `descriptor_image.patch` | On a Windows exec platform each layer descriptor action of `oci_image` gets its own `.bat` wrapper and lists `descriptor.sh` as a tool. Consumer fix: #11758 |

@@ -1,7 +1,7 @@
 """Hermetic Erlang/OTP acquisition and toolchain registration."""
 
 load("//core:deb_closure.bzl", "deb_closure")
-load("//core:toolchain.bzl", "toolchain_target")
+load("//core:toolchain.bzl", "cell_repo", "pins_hub")
 load(
     ":pins.bzl",
     "CELLS",
@@ -25,8 +25,6 @@ BIN_TOOLS = ["ct_run", "dialyzer", "erl_call", "erlc", "escript", "typer"]
 
 BOOT_FILES = ["no_dot_erlang.boot", "start_clean.boot", "start_sasl.boot"]
 
-_CELL_PREFIX = "dx_otp_"
-
 _OTP_BUILD = """load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@rules_dx//erlang/private/toolchain:otp.bzl", "dx_otp")
 load("@rules_erlang//tools:erlang_toolchain.bzl", "erlang_toolchain")
@@ -41,7 +39,7 @@ dx_otp(
 )
 
 erlang_toolchain(
-    name = "erlang",
+    name = "toolchain",
     otp = ":otp",
 )
 
@@ -97,7 +95,7 @@ erlang_app(
 
 def cell_repository_name(cell):
     """Returns the repository name one qualified cell is acquired into."""
-    return _CELL_PREFIX + cell
+    return cell_repo(HUB_NAME, cell)
 
 RESTORE_VARIABLE = "DX_ERL_LOADER_RESTORE"
 
@@ -199,17 +197,11 @@ otp_repo = repository_rule(
 
 def hub_build():
     """Returns the hub BUILD file: one Erlang toolchain per qualified cell and the erl_nif alias."""
-    content = ['load("@rules_cc//cc:defs.bzl", "cc_library")\n\npackage(default_visibility = ["//visibility:public"])\n']
-    for cell in sorted(CELLS.keys()):
-        content.append(toolchain_target(
-            name = cell,
-            exec_compatible_with = CELLS[cell].exec_compatible_with,
-            target_compatible_with = CELLS[cell].exec_compatible_with,
-            toolchain = "@{}//:erlang".format(cell_repository_name(cell)),
-            toolchain_type = str(Label("@rules_erlang//tools:toolchain_type")),
-        ))
-    content.append(_HUB_NIF.format(
-        compatible = repr(nif_compatible_cases(CELLS.keys())),
-        deps = repr(nif_header_cases(CELLS.keys())),
-    ))
-    return "\n".join(content)
+    return "\n".join([
+        'load("@rules_cc//cc:defs.bzl", "cc_library")\n\npackage(default_visibility = ["//visibility:public"])\n',
+        pins_hub(HUB_NAME, CELLS.keys(), str(Label("@rules_erlang//tools:toolchain_type")), "both"),
+        _HUB_NIF.format(
+            compatible = repr(nif_compatible_cases(CELLS.keys())),
+            deps = repr(nif_header_cases(CELLS.keys())),
+        ),
+    ])

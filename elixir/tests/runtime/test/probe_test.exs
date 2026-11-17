@@ -16,6 +16,6 @@ defmodule DxRuntimeProbeTest do
   test "runs Elixir from the declared runtime, not the host" do
     elixir = System.find_executable("elixir")
     assert elixir =~ "dx_elixir/bin/elixir"
-    assert :code.root_dir() |> to_string() |> String.contains?("dx_otp_")
+    assert :code.root_dir() |> to_string() |> String.contains?("dx_erlang_toolchains__")
   end
 end

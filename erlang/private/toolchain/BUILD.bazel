@@ -20,13 +20,13 @@ unsupported_value("unsupported")
 build_test(
     name = "otp_windows_arm64",
     target_compatible_with = otp_compatible_with(["windows_arm64"]),
-    targets = ["@dx_otp_windows_arm64//:otp"],
+    targets = ["@dx_erlang_toolchains__windows_arm64//:otp"],
 )
 
 build_test(
     name = "otp_windows_x86_64",
     target_compatible_with = otp_compatible_with(["windows_x86_64"]),
-    targets = ["@dx_otp_windows_x86_64//:otp"],
+    targets = ["@dx_erlang_toolchains__windows_x86_64//:otp"],
 )
 
 real_source_target(

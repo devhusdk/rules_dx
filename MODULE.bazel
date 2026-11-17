@@ -1851,7 +1851,7 @@ use_repo(cuda, "cuda")
 register_toolchains("@cuda//toolchain/...")
 
 erlang = use_extension("//erlang:extensions.bzl", "erlang")
-use_repo(erlang, "dx_erlang_argparse", "dx_erlang_toolchains", "dx_erlperf", "dx_otp_windows_arm64", "dx_otp_windows_x86_64")
+use_repo(erlang, "dx_erlang_argparse", "dx_erlang_toolchains", "dx_erlang_toolchains__windows_arm64", "dx_erlang_toolchains__windows_x86_64", "dx_erlperf")
 
 elixir = use_extension("//elixir:extensions.bzl", "elixir")
 use_repo(elixir, "dx_credo", "dx_elixir", "dx_elixir_toolchains")

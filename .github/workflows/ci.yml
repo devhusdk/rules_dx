@@ -69,6 +69,11 @@ jobs:
           bazel run "$@" //tools/ci/coverage_cells:coverage_cells_bin -- "$GITHUB_WORKSPACE/tools/coverage/cells.txt" "$GITHUB_SHA" "${files[@]}"
   docs:
     name: docs (self-call reusable docs workflow)
+    # ci.yml and docs.yml both deploy Pages from main; a second concurrent
+    # deploy-pages run fails instead of queueing, so they take turns.
+    concurrency:
+      group: docs-pages-${{ github.ref }}
+      cancel-in-progress: false
     uses: ./.github/workflows/reusable-docs.yml
     with:
       docs_scope: "//docs/... //tools/docs/..."

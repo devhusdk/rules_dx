@@ -351,8 +351,7 @@ pub(crate) fn execute_init(
 }
 
 fn dx_on_path() -> bool {
-    std::env::var_os("PATH")
-        .is_some_and(|path| std::env::split_paths(&path).any(|dir| dir.join("dx").is_file()))
+    dx_path::lookup::find(&["dx"]).is_some()
 }
 
 fn dx_runner(on_path: bool) -> &'static str {

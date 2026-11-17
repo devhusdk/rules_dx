@@ -228,12 +228,10 @@ fn spawn_success(argv: &[String]) -> bool {
 /// True when `bin` names a file inside one of the `path` directories, trying
 /// each of `suffixes` after the bare name.
 fn on_path(bin: &str, path: &std::ffi::OsStr, suffixes: &[&str]) -> bool {
-    std::env::split_paths(path).any(|dir| {
-        dir.join(bin).is_file()
-            || suffixes
-                .iter()
-                .any(|suffix| dir.join(format!("{bin}{suffix}")).is_file())
-    })
+    let names: Vec<String> = std::iter::once(bin.to_owned())
+        .chain(suffixes.iter().map(|suffix| format!("{bin}{suffix}")))
+        .collect();
+    dx_path::lookup::find_in(path, &names).is_some()
 }
 
 fn exe_available(bin: &str) -> bool {

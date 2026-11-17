@@ -557,13 +557,13 @@ jobs:
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel test --noshow_progress --test_output=errors "$@" //cc/tests/llvm_windows_cross:all
           mkdir -p "$RUNNER_TEMP/llvm-windows"
-          for lang in cc go rust zig; do
+          for lang in cc go rust rust_opt zig; do
             file="$(bazel cquery --noshow_progress "$@" --output=files "//cc/tests/llvm_windows_cross:$lang" 2>/dev/null)"
             test "$(printf '%s\n' "$file" | wc -l)" -eq 1
             cp "$file" "$RUNNER_TEMP/llvm-windows/$lang.exe"
           done
           find "$RUNNER_TEMP/llvm-windows" -type f
-          test "$(find "$RUNNER_TEMP/llvm-windows" -type f | wc -l)" -eq 4
+          test "$(find "$RUNNER_TEMP/llvm-windows" -type f | wc -l)" -eq 5
       - name: Check the upload holds no secret
         id: scan-llvm-windows-fixtures
         uses: ./.github/actions/assert-no-secret
@@ -601,7 +601,7 @@ jobs:
         run: |
           set -eu
           cd "$RUNNER_TEMP/llvm-windows"
-          for lang in cc go rust zig; do
+          for lang in cc go rust rust_opt zig; do
             out="$("./$lang.exe" | tr -d '\r')"
             echo "$lang: $out"
             test "$out" = "hello world"

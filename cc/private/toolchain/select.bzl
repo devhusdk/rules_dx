@@ -94,12 +94,13 @@ def _files_transition_impl(settings, attr, _platforms):
     return {
         _COMPILER: attr.compiler,
         _FEATURES: features,
+        _MODE: getattr(attr, "compilation_mode", "") or settings[_MODE],
     }
 
 _files_transition = platforms_transition(
     _files_transition_impl,
-    inputs = [_FEATURES],
-    outputs = [_COMPILER, _FEATURES],
+    inputs = [_FEATURES, _MODE],
+    outputs = [_COMPILER, _FEATURES, _MODE],
 )
 
 def _files_impl(ctx):
@@ -126,6 +127,7 @@ cc_toolchain_binary = rule(
     doc = "Exposes one executable built with the selected compiler for the given platforms, so consumer_archive can package it.",
     attrs = {
         "binary": attr.label(doc = "Executable to build.", executable = True, cfg = _files_transition, mandatory = True),
+        "compilation_mode": attr.string(doc = "Compilation mode to build with, or empty to keep the command line value.", values = ["", "dbg", "fastbuild", "opt"]),
         "compiler": attr.string(doc = "Compiler flag value to build with.", mandatory = True),
         "extra_features": attr.string_list(doc = "Features to enable on top of the command line features, such as dynamic_libstdcxx.", default = []),
         "platforms": attr.string_list(doc = "Target platform labels.", mandatory = True),

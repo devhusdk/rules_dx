@@ -506,3 +506,12 @@ dx_wrapper_contract_tests(
     ],
     file_classes = ["java"],
 )
+
+test_suite(
+    name = "fixture_tests",
+    testonly = True,
+    tests = [
+        "//java/tests/fixtures/adopt_java/greet:greet_test",
+        "//java/tests/fixtures/adopt_java/solo:pure_test",
+    ],
+)

@@ -51,3 +51,12 @@ dx_wrapper_contract_tests(
         "java",
     ],
 )
+
+test_suite(
+    name = "fixture_tests",
+    testonly = True,
+    tests = [
+        "//scala/tests/fixtures/adopt_scala/greet:greet_test",
+        "//scala/tests/fixtures/adopt_scala/solo:pure_test",
+    ],
+)

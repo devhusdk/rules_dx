@@ -34,3 +34,12 @@ dx_wrapper_contract_tests(
     size = "small",
     file_classes = ["powershell"],
 )
+
+test_suite(
+    name = "fixture_tests",
+    testonly = True,
+    tests = [
+        "//powershell/tests/fixtures/adopt_powershell/greet:greet_test",
+        "//powershell/tests/fixtures/adopt_powershell/solo:pure_test",
+    ],
+)

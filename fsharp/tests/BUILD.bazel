@@ -107,3 +107,12 @@ dx_wrapper_contract_tests(
     ],
     file_classes = ["fsharp"],
 )
+
+test_suite(
+    name = "fixture_tests",
+    testonly = True,
+    tests = [
+        "//fsharp/tests/fixtures/adopt_fsharp/greet:greet_test",
+        "//fsharp/tests/fixtures/adopt_fsharp/solo:pure_test",
+    ],
+)

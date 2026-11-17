@@ -65,6 +65,7 @@ jmh_inner_attr_test(
         "_jmh_lib",
         "_jmh_resources",
         "_jmh_runner",
+        "_jmh_runner_src",
     ],
     tags = ["bench-inner"],
     target_compatible_with = ["@platforms//:incompatible"],

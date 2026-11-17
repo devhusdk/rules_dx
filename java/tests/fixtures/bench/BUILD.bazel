@@ -79,6 +79,7 @@ jmh_inner_attr_test(
         "_bin_upstream",
         "_jmh_processor",
         "_jmh_runner",
+        "_jmh_runner_src",
     ],
     tags = ["bench-inner"],
     target_compatible_with = ["@platforms//:incompatible"],

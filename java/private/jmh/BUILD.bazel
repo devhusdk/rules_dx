@@ -1,8 +1,8 @@
 load("@rules_java//java:defs.bzl", "java_binary")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//:__subpackages__"])
 
-exports_files(["JmhRunner.java"])
+exports_files(["JmhRunner.java"], visibility = ["//:__subpackages__"])
 
 java_binary(
     name = "jmh_generate",

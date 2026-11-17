@@ -8,6 +8,6 @@ final class Greet
 {
     public static function greet(string $name): string
     {
-        return 'hello ' . $name;
+        return "hello " . $name;
     }
 }

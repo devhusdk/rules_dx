@@ -76,8 +76,9 @@ resolve by PHP's lexical rules: the current namespace and the `use` aliases.
 
 ## Quality
 
-PHP sources form the `php` class, so `dx check` sees them. No formatter runs
-yet. Until the formatter lands, the PHP rules add the `no-format` tag to every target.
+PHP sources form the `php` class, so `dx check` sees them. Prettier with
+`@prettier/plugin-php` formats `php` targets. Select `prettier` in the `format`
+list of a `php` family.
 
 PHP_CodeSniffer 4.0.4 lints `php` targets against PSR12 or a bound ruleset.
 Select `phpcs` in a `php` family. The tool flag overrides the pinned binary:

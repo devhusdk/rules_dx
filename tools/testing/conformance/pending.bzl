@@ -267,8 +267,6 @@ ocaml lint_error_test *
 ocaml lint_test *
 ocaml runfiles_test *
 perl runfiles_test *
-php format_error_test *
-php format_test *
 php runfiles_test *
 powershell runfiles_test *
 python runfiles_test *

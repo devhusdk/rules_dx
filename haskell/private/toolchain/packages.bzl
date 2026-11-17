@@ -8,6 +8,13 @@ _DEFS = str(Label("//haskell/private:defs.bzl"))
 
 _TOOLCHAINS = "@dx_haskell_toolchains//lib"
 
+_WINDOWS_EXE_CABALOPTS = [
+    "--ghc-option=-optl-Wl,--disable-dynamicbase",
+    "--ghc-option=-optl-Wl,--disable-high-entropy-va",
+]
+
+EXE_CABALOPTS = "cabalopts = select({})".format(repr({"@platforms//os:windows": _WINDOWS_EXE_CABALOPTS, "//conditions:default": []}))
+
 def cabal_url(package):
     """Returns the URL of the pinned .cabal revision of a lock package."""
     return "https://hackage.haskell.org/package/{}-{}/revision/{}.cabal".format(
@@ -198,7 +205,7 @@ def package_build(name, version, components, deps, tools, libraries):
         lines.append(_target("haskell_cabal_library", name, common + _cabal_args(libraries.get("", {})), lib_deps, tools))
     for exe in executables({"extra": {"cabal_components": components}}):
         exe_deps = deps + ([":" + name] if has_lib else []) + [":" + sublibrary_target(name, sub) for sub in sublibs]
-        lines.append(_target("haskell_cabal_binary", "{}-exe-{}".format(name, exe), ['exe_name = "{}"'.format(exe)], exe_deps, tools))
+        lines.append(_target("haskell_cabal_binary", "{}-exe-{}".format(name, exe), ['exe_name = "{}"'.format(exe), EXE_CABALOPTS], exe_deps, tools))
     return "\n".join(lines)
 
 def hub_build(hub, lock):

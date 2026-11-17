@@ -1,7 +1,7 @@
 load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
-load("//powershell:defs.bzl", "powershell_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//core/quality:unavailable_tool.bzl", "dx_unavailable_tool")
+load("//powershell:defs.bzl", "powershell_test")
 load(":host_swift.bzl", "swift_host_launcher")
 load(":swift_tool.bzl", "swift_format_tool", "swift_format_windows")
 load(":swift_tool_tests.bzl", "swift_format_copy_test")

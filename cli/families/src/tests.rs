@@ -133,3 +133,23 @@ fn setup_flags_follow_the_named_languages() {
         [] as [(std::string::String, std::vec::Vec<std::string::String>); 0]
     );
 }
+
+#[test]
+fn quality_marks_list_each_quality_language_with_its_files() {
+    let marks = quality_marks();
+    assert_eq!(marks.len(), quality_languages_by_name());
+    let dockerfile = marks
+        .iter()
+        .find(|entry| entry.language == "dockerfile")
+        .expect("dockerfile has a quality entry");
+    assert!(dockerfile.marks.iter().any(|mark| mark == ".dockerfile"));
+    assert!(dockerfile.marks.iter().any(|mark| mark == "Dockerfile"));
+    assert!(marks.iter().all(|entry| !entry.marks.is_empty()));
+}
+
+fn quality_languages_by_name() -> usize {
+    shipped()
+        .iter()
+        .filter(|manifest| manifest.quality.is_some())
+        .count()
+}

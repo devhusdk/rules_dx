@@ -3,54 +3,46 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
-/// The quality families of `dx.toml` and the files that mean one is present: an extension with
-/// its dot, or an exact file name. Families found only by file content are left out.
-const QUALITY_FAMILIES: &[(&str, &[&str])] = &[
-    ("astro", &[".astro"]),
-    ("bicep", &[".bicep"]),
-    (
-        "cc",
-        &[
-            ".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx", ".ipp", ".inl",
-        ],
-    ),
+/// The `dx.toml` families without a `lang.json` `quality` entry and the files that mean one is
+/// present: an extension with its dot, or an exact file name.
+const OTHER_FAMILIES: &[(&str, &[&str])] = &[
     ("core", &[".yaml", ".yml"]),
-    ("d", &[".d"]),
-    ("dart", &[".dart"]),
-    ("dockerfile", &["Dockerfile", ".dockerfile"]),
-    ("fortran", &[".f", ".f03", ".f08", ".f90", ".f95"]),
-    ("go", &[".go"]),
     ("graphql", &[".gql", ".graphql"]),
-    ("haskell", &[".hs"]),
     ("helm", &["Chart.yaml"]),
     ("html", &[".htm", ".html"]),
-    ("java", &[".java"]),
-    ("javascript", &[".cjs", ".js", ".jsx", ".mjs"]),
     ("json", &[".json"]),
-    ("julia", &[".jl"]),
-    ("kotlin", &[".kt", ".kts"]),
     ("markdown", &[".md"]),
-    ("mdx", &[".mdx"]),
     ("nix", &[".nix"]),
-    ("ocaml", &[".ml", ".mli"]),
-    ("powershell", &[".ps1", ".psd1", ".psm1"]),
-    ("python", &[".py", ".pyi"]),
-    ("rust", &[".rs"]),
-    ("scala", &[".sc", ".scala"]),
     ("shell", &[".bash", ".sh"]),
     (
         "starlark",
         &[".bazel", ".bzl", ".star", "BUILD", "WORKSPACE"],
     ),
-    ("svelte", &[".svelte"]),
-    ("swift", &[".swift"]),
     ("text", &[".txt"]),
     ("toml", &[".toml"]),
-    ("typescript", &[".cts", ".mts", ".ts", ".tsx"]),
-    ("vue", &[".vue"]),
     ("yaml", &[".yaml", ".yml"]),
-    ("zig", &[".zig"]),
 ];
+
+/// Each `lang.json` quality language with the files that no other quality language lists.
+fn language_marks() -> Vec<(&'static str, Vec<&'static str>)> {
+    let languages = dx_families::quality_marks();
+    languages
+        .iter()
+        .map(|language| {
+            let own = language
+                .marks
+                .iter()
+                .filter(|mark| {
+                    !languages.iter().any(|other| {
+                        other.language != language.language && other.marks.contains(*mark)
+                    })
+                })
+                .map(String::as_str)
+                .collect();
+            (language.language.as_str(), own)
+        })
+        .collect()
+}
 
 /// The `[families.<id>]` ids of `dx.toml` whose files occur under `root`.
 #[must_use]
@@ -66,8 +58,11 @@ pub fn detected_families(root: &Path) -> BTreeSet<String> {
         }
         names.insert(name.to_owned());
     }
-    let mut found: BTreeSet<String> = QUALITY_FAMILIES
+    let languages = language_marks();
+    let mut found: BTreeSet<String> = OTHER_FAMILIES
         .iter()
+        .map(|(id, marks)| (*id, marks.to_vec()))
+        .chain(languages)
         .filter(|(_, marks)| {
             marks.iter().any(|mark| {
                 if mark.starts_with('.') {
@@ -77,7 +72,7 @@ pub fn detected_families(root: &Path) -> BTreeSet<String> {
                 }
             })
         })
-        .map(|(id, _)| (*id).to_owned())
+        .map(|(id, _)| id.to_owned())
         .collect();
     if dx_families::hub("go").is_some_and(|hub| names.contains(hub.manifest.as_str())) {
         found.insert("go_module".to_owned());
@@ -228,6 +223,33 @@ mod tests {
             detected_families(dir.path()),
             BTreeSet::from(["dockerfile", "python", "rust"].map(str::to_owned))
         );
+    }
+
+    #[test]
+    fn languages_with_shared_files_only_are_not_detected_by_file() {
+        let dir = scratch("dx-shared-families-");
+        write(dir.path(), "deploy.yaml", "");
+        write(dir.path(), "app.lua", "");
+        write(dir.path(), "kernel.cu", "");
+        let found = detected_families(dir.path());
+        assert!(found.contains("lua"), "{found:?}");
+        assert!(found.contains("cc"), "{found:?}");
+        assert!(found.contains("yaml"), "{found:?}");
+        for content_only in ["ansible", "kubernetes", "cloudformation"] {
+            assert!(!found.contains(content_only), "{found:?}");
+        }
+    }
+
+    #[test]
+    fn other_families_have_no_lang_json_quality_entry() {
+        for (id, _) in OTHER_FAMILIES {
+            assert!(
+                dx_families::quality_marks()
+                    .iter()
+                    .all(|language| language.language != *id),
+                "{id} has a lang.json quality entry; drop its OTHER_FAMILIES row"
+            );
+        }
     }
 
     fn workspace(files: &[&str], with_git: bool) -> dx_test_scratch::TempDir {

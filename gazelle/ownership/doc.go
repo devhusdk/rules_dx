@@ -10,5 +10,8 @@
 // for each oci_image rule in a BUILD file, named after the image with a
 // _quality suffix, and an appimage_package named <name>_appimage for each
 // <name>.desktop file with a <name>.png or <name>.svg icon and a notice file
-// beside it, packaging the one *_binary rule of the directory.
+// beside it, packaging the one *_binary rule of the directory, and an
+// msix_package named <binary>_msix for a Package.appxmanifest with an identity
+// name, publisher, version and PNG logo path and a notice file beside it, packaging
+// the same one *_binary rule.
 package ownership

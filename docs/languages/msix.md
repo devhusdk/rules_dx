@@ -4,13 +4,16 @@
 
 ## Install
 
-Add `rules_dx` to `MODULE.bazel`:
+Run `dx init --apply` in the repository, as in the [Quickstart](../../README.md#quickstart).
+
+For a MSIX project it writes this `MODULE.bazel`, tested in [`msix/tests/consumer`](../../msix/tests/consumer/consumer.MODULE.bazel):
 
 ```python
+# dx: yours; dx adds its missing lines
+module(name = "my_project")
+
 bazel_dep(name = "rules_dx", version = "<version>")
 ```
-
-Then run `dx init --apply`, as in the [Quickstart](../../README.md#quickstart).
 
 Load the rules from `@rules_dx//msix:defs.bzl`:
 
@@ -83,6 +86,11 @@ msix_sign(
     package = ":app",
 )
 ```
+
+`dx init` and `tools/dx generate` write `<binary>_msix` for a directory that
+holds a `Package.appxmanifest` whose `Logo` is a PNG path in the directory, a `NOTICE`, `LICENSE` or
+`COPYING` file and exactly one `*_binary` target. The `Identity` `Name`,
+`Publisher` and `Version` and the `DisplayName` come from the manifest.
 
 Attributes:
 

@@ -1,0 +1,18 @@
+load("@rules_dx//go:defs.bzl", "go_binary")
+load("@rules_dx//msix:defs.bzl", "msix_package")
+
+go_binary(
+    name = "msix_app",
+    srcs = ["main.go"],
+)
+
+msix_package(
+    name = "msix_app_msix",
+    binary = ":msix_app",
+    display_name = "Hello",
+    identity_name = "Example.Hello",
+    logo = "logo.png",
+    notice = ["NOTICE.txt"],
+    publisher = "CN=Example",
+    version = "1.0.0.0",
+)

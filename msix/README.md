@@ -38,6 +38,11 @@ msix_sign(
 )
 ```
 
+`dx init` and `tools/dx generate` write `<binary>_msix` for a directory that
+holds a `Package.appxmanifest` whose `Logo` is a PNG path in the directory, a `NOTICE`, `LICENSE` or
+`COPYING` file and exactly one `*_binary` target. The `Identity` `Name`,
+`Publisher` and `Version` and the `DisplayName` come from the manifest.
+
 Attributes:
 
 - `platform`: a Windows platform label such as `@rules_dx//msix:windows_arm64`. Builds

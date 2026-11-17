@@ -37,6 +37,7 @@ CONSUMER_FIXTURES = [
     "lua",
     "make",
     "mdx",
+    "msix",
     "ocaml",
     "perl",
     "php",

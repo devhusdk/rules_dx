@@ -103,7 +103,8 @@ pub fn write_atomic(path: &Path, content: &[u8]) -> io::Result<()> {
     write_staged(path, content, Durability::Synced)
 }
 
-/// Like [`write_atomic`] without the disk syncs, for scratch trees thrown away after the run.
+/// Like [`write_atomic`] without the disk syncs, for files a crash may lose: scratch trees
+/// thrown away after the run, and Bazel action outputs, which Bazel re-checks by digest.
 pub fn write_scratch(path: &Path, content: &[u8]) -> io::Result<()> {
     write_staged(path, content, Durability::Unsynced)
 }

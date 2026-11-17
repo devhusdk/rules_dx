@@ -1,6 +1,10 @@
 load("@crates//:crates.bzl", "aliases")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//apple/private/xcode:license.bzl", "xcode_license")
+load("//apple/private/xcode:repos.bzl", "UNACCEPTED")
+load("//core:failure_test.bzl", "failure_test")
 load("//rust:defs.bzl", "rust_test")
+load(":license_tests.bzl", "apple_license_tests")
 load(":platform_config_tests.bzl", "apple_platform_config_test")
 load(":toolchain_tests.bzl", "apple_ios_tests")
 
@@ -30,6 +34,29 @@ apple_ios_tests(
     size = "small",
 )
 
+apple_license_tests(
+    name = "xcode_license_metadata",
+    size = "small",
+)
+
+xcode_license(
+    name = "accepted_xcode_license",
+    testonly = True,
+)
+
+xcode_license(
+    name = "unaccepted_xcode_license",
+    testonly = True,
+    error = UNACCEPTED,
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "unaccepted_xcode_license_fails",
+    expected_failure_substring = "Xcode and Apple SDKs Agreement (https://www.apple.com/legal/sla/docs/xcode.pdf) is not accepted",
+    target = ":unaccepted_xcode_license",
+)
+
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
@@ -37,6 +64,7 @@ real_source_target(
         "BUILD.bazel",
         "cell_tests.bzl",
         "ios_lib_tests.bzl",
+        "license_tests.bzl",
         "platform_config_tests.bzl",
         "toolchain_tests.bzl",
     ],

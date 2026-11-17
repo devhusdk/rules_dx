@@ -2,6 +2,7 @@
 
 load("@platforms//host:constraints.bzl", "HOST_CONSTRAINTS")
 load("@rules_dx//core:platform_support.bzl", "compatible_with", "platform_support")
+load("//apple/private/xcode:license.bzl", "XCODE_LICENSE_ATTR")
 
 MULTI_CPUS = {
     "device/arm64": "arm64",
@@ -70,4 +71,5 @@ CELL_ATTRS = {
             fragment = "apple",
         ),
     ),
+    "_xcode_license": XCODE_LICENSE_ATTR,
 }

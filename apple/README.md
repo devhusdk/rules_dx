@@ -1,7 +1,13 @@
 # Apple
 
-Accept the Xcode license once with the `apple-xcode-license` tag. Loading
-these rules changes no toolchain.
+Accept the Xcode and Apple SDKs Agreement once in the root `MODULE.bazel`.
+Without it every Apple rule fails analysis and names the id. Loading these
+rules changes no toolchain.
+
+```python
+dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
+dx_licenses.accept(ids = ["apple-xcode-license"])
+```
 
 ## Packaging
 

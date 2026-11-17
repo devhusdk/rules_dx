@@ -1,5 +1,6 @@
 """Explicit device export launchers that never run at build time."""
 
+load("//apple/private/xcode:license.bzl", "XCODE_LICENSE_ATTR")
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
 load("//core:rlocation.bzl", "rlocation_path")
 load(":app.bzl", "AppleIosDeviceAppInfo")
@@ -56,6 +57,7 @@ _export = rule(
         "_xcode_config": attr.label(
             default = configuration_field(name = "xcode_config_label", fragment = "apple"),
         ),
+        "_xcode_license": XCODE_LICENSE_ATTR,
     } | NATIVE_LAUNCHER_ATTRS,
     executable = True,
     fragments = ["apple"],

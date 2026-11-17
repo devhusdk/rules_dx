@@ -9,6 +9,7 @@ load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//apple/private/bundle:defs.bzl", "EXTRA_TOOLCHAINS_SETTING", "NO_PATH", "SIGNING_CERTIFICATE", "apple_extra_toolchains", "archives", "check_cell", "display", "flat_resources", "label_text", "resolved_xcode")
 load("//apple/private/bundle:pins.bzl", "MACOS_DEPLOYMENT", "XCODE_VERSION")
+load("//apple/private/xcode:license.bzl", "XCODE_LICENSE_ATTR")
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
 load("//core:platform.bzl", "PLATFORM_ATTRS", "platform_identity")
 load("//core:resources.bzl", "dx_heavy_resources")
@@ -161,6 +162,7 @@ _macos_cell = rule(
                 fragment = "apple",
             ),
         ),
+        "_xcode_license": XCODE_LICENSE_ATTR,
     },
     fragments = ["apple"],
 )
@@ -317,6 +319,7 @@ _macos_app_check = rule(
                 fragment = "apple",
             ),
         ),
+        "_xcode_license": XCODE_LICENSE_ATTR,
     } | PLATFORM_ATTRS | NATIVE_LAUNCHER_ATTRS,
     executable = True,
     fragments = ["apple"],

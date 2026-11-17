@@ -1,0 +1,7 @@
+load("@rules_dx//fortran:defs.bzl", "fortran_library")
+
+fortran_library(
+    name = "fortran",
+    srcs = ["kinds.f90"],
+    visibility = ["//visibility:public"],
+)

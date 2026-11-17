@@ -32,6 +32,8 @@ type family struct {
 	isSource func(name string) bool
 	// sniff, when set, must also accept the first sniffBytes of the file.
 	sniff func(head []byte) bool
+	// buildable, when set, must accept the directory's matching files together.
+	buildable func(dir string, srcs []string) bool
 }
 
 const sniffBytes = 4096
@@ -42,22 +44,27 @@ var (
 	apiSpecRoot     = regexp.MustCompile(`(?m)^(?:openapi|asyncapi):`)
 	k8sAPIVersion   = regexp.MustCompile(`(?m)^apiVersion:`)
 	k8sKind         = regexp.MustCompile(`(?m)^kind:`)
+	fortranProgram  = regexp.MustCompile(`(?im)^[ \t]*program[ \t]+\w`)
+	fortranUse      = regexp.MustCompile(`(?im)^[ \t]*use\b[ \t]*(,[ \t]*(\w+)[ \t]*::|::)?[ \t]*(\w+)`)
 )
 
+var fortranIntrinsicModules = []string{"iso_c_binding", "iso_fortran_env", "ieee_arithmetic", "ieee_exceptions", "ieee_features"}
+
 var families = []family{
-	{"dockerfile_library", "dockerfile", "dockerfile:defs.bzl", isDockerfile, nil},
-	{"cmake_library", "cmake", "cmake:defs.bzl", isCMake, nil},
-	{"bicep_library", "bicep", "bicep:defs.bzl", isBicep, nil},
-	{"asciidoc_library", "asciidoc", "asciidoc:defs.bzl", isAsciiDoc, nil},
-	{"ansible_library", "ansible", "ansible:defs.bzl", isYAML, isAnsiblePlaybook},
-	{"cloudformation_library", "cloudformation", "cloudformation:defs.bzl", isYAML, isCloudFormation},
-	{"rst_library", "rst", "rst:defs.bzl", isRst, nil},
-	{"sql_library", "sql", "sql:defs.bzl", isSQL, nil},
-	{"make_library", "make", "make:defs.bzl", isMake, nil},
-	{"terraform_library", "terraform", "terraform:defs.bzl", isTerraform, nil},
-	{"kubernetes_library", "kubernetes", "kubernetes:defs.bzl", isYAML, isKubernetes},
-	{"api_spec_library", "api_spec", "api_spec:defs.bzl", isYAML, isAPISpec},
-	{"helm_library", "helm", "helm:defs.bzl", isHelmChart, nil},
+	{"dockerfile_library", "dockerfile", "dockerfile:defs.bzl", isDockerfile, nil, nil},
+	{"cmake_library", "cmake", "cmake:defs.bzl", isCMake, nil, nil},
+	{"bicep_library", "bicep", "bicep:defs.bzl", isBicep, nil, nil},
+	{"asciidoc_library", "asciidoc", "asciidoc:defs.bzl", isAsciiDoc, nil, nil},
+	{"ansible_library", "ansible", "ansible:defs.bzl", isYAML, isAnsiblePlaybook, nil},
+	{"cloudformation_library", "cloudformation", "cloudformation:defs.bzl", isYAML, isCloudFormation, nil},
+	{"rst_library", "rst", "rst:defs.bzl", isRst, nil, nil},
+	{"sql_library", "sql", "sql:defs.bzl", isSQL, nil, nil},
+	{"make_library", "make", "make:defs.bzl", isMake, nil, nil},
+	{"terraform_library", "terraform", "terraform:defs.bzl", isTerraform, nil, nil},
+	{"kubernetes_library", "kubernetes", "kubernetes:defs.bzl", isYAML, isKubernetes, nil},
+	{"api_spec_library", "api_spec", "api_spec:defs.bzl", isYAML, isAPISpec, nil},
+	{"helm_library", "helm", "helm:defs.bzl", isHelmChart, nil, nil},
+	{"fortran_library", "fortran", "fortran:defs.bzl", isFortran, isFortranModule, fortranSelfContained},
 }
 
 // isDockerfile matches the names is_dockerfile_name in core/quality/sources.bzl accepts.
@@ -110,6 +117,16 @@ func isHelmChart(name string) bool {
 	return name == "Chart.yaml"
 }
 
+// isFortran matches the file_extensions in fortran/lang.json.
+func isFortran(name string) bool {
+	for _, suffix := range []string{".f", ".f03", ".f08", ".f90", ".f95"} {
+		if strings.HasSuffix(name, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
 func isYAML(name string) bool {
 	return strings.HasSuffix(name, ".yml") || strings.HasSuffix(name, ".yaml")
 }
@@ -119,6 +136,33 @@ func isAnsiblePlaybook(head []byte) bool { return ansiblePlaybook.Match(head) }
 func isKubernetes(head []byte) bool { return k8sAPIVersion.Match(head) && k8sKind.Match(head) }
 
 func isAPISpec(head []byte) bool { return apiSpecRoot.Match(head) }
+
+func isFortranModule(head []byte) bool { return !fortranProgram.Match(head) }
+
+// fortranSelfContained reports whether every use statement in srcs names an
+// intrinsic module.
+func fortranSelfContained(dir string, srcs []string) bool {
+	for _, name := range srcs {
+		data, err := os.ReadFile(filepath.Join(dir, name))
+		if err != nil || !fortranUsesOnlyIntrinsics(data) {
+			return false
+		}
+	}
+	return true
+}
+
+func fortranUsesOnlyIntrinsics(src []byte) bool {
+	for _, m := range fortranUse.FindAllSubmatch(src, -1) {
+		nature := strings.ToLower(string(m[2]))
+		if nature == "intrinsic" {
+			continue
+		}
+		if nature == "non_intrinsic" || !slices.Contains(fortranIntrinsicModules, strings.ToLower(string(m[3]))) {
+			return false
+		}
+	}
+	return true
+}
 
 func isCloudFormation(head []byte) bool { return cfnTemplate.Match(head) }
 
@@ -155,6 +199,7 @@ func kinds() map[string]rule.KindInfo {
 func generate(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
 	var result language.GenerateResult
 	var claimants []common.Claimant
+	unbuildable := map[string]bool{}
 	for _, f := range families {
 		var srcs []string
 		for _, name := range args.RegularFiles {
@@ -163,6 +208,10 @@ func generate(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep co
 			}
 		}
 		if len(srcs) == 0 || handwritten(args.File, f, srcs) {
+			continue
+		}
+		if f.buildable != nil && !f.buildable(args.Dir, srcs) {
+			unbuildable[f.kind] = true
 			continue
 		}
 		sort.Strings(srcs)
@@ -191,7 +240,7 @@ func generate(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep co
 		return language.GenerateResult{}
 	}
 	return common.MergeStaleOwned(args.File, result, kinds, func(existing *rule.Rule) bool {
-		return slices.ContainsFunc(families, func(f family) bool {
+		return !unbuildable[existing.Kind()] && slices.ContainsFunc(families, func(f family) bool {
 			return f.kind == existing.Kind() && (f.target == existing.Name() || len(existing.AttrStrings("srcs")) == 0)
 		}) || ociStale(existing, images)
 	})

@@ -5,43 +5,44 @@ cd "${RUNFILES_DIR:-$0.runfiles}" 2>/dev/null || true
 weeder=$(runfile "/_install/bin/weeder.exe")
 ghc=$(runfile "dx_ghc_windows_x86_64/bin/ghc.exe")
 bin=$(dirname "$(runfile "/mingw/bin/clang.exe")")
-echo "weeder=$weeder ghc=$ghc mingw_bin=$bin"
-work="${TEST_TMPDIR:-$(mktemp -d)}"
-mkdir -p "$work/src" "$work/hie"
-printf 'module Main (main) where\n\nunused :: Int\nunused = 1\n\nmain :: IO ()\nmain = pure ()\n' > "$work/src/Main.hs"
-printf 'roots = ["^Main.main$"]\ntype-class-roots = true\n' > "$work/weeder.toml"
-echo "== ghc -fno-code -fwrite-ide-info"
-( cd "$work" && "$ghc" -fno-code -fwrite-ide-info -hiedir hie src/Main.hs; echo "exit $?" )
-for args in "--help" "--version" "--version +RTS -N1 -RTS" "--hie-directory $work/hie" "--hie-directory $work/hie +RTS -N1 -RTS"; do
-  echo "== weeder $args"
-  ( cd "$work" && "$weeder" $args; echo "exit $?" ) 2>&1 | tee -a "$work/crash.txt" | head -40
-done
+export PATH="$bin:$PATH"
 od=$bin/llvm-objdump.exe
 ro=$bin/llvm-readobj.exe
-pref=$("$od" -p "$weeder" | awk '/ImageBase/ {print $2; exit}')
-pref=$((0x$pref))
-echo "== sections"
-"$ro" --sections "$weeder" | grep -E "^ +(Name|VirtualSize|VirtualAddress|RawDataSize|PointerToRawData):"
-line=$(grep -m1 -o '0x[0-9a-f]* *[^ ]*weeder.exe+0x[0-9a-f]*' "$work/crash.txt")
-abs=$(echo "$line" | awk '{print $1}')
-rel=$(echo "$line" | sed 's/.*+//')
-crash=$(grep -m1 -o 'executing data at 0x[0-9a-f]*' "$work/crash.txt" | awk '{print $4}')
-[ -n "$crash" ] && [ -n "$abs" ] || { echo "no crash frame"; exit 1; }
-base=$((abs - rel))
-off=$((crash - base))
-low=$((off & 0xffffffff))
-printf '== load base 0x%x crash offset 0x%x low32 0x%x pref 0x%x\n' $base $off $low $pref
-bad=$((pref + off)); good=$((pref + low))
-printf '== disasm at intended target 0x%x\n' $good
-"$od" -d --start-address=$((good - 0x40)) --stop-address=$((good + 0x40)) "$weeder" | tail -40
-echo "== qwords in file equal to bad 0x$(printf %x $bad) or good 0x$(printf %x $good)"
-od -A x -t x8 -v "$weeder" | awk -v a="$(printf %016x $bad)" -v b="$(printf %016x $good)" '{for(i=2;i<=NF;i++) if($i==a||$i==b) {printf "fileoff 0x%x %s\n", strtonum("0x"$1)+(i-2)*8, $i; n++} if(n>20) exit}'
-echo "== dwords in file equal to 0x$(printf %x $low) or rva-from-low32 0x$(printf %x $((low)))"
-od -A x -t x4 -v "$weeder" | awk -v a="$(printf %08x $low)" -v b="$(printf %08x $(((pref + low) & 0xffffffff)))" '{for(i=2;i<=NF;i++) if($i==a||$i==b) {printf "fileoff 0x%x %s\n", strtonum("0x"$1)+(i-2)*4, $i; n++} if(n>20) exit}'
-echo "== text references to 0x$(printf %x $good)"
-timeout 600 "$od" -d --no-show-raw-insn "$weeder" | grep -i -B12 "$(printf %x $good)" | head -120
-echo "== static closure bytes at rva 0x$(printf %x $((rel & ~7)))"
-"$od" -s --start-address=$((pref + (rel & ~7) - 0x20)) --stop-address=$((pref + (rel & ~7) + 0x40)) "$weeder" | tail -8
-echo "== base relocs, count by type"
-"$ro" --coff-basereloc "$weeder" | grep -E "Type:" | sort | uniq -c
+echo "weeder=$weeder ghc=$ghc mingw_bin=$bin"
+work="${TEST_TMPDIR:-$(mktemp -d)}"
+echo "== ghc --info"
+"$ghc" --info | grep -E -i "assembler|linker|ld |C compiler|PIC|split|merge objects|target"
+pref=$((0x$("$od" -p "$weeder" | awk '/ImageBase/ {print $2; exit}')))
+echo "== weeder jump table used at text rva 0x1cc292 caller"
+"$od" -d --start-address=$((pref + 0x1cc2a0)) --stop-address=$((pref + 0x1cc2b4)) "$weeder" | grep -o '# 0x[0-9a-f]*' | head -1 | while read -r _ t; do
+  "$od" -s --start-address=$((t)) --stop-address=$((t + 0x60)) "$weeder" | tail -7
+done
+cat > "$work/Jt.hs" <<'HS'
+module Main (main) where
+import System.Environment (getArgs)
+data T = A0 | A1 | A2 | A3 | A4 | A5 | A6 | A7 | A8 | A9 deriving (Enum, Show)
+{-# NOINLINE f #-}
+f :: T -> Int
+f t = case t of
+  A0 -> 10; A1 -> 21; A2 -> 32; A3 -> 43; A4 -> 54
+  A5 -> 65; A6 -> 76; A7 -> 87; A8 -> 98; A9 -> 109
+main :: IO ()
+main = do
+  as <- getArgs
+  mapM_ (print . f . toEnum . length) (["", "a", "aaaaaaaaa"] ++ as)
+HS
+i=0
+for v in "" "-fno-PIC" "-fPIC" "-fsplit-sections" "-fno-split-sections" "-fexternal-dynamic-refs" "-fPIC -fsplit-sections -fexternal-dynamic-refs"; do
+  i=$((i + 1))
+  echo "== variant $i: ghc -O $v"
+  mkdir -p "$work/o$i"
+  ( cd "$work" && "$ghc" -O $v -outputdir "o$i" -o "jt$i.exe" Jt.hs >/dev/null 2>&1; echo "build exit $?" )
+  ( cd "$work" && ./"jt$i.exe" 2>&1 | head -8; echo "run exit $?" )
+  ( cd "$work" && "$ghc" -O $v -S -outputdir "o$i" -o "o$i/Main.s" Jt.hs >/dev/null 2>&1 )
+  s=$(ls "$work"/o$i/*.s 2>/dev/null | head -1)
+  [ -n "$s" ] && grep -n -E "\.section|\.quad\s+\S+-\S+|\.long\s+\S+-\S+" "$s" | grep -B1 -E "\.quad|\.long" | head -14
+  [ -f "$work/o$i/Main.o" ] && "$ro" -r "$work/o$i/Main.o" | grep -E "Section|IMAGE_REL" | awk '{print $1, $2, $3}' | sort | uniq -c | head -20
+done
+echo "== weeder crash for reference"
+( cd "$work" && "$weeder" --version 2>&1 | head -3 )
 exit 1

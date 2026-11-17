@@ -16,7 +16,8 @@ diff --git a/cargo/settings/settings.bzl b/cargo/settings/settings.bzl
      """
      bool_flag(
          name = "use_default_shell_env",
+-        build_setting_default = True,
 +        scope = "universal",
-         build_setting_default = True,
++        build_setting_default = False,
      )
  

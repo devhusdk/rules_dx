@@ -22,18 +22,18 @@ real_source_target(
 alias(
     name = "clangd",
     actual = "@llvm//tools:clangd",
-    visibility = ["//visibility:public"],
+    visibility = ["//:__subpackages__"],
 )
 
 cc_context_identity(
     name = "identity",
-    visibility = ["//visibility:public"],
+    visibility = ["//:__subpackages__"],
 )
 
 cc_context_exec_identity(
     name = "identity_exec",
     identity = ":identity",
-    visibility = ["//visibility:public"],
+    visibility = ["//:__subpackages__"],
 )
 
 rust_library(

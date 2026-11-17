@@ -290,7 +290,7 @@ msix lint_test *
 msix lock_test *
 msix pass_test *
 msix runfiles_test *
-ocaml cross_test *
+ocaml cross_test macos_arm64
 ocaml format_error_test *
 ocaml format_test *
 ocaml lint_error_test *

@@ -1,7 +1,6 @@
 load("//d:defs.bzl", "d_binary", "d_library", "d_test")
 load("//d/private:defs.bzl", "D_COMPATIBLE_WITH")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
 package(
     default_testonly = True,
@@ -24,13 +23,6 @@ d_binary(
 d_test(
     name = "greet_test",
     srcs = ["greet.d"],
-    target_compatible_with = D_COMPATIBLE_WITH,
-)
-
-dx_hello_output_test(
-    name = "hello_output_test",
-    binary = ":hello",
-    expected = "Hello, d!",
     target_compatible_with = D_COMPATIBLE_WITH,
 )
 

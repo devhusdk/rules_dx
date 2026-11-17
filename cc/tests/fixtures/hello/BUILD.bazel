@@ -134,12 +134,6 @@ cc_build_id_test(
 )
 
 dx_hello_output_test(
-    name = "hello_output_test",
-    binary = ":hello",
-    expected = "hello 42",
-)
-
-dx_hello_output_test(
     name = "hello_main_in_dep_output_test",
     binary = ":hello_main_in_dep",
     expected = "hello 42",

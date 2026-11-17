@@ -4,17 +4,17 @@
   "//appimage/tests:appimage_test": [
     "block-network"
   ],
-  "//cc/private/toolchain:gcc_asan_test": [
-    "no-coverage"
-  ],
-  "//cc/private/toolchain:gcc_hello_c_test": [],
-  "//cc/private/toolchain:gcc_hello_lib_test": [],
-  "//cc/private/toolchain:gcc_hello_test": [],
-  "//cc/private/toolchain:gcc_shared_test": [],
-  "//cc/private/toolchain:gcc_ubsan_test": [
-    "no-coverage"
-  ],
   "//cc/tests/fixtures/hello:hello_test": [],
+  "//cc/tests/toolchain:gcc_asan_test": [
+    "no-coverage"
+  ],
+  "//cc/tests/toolchain:gcc_hello_c_test": [],
+  "//cc/tests/toolchain:gcc_hello_lib_test": [],
+  "//cc/tests/toolchain:gcc_hello_test": [],
+  "//cc/tests/toolchain:gcc_shared_test": [],
+  "//cc/tests/toolchain:gcc_ubsan_test": [
+    "no-coverage"
+  ],
   "//cmake/tests:bad_name_fails": [],
   "//cmake/tests:owns_cmake_class_test": [],
   "//dockerfile/tests:bad_name_fails": [],

@@ -26,6 +26,8 @@ exports_files(
         "afl-persistent.BUILD.bazel",
         "cmdliner.BUILD.bazel",
         "crowbar.BUILD.bazel",
+        "dune.BUILD.bazel",
+        "opam_repository.BUILD.bazel",
     ],
     visibility = ["//visibility:public"],
 )

@@ -1,4 +1,4 @@
-"""Pinned Erlang/OTP runtime, native closure and tool source identities."""
+"""Pinned Erlang/OTP runtime and native closure identities."""
 
 load("@dx_pins_data//:pins.bzl", "DATA")
 load("//core:jammy_runtime.bzl", "JAMMY_RUNTIME", "JAMMY_RUNTIME_MIRROR")
@@ -14,57 +14,9 @@ ERTS_VERSION = _PINS["erts_version"]
 
 OTP_RELEASE = _PINS["otp_release"]
 
-ERLFMT_VERSION = _ARCHIVES["dx_erlfmt"]["version"]
-
 ELVIS_VERSION = _ARCHIVES["dx_elvis"]["version"]
 
 ELVIS_CORE_VERSION = _ARCHIVES["dx_elvis_core"]["version"]
-
-KATANA_CODE_VERSION = _ARCHIVES["dx_katana_code"]["version"]
-
-GETOPT_VERSION = _ARCHIVES["dx_erlang_getopt"]["version"]
-
-REBAR3_SHA256 = _ARCHIVES["dx_rebar3"]["sha256"]
-
-REBAR3_URLS = _ARCHIVES["dx_rebar3"]["urls"]
-
-TOOL_SOURCES = {
-    "dx_elvis": struct(
-        dropped = ["src/elvis.app.src"],
-        patches = [Label("//patches/elvis:lazy_format.patch")],
-        sha256 = _ARCHIVES["dx_elvis"]["sha256"],
-        strip_prefix = _ARCHIVES["dx_elvis"]["strip_prefix"],
-        urls = _ARCHIVES["dx_elvis"]["urls"],
-    ),
-    "dx_elvis_core": struct(
-        dropped = ["src/elvis_core.app.src"],
-        patches = [],
-        sha256 = _ARCHIVES["dx_elvis_core"]["sha256"],
-        strip_prefix = _ARCHIVES["dx_elvis_core"]["strip_prefix"],
-        urls = _ARCHIVES["dx_elvis_core"]["urls"],
-    ),
-    "dx_erlfmt": struct(
-        dropped = ["src/rebar3_fmt_prv.erl"],
-        patches = [],
-        sha256 = _ARCHIVES["dx_erlfmt"]["sha256"],
-        strip_prefix = _ARCHIVES["dx_erlfmt"]["strip_prefix"],
-        urls = _ARCHIVES["dx_erlfmt"]["urls"],
-    ),
-    "dx_erlang_getopt": struct(
-        dropped = ["ebin"],
-        patches = [],
-        sha256 = _ARCHIVES["dx_erlang_getopt"]["sha256"],
-        strip_prefix = _ARCHIVES["dx_erlang_getopt"]["strip_prefix"],
-        urls = _ARCHIVES["dx_erlang_getopt"]["urls"],
-    ),
-    "dx_katana_code": struct(
-        dropped = ["src/katana_code.app.src"],
-        patches = [],
-        sha256 = _ARCHIVES["dx_katana_code"]["sha256"],
-        strip_prefix = _ARCHIVES["dx_katana_code"]["strip_prefix"],
-        urls = _ARCHIVES["dx_katana_code"]["urls"],
-    ),
-}
 
 # Hex releases fetched for erlang_bench: erlperf and its one dependency.
 HEX_SOURCES = {

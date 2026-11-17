@@ -23,6 +23,13 @@ java_import(
 )
 """
 
+def _versioned(name, build, pin):
+    if "{version}" not in build:
+        return build
+    if "version" not in pin:
+        fail("{}: the BUILD file names {{version}} but the pin has no version".format(name))
+    return build.replace("{version}", pin["version"])
+
 def _dx_pins_impl(mctx):
     archives = {}
     data = {}
@@ -53,7 +60,7 @@ def _dx_pins_impl(mctx):
             pin = json.decode(mctx.read(tag.pins))["archives"][tag.key or tag.name]
             archives[tag.name] = pin
             kind = pin.get("type", "")
-            files = {"BUILD.bazel": mctx.read(tag.build)} if tag.build else {}
+            files = {"BUILD.bazel": _versioned(tag.name, mctx.read(tag.build), pin)} if tag.build else {}
             for path, label in tag.files.items():
                 files[path] = mctx.read(label)
             download_as = ""
@@ -92,7 +99,7 @@ dx_pins = module_extension(
         "archive": tag_class(
             doc = "One source archive from an archives entry of a pins.json, pruned and patched. The entry is exported as ARCHIVES[name] from @dx_pins_data.",
             attrs = {
-                "build": attr.label(allow_single_file = True, doc = "BUILD file written at the repository root."),
+                "build": attr.label(allow_single_file = True, doc = "BUILD file written at the repository root; {version} is replaced by the entry's version."),
                 "crlf": attr.string_list(doc = "Paths rewritten with CRLF line endings after patching."),
                 "dropped": attr.string_list(doc = "Paths deleted after extraction."),
                 "files": attr.string_keyed_label_dict(allow_files = True, doc = "Repository path to a file written after pruning, before patching."),

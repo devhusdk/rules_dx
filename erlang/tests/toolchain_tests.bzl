@@ -2,8 +2,8 @@
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load("//erlang/private/toolchain:cells.bzl", "cell_cases", "cell_setting", "unknown_cells")
-load("//erlang/private/toolchain:pins.bzl", "CELLS", "DIALYZER_PLT_APPS", "DIALYZER_PLT_CORE", "ELVIS_CORE_VERSION", "ELVIS_VERSION", "ERTS_VERSION", "TOOL_SOURCES", "WINDOWS_DROPPED_PATHS")
-load("//erlang/private/toolchain:repos.bzl", "CLOSURE_DIR", "RESTORE_VARIABLE", "TOOL_BUILDS", "dropped_application", "erl_script", "erts_mismatch_message", "hub_build", "is_windows_cell", "nif_compatible_cases", "nif_header_cases", "nif_include_dir")
+load("//erlang/private/toolchain:pins.bzl", "CELLS", "DIALYZER_PLT_APPS", "DIALYZER_PLT_CORE", "ELVIS_CORE_VERSION", "ELVIS_VERSION", "ERTS_VERSION", "WINDOWS_DROPPED_PATHS")
+load("//erlang/private/toolchain:repos.bzl", "CLOSURE_DIR", "RESTORE_VARIABLE", "dropped_application", "erl_script", "erts_mismatch_message", "hub_build", "is_windows_cell", "nif_compatible_cases", "nif_header_cases", "nif_include_dir")
 
 _SOURCE = "#" + """!/bin/sh
 ROOTDIR=%FINAL_ROOTDIR%
@@ -40,10 +40,7 @@ def _checks():
         expect_true("no closure keeps the plain exec", 'exec "$BINDIR/erlexec" ${1+"$@"}' in plain),
         expect_false("no closure leaves the loader path", "LD_LIBRARY_PATH" in plain),
         expect_true("no closure is still relocatable", "/nonexistent" in plain and "%FINAL_ROOTDIR%" not in plain),
-        expect_equal("every tool source has a build", sorted(TOOL_BUILDS.keys()), sorted(TOOL_SOURCES.keys())),
         expect_equal("elvis and elvis_core move together", ELVIS_VERSION, ELVIS_CORE_VERSION),
-        expect_contains("elvis links the shared getopt", TOOL_BUILDS["dx_elvis"], "@dx_erlang_getopt//:erlang_app"),
-        expect_contains("erlfmt links the shared getopt", TOOL_BUILDS["dx_erlfmt"], "@dx_erlang_getopt//:erlang_app"),
         expect_equal("dialyzer PLT apps are shipped", [app for app in DIALYZER_PLT_CORE + DIALYZER_PLT_APPS if dropped_application(app + "-1.0")], []),
         expect_equal("dialyzer PLT apps are listed once", len(DIALYZER_PLT_CORE + DIALYZER_PLT_APPS), len(depset(DIALYZER_PLT_CORE + DIALYZER_PLT_APPS).to_list())),
         expect_equal("nif headers cover every cell", sorted([key.rpartition("cell_")[2] for key in nif_header_cases(CELLS.keys()) if "cell_" in key]), sorted(CELLS.keys())),

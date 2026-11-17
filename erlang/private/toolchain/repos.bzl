@@ -8,12 +8,7 @@ load(
     "DROPPED_APPLICATIONS",
     "DROPPED_APPLICATION_DIRS",
     "DROPPED_PATHS",
-    "ELVIS_CORE_VERSION",
-    "ELVIS_VERSION",
-    "ERLFMT_VERSION",
     "ERTS_VERSION",
-    "GETOPT_VERSION",
-    "KATANA_CODE_VERSION",
     "OTP_RELEASE",
     "OTP_VERSION",
     "RUNTIME_MIRROR",
@@ -89,99 +84,6 @@ def nif_compatible_cases(cells):
     cases["//conditions:default"] = ["@platforms//:incompatible"]
     return cases
 
-_GETOPT_BUILD = """load("@rules_erlang//:erlang_app.bzl", "erlang_app")
-
-package(default_visibility = ["//visibility:public"])
-
-erlang_app(
-    app_name = "getopt",
-    app_version = "{version}",
-)
-"""
-
-_ERLFMT_BUILD = """load("@rules_dx//erlang/private:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_escript_archive")
-load("@rules_erlang//:erlang_app.bzl", "erlang_app")
-load("@rules_erlang//:erlang_xrl_yrl.bzl", "erlang_xrl_yrl")
-
-package(default_visibility = ["//visibility:public"])
-
-erlang_xrl_yrl(
-    name = "parser",
-    srcs = ["src/erlfmt_parse.yrl"],
-    outs = ["src/erlfmt_parse.erl"],
-)
-
-erlang_app(
-    app_name = "erlfmt",
-    app_version = "{version}",
-    extra_srcs = ["src/erlfmt_parse.erl"],
-    target_compatible_with = ERLANG_COMPATIBLE_WITH,
-    deps = ["@dx_erlang_getopt//:erlang_app"],
-)
-
-erlang_escript_archive(
-    name = "erlfmt",
-    app = ":erlang_app",
-    target_compatible_with = ERLANG_COMPATIBLE_WITH,
-    headers = [
-        "shebang",
-        "{{emu_args, \\"+sbtu +A0 -noinput -noshell -mode minimal -escript main erlfmt\\"}}",
-    ],
-)
-"""
-
-_KATANA_CODE_BUILD = """load("@rules_dx//erlang/private:defs.bzl", "ERLANG_COMPATIBLE_WITH")
-load("@rules_erlang//:erlang_app.bzl", "erlang_app")
-
-package(default_visibility = ["//visibility:public"])
-
-erlang_app(
-    app_name = "katana_code",
-    app_version = "{version}",
-    target_compatible_with = ERLANG_COMPATIBLE_WITH,
-)
-"""
-
-_ELVIS_CORE_BUILD = """load("@rules_dx//erlang/private:defs.bzl", "ERLANG_COMPATIBLE_WITH")
-load("@rules_erlang//:erlang_app.bzl", "erlang_app")
-
-package(default_visibility = ["//visibility:public"])
-
-erlang_app(
-    app_name = "elvis_core",
-    app_version = "{version}",
-    extra_apps = ["syntax_tools"],
-    target_compatible_with = ERLANG_COMPATIBLE_WITH,
-    deps = ["@dx_katana_code//:erlang_app"],
-)
-"""
-
-_ELVIS_BUILD = """load("@rules_dx//erlang/private:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_escript_archive")
-load("@rules_erlang//:erlang_app.bzl", "erlang_app")
-
-package(default_visibility = ["//visibility:public"])
-
-erlang_app(
-    app_name = "elvis",
-    app_version = "{version}",
-    target_compatible_with = ERLANG_COMPATIBLE_WITH,
-    deps = [
-        "@dx_elvis_core//:erlang_app",
-        "@dx_erlang_getopt//:erlang_app",
-    ],
-)
-
-erlang_escript_archive(
-    name = "elvis",
-    app = ":erlang_app",
-    target_compatible_with = ERLANG_COMPATIBLE_WITH,
-    headers = [
-        "shebang",
-        "{{emu_args, \\"+sbtu +A0 -noinput -noshell -mode minimal -escript main elvis\\"}}",
-    ],
-)
-"""
-
 HEX_BUILD = """load("@rules_erlang//:erlang_app.bzl", "erlang_app")
 
 package(default_visibility = ["//visibility:public"])
@@ -192,14 +94,6 @@ erlang_app(
     deps = {deps},
 )
 """
-
-TOOL_BUILDS = {
-    "dx_elvis": _ELVIS_BUILD.format(version = ELVIS_VERSION),
-    "dx_elvis_core": _ELVIS_CORE_BUILD.format(version = ELVIS_CORE_VERSION),
-    "dx_erlang_getopt": _GETOPT_BUILD.format(version = GETOPT_VERSION),
-    "dx_erlfmt": _ERLFMT_BUILD.format(version = ERLFMT_VERSION),
-    "dx_katana_code": _KATANA_CODE_BUILD.format(version = KATANA_CODE_VERSION),
-}
 
 def cell_repository_name(cell):
     """Returns the repository name one qualified cell is acquired into."""

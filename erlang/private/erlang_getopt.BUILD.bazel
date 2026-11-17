@@ -1,0 +1,8 @@
+load("@rules_erlang//:erlang_app.bzl", "erlang_app")
+
+package(default_visibility = ["//visibility:public"])
+
+erlang_app(
+    app_name = "getopt",
+    app_version = "{version}",
+)

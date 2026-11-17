@@ -1,0 +1,29 @@
+load("@rules_dx//erlang/private:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_escript_archive")
+load("@rules_erlang//:erlang_app.bzl", "erlang_app")
+load("@rules_erlang//:erlang_xrl_yrl.bzl", "erlang_xrl_yrl")
+
+package(default_visibility = ["//visibility:public"])
+
+erlang_xrl_yrl(
+    name = "parser",
+    srcs = ["src/erlfmt_parse.yrl"],
+    outs = ["src/erlfmt_parse.erl"],
+)
+
+erlang_app(
+    app_name = "erlfmt",
+    app_version = "{version}",
+    extra_srcs = ["src/erlfmt_parse.erl"],
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    deps = ["@dx_erlang_getopt//:erlang_app"],
+)
+
+erlang_escript_archive(
+    name = "erlfmt",
+    app = ":erlang_app",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    headers = [
+        "shebang",
+        "{emu_args, \"+sbtu +A0 -noinput -noshell -mode minimal -escript main erlfmt\"}",
+    ],
+)

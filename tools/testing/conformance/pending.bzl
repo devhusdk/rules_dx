@@ -332,7 +332,6 @@ scala format_error_test *
 scala format_test *
 scala lint_error_test *
 scala lint_test *
-scala lock_test *
 sql build_test *
 sql coverage_test *
 sql cross_test *

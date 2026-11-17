@@ -593,9 +593,8 @@ fails the build when:
 - an `Info.plist` key, the architecture, or the build platform differs
   from the declaration;
 - a Mach-O file needs a newer macOS than `deployment`;
-- a file has an absolute rpath, an `@rpath` load missing from the
-  bundle, or a load outside `/usr/lib`, `/System/Library`, and the
-  bundle;
+- a file has an rpath or a load outside `/usr/lib`, `/System/Library`,
+  and the bundle, or an `@rpath` load missing from the bundle;
 - a declared framework, plugin, or resource is missing;
 - the signature is not ad hoc.
 

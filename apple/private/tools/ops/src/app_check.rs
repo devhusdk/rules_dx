@@ -344,7 +344,7 @@ impl Check<'_> {
             )));
         }
         for rpath in &found.rpaths {
-            if rpath.starts_with('/') {
+            if rpath.starts_with('/') && !system_path(rpath) {
                 return Err(reject(format!(
                     "{rel} has absolute rpath {rpath}; use @executable_path or @loader_path"
                 )));
@@ -352,8 +352,7 @@ impl Check<'_> {
             rpaths.insert(rpath.clone());
         }
         for load in &found.loads {
-            let embedded = if load.starts_with("/usr/lib/") || load.starts_with("/System/Library/")
-            {
+            let embedded = if system_path(load) {
                 None
             } else if let Some(rest) = load.strip_prefix("@rpath/") {
                 Some(self.contents.join("Frameworks").join(rest))
@@ -375,6 +374,13 @@ impl Check<'_> {
         }
         Ok(Some(minos.to_owned()))
     }
+}
+
+fn system_path(path: &str) -> bool {
+    path == "/usr/lib"
+        || path == "/System/Library"
+        || path.starts_with("/usr/lib/")
+        || path.starts_with("/System/Library/")
 }
 
 fn unpack(archive: &Path, tree: &Path) -> Result<(), String> {

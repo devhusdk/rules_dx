@@ -7,6 +7,10 @@ QT_BRIDGE_TOOL = Label("//qt/private/tools/rust:qt_rust_bridge")
 
 _CXX_QT_FILES = Label("//qt/private/tools/rust:cxx_qt_runtime_files")
 
+# cxx-qt formats the C++ it writes with the clang-format this names, read
+# in-process. Empty means none, so a host clang-format never changes the output.
+_BRIDGE_ENV = QT_TOOL_ENV | {"CLANG_FORMAT_BINARY": ""}
+
 def _bridge(ctx, mode, src, outputs, include = None):
     args = ctx.actions.args()
     args.add(mode)
@@ -19,7 +23,7 @@ def _bridge(ctx, mode, src, outputs, include = None):
         arguments = [args],
         inputs = [src],
         outputs = outputs,
-        env = QT_TOOL_ENV,
+        env = _BRIDGE_ENV,
         mnemonic = "QtRustBridge",
         progress_message = "Generating C++ for %{input}",
     )

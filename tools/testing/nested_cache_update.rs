@@ -18,7 +18,7 @@ fn split_label(label: &str) -> Option<(&str, &str)> {
     (!name.is_empty() && !name.contains('/')).then_some((package, name))
 }
 
-/// Unions `<url> <sha256>` lists keyed by URL; one URL with two sha256 values is an error.
+/// Unions `<url> <sha256>` lists keyed by URL, dropping `file://` entries; one URL with two sha256 values is an error.
 fn union_lists(lists: &[(String, String)]) -> Result<String, String> {
     let mut merged: BTreeMap<&str, &str> = BTreeMap::new();
     for (origin, text) in lists {
@@ -27,6 +27,9 @@ fn union_lists(lists: &[(String, String)]) -> Result<String, String> {
                 .split_once(' ')
                 .ok_or_else(|| format!("{origin}: malformed line `{line}`"))?;
             let (url, sha) = (url.trim(), sha.trim());
+            if url.starts_with("file://") {
+                continue;
+            }
             if let Some(previous) = merged.insert(url, sha)
                 && previous != sha
             {
@@ -172,6 +175,12 @@ mod tests {
         ])
         .unwrap();
         assert_eq!(merged, "https://a y\nhttps://b x\nhttps://c z\n");
+    }
+
+    #[test]
+    fn union_drops_file_urls() {
+        let merged = union_lists(&[list("file:///tmp/x/tool a\nhttps://a y\n")]).unwrap();
+        assert_eq!(merged, "https://a y\n");
     }
 
     #[test]

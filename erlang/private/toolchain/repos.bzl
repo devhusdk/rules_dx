@@ -11,8 +11,8 @@ load(
     "ERTS_VERSION",
     "OTP_RELEASE",
     "OTP_VERSION",
-    "RUNTIME_MIRROR",
     "WINDOWS_DROPPED_PATHS",
+    "runtime_urls",
 )
 
 HUB_NAME = "dx_erlang_toolchains"
@@ -178,7 +178,7 @@ def _otp_repo_impl(rctx):
     else:
         _install(rctx, CLOSURE_DIR if cell.runtime else None)
     if cell.runtime:
-        deb_closure(rctx, RUNTIME_MIRROR, cell.runtime, CLOSURE_DIR)
+        deb_closure(rctx, runtime_urls, cell.runtime, CLOSURE_DIR)
     rctx.file(VERSION_FILE, OTP_VERSION + "\n")
     rctx.file("REPO.bazel", "")
     rctx.file("BUILD.bazel", _OTP_BUILD.format(

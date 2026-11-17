@@ -1,7 +1,7 @@
 """Chromium headless shell for typescript_playwright_test, pinned in typescript/private/playwright/pins.json."""
 
 load("//core:deb_closure.bzl", "deb_closure")
-load("//core:jammy_runtime.bzl", "JAMMY_RUNTIME_MIRROR")
+load("//core:jammy_runtime.bzl", "jammy_deb_urls")
 load(":closure.bzl", "CLOSURE_DIR", "chromium_closure")
 
 visibility(["//..."])
@@ -48,7 +48,7 @@ def _chromium_impl(rctx):
     )
     rctx.file(browser + "/INSTALLATION_COMPLETE", "")
     pins = json.decode(rctx.read(Label(":pins.json")))
-    deb_closure(rctx, JAMMY_RUNTIME_MIRROR, chromium_closure(pins, rctx.attr.platform), CLOSURE_DIR)
+    deb_closure(rctx, jammy_deb_urls, chromium_closure(pins, rctx.attr.platform), CLOSURE_DIR)
     rctx.file("BUILD.bazel", "\n".join([
         "filegroup(",
         '    name = "browsers",',

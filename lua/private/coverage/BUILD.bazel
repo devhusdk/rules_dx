@@ -5,7 +5,7 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 # gazelle:dx_ignore_import lua luacov.reporter.lcov
 load("//lua:defs.bzl", "lua_library")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//:__subpackages__"])
 
 config_setting(
     name = "coverage_on",

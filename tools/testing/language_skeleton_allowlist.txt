@@ -253,17 +253,13 @@ fixture-referenced typescript/tests/fixtures/playwright
 fixture-referenced zig/tests/fixtures/bench
 fixture-referenced zig/tests/fixtures/calc
 outside-lang core/quality/tools/python
-private-visibility android/private/library/BUILD.bazel
 private-visibility android/private/packaging/BUILD.bazel
 private-visibility android/private/packaging/ops/BUILD.bazel
-private-visibility android/private/platforms/BUILD.bazel
-private-visibility android/private/sdk/BUILD.bazel
 private-visibility android/private/toolchain/BUILD.bazel
 private-visibility apple/private/bundle/BUILD.bazel
 private-visibility apple/private/ios/BUILD.bazel
 private-visibility apple/private/macos/BUILD.bazel
 private-visibility apple/private/provisioning/BUILD.bazel
-private-visibility apple/private/signing/BUILD.bazel
 private-visibility apple/private/tools/ops/BUILD.bazel
 private-visibility astro/private/BUILD.bazel
 private-visibility cc/private/BUILD.bazel
@@ -281,8 +277,6 @@ private-visibility dart/private/tools/BUILD.bazel
 private-visibility dart/private/tools/dart_apitool/BUILD.bazel
 private-visibility dotnet/private/fuzz/BUILD.bazel
 private-visibility elixir/private/bench/BUILD.bazel
-private-visibility elixir/private/coverage/BUILD.bazel
-private-visibility elixir/private/toolchain/BUILD.bazel
 private-visibility elixir/private/tools/BUILD.bazel
 private-visibility env/private/env_shard/BUILD.bazel
 private-visibility erlang/private/BUILD.bazel
@@ -308,7 +302,6 @@ private-visibility julia/private/tools/lint/BUILD.bazel
 private-visibility kotlin/private/BUILD.bazel
 private-visibility kotlin/private/toolchain/BUILD.bazel
 private-visibility lua/private/BUILD.bazel
-private-visibility lua/private/coverage/BUILD.bazel
 private-visibility lua/private/quality/BUILD.bazel
 private-visibility lua/private/toolchain/BUILD.bazel
 private-visibility lua/private/tools/BUILD.bazel
@@ -330,7 +323,6 @@ private-visibility qt/private/BUILD.bazel
 private-visibility qt/private/platforms/BUILD.bazel
 private-visibility qt/private/rust/BUILD.bazel
 private-visibility qt/private/toolchain/BUILD.bazel
-private-visibility ruby/private/coverage/BUILD.bazel
 private-visibility ruby/private/tools/BUILD.bazel
 private-visibility rust/private/BUILD.bazel
 private-visibility rust/private/bench_report/BUILD.bazel

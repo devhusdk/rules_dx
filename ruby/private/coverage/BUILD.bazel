@@ -20,7 +20,7 @@ alias(
         ":coverage_on": "@dx_ruby_coverage_gems//:lib",
         "//conditions:default": ":none",
     }),
-    visibility = ["//visibility:public"],
+    visibility = ["//:__subpackages__"],
 )
 
 real_source_target(

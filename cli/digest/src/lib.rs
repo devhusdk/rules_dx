@@ -84,7 +84,23 @@ pub fn sha384_hex(bytes: &[u8]) -> String {
 
 #[must_use]
 pub fn sha512_hex(bytes: &[u8]) -> String {
-    hex::encode(Sha512::digest(bytes))
+    hex::encode(sha512(bytes))
+}
+
+/// Raw sha512 bytes, for formats that encode the digest themselves (NuGet's base64).
+#[must_use]
+pub fn sha512(bytes: &[u8]) -> [u8; 64] {
+    Sha512::digest(bytes).into()
+}
+
+/// Whether `actual_hex` matches `expected_hex` as a 64-character sha256 hex.
+///
+/// Case is ignored on both sides: sidecars and checksum files written by other
+/// tools (`certutil`, `Get-FileHash`) use uppercase, while this crate emits
+/// lowercase. An `expected_hex` that is not a sha256 hex never matches.
+#[must_use]
+pub fn verify(expected_hex: &str, actual_hex: &str) -> bool {
+    is_hex_any_case(expected_hex, DIGEST_LEN) && expected_hex.eq_ignore_ascii_case(actual_hex)
 }
 
 /// Streaming sha256 sink that hashes every byte written to it.
@@ -431,6 +447,23 @@ mod tests {
     fn reader_hash_retries_interrupted_reads_and_reports_other_errors() {
         assert_eq!(sha256_reader_hex(Flaky(0)).unwrap(), sha256_hex(b"abc"));
         assert!(sha256_reader_hex(Broken).is_err());
+    }
+
+    #[test]
+    fn verify_ignores_case_and_rejects_non_digests() {
+        let digest = sha256_hex(b"abc");
+        assert!(verify(&digest, &digest));
+        assert!(verify(&digest.to_uppercase(), &digest));
+        assert!(verify(&digest, &digest.to_uppercase()));
+        assert!(!verify(&sha256_hex(b"abd"), &digest));
+        assert!(!verify("", ""));
+        assert!(!verify("ab", "ab"));
+        assert!(!verify(&"zz".repeat(32), &"zz".repeat(32)));
+    }
+
+    #[test]
+    fn sha512_bytes_match_the_hex() {
+        assert_eq!(to_hex_bytes(&sha512(b"abc")), sha512_hex(b"abc"));
     }
 
     #[test]

@@ -4,7 +4,6 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use object::{Architecture, Object};
-use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 
 /// The build-id and architecture shared by a binary and its debug file.
@@ -164,7 +163,7 @@ pub fn dsym_manifest(
     Ok(serde_json::json!({
         "uuid": pair.uuid,
         "arch": pair.arch,
-        "sha256": format!("{:x}", Sha256::digest(&bin)),
+        "sha256": dx_digest::sha256_hex(&bin),
         "dwarf": rel.to_string_lossy().replace('\\', "/"),
         "dsymutil": tool,
     }))
@@ -365,7 +364,7 @@ pub fn pdb_manifest(binary: &Path, pdb: &Path) -> Result<serde_json::Value, Stri
         "guid": pair.guid,
         "age": pair.age,
         "arch": pair.arch,
-        "sha256": format!("{:x}", Sha256::digest(&bin)),
+        "sha256": dx_digest::sha256_hex(&bin),
         "pdb": name.to_string_lossy(),
         "codeview_path": pe.path,
         "linker_version": pe.linker_version,

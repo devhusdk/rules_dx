@@ -187,7 +187,7 @@ fn manifest_records_uuid_arch_digest_and_tool() {
     assert_eq!(json["arch"], "aarch64");
     assert_eq!(json["dwarf"], "Contents/Resources/DWARF/app");
     assert_eq!(json["dsymutil"], "LLVM version 22");
-    assert_eq!(json["sha256"], format!("{:x}", Sha256::digest(&bin)));
+    assert_eq!(json["sha256"], dx_digest::sha256_hex(&bin));
 }
 
 fn msf(info: Option<(&[u8; 16], u32)>, dbi: Option<(u32, u16)>) -> Vec<u8> {

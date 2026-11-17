@@ -1,5 +1,5 @@
 # gazelle:ignore
-load("@aspect_rules_js//js:defs.bzl", "js_library")
+load("//javascript:defs.bzl", "js_library")
 
 package(default_visibility = ["//visibility:public"])
 

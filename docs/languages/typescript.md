@@ -13,7 +13,6 @@ For a TypeScript project it writes this `MODULE.bazel`, tested in [`typescript/t
 module(name = "my_project")
 
 bazel_dep(name = "rules_dx", version = "<version>")
-bazel_dep(name = "aspect_rules_js", version = "3.6.0")
 bazel_dep(name = "aspect_rules_ts", version = "3.10.1")
 
 rules_ts = use_extension("@aspect_rules_ts//ts:extensions.bzl", "typescript")

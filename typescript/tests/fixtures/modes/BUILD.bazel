@@ -1,6 +1,5 @@
-load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//typescript:defs.bzl", "typescript_library")
+load("//typescript:defs.bzl", "ts_config", "typescript_library")
 
 package(
     default_testonly = True,

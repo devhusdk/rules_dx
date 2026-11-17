@@ -1,5 +1,6 @@
 """Public TypeScript API."""
 
+load("@aspect_rules_ts//ts:defs.bzl", _ts_config = "ts_config")
 load(
     "//typescript/private:defs.bzl",
     _typescript_library = "typescript_library",
@@ -18,3 +19,4 @@ typescript_test = _typescript_test
 typescript_bench = _typescript_bench
 typescript_fuzz_test = _typescript_fuzz_test
 typescript_playwright_test = _typescript_playwright_test
+ts_config = _ts_config

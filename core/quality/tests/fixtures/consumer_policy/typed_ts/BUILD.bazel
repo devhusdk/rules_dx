@@ -1,7 +1,6 @@
-load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("//core/quality:native_config.bzl", "eslint_config")
-load("//typescript:defs.bzl", "typescript_library")
+load("//typescript:defs.bzl", "ts_config", "typescript_library")
 
 package(default_visibility = ["//core/quality:__pkg__"])
 

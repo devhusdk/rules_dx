@@ -1,9 +1,8 @@
 # gazelle:ignore
-load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
-load("//javascript:defs.bzl", "javascript_library")
 load("//astro:defs.bzl", "astro_build")
-load("//javascript:defs.bzl", "javascript_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//javascript:defs.bzl", "javascript_library", "javascript_test")
+load("//typescript:defs.bzl", "ts_config")
 
 package(
     default_testonly = True,

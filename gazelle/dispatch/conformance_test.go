@@ -109,10 +109,9 @@ var conformanceRows = map[string]conformanceRow{
 	"javascript": {
 		files: map[string]string{"demo.js": "export const x = 1;\n"},
 		kind:  "javascript_library", target: "demo", defs: "javascript:defs.bzl",
-		symbols:    []string{"javascript_library", "javascript_test", "javascript_binary"},
+		symbols:    []string{"javascript_library", "javascript_test", "javascript_binary", "js_library"},
 		extraLoads: map[string][]string{
 			"@npm//:defs.bzl":                {"npm_link_all_packages"},
-			"@aspect_rules_js//js:defs.bzl":  {"js_library"},
 			"@aspect_rules_js//npm:defs.bzl": {"npm_package"},
 		},
 		inert: []string{"notes.txt", "widget.d.ts"},
@@ -161,6 +160,7 @@ var conformanceRows = map[string]conformanceRow{
 			"@rules_dx//kubernetes:defs.bzl":     {"kubernetes_library"},
 			"@rules_dx//api_spec:defs.bzl":       {"api_spec_library"},
 			"@rules_dx//helm:defs.bzl":           {"helm_library"},
+			"@rules_dx//fortran:defs.bzl":        {"fortran_library"},
 		},
 	},
 	"perl": {
@@ -261,10 +261,9 @@ var conformanceRows = map[string]conformanceRow{
 	"typescript": {
 		files: map[string]string{"demo.ts": "export const x = 1;\n", "tsconfig.json": "{}\n"},
 		kind:  "typescript_library", target: "demo", defs: "typescript:defs.bzl",
-		symbols:    []string{"typescript_library", "typescript_test", "typescript_binary"},
+		symbols:    []string{"typescript_library", "typescript_test", "typescript_binary", "ts_config"},
 		extraLoads: map[string][]string{
 			"@aspect_rules_js//npm:defs.bzl": {"npm_package"},
-			"@aspect_rules_ts//ts:defs.bzl":  {"ts_config"},
 		},
 		inert: []string{"notes.txt", "widget.d.ts", "orphan.d.mts"},
 	},

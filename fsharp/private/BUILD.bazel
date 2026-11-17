@@ -1,9 +1,4 @@
-load("@rules_dotnet//dotnet/private:common.bzl", "framework_preprocessor_symbols")
-load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core:defs.bzl", "expect_equal")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//dotnet/private:symbols.bzl", "fsharp_compile_defines")
-load(":kwargs.bzl", "FSHARP_CORE", "fsharp_tfm_with_defaults", "fsharp_with_core")
 
 package(default_visibility = [
     "//:__pkg__",
@@ -16,109 +11,6 @@ exports_files([
     "defs.bzl",
     "kwargs.bzl",
 ])
-
-dx_wrapper_contract_tests(
-    name = "wrapper_contract_tests",
-    extra_checks = [
-        expect_equal(
-            "empty gains net10 tfm",
-            fsharp_tfm_with_defaults({})["target_frameworks"],
-            ["net10.0"],
-        ),
-        expect_equal(
-            "empty follows the warnings flag",
-            type(fsharp_tfm_with_defaults({})["treat_warnings_as_errors"]),
-            "select",
-        ),
-        expect_equal(
-            "explicit tfm wins",
-            fsharp_tfm_with_defaults({"target_frameworks": ["net9.0"]})["target_frameworks"],
-            ["net9.0"],
-        ),
-        expect_equal(
-            "explicit warnings setting wins",
-            fsharp_tfm_with_defaults({"warnings_as_errors": False})["treat_warnings_as_errors"],
-            False,
-        ),
-        expect_equal(
-            "other kwargs survive",
-            fsharp_tfm_with_defaults({"deps": [":hello_lib"]})["deps"],
-            [":hello_lib"],
-        ),
-        expect_equal(
-            "empty deps gains core",
-            [str(d) for d in fsharp_with_core({})["deps"]],
-            [str(FSHARP_CORE)],
-        ),
-        expect_equal(
-            "existing core is not duplicated",
-            fsharp_with_core({"deps": ["@nuget//fsharp.core"]})["deps"],
-            ["@nuget//fsharp.core"],
-        ),
-        expect_equal(
-            "select deps are left alone",
-            type(fsharp_with_core({"deps": select({"//conditions:default": []})})["deps"]),
-            "select",
-        ),
-        expect_equal(
-            "other deps keep order before core",
-            [str(d) for d in fsharp_with_core({"deps": [":x"]})["deps"]],
-            [
-                ":x",
-                str(FSHARP_CORE),
-            ],
-        ),
-        expect_equal(
-            "defines gain tfm symbols",
-            fsharp_compile_defines(
-                "net10.0",
-                ["net10.0"],
-                ["X"],
-            ),
-            framework_preprocessor_symbols("net10.0") + ["X"],
-        ),
-        expect_equal(
-            "multi tfm uses highest compatible",
-            fsharp_compile_defines(
-                "net10.0",
-                [
-                    "net8.0",
-                    "net10.0",
-                ],
-                [],
-            ),
-            framework_preprocessor_symbols("net10.0"),
-        ),
-        expect_equal(
-            "older tfm symbols when only compatible",
-            fsharp_compile_defines(
-                "net10.0",
-                ["net8.0"],
-                ["X"],
-            ),
-            framework_preprocessor_symbols("net8.0") + ["X"],
-        ),
-        expect_equal(
-            "no tfms keeps user defines",
-            fsharp_compile_defines(
-                "net10.0",
-                [],
-                ["X"],
-            ),
-            ["X"],
-        ),
-        expect_equal(
-            "no defines gives tfm symbols",
-            fsharp_compile_defines(
-                "net10.0",
-                ["net10.0"],
-                [],
-            ),
-            framework_preprocessor_symbols("net10.0"),
-        ),
-    ],
-    file_classes = ["fsharp"],
-)
 
 real_source_target(
     name = "corpus_starlark",

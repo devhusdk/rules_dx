@@ -1,4 +1,5 @@
 load("@dx_pins_data//:pins.bzl", "PINS")
+load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 load(":toolchain_tests.bzl", "powershell_metadata_tests")
@@ -29,4 +30,10 @@ real_source_target(
     ],
     tags = ["corpus"],
     visibility = ["//tools/ci:__pkg__"],
+)
+
+dx_wrapper_contract_tests(
+    name = "wrapper_contract_tests",
+    size = "small",
+    file_classes = ["powershell"],
 )

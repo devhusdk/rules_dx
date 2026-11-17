@@ -1,0 +1,127 @@
+load("//core:conformance.bzl", "dx_wrapper_contract_tests")
+load("//core:defs.bzl", "expect_equal")
+load("//csharp/private:kwargs.bzl", "csharp_tfm_forward_kwargs", "csharp_tfm_with_defaults")
+load("//csharp/private:proto.bzl", "pascal_case")
+
+dx_wrapper_contract_tests(
+    name = "wrapper_contract_tests",
+    size = "small",
+    extra_checks = [
+        expect_equal(
+            "proto file names are Pascal case",
+            [
+                pascal_case("user"),
+                pascal_case("user_profile"),
+                pascal_case("v2beta"),
+            ],
+            [
+                "User",
+                "UserProfile",
+                "V2Beta",
+            ],
+        ),
+        expect_equal(
+            "separators other than underscore are dropped",
+            [
+                pascal_case("foo-bar"),
+                pascal_case("user.v1"),
+                pascal_case("foo_2fa"),
+                pascal_case("v1_2beta"),
+            ],
+            [
+                "FooBar",
+                "UserV1",
+                "Foo2Fa",
+                "V12Beta",
+            ],
+        ),
+        expect_equal(
+            "edge cases follow protoc",
+            [
+                pascal_case("_1foo"),
+                pascal_case("FOO_bar"),
+                pascal_case("a#"),
+            ],
+            [
+                "_1Foo",
+                "FOOBar",
+                "A_",
+            ],
+        ),
+        expect_equal(
+            "a letter after a digit is capitalised",
+            pascal_case("a1b_c"),
+            "A1BC",
+        ),
+        expect_equal(
+            "empty gains net10 tfm",
+            csharp_tfm_with_defaults({})["target_frameworks"],
+            ["net10.0"],
+        ),
+        expect_equal(
+            "empty follows the warnings flag",
+            type(csharp_tfm_with_defaults({})["treat_warnings_as_errors"]),
+            "select",
+        ),
+        expect_equal(
+            "explicit tfm wins",
+            csharp_tfm_with_defaults({"target_frameworks": ["net9.0"]})["target_frameworks"],
+            ["net9.0"],
+        ),
+        expect_equal(
+            "explicit tfm matrix wins",
+            csharp_tfm_with_defaults({"target_frameworks": [
+                "net8.0",
+                "net10.0",
+            ]})["target_frameworks"],
+            [
+                "net8.0",
+                "net10.0",
+            ],
+        ),
+        expect_equal(
+            "explicit warnings setting wins",
+            csharp_tfm_with_defaults({"warnings_as_errors": False})["treat_warnings_as_errors"],
+            False,
+        ),
+        expect_equal(
+            "other kwargs survive",
+            csharp_tfm_with_defaults({"deps": [":hello_lib"]})["deps"],
+            [":hello_lib"],
+        ),
+        expect_equal(
+            "one tfm adds no fan-out edge",
+            csharp_tfm_forward_kwargs(
+                "lib",
+                csharp_tfm_with_defaults({}),
+            ),
+            {},
+        ),
+        expect_equal(
+            "tfm matrix fans out over the upstream",
+            csharp_tfm_forward_kwargs(
+                "lib",
+                {"target_frameworks": [
+                    "net8.0",
+                    "net10.0",
+                ]},
+            ),
+            {
+                "dx_target_frameworks": [
+                    "net8.0",
+                    "net10.0",
+                ],
+                "dx_tfm_variants": ":lib_upstream",
+            },
+        ),
+        expect_equal(
+            "non-list tfm adds no fan-out edge",
+            csharp_tfm_forward_kwargs(
+                "lib",
+                {"target_frameworks": "net8.0"},
+            ),
+            {},
+        ),
+    ],
+    file_classes = ["csharp"],
+)

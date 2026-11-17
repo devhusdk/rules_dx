@@ -1,6 +1,7 @@
 {
   "archives": {
     "dune": {
+      "version": "3.24.2",
       "sha256": "472798691b0216daf538709f0f4703b3617ef24ad0866c9096068baaba4d762a",
       "strip_prefix": "dune-3.24.2",
       "urls": [
@@ -26,6 +27,7 @@
       ]
     },
     "opam_repository": {
+      "version": "691408b00730fcedbd3e30ccdb42c388a83fd304",
       "sha256": "f6c38ba5a0ef7facfedaf046358b722e63ae9d1a1aa7ebc773a17ecb5752473a",
       "strip_prefix": "opam-repository-691408b00730fcedbd3e30ccdb42c388a83fd304",
       "urls": [
@@ -33,6 +35,7 @@
       ]
     },
     "rules_ocaml": {
+      "version": "24fa272c7b59ad902c5c82e71aae397b63f05467",
       "sha256": "a23ad90cff101aa9d0cea279462dad72dddf597fc23be7748fbb1bb63143705c",
       "strip_prefix": "rules_ocaml-24fa272c7b59ad902c5c82e71aae397b63f05467",
       "urls": [

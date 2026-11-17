@@ -18,8 +18,10 @@ def _consumer_directory(path):
     return len(parts) == 3 and parts[1] == "tests" and parts[2] == "consumer"
 
 def skipped(path, entry, ignored):
-    """True when the walk leaves out the entry at the root-relative path: an ignored path other than a language tests/consumer directory, a skipped name, or a directory symlink."""
-    if (path in ignored and not _consumer_directory(path)) or path == ".dx/local" or entry.name in _SKIPPED_NAMES or entry.name.startswith("bazel-"):
+    """True when the walk leaves out the entry at the root-relative path: an ignored path other than a language tests/consumer directory, a skipped name, a root bazel-* output link, or a directory symlink."""
+
+    # Bazel writes its bazel-* convenience links only at the root; a source file such as docs/bazel-for-dx-users.md keeps its place.
+    if (path in ignored and not _consumer_directory(path)) or path == ".dx/local" or entry.name in _SKIPPED_NAMES or (path == entry.name and entry.name.startswith("bazel-")):
         return True
     return entry.is_dir and entry.is_link
 

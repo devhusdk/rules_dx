@@ -94,6 +94,8 @@ def _checks():
         expect_true("ignored path", skipped(".dx/local", _dir("local"), ignored)),
         expect_true("git directory", skipped(".git", _dir(".git"), ignored)),
         expect_true("output symlink", skipped("bazel-rules_dx", _link("bazel-rules_dx"), ignored)),
+        expect_true("root output file name", skipped("bazel-out", _file("bazel-out"), ignored)),
+        expect_false("bazel- source file below the root", skipped("docs/bazel-for-dx-users.md", _file("bazel-for-dx-users.md"), ignored)),
         expect_true("nested target", skipped("cli/target", _dir("target"), ignored)),
         expect_true("nested node_modules", skipped("tools/node_modules", _dir("node_modules"), ignored)),
         expect_true("directory symlink", skipped("tools/linked", _link("linked"), ignored)),

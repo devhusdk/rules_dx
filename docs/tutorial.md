@@ -1,10 +1,13 @@
 # Tutorial
 
-Go from an empty directory to a passing `dx test`. The steps are for Linux.
+This tutorial takes you from an empty directory to a passing `dx test` on
+Linux. You need `git` and the GitHub CLI `gh`. Every other tool comes
+through Bazel.
 
 ## Install
 
-Install Bazelisk, then install `dx` from the latest release.
+Install Bazelisk as `bazel`. Bazelisk downloads the Bazel version a project
+asks for. Then install `dx` from the latest release.
 
 ```sh
 curl -fsSL -o bazel https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64
@@ -14,7 +17,8 @@ mkdir -p ~/.local/bin
 tar -xzf dx-release/dx-linux-x86_64.tar.gz -C ~/.local/bin dx
 ```
 
-Put `bazel` and `~/.local/bin` on your `PATH` and open a new shell.
+Put `bazel` and `~/.local/bin` on your `PATH` and open a new shell. Check
+that `dx --help` prints the commands.
 
 ## Start a workspace
 
@@ -23,8 +27,11 @@ dx init --apply my-app
 cd my-app
 ```
 
-A Bazel workspace is a directory with a `MODULE.bazel`. A module is the unit
-Bazel builds and other modules depend on. `dx init` writes the file for you.
+`dx init --apply my-app` creates the `my-app` directory and makes it a
+Bazel workspace: a directory with a `MODULE.bazel` file. That file declares
+a module, the unit Bazel builds and other modules depend on. Init also
+writes `.bazelversion`, the `tools/dx` launcher, `.gitignore`, and CI and
+editor files.
 
 ## Add a hello package
 
@@ -64,16 +71,17 @@ if __name__ == "__main__":
     unittest.main()
 ```
 
-Let `dx` write the `BUILD.bazel`.
+You do not write the `BUILD.bazel` yourself. Let `dx` write it from your
+sources and imports.
 
 ```sh
 dx generate --apply
 ```
 
 `hello/BUILD.bazel` now lists targets. A target is one thing Bazel can build
-or test. A label names it, like `//hello:hello_test`: the package path after
-`//`, then the target name after `:`. `//...` means every target in the
-workspace.
+or test, such as a library or a test. A label names it, like
+`//hello:hello_test`: the package path after `//`, then the target name after
+`:`. `//...` means every target in the workspace.
 
 ## Build and test
 
@@ -82,7 +90,13 @@ dx build //...
 dx test //...
 ```
 
+The test passes. Run `dx test //...` again and it prints `(cached) PASSED`:
+nothing it reads has changed, so Bazel reuses the last result.
+
 ## Fix problems
+
+`dx check` runs generate, format, lint and typecheck. `--apply` writes the
+fixes the tools can make, then checks again and reports what is left.
 
 ```sh
 dx check --apply //...
@@ -135,23 +149,32 @@ dx test //...
 
 ## Test only what changed
 
-Commit your work, change `hello/hello.py`, then run only the affected tests.
-Both packages run, because `greeter` depends on `hello`.
+`--affected` tests only what your changes reach. It compares your work with
+the `main` branch, so commit everything on `main` first.
 
 ```sh
-git init
+git init -b main
 git add .
 git commit -m "hello"
+```
+
+Now edit `hello/hello.py`, for example change its docstring, and run the
+affected tests. Both packages run, because `greeter` depends on `hello`.
+
+```sh
 dx test --affected
 ```
 
-## CI
+## Set up CI
 
-Run the same checks on every pull request. See [GitHub CI](github-ci.md).
+`dx init` wrote a GitHub Actions workflow that runs the same checks on every
+pull request. [GitHub CI](github-ci.md) shows the repository settings it
+needs.
 
-## Next
+## Next steps
 
-- [Bazel for dx users](bazel-for-dx-users.md)
-- [Command reference](cli/commands/README.md)
-- [Adopting rules_dx in an existing Bazel repo](adopting-existing-bazel.md)
-- [Examples](https://github.com/devhusdk/rules_dx/blob/main/examples/README.md)
+- [Bazel for dx users](bazel-for-dx-users.md): the Bazel words and messages
+  you will meet next.
+- [Command reference](cli/commands/README.md): every `dx` command and flag.
+- [Adopting rules_dx in an existing Bazel repo](adopting-existing-bazel.md).
+- [Examples](https://github.com/devhusdk/rules_dx/blob/main/examples/README.md).

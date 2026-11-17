@@ -248,6 +248,7 @@ single_version_override(
     patches = [
         "//patches/apple_support:gcov_gcno_file.patch",
         "//patches/apple_support:toolchains_gate.patch",
+        "//patches/apple_support:xcode_absolute_tools.patch",
     ],
     version = "2.12.0",
 )
@@ -1563,6 +1564,7 @@ single_version_override(
         "//patches/rules_swift:windows_absolute_sdk.patch",
         "//patches/rules_swift:windows_swift_testing.patch",
         "//patches/rules_swift:windows_unknown_vendor.patch",
+        "//patches/rules_swift:xcode_select_absolute_path.patch",
     ],
     version = "4.2.2",
 )
@@ -3021,10 +3023,14 @@ nested_repository_cache.set(
     list = "//tools/testing/nested_cache:harness.txt",
 )
 nested_repository_cache.set(
+    name = "nested_cache_apple",
+    list = "//tools/testing/nested_cache:apple.txt",
+)
+nested_repository_cache.set(
     name = "nested_cache_release",
     list = "//tools/testing/nested_cache:release.txt",
 )
-use_repo(nested_repository_cache, "nested_cache_adopt_polyglot", "nested_cache_harness", "nested_cache_release")
+use_repo(nested_repository_cache, "nested_cache_adopt_polyglot", "nested_cache_apple", "nested_cache_harness", "nested_cache_release")
 
 _fixture_repo(
     name = "shared_consumer",

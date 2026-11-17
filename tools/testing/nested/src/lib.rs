@@ -1460,6 +1460,20 @@ fn finish_record(server: &Server) -> Result<(), String> {
             entries.insert(url, sha256);
         }
     }
+    let mut urls_of: std::collections::BTreeMap<String, Vec<&str>> =
+        std::collections::BTreeMap::default();
+    for (url, sha256) in &entries {
+        urls_of.entry(sha256.clone()).or_default().push(url);
+    }
+    let ids: Vec<(String, String)> = urls_of
+        .iter()
+        .flat_map(|(sha256, urls)| {
+            cache::extra_ids(&repository_cache, sha256, urls)
+                .into_iter()
+                .map(|id| (id, sha256.clone()))
+        })
+        .collect();
+    entries.extend(ids);
     for (stem, lock) in &locks {
         write(&dir.join(format!("{stem}.MODULE.bazel.lock")), lock)?;
     }

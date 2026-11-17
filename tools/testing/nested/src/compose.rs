@@ -355,27 +355,53 @@ pub fn patch_labels(block: &str) -> Vec<(String, String)> {
 ///
 /// Returns `Err` when `MODULE.bazel` cannot be read or a patch cannot be copied.
 pub fn write_root_patch_overrides(workspace: &Path, rules_dx: &Path) -> Result<String, String> {
+    let mut overrides = String::new();
+    for module in ROOT_PATCHED_MODULES {
+        overrides.push_str(&write_root_patch_override(
+            workspace,
+            rules_dx,
+            module,
+            &[],
+        )?);
+    }
+    Ok(overrides)
+}
+
+/// Copies the patches of `module`'s override in `rules_dx`'s MODULE.bazel, except the `skip` files, into `workspace`.
+///
+/// Returns that override without the `skip` patch lines, or an empty string when the root has none.
+///
+/// # Errors
+///
+/// Returns `Err` when `MODULE.bazel` cannot be read or a patch cannot be copied.
+pub fn write_root_patch_override(
+    workspace: &Path,
+    rules_dx: &Path,
+    module: &str,
+    skip: &[&str],
+) -> Result<String, String> {
     let path = rules_dx.join("MODULE.bazel");
     let root_module = std::fs::read_to_string(&path)
         .map_err(|err| format!("cannot read {}: {err}", path.display()))?;
-    let mut overrides = String::new();
-    for module in ROOT_PATCHED_MODULES {
-        let Some(block) = root_patch_override(&root_module, module) else {
-            continue;
-        };
-        for (package, file) in patch_labels(&block) {
-            let dir = workspace.join("patches").join(&package);
-            std::fs::create_dir_all(&dir)
-                .map_err(|err| format!("cannot create {}: {err}", dir.display()))?;
-            std::fs::write(dir.join("BUILD.bazel"), "")
-                .map_err(|err| format!("cannot write {}: {err}", dir.display()))?;
-            let from = rules_dx.join("patches").join(&package).join(&file);
-            std::fs::copy(&from, dir.join(&file))
-                .map_err(|err| format!("cannot copy {}: {err}", from.display()))?;
-        }
-        overrides.push_str(&block);
+    let Some(block) = root_patch_override(&root_module, module) else {
+        return Ok(String::new());
+    };
+    let block: String = block
+        .lines()
+        .filter(|line| !skip.iter().any(|file| line.contains(&format!(":{file}\""))))
+        .map(|line| format!("{line}\n"))
+        .collect();
+    for (package, file) in patch_labels(&block) {
+        let dir = workspace.join("patches").join(&package);
+        std::fs::create_dir_all(&dir)
+            .map_err(|err| format!("cannot create {}: {err}", dir.display()))?;
+        std::fs::write(dir.join("BUILD.bazel"), "")
+            .map_err(|err| format!("cannot write {}: {err}", dir.display()))?;
+        let from = rules_dx.join("patches").join(&package).join(&file);
+        std::fs::copy(&from, dir.join(&file))
+            .map_err(|err| format!("cannot copy {}: {err}", from.display()))?;
     }
-    Ok(overrides)
+    Ok(block)
 }
 
 #[cfg(test)]
@@ -506,6 +532,27 @@ mod tests {
         assert!(workspace
             .join("patches/rules_python/install_name_tool.patch")
             .is_file());
+    }
+
+    #[test]
+    fn root_patch_override_drops_the_skipped_patches() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("src");
+        let workspace = dir.path().join("ws");
+        std::fs::create_dir_all(source.join("patches/apple_support")).unwrap();
+        std::fs::write(source.join("patches/apple_support/keep.patch"), "diff").unwrap();
+        std::fs::write(source.join("MODULE.bazel"), "single_version_override(\n    module_name = \"apple_support\",\n    patches = [\n        \"//patches/apple_support:keep.patch\",\n        \"//patches/apple_support:root.patch\",\n    ],\n)\n").unwrap();
+        assert_eq!(
+            write_root_patch_override(&workspace, &source, "apple_support", &["root.patch"])
+                .unwrap(),
+            "single_version_override(\n    module_name = \"apple_support\",\n    patches = [\n        \"//patches/apple_support:keep.patch\",\n    ],\n)\n"
+        );
+        assert!(workspace.join("patches/apple_support/keep.patch").is_file());
+        assert!(!workspace.join("patches/apple_support/root.patch").exists());
+        assert_eq!(
+            write_root_patch_override(&workspace, &source, "absent", &[]).unwrap(),
+            ""
+        );
     }
 
     #[test]

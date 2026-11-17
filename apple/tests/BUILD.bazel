@@ -14,6 +14,7 @@ load("//apple/private/xcode:repos.bzl", "UNACCEPTED")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
+load("//tools/testing/hermetic:defs.bzl", "nested_bazel_test")
 load(":cell_tests.bzl", "adhoc_signing_test", "cell_failure_test", "signing_probe", "signing_probe_device", "stub_library")
 load(":ios_app_tests.bzl", "apple_ios_app_tests")
 load(":ios_lib_tests.bzl", "ios_lib_test", "stub_archive", "stub_ios_lib")
@@ -42,6 +43,28 @@ rust_test(
     ],
     env = {"DX_APPLE_PATH_SOURCES": "$(rootpath //apple/private/bundle:defs.bzl) $(rootpath //apple/private/ios:app.bzl) $(rootpath //apple/private/macos:app.bzl)"},
     deps = ["//tools/testing:dx_testing"],
+)
+
+# size: large, nested Bazel consumer build
+nested_bazel_test(
+    name = "consumer_build_test",
+    size = "large",
+    timeout = "long",
+    srcs = ["consumer_build_test.rs"],
+    cache = "apple",
+    cache_locks = "//tools/testing/nested_cache:apple_locks",
+    crate_name = "consumer_build_test",
+    crate_root = "consumer_build_test.rs",
+    data = [
+        "//:module_srcs",
+        "@dx_test_tags_sources//:consumer.json",
+    ],
+    env = {"DX_CONSUMER_JSON": "$(rlocationpath @dx_test_tags_sources//:consumer.json)"},
+    target_compatible_with = ["@platforms//os:macos"],
+    deps = [
+        "//tools/testing:dx_testing",
+        "//tools/testing/nested:dx_nested",
+    ],
 )
 
 apple_ios_tests(

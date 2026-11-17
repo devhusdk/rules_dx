@@ -27,12 +27,14 @@ def _fetch(rctx, tool, pin, build):
             required = [binary],
         )
     else:
-        headers = {}
-        if pin.get("ghcr_scope"):
-            rctx.download(url = "https://ghcr.io/token?service=ghcr.io&scope=" + pin["ghcr_scope"], output = "token.json")
-            headers["Authorization"] = ["Bearer " + json.decode(rctx.read("token.json"))["token"]]
-            rctx.delete("token.json")
-        rctx.download_and_extract(url = pin["urls"], sha256 = pin["sha256"], type = pin.get("type", ""), stripPrefix = pin.get("strip_prefix", ""), headers = headers)
+        args = dict(url = pin["urls"], sha256 = pin["sha256"], type = pin.get("type", ""), stripPrefix = pin.get("strip_prefix", ""))
+        if not pin.get("ghcr_scope") or not rctx.download_and_extract(allow_fail = True, **args).success:
+            headers = {}
+            if pin.get("ghcr_scope"):
+                rctx.download(url = "https://ghcr.io/token?service=ghcr.io&scope=" + pin["ghcr_scope"], output = "token.json")
+                headers["Authorization"] = ["Bearer " + json.decode(rctx.read("token.json"))["token"]]
+                rctx.delete("token.json")
+            rctx.download_and_extract(headers = headers, **args)
         if not rctx.path(binary).exists:
             fail("{} archive {} has no {}".format(tool, pin["urls"][0], binary))
         if pin.get("executable"):

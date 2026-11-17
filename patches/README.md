@@ -37,6 +37,7 @@ The Version column is generated from `MODULE.bazel`, and every patch it applies 
 | `rules_swift` | 4.2.2 | `windows_absolute_sdk.patch` | Root only. Windows Swift actions pass `-sdk` through the wrapper as an absolute path |
 | `rules_swift` | 4.2.2 | `windows_swift_testing.patch` | Root only. The Windows toolchain puts the Swift Testing module and import library directories on the compile and link paths (bazelbuild/rules_swift#2018; drop when a rules_swift release has it) |
 | `rules_swift` | 4.2.2 | `windows_unknown_vendor.patch` | Root only. Windows target triples use the `unknown` vendor |
+| `rules_swift` | 4.2.2 | `xcode_select_absolute_path.patch` | The `system_sdk` extension runs `/usr/bin/xcode-select`, so Xcode discovery works with no host `PATH`. Consumer fix: #11150 |
 | `rules_python` | 2.4.6 | `single_import_lib.patch` | `py_extension` on Windows links one CPython import library: the stable ABI one for limited API modules, else the versioned one. It passed both as one linker argument (bazel-contrib/rules_python#4426; drop when a rules_python release has it). Consumer fix: #11418 |
 | `aspect_rules_js` | 3.6.0 | `manifest_only_runfiles.patch` | Root only. The `js_binary` bash launcher accepts a `RUNFILES_MANIFEST_FILE` at any path and builds its runfiles tree from the manifest when there is no runfiles directory beside it |
 | `rules_python` | 2.4.6 | `install_name_tool.patch` | Root only. The macOS `python_repository` skips the LC_ID_DYLIB fixup, which needs `install_name_tool` on PATH, when `libpython` already names itself `@rpath/` |
@@ -77,6 +78,7 @@ The Version column is generated from `MODULE.bazel`, and every patch it applies 
 | `windows_support` | 0.4.1 | `pins.patch` | Root only. `msvc_runtime` reads the Visual Studio installer manifest URL and integrity from the `pins` file when it is set |
 | `apple_support` | 2.12.0 | `gcov_gcno_file.patch` | `GCOV_GCNO_FILE` is set only when `gcov_gcno_file` is available, so `cc_common.get_environment_variables` without it (rules_go `cgo_context_data`, rules_rust build scripts) does not fail analysis on macOS under coverage (drop when an apple_support release has it). Consumer fix: #12155 |
 | `apple_support` | 2.12.0 | `toolchains_gate.patch` | Root only. The Apple C++ toolchains have `target_settings = ["@@//config:toolchains_on"]` |
+| `apple_support` | 2.12.0 | `xcode_absolute_tools.patch` | Xcode and C++ toolchain discovery run `/usr/bin/env` and `/usr/bin/xcrun`, so they work with no host `PATH`. Consumer fix: #11150 |
 | `elfutils` | 0.195 | `musl.patch` | Root only. libdwfl compiles without argp, fts and GNU `strerror_r` on musl, so `//tools/coverage/kcov:kcov_static` links fully static |
 | `rules_go` | 0.65.0 | `lazy_nogo.patch` | Toolchain registration does not load the Go rules, so builds without Go targets never fetch `@io_bazel_rules_nogo`. Consumer fix: #11418 |
 | `rules_go` | 0.65.0 | `lock_extension.patch` | Root only. The `go_sdk` extension is not reproducible, so the lockfile keeps its result per platform |

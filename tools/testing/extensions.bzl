@@ -69,7 +69,7 @@ def _nested_repository_cache_impl(mctx):
                         name = repo,
                         downloaded_file_path = "blob",
                         integrity = digest_integrity(digest),
-                        urls = urls,
+                        urls = [url for url in urls if url.startswith("https://")],
                     )
             nested_repository_cache_set(
                 name = cache_set.name,

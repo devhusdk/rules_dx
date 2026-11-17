@@ -85,7 +85,34 @@ fn id_hash(digest: &str, canonical_id: &str) -> Option<String> {
     }
 }
 
-/// Builds the repository cache at `cache` from `files`; each URL is also recorded as a canonical id.
+/// The prefix of a canonical id hash file in a repository cache entry and of its cache list token.
+pub const ID_PREFIX: &str = "id-";
+
+/// The `id-<hex>` canonical id hashes in the cache entry of `digest` that no URL in `urls` accounts for.
+#[must_use]
+pub fn extra_ids(cache: &Path, digest: &str, urls: &[&str]) -> Vec<String> {
+    let known: Vec<String> = urls.iter().filter_map(|url| id_hash(digest, url)).collect();
+    let Some(dir) = entry(cache, digest).parent().map(Path::to_path_buf) else {
+        return Vec::new();
+    };
+    let mut ids: Vec<String> = std::fs::read_dir(dir)
+        .map(|entries| {
+            entries
+                .filter_map(|entry| entry.ok()?.file_name().into_string().ok())
+                .filter(|name| {
+                    name.strip_prefix(ID_PREFIX).is_some_and(|hash| {
+                        algorithm(hash) == algorithm(digest) && !known.iter().any(|k| k == hash)
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    ids.sort();
+    ids
+}
+
+/// Builds the repository cache at `cache` from `files`; each URL is also recorded as a canonical id
+/// and each `id-<hex>` token is recorded as that canonical id hash.
 ///
 /// # Errors
 ///
@@ -111,10 +138,15 @@ pub fn install(cache: &Path, files: &[Download<PathBuf>]) -> Result<(), String> 
             })?;
         }
         for url in urls {
-            let Some(hash) = id_hash(digest, url) else {
-                continue;
+            let hash = match url.strip_prefix(ID_PREFIX) {
+                Some(hash) if algorithm(hash) == algorithm(digest) => hash.to_owned(),
+                Some(_) => return Err(format!("repository cache: bad canonical id hash {url:?}")),
+                None => match id_hash(digest, url) {
+                    Some(hash) => hash,
+                    None => continue,
+                },
             };
-            let id = dir.join(format!("id-{hash}"));
+            let id = dir.join(format!("{ID_PREFIX}{hash}"));
             std::fs::write(&id, "")
                 .map_err(|error| format!("cannot write {}: {error}", id.display()))?;
         }
@@ -281,6 +313,43 @@ mod tests {
                 file: "f".to_owned(),
                 urls: vec!["https://a/x".to_owned(), "https://b/x".to_owned()],
             }])
+        );
+    }
+
+    #[test]
+    fn an_id_token_is_recorded_as_that_canonical_id_hash_and_found_again() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let src = dir.path().join("download");
+        std::fs::write(&src, "bytes").expect("write");
+        let cache = dir.path().join("cache");
+        let hash = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+        let other = "bbea0fabfdbf037ddf6765848ce5875c610f16b7cd81c9c19c67665f0a3aca54";
+        let files = vec![Download {
+            digest: A.to_owned(),
+            file: src,
+            urls: vec!["abc".to_owned(), format!("{ID_PREFIX}{other}")],
+        }];
+        install(&cache, &files).expect("install");
+        let placed = entry(&cache, A);
+        assert!(placed.with_file_name(format!("id-{hash}")).is_file());
+        assert!(placed.with_file_name(format!("id-{other}")).is_file());
+        assert_eq!(extra_ids(&cache, A, &["abc"]), vec![format!("id-{other}")]);
+        assert!(extra_ids(&cache, &sha('b'), &["abc"]).is_empty());
+    }
+
+    #[test]
+    fn install_rejects_an_id_token_of_another_algorithm() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let src = dir.path().join("download");
+        std::fs::write(&src, "bytes").expect("write");
+        let files = vec![Download {
+            digest: A.to_owned(),
+            file: src,
+            urls: vec!["id-abc".to_owned()],
+        }];
+        assert_eq!(
+            install(&dir.path().join("cache"), &files),
+            Err("repository cache: bad canonical id hash \"id-abc\"".to_owned())
         );
     }
 

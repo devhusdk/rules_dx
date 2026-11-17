@@ -1,0 +1,42 @@
+diff --git a/tools/explicit_modules/extensions.bzl b/tools/explicit_modules/extensions.bzl
+--- a/tools/explicit_modules/extensions.bzl
++++ b/tools/explicit_modules/extensions.bzl
+@@ -46,7 +46,7 @@ def _vendored_xcode_tags_by_version(vendored_xcode_tags):
+ 
+ def _default_xcode_path(module_ctx):
+     result = module_ctx.execute(
+-        ["xcode-select", "-p"],
++        ["/usr/bin/xcode-select", "-p"],
+         environment = {"DEVELOPER_DIR": module_ctx.os.environ.get("DEVELOPER_DIR", "")},
+     )
+     output = result.stdout.strip()
+diff --git a/tools/explicit_modules/scan.py b/tools/explicit_modules/scan.py
+--- a/tools/explicit_modules/scan.py
++++ b/tools/explicit_modules/scan.py
+@@ -153,7 +153,7 @@
+     env = dict(os.environ)
+     env["DEVELOPER_DIR"] = developer_dir.as_posix()
+     output = subprocess.check_output(
+-        ["xcodebuild", "-version"],
++        ["/usr/bin/xcodebuild", "-version"],
+         env=env,
+         text=True,
+     )
+@@ -709,7 +709,7 @@
+         )
+         cmd = (
+             [
+-                "xcrun",
++                "/usr/bin/xcrun",
+                 "swiftc",
+                 "-scan-dependencies",
+                 str(stub),
+@@ -759,7 +759,7 @@
+     env["DEVELOPER_DIR"] = developer_dir.as_posix()
+     try:
+         output = subprocess.check_output(
+-            ["xcrun", "--sdk", sdk.lower(), "--show-sdk-path"],
++            ["/usr/bin/xcrun", "--sdk", sdk.lower(), "--show-sdk-path"],
+             env=env,
+             text=True,
+             stderr=subprocess.PIPE,

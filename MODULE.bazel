@@ -1144,6 +1144,7 @@ dx_pins.archive(
         "//patches/rules_erlang:04_otp_tree.patch",
         "//patches/rules_erlang:05_windows_eunit_cover.patch",
         "//patches/rules_erlang:06_coverage_enabled.patch",
+        "//patches/rules_erlang:07_windows_ct_cover.patch",
     ],
     pins = "//erlang:pins.json",
 )

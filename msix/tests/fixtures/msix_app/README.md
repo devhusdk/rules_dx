@@ -11,7 +11,7 @@ calls a function from a DLL in another package and prints its package identity.
 Build on a Windows host:
 
 ```sh
-bazel build //msix/tests/fixtures/msix-app/app
+bazel build //msix/tests/fixtures/msix_app/app
 ```
 
 `app` needs the Windows SDK Build Tools license accepted. rules_dx accepts it
@@ -21,7 +21,7 @@ Install and run it with Developer Mode on, in Windows PowerShell:
 
 ```text
 mkdir $env:TEMP\dxmsix
-tar -xf bazel-bin\examples\msix-app\app\app.msix -C $env:TEMP\dxmsix
+tar -xf bazel-bin\examples\msix_app\app\app.msix -C $env:TEMP\dxmsix
 Add-AppxPackage -Register $env:TEMP\dxmsix\AppxManifest.xml
 dxmsix.exe
 Get-AppxPackage -Name DxMsix.Example | Remove-AppxPackage
@@ -45,7 +45,7 @@ before it starts.
 Sign a copy with a test certificate:
 
 ```sh
-bazel run //msix/tests/fixtures/msix-app/app:app_sign -- -Pfx C:\certs\test.pfx -Out C:\out\dxmsix.msix
+bazel run //msix/tests/fixtures/msix_app/app:app_sign -- -Pfx C:\certs\test.pfx -Out C:\out\dxmsix.msix
 ```
 
 `//msix/tests` builds, inspects, installs and signs this example.

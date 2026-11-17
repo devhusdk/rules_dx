@@ -5,7 +5,7 @@ load(":defs_tests.bzl", "owns_kubernetes_class_test", "schemas_config_test")
 
 kubernetes_library(
     name = "app",
-    srcs = ["fixtures/app.yaml"],
+    srcs = ["fixtures/manifests/app.yaml"],
 )
 
 owns_kubernetes_class_test(
@@ -16,9 +16,9 @@ owns_kubernetes_class_test(
 
 kubernetes_schemas(
     name = "schemas",
-    crd_schemas = {"fixtures/widget_v1.json": "example.com"},
+    crd_schemas = {"fixtures/schemas/widget_v1.json": "example.com"},
     kubernetes_version = "1.32.0",
-    schemas = ["fixtures/deployment-apps-v1.json"],
+    schemas = ["fixtures/schemas/deployment-apps-v1.json"],
 )
 
 schemas_config_test(
@@ -41,7 +41,7 @@ failure_test(
 
 kubernetes_schemas(
     name = "bad_crd_name",
-    crd_schemas = {"fixtures/badname.json": "example.com"},
+    crd_schemas = {"fixtures/schemas/badname.json": "example.com"},
     kubernetes_version = "1.32.0",
     tags = ["manual"],
 )
@@ -56,7 +56,7 @@ kubernetes_schemas(
     name = "duplicate_schema",
     kubernetes_version = "1.32.0",
     schemas = [
-        "fixtures/deployment-apps-v1.json",
+        "fixtures/schemas/deployment-apps-v1.json",
         "fixtures/dup/deployment-apps-v1.json",
     ],
     tags = ["manual"],
@@ -86,7 +86,7 @@ kubernetes_schemas(
 
 kubernetes_library(
     name = "dirty",
-    srcs = ["fixtures/dirty.yaml"],
+    srcs = ["fixtures/manifests/dirty.yaml"],
     aspect_hints = [":dirty_schemas"],
     visibility = ["//core/quality/testdata:__pkg__"],
 )

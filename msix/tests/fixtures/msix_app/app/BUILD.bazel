@@ -1,5 +1,5 @@
 # gazelle:exclude main.c
-# gazelle:resolve cc greet.h //msix/tests/fixtures/msix-app/greet:greet
+# gazelle:resolve cc greet.h //msix/tests/fixtures/msix_app/greet:greet
 load("//cc:defs.bzl", "cc_binary")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//msix:defs.bzl", "msix_package", "msix_sign")
@@ -17,13 +17,13 @@ cc_binary(
     name = "dxmsix",
     testonly = True,
     srcs = ["main.c"],
-    dynamic_deps = ["//msix/tests/fixtures/msix-app/greet:greet_dll"],
+    dynamic_deps = ["//msix/tests/fixtures/msix_app/greet:greet_dll"],
     features = [
         "-runtime_library_search_directories",
         "-runtime_library_search_directories_workaround",
     ],
     target_compatible_with = ["@platforms//os:windows"],
-    deps = ["//msix/tests/fixtures/msix-app/greet"],
+    deps = ["//msix/tests/fixtures/msix_app/greet"],
 )
 
 msix_package(

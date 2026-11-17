@@ -31,7 +31,7 @@ def _action_impl(ctx):
     asserts.equals(env, "fake_makeappx.exe", spec["makeappx"].split("/")[-1])
     asserts.equals(
         env,
-        [["exe", "cell.exe"], ["logo", "Assets/logo.png"], ["lib", "cell.dll"], ["data", "share/fixtures/greeting.txt"], ["notice", "licenses/NOTICE.txt"]],
+        [["exe", "cell.exe"], ["logo", "Assets/logo.png"], ["lib", "cell.dll"], ["data", "share/fixtures/package/greeting.txt"], ["notice", "licenses/NOTICE.txt"]],
         [[f["kind"], f["dest"]] for f in spec["files"]],
     )
     inputs = [f.basename for f in action.inputs.to_list()]

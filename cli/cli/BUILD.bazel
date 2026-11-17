@@ -178,7 +178,7 @@ rust_binary(
         "//core/quality/markdown:quality_markdown_lib",
         "//core/quality/notebook:quality_notebook_lib",
         "//core/quality/runner:quality_runner_lib",
-        "//env/private/env_shard",
+        "//env/private/tools/env_shard",
         "//tools/coverage/collect:collect_native_lib",
         "@crates//:tracing",
     ] + select({

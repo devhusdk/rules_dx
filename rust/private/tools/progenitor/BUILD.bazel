@@ -16,14 +16,14 @@ rust_binary(
     name = "dx_progenitor",
     srcs = ["main.rs"],
     aliases = aliases(
-        package_name = "rust/private/quality/tools/dx_progenitor",
+        package_name = "rust/private/tools/dx_progenitor",
         normal = True,
     ),
     crate_name = "dx_progenitor",
     crate_root = "main.rs",
     edition = "2021",
     deps = all_crate_deps(
-        package_name = "rust/private/quality/tools/dx_progenitor",
+        package_name = "rust/private/tools/dx_progenitor",
         normal = True,
     ),
 )
@@ -32,13 +32,13 @@ rust_test(
     name = "dx_progenitor_bin_test",
     size = "small",
     aliases = aliases(
-        package_name = "rust/private/quality/tools/dx_progenitor",
+        package_name = "rust/private/tools/dx_progenitor",
         normal = True,
         normal_dev = True,
     ),
     crate = ":dx_progenitor",
     deps = all_crate_deps(
-        package_name = "rust/private/quality/tools/dx_progenitor",
+        package_name = "rust/private/tools/dx_progenitor",
         normal = True,
         normal_dev = True,
     ),

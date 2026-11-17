@@ -169,8 +169,8 @@ rust_test(
     crate_name = "context_clang_tidy_test",
     crate_root = "context_clang_tidy.rs",
     data = [
-        "//cc/private/context:identity",
-        "//cc/private/context:identity_exec",
+        "//cc/private/tools/context:identity",
+        "//cc/private/tools/context:identity_exec",
         "//cc/tests/fixtures/compilation_db:.clang-tidy",
         "//cc/tests/fixtures/compilation_db:limits_h",
         "//cc/tests/fixtures/compilation_db:probe.c",
@@ -181,8 +181,8 @@ rust_test(
     ],
     env = {
         "DX_CLANG_TIDY": "$(rootpath @llvm//tools:clang-tidy)",
-        "DX_IDENTITY": "$(rootpath //cc/private/context:identity)",
-        "DX_IDENTITY_EXEC": "$(rootpath //cc/private/context:identity_exec)",
+        "DX_IDENTITY": "$(rootpath //cc/private/tools/context:identity)",
+        "DX_IDENTITY_EXEC": "$(rootpath //cc/private/tools/context:identity_exec)",
         "DX_GENERATED_HEADER": "$(rootpath //cc/tests/fixtures/compilation_db:limits_h)",
     },
     target_compatible_with = [
@@ -190,7 +190,7 @@ rust_test(
         "@platforms//os:linux",
     ],
     deps = [
-        "//cc/private/context:cc_context",
+        "//cc/private/tools/context:cc_context",
         "//cli/test_scratch:dx_test_scratch",
     ],
 )

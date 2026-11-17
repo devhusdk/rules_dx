@@ -7,12 +7,12 @@ use std::process::{Command, ExitCode};
 
 use cc_context::{AqueryGraph, Error};
 
-const USAGE: &str = "Usage: bazel run //cc/private/context:qualify -- --target <label>... \
+const USAGE: &str = "Usage: bazel run //cc/private/tools/context:qualify -- --target <label>... \
 [--compiler <name>] [--output <file>] [--bazel <bin>] [-- <bazel flags>...]";
 
 const IDENTITIES: [&str; 2] = [
-    "//cc/private/context:identity",
-    "//cc/private/context:identity_exec",
+    "//cc/private/tools/context:identity",
+    "//cc/private/tools/context:identity_exec",
 ];
 
 fn main() -> ExitCode {

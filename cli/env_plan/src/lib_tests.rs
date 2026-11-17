@@ -188,12 +188,12 @@ fn collect_records_preserves_exec_paths() {
                     vec![(
                         "runtime",
                         "stable-x86_64",
-                        "env/private/env_shard/src/lib.rs",
+                        "env/private/tools/env_shard/src/lib.rs",
                     )],
                 ),
             ),
             (
-                "/bazel-out/k8-fastbuild/bin/env/private/env_shard/src/lib.rs",
+                "/bazel-out/k8-fastbuild/bin/env/private/tools/env_shard/src/lib.rs",
                 vec![1, 2, 3],
             ),
         ],
@@ -207,7 +207,7 @@ fn collect_records_preserves_exec_paths() {
             vec![entry_with_exec(
                 "runtime",
                 "stable-x86_64",
-                "env/private/env_shard/src/lib.rs"
+                "env/private/tools/env_shard/src/lib.rs"
             )]
         )]
     );
@@ -249,11 +249,11 @@ fn collect_records_counts_one_file_reported_by_target_and_aspect_once() {
                 shard_bytes(
                     "//env:env_rust_fixture",
                     "rust",
-                    vec![("crate", "x", "env/private/env_shard/src/lib.rs")],
+                    vec![("crate", "x", "env/private/tools/env_shard/src/lib.rs")],
                 ),
             ),
             (
-                "/bazel-out/k8-fastbuild/bin/env/private/env_shard/src/lib.rs",
+                "/bazel-out/k8-fastbuild/bin/env/private/tools/env_shard/src/lib.rs",
                 vec![1],
             ),
         ]

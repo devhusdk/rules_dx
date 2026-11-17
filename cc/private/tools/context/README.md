@@ -3,7 +3,7 @@
 `cc_context` (`src/lib.rs`) turns a `bazel aquery --output=jsonproto` record into a
 clang-tidy consumption bundle for one Bazel target: `compile_commands.json` and the bound
 `.clang-tidy`, to be run with `clang-tidy -p <bundle>`. The crate has no binary; the
-`//cc/private/context:identity` and `//cc/private/context:identity_exec` targets provide the compiler identity.
+`//cc/private/tools/context:identity` and `//cc/private/tools/context:identity_exec` targets provide the compiler identity.
 
 ## Fail-closed behaviour
 
@@ -23,17 +23,17 @@ clang driver does not know is a clang-tidy error, never a run without flags.
 
 ## Qualification
 
-`bazel run //cc/private/context:qualify` runs the exporter on real configured actions and
+`bazel run //cc/private/tools/context:qualify` runs the exporter on real configured actions and
 checks every exported command against Bazel's own argv, with `@param` files taken from
 aquery `paramFiles` rather than this crate's tokenizer. Run it from a host that has the
 compiler:
 
 ```sh
-bazel run //cc/private/context:qualify -- --target //cc/tests/fixtures/compilation_db:probe_plain \
+bazel run //cc/private/tools/context:qualify -- --target //cc/tests/fixtures/compilation_db:probe_plain \
   --compiler llvm --output /tmp/qualify.json
-bazel run //cc/private/context:qualify -- --target //cc/tests/fixtures/compilation_db:probe_plain \
+bazel run //cc/private/tools/context:qualify -- --target //cc/tests/fixtures/compilation_db:probe_plain \
   --compiler msvc --output qualify-msvc.json   # Windows host
-bazel run //cc/private/context:qualify -- --target //cc/tests/fixtures/compilation_db:probe_plain \
+bazel run //cc/private/tools/context:qualify -- --target //cc/tests/fixtures/compilation_db:probe_plain \
   --output qualify-custom-gcc.json -- \
   --extra_toolchains=//cc/tests/fixtures/custom_gcc:custom_gcc_x86_64   # linux_x86_64 host
 ```

@@ -22,7 +22,7 @@ rust_library(
         "//cli/digest:dx_digest",
         "//cli/fingerprint:dx_fingerprint",
         "//cli/roots:dx_roots",
-        "//env/private/env_shard",
+        "//env/private/tools/env_shard",
         "@crates//:serde",
     ],
 )
@@ -51,7 +51,7 @@ rust_test(
         "//cli/digest:dx_digest",
         "//cli/fingerprint:dx_fingerprint",
         "//cli/roots:dx_roots",
-        "//env/private/env_shard",
+        "//env/private/tools/env_shard",
         "@crates//:serde",
     ],
 )

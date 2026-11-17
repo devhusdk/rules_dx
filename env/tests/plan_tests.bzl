@@ -250,7 +250,7 @@ _CHAIN_FINGERPRINT = (
 )
 
 _RUST_FINGERPRINT = (
-    "[{\"entries\":[{\"exec_path\":\"env/private/env_shard/src/lib.rs\",\"key\":\"runtime\",\"value\":\"stable-x86_64\"}]," +
+    "[{\"entries\":[{\"exec_path\":\"env/private/tools/env_shard/src/lib.rs\",\"key\":\"runtime\",\"value\":\"stable-x86_64\"}]," +
     "\"integration\":\"rust\",\"producer\":\"//env:env_rust_fixture\"}]"
 )
 

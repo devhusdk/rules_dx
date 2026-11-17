@@ -3,9 +3,9 @@
 load("//rust:defs.bzl", "rust_static_library")
 load(":defs.bzl", "QT_COMPATIBLE_WITH", "QT_REPOSITORY", "qt_rust_cc_library")
 
-_CXX_CRATE = Label("//qt/private/rust:cxx")
+_CXX_CRATE = Label("//qt/private/tools/rust:cxx")
 
-_CXX_QT_CRATE = Label("//qt/private/rust:cxx_qt")
+_CXX_QT_CRATE = Label("//qt/private/tools/rust:cxx_qt")
 
 def qt_rust_library(
         name,

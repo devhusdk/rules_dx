@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
-load("//cc/private/context:identity.bzl", "cc_context_exec_identity", "cc_context_identity")
+load("//cc/private/tools/context:identity.bzl", "cc_context_exec_identity", "cc_context_identity")
 load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -40,13 +40,13 @@ rust_library(
     name = "cc_context",
     srcs = ["src/lib.rs"],
     aliases = aliases(
-        package_name = "cc/private/cc_context",
+        package_name = "cc/private/tools/cc_context",
         normal = True,
     ),
     crate_name = "cc_context",
     crate_root = "src/lib.rs",
     deps = all_crate_deps(
-        package_name = "cc/private/cc_context",
+        package_name = "cc/private/tools/cc_context",
         normal = True,
     ) + ["@crates//:serde"],
 )
@@ -59,7 +59,7 @@ rust_test(
         "src/lib_tests.rs",
     ],
     aliases = aliases(
-        package_name = "cc/private/cc_context",
+        package_name = "cc/private/tools/cc_context",
         normal = True,
         normal_dev = True,
     ),
@@ -67,7 +67,7 @@ rust_test(
     crate_name = "cc_context",
     crate_root = "src/lib.rs",
     deps = all_crate_deps(
-        package_name = "cc/private/cc_context",
+        package_name = "cc/private/tools/cc_context",
         normal = True,
         normal_dev = True,
     ) + [
@@ -80,13 +80,13 @@ rust_binary(
     name = "qualify",
     srcs = ["qualify/main.rs"],
     aliases = aliases(
-        package_name = "cc/private/cc_context",
+        package_name = "cc/private/tools/cc_context",
         normal = True,
     ),
     crate_name = "qualify",
     crate_root = "qualify/main.rs",
     deps = all_crate_deps(
-        package_name = "cc/private/cc_context",
+        package_name = "cc/private/tools/cc_context",
         normal = True,
     ) + [":cc_context"],
 )

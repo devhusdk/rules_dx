@@ -69,7 +69,7 @@ _d_forward_test = dx_executable_forward_rule(
     extra_attrs = dx_lcov_merger_attr() | {
         "deps": attr.label_list(doc = "Dependencies of the wrapped test, whose sources count for coverage."),
         "_d_coverage_launcher": attr.label(
-            default = Label("//d/private/coverage:d_coverage_launcher"),
+            default = Label("//d/private/tools/coverage:d_coverage_launcher"),
             executable = True,
             cfg = no_coverage_transition,
         ),

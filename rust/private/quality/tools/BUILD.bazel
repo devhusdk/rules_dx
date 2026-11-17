@@ -19,7 +19,7 @@ alias(
 
 alias(
     name = "progenitor",
-    actual = "//rust/private/quality/tools/progenitor:dx_progenitor",
+    actual = "//rust/private/tools/progenitor:dx_progenitor",
 )
 
 alias(
@@ -29,7 +29,7 @@ alias(
 
 alias(
     name = "topiary",
-    actual = "//rust/private/quality/tools/topiary:dx_topiary",
+    actual = "//rust/private/tools/topiary:dx_topiary",
 )
 
 # dx_quality_crates has no windows_arm64 cell, so tools select a marked stub there.

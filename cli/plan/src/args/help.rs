@@ -143,7 +143,7 @@ pub(crate) fn exit_codes(command: Command) -> &'static str {
         command,
         Command::Lint | Command::Typecheck | Command::Format
     ) {
-        "Exit codes: 0 success; 2 usage/scope/owner errors; 1 findings, operational failures, and Bazel failures (Bazel's code is not kept)."
+        "Exit codes: 0 success; 2 usage/scope/owner errors; 1 findings and operational failures; Bazel failures preserve Bazel's code."
     } else if !runs_bazel(command) {
         "Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures."
     } else {
@@ -255,7 +255,7 @@ const EXAMPLES: &[(Command, &[&str])] = &[
         &[
             "bench //...",
             "bench //app:parse_bench --output=json",
-            "bench --compare main --fail-on=regression:20",
+            "bench --compare main --max-regression 20",
         ],
     ),
     (

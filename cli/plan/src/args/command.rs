@@ -398,7 +398,7 @@ static UPGRADE: CommandMeta = CommandMeta {
     scope_policy: "reject",
     describe: "move the pin to any version, newer or older, and refresh existing launchers and the AGENTS.md block (check by default; --apply moves)",
     usage: "Usage: dx upgrade [--apply] [--to <version>]",
-    scopes: "Scopes: none (repository-wide: reads and writes .dx/pins, refreshes existing tools/dx launchers and an existing AGENTS.md block; --to must equal this binary's version; --to defaults to the newest rules_dx release in the registry; positional scopes rejected).",
+    scopes: "Scopes: none (repository-wide: reads and writes .dx/pins, refreshes existing tools/dx launchers and an existing AGENTS.md block; a --to other than this binary's version hands off to that version's dx and returns its exit code; --to defaults to the newest rules_dx release in the registry; positional scopes rejected).",
     is_managed: false,
     is_adoption: true,
     default_release: false,

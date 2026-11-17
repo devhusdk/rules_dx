@@ -523,7 +523,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Version to pin; must equal this binary.
+    /// Version to pin; another version hands off to that version's dx.
     ToFlag, {
         #[arg(long, allow_negative_numbers = true, overrides_with = "to", value_parser = non_empty)]
         to: Option<String>,

@@ -1,6 +1,7 @@
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//julia:defs.bzl", "julia_binary", "julia_library", "julia_test")
+load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -54,22 +55,17 @@ julia_test(
     deps = [":Report"],
 )
 
-julia_test(
+dx_hello_output_test(
     name = "cli_test",
-    size = "small",
-    srcs = ["cli_test.jl"],
-    data = [":readings"],
-    env = select({
+    binary = ":readings",
+    condition_env = {
         ":four_digits": {
-            "JULIA_APP_BINARY": "$(rlocationpath :readings)",
+            "DX_HELLO_EXPECTED": "readings: 8\nmean: 12.7188\nvariance: 19.1631\nmedian: 12.125\nbucket 5.0: 3\nbucket 10.0: 3\nbucket 15.0: 1\nbucket 20.0: 1\narchive: ok",
             "JULIA_APP_DIGITS": "4",
         },
-        "//conditions:default": {
-            "JULIA_APP_BINARY": "$(rlocationpath :readings)",
-            "JULIA_APP_DIGITS": "2",
-        },
-    }),
-    deps = ["@rules_julia//julia/runfiles"],
+    },
+    expected = "readings: 8\nmean: 12.72\nvariance: 19.16\nmedian: 12.12\nbucket 5.0: 3\nbucket 10.0: 3\nbucket 15.0: 1\nbucket 20.0: 1\narchive: ok",
+    size = "small",
 )
 
 # keep

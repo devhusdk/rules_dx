@@ -524,6 +524,22 @@ fn identity_strings_are_escaped() {
 }
 
 #[test]
+fn identity_strings_keep_control_characters() {
+    let bundle_id = "com.example.\tled\u{1}ger";
+    let mut bundle = Bundle::new();
+    bundle.file("Info.plist", plist(bundle_id, "1.0"));
+    let want = Want { bundle_id, ..WANT };
+    let checked = check_with(&bundle, &want, "arm64");
+    let text = json(&checked);
+    assert!(
+        text.contains("\"bundle_id\": \"com.example.\\tled\\u0001ger\""),
+        "{text}"
+    );
+    let identity: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(identity["identity"]["bundle_id"], bundle_id);
+}
+
+#[test]
 fn too_few_arguments_is_a_usage_error() {
     let fake = Fake::new(|_| fail(1, ""));
     let tools = Tools {

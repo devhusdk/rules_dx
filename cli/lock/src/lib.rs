@@ -11,6 +11,8 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+use globset::{Glob, GlobSetBuilder};
+
 pub use http::HttpFetch;
 pub use model::{Archive, Lock, PLATFORMS, Package, Resolution, SCHEMA, is_sha256};
 pub use scratch::Scratch;
@@ -39,7 +41,7 @@ impl std::error::Error for Error {}
 pub struct Spec {
     /// The `ecosystem` value.
     pub ecosystem: String,
-    /// The `manifest` names, best first; `*` matches any run of characters.
+    /// The `manifest` names, best first; each is a file name glob such as `*.opam`.
     pub manifest: Vec<String>,
     /// The `state` names, best first; empty when the resolver keeps no state.
     pub state: Vec<String>,
@@ -63,7 +65,7 @@ pub trait Resolver {
     /// Fails when the manifest has no resolution.
     fn resolve(&self, scratch: &Scratch, old: Option<&Lock>) -> Result<Resolution, Error>;
 
-    /// The names of the further files the resolver reads; `*` matches any run of characters.
+    /// The names of the further files the resolver reads; each is a file name glob such as `*.cabal`.
     ///
     /// Every file that any of them matches is copied into `scratch.set()` and digested with the manifest.
     fn sources(&self) -> Vec<String> {
@@ -149,14 +151,9 @@ impl Args {
     }
 }
 
-/// Whether `name` matches `pattern`, where `*` is any run of characters.
-fn matches(pattern: &str, name: &str) -> bool {
-    match pattern.split_once('*') {
-        None => pattern == name,
-        Some((head, tail)) => name.strip_prefix(head).is_some_and(|rest| {
-            (0..=rest.len()).any(|at| rest.get(at..).is_some_and(|suffix| matches(tail, suffix)))
-        }),
-    }
+/// Parses `pattern`, a file name glob such as `*.opam`.
+fn glob(pattern: &str) -> Result<Glob, Error> {
+    Glob::new(pattern).map_err(|error| Error::new(format!("file pattern {pattern}: {error}")))
 }
 
 /// The sorted names of the files in `dir`.
@@ -178,9 +175,10 @@ fn file_names(dir: &Path) -> Result<Vec<String>, Error> {
 fn named_files(dir: &Path, patterns: &[String]) -> Result<Vec<String>, Error> {
     let names = file_names(dir)?;
     for pattern in patterns {
+        let glob = glob(pattern)?.compile_matcher();
         let found: Vec<String> = names
             .iter()
-            .filter(|name| matches(pattern, name))
+            .filter(|name| glob.is_match(name))
             .cloned()
             .collect();
         if !found.is_empty() {
@@ -192,9 +190,16 @@ fn named_files(dir: &Path, patterns: &[String]) -> Result<Vec<String>, Error> {
 
 /// The files of `dir` named by any of `patterns`, sorted.
 fn all_named_files(dir: &Path, patterns: &[String]) -> Result<Vec<String>, Error> {
+    let mut builder = GlobSetBuilder::new();
+    for pattern in patterns {
+        builder.add(glob(pattern)?);
+    }
+    let globs = builder
+        .build()
+        .map_err(|error| Error::new(format!("file patterns {patterns:?}: {error}")))?;
     Ok(file_names(dir)?
         .into_iter()
-        .filter(|name| patterns.iter().any(|pattern| matches(pattern, name)))
+        .filter(|name| globs.is_match(name))
         .collect())
 }
 
@@ -418,5 +423,75 @@ pub fn main(spec: &Spec, resolver: &dyn Resolver) -> ExitCode {
             eprintln!("{}: {error}", spec.lock_name());
             ExitCode::from(2)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A directory holding empty files with `names`.
+    fn dir_with(names: &[&str]) -> tempfile::TempDir {
+        let dir = tempfile::tempdir().expect("tempdir");
+        for name in names {
+            std::fs::write(dir.path().join(name), "").expect("write");
+        }
+        dir
+    }
+
+    fn patterns(patterns: &[&str]) -> Vec<String> {
+        patterns
+            .iter()
+            .map(|pattern| (*pattern).to_owned())
+            .collect()
+    }
+
+    #[test]
+    fn the_first_pattern_that_names_a_file_wins() {
+        let dir = dir_with(&["b.opam", "a.opam", "a.opam.locked", "dune-project"]);
+        assert_eq!(
+            named_files(dir.path(), &patterns(&["missing.json", "*.opam", "*"])),
+            Ok(vec!["a.opam".to_owned(), "b.opam".to_owned()])
+        );
+        assert_eq!(
+            named_files(dir.path(), &patterns(&["*.json"])),
+            Ok(Vec::new())
+        );
+    }
+
+    #[test]
+    fn every_pattern_adds_its_files() {
+        let dir = dir_with(&["a.cabal", "b.cabal", "stack.yaml.lock", "README.md"]);
+        assert_eq!(
+            all_named_files(dir.path(), &patterns(&["*.cabal", "stack.yaml.lock"])),
+            Ok(vec![
+                "a.cabal".to_owned(),
+                "b.cabal".to_owned(),
+                "stack.yaml.lock".to_owned()
+            ])
+        );
+    }
+
+    #[test]
+    fn many_stars_match_in_linear_time() {
+        // A backtracking matcher tries every split of the name per `*`; it would not finish here.
+        let name = "a".repeat(64);
+        let dir = dir_with(&[name.as_str()]);
+        let no_match = format!("{}b", "*a".repeat(16));
+        assert_eq!(named_files(dir.path(), &[no_match]), Ok(Vec::new()));
+        let all = format!("{}*", "*a".repeat(16));
+        assert_eq!(named_files(dir.path(), &[all]), Ok(vec![name]));
+    }
+
+    #[test]
+    fn a_broken_pattern_is_an_error() {
+        let dir = dir_with(&["a.opam"]);
+        let error = named_files(dir.path(), &patterns(&["[.opam"]))
+            .expect_err("an unclosed class is no glob");
+        assert!(
+            error.to_string().starts_with("file pattern [.opam: "),
+            "{error}"
+        );
+        assert!(all_named_files(dir.path(), &patterns(&["[.opam"])).is_err());
     }
 }

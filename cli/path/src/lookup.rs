@@ -25,11 +25,52 @@ pub fn find<S: AsRef<Path>>(names: &[S]) -> Option<PathBuf> {
     find_in(&std::env::var_os("PATH")?, names)
 }
 
+/// The first file on `path` that the host runs as `command`: the bare name,
+/// and on Windows also `command.exe` and the other executable suffixes.
+#[must_use]
+pub fn find_command_in(path: &OsStr, command: &str) -> Option<PathBuf> {
+    let suffixes: &[&str] = if cfg!(windows) {
+        crate::host::EXECUTABLE_SUFFIXES
+    } else {
+        &[]
+    };
+    find_in(path, &command_names(command, suffixes))
+}
+
+fn command_names(command: &str, suffixes: &[&str]) -> Vec<String> {
+    std::iter::once(command.to_owned())
+        .chain(suffixes.iter().map(|suffix| format!("{command}{suffix}")))
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use std::ffi::OsStr;
 
-    use super::find_in;
+    use super::{command_names, find_command_in, find_in};
+
+    #[test]
+    fn a_command_is_its_bare_name_then_each_suffix() {
+        assert_eq!(command_names("dx", &[]), ["dx"]);
+        assert_eq!(
+            command_names("dx", &[".exe", ".cmd"]),
+            ["dx", "dx.exe", "dx.cmd"]
+        );
+    }
+
+    #[test]
+    fn find_command_in_takes_the_host_executable_suffixes() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().as_os_str();
+        assert_eq!(find_command_in(path, "dx"), None);
+        std::fs::write(dir.path().join("dx.exe"), b"x").unwrap();
+        // Windows runs `dx.exe` for `dx`; other hosts run only the bare name.
+        let want = cfg!(windows).then(|| dir.path().join("dx.exe"));
+        assert_eq!(find_command_in(path, "dx"), want);
+        std::fs::write(dir.path().join("dx"), b"x").unwrap();
+        assert_eq!(find_command_in(path, "dx"), Some(dir.path().join("dx")));
+        assert_eq!(find_command_in(OsStr::new(""), "dx"), None);
+    }
 
     #[test]
     fn finds_files_in_path_order_and_ignores_directories() {

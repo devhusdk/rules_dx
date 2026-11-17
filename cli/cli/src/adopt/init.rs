@@ -1,3 +1,4 @@
+use std::ffi::OsString;
 use std::fmt::Write as _;
 use std::io::Write;
 
@@ -316,7 +317,7 @@ pub(crate) fn execute_init(
         }
         Ok(())
     });
-    let runner = dx_runner(dx_on_path());
+    let runner = dx_runner(dx_on_path(std::env::var_os("PATH")));
     if result.is_ok() {
         notes.push(sync_note(
             runner,
@@ -350,8 +351,9 @@ pub(crate) fn execute_init(
     code
 }
 
-fn dx_on_path() -> bool {
-    dx_path::lookup::find(&["dx"]).is_some()
+/// Whether `path`, a `PATH` value, holds a `dx` this host runs, such as `dx.exe` on Windows.
+fn dx_on_path(path: Option<OsString>) -> bool {
+    path.is_some_and(|path| dx_path::lookup::find_command_in(&path, "dx").is_some())
 }
 
 fn dx_runner(on_path: bool) -> &'static str {
@@ -1310,9 +1312,28 @@ mod tests {
         let (code, out, err) = run(&invocation(&["init", "--apply"]), &root);
         assert_eq!(code, 0, "{err}");
         assert!(
-            out.ends_with(&next_steps(dx_runner(dx_on_path()), false)),
+            out.ends_with(&next_steps(
+                dx_runner(dx_on_path(std::env::var_os("PATH"))),
+                false
+            )),
             "{out}"
         );
+    }
+
+    #[test]
+    fn dx_on_path_finds_the_dx_this_host_runs() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-path-");
+        let empty = scratch.path().join("empty");
+        let bin = scratch.path().join("bin");
+        std::fs::create_dir_all(&empty).expect("empty");
+        std::fs::create_dir_all(&bin).expect("bin");
+        let path = Some(std::env::join_paths([&empty, &bin]).expect("PATH"));
+        assert!(!dx_on_path(None));
+        assert!(!dx_on_path(path.clone()));
+        // Windows runs `dx.exe` for `dx`, so that alone counts there.
+        let dx = bin.join(if cfg!(windows) { "dx.exe" } else { "dx" });
+        std::fs::write(&dx, "").expect("dx");
+        assert!(dx_on_path(path));
     }
 
     #[test]

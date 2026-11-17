@@ -195,25 +195,16 @@ fn newest(versions: &[String]) -> &str {
     })
 }
 
-/// Escapes `text` for a JSON string, dropping control characters.
-#[must_use]
-pub fn esc(text: &str) -> String {
-    let mut out = String::new();
-    for char in text.chars().filter(|char| !char.is_control()) {
-        match char {
-            '\\' => out.push_str("\\\\"),
-            '"' => out.push_str("\\\""),
-            other => out.push(other),
-        }
-    }
-    out
+/// `text` as a quoted JSON string, control characters escaped.
+fn quote(text: &str) -> String {
+    serde_json::Value::from(text).to_string()
 }
 
 fn array<'a>(items: impl IntoIterator<Item = &'a str>) -> String {
     let quoted: Vec<String> = items
         .into_iter()
         .filter(|item| !item.is_empty())
-        .map(|item| format!("\"{}\"", esc(item)))
+        .map(quote)
         .collect();
     format!("[{}]", quoted.join(", "))
 }
@@ -514,21 +505,21 @@ fn verify(tools: &Tools<'_>, args: &[String], scratch: &Path, tmp: &Path) -> Res
     let sha = sha256(&bytes);
 
     let text = format!(
-        "{{\n  \"identity\": {{\n    \"bundle_id\": \"{}\",\n    \"executable\": \"{}\",\n    \"version\": \"{}\",\n    \"deployment\": \"{}\"\n  }},\n  \"target\": {{\n    \"arch\": \"{}\",\n    \"platform\": \"macosx\",\n    \"sdk_version\": \"{}\",\n    \"xcode\": \"{}\",\n    \"minos\": \"{}\"\n  }},\n  \"linkage\": {{\n    \"rpaths\": {},\n    \"loads\": {}\n  }},\n  \"contents\": {{\n    \"frameworks\": {},\n    \"plugins\": {},\n    \"resources\": {}\n  }},\n  \"signing\": {{\n    \"signature\": \"adhoc\",\n    \"executable_sha256\": \"{}\"\n  }}\n}}\n",
-        esc(bundle_id),
-        esc(executable),
-        esc(version),
-        esc(deployment),
-        esc(arch),
-        esc(sdk_version),
-        esc(xcode),
-        esc(&minos),
+        "{{\n  \"identity\": {{\n    \"bundle_id\": {},\n    \"executable\": {},\n    \"version\": {},\n    \"deployment\": {}\n  }},\n  \"target\": {{\n    \"arch\": {},\n    \"platform\": \"macosx\",\n    \"sdk_version\": {},\n    \"xcode\": {},\n    \"minos\": {}\n  }},\n  \"linkage\": {{\n    \"rpaths\": {},\n    \"loads\": {}\n  }},\n  \"contents\": {{\n    \"frameworks\": {},\n    \"plugins\": {},\n    \"resources\": {}\n  }},\n  \"signing\": {{\n    \"signature\": \"adhoc\",\n    \"executable_sha256\": {}\n  }}\n}}\n",
+        quote(bundle_id),
+        quote(executable),
+        quote(version),
+        quote(deployment),
+        quote(arch),
+        quote(sdk_version),
+        quote(xcode),
+        quote(&minos),
         array(rpaths.iter().map(String::as_str)),
         array(loads.iter().map(String::as_str)),
         array(names(frameworks)),
         array(names(plugins)),
         array(names(resources)),
-        esc(&sha),
+        quote(&sha),
     );
     let write = |path: &Path, from: Result<(), std::io::Error>| {
         from.map_err(|error| usage(format!("cannot write {}: {error}", path.display())))

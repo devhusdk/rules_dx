@@ -132,31 +132,37 @@ pub fn parse_taplo_format_check(
 ) -> Result<Vec<FileFinding>, ParseError> {
     const TOOL: &str = "taplo";
     check_output_size(TOOL, stderr)?;
-    let stderr_text = std::str::from_utf8(stderr).map_err(|err| ParseError::Shape {
-        tool: TOOL,
-        detail: err.to_string(),
-    })?;
     let mut findings = parse_taplo_lint(stderr, Some(0), files)?;
-    for line in stderr_text.lines() {
-        if let Some(rest) = line
-            .find("the file is not properly formatted")
-            .and_then(|marker| line.get(marker..))
-        {
-            let path = rest
-                .split_once("path=\"")
-                .and_then(|(_, quoted)| quoted.split_once('"').map(|(path, _)| path))
-                .ok_or_else(|| missing(TOOL, "format path", line))?;
-            let checked = known(TOOL, files, path)?;
-            findings.push(unformatted_at(TOOL, checked, 1, 1, ColumnEncoding::Scalars));
-        }
+    if code == Some(0) {
+        return Ok(findings);
     }
-    if findings.is_empty() && code != Some(0) {
+    if code != Some(1) {
         return Err(ParseError::Shape {
             tool: TOOL,
-            detail: format!("exit {} with no parsed findings", code_name(code)),
+            detail: format!("exit {} is not a format check result", code_name(code)),
         });
     }
-    Ok(findings)
+    if files
+        .iter()
+        .all(|file| findings.iter().any(|found| found.file == *file))
+    {
+        return Ok(findings);
+    }
+    match files {
+        [only] => {
+            let checked = known(TOOL, files, only)?;
+            findings.push(unformatted_at(TOOL, checked, 1, 1, ColumnEncoding::Scalars));
+            Ok(findings)
+        }
+        _ => Err(ParseError::Shape {
+            tool: TOOL,
+            detail: format!(
+                "exit {} across {} files names no file for every input",
+                code_name(code),
+                files.len()
+            ),
+        }),
+    }
 }
 
 #[cfg(test)]
@@ -186,16 +192,55 @@ mod tests {
 
     #[test]
     fn taplo_format_check_adds_unformatted_files() {
-        let stderr = b" INFO collect\nERROR taplo:format_files: the file is not properly formatted path=\"/s/fmt.toml\"\nERROR operation failed\n";
-        let findings = parse_taplo_format_check(stderr, Some(1), &["/s/fmt.toml"]).expect("parsed");
+        for stderr in [
+            &b" INFO collect\nERROR taplo:format_files: the file is not properly formatted path=\"/s/fmt.toml\"\n"[..],
+            b" INFO collect\n",
+            b"",
+        ] {
+            let findings =
+                parse_taplo_format_check(stderr, Some(1), &["/s/fmt.toml"]).expect("parsed");
+            assert_eq!(findings.len(), 1);
+            assert_eq!(findings[0].file, "/s/fmt.toml");
+            assert_eq!(findings[0].finding.message, "file is not formatted");
+            assert_eq!(findings[0].finding.severity, ToolSeverity::Warning);
+        }
+        let findings =
+            parse_taplo_format_check(TAPLO_DIRTY_STDERR.as_bytes(), Some(1), &["/s/dirty.toml"])
+                .expect("parsed");
         assert_eq!(findings.len(), 1);
-        assert_eq!(findings[0].finding.message, "file is not formatted");
-        assert_eq!(findings[0].finding.severity, ToolSeverity::Warning);
-        let mixed = [TAPLO_DIRTY_STDERR.as_bytes(), &stderr[..]].concat();
-        let findings = parse_taplo_format_check(&mixed, Some(1), &["/s/dirty.toml", "/s/fmt.toml"])
-            .expect("parsed");
+        assert_eq!(findings[0].finding.severity, ToolSeverity::Error);
+        assert!(
+            parse_taplo_format_check(b" INFO collect\n", Some(0), &["/s/fmt.toml"])
+                .expect("parsed")
+                .is_empty()
+        );
+        assert!(
+            parse_taplo_format_check(b" INFO collect\n", Some(1), &["/s/a.toml", "/s/b.toml"])
+                .is_err()
+        );
+        for code in [None, Some(2), Some(-1)] {
+            assert!(parse_taplo_format_check(b" INFO collect\n", code, &["/s/fmt.toml"]).is_err());
+        }
+    }
+
+    #[test]
+    fn taplo_format_check_mixed_batch_defers_to_per_file_recheck() {
+        let marker = b" INFO collect\nERROR taplo:format_files: the file is not properly formatted path=\"/s/fmt.toml\"\nERROR operation failed\n";
+        let mixed = [TAPLO_DIRTY_STDERR.as_bytes(), &marker[..]].concat();
+        assert!(
+            parse_taplo_format_check(&mixed, Some(1), &["/s/dirty.toml", "/s/fmt.toml"]).is_err()
+        );
+        let both = [
+            TAPLO_DIRTY_STDERR.as_bytes(),
+            TAPLO_DIRTY_STDERR
+                .replace("dirty.toml", "other.toml")
+                .as_bytes(),
+        ]
+        .concat();
+        let findings =
+            parse_taplo_format_check(&both, Some(1), &["/s/dirty.toml", "/s/other.toml"])
+                .expect("parsed");
         assert_eq!(findings.len(), 2);
-        assert!(parse_taplo_format_check(b" INFO collect\n", Some(1), &["/s/fmt.toml"]).is_err());
     }
 
     #[test]
@@ -218,13 +263,5 @@ mod tests {
         );
         assert!(parse_taplo_lint(b"\xff", Some(1), &["/s/x.toml"]).is_err());
         assert!(parse_taplo_format_check(b"\xff", Some(1), &["/s/x.toml"]).is_err());
-        assert!(
-            parse_taplo_format_check(
-                b"ERROR taplo:format_files: the file is not properly formatted\n",
-                Some(1),
-                &["/s/x.toml"]
-            )
-            .is_err()
-        );
     }
 }

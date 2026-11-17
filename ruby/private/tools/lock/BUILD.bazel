@@ -1,0 +1,61 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+
+package(default_visibility = ["//visibility:private"])
+
+rust_library(
+    name = "ruby_lock_lib",
+    srcs = ["src/resolve.rs"],
+    crate_name = "ruby_lock",
+    crate_root = "src/resolve.rs",
+    deps = [
+        "//cli/digest:dx_digest",
+        "//cli/families:dx_families",
+        "//cli/lock:dx_lock",
+        "@crates//:flate2",
+        "@crates//:tar",
+    ],
+)
+
+rust_binary(
+    name = "lock",
+    srcs = ["src/main.rs"],
+    crate_name = "lock",
+    crate_root = "src/main.rs",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        ":ruby_lock_lib",
+        "//cli/families:dx_families",
+        "//cli/lock:dx_lock",
+    ],
+)
+
+rust_test(
+    name = "resolve_test",
+    size = "small",
+    srcs = ["resolve_test.rs"],
+    crate_name = "resolve_test",
+    crate_root = "resolve_test.rs",
+    tags = ["block-network"],
+    deps = [
+        ":ruby_lock_lib",
+        "//cli/digest:dx_digest",
+        "//cli/families:dx_families",
+        "//cli/lock:dx_lock",
+        "@crates//:flate2",
+        "@crates//:tar",
+        "@crates//:tempfile",
+    ],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

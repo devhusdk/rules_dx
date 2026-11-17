@@ -1,0 +1,69 @@
+# gazelle:ignore
+load("//rego:defs.bzl", "rego_library", "rego_test")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+rego_library(
+    name = "conformance",
+    srcs = ["clean.rego"],
+)
+
+rego_test(
+    name = "pass_subject_test",
+    size = "small",
+    srcs = ["pass_test.rego"],
+    target_compatible_with = subject_compatible_with(),
+    deps = [":conformance"],
+)
+
+rego_test(
+    name = "fail_subject_test",
+    size = "small",
+    srcs = ["fail_test.rego"],
+    target_compatible_with = subject_compatible_with(),
+)
+
+rego_library(
+    name = "lint_dirty",
+    srcs = ["lint_dirty.rego"],
+    tags = ["manual"],
+)
+
+rego_library(
+    name = "format_dirty",
+    srcs = ["format_dirty.rego"],
+    tags = ["manual"],
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":conformance",
+    covered_source = "",
+    expected = "",
+    failing_case = "data.conformance_fail_test.test_always_fails",
+    failing_pattern = "{case}: FAIL",
+    failing_test = ":fail_subject_test",
+    lang = "rego",
+    not_applicable = {
+        "build_test": "rego has no binary rule",
+        "coverage_test": "rego_test has no coverage instrumentation",
+        "cross_test": "rego has no binary rule",
+        "lock_test": "rego has no package manager",
+        "runfiles_test": "rego has no binary rule",
+    },
+    passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "format_dirty.rego",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 3,
+        "lint_rule": "style/prefer-snake-case",
+        "lint_source": "lint_dirty.rego",
+    },
+)

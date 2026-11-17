@@ -1,0 +1,59 @@
+# gazelle:ignore
+load("//terraform:defs.bzl", "terraform_library")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+terraform_library(
+    name = "conformance",
+    srcs = [
+        "clean/main.tf",
+        "clean/outputs.tf",
+        "clean/variables.tf",
+    ],
+)
+
+terraform_library(
+    name = "lint_dirty",
+    srcs = ["lint_dirty/main.tf"],
+    tags = ["manual"],
+)
+
+terraform_library(
+    name = "format_dirty",
+    srcs = ["format_dirty/main.tf"],
+    tags = ["manual"],
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":conformance",
+    covered_source = "",
+    expected = "",
+    failing_case = "",
+    failing_test = ":conformance",
+    lang = "terraform",
+    not_applicable = {
+        "build_test": "terraform has no binary rule",
+        "coverage_test": "terraform has no test rule",
+        "cross_test": "terraform has no binary rule",
+        "fail_test": "terraform has no test rule",
+        "lock_test": "terraform has no package manager",
+        "pass_test": "terraform has no test rule",
+        "runfiles_test": "terraform has no binary rule",
+    },
+    passing_test = ":conformance",
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "format_dirty/main.tf",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 5,
+        "lint_rule": "terraform_unused_declarations",
+        "lint_source": "lint_dirty/main.tf",
+    },
+)

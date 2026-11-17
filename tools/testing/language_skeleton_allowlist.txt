@@ -243,7 +243,6 @@ private-visibility android/private/packaging/BUILD.bazel
 private-visibility android/private/packaging/ops/BUILD.bazel
 private-visibility android/private/toolchain/BUILD.bazel
 private-visibility apple/private/bundle/BUILD.bazel
-private-visibility apple/private/ios/BUILD.bazel
 private-visibility apple/private/provisioning/BUILD.bazel
 private-visibility apple/private/tools/ops/BUILD.bazel
 private-visibility astro/private/BUILD.bazel
@@ -324,12 +323,6 @@ register-label scala/private/toolchain
 register-label tools/platforms
 test-location api_spec/private/codegen/BUILD.bazel
 test-location appimage/private/packer/BUILD.bazel
-test-location apple/private/ios/BUILD.bazel
-test-location apple/private/ios/app_tests.bzl
-test-location apple/private/macos/BUILD.bazel
-test-location apple/private/macos/app_tests.bzl
-test-location apple/private/signing/BUILD.bazel
-test-location apple/private/signing/signing_tests.bzl
 test-location astro/private/ide/BUILD.bazel
 test-location cc/private/context/BUILD.bazel
 test-location cc/private/context/src/lib_tests.rs

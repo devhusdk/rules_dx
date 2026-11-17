@@ -384,7 +384,8 @@ def musl_wrapper(cell, name):
     extra = MUSL_TOOL_ARGS.get(name.replace(GHC_VERSION, "{version}"), "").format(libdir = LIBDIR)
     return "\n".join([
         "#!/bin/sh",
-        "root=\"$(cd \"$(dirname \"$0\")/..\" && pwd)\"",
+        "case \"$0\" in */*) bin=\"${0%/*}\" ;; *) bin=. ;; esac",
+        "root=\"$(cd \"$bin/..\" && pwd)\"",
         "exec \"$root/{closure}/lib/{loader}\" --library-path \"$root/{closure}/lib:$root/{ghclib}\" \"$root/bin/{name}{suffix}\" {extra} \"$@\"".format(
             closure = CLOSURE_DIR,
             extra = extra,

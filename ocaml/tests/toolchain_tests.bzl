@@ -5,7 +5,7 @@ load("//core:toolchain.bzl", "hub_checks")
 load("//ocaml/private/toolchain:ocaml.bzl", "COMPILERS", "NATIVE_CC_TOOLS", "TOOLS", "native_cc_env", "toolchain_fields")
 load("//ocaml/private/toolchain:opam.bzl", "pick_annotation")
 load("//ocaml/private/toolchain:pins.bzl", "OCAML_CELLS", "OCAML_VERSION")
-load("//ocaml/private/toolchain:repos.bzl", "EMITTERS", "conda_stem", "dune_package_build", "hub_build", "placeholder_files", "relative_prefix", "softlink_paths")
+load("//ocaml/private/toolchain:repos.bzl", "EMITTERS", "conda_stem", "dist_repository_name", "dune_package_build", "hub_build", "placeholder_files", "relative_prefix", "softlink_paths")
 
 def _checks():
     linux = OCAML_CELLS["linux_x86_64"]
@@ -13,6 +13,9 @@ def _checks():
     macos = {p.name: p for p in OCAML_CELLS["macos_arm64"].packages}
     return hub_checks(hub_build(), "//toolchain/type:std", 2 * len([e for c in OCAML_CELLS.values() for e in c.emitters]), ["@rules_ocaml"]) + [
         expect_equal("linux emitters", linux.emitters, ["sys", "vm"]),
+        expect_equal("cell repositories are named after the hub", dist_repository_name("linux_x86_64"), "dx_ocaml_toolchains__linux_x86_64"),
+        expect_contains("the profile toolchain shares the emitter constraints", hub_build(), "toolchain = \"@dx_ocaml_toolchains__linux_x86_64//:sys_profile\","),
+        expect_contains("stdlib_cmis falls back to an empty filegroup", hub_build(), "\"//conditions:default\": \":none\""),
         expect_equal("known emitters", sorted(EMITTERS.keys()), ["sys", "vm"]),
         expect_equal("linux packages", sorted([p.name for p in linux.packages]), ["ocaml", "zstd"]),
         expect_contains("ocaml package names the version", ocaml.archive.urls[0], "ocaml_linux-64-" + OCAML_VERSION + "-"),

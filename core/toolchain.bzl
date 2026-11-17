@@ -116,26 +116,46 @@ def cell_repo(name, cell):
     """Returns the name of the repository holding one cell of a pin."""
     return name + "__" + cell
 
-def pins_hub(name, cells, toolchain_type, compatible_with = "exec", exec_aliases = [], os_constraints = {}, exec_toolchain_type = None):
+def pins_hub(name, cells, toolchain_type, compatible_with = "exec", exec_aliases = [], os_constraints = {}, exec_toolchain_type = None, variants = {}, companion_types = {}, alias_defaults = {}):
     """Returns the hub BUILD file of a pin: one toolchain() per cell and an alias per exec_aliases target selecting the exec cell.
 
     os_constraints maps an OS to constraints every cell of that OS adds after its OS and CPU.
-    exec_toolchain_type adds a second toolchain() per cell, named <cell repo>_exec, of that type on the cell's exec platform."""
+    exec_toolchain_type adds a second toolchain() per cell, named <cell repo>_exec, of that type on the cell's exec platform.
+    variants maps a variant to a struct of extra exec_compatible_with and target_compatible_with; each cell then has one toolchain(), named <cell repo>_<variant>, per variant, pointing at the cell's :<variant> target.
+    companion_types maps a suffix to a toolchain type; every toolchain() gets a companion of that type, named <toolchain>_<suffix>, pointing at <target>_<suffix>.
+    exec_aliases is a list of targets or a dict of alias to label in the cell repository; alias_defaults maps an alias to its label on platforms without a cell."""
     constraints = {
         cell: [_OS_CONSTRAINTS[cell.partition("_")[0]], _CPU_CONSTRAINTS[cell.partition("_")[2]]] + os_constraints.get(cell.partition("_")[0], [])
         for cell in cells
     }
     sides = ["exec", "target"] if compatible_with == "both" else [compatible_with]
-    parts = [
-        toolchain_target(
-            name = cell_repo(name, cell),
-            toolchain = "@{}//:toolchain".format(cell_repo(name, cell)),
-            toolchain_type = toolchain_type,
-            visibility = ["//visibility:public"],
-            **{side + "_compatible_with": constraints[cell] for side in sides}
-        )
-        for cell in sorted(cells)
-    ]
+    parts = []
+    for cell in sorted(cells):
+        repo = cell_repo(name, cell)
+        for variant in sorted(variants) or [""]:
+            compatible = {
+                side + "_compatible_with": constraints[cell] + (getattr(variants[variant], side + "_compatible_with") if variant else [])
+                for side in sides
+            }
+            toolchain = repo + ("_" + variant if variant else "")
+            target = variant or "toolchain"
+            parts.append(toolchain_target(
+                name = toolchain,
+                toolchain = "@{}//:{}".format(repo, target),
+                toolchain_type = toolchain_type,
+                visibility = ["//visibility:public"],
+                **compatible
+            ))
+            parts.extend([
+                toolchain_target(
+                    name = toolchain + "_" + suffix,
+                    toolchain = "@{}//:{}_{}".format(repo, target, suffix),
+                    toolchain_type = companion_types[suffix],
+                    visibility = ["//visibility:public"],
+                    **compatible
+                )
+                for suffix in sorted(companion_types)
+            ])
     if exec_toolchain_type:
         parts.extend([
             toolchain_target(
@@ -152,11 +172,15 @@ def pins_hub(name, cells, toolchain_type, compatible_with = "exec", exec_aliases
             'config_setting(\n    name = "{}_exec",\n    constraint_values = {},\n)\n'.format(cell, repr(constraints[cell]))
             for cell in sorted(cells)
         ])
+        aliases = exec_aliases if type(exec_aliases) == "dict" else {target: "//:" + target for target in exec_aliases}
         parts.extend([
             'alias(\n    name = "{}",\n    actual = select({}),\n    visibility = ["//visibility:public"],\n)\n'.format(
-                target,
-                repr({":{}_exec".format(cell): "@{}//:{}".format(cell_repo(name, cell), target) for cell in sorted(cells)}),
+                alias,
+                repr(
+                    {":{}_exec".format(cell): "@{}{}".format(cell_repo(name, cell), aliases[alias]) for cell in sorted(cells)} |
+                    ({"//conditions:default": alias_defaults[alias]} if alias in alias_defaults else {}),
+                ),
             )
-            for target in exec_aliases
+            for alias in aliases
         ])
     return "\n".join(parts)

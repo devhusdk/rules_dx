@@ -4,7 +4,7 @@ load("//core:pins.bzl", "lock_problems", "lock_repo")
 load("//core:repo.bzl", "hub_repo")
 load(":opam.bzl", "pick_annotation")
 load(":pins.bzl", "OCAML_CELLS")
-load(":repos.bzl", "DIST_PREFIX", "HUB_NAME", "dist_repo", "dune_package_build", "hub_build")
+load(":repos.bzl", "HUB_NAME", "dist_repo", "dist_repository_name", "dune_package_build", "hub_build")
 
 def _package_build(mctx, tag, package, annotation):
     name = package["name"]
@@ -33,7 +33,7 @@ def _declare_packages(mctx, tag, annotations):
 
 def _ocaml_impl(mctx):
     for cell in sorted(OCAML_CELLS.keys()):
-        dist_repo(name = DIST_PREFIX + cell, cell = cell)
+        dist_repo(name = dist_repository_name(cell), cell = cell)
     hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build()})
     return mctx.extension_metadata(reproducible = True)
 

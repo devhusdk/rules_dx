@@ -30,6 +30,13 @@ zig_binary(
     deps = [":conformance"],
 )
 
+zig_binary(
+    name = "runfiles_hello",
+    data = ["data.txt"],
+    main = "runfiles_main.zig",
+    deps = ["@rules_zig//zig/runfiles"],
+)
+
 zig_test(
     name = "pass_subject_test",
     size = "small",
@@ -64,6 +71,11 @@ dx_conformance_suite(
         "lint_line": 2,
         "lint_rule": "ast_check",
         "lint_source": "lint_dirty.zig",
+    },
+    runfiles = {
+        "binary": ":runfiles_hello",
+        "data": "data.txt",
+        "expected": "hello runfiles",
     },
     size = "small",
 )

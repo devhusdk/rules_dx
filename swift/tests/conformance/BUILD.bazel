@@ -36,6 +36,13 @@ swift_binary(
     deps = [":conformance"],
 )
 
+swift_binary(
+    name = "runfiles_hello",
+    srcs = ["RunfilesMain.swift"],
+    data = ["data.txt"],
+    deps = ["@rules_swift//swift/runfiles"],
+)
+
 swift_test(
     name = "pass_subject_test",
     size = "small",
@@ -76,6 +83,11 @@ dx_conformance_suite(
         "lint_line": 2,
         "lint_rule": "DoNotUseSemicolons",
         "lint_source": "LintDirty.swift",
+    },
+    runfiles = {
+        "binary": ":runfiles_hello",
+        "data": "data.txt",
+        "expected": "hello runfiles",
     },
 )
 

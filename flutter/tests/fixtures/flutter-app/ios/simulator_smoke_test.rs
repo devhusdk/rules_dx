@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::thread::sleep;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use dx_apple_ops::xcode::{APPLICATIONS, XCRUN, developer_dir};
 
@@ -47,6 +47,21 @@ impl Simulators {
         assert!(ok, "simctl {args:?} failed: {text}");
         text
     }
+
+    fn until_ready(&self, args: &[&str], deadline: Instant) -> String {
+        loop {
+            let (ok, text) = self.simctl(args);
+            if ok {
+                return text;
+            }
+            assert!(Instant::now() < deadline, "simctl {args:?} failed: {text}");
+            sleep(Duration::from_millis(500));
+        }
+    }
+}
+
+fn step(start: Instant, name: &str) {
+    eprintln!("{name}: {:.1}s", start.elapsed().as_secs_f64());
 }
 
 struct Device<'a> {
@@ -83,6 +98,7 @@ fn bundle(app: &str, scratch: &Path) -> PathBuf {
 
 #[test]
 fn the_app_launches_on_a_fresh_simulator() {
+    let start = Instant::now();
     let file = env("DX_IOS_SIMULATOR_FILE");
     let text =
         std::fs::read_to_string(&file).unwrap_or_else(|error| panic!("read {file}: {error}"));
@@ -111,16 +127,21 @@ fn the_app_launches_on_a_fresh_simulator() {
         simulators: &simulators,
         udid: created.trim().to_owned(),
     };
-    simulators.must(&["bootstatus", &device.udid, "-b"]);
+    step(start, "create");
+    simulators.must(&["boot", &device.udid]);
+    step(start, "boot");
+    let deadline = Instant::now() + Duration::from_secs(40);
 
     let scratch = tmp.join("app");
     std::fs::create_dir_all(&scratch).expect("create the app scratch directory");
     let app = bundle(&env("DX_SIMCTL_APP"), &scratch);
     let app = app.to_string_lossy();
-    simulators.must(&["install", &device.udid, &app]);
+    simulators.until_ready(&["install", &device.udid, &app], deadline);
+    step(start, "install");
 
     let bundle_id = env("DX_SIMCTL_BUNDLE_ID");
-    let launched = simulators.must(&["launch", &device.udid, &bundle_id]);
+    let launched = simulators.until_ready(&["launch", &device.udid, &bundle_id], deadline);
+    step(start, "launch");
     assert!(
         launched.starts_with(&format!("{bundle_id}: ")),
         "unexpected launch output: {launched}"

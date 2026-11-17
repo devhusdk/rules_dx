@@ -50,7 +50,7 @@ cc/tests/fixtures/foreign_cmake/BUILD.bazel no-size 4
 cc/tests/fixtures/fuzz/BUILD.bazel no-size 7
 cc/tests/fixtures/gcc_coverage/BUILD.bazel no-size 2
 cc/tests/fixtures/googletest/BUILD.bazel no-size 1
-cc/tests/fixtures/hello/BUILD.bazel no-size 15
+cc/tests/fixtures/hello/BUILD.bazel no-size 14
 cc/tests/fixtures/lcov_accounting/BUILD.bazel no-size 2
 cc/tests/fixtures/linux_corpus/BUILD.bazel no-size 1
 cc/tests/fixtures/msvc_shared/BUILD.bazel no-size 5
@@ -264,7 +264,7 @@ flutter/tests/negative/BUILD.bazel no-size 2
 flutter/tests/runtime/BUILD.bazel no-size 1
 fortran/tests/fixtures/calc/BUILD.bazel no-size 2
 fortran/tests/negative/BUILD.bazel no-size 3
-fortran/tests/runtime/BUILD.bazel no-size 6
+fortran/tests/runtime/BUILD.bazel no-size 5
 fsharp/private/ide/BUILD.bazel no-size 1
 fsharp/tests/fixtures/bench/BUILD.bazel no-size 2
 fsharp/tests/fixtures/fuzz/BUILD.bazel no-size 7
@@ -489,7 +489,7 @@ rust/tests/fixtures/consumer_wasm/acquisition.bzl no-size 1
 rust/tests/fixtures/consumer_web/BUILD.bazel no-size 2
 rust/tests/fixtures/cxx_identity/BUILD.bazel no-size 2
 rust/tests/fixtures/fuzz/BUILD.bazel no-size 2
-rust/tests/fixtures/hello/BUILD.bazel no-size 24
+rust/tests/fixtures/hello/BUILD.bazel no-size 23
 rust/tests/fixtures/native_call/BUILD.bazel no-size 25
 rust/tests/fixtures/shared-rust-checks/BUILD.bazel no-size 6
 rust/tests/fixtures/wasm_bindgen/BUILD.bazel no-size 12

@@ -34,7 +34,12 @@ fn subject_matches_mode() {
     }
     let subject = subject.expect("subject must list an executable");
     let tmp = std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR must be set");
-    let subject = stage(&subject, &subject_key, std::path::Path::new(&tmp));
+    let subject = stage(
+        &subject,
+        &subject_key,
+        std::path::Path::new(&tmp),
+        cfg!(unix) || mode == "runfiles",
+    );
     let srcdir = std::env::var("TEST_SRCDIR").unwrap_or_default();
     let runfiles = std::env::var("RUNFILES_DIR").unwrap_or_else(|_| srcdir.clone());
     let mut envs = vec![
@@ -489,7 +494,7 @@ fn manifest_file(runfiles: &str, tmp: &std::path::Path) -> std::path::PathBuf {
                     .components()
                     .map(|part| part.as_os_str().to_string_lossy())
                     .collect();
-                lines.push(format!("{} {}", key.join("/"), real.to_string_lossy()));
+                lines.push(format!("{} {}", key.join("/"), without_verbatim(&real)));
             }
         }
     }
@@ -497,6 +502,22 @@ fn manifest_file(runfiles: &str, tmp: &std::path::Path) -> std::path::PathBuf {
     let manifest = tmp.join("runfiles.manifest");
     std::fs::write(&manifest, lines.join("\n") + "\n").expect("manifest must be writable");
     manifest
+}
+
+fn without_verbatim(path: &std::path::Path) -> String {
+    let text = path.to_string_lossy();
+    match text.strip_prefix(r"\\?\") {
+        Some(rest) if rest.as_bytes().get(1) == Some(&b':') => rest.to_owned(),
+        _ => text.into_owned(),
+    }
+}
+
+#[test]
+fn without_verbatim_drops_only_the_drive_prefix() {
+    let strip = |text: &str| without_verbatim(std::path::Path::new(text));
+    assert_eq!(strip(r"\\?\C:\a\java.exe"), r"C:\a\java.exe");
+    assert_eq!(strip(r"\\?\UNC\h\s"), r"\\?\UNC\h\s");
+    assert_eq!(strip("/a/b"), "/a/b");
 }
 
 fn stage_lock(
@@ -552,7 +573,12 @@ fn with_suffix(path: &std::path::Path, suffix: &str) -> std::path::PathBuf {
     name.into()
 }
 
-fn stage(subject: &std::path::Path, key: &str, tmp: &std::path::Path) -> std::path::PathBuf {
+fn stage(
+    subject: &std::path::Path,
+    key: &str,
+    tmp: &std::path::Path,
+    mirror: bool,
+) -> std::path::PathBuf {
     let beside = with_suffix(subject, ".runfiles");
     if beside.exists() || with_suffix(subject, ".runfiles_manifest").exists() {
         return subject.to_path_buf();
@@ -590,8 +616,7 @@ fn stage(subject: &std::path::Path, key: &str, tmp: &std::path::Path) -> std::pa
             }
         }
     }
-    #[cfg(unix)]
-    if let Ok(tree) = std::env::var("RUNFILES_DIR") {
+    if let (true, Ok(tree)) = (mirror, std::env::var("RUNFILES_DIR")) {
         for suffix in [".runfiles", "_upstream.runfiles"] {
             let mirror = with_suffix(&staged, suffix);
             std::fs::create_dir_all(&mirror).expect("runfiles mirror must be creatable");
@@ -599,7 +624,7 @@ fn stage(subject: &std::path::Path, key: &str, tmp: &std::path::Path) -> std::pa
                 .expect("runfiles must be readable")
                 .flatten()
             {
-                std::os::unix::fs::symlink(entry.path(), mirror.join(entry.file_name()))
+                link_entry(&entry.path(), &mirror.join(entry.file_name()))
                     .expect("runfiles entry must link");
             }
         }
@@ -623,6 +648,20 @@ fn stage(subject: &std::path::Path, key: &str, tmp: &std::path::Path) -> std::pa
             .expect("manifest must be writable");
     }
     staged
+}
+
+#[cfg(unix)]
+fn link_entry(target: &std::path::Path, link: &std::path::Path) -> std::io::Result<()> {
+    std::os::unix::fs::symlink(target, link)
+}
+
+#[cfg(windows)]
+fn link_entry(target: &std::path::Path, link: &std::path::Path) -> std::io::Result<()> {
+    if target.is_dir() {
+        std::os::windows::fs::symlink_dir(target, link)
+    } else {
+        std::os::windows::fs::symlink_file(target, link)
+    }
 }
 
 fn tree_manifest(root: &std::path::Path) -> String {
@@ -705,7 +744,12 @@ fn stage_copies_every_file_of_a_siblings_dir() {
     std::fs::write(siblings.join("tool.exe"), "exe").expect("subject must write");
     std::fs::write(siblings.join("runtime.dll"), "dll").expect("sibling must write");
     let out = root.join("out");
-    let staged = stage(&siblings.join("tool.exe"), "_main/pkg/tool.exe", &out);
+    let staged = stage(
+        &siblings.join("tool.exe"),
+        "_main/pkg/tool.exe",
+        &out,
+        cfg!(unix),
+    );
     let dir = staged.parent().expect("staged subject must have a dir");
     assert_eq!(
         std::fs::read_to_string(dir.join("runtime.dll")).expect("sibling must stage"),

@@ -8,6 +8,10 @@ android_java_library(
     testonly = True,
     srcs = ["java/Screen.java"],
     custom_package = "com.example.dxjava",
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
     visibility = ["//core/quality/testdata:__pkg__"],
 )
 
@@ -16,6 +20,10 @@ android_kotlin_library(
     testonly = True,
     srcs = ["kotlin/Screen.kt"],
     custom_package = "com.example.dxkotlin",
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
     visibility = ["//core/quality/testdata:__pkg__"],
 )
 

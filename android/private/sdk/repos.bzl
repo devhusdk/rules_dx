@@ -858,10 +858,23 @@ android_app_sdk_repo = repository_rule(
     },
 )
 
+_EMPTY_SDK_TARGET = """filegroup(
+    name = "sdk",
+    srcs = [":error_message"],
+)"""
+
+def unavailable_hub_build(empty_template, rule_bzl):
+    """Returns rules_android's empty SDK BUILD with :sdk as a ToolchainInfo target."""
+    if empty_template.count(_EMPTY_SDK_TARGET) != 1:
+        fail("android: rules_android's empty SDK template no longer declares :sdk as a filegroup")
+    sdk = 'unavailable_android_sdk(name = "sdk")'
+    return 'load("%s", "unavailable_android_sdk")\n\n' % rule_bzl + empty_template.replace(_EMPTY_SDK_TARGET, sdk)
+
 def _android_app_sdk_hub_repo_impl(ctx):
     linux_x86_64 = ctx.os.name == "linux" and ctx.os.arch in ["amd64", "x86_64"]
     if ctx.attr.build == "" or not linux_x86_64:
-        ctx.template("BUILD.bazel", Label("@rules_android//rules/android_sdk_repository:empty.template.bzl"))
+        empty = ctx.read(Label("@rules_android//rules/android_sdk_repository:empty.template.bzl"))
+        ctx.file("BUILD.bazel", unavailable_hub_build(empty, str(Label("//android/private/sdk:unavailable.bzl"))))
     else:
         ctx.file("BUILD.bazel", ctx.attr.build)
     return ctx.repo_metadata(reproducible = True)

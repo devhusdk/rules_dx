@@ -7,6 +7,13 @@
       ],
       "version": "2.15.1"
     },
+    "bundler": {
+      "sha256": "a25675ffbd055ae1186766cc1e120b4cf62588e88abb59b99c57e22b1c55c9eb",
+      "urls": [
+        "https://rubygems.org/downloads/bundler-2.6.9.gem"
+      ],
+      "version": "2.6.9"
+    },
     "rules_ruby": {
       "sha256": "c92c2102ead9f051b7bb19ed7075cc5c4617cdd20b313b5b2f598f9f45b3e315",
       "strip_prefix": "rules_ruby-0.29.0",

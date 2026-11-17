@@ -1528,10 +1528,9 @@ use_repo(
 
 ruby = use_extension("//ruby:extensions.bzl", "ruby")
 ruby.toolchain(name = "ruby")
-ruby.bundle_fetch(
+ruby.lock(
     name = "bundle",
-    gemfile = "//third_party/ruby:Gemfile",
-    gemfile_lock = "//third_party/ruby:Gemfile.lock",
+    lock = "//third_party/ruby:ruby.lock.json",
 )
 use_repo(ruby, "bundle", "dx_ruby_toolchains", "ruby")
 

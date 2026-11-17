@@ -1,0 +1,535 @@
+{
+  "ecosystem": "ruby",
+  "inputs": {
+    "Gemfile": "28e7526e40264f9282f79f9c3c71611261f2f4406c2ee64d4afb7283ae192b92",
+    "Gemfile.lock": "a66ea92ceb963f10892379abe6b916f6da4783c26dfe197de253a1d2181b0a85"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "954615157c1d6a382bc27d690d973195e79db7f55e9765ac7c481c60bdb4d383",
+          "urls": [
+            "https://rubygems.org/gems/ast-2.4.3.gem"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "ast",
+      "provides": [
+        "ast"
+      ],
+      "version": "2.4.3"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "9ae0d2cba7d4df3075fe8cd8602a8604993efc0dfa934cff568969efb1909962",
+          "urls": [
+            "https://rubygems.org/gems/diff-lcs-1.6.2.gem"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "diff-lcs",
+      "provides": [
+        "diff-lcs",
+        "diff/lcs"
+      ],
+      "version": "1.6.2"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "9b9025b7cdddafa38d316eca0b2358488e42d417045c1b90d216a9fefe46b79a",
+          "urls": [
+            "https://rubygems.org/gems/json-2.19.9.gem"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "json",
+      "provides": [
+        "json"
+      ],
+      "version": "2.19.9"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "5ef2c0c138f8267e1bc631d3328347d354f96724b0af22f2c79516120443b7f0",
+          "urls": [
+            "https://rubygems.org/gems/language_server-protocol-3.17.0.6.gem"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "language_server-protocol",
+      "provides": [
+        "language_server-protocol",
+        "language_server/protocol"
+      ],
+      "version": "3.17.0.6"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "2c0c845b632a7d172cb849cc90c1bce937a28c5c8ccccb50dfd46a485003cc87",
+          "urls": [
+            "https://rubygems.org/gems/lint_roller-1.1.0.gem"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "lint_roller",
+      "provides": [
+        "lint_roller"
+      ],
+      "version": "1.1.0"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "33e6de1484baf2524792d178b0913fc8eb94c628d6cfe45599ad4458c638c970",
+          "urls": [
+            "https://rubygems.org/gems/parallel-1.28.0.gem"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "parallel",
+      "provides": [
+        "parallel"
+      ],
+      "version": "1.28.0"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "e02f9b63c2fe05b0c68f692ba4df89b3cb113b663964f75d988fbebfd6c3deca",
+          "urls": [
+            "https://rubygems.org/gems/parser-3.3.13.0.gem"
+          ]
+        }
+      ],
+      "deps": [
+        "ast",
+        "racc"
+      ],
+      "extra": {
+        "gem_deps": {
+          "ast": "~> 2.4.1",
+          "racc": ""
+        }
+      },
+      "name": "parser",
+      "provides": [
+        "gauntlet_parser",
+        "parser"
+      ],
+      "version": "3.3.13.0"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "4a7f6929691dbec8b5209a0b373bc2614882b55fc5d2e447a21aaa691303d62f",
+          "urls": [
+            "https://rubygems.org/gems/racc-1.8.1.gem"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "racc",
+      "provides": [
+        "racc"
+      ],
+      "version": "1.8.1"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "039491aa3a89f42efa1d6dec2fc4e62ede96eb6acd95e52f1ad581182b79bc6a",
+          "urls": [
+            "https://rubygems.org/gems/rainbow-3.1.1.gem"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "rainbow",
+      "provides": [
+        "rainbow"
+      ],
+      "version": "3.1.1"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "5aedb6b7c35688f51e86eef17a15374dfd287c83f4ca644b2c5f3ec50a33b44b",
+          "urls": [
+            "https://rubygems.org/gems/regexp_parser-2.13.1.gem"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "regexp_parser",
+      "provides": [
+        "regexp_parser"
+      ],
+      "version": "2.13.1"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "d490914ac1d5a5a64a0e1400c1d54ddd2a501324d703b8cfe83f458337bab993",
+          "urls": [
+            "https://rubygems.org/gems/rspec-3.13.0.gem"
+          ]
+        }
+      ],
+      "deps": [
+        "rspec-core",
+        "rspec-expectations",
+        "rspec-mocks"
+      ],
+      "extra": {
+        "gem_deps": {
+          "rspec-core": "~> 3.13.0",
+          "rspec-expectations": "~> 3.13.0",
+          "rspec-mocks": "~> 3.13.0"
+        }
+      },
+      "name": "rspec",
+      "provides": [
+        "rspec"
+      ],
+      "version": "3.13.0"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "c64ff16d9788119805cbc6a3f4b6d87cc22417c2d25976a3330de136896b5469",
+          "urls": [
+            "https://rubygems.org/gems/rspec-core-3.13.7.gem"
+          ]
+        }
+      ],
+      "deps": [
+        "rspec-support"
+      ],
+      "extra": {
+        "gem_deps": {
+          "rspec-support": "~> 3.13.0"
+        }
+      },
+      "name": "rspec-core",
+      "provides": [
+        "rspec/autorun",
+        "rspec/core"
+      ],
+      "version": "3.13.7"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "bf538ca6d367ff5b0d85a87fdb5c0c6038f2cd1308a0eeba07476caa02d22f35",
+          "urls": [
+            "https://rubygems.org/gems/rspec-expectations-3.13.6.gem"
+          ]
+        }
+      ],
+      "deps": [
+        "diff-lcs",
+        "rspec-support"
+      ],
+      "extra": {
+        "gem_deps": {
+          "diff-lcs": ">= 1.2.0, < 2.0",
+          "rspec-support": "~> 3.13.0"
+        }
+      },
+      "name": "rspec-expectations",
+      "provides": [
+        "rspec/expectations",
+        "rspec/matchers"
+      ],
+      "version": "3.13.6"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "ea5c7ff3054a6098ca6039aacef80aec69d5a8a3ef80be8fc88337359b672a30",
+          "urls": [
+            "https://rubygems.org/gems/rspec-mocks-3.13.9.gem"
+          ]
+        }
+      ],
+      "deps": [
+        "diff-lcs",
+        "rspec-support"
+      ],
+      "extra": {
+        "gem_deps": {
+          "diff-lcs": ">= 1.2.0, < 2.0",
+          "rspec-support": "~> 3.13.0"
+        }
+      },
+      "name": "rspec-mocks",
+      "provides": [
+        "rspec/mocks"
+      ],
+      "version": "3.13.9"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "e4160030309b7e3e9d9863dfe720a35dfcc577162f5402cd68fc8c5258a0ffd6",
+          "urls": [
+            "https://rubygems.org/gems/rspec-support-3.13.8.gem"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "rspec-support",
+      "provides": [
+        "rspec/support"
+      ],
+      "version": "3.13.8"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "35cd1b1365ba97234323fe771abcecd09c9b77098464cd726c76aa7d9bc12b5d",
+          "urls": [
+            "https://rubygems.org/gems/rubocop-1.73.2.gem"
+          ]
+        }
+      ],
+      "deps": [
+        "json",
+        "language_server-protocol",
+        "lint_roller",
+        "parallel",
+        "parser",
+        "rainbow",
+        "regexp_parser",
+        "rubocop-ast",
+        "ruby-progressbar",
+        "unicode-display_width"
+      ],
+      "extra": {
+        "gem_deps": {
+          "json": "~> 2.3",
+          "language_server-protocol": "~> 3.17.0.2",
+          "lint_roller": "~> 1.1.0",
+          "parallel": "~> 1.10",
+          "parser": ">= 3.3.0.2",
+          "rainbow": ">= 2.2.2, < 4.0",
+          "regexp_parser": ">= 2.9.3, < 3.0",
+          "rubocop-ast": ">= 1.38.0, < 2.0",
+          "ruby-progressbar": "~> 1.7",
+          "unicode-display_width": ">= 2.4.0, < 4.0"
+        }
+      },
+      "name": "rubocop",
+      "provides": [
+        "rubocop",
+        "ruby_lsp/rubocop"
+      ],
+      "version": "1.73.2"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "0eeff9ad3743f42823e3c687cbc15f8c552ff63c9f8e3d35fbafe746977c7c0d",
+          "urls": [
+            "https://rubygems.org/gems/rubocop-ast-1.41.0.gem"
+          ]
+        }
+      ],
+      "deps": [
+        "parser"
+      ],
+      "extra": {
+        "gem_deps": {
+          "parser": ">= 3.3.7.2"
+        }
+      },
+      "name": "rubocop-ast",
+      "provides": [
+        "rubocop-ast",
+        "rubocop/ast"
+      ],
+      "version": "1.41.0"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "e5bd39ff3e368395b9af886927cc37f5892f43db4bd6c8526594352d5b4440b5",
+          "urls": [
+            "https://rubygems.org/gems/rubocop-performance-1.24.0.gem"
+          ]
+        }
+      ],
+      "deps": [
+        "lint_roller",
+        "rubocop",
+        "rubocop-ast"
+      ],
+      "extra": {
+        "gem_deps": {
+          "lint_roller": "~> 1.1",
+          "rubocop": ">= 1.72.1, < 2.0",
+          "rubocop-ast": ">= 1.38.0, < 2.0"
+        }
+      },
+      "name": "rubocop-performance",
+      "provides": [
+        "rubocop-performance",
+        "rubocop/cop",
+        "rubocop/performance"
+      ],
+      "version": "1.24.0"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "80fc9c47a9b640d6834e0dc7b3c94c9df37f08cb072b7761e4a71e22cff29b33",
+          "urls": [
+            "https://rubygems.org/gems/ruby-progressbar-1.13.0.gem"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "ruby-progressbar",
+      "provides": [
+        "ruby-progressbar"
+      ],
+      "version": "1.13.0"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "b0da6b71d8dec53e760c7216b723e3507ebdcd6962f7ce7c37c016a36c7cc190",
+          "urls": [
+            "https://rubygems.org/gems/standard-1.47.0.gem"
+          ]
+        }
+      ],
+      "deps": [
+        "language_server-protocol",
+        "lint_roller",
+        "rubocop",
+        "standard-custom",
+        "standard-performance"
+      ],
+      "extra": {
+        "gem_deps": {
+          "language_server-protocol": "~> 3.17.0.2",
+          "lint_roller": "~> 1.0",
+          "rubocop": "~> 1.73.0",
+          "standard-custom": "~> 1.0.0",
+          "standard-performance": "~> 1.7"
+        }
+      },
+      "name": "standard",
+      "provides": [
+        "ruby_lsp/standard",
+        "standard"
+      ],
+      "version": "1.47.0"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "424adc84179a074f1a2a309bb9cf7cd6bfdb2b6541f20c6bf9436c0ba22a652b",
+          "urls": [
+            "https://rubygems.org/gems/standard-custom-1.0.2.gem"
+          ]
+        }
+      ],
+      "deps": [
+        "lint_roller",
+        "rubocop"
+      ],
+      "extra": {
+        "gem_deps": {
+          "lint_roller": "~> 1.0",
+          "rubocop": "~> 1.50"
+        }
+      },
+      "name": "standard-custom",
+      "provides": [
+        "standard-custom",
+        "standard/cop",
+        "standard/custom"
+      ],
+      "version": "1.0.2"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "c46a9aef3348c0cfc03053ed9a1c1f73b967f7e4edcdf30dac0101b143897314",
+          "urls": [
+            "https://rubygems.org/gems/standard-performance-1.7.0.gem"
+          ]
+        }
+      ],
+      "deps": [
+        "lint_roller",
+        "rubocop-performance"
+      ],
+      "extra": {
+        "gem_deps": {
+          "lint_roller": "~> 1.1",
+          "rubocop-performance": "~> 1.24.0"
+        }
+      },
+      "name": "standard-performance",
+      "provides": [
+        "standard-performance",
+        "standard/performance"
+      ],
+      "version": "1.7.0"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "4b7aa66a4b11db50f6f7e98411215cd0dd10eaecb665d36eec5bcacb3fa0b613",
+          "urls": [
+            "https://rubygems.org/gems/unicode-display_width-3.3.0.gem"
+          ]
+        }
+      ],
+      "deps": [
+        "unicode-emoji"
+      ],
+      "extra": {
+        "gem_deps": {
+          "unicode-emoji": "~> 4.3"
+        }
+      },
+      "name": "unicode-display_width",
+      "provides": [
+        "unicode/display_width"
+      ],
+      "version": "3.3.0"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "11c02fa73290378c066bb0562cd4c87d8e1b706fbbe0059ca12746a4244de8ce",
+          "urls": [
+            "https://rubygems.org/gems/unicode-emoji-4.3.0.gem"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "unicode-emoji",
+      "provides": [
+        "unicode/emoji"
+      ],
+      "version": "4.3.0"
+    }
+  ],
+  "schema": 1
+}

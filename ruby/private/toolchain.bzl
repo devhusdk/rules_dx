@@ -1,7 +1,9 @@
-"""The Ruby module extension: the portable Ruby toolchain pinned in pins.json and gem bundles fetched from the Bundler lock."""
+"""The Ruby module extension: the portable Ruby toolchain pinned in pins.json, gem hubs built from `ruby.lock.json` and gem bundles fetched from the Bundler lock."""
 
 load("@dx_pins_data//:pins.bzl", "DATA")
 load("@rules_ruby//ruby:deps.bzl", "rb_bundle_fetch", "rb_register_toolchains")
+load("//core:pins.bzl", "lock_tag")
+load(":gems.bzl", "ruby_gems_repos")
 
 _PORTABLE_RUBY = DATA["dx_ruby"]["portable_ruby"]
 
@@ -21,6 +23,8 @@ def _ruby_impl(module_ctx):
                 gemfile_lock = bundle.gemfile_lock,
             )
             (direct_dev if module_ctx.is_dev_dependency(bundle) else direct).append(bundle.name)
+        for tag in mod.tags.lock:
+            (direct_dev if module_ctx.is_dev_dependency(tag) else direct).append(ruby_gems_repos(module_ctx, tag))
         for toolchain in mod.tags.toolchain:
             if toolchain.name in toolchains:
                 continue
@@ -45,7 +49,7 @@ def _ruby_impl(module_ctx):
     )
 
 ruby = module_extension(
-    doc = "Registers the portable Ruby pinned in ruby/pins.json and fetches gem bundles whose sha256s come from the CHECKSUMS section of the Bundler lock.",
+    doc = "Registers the portable Ruby pinned in ruby/pins.json, builds gem hubs from `ruby.lock.json` and fetches gem bundles whose sha256s come from the CHECKSUMS section of the Bundler lock.",
     implementation = _ruby_impl,
     tag_classes = {
         "bundle_fetch": tag_class(
@@ -58,6 +62,7 @@ ruby = module_extension(
                 "srcs": attr.label_list(doc = "Files the Bundler manifest reads."),
             },
         ),
+        "lock": lock_tag,
         "toolchain": tag_class(
             doc = "The pinned portable Ruby toolchain, as @<name> and @dx_<name>_toolchains.",
             attrs = {

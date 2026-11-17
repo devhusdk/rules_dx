@@ -65,9 +65,9 @@ def _code(path, name):
     return path == ".bazelrc" or (path.startswith(".dx/bazelrc/") and name.endswith(".bazelrc"))
 
 def consumer_fixture_file(path, langs):
-    """True when the path is a file under the tests/consumer directory of one of the language directories."""
+    """True when the path is a text file under the tests/consumer directory of one of the language directories."""
     parts = path.split("/")
-    return len(parts) > 3 and parts[0] in langs and parts[1] == "tests" and parts[2] == "consumer"
+    return len(parts) > 3 and parts[0] in langs and parts[1] == "tests" and parts[2] == "consumer" and not path.endswith(".png")
 
 def _entry(parent, entry):
     is_dir = entry.is_dir

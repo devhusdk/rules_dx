@@ -1,6 +1,7 @@
 package ownership
 
 import (
+	"encoding/xml"
 	"io"
 	"os"
 	"path"
@@ -26,8 +27,16 @@ const (
 	appimageVersion = "1.0"
 )
 
-// appimageNotices are the file names an appimage_package takes as notice.
+// appimageNotices are the file names an appimage_package or msix_package takes as notice.
 var appimageNotices = []string{"COPYING", "LICENSE", "LICENSE.md", "LICENSE.txt", "NOTICE", "NOTICE.md", "NOTICE.txt"}
+
+// An msix_package is named after its binary with msixSuffix and reads
+// msixManifest.
+const (
+	msixKind     = "msix_package"
+	msixSuffix   = "_msix"
+	msixManifest = "Package.appxmanifest"
+)
 
 const (
 	ociImageKind     = "oci_image"
@@ -203,6 +212,11 @@ func kinds() map[string]rule.KindInfo {
 		NonEmptyAttrs:  map[string]bool{"binary": true, "desktop": true, "icon": true, "notice": true},
 		MergeableAttrs: map[string]bool{"binary": true, "desktop": true, "icon": true, "notice": true},
 	}
+	out[msixKind] = rule.KindInfo{
+		MatchAttrs:     []string{"identity_name"},
+		NonEmptyAttrs:  map[string]bool{"binary": true, "identity_name": true, "logo": true, "notice": true, "publisher": true, "version": true},
+		MergeableAttrs: map[string]bool{"binary": true, "display_name": true, "identity_name": true, "logo": true, "notice": true, "publisher": true, "version": true},
+	}
 	out[ociQualityKind] = rule.KindInfo{
 		MatchAttrs:     []string{"image"},
 		NonEmptyAttrs:  map[string]bool{"image": true},
@@ -247,6 +261,10 @@ func generate(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep co
 	for range appimages {
 		result.Imports = append(result.Imports, nil)
 	}
+	if r := msixRule(args); r != nil {
+		result.Gen = append(result.Gen, r)
+		result.Imports = append(result.Imports, nil)
+	}
 	images := ociImageNames(args.File)
 	for _, image := range images {
 		r := rule.NewRule(ociQualityKind, image+ociQualitySuffix)
@@ -262,24 +280,95 @@ func generate(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep co
 	return common.MergeStaleOwned(args.File, result, kinds, func(existing *rule.Rule) bool {
 		return !unbuildable[existing.Kind()] && slices.ContainsFunc(families, func(f family) bool {
 			return f.kind == existing.Kind() && (f.target == existing.Name() || len(existing.AttrStrings("srcs")) == 0)
-		}) || ociStale(existing, images) || appimageStale(existing, args.RegularFiles)
+		}) || ociStale(existing, images) || appimageStale(existing, args.RegularFiles) || msixStale(existing, args.RegularFiles)
 	})
+}
+
+// appxManifest is the part of a Package.appxmanifest an msix_package takes.
+type appxManifest struct {
+	Identity struct {
+		Name      string `xml:"Name,attr"`
+		Publisher string `xml:"Publisher,attr"`
+		Version   string `xml:"Version,attr"`
+	} `xml:"Identity"`
+	DisplayName string `xml:"Properties>DisplayName"`
+	Logo        string `xml:"Properties>Logo"`
+}
+
+// msixRule returns an msix_package for a Package.appxmanifest whose identity
+// is complete and whose logo is a PNG path inside the package, when a notice
+// file sits beside it and the package has exactly one *_binary rule.
+func msixRule(args language.GenerateArgs) *rule.Rule {
+	if !slices.Contains(args.RegularFiles, msixManifest) {
+		return nil
+	}
+	notices := noticeFiles(args.RegularFiles)
+	if len(notices) == 0 {
+		return nil
+	}
+	data, err := os.ReadFile(filepath.Join(args.Dir, msixManifest))
+	if err != nil {
+		return nil
+	}
+	var m appxManifest
+	if xml.Unmarshal(data, &m) != nil {
+		return nil
+	}
+	logo := path.Clean(strings.ReplaceAll(m.Logo, `\`, "/"))
+	if m.Identity.Name == "" || m.Identity.Publisher == "" || m.Identity.Version == "" || !strings.HasSuffix(strings.ToLower(logo), ".png") || path.IsAbs(logo) || logo == ".." || strings.HasPrefix(logo, "../") {
+		return nil
+	}
+	binary := soleBinary(args)
+	if binary == "" || handwrittenMsix(args.File, binary, m.Identity.Name) {
+		return nil
+	}
+	r := rule.NewRule(msixKind, binary+msixSuffix)
+	r.SetAttr("binary", ":"+binary)
+	if m.DisplayName != "" && !strings.HasPrefix(m.DisplayName, "ms-resource:") {
+		r.SetAttr("display_name", m.DisplayName)
+	}
+	r.SetAttr("identity_name", m.Identity.Name)
+	r.SetAttr("logo", logo)
+	r.SetAttr("notice", notices)
+	r.SetAttr("publisher", m.Identity.Publisher)
+	r.SetAttr("version", m.Identity.Version)
+	return r
+}
+
+// handwrittenMsix reports whether the package already has an msix_package
+// under another name for the identity.
+func handwrittenMsix(file *rule.File, binary, identity string) bool {
+	return file != nil && slices.ContainsFunc(file.Rules, func(r *rule.Rule) bool {
+		return r.Kind() == msixKind && r.Name() != binary+msixSuffix && r.AttrString("identity_name") == identity
+	})
+}
+
+// msixStale reports whether existing is a generated msix_package whose
+// Package.appxmanifest is gone.
+func msixStale(existing *rule.Rule, files []string) bool {
+	return existing.Kind() == msixKind && existing.Name() == strings.TrimPrefix(existing.AttrString("binary"), ":")+msixSuffix && !slices.Contains(files, msixManifest)
+}
+
+// noticeFiles lists the notice files among files, sorted.
+func noticeFiles(files []string) []string {
+	var notices []string
+	for _, name := range files {
+		if slices.Contains(appimageNotices, name) {
+			notices = append(notices, name)
+		}
+	}
+	sort.Strings(notices)
+	return notices
 }
 
 // appimageRules returns an appimage_package for each <name>.desktop file that
 // has a <name>.png or <name>.svg icon and a notice file next to it, when the
 // package has exactly one *_binary rule.
 func appimageRules(args language.GenerateArgs) []*rule.Rule {
-	var notices []string
-	for _, name := range args.RegularFiles {
-		if slices.Contains(appimageNotices, name) {
-			notices = append(notices, name)
-		}
-	}
+	notices := noticeFiles(args.RegularFiles)
 	if len(notices) == 0 {
 		return nil
 	}
-	sort.Strings(notices)
 	binary := soleBinary(args)
 	if binary == "" {
 		return nil
@@ -396,8 +485,9 @@ func NewLanguage() language.Language {
 		index = append(index, f.kind)
 	}
 	kindDefs[appimageKind] = "appimage:defs.bzl"
+	kindDefs[msixKind] = "msix:defs.bzl"
 	kindDefs[ociQualityKind] = "deploy:defs.bzl"
-	extra = append(extra, appimageKind, ociQualityKind)
+	extra = append(extra, appimageKind, msixKind, ociQualityKind)
 	return common.NewSingleLang(common.SingleLangSpec{
 		LanguageName:   languageName,
 		LibraryKind:    families[0].kind,

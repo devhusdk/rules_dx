@@ -1,0 +1,20 @@
+load("@rules_dx//go:defs.bzl", "go_binary")
+load("@rules_dx//msix:defs.bzl", "msix_package")
+
+# dx: written once, yours to edit
+
+go_binary(
+    name = "my_project",
+    srcs = ["main.go"],
+)
+
+msix_package(
+    name = "my_project_msix",
+    binary = ":my_project",
+    display_name = "Hello",
+    identity_name = "Example.Hello",
+    logo = "logo.png",
+    notice = ["NOTICE.txt"],
+    publisher = "CN=Example",
+    version = "1.0.0.0",
+)

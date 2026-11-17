@@ -1,7 +1,6 @@
 fixture android
 fixture env
 fixture flutter
-fixture msix
 override archive_override rules_flutter
 override override_repo androidsdk
 override override_repo dx_avro_cpp

@@ -71,6 +71,7 @@ kubernetes/tests/consumer
 lua/tests/consumer
 make/tests/consumer
 mdx/tests/consumer
+msix/tests/consumer
 ocaml/tests/consumer
 perl/tests/consumer
 php/tests/consumer

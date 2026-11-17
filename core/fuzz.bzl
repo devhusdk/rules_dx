@@ -1,6 +1,7 @@
 """The libFuzzer binary rule and the `<name>_run` runner shared by the fuzz macros."""
 
 load(":fuzz_bench.bzl", "merge_tags", "split_runner_kwargs", "split_test_kwargs", "with_default_size")
+load(":no_coverage.bzl", "no_coverage_transition")
 
 def _asan_fuzzer_transition_impl(_settings, attr):
     return {
@@ -85,10 +86,10 @@ def dx_fuzz_binary_select(name, *, tags = None, visibility = None, testonly = Tr
     )
 
 def _dx_fuzz_run_impl(ctx):
-    runner = ctx.attr.runner[DefaultInfo].files_to_run.executable
+    runner = ctx.attr.runner[0][DefaultInfo].files_to_run.executable
     executable = ctx.actions.declare_file(ctx.label.name + (".exe" if runner.extension == "exe" else ""))
     ctx.actions.symlink(output = executable, target_file = runner, is_executable = True)
-    runfiles = ctx.runfiles(files = [executable] + ctx.files.data).merge(ctx.attr.runner[DefaultInfo].default_runfiles)
+    runfiles = ctx.runfiles(files = [executable] + ctx.files.data).merge(ctx.attr.runner[0][DefaultInfo].default_runfiles)
     for data in ctx.attr.data:
         runfiles = runfiles.merge(data[DefaultInfo].default_runfiles)
     return [DefaultInfo(executable = executable, runfiles = runfiles)]
@@ -98,7 +99,7 @@ _dx_fuzz_run = rule(
     doc = "The runner executable that `dx fuzz` calls for one fuzz binary.",
     attrs = {
         "data": attr.label_list(doc = "Files the runner needs at run time.", allow_files = True),
-        "runner": attr.label(doc = "The fuzz_run binary.", default = Label("//cli/fuzz_run:fuzz_run"), executable = True, cfg = "target"),
+        "runner": attr.label(doc = "The fuzz_run binary.", default = Label("//cli/fuzz_run:fuzz_run"), executable = True, cfg = no_coverage_transition),
     },
     executable = True,
 )

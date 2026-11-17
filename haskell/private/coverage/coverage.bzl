@@ -2,6 +2,7 @@
 
 load("//haskell/private/toolchain:transition.bzl", "ghc_mingw_transition")
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
+load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//core:rlocation.bzl", "rlocation_path")
 
 def dx_haskell_coverage_attrs():
@@ -10,7 +11,7 @@ def dx_haskell_coverage_attrs():
         "_dx_hpc_coverage": attr.label(
             default = Label("//cli/hpc_coverage"),
             executable = True,
-            cfg = "target",
+            cfg = no_coverage_transition,
         ),
         "_dx_hpc_lcov": attr.label(
             default = Label("//haskell/private/coverage:hpc_lcov"),
@@ -24,7 +25,7 @@ def dx_haskell_test_coverage(ctx, upstream):
     """Returns coverage providers that convert the upstream test's hpc data to LCOV."""
     upstream_exe = upstream[DefaultInfo].files_to_run.executable
     lcov = ctx.attr._dx_hpc_lcov[0][DefaultInfo]
-    runner = ctx.attr._dx_hpc_coverage[DefaultInfo]
+    runner = ctx.attr._dx_hpc_coverage[0][DefaultInfo]
     launcher, _, launcher_runfiles = write_native_launcher(
         ctx,
         "program={}\npath={}\npath={}\n".format(

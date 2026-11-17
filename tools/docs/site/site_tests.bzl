@@ -312,10 +312,14 @@ def docs_book_coverage_tests(name, pages):
     """Fails when a docs page is neither in the user book nor excluded."""
     routes = [chapter.route for chapter in USER_BOOK if chapter.kind == "page"]
     missing = [page for page in pages if page not in routes and page not in BOOK_EXCLUDED_DOCS]
+
+    # Design notes are for contributors; the published book is for users.
+    design = [route for route in routes if route.startswith("docs/design/")]
     starlark_test(
         name = name,
         mode = "unit",
         checks = [
             expect_equal("every docs page is in the user book or excluded: %s" % missing, missing, []),
+            expect_equal("the user book holds no docs/design page: %s" % design, design, []),
         ],
     )

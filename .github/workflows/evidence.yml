@@ -301,20 +301,36 @@ jobs:
             if [ "$DX_TASK" = "build" ]; then
               bazel "${startup[@]}" build --noshow_progress "${profile[@]}" "${downloads[@]}" "${extra[@]}" "${patterns[@]}" "${flags[@]}" 2>&1 | tee "$log"
             elif [ "$DX_TASK" = "build_scripts" ]; then
+              for pattern in "${patterns[@]}"; do
+                case "$pattern" in -*) echo "build_scripts: scope cannot hold negative patterns: $pattern" | tee -a "$log"; exit 2 ;; esac
+              done
               universe="set(${patterns[*]})"
               covered="$RUNNER_TEMP/evidence/build-scripts.txt"
+              partial=0
               rc=0
-              bazel cquery --keep_going --noshow_progress --collect_code_coverage "${flags[@]}" "kind(\"cargo_build_script\", deps($universe))" --output=starlark --starlark:expr='str(target.label) if build_options(target)["//command_line_option:collect_code_coverage"] else ""' 2>"$log" > "$covered.raw" || rc=$?
-              if [ "$rc" -ne 0 ] && [ "$rc" -ne 3 ]; then cat "$log"; exit "$rc"; fi
-              sort -u "$covered.raw" | sed '/^$/d' > "$covered.labels"
+              bazel cquery --keep_going --noshow_progress --collect_code_coverage "${flags[@]}" "kind(\"cargo_build_script\", deps($universe))" 2>"$log" > "$covered.raw" || rc=$?
+              if [ "$rc" -eq 3 ]; then partial=1; elif [ "$rc" -ne 0 ]; then cat "$log"; exit "$rc"; fi
+              sort -u "$covered.raw" | sed -n 's/^\([^ ]*\) (\([0-9a-f]*\))$/\1 \2/p' > "$covered.instances"
+              : > "$covered.labels"
               : > "$covered"
-              while read -r label; do
-                echo "== $label" >> "$covered"
+              while read -r label hash; do
                 rc=0
-                bazel cquery --keep_going --noshow_progress --collect_code_coverage "${flags[@]}" "somepath($universe, '$label')" 2>>"$log" >> "$covered" || rc=$?
-                if [ "$rc" -ne 0 ] && [ "$rc" -ne 3 ]; then cat "$log"; exit "$rc"; fi
-              done < "$covered.labels"
-              echo "build_scripts: $(wc -l < "$covered.labels") cargo_build_script targets configured with coverage on" | tee -a "$log"
+                on="$(bazel cquery --noshow_progress --collect_code_coverage "${flags[@]}" "config('$label', $hash)" --output=starlark --starlark:expr='str(build_options(target)["//command_line_option:collect_code_coverage"])' 2>>"$log" < /dev/null)" || rc=$?
+                if [ "$rc" -ne 0 ]; then cat "$log"; exit "$rc"; fi
+                [ "$on" = True ] || continue
+                echo "$label $hash" >> "$covered.labels"
+                echo "== $label ($hash)" >> "$covered"
+                bazel cquery --noshow_progress --collect_code_coverage "${flags[@]}" "somepath($universe, config('$label', $hash))" 2>>"$log" >> "$covered" < /dev/null || rc=$?
+                if [ "$rc" -ne 0 ]; then cat "$log"; exit "$rc"; fi
+              done < "$covered.instances"
+              if [ "$partial" -eq 1 ]; then
+                sed -i '1i INCOMPLETE: targets in scope failed analysis; this list omits their deps' "$covered"
+                echo "build_scripts: INCOMPLETE, analysis failed for some targets; $(wc -l < "$covered.labels") cargo_build_script instances configured with coverage on among the rest" | tee -a "$log"
+                cat "$covered"
+                grep -E '^ERROR' "$log" || true
+                exit 3
+              fi
+              echo "build_scripts: $(wc -l < "$covered.labels") cargo_build_script instances configured with coverage on" | tee -a "$log"
               cat "$covered"
             elif [ "$DX_TASK" = "coverage" ]; then
               bazel run --noshow_progress "${profile[@]}" //cli/cli:dx -- coverage --min-coverage 100 "${patterns[@]}" ${flags[@]:+-- "${flags[@]}"} 2>&1 | tee "$log"

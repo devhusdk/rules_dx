@@ -5,7 +5,6 @@ extension-label cli/prebuilt/extension.bzl
 extension-label core/quality/artifacts/extension.bzl
 extension-label gazelle/dispatch/extension.bzl
 extension-label third_party/dotnet/extension.bzl
-extension-name cc/extensions.bzl
 extension-name python/extensions.bzl
 fixture-hello android/tests/conformance/BUILD.bazel
 fixture-hello android/tests/consumer
@@ -27,7 +26,6 @@ fixture-hello env/tests/consumer
 fixture-hello flatbuffers/tests/conformance/BUILD.bazel
 fixture-hello flutter/tests/conformance/BUILD.bazel
 fixture-hello flutter/tests/consumer
-fixture-hello fortran/tests/consumer
 fixture-hello helm/tests/conformance/BUILD.bazel
 fixture-hello kubernetes/tests/conformance/BUILD.bazel
 fixture-hello make/tests/conformance/BUILD.bazel

@@ -1,0 +1,48 @@
+diff --git a/libdwfl/argp-std.c b/libdwfl/argp-std.c
+index 55e9871..5d31698 100644
+--- a/libdwfl/argp-std.c
++++ b/libdwfl/argp-std.c
+@@ -31,6 +31,8 @@
+ #endif
+ 
+ #include "libdwflP.h"
++#include <stdlib.h>
++#ifdef __GLIBC__
+ #include <argp.h>
+ #include <stdlib.h>
+ #include <assert.h>
+@@ -380,3 +382,4 @@ dwfl_standard_argp (void)
+ {
+   return &libdwfl_argp;
+ }
++#endif
+diff --git a/libdwfl/dwfl_error.c b/libdwfl/dwfl_error.c
+index 43fa1dc..362f3b4 100644
+--- a/libdwfl/dwfl_error.c
++++ b/libdwfl/dwfl_error.c
+@@ -142,7 +142,7 @@ errnomsg(int error)
+   /* Won't be changed by strerror_r, but not const so compiler doesn't throw warning */
+   static char unknown[] = "unknown error";
+ 
+-#ifdef STRERROR_R_CHAR_P
++#if defined STRERROR_R_CHAR_P && defined __GLIBC__
+   return strerror_r (error, unknown, 0);
+ #else
+   /* To store the error message from strerror_r in a thread-safe manner */
+diff --git a/libdwfl/linux-kernel-modules.c b/libdwfl/linux-kernel-modules.c
+index dac64b3..79829bf 100644
+--- a/libdwfl/linux-kernel-modules.c
++++ b/libdwfl/linux-kernel-modules.c
+@@ -38,6 +38,7 @@
+ 
+ #include <config.h>
+ #include <system.h>
++#ifdef __GLIBC__
+ 
+ #include "libelfP.h"
+ #include "libdwflP.h"
+@@ -1038,3 +1039,4 @@ dwfl_linux_kernel_report_modules (Dwfl *dwfl)
+   return result;
+ }
+ INTDEF (dwfl_linux_kernel_report_modules)
++#endif

@@ -92,6 +92,39 @@ jobs:
           test -s "$out/dx-tool-deadnix-$deadnix_version-LICENSE"
           test -s "$out/dx-tool-selene-$selene_version-LICENSE"
           rm -rf "$download"
+          case "$host" in
+            linux-*)
+              kcov_version="43"
+              bazel test //tools/coverage/kcov:smoke_test //tools/coverage/kcov:static_smoke_test
+              bazel build //tools/coverage/kcov:kcov_static
+              cp "$(bazel info execution_root)/$(bazel cquery --output=files //tools/coverage/kcov:kcov_static)" "$out/dx-tool-kcov-$kcov_version-$host"
+              if readelf -l "$out/dx-tool-kcov-$kcov_version-$host" | grep -q INTERP; then
+                echo "dx-tool-kcov-$kcov_version-$host is dynamically linked" >&2
+                exit 1
+              fi
+              ;;
+          esac
+          if [ "$host" = linux-x86_64 ]; then
+            kcov_version="43"
+            kcov_sha256="$(sed -n 's/^ *"sha256": "\(.*\)",$/\1/p' tools/coverage/kcov/pins.json)"
+            test -n "$kcov_sha256" || { echo "no kcov sha256 in pins.json" >&2; exit 1; }
+            external="$(mktemp -d)"
+            bazel fetch --force --repo=@elfutils --repo=@zlib
+            bazel vendor --vendor_dir="$external" --repo=@elfutils --repo=@zlib
+            src="$(mktemp -d)/dx-tool-kcov-$kcov_version-source"
+            mkdir -p "$src/patches"
+            curl --fail --silent --show-error --location -o "$src/kcov-$kcov_version.tar.gz" "https://github.com/SimonKagstrom/kcov/archive/refs/tags/v$kcov_version.tar.gz"
+            test "$(sha256_of "$src/kcov-$kcov_version.tar.gz")" = "$kcov_sha256" || { echo "kcov archive sha256 differs from pins.json" >&2; exit 1; }
+            cp patches/kcov/*.patch tools/coverage/kcov/kcov.BUILD "$src/patches/"
+            for dep in elfutils zlib; do
+              test -d "$external/$dep+" || { echo "no $dep+ under $external" >&2; exit 1; }
+              tar -C "$external" --exclude="$dep+/.git" --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -cf "$src/$dep.tar" "$dep+"
+            done
+            tar -xzOf "$src/kcov-$kcov_version.tar.gz" "kcov-$kcov_version/COPYING" > "$out/dx-tool-kcov-$kcov_version-LICENSE"
+            test -s "$out/dx-tool-kcov-$kcov_version-LICENSE"
+            tar -C "$(dirname "$src")" --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -cf - "$(basename "$src")" | gzip -n > "$out/dx-tool-kcov-$kcov_version-source.tar.gz"
+            rm -rf "$(dirname "$src")" "$external"
+          fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-tool-${{ matrix.host }}

@@ -1,3 +1,4 @@
+load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@rules_cc//cc:defs.bzl", "cc_binary")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//core/quality:fixtures.bzl", "real_source_target")
@@ -55,6 +56,16 @@ alias(
 
 filegroup(name = "none")
 
+platform_transition_filegroup(
+    name = "kcov_static",
+    srcs = ["@kcov//:kcov"],
+    target_compatible_with = ["@platforms//os:linux"],
+    target_platform = select({
+        "@platforms//cpu:aarch64": "@llvm//platforms:linux_aarch64_musl",
+        "//conditions:default": "@llvm//platforms:linux_x86_64_musl",
+    }),
+)
+
 sh_binary(
     name = "kcov_launcher",
     srcs = ["kcov_launcher.sh"],
@@ -88,6 +99,22 @@ rust_test(
     },
     target_compatible_with = ["@platforms//os:linux"],
     deps = ["//tools/testing:dx_testing"],
+)
+
+sh_test(
+    name = "static_smoke_test",
+    size = "small",
+    srcs = ["smoke_test.sh"],
+    args = [
+        "$(rootpath :kcov_static)",
+        "$(rootpath :smoke)",
+    ],
+    data = [
+        "smoke.c",
+        ":kcov_static",
+        ":smoke",
+    ],
+    target_compatible_with = ["@platforms//os:linux"],
 )
 
 filegroup(

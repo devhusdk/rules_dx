@@ -85,6 +85,7 @@ Where release-built assets are hosted is the owner's decision. The rules above h
 | nixfmt | MPL-2.0 | one static Linux x86_64 binary | up | rel | rel | no |
 | deadnix | GPL-3.0 | source only | rel | rel | rel | rel |
 | selene | MPL-2.0 | Linux x86_64, macOS and Windows x86_64 zips, built without the lua52/53/54 features | rel | rel | rel | rel |
+| kcov | GPL-2.0 | source only | rel | rel | no | no |
 | zanuda | LGPL-3.0 | source only | own | own | own | no |
 | weeder | BSD-3-Clause | source only | own | own | own | own |
 | core Python tools | per wheel | wheels on PyPI | rel | rel | rel | rel |
@@ -92,6 +93,7 @@ Where release-built assets are hosted is the owner's decision. The rules above h
 - nixfmt: the executable depends on the `unix` package, so no Windows host is supported. `macos_arm64` is unsupported until the source target builds there.
 - deadnix: the release carries the deadnix source archive next to each binary.
 - selene: upstream zips lack the Lua 5.2 to 5.4 parsers (Kampfkarren/selene#645). The default `std = "lua53+lua54"` (`lua/private/quality/selene.toml`) needs them, so every host is release-built from `@dx_selene_src`. Revisit when an upstream release enables the features. Gate it on `//lua/tests:selene_smoke_test`.
+- kcov: `//tools/coverage/kcov:kcov_static` builds it against musl, statically linking elfutils (with `patches/elfutils/musl.patch`) and zlib. The release carries one source archive with the kcov tarball, the kcov patches, `kcov.BUILD` and the elfutils and zlib sources it was built from. Gate it on `//tools/coverage/kcov:smoke_test` and `//tools/coverage/kcov:static_smoke_test`.
 - zanuda: it reads `.cmt` files of the consumer's OCaml. Windows is unsupported until the OCaml toolchain has a Windows cell.
 - weeder: it reads `.hie` files and is built with the consumer's GHC. `windows_x86_64` is supported once its matrix case passes. `windows_arm64` is unsupported because GHC ships no bindist for it.
 - Core Python tools: the `python-tools` job in `release-tools.yml` assembles one `dx-python-tools-<host>.tar.gz` bundle per host from a python-build-standalone interpreter and the wheels locked in `uv.lock`. Nothing is compiled. ansible-lint is unsupported on Windows.
@@ -102,6 +104,7 @@ Where release-built assets are hosted is the owner's decision. The rules above h
 | --- | --- | --- |
 | nixfmt | GHC bindist, rules_haskell | 43 from Hackage |
 | deadnix, selene | Rust toolchain, rules_rust | 240 crates in the shared lock |
+| kcov | C and C++ toolchain | elfutils and zlib from the BCR |
 | zanuda | OCaml compiler, dune | 35 in the duniverse |
 
 - A consumer build that reaches one of these targets fetches the toolchain and every locked package.

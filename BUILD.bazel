@@ -774,6 +774,7 @@ filegroup(
         "//ocaml/private/tools/lock:module_srcs",
         "//patches/avro-cpp:module_srcs",
         "//patches/capnproto:module_srcs",
+        "//patches/elfutils:module_srcs",
         "//patches/elvis:module_srcs",
         "//patches/gcc_toolchain:module_srcs",
         "//patches/gomod-parser:module_srcs",

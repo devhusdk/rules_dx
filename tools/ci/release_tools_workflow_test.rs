@@ -21,10 +21,14 @@ const PYTHON_HOSTS: [&str; 5] = [
     "windows-arm64",
 ];
 
-const ASSETS: [&str; 3] = [
+const ASSETS: [&str; 7] = [
+    "dx-tool-kcov-43-linux-x86_64",
+    "dx-tool-kcov-43-linux-arm64",
     "dx-tool-deadnix-1.3.1-LICENSE",
     "dx-tool-selene-0.32.0-LICENSE",
+    "dx-tool-kcov-43-LICENSE",
     "dx-tool-deadnix-1.3.1-source.crate",
+    "dx-tool-kcov-43-source.tar.gz",
 ];
 
 #[test]
@@ -60,6 +64,9 @@ fn each_host_uploads_its_artifact() {
     let text = read_runfiles(TOOLS);
     assert!(text.contains("name: release-tool-${{ matrix.host }}"));
     assert!(text.contains("//rust/private/quality/tools:deadnix //rust/private/quality/tools:selene"));
+    assert!(text.contains("bazel test //tools/coverage/kcov:smoke_test //tools/coverage/kcov:static_smoke_test"));
+    assert!(text.contains("bazel build //tools/coverage/kcov:kcov_static"));
+    assert!(text.contains("kcov archive sha256 differs from pins.json"));
 }
 
 #[test]
@@ -88,7 +95,7 @@ fn release_calls_the_tools_workflow_before_the_source_job() {
 fn release_writes_and_checks_the_tool_manifest() {
     let text = read_runfiles(RELEASE);
     assert!(text.contains("pattern: release-tool-*"));
-    assert!(text.contains("test \"$(wc -l < out/dx-tool-sha256sums.txt)\" -eq 16"));
+    assert!(text.contains("test \"$(wc -l < out/dx-tool-sha256sums.txt)\" -eq 20"));
     assert!(text.contains("sha256sum -c dx-tool-sha256sums.txt"));
     assert!(text.contains("out/dx-tool-sha256sums.txt; (cd out && sha256sum dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-tool-sha256sums.txt)"));
     for asset in ASSETS {

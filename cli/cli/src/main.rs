@@ -500,9 +500,11 @@ fn run() -> i32 {
     let runner =
         RestartingRunner::new(dx_process::BinaryRunner::new(inherit_stdout, die_by_signal))
             .with_cache_retry(cache_retry);
-    let query_runner = RestartingQueryRunner::new(BinaryQueryRunner {
+    let bazel_query_runner = RestartingQueryRunner::new(BinaryQueryRunner {
         runner: dx_process::BinaryRunner::new(inherit_stdout, die_by_signal),
     });
+    // A warm run whose BUILD inputs are unchanged reads the rule graph from disk.
+    let query_runner = dx_plan::resolve::PersistentGraphQuery::new(&bazel_query_runner);
     let stdout = io::stdout();
     let mut out = stdout.lock();
     let mut err = io::stderr();

@@ -31,6 +31,8 @@ pub const LAUNCHER: &str = "launcher";
 pub const FINGERPRINT: &str = "fingerprint";
 pub const SYNC_LOCK: &str = "sync.lock";
 pub const SYNC_FINGERPRINT: &str = "sync.fingerprint";
+/// The last workspace rule graph and the hash of the files it came from.
+pub const RULE_GRAPH: &str = "rule_graph";
 
 /// Entries that live under [`local_dir`].
 pub const LOCAL_ENTRIES: [&str; 13] = [
@@ -51,7 +53,7 @@ pub const LOCAL_ENTRIES: [&str; 13] = [
 
 /// Entries `dx clean` deletes from [`local_dir`]; `leases` only for dead holders.
 /// `fuzz`, `bench`, `advisory` and `launcher` stay.
-pub const CLEAN_ENTRIES: [&str; 13] = [
+pub const CLEAN_ENTRIES: [&str; 14] = [
     SETUPS,
     ENVIRONMENTS,
     GENERATED,
@@ -65,6 +67,7 @@ pub const CLEAN_ENTRIES: [&str; 13] = [
     LEASES,
     FINGERPRINT,
     SYNC_FINGERPRINT,
+    RULE_GRAPH,
 ];
 
 #[must_use]

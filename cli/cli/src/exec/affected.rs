@@ -7,10 +7,9 @@ use dx_plan::args::{Command, Invocation};
 use dx_plan::resolve::{
     AffectedSelection, QueryRunner, ResolveError, RuleGraph, WidenedScope, collect_range,
     collect_working_tree, exclude, local_override_changes, merge_base, missing_base_shallow_error,
-    quote_set, resolve_affected, run_label_query_file, shallow_clone,
+    resolve_affected, shallow_clone,
 };
 use serde_json::{Value, json};
-use std::fmt::Write as _;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -37,8 +36,6 @@ pub(crate) struct AffectedPlan {
     pub(crate) format: Vec<String>,
     pub(crate) widened: Vec<WidenedScope>,
     pub(crate) unscoped: bool,
-    /// External-repo test labels dropped because the test phase rejects them.
-    pub(crate) skipped_external: Vec<String>,
 }
 
 /// How many widened scopes the stderr summary names before "and N more".
@@ -69,9 +66,6 @@ impl AffectedPlan {
         });
         if command == Command::Check {
             set_field(&mut value, "tests", json!(self.tests));
-        }
-        if !self.skipped_external.is_empty() {
-            set_field(&mut value, "skipped_external", json!(self.skipped_external));
         }
         value
     }
@@ -105,21 +99,11 @@ impl AffectedPlan {
                 more => format!("; widened to {shown} and {more} more"),
             }
         };
-        let mut line = format!(
+        format!(
             "dx: affected: {} targets from {} changed files since {base}{suffix}",
             self.targets.len(),
             self.changed_files.len()
-        );
-        if !self.skipped_external.is_empty() {
-            write!(
-                line,
-                "\ndx: affected: skipping {} external-repo tests: {}",
-                self.skipped_external.len(),
-                self.skipped_external.join(", ")
-            )
-            .ok();
-        }
-        line
+        )
     }
 }
 
@@ -187,28 +171,6 @@ fn default_branch(runner: &dyn QueryRunner, workspace: &Path) -> Result<String, 
         "cannot find the default branch: tried origin/HEAD, {}",
         DEFAULT_BRANCH_CANDIDATES.join(", ")
     )))
-}
-
-fn tests_expression(rules: &[String]) -> String {
-    format!("tests(set({}))", quote_set(rules))
-}
-
-fn tests_of(
-    rules: &[String],
-    workspace: &Path,
-    runner: &dyn QueryRunner,
-    startup_options: &[String],
-) -> Result<Vec<String>, ResolveError> {
-    if rules.is_empty() {
-        return Ok(Vec::new());
-    }
-    run_label_query_file(
-        &tests_expression(rules),
-        &format!("tests of {} affected rules", rules.len()),
-        workspace,
-        runner,
-        startup_options,
-    )
 }
 
 fn audit_owned(workspace: &Path, target: &str) -> bool {
@@ -279,10 +241,10 @@ fn scope_to_graph(
     let mut rules = graph.affected(&selection.targets);
     rules.retain(|rule| !exclude::covered(&excludes, rule));
     let tests = if tests_only(command) || command == Command::Check {
-        let (mut tests, external) =
-            split_external(tests_of(&rules, workspace, runner, startup_options)?);
+        // The graph holds only main-repo rules, so every test it names is one the test phase
+        // accepts.
+        let mut tests = graph.tests_of(&rules);
         tests.retain(|test| !exclude::covered(&excludes, test));
-        plan.skipped_external = external;
         tests
     } else {
         Vec::new()
@@ -354,7 +316,6 @@ pub(crate) fn plan(
         format: Vec::new(),
         widened: Vec::new(),
         unscoped: false,
-        skipped_external: Vec::new(),
     };
     if changes.is_empty() && overrides.is_empty() {
         return Ok(plan);
@@ -432,14 +393,6 @@ fn generate_scope(workspace: &Path, changed_files: &[String]) -> Vec<String> {
         })
         .collect();
     dx_plan::plan::generate_package_scope(&labels)
-}
-
-/// Splits off external-repo labels, which the test phase rejects as `invalid_scope`.
-/// Main-repo spellings (`@//`, `@@//`) stay.
-fn split_external(tests: Vec<String>) -> (Vec<String>, Vec<String>) {
-    tests.into_iter().partition(|label| {
-        !label.starts_with('@') || label.starts_with("@//") || label.starts_with("@@//")
-    })
 }
 
 /// Adds the `affected` object to the first `command_started` line and passes the rest through.
@@ -730,7 +683,6 @@ mod tests {
                 })
                 .collect(),
             unscoped: false,
-            skipped_external: Vec::new(),
         }
     }
 
@@ -852,7 +804,7 @@ mod tests {
     fn graph() -> String {
         let rules = [
             json!({"name": "//a:lib", "ruleInput": ["//a:a.txt", "//a:b.txt", "//a:new.txt", "//a:key.txt", "//a:c.txt"]}),
-            json!({"name": "//a:t", "ruleInput": ["//a:lib"]}),
+            json!({"name": "//a:t", "ruleClass": "sh_test", "ruleInput": ["//a:lib"]}),
             json!({"name": "//a:m", "ruleInput": ["//a:lib"], "attribute": [{"name": "tags", "stringListValue": ["manual"]}]}),
             json!({"name": "//a:android", "ruleInput": ["@@rules_android++sdk+androidsdk//:core"]}),
             json!({"name": "//a:ruby", "ruleInput": ["@@rules_ruby++ruby+ruby_x86_64_windows//:ruby"]}),
@@ -1297,7 +1249,7 @@ mod tests {
             "{summary}"
         );
         assert!(!summary.contains("//..."), "{summary}");
-        let (plan, _) = run(root, Command::Test, &[&graph, "//a:t\n"]);
+        let (plan, _) = run(root, Command::Test, &[&graph]);
         assert_eq!(plan.targets, ["//a:t"]);
     }
 
@@ -1328,21 +1280,18 @@ mod tests {
     }
 
     #[test]
-    fn tests_only_commands_query_tests_and_check_adds_a_test_list() {
+    fn tests_come_from_the_graph_and_check_adds_a_test_list() {
         let dir = repo();
         write(dir.path(), "a/a.txt", "changed\n");
         let graph = graph();
-        let (plan, runner) = run(dir.path(), Command::Test, &[&graph, "//a:t\n"]);
+        let (plan, runner) = run(dir.path(), Command::Test, &[&graph]);
         assert_eq!(plan.targets, ["//a:t"]);
-        assert_eq!(
-            runner.expressions.borrow()[1],
-            "tests(set(\"//a:lib\" \"//a:t\"))"
-        );
+        assert_eq!(runner.expressions.borrow().len(), 1, "only the graph query");
 
-        let (plan, runner) = run(dir.path(), Command::Check, &[&graph, "//a:t\n"]);
+        let (plan, runner) = run(dir.path(), Command::Check, &[&graph]);
         assert_eq!(plan.targets, ["//a:lib", "//a:t"]);
         assert_eq!(plan.tests, ["//a:t"]);
-        assert_eq!(runner.expressions.borrow().len(), 2);
+        assert_eq!(runner.expressions.borrow().len(), 1, "only the graph query");
     }
 
     #[test]
@@ -1350,7 +1299,7 @@ mod tests {
         let dir = repo();
         write(dir.path(), "a/a.txt", "changed\n");
         let graph = graph();
-        let (plan, _) = run(dir.path(), Command::Check, &[&graph, "//a:t\n"]);
+        let (plan, _) = run(dir.path(), Command::Check, &[&graph]);
         assert_eq!(plan.targets, ["//a:lib", "//a:t"]);
         assert_eq!(plan.generate, ["//a/..."]);
         assert_eq!(plan.format, ["//a:lib"]);
@@ -1381,29 +1330,8 @@ mod tests {
         let dir = repo();
         write(dir.path(), "a/a.txt", "changed\n");
         let graph = graph();
-        let (plan, _) = run(dir.path(), Command::Check, &[&graph, "//a:t\n"]);
+        let (plan, _) = run(dir.path(), Command::Check, &[&graph]);
         assert_eq!(plan.json(Command::Check)["tests"], json!(["//a:t"]));
-    }
-
-    #[test]
-    fn external_repo_tests_are_skipped_and_reported() {
-        let dir = repo();
-        write(dir.path(), "a/a.txt", "changed\n");
-        let graph = graph();
-        let answer = "//a:t\n@shared_consumer//:x_test\n@@//a:u\n";
-        let (plan, _) = run(dir.path(), Command::Check, &[&graph, answer]);
-        assert_eq!(plan.tests, ["//a:t", "@@//a:u"]);
-        assert_eq!(plan.skipped_external, ["@shared_consumer//:x_test"]);
-        assert_eq!(
-            plan.json(Command::Check)["skipped_external"],
-            json!(["@shared_consumer//:x_test"])
-        );
-        assert!(
-            plan.summary()
-                .contains("skipping 1 external-repo tests: @shared_consumer//:x_test")
-        );
-        let (plan, _) = run(dir.path(), Command::Test, &[&graph, answer]);
-        assert_eq!(plan.targets, ["//a:t", "@@//a:u"]);
     }
 
     #[test]
@@ -1420,7 +1348,6 @@ mod tests {
             format: Vec::new(),
             widened: Vec::new(),
             unscoped: false,
-            skipped_external: Vec::new(),
         };
         assert!(
             plan.summary()

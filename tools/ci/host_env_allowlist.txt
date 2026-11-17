@@ -192,8 +192,6 @@ fsharp/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
 fsharp/tests/fixtures/fuzz/run_test.sh shebang 1
 fsharp/tests/fixtures/profiles/BUILD.bazel genrule 1
 gazelle/languages.bzl genrule 1
-gazelle/php/BUILD.bazel sh-rule 1
-gazelle/php/builtins_test.sh shebang 1
 go/private/bench_run.sh shebang 1
 go/private/quality/gopls_tier/BUILD.bazel genrule 1
 go/tests/fixtures/bench/BUILD.bazel sh-rule 1
@@ -286,7 +284,6 @@ tools/bazelisk/wrapper/bazel.ps1 host-path 1
 tools/bazelisk/wrapper_test.rs host-path 2
 tools/buildbuddy-credential-helper.sh shebang 1
 tools/ci/docs_scope_test.rs shebang 1
-tools/ci/evidence_inputs.sh shebang 1
 tools/coverage/kcov/BUILD.bazel sh-rule 2
 tools/coverage/kcov/kcov.BUILD genrule 3
 tools/coverage/kcov/kcov_launcher.sh shebang 1

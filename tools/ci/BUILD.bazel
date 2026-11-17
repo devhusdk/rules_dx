@@ -92,19 +92,14 @@ rust_test(
     ),
     crate_name = "evidence_inputs_test",
     crate_root = "evidence_inputs_test.rs",
-    data = [
-        "evidence_inputs.sh",
-        "//.github:workflows/evidence.yml",
-    ],
+    data = ["//.github:workflows/evidence.yml"],
     deps = all_crate_deps(
         package_name = "tools/ci_tests",
         normal = True,
         normal_dev = True,
     ) + [
-        "//cli/test_scratch:dx_test_scratch",
         "//tools/ci/ci_workflow",
         "//tools/ci/evidence_inputs",
-        "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
 )

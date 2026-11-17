@@ -121,6 +121,8 @@ jobs:
           git -C "$GITHUB_WORKSPACE" remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
           git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 fetch --depth=1 --no-tags origin "$GITHUB_SHA"
           git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 checkout --force FETCH_HEAD
+      - id: setup
+        uses: ./.github/actions/setup-bazel
       - name: Validate workflow inputs
         id: inputs
         env:
@@ -131,10 +133,9 @@ jobs:
           DX_TEST_TIMEOUT: ${{ inputs.test_timeout }}
           DX_FLAGS: ${{ inputs.flags }}
           DX_RELOCATE: ${{ inputs.relocate }}
-          DX_EVIDENCE_NO_JQ: ${{ runner.os == 'Windows' && '1' || '' }}
-        run: bash tools/ci/evidence_inputs.sh
-      - id: setup
-        uses: ./.github/actions/setup-bazel
+        run: |
+          bazel build --noshow_progress //tools/ci/producers:producers_bin
+          "$(bazel info bazel-bin)/tools/ci/producers/producers_bin" --evidence-inputs
       - name: Build and qualify the release cell
         if: ${{ inputs.release_cell }}
         env:

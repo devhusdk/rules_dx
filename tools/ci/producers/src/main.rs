@@ -1,5 +1,6 @@
 //! `producers_bin` prints the compiler signatures of each file argument as a JSON object.
 //! `producers_bin --evidence OUT PLATFORM FACTS ROW_LABELS CONSUMER_LABELS` appends the compiler evidence lines to OUT.
+//! `producers_bin --evidence-inputs` validates the evidence workflow dispatch inputs and appends them to `GITHUB_OUTPUT`.
 //! `producers_bin --lock-merge LOCKS_DIR OUT` merges the per-platform module locks into OUT.
 //! `producers_bin --blocker-refs OWNER/REPO` prints the references of a "Blocked on:" line on stdin.
 //! `producers_bin --review-paths [PREFIX_FILE]` prints the stdin paths that start with a listed prefix.
@@ -12,6 +13,7 @@
 
 mod blocker_refs;
 mod evidence;
+mod evidence_inputs;
 mod lock_merge;
 mod pr_check;
 mod release_cell;
@@ -26,6 +28,7 @@ fn main() -> Result<(), String> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     match args.split_first().map(|(mode, rest)| (mode.as_str(), rest)) {
         Some(("--evidence", rest)) => return evidence::append(rest),
+        Some(("--evidence-inputs", rest)) => return evidence_inputs::check(rest),
         Some(("--table", rest)) => return table::print(rest),
         Some(("--lock-merge", rest)) => return lock_merge::merge(rest),
         _ => {}

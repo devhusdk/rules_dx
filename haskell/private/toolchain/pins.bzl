@@ -167,3 +167,9 @@ MUSL_CELLS = {
 }
 
 ALL_CELLS = CELLS | MUSL_CELLS
+
+CROSS_CELLS = {
+    "linux_arm64_to_linux_x86_64": struct(host = "linux_arm64", target = "linux_x86_64", cc_target = "x86_64-linux-gnu"),
+    "linux_x86_64_to_linux_arm64": struct(host = "linux_x86_64", target = "linux_arm64", cc_target = "aarch64-linux-gnu"),
+    "macos_arm64_to_linux_arm64": struct(host = "macos_arm64", target = "linux_arm64", cc_target = "aarch64-linux-gnu"),
+}

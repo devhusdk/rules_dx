@@ -1,4 +1,5 @@
 //deploy/private/release/tests:release_consumer_smoke_test 300
 //examples/adopt-polyglot:consumer_test 300
 //tools/testing/hermetic:cpp_rust 653
+//tools/testing/hermetic:rust_wasm 648
 //tools/testing:nested_bazel_harness_test 33

@@ -1716,7 +1716,7 @@ fn verify_keeps_the_base_probe_set_without_failures_or_coverage() {
 }
 
 #[test]
-fn a_manifest_needs_a_fragment() {
+fn a_manifest_fragment_is_optional() {
     let mut text = json!({
         "label": "//tools/testing/hermetic:c_fixture",
         "languages": ["c"],
@@ -1733,8 +1733,8 @@ fn a_manifest_needs_a_fragment() {
         "module_file": "MODULE.bazel",
         "bazelversion": ".bazelversion",
     });
-    let err = parse_manifest(&text.to_string(), Path::new("/")).unwrap_err();
-    assert!(err.contains("module_fragment"), "{err}");
+    let manifest = parse_manifest(&text.to_string(), Path::new("/")).unwrap();
+    assert_eq!(manifest.module_fragment, None);
     text["module_fragment"] = json!("f");
     let manifest = parse_manifest(&text.to_string(), Path::new("/")).unwrap();
     assert_eq!(manifest.module_fragment, Some(PathBuf::from("/f")));

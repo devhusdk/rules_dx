@@ -302,11 +302,24 @@ def rust_binary(
         **kwargs
     )
 
+_WASM_BINDGEN_CRATE = Label("@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen")
+
+def _with_wasm_bindgen(deps):
+    """deps plus the wasm_bindgen crate."""
+    if deps == None:
+        return [_WASM_BINDGEN_CRATE]
+    if type(deps) != "list":
+        return deps + [_WASM_BINDGEN_CRATE]
+    if _WASM_BINDGEN_CRATE in [native.package_relative_label(dep) for dep in deps]:
+        return deps
+    return deps + [_WASM_BINDGEN_CRATE]
+
 def _rust_browser_binary(name, srcs, crate_name, edition, visibility, **kwargs):
     """Builds the binary for the browser and bundles it with wasm-bindgen."""
     upstream = name + "_upstream"
     wasm_input = name + "_wasm_input"
     bindgen = name + "_bindgen"
+    kwargs["deps"] = _with_wasm_bindgen(kwargs.get("deps"))
     _rust_binary(
         name = upstream,
         **dx_wrap_upstream_kwargs(_libstdcxx_upstream(dict(kwargs, crate_name = _crate_name(name, crate_name), edition = edition), link = True), srcs)

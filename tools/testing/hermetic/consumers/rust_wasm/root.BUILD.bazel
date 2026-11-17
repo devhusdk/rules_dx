@@ -1,9 +1,9 @@
-load("@rules_dx//rust:defs.bzl", "rust_binary")
+load("@rules_dx//rust:defs.bzl", "rust_binary", "rust_test")
 
 rust_binary(
     name = "tool_web",
-    srcs = ["main.rs"],
-    crate_root = "main.rs",
+    srcs = ["web.rs"],
+    crate_root = "web.rs",
     wasm = "browser",
 )
 
@@ -12,4 +12,21 @@ rust_binary(
     srcs = ["main.rs"],
     crate_root = "main.rs",
     wasm = "wasi",
+)
+
+rust_test(
+    name = "wasm_test",
+    srcs = ["wasm_test.rs"],
+    data = [
+        ":tool_wasi",
+        ":tool_web",
+        "@rules_dx//tools/testing/wasi:wasmtime",
+    ],
+    env = {
+        "WASI_WASM": "$(rootpath :tool_wasi)",
+        "WASMTIME": "$(rootpath @rules_dx//tools/testing/wasi:wasmtime)",
+        "WEB_BUNDLE": "$(rootpaths :tool_web)",
+    },
+    tags = ["block-network"],
+    deps = ["@rules_dx//tools/testing/wasi:wasi_run"],
 )

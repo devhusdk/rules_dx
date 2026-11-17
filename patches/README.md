@@ -60,7 +60,7 @@ When the upstream fix is in a release rules_dx uses, delete the patch file, its 
 | `rules_swift` | 4.2.2 | `windows_unknown_vendor.patch` | Root only. Windows target triples use the `unknown` vendor |
 | `rules_swift` | 4.2.2 | `xcode_select_absolute_path.patch` | The `system_sdk` extension runs `/usr/bin/xcode-select`, so Xcode discovery works with no host `PATH`. Consumer fix: #11150 |
 | `rules_python` | 2.4.6 | `single_import_lib.patch` | `py_extension` on Windows links one CPython import library: the stable ABI one for limited API modules, else the versioned one. It passed both as one linker argument (bazel-contrib/rules_python#4426; drop when a rules_python release has it). Consumer fix: #11418 |
-| `aspect_rules_js` | 3.6.0 | `manifest_only_runfiles.patch` | Root only. The `js_binary` bash launcher accepts a `RUNFILES_MANIFEST_FILE` at any path and builds its runfiles tree from the manifest when there is no runfiles directory beside it |
+| `aspect_rules_js` | 3.6.1 | `manifest_only_runfiles.patch` | Root only. The `js_binary` bash launcher accepts a `RUNFILES_MANIFEST_FILE` at any path and builds its runfiles tree from the manifest when there is no runfiles directory beside it |
 | `rules_python` | 2.4.6 | `install_name_tool.patch` | Root only. The macOS `python_repository` skips the LC_ID_DYLIB fixup, which needs `install_name_tool` on PATH, when `libpython` already names itself `@rpath/` |
 | `rules_python` | 2.4.6 | `lock_extension.patch` | Root only. The `python` extension is OS and architecture dependent and not reproducible, so a lockfile written on one host does not pin another |
 | `rules_py` | 2.0.0-alpha.11 | `py_cc_toolchain_platform.patch` | `py_cc_toolchain` picks the cc toolchain for the target platform. Consumer fix: #11398 |
@@ -103,11 +103,11 @@ When the upstream fix is in a release rules_dx uses, delete the patch file, its 
 | `elfutils` | 0.195 | `musl.patch` | Root only. libdwfl compiles without argp, fts and GNU `strerror_r` on musl, so `//tools/coverage/kcov:kcov_static` links fully static |
 | `rules_go` | 0.65.0 | `lazy_nogo.patch` | Toolchain registration does not load the Go rules, so builds without Go targets never fetch `@io_bazel_rules_nogo`. Consumer fix: #11418 |
 | `rules_go` | 0.65.0 | `lock_extension.patch` | Root only. The `go_sdk` extension is not reproducible, so the lockfile keeps its result per platform |
-| `rules_oci` | 2.3.0 | `descriptor_image.patch` | On a Windows exec platform each layer descriptor action of `oci_image` gets its own `.bat` wrapper and lists `descriptor.sh` as a tool. Consumer fix: #11758 |
-| `rules_oci` | 2.3.0 | `descriptor_util.patch` | The Windows `.bat` wrapper takes a name and calls a script outside its own directory by its execroot path. Consumer fix: #11758 |
-| `rules_oci` | 2.3.0 | `image_index.patch` | `oci_image_index` wraps its shell launcher in a `.bat` on a Windows exec platform. Consumer fix: #11758 |
-| `rules_oci` | 2.3.0 | `image_index_blob.patch` | `oci_image_index` skips blobs already copied from a sibling image. Consumer fix: #11758 |
-| `rules_oci` | 2.3.0 | `image_layout.patch` | `oci_image` writes the base layout's `oci-layout` as a fresh file so regctl can rewrite it on Windows. Consumer fix: #11758 |
+| `rules_oci` | 2.3.5 | `descriptor_image.patch` | On a Windows exec platform each layer descriptor action of `oci_image` gets its own `.bat` wrapper and lists `descriptor.sh` as a tool. Consumer fix: #11758 |
+| `rules_oci` | 2.3.5 | `descriptor_util.patch` | The Windows `.bat` wrapper takes a name and calls a script outside its own directory by its execroot path. Consumer fix: #11758 |
+| `rules_oci` | 2.3.5 | `image_index.patch` | `oci_image_index` wraps its shell launcher in a `.bat` on a Windows exec platform. Consumer fix: #11758 |
+| `rules_oci` | 2.3.5 | `image_index_blob.patch` | `oci_image_index` skips blobs already copied from a sibling image. Consumer fix: #11758 |
+| `rules_oci` | 2.3.5 | `image_layout.patch` | `oci_image` writes the base layout's `oci-layout` as a fresh file so regctl can rewrite it on Windows. Consumer fix: #11758 |
 
 ## Patches in rules_dx repository rules: elvis, rules_d, rules_dart, rules_dotnet, rules_elixir, rules_erlang, rules_flutter, rules_fortran, rules_haskell, rules_julia, rules_ocaml, rules_ruby, windows_support
 

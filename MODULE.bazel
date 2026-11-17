@@ -2026,7 +2026,7 @@ use_repo(
 )
 
 # floor: equals tested
-bazel_dep(name = "rules_oci", version = "2.3.0")
+bazel_dep(name = "rules_oci", version = "2.3.5")
 single_version_override(
     module_name = "rules_oci",
     patch_strip = 1,
@@ -2037,7 +2037,7 @@ single_version_override(
         "//patches/rules_oci:image_index_blob.patch",
         "//patches/rules_oci:image_layout.patch",
     ],
-    version = "2.3.0",
+    version = "2.3.5",
 )
 
 # floor: equals tested
@@ -2149,12 +2149,12 @@ single_version_override(
 )
 
 # floor: equals tested
-bazel_dep(name = "aspect_rules_js", version = "3.6.0")
+bazel_dep(name = "aspect_rules_js", version = "3.6.1")
 single_version_override(
     module_name = "aspect_rules_js",
     patch_strip = 1,
     patches = ["//patches/rules_js:manifest_only_runfiles.patch"],
-    version = "3.6.0",
+    version = "3.6.1",
 )
 
 # floor: equals tested

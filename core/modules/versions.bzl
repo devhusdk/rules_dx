@@ -41,7 +41,7 @@ RULES_PYTHON_VERSION = "2.4.6"
 RULES_PY_VERSION = "2.0.0-alpha.11"
 PYTHON_VERSION = "3.12"
 
-ASPECT_RULES_JS_VERSION = "3.6.0"
+ASPECT_RULES_JS_VERSION = "3.6.1"
 ASPECT_RULES_TS_VERSION = "3.10.1"
 ASPECT_RULES_JEST_VERSION = "0.26.0"
 RULES_NODEJS_VERSION = "6.7.7"
@@ -112,7 +112,7 @@ CONSUMER_BAZEL_DEPS = {
     "toml.bzl": struct(floor = "0.5.0", tested = "0.5.0"),
     "rules_dart": struct(floor = RULES_DART_VERSION, tested = RULES_DART_VERSION),
     "rules_perl": struct(floor = RULES_PERL_VERSION, tested = RULES_PERL_VERSION),
-    "rules_oci": struct(floor = "2.3.0", tested = "2.3.0"),
+    "rules_oci": struct(floor = "2.3.5", tested = "2.3.5"),
     "rules_pkg": struct(floor = "1.3.0", tested = "1.3.0"),
     "lua": struct(floor = LUA_VERSION, tested = LUA_VERSION),
     "rules_py": struct(floor = RULES_PY_VERSION, tested = RULES_PY_VERSION),

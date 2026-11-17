@@ -72,6 +72,27 @@ rust_browser_binary_tests(
     target = ":wasm_hello_web",
 )
 
+# keep
+rust_binary(
+    name = "wasm_implicit_web",
+    srcs = ["src/implicit_web.rs"],
+    crate_name = "wasm_implicit_web",
+    crate_root = "src/implicit_web.rs",
+    edition = "2021",
+    wasm = "browser",
+)
+
+# keep
+rust_test(
+    name = "wasm_implicit_bundle_test",
+    srcs = ["src/implicit_bundle_test.rs"],
+    crate_root = "src/implicit_bundle_test.rs",
+    data = [":wasm_implicit_web"],
+    edition = "2021",
+    env = {"DX_WASM_IMPLICIT_BUNDLE": "$(rootpaths :wasm_implicit_web)"},
+    size = "small",
+)
+
 rust_wasm_bindgen(
     name = "wasm_hello_web_bare",
     bindgen_flags = [

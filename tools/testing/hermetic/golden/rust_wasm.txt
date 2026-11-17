@@ -1,0 +1,8 @@
+language rust
+pattern //:tool_wasi
+pattern //:tool_web
+pattern //:wasm_test
+file BUILD.bazel
+file main.rs
+file wasm_test.rs
+file web.rs

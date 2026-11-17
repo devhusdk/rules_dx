@@ -4,70 +4,89 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// The hpc data one test left in its undeclared outputs.
-#[derive(Debug, PartialEq, Eq)]
-pub struct HpcData {
-    /// The first `.tix` file by name.
-    pub tix: PathBuf,
-    /// Every entry of `mix/`, sorted.
-    pub mix: Vec<PathBuf>,
-}
-
-fn sorted(dir: &Path) -> Vec<PathBuf> {
-    let mut entries: Vec<PathBuf> = std::fs::read_dir(dir)
+/// The `.hpc` directory a `.mix` file belongs to: its first ancestor named `*_.hpc`, else its parent.
+pub fn hpc_dir(mix: &Path) -> PathBuf {
+    let parent = mix.parent().unwrap_or(mix);
+    let mut ancestors: Vec<&Path> = parent.ancestors().collect();
+    ancestors.reverse();
+    ancestors
         .into_iter()
-        .flatten()
-        .flatten()
-        .map(|entry| entry.path())
-        .collect();
-    entries.sort();
-    entries
+        .find(|dir| {
+            dir.file_name()
+                .is_some_and(|name| name.to_string_lossy().ends_with("_.hpc"))
+        })
+        .unwrap_or(parent)
+        .to_path_buf()
 }
 
-/// Finds the `.tix` file and the mix directories below `outputs`.
-pub fn hpc_data(outputs: &Path) -> Option<HpcData> {
-    let tix = sorted(outputs)
-        .into_iter()
-        .find(|path| path.extension().is_some_and(|extension| extension == "tix"))?;
-    Some(HpcData {
-        tix,
-        mix: sorted(&outputs.join("mix")),
-    })
+/// The distinct `.hpc` directories of `mix` files, sorted.
+pub fn hpc_dirs(mix: &[OsString]) -> Vec<PathBuf> {
+    let mut dirs: Vec<PathBuf> = mix.iter().map(|file| hpc_dir(Path::new(file))).collect();
+    dirs.sort();
+    dirs.dedup();
+    dirs
 }
 
-/// The arguments `hpc_lcov` gets: the LCOV file below `coverage`, the `.tix` file and the mix directories.
-pub fn lcov_args(coverage: &Path, data: &HpcData) -> Vec<OsString> {
+/// The `.tix` file the test writes below `outputs`, named after the test binary.
+pub fn tix_path(outputs: &Path, test: &Path) -> PathBuf {
+    let stem = test
+        .file_stem()
+        .map_or_else(|| "test".into(), std::ffi::OsStr::to_os_string);
+    let mut name = stem;
+    name.push(".tix");
+    outputs.join(name)
+}
+
+/// The arguments `hpc_lcov` gets: the LCOV file below `coverage`, the `.tix` file and the `.hpc` directories.
+pub fn lcov_args(coverage: &Path, tix: &Path, dirs: &[PathBuf]) -> Vec<OsString> {
     let mut args = vec![
         coverage.join("haskell.dat").into_os_string(),
-        data.tix.clone().into_os_string(),
+        tix.as_os_str().to_os_string(),
     ];
-    args.extend(data.mix.iter().map(|dir| dir.clone().into_os_string()));
+    args.extend(dirs.iter().map(|dir| dir.clone().into_os_string()));
     args
 }
 
-fn status(program: &OsString, args: &[OsString]) -> Result<i32, String> {
+fn status(program: &OsString, args: &[OsString], env: &[(&str, &OsString)]) -> Result<i32, String> {
     Command::new(program)
         .args(args)
+        .envs(env.iter().copied())
         .status()
         .map(|status| status.code().unwrap_or(1))
         .map_err(|error| format!("cannot run {}: {error}", Path::new(program).display()))
 }
 
+const USAGE: &str = "usage: hpc_coverage <test> <hpc_lcov> [<mix file>...] -- [<test argument>...]";
+
 /// Runs the test and returns its exit code, or the one of the conversion after a passing test under coverage.
 pub fn run(args: &[OsString], env: &dyn Fn(&str) -> Option<OsString>) -> Result<i32, String> {
     let [test, lcov, rest @ ..] = args else {
-        return Err("usage: hpc_coverage <test> <hpc_lcov> [<test argument>...]".to_owned());
+        return Err(USAGE.to_owned());
     };
-    let code = status(test, rest)?;
+    let split = rest
+        .iter()
+        .position(|arg| arg == "--")
+        .ok_or_else(|| USAGE.to_owned())?;
+    let (mix, test_args) = rest.split_at(split);
+    let test_args = test_args.get(1..).unwrap_or_default();
     let set = |name: &str| env(name).filter(|value| !value.is_empty());
-    let Some(coverage) = set("COVERAGE_DIR").filter(|_| code == 0) else {
-        return Ok(code);
+    let Some(coverage) = set("COVERAGE_DIR") else {
+        return status(test, test_args, &[]);
     };
     let outputs = set("TEST_UNDECLARED_OUTPUTS_DIR")
         .ok_or_else(|| "TEST_UNDECLARED_OUTPUTS_DIR is not set".to_owned())?;
-    let Some(data) = hpc_data(Path::new(&outputs)) else {
+    let tix = tix_path(Path::new(&outputs), Path::new(test)).into_os_string();
+    let code = status(test, test_args, &[("HPCTIXFILE", &tix)])?;
+    if code != 0 {
+        return Ok(code);
+    }
+    if !Path::new(&tix).is_file() {
         eprintln!("dx: the Haskell test wrote no .tix file");
         return Ok(1);
-    };
-    status(lcov, &lcov_args(Path::new(&coverage), &data))
+    }
+    status(
+        lcov,
+        &lcov_args(Path::new(&coverage), Path::new(&tix), &hpc_dirs(mix)),
+        &[],
+    )
 }

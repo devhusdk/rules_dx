@@ -1,6 +1,6 @@
 //! Runs a Haskell test and, under coverage, converts the hpc data it wrote to LCOV.
 //!
-//! Arguments: `<test> <hpc_lcov> [<test argument>...]`.
+//! Arguments: `<test> <hpc_lcov> [<mix file>...] -- [<test argument>...]`.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 

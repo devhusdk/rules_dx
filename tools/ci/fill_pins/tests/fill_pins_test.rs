@@ -61,7 +61,7 @@ fn manifests(dx: &str, gazelle: &str) -> Vec<(String, String)> {
 }
 
 fn release_dir(text: &str, bundle: bool) -> TempDir {
-    let dir = scratch("fill_pins");
+    let dir = scratch("fill_pins").unwrap();
     std::fs::write(dir.path().join(fill_pins::MANIFEST), text).unwrap();
     std::fs::write(
         dir.path().join(fill_pins::GAZELLE_MANIFEST),

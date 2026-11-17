@@ -11,12 +11,12 @@ const PREFIX: &str = "go:example.com/ledger/money:";
 const SOURCE: &str = "tools/docs/go/fixture/money.go";
 
 fn symbol<'a>(shard: &'a DocIr, name: &str) -> &'a Symbol {
-    shard_test_support::symbol(shard, &format!("{PREFIX}{name}"))
+    shard_test_support::symbol(shard, &format!("{PREFIX}{name}")).unwrap()
 }
 
 #[test]
 fn the_fixture_shard_maps_every_shape() {
-    let shard = shard("DX_FIXTURE_SHARD");
+    let shard = shard("DX_FIXTURE_SHARD").unwrap();
     validate_shard(&shard).expect("validate_shard passes");
     assert_eq!(shard.language, "go");
     assert_eq!(shard.package, "example.com/ledger/money");
@@ -53,7 +53,7 @@ fn the_fixture_shard_maps_every_shape() {
 
 #[test]
 fn signatures_docs_and_sources_come_from_go_doc() {
-    let shard = shard("DX_FIXTURE_SHARD");
+    let shard = shard("DX_FIXTURE_SHARD").unwrap();
     let deposit = symbol(&shard, "Account.Deposit");
     assert_eq!(
         deposit.signature_text,
@@ -86,28 +86,28 @@ fn signatures_docs_and_sources_come_from_go_doc() {
         assert_eq!(source.file, SOURCE, "{}", symbol.id);
         assert!(source.line > 0);
         assert_eq!(
-            extension(symbol, "go.config"),
+            extension(symbol, "go.config").unwrap(),
             Some("goos=linux;goarch=amd64;tags=;cgo=0;json=1")
         );
     }
     assert_eq!(
-        extension(module, "go.excluded"),
+        extension(module, "go.excluded").unwrap(),
         Some("tools/docs/go/fixture/windows.go")
     );
 }
 
 #[test]
 fn build_constraints_follow_the_configured_goos() {
-    let windows = shard("DX_FIXTURE_WINDOWS_SHARD");
+    let windows = shard("DX_FIXTURE_WINDOWS_SHARD").unwrap();
     let only = symbol(&windows, "WindowsOnly");
     assert_eq!(
         only.source.as_ref().map(|s| s.file.as_str()),
         Some("tools/docs/go/fixture/windows.go")
     );
     let module = symbol(&windows, "money");
-    assert_eq!(extension(module, "go.excluded"), Some(""));
+    assert_eq!(extension(module, "go.excluded").unwrap(), Some(""));
     assert_eq!(
-        extension(module, "go.config"),
+        extension(module, "go.config").unwrap(),
         Some("goos=windows;goarch=amd64;tags=;cgo=0;json=1")
     );
 }
@@ -138,7 +138,7 @@ fn run(var: &str, dir: &Path, args: &[&str]) -> (i32, String) {
 
 #[test]
 fn the_driver_fails_on_a_broken_package_and_writes_nothing() {
-    let dir_tmp = dx_test_scratch::scratch("go-driver");
+    let dir_tmp = dx_test_scratch::scratch("go-driver").unwrap();
     let dir = dir_tmp.path().to_path_buf();
     std::fs::write(dir.join("broken.go"), "package broken\n\nfunc Broken( {\n").expect("write");
     std::fs::write(dir.join("srcs.tsv"), "broken.go\tpkg/broken.go\t0\n").expect("write");
@@ -161,7 +161,7 @@ fn the_driver_fails_on_a_broken_package_and_writes_nothing() {
 
 #[test]
 fn the_converter_rejects_bad_json_and_writes_no_shard() {
-    let dir_tmp = dx_test_scratch::scratch("go-extract");
+    let dir_tmp = dx_test_scratch::scratch("go-extract").unwrap();
     let dir = dir_tmp.path().to_path_buf();
     let json =
         std::fs::read_to_string(dx_testing::env_file("DX_FIXTURE_JSON")).expect("driver json");

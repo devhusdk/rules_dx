@@ -157,7 +157,7 @@ fn every_fixture_states_one_expected_outcome() {
 
 #[test]
 fn fixtures_report_the_expected_diagnostic_and_write_the_validated_outputs() {
-    let scratch = dx_test_scratch::scratch("input-validation");
+    let scratch = dx_test_scratch::scratch("input-validation").unwrap();
     for case in cases() {
         let expect = expectation(&case);
         let (code, text, written) = run(scratch.path(), &case, &expect);
@@ -291,9 +291,9 @@ fn platform_drift(ci: &str, release: &str, consumer: &str, actionlint: &str) -> 
     let mut want: Vec<String> = table.iter().map(|(_, runner)| runner.clone()).collect();
     want.sort();
     let mut problems = Vec::new();
-    let ci = &ci_workflow::parse(CI_WORKFLOW, ci);
-    let release = &ci_workflow::parse(RELEASE_WORKFLOW, release);
-    let consumer = &ci_workflow::parse(CONSUMER_WORKFLOW, consumer);
+    let ci = &ci_workflow::parse(CI_WORKFLOW, ci).unwrap();
+    let release = &ci_workflow::parse(RELEASE_WORKFLOW, release).unwrap();
+    let consumer = &ci_workflow::parse(CONSUMER_WORKFLOW, consumer).unwrap();
     if preflight_pairs(ci) != table {
         problems.push(format!("{CI_WORKFLOW} preflight matrix drifted"));
     }

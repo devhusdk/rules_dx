@@ -536,7 +536,7 @@ mod tests {
         codes: &[i32],
     ) -> (i32, Vec<(Vec<String>, bool, bool)>, String) {
         let harness = Harness::new(name);
-        let scratch = dx_test_scratch::scratch("dx-run-slot-");
+        let scratch = dx_test_scratch::scratch("dx-run-slot-").unwrap();
         let dir = scratch.path().join("slots");
         let runner = SlotRunner {
             dir: dir.clone(),

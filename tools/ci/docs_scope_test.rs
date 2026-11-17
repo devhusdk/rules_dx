@@ -77,13 +77,13 @@ fn separators_quotes_and_globs_are_rejected() {
 #[test]
 fn the_binary_runs_bazel_without_a_shell() {
     use std::os::unix::fs::PermissionsExt;
-    let scratch = dx_test_scratch::scratch("docs-scope");
+    let scratch = dx_test_scratch::scratch("docs-scope").unwrap();
     let bin = scratch.path().join("bin");
     dx_test_scratch::write(
         &bin,
         "bazel",
         "#!/bin/sh\nfor arg in \"$@\"; do printf '%s\\n' \"$arg\"; done > \"$DX_ARGV_LOG\"\n",
-    );
+    ).unwrap();
     std::fs::set_permissions(bin.join("bazel"), std::fs::Permissions::from_mode(0o755)).unwrap();
     let log = scratch.path().join("argv.log");
     let path = format!(

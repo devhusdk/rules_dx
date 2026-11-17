@@ -12,8 +12,8 @@ const PIN_DEADLINE: Duration = Duration::from_mins(30);
 
 fn tail(path: &Path) -> String {
     let text = std::fs::read_to_string(path).unwrap_or_default();
-    let lines: Vec<&str> = text.lines().collect();
-    lines[lines.len().saturating_sub(200)..].join("\n")
+    let skip = text.lines().count().saturating_sub(200);
+    text.lines().skip(skip).collect::<Vec<_>>().join("\n")
 }
 
 fn consumer(name: &str, committed: &str) -> Result<dx_nested::Case, String> {

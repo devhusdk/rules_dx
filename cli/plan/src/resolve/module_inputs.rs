@@ -717,7 +717,7 @@ mod tests {
 
     #[test]
     fn cached_accepts_only_matching_hashes() {
-        let scratch = dx_test_scratch::scratch("dx-module-cache-");
+        let scratch = dx_test_scratch::scratch("dx-module-cache-").unwrap();
         let cache = scratch.path().join("cache");
         let text = "module(name = \"leaf\")\n";
         let good = dx_digest::sha256_hex(text.as_bytes());

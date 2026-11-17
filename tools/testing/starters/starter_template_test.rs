@@ -6,7 +6,7 @@ use starter_scaffold as scaffold;
 fn starters_generate_their_files_and_deps() {
     let starters =
         std::env::var("DX_STARTERS").unwrap_or_else(|_| panic!("DX_STARTERS must be set"));
-    let scratch = dx_test_scratch::scratch("starters");
+    let scratch = dx_test_scratch::scratch("starters").unwrap();
     let mut checked = 0;
     for starter in starters.split(';').filter(|entry| !entry.is_empty()) {
         let (fixture, deps) = starter.split_once(':').unwrap_or((starter, ""));
@@ -21,7 +21,8 @@ fn starters_generate_their_files_and_deps() {
 }
 
 fn check_fixture(scratch: &std::path::Path, fixture: &str, deps: &str, files: &str) {
-    let root = scaffold::scaffold_fixture(scratch, fixture, "demo-app", files);
+    let root = scaffold::scaffold_fixture(scratch, fixture, "demo-app", files)
+        .unwrap_or_else(|error| panic!("{error}"));
 
     let prefix = format!("{}/{fixture}/", scaffold::FIXTURES_DIR);
     let common = format!("{}/common/", scaffold::FIXTURES_DIR);

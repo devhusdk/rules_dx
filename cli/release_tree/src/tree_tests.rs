@@ -7,7 +7,7 @@ fn args(items: &[&str]) -> Vec<String> {
 
 #[test]
 fn copies_files_and_merges_directories() {
-    let scratch = dx_test_scratch::scratch("dx-release-tree-copies-");
+    let scratch = dx_test_scratch::scratch("dx-release-tree-copies-").unwrap();
     let root = scratch.path().to_path_buf();
     fs::create_dir_all(root.join("beams")).unwrap_or_default();
     fs::write(root.join("beams/a.beam"), "a").unwrap_or_default();
@@ -37,7 +37,7 @@ fn copies_files_and_merges_directories() {
 
 #[test]
 fn rejects_paths_outside_the_output() {
-    let scratch = dx_test_scratch::scratch("dx-release-tree-escape-");
+    let scratch = dx_test_scratch::scratch("dx-release-tree-escape-").unwrap();
     let root = scratch.path().to_path_buf();
     let out = root.join("out");
     let result = run(&args(&[out.to_str().unwrap_or_default(), "--dir", "../x"]));
@@ -46,7 +46,7 @@ fn rejects_paths_outside_the_output() {
 
 #[test]
 fn rejects_unknown_steps() {
-    let scratch = dx_test_scratch::scratch("dx-release-tree-unknown-");
+    let scratch = dx_test_scratch::scratch("dx-release-tree-unknown-").unwrap();
     let root = scratch.path().to_path_buf();
     let out = root.join("out");
     assert!(run(&args(&[out.to_str().unwrap_or_default(), "--bogus"])).is_err());

@@ -19,7 +19,7 @@ fn the_reserve_range_matches_the_hand_computed_bounds() {
 
 #[test]
 fn two_holders_share_the_reserve() {
-    let scratch = dx_test_scratch::scratch("dx-slot-pool-shared-");
+    let scratch = dx_test_scratch::scratch("dx-slot-pool-shared-").unwrap();
     let first = hold_reserve(scratch.path(), 0..3);
     let second = hold_reserve(scratch.path(), 1..3);
     assert_eq!((first.held.len(), first.busy.len()), (3, 0));
@@ -32,7 +32,7 @@ fn two_holders_share_the_reserve() {
 
 #[test]
 fn an_exclusively_held_index_is_busy_and_not_waited_on() {
-    let scratch = dx_test_scratch::scratch("dx-slot-pool-busy-");
+    let scratch = dx_test_scratch::scratch("dx-slot-pool-busy-").unwrap();
     let _held = lock_slot(&slot_path(scratch.path(), 0), false)
         .expect("lock")
         .expect("free");
@@ -43,7 +43,7 @@ fn an_exclusively_held_index_is_busy_and_not_waited_on() {
 
 #[test]
 fn a_read_only_slot_file_still_takes_a_shared_lock() {
-    let scratch = dx_test_scratch::scratch("dx-slot-pool-readonly-");
+    let scratch = dx_test_scratch::scratch("dx-slot-pool-readonly-").unwrap();
     let path = slot_path(scratch.path(), 0);
     std::fs::write(&path, "").expect("file");
     let mut permissions = std::fs::metadata(&path).expect("metadata").permissions();
@@ -97,7 +97,7 @@ fn cgroup_limits_ignore_unlimited_and_junk() {
 
 #[test]
 fn the_tightest_limit_up_the_cgroup_tree_wins() {
-    let scratch = dx_test_scratch::scratch("dx-slot-pool-cgroup-v2-");
+    let scratch = dx_test_scratch::scratch("dx-slot-pool-cgroup-v2-").unwrap();
     let root = scratch.path();
     let leaf = root.join("a").join("b");
     std::fs::create_dir_all(&leaf).expect("dirs");
@@ -112,7 +112,7 @@ fn the_tightest_limit_up_the_cgroup_tree_wins() {
 
 #[test]
 fn a_v1_memory_controller_limit_combines_with_v2() {
-    let scratch = dx_test_scratch::scratch("dx-slot-pool-cgroup-v1-");
+    let scratch = dx_test_scratch::scratch("dx-slot-pool-cgroup-v1-").unwrap();
     let root = scratch.path();
     let group = root.join("memory").join("g");
     std::fs::create_dir_all(&group).expect("dirs");
@@ -133,14 +133,14 @@ fn available_memory_reports_something() {
 
 #[test]
 fn an_empty_range_holds_nothing() {
-    let scratch = dx_test_scratch::scratch("dx-slot-pool-empty-");
+    let scratch = dx_test_scratch::scratch("dx-slot-pool-empty-").unwrap();
     let reserve = hold_reserve(scratch.path(), 2..2);
     assert!(reserve.held.is_empty() && reserve.busy.is_empty());
 }
 
 #[test]
 fn an_unusable_directory_makes_every_index_busy() {
-    let scratch = dx_test_scratch::scratch("dx-slot-pool-nodir-");
+    let scratch = dx_test_scratch::scratch("dx-slot-pool-nodir-").unwrap();
     let blocker = scratch.path().join("file");
     std::fs::write(&blocker, "").expect("file");
     let reserve = hold_reserve(&blocker.join("slots"), 0..3);
@@ -149,7 +149,7 @@ fn an_unusable_directory_makes_every_index_busy() {
 
 #[test]
 fn a_missing_or_non_file_slot_keeps_the_open_error() {
-    let scratch = dx_test_scratch::scratch("dx-slot-pool-odd-");
+    let scratch = dx_test_scratch::scratch("dx-slot-pool-odd-").unwrap();
     let missing = slot_path(scratch.path(), 0);
     assert!(lock_slot(&missing, true).is_ok());
     let dir = slot_path(scratch.path(), 1);
@@ -171,7 +171,7 @@ fn the_tighter_of_memory_and_cgroup_limit_wins() {
 #[test]
 fn an_unreadable_slot_file_keeps_the_permission_error() {
     use std::os::unix::fs::PermissionsExt;
-    let scratch = dx_test_scratch::scratch("dx-slot-pool-unreadable-");
+    let scratch = dx_test_scratch::scratch("dx-slot-pool-unreadable-").unwrap();
     let path = slot_path(scratch.path(), 0);
     std::fs::write(&path, "").expect("file");
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000)).expect("chmod");
@@ -181,7 +181,7 @@ fn an_unreadable_slot_file_keeps_the_permission_error() {
 
 #[test]
 fn a_read_only_slot_file_locks_exclusive_and_reports_contention() {
-    let scratch = dx_test_scratch::scratch("dx-slot-pool-readonly-exclusive-");
+    let scratch = dx_test_scratch::scratch("dx-slot-pool-readonly-exclusive-").unwrap();
     let path = slot_path(scratch.path(), 0);
     std::fs::write(&path, "").expect("file");
     let mut permissions = std::fs::metadata(&path).expect("metadata").permissions();

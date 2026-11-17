@@ -31,7 +31,7 @@ fn spawn_copy(exe: &Path, cmd: &mut Command) -> Child {
 }
 
 fn run_case(name: &str, expected: &str, actual: &str) -> Output {
-    let scratch = dx_test_scratch::scratch(&format!("starlark-harness-exit-{name}"));
+    let scratch = dx_test_scratch::scratch(&format!("starlark-harness-exit-{name}")).unwrap();
     let dir = scratch.path();
     let exe = dir.join(format!("probe_test{}", std::env::consts::EXE_SUFFIX));
     let manifest = serde_json::json!({
@@ -95,7 +95,7 @@ fn passing_checks_exit_zero() {
 
 #[test]
 fn a_missing_manifest_env_exits_one() {
-    let scratch = dx_test_scratch::scratch("starlark-harness-exit-noenv");
+    let scratch = dx_test_scratch::scratch("starlark-harness-exit-noenv").unwrap();
     let dir = scratch.path();
     let exe = dir.join(format!("probe_test{}", std::env::consts::EXE_SUFFIX));
     let mut cmd = Command::new(&exe);

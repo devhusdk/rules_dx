@@ -658,7 +658,7 @@ mod tests {
 
     #[test]
     fn watch_session_drops_changes_made_before_it_started() {
-        let scratch = dx_test_scratch::scratch("dx-watch-before-start-");
+        let scratch = dx_test_scratch::scratch("dx-watch-before-start-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join("src")).expect("src");
         std::fs::write(root.join("src/early.rs"), "").expect("early");
@@ -756,7 +756,7 @@ mod tests {
 
     #[test]
     fn polling_session_observes_an_edit() {
-        let scratch = dx_test_scratch::scratch("dx-watch-poll-");
+        let scratch = dx_test_scratch::scratch("dx-watch-poll-").unwrap();
         let root = scratch.path().to_path_buf();
         let session = WatchSession::start_with(&root, &[], true).expect("session starts");
         std::fs::write(root.join("polled.txt"), "edit").expect("write");
@@ -769,7 +769,7 @@ mod tests {
 
     #[test]
     fn session_observes_writes_made_while_it_lives() {
-        let scratch = dx_test_scratch::scratch("dx-watch-session-");
+        let scratch = dx_test_scratch::scratch("dx-watch-session-").unwrap();
         let root = scratch.path().to_path_buf();
         let session = WatchSession::start(&root, &[], false).expect("session starts");
         let writer = root.clone();
@@ -787,7 +787,7 @@ mod tests {
 
     #[test]
     fn session_coalesces_a_burst_into_one_trigger() {
-        let scratch = dx_test_scratch::scratch("dx-watch-burst-");
+        let scratch = dx_test_scratch::scratch("dx-watch-burst-").unwrap();
         let root = scratch.path().to_path_buf();
         let session = WatchSession::start(&root, &[], false).expect("session starts");
         for name in ["one.txt", "two.txt", "three.txt"] {
@@ -812,7 +812,7 @@ mod tests {
 
     #[test]
     fn session_merges_a_burst_split_across_debounce_batches() {
-        let scratch = dx_test_scratch::scratch("dx-watch-split-");
+        let scratch = dx_test_scratch::scratch("dx-watch-split-").unwrap();
         let root = scratch.path().to_path_buf();
         let session = WatchSession::start(&root, &[], false).expect("session starts");
         std::fs::write(root.join("a.txt"), "first").expect("first write");
@@ -837,7 +837,7 @@ mod tests {
 
     #[test]
     fn session_reports_rename_delete_and_config_changes() {
-        let scratch = dx_test_scratch::scratch("dx-watch-mutations-");
+        let scratch = dx_test_scratch::scratch("dx-watch-mutations-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::write(root.join("before.txt"), "renamed").expect("seed file");
         let session = WatchSession::start(&root, &[], false).expect("session starts");
@@ -888,7 +888,7 @@ mod tests {
     #[test]
     fn only_a_plain_modify_of_directories_is_a_touch() {
         use notify::event::{CreateKind, DataChange, EventKind, ModifyKind};
-        let scratch = dx_test_scratch::scratch("dx-watch-touch-");
+        let scratch = dx_test_scratch::scratch("dx-watch-touch-").unwrap();
         let dir = scratch.path().to_path_buf();
         let file = dir.join("main.rs");
         std::fs::write(&file, "fn main() {}").expect("source");
@@ -909,7 +909,7 @@ mod tests {
 
     #[test]
     fn session_ignores_reads_of_watched_files() {
-        let scratch = dx_test_scratch::scratch("dx-watch-reads-");
+        let scratch = dx_test_scratch::scratch("dx-watch-reads-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join("src")).expect("source dir");
         std::fs::write(root.join("src/main.rs"), "fn main() {}").expect("source");
@@ -934,7 +934,7 @@ mod tests {
 
     #[test]
     fn session_ignores_generated_outputs() {
-        let scratch = dx_test_scratch::scratch("dx-watch-ignored-");
+        let scratch = dx_test_scratch::scratch("dx-watch-ignored-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join("bazel-bin")).expect("generated dir");
         std::fs::create_dir_all(root.join(".dx/local")).expect("state dir");
@@ -953,7 +953,7 @@ mod tests {
 
     #[test]
     fn session_watches_a_root_under_a_bazel_named_parent() {
-        let scratch = dx_test_scratch::scratch("dx-watch-bazel-parent-");
+        let scratch = dx_test_scratch::scratch("dx-watch-bazel-parent-").unwrap();
         let root = scratch.path().join("bazel-x").join("ws");
         std::fs::create_dir_all(root.join("src")).expect("source dir");
         std::fs::create_dir_all(root.join(".git")).expect("git dir");
@@ -1088,7 +1088,7 @@ mod tests {
 
     #[test]
     fn session_fails_once_its_root_is_removed() {
-        let scratch = dx_test_scratch::scratch("dx-watch-root-gone-");
+        let scratch = dx_test_scratch::scratch("dx-watch-root-gone-").unwrap();
         let root = scratch.path().join("ws");
         std::fs::create_dir_all(&root).expect("watch root");
         let session = WatchSession::start(&root, &[], false).expect("session starts");
@@ -1104,7 +1104,7 @@ mod tests {
 
     #[test]
     fn session_ignores_report_files_and_their_staging_siblings() {
-        let scratch = dx_test_scratch::scratch("dx-watch-reports-");
+        let scratch = dx_test_scratch::scratch("dx-watch-reports-").unwrap();
         let root = scratch.path().to_path_buf();
         let reports = [root.join("out.sarif"), root.join("reports/lint.sarif")];
         std::fs::create_dir_all(root.join("reports")).expect("reports dir");
@@ -1136,7 +1136,7 @@ mod tests {
 
     #[test]
     fn session_ignores_reports_only_by_workspace_relative_path() {
-        let scratch = dx_test_scratch::scratch("dx-watch-reports-rel-");
+        let scratch = dx_test_scratch::scratch("dx-watch-reports-rel-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join("sub")).expect("mkdir");
         let session =
@@ -1158,7 +1158,7 @@ mod tests {
 
     #[test]
     fn session_start_on_a_missing_root_fails() {
-        let scratch = dx_test_scratch::scratch("dx-watch-missing-");
+        let scratch = dx_test_scratch::scratch("dx-watch-missing-").unwrap();
         let missing = scratch.path().join("missing");
         assert!(
             matches!(
@@ -1171,7 +1171,7 @@ mod tests {
 
     #[test]
     fn session_reports_created_files_and_times_out_when_idle() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-watch-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-watch-").unwrap();
         let root = scratch.path().to_path_buf();
         let session = WatchSession::start(&root, &[], false).expect("session starts");
         std::fs::write(root.join("trigger.txt"), "change").expect("write trigger");

@@ -177,7 +177,7 @@ fn smoke(browser: &mut Browser, base: &str, staged: &Path) {
 #[test]
 fn the_served_site_matches_the_staged_artifact_and_searches() {
     let staged = user_site();
-    let profile = dx_test_scratch::scratch("firefox-profile");
+    let profile = dx_test_scratch::scratch("firefox-profile").unwrap();
     let mut browser = Browser::start(&firefox_binary(), profile.path())
         .unwrap_or_else(|error| panic!("start Firefox: {error}"));
     browser

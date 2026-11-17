@@ -23,7 +23,7 @@ fn long_resource_path_round_trips_through_standard_tar() {
         "long member missing\n{}",
         listed.stdout
     );
-    let scratch_dir = dx_test_scratch::scratch("long-path");
+    let scratch_dir = dx_test_scratch::scratch("long-path").unwrap();
     let scratch = scratch_dir.path();
     tar(&[
         "-xzf",

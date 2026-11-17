@@ -11,7 +11,7 @@ const SHAPES: &str = "kotlin:shapes:dx.fixture.shapes.";
 
 #[test]
 fn the_shapes_shard_maps_every_public_symbol() {
-    let shard = shard("DX_SHAPES_SHARD");
+    let shard = shard("DX_SHAPES_SHARD").unwrap();
     validate_shard(&shard).expect("validate_shard passes");
     assert_eq!(shard.language, "kotlin");
     assert_eq!(shard.package, "shapes");
@@ -29,7 +29,7 @@ fn the_shapes_shard_maps_every_public_symbol() {
         ("grow~28Circle~2CDouble~29", SymbolKind::Function),
     ] {
         let id = format!("{SHAPES}{suffix}");
-        assert_eq!(symbol(&shard, &id).kind, kind as i32, "{id}");
+        assert_eq!(symbol(&shard, &id).unwrap().kind, kind as i32, "{id}");
     }
     for hidden in [
         "hidden",
@@ -49,13 +49,13 @@ fn the_shapes_shard_maps_every_public_symbol() {
 
 #[test]
 fn extension_properties_are_keyed_by_their_receiver() {
-    let shard = shard("DX_SHAPES_SHARD");
+    let shard = shard("DX_SHAPES_SHARD").unwrap();
     let on_circle = ids(&shard)
         .into_iter()
         .filter(|id| id.contains(".diameter"))
         .collect::<Vec<_>>();
     assert_eq!(on_circle.len(), 2, "{on_circle:?}");
-    let circle = symbol(&shard, &format!("{SHAPES}diameter~40Circle"));
+    let circle = symbol(&shard, &format!("{SHAPES}diameter~40Circle")).unwrap();
     assert_eq!(circle.signature_text, "val Circle.diameter: Double");
     assert_eq!(circle.doc_markdown, "The diameter of a circle.");
     assert!(find(&shard, &format!("{SHAPES}diameter~40Shape")).is_some());
@@ -63,12 +63,12 @@ fn extension_properties_are_keyed_by_their_receiver() {
 
 #[test]
 fn a_function_carries_its_signature_docs_and_source() {
-    let shard = shard("DX_SHAPES_SHARD");
-    let one = symbol(&shard, &format!("{SHAPES}Circle.scale~28Double~29"));
+    let shard = shard("DX_SHAPES_SHARD").unwrap();
+    let one = symbol(&shard, &format!("{SHAPES}Circle.scale~28Double~29")).unwrap();
     let two = symbol(
         &shard,
         &format!("{SHAPES}Circle.scale~28Double~2CDouble~29"),
-    );
+    ).unwrap();
     assert_eq!(one.signature_text, "fun scale(factor: Double): Circle");
     assert_eq!(
         one.doc_markdown,
@@ -91,9 +91,9 @@ fn a_function_carries_its_signature_docs_and_source() {
     );
     assert_eq!(
         one.source.as_ref().expect("a source").line,
-        line_of("DX_CIRCLE_KT", "fun scale(factor: Double)")
+        line_of("DX_CIRCLE_KT", "fun scale(factor: Double)").unwrap()
     );
-    let companion = symbol(&shard, &format!("{SHAPES}Circle.Companion"));
+    let companion = symbol(&shard, &format!("{SHAPES}Circle.Companion")).unwrap();
     assert_eq!(
         companion.doc_markdown,
         "Holds the constants and factories of circles."
@@ -102,9 +102,9 @@ fn a_function_carries_its_signature_docs_and_source() {
 
 #[test]
 fn a_dependent_library_links_into_its_dependency() {
-    let paint = shard("DX_PAINT_SHARD");
+    let paint = shard("DX_PAINT_SHARD").unwrap();
     validate_shard(&paint).expect("validate_shard passes");
-    let square = symbol(&paint, "kotlin:paint:dx.fixture.paint.Square");
+    let square = symbol(&paint, "kotlin:paint:dx.fixture.paint.Square").unwrap();
     assert_eq!(
         square.relations.as_ref().expect("relations").implements,
         vec![format!("{SHAPES}Shape")]
@@ -117,9 +117,9 @@ fn a_dependent_library_links_into_its_dependency() {
 
 #[test]
 fn without_the_dependency_shard_links_degrade_to_code() {
-    let paint = shard("DX_PAINT_NODEP_SHARD");
+    let paint = shard("DX_PAINT_NODEP_SHARD").unwrap();
     validate_shard(&paint).expect("validate_shard passes");
-    let square = symbol(&paint, "kotlin:paint:dx.fixture.paint.Square");
+    let square = symbol(&paint, "kotlin:paint:dx.fixture.paint.Square").unwrap();
     assert!(
         square
             .relations
@@ -139,7 +139,7 @@ struct Driver {
 
 impl Driver {
     fn new(name: &str) -> Driver {
-        let scratch = dx_test_scratch::scratch(name);
+        let scratch = dx_test_scratch::scratch(name).unwrap();
         let dir = scratch.path().to_path_buf();
         Driver {
             _scratch: scratch,
@@ -170,7 +170,7 @@ impl Driver {
     }
 
     fn source(&self, name: &str, text: &str) -> PathBuf {
-        dx_test_scratch::write(&self.dir, name, text);
+        dx_test_scratch::write(&self.dir, name, text).unwrap();
         self.dir.join(name)
     }
 

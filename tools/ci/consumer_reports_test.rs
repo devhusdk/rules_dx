@@ -20,7 +20,7 @@ const JOB: &str = "checks";
 const UNREPORTED: &[&str] = &["security-audit"];
 
 fn uploads(name: &str) -> Vec<(usize, Value)> {
-    steps(WORKFLOW, name)
+    steps(WORKFLOW, name).unwrap()
         .into_iter()
         .enumerate()
         .filter(|(_, step)| {
@@ -47,7 +47,7 @@ fn upload_of(id: &str) -> (usize, Value) {
 
 #[test]
 fn the_run_step_writes_every_report_under_its_check_directory() {
-    let run = steps(WORKFLOW, JOB)
+    let run = steps(WORKFLOW, JOB).unwrap()
         .iter()
         .filter_map(|step| step["run"].as_str())
         .find(|run| run.contains("@rules_dx//:dx -- \"${args[@]}\""))
@@ -66,7 +66,7 @@ fn the_run_step_writes_every_report_under_its_check_directory() {
 
 #[test]
 fn each_reporting_check_uploads_once_after_dx_and_before_the_cache_steps() {
-    let all = steps(WORKFLOW, JOB);
+    let all = steps(WORKFLOW, JOB).unwrap();
     let dx_at = all
         .iter()
         .position(|s| {
@@ -130,7 +130,7 @@ fn docs_name_every_artifact_and_the_download_command() {
 
 #[test]
 fn the_profile_report_is_kept_and_summarised_in_the_pr_comment() {
-    let all = steps(WORKFLOW, JOB);
+    let all = steps(WORKFLOW, JOB).unwrap();
     let run_of = |needle: &str| -> String {
         all.iter()
             .filter_map(|step| step["run"].as_str())

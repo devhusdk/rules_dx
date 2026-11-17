@@ -953,7 +953,7 @@ mod tests {
             &["commit", "-q", "-m", "x"],
             &["tag", "v1.2.0"],
         ] {
-            dx_test_scratch::git(&repo, &repo, args);
+            dx_test_scratch::git(&repo, &repo, args).unwrap();
         }
         let files = nested_crate(&scratch.path().join("in/pkg"));
         let mapped = crates_package_paths(&files).expect("paths");
@@ -1045,7 +1045,7 @@ mod tests {
             &["commit", "-q", "-m", "x"],
             &["tag", "v1.2.0"],
         ] {
-            dx_test_scratch::git(&repo, &repo, args);
+            dx_test_scratch::git(&repo, &repo, args).unwrap();
         }
         let current = scratch.path().join("in/pkg");
         let files = vec![

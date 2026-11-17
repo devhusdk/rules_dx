@@ -738,7 +738,7 @@ mod tests {
     }
 
     fn pinned(prefix: &str, pin: &str) -> (impl Sized, PathBuf) {
-        let scratch = dx_test_scratch::scratch(prefix);
+        let scratch = dx_test_scratch::scratch(prefix).unwrap();
         let root = scratch.path().to_path_buf();
         dx_adopt::write_version_pin(&root, pin).expect("pin");
         std::fs::write(root.join("MODULE.bazel"), dep(module())).expect("module");
@@ -878,7 +878,7 @@ mod tests {
 
     fn synced(prefix: &str, source: &str) -> (impl Sized, PathBuf) {
         let (scratch, root) = pinned(prefix, OLD);
-        dx_test_scratch::write(&root, source, "");
+        dx_test_scratch::write(&root, source, "").unwrap();
         dx_generate::sync(
             &root,
             dx_generate::Mode::Full,
@@ -1179,7 +1179,7 @@ mod tests {
 
     #[test]
     fn a_missing_pin_points_at_init() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-upgrade-nopin-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-upgrade-nopin-").unwrap();
         let root = scratch.path().to_path_buf();
         let (code, _out, err) = run(&upgrade(&["--apply"]), &root);
         assert_eq!(code, 1, "{err}");

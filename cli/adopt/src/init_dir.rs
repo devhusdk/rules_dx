@@ -253,7 +253,7 @@ mod tests {
 
     #[test]
     fn fresh_means_missing_or_only_git() {
-        let scratch = dx_test_scratch::scratch("dx-init-fresh-");
+        let scratch = dx_test_scratch::scratch("dx-init-fresh-").unwrap();
         let root = scratch.path().join("ws");
         assert!(is_fresh_dir(&root));
         std::fs::create_dir_all(root.join(".git")).expect("git");
@@ -266,7 +266,7 @@ mod tests {
 
     #[test]
     fn repository_files_do_not_make_a_directory_an_adopt() {
-        let scratch = dx_test_scratch::scratch("dx-init-repo-files-");
+        let scratch = dx_test_scratch::scratch("dx-init-repo-files-").unwrap();
         let root = scratch.path();
         for name in [
             "README.md",
@@ -287,7 +287,7 @@ mod tests {
 
     #[test]
     fn fresh_survives_an_interrupted_init_but_not_an_edited_module() {
-        let scratch = dx_test_scratch::scratch("dx-init-interrupted-");
+        let scratch = dx_test_scratch::scratch("dx-init-interrupted-").unwrap();
         let root = scratch.path();
         let module = plan_fresh_files("demo")[0].content.clone();
         std::fs::write(root.join("MODULE.bazel"), &module).expect("module");

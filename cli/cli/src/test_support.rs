@@ -30,7 +30,7 @@ mod tests {
 
     #[test]
     fn slot_settles_free_waits_for_a_late_release() {
-        let scratch = dx_test_scratch::scratch("dx-settle-late-");
+        let scratch = dx_test_scratch::scratch("dx-settle-late-").unwrap();
         let dir = scratch.path().join("slots");
         let held = dx_plan::slots::try_take(&dir, 1, "held")
             .expect("try")
@@ -45,7 +45,7 @@ mod tests {
 
     #[test]
     fn slot_settles_free_gives_up_on_a_held_slot() {
-        let scratch = dx_test_scratch::scratch("dx-settle-held-");
+        let scratch = dx_test_scratch::scratch("dx-settle-held-").unwrap();
         let dir = scratch.path().join("slots");
         let _held = dx_plan::slots::try_take(&dir, 1, "held")
             .expect("try")

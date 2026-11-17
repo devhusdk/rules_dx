@@ -72,7 +72,7 @@ fn one_macro_call_builds_each_app_with_no_flag() {
             "{}{}{}",
             module_body(module),
             rules_py_override(),
-            rules_flutter_override(),
+            rules_flutter_override().unwrap_or_else(|error| panic!("{error}")),
         ),
     );
     write_rules_py_patches(case.root(), &source).unwrap_or_else(|error| panic!("{error}"));

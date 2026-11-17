@@ -31,7 +31,7 @@ fn known_split() -> (PathBuf, PathBuf, PathBuf) {
 #[test]
 fn symbolizes_known_function_from_debug_file() {
     let (_, debug, _) = known_split();
-    let scratch = dx_test_scratch::scratch("symbols");
+    let scratch = dx_test_scratch::scratch("symbols").unwrap();
     let tmp = scratch.path();
     let copy = tmp.join("known.debug");
     std::fs::copy(&debug, &copy).unwrap();
@@ -96,7 +96,7 @@ fn manifest_matches_the_binary() {
 
 #[test]
 fn split_without_build_id_writes_nothing() {
-    let scratch = dx_test_scratch::scratch("symbols-nobuildid");
+    let scratch = dx_test_scratch::scratch("symbols-nobuildid").unwrap();
     let tmp = scratch.path();
     let out = |n: &str| tmp.join(n).to_str().unwrap().to_string();
     let args = [
@@ -122,7 +122,7 @@ fn split_without_build_id_writes_nothing() {
 
 #[test]
 fn split_missing_input_fails() {
-    let scratch = dx_test_scratch::scratch("symbols-missing");
+    let scratch = dx_test_scratch::scratch("symbols-missing").unwrap();
     let tmp = scratch.path();
     let missing = tmp.join("missing");
     let out = |n: &str| tmp.join(n).to_str().unwrap().to_string();

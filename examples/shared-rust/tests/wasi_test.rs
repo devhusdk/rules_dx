@@ -20,6 +20,7 @@ fn run(args: &[&str], preopens: &[(&str, &str)]) -> std::process::Output {
         &BTreeMap::new(),
         &preopens,
     )
+    .expect("the WASI runtime runs")
 }
 
 #[test]

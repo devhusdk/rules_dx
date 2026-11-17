@@ -522,7 +522,7 @@ mod tests {
     use super::*;
 
     fn scratch(files: &[(&str, &str)]) -> dx_test_scratch::TempDir {
-        let dir = dx_test_scratch::scratch("dx-preflight-");
+        let dir = dx_test_scratch::scratch("dx-preflight-").unwrap();
         for (path, content) in files {
             let dest = dir.path().join(path);
             std::fs::create_dir_all(dest.parent().expect("parent")).expect("mkdir");

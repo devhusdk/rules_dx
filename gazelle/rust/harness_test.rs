@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 fn workspace(prefix: &str) -> dx_test_scratch::TempDir {
-    dx_test_scratch::scratch(prefix)
+    dx_test_scratch::scratch(prefix).unwrap()
 }
 
 fn write(root: &Path, rel: &str, text: &str) -> PathBuf {

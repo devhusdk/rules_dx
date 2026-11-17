@@ -395,7 +395,7 @@ mod tests {
     #[test]
     #[cfg(unix)]
     fn cc_writes_the_database_and_links_clangd_once() {
-        let scratch = dx_test_scratch::scratch("dx-ide-cc-");
+        let scratch = dx_test_scratch::scratch("dx-ide-cc-").unwrap();
         let root = scratch.path();
         let runner = cc_runner(root);
         refresh(root, &runner).expect("no cc");
@@ -414,7 +414,7 @@ mod tests {
 
     #[test]
     fn plugin_errors_are_failure_when_not_built_and_infra_when_the_write_fails() {
-        let scratch = dx_test_scratch::scratch("dx-ide-kinds-");
+        let scratch = dx_test_scratch::scratch("dx-ide-kinds-").unwrap();
         let root = scratch.path();
         let runner = fake(root);
         let dir = root.join("out");
@@ -441,7 +441,7 @@ mod tests {
 
     #[test]
     fn an_aquery_failure_fails_only_cc() {
-        let scratch = dx_test_scratch::scratch("dx-ide-cc-fail-");
+        let scratch = dx_test_scratch::scratch("dx-ide-cc-fail-").unwrap();
         let root = scratch.path();
         let runner = cc_runner(root);
         std::fs::write(root.join("a.cc"), "").expect("cc");
@@ -456,7 +456,7 @@ mod tests {
 
     #[test]
     fn second_run_skips_bazel_and_a_new_pin_runs_it_again() {
-        let scratch = dx_test_scratch::scratch("dx-ide-skip-");
+        let scratch = dx_test_scratch::scratch("dx-ide-skip-").unwrap();
         let root = scratch.path();
         std::fs::write(root.join("a.ts"), "").expect("ts");
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
@@ -475,7 +475,7 @@ mod tests {
 
     #[test]
     fn a_failing_plugin_is_recorded_and_the_others_still_write() {
-        let scratch = dx_test_scratch::scratch("dx-ide-fail-");
+        let scratch = dx_test_scratch::scratch("dx-ide-fail-").unwrap();
         let root = scratch.path();
         std::fs::write(root.join("a.ts"), "").expect("ts");
         std::fs::write(root.join("b.bad"), "").expect("bad");
@@ -506,7 +506,7 @@ mod tests {
     #[test]
     #[cfg(unix)]
     fn a_deleted_output_reruns_the_refresh_and_is_reported() {
-        let scratch = dx_test_scratch::scratch("dx-ide-missing-");
+        let scratch = dx_test_scratch::scratch("dx-ide-missing-").unwrap();
         let root = scratch.path();
         std::fs::write(root.join("a.ts"), "").expect("ts");
         let runner = fake(root);
@@ -521,7 +521,7 @@ mod tests {
 
     #[test]
     fn typescript_needs_a_ts_file_and_stale_dirs_go() {
-        let scratch = dx_test_scratch::scratch("dx-ide-ts-");
+        let scratch = dx_test_scratch::scratch("dx-ide-ts-").unwrap();
         let root = scratch.path();
         let runner = fake(root);
         std::fs::create_dir_all(root.join(".dx/local/ide/typescript")).expect("stale");
@@ -545,7 +545,7 @@ mod tests {
     #[test]
     #[cfg(unix)]
     fn python_links_the_interpreter_and_a_rerun_is_a_no_op() {
-        let scratch = dx_test_scratch::scratch("dx-ide-py-");
+        let scratch = dx_test_scratch::scratch("dx-ide-py-").unwrap();
         let root = scratch.path();
         std::fs::write(root.join("main.py"), "").expect("py");
         let interpreter = root.join("store").join("python3");
@@ -570,7 +570,7 @@ mod tests {
     #[test]
     #[cfg(unix)]
     fn python_links_the_locked_packages_so_they_import() {
-        let scratch = dx_test_scratch::scratch("dx-ide-py-site-");
+        let scratch = dx_test_scratch::scratch("dx-ide-py-site-").unwrap();
         let root = scratch.path();
         std::fs::write(root.join("main.py"), "").expect("py");
         std::fs::write(
@@ -600,7 +600,7 @@ mod tests {
     #[test]
     #[cfg(unix)]
     fn jdk_links_the_home_for_java_and_kotlin_and_reruns_as_a_no_op() {
-        let scratch = dx_test_scratch::scratch("dx-ide-jdk-");
+        let scratch = dx_test_scratch::scratch("dx-ide-jdk-").unwrap();
         let root = scratch.path();
         let mut runner = fake(root);
         let home = root.join("store").join("jdk");
@@ -628,7 +628,7 @@ mod tests {
     #[test]
     #[cfg(unix)]
     fn dotnet_links_the_sdk_root_for_csharp_and_reruns_as_a_no_op() {
-        let scratch = dx_test_scratch::scratch("dx-ide-dotnet-");
+        let scratch = dx_test_scratch::scratch("dx-ide-dotnet-").unwrap();
         let root = scratch.path();
         let mut runner = fake(root);
         let sdk = root.join("store").join("dotnet");
@@ -652,7 +652,7 @@ mod tests {
     #[cfg(unix)]
     fn go_writes_an_executable_driver_wrapper_and_a_rerun_is_a_no_op() {
         use std::os::unix::fs::PermissionsExt;
-        let scratch = dx_test_scratch::scratch("dx-ide-go-");
+        let scratch = dx_test_scratch::scratch("dx-ide-go-").unwrap();
         let root = scratch.path();
         std::fs::write(root.join("main.go"), "").expect("go");
         let mut runner = fake(root);
@@ -674,7 +674,7 @@ mod tests {
     #[test]
     #[cfg(windows)]
     fn go_writes_a_cmd_driver_wrapper_that_runs() {
-        let scratch = dx_test_scratch::scratch("dx-ide-go-");
+        let scratch = dx_test_scratch::scratch("dx-ide-go-").unwrap();
         let root = scratch.path().join("a%b");
         std::fs::create_dir_all(root.join("store")).expect("store");
         std::fs::write(root.join("main.go"), "").expect("go");
@@ -723,7 +723,7 @@ mod tests {
     #[cfg(unix)]
     fn rust_analyzer_copies_the_launchers_and_a_rerun_is_a_no_op() {
         use std::os::unix::fs::PermissionsExt;
-        let scratch = dx_test_scratch::scratch("dx-ide-rust-");
+        let scratch = dx_test_scratch::scratch("dx-ide-rust-").unwrap();
         let root = scratch.path();
         std::fs::write(root.join("lib.rs"), "").expect("rs");
         let store = root.join("store");

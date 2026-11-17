@@ -82,7 +82,7 @@ fn semantics_present(label: &str) -> String {
 
 #[test]
 fn relocated_bundle_counts_offline() {
-    let scratch = dx_test_scratch::scratch("flutter-web");
+    let scratch = dx_test_scratch::scratch("flutter-web").unwrap();
     let relocated = scratch.path();
     let bundle = std::env::var("DX_BUNDLE").expect("DX_BUNDLE must be set");
     let bundle = bundle
@@ -91,7 +91,7 @@ fn relocated_bundle_counts_offline() {
         .expect("the bundle directory");
     copy_tree(&dx_testing::resolve_runfiles(bundle), relocated);
     let port = serve(relocated.to_path_buf());
-    let profile_scratch = dx_test_scratch::scratch("firefox-profile");
+    let profile_scratch = dx_test_scratch::scratch("firefox-profile").unwrap();
     let profile = profile_scratch.path();
     let mut browser =
         Browser::start(&dx_testing::env_file("DX_FIREFOX"), profile).expect("start Firefox");

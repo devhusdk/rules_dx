@@ -13,30 +13,36 @@ pub const FIXTURES_DIR: &str = "tools/testing/starters/fixtures";
 ///
 /// Files under `common/<layer>/` of the fixtures directory are shared layers the fixture lists in
 /// `starter_fixture(layers = ...)`; they are written like the fixture's own files, and a fixture
-/// file with the same destination as a shared file panics.
+/// file with the same destination as a shared file is an error.
 ///
 /// Each fixture file drops its `.fixture` suffix. `MODULE.bazel` is appended to
 /// what `dx init` wrote; every other file is written as is. Returns the project root.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics when the operation fails.
-#[must_use]
-pub fn scaffold_fixture(scratch: &Path, fixture: &str, name: &str, files: &str) -> PathBuf {
-    let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
+/// Returns `Err` when `dx init` fails or a fixture file cannot be read or written.
+pub fn scaffold_fixture(
+    scratch: &Path,
+    fixture: &str,
+    name: &str,
+    files: &str,
+) -> Result<PathBuf, String> {
+    let rel = std::env::var("DX_BIN").map_err(|_| "DX_BIN must name dx".to_owned())?;
     let output = Command::new(dx_testing::resolve_runfiles(&rel))
         .current_dir(scratch)
         .args(["init", "--apply", "--no-generate", name])
         .arg("--workspace")
         .arg(scratch)
         .output()
-        .unwrap_or_else(|error| panic!("dx runs: {error}"));
+        .map_err(|error| format!("dx runs: {error}"))?;
     let text = format!(
         "{}{}",
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
-    assert_eq!(output.status.code(), Some(0), "dx init {name}: {text}");
+    if output.status.code() != Some(0) {
+        return Err(format!("dx init {name}: {text}"));
+    }
     let root = scratch.join(name);
     let prefix = format!("{FIXTURES_DIR}/{fixture}/");
     let common = format!("{FIXTURES_DIR}/common/");
@@ -48,10 +54,9 @@ pub fn scaffold_fixture(scratch: &Path, fixture: &str, name: &str, files: &str) 
             own.push(rest);
             rest
         } else if let Some(rest) = file.strip_prefix(&common) {
-            let rest = rest
+            let (_, rest) = rest
                 .split_once('/')
-                .unwrap_or_else(|| panic!("{file} is not under a common layer"))
-                .1;
+                .ok_or_else(|| format!("{file} is not under a common layer"))?;
             shared.push(rest);
             rest
         } else {
@@ -59,14 +64,14 @@ pub fn scaffold_fixture(scratch: &Path, fixture: &str, name: &str, files: &str) 
         };
         let dest = rest
             .strip_suffix(".fixture")
-            .unwrap_or_else(|| panic!("{file} lacks the .fixture suffix"));
+            .ok_or_else(|| format!("{file} lacks the .fixture suffix"))?;
         let source = dx_testing::resolve_runfiles(file);
         let body = std::fs::read(&source)
-            .unwrap_or_else(|error| panic!("read {}: {error}", source.display()));
+            .map_err(|error| format!("read {}: {error}", source.display()))?;
         let target = root.join(dest);
         if let Some(parent) = target.parent() {
             std::fs::create_dir_all(parent)
-                .unwrap_or_else(|error| panic!("mkdir {}: {error}", parent.display()));
+                .map_err(|error| format!("mkdir {}: {error}", parent.display()))?;
         }
         let body = if dest == "MODULE.bazel" {
             let mut head = std::fs::read(&target).unwrap_or_default();
@@ -80,14 +85,17 @@ pub fn scaffold_fixture(scratch: &Path, fixture: &str, name: &str, files: &str) 
             body
         };
         std::fs::write(&target, body)
-            .unwrap_or_else(|error| panic!("write {}: {error}", target.display()));
+            .map_err(|error| format!("write {}: {error}", target.display()))?;
         copied += 1;
     }
     let duplicated: Vec<&&str> = own.iter().filter(|path| shared.contains(path)).collect();
-    assert!(
-        duplicated.is_empty(),
-        "{fixture} repeats files of its common layers: {duplicated:?}"
-    );
-    assert!(copied > 0, "no {fixture} files in the list: {files}");
-    root
+    if !duplicated.is_empty() {
+        return Err(format!(
+            "{fixture} repeats files of its common layers: {duplicated:?}"
+        ));
+    }
+    if copied == 0 {
+        return Err(format!("no {fixture} files in the list: {files}"));
+    }
+    Ok(root)
 }

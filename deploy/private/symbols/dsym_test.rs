@@ -88,7 +88,7 @@ fn manifest_matches_the_binary_and_its_dsym() {
 
 #[test]
 fn missing_dsym_fails_and_writes_nothing() {
-    let scratch = dx_test_scratch::scratch("dsym-missing");
+    let scratch = dx_test_scratch::scratch("dsym-missing").unwrap();
     let tmp = scratch.path();
     let manifest = tmp.join("manifest.json");
     let missing = tmp.join("missing.dSYM");

@@ -207,7 +207,7 @@ mod tests {
 
     #[test]
     fn second_acquire_reports_busy_with_the_lock_path() {
-        let scratch = dx_test_scratch::scratch("dx-commit-lock-");
+        let scratch = dx_test_scratch::scratch("dx-commit-lock-").unwrap();
         let _holding = dx_testing::holding();
         let root = root_at(&dx_path::state::local_dir(scratch.path()));
         root.ensure_dir().expect("root");
@@ -237,7 +237,7 @@ mod tests {
 
     #[test]
     fn busy_without_a_holder_file_names_another_dx_command() {
-        let scratch = dx_test_scratch::scratch("dx-commit-no-holder-");
+        let scratch = dx_test_scratch::scratch("dx-commit-no-holder-").unwrap();
         let root = root_at(&dx_path::state::local_dir(scratch.path()));
         root.ensure_dir().expect("root");
         let _held = acquire_commit_lock(&root, Duration::from_secs(10)).expect("hold");
@@ -249,7 +249,7 @@ mod tests {
 
     #[test]
     fn lock_open_failure_reports_the_path_and_keeps_foreign_state() {
-        let scratch = dx_test_scratch::scratch("dx-commit-lock-open-");
+        let scratch = dx_test_scratch::scratch("dx-commit-lock-open-").unwrap();
         let root = root_at(&dx_path::state::local_dir(scratch.path()));
         root.ensure_dir().expect("root");
         std::fs::create_dir_all(root.lock_path()).expect("lock is a directory");
@@ -267,7 +267,7 @@ mod tests {
 
     #[test]
     fn root_ensure_refuses_a_blocking_file() {
-        let scratch = dx_test_scratch::scratch("dx-commit-root-");
+        let scratch = dx_test_scratch::scratch("dx-commit-root-").unwrap();
         let blocking = dx_path::state::local_dir(scratch.path());
         std::fs::create_dir_all(dx_path::state::dx_dir(scratch.path())).expect("dx dir");
         std::fs::write(&blocking, "foreign").expect("blocking file");
@@ -284,7 +284,7 @@ mod tests {
 
     #[test]
     fn handed_off_handles_keep_the_lock() {
-        let scratch = dx_test_scratch::scratch("dx-commit-handoff-");
+        let scratch = dx_test_scratch::scratch("dx-commit-handoff-").unwrap();
         let _holding = dx_testing::holding();
         let root = root_at(&dx_path::state::local_dir(scratch.path()));
         root.ensure_dir().expect("root");
@@ -331,7 +331,7 @@ mod tests {
 
     #[test]
     fn stale_stage_clear_matches_the_entry_kind() {
-        let scratch = dx_test_scratch::scratch("dx-commit-stage-kinds-");
+        let scratch = dx_test_scratch::scratch("dx-commit-stage-kinds-").unwrap();
         let stage = scratch.path().join("current.next");
         assert!(
             clear_stale_stage(&stage).is_ok(),
@@ -366,7 +366,7 @@ mod tests {
 
     #[test]
     fn stale_stage_inside_a_file_reports_without_clearing() {
-        let scratch = dx_test_scratch::scratch("dx-commit-stage-parent-");
+        let scratch = dx_test_scratch::scratch("dx-commit-stage-parent-").unwrap();
         let file = scratch.path().join("foreign");
         std::fs::write(&file, "foreign").expect("foreign file");
         let error = clear_stale_stage(&file.join("child")).expect_err("uninspectable stage fails");
@@ -379,7 +379,7 @@ mod tests {
     #[cfg(unix)]
     fn stale_stage_in_a_read_only_directory_reports_without_clearing() {
         use std::os::unix::fs::PermissionsExt as _;
-        let scratch = dx_test_scratch::scratch("dx-commit-stage-readonly-");
+        let scratch = dx_test_scratch::scratch("dx-commit-stage-readonly-").unwrap();
         let guarded = scratch.path().join("guarded");
         std::fs::create_dir(&guarded).expect("guarded dir");
         let stage = guarded.join("current.next");
@@ -401,7 +401,7 @@ mod tests {
     #[cfg(windows)]
     fn stale_stage_held_open_reports_without_clearing() {
         use std::os::windows::fs::OpenOptionsExt as _;
-        let scratch = dx_test_scratch::scratch("dx-commit-stage-held-");
+        let scratch = dx_test_scratch::scratch("dx-commit-stage-held-").unwrap();
         let stage = scratch.path().join("current.next");
         std::fs::write(&stage, "stale").expect("staged file");
         let held = std::fs::OpenOptions::new()
@@ -430,7 +430,7 @@ mod tests {
 
     #[test]
     fn publish_fresh_swap_installs_the_pointer() {
-        let scratch = dx_test_scratch::scratch("dx-commit-publish-fresh-");
+        let scratch = dx_test_scratch::scratch("dx-commit-publish-fresh-").unwrap();
         let dir = scratch.path().join("setups");
         std::fs::create_dir_all(&dir).expect("setups dir");
         let swap = swap_in(&dir, "record-a");
@@ -448,7 +448,7 @@ mod tests {
 
     #[test]
     fn republish_same_swap_is_idempotent() {
-        let scratch = dx_test_scratch::scratch("dx-commit-publish-idempotent-");
+        let scratch = dx_test_scratch::scratch("dx-commit-publish-idempotent-").unwrap();
         let dir = scratch.path().join("setups");
         std::fs::create_dir_all(&dir).expect("setups dir");
         let swap = swap_in(&dir, "record-a");
@@ -463,7 +463,7 @@ mod tests {
 
     #[test]
     fn publish_replaces_the_prior_pointer() {
-        let scratch = dx_test_scratch::scratch("dx-commit-publish-replace-");
+        let scratch = dx_test_scratch::scratch("dx-commit-publish-replace-").unwrap();
         let dir = scratch.path().join("setups");
         std::fs::create_dir_all(&dir).expect("setups dir");
         publish_pointer_swap(&swap_in(&dir, "record-a")).expect("first publish");
@@ -477,7 +477,7 @@ mod tests {
 
     #[test]
     fn publish_clears_a_stale_file_stage_first() {
-        let scratch = dx_test_scratch::scratch("dx-commit-publish-stale-");
+        let scratch = dx_test_scratch::scratch("dx-commit-publish-stale-").unwrap();
         let dir = scratch.path().join("setups");
         std::fs::create_dir_all(&dir).expect("setups dir");
         std::fs::write(dir.join("current.next"), "stale").expect("stale stage file");
@@ -491,7 +491,7 @@ mod tests {
 
     #[test]
     fn publish_failure_keeps_the_prior_pointer() {
-        let scratch = dx_test_scratch::scratch("dx-commit-publish-failure-");
+        let scratch = dx_test_scratch::scratch("dx-commit-publish-failure-").unwrap();
         let dir = scratch.path().join("setups");
         std::fs::create_dir_all(&dir).expect("setups dir");
         publish_pointer_swap(&swap_in(&dir, "record-a")).expect("first publish");
@@ -511,7 +511,7 @@ mod tests {
 
     #[test]
     fn publish_stage_failure_keeps_the_prior_pointer() {
-        let scratch = dx_test_scratch::scratch("dx-commit-publish-stage-");
+        let scratch = dx_test_scratch::scratch("dx-commit-publish-stage-").unwrap();
         let dir = scratch.path().join("setups");
         std::fs::create_dir_all(&dir).expect("setups dir");
         publish_pointer_swap(&swap_in(&dir, "record-a")).expect("first publish");

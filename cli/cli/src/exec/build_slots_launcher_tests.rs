@@ -19,7 +19,7 @@ fn build_lines_with_env(
     in_slot: bool,
     env: &[(&str, &str)],
 ) -> (Vec<String>, String) {
-    let scratch = dx_test_scratch::scratch("dx-build-slots-launcher-");
+    let scratch = dx_test_scratch::scratch("dx-build-slots-launcher-").unwrap();
     let base = scratch.path().to_path_buf();
     let workspace = if in_slot {
         let meta = base.join("pool/.dx");

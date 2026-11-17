@@ -229,7 +229,7 @@ mod tests {
 
     #[test]
     fn classifies_regular_entries_without_following_links() {
-        let scratch = scratch("dx-fs-classify-");
+        let scratch = scratch("dx-fs-classify-").unwrap();
         let file = scratch.path().join("a.txt");
         std::fs::write(&file, b"a\n").expect("write file");
         let dir = scratch.path().join("d");
@@ -250,7 +250,7 @@ mod tests {
     #[test]
     #[cfg(unix)]
     fn classifies_links_and_dangling_links() {
-        let scratch = scratch("dx-fs-classify-link-");
+        let scratch = scratch("dx-fs-classify-link-").unwrap();
         let outside = scratch.path().join("outside");
         std::fs::create_dir(&outside).expect("outside dir");
         let file = scratch.path().join("f.txt");
@@ -276,7 +276,7 @@ mod tests {
     #[cfg(unix)]
     fn classify_reports_an_unreadable_path() {
         use std::os::unix::fs::PermissionsExt as _;
-        let scratch = scratch("dx-fs-classify-unreadable-");
+        let scratch = scratch("dx-fs-classify-unreadable-").unwrap();
         let locked = scratch.path().join("locked");
         std::fs::create_dir(&locked).expect("locked dir");
         let child = locked.join("child.txt");
@@ -298,7 +298,7 @@ mod tests {
 
     #[test]
     fn materializes_by_copy_when_the_link_fails() {
-        let scratch = scratch("dx-fs-link-fallback-");
+        let scratch = scratch("dx-fs-link-fallback-").unwrap();
         let source = scratch.path().join("source.toml");
         std::fs::write(&source, b"config = true\n").expect("source");
         let destination = scratch.path().join("current.toml");
@@ -313,7 +313,7 @@ mod tests {
 
     #[test]
     fn materializes_bytes_and_reports_the_mechanism() {
-        let scratch = scratch("dx-fs-materialize-");
+        let scratch = scratch("dx-fs-materialize-").unwrap();
         let source = scratch.path().join("source.toml");
         std::fs::write(&source, b"config = true\n").expect("source");
         let destination = scratch.path().join("nested").join("copy.toml");
@@ -333,7 +333,7 @@ mod tests {
 
     #[test]
     fn prefers_a_link_and_keeps_its_identity() {
-        let scratch = scratch("dx-fs-materialize-link-");
+        let scratch = scratch("dx-fs-materialize-link-").unwrap();
         let source = scratch.path().join("source.toml");
         std::fs::write(&source, b"config = true\n").expect("source");
         let destination = scratch.path().join("linked.toml");
@@ -358,7 +358,7 @@ mod tests {
     #[test]
     #[cfg(unix)]
     fn copied_executables_stay_executable() {
-        let scratch = scratch("dx-fs-materialize-exec-");
+        let scratch = scratch("dx-fs-materialize-exec-").unwrap();
         let source = scratch.path().join("run.sh");
         std::fs::write(&source, b"#!/bin/sh\necho dx\n").expect("source");
         {
@@ -394,7 +394,7 @@ mod tests {
 
     #[test]
     fn rejects_a_refused_link_when_identity_is_required() {
-        let scratch = scratch("dx-fs-require-link-");
+        let scratch = scratch("dx-fs-require-link-").unwrap();
         let source = scratch.path().join("pointer.bin");
         std::fs::write(&source, b"tool\n").expect("source");
         let destination = scratch.path().join("current");
@@ -417,7 +417,7 @@ mod tests {
 
     #[test]
     fn materialize_required_link_keeps_its_identity() {
-        let scratch = scratch("dx-fs-require-link-ok-");
+        let scratch = scratch("dx-fs-require-link-ok-").unwrap();
         let probe_source = scratch.path().join("probe.bin");
         std::fs::write(&probe_source, b"probe\n").expect("probe source");
         let probe_link = scratch.path().join("probe-link");
@@ -446,7 +446,7 @@ mod tests {
 
     #[test]
     fn replaces_an_existing_destination_with_a_copy() {
-        let scratch = scratch("dx-fs-replace-");
+        let scratch = scratch("dx-fs-replace-").unwrap();
         let source = scratch.path().join("source.toml");
         std::fs::write(&source, b"config = true\n").expect("source");
         let destination = scratch.path().join("existing.toml");
@@ -465,7 +465,7 @@ mod tests {
 
     #[test]
     fn refuses_a_directory_destination_and_keeps_the_tree() {
-        let scratch = scratch("dx-fs-dir-dest-");
+        let scratch = scratch("dx-fs-dir-dest-").unwrap();
         let source = scratch.path().join("source.toml");
         std::fs::write(&source, b"config = true\n").expect("source");
         let destination = scratch.path().join("kept");
@@ -483,7 +483,7 @@ mod tests {
 
     #[test]
     fn refuses_a_link_destination_and_keeps_the_target() {
-        let scratch = scratch("dx-fs-link-dest-");
+        let scratch = scratch("dx-fs-link-dest-").unwrap();
         let source = scratch.path().join("source.toml");
         std::fs::write(&source, b"config = true\n").expect("source");
         let outside = scratch.path().join("outside.toml");
@@ -512,7 +512,7 @@ mod tests {
 
     #[test]
     fn rejects_a_missing_source_and_a_directory_source() {
-        let scratch = scratch("dx-fs-source-");
+        let scratch = scratch("dx-fs-source-").unwrap();
         let destination = scratch.path().join("out.toml");
         let err = materialize_file(
             &scratch.path().join("absent"),
@@ -533,7 +533,7 @@ mod tests {
 
     #[test]
     fn reports_a_missing_destination_parent() {
-        let scratch = scratch("dx-fs-parent-");
+        let scratch = scratch("dx-fs-parent-").unwrap();
         let source = scratch.path().join("source.toml");
         std::fs::write(&source, b"config = true\n").expect("source");
         let destination = scratch.path().join("absent").join("out.toml");
@@ -563,7 +563,7 @@ mod tests {
     #[test]
     #[cfg(unix)]
     fn replaces_a_read_only_destination() {
-        let scratch = scratch("dx-fs-readonly-");
+        let scratch = scratch("dx-fs-readonly-").unwrap();
         let source = scratch.path().join("source.toml");
         std::fs::write(&source, b"config = true\n").expect("source");
         let destination = scratch.path().join("locked.toml");
@@ -589,7 +589,7 @@ mod tests {
     #[test]
     #[cfg(unix)]
     fn copied_read_only_sources_can_be_restaged() {
-        let scratch = scratch("dx-fs-readonly-source-");
+        let scratch = scratch("dx-fs-readonly-source-").unwrap();
         let refuse = |_: &Path, _: &Path| Err(io::Error::from(io::ErrorKind::PermissionDenied));
         for (source_mode, expected) in [(0o444, 0o644), (0o555, 0o755)] {
             let source = scratch.path().join(format!("source-{source_mode:o}"));
@@ -610,7 +610,7 @@ mod tests {
     #[test]
     #[cfg(unix)]
     fn preserves_the_error_of_a_read_only_destination_parent() {
-        let scratch = scratch("dx-fs-readonly-parent-");
+        let scratch = scratch("dx-fs-readonly-parent-").unwrap();
         let source = scratch.path().join("source.toml");
         std::fs::write(&source, b"config = true\n").expect("source");
         let parent = scratch.path().join("locked");
@@ -633,7 +633,7 @@ mod tests {
 
     #[test]
     fn removes_a_file_and_reports_missing_paths_and_trees() {
-        let scratch = scratch("dx-fs-remove-");
+        let scratch = scratch("dx-fs-remove-").unwrap();
         let file = scratch.path().join("plain.txt");
         std::fs::write(&file, b"x\n").expect("write");
         remove_managed(&file).expect("remove file");
@@ -652,7 +652,7 @@ mod tests {
     #[test]
     #[cfg(unix)]
     fn removes_links_without_following_them() {
-        let scratch = scratch("dx-fs-remove-link-");
+        let scratch = scratch("dx-fs-remove-link-").unwrap();
         let outside_file = scratch.path().join("outside.txt");
         std::fs::write(&outside_file, b"secret\n").expect("outside file");
         let outside_dir = scratch.path().join("outside-dir");
@@ -682,7 +682,7 @@ mod tests {
 
     #[test]
     fn replaces_directory_pointers_when_the_host_allows_links() {
-        let scratch = scratch("dx-fs-dir-pointer-");
+        let scratch = scratch("dx-fs-dir-pointer-").unwrap();
         let first = scratch.path().join("first");
         std::fs::create_dir(&first).expect("first dir");
         let pointer = scratch.path().join("current");
@@ -700,7 +700,7 @@ mod tests {
 
     #[test]
     fn create_pointer_links_a_file() {
-        let scratch = scratch("dx-fs-file-pointer-");
+        let scratch = scratch("dx-fs-file-pointer-").unwrap();
         let target = scratch.path().join("target.txt");
         std::fs::write(&target, b"target\n").expect("target");
         let link = scratch.path().join("link");
@@ -717,7 +717,7 @@ mod tests {
 
     #[test]
     fn create_pointer_refuses_an_existing_entry() {
-        let scratch = scratch("dx-fs-create-pointer-");
+        let scratch = scratch("dx-fs-create-pointer-").unwrap();
         let target = scratch.path().join("target");
         std::fs::create_dir(&target).expect("target dir");
         let other = scratch.path().join("other");

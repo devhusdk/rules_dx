@@ -55,7 +55,7 @@ fn write(path: &Path, bytes: &[u8]) {
 
 /// Commits the source tree in a scratch git dir. Returns the scratch git dir and the commit.
 fn snapshot_commit(root: &Path, scratch: &Path) -> (PathBuf, String) {
-    let git = |dir: &Path, args: &[&str]| dx_test_scratch::git(dir, scratch, args);
+    let git = |dir: &Path, args: &[&str]| dx_test_scratch::git(dir, scratch, args).unwrap();
     let git_dir = scratch.join("snapshot.git");
     std::fs::create_dir_all(&git_dir).unwrap_or_else(|error| panic!("mkdir: {error}"));
     git(&git_dir, &["init", "--bare", "--quiet", "."]);
@@ -86,7 +86,7 @@ cc_binary(
 
 /// Stages a registry for the archive and returns its guard and directory.
 fn stage_registry(candidate: &Candidate, archive: &Path) -> (dx_test_scratch::TempDir, PathBuf) {
-    let dir = dx_test_scratch::scratch("candidate-registry");
+    let dir = dx_test_scratch::scratch("candidate-registry").unwrap();
     let registry = stage_local_registry(dir.path(), candidate, archive)
         .unwrap_or_else(|error| panic!("{error}"));
     (dir, registry)
@@ -118,7 +118,7 @@ fn consumer(candidate: &Candidate, archive: &Path, registry: &Path) -> Case {
         "module(name = \"candidate_consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"{}\", repo_name = \"my_dx\")\n\ndx_licenses = use_extension(\"@my_dx//core:extensions.bzl\", \"dx_licenses\")\ndx_licenses.accept(ids = [\"visual-studio-build-tools\"])\n{}{}{}{}{}",
         candidate.version(),
         rules_py_override(),
-        rules_flutter_override(),
+        rules_flutter_override().unwrap_or_else(|error| panic!("{error}")),
         rules_rust_override(),
         llvm_override(),
         windows_support_override(),
@@ -149,7 +149,7 @@ fn consumer(candidate: &Candidate, archive: &Path, registry: &Path) -> Case {
 fn dx(case: &Case, command: &str, extra: &[&str]) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = case.root().to_string_lossy().into_owned();
-    let home_dir = dx_test_scratch::scratch("candidate-home");
+    let home_dir = dx_test_scratch::scratch("candidate-home").unwrap();
     let home = home_dir.path().to_string_lossy().into_owned();
     let applets = dx_testing::env_files("DX_COREUTILS");
     let path = applets[0]
@@ -294,7 +294,7 @@ fn assert_swift_consumer(case: &Case) {
 fn assert_gcc_consumer(case: &Case) {
     use std::os::unix::fs::PermissionsExt;
 
-    let gcc_dir = dx_test_scratch::scratch("candidate-gcc-bin");
+    let gcc_dir = dx_test_scratch::scratch("candidate-gcc-bin").unwrap();
     let bin = gcc_dir.path();
     for name in ["gcc", "g++", "cc", "c++"] {
         let path = bin.join(name);
@@ -351,7 +351,7 @@ fn assert_gcc_consumer(case: &Case) {
 #[test]
 fn a_candidate_archive_builds_tests_and_checks_a_registry_consumer() {
     let root = rules_dx_source();
-    let scratch_dir = dx_test_scratch::scratch("candidate-snapshot");
+    let scratch_dir = dx_test_scratch::scratch("candidate-snapshot").unwrap();
     let scratch = scratch_dir.path();
     stage("snapshot commit");
     let (git_dir, sha) = snapshot_commit(&root, scratch);

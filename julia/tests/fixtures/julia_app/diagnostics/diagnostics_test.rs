@@ -24,7 +24,7 @@ fn julia(home: &Path, args: &[&str]) -> dx_testing::Run {
 }
 
 fn run_file(name: &str, var: &str) -> dx_testing::Run {
-    let scratch = dx_test_scratch::scratch(name);
+    let scratch = dx_test_scratch::scratch(name).unwrap();
     let home = scratch.path();
     let path = dx_testing::env_file(var).to_string_lossy().into_owned();
     let run = julia(home, &["--startup-file=no", "--color=no", path.as_str()]);

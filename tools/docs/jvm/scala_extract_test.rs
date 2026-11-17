@@ -11,7 +11,7 @@ const SHAPES: &str = "scala:shapes:dx.fixture.shapes.";
 
 #[test]
 fn the_shapes_shard_maps_every_public_symbol() {
-    let shard = shard("DX_SHAPES_SHARD");
+    let shard = shard("DX_SHAPES_SHARD").unwrap();
     validate_shard(&shard).expect("validate_shard passes");
     assert_eq!(shard.language, "scala");
     assert_eq!(shard.package, "shapes");
@@ -34,7 +34,7 @@ fn the_shapes_shard_maps_every_public_symbol() {
     ];
     for (suffix, kind) in &expected {
         let id = format!("{SHAPES}{suffix}");
-        assert_eq!(symbol(&shard, &id).kind, *kind as i32, "{id}");
+        assert_eq!(symbol(&shard, &id).unwrap().kind, *kind as i32, "{id}");
     }
     let mut actual = ids(&shard);
     actual.sort_unstable();
@@ -51,12 +51,12 @@ fn the_shapes_shard_maps_every_public_symbol() {
 
 #[test]
 fn a_function_carries_its_signature_docs_and_source() {
-    let shard = shard("DX_SHAPES_SHARD");
-    let one = symbol(&shard, &format!("{SHAPES}Circle.scale~28Double~29"));
+    let shard = shard("DX_SHAPES_SHARD").unwrap();
+    let one = symbol(&shard, &format!("{SHAPES}Circle.scale~28Double~29")).unwrap();
     let two = symbol(
         &shard,
         &format!("{SHAPES}Circle.scale~28Double~2CDouble~29"),
-    );
+    ).unwrap();
     assert_eq!(one.signature_text, "def scale(factor: Double): Circle");
     assert_eq!(one.doc_markdown, "Scales the radius by one factor.");
     assert_eq!(one.params.len(), 1);
@@ -81,29 +81,29 @@ fn a_function_carries_its_signature_docs_and_source() {
     );
     assert_eq!(
         one.source.as_ref().expect("a source").line,
-        line_of("DX_CIRCLE_SCALA", "def scale(factor: Double)")
+        line_of("DX_CIRCLE_SCALA", "def scale(factor: Double)").unwrap()
     );
     assert_eq!(
         two.source.as_ref().expect("a source").line,
-        line_of("DX_CIRCLE_SCALA", "def scale(horizontal: Double")
+        line_of("DX_CIRCLE_SCALA", "def scale(horizontal: Double").unwrap()
     );
-    let circle = symbol(&shard, &format!("{SHAPES}Circle"));
+    let circle = symbol(&shard, &format!("{SHAPES}Circle")).unwrap();
     assert_eq!(
         circle.source.as_ref().expect("a source").line,
-        line_of("DX_CIRCLE_SCALA", "class Circle")
+        line_of("DX_CIRCLE_SCALA", "class Circle").unwrap()
     );
 }
 
 #[test]
 fn a_class_and_its_companion_get_distinct_ids() {
-    let shard = shard("DX_SHAPES_SHARD");
-    let class = symbol(&shard, &format!("{SHAPES}Point"));
-    let object = symbol(&shard, &format!("{SHAPES}Point~24"));
+    let shard = shard("DX_SHAPES_SHARD").unwrap();
+    let class = symbol(&shard, &format!("{SHAPES}Point")).unwrap();
+    let object = symbol(&shard, &format!("{SHAPES}Point~24")).unwrap();
     assert_eq!(class.signature_text, "case class Point");
     assert_eq!(object.signature_text, "object Point");
     assert_eq!(
         object.source.as_ref().expect("a source").line,
-        line_of("DX_CIRCLE_SCALA", "object Point")
+        line_of("DX_CIRCLE_SCALA", "object Point").unwrap()
     );
     for synthetic in ["copy", "productArity", "canEqual", "apply", "unapply"] {
         assert!(
@@ -116,9 +116,9 @@ fn a_class_and_its_companion_get_distinct_ids() {
 
 #[test]
 fn a_dependent_library_links_into_its_dependency() {
-    let paint = shard("DX_PAINT_SHARD");
+    let paint = shard("DX_PAINT_SHARD").unwrap();
     validate_shard(&paint).expect("validate_shard passes");
-    let square = symbol(&paint, "scala:paint:dx.fixture.paint.Square");
+    let square = symbol(&paint, "scala:paint:dx.fixture.paint.Square").unwrap();
     assert_eq!(
         square.relations.as_ref().expect("relations").implements,
         vec![format!("{SHAPES}Shape")]
@@ -131,9 +131,9 @@ fn a_dependent_library_links_into_its_dependency() {
 
 #[test]
 fn without_the_dependency_shard_links_degrade_to_code() {
-    let paint = shard("DX_PAINT_NODEP_SHARD");
+    let paint = shard("DX_PAINT_NODEP_SHARD").unwrap();
     validate_shard(&paint).expect("validate_shard passes");
-    let square = symbol(&paint, "scala:paint:dx.fixture.paint.Square");
+    let square = symbol(&paint, "scala:paint:dx.fixture.paint.Square").unwrap();
     assert!(
         square
             .relations
@@ -153,7 +153,7 @@ struct Driver {
 
 impl Driver {
     fn new(name: &str) -> Driver {
-        let scratch = dx_test_scratch::scratch(name);
+        let scratch = dx_test_scratch::scratch(name).unwrap();
         let dir = scratch.path().to_path_buf();
         Driver {
             _scratch: scratch,
@@ -184,7 +184,7 @@ impl Driver {
     }
 
     fn source(&self, name: &str, text: &str) -> PathBuf {
-        dx_test_scratch::write(&self.dir, name, text);
+        dx_test_scratch::write(&self.dir, name, text).unwrap();
         self.dir.join(name)
     }
 

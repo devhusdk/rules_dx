@@ -42,7 +42,7 @@ fn list_files(dir: &Path, config: &str) -> (bool, Vec<String>, String) {
 
 #[test]
 fn scoped_tsconfig_lists_only_its_own_sources() {
-    let dir_guard = dx_test_scratch::scratch("scoped-boundary");
+    let dir_guard = dx_test_scratch::scratch("scoped-boundary").unwrap();
     let dir = dir_guard.path();
     stage(&dir);
 

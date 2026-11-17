@@ -28,7 +28,7 @@ fn msvc_archive_ships_the_vc_runtime_and_runs_on_a_clean_path() {
         );
     }
 
-    let guard = dx_test_scratch::scratch("msvc-archive");
+    let guard = dx_test_scratch::scratch("msvc-archive").unwrap();
     let scratch = guard.path();
     let dir = scratch.join("out");
     archive_extract(&archive, &dir).expect("extract archive");

@@ -116,7 +116,7 @@ fn declarations_are_not_served() {
 #[test]
 fn tree_relocates_to_a_plain_directory() {
     let root = staged("index.html").parent().expect("parent").to_path_buf();
-    let scratch = dx_test_scratch::scratch("web-app");
+    let scratch = dx_test_scratch::scratch("web-app").unwrap();
     let dest = scratch.path();
     copy_tree(&root, dest);
     assert!(

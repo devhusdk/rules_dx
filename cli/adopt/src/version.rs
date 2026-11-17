@@ -436,9 +436,9 @@ mod tests {
     }
 
     fn pins_dir(content: Option<&str>) -> dx_test_scratch::TempDir {
-        let dir = dx_test_scratch::scratch("refresh-pins");
+        let dir = dx_test_scratch::scratch("refresh-pins").unwrap();
         if let Some(content) = content {
-            dx_test_scratch::write(dir.path(), ".dx/pins", content);
+            dx_test_scratch::write(dir.path(), ".dx/pins", content).unwrap();
         }
         dir
     }

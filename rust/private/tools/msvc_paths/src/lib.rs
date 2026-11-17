@@ -282,7 +282,7 @@ mod tests {
 
     #[test]
     fn response_files_keep_their_encoding() {
-        let scratch = dx_test_scratch::scratch("rsp");
+        let scratch = dx_test_scratch::scratch("rsp").unwrap();
         let dir = scratch.path();
         let rewriter = Rewriter::new(ROOT, "");
         let text = "\"C:\\b\\out\\execroot\\_main\\bazel-out\\a.rlib\"\r\n\"/OUT:say \\\"hi\\\"\"\r\nkernel32.lib\n";
@@ -322,7 +322,7 @@ mod tests {
 
     #[test]
     fn execroot_is_the_nearest_dir_with_bazel_out() {
-        let scratch = dx_test_scratch::scratch("execroot");
+        let scratch = dx_test_scratch::scratch("execroot").unwrap();
         let dir = scratch.path();
         let cwd = dir.join("external").join("ring");
         fs::create_dir_all(dir.join("bazel-out")).unwrap();

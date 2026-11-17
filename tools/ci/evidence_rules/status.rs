@@ -1,7 +1,7 @@
 use serde_json::{Value, json};
 
 fn workflow() -> Value {
-    ci_workflow::document(".github/workflows/evidence.yml")
+    ci_workflow::document(".github/workflows/evidence.yml").unwrap()
 }
 
 fn run_text(workflow: &Value, job: &str) -> String {

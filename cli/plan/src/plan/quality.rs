@@ -1140,7 +1140,7 @@ mod tests {
 
     #[test]
     fn shuffled_query_orders_yield_identical_build_argv() {
-        let scratch = dx_test_scratch::scratch("dx-quality-query-order-");
+        let scratch = dx_test_scratch::scratch("dx-quality-query-order-").unwrap();
         let root: PathBuf = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join("pkg")).expect("pkg dir");
         std::fs::write(root.join("pkg/BUILD.bazel"), "").expect("BUILD file");

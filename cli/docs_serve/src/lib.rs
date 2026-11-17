@@ -267,12 +267,12 @@ mod tests {
     }
 
     fn fixture() -> impl AsRef<Path> {
-        let dir = scratch("docs-serve");
-        write(dir.as_ref(), "index.html", "<h1>home</h1>");
-        write(dir.as_ref(), "guide/index.html", "<h1>guide</h1>");
-        write(dir.as_ref(), "guide/my page.html", "spaced");
-        write(dir.as_ref(), "css/site.css", "body {}");
-        write(dir.as_ref(), "font/a.woff2", "font");
+        let dir = scratch("docs-serve").unwrap();
+        write(dir.as_ref(), "index.html", "<h1>home</h1>").unwrap();
+        write(dir.as_ref(), "guide/index.html", "<h1>guide</h1>").unwrap();
+        write(dir.as_ref(), "guide/my page.html", "spaced").unwrap();
+        write(dir.as_ref(), "css/site.css", "body {}").unwrap();
+        write(dir.as_ref(), "font/a.woff2", "font").unwrap();
         dir
     }
 

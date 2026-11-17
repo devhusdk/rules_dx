@@ -220,7 +220,7 @@ fn the_readme_quickstart_runs_as_written() {
             assert_eq!(text.lines().filter(|l| !l.trim().is_empty()).count(), 1);
             text.push('\n');
             text.push_str(&rules_py_override());
-            text.push_str(&rules_flutter_override());
+            text.push_str(&rules_flutter_override().unwrap_or_else(|error| panic!("{error}")));
             text.push_str(&rules_rust_override());
             text.push_str(&llvm_override());
             text.push_str(&windows_support_override());
@@ -289,7 +289,7 @@ fn the_readme_quickstart_runs_as_written() {
             "quickstart_consumer_test",
             &format!("measure {name} {stage}"),
         );
-        let measured = plain_fixture::measure_case(&case);
+        let measured = plain_fixture::measure_case(&case).unwrap_or_else(|error| panic!("{error}"));
         eprintln!("footprint {name} {stage}: {}", measured.to_json());
         if cfg!(target_os = "linux")
             && let Err(error) = footprint::check_budget(&measured, &budget[stage])
@@ -380,7 +380,7 @@ fn bcr_test_module_runs_its_presubmit_targets() {
         &(read_text(&module)
             + &rules_dx_override(&source)
             + &rules_py_override()
-            + &rules_flutter_override()
+            + &rules_flutter_override().unwrap_or_else(|error| panic!("{error}"))
             + &rules_rust_override()
             + &llvm_override()
             + &windows_support_override()),

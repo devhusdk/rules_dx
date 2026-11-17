@@ -111,7 +111,7 @@ mod tests {
     use super::*;
 
     fn table_of(lines: &[&str], platforms: &[&str]) -> (String, String) {
-        let dir = dx_test_scratch::scratch("compiler-table");
+        let dir = dx_test_scratch::scratch("compiler-table").unwrap();
         let input = dir.path().join("in");
         std::fs::create_dir_all(&input).expect("create evidence dir");
         std::fs::write(input.join("a.jsonl"), lines.join("\n") + "\n").expect("write evidence");
@@ -226,7 +226,7 @@ mod tests {
 
     #[test]
     fn strips_carriage_returns_and_blank_lines() {
-        let dir = dx_test_scratch::scratch("compiler-table-crlf");
+        let dir = dx_test_scratch::scratch("compiler-table-crlf").unwrap();
         std::fs::write(dir.path().join("a.jsonl"), "{\"row\":\"gcc\"}\r\n\r\n\n")
             .expect("write evidence");
         assert_eq!(

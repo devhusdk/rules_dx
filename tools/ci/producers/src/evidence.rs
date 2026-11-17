@@ -340,7 +340,7 @@ mod tests {
 
     fn log(root: &Path, label: &str, xml: &str) {
         let path = label.trim_start_matches("//").replace(':', "/");
-        write(root, &format!("logs/{path}/test.xml"), xml);
+        write(root, &format!("logs/{path}/test.xml"), xml).unwrap();
     }
 
     fn passed(root: &Path, label: &str) {
@@ -392,7 +392,7 @@ mod tests {
 
     #[test]
     fn all_passed() {
-        let dir = scratch("compiler_evidence");
+        let dir = scratch("compiler_evidence").unwrap();
         for label in ["//p:probe_a", "//p:a1", "//p:a2", "//q:a3", "//p:b1"] {
             passed(dir.path(), label);
         }
@@ -406,7 +406,7 @@ mod tests {
 
     #[test]
     fn one_failed() {
-        let dir = scratch("compiler_evidence");
+        let dir = scratch("compiler_evidence").unwrap();
         passed(dir.path(), "//p:probe_a");
         passed(dir.path(), "//p:a1");
         failed(dir.path(), "//p:a2");
@@ -418,7 +418,7 @@ mod tests {
 
     #[test]
     fn an_error_element_is_a_failure() {
-        let dir = scratch("compiler_evidence");
+        let dir = scratch("compiler_evidence").unwrap();
         passed(dir.path(), "//p:probe_a");
         log(
             dir.path(),
@@ -430,7 +430,7 @@ mod tests {
 
     #[test]
     fn none_ran_is_skipped() {
-        let dir = scratch("compiler_evidence");
+        let dir = scratch("compiler_evidence").unwrap();
         let lines = run(dir.path());
         let a = row(&lines, "cc_a");
         assert_eq!(a["outcome"], "skipped");
@@ -439,7 +439,7 @@ mod tests {
 
     #[test]
     fn skipped_probe_is_not_passed() {
-        let dir = scratch("compiler_evidence");
+        let dir = scratch("compiler_evidence").unwrap();
         passed(dir.path(), "//p:a1");
         let lines = run(dir.path());
         assert_eq!(row(&lines, "cc_a")["outcome"], "skipped");
@@ -447,7 +447,7 @@ mod tests {
 
     #[test]
     fn platform_probe_replaces_the_probe_on_its_platform() {
-        let dir = scratch("compiler_evidence");
+        let dir = scratch("compiler_evidence").unwrap();
         passed(dir.path(), "//p:probe_a_arm64");
         passed(dir.path(), "//p:a1");
         let lines = run_on(dir.path(), "linux_arm64");
@@ -459,7 +459,7 @@ mod tests {
 
     #[test]
     fn other_platforms_keep_the_default_probe() {
-        let dir = scratch("compiler_evidence");
+        let dir = scratch("compiler_evidence").unwrap();
         passed(dir.path(), "//p:probe_a_arm64");
         passed(dir.path(), "//p:a1");
         let lines = run(dir.path());
@@ -470,7 +470,7 @@ mod tests {
 
     #[test]
     fn row_without_probe_passes_on_its_tests() {
-        let dir = scratch("compiler_evidence");
+        let dir = scratch("compiler_evidence").unwrap();
         passed(dir.path(), "//p:b1");
         let lines = run(dir.path());
         let b = row(&lines, "cc_b");
@@ -481,7 +481,7 @@ mod tests {
 
     #[test]
     fn version_is_copied_through() {
-        let dir = scratch("compiler_evidence");
+        let dir = scratch("compiler_evidence").unwrap();
         let lines = run(dir.path());
         let a = row(&lines, "cc_a");
         assert_eq!(a["version"], "1.2.3");
@@ -491,12 +491,12 @@ mod tests {
 
     #[test]
     fn probe_manifest_fields_are_recorded() {
-        let dir = scratch("compiler_evidence");
+        let dir = scratch("compiler_evidence").unwrap();
         write(
             dir.path(),
             "bin/p/probe_a_starlark_manifest.json",
             &json!({"checks": ["other", "field cc.compiler=gcc 1.2.3\nfield cc.target=x86_64-linux"]}).to_string(),
-        );
+        ).unwrap();
         let lines = run(dir.path());
         let a = row(&lines, "cc_a");
         assert_eq!(a["compiler"], "gcc 1.2.3");
@@ -506,8 +506,8 @@ mod tests {
 
     #[test]
     fn command_and_lockfile_digest_are_recorded() {
-        let dir = scratch("compiler_evidence");
-        write(dir.path(), "MODULE.bazel.lock", "lock\n");
+        let dir = scratch("compiler_evidence").unwrap();
+        write(dir.path(), "MODULE.bazel.lock", "lock\n").unwrap();
         let lines = run_with(dir.path(), "linux_x86_64", "bazel test //p:a1", &[]);
         let a = row(&lines, "cc_a");
         assert_eq!(a["command"], "bazel test //p:a1");
@@ -519,14 +519,14 @@ mod tests {
 
     #[test]
     fn missing_lockfile_leaves_the_digest_empty() {
-        let dir = scratch("compiler_evidence");
+        let dir = scratch("compiler_evidence").unwrap();
         let lines = run(dir.path());
         assert_eq!(row(&lines, "cc_a")["lockfile_sha256"], "");
         assert_eq!(row(&lines, "cc_a")["command"], "");
     }
 
     fn observe(root: &Path, signatures: &[&str]) -> Vec<Value> {
-        write(root, "bin/p/a1", "binary");
+        write(root, "bin/p/a1", "binary").unwrap();
         observe_with(root, signatures)
     }
 
@@ -539,7 +539,7 @@ mod tests {
 
     #[test]
     fn observed_producer_with_the_version_passes() {
-        let dir = scratch("compiler_evidence");
+        let dir = scratch("compiler_evidence").unwrap();
         let a = &observe(
             dir.path(),
             &["GCC: (GNU) 9.9.9", "GCC: (GNU) 1.2.3", "GCC: (GNU) 9.9.9"],
@@ -553,14 +553,14 @@ mod tests {
 
     #[test]
     fn observed_producer_with_another_version_is_a_mismatch() {
-        let dir = scratch("compiler_evidence");
+        let dir = scratch("compiler_evidence").unwrap();
         let a = &observe(dir.path(), &["GCC: (GNU) 9.9.9"])[0];
         assert_eq!(a["outcome"], "mismatch");
     }
 
     #[test]
     fn no_observed_producer_keeps_the_outcome() {
-        let dir = scratch("compiler_evidence");
+        let dir = scratch("compiler_evidence").unwrap();
         let a = &observe(dir.path(), &[])[0];
         assert_eq!(a["outcome"], "passed");
         assert_eq!(a["observed_producers"], json!([]));
@@ -568,7 +568,7 @@ mod tests {
 
     #[test]
     fn a_row_without_executables_is_not_observed() {
-        let dir = scratch("compiler_evidence");
+        let dir = scratch("compiler_evidence").unwrap();
         let lines = observe_with(dir.path(), &["GCC: (GNU) 9.9.9"]);
         let a = row(&lines, "cc_a");
         assert_eq!(a["outcome"], "passed");
@@ -577,23 +577,23 @@ mod tests {
 
     #[test]
     fn msvc_rich_producer_passes() {
-        let dir = scratch("compiler_evidence");
-        write(dir.path(), "bin/p/m1.exe", "binary");
+        let dir = scratch("compiler_evidence").unwrap();
+        write(dir.path(), "bin/p/m1.exe", "binary").unwrap();
         let lines = observe_with(dir.path(), &["msvc 261.35728"]);
         assert_eq!(row(&lines, "cc_m")["outcome"], "passed");
     }
 
     #[test]
     fn msvc_rich_producer_of_another_build_is_a_mismatch() {
-        let dir = scratch("compiler_evidence");
-        write(dir.path(), "bin/p/m1.exe", "binary");
+        let dir = scratch("compiler_evidence").unwrap();
+        write(dir.path(), "bin/p/m1.exe", "binary").unwrap();
         let lines = observe_with(dir.path(), &["msvc 261.33145"]);
         assert_eq!(row(&lines, "cc_m")["outcome"], "mismatch");
     }
 
     #[test]
     fn blocked_platform_keeps_the_tested_outcome() {
-        let dir = scratch("compiler_evidence");
+        let dir = scratch("compiler_evidence").unwrap();
         for label in ["//p:probe_a", "//p:a1", "//p:b1"] {
             passed(dir.path(), label);
         }
@@ -612,7 +612,7 @@ mod tests {
 
     #[test]
     fn blocked_platform_still_reports_failures() {
-        let dir = scratch("compiler_evidence");
+        let dir = scratch("compiler_evidence").unwrap();
         failed(dir.path(), "//p:a1");
         let lines = run_on(dir.path(), "windows_arm64");
         let a = row(&lines, "cc_a");
@@ -622,7 +622,7 @@ mod tests {
 
     #[test]
     fn blocker_on_another_platform_does_not_apply() {
-        let dir = scratch("compiler_evidence");
+        let dir = scratch("compiler_evidence").unwrap();
         passed(dir.path(), "//p:probe_a");
         passed(dir.path(), "//p:a1");
         let a = &run(dir.path())[0];
@@ -632,8 +632,8 @@ mod tests {
 
     #[test]
     fn msvc_binary_without_rich_header_is_a_mismatch() {
-        let dir = scratch("compiler_evidence");
-        write(dir.path(), "bin/p/m1.exe", "binary");
+        let dir = scratch("compiler_evidence").unwrap();
+        write(dir.path(), "bin/p/m1.exe", "binary").unwrap();
         let lines = observe_with(dir.path(), &[]);
         let m = row(&lines, "cc_m");
         assert_eq!(m["outcome"], "mismatch");
@@ -642,7 +642,7 @@ mod tests {
 
     #[test]
     fn msvc_row_without_binaries_keeps_outcome() {
-        let dir = scratch("compiler_evidence");
+        let dir = scratch("compiler_evidence").unwrap();
         let lines = observe_with(dir.path(), &[]);
         assert_eq!(row(&lines, "cc_m")["outcome"], "passed");
     }

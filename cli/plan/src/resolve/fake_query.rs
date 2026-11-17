@@ -146,7 +146,7 @@ mod tests {
 
     #[test]
     fn expression_comes_from_query_file_or_last_argv() {
-        let scratch = dx_test_scratch::scratch("dx-fake-query-expr-");
+        let scratch = dx_test_scratch::scratch("dx-fake-query-expr-").unwrap();
         let file = scratch.path().join("q.txt");
         std::fs::write(&file, "deps(//a)").expect("query file");
         let query = FakeQuery::new(vec![FakeQuery::ok(""), FakeQuery::ok("")]);

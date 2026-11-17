@@ -115,7 +115,7 @@ struct Consumer {
 
 impl Consumer {
     fn new(name: &str) -> Consumer {
-        let guard = scratch(name);
+        let guard = scratch(name).unwrap();
         let base = guard.path().to_path_buf();
         let root = base.join("ws");
         let ambient = base.join("ambient");

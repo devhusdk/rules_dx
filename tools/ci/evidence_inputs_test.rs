@@ -214,8 +214,8 @@ fn rejects_bad_relocate() {
 
 #[test]
 fn the_workflow_runner_map_matches_platforms() {
-    let document = ci_workflow::document(WORKFLOW);
-    let runs_on = ci_workflow::text_at(&document["jobs"]["evidence"]["runs-on"], "evidence runs-on");
+    let document = ci_workflow::document(WORKFLOW).unwrap();
+    let runs_on = ci_workflow::text_at(&document["jobs"]["evidence"]["runs-on"], "evidence runs-on").unwrap();
     let map = runs_on
         .strip_prefix("${{ fromJSON('")
         .and_then(|rest| rest.split_once("')"))
@@ -246,7 +246,7 @@ fn accepts_spaced_platform_lists() {
 
 #[test]
 fn the_workflow_validates_with_producers_bin_after_setting_up_bazel() {
-    let steps = ci_workflow::steps(WORKFLOW, "evidence");
+    let steps = ci_workflow::steps(WORKFLOW, "evidence").unwrap();
     let setup = steps
         .iter()
         .position(|step| step["uses"].as_str() == Some("./.github/actions/setup-bazel"))

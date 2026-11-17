@@ -831,7 +831,7 @@ mod tests {
     #[test]
     fn rendered_sh_launcher_passes_shellcheck() {
         let shellcheck = dx_testing::env_file("DX_SHELLCHECK");
-        let dir = dx_test_scratch::scratch("launcher-shellcheck");
+        let dir = dx_test_scratch::scratch("launcher-shellcheck").unwrap();
         let script = dir.path().join("dx");
         std::fs::write(&script, sh()).expect("write launcher");
         let run = std::process::Command::new(shellcheck)
@@ -943,7 +943,7 @@ mod tests {
 
     #[test]
     fn launcher_bytes_do_not_depend_on_the_dx_version() {
-        let dir = dx_test_scratch::scratch("dx-launcher-static-");
+        let dir = dx_test_scratch::scratch("dx-launcher-static-").unwrap();
         let mut seen = Vec::new();
         for version in ["1.2.3", "2.0.0-rc.1"] {
             write_version_pins(dir.path(), version, &pinned(&"a".repeat(64))).expect("pin");
@@ -960,7 +960,7 @@ mod tests {
 
     #[test]
     fn launcher_state_reads_line_three() {
-        let dir = dx_test_scratch::scratch("dx-launcher-line3-");
+        let dir = dx_test_scratch::scratch("dx-launcher-line3-").unwrap();
         write_launcher(dir.path(), LAUNCHER_SH_REL, &sh(), true).expect("sh");
         write_launcher(dir.path(), LAUNCHER_CMD_REL, &cmd(), false).expect("cmd");
         for rel in [LAUNCHER_SH_REL, LAUNCHER_CMD_REL] {
@@ -973,7 +973,7 @@ mod tests {
 
     #[test]
     fn manifest_dir_gives_pins_and_missing_manifest_gives_none() {
-        let dir = dx_test_scratch::scratch("dx-pins-manifest-");
+        let dir = dx_test_scratch::scratch("dx-pins-manifest-").unwrap();
         assert_eq!(
             pins_from_manifest_dir(dir.path()),
             Ok(LauncherPins::unreleased())
@@ -1211,7 +1211,7 @@ mod tests {
 
     #[test]
     fn write_replaces_absent_or_stale_launchers_only() {
-        let dir = dx_test_scratch::scratch("dx-launcher-write-");
+        let dir = dx_test_scratch::scratch("dx-launcher-write-").unwrap();
         let first =
             crate::scaffold::entries(|a| write_launcher_files(dir.path(), a)).expect("writes");
         assert_eq!(first, vec!["tools/dx", "tools/dx.cmd"]);
@@ -1248,7 +1248,7 @@ mod tests {
 
     #[test]
     fn an_edited_launcher_is_stale_then_rewritten() {
-        let dir = dx_test_scratch::scratch("dx-launcher-refresh-");
+        let dir = dx_test_scratch::scratch("dx-launcher-refresh-").unwrap();
         assert_eq!(
             refresh_launcher_files(dir.path()).expect("none"),
             [] as [String; 0]
@@ -1288,7 +1288,7 @@ mod tests {
     #[test]
     fn a_launcher_without_exec_bits_is_stale_and_restored() {
         use std::os::unix::fs::PermissionsExt;
-        let dir = dx_test_scratch::scratch("dx-launcher-mode-");
+        let dir = dx_test_scratch::scratch("dx-launcher-mode-").unwrap();
         write_launcher(dir.path(), LAUNCHER_SH_REL, &sh(), true).expect("sh");
         write_launcher(dir.path(), LAUNCHER_CMD_REL, &cmd(), false).expect("cmd");
         let sh_path = dir.path().join(LAUNCHER_SH_REL);
@@ -1306,7 +1306,7 @@ mod tests {
 
     #[test]
     fn custom_launchers_are_not_dx_owned() {
-        let dir = dx_test_scratch::scratch("dx-launcher-custom-");
+        let dir = dx_test_scratch::scratch("dx-launcher-custom-").unwrap();
         std::fs::create_dir_all(dir.path().join("tools")).expect("tools");
         std::fs::write(
             dir.path().join(LAUNCHER_SH_REL),
@@ -1336,7 +1336,7 @@ mod tests {
 
     #[test]
     fn plan_reports_writes_without_writing() {
-        let dir = dx_test_scratch::scratch("dx-launcher-plan-");
+        let dir = dx_test_scratch::scratch("dx-launcher-plan-").unwrap();
         assert_eq!(
             plan_launcher_files(dir.path(), true).expect("plan"),
             vec!["tools/dx", "tools/dx.cmd"]
@@ -1392,7 +1392,7 @@ mod tests {
 
         impl Fixture {
             fn new(name: &str, curl_ok: bool, pinned_sha: Option<&str>) -> Self {
-                let dir = dx_test_scratch::scratch(name);
+                let dir = dx_test_scratch::scratch(name).unwrap();
                 let root = dir.path().join("repo");
                 std::fs::create_dir_all(root.join(".dx")).expect("dx dir");
                 std::fs::create_dir_all(dir.path().join("stub")).expect("stub dir");
@@ -2127,7 +2127,7 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
 
         impl Fixture {
             fn new(name: &str, ps_ok: bool, sha: Option<&str>) -> Self {
-                let dir = dx_test_scratch::scratch(name);
+                let dir = dx_test_scratch::scratch(name).unwrap();
                 let base = dir.path().to_path_buf();
                 let root = base.join("repo");
                 std::fs::create_dir_all(root.join(".dx")).expect("dx dir");

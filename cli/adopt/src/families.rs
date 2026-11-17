@@ -214,11 +214,11 @@ mod tests {
 
     #[test]
     fn detected_families_are_dx_toml_ids() {
-        let dir = scratch("dx-detected-families-");
+        let dir = scratch("dx-detected-families-").unwrap();
         assert!(detected_families(dir.path()).is_empty());
-        write(dir.path(), "a.py", "");
-        write(dir.path(), "src/b.rs", "");
-        write(dir.path(), "Dockerfile", "");
+        write(dir.path(), "a.py", "").unwrap();
+        write(dir.path(), "src/b.rs", "").unwrap();
+        write(dir.path(), "Dockerfile", "").unwrap();
         assert_eq!(
             detected_families(dir.path()),
             BTreeSet::from(["dockerfile", "python", "rust"].map(str::to_owned))
@@ -227,10 +227,10 @@ mod tests {
 
     #[test]
     fn languages_with_shared_files_only_are_not_detected_by_file() {
-        let dir = scratch("dx-shared-families-");
-        write(dir.path(), "deploy.yaml", "");
-        write(dir.path(), "app.lua", "");
-        write(dir.path(), "kernel.cu", "");
+        let dir = scratch("dx-shared-families-").unwrap();
+        write(dir.path(), "deploy.yaml", "").unwrap();
+        write(dir.path(), "app.lua", "").unwrap();
+        write(dir.path(), "kernel.cu", "").unwrap();
         let found = detected_families(dir.path());
         assert!(found.contains("lua"), "{found:?}");
         assert!(found.contains("cc"), "{found:?}");
@@ -253,13 +253,13 @@ mod tests {
     }
 
     fn workspace(files: &[&str], with_git: bool) -> dx_test_scratch::TempDir {
-        let dir = scratch("families");
-        write(dir.path(), MODULE_FILE, MODULE);
+        let dir = scratch("families").unwrap();
+        write(dir.path(), MODULE_FILE, MODULE).unwrap();
         for file in files {
-            write(dir.path(), file, "");
+            write(dir.path(), file, "").unwrap();
         }
         if with_git {
-            dx_test_scratch::git(dir.path(), dir.path(), &["init", "-q"]);
+            dx_test_scratch::git(dir.path(), dir.path(), &["init", "-q"]).unwrap();
         }
         dir
     }
@@ -282,12 +282,12 @@ mod tests {
 
     #[test]
     fn a_broken_git_dir_under_a_parent_repo_is_walked() {
-        let outer = scratch("families");
-        dx_test_scratch::git(outer.path(), outer.path(), &["init", "-q"]);
+        let outer = scratch("families").unwrap();
+        dx_test_scratch::git(outer.path(), outer.path(), &["init", "-q"]).unwrap();
         let root = outer.path().join("app");
-        write(&root, MODULE_FILE, MODULE);
+        write(&root, MODULE_FILE, MODULE).unwrap();
         for file in ["src/A.java", ".git/x.go", "bazel-out/y.go"] {
-            write(&root, file, "");
+            write(&root, file, "").unwrap();
         }
         let extensions = file_extensions(&root);
         assert!(extensions.contains(".java"));
@@ -315,7 +315,7 @@ mod tests {
     #[test]
     fn bazelignore_dirs_are_skipped() {
         let dir = workspace(&["vendor/A.java", ".bazelignore"], true);
-        write(dir.path(), ".bazelignore", "# vendored\nvendor/\n");
+        write(dir.path(), ".bazelignore", "# vendored\nvendor/\n").unwrap();
         assert!(!file_extensions(dir.path()).contains(".java"));
     }
 }

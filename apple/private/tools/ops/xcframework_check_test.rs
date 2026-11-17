@@ -143,7 +143,7 @@ struct Checked {
 }
 
 fn check_with(tree: &Tree, slices: &str, resources: &str) -> Checked {
-    let root = scratch("xcframework-check");
+    let root = scratch("xcframework-check").unwrap();
     let out_dir = root.path().join("out");
     std::fs::create_dir_all(&out_dir).unwrap();
     let archive = root.path().join("Share_bundle.xcframework.zip");
@@ -468,7 +468,7 @@ fn a_broken_archive_fails() {
         "binary ios-arm64/Share.framework/Share is not a Mach-O file",
     );
 
-    let root = scratch("xcframework-not-zip");
+    let root = scratch("xcframework-not-zip").unwrap();
     let out_dir = root.path().join("out");
     std::fs::create_dir_all(&out_dir).unwrap();
     let archive = root.path().join("Share_bundle.xcframework.zip");

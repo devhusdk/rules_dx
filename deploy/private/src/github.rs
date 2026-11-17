@@ -784,7 +784,7 @@ mod tests {
             &["commit", "-q", "-m", "x"],
             &["tag", "v1.2.0"],
         ] {
-            dx_test_scratch::git(&repo, &repo, args);
+            dx_test_scratch::git(&repo, &repo, args).unwrap();
         }
         std::fs::write(runfiles.join("asset.tar.gz"), b"asset").expect("asset");
         let marker = scratch.path().join("apidiff-ran");

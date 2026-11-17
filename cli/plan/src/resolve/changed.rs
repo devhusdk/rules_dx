@@ -1325,10 +1325,10 @@ mod tests {
 
     #[test]
     fn deleted_unowned_file_widens_to_its_package() {
-        let scratch = dx_test_scratch::scratch("dx-changed-deleted-");
+        let scratch = dx_test_scratch::scratch("dx-changed-deleted-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![graph(&[("//pkg:lib", &["//pkg:a.py"])])]);
         let selection = resolve_affected(
             &[change("pkg/gone.py", dx_adopt::ChangeKind::Deleted)],
@@ -1350,9 +1350,9 @@ mod tests {
 
     #[test]
     fn deleted_file_still_named_by_a_rule_selects_it() {
-        let scratch = dx_test_scratch::scratch("dx-changed-deleted-named-");
+        let scratch = dx_test_scratch::scratch("dx-changed-deleted-named-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
         let query = FakeQuery::new(vec![graph(&[("//pkg:lib", &["//pkg:gone.py"])])]);
         let selection = resolve_affected(
             &[change("pkg/gone.py", dx_adopt::ChangeKind::Deleted)],
@@ -1369,9 +1369,9 @@ mod tests {
 
     #[test]
     fn deleted_build_file_widens_to_repository() {
-        let scratch = dx_test_scratch::scratch("dx-changed-deleted-build-");
+        let scratch = dx_test_scratch::scratch("dx-changed-deleted-build-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "BUILD.bazel", "");
+        write(&workspace, "BUILD.bazel", "").unwrap();
         std::fs::create_dir_all(workspace.join("pkg")).expect("mkdir");
         let selection = resolve_affected(
             &[change("pkg/BUILD.bazel", dx_adopt::ChangeKind::Deleted)],
@@ -1388,7 +1388,7 @@ mod tests {
 
     #[test]
     fn deleted_file_without_package_widens_to_repository() {
-        let scratch = dx_test_scratch::scratch("dx-changed-deleted-nopkg-");
+        let scratch = dx_test_scratch::scratch("dx-changed-deleted-nopkg-").unwrap();
         let workspace = scratch.path().to_path_buf();
         std::fs::create_dir_all(workspace.join("docs")).expect("mkdir");
         let selection = resolve_affected(
@@ -1406,9 +1406,9 @@ mod tests {
 
     #[test]
     fn deleted_root_file_widens_to_root_package() {
-        let scratch = dx_test_scratch::scratch("dx-changed-deleted-root-");
+        let scratch = dx_test_scratch::scratch("dx-changed-deleted-root-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "BUILD.bazel", "");
+        write(&workspace, "BUILD.bazel", "").unwrap();
         let query = FakeQuery::new(vec![graph(&[])]);
         let selection = resolve_affected(
             &[change("gone.py", dx_adopt::ChangeKind::Deleted)],
@@ -1424,10 +1424,10 @@ mod tests {
 
     #[test]
     fn rename_keeps_target_and_widens_missing_source_to_its_package() {
-        let scratch = dx_test_scratch::scratch("dx-changed-rename-");
+        let scratch = dx_test_scratch::scratch("dx-changed-rename-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![graph(&[("//pkg:lib", &["//pkg:a.py"])])]);
         let selection = resolve_affected(
             &[renamed("pkg/was.py", "pkg/a.py")],
@@ -1450,10 +1450,10 @@ mod tests {
 
     #[test]
     fn build_inputs_add_their_package_and_owners() {
-        let scratch = dx_test_scratch::scratch("dx-changed-build-owned-");
+        let scratch = dx_test_scratch::scratch("dx-changed-build-owned-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/space name.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/space name.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![graph(&[(
             "//pkg:lib",
             &["//pkg:BUILD.bazel", "//pkg:space name.py"],
@@ -1486,10 +1486,10 @@ mod tests {
 
     #[test]
     fn unowned_build_inputs_widen_to_their_package() {
-        let scratch = dx_test_scratch::scratch("dx-changed-build-unowned-");
+        let scratch = dx_test_scratch::scratch("dx-changed-build-unowned-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![graph(&[])]);
         let selection = resolve_affected(
             &[
@@ -1520,10 +1520,10 @@ mod tests {
 
     #[test]
     fn build_only_edit_with_sole_corpus_owner_selects_package() {
-        let scratch = dx_test_scratch::scratch("dx-changed-build-corpus-");
+        let scratch = dx_test_scratch::scratch("dx-changed-build-corpus-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![graph(&[
             ("//pkg:corpus_starlark", &["//pkg:BUILD.bazel"]),
             ("//pkg:lib", &["//pkg:a.py"]),
@@ -1549,10 +1549,10 @@ mod tests {
 
     #[test]
     fn added_build_file_widens_to_everything() {
-        let scratch = dx_test_scratch::scratch("dx-changed-build-added-");
+        let scratch = dx_test_scratch::scratch("dx-changed-build-added-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/new/BUILD.bazel", "");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/new/BUILD.bazel", "").unwrap();
         let query = FakeQuery::new(vec![graph(&[])]);
         let selection = resolve_affected(
             &[change("pkg/new/BUILD.bazel", dx_adopt::ChangeKind::Added)],
@@ -1574,9 +1574,9 @@ mod tests {
 
     #[test]
     fn root_build_edit_selects_root_package() {
-        let scratch = dx_test_scratch::scratch("dx-changed-build-root-");
+        let scratch = dx_test_scratch::scratch("dx-changed-build-root-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "BUILD", "");
+        write(&workspace, "BUILD", "").unwrap();
         let query = FakeQuery::new(vec![graph(&[])]);
         let selection = resolve_affected(
             &[change("BUILD", dx_adopt::ChangeKind::Modified)],
@@ -1594,10 +1594,10 @@ mod tests {
 
     #[test]
     fn single_unowned_file_widens_without_attribution_query() {
-        let scratch = dx_test_scratch::scratch("dx-changed-single-unowned-");
+        let scratch = dx_test_scratch::scratch("dx-changed-single-unowned-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![graph(&[])]);
         let selection = resolve_affected(
             &[change("pkg/a.py", dx_adopt::ChangeKind::Modified)],
@@ -1625,10 +1625,10 @@ mod tests {
             ".bazelignore",
             ".bazelversion",
         ] {
-            let scratch = dx_test_scratch::scratch("dx-changed-workspace-");
+            let scratch = dx_test_scratch::scratch("dx-changed-workspace-").unwrap();
             let workspace = scratch.path().to_path_buf();
-            write(&workspace, "pkg/BUILD.bazel", "");
-            write(&workspace, changed, "x\n");
+            write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+            write(&workspace, changed, "x\n").unwrap();
             let selection = resolve_affected(
                 &[change(changed, dx_adopt::ChangeKind::Modified)],
                 &workspace,
@@ -1650,10 +1650,10 @@ mod tests {
 
     #[test]
     fn explicit_rc_files_widen_to_repository_without_query() {
-        let scratch = dx_test_scratch::scratch("dx-changed-explicit-rc-");
+        let scratch = dx_test_scratch::scratch("dx-changed-explicit-rc-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "tools/ci.bazelrc", "x\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "tools/ci.bazelrc", "x\n").unwrap();
         let selection = resolve_affected(
             &[change("tools/ci.bazelrc", dx_adopt::ChangeKind::Modified)],
             &workspace,
@@ -1672,21 +1672,21 @@ mod tests {
 
     #[test]
     fn imported_rc_files_widen_to_repository_without_query() {
-        let scratch = dx_test_scratch::scratch("dx-changed-rc-imports-");
+        let scratch = dx_test_scratch::scratch("dx-changed-rc-imports-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
         write(
             &workspace,
             ".bazelrc",
             "import %workspace%/.dx/bazelrc/correctness.bazelrc\ntry-import %workspace%/user.bazelrc\n",
-        );
-        write(&workspace, ".dx/bazelrc/BUILD.bazel", "");
+        ).unwrap();
+        write(&workspace, ".dx/bazelrc/BUILD.bazel", "").unwrap();
         write(
             &workspace,
             ".dx/bazelrc/correctness.bazelrc",
             "import \"%workspace%/.dx/bazelrc/nested.bazelrc\"\nimport %workspace%/.bazelrc\n",
-        );
-        write(&workspace, ".dx/bazelrc/nested.bazelrc", "build --x\n");
+        ).unwrap();
+        write(&workspace, ".dx/bazelrc/nested.bazelrc", "build --x\n").unwrap();
         for changed in [
             ".dx/bazelrc/correctness.bazelrc",
             ".dx/bazelrc/nested.bazelrc",
@@ -1712,11 +1712,11 @@ mod tests {
 
     #[test]
     fn unimported_rc_files_do_not_widen() {
-        let scratch = dx_test_scratch::scratch("dx-changed-rc-unimported-");
+        let scratch = dx_test_scratch::scratch("dx-changed-rc-unimported-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, ".bazelrc", "build --x\n");
-        write(&workspace, "consumers/x/BUILD.bazel", "");
-        write(&workspace, "consumers/x/consumer.bazelrc", "build --y\n");
+        write(&workspace, ".bazelrc", "build --x\n").unwrap();
+        write(&workspace, "consumers/x/BUILD.bazel", "").unwrap();
+        write(&workspace, "consumers/x/consumer.bazelrc", "build --y\n").unwrap();
         let query = FakeQuery::new(vec![graph(&[(
             "//consumers/x:t",
             &["//consumers/x:consumer.bazelrc"],
@@ -1770,7 +1770,7 @@ mod tests {
 
     #[test]
     fn lock_files_named_in_module_bazel_widen_without_query() {
-        let scratch = dx_test_scratch::scratch("dx-changed-module-inputs-");
+        let scratch = dx_test_scratch::scratch("dx-changed-module-inputs-").unwrap();
         let workspace = scratch.path();
         write(
             workspace,
@@ -1797,14 +1797,14 @@ mod tests {
                 "pip.parse(hub_name = \"pypi\", requirements_by_platform = {\"//py:requirements_linux.txt\": \"linux_*\"})\n".to_owned(),
                 "include(\"//deps:go.MODULE.bazel\")\n".to_owned(),
             ].concat(),
-        );
+        ).unwrap();
         write(
             workspace,
             "deps/go.MODULE.bazel",
             "bazel_dep(name = \"rules_go\", version = \"0.50.0\")\n",
-        );
+        ).unwrap();
         for changed in ["py/requirements_linux.txt", "deps/go.MODULE.bazel"] {
-            write(workspace, changed, "x\n");
+            write(workspace, changed, "x\n").unwrap();
             widens_as_workspace_input(workspace, changed);
         }
     }
@@ -1817,9 +1817,9 @@ mod tests {
             workspace,
             "MODULE.bazel",
             "module(name = \"demo\")\ncrate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.annotation(crate = \"serde\", patches = [\"//third_party:serde.patch\"], additive_build_file = \"//third_party:serde.BUILD\")\n",
-        );
-        write(workspace, "third_party/serde.patch", "x\n");
-        write(workspace, "third_party/serde.BUILD", "x\n");
+        ).unwrap();
+        write(workspace, "third_party/serde.patch", "x\n").unwrap();
+        write(workspace, "third_party/serde.BUILD", "x\n").unwrap();
         for changed in ["third_party/serde.patch", "third_party/serde.BUILD"] {
             widens_as_workspace_input(workspace, changed);
         }
@@ -1837,13 +1837,13 @@ mod tests {
                 lock_of(Ecosystem::Cargo),
                 manifest_of(Ecosystem::Cargo)
             ),
-        );
+        ).unwrap();
         write(
             workspace,
             &format!("a/{}", manifest_of(Ecosystem::Cargo)),
             "[package]\n",
-        );
-        write(workspace, "b/package-lock.json", "{}\n");
+        ).unwrap();
+        write(workspace, "b/package-lock.json", "{}\n").unwrap();
         for (changed, owner) in [
             (format!("a/{}", manifest_of(Ecosystem::Cargo)), "//a:lib"),
             ("b/package-lock.json".to_owned(), "//b:lib"),
@@ -1875,22 +1875,22 @@ mod tests {
 
     #[test]
     fn well_known_lock_names_widen_when_module_bazel_is_unreadable() {
-        let scratch = dx_test_scratch::scratch("dx-changed-fallback-inputs-");
+        let scratch = dx_test_scratch::scratch("dx-changed-fallback-inputs-").unwrap();
         let workspace = scratch.path();
-        write(workspace, "web/BUILD.bazel", "");
+        write(workspace, "web/BUILD.bazel", "").unwrap();
         write(
             workspace,
             &format!("web/{}", lock_of(Ecosystem::Npm)),
             "x\n",
-        );
+        ).unwrap();
         widens_as_workspace_input(workspace, &format!("web/{}", lock_of(Ecosystem::Npm)));
         write(
             workspace,
             "MODULE.bazel",
             "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(pnpm_lock = LOCK)\n",
-        );
+        ).unwrap();
         widens_as_workspace_input(workspace, &format!("web/{}", lock_of(Ecosystem::Npm)));
-        write(workspace, "MODULE.bazel", "module(name = \n");
+        write(workspace, "MODULE.bazel", "module(name = \n").unwrap();
         widens_as_workspace_input(workspace, &format!("web/{}", lock_of(Ecosystem::Npm)));
     }
 
@@ -1909,15 +1909,15 @@ mod tests {
 
     #[test]
     fn included_segment_crate_hubs_count_as_lock_inputs() {
-        let scratch = dx_test_scratch::scratch("dx-changed-segment-hubs-");
+        let scratch = dx_test_scratch::scratch("dx-changed-segment-hubs-").unwrap();
         let workspace = scratch.path();
         write(
             workspace,
             "MODULE.bazel",
             "include(\"//deps:rust.MODULE.bazel\")\n",
-        );
-        write(workspace, "deps/BUILD.bazel", "");
-        write(workspace, "deps/rust.MODULE.bazel", &crate_module());
+        ).unwrap();
+        write(workspace, "deps/BUILD.bazel", "").unwrap();
+        write(workspace, "deps/rust.MODULE.bazel", &crate_module()).unwrap();
         let (hubs, _) = module_inputs_of(workspace);
         assert_ne!(
             lock_inputs::classify("cargo-bazel-lock.json", &hubs),
@@ -1927,14 +1927,14 @@ mod tests {
 
     #[test]
     fn root_extension_binding_does_not_reach_a_segment() {
-        let scratch = dx_test_scratch::scratch("dx-changed-segment-binding-");
+        let scratch = dx_test_scratch::scratch("dx-changed-segment-binding-").unwrap();
         let workspace = scratch.path();
         write(
             workspace,
             "MODULE.bazel",
             "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ninclude(\"//deps:rust.MODULE.bazel\")\n",
-        );
-        write(workspace, "deps/BUILD.bazel", "");
+        ).unwrap();
+        write(workspace, "deps/BUILD.bazel", "").unwrap();
         write(
             workspace,
             "deps/rust.MODULE.bazel",
@@ -1942,7 +1942,7 @@ mod tests {
                 "crate.from_cargo(cargo_lockfile = \"//:{}\", lockfile = \"//:cargo-bazel-lock.json\")\n",
                 lock_of(Ecosystem::Cargo)
             ),
-        );
+        ).unwrap();
         let (hubs, _) = module_inputs_of(workspace);
         assert_eq!(
             lock_inputs::classify("cargo-bazel-lock.json", &hubs),
@@ -1951,12 +1951,12 @@ mod tests {
     }
 
     fn crate_workspace(prefix: &str) -> tempfile::TempDir {
-        let scratch = dx_test_scratch::scratch(prefix);
+        let scratch = dx_test_scratch::scratch(prefix).unwrap();
         let workspace = scratch.path();
-        write(workspace, "MODULE.bazel", &crate_module());
-        write(workspace, "a/BUILD.bazel", "");
-        write(workspace, "b/BUILD.bazel", "");
-        write(workspace, lock_of(Ecosystem::Cargo), &cargo_lock("1.0.2"));
+        write(workspace, "MODULE.bazel", &crate_module()).unwrap();
+        write(workspace, "a/BUILD.bazel", "").unwrap();
+        write(workspace, "b/BUILD.bazel", "").unwrap();
+        write(workspace, lock_of(Ecosystem::Cargo), &cargo_lock("1.0.2")).unwrap();
         scratch
     }
 
@@ -2055,7 +2055,7 @@ mod tests {
         reason = "callers build the update in the call"
     )]
     fn edit_workspace(prefix: &str, update: Update) -> EditWorkspace {
-        let scratch = dx_test_scratch::scratch(prefix);
+        let scratch = dx_test_scratch::scratch(prefix).unwrap();
         let workspace = scratch.path();
         let leaf = update.leaf;
         let module = |version: &str| {
@@ -2064,18 +2064,18 @@ mod tests {
                 update.root_extra
             )
         };
-        write(workspace, "MODULE.bazel", &module("1.1"));
+        write(workspace, "MODULE.bazel", &module("1.1")).unwrap();
         write(
             workspace,
             ".bazelrc",
             &format!("common --repository_cache={}/cache\n", workspace.display()),
-        );
+        ).unwrap();
         write(
             workspace,
             "d/BUILD.bazel",
             &format!("load(\"@{leaf}//:defs.bzl\", \"x\")\n"),
-        );
-        write(workspace, "e/BUILD.bazel", "");
+        ).unwrap();
+        write(workspace, "e/BUILD.bazel", "").unwrap();
         let leaf_old = cache_put(
             workspace,
             &format!("module(name = \"{leaf}\", version = \"1.0\")\n"),
@@ -2124,7 +2124,7 @@ mod tests {
             workspace,
             "MODULE.bazel.lock",
             &lock(hashes, &update.lock_extra),
-        );
+        ).unwrap();
         EditWorkspace {
             scratch,
             base_module: module("1.0"),
@@ -2272,7 +2272,7 @@ mod tests {
             fixture.scratch.path(),
             "MODULE.bazel.lock",
             &fixture.base_lock,
-        );
+        ).unwrap();
         let query = FakeQuery::new(vec![FakeQuery::ok(&fixture.base_module)]);
         let selection = resolve_affected(
             &[change("MODULE.bazel", dx_adopt::ChangeKind::Modified)],
@@ -2354,9 +2354,9 @@ mod tests {
 
     #[test]
     fn nested_module_bazel_still_widens() {
-        let scratch = dx_test_scratch::scratch("dx-changed-nested-module-");
+        let scratch = dx_test_scratch::scratch("dx-changed-nested-module-").unwrap();
         let workspace = scratch.path();
-        write(workspace, "sub/MODULE.bazel", "module(name = \"sub\")\n");
+        write(workspace, "sub/MODULE.bazel", "module(name = \"sub\")\n").unwrap();
         let selection = resolve_affected(
             &[change("sub/MODULE.bazel", dx_adopt::ChangeKind::Modified)],
             workspace,
@@ -2423,7 +2423,7 @@ mod tests {
 
     #[test]
     fn pnpm_lock_update_selects_only_users_of_changed_packages() {
-        let scratch = dx_test_scratch::scratch("dx-changed-pnpm-lock-");
+        let scratch = dx_test_scratch::scratch("dx-changed-pnpm-lock-").unwrap();
         let workspace = scratch.path();
         write(
             workspace,
@@ -2437,14 +2437,14 @@ mod tests {
                 ),
             ]
             .concat(),
-        );
-        write(workspace, "BUILD.bazel", "");
+        ).unwrap();
+        write(workspace, "BUILD.bazel", "").unwrap();
         let lock = |lodash: &str| {
             format!(
                 "lockfileVersion: '9.0'\n\npackages:\n\n  left-pad@1.0.0:\n    resolution: {{integrity: sha512-a}}\n\n  lodash@{lodash}:\n    resolution: {{integrity: sha512-b}}\n"
             )
         };
-        write(workspace, lock_of(Ecosystem::Npm), &lock("4.1.0"));
+        write(workspace, lock_of(Ecosystem::Npm), &lock("4.1.0")).unwrap();
         let query = FakeQuery::new(vec![
             FakeQuery::ok(&lock("4.0.0")),
             graph(&[
@@ -2528,7 +2528,7 @@ mod tests {
             })
             .to_string()
         };
-        write(workspace, "cargo-bazel-lock.json", &lock("1.0.2"));
+        write(workspace, "cargo-bazel-lock.json", &lock("1.0.2")).unwrap();
         let query = FakeQuery::new(vec![FakeQuery::ok(&lock("1.0.1")), crate_graph()]);
         let selection = resolve_affected(
             &[change(
@@ -2556,7 +2556,7 @@ mod tests {
     fn unknown_lock_format_still_widens() {
         let scratch = crate_workspace("dx-changed-unknown-lock-");
         let workspace = scratch.path();
-        write(workspace, "x.lock", "x\n");
+        write(workspace, "x.lock", "x\n").unwrap();
         let selection = resolve_affected(
             &[change("x.lock", dx_adopt::ChangeKind::Modified)],
             workspace,
@@ -2646,7 +2646,7 @@ mod tests {
     fn lock_that_is_a_rule_input_keeps_its_owner() {
         let scratch = crate_workspace("dx-changed-owned-lock-");
         let workspace = scratch.path();
-        write(workspace, "BUILD.bazel", "");
+        write(workspace, "BUILD.bazel", "").unwrap();
         let query = FakeQuery::new(vec![
             FakeQuery::ok(&cargo_lock("1.0.1")),
             graph(&[
@@ -2685,11 +2685,11 @@ mod tests {
         let mut affected_targets = Vec::new();
         let mut resolved_targets = Vec::new();
         for _ in 0..2 {
-            let scratch = dx_test_scratch::scratch("dx-changed-parity-");
+            let scratch = dx_test_scratch::scratch("dx-changed-parity-").unwrap();
             let workspace = scratch.path().to_path_buf();
-            write(&workspace, "pkg/BUILD.bazel", "");
-            write(&workspace, "pkg/a.py", "x = 1\n");
-            write(&workspace, "pkg/b.py", "x = 1\n");
+            write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+            write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
+            write(&workspace, "pkg/b.py", "x = 1\n").unwrap();
             let affected_query = FakeQuery::new(vec![graph(&rules)]);
             let affected = resolve_affected(
                 &workspace_files
@@ -2726,9 +2726,9 @@ mod tests {
 
     #[test]
     fn resolve_rejects_deleted_paths_that_affected_widens() {
-        let scratch = dx_test_scratch::scratch("dx-changed-deleted-parity-");
+        let scratch = dx_test_scratch::scratch("dx-changed-deleted-parity-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
         let err = resolve(&strings(&["pkg/gone.py"]), &workspace, &NeverQuery, &[])
             .expect_err("deleted path has no worktree file");
         assert_eq!(
@@ -2752,10 +2752,10 @@ mod tests {
 
     #[test]
     fn control_names_fail_before_any_query() {
-        let scratch = dx_test_scratch::scratch("dx-changed-control-");
+        let scratch = dx_test_scratch::scratch("dx-changed-control-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/ok.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/ok.py", "x = 1\n").unwrap();
         let err = resolve_affected(
             &[change("pkg/we\nird.py", dx_adopt::ChangeKind::Added)],
             &workspace,
@@ -2775,7 +2775,7 @@ mod tests {
 
     #[test]
     fn escaping_paths_fail_before_any_query() {
-        let scratch = dx_test_scratch::scratch("dx-changed-escape-");
+        let scratch = dx_test_scratch::scratch("dx-changed-escape-").unwrap();
         let workspace = scratch.path().to_path_buf();
         for scope in ["../escape.py", "pkg/../../escape.py", "/abs/path.py"] {
             let err = resolve_affected(
@@ -2799,9 +2799,9 @@ mod tests {
 
     #[test]
     fn files_without_enclosing_package_widen_to_repository() {
-        let scratch = dx_test_scratch::scratch("dx-changed-no-package-");
+        let scratch = dx_test_scratch::scratch("dx-changed-no-package-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "docs/guide.md", "# guide\n");
+        write(&workspace, "docs/guide.md", "# guide\n").unwrap();
         let selection = resolve_affected(
             &[change("docs/guide.md", dx_adopt::ChangeKind::Added)],
             &workspace,
@@ -2821,10 +2821,10 @@ mod tests {
 
     #[test]
     fn nested_packages_widen_to_the_nearest_pattern() {
-        let scratch = dx_test_scratch::scratch("dx-changed-nested-");
+        let scratch = dx_test_scratch::scratch("dx-changed-nested-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "outer/BUILD.bazel", "");
-        write(&workspace, "outer/inner/BUILD.bazel", "");
+        write(&workspace, "outer/BUILD.bazel", "").unwrap();
+        write(&workspace, "outer/inner/BUILD.bazel", "").unwrap();
         let query = FakeQuery::new(vec![graph(&[])]);
         let selection = resolve_affected(
             &[change("outer/inner/gone.py", dx_adopt::ChangeKind::Deleted)],
@@ -2839,17 +2839,17 @@ mod tests {
     }
 
     fn bzl_workspace(prefix: &str) -> tempfile::TempDir {
-        let scratch = dx_test_scratch::scratch(prefix);
+        let scratch = dx_test_scratch::scratch(prefix).unwrap();
         let workspace = scratch.path();
-        write(workspace, "MODULE.bazel", "module(name = \"demo\")\n");
-        write(workspace, "tools/BUILD.bazel", "");
-        write(workspace, "tools/defs.bzl", "x = 1\n");
+        write(workspace, "MODULE.bazel", "module(name = \"demo\")\n").unwrap();
+        write(workspace, "tools/BUILD.bazel", "").unwrap();
+        write(workspace, "tools/defs.bzl", "x = 1\n").unwrap();
         write(
             workspace,
             "app/BUILD.bazel",
             "load(\"//tools:defs.bzl\", \"x\")\n",
-        );
-        write(workspace, "app/main.py", "x = 1\n");
+        ).unwrap();
+        write(workspace, "app/main.py", "x = 1\n").unwrap();
         scratch
     }
 
@@ -2904,8 +2904,8 @@ mod tests {
     fn scl_loaded_through_bzl_selects_only_that_package() {
         let scratch = bzl_workspace("dx-changed-scl-one-");
         let workspace = scratch.path();
-        write(workspace, "tools/x.scl", "X = 1\n");
-        write(workspace, "tools/defs.bzl", "load(\":x.scl\", \"X\")\n");
+        write(workspace, "tools/x.scl", "X = 1\n").unwrap();
+        write(workspace, "tools/defs.bzl", "load(\":x.scl\", \"X\")\n").unwrap();
         let query = FakeQuery::new(vec![graph(&[])]);
         let selection = bzl_resolve(
             workspace,
@@ -2928,7 +2928,7 @@ mod tests {
             workspace,
             "app/BUILD.bazel",
             "load(\"//tools:x.scl\", \"X\")\n",
-        );
+        ).unwrap();
         let query = FakeQuery::new(Vec::new());
         let selection = bzl_resolve(
             workspace,
@@ -2947,7 +2947,7 @@ mod tests {
     fn bzl_loaded_by_nothing_selects_nothing() {
         let scratch = bzl_workspace("dx-changed-bzl-none-");
         let workspace = scratch.path();
-        write(workspace, "app/BUILD.bazel", "");
+        write(workspace, "app/BUILD.bazel", "").unwrap();
         let query = FakeQuery::new(vec![graph(&[])]);
         let selection = bzl_resolve(
             workspace,
@@ -2963,7 +2963,7 @@ mod tests {
     fn bzl_owned_by_a_rule_keeps_its_owner() {
         let scratch = bzl_workspace("dx-changed-bzl-owned-");
         let workspace = scratch.path();
-        write(workspace, "app/BUILD.bazel", "");
+        write(workspace, "app/BUILD.bazel", "").unwrap();
         let query = FakeQuery::new(vec![graph(&[("//tools:defs", &["//tools:defs.bzl"])])]);
         let selection = bzl_resolve(
             workspace,
@@ -2983,7 +2983,7 @@ mod tests {
             workspace,
             "MODULE.bazel",
             "module(name = \"demo\")\nx = use_extension(\"//tools:defs.bzl\", \"x\")\n",
-        );
+        ).unwrap();
         let query = FakeQuery::new(vec![graph(&[])]);
         let selection = bzl_resolve(
             workspace,
@@ -3006,8 +3006,8 @@ mod tests {
             workspace,
             "MODULE.bazel",
             "module(name = \"demo\")\nx = use_extension(\"//tools:ext.bzl\", \"x\")\n",
-        );
-        write(workspace, "tools/ext.bzl", "load(\":defs.bzl\", \"x\")\n");
+        ).unwrap();
+        write(workspace, "tools/ext.bzl", "load(\":defs.bzl\", \"x\")\n").unwrap();
         let query = FakeQuery::new(vec![graph(&[])]);
         let selection = bzl_resolve(
             workspace,
@@ -3030,7 +3030,7 @@ mod tests {
             workspace,
             "core/quality/aspects.bzl",
             "load(\"//tools:defs.bzl\", \"x\")\n",
-        );
+        ).unwrap();
         let query = FakeQuery::new(vec![graph(&[])]);
         let selection = bzl_resolve(
             workspace,
@@ -3053,12 +3053,12 @@ mod tests {
             workspace,
             "MODULE.bazel",
             "module(name = \"demo\")\nregister_toolchains(\"//tools/tc:all\")\n",
-        );
+        ).unwrap();
         write(
             workspace,
             "tools/tc/BUILD.bazel",
             "load(\"//tools:defs.bzl\", \"x\")\n",
-        );
+        ).unwrap();
         let query = FakeQuery::new(vec![graph(&[])]);
         let selection = bzl_resolve(
             workspace,
@@ -3077,7 +3077,7 @@ mod tests {
     fn unreadable_module_widens_bzl_changes() {
         let scratch = bzl_workspace("dx-changed-bzl-bad-module-");
         let workspace = scratch.path();
-        write(workspace, "MODULE.bazel", "module(name = \n");
+        write(workspace, "MODULE.bazel", "module(name = \n").unwrap();
         let query = FakeQuery::new(vec![graph(&[])]);
         let selection = bzl_resolve(
             workspace,
@@ -3100,7 +3100,7 @@ mod tests {
     fn unparsable_build_file_widens_bzl_changes() {
         let scratch = bzl_workspace("dx-changed-bzl-bad-build-");
         let workspace = scratch.path();
-        write(workspace, "app/BUILD.bazel", "load(\"//tools:defs.bzl\"\n");
+        write(workspace, "app/BUILD.bazel", "load(\"//tools:defs.bzl\"\n").unwrap();
         let query = FakeQuery::new(vec![graph(&[])]);
         let selection = bzl_resolve(
             workspace,
@@ -3159,13 +3159,13 @@ mod tests {
     fn mixed_bzl_and_source_changes_get_per_package_reasons() {
         let scratch = bzl_workspace("dx-changed-bzl-mixed-");
         let workspace = scratch.path();
-        write(workspace, "tools/more.bzl", "y = 1\n");
-        write(workspace, "BUILD", "load(\"//tools:more.bzl\", \"y\")\n");
+        write(workspace, "tools/more.bzl", "y = 1\n").unwrap();
+        write(workspace, "BUILD", "load(\"//tools:more.bzl\", \"y\")\n").unwrap();
         write(
             workspace,
             "lib/BUILD.bazel",
             "load(\"//tools:defs.bzl\", \"x\")\nload(\"//tools:more.bzl\", \"y\")\n",
-        );
+        ).unwrap();
         let query = FakeQuery::new(vec![graph(&[("//app:bin", &["//app:main.py"])])]);
         let selection = bzl_resolve(
             workspace,
@@ -3194,10 +3194,10 @@ mod tests {
 
     #[test]
     fn unrelated_unowned_files_stay_in_their_package() {
-        let scratch = dx_test_scratch::scratch("dx-changed-unrelated-");
+        let scratch = dx_test_scratch::scratch("dx-changed-unrelated-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/notes.txt", "x\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/notes.txt", "x\n").unwrap();
         let query = FakeQuery::new(vec![graph(&[])]);
         let selection = resolve_affected(
             &[change("pkg/notes.txt", dx_adopt::ChangeKind::Modified)],
@@ -3213,10 +3213,10 @@ mod tests {
 
     #[test]
     fn spaced_names_resolve_verbatim() {
-        let scratch = dx_test_scratch::scratch("dx-changed-spaced-");
+        let scratch = dx_test_scratch::scratch("dx-changed-spaced-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/space name.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/space name.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![graph(&[("//pkg:lib", &["//pkg:space name.py"])])]);
         let selection = resolve_affected(
             &[change("pkg/space name.py", dx_adopt::ChangeKind::Added)],
@@ -3233,10 +3233,10 @@ mod tests {
 
     #[test]
     fn ownership_failures_stay_query_failed() {
-        let scratch = dx_test_scratch::scratch("dx-changed-owner-fail-");
+        let scratch = dx_test_scratch::scratch("dx-changed-owner-fail-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![FakeQuery::failed("ERROR: no such package\nmore\n")]);
         let err = resolve_affected(
             &[change("pkg/a.py", dx_adopt::ChangeKind::Modified)],
@@ -3258,11 +3258,11 @@ mod tests {
 
     #[test]
     fn partially_owned_batches_widen_only_the_orphans() {
-        let scratch = dx_test_scratch::scratch("dx-changed-partial-");
+        let scratch = dx_test_scratch::scratch("dx-changed-partial-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/owned.py", "x = 1\n");
-        write(&workspace, "pkg/orphan.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/owned.py", "x = 1\n").unwrap();
+        write(&workspace, "pkg/orphan.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![graph(&[("//pkg:lib", &["//pkg:owned.py"])])]);
         let selection = resolve_affected(
             &[
@@ -3283,7 +3283,7 @@ mod tests {
 
     #[test]
     fn working_tree_collects_staged_unstaged_and_untracked() {
-        let scratch = dx_test_scratch::scratch("dx-changed-worktree-");
+        let scratch = dx_test_scratch::scratch("dx-changed-worktree-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![
             FakeQuery::raw(b"M\0pkg/a.py\0".to_vec()),
@@ -3321,7 +3321,7 @@ mod tests {
 
     #[test]
     fn working_tree_dedupes_across_inputs() {
-        let scratch = dx_test_scratch::scratch("dx-changed-worktree-dedupe-");
+        let scratch = dx_test_scratch::scratch("dx-changed-worktree-dedupe-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![
             FakeQuery::raw(b"M\0pkg/a.py\0".to_vec()),
@@ -3336,7 +3336,7 @@ mod tests {
 
     #[test]
     fn untracked_dx_config_is_a_change() {
-        let scratch = dx_test_scratch::scratch("dx-changed-untracked-config-");
+        let scratch = dx_test_scratch::scratch("dx-changed-untracked-config-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![
             FakeQuery::raw(Vec::new()),
@@ -3351,7 +3351,7 @@ mod tests {
 
     #[test]
     fn untracked_dx_state_is_not_a_change() {
-        let scratch = dx_test_scratch::scratch("dx-changed-untracked-state-");
+        let scratch = dx_test_scratch::scratch("dx-changed-untracked-state-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![
             FakeQuery::raw(Vec::new()),
@@ -3366,7 +3366,7 @@ mod tests {
 
     #[test]
     fn untracked_names_must_be_utf8() {
-        let scratch = dx_test_scratch::scratch("dx-changed-untracked-utf8-");
+        let scratch = dx_test_scratch::scratch("dx-changed-untracked-utf8-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![
             FakeQuery::raw(b"M\0pkg/a.py\0".to_vec()),
@@ -3380,7 +3380,7 @@ mod tests {
 
     #[test]
     fn range_diffs_base_against_head() {
-        let scratch = dx_test_scratch::scratch("dx-changed-range-");
+        let scratch = dx_test_scratch::scratch("dx-changed-range-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::raw(b"M\0pkg/a.py\0".to_vec())]);
         let changes = collect_range(
@@ -3403,7 +3403,7 @@ mod tests {
 
     #[test]
     fn merge_base_returns_the_trimmed_sha() {
-        let scratch = dx_test_scratch::scratch("dx-changed-merge-base-");
+        let scratch = dx_test_scratch::scratch("dx-changed-merge-base-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::raw(b"  abc123\n".to_vec())]);
         let base = merge_base(
@@ -3423,7 +3423,7 @@ mod tests {
     #[test]
     fn merge_base_rejects_empty_and_ambiguous_output() {
         for (name, stdout) in [("empty", b"".to_vec()), ("two", b"a\nb\n".to_vec())] {
-            let scratch = dx_test_scratch::scratch("dx-changed-merge-base-bad-");
+            let scratch = dx_test_scratch::scratch("dx-changed-merge-base-bad-").unwrap();
             let workspace = scratch.path().to_path_buf();
             let query = FakeQuery::new(vec![FakeQuery::raw(stdout)]);
             let err = merge_base(
@@ -3440,7 +3440,7 @@ mod tests {
 
     #[test]
     fn shallow_clone_turns_diff_failure_into_actionable_error() {
-        let scratch = dx_test_scratch::scratch("dx-changed-shallow-");
+        let scratch = dx_test_scratch::scratch("dx-changed-shallow-").unwrap();
         let workspace = scratch.path().to_path_buf();
         std::fs::create_dir_all(workspace.join(".git")).expect("git dir");
         std::fs::write(workspace.join(".git/shallow"), "abc\n").expect("shallow");
@@ -3459,7 +3459,7 @@ mod tests {
 
     #[test]
     fn worktree_shallow_marker_is_found_through_the_gitdir_pointer() {
-        let scratch = dx_test_scratch::scratch("dx-changed-shallow-wt-");
+        let scratch = dx_test_scratch::scratch("dx-changed-shallow-wt-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let common = scratch.path().join("common.git");
         let gitdir = common.join("worktrees/wt");
@@ -3484,7 +3484,7 @@ mod tests {
 
     #[test]
     fn non_shallow_diff_failure_stays_plain() {
-        let scratch = dx_test_scratch::scratch("dx-changed-diff-fail-");
+        let scratch = dx_test_scratch::scratch("dx-changed-diff-fail-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::failed("fatal: bad revision")]);
         let err = diff_name_status(
@@ -3500,13 +3500,13 @@ mod tests {
 
     #[test]
     fn override_changes_need_no_git_without_outside_overrides() {
-        let scratch = dx_test_scratch::scratch("dx-changed-override-none-");
+        let scratch = dx_test_scratch::scratch("dx-changed-override-none-").unwrap();
         let workspace = scratch.path().to_path_buf();
         write(
             &workspace,
             "MODULE.bazel",
             "local_path_override(module_name = \"x\", path = \"third_party/x\")\n",
-        );
+        ).unwrap();
         let changes =
             local_override_changes(Path::new("/hermetic/git"), &workspace, &NeverQuery, "base")
                 .expect("no overrides");
@@ -3515,13 +3515,13 @@ mod tests {
 
     #[test]
     fn override_changes_list_files_under_outside_overrides() {
-        let scratch = dx_test_scratch::scratch("dx-changed-override-");
+        let scratch = dx_test_scratch::scratch("dx-changed-override-").unwrap();
         let workspace = scratch.path().to_path_buf();
         write(
             &workspace,
             "MODULE.bazel",
             "local_path_override(module_name = \"lib\", path = \"../lib\")\nlocal_path_override(module_name = \"far\", path = \"../../far\")\n",
-        );
+        ).unwrap();
         let query = FakeQuery::new(vec![
             FakeQuery::raw(b"sub/\n".to_vec()),
             FakeQuery::raw(b"lib/x.rs\0".to_vec()),
@@ -3544,13 +3544,13 @@ mod tests {
 
     #[test]
     fn override_changes_read_backslash_override_paths_like_slash_paths() {
-        let scratch = dx_test_scratch::scratch("dx-changed-override-backslash-");
+        let scratch = dx_test_scratch::scratch("dx-changed-override-backslash-").unwrap();
         let workspace = scratch.path().to_path_buf();
         write(
             &workspace,
             "MODULE.bazel",
             "local_path_override(module_name = \"lib\", path = \"..\\\\lib\")\n",
-        );
+        ).unwrap();
         let query = FakeQuery::new(vec![
             FakeQuery::raw(b"sub/\n".to_vec()),
             FakeQuery::raw(b"lib/x.rs\0".to_vec()),
@@ -3566,13 +3566,13 @@ mod tests {
 
     #[test]
     fn override_changes_skip_the_override_modules_dx_state() {
-        let scratch = dx_test_scratch::scratch("dx-changed-override-dx-");
+        let scratch = dx_test_scratch::scratch("dx-changed-override-dx-").unwrap();
         let workspace = scratch.path().to_path_buf();
         write(
             &workspace,
             "MODULE.bazel",
             "local_path_override(module_name = \"lib\", path = \"../lib\")\n",
-        );
+        ).unwrap();
         let query = FakeQuery::new(vec![
             FakeQuery::raw(b"sub/\n".to_vec()),
             FakeQuery::raw(b"lib/x.rs\0".to_vec()),
@@ -3585,13 +3585,13 @@ mod tests {
 
     #[test]
     fn override_changes_skip_the_workspace_dx_state_under_an_ancestor_override() {
-        let scratch = dx_test_scratch::scratch("dx-changed-override-anc-");
+        let scratch = dx_test_scratch::scratch("dx-changed-override-anc-").unwrap();
         let workspace = scratch.path().to_path_buf();
         write(
             &workspace,
             "MODULE.bazel",
             "local_path_override(module_name = \"up\", path = \"../../a\")\n",
-        );
+        ).unwrap();
         let query = FakeQuery::new(vec![
             FakeQuery::raw(b"a/b/\n".to_vec()),
             FakeQuery::raw(b"a/x.rs\0".to_vec()),
@@ -3604,13 +3604,13 @@ mod tests {
 
     #[test]
     fn override_changes_skip_overrides_outside_the_repository() {
-        let scratch = dx_test_scratch::scratch("dx-changed-override-outside-");
+        let scratch = dx_test_scratch::scratch("dx-changed-override-outside-").unwrap();
         let workspace = scratch.path().to_path_buf();
         write(
             &workspace,
             "MODULE.bazel",
             "local_path_override(module_name = \"lib\", path = \"../lib\")\n",
-        );
+        ).unwrap();
         let query = FakeQuery::new(vec![FakeQuery::raw(b"\n".to_vec())]);
         let changes =
             local_override_changes(Path::new("/hermetic/git"), &workspace, &query, "base")

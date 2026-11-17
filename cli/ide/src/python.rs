@@ -130,7 +130,7 @@ mod tests {
 
     #[test]
     fn locked_labels_skip_the_workspace_projects() {
-        let scratch = dx_test_scratch::scratch("dx-ide-lock-");
+        let scratch = dx_test_scratch::scratch("dx-ide-lock-").unwrap();
         let lock = scratch.path().join(lock_name());
         std::fs::write(
             &lock,

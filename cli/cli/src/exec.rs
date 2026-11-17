@@ -615,7 +615,7 @@ mod tests {
         unclaimed: bool,
         gone: bool,
     ) -> tempfile::TempDir {
-        let scratch = dx_test_scratch::scratch("dx-exec-lease-");
+        let scratch = dx_test_scratch::scratch("dx-exec-lease-").unwrap();
         let slot = scratch.path().join("pool").join("1");
         std::fs::create_dir_all(&slot).expect("slot");
         std::fs::create_dir_all(scratch.path().join("pool").join(".dx")).expect("meta");

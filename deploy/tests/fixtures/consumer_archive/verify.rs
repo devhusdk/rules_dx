@@ -118,7 +118,7 @@ fn archive_marks_only_the_app_executable() {
 fn archive_relocates_and_runs() {
     let tarball = env_file("DX_ARCHIVE_TARBALL");
     let app_name = var("DX_ARCHIVE_APP");
-    let scratch_dir = dx_test_scratch::scratch(&app_name);
+    let scratch_dir = dx_test_scratch::scratch(&app_name).unwrap();
     let scratch = scratch_dir.path();
     let listed = dx_testing::run(
         &PathBuf::from("tar"),

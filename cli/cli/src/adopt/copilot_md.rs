@@ -61,7 +61,7 @@ mod tests {
 
     #[test]
     fn an_absent_file_is_created_and_an_existing_one_gets_the_block_appended() {
-        let dir = scratch("dx-copilot-md-");
+        let dir = scratch("dx-copilot-md-").unwrap();
         assert!(!refresh(dir.path()).expect("absent"));
         assert!(write(dir.path()).expect("create"));
         assert!(!write(dir.path()).expect("again"));

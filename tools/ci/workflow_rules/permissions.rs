@@ -56,7 +56,7 @@ const TOKENLESS: &[&str] = &["id-token"];
 const TOKEN_NEEDLES: &[&str] = &["github.token", "secrets.GITHUB_TOKEN"];
 
 fn parse(name: &str, text: &str) -> Value {
-    ci_workflow::parse(name, text)
+    ci_workflow::parse(name, text).unwrap()
 }
 
 /// Returns true when one step shows it uses `scope`.
@@ -115,7 +115,7 @@ fn unused_write_scopes(name: &str, workflow: &Value) -> Vec<String> {
 
 #[test]
 fn every_workflow_sets_top_level_permissions() {
-    for (name, workflow) in ci_workflow::all() {
+    for (name, workflow) in ci_workflow::all().unwrap() {
         assert!(
             workflow["permissions"].is_object(),
             "{name} must set top-level permissions as a map, got {}",
@@ -126,7 +126,7 @@ fn every_workflow_sets_top_level_permissions() {
 
 #[test]
 fn every_write_scope_has_a_step_that_uses_it() {
-    let problems: Vec<String> = ci_workflow::all()
+    let problems: Vec<String> = ci_workflow::all().unwrap()
         .iter()
         .flat_map(|(name, workflow)| unused_write_scopes(name, workflow))
         .collect();
@@ -202,10 +202,10 @@ fn add_scopes(scopes: &mut Vec<(String, String)>, permissions: &Value, what: &st
 
 /// Returns every scope a reusable workflow requests: its top level and every job's.
 fn requested_scopes(path: &str) -> Vec<(String, String)> {
-    let workflow = ci_workflow::document(path);
+    let workflow = ci_workflow::document(path).unwrap();
     let mut scopes = Vec::new();
     add_scopes(&mut scopes, &workflow["permissions"], path);
-    for (id, job) in ci_workflow::jobs(path) {
+    for (id, job) in ci_workflow::jobs(path).unwrap() {
         add_scopes(
             &mut scopes,
             &job["permissions"],
@@ -219,7 +219,7 @@ fn requested_scopes(path: &str) -> Vec<(String, String)> {
 fn calling_jobs_grant_every_scope_the_called_workflow_requests() {
     let mut calls = 0;
     for caller in CALLERS {
-        for (id, name, job) in ci_workflow::reusable_calls(caller) {
+        for (id, name, job) in ci_workflow::reusable_calls(caller).unwrap() {
             calls += 1;
             let requested = requested_scopes(&format!(".github/workflows/{name}"));
             assert!(
@@ -258,7 +258,7 @@ fn calling_jobs_grant_every_scope_the_called_workflow_requests() {
 
 #[test]
 fn gate_job_checks_evidence_statuses_with_read_only_statuses_scope() {
-    let (_, ci) = ci_workflow::all()
+    let (_, ci) = ci_workflow::all().unwrap()
         .into_iter()
         .find(|(name, _)| name.ends_with("/ci.yml"))
         .expect("ci.yml");

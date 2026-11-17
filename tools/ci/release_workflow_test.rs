@@ -47,7 +47,7 @@ fn declared(path: &Path, field: &str) -> Vec<String> {
 }
 
 fn publish_script() -> String {
-    scripts(WORKFLOW, "release")
+    scripts(WORKFLOW, "release").unwrap()
 }
 
 #[test]
@@ -82,7 +82,7 @@ fn publish_step_maps_every_gate_credential_from_secrets() {
         credentials.contains(&"NPM_API_TOKEN".to_owned()),
         "{credentials:?}"
     );
-    let step = steps(WORKFLOW, "release")
+    let step = steps(WORKFLOW, "release").unwrap()
         .into_iter()
         .find(|step| step["name"] == "Publish")
         .expect("release job has a Publish step");
@@ -97,7 +97,7 @@ fn publish_step_maps_every_gate_credential_from_secrets() {
 
 #[test]
 fn query_matches_the_release_tag_exactly() {
-    let script = scripts(WORKFLOW, "plan");
+    let script = scripts(WORKFLOW, "plan").unwrap();
     assert!(
         script.contains(r#"attr(tags, "[\\[ ]release[,\\]]", kind(dx_deployment, //...))"#),
         "the plan query must match the exact release tag:\n{script}"
@@ -106,7 +106,7 @@ fn query_matches_the_release_tag_exactly() {
 
 #[test]
 fn release_waits_for_dry_run_and_plan_and_plan_runs_on_tags_or_without_publish() {
-    let release = job(WORKFLOW, "release");
+    let release = job(WORKFLOW, "release").unwrap();
     let needs: Vec<&str> = release["needs"]
         .as_array()
         .expect("release needs a list")
@@ -117,9 +117,9 @@ fn release_waits_for_dry_run_and_plan_and_plan_runs_on_tags_or_without_publish()
         needs.contains(&"dry-run") && needs.contains(&"plan"),
         "{needs:?}"
     );
-    let dry = job(WORKFLOW, "dry-run");
+    let dry = job(WORKFLOW, "dry-run").unwrap();
     assert_eq!(dry["needs"], serde_json::json!(["plan"]));
-    let condition = job(WORKFLOW, "plan")["if"]
+    let condition = job(WORKFLOW, "plan").unwrap()["if"]
         .as_str()
         .unwrap_or_default()
         .to_owned();
@@ -132,7 +132,7 @@ fn release_waits_for_dry_run_and_plan_and_plan_runs_on_tags_or_without_publish()
 
 #[test]
 fn release_job_needs_publish_and_a_tag() {
-    let condition = job(WORKFLOW, "release")["if"]
+    let condition = job(WORKFLOW, "release").unwrap()["if"]
         .as_str()
         .unwrap_or_default()
         .to_owned();
@@ -145,23 +145,23 @@ fn release_job_needs_publish_and_a_tag() {
 
 #[test]
 fn publish_input_defaults_true() {
-    let publish = &workflow_call(WORKFLOW)["inputs"]["publish"];
+    let publish = &workflow_call(WORKFLOW).unwrap()["inputs"]["publish"];
     assert_eq!(publish["type"], "boolean");
     assert_eq!(publish["default"], true);
 }
 
 #[test]
 fn only_the_release_job_can_write() {
-    let doc = document(WORKFLOW);
+    let doc = document(WORKFLOW).unwrap();
     assert_eq!(doc["permissions"], serde_json::json!({"contents": "read"}));
     for name in ["plan", "dry-run"] {
         assert_eq!(
-            job(WORKFLOW, name)["permissions"],
+            job(WORKFLOW, name).unwrap()["permissions"],
             serde_json::json!({"contents": "read"}),
             "{name}"
         );
     }
-    let perms = job(WORKFLOW, "release")["permissions"].clone();
+    let perms = job(WORKFLOW, "release").unwrap()["permissions"].clone();
     for scope in ["contents", "id-token", "attestations", "packages"] {
         assert_eq!(perms[scope], "write", "release {scope}");
     }
@@ -169,20 +169,20 @@ fn only_the_release_job_can_write() {
 
 #[test]
 fn only_the_publish_step_applies() {
-    assert!(!scripts(WORKFLOW, "dry-run").contains("--apply"));
-    assert!(!scripts(WORKFLOW, "plan").contains("--apply"));
+    assert!(!scripts(WORKFLOW, "dry-run").unwrap().contains("--apply"));
+    assert!(!scripts(WORKFLOW, "plan").unwrap().contains("--apply"));
     assert!(publish_script().contains("deploy --apply"));
 }
 
 #[test]
 fn deploys_run_dx_through_cmd_on_windows() {
     for name in ["dry-run", "release"] {
-        let script = scripts(WORKFLOW, name);
+        let script = scripts(WORKFLOW, name).unwrap();
         assert!(
             script.contains("cmd.exe //c tools\\\\dx.cmd deploy"),
             "{name}"
         );
-        assert!(steps(WORKFLOW, name).len() >= 3);
+        assert!(steps(WORKFLOW, name).unwrap().len() >= 3);
     }
 }
 
@@ -194,7 +194,7 @@ fn summary_trap_runs_on_exit() {
 #[test]
 fn workflow_text_is_readable() {
     assert!(
-        strings(WORKFLOW)
+        strings(WORKFLOW).unwrap()
             .iter()
             .any(|text| text.contains("rules-dx-release"))
     );

@@ -65,7 +65,7 @@ struct Site {
 
 impl Site {
     fn new(name: &str) -> Self {
-        let root_tmp = dx_test_scratch::scratch(name);
+        let root_tmp = dx_test_scratch::scratch(name).unwrap();
         let root = root_tmp.path().to_path_buf();
         let site = Self {
             _scratch: root_tmp,

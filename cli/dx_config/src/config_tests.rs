@@ -66,7 +66,7 @@ fn bad_tier_and_pattern_are_errors() {
 
 #[test]
 fn a_missing_file_is_the_standard_tier() {
-    let scratch = dx_test_scratch::scratch("dx_config_");
+    let scratch = dx_test_scratch::scratch("dx_config_").unwrap();
     let dir = scratch.path().to_path_buf();
     assert_eq!(load(&dir).unwrap(), None);
     std::fs::write(dir.join("dx.toml"), "schema_version = 1\n").unwrap();

@@ -189,7 +189,7 @@ fn a_stack_lock_beside_cabal_project_joins_the_cabal_set() {
 
 #[test]
 fn cabal_layout_compares_freeze_and_sidecar_versions() {
-    let scratch = dx_test_scratch::scratch("dx-dependency-sets-cabal-");
+    let scratch = dx_test_scratch::scratch("dx-dependency-sets-cabal-").unwrap();
     let root = scratch.path();
     std::fs::create_dir_all(root.join("hs")).expect("dir");
     std::fs::write(
@@ -259,7 +259,7 @@ fn cpan_installs_become_cpan_sets() {
 const CPAN_SNAPSHOT: &str = "# carton snapshot format: version 1.0\nDISTRIBUTIONS\n  Try-Tiny-0.31\n    pathname: E/ET/ETHER/Try-Tiny-0.31.tar.gz\n";
 
 fn cpan_workspace(lock: &str) -> (dx_test_scratch::TempDir, ResolvedSet) {
-    let scratch = dx_test_scratch::scratch("dx-dependency-sets-cpan-");
+    let scratch = dx_test_scratch::scratch("dx-dependency-sets-cpan-").unwrap();
     let root = scratch.path();
     std::fs::create_dir_all(root.join("perl")).expect("dir");
     let (manifest, [state_path, lock_path]) = cpan_paths("perl");
@@ -414,7 +414,7 @@ fn julia_from_manifest_tags_become_julia_sets() {
 
 #[test]
 fn julia_layout_needs_both_locks_to_name_the_same_versions() {
-    let scratch = dx_test_scratch::scratch("dx-julia-layout-");
+    let scratch = dx_test_scratch::scratch("dx-julia-layout-").unwrap();
     let dir = scratch.path().to_path_buf();
     let manifest = "manifest_format = \"2.0\"\n[[deps.Glob]]\nversion = \"1.3.1\"\n[[deps.Dates]]\nuuid = \"x\"\n";
     std::fs::write(dir.join("Manifest.toml"), manifest).expect("write");
@@ -551,7 +551,7 @@ fn hub_problems_fail_closed() {
 
 #[test]
 fn load_reads_the_workspace_module() {
-    let scratch = dx_test_scratch::scratch("dx-dependency-sets-absent-");
+    let scratch = dx_test_scratch::scratch("dx-dependency-sets-absent-").unwrap();
     assert_eq!(load(&scratch.path().join("absent")).expect("absent"), None);
     std::fs::write(
         scratch.path().join(MODULE_BAZEL),
@@ -776,7 +776,7 @@ fn settings_workspace(
     pyproject: &str,
     config: Option<&str>,
 ) -> dx_test_scratch::TempDir {
-    let scratch = dx_test_scratch::scratch(&format!("dx-dependency-sets-settings-{name}-"));
+    let scratch = dx_test_scratch::scratch(&format!("dx-dependency-sets-settings-{name}-")).unwrap();
     let workspace = scratch.path().to_path_buf();
     std::fs::create_dir_all(workspace.join("apps/frontend")).expect("mkdir");
     std::fs::write(workspace.join("apps/frontend/pyproject.toml"), pyproject).expect("pyproject");
@@ -882,7 +882,7 @@ fn parent_uv_workspaces_are_unsupported() {
 #[test]
 fn missing_files_fail_closed_with_paths() {
     let registry = two_uv();
-    let scratch = dx_test_scratch::scratch("dx-dependency-sets-missing-");
+    let scratch = dx_test_scratch::scratch("dx-dependency-sets-missing-").unwrap();
     let workspace = scratch.path().join("absent");
     let frontend = ResolvedSet::of(registry.find("frontend").expect("frontend"));
     assert!(matches!(
@@ -896,7 +896,7 @@ mod link_confinement {
     use super::*;
 
     fn setup() -> (dx_test_scratch::TempDir, std::path::PathBuf, ResolvedSet) {
-        let outer = dx_test_scratch::scratch("dx-linkconf-");
+        let outer = dx_test_scratch::scratch("dx-linkconf-").unwrap();
         let workspace = outer.path().join("ws");
         std::fs::create_dir_all(&workspace).expect("ws");
         let registry = two_uv();
@@ -1107,7 +1107,7 @@ fn npm_packages_allow_one_scope_and_lowercase_names() {
 }
 
 fn npm_workspace(name: &str) -> dx_test_scratch::TempDir {
-    let scratch = dx_test_scratch::scratch(&format!("dx-dependency-sets-npm-{name}-"));
+    let scratch = dx_test_scratch::scratch(&format!("dx-dependency-sets-npm-{name}-")).unwrap();
     let workspace = scratch.path().to_path_buf();
     std::fs::create_dir_all(workspace.join("apps/web")).expect("set dir");
     std::fs::write(workspace.join("apps/web/package.json"), "{}\n").expect("manifest");
@@ -1251,7 +1251,7 @@ fn ruby_and_powershell_sets_load_as_ecosystems() {
 #[test]
 fn pinned_sets_must_declare_the_lock_beside_their_manifest() {
     let registry = pinned();
-    let scratch = dx_test_scratch::scratch("dx-dependency-sets-pinned-");
+    let scratch = dx_test_scratch::scratch("dx-dependency-sets-pinned-").unwrap();
     let workspace = scratch.path().to_path_buf();
     for name in ["gems", "modules"] {
         let set = ResolvedSet::of(registry.find(name).expect("set"));
@@ -1349,7 +1349,7 @@ const CARGO_EXT: &str =
 const CARGO_HUBS: &str = "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = \"crates\", cargo_lockfile = \"//apps/rs:Cargo.lock\", lockfile = \"//apps/rs:cargo-bazel-lock.json\", manifests = [\"//apps/rs:Cargo.toml\"])\ncrate.from_cargo(name = \"tool_crates\", cargo_lockfile = \"//tools/rs:Cargo.lock\", manifests = [\"//tools/rs:Cargo.toml\"])\nuse_repo(crate, \"crates\", \"tool_crates\")\n";
 
 fn cargo_hub_detail(module: &str, set: &ResolvedSet) -> String {
-    let scratch = dx_test_scratch::scratch("dx-dependency-sets-cargo-hub-");
+    let scratch = dx_test_scratch::scratch("dx-dependency-sets-cargo-hub-").unwrap();
     std::fs::write(scratch.path().join(MODULE_BAZEL), module).expect("module");
     match check_backend_settings(scratch.path(), set) {
         Err(DependencySetsError::UnsupportedCargoHub { detail, .. }) => detail,
@@ -1361,7 +1361,7 @@ fn cargo_hub_detail(module: &str, set: &ResolvedSet) -> String {
 fn cargo_hubs_resolve_by_their_visible_name_and_refuse_everything_else() {
     let registry = cargo_sets();
     let crates = ResolvedSet::of(registry.find("crates").expect("crates"));
-    let scratch = dx_test_scratch::scratch("dx-dependency-sets-cargo-visible-");
+    let scratch = dx_test_scratch::scratch("dx-dependency-sets-cargo-visible-").unwrap();
     let hub = |import: &str| {
         format!(
             "{CARGO_EXT}crate.from_cargo(name = \"crates\", cargo_lockfile = \"//apps/rs:Cargo.lock\", lockfile = \"//apps/rs:cargo-bazel-lock.json\", manifests = [\"//apps/rs:Cargo.toml\"])\n{import}"
@@ -1449,7 +1449,7 @@ fn cargo_sets_load_with_their_repository() {
 #[test]
 fn cargo_sets_must_declare_cargo_lock_beside_the_manifest() {
     let registry = cargo_sets();
-    let scratch = dx_test_scratch::scratch("dx-dependency-sets-cargo-");
+    let scratch = dx_test_scratch::scratch("dx-dependency-sets-cargo-").unwrap();
     let workspace = scratch.path().to_path_buf();
     std::fs::write(workspace.join(MODULE_BAZEL), CARGO_HUBS).expect("module");
     for name in ["crates", "tool_crates"] {
@@ -1526,7 +1526,7 @@ fn maven_sets() -> Registry {
 const SIGNED_LOCK: &str = "{\"__AUTOGENERATED_FILE_DO_NOT_MODIFY_THIS_FILE_MANUALLY\":\"x\",\"__INPUT_ARTIFACTS_HASH\":1,\"__RESOLVED_ARTIFACTS_HASH\":2}";
 
 fn maven_workspace(module: &str, lock: &str) -> (dx_test_scratch::TempDir, ResolvedSet) {
-    let scratch = dx_test_scratch::scratch("dx-dependency-sets-maven-");
+    let scratch = dx_test_scratch::scratch("dx-dependency-sets-maven-").unwrap();
     let root = scratch.path();
     std::fs::write(root.join("MODULE.bazel"), module).expect("module");
     std::fs::create_dir_all(root.join("third_party")).expect("dir");
@@ -1753,7 +1753,7 @@ fn go_workspace(
     module: &str,
     go_mod: &str,
 ) -> (dx_test_scratch::TempDir, ResolvedSet) {
-    let scratch = dx_test_scratch::scratch("dx-dependency-sets-go-");
+    let scratch = dx_test_scratch::scratch("dx-dependency-sets-go-").unwrap();
     let root = scratch.path();
     std::fs::write(root.join("MODULE.bazel"), module).expect("module");
     std::fs::create_dir_all(root.join("third_party/go")).expect("dir");

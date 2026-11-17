@@ -114,7 +114,7 @@ mod tests {
         }
         assert_eq!(parsed[0], parsed[1]);
         assert_eq!(parsed[0], parsed[2]);
-        let workspace = dx_test_scratch::scratch("dx-resolve-test-query-order-")
+        let workspace = dx_test_scratch::scratch("dx-resolve-test-query-order-").unwrap()
             .path()
             .to_path_buf();
         let mut argvs = Vec::new();
@@ -138,10 +138,10 @@ mod tests {
 
     #[test]
     fn query_failures_keep_the_bazel_status_and_a_bounded_excerpt() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-query-fail-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-query-fail-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
         let label = "kind('rule', //...)";
         let query = FakeQuery::new(vec![QueryResult {
             code: Some(7),
@@ -213,7 +213,7 @@ mod tests {
                 ))
             }
         }
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-query-launch-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-query-launch-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let err = run_label_query("owners", &workspace, &Missing, &[]).expect_err("launch");
         assert_eq!(

@@ -37,7 +37,7 @@ const CHECK: [&str; 2] = ["--output=none", "--set-exit-if-changed"];
 
 #[test]
 fn clean_file_passes() {
-    let scratch = dx_test_scratch::scratch("dart-format");
+    let scratch = dx_test_scratch::scratch("dart-format").unwrap();
     let file = source(scratch.path(), "clean", CLEAN);
     let out = run(&CHECK, &file);
     assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
@@ -45,7 +45,7 @@ fn clean_file_passes() {
 
 #[test]
 fn dirty_file_is_listed_then_fixed() {
-    let scratch = dx_test_scratch::scratch("dart-format");
+    let scratch = dx_test_scratch::scratch("dart-format").unwrap();
     let file = source(scratch.path(), "dirty", DIRTY);
     let out = run(&CHECK, &file);
     assert_eq!(out.status.code(), Some(1), "{}", text(&out.stderr));
@@ -57,7 +57,7 @@ fn dirty_file_is_listed_then_fixed() {
 
 #[test]
 fn syntax_error_exits_65_with_a_location() {
-    let scratch = dx_test_scratch::scratch("dart-format");
+    let scratch = dx_test_scratch::scratch("dart-format").unwrap();
     let file = source(scratch.path(), "broken", BROKEN);
     let out = run(&CHECK, &file);
     assert_eq!(out.status.code(), Some(65));

@@ -118,7 +118,7 @@ fn malformed_files_exit_3_with_their_reason() {
 
 #[test]
 fn packaged_registry_is_found_from_any_directory() {
-    let scratch = dx_test_scratch::scratch("node-app-elsewhere");
+    let scratch = dx_test_scratch::scratch("node-app-elsewhere").unwrap();
     let dir = scratch.path().to_path_buf();
     let run = registry(&["list"], Some(&dir));
     assert_eq!(run.status.code(), Some(0), "{}", stderr(&run));
@@ -142,7 +142,7 @@ fn relative_file_resolves_against_the_invoking_directory() {
 
 #[test]
 fn environment_file_is_used_when_no_flag_is_given() {
-    let scratch = dx_test_scratch::scratch("node-app-env");
+    let scratch = dx_test_scratch::scratch("node-app-env").unwrap();
     let dir = scratch.path().to_path_buf();
     let file = dir.join("mine.json");
     std::fs::write(&file, r#"[{"name":"solo","versions":["4.5.6"]}]"#).expect("write file");
@@ -154,7 +154,7 @@ fn environment_file_is_used_when_no_flag_is_given() {
 
 #[test]
 fn where_reports_the_staged_entry_and_the_pinned_dependency() {
-    let scratch = dx_test_scratch::scratch("node-app-where");
+    let scratch = dx_test_scratch::scratch("node-app-where").unwrap();
     let dir = scratch.path().to_path_buf();
     let run = registry(&["where", "--flag", "two words"], Some(&dir));
     assert_eq!(run.status.code(), Some(0), "{}", stderr(&run));
@@ -186,7 +186,7 @@ fn where_reports_the_staged_entry_and_the_pinned_dependency() {
 #[cfg(unix)]
 #[test]
 fn staged_symlink_runs_the_same_entry() {
-    let scratch = dx_test_scratch::scratch("node-app-staged");
+    let scratch = dx_test_scratch::scratch("node-app-staged").unwrap();
     let dir = scratch.path().to_path_buf();
     let link = dir.join("registry-link");
     let _ = std::fs::remove_file(&link);

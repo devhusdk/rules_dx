@@ -17,7 +17,7 @@ asset notes.txt bytes=41 adler32:3d6a0e9d
 ";
 
 fn stage(prefix: &str, artifact: &Path, name: &str) -> (dx_test_scratch::TempDir, PathBuf) {
-    let scratch = dx_test_scratch::scratch(prefix);
+    let scratch = dx_test_scratch::scratch(prefix).unwrap();
     let dir = scratch.path();
     let target = dir.join(name);
     std::fs::copy(artifact, &target).expect("relocate the artifact");

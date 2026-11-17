@@ -8,7 +8,7 @@ use shard_test_support::{line_of, shard, symbol};
 
 #[test]
 fn the_fixture_shard_has_the_exact_symbols() {
-    let shard = shard("DX_FIXTURE_SHARD");
+    let shard = shard("DX_FIXTURE_SHARD").unwrap();
     validate_shard(&shard).expect("validate_shard passes");
     assert_eq!(
         (shard.language.as_str(), shard.package.as_str()),
@@ -36,8 +36,8 @@ fn the_fixture_shard_has_the_exact_symbols() {
 
 #[test]
 fn kinds_signatures_and_docs_match_the_sources() {
-    let shard = shard("DX_FIXTURE_SHARD");
-    let sig = |id: &str| symbol(&shard, id).signature_text.clone();
+    let shard = shard("DX_FIXTURE_SHARD").unwrap();
+    let sig = |id: &str| symbol(&shard, id).unwrap().signature_text.clone();
     assert_eq!(sig("vue:ui:Button"), "component Button");
     assert_eq!(sig("vue:ui:Button.prop_label"), "label: string");
     assert_eq!(
@@ -55,30 +55,30 @@ fn kinds_signatures_and_docs_match_the_sources() {
     assert_eq!(sig("vue:ui:Button.exposed_focus"), "focus: () => void");
     assert_eq!(sig("vue:ui:Button.exposed_clicks"), "clicks: number");
     assert_eq!(
-        symbol(&shard, "vue:ui:Button.exposed_focus").kind,
+        symbol(&shard, "vue:ui:Button.exposed_focus").unwrap().kind,
         SymbolKind::Method as i32
     );
     assert_eq!(
-        symbol(&shard, "vue:ui:Button.exposed_clicks").kind,
+        symbol(&shard, "vue:ui:Button.exposed_clicks").unwrap().kind,
         SymbolKind::Field as i32
     );
     assert_eq!(
-        symbol(&shard, "vue:ui:Button.slot_default").kind,
+        symbol(&shard, "vue:ui:Button.slot_default").unwrap().kind,
         SymbolKind::Slot as i32
     );
     assert_eq!(
-        symbol(&shard, "vue:ui:Badge").doc_markdown,
+        symbol(&shard, "vue:ui:Badge").unwrap().doc_markdown,
         "A small status badge."
     );
     assert_eq!(
-        symbol(&shard, "vue:ui:Button.prop_label").doc_markdown,
+        symbol(&shard, "vue:ui:Button.prop_label").unwrap().doc_markdown,
         "Text shown inside the button."
     );
 }
 
 #[test]
 fn source_lines_follow_the_file_bytes_including_non_ascii_comments() {
-    let shard = shard("DX_FIXTURE_SHARD");
+    let shard = shard("DX_FIXTURE_SHARD").unwrap();
     let source = std::fs::read_to_string(dx_testing::env_file("DX_FIXTURE_BUTTON_SOURCE"))
         .expect("read Button.vue");
     assert!(
@@ -90,14 +90,14 @@ fn source_lines_follow_the_file_bytes_including_non_ascii_comments() {
         ("vue:ui:Button.prop_size", "  size?: number;"),
         ("vue:ui:Button.prop_disabled", "  disabled?: boolean;"),
     ] {
-        let reference = symbol(&shard, id).source.clone().expect("source");
+        let reference = symbol(&shard, id).unwrap().source.clone().expect("source");
         assert_eq!(
             reference.file, "tools/docs/components/fixture/vue/src/Button.vue",
             "{id}"
         );
         assert_eq!(
             reference.line,
-            line_of("DX_FIXTURE_BUTTON_SOURCE", needle),
+            line_of("DX_FIXTURE_BUTTON_SOURCE", needle).unwrap(),
             "{id}"
         );
     }
@@ -105,16 +105,16 @@ fn source_lines_follow_the_file_bytes_including_non_ascii_comments() {
 
 #[test]
 fn the_configuration_variation_is_observable() {
-    let strict = shard("DX_FIXTURE_SHARD");
-    let loose = shard("DX_FIXTURE_LOOSE_SHARD");
+    let strict = shard("DX_FIXTURE_SHARD").unwrap();
+    let loose = shard("DX_FIXTURE_LOOSE_SHARD").unwrap();
     let ids = |s: &DocIr| s.symbols.iter().map(|x| x.id.clone()).collect::<Vec<_>>();
     assert_eq!(ids(&strict), ids(&loose));
     assert_eq!(
-        symbol(&loose, "vue:ui:Button.prop_size").signature_text,
+        symbol(&loose, "vue:ui:Button.prop_size").unwrap().signature_text,
         "size?: number = 12"
     );
     let config = |s: &DocIr| {
-        String::from_utf8(symbol(s, "vue:ui:Button").extensions[0].value.clone()).expect("utf8")
+        String::from_utf8(symbol(s, "vue:ui:Button").unwrap().extensions[0].value.clone()).expect("utf8")
     };
     assert!(
         config(&strict).starts_with("tsconfig=tsconfig.json;"),
@@ -134,7 +134,7 @@ fn the_configuration_variation_is_observable() {
 
 #[test]
 fn the_converter_fails_without_writing_on_bad_metadata() {
-    let scratch = dx_test_scratch::scratch("component_extract");
+    let scratch = dx_test_scratch::scratch("component_extract").unwrap();
     let dir = scratch.path();
     let meta = std::fs::read_to_string(dx_testing::env_file("DX_FIXTURE_META")).expect("meta");
     let cases = [
@@ -177,7 +177,7 @@ fn the_converter_fails_without_writing_on_bad_metadata() {
 
 #[test]
 fn the_svelte_shard_has_exact_symbols_signatures_docs_and_lines() {
-    let shard = shard("DX_SVELTE_SHARD");
+    let shard = shard("DX_SVELTE_SHARD").unwrap();
     validate_shard(&shard).expect("validate_shard passes");
     assert_eq!(
         (shard.language.as_str(), shard.package.as_str()),
@@ -197,15 +197,15 @@ fn the_svelte_shard_has_exact_symbols_signatures_docs_and_lines() {
             "svelte:ui:Tag.prop_label",
         ]
     );
-    let sig = |id: &str| symbol(&shard, id).signature_text.clone();
+    let sig = |id: &str| symbol(&shard, id).unwrap().signature_text.clone();
     assert_eq!(sig("svelte:ui:Card.prop_title"), "title: string");
     assert_eq!(sig("svelte:ui:Card.prop_rows"), "rows?: number = 3");
     assert_eq!(
-        symbol(&shard, "svelte:ui:Card.prop_title").doc_markdown,
+        symbol(&shard, "svelte:ui:Card.prop_title").unwrap().doc_markdown,
         "Heading of the card."
     );
     assert_eq!(
-        symbol(&shard, "svelte:ui:Card.slot_footer").kind,
+        symbol(&shard, "svelte:ui:Card.slot_footer").unwrap().kind,
         SymbolKind::Slot as i32
     );
     for (id, needle) in [
@@ -215,14 +215,14 @@ fn the_svelte_shard_has_exact_symbols_signatures_docs_and_lines() {
         ("svelte:ui:Card.slot_children", "    children: Snippet;"),
         ("svelte:ui:Card.slot_footer", "    footer?: Snippet"),
     ] {
-        let reference = symbol(&shard, id).source.clone().expect("source");
+        let reference = symbol(&shard, id).unwrap().source.clone().expect("source");
         assert_eq!(
             reference.file, "tools/docs/components/fixture/svelte/src/Card.svelte",
             "{id}"
         );
         assert_eq!(
             reference.line,
-            line_of("DX_SVELTE_CARD_SOURCE", needle),
+            line_of("DX_SVELTE_CARD_SOURCE", needle).unwrap(),
             "{id}"
         );
     }
@@ -230,7 +230,7 @@ fn the_svelte_shard_has_exact_symbols_signatures_docs_and_lines() {
 
 #[test]
 fn the_astro_shard_has_exact_symbols_signatures_docs_and_lines() {
-    let shard = shard("DX_ASTRO_SHARD");
+    let shard = shard("DX_ASTRO_SHARD").unwrap();
     validate_shard(&shard).expect("validate_shard passes");
     assert_eq!(
         (shard.language.as_str(), shard.package.as_str()),
@@ -249,15 +249,15 @@ fn the_astro_shard_has_exact_symbols_signatures_docs_and_lines() {
             "astro:ui:Note.prop_text",
         ]
     );
-    let sig = |id: &str| symbol(&shard, id).signature_text.clone();
+    let sig = |id: &str| symbol(&shard, id).unwrap().signature_text.clone();
     assert_eq!(sig("astro:ui:Hero.prop_title"), "title: string");
     assert_eq!(sig("astro:ui:Hero.prop_links"), "links?: number = 3");
     assert_eq!(
-        symbol(&shard, "astro:ui:Hero.prop_title").doc_markdown,
+        symbol(&shard, "astro:ui:Hero.prop_title").unwrap().doc_markdown,
         "Heading of the hero."
     );
     assert_eq!(
-        symbol(&shard, "astro:ui:Hero.slot_footer").kind,
+        symbol(&shard, "astro:ui:Hero.slot_footer").unwrap().kind,
         SymbolKind::Slot as i32
     );
     for (id, needle) in [
@@ -266,14 +266,14 @@ fn the_astro_shard_has_exact_symbols_signatures_docs_and_lines() {
         ("astro:ui:Hero.slot_default", "<slot />"),
         ("astro:ui:Hero.slot_footer", "<slot name=\"footer\" />"),
     ] {
-        let reference = symbol(&shard, id).source.clone().expect("source");
+        let reference = symbol(&shard, id).unwrap().source.clone().expect("source");
         assert_eq!(
             reference.file, "tools/docs/components/fixture/astro/src/Hero.astro",
             "{id}"
         );
         assert_eq!(
             reference.line,
-            line_of("DX_ASTRO_HERO_SOURCE", needle),
+            line_of("DX_ASTRO_HERO_SOURCE", needle).unwrap(),
             "{id}"
         );
     }
@@ -281,7 +281,7 @@ fn the_astro_shard_has_exact_symbols_signatures_docs_and_lines() {
 
 #[test]
 fn the_mdx_shard_has_exact_symbols_signatures_docs_and_lines() {
-    let shard = shard("DX_MDX_SHARD");
+    let shard = shard("DX_MDX_SHARD").unwrap();
     validate_shard(&shard).expect("validate_shard passes");
     assert_eq!(
         (shard.language.as_str(), shard.package.as_str()),
@@ -300,14 +300,14 @@ fn the_mdx_shard_has_exact_symbols_signatures_docs_and_lines() {
             "mdx:ui:Outro.exposed_farewell",
         ]
     );
-    let sig = |id: &str| symbol(&shard, id).signature_text.clone();
+    let sig = |id: &str| symbol(&shard, id).unwrap().signature_text.clone();
     assert_eq!(sig("mdx:ui:Intro.exposed_limit"), "limit: number");
     assert_eq!(
         sig("mdx:ui:Intro.exposed_greet"),
         "greet: (name: string) => string"
     );
     assert_eq!(
-        symbol(&shard, "mdx:ui:Intro.exposed_greet").doc_markdown,
+        symbol(&shard, "mdx:ui:Intro.exposed_greet").unwrap().doc_markdown,
         "Greets someone.\n\n**@param** name Who to greet.\n\n**@returns**"
     );
     for (id, needle) in [
@@ -316,14 +316,14 @@ fn the_mdx_shard_has_exact_symbols_signatures_docs_and_lines() {
         ("mdx:ui:Intro.prop_title", "props.title"),
         ("mdx:ui:Intro.prop_size", "props.size"),
     ] {
-        let reference = symbol(&shard, id).source.clone().expect("source");
+        let reference = symbol(&shard, id).unwrap().source.clone().expect("source");
         assert_eq!(
             reference.file, "tools/docs/components/fixture/mdx/src/Intro.mdx",
             "{id}"
         );
         assert_eq!(
             reference.line,
-            line_of("DX_MDX_INTRO_SOURCE", needle),
+            line_of("DX_MDX_INTRO_SOURCE", needle).unwrap(),
             "{id}"
         );
     }

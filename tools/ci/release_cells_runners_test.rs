@@ -121,13 +121,13 @@ fn cell_rows() -> Vec<(String, String, String)> {
 
 #[test]
 fn release_cells_runner_map_matches_the_release_matrix() {
-    let problems = problems(&document(CELLS), &matrix_cells());
+    let problems = problems(&document(CELLS).unwrap(), &matrix_cells());
     assert!(problems.is_empty(), "{problems:#?}");
 }
 
 #[test]
 fn release_cells_is_read_only_and_reports_every_cell() {
-    let problems = policy_problems(&document(CELLS));
+    let problems = policy_problems(&document(CELLS).unwrap());
     assert!(problems.is_empty(), "{problems:#?}");
 }
 

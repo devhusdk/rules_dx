@@ -3,26 +3,27 @@
 //! runs as picks the behaviour.
 
 use std::path::Path;
+use std::process::ExitCode;
 
-fn write(path: &str, text: &str) {
-    std::fs::write(path, text).expect("write file");
+fn write(path: &str, text: &str) -> Result<(), String> {
+    std::fs::write(path, text).map_err(|error| format!("write {path}: {error}"))
 }
 
-/// Runs the gazelle binary named by `DX_FAKE_GAZELLE` for a `dx:generate` or `dx:generate_check` argument; false when it does not apply.
-fn gazelle(args: &[String]) -> bool {
+/// Runs the gazelle binary named by `DX_FAKE_GAZELLE` for a `dx:generate` or `dx:generate_check` argument and returns its exit code; none when it does not apply.
+fn gazelle(args: &[String]) -> Result<Option<i32>, String> {
     let Some(bin) = std::env::var("DX_FAKE_GAZELLE")
         .ok()
         .filter(|v| !v.is_empty())
     else {
-        return false;
+        return Ok(None);
     };
     let Some(target) = args
         .iter()
         .find(|a| a.ends_with("dx:generate") || a.ends_with("dx:generate_check"))
     else {
-        return false;
+        return Ok(None);
     };
-    let cwd = std::env::current_dir().expect("current dir");
+    let cwd = std::env::current_dir().map_err(|error| format!("current dir: {error}"))?;
     let mut command = std::process::Command::new(bin);
     command.arg(format!("-repo_root={}", cwd.display()));
     let excludes = std::env::var("DX_FAKE_GAZELLE_ARGS").unwrap_or_default();
@@ -31,12 +32,16 @@ fn gazelle(args: &[String]) -> bool {
         command.arg("-mode=diff");
     }
     command.args(args.iter().skip_while(|a| *a != "--").skip(1));
-    let status = command.status().expect("run gazelle");
-    std::process::exit(status.code().unwrap_or(1));
+    let status = command
+        .status()
+        .map_err(|error| format!("run gazelle: {error}"))?;
+    Ok(Some(status.code().unwrap_or(1)))
 }
 
-fn bazel(args: &[String]) {
-    gazelle(args);
+fn bazel(args: &[String]) -> Result<Option<i32>, String> {
+    if let Some(code) = gazelle(args)? {
+        return Ok(Some(code));
+    }
     if let Ok(intended) = std::env::var("DX_GENERATE_INTENDED")
         && !intended.is_empty()
     {
@@ -46,33 +51,35 @@ fn bazel(args: &[String]) {
             &format!(
                 "{{\"mode\":\"{mode}\",\"result\":\"clean\",\"scopes\":[{{\"value\":\"//...\",\"results_complete\":true}}],\"files\":[],\"ignored_imports\":[]}}"
             ),
-        );
+        )?;
     }
     if std::env::var("CARGO_BAZEL_REPIN").is_ok_and(|v| !v.is_empty()) {
-        write("Cargo.lock", "# lock\n");
+        write("Cargo.lock", "# lock\n")?;
     }
     let joined = format!(" {} ", args.join(" "));
     if joined.contains("pnpm") {
-        write("pnpm-lock.yaml", "lockfileVersion: 9\n");
+        write("pnpm-lock.yaml", "lockfileVersion: 9\n")?;
     } else if joined.contains(" uv ") || joined.contains("uv_lock") || joined.contains("/uv") {
-        write("uv.lock", "version = 1\n");
+        write("uv.lock", "version = 1\n")?;
     }
+    Ok(None)
 }
 
-fn uv(args: &[String]) {
+fn uv(args: &[String]) -> Result<(), String> {
     match args.first().map(String::as_str) {
         Some("--version") => println!("uv 0.13.7"),
         Some("lock") => {
             let empty = std::fs::metadata("uv.lock").map_or(true, |m| m.len() == 0);
             if empty {
-                write("uv.lock", "version = 1\n");
+                write("uv.lock", "version = 1\n")?;
             }
         }
         _ => {}
     }
+    Ok(())
 }
 
-fn main() {
+fn main() -> ExitCode {
     let mut argv = std::env::args();
     let program = argv.next().unwrap_or_default();
     let params: Vec<String> = argv.collect();
@@ -80,9 +87,17 @@ fn main() {
         .file_stem()
         .and_then(|n| n.to_str())
         .unwrap_or_default();
-    match name {
+    let ran = match name {
         "bazel" => bazel(&params),
-        "uv" => uv(&params),
-        _ => {}
+        "uv" => uv(&params).map(|()| None),
+        _ => Ok(None),
+    };
+    match ran {
+        Ok(Some(code)) => std::process::exit(code),
+        Ok(None) => ExitCode::SUCCESS,
+        Err(error) => {
+            eprintln!("fake_generate: {error}");
+            ExitCode::FAILURE
+        }
     }
 }

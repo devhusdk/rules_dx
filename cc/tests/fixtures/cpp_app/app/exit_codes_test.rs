@@ -16,7 +16,7 @@ fn pantry(args: &[&str], working_dir: Option<&PathBuf>, runfiles: bool) -> Outpu
     let _spawn = SPAWN
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
-    let scratch = dx_test_scratch::scratch("pantry");
+    let scratch = dx_test_scratch::scratch("pantry").unwrap();
     let binary = dx_testing::env_file("PANTRY_BIN");
     let mut command = Command::new(if runfiles {
         binary

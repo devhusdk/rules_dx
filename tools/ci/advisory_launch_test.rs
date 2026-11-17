@@ -1,7 +1,7 @@
 const WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
 
 fn prepare_script() -> String {
-    let document = ci_workflow::document(WORKFLOW);
+    let document = ci_workflow::document(WORKFLOW).unwrap();
     let steps = document["jobs"]["advisory-snapshots"]["steps"]
         .as_array()
         .expect("steps")

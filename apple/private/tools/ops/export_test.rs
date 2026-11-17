@@ -27,12 +27,12 @@ struct Setup {
 }
 
 fn setup(prefix: &str, with_extension: bool) -> Setup {
-    let root = scratch(prefix);
-    write(root.path(), "profile.mobileprovision", "profile-bytes");
-    write(root.path(), "id.p12", "p12");
-    write(root.path(), "pass", "secret");
-    write(root.path(), "out/keep", "");
-    write(root.path(), "tmp/keep", "");
+    let root = scratch(prefix).unwrap();
+    write(root.path(), "profile.mobileprovision", "profile-bytes").unwrap();
+    write(root.path(), "id.p12", "p12").unwrap();
+    write(root.path(), "pass", "secret").unwrap();
+    write(root.path(), "out/keep", "").unwrap();
+    write(root.path(), "tmp/keep", "").unwrap();
     let ipa = root.path().join("Ledger.ipa");
     let mut writer = zip::ZipWriter::new(std::fs::File::create(&ipa).unwrap());
     let options = zip::write::SimpleFileOptions::default();

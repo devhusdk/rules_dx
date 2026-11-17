@@ -191,7 +191,7 @@ build: ["dune" "build"]
 "#;
 
     fn snapshot() -> dx_test_scratch::TempDir {
-        let dir = dx_test_scratch::scratch("opam_snapshot");
+        let dir = dx_test_scratch::scratch("opam_snapshot").unwrap();
         for package in [
             "astring/astring.0.8.5",
             "astring/astring.0.8.10",
@@ -204,7 +204,7 @@ build: ["dune" "build"]
                 dir.path(),
                 &format!("packages/{package}/opam"),
                 "opam-version: \"2.0\"\n",
-            );
+            ).unwrap();
         }
         dir
     }

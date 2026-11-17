@@ -22,10 +22,10 @@ struct Setup {
 }
 
 fn setup(prefix: &str) -> Setup {
-    let root = scratch(prefix);
-    write(root.path(), "Ledger.zip", "PK");
-    write(root.path(), "out/keep", "");
-    write(root.path(), "tmp/keep", "");
+    let root = scratch(prefix).unwrap();
+    write(root.path(), "Ledger.zip", "PK").unwrap();
+    write(root.path(), "out/keep", "").unwrap();
+    write(root.path(), "tmp/keep", "").unwrap();
     Setup {
         tmp: root.path().join("tmp").to_string_lossy().into_owned(),
         out: root
@@ -153,8 +153,8 @@ fn an_identity_signs_the_app_with_the_hardened_runtime_and_writes_the_report() {
 #[test]
 fn a_certificate_signs_from_a_throwaway_keychain_that_is_removed() {
     let set = setup("sign-certificate");
-    write(set.root.path(), "id.p12", "p12");
-    write(set.root.path(), "pass", "secret");
+    write(set.root.path(), "id.p12", "p12").unwrap();
+    write(set.root.path(), "pass", "secret").unwrap();
     let fake = tools_fake(|_| {}, "");
     let outcome = call(
         &set,

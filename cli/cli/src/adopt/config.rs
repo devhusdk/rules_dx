@@ -313,7 +313,7 @@ mod tests {
     use crate::adopt::test_support::{env, events_of_kind, invocation, json_events};
 
     fn workspace(files: &[(&str, &str)]) -> tempfile::TempDir {
-        let scratch = dx_test_scratch::scratch("config-verb-");
+        let scratch = dx_test_scratch::scratch("config-verb-").unwrap();
         for (name, text) in files {
             let path = scratch.path().join(name);
             std::fs::create_dir_all(path.parent().expect("parent")).expect("dir");

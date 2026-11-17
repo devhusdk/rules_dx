@@ -409,7 +409,7 @@ fn crlf_clean_handles_lone_carriage_returns() {
 
 #[test]
 fn no_output_on_error() {
-    let scratch = dx_test_scratch::scratch("powershell_extract_error");
+    let scratch = dx_test_scratch::scratch("powershell_extract_error").unwrap();
     let dir = scratch.path();
     let input = dir.join("api.json");
     let out = dir.join("out.ir.pb");
@@ -428,7 +428,7 @@ fn no_output_on_error() {
 
 #[test]
 fn no_output_on_error_but_written_on_success() {
-    let scratch = dx_test_scratch::scratch("powershell_extract_ok");
+    let scratch = dx_test_scratch::scratch("powershell_extract_ok").unwrap();
     let dir = scratch.path();
     let input = dir.join("api.json");
     let out = dir.join("out.ir.pb");

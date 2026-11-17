@@ -318,7 +318,7 @@ impl QueryRunner for RealGit {
 fn real_git_counts_renames_untracked_files_and_a_nested_workspace() {
     let repo = temp_dir("changed-real-git");
     let root = repo.path();
-    let git = |args: &[&str]| dx_test_scratch::git(root, root, args);
+    let git = |args: &[&str]| dx_test_scratch::git(root, root, args).unwrap();
     let write = |path: &str, text: &str| {
         let full = root.join(path);
         std::fs::create_dir_all(full.parent().expect("parent")).expect("mkdir");
@@ -359,10 +359,10 @@ fn real_git_keys_modified_files_under_diff_prefix_config() {
         let root = repo.path();
         std::fs::create_dir_all(root.join("pkg")).expect("mkdir");
         std::fs::write(root.join("pkg/A.rs"), "a\nb\n").expect("write");
-        dx_test_scratch::git(root, root, &["init", "--quiet", "--initial-branch=main"]);
-        dx_test_scratch::git(root, root, &["add", "."]);
-        dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "base"]);
-        dx_test_scratch::git(root, root, &["config", key, "true"]);
+        dx_test_scratch::git(root, root, &["init", "--quiet", "--initial-branch=main"]).unwrap();
+        dx_test_scratch::git(root, root, &["add", "."]).unwrap();
+        dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "base"]).unwrap();
+        dx_test_scratch::git(root, root, &["config", key, "true"]).unwrap();
         std::fs::write(root.join("pkg/A.rs"), "a\nb\nc\n").expect("write");
         let added = changed_lines(root, &RealGit, "HEAD").expect("changed lines");
         assert_eq!(added["pkg/A.rs"], [3].into_iter().collect(), "{key}");

@@ -14,7 +14,7 @@ fn archiver(scratch: &std::path::Path, args: &[&str]) -> std::process::Output {
 #[test]
 fn missing_libstdcxx_member_fails_the_import_check() {
     let app = env_file("APP");
-    let guard = dx_test_scratch::scratch("gcc-imports");
+    let guard = dx_test_scratch::scratch("gcc-imports").unwrap();
     let scratch = guard.path();
     let member = format!("hello_cxx_gcc={}", app.display());
     let out = archiver(&scratch, &["--check", "hello_cxx_gcc", &member]);
@@ -30,7 +30,7 @@ fn missing_libstdcxx_member_fails_the_import_check() {
 #[test]
 fn provided_libstdcxx_passes_the_import_check() {
     let app = env_file("APP");
-    let guard = dx_test_scratch::scratch("gcc-imports-ok");
+    let guard = dx_test_scratch::scratch("gcc-imports-ok").unwrap();
     let scratch = guard.path();
     let member = format!("hello_cxx_gcc={}", app.display());
     let out = archiver(&scratch, &["--provides", "libstdc++.so.6", &member]);

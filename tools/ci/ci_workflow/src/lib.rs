@@ -10,36 +10,37 @@ static NULL: Value = Value::Null;
 
 /// Returns the parsed workflow `text`, named `name` in failures, which must be valid Actions YAML.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics when the workflow is missing or does not have the expected shape.
-#[track_caller]
-#[must_use]
-pub fn parse(name: &str, text: &str) -> Value {
-    match yaml_serde::from_str(text) {
-        Ok(document) => document,
-        Err(error) => panic!("{name} is not valid workflow YAML: {error}"),
-    }
+/// Fails when `text` is not valid YAML.
+pub fn parse(name: &str, text: &str) -> Result<Value, String> {
+    yaml_serde::from_str(text).map_err(|error| format!("{name} is not valid workflow YAML: {error}"))
 }
 
 /// Returns the parsed workflow at `path`, which must be valid Actions YAML.
-#[track_caller]
-#[must_use]
-pub fn document(path: &str) -> Value {
+///
+/// # Errors
+///
+/// Fails when the workflow is not valid YAML.
+pub fn document(path: &str) -> Result<Value, String> {
     parse(path, &read_runfiles(path))
 }
 
 /// Returns (path, document) for every workflow in `DX_WORKFLOWS`, parsed once per process.
-#[track_caller]
-pub fn all() -> Vec<(String, Value)> {
-    static PARSED: std::sync::OnceLock<Vec<(String, Value)>> = std::sync::OnceLock::new();
+///
+/// # Errors
+///
+/// Fails when a workflow is not valid YAML.
+pub fn all() -> Result<Vec<(String, Value)>, String> {
+    type Parsed = Result<Vec<(String, Value)>, String>;
+    static PARSED: std::sync::OnceLock<Parsed> = std::sync::OnceLock::new();
     PARSED
         .get_or_init(|| {
             dx_testing::workflow_files()
                 .into_iter()
                 .map(|path| {
-                    let document = document(&path);
-                    (path, document)
+                    let document = document(&path)?;
+                    Ok((path, document))
                 })
                 .collect()
         })
@@ -147,114 +148,97 @@ pub fn matrix_refs(value: &Value, found: &mut Vec<String>) {
 
 /// Returns one job of the workflow at `path`, which must declare it.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics when the workflow is missing or does not have the expected shape.
-#[track_caller]
-#[must_use]
-pub fn job(path: &str, name: &str) -> Value {
-    let document = document(path);
+/// Fails when the workflow is missing or does not have the expected shape.
+pub fn job(path: &str, name: &str) -> Result<Value, String> {
+    let document = document(path)?;
     let jobs = document.get("jobs").unwrap_or(&NULL);
-    let Some(found) = jobs.get(name).filter(|found| found.is_object()) else {
-        panic!("{path} names no {name:?} job: {jobs}");
-    };
-    found.clone()
+    jobs.get(name)
+        .filter(|found| found.is_object())
+        .cloned()
+        .ok_or_else(|| format!("{path} names no {name:?} job: {jobs}"))
 }
 
 /// Returns the steps of one job, which must declare some.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics when the workflow is missing or does not have the expected shape.
-#[track_caller]
-pub fn steps(path: &str, name: &str) -> Vec<Value> {
-    let Some(found) = job(path, name)
+/// Fails when the workflow is missing or does not have the expected shape.
+pub fn steps(path: &str, name: &str) -> Result<Vec<Value>, String> {
+    job(path, name)?
         .get("steps")
         .and_then(Value::as_array)
         .cloned()
-    else {
-        panic!("{path} job {name} declares no steps");
-    };
-    found
+        .ok_or_else(|| format!("{path} job {name} declares no steps"))
 }
 
 /// Returns the `run` scripts of one job, joined.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics when the workflow is missing or does not have the expected shape.
-#[track_caller]
-#[must_use]
-pub fn scripts(path: &str, name: &str) -> String {
-    steps(path, name)
+/// Fails when the workflow is missing or does not have the expected shape.
+pub fn scripts(path: &str, name: &str) -> Result<String, String> {
+    Ok(steps(path, name)?
         .iter()
         .filter_map(|step| step.get("run").and_then(Value::as_str))
         .collect::<Vec<_>>()
-        .join("\n")
+        .join("\n"))
 }
 
 /// Returns one string value of a parsed workflow.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics when the workflow is missing or does not have the expected shape.
-#[track_caller]
-#[must_use]
-pub fn text_at(value: &Value, what: &str) -> String {
-    let Some(text) = value.as_str() else {
-        panic!("{what} is not a string: {value}");
-    };
-    text.to_owned()
+/// Fails when `value` is not a string.
+pub fn text_at(value: &Value, what: &str) -> Result<String, String> {
+    value
+        .as_str()
+        .map(str::to_owned)
+        .ok_or_else(|| format!("{what} is not a string: {value}"))
 }
 
 /// Returns every job of the workflow at `path` with its id, sorted by id.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics when the workflow is missing or does not have the expected shape.
-#[track_caller]
-pub fn jobs(path: &str) -> Vec<(String, Value)> {
-    let document = document(path);
-    let Some(found) = document.get("jobs").and_then(Value::as_object) else {
-        panic!("{path} declares no jobs");
-    };
-    found
+/// Fails when the workflow is missing or does not have the expected shape.
+pub fn jobs(path: &str) -> Result<Vec<(String, Value)>, String> {
+    let document = document(path)?;
+    let found = document
+        .get("jobs")
+        .and_then(Value::as_object)
+        .ok_or_else(|| format!("{path} declares no jobs"))?;
+    Ok(found
         .iter()
         .map(|(id, job)| (id.clone(), job.clone()))
-        .collect()
+        .collect())
 }
 
 /// Returns the trigger table of a workflow, whichever way the parser keys `on`.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics when the workflow is missing or does not have the expected shape.
-#[track_caller]
-#[must_use]
-pub fn triggers(path: &str) -> Value {
-    let document = document(path);
+/// Fails when the workflow is missing or does not have the expected shape.
+pub fn triggers(path: &str) -> Result<Value, String> {
+    let document = document(path)?;
     if let Some(on) = document.get("on").filter(|on| on.is_object()) {
-        return on.clone();
+        return Ok(on.clone());
     }
-    document.get("true").cloned().unwrap_or(Value::Null)
+    Ok(document.get("true").cloned().unwrap_or(Value::Null))
 }
 
 /// Returns `on.workflow_call` of the reusable workflow at `path`, which must declare it.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics when the workflow is missing or does not have the expected shape.
-#[track_caller]
-#[must_use]
-pub fn workflow_call(path: &str) -> Value {
-    let triggers = triggers(path);
-    let Some(found) = triggers
+/// Fails when the workflow is missing or does not have the expected shape.
+pub fn workflow_call(path: &str) -> Result<Value, String> {
+    triggers(path)?
         .get("workflow_call")
         .filter(|found| found.is_object())
-    else {
-        panic!("{path} declares no on.workflow_call");
-    };
-    found.clone()
+        .cloned()
+        .ok_or_else(|| format!("{path} declares no on.workflow_call"))
 }
 
 /// Returns the called workflow file name of a `uses` value, when it names a reusable workflow.
@@ -268,22 +252,26 @@ pub fn called_workflow(uses: &str) -> Option<String> {
 }
 
 /// Returns (job id, called workflow file name, job) for every job that calls a reusable workflow.
-#[track_caller]
-#[must_use]
-pub fn reusable_calls(path: &str) -> Vec<(String, String, Value)> {
-    jobs(path)
+///
+/// # Errors
+///
+/// Fails when the workflow is missing or does not have the expected shape.
+pub fn reusable_calls(path: &str) -> Result<Vec<(String, String, Value)>, String> {
+    Ok(jobs(path)?
         .into_iter()
         .filter_map(|(id, job)| {
             let called = called_workflow(job.get("uses")?.as_str()?)?;
             Some((id, called, job))
         })
-        .collect()
+        .collect())
 }
 
 /// Returns every string value of the workflow at `path`, so scans skip comments and keys.
-#[track_caller]
-#[must_use]
-pub fn strings(path: &str) -> Vec<String> {
+///
+/// # Errors
+///
+/// Fails when the workflow is not valid YAML.
+pub fn strings(path: &str) -> Result<Vec<String>, String> {
     fn walk(value: &Value, out: &mut Vec<String>) {
         match value {
             Value::String(text) => out.push(text.clone()),
@@ -293,15 +281,18 @@ pub fn strings(path: &str) -> Vec<String> {
         }
     }
     let mut out = Vec::new();
-    walk(&document(path), &mut out);
-    out
+    walk(&document(path)?, &mut out);
+    Ok(out)
 }
 
 /// Returns (job id, step name or `uses`, "|| true" or "continue-on-error") for every failure the workflow at `path` swallows.
-#[track_caller]
-pub fn swallows(path: &str) -> Vec<(String, String, String)> {
+///
+/// # Errors
+///
+/// Fails when the workflow is missing or does not have the expected shape.
+pub fn swallows(path: &str) -> Result<Vec<(String, String, String)>, String> {
     let mut found = Vec::new();
-    for (id, job) in jobs(path) {
+    for (id, job) in jobs(path)? {
         if job.get("continue-on-error").is_some() {
             found.push((id.clone(), String::new(), "continue-on-error".to_owned()));
         }
@@ -327,5 +318,5 @@ pub fn swallows(path: &str) -> Vec<(String, String, String)> {
             }
         }
     }
-    found
+    Ok(found)
 }

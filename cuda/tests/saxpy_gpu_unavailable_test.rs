@@ -3,7 +3,7 @@ use dx_testing::fatbin;
 
 #[test]
 fn a_host_without_a_visible_gpu_fails_as_unavailable() {
-    let outputs_guard = dx_test_scratch::scratch("gpu-outputs");
+    let outputs_guard = dx_test_scratch::scratch("gpu-outputs").unwrap();
     let outputs = outputs_guard.path();
     let outputs_dir = outputs.to_str().unwrap();
     let run = dx_testing::run(
@@ -41,7 +41,7 @@ fn a_host_without_a_visible_gpu_fails_as_unavailable() {
 
 #[test]
 fn missing_declarations_fail_before_any_cuda_call() {
-    let outputs_guard = dx_test_scratch::scratch("gpu-declared");
+    let outputs_guard = dx_test_scratch::scratch("gpu-declared").unwrap();
     let outputs = outputs_guard.path();
     let run = dx_testing::run(
         &env_file("DX_GPU_TEST"),
@@ -67,7 +67,7 @@ fn missing_declarations_fail_before_any_cuda_call() {
 #[test]
 fn an_undeclared_device_fails_before_any_cuda_call() {
     let undeclared = dx_testing::env_file("DX_GPU_TEST_UNDECLARED");
-    let outputs_guard = dx_test_scratch::scratch("gpu-undeclared");
+    let outputs_guard = dx_test_scratch::scratch("gpu-undeclared").unwrap();
     let outputs = outputs_guard.path();
     let run = dx_testing::run(
         &undeclared,

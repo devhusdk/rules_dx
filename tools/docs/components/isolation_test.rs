@@ -45,7 +45,7 @@ fn text(output: &Output) -> String {
 
 #[test]
 fn plugins_in_an_extended_config_are_rejected_and_never_loaded() {
-    let scratch = dx_test_scratch::scratch("vue-hostile");
+    let scratch = dx_test_scratch::scratch("vue-hostile").unwrap();
     let root = scratch.path();
     stage("DX_HOSTILE_FILES", "fixture/hostile/", root);
     let output = run(
@@ -74,7 +74,7 @@ fn plugins_in_an_extended_config_are_rejected_and_never_loaded() {
 
 #[test]
 fn bad_inputs_fail_without_a_stub() {
-    let scratch = dx_test_scratch::scratch("vue-bad");
+    let scratch = dx_test_scratch::scratch("vue-bad").unwrap();
     let root = scratch.path();
     stage("DX_BAD_FILES", "fixture/bad/", root);
     for (name, expected, args) in [
@@ -164,7 +164,7 @@ fn svelte_launcher() -> PathBuf {
 
 #[test]
 fn svelte_bad_inputs_fail_without_a_stub_and_the_config_never_loads() {
-    let scratch = dx_test_scratch::scratch("svelte-bad");
+    let scratch = dx_test_scratch::scratch("svelte-bad").unwrap();
     let root = scratch.path();
     stage("DX_BAD_FILES", "fixture/bad/", root);
     stage("DX_SVELTE_FILES", "fixture/svelte/", root);
@@ -204,7 +204,7 @@ fn astro_launcher() -> PathBuf {
 
 #[test]
 fn astro_bad_inputs_fail_without_a_stub_and_the_config_never_loads() {
-    let scratch = dx_test_scratch::scratch("astro-bad");
+    let scratch = dx_test_scratch::scratch("astro-bad").unwrap();
     let root = scratch.path();
     stage("DX_BAD_FILES", "fixture/bad/", root);
     stage("DX_ASTRO_FILES", "fixture/astro/", root);
@@ -244,7 +244,7 @@ fn mdx_launcher() -> PathBuf {
 
 #[test]
 fn mdx_bad_inputs_fail_without_a_stub_and_imports_never_run() {
-    let scratch = dx_test_scratch::scratch("mdx-bad");
+    let scratch = dx_test_scratch::scratch("mdx-bad").unwrap();
     let root = scratch.path();
     stage("DX_BAD_FILES", "fixture/bad/", root);
     stage("DX_MDX_FILES", "fixture/mdx/", root);

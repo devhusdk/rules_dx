@@ -1,19 +1,20 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
+use std::process::ExitCode;
 
 use dx_testing::serde_json;
 
-fn var(name: &str) -> String {
-    std::env::var(name).unwrap_or_else(|_| panic!("{name} must hold the WASI test wiring"))
+fn var(name: &str) -> Result<String, String> {
+    std::env::var(name).map_err(|_| format!("{name} must hold the WASI test wiring"))
 }
 
-fn main() {
-    let module = dx_testing::resolve_runfiles(&var("DX_WASI_MODULE"));
-    let runtime = dx_testing::resolve_runfiles(&var("DX_WASI_RUNTIME"));
-    let env: BTreeMap<String, String> =
-        serde_json::from_str(&var("DX_WASI_ENV")).expect("DX_WASI_ENV must be a JSON object");
-    let preopens: BTreeMap<String, String> = serde_json::from_str(&var("DX_WASI_PREOPENS"))
-        .expect("DX_WASI_PREOPENS must be a JSON object");
+fn run() -> Result<i32, String> {
+    let module = dx_testing::resolve_runfiles(&var("DX_WASI_MODULE")?);
+    let runtime = dx_testing::resolve_runfiles(&var("DX_WASI_RUNTIME")?);
+    let env: BTreeMap<String, String> = serde_json::from_str(&var("DX_WASI_ENV")?)
+        .map_err(|error| format!("DX_WASI_ENV must be a JSON object: {error}"))?;
+    let preopens: BTreeMap<String, String> = serde_json::from_str(&var("DX_WASI_PREOPENS")?)
+        .map_err(|error| format!("DX_WASI_PREOPENS must be a JSON object: {error}"))?;
     let preopens: Vec<(String, PathBuf)> = preopens
         .into_iter()
         .map(|(guest, host)| (guest, PathBuf::from(host)))
@@ -25,6 +26,15 @@ fn main() {
     {
         args.push(filter);
     }
-    let code = wasi_run::run_inherited(&runtime, &module, &args, &env, &preopens);
-    std::process::exit(code);
+    wasi_run::run_inherited(&runtime, &module, &args, &env, &preopens)
+}
+
+fn main() -> ExitCode {
+    match run() {
+        Ok(code) => ExitCode::from(u8::try_from(code).unwrap_or(1)),
+        Err(error) => {
+            eprintln!("{error}");
+            ExitCode::FAILURE
+        }
+    }
 }

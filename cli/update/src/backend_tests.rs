@@ -529,7 +529,7 @@ fn cpan_set() -> ResolvedSet {
 }
 
 fn cpan_workspace() -> dx_test_scratch::TempDir {
-    dx_test_scratch::scratch("cpan_backend")
+    dx_test_scratch::scratch("cpan_backend").unwrap()
 }
 
 fn cpan_update(workspace: &Path, offline: bool, frozen: bool) -> Result<BackendPlan, BackendError> {
@@ -633,8 +633,8 @@ fn julia_set() -> ResolvedSet {
 const JULIA_BUILD: &str = "julia_pkg_resolve(name = \"resolve\")\njulia_pkg_resolve_test(name = \"resolve_test\", resolver = \":resolve\")\n";
 
 fn julia_workspace(build: &str) -> dx_test_scratch::TempDir {
-    let dir = dx_test_scratch::scratch("julia_backend");
-    dx_test_scratch::write(dir.path(), "app/BUILD.bazel", build);
+    let dir = dx_test_scratch::scratch("julia_backend").unwrap();
+    dx_test_scratch::write(dir.path(), "app/BUILD.bazel", build).unwrap();
     dir
 }
 
@@ -753,7 +753,7 @@ fn ansible_set() -> ResolvedSet {
 
 #[test]
 fn ansible_update_runs_the_lock_step() {
-    let dir = dx_test_scratch::scratch("ansible_backend");
+    let dir = dx_test_scratch::scratch("ansible_backend").unwrap();
     let plan = |request: &Selection, offline: bool, frozen: bool| {
         plan_configured(
             dir.path(),
@@ -802,7 +802,7 @@ fn luarocks_set() -> ResolvedSet {
 
 #[test]
 fn luarocks_update_runs_the_lock_step() {
-    let dir = dx_test_scratch::scratch("luarocks_backend");
+    let dir = dx_test_scratch::scratch("luarocks_backend").unwrap();
     let plan = |request: &Selection, offline: bool| {
         plan_configured(
             dir.path(),
@@ -847,7 +847,7 @@ fn rehash_set(name: &str, ecosystem: Ecosystem, manifest: &str, lock: &str) -> R
 
 #[test]
 fn dub_runs_the_lock_step_for_the_whole_set() {
-    let dir = dx_test_scratch::scratch("dub_backend");
+    let dir = dx_test_scratch::scratch("dub_backend").unwrap();
     let dub = rehash_set(
         "dub",
         Ecosystem::Dub,
@@ -892,7 +892,7 @@ fn dub_runs_the_lock_step_for_the_whole_set() {
 
 #[test]
 fn ruby_runs_the_lock_step_and_upgrades_named_gems() {
-    let dir = dx_test_scratch::scratch("ruby_backend");
+    let dir = dx_test_scratch::scratch("ruby_backend").unwrap();
     let gems = rehash_set(
         "gems",
         Ecosystem::Ruby,
@@ -970,7 +970,7 @@ fn ruby_runs_the_lock_step_and_upgrades_named_gems() {
 
 #[test]
 fn zig_and_fpm_run_their_lock_steps() {
-    let dir = dx_test_scratch::scratch("lock_step_backend");
+    let dir = dx_test_scratch::scratch("lock_step_backend").unwrap();
     let named = Selection::Packages(vec!["xxhash".to_owned()]);
     for (set, resolver) in [
         (
@@ -1040,7 +1040,7 @@ fn cabal_set() -> ResolvedSet {
 
 #[test]
 fn cabal_update_runs_the_lock_step() {
-    let dir = dx_test_scratch::scratch("cabal_backend");
+    let dir = dx_test_scratch::scratch("cabal_backend").unwrap();
     let plan = |request: &Selection, offline: bool, frozen: bool| {
         plan_configured(
             dir.path(),
@@ -1073,7 +1073,7 @@ fn cabal_update_runs_the_lock_step() {
 
 #[test]
 fn cabal_check_runs_the_lock_step_in_check_mode() {
-    let dir = dx_test_scratch::scratch("cabal_backend_check");
+    let dir = dx_test_scratch::scratch("cabal_backend_check").unwrap();
     let CheckPlan::Run { argv, .. } = check_configured(
         dir.path(),
         &cabal_set(),
@@ -1324,8 +1324,8 @@ fn pub_set() -> ResolvedSet {
 }
 
 fn pub_workspace(pubspec: &str) -> dx_test_scratch::TempDir {
-    let dir = dx_test_scratch::scratch("pub_backend");
-    dx_test_scratch::write(dir.path(), "app/pubspec.yaml", pubspec);
+    let dir = dx_test_scratch::scratch("pub_backend").unwrap();
+    dx_test_scratch::write(dir.path(), "app/pubspec.yaml", pubspec).unwrap();
     dir
 }
 

@@ -155,7 +155,7 @@ fn dx_builds_and_executes() {
 #[test]
 fn dx_passes_host_check() {
     let dx = dx_testing::env_file("DX_PREFLIGHT_DX");
-    let scratch_tmp = dx_test_scratch::scratch("preflight-host");
+    let scratch_tmp = dx_test_scratch::scratch("preflight-host").unwrap();
     let scratch = scratch_tmp.path().to_path_buf();
     let output = dx_testing::command_for(&dx, &[])
         .expect("dx command")

@@ -6,6 +6,12 @@ use std::process::ExitCode;
 
 use serde_json::{Value, json};
 
+static NULL: Value = Value::Null;
+
+fn field<'a>(value: &'a Value, key: &str) -> &'a Value {
+    value.get(key).unwrap_or(&NULL)
+}
+
 fn names(value: &Value) -> Vec<String> {
     value
         .as_array()
@@ -19,11 +25,11 @@ fn closure(index: &Value, roots: &[String]) -> Result<BTreeSet<String>, String> 
     let mut found = BTreeSet::new();
     let mut pending = roots.to_vec();
     while let Some(name) = pending.pop() {
-        let entry = index["packages"]
+        let entry = field(index, "packages")
             .get(&name)
             .ok_or(format!("{name} is not in the registry"))?;
         if found.insert(name) {
-            pending.extend(names(&entry["deps"]));
+            pending.extend(names(field(entry, "deps")));
         }
     }
     Ok(found)
@@ -61,23 +67,23 @@ fn resolve(index_path: &str) -> Result<String, String> {
     };
     let index = read(Path::new(index_path))?;
     let manifest = read(&cwd.join("fixture.json"))?;
-    let required = closure(&index, &names(&manifest["require"]))?;
-    let dev = closure(&index, &names(&manifest["dev"]))?;
+    let required = closure(&index, &names(field(&manifest, "require")))?;
+    let dev = closure(&index, &names(field(&manifest, "dev")))?;
     let mut packages = BTreeMap::new();
     for name in dev.union(&required).collect::<Vec<_>>().into_iter().rev() {
-        let entry = &index["packages"][name];
-        let archive = entry["archive"].as_str().unwrap_or_default();
+        let entry = field(field(&index, "packages"), name);
+        let archive = field(entry, "archive").as_str().unwrap_or_default();
         packages.insert(
             name.clone(),
             json!({
                 "name": name,
-                "version": entry["version"],
+                "version": field(entry, "version"),
                 "archives": [{
                     "urls": [format!("https://registry.example/{archive}")],
-                    "sha256": entry["sha256"].as_str().unwrap_or_default(),
+                    "sha256": field(entry, "sha256").as_str().unwrap_or_default(),
                 }],
-                "deps": entry["deps"],
-                "provides": entry["provides"],
+                "deps": field(entry, "deps"),
+                "provides": field(entry, "provides"),
                 "dev": !required.contains(name),
             }),
         );
@@ -87,7 +93,7 @@ fn resolve(index_path: &str) -> Result<String, String> {
         .map(|(name, package)| {
             format!(
                 "{name} {}\n",
-                package["version"].as_str().unwrap_or_default()
+                field(package, "version").as_str().unwrap_or_default()
             )
         })
         .collect();

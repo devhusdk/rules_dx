@@ -71,6 +71,7 @@ These names are reserved inside `<lang>/private/`. Code with that role uses that
 - No other parameter selects a target platform. `platform`, `target_platform`, `cells`, `os` and `arch` are not parameter names.
 - The rule applies the transition in `core/platform.bzl`. No file under `<lang>/private/` names `//command_line_option:platforms`.
 - `target_compatible_with` only marks compatibility. A macro derives it from the manifest `platforms` field through `core/modules/langs.bzl`.
+- The manifest `platforms` field lists host and CI cells. A target-OS list, such as the one in `swift/private/platforms/support.bzl` (ios, linux, macos, windows) or `apple/private/ios/cell.bzl` (ios, macos), is outside this rule and is not derived from the manifest.
 
 ## Toolchains
 

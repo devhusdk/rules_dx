@@ -51,4 +51,10 @@ function histogram(xs::AbstractVector{<:Real}, width::Real)
     return out
 end
 
+precompile(mean, (Vector{Float64},))
+precompile(variance, (Vector{Float64},))
+precompile(quantile, (Vector{Float64}, Float64))
+precompile(quantile, (Vector{Float64}, Int))
+precompile(histogram, (Vector{Float64}, Int))
+
 end

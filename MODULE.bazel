@@ -2645,7 +2645,6 @@ crate.from_cargo(
         "//deploy/private/symbols:Cargo.toml",
         "//deploy/private/offline/bootstrap:Cargo.toml",
         "//deploy/private/offline:Cargo.toml",
-        "//deploy/private/release/tests:Cargo.toml",
         "//deploy/tests/cross:Cargo.toml",
         "//deploy/tests/runfiles:Cargo.toml",
         "//deploy/private/release:Cargo.toml",

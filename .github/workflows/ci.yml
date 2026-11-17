@@ -316,14 +316,14 @@ jobs:
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           mkdir -p "$RUNNER_TEMP/llvm-arm64"
-          for lang in cc go rust zig; do
+          for lang in cc dart go rust swift zig; do
             bazel build --noshow_progress "$@" "//$lang/tests/conformance:cross_binary"
             file="$(bazel cquery --noshow_progress "$@" --output=files "//$lang/tests/conformance:cross_binary" 2>/dev/null)"
             test "$(printf '%s\n' "$file" | wc -l)" -eq 1
             cp "$file" "$RUNNER_TEMP/llvm-arm64/$lang"
           done
           find "$RUNNER_TEMP/llvm-arm64" -type f
-          test "$(find "$RUNNER_TEMP/llvm-arm64" -type f | wc -l)" -eq 4
+          test "$(find "$RUNNER_TEMP/llvm-arm64" -type f | wc -l)" -eq 6
       - name: Check the upload holds no secret
         id: scan-gcc-arm64-fixtures
         uses: ./.github/actions/assert-no-secret
@@ -378,7 +378,7 @@ jobs:
           set -eu
           test "$(uname -m)" = aarch64
           cd "$RUNNER_TEMP/llvm-arm64"
-          for lang in cc go rust zig; do
+          for lang in cc dart go rust swift zig; do
             chmod +x "$lang"
             test "$("./$lang")" = "hello world"
           done

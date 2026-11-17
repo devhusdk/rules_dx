@@ -33,10 +33,7 @@ fn qmllint_output_parses_through_the_adapter() {
         .as_array_mut()
         .expect("warnings")
     {
-        for suggestion in warning["suggestions"]
-            .as_array_mut()
-            .expect("suggestions")
-        {
+        for suggestion in warning["suggestions"].as_array_mut().expect("suggestions") {
             for edit in suggestion["documentEdits"]
                 .as_array_mut()
                 .expect("documentEdits")

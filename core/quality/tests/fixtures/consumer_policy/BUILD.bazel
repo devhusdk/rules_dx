@@ -104,6 +104,7 @@ workspace_policy(
         ":ansible_family",
         ":api_spec_family",
         ":asciidoc_family",
+        ":avro_family",
         ":bicep_family",
         ":biome_json_family",
         ":cloudformation_family",
@@ -722,6 +723,14 @@ quality_family(
 real_source_target(
     name = "clean_lua",
     lua_srcs = ["lua_module/greet.lua"],
+)
+
+quality_family(
+    name = "avro_family",
+    disabled = ["audit"],
+    family_id = "avro",
+    lint = ["avro_tools"],
+    typecheck = ["avro_tools"],
 )
 
 quality_family(

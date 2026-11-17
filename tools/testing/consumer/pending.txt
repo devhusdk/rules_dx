@@ -1,4 +1,3 @@
-fixture android
 fixture env
 fixture flutter
 override archive_override rules_flutter

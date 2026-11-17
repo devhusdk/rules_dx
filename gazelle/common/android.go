@@ -143,6 +143,9 @@ func IsAndroidPlatformImport(spec string) bool {
 	return IsAndroidSDKPlatform(spec) || InPackages(spec, androidBundledPackages)
 }
 
+// AndroidSDKHosts are the constraints of the hosts the pinned Android SDK runs on.
+var AndroidSDKHosts = []string{"@platforms//cpu:x86_64", "@platforms//os:linux"}
+
 // AndroidVariant returns the KindVariant generating kind for sources that
 // import the Android SDK.
 func AndroidVariant(kind string) *KindVariant {
@@ -153,7 +156,7 @@ func AndroidVariant(kind string) *KindVariant {
 		IsPlatform:   IsAndroidPlatformImport,
 		NeedsPackage: "Android sources need a package declaration to set custom_package",
 		Attrs: func(pkg string) []KindAttr {
-			return []KindAttr{{"custom_package", pkg}, {"tags", []string{"manual"}}}
+			return []KindAttr{{"custom_package", pkg}, {"target_compatible_with", AndroidSDKHosts}}
 		},
 	}
 }

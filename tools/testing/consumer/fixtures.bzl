@@ -5,6 +5,7 @@ load("//rust:defs.bzl", "rust_test")
 
 CONSUMER_FIXTURES = [
     "ansible",
+    "android",
     "api_spec",
     "appimage",
     "apple",

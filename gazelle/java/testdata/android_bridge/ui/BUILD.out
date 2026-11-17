@@ -4,7 +4,10 @@ android_java_library(
     name = "ui",
     srcs = ["Screen.java"],
     custom_package = "com.example.ui",
-    tags = ["manual"],
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
     visibility = ["//visibility:public"],
     deps = ["//util"],
 )

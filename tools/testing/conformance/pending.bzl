@@ -399,7 +399,6 @@ vue format_error_test *
 vue format_test *
 vue lint_error_test *
 vue lint_test *
-zig coverage_test windows_x86_64
 zig format_error_test *
 zig format_test *
 zig lint_error_test *

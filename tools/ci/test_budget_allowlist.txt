@@ -1,3 +1,6 @@
+//deploy/private/release/tests:release_consumer_smoke_test nested-cold-over-60 300
+//examples/adopt-polyglot:consumer_test nested-cold-over-60 300
+//tools/testing/hermetic:cpp_rust nested-cold-over-60 653
 android/private/packaging/BUILD.bazel no-size 25
 android/private/sdk/BUILD.bazel no-size 1
 android/tests/fixtures/adopt-android/app/BUILD.bazel no-size 3

@@ -11,9 +11,16 @@ use test_calls::{
 };
 use yaml_serde as _;
 
+/// The kind of an allowlist line that lets a nested test take more than `NESTED_SECONDS` cold.
+const NESTED_OVER: &str = "nested-cold-over-60";
+
+/// The most cold seconds a nested list line may hold outside the allowlist.
+const NESTED_SECONDS: usize = 60;
+
 /// The kinds an allowlist line may name.
-const KINDS: [&str; 8] = [
+const KINDS: [&str; 9] = [
     "flaky",
+    "nested-cold-over-60",
     "no-size",
     "size-enormous",
     "size-large",
@@ -493,8 +500,8 @@ fn unselected(
 }
 
 /// One nested list line: `<label> <seconds>`.
-fn parse_nested(text: &str) -> (BTreeSet<String>, Vec<String>) {
-    let mut labels = BTreeSet::new();
+fn parse_nested(text: &str) -> (BTreeMap<String, usize>, Vec<String>) {
+    let mut labels = BTreeMap::new();
     let mut problems = Vec::new();
     let mut previous: Option<&str> = None;
     for line in text.lines() {
@@ -503,7 +510,8 @@ fn parse_nested(text: &str) -> (BTreeSet<String>, Vec<String>) {
             problems.push(format!("malformed line: {line:?}"));
             continue;
         };
-        if !label.starts_with("//") || seconds.parse::<u32>().unwrap_or(0) == 0 {
+        let seconds = seconds.parse::<usize>().unwrap_or(0);
+        if !label.starts_with("//") || seconds == 0 {
             problems.push(format!("malformed line: {line:?}"));
             continue;
         }
@@ -511,9 +519,60 @@ fn parse_nested(text: &str) -> (BTreeSet<String>, Vec<String>) {
             problems.push(format!("not sorted or repeated: {line:?}"));
         }
         previous = Some(label);
-        labels.insert((*label).to_owned());
+        labels.insert((*label).to_owned(), seconds);
     }
     (labels, problems)
+}
+
+/// Splits the `NESTED_OVER` lines off the allowlist, keyed by label.
+fn split_nested(allowed: Counts) -> (Counts, BTreeMap<String, usize>, Vec<String>) {
+    let mut budget = Counts::new();
+    let mut over = BTreeMap::new();
+    let mut problems = Vec::new();
+    for ((path, kind), count) in allowed {
+        if kind != NESTED_OVER {
+            budget.insert((path, kind), count);
+        } else if path.starts_with("//") {
+            over.insert(path, count);
+        } else {
+            problems.push(format!("{path}: `{NESTED_OVER}` needs a label"));
+        }
+    }
+    (budget, over, problems)
+}
+
+/// Nested list lines over `NESTED_SECONDS` that the allowlist does not cover, and allowlist lines that cover too much.
+fn nested_seconds(listed: &BTreeMap<String, usize>, over: &BTreeMap<String, usize>) -> Vec<String> {
+    let mut out = Vec::new();
+    for (label, seconds) in listed {
+        if *seconds <= NESTED_SECONDS {
+            continue;
+        }
+        match over.get(label) {
+            None => out.push(format!(
+                "{label}: {seconds} s cold, {NESTED_SECONDS} allowed; split the test"
+            )),
+            Some(limit) if seconds > limit => out.push(format!(
+                "{label}: {seconds} s cold, {limit} allowed; split the test"
+            )),
+            Some(limit) if seconds < limit => out.push(format!(
+                "{label}: {seconds} s cold; lower the allowlist seconds from {limit}"
+            )),
+            Some(_) => {}
+        }
+    }
+    for label in over.keys() {
+        match listed.get(label) {
+            None => out.push(format!(
+                "{label}: no nested list line; delete the allowlist line"
+            )),
+            Some(seconds) if *seconds <= NESTED_SECONDS => out.push(format!(
+                "{label}: {seconds} s cold, at most {NESTED_SECONDS}; delete the allowlist line"
+            )),
+            Some(_) => {}
+        }
+    }
+    out
 }
 
 /// Lines that differ between the nested tests of the tree and the list.
@@ -573,13 +632,17 @@ fn the_tree_matches_the_allowlist_and_the_nested_list() {
         files.len()
     );
     let (allowed, mut problems) = parse_allowlist(&read_input("TEST_BUDGET_ALLOWLIST"), &KINDS);
+    let (allowed, over, split) = split_nested(allowed);
+    problems.extend(split);
     problems.extend(differences(&budget(&files), &allowed, FIX));
     assert!(
         problems.is_empty(),
         "{ALLOWLIST} and the tree disagree:\n{}",
         problems.join("\n")
     );
-    let (listed, mut problems) = parse_nested(&read_input("NESTED_LIST"));
+    let (seconds, mut problems) = parse_nested(&read_input("NESTED_LIST"));
+    let listed: BTreeSet<String> = seconds.keys().cloned().collect();
+    problems.extend(nested_seconds(&seconds, &over));
     problems.extend(nested_differences(&nested_tests(&files), &listed));
     problems.extend(unselected(&files, &listed, &read_input("CI_WORKFLOW")));
     assert!(
@@ -753,7 +816,10 @@ fn the_nested_list_rejects_missing_spare_and_extra_lines() {
 fn the_nested_list_format_is_strict() {
     let (listed, problems) = parse_nested("//a:one 12\n//b:two 653\n");
     assert_eq!(problems, Vec::<String>::new());
-    assert_eq!(listed, labels(&["//a:one", "//b:two"]));
+    assert_eq!(
+        listed,
+        BTreeMap::from([("//a:one".to_owned(), 12), ("//b:two".to_owned(), 653)]),
+    );
     for bad in [
         "//a:one\n",
         "//a:one 0\n",
@@ -795,5 +861,88 @@ smoke(name = "macro")
             "//pkg:orphan: no CI job runs it; tag it {}, or name it in {WORKFLOW}",
             CONSUMER_TAGS.join(", ")
         )],
+    );
+}
+
+fn seconds(entries: &[(&str, usize)]) -> BTreeMap<String, usize> {
+    entries
+        .iter()
+        .map(|(label, seconds)| ((*label).to_owned(), *seconds))
+        .collect()
+}
+
+fn over(entries: &[(&str, usize)]) -> BTreeMap<String, usize> {
+    entries
+        .iter()
+        .map(|(label, seconds)| ((*label).to_owned(), *seconds))
+        .collect()
+}
+
+#[test]
+fn nested_lines_at_or_under_the_limit_need_no_allowlist_line() {
+    let listed = seconds(&[("//a:one", 33), ("//b:two", NESTED_SECONDS)]);
+    assert_eq!(nested_seconds(&listed, &over(&[])), Vec::<String>::new());
+}
+
+#[test]
+fn nested_lines_over_the_limit_need_an_allowlist_line() {
+    let listed = seconds(&[("//a:one", 61), ("//b:two", 653)]);
+    assert_eq!(
+        nested_seconds(&listed, &over(&[("//b:two", 653)])),
+        ["//a:one: 61 s cold, 60 allowed; split the test"],
+    );
+}
+
+#[test]
+fn nested_lines_over_the_allowlisted_seconds_fail() {
+    let listed = seconds(&[("//a:one", 301)]);
+    assert_eq!(
+        nested_seconds(&listed, &over(&[("//a:one", 300)])),
+        ["//a:one: 301 s cold, 300 allowed; split the test"],
+    );
+}
+
+#[test]
+fn nested_lines_under_the_allowlisted_seconds_lower_it() {
+    let listed = seconds(&[("//a:one", 120)]);
+    assert_eq!(
+        nested_seconds(&listed, &over(&[("//a:one", 300)])),
+        ["//a:one: 120 s cold; lower the allowlist seconds from 300"],
+    );
+}
+
+#[test]
+fn nested_allowlist_lines_without_a_nested_line_are_stale() {
+    assert_eq!(
+        nested_seconds(&seconds(&[]), &over(&[("//a:one", 300)])),
+        ["//a:one: no nested list line; delete the allowlist line"],
+    );
+}
+
+#[test]
+fn nested_allowlist_lines_for_lines_at_or_under_the_limit_are_stale() {
+    let listed = seconds(&[("//a:one", NESTED_SECONDS), ("//b:two", 33)]);
+    assert_eq!(
+        nested_seconds(&listed, &over(&[("//a:one", 300), ("//b:two", 300)])),
+        [
+            "//a:one: 60 s cold, at most 60; delete the allowlist line",
+            "//b:two: 33 s cold, at most 60; delete the allowlist line",
+        ],
+    );
+}
+
+#[test]
+fn nested_allowlist_lines_split_off_by_kind_and_need_a_label() {
+    let allowed = counts(&[
+        ("//a:one", NESTED_OVER, 300),
+        ("a/BUILD.bazel", "flaky", 1),
+        ("a/BUILD.bazel", NESTED_OVER, 300),
+    ]);
+    let (budget, over_lines, problems) = split_nested(allowed);
+    assert_eq!(budget, counts(&[("a/BUILD.bazel", "flaky", 1)]));
+    assert_eq!(over_lines, over(&[("//a:one", 300)]));
+    assert_eq!(
+        problems,
+        ["a/BUILD.bazel: `nested-cold-over-60` needs a label"],
     );
 }

@@ -1,5 +1,6 @@
 //! Plans the files and `MODULE.bazel` lines `avro_cc_library` needs.
 
+use std::fmt::Write as _;
 use std::path::Path;
 
 use dx_module_bazel::{Call, ModuleFile, Value};
@@ -199,13 +200,17 @@ pub fn plan_avro_cpp(root: &Path) -> Result<AvroCpp, AdoptError> {
         let binding = bound.clone().unwrap_or_else(|| EXTENSION.to_owned());
         let mut block = String::new();
         if bound.is_none() {
-            block.push_str(&format!(
-                "{binding} = use_extension(\"{EXTENSION_BZL}\", \"{EXTENSION}\")\n"
-            ));
+            writeln!(
+                block,
+                "{binding} = use_extension(\"{EXTENSION_BZL}\", \"{EXTENSION}\")"
+            )
+            .ok();
         }
-        block.push_str(&format!(
-            "override_repo({binding}, {REPO} = \"{MODULE_NAME}\")\n"
-        ));
+        writeln!(
+            block,
+            "override_repo({binding}, {REPO} = \"{MODULE_NAME}\")"
+        )
+        .ok();
         append(&mut out, &block);
     }
     let mut edits = Vec::new();

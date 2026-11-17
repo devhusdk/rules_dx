@@ -197,12 +197,13 @@ pub fn init_diagnostics_with_color(verbose: bool, color: ColorMode) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fmt::Write as _;
 
     #[test]
     fn excerpt_keeps_the_first_error_and_the_tail() {
         let mut stderr = String::from("INFO: start\nERROR: boom\n");
         for i in 0..50 {
-            stderr.push_str(&format!("line {i}\n"));
+            writeln!(stderr, "line {i}").ok();
         }
         let got = diagnostic_excerpt(stderr.as_bytes(), 20, 4096).expect("excerpt");
         let lines: Vec<&str> = got.text.lines().collect();
@@ -238,7 +239,7 @@ mod tests {
     fn excerpt_byte_cap_keeps_the_error_line() {
         let mut stderr = String::from("ERROR: boom\n");
         for i in 0..50 {
-            stderr.push_str(&format!("line number {i}\n"));
+            writeln!(stderr, "line number {i}").ok();
         }
         let got = diagnostic_excerpt(stderr.as_bytes(), 20, 60).expect("excerpt");
         assert!(got.text.len() <= 60);

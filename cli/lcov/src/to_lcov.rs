@@ -1,6 +1,7 @@
 //! Converts a Clover or Cobertura XML coverage report to LCOV.
 
 use std::env;
+use std::fmt::Write as _;
 use std::fs;
 use std::process::ExitCode;
 
@@ -65,7 +66,7 @@ fn keep_sources(lcov: &str, sources: &[&str]) -> String {
             });
             keep = found.is_some();
             if let Some(src) = found {
-                out.push_str(&format!("SF:{src}\n"));
+                writeln!(out, "SF:{src}").ok();
             }
             continue;
         }

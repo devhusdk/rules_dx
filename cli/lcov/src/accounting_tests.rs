@@ -27,7 +27,7 @@ fn blank_sources() -> impl Fn(&str) -> Result<String, LcovError> {
 fn lcov(path: &str, lines: &[(u32, u64)]) -> String {
     let mut out = format!("SF:{path}\n");
     for (line, count) in lines {
-        out.push_str(&format!("DA:{line},{count}\n"));
+        writeln!(out, "DA:{line},{count}").ok();
     }
     out.push_str("end_of_record\n");
     out

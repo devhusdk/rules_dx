@@ -3,6 +3,7 @@
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, VecDeque};
+use std::fmt::Write as _;
 use std::str::FromStr;
 
 use gomod_parser::{GoMod, ModuleReplacement, Replacement};
@@ -317,7 +318,7 @@ pub fn insert_require(text: &str, module: &str, version: &str) -> Result<String,
         if !out.trim().is_empty() {
             out.push_str(eol);
         }
-        out.push_str(&format!("require ({eol}\t{module} {version}{eol}){eol}"));
+        write!(out, "require ({eol}\t{module} {version}{eol}){eol}").ok();
         out
     };
     let after = parse_mod(&out).map_err(GoEditError::Invalid)?;

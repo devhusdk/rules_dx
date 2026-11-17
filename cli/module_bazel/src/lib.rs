@@ -4,6 +4,7 @@
 pub mod identity;
 
 use std::collections::BTreeSet;
+use std::fmt::Write as _;
 use std::ops::Range;
 
 use starlark_syntax::codemap::Span;
@@ -163,22 +164,24 @@ impl NewTag {
         let mut out = format!("{binding}.{}(\n", self.name);
         for (key, arg) in &self.args {
             match arg {
-                Arg::Str(value) => out.push_str(&format!("    {key} = \"{value}\",\n")),
+                Arg::Str(value) => {
+                    writeln!(out, "    {key} = \"{value}\",").ok();
+                }
                 Arg::List(values) => {
                     if let [only] = values.as_slice() {
-                        out.push_str(&format!("    {key} = [\"{only}\"],\n"));
+                        writeln!(out, "    {key} = [\"{only}\"],").ok();
                         continue;
                     }
-                    out.push_str(&format!("    {key} = [\n"));
+                    writeln!(out, "    {key} = [").ok();
                     for value in values {
-                        out.push_str(&format!("        \"{value}\",\n"));
+                        writeln!(out, "        \"{value}\",").ok();
                     }
                     out.push_str("    ],\n");
                 }
                 Arg::Dict(entries) => {
-                    out.push_str(&format!("    {key} = {{\n"));
+                    writeln!(out, "    {key} = {{").ok();
                     for (k, v) in entries {
-                        out.push_str(&format!("        \"{k}\": \"{v}\",\n"));
+                        writeln!(out, "        \"{k}\": \"{v}\",").ok();
                     }
                     out.push_str("    },\n");
                 }

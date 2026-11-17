@@ -2,6 +2,8 @@
 //! (`dx license`, `release_tool inventory`) and the release verifier.
 //! Depends only on `dx_digest` and `std`.
 
+use std::fmt::Write as _;
+
 use dx_error::DxError;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -134,10 +136,12 @@ pub fn render_notice_manifest(header: &str, entries: &[NoticeEntry]) -> String {
         out.push('\n');
     }
     for e in sorted {
-        out.push_str(&format!(
-            "{}|{}|{}|{}|{}|{}\n",
+        writeln!(
+            out,
+            "{}|{}|{}|{}|{}|{}",
             e.package, e.set, e.version, e.license, e.text_path, e.text_sha256
-        ));
+        )
+        .ok();
     }
     out
 }

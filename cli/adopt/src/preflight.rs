@@ -1,6 +1,7 @@
 //! The read-only "init plan" for a foreign `MODULE.bazel`: what adopting `rules_dx`
 //! would conflict with, found from the declared files. No Bazel runs and nothing is written.
 
+use std::fmt::Write as _;
 use std::path::Path;
 
 use dx_module_bazel::{ModuleFile, Value, compare_module_versions};
@@ -489,29 +490,33 @@ pub fn render_plan_text(module: &str, apply: &str, plan: &Preflight) -> String {
         ("toolchain conflicts", Kind::ToolchainConflict),
         ("bazelrc conflicts", Kind::BazelrcConflict),
     ] {
-        out.push_str(&format!("{title}:\n"));
+        writeln!(out, "{title}:").ok();
         let items: Vec<&Finding> = plan.findings.iter().filter(|f| f.kind == kind).collect();
         if items.is_empty() {
             out.push_str("  none\n");
         }
         for f in items {
             let level = if f.hard { "hard" } else { "advisory" };
-            out.push_str(&format!(
-                "  {} {} -> {} ({level}, {}:{})\n    {}\n",
+            writeln!(
+                out,
+                "  {} {} -> {} ({level}, {}:{})\n    {}",
                 f.subject, f.before, f.after, f.file, f.line, f.hint
-            ));
+            )
+            .ok();
         }
     }
     for note in &plan.notes {
-        out.push_str(&format!("note: {note}\n"));
+        writeln!(out, "note: {note}").ok();
     }
     let hard = plan.hard().count();
     if hard > 0 {
-        out.push_str(&format!(
-            "next: resolve {hard} hard conflict(s), then run `{apply}`\n"
-        ));
+        writeln!(
+            out,
+            "next: resolve {hard} hard conflict(s), then run `{apply}`"
+        )
+        .ok();
     } else {
-        out.push_str(&format!("next: run `{apply}`\n"));
+        writeln!(out, "next: run `{apply}`").ok();
     }
     out
 }

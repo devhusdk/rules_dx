@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write as _;
 use std::process::Command;
 
 use crate::{GenerateError, Inputs, RootBuild, render};
@@ -28,7 +29,7 @@ fn summary(out: &BTreeMap<String, Vec<u8>>) -> String {
     let mut lines = String::new();
     for (path, bytes) in out {
         let text = String::from_utf8(bytes.clone()).expect("utf-8");
-        lines.push_str(&format!("== {path}\n"));
+        writeln!(lines, "== {path}").ok();
         if let Some(base) = path.strip_prefix(".dx/config/") {
             let dir = base.split('/').next().expect("tool dir");
             if dir == "gitleaks" {
@@ -47,7 +48,7 @@ fn summary(out: &BTreeMap<String, Vec<u8>>) -> String {
                 (false, true) => "strict",
                 (false, false) => panic!("{path} is not a tier copied verbatim"),
             };
-            lines.push_str(&format!("<{tier} tier>\n"));
+            writeln!(lines, "<{tier} tier>").ok();
         } else if let Some(layer) = path.strip_prefix(".dx/bazelrc/") {
             let preset = dx_preset::Layer::ALL
                 .into_iter()

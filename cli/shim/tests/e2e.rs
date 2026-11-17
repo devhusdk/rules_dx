@@ -1,5 +1,6 @@
 mod support;
 
+use std::fmt::Write as _;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
@@ -92,7 +93,7 @@ fn passes_args_through_unchanged() {
     assert!(output.status.success(), "{}", stderr(&output));
     let mut want = String::from("shim=1\n");
     for arg in args {
-        want.push_str(&format!("arg=[{arg}]\n"));
+        writeln!(want, "arg=[{arg}]").ok();
     }
     assert_eq!(stdout(&output), want);
     assert_eq!(stderr(&output), "");

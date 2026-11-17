@@ -169,8 +169,8 @@ tools/dx security --verify dx-linux-x86_64.tar.gz --repo devhusdk/rules_dx --bun
 - `--bundle` defaults to `<file>.sigstore.json`. A bundle from `cosign sign-blob` is checked with `cosign verify-blob`; an attestation bundle from `actions/attest` with `cosign verify-blob-attestation --type https://slsa.dev/provenance/v1`.
 - cosign is the pinned `@rules_dx//deploy/private/release:cosign`; set `DX_COSIGN_BIN` to an absolute path to use another copy.
 - The signing certificate must come from a GitHub Actions workflow in `<owner/name>` (`https://token.actions.githubusercontent.com`). The signer identity is printed.
-- When `gh` is on `PATH`, `gh attestation verify <file> --repo <owner/name>` runs too. Without `gh` that check is skipped and says so.
-- A changed byte, a different signer or a missing bundle exits `1`.
+- `gh attestation verify <file> --repo <owner/name>` runs too, so the [GitHub CLI](https://cli.github.com/) must be on `PATH`.
+- A changed byte, a different signer, a missing bundle or a missing `gh` exits `1`.
 
 ### Output
 

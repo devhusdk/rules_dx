@@ -181,18 +181,17 @@ fn verify_prints_the_signer_and_runs_gh_when_present() {
 }
 
 #[test]
-fn verify_skips_gh_when_it_is_missing() {
+fn verify_exits_1_when_gh_is_missing() {
     let runner = VerifyRunner {
         cosign: 0,
         gh: None,
         calls: RefCell::new(Vec::new()),
     };
     let (code, out, err) = verify("verify_no_gh", &runner, &[]);
-    assert_eq!(code, 0, "{err}");
-    assert!(
-        out.contains("gh not found, attestation check skipped"),
-        "{out}"
-    );
+    assert_eq!(code, 1, "{out}");
+    assert!(err.contains("gh not found on PATH"), "{err}");
+    assert!(err.contains("acme/tool"), "{err}");
+    assert!(!out.contains("verified"), "{out}");
 }
 
 #[test]

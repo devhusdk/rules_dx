@@ -53,6 +53,7 @@ xcode_license(
 
 failure_test(
     name = "unaccepted_xcode_license_fails",
+    size = "small",
     expected_failure_substring = "Xcode and Apple SDKs Agreement (https://www.apple.com/legal/sla/docs/xcode.pdf) is not accepted",
     target = ":unaccepted_xcode_license",
 )

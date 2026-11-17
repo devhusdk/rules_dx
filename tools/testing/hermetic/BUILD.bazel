@@ -1038,7 +1038,6 @@ hermetic_qualification(
         "//:tool_web",
         "//:wasm_test",
     ],
-    smoke = True,
 )
 
 hermetic_qualification(

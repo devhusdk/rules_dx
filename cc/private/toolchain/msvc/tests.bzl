@@ -2,11 +2,11 @@
 
 load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("//cc/private/toolchain:hub.bzl", "cc_hub_entries")
 load("//cc/private/toolchain:pins.bzl", "MSVC_TOOLSET_VERSION", "VC_REDIST_VERSION", "WINDOWS_SDK_INCLUDE_VERSION")
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":layout.bzl", "msvc_layout")
 load(":subject.bzl", "msvc_toolchain_subject")
-load(":toolchains.bzl", "msvc_toolchain_cells")
 
 _ROOT = "cc\\tests\\fixtures\\msvc_layout\\"
 _VC = "sysroot\\Contents\\VC\\Tools\\MSVC\\14.44.35207\\"
@@ -123,7 +123,7 @@ def msvc_toolchain_tests(name):
         name = name + "_toolchain_cells",
         mode = "load",
         checks = [
-            expect_equal("cells", msvc_toolchain_cells(), [
+            expect_equal("cells", [(e.name, e.exec_compatible_with[1], e.target_compatible_with[1]) for e in cc_hub_entries() if e.name.startswith("msvc_windows_")], [
                 ("msvc_windows_x86_64", x64, x64),
                 ("msvc_windows_x86_64_to_arm64", x64, arm64),
                 ("msvc_windows_arm64", arm64, arm64),

@@ -379,7 +379,6 @@ private-visibility thrift/private/crates/BUILD.bazel
 private-visibility typescript/private/playwright/BUILD.bazel
 private-visibility zig/private/BUILD.bazel
 private-visibility zig/private/tools/BUILD.bazel
-register-label cc/private/toolchain
 register-label core/quality
 register-label java/private/toolchain
 register-label kotlin/private/toolchain

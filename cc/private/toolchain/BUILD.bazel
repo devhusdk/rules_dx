@@ -1,6 +1,5 @@
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
-load("//cc/private/toolchain/msvc:toolchains.bzl", "msvc_toolchains")
 load("//cc/tests:defs_tests.bzl", "cc_gcov_coverage_env_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//deploy/private:native_runtime.bzl", "dx_native_runtime")
@@ -74,116 +73,29 @@ cc_toolchain_identity_tests(name = "identity")
 config_setting(
     name = "gcc_selected",
     flag_values = {"//cc:compiler": "gcc"},
+    visibility = [
+        "//:__subpackages__",
+        "@dx_cc_toolchains//:__pkg__",
+    ],
 )
 
 config_setting(
     name = "msvc_selected",
     flag_values = {"//cc:compiler": "msvc"},
-)
-
-toolchain(
-    name = "gcc_linux_x86_64",
-    exec_compatible_with = [
-        "@platforms//os:linux",
-        "@platforms//cpu:x86_64",
+    visibility = [
+        "//:__subpackages__",
+        "@dx_cc_toolchains//:__pkg__",
     ],
-    target_compatible_with = [
-        "@platforms//os:linux",
-        "@platforms//cpu:x86_64",
-    ],
-    target_settings = [":gcc_selected"],
-    toolchain = "@dx_gcc_linux_x86_64//:_cc_toolchain",
-    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
-)
-
-toolchain(
-    name = "gcc_linux_x86_64_to_arm64",
-    exec_compatible_with = [
-        "@platforms//os:linux",
-        "@platforms//cpu:x86_64",
-    ],
-    target_compatible_with = [
-        "@platforms//os:linux",
-        "@platforms//cpu:arm64",
-    ],
-    target_settings = [":gcc_selected"],
-    toolchain = "@dx_gcc_linux_aarch64_cross//:_cc_toolchain",
-    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
-)
-
-toolchain(
-    name = "gcc_linux_arm64",
-    exec_compatible_with = [
-        "@platforms//os:linux",
-        "@platforms//cpu:arm64",
-    ],
-    target_compatible_with = [
-        "@platforms//os:linux",
-        "@platforms//cpu:arm64",
-    ],
-    target_settings = [":gcc_selected"],
-    toolchain = "@dx_gcc_linux_aarch64//:_cc_toolchain",
-    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
-)
-
-toolchain(
-    name = "llvm_fuzzer_macos_arm64",
-    exec_compatible_with = [
-        "@platforms//os:macos",
-        "@platforms//cpu:arm64",
-    ],
-    target_compatible_with = [
-        "@platforms//os:macos",
-        "@platforms//cpu:arm64",
-    ],
-    target_settings = [
-        "//config:toolchains_on",
-        "@llvm//config:fuzzer_enabled",
-        "@llvm//toolchain:bootstrap_stage0_prebuilt_seed",
-    ],
-    toolchain = "@llvm//toolchain:macos_aarch64_cc_toolchain",
-    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
-)
-
-toolchain(
-    name = "llvm_fuzzer_macos_x86_64",
-    exec_compatible_with = [
-        "@platforms//os:macos",
-        "@platforms//cpu:x86_64",
-    ],
-    target_compatible_with = [
-        "@platforms//os:macos",
-        "@platforms//cpu:x86_64",
-    ],
-    target_settings = [
-        "//config:toolchains_on",
-        "@llvm//config:fuzzer_enabled",
-        "@llvm//toolchain:bootstrap_stage0_prebuilt_seed",
-    ],
-    toolchain = "@llvm//toolchain:macos_x86_64_cc_toolchain",
-    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
-)
-
-msvc_toolchains(name = "msvc")
-
-toolchain(
-    name = "msvc_unsupported",
-    target_settings = [":msvc_selected"],
-    toolchain = "//cc/private/toolchain/msvc:unsupported",
-    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
 )
 
 cc_toolchain_unavailable(
     name = "gcc_unsupported_impl",
     error = GCC_UNSUPPORTED,
     tags = ["manual"],
-)
-
-toolchain(
-    name = "gcc_unsupported",
-    target_settings = [":gcc_selected"],
-    toolchain = ":gcc_unsupported_impl",
-    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+    visibility = [
+        "//:__subpackages__",
+        "@dx_cc_toolchains//:__pkg__",
+    ],
 )
 
 gcc_unsupported_tests(name = "gcc_unsupported_test")
@@ -693,6 +605,7 @@ real_source_target(
         "identity_tests.bzl",
         "pins.bzl",
         "extensions.bzl",
+        "hub.bzl",
         "select.bzl",
         "unavailable.bzl",
         "gcc_unsupported_tests.bzl",

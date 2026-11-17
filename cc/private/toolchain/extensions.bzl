@@ -1,6 +1,7 @@
-"""Module extension for cc/private/toolchain."""
+"""The cc extension: the pinned GCC repositories and the dx_cc_toolchains hub."""
 
 load("//cc/private/toolchain/gcc_repo:defs.bzl", "gcc_declare_toolchain")
+load(":hub.bzl", "cc_hub")
 load(":pins.bzl", "GCC_GLIBC", "GCC_LINUX_AARCH64", "GCC_LINUX_X86_64", "GCC_LINUX_X86_64_TO_AARCH64", "GCC_VERSION")
 
 
@@ -18,7 +19,16 @@ _EXTRA_KNOWN = [
 ]
 
 
-def _gcc_impl(_mctx):
+def _hub_impl(rctx):
+    rctx.file("BUILD.bazel", rctx.attr.build)
+
+_hub = repository_rule(
+    implementation = _hub_impl,
+    doc = "Writes the BUILD file of the C and C++ toolchain hub.",
+    attrs = {"build": attr.string(mandatory = True, doc = "BUILD file content of the hub.")},
+)
+
+def _cc_impl(_mctx):
     gcc_declare_toolchain(
         name = "dx_gcc_linux_x86_64",
         target_arch = "x86_64",
@@ -49,10 +59,11 @@ def _gcc_impl(_mctx):
         extra_enabled_features = _EXTRA_ENABLED,
         extra_known_features = _EXTRA_KNOWN,
     )
+    _hub(name = "dx_cc_toolchains", build = cc_hub())
     return _mctx.extension_metadata(reproducible = True)
 
 
-gcc = module_extension(
-    implementation = _gcc_impl,
-    doc = "Declares the pinned GCC Linux toolchain repositories (x86_64, x86_64-to-aarch64 cross and native aarch64).",
+cc = module_extension(
+    implementation = _cc_impl,
+    doc = "Declares the pinned GCC Linux toolchain repositories and the dx_cc_toolchains hub.",
 )

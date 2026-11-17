@@ -1,6 +1,6 @@
 """clang-cl cc_toolchains for MSVC targets whose link actions carry the hermetic LIB search path."""
 
-load("@llvm//platforms:common.bzl", "MSVC_TARGET_STAGE0_SUPPORTED_EXECS", "WINDOWS_TARGETS")
+load("@llvm//platforms:common.bzl", "MSVC_TARGET_STAGE0_SUPPORTED_EXECS")
 load("@llvm//toolchain:cc_toolchain.bzl", "cc_toolchain")
 load("@llvm//toolchain:merged_resource_directory.bzl", "merged_resource_directory")
 load("@llvm//toolchain:selects.bzl", "platform_cc_tool_map", "platform_module_map", "platform_resource_dir")
@@ -160,22 +160,8 @@ def clang_cl_toolchains(link_lib_env):
             }),
         )
 
-        for (target_os, target_cpu) in WINDOWS_TARGETS:
-            native.toolchain(
-                name = prefix + "_to_" + target_os + "_" + target_cpu,
-                exec_compatible_with = [
-                    "@platforms//cpu:" + exec_cpu,
-                    "@platforms//os:" + exec_os,
-                ],
-                target_compatible_with = [
-                    "@platforms//cpu:" + target_cpu,
-                    "@platforms//os:" + target_os,
-                ],
-                target_settings = [
-                    "//config:toolchains_on",
-                    "@llvm//toolchain:bootstrap_stage0_prebuilt_seed",
-                    "@llvm//platforms/config:windows_" + target_cpu + "_msvc",
-                ],
-                toolchain = ":" + prefix + "_cc_toolchain",
-                toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
-            )
+        native.alias(
+            name = prefix + "_toolchain",
+            actual = ":" + prefix + "_cc_toolchain",
+            visibility = ["@dx_cc_toolchains//:__pkg__"],
+        )

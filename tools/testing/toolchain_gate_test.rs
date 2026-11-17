@@ -19,19 +19,6 @@ const OWN_TYPES: &[&str] = &[
 
 /// Registrations that carry `//config:toolchains_on` or `//cc:compiler` in `target_settings`.
 const GATED: &[&str] = &[
-    "//cc/private/toolchain:gcc_linux_arm64",
-    "//cc/private/toolchain:gcc_linux_x86_64",
-    "//cc/private/toolchain:gcc_linux_x86_64_to_arm64",
-    "//cc/private/toolchain:gcc_unsupported",
-    "//cc/private/toolchain:llvm_fuzzer_macos_arm64",
-    "//cc/private/toolchain:llvm_fuzzer_macos_x86_64",
-    "//cc/private/toolchain:msvc_unsupported",
-    "//cc/private/toolchain:msvc_windows_arm64",
-    "//cc/private/toolchain:msvc_windows_x86_64",
-    "//cc/private/toolchain:msvc_windows_x86_64_to_arm64",
-    "//cc/private/toolchain/apple:all",
-    "//cc/private/toolchain/clang_cl:all",
-    "//cc/private/toolchain/llvm:all",
     "//java/private/toolchain:all",
     "//kotlin/private/toolchain:unused_deps",
     "//scala/private/toolchain:semanticdb",
@@ -39,6 +26,7 @@ const GATED: &[&str] = &[
     "//tools/platforms:protoc_windows_arm64",
     "@android_ndk_toolchain//:all",
     "@cuda//toolchain/...",
+    "@dx_cc_toolchains//:all",
     "@dx_dotnet_toolchains//:all",
     "@dx_haskell_toolchains//:all",
     "@dx_python_toolchains//:all",

@@ -20,7 +20,7 @@ rust_library(
     deps = all_crate_deps(
         package_name = "appimage/private/tools/appimage_packer",
         normal = True,
-    ),
+    ) + ["//cli/digest:dx_digest"],
 )
 
 rust_binary(
@@ -53,7 +53,7 @@ rust_test(
         package_name = "appimage/private/tools/appimage_packer",
         normal = True,
         normal_dev = True,
-    ),
+    ) + ["//cli/digest:dx_digest"],
 )
 
 real_source_target(

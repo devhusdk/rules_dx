@@ -5,7 +5,7 @@ mod fake;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use dx_apple_ops::app_check::{parse_loads, run, sha256};
+use dx_apple_ops::app_check::{parse_loads, run};
 use dx_apple_ops::util::Output;
 use dx_apple_ops::xcode::{CODESIGN, PLUTIL, Tools, XCRUN};
 use dx_test_scratch::scratch;
@@ -240,22 +240,6 @@ fn json(checked: &Checked) -> String {
 }
 
 #[test]
-fn sha256_matches_the_known_digests() {
-    assert_eq!(
-        sha256(b""),
-        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-    );
-    assert_eq!(
-        sha256(b"abc"),
-        "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
-    );
-    assert_eq!(
-        sha256(&[b'a'; 1000]),
-        "41edece42d63e8d9bf515a9ba6932e1c20cbc9f5a5d134645adb5db1b9737ea3"
-    );
-}
-
-#[test]
 fn load_commands_are_read_in_order() {
     let found = parse_loads(&loads(&format!(
         "{}{}",
@@ -310,7 +294,7 @@ fn a_truthful_app_writes_its_identity_and_publishes_the_zip() {
     );
     let expected = format!(
         "{{\n  \"identity\": {{\n    \"bundle_id\": \"com.example.ledger\",\n    \"executable\": \"Ledger\",\n    \"version\": \"1.0\",\n    \"deployment\": \"14.0\"\n  }},\n  \"target\": {{\n    \"arch\": \"arm64\",\n    \"platform\": \"macosx\",\n    \"sdk_version\": \"15.5\",\n    \"xcode\": \"16.4.0.16F6\",\n    \"minos\": \"14.0\"\n  }},\n  \"linkage\": {{\n    \"rpaths\": [\"@executable_path/../Frameworks\"],\n    \"loads\": [\"/System/Library/Frameworks/Foundation.framework/Foundation\", \"/usr/lib/libSystem.B.dylib\", \"/usr/lib/libc++.1.dylib\", \"@rpath/Core.framework/Core\"]\n  }},\n  \"contents\": {{\n    \"frameworks\": [\"Core\"],\n    \"plugins\": [\"Share.appex\"],\n    \"resources\": [\"rates.txt\"]\n  }},\n  \"signing\": {{\n    \"signature\": \"adhoc\",\n    \"executable_sha256\": \"{}\"\n  }}\n}}\n",
-        sha256(&executable)
+        dx_digest::sha256_hex(&executable)
     );
     assert_eq!(json(&checked), expected);
     let published = std::fs::read(&checked.out).unwrap();

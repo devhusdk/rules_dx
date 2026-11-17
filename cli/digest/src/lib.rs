@@ -11,12 +11,23 @@ pub const DIGEST_LEN: usize = 32;
 
 pub const SHA1_LEN: usize = 20;
 
+pub const SHA512_LEN: usize = 64;
+
 pub type RawDigest = [u8; DIGEST_LEN];
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum DigestError {
     #[error("invalid digest {value:?}: want 64-character lowercase hex")]
     BadDigest { value: String },
+}
+
+/// Where a hashing copy failed: reading the source or writing the sink.
+#[derive(Debug, thiserror::Error)]
+pub enum CopyError {
+    #[error("read: {0}")]
+    Read(io::Error),
+    #[error("write: {0}")]
+    Write(io::Error),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -83,8 +94,20 @@ pub fn sha384_hex(bytes: &[u8]) -> String {
 }
 
 #[must_use]
+pub fn sha512(bytes: &[u8]) -> [u8; SHA512_LEN] {
+    Sha512::digest(bytes).into()
+}
+
+#[must_use]
 pub fn sha512_hex(bytes: &[u8]) -> String {
-    hex::encode(Sha512::digest(bytes))
+    hex::encode(sha512(bytes))
+}
+
+/// True when two hex digests name the same bytes. Hex case is ignored, so an
+/// uppercase pin or sidecar matches the lowercase hex this crate produces.
+#[must_use]
+pub fn verify(expected_hex: &str, actual_hex: &str) -> bool {
+    expected_hex.eq_ignore_ascii_case(actual_hex)
 }
 
 /// Streaming sha256 sink that hashes every byte written to it.
@@ -116,25 +139,37 @@ impl io::Write for Sha256Writer {
     }
 }
 
-/// Hex sha256 of a reader's bytes, read in fixed-size chunks.
-pub fn sha256_reader_hex(mut reader: impl io::Read) -> io::Result<String> {
+/// Copies `reader` into `writer` in fixed-size chunks and returns the hex
+/// sha256 of the bytes copied. Interrupted reads are retried.
+pub fn sha256_copy_hex(
+    mut reader: impl io::Read,
+    mut writer: impl io::Write,
+) -> Result<String, CopyError> {
     let mut sink = Sha256Writer::new();
     let mut buf = vec![0u8; FILE_CHUNK];
     loop {
         let read = match reader.read(&mut buf) {
             Ok(read) => read,
             Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
-            Err(error) => return Err(error),
+            Err(error) => return Err(CopyError::Read(error)),
         };
         if read == 0 {
             break;
         }
         let Some(chunk) = buf.get(..read) else {
-            return Err(io::ErrorKind::InvalidData.into());
+            return Err(CopyError::Read(io::ErrorKind::InvalidData.into()));
         };
-        io::Write::write_all(&mut sink, chunk)?;
+        io::Write::write_all(&mut sink, chunk).map_err(CopyError::Write)?;
+        writer.write_all(chunk).map_err(CopyError::Write)?;
     }
     Ok(sink.finish_hex())
+}
+
+/// Hex sha256 of a reader's bytes, read in fixed-size chunks.
+pub fn sha256_reader_hex(reader: impl io::Read) -> io::Result<String> {
+    sha256_copy_hex(reader, io::sink()).map_err(|error| match error {
+        CopyError::Read(error) | CopyError::Write(error) => error,
+    })
 }
 
 /// Hex sha256 of a file's bytes, read in fixed-size chunks.
@@ -253,6 +288,10 @@ mod tests {
             sha256_hex(b""),
             "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         );
+        assert_eq!(
+            sha256_hex(&[b'a'; 1000]),
+            "41edece42d63e8d9bf515a9ba6932e1c20cbc9f5a5d134645adb5db1b9737ea3"
+        );
     }
 
     #[test]
@@ -265,6 +304,17 @@ mod tests {
             sha512_hex(b"abc"),
             "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f"
         );
+        assert_eq!(to_hex_bytes(&sha512(b"abc")), sha512_hex(b"abc"));
+    }
+
+    #[test]
+    fn verify_ignores_hex_case_only() {
+        let actual = sha256_hex(b"abc");
+        assert!(verify(&actual, &actual));
+        assert!(verify(&actual.to_uppercase(), &actual));
+        assert!(!verify(&sha256_hex(b"abcd"), &actual));
+        assert!(!verify(&format!("{actual}00"), &actual));
+        assert!(!verify("", &actual));
     }
 
     #[test]
@@ -430,6 +480,50 @@ mod tests {
     #[test]
     fn reader_hash_retries_interrupted_reads_and_reports_other_errors() {
         assert_eq!(sha256_reader_hex(Flaky(0)).unwrap(), sha256_hex(b"abc"));
+        assert!(sha256_reader_hex(Broken).is_err());
+    }
+
+    struct Full;
+
+    impl io::Write for Full {
+        fn write(&mut self, _buf: &[u8]) -> io::Result<usize> {
+            Err(io::Error::other("full"))
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn copy_writes_every_byte_and_hashes_them() {
+        let bytes: Vec<u8> = (0..3 * FILE_CHUNK + 7)
+            .map(|i| u8::try_from(i % 251).expect("byte"))
+            .collect();
+        let mut copied = Vec::new();
+        assert_eq!(
+            sha256_copy_hex(bytes.as_slice(), &mut copied).unwrap(),
+            sha256_hex(&bytes)
+        );
+        assert_eq!(copied, bytes);
+    }
+
+    #[test]
+    fn copy_retries_interrupted_reads_and_names_the_failing_side() {
+        let mut copied = Vec::new();
+        assert_eq!(
+            sha256_copy_hex(Flaky(0), &mut copied).unwrap(),
+            sha256_hex(b"abc")
+        );
+        assert_eq!(copied, b"abc");
+        assert!(matches!(
+            sha256_copy_hex(Broken, io::sink()),
+            Err(CopyError::Read(_))
+        ));
+        assert!(matches!(
+            sha256_copy_hex(b"abc".as_slice(), Full),
+            Err(CopyError::Write(_))
+        ));
         assert!(sha256_reader_hex(Broken).is_err());
     }
 

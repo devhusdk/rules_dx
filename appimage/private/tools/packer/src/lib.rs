@@ -4,13 +4,11 @@
 
 use std::collections::BTreeMap;
 use std::fs;
-use std::io::Read;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 
 const FIXED_ARGS: usize = 13;
 
@@ -103,32 +101,9 @@ fn parse_entry(entry: &str) -> Result<Entry, String> {
     Err(format!("unknown entry '{entry}'"))
 }
 
-#[must_use]
-pub fn sha256_hex(bytes: &[u8]) -> String {
-    hex(&Sha256::digest(bytes))
-}
-
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
-}
-
 fn hash_file(path: &Path) -> Result<String, String> {
-    let mut file = fs::File::open(path).map_err(|e| format!("open {}: {e}", path.display()))?;
-    let mut hasher = Sha256::new();
-    let mut buffer = vec![0u8; 1 << 16];
-    loop {
-        let read = file
-            .read(&mut buffer)
-            .map_err(|e| format!("read {}: {e}", path.display()))?;
-        if read == 0 {
-            break;
-        }
-        let chunk = buffer
-            .get(..read)
-            .ok_or_else(|| format!("read {}: {read} bytes overflow the buffer", path.display()))?;
-        hasher.update(chunk);
-    }
-    Ok(hex(&hasher.finalize()))
+    let file = fs::File::open(path).map_err(|e| format!("open {}: {e}", path.display()))?;
+    dx_digest::sha256_reader_hex(file).map_err(|e| format!("read {}: {e}", path.display()))
 }
 
 #[must_use]
@@ -455,14 +430,6 @@ mod tests {
     }
 
     #[test]
-    fn digest_matches_the_known_value() {
-        assert_eq!(
-            sha256_hex(b"abc"),
-            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
-        );
-    }
-
-    #[test]
     fn entries_parse_and_reject_unknown_kinds() {
         assert_eq!(
             parse_entry("data:a/b.txt:/src/b.txt"),
@@ -593,8 +560,11 @@ mod tests {
         assert_eq!(identity["name"], "app");
         assert_eq!(identity["min_glibc"], "2.34");
         assert_eq!(identity["interpreter"], "/lib64/ld-linux-x86-64.so.2");
-        assert_eq!(identity["runtime"]["sha256"], sha256_hex(b"runtime"));
-        assert_eq!(identity["image_sha256"], sha256_hex(b"image\n"));
+        assert_eq!(
+            identity["runtime"]["sha256"],
+            dx_digest::sha256_hex(b"runtime")
+        );
+        assert_eq!(identity["image_sha256"], dx_digest::sha256_hex(b"image\n"));
         let files = identity["files"].as_object().unwrap();
         assert!(files.contains_key("usr/bin/app"));
         assert!(files.contains_key("usr/lib/liby.so"));
@@ -758,7 +728,7 @@ mod tests {
         fs::write(&file, vec![7u8; (1 << 16) + 5]).unwrap();
         assert_eq!(
             hash_file(&file).unwrap(),
-            sha256_hex(&vec![7u8; (1 << 16) + 5])
+            dx_digest::sha256_hex(&vec![7u8; (1 << 16) + 5])
         );
     }
 

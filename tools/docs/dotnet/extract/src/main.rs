@@ -4,7 +4,6 @@
 
 use serde as _;
 use serde_json as _;
-use sha2 as _;
 use std::process::ExitCode;
 
 fn main() -> ExitCode {

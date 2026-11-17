@@ -1,5 +1,5 @@
 {
-  "checksum": "8ee5fec7187740ecbaa41ea0bd518c4bef6c5f71766825c743e361a469071b5f",
+  "checksum": "d55430afed1d5bc675c99ee68001c8a2cea5296399f8b209786b2fe22d7d3ab4",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -1232,10 +1232,6 @@
           {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
-          },
-          {
-            "id": "sha2 0.10.9",
-            "target": "sha2"
           }
         ],
         "deps_dev": [
@@ -7412,10 +7408,6 @@
           {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
-          },
-          {
-            "id": "sha2 0.10.9",
-            "target": "sha2"
           }
         ],
         "edition": "2024"
@@ -8354,10 +8346,6 @@
           {
             "id": "sha1 0.10.7",
             "target": "sha1"
-          },
-          {
-            "id": "sha2 0.10.9",
-            "target": "sha2"
           },
           {
             "id": "tar 0.4.46",
@@ -9512,10 +9500,6 @@
               "target": "semver"
             },
             {
-              "id": "sha2 0.10.9",
-              "target": "sha2"
-            },
-            {
               "id": "ureq 3.5.0",
               "target": "ureq"
             }
@@ -9568,10 +9552,6 @@
           {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
-          },
-          {
-            "id": "sha2 0.10.9",
-            "target": "sha2"
           }
         ],
         "edition": "2024"
@@ -17564,10 +17544,6 @@
           {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
-          },
-          {
-            "id": "sha2 0.10.9",
-            "target": "sha2"
           },
           {
             "id": "zip 9.1.2",
@@ -33124,7 +33100,6 @@
     "serde-sarif 0.8.0",
     "serde_json 1.0.151",
     "sha1 0.10.7",
-    "sha2 0.10.9",
     "sha2 0.11.1",
     "similar 3.2.0",
     "spdx 0.13.5",

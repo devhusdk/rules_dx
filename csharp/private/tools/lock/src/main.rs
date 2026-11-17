@@ -35,5 +35,8 @@ fn main() -> ExitCode {
         return ExitCode::from(2);
     };
     let spec = Nuget::spec(hub);
-    dx_lock::main(&spec, &Nuget::new(&spec, &Registry::new()).with_paket(paket))
+    dx_lock::main(
+        &spec,
+        &Nuget::new(&spec, &Registry::new()).with_paket(paket),
+    )
 }

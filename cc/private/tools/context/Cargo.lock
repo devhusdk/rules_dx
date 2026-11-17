@@ -211,7 +211,6 @@ name = "appimage_packer"
 version = "0.0.0"
 dependencies = [
  "serde_json",
- "sha2 0.10.9",
  "tempfile",
 ]
 
@@ -1600,7 +1599,6 @@ version = "0.0.0"
 dependencies = [
  "serde",
  "serde_json",
- "sha2 0.10.9",
 ]
 
 [[package]]
@@ -1834,7 +1832,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sha1",
- "sha2 0.10.9",
  "tar",
  "tempfile",
  "ureq",
@@ -2118,7 +2115,6 @@ name = "dx_shim"
 version = "0.0.0"
 dependencies = [
  "semver",
- "sha2 0.10.9",
  "tempfile",
  "ureq",
  "windows-sys 0.61.2",
@@ -2131,7 +2127,6 @@ dependencies = [
  "hex",
  "object",
  "serde_json",
- "sha2 0.10.9",
 ]
 
 [[package]]
@@ -3793,7 +3788,6 @@ version = "0.0.0"
 dependencies = [
  "base64 0.23.1",
  "serde_json",
- "sha2 0.10.9",
  "tempfile",
  "zip",
 ]

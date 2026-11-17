@@ -3,7 +3,9 @@
 use std::cell::RefCell;
 
 use dx_lock::{Args, Error, Fetch, Outcome, run};
-use nuget_lock::{Download, Nuget, Tool, lock_groups, manifest_frameworks, normalize_version, tools};
+use nuget_lock::{
+    Download, Nuget, Tool, lock_groups, manifest_frameworks, normalize_version, tools,
+};
 
 const ALPHA: &str =
     "https://api.nuget.org/v3-flatcontainer/alpha.core/1.2.0/alpha.core.1.2.0.nupkg";

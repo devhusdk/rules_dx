@@ -551,7 +551,7 @@ pub fn archive_stage_release(
         .next()
         .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "empty checksum file"))?;
     let actual = dx_digest::sha256_file_hex(tarball_src)?;
-    if expected != actual {
+    if !dx_digest::verify(expected, &actual) {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
             format!(
@@ -898,6 +898,14 @@ mod tests {
         )
         .expect("write bad");
         assert!(archive_stage_release(&app, &tarball, &bad_checksum, &outdir).is_err());
+        let upper_checksum = scratch.path().join("upper.sha256");
+        std::fs::write(
+            &upper_checksum,
+            format!("{}  release_demo.tar.gz\n", digest.to_uppercase()).as_bytes(),
+        )
+        .expect("write upper");
+        archive_stage_release(&app, &tarball, &upper_checksum, &outdir)
+            .expect("an uppercase checksum names the same digest");
     }
 
     #[test]

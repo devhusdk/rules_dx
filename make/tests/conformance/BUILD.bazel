@@ -1,0 +1,53 @@
+# gazelle:ignore
+load("//make:defs.bzl", "make_library")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+make_library(
+    name = "conformance",
+    srcs = ["clean/Makefile"],
+)
+
+make_library(
+    name = "lint_dirty",
+    srcs = ["lint_dirty/Makefile"],
+)
+
+make_library(
+    name = "format_dirty",
+    srcs = ["format_dirty/Makefile"],
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":conformance",
+    covered_source = "",
+    expected = "",
+    failing_case = "",
+    failing_test = ":conformance",
+    lang = "make",
+    not_applicable = {
+        "build_test": "make has no binary rule",
+        "coverage_test": "make has no test rule",
+        "cross_test": "make has no binary rule",
+        "fail_test": "make has no test rule",
+        "lock_test": "make has no package manager",
+        "pass_test": "make has no test rule",
+        "runfiles_test": "make has no binary rule",
+    },
+    passing_test = ":conformance",
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "format_dirty/Makefile",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 1,
+        "lint_rule": "minphony",
+        "lint_source": "lint_dirty/Makefile",
+    },
+)

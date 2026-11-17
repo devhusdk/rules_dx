@@ -1,0 +1,53 @@
+# gazelle:ignore
+load("//cmake:defs.bzl", "cmake_library")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+cmake_library(
+    name = "conformance",
+    srcs = ["clean/CMakeLists.txt"],
+)
+
+cmake_library(
+    name = "lint_dirty",
+    srcs = ["lint_dirty/CMakeLists.txt"],
+)
+
+cmake_library(
+    name = "format_dirty",
+    srcs = ["format_dirty/CMakeLists.txt"],
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":conformance",
+    covered_source = "",
+    expected = "",
+    failing_case = "",
+    failing_test = ":conformance",
+    lang = "cmake",
+    not_applicable = {
+        "build_test": "cmake has no binary rule",
+        "coverage_test": "cmake has no test rule",
+        "cross_test": "cmake has no binary rule",
+        "fail_test": "cmake has no test rule",
+        "lock_test": "cmake has no package manager",
+        "pass_test": "cmake has no test rule",
+        "runfiles_test": "cmake has no binary rule",
+    },
+    passing_test = ":conformance",
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "format_dirty/CMakeLists.txt",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 2,
+        "lint_rule": "readability/mixedcase",
+        "lint_source": "lint_dirty/CMakeLists.txt",
+    },
+)

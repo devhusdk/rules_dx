@@ -68,7 +68,7 @@ apple_ios_app(
     resources = ["entries.txt"],
     tags = ["manual"],
     version = "1.4",
-    visibility = ["//apple/private/ios:__pkg__"],
+    visibility = ["//apple/tests:__pkg__"],
 )
 
 apple_ios_app(

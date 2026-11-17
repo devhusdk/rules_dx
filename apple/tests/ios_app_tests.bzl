@@ -1,9 +1,8 @@
 """Simulator application, app test, and XCFramework selection coverage."""
 
 load("//apple/private/bundle:validate.bzl", "bundle_id_errors", "bundle_version_errors")
-load("//core:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
 load(
-    ":app_validate.bzl",
+    "//apple/private/ios:app_validate.bzl",
     "ios_app_errors",
     "ios_app_resource_errors",
     "ios_default_app",
@@ -20,8 +19,9 @@ load(
     "ios_xcframework_header_name_errors",
     "ios_xcframework_resource_errors",
 )
-load(":cell.bzl", "apple_build_host")
-load(":simulator.bzl", "simulator_errors")
+load("//apple/private/ios:cell.bzl", "apple_build_host")
+load("//apple/private/ios:simulator.bzl", "simulator_errors")
+load("//core:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
 
 def _app(**kwargs):
     base = ios_default_app(kwargs.get("environment", "simulator"))
@@ -364,10 +364,11 @@ def _app_checks():
     ))
     return checks
 
-def apple_ios_app_tests(name):
+def apple_ios_app_tests(name, size):
     """Declares the simulator app and framework inventory pin test."""
     starlark_test(
         name = name,
+        size = size,
         mode = "load",
         checks = _app_checks(),
     )

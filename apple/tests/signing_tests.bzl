@@ -1,7 +1,7 @@
 """macOS signing bundle checks."""
 
+load("//apple/private/signing:validate.bzl", "macos_bundle_errors")
 load("//core:defs.bzl", "expect_equal", "starlark_test")
-load(":validate.bzl", "macos_bundle_errors")
 
 def _checks():
     kind = "apple_macos_sign"
@@ -24,10 +24,11 @@ def _checks():
         ),
     ]
 
-def apple_signing_tests(name):
+def apple_signing_tests(name, size):
     """Declares the macOS signing bundle check test."""
     starlark_test(
         name = name,
+        size = size,
         mode = "load",
         checks = _checks(),
     )

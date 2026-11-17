@@ -1,9 +1,9 @@
 """macOS application selection coverage."""
 
 load("//apple/private/bundle:validate.bzl", "bundle_id_errors", "bundle_version_errors")
+load("//apple/private/macos:app.bzl", "owner_relative_path")
+load("//apple/private/macos:validate.bzl", "macos_app_errors", "macos_default_app", "macos_plugin_errors")
 load("//core:defs.bzl", "expect_equal", "starlark_test")
-load(":app.bzl", "owner_relative_path")
-load(":validate.bzl", "macos_app_errors", "macos_default_app", "macos_plugin_errors")
 
 def _app(**kwargs):
     base = macos_default_app()
@@ -138,10 +138,11 @@ def _app_checks():
     checks.append(expect_equal("other package is not stripped", owner_relative_path("other/f", "pkg"), "other/f"))
     return checks
 
-def apple_macos_app_tests(name):
+def apple_macos_app_tests(name, size):
     """Declares the macOS app selection pin test."""
     starlark_test(
         name = name,
+        size = size,
         mode = "load",
         checks = _app_checks(),
     )

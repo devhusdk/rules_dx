@@ -395,7 +395,7 @@ fn tools_files(dir: &Path) -> Vec<String> {
 #[test]
 fn every_tools_bzl_is_loaded_by_quality_tools() {
     let root = dx_testing::rules_dx_source();
-    let tools = std::fs::read_to_string(root.join("core/quality/tools.bzl")).expect("tools.bzl");
+    let tools = std::fs::read_to_string(root.join("tools/quality/family_tools.bzl")).expect("family_tools.bzl");
     let mut expected = BTreeSet::new();
     for dir in language_dirs(&root) {
         for file in tools_files(&root.join(&dir).join("private/quality")) {
@@ -413,11 +413,11 @@ fn every_tools_bzl_is_loaded_by_quality_tools() {
         .collect();
     let problems: Vec<String> = expected
         .difference(&loaded)
-        .map(|label| format!("core/quality/tools.bzl does not load {label}"))
+        .map(|label| format!("tools/quality/family_tools.bzl does not load {label}"))
         .chain(
             loaded
                 .difference(&expected)
-                .map(|label| format!("core/quality/tools.bzl loads unknown {label}")),
+                .map(|label| format!("tools/quality/family_tools.bzl loads unknown {label}")),
         )
         .collect();
     assert!(problems.is_empty(), "{}", problems.join("\n"));

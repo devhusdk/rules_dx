@@ -50,6 +50,11 @@
       "lint": [
         "real_ansible_lint_aspect"
       ]
+    },
+    "probes": {
+      "lint": [
+        "real_ansible_lint_probe_aspect"
+      ]
     }
   }
 }

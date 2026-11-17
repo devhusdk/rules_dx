@@ -1,6 +1,6 @@
 """Makefile real quality aspects (checkmake and mbake)."""
 
-load("//core/quality:real_core.bzl", "real_config", "real_make_aspect")
+load("//core/quality:real_core.bzl", "real_config", "real_make_aspect", "real_make_probe_aspect")
 
 TOOLS = {
     "checkmake": {
@@ -39,3 +39,15 @@ _CFG = real_config(
 real_make_lint_aspect = real_make_aspect(_CFG, "real_make_lint")
 
 real_make_format_aspect = real_make_aspect(_CFG, "real_make_format")
+
+MakeShardProbeInfo = provider(
+    doc = "Shard names the make shard probe found for one target and capability.",
+    fields = {
+        "capability": "lint, format or typecheck",
+        "shards": "sorted shard names whose tool filter keeps a resolved stage",
+    },
+)
+
+real_make_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "make", MakeShardProbeInfo)
+
+real_make_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "make", MakeShardProbeInfo)

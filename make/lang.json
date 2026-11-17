@@ -38,6 +38,14 @@
       "lint": [
         "real_make_lint_aspect"
       ]
+    },
+    "probes": {
+      "format": [
+        "real_make_format_probe_aspect"
+      ],
+      "lint": [
+        "real_make_lint_probe_aspect"
+      ]
     }
   }
 }

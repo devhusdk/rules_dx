@@ -1,6 +1,6 @@
 """CloudFormation real quality aspects (cfn-lint)."""
 
-load("//core/quality:real_core.bzl", "real_config", "real_make_aspect")
+load("//core/quality:real_core.bzl", "real_config", "real_make_aspect", "real_make_probe_aspect")
 
 TOOLS = {
     "cfn_lint": {
@@ -32,3 +32,13 @@ _CFG = real_config(
 )
 
 real_cloudformation_lint_aspect = real_make_aspect(_CFG, "real_cloudformation_lint")
+
+CloudformationShardProbeInfo = provider(
+    doc = "Shard names the cloudformation shard probe found for one target and capability.",
+    fields = {
+        "capability": "lint, format or typecheck",
+        "shards": "sorted shard names whose tool filter keeps a resolved stage",
+    },
+)
+
+real_cloudformation_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "cloudformation", CloudformationShardProbeInfo)

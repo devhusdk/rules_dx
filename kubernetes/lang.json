@@ -37,6 +37,14 @@
       "lint": [
         "real_kubernetes_lint_aspect"
       ]
+    },
+    "probes": {
+      "format": [
+        "real_kubernetes_format_probe_aspect"
+      ],
+      "lint": [
+        "real_kubernetes_lint_probe_aspect"
+      ]
     }
   }
 }

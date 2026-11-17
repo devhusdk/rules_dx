@@ -1,6 +1,6 @@
 """Rego real quality aspects."""
 
-load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
+load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 load("//rego/private:providers.bzl", "RegoInfo")
 
 TOOLS = {
@@ -67,3 +67,17 @@ real_rego_format_aspect = real_make_aspect(_CFG, "real_rego_format")
 real_rego_lint_aspect = real_make_aspect(_CFG, "real_rego_lint")
 
 real_rego_typecheck_aspect = real_make_aspect(_CFG, "real_rego_typecheck")
+
+RegoShardProbeInfo = provider(
+    doc = "Shard names the rego shard probe found for one target and capability.",
+    fields = {
+        "capability": "lint, format or typecheck",
+        "shards": "sorted shard names whose tool filter keeps a resolved stage",
+    },
+)
+
+real_rego_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "rego", RegoShardProbeInfo)
+
+real_rego_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "rego", RegoShardProbeInfo)
+
+real_rego_typecheck_probe_aspect = real_make_probe_aspect(_CFG, "typecheck", "rego", RegoShardProbeInfo)

@@ -35,6 +35,11 @@
       "lint": [
         "real_dockerfile_lint_aspect"
       ]
+    },
+    "probes": {
+      "lint": [
+        "real_dockerfile_lint_probe_aspect"
+      ]
     }
   }
 }

@@ -1,0 +1,14 @@
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load(":family_tools.bzl", "tools_registry_bzl")
+
+exports_files(
+    ["family_tools.bzl"],
+    visibility = ["//core/modules:__pkg__"],
+)
+
+write_file(
+    name = "tools_registry",
+    out = "tools_registry.bzl.out",
+    content = tools_registry_bzl().splitlines() + [""],
+    visibility = ["//core/quality:__pkg__"],
+)

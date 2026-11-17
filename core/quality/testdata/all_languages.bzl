@@ -1,16 +1,16 @@
 """Target-scoped real capability aspects over real adapters."""
 
 # BEGIN GENERATED LANG ASPECT LOADS
-load("//ansible/private/quality:ansible.bzl", _real_ansible_lint_aspect = "real_ansible_lint_aspect")
-load("//bicep/private/quality:bicep.bzl", _real_bicep_format_aspect = "real_bicep_format_aspect", _real_bicep_lint_aspect = "real_bicep_lint_aspect")
+load("//ansible/private/quality:ansible.bzl", _real_ansible_lint_aspect = "real_ansible_lint_aspect", _real_ansible_lint_probe_aspect = "real_ansible_lint_probe_aspect")
+load("//bicep/private/quality:bicep.bzl", _real_bicep_format_aspect = "real_bicep_format_aspect", _real_bicep_format_probe_aspect = "real_bicep_format_probe_aspect", _real_bicep_lint_aspect = "real_bicep_lint_aspect", _real_bicep_lint_probe_aspect = "real_bicep_lint_probe_aspect")
 load("//cc/private/quality:cc.bzl", _real_cc_format_aspect = "real_cc_format_aspect", _real_cc_format_probe_aspect = "real_cc_format_probe_aspect", _real_cc_lint_aspect = "real_cc_lint_aspect", _real_cc_lint_probe_aspect = "real_cc_lint_probe_aspect", _real_cc_typecheck_aspect = "real_cc_typecheck_aspect", _real_cc_typecheck_probe_aspect = "real_cc_typecheck_probe_aspect")
-load("//cloudformation/private/quality:cloudformation.bzl", _real_cloudformation_lint_aspect = "real_cloudformation_lint_aspect")
-load("//cmake/private/quality:cmake.bzl", _real_cmake_format_aspect = "real_cmake_format_aspect", _real_cmake_lint_aspect = "real_cmake_lint_aspect")
+load("//cloudformation/private/quality:cloudformation.bzl", _real_cloudformation_lint_aspect = "real_cloudformation_lint_aspect", _real_cloudformation_lint_probe_aspect = "real_cloudformation_lint_probe_aspect")
+load("//cmake/private/quality:cmake.bzl", _real_cmake_format_aspect = "real_cmake_format_aspect", _real_cmake_format_probe_aspect = "real_cmake_format_probe_aspect", _real_cmake_lint_aspect = "real_cmake_lint_aspect", _real_cmake_lint_probe_aspect = "real_cmake_lint_probe_aspect")
 load("//core/quality:families/generation.bzl", _real_avro_lint_aspect = "real_avro_lint_aspect", _real_avro_typecheck_aspect = "real_avro_typecheck_aspect", _real_capnp_lint_aspect = "real_capnp_lint_aspect", _real_capnp_typecheck_aspect = "real_capnp_typecheck_aspect", _real_flatbuffers_lint_aspect = "real_flatbuffers_lint_aspect", _real_flatbuffers_typecheck_aspect = "real_flatbuffers_typecheck_aspect", _real_generation_format_probe_aspect = "real_generation_format_probe_aspect", _real_generation_lint_probe_aspect = "real_generation_lint_probe_aspect", _real_generation_typecheck_probe_aspect = "real_generation_typecheck_probe_aspect", _real_protobuf_format_aspect = "real_protobuf_format_aspect", _real_protobuf_lint_aspect = "real_protobuf_lint_aspect", _real_protobuf_typecheck_aspect = "real_protobuf_typecheck_aspect", _real_thrift_lint_aspect = "real_thrift_lint_aspect", _real_thrift_typecheck_aspect = "real_thrift_typecheck_aspect")
 load("//core/quality:families/php.bzl", _real_php_lint_aspect = "real_php_lint_aspect", _real_php_lint_probe_aspect = "real_php_lint_probe_aspect", _real_php_typecheck_aspect = "real_php_typecheck_aspect", _real_php_typecheck_probe_aspect = "real_php_typecheck_probe_aspect")
 load("//d/private/quality:d.bzl", _real_d_format_aspect = "real_d_format_aspect", _real_d_format_probe_aspect = "real_d_format_probe_aspect", _real_d_lint_aspect = "real_d_lint_aspect", _real_d_lint_probe_aspect = "real_d_lint_probe_aspect", _real_d_typecheck_aspect = "real_d_typecheck_aspect", _real_d_typecheck_probe_aspect = "real_d_typecheck_probe_aspect")
 load("//dart/private/quality:dart.bzl", _real_dart_format_aspect = "real_dart_format_aspect", _real_dart_format_probe_aspect = "real_dart_format_probe_aspect", _real_dart_lint_aspect = "real_dart_lint_aspect", _real_dart_lint_probe_aspect = "real_dart_lint_probe_aspect", _real_dart_typecheck_aspect = "real_dart_typecheck_aspect", _real_dart_typecheck_probe_aspect = "real_dart_typecheck_probe_aspect")
-load("//dockerfile/private/quality:dockerfile.bzl", _real_dockerfile_lint_aspect = "real_dockerfile_lint_aspect")
+load("//dockerfile/private/quality:dockerfile.bzl", _real_dockerfile_lint_aspect = "real_dockerfile_lint_aspect", _real_dockerfile_lint_probe_aspect = "real_dockerfile_lint_probe_aspect")
 load("//dotnet/private/quality:dotnet.bzl", _real_dotnet_format_aspect = "real_dotnet_format_aspect", _real_dotnet_format_probe_aspect = "real_dotnet_format_probe_aspect", _real_dotnet_lint_aspect = "real_dotnet_lint_aspect", _real_dotnet_lint_probe_aspect = "real_dotnet_lint_probe_aspect", _real_dotnet_typecheck_aspect = "real_dotnet_typecheck_aspect", _real_dotnet_typecheck_probe_aspect = "real_dotnet_typecheck_probe_aspect")
 load("//erlang/private/quality:beam.bzl", _real_beam_format_probe_aspect = "real_beam_format_probe_aspect", _real_beam_lint_probe_aspect = "real_beam_lint_probe_aspect", _real_beam_typecheck_probe_aspect = "real_beam_typecheck_probe_aspect", _real_elixir_format_aspect = "real_elixir_format_aspect", _real_elixir_lint_aspect = "real_elixir_lint_aspect", _real_erlang_format_aspect = "real_erlang_format_aspect", _real_erlang_lint_aspect = "real_erlang_lint_aspect", _real_erlang_typecheck_aspect = "real_erlang_typecheck_aspect")
 load("//fortran/private/quality:fortran.bzl", _real_fortran_format_aspect = "real_fortran_format_aspect", _real_fortran_format_probe_aspect = "real_fortran_format_probe_aspect", _real_fortran_lint_aspect = "real_fortran_lint_aspect", _real_fortran_lint_probe_aspect = "real_fortran_lint_probe_aspect", _real_fortran_typecheck_aspect = "real_fortran_typecheck_aspect", _real_fortran_typecheck_probe_aspect = "real_fortran_typecheck_probe_aspect")
@@ -19,19 +19,19 @@ load("//haskell/private/quality:haskell.bzl", _real_haskell_format_aspect = "rea
 load("//java/private/quality:jvm.bzl", _real_jvm_format_aspect = "real_jvm_format_aspect", _real_jvm_format_probe_aspect = "real_jvm_format_probe_aspect", _real_jvm_lint_aspect = "real_jvm_lint_aspect", _real_jvm_lint_probe_aspect = "real_jvm_lint_probe_aspect", _real_jvm_typecheck_aspect = "real_jvm_typecheck_aspect", _real_jvm_typecheck_probe_aspect = "real_jvm_typecheck_probe_aspect", _real_pkl_lint_aspect = "real_pkl_lint_aspect", _real_scala_format_aspect = "real_scala_format_aspect", _real_scala_lint_aspect = "real_scala_lint_aspect")
 load("//javascript/private/quality:js.bzl", _real_js_format_aspect = "real_js_format_aspect", _real_js_format_probe_aspect = "real_js_format_probe_aspect", _real_js_lint_aspect = "real_js_lint_aspect", _real_js_lint_probe_aspect = "real_js_lint_probe_aspect", _real_js_typecheck_aspect = "real_js_typecheck_aspect", _real_js_typecheck_probe_aspect = "real_js_typecheck_probe_aspect")
 load("//julia/private/quality:julia.bzl", _real_julia_format_aspect = "real_julia_format_aspect", _real_julia_format_probe_aspect = "real_julia_format_probe_aspect", _real_julia_lint_aspect = "real_julia_lint_aspect", _real_julia_lint_probe_aspect = "real_julia_lint_probe_aspect", _real_julia_typecheck_aspect = "real_julia_typecheck_aspect", _real_julia_typecheck_probe_aspect = "real_julia_typecheck_probe_aspect")
-load("//kubernetes/private/quality:kubernetes.bzl", _real_kubernetes_format_aspect = "real_kubernetes_format_aspect", _real_kubernetes_lint_aspect = "real_kubernetes_lint_aspect")
+load("//kubernetes/private/quality:kubernetes.bzl", _real_kubernetes_format_aspect = "real_kubernetes_format_aspect", _real_kubernetes_format_probe_aspect = "real_kubernetes_format_probe_aspect", _real_kubernetes_lint_aspect = "real_kubernetes_lint_aspect", _real_kubernetes_lint_probe_aspect = "real_kubernetes_lint_probe_aspect")
 load("//lua/private/quality:lua.bzl", _real_lua_format_aspect = "real_lua_format_aspect", _real_lua_format_probe_aspect = "real_lua_format_probe_aspect", _real_lua_lint_aspect = "real_lua_lint_aspect", _real_lua_lint_probe_aspect = "real_lua_lint_probe_aspect", _real_lua_typecheck_aspect = "real_lua_typecheck_aspect", _real_lua_typecheck_probe_aspect = "real_lua_typecheck_probe_aspect")
-load("//make/private/quality:make.bzl", _real_make_format_aspect = "real_make_format_aspect", _real_make_lint_aspect = "real_make_lint_aspect")
+load("//make/private/quality:make.bzl", _real_make_format_aspect = "real_make_format_aspect", _real_make_format_probe_aspect = "real_make_format_probe_aspect", _real_make_lint_aspect = "real_make_lint_aspect", _real_make_lint_probe_aspect = "real_make_lint_probe_aspect")
 load("//ocaml/private/quality:ocaml.bzl", _real_ocaml_format_aspect = "real_ocaml_format_aspect", _real_ocaml_format_probe_aspect = "real_ocaml_format_probe_aspect", _real_ocaml_lint_aspect = "real_ocaml_lint_aspect", _real_ocaml_lint_probe_aspect = "real_ocaml_lint_probe_aspect", _real_ocaml_typecheck_aspect = "real_ocaml_typecheck_aspect", _real_ocaml_typecheck_probe_aspect = "real_ocaml_typecheck_probe_aspect")
 load("//perl/private/quality:perl.bzl", _real_perl_format_aspect = "real_perl_format_aspect", _real_perl_format_probe_aspect = "real_perl_format_probe_aspect", _real_perl_lint_aspect = "real_perl_lint_aspect", _real_perl_lint_probe_aspect = "real_perl_lint_probe_aspect")
 load("//powershell/private/quality:powershell.bzl", _real_powershell_format_aspect = "real_powershell_format_aspect", _real_powershell_format_probe_aspect = "real_powershell_format_probe_aspect", _real_powershell_lint_aspect = "real_powershell_lint_aspect", _real_powershell_lint_probe_aspect = "real_powershell_lint_probe_aspect")
 load("//python/private/quality:python.bzl", _real_python_format_aspect = "real_python_format_aspect", _real_python_format_probe_aspect = "real_python_format_probe_aspect", _real_python_lint_aspect = "real_python_lint_aspect", _real_python_lint_probe_aspect = "real_python_lint_probe_aspect", _real_python_typecheck_aspect = "real_python_typecheck_aspect", _real_python_typecheck_probe_aspect = "real_python_typecheck_probe_aspect")
-load("//rego/private/quality:rego.bzl", _real_rego_format_aspect = "real_rego_format_aspect", _real_rego_lint_aspect = "real_rego_lint_aspect", _real_rego_typecheck_aspect = "real_rego_typecheck_aspect")
+load("//rego/private/quality:rego.bzl", _real_rego_format_aspect = "real_rego_format_aspect", _real_rego_format_probe_aspect = "real_rego_format_probe_aspect", _real_rego_lint_aspect = "real_rego_lint_aspect", _real_rego_lint_probe_aspect = "real_rego_lint_probe_aspect", _real_rego_typecheck_aspect = "real_rego_typecheck_aspect", _real_rego_typecheck_probe_aspect = "real_rego_typecheck_probe_aspect")
 load("//ruby/private/quality:ruby.bzl", _real_ruby_format_aspect = "real_ruby_format_aspect", _real_ruby_format_probe_aspect = "real_ruby_format_probe_aspect", _real_ruby_lint_aspect = "real_ruby_lint_aspect", _real_ruby_lint_probe_aspect = "real_ruby_lint_probe_aspect", _real_ruby_typecheck_aspect = "real_ruby_typecheck_aspect", _real_ruby_typecheck_probe_aspect = "real_ruby_typecheck_probe_aspect")
 load("//rust/private/quality:rust.bzl", _real_rust_format_aspect = "real_rust_format_aspect", _real_rust_format_probe_aspect = "real_rust_format_probe_aspect", _real_rust_lint_aspect = "real_rust_lint_aspect", _real_rust_lint_probe_aspect = "real_rust_lint_probe_aspect", _real_rust_typecheck_aspect = "real_rust_typecheck_aspect", _real_rust_typecheck_probe_aspect = "real_rust_typecheck_probe_aspect")
-load("//sql/private/quality:sql.bzl", _real_sql_format_aspect = "real_sql_format_aspect", _real_sql_lint_aspect = "real_sql_lint_aspect")
+load("//sql/private/quality:sql.bzl", _real_sql_format_aspect = "real_sql_format_aspect", _real_sql_format_probe_aspect = "real_sql_format_probe_aspect", _real_sql_lint_aspect = "real_sql_lint_aspect", _real_sql_lint_probe_aspect = "real_sql_lint_probe_aspect")
 load("//swift/private/quality:swift.bzl", _real_swift_format_aspect = "real_swift_format_aspect", _real_swift_format_probe_aspect = "real_swift_format_probe_aspect", _real_swift_lint_aspect = "real_swift_lint_aspect", _real_swift_lint_probe_aspect = "real_swift_lint_probe_aspect", _real_swift_typecheck_aspect = "real_swift_typecheck_aspect", _real_swift_typecheck_probe_aspect = "real_swift_typecheck_probe_aspect")
-load("//terraform/private/quality:terraform.bzl", _real_terraform_format_aspect = "real_terraform_format_aspect", _real_terraform_lint_aspect = "real_terraform_lint_aspect", _real_terraform_typecheck_aspect = "real_terraform_typecheck_aspect")
+load("//terraform/private/quality:terraform.bzl", _real_terraform_format_aspect = "real_terraform_format_aspect", _real_terraform_format_probe_aspect = "real_terraform_format_probe_aspect", _real_terraform_lint_aspect = "real_terraform_lint_aspect", _real_terraform_lint_probe_aspect = "real_terraform_lint_probe_aspect", _real_terraform_typecheck_aspect = "real_terraform_typecheck_aspect", _real_terraform_typecheck_probe_aspect = "real_terraform_typecheck_probe_aspect")
 load("//tools/docs/avro:aspect.bzl", _real_avro_docs_aspect = "real_avro_docs_aspect")
 load("//tools/docs/beam:aspect.bzl", _real_beam_docs_aspect = "real_beam_docs_aspect")
 load("//tools/docs/cc:aspect.bzl", _real_cc_docs_aspect = "real_cc_docs_aspect")
@@ -115,9 +115,15 @@ load("//tools/docs:aspect.bzl", _real_docs_aspect = "real_docs_aspect")
 # BEGIN GENERATED LANG ASPECT EXPORTS
 real_ansible_lint_aspect = _real_ansible_lint_aspect
 
+real_ansible_lint_probe_aspect = _real_ansible_lint_probe_aspect
+
 real_bicep_format_aspect = _real_bicep_format_aspect
 
+real_bicep_format_probe_aspect = _real_bicep_format_probe_aspect
+
 real_bicep_lint_aspect = _real_bicep_lint_aspect
+
+real_bicep_lint_probe_aspect = _real_bicep_lint_probe_aspect
 
 real_cc_format_aspect = _real_cc_format_aspect
 
@@ -133,9 +139,15 @@ real_cc_typecheck_probe_aspect = _real_cc_typecheck_probe_aspect
 
 real_cloudformation_lint_aspect = _real_cloudformation_lint_aspect
 
+real_cloudformation_lint_probe_aspect = _real_cloudformation_lint_probe_aspect
+
 real_cmake_format_aspect = _real_cmake_format_aspect
 
+real_cmake_format_probe_aspect = _real_cmake_format_probe_aspect
+
 real_cmake_lint_aspect = _real_cmake_lint_aspect
+
+real_cmake_lint_probe_aspect = _real_cmake_lint_probe_aspect
 
 real_avro_lint_aspect = _real_avro_lint_aspect
 
@@ -198,6 +210,8 @@ real_dart_typecheck_aspect = _real_dart_typecheck_aspect
 real_dart_typecheck_probe_aspect = _real_dart_typecheck_probe_aspect
 
 real_dockerfile_lint_aspect = _real_dockerfile_lint_aspect
+
+real_dockerfile_lint_probe_aspect = _real_dockerfile_lint_probe_aspect
 
 real_dotnet_format_aspect = _real_dotnet_format_aspect
 
@@ -307,7 +321,11 @@ real_julia_typecheck_probe_aspect = _real_julia_typecheck_probe_aspect
 
 real_kubernetes_format_aspect = _real_kubernetes_format_aspect
 
+real_kubernetes_format_probe_aspect = _real_kubernetes_format_probe_aspect
+
 real_kubernetes_lint_aspect = _real_kubernetes_lint_aspect
+
+real_kubernetes_lint_probe_aspect = _real_kubernetes_lint_probe_aspect
 
 real_lua_format_aspect = _real_lua_format_aspect
 
@@ -323,7 +341,11 @@ real_lua_typecheck_probe_aspect = _real_lua_typecheck_probe_aspect
 
 real_make_format_aspect = _real_make_format_aspect
 
+real_make_format_probe_aspect = _real_make_format_probe_aspect
+
 real_make_lint_aspect = _real_make_lint_aspect
+
+real_make_lint_probe_aspect = _real_make_lint_probe_aspect
 
 real_ocaml_format_aspect = _real_ocaml_format_aspect
 
@@ -367,9 +389,15 @@ real_python_typecheck_probe_aspect = _real_python_typecheck_probe_aspect
 
 real_rego_format_aspect = _real_rego_format_aspect
 
+real_rego_format_probe_aspect = _real_rego_format_probe_aspect
+
 real_rego_lint_aspect = _real_rego_lint_aspect
 
+real_rego_lint_probe_aspect = _real_rego_lint_probe_aspect
+
 real_rego_typecheck_aspect = _real_rego_typecheck_aspect
+
+real_rego_typecheck_probe_aspect = _real_rego_typecheck_probe_aspect
 
 real_ruby_format_aspect = _real_ruby_format_aspect
 
@@ -397,7 +425,11 @@ real_rust_typecheck_probe_aspect = _real_rust_typecheck_probe_aspect
 
 real_sql_format_aspect = _real_sql_format_aspect
 
+real_sql_format_probe_aspect = _real_sql_format_probe_aspect
+
 real_sql_lint_aspect = _real_sql_lint_aspect
+
+real_sql_lint_probe_aspect = _real_sql_lint_probe_aspect
 
 real_swift_format_aspect = _real_swift_format_aspect
 
@@ -413,9 +445,15 @@ real_swift_typecheck_probe_aspect = _real_swift_typecheck_probe_aspect
 
 real_terraform_format_aspect = _real_terraform_format_aspect
 
+real_terraform_format_probe_aspect = _real_terraform_format_probe_aspect
+
 real_terraform_lint_aspect = _real_terraform_lint_aspect
 
+real_terraform_lint_probe_aspect = _real_terraform_lint_probe_aspect
+
 real_terraform_typecheck_aspect = _real_terraform_typecheck_aspect
+
+real_terraform_typecheck_probe_aspect = _real_terraform_typecheck_probe_aspect
 
 real_avro_docs_aspect = _real_avro_docs_aspect
 

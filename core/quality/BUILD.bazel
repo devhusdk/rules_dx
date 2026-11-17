@@ -1,5 +1,6 @@
 # gazelle:ignore
 # Gazelle would rewrite the hand-written quality targets and fail on their macros.
+load("@bazel_lib//lib:write_source_files.bzl", "write_source_files")
 load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
@@ -62,6 +63,7 @@ exports_files([
     "tool_config_docs.bzl",
     "tool_defs.bzl",
     "tools.bzl",
+    "tools_registry.bzl",
     "unavailable_tool.bzl",
 ] + glob(["families/*.bzl"]))
 
@@ -608,6 +610,11 @@ tools_unit_tests(name = "tools_unit")
 
 support_unit_tests(name = "support_unit")
 
+write_source_files(
+    name = "tools_registry",
+    files = {"tools_registry.bzl": "//tools/quality:tools_registry"},
+)
+
 alias(
     name = "update_tools",
     actual = "//core/quality/runner:update_tools",
@@ -877,6 +884,7 @@ real_source_target(
         "tool_defs.bzl",
         "tools.bzl",
         "tools_gen.bzl",
+        "tools_registry.bzl",
         "tools_tests.bzl",
         "wrapper_owners.bzl",
         "roslyn.bzl",

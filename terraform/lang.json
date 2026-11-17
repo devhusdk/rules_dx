@@ -59,6 +59,17 @@
       "typecheck": [
         "real_terraform_typecheck_aspect"
       ]
+    },
+    "probes": {
+      "format": [
+        "real_terraform_format_probe_aspect"
+      ],
+      "lint": [
+        "real_terraform_lint_probe_aspect"
+      ],
+      "typecheck": [
+        "real_terraform_typecheck_probe_aspect"
+      ]
     }
   }
 }

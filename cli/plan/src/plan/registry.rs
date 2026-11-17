@@ -398,7 +398,9 @@ mod tests {
             probes,
             vec![
                 "core/quality:families/core_probe.bzl%real_core_lint_probe_aspect",
+                "cloudformation/private/quality:cloudformation.bzl%real_cloudformation_lint_probe_aspect",
                 "go/private/quality:go.bzl%real_go_lint_probe_aspect",
+                "kubernetes/private/quality:kubernetes.bzl%real_kubernetes_lint_probe_aspect",
             ]
         );
     }

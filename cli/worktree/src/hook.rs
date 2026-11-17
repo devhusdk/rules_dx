@@ -53,7 +53,7 @@ impl Dialect {
     }
 
     /// The hook output that replaces the tool input.
-    fn rewrite(self, updated: Value) -> Value {
+    fn rewrite(self, updated: &Value) -> Value {
         match self {
             Dialect::Claude | Dialect::Cursor => serde_json::json!({
                 "hookSpecificOutput": {
@@ -911,7 +911,7 @@ pub fn guard_with(
         }
         return Guard::Ask(serde_json::json!({ "hookSpecificOutput": specific }));
     }
-    Guard::Rewrite(dialect.rewrite(Value::Object(updated)))
+    Guard::Rewrite(dialect.rewrite(&Value::Object(updated)))
 }
 
 fn codex_thread(env_get: &dyn Fn(&str) -> Option<String>) -> Option<String> {

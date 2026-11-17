@@ -1855,8 +1855,7 @@ fn check_npm_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Dependenc
         return Ok(());
     }
     match nearest_parent_pnpm_workspace(workspace, set) {
-        None => Ok(()),
-        Some((_, true)) => Ok(()),
+        None | Some((_, true)) => Ok(()),
         Some((config, false)) => Err(unsupported(format!(
             "{config} makes pnpm write the parent workspace lock"
         ))),

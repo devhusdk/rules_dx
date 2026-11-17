@@ -798,11 +798,10 @@ fn single_bound(bound: &str, new: &str) -> Option<String> {
             let cut: Vec<&str> = new.split('.').take(keep).collect();
             Some(format!("=={}.*", cut.join(".")))
         }
-        Some(_) => None,
         None if number.chars().all(|c| c.is_ascii_digit() || c == '.') => {
             Some(format!("{operator}{new}"))
         }
-        None => None,
+        Some(_) | None => None,
     }
 }
 

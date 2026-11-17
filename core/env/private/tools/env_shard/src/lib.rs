@@ -89,8 +89,7 @@ fn check_exec_path(producer: &str, path: &str) -> Result<(), Error> {
         });
     }
     let reason = match dx_path::classify(path) {
-        None => None,
-        Some(dx_path::PathProblem::Empty) => None,
+        None | Some(dx_path::PathProblem::Empty) => None,
         Some(dx_path::PathProblem::Absolute) => Some("must not be absolute"),
         Some(dx_path::PathProblem::Backslash) => Some("must not contain '\\'"),
         Some(dx_path::PathProblem::ControlCharacter) => {

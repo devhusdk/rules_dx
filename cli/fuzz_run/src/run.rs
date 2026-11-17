@@ -224,8 +224,8 @@ fn exit_code(status: std::process::ExitStatus) -> i32 {
     status.code().unwrap_or(1)
 }
 
-pub fn main_code(args: Vec<String>) -> i32 {
-    match run(&args) {
+pub fn main_code(args: &[String]) -> i32 {
+    match run(args) {
         Ok(code) => code,
         Err((code, message)) => {
             eprintln!("{message}");

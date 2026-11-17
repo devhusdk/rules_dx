@@ -235,13 +235,13 @@ fn host_name_table() {
     }
 }
 
-fn tools_json(tools: serde_json::Value) -> String {
+fn tools_json(tools: &serde_json::Value) -> String {
     serde_json::json!({"tools": tools}).to_string()
 }
 
 #[test]
 fn windows_host_names_carry_the_exe_suffix() {
-    let text = tools_json(serde_json::json!([
+    let text = tools_json(&serde_json::json!([
         {"bin_name": "dx", "owner": "o", "aliases": ["d"], "host_names": ["dx.exe", "d.exe"]},
     ]));
     let plans = parse_staged(&text, true).expect("windows names accepted");
@@ -254,17 +254,17 @@ fn windows_host_names_carry_the_exe_suffix() {
 
 #[test]
 fn host_names_must_match_the_platform_mapping() {
-    let bare = tools_json(serde_json::json!([
+    let bare = tools_json(&serde_json::json!([
         {"bin_name": "dx", "owner": "o", "host_names": ["dx"]},
     ]));
     assert!(parse_staged(&bare, true).is_err());
     for wrong in ["dx.bat", "other.exe", "dx.exe.exe", "DX.EXE"] {
-        let text = tools_json(serde_json::json!([
+        let text = tools_json(&serde_json::json!([
             {"bin_name": "dx", "owner": "o", "host_names": [wrong]},
         ]));
         assert!(parse_staged(&text, true).is_err(), "accepted {wrong}");
     }
-    let missing_alias = tools_json(serde_json::json!([
+    let missing_alias = tools_json(&serde_json::json!([
         {"bin_name": "dx", "owner": "o", "aliases": ["d"], "host_names": ["dx.exe"]},
     ]));
     assert!(parse_staged(&missing_alias, true).is_err());
@@ -272,7 +272,7 @@ fn host_names_must_match_the_platform_mapping() {
 
 #[test]
 fn logical_names_with_suffixes_are_rejected_on_windows() {
-    let text = tools_json(serde_json::json!([
+    let text = tools_json(&serde_json::json!([
         {"bin_name": "dx.exe", "owner": "o", "host_names": ["dx.exe.exe"]},
     ]));
     assert!(parse_staged(&text, true).is_err());
@@ -280,7 +280,7 @@ fn logical_names_with_suffixes_are_rejected_on_windows() {
 
 #[test]
 fn colliding_host_names_across_tools_are_rejected() {
-    let text = tools_json(serde_json::json!([
+    let text = tools_json(&serde_json::json!([
         {"bin_name": "dx", "owner": "a", "host_names": ["dx.exe"]},
         {"bin_name": "DX", "owner": "b", "host_names": ["DX.exe"]},
     ]));
@@ -1121,7 +1121,7 @@ fn refresh_succeeds_with_stale_probe() {
 
 #[test]
 fn empty_logical_names_are_rejected() {
-    let text = tools_json(serde_json::json!([
+    let text = tools_json(&serde_json::json!([
         {"bin_name": "dx", "owner": "o", "aliases": [""], "host_names": ["dx", ""]},
     ]));
     let error = parse_staged(&text, false).unwrap_err();

@@ -583,9 +583,8 @@ const TOOL_SETTINGS: [&[&str]; 9] = [
 /// The existing text with only the dx-owned values brought up to date.
 fn merge_owned(kind: FileKind, existing: &str, generated: &str) -> Result<String, dx_merge::Error> {
     match kind {
-        FileKind::WriteOnce => Ok(existing.to_owned()),
         FileKind::Generated => Ok(generated.to_owned()),
-        FileKind::Bazelignore => Ok(existing.to_owned()),
+        FileKind::WriteOnce | FileKind::Bazelignore => Ok(existing.to_owned()),
         FileKind::VscodeKeys => {
             let value = dx_merge::jsonc::parse(generated)?;
             let mut edits: Vec<(Vec<&str>, serde_json::Value)> = Vec::new();
@@ -630,7 +629,7 @@ fn merge_owned(kind: FileKind, existing: &str, generated: &str) -> Result<String
                 });
                 if !skipped {
                     text =
-                        dx_merge::jsonc::append_missing(&text, &["recommendations"], id.clone())?;
+                        dx_merge::jsonc::append_missing(&text, &["recommendations"], &id)?;
                 }
             }
             let stale: Vec<serde_json::Value> = TOOL_EDITOR_EXTENSIONS

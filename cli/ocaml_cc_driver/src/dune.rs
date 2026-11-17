@@ -130,7 +130,7 @@ pub fn without_vendored_dirs(text: &str) -> Option<String> {
     )
 }
 
-fn io(context: &str, error: std::io::Error) -> String {
+fn io(context: &str, error: &std::io::Error) -> String {
     format!("{context}: {error}")
 }
 
@@ -164,20 +164,20 @@ fn make_writable(path: &Path) {
 
 /// Copies `from` into `to`, following symlinks, and leaves the copies writable.
 pub fn copy_tree(from: &Path, to: &Path) -> Result<(), String> {
-    let meta = fs::metadata(from).map_err(|e| io(&from.display().to_string(), e))?;
+    let meta = fs::metadata(from).map_err(|e| io(&from.display().to_string(), &e))?;
     if meta.is_dir() {
-        fs::create_dir_all(to).map_err(|e| io(&to.display().to_string(), e))?;
+        fs::create_dir_all(to).map_err(|e| io(&to.display().to_string(), &e))?;
         add_write(to);
-        for entry in fs::read_dir(from).map_err(|e| io(&from.display().to_string(), e))? {
-            let entry = entry.map_err(|e| io(&from.display().to_string(), e))?;
+        for entry in fs::read_dir(from).map_err(|e| io(&from.display().to_string(), &e))? {
+            let entry = entry.map_err(|e| io(&from.display().to_string(), &e))?;
             copy_tree(&entry.path(), &to.join(entry.file_name()))?;
         }
     } else {
         if to.exists() {
             make_writable(to);
-            fs::remove_file(to).map_err(|e| io(&to.display().to_string(), e))?;
+            fs::remove_file(to).map_err(|e| io(&to.display().to_string(), &e))?;
         }
-        fs::copy(from, to).map_err(|e| io(&to.display().to_string(), e))?;
+        fs::copy(from, to).map_err(|e| io(&to.display().to_string(), &e))?;
         add_write(to);
     }
     Ok(())
@@ -197,7 +197,7 @@ fn scratch_dir() -> Result<Scratch, String> {
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| d.as_nanos());
     let dir = std::env::temp_dir().join(format!("dx_dune.{}.{nanos}", std::process::id()));
-    fs::create_dir_all(&dir).map_err(|e| io(&dir.display().to_string(), e))?;
+    fs::create_dir_all(&dir).map_err(|e| io(&dir.display().to_string(), &e))?;
     Ok(Scratch(dir))
 }
 
@@ -213,7 +213,7 @@ fn run(
         .env_clear()
         .envs(env)
         .status()
-        .map_err(|e| io(&program.display().to_string(), e))?;
+        .map_err(|e| io(&program.display().to_string(), &e))?;
     if status.success() {
         Ok(())
     } else {
@@ -240,7 +240,7 @@ fn step_env(
     let home = scratch.join("home");
     let tmp = scratch.join("tmp");
     for dir in [&home, &tmp] {
-        fs::create_dir_all(dir).map_err(|e| io(&dir.display().to_string(), e))?;
+        fs::create_dir_all(dir).map_err(|e| io(&dir.display().to_string(), &e))?;
     }
     let set = |env: &mut BTreeMap<String, String>, key: &str, value: &Path| {
         env.insert(key.to_owned(), value.to_string_lossy().into_owned());
@@ -258,10 +258,10 @@ fn step_env(
         let zstd = lib.join("libzstd.a");
         if zstd.is_file() {
             let static_dir = scratch.join("static");
-            fs::create_dir_all(&static_dir).map_err(|e| io("static", e))?;
+            fs::create_dir_all(&static_dir).map_err(|e| io("static", &e))?;
             #[cfg(unix)]
             std::os::unix::fs::symlink(&zstd, static_dir.join("libzstd.a"))
-                .map_err(|e| io("libzstd.a", e))?;
+                .map_err(|e| io("libzstd.a", &e))?;
             write!(mkexe, " -Wl,-search_paths_first -L{}", static_dir.display()).ok();
         }
         write!(mkexe, " -Wl,-rpath,{}", lib.display()).ok();
@@ -288,7 +288,7 @@ fn require_file(path: &Path, message: &str) -> Result<(), String> {
 
 /// Runs the step in the current directory, the execution root.
 pub fn execute(request: &Request) -> Result<(), String> {
-    let root = std::env::current_dir().map_err(|e| io("current directory", e))?;
+    let root = std::env::current_dir().map_err(|e| io("current directory", &e))?;
     let scratch = scratch_dir()?;
     let ocaml_bin = root.join(&request.ocaml_bin);
     let env = step_env(&root, &scratch.0, &ocaml_bin)?;
@@ -339,7 +339,7 @@ pub fn execute(request: &Request) -> Result<(), String> {
                 .and_then(|text| without_vendored_dirs(&text));
             let install = format!("@{package}/install");
             let args: Vec<&str> = if let Some(text) = vendored {
-                fs::write(&dune_file, text).map_err(|e| io("dune", e))?;
+                fs::write(&dune_file, text).map_err(|e| io("dune", &e))?;
                 vec!["build", "--display=quiet", "-j", jobs, &install]
             } else {
                 vec![

@@ -684,9 +684,9 @@ fn dart_runner_uris_resolve_to_owned_paths_and_drop_pub_packages() {
     assert_eq!(result.errors, Vec::<String>::new());
 }
 
-fn hygiene_errors(source: String, lines: &[(u32, u64)]) -> Vec<String> {
+fn hygiene_errors(source: &str, lines: &[(u32, u64)]) -> Vec<String> {
     let manifests = [manifest("v1 cell linux_x86_64\nprod source a.rs\n")];
-    let load = sources(&[("a.rs", source.as_str())]);
+    let load = sources(&[("a.rs", source)]);
     account(&manifests, &[lcov("a.rs", lines)], &load).errors
 }
 
@@ -696,7 +696,7 @@ fn stale_line_ignore_is_an_error() {
         "fn a() {{}}\n// {} - reason: gone, issue: 1.\n",
         marker("_LINE")
     );
-    let errors = hygiene_errors(source, &[(1, 1)]);
+    let errors = hygiene_errors(&source, &[(1, 1)]);
     assert!(
         errors
             .iter()
@@ -712,7 +712,7 @@ fn stale_range_is_an_error() {
         marker("_START"),
         marker("_STOP")
     );
-    let errors = hygiene_errors(source, &[(1, 1)]);
+    let errors = hygiene_errors(&source, &[(1, 1)]);
     assert!(
         errors
             .iter()
@@ -728,7 +728,7 @@ fn ignoring_every_instrumented_line_is_an_error() {
         marker("_START"),
         marker("_STOP")
     );
-    let errors = hygiene_errors(source, &[(2, 0)]);
+    let errors = hygiene_errors(&source, &[(2, 0)]);
     assert!(
         errors
             .iter()
@@ -743,5 +743,5 @@ fn ignore_on_an_instrumented_line_is_clean() {
         "fn a() {{}}\nfn b() {{}} // {} - reason: defensive, issue: 1.\n",
         marker("_LINE")
     );
-    assert_eq!(hygiene_errors(source, &[(1, 1), (2, 0)]), [] as [String; 0]);
+    assert_eq!(hygiene_errors(&source, &[(1, 1), (2, 0)]), [] as [String; 0]);
 }

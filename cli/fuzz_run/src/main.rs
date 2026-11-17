@@ -8,9 +8,9 @@ mod run_tests;
 
 fn main() {
     std::process::exit(run::main_code(
-        std::env::args_os()
+        &std::env::args_os()
             .skip(1)
             .map(|arg| arg.to_string_lossy().into_owned())
-            .collect(),
+            .collect::<Vec<_>>(),
     ));
 }

@@ -200,8 +200,8 @@ fn run_as_tool() -> Option<i32> {
         Tool::Notebook => quality_notebook::entry::run_process(&args),
         Tool::LspCheck => lsp_check::entry::run_process(&args),
         Tool::CollectNative => collect_native::run_process(args),
-        Tool::EnvShardWriter => env_shard::writer::run_process(args),
-        Tool::CodegenShardWriter => codegen_shard::writer::run_process(args),
+        Tool::EnvShardWriter => env_shard::writer::run_process(&args),
+        Tool::CodegenShardWriter => codegen_shard::writer::run_process(&args),
     })
 }
 // LCOV_EXCL_STOP - reason: end thin multicall shim, issue: 6517, policy: docs/cli/commands/build-test-coverage.md

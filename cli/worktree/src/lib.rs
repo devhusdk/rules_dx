@@ -93,9 +93,6 @@ impl WorktreeError {
         WorktreeError::refused("git_failed", &format!("git {command} failed: {stderr}"))
     }
 
-    pub(crate) fn io(error: std::io::Error) -> WorktreeError {
-        WorktreeError::refused("io_failed", &error.to_string())
-    }
 
     #[must_use]
     pub fn exit(&self) -> i32 {
@@ -106,6 +103,12 @@ impl WorktreeError {
         } else {
             dx_process::operational_code()
         }
+    }
+}
+
+impl From<std::io::Error> for WorktreeError {
+    fn from(error: std::io::Error) -> Self {
+        WorktreeError::refused("io_failed", &error.to_string())
     }
 }
 

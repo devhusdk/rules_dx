@@ -79,7 +79,7 @@ pub struct SpawnSpec {
 }
 
 /// How a reaped child went out.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Exit {
     Code(i32),
     Signal(i32),
@@ -436,7 +436,7 @@ pub struct StreamSpec {
 }
 
 /// How a streamed run ended.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StreamOutcome {
     /// The child exited on its own.
     Exited(Exit),

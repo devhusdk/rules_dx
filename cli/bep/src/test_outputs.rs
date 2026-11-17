@@ -1186,7 +1186,7 @@ mod tests {
         .to_string()
     }
 
-    fn configured_result(label: &str, config: &str, run: u32, output: Value) -> String {
+    fn configured_result(label: &str, config: &str, run: u32, output: &Value) -> String {
         serde_json::json!({
             "id": {"testResult": {
                 "label": label,
@@ -1220,10 +1220,10 @@ mod tests {
         let locations = configuration_locations();
         let stream = [
             configuration_event("cfgST", "k8-fastbuild-ST-2c5af747e1f8"),
-            configured_result("//a:t", "cfgST", 1, bytestream_xml()),
-            configured_result("//b:t", "cfgLate", 1, bytestream_xml()),
-            configured_result("//c:t", "cfgUnknown", 1, bytestream_xml()),
-            configured_result("//d:t", "cfgTop", 1, bytestream_xml()),
+            configured_result("//a:t", "cfgST", 1, &bytestream_xml()),
+            configured_result("//b:t", "cfgLate", 1, &bytestream_xml()),
+            configured_result("//c:t", "cfgUnknown", 1, &bytestream_xml()),
+            configured_result("//d:t", "cfgTop", 1, &bytestream_xml()),
             configuration_event("cfgLate", "k8-opt-ST-0123456789ab"),
             configuration_event("cfgTop", "k8-fastbuild"),
         ]
@@ -1259,7 +1259,7 @@ mod tests {
         let locations = configuration_locations();
         let mut stream = vec![configuration_event("cfgST", "k8-fastbuild-ST-x")];
         for run in 1..=5 {
-            stream.push(configured_result("//a:t", "cfgST", run, bytestream_xml()));
+            stream.push(configured_result("//a:t", "cfgST", run, &bytestream_xml()));
         }
         let got =
             outputs(Cursor::new(stream.join("\n")), || Some(locations.clone())).expect("runs");
@@ -1293,7 +1293,7 @@ mod tests {
         });
         let stream = [
             configuration_event("cfgST", "k8-fastbuild-ST-x"),
-            configured_result("//a:t", "cfgST", 1, output),
+            configured_result("//a:t", "cfgST", 1, &output),
         ]
         .join("\n");
         let got = outputs(Cursor::new(stream), || Some(locations.clone())).expect("prefix");
@@ -1327,7 +1327,7 @@ mod tests {
         let prefix = ["bazel-out", "k8-fastbuild-ST-y", "testlogs"];
         let stream = [
             test_summary("//a:t", Some(2)),
-            configured_result("//a:t", "cfgST", 1, prefixed_xml(&prefix)),
+            configured_result("//a:t", "cfgST", 1, &prefixed_xml(&prefix)),
         ]
         .join("\n");
         let got = outputs(Cursor::new(stream), || Some(locations.clone())).expect("shards");
@@ -1352,7 +1352,7 @@ mod tests {
     fn bytestream_path_prefix_keeps_the_external_repository_layout() {
         let locations = configuration_locations();
         let prefix = ["bazel-out", "k8-fastbuild", "testlogs"];
-        let stream = configured_result("@@repo//p:t", "cfgTop", 1, prefixed_xml(&prefix));
+        let stream = configured_result("@@repo//p:t", "cfgTop", 1, &prefixed_xml(&prefix));
         let got = outputs(Cursor::new(stream), || Some(locations.clone())).expect("external");
         assert_eq!(
             got[0].exec_path,
@@ -1376,7 +1376,7 @@ mod tests {
     fn bytestream_path_prefix_naming_the_repository_skips_the_external_segments() {
         let locations = configuration_locations();
         let prefix = ["bazel-out", "k8-fastbuild", "testlogs", "repo"];
-        let stream = configured_result("@@repo//p:t", "cfgTop", 1, prefixed_xml(&prefix));
+        let stream = configured_result("@@repo//p:t", "cfgTop", 1, &prefixed_xml(&prefix));
         let got = outputs(Cursor::new(stream), || Some(locations.clone())).expect("sibling");
         assert_eq!(
             got[0].exec_path,
@@ -1401,7 +1401,7 @@ mod tests {
         let prefix = ["bazel-out", "..", "testlogs"];
         let stream = [
             configuration_event("cfgST", "k8-fastbuild-ST-x"),
-            configured_result("//a:t", "cfgST", 1, prefixed_xml(&prefix)),
+            configured_result("//a:t", "cfgST", 1, &prefixed_xml(&prefix)),
         ]
         .join("\n");
         let got = outputs(Cursor::new(stream), || Some(locations.clone())).expect("fallback");

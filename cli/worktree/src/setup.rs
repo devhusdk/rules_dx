@@ -269,16 +269,16 @@ fn merge(file: &HookFile, existing: &str) -> Result<String, dx_merge::Error> {
             text = dx_merge::jsonc::append_missing(
                 &text,
                 &["hooks", event],
-                entry_value(file, matcher, &command),
+                &entry_value(file, matcher, &command),
             )?;
         }
     }
     if file.allow {
         for rule in missing_allow(existing) {
-            text = dx_merge::jsonc::append_missing(&text, &["permissions", "allow"], json!(rule))?;
+            text = dx_merge::jsonc::append_missing(&text, &["permissions", "allow"], &json!(rule))?;
         }
         for rule in missing_ask(existing) {
-            text = dx_merge::jsonc::append_missing(&text, &["permissions", "ask"], json!(rule))?;
+            text = dx_merge::jsonc::append_missing(&text, &["permissions", "ask"], &json!(rule))?;
         }
     }
     Ok(text)

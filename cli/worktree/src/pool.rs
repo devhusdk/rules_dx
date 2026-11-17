@@ -414,9 +414,9 @@ impl Pool {
                 Some(_) => continue,
                 None if !create => return Ok(None),
                 None => {
-                    std::fs::create_dir_all(state::dx_dir(&base)).map_err(WorktreeError::io)?;
+                    std::fs::create_dir_all(state::dx_dir(&base)).map_err(WorktreeError::from)?;
                     let ours = claim_marker(&marker, &marker_bytes(&main))
-                        .map_err(WorktreeError::io)?
+                        .map_err(WorktreeError::from)?
                         || std::fs::read(&marker).is_ok_and(|bytes| marker_matches(&bytes, &main));
                     if ours {
                         return Ok(Some(Pool {
@@ -463,7 +463,7 @@ impl Pool {
         match dx_atomic_fs::lease::acquire_exclusive_at(&self.busy_path(slot), QUIET_WAIT) {
             Ok(lease) => Ok(Some(lease.into_file())),
             Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => Ok(None),
-            Err(error) => Err(WorktreeError::io(error)),
+            Err(error) => Err(WorktreeError::from(error)),
         }
     }
 
@@ -485,7 +485,7 @@ impl Pool {
                     "another dx worktree command holds the pool lock; run the command again",
                 )
             } else {
-                WorktreeError::io(error)
+                WorktreeError::from(error)
             }
         })
     }
@@ -521,7 +521,7 @@ impl Pool {
         let bytes = serde_json::to_vec_pretty(record)
             .map_err(|error| WorktreeError::refused("record_unwritable", &error.to_string()))?;
         dx_atomic_fs::write_atomic(&self.record_path(record.slot), &bytes)
-            .map_err(WorktreeError::io)
+            .map_err(WorktreeError::from)
     }
 
     pub(crate) fn remove(&self, slot: u32) {

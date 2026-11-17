@@ -164,8 +164,7 @@ pub fn parse_workflow_pins(content: &str) -> Result<WorkflowPins, WorkflowYamlEr
                 let (role, is_key, _) = child_role(stack.last());
                 let is_map = matches!(event, Event::MappingStart(..));
                 let role = match (role, is_map) {
-                    (Role::Root | Role::Job | Role::Step | Role::Jobs, true) => role,
-                    (Role::Steps, false) => role,
+                    (Role::Root | Role::Job | Role::Step | Role::Jobs, true) | (Role::Steps, false) => role,
                     _ => Role::Other,
                 };
                 if is_key {
@@ -304,8 +303,7 @@ pub fn replace_pin_reference(content: &str, pin: &UsesPin, sha: &str) -> Option<
     let raw = content.get(pin.span.clone())?;
     let (open, close) = match pin.style {
         ScalarStyle::Plain => (0, 0),
-        ScalarStyle::SingleQuoted => (1, 1),
-        ScalarStyle::DoubleQuoted => (1, 1),
+        ScalarStyle::SingleQuoted | ScalarStyle::DoubleQuoted => (1, 1),
         ScalarStyle::Literal | ScalarStyle::Folded => return None,
     };
     let inner_end = raw.len().checked_sub(close)?;

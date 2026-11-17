@@ -52,13 +52,12 @@ fn logical_lines(text: &str) -> Vec<String> {
             for (at, ch) in line.char_indices() {
                 match quote {
                     Some(open) if ch == open => quote = None,
-                    Some(_) => {}
                     None if ch == '"' || ch == '\'' => quote = Some(ch),
                     None if ch == '#' => {
                         end = at;
                         break;
                     }
-                    None => {}
+                    Some(_) | None => {}
                 }
             }
             line.get(..end).unwrap_or(line).trim().to_owned()

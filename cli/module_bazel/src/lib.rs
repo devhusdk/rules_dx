@@ -1015,7 +1015,7 @@ impl ModuleFile {
     pub fn mix_locks(&self) -> Result<Vec<MixLock<'_>>, ModuleError> {
         const TAG: &str = "hex.lock";
         let external = self.tags(RUBY_MODULE, "elixir:extensions.bzl", "hex", "lock");
-        let own = self.tags_of("//elixir:extensions.bzl".to_owned(), "hex", "lock");
+        let own = self.tags_of("//elixir:extensions.bzl", "hex", "lock");
         external
             .chain(own)
             .map(|call| {
@@ -1107,7 +1107,7 @@ impl ModuleFile {
     /// Every `fpm.lock` tag of the `rules_dx` Fortran extension in source order.
     pub fn fpm_locks(&self) -> Result<Vec<FpmLock<'_>>, ModuleError> {
         const TAG: &str = "fpm.lock";
-        let own = self.tags_of("//fortran:extensions.bzl".to_owned(), "fpm", "lock");
+        let own = self.tags_of("//fortran:extensions.bzl", "fpm", "lock");
         self.tags(RUBY_MODULE, "fortran:extensions.bzl", "fpm", "lock")
             .chain(own)
             .map(|call| {
@@ -1123,7 +1123,7 @@ impl ModuleFile {
     /// Every `dub.lock` tag of the `rules_dx` dub extension in source order.
     pub fn dub_locks(&self) -> Result<Vec<DubLock<'_>>, ModuleError> {
         const TAG: &str = "dub.lock";
-        let own = self.tags_of("//d:extensions.bzl".to_owned(), "dub", "lock");
+        let own = self.tags_of("//d:extensions.bzl", "dub", "lock");
         self.tags(RUBY_MODULE, "d:extensions.bzl", "dub", "lock")
             .chain(own)
             .map(|call| {
@@ -1139,7 +1139,7 @@ impl ModuleFile {
     /// Every `nuget.lock` tag of the `rules_dx` nuget extension in source order.
     pub fn nuget_locks(&self) -> Result<Vec<NugetLock<'_>>, ModuleError> {
         const TAG: &str = "nuget.lock";
-        let own = self.tags_of("//csharp:extensions.bzl".to_owned(), "nuget", "lock");
+        let own = self.tags_of("//csharp:extensions.bzl", "nuget", "lock");
         self.tags(RUBY_MODULE, "csharp:extensions.bzl", "nuget", "lock")
             .chain(own)
             .map(|call| {
@@ -1155,7 +1155,7 @@ impl ModuleFile {
     /// Every `zig.lock` tag of the `rules_dx` zig extension in source order.
     pub fn zig_locks(&self) -> Result<Vec<ZigLock<'_>>, ModuleError> {
         const TAG: &str = "zig.lock";
-        let own = self.tags_of("//zig:extensions.bzl".to_owned(), "zig", "lock");
+        let own = self.tags_of("//zig:extensions.bzl", "zig", "lock");
         self.tags(RUBY_MODULE, "zig:extensions.bzl", "zig", "lock")
             .chain(own)
             .map(|call| {
@@ -1171,7 +1171,7 @@ impl ModuleFile {
     /// Every `ansible.lock` tag of the `rules_dx` ansible extension in source order.
     pub fn ansible_collections(&self) -> Result<Vec<AnsibleCollections<'_>>, ModuleError> {
         const TAG: &str = "ansible.lock";
-        let own = self.tags_of("//ansible:extensions.bzl".to_owned(), "ansible", "lock");
+        let own = self.tags_of("//ansible:extensions.bzl", "ansible", "lock");
         self.tags(
             RUBY_MODULE,
             "ansible:extensions.bzl",
@@ -1192,7 +1192,7 @@ impl ModuleFile {
     /// Every `bicep.lock` tag of the `rules_dx` bicep extension in source order.
     pub fn bicep_locks(&self) -> Result<Vec<BicepLock<'_>>, ModuleError> {
         const TAG: &str = "bicep.lock";
-        let own = self.tags_of("//bicep:extensions.bzl".to_owned(), "bicep", "lock");
+        let own = self.tags_of("//bicep:extensions.bzl", "bicep", "lock");
         self.tags(RUBY_MODULE, "bicep:extensions.bzl", "bicep", "lock")
             .chain(own)
             .map(|call| {
@@ -1208,7 +1208,7 @@ impl ModuleFile {
     /// Every `opam.lock` tag of this repository's opam extension in source order.
     pub fn opam_packages(&self) -> Result<Vec<OpamPackages<'_>>, ModuleError> {
         const TAG: &str = "opam.lock";
-        let own = self.tags_of("//ocaml:extensions.bzl".to_owned(), "opam", "lock");
+        let own = self.tags_of("//ocaml:extensions.bzl", "opam", "lock");
         self.tags(RUBY_MODULE, "ocaml:extensions.bzl", "opam", "lock")
             .chain(own)
             .map(|call| {
@@ -1224,7 +1224,7 @@ impl ModuleFile {
     /// Every `cabal.lock` tag of this repository's Haskell extension in source order.
     pub fn haskell_packages(&self) -> Result<Vec<HaskellPackages<'_>>, ModuleError> {
         const TAG: &str = "cabal.lock";
-        let own = self.tags_of("//haskell:extensions.bzl".to_owned(), "cabal", "lock");
+        let own = self.tags_of("//haskell:extensions.bzl", "cabal", "lock");
         self.tags(RUBY_MODULE, "haskell:extensions.bzl", "cabal", "lock")
             .chain(own)
             .map(|call| {
@@ -1246,8 +1246,8 @@ impl ModuleFile {
         tag: &'a str,
     ) -> impl Iterator<Item = &'a Call> + 'a {
         let repo = self.repo_name(RUBY_MODULE).unwrap_or(RUBY_MODULE);
-        self.tags_of(format!("@{repo}//{lang}:extensions.bzl"), name, tag)
-            .chain(self.tags_of(format!("//{lang}:extensions.bzl"), name, tag))
+        self.tags_of(&format!("@{repo}//{lang}:extensions.bzl"), name, tag)
+            .chain(self.tags_of(&format!("//{lang}:extensions.bzl"), name, tag))
     }
 
     /// The calls of `tag` on every binding of the extension `name` in `@<module>//<file>`.
@@ -1259,19 +1259,19 @@ impl ModuleFile {
         tag: &'a str,
     ) -> impl Iterator<Item = &'a Call> + 'a {
         let repo = self.repo_name(module).unwrap_or(module);
-        self.tags_of(format!("@{repo}//{file}"), name, tag)
+        self.tags_of(&format!("@{repo}//{file}"), name, tag)
     }
 
     fn tags_of<'a>(
         &'a self,
-        label: String,
+        label: &str,
         name: &str,
         tag: &'a str,
-    ) -> impl Iterator<Item = &'a Call> + 'a {
+    ) -> impl Iterator<Item = &'a Call> + use<'a> {
         let proxies: Vec<&str> = self
             .calls_named("use_extension")
             .filter(|call| {
-                extension_arg(call, 0, "extension_bzl_file") == Some(label.as_str())
+                extension_arg(call, 0, "extension_bzl_file") == Some(label)
                     && extension_arg(call, 1, "extension_name") == Some(name)
             })
             .filter_map(|call| call.binding.as_deref())
@@ -1446,9 +1446,8 @@ impl ModuleFile {
                     });
                 }
                 None if repository == "maven" => installs.push(call),
-                None => {}
                 Some(Value::Str(literal)) if literal.value == repository => installs.push(call),
-                Some(Value::Str(_)) => {}
+                None | Some(Value::Str(_)) => {}
                 Some(_) => {
                     return Err(ModuleError::NoInsertPoint {
                         reason: format!("maven.install at line {} has a computed name", call.line),
@@ -1715,7 +1714,7 @@ where
 {
     source
         .get(range.clone())
-        .ok_or_else(|| ModuleError::NoInsertPoint {
+        .ok_or_else(move || ModuleError::NoInsertPoint {
             reason: format!("byte range {range:?} is not inside the source"),
         })
 }

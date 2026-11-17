@@ -61,27 +61,27 @@ fn command<K: ShardKind>() -> Command {
         .arg(single("output"))
 }
 
-fn parse_error<K: ShardKind>(error: clap::Error, args: &[String]) -> String {
+fn parse_error<K: ShardKind>(error: &clap::Error, args: &[String]) -> String {
     let kind = error.kind();
     if kind == ErrorKind::UnknownArgument {
         format!(
             "unknown argument {:?}\n{}",
-            dx_output::unknown_token(&error, args),
+            dx_output::unknown_token(error, args),
             K::USAGE
         )
     } else if kind == ErrorKind::InvalidValue {
         K::USAGE.to_owned()
     } else if kind == ErrorKind::ValueValidation {
-        let raw = dx_output::rejected_value(&error).unwrap_or_default();
+        let raw = dx_output::rejected_value(error).unwrap_or_default();
         match parse_entry_value::<K>(&raw) {
             Err(message) => message,
             // LCOV_EXCL_START - reason: clap reports the value it rejected, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-            Ok(_) => dx_output::first_line(&error),
+            Ok(_) => dx_output::first_line(error),
             // LCOV_EXCL_STOP - reason: end clap reports the value it rejected, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
         }
     } else {
         // LCOV_EXCL_START - reason: clap kinds this command cannot raise, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-        dx_output::first_line(&error)
+        dx_output::first_line(error)
         // LCOV_EXCL_STOP - reason: end clap kinds this command cannot raise, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
     }
 }
@@ -89,7 +89,7 @@ fn parse_error<K: ShardKind>(error: clap::Error, args: &[String]) -> String {
 pub fn run<K: ShardKind>(args: &[String]) -> Result<(), WriterError> {
     let mut matches = command::<K>()
         .try_get_matches_from(std::iter::once(K::PROGRAM).chain(args.iter().map(|arg| arg as &str)))
-        .map_err(|error| WriterError::Usage(parse_error::<K>(error, args)))?;
+        .map_err(|error| WriterError::Usage(parse_error::<K>(&error, args)))?;
     let output = matches.remove_one::<String>("output").map(PathBuf::from);
     let producer = matches
         .remove_one::<String>("producer")
@@ -109,9 +109,9 @@ pub fn run<K: ShardKind>(args: &[String]) -> Result<(), WriterError> {
 }
 
 // LCOV_EXCL_START - reason: process shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-pub fn run_process<K: ShardKind>(args: Vec<String>) -> i32 {
+pub fn run_process<K: ShardKind>(args: &[String]) -> i32 {
     dx_output::init_diagnostics(false);
-    match run::<K>(&args) {
+    match run::<K>(args) {
         Ok(()) => 0,
         Err(error) => {
             tracing::error!("{}: {error}", K::PROGRAM);

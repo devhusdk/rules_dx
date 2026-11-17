@@ -181,8 +181,7 @@ pub fn evaluate(
 #[must_use]
 pub fn fails_in_tier(outcome: TierOutcome, tier: Tier) -> bool {
     match (outcome, tier) {
-        (TierOutcome::Deny, _) => true,
-        (TierOutcome::Review, Tier::Distributed) => true,
+        (TierOutcome::Deny, _) | (TierOutcome::Review, Tier::Distributed) => true,
         (TierOutcome::Review, Tier::Internal) | (TierOutcome::Allow, _) => false,
     }
 }
@@ -197,14 +196,9 @@ fn evaluate_ident(
         return TierOutcome::Allow;
     }
     match (lookup(id), tier) {
-        (IdClass::Allow, _) => TierOutcome::Allow,
-        (IdClass::Blocked, _) => TierOutcome::Deny,
+        (IdClass::Blocked, _) | (IdClass::Deny, Tier::Distributed) | (IdClass::Unlisted, Tier::Distributed) => TierOutcome::Deny,
         (IdClass::Review, Tier::Distributed) => TierOutcome::Review,
-        (IdClass::Review, Tier::Internal) => TierOutcome::Allow,
-        (IdClass::Deny, Tier::Distributed) => TierOutcome::Deny,
-        (IdClass::Deny, Tier::Internal) => TierOutcome::Allow,
-        (IdClass::Unlisted, Tier::Distributed) => TierOutcome::Deny,
-        (IdClass::Unlisted, Tier::Internal) => TierOutcome::Allow,
+        (IdClass::Allow, _) | (IdClass::Review, Tier::Internal) | (IdClass::Deny, Tier::Internal) | (IdClass::Unlisted, Tier::Internal) => TierOutcome::Allow,
     }
 }
 

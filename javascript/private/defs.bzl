@@ -67,6 +67,10 @@ def _javascript_wrap_binary(name, srcs, visibility = None, **kwargs):
         **dx_binary_forward_kwargs(kwargs)
     )
 
+def js_library(name, **kwargs):
+    """Groups package files that are not JavaScript sources, such as package.json; dx runs no quality tools on them."""
+    _js_library(name = name, **kwargs)
+
 def javascript_library(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over js_library."""
     _javascript_wrap_library(name, srcs, visibility = visibility, **kwargs)

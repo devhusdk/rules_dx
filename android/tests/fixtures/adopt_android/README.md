@@ -65,7 +65,7 @@ rust.toolchain(
 )
 use_repo(rust, "rust_toolchains")
 
-android_ndk_toolchain_repo = use_repo_rule("@rules_dx//android:extensions.bzl", "android_ndk_toolchain_repo")
+android_ndk_toolchain_repo = use_repo_rule("@rules_dx//android:repositories.bzl", "android_ndk_toolchain_repo")
 
 android_ndk_toolchain_repo(
     name = "android_ndk_toolchain",

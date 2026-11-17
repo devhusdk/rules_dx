@@ -295,7 +295,8 @@ fn the_readme_quickstart_runs_as_written() {
 }
 
 fn load_budget(variable: &str) -> serde_json::Value {
-    let path = std::env::var(variable).unwrap_or_else(|_| panic!("{variable} must name the budget"));
+    let path =
+        std::env::var(variable).unwrap_or_else(|_| panic!("{variable} must name the budget"));
     serde_json::from_str(&read_text(&resolve_runfiles(&path)))
         .unwrap_or_else(|error| panic!("{path}: {error}"))
 }

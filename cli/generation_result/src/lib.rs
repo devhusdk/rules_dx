@@ -199,16 +199,11 @@ fn modification_text<'a>(
                 index,
             });
         }
-        if edit.end_byte > original.len() as u64 {
-            return Err(Error::EditOutOfBounds {
-                path: path.to_owned(),
-                index,
-            });
-        }
-        let (Ok(start), Ok(end)) = (
-            usize::try_from(edit.start_byte),
-            usize::try_from(edit.end_byte),
-        ) else {
+        let bounds = usize::try_from(edit.start_byte)
+            .ok()
+            .zip(usize::try_from(edit.end_byte).ok())
+            .filter(|&(_, end)| end <= original.len());
+        let Some((start, end)) = bounds else {
             return Err(Error::EditOutOfBounds {
                 path: path.to_owned(),
                 index,

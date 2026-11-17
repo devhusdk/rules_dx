@@ -348,9 +348,7 @@ extern "C" fn report_settled(_: libc::c_int, _: *mut libc::siginfo_t, _: *mut li
 }
 
 unsafe fn report(signo: libc::c_int) {
-    let Ok(byte) = u8::try_from(signo) else {
-        return;
-    };
+    let byte = u8::try_from(signo).unwrap_or(SETTLED);
     // SAFETY: the pipe descriptor is open and byte is a valid one-byte buffer.
     unsafe {
         libc::write(

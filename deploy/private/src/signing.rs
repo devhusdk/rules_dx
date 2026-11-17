@@ -8,6 +8,7 @@ pub const GITHUB_OIDC_ISSUER: &str = "https://token.actions.githubusercontent.co
 const SIGN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
 
 /// A pinned cosign binary.
+#[derive(Clone, Copy)]
 pub struct CosignPin<'a> {
     pub path: &'a str,
     pub version: &'a str,
@@ -158,7 +159,14 @@ pub fn verify_argv(
     identity: &str,
     issuer: &str,
 ) -> Vec<String> {
-    verify_flag_argv(cosign, asset, bundle, "--certificate-identity", identity, issuer)
+    verify_flag_argv(
+        cosign,
+        asset,
+        bundle,
+        "--certificate-identity",
+        identity,
+        issuer,
+    )
 }
 
 fn verify_flag_argv(
@@ -323,6 +331,199 @@ pub fn sign_assets(
     Ok(bundles)
 }
 
+/// The cosign settings of one `oci_deploy`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ImageSigning {
+    /// `auto`, `off` or `required`.
+    pub mode: String,
+    pub cosign_rloc: String,
+    pub cosign_version: String,
+    pub cosign_sha256: String,
+    /// The SPDX SBOM attested to the pushed digest; empty for none.
+    pub sbom_rloc: String,
+}
+
+impl Default for ImageSigning {
+    fn default() -> Self {
+        Self {
+            mode: "off".to_owned(),
+            cosign_rloc: String::new(),
+            cosign_version: String::new(),
+            cosign_sha256: String::new(),
+            sbom_rloc: String::new(),
+        }
+    }
+}
+
+fn with_key(mut argv: Vec<String>, keyed: bool) -> Vec<String> {
+    if keyed {
+        argv.splice(2..2, ["--key".to_owned(), "env://COSIGN_KEY".to_owned()]);
+    }
+    argv
+}
+
+/// Formats `cosign sign` for one image reference.
+#[must_use]
+pub fn image_sign_argv(cosign: &str, reference: &str, keyed: bool) -> Vec<String> {
+    with_key(
+        vec![
+            cosign.to_owned(),
+            "sign".to_owned(),
+            "--yes".to_owned(),
+            reference.to_owned(),
+        ],
+        keyed,
+    )
+}
+
+/// Formats `cosign attest` of an SPDX SBOM for one image reference.
+#[must_use]
+pub fn image_attest_argv(cosign: &str, reference: &str, sbom: &str, keyed: bool) -> Vec<String> {
+    with_key(
+        vec![
+            cosign.to_owned(),
+            "attest".to_owned(),
+            "--yes".to_owned(),
+            "--type".to_owned(),
+            "spdxjson".to_owned(),
+            "--predicate".to_owned(),
+            sbom.to_owned(),
+            reference.to_owned(),
+        ],
+        keyed,
+    )
+}
+
+/// Formats `cosign verify` or, with `attestation`, `cosign verify-attestation --type spdxjson`
+/// against a certificate identity regexp.
+#[must_use]
+pub fn image_verify_argv(
+    cosign: &str,
+    reference: &str,
+    regexp: &str,
+    issuer: &str,
+    attestation: bool,
+) -> Vec<String> {
+    let mut argv = vec![cosign.to_owned()];
+    if attestation {
+        argv.extend(["verify-attestation", "--type", "spdxjson"].map(str::to_owned));
+    } else {
+        argv.push("verify".to_owned());
+    }
+    argv.extend(
+        [
+            "--certificate-identity-regexp",
+            regexp,
+            "--certificate-oidc-issuer",
+            issuer,
+            reference,
+        ]
+        .map(str::to_owned),
+    );
+    argv
+}
+
+/// The cosign steps for one pushed image: sign, then attest `sbom` when set.
+#[must_use]
+pub fn image_steps(
+    cosign: &str,
+    identity: &SignIdentity,
+    reference: &str,
+    sbom: Option<&str>,
+) -> Vec<Vec<String>> {
+    let keyed = *identity == SignIdentity::Key;
+    let mut steps = vec![image_sign_argv(cosign, reference, keyed)];
+    if let Some(sbom) = sbom {
+        steps.push(image_attest_argv(cosign, reference, sbom, keyed));
+    }
+    if let SignIdentity::Oidc { repository } = identity {
+        let regexp = identity_regexp(repository);
+        steps.push(image_verify_argv(
+            cosign,
+            reference,
+            &regexp,
+            GITHUB_OIDC_ISSUER,
+            false,
+        ));
+        if sbom.is_some() {
+            steps.push(image_verify_argv(
+                cosign,
+                reference,
+                &regexp,
+                GITHUB_OIDC_ISSUER,
+                true,
+            ));
+        }
+    }
+    steps
+}
+
+/// The `DOCKER_CONFIG` auth key cosign looks up for `registry`.
+#[must_use]
+pub fn docker_auth_key(registry: &str) -> String {
+    let host = registry
+        .split('/')
+        .next()
+        .unwrap_or(registry)
+        .to_ascii_lowercase();
+    if host == "docker.io" {
+        return "https://index.docker.io/v1/".to_owned();
+    }
+    host
+}
+
+/// Writes a `DOCKER_CONFIG` directory holding one basic login for `registry`.
+pub fn write_docker_config(
+    dir: &Path,
+    registry: &str,
+    user: &str,
+    secret: &str,
+) -> Result<(), String> {
+    use base64::Engine as _;
+    std::fs::create_dir_all(dir)
+        .map_err(|error| format!("signing: cannot create {}: {error}", dir.display()))?;
+    let auth = base64::engine::general_purpose::STANDARD.encode(format!("{user}:{secret}"));
+    let body = serde_json::json!({"auths": {docker_auth_key(registry): {"auth": auth}}});
+    let path = dir.join("config.json");
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+    let mut file = options
+        .open(&path)
+        .map_err(|error| format!("signing: cannot write {}: {error}", path.display()))?;
+    std::io::Write::write_all(&mut file, body.to_string().as_bytes())
+        .map_err(|error| format!("signing: cannot write {}: {error}", path.display()))
+}
+
+/// Signs and attests one pushed image with the registry login in `docker_config`.
+pub fn sign_image(
+    pin: &CosignPin<'_>,
+    identity: &SignIdentity,
+    reference: &str,
+    sbom: Option<&str>,
+    docker_config: &Path,
+) -> Result<(), String> {
+    check_pin(pin)?;
+    for step in image_steps(pin.path, identity, reference, sbom) {
+        let (binary, args) = step
+            .split_first()
+            .ok_or_else(|| "invocation needs a binary".to_owned())?;
+        let mut command = std::process::Command::new(binary);
+        command.args(args).env("DOCKER_CONFIG", docker_config);
+        let out = dx_process::capture::run_captured(&mut command, SIGN_TIMEOUT)
+            .map_err(|error| format!("signing: cannot run '{}': {error}", step.join(" ")))?;
+        if !out.success() {
+            return Err(format!(
+                "signing: '{}' failed for {reference}: {}",
+                step.join(" "),
+                String::from_utf8_lossy(&out.stderr).trim()
+            ));
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -424,5 +625,54 @@ mod tests {
         assert!(signing_version_ok(real, "v9.8.7"));
         assert!(!signing_version_ok("GitVersion:    v9.8.70\n", "v9.8.7"));
         assert!(!signing_version_ok("", "v9.8.7"));
+    }
+
+    #[test]
+    fn image_steps_sign_attest_and_verify() {
+        let oidc = SignIdentity::Oidc {
+            repository: "o/r".to_owned(),
+        };
+        let steps = image_steps("c", &oidc, "r/p@sha256:1", Some("s.spdx.json"));
+        let heads: Vec<&str> = steps.iter().map(|step| step[1].as_str()).collect();
+        assert_eq!(heads, ["sign", "attest", "verify", "verify-attestation"]);
+        assert_eq!(steps[0], ["c", "sign", "--yes", "r/p@sha256:1"]);
+        assert_eq!(
+            steps[1],
+            [
+                "c",
+                "attest",
+                "--yes",
+                "--type",
+                "spdxjson",
+                "--predicate",
+                "s.spdx.json",
+                "r/p@sha256:1"
+            ]
+        );
+        assert!(steps[3].contains(&"spdxjson".to_owned()));
+        let keyed = image_steps("c", &SignIdentity::Key, "r/p@sha256:1", None);
+        assert_eq!(
+            keyed,
+            [[
+                "c",
+                "sign",
+                "--key",
+                "env://COSIGN_KEY",
+                "--yes",
+                "r/p@sha256:1"
+            ]]
+        );
+    }
+
+    #[test]
+    fn docker_config_keys_the_registry_host() {
+        assert_eq!(docker_auth_key("ghcr.io/example"), "ghcr.io");
+        assert_eq!(docker_auth_key("docker.io"), "https://index.docker.io/v1/");
+        let dir = tempfile::tempdir().expect("tempdir");
+        write_docker_config(dir.path(), "localhost:5000", "u", "p").expect("write");
+        let body: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(dir.path().join("config.json")).expect("read"))
+                .expect("json");
+        assert_eq!(body["auths"]["localhost:5000"]["auth"], "dTpw");
     }
 }

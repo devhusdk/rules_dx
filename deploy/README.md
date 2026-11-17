@@ -905,9 +905,17 @@ oci_deploy(
 - `size_budget`: optional, such as `500MB`. A decimal `B`, `KB`, `MB` or `GB`
   amount. Building fails when the image (the archive file, or the layout
   directory tree) is larger, and prints both sizes in bytes. Empty means no budget.
+- `sbom`: optional `dx_sbom` target attested to the pushed digest.
+- `sign`: `auto` (default), `off` or `required`. After the push, a live run runs
+  `cosign sign --yes <registry>/<repository>@<digest>` and, with `sbom`,
+  `cosign attest --yes --type spdxjson --predicate <sbom> <ref>` with the pinned
+  cosign, when `COSIGN_KEY` is set or the run has a GitHub OIDC token
+  (`ACTIONS_ID_TOKEN_REQUEST_URL`); `required` fails without either. A keyless
+  run then checks both with `cosign verify` and `cosign verify-attestation`.
+  `COSIGN_REPOSITORY` stores the signatures in another repository.
 
 Default run stages `<repository>-oci-layout/` with an `index.json`. No
-credentials needed.
+credentials needed. It prints the signing identity and the two cosign commands.
 
 Push:
 

@@ -2,10 +2,7 @@ load("//cc/private/toolchain:unavailable.bzl", "cc_toolchain_unavailable")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":unavailable.bzl", "UNSUPPORTED")
 
-package(default_visibility = [
-    "//cc/private/toolchain:__subpackages__",
-    "//cc/tests/toolchain:__subpackages__",
-])
+package(default_visibility = ["//cc/private/toolchain:__subpackages__"])
 
 cc_toolchain_unavailable(
     name = "unsupported",

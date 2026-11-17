@@ -80,18 +80,18 @@ fake_cc_toolchain_config(
 
 cc_toolchain_identity_subject(
     name = "gcc_subject",
-    extra_toolchains = ["//cc/tests/toolchain/external:gcc_toolchain"],
+    extra_toolchains = ["//cc/tests/fixtures/external_toolchain:gcc_toolchain"],
 )
 
 cc_toolchain_identity_subject(
     name = "gcc_flag_subject",
     compiler = "gcc",
-    extra_toolchains = ["//cc/tests/toolchain/external:gcc_toolchain"],
+    extra_toolchains = ["//cc/tests/fixtures/external_toolchain:gcc_toolchain"],
 )
 
 cc_toolchain_identity_subject(
     name = "icx_subject",
-    extra_toolchains = ["//cc/tests/toolchain/external:icx_toolchain"],
+    extra_toolchains = ["//cc/tests/fixtures/external_toolchain:icx_toolchain"],
 )
 
 external_toolchain_tests(name = "external")

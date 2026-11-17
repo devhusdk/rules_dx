@@ -32,6 +32,8 @@ avro/tests/BUILD.bazel no-size 6
 bicep/tests/BUILD.bazel no-size 3
 bicep/tests/defs_tests.bzl no-size 1
 capnproto/tests/BUILD.bazel no-size 11
+cc/tests/BUILD.bazel no-size 39
+cc/tests/failure_tests.bzl no-size 1
 cc/tests/fixtures/adopt-cpp/greet/BUILD.bazel no-size 1
 cc/tests/fixtures/adopt-cpp/solo/BUILD.bazel no-size 1
 cc/tests/fixtures/args/BUILD.bazel flaky 1
@@ -48,6 +50,8 @@ cc/tests/fixtures/copts/BUILD.bazel no-size 3
 cc/tests/fixtures/cpp-app/app/BUILD.bazel no-size 4
 cc/tests/fixtures/cpp-app/core/BUILD.bazel no-size 2
 cc/tests/fixtures/cpp-app/diagnostics/BUILD.bazel no-size 1
+cc/tests/fixtures/external_toolchain/BUILD.bazel no-size 3
+cc/tests/fixtures/external_toolchain/toolchain_tests.bzl no-size 1
 cc/tests/fixtures/foreign_cmake/BUILD.bazel no-size 4
 cc/tests/fixtures/fuzz/BUILD.bazel no-size 7
 cc/tests/fixtures/gcc_coverage/BUILD.bazel no-size 2
@@ -62,15 +66,10 @@ cc/tests/fixtures/sanitize/BUILD.bazel no-size 6
 cc/tests/fixtures/shared/BUILD.bazel no-size 2
 cc/tests/fixtures/strict_generation/BUILD.bazel no-size 1
 cc/tests/msvc_cross/BUILD.bazel no-size 1
+cc/tests/msvc_repos_tests.bzl no-size 3
+cc/tests/msvc_toolchain_tests.bzl no-size 4
 cc/tests/tags/BUILD.bazel no-size 2
-cc/tests/toolchain/BUILD.bazel no-size 34
-cc/tests/toolchain/external/BUILD.bazel no-size 3
-cc/tests/toolchain/external/toolchain_tests.bzl no-size 1
-cc/tests/toolchain/failure_tests.bzl no-size 1
-cc/tests/toolchain/msvc/BUILD.bazel no-size 5
-cc/tests/toolchain/msvc/repos_tests.bzl no-size 3
-cc/tests/toolchain/msvc/toolchain_tests.bzl no-size 4
-cc/tests/toolchain/toolchain_tests.bzl no-size 9
+cc/tests/toolchain_tests.bzl no-size 9
 cli/cli/BUILD.bazel no-size 2
 cli/env/BUILD.bazel no-size 2
 cli/exec_os/BUILD.bazel no-size 1

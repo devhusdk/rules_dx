@@ -18,7 +18,7 @@ def _expected(label, cpu, target_system, machine, tool_dir, bin_dirs, lib_arch):
     sdk_lib = _ROOT + "sysroot\\{}\\c\\".format(lib_arch)
     tool = "cc/tests/fixtures/msvc_layout/sysroot/Contents/VC/Tools/MSVC/14.44.35207/bin/" + tool_dir
     return "\n".join([
-        "subject //cc/tests/toolchain/msvc:" + label,
+        "subject //cc/tests:" + label,
         "field cc.compiler=msvc-cl",
         "field cc.cpu=" + cpu,
         "field cc.family=msvc",
@@ -42,7 +42,7 @@ def _expected(label, cpu, target_system, machine, tool_dir, bin_dirs, lib_arch):
         "aspect_field aspect_seen=True",
         "aspect_field field_count=20",
         "aspect_field has_subject=True",
-        "aspect_field subject_label=//cc/tests/toolchain/msvc:" + label,
+        "aspect_field subject_label=//cc/tests:" + label,
         "aspect_field transitive_count=0",
     ])
 

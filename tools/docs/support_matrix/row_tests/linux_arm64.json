@@ -6,14 +6,14 @@
   ],
   "//cc/tests/fixtures/hello:hello_test": [],
   "//cc/tests/gcc_linux_arm64:native_arm64_test": [],
-  "//cc/tests/toolchain:gcc_arm64_asan_test": [
+  "//cc/tests:gcc_arm64_asan_test": [
     "no-coverage"
   ],
-  "//cc/tests/toolchain:gcc_arm64_dynamic_libstdcxx_test": [],
-  "//cc/tests/toolchain:gcc_arm64_hello_c_test": [],
-  "//cc/tests/toolchain:gcc_arm64_hello_test": [],
-  "//cc/tests/toolchain:gcc_arm64_shared_test": [],
-  "//cc/tests/toolchain:gcc_arm64_ubsan_test": [
+  "//cc/tests:gcc_arm64_dynamic_libstdcxx_test": [],
+  "//cc/tests:gcc_arm64_hello_c_test": [],
+  "//cc/tests:gcc_arm64_hello_test": [],
+  "//cc/tests:gcc_arm64_shared_test": [],
+  "//cc/tests:gcc_arm64_ubsan_test": [
     "no-coverage"
   ],
   "//cmake/tests:bad_name_fails": [],

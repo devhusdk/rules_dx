@@ -5,14 +5,14 @@
     "block-network"
   ],
   "//cc/tests/fixtures/hello:hello_test": [],
-  "//cc/tests/toolchain:gcc_asan_test": [
+  "//cc/tests:gcc_asan_test": [
     "no-coverage"
   ],
-  "//cc/tests/toolchain:gcc_hello_c_test": [],
-  "//cc/tests/toolchain:gcc_hello_lib_test": [],
-  "//cc/tests/toolchain:gcc_hello_test": [],
-  "//cc/tests/toolchain:gcc_shared_test": [],
-  "//cc/tests/toolchain:gcc_ubsan_test": [
+  "//cc/tests:gcc_hello_c_test": [],
+  "//cc/tests:gcc_hello_lib_test": [],
+  "//cc/tests:gcc_hello_test": [],
+  "//cc/tests:gcc_shared_test": [],
+  "//cc/tests:gcc_ubsan_test": [
     "no-coverage"
   ],
   "//cmake/tests:bad_name_fails": [],

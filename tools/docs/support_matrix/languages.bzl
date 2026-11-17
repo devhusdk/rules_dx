@@ -549,11 +549,11 @@ NOT_LANGUAGES = [
 
 COMPILER_BLOCKERS = {}
 
-COMPILER_PROBES = {"gcc": "//cc/tests/toolchain:identity_gcc", "llvm": "//cc/tests/toolchain:identity", "msvc": "//cc/tests/toolchain:identity_msvc"}
+COMPILER_PROBES = {"gcc": "//cc/tests:identity_gcc", "llvm": "//cc/tests:identity", "msvc": "//cc/tests:identity_msvc"}
 
 COMPILER_PLATFORM_PROBES = {
-    "gcc": {"linux_arm64": "//cc/tests/toolchain:identity_gcc_arm64_native"},
-    "msvc": {"windows_arm64": "//cc/tests/toolchain:identity_msvc_arm64_native"},
+    "gcc": {"linux_arm64": "//cc/tests:identity_gcc_arm64_native"},
+    "msvc": {"windows_arm64": "//cc/tests:identity_msvc_arm64_native"},
 }
 
 def support_matrix_inputs():

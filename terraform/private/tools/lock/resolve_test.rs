@@ -119,6 +119,12 @@ fn sources_off_the_public_registry_fail() {
 }
 
 #[test]
+fn an_unreadable_constraint_fails() {
+    assert!(satisfies("1.0.0", "~> latest").is_err());
+    assert!(satisfies("1.0.0", ">= 1.x").is_err());
+}
+
+#[test]
 fn constraints_follow_terraform() {
     for (version, constraint, holds) in [
         ("3.2.4", "~> 3.2", true),
@@ -129,6 +135,10 @@ fn constraints_follow_terraform() {
         ("1.4.9", ">= 1.2, < 1.5", true),
         ("1.0.0", "!= 1.0.0", false),
         ("2.0.0", "", true),
+        ("3.2.0", "= 3.2", true),
+        ("v3.2.0", ">= 3.2.0", true),
+        ("3.3.0-beta1", ">= 3.2", false),
+        ("3.3.0rc1", "~> 3.2", false),
     ] {
         assert_eq!(satisfies(version, constraint), Ok(holds), "{version} {constraint}");
     }

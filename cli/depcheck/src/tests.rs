@@ -1196,6 +1196,18 @@ fn versions_equal_pads_trailing_zeros() {
     assert!(!versions_equal("4.0.0", "4.1"));
     assert!(!versions_equal("1.0.0-alpha", "1.0.0"));
     assert!(versions_equal("1.0.0+build", "1.0.0+build"));
+    assert!(!versions_equal("1.0.0+cpu", "1.0.0+cu118"));
+    assert!(versions_equal("7.0.8.1", "7.0.8.1.0"));
+}
+
+#[test]
+fn non_semver_grammar_reads_four_parts_and_release_flavors() {
+    assert!(satisfies_non_semver("~> 7.0.8", "7.0.8.1"));
+    assert!(!satisfies_non_semver("~> 7.0.8", "7.1.0"));
+    assert!(satisfies_non_semver(">= 1.2.3.4", "1.2.3.5"));
+    assert!(!satisfies_non_semver(">= 1.2.3.4", "1.2.3"));
+    assert!(satisfies_non_semver(">= 5.6", "5.6.15.Final"));
+    assert!(!satisfies_non_semver(">= 8.4", "8.4.0rc1"));
 }
 
 #[test]

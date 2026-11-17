@@ -1,8 +1,6 @@
 //! Version satisfaction, one grammar per ecosystem.
 
-use std::cmp::Ordering;
-
-use semver::{Version, VersionReq};
+use dx_semver::Version;
 
 use crate::ecosystem::python;
 use dx_ecosystems::Language;
@@ -45,8 +43,8 @@ fn dart_range(spec: &str) -> String {
 
 /// Settles a semver requirement, or `None` when either side is outside the semver grammar.
 fn satisfies_semver(spec: &str, locked: &str) -> Option<bool> {
-    let requirement = VersionReq::parse(normalize(spec).as_str()).ok()?;
-    let version = Version::parse(strip_v_prefix(locked.trim()).as_str()).ok()?;
+    let requirement = semver::VersionReq::parse(normalize(spec).as_str()).ok()?;
+    let version = semver::Version::parse(strip_v_prefix(locked.trim()).as_str()).ok()?;
     Some(requirement.matches(&version))
 }
 
@@ -81,69 +79,34 @@ const PRERELEASE_MARKERS: [&str; 9] = [
     "milestone",
 ];
 
-fn parse_version(value: &str) -> Option<(Vec<u64>, bool)> {
-    let base = value.split('+').next().unwrap_or(value);
-    let mut numbers = Vec::new();
-    let mut suffix = String::new();
-    for segment in base.split(['.', '-']) {
-        let digits: String = segment.chars().take_while(char::is_ascii_digit).collect();
-        if !digits.is_empty() {
-            numbers.push(digits.parse::<u64>().ok()?);
-        }
-        suffix = segment
-            .get(digits.len()..)
-            .unwrap_or_default()
-            .to_ascii_lowercase();
-        if !suffix.is_empty() {
-            break;
-        }
-    }
-    if numbers.is_empty() {
-        return None;
-    }
-    let prerelease = PRERELEASE_MARKERS
+/// Reads a version; a suffix that is no prerelease marker, like Maven's `-jre` or `.Final`,
+/// names a flavor of the release, so it compares as the release.
+fn version_of(value: &str) -> Option<Version> {
+    let version = Version::parse(value).ok()?;
+    let label = version.prerelease().to_ascii_lowercase();
+    if PRERELEASE_MARKERS
         .iter()
-        .any(|marker| suffix.starts_with(marker));
-    Some((numbers, prerelease))
-}
-
-fn cmp_versions(a: &(Vec<u64>, bool), b: &(Vec<u64>, bool)) -> Ordering {
-    let len = a.0.len().max(b.0.len());
-    let pad = |parts: &[u64]| {
-        let mut padded = parts.to_vec();
-        padded.resize(len, 0);
-        padded
-    };
-    pad(&a.0).cmp(&pad(&b.0)).then_with(|| b.1.cmp(&a.1))
-}
-
-fn upper_bound(parts: &[u64], pessimistic: bool) -> (Vec<u64>, bool) {
-    let keep = match (parts.len(), pessimistic) {
-        (0 | 1, _) => 1,
-        (len, true) => len - 1,
-        (_, false) => 2,
-    };
-    let mut bound = parts.get(..keep).unwrap_or(parts).to_vec();
-    if let Some(last) = bound.last_mut() {
-        *last += 1;
+        .any(|marker| label.starts_with(marker))
+    {
+        Some(version)
+    } else {
+        Some(version.without_prerelease())
     }
-    (bound, true)
 }
 
-fn satisfies_range(spec: &str, locked: &(Vec<u64>, bool)) -> Option<bool> {
+fn satisfies_range(spec: &str, locked: &Version) -> Option<bool> {
     for part in spec.split(',') {
         let part = part.trim();
         let (op, rest) = ["<=", ">=", "!=", "<", ">"]
             .iter()
             .find_map(|op| part.strip_prefix(op).map(|rest| (*op, rest)))?;
-        let want = parse_version(rest.trim())?;
-        let ordering = cmp_versions(locked, &want);
+        let want = version_of(rest.trim())?;
         let holds = match op {
-            ">=" => ordering != Ordering::Less,
-            "<=" => ordering != Ordering::Greater,
-            ">" => ordering == Ordering::Greater,
-            "!=" => ordering != Ordering::Equal,
-            _ => ordering == Ordering::Less,
+            ">=" => *locked >= want,
+            "<=" => *locked <= want,
+            ">" => *locked > want,
+            "!=" => *locked != want,
+            _ => *locked < want,
         };
         if !holds {
             return Some(false);
@@ -152,58 +115,32 @@ fn satisfies_range(spec: &str, locked: &(Vec<u64>, bool)) -> Option<bool> {
     Some(true)
 }
 
-fn satisfies_tilde(spec: &str, locked: &(Vec<u64>, bool)) -> Option<bool> {
+/// `~> 1.2.3` lets only the last written part rise; `~1.2.3` lets the patch rise.
+fn satisfies_tilde(spec: &str, locked: &Version) -> Option<bool> {
     let (pessimistic, rest) = match spec.strip_prefix('>') {
         Some(rest) => (true, rest),
         None => (false, spec),
     };
-    let want = parse_version(rest.trim())?;
-    let upper = upper_bound(&want.0, pessimistic);
-    Some(
-        cmp_versions(locked, &want) != Ordering::Less
-            && cmp_versions(locked, &upper) == Ordering::Less,
-    )
+    let want = version_of(rest.trim())?;
+    let keep = match (want.parts(), pessimistic) {
+        (0 | 1, _) => 1,
+        (len, true) => len - 1,
+        (_, false) => 2,
+    };
+    Some(*locked >= want && locked.same_prefix(&want, keep))
 }
 
+/// Whether two exact versions are the same, so `4.0` equals `4.0.0`; the prerelease and build
+/// must match as written.
 pub(crate) fn versions_equal(spec: &str, locked: &str) -> bool {
-    fn numeric_parts(value: &str) -> Option<Vec<u64>> {
-        let mut parts = Vec::new();
-        for part in value.split('.') {
-            if part.is_empty() || !part.bytes().all(|c| c.is_ascii_digit()) {
-                return None;
-            }
-            parts.push(part.parse::<u64>().ok()?);
-        }
-        Some(parts)
-    }
-    if spec.contains(['-', '+']) || locked.contains(['-', '+']) {
-        return spec == locked;
-    }
-    match (numeric_parts(spec), numeric_parts(locked)) {
-        (Some(mut a), Some(mut b)) => {
-            while a.len() < b.len() {
-                a.push(0);
-            }
-            while b.len() < a.len() {
-                b.push(0);
-            }
-            a == b
-        }
-        _ => spec == locked,
+    match (Version::parse(spec), Version::parse(locked)) {
+        (Ok(left), Ok(right)) => left == right && left.build() == right.build(),
+        (Ok(_) | Err(_), _) => spec == locked,
     }
 }
 
 fn is_full_version(text: &str) -> bool {
-    let mut parts = text.split(['.', '-']);
-    let (Some(a), Some(b), Some(c)) = (parts.next(), parts.next(), parts.next()) else {
-        return false;
-    };
-    !a.is_empty()
-        && !b.is_empty()
-        && !c.is_empty()
-        && a.chars().all(|c| c.is_ascii_digit())
-        && b.chars().all(|c| c.is_ascii_digit())
-        && c.chars().next().is_some_and(|c| c.is_ascii_digit())
+    Version::parse(text).is_ok_and(|version| version.parts() >= 3)
 }
 
 /// Settles the grammars semver does not model: Maven, `NuGet`, `RubyGems`, PEP 440.
@@ -221,11 +158,11 @@ pub(crate) fn satisfies_non_semver(spec: &str, locked: &str) -> bool {
         s = rest.trim().to_owned();
     } else if let Some(rest) = s.strip_prefix('~') {
         let rest = rest.trim().to_owned();
-        return parse_version(&locked_norm)
+        return version_of(&locked_norm)
             .and_then(|locked| satisfies_tilde(&rest, &locked))
             .unwrap_or(rest == locked_norm);
     } else if s.starts_with(['<', '>', '!']) {
-        return parse_version(&locked_norm)
+        return version_of(&locked_norm)
             .and_then(|locked| satisfies_range(&s, &locked))
             .unwrap_or(s == locked_norm);
     }

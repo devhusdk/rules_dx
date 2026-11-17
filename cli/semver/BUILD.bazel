@@ -1,0 +1,63 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//tools/visibility:visibility.bzl", "VIS_CLI")
+
+package(default_visibility = VIS_CLI + [
+    "//deploy:__subpackages__",
+    "//terraform/private/tools/lock:__pkg__",
+])
+
+rust_library(
+    name = "dx_semver",
+    srcs = ["src/lib.rs"],
+    aliases = aliases(
+        package_name = "cli/dx_semver",
+        normal = True,
+    ),
+    crate_name = "dx_semver",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "cli/dx_semver",
+        normal = True,
+    ),
+)
+
+rust_test(
+    name = "dx_semver_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "cli/dx_semver",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":dx_semver",
+    deps = all_crate_deps(
+        package_name = "cli/dx_semver",
+        normal = True,
+        normal_dev = True,
+    ),
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)
+
+exports_files(
+    ["Cargo.toml"],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

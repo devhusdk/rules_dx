@@ -70,7 +70,6 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "ansible/private/quality:ansible.bzl",
-      "every_workspace": true,
       "file_extensions": [
         ".yaml",
         ".yml"
@@ -548,11 +547,11 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "cloudformation/private/quality:cloudformation.bzl",
-      "every_workspace": true,
       "file_extensions": [
         ".yaml",
         ".yml",
-        ".json"
+        ".json",
+        ".template"
       ]
     },
     "title": "CloudFormation",
@@ -1939,8 +1938,8 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "kubernetes/private/quality:kubernetes.bzl",
-      "every_workspace": true,
       "file_extensions": [
+        ".json",
         ".yaml",
         ".yml"
       ]

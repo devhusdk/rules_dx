@@ -1,0 +1,17 @@
+load("@rules_dx//apple:defs.bzl", "apple_ios_app")
+load("@rules_dx//swift:defs.bzl", "swift_library")
+
+swift_library(
+    name = "phone",
+    srcs = ["PhoneApp.swift"],
+    module_name = "phone",
+    visibility = ["//visibility:public"],
+)
+
+apple_ios_app(
+    name = "phone_app",
+    bundle_id = "com.example.phone",
+    entry = ":phone",
+    platform = "@rules_dx//apple:ios_sim_arm64",
+    version = "1.0",
+)

@@ -439,9 +439,10 @@ platform fails with "arch 'x86_64' is outside macos".
 XCFrameworks. `xcode_version` defaults to 16.4. Both defaults are in
 `apple/pins.json`.
 
-`srcs` holds the native entry point. `library` is any target with
-`CcInfo` that links one static archive, such as `rust_static_library`.
-The app needs `srcs`, `library`, or both. `frameworks` takes frameworks
+`srcs` holds the native entry point; set `entry` instead for a Swift
+`@main` module, never both. `library` is any target with `CcInfo` that
+links one static archive, such as `rust_static_library`. The app needs
+`srcs` or `entry`, `library`, or both. `frameworks` takes frameworks
 `macos_dynamic_framework` targets, checked by bundle name under
 `Contents/Frameworks`. `plugins` takes `macos_bundle` targets, checked as
 `<bundle_name>.bundle`, binaries, or files placed by their package-relative
@@ -474,9 +475,8 @@ fails the build when:
 - an `Info.plist` key, the architecture, or the build platform differs
   from the declaration;
 - a Mach-O file needs a newer macOS than `deployment`;
-- a file has an absolute rpath, an `@rpath` load missing from the
-  bundle, or a load outside `/usr/lib`, `/System/Library`, and the
-  bundle;
+- a file has an rpath or a load outside `/usr/lib`, `/System/Library`,
+  and the bundle, or an `@rpath` load missing from the bundle;
 - a declared framework, plugin, or resource is missing;
 - the signature is not ad hoc.
 
@@ -492,7 +492,8 @@ Failures read:
 - `apple_macos_app: plugin '//app:empty' places nothing under PlugIns`
 - `apple_macos_app: deployment '16.0' is above the Xcode 16 'macosx' ceiling 15.0`
 - `apple_macos_app: building signs ad hoc only; signing is a separate operation`
-- `apple_macos_app: srcs or library is required; pass the native entry point or a Rust static library`
+- `apple_macos_app: srcs, entry or library is required; pass the native entry point, a Swift @main module or a Rust static library`
+- `apple_macos_app: set srcs or entry for the app entry point, not both`
 - `apple_macos_app: app declares macos/arm64 but this build targets macos/x86_64; build the app target, which selects its cell`
 - `apple_macos_app: <file> loads host runtime <path>; embed it under Frameworks`
 

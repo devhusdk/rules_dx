@@ -12,6 +12,7 @@ def _app(**kwargs):
         "bundle_id",
         "deployment",
         "entitlements",
+        "entry",
         "frameworks",
         "library",
         "plugins",
@@ -55,9 +56,19 @@ def _app_checks():
         bundle_version_errors("apple_macos_app", "one"),
     ))
     checks.append(expect_equal(
-        "no srcs and no library fails",
+        "no srcs, entry or library fails",
         macos_app_errors(_app(library = "", srcs = [])),
-        ["apple_macos_app: srcs or library is required; pass the native entry point or a Rust static library"],
+        ["apple_macos_app: srcs, entry or library is required; pass the native entry point, a Swift @main module or a Rust static library"],
+    ))
+    checks.append(expect_equal(
+        "entry alone is clean",
+        macos_app_errors(_app(entry = "//ledger:ledger_main", library = "", srcs = [])),
+        [],
+    ))
+    checks.append(expect_equal(
+        "srcs and entry fails",
+        macos_app_errors(_app(entry = "//ledger:ledger_main")),
+        ["apple_macos_app: set srcs or entry for the app entry point, not both"],
     ))
     checks.append(expect_equal("srcs alone is clean", macos_app_errors(_app(library = "")), []))
     checks.append(expect_equal(

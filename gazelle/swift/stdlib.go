@@ -5,6 +5,7 @@ var stdlib = map[string]struct{}{
 	"FoundationNetworking": {}, "FoundationXML": {}, "Dispatch": {}, "Glibc": {},
 	"Musl": {}, "Darwin": {}, "Observation": {}, "RegexBuilder": {}, "Synchronization": {},
 	"XCTest": {}, "Testing": {}, "Cxx": {}, "CoreFoundation": {},
+	"AppKit": {}, "SwiftUI": {}, "UIKit": {},
 }
 
 // IsStdLib reports whether name needs no dependency.

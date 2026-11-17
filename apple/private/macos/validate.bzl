@@ -13,6 +13,7 @@ def macos_default_app():
         bundle_id = "",
         deployment = "",
         entitlements = "",
+        entry = "",
         frameworks = [],
         library = "",
         plugins = [],
@@ -72,6 +73,8 @@ def macos_app_errors(config):
     errors.extend(macos_plugin_errors(config.plugins))
     if config.provisioning_profile != "" or config.entitlements != "":
         errors.append("apple_macos_app: building signs ad hoc only; signing is a separate operation")
-    if len(config.srcs) == 0 and config.library == "":
-        errors.append("apple_macos_app: srcs or library is required; pass the native entry point or a Rust static library")
+    if len(config.srcs) == 0 and config.library == "" and config.entry == "":
+        errors.append("apple_macos_app: srcs, entry or library is required; pass the native entry point, a Swift @main module or a Rust static library")
+    if len(config.srcs) > 0 and config.entry != "":
+        errors.append("apple_macos_app: set srcs or entry for the app entry point, not both")
     return errors

@@ -1,0 +1,16 @@
+load("@rules_dx//apple:defs.bzl", "apple_macos_app")
+load("@rules_dx//swift:defs.bzl", "swift_library")
+
+swift_library(
+    name = "desk",
+    srcs = ["DeskApp.swift"],
+    module_name = "desk",
+    visibility = ["//visibility:public"],
+)
+
+apple_macos_app(
+    name = "desk_app",
+    bundle_id = "com.example.desk",
+    entry = ":desk",
+    version = "1.0",
+)

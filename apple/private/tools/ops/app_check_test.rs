@@ -417,6 +417,21 @@ fn host_loads_absolute_rpaths_and_unresolved_loads_fail() {
 }
 
 #[test]
+fn a_system_rpath_passes() {
+    let mut bundle = Bundle::new();
+    bundle.file(
+        "MacOS/Ledger",
+        mach_o(
+            "arm64",
+            &loads(&(rpath("/usr/lib/swift") + &load("/usr/lib/swift/libswiftCore.dylib"))),
+        ),
+    );
+    let checked = check(&bundle);
+    assert_eq!(checked.outcome, Ok(0));
+    assert!(json(&checked).contains("/usr/lib/swift"));
+}
+
+#[test]
 fn a_plist_mismatch_or_a_bad_platform_or_minos_fails() {
     let want = Want {
         version: "2.0",

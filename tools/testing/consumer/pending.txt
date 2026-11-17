@@ -1,6 +1,5 @@
 fixture android
 fixture appimage
-fixture apple
 fixture env
 fixture flutter
 fixture msix

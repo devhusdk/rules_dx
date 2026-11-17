@@ -6,7 +6,8 @@
       "strip_prefix": "dune-3.24.2",
       "urls": [
         "https://github.com/ocaml/dune/releases/download/3.24.2/dune-3.24.2.tbz"
-      ]
+      ],
+      "version": "3.24.2"
     },
     "ocaml__linux_arm64": {
       "sha256": "baccdbbfdb82f56b034337afe807512e5a35ce41c8a2114d61341df08eca21c6",
@@ -32,7 +33,8 @@
       "strip_prefix": "opam-repository-691408b00730fcedbd3e30ccdb42c388a83fd304",
       "urls": [
         "https://github.com/ocaml/opam-repository/archive/691408b00730fcedbd3e30ccdb42c388a83fd304.tar.gz"
-      ]
+      ],
+      "version": "691408b00730fcedbd3e30ccdb42c388a83fd304"
     },
     "rules_ocaml": {
       "version": "24fa272c7b59ad902c5c82e71aae397b63f05467",
@@ -40,7 +42,8 @@
       "strip_prefix": "rules_ocaml-24fa272c7b59ad902c5c82e71aae397b63f05467",
       "urls": [
         "https://github.com/obazl/rules_ocaml/archive/24fa272c7b59ad902c5c82e71aae397b63f05467.tar.gz"
-      ]
+      ],
+      "version": "24fa272c7b59ad902c5c82e71aae397b63f05467"
     },
     "zstd-static__macos_arm64": {
       "sha256": "e817ff246bdf44ec470071a69abba0a961ee001413aa74276798135925163870",

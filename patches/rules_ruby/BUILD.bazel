@@ -7,6 +7,7 @@ exports_files([
     "toolchains_gate.patch",
     "lock_checksums.patch",
     "toolchains_hub.patch",
+    "windows_binary_rlocation.patch",
 ])
 
 real_source_target(

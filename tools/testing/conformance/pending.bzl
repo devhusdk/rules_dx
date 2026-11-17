@@ -153,7 +153,6 @@ erlang format_error_test *
 erlang format_test *
 erlang lint_error_test *
 erlang lint_test *
-erlang lock_test *
 flatbuffers build_test *
 flatbuffers coverage_test *
 flatbuffers cross_test *

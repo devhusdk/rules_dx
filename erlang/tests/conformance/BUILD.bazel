@@ -76,6 +76,15 @@ dx_conformance_suite(
     failing_pattern = "{case}_test (module 'hello_tests')...*failed*",
     failing_test = ":fail_subject_test",
     lang = "erlang",
+    lock = {
+        "binary": "//erlang/tests/conformance/lock:lock_hello",
+        "ecosystem": "erlang",
+        "expected": "hello lock",
+        "lockfile": "//erlang/tests/conformance/lock:hex.lock.json",
+        "manifest": "//erlang/tests/conformance/lock:rebar.config",
+        "package": "thoas",
+        "stale": "hex.lock.stale.json",
+    },
     passing_test = ":pass_subject_test",
     runfiles = {
         "binary": ":hello",

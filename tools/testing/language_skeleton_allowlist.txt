@@ -7,7 +7,6 @@ extension-label gazelle/dispatch/extension.bzl
 extension-label third_party/dotnet/extension.bzl
 extension-name python/extensions.bzl
 fixture-hello android/tests/conformance/BUILD.bazel
-fixture-hello android/tests/consumer
 fixture-hello ansible/tests/conformance/BUILD.bazel
 fixture-hello appimage/tests/conformance/BUILD.bazel
 fixture-hello apple/tests/conformance/BUILD.bazel
@@ -15,18 +14,15 @@ fixture-hello asciidoc/tests/conformance/BUILD.bazel
 fixture-hello bicep/tests/conformance/BUILD.bazel
 fixture-hello capnproto/tests/conformance/BUILD.bazel
 fixture-hello cloudformation/tests/conformance/BUILD.bazel
-fixture-hello cmake/tests/conformance/BUILD.bazel
 fixture-hello dockerfile/tests/conformance/BUILD.bazel
 fixture-hello flatbuffers/tests/conformance/BUILD.bazel
 fixture-hello flutter/tests/consumer
 fixture-hello helm/tests/conformance/BUILD.bazel
 fixture-hello kubernetes/tests/conformance/BUILD.bazel
-fixture-hello make/tests/conformance/BUILD.bazel
 fixture-hello msix/tests/conformance/BUILD.bazel
 fixture-hello qt/tests/conformance/BUILD.bazel
 fixture-hello rego/tests/conformance/BUILD.bazel
 fixture-hello rst/tests/conformance/BUILD.bazel
-fixture-hello sql/tests/conformance/BUILD.bazel
 fixture-hello terraform/tests/conformance/BUILD.bazel
 fixture-hello thrift/tests/conformance/BUILD.bazel
 fixture-name api_spec/tests/refs

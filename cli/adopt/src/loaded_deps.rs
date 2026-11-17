@@ -1,6 +1,6 @@
 //! Plans a `bazel_dep` for each rule set the workspace's BUILD files load from that the root
 //! module does not declare, at the version `rules_dx` itself depends on, and the TypeScript
-//! compiler repository `ts_project` reads when TypeScript rules are loaded. BUILD files that load
+//! compiler repository `ts_project` reads when BUILD files load `aspect_rules_ts`. BUILD files that load
 //! from an `npm_translate_lock` hub get `aspect_rules_js`, whose platform labels the hub's links
 //! select on.
 
@@ -65,28 +65,7 @@ pub fn plan_loaded_deps(root: &Path) -> Result<LockHubs, AdoptError> {
             "BUILD files load from {name}; {MODULE_FILE} needs bazel_dep {name} {version}"
         ));
     }
-    let dx_repo = ModuleFile::parse(&text)
-        .map_err(refuse)?
-        .repo_name(RULES_DX)
-        .unwrap_or(RULES_DX)
-        .to_owned();
-    let ts_prefix = format!("@{dx_repo}//{TS_EXTENSION}:");
-    let loads_ts = loaded.contains(TS_MODULE)
-        || labels.iter().any(|label| {
-            label.starts_with(&ts_prefix) || label.starts_with(&format!("@{ts_prefix}"))
-        });
-    if loads_ts && !is_rules_dx_root(root) && !imports_ts_compiler(&modules) {
-        if !declared.contains(TS_MODULE) && !loaded.contains(TS_MODULE) {
-            new = ModuleFile::parse(&new)
-                .and_then(|file| {
-                    file.insert_bazel_dep(TS_MODULE, dx_versions::ASPECT_RULES_TS_VERSION)
-                })
-                .map_err(refuse)?;
-            notes.push(format!(
-                "BUILD files load TypeScript rules; {MODULE_FILE} needs bazel_dep {TS_MODULE} {}",
-                dx_versions::ASPECT_RULES_TS_VERSION
-            ));
-        }
+    if loaded.contains(TS_MODULE) && !is_rules_dx_root(root) && !imports_ts_compiler(&modules) {
         let ts_repo = ModuleFile::parse(&new)
             .map_err(refuse)?
             .repo_name(TS_MODULE)
@@ -219,7 +198,7 @@ mod tests {
     }
 
     #[test]
-    fn rules_dx_typescript_loads_import_the_compiler_repository() {
+    fn rules_dx_typescript_loads_need_no_module_lines() {
         let hubs = plan(&[
             ("MODULE.bazel", MODULE),
             (
@@ -227,15 +206,8 @@ mod tests {
                 "load(\"@rules_dx//typescript:defs.bzl\", \"typescript_library\")\n",
             ),
         ]);
-        let edit = hubs.edit.expect("edit");
-        assert_eq!(
-            edit.new,
-            format!(
-                "{MODULE}bazel_dep(name = \"aspect_rules_ts\", version = \"{}\")\n{}",
-                dx_versions::ASPECT_RULES_TS_VERSION,
-                ts_block(),
-            )
-        );
+        assert!(hubs.edit.is_none(), "{:?}", hubs.edit.map(|edit| edit.new));
+        assert!(hubs.notes.is_empty(), "{:?}", hubs.notes);
     }
 
     #[test]

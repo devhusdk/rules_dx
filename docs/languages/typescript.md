@@ -13,14 +13,6 @@ For a TypeScript project it writes this `MODULE.bazel`, tested in [`typescript/t
 module(name = "my_project")
 
 bazel_dep(name = "rules_dx", version = "<version>")
-bazel_dep(name = "aspect_rules_ts", version = "3.10.1")
-
-rules_ts = use_extension("@aspect_rules_ts//ts:extensions.bzl", "typescript")
-rules_ts.deps(
-    integrity = "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==",
-    version = "5.9.3",
-)
-use_repo(rules_ts, "npm_typescript")
 ```
 
 Load the rules from `@rules_dx//typescript:defs.bzl`:

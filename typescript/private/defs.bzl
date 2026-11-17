@@ -20,6 +20,17 @@ load(":proto.bzl", "ts_proto_srcs")
 
 visibility(["//..."])
 
+_TS_COMPILER = {
+    "tsc": Label("@npm_typescript//:tsc"),
+    "tsc_worker": Label("@npm_typescript//:tsc_worker"),
+    "validator": Label("@npm_typescript//:validator"),
+}
+
+def _dx_ts_project(**kwargs):
+    for key, label in _TS_COMPILER.items():
+        kwargs.setdefault(key, label)
+    _ts_project(**kwargs)
+
 _DX_TS_LIBRARY_PROVIDES = [
     _JsInfo,
     _TsConfigInfo,
@@ -251,7 +262,7 @@ def _typescript_wrap_library(name, srcs = None, declaration_srcs = None, visibil
     upstream_kwargs["transpiler"] = typescript_transpiler(scoped.get("transpiler", None))
     upstream_kwargs["visibility"] = ["//visibility:private"]
     upstream_kwargs["tags"] = dx_upstream_tags(scoped.get("tags", None))
-    _ts_project(
+    _dx_ts_project(
         name = name + "_upstream",
         **upstream_kwargs
     )
@@ -394,7 +405,7 @@ def _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration
         ts_kwargs["declaration"] = declaration
     upstream_srcs = typescript_upstream_srcs(srcs, declaration_srcs)
     scoped = _dx_scoped_tsconfig(name + "_ts", upstream_srcs, ts_kwargs)
-    _ts_project(
+    _dx_ts_project(
         name = name + "_ts",
         srcs = upstream_srcs,
         testonly = testonly,

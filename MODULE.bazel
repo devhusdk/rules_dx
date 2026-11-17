@@ -2272,13 +2272,20 @@ dx_python = use_extension("//python:extensions.bzl", "python")
 use_repo(dx_python, "dx_python_toolchains")
 
 register_toolchains(
+    "//python/private/windows_toolchains:all",
     "@dx_python_toolchains//:all",
     "@python_interpreters//:all",
 )
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(python_version = "3.12")
-use_repo(python, "python_3_12", "pythons_hub")
+use_repo(
+    python,
+    "python_3_12",
+    "python_3_12_aarch64-pc-windows-msvc",
+    "python_3_12_x86_64-pc-windows-msvc",
+    "pythons_hub",
+)
 
 uv = use_extension("@rules_py//uv:extensions.bzl", "uv")
 uv.declare_hub(hub_name = "dx_pypi")

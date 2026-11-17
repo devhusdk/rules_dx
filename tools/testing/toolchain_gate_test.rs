@@ -21,6 +21,7 @@ const OWN_TYPES: &[&str] = &[
 const GATED: &[&str] = &[
     "//java/private/toolchain:all",
     "//kotlin/private/toolchain:unused_deps",
+    "//python/private/windows_toolchains:all",
     "//scala/private/toolchain:semanticdb",
     "//scala/private/toolchain:semanticdb_scala3",
     "//tools/platforms:protoc_windows_arm64",

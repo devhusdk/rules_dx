@@ -4,7 +4,7 @@ use super::{FileFinding, ParseError, check_output_size, code_name, known};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "qmllint";
-const REVISION: u64 = 4;
+const REVISION: u64 = 6;
 const FAILED: i32 = 255;
 
 #[derive(Debug, Deserialize)]
@@ -234,14 +234,14 @@ pub fn parse_qmllint_report(
 mod tests {
     use super::*;
 
-    const CRITICAL: &str = r#"{"files":[{"filename":"warn.qml","success":false,"warnings":[{"charOffset":49,"column":28,"id":"unqualified","length":3,"line":3,"message":"Unqualified access","suggestions":[{"charOffset":49,"column":28,"hint":"","isAutoApplicable":false,"length":3,"line":3,"message":"Did you mean \"top\"?","replacement":"top"}],"type":"critical"}]}],"revision":4}"#;
-    const INFO: &str = r#"{"files":[{"filename":"warn.qml","success":true,"warnings":[{"charOffset":49,"column":28,"id":"unqualified","length":3,"line":3,"message":"Unqualified access","suggestions":[{"charOffset":49,"column":28,"hint":"","isAutoApplicable":false,"length":3,"line":3,"message":"Did you mean \"top\"?","replacement":"top"}],"type":"info"}]}],"revision":4}"#;
-    const SYNTAX: &str = r#"{"files":[{"filename":"syntax.qml","success":false,"warnings":[{"charOffset":48,"column":1,"id":"syntax","length":1,"line":4,"message":"Expected token `numeric literal'","suggestions":[],"type":"warning"}]}],"revision":4}"#;
-    const IMPORT: &str = r#"{"files":[{"filename":"imp.qml","success":false,"warnings":[{"charOffset":0,"column":1,"id":"import","length":6,"line":1,"message":"Warnings occurred while importing module \"Nope.Missing\":","suggestions":[],"type":"warning"},{"charOffset":0,"column":1,"id":"import","length":6,"line":1,"message":"Failed to import Nope.Missing. Are your import paths set up properly?","suggestions":[],"type":"warning"},{"charOffset":20,"column":1,"id":"import","length":4,"line":2,"message":"Item was not found. Did you add all imports and dependencies?","suggestions":[],"type":"warning"}]}],"revision":4}"#;
-    const MISSING_FILE: &str = r#"{"files":[{"filename":"nonexist.qml","success":false,"warnings":[{"id":"import","message":"Failed to open file nonexist.qml: No such file or directory","suggestions":[],"type":"warning"}]}],"revision":4}"#;
-    const EMOJI: &str = r#"{"files":[{"filename":"emoji.qml","success":false,"warnings":[{"charOffset":64,"column":50,"id":"unqualified","length":3,"line":2,"message":"Unqualified access","suggestions":[{"charOffset":64,"column":50,"hint":"","isAutoApplicable":false,"length":3,"line":2,"message":"Did you mean \"top\"?","replacement":"top"}],"type":"warning"}]}],"revision":4}"#;
+    const CRITICAL: &str = r#"{"files":[{"filename":"warn.qml","success":false,"warnings":[{"charOffset":49,"column":28,"id":"unqualified","length":3,"line":3,"message":"Unqualified access","suggestions":[{"charOffset":49,"column":28,"documentEdits":[{"filename":"warn.qml","location":{"charOffset":49,"column":28,"length":3,"line":3},"replacement":"top"}],"isAutoApplicable":false,"length":3,"line":3,"message":"Did you mean \"top\"?"}],"type":"critical"}]}],"revision":6}"#;
+    const INFO: &str = r#"{"files":[{"filename":"warn.qml","success":true,"warnings":[{"charOffset":49,"column":28,"id":"unqualified","length":3,"line":3,"message":"Unqualified access","suggestions":[{"charOffset":49,"column":28,"documentEdits":[{"filename":"warn.qml","location":{"charOffset":49,"column":28,"length":3,"line":3},"replacement":"top"}],"isAutoApplicable":false,"length":3,"line":3,"message":"Did you mean \"top\"?"}],"type":"info"}]}],"revision":6}"#;
+    const SYNTAX: &str = r#"{"files":[{"filename":"syntax.qml","success":false,"warnings":[{"charOffset":48,"column":1,"id":"syntax","length":1,"line":4,"message":"Expected token `numeric literal'","suggestions":[],"type":"warning"}]}],"revision":6}"#;
+    const IMPORT: &str = r#"{"files":[{"filename":"imp.qml","success":false,"warnings":[{"charOffset":0,"column":1,"id":"import","length":6,"line":1,"message":"Warnings occurred while importing module \"Nope.Missing\":","suggestions":[],"type":"warning"},{"charOffset":0,"column":1,"id":"import","length":6,"line":1,"message":"Failed to import Nope.Missing. Are your import paths set up properly?","suggestions":[],"type":"warning"},{"charOffset":20,"column":1,"id":"import","length":4,"line":2,"message":"Item was not found. Did you add all imports and dependencies?","suggestions":[],"type":"warning"}]}],"revision":6}"#;
+    const MISSING_FILE: &str = r#"{"files":[{"filename":"nonexist.qml","success":false,"warnings":[{"id":"import","message":"Failed to open file nonexist.qml: No such file or directory","suggestions":[],"type":"warning"}]}],"revision":6}"#;
+    const EMOJI: &str = r#"{"files":[{"filename":"emoji.qml","success":false,"warnings":[{"charOffset":64,"column":50,"id":"unqualified","length":3,"line":2,"message":"Unqualified access","suggestions":[{"charOffset":64,"column":50,"documentEdits":[{"filename":"emoji.qml","location":{"charOffset":64,"column":50,"length":3,"line":2},"replacement":"top"}],"isAutoApplicable":false,"length":3,"line":2,"message":"Did you mean \"top\"?"}],"type":"warning"}]}],"revision":6}"#;
     const CLEAN: &str =
-        r#"{"files":[{"filename":"clean.qml","success":true,"warnings":[]}],"revision":4}"#;
+        r#"{"files":[{"filename":"clean.qml","success":true,"warnings":[]}],"revision":6}"#;
 
     fn lint(
         stdout: &[u8],
@@ -363,9 +363,9 @@ mod tests {
 
     #[test]
     fn unsupported_or_malformed_reports_are_never_clean() {
-        let old = CLEAN.replace("\"revision\":4", "\"revision\":3");
+        let old = CLEAN.replace("\"revision\":6", "\"revision\":4");
         assert!(lint(old.as_bytes(), Some(0), &["clean.qml"]).is_err());
-        let diagnostics_only = r#"{"diagnostics":[],"revision":4}"#;
+        let diagnostics_only = r#"{"diagnostics":[],"revision":6}"#;
         assert!(lint(diagnostics_only.as_bytes(), Some(0), &["clean.qml"]).is_err());
         assert!(lint(b"", Some(0), &["clean.qml"]).is_err());
         assert!(lint(b"", Some(255), &["clean.qml"]).is_err());
@@ -393,7 +393,7 @@ mod tests {
 
     #[test]
     fn views_split_type_ids_from_lint_ids() {
-        let both = r#"{"files":[{"filename":"a.qml","success":false,"warnings":[{"column":1,"id":"unqualified","line":1,"message":"u","type":"warning"},{"column":2,"id":"unresolved-type","line":2,"message":"t","type":"warning"},{"column":3,"id":"brand-new","line":3,"message":"n","type":"warning"}]}],"revision":4}"#;
+        let both = r#"{"files":[{"filename":"a.qml","success":false,"warnings":[{"column":1,"id":"unqualified","line":1,"message":"u","type":"warning"},{"column":2,"id":"unresolved-type","line":2,"message":"t","type":"warning"},{"column":3,"id":"brand-new","line":3,"message":"n","type":"warning"}]}],"revision":6}"#;
         let ids = |view| {
             parse_qmllint(both.as_bytes(), Some(255), &["a.qml"], view)
                 .expect("parsed")

@@ -65,6 +65,10 @@
   ],
   "quality": {
     "bzl": "javascript/private/quality:js.bzl",
+    "classes": [
+      "javascript",
+      "jsx"
+    ],
     "file_extensions": [
       ".cjs",
       ".js",

@@ -25,6 +25,9 @@
   ],
   "quality": {
     "bzl": "cmake/private/quality:cmake.bzl",
+    "classes": [
+      "cmake"
+    ],
     "file_extensions": [
       ".cmake"
     ],

@@ -23,6 +23,9 @@
   ],
   "quality": {
     "bzl": "dockerfile/private/quality:dockerfile.bzl",
+    "classes": [
+      "dockerfile"
+    ],
     "file_extensions": [
       ".containerfile",
       ".dockerfile"

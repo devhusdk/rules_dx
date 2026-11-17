@@ -2,7 +2,8 @@
 
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "not_applicable_error")
-load(":taxonomy.bzl", "CLASS_TO_FAMILY", "FAMILY_OWNERS", "TAXONOMY", "TAXONOMY_CLASSES", "taxonomy_schema_error")
+load("//core/modules:langs.bzl", "LANGS")
+load(":taxonomy.bzl", "CLASS_TO_FAMILY", "FAMILY_OWNERS", "LANG_JSON_FAMILIES", "OTHER_FAMILIES", "TAXONOMY", "TAXONOMY_CLASSES", "taxonomy_schema_error")
 load(":registry.bzl", "is_curated_family", "is_registry_class", "is_registry_tool", "registry_classes", "registry_curated_families", "registry_families", "registry_schema_error", "registry_tools")
 
 _A = {"ty": {"typecheck": ["python"]}}
@@ -32,6 +33,21 @@ def registry_unit_tests(name):
                 "taxonomy tables share key sets",
                 [sorted(CLASS_TO_FAMILY.keys()), sorted(FAMILY_OWNERS.keys())],
                 [TAXONOMY_CLASSES, sorted(TAXONOMY.keys())],
+            ),
+            expect_equal(
+                "lang.json taxonomy rows and the other families do not overlap",
+                [family for family in LANG_JSON_FAMILIES if family in OTHER_FAMILIES],
+                [],
+            ),
+            expect_equal(
+                "lang.json quality languages without classes",
+                sorted([lang for lang, row in LANGS.items() if "quality" in row and "classes" not in row["quality"]]),
+                ["capnproto", "dotnet", "qt"],
+            ),
+            expect_equal(
+                "taxonomy keeps the lang.json classes and owner",
+                [TAXONOMY["cc"].classes, TAXONOMY["cc"].owner, TAXONOMY["go"].classes],
+                [["c", "cpp"], "//cc:defs.bzl", ["go"]],
             ),
             expect_equal(
                 "aggregated registry schemas validate",

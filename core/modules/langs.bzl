@@ -70,6 +70,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "ansible/private/quality:ansible.bzl",
+      "classes": [
+        "ansible"
+      ],
       "file_extensions": [
         ".yaml",
         ".yml"
@@ -144,6 +147,10 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "core/quality:families/generation.bzl",
+      "classes": [
+        "api_spec",
+        "api_spec_ref"
+      ],
       "file_extensions": [
         ".proto"
       ],
@@ -267,6 +274,9 @@ LANGS = json.decode("""{
     ],
     "quality": {
       "bzl": "javascript/private/quality:js.bzl",
+      "classes": [
+        "astro"
+      ],
       "file_extensions": [
         ".astro"
       ]
@@ -315,6 +325,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "core/quality:families/generation.bzl",
+      "classes": [
+        "avro"
+      ],
       "file_extensions": [
         ".avsc"
       ]
@@ -359,6 +372,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "bicep/private/quality:bicep.bzl",
+      "classes": [
+        "bicep"
+      ],
       "file_extensions": [
         ".bicep",
         ".bicepparam"
@@ -490,6 +506,10 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "cc/private/quality:cc.bzl",
+      "classes": [
+        "c",
+        "cpp"
+      ],
       "file_extensions": [
         ".c",
         ".cc",
@@ -561,6 +581,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "cloudformation/private/quality:cloudformation.bzl",
+      "classes": [
+        "cloudformation"
+      ],
       "file_extensions": [
         ".yaml",
         ".yml",
@@ -609,6 +632,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "cmake/private/quality:cmake.bzl",
+      "classes": [
+        "cmake"
+      ],
       "file_extensions": [
         ".cmake"
       ],
@@ -780,6 +806,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "d/private/quality:d.bzl",
+      "classes": [
+        "d"
+      ],
       "file_extensions": [
         ".d"
       ],
@@ -870,6 +899,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "dart/private/quality:dart.bzl",
+      "classes": [
+        "dart"
+      ],
       "file_extensions": [
         ".dart"
       ],
@@ -933,6 +965,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "dockerfile/private/quality:dockerfile.bzl",
+      "classes": [
+        "dockerfile"
+      ],
       "file_extensions": [
         ".containerfile",
         ".dockerfile"
@@ -1071,6 +1106,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "erlang/private/quality:beam.bzl",
+      "classes": [
+        "elixir"
+      ],
       "file_extensions": [
         ".ex",
         ".exs"
@@ -1159,6 +1197,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "erlang/private/quality:beam.bzl",
+      "classes": [
+        "erlang"
+      ],
       "file_extensions": [
         ".erl",
         ".hrl"
@@ -1217,6 +1258,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "core/quality:families/generation.bzl",
+      "classes": [
+        "flatbuffers"
+      ],
       "file_extensions": [
         ".fbs"
       ]
@@ -1315,6 +1359,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "fortran/private/quality:fortran.bzl",
+      "classes": [
+        "fortran"
+      ],
       "file_extensions": [
         ".f",
         ".f03",
@@ -1445,6 +1492,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "go/private/quality:go.bzl",
+      "classes": [
+        "go"
+      ],
       "file_extensions": [
         ".go"
       ],
@@ -1535,6 +1585,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "haskell/private/quality:haskell.bzl",
+      "classes": [
+        "haskell"
+      ],
       "file_extensions": [
         ".hs"
       ],
@@ -1655,6 +1708,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "java/private/quality:jvm.bzl",
+      "classes": [
+        "java"
+      ],
       "file_extensions": [
         ".java"
       ],
@@ -1751,6 +1807,10 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "javascript/private/quality:js.bzl",
+      "classes": [
+        "javascript",
+        "jsx"
+      ],
       "file_extensions": [
         ".cjs",
         ".js",
@@ -1853,6 +1913,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "julia/private/quality:julia.bzl",
+      "classes": [
+        "julia"
+      ],
       "file_extensions": [
         ".jl"
       ],
@@ -1930,6 +1993,9 @@ LANGS = json.decode("""{
     ],
     "quality": {
       "bzl": "java/private/quality:jvm.bzl",
+      "classes": [
+        "kotlin"
+      ],
       "file_extensions": [
         ".kt",
         ".kts"
@@ -1971,6 +2037,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "kubernetes/private/quality:kubernetes.bzl",
+      "classes": [
+        "kubernetes"
+      ],
       "file_extensions": [
         ".json",
         ".yaml",
@@ -2041,6 +2110,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "lua/private/quality:lua.bzl",
+      "classes": [
+        "lua"
+      ],
       "file_extensions": [
         ".lua"
       ],
@@ -2105,6 +2177,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "make/private/quality:make.bzl",
+      "classes": [
+        "make"
+      ],
       "file_extensions": [
         ".mk"
       ],
@@ -2162,6 +2237,9 @@ LANGS = json.decode("""{
     ],
     "quality": {
       "bzl": "javascript/private/quality:js.bzl",
+      "classes": [
+        "mdx"
+      ],
       "file_extensions": [
         ".mdx"
       ]
@@ -2262,6 +2340,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "ocaml/private/quality:ocaml.bzl",
+      "classes": [
+        "ocaml"
+      ],
       "file_extensions": [
         ".ml",
         ".mli"
@@ -2353,6 +2434,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "perl/private/quality:perl.bzl",
+      "classes": [
+        "perl"
+      ],
       "file_extensions": [
         ".pl",
         ".pm"
@@ -2438,6 +2522,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "core/quality:families/php.bzl",
+      "classes": [
+        "php"
+      ],
       "file_extensions": [
         ".php"
       ],
@@ -2525,6 +2612,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "powershell/private/quality:powershell.bzl",
+      "classes": [
+        "powershell"
+      ],
       "file_extensions": [
         ".ps1",
         ".psd1",
@@ -2614,6 +2704,10 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "python/private/quality:python.bzl",
+      "classes": [
+        "python",
+        "python_stub"
+      ],
       "file_extensions": [
         ".py",
         ".pyi"
@@ -2725,6 +2819,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "rego/private/quality:rego.bzl",
+      "classes": [
+        "rego"
+      ],
       "file_extensions": [
         ".rego"
       ],
@@ -2820,6 +2917,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "ruby/private/quality:ruby.bzl",
+      "classes": [
+        "ruby"
+      ],
       "file_extensions": [
         ".rb",
         ".rbs"
@@ -2914,6 +3014,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "rust/private/quality:rust.bzl",
+      "classes": [
+        "rust"
+      ],
       "file_extensions": [
         ".rs"
       ],
@@ -2997,6 +3100,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "java/private/quality:jvm.bzl",
+      "classes": [
+        "scala"
+      ],
       "file_extensions": [
         ".sc",
         ".scala"
@@ -3036,6 +3142,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "sql/private/quality:sql.bzl",
+      "classes": [
+        "sql"
+      ],
       "file_extensions": [
         ".sql"
       ],
@@ -3087,6 +3196,9 @@ LANGS = json.decode("""{
     ],
     "quality": {
       "bzl": "javascript/private/quality:js.bzl",
+      "classes": [
+        "svelte"
+      ],
       "file_extensions": [
         ".svelte"
       ]
@@ -3150,6 +3262,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "swift/private/quality:swift.bzl",
+      "classes": [
+        "swift"
+      ],
       "file_extensions": [
         ".swift"
       ],
@@ -3223,6 +3338,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "terraform/private/quality:terraform.bzl",
+      "classes": [
+        "terraform"
+      ],
       "file_extensions": [
         ".tf",
         ".tfvars"
@@ -3293,6 +3411,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "core/quality:families/generation.bzl",
+      "classes": [
+        "thrift"
+      ],
       "file_extensions": [
         ".thrift"
       ]
@@ -3349,6 +3470,10 @@ LANGS = json.decode("""{
     ],
     "quality": {
       "bzl": "javascript/private/quality:js.bzl",
+      "classes": [
+        "tsx",
+        "typescript"
+      ],
       "file_extensions": [
         ".cts",
         ".mts",
@@ -3399,6 +3524,9 @@ LANGS = json.decode("""{
     ],
     "quality": {
       "bzl": "javascript/private/quality:js.bzl",
+      "classes": [
+        "vue"
+      ],
       "file_extensions": [
         ".vue"
       ]
@@ -3457,6 +3585,9 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "zig/private/quality:zig.bzl",
+      "classes": [
+        "zig"
+      ],
       "file_extensions": [
         ".zig"
       ],

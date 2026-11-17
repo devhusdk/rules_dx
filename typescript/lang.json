@@ -40,6 +40,10 @@
   ],
   "quality": {
     "bzl": "javascript/private/quality:js.bzl",
+    "classes": [
+      "tsx",
+      "typescript"
+    ],
     "file_extensions": [
       ".cts",
       ".mts",

@@ -42,6 +42,9 @@
   ],
   "quality": {
     "bzl": "ansible/private/quality:ansible.bzl",
+    "classes": [
+      "ansible"
+    ],
     "file_extensions": [
       ".yaml",
       ".yml"

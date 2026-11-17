@@ -53,6 +53,9 @@
   ],
   "quality": {
     "bzl": "go/private/quality:go.bzl",
+    "classes": [
+      "go"
+    ],
     "file_extensions": [
       ".go"
     ],

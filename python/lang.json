@@ -57,6 +57,10 @@
   ],
   "quality": {
     "bzl": "python/private/quality:python.bzl",
+    "classes": [
+      "python",
+      "python_stub"
+    ],
     "file_extensions": [
       ".py",
       ".pyi"

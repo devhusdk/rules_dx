@@ -36,6 +36,9 @@
   ],
   "quality": {
     "bzl": "java/private/quality:jvm.bzl",
+    "classes": [
+      "scala"
+    ],
     "file_extensions": [
       ".sc",
       ".scala"

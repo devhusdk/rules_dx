@@ -24,6 +24,9 @@
   ],
   "quality": {
     "bzl": "rego/private/quality:rego.bzl",
+    "classes": [
+      "rego"
+    ],
     "file_extensions": [
       ".rego"
     ],

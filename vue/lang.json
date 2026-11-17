@@ -30,6 +30,9 @@
   ],
   "quality": {
     "bzl": "javascript/private/quality:js.bzl",
+    "classes": [
+      "vue"
+    ],
     "file_extensions": [
       ".vue"
     ]

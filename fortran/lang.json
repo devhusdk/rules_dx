@@ -51,6 +51,9 @@
   ],
   "quality": {
     "bzl": "fortran/private/quality:fortran.bzl",
+    "classes": [
+      "fortran"
+    ],
     "file_extensions": [
       ".f",
       ".f03",

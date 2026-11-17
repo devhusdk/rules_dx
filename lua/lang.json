@@ -49,6 +49,9 @@
   ],
   "quality": {
     "bzl": "lua/private/quality:lua.bzl",
+    "classes": [
+      "lua"
+    ],
     "file_extensions": [
       ".lua"
     ],

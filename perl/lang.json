@@ -51,6 +51,9 @@
   ],
   "quality": {
     "bzl": "perl/private/quality:perl.bzl",
+    "classes": [
+      "perl"
+    ],
     "file_extensions": [
       ".pl",
       ".pm"

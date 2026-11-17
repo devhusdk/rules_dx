@@ -50,6 +50,9 @@
   ],
   "quality": {
     "bzl": "ruby/private/quality:ruby.bzl",
+    "classes": [
+      "ruby"
+    ],
     "file_extensions": [
       ".rb",
       ".rbs"

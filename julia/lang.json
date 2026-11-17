@@ -54,6 +54,9 @@
   ],
   "quality": {
     "bzl": "julia/private/quality:julia.bzl",
+    "classes": [
+      "julia"
+    ],
     "file_extensions": [
       ".jl"
     ],

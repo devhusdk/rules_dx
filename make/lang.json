@@ -23,6 +23,9 @@
   ],
   "quality": {
     "bzl": "make/private/quality:make.bzl",
+    "classes": [
+      "make"
+    ],
     "file_extensions": [
       ".mk"
     ],

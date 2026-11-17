@@ -25,6 +25,9 @@
   ],
   "quality": {
     "bzl": "core/quality:families/generation.bzl",
+    "classes": [
+      "avro"
+    ],
     "file_extensions": [
       ".avsc"
     ],

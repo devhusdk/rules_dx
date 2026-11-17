@@ -49,6 +49,9 @@
   ],
   "quality": {
     "bzl": "powershell/private/quality:powershell.bzl",
+    "classes": [
+      "powershell"
+    ],
     "file_extensions": [
       ".ps1",
       ".psd1",

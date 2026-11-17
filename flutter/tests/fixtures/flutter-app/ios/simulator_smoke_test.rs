@@ -157,10 +157,18 @@ fn the_app_launches_on_a_fresh_simulator() {
         launched.starts_with(&format!("{bundle_id}: ")),
         "unexpected launch output: {launched}"
     );
-    sleep(Duration::from_secs(5));
-    let services = simulators.must(&["spawn", &device.udid, "launchctl", "list"]);
-    assert!(
-        services.contains(&format!("UIKitApplication:{bundle_id}")),
-        "{bundle_id} is not running five seconds after launch:\n{services}"
-    );
+    let service = format!("UIKitApplication:{bundle_id}");
+    let running = Instant::now() + Duration::from_secs(5);
+    loop {
+        let services = simulators.must(&["spawn", &device.udid, "launchctl", "list"]);
+        if services.contains(&service) {
+            break;
+        }
+        assert!(
+            Instant::now() < running,
+            "{bundle_id} is not running five seconds after launch:\n{services}"
+        );
+        sleep(Duration::from_millis(500));
+    }
+    step(start, "running");
 }

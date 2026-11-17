@@ -1039,7 +1039,7 @@ fn qualification_root_on_windows_is_short_and_stable() {
 fn longest_npm_package_dir_fits_the_windows_chdir_limit() {
     let tmp = Path::new(r"D:\_bazel\execroot\_main\_tmp\0123456789abcdef0123456789abcdef");
     // The longest store entry in the node-app lock, with the widest peer hash rules_js can write.
-    let package = "bazel-out/x64_windows-fastbuild/bin/javascript/tests/fixtures/node-app/node_modules/.aspect_rules_js/@babel+plugin-syntax-logical-assignment-operators@_-2147483648/node_modules/@babel/plugin-syntax-logical-assignment-operators";
+    let package = "bazel-out/x64_windows-fastbuild/bin/javascript/tests/fixtures/node_app/node_modules/.aspect_rules_js/@babel+plugin-syntax-logical-assignment-operators@_-2147483648/node_modules/@babel/plugin-syntax-logical-assignment-operators";
     assert_eq!(package.len(), 226);
     let output_base = startup_flags_for(&qualification_root_for(tmp, true).join("cold"), true)
         .iter()

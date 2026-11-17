@@ -6,7 +6,7 @@ const MODULE_BAZEL: &str = include_str!("../../../MODULE.bazel");
 
 const EXPECTED_NAMES: &[&str] = &[
     "dart_apitool_deps",
-    "dub_d.tests.fixtures.d-app",
+    "dub_d.tests.fixtures.d_app",
     "dub_d.tests.fixtures.dub",
     "dx_ansible_test_collections",
     "dx_benchee",

@@ -26,7 +26,7 @@ typescript_library(
     visibility = _PUBLIC,
     deps = [
         ":node_modules/semver",
-        "//javascript/tests/fixtures/node-app:node_modules/@types/semver",
+        "//javascript/tests/fixtures/node_app:node_modules/@types/semver",
     ],
 )
 
@@ -44,9 +44,9 @@ typescript_test(
     srcs = ["registry_test.ts"],
     config = "jest.config.cjs",
     declaration = True,
-    node_modules = "//javascript/tests/fixtures/node-app:node_modules",
+    node_modules = "//javascript/tests/fixtures/node_app:node_modules",
     node_options = ["--experimental-vm-modules"],
-    package_json = "//javascript/tests/fixtures/node-app:package_json",
+    package_json = "//javascript/tests/fixtures/node_app:package_json",
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
     deps = [":registry"],
@@ -61,12 +61,12 @@ typescript_test(
     ],
     declaration = True,
     main = "plain_test.js",
-    package_json = "//javascript/tests/fixtures/node-app:package_json",
+    package_json = "//javascript/tests/fixtures/node_app:package_json",
     runner = "node",
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
     deps = [
         ":registry",
-        "//javascript/tests/fixtures/node-app:node_modules/@types/node",
+        "//javascript/tests/fixtures/node_app:node_modules/@types/node",
     ],
 )

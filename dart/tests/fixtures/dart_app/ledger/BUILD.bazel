@@ -1,0 +1,54 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//dart:defs.bzl", "dart_library", "dart_test")
+
+_PUBLIC = ["//visibility:public"]
+
+package(default_visibility = ["//dart/tests/fixtures/dart_app:__subpackages__"])
+
+exports_files(
+    glob([
+        "data/**",
+        "lib/**",
+        "test/**",
+    ]) + ["BUILD.bazel"],
+    visibility = ["@rules_dx//tools/testing/hermetic:__pkg__"],
+)
+
+filegroup(
+    name = "items",
+    srcs = ["data/items.csv"],
+    visibility = _PUBLIC,
+)
+
+dart_library(
+    name = "ledger",
+    package_name = "ledger",
+    srcs = ["lib/ledger.dart"],
+    aspect_hints = ["//dart/tests/fixtures/dart_app:dart_config"],
+    visibility = _PUBLIC,
+    deps = [
+        "//dart/tests/fixtures/dart_app/model",
+        "@dx_dart_deps//:collection",
+    ],
+)
+
+dart_test(
+    name = "ledger_test",
+    aspect_hints = ["//dart/tests/fixtures/dart_app:dart_config"],
+    data = ["data/items.csv"],
+    main = "test/ledger_test.dart",
+    deps = [
+        ":ledger",
+        "//dart:runfiles",
+        "//dart/tests/fixtures/dart_app/model",
+        "@dx_dart_deps//:test",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//:__pkg__"],
+)

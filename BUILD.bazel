@@ -160,7 +160,7 @@ load("//javascript:defs.bzl", "js_library")
 # gazelle:exclude gazelle/vue
 # gazelle:exclude gazelle/zig
 # gazelle:exclude examples/shared-rust
-# gazelle:exclude swift/tests/fixtures/swift-app
+# gazelle:exclude swift/tests/fixtures/swift_app
 # gazelle:exclude haskell/tests/fixtures/haskell_app
 # gazelle:exclude ocaml/tests/fixtures/ocaml_app
 # gazelle:exclude appimage/tests/fixtures/appimage_app
@@ -446,7 +446,7 @@ filegroup(
         "//cc/private/tools/context:module_srcs",
         "//cc/tests:module_srcs",
         "//cc/tests/fixtures/c-app:module_srcs",
-        "//cc/tests/fixtures/cpp-app:module_srcs",
+        "//cc/tests/fixtures/cpp_app:module_srcs",
         "//cc/tests/gcc_linux_arm64:module_srcs",
         "//cc/tests/gcc_linux_x86_64:module_srcs",
         "//cc/tests/msvc_x86_64:module_srcs",

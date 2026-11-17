@@ -13,7 +13,6 @@ For a JavaScript project it writes this `MODULE.bazel`, tested in [`javascript/t
 module(name = "my_project")
 
 bazel_dep(name = "rules_dx", version = "<version>")
-bazel_dep(name = "aspect_rules_js", version = "3.6.0")
 ```
 
 Load the rules from `@rules_dx//javascript:defs.bzl`:

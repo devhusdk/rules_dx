@@ -1,4 +1,4 @@
-MODULE.bazel digest-outside-pins 27
+MODULE.bazel digest-outside-pins 17
 MODULE.bazel duplicate-pin 7
 MODULE.bazel no-digest 1
 android/private/sdk/repos.bzl digest-outside-pins 8

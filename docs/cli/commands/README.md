@@ -1,25 +1,51 @@
 # Command Reference
 
-Put `dx` flags after the command, Bazel flags after `--`.
+This page shows you how to run any `dx` command: what to type, the flags every
+command shares, what dx prints, and what its exit code means.
+
+## Run a command
 
 ```sh
 tools/dx build //...
-tools/dx lint //... -- --jobs=4
+tools/dx test //app/... -- --test_output=errors
+tools/dx lint --affected
+tools/dx lint //... --output=json
 ```
+
+`tools/dx` is the launcher in your workspace. With the
+[global shim](#global-shim) on your PATH, you can type `dx` instead.
+
+Put `dx` flags after the command name. Put Bazel flags after `--`. dx passes
+everything after `--` to Bazel as it is.
+
+A few Bazel words you will see on this page:
+
+- A **target** is one thing Bazel can build, test or run, such as a library or a
+  test. A `BUILD.bazel` file declares targets.
+- A **package** is a directory with a `BUILD.bazel` file, plus the files under it
+  that are not in another package.
+- A **label** names one target: `//app:server` is the target `server` in the
+  package `app`.
+- A **pattern** names many targets. `//app/...` is every target under `app`.
+  `//...` is every target in the workspace.
+
+`dx <command> --help` prints the full flag list for one command.
+
+## Commands
 
 - [`dx build`](build-test-coverage.md): build targets.
 - [`dx test`](build-test-coverage.md): run tests.
 - [`dx coverage`](build-test-coverage.md): collect LCOV coverage.
 - [`dx bench`](bench.md): run `dx-bench` tests and print their numbers.
 - [`dx run`](build-test-coverage.md): build and run a target.
-- [`dx deploy`](deploy.md): build and run a deployable target.
+- [`dx deploy`](deploy.md): dry run one deploy target, or publish it with `--apply`.
 - [`dx lint`](quality.md): run linters.
 - [`dx typecheck`](quality.md): run type checkers.
 - [`dx format`](quality.md): check or rewrite formatting.
-- [`dx check`](check.md): run generate, format, lint and typecheck.
+- [`dx check`](check.md): run generate, format, lint and typecheck in order.
 - [`dx clean`](clean.md): reset the rebuildable state in `.dx/local`.
 - [`dx generate`](generate.md): update BUILD files with Gazelle.
-- [`dx sync`](sync.md): select the pinned tools and generated sources and refresh the IDE files.
+- [`dx sync`](sync.md): select the pinned tools and generated sources, and refresh the IDE files.
 - [`dx security`](audit-update.md): run the security audit.
 - [`dx license`](audit-update.md): run the license audit.
 - [`dx update`](audit-update.md): update dependencies.
@@ -31,10 +57,34 @@ tools/dx lint //... -- --jobs=4
 - [`dx upgrade`](upgrade.md): move the dx pin.
 - [`dx watch`](watch.md): rebuild on changes.
 - [`dx worktree`](worktree.md): lease warm checkout slots for agents.
-- [`dx config`](config.md#dx-config): list each tool's root config file, its base and override state.
+- [`dx config`](config.md): list each tool's root config file, its base and whether you edited it.
 
-Scope rules: [Scope Defaults](scope-defaults.md). Airgapped hosts:
-[Offline Bundle](offline-bundle.md).
+Most commands that take `--apply` only check until you add it.
+For airgapped hosts, see [Offline Bundle](offline-bundle.md).
+
+## Scopes
+
+A scope tells a command what to work on. It can be a label, a pattern, a file
+or a directory. dx turns a file or directory into targets with a Bazel query, a
+lookup of the targets that use it.
+
+```sh
+tools/dx test //app:server_test
+tools/dx lint app/server.py
+tools/dx lint --here
+tools/dx test --affected --since origin/release
+```
+
+- No scope means `//...` for commands that take scopes.
+- `--here` uses the directory tree you are in. It does not combine with
+  explicit scopes.
+- `--affected` uses the targets your git changes reach: the changed targets
+  and everything that depends on them. It compares against the merge-base with
+  the default branch, or the ref you pass with `--since`. It does not combine
+  with scopes or `--here`.
+
+Each command's defaults and the accepted shapes are in
+[Scope Defaults](scope-defaults.md).
 
 ## Global Flags
 
@@ -43,102 +93,152 @@ Every command takes these.
 | Flag | What it does |
 | --- | --- |
 | `-h`, `--help` | Print help. |
-| `-V`, `--version` | Print the dx version. |
+| `-V`, `--version` | Print the dx version. Only on `dx` itself. |
 | `--workspace <dir>` | Run in another workspace. |
-| `-q`, `--quiet` | Less output. |
-| `-v`, `--verbose` | More output. |
+| `-q`, `--quiet` | Hide summaries. |
+| `-v`, `--verbose` | Show more logs. |
 | `--color auto\|always\|never` | Color output. Default `auto`. |
-| `--build-slots auto\|<n>\|off` | Build slots for this run. Default `auto`. |
+| `--build-slots auto\|<n>\|off` | [Build slots](#build-slots) for this run. |
 | `--build-slots-wait <duration>` | Give up waiting for a build slot after this long. `0` fails at once. |
-| `--bazel-startup-option <token>` | Bazel startup option. Repeatable. Takes `--output_base=<path>` or `--output_user_root=<path>`. |
+| `--bazel-startup-option <token>` | Pass one Bazel startup option. Repeatable. Takes `--output_base=<path>` or `--output_user_root=<path>`. |
 
-Other flags belong to one command family. `dx <command> --help` lists them.
+## Shared Flags
 
-| Family | Flags |
+These flags mean the same thing on every command that takes them. The command
+pages list the rest.
+
+| Flag | What it does | Commands |
+| --- | --- | --- |
+| `-o`, `--output text\|json` | Output format. See [Output](#output). | Every command except `deploy` and `completion`. |
+| `--report <format>=<dest>` | Write a report file. Repeatable. | `build`, `test`, `coverage`, `lint`, `typecheck`, `check`, `security`, `license`. |
+| `--fail-on info\|warning\|error` | Lowest finding severity that fails the run. Default `warning`. | `lint`, `typecheck`, `format`, `check`, `security`, `license`, `coverage`, `update`. |
+| `--apply` | Write the changes instead of only checking. | `lint`, `typecheck`, `format`, `generate`, `check`, `update`, `deploy`, `init`, `upgrade`, `worktree`. |
+| `--diff` | Print the edits as a patch. | `lint`, `typecheck`, `format`, `generate`, `check`. |
+| `--here` | Scope to the current directory tree. | See [Scopes](#scopes). |
+| `--affected`, `--since <ref>` | Scope to what your changes reach. | See [Scopes](#scopes). |
+| `--offline` | Use no network. | `security`, `license`, `update`. |
+| `--frozen` | Change no manifest or lock file. | `security`, `license`, `update`. |
+| `--debug`, `--release` | Build in debug or release mode. | `build`, `test`, `run`, `deploy`, `watch`. |
+| `--timings` | Print where build time went. | `build`, `test`, `coverage`, `run`. |
+| `--no-retry` | Do not rerun without the remote cache after a remote cache error. | `build`, `test`, `coverage`, `check`. |
+| `--min-coverage <percent>`, `--min-changed-line-coverage <percent>` | Fail under this coverage. | `coverage`. |
+
+`dx watch` takes the flags of the command it watches.
+
+## Reports
+
+`--report <format>=<dest>` writes one report file. Pass it again for more.
+A relative destination starts at the workspace root. Its parent directory must
+already exist.
+
+```sh
+tools/dx lint //... --report sarif=out/lint.sarif
+tools/dx test //... --report junit=out/junit.xml --report failures=out/failures.json
+```
+
+| Command | Formats |
 | --- | --- |
-| Read commands | `-o`, `--output text\|json`. Commands that can print a patch also take `diff`. |
-| Check commands | `--fail-on info\|warning\|error` (default `warning`), `--report <format>=<dest>` (repeatable). |
-| Coverage | `--min-coverage <percent>`, `--min-changed-line-coverage <percent>`. |
-| Network commands | `--offline` (no network), `--frozen` (no manifest or lock changes). |
-| Scoped commands | `--here` (current directory tree), `--affected` (targets your changes reach). |
-| Mutating commands | `--apply`. |
-| Build commands | `--debug`, `--release`. |
+| `build` | `failures` |
+| `test` | `junit`, `failures`, `results` |
+| `coverage` | `lcov`, `sources`, `failures`, `results` |
+| `lint`, `typecheck`, `check`, `security` | `sarif` |
+| `license` | `sarif`, `spdx`, `cyclonedx` |
 
-A relative `--report` destination starts at the workspace root. Parent
-directories must exist.
+## Output
 
-## Output Values
+`--output text` prints for people. It is the default.
 
-`--output text` prints for people. `--output json` prints one JSON object per
-line on stdout. Every object has an `event` name and a `schema` with `major`
-and `minor`. The stream starts with `command_started` and ends with
-`command_finished`. Logs go to stderr. The schema is
-[`cli/output/schema/events.schema.json`](https://github.com/devhusdk/rules_dx/blob/main/cli/output/schema/events.schema.json).
-Readers accept added fields and any minor, and reject a `major` they do not write.
-Every event carries `schema` and `event`. `command_finished` carries `exit_code` and `status`: `ok` for exit code 0, `failed` otherwise. Commands that run Bazel write events while they run; `dx <command> --help` marks them.
+`--output json` prints one JSON object per line on stdout. Logs go to stderr.
 
 ```sh
 tools/dx lint //... --output=json
 ```
 
-When `CLAUDECODE`, `CODEX_THREAD_ID`, `CURSOR_AGENT`, `GEMINI_CLI`, `AI_AGENT`,
-`AGENT`, `GOOSE_TERMINAL`, `OPENCODE` or `AMP_CURRENT_THREAD_ID` is set, the default output is `json`. See
-[Agent sessions](worktree.md#agent-sessions).
+- Every object has an `event` name and a `schema` with `major` and `minor`.
+- The stream starts with `command_started` and ends with `command_finished`.
+- `command_finished` carries `exit_code` and `status`: `ok` for exit code 0,
+  `failed` otherwise.
+- Commands that run Bazel write events while they run. `dx <command> --help`
+  marks them.
+- Accept added fields and any `minor`. Reject a `major` you do not know.
+
+The schema is
+[`cli/output/schema/events.schema.json`](https://github.com/devhusdk/rules_dx/blob/main/cli/output/schema/events.schema.json).
+
+`dx deploy` and `dx completion` print text only.
+
+When a coding agent runs dx, the default output is `json`. dx sees an agent
+when one of these is set to a non-empty value: `CLAUDECODE`,
+`CODEX_THREAD_ID`, `CURSOR_AGENT`, `GEMINI_CLI`, `AI_AGENT`, `AGENT`,
+`GOOSE_TERMINAL`, `OPENCODE` or `AMP_CURRENT_THREAD_ID`. In CI this default is
+off. More for agents: [`dx worktree`](worktree.md).
 
 ## Exit Codes
 
 | Code | Meaning |
 | --- | --- |
 | `0` | Success. |
-| `1` | Failed check or operational failure. |
-| `2` | Usage error. |
-| `3` | Infrastructure failure. |
-| Bazel's code | Bazel failed. |
+| `1` | A check failed, or the command failed. |
+| `2` | Usage error: a bad flag, scope or owner. |
+| `3` | Infrastructure failure, such as a host I/O error. |
+| Bazel's code | Bazel failed. `build`, `test`, `coverage`, `run` and the other commands whose help says so pass Bazel's code on. `lint`, `typecheck` and `format` exit `1` instead. |
 | `101` | dx crashed. |
-| `128` plus signal | A signal stopped dx. |
+| `128` plus the signal | A signal stopped dx. Ctrl-C gives `130`. |
 
 ## Build Slots
 
-Commands that run Bazel wait for a build slot, so parallel runs on one machine
-do not run out of memory. Slots are shared by every worktree on the machine.
-The count is the machine memory, or the cgroup limit if lower, divided by 3 GiB.
-It is at least 1 and at most 16. `DX_BUILD_SLOT_MEMORY` replaces the 3 GiB:
-MiB, or a number ending in `m` or `g`. An unreadable or zero value is ignored.
+A build slot is a turn to run Bazel on this machine. Commands that start Bazel
+work wait for a free slot, so parallel runs do not run out of memory. All
+worktrees on the machine share the slots.
 
 ```sh
 tools/dx build //... --build-slots 4
+tools/dx test //... --build-slots-wait 10m
 ```
 
-- `auto`: the memory-based count. This is the default inside a
-  `dx worktree` slot.
+`--build-slots` takes:
+
+- `auto`: one slot per 3 GiB of memory, at least 1 and at most 16. dx uses the
+  machine memory, or the cgroup limit if it is lower. This is the default
+  inside a `dx worktree` slot.
 - `<n>`: exactly `n` slots, from 1 to 1024.
 - `off`: take no slot. This is the default outside a `dx worktree` slot.
 
-`DX_BUILD_SLOTS` sets a default. The flag wins. A waiting run prints
-`dx: waiting for a build slot` to stderr and runs when a slot frees. Run
-`dx status` to see who holds the slots. Ctrl-C ends the wait.
+`DX_BUILD_SLOT_MEMORY` replaces the 3 GiB per slot. Give it in MiB, or as a
+number ending in `m` or `g`. dx ignores a value it cannot read, and zero.
 
-By default a run waits for ever. `--build-slots-wait <duration>` or
-`DX_BUILD_SLOTS_WAIT` sets a limit: seconds, or a number ending in `s`, `m` or
-`h`. `0` fails at once when no slot is free. When the limit passes, dx exits 1
-with the `slots_busy` error, which names the holders, and in JSON mode ends the
-stream with an `error` event. A free slot is always taken, whatever the limit.
+A waiting run prints `dx: waiting for a build slot` to stderr and starts when
+a slot frees. Run `dx status` to see who holds the slots. Ctrl-C ends the wait.
 
-With a Bazel `--remote_executor`, dx offers more slots: the memory divided by
-1.5 GiB. A run takes an extra slot only when no regular slot is free and the
-host is not under memory pressure. On Linux that means `/proc/pressure/memory`
-`some avg10` is under 10. On macOS it means the kernel level
-`kern.memorystatus_vm_pressure_level` is 1.
+By default a run waits forever. `--build-slots-wait <duration>` sets a limit:
+seconds, or a number ending in `s`, `m` or `h`. `0` fails at once when no slot
+is free. When the limit passes, dx exits 1 with the `slots_busy` error, which
+names the holders. In JSON mode the stream ends with an `error` event. A free
+slot is always taken, whatever the limit.
 
-While a slot is held, dx adds `--local_resources=cpu=<n>` and
-`--local_resources=memory=<mb>` to `build`, `test`, `coverage` and `run`. dx
-skips them when an rc file or your Bazel arguments set the resource.
+When the host is under memory pressure and another run holds a slot, a waiting
+run may hold back from a free slot for up to 30 seconds.
+
+With a Bazel `--remote_executor`, dx offers more slots: one per 1.5 GiB of
+memory, at most 16. A run takes one of these extra slots only when no regular
+slot is free and the host is not under memory pressure:
+
+- Linux: `/proc/pressure/memory` `some avg10` is under 10. Without that file,
+  free memory is at least one slot's memory.
+- macOS: the kernel level `kern.memorystatus_vm_pressure_level` is 1.
+- Other hosts: no extra slots.
+
+While a run holds a slot, dx adds `--local_resources=cpu=<n>` and
+`--local_resources=memory=<mb>` to Bazel `build`, `test`, `coverage` and `run`.
+dx skips each one when an rc file (such as `.bazelrc`) or your Bazel arguments
+already set it.
 
 ## Disk Space
 
-Before each Bazel build, dx checks free space on the workspace, the Bazel output
-base, the temp dir and the home dir. Under 1 GiB free, it prints a `disk_low`
-line to stderr and keeps going. Free space with:
+Before each Bazel run, dx checks free space on the workspace, the Bazel output
+base (where Bazel keeps its build outputs), the temp directory and your home
+directory. Under 1 GiB free, it prints a `disk_low` line to stderr and keeps
+going. Free space with:
 
 ```sh
 tools/dx worktree prune --apply
@@ -146,121 +246,204 @@ tools/dx worktree prune --apply
 
 ## Environment
 
-A flag on the command line wins over these defaults.
+A flag on the command line wins over these.
 
 | Variable | What it does |
 | --- | --- |
 | `DX_OUTPUT=<mode>` | Default for `--output`. |
 | `DX_BUILD_SLOTS=auto\|<n>\|off` | Default for `--build-slots`. |
 | `DX_BUILD_SLOTS_WAIT=<duration>` | Default for `--build-slots-wait`. |
-| `DX_BUILD_SLOT_MEMORY=<size>` | Memory planned per build slot, default `3g`. |
-| `NO_COLOR=<non-empty>` | Disable color in `auto` mode. |
-| `BUILD_WORKSPACE_DIRECTORY=<dir>` | Workspace start under `bazel run`. |
-| `BUILD_WORKING_DIRECTORY=<dir>` | Current directory under `bazel run`, for `--here` and a relative `worktree release <path>`. |
+| `DX_BUILD_SLOT_MEMORY=<size>` | Memory planned per build slot. Default `3g`. |
+| `NO_COLOR=<non-empty>` | Turn off color in `auto` mode. |
+| `BUILD_WORKSPACE_DIRECTORY=<dir>` | Where dx starts looking for the workspace under `bazel run`. |
+| `BUILD_WORKING_DIRECTORY=<dir>` | Your current directory under `bazel run`, for `--here` and a relative `worktree release <path>`. |
 
-A `<bool>` is `true` or `false`. Any other non-empty value is a usage error. In
-CI the `DX_` variables are ignored. Flags still win.
+In CI, dx ignores `DX_OUTPUT`, `DX_BUILD_SLOTS` and `DX_BUILD_SLOTS_WAIT`.
+Flags still work.
 
 ## Global Shim
 
-The shim is a small `dx` binary for PATH, built from `//cli/shim`. It runs the
-dx version a workspace pins without Bazel and never edits the workspace.
+The shim is a small `dx` binary you put on your PATH. Build it from
+`//cli/shim`. It runs the dx version your workspace pins, without Bazel, and
+never edits the workspace.
 
-1. The version is `DX_VERSION` when set, otherwise the version of the single
-   one-line `bazel_dep(name = "rules_dx", version = "X")` in the nearest
-   `MODULE.bazel` above the current directory. It must be plain semver.
+```sh
+dx build //...
+dx shim where
+```
+
+How it picks and runs dx:
+
+1. The version is `DX_VERSION` when set. Otherwise it is the version in the
+   single one-line `bazel_dep(name = "rules_dx", version = "X")` in the
+   nearest `MODULE.bazel` above your current directory. It must be plain
+   semver.
 2. The binary is `<cache>/bin/<version>/dx-<os>-<arch>` (`.exe` on Windows),
    the same file `tools/dx` uses. A cached binary runs with no network access.
 3. A missing binary is downloaded from the GitHub release and checked against
-   the `<version> <sha256> <asset>` line in the `.dx/pins` next to that
+   the `<version> <sha256> <asset>` line in the `.dx/pins` file next to that
    `MODULE.bazel`. A binary that does not match is deleted and never run.
-4. Without a pinned hash for the version (no `bazel_dep` line, a multi-line or
-   non-literal dep, any `module_name = "rules_dx"` override, no `.dx/pins`
-   line, or no `MODULE.bazel`), the shim runs `bazel run @rules_dx//:dx -- ...`
-   and prints nothing itself. It never falls back to the release `.sha256`.
+4. Without a pinned hash for the version, the shim runs
+   `bazel run @rules_dx//:dx -- ...` and prints nothing itself. That happens
+   when there is no `bazel_dep` line, the dep spans several lines or is not a
+   literal, any `module_name = "rules_dx"` override exists, `.dx/pins` has no
+   line for the version, or there is no `MODULE.bazel`. The shim never falls
+   back to the release `.sha256` file.
 5. The shim runs the binary with the same arguments, stdin, stdout and stderr,
    and sets `DX_SHIM=1`.
 
-`dx shim version` prints `dx-shim <version>`. `dx shim where` prints the
-version, where it came from (`DX_VERSION`, `MODULE.bazel` or `bazel`), the binary path, and whether it is cached. It
-never downloads. The dx binary rejects `shim` as a command name.
+Shim commands:
 
-Environment:
+- `dx shim version` prints `dx-shim <version>`.
+- `dx shim where` prints the dx version, where it came from (`DX_VERSION`,
+  `MODULE.bazel` or `bazel`), the binary path, and whether it is cached. It
+  never downloads.
 
-- `DX_VERSION=<semver>`: run this version instead of the `MODULE.bazel` version. This bootstrap trusts the release
-  `.sha256` file.
+The dx binary itself rejects `shim` as a command name.
+
+Shim environment:
+
+- `DX_VERSION=<semver>`: run this version instead of the `MODULE.bazel`
+  version. The shim then trusts the release `.sha256` file.
 - `DX_CACHE_DIR=<dir>`: cache root. Otherwise `$XDG_CACHE_HOME/dx`, then
-  `~/.cache/dx` (`%USERPROFILE%\.cache\dx` on Windows). Empty values are unset.
+  `~/.cache/dx` (`%USERPROFILE%\.cache\dx` on Windows). Empty values count as
+  unset.
 - `DX_RELEASE_BASE_URL=<url>`: download from `<url>/v<version>/<asset>`
-  instead of the GitHub release. Must be `https://`, or `http://` to
-  `127.0.0.1`, `[::1]` or `localhost`. With `DX_VERSION` the shim trusts this server and its
-  `.sha256` files fully.
+  instead of the GitHub release. It must be `https://`, or `http://` to
+  `127.0.0.1`, `[::1]` or `localhost`. With `DX_VERSION`, the shim fully
+  trusts this server and its `.sha256` files.
 
-Errors print one `dx: ` line on stderr. Exit codes: `0` success, `2` usage
-errors (bad `DX_VERSION`, bad `DX_RELEASE_BASE_URL`, unknown `dx shim`
-command), `1` other failures (no `.dx/pins`, no binary for the platform,
-download failure, sha256 mismatch, cache not writable). Otherwise the exit code
-or signal is the dx binary's own.
+Shim errors print one `dx: ` line on stderr. Shim exit codes:
+
+- `0`: success.
+- `2`: usage error: a bad `DX_VERSION`, a bad `DX_RELEASE_BASE_URL`, or an
+  unknown `dx shim` command.
+- `1`: any other failure: no `.dx/pins`, no binary for your platform, a failed
+  download, a sha256 mismatch, or a cache it cannot write.
+- Otherwise the exit code or signal is the dx binary's own.
 
 ## Main Entry Points
 
-Binary and test wrappers pick the program they run the same way. `main` is
-the source named `<name>.<ext>`, else the single entry in `srcs`, else the
-rule fails and asks for `main`. `main` is always linted unless it is an
-external label.
+Binary and test rules pick the source file they run the same way, unless you
+set `main`:
+
+1. The source named `<name>.<ext>`, where `<name>` is the target name.
+2. Otherwise, the only file in `srcs`.
+3. Otherwise, the rule fails and asks you to set `main`.
+
+dx lints `main` with the target's sources, unless you set it to a label.
 
 ## Supported Surface
 
-`@rules_dx//:dx` runs every command.
+`@rules_dx//:dx` runs every command. You load rules from the files below. Every
+other file is private: do not load it or depend on it.
+
+The Bazel version in `.bazelversion` is the tested baseline.
+Bazel 9.3.1 or later is required.
 
 Language rules:
 
 - `@rules_dx//android:defs.bzl`: Android libraries.
+- `@rules_dx//ansible:defs.bzl`: Ansible.
 - `@rules_dx//api_spec:defs.bzl`: OpenAPI and AsyncAPI specs.
-- `@rules_dx//apple:defs.bzl`: iOS apps, tests and frameworks.
-- `@rules_dx//apple:defs.bzl`: iOS libraries.
-- `@rules_dx//apple:defs.bzl`: macOS apps.
+- `@rules_dx//apple:defs.bzl`: iOS apps, tests, frameworks and libraries, and macOS apps.
+- `@rules_dx//asciidoc:defs.bzl`: AsciiDoc.
+- `@rules_dx//astro:defs.bzl`: Astro.
+- `@rules_dx//avro:defs.bzl`: Avro.
+- `@rules_dx//bicep:defs.bzl`: Bicep.
+- `@rules_dx//capnproto:defs.bzl`: Cap'n Proto.
 - `@rules_dx//cc:defs.bzl`: C and C++.
+- `@rules_dx//cloudformation:defs.bzl`: CloudFormation.
+- `@rules_dx//cmake:defs.bzl`: CMake files.
+- `@rules_dx//core/quality:defs.bzl`: CUE, Gherkin, HTML templates, Jsonnet, Jupyter, LaTeX, Nix, Pkl, Typst, XML, YAML.
 - `@rules_dx//csharp:defs.bzl`: C#.
 - `@rules_dx//cuda:defs.bzl`: CUDA.
-- `@rules_dx//dockerfile:defs.bzl`: Dockerfiles.
-- `@rules_dx//make:defs.bzl`: Makefiles.
-- `@rules_dx//cmake:defs.bzl`: CMake files.
 - `@rules_dx//d:defs.bzl`: D.
+- `@rules_dx//dart:defs.bzl`: Dart.
+- `@rules_dx//dockerfile:defs.bzl`: Dockerfiles.
 - `@rules_dx//elixir:defs.bzl`: Elixir.
 - `@rules_dx//erlang:defs.bzl`: Erlang.
+- `@rules_dx//flatbuffers:defs.bzl`: FlatBuffers.
+- `@rules_dx//flutter:defs.bzl`: Flutter.
+- `@rules_dx//fortran:defs.bzl`: Fortran.
 - `@rules_dx//fsharp:defs.bzl`: F#.
 - `@rules_dx//go:defs.bzl`: Go.
 - `@rules_dx//haskell:defs.bzl`: Haskell.
+- `@rules_dx//helm:defs.bzl`: Helm charts.
 - `@rules_dx//java:defs.bzl`: Java.
 - `@rules_dx//javascript:defs.bzl`: JavaScript.
-- `@rules_dx//ansible:defs.bzl`: Ansible.
-- `@rules_dx//bicep:defs.bzl`: Bicep.
-- `@rules_dx//cloudformation:defs.bzl`: CloudFormation.
 - `@rules_dx//julia:defs.bzl`: Julia.
 - `@rules_dx//kotlin:defs.bzl`: Kotlin.
-- `@rules_dx//lua:defs.bzl`: Lua.
 - `@rules_dx//kubernetes:defs.bzl`: Kubernetes.
+- `@rules_dx//lua:defs.bzl`: Lua.
+- `@rules_dx//make:defs.bzl`: Makefiles.
+- `@rules_dx//mdx:defs.bzl`: MDX.
+- `@rules_dx//ocaml:defs.bzl`: OCaml.
 - `@rules_dx//perl:defs.bzl`: Perl.
 - `@rules_dx//php:defs.bzl`: PHP.
 - `@rules_dx//powershell:defs.bzl`: PowerShell.
 - `@rules_dx//python:defs.bzl`: Python.
 - `@rules_dx//qt:defs.bzl`: Qt.
-- `@rules_dx//core/quality:defs.bzl`: CUE, Gherkin, HTML templates, Jsonnet, Jupyter, LaTeX, Nix, Pkl, Typst, XML, YAML.
 - `@rules_dx//rego:defs.bzl`: Rego.
+- `@rules_dx//rst:defs.bzl`: reStructuredText.
 - `@rules_dx//ruby:defs.bzl`: Ruby.
 - `@rules_dx//rust:defs.bzl`: Rust.
 - `@rules_dx//scala:defs.bzl`: Scala.
 - `@rules_dx//sql:defs.bzl`: SQL.
+- `@rules_dx//svelte:defs.bzl`: Svelte.
+- `@rules_dx//swift:defs.bzl`: Swift.
 - `@rules_dx//terraform:defs.bzl`: Terraform.
+- `@rules_dx//thrift:defs.bzl`: Thrift.
 - `@rules_dx//typescript:defs.bzl`: TypeScript.
 - `@rules_dx//vue:defs.bzl`: Vue.
 - `@rules_dx//zig:defs.bzl`: Zig.
 
+Packaging and deploy:
+
+- `@rules_dx//android:defs.bzl`: APKs, App Bundles and adb.
+- `@rules_dx//appimage:defs.bzl`: AppImage bundles.
+- `@rules_dx//apple/private/ios:device.bzl`: signed iOS IPA export.
+- `@rules_dx//apple/private/provisioning:defs.bzl`: Apple provisioning.
+- `@rules_dx//apple/private/signing:defs.bzl`: macOS app signing and notarization.
+- `@rules_dx//deploy:defs.bzl`: deploy rules, release archives and offline bundles.
+- `@rules_dx//msix:defs.bzl`: MSIX packages.
+
+Module extensions, for `use_extension` in `MODULE.bazel`:
+
+- `@rules_dx//core:extensions.bzl`: `dx_pins`, `dx_source_archives` and `dx_licenses`.
+- `@rules_dx//android:extensions.bzl`: Android SDK and NDK toolchain.
+- `@rules_dx//apple/private/ios:simulator.bzl`: iOS simulator.
+- `@rules_dx//cuda:extensions.bzl`: CUDA toolchain.
+- `@rules_dx//elixir:extensions.bzl`: Hex packages for Elixir.
+- `@rules_dx//msix:extensions.bzl`: MSIX tools.
+- `@rules_dx//powershell:extensions.bzl`: PowerShell Gallery modules.
+- `@rules_dx//qt:extensions.bzl`: Qt SDK.
+- `@rules_dx//<language>:extensions.bzl`: the language's own extensions, for
+  `ansible`, `avro`, `bicep`, `csharp`, `d`, `dart`, `dotnet`, `flutter`,
+  `fortran`, `go`, `haskell`, `java`, `julia`, `ocaml`, `perl`, `php`,
+  `ruby`, `swift` and `zig`.
+
+API docs:
+
+- `@rules_dx//tools/docs/<language>:defs.bzl`: API doc shards, for `avro`,
+  `cc` (C, C++ and CUDA), `components` (Astro, MDX, Svelte and Vue), `d`,
+  `dart`, `dotnet` (C# and F#), `elixir`, `erlang`, `fortran`, `go`,
+  `haskell`, `javascript`, `julia`, `jvm` (Java, Kotlin and Scala), `lua`,
+  `ocaml`, `perl`, `php`, `powershell`, `protobuf`, `python`, `ruby`, `rust`,
+  `swift`, `typescript` and `zig`.
+- `@rules_dx//tools/docs/site:site.bzl`: docs sites built from API doc shards.
+- `@rules_dx//tools/docs/rust:site.bzl`: docs sites whose libraries may be Rust crates.
+
+Quality config:
+
+- `@rules_dx//core/quality:native_config.bzl`: native linter and formatter configs.
+
 ### Rule names
 
-dx names rules `<language>_<kind>` throughout, so `py_library` is `python_library`, `ts_project` is `typescript_library` and `kt_jvm_library` is `kotlin_library`. This table maps each upstream rule to the
-dx rule that wraps it.
+dx names rules `<language>_<kind>`. So `py_library` is `python_library`,
+`ts_project` is `typescript_library` and `kt_jvm_library` is `kotlin_library`.
+This table maps each upstream rule to the dx rule that wraps it. Rows with an
+empty upstream column are dx's own rules.
 
 | Upstream load | Upstream rule | dx load | dx rule |
 | --- | --- | --- | --- |
@@ -484,57 +667,9 @@ dx rule that wraps it.
 |  |  | `@rules_dx//vue:defs.bzl` | `vue_test` |
 |  |  | `@rules_dx//zig:defs.bzl` | `zig_bench` |
 
-Packaging and deploy:
+## Debuggers
 
-- `@rules_dx//android:defs.bzl`: APKs, App Bundles and adb.
-- `@rules_dx//appimage:defs.bzl`: AppImage bundles.
-- `@rules_dx//apple/private/ios:device.bzl`: signed iOS IPA export.
-- `@rules_dx//apple/private/provisioning:defs.bzl`: Apple provisioning.
-- `@rules_dx//apple/private/provisioning:probe.bzl`: Apple toolchain probe.
-- `@rules_dx//apple/private/signing:defs.bzl`: macOS app signing and notarization.
-- `@rules_dx//deploy:defs.bzl`: deploy rules, release archives and offline bundles.
-- `@rules_dx//msix:defs.bzl`: MSIX packages.
-
-SDK and toolchain extensions:
-
-- `@rules_dx//android:extensions.bzl`: Android SDK and NDK toolchain.
-- `@rules_dx//apple/private/ios:simulator.bzl`: iOS simulator.
-- `@rules_dx//cuda:extensions.bzl`: CUDA toolchain.
-- `@rules_dx//elixir:extensions.bzl`: Hex packages for Elixir.
-- `@rules_dx//powershell:extensions.bzl`: PowerShell Gallery modules.
-- `@rules_dx//msix:extensions.bzl`: MSIX tools.
-- `@rules_dx//qt:extensions.bzl`: Qt SDK.
-
-API docs:
-
-- `@rules_dx//tools/docs/dart:defs.bzl`: Dart API doc shards.
-- `@rules_dx//tools/docs/elixir:defs.bzl`: Elixir API doc shards.
-- `@rules_dx//tools/docs/erlang:defs.bzl`: Erlang API doc shards.
-- `@rules_dx//tools/docs/cc:defs.bzl`: C, C++ and CUDA API doc shards.
-- `@rules_dx//tools/docs/go:defs.bzl`: Go API doc shards.
-- `@rules_dx//tools/docs/ruby:defs.bzl`: Ruby API doc shards.
-- `@rules_dx//tools/docs/julia:defs.bzl`: Julia API doc shards.
-- `@rules_dx//tools/docs/javascript:defs.bzl`: JavaScript API doc shards.
-- `@rules_dx//tools/docs/lua:defs.bzl`: Lua API doc shards.
-- `@rules_dx//tools/docs/jvm:defs.bzl`: Java and Kotlin API doc shards.
-- `@rules_dx//tools/docs/perl:defs.bzl`: Perl API doc shards.
-- `@rules_dx//tools/docs/php:defs.bzl`: PHP API doc shards.
-- `@rules_dx//tools/docs/powershell:defs.bzl`: PowerShell API doc shards.
-- `@rules_dx//tools/docs/rust:defs.bzl`: Rust API doc shards.
-- `@rules_dx//tools/docs/site:site.bzl`: docs sites built from API doc shards.
-- `@rules_dx//tools/docs/typescript:defs.bzl`: TypeScript API doc shards.
-
-Quality config:
-
-- `@rules_dx//core/quality:native_config.bzl`: native linter and formatter configs.
-
-Every other file stays private.
-A private file is not a dependency.
-The Bazel version in `.bazelversion` is the tested baseline.
-Bazel 9.3.1 or later is required.
-
-rules_dx does not provide debugger acquisition, launch or attach integration,
-Debug Adapter Protocol adapters, or generated debugger configurations. These
-are unsupported and not planned. Debug build modes and editor
-language-server settings do not imply debugger support. You can set up
-external debuggers yourself.
+rules_dx does not set up debuggers. It does not download, launch or attach a
+debugger, ship Debug Adapter Protocol adapters, or generate debugger configs.
+Debug builds and editor language-server settings do not add debugger support.
+You can set up an external debugger yourself.

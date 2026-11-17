@@ -1,66 +1,118 @@
 # `dx check`
 
+Use `dx check` to find and fix generated-file drift, formatting, lint and type errors in one run before you push.
+
 ```sh
 dx check --affected
+dx check --apply --affected
 dx check --apply //pkg/...
+dx check --diff //pkg/...
 dx check --output json --report sarif=out.sarif //pkg/...
 ```
 
-## `dx check`
+`dx check` runs `dx generate`, `dx format`, `dx lint` and `dx typecheck` in that order. By default it only reports. `--apply` writes the fixes, then checks again without writing.
+
+## Usage
 
 ```text
-dx check [--here] [--affected [--since <ref>]] [--no-retry] [--apply] [--diff] [--unsafe] [--include-edits] [--max-findings n] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
+dx check [--here] [--affected [--since <ref>]] [--no-retry] [--apply] [--diff] [--unsafe] [--include-edits] [--max-findings <n>] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
 ```
 
-Runs `generate`, `format`, `lint`, and `typecheck` in order. It only reports. `--apply` writes validated fixes, then re-checks read-only.
+Args after `--` go to Bazel.
+
+## Flags
 
 | Flag | What it does |
 | --- | --- |
 | `--apply` | Write fixes, then verify with a read-only check. |
-| `--no-retry` | Do not run Bazel again without the remote cache after a remote cache error. |
-| `--here` | Use the current directory tree. |
-| `--affected` | Use the targets your git changes reach, then run the affected tests as a last phase. |
-| `--since <ref>` | With `--affected`: diff from this ref instead of the merge-base. Without `--affected`, exit `2`. |
 | `--diff` | Print the edits as a patch. |
-| `--unsafe` | With `--apply` or `--diff`, also include the fixes tools mark unsafe. Without either, exit `2`. The read-only re-check after `--apply` runs without it. |
+| `--unsafe` | With `--apply` or `--diff`, also include fixes the tools mark unsafe. Without either, exits `2`. The read-only check after `--apply` runs without it. |
+| `--here` | Use the current directory tree: `//path/...`, or `//...` at the workspace root. |
+| `--affected` | Use only the targets your git changes reach, then run their tests as a last phase. |
+| `--since <ref>` | With `--affected`: compare against this git ref instead of the merge-base with the default branch. Without `--affected`, exits `2`. |
+| `--fail-on info\|warning\|error` | Fail on findings of this severity or worse. Applies to `format`, `lint` and `typecheck`. |
 | `--include-edits` | Add full edits to JSON change records. Needs `--output json`. |
-| `--max-findings <n>` | Print at most `n` findings per tool in JSON output (default `50`, `0` for all). Needs `--output json`. |
-| `--fail-on <level>` | Fail on `info`, `warning`, or `error`. Applies to `format`, `lint`, and `typecheck`. |
-| `--report sarif=<dest>` | Merge the `lint` and `typecheck` findings into one SARIF document. `-` is rejected. |
+| `--max-findings <n>` | Print at most `n` findings per tool in JSON output. Default `50`. `0` means no limit. Needs `--output json`. |
+| `--no-retry` | Do not run Bazel again without the remote cache after a remote cache error. |
+| `--report sarif=<dest>` | Merge the `lint` and `typecheck` findings into one SARIF file. Repeatable. `-` (stdout) is rejected. |
 | `-o, --output text\|json` | Choose the output format. |
-| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--build-slots-wait`, `--bazel-startup-option` | Global flags. |
+| `--workspace <dir>` | Use this workspace directory. |
+| `-q, --quiet` | Hide summaries. |
+| `-v, --verbose` | Show more logs. |
+| `--color auto\|always\|never` | Set color output. |
+| `--build-slots <auto\|n\|off>` | Set build slots: `auto`, a count, or `off`. |
+| `--build-slots-wait <duration>` | Give up waiting for a build slot after this long. `0` fails at once. |
+| `--bazel-startup-option <token>` | Pass one Bazel startup option. Repeatable. |
 
-Scopes: no scope means `//...`. `--here` and `--affected` do not combine with scopes. See [Scope defaults](scope-defaults.md). With nothing affected, dx prints `no affected targets`, runs no phase, and exits `0`. With `--diff`, the line goes to stderr and stdout stays empty.
+## Scopes
 
-### Phases
+A scope picks what to check. Pass a label such as `//pkg:target` (one Bazel target), a pattern such as `//pkg/...` (every target in `pkg` and below), or a workspace file or directory. With no scope, dx checks `//...`, every target in the workspace.
 
-- Every phase runs even after an earlier phase reports findings. The run still exits nonzero.
+- `--here` uses the current directory tree.
+- `--affected` uses the targets changed since the merge-base with the default branch, or since `--since <ref>`, plus the targets that depend on them.
+- `--here` and `--affected` do not combine with scopes or with each other.
+- With nothing affected, dx prints `no affected targets`, runs no phase, and exits `0`. With `--diff`, that line goes to stderr and stdout stays empty.
+
+Read [Scope defaults](scope-defaults.md) for details.
+
+## Phases
+
+- Every phase runs, even after an earlier phase reports findings. The run still exits nonzero.
 - The run stops when the scope is bad, `generate` fails, Bazel cannot run, or you cancel.
-- `check --apply` also stops when a phase fails to compile. Remaining phases are skipped.
-- `--apply` reruns `generate` after `typecheck` when a phase wrote a file.
-- `--affected` skips the test phase under `--apply`.
-- `--affected` also lints the commit subjects since the merge base when `dx.toml` sets `[check] commits = "conventional"`. Each subject that is not a conventional commit is a `warning` with its sha, and the run exits `1`. Merge commits are skipped. Left out, the key is off. It runs when nothing is affected too. Not run under `--apply`.
+- With `--apply`, the run also stops when a phase fails to compile. The remaining phases are skipped.
+- With `--apply`, dx runs `generate` again after `typecheck` when a phase wrote a file.
+- `--affected` adds a test phase. `--apply` skips it.
 - A failed run ends with a `dx: phases:` line on stderr.
+
+### Commit messages
+
+Set this in `dx.toml` to lint commit subjects:
+
+```toml
+[check]
+commits = "conventional"
+```
+
+Then `dx check --affected` checks every commit subject since the merge-base. Each subject that is not a conventional commit is a `warning` with its sha, and the run exits `1`. Merge commits are skipped. The check runs even when nothing is affected. It does not run under `--apply`. Without the key, it is off.
 
 ### Build output check
 
-Before any phase, `dx check` fails when your change adds build output. That is a new file under `target/`, `bazel-*`, `node_modules/`, `__pycache__/`, `.gradle/`, or a `build/` directory, or a file over 1 MiB. List paths or `dir/` prefixes to keep in `[large_files] allow` in `dx.toml`; lock files such as `MODULE.bazel.lock` are always skipped. The check is skipped outside a Git checkout.
+Before any phase, `dx check` fails when your change adds build output or a large file:
 
-### Output
+- a new file under `target/`, `node_modules/`, `__pycache__/`, `.gradle/`, or a top-level `bazel-*` directory;
+- a new file under a `build/` directory that has no `BUILD`, `BUILD.bazel`, `pom.xml`, `CMakeLists.txt` or `build.gradle` in it;
+- a changed file over 1 MiB. Lock files such as `MODULE.bazel.lock` are exempt.
 
-Text prints `N file(s) need changes. Apply them with: dx check --apply ...` when a phase finds changes, and one `dx: <total> actions, <executed> executed, <cached> cached` line on stderr.
+To keep such a path, list it in `dx.toml`. An entry ending in `/` keeps everything under that directory:
 
-JSON has one `command_started` and one `command_finished`. Each phase sits between `phase_started` and `phase_finished`, and its events carry `phase` and a `correlation` such as `check/format`. `--apply` verification phases use `verify/<phase>`.
+```toml
+[large_files]
+allow = ["assets/video.mp4", "testdata/big/"]
+```
 
-SARIF results carry `partialFingerprints`, `ruleIndex`, and `fixes`. A phase that ran but left no readable SARIF is a `collection_failed` error and marks the report incomplete.
+Outside a Git checkout, this check is skipped.
 
-### Exit codes
+## Output
+
+Text prints `N file(s) need changes. Apply them with: dx check --apply ...` when a phase finds changes. It ends with `dx: <total> actions, <executed> executed, <cached> cached` on stderr.
+
+JSON has one `command_started` and one `command_finished` event. Each phase sits between `phase_started` and `phase_finished`. Its events carry `phase` and a `correlation` such as `check/format`. The verify phases after `--apply` use `verify/<phase>`. JSON streams events while the command runs.
+
+## Reports
+
+`--report sarif=<dest>` writes one SARIF file with the `lint` and `typecheck` findings. Results carry `partialFingerprints`, `ruleIndex` and `fixes`. A phase that ran but left no readable SARIF is a `collection_failed` error and marks the report incomplete.
+
+## Exit codes
 
 | Code | Meaning |
 | --- | --- |
 | `0` | Success. |
-| `1` | A phase failed or found changes, a capture was lost, verification failed, or a report could not be written. |
+| `1` | A phase failed or found changes, a capture was lost, verification failed, a commit subject failed, or a report could not be written. |
 | `2` | Usage or scope error. |
-| Bazel's code | The phase that stopped the run keeps its code. |
+| Bazel's code | The phase that stopped the run keeps Bazel's code. |
 
-The test phase keeps Bazel's code. `3` with complete results means tests failed. `3` or `1` with incomplete results means the phase is incomplete. `2` and `4` mean the scope selected no runnable tests.
+The test phase keeps Bazel's code:
+
+- `3` with complete results means tests failed.
+- `3` or `1` with incomplete results means the phase is incomplete.
+- `2` and `4` mean the scope selected no runnable tests.

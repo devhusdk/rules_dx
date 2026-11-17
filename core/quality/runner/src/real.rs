@@ -22,6 +22,8 @@ const BICEP_HOME_REL: &str = "dx-bicep/home";
 const PKL_LSP_HOME_REL: &str = ".dx-pkl-lsp/home";
 const HELMFMT_HOME_REL: &str = "dx-helmfmt/home";
 const LATEXINDENT_HOME_REL: &str = "dx-latexindent/home";
+/// PAR unpack root of the Windows latexindent.exe, beside the scratch trees.
+const LATEXINDENT_PAR_DIR: &str = "dx-latexindent-par";
 /// The request env key naming the provider mirror roots, joined with `|`.
 const TERRAFORM_PLUGIN_DIRS_ENV: &str = "DX_TERRAFORM_PLUGIN_DIRS";
 const TERRAFORM_EMPTY_MIRROR_REL: &str = "dx-terraform/empty-mirror";
@@ -643,10 +645,26 @@ fn tool_specific_env(
         }
         if cfg!(windows) {
             env.push((OsString::from("LC_ALL"), OsString::from("C")));
+            env.push((
+                OsString::from("PAR_GLOBAL_TEMP"),
+                latexindent_par_dir(tool_id, scratch)?.into_os_string(),
+            ));
         }
     }
     tool_quirk_env(tool_id, scratch, env);
     Ok(())
+}
+
+/// The shared PAR unpack root next to `scratch`, created on first use.
+fn latexindent_par_dir(tool_id: &str, scratch: &Scratch) -> Result<PathBuf, RunnerError> {
+    let parent = scratch
+        .root()
+        .parent()
+        .ok_or_else(|| execution(tool_id, "scratch has no parent".to_owned()))?;
+    let dir = parent.join(LATEXINDENT_PAR_DIR);
+    std::fs::create_dir_all(&dir)
+        .map_err(|err| execution(tool_id, format!("latexindent par dir: {err}")))?;
+    Ok(dir)
 }
 
 fn tool_quirk_env(tool_id: &str, scratch: &Scratch, env: &mut Vec<(OsString, OsString)>) {

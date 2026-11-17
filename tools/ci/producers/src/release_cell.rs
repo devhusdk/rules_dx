@@ -16,6 +16,8 @@ struct Env {
     run_id: String,
     job: String,
     sha: String,
+    /// Comma-separated licence ids the consumer accepts at `dx init`; the workflow sets them.
+    accept_licenses: String,
     temp: PathBuf,
     workspace: PathBuf,
 }
@@ -33,6 +35,7 @@ impl Env {
             run_id: var("RUN_ID")?,
             job: var("JOB")?,
             sha: var("SHA")?,
+            accept_licenses: std::env::var("ACCEPT_LICENSES").unwrap_or_default(),
             temp: PathBuf::from(var("RUNNER_TEMP")?),
             workspace: PathBuf::from(var("GITHUB_WORKSPACE")?),
         };
@@ -279,7 +282,11 @@ fn build_cell(env: &Env, out: &Path) -> Result<(), String> {
         .arg("--consumer")
         .arg(env.workspace.join("deploy/private/release/consumer"))
         .arg("--checkout")
-        .arg(&env.workspace)
+        .arg(&env.workspace);
+    if !env.accept_licenses.is_empty() {
+        qualify.args(["--accept-licenses", &env.accept_licenses]);
+    }
+    qualify
         .arg("--out")
         .arg(out.join(format!("{}.json", env.cell)))
         .args(&qualify_symbols);

@@ -129,10 +129,11 @@ fn a_group_set_up_once_denies_its_members_until_teardown() {
     std::fs::write(&secret, "hidden").expect("secret");
     let open = scene.granted.join("open.txt");
     std::fs::write(&open, "visible").expect("open");
-    let before = [icacls(&scene.granted), icacls(&scene.ungranted)];
+    let mut trail = Trail::new(&scene);
     let name = format!("dxh-{}-test", std::process::id());
     let out = scene.root.join("out");
     let group = AclGroup::setup(&mut scene.isolation, &name, &out).expect("group setup");
+    trail.mark("group set up");
     let timeline = std::fs::read_to_string(out.join("logs").join("timeline.log")).unwrap();
     assert!(timeline.contains("acl deny "), "{timeline}");
     assert!(icacls(&scene.granted).contains(&name));
@@ -143,6 +144,7 @@ fn a_group_set_up_once_denies_its_members_until_teardown() {
     assert_eq!(allowed.exit, 0, "{}", allowed.stderr);
     assert!(allowed.stdout.contains("visible"));
     drop(group);
+    trail.mark("group dropped");
     let timeline = std::fs::read_to_string(out.join("logs").join("timeline.log")).unwrap();
     assert!(timeline.contains("acl revoke "), "{timeline}");
     assert!(icacls(&scene.ungranted).contains("dxh-host"));
@@ -152,9 +154,12 @@ fn a_group_set_up_once_denies_its_members_until_teardown() {
         timeline.contains(&format!("acl deny {}: present", text(&scene.ungranted))),
         "{timeline}"
     );
+    trail.mark("second group set up");
     drop(again);
+    trail.mark("second group dropped");
     remove_host_denies(&scene.isolation);
-    assert_eq!([icacls(&scene.granted), icacls(&scene.ungranted)], before);
+    trail.mark("host denies removed");
+    trail.assert_restored();
 }
 
 /// Takes the scene's denies off `dxh-host`, which keeps them after a group is dropped.
@@ -171,7 +176,7 @@ fn stale_groups_are_removed_when_a_new_group_is_set_up() {
         .write()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     let mut scene = scene("stale group");
-    let before = [icacls(&scene.granted), icacls(&scene.ungranted)];
+    let mut trail = Trail::new(&scene);
     let mut child = std::process::Command::new("cmd")
         .args(["/c", "exit 0"])
         .spawn()
@@ -183,16 +188,85 @@ fn stale_groups_are_removed_when_a_new_group_is_set_up() {
     std::mem::forget(
         AclGroup::setup(&mut scene.isolation, &stale, &out).expect("stale group setup"),
     );
+    trail.mark("stale group set up");
     assert!(icacls(&scene.granted).contains(&stale));
     let fresh = format!("dxh-{}-fresh", std::process::id());
     drop(AclGroup::setup(&mut scene.isolation, &fresh, &out).expect("fresh group setup"));
+    trail.mark("fresh group set up and dropped");
     remove_host_denies(&scene.isolation);
-    assert_eq!([icacls(&scene.granted), icacls(&scene.ungranted)], before);
+    trail.mark("host denies removed");
+    trail.assert_restored();
     let listed = std::process::Command::new("net")
         .args(["localgroup", stale.as_str()])
         .output()
         .expect("net runs");
     assert!(!listed.status.success(), "{stale} is still a local group");
+}
+
+/// The SDDL of the scene's directories after each step, which shows the DACL control bits
+/// (`AI`, `P`) and the inherited (`ID`) entries that `icacls` leaves out.
+struct Trail {
+    paths: [PathBuf; 3],
+    before: Vec<String>,
+    text: String,
+}
+
+impl Trail {
+    fn new(scene: &Scene) -> Self {
+        let mut trail = Self {
+            paths: [
+                scene.root.clone(),
+                scene.granted.clone(),
+                scene.ungranted.clone(),
+            ],
+            before: Vec::new(),
+            text: String::new(),
+        };
+        trail.before = trail.mark("before");
+        trail
+    }
+
+    fn mark(&mut self, step: &str) -> Vec<String> {
+        let now: Vec<String> = self.paths.iter().map(|path| sddl(path)).collect();
+        self.text.push_str(&format!("{step}:\n"));
+        for (path, sddl) in self.paths.iter().zip(&now) {
+            self.text
+                .push_str(&format!("  {} {sddl}\n", path.display()));
+        }
+        now
+    }
+
+    /// Fails when the SDDL now differs from the SDDL before, writing the trail to the uncaptured
+    /// stderr.
+    fn assert_restored(&mut self) {
+        let now = self.mark("now");
+        if now != self.before {
+            use std::io::Write;
+            let _ = writeln!(std::io::stderr(), "ACL trail:\n{}", self.text);
+        }
+        assert_eq!(now, self.before, "{}", self.text);
+    }
+}
+
+fn sddl(path: &Path) -> String {
+    let literal = text(path).replace('\'', "''");
+    let out = std::process::Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            &format!("(Get-Acl -LiteralPath '{literal}').Sddl"),
+        ])
+        .output()
+        .expect("powershell runs");
+    let sddl = String::from_utf8_lossy(&out.stdout).trim().to_owned();
+    assert!(
+        sddl.contains("D:"),
+        "no SDDL for {}: {}",
+        path.display(),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    sddl
 }
 
 fn icacls(path: &Path) -> String {

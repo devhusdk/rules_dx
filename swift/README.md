@@ -1,6 +1,6 @@
 # Swift
 
-Build Swift for Linux with `rules_swift` 4.2.2 and a pinned Swift 6.4.2
+Build Swift for Linux with `rules_swift` 4.3.0 and a pinned Swift 6.4.2
 toolchain. Nothing needs to be installed. `dx` registers the toolchain for
 Linux x86_64 and aarch64 hosts.
 

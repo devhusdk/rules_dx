@@ -39,7 +39,7 @@ pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("rules_jvm_external", "7.2"),
     ("bazel_features", "1.55.0"),
     ("rules_zig", "0.17.0"),
-    ("rules_swift", "4.2.2"),
+    ("rules_swift", "4.3.0"),
     ("bazel_linux_packages", "0.4.1"),
     ("rules_dart", "0.8.1"),
     ("rules_flutter", "0.0.8"),

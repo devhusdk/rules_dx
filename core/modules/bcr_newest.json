@@ -50,7 +50,7 @@
   "rules_rust_wasm_bindgen": "0.75.0",
   "rules_scala": "7.4.1",
   "rules_shell": "0.8.0",
-  "rules_swift": "4.2.2",
+  "rules_swift": "4.3.0",
   "rules_zig": "0.17.0",
   "tar.bzl": "0.10.9",
   "toml.bzl": "0.5.0",

@@ -21,6 +21,13 @@ d_binary(
     deps = [":conformance"],
 )
 
+d_binary(
+    name = "runfiles_hello",
+    srcs = ["runfiles_main.d"],
+    data = ["data.txt"],
+    target_compatible_with = D_COMPATIBLE_WITH,
+)
+
 d_test(
     name = "pass_subject_test",
     size = "small",
@@ -47,5 +54,10 @@ dx_conformance_suite(
     failing_test = ":fail_subject_test",
     lang = "d",
     passing_test = ":pass_subject_test",
+    runfiles = {
+        "binary": ":runfiles_hello",
+        "data": "data.txt",
+        "expected": "hello runfiles",
+    },
     size = "small",
 )

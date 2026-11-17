@@ -111,12 +111,12 @@ pub(crate) fn bazel(case: &Case, args: &[&str]) -> Run {
     case.bazel_with(args, &pairs)
 }
 
-/// The symlink and licence lines `docs/cli/commands/windows.md` has a Windows user add to `.bazelrc` or `user.bazelrc`.
-pub(crate) const WINDOWS_LICENCES: &str = "startup:windows --windows_enable_symlinks\ncommon:windows --repo_env=BAZEL_MSVC_RUNTIME_VISUAL_STUDIO_EULA=1\ncommon:windows --repo_env=BAZEL_WINDOWS_SDK_EULA=1\n";
+/// The symlink line `docs/cli/commands/windows.md` has a Windows user add to `.bazelrc` or `user.bazelrc`.
+pub(crate) const WINDOWS_SYMLINKS: &str = "startup:windows --windows_enable_symlinks\n";
 
 /// The `.bazelrc` the consumer starts with: the preset's `//config:toolchains` lines, which a
 /// source-built dx needs before `dx init` writes the preset, and on Windows the preset's Windows
-/// lines and `WINDOWS_LICENCES`. The quickstart cuts it back to `initial_rc` before `dx init`.
+/// lines and `WINDOWS_SYMLINKS`. The quickstart cuts it back to `initial_rc` before `dx init`.
 fn write_source_dx_rc(case: &Case) {
     let mut rc = String::from("common --enable_platform_specific_config\n");
     rc.extend(
@@ -132,9 +132,9 @@ fn write_source_dx_rc(case: &Case) {
     write_text(&case.root().join(".bazelrc"), &rc);
 }
 
-/// The `.bazelrc` lines a user has before `dx init`: `WINDOWS_LICENCES` on Windows, none elsewhere.
+/// The `.bazelrc` lines a user has before `dx init`: `WINDOWS_SYMLINKS` on Windows, none elsewhere.
 fn initial_rc() -> &'static str {
-    if cfg!(windows) { WINDOWS_LICENCES } else { "" }
+    if cfg!(windows) { WINDOWS_SYMLINKS } else { "" }
 }
 
 fn run_in(case: &Case, args: &[&str], what: &str) -> Run {
@@ -248,7 +248,17 @@ fn the_readme_quickstart_runs_as_written() {
         .map(|(key, value)| (*key, value.as_str()))
         .collect();
     pairs.push(("BUILD_WORKSPACE_DIRECTORY", root.as_str()));
-    let init = case.run(&dx, &["init", "--apply"], &pairs);
+    let init_args: &[&str] = if cfg!(windows) {
+        &[
+            "init",
+            "--apply",
+            "--accept-license",
+            "visual-studio-build-tools",
+        ]
+    } else {
+        &["init", "--apply"]
+    };
+    let init = case.run(&dx, init_args, &pairs);
     ok(&init, "dx init --apply");
     run_in(
         &case,

@@ -2,3 +2,5 @@
 module(name = "my_project")
 
 bazel_dep(name = "rules_dx", version = "0.0.0")
+dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
+dx_licenses.accept(ids = ["cuda-eula"])

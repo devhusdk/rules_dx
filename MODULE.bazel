@@ -178,6 +178,8 @@ single_version_override(
         "//patches/windows_support:source_directory_headers.patch",
         "//patches/windows_support:pins.patch",
         "//patches/windows_support:reproducible_extensions.patch",
+        "//patches/windows_support:dx_cc_extension.patch",
+        "//patches/windows_support:license_ids.patch",
     ],
     version = "0.4.1",
 )
@@ -746,6 +748,7 @@ dx_pins.archive(
         "//patches/windows_support:pins.patch",
         "//patches/windows_support:reproducible_extensions.patch",
         "//patches/windows_support:dx_cc_extension.patch",
+        "//patches/windows_support:license_ids.patch",
     ],
     pins = "//cc:pins.json",
 )
@@ -3289,6 +3292,9 @@ register_toolchains("@dx_msix_toolchains//:all")
 
 windows_msvc_runtime = use_extension("@windows_support//windows:extensions.bzl", "msvc_runtime")
 use_repo(windows_msvc_runtime, "msvc_runtime")
+
+windows_msvc_runtime_dev = use_extension("@windows_support//windows:extensions.bzl", "msvc_runtime", dev_dependency = True)
+windows_msvc_runtime_dev.license(accepted = "@dx_licenses//:accepted.json")
 
 windows_sdk_ext = use_extension("@windows_support//windows:extensions.bzl", "windows_sdk")
 use_repo(windows_sdk_ext, "windows_sdk")

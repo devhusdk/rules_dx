@@ -1365,7 +1365,8 @@ fn stage_consumer_writes_the_windows_flags_after_the_init_bazelrc() {
     let dir = stage_consumer(&consumer, Path::new("dx"), work, true, &runner).expect("stage");
     let rc = std::fs::read_to_string(dir.join(".bazelrc")).expect("rc");
     assert!(rc.contains("startup --output_user_root=C:/bz\n"));
-    assert!(rc.contains("common --repo_env=BAZEL_WINDOWS_SDK_EULA=1\n"));
+    assert!(rc.contains("startup --windows_enable_symlinks\n"));
+    assert!(!rc.contains("--repo_env"));
 }
 
 #[test]

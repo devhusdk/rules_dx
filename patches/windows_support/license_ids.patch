@@ -1,0 +1,107 @@
+diff --git a/windows/private/extensions/msvc_runtime.bzl b/windows/private/extensions/msvc_runtime.bzl
+--- a/windows/private/extensions/msvc_runtime.bzl
++++ b/windows/private/extensions/msvc_runtime.bzl
+@@ -6,7 +6,7 @@
+ _DEFAULT_VS_CHANNEL_URL = "https://aka.ms/vs/stable/channel"
+ _INSTALLER_MANIFEST_DOWNLOADS_DIR = "installer_manifest_downloads"
+ _INSTALLER_MANIFEST_FACTS_KEY = "visual_studio_installer_manifest_v1"
+-_MSVC_RUNTIME_VISUAL_STUDIO_EULA_ENV = "BAZEL_MSVC_RUNTIME_VISUAL_STUDIO_EULA"
++_LICENSE_ID = "visual-studio-build-tools"
+ _VISUAL_STUDIO_MANIFEST_COMPONENT = "Microsoft.VisualStudio.Manifests.VisualStudio"
+ _ARCH_TO_MSVC_COMPONENT = {
+     "arm": "Microsoft.VisualStudio.Component.VC.Tools.ARM",
+@@ -24,15 +24,9 @@
+ }
+ 
+ def _check_msvc_license_requirements(ctx):
+-    approval = ctx.getenv(_MSVC_RUNTIME_VISUAL_STUDIO_EULA_ENV)
+-    if approval not in ["1", "yes", "y", "true"]:
+-        fail("""
+-            MSVC license check failed, to resolve that failure please:
+-              1. ensure that your machine is legally allowed to use the MSVC runtime
+-              2. set the environment variable `BAZEL_MSVC_RUNTIME_VISUAL_STUDIO_EULA` to `1`, e.g. via `--repo_env=BAZEL_MSVC_RUNTIME_VISUAL_STUDIO_EULA=1`
+-
+-            See https://visualstudio.microsoft.com/license-terms for more information.
+-        """)
++    accepted = json.decode(ctx.read(ctx.attr.licenses)) if ctx.attr.licenses else []
++    if _LICENSE_ID not in accepted:
++        fail("dx_msvc: the Visual Studio Build Tools license (https://visualstudio.microsoft.com/license-terms/) is not accepted; add dx_licenses.accept(ids = [\"" + _LICENSE_ID + "\"]) to the root MODULE.bazel")
+ 
+ def _resolve_installer_manifest_from_module_facts(
+         module_ctx,
+@@ -543,14 +537,23 @@
+         allow_single_file = True,
+         default = ":msvc_runtime.BUILD.bazel",
+     ),
++    "licenses": attr.label(
++        allow_single_file = True,
++        doc = "JSON list of the accepted license ids",
++    ),
+ }
+ 
+ _msvc_runtime_repository = repository_rule(
+     implementation = _msvc_runtime_repository_impl,
+     attrs = _MSVC_RUNTIME_REPOSITORY_ATTRS,
+-    environ = [_MSVC_RUNTIME_VISUAL_STUDIO_EULA_ENV],
+ )
+ 
++def _read_licenses(module_ctx):
++    for mod in module_ctx.modules:
++        for tag in mod.tags.license:
++            return tag.accepted
++    return None
++
+ def _read_configure_tag(module_ctx):
+     non_root_tag = None
+ 
+@@ -605,7 +608,7 @@
+     ),
+ }
+ 
+-def msvc_runtime_repository(module_ctx, name, config, host_tools):
++def msvc_runtime_repository(module_ctx, name, config, host_tools, licenses):
+     """Declares the MSVC runtime repository from a configure tag.
+ 
+     Args:
+@@ -613,6 +616,7 @@
+         name: name of the repository.
+         config: tag with the msvc_runtime.configure attributes.
+         host_tools: host architectures whose compiler tools are kept.
++        licenses: label of the JSON list of accepted license ids, or None.
+ 
+     Returns:
+         struct with the extension facts and whether the result is reproducible.
+@@ -640,6 +644,7 @@
+         msvc_version = config.msvc_version,
+         architectures = config.architectures,
+         host_tools = host_tools,
++        licenses = licenses,
+         installer_manifest_url = installer_manifest["url"],
+         installer_manifest_integrity = installer_manifest["integrity"],
+     )
+@@ -650,7 +655,7 @@
+ 
+ def _msvc_runtime_extension_impl(module_ctx):
+     repository_name = "msvc_runtime"
+-    result = msvc_runtime_repository(module_ctx, repository_name, _read_configure_tag(module_ctx), _read_host_tools(module_ctx))
++    result = msvc_runtime_repository(module_ctx, repository_name, _read_configure_tag(module_ctx), _read_host_tools(module_ctx), _read_licenses(module_ctx))
+ 
+     metadata_kwargs = {
+         "facts": result.facts,
+@@ -671,6 +676,16 @@
+     implementation = _msvc_runtime_extension_impl,
+     tag_classes = {
+         "configure": tag_class(attrs = MSVC_RUNTIME_CONFIGURE_ATTRS),
++        "license": tag_class(
++            attrs = {
++                "accepted": attr.label(
++                    mandatory = True,
++                    allow_single_file = True,
++                    doc = "JSON list of the accepted license ids; the repository fails unless it holds visual-studio-build-tools.",
++                ),
++            },
++            doc = "Names the file of accepted license ids.",
++        ),
+         "host_tools": tag_class(
+             attrs = {
+                 "hosts": attr.string_list(

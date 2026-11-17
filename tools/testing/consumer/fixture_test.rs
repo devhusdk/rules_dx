@@ -56,7 +56,19 @@ fn workspace(files: &BTreeMap<String, String>) -> PathBuf {
     root
 }
 
-fn init(root: &Path) -> dx_testing::Run {
+/// The license ids the `dx_licenses.accept` tags of the checked-in `MODULE.bazel` list.
+fn accepted_ids(files: &BTreeMap<String, String>) -> Vec<String> {
+    let module = files.get(STORED_MODULE).map_or("", String::as_str);
+    module
+        .split(".accept(ids = [")
+        .skip(1)
+        .filter_map(|tail| tail.split_once("])").map(|(ids, _)| ids))
+        .flat_map(|ids| ids.split('"').skip(1).step_by(2))
+        .map(str::to_owned)
+        .collect()
+}
+
+fn init(root: &Path, licenses: &[String]) -> dx_testing::Run {
     let home = root.with_file_name("home");
     std::fs::create_dir_all(&home).unwrap_or_else(|error| panic!("{}: {error}", home.display()));
     let home = dx_testing::path_text(&home);
@@ -83,6 +95,9 @@ fn init(root: &Path) -> dx_testing::Run {
         .current_dir(root)
         .args(["init", "--apply", "--workspace"])
         .arg(root);
+    for id in licenses {
+        command.args(["--accept-license", id]);
+    }
     dx_testing::run_command(&mut command, Duration::from_secs(60))
         .unwrap_or_else(|error| panic!("dx init --apply: {error}"))
 }
@@ -118,7 +133,7 @@ fn init_writes_the_checked_in_files() {
         "{lang}/tests/consumer holds no source file"
     );
     let root = workspace(&files);
-    let run = init(&root);
+    let run = init(&root, &accepted_ids(&files));
     let line = format!("init {lang}");
     let pending = dx_testing::read_text(&dx_testing::env_file("DX_CONSUMER_PENDING"))
         .lines()

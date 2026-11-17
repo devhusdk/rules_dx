@@ -20,13 +20,13 @@ HUB_NAME = "dx_qt"
 
 VCRUNTIME_FILES = ["vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll", "msvcp140_1.dll", "msvcp140_2.dll"]
 
-SHARED_TARGETS = ["licenses", "needs", "runtime", "sbom"]
+SHARED_TARGETS = {"licenses": "qttools", "needs": "qtbase", "runtime": "qttools", "sbom": "qttools"}
 
 TOOLS = {
     "lrelease": struct(data = [], path = "bin/lrelease"),
     "moc": struct(data = [], path = "libexec/moc"),
-    "qmlformat": struct(data = [":plugins", ":qml_imports"], path = "bin/qmlformat"),
-    "qmllint": struct(data = [":plugins", ":qml_imports"], path = "bin/qmllint"),
+    "qmlformat": struct(data = ["bin/qt.conf", ":plugins", ":qml_imports"], path = "bin/qmlformat"),
+    "qmllint": struct(data = ["bin/qt.conf", ":plugins", ":qml_imports"], path = "bin/qmllint"),
     "qmltyperegistrar": struct(data = [], path = "libexec/qmltyperegistrar"),
     "rcc": struct(data = [], path = "libexec/rcc"),
     "uic": struct(data = [], path = "libexec/uic"),
@@ -95,6 +95,10 @@ _CLOSURE_DEPS = [":closure", ":gui_closure"]
 
 _LAUNCHERS = {"exec": "", "posix": "_launcher"}
 
+_MODULE_FILES = {"qtbase": "Core", "qtdeclarative": "Qml", "qttools": "Linguist"}
+
+_LINKED = ["bin", "lib", "metatypes", "plugins", "qml"]
+
 _LIBRARIES = {
     "core": struct(define = "QT_CORE_LIB", deps = [":closure"], headers = ["QtCore"], module = "qtbase", name = "Core"),
     "dbus": struct(define = "QT_DBUS_LIB", deps = [":core"], headers = ["QtDBus"], module = "qtbase", name = "DBus"),
@@ -131,8 +135,21 @@ int main(int argc, char **argv) {
 """
 
 def cell_repository_name(cell):
-    """Returns the repository name one qualified cell is acquired into."""
+    """Returns the repository name prefix of one qualified cell."""
     return _CELL_PREFIX + cell
+
+def module_repository_name(cell, module):
+    """Returns the repository name one Qt module of one qualified cell is acquired into."""
+    return cell_repository_name(cell) + "_" + module
+
+def target_module(target):
+    """Returns the Qt module whose repository defines one hub target."""
+    if target in SHARED_TARGETS:
+        return SHARED_TARGETS[target]
+    for module in sorted(MODULES.keys()):
+        if target in MODULES[module].targets:
+            return module
+    return None
 
 def qualified_cells(cells = CELLS):
     """Returns the cells with pinned archives and probe evidence."""
@@ -140,7 +157,7 @@ def qualified_cells(cells = CELLS):
 
 def hub_targets():
     """Returns every target name the hub repository exposes."""
-    names = list(SHARED_TARGETS)
+    names = list(SHARED_TARGETS.keys())
     for module in MODULES.values():
         names.extend(module.targets)
     return sorted(names)
@@ -319,20 +336,6 @@ def pin_errors(cells = CELLS):
             texts[cell + ": " + key] = runtime.license_texts[key]
     errors.extend(license_text_errors(texts))
     return errors
-
-def resolve_modules(modules):
-    """Returns the requested modules closed over their requirements, sorted."""
-    resolved = {}
-    pending = list(modules)
-    for _ in range(len(MODULES) + len(modules)):
-        if len(pending) == 0:
-            break
-        name = pending.pop()
-        if name in resolved or name not in MODULES:
-            continue
-        resolved[name] = True
-        pending.extend(MODULES[name].requires)
-    return sorted(resolved.keys())
 
 def default_request():
     """Returns the request a bare or absent qt.configure() makes."""
@@ -558,7 +561,7 @@ def hub_build(cells, rules, constraints = None, no_match = None):
         lines.append('    name = "%s",' % target)
         lines.append("    actual = select({")
         for cell in sorted(cells.keys()):
-            lines.append('        ":%s": "@%s//:%s",' % (cell, cells[cell], target))
+            lines.append('        ":%s": "@%s_%s//:%s",' % (cell, cells[cell], target_module(target), target))
         lines.append("    }, no_match_error = \"%s\")," % no_match)
         lines.append('    visibility = ["//visibility:public"],')
         lines.append(")")
@@ -586,8 +589,13 @@ def _unsupported(name, reason):
         "",
     ]
 
-def _library(name, spec, layout, closures):
-    deps = [dep for dep in spec.deps if closures or dep not in _CLOSURE_DEPS]
+def _dep_label(dep, module, prefix):
+    name = dep.removeprefix(":")
+    owner = _LIBRARIES[name].module if name in _LIBRARIES else "qtbase"
+    return dep if owner == module else "@%s_%s//:%s" % (prefix, owner, name)
+
+def _library(name, spec, layout, closures, prefix):
+    deps = [_dep_label(dep, spec.module, prefix) for dep in spec.deps if closures or dep not in _CLOSURE_DEPS]
     library = "lib/" + layout.library(spec.name)
     lines = []
     if layout.link == "import":
@@ -608,6 +616,8 @@ def _library(name, spec, layout, closures):
         ]
     else:
         link = ['    srcs = ["%s"],' % library]
+    if closures and spec.module != "qtbase":
+        link = link + ['    data = [":runtime"],']
     return lines + [
         "cc_library(",
         '    name = "%s",' % name,
@@ -684,10 +694,17 @@ def _needs(cell, needs):
         "",
     ]
 
-def cell_build(cell, modules, rules_cc, unsupported, needs, cells = CELLS, tool = ""):
-    """Returns the BUILD file of one acquired cell for the enabled modules."""
+def _merged(name, glob, labels):
+    srcs = glob + "".join([' + ["%s"]' % label for label in labels])
+    return _filegroup(name, srcs)
+
+def cell_build(cell, module, rules_cc, unsupported, needs, cells = CELLS, tool = "", repository = ""):
+    """Returns the BUILD file of one Qt module repository of one acquired cell."""
     entry = cells[cell]
     layout = entry.layout
+    prefix = repository if repository != "" else cell_repository_name(cell)
+    required = ["@%s_%s" % (prefix, name) for name in MODULES[module].requires]
+    owned = [target for target in hub_targets() if target_module(target) == module]
     lines = [
         'load("%s", "cc_binary", "cc_import", "cc_library")' % rules_cc,
         'load("%s", "qt_needs")' % needs,
@@ -700,69 +717,47 @@ def cell_build(cell, modules, rules_cc, unsupported, needs, cells = CELLS, tool 
         'package(default_visibility = ["//visibility:public"])',
         "",
     ]
-    lines.extend(_needs(cell, entry.needs))
     lines.extend(_filegroup("runtime", 'glob(["%s"])' % layout.runtime_glob))
-    lines.extend(_filegroup("licenses", 'glob(["licenses/**"])'))
-    lines.extend(_filegroup("sbom", 'glob(["sbom/*.spdx.json"])'))
-    if entry.runtime != None:
-        lines.extend(_closure(cell, "closure", "core", cells))
-        lines.extend(_closure(cell, "gui_closure", "gui", cells))
-        lines.extend(_filegroup("fonts", "[%s]" % ", ".join(['"fonts/fonts.conf"'] + ['"fonts/%s"' % font.split("/")[-1] for font in entry.runtime.font.fonts])))
-    elif layout.os == "windows":
-        lines.extend(_filegroup("fonts", '["fonts/DejaVuSans.ttf"]'))
+    if len(required) == 0:
+        lines.extend(_filegroup("licenses", 'glob(["licenses/**"])'))
+        lines.extend(_filegroup("sbom", 'glob(["sbom/*.spdx.json"])'))
     else:
-        lines.extend(_filegroup("fonts", "[]"))
-    lines.extend(_filegroup("platforms", "[%s]" % ", ".join(['"plugins/platforms/%s"' % plugin for plugin in layout.platform_plugins])))
-    for name in sorted(layout.display_plugins.keys()):
-        lines.extend(_filegroup("display_" + name, "[%s]" % ", ".join(['"%s"' % plugin for plugin in layout.display_plugins[name]])))
-    for name in sorted(layout.runtime_plugins.keys()):
-        lines.extend(_filegroup("plugins_" + name, "[%s]" % ", ".join(['"%s"' % plugin for plugin in layout.runtime_plugins[name]])))
-    enabled = {}
-    for module in modules:
-        for target in MODULES[module].targets:
-            enabled[target] = module
-    for module in sorted(MODULES.keys()):
-        for target in MODULES[module].targets:
-            if target in enabled:
-                continue
-            lines.extend(_unsupported(target, "Qt module '" + module + "' is not acquired; name '" + target + "' in the modules attribute of the Qt rule"))
+        lines.extend(_merged("licenses", 'glob(["licenses/**"], allow_empty = True)', [label + "//:licenses" for label in required]))
+        lines.extend(_merged("sbom", 'glob(["sbom/*.spdx.json"])', [label + "//:sbom" for label in required]))
+    if "needs" in owned:
+        lines.extend(_needs(cell, entry.needs))
+    if "fonts" in owned:
+        if entry.runtime != None:
+            lines.extend(_closure(cell, "closure", "core", cells))
+            lines.extend(_closure(cell, "gui_closure", "gui", cells))
+            lines.extend(_filegroup("fonts", "[%s]" % ", ".join(['"fonts/fonts.conf"'] + ['"fonts/%s"' % font.split("/")[-1] for font in entry.runtime.font.fonts])))
+        elif layout.os == "windows":
+            lines.extend(_filegroup("fonts", '["fonts/DejaVuSans.ttf"]'))
+        else:
+            lines.extend(_filegroup("fonts", "[]"))
+    if "platforms" in owned:
+        lines.extend(_filegroup("platforms", "[%s]" % ", ".join(['"plugins/platforms/%s"' % plugin for plugin in layout.platform_plugins])))
+        for name in sorted(layout.display_plugins.keys()):
+            lines.extend(_filegroup("display_" + name, "[%s]" % ", ".join(['"%s"' % plugin for plugin in layout.display_plugins[name]])))
+        for name in sorted(layout.runtime_plugins.keys()):
+            lines.extend(_filegroup("plugins_" + name, "[%s]" % ", ".join(['"%s"' % plugin for plugin in layout.runtime_plugins[name]])))
     for name in sorted(_LIBRARIES.keys()):
-        if _LIBRARIES[name].module in modules:
-            lines.extend(_library(name, _LIBRARIES[name], layout, entry.runtime != None))
-    if "metatypes" in enabled:
-        lines.extend([
-            "filegroup(",
-            '    name = "metatypes",',
-            '    srcs = glob(["metatypes/*.json"]),',
-            ")",
-            "",
-        ])
-    if "qml_imports" in enabled:
-        lines.extend([
-            "filegroup(",
-            '    name = "qml_imports",',
-            '    srcs = glob(["qml/**"]),',
-            ")",
-            "",
-            "filegroup(",
-            '    name = "qtqml_qmldir",',
-            '    srcs = ["qml/QtQml/qmldir"],',
-            ")",
-            "",
-            "filegroup(",
-            '    name = "plugins",',
-            '    srcs = glob(["%s"]),' % layout.plugin_glob,
-            ")",
-            "",
-        ])
+        if _LIBRARIES[name].module == module:
+            lines.extend(_library(name, _LIBRARIES[name], layout, entry.runtime != None, prefix))
+    if "metatypes" in owned:
+        lines.extend(_filegroup("metatypes", 'glob(["metatypes/*.json"])'))
+    if "qml_imports" in owned:
+        lines.extend(_filegroup("qml_imports", 'glob(["qml/**"])'))
+        lines.extend(_filegroup("qtqml_qmldir", '["qml/QtQml/qmldir"]'))
+        lines.extend(_filegroup("plugins", 'glob(["%s"])' % layout.plugin_glob))
     for name in sorted(TOOLS.keys()):
-        if name in enabled:
+        if name in owned:
             lines.extend(_tool(name, layout))
     defined = {}
     for line in lines:
         if line.startswith('    name = "'):
             defined[line.split('"')[1]] = True
-    for name in hub_targets():
+    for name in owned:
         if name not in defined:
             lines.extend(_unsupported(name, "not available on the " + cell + " Qt cell"))
     return "\n".join(lines)
@@ -826,6 +821,8 @@ def _place_vcruntime(ctx):
                 ctx.symlink(dll, "bin/" + dll.basename)
 
 def _normalize_frameworks(ctx):
+    if not ctx.path("lib").exists:
+        return
     for framework in ctx.path("lib").readdir():
         if not framework.basename.endswith(".framework"):
             continue
@@ -833,6 +830,23 @@ def _normalize_frameworks(ctx):
         _move_real(ctx, "lib/" + framework.basename + "/Versions/A/Headers", "include/" + name)
         for link in ["Headers", "Resources", name, "Versions/Current"]:
             ctx.delete("lib/" + framework.basename + "/" + link)
+
+def _link_required(ctx, root):
+    own = str(ctx.path(".").realpath) + "/"
+    pending = list(_LINKED)
+    for _ in range(1000000):
+        if len(pending) == 0:
+            return
+        relative = pending.pop()
+        source = root.get_child(relative)
+        if not source.exists:
+            continue
+        target = ctx.path(relative)
+        if not target.exists:
+            ctx.symlink(source, relative)
+        elif source.is_dir and target.is_dir and str(target.realpath).startswith(own):
+            pending.extend([relative + "/" + child.basename for child in source.readdir()])
+    fail("qt: '" + str(root) + "' holds too many entries to link")
 
 def _check_module(ctx, name):
     path = ctx.path("modules/" + name + ".json")
@@ -868,10 +882,15 @@ def _qt_cell_repo_impl(ctx):
     errors = pin_errors(cells) + license_text_errors(texts)
     if len(errors) > 0:
         fail("qt: " + "; ".join(errors))
+    module = ctx.attr.module
+    if module not in MODULES:
+        fail("qt: module '" + module + "' is not one of " + ", ".join(sorted(MODULES.keys())))
+    required = [ctx.path(label).dirname for label in ctx.attr.requires]
+    base = len(MODULES[module].requires) == 0
     entry = cells[ctx.attr.cell]
     layout = entry.layout
     extractor = seven_zip_fetch(ctx, _EXTRACT + "/7zip")
-    for key in _archive_keys(entry) + ctx.attr.modules:
+    for key in (_archive_keys(entry) if base else []) + [module]:
         url = url_for(ctx.attr.cell, key, ctx.attr.mirror, cells)
         archive = _EXTRACT + "/" + entry.archives[key].archive
         ctx.download(url = url, output = archive, sha256 = entry.archives[key].sha256, canonical_id = canonical_id_for(url))
@@ -879,41 +898,43 @@ def _qt_cell_repo_impl(ctx):
         _extract(ctx, extractor, archive, _EXTRACT + "/" + key if key == "icu" or len(kept) > 0 else ".", links = True)
         for path in kept:
             _move_real(ctx, _EXTRACT + "/" + key + "/" + path, path)
-    for library in layout.icu_libraries:
-        _move_real(ctx, _EXTRACT + "/icu/" + library, "lib/" + library)
-    for key in sorted(texts.keys()):
-        if key.startswith("icu/") and len(layout.icu_libraries) == 0:
-            continue
-        ctx.download(url = texts[key].url, output = "licenses/" + key, sha256 = texts[key].sha256)
-    if entry.runtime != None:
-        _acquire_runtime(ctx, extractor, cells)
-    if layout.os == "windows":
-        _place_font(ctx)
-        _place_vcruntime(ctx)
-        ctx.file("licenses/msvc-redistributable/NOTICE.txt", ctx.read(Label("//cc/private/toolchain:notices/MSVC_REDISTRIBUTABLE.txt")))
+    if base:
+        for library in layout.icu_libraries:
+            _move_real(ctx, _EXTRACT + "/icu/" + library, "lib/" + library)
+        for key in sorted(texts.keys()):
+            if key.startswith("icu/") and len(layout.icu_libraries) == 0:
+                continue
+            ctx.download(url = texts[key].url, output = "licenses/" + key, sha256 = texts[key].sha256)
+        if entry.runtime != None:
+            _acquire_runtime(ctx, extractor, cells)
+        if layout.os == "windows":
+            _place_font(ctx)
+            _place_vcruntime(ctx)
+            ctx.file("licenses/msvc-redistributable/NOTICE.txt", ctx.read(Label("//cc/private/toolchain:notices/MSVC_REDISTRIBUTABLE.txt")))
     if layout.link == "framework":
         _normalize_frameworks(ctx)
-    _check_module(ctx, "Core")
-    for module in ctx.attr.modules:
-        if not ctx.path("sbom/" + module + "-" + QT_VERSION + ".spdx.json").exists:
-            fail("qt: the pinned archives carry no sbom/" + module + "-" + QT_VERSION + ".spdx.json")
-    if "qtdeclarative" in ctx.attr.modules:
-        _check_module(ctx, "Qml")
-    if "qttools" in ctx.attr.modules:
-        _check_module(ctx, "Linguist")
+    _check_module(ctx, _MODULE_FILES[module])
+    if not ctx.path("sbom/" + module + "-" + QT_VERSION + ".spdx.json").exists:
+        fail("qt: the pinned archives carry no sbom/" + module + "-" + QT_VERSION + ".spdx.json")
     ctx.delete(_EXTRACT)
-    if layout.launcher == "posix":
+    if not base:
+        ctx.file("bin/qt.conf", "[Paths]\nPrefix = ..\n")
+    for root in required:
+        _link_required(ctx, root)
+    tools = [name for name in sorted(TOOLS.keys()) if name in MODULES[module].targets]
+    if layout.launcher == "posix" and len(tools) > 0:
         ctx.file("launcher/launcher.c", ctx.read(getattr(ctx.attr, _LAUNCHERS[layout.launcher])))
-        for name in sorted(TOOLS.keys()):
+        for name in tools:
             ctx.file("launcher/" + name + ".c", _LAUNCH % (ctx.name, TOOLS[name].path))
     ctx.file("BUILD.bazel", cell_build(
         ctx.attr.cell,
-        ctx.attr.modules,
+        module,
         str(Label("@rules_cc//cc:defs.bzl")),
         str(Label("//qt/private/toolchain:unsupported.bzl")),
         str(Label("//qt/private/toolchain:needs.bzl")),
         cells,
         str(Label("//qt/private/toolchain:tool.bzl")),
+        ctx.attr.prefix,
     ))
     return ctx.repo_metadata(reproducible = True)
 
@@ -932,9 +953,17 @@ qt_cell_repo = repository_rule(
             doc = "Optional https mirror of the Qt online repository.",
             default = "",
         ),
-        "modules": attr.string_list(
-            doc = "Qt modules to acquire, closed over their requirements.",
+        "module": attr.string(
+            doc = "Qt module whose archive this repository extracts.",
             mandatory = True,
+        ),
+        "prefix": attr.string(
+            doc = "Repository name prefix of the cell's module repositories.",
+            mandatory = True,
+        ),
+        "requires": attr.label_list(
+            doc = "BUILD.bazel files of the module repositories whose bin, lib, metatypes, plugins and qml entries are linked in.",
+            default = [],
         ),
         "runtime_mirror": attr.string(
             doc = "Optional https mirror for the Qt runtime packages.",

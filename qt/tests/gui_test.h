@@ -11,4 +11,5 @@ private slots:
   void rendersTheForm();
   void rendersQuickInSoftware();
   void loadsOnlyPinnedLibraries();
+  void loadsOneQtCore();
 };

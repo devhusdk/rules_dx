@@ -19,6 +19,7 @@
 #include <QTest>
 
 #include <algorithm>
+#include <cstdio>
 #include <memory>
 
 #if defined(__APPLE__)
@@ -30,7 +31,6 @@
 
 #include <process.h>
 
-#include <cstdio>
 #include <vector>
 #endif
 
@@ -260,6 +260,25 @@ void GuiTest::loadsOnlyPinnedLibraries() {
     QVERIFY2(names.contains(QLatin1String(name)), name);
   }
 #endif
+}
+
+void GuiTest::loadsOneQtCore() {
+#if defined(_WIN32)
+  const QString core = QStringLiteral("Qt6Core.dll");
+#elif defined(__APPLE__)
+  const QString core = QStringLiteral("QtCore");
+#else
+  const QString core = QStringLiteral("libQt6Core.so.6");
+#endif
+  QStringList loaded;
+  for (const QString &path : MappedObjects()) {
+    if (Soname(path) == core) {
+      loaded.append(path);
+    }
+  }
+  std::fprintf(stderr, "dx-qtcore: %s\n",
+               loaded.join(QLatin1Char(' ')).toUtf8().constData());
+  QVERIFY2(loaded.size() == 1, qPrintable(loaded.join(QLatin1Char('\n'))));
 }
 
 #if defined(_WIN32)

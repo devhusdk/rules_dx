@@ -30,12 +30,12 @@ MODULES = {
     "qtbase": struct(
         files = [],
         requires = [],
-        targets = ["core", "display_cocoa", "display_wayland", "display_xcb", "fonts", "gui", "metatypes", "moc", "network", "platforms", "plugins_imageformats", "plugins_platformthemes", "plugins_tls", "rcc", "test", "uic", "widgets"],
+        targets = ["core", "display_cocoa", "display_wayland", "display_xcb", "fonts", "gui", "moc", "network", "platforms", "plugins_imageformats", "plugins_platformthemes", "plugins_tls", "rcc", "test", "uic", "widgets"],
     ),
     "qtdeclarative": struct(
         files = [],
         requires = ["qtbase"],
-        targets = ["qml", "qml_imports", "qmlformat", "qmllint", "qmltyperegistrar", "qtqml_qmldir", "quick", "quick_test"],
+        targets = ["metatypes", "qml", "qml_imports", "qmlformat", "qmllint", "qmltyperegistrar", "qtqml_qmldir", "quick", "quick_test"],
     ),
     "qttools": struct(
         files = ["bin/lrelease", "modules/Linguist.json", "sbom/qttools-" + QT_VERSION + ".spdx.json"],

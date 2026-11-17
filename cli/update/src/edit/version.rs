@@ -24,7 +24,10 @@ impl WidenVersion {
             WidenVersion::Semver(version) => version.to_string(),
             WidenVersion::GitTag(tag) => tag.clone(),
             WidenVersion::GitCommit(sha) => sha.clone(),
-            WidenVersion::Gem(version) | WidenVersion::Cpan(version) | WidenVersion::Opam(version) | WidenVersion::Release(version) => version.clone(),
+            WidenVersion::Gem(version)
+            | WidenVersion::Cpan(version)
+            | WidenVersion::Opam(version)
+            | WidenVersion::Release(version) => version.clone(),
             WidenVersion::Digest(digest) => digest.clone(),
         }
     }

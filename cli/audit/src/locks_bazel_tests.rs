@@ -495,7 +495,8 @@ fn extension_repos_with_urls_are_listed_with_origin_and_digest() {
 
 #[test]
 fn an_extension_repo_under_several_platform_keys_is_listed_once() {
-    let repo = spec(&serde_json::json!({"url": "https://example.com/a.tgz", "sha256": ARCHIVE_SHA}));
+    let repo =
+        spec(&serde_json::json!({"url": "https://example.com/a.tgz", "sha256": ARCHIVE_SHA}));
     let inputs = extension_inputs_of(serde_json::json!({
         EXT_A: {
             "os:linux": {"generatedRepoSpecs": {"tool": repo.clone()}},

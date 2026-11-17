@@ -229,10 +229,7 @@ struct Preview<'a> {
     edit: &'a dx_adopt::ModuleEdit,
 }
 
-fn preview_lines(
-    preview: &Preview<'_>,
-    files: &[init_files::InitFile],
-) -> (Vec<String>, usize) {
+fn preview_lines(preview: &Preview<'_>, files: &[init_files::InitFile]) -> (Vec<String>, usize) {
     let Preview {
         workspace,
         to,
@@ -477,7 +474,15 @@ fn upgrade_with(
         crate::exec::ide_refresh::refresh(workspace, runner, &invocation.bazel_startup_options)
             .map(|error| error.message().to_owned())
     });
-    finish_upgrade(&preview, ide_warning.as_deref(), conflicts, wrote, bases, out, err)
+    finish_upgrade(
+        &preview,
+        ide_warning.as_deref(),
+        conflicts,
+        wrote,
+        bases,
+        out,
+        err,
+    )
 }
 
 fn conflicted(

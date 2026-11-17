@@ -196,9 +196,14 @@ fn evaluate_ident(
         return TierOutcome::Allow;
     }
     match (lookup(id), tier) {
-        (IdClass::Blocked, _) | (IdClass::Deny, Tier::Distributed) | (IdClass::Unlisted, Tier::Distributed) => TierOutcome::Deny,
+        (IdClass::Blocked, _)
+        | (IdClass::Deny, Tier::Distributed)
+        | (IdClass::Unlisted, Tier::Distributed) => TierOutcome::Deny,
         (IdClass::Review, Tier::Distributed) => TierOutcome::Review,
-        (IdClass::Allow, _) | (IdClass::Review, Tier::Internal) | (IdClass::Deny, Tier::Internal) | (IdClass::Unlisted, Tier::Internal) => TierOutcome::Allow,
+        (IdClass::Allow, _)
+        | (IdClass::Review, Tier::Internal)
+        | (IdClass::Deny, Tier::Internal)
+        | (IdClass::Unlisted, Tier::Internal) => TierOutcome::Allow,
     }
 }
 

@@ -743,5 +743,8 @@ fn ignore_on_an_instrumented_line_is_clean() {
         "fn a() {{}}\nfn b() {{}} // {} - reason: defensive, issue: 1.\n",
         marker("_LINE")
     );
-    assert_eq!(hygiene_errors(&source, &[(1, 1), (2, 0)]), [] as [String; 0]);
+    assert_eq!(
+        hygiene_errors(&source, &[(1, 1), (2, 0)]),
+        [] as [String; 0]
+    );
 }

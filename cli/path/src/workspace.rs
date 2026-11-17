@@ -14,7 +14,7 @@ impl WorkspaceRelativePath {
         match classify(path) {
             Some(PathProblem::EmptyComponent) | None => {}
             Some(problem) => return Err(problem),
-            }
+        }
         let canonical = path
             .split('/')
             .filter(|component| !component.is_empty())

@@ -93,7 +93,6 @@ impl WorktreeError {
         WorktreeError::refused("git_failed", &format!("git {command} failed: {stderr}"))
     }
 
-
     #[must_use]
     pub fn exit(&self) -> i32 {
         if let Some(signo) = self.signal {

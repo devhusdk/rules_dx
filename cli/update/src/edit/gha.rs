@@ -164,7 +164,8 @@ pub fn parse_workflow_pins(content: &str) -> Result<WorkflowPins, WorkflowYamlEr
                 let (role, is_key, _) = child_role(stack.last());
                 let is_map = matches!(event, Event::MappingStart(..));
                 let role = match (role, is_map) {
-                    (Role::Root | Role::Job | Role::Step | Role::Jobs, true) | (Role::Steps, false) => role,
+                    (Role::Root | Role::Job | Role::Step | Role::Jobs, true)
+                    | (Role::Steps, false) => role,
                     _ => Role::Other,
                 };
                 if is_key {

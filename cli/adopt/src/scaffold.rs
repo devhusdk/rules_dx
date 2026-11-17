@@ -628,8 +628,7 @@ fn merge_owned(kind: FileKind, existing: &str, generated: &str) -> Result<String
                     other.as_str().map(str::to_lowercase) == id.as_str().map(str::to_lowercase)
                 });
                 if !skipped {
-                    text =
-                        dx_merge::jsonc::append_missing(&text, &["recommendations"], &id)?;
+                    text = dx_merge::jsonc::append_missing(&text, &["recommendations"], &id)?;
                 }
             }
             let stale: Vec<serde_json::Value> = TOOL_EDITOR_EXTENSIONS

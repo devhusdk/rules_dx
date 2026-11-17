@@ -134,8 +134,7 @@ jobs:
           DX_FLAGS: ${{ inputs.flags }}
           DX_RELOCATE: ${{ inputs.relocate }}
         run: |
-          bazel build --noshow_progress //tools/ci/producers:producers_bin
-          "$(bazel info bazel-bin)/tools/ci/producers/producers_bin" --evidence-inputs
+          bazel run --noshow_progress //tools/ci/producers:producers_bin -- --evidence-inputs
       - name: Build and qualify the release cell
         if: ${{ inputs.release_cell }}
         env:

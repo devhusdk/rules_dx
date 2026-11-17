@@ -241,8 +241,7 @@ fn the_workflow_validates_with_producers_bin_after_setting_up_bazel() {
         .expect("evidence.yml validates its inputs");
     let run = steps[validate]["run"].as_str().unwrap_or_default();
     assert!(
-        run.contains("bazel build --noshow_progress //tools/ci/producers:producers_bin")
-            && run.contains("producers_bin\" --evidence-inputs"),
+        run.contains("bazel run --noshow_progress //tools/ci/producers:producers_bin -- --evidence-inputs"),
         "{run}"
     );
     assert_eq!(validate, setup + 1);

@@ -39,7 +39,7 @@ Upstream class, as ecosystem (languages): manifest; lock; hub.
 - `cargo` (rust): `Cargo.toml`; `Cargo.lock`; `crates`.
 - `uv` (python): `pyproject.toml`; `uv.lock`; `pypi`.
 - `npm` (javascript, typescript, astro, mdx, svelte, vue): `package.json`; `pnpm-lock.yaml`; `npm`.
-- `pub` (dart, flutter): `pubspec.yaml`; `pubspec.lock`; `pub`.
+- `pub` (dart, flutter): `pubspec.yaml`; `pubspec.lock`; resolver `@rules_dx//dart/private/tools/lock`; `pub`.
 - `go` (go): `go.mod`; `go.sum`; `*`.
 - `maven` (java, kotlin, scala): `libs.versions.toml`; `maven_install.json`; resolver `@rules_dx//java/private/tools/lock`; `maven`.
 - `julia` (julia): `Project.toml`; `Manifest.bazel.json`; `julia`.
@@ -121,6 +121,7 @@ dx class, as ecosystem (languages): manifest; state; hub. The lock is `<ecosyste
 - A dx class lock is stale when an `inputs` file has another sha256. For the upstream class the resolver's frozen mode decides.
 - The step runs the resolver rules_dx pins by sha256, starts no host program (see `host-tools.md`) and keeps the resolver's home, cache and config in a scratch directory.
 - The `maven` resolver runs the rules_jvm_external Maven resolver with the pinned JDK. It reads `libs.versions.toml` and writes `maven_install.json`.
+- The `pub` resolver runs `pub get` of the pinned Dart SDK on a copy of `pubspec.yaml` and `pubspec.lock` and writes `pubspec.lock`.
 - A step whose `inputs` match makes no network request. A package with unchanged name, version and URLs keeps its entry with no download.
 
 ## Imports

@@ -83,6 +83,20 @@ index 9fbe27f..b09270f 100644
      ghc_version = [int(x) for x in hs.toolchain.version.split(".")]
      if dynamic_file:
          # See Note [No PIE when linking] in haskell/private/actions/link.bzl
+@@ -315,11 +329,9 @@ def _prepare_cabal_inputs(
+     #   themselves statically built, this is just a case of passing `-static` to
+     #   the linker used by `hsc2hs` (which will be our own wrapper script which
+     #   eventually calls `gcc`, etc.).
+-    if hs.toolchain.static_runtime:
++    if hs.toolchain.static_runtime and not hs.toolchain.is_windows:
+         extra_args.append("--ghc-option=-fPIC")
+-
+-        if not hs.toolchain.is_windows:
+-            extra_args.append("--ghc-option=-fexternal-dynamic-refs")
++        extra_args.append("--ghc-option=-fexternal-dynamic-refs")
+ 
+     if hs.toolchain.fully_static_link:
+         extra_args.append("--hsc2hs-option=--lflag=-static")
 @@ -334,7 +341,7 @@ def _prepare_cabal_inputs(
      if with_profiling:
          extra_args.append("--enable-profiling")

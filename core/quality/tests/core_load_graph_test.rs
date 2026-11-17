@@ -38,12 +38,6 @@ const PENDING_TOOL_PACKAGES: &[&str] = &[
 /// Top-level packages `core/` may load from or point labels into.
 const CORE_PACKAGES: &[&str] = &["cli", "config", "core", "tools"];
 
-/// Files whose `//` loads and labels may still reach a language package; this list only shrinks.
-const PENDING_LANGUAGE_REACH: &[&str] = &[
-    "core/quality/families/core_probe.bzl",
-    "core/quality/tools.bzl",
-];
-
 /// External repositories named by `"@repo//` labels in `actual =` and `select()` values of `text`.
 fn alias_repos(text: &str) -> BTreeSet<String> {
     text.split("\"@")
@@ -296,7 +290,7 @@ fn core_reaches_no_language_package() {
             .into_iter()
             .filter(|label| reaches_language(label))
             .collect();
-        if !bad.is_empty() && !PENDING_LANGUAGE_REACH.contains(&path.as_str()) {
+        if !bad.is_empty() {
             offenders.insert(path, bad);
         }
     }
@@ -304,16 +298,4 @@ fn core_reaches_no_language_package() {
         offenders.is_empty(),
         "core loads or labels reach a language package or a private/ package:\n{offenders:#?}"
     );
-}
-
-#[test]
-fn pending_language_reach_still_offends() {
-    let source = dx_testing::source_snapshot();
-    for path in PENDING_LANGUAGE_REACH {
-        let found = loaded_labels(&dx_testing::read_text(&source.join(path)));
-        assert!(
-            found.iter().any(|label| reaches_language(label)),
-            "{path} reaches no language package; drop it from PENDING_LANGUAGE_REACH"
-        );
-    }
 }

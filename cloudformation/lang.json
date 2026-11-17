@@ -34,6 +34,11 @@
       "lint": [
         "real_cloudformation_lint_aspect"
       ]
+    },
+    "probes": {
+      "lint": [
+        "real_cloudformation_lint_probe_aspect"
+      ]
     }
   }
 }

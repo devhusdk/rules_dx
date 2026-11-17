@@ -38,6 +38,14 @@
       "lint": [
         "real_cmake_lint_aspect"
       ]
+    },
+    "probes": {
+      "format": [
+        "real_cmake_format_probe_aspect"
+      ],
+      "lint": [
+        "real_cmake_lint_probe_aspect"
+      ]
     }
   }
 }

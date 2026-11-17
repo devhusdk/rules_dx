@@ -56,6 +56,14 @@
       "lint": [
         "real_bicep_lint_aspect"
       ]
+    },
+    "probes": {
+      "format": [
+        "real_bicep_format_probe_aspect"
+      ],
+      "lint": [
+        "real_bicep_lint_probe_aspect"
+      ]
     }
   }
 }

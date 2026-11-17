@@ -1,6 +1,6 @@
 """SQL real quality aspects."""
 
-load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
+load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 load("//sql/private:providers.bzl", "SqlDialectInfo")
 
 TOOLS = {
@@ -66,3 +66,15 @@ _CFG = real_config(
 real_sql_format_aspect = real_make_aspect(_CFG, "real_sql_format")
 
 real_sql_lint_aspect = real_make_aspect(_CFG, "real_sql_lint")
+
+SqlShardProbeInfo = provider(
+    doc = "Shard names the sql shard probe found for one target and capability.",
+    fields = {
+        "capability": "lint, format or typecheck",
+        "shards": "sorted shard names whose tool filter keeps a resolved stage",
+    },
+)
+
+real_sql_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "sql", SqlShardProbeInfo)
+
+real_sql_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "sql", SqlShardProbeInfo)

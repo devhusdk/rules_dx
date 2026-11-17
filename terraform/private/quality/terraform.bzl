@@ -2,7 +2,7 @@
 
 load("//core/quality:family_hooks.bzl", "default_files_hook")
 load("//core/quality:pipeline.bzl", "real_request_tool_env")
-load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
+load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 load("//terraform/private:providers.bzl", "TerraformModuleInfo")
 
 TOOLS = {
@@ -80,3 +80,17 @@ real_terraform_format_aspect = real_make_aspect(_CFG, "real_terraform_format")
 real_terraform_lint_aspect = real_make_aspect(_CFG, "real_terraform_lint")
 
 real_terraform_typecheck_aspect = real_make_aspect(_CFG, "real_terraform_typecheck")
+
+TerraformShardProbeInfo = provider(
+    doc = "Shard names the terraform shard probe found for one target and capability.",
+    fields = {
+        "capability": "lint, format or typecheck",
+        "shards": "sorted shard names whose tool filter keeps a resolved stage",
+    },
+)
+
+real_terraform_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "terraform", TerraformShardProbeInfo)
+
+real_terraform_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "terraform", TerraformShardProbeInfo)
+
+real_terraform_typecheck_probe_aspect = real_make_probe_aspect(_CFG, "typecheck", "terraform", TerraformShardProbeInfo)

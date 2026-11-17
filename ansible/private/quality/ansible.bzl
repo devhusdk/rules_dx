@@ -1,6 +1,6 @@
 """Ansible real quality aspects (ansible-lint)."""
 
-load("//core/quality:real_core.bzl", "real_config", "real_make_aspect")
+load("//core/quality:real_core.bzl", "real_config", "real_make_aspect", "real_make_probe_aspect")
 
 TOOLS = {
     "ansible_lint": {
@@ -26,3 +26,13 @@ _CFG = real_config(
 )
 
 real_ansible_lint_aspect = real_make_aspect(_CFG, "real_ansible_lint")
+
+AnsibleShardProbeInfo = provider(
+    doc = "Shard names the ansible shard probe found for one target and capability.",
+    fields = {
+        "capability": "lint, format or typecheck",
+        "shards": "sorted shard names whose tool filter keeps a resolved stage",
+    },
+)
+
+real_ansible_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "ansible", AnsibleShardProbeInfo)

@@ -73,7 +73,12 @@ LANGS = json.decode("""{
       "file_extensions": [
         ".yaml",
         ".yml"
-      ]
+      ],
+      "probes": {
+        "lint": [
+          "real_ansible_lint_probe_aspect"
+        ]
+      }
     },
     "setup": {
       "hubs": [
@@ -356,7 +361,15 @@ LANGS = json.decode("""{
       "file_extensions": [
         ".bicep",
         ".bicepparam"
-      ]
+      ],
+      "probes": {
+        "format": [
+          "real_bicep_format_probe_aspect"
+        ],
+        "lint": [
+          "real_bicep_lint_probe_aspect"
+        ]
+      }
     },
     "setup": {
       "hubs": [
@@ -552,7 +565,12 @@ LANGS = json.decode("""{
         ".yml",
         ".json",
         ".template"
-      ]
+      ],
+      "probes": {
+        "lint": [
+          "real_cloudformation_lint_probe_aspect"
+        ]
+      }
     },
     "title": "CloudFormation",
     "tools": [
@@ -595,7 +613,15 @@ LANGS = json.decode("""{
       ],
       "file_names": [
         "CMakeLists.txt"
-      ]
+      ],
+      "probes": {
+        "format": [
+          "real_cmake_format_probe_aspect"
+        ],
+        "lint": [
+          "real_cmake_lint_probe_aspect"
+        ]
+      }
     },
     "title": "CMake",
     "tools": [
@@ -913,7 +939,12 @@ LANGS = json.decode("""{
       "file_names": [
         "Containerfile",
         "Dockerfile"
-      ]
+      ],
+      "probes": {
+        "lint": [
+          "real_dockerfile_lint_probe_aspect"
+        ]
+      }
     },
     "title": "Dockerfile",
     "tools": [
@@ -1942,7 +1973,15 @@ LANGS = json.decode("""{
         ".json",
         ".yaml",
         ".yml"
-      ]
+      ],
+      "probes": {
+        "format": [
+          "real_kubernetes_format_probe_aspect"
+        ],
+        "lint": [
+          "real_kubernetes_lint_probe_aspect"
+        ]
+      }
     },
     "title": "Kubernetes",
     "tools": [
@@ -2071,7 +2110,15 @@ LANGS = json.decode("""{
         "GNUmakefile",
         "Makefile",
         "makefile"
-      ]
+      ],
+      "probes": {
+        "format": [
+          "real_make_format_probe_aspect"
+        ],
+        "lint": [
+          "real_make_lint_probe_aspect"
+        ]
+      }
     },
     "title": "Make",
     "tools": [
@@ -2678,7 +2725,18 @@ LANGS = json.decode("""{
       "bzl": "rego/private/quality:rego.bzl",
       "file_extensions": [
         ".rego"
-      ]
+      ],
+      "probes": {
+        "format": [
+          "real_rego_format_probe_aspect"
+        ],
+        "lint": [
+          "real_rego_lint_probe_aspect"
+        ],
+        "typecheck": [
+          "real_rego_typecheck_probe_aspect"
+        ]
+      }
     },
     "title": "Rego",
     "tools": [
@@ -2978,7 +3036,15 @@ LANGS = json.decode("""{
       "bzl": "sql/private/quality:sql.bzl",
       "file_extensions": [
         ".sql"
-      ]
+      ],
+      "probes": {
+        "format": [
+          "real_sql_format_probe_aspect"
+        ],
+        "lint": [
+          "real_sql_lint_probe_aspect"
+        ]
+      }
     },
     "title": "SQL",
     "tools": [
@@ -3160,7 +3226,18 @@ LANGS = json.decode("""{
       "file_extensions": [
         ".tf",
         ".tfvars"
-      ]
+      ],
+      "probes": {
+        "format": [
+          "real_terraform_format_probe_aspect"
+        ],
+        "lint": [
+          "real_terraform_lint_probe_aspect"
+        ],
+        "typecheck": [
+          "real_terraform_typecheck_probe_aspect"
+        ]
+      }
     },
     "setup": {
       "hubs": [

@@ -224,7 +224,7 @@ mod tests {
                 let pid = format!("pid {}", std::process::id());
                 assert!(holder.as_deref().expect("holder").contains(&pid));
             }
-            other => panic!("expected busy: {other:?}"), // LCOV_EXCL_LINE - reason: test failure arm, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+            other @ LockError::LockFailed { .. } => panic!("expected busy: {other:?}"), // LCOV_EXCL_LINE - reason: test failure arm, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         }
         assert!(
             busy.to_string()

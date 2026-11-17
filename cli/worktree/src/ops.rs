@@ -141,7 +141,7 @@ impl BaseOwner {
     pub fn slot(&self) -> Option<u32> {
         match self {
             BaseOwner::Slot(slot) => Some(*slot),
-            _ => None,
+            BaseOwner::Orphan => None,
         }
     }
 }

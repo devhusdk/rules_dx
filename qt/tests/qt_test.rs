@@ -50,10 +50,10 @@ const HOST_ROUTES: [(&str, &str); 4] = [
 
 #[cfg(windows)]
 const HOST_ROUTES: [(&str, &str); 4] = [
-    ("PATH", "C:/Qt/6.11.3/msvc2022_64/bin"),
-    ("QML_IMPORT_PATH", "C:/Qt/6.11.3/msvc2022_64/qml"),
-    ("QT_PLUGIN_PATH", "C:/Qt/6.11.3/msvc2022_64/plugins"),
-    ("QT_CONF_PATH", "C:/Qt/6.11.3/msvc2022_64/bin/qt.conf"),
+    ("PATH", "C:/Qt/6.12.0/msvc2022_64/bin"),
+    ("QML_IMPORT_PATH", "C:/Qt/6.12.0/msvc2022_64/qml"),
+    ("QT_PLUGIN_PATH", "C:/Qt/6.12.0/msvc2022_64/plugins"),
+    ("QT_CONF_PATH", "C:/Qt/6.12.0/msvc2022_64/bin/qt.conf"),
 ];
 
 #[cfg(target_os = "linux")]
@@ -563,7 +563,7 @@ fn qmllint_reports_clean_files_as_json() {
     let run = lint(&file, &[]);
     assert_eq!(run.status.code(), Some(0), "{}", run.combined());
     let report: Value = dx_testing::serde_json::from_str(&run.stdout).expect("JSON report");
-    assert_eq!(report["revision"], 4);
+    assert_eq!(report["revision"], 6);
     assert_eq!(report["files"][0]["success"], true);
     assert_eq!(report["files"][0]["warnings"], Value::Array(Vec::new()));
 }

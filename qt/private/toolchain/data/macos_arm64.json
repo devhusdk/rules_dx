@@ -1,19 +1,19 @@
 {
 	"archives": {
 		"qtbase": {
-			"archive": "6.11.3-0-202610220312qtbase-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z",
-			"sha256": "fb9e4a68f2d217dcea330208a79b087b3f729cc7118ff2ca40be193cf80c7606"
+			"archive": "6.12.0-0-202609280346qtbase-MacOS-MacOS_26-Clang-MacOS-MacOS_26-X86_64-ARM64.7z",
+			"sha256": "1e0df66ed17ae97997971ff481983c5c0b7497a52ef52f699725701401fd80ee"
 		},
 		"qtdeclarative": {
-			"archive": "6.11.3-0-202610220312qtdeclarative-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z",
-			"sha256": "fc5b473993cc148e05209de888df35b217175a3d08e2dfac856d0bb70394bb2e"
+			"archive": "6.12.0-0-202609280346qtdeclarative-MacOS-MacOS_26-Clang-MacOS-MacOS_26-X86_64-ARM64.7z",
+			"sha256": "6b070cade4201db28ed34f65331085c3916a718bc6a30ea24c2f57e67debacea"
 		},
 		"qttools": {
-			"archive": "6.11.3-0-202610220312qttools-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z",
-			"sha256": "95a53ddafffcaea6f01f2ea1e4b1aed62b6c868188ce06d4edf15c5233dfb2a4"
+			"archive": "6.12.0-0-202609280346qttools-MacOS-MacOS_26-Clang-MacOS-MacOS_26-X86_64-ARM64.7z",
+			"sha256": "c503c114fbb96a2c2dad07fae4d195cb800ab498c9deb440c879e657ec14e8f8"
 		}
 	},
-	"directory": "mac_x64/desktop/qt6_6113/qt6_6113/qt.qt6.6113.clang_64",
+	"directory": "mac_x64/desktop/qt6_6120/qt6_6120/qt.qt6.6120.clang_64",
 	"needs": {
 		"library": {
 			"QtConcurrent.framework": [
@@ -90,7 +90,8 @@
 				"QtQmlWorkerScript.framework",
 				"QtQuick.framework",
 				"QtQuickControls2Impl.framework",
-				"QtQuickTemplates2.framework"
+				"QtQuickTemplates2.framework",
+				"QtWidgets.framework"
 			],
 			"QtLabsStyleKitImpl.framework": [
 				"QtCore.framework",
@@ -103,7 +104,8 @@
 				"QtQmlModels.framework",
 				"QtQmlWorkerScript.framework",
 				"QtQuick.framework",
-				"QtQuickTemplates2.framework"
+				"QtQuickTemplates2.framework",
+				"QtWidgets.framework"
 			],
 			"QtLabsSynchronizer.framework": [
 				"QtCore.framework",
@@ -149,6 +151,11 @@
 				"QtQml.framework"
 			],
 			"QtQmlCore.framework": [
+				"QtCore.framework",
+				"QtNetwork.framework",
+				"QtQml.framework"
+			],
+			"QtQmlDesignSupport.framework": [
 				"QtCore.framework",
 				"QtNetwork.framework",
 				"QtQml.framework"
@@ -236,6 +243,19 @@
 				"QtQuickControls2Impl.framework",
 				"QtQuickTemplates2.framework"
 			],
+			"QtQuickControls2FluentWinUI3.framework": [
+				"QtCore.framework",
+				"QtGui.framework",
+				"QtNetwork.framework",
+				"QtOpenGL.framework",
+				"QtQml.framework",
+				"QtQmlModels.framework",
+				"QtQuick.framework",
+				"QtQuickControls2FluentWinUI3StyleImpl.framework",
+				"QtQuickControls2Fusion.framework",
+				"QtQuickControls2Impl.framework",
+				"QtQuickTemplates2.framework"
+			],
 			"QtQuickControls2FluentWinUI3StyleImpl.framework": [
 				"QtCore.framework",
 				"QtGui.framework",
@@ -273,6 +293,22 @@
 				"QtQmlModels.framework",
 				"QtQmlWorkerScript.framework",
 				"QtQuick.framework",
+				"QtQuickControls2Impl.framework",
+				"QtQuickTemplates2.framework"
+			],
+			"QtQuickControls2IOS.framework": [
+				"QtCore.framework",
+				"QtGui.framework",
+				"QtNetwork.framework",
+				"QtOpenGL.framework",
+				"QtQml.framework",
+				"QtQmlMeta.framework",
+				"QtQmlModels.framework",
+				"QtQmlWorkerScript.framework",
+				"QtQuick.framework",
+				"QtQuickControls2.framework",
+				"QtQuickControls2Basic.framework",
+				"QtQuickControls2IOSStyleImpl.framework",
 				"QtQuickControls2Impl.framework",
 				"QtQuickTemplates2.framework"
 			],
@@ -333,6 +369,21 @@
 				"QtNetwork.framework",
 				"QtQml.framework"
 			],
+			"QtQuickControls2Macos.framework": [
+				"QtCore.framework",
+				"QtGui.framework",
+				"QtNetwork.framework",
+				"QtOpenGL.framework",
+				"QtQml.framework",
+				"QtQmlMeta.framework",
+				"QtQmlModels.framework",
+				"QtQmlWorkerScript.framework",
+				"QtQuick.framework",
+				"QtQuickControls2Fusion.framework",
+				"QtQuickControls2MacOSStyleImpl.framework",
+				"QtQuickNativeStyle.framework",
+				"QtQuickTemplates2.framework"
+			],
 			"QtQuickControls2Material.framework": [
 				"QtCore.framework",
 				"QtGui.framework",
@@ -361,6 +412,12 @@
 				"QtQuick.framework",
 				"QtQuickControls2Impl.framework",
 				"QtQuickTemplates2.framework"
+			],
+			"QtQuickControls2Native.framework": [
+				"QtCore.framework",
+				"QtNetwork.framework",
+				"QtQml.framework",
+				"QtQuickControls2Macos.framework"
 			],
 			"QtQuickControls2Universal.framework": [
 				"QtCore.framework",
@@ -445,6 +502,18 @@
 				"QtQmlModels.framework",
 				"QtQmlWorkerScript.framework",
 				"QtQuick.framework"
+			],
+			"QtQuickNativeStyle.framework": [
+				"QtCore.framework",
+				"QtGui.framework",
+				"QtNetwork.framework",
+				"QtOpenGL.framework",
+				"QtQml.framework",
+				"QtQmlMeta.framework",
+				"QtQmlModels.framework",
+				"QtQmlWorkerScript.framework",
+				"QtQuick.framework",
+				"QtQuickTemplates2.framework"
 			],
 			"QtQuickParticles.framework": [
 				"QtCore.framework",
@@ -574,9 +643,11 @@
 			],
 			"Qt/labs/StyleKit/liblabsstylekitplugin.dylib": [
 				"QtCore.framework",
+				"QtGui.framework",
 				"QtLabsStyleKit.framework",
 				"QtNetwork.framework",
-				"QtQml.framework"
+				"QtQml.framework",
+				"QtWidgets.framework"
 			],
 			"Qt/labs/animation/liblabsanimationplugin.dylib": [
 				"QtCore.framework",
@@ -660,6 +731,12 @@
 				"QtQml.framework",
 				"QtQmlNetwork.framework"
 			],
+			"QtQml/DesignSupport/libqmldesignsupportplugin.dylib": [
+				"QtCore.framework",
+				"QtNetwork.framework",
+				"QtQml.framework",
+				"QtQmlDesignSupport.framework"
+			],
 			"QtQml/Models/libmodelsplugin.dylib": [
 				"QtCore.framework",
 				"QtNetwork.framework",
@@ -719,9 +796,8 @@
 				"QtQmlWorkerScript.framework",
 				"QtQuick.framework",
 				"QtQuickControls2.framework",
+				"QtQuickControls2FluentWinUI3.framework",
 				"QtQuickControls2FluentWinUI3StyleImpl.framework",
-				"QtQuickControls2Fusion.framework",
-				"QtQuickControls2Impl.framework",
 				"QtQuickTemplates2.framework"
 			],
 			"QtQuick/Controls/Fusion/impl/libqtquickcontrols2fusionstyleimplplugin.dylib": [
@@ -772,6 +848,12 @@
 				"QtQuickControls2.framework",
 				"QtQuickControls2Material.framework"
 			],
+			"QtQuick/Controls/Native/libqtquickcontrols2nativestyleplugin.dylib": [
+				"QtCore.framework",
+				"QtNetwork.framework",
+				"QtQml.framework",
+				"QtQuickControls2Native.framework"
+			],
 			"QtQuick/Controls/Universal/impl/libqtquickcontrols2universalstyleimplplugin.dylib": [
 				"QtCore.framework",
 				"QtNetwork.framework",
@@ -800,14 +882,10 @@
 				"QtNetwork.framework",
 				"QtOpenGL.framework",
 				"QtQml.framework",
-				"QtQmlMeta.framework",
 				"QtQmlModels.framework",
-				"QtQmlWorkerScript.framework",
 				"QtQuick.framework",
 				"QtQuickControls2.framework",
-				"QtQuickControls2Basic.framework",
-				"QtQuickControls2IOSStyleImpl.framework",
-				"QtQuickControls2Impl.framework",
+				"QtQuickControls2IOS.framework",
 				"QtQuickTemplates2.framework"
 			],
 			"QtQuick/Controls/impl/libqtquickcontrols2implplugin.dylib": [
@@ -843,13 +921,10 @@
 				"QtNetwork.framework",
 				"QtOpenGL.framework",
 				"QtQml.framework",
-				"QtQmlMeta.framework",
 				"QtQmlModels.framework",
-				"QtQmlWorkerScript.framework",
 				"QtQuick.framework",
 				"QtQuickControls2.framework",
-				"QtQuickControls2Fusion.framework",
-				"QtQuickControls2MacOSStyleImpl.framework",
+				"QtQuickControls2Macos.framework",
 				"QtQuickTemplates2.framework"
 			],
 			"QtQuick/Dialogs/libqtquickdialogsplugin.dylib": [
@@ -892,7 +967,7 @@
 				"QtQmlLocalStorage.framework",
 				"QtSql.framework"
 			],
-			"QtQuick/NativeStyle/libqtquickcontrols2nativestyleplugin.dylib": [
+			"QtQuick/NativeStyle/libqtquicknativestyleplugin.dylib": [
 				"QtCore.framework",
 				"QtGui.framework",
 				"QtNetwork.framework",
@@ -903,6 +978,7 @@
 				"QtQmlWorkerScript.framework",
 				"QtQuick.framework",
 				"QtQuickControls2.framework",
+				"QtQuickNativeStyle.framework",
 				"QtQuickTemplates2.framework"
 			],
 			"QtQuick/Particles/libparticlesplugin.dylib": [
@@ -911,23 +987,13 @@
 				"QtNetwork.framework",
 				"QtOpenGL.framework",
 				"QtQml.framework",
-				"QtQmlMeta.framework",
-				"QtQmlModels.framework",
-				"QtQmlWorkerScript.framework",
 				"QtQuick.framework",
 				"QtQuickParticles.framework"
 			],
 			"QtQuick/Shapes/DesignHelpers/libqtquickshapesdesignhelpersplugin.dylib": [
 				"QtCore.framework",
-				"QtGui.framework",
 				"QtNetwork.framework",
-				"QtOpenGL.framework",
 				"QtQml.framework",
-				"QtQmlMeta.framework",
-				"QtQmlModels.framework",
-				"QtQmlWorkerScript.framework",
-				"QtQuick.framework",
-				"QtQuickShapes.framework",
 				"QtQuickShapesDesignHelpers.framework"
 			],
 			"QtQuick/Shapes/libqmlshapesplugin.dylib": [
@@ -1032,6 +1098,6 @@
 			]
 		}
 	},
-	"release": "6.11.3-0-202610220312",
+	"release": "6.12.0-0-202609280346",
 	"runtime": null
 }

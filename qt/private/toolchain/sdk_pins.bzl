@@ -3,5 +3,5 @@
 PINS = {
     "qt_mirror": "https://download.qt.io/online/qtsdkrepository",
     "runtime_mirror": "https://vault.almalinux.org",
-    "version": "6.11.3",
+    "version": "6.12.0",
 }

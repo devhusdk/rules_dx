@@ -828,6 +828,33 @@ mod sh {
     }
 
     #[test]
+    fn worktree_add_and_release_rebuild_a_dx_older_than_the_worktree_sources() {
+        let repo = source_repo("dx-launcher-fast-worktree-src-");
+        repo.run_ok();
+        let inputs = state(&repo.root()).join("inputs");
+        for (i, (sub, src)) in [
+            ("add", "cli/worktree/src/ops.rs"),
+            ("release", "cli/process/src/lib.rs"),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let mut text = std::fs::read_to_string(&inputs).expect("inputs");
+            text.push_str(&format!("//{}\n", src.replacen("/src/", ":src/", 1)));
+            std::fs::write(&inputs, text).expect("inputs");
+            touch_later(&repo.root().join(src));
+            let (code, out, err) = repo.run_in(&repo.root(), &["worktree", sub, "x"]);
+            assert_eq!(
+                (code, out.as_str()),
+                (Some(0), format!("ran worktree {sub} x\n").as_str()),
+                "{err}"
+            );
+            assert!(err.contains("worktree sources are newer"), "{err}");
+            assert_eq!(repo.builds(), 2 + i, "{sub}");
+        }
+    }
+
+    #[test]
     fn worktree_add_prefers_the_copy_then_the_bazel_bin_dx() {
         let repo = source_repo("dx-launcher-fast-copy-");
         repo.run_ok();

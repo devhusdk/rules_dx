@@ -238,12 +238,12 @@ def _dx_env_plan_aspect_impl(target, ctx):
         DX_ENV_PLAN_OUTPUT_GROUP,
         _ENV_PLAN_ASPECT_ATTRS,
     )
-    conflict = env_plan_conflict_error(inputs.merged_records.to_list())
-    if conflict != "":
-        fail("dx_env_plan_aspect on " + display_label(target.label) + ": " + conflict)
+    # Conflicts are checked once on the whole plan, by env_plan_subject and by
+    # dx sync on the collected shards; checking here would flatten the closure
+    # at every node.
     return [
         DxEnvPlanCollectedInfo(records = inputs.merged_records),
-        OutputGroupInfo(dx_env_plans = depset(inputs.direct_files, transitive = inputs.transitive_files)),
+        OutputGroupInfo(dx_env_plans = depset(transitive = inputs.transitive_files)),
     ]
 
 dx_env_plan_aspect = aspect(
@@ -335,6 +335,9 @@ rust_env_shard = rule(
 def _env_plan_subject_impl(ctx):
     target = ctx.attr.target
     records = plan_shard_subject_records(target, DxEnvPlanInfo, DxEnvPlanCollectedInfo)
+    conflict = env_plan_conflict_error(records)
+    if conflict != "":
+        fail("env_plan_subject on " + display_label(target.label) + ": " + conflict)
     shard_files = plan_shard_subject_files(target, DX_ENV_PLAN_OUTPUT_GROUP)
     plan = {
         "files": ",".join([f.basename for f in shard_files]),

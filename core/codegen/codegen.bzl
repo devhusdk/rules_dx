@@ -285,14 +285,18 @@ def _dx_codegen_plan_aspect_impl(target, ctx):
                 transitive_paths.append(dep[DxCodegenSourcesInfo].paths)
     paths = depset(own, transitive = transitive_paths)
     records = inputs.merged_records
-    files = list(inputs.direct_files)
+    files = []
     prost = _prost_plan(target, ctx)
     if prost != None:
         records = depset([prost.record], transitive = [records])
         files.extend(prost.files)
     if prost != None or (DxCodegenPlanInfo in target and target[DxCodegenPlanInfo].direct):
         sources = ctx.actions.declare_file(ctx.label.name + DX_CODEGEN_SOURCES_SUFFIX)
-        ctx.actions.write(sources, "".join([path + "\n" for path in sorted(paths.to_list())]))
+        # Written straight from the depset: dx sync sorts and dedups the lines.
+        lines = ctx.actions.args()
+        lines.set_param_file_format("multiline")
+        lines.add_all(paths)
+        ctx.actions.write(sources, lines)
         files.append(sources)
     return [
         DxCodegenPlanCollectedInfo(records = records),

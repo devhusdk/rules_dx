@@ -25,6 +25,9 @@
   ],
   "quality": {
     "bzl": "kubernetes/private/quality:kubernetes.bzl",
+    "classes": [
+      "kubernetes"
+    ],
     "file_extensions": [
       ".json",
       ".yaml",

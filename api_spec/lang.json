@@ -27,6 +27,10 @@
   ],
   "quality": {
     "bzl": "core/quality:families/generation.bzl",
+    "classes": [
+      "api_spec",
+      "api_spec_ref"
+    ],
     "file_extensions": [
       ".proto"
     ],

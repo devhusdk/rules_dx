@@ -54,6 +54,9 @@
   ],
   "quality": {
     "bzl": "erlang/private/quality:beam.bzl",
+    "classes": [
+      "elixir"
+    ],
     "file_extensions": [
       ".ex",
       ".exs"

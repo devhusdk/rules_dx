@@ -36,6 +36,9 @@
   ],
   "quality": {
     "bzl": "java/private/quality:jvm.bzl",
+    "classes": [
+      "kotlin"
+    ],
     "file_extensions": [
       ".kt",
       ".kts"

@@ -54,6 +54,9 @@
   ],
   "quality": {
     "bzl": "haskell/private/quality:haskell.bzl",
+    "classes": [
+      "haskell"
+    ],
     "file_extensions": [
       ".hs"
     ],

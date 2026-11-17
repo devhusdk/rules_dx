@@ -24,6 +24,9 @@
   ],
   "quality": {
     "bzl": "cloudformation/private/quality:cloudformation.bzl",
+    "classes": [
+      "cloudformation"
+    ],
     "file_extensions": [
       ".yaml",
       ".yml",

@@ -27,6 +27,9 @@
   ],
   "quality": {
     "bzl": "core/quality:families/generation.bzl",
+    "classes": [
+      "thrift"
+    ],
     "file_extensions": [
       ".thrift"
     ],

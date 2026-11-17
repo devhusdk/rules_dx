@@ -54,6 +54,9 @@
   ],
   "quality": {
     "bzl": "java/private/quality:jvm.bzl",
+    "classes": [
+      "java"
+    ],
     "file_extensions": [
       ".java"
     ],

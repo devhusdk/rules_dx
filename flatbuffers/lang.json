@@ -28,6 +28,9 @@
   ],
   "quality": {
     "bzl": "core/quality:families/generation.bzl",
+    "classes": [
+      "flatbuffers"
+    ],
     "file_extensions": [
       ".fbs"
     ],

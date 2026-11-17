@@ -59,6 +59,9 @@
   ],
   "quality": {
     "bzl": "ocaml/private/quality:ocaml.bzl",
+    "classes": [
+      "ocaml"
+    ],
     "file_extensions": [
       ".ml",
       ".mli"

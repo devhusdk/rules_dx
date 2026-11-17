@@ -48,6 +48,9 @@
   ],
   "quality": {
     "bzl": "zig/private/quality:zig.bzl",
+    "classes": [
+      "zig"
+    ],
     "file_extensions": [
       ".zig"
     ],

@@ -21,6 +21,9 @@
   ],
   "quality": {
     "bzl": "sql/private/quality:sql.bzl",
+    "classes": [
+      "sql"
+    ],
     "file_extensions": [
       ".sql"
     ],

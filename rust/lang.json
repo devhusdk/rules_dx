@@ -57,6 +57,9 @@
   ],
   "quality": {
     "bzl": "rust/private/quality:rust.bzl",
+    "classes": [
+      "rust"
+    ],
     "file_extensions": [
       ".rs"
     ],

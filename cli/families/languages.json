@@ -22,6 +22,9 @@
           ]
         },
         "bzl": "ansible/private/quality:ansible.bzl",
+        "classes": [
+          "ansible"
+        ],
         "file_extensions": [
           ".yaml",
           ".yml"
@@ -72,6 +75,10 @@
           ]
         },
         "bzl": "core/quality:families/generation.bzl",
+        "classes": [
+          "api_spec",
+          "api_spec_ref"
+        ],
         "file_extensions": [
           ".proto"
         ],
@@ -112,6 +119,9 @@
       "name": "astro",
       "quality": {
         "bzl": "javascript/private/quality:js.bzl",
+        "classes": [
+          "astro"
+        ],
         "file_extensions": [
           ".astro"
         ]
@@ -139,6 +149,9 @@
           ]
         },
         "bzl": "core/quality:families/generation.bzl",
+        "classes": [
+          "avro"
+        ],
         "file_extensions": [
           ".avsc"
         ]
@@ -156,6 +169,9 @@
           ]
         },
         "bzl": "bicep/private/quality:bicep.bzl",
+        "classes": [
+          "bicep"
+        ],
         "file_extensions": [
           ".bicep",
           ".bicepparam"
@@ -237,6 +253,10 @@
           ]
         },
         "bzl": "cc/private/quality:cc.bzl",
+        "classes": [
+          "c",
+          "cpp"
+        ],
         "file_extensions": [
           ".c",
           ".cc",
@@ -286,6 +306,9 @@
           ]
         },
         "bzl": "cloudformation/private/quality:cloudformation.bzl",
+        "classes": [
+          "cloudformation"
+        ],
         "file_extensions": [
           ".yaml",
           ".yml",
@@ -311,6 +334,9 @@
           ]
         },
         "bzl": "cmake/private/quality:cmake.bzl",
+        "classes": [
+          "cmake"
+        ],
         "file_extensions": [
           ".cmake"
         ],
@@ -385,6 +411,9 @@
           ]
         },
         "bzl": "d/private/quality:d.bzl",
+        "classes": [
+          "d"
+        ],
         "file_extensions": [
           ".d"
         ],
@@ -440,6 +469,9 @@
           ]
         },
         "bzl": "dart/private/quality:dart.bzl",
+        "classes": [
+          "dart"
+        ],
         "file_extensions": [
           ".dart"
         ],
@@ -480,6 +512,9 @@
           ]
         },
         "bzl": "dockerfile/private/quality:dockerfile.bzl",
+        "classes": [
+          "dockerfile"
+        ],
         "file_extensions": [
           ".containerfile",
           ".dockerfile"
@@ -562,6 +597,9 @@
           ]
         },
         "bzl": "erlang/private/quality:beam.bzl",
+        "classes": [
+          "elixir"
+        ],
         "file_extensions": [
           ".ex",
           ".exs"
@@ -608,6 +646,9 @@
           ]
         },
         "bzl": "erlang/private/quality:beam.bzl",
+        "classes": [
+          "erlang"
+        ],
         "file_extensions": [
           ".erl",
           ".hrl"
@@ -637,6 +678,9 @@
           ]
         },
         "bzl": "core/quality:families/generation.bzl",
+        "classes": [
+          "flatbuffers"
+        ],
         "file_extensions": [
           ".fbs"
         ]
@@ -670,6 +714,9 @@
           ]
         },
         "bzl": "fortran/private/quality:fortran.bzl",
+        "classes": [
+          "fortran"
+        ],
         "file_extensions": [
           ".f",
           ".f03",
@@ -729,6 +776,9 @@
           ]
         },
         "bzl": "go/private/quality:go.bzl",
+        "classes": [
+          "go"
+        ],
         "file_extensions": [
           ".go"
         ],
@@ -784,6 +834,9 @@
           ]
         },
         "bzl": "haskell/private/quality:haskell.bzl",
+        "classes": [
+          "haskell"
+        ],
         "file_extensions": [
           ".hs"
         ],
@@ -840,6 +893,9 @@
           ]
         },
         "bzl": "java/private/quality:jvm.bzl",
+        "classes": [
+          "java"
+        ],
         "file_extensions": [
           ".java"
         ],
@@ -898,6 +954,10 @@
           ]
         },
         "bzl": "javascript/private/quality:js.bzl",
+        "classes": [
+          "javascript",
+          "jsx"
+        ],
         "file_extensions": [
           ".cjs",
           ".js",
@@ -967,6 +1027,9 @@
           ]
         },
         "bzl": "julia/private/quality:julia.bzl",
+        "classes": [
+          "julia"
+        ],
         "file_extensions": [
           ".jl"
         ],
@@ -1009,6 +1072,9 @@
       "name": "kotlin",
       "quality": {
         "bzl": "java/private/quality:jvm.bzl",
+        "classes": [
+          "kotlin"
+        ],
         "file_extensions": [
           ".kt",
           ".kts"
@@ -1027,6 +1093,9 @@
           ]
         },
         "bzl": "kubernetes/private/quality:kubernetes.bzl",
+        "classes": [
+          "kubernetes"
+        ],
         "file_extensions": [
           ".json",
           ".yaml",
@@ -1066,6 +1135,9 @@
           ]
         },
         "bzl": "lua/private/quality:lua.bzl",
+        "classes": [
+          "lua"
+        ],
         "file_extensions": [
           ".lua"
         ],
@@ -1109,6 +1181,9 @@
           ]
         },
         "bzl": "make/private/quality:make.bzl",
+        "classes": [
+          "make"
+        ],
         "file_extensions": [
           ".mk"
         ],
@@ -1138,6 +1213,9 @@
       "name": "mdx",
       "quality": {
         "bzl": "javascript/private/quality:js.bzl",
+        "classes": [
+          "mdx"
+        ],
         "file_extensions": [
           ".mdx"
         ]
@@ -1182,6 +1260,9 @@
           ]
         },
         "bzl": "ocaml/private/quality:ocaml.bzl",
+        "classes": [
+          "ocaml"
+        ],
         "file_extensions": [
           ".ml",
           ".mli"
@@ -1239,6 +1320,9 @@
           ]
         },
         "bzl": "perl/private/quality:perl.bzl",
+        "classes": [
+          "perl"
+        ],
         "file_extensions": [
           ".pl",
           ".pm"
@@ -1289,6 +1373,9 @@
           ]
         },
         "bzl": "core/quality:families/php.bzl",
+        "classes": [
+          "php"
+        ],
         "file_extensions": [
           ".php"
         ],
@@ -1340,6 +1427,9 @@
           ]
         },
         "bzl": "powershell/private/quality:powershell.bzl",
+        "classes": [
+          "powershell"
+        ],
         "file_extensions": [
           ".ps1",
           ".psd1",
@@ -1395,6 +1485,10 @@
           ]
         },
         "bzl": "python/private/quality:python.bzl",
+        "classes": [
+          "python",
+          "python_stub"
+        ],
         "file_extensions": [
           ".py",
           ".pyi"
@@ -1454,6 +1548,9 @@
           ]
         },
         "bzl": "rego/private/quality:rego.bzl",
+        "classes": [
+          "rego"
+        ],
         "file_extensions": [
           ".rego"
         ],
@@ -1494,6 +1591,9 @@
           ]
         },
         "bzl": "ruby/private/quality:ruby.bzl",
+        "classes": [
+          "ruby"
+        ],
         "file_extensions": [
           ".rb",
           ".rbs"
@@ -1550,6 +1650,9 @@
           ]
         },
         "bzl": "rust/private/quality:rust.bzl",
+        "classes": [
+          "rust"
+        ],
         "file_extensions": [
           ".rs"
         ],
@@ -1600,6 +1703,9 @@
           ]
         },
         "bzl": "java/private/quality:jvm.bzl",
+        "classes": [
+          "scala"
+        ],
         "file_extensions": [
           ".sc",
           ".scala"
@@ -1618,6 +1724,9 @@
           ]
         },
         "bzl": "sql/private/quality:sql.bzl",
+        "classes": [
+          "sql"
+        ],
         "file_extensions": [
           ".sql"
         ],
@@ -1642,6 +1751,9 @@
       "name": "svelte",
       "quality": {
         "bzl": "javascript/private/quality:js.bzl",
+        "classes": [
+          "svelte"
+        ],
         "file_extensions": [
           ".svelte"
         ]
@@ -1671,6 +1783,9 @@
           ]
         },
         "bzl": "swift/private/quality:swift.bzl",
+        "classes": [
+          "swift"
+        ],
         "file_extensions": [
           ".swift"
         ],
@@ -1717,6 +1832,9 @@
           ]
         },
         "bzl": "terraform/private/quality:terraform.bzl",
+        "classes": [
+          "terraform"
+        ],
         "file_extensions": [
           ".tf",
           ".tfvars"
@@ -1761,6 +1879,9 @@
           ]
         },
         "bzl": "core/quality:families/generation.bzl",
+        "classes": [
+          "thrift"
+        ],
         "file_extensions": [
           ".thrift"
         ]
@@ -1782,6 +1903,10 @@
       "name": "typescript",
       "quality": {
         "bzl": "javascript/private/quality:js.bzl",
+        "classes": [
+          "tsx",
+          "typescript"
+        ],
         "file_extensions": [
           ".cts",
           ".mts",
@@ -1803,6 +1928,9 @@
       "name": "vue",
       "quality": {
         "bzl": "javascript/private/quality:js.bzl",
+        "classes": [
+          "vue"
+        ],
         "file_extensions": [
           ".vue"
         ]
@@ -1832,6 +1960,9 @@
           ]
         },
         "bzl": "zig/private/quality:zig.bzl",
+        "classes": [
+          "zig"
+        ],
         "file_extensions": [
           ".zig"
         ],

@@ -45,6 +45,9 @@
   ],
   "quality": {
     "bzl": "erlang/private/quality:beam.bzl",
+    "classes": [
+      "erlang"
+    ],
     "file_extensions": [
       ".erl",
       ".hrl"

@@ -54,6 +54,9 @@
   ],
   "quality": {
     "bzl": "swift/private/quality:swift.bzl",
+    "classes": [
+      "swift"
+    ],
     "file_extensions": [
       ".swift"
     ],

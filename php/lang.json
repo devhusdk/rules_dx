@@ -54,6 +54,9 @@
   ],
   "quality": {
     "bzl": "core/quality:families/php.bzl",
+    "classes": [
+      "php"
+    ],
     "file_extensions": [
       ".php"
     ],

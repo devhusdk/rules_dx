@@ -1,37 +1,76 @@
 # Contributing
 
-`rules_dx` is a Bazel developer platform. `dx` runs through Bazel.
+This page helps you change rules_dx and get your change merged. rules_dx runs everything through Bazel, the build tool that builds and tests each part of the repo. `tools/dx` is the repo's own copy of `dx`.
 
-```sh
-tools/dx worktree add <branch>
-tools/dx check --apply --affected
-tools/dx test --affected
-bazel run //dx:generate_check
-tools/dx worktree release
+Read [AGENTS.md](AGENTS.md) before you change code, and `docs/design/layout.md` before you add or move a language.
+
+## Make a change
+
+1. Get your own checkout, called a slot, on a new branch:
+
+   ```sh
+   tools/dx worktree add <branch>
+   ```
+
+   Work in the path it prints.
+
+2. Edit the code. Update tests and user docs when behaviour changes. Never edit a generated file by hand; run its generator.
+
+3. Let the formatters and linters fix what they can:
+
+   ```sh
+   tools/dx check --apply --affected
+   ```
+
+   `--affected` limits the run to the Bazel targets your change reaches. A target is one buildable thing, like a library or a test, named by a label such as `//cli/cli:dx`.
+
+4. Run the tests your change reaches:
+
+   ```sh
+   tools/dx test --affected
+   ```
+
+5. Check that generated files are up to date:
+
+   ```sh
+   bazel run //dx:generate_check
+   ```
+
+6. Run the gate before you open the pull request:
+
+   ```sh
+   tools/dx check --affected
+   ```
+
+7. Push, open the pull request, and free your slot:
+
+   ```sh
+   tools/dx worktree release
+   ```
+
+Warnings count as errors. Library crates return typed errors; only binaries turn them into exit codes.
+
+To run everything, use `tools/dx test //...`. `//...` means every target in the repo, so this takes a long time.
+
+## Run tests on another platform
+
+You can run a test on macOS or Windows in CI with `evidence.yml`. If you cannot dispatch workflows, comment on the issue or pull request:
+
+```text
+/evidence platforms=["macos_arm64"] task=test scope=//pkg/...
 ```
 
-Full run: `tools/dx test //...`
-
-Read [AGENTS.md](AGENTS.md) before changing code.
-Read `docs/design/layout.md` before you add or move a language.
-
-- Treat warnings as errors.
-- Run the formatter, linter, and focused tests for your change.
-- Update tests and user docs when behavior changes.
-- Do not edit generated files. Use the generator.
-- Library crates return typed errors. Only binaries map exit codes.
-
-## Add a language
+It dispatches the run and replies with its URL. Each run posts the commit status `evidence/<platform>/<task>/<scope>` on the commit: pending at dispatch, then success, failure or error. Watch it with:
 
 ```sh
-bazel run //tools/new_language -- <lang> [title]
+gh pr checks <n> --watch
 ```
 
-It creates `<lang>/` with `defs.bzl`, `extensions.bzl`, `BUILD.bazel`, `lang.json`, `pins.json`, `private/` and `tests/`. Fill in `lang.json`, then run `bazel run //tools/docs/support_matrix:update`.
+A second run for the same platform, task and scope on one commit replaces the status. The merge-group `gate` job fails when the newest `evidence/*` status on the pull request head is `pending`, `failure` or `error`.
 
-## Remote cache
+## Use the remote cache
 
-Export your BuildBuddy API key and add `--config=bb`:
+A remote cache lets Bazel reuse results that other machines already built. Export your BuildBuddy API key and add `--config=bb`:
 
 ```sh
 export BUILDBUDDY_API_KEY=<key>
@@ -40,27 +79,69 @@ tools/dx test --affected -- --config=bb
 
 `--config=bb` reads the key from the environment through `tools/buildbuddy-credential-helper.sh` on Linux and macOS. Never put the key in `user.bazelrc` or any other rc file, and never pass `--announce_rc`.
 
-A read-only key makes Bazel warn on every build that it cannot upload results. Use `--config=bb-ro` instead of `--config=bb`.
+With a read-only key, Bazel warns on every build that it cannot upload results. Use `--config=bb-ro` instead.
 
-## Quality tests
+## Add a language
 
-- `bazel test //core/quality/testdata:real_results`
-- `bazel test //core/quality/testdata:tool_overrides`
-- `bazel test //core/quality/testdata:runner_matrix`
-- `bazel test //core/quality/testdata:aspects`
-- `bazel test //core/quality/testdata:structure`
-- `bazel test //core/quality:consumer_policy`
-- `bazel test //core/quality:rust_policy`
-- `bazel test //core/quality:scripts`
-- `bazel test //core/quality:starlark_units`
+```sh
+bazel run //tools/new_language -- <lang> [title]
+```
 
-## Evidence status
+It creates `<lang>/` with `defs.bzl`, `extensions.bzl`, `BUILD.bazel`, `lang.json`, `pins.json`, `private/` and `tests/`. Fill in `lang.json`, then refresh the support matrix:
 
-Each `evidence.yml` run posts the commit status `evidence/<platform>/<task>/<scope>` on the dispatched commit: pending at dispatch, then success, failure or error. `gh pr checks <n> --watch` shows it. A second run for the same platform, task and scope on one commit replaces the status. The merge-group `gate` job fails when the newest status of any `evidence/*` context on the pull request head is `pending`, `failure` or `error`.
+```sh
+bazel run //tools/docs/support_matrix:update
+```
 
-## Issues and labels
+## Bump a Bazel module
 
-Use the bug template. Paste `dx status`.
+A Bazel module is a dependency declared with `bazel_dep` in `MODULE.bazel`. For every module that consumers get, the oldest supported version (the floor) equals the version rules_dx tests with. Each one has a `<DEP>_VERSION` in `core/modules/versions.bzl`, and a `# floor: equals tested` line sits right above its `bazel_dep`. Tools parse that line, so keep it as written.
+
+To bump one, set both the tested version and the floor:
+
+```sh
+tools/dx update --apply bazel:<dep> <version>
+tools/dx update --apply --floor --reason "equals tested" bazel:<dep> <version>
+```
+
+Then run the check:
+
+```sh
+bazel test //core/modules:consumer_deps_test
+```
+
+It fails when a floor and its tested version differ, or when a consumer `module_fragment.bazel` file pins a module above its floor. The check matters because rules_dx is never the root module in a consumer's build, so its own `single_version_override`s do not apply there and the consumer resolves the floors.
+
+## Run the quality tests
+
+These cover the `dx check` and `dx quality` machinery in `core/quality/`:
+
+```sh
+bazel test //core/quality/testdata:real_results
+bazel test //core/quality/testdata:tool_overrides
+bazel test //core/quality/testdata:runner_matrix
+bazel test //core/quality/testdata:aspects
+bazel test //core/quality/testdata:structure
+bazel test //core/quality:consumer_policy
+bazel test //core/quality:rust_policy
+bazel test //core/quality:scripts
+bazel test //core/quality:starlark_units
+```
+
+## Get a review
+
+Find out whether your pull request needs a second review:
+
+```sh
+git diff --name-only origin/main...HEAD |
+  bazel run //tools/ci/producers:producers_bin -- --review-paths "$PWD/.github/review-paths.txt"
+```
+
+`bazel run` starts the tool in its own directory, so pass the list by its full path. If it prints any paths, add the `needs-review` label. The pull request is not merged until a fresh session (the `reviewer` agent, not the author) posts a comment starting `Review:` that lists each finding as `file:line`, or says it found none. The daily `issue-labels` workflow warns about merged pull requests that skipped this.
+
+## File an issue
+
+Use the bug template and paste the output of `dx status`.
 
 Each issue except pinned guides gets one priority label:
 
@@ -69,35 +150,21 @@ Each issue except pinned guides gets one priority label:
 - `P2`: improve and finish existing features.
 - `P3`: new languages, platforms and features, last.
 
-Other labels: `bug`, `enhancement`, `needs-host` (needs macOS, Windows, GPU, or signing secrets), `tracking`, `needs-review` (see below), `blocked` (waiting on something only the owner can do). A `blocked` issue starts a line of its body with `Blocked on:` followed by `#N` issues, `owner/repo#N` issues or pull requests in other repositories, a pull request or issue URL, or the owner action. Write each cross-repo reference in full: a bare `#N` always means this repository; the daily `issue-labels` workflow removes the label once every named issue is closed or pull request merged, and comments once on a `blocked` issue without the line. The `model:haiku`, `model:sonnet`, `model:opus` and `model:human` labels pick which agent lane handles an issue.
-`dogfood` is an extra label, never the only one.
+Other labels:
 
-A pull request where `git diff --name-only origin/main...HEAD | producers_bin --review-paths` prints paths (the prefixes live in `.github/review-paths.txt`) gets the `needs-review` label. It is not merged until a fresh session (the `reviewer` agent, not the author) posts a comment starting `Review:` that lists each finding as `file:line`, or says it found none. The daily `issue-labels` workflow warns about merged pull requests that skipped this.
+- `bug`, `enhancement`, `tracking`.
+- `needs-host`: needs macOS, Windows, a GPU, or signing secrets.
+- `needs-review`: see [Get a review](#get-a-review).
+- `blocked`: waiting on something only the owner can do.
+- `model:haiku`, `model:sonnet`, `model:opus` and `model:human` pick which agent lane handles the issue.
+- `dogfood`: an extra label, never the only one.
+
+A `blocked` issue has a body line that starts with `Blocked on:`, followed by what it waits for: `#N` issues, `owner/repo#N` issues or pull requests in other repositories, a pull request or issue URL, or the owner action. A bare `#N` always means this repository, so write other repositories in full. The daily `issue-labels` workflow removes the label once every named issue is closed or pull request merged, and comments once on a `blocked` issue without the line.
 
 Filters: [user issues](https://github.com/devhusdk/rules_dx/issues?q=is%3Aissue+is%3Aopen+-label%3Adogfood), [dogfood issues](https://github.com/devhusdk/rules_dx/issues?q=is%3Aissue+is%3Aopen+label%3Adogfood).
 
-## Dependency floors
+## The local dx copy
 
-Every consumer-facing (non-dev) `bazel_dep` in the root `MODULE.bazel` has its
-versions in `core/modules/versions.bzl`:
+`.dx/local/launcher` holds a copy (about 50 MB) of the last dx you built. `tools/dx worktree add`, `release` and `hook` run that copy without rebuilding, so they never wait on Bazel. Any other `tools/dx` command, or `bazel build //:dx`, rebuilds dx first when its source changed. Both launchers run dx from the copy, so a running dx never locks `bazel-bin`; `dx.exe.old.*` files may stay while an old dx is still running.
 
-- `<DEP>_VERSION` when the floor and the tested version are the same.
-- `FLOOR_<DEP>` and `TESTED_<DEP>` when they differ.
-
-The floor equals the tested version for every consumer dep (#6016): only the
-tested versions are supported. `//core/modules:consumer_deps_test` fails when they differ.
-
-A `# floor: equals tested` comment directly above each `bazel_dep` marks this.
-Tools parse that marker, so keep it as written. To bump a dep, set the `bazel_dep`
-version with
-`dx update bazel:<dep> <version>` and
-`dx update bazel:<dep> <version> --floor --reason "equals tested"`.
-
-### Where floors are checked
-
-rules_dx is a non-root module in every consumer, so its root-only
-`single_version_override`s do not apply there and a consumer resolves the floors.
-`//core/modules:consumer_deps_test` keeps the hermetic consumer `module_fragment.bazel`
-files from pinning a consumer dep above its floor.
-
-`.dx/local/launcher` is a copy (about 50 MB) of the last built dx, kept for worktree hooks and failed rebuilds. `tools/dx worktree add`, `release` and `hook` run the last built dx without rebuilding, so they never wait on Bazel. Any other `tools/dx` command (or `bazel build //:dx`) picks up dx source changes. You can delete it any time and `tools/dx` recreates it. `tools/dx worktree prune --apply --bases` drops it in free slots. Both launchers run dx from this copy, so a running dx never locks bazel-bin; `dx.exe.old.*` files may remain while an old dx is still running.
+You can delete the copy any time; `tools/dx` recreates it. `tools/dx worktree prune --apply --bases` drops it in free slots.

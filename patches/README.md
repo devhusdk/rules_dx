@@ -1,8 +1,28 @@
 # Patches
 
-The `single_version_override`s in rules_dx's own `MODULE.bazel`, with the patches under `patches/`. Bazel honours them only in the root module, so they apply to builds inside this repository. Each Why cell either starts with `Root only.`, for a patch that only rules_dx's own builds need, or ends with `Consumer fix: #N`, the open issue that makes consumers work without the patch.
+This page helps you add, change or drop a patch that rules_dx applies to another Bazel module. A Bazel module is a dependency declared with `bazel_dep` in `MODULE.bazel`.
 
-The Version column is generated from `MODULE.bazel`, and every patch it applies must appear in the table. Refresh it with `bazel run //patches:update_readme`.
+## Add a patch to a module
+
+1. Put the patch file in `patches/<module>/`, for example `patches/rules_rust/my_fix.patch`, and add it to `exports_files` in that directory's `BUILD.bazel`.
+2. Add its label, such as `//patches/rules_rust:my_fix.patch`, to the `patches` list of the module's `single_version_override` in `MODULE.bazel`.
+3. Add a row to the table below. Leave the Version cell as it is; the next step fills it in.
+4. Refresh the page:
+
+   ```sh
+   bazel run //patches:update_readme
+   ```
+
+   It copies each Version from `MODULE.bazel` and fails when a patch that `MODULE.bazel` applies is missing from this page, or a row names a patch that `MODULE.bazel` does not apply.
+
+Bazel applies a `single_version_override` only in the root module, the one you run Bazel in. So these patches change builds inside this repository, not a consumer's build. The Why cell of each row says which kind it is:
+
+- It starts with `Root only.` when only rules_dx's own builds need the patch.
+- It ends with `Consumer fix: #N` when consumers need the fix too. `#N` is the open issue that makes consumers work without the patch.
+
+When the upstream fix is in a release rules_dx uses, delete the patch file, its label and its row, then run `bazel run //patches:update_readme` again.
+
+## Patches in MODULE.bazel overrides
 
 | Module | Version | Patches | Why |
 | --- | --- | --- | --- |
@@ -87,29 +107,22 @@ The Version column is generated from `MODULE.bazel`, and every patch it applies 
 | `rules_oci` | 2.3.0 | `image_index.patch` | `oci_image_index` wraps its shell launcher in a `.bat` on a Windows exec platform. Consumer fix: #11758 |
 | `rules_oci` | 2.3.0 | `image_index_blob.patch` | `oci_image_index` skips blobs already copied from a sibling image. Consumer fix: #11758 |
 | `rules_oci` | 2.3.0 | `image_layout.patch` | `oci_image` writes the base layout's `oci-layout` as a fresh file so regctl can rewrite it on Windows. Consumer fix: #11758 |
-| `rules_flutter` | 0.0.8 | `lock_extension.patch` | Root only. The `flutter` extension is not reproducible, so the lockfile keeps its result |
 
-## rules_swift on Linux
+## Patches in rules_dx repository rules: elvis, rules_d, rules_dart, rules_dotnet, rules_elixir, rules_erlang, rules_flutter, rules_fortran, rules_haskell, rules_julia, rules_ocaml, rules_ruby, windows_support
 
-`assert_swift_consumer` in
-`deploy/private/release/tests/candidate_consumer_test.rs` builds and tests a
-Swift package on BCR `rules_swift` on Linux x86_64.
-
-## elvis, rules_d, rules_dart, rules_dotnet, rules_elixir, rules_erlang, rules_flutter, rules_fortran, rules_haskell, rules_julia, rules_ocaml, rules_ruby, windows_support
-
-No action. `rules_dx` applies these patches in its own repository rules: `lazy_format.patch` (elvis); `pic_link.patch`, `disabled_features.patch` (rules_d); `hermetic_tar.patch` (rules_dart); `module_map_key.patch` (rules_fortran); `engine_labels.patch`, `hermetic_pub.patch` (rules_flutter); `reproducible.patch`, `fsharp_signature.patch`, `nuget_group_prefix.patch`, `sdk_versions.patch`, `canonical_labels.patch`, `toolchains_gate.patch`, `launcher_args.patch`, `target_runtime.patch` (rules_dotnet); `coverage_wrapper_no_report.patch`, `hermetic_haskell.patch`, `cabal_rules.patch`, `cabal_mingw_transition.patch`, `cc_wrapper_relpath_mount.patch`, `ghc_wrapper_runfiles_env.patch`, `cc_toolchain_config_info.patch`, `cabal_llvm_ar.patch`, `cc_wrapper_darwin_ffi.patch`, `cabal_binary_dep_data.patch`, `cabal_static_exe.patch` (rules_haskell); `elixir_app_deps.patch`, `elixir_app_name.patch`, `relocatable_tree.patch`, `warnings_as_errors.patch`, `windows_ex_unit_test.patch` (rules_elixir); `01_xrl_yrl.patch`, `02_tcw_tags.patch`, `03_auto_sname.patch`, `04_otp_tree.patch`, `05_windows_eunit_cover.patch`, `06_coverage_enabled.patch`, `07_windows_ct_cover.patch` (rules_erlang); `config_base_toml.patch`, `package_annotation_version.patch`, `package_name.patch`, `portable_cpu_target.patch`, `template_action_input.patch` (rules_julia); `hermetic_ocaml.patch`, `native_cc_env.patch`, `platform_alias.patch`, `static_cc_deps.patch` (rules_ocaml); `reproducible.patch`, `coverage.patch`, `rubyinstaller_archive.patch`, `toolchains_gate.patch`, `toolchains_hub.patch`, `windows_binary_rlocation.patch` (rules_ruby).
+rules_dx applies these patches in its own repository rules, so consumers get them too and you need to do nothing: `lazy_format.patch` (elvis); `pic_link.patch`, `disabled_features.patch` (rules_d); `hermetic_tar.patch` (rules_dart); `module_map_key.patch` (rules_fortran); `engine_labels.patch`, `hermetic_pub.patch` (rules_flutter); `reproducible.patch`, `fsharp_signature.patch`, `nuget_group_prefix.patch`, `sdk_versions.patch`, `canonical_labels.patch`, `toolchains_gate.patch`, `launcher_args.patch`, `target_runtime.patch` (rules_dotnet); `coverage_wrapper_no_report.patch`, `hermetic_haskell.patch`, `cabal_rules.patch`, `cabal_mingw_transition.patch`, `cc_wrapper_relpath_mount.patch`, `ghc_wrapper_runfiles_env.patch`, `cc_toolchain_config_info.patch`, `cabal_llvm_ar.patch`, `cc_wrapper_darwin_ffi.patch`, `cabal_binary_dep_data.patch`, `cabal_static_exe.patch` (rules_haskell); `elixir_app_deps.patch`, `elixir_app_name.patch`, `relocatable_tree.patch`, `warnings_as_errors.patch`, `windows_ex_unit_test.patch` (rules_elixir); `01_xrl_yrl.patch`, `02_tcw_tags.patch`, `03_auto_sname.patch`, `04_otp_tree.patch`, `05_windows_eunit_cover.patch`, `06_coverage_enabled.patch`, `07_windows_ct_cover.patch` (rules_erlang); `config_base_toml.patch`, `package_annotation_version.patch`, `package_name.patch`, `portable_cpu_target.patch`, `template_action_input.patch` (rules_julia); `hermetic_ocaml.patch`, `native_cc_env.patch`, `platform_alias.patch`, `static_cc_deps.patch` (rules_ocaml); `reproducible.patch`, `coverage.patch`, `rubyinstaller_archive.patch`, `toolchains_gate.patch`, `toolchains_hub.patch`, `windows_binary_rlocation.patch` (rules_ruby).
 
 ## kcov
 
-No action. `MODULE.bazel` patches the kcov v43 archive for `//tools/coverage/kcov`: `aslr.patch` keeps running when ASLR cannot be disabled, `elf_checksum_lock.patch` loads ELF sections before the checksum so elfutils built with locks does not deadlock, and `no_curl.patch` drops the libcurl dependency.
+`MODULE.bazel` patches the kcov v43 archive for `//tools/coverage/kcov`: `aslr.patch` keeps running when ASLR cannot be disabled, `elf_checksum_lock.patch` loads ELF sections before the checksum so elfutils built with locks does not deadlock, and `no_curl.patch` drops the libcurl dependency.
 
 ## libfuzzer_dotnet
 
-No action. `macos_section.patch` puts the extra counters of `libfuzzer-dotnet.cc` in `__DATA,__libfuzz_extra` on macOS. `snprintf.patch` replaces the deprecated `sprintf` call with `snprintf`. Both apply to the `dx_libfuzzer_dotnet` archive.
+`macos_section.patch` puts the extra counters of `libfuzzer-dotnet.cc` in `__DATA,__libfuzz_extra` on macOS. `snprintf.patch` replaces the deprecated `sprintf` call with `snprintf`. Both apply to the `dx_libfuzzer_dotnet` archive.
 
 ## capnproto
 
-No action. `dynamic_cstddef.patch` applies to the `dx_capnproto` source archive.
+`dynamic_cstddef.patch` applies to the `dx_capnproto` source archive.
 
 ## ring (crate annotation)
 

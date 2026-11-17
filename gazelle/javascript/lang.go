@@ -90,9 +90,8 @@ func newLang() *common.SingleLang {
 		LibraryKind:  libraryKind,
 		ExtraKinds:   []string{testKind, binaryKind, linkKind, jsLibraryKind, packageKind},
 		KindDefs: map[string]string{
-			linkKind:      linkDefs,
-			jsLibraryKind: "@aspect_rules_js//js:defs.bzl",
-			packageKind:   "@aspect_rules_js//npm:defs.bzl",
+			linkKind:    linkDefs,
+			packageKind: "@aspect_rules_js//npm:defs.bzl",
 		},
 		Kinds:       javascriptKinds,
 		DefsPackage: "javascript:defs.bzl",

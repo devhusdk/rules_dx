@@ -1,6 +1,5 @@
-load("@aspect_rules_js//js:defs.bzl", "js_library")
-load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
-load("@rules_dx//typescript:defs.bzl", "typescript_binary", "typescript_library")
+load("@rules_dx//javascript:defs.bzl", "js_library")
+load("@rules_dx//typescript:defs.bzl", "ts_config", "typescript_binary", "typescript_library")
 
 # dx: written once, yours to edit
 

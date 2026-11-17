@@ -5,7 +5,6 @@ fixture env
 fixture flutter
 fixture msix
 override archive_override rules_flutter
-override archive_override rules_py
 override override_repo androidsdk
 override override_repo dx_avro_cpp
 override single_version_override avro-cpp
@@ -13,13 +12,12 @@ override single_version_override gcc_toolchain
 override single_version_override grpc
 override single_version_override hermetic_launcher
 override single_version_override llvm
-override single_version_override protobuf
 override single_version_override protoc-gen-validate
 override single_version_override rules_android
 override single_version_override rules_cuda
 override single_version_override rules_dart
 override single_version_override rules_go
-override single_version_override rules_kotlin
+override single_version_override rules_py
 override single_version_override rules_python
 override single_version_override rules_rust
 override single_version_override rules_swift

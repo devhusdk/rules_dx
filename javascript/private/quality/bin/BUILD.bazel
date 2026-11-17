@@ -1,5 +1,8 @@
-load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library")
+load("@aspect_rules_js//js:defs.bzl", "js_binary")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//javascript/private/quality:defs.bzl", "js_tool")
+load("//javascript:defs.bzl", "js_library")
 load("@dx_npm_tools//javascript/private/quality:@bufbuild/protoc-gen-es/package_json.bzl", protoc_gen_es_bin = "bin")
 load("@dx_npm_tools//javascript/private/quality:@microsoft/api-extractor/package_json.bzl", api_extractor_bin = "bin")
 load("@dx_npm_tools//javascript/private/quality:@redocly/cli/package_json.bzl", redocly_bin = "bin")
@@ -7,8 +10,6 @@ load("@dx_npm_tools//javascript/private/quality:esbuild/package_json.bzl", esbui
 load("@dx_npm_tools//javascript/private/quality:gplint/package_json.bzl", gplint_bin = "bin")
 load("@dx_npm_tools//javascript/private/quality:typedoc/package_json.bzl", typedoc_bin = "bin")
 load("@dx_npm_tools//javascript/private/quality:wrangler/package_json.bzl", wrangler_bin = "bin")
-load("//core/quality:fixtures.bzl", "real_source_target")
-load("//javascript/private/quality:defs.bzl", "js_tool")
 
 package(default_visibility = ["//:__subpackages__"])
 

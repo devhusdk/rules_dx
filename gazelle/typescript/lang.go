@@ -95,7 +95,6 @@ func newLang() *typescriptLang {
 		Kinds:        typescriptKinds,
 		DefsPackage:  "typescript:defs.bzl",
 		KindDefs: map[string]string{
-			configKind:  "@aspect_rules_ts//ts:defs.bzl",
 			packageKind: "@aspect_rules_js//npm:defs.bzl",
 		},
 		ImportAttr: "srcs",

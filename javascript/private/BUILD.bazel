@@ -2,10 +2,10 @@
 # gazelle:exclude *.cjs
 # gazelle:exclude *.mjs
 
-load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library")
+load("@aspect_rules_js//js:defs.bzl", "js_binary")
 load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
-load("//javascript:defs.bzl", "javascript_library")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//javascript:defs.bzl", "javascript_library", "js_library")
 
 package(default_visibility = ["//javascript:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
 

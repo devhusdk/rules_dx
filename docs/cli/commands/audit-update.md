@@ -674,7 +674,7 @@ nuget.lock(
 cpan = use_extension("@rules_dx//perl:extensions.bzl", "cpan")
 cpan.lock(
     name = "perl_app_cpan",
-    lock = "//perl/tests/fixtures/perl-app/third_party:cpan.lock.json",
+    lock = "//perl/tests/fixtures/perl_app/third_party:cpan.lock.json",
 )
 ```
 

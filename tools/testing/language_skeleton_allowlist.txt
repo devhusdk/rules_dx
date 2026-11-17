@@ -33,7 +33,6 @@ fixture-hello terraform/tests/conformance/BUILD.bazel
 fixture-hello thrift/tests/conformance/BUILD.bazel
 fixture-name api_spec/tests/refs
 fixture-name api_spec/tests/shared
-fixture-name appimage/tests/fixtures/appimage-app
 fixture-name astro/tests/app
 fixture-name astro/tests/app_config
 fixture-name astro/tests/typecheck
@@ -48,7 +47,6 @@ fixture-name cc/tests/gcc_linux_x86_64
 fixture-name cc/tests/msvc_cross
 fixture-name cc/tests/msvc_x86_64
 fixture-name cc/tests/tags
-fixture-name cuda/tests/fixtures/cuda-app
 fixture-name d/tests/fixtures/d-app
 fixture-name dart/tests/bench
 fixture-name dart/tests/codegen
@@ -76,7 +74,6 @@ fixture-name flutter/tests/negative
 fixture-name flutter/tests/runtime
 fixture-name fortran/tests/negative
 fixture-name fortran/tests/runtime
-fixture-name haskell/tests/fixtures/hackage-exe
 fixture-name haskell/tests/mingw_cc
 fixture-name haskell/tests/negative
 fixture-name haskell/tests/runtime
@@ -91,19 +88,16 @@ fixture-name julia/tests/fixtures/julia-app
 fixture-name kotlin/tests/fixtures/kotlin-app
 fixture-name lua/tests/analysis
 fixture-name lua/tests/bench
-fixture-name lua/tests/fixtures/lua-app
 fixture-name lua/tests/luarocks
 fixture-name lua/tests/negative
 fixture-name lua/tests/runtime
 fixture-name mdx/tests/app
 fixture-name mdx/tests/typecheck
-fixture-name ocaml/tests/fixtures/dune-lib
 fixture-name ocaml/tests/native
 fixture-name ocaml/tests/negative
 fixture-name ocaml/tests/runtime
 fixture-name perl/tests/bench
 fixture-name perl/tests/coverage
-fixture-name perl/tests/fixtures/perl-app
 fixture-name perl/tests/negative
 fixture-name perl/tests/runtime
 fixture-name php/tests/bench
@@ -126,7 +120,6 @@ fixture-name typescript/tests/typecheck_profiles
 fixture-name vue/tests/app
 fixture-name vue/tests/typecheck
 fixture-name zig/tests/fixtures/zig-app
-fixture-name zig/tests/fixtures/zig-deps
 fixture-referenced android/tests/fixtures/native_lib
 fixture-referenced apple/tests/fixtures/macos_bundle
 fixture-referenced apple/tests/fixtures/shared_core

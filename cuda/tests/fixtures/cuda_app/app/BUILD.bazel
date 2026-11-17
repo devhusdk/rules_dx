@@ -1,0 +1,38 @@
+load("@rules_dx//cc:defs.bzl", "cc_binary")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+
+_PUBLIC = ["//visibility:public"]
+
+package(default_visibility = _PUBLIC)
+
+exports_files([
+    "BUILD.bazel",
+    "main.cc",
+    "output_test.sh",
+])
+
+cc_binary(
+    name = "cuda_app",
+    srcs = ["main.cc"],
+    deps = ["//cuda/tests/fixtures/cuda_app/kernels"],
+)
+
+sh_test(
+    name = "output_test",
+    size = "small",
+    srcs = ["output_test.sh"],
+    args = ["$(rootpath :cuda_app)"],
+    data = [":cuda_app"],
+)
+
+filegroup(
+    name = "format_srcs",
+    srcs = ["main.cc"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

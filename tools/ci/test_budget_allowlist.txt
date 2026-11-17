@@ -156,8 +156,8 @@ csharp/tests/fixtures/proto/BUILD.bazel no-size 1
 csharp/tests/fixtures/xunit/BUILD.bazel no-size 2
 cuda/tests/BUILD.bazel no-size 28
 cuda/tests/fixtures/coverage/BUILD.bazel no-size 1
-cuda/tests/fixtures/cuda-app/checks/BUILD.bazel no-size 2
-cuda/tests/fixtures/cuda-app/gpu/BUILD.bazel no-size 1
+cuda/tests/fixtures/cuda_app/checks/BUILD.bazel no-size 2
+cuda/tests/fixtures/cuda_app/gpu/BUILD.bazel no-size 1
 cuda/tests/fixtures/executable/BUILD.bazel no-size 3
 d/tests/fixtures/bench/BUILD.bazel no-size 3
 d/tests/fixtures/cc_interop/BUILD.bazel no-size 1
@@ -346,7 +346,7 @@ haskell/tests/BUILD.bazel no-size 2
 haskell/tests/fixtures/bench/BUILD.bazel no-size 3
 haskell/tests/fixtures/bench/BUILD.bazel size-large 1
 haskell/tests/fixtures/bench/BUILD.bazel timeout-long 1
-haskell/tests/fixtures/hackage-exe/BUILD.bazel no-size 1
+haskell/tests/fixtures/hackage_exe/BUILD.bazel no-size 1
 haskell/tests/fixtures/haskell_app/cli/BUILD.bazel no-size 1
 haskell/tests/fixtures/haskell_app/stock/BUILD.bazel no-size 1
 haskell/tests/mingw_cc/BUILD.bazel no-size 1
@@ -408,8 +408,8 @@ kubernetes/tests/BUILD.bazel no-size 3
 lua/private/runtime/BUILD.bazel no-size 1
 lua/tests/analysis/BUILD.bazel no-size 2
 lua/tests/bench/BUILD.bazel no-size 1
-lua/tests/fixtures/lua-app/diagnostics/BUILD.bazel no-size 1
-lua/tests/fixtures/lua-app/report/BUILD.bazel no-size 1
+lua/tests/fixtures/lua_app/diagnostics/BUILD.bazel no-size 1
+lua/tests/fixtures/lua_app/report/BUILD.bazel no-size 1
 lua/tests/luarocks/BUILD.bazel no-size 1
 lua/tests/negative/BUILD.bazel no-size 1
 lua/tests/runtime/BUILD.bazel no-size 2
@@ -419,7 +419,7 @@ msix/tests/BUILD.bazel size-medium 1
 ocaml/tests/fixtures/bench/BUILD.bazel no-size 4
 ocaml/tests/fixtures/bench/BUILD.bazel size-large 1
 ocaml/tests/fixtures/bench/BUILD.bazel timeout-long 1
-ocaml/tests/fixtures/dune-lib/BUILD.bazel no-size 1
+ocaml/tests/fixtures/dune_lib/BUILD.bazel no-size 1
 ocaml/tests/fixtures/fuzz/BUILD.bazel no-size 2
 ocaml/tests/fixtures/ocaml_app/checksum/BUILD.bazel no-size 1
 ocaml/tests/fixtures/ocaml_app/ledger/BUILD.bazel no-size 1
@@ -433,8 +433,8 @@ patches/windows_support/source_directory_headers_test.bzl no-size 1
 perl/tests/BUILD.bazel no-size 1
 perl/tests/bench/BUILD.bazel no-size 3
 perl/tests/coverage/BUILD.bazel no-size 1
-perl/tests/fixtures/perl-app/cli/BUILD.bazel no-size 1
-perl/tests/fixtures/perl-app/report/BUILD.bazel no-size 1
+perl/tests/fixtures/perl_app/cli/BUILD.bazel no-size 1
+perl/tests/fixtures/perl_app/report/BUILD.bazel no-size 1
 perl/tests/negative/BUILD.bazel no-size 3
 perl/tests/runtime/BUILD.bazel no-size 2
 php/tests/bench/BUILD.bazel no-size 2
@@ -568,4 +568,4 @@ zig/tests/fixtures/zig-app/catalog/BUILD.bazel no-size 1
 zig/tests/fixtures/zig-app/cli/BUILD.bazel no-size 1
 zig/tests/fixtures/zig-app/diagnostics/BUILD.bazel no-size 1
 zig/tests/fixtures/zig-app/digest/BUILD.bazel no-size 1
-zig/tests/fixtures/zig-deps/BUILD.bazel no-size 1
+zig/tests/fixtures/zig_deps/BUILD.bazel no-size 1

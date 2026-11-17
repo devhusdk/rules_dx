@@ -182,7 +182,7 @@ with_gpu_device(
         ("saxpy_gpu", ":saxpy_gpu_test", "8.9"),
         ("rdc_gpu", ":rdc_gpu_test", "8.9"),
         ("cublas_gpu", ":cublas_gpu_test", "8.9"),
-        ("cuda_app_gpu", "//cuda/tests/fixtures/cuda-app/gpu:gpu_test", "8.0"),
+        ("cuda_app_gpu", "//cuda/tests/fixtures/cuda_app/gpu:gpu_test", "8.0"),
     ]
 ]
 

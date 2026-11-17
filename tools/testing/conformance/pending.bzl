@@ -182,16 +182,10 @@ flatbuffers lint_test *
 flatbuffers lock_test *
 flatbuffers pass_test *
 flatbuffers runfiles_test *
-flutter build_test *
-flutter coverage_test *
-flutter cross_test *
-flutter fail_test *
 flutter format_error_test *
 flutter format_test *
 flutter lint_error_test *
 flutter lint_test *
-flutter lock_test *
-flutter pass_test *
 flutter runfiles_test *
 fortran cross_test *
 fortran format_error_test *
@@ -296,8 +290,6 @@ ocaml runfiles_test *
 perl runfiles_test *
 php format_error_test *
 php format_test *
-php lint_error_test *
-php lint_test *
 php runfiles_test *
 powershell runfiles_test *
 python runfiles_test *

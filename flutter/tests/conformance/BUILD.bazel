@@ -1,0 +1,57 @@
+# gazelle:ignore
+load("//flutter:defs.bzl", "flutter_library", "flutter_test")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+flutter_library(
+    name = "conformance",
+    package_name = "conformance",
+    srcs = ["lib/greet.dart"],
+    deps = ["@dx_flutter_deps//:flutter"],
+)
+
+flutter_test(
+    name = "pass_subject_test",
+    size = "small",
+    package_name = "conformance",
+    main = "test/pass_test.dart",
+    target_compatible_with = subject_compatible_with(),
+    deps = [
+        ":conformance",
+        "@dx_flutter_deps//:flutter_test",
+    ],
+)
+
+flutter_test(
+    name = "fail_subject_test",
+    size = "small",
+    package_name = "conformance",
+    main = "test/fail_test.dart",
+    target_compatible_with = subject_compatible_with(),
+    deps = [
+        ":conformance",
+        "@dx_flutter_deps//:flutter_test",
+    ],
+)
+
+dx_conformance_suite(
+    name = "",
+    binary = ":conformance",
+    covered_source = "greet.dart",
+    expected = "",
+    failing_case = "failing_case",
+    failing_pattern = "FAIL  {case}",
+    failing_test = ":fail_subject_test",
+    lang = "flutter",
+    not_applicable = {
+        "build_test": "flutter has no binary rule that prints to stdout",
+        "cross_test": "flutter has no binary rule that prints to stdout",
+        "lock_test": "flutter has no binary rule that prints to stdout",
+    },
+    passing_test = ":pass_subject_test",
+    size = "small",
+)

@@ -32,7 +32,7 @@ Depend on `@psgallery//Pester`. A wrong digest fails the fetch.
 
 `dx generate --apply` writes a `powershell_library` per directory of `.psm1`
 modules and a `powershell_test` per `*.Tests.ps1` script. The
-`powershell/tests/fixtures/adopt-powershell` tree shows a full layout.
+`powershell/tests/fixtures/adopt_powershell` tree shows a full layout.
 
 ## Quality
 

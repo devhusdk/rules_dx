@@ -150,7 +150,7 @@ maven.install(
 
 npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
 npm.npm_translate_lock(name = "npm", pnpm_lock = "//:{npm_lock}")
-npm.npm_translate_lock(name = "npm-adopt", pnpm_lock = "//javascript/tests/fixtures/adopt-js-ts:{npm_lock}")
+npm.npm_translate_lock(name = "npm-adopt", pnpm_lock = "//javascript/tests/fixtures/adopt_js_ts:{npm_lock}")
 npm.npm_translate_lock(name = "npm-adopt-polyglot", pnpm_lock = "//examples/adopt-polyglot:{npm_lock}")
 npm.npm_translate_lock(name = "npm-tools", pnpm_lock = "//javascript/private/quality:{npm_lock}")
 
@@ -305,7 +305,7 @@ const NPM_LOCK: &str = "lockfileVersion: '9.0'\n\npackages:\n\n  'react@18.2.0':
 fn npm_family_locks() -> [String; 3] {
     let lock = lock_of(Ecosystem::Npm);
     [
-        format!("javascript/tests/fixtures/adopt-js-ts/{lock}"),
+        format!("javascript/tests/fixtures/adopt_js_ts/{lock}"),
         format!("examples/adopt-polyglot/{lock}"),
         format!("javascript/private/quality/{lock}"),
     ]
@@ -732,9 +732,9 @@ pub(super) fn audit_live_vendored_mirror_analyzes_offline_like_upstream() {
 pub(super) fn audit_live_npm_family_locks_are_assessed_against_the_shared_npm_snapshot() {
     for (scope, rel) in [
         (
-            "javascript/tests/fixtures/adopt-js-ts/app",
+            "javascript/tests/fixtures/adopt_js_ts/app",
             &format!(
-                "javascript/tests/fixtures/adopt-js-ts/{}",
+                "javascript/tests/fixtures/adopt_js_ts/{}",
                 lock_of(Ecosystem::Npm)
             ),
         ),

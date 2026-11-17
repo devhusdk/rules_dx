@@ -147,7 +147,7 @@ that a local library declares resolves to that library. Any other
 namespace resolves to the package in `paket.lock` that is named after it
 (`Newtonsoft.Json.Linq` is `newtonsoft.json`).
 
-The command reference covers `dx generate`. The `csharp/tests/fixtures/adopt-csharp` tree shows a full run.
+The command reference covers `dx generate`. The `csharp/tests/fixtures/adopt_csharp` tree shows a full run.
 
 ## Quality
 

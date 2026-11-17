@@ -1,15 +1,18 @@
 //! Shared entry point, flag reader and shard writer for the docs extractor binaries.
 
+use std::fmt::Display;
 use std::process::ExitCode;
+
+use dx_error::io::{IoContext as _, IoError};
 
 use crate::proto::DocIr;
 
 /// Prints usage on -h/--help, exits 2 with "<program>: <detail>\n<usage>" on a parse error, 1 with "<program>: <detail>" on a run error.
-pub fn main<O>(
+pub fn main<O, P: Display, R: Display>(
     program: &str,
     usage: &str,
-    parse: impl FnOnce(&[String]) -> Result<O, String>,
-    run: impl FnOnce(&O) -> Result<(), String>,
+    parse: impl FnOnce(&[String]) -> Result<O, P>,
+    run: impl FnOnce(&O) -> Result<(), R>,
 ) -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut stdout = String::new();
@@ -24,12 +27,12 @@ pub fn main<O>(
     ExitCode::from(code)
 }
 
-fn execute<O>(
+fn execute<O, P: Display, R: Display>(
     args: &[String],
     program: &str,
     usage: &str,
-    parse: impl FnOnce(&[String]) -> Result<O, String>,
-    run: impl FnOnce(&O) -> Result<(), String>,
+    parse: impl FnOnce(&[String]) -> Result<O, P>,
+    run: impl FnOnce(&O) -> Result<(), R>,
     stdout: &mut String,
     stderr: &mut String,
 ) -> u8 {
@@ -53,6 +56,30 @@ fn execute<O>(
     }
 }
 
+/// A command line that does not match the extractor's flags.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum FlagError {
+    #[error("unknown argument '{0}'")]
+    Unknown(String),
+    #[error("{0} needs a value")]
+    MissingValue(String),
+    #[error("{0} must not be empty")]
+    Empty(String),
+    #[error("{0} is required")]
+    Required(String),
+    #[error("{0} given more than once")]
+    Repeated(String),
+}
+
+/// A shard that cannot be encoded or written.
+#[derive(Debug, thiserror::Error)]
+pub enum WriteShardError {
+    #[error("cannot encode IR: {0:?}")]
+    Encode(crate::Error),
+    #[error(transparent)]
+    Write(#[from] IoError),
+}
+
 /// The `--flag VALUE` pairs of one invocation.
 #[derive(Debug)]
 pub struct Flags {
@@ -64,7 +91,7 @@ pub struct Flags {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn flags(args: &[String], known: &[&str]) -> Result<Flags, String> {
+pub fn flags(args: &[String], known: &[&str]) -> Result<Flags, FlagError> {
     let mut pairs = Vec::new();
     let mut index = 0;
     while index < args.len() {
@@ -72,13 +99,13 @@ pub fn flags(args: &[String], known: &[&str]) -> Result<Flags, String> {
             break;
         };
         if !known.contains(&flag) {
-            return Err(format!("unknown argument '{flag}'"));
+            return Err(FlagError::Unknown(flag.to_owned()));
         }
         let Some(value) = args.get(index + 1) else {
-            return Err(format!("{flag} needs a value"));
+            return Err(FlagError::MissingValue(flag.to_owned()));
         };
         if value.is_empty() {
-            return Err(format!("{flag} must not be empty"));
+            return Err(FlagError::Empty(flag.to_owned()));
         }
         pairs.push((flag.to_owned(), value.clone()));
         index += 2;
@@ -92,9 +119,9 @@ impl Flags {
     /// # Errors
     ///
     /// Returns an error when the operation fails.
-    pub fn one(&mut self, flag: &str) -> Result<String, String> {
+    pub fn one(&mut self, flag: &str) -> Result<String, FlagError> {
         self.optional(flag)?
-            .ok_or_else(|| format!("{flag} is required"))
+            .ok_or_else(|| FlagError::Required(flag.to_owned()))
     }
 
     /// The value of a flag that may appear at most once.
@@ -102,10 +129,10 @@ impl Flags {
     /// # Errors
     ///
     /// Returns an error when the operation fails.
-    pub fn optional(&mut self, flag: &str) -> Result<Option<String>, String> {
+    pub fn optional(&mut self, flag: &str) -> Result<Option<String>, FlagError> {
         let mut values = self.many(flag);
         if values.len() > 1 {
-            return Err(format!("{flag} given more than once"));
+            return Err(FlagError::Repeated(flag.to_owned()));
         }
         Ok(values.pop())
     }
@@ -125,10 +152,10 @@ impl Flags {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn write_shard(out: &str, shard: &DocIr) -> Result<(), String> {
-    let bytes =
-        crate::encode_shard(shard).map_err(|error| format!("cannot encode IR: {error:?}"))?;
-    std::fs::write(out, bytes).map_err(|error| format!("cannot write {out}: {error}"))
+pub fn write_shard(out: &str, shard: &DocIr) -> Result<(), WriteShardError> {
+    let bytes = crate::encode_shard(shard).map_err(WriteShardError::Encode)?;
+    std::fs::write(out, bytes).write_context(out)?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -141,7 +168,7 @@ mod tests {
 
     fn rejected(list: &[&str]) -> String {
         match flags(&args(list), &["--a", "--b"]) {
-            Err(detail) => detail,
+            Err(detail) => detail.to_string(),
             Ok(_) => String::new(),
         }
     }
@@ -181,7 +208,7 @@ mod tests {
         let mut parsed = flags(&args(&["--a", "1", "--a", "2"]), &["--a"]).unwrap();
         assert_eq!(
             parsed.one("--a"),
-            Err("--a given more than once".to_owned())
+            Err(FlagError::Repeated("--a".to_owned()))
         );
     }
 
@@ -190,14 +217,14 @@ mod tests {
         let mut parsed = flags(&args(&["--a", "1", "--a", "2"]), &["--a"]).unwrap();
         assert_eq!(
             parsed.optional("--a"),
-            Err("--a given more than once".to_owned())
+            Err(FlagError::Repeated("--a".to_owned()))
         );
     }
 
     #[test]
     fn missing_one_is_required() {
         let mut parsed = flags(&args(&[]), &["--a"]).unwrap();
-        assert_eq!(parsed.one("--a"), Err("--a is required".to_owned()));
+        assert_eq!(parsed.one("--a"), Err(FlagError::Required("--a".to_owned())));
     }
 
     #[test]
@@ -244,6 +271,7 @@ mod tests {
     fn write_shard_reports_unwritable_path() {
         let detail = write_shard("/nonexistent-dir/shard.bin", &DocIr::default())
             .err()
+            .map(|error| error.to_string())
             .unwrap_or_default();
         assert!(
             detail.starts_with("cannot encode IR")

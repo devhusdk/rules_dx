@@ -3,6 +3,8 @@
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
+pub mod io;
+
 use std::fmt;
 use std::process::ExitCode;
 

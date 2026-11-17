@@ -27,6 +27,7 @@ rust_library(
         package_name = "tools/docs/ir/documentation_ir",
         normal = True,
     ) + [
+        "//cli/error:dx_error",
         "//cli/path:dx_path",
         "//tools/docs/ir/proto:doc_ir_proto_rs",
     ],

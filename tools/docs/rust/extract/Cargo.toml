@@ -7,6 +7,7 @@ edition = "2024"
 [dependencies]
 rustdoc-types = "=0.61.0"
 serde_json = "1"
+thiserror = "2"
 
 [lib]
 name = "dx_docs_rust_extract"

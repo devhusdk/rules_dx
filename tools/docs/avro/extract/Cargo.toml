@@ -6,6 +6,7 @@ edition = "2024"
 
 [dependencies]
 serde_json = "1"
+thiserror = "2"
 
 [lib]
 name = "dx_docs_avro_extract"

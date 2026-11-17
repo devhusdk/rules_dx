@@ -39,6 +39,13 @@ pub const FAMILIES: &[CuratedFamily] = &[
         audit: &[],
     },
     CuratedFamily {
+        id: "cuda",
+        lint: &["typos"],
+        format: &["clang_format"],
+        typecheck: &[],
+        audit: &[],
+    },
+    CuratedFamily {
         id: "d",
         lint: &["typos"],
         format: &[],
@@ -294,7 +301,6 @@ pub const OPT_IN_FAMILIES: &[&str] = &[
     "cmake",
     "csharp",
     "css",
-    "cuda",
     "cue",
     "elixir",
     "erlang",

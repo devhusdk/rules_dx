@@ -2,4 +2,4 @@
 
 #include <string>
 
-std::string greet(const std::string& name);
+std::string greet(const std::string &name);

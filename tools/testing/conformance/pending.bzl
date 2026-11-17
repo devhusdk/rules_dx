@@ -114,12 +114,9 @@ csharp lint_error_test *
 csharp lint_test *
 cuda coverage_test *
 cuda cross_test *
-cuda format_error_test *
-cuda format_test *
 cuda lint_error_test *
 cuda lint_test *
 cuda lock_test *
-cuda runfiles_test *
 d cross_test *
 d format_error_test *
 d format_test *

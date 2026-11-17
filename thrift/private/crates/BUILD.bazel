@@ -1,6 +1,6 @@
 # gazelle:ignore
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//:__subpackages__"])
 
 exports_files([
     "Cargo.lock",

@@ -424,8 +424,6 @@ test-location kotlin/tests/BUILD.bazel
 test-location lua/private/runtime/BUILD.bazel
 test-location lua/private/runtime/launcher_test.lua
 test-location ocaml/private/BUILD.bazel
-test-location ocaml/private/coverage/BUILD.bazel
-test-location ocaml/private/coverage/collect_test.sh
 test-location ocaml/private/quality/BUILD.bazel
 test-location ocaml/private/quality/tools_tests.bzl
 test-location php/private/BenchTest.php

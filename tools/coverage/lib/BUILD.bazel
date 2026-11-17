@@ -1,5 +1,5 @@
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS)
@@ -9,12 +9,19 @@ exports_files(
     visibility = VIS_TOOLS,
 )
 
-sh_test(
+rust_test(
     name = "runfile_test",
     size = "small",
-    srcs = ["runfile_test.sh"],
-    args = ["$(rootpath runfile.sh)"],
-    data = ["runfile.sh"],
+    srcs = ["runfile_test.rs"],
+    data = [
+        "runfile.sh",
+        "//tools/coverage/kcov:kcov_launcher",
+    ],
+    env = {
+        "DX_KCOV_LAUNCHER": "$(rootpath //tools/coverage/kcov:kcov_launcher)",
+        "DX_RUNFILE_LIB": "$(rootpath runfile.sh)",
+    },
+    deps = ["//tools/testing:dx_testing"],
 )
 
 real_source_target(

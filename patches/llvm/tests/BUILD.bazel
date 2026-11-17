@@ -1,33 +1,35 @@
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//rust:defs.bzl", "rust_test")
 load(":fuzzer_build.bzl", "fuzzer_build")
 
-sh_test(
+rust_test(
     name = "libunwind_copy_test",
     size = "small",
-    srcs = ["libunwind_copy_test.sh"],
-    args = ["$(rootpath @llvm-project//libunwind:libunwind.static.gnu_link_name)"],
+    srcs = ["libunwind_copy_test.rs"],
     data = ["@llvm-project//libunwind:libunwind.static.gnu_link_name"],
+    env = {"DX_LIBUNWIND": "$(rootpath @llvm-project//libunwind:libunwind.static.gnu_link_name)"},
     target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
 )
 
-sh_test(
+rust_test(
     name = "msvc_source_directories_test",
     size = "small",
-    srcs = ["msvc_source_directories_test.sh"],
-    args = ["$(rootpath @llvm//runtimes/msvc:BUILD.bazel)"],
+    srcs = ["msvc_source_directories_test.rs"],
     data = ["@llvm//runtimes/msvc:BUILD.bazel"],
+    env = {"DX_MSVC_RUNTIMES_BUILD": "$(rootpath @llvm//runtimes/msvc:BUILD.bazel)"},
     target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
 )
 
 rust_test(
     name = "msvc_fuzzer_test",
     size = "small",
     srcs = ["msvc_fuzzer_test.rs"],
-    args = ["$(rootpath //patches/llvm:msvc_fuzzer.patch)"],
     data = ["//patches/llvm:msvc_fuzzer.patch"],
+    env = {"DX_MSVC_FUZZER_PATCH": "$(rootpath //patches/llvm:msvc_fuzzer.patch)"},
+    deps = ["//tools/testing:dx_testing"],
 )
 
 fuzzer_build(
@@ -48,22 +50,24 @@ platform_transition_filegroup(
     target_platform = "@llvm//platforms:linux_aarch64",
 )
 
-sh_test(
+rust_test(
     name = "lse_atomic_sources_test",
     size = "small",
-    srcs = ["lse_atomic_sources_test.sh"],
-    args = ["$(rootpath :aarch64_builtins)"],
+    srcs = ["lse_atomic_sources_test.rs"],
     data = [":aarch64_builtins"],
+    env = {"DX_AARCH64_BUILTINS": "$(rootpath :aarch64_builtins)"},
     target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
 )
 
-sh_test(
+rust_test(
     name = "macos_sdk_symlinks_test",
     size = "small",
-    srcs = ["macos_sdk_symlinks_test.sh"],
-    args = ["$(rootpath @macos_sdk//sysroot)"],
+    srcs = ["macos_sdk_symlinks_test.rs"],
     data = ["@macos_sdk//sysroot"],
+    env = {"DX_MACOS_SYSROOT": "$(rootpath @macos_sdk//sysroot)"},
     target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
 )
 
 test_suite(

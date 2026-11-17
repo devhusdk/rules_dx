@@ -19,6 +19,21 @@ test_suite(
 )
 
 rust_test(
+    name = "collect_test",
+    size = "small",
+    srcs = ["collect_test.rs"],
+    data = [
+        "//ocaml/private/coverage:collect",
+        "//ocaml/private/coverage:collect_test_upstream",
+    ],
+    env = {
+        "DX_COLLECT": "$(rootpath //ocaml/private/coverage:collect)",
+        "DX_COLLECT_UPSTREAM": "$(rlocationpath //ocaml/private/coverage:collect_test_upstream)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
     name = "zanuda_test",
     size = "small",
     srcs = ["zanuda_test.rs"],

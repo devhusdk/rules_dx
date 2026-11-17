@@ -2,7 +2,6 @@ load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//ocaml:defs.bzl", "ocaml_library", "ocaml_module", "ocaml_signature")
 load("//ocaml/private:dune.bzl", "dx_dune_build", "ocaml_dune_library")
@@ -194,20 +193,6 @@ sh_binary(
 sh_binary(
     name = "collect_test_upstream",
     srcs = ["collect_test_upstream.sh"],
-)
-
-sh_test(
-    name = "collect_test",
-    size = "small",
-    srcs = ["collect_test.sh"],
-    args = [
-        "$(rootpath :collect)",
-        "$(rlocationpath :collect_test_upstream)",
-    ],
-    data = [
-        ":collect",
-        ":collect_test_upstream",
-    ],
 )
 
 filegroup(

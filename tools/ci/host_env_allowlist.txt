@@ -220,9 +220,8 @@ kotlin/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
 kotlin/tests/fixtures/kotlin-app/grades/BUILD.bazel genrule 1
 ocaml/private/BUILD.bazel env-inherit 3
 ocaml/private/BUILD.bazel home 3
-ocaml/private/coverage/BUILD.bazel sh-rule 3
+ocaml/private/coverage/BUILD.bazel sh-rule 2
 ocaml/private/coverage/collect.sh shebang 1
-ocaml/private/coverage/collect_test.sh shebang 1
 ocaml/private/coverage/collect_test_upstream.sh shebang 1
 ocaml/private/tools/BUILD.bazel sh-rule 1
 ocaml/private/tools/opam.sh shebang 1
@@ -231,11 +230,6 @@ ocaml/tests/fixtures/bench/run_test.sh shebang 1
 ocaml/tests/fixtures/ocaml_app/cli/BUILD.bazel sh-rule 1
 ocaml/tests/fixtures/ocaml_app/cli/exit_codes.sh shebang 1
 patches/BUILD.bazel genrule 1
-patches/llvm/tests/BUILD.bazel sh-rule 4
-patches/llvm/tests/libunwind_copy_test.sh shebang 1
-patches/llvm/tests/lse_atomic_sources_test.sh shebang 1
-patches/llvm/tests/macos_sdk_symlinks_test.sh shebang 1
-patches/llvm/tests/msvc_source_directories_test.sh shebang 1
 python/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
 python/tests/fixtures/fuzz/run_test.sh shebang 1
 python/tests/fixtures/python-service/ledger/core/BUILD.bazel genrule 1
@@ -284,12 +278,9 @@ tools/bazelisk/wrapper/bazel.ps1 host-path 1
 tools/bazelisk/wrapper_test.rs host-path 2
 tools/buildbuddy-credential-helper.sh shebang 1
 tools/ci/docs_scope_test.rs shebang 1
-tools/coverage/kcov/BUILD.bazel sh-rule 2
+tools/coverage/kcov/BUILD.bazel sh-rule 1
 tools/coverage/kcov/kcov.BUILD genrule 3
 tools/coverage/kcov/kcov_launcher.sh shebang 1
-tools/coverage/kcov/smoke_test.sh shebang 1
-tools/coverage/lib/BUILD.bazel sh-rule 1
-tools/coverage/lib/runfile_test.sh shebang 1
 tools/docs/dart/defs.bzl home 1
 tools/docs/dotnet/csharp/BUILD.bazel sh-rule 1
 tools/docs/dotnet/fsharp/BUILD.bazel sh-rule 1

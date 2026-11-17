@@ -613,16 +613,7 @@ fn process_in(_dir: &Path) -> bool {
 }
 
 fn find_bazel() -> Option<PathBuf> {
-    let path = std::env::var_os("PATH")?;
-    for dir in std::env::split_paths(&path) {
-        for name in ["bazel", "bazelisk", "bazel.exe", "bazelisk.exe"] {
-            let candidate = dir.join(name);
-            if candidate.is_file() {
-                return Some(candidate);
-            }
-        }
-    }
-    None
+    dx_path::lookup::find(&["bazel", "bazelisk", "bazel.exe", "bazelisk.exe"])
 }
 
 impl Host for SystemHost {

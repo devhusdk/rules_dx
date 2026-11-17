@@ -60,7 +60,8 @@
     "javascript_bench",
     "javascript_fuzz_test",
     "javascript_web_app",
-    "javascript_web_bundle"
+    "javascript_web_bundle",
+    "js_library"
   ],
   "quality": {
     "bzl": "javascript/private/quality:js.bzl",

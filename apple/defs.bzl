@@ -1,5 +1,6 @@
 """Public Apple API."""
 
+load("@rules_apple//apple:apple.bzl", _apple_dynamic_xcframework_import = "apple_dynamic_xcframework_import")
 load("//apple/private/ios:app.bzl", _apple_ios_app = "apple_ios_app", _apple_ios_app_test = "apple_ios_app_test", _apple_ios_xcframework = "apple_ios_xcframework")
 load("//apple/private/ios:defs.bzl", _apple_ios_lib = "apple_ios_lib")
 load("//apple/private/ios:device.bzl", _apple_ios_export = "apple_ios_export")
@@ -7,6 +8,7 @@ load("//apple/private/ios:simulator.bzl", _apple_simulator_boot = "apple_simulat
 load("//apple/private/macos:app.bzl", _apple_macos_app = "apple_macos_app")
 load("//apple/private/signing:defs.bzl", _apple_macos_notarize = "apple_macos_notarize", _apple_macos_sign = "apple_macos_sign")
 
+apple_dynamic_xcframework_import = _apple_dynamic_xcframework_import
 apple_ios_app = _apple_ios_app
 apple_ios_app_test = _apple_ios_app_test
 apple_ios_export = _apple_ios_export

@@ -113,6 +113,10 @@ apple_simulator_launch(name, bundle_id, simulator = "", visibility = None)
 
 Declares an explicit launcher that starts one installed app on one simulator.
 
+### `apple_dynamic_xcframework_import`
+
+No documentation.
+
 ## Tools
 
 None.
@@ -492,12 +496,11 @@ The build fails when:
 
 #### Consume an XCFramework
 
-Import the unpacked XCFramework with upstream
-`apple_dynamic_xcframework_import` and pass it in `frameworks`:
+Import the unpacked XCFramework with `apple_dynamic_xcframework_import`,
+re-exported from rules_apple, and pass it in `frameworks`:
 
 ```python
-load("@rules_apple//apple:apple.bzl", "apple_dynamic_xcframework_import")
-load("@rules_dx//apple:defs.bzl", "apple_ios_app")
+load("@rules_dx//apple:defs.bzl", "apple_dynamic_xcframework_import", "apple_ios_app")
 
 apple_dynamic_xcframework_import(
     name = "share",
@@ -515,8 +518,7 @@ apple_ios_app(
 )
 ```
 
-Your `MODULE.bazel` needs `bazel_dep(name = "rules_apple", version =
-"5.4.0")`. Sources import `<Share/share_api.h>`. The app embeds the
+Sources import `<Share/share_api.h>`. The app embeds the
 framework under `Frameworks/`, and its resources load from
 `[NSBundle bundleWithIdentifier:]`.
 

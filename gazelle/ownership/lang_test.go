@@ -121,3 +121,21 @@ func TestOCIStale(t *testing.T) {
 		t.Error("rule without the quality suffix should not be stale")
 	}
 }
+
+func TestFortranUses(t *testing.T) {
+	for _, c := range []struct {
+		src  string
+		want bool
+	}{
+		{"module greet\nend module greet\n", true},
+		{"module a\n  use, intrinsic :: iso_fortran_env\n  USE ISO_C_BINDING\n  use :: ieee_arithmetic\nend module a\n", true},
+		{"module a\n  use b\nend module a\n", false},
+		{"module a\n  use :: b, only: f\nend module a\n", false},
+		{"module a\n  use, non_intrinsic :: iso_c_binding\nend module a\n", false},
+		{"      subroutine s\n      use b\n      end\n", false},
+	} {
+		if got := fortranUsesOnlyIntrinsics([]byte(c.src)); got != c.want {
+			t.Errorf("%q: got %v, want %v", c.src, got, c.want)
+		}
+	}
+}

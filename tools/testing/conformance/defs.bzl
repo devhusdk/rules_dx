@@ -32,6 +32,7 @@ _QUALITY_CONFIGS = {
     "php": "tool_overrides",
     "powershell": "tool_overrides",
     "ruby": "tool_overrides",
+    "swift": "tool_overrides",
 }
 
 _core_format_subject = config_subject_rule([real_format_aspect], [OutputGroupInfo])

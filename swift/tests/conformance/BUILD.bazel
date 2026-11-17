@@ -14,6 +14,22 @@ swift_library(
     module_name = "Conformance",
 )
 
+swift_library(
+    name = "lint_dirty",
+    testonly = True,
+    srcs = ["LintDirty.swift"],
+    module_name = "LintDirty",
+    tags = ["manual"],
+)
+
+swift_library(
+    name = "format_dirty",
+    testonly = True,
+    srcs = ["FormatDirty.swift"],
+    module_name = "FormatDirty",
+    tags = ["manual"],
+)
+
 swift_binary(
     name = "hello",
     srcs = ["main.swift"],
@@ -52,6 +68,15 @@ dx_conformance_suite(
         "cross_test:windows_x86_64": "swift cross-compiles to linux only from a linux host",
     },
     passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "FormatDirty.swift",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 2,
+        "lint_rule": "DoNotUseSemicolons",
+        "lint_source": "LintDirty.swift",
+    },
 )
 
 real_source_target(

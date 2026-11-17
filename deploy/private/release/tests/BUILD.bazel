@@ -1,4 +1,3 @@
-load("@crates//:crates.bzl", "aliases")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/testing/hermetic:defs.bzl", "nested_bazel_test")
 
@@ -16,11 +15,6 @@ nested_bazel_test(
         "quickstart_consumer_test.rs",
         "release_consumer_test.rs",
     ],
-    aliases = aliases(
-        package_name = "deploy/private/release/deploy_release_tests",
-        normal = True,
-        normal_dev = True,
-    ),
     cache = "release",
     cache_locks = "//tools/testing/nested_cache:release_locks",
     crate_name = "release_consumer_smoke_test",
@@ -95,13 +89,6 @@ real_source_target(
     testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
-)
-
-real_source_target(
-    name = "corpus_toml",
-    testonly = True,
-    tags = ["corpus"],
-    toml_srcs = ["Cargo.toml"],
 )
 
 filegroup(

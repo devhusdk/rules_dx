@@ -1,5 +1,5 @@
 {
-  "checksum": "8ee5fec7187740ecbaa41ea0bd518c4bef6c5f71766825c743e361a469071b5f",
+  "checksum": "d7fd7d31f71f778acb6240fd8326fc0f917f7cbe140b714a3815ee816a8eb625",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -6564,19 +6564,6 @@
         "Apache-2.0"
       ],
       "name": "deploy_offline_tests",
-      "repository": null,
-      "targets": [],
-      "version": "0.0.0"
-    },
-    "deploy_release_tests 0.0.0": {
-      "common_attrs": {
-        "edition": "2024"
-      },
-      "license": "Apache-2.0",
-      "license_ids": [
-        "Apache-2.0"
-      ],
-      "name": "deploy_release_tests",
       "repository": null,
       "targets": [],
       "version": "0.0.0"
@@ -33196,7 +33183,6 @@
     "deploy_bootstrap_offline 0.0.0": "deploy_bootstrap_offline",
     "deploy_cross_tests 0.0.0": "deploy/tests/deploy_cross_tests",
     "deploy_offline_tests 0.0.0": "deploy/private/deploy_offline_tests",
-    "deploy_release_tests 0.0.0": "deploy/private/release/deploy_release_tests",
     "deploy_runfiles_tests 0.0.0": "deploy/tests/deploy_runfiles_tests",
     "devcontainer_tests 0.0.0": "devcontainer_tests",
     "docs_avro_tests 0.0.0": "tools/docs/docs_avro_tests",

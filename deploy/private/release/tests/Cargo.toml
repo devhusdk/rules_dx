@@ -1,9 +1,0 @@
-[package]
-license = "Apache-2.0"
-name = "deploy_release_tests"
-version = "0.0.0"
-edition = "2024"
-
-[[test]]
-name = "release_consumer_smoke_test"
-path = "release_consumer_test.rs"

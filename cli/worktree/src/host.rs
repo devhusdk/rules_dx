@@ -94,12 +94,7 @@ pub(crate) fn resolved(path: &Path) -> PathBuf {
 }
 
 fn normalize(path: &Path) -> String {
-    let text = dx_path::posix(path);
-    let text = if let Some(rest) = text.strip_prefix("//?/UNC/") {
-        format!("//{rest}")
-    } else {
-        text.strip_prefix("//?/").unwrap_or(&text).to_owned()
-    };
+    let text = dx_path::posix(&dx_path::without_verbatim(path));
     let text = text.trim_end_matches('/').to_owned();
     if cfg!(windows) {
         text.to_lowercase()

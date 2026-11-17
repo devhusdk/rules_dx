@@ -1848,8 +1848,14 @@ fn windows_command_runs_the_launcher_with_grants_and_network_flag() {
 fn windows_runs_in_a_group_leave_the_acls_to_the_groups() {
     let isolation = Isolation {
         launcher: PathBuf::from("appcontainer_run.exe"),
-        grants: vec![PathBuf::from(r"\\?\C:\q\work")],
-        denies: vec![PathBuf::from("C:\\q\\secret")],
+        grants: vec![
+            PathBuf::from(r"\\?\C:\q\work"),
+            PathBuf::from(r"\\?\UNC\h\s\work"),
+        ],
+        denies: vec![
+            PathBuf::from("C:\\q\\secret"),
+            PathBuf::from(r"\\?\UNC\h\s\secret"),
+        ],
         group: Some("dxh-7".to_owned()),
         ..Isolation::default()
     };
@@ -1873,7 +1879,9 @@ fn windows_runs_in_a_group_leave_the_acls_to_the_groups() {
             "--setup-group",
             "dxh-7",
             "--grant",
-            "C:\\q\\work"
+            "C:\\q\\work",
+            "--grant",
+            r"\\h\s\work"
         ]
     );
     let host = args(isolation.windows_host_command("--ensure-host-denies"));
@@ -1884,7 +1892,9 @@ fn windows_runs_in_a_group_leave_the_acls_to_the_groups() {
             "user",
             "--ensure-host-denies",
             "--deny",
-            "C:\\q\\secret"
+            "C:\\q\\secret",
+            "--deny",
+            r"\\h\s\secret"
         ]
     );
 }
@@ -2014,19 +2024,8 @@ fn canonical_paths_have_no_verbatim_prefix() {
     let scratch = dx_test_scratch::scratch("dx-hermetic-canonical");
     let dir = scratch.path().to_path_buf();
     let real = canonical(&dir).unwrap();
-    assert!(!real.to_string_lossy().starts_with(r"\\?\"));
+    assert_eq!(dx_path::without_verbatim(&real), real);
     assert!(canonical(&dir.join("dx-hermetic-missing-path")).is_none());
-}
-
-#[test]
-fn strip_verbatim_drops_only_the_drive_prefix() {
-    let strip = |text: &str| strip_verbatim(PathBuf::from(text));
-    assert_eq!(strip(r"\\?\D:\a"), PathBuf::from(r"D:\a"));
-    assert_eq!(
-        strip(r"\\?\UNC\srv\share"),
-        PathBuf::from(r"\\?\UNC\srv\share")
-    );
-    assert_eq!(strip("/tmp/x"), PathBuf::from("/tmp/x"));
 }
 
 #[test]
@@ -2478,9 +2477,6 @@ fn command_line_batches_stay_within_the_limit() {
         ]
     );
     assert_eq!(command_line_batches(10, &args, 100).len(), 1);
-    assert_eq!(
-        command_line_batches(10, &[], 20),
-        Vec::<Vec<String>>::new()
-    );
+    assert_eq!(command_line_batches(10, &[], 20), Vec::<Vec<String>>::new());
     assert_eq!(quoted_len("a b"), 8);
 }

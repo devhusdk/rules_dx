@@ -170,6 +170,10 @@ name = "unreferenced_files_test"
 path = "unreferenced_files_test.rs"
 
 [[test]]
+name = "verbatim_prefix_test"
+path = "verbatim_prefix_test.rs"
+
+[[test]]
 name = "workflow_expressions_test"
 path = "workflow_expressions_test.rs"
 

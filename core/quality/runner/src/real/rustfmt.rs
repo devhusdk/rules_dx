@@ -21,14 +21,10 @@ fn absolute_names(pairs: &[StagedPair]) -> Vec<String> {
 
 /// The spelling rustfmt reports for a staged file: symlinks and short names resolved, no `\\?\` prefix.
 fn resolved_name(name: &str) -> Option<String> {
-    let canonical = std::fs::canonicalize(name)
-        .ok()?
+    let canonical = std::fs::canonicalize(name).ok()?;
+    let plain = dx_path::without_verbatim(&canonical)
         .to_string_lossy()
         .into_owned();
-    let plain = match canonical.strip_prefix(r"\\?\") {
-        Some(rest) if rest.as_bytes().get(1) == Some(&b':') => rest.to_owned(),
-        _ => canonical,
-    };
     (plain != name).then_some(plain)
 }
 

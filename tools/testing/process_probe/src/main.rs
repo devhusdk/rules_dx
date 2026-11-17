@@ -239,9 +239,13 @@ fn parse(args: &[String]) -> Result<Plan, String> {
             "--descendant-exit" => plan.descendant_exit = exit_status(value, flag)?,
             "--descendant-sleep-ms" => plan.descendant_sleep_ms = count(value, flag)?,
             "--marker" => plan.marker = Some(non_empty(value, flag, "a path")?),
-            "--descendant-marker" => plan.descendant_marker = Some(non_empty(value, flag, "a path")?),
+            "--descendant-marker" => {
+                plan.descendant_marker = Some(non_empty(value, flag, "a path")?)
+            }
             "--alive-lock" => plan.alive_lock = Some(non_empty(value, flag, "a path")?),
-            "--descendant-alive-lock" => plan.descendant_alive_lock = Some(non_empty(value, flag, "a path")?),
+            "--descendant-alive-lock" => {
+                plan.descendant_alive_lock = Some(non_empty(value, flag, "a path")?)
+            }
             "--nested-server-lock" => {
                 if value.is_empty() {
                     return Err(format!("{flag} needs a path"));
@@ -253,7 +257,9 @@ fn parse(args: &[String]) -> Result<Plan, String> {
             "--descendant-gate" => plan.descendant_gate = Some(non_empty(value, flag, "a path")?),
             "--ctrl-c-console" => plan.ctrl_c_console = Some(count(value, flag)?),
             "--raise-signal" => plan.raise_signal = Some(count(value, flag)?),
-            "--descendant-count-sigint" => plan.descendant_count_sigint = Some(non_empty(value, flag, "a path")?),
+            "--descendant-count-sigint" => {
+                plan.descendant_count_sigint = Some(non_empty(value, flag, "a path")?)
+            }
             "--count-sigint" => plan.count_sigint = Some(non_empty(value, flag, "a path")?),
             _ => plan.descendant_stdout_bytes = count(value, flag)?,
         }
@@ -580,11 +586,8 @@ fn report_output_error(error: &io::Error) -> ! {
 
 /// The working directory without a Windows verbatim prefix.
 fn plain_cwd() -> io::Result<String> {
-    let cwd = env::current_dir()?.to_string_lossy().into_owned();
-    if let Some(rest) = cwd.strip_prefix(r"\\?\") {
-        return Ok(rest.to_owned());
-    }
-    Ok(cwd)
+    let cwd = dx_path::without_verbatim(&env::current_dir()?);
+    Ok(cwd.to_string_lossy().into_owned())
 }
 
 fn run_shim(log: &std::ffi::OsStr) -> ! {

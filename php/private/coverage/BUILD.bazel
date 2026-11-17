@@ -15,7 +15,10 @@ rust_binary(
     srcs = ["src/main.rs"],
     crate_name = "coverage",
     crate_root = "src/main.rs",
-    deps = ["//cli/lcov:dx_lcov"],
+    deps = [
+        "//cli/lcov:dx_lcov",
+        "//cli/path:dx_path",
+    ],
 )
 
 exports_files(

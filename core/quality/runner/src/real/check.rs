@@ -592,12 +592,9 @@ fn cue_package_clause(text: &str) -> String {
 /// The JVM finds its modules file beside the launcher it was started from, and a
 /// runfiles symlink on Windows does not lead there, so the launcher is named by its real path.
 pub(super) fn real_launcher(path: &Path) -> PathBuf {
-    let Ok(real) = std::fs::canonicalize(path) else {
-        return path.to_path_buf();
-    };
-    match real.to_str().and_then(|text| text.strip_prefix(r"\\?\")) {
-        Some(plain) => PathBuf::from(plain),
-        None => real,
+    match std::fs::canonicalize(path) {
+        Ok(real) => dx_path::without_verbatim(&real),
+        Err(_) => path.to_path_buf(),
     }
 }
 

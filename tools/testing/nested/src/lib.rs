@@ -769,8 +769,7 @@ impl Processes {
 
 /// Normalizes a path or command line for matching: `/` separators, no `\\?\` prefix, and no case on Windows.
 fn normalized(text: &str) -> String {
-    let text = text.replace('\\', "/");
-    let text = text.replace("//?/", "");
+    let text = dx_path::without_verbatim_in(&text.replace('\\', "/"));
     if cfg!(windows) {
         text.to_lowercase()
     } else {
@@ -2908,6 +2907,10 @@ mod portable_tests {
             "/b/0/u"
         ));
         assert!(names_dir("--workspace_directory=/a/ws", flag, "/a/ws/"));
+        let share = r"java.exe --workspace_directory=\\?\UNC\srv\s\w --x";
+        assert!(names_dir(share, flag, r"\\srv\s\w"));
+        assert!(names_dir(share, flag, r"\\?\UNC\srv\s\w"));
+        assert!(!names_dir(share, flag, r"UNC\srv\s\w"));
     }
 
     #[test]

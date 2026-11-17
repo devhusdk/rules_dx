@@ -141,13 +141,7 @@ pub fn copy_atomic(src: &Path, dest: &Path) -> io::Result<()> {
 /// The path spelled so Windows accepts it past the legacy length limit.
 #[cfg(windows)]
 fn long_path(path: &Path) -> io::Result<std::path::PathBuf> {
-    let absolute = std::path::absolute(path)?;
-    if absolute.as_os_str().as_encoded_bytes().starts_with(br"\\") {
-        return Ok(absolute);
-    }
-    let mut verbatim = std::ffi::OsString::from(r"\\?\");
-    verbatim.push(absolute.as_os_str());
-    Ok(verbatim.into())
+    Ok(dx_path::verbatim(&std::path::absolute(path)?))
 }
 
 /// The path unchanged, since only Windows limits its length.

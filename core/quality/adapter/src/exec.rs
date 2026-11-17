@@ -43,12 +43,11 @@ pub struct Scratch {
 
 #[cfg(windows)]
 fn canonical_root(dir: &Path) -> io::Result<PathBuf> {
-    let full = dir.canonicalize()?;
+    let full = dx_path::without_verbatim(&dir.canonicalize()?);
     let drive = full
         .to_str()
-        .and_then(|text| text.strip_prefix(r"\\?\"))
-        .filter(|rest| dx_path::drive_rooted(rest))
-        .map(PathBuf::from);
+        .is_some_and(dx_path::drive_rooted)
+        .then_some(full);
     Ok(drive.unwrap_or_else(|| {
         dir.to_str().map_or_else(
             || dir.to_owned(),
@@ -711,13 +710,10 @@ mod tests {
         let parent_tmp = tempfile::tempdir().expect("parent");
         let scratch = Scratch::create(parent_tmp.path()).expect("scratch");
         let root = scratch.root().to_string_lossy().into_owned();
-        assert!(!root.starts_with(r"\\?\"), "{root}");
         assert!(dx_path::drive_rooted(&root), "{root}");
         let long = scratch.root().canonicalize().expect("canonical");
-        assert_eq!(
-            long.to_string_lossy().strip_prefix(r"\\?\"),
-            Some(root.as_str())
-        );
+        assert_eq!(long, dx_path::verbatim(scratch.root()));
+        assert_eq!(dx_path::without_verbatim(&long), scratch.root());
         scratch.close().expect("close");
         parent_tmp.close().expect("cleanup");
     }

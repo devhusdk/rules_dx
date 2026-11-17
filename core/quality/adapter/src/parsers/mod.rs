@@ -424,7 +424,8 @@ fn known_lexical<'a>(
     use std::path::{Component, PathBuf};
     let mut clean = PathBuf::new();
     let mut valid = true;
-    for part in Path::new(without_verbatim(path)).components() {
+    let plain = dx_path::without_verbatim_str(path);
+    for part in Path::new(plain.as_ref()).components() {
         match part {
             Component::CurDir => {}
             Component::ParentDir => valid &= clean.pop(),
@@ -441,14 +442,6 @@ fn known_lexical<'a>(
             tool,
             path: path.to_owned(),
         })
-}
-
-/// The path with a Windows `\\?\` drive prefix dropped.
-fn without_verbatim(path: &str) -> &str {
-    match path.strip_prefix(r"\\?\") {
-        Some(rest) if dx_path::drive_rooted(rest) => rest,
-        _ => path,
-    }
 }
 
 /// The lines a tool wrote, blank ones dropped and each one trimmed.
@@ -1189,10 +1182,15 @@ mod tests {
     }
 
     #[test]
-    fn without_verbatim_drops_only_the_drive_prefix() {
-        assert_eq!(super::without_verbatim(r"\\?\C:\a\b.rs"), r"C:\a\b.rs");
-        assert_eq!(super::without_verbatim(r"\\?\UNC\h\s"), r"\\?\UNC\h\s");
-        assert_eq!(super::without_verbatim("/s/a.rs"), "/s/a.rs");
+    fn known_lexical_matches_a_verbatim_spelling_of_a_checked_file() {
+        let files = [r"C:\a\b.rs", r"\\h\s\c.rs", "/s/a.rs"];
+        for (path, want) in [
+            (r"\\?\C:\a\b.rs", r"C:\a\b.rs"),
+            (r"\\?\UNC\h\s\c.rs", r"\\h\s\c.rs"),
+            ("/s/a.rs", "/s/a.rs"),
+        ] {
+            assert_eq!(super::known_lexical("t", &files, path), Ok(want), "{path}");
+        }
     }
 
     #[test]

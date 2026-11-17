@@ -1,7 +1,6 @@
 use quality_adapter::parsers::{self, FileFinding};
 
 use super::check::{CheckCall, ToolDef, in_file};
-use super::schema::without_verbatim;
 use super::{
     Invocation, Path, PathBuf, RealBackend, RunnerError, commands, execution, ffmt_accepts,
     fortran_free_form, hint_dir, parsed,
@@ -169,12 +168,12 @@ fn dart(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>,
     }
     // The analyzer prints canonical paths, so check and report the canonical ones.
     let root = std::fs::canonicalize(call.staged.scratch.root())
-        .map(without_verbatim)
+        .map(|real| dx_path::without_verbatim(&real))
         .map_err(|err| execution(tool_id, format!("canonicalize scratch root: {err}")))?;
     let mut files: Vec<(String, PathBuf)> = Vec::with_capacity(call.staged.pairs.len());
     for (workspace, absolute) in &call.staged.pairs {
         let file = std::fs::canonicalize(absolute)
-            .map(without_verbatim)
+            .map(|real| dx_path::without_verbatim(&real))
             .map_err(|err| execution(tool_id, format!("resolve {workspace}: {err}")))?;
         files.push((workspace.clone(), file));
     }

@@ -42,6 +42,10 @@ _CORE_QUALITY_SUBJECTS = {
         "format": _core_format_subject,
         "lint": _core_lint_subject,
     },
+    "typescript": {
+        "format": _core_format_subject,
+        "lint": _core_lint_subject,
+    },
 }
 
 _CONFORMANCE_QUALITY = Label("//tools/testing/conformance:conformance_quality")
@@ -332,7 +336,7 @@ def _quality_kinds(lang, quality, not_applicable):
         runs = [_compatible_with(lang, test, not_applicable) != ["@platforms//:incompatible"] for test in _QUALITY_TESTS[kind]]
         if not any(runs):
             continue
-        if kind not in QUALITY_SUBJECTS.get(lang, {}) and kind + "_subject" not in quality:
+        if kind not in _CORE_QUALITY_SUBJECTS.get(lang, QUALITY_SUBJECTS.get(lang, {})) and kind + "_subject" not in quality:
             fail("%s: %s tests need a lang.json quality.aspects %s entry, a quality %s_subject rule, or a pending or not_applicable entry" % (lang, kind, kind, kind))
         for key in _QUALITY_KEYS[kind]:
             if key not in quality:

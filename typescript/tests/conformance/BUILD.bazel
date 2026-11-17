@@ -14,6 +14,20 @@ typescript_library(
     tsconfig = "tsconfig.json",
 )
 
+typescript_library(
+    name = "lint_dirty",
+    srcs = ["lint_dirty.ts"],
+    declaration = True,
+    tsconfig = "tsconfig.json",
+)
+
+typescript_library(
+    name = "format_dirty",
+    srcs = ["format_dirty.ts"],
+    declaration = True,
+    tsconfig = "tsconfig.json",
+)
+
 typescript_binary(
     name = "hello",
     srcs = ["main.ts"],
@@ -91,6 +105,15 @@ dx_conformance_suite(
         "stale": "pnpm-lock.stale.yaml",
     },
     passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "format_dirty.ts",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 2,
+        "lint_rule": "lint/correctness/noUnusedVariables",
+        "lint_source": "lint_dirty.ts",
+    },
     runfiles = {
         "binary": ":runfiles_hello",
         "data": "data.txt",

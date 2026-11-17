@@ -358,10 +358,6 @@ thrift lint_test *
 thrift lock_test *
 thrift pass_test *
 thrift runfiles_test *
-typescript format_error_test *
-typescript format_test *
-typescript lint_error_test *
-typescript lint_test *
 vue format_error_test *
 vue format_test *
 vue lint_error_test *

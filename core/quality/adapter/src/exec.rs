@@ -1,4 +1,4 @@
-use dx_atomic_fs::{EntryKind, LinkPolicy, Mechanism, classify, materialize_file, write_atomic};
+use dx_atomic_fs::{EntryKind, LinkPolicy, Mechanism, classify, materialize_file, write_scratch};
 use dx_process::lifecycle::{
     CapturePolicy, ChildOutcome, CleanupBudget, Descendants, EnvPolicy, SpawnSpec,
 };
@@ -163,7 +163,7 @@ impl Scratch {
             ensure_no_symlink_prefix(root, parent, &file.mirror_rel)?;
             let contents = match &file.contents {
                 MirrorContents::Bytes(bytes) => {
-                    write_atomic(&absolute, bytes)?;
+                    write_scratch(&absolute, bytes)?;
                     StagedContents::Bytes
                 }
                 MirrorContents::Link(source) => {

@@ -67,6 +67,10 @@ class RenderTest(unittest.TestCase):
         with self.assertRaises(SystemExit):
             render.render(module, readme)
 
+    def test_override_patch_in_other_directory(self):
+        module = MODULE.replace('"//patches/foo:a.patch"', '"//patches/qux:a.patch"')
+        self.assertIn("| `foo` | 2.0 | `a.patch` |", render.render(module, README))
+
     def test_unpatched_dep_row(self):
         module = MODULE + 'bazel_dep(name = "bar", version = "3.1")\n'
         readme = README + "| `bar` | 1.0 | none | Root only. Newer |\n"

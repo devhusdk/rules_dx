@@ -6,6 +6,7 @@ load("//core:wrapper.bzl", "dx_upstream_tags")
 
 _JMH = [Label("@dx_jmh_core//jar"), Label("@dx_jmh_jopt_simple//jar"), Label("@dx_jmh_commons_math3//jar")]
 _GENERATOR = Label("//java/private/jmh:jmh_generate")
+_RUNNER_SRC = Label("//java/private/jmh:JmhRunner.java")
 _PROCESSOR = [Label("@dx_jmh_generator_annprocess//jar")] + _JMH
 _TEST_KWARGS = ("size", "timeout", "args", "env", "flaky", "jvm_flags", "data", "visibility")
 
@@ -40,10 +41,25 @@ def jmh_bench(name, library, test, srcs, deps, tags, kwargs, library_kwargs = {}
     )
     _runner_and_test(name, test, [name + "_bin"], tags, run, inner)
 
+def _jmh_runner_src_impl(ctx):
+    return [DefaultInfo(files = depset([ctx.file._src]))]
+
+_jmh_runner_src = rule(
+    implementation = _jmh_runner_src_impl,
+    doc = "Provides the JMH runner source.",
+    attrs = {
+        "_src": attr.label(default = _RUNNER_SRC, allow_single_file = [".java"]),
+    },
+)
+
 def _runner_and_test(name, test, runtime_deps, tags, run, inner):
+    _jmh_runner_src(
+        name = name + "_jmh_runner_src",
+        **inner
+    )
     _java_library(
         name = name + "_jmh_runner",
-        srcs = [Label("//java/private/jmh:JmhRunner.java")],
+        srcs = [name + "_jmh_runner_src"],
         deps = _JMH,
         **inner
     )

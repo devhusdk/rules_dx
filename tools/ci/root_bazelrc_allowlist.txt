@@ -28,7 +28,6 @@
 --remote_executor
 --remote_local_fallback
 --remote_timeout
---repo_env
 --//ruby/private/quality:rubocop
 --@rules_dx//config:clippy_flag
 --@rules_rust//rust/settings:clippy.toml

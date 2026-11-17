@@ -26,7 +26,7 @@ module(name = "my_project")
 bazel_dep(name = "rules_dx", version = "<release>")
 ```
 
-A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small Elixir package from [`elixir/tests/consumer`](../../elixir/tests/consumer/BUILD.bazel):
+A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small Elixir package from [`elixir/tests/consumer`](https://github.com/devhusdk/rules_dx/blob/main/elixir/tests/consumer/BUILD.bazel):
 
 ```python
 load("@rules_dx//elixir:defs.bzl", "elixir_app", "elixir_test")

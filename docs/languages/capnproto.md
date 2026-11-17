@@ -26,7 +26,7 @@ module(name = "my_project")
 bazel_dep(name = "rules_dx", version = "<release>")
 ```
 
-A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small Cap'n Proto package from [`capnproto/tests/consumer`](../../capnproto/tests/consumer/BUILD.bazel):
+A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small Cap'n Proto package from [`capnproto/tests/consumer`](https://github.com/devhusdk/rules_dx/blob/main/capnproto/tests/consumer/BUILD.bazel):
 
 ```python
 load("@rules_dx//capnproto:defs.bzl", "capnproto_library")

@@ -26,7 +26,7 @@ module(name = "my_project")
 bazel_dep(name = "rules_dx", version = "<release>")
 ```
 
-A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small OpenAPI and AsyncAPI package from [`api_spec/tests/consumer`](../../api_spec/tests/consumer/BUILD.bazel):
+A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small OpenAPI and AsyncAPI package from [`api_spec/tests/consumer`](https://github.com/devhusdk/rules_dx/blob/main/api_spec/tests/consumer/BUILD.bazel):
 
 ```python
 load("@rules_dx//api_spec:defs.bzl", "api_spec_library")

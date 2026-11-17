@@ -26,7 +26,7 @@ module(name = "my_project")
 bazel_dep(name = "rules_dx", version = "<release>")
 ```
 
-A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small Julia package from [`julia/tests/consumer`](../../julia/tests/consumer/BUILD.bazel):
+A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small Julia package from [`julia/tests/consumer`](https://github.com/devhusdk/rules_dx/blob/main/julia/tests/consumer/BUILD.bazel):
 
 ```python
 load("@rules_dx//julia:defs.bzl", "julia_library", "julia_test")

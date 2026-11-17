@@ -130,9 +130,11 @@ fn a_group_set_up_once_denies_its_members_until_teardown() {
     let open = scene.granted.join("open.txt");
     std::fs::write(&open, "visible").expect("open");
     let before = [icacls(&scene.granted), icacls(&scene.ungranted)];
+    let mut trail = Trail::new(&scene);
     let name = format!("dxh-{}-test", std::process::id());
     let out = scene.root.join("out");
     let group = AclGroup::setup(&mut scene.isolation, &name, &out).expect("group setup");
+    trail.mark("group set up");
     let timeline = std::fs::read_to_string(out.join("logs").join("timeline.log")).unwrap();
     assert!(timeline.contains("acl deny "), "{timeline}");
     assert!(icacls(&scene.granted).contains(&name));
@@ -143,6 +145,7 @@ fn a_group_set_up_once_denies_its_members_until_teardown() {
     assert_eq!(allowed.exit, 0, "{}", allowed.stderr);
     assert!(allowed.stdout.contains("visible"));
     drop(group);
+    trail.mark("group dropped");
     let timeline = std::fs::read_to_string(out.join("logs").join("timeline.log")).unwrap();
     assert!(timeline.contains("acl revoke "), "{timeline}");
     assert!(icacls(&scene.ungranted).contains("dxh-host"));
@@ -152,9 +155,17 @@ fn a_group_set_up_once_denies_its_members_until_teardown() {
         timeline.contains(&format!("acl deny {}: present", text(&scene.ungranted))),
         "{timeline}"
     );
+    trail.mark("second group set up");
     drop(again);
+    trail.mark("second group dropped");
     remove_host_denies(&scene.isolation);
-    assert_eq!([icacls(&scene.granted), icacls(&scene.ungranted)], before);
+    trail.mark("host denies removed");
+    assert_eq!(
+        [icacls(&scene.granted), icacls(&scene.ungranted)],
+        before,
+        "{}",
+        trail.text
+    );
 }
 
 /// Takes the scene's denies off `dxh-host`, which keeps them after a group is dropped.
@@ -172,6 +183,7 @@ fn stale_groups_are_removed_when_a_new_group_is_set_up() {
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     let mut scene = scene("stale group");
     let before = [icacls(&scene.granted), icacls(&scene.ungranted)];
+    let mut trail = Trail::new(&scene);
     let mut child = std::process::Command::new("cmd")
         .args(["/c", "exit 0"])
         .spawn()
@@ -183,16 +195,68 @@ fn stale_groups_are_removed_when_a_new_group_is_set_up() {
     std::mem::forget(
         AclGroup::setup(&mut scene.isolation, &stale, &out).expect("stale group setup"),
     );
+    trail.mark("stale group set up");
     assert!(icacls(&scene.granted).contains(&stale));
     let fresh = format!("dxh-{}-fresh", std::process::id());
     drop(AclGroup::setup(&mut scene.isolation, &fresh, &out).expect("fresh group setup"));
+    trail.mark("fresh group set up and dropped");
     remove_host_denies(&scene.isolation);
-    assert_eq!([icacls(&scene.granted), icacls(&scene.ungranted)], before);
+    trail.mark("host denies removed");
+    assert_eq!(
+        [icacls(&scene.granted), icacls(&scene.ungranted)],
+        before,
+        "{}",
+        trail.text
+    );
     let listed = std::process::Command::new("net")
         .args(["localgroup", stale.as_str()])
         .output()
         .expect("net runs");
     assert!(!listed.status.success(), "{stale} is still a local group");
+}
+
+/// The SDDL of the scene's directories after each step, which shows the DACL control bits
+/// (`AI`, `P`) and the inherited (`ID`) entries that `icacls` leaves out.
+struct Trail {
+    paths: [PathBuf; 3],
+    text: String,
+}
+
+impl Trail {
+    fn new(scene: &Scene) -> Self {
+        let mut trail = Self {
+            paths: [
+                scene.root.clone(),
+                scene.granted.clone(),
+                scene.ungranted.clone(),
+            ],
+            text: String::new(),
+        };
+        trail.mark("before");
+        trail
+    }
+
+    fn mark(&mut self, step: &str) {
+        self.text.push_str(&format!("{step}:\n"));
+        for path in &self.paths {
+            self.text
+                .push_str(&format!("  {} {}\n", path.display(), sddl(path)));
+        }
+    }
+}
+
+fn sddl(path: &Path) -> String {
+    let literal = text(path).replace('\'', "''");
+    let out = std::process::Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            &format!("(Get-Acl -LiteralPath '{literal}').Sddl"),
+        ])
+        .output()
+        .expect("powershell runs");
+    String::from_utf8_lossy(&out.stdout).trim().to_owned()
 }
 
 fn icacls(path: &Path) -> String {

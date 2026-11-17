@@ -24,7 +24,7 @@ load("//erlang/private/toolchain:cells.bzl", "otp_compatible_with")
 load("//erlang/private/toolchain:pins.bzl", "OTP_DIALYZER_UNPORTED_CELLS", "OTP_NIF_UNPORTED_CELLS")
 load(":kwargs.bzl", "erlang_app_forward_kwargs", "erlang_bytecode_kwargs", "erlang_erlc_kwargs", "erlang_kwargs", "nif_library_name", "release_priv_path", _ERLANG_CELLS = "ERLANG_CELLS", _ERLANG_COMPATIBLE_WITH = "ERLANG_COMPATIBLE_WITH")
 
-_RUNTIME_TOOLCHAIN_TYPE = Label("//erlang/private/toolchain:runtime_toolchain_type")
+_RUNTIME_TOOLCHAIN_TYPE = Label("//erlang:toolchain_type")
 
 ERLANG_CELLS = _ERLANG_CELLS
 ERLANG_COMPATIBLE_WITH = _ERLANG_COMPATIBLE_WITH

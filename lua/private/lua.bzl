@@ -3,7 +3,7 @@
 load("//core:rlocation.bzl", "repo_relative_path", "runfiles_path")
 load(":providers.bzl", "LUA_ENTRY_SUFFIX", "LuaInfo")
 
-LUA_TOOLCHAIN_TYPE = Label("//lua/private/toolchain:toolchain_type")
+LUA_TOOLCHAIN_TYPE = Label("//lua:toolchain_type")
 
 def _join(parts):
     return "/".join([p for p in parts if p])

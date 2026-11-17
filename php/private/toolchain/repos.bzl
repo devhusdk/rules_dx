@@ -8,9 +8,9 @@ HUB_NAME = "dx_php_toolchains"
 
 VERSION_FILE = "DX_PHP_VERSION"
 
-TOOLCHAIN_TYPE = str(Label("//php/private/toolchain:toolchain_type"))
+TOOLCHAIN_TYPE = str(Label("//php:toolchain_type"))
 
-EXEC_TOOLCHAIN_TYPE = str(Label("//php/private/toolchain:exec_toolchain_type"))
+EXEC_TOOLCHAIN_TYPE = str(Label("//php:exec_toolchain_type"))
 
 _RUNTIME_BUILD = """load("{php_bzl}", "php_toolchain")
 
@@ -68,7 +68,7 @@ def runtime_build(version, interpreter = "php", pcov = False, coverage = ""):
         coverage = _COVERAGE_ATTRS.format(repo = coverage) if coverage else "",
         interpreter = interpreter,
         pcov = pcov_label,
-        php_bzl = str(Label("//php/private/toolchain:php.bzl")),
+        php_bzl = str(Label("//php:php.bzl")),
         version = version,
         version_file = VERSION_FILE,
     )

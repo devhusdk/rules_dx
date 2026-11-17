@@ -107,7 +107,7 @@ def _android_sdk_impl(module_ctx):
     )
     return module_ctx.extension_metadata(reproducible = True)
 
-android_sdk = module_extension(
+android = module_extension(
     implementation = _android_sdk_impl,
     tag_classes = {
         "configure": tag_class(attrs = {

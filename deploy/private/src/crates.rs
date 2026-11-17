@@ -214,7 +214,7 @@ fn manifest_version(text: &str, crate_name: &str, version: &str) -> Result<Strin
 }
 
 /// Reads the version to publish from the crate's manifest.
-fn crates_version(
+pub(crate) fn crates_version(
     files: &[std::path::PathBuf],
     crate_name: &str,
     version: &str,

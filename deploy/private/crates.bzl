@@ -2,7 +2,7 @@
 
 load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
-load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget")
+load(":config.bzl", "DEPLOY_TOOL", "DxRegistryArtifactsInfo", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget")
 load("//core:rlocation.bzl", "rlocation_path")
 load(":deployment.bzl", "dx_deployment")
 load(":validate_crates.bzl", "crates_name_error", "crates_version_error")
@@ -47,7 +47,12 @@ def _crates_config_impl(ctx):
             "version": ctx.attr.version,
         },
         ctx.runfiles(files = crate_files + semver_files).merge(ctx.attr.crate[DefaultInfo].default_runfiles),
-    )
+    ) + [DxRegistryArtifactsInfo(
+        registry = "crates",
+        files = crate_files,
+        crate_name = ctx.attr.crate_name,
+        version = ctx.attr.version,
+    )]
 
 _crates_config = rule(
     implementation = _crates_config_impl,

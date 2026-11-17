@@ -2,7 +2,7 @@
 
 load("//deploy/private/release:signing.bzl", "CosignInfo", "SIGNING_COSIGN_VERSION")
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
-load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deployment_budget")
+load(":config.bzl", "DEPLOY_TOOL", "DxRegistryArtifactsInfo", "deploy_attrs", "deploy_config", "deployment_budget")
 load("//core:rlocation.bzl", "rlocation_path")
 load(":deployment.bzl", "dx_deployment")
 load(":validate_github.bzl", "github_asset_collision_error", "github_notes_error", "github_tag_error")
@@ -28,6 +28,23 @@ def _github_config_impl(ctx):
         asset_files.append(f)
         runfiles = runfiles.merge(info.default_runfiles)
         asset_names.append((str(target.label), f.basename))
+
+    attestations = []
+    registry_files = []
+    for target in ctx.attr.registry_deploys:
+        info = target[DxRegistryArtifactsInfo]
+        rlocs = [rlocation_path(ctx, f) for f in info.files]
+        registry_files.extend(info.files)
+        attestations.append({
+            "crate_name": info.crate_name,
+            "registry": info.registry,
+            "rlocs": rlocs,
+            "version": info.version,
+        })
+        if ctx.attr.attach and info.registry == "maven":
+            asset_rlocs.extend(rlocs)
+            asset_files.extend(info.files)
+            asset_names.extend([(str(target.label), f.basename) for f in info.files])
 
     collision_error = github_asset_collision_error(asset_names)
     if collision_error != "":
@@ -66,12 +83,13 @@ def _github_config_impl(ctx):
             "cosign_sha256": cosign_sha256,
             "cosign_version": SIGNING_COSIGN_VERSION if cosign_rloc else "",
             "asset_rlocs": asset_rlocs,
+            "attestations": attestations,
             "deploy_name": ctx.attr.deploy_name,
             "tag": "current" if ctx.attr.tag_from_head else ctx.attr.release_tag,
             "notes": "file" if ctx.file.notes_file else ctx.attr.notes,
             "notes_rloc": rlocation_path(ctx, ctx.file.notes_file) if ctx.file.notes_file else "",
         },
-        ctx.runfiles(files = asset_files + cosign_files + ([ctx.file.notes_file] if ctx.file.notes_file else [])).merge(runfiles).merge(apidiff_runfiles).merge(cosign_runfiles),
+        ctx.runfiles(files = asset_files + registry_files + cosign_files + ([ctx.file.notes_file] if ctx.file.notes_file else [])).merge(runfiles).merge(apidiff_runfiles).merge(cosign_runfiles),
     )
 
 _github_config = rule(
@@ -96,6 +114,11 @@ _github_config = rule(
         "sign": attr.string(mandatory = True, doc = "'auto', 'off' or 'required'."),
         "go_modules": attr.string_list(doc = "Workspace-relative directories of the Go modules to check."),
         "artifacts": attr.label_list(mandatory = True, doc = "Files to attach as release assets."),
+        "registry_deploys": attr.label_list(
+            doc = "crates_deploy and maven_deploy targets whose artifacts get a gh attestation verify line in the release body.",
+            providers = [DxRegistryArtifactsInfo],
+        ),
+        "attach": attr.bool(doc = "Also upload the maven_deploy files of registry_deploys as release assets."),
         "deploy_name": attr.string(mandatory = True, doc = "Deploy target name."),
         "release_tag": attr.string(doc = "Release tag. Empty when tag_from_head is set."),
         "tag_from_head": attr.bool(doc = "Use the tag that points at HEAD."),
@@ -104,7 +127,7 @@ _github_config = rule(
     },
 )
 
-def github_deploy(name, artifacts, release_tag = "", tag_from_head = False, build_mode = "release", sbom = None, notes = "commits", notes_file = None, api_compat = "fail", api_baseline = "registry", go_modules = [], sign = "auto", size_budget = None, tags = None, visibility = None, testonly = False, target_compatible_with = None):
+def github_deploy(name, artifacts, release_tag = "", tag_from_head = False, build_mode = "release", sbom = None, notes = "commits", notes_file = None, api_compat = "fail", api_baseline = "registry", go_modules = [], sign = "auto", registry_deploys = [], attach = True, size_budget = None, tags = None, visibility = None, testonly = False, target_compatible_with = None):
     """Publishes pinned files as a draft-only GitHub Release."""
     attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     if tag_from_head:
@@ -136,6 +159,8 @@ def github_deploy(name, artifacts, release_tag = "", tag_from_head = False, buil
         apidiff = Label("//deploy/private/pins:apidiff") if checked else None,
         go = Label("//deploy/private/pins:go") if checked else None,
         artifacts = artifacts + ([sbom] if sbom else []),
+        attach = attach,
+        registry_deploys = registry_deploys,
         go_modules = go_modules,
         cosign = Label("//deploy/private/release:cosign") if sign != "off" else None,
         sign = sign,

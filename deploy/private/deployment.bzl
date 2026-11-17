@@ -3,7 +3,7 @@
 load("//core:defs.bzl", "DxSubjectInfo", "display_label")
 load("//core:wrapper.bzl", "dx_symlink_executable")
 load(":sbom.bzl", "DxSbomFileInfo")
-load(":config.bzl", "DxDeployConfigInfo")
+load(":config.bzl", "DxDeployConfigInfo", "DxRegistryArtifactsInfo")
 load("//core:rlocation.bzl", "rlocation_path")
 load(":validate.bzl", "parse_size_budget", "size_budget_error")
 
@@ -55,6 +55,8 @@ def _dx_deployment_impl(ctx):
         runfiles = runfiles.merge(ctx.attr.config[DefaultInfo].default_runfiles)
         runfiles = runfiles.merge(ctx.runfiles(files = [config.file]))
         extra.append(config)
+        if DxRegistryArtifactsInfo in ctx.attr.config:
+            extra.append(ctx.attr.config[DxRegistryArtifactsInfo])
         environment["DX_DEPLOY_CONFIG"] = rlocation_path(ctx, config.file)
     sbom_path = ""
     if ctx.attr.sbom:

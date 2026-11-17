@@ -22,7 +22,7 @@ load(":crates_tests.bzl", "crates_config_content_tests", "crates_unit_tests")
 load(":deploy_tests.bzl", "config_runfiles_tests", "deploy_analysis_test", "deploy_config_tests", "deploy_unit_tests")
 load(":deployment.bzl", "dx_deployment")
 load(":github.bzl", "github_deploy")
-load(":github_tests.bzl", "github_unit_tests")
+load(":github_tests.bzl", "github_attestation_tests", "github_unit_tests")
 load(":go_sdk.bzl", "dx_go_binary_file")
 load(":hackage.bzl", "hackage_deploy")
 load(":hackage_tests.bzl", "hackage_unit_tests")
@@ -1074,6 +1074,17 @@ github_deploy(
 )
 
 github_unit_tests(name = "github_unit")
+
+github_deploy(
+    name = "github_attested",
+    artifacts = [":release_demo_archive"],
+    registry_deploys = [
+        ":crates_demo",
+        ":maven_demo",
+    ],
+)
+
+github_attestation_tests(name = "github_attestation")
 
 deploy_analysis_test(
     name = "github_analysis",

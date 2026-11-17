@@ -3,7 +3,7 @@
 load("//android/private/packaging:defs.bzl", "abi_transition_settings")
 load("//android/private/packaging:repos.bzl", "ABI_PLATFORMS", "APP_SDK_API_LEVEL", "APP_SDK_BUILD_TOOLS", "APP_SDK_LICENSES", "APP_SDK_PLATFORM", "APP_SDK_REPOSITORY", "KNOWN_ABIS", "TUPLE_ABIS", "abi_errors", "abi_platforms", "abis_for", "app_id_errors", "manifest_lib_name", "sdk_request_errors")
 load("//android/private/packaging:validate.bzl", "android_aab_check_errors", "android_apk_manifest_errors", "android_apk_set_errors", "android_release_sign_errors", "rust_android_apk_errors")
-load("//android/private/sdk:repos.bzl", "ANDROID_API_LEVEL", "ANDROID_NDK_RELEASE", "ANDROID_NDK_REVISION", "ANDROID_TARGET", "BUILD_TOOLS", "BUILD_TOOLS_ARCHIVE_PREFIX", "BUILD_TOOLS_ARCHIVE_SEPARATOR", "BUILD_TOOLS_ARTIFACTS", "BUNDLETOOL_REPOSITORY", "BUNDLETOOL_SHA256", "BUNDLETOOL_VERSION", "DEFAULT_MIRROR", "DEFAULT_PLATFORM_LEVEL", "EMULATOR_ARTIFACTS", "EMULATOR_BUILD", "HUB_NAME", "NDK_ARTIFACTS", "OPT_IN_PACKAGES", "PLATFORM_ARTIFACTS", "PLATFORM_CONSTRAINTS", "PLATFORM_TOOLS", "PLATFORM_TOOLS_ARCHIVE_PREFIX", "PLATFORM_TOOLS_ARTIFACTS", "REQUIRED_LICENSES", "SDK_PACKAGES", "SDK_PLATFORM", "app_sdk_hub_build", "app_sdk_layout", "app_sdk_substitutions", "artifact_errors", "build_tools_build", "build_tools_no_match_error", "build_tools_repositories", "build_tools_repository_name", "bundletool_url", "canonical_id_for", "default_request", "emulator_build", "emulator_repository_name", "fetches_payload", "hub_build", "ndk_build", "ndk_repositories", "ndk_repository_name", "no_match_error", "package_repositories", "platform_build", "platform_repository_name", "platform_tools_build", "platform_tools_repository_name", "request_errors", "url_for")
+load("//android/private/sdk:repos.bzl", "ANDROID_API_LEVEL", "ANDROID_NDK_RELEASE", "ANDROID_NDK_REVISION", "ANDROID_TARGET", "BUILD_TOOLS", "BUILD_TOOLS_ARCHIVE_PREFIX", "BUILD_TOOLS_ARCHIVE_SEPARATOR", "BUILD_TOOLS_ARTIFACTS", "BUNDLETOOL_REPOSITORY", "BUNDLETOOL_SHA256", "BUNDLETOOL_VERSION", "DEFAULT_MIRROR", "DEFAULT_PLATFORM_LEVEL", "EMULATOR_ARTIFACTS", "EMULATOR_BUILD", "HUB_NAME", "NDK_ARTIFACTS", "OPT_IN_PACKAGES", "PLATFORM_ARTIFACTS", "PLATFORM_CONSTRAINTS", "PLATFORM_TOOLS", "PLATFORM_TOOLS_ARCHIVE_PREFIX", "PLATFORM_TOOLS_ARTIFACTS", "REQUIRED_LICENSES", "SDK_PACKAGES", "SDK_PLATFORM", "app_sdk_hub_build", "app_sdk_layout", "app_sdk_substitutions", "artifact_errors", "build_tools_build", "build_tools_no_match_error", "build_tools_repositories", "build_tools_repository_name", "bundletool_url", "canonical_id_for", "default_request", "emulator_build", "emulator_repository_name", "fetches_payload", "hub_build", "ndk_build", "ndk_repositories", "ndk_repository_name", "no_match_error", "package_repositories", "platform_build", "platform_repository_name", "platform_tools_build", "platform_tools_repository_name", "request_errors", "unavailable_hub_build", "url_for")
 load("//android/private/toolchain:repos.bzl", "toolchain_build", "toolchain_repo_errors")
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 
@@ -591,6 +591,11 @@ def _android_checks():
     checks.append(expect_contains("app sdk hub gates on its own api level", hub, '":api_34_enabled"'))
     checks.append(expect_contains("app sdk hub forwards adb", hub, 'name = "platform-tools/adb"'))
     checks.append(expect_false("app sdk hub globs nothing", "glob(" in hub))
+    empty = 'toolchain_type(name = "sdk_toolchain_type")\n\nfilegroup(\n    name = "sdk",\n    srcs = [":error_message"],\n)\n'
+    unavailable = unavailable_hub_build(empty, "@rules_dx//android/private/sdk:unavailable.bzl")
+    checks.append(expect_true("unavailable hub loads the toolchain rule first", unavailable.startswith('load("@rules_dx//android/private/sdk:unavailable.bzl", "unavailable_android_sdk")')))
+    checks.append(expect_contains("unavailable hub declares :sdk with ToolchainInfo", unavailable, 'unavailable_android_sdk(name = "sdk")'))
+    checks.append(expect_false("unavailable hub drops the :sdk filegroup", 'name = "sdk",' in unavailable))
     return checks
 
 def android_metadata_tests(name, size):

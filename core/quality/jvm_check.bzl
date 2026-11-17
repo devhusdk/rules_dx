@@ -23,7 +23,7 @@ def _jvm_android_sdk_impl(_target, ctx):
     if ctx.rule.kind not in _ANDROID_KINDS:
         return []
     toolchain = ctx.toolchains[_ANDROID_SDK_TOOLCHAIN_TYPE]
-    if toolchain == None:
+    if toolchain == None or getattr(toolchain, "android_sdk_info", None) == None:
         fail("%s: %s needs a resolved Android SDK toolchain for quality checks" % (ctx.label, ctx.rule.kind))
     return [JvmAndroidSdkInfo(jars = depset([toolchain.android_sdk_info.android_jar]))]
 

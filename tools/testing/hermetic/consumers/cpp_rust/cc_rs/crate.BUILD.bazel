@@ -1,4 +1,4 @@
-load("@rules_dx//rust:defs.bzl", "rust_library", "rust_test")
+load("@my_dx//rust:defs.bzl", "rust_library", "rust_test")
 
 rust_library(
     name = "cc_rs_consumer",

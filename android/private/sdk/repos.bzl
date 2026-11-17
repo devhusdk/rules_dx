@@ -339,6 +339,38 @@ def default_request():
         mirror = "",
     )
 
+def select_request(root_requests, other_requests, default):
+    """Picks the one configure request the extension acts on.
+
+    The root module owns the SDK setup, so its tag wins outright and tags from
+    other modules are ignored. Without a root tag, the default applies with the
+    `extra_packages` of every other module's tag added, so a dependency (rules_dx
+    itself asks for platform-tools) still gets the packages it needs.
+
+    Args:
+      root_requests: configure tags of the root module.
+      other_requests: configure tags of every other module.
+      default: the request used when the root module sends no tag.
+
+    Returns:
+      struct(request, error); error is "" when the selection is valid.
+    """
+    if len(root_requests) > 1:
+        return struct(request = None, error = "android: configure the Android SDK once")
+    if len(root_requests) == 1:
+        return struct(request = root_requests[0], error = "")
+    packages = list(default.extra_packages)
+    for request in other_requests:
+        packages.extend([name for name in request.extra_packages if name not in packages])
+    merged = struct(
+        accept_licenses = default.accept_licenses,
+        api_level = default.api_level,
+        enabled = default.enabled,
+        extra_packages = packages,
+        mirror = default.mirror,
+    )
+    return struct(request = merged, error = "")
+
 def license_errors(request):
     """Returns the error for each required license the request leaves unaccepted."""
     missing = [name for name in REQUIRED_LICENSES if name not in request.accept_licenses]

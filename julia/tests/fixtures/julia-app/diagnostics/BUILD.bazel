@@ -8,7 +8,6 @@ _FORMATTED = [
     "clean.jl",
     "//julia/tests/fixtures/julia-app/archive:archive_test.jl",
     "//julia/tests/fixtures/julia-app/archive:src/Archive.jl",
-    "//julia/tests/fixtures/julia-app/cli:cli_test.jl",
     "//julia/tests/fixtures/julia-app/cli:main.jl",
     "//julia/tests/fixtures/julia-app/cli:report_test.jl",
     "//julia/tests/fixtures/julia-app/cli:src/Report.jl",

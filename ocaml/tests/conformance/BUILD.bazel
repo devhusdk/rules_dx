@@ -55,6 +55,19 @@ ocaml_binary(
 )
 
 ocaml_module(
+    name = "runfiles_main",
+    struct = "runfiles_main.ml",
+    target_compatible_with = OCAML_COMPATIBLE_WITH,
+)
+
+ocaml_binary(
+    name = "runfiles_hello",
+    data = ["data.txt"],
+    main = ":runfiles_main",
+    target_compatible_with = OCAML_COMPATIBLE_WITH,
+)
+
+ocaml_module(
     name = "passing",
     struct = "passing.ml",
     target_compatible_with = OCAML_COMPATIBLE_WITH,
@@ -114,6 +127,11 @@ dx_conformance_suite(
         "lint_line": 1,
         "lint_rule": "list_length_comparisons",
         "lint_source": "lint_dirty.ml",
+    },
+    runfiles = {
+        "binary": ":runfiles_hello",
+        "data": "data.txt",
+        "expected": "hello runfiles",
     },
 )
 

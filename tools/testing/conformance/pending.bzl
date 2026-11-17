@@ -95,7 +95,6 @@ d format_test *
 d lint_error_test *
 d lint_test *
 d lock_test *
-d runfiles_test *
 dart runfiles_test *
 dockerfile build_test *
 dockerfile coverage_test *
@@ -189,7 +188,6 @@ msix runfiles_test *
 ocaml cross_test macos_arm64
 ocaml lint_error_test *
 ocaml lint_test *
-ocaml runfiles_test *
 perl runfiles_test *
 php runfiles_test *
 powershell runfiles_test *

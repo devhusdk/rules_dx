@@ -2,15 +2,15 @@
 
 load("//core:repo.bzl", "hub_repo")
 load(":packages.bzl", "declare_packages")
-load(":pins.bzl", "CELLS")
+load(":pins.bzl", "ALL_CELLS")
 load(":repos.bzl", "HUB_NAME", "cell_repository_name", "ghc_repo", "hub_files")
 
 def _haskell_impl(mctx):
-    for cell in sorted(CELLS):
+    for cell in sorted(ALL_CELLS):
         ghc_repo(
             name = cell_repository_name(cell),
             cell = cell,
-            python = Label(CELLS[cell].python),
+            python = Label(ALL_CELLS[cell].python),
         )
     hub_repo(name = HUB_NAME, files = hub_files())
     return mctx.extension_metadata(reproducible = True)

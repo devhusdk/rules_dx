@@ -26,6 +26,16 @@ platform(
 )
 
 platform(
+    name = "linux_arm64_musl",
+    constraint_values = [
+        "@llvm//constraints/libc:musl",
+        "@llvm//constraints/pie:off",
+        "@platforms//cpu:arm64",
+        "@platforms//os:linux",
+    ],
+)
+
+platform(
     name = "linux_x86_64",
     constraint_values = [
         "@platforms//cpu:x86_64",

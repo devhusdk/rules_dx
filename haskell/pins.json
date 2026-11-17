@@ -31,6 +31,13 @@
         "https://downloads.haskell.org/~ghc/9.10.3/ghc-9.10.3-aarch64-deb10-linux.tar.xz"
       ]
     },
+    "ghc__linux_arm64_musl": {
+      "sha256": "4866d3b241c59860f2f6eaa2a5e96632113e57100b911ff8aa936665cc0045fe",
+      "strip_prefix": "ghc-9.10.3-aarch64-alpine-linux",
+      "urls": [
+        "https://downloads.haskell.org/~ghc/9.10.3/ghc-9.10.3-aarch64-alpine3_18-linux.tar.xz"
+      ]
+    },
     "ghc__linux_x86_64": {
       "sha256": "90f4e3082e1f43b984579f16b6349bd406dfdf88bda85733d7ccd54cb6a8eda8",
       "strip_prefix": "ghc-9.10.3-x86_64-unknown-linux",

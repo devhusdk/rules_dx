@@ -2,7 +2,7 @@
 
 load("//core:deb_closure.bzl", "deb_closure")
 load("//core:toolchain.bzl", "toolchain_target")
-load(":pins.bzl", "CELLS", "GHC_VERSION", "qualified_cells", "runtime_urls")
+load(":pins.bzl", "ALL_CELLS", "ALPINE_MIRROR", "CELLS", "GHC_VERSION", "MUSL_CELLS", "qualified_cells", "runtime_urls")
 
 HUB_NAME = "dx_haskell_toolchains"
 
@@ -16,11 +16,11 @@ VERSION_FILE = "DX_GHC_VERSION"
 
 def ghc_library_dir(cell):
     """Returns the bindist library directory of one cell."""
-    return LIBDIR + "/" + CELLS[cell].ghc_libdir_triple + "-ghc-" + GHC_VERSION
+    return LIBDIR + "/" + ALL_CELLS[cell].ghc_libdir_triple + "-ghc-" + GHC_VERSION
 
 def cell_matches_host(cell, os_name, arch):
     """Returns whether the cell's binaries run on the host."""
-    host = CELLS[cell].host
+    host = ALL_CELLS[cell].host
     return any([os_name.lower().startswith(os) for os in host.os]) and arch in host.arch
 
 _UNAVAILABLE_BUILD = """package(default_visibility = ["//visibility:public"])
@@ -259,8 +259,7 @@ cc_toolchain_config(name = "ghc_windows_mingw64_config", is_clang = True)
 
 _GMP_IMPORT = """cc_import(
     name = "gmp",
-    shared_library = "{closure}/lib/libgmp.so.10",
-    static_library = "{closure}/lib/libgmp.a",
+    shared_library = "{closure}/lib/libgmp.so.10",{static}
 )
 """
 
@@ -369,8 +368,71 @@ def _drop_import_libs(rctx):
     for path in dropped_import_libs(found):
         rctx.delete(path)
 
+MUSL_TOOL_ARGS = {
+    "ghc-{version}": "-B\"$root/{libdir}\"",
+    "ghc-pkg-{version}": "--global-package-db=\"$root/{libdir}/package.conf.d\"",
+    "haddock-ghc-{version}": "-B\"$root/{libdir}\"",
+    "runghc-{version}": "-f \"$root/bin/ghc\"",
+}
+
+MUSL_SUFFIX = ".musl"
+
+HOST_CXX_LIBRARY_DIR = "/usr/lib/gcc/"
+
+def musl_wrapper(cell, name):
+    """Returns the shell wrapper that runs one bindist executable under the shipped musl loader."""
+    extra = MUSL_TOOL_ARGS.get(name.replace(GHC_VERSION, "{version}"), "").format(libdir = LIBDIR)
+    return "\n".join([
+        "#!/bin/sh",
+        "root=\"$(cd \"$(dirname \"$0\")/..\" && pwd)\"",
+        "exec \"$root/{closure}/lib/{loader}\" --library-path \"$root/{closure}/lib:$root/{ghclib}\" \"$root/bin/{name}{suffix}\" {extra} \"$@\"".format(
+            closure = CLOSURE_DIR,
+            extra = extra,
+            ghclib = ghc_library_dir(cell),
+            loader = ALL_CELLS[cell].loader,
+            name = name,
+            suffix = MUSL_SUFFIX,
+        ).replace("  ", " "),
+        "",
+    ])
+
+def host_cxx_library_dirs(conf, closure):
+    """Returns the package .conf text with the host gcc library dirs replaced by the closure lib directory."""
+    out = []
+    for line in conf.split("\n"):
+        field, sep, value = line.partition(":")
+        if sep and HOST_CXX_LIBRARY_DIR in value:
+            line = field + ": " + " ".join(["${pkgroot}/../" + closure + "/lib" if word.startswith(HOST_CXX_LIBRARY_DIR) else word for word in value.split(" ") if word])
+        out.append(line)
+    return "\n".join(out)
+
+def _apk_closure(rctx, cell):
+    for package in cell.apks:
+        scratch = "_apks/" + package.package
+        rctx.download_and_extract(
+            url = ALPINE_MIRROR + "/" + package.apk,
+            sha256 = package.sha256,
+            output = scratch,
+            type = "tar.gz",
+        )
+        for soname, path in package.libraries.items():
+            source = rctx.path(scratch + "/" + path)
+            if not source.exists:
+                fail("{} does not ship {}".format(package.apk, path))
+            rctx.rename(source.realpath, CLOSURE_DIR + "/lib/" + soname)
+    rctx.delete("_apks")
+    for alias, target in cell.loader_aliases.items():
+        rctx.symlink(CLOSURE_DIR + "/lib/" + target, CLOSURE_DIR + "/lib/" + alias)
+
+def _musl_wrappers(rctx, cell_name):
+    for entry in rctx.path("bin").readdir():
+        if entry.realpath.basename != entry.basename:
+            continue
+        rctx.rename(entry, str(entry) + MUSL_SUFFIX)
+        rctx.file(entry, musl_wrapper(cell_name, entry.basename), executable = True)
+
 def _ghc_repo_impl(rctx):
-    cell = CELLS[rctx.attr.cell]
+    cell = ALL_CELLS[rctx.attr.cell]
     if not cell_matches_host(rctx.attr.cell, rctx.os.name, rctx.os.arch):
         rctx.file("REPO.bazel", "")
         rctx.file("BUILD.bazel", _UNAVAILABLE_BUILD)
@@ -387,14 +449,18 @@ def _ghc_repo_impl(rctx):
     )
     for path in GHC_DROPPED_PATHS:
         rctx.delete(path)
+    apks = getattr(cell, "apks", [])
+    if apks:
+        _apk_closure(rctx, cell)
+        _musl_wrappers(rctx, rctx.attr.cell)
     if cell.runtime:
         deb_closure(rctx, runtime_urls, cell.runtime, CLOSURE_DIR)
         rctx.symlink(CLOSURE_DIR + "/lib/libgmp.so.10", CLOSURE_DIR + "/lib/libgmp.so")
         for package in cell.runtime:
-            for soname in [name for name in package.libraries if ".so" in name]:
+            for soname in package.libraries:
                 rctx.symlink(CLOSURE_DIR + "/lib/" + soname, ghc_library_dir(rctx.attr.cell) + "/" + soname)
     rctx.file(LIBDIR + "/settings", ghc_settings(rctx.read(LIBDIR + "/settings")), executable = False)
-    if cell.runtime:
+    if cell.runtime or apks:
         _gmp_registration(rctx)
     gmp_license = getattr(cell, "gmp_license", None)
     if gmp_license:
@@ -408,7 +474,7 @@ def _ghc_repo_impl(rctx):
     for entry in rctx.path(LIBDIR + "/package.conf.d").readdir():
         if entry.basename.endswith(".conf"):
             conf = rctx.read(entry)
-            stripped = drop_host_sdk_dirs(conf)
+            stripped = host_cxx_library_dirs(drop_host_sdk_dirs(conf), CLOSURE_DIR)
             if stripped != conf:
                 rctx.file(entry, stripped, executable = False)
     _execute(rctx, ["bin/ghc-pkg" + cell.exe_suffix, "recache", "--global"])
@@ -430,7 +496,10 @@ def _ghc_repo_impl(rctx):
         cc_loads = _MINGW_CC_LOADS if mingw_cc else "",
         closure = CLOSURE_DIR,
         exe_suffix = cell.exe_suffix,
-        gmp = (_GMP_IMPORT if cell.runtime else _GMP_EMPTY).format(closure = CLOSURE_DIR),
+        gmp = (_GMP_IMPORT if cell.runtime or apks else _GMP_EMPTY).format(
+            closure = CLOSURE_DIR,
+            static = "\n    static_library = \"{}/lib/libgmp.a\",".format(CLOSURE_DIR) if apks else "",
+        ),
         libdir = LIBDIR,
         libraries = result["file_content"],
         locale = cell.locale,
@@ -450,23 +519,25 @@ ghc_repo = repository_rule(
     },
 )
 
-def hub_files(cells = CELLS):
+def hub_files(cells = CELLS, musl_cells = MUSL_CELLS):
     """Returns the hub files: the toolchains and cc toolchains at the root, the runtime closure aliases under lib."""
     toolchains = []
     content = []
     arms = []
-    for cell in qualified_cells(cells):
+    for cell in qualified_cells(musl_cells) + qualified_cells(cells):
+        info = musl_cells[cell] if cell in musl_cells else cells[cell]
+        target = getattr(info, "target_compatible_with", info.exec_compatible_with)
         toolchains.append(toolchain_target(
             name = cell,
-            exec_compatible_with = cells[cell].exec_compatible_with,
-            target_compatible_with = cells[cell].exec_compatible_with,
+            exec_compatible_with = info.exec_compatible_with,
+            target_compatible_with = target,
             target_settings = [_TOOLCHAINS_ON],
             toolchain = "@{}//:toolchain-impl".format(cell_repository_name(cell)),
             toolchain_type = str(Label("@rules_haskell//haskell:toolchain")),
         ))
         content.append("config_setting(\n    name = \"{}_platform\",\n    constraint_values = {},\n)\n".format(
             cell,
-            repr(cells[cell].exec_compatible_with),
+            repr(target),
         ))
         arms.append("        \":{}_platform\": \"@{}//:{{name}}\",".format(cell, cell_repository_name(cell)))
     for name in ["cabal", "ghc_exe", "ghc_files", "gmp", "licenses"]:
@@ -474,7 +545,7 @@ def hub_files(cells = CELLS):
     for name in COMMON_LIBRARIES:
         content.append("haskell_toolchain_library(name = \"{}\")\n".format(name))
     for name in os_libraries():
-        compatible = [cell for cell in qualified_cells(cells) if name in cells[cell].os_libraries]
+        compatible = [cell for cell in qualified_cells(musl_cells) if name in musl_cells[cell].os_libraries] + [cell for cell in qualified_cells(cells) if name in cells[cell].os_libraries]
         content.append(_OS_LIBRARY.format(name = name, arms = "".join(["        \":{}_platform\": [],\n".format(cell) for cell in compatible]), incompatible = str(Label("@platforms//:incompatible"))))
     cc_toolchains = [
         toolchain_target(

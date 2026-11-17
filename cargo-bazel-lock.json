@@ -1,5 +1,5 @@
 {
-  "checksum": "956732c2026e359ecbe00e02e5bf063bbf4176e5980611aecadf2e37b646f2e0",
+  "checksum": "8654d5084b4d86d06fa0e3bd8c2eacc249b96df3de84f4170de9595300c10752",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -33280,14 +33280,14 @@
     "hex_lock 0.0.0": "elixir/private/tools/hex_lock",
     "ide_tests 0.0.0": "tools/ide_tests",
     "image_demo 0.0.0": "deploy/private/image_demo",
-    "java_app_cli_fixture 0.0.0": "java/tests/fixtures/java-app/java_app_cli_fixture",
+    "java_app_cli_fixture 0.0.0": "java/tests/fixtures/java_app/java_app_cli_fixture",
     "julia_extract 0.0.0": "tools/docs/julia/julia_extract",
     "julia_jet 0.0.0": "julia/private/tools/julia_jet",
     "julia_lint 0.0.0": "julia/private/tools/julia_lint",
     "julia_tools 0.0.0": "julia/private/julia_tools",
     "jvm_convert 0.0.0": "tools/docs/jvm/jvm_convert",
     "jvm_docs_tests 0.0.0": "tools/docs/jvm_docs_tests",
-    "kotlin_app_cli_fixture 0.0.0": "kotlin/tests/fixtures/kotlin-app/kotlin_app_cli_fixture",
+    "kotlin_app_cli_fixture 0.0.0": "kotlin/tests/fixtures/kotlin_app/kotlin_app_cli_fixture",
     "lua_extract 0.0.0": "tools/docs/lua/lua_extract",
     "lua_lock 0.0.0": "lua/private/tools/lua_lock",
     "maven_lock 0.0.0": "java/private/tools/maven_lock",

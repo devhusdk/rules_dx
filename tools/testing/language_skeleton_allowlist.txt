@@ -11,7 +11,6 @@ fixture-hello ansible/tests/conformance/BUILD.bazel
 fixture-hello appimage/tests/conformance/BUILD.bazel
 fixture-hello apple/tests/conformance/BUILD.bazel
 fixture-hello asciidoc/tests/conformance/BUILD.bazel
-fixture-hello bicep/tests/conformance/BUILD.bazel
 fixture-hello capnproto/tests/conformance/BUILD.bazel
 fixture-hello cloudformation/tests/conformance/BUILD.bazel
 fixture-hello dockerfile/tests/conformance/BUILD.bazel
@@ -21,9 +20,7 @@ fixture-hello helm/tests/conformance/BUILD.bazel
 fixture-hello kubernetes/tests/conformance/BUILD.bazel
 fixture-hello msix/tests/conformance/BUILD.bazel
 fixture-hello qt/tests/conformance/BUILD.bazel
-fixture-hello rego/tests/conformance/BUILD.bazel
 fixture-hello rst/tests/conformance/BUILD.bazel
-fixture-hello terraform/tests/conformance/BUILD.bazel
 fixture-hello thrift/tests/conformance/BUILD.bazel
 fixture-name api_spec/tests/refs
 fixture-name api_spec/tests/shared

@@ -1,8 +1,28 @@
 # Strict tiers
 
-This page shows what the strict tier changes against the standard tier of each tool. A tier file is self-contained, so the diff is the whole difference. This page is generated. To refresh it, run `bazel run //docs:update_tiers`.
+This page shows what each lint and format tool checks on top of the standard tier when you switch to the strict tier.
 
-## buf
+## Pick the tier
+
+1. Open `dx.toml` at the root of your workspace, the folder that holds `MODULE.bazel`. Create it if it is missing.
+2. Set `tier`:
+
+   ```toml
+   schema_version = 1
+   tier = "strict"
+   ```
+
+3. Run `tools/dx config <tool>`, such as `tools/dx config ruff`, to see the files that tool now reads.
+
+Without `dx.toml`, every tool runs at the standard tier. To give one family, such as `rust`, its own tier, set `tier` under `[families.rust]`. The [config reference](cli/commands/config.md#dxtoml) lists every key.
+
+To change a single setting, edit the tool's own config file at the root of your repo. The [quality page](cli/commands/quality.md) lists the file each tool reads.
+
+## Tools
+
+Each section below is a diff from the standard config of one tool to its strict config. Each tier file is complete on its own, so the diff is the whole difference. Each section names the tool, where its tier config comes from, and the native config file you edit to change it. This page is generated. To refresh it, run `bazel run //docs:update_tiers`.
+
+### buf
 
 Source: dx. Native file: `buf.yaml`.
 
@@ -21,7 +41,7 @@ Source: dx. Native file: `buf.yaml`.
 +    - FILE
 ```
 
-## buildifier
+### buildifier
 
 Source: dx. Native file: `.buildifier.json`.
 
@@ -35,7 +55,7 @@ Source: dx. Native file: `.buildifier.json`.
  }
 ```
 
-## checkmake
+### checkmake
 
 Source: dx. Native file: `checkmake.ini`.
 
@@ -52,7 +72,7 @@ Source: dx. Native file: `checkmake.ini`.
  disabled=false
 ```
 
-## cmakelint
+### cmakelint
 
 Source: dx. Native file: `.cmakelintrc`.
 
@@ -65,7 +85,7 @@ Source: dx. Native file: `.cmakelintrc`.
 +filter=-linelength,-whitespace/eol,-whitespace/extra,-whitespace/indent,-whitespace/mismatch,-whitespace/newline,-whitespace/tabs
 ```
 
-## dart
+### dart
 
 Source: dx. Native file: `analysis_options.yaml`.
 
@@ -104,7 +124,7 @@ Source: dx. Native file: `analysis_options.yaml`.
 +    strict-raw-types: true
 ```
 
-## docstrfmt
+### docstrfmt
 
 Source: dx. Native file: `docstrfmt.toml`.
 
@@ -120,7 +140,7 @@ Source: dx. Native file: `docstrfmt.toml`.
 +ordered-marker = "1"
 ```
 
-## eslint
+### eslint
 
 Source: dx. Native file: `eslint.config.mjs, eslint.config.js, eslint.config.cjs, eslint.config.ts, .eslintrc*`.
 
@@ -258,7 +278,7 @@ Source: dx. Native file: `eslint.config.mjs, eslint.config.js, eslint.config.cjs
  );
 ```
 
-## gersemi
+### gersemi
 
 Source: dx. Native file: `.gersemirc`.
 
@@ -275,7 +295,7 @@ Source: dx. Native file: `.gersemirc`.
 +warn_about_unknown_commands: true
 ```
 
-## hlint
+### hlint
 
 Source: dx. Native file: `.hlint.yaml`.
 
@@ -294,7 +314,7 @@ Source: dx. Native file: `.hlint.yaml`.
 +- group: {name: future, enabled: true}
 ```
 
-## lychee
+### lychee
 
 Source: dx. Native file: `lychee.toml`.
 
@@ -312,7 +332,7 @@ Source: dx. Native file: `lychee.toml`.
 +max_redirects = 5
 ```
 
-## mbake
+### mbake
 
 Source: dx. Native file: `.bake.toml`.
 
@@ -341,7 +361,7 @@ Source: dx. Native file: `.bake.toml`.
  space_around_assignment = true
 ```
 
-## mix_format
+### mix_format
 
 Source: dx. Native file: `.formatter.exs`.
 
@@ -357,7 +377,7 @@ Source: dx. Native file: `.formatter.exs`.
  ]
 ```
 
-## perltidy
+### perltidy
 
 Source: dx. Native file: `.perltidyrc`.
 
@@ -372,7 +392,7 @@ Source: dx. Native file: `.perltidyrc`.
 +--perl-best-practices
 ```
 
-## psscriptanalyzer
+### psscriptanalyzer
 
 Source: dx. Native file: `PSScriptAnalyzerSettings.psd1`.
 
@@ -390,7 +410,7 @@ Source: dx. Native file: `PSScriptAnalyzerSettings.psd1`.
  }
 ```
 
-## pydoclint
+### pydoclint
 
 Source: dx. Native file: `*.toml`.
 
@@ -413,7 +433,7 @@ Source: dx. Native file: `*.toml`.
 +require-yield-section-when-yielding-nothing = true
 ```
 
-## ruff
+### ruff
 
 Source: dx. Native file: `ruff.toml, .ruff.toml`.
 
@@ -1350,7 +1370,7 @@ Source: dx. Native file: `ruff.toml, .ruff.toml`.
 +"test_*.py" = ["S101", "PLR2004", "ARG"]
 ```
 
-## shfmt
+### shfmt
 
 Source: dx. Native file: `.editorconfig`.
 
@@ -1366,7 +1386,7 @@ Source: dx. Native file: `.editorconfig`.
 +indent_size = 2
 ```
 
-## sqlfluff
+### sqlfluff
 
 Source: dx. Native file: `.sqlfluff`.
 
@@ -1380,7 +1400,7 @@ Source: dx. Native file: `.sqlfluff`.
 +rules = all
 ```
 
-## stylelint
+### stylelint
 
 Source: dx. Native file: `.stylelintrc.json, .stylelintrc*, stylelint.config.*`.
 
@@ -1463,13 +1483,13 @@ Source: dx. Native file: `.stylelintrc.json, .stylelintrc*, stylelint.config.*`.
      { "files": ["*.scss"], "customSyntax": "postcss-scss" },
 ```
 
-## taplo
+### taplo
 
 Source: dx. Native file: `.taplo.toml`.
 
 Same as the standard tier.
 
-## tsc
+### tsc
 
 Source: dx. Native file: `tsconfig.json`.
 
@@ -1491,19 +1511,19 @@ Source: dx. Native file: `tsconfig.json`.
 +}
 ```
 
-## typos
+### typos
 
 Source: dx. Native file: `typos.toml`.
 
 Same as the standard tier.
 
-## yamlfmt
+### yamlfmt
 
 Source: dx. Native file: `.yamlfmt`.
 
 Same as the standard tier.
 
-## yamllint
+### yamllint
 
 Source: dx. Native file: `.yamllint`.
 

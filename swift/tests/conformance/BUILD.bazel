@@ -37,6 +37,12 @@ swift_binary(
 )
 
 swift_binary(
+    name = "lock_hello",
+    srcs = ["LockMain.swift"],
+    deps = ["@swiftpkg//swift-argument-parser:ArgumentParser"],
+)
+
+swift_binary(
     name = "runfiles_hello",
     srcs = ["RunfilesMain.swift"],
     data = ["data.txt"],
@@ -69,6 +75,15 @@ dx_conformance_suite(
     failing_pattern = "Test {case}() recorded an issue",
     failing_test = ":fail_subject_test",
     lang = "swift",
+    lock = {
+        "binary": ":lock_hello",
+        "ecosystem": "swift",
+        "expected": "hello lock",
+        "lockfile": "//swift/tests/fixtures/swift-app:Package.resolved",
+        "manifest": "//swift/tests/fixtures/swift-app:Package.swift",
+        "package": "swift-argument-parser",
+        "stale": "Package.stale.resolved",
+    },
     not_applicable = {
         "cross_test:macos_arm64": "swift cross-compiles to linux only from a linux host",
         "cross_test:windows_arm64": "swift cross-compiles to linux only from a linux host",

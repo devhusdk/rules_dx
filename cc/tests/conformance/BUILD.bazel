@@ -65,6 +65,9 @@ dx_conformance_suite(
     failing_pattern = "{case}",
     failing_test = ":fail_subject_test",
     lang = "cc",
+    not_applicable = {
+        "lock_test": "cc has no package manager",
+    },
     passing_test = ":pass_subject_test",
     quality = {
         "clean": ":conformance",

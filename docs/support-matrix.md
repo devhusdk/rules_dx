@@ -18,9 +18,9 @@ Each suite column names the platforms the conformance test runs on, `n/a` with i
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Astro | none | `npm` | n/a | n/a | n/a: astro has no binary rule | all | all | all | n/a: astro has no binary rule | n/a: astro has no binary rule |
 | Avro | none | none: schemas only, no packages | n/a | n/a | pending | pending | pending | pending | pending | pending |
-| C and C++ | none | none for `vcpkg.json`: there is no vcpkg set | `cc_bench` | `cc_fuzz_test` | all | all | all | all | all | pending |
+| C and C++ | none | none for `vcpkg.json`: there is no vcpkg set | `cc_bench` | `cc_fuzz_test` | all | all | all | all | all | n/a: cc has no package manager |
 | C# | none | `nuget` | `csharp_bench` | `csharp_fuzz_test` | all | all | all | all | pending | all |
-| CUDA | `macos_arm64`: NVIDIA ships no CUDA toolkit for macOS | none: the CUDA toolkit is a pinned download | n/a | n/a | `linux_arm64`, `linux_x86_64`, `windows_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `windows_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `windows_arm64`, `windows_x86_64` | pending | pending | pending |
+| CUDA | `macos_arm64`: NVIDIA ships no CUDA toolkit for macOS | none: the CUDA toolkit is a pinned download | n/a | n/a | `linux_arm64`, `linux_x86_64`, `windows_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `windows_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `windows_arm64`, `windows_x86_64` | pending | pending | n/a: cuda has no package manager |
 | D | none | `dub` (pinned, no advisories) | `d_bench` | `d_fuzz_test` | all | all | all | all | pending | pending |
 | Dart | `windows_arm64`: rules_dart 0.8.1 ships no Windows arm64 SDK | `pub` | `dart_bench` | n/a | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`; n/a: dart supports no other windows platform | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` |
 | Elixir | none | `hex` | `elixir_bench` | n/a | all | all | all | all | pending | pending |
@@ -46,7 +46,7 @@ Each suite column names the platforms the conformance test runs on, `n/a` with i
 | Rust | none | `cargo` | `rust_bench` | `rust_fuzz_test` | all | all | all | all | all | all |
 | Scala | none | `maven` | `scala_bench` | `scala_fuzz_test` | all | all | all | all | all | all |
 | Svelte | none | `npm` | n/a | n/a | n/a: svelte has no binary rule | all | all | all | n/a: svelte has no binary rule | n/a: svelte has no binary rule |
-| Swift | none | `swiftpm` | `swift_bench` | `swift_fuzz_test` | all | all | all | all | `linux_arm64`, `linux_x86_64`; n/a: swift cross-compiles to linux only from a linux host | pending |
+| Swift | none | `swiftpm` | `swift_bench` | `swift_fuzz_test` | all | all | all | all | `linux_arm64`, `linux_x86_64`; n/a: swift cross-compiles to linux only from a linux host | all |
 | TypeScript | none | `npm` | `typescript_bench` | `typescript_fuzz_test` | all | all | all | all | all | all |
 | Vue | none | `npm` | n/a | n/a | n/a: vue has no binary rule | all | all | all | n/a: vue has no binary rule | n/a: vue has no binary rule |
 | Zig | none | `zig_deps` (`build.zig.zon` `.dependencies`, pinned by sha256) | `zig_bench` | n/a | all | all | all | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_arm64`; pending on `windows_x86_64` | all | pending |

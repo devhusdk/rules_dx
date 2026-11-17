@@ -486,12 +486,14 @@ def erlang_escript_archive(name, visibility = None, **kwargs):
     """Thin wrapper over rules_erlang escript_archive."""
     kwargs = erlang_kwargs(kwargs)
     srcs = kwargs.get("srcs", [])
+    data = kwargs.pop("data", None)
     _escript_archive(name = name + "_upstream", **dx_binary_upstream_kwargs(kwargs, srcs))
     _escript_binary(
         name = name,
         upstream = ":" + name + "_upstream",
         apps = [kwargs["app"]] if kwargs.get("app") else [],
         srcs = srcs,
+        data = data,
         visibility = visibility,
         **dx_binary_forward_kwargs(kwargs)
     )

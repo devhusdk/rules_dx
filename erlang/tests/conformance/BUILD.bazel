@@ -22,6 +22,7 @@ erlang_test_app(
 erlang_escript_archive(
     name = "hello",
     app = ":erlang_app",
+    data = ["data.txt"],
     headers = [
         "shebang",
         "{emu_args, \"-escript main hello\"}",
@@ -76,6 +77,11 @@ dx_conformance_suite(
     failing_test = ":fail_subject_test",
     lang = "erlang",
     passing_test = ":pass_subject_test",
+    runfiles = {
+        "binary": ":hello",
+        "data": "data.txt",
+        "expected": "hello runfiles",
+    },
 )
 
 real_source_target(

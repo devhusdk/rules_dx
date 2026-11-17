@@ -31,6 +31,7 @@ elixir_escript_archive(
     name = "hello",
     testonly = True,
     app = ":hello_app",
+    data = ["data.txt"],
     headers = elixir_escript_headers("Hello"),
     target_compatible_with = ELIXIR_COMPATIBLE_WITH,
 )
@@ -57,6 +58,24 @@ elixir_test(
     deps = [":greet_app"],
 )
 
+elixir_app(
+    name = "lock_hello_app",
+    testonly = True,
+    srcs = ["lock/lock_hello.ex"],
+    app_description = "Conformance locked package.",
+    app_name = "lock_hello",
+    app_version = "1.0.0",
+    deps = ["@elixir_app_deps//jason"],
+)
+
+elixir_escript_archive(
+    name = "lock_hello",
+    testonly = True,
+    app = ":lock_hello_app",
+    headers = elixir_escript_headers("LockHello"),
+    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
+)
+
 dx_conformance_suite(
     name = "",
     size = "small",
@@ -67,7 +86,21 @@ dx_conformance_suite(
     failing_pattern = "test {case} (FailTest)",
     failing_test = ":fail_subject_test",
     lang = "elixir",
+    lock = {
+        "binary": ":lock_hello",
+        "ecosystem": "elixir",
+        "expected": "hello lock",
+        "lockfile": "//elixir/tests/fixtures/elixir_app:hex.lock.json",
+        "manifest": "//elixir/tests/fixtures/elixir_app:mix.exs",
+        "package": "jason",
+        "stale": "hex.lock.stale.json",
+    },
     passing_test = ":pass_subject_test",
+    runfiles = {
+        "binary": ":hello",
+        "data": "data.txt",
+        "expected": "hello runfiles",
+    },
 )
 
 real_source_target(

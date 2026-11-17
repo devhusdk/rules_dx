@@ -1,3 +1,5 @@
+load("@bazel_skylib//lib:selects.bzl", "selects")
+load("@llvm//:case_insensitive_vfs.bzl", "case_insensitive_vfs_overlay")
 load("@rules_cc//cc/toolchains:args.bzl", "cc_args")
 load("@rules_cc//cc/toolchains/impl:documented_api.bzl", "cc_args_list")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
@@ -9,12 +11,12 @@ package(default_visibility = ["//visibility:public"])
 search_path(
     name = "dynamic_crt_link_lib_path",
     directories = [
-        "@llvm//runtimes/msvc:winsdk_ucrt_lib",
-        "@llvm//runtimes/msvc:winsdk_um_lib",
-        "@llvm//runtimes/msvc:msvc_common_support_libraries",
-        "@llvm//runtimes/msvc:msvc_com_support_libraries",
-        "@llvm//runtimes/msvc:msvc_dynamic_runtime_libraries",
-        "@llvm//runtimes/cxxstdlib:library_search_directory",
+        "@dx_windows_sdk//:winsdk_ucrt_lib",
+        "@dx_windows_sdk//:winsdk_um_lib",
+        "@dx_msvc_runtime//:msvc_common_libraries",
+        "@dx_msvc_runtime//:msvc_com_libraries",
+        "@dx_msvc_runtime//:msvc_dynamic_libraries",
+        ":cxxstdlib_library_search_directory",
     ],
     target_compatible_with = ["@platforms//os:windows"],
 )
@@ -30,11 +32,11 @@ cc_args(
 search_path(
     name = "dynamic_crt_hosted_link_lib_path",
     directories = [
-        "@llvm//runtimes/msvc:winsdk_ucrt_lib",
-        "@llvm//runtimes/msvc:winsdk_um_lib",
-        "@llvm//runtimes/msvc:msvc_common_support_libraries",
-        "@llvm//runtimes/msvc:msvc_com_support_libraries",
-        "@llvm//runtimes/msvc:msvc_dynamic_runtime_libraries",
+        "@dx_windows_sdk//:winsdk_ucrt_lib",
+        "@dx_windows_sdk//:winsdk_um_lib",
+        "@dx_msvc_runtime//:msvc_common_libraries",
+        "@dx_msvc_runtime//:msvc_com_libraries",
+        "@dx_msvc_runtime//:msvc_dynamic_libraries",
     ],
     target_compatible_with = ["@platforms//os:windows"],
 )
@@ -50,12 +52,12 @@ cc_args(
 search_path(
     name = "static_crt_link_lib_path",
     directories = [
-        "@llvm//runtimes/msvc:winsdk_ucrt_lib",
-        "@llvm//runtimes/msvc:winsdk_um_lib",
-        "@llvm//runtimes/msvc:msvc_common_support_libraries",
-        "@llvm//runtimes/msvc:msvc_com_support_libraries",
-        "@llvm//runtimes/msvc:msvc_static_runtime_libraries",
-        "@llvm//runtimes/cxxstdlib:library_search_directory",
+        "@dx_windows_sdk//:winsdk_ucrt_lib",
+        "@dx_windows_sdk//:winsdk_um_lib",
+        "@dx_msvc_runtime//:msvc_common_libraries",
+        "@dx_msvc_runtime//:msvc_com_libraries",
+        "@dx_msvc_runtime//:msvc_static_libraries",
+        ":cxxstdlib_library_search_directory",
     ],
     target_compatible_with = ["@platforms//os:windows"],
 )
@@ -71,11 +73,11 @@ cc_args(
 search_path(
     name = "static_crt_hosted_link_lib_path",
     directories = [
-        "@llvm//runtimes/msvc:winsdk_ucrt_lib",
-        "@llvm//runtimes/msvc:winsdk_um_lib",
-        "@llvm//runtimes/msvc:msvc_common_support_libraries",
-        "@llvm//runtimes/msvc:msvc_com_support_libraries",
-        "@llvm//runtimes/msvc:msvc_static_runtime_libraries",
+        "@dx_windows_sdk//:winsdk_ucrt_lib",
+        "@dx_windows_sdk//:winsdk_um_lib",
+        "@dx_msvc_runtime//:msvc_common_libraries",
+        "@dx_msvc_runtime//:msvc_com_libraries",
+        "@dx_msvc_runtime//:msvc_static_libraries",
     ],
     target_compatible_with = ["@platforms//os:windows"],
 )
@@ -123,6 +125,257 @@ cc_args_list(
     args = select({
         "@llvm//toolchain:runtimes_none": [":empty_link_lib_env"],
         "//conditions:default": [":runtime_link_lib_env"],
+    }),
+)
+
+_FRONTEND_ACTIONS = [
+    "@rules_cc//cc/toolchains/actions:c_compile",
+    "@rules_cc//cc/toolchains/actions:cpp_compile",
+    "@rules_cc//cc/toolchains/actions:linkstamp_compile",
+    "@rules_cc//cc/toolchains/actions:preprocess_assemble",
+    "@rules_cc//cc/toolchains/actions:cpp_header_parsing",
+]
+
+_SDK_INCLUDES = {
+    "msvc_com_support_include": "@dx_msvc_runtime//:msvc_com_support_include",
+    "msvc_include": "@dx_msvc_runtime//:msvc_vcruntime_include",
+    "winsdk_shared_include": "@dx_windows_sdk//:winsdk_shared_include",
+    "winsdk_ucrt_include": "@dx_windows_sdk//:winsdk_ucrt_include",
+    "winsdk_um_include": "@dx_windows_sdk//:winsdk_um_include",
+    "winsdk_winrt_include": "@dx_windows_sdk//:winsdk_winrt_include",
+}
+
+alias(
+    name = "msvcstl_library_search_directory",
+    actual = select({
+        "@llvm//toolchain/features/msvc:static_crt_config": "@dx_msvc_runtime//:msvc_static_libraries",
+        "//conditions:default": "@dx_msvc_runtime//:msvc_dynamic_libraries",
+    }),
+)
+
+config_setting(
+    name = "msvcstl_windows_msvc",
+    constraint_values = [
+        "@llvm//constraints/cxxstdlib:msvcstl",
+        "@llvm//constraints/windows/abi:msvc",
+        "@llvm//constraints/windows/crt:ucrt",
+        "@platforms//os:windows",
+    ],
+)
+
+alias(
+    name = "cxxstdlib_library_search_directory",
+    actual = select({
+        ":msvcstl_windows_msvc": ":msvcstl_library_search_directory",
+        "//conditions:default": "@llvm//runtimes/cxxstdlib:library_search_directory",
+    }),
+)
+
+config_setting(
+    name = "msvcstl_stdincxx",
+    constraint_values = ["@llvm//constraints/cxxstdlib:msvcstl"],
+    flag_values = {"@llvm//config:nostdincxx": "false"},
+)
+
+selects.config_setting_group(
+    name = "msvcstl_default_headers",
+    match_all = [
+        ":msvcstl_stdincxx",
+        "@llvm//toolchain:runtimes_all",
+    ],
+)
+
+case_insensitive_vfs_overlay(
+    name = "msvc_sdk_header_case_overlay",
+    roots = [
+        "@dx_msvc_runtime//:msvc_com_support_include",
+        "@dx_msvc_runtime//:msvc_vcruntime_include",
+        "@dx_windows_sdk//:winsdk_shared_include",
+        "@dx_windows_sdk//:winsdk_ucrt_include",
+        "@dx_windows_sdk//:winsdk_um_include",
+        "@dx_windows_sdk//:winsdk_winrt_include",
+    ],
+)
+
+case_insensitive_vfs_overlay(
+    name = "msvcstl_header_case_overlay",
+    roots = ["@dx_msvc_runtime//:msvc_include"],
+)
+
+case_insensitive_vfs_overlay(
+    name = "msvc_sdk_library_case_overlay",
+    roots = [
+        "@dx_windows_sdk//:winsdk_ucrt_lib",
+        "@dx_windows_sdk//:winsdk_um_lib",
+    ],
+)
+
+cc_args(
+    name = "windows_sdk_compile_defines",
+    actions = _FRONTEND_ACTIONS,
+    args = ["/DNOMINMAX"],
+)
+
+cc_args(
+    name = "sdk_includes",
+    actions = _FRONTEND_ACTIONS,
+    allowlist_include_directories = sorted(_SDK_INCLUDES.values()),
+    args = ["/imsvc{%s}" % key for key in [
+        "msvc_com_support_include",
+        "msvc_include",
+        "winsdk_ucrt_include",
+        "winsdk_shared_include",
+        "winsdk_um_include",
+        "winsdk_winrt_include",
+    ]],
+    data = sorted(_SDK_INCLUDES.values()),
+    format = _SDK_INCLUDES,
+)
+
+cc_args(
+    name = "sdk_header_case_overlay",
+    actions = _FRONTEND_ACTIONS,
+    args = [
+        "/clang:-ivfsoverlay",
+        "/clang:{overlay}",
+    ],
+    data = [":msvc_sdk_header_case_overlay"],
+    format = {"overlay": ":msvc_sdk_header_case_overlay"},
+)
+
+cc_args(
+    name = "msvcstl_header_case_overlay_args",
+    actions = [
+        "@rules_cc//cc/toolchains/actions:cpp_compile",
+        "@rules_cc//cc/toolchains/actions:cpp_header_parsing",
+        "@rules_cc//cc/toolchains/actions:linkstamp_compile",
+    ],
+    args = [
+        "/clang:-ivfsoverlay",
+        "/clang:{overlay}",
+    ],
+    data = [":msvcstl_header_case_overlay"],
+    format = {"overlay": ":msvcstl_header_case_overlay"},
+)
+
+cc_args(
+    name = "sdk_library_case_overlay",
+    actions = ["@rules_cc//cc/toolchains/actions:link_actions"],
+    args = [
+        "/clang:-Xlinker",
+        "/clang:/vfsoverlay:{overlay}",
+    ],
+    data = [":msvc_sdk_library_case_overlay"],
+    format = {"overlay": ":msvc_sdk_library_case_overlay"},
+)
+
+[
+    cc_args(
+        name = name + "_library_search_path",
+        actions = ["@rules_cc//cc/toolchains/actions:link_actions"],
+        args = [
+            "/clang:-Xlinker",
+            "/clang:/LIBPATH:{directory}",
+        ],
+        data = [directory],
+        format = {"directory": directory},
+    )
+    for name, directory in {
+        "com_support": "@dx_msvc_runtime//:msvc_com_libraries",
+        "common_support": "@dx_msvc_runtime//:msvc_common_libraries",
+        "dynamic_crt": "@dx_msvc_runtime//:msvc_dynamic_libraries",
+        "static_crt": "@dx_msvc_runtime//:msvc_static_libraries",
+        "winsdk_ucrt": "@dx_windows_sdk//:winsdk_ucrt_lib",
+        "winsdk_um": "@dx_windows_sdk//:winsdk_um_lib",
+    }.items()
+]
+
+cc_args(
+    name = "dynamic_crt_default_lib",
+    actions = ["@rules_cc//cc/toolchains/actions:link_actions"],
+    args = [
+        "/clang:-Xlinker",
+        "/clang:/DEFAULTLIB:msvcrt.lib",
+    ],
+)
+
+cc_args(
+    name = "static_crt_default_lib",
+    actions = ["@rules_cc//cc/toolchains/actions:link_actions"],
+    args = [
+        "/clang:-Xlinker",
+        "/clang:/DEFAULTLIB:libcmt.lib",
+    ],
+)
+
+cc_args(
+    name = "msvcstl_suppress_default_libs",
+    actions = ["@rules_cc//cc/toolchains/actions:link_actions"],
+    args = select({
+        "@llvm//config:nostdlibxx_enabled": [
+            "/clang:-Xlinker",
+            "/clang:/NODEFAULTLIB:msvcprt.lib",
+            "/clang:-Xlinker",
+            "/clang:/NODEFAULTLIB:libcpmt.lib",
+        ],
+        "//conditions:default": [],
+    }),
+)
+
+cc_args_list(
+    name = "cxxstdlib_default_libs",
+    args = select({
+        "@llvm//constraints/cxxstdlib:msvcstl": [":msvcstl_suppress_default_libs"],
+        "//conditions:default": ["@llvm//toolchain/args:clang_cl_static_libcxx_default_lib"],
+    }),
+)
+
+cc_args_list(
+    name = "normalized_sdk_compile_args",
+    args = [
+        ":windows_sdk_compile_defines",
+        ":sdk_includes",
+    ],
+)
+
+cc_args_list(
+    name = "normalized_default_libs",
+    args = [
+        ":winsdk_ucrt_library_search_path",
+        ":winsdk_um_library_search_path",
+        ":common_support_library_search_path",
+        ":com_support_library_search_path",
+    ] + select({
+        "@llvm//toolchain/features/msvc:static_crt_config": [
+            ":static_crt_library_search_path",
+            ":static_crt_default_lib",
+        ],
+        "//conditions:default": [
+            ":dynamic_crt_library_search_path",
+            ":dynamic_crt_default_lib",
+        ],
+    }) + select({
+        "@llvm//toolchain:runtimes_stage1_hosted": [],
+        "//conditions:default": [":cxxstdlib_default_libs"],
+    }),
+)
+
+cc_args_list(
+    name = "normalized_default_libs_for_runtime",
+    args = select({
+        "@llvm//toolchain:runtimes_none": [],
+        "//conditions:default": [":normalized_default_libs"],
+    }),
+)
+
+cc_args_list(
+    name = "case_overlays",
+    args = [":sdk_header_case_overlay"] + select({
+        ":msvcstl_default_headers": [":msvcstl_header_case_overlay_args"],
+        "//conditions:default": [],
+    }) + select({
+        "@llvm//toolchain:runtimes_none": [],
+        "//conditions:default": [":sdk_library_case_overlay"],
     }),
 )
 

@@ -122,10 +122,10 @@ def clang_cl_toolchains(link_lib_env):
     """Declares one clang-cl cc_toolchain per LLVM execution platform for MSVC targets."""
     for (exec_os, exec_cpu) in MSVC_TARGET_STAGE0_SUPPORTED_EXECS:
         prefix = exec_os + "_" + exec_cpu
-        case_overlays = [] if exec_os == "windows" else ["@llvm//toolchain/args/windows/msvc:case_overlays"]
+        case_overlays = [] if exec_os == "windows" else [":case_overlays"]
         msvc_args = [
-            "@llvm//toolchain/args/windows/msvc:normalized_default_libs_for_runtime",
-            "@llvm//toolchain/args/windows/msvc:normalized_sdk_compile_args",
+            ":normalized_default_libs_for_runtime",
+            ":normalized_sdk_compile_args",
             link_lib_env,
         ] + case_overlays
 

@@ -15,7 +15,7 @@ rust_library(
     compile_data = ["//cli/prebuilt:registry"],
     crate_name = "fill_pins",
     crate_root = "src/lib.rs",
-    rustc_env = {"DX_PREBUILT_REGISTRY": "${pwd}/$(execpath //cli/prebuilt:registry)"},
+    rustc_env = {"DX_PREBUILT_REGISTRY": "$(execpath //cli/prebuilt:registry)"},
 )
 
 rust_binary(

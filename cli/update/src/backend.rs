@@ -21,6 +21,7 @@ mod opam;
 mod pinned;
 mod powershell;
 mod pub_dev;
+mod ruby;
 mod swiftpm;
 mod uv;
 mod zig;
@@ -700,6 +701,7 @@ pub fn plan_configured(
         "opam" => opam::plan(workspace, set, request, offline, frozen, head, closure),
         "swiftpm" => swiftpm::plan(workspace, set, request, offline, frozen, head, closure),
         "cabal" => cabal::plan(workspace, set, request, offline, frozen, head, closure),
+        "ruby" => ruby::plan(workspace, set, request, offline, frozen, head, closure),
         "luarocks" => luarocks::plan(workspace, set, request, offline, frozen, head, closure),
         "ansible" => ansible::plan(workspace, set, request, offline, frozen, head, closure),
         "fpm" => fpm::plan(workspace, set, request, offline, frozen, head),
@@ -734,6 +736,7 @@ pub fn check_configured(
         "opam" => opam::check(workspace, set, request, offline, head, closure),
         "swiftpm" => swiftpm::check(workspace, set, request, offline, head, closure),
         "cabal" => cabal::check(workspace, set, request, offline, head, closure),
+        "ruby" => ruby::check(workspace, set, request, offline, head, closure),
         _ => pinned::check(set, request),
     }
 }

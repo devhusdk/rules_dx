@@ -833,9 +833,9 @@ fn consumer_npm_parent_pnpm_workspace_is_unsupported() {
     assert!(runner.calls.borrow().is_empty());
 }
 
-const PINNED_MODULE: &str = "uv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"deps\", pyproject = \"//apps/frontend:pyproject.toml\", lock = \"//apps/frontend:uv.lock\")\nruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.lock(name = \"gems\", lock = \"//apps/rb:ruby.lock.json\")\n";
+const RUBY_MODULE: &str = "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.lock(name = \"gems\", lock = \"//apps/rb:ruby.lock.json\")\n";
 
-const PINNED_FILES: [(&str, &str); 3] = [
+const RUBY_FILES: [(&str, &str); 3] = [
     (
         "apps/rb/Gemfile",
         "source \"https://rubygems.org\"\ngem \"rspec-core\"\n",
@@ -844,87 +844,90 @@ const PINNED_FILES: [(&str, &str); 3] = [
         "apps/rb/Gemfile.lock",
         "GEM\n  remote: https://rubygems.org/\n  specs:\n    rspec-core (3.13.0)\n",
     ),
-    ("apps/rb/ruby.lock.json", "{\"ecosystem\": \"ruby\", \"packages\": []}\n"),
+    (
+        "apps/rb/ruby.lock.json",
+        "{\"ecosystem\": \"ruby\", \"packages\": []}\n",
+    ),
 ];
 
-fn pinned_harness(name: &str) -> Harness {
-    let harness = consumer_harness(name, PINNED_MODULE, true);
-    for (rel, text) in PINNED_FILES {
+const RUBY_RESOLVER: &str = "@rules_dx//ruby/private/tools/lock";
+
+fn ruby_harness(name: &str) -> Harness {
+    let harness = consumer_harness(name, RUBY_MODULE, true);
+    for (rel, text) in RUBY_FILES {
         harness.write_source(rel, text);
     }
     harness
 }
 
-fn assert_pinned_files_unchanged(harness: &Harness) {
-    for (rel, text) in PINNED_FILES {
+fn assert_ruby_files_unchanged(harness: &Harness) {
+    for (rel, text) in RUBY_FILES {
         assert_eq!(read_bytes(harness, rel), text.as_bytes(), "{rel}");
     }
 }
 
-#[test]
-fn consumer_ruby_set_reports_pinned_and_launches_nothing() {
-    for (argv, uv) in [
-        (vec!["update"], uv_call(true, "apps/frontend")),
-        (
-            vec!["update", "--offline", "--frozen"],
-            uv_call(true, "apps/frontend"),
-        ),
-        (vec!["update", "--apply"], uv_call(false, "apps/frontend")),
-    ] {
-        let harness = pinned_harness("pinned");
-        let runner = ScriptRunner::new(&[]);
-        let mut json = argv.clone();
-        json.push("--output=json");
-        let (code, out, err) = run_with(&json, &runner, &harness);
-        let launches: Vec<Vec<String>> = runner
-            .launches
-            .borrow()
-            .iter()
-            .map(|launch| launch.argv.clone())
-            .collect();
-        assert!(
-            launches.iter().all(|argv| argv[0] == fake_pinned("uv")),
-            "only uv runs: {launches:?}"
-        );
-        if !argv.contains(&"--offline") {
-            assert_eq!(code, 0, "{argv:?} {out}{err}");
-            assert_eq!(launches, vec![uv.clone()], "{argv:?}");
-        }
-        let events = json_events(&out);
-        assert!(
-            events
-                .iter()
-                .any(|event| event["code"] == "update_set_pinned"
-                    && event["correlation"] == "update:gems"),
-            "{argv:?}: {out}"
-        );
-        assert!(!out.contains("gems lockfile current"), "{out}");
-        assert!(!out.contains("updated gems"), "{out}");
-        assert_pinned_files_unchanged(&harness);
-    }
-    let harness = pinned_harness("pinned-text");
-    let runner = ScriptRunner::new(&[]);
-    let (code, out, err) = run_with(&["update"], &runner, &harness);
-    assert_eq!(code, 0, "{out}{err}");
-    assert!(
-        out.contains("gems pins are manual; nothing to resolve"),
-        "{out}"
-    );
+fn resolver_tail(argv: &[String]) -> Vec<String> {
+    let at = argv
+        .iter()
+        .position(|arg| arg == RUBY_RESOLVER)
+        .unwrap_or_else(|| panic!("no ruby resolver in {argv:?}"));
+    argv[at + 1..]
+        .iter()
+        .filter(|arg| !arg.starts_with('/'))
+        .cloned()
+        .collect()
 }
 
 #[test]
-fn consumer_pinned_package_selection_is_unsupported_without_fallback() {
-    for mode in ["--apply", "--output=text"] {
-        let harness = pinned_harness("pinned-selective");
+fn consumer_ruby_check_runs_the_lock_step_in_check_mode() {
+    let harness = ruby_harness("ruby-check");
+    let runner = ScriptRunner::new(&[]);
+    let (code, out, err) = run_with(&["update", "gems"], &runner, &harness);
+    assert_eq!(code, 0, "{out}{err}");
+    let launches = runner.launches.borrow();
+    assert_eq!(launches.len(), 1, "{launches:?}");
+    assert_eq!(
+        resolver_tail(&launches[0].argv),
+        strings_of(&["--", "--dir", "--check"])
+    );
+    assert_ruby_files_unchanged(&harness);
+}
+
+#[test]
+fn consumer_ruby_apply_runs_the_lock_step_and_upgrades_named_gems() {
+    for (selector, tail) in [
+        ("gems", vec!["--", "--dir"]),
+        (
+            "gems:rspec-core",
+            vec!["--", "--dir", "--upgrade", "rspec-core"],
+        ),
+    ] {
+        let harness = ruby_harness("ruby-apply");
         let runner = ScriptRunner::new(&[]);
-        let (code, out, err) = run_with(&["update", mode, "gems:rspec-core"], &runner, &harness);
-        assert_ne!(code, 0, "{mode}: {out}{err}");
-        assert!(err.contains("update_set_unsupported"), "{err}");
-        assert!(err.contains("dx only pins this set"), "{err}");
+        let (code, out, err) = run_with(&["update", "--apply", selector], &runner, &harness);
+        assert_eq!(code, 0, "{selector}: {out}{err}");
+        let launches = runner.launches.borrow();
+        assert_eq!(launches.len(), 1, "{launches:?}");
+        assert_eq!(resolver_tail(&launches[0].argv), strings_of(&tail));
         assert!(!out.contains("pins are manual"), "{out}");
-        assert!(runner.launches.borrow().is_empty());
-        assert_pinned_files_unchanged(&harness);
     }
+}
+
+#[test]
+fn consumer_ruby_refusals_launch_nothing() {
+    let harness = ruby_harness("ruby-refuse");
+    let runner = ScriptRunner::new(&[]);
+    let (code, _, err) = run_with(&["update", "--offline", "gems"], &runner, &harness);
+    assert_eq!(code, 1, "{err}");
+    assert!(err.contains("offline_required"), "{err}");
+    let (code, _, err) = run_with(
+        &["update", "--apply", "--frozen", "gems"],
+        &runner,
+        &harness,
+    );
+    assert_eq!(code, 1, "{err}");
+    assert!(runner.launches.borrow().is_empty());
+    assert_ruby_files_unchanged(&harness);
 }
 
 const CARGO_MANIFEST: &str =

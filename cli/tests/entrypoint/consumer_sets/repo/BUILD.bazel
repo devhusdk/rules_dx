@@ -17,7 +17,7 @@ genrule(
         "security_npm_json.txt",
         "security_ruby_json.txt",
         "security_swiftpm_json.txt",
-        "update_pinned.txt",
+        "update_ruby.txt",
         "sets_ok/MODULE.bazel",
         "sets_ok/.dx/pins",
         "sets_ok/apps/frontend/pyproject.toml",
@@ -251,8 +251,11 @@ if "$$public" update ocaml_app:lwt 5.7.0 --apply --workspace "$$ok" > "$(locatio
   exit 1
 fi
 cmp "$$orig/consumer_sets_opam.orig" "$(location sets_ok/apps/ml/ocaml_app.opam)"
-"$$public" update --workspace "$$ok" gems > "$(location update_pinned.txt)" 2>&1
-grep -q "gems pins are manual" "$(location update_pinned.txt)"
+if "$$public" update --offline --workspace "$$ok" gems > "$(location update_ruby.txt)" 2>&1; then
+  echo "update checked a configured ruby set offline" >&2
+  exit 1
+fi
+grep -q "offline_required" "$(location update_ruby.txt)"
 if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$$ok" gems > "$(location security_ruby_json.txt)" 2>/dev/null; then
   echo "security passed without a RubyGems advisory snapshot" >&2
   exit 1

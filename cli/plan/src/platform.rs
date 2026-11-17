@@ -258,12 +258,7 @@ mod tests {
 
     #[test]
     fn host_refusal_agrees_with_host_refusal_contract() {
-        assert_eq!(
-            host_refusal(),
-            refusal(
-                std::env::consts::OS,
-                effective_arch(std::env::consts::OS, std::env::consts::ARCH, &read_sysctl)
-            )
-        );
+        let (os, arch) = dx_shim::protocol::host_platform();
+        assert_eq!(host_refusal(), refusal(os, arch));
     }
 }

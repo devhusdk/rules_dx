@@ -1,5 +1,6 @@
 """Coverlet coverage for .NET test forwarders."""
 
+load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//core:rlocation.bzl", "rlocation_path")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyRuntimeInfo")
 
@@ -51,7 +52,7 @@ def dx_dotnet_coverage_attrs():
         "_dx_coverlet_launcher": attr.label(
             default = Label("//dotnet/private/coverage:coverlet_launcher"),
             executable = True,
-            cfg = "target",
+            cfg = no_coverage_transition,
         ),
     }
 
@@ -71,7 +72,7 @@ def dx_dotnet_test_coverage(ctx, upstream):
         assemblies = [a for a in assemblies if a != test_dll]
     upstream_exe = upstream[DefaultInfo].files_to_run.executable
     coverlet = ctx.attr._dx_coverlet[DefaultInfo]
-    launcher = ctx.attr._dx_coverlet_launcher[DefaultInfo]
+    launcher = ctx.attr._dx_coverlet_launcher[0][DefaultInfo]
     lines = [
         "workspace\t" + ctx.workspace_name,
         "upstream\t" + rlocation_path(ctx, upstream_exe),

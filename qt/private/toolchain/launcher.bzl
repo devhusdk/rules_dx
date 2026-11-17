@@ -1,16 +1,9 @@
 """Writes the native launcher of a Qt tool and its descriptor."""
 
-def _no_coverage_impl(_settings, _attr):
-    return {"//command_line_option:collect_code_coverage": False}
-
-_no_coverage = transition(
-    implementation = _no_coverage_impl,
-    inputs = [],
-    outputs = ["//command_line_option:collect_code_coverage"],
-)
+load("//core:no_coverage.bzl", "no_coverage_transition")
 
 NATIVE_LAUNCHER_ATTRS = {
-    "_exec_launcher": attr.label(default = Label("//cli/launcher:exec_launcher"), executable = True, cfg = _no_coverage, doc = "The native launcher."),
+    "_exec_launcher": attr.label(default = Label("//cli/launcher:exec_launcher"), executable = True, cfg = no_coverage_transition, doc = "The native launcher."),
     "_windows_os": attr.label(default = Label("@platforms//os:windows")),
 }
 

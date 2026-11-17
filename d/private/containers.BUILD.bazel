@@ -1,0 +1,14 @@
+load("@rules_d//d:defs.bzl", "d_library")
+
+package(default_visibility = ["//visibility:public"])
+
+d_library(
+    name = "containers",
+    srcs = glob(["src/**/*.d"]),
+    imports = ["src"],
+)
+
+filegroup(
+    name = "d_srcs",
+    srcs = glob(["src/**/*.d"]),
+)

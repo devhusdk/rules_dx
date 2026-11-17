@@ -906,6 +906,76 @@ dx_pins.archive(
     pins = "//dotnet:pins.json",
 )
 dx_pins.archive(
+    name = "dx_d_containers",
+    build = "//d/private:containers.BUILD.bazel",
+    dropped = [
+        "doc-src",
+        "dub.sdl",
+        "meson.build",
+        "test",
+        "times.png",
+    ],
+    pins = "//d:pins.json",
+)
+dx_pins.archive(
+    name = "dx_d_dcd",
+    build = "//d/private:dcd.BUILD.bazel",
+    dropped = [
+        "README.md",
+        "bash-completion",
+        "benchmarks",
+        "build.bat",
+        "build.sh",
+        "buildloop.sh",
+        "ci",
+        "common",
+        "constants-gen",
+        "containers",
+        "d-test-utils",
+        "dcd_lsp.png",
+        "dsymbol/subprojects",
+        "dub.json",
+        "dub.selections.json",
+        "editors",
+        "installer",
+        "libdparse",
+        "lsp-tests",
+        "makefile",
+        "man1",
+        "msgpack-d",
+        "sonar-project.properties",
+        "src",
+        "teaser.png",
+        "tests",
+    ],
+    pins = "//d:pins.json",
+)
+dx_pins.archive(
+    name = "dx_d_inifiled",
+    build = "//d/private:inifiled.BUILD.bazel",
+    dropped = [
+        "package.json",
+        "test",
+    ],
+    pins = "//d:pins.json",
+)
+dx_pins.archive(
+    name = "dx_d_libddoc",
+    build = "//d/private:libddoc.BUILD.bazel",
+    dropped = [
+        "Makefile",
+        "d-test-utils",
+        "dub.json",
+    ],
+    pins = "//d:pins.json",
+)
+dx_pins.archive(
+    name = "dx_d_libdparse",
+    build = "//d/private:libdparse.BUILD.bazel",
+    dropped = ["dub.json"],
+    pins = "//d:pins.json",
+)
+dx_pins.archive(
     name = "rules_d",
     build = "//d/private:rules_d.BUILD.bazel",
     dropped = [
@@ -1356,6 +1426,11 @@ use_repo(
     "dx_coreutils__macos_x86_64",
     "dx_coreutils__windows_arm64",
     "dx_coreutils__windows_x86_64",
+    "dx_d_containers",
+    "dx_d_dcd",
+    "dx_d_inifiled",
+    "dx_d_libddoc",
+    "dx_d_libdparse",
     "dx_elvis",
     "dx_erlfmt",
     "dx_jazzer",
@@ -1900,7 +1975,7 @@ cabal_dev.lock(
 use_repo(cabal_dev, "haskell_app_hackage", "haskell_bench_hackage", "haskell_exe_hackage", "haskell_stack_hackage")
 
 d = use_extension("//d:extensions.bzl", "d")
-use_repo(d, "dx_d_containers", "dx_d_dcd", "dx_d_inifiled", "dx_d_ldc_linux_arm64", "dx_d_ldc_linux_x86_64", "dx_d_ldc_macos_arm64", "dx_d_ldc_windows_x86_64", "dx_d_libddoc", "dx_d_libdparse", "dx_d_toolchains")
+use_repo(d, "dx_d_ldc_linux_arm64", "dx_d_ldc_linux_x86_64", "dx_d_ldc_macos_arm64", "dx_d_ldc_windows_x86_64", "dx_d_toolchains")
 
 register_toolchains("@dx_d_toolchains//:all")
 

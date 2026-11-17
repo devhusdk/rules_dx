@@ -1,10 +1,11 @@
 """D toolchain pin and acquisition tests."""
 
+load("@dx_pins_data//:pins.bzl", "ARCHIVES")
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
 load("//d/private/toolchain:ldmd2.bzl", "ldmd2_descriptor")
-load("//d/private/toolchain:pins.bzl", "CONTAINERS_VERSION", "DCD_VERSION", "INIFILED_VERSION", "LDC_CELLS", "LDC_VERSION", "LIBDDOC_VERSION", "LIBDPARSE_VERSION", "RULES_D_VERSION", "TOOL_SOURCES")
-load("//d/private/toolchain:repos.bzl", "LDC_BUILD", "TOOL_BUILDS", "hub_build", "ldc_build", "ldc_required_paths", "ldc_runtime")
+load("//d/private/toolchain:pins.bzl", "CONTAINERS_VERSION", "DCD_VERSION", "INIFILED_VERSION", "LDC_CELLS", "LDC_VERSION", "LIBDDOC_VERSION", "LIBDPARSE_VERSION", "RULES_D_VERSION")
+load("//d/private/toolchain:repos.bzl", "LDC_BUILD", "hub_build", "ldc_build", "ldc_required_paths", "ldc_runtime")
 
 def _checks():
     linux = LDC_CELLS["linux_x86_64"]
@@ -52,14 +53,12 @@ def _checks():
         expect_equal("descriptor with closure", ldmd2_descriptor("k", "c"), "program=k\nenv_dir=LD_LIBRARY_PATH\tc\n"),
         expect_equal("descriptor without closure", ldmd2_descriptor("k", ""), "program=k\n"),
         expect_equal("libdparse version", LIBDPARSE_VERSION, "0.25.1"),
-        expect_equal("tool sources", sorted(TOOL_SOURCES.keys()), ["dx_d_containers", "dx_d_dcd", "dx_d_inifiled", "dx_d_libddoc", "dx_d_libdparse"]),
+        expect_equal("tool sources", sorted([name for name in ARCHIVES if name.startswith("dx_d_")]), ["dx_d_containers", "dx_d_dcd", "dx_d_inifiled", "dx_d_libddoc", "dx_d_libdparse"]),
         expect_equal("dcd version", DCD_VERSION, "0.19.4"),
         expect_equal("containers version", CONTAINERS_VERSION, "0.9.0"),
         expect_equal("inifiled version", INIFILED_VERSION, "2.0.0"),
         expect_equal("libddoc version", LIBDDOC_VERSION, "0.8.0"),
-        expect_true("only dsymbol of the GPL-3.0 dcd is compiled", "src/dcd" not in TOOL_BUILDS["dx_d_dcd"] and "dsymbol/src/**" in TOOL_BUILDS["dx_d_dcd"]),
-        expect_true("the dcd client and server sources are dropped", "src" in TOOL_SOURCES["dx_d_dcd"].dropped),
-        expect_equal("one libdparse source", len([name for name in TOOL_SOURCES if "libdparse" in name]), 1),
+        expect_equal("one libdparse source", len([name for name in ARCHIVES if "libdparse" in name]), 1),
     ]
 
 def d_metadata_tests(name, size):

@@ -1489,6 +1489,92 @@ fn reuse_cleans_read_only_untracked_trees() {
     );
 }
 
+/// Releases one slot that holds a read-only `.cache/ob` tree the repository ignores, next to a `bazel-bin` link.
+#[cfg(unix)]
+fn free_slot_with_read_only_ignored_tree(
+    fixture: &Fixture,
+    pool: &Pool,
+    host: &FakeHost,
+    me: &Who,
+) -> PathBuf {
+    use std::os::unix::fs::PermissionsExt as _;
+    std::fs::write(fixture.main.join(".git/info/exclude"), "/.cache/\n").expect("exclude");
+    let first = ops::add(pool, host, me, &create("feature/a")).expect("add");
+    ops::release(pool, host, me, &first.path, false).expect("release");
+    let target = fixture.main.join("bazel-out-target");
+    std::fs::create_dir_all(&target).expect("target");
+    std::os::unix::fs::symlink(&target, first.path.join("bazel-bin")).expect("link");
+    let tree = first.path.join(".cache").join("ob").join("first");
+    std::fs::create_dir_all(&tree).expect("tree");
+    std::fs::write(tree.join("out.txt"), "x").expect("output");
+    std::fs::set_permissions(tree.join("out.txt"), std::fs::Permissions::from_mode(0o444))
+        .expect("read-only file");
+    for dir in [&tree, &tree.parent().expect("ob").to_path_buf()] {
+        std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o555)).expect("read-only");
+    }
+    first.path
+}
+
+#[cfg(unix)]
+#[test]
+fn reuse_cleans_read_only_ignored_trees_and_keeps_bazel_links() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let me = who("s1", 10);
+    let path = free_slot_with_read_only_ignored_tree(&fixture, &pool, &host, &me);
+    let second = ops::add(&pool, &host, &me, &create("feature/b")).expect("reuse");
+    assert_eq!(second.path, path);
+    assert!(
+        !path.join(".cache").exists(),
+        "read-only ignored tree cleaned"
+    );
+    assert!(path.join("bazel-bin").exists(), "link kept");
+    assert!(
+        second
+            .warnings
+            .iter()
+            .all(|warning| warning.code != "slot_skipped")
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn reuse_skips_a_free_slot_it_cannot_clean() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let me = who("s1", 10);
+    let path = free_slot_with_read_only_ignored_tree(&fixture, &pool, &host, &me);
+    host.stick(&path.join(".cache"));
+    let second = ops::add(&pool, &host, &me, &create("feature/b")).expect("next slot");
+    assert_ne!(second.path, path);
+    let skipped: Vec<&ops::Warning> = second
+        .warnings
+        .iter()
+        .filter(|warning| warning.code == "slot_skipped")
+        .collect();
+    assert_eq!(skipped.len(), 1, "{:?}", second.warnings);
+    assert!(
+        skipped[0].message.starts_with("skipped free slot ")
+            && skipped[0].message.contains(".cache/ cannot be deleted"),
+        "{}",
+        skipped[0].message
+    );
+    let records = pool.records();
+    let left = records
+        .iter()
+        .find(|record| pool.slot_path(record.slot) == path)
+        .expect("skipped slot recorded");
+    assert!(!left.held, "skipped slot stays free");
+    host.unstick();
+    let tree = path.join(".cache").join("ob");
+    if tree.exists() {
+        std::fs::set_permissions(&tree, std::fs::Permissions::from_mode(0o755)).ok();
+    }
+}
+
 #[test]
 fn an_untracked_bazel_named_file_makes_a_slot_dirty() {
     let fixture = Fixture::new();

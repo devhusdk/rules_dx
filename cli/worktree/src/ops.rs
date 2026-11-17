@@ -637,7 +637,7 @@ pub(crate) fn lease(
     lease_locked(pool, host, who, request, skip, warnings, lock)
 }
 
-/// `lease` for a caller that already holds the pool lock. Drops the lock before `switch_slot`.
+/// `lease` for a caller that already holds the pool lock. Drops the lock before `switch_slot`; skips a free slot it cannot clean.
 pub(crate) fn lease_locked(
     pool: &Pool,
     host: &dyn Host,
@@ -645,8 +645,59 @@ pub(crate) fn lease_locked(
     request: &AddRequest,
     skip: &[u32],
     mut warnings: Vec<Warning>,
-    lock: dx_atomic_fs::lease::ExclusiveLease,
+    mut lock: dx_atomic_fs::lease::ExclusiveLease,
 ) -> Result<Added, WorktreeError> {
+    let mut skip = skip.to_vec();
+    loop {
+        match lease_once(pool, host, who, request, &skip, warnings, lock) {
+            Ok(added) => return Ok(added),
+            Err(Missed::Failed(error)) => return Err(error),
+            Err(Missed::Unclean {
+                slot,
+                error,
+                warnings: kept,
+            }) => {
+                warnings = kept;
+                warnings.push(Warning {
+                    code: "slot_skipped",
+                    message: format!(
+                        "skipped free slot {slot}: {}; fix its permissions or run `dx worktree prune --apply`",
+                        error.message
+                    ),
+                });
+                skip.push(slot);
+                lock = pool.lock()?;
+            }
+        }
+    }
+}
+
+/// Why one lease attempt handed out no slot.
+enum Missed {
+    Failed(WorktreeError),
+    /// The free slot it picked cannot be cleaned; the slot stays free and the pool lock is released.
+    Unclean {
+        slot: u32,
+        error: WorktreeError,
+        warnings: Vec<Warning>,
+    },
+}
+
+impl From<WorktreeError> for Missed {
+    fn from(error: WorktreeError) -> Self {
+        Missed::Failed(error)
+    }
+}
+
+fn lease_once(
+    pool: &Pool,
+    host: &dyn Host,
+    who: &Who,
+    request: &AddRequest,
+    skip: &[u32],
+    mut warnings: Vec<Warning>,
+    lock: dx_atomic_fs::lease::ExclusiveLease,
+) -> Result<Added, Missed> {
     let branch = request.branch.as_str();
     pool.forget_missing();
     let now = host.now();
@@ -666,7 +717,7 @@ pub(crate) fn lease_locked(
         }
         if request.force {
             if pool.busy(record.slot) {
-                return Err(busy_error(pool, record.slot));
+                return Err(busy_error(pool, record.slot).into());
             }
             let mut adopted = record.clone();
             adopted.lease_to(who);
@@ -694,7 +745,7 @@ pub(crate) fn lease_locked(
                 write!(message, "; {reason}").ok();
             }
             message.push_str("; pick another branch or pass --force to take it over");
-            return Err(WorktreeError::refused("branch_held", &message));
+            return Err(WorktreeError::refused("branch_held", &message).into());
         }
         takeover = Some(record);
     }
@@ -702,7 +753,7 @@ pub(crate) fn lease_locked(
     if let Some(record) = takeover {
         match pool.try_quiet(record.slot)? {
             Some(guard) => quiet = Some(guard),
-            None => return Err(busy_error(pool, record.slot)),
+            None => return Err(busy_error(pool, record.slot).into()),
         }
     }
     for checkout in pool.checkouts()? {
@@ -716,7 +767,8 @@ pub(crate) fn lease_locked(
                     "branch {branch} is checked out at {p}; cd {p} or pick another branch",
                     p = checkout.path.display()
                 ),
-            ));
+            )
+            .into());
         }
     }
     let start = resolve_start(pool, branch, request.create.as_deref())?;
@@ -735,7 +787,7 @@ pub(crate) fn lease_locked(
     if chosen.is_none() {
         let mut candidates: Vec<&Record> = records
             .iter()
-            .filter(|record| reclaimable(pool, host, record))
+            .filter(|record| !skip.contains(&record.slot) && reclaimable(pool, host, record))
             .collect();
         stop_check(host)?;
         rank(&mut candidates, branch, digest.as_deref());
@@ -855,8 +907,15 @@ pub(crate) fn lease_locked(
                     path.as_os_str(),
                 ],
             ));
+            if takeover.is_none() && error.code == SLOT_UNCLEAN {
+                return Err(Missed::Unclean {
+                    slot,
+                    error,
+                    warnings,
+                });
+            }
         }
-        return Err(error);
+        return Err(error.into());
     }
     let mut record = placeholder;
     record.lock_digest = git::lock_digest(&path, "HEAD");
@@ -874,19 +933,34 @@ pub(crate) fn lease_locked(
     })
 }
 
-/// Removes untracked and ignored files from a slot, including read-only trees.
-fn clean_slot(path: &Path) -> Result<(), WorktreeError> {
+/// The error code of a free slot that `clean_slot` could not clean.
+const SLOT_UNCLEAN: &str = "slot_unclean";
+
+/// Removes untracked and ignored files from a slot, including read-only trees, and keeps the root `bazel-*` links.
+fn clean_slot(host: &dyn Host, path: &Path) -> Result<(), WorktreeError> {
     const CLEAN: [&str; 4] = ["clean", "-ffdxq", "-e", "/bazel-*"];
+    let unclean = |reason: String| {
+        WorktreeError::refused(
+            SLOT_UNCLEAN,
+            &format!("cannot clean {}: {reason}", path.display()),
+        )
+    };
     if git::run(path, &CLEAN).is_ok() {
         return Ok(());
     }
-    let listing = git::run(path, &["ls-files", "-z", "--others", "--directory"])?;
-    for entry in listing.split('\0').filter(|entry| !entry.is_empty()) {
-        if !entry.starts_with("bazel-") {
-            dx_process::make_writable(&path.join(entry.trim_end_matches('/')));
+    let listing = git::run(path, &["ls-files", "-z", "--others", "--directory"])
+        .map_err(|error| unclean(error.message))?;
+    for entry in listing
+        .split('\0')
+        .filter(|entry| !entry.is_empty() && !entry.starts_with("bazel-"))
+    {
+        let full = path.join(entry.trim_end_matches('/'));
+        dx_process::make_writable(&full);
+        if entry.ends_with('/') && !host.remove_tree(&full) {
+            return Err(unclean(format!("{entry} cannot be deleted")));
         }
     }
-    git::run(path, &CLEAN)?;
+    git::run(path, &CLEAN).map_err(|error| unclean(error.message))?;
     Ok(())
 }
 
@@ -976,7 +1050,7 @@ fn switch_slot(
             ],
         ));
         git::run(&path, &["reset", "--hard", "--quiet"])?;
-        clean_slot(&path)?;
+        clean_slot(host, &path)?;
     }
     match start {
         Start::Create(base) => git::run(

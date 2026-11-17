@@ -29,7 +29,7 @@ rust_binary(
     data = ["//dart/private/tools:dart"],
     env = {"DX_DART": "$(rlocationpath //dart/private/tools:dart)"},
     target_compatible_with = DART_COMPATIBLE_WITH,
-    visibility = ["//visibility:public"],
+    visibility = ["//:__subpackages__"],
     deps = [
         ":pub_lock_lib",
         "//cli/families:dx_families",

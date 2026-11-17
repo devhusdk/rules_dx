@@ -7,12 +7,12 @@ Pinned versions:
 
 The fixture in `flutter/tests/runtime` builds a Flutter web app and runs one widget test. It needs no host Flutter, Dart, or Android SDK. It runs on Linux only.
 
-The app in `flutter/tests/fixtures/flutter-app` has a generated tips file, localized strings, a font, a web bundle with a browser test, and builds that fail on purpose. Linux hosts only.
+The app in `flutter/tests/fixtures/flutter_app` has a generated tips file, localized strings, a font, a web bundle with a browser test, and builds that fail on purpose. Linux hosts only.
 
 Build the fixture as an Android APK on Linux:
 
 ```sh
-bazel build //flutter/tests/fixtures/flutter-app/android:apk
+bazel build //flutter/tests/fixtures/flutter_app/android:apk
 ```
 
 `flutter_android_app` wraps the upstream rule and uses `android_binary`, so no Gradle runs. Set `android_abi` to `arm64` (default) or `x64`. Device and emulator runs are not covered yet. Consumers need the managed `androidsdk` override from rules_dx.

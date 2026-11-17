@@ -91,11 +91,11 @@ mod tests {
 
     #[test]
     fn keeps_only_runtime_object_lists_from_manifest() {
-        let manifest = "cc/tests/fixtures/c-app/cli/cli.c\nbazel-out/k8/bin/cc/tests/fixtures/c-app/cli/cli_upstreamruntime_objects_list.txt\n\nbazel-out/k8/bin/x.gcno\n";
+        let manifest = "cc/tests/fixtures/c_app/cli/cli.c\nbazel-out/k8/bin/cc/tests/fixtures/c_app/cli/cli_upstreamruntime_objects_list.txt\n\nbazel-out/k8/bin/x.gcno\n";
         assert_eq!(
             runtime_object_lists(manifest),
             vec![
-                "bazel-out/k8/bin/cc/tests/fixtures/c-app/cli/cli_upstreamruntime_objects_list.txt"
+                "bazel-out/k8/bin/cc/tests/fixtures/c_app/cli/cli_upstreamruntime_objects_list.txt"
             ]
         );
     }

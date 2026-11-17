@@ -1,0 +1,97 @@
+load("@crates//:crates.bzl", "aliases")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//java:defs.bzl", "java_binary", "java_library", "java_test")
+load("@rules_dx//rust:defs.bzl", "rust_test")
+
+# gazelle:resolve java billing.BuildInfo //java/tests/fixtures/java_app/billing
+
+package(default_visibility = ["//java/tests/fixtures/java_app:__subpackages__"])
+
+exports_files(
+    [
+        "Cli.java",
+        "CliTest.java",
+        "Main.java",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+java_library(
+    name = "cli",
+    testonly = True,
+    srcs = ["Cli.java"],
+    deps = ["//java/tests/fixtures/java_app/billing"],
+)
+
+java_binary(
+    name = "invoice",
+    testonly = True,
+    srcs = ["Main.java"],
+    main_class = "cli.Main",
+    visibility = ["//visibility:public"],
+    deps = [":cli"],
+)
+
+java_test(
+    name = "cli_test",
+    size = "small",
+    srcs = ["CliTest.java"],
+    test_class = "cli.CliTest",
+    deps = [":cli"],
+)
+
+rust_test(
+    name = "exit_codes_test",
+    size = "small",
+    testonly = True,
+    srcs = ["exit_codes_test.rs"],
+    aliases = aliases(
+        package_name = "java/tests/fixtures/java_app/java_app_cli_fixture",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "exit_codes_test",
+    crate_root = "exit_codes_test.rs",
+    data = [
+        ":invoice",
+        "//java/tests/fixtures/java_app/billing:invoices.json",
+        "//java/tests/fixtures/java_app/billing:malformed/fractional.json",
+        "//java/tests/fixtures/java_app/billing:malformed/negative.json",
+        "//java/tests/fixtures/java_app/billing:malformed/not_array.json",
+        "//java/tests/fixtures/java_app/billing:malformed/not_json.txt",
+        "//java/tests/fixtures/java_app/billing:malformed/wrong_type.json",
+    ],
+    env = {
+        "INVOICE_BIN": "$(rootpath :invoice)",
+        "INVOICE_FRACTIONAL": "$(rootpath //java/tests/fixtures/java_app/billing:malformed/fractional.json)",
+        "INVOICE_JSON": "$(rootpath //java/tests/fixtures/java_app/billing:invoices.json)",
+        "INVOICE_NEGATIVE": "$(rootpath //java/tests/fixtures/java_app/billing:malformed/negative.json)",
+        "INVOICE_NOT_ARRAY": "$(rootpath //java/tests/fixtures/java_app/billing:malformed/not_array.json)",
+        "INVOICE_NOT_JSON": "$(rootpath //java/tests/fixtures/java_app/billing:malformed/not_json.txt)",
+        "INVOICE_WRONG_TYPE": "$(rootpath //java/tests/fixtures/java_app/billing:malformed/wrong_type.json)",
+    },
+    deps = ["@rules_dx//tools/testing:dx_testing"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = [
+        "//:__pkg__",
+    ],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    testonly = True,
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

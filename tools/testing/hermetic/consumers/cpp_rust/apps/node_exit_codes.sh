@@ -49,7 +49,7 @@ has() {
   fi
 }
 
-has entry "/javascript/tests/fixtures/node-app/cli/main.js"
+has entry "/javascript/tests/fixtures/node_app/cli/main.js"
 has semver "/semver@7.8.6/node_modules/semver 7.8.6"
 has identity "same true"
 

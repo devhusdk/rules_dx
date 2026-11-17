@@ -40,7 +40,7 @@ load("//javascript:defs.bzl", "js_library")
 # gazelle:exclude tools/testing/hermetic/consumers/cpp_rust
 # gazelle:exclude tools/testing/hermetic/consumers/python
 # gazelle:exclude tools/testing/hermetic/consumers/scala_scalafix
-# gazelle:exclude flutter/tests/fixtures/flutter-app/ios/Runner
+# gazelle:exclude flutter/tests/fixtures/flutter_app/ios/Runner
 # gazelle:exclude java/private/jmh
 # gazelle:exclude go/tests/fixtures
 # gazelle:exclude javascript/tests/fixtures
@@ -160,7 +160,7 @@ load("//javascript:defs.bzl", "js_library")
 # gazelle:exclude gazelle/vue
 # gazelle:exclude gazelle/zig
 # gazelle:exclude examples/shared-rust
-# gazelle:exclude swift/tests/fixtures/swift-app
+# gazelle:exclude swift/tests/fixtures/swift_app
 # gazelle:exclude haskell/tests/fixtures/haskell_app
 # gazelle:exclude ocaml/tests/fixtures/ocaml_app
 # gazelle:exclude appimage/tests/fixtures/appimage_app
@@ -444,8 +444,8 @@ filegroup(
         "//cc/private/toolchain/msvc:module_srcs",
         "//cc/private/tools/context:module_srcs",
         "//cc/tests:module_srcs",
-        "//cc/tests/fixtures/c-app:module_srcs",
-        "//cc/tests/fixtures/cpp-app:module_srcs",
+        "//cc/tests/fixtures/c_app:module_srcs",
+        "//cc/tests/fixtures/cpp_app:module_srcs",
         "//cc/tests/gcc_linux_arm64:module_srcs",
         "//cc/tests/gcc_linux_x86_64:module_srcs",
         "//cc/tests/msvc_x86_64:module_srcs",
@@ -728,7 +728,7 @@ filegroup(
         "//java/private/toolchain:module_srcs",
         "//java/private/tools/lock:module_srcs",
         "//java/tests:module_srcs",
-        "//java/tests/fixtures/java-app/cli:module_srcs",
+        "//java/tests/fixtures/java_app/cli:module_srcs",
         "//javascript:module_srcs",
         "//javascript/private:module_srcs",
         "//javascript/private/quality:module_srcs",
@@ -751,7 +751,7 @@ filegroup(
         "//kotlin/private:module_srcs",
         "//kotlin/private/toolchain:module_srcs",
         "//kotlin/private/toolchain/impl:module_srcs",
-        "//kotlin/tests/fixtures/kotlin-app/cli:module_srcs",
+        "//kotlin/tests/fixtures/kotlin_app/cli:module_srcs",
         "//kubernetes/private/quality:module_srcs",
         "//lua:module_srcs",
         "//lua/private:module_srcs",

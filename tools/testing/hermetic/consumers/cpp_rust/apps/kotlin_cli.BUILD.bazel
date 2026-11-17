@@ -1,7 +1,7 @@
 load("@rules_dx//kotlin:defs.bzl", "kotlin_binary", "kotlin_library", "kotlin_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
-# gazelle:resolve kotlin grades.BuildInfo //kotlin/tests/fixtures/kotlin-app/grades
+# gazelle:resolve kotlin grades.BuildInfo //kotlin/tests/fixtures/kotlin_app/grades
 
 _PUBLIC = ["//visibility:public"]
 
@@ -9,7 +9,7 @@ kotlin_library(
     name = "cli",
     srcs = ["Cli.kt"],
     visibility = _PUBLIC,
-    deps = ["//kotlin/tests/fixtures/kotlin-app/grades"],
+    deps = ["//kotlin/tests/fixtures/kotlin_app/grades"],
 )
 
 kotlin_binary(

@@ -13,6 +13,6 @@ instrumented_sources_test = analysistest.make(
     _instrumented_impl,
     config_settings = {
         "//command_line_option:collect_code_coverage": True,
-        "//command_line_option:instrumentation_filter": "python/tests/fixtures/python-service",
+        "//command_line_option:instrumentation_filter": "python/tests/fixtures/python_service",
     },
 )

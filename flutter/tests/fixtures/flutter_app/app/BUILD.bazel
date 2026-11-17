@@ -1,0 +1,172 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("@bazel_skylib//rules:run_binary.bzl", "run_binary")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@rules_dx//flutter:defs.bzl", "flutter_application", "flutter_gen_l10n", "flutter_library", "flutter_test", "flutter_web_app", "flutter_web_bundle")
+load("@rules_dx//flutter/private:defs.bzl", "FLUTTER_COMPATIBLE_WITH")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//flutter/tests/fixtures/flutter_app:profile.bzl", "profile_app")
+
+package(default_visibility = ["//flutter/tests/fixtures/flutter_app:__subpackages__"])
+
+exports_files(
+    glob([
+        "lib/**",
+        "test/**",
+    ]) + [
+        "BUILD.bazel",
+        "tips.txt",
+    ],
+    visibility = ["//tools/testing/hermetic:__pkg__"],
+)
+
+_PUB = [
+    "@dx_flutter_app_deps//:collection",
+    "@dx_flutter_app_deps//:flutter",
+    "@dx_flutter_app_deps//:flutter_localizations",
+    "@dx_flutter_app_deps//:intl",
+]
+
+run_binary(
+    name = "tips_g_dart",
+    srcs = ["tips.txt"],
+    outs = ["lib/src/tips.g.dart"],
+    args = [
+        "$(location tips.txt)",
+        "$(location lib/src/tips.g.dart)",
+    ],
+    target_compatible_with = FLUTTER_COMPATIBLE_WITH,
+    tool = "//flutter/tests/fixtures/flutter_app/gen:gen_tips",
+)
+
+flutter_gen_l10n(
+    name = "l10n",
+    arbs = [
+        "lib/l10n/app_da.arb",
+        "lib/l10n/app_en.arb",
+    ],
+    target_compatible_with = FLUTTER_COMPATIBLE_WITH,
+)
+
+flutter_library(
+    name = "app",
+    package_name = "flutter_app",
+    srcs = glob(["lib/**/*.dart"]) + [
+        ":l10n",
+        ":tips_g_dart",
+    ],
+    font_files = {"//flutter/tests/fixtures/flutter_app:assets/fonts/DxSquare.ttf": "assets/fonts/DxSquare.ttf"},
+    fonts_json = json.encode([{
+        "family": "DxSquare",
+        "fonts": [{"asset": "assets/fonts/DxSquare.ttf"}],
+    }]),
+    pkg_assets = {"//flutter/tests/fixtures/flutter_app:assets/items.json": "assets/items.json"},
+    visibility = ["//visibility:public"],
+    deps = _PUB,
+)
+
+flutter_application(
+    name = "native",
+    package_name = "flutter_app",
+    main = "lib/main.dart",
+    visibility = [
+        "//flutter/tests/fixtures/flutter_app:__pkg__",
+        "//flutter/tests/fixtures/flutter_app/android:__pkg__",
+        "//flutter/tests/fixtures/flutter_app/failures:__pkg__",
+    ],
+    deps = [":app"] + _PUB,
+)
+
+flutter_web_app(
+    name = "web",
+    package_name = "flutter_app",
+    main = "lib/main.dart",
+    deps = [":app"] + _PUB,
+)
+
+write_file(
+    name = "web_bootstrap",
+    out = "web_bootstrap/flutter_bootstrap.js",
+    content = [
+        "{{flutter_build_config}}",
+        "{",
+        '  let script = document.createElement("script");',
+        '  script.src = "flutter.js";',
+        '  script.addEventListener("load", function() {',
+        '    _flutter.loader.load({config: {fontFallbackBaseUrl: "/fonts/"}});',
+        "  });",
+        "  document.head.appendChild(script);",
+        "}",
+        "",
+    ],
+)
+
+# Firefox cannot run the default dart2wasm and skwasm output, so this bundle
+# uses dart2js and canvaskit served from the bundle itself. The bootstrap
+# sends fallback font requests to the same server instead of gstatic.
+flutter_web_bundle(
+    name = "web_canvaskit",
+    package_name = "flutter_app",
+    bootstrap_js = ":web_bootstrap",
+    compiler = "dart2js",
+    main = "lib/main.dart",
+    pwa = False,
+    renderer = "canvaskit",
+    use_local_canvaskit = True,
+    visibility = ["//flutter/tests/fixtures/flutter_app/web:__pkg__"],
+    deps = [
+        ":app",
+        "@dx_flutter_app_deps//:collection",
+        "@dx_flutter_app_deps//:flutter",
+        "@dx_flutter_app_deps//:flutter_localizations",
+        "@dx_flutter_app_deps//:intl",
+    ],
+)
+
+build_test(
+    name = "web_build_test",
+    size = "small",
+    target_compatible_with = FLUTTER_COMPATIBLE_WITH,
+    targets = [":web"],
+)
+
+profile_app(
+    name = "web_profile",
+    app = ":web",
+    tags = ["manual"],
+    target_compatible_with = FLUTTER_COMPATIBLE_WITH,
+)
+
+build_test(
+    name = "web_profile_build_test",
+    size = "small",
+    target_compatible_with = FLUTTER_COMPATIBLE_WITH,
+    targets = [":web_profile"],
+)
+
+flutter_test(
+    name = "defines_test",
+    package_name = "flutter_app",
+    defines = ["PARTS_MODE=nondefault"],
+    main = "test/defines_test.dart",
+    tags = ["block-network"],
+    deps = ["@dx_flutter_app_deps//:flutter_test"],
+)
+
+flutter_test(
+    name = "app_test",
+    package_name = "flutter_app",
+    main = "test/app_test.dart",
+    tags = ["block-network"],
+    deps = [
+        ":app",
+        "@dx_flutter_app_deps//:flutter",
+        "@dx_flutter_app_deps//:flutter_test",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

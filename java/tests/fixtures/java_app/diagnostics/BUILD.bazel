@@ -1,0 +1,104 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//java:defs.bzl", "java_library")
+load("@rules_dx//tools/testing:test_macros.bzl", "dx_diagnostics_test", "dx_format_test")
+load("@rules_java//java:defs.bzl", "java_binary")
+
+package(default_visibility = ["//java/tests/fixtures/java_app:__subpackages__"])
+
+java_binary(
+    name = "javac",
+    testonly = True,
+    main_class = "com.sun.tools.javac.Main",
+    runtime_deps = [],
+)
+
+dx_diagnostics_test(
+    name = "diagnostics_test",
+    data = [
+        "Clean.java",
+        "RawType.java",
+        "SyntaxError.java",
+        "TypeError.java",
+        "Unformatted.java",
+        "UnusedImport.java",
+        ":javac",
+        "//java/tests/fixtures/java_app/billing:Invoice.java",
+        "//java/tests/fixtures/java_app/billing:InvoiceException.java",
+        "//java/tests/fixtures/java_app/billing:InvoiceReader.java",
+        "//java/tests/fixtures/java_app/billing:LineItem.java",
+        "//java/tests/fixtures/java_app/billing:Totals.java",
+        "@maven//:com_google_code_gson_gson",
+        "@maven//:com_google_errorprone_error_prone_annotations",
+        "@maven//:com_google_guava_guava",
+        "@rules_dx//java/private/quality/tools:google_java_format",
+        "@rules_dx//java/private/quality/tools:pmd",
+    ],
+    env = {
+        "DX_APP_SRCS": " ".join([
+            "$(rootpath //java/tests/fixtures/java_app/billing:Invoice.java)",
+            "$(rootpath //java/tests/fixtures/java_app/billing:InvoiceException.java)",
+            "$(rootpath //java/tests/fixtures/java_app/billing:InvoiceReader.java)",
+            "$(rootpath //java/tests/fixtures/java_app/billing:LineItem.java)",
+            "$(rootpath //java/tests/fixtures/java_app/billing:Totals.java)",
+        ]),
+        "DX_CLEAN": "$(rootpath Clean.java)",
+        "DX_ANNOTATIONS": "$(rootpath @maven//:com_google_errorprone_error_prone_annotations)",
+        "DX_FORMAT": "$(rootpath Unformatted.java)",
+        "DX_FORMATTER": "$(rootpath @rules_dx//java/private/quality/tools:google_java_format)",
+        "DX_GSON": "$(rootpath @maven//:com_google_code_gson_gson)",
+        "DX_GUAVA": "$(rootpath @maven//:com_google_guava_guava)",
+        "DX_JAVAC": "$(rootpath :javac)",
+        "DX_LINT": "$(rootpath UnusedImport.java)",
+        "DX_PMD": "$(rootpath @rules_dx//java/private/quality/tools:pmd)",
+        "DX_SYNTAX": "$(rootpath SyntaxError.java)",
+        "DX_TYPE": "$(rootpath TypeError.java)",
+        "DX_WARNING": "$(rootpath RawType.java)",
+    },
+    language = "java",
+)
+
+dx_format_test(
+    name = "format_test",
+    srcs = [
+        "//java/tests/fixtures/java_app/billing:ClasspathTest.java",
+        "//java/tests/fixtures/java_app/billing:Invoice.java",
+        "//java/tests/fixtures/java_app/billing:InvoiceException.java",
+        "//java/tests/fixtures/java_app/billing:InvoiceReader.java",
+        "//java/tests/fixtures/java_app/billing:InvoiceReaderTest.java",
+        "//java/tests/fixtures/java_app/billing:LineItem.java",
+        "//java/tests/fixtures/java_app/billing:Totals.java",
+        "//java/tests/fixtures/java_app/billing:TotalsTest.java",
+        "//java/tests/fixtures/java_app/cli:Cli.java",
+        "//java/tests/fixtures/java_app/cli:CliTest.java",
+        "//java/tests/fixtures/java_app/cli:Main.java",
+    ],
+    args = [
+        "--dry-run",
+        "--set-exit-if-changed",
+        "{src}",
+    ],
+    tool = "@rules_dx//java/private/quality/tools:google_java_format",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = [
+        "//:__pkg__",
+    ],
+)
+
+java_library(
+    name = "diagnostics",
+    testonly = True,
+    srcs = [
+        "Clean.java",
+        "RawType.java",
+        "SyntaxError.java",
+        "TypeError.java",
+        "Unformatted.java",
+        "UnusedImport.java",
+    ],
+)

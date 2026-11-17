@@ -1,0 +1,54 @@
+load("@rules_dx//android:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start")
+load("@rules_dx//flutter:defs.bzl", "flutter_android_app")
+load("//core/quality:fixtures.bzl", "real_source_target")
+
+exports_files(
+    [
+        "BUILD.bazel",
+    ],
+    visibility = ["//tools/testing/hermetic:__pkg__"],
+)
+
+flutter_android_app(
+    name = "apk",
+    package_name = "dk.devhus.flutterapp",
+    android_abi = "x64",
+    application = "//flutter/tests/fixtures/flutter_app/app:native",
+    pub_hub_name = "dx_flutter_app_deps",
+    tags = ["manual"],
+    visibility = ["//flutter/tests/fixtures/flutter_app/apk:__pkg__"],
+)
+
+flutter_android_app(
+    name = "apk_arm64",
+    package_name = "dk.devhus.flutterapp",
+    application = "//flutter/tests/fixtures/flutter_app/app:native",
+    pub_hub_name = "dx_flutter_app_deps",
+    tags = ["manual"],
+    visibility = ["//flutter/tests/fixtures/flutter_app/apk:__pkg__"],
+)
+
+android_adb_install(
+    name = "install",
+    apk = ":apk",
+    serial = "emulator-5554",
+)
+
+android_adb_start(
+    name = "start",
+    activity = "io.flutter.embedding.android.FlutterActivity",
+    app_id = "dk.devhus.flutterapp",
+    serial = "emulator-5554",
+)
+
+android_adb_log(
+    name = "log",
+    serial = "emulator-5554",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

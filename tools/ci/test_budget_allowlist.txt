@@ -1,5 +1,5 @@
 //deploy/private/release/tests:release_consumer_smoke_test nested-cold-over-60 300
-//examples/adopt-polyglot:consumer_test nested-cold-over-60 142
+//examples/adopt-polyglot:consumer_test nested-cold-over-60 147
 //tools/testing/hermetic:cpp_rust nested-cold-over-60 653
 android/tests/fixtures/adopt_android/app/BUILD.bazel no-size 3
 android/tests/fixtures/adopt_android/native/BUILD.bazel no-size 2

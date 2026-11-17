@@ -1194,7 +1194,7 @@ fn pinned() -> Registry {
             "gems",
             Ecosystem::Ruby,
             &["apps/rb/Gemfile"],
-            &["apps/rb/Gemfile.lock"],
+            &["apps/rb/ruby.lock.json", "apps/rb/Gemfile.lock"],
         ),
         (
             "modules",
@@ -1262,9 +1262,9 @@ fn pinned_sets_must_declare_the_lock_beside_their_manifest() {
             "ruby",
             "apps/rb/Gemfile",
             "apps/rb/gems.locked",
-            "apps/rb/Gemfile.lock",
+            "apps/rb/ruby.lock.json",
         ),
-        ("ruby", "Gemfile", "other/Gemfile.lock", "Gemfile.lock"),
+        ("ruby", "Gemfile", "other/ruby.lock.json", "ruby.lock.json"),
         (
             "powershell",
             "tools/ps/PSGallery.requirements.psd1",

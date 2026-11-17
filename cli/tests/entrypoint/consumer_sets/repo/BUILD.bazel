@@ -28,6 +28,7 @@ genrule(
         "sets_ok/apps/web/pnpm-lock.yaml",
         "sets_ok/apps/rb/Gemfile",
         "sets_ok/apps/rb/Gemfile.lock",
+        "sets_ok/apps/rb/ruby.lock.json",
         "sets_ok/apps/rs/Cargo.toml",
         "sets_ok/apps/rs/Cargo.lock",
         "sets_ok/perl/cpanfile",
@@ -134,6 +135,7 @@ version = "0.1.0"
 EOF
 cp "$(location sets_ok/apps/rs/Cargo.lock)" "$$orig/consumer_sets_cargo_lock.orig"
 echo 'source "https://rubygems.org"' > "$(location sets_ok/apps/rb/Gemfile)"
+echo '{"ecosystem": "ruby", "packages": []}' > "$(location sets_ok/apps/rb/ruby.lock.json)"
 cat > "$(location sets_ok/apps/rb/Gemfile.lock)" <<'EOF'
 GEM
   remote: https://rubygems.org/

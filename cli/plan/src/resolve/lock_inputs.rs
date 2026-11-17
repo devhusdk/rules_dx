@@ -1421,10 +1421,7 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
         let module = "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.lock(name = \"gems\", lock = \"//third_party/ruby:ruby.lock.json\")\n";
         let hubs = gem_hubs(module).expect("hubs");
         assert_eq!(
-            classify(
-                &format!("third_party/ruby/{}", lock_of(Ecosystem::Ruby)),
-                &hubs
-            ),
+            classify("third_party/ruby/Gemfile.lock", &hubs),
             LockKind::Ruby(vec!["gems".to_owned()])
         );
         assert_eq!(

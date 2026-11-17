@@ -835,7 +835,7 @@ fn consumer_npm_parent_pnpm_workspace_is_unsupported() {
 
 const PINNED_MODULE: &str = "uv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"deps\", pyproject = \"//apps/frontend:pyproject.toml\", lock = \"//apps/frontend:uv.lock\")\nruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.lock(name = \"gems\", lock = \"//apps/rb:ruby.lock.json\")\n";
 
-const PINNED_FILES: [(&str, &str); 2] = [
+const PINNED_FILES: [(&str, &str); 3] = [
     (
         "apps/rb/Gemfile",
         "source \"https://rubygems.org\"\ngem \"rspec-core\"\n",
@@ -844,6 +844,7 @@ const PINNED_FILES: [(&str, &str); 2] = [
         "apps/rb/Gemfile.lock",
         "GEM\n  remote: https://rubygems.org/\n  specs:\n    rspec-core (3.13.0)\n",
     ),
+    ("apps/rb/ruby.lock.json", "{\"ecosystem\": \"ruby\", \"packages\": []}\n"),
 ];
 
 fn pinned_harness(name: &str) -> Harness {

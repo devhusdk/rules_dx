@@ -1,3 +1,5 @@
+load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@my_dx//rust:defs.bzl", "rust_library", "rust_test")
 
 rust_library(
@@ -14,4 +16,24 @@ rust_library(
 rust_test(
     name = "cc_rs_consumer_test",
     crate = ":cc_rs_consumer",
+)
+
+platform_transition_filegroup(
+    name = "cc_rs_consumer_test_linux_arm64",
+    testonly = True,
+    srcs = [":cc_rs_consumer_test"],
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    target_platform = "@my_dx//tools/platforms:linux_arm64",
+)
+
+build_test(
+    name = "cc_rs_consumer_linux_arm64_build_test",
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    targets = [":cc_rs_consumer_test_linux_arm64"],
 )

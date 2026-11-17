@@ -48,6 +48,7 @@ dx_conformance_suite(
     lang = "swift",
     not_applicable = {
         "cross_test:macos_arm64": "swift cross-compiles to linux only from a linux host",
+        "cross_test:windows_arm64": "swift cross-compiles to linux only from a linux host",
         "cross_test:windows_x86_64": "swift cross-compiles to linux only from a linux host",
     },
     passing_test = ":pass_subject_test",

@@ -9751,14 +9751,12 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
             "linux_arm64",
             "linux_x86_64",
             "macos_arm64",
+            "windows_arm64",
             "windows_x86_64"
           ],
           "state": "supported",
           "tool": "swift_format",
-          "transport": "single",
-          "unsupported": {
-            "windows_arm64": "the Swift Windows toolchain is registered but unverified on windows_arm64"
-          }
+          "transport": "single"
         }
       ]
     },
@@ -9815,14 +9813,12 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
             "linux_arm64",
             "linux_x86_64",
             "macos_arm64",
+            "windows_arm64",
             "windows_x86_64"
           ],
           "state": "supported",
           "tool": "swift_lint",
-          "transport": "batched",
-          "unsupported": {
-            "windows_arm64": "the Swift Windows toolchain is registered but unverified on windows_arm64"
-          }
+          "transport": "batched"
         }
       ]
     }

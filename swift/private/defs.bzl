@@ -39,12 +39,15 @@ swift_platforms_transition = platforms_transition(
 )
 _RUNTIME_DLLS_ATTR = {
     "runtime_dlls": attr.label_list(
-        doc = "The Swift runtime DLLs symlinked next to the executable. Set on windows_x86_64 only.",
+        doc = "The Swift runtime DLLs symlinked next to the executable. Set on Windows only.",
         allow_files = [".dll"],
     ),
 }
-_WINDOWS_RUNTIME = Label("@dx_swift_windows_x86_64//:runtime_dlls")
-SWIFT_WINDOWS_RUNTIME_DLLS = _WINDOWS_RUNTIME
+SWIFT_WINDOWS_RUNTIME_DLLS = select({
+    Label("//swift/private/platforms:is_windows_aarch64"): [Label("@dx_swift_windows_aarch64//:runtime_dlls")],
+    Label("//swift/private/platforms:is_windows_x86_64"): [Label("@dx_swift_windows_x86_64//:runtime_dlls")],
+    "//conditions:default": [],
+})
 SWIFT_COMPATIBLE_WITH = _SWIFT_COMPATIBLE_WITH
 SWIFT_FUZZ_COMPATIBLE_WITH = _SWIFT_FUZZ_COMPATIBLE_WITH
 _STATIC = ["swift.static_stdlib", "-static_link_cpp_runtimes"]
@@ -131,7 +134,7 @@ def _swift_upstream_kwargs(kwargs):
     """Returns the swift upstream kwargs with the static, index and warnings-as-errors settings."""
     out = dx_append_flags(dx_warnings_flags(kwargs, "copts", ["-warnings-as-errors"]), "features", _STATIC + _INDEX)
     return dx_append_flags(out, "copts", select({
-        Label("//swift/private/platforms:is_windows_x86_64_static_crt"): ["-libc", "MT"],
+        Label("//swift/private/platforms:is_windows_static_crt"): ["-libc", "MT"],
         "//conditions:default": [],
     }))
 
@@ -149,10 +152,7 @@ def _swift_forward_kwargs(platforms):
     """Returns the forwarder kwargs naming the platform and the Swift runtime DLLs."""
     return {
         "platforms": platforms if platforms != None else swift_linux_platforms(),
-        "runtime_dlls": select({
-            Label("//swift/private/platforms:is_windows_x86_64"): [SWIFT_WINDOWS_RUNTIME_DLLS],
-            "//conditions:default": [],
-        }),
+        "runtime_dlls": SWIFT_WINDOWS_RUNTIME_DLLS,
     }
 
 def _swift_runtime_kwargs(kwargs, platforms):
@@ -165,7 +165,7 @@ def _swift_coverage_kwargs(kwargs):
     """Links Swift's own profile runtime into a swift_test under bazel coverage."""
     out = _swift_upstream_kwargs(kwargs)
     out = dx_append_flags(out, "linkopts", select({
-        Label("//swift/private/platforms:is_windows_x86_64_static_crt"): ["-NODEFAULTLIB:msvcrt.lib", "-NODEFAULTLIB:msvcprt.lib"],
+        Label("//swift/private/platforms:is_windows_static_crt"): ["-NODEFAULTLIB:msvcrt.lib", "-NODEFAULTLIB:msvcprt.lib"],
         "//conditions:default": [],
     }))
     out = dx_append_flags(out, "linkopts", select({

@@ -116,14 +116,14 @@ Lockfiles:
 - Linux arm64
 - Linux x86_64
 - macOS arm64
+- Windows arm64
 - Windows x86_64
 
 See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/support-matrix.md).
 
-On windows_x86_64 Swift binaries and tests carry the Swift runtime, XCTest and
+On Windows Swift binaries and tests carry the Swift runtime, XCTest and
 Swift Testing DLLs next to the executable, so they run as `sh_test` or
 `rust_test` data.
-windows_arm64 is unsupported.
 
 ## Quality
 

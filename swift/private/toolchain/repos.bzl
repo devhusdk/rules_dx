@@ -245,7 +245,7 @@ filegroup(
 
 filegroup(
     name = "profile_runtime",
-    srcs = ["toolchain/usr/lib/clang/21/lib/x86_64-unknown-windows-msvc/clang_rt.profile.lib"],
+    srcs = ["toolchain/usr/lib/clang/21/lib/%TRIPLE%/clang_rt.profile.lib"],
 )
 
 filegroup(
@@ -253,8 +253,8 @@ filegroup(
     srcs = glob(
         [
             "runtime/usr/bin/*.dll",
-            "platform/Developer/Library/XCTest-*/usr/bin64/*.dll",
-            "platform/Developer/Library/Testing-*/usr/bin64/*.dll",
+            "platform/Developer/Library/XCTest-*/usr/%BIN%/*.dll",
+            "platform/Developer/Library/Testing-*/usr/%BIN%/*.dll",
         ],
         allow_empty = True,
     ),
@@ -277,6 +277,11 @@ swift_tools(
 )
 """
 
+_WINDOWS_ARCH = {
+    "windows_arm64": struct(bin = "bin64a", triple = "aarch64-unknown-windows-msvc"),
+    "windows_x86_64": struct(bin = "bin64", triple = "x86_64-unknown-windows-msvc"),
+}
+
 _SEVEN_ZIP = "_7zip"
 
 _NO_HOST_TOOLS = {
@@ -294,7 +299,8 @@ _NO_HOST_TOOLS = {
 def _swift_windows_impl(repository_ctx):
     cell = repository_ctx.attr.cell
     version = repository_ctx.attr.version
-    repository_ctx.file("BUILD.bazel", _SWIFT_WINDOWS_BUILD)
+    arch = _WINDOWS_ARCH[cell]
+    repository_ctx.file("BUILD.bazel", _SWIFT_WINDOWS_BUILD.replace("%TRIPLE%", arch.triple).replace("%BIN%", arch.bin))
     repository_ctx.file(".swift-version", version + "\n")
     if host_cell(repository_ctx) != cell:
         for path in ["toolchain/usr/bin/swift-format.exe", "toolchain/usr/bin/swiftc.exe", "toolchain/usr/bin/swift-symbolgraph-extract.exe"]:

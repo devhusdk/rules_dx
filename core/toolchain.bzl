@@ -114,9 +114,14 @@ def cell_repo(name, cell):
     """Returns the name of the repository holding one cell of a pin."""
     return name + "__" + cell
 
-def pins_hub(name, cells, toolchain_type, compatible_with = "exec", exec_aliases = []):
-    """Returns the hub BUILD file of a pin: one toolchain() per cell and an alias per exec_aliases target selecting the exec cell."""
-    constraints = {cell: [_OS_CONSTRAINTS[cell.partition("_")[0]], _CPU_CONSTRAINTS[cell.partition("_")[2]]] for cell in cells}
+def pins_hub(name, cells, toolchain_type, compatible_with = "exec", exec_aliases = [], os_constraints = {}):
+    """Returns the hub BUILD file of a pin: one toolchain() per cell and an alias per exec_aliases target selecting the exec cell.
+
+    os_constraints maps an OS to constraints every cell of that OS adds after its OS and CPU."""
+    constraints = {
+        cell: [_OS_CONSTRAINTS[cell.partition("_")[0]], _CPU_CONSTRAINTS[cell.partition("_")[2]]] + os_constraints.get(cell.partition("_")[0], [])
+        for cell in cells
+    }
     sides = ["exec", "target"] if compatible_with == "both" else [compatible_with]
     parts = [
         toolchain_target(

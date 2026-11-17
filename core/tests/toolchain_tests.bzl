@@ -48,6 +48,24 @@ def _checks():
     visibility = ["//visibility:public"],
 )
 """),
+        expect_equal("os constraints follow the cell platform", pins_hub("t", ["windows_x86_64", "linux_x86_64"], "//t:type", "both", os_constraints = {"windows": ["//abi:msvc"]}), """toolchain(
+    name = "t__linux_x86_64",
+    exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+    target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+    toolchain = "@t__linux_x86_64//:toolchain",
+    toolchain_type = "//t:type",
+    visibility = ["//visibility:public"],
+)
+
+toolchain(
+    name = "t__windows_x86_64",
+    exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64", "//abi:msvc"],
+    target_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64", "//abi:msvc"],
+    toolchain = "@t__windows_x86_64//:toolchain",
+    toolchain_type = "//t:type",
+    visibility = ["//visibility:public"],
+)
+"""),
         expect_equal("both hub with exec aliases", pins_hub("t", ["linux_x86_64"], "//t:type", "both", ["bin"]), """toolchain(
     name = "t__linux_x86_64",
     exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],

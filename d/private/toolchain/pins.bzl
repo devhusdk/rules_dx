@@ -10,7 +10,7 @@ RULES_D_VERSION = _ARCHIVES["rules_d"]["version"]
 
 LDC_VERSION = _PINS["version"]
 
-_MSVC_ABI = "@llvm//constraints/windows/abi:msvc"
+MSVC_ABI = "@llvm//constraints/windows/abi:msvc"
 
 _WINDOWS_LINKOPTS = ["/NODEFAULTLIB:legacy_stdio_definitions.lib"]
 
@@ -90,7 +90,7 @@ LDC_CELLS = {
         data_globs = ["bin/*.dll", "lib-windows-arm64/*.dll"],
         druntime = "lib-windows-arm64/druntime-ldc.lib",
         dub = "bin/dub.exe",
-        exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:aarch64", _MSVC_ABI],
+        exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:aarch64", MSVC_ABI],
         ldc = "bin/ldc2.exe",
         linkopts = _WINDOWS_LINKOPTS,
         phobos = "lib-windows-arm64/phobos2-ldc.lib",
@@ -109,7 +109,7 @@ LDC_CELLS = {
         data_globs = ["bin/*.dll"],
         druntime = "lib/druntime-ldc.lib",
         dub = "bin/dub.exe",
-        exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64", _MSVC_ABI],
+        exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64", MSVC_ABI],
         ldc = "bin/ldc2.exe",
         linkopts = _WINDOWS_LINKOPTS,
         phobos = "lib/phobos2-ldc.lib",

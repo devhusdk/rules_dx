@@ -2,15 +2,13 @@
 
 load("//core:deb_closure.bzl", "deb_closure")
 load("//core:jammy_runtime.bzl", "JAMMY_RUNTIME", "jammy_deb_urls")
-load("//core:toolchain.bzl", "toolchain_target")
+load("//core:toolchain.bzl", "cell_repo", "pins_hub")
 load("//qt/private/toolchain:seven_zip.bzl", "seven_zip_extract", "seven_zip_fetch")
-load(":pins.bzl", "LDC_CELLS", "LDC_VERSION")
+load(":pins.bzl", "LDC_CELLS", "LDC_VERSION", "MSVC_ABI")
 
 HUB_NAME = "dx_d_toolchains"
 
 CLOSURE_DIR = "dx_closure"
-
-LDC_PREFIX = "dx_d_ldc_"
 
 VERSION_FILE = "DX_LDC_VERSION"
 
@@ -85,7 +83,7 @@ filegroup(
 )
 
 d_toolchain(
-    name = "d_toolchain",
+    name = "toolchain",
     compiler_flags = {compiler_flags},
     d_compiler = ":dmd",
     druntime = ":druntime",
@@ -97,7 +95,7 @@ d_toolchain(
 
 def ldc_repository_name(cell):
     """Returns the repository name one qualified cell's LDC is acquired into."""
-    return LDC_PREFIX + cell
+    return cell_repo(HUB_NAME, cell)
 
 def ldc_runtime(cell):
     """Returns the pinned runtime closure packages one LDC cell needs."""
@@ -184,13 +182,4 @@ ldc_repo = repository_rule(
 
 def hub_build():
     """Returns the hub BUILD file: one D toolchain per qualified cell."""
-    content = []
-    for cell in sorted(LDC_CELLS.keys()):
-        content.append(toolchain_target(
-            name = cell,
-            exec_compatible_with = LDC_CELLS[cell].exec_compatible_with,
-            target_compatible_with = LDC_CELLS[cell].exec_compatible_with,
-            toolchain = "@{}//:d_toolchain".format(ldc_repository_name(cell)),
-            toolchain_type = str(Label("@rules_d//d:toolchain_type")),
-        ))
-    return "\n".join(content)
+    return pins_hub(HUB_NAME, LDC_CELLS.keys(), str(Label("@rules_d//d:toolchain_type")), "both", os_constraints = {"windows": [MSVC_ABI]})

@@ -868,7 +868,7 @@ LANGS = json.decode("""{
           "imports": "name",
           "lock": "pubspec.lock",
           "manifest": "pubspec.yaml",
-          "resolver": null,
+          "resolver": "@rules_dx//dart/private/tools/lock",
           "state": null,
           "tag": "from_lock"
         }

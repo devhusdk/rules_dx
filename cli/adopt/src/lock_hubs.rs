@@ -165,7 +165,7 @@ pub fn unlocked_manifests(root: &Path) -> Result<Vec<&'static str>, AdoptError> 
 }
 
 /// The ecosystems whose lock comes from the pinned resolver of their `setup.hubs` entry.
-pub const RESOLVER_LOCKS: [&str; 4] = ["composer", "dub", "luarocks", "maven"];
+pub const RESOLVER_LOCKS: [&str; 5] = ["composer", "dub", "luarocks", "maven", "pub"];
 
 /// The file at the root of `root` matching `pattern`, which is a file name or `*<suffix>`.
 fn root_match(root: &Path, pattern: &str) -> Option<String> {
@@ -820,7 +820,9 @@ mod tests {
 
     fn t(template: &str) -> &'static str {
         let mut text = template.to_owned();
-        for eco in ["cargo", "npm", "uv", "composer", "dub", "luarocks", "maven"] {
+        for eco in [
+            "cargo", "npm", "uv", "composer", "dub", "luarocks", "maven", "pub",
+        ] {
             text = text.replace(
                 &format!("{{{eco}:manifest}}"),
                 manifest_of(eco).expect("hub"),
@@ -1057,6 +1059,18 @@ mod tests {
         );
         assert_eq!(
             unlocked(&[(t("{maven:manifest}"), ""), (t("{maven:lock}"), "")]),
+            [] as [&str; 0]
+        );
+    }
+
+    #[test]
+    fn a_pubspec_without_its_lock_is_unlocked() {
+        assert_eq!(
+            unlocked(&[(t("{pub:manifest}"), "name: app\n")]),
+            [t("{pub:manifest}")]
+        );
+        assert_eq!(
+            unlocked(&[(t("{pub:manifest}"), "name: app\n"), (t("{pub:lock}"), "")]),
             [] as [&str; 0]
         );
     }

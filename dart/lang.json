@@ -24,7 +24,7 @@
         "extension": "@rules_dx//dart:extensions.bzl",
         "tag": "from_lock",
         "hub": "pub_deps",
-        "resolver": null,
+        "resolver": "@rules_dx//dart/private/tools/lock",
         "imports": "name"
       }
     ]

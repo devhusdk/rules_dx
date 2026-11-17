@@ -48,7 +48,7 @@ def _dx_clippy_aspect_impl(target, ctx):
     use_clippy_error_format = ctx.attr._incompatible_change_clippy_error_format[IncompatibleFlagInfo].enabled
     error_format = get_error_format(ctx.attr, "_clippy_error_format" if use_clippy_error_format else "_error_format")
     flags = ctx.attr._clippy_flags[ClippyFlagsInfo].clippy_flags + ctx.attr._clippy_flag[ClippyFlagsInfo].clippy_flags
-    if crate_info.is_test or getattr(ctx.rule.attr, "testonly", False):
+    if crate_info.is_test:
         flags = test_crate_flags(flags)
     rust_clippy_action.action(
         ctx = ctx,

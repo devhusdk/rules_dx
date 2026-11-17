@@ -1,4 +1,4 @@
-load("@dx_rust_fixture_crates//:crates.bzl", "aliases", "all_crate_deps")
+load("@dx_rust_fixture_crates//:crates.bzl", "aliases", "all_crate_deps", "crate_deps")
 load("@rules_rust//rust:defs.bzl", "rust_lint_config")
 load("@rules_dx//deploy:defs.bzl", "archive_deploy")
 load("@rules_dx//core/tests:thin_compare.bzl", "thin_compare_rust_tests", "thin_compare_subject")
@@ -23,8 +23,8 @@ rust_library(
     crate_name = "hello",
     crate_root = "src/lib.rs",
     edition = "2021",
-    deps = all_crate_deps(
-        normal = True,
+    deps = crate_deps(
+        ["anyhow"],
         package_name = "rust/tests/fixtures/hello",
     ),
 )
@@ -46,8 +46,8 @@ rust_library(
     crate_root = "src/lib.rs",
     edition = "2021",
     lint_config = ":hello_lints",
-    deps = all_crate_deps(
-        normal = True,
+    deps = crate_deps(
+        ["anyhow"],
         package_name = "rust/tests/fixtures/hello",
     ),
 )
@@ -75,8 +75,8 @@ rust_binary(
     crate_name = "hello",
     crate_root = "src/main.rs",
     edition = "2021",
-    deps = all_crate_deps(
-        normal = True,
+    deps = crate_deps(
+        ["anyhow"],
         package_name = "rust/tests/fixtures/hello",
     ) + [":hello_lib"],
 )

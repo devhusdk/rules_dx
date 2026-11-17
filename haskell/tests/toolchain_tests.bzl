@@ -2,7 +2,7 @@
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
-load("//haskell/private/toolchain:packages.bzl", "cabal_libraries", "components", "is_sha256", "package_build", "package_deps", "pin_problems", "tool_labels")
+load("//haskell/private/toolchain:packages.bzl", "cabal_libraries", "components", "is_sha256", "package_build", "package_deps", "pin_problems", "render_deps", "tool_labels")
 load("//haskell/private/toolchain:pins.bzl", "CELLS", "GLIBC_FLOOR", "qualified_cells")
 load("//haskell/private/toolchain:repos.bzl", "CLOSURE_DIR", "NO_HOST_TOOL", "cell_matches_host", "closure_library_dirs", "drop_host_sdk_dirs", "dropped_import_libs", "ghc_library_dir", "ghc_settings", "host_path", "hub_files", "os_libraries", "toolchain_libraries")
 
@@ -189,6 +189,8 @@ def _checks():
         expect_contains("a lock package dep points at its repository", build, '"@hub_alex//:alex"'),
         expect_contains("a dep outside the lock is a GHC boot package", build, '"@dx_haskell_toolchains//lib:base"'),
         expect_contains("a sublibrary dep points at its alias", build, '"@hub_sub//:sub-lib-inner"'),
+        expect_equal("an os library dep is selected on the cells that ship it", render_deps(["@dx_haskell_toolchains//lib:base", "@dx_haskell_toolchains//lib:unix"]), '["@dx_haskell_toolchains//lib:base"] + select({"@dx_haskell_toolchains//lib:linux_arm64_platform": ["@dx_haskell_toolchains//lib:unix"], "@dx_haskell_toolchains//lib:linux_x86_64_platform": ["@dx_haskell_toolchains//lib:unix"], "@dx_haskell_toolchains//lib:macos_arm64_platform": ["@dx_haskell_toolchains//lib:unix"], "//conditions:default": []})'),
+        expect_equal("a Win32 dep is selected on windows only", render_deps(["@dx_haskell_toolchains//lib:Win32"]), '[] + select({"@dx_haskell_toolchains//lib:windows_x86_64_platform": ["@dx_haskell_toolchains//lib:Win32"], "//conditions:default": []})'),
         expect_false("lock deps alone do not name boot packages", "@dx_haskell_toolchains//lib:base" in package_deps("hub", lock, lock["packages"][1] | {"extra": {"cabal_components": ["lib"]}})),
     ]
     pinned = {"name": "pinned", "version": "1.0", "archives": [archive], "extra": {"cabal_revision": {"number": 2, "sha256": "b" * 64}}}

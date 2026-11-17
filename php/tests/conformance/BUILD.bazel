@@ -15,6 +15,13 @@ php_library(
     srcs = ["src/Conformance/Greet.php"],
 )
 
+php_library(
+    name = "lint_dirty",
+    testonly = True,
+    srcs = ["src/Conformance/LintDirty.php"],
+    tags = ["manual"],
+)
+
 php_binary(
     name = "hello",
     main = "bin/main.php",
@@ -66,6 +73,13 @@ dx_conformance_suite(
     },
     not_applicable = {"cross_test": "php_binary is a script the interpreter runs; it has no object format"},
     passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":conformance",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 11,
+        "lint_rule": "phpcs/Generic.CodeAnalysis.EmptyStatement.DetectedIf",
+        "lint_source": "src/Conformance/LintDirty.php",
+    },
 )
 
 php_corpus(

@@ -25,6 +25,7 @@ _QUALITY_CONFIGS = {
     "dart": "tool_overrides",
     "lua": "tool_overrides",
     "perl": "tool_overrides",
+    "php": "tool_overrides",
     "powershell": "tool_overrides",
     "ruby": "tool_overrides",
 }

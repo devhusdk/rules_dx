@@ -1,9 +1,11 @@
 Give ghc actions the Xcode env so an Xcode cc toolchain (wrapped_clang) gets DEVELOPER_DIR and SDKROOT on macOS.
+GHC hands the cc toolchain flags to every phase, assembler included, where clang reports them as unused, so ghc actions drop treat_warnings_as_errors as the cabal rules do.
+On macOS GHC's rts/ghc_ffi.h includes "ffi.h", which the SDK keeps under usr/include/ffi.
 
 diff --git a/haskell/cc.bzl b/haskell/cc.bzl
 --- a/haskell/cc.bzl
 +++ b/haskell/cc.bzl
-@@ -158,6 +158,15 @@
+@@ -158,6 +158,21 @@
      if cc_wrapper.as_tool.runfiles_manifest:
          env["CC_WRAPPER_MANIFEST"] = cc_wrapper.as_tool.runfiles_manifest.path
  
@@ -15,6 +17,12 @@ diff --git a/haskell/cc.bzl b/haskell/cc.bzl
 +        xcode_config = xcode_config[apple_common.XcodeVersionConfig]
 +        env.update(apple_common.apple_host_system_env(xcode_config))
 +        env.update(apple_common.target_apple_env(xcode_config, apple_common.platform.macos))
++
++    # GHC's rts/ghc_ffi.h includes "ffi.h", which the macOS SDK keeps under
++    # usr/include/ffi. -iwithsysroot resolves it against whichever SDK the cc
++    # toolchain passes as its sysroot.
++    if hs_toolchain.is_darwin:
++        compiler_flags = compiler_flags + ["-iwithsysroot/usr/include/ffi"]
 +
      cc_libraries_info = deps_HaskellCcLibrariesInfo(
          ctx.attr.deps + getattr(ctx.attr, "plugins", []) + getattr(ctx.attr, "setup_deps", []),
@@ -53,3 +61,22 @@ diff --git a/haskell/defs.bzl b/haskell/defs.bzl
  )
  
  def _haskell_worker_wrapper(rule_type, **kwargs):
+diff --git a/haskell/private/haskell_impl.bzl b/haskell/private/haskell_impl.bzl
+--- a/haskell/private/haskell_impl.bzl
++++ b/haskell/private/haskell_impl.bzl
+@@ -186,6 +186,7 @@
+     cc = cc_interop_info(
+         ctx,
+         override_cc_toolchain = hs.tools_config.maybe_exec_cc_toolchain,
++        unsupported_features = ["treat_warnings_as_errors"],
+     )
+     java = java_interop_info(deps)
+ 
+@@ -428,6 +429,7 @@
+     cc = cc_interop_info(
+         ctx,
+         override_cc_toolchain = hs.tools_config.maybe_exec_cc_toolchain,
++        unsupported_features = ["treat_warnings_as_errors"],
+     )
+     java = java_interop_info(ctx.attr.deps + ctx.attr.narrowed_deps)
+ 

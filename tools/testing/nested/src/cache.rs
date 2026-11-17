@@ -7,14 +7,23 @@ use std::path::{Path, PathBuf};
 /// The variable naming the runfiles keys of the `nested_repository_cache` manifests, space separated.
 pub const MANIFESTS_ENV: &str = "DX_NESTED_REPOSITORY_CACHE";
 
-fn is_sha256(text: &str) -> bool {
-    text.len() == 64
-        && text
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+/// The checksum algorithm of a lowercase hex digest, named as in the repository cache.
+fn algorithm(digest: &str) -> Option<&'static str> {
+    if !digest
+        .bytes()
+        .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        return None;
+    }
+    match digest.len() {
+        64 => Some("sha256"),
+        96 => Some("sha384"),
+        128 => Some("sha512"),
+        _ => None,
+    }
 }
 
-/// Parses a manifest: one `<sha256> <runfiles key>` per line.
+/// Parses a manifest: one `<hex digest> <runfiles key>` per line.
 ///
 /// # Errors
 ///
@@ -23,8 +32,8 @@ pub fn parse_manifest(text: &str) -> Result<Vec<(String, String)>, String> {
     let mut entries = Vec::new();
     for line in text.lines().filter(|line| !line.trim().is_empty()) {
         match line.split_once(' ') {
-            Some((sha256, file)) if is_sha256(sha256) && !file.trim().is_empty() => {
-                entries.push((sha256.to_owned(), file.trim().to_owned()));
+            Some((digest, file)) if algorithm(digest).is_some() && !file.trim().is_empty() => {
+                entries.push((digest.to_owned(), file.trim().to_owned()));
             }
             _ => return Err(format!("repository cache manifest: bad line {line:?}")),
         }
@@ -32,13 +41,13 @@ pub fn parse_manifest(text: &str) -> Result<Vec<(String, String)>, String> {
     Ok(entries)
 }
 
-/// The place Bazel looks up a download with `sha256` in the repository cache at `cache`.
+/// The place Bazel looks up a download with the hex `digest` in the repository cache at `cache`.
 #[must_use]
-pub fn entry(cache: &Path, sha256: &str) -> PathBuf {
+pub fn entry(cache: &Path, digest: &str) -> PathBuf {
     cache
         .join("content_addressable")
-        .join("sha256")
-        .join(sha256)
+        .join(algorithm(digest).unwrap_or("sha256"))
+        .join(digest)
         .join("file")
 }
 
@@ -53,7 +62,7 @@ fn place(src: &Path, dst: &Path) -> std::io::Result<()> {
     std::fs::copy(src, dst).map(|_| ())
 }
 
-/// Builds the repository cache at `cache` from `files`, each a sha256 and the file that has it.
+/// Builds the repository cache at `cache` from `files`, each a hex digest and the file that has it.
 ///
 /// # Errors
 ///
@@ -61,11 +70,11 @@ fn place(src: &Path, dst: &Path) -> std::io::Result<()> {
 pub fn install(cache: &Path, files: &[(String, PathBuf)]) -> Result<(), String> {
     std::fs::create_dir_all(cache)
         .map_err(|error| format!("cannot create {}: {error}", cache.display()))?;
-    for (sha256, src) in files {
-        if !is_sha256(sha256) {
-            return Err(format!("repository cache: bad sha256 {sha256:?}"));
+    for (digest, src) in files {
+        if algorithm(digest).is_none() {
+            return Err(format!("repository cache: bad digest {digest:?}"));
         }
-        let dst = entry(cache, sha256);
+        let dst = entry(cache, digest);
         if std::fs::symlink_metadata(&dst).is_ok() {
             continue;
         }
@@ -91,10 +100,11 @@ fn base64_value(byte: u8) -> Option<u32> {
     }
 }
 
-/// Turns a `sha256-<base64>` integrity into the hex sha256.
+/// Turns a `sha256-`, `sha384-` or `sha512-<base64>` integrity into its hex digest.
 #[must_use]
 pub fn integrity_hex(integrity: &str) -> Option<String> {
-    let encoded = integrity.strip_prefix("sha256-")?.trim_end_matches('=');
+    let (name, encoded) = integrity.split_once('-')?;
+    let encoded = encoded.trim_end_matches('=');
     let mut bits = 0u32;
     let mut count = 0u32;
     let mut hex = String::new();
@@ -106,7 +116,7 @@ pub fn integrity_hex(integrity: &str) -> Option<String> {
             write!(hex, "{:02x}", (bits >> count) & 0xff).ok();
         }
     }
-    is_sha256(&hex).then_some(hex)
+    (algorithm(&hex) == Some(name)).then_some(hex)
 }
 
 fn quoted_after<'a>(text: &'a str, key: &str) -> Option<&'a str> {
@@ -154,7 +164,10 @@ pub fn list(
         entries.insert(url.to_owned(), sha256.to_owned());
     };
     for (url, sha256) in registry {
-        let Some(sha256) = sha256.as_str().filter(|sha256| is_sha256(sha256)) else {
+        let Some(sha256) = sha256
+            .as_str()
+            .filter(|sha256| algorithm(sha256) == Some("sha256"))
+        else {
             continue;
         };
         let bytes = fetched(sha256).ok_or_else(|| format!("{url} was not downloaded"))?;
@@ -241,12 +254,27 @@ mod tests {
     }
 
     #[test]
-    fn install_rejects_a_bad_sha256() {
+    fn install_rejects_a_bad_digest() {
         let dir = tempfile::tempdir().expect("tempdir");
         let files = vec![("../x".to_owned(), dir.path().join("download"))];
         assert_eq!(
             install(&dir.path().join("cache"), &files),
-            Err("repository cache: bad sha256 \"../x\"".to_owned())
+            Err("repository cache: bad digest \"../x\"".to_owned())
+        );
+    }
+
+    #[test]
+    fn a_sha384_digest_goes_under_sha384() {
+        let digest = "c".repeat(96);
+        assert_eq!(
+            entry(Path::new("/c"), &digest),
+            Path::new("/c/content_addressable/sha384")
+                .join(&digest)
+                .join("file")
+        );
+        assert_eq!(
+            parse_manifest(&format!("{digest} f\n")),
+            Ok(vec![(digest.clone(), "f".to_owned())])
         );
     }
 
@@ -255,6 +283,21 @@ mod tests {
         assert_eq!(integrity_hex(A_INTEGRITY).as_deref(), Some(A));
         assert_eq!(integrity_hex("sha512-AAAA"), None);
         assert_eq!(integrity_hex("sha256-AAAA"), None);
+        assert_eq!(
+            integrity_hex(
+                "sha384-jEOdMXHPvRiaFXWRnSA5Mw41VCKkNPv42i35i9BiVxrAnfyl/3/Li/iyQyj16QIr"
+            )
+            .as_deref(),
+            Some(
+                "8c439d3171cfbd189a1575919d2039330e355422a434fbf8da2df98bd062571ac09dfca5ff7fcb8bf8b24328f5e9022b"
+            )
+        );
+        assert_eq!(
+            integrity_hex(
+                "sha256-jEOdMXHPvRiaFXWRnSA5Mw41VCKkNPv42i35i9BiVxrAnfyl/3/Li/iyQyj16QIr"
+            ),
+            None
+        );
     }
 
     #[test]

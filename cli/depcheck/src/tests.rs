@@ -1211,6 +1211,23 @@ fn non_semver_grammar_reads_four_parts_and_release_flavors() {
 }
 
 #[test]
+fn non_semver_grammar_reads_suffixes_semver_rejects() {
+    // A `-` between numbers is a revision part, not a prerelease.
+    assert!(!satisfies_non_semver(">= 1.2.3-1", "1.2.3"));
+    // Homebrew revisions and Java update suffixes compare as their release.
+    assert!(satisfies_non_semver("~> 1.2", "1.9.0_1"));
+    assert!(satisfies_non_semver(">= 1.0", "1.2.3_beta"));
+    // A wildcard part bounds at the parts before it.
+    assert!(satisfies_non_semver(">= 1.x", "1.5.0"));
+    assert!(satisfies_non_semver("< 2.*", "1.5.0"));
+    // Exact pins with such suffixes still have to match exactly.
+    assert!(!satisfies_non_semver("1.8.0_292", "1.9.0"));
+    assert!(satisfies_non_semver("1.8.0_292", "1.8.0_292"));
+    assert!(!satisfies_non_semver("2.0.0_1", "2.5.0"));
+    assert!(!satisfies_non_semver("1.0.0-rc.01", "1.5.0"));
+}
+
+#[test]
 fn typed_errors_keep_display_and_source_chain() {
     use super::DepcheckError;
     let dir = tempfile::tempdir().expect("scratch");

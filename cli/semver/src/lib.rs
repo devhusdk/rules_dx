@@ -12,6 +12,8 @@ pub enum VersionError {
     TooLarge { text: String, part: String },
     #[error("invalid version {text:?}: {part:?} is a wildcard, not a version")]
     Wildcard { text: String, part: String },
+    #[error("invalid version {text:?}: {part:?} after a dot is not a number")]
+    NotNumber { text: String, part: String },
     #[error("invalid version {text:?}: it ends in a separator")]
     Separator { text: String },
     #[error("invalid version {text:?}: {source}")]
@@ -36,11 +38,12 @@ pub struct Version {
 }
 
 impl Version {
-    /// Reads `text` such as `8.4`, `v1.2.3`, `8.4.0rc1`, `5.6.15.Final` or `7.0.8.1`.
+    /// Reads `text` such as `8.4`, `v1.2.3`, `8.4.0rc1`, `8.4.0-rc1` or `7.0.8.1`.
     ///
     /// # Errors
-    /// Fails when `text` does not start with a number, a part overflows `u64`, a part is a
-    /// wildcard like `x`, or the suffix is not a valid semver prerelease or build.
+    /// Fails when `text` does not start with a number, a part overflows `u64`, a part after a
+    /// dot is not a number (a wildcard like `8.x`, or PEP 440's `1.5.0.post1`, which sorts above
+    /// its release), or the suffix is not a valid semver prerelease or build.
     pub fn parse(text: &str) -> Result<Self, VersionError> {
         let trimmed = text.trim();
         let body = match trimmed.strip_prefix('v') {
@@ -71,17 +74,20 @@ impl Version {
                 }
             }
         }
-        // `8.4.0-rc1`, `2.0.0.rc1` and `8.4.0rc1` all name the prerelease `rc1`.
-        let pre = rest.strip_prefix(['-', '.']).unwrap_or(rest);
+        if let Some(after) = rest.strip_prefix('.') {
+            let part = after.split(['.', '-']).next().unwrap_or(after).to_owned();
+            let text = text.to_owned();
+            return Err(match part.as_str() {
+                "" => VersionError::Separator { text },
+                "x" | "X" | "*" => VersionError::Wildcard { text, part },
+                _ => VersionError::NotNumber { text, part },
+            });
+        }
+        // `8.4.0-rc1` and `8.4.0rc1` both name the prerelease `rc1`.
+        let pre = rest.strip_prefix('-').unwrap_or(rest);
         if !rest.is_empty() && pre.is_empty() {
             return Err(VersionError::Separator {
                 text: text.to_owned(),
-            });
-        }
-        if let Some(part) = pre.split('.').find(|part| matches!(*part, "x" | "X" | "*")) {
-            return Err(VersionError::Wildcard {
-                text: text.to_owned(),
-                part: part.to_owned(),
             });
         }
         let suffix = |source| VersionError::Suffix {
@@ -140,14 +146,6 @@ impl Version {
     #[must_use]
     pub fn is_prerelease(&self) -> bool {
         !self.core.pre.is_empty()
-    }
-
-    /// The same version without its prerelease, for ecosystems whose suffix such as `-jre` is
-    /// a flavor of the release rather than a prerelease.
-    #[must_use]
-    pub fn without_prerelease(mut self) -> Self {
-        self.core.pre = semver::Prerelease::EMPTY;
-        self
     }
 
     /// How many numeric parts the text wrote: 2 for `8.4`, 3 for `8.4.0`.
@@ -234,12 +232,12 @@ mod tests {
         assert!(parse("8.4.0rc1") < parse("8.4.0"));
         assert!(parse("8.4.0rc1") < parse("8.4"));
         assert!(parse("8.4.0-rc1") < parse("8.4.0-rc2"));
-        assert!(parse("2.0.0.rc1") < parse("2.0.0"));
         assert!(parse("8.4.0-pre.20250101.1") > parse("8.3.9"));
         assert_eq!(parse("8.4.0rc1"), parse("8.4.0-rc1"));
         assert_eq!(parse("8.4.0rc1").prerelease(), "rc1");
-        assert!(!parse("33.0.0-jre").without_prerelease().is_prerelease());
-        assert_eq!(parse("33.0.0-jre").without_prerelease(), parse("33.0.0"));
+        // Only a numeric position can hold a wildcard; `x` is a valid prerelease label.
+        assert!(parse("1.2.3-x").is_prerelease());
+        assert!(parse("1.0.0-alpha.x") < parse("1.0.0"));
     }
 
     #[test]
@@ -268,6 +266,8 @@ mod tests {
             "1.2-",
             "8.x",
             "1.*",
+            "1.5.0.post1",
+            "5.6.15.Final",
         ] {
             assert!(Version::parse(text).is_err(), "{text:?}");
         }
@@ -282,6 +282,10 @@ mod tests {
         assert!(matches!(
             Version::parse("8.x"),
             Err(VersionError::Wildcard { .. })
+        ));
+        assert!(matches!(
+            Version::parse("1.5.0.post1"),
+            Err(VersionError::NotNumber { .. })
         ));
     }
 }

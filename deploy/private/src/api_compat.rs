@@ -411,6 +411,12 @@ mod tests {
         let short = ["1.4", "1.5.0rc1", "1.5.0"];
         assert_eq!(highest_below(short, "1.5.0").as_deref(), Some("1.4"));
         assert_eq!(highest_below(short, "1.5.1").as_deref(), Some("1.5.0"));
+        // A PEP 440 post-release sorts above its release, so it must not read as a prerelease.
+        assert_eq!(highest_below(["1.4.0", "1.5.0"], "1.5.0.post1"), None);
+        assert_eq!(
+            highest_below(["1.4.0", "1.5.0.post1", "1.5.0"], "1.6.0").as_deref(),
+            Some("1.5.0")
+        );
     }
 
     fn compared(previous: &str, changes: &[&str]) -> Outcome {

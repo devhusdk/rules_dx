@@ -79,18 +79,34 @@ const PRERELEASE_MARKERS: [&str; 9] = [
     "milestone",
 ];
 
-/// Reads a version; a suffix that is no prerelease marker, like Maven's `-jre` or `.Final`,
-/// names a flavor of the release, so it compares as the release.
+/// Reads a version as Maven, `RubyGems` and Homebrew write it: numeric parts split by `.` or `-`
+/// (`1.2.3-1` is `1.2.3.1`), then a suffix semver may not accept. A suffix that starts with a
+/// prerelease marker makes a prerelease of that marker; any other, like `-jre`, `.Final`, `_292`
+/// or a wildcard `.x`, names a flavor of the release, so it compares as the release.
 fn version_of(value: &str) -> Option<Version> {
-    let version = Version::parse(value).ok()?;
-    let label = version.prerelease().to_ascii_lowercase();
-    if PRERELEASE_MARKERS
+    let base = value.split('+').next().unwrap_or(value);
+    let mut numbers = Vec::new();
+    let mut suffix = "";
+    for segment in base.split(['.', '-']) {
+        let tail = segment.trim_start_matches(|c: char| c.is_ascii_digit());
+        let digits = segment.strip_suffix(tail).unwrap_or_default();
+        if !digits.is_empty() {
+            numbers.push(digits);
+        }
+        if digits.is_empty() || !tail.is_empty() {
+            suffix = tail;
+            break;
+        }
+    }
+    let release = numbers.join(".");
+    let suffix = suffix.to_ascii_lowercase();
+    // The canonical text is plain numbers plus a bare marker, which `Version::parse` always reads.
+    match PRERELEASE_MARKERS
         .iter()
-        .any(|marker| label.starts_with(marker))
+        .find(|marker| suffix.starts_with(**marker))
     {
-        Some(version)
-    } else {
-        Some(version.without_prerelease())
+        Some(marker) => Version::parse(&format!("{release}-{marker}")).ok(),
+        None => Version::parse(&release).ok(),
     }
 }
 
@@ -139,8 +155,9 @@ pub(crate) fn versions_equal(spec: &str, locked: &str) -> bool {
     }
 }
 
+/// Whether `text` pins a version: it writes at least three numeric parts, whatever follows.
 fn is_full_version(text: &str) -> bool {
-    Version::parse(text).is_ok_and(|version| version.parts() >= 3)
+    version_of(text).is_some_and(|version| version.parts() >= 3)
 }
 
 /// Settles the grammars semver does not model: Maven, `NuGet`, `RubyGems`, PEP 440.

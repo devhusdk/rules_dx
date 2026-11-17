@@ -211,7 +211,10 @@ fn failed_build(failing: Option<&[Option<&str>]>) -> super::SharedBuild {
     super::SharedBuild {
         bep: std::path::PathBuf::from("unused.json"),
         members: vec![
-            (Command::Format, aspects(&["q:f.bzl%format", "q:f.bzl%both"])),
+            (
+                Command::Format,
+                aspects(&["q:f.bzl%format", "q:f.bzl%both"]),
+            ),
             (Command::Lint, aspects(&["q:f.bzl%lint", "q:f.bzl%both"])),
         ],
         bazel_options: Vec::new(),
@@ -243,7 +246,11 @@ fn a_failure_goes_to_every_phase_that_passed_its_aspect() {
     };
     assert_eq!(codes(Some(&[Some("q:f.bzl%lint")])), (0, 1));
     assert_eq!(codes(Some(&[Some("q:f.bzl%format")])), (1, 0));
-    assert_eq!(codes(Some(&[Some("q:f.bzl%both")])), (1, 1), "shared aspect");
+    assert_eq!(
+        codes(Some(&[Some("q:f.bzl%both")])),
+        (1, 1),
+        "shared aspect"
+    );
     assert_eq!(
         codes(Some(&[Some("q:f.bzl%lint"), Some("q:f.bzl%format")])),
         (1, 1),
@@ -251,6 +258,10 @@ fn a_failure_goes_to_every_phase_that_passed_its_aspect() {
     );
     // Failures the events cannot pin on one member belong to every member, so none exits 0.
     assert_eq!(codes(Some(&[None])), (1, 1), "target-level failure");
-    assert_eq!(codes(Some(&[Some("q:f.bzl%other")])), (1, 1), "unknown aspect");
+    assert_eq!(
+        codes(Some(&[Some("q:f.bzl%other")])),
+        (1, 1),
+        "unknown aspect"
+    );
     assert_eq!(codes(None), (1, 1), "unreadable events");
 }

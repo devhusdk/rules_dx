@@ -1,7 +1,7 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//haskell/private:kwargs.bzl", "HASKELL_COMPATIBLE_WITH")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//:__subpackages__"])
 
 filegroup(
     name = "weeder_unavailable",

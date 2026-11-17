@@ -3,7 +3,7 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude DxCoverage
 load("//powershell/private:defs.bzl", "powershell_library")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//:__subpackages__"])
 
 powershell_library(
     name = "dx_coverage",

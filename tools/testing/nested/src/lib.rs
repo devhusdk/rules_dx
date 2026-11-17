@@ -715,102 +715,20 @@ pub fn alive(pid: u32) -> bool {
 
 #[cfg(not(windows))]
 fn alive_unix(pid: u32) -> bool {
-    if !signal::alive(pid) {
-        return false;
-    }
-    if cfg!(windows) {
-        return true;
-    }
-    match std::fs::read_to_string(format!("/proc/{pid}/stat")) {
-        Ok(stat) => !stat
-            .rsplit_once(')')
-            .is_some_and(|(_, rest)| rest.trim_start().starts_with('Z')),
-        Err(_) if Path::new("/proc/self").exists() => true,
-        Err(_) => dx_process::probe("ps", ["-o", "stat=", "-p", &pid.to_string()])
-            .is_none_or(|stat| !stat.trim_start().starts_with('Z')),
-    }
+    signal::alive(pid) && !dx_process::procs::zombie(pid)
 }
 
-#[cfg(unix)]
-fn command_line(pid: u32) -> Option<String> {
-    if let Ok(cmdline) = std::fs::read(format!("/proc/{pid}/cmdline")) {
-        return Some(String::from_utf8_lossy(&cmdline).into_owned());
-    }
-    None
-}
-
-#[cfg(unix)]
-fn all_pids() -> Vec<u32> {
-    if let Ok(entries) = std::fs::read_dir("/proc") {
-        return entries
-            .filter_map(Result::ok)
-            .filter_map(|entry| entry.file_name().to_string_lossy().parse::<u32>().ok())
-            .collect();
-    }
-    Vec::new()
-}
-
-/// Parses `ps -o pid=,stat=,command=` lines into `(pid, state, command line)`, skipping junk.
-#[cfg(unix)]
-fn parse_ps_lines(text: &str) -> Vec<(u32, char, String)> {
-    text.lines()
-        .filter_map(|line| {
-            let line = line.trim_start();
-            let (pid, rest) = line.split_once(char::is_whitespace)?;
-            let pid = pid.parse::<u32>().ok()?;
-            let rest = rest.trim_start();
-            let (stat, command) = rest.split_once(char::is_whitespace).unwrap_or((rest, ""));
-            Some((pid, stat.chars().next()?, command.trim().to_owned()))
-        })
-        .collect()
-}
-
-/// One sweep's view of the process table: Unix reads `/proc` per pid, Windows takes one snapshot.
+/// One sweep's view of the process table as `(pid, command line)`.
 struct Processes {
-    #[cfg(not(unix))]
     table: Vec<(u32, String)>,
-    /// `(pid, state, command line)` from one `ps` call; `None` when `/proc` is available.
-    #[cfg(unix)]
-    ps: Option<Vec<(u32, char, String)>>,
 }
 
 impl Processes {
     #[cfg(unix)]
     fn snapshot() -> Processes {
-        if Path::new("/proc/self").exists() {
-            return Processes { ps: None };
-        }
-        Processes::from_ps()
-    }
-
-    /// Takes one `ps` listing of every process, whatever the host offers.
-    #[cfg(unix)]
-    fn from_ps() -> Processes {
-        let text =
-            dx_process::probe("ps", ["-A", "-ww", "-o", "pid=,stat=,command="]).unwrap_or_default();
         Processes {
-            ps: Some(parse_ps_lines(&text)),
+            table: dx_process::procs::command_line_table(),
         }
-    }
-
-    /// Reports whether `pid` is a live, non-zombie process in this view.
-    #[cfg(unix)]
-    fn alive(&self, pid: u32) -> bool {
-        match &self.ps {
-            Some(table) => {
-                signal::alive(pid)
-                    && table
-                        .iter()
-                        .find(|(each, _, _)| *each == pid)
-                        .is_none_or(|(_, state, _)| *state != 'Z')
-            }
-            None => alive(pid),
-        }
-    }
-
-    #[cfg(not(unix))]
-    fn alive(&self, pid: u32) -> bool {
-        alive(pid)
     }
 
     #[cfg(windows)]
@@ -828,18 +746,11 @@ impl Processes {
         Processes { table: Vec::new() }
     }
 
-    #[cfg(unix)]
-    fn command_line(&self, pid: u32) -> Option<String> {
-        match &self.ps {
-            Some(table) => table
-                .iter()
-                .find(|(each, _, _)| *each == pid)
-                .map(|(_, _, line)| line.clone()),
-            None => command_line(pid),
-        }
+    /// Reports whether `pid` is a live, non-zombie process.
+    fn alive(&self, pid: u32) -> bool {
+        alive(pid)
     }
 
-    #[cfg(not(unix))]
     fn command_line(&self, pid: u32) -> Option<String> {
         self.table
             .iter()
@@ -847,15 +758,6 @@ impl Processes {
             .map(|(_, line)| line.clone())
     }
 
-    #[cfg(unix)]
-    fn pids(&self) -> Vec<u32> {
-        match &self.ps {
-            Some(table) => table.iter().map(|(pid, _, _)| *pid).collect(),
-            None => all_pids(),
-        }
-    }
-
-    #[cfg(not(unix))]
     fn pids(&self) -> Vec<u32> {
         self.table.iter().map(|(pid, _)| *pid).collect()
     }
@@ -1428,8 +1330,8 @@ fn output_within(command: &mut Command, limit: Duration) -> Result<std::process:
 
 fn capture(mut command: Command, what: &str, offline: bool) -> Run {
     let limit = call_deadline(std::env::var("TEST_TIMEOUT").ok().as_deref());
-    let output = output_within(&mut command, limit)
-        .unwrap_or_else(|error| panic!("run {what}: {error}"));
+    let output =
+        output_within(&mut command, limit).unwrap_or_else(|error| panic!("run {what}: {error}"));
     let run = Run {
         status: output.status,
         stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
@@ -2578,7 +2480,7 @@ mod tests {
             calls,
             format!(
                 "{}|unset|--output_user_root={} --max_idle_secs=5 --host_jvm_args=-Xmx1536m --bazelrc={} --nohome_rc --nosystem_rc info release\n",
-                root.display(),
+                root.canonicalize().expect("canonical root").display(),
                 user_root.display(),
                 first.home().join("bazelrc").display()
             )
@@ -2613,7 +2515,7 @@ mod tests {
             std::fs::read_to_string(&log).expect("log"),
             format!(
                 "{}|unset|--output_user_root={} --max_idle_secs=5 --host_jvm_args=-Xmx1536m --bazelrc={} --nohome_rc --nosystem_rc info release\n",
-                root.display(),
+                root.canonicalize().expect("canonical root").display(),
                 server.user_root().display(),
                 server.home().join("bazelrc").display()
             )
@@ -2790,29 +2692,24 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn ps_snapshot_finds_servers_by_workspace() {
-        let dir = scratch("nested-ps-");
+    fn snapshot_finds_servers_by_workspace() {
+        let dir = scratch("nested-table-");
         let workspaces = dir.path().join("w");
         let child = stand_in(&workspaces.join("consumer"));
         let pid = child.id();
-        wait_until("stand-in in ps", || {
-            servers_in_workspaces_from(&Processes::from_ps(), &workspaces) == vec![pid]
+        wait_until("stand-in in the table", || {
+            servers_in_workspaces_from(&Processes::snapshot(), &workspaces) == vec![pid]
         });
         stop(child, &workspaces);
     }
 
     #[cfg(unix)]
     #[test]
-    fn ps_snapshot_treats_zombies_as_gone() {
+    fn snapshot_treats_zombies_as_gone() {
         let mut child = probe_command(&["exit", "0"]).spawn().expect("spawn true");
         let pid = child.id();
-        wait_until("zombie in ps", || {
-            Processes::from_ps()
-                .ps
-                .as_ref()
-                .is_some_and(|t| t.iter().any(|(p, s, _)| *p == pid && *s == 'Z'))
-        });
-        assert!(!Processes::from_ps().alive(pid));
+        wait_until("zombie", || dx_process::procs::zombie(pid));
+        assert!(!Processes::snapshot().alive(pid));
         drop(child.wait());
     }
 }
@@ -2945,19 +2842,6 @@ mod portable_tests {
             .modified()
             .expect("mtime");
         assert_eq!(before, after);
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn ps_lines_parse() {
-        let text = "    1 Ss   /sbin/init\n 4242 Z+   java  --workspace_directory=/w a  b\nnoise\n\n  x S y\n";
-        assert_eq!(
-            parse_ps_lines(text),
-            vec![
-                (1, 'S', "/sbin/init".to_owned()),
-                (4242, 'Z', "java  --workspace_directory=/w a  b".to_owned()),
-            ]
-        );
     }
 
     #[test]

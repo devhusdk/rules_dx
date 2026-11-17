@@ -108,3 +108,40 @@ fn start_time_runs_ps_in_the_c_locale() {
             .any(|(key, value)| key == "LC_ALL" && value == Some(std::ffi::OsStr::new("C")))
     );
 }
+
+#[cfg(unix)]
+#[test]
+fn procargs_take_argc_arguments_after_the_padded_path() {
+    let mut buffer = 2i32.to_ne_bytes().to_vec();
+    buffer.extend_from_slice(b"/bin/java\0\0\0java\0--workspace_directory=/w a\0HOME=/h\0");
+    assert_eq!(
+        parse_procargs(&buffer).as_deref(),
+        Some("java\0--workspace_directory=/w a")
+    );
+    assert_eq!(parse_procargs(buffer.get(..6).expect("prefix")), None);
+}
+
+#[cfg(unix)]
+#[test]
+fn the_command_line_table_has_this_process() {
+    let own = std::process::id();
+    let table = command_line_table();
+    let (_, line) = table.iter().find(|(pid, _)| *pid == own).expect("own pid");
+    assert!(!line.is_empty());
+}
+
+#[cfg(unix)]
+#[test]
+fn an_unreaped_child_is_a_zombie() {
+    let mut child = Command::new(dx_testing::process_probe())
+        .spawn()
+        .expect("spawn");
+    let pid = child.id();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    while !zombie(pid) {
+        assert!(std::time::Instant::now() < deadline, "no zombie");
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    assert!(!zombie(std::process::id()));
+    child.wait().expect("wait");
+}

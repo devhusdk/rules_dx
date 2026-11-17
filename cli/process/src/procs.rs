@@ -95,3 +95,168 @@ pub fn boot_id() -> Option<String> {
 pub fn boot_id() -> Option<String> {
     None
 }
+
+/// Whether `pid` is a zombie: exited but not yet reaped by its parent.
+#[cfg(target_os = "linux")]
+#[must_use]
+pub fn zombie(pid: u32) -> bool {
+    std::fs::read_to_string(format!("/proc/{pid}/stat")).is_ok_and(|stat| {
+        stat.rsplit_once(')')
+            .is_some_and(|(_, rest)| rest.trim_start().starts_with('Z'))
+    })
+}
+
+/// Size of `struct kinfo_proc` on 64-bit macOS.
+#[cfg(target_os = "macos")]
+const KINFO_PROC_SIZE: usize = 648;
+
+/// Offset of `kp_proc.p_stat` within `struct kinfo_proc` on 64-bit macOS.
+#[cfg(target_os = "macos")]
+const KINFO_PROC_P_STAT: usize = 36;
+
+/// Whether `pid` is a zombie: exited but not yet reaped by its parent.
+#[cfg(target_os = "macos")]
+#[expect(unsafe_code, reason = "sysctl KERN_PROC_PID has no safe std API")]
+#[must_use]
+pub fn zombie(pid: u32) -> bool {
+    let Ok(pid) = libc::c_int::try_from(pid) else {
+        return false;
+    };
+    let mut buffer = [0u64; KINFO_PROC_SIZE / 8];
+    let mut len = std::mem::size_of_val(&buffer);
+    let mut mib = [libc::CTL_KERN, libc::KERN_PROC, libc::KERN_PROC_PID, pid];
+    // SAFETY: `buffer` is writable for `len` bytes and `mib` names a read-only query.
+    let rc = unsafe {
+        libc::sysctl(
+            mib.as_mut_ptr(),
+            4,
+            buffer.as_mut_ptr().cast(),
+            &raw mut len,
+            std::ptr::null_mut(),
+            0,
+        )
+    };
+    if rc != 0 || len != KINFO_PROC_SIZE {
+        return false;
+    }
+    buffer
+        .iter()
+        .flat_map(|word| word.to_ne_bytes())
+        .nth(KINFO_PROC_P_STAT)
+        .is_some_and(|stat| u32::from(stat) == libc::SZOMB)
+}
+
+/// Whether `pid` is a zombie: exited but not yet reaped by its parent.
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+#[must_use]
+pub fn zombie(_pid: u32) -> bool {
+    false
+}
+
+/// Every readable process as `(pid, arguments joined by NUL)`.
+#[cfg(target_os = "linux")]
+#[must_use]
+pub fn command_line_table() -> Vec<(u32, String)> {
+    let Ok(entries) = std::fs::read_dir("/proc") else {
+        return Vec::new();
+    };
+    entries
+        .filter_map(Result::ok)
+        .filter_map(|entry| entry.file_name().to_string_lossy().parse::<u32>().ok())
+        .filter_map(|pid| {
+            let cmdline = std::fs::read(format!("/proc/{pid}/cmdline")).ok()?;
+            Some((pid, String::from_utf8_lossy(&cmdline).into_owned()))
+        })
+        .collect()
+}
+
+/// Every readable process as `(pid, arguments joined by NUL)`.
+#[cfg(target_os = "macos")]
+#[expect(unsafe_code, reason = "proc_listallpids has no safe std API")]
+#[must_use]
+pub fn command_line_table() -> Vec<(u32, String)> {
+    // SAFETY: a null buffer asks only for the current process count.
+    let count = unsafe { libc::proc_listallpids(std::ptr::null_mut(), 0) };
+    let Ok(count) = usize::try_from(count) else {
+        return Vec::new();
+    };
+    let mut pids: Vec<libc::c_int> = vec![0; count + 64];
+    let Ok(bytes) = libc::c_int::try_from(std::mem::size_of_val(pids.as_slice())) else {
+        return Vec::new();
+    };
+    // SAFETY: `pids` is writable for `bytes` bytes.
+    let listed = unsafe { libc::proc_listallpids(pids.as_mut_ptr().cast(), bytes) };
+    pids.truncate(usize::try_from(listed).unwrap_or(0));
+    pids.into_iter()
+        .filter_map(|pid| {
+            let args = procargs(pid)?;
+            Some((u32::try_from(pid).ok()?, args))
+        })
+        .collect()
+}
+
+/// Every readable process as `(pid, arguments joined by NUL)`.
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+#[must_use]
+pub fn command_line_table() -> Vec<(u32, String)> {
+    Vec::new()
+}
+
+/// The arguments of `pid` from `KERN_PROCARGS2`, joined by NUL.
+#[cfg(target_os = "macos")]
+#[expect(unsafe_code, reason = "sysctl KERN_PROCARGS2 has no safe std API")]
+fn procargs(pid: libc::c_int) -> Option<String> {
+    let mut argmax: libc::c_int = 0;
+    let mut len = std::mem::size_of_val(&argmax);
+    let mut mib = [libc::CTL_KERN, libc::KERN_ARGMAX];
+    // SAFETY: `argmax` is writable for `len` bytes and `mib` names a read-only query.
+    let rc = unsafe {
+        libc::sysctl(
+            mib.as_mut_ptr(),
+            2,
+            (&raw mut argmax).cast(),
+            &raw mut len,
+            std::ptr::null_mut(),
+            0,
+        )
+    };
+    if rc != 0 {
+        return None;
+    }
+    let mut buffer = vec![0u8; usize::try_from(argmax).ok()?];
+    let mut len = buffer.len();
+    let mut mib = [libc::CTL_KERN, libc::KERN_PROCARGS2, pid];
+    // SAFETY: `buffer` is writable for `len` bytes and `mib` names a read-only query.
+    let rc = unsafe {
+        libc::sysctl(
+            mib.as_mut_ptr(),
+            3,
+            buffer.as_mut_ptr().cast(),
+            &raw mut len,
+            std::ptr::null_mut(),
+            0,
+        )
+    };
+    if rc != 0 {
+        return None;
+    }
+    buffer.truncate(len);
+    parse_procargs(&buffer)
+}
+
+/// Parses a `KERN_PROCARGS2` buffer: `argc`, the executable path, NUL padding, then `argc` arguments.
+#[must_use]
+pub fn parse_procargs(buffer: &[u8]) -> Option<String> {
+    let (argc, rest) = buffer.split_first_chunk::<4>()?;
+    let argc = usize::try_from(i32::from_ne_bytes(*argc)).ok()?;
+    let after_path = rest.iter().position(|byte| *byte == 0)?;
+    let rest = rest.get(after_path..)?;
+    let start = rest.iter().position(|byte| *byte != 0)?;
+    let args = rest
+        .get(start..)?
+        .split(|byte| *byte == 0)
+        .take(argc)
+        .map(String::from_utf8_lossy)
+        .collect::<Vec<_>>();
+    (args.len() == argc).then(|| args.join("\0"))
+}

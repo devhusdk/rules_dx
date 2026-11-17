@@ -4,10 +4,10 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//cc/private:clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
 load(
     "//core/quality/testdata:all_languages.bzl",
-    _ASPECTS_BY_RESULT = "REAL_ASPECTS_BY_RESULT",
     "real_python_lint_aspect",
     "real_python_typecheck_aspect",
     "real_typecheck_probe_aspect",
+    _ASPECTS_BY_RESULT = "REAL_ASPECTS_BY_RESULT",
 )
 load("//core/quality/testdata:config_subject.bzl", "config_attr", "config_subject_rule", "config_transition")
 load("//core/quality:sources.bzl", "single_target")

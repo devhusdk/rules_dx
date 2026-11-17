@@ -718,7 +718,12 @@ fn stage(
     };
     let staged_manifest = with_suffix(&staged, ".runfiles_manifest");
     if let Some(manifest) = manifest {
-        std::fs::copy(&manifest, &staged_manifest).expect("manifest must copy");
+        let text = std::fs::read_to_string(&manifest).expect("manifest must read");
+        std::fs::write(
+            &staged_manifest,
+            tree_rooted_manifest(&text, std::path::Path::new(&tree)),
+        )
+        .expect("manifest must be writable");
     } else if !linked && std::path::Path::new(&tree).is_dir() {
         std::fs::write(&staged_manifest, tree_manifest(std::path::Path::new(&tree)))
             .expect("manifest must be writable");
@@ -738,6 +743,54 @@ fn link_entry(target: &std::path::Path, link: &std::path::Path) -> std::io::Resu
     } else {
         std::os::windows::fs::symlink_file(target, link)
     }
+}
+
+/// Points each virtualenv manifest entry the runfiles tree holds at its path in the tree.
+fn tree_rooted_manifest(text: &str, tree: &std::path::Path) -> String {
+    let rooted = !tree.as_os_str().is_empty() && tree.is_dir();
+    let root = tree.to_string_lossy();
+    let root = root.trim_end_matches('/');
+    let mut out = String::with_capacity(text.len());
+    for line in text.lines() {
+        let in_tree = line
+            .split_once(' ')
+            .filter(|(key, _)| rooted && !key.is_empty() && !line.starts_with(' '))
+            .filter(|(key, _)| key.split('/').any(|part| part.ends_with(".venv")))
+            .map(|(key, _)| (key, format!("{root}/{key}")))
+            .filter(|(_, path)| std::path::Path::new(path).symlink_metadata().is_ok());
+        match in_tree {
+            Some((key, path)) => out.push_str(&format!("{key} {path}")),
+            None => out.push_str(line),
+        }
+        out.push('\n');
+    }
+    out
+}
+
+#[test]
+fn tree_rooted_manifest_maps_entries_into_the_tree() {
+    let tmp = std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR must be set");
+    let tree = std::path::Path::new(&tmp).join("tree_rooted").join("tree");
+    let venv = tree.join("_main").join("pkg").join(".hello.venv");
+    std::fs::create_dir_all(&venv).expect("tree must be creatable");
+    std::fs::write(venv.join("pyvenv.cfg"), "").expect("file must write");
+    std::fs::write(tree.join("_main").join("pkg").join("hello.exe"), "").expect("file must write");
+    let text = "_main/pkg/.hello.venv/pyvenv.cfg /out/bin/pkg/.hello.venv/pyvenv.cfg\n\
+                _main/pkg/.hello.venv /out/bin/pkg/.hello.venv\n\
+                _main/pkg/hello.exe /out/bin/pkg/hello.exe\n\
+                _main/pkg/absent /out/bin/pkg/absent\n\
+                _main/pkg/empty \n";
+    let expected = format!(
+        "_main/pkg/.hello.venv/pyvenv.cfg {}\n_main/pkg/.hello.venv {}\n\
+         _main/pkg/hello.exe /out/bin/pkg/hello.exe\n\
+         _main/pkg/absent /out/bin/pkg/absent\n_main/pkg/empty \n",
+        format!("{}/_main/pkg/.hello.venv/pyvenv.cfg", tree.display()),
+        format!("{}/_main/pkg/.hello.venv", tree.display()),
+    );
+    assert_eq!(tree_rooted_manifest(text, &tree), expected);
+    let missing = std::path::Path::new(&tmp).join("tree_rooted").join("missing");
+    assert_eq!(tree_rooted_manifest(text, &missing), text);
+    assert_eq!(tree_rooted_manifest(text, std::path::Path::new("")), text);
 }
 
 fn tree_manifest(root: &std::path::Path) -> String {

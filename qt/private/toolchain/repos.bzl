@@ -616,6 +616,8 @@ def _library(name, spec, layout, closures, prefix):
         ]
     else:
         link = ['    srcs = ["%s"],' % library]
+    if closures and spec.module != "qtbase":
+        link = link + ['    data = [":runtime"],']
     return lines + [
         "cc_library(",
         '    name = "%s",' % name,

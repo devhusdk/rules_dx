@@ -464,6 +464,8 @@ def _build_checks():
         expect_contains("quick links its own module and qtbase", full, '    deps = [":qml_meta", "@dx_qt_linux_x86_64_qtbase//:opengl", "@dx_qt_linux_x86_64_qtbase//:gui", ":qml", "@dx_qt_linux_x86_64_qtbase//:network", "@dx_qt_linux_x86_64_qtbase//:core"],'),
         expect_contains("module sbom adds the required module", full, 'srcs = glob(["sbom/*.spdx.json"]) + ["@dx_qt_linux_x86_64_qtbase//:sbom"],'),
         expect_contains("tools licenses chain through qtdeclarative", tools, 'srcs = glob(["licenses/**"], allow_empty = True) + ["@dx_qt_linux_x86_64_qtdeclarative//:licenses"],'),
+        expect_contains("qml carries its module runtime", full, '    srcs = ["lib/libQt6Qml.so.6"],\n    data = [":runtime"],'),
+        expect_false("qtbase libraries carry no module runtime", 'data = [":runtime"],\n    hdrs' in base),
         expect_false("full cell links no qtbase library", '"lib/libQt6Core.so.6"' in full),
         expect_false("full cell holds no closure", 'name = "closure"' in full),
         expect_false("tools cell builds no qml", 'name = "qml",' in tools),

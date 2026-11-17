@@ -123,8 +123,10 @@ qt.cell(
 
 `cell` takes:
 
-- `name`: lowercase letters, digits and `_`. The cell is fetched into
-  `@dx_qt_<name>`, and `@dx_qt//:core` and the other targets route to it.
+- `name`: lowercase letters, digits and `_`. Each Qt module of the cell
+  (`qtbase`, `qtdeclarative`, `qttools`) is fetched into
+  `@dx_qt_<name>_<module>` when a target needs it, and `@dx_qt//:core` and
+  the other targets route to the module that owns them.
   A pinned cell of the same name (`linux_x86_64`, `linux_arm64`,
   `macos_arm64`, `windows_arm64`, `windows_x86_64`) is replaced.
 - `constraints`: the platform constraints the cell serves. They must differ
@@ -167,7 +169,7 @@ without them `@dx_qt//:needs` fails analysis and says why.
 | `@dx_qt//:plugins_imageformats` | `qtbase` | `gif`, `ico` and `jpeg` image format plugins |
 | `@dx_qt//:plugins_platformthemes` | `qtbase` | `xdgdesktopportal` platform theme plugin |
 | `@dx_qt//:plugins_tls` | `qtbase` | `certonly` and `openssl` TLS backend plugins |
-| `@dx_qt//:metatypes` | `qtbase` | Qt module metatypes JSON |
+| `@dx_qt//:metatypes` | `qtdeclarative` | Qt module metatypes JSON |
 | `@dx_qt//:moc` | `qtbase` | `moc` launcher |
 | `@dx_qt//:rcc` | `qtbase` | `rcc` launcher |
 | `@dx_qt//:uic` | `qtbase` | `uic` launcher |
@@ -180,13 +182,14 @@ without them `@dx_qt//:needs` fails analysis and says why.
 | `@dx_qt//:qmllint` | `qtdeclarative` | `qmllint` launcher |
 | `@dx_qt//:qmltyperegistrar` | `qtdeclarative` | `qmltyperegistrar` launcher |
 | `@dx_qt//:lrelease` | `qttools` | `lrelease` launcher |
-| `@dx_qt//:runtime` | any | Qt, ICU, closure and graphics stack shared libraries |
-| `@dx_qt//:licenses` | any | Qt, ICU and closure license texts |
-| `@dx_qt//:sbom` | any | Qt SPDX documents |
+| `@dx_qt//:runtime` | every module | Qt, ICU, closure and graphics stack shared libraries |
+| `@dx_qt//:licenses` | every module | Qt, ICU and closure license texts |
+| `@dx_qt//:sbom` | every module | Qt SPDX documents |
 | `@dx_qt//:cxx_qt` | `qtbase` | CXX-Qt 0.10.0 C++ runtime for `qt_rust_library` |
 
-A target from a module you did not enable fails analysis and names the
-module.
+A target fetches the repository of the module that owns it and of the modules
+that module requires. Each Qt library exists once, in the repository of its
+module; the other module repositories link to it.
 
 ### Gui, Widgets and Quick
 

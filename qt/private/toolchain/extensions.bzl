@@ -1,7 +1,7 @@
 """The qt module extension."""
 
 load(":pins.bzl", "MODULES", "QT_VERSION")
-load(":repos.bzl", "HUB_NAME", "default_request", "cell_repository_name", "cell_spec", "consumer_cells", "effective_cells", "hub_build", "no_match_error", "pin_errors", "qt_cell_repo", "qualified_cells", "request_errors", "resolve_modules")
+load(":repos.bzl", "HUB_NAME", "default_request", "cell_repository_name", "cell_spec", "consumer_cells", "effective_cells", "hub_build", "module_repository_name", "no_match_error", "pin_errors", "qt_cell_repo", "qualified_cells", "request_errors")
 
 def _qt_hub_impl(rctx):
     rctx.file("REPO.bazel", "")
@@ -80,14 +80,17 @@ def _qt_impl(module_ctx):
                 "layout": layouts[cell],
                 "spec": cell_spec(consumer[cell]),
             })
-        qt_cell_repo(
-            name = cells[cell],
-            cell = cell,
-            entry = entry,
-            mirror = request.mirror,
-            modules = resolve_modules(MODULES.keys()),
-            runtime_mirror = request.runtime_mirror,
-        )
+        for module in sorted(MODULES.keys()):
+            qt_cell_repo(
+                name = module_repository_name(cell, module),
+                cell = cell,
+                entry = entry,
+                mirror = request.mirror,
+                module = module,
+                prefix = cells[cell],
+                requires = ["@" + module_repository_name(cell, required) + "//:BUILD.bazel" for required in MODULES[module].requires],
+                runtime_mirror = request.runtime_mirror,
+            )
     _qt_hub(
         name = HUB_NAME,
         files = {"BUILD.bazel": hub_build(
@@ -116,7 +119,7 @@ qt = module_extension(
             attrs = {
                 "constraints": attr.label_list(doc = "Platform constraints the cell serves."),
                 "layout": attr.string(default = "linux", doc = "File layout of the cell's Qt archives."),
-                "name": attr.string(mandatory = True, doc = "Cell name; the cell is acquired into @dx_qt_<name>."),
+                "name": attr.string(mandatory = True, doc = "Cell name; each Qt module of the cell is acquired into @dx_qt_<name>_<module>."),
                 "spec": attr.label(mandatory = True, doc = "JSON file with the cell's archives, directory, release and runtime closure."),
             },
         ),

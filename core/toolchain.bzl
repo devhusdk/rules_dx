@@ -4,6 +4,8 @@ load(":defs.bzl", "expect_equal", "expect_true")
 load(":host.bzl", "host_cell")
 load(":repo.bzl", "gem_extract")
 
+visibility(["//cc/...", "//core/...", "//d/...", "//elixir/...", "//erlang/...", "//fortran/...", "//haskell/...", "//lua/...", "//msix/...", "//ocaml/...", "//php/...", "//powershell/...", "//swift/..."])
+
 _HOST_CELLS = [
     "linux_arm64",
     "linux_x86_64",

@@ -2,6 +2,8 @@
 
 load("//core:defs.bzl", "DxSubjectInfo")
 
+visibility("private")
+
 def _settings_subject_impl(ctx):
     return [
         DefaultInfo(files = depset([])),

@@ -1,5 +1,7 @@
 """Aspect and probe labels of the files in `core/quality/families/` and `tools/docs/`, per command."""
 
+visibility("private")
+
 REAL_ASPECT_LABELS = {
     "lint": [
         "core/quality:families/oci_image.bzl%real_oci_image_lint_aspect",

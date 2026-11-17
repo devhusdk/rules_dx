@@ -152,6 +152,8 @@ load("//python/private/quality:python.bzl", "PythonShardProbeInfo")
 load("//rust/private/quality:rust.bzl", "RustShardProbeInfo")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
+visibility(["//core/...", "//tools/..."])
+
 def _label_text(label):
     return strip_canonical(str(label))
 

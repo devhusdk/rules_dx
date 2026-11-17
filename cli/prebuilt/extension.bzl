@@ -5,6 +5,9 @@ load("//core:repo.bzl", "hub_repo")
 load(":hub.bzl", "SOURCE_LABEL", "alias_build", "consumer_build", "plan_assets", "plan_root")
 load(":pins.bzl", "DX_VERSION", "PINS", "URL_TEMPLATE")
 
+# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
+visibility("public")
+
 # The asset tag of every prebuilt hub: name is the tool, os and cpu the
 # @platforms values the binary runs on.
 ASSET_ATTRS = {

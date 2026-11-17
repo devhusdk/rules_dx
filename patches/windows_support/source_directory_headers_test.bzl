@@ -3,6 +3,8 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@bazel_skylib//rules/directory:providers.bzl", "DirectoryInfo")
 
+visibility("private")
+
 def _source_directory_headers_test_impl(ctx):
     env = analysistest.begin(ctx)
     target = analysistest.target_under_test(env)

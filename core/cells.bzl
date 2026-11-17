@@ -1,5 +1,7 @@
 """Per-cell platform settings and compatibility selects, shared by toolchains."""
 
+visibility(["//core/...", "//cuda/...", "//d/...", "//dart/...", "//erlang/...", "//flutter/...", "//haskell/...", "//julia/...", "//msix/...", "//ocaml/...", "//perl/..."])
+
 _INCOMPATIBLE = Label("@platforms//:incompatible")
 
 def cell_setting(package, cell):

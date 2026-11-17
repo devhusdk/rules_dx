@@ -5,6 +5,8 @@ load("//core:failure_test.bzl", "failure_test")
 load("//core/quality/testdata:all_languages.bzl", "real_protobuf_lint_aspect")
 load("//core/quality/testdata:config_subject.bzl", "config_attr", "config_transition")
 
+visibility(["//core/..."])
+
 BUF_BREAKING_CONFIGS = ["buf_breaking_image", "buf_breaking_two_images", "shared"]
 
 _IMAGE = "core/quality/tests/fixtures/buf_breaking/base.binpb"

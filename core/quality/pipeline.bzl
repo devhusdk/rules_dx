@@ -3,6 +3,8 @@
 load(":applicability.bzl", "effective_classes")
 load(":policy.bzl", "CAPABILITIES")
 
+visibility(["//core/...", "//ocaml/...", "//powershell/...", "//rust/...", "//terraform/...", "//typescript/..."])
+
 _SKIP_TAGS = ["no-" + capability for capability in CAPABILITIES]
 
 _UPSTREAM_SKIP_PREFIX = "dx:"

@@ -3,6 +3,8 @@
 load(":lock_registry.bzl", "LOCK_REGISTRY")
 load(":versions.bzl", _RUST_VERSION = "RUST_VERSION")
 
+visibility("private")
+
 RUST_VERSION = _RUST_VERSION
 
 CRATE_CARGO_LOCK = "//cc/private/tools/context:" + LOCK_REGISTRY["cargo"]["lock"]

@@ -12,6 +12,8 @@ load(
 load("//core/quality/testdata:config_subject.bzl", "config_attr", "config_subject_rule", "config_transition")
 load("//core/quality:sources.bzl", "single_target")
 
+visibility(["//core/..."])
+
 CONSUMER_POLICY_CONFIGS = ["consumer_cc_clang_tidy", "consumer_format_off", "default", "generated", "shared"]
 
 POLICY_CONFIG_TEST_CONFIGS = ["consumer_python_ruff", "default_standard", "strict_generated_standard"]

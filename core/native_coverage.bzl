@@ -2,6 +2,8 @@
 
 load(":wrapper.bzl", "DxDataCoverageInfo", "dx_collect_cc_coverage_attr")
 
+visibility(["//cc/...", "//deploy/...", "//erlang/...", "//ocaml/...", "//rust/...", "//swift/..."])
+
 _CC_TOOLCHAIN_TYPE = "@bazel_tools//tools/cpp:toolchain_type"
 
 def dx_native_coverage_toolchains():

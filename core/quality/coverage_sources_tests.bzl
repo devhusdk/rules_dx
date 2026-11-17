@@ -3,6 +3,8 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load(":coverage_sources.bzl", "DX_COVERAGE_SOURCES_OUTPUT_GROUP", "DxCoverageSourcesInfo", "dx_coverage_source_lines", "dx_coverage_sources_aspect")
 
+visibility(["//core/..."])
+
 _PACKAGE = "core/quality/testdata/coverage_sources/"
 _FIXTURES = "//core/quality/testdata/coverage_sources:"
 

@@ -20,6 +20,8 @@ load(
     "target_identity",
 )
 
+visibility("private")
+
 def platforms_tests(name):
     """Declares the canonical platform identity unit tests."""
     checks = [

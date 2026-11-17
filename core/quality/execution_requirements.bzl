@@ -3,6 +3,8 @@
 load("//core/quality:adapters.bzl", "REAL_ADAPTERS")
 load("//core/quality/artifacts:hub.bzl", "TOOL_PLATFORMS")
 
+visibility("private")
+
 DX_NO_REMOTE_EXEC = "no-remote-exec"
 
 DX_FORBIDDEN_NO_REMOTE = "no-remote"

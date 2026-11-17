@@ -3,6 +3,8 @@
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":tools.bzl", "FAMILY_TOOLS", "TOOLS")
 
+visibility("private")
+
 EXPECTED_IDS = [
     "actionlint",
     "ansible_lint",

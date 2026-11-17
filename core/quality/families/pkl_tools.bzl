@@ -2,6 +2,8 @@
 
 load("//core/quality:tool_defs.bzl", "config", "row", "severity", "tool")
 
+visibility(["//tools/..."])
+
 TOOLS = [
     tool(
         id = "pkl",

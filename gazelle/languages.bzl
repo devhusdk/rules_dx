@@ -1,5 +1,7 @@
 """Gazelle language packages composed into dispatch."""
 
+visibility(["//gazelle/..."])
+
 GAZELLE_LANGUAGES = [
     "astro",
     "avro",

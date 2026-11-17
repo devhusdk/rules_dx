@@ -6,6 +6,8 @@ load("//core/quality:family_hooks.bzl", "stage", "without")
 load("//core/quality:real_core.bzl", "real_context")
 load("//core/quality:sources.bzl", "single_target")
 
+visibility(["//core/...", "//d/...", "//fortran/...", "//haskell/...", "//ocaml/...", "//swift/...", "//zig/..."])
+
 CompileCheckInfo = provider(
     doc = "Check-only replays of the compile actions of one target.",
     fields = {

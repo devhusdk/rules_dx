@@ -5,6 +5,8 @@ load(":adapters.bzl", "REAL_CLASS_TO_FAMILY")
 load(":taxonomy.bzl", "FAMILY_OWNERS")
 load(":tool_defs.bzl", "is_canonical_token")
 
+visibility("private")
+
 
 WRAPPER_OWNERS = FAMILY_OWNERS
 

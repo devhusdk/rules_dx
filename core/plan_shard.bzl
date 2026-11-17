@@ -1,5 +1,7 @@
 """Shared normalized shard pipeline."""
 
+visibility(["//core/..."])
+
 _PLAN_SHARD_ASCII_LETTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 def plan_shard_path_is_absolute(path):

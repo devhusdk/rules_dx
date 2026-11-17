@@ -1,5 +1,7 @@
 """Stages a declared schema closure under a private root for codegen actions."""
 
+visibility(["//capnproto/...", "//flatbuffers/...", "//thrift/..."])
+
 def stage_closure(ctx, prefix, entries, kind):
     """Symlinks schema files under a private root."""
     staged = {}

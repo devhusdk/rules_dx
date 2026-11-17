@@ -3,6 +3,8 @@
 load("//core:rlocation.bzl", "external_path")
 load("//core/quality:native_config.bzl", "DxNativeConfigInfo")
 
+visibility(["//..."])
+
 JsonSchemaInfo = provider(
     doc = "One checked-in JSON Schema, the files it validates, and its closure.",
     fields = {

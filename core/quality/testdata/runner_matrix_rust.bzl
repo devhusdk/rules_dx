@@ -2,6 +2,8 @@
 
 load(":runner_matrix_tests.bzl", "matrix_case")
 
+visibility("private")
+
 def _rust_case(name, edition = "2021", **kwargs):
     return matrix_case(
         name = name,

@@ -6,6 +6,8 @@ load("//core/quality/testdata:real_aspect_subject.bzl", "REAL_SUBJECT_BY_CLASS")
 load("//core/quality/testdata:real_typecheck_subject.bzl", "real_typecheck_subject")
 load("//core/quality/testdata:runner_matrix_tests.bzl", "compatible")
 
+visibility("private")
+
 def _quote(s):
     return "'" + s.replace("'", "'\\''") + "'"
 

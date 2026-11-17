@@ -18,6 +18,8 @@ load(
     "codegen_replaces_error",
 )
 
+visibility(["//api_spec/...", "//avro/...", "//capnproto/...", "//core/...", "//flatbuffers/...", "//thrift/..."])
+
 def _record_a():
     return codegen_record(
         "//gen:alpha",

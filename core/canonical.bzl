@@ -1,5 +1,8 @@
 """canonical helpers."""
 
+# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
+visibility("public")
+
 def is_canonical(text):
     """Returns whether text starts with the canonical repository marker."""
     return text.startswith("@@")  # buildifier: disable=canonical-repository

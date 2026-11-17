@@ -2,6 +2,8 @@
 
 load("//core/quality:real_core.bzl", "real_config", "real_make_aspect")
 
+visibility(["//core/..."])
+
 TOOLS = {
     "yamlfmt": {
         "attr": attr.label(default = "@dx_tools//:yamlfmt", allow_single_file = True, cfg = "exec"),

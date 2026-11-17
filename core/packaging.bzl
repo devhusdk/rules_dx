@@ -1,5 +1,7 @@
 """Shared path helpers for package rules."""
 
+visibility(["//appimage/...", "//core/...", "//deploy/...", "//msix/..."])
+
 def data_path(file, label):
     """Returns the install path of a data file relative to its target's package."""
     owner = file.owner

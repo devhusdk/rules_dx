@@ -4,6 +4,8 @@ load("@bazel_lib//lib:write_source_files.bzl", "write_source_files")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load(":tools.bzl", "TOOLS")
 
+visibility(["//cli/...", "//core/..."])
+
 _HEADER = """// Generated from core/quality/tools.bzl.
 
 pub const REAL_TOOLS: &[&str] = &[

@@ -33,6 +33,8 @@ load(
 load("//core/quality/testdata:config_subject.bzl", "config_subject_rule")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "single_target")
 
+visibility("private")
+
 _TOOL_FLAG = "//config:tool_ruff"
 _ALTERNATE_SHORT = "core/quality/testdata/alternate_ruff_bin"
 TOOL_OVERRIDE_CONFIGS = ["ruff_alternate", "ruff_empty", "ruff_pair", "ruff_policy", "shared", "tool_overrides"]

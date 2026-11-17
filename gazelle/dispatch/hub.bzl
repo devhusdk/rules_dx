@@ -2,6 +2,8 @@
 
 load("//cli/prebuilt:hub.bzl", "KNOWN_CPU", "KNOWN_OS")
 
+visibility("private")
+
 DISPATCH = Label("//gazelle/dispatch")
 
 _VISIBILITY = """    visibility = [

@@ -1,5 +1,7 @@
 """Transition that builds one dependency edge without coverage instrumentation."""
 
+visibility(["//android/...", "//apple/...", "//cli/...", "//core/...", "//d/...", "//dotnet/...", "//haskell/...", "//ocaml/...", "//php/...", "//qt/...", "//rego/...", "//rust/...", "//swift/...", "//tools/...", "//zig/..."])
+
 _COVERAGE = "//command_line_option:collect_code_coverage"
 
 def _no_coverage_transition_impl(_settings, _attr):

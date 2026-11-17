@@ -6,6 +6,9 @@ load("//core/quality:pipeline.bzl", "upstream_tags")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "quality_sources_info", "single_target")
 load("//core/quality:unavailable_tool.bzl", "DxUnavailableToolInfo")
 
+# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
+visibility("public")
+
 DX_EXEC_PROVIDES = [DefaultInfo, QualitySourcesInfo]
 
 def dx_forwarded_runtime_providers(upstream, what):

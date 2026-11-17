@@ -2,6 +2,8 @@
 
 load("//core/quality:real_core.bzl", "real_config", "real_make_aspect")
 
+visibility(["//core/..."])
+
 TOOLS = {
     "deadnix": {
         "attr": attr.label(default = "//rust/private/quality/tools:deadnix_tool", cfg = "exec", executable = True),

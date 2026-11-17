@@ -2,6 +2,8 @@
 
 load("//core:defs.bzl", "starlark_test")
 
+visibility("private")
+
 EXPECTED_OBSERVATIONS = """subject //core/quality/testdata:fixture_real_cc_hinted_subject
 field dx_count=1
 field dx_results=fixture_real_cc_hinted-real-format-cc.pb

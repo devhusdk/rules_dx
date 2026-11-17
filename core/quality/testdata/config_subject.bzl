@@ -2,6 +2,8 @@
 
 load(":test_configs.bzl", "TEST_CONFIGS", "TEST_CONFIG_SETTINGS")
 
+visibility(["//avro/...", "//core/...", "//flutter/...", "//php/...", "//tools/..."])
+
 def _config_transition_impl(_settings, attr):
     """Writes the settings of the configuration named by the config attribute."""
     return TEST_CONFIGS[attr.config]

@@ -5,6 +5,8 @@ load(":hub.bzl", "SOURCE_LABEL", "SOURCE_TOOLS", "alias_build", "consumer_build"
 load(":pins.bzl", "DX_VERSION", "PINS", "SCHEMA", "URL_TEMPLATE")
 load(":tools.bzl", "TOOLS", "asset_name", "registry_lines")
 
+visibility("private")
+
 _HASH = "0123456789abcdef" * 4
 
 _PINNED = {"dx": {

@@ -1,5 +1,7 @@
 """Pin helpers shared by the package-hub repository rules."""
 
+visibility(["//ansible/...", "//bicep/...", "//core/...", "//csharp/...", "//d/...", "//elixir/...", "//fortran/...", "//haskell/...", "//lua/...", "//ocaml/...", "//perl/...", "//powershell/...", "//ruby/...", "//swift/...", "//terraform/...", "//zig/..."])
+
 def spoke_name(hub, package, replaced, replacement = "_"):
     """Returns the repository name of one package: <hub>__<name>, with each character in `replaced` turned into `replacement`."""
     for char in replaced.elems():

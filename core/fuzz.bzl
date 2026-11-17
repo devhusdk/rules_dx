@@ -3,6 +3,8 @@
 load(":fuzz_bench.bzl", "merge_tags", "split_runner_kwargs", "split_test_kwargs", "with_default_size")
 load(":no_coverage.bzl", "no_coverage_transition")
 
+visibility(["//cc/...", "//core/...", "//d/...", "//dotnet/...", "//go/...", "//java/...", "//javascript/...", "//ocaml/...", "//python/...", "//rust/...", "//swift/...", "//typescript/..."])
+
 def _asan_fuzzer_transition_impl(_settings, attr):
     return {
         "@llvm//config:asan": attr.asan,

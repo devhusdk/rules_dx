@@ -4,6 +4,9 @@ load("//core/modules:langs.bzl", "LANGS")
 load(":taxonomy.bzl", "TAXONOMY_CLASSES")
 load(":tool_defs.bzl", "is_canonical_token")
 
+# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
+visibility("public")
+
 QualitySourcesInfo = provider(
     doc = "Directly owned repository sources keyed by semantic file class.",
     fields = {

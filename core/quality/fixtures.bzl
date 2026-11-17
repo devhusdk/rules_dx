@@ -4,6 +4,9 @@ load("//core/modules:langs.bzl", "LANGS")
 load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
 load("//core/quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "NAMED_SOURCE_CLASSES", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "named_source_class_error")
 
+# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
+visibility("public")
+
 _GO_MOD = LOCK_REGISTRY["go"]["manifest"]
 
 def markdown_sibling_error(what, siblings, markdown_srcs):

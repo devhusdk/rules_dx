@@ -1,5 +1,7 @@
 """Ubuntu 22.04 runtime packages shared by toolchains that unpack the glibc, zlib and OpenSSL closure."""
 
+visibility(["//core/...", "//d/...", "//erlang/...", "//typescript/..."])
+
 JAMMY_RUNTIME_MIRROR = "https://launchpad.net/ubuntu/+archive/primary/+files"
 
 JAMMY_POOL_MIRRORS = {

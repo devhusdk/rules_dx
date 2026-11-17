@@ -1418,6 +1418,35 @@ rust_test(
 )
 
 rust_test(
+    name = "bzl_visibility_test",
+    size = "small",
+    srcs = [
+        "bzl_visibility_test.rs",
+        "guard_rules/scan.rs",
+    ],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "bzl_visibility_test",
+    crate_root = "bzl_visibility_test.rs",
+    data = [
+        "@dx_test_tags_sources//:files.json",
+        "@dx_test_tags_sources//:sources.json",
+    ],
+    env = {
+        "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
+        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+    },
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + ["//tools/testing:dx_testing"],
+)
+
+rust_test(
     name = "rule_set_loads_test",
     size = "small",
     srcs = [

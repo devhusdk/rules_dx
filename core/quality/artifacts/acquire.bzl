@@ -1,5 +1,7 @@
 """Standalone tool acquisition with Bazel download and extract only."""
 
+visibility(["//core/..."])
+
 ARCHIVE_TYPES = {
     "gzip": "gz",
     "none": "",

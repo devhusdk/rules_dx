@@ -4,6 +4,8 @@ load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load(":tool_defs.bzl", "is_canonical_token")
 
+visibility(["//core/...", "//tools/..."])
+
 
 PARITY_DEFERRED = {}
 

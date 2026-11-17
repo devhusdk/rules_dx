@@ -1,5 +1,7 @@
 """Shared argument handling for the fuzz and bench macros."""
 
+visibility(["//cc/...", "//core/...", "//csharp/...", "//d/...", "//dart/...", "//elixir/...", "//erlang/...", "//fsharp/...", "//go/...", "//haskell/...", "//java/...", "//javascript/...", "//julia/...", "//lua/...", "//ocaml/...", "//perl/...", "//python/...", "//ruby/...", "//rust/...", "//swift/...", "//typescript/...", "//zig/..."])
+
 DEFAULT_SIZE = "small"
 
 _TEST_KWARGS = ("size", "timeout", "env", "args", "flaky", "shard_count", "target_compatible_with", "data", "local")

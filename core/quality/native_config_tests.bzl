@@ -16,6 +16,8 @@ load(
     "tier_base_dirs",
 )
 
+visibility("private")
+
 _HINTS = [
     struct(tool_id = "biome"),
     struct(tool_id = "buildifier"),

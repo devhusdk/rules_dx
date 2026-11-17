@@ -14,6 +14,9 @@ load("//core/quality:families/xml.bzl", _XML_SHARD_SPECS = "SHARD_SPECS", _XML_T
 load("//core/quality:families/yaml.bzl", _YAML_SHARD_SPECS = "SHARD_SPECS", _YAML_TOOLS = "TOOLS")
 load("//core/quality:real_core.bzl", "real_config", "real_make_probe_aspect")
 
+# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
+visibility("public")
+
 CoreShardProbeInfo = provider(
     doc = "Shard names the core family shard probe found for one target and capability.",
     fields = {

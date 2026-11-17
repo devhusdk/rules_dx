@@ -112,6 +112,8 @@ load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_a
 load("//core/quality:sources.bzl", "QualityToolsInfo")
 load("//tools/docs:aspect.bzl", _real_docs_aspect = "real_docs_aspect")
 
+visibility(["//core/..."])
+
 # BEGIN GENERATED LANG ASPECT EXPORTS
 real_ansible_lint_aspect = _real_ansible_lint_aspect
 

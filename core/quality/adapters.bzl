@@ -4,6 +4,8 @@ load(":taxonomy.bzl", "CLASS_TO_FAMILY")
 load(":tool_defs.bzl", "is_canonical_token")
 load(":tools.bzl", "TOOLS")
 
+visibility(["//core/...", "//tools/..."])
+
 SYNTHETIC_ADAPTERS = {
     "fmt-a": {"format": ["rust"]},
     "lint-a": {"lint": ["python", "rust"]},

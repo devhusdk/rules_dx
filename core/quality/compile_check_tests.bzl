@@ -4,6 +4,8 @@ load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "real_supported_classes")
 load(":compile_check.bzl", "COMPILE_CHECK_TOOLS", "flang_check_argv", "ghc_check_argv", "ldc_check_argv", "ocaml_aliases", "ocaml_check_argv", "swiftc_check_argv", "zig_check_argv", "zig_replayable")
 
+visibility("private")
+
 _FLANG = "external/flang/bin/flang"
 _LDC = "external/ldc/bin/ldmd2"
 _GHC = "bazel-out/bin/haskell/ghc_wrapper"

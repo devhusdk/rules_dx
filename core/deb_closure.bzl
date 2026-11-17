@@ -1,5 +1,7 @@
 """Repository-rule helper that unpacks pinned .deb shared libraries into a closure directory."""
 
+visibility(["//d/...", "//erlang/...", "//haskell/...", "//typescript/..."])
+
 def deb_closure(rctx, urls, packages, closure):
     """Extracts each pinned .deb's libraries and copyright into `closure`/{lib,licenses}; `urls` maps a package to its download URLs."""
     for package in packages:

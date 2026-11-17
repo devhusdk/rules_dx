@@ -8,6 +8,8 @@ load("//core/quality:family_hooks.bzl", "upstream_files")
 load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 load("//thrift:defs.bzl", "ThriftInfo")
 
+visibility(["//core/...", "//tools/..."])
+
 TOOLS = {
     "buf": {
         "attr": attr.label(default = "@dx_tools//:buf", allow_single_file = True, cfg = "exec"),

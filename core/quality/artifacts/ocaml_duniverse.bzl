@@ -2,6 +2,8 @@
 
 load("//ocaml/private/toolchain:pins.bzl", "DUNE")
 
+visibility(["//core/...", "//ocaml/..."])
+
 REPO = "dx_ocaml_tools_duniverse"
 
 PACKAGES = [

@@ -6,6 +6,9 @@ load("//cli/prebuilt:pins.bzl", "DX_VERSION", "PINS", "URL_TEMPLATE")
 load("//core:repo.bzl", "hub_repo")
 load(":hub.bzl", "builds_from_source", "prebuilt_build", "render_hub_build")
 
+# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
+visibility("public")
+
 _language = tag_class(
     doc = "Adds a Gazelle language package to the dx gazelle binary. A module other than rules_dx that adds one makes gazelle build from source.",
     attrs = {

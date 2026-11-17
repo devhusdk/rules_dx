@@ -2,7 +2,6 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//core/quality:unavailable_tool.bzl", "dx_unavailable_tool")
 load("@rules_dx//ocaml/private:dune.bzl", "dx_dune_build")
 load(":cmt_list.bzl", "ocaml_cmt_list")
-load(":tools_tests.bzl", "ocaml_tools_tests")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -11,7 +10,6 @@ exports_files(glob(["patches/*.patch"]) + [
     "ocaml.bzl",
     "ocaml_tools.bzl",
     "repos.bzl",
-    "tools_tests.bzl",
 ])
 
 # zanuda 2.1.0 (LGPL-3.0-only), built from source; closure licenses in :zanuda_licenses.
@@ -68,8 +66,6 @@ filegroup(
     srcs = ["@dx_ocaml_tools_duniverse//:licenses"],
 )
 
-ocaml_tools_tests(name = "pins_test")
-
 ocaml_cmt_list(
     name = "dirty_cmts",
     testonly = True,
@@ -90,7 +86,6 @@ real_source_target(
         "ocaml_tools.bzl",
         "cmt_list.bzl",
         "repos.bzl",
-        "tools_tests.bzl",
     ],
     tags = ["corpus"],
 )

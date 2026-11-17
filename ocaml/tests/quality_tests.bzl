@@ -1,10 +1,10 @@
 """Pin tests for the OCaml source-built tools."""
 
-load("//core:defs.bzl", "expect_equal", "expect_true", "starlark_test")
-load("//ocaml/private/toolchain:pins.bzl", "OCAML_VERSION")
 load("@dx_pins_data//:pins.bzl", "DATA")
+load("//core:defs.bzl", "expect_equal", "expect_true", "starlark_test")
 load("//core/quality/artifacts:ocaml_duniverse.bzl", "PACKAGES", "PATCHES")
-load(":repos.bzl", "patch_package")
+load("//ocaml/private/quality:repos.bzl", "patch_package")
+load("//ocaml/private/toolchain:pins.bzl", "OCAML_VERSION")
 
 ZANUDA = DATA["dx_quality_pins"]["sources"]["zanuda"]
 ZANUDA_OCAML_RANGES = ZANUDA["ocaml_ranges"]
@@ -30,10 +30,11 @@ def _checks():
         expect_true("patches name packages", all([patch_package(p.split("/")[-1]) in dirs for p in PATCHES])),
     ]
 
-def ocaml_tools_tests(name):
+def ocaml_tools_tests(name, **kwargs):
     """Declares the pin tests."""
     starlark_test(
         name = name,
         mode = "load",
         checks = _checks(),
+        **kwargs
     )

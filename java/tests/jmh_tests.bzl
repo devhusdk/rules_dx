@@ -47,4 +47,4 @@ def jmh_inner_attr_test(name, bench, inner, tags, target_compatible_with):
             [str(native.package_relative_label(label)) for label in rule.get("target_compatible_with", [])],
             want,
         ))
-    starlark_test(name = name, mode = "unit", checks = checks)
+    starlark_test(name = name, size = "small", mode = "unit", checks = checks)

@@ -353,16 +353,9 @@ test-location flutter/tests/BUILD.bazel
 test-location fsharp/private/ide/BUILD.bazel
 test-location go/private/ide/BUILD.bazel
 test-location go/private/quality/gopls_tier/BUILD.bazel
-test-location haskell/private/coverage/BUILD.bazel
-test-location haskell/private/coverage/coverage_tests.bzl
-test-location haskell/private/coverage/fixture/GreeterTest.hs
-test-location java/private/coverage_tests.bzl
 test-location java/private/ide/BUILD.bazel
-test-location java/private/jmh_tests.bzl
 test-location lua/private/runtime/BUILD.bazel
 test-location lua/private/runtime/launcher_test.lua
-test-location ocaml/private/quality/BUILD.bazel
-test-location ocaml/private/quality/tools_tests.bzl
 test-location php/private/BenchTest.php
 test-location php/private/coverage/BUILD.bazel
 test-location qt/private/rust/BUILD.bazel

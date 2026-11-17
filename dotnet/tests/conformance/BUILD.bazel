@@ -13,6 +13,21 @@ package(
 csharp_library(
     name = "greet",
     srcs = ["Greet.cs"],
+    out = "Greet",
+)
+
+csharp_library(
+    name = "lint_dirty",
+    srcs = ["quality/LintDirty.cs"],
+    out = "LintDirty",
+    tags = ["manual"],
+)
+
+csharp_library(
+    name = "format_dirty",
+    srcs = ["quality/FormatDirty.cs"],
+    out = "FormatDirty",
+    tags = ["manual"],
 )
 
 csharp_binary(
@@ -48,6 +63,15 @@ dx_conformance_suite(
     failing_test = ":fail_subject_test",
     lang = "dotnet",
     passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":greet",
+        "format_dirty": ":format_dirty",
+        "format_source": "quality/FormatDirty.cs",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 5,
+        "lint_rule": "CA1822",
+        "lint_source": "quality/LintDirty.cs",
+    },
 )
 
 real_source_target(

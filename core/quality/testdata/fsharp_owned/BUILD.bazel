@@ -11,10 +11,10 @@ quality_family(
     name = "fsharp_family",
     disabled = [
         "audit",
-        "format",
         "lint",
     ],
     family_id = "fsharp",
+    format = ["fantomas"],
     typecheck = ["fsc"],
 )
 

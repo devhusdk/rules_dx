@@ -344,17 +344,35 @@ module="$root/MODULE.bazel"
 own=
 deps=0
 VERSION=
+dep=
 while IFS= read -r line || [ -n "$line" ]; do
-  t=${line%"${line##*[![:space:]]}"}
-  case $t in
-    'bazel_dep(name = "rules_dx", version = "'*'")')
-      v=${t#'bazel_dep(name = "rules_dx", version = "'}
-      v=${v%'")'}
-      case $v in
-        *'"'*) ;;
-        *)
-          deps=$((deps + 1))
-          VERSION=$v
+  # Join each top-level `bazel_dep(` call up to its `)`, without comments or
+  # whitespace, so repo_name, trailing commas and multi-line calls all read.
+  case $dep$line in
+    'bazel_dep('*)
+      dep=$dep$(printf %s "${line%%#*}" | tr -d '[:space:]')
+      case $dep in
+        *')'*)
+          rest=${dep#'bazel_dep('}
+          rest=${rest%%')'*},
+          dep=
+          name=
+          v=
+          while [ -n "$rest" ]; do
+            kw=${rest%%,*}
+            rest=${rest#*,}
+            case $kw in
+              'name="rules_dx"') name=1 ;;
+              'version="'*'"')
+                v=${kw#'version="'}
+                v=${v%'"'}
+                ;;
+            esac
+          done
+          if [ -n "$name" ]; then
+            deps=$((deps + 1))
+            VERSION=$v
+          fi
           ;;
       esac
       ;;
@@ -370,7 +388,7 @@ done < "$module"
 if [ -n "$own" ]; then
   via_bazel "MODULE.bazel is rules_dx itself" "$@"
 fi
-[ "$deps" = 1 ] || via_bazel "MODULE.bazel needs exactly one plain rules_dx bazel_dep" "$@"
+[ "$deps" = 1 ] || via_bazel "MODULE.bazel needs exactly one rules_dx bazel_dep" "$@"
 case "$VERSION" in
   "" | .* | *[!0-9A-Za-z.+-]*) via_bazel "cannot read the rules_dx version in MODULE.bazel" "$@" ;;
 esac
@@ -441,7 +459,28 @@ while read -r ver sum asset || [ -n "$ver" ]; do
   fi
 done < "$pins"
 [ -n "$want" ] || via_bazel "no pinned binary for $os-$arch at $VERSION" "$@"
-url="https://github.com/devhusdk/rules_dx/releases/download/v$VERSION/dx-$os-$arch"
+# Same rules as the shim's DX_RELEASE_BASE_URL (cli/shim/src/protocol.rs).
+base=${DX_RELEASE_BASE_URL:-https://github.com/devhusdk/rules_dx/releases/download}
+case $base in
+  https://?*) ;;
+  http://*)
+    auth=${base#http://}
+    auth=${auth%%/*}
+    case $auth in
+      *@*) auth= ;;
+    esac
+    case $auth in
+      127.0.0.1 | 127.0.0.1:* | localhost | localhost:* | '[::1]' | '[::1]:'*) ;;
+      *) base= ;;
+    esac
+    ;;
+  *) base= ;;
+esac
+[ -n "$base" ] || fail "DX_RELEASE_BASE_URL must use https:// (http:// only to 127.0.0.1, [::1] or localhost), got '$DX_RELEASE_BASE_URL'"
+while [ "${base%/}" != "$base" ]; do
+  base=${base%/}
+done
+url="$base/v$VERSION/dx-$os-$arch"
 mkdir -p "$dir"
 tmp="$dir/.dx-$os-$arch.$$"
 trap 'rm -f "$tmp"' EXIT
@@ -516,9 +555,14 @@ if not exist "%DX_MODULE%" goto bazel
 findstr /r /c:"module_name *= *.rules_dx." "%DX_MODULE%" >nul && goto bazel
 set "DX_N=0"
 set "VERSION="
-findstr /r /c:"^bazel_dep(name = .rules_dx., version = .[0-9A-Za-z.+-]*.)[ ]*[!-~]" "%DX_MODULE%" >nul && goto bazel
-for /f tokens^=4^ delims^=^" %%V in ('findstr /r /c:"^bazel_dep(name = .rules_dx., version = .[0-9A-Za-z.+-]*.)" "%DX_MODULE%"') do (set /a DX_N+=1 >nul & set "VERSION=%%V")
+set "DX_DEP="
+for /f "usebackq delims=" %%L in ("%DX_MODULE%") do (
+  set "DX_LINE=%%L"
+  call :dxdep
+)
 if not "%DX_N%"=="1" goto bazel
+rem `set VERSION` complains on stderr when VERSION is undefined.
+if not defined VERSION goto bazel
 set VERSION | findstr /r /x "VERSION=[0-9A-Za-z+-][0-9A-Za-z.+-]*" >nul
 if errorlevel 1 goto bazel
 set "DX_CACHE=%USERPROFILE%\.cache\dx"
@@ -531,13 +575,26 @@ if not exist "%~dp0..\%DX_PINS%" goto bazel
 set "WANT="
 for /f "usebackq tokens=1,2,3" %%A in ("%~dp0..\%DX_PINS%") do if "%%A"=="%VERSION%" if "%%C"=="dx-windows-%ARCH%" set "WANT=%%B"
 if not defined WANT goto bazel
-set "DX_URL=https://github.com/devhusdk/rules_dx/releases/download/v%VERSION%/dx-windows-%ARCH%"
+set "DX_BASE=https://github.com/devhusdk/rules_dx/releases/download"
+if not defined DX_RELEASE_BASE_URL goto dxbase
+rem The shim's DX_RELEASE_BASE_URL rules, plus plain URL characters only, so
+rem the value is safe to expand below. `set` prints it without expanding it.
+set DX_RELEASE_BASE_URL | findstr /r /x /c:"DX_RELEASE_BASE_URL=https://[0-9a-zA-Z._~:/+=,;@-][0-9a-zA-Z._~:/+=,;@-]*" /c:"DX_RELEASE_BASE_URL=http://127\.0\.0\.1" /c:"DX_RELEASE_BASE_URL=http://127\.0\.0\.1[:/][0-9a-zA-Z._~:/+=,;-]*" /c:"DX_RELEASE_BASE_URL=http://localhost" /c:"DX_RELEASE_BASE_URL=http://localhost[:/][0-9a-zA-Z._~:/+=,;-]*" /c:"DX_RELEASE_BASE_URL=http://\[::1\]" /c:"DX_RELEASE_BASE_URL=http://\[::1\][:/][0-9a-zA-Z._~:/+=,;-]*" >nul
+if errorlevel 1 goto badbase
+set "DX_BASE=%DX_RELEASE_BASE_URL%"
+:dxtrim
+if "%DX_BASE:~-1%"=="/" (
+  set "DX_BASE=%DX_BASE:~0,-1%"
+  goto dxtrim
+)
+:dxbase
+set "DX_URL=%DX_BASE%/v%VERSION%/dx-windows-%ARCH%"
 mkdir "%DIR%" 2>nul
 set "DX_TAG="
 for /f %%G in ('powershell -NoProfile -NonInteractive -Command "[guid]::NewGuid().ToString()"') do set "DX_TAG=%%G"
 if not defined DX_TAG goto bazel
 set "DX_PART=%DIR%\.dx-%ARCH%.%DX_TAG%.part"
-call powershell -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; Invoke-WebRequest -UseBasicParsing -ProxyUseDefaultCredentials -Uri $env:DX_URL -OutFile $env:DX_PART"
+call powershell -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; $ProgressPreference='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -UseBasicParsing -ProxyUseDefaultCredentials -Uri $env:DX_URL -OutFile $env:DX_PART"
 if errorlevel 1 (
   call :clean
   rmdir "%DIR%" 2>nul
@@ -563,6 +620,46 @@ echo dx: run it through Bazel instead: bazel run @rules_dx//:dx -- ^<your argume
 exit /b 1
 :clean
 del /q "%DX_PART%" 2>nul
+exit /b 0
+:badbase
+echo dx: DX_RELEASE_BASE_URL must use https:// (http:// only to 127.0.0.1, [::1] or localhost) and plain URL characters 1>&2
+exit /b 1
+:dxdep
+rem Join each top-level `bazel_dep(` call up to its `)`, without quotes,
+rem spaces or comments, then read its name and version keywords.
+setlocal EnableDelayedExpansion
+if not defined DX_DEP if not "!DX_LINE:~0,10!"=="bazel_dep(" exit /b 0
+rem The leading "." keeps L defined and the comment split from eating a
+rem line that starts with a comment.
+set "L=.!DX_LINE!"
+set "L=!L:"=!"
+set "L=!L: =!"
+for /f "delims=#" %%C in ("!L!") do set "L=%%C"
+set "A=!DX_DEP!!L:~1!"
+if "!A:)=!"=="!A!" (
+  endlocal & set "DX_DEP=%A%"
+  exit /b 0
+)
+set "S=.!A:~10!"
+for /f "delims=)" %%C in ("!S!") do set "S=%%C"
+set "S=,!S:~1!,"
+set "DX_IS="
+set "V="
+:dxkw
+set "R="
+for /f "tokens=1* delims=," %%a in ("!S!") do (
+  if "%%a"=="name=rules_dx" set "DX_IS=1"
+  set "K=%%a"
+  if "!K:~0,8!"=="version=" set "V=!K:~8!"
+  set "R=%%b"
+)
+set "S=!R!"
+if defined S goto dxkw
+if not defined DX_IS (
+  endlocal & set "DX_DEP="
+  exit /b 0
+)
+endlocal & set "DX_DEP=" & set /a DX_N+=1 >nul & set "VERSION=%V%"
 exit /b 0
 :bazel
 bazel run @rules_dx//:dx -- %*
@@ -816,11 +913,12 @@ mod tests {
     }
 
     #[test]
-    fn cmd_module_pattern_has_a_single_anchor() {
+    fn cmd_module_dep_must_start_its_line() {
         let script = cmd();
-        assert!(script.contains("findstr /r /c:\"^bazel_dep("), "{script}");
-        assert!(!script.contains("\"^^"), "{script}");
-        assert!(!script.contains(")[ ]*$"), "{script}");
+        assert!(
+            script.contains("if not \"!DX_LINE:~0,10!\"==\"bazel_dep(\" exit /b 0"),
+            "{script}"
+        );
     }
 
     #[test]
@@ -831,6 +929,16 @@ mod tests {
             .find(|line| line.contains("Invoke-WebRequest"))
             .expect("download line");
         assert!(line.contains("-ProxyUseDefaultCredentials"), "{line}");
+        // Windows PowerShell 5.1 renders a progress bar that slows the download
+        // many times over, and may not offer TLS 1.2 by default.
+        let flags = line.find("Invoke-WebRequest").expect("download call");
+        for flag in [
+            "$ErrorActionPreference='Stop'",
+            "$ProgressPreference='SilentlyContinue'",
+            "[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12",
+        ] {
+            assert!(line[..flags].contains(flag), "{flag}: {line}");
+        }
     }
 
     #[test]
@@ -1356,6 +1464,15 @@ mod tests {
                 cwd: &std::path::Path,
                 args: &[&str],
             ) -> (Option<i32>, String, String) {
+                self.run_env(cwd, &[], args)
+            }
+
+            fn run_env(
+                &self,
+                cwd: &std::path::Path,
+                envs: &[(&str, &str)],
+                args: &[&str],
+            ) -> (Option<i32>, String, String) {
                 let base = &self.base;
                 let out = spawn(
                     Command::new(base.join("repo/tools/dx"))
@@ -1370,7 +1487,8 @@ mod tests {
                         .env("USERPROFILE", base.join("home"))
                         .env("STUB_LOG", base.join("calls"))
                         .env("STUB_PAYLOAD", base.join("payload"))
-                        .env("STUB_SIDECAR", base.join("sidecar")),
+                        .env("STUB_SIDECAR", base.join("sidecar"))
+                        .envs(envs.iter().copied()),
                 )
                 .wait_with_output()
                 .expect("launcher runs");
@@ -1663,11 +1781,12 @@ mod tests {
         fn modules_the_launcher_cannot_read_run_through_bazel() {
             for (i, text) in [
                 "bazel_dep(name = \"rules_dx\", version = \"1.2.3\")\nlocal_path_override(module_name = \"rules_dx\", path = \"x\")\n",
-                "bazel_dep(\n    name = \"rules_dx\",\n    version = \"1.2.3\",\n)\n",
-                "bazel_dep(name = \"rules_dx\", version = \"1.2.3\", repo_name = \"dx\")\n",
                 "bazel_dep(name = \"rules_dx\", version = \"1.2.3\")\nbazel_dep(name = \"rules_dx\", version = \"1.2.3\")\n",
+                "bazel_dep(\n    name = \"rules_dx\",\n    version = \"1.2.3\",\n)\nbazel_dep(name = \"rules_dx\", version = \"1.2.3\")\n",
                 "bazel_dep(name = \"rules_dx\", version = \"1.2.3&x\")\n",
                 "bazel_dep(name = \"rules_dx\", version = \"1.2\\\"3\")\n",
+                "bazel_dep(name = \"rules_dx\")\n",
+                "bazel_dep(\n    name = \"rules_dx\",\n    version = \"1.2.3\",\n",
                 "  bazel_dep(name = \"rules_dx\", version = \"1.2.3\")\n",
             ]
             .into_iter()
@@ -1677,6 +1796,83 @@ mod tests {
                 fx.set_module(text);
                 fx.assert_via_bazel(&["check", "//..."]);
                 assert_eq!(fx.downloads(), 0, "{text}");
+            }
+        }
+
+        #[test]
+        fn modules_with_repo_name_comments_or_several_lines_run_direct() {
+            for (i, text) in [
+                "bazel_dep(\n    name = \"rules_dx\",\n    version = \"1.2.3\",\n)\n",
+                "bazel_dep(\n    name = \"rules_dx\",  # the rules\n    # pinned by dx upgrade\n    version = \"1.2.3\",\n    repo_name = \"dx\",\n)\n",
+                "bazel_dep(name = \"rules_dx\", version = \"1.2.3\", repo_name = \"dx\")\n",
+                "bazel_dep(name = \"rules_dx\", version = \"1.2.3\")  # pinned\n",
+                "# bazel_dep(name = \"rules_dx\", version = \"9.9.9\")\nbazel_dep(name = \"rules_go\", version = \"0.50.0\")\nbazel_dep(version = \"1.2.3\", name = \"rules_dx\")\n",
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let fx = Fixture::new(&format!("dx-launcher-moduleok{i}-"), true, None);
+                fx.set_module(text);
+                let (code, out, err) = fx.run(&["status"]);
+                assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{text}{err}");
+                assert_eq!(fx.bazel_calls(), [] as [String; 0], "{text}");
+            }
+        }
+
+        #[test]
+        fn a_mirror_base_url_replaces_github() {
+            let fx = Fixture::new("dx-launcher-mirror-", true, None);
+            let urls = fx.base.join("urls");
+            fx.stub(
+                "curl",
+                &format!(
+                    "#!/bin/sh\nwhile [ $# -gt 0 ]; do\n  if [ \"$1\" = -o ]; then out=\"$2\"; fi\n  url=\"$1\"\n  shift\ndone\necho \"$url\" >> '{}'\ncp \"$STUB_PAYLOAD\" \"$out\"\n",
+                    urls.display()
+                ),
+            );
+            let mirror = [("DX_RELEASE_BASE_URL", "https://mirror.example/dx//")];
+            let (code, out, err) = fx.run_env(&fx.base, &mirror, &["status"]);
+            assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
+            assert_eq!(
+                std::fs::read_to_string(&urls).expect("urls"),
+                "https://mirror.example/dx/v1.2.3/dx-linux-x86_64\n"
+            );
+            assert_eq!(fx.cached(), vec!["dx-linux-x86_64"]);
+        }
+
+        #[test]
+        fn a_base_url_the_shim_would_refuse_fails_before_downloading() {
+            for (i, base) in [
+                "http://mirror.example/dx",
+                "http://localhost@mirror.example/dx",
+                "http://127.0.0.1.mirror.example/dx",
+                "ftp://mirror.example/dx",
+                "https://",
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let fx = Fixture::new(&format!("dx-launcher-badbase{i}-"), true, None);
+                let env = [("DX_RELEASE_BASE_URL", base)];
+                let (code, out, err) = fx.run_env(&fx.base, &env, &["status"]);
+                assert_eq!(code, Some(1), "{base}: {out}{err}");
+                assert!(
+                    err.starts_with(&format!(
+                        "dx: DX_RELEASE_BASE_URL must use https:// (http:// only to 127.0.0.1, [::1] or localhost), got '{base}'\n"
+                    )),
+                    "{err}"
+                );
+                assert_eq!(fx.downloads(), 0, "{base}");
+                assert_eq!(fx.bazel_calls(), [] as [String; 0], "{base}");
+            }
+            for (i, base) in ["http://127.0.0.1:8080/dx", "http://[::1]", "http://localhost/"]
+                .into_iter()
+                .enumerate()
+            {
+                let fx = Fixture::new(&format!("dx-launcher-localbase{i}-"), true, None);
+                let env = [("DX_RELEASE_BASE_URL", base)];
+                let (code, out, err) = fx.run_env(&fx.base, &env, &["status"]);
+                assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{base}: {err}");
             }
         }
 
@@ -1943,7 +2139,7 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
                 std::fs::copy(format!("{system}\\System32\\cmd.exe"), &payload).expect("payload");
                 let real = sha_of(&payload);
                 let want = sha.map_or(real, str::to_owned);
-                let guid = "@echo off\r\nif defined DX_PART goto download\r\nif defined STUB_NO_GUID exit /b 0\r\n\"%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" %*\r\nexit /b\r\n:download\r\necho %DX_PART%>\"%STUB_LOG%\\%DX_TAG%\"\r\nif not defined STUB_WAIT goto fetch\r\nset STUB_TRIES=0\r\n:wait\r\nset STUB_SEEN=0\r\nfor %%F in (\"%STUB_LOG%\\*\") do set /a STUB_SEEN+=1\r\nif %STUB_SEEN% geq %STUB_WAIT% goto fetch\r\nset /a STUB_TRIES+=1\r\nif %STUB_TRIES% geq 120 goto fetch\r\nping -n 2 127.0.0.1 >nul\r\ngoto wait\r\n:fetch\r\n";
+                let guid = "@echo off\r\nif defined DX_PART goto download\r\nif defined STUB_NO_GUID exit /b 0\r\n\"%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" %*\r\nexit /b\r\n:download\r\necho %DX_PART%>\"%STUB_LOG%\\%DX_TAG%\"\r\necho %DX_URL%>>\"%STUB_LOG%.url\"\r\nif not defined STUB_WAIT goto fetch\r\nset STUB_TRIES=0\r\n:wait\r\nset STUB_SEEN=0\r\nfor %%F in (\"%STUB_LOG%\\*\") do set /a STUB_SEEN+=1\r\nif %STUB_SEEN% geq %STUB_WAIT% goto fetch\r\nset /a STUB_TRIES+=1\r\nif %STUB_TRIES% geq 120 goto fetch\r\nping -n 2 127.0.0.1 >nul\r\ngoto wait\r\n:fetch\r\n";
                 let download = if ps_ok {
                     "copy /y \"%STUB_PAYLOAD%\" \"%DX_PART%\" >nul\r\nexit /b 0\r\n"
                 } else {
@@ -2013,6 +2209,7 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
                     .env("STUB_BAZEL", base.join("bazel.log"))
                     .env("STUB_PAYLOAD", base.join("payload"))
                     .env_remove("DX_PART")
+                    .env_remove("DX_RELEASE_BASE_URL")
                     .env_remove("STUB_NO_GUID")
                     .env_remove("STUB_WAIT");
                 cmd
@@ -2221,11 +2418,12 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
         fn modules_the_launcher_cannot_read_run_through_bazel() {
             for (i, text) in [
                 "bazel_dep(name = \"rules_dx\", version = \"1.2.3\")\r\nlocal_path_override(module_name = \"rules_dx\", path = \"x\")\r\n",
-                "bazel_dep(\r\n    name = \"rules_dx\",\r\n    version = \"1.2.3\",\r\n)\r\n",
-                "bazel_dep(name = \"rules_dx\", version = \"1.2.3\", repo_name = \"dx\")\r\n",
                 "bazel_dep(name = \"rules_dx\", version = \"1.2.3\")\r\nbazel_dep(name = \"rules_dx\", version = \"1.2.3\")\r\n",
+                "bazel_dep(\r\n    name = \"rules_dx\",\r\n    version = \"1.2.3\",\r\n)\r\nbazel_dep(name = \"rules_dx\", version = \"1.2.3\")\r\n",
                 "bazel_dep(name = \"rules_dx\", version = \"1.2.3&x\")\r\n",
-                "bazel_dep(name = \"rules_dx\", version = \"1.2.3\") # pinned\n",
+                "bazel_dep(name = \"rules_dx\")\r\n",
+                "bazel_dep(\r\n    name = \"rules_dx\",\r\n    version = \"1.2.3\",\r\n",
+                "  bazel_dep(name = \"rules_dx\", version = \"1.2.3\")\r\n",
                 "bazel_dep(name = \"rules_dx\", version = \"1.2.3\")\nlocal_path_override(module_name = \"rules_dx\", path = \"x\")\n",
             ]
             .into_iter()
@@ -2235,6 +2433,66 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
                 fx.set_module(text);
                 fx.assert_via_bazel(&["check"]);
                 assert_eq!(fx.downloads(), 0, "{text}");
+            }
+        }
+
+        #[test]
+        fn modules_with_repo_name_comments_or_several_lines_run_direct() {
+            for (i, text) in [
+                "bazel_dep(\r\n    name = \"rules_dx\",\r\n    version = \"1.2.3\",\r\n)\r\n",
+                "bazel_dep(\n    name = \"rules_dx\",  # the rules\n    # pinned by dx upgrade\n    version = \"1.2.3\",\n    repo_name = \"dx\",\n)\n",
+                "bazel_dep(name = \"rules_dx\", version = \"1.2.3\", repo_name = \"dx\")\r\n",
+                "bazel_dep(name = \"rules_dx\", version = \"1.2.3\") # pinned\n",
+                "# bazel_dep(name = \"rules_dx\", version = \"9.9.9\")\r\nbazel_dep(name = \"rules_go\", version = \"0.50.0\")\r\nbazel_dep(version = \"1.2.3\", name = \"rules_dx\")\r\n",
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                assert_module_runs_direct(&format!("dx-launcher-cmd-moduleok{i}-"), text);
+            }
+        }
+
+        #[test]
+        fn a_mirror_base_url_replaces_github() {
+            let fx = Fixture::new("dx-launcher-cmd-mirror-", true, None);
+            let out = fx
+                .command(&["/c", "echo", "ran"])
+                .env("DX_RELEASE_BASE_URL", "https://mirror.example/dx//")
+                .output()
+                .expect("launcher runs");
+            let (code, out, err) = output(out);
+            assert_eq!(code, Some(0), "{out}{err}");
+            assert!(out.contains("ran"), "{out}{err}");
+            let urls = std::fs::read_to_string(fx.base.join("calls.url")).expect("urls");
+            assert_eq!(
+                urls.trim(),
+                format!("https://mirror.example/dx/v1.2.3/dx-windows-{}", arch())
+            );
+        }
+
+        #[test]
+        fn a_base_url_the_shim_would_refuse_fails_before_downloading() {
+            for (i, base) in [
+                "http://mirror.example/dx",
+                "http://localhost@mirror.example/dx",
+                "http://127.0.0.1.mirror.example/dx",
+                "https://mirror.example/a&b",
+                "https://",
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let fx = Fixture::new(&format!("dx-launcher-cmd-badbase{i}-"), true, None);
+                let out = fx
+                    .command(&["/c", "echo", "ran"])
+                    .env("DX_RELEASE_BASE_URL", base)
+                    .output()
+                    .expect("launcher runs");
+                let (code, out, err) = output(out);
+                assert_eq!(code, Some(1), "{base}: {out}{err}");
+                assert!(err.contains("DX_RELEASE_BASE_URL must use https://"), "{err}");
+                assert_eq!(fx.downloads(), 0, "{base}");
+                assert!(fx.bazel_log().is_empty(), "{}", fx.bazel_log());
             }
         }
     }

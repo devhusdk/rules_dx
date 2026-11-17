@@ -891,6 +891,84 @@ fn dub_runs_the_lock_step_for_the_whole_set() {
 }
 
 #[test]
+fn ruby_runs_the_lock_step_and_upgrades_named_gems() {
+    let dir = dx_test_scratch::scratch("ruby_backend");
+    let gems = rehash_set(
+        "gems",
+        Ecosystem::Ruby,
+        "native/Gemfile",
+        "native/ruby.lock.json",
+    );
+    let set_dir = dir.path().join("native").display().to_string();
+    let plan = |request: &Selection, offline: bool, frozen: bool| {
+        plan_configured(
+            dir.path(),
+            &gems,
+            request,
+            offline,
+            frozen,
+            &no_head(),
+            &UvClosure::default(),
+        )
+    };
+    let check = |request: &Selection, offline: bool| {
+        check_configured(
+            dir.path(),
+            &gems,
+            request,
+            offline,
+            false,
+            &no_head(),
+            &UvClosure::default(),
+        )
+    };
+    let tail = |argv: &[String], from: &str| {
+        let at = argv.iter().position(|arg| arg == from).expect("run");
+        argv[at..].join(" ")
+    };
+    let BackendPlan::Run { argv, .. } = plan(&Selection::Full, false, false).expect("plan") else {
+        panic!("expected a run");
+    };
+    assert_eq!(
+        tail(&argv, "run"),
+        format!("run @rules_dx//ruby/private/tools/lock -- --dir {set_dir}")
+    );
+    let named = Selection::Packages(vec!["rack".to_owned(), "rake".to_owned()]);
+    let BackendPlan::Run { argv, .. } = plan(&named, false, false).expect("plan") else {
+        panic!("expected a run");
+    };
+    assert_eq!(
+        tail(&argv, "run"),
+        format!(
+            "run @rules_dx//ruby/private/tools/lock -- --dir {set_dir} --upgrade rack --upgrade rake"
+        )
+    );
+    let CheckPlan::Run { argv, .. } = check(&Selection::Full, false).expect("check") else {
+        panic!("expected a run");
+    };
+    assert_eq!(
+        tail(&argv, "run"),
+        format!("run @rules_dx//ruby/private/tools/lock -- --dir {set_dir} --check")
+    );
+    assert!(matches!(
+        check(&named, false),
+        Err(BackendError::Unsupported { .. })
+    ));
+    assert!(matches!(
+        check(&Selection::Full, true),
+        Err(BackendError::OfflineRequired { .. })
+    ));
+    assert!(matches!(
+        plan(&Selection::Full, true, false),
+        Err(BackendError::OfflineRequired { .. })
+    ));
+    assert!(matches!(
+        plan(&Selection::Full, false, true),
+        Err(BackendError::FrozenLocked { .. })
+    ));
+}
+
+#[test]
 fn zig_and_fpm_run_their_lock_steps() {
     let dir = dx_test_scratch::scratch("lock_step_backend");
     let named = Selection::Packages(vec!["xxhash".to_owned()]);
@@ -1439,24 +1517,23 @@ fn configured_bazel_selective_points_at_update() {
     }
 }
 
-fn pinned_sets() -> Vec<(ResolvedSet, &'static str, &'static str)> {
+fn pinned_sets() -> Vec<(ResolvedSet, &'static str)> {
     vec![(
         ResolvedSet {
-            name: "gems".to_owned(),
-            ecosystem: Ecosystem::Ruby,
-            dir: "apps/rb".to_owned(),
-            manifests: vec!["apps/rb/Gemfile".to_owned()],
-            locks: vec!["apps/rb/Gemfile.lock".to_owned()],
+            name: "bicep".to_owned(),
+            ecosystem: Ecosystem::Bicep,
+            dir: "infra".to_owned(),
+            manifests: vec!["infra/*.bicep".to_owned()],
+            locks: vec!["infra/bicep.lock.json".to_owned()],
             repository: None,
         },
-        "rspec-core",
-        "`bundle lock`",
+        "br/public:avm/res/storage/storage-account",
     )]
 }
 
 #[test]
 fn configured_pinned_sets_never_run_and_check_as_pinned_under_every_flag() {
-    for (set, _, _) in pinned_sets() {
+    for (set, _) in pinned_sets() {
         for offline in [false, true] {
             for frozen in [false, true] {
                 assert_eq!(
@@ -1494,7 +1571,7 @@ fn configured_pinned_sets_never_run_and_check_as_pinned_under_every_flag() {
 
 #[test]
 fn configured_pinned_selective_is_unsupported() {
-    for (set, package, _) in pinned_sets() {
+    for (set, package) in pinned_sets() {
         let request = Selection::Packages(vec![package.to_owned()]);
         let planned = plan_configured(ws(), &set, &request, false, false, &no_head(), &closure())
             .expect_err("pinned sets resolve nothing");

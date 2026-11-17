@@ -1216,7 +1216,7 @@ fn cpan_module_names_allow_double_colons() {
 }
 
 #[test]
-fn ruby_and_powershell_sets_load_as_pinned_ecosystems() {
+fn ruby_and_powershell_sets_load_as_ecosystems() {
     let registry = pinned();
     assert_eq!(registry.names(), vec!["gems", "modules"]);
     let gems = registry.find("gems").expect("gems");
@@ -1226,11 +1226,11 @@ fn ruby_and_powershell_sets_load_as_pinned_ecosystems() {
     assert_eq!(modules.ecosystem, Ecosystem::PowerShell);
     assert_eq!(Ecosystem::parse("ruby"), Some(Ecosystem::Ruby));
     assert_eq!(Ecosystem::Ruby.manifest_name(), "Gemfile");
-    assert_eq!(Ecosystem::Ruby.supported_check(), "pinned");
-    assert_eq!(Ecosystem::Ruby.supported_update(), "pinned");
+    assert_eq!(Ecosystem::Ruby.supported_check(), "check");
+    assert_eq!(Ecosystem::Ruby.supported_update(), "update");
     assert_eq!(
         Ecosystem::Ruby.supported_operations(),
-        "audit; check and update report pinned"
+        "check, update, audit"
     );
     assert_eq!(Ecosystem::parse("powershell"), Some(Ecosystem::PowerShell));
     assert_eq!(

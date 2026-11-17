@@ -200,10 +200,10 @@ fn consumer_dependency_sets_audit_and_reject_edit() {
         edit.contains("update needs one package, not a whole set"),
         "edit asks for a package of the configured uv set: {edit}"
     );
-    let pinned = read("DX_SETS_UPDATE_PINNED");
+    let update = read("DX_SETS_UPDATE_RUBY");
     assert!(
-        pinned.contains("gems pins are manual"),
-        "configured ruby sets check as pinned: {pinned}"
+        update.contains("offline_required"),
+        "configured ruby sets check through the lock step: {update}"
     );
     let ruby = read("DX_SETS_SECURITY_RUBY");
     assert!(

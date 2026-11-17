@@ -36,8 +36,6 @@ rust_test(
         "//core/modules:core_budget.json",
         "//deploy:module_srcs",
         "//patches/gomod-parser:glued_comment.patch",
-        "//patches/llvm:aarch64_outline_atomics.patch",
-        "//patches/llvm:clang_cl_crt_default_lib.patch",
         "//patches/llvm:clang_cl_profile_no_mingw.patch",
         "//patches/llvm:libunwind_copy.patch",
         "//patches/llvm:lse_atomic_sources.patch",

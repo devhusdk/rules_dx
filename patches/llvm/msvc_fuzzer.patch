@@ -1,26 +1,22 @@
-diff -ruN a/toolchain/features/msvc/BUILD.bazel b/toolchain/features/msvc/BUILD.bazel
---- a/toolchain/features/msvc/BUILD.bazel
-+++ b/toolchain/features/msvc/BUILD.bazel
-@@ -28,7 +28,6 @@
-     "fission",
-     "fdo_optimize",
-     "fully_static_link",
--    "fuzzer",
-     "gcc_coverage_map_format",
-     "llvm_coverage_map_format",
-     "lsan",
-@@ -94,6 +93,7 @@
-     unsupported_build_settings = [
-         "//config:" + sanitizer
-         for sanitizer in SANITIZERS
-+        if sanitizer != "fuzzer"
-     ],
-     unsupported_features = _UNSUPPORTED_FEATURES + ["supports_start_end_lib"],
- )
-diff -ruN a/runtimes/BUILD.bazel b/runtimes/BUILD.bazel
+diff --git a/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel b/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel
+index 4524b43..e1e4ce8 100644
+--- a/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel
++++ b/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel
+@@ -931,6 +931,9 @@ cc_library(
+             "@llvm-project//libcxxabi:headers",
+             ":linux_libc_headers",
+         ],
++        ":windows_msvc": [
++            "@llvm-project//libcxx:headers",
++        ],
+         "@platforms//os:windows": [
+             "@llvm-project//libcxx:headers",
+             "@llvm-project//libcxxabi:headers",
+diff --git a/runtimes/BUILD.bazel b/runtimes/BUILD.bazel
+index 95b96d0..a52cc77 100644
 --- a/runtimes/BUILD.bazel
 +++ b/runtimes/BUILD.bazel
-@@ -223,6 +223,15 @@
+@@ -239,6 +239,15 @@ alias(
      visibility = ["//visibility:public"],
  )
  
@@ -36,7 +32,7 @@ diff -ruN a/runtimes/BUILD.bazel b/runtimes/BUILD.bazel
  resource_directory(
      name = "resource_directory_default",
      srcs = select({
-@@ -238,6 +247,11 @@
+@@ -254,6 +263,11 @@ resource_directory(
              "//runtimes/compiler-rt:clang_rt.builtins.static": "libclang_rt.builtins",
          },
      }) | select({
@@ -48,16 +44,23 @@ diff -ruN a/runtimes/BUILD.bazel b/runtimes/BUILD.bazel
          "//config:fuzzer_enabled": {
              "//runtimes/compiler-rt:clang_rt.fuzzer.static": "libclang_rt.fuzzer",
              "//runtimes/compiler-rt:clang_rt.fuzzer_no_main.static": "libclang_rt.fuzzer_no_main",
-diff -ruN a/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel b/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel
---- a/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel
-+++ b/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel
-@@ -928,6 +928,9 @@
-             "@llvm-project//libcxxabi:headers",
-             ":linux_libc_headers",
-         ],
-+        ":windows_msvc": [
-+            "@llvm-project//libcxx:headers",
-+        ],
-         "@platforms//os:windows": [
-             "@llvm-project//libcxx:headers",
-             "@llvm-project//libcxxabi:headers",
+diff --git a/toolchain/features/msvc/BUILD.bazel b/toolchain/features/msvc/BUILD.bazel
+index 91ddc90..ccc9073 100644
+--- a/toolchain/features/msvc/BUILD.bazel
++++ b/toolchain/features/msvc/BUILD.bazel
+@@ -28,7 +28,6 @@ _UNSUPPORTED_FEATURES = [
+     "fission",
+     "fdo_optimize",
+     "fully_static_link",
+-    "fuzzer",
+     "gcc_coverage_map_format",
+     "llvm_coverage_map_format",
+     "lsan",
+@@ -94,6 +93,7 @@ msvc_configuration_validation(
+     unsupported_build_settings = [
+         "//config:" + sanitizer
+         for sanitizer in SANITIZERS
++        if sanitizer != "fuzzer"
+     ],
+     unsupported_features = _UNSUPPORTED_FEATURES + ["supports_start_end_lib"],
+ )

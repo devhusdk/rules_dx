@@ -4,7 +4,7 @@ load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
 load("//core/quality:family_hooks.bzl", "default_files_hook", "stage", "without")
-load("//core/quality:jvm_check.bzl", "JvmCheckInfo", "jvm_check_aspect")
+load("//core/quality:jvm_check.bzl", "JvmCheckInfo", "android_sdk_jars", "jvm_android_sdk_aspect", "jvm_check_aspect")
 load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 load("//java/private/quality/tools:jar_lsp_tool.bzl", "PklLspToolInfo")
 
@@ -104,6 +104,7 @@ SHARD_SPECS = {
             ),
             "_config_tier": attr.label(default = "//config:config_tier"),
         },
+        "requires": [jvm_android_sdk_aspect],
         "shard": "jvm",
     },
     "real_jvm_typecheck": {
@@ -195,6 +196,9 @@ def _spotbugs_hook(target, ctx, resolved, _capability, _what, _shared):
         if output.class_jar != None and ".." not in output.class_jar.short_path.split("/"):
             owned[output.class_jar.path] = output.class_jar
     auxiliary = _jvm_aux_jars(target[JavaInfo], owned)
+    for jar in android_sdk_jars(target).to_list():
+        if jar.path not in owned:
+            auxiliary[jar.path] = jar
     if ctx.configuration.coverage_enabled and hasattr(ctx.attr, "_jacoco_runtime"):
         for jar in _jacoco_runtime_jars(ctx):
             if jar.path not in owned:
@@ -251,11 +255,24 @@ HOOKS = {
     "pkl_lsp": _pkl_lsp_hook,
 }
 
+_JVM_SOURCE_KINDS = ["android_library", "java_library", "kt_android_library", "kt_jvm_library"]
+
+def _jvm_sources(target, ctx):
+    if JavaInfo not in target or ctx.rule.kind not in _JVM_SOURCE_KINDS:
+        return None
+    srcs = getattr(ctx.rule.files, "srcs", None)
+    if srcs == None:
+        return struct(files = [], error = "upstream " + ctx.rule.kind + " target has no readable srcs; unsupported ownership is unchecked, not clean")
+    return struct(files = list(srcs), error = "")
+
+RECOGNIZER = _jvm_sources
+
 _CFG = real_config(
     tools = TOOLS,
     shard_specs = SHARD_SPECS,
     hook_order = HOOK_ORDER,
     context_hooks = HOOKS,
+    source_recognizers = [RECOGNIZER],
 )
 
 real_jvm_format_aspect = real_make_aspect(_CFG, "real_jvm_format")

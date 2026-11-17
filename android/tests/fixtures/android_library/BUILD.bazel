@@ -8,7 +8,7 @@ android_java_library(
     testonly = True,
     srcs = ["java/Screen.java"],
     custom_package = "com.example.dxjava",
-    visibility = ["//visibility:private"],
+    visibility = ["//core/quality/testdata:__pkg__"],
 )
 
 android_kotlin_library(
@@ -16,7 +16,7 @@ android_kotlin_library(
     testonly = True,
     srcs = ["kotlin/Screen.kt"],
     custom_package = "com.example.dxkotlin",
-    visibility = ["//visibility:private"],
+    visibility = ["//core/quality/testdata:__pkg__"],
 )
 
 build_test(

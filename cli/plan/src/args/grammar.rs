@@ -164,6 +164,9 @@ pub(crate) struct Flags {
     pub(crate) reason: Option<String>,
     pub(crate) accept: Vec<String>,
     pub(crate) expires: Option<String>,
+    pub(crate) verify: Option<String>,
+    pub(crate) repo: Option<String>,
+    pub(crate) bundle: Option<String>,
     pub(crate) cases: bool,
     pub(crate) create: Option<String>,
     pub(crate) force: bool,
@@ -743,6 +746,39 @@ composite_group! {
     }
 }
 
+flag_group! {
+    /// Verify a downloaded asset against its Sigstore bundle and attestation (needs --repo).
+    VerifyFlag, {
+        #[arg(long, value_name = "FILE", overrides_with = "verify", value_parser = non_empty)]
+        verify: Option<String>,
+    }
+}
+
+flag_group! {
+    /// The GitHub repository that must have signed the asset, OWNER/NAME (needs --verify).
+    RepoFlag, {
+        #[arg(long, value_name = "OWNER/NAME", overrides_with = "repo", value_parser = non_empty)]
+        repo: Option<String>,
+    }
+}
+
+flag_group! {
+    /// The Sigstore bundle, default <FILE>.sigstore.json (needs --verify).
+    BundleFlag, {
+        #[arg(long, value_name = "FILE", overrides_with = "bundle", value_parser = non_empty)]
+        bundle: Option<String>,
+    }
+}
+
+composite_group! {
+    /// The flags that verify a downloaded asset.
+    VerifyArgs, {
+        verify: VerifyFlag,
+        repo: RepoFlag,
+        bundle: BundleFlag,
+    }
+}
+
 composite_group! {
     /// The floor flags.
     FloorArgs, {
@@ -1015,6 +1051,7 @@ command_args! {
         frozen: FrozenFlag,
         fail_on: FailOnFlag,
         accept: AcceptArgs,
+        verify: VerifyArgs,
         report: ReportFlag,
         here: HereFlag,
         affected: AffectedFlag,

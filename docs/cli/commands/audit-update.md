@@ -14,6 +14,7 @@ tools/dx security --report sarif=security.sarif core/quality/tools/python
 
 ```text
 dx security [--here] [--affected [--since <ref>]] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif=<dest>] [--accept <advisory>[:<package>]|uncovered:<set> --reason <text> --expires <YYYY-MM-DD>] [scope...]
+dx security --verify <file> --repo <owner/name> [--bundle <file>.sigstore.json]
 dx license  [--here] [--affected [--since <ref>]] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif|spdx|cyclonedx=<dest>] [--accept <package> --reason <text> --expires <YYYY-MM-DD>] [scope...]
 ```
 
@@ -157,6 +158,20 @@ Add `#:schema https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/audit
 
 Freshness and expiry use today's UTC date. Set `DX_AUDIT_TODAY=YYYY-MM-DD` to pin it.
 
+### Verifying a downloaded asset
+
+`dx security --verify <file> --repo <owner/name>` checks one downloaded asset, such as a release archive, against its Sigstore bundle. It runs no audit.
+
+```sh
+tools/dx security --verify dx-linux-x86_64.tar.gz --repo devhusdk/rules_dx --bundle dx-sha256sums.txt.sigstore.json
+```
+
+- `--bundle` defaults to `<file>.sigstore.json`. A bundle from `cosign sign-blob` is checked with `cosign verify-blob`; an attestation bundle from `actions/attest` with `cosign verify-blob-attestation --type https://slsa.dev/provenance/v1`.
+- cosign is the pinned `@rules_dx//deploy/private/release:cosign`; set `DX_COSIGN_BIN` to an absolute path to use another copy.
+- The signing certificate must come from a GitHub Actions workflow in `<owner/name>` (`https://token.actions.githubusercontent.com`). The signer identity is printed.
+- When `gh` is on `PATH`, `gh attestation verify <file> --repo <owner/name>` runs too. Without `gh` that check is skipped and says so.
+- A changed byte, a different signer or a missing bundle exits `1`.
+
 ### Output
 
 Text prints `<path>: <severity>: <message> [<tool>/<rule>]` per finding. Lines go to stderr when a report goes to stdout.
@@ -183,7 +198,7 @@ A relative report destination anchors at the workspace root. Colliding destinati
 | Code | Meaning |
 | --- | --- |
 | `0` | Success, or `no affected targets`. |
-| `1` | A finding at or above `--fail-on`, an unassessed package, `offline_required`, or an `--accept` that matches no finding. |
+| `1` | A finding at or above `--fail-on`, an unassessed package, `offline_required`, an `--accept` that matches no finding, or a `--verify` that fails. |
 | `2` | Usage error, or a scope that owns no set. |
 | `3` | A `security.toml` or `license.toml` that cannot be read or written. |
 

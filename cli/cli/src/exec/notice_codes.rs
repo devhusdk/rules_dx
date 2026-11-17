@@ -24,6 +24,7 @@ pub(crate) const CODE_COMMIT_NOT_CONVENTIONAL: &str = "commit_not_conventional";
 pub(crate) const CODE_AUDIT_SECURITY_CLEAN: &str = "audit_security_clean";
 pub(crate) const CODE_AUDIT_LICENSE_CLEAN: &str = "audit_license_clean";
 pub(crate) const CODE_AUDIT_ACCEPTED: &str = "audit_accepted";
+pub(crate) const CODE_SECURITY_VERIFIED: &str = "security_verified";
 
 /// The info notice code for an audit family that came back clean.
 pub(crate) fn audit_clean_code(family: dx_audit::AuditFamily) -> &'static str {

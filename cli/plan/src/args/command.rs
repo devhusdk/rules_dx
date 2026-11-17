@@ -142,7 +142,7 @@ static SECURITY: CommandMeta = CommandMeta {
     name: "security",
     scope_policy: "default-//...",
     describe: "run security audit over resolved scopes (non-mutating; live Gitleaks plus advisory/vuln backends)",
-    usage: "Usage: dx security [--accept <advisory>[:<package>]|uncovered:<set> --reason <text> --expires <YYYY-MM-DD>] [--offline] [--frozen] [--here] [--affected [--since <ref>]] [scope ...]",
+    usage: "Usage: dx security [--accept <advisory>[:<package>]|uncovered:<set> --reason <text> --expires <YYYY-MM-DD>] [--offline] [--frozen] [--here] [--affected [--since <ref>]] [scope ...]\n       dx security --verify <file> --repo <owner/name> [--bundle <file>.sigstore.json]",
     scopes: "Scopes: dependency-set/package/target selectors; With no scope, this command runs //...; pass --affected to run only what your changes reach. It audits secrets plus vulnerabilities. Pass --here for the current directory tree instead; --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base (or the ref given with --since) plus their reverse dependencies; it cannot be combined with scopes or --here.",
     is_managed: false,
     is_adoption: false,

@@ -48,6 +48,7 @@ mod quality_security;
 mod results;
 mod run;
 mod rustc_stderr;
+mod security_verify;
 mod skipped_targets;
 mod staged;
 #[cfg(test)]
@@ -360,6 +361,9 @@ fn dispatch_inner(invocation: &Invocation, env: Env<'_>) -> i32 {
         Command::Generate => generate::execute_generate(invocation, env),
         Command::Clean => clean::execute_clean(invocation, env),
         Command::Sync => managed::execute_managed(invocation, env),
+        Command::Security if invocation.verify.is_some() => {
+            security_verify::execute_verify(invocation, env)
+        }
         Command::Security | Command::License => audit::execute_audit(invocation, env),
         Command::Update if update_advisory::selected(invocation) => {
             update_advisory::execute_update_advisory(invocation, env)

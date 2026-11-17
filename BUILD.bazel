@@ -13,6 +13,7 @@ load("//javascript:defs.bzl", "js_library")
 # gazelle:resolve rust runfiles @rules_rust//rust/runfiles
 # gazelle:resolve rust serde @crates//:serde
 # gazelle:resolve rust serde_json @crates//:serde_json
+# gazelle:resolve rust tempfile @crates//:tempfile
 # gazelle:resolve rust shard_test_support //tools/docs/ir/ir:shard_test_support
 # gazelle:dx_rust_corpus true
 # gazelle:dx_external maven third_party/jvm/maven_install.json maven

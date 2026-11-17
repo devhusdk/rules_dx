@@ -111,6 +111,7 @@ workspace_policy(
         ":avro_family",
         ":bicep_family",
         ":biome_json_family",
+        ":capnp_family",
         ":cloudformation_family",
         ":cmake_family",
         "//core/quality/testdata/d_owned:d_family",
@@ -124,6 +125,7 @@ workspace_policy(
         ":cue_family",
         ":eslint_js_family",
         ":eslint_ts_family",
+        ":flatbuffers_family",
         ":formatted_toml_family",
         "//core/quality/testdata/haskell_owned:haskell_family",
         ":helm_family",
@@ -145,6 +147,7 @@ workspace_policy(
         ":sql_family",
         ":starlark_family",
         ":terraform_family",
+        ":thrift_family",
         ":typst_family",
         ":yaml_family",
         "//core/quality/testdata:qml_family",
@@ -747,6 +750,30 @@ quality_family(
     format = ["prettier"],
     lint = ["avro_tools"],
     typecheck = ["avro_tools"],
+)
+
+quality_family(
+    name = "capnp_family",
+    disabled = ["audit", "format"],
+    family_id = "capnp",
+    lint = ["capnp"],
+    typecheck = ["capnp"],
+)
+
+quality_family(
+    name = "flatbuffers_family",
+    disabled = ["audit", "format"],
+    family_id = "flatbuffers",
+    lint = ["flatc"],
+    typecheck = ["flatc"],
+)
+
+quality_family(
+    name = "thrift_family",
+    disabled = ["audit", "format"],
+    family_id = "thrift",
+    lint = ["thrift"],
+    typecheck = ["thrift"],
 )
 
 quality_family(

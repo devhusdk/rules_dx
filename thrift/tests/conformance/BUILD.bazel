@@ -1,0 +1,49 @@
+# gazelle:ignore
+load("//thrift:defs.bzl", "thrift_library")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+thrift_library(
+    name = "conformance",
+    srcs = ["clean.thrift"],
+)
+
+thrift_library(
+    name = "lint_dirty",
+    srcs = ["lint_dirty.thrift"],
+    tags = ["manual"],
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":conformance",
+    covered_source = "",
+    expected = "",
+    failing_case = "",
+    failing_test = ":conformance",
+    lang = "thrift",
+    not_applicable = {
+        "build_test": "thrift has no binary rule",
+        "coverage_test": "thrift has no test rule",
+        "cross_test": "thrift has no binary rule",
+        "fail_test": "thrift has no test rule",
+        "format_error_test": "the thrift compiler has no formatter",
+        "format_test": "the thrift compiler has no formatter",
+        "lock_test": "thrift has no package manager",
+        "pass_test": "thrift has no test rule",
+        "runfiles_test": "thrift has no binary rule",
+    },
+    passing_test = ":conformance",
+    quality = {
+        "clean": ":conformance",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 4,
+        "lint_rule": "error",
+        "lint_source": "lint_dirty.thrift",
+    },
+)

@@ -1,0 +1,5 @@
+namespace conformance;
+
+table Dirty {
+  text string;
+}

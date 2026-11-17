@@ -1,0 +1,49 @@
+# gazelle:ignore
+load("//capnproto:defs.bzl", "capnproto_library")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+capnproto_library(
+    name = "conformance",
+    srcs = ["clean.capnp"],
+)
+
+capnproto_library(
+    name = "lint_dirty",
+    srcs = ["lint_dirty.capnp"],
+    tags = ["manual"],
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":conformance",
+    covered_source = "",
+    expected = "",
+    failing_case = "",
+    failing_test = ":conformance",
+    lang = "capnproto",
+    not_applicable = {
+        "build_test": "capnproto has no binary rule",
+        "coverage_test": "capnproto has no test rule",
+        "cross_test": "capnproto has no binary rule",
+        "fail_test": "capnproto has no test rule",
+        "format_error_test": "no maintained .capnp formatter exists",
+        "format_test": "no maintained .capnp formatter exists",
+        "lock_test": "capnproto has no package manager",
+        "pass_test": "capnproto has no test rule",
+        "runfiles_test": "capnproto has no binary rule",
+    },
+    passing_test = ":conformance",
+    quality = {
+        "clean": ":conformance",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 4,
+        "lint_rule": "error",
+        "lint_source": "lint_dirty.capnp",
+    },
+)

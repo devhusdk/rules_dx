@@ -26,12 +26,14 @@ _QUALITY_CONFIGS = {
     "api_spec": "shared",
     "avro": "shared",
     "bicep": "shared",
+    "capnproto": "shared",
     "cmake": "shared",
     "csharp": "shared",
     "dart": "tool_overrides",
     "dotnet": "shared",
     "elixir": "tool_overrides",
     "erlang": "tool_overrides",
+    "flatbuffers": "shared",
     "flutter": "tool_overrides",
     "fsharp": "shared",
     "julia": "tool_overrides",
@@ -45,6 +47,7 @@ _QUALITY_CONFIGS = {
     "sql": "shared",
     "swift": "tool_overrides",
     "terraform": "shared",
+    "thrift": "shared",
 }
 
 _core_format_subject = config_subject_rule([real_format_aspect], [OutputGroupInfo])

@@ -422,11 +422,10 @@ foreach ($required in @("toolchain\usr\bin\swiftc.exe", "toolchain\usr\bin\llvm-
 
 $machines = @{ "windows_x86_64" = 0x8664; "windows_arm64" = 0xAA64 }
 $peChecked = @("toolchain\usr\bin\swiftc.exe", "toolchain\usr\bin\swift-format.exe", "runtime\usr\bin\swiftCore.dll")
-if ($Cell -eq "windows_x86_64") {
-    $testingDll = "platform\Developer\Library\Testing-$XCTestVersion\usr\bin64\Testing.dll"
-    if (-not (Test-Path -LiteralPath (Join-Path $Out $testingDll))) { Fail "$testingDll is missing from the extracted layout" }
-    $peChecked += $testingDll
-}
+$binDirs = @{ "windows_x86_64" = "bin64"; "windows_arm64" = "bin64a" }
+$testingDll = "platform\Developer\Library\Testing-$XCTestVersion\usr\$($binDirs[$Cell])\Testing.dll"
+if (-not (Test-Path -LiteralPath (Join-Path $Out $testingDll))) { Fail "$testingDll is missing from the extracted layout" }
+$peChecked += $testingDll
 foreach ($required in $peChecked) {
     $machine = Get-PeMachine (Join-Path $Out $required)
     if ($machine -ne [int]$machines[$Cell]) { Fail ("$required is PE machine 0x{0:X4}, not the one of $Cell" -f $machine) }

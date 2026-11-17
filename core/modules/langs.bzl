@@ -3132,6 +3132,7 @@ LANGS = json.decode("""{
       "linux_arm64",
       "linux_x86_64",
       "macos_arm64",
+      "windows_arm64",
       "windows_x86_64"
     ],
     "quality": {
@@ -3182,10 +3183,7 @@ LANGS = json.decode("""{
     "tools": [
       "swift_format",
       "swift_lint"
-    ],
-    "unsupported": {
-      "windows_arm64": "The Swift Windows arm64 toolchain is registered but unverified on Windows ARM"
-    }
+    ]
   },
   "terraform": {
     "ecosystems": [],

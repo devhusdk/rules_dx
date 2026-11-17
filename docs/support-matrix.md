@@ -46,7 +46,7 @@ Each suite column names the platforms the conformance test runs on, `n/a` with i
 | Rust | none | `cargo` | `rust_bench` | `rust_fuzz_test` | all | all | all | all | all | all |
 | Scala | none | `maven` | `scala_bench` | `scala_fuzz_test` | all | all | all | all | pending | all |
 | Svelte | none | `npm` | n/a | n/a | n/a: svelte has no binary rule | all | all | all | n/a: svelte has no binary rule | n/a: svelte has no binary rule |
-| Swift | `windows_arm64`: The Swift Windows arm64 toolchain is registered but unverified on Windows ARM | `swiftpm` | `swift_bench` | `swift_fuzz_test` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`; n/a: swift cross-compiles to linux only from a linux host | pending |
+| Swift | none | `swiftpm` | `swift_bench` | `swift_fuzz_test` | all | all | all | all | `linux_arm64`, `linux_x86_64`; n/a: swift cross-compiles to linux only from a linux host | pending |
 | TypeScript | none | `npm` | `typescript_bench` | `typescript_fuzz_test` | all | all | all | all | all | all |
 | Vue | none | `npm` | n/a | n/a | n/a: vue has no binary rule | all | all | all | n/a: vue has no binary rule | n/a: vue has no binary rule |
 | Zig | none | `zig_deps` (`build.zig.zon` `.dependencies`, pinned by sha256) | `zig_bench` | n/a | all | all | all | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_arm64`; pending on `windows_x86_64` | all | pending |
@@ -111,7 +111,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Rust | `clippy`, `typos` | `rustfmt` | `rustc` | `rustdoc` | `rustc dead_code` |
 | Scala | `scalafix`, `typos` | `scalafmt` | `scalac` | `scaladoc` | `scalac -Wunused` |
 | Svelte | `eslint`, `typos` | `prettier` | `tsc` | `svelte2tsx` | `eslint @typescript-eslint/no-unused-vars` |
-| Swift | `swift_lint` (not on `windows_arm64`: the Swift Windows toolchain is registered but unverified on windows_arm64), `typos` | `swift_format` (not on `windows_arm64`: the Swift Windows toolchain is registered but unverified on windows_arm64) | `swiftc` | `swift-symbolgraph-extract` | no |
+| Swift | `swift_lint`, `typos` | `swift_format` | `swiftc` | `swift-symbolgraph-extract` | no |
 | TypeScript | `biome`, `eslint`, `typos` | `biome` | `tsc` | `typedoc` | `eslint no-unused-vars` |
 | Vue | `eslint`, `typos` | `prettier` | `tsc` | `vue-component-meta` | `eslint @typescript-eslint/no-unused-vars` |
 | Zig | `typos`, `zig_ast_check` | `zig_fmt` | `zig` | `zig std.zig.Ast` | `zig ast-check unused local, unused parameter` |

@@ -90,21 +90,27 @@ swift_windows_extract_test(
     size = "small",
 )
 
-powershell_test(
-    name = "toolchain_dlls_test_x86_64",
-    size = "small",
-    srcs = ["toolchain_dlls_test.ps1"],
-    data = [
-        "@dx_swift_windows_x86_64//:swiftc",
-        "@dx_swift_windows_x86_64//:toolchain_files",
-    ],
-    env = {"DX_SWIFTC": "$(rlocationpath @dx_swift_windows_x86_64//:swiftc)"},
-    target_compatible_with = [
-        "@platforms//os:windows",
-        "@platforms//cpu:x86_64",
-    ],
-    deps = ["@rules_powershell//powershell/runfiles"],
-)
+[
+    powershell_test(
+        name = "toolchain_dlls_test_" + cpu,
+        size = "small",
+        srcs = ["toolchain_dlls_test.ps1"],
+        data = [
+            "@dx_swift_windows_%s//:swiftc" % cpu,
+            "@dx_swift_windows_%s//:toolchain_files" % cpu,
+        ],
+        env = {"DX_SWIFTC": "$(rlocationpath @dx_swift_windows_%s//:swiftc)" % cpu},
+        target_compatible_with = [
+            "@platforms//os:windows",
+            "@platforms//cpu:" + cpu,
+        ],
+        deps = ["@rules_powershell//powershell/runfiles"],
+    )
+    for cpu in [
+        "aarch64",
+        "x86_64",
+    ]
+]
 
 [
     rust_test(

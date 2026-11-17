@@ -7,13 +7,12 @@ package(
     default_visibility = ["//:__subpackages__"],
 )
 
-_WINDOWS_X86_64 = ["@platforms//os:windows", "@platforms//cpu:x86_64"]
 
 swift_library(
     name = "add",
     srcs = ["add.swift"],
     module_name = "Add",
-    target_compatible_with = _WINDOWS_X86_64,
+    target_compatible_with = ["@platforms//os:windows"],
 )
 
 rust_test(
@@ -22,8 +21,11 @@ rust_test(
     srcs = ["rust_link.rs"],
     edition = "2024",
     link_deps = [":add"],
-    runtime_dlls = ["@dx_swift_windows_x86_64//:runtime_dlls"],
-    target_compatible_with = _WINDOWS_X86_64,
+    runtime_dlls = select({
+        "//swift/private/platforms:is_windows_aarch64": ["@dx_swift_windows_aarch64//:runtime_dlls"],
+        "//swift/private/platforms:is_windows_x86_64": ["@dx_swift_windows_x86_64//:runtime_dlls"],
+    }),
+    target_compatible_with = ["@platforms//os:windows"],
 )
 
 real_source_target(

@@ -104,6 +104,7 @@ cc_library(
     srcs = select({
         "//swift/private/platforms:is_linux_aarch64": ["@dx_swift_linux_aarch64//:usr/lib/clang/21/lib/linux/libclang_rt.profile-aarch64.a"],
         "//swift/private/platforms:is_linux_x86_64": ["@dx_swift_linux_x86_64//:usr/lib/clang/21/lib/linux/libclang_rt.profile-x86_64.a"],
+        "//swift/private/platforms:is_windows_aarch64": ["@dx_swift_windows_aarch64//:profile_runtime"],
         "//swift/private/platforms:is_windows_x86_64": ["@dx_swift_windows_x86_64//:profile_runtime"],
         "//conditions:default": [],
     }),

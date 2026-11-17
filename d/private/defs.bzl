@@ -5,6 +5,7 @@ load("@rules_d//d:defs.bzl", _d_binary = "d_binary", _d_library = "d_library", _
 load("@rules_d//d/private:providers.bzl", _DInfo = "DInfo")
 load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
+load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//core:rlocation.bzl", "rlocation_path")
 load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
@@ -47,7 +48,7 @@ def _d_test_coverage(ctx, upstream):
     )
     sources = depset(ctx.files.srcs, transitive = [dep[DInfo].interface_srcs for dep in ctx.attr.deps if DInfo in dep])
     exe = upstream[DefaultInfo].files_to_run.executable
-    launcher = ctx.attr._d_coverage_launcher[DefaultInfo]
+    launcher = ctx.attr._d_coverage_launcher[0][DefaultInfo]
     env = {}
     inherited = []
     if RunEnvironmentInfo in upstream:
@@ -70,7 +71,7 @@ _d_forward_test = dx_executable_forward_rule(
         "_d_coverage_launcher": attr.label(
             default = Label("//d/private/coverage:d_coverage_launcher"),
             executable = True,
-            cfg = "target",
+            cfg = no_coverage_transition,
         ),
     },
     coverage_providers = _d_test_coverage,

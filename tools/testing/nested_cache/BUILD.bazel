@@ -18,6 +18,13 @@ filegroup(
 )
 
 filegroup(
+    name = "apple_locks",
+    testonly = True,
+    srcs = ["apple.MODULE.bazel.lock"],
+    visibility = ["//apple/tests:__pkg__"],
+)
+
+filegroup(
     name = "harness_locks",
     testonly = True,
     srcs = [

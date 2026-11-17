@@ -52,7 +52,7 @@ nested_bazel_test(
     timeout = "long",
     srcs = ["consumer_build_test.rs"],
     cache = "apple",
-    cache_locks = "//tools/testing/nested_cache:harness_locks",
+    cache_locks = "//tools/testing/nested_cache:apple_locks",
     crate_name = "consumer_build_test",
     crate_root = "consumer_build_test.rs",
     data = [

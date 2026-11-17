@@ -23,7 +23,7 @@ pub fn parse_perl_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Dep
             continue;
         }
         if let Some(caps) = on_re.captures(line) {
-            phase = caps[1].to_owned();
+            caps[1].clone_into(&mut phase);
             continue;
         }
         if line.starts_with('}') {

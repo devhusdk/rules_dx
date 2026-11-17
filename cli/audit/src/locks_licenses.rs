@@ -156,7 +156,7 @@ pub fn inventory_licenses(
                     continue;
                 }
                 if crate::vuln::version_affected(set, &entry.versions, &package.version) {
-                    license = entry.license.clone();
+                    license.clone_from(&entry.license);
                     break;
                 }
             }

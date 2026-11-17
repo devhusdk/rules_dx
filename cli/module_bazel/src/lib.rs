@@ -1474,9 +1474,8 @@ impl ModuleFile {
                 });
             }
         };
-        let items = match call.arg("artifacts") {
-            Some(Value::List(items)) => items,
-            _ => return Err(ModuleError::ComputedArtifacts { line: call.line }),
+        let Some(Value::List(items)) = call.arg("artifacts") else {
+            return Err(ModuleError::ComputedArtifacts { line: call.line });
         };
         let mut last = None;
         for item in items {

@@ -4,7 +4,9 @@ pub const COMMIT_JSON_ENV: &str = "DX_BUMP_GITHUB_COMMIT_JSON";
 
 #[must_use]
 pub fn workflow_file(name: &str) -> bool {
-    name.ends_with(".yml") || name.ends_with(".yaml")
+    std::path::Path::new(name)
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("yml") || ext.eq_ignore_ascii_case("yaml"))
 }
 
 use saphyr_parser::{Event, Parser, ScalarStyle};
@@ -287,7 +289,9 @@ pub fn pin_targets_package(kind: UsesKind, value: &str, package: &str) -> bool {
         }
         (UsesKind::Job, Some(path)) => {
             path.starts_with(".github/workflows/")
-                && (path.ends_with(".yml") || path.ends_with(".yaml"))
+                && (std::path::Path::new(path).extension().is_some_and(|ext| {
+                    ext.eq_ignore_ascii_case("yml") || ext.eq_ignore_ascii_case("yaml")
+                }))
         }
     }
 }

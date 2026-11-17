@@ -226,9 +226,8 @@ pub fn workspace_missing(workspace: &Path) -> Vec<(&'static str, Vec<String>)> {
     HOOK_FILES
         .into_iter()
         .filter_map(|file| {
-            let existing = match std::fs::read_to_string(workspace.join(file.path)) {
-                Ok(text) => text,
-                Err(_) => return None,
+            let Ok(existing) = std::fs::read_to_string(workspace.join(file.path)) else {
+                return None;
             };
             let missing = missing_entries(file, &existing);
             (!missing.is_empty()).then_some((file.path, missing))

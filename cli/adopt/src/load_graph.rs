@@ -807,7 +807,11 @@ fn implementation_roots(
     let candidates: Vec<String> = graph
         .loads
         .keys()
-        .filter(|rel| rel.ends_with(".bzl"))
+        .filter(|rel| {
+            std::path::Path::new(rel)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("bzl"))
+        })
         .cloned()
         .collect();
     for rel in candidates {
@@ -824,7 +828,10 @@ fn implementation_roots(
         let dir = rel.rsplit_once('/').map_or("", |(dir, _)| dir).to_owned();
         roots.push(rel.clone());
         for lit in literals {
-            if !lit.ends_with(".bzl") {
+            if !std::path::Path::new(lit)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("bzl"))
+            {
                 continue;
             }
             if let Some((target, package)) = label_path(lit, &dir, &graph.names) {

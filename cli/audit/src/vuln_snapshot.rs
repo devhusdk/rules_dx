@@ -240,17 +240,15 @@ fn project_osv_affected(
     if id.is_empty() {
         return Vec::new();
     }
-    let package = match affected.package.as_ref() {
-        Some(package) => package,
-        None => return Vec::new(),
+    let Some(package) = affected.package.as_ref() else {
+        return Vec::new();
     };
     let name = package.name.trim();
     if name.is_empty() {
         return Vec::new();
     }
-    let set = match ecosystem_to_set(&package.ecosystem) {
-        Some(set) => set,
-        None => return Vec::new(),
+    let Some(set) = ecosystem_to_set(&package.ecosystem) else {
+        return Vec::new();
     };
     let severity = osv_severity_text(vuln, affected);
     let kind = osv_kind(affected);

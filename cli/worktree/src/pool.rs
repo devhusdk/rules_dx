@@ -226,8 +226,8 @@ impl Record {
 
     /// Hands the lease to `who`.
     pub(crate) fn lease_to(&mut self, who: &Who) {
-        self.session = who.session.clone();
-        self.agent = who.agent.clone();
+        self.session.clone_from(&who.session);
+        self.agent.clone_from(&who.agent);
         self.pid = Some(who.pid);
         self.gone = false;
         self.stopped_at = None;
@@ -435,7 +435,7 @@ impl Pool {
     pub(super) fn checkouts(&self) -> Result<Vec<git::Checkout>, WorktreeError> {
         let mut found = git::checkouts(&self.main)?;
         if let Some(first) = found.first_mut() {
-            first.path = self.main.clone();
+            first.path.clone_from(&self.main);
         }
         Ok(found)
     }

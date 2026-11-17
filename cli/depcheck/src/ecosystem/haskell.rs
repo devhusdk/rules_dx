@@ -39,7 +39,7 @@ pub fn parse_haskell_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, 
         let lower = item.to_lowercase();
         if indent == 0 {
             if let Some(name) = lower.strip_prefix("name:") {
-                package = name.trim().to_owned();
+                name.trim().clone_into(&mut package);
             } else if lower.starts_with("test-suite") || lower.starts_with("benchmark") {
                 category = "dev";
             } else {
@@ -49,10 +49,9 @@ pub fn parse_haskell_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, 
         if let Some(rest) = lower.strip_prefix("build-depends:") {
             in_depends = true;
             field_indent = indent;
-            body = item
-                .get(item.len() - rest.len()..)
+            item.get(item.len() - rest.len()..)
                 .unwrap_or(rest)
-                .to_owned();
+                .clone_into(&mut body);
         }
     }
     flush(&mut body, category);

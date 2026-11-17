@@ -285,16 +285,13 @@ pub fn read_current_pair(workspace_root: &Path) -> Result<Option<SetupPair>, Com
     let generated = fs::read_link(current.join(GENERATED_LINK_NAME))
         .ok()
         .and_then(|target| generation_from_link_target(&target));
-    let (environment, generated) = match (environment, generated) {
-        (Some(environment), Some(generated)) => (environment, generated),
-        _ => {
-            return Err(CommitError::CurrentInvalid {
-                reason: format!(
-                    "{} does not resolve to a complete setup record",
-                    current.display()
-                ),
-            });
-        }
+    let (Some(environment), Some(generated)) = (environment, generated) else {
+        return Err(CommitError::CurrentInvalid {
+            reason: format!(
+                "{} does not resolve to a complete setup record",
+                current.display()
+            ),
+        });
     };
     let pair = SetupPair {
         environment,

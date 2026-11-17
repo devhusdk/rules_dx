@@ -58,7 +58,9 @@ fn direct_hosted(lock: &str) -> Vec<(String, String)> {
         } else if indent == 2 {
             finish(&name, direct, hosted, version.take());
             (direct, hosted) = (false, false);
-            name = text.trim_end_matches(':').trim_matches('"').to_owned();
+            text.trim_end_matches(':')
+                .trim_matches('"')
+                .clone_into(&mut name);
         } else if indent == 4 {
             let Some((key, value)) = text.split_once(':') else {
                 continue;
@@ -97,7 +99,7 @@ fn newest(body: &str, prereleases: bool) -> Result<(String, Option<String>), DxE
             if let Some(version) = entry.get("version").and_then(serde_json::Value::as_str)
                 && release_cmp(&strip_build(version), &strip_build(&best)) == Ordering::Greater
             {
-                best = version.to_owned();
+                version.clone_into(&mut best);
             }
         }
     }

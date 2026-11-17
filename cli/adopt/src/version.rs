@@ -32,13 +32,11 @@ pub fn version_pin_matches_module(dx_version: &str, module_version: &str) -> boo
     if dx_version.is_empty() || module_version.is_empty() {
         return false;
     }
-    let dx = match semver::Version::parse(dx_version) {
-        Ok(dx) => dx,
-        Err(_) => return false,
+    let Ok(dx) = semver::Version::parse(dx_version) else {
+        return false;
     };
-    let module = match semver::Version::parse(module_version) {
-        Ok(module) => module,
-        Err(_) => return false,
+    let Ok(module) = semver::Version::parse(module_version) else {
+        return false;
     };
     dx == module
 }

@@ -121,7 +121,13 @@ pub fn is_test_file(eco: Language, path: &Path) -> bool {
             name.ends_with("_spec.lua") || s.contains("/spec/") || s.contains("/tests/")
         }
         Language::Ocaml => s.contains("/test/") || s.contains("/tests/"),
-        Language::Perl => name.ends_with(".t") || s.contains("/t/") || s.contains("/xt/"),
+        Language::Perl => {
+            std::path::Path::new(&name)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("t"))
+                || s.contains("/t/")
+                || s.contains("/xt/")
+        }
         Language::Elixir => name.ends_with("_test.exs") || s.contains("/test/"),
         Language::Erlang => name.ends_with("_SUITE.erl") || s.contains("/test/"),
     }

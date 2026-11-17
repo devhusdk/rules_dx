@@ -58,7 +58,7 @@ pub fn parse_options(args: &[String]) -> Result<Options, String> {
             "--repro" => options.repro.get_or_insert_with(String::new),
             _ => return Err(USAGE.to_owned()),
         };
-        *slot = iter.next().ok_or_else(|| USAGE.to_owned())?.clone();
+        slot.clone_from(iter.next().ok_or_else(|| USAGE.to_owned())?);
     }
     Ok(options)
 }

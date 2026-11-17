@@ -297,7 +297,11 @@ fn generated_metadata_parses_on_its_platform() {
         let suffix_count = plans
             .iter()
             .flat_map(|plan| &plan.host_names)
-            .filter(|name| name.ends_with(".exe"))
+            .filter(|name| {
+                std::path::Path::new(name)
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("exe"))
+            })
             .count();
         assert_eq!(suffix_count > 0, windows);
     }

@@ -9,9 +9,8 @@ use yarn_lock_parser::parse_str;
 use crate::vuln::LockedPackage;
 
 fn pnpm_resolution_is_git(resolution: &yaml_serde::Value) -> bool {
-    let mapping = match resolution.as_mapping() {
-        Some(mapping) => mapping,
-        None => return false,
+    let Some(mapping) = resolution.as_mapping() else {
+        return false;
     };
     let get_str = |key: &str| -> Option<String> {
         mapping.iter().find_map(|(key_value, value)| {
@@ -101,9 +100,8 @@ fn pnpm_packages_from_value(
         None | Some(yaml_serde::Value::Null) => return Ok(()),
         Some(packages) => packages,
     };
-    let mapping = match packages.as_mapping() {
-        Some(mapping) => mapping,
-        None => return Ok(()),
+    let Some(mapping) = packages.as_mapping() else {
+        return Ok(());
     };
     for (key_value, detail) in mapping {
         let key = match key_value.as_str().map(str::trim) {

@@ -78,7 +78,7 @@ impl LauncherPins {
             if !slot.is_empty() {
                 return Err(pins_error(format!("{asset} is listed twice")));
             }
-            *slot = hash.to_owned();
+            hash.clone_into(slot);
         }
         if let Some((asset, _)) = RELEASE_ASSETS
             .iter()
@@ -125,7 +125,7 @@ impl LauncherPins {
             if !slot.is_empty() {
                 return Err(pins_error(format!("{asset} is listed twice")));
             }
-            *slot = hash.to_owned();
+            hash.clone_into(slot);
         }
         Ok(pins)
     }
@@ -230,7 +230,7 @@ fn pins_from_bzl(text: &str, version: &str) -> Result<LauncherPins, AdoptError> 
             if !valid_pin(hash) {
                 return Err(pins_error(format!("{asset} hash is not 64 lowercase hex")));
             }
-            *slot = hash.to_owned();
+            hash.clone_into(slot);
         }
     }
     if pinned_version != Some(version) || pins.sha256.iter().any(String::is_empty) {

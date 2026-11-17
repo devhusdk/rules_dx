@@ -54,6 +54,7 @@ dx_conformance_suite(
     size = "small",
     binary = ":hello",
     covered_source = "Greet.jl",
+    cross_runfile = "julia",
     expected = "hello world",
     failing_case = "failing case",
     failing_pattern = "{case}: Test Failed",

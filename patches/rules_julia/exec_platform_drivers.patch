@@ -1,0 +1,86 @@
+diff -ruN a/julia/private/julia.bzl b/julia/private/julia.bzl
+--- a/julia/private/julia.bzl
++++ b/julia/private/julia.bzl
+@@ -77,13 +77,16 @@
+ 
+     Returns:
+         bool: True if precompilation is enabled, the library has a package
+-            entry point, and the toolchain supports relocatable
+-            (`@depot`-relative) caches, which requires Julia 1.11.
++            entry point, the toolchain supports relocatable
++            (`@depot`-relative) caches, which requires Julia 1.11, and the
++            execution platform runs the target platform's Julia.
+     """
++    toolchain_info = ctx.toolchains[TOOLCHAIN_TYPE]
+     return (
+         ctx.attr.precompile and
+         layout.entry != None and
+-        julia_common.version_gte(ctx.toolchains[TOOLCHAIN_TYPE].version, "1.11.0")
++        julia_common.version_gte(toolchain_info.version, "1.11.0") and
++        not julia_common.is_cross(ctx, toolchain_info)
+     )
+ 
+ julia_library = rule(
+diff -ruN a/julia/private/julia_common.bzl b/julia/private/julia_common.bzl
+--- a/julia/private/julia_common.bzl
++++ b/julia/private/julia_common.bzl
+@@ -339,6 +339,29 @@
+         "-g" + toolchain_info.debug_info[mode],
+     ]
+ 
++def _exec_toolchain(ctx):
++    """The Julia toolchain of the execution platform, which runs build-time drivers.
++
++    Args:
++        ctx: Rule context.
++
++    Returns:
++        ToolchainInfo: The execution platform's Julia toolchain.
++    """
++    return ctx.attr._julia_toolchain_exec[platform_common.ToolchainInfo]
++
++def _is_cross(ctx, toolchain_info):
++    """Whether the target platform's Julia differs from the execution platform's.
++
++    Args:
++        ctx: Rule context.
++        toolchain_info (ToolchainInfo): The target platform's Julia toolchain.
++
++    Returns:
++        bool: True when the two toolchains carry different `julia` executables.
++    """
++    return _exec_toolchain(ctx).julia.short_path != toolchain_info.julia.short_path
++
+ def _shell_quote(value):
+     """Quote a string for POSIX shells."""
+     return "'" + value.replace("'", "'\\''") + "'"
+@@ -403,7 +426,7 @@
+         args.add(new)
+     _run_driver(
+         ctx,
+-        toolchain_info = toolchain_info,
++        toolchain_info = _exec_toolchain(ctx),
+         driver = ctx.file._wrapper_maker,
+         arguments = args,
+         inputs = depset([template_file]),
+@@ -643,6 +666,11 @@
+     "package_name": attr.string(
+         doc = "Package name; picks the `<package_name>.jl` entry. Defaults to the target name.",
+     ),
++    "_julia_toolchain_exec": attr.label(
++        doc = "The Julia toolchain of the execution platform, which runs the build-time drivers.",
++        cfg = "exec",
++        default = Label("//julia:current_julia_toolchain"),
++    ),
+     "_rules_julia_common": attr.label(
+         default = Label("//julia/private:rules_julia_common.jl"),
+         allow_single_file = True,
+@@ -676,6 +704,8 @@
+     collect_artifact_depots = _collect_artifact_depots,
+     package_layout = _package_layout,
+     precompile = _precompile,
++    exec_toolchain = _exec_toolchain,
++    is_cross = _is_cross,
+     run_driver = _run_driver,
+     write_runfiles_manifest = _write_runfiles_manifest,
+     version_gte = _version_gte,

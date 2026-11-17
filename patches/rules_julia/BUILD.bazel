@@ -2,6 +2,7 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 exports_files([
     "config_base_toml.patch",
+    "exec_platform_drivers.patch",
     "in_process_resolve_test.patch",
     "locate_installed_package.patch",
     "package_annotation_version.patch",

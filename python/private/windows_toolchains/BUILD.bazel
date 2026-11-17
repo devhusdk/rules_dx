@@ -2,6 +2,8 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 _EXEC_TOOLS_ENABLED = "@rules_python//python/config_settings:is_exec_tools_toolchain_enabled"
 
+_TOOLCHAINS_ON = "//config:toolchains_on"
+
 [
     [
         toolchain(
@@ -10,6 +12,7 @@ _EXEC_TOOLS_ENABLED = "@rules_python//python/config_settings:is_exec_tools_toolc
                 "@platforms//os:windows",
                 "@platforms//cpu:" + cpu,
             ],
+            target_settings = [_TOOLCHAINS_ON],
             toolchain = "@python_3_12_{}-pc-windows-msvc//:python_runtimes".format(cpu),
             toolchain_type = "@rules_python//python:toolchain_type",
         ),
@@ -19,6 +22,7 @@ _EXEC_TOOLS_ENABLED = "@rules_python//python/config_settings:is_exec_tools_toolc
                 "@platforms//os:windows",
                 "@platforms//cpu:" + cpu,
             ],
+            target_settings = [_TOOLCHAINS_ON],
             toolchain = "@python_3_12_{}-pc-windows-msvc//:py_cc_toolchain".format(cpu),
             toolchain_type = "@rules_python//python/cc:toolchain_type",
         ),
@@ -28,7 +32,10 @@ _EXEC_TOOLS_ENABLED = "@rules_python//python/config_settings:is_exec_tools_toolc
                 "@platforms//os:windows",
                 "@platforms//cpu:" + cpu,
             ],
-            target_settings = [_EXEC_TOOLS_ENABLED],
+            target_settings = [
+                _EXEC_TOOLS_ENABLED,
+                _TOOLCHAINS_ON,
+            ],
             toolchain = "@python_3_12_{}-pc-windows-msvc//:py_exec_tools_toolchain".format(cpu),
             toolchain_type = "@rules_python//python:exec_tools_toolchain_type",
         ),

@@ -221,11 +221,16 @@ pub fn tag_job_platforms(
                 continue;
             };
             let mut rest = run;
-            while let Some((_, after)) = rest.split_once("attr(tags,") {
+            while let Some((before, after)) = rest.split_once("attr(tags,") {
                 rest = after;
                 let Some((tag, _)) = rest.split_once(',') else {
                     return Err(format!("{path}: job {id} has an unterminated attr(tags,"));
                 };
+                // `except attr(tags, ...)` removes targets from a query; it selects
+                // no tests for this job, so its pattern says nothing about platforms.
+                if before.trim_end().ends_with("except") {
+                    continue;
+                }
                 let tag = tag.trim();
                 if tag.is_empty()
                     || !tag
@@ -406,6 +411,14 @@ jobs:
         let text = "jobs:\n  hermetic:\n    runs-on: ubuntu-latest\n    steps:\n      - run: |\n          bazel query 'attr(tags, hermetic-consumer, //...) except x'\n";
         let jobs = tag_job_platforms("ci.yml", text, &runners).expect("jobs");
         assert_eq!(jobs["hermetic-consumer"], ["linux_x86_64"]);
+    }
+
+    #[test]
+    fn ignores_tag_patterns_after_except() {
+        let runners = runner_platforms("ci.yml", CI).expect("runners");
+        let text = "jobs:\n  j:\n    runs-on: ubuntu-latest\n    steps:\n      - run: bazel query \"set(//...) except attr(tags, '\\bmanual\\b', set(//...))\"\n";
+        let jobs = tag_job_platforms("ci.yml", text, &runners).expect("jobs");
+        assert!(jobs.is_empty(), "{jobs:?}");
     }
 
     #[test]

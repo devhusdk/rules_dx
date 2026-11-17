@@ -20,6 +20,7 @@ load(
 load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain")
 load("//qt/private/toolchain:pins.bzl", "RUNTIME_PLUGINS")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
+load(":platform.bzl", "QT_PLATFORMS_ATTR", "QT_PLATFORM_TRANSITION")
 load(":providers.bzl", "QtInfo")
 load(":bundle.bzl", _QT_CONF = "QT_CONF", _qt_bundle = "qt_bundle", _qt_bundle_members = "qt_bundle_members", _qt_os_supplied_libraries = "qt_os_supplied_libraries", _qt_runtime_members = "qt_runtime_members")
 load(":cells.bzl", _QT_BUNDLE_COMPATIBLE_WITH = "QT_BUNDLE_COMPATIBLE_WITH", _QT_COMPATIBLE_WITH = "QT_COMPATIBLE_WITH", _qt_consumer_identity = "qt_consumer_identity")
@@ -205,16 +206,19 @@ _qt_binary_forward = rule(
     implementation = _qt_executable_forward_impl,
     doc = "Forwards a Qt executable and owns only its hand-written sources.",
     executable = True,
+    cfg = QT_PLATFORM_TRANSITION,
     provides = [DefaultInfo, QualitySourcesInfo, RunEnvironmentInfo],
-    attrs = dict(_EXECUTABLE_ATTRS, _headless = attr.bool(default = False), **(dx_forward_data_attr() | dx_run_env_attrs())),
+    attrs = dict(_EXECUTABLE_ATTRS, _headless = attr.bool(default = False), **(QT_PLATFORMS_ATTR | dx_forward_data_attr() | dx_run_env_attrs())),
 )
 
 _qt_forward_test = rule(
     implementation = _qt_executable_forward_impl,
     doc = "Forwards a Qt test and owns only its hand-written sources.",
     test = True,
+    cfg = QT_PLATFORM_TRANSITION,
     provides = [DefaultInfo, QualitySourcesInfo, RunEnvironmentInfo],
-    attrs = dict(_EXECUTABLE_ATTRS, _headless = attr.bool(default = True), upstream = attr.label(mandatory = True, providers = [CcInfo], cfg = QT_COVERAGE_TRANSITION, doc = "Private rules_cc test."), _coverage_probe = attr.label(default = Label("//qt/private:coverage_probe"), cfg = QT_COVERAGE_TRANSITION), **(dx_lcov_merger_attr() | qt_coverage_attrs() | dx_forward_data_attr() | dx_run_env_attrs())),
+    attrs = dict(_EXECUTABLE_ATTRS, _headless = attr.bool(default = True), upstream = attr.label(mandatory = True, providers = [CcInfo], cfg = QT_COVERAGE_TRANSITION, doc = "Private rules_cc test."), _coverage_probe = attr.label(default = Label("//qt/private:coverage_probe"), cfg = QT_COVERAGE_TRANSITION), **(QT_PLATFORMS_ATTR | dx_lcov_merger_attr() | qt_coverage_attrs() | dx_forward_data_attr() | dx_run_env_attrs())),
+    exec_groups = {"test": exec_group()},
     toolchains = qt_coverage_toolchains(),
 )
 
@@ -437,6 +441,7 @@ def _windows_console(test, modules):
 
 def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, plugins, copts, visibility, kwargs):
     _gate(kwargs)
+    platforms = kwargs.pop("platforms", [])
     for plugin in plugins:
         if plugin not in RUNTIME_PLUGINS:
             fail("qt_cc_" + rule_kind + ": plugin '" + plugin + "' is not one of " + ", ".join(sorted(RUNTIME_PLUGINS.keys())))
@@ -475,6 +480,7 @@ def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resourc
             "platform_plugins": qt + "//:platforms",
             "plugins": [qt + "//:plugins_" + plugin for plugin in plugins],
             "qml_imports": qt + "//:qml_imports" if _uses_qml(modules) else None,
+            "platforms": platforms,
         },
         quality_srcs = srcs,
         **kwargs

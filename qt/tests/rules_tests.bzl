@@ -5,6 +5,7 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//core:failure_test.bzl", "failure_test")
 load("//qt/private:defs.bzl", "QT_BUNDLE_COMPATIBLE_WITH", "QT_BUNDLE_MACOS_RUNPATH", "QT_COMPATIBLE_WITH", "QT_CONF", "qt_bundle_members", "qt_consumer_identity", "qt_framework_path", "qt_identifier", "qt_library_stem", "qt_module_path", "qt_package_path", "qt_qmldir", "qt_qrc", "qt_runtime_members")
+load("//qt/private:platform.bzl", "QT_PLATFORMS", "qt_host_cell", "qt_platform_settings", "qt_platforms")
 load("//qt/private:providers.bzl", "QtInfo")
 load("//qt/private:validate.bzl", "qt_uri_error")
 load("//qt/private/toolchain:pins.bzl", "CELLS")
@@ -20,8 +21,18 @@ _MACOS_ARM64 = ["@platforms//os:macos", "@platforms//cpu:arm64"]
 
 _LINUX_X86_64 = ["@platforms//os:linux", "@platforms//cpu:x86_64"]
 
+_COMPILER = str(Label("//cc:compiler"))
+
 def _unit_checks():
     return [
+        expect_equal("host cell linux x86_64", qt_host_cell(["@platforms//os:linux", "@platforms//cpu:x86_64"]), "linux_x86_64"),
+        expect_equal("host cell macos aarch64", qt_host_cell(["@platforms//cpu:aarch64", "@platforms//os:macos"]), "macos_arm64"),
+        expect_equal("host cell unqualified os", qt_host_cell(["@platforms//os:freebsd", "@platforms//cpu:x86_64"]), ""),
+        expect_equal("platforms attribute wins", qt_platforms(struct(platforms = [Label("//qt:macos_arm64")]), [Label("@bazel_tools//tools:host_platform")]), [str(Label("//qt:macos_arm64"))]),
+        expect_equal("chosen platform keeps", qt_platforms(struct(platforms = []), [Label("//qt:linux_arm64")]), []),
+        expect_equal("windows qt platform builds with msvc", qt_platform_settings({_COMPILER: ""}, [QT_PLATFORMS["windows_x86_64"]]), {_COMPILER: "msvc"}),
+        expect_equal("linux qt platform keeps compiler", qt_platform_settings({_COMPILER: "gcc"}, [QT_PLATFORMS["linux_x86_64"]]), {_COMPILER: "gcc"}),
+        expect_equal("current platform keeps compiler", qt_platform_settings({_COMPILER: "clang"}, []), {_COMPILER: "clang"}),
         expect_equal("consumer identity linux_arm64", qt_consumer_identity("linux_arm64"), struct(arch = "aarch64", os = "linux", min_runtime = "glibc-2.39")),
         expect_equal("consumer identity linux_x86_64", qt_consumer_identity("linux_x86_64"), struct(arch = "x86_64", os = "linux", min_runtime = "glibc-2.34")),
         expect_equal("consumer identity macos_arm64", qt_consumer_identity("macos_arm64"), struct(arch = "aarch64", os = "macos", min_runtime = "macos-14.4")),

@@ -23,7 +23,7 @@ load("//swift/private:providers.bzl", "SwiftDocsInfo")
 swift_interop_hint = _swift_interop_hint
 swift_library_group = _swift_library_group
 
-_PLATFORM_ATTR = {
+SWIFT_PLATFORM_ATTRS = {
     "platforms": attr.string_list(
         doc = "The one platform label to build for. Empty uses the command-line platform.",
     ),
@@ -31,7 +31,7 @@ _PLATFORM_ATTR = {
         default = [str(Label("@local_config_apple_cc_toolchains//:all"))],
     ),
 }
-_swift_platforms_transition = platforms_transition(
+swift_platforms_transition = platforms_transition(
     swift_platform_settings,
     inputs = SWIFT_PLATFORM_SETTINGS,
     outputs = SWIFT_PLATFORM_SETTINGS,
@@ -77,17 +77,17 @@ _swift_library_forward = dx_library_forward_rule(
     upstream_aspects = [swift_symbol_graph_aspect],
     required_providers = [(SwiftInfo, "SwiftInfo"), (CcInfo, "CcInfo")],
     upstream_providers = [[SwiftInfo]],
-    extra_attrs = _PLATFORM_ATTR,
+    extra_attrs = SWIFT_PLATFORM_ATTRS,
     runtime = "besteffort",
-    upstream_cfg = _swift_platforms_transition,
+    upstream_cfg = swift_platforms_transition,
 )
 
 _swift_binary_forward = dx_executable_forward_rule(
     _SWIFT,
     kind = "executable",
     provides = _EXEC_PROVIDES,
-    extra_attrs = _PLATFORM_ATTR | _RUNTIME_DLLS_ATTR,
-    upstream_cfg = _swift_platforms_transition,
+    extra_attrs = SWIFT_PLATFORM_ATTRS | _RUNTIME_DLLS_ATTR,
+    upstream_cfg = swift_platforms_transition,
     cfg = dx_msvc_crt_reset_transition,
     sibling_files = _swift_runtime_dlls,
 )
@@ -112,11 +112,11 @@ _swift_forward_test = dx_executable_forward_rule(
     _SWIFT,
     kind = "test",
     provides = _EXEC_PROVIDES,
-    extra_attrs = _PLATFORM_ATTR | _RUNTIME_DLLS_ATTR | dx_lcov_merger_attr() | dx_native_coverage_attrs() | {
+    extra_attrs = SWIFT_PLATFORM_ATTRS | _RUNTIME_DLLS_ATTR | dx_lcov_merger_attr() | dx_native_coverage_attrs() | {
         "_swift_llvm_cov": _swift_tool_attr("//swift/private/tools:llvm_cov"),
         "_swift_llvm_profdata": _swift_tool_attr("//swift/private/tools:llvm_profdata"),
     },
-    upstream_cfg = _swift_platforms_transition,
+    upstream_cfg = swift_platforms_transition,
     coverage_providers = _swift_test_coverage,
     toolchains = dx_native_coverage_toolchains(),
     cfg = dx_msvc_crt_reset_transition,

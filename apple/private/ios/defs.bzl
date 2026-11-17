@@ -295,7 +295,7 @@ ios_lib_cell = rule(
     fragments = ["apple"],
 )
 
-_cell_transition = platforms_transition(
+ios_cell_transition = platforms_transition(
     implementation = lambda settings, attr, platforms: cell_settings(settings, attr.environment, attr.arch, attr.deployment, attr.xcode_version, platforms),
     inputs = CELL_SETTINGS,
     outputs = CELL_SETTINGS,
@@ -320,7 +320,7 @@ ios_lib = rule(
         ),
         "cell": attr.label(
             doc = "The ios_lib_cell that checks the archive.",
-            cfg = _cell_transition,
+            cfg = ios_cell_transition,
             mandatory = True,
             providers = [CcInfo, AppleIosLibInfo],
         ),

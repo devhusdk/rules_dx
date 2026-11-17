@@ -7,6 +7,7 @@ load("//swift/private:defs.bzl", "swift_kwargs")
 load("//swift/private/toolchain:tests.bzl", "swift_linux_repo_test", "swift_toolchain_hub_test", "swift_windows_extract_test")
 load(":host_swift_tests.bzl", "swift_host_descriptor_test")
 load(":hub_tests.bzl", "swift_hub_tests")
+load(":platform_config_tests.bzl", "swift_platform_config_test")
 load(":transition_tests.bzl", "transition_test_suite")
 
 real_source_target(
@@ -17,6 +18,7 @@ real_source_target(
         "defs_tests.bzl",
         "host_swift_tests.bzl",
         "hub_tests.bzl",
+        "platform_config_tests.bzl",
         "transition_tests.bzl",
     ],
     tags = ["corpus"],
@@ -138,3 +140,5 @@ test_suite(
         "//swift/tests/fixtures/warnings:warnings_as_errors_test",
     ],
 )
+
+swift_platform_config_test(name = "platform_config_analysis")

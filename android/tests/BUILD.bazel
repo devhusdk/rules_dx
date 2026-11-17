@@ -5,6 +5,7 @@ load("//core:failure_test.bzl", "failure_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 load(":defs_tests.bzl", "android_native_library_tests")
+load(":platform_config_tests.bzl", "android_platform_config_test")
 load(":platforms_tests.bzl", "android_platform_tests")
 load(":rotation_tests.bzl", "keystore_properties_test")
 load(":toolchain_tests.bzl", "android_metadata_tests", "android_packaging_tests", "android_toolchain_tests")
@@ -405,6 +406,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs_tests.bzl",
+        "platform_config_tests.bzl",
         "platforms_tests.bzl",
         "rotation_tests.bzl",
         "toolchain_tests.bzl",
@@ -422,3 +424,5 @@ test_suite(
         "//android/tests/fixtures/testonly_apk:testonly_targets_analyze",
     ],
 )
+
+android_platform_config_test(name = "platform_config_analysis")

@@ -1,6 +1,7 @@
 load("@crates//:crates.bzl", "aliases")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
+load(":platform_config_tests.bzl", "apple_platform_config_test")
 load(":toolchain_tests.bzl", "apple_ios_tests")
 
 rust_test(
@@ -36,6 +37,7 @@ real_source_target(
         "BUILD.bazel",
         "cell_tests.bzl",
         "ios_lib_tests.bzl",
+        "platform_config_tests.bzl",
         "toolchain_tests.bzl",
     ],
     tags = ["corpus"],
@@ -59,3 +61,5 @@ filegroup(
     srcs = glob(["**"]),
     visibility = ["//:__subpackages__"],
 )
+
+apple_platform_config_test(name = "platform_config_analysis")

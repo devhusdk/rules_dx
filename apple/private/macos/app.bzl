@@ -19,7 +19,7 @@ load(":validate.bzl", "macos_app_errors")
 
 _CELL = "macos/arm64"
 
-_MACOS = ["@platforms//os:macos"]
+_MACOS = [Label("@platforms//os:macos")]
 
 _INFO_PLIST = """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

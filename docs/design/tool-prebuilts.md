@@ -94,7 +94,7 @@ Where release-built assets are hosted is the owner's decision. The rules above h
 - selene: upstream zips lack the Lua 5.2 to 5.4 parsers (Kampfkarren/selene#645). The default `std = "lua53+lua54"` (`lua/private/quality/selene.toml`) needs them, so every host is release-built from `@dx_selene_src`. Revisit when an upstream release enables the features. Gate it on `//lua/tests:selene_smoke_test`.
 - zanuda: it reads `.cmt` files of the consumer's OCaml. Windows is unsupported until the OCaml toolchain has a Windows cell.
 - weeder: it reads `.hie` files and is built with the consumer's GHC. `windows_x86_64` is supported once its matrix case passes. `windows_arm64` is unsupported because GHC ships no bindist for it.
-- Core Python tools: the release job assembles one bundle per host from a python-build-standalone interpreter and the wheels locked in `uv.lock`. Nothing is compiled. ansible-lint is unsupported on Windows.
+- Core Python tools: the `python-tools` job in `release-tools.yml` assembles one `dx-python-tools-<host>.tar.gz` bundle per host from a python-build-standalone interpreter and the wheels locked in `uv.lock`. Nothing is compiled. ansible-lint is unsupported on Windows.
 
 ## Source build inputs
 

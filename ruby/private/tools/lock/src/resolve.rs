@@ -12,6 +12,21 @@ pub const BASE: &str = "https://rubygems.org";
 /// The state file the resolver writes.
 pub const STATE: &str = "Gemfile.lock";
 
+const PINS: &str = include_str!("../../../../pins.json");
+
+/// The version of the pinned Ruby toolchain.
+#[must_use]
+pub fn pinned_ruby() -> String {
+    serde_json::from_str::<serde_json::Value>(PINS)
+        .ok()
+        .and_then(|pins| {
+            pins.pointer("/portable_ruby/version")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned)
+        })
+        .unwrap_or_default()
+}
+
 /// Downloads index answers and gems.
 pub trait Download {
     /// The bytes at `url`.
@@ -305,7 +320,23 @@ pub fn parse_gemfile(text: &str) -> Result<BTreeMap<String, Wanted>, Error> {
                     return Err(failed(&format!("source {url} is not {BASE}")));
                 }
             }
-            "ruby" => {}
+            "ruby" => {
+                let pinned = pinned_ruby();
+                let version = Version::parse(&pinned).ok_or_else(|| {
+                    failed(&format!("the pinned Ruby {pinned:?} is not a version"))
+                })?;
+                for arg in rest.split(',') {
+                    let Some(clause) = quoted(arg) else { continue };
+                    let requirement =
+                        Requirement::parse(clause).map_err(|error| failed(&error.to_string()))?;
+                    if !requirement.allows(&version) {
+                        return Err(failed(&format!(
+                            "ruby {} does not allow the pinned Ruby {pinned}",
+                            requirement.text()
+                        )));
+                    }
+                }
+            }
             "group" => {
                 let names = rest
                     .strip_suffix("do")
@@ -392,6 +423,8 @@ struct Indexed {
     text: String,
     deps: BTreeMap<String, Vec<Requirement>>,
     sha256: String,
+    ruby: Vec<Requirement>,
+    platform: Option<String>,
 }
 
 fn parse_info(name: &str, text: &str) -> Result<Vec<Indexed>, Error> {
@@ -399,10 +432,11 @@ fn parse_info(name: &str, text: &str) -> Result<Vec<Indexed>, Error> {
     let mut versions = Vec::new();
     for line in text.lines().skip_while(|line| *line != "---").skip(1) {
         let (head, tail) = line.split_once('|').ok_or_else(|| failed(line))?;
-        let (version, deps) = head.split_once(' ').unwrap_or((head, ""));
-        if version.contains('-') {
-            continue;
-        }
+        let (full, deps) = head.split_once(' ').unwrap_or((head, ""));
+        let (version, platform) = match full.split_once('-') {
+            Some((version, platform)) => (version, Some(platform.to_owned())),
+            None => (full, None),
+        };
         let Some(parsed) = Version::parse(version) else {
             continue;
         };
@@ -415,16 +449,24 @@ fn parse_info(name: &str, text: &str) -> Result<Vec<Indexed>, Error> {
                 .collect::<Result<Vec<_>, _>>()?;
             needs.insert(dep.to_owned(), clauses);
         }
-        let sha256 = tail
-            .split(',')
-            .find_map(|field| field.strip_prefix("checksum:"))
-            .unwrap_or_default()
-            .to_owned();
+        let field = |key: &str| {
+            tail.split(',')
+                .find_map(|field| field.strip_prefix(key))
+                .unwrap_or_default()
+        };
+        let sha256 = field("checksum:").to_owned();
+        let ruby = field("ruby:")
+            .split('&')
+            .filter(|clause| !clause.trim().is_empty())
+            .map(Requirement::parse)
+            .collect::<Result<Vec<_>, _>>()?;
         versions.push(Indexed {
             version: parsed,
             text: version.to_owned(),
             deps: needs,
             sha256,
+            ruby,
+            platform,
         });
     }
     Ok(versions)
@@ -558,6 +600,7 @@ fn previous_state(text: &str) -> (BTreeMap<String, String>, Option<String>) {
 /// The resolver of the ruby ecosystem.
 pub struct Ruby<'a> {
     manifest: String,
+    ruby: String,
     download: &'a dyn Download,
 }
 
@@ -569,6 +612,7 @@ impl<'a> Ruby<'a> {
     pub fn new(spec: &Spec, download: &'a dyn Download) -> Self {
         Self {
             manifest: spec.manifest.first().cloned().unwrap_or_default(),
+            ruby: pinned_ruby(),
             download,
         }
     }
@@ -610,34 +654,65 @@ impl<'a> Ruby<'a> {
         selected: Option<&str>,
         listed: &mut BTreeMap<String, Vec<Indexed>>,
     ) -> Result<Indexed, Error> {
+        let ruby = Version::parse(&self.ruby).ok_or_else(|| {
+            Error::new(format!("the pinned Ruby {:?} is not a version", self.ruby))
+        })?;
         let prerelease = requirements.iter().any(Requirement::names_prerelease);
-        let allowed = |version: &Version| {
-            (prerelease || !version.prerelease())
+        let matches = |entry: &Indexed| {
+            (prerelease || !entry.version.prerelease())
                 && requirements
                     .iter()
-                    .all(|requirement| requirement.allows(version))
+                    .all(|requirement| requirement.allows(&entry.version))
         };
+        let runs = |entry: &Indexed| entry.ruby.iter().all(|clause| clause.allows(&ruby));
+        let allowed = |entry: &Indexed| entry.platform.is_none() && matches(entry) && runs(entry);
         let versions = self.index(name, listed)?;
         let selected = selected.and_then(|text| {
             versions
                 .iter()
-                .find(|entry| entry.text == text && allowed(&entry.version))
+                .find(|entry| entry.text == text && allowed(entry))
         });
-        selected
-            .or_else(|| {
-                versions
-                    .iter()
-                    .filter(|entry| allowed(&entry.version))
-                    .max_by(|a, b| a.version.cmp(&b.version))
-            })
-            .cloned()
-            .ok_or_else(|| {
-                let wanted: Vec<String> = requirements.iter().map(Requirement::text).collect();
-                Error::new(format!(
-                    "no version of {name} satisfies {}",
-                    wanted.join(" and ")
-                ))
-            })
+        if let Some(found) = selected.or_else(|| {
+            versions
+                .iter()
+                .filter(|entry| allowed(entry))
+                .max_by(|a, b| a.version.cmp(&b.version))
+        }) {
+            return Ok(found.clone());
+        }
+        let wanted: Vec<String> = requirements.iter().map(Requirement::text).collect();
+        let wanted = wanted.join(" and ");
+        let newest = |entries: &mut dyn Iterator<Item = &Indexed>| {
+            entries.max_by(|a, b| a.version.cmp(&b.version)).cloned()
+        };
+        if let Some(found) = newest(
+            &mut versions
+                .iter()
+                .filter(|entry| entry.platform.is_none() && matches(entry)),
+        ) {
+            let needs: Vec<String> = found.ruby.iter().map(Requirement::text).collect();
+            return Err(Error::new(format!(
+                "no version of {name} satisfies {wanted} on the pinned Ruby {}; {name} {} needs ruby {}",
+                self.ruby,
+                found.text,
+                needs.join(" and ")
+            )));
+        }
+        if let Some(found) = newest(&mut versions.iter().filter(|entry| matches(entry))) {
+            let platforms: BTreeSet<&str> = versions
+                .iter()
+                .filter(|entry| entry.text == found.text)
+                .filter_map(|entry| entry.platform.as_deref())
+                .collect();
+            return Err(Error::new(format!(
+                "no version of {name} satisfies {wanted} on the ruby platform; {name} {} ships only platform builds ({}), and the gem hub builds every gem from its ruby platform source",
+                found.text,
+                platforms.into_iter().collect::<Vec<_>>().join(", ")
+            )));
+        }
+        Err(Error::new(format!(
+            "no version of {name} satisfies {wanted}"
+        )))
     }
 
     fn describe(&self, name: &str, found: &Indexed, old: Option<&Lock>) -> Result<Package, Error> {

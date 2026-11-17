@@ -11,6 +11,8 @@ const GEMFILE: &str = "source \"https://rubygems.org\"\n\ngem \"rainbow\", \"~> 
 const RAINBOW_INFO: &str = "---\n2.2.2 |checksum:00\n3.0.0 |checksum:OLDRAINBOW\n3.1.1 |checksum:RAINBOW\n4.0.0 |checksum:00\n";
 const RSPEC_INFO: &str = "---\n3.13.7 rspec-support:~> 3.13.0|checksum:RSPEC,ruby:>= 2.5\n3.14.0.rc1 rspec-support:~> 3.14.0|checksum:00\n";
 const SUPPORT_INFO: &str = "---\n3.13.8 |checksum:SUPPORT\n3.14.0 |checksum:00\n";
+const MODERN_INFO: &str = "---\n1.0.0 |checksum:MODERN,ruby:>= 2.7&< 9.0\n2.0.0 |checksum:00,ruby:>= 9.0\n2.0.0-x86_64-linux |checksum:00\n";
+const NATIVE_INFO: &str = "---\n1.0.0-x86_64-linux |checksum:00\n1.0.0-arm64-darwin |checksum:00\n";
 
 fn tar(files: &[(&str, &[u8])]) -> Vec<u8> {
     let mut builder = tar::Builder::new(Vec::new());
@@ -63,6 +65,7 @@ impl Index {
                 "rspec-support-3.13.8".to_owned(),
                 gem("lib", &["lib/rspec/support.rb"]),
             ),
+            ("modern-1.0.0".to_owned(), gem("lib", &["lib/modern.rb"])),
         ];
         Self {
             gems,
@@ -85,12 +88,15 @@ impl Download for Index {
                 .replace("RAINBOW", &self.sha("rainbow-3.1.1"))
                 .replace("RSPEC", &self.sha("rspec-core-3.13.7"))
                 .replace("SUPPORT", &self.sha("rspec-support-3.13.8"))
+                .replace("MODERN", &self.sha("modern-1.0.0"))
                 .into_bytes())
         };
         match url {
             "https://rubygems.org/info/rainbow" => info(RAINBOW_INFO),
             "https://rubygems.org/info/rspec-core" => info(RSPEC_INFO),
             "https://rubygems.org/info/rspec-support" => info(SUPPORT_INFO),
+            "https://rubygems.org/info/modern" => info(MODERN_INFO),
+            "https://rubygems.org/info/native" => info(NATIVE_INFO),
             other => {
                 let stem = other
                     .strip_prefix("https://rubygems.org/gems/")
@@ -270,4 +276,53 @@ fn an_unsatisfiable_requirement_fails() {
             .contains("no version of rainbow satisfies >= 9"),
         "{error}"
     );
+}
+
+#[test]
+fn versions_whose_ruby_requirement_excludes_the_pinned_ruby_are_skipped() {
+    let dir = set("source \"https://rubygems.org\"\ngem \"modern\"\n");
+    assert_eq!(lock(dir.path(), &Index::new(), false), Ok(Outcome::Written));
+    let state = std::fs::read_to_string(dir.path().join("Gemfile.lock")).expect("state");
+    assert!(state.contains("    modern (1.0.0)\n"), "{state}");
+}
+
+#[test]
+fn a_requirement_only_a_newer_ruby_meets_fails() {
+    let dir = set("source \"https://rubygems.org\"\ngem \"modern\", \">= 2\"\n");
+    let error = lock(dir.path(), &Index::new(), false).expect_err("refused");
+    assert!(
+        error.to_string().contains(&format!(
+            "no version of modern satisfies >= 2 on the pinned Ruby {}; modern 2.0.0 needs ruby >= 9.0",
+            ruby_lock::pinned_ruby()
+        )),
+        "{error}"
+    );
+}
+
+#[test]
+fn a_gem_with_only_platform_builds_fails() {
+    let dir = set("source \"https://rubygems.org\"\ngem \"native\"\n");
+    let error = lock(dir.path(), &Index::new(), false).expect_err("refused");
+    assert!(
+        error
+            .to_string()
+            .contains("native 1.0.0 ships only platform builds (arm64-darwin, x86_64-linux)"),
+        "{error}"
+    );
+}
+
+#[test]
+fn a_gemfile_ruby_line_the_pinned_ruby_misses_fails() {
+    let dir = set("source \"https://rubygems.org\"\nruby \">= 9.0\"\ngem \"rainbow\"\n");
+    let error = lock(dir.path(), &Index::new(), false).expect_err("refused");
+    assert!(
+        error.to_string().contains(&format!(
+            "ruby >= 9.0 does not allow the pinned Ruby {}",
+            ruby_lock::pinned_ruby()
+        )),
+        "{error}"
+    );
+    let dir =
+        set("source \"https://rubygems.org\"\nruby \">= 3.0\"\ngem \"rainbow\", \"~> 3.0\"\n");
+    assert_eq!(lock(dir.path(), &Index::new(), false), Ok(Outcome::Written));
 }

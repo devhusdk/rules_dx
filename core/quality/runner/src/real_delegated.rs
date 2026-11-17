@@ -64,7 +64,7 @@ fn delegated_findings_are_reanchored_to_the_staged_source() {
     for (tool_id, report) in [
         (
             "qmllint",
-            r#"{"files":[{"filename":"src/a.scala","success":false,"warnings":[{"column":1,"id":"demo","line":1,"message":"finding","type":"warning"}]}],"revision":4}"#,
+            r#"{"files":[{"filename":"src/a.scala","success":false,"warnings":[{"column":1,"id":"demo","line":1,"message":"finding","type":"warning"}]}],"revision":6}"#,
         ),
         (
             "roslyn",
@@ -273,7 +273,7 @@ pub(super) fn delegated_tools_read_diagnostics_without_spawning() {
         ("keep_sorted", ""),
         (
             "qmllint",
-            r#"{"files":[{"filename":"a.txt","success":true,"warnings":[]}],"revision":4}"#,
+            r#"{"files":[{"filename":"a.txt","success":true,"warnings":[]}],"revision":6}"#,
         ),
         (
             "roslyn",

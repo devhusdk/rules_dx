@@ -1,7 +1,8 @@
 """Tests for the @dx_gazelle language list, source decision and hub BUILD text."""
 
-load("//cli/prebuilt:hub.bzl", "GAZELLE_ASSET_PLATFORMS", "plan_assets", "plan_root", "valid_sha256")
-load("//cli/prebuilt:pins.bzl", "GAZELLE_SHA256", "SHA256", "URL_TEMPLATE")
+load("//cli/prebuilt:hub.bzl", "plan_assets", "plan_root")
+load("//cli/prebuilt:pins.bzl", "URL_TEMPLATE")
+load("//cli/prebuilt:tools.bzl", "TOOLS")
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load(":hub.bzl", "DISPATCH", "builds_from_source", "hub_languages", "prebuilt_build", "render_hub_build")
 
@@ -19,14 +20,13 @@ def _mod(name, is_root, languages = [], assets = [], from_source = False):
 
 def _plan(pins, overrides = {}):
     return plan_assets(
+        "gazelle",
         "1.2.3",
-        pins,
+        {"gazelle": pins},
         URL_TEMPLATE,
         overrides,
-        platforms = GAZELLE_ASSET_PLATFORMS,
         exe = "gazelle",
         repo_prefix = "dx_gazelle_",
-        strip = "dx-gazelle-",
     )
 
 def _source(mods):
@@ -35,12 +35,12 @@ def _source(mods):
 def _checks():
     python = Label("//gazelle/python")
     astro = Label("//gazelle/astro")
-    some = {name: _HASH if "x86_64" in name else "" for name in GAZELLE_SHA256}
-    all_pinned = _plan({name: _HASH for name in GAZELLE_SHA256})
+    some = {key: _HASH for key in TOOLS["gazelle"].platforms if key.startswith("linux_x86_64")}
+    all_pinned = _plan({key: _HASH for key in TOOLS["gazelle"].platforms})
     full = prebuilt_build(all_pinned, [python])
     partial = prebuilt_build(_plan(some), [python])
     windows = [a for a in all_pinned if a.os == "windows" and a.cpu == "x86_64"][0]
-    badsha = plan_root([_mod("app", True, assets = [struct(cpu = "", name = "dx-gazelle-linux-x86_64", os = "", sha256 = "abc", url = "file:///g")])], "dx_gazelle")
+    badsha = plan_root([_mod("app", True, assets = [struct(cpu = "x86_64", name = "gazelle", os = "linux", sha256 = "abc", url = "file:///g")])], "dx_gazelle", "gazelle")
     return [
         expect_equal("a python-only input renders python and dispatch", _names(hub_languages([python])), ["python", "dispatch"]),
         expect_equal("duplicates collapse", _names(hub_languages([python, python, astro, python])), ["astro", "python", "dispatch"]),
@@ -48,16 +48,14 @@ def _checks():
         expect_equal("dispatch stays last when listed", _names(hub_languages([DISPATCH, astro])), ["astro", "dispatch"]),
         expect_contains("the build lists each language", render_hub_build([python]), '"%s",\n        "%s",\n    ],' % (python, DISPATCH)),
         expect_contains("the build names the binary", render_hub_build([python]), 'name = "gazelle"'),
-        expect_equal("gazelle pins sit beside the dx pins", sorted(GAZELLE_SHA256.keys()), sorted(["dx-gazelle-" + n.removeprefix("dx-") for n in SHA256])),
-        expect_equal("gazelle pins name every release asset", sorted(GAZELLE_SHA256.keys()), sorted(GAZELLE_ASSET_PLATFORMS.keys())),
-        expect_equal("gazelle pins are empty or a sha256", [k for k, v in GAZELLE_SHA256.items() if v and not valid_sha256(v)], []),
+        expect_equal("gazelle ships on every dx platform", TOOLS["gazelle"].platforms, TOOLS["dx"].platforms),
         expect_true("rules_dx as root builds from source", _source([_mod("rules_dx", True, [python])])),
         expect_true("from_source builds from source", _source([_mod("app", True, from_source = True), _mod("rules_dx", False, [python])])),
         expect_false("a consumer of rules_dx languages uses the release", _source([_mod("app", True), _mod("rules_dx", False, [python])])),
         expect_true("a consumer language forces source", _source([_mod("app", True, [Label("//gazelle/zig")]), _mod("rules_dx", False, [python])])),
         expect_true("a language from a middle module forces source", _source([_mod("app", True), _mod("middle", False, [astro]), _mod("rules_dx", False, [python])])),
         expect_contains("a non-root module cannot set tags", plan_root([_mod("app", True), _mod("middle", False, from_source = True)], "dx_gazelle").error, "dx_gazelle: only the root module"),
-        expect_contains("a bad sha names the gazelle asset", badsha.error, 'dx_gazelle.asset(name = "dx-gazelle-linux-x86_64")'),
+        expect_contains("a bad sha names the gazelle asset", badsha.error, 'dx_gazelle.asset(name = "gazelle", os = "linux", cpu = "x86_64")'),
         expect_equal("repo names drop the asset prefix", windows.repo, "dx_gazelle_windows_x86_64"),
         expect_equal("windows runs gazelle.exe", windows.exe, "gazelle.exe"),
         expect_equal("a pinned asset downloads its release", windows.url, "https://github.com/devhusdk/rules_dx/releases/download/v1.2.3/dx-gazelle-windows-x86_64"),

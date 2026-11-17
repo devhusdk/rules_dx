@@ -164,7 +164,7 @@ jobs:
           set -euo pipefail
           pins="$RUNNER_TEMP/pins.bzl"
           cp cli/prebuilt/pins.bzl "$pins"
-          bazel run //tools/ci/fill_pins:fill_pins_bin -- "$RELEASE_TAG" --manifest "$PWD/out/dx-sha256sums.txt" --gazelle-manifest "$PWD/out/dx-gazelle-sha256sums.txt" --pins "$pins" --repo "$GITHUB_REPOSITORY"
+          bazel run //tools/ci/fill_pins:fill_pins_bin -- "$RELEASE_TAG" --manifest "$PWD/out/dx-sha256sums.txt" --manifest "$PWD/out/dx-gazelle-sha256sums.txt" --pins "$pins" --repo "$GITHUB_REPOSITORY"
           bazel run //deploy/private/release:source_archive -- "$RELEASE_TAG" "$CANDIDATE_COMMIT" "$SOURCE_DIR" --pins "$pins"
           for file in dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-tool-sha256sums.txt files.list dx-*.sha256 dx-linux-x86_64 dx-linux-arm64 dx-macos-arm64 dx-windows-x86_64 dx-windows-arm64 dx-gazelle-linux-x86_64 dx-gazelle-linux-arm64 dx-gazelle-macos-arm64 dx-gazelle-windows-x86_64 dx-gazelle-windows-arm64 dx-tool-* dx-python-tools-*; do
             case "$file" in *.tar.gz.sha256|*.zip.sha256) continue ;; esac

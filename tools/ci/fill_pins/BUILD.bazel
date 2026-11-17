@@ -12,9 +12,10 @@ rust_library(
         package_name = "tools/ci/ci_fill_pins",
         normal = True,
     ),
+    compile_data = ["//cli/prebuilt:registry"],
     crate_name = "fill_pins",
     crate_root = "src/lib.rs",
-    deps = ["//cli/adopt:dx_adopt"],
+    rustc_env = {"DX_PREBUILT_REGISTRY": "${pwd}/$(execpath //cli/prebuilt:registry)"},
 )
 
 rust_binary(

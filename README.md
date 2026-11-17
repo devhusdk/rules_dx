@@ -95,15 +95,20 @@ To pick a binary yourself, add this to your root `MODULE.bazel`:
 
 ```starlark
 dx_prebuilt = use_extension("@rules_dx//cli/prebuilt:extension.bzl", "dx_prebuilt")
-dx_prebuilt.asset(name = "dx-linux-x86_64", url = "https://...", sha256 = "...")
+dx_prebuilt.asset(name = "dx", os = "linux", cpu = "x86_64", url = "https://...", sha256 = "...")
 ```
 
-Or build `dx` from source with `dx_prebuilt.from_source()`. That needs Rust
-and C toolchains. Only the root module's tags count.
+`name` is the tool, and `os` and `cpu` are the `@platforms` values the binary
+runs on. Or build `dx` from source with `dx_prebuilt.from_source()`. That needs
+Rust and C toolchains. Only the root module's tags count.
+
+`cli/prebuilt/tools.bzl` lists every tool a release ships prebuilt, and
+`pins.bzl` holds their sha256s under `PINS`, keyed by tool and then by
+`<os>_<cpu>`.
 
 The Gazelle binary behind `dx generate` works the same way. Each release
-ships a pure-Go `dx-gazelle-<os>-<cpu>` per platform, pinned in
-`GAZELLE_SHA256` under the same `DX_VERSION`, so the first `dx generate`
+ships a pure-Go `dx-gazelle-<os>-<cpu>` per platform, pinned under
+`PINS["gazelle"]` with the same `DX_VERSION`, so the first `dx generate`
 fetches no Go SDK. It builds from source instead when:
 
 - `rules_dx` is the root module,
@@ -115,7 +120,7 @@ The root module can override it:
 
 ```starlark
 dx_gazelle = use_extension("@rules_dx//gazelle/dispatch:extension.bzl", "dx_gazelle")
-dx_gazelle.asset(name = "dx-gazelle-linux-x86_64", url = "https://...", sha256 = "...")
+dx_gazelle.asset(name = "gazelle", os = "linux", cpu = "x86_64", url = "https://...", sha256 = "...")
 ```
 
 or build it with `dx_gazelle.from_source()`, which needs a Go toolchain.

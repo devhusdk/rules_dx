@@ -53,8 +53,17 @@ common:windows --host_platform=@rules_dx//tools/platforms:windows_msvc_host
 # On Windows, prefer the MSVC-ABI host for actions and keep the plain host as a fallback.
 common:windows --extra_execution_platforms=@rules_dx//tools/platforms:windows_msvc_host,@rules_dx//tools/platforms:host
 
+# On Windows, name the MSVC-ABI host output directory wx.
+common:windows --experimental_override_platform_cpu_name=@rules_dx//tools/platforms:windows_msvc_host=wx
+
 # On Windows, turn off C++ coverage instrumentation.
-coverage:windows --features=-coverage
+build:windows --features=-coverage
+
+# On Windows, turn off gcov coverage maps.
+build:windows --features=-gcc_coverage_map_format
+
+# On Windows, build the LLVM profile runtime without MinGW extensions.
+build:windows --per_file_copt=.*compiler-rt/lib/profile/.*@-D__MINGW_EXTENSION=
 
 # Run Java targets on the downloaded JDK 21, not a host JDK.
 build --java_runtime_version=remotejdk_21

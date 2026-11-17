@@ -2,9 +2,3 @@ import %workspace%/.dx/bazelrc/correctness.bazelrc
 build --config=consumer
 build:consumer --copt=-DDX_CONSUMER_CONFIG=1
 build --jvmopt=-Ddx.consumer.choice=kept
-build --enable_platform_specific_config
-common:windows --experimental_override_platform_cpu_name=@my_dx//tools/platforms:windows_msvc_host=wx
-# build, not coverage: the fetch_coverage probe runs build --collect_code_coverage.
-build:windows --features=-coverage
-build:windows --features=-gcc_coverage_map_format
-build:windows --per_file_copt=.*compiler-rt/lib/profile/.*@-D__MINGW_EXTENSION=

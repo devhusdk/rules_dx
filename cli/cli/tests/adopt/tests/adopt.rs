@@ -257,7 +257,7 @@ fn fresh_clone_regenerates_dx_on_first_command() {
             std::fs::remove_file(&path).expect("remove file");
         }
     }
-    let out = dx(&root, &home, &["completion", "bash"]);
+    let out = dx(&root, &home, &["config"]);
     assert_eq!(out.code, 0, "{}", out.stderr);
     let after = generated();
     assert_eq!(before, after);

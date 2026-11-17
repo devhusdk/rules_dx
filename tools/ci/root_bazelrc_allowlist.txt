@@ -4,7 +4,6 @@
 --copt
 --credential_helper
 --downloader_config
---experimental_override_platform_cpu_name
 --experimental_remote_downloader
 --experimental_remote_downloader_local_fallback
 --experimental_strict_java_deps
@@ -18,7 +17,6 @@
 --noremote_upload_local_results
 --output_user_root
 --override_repository
---per_file_copt
 --registry
 --remote_cache
 --remote_cache_compression

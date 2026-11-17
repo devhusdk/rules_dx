@@ -110,7 +110,7 @@ const RUNFILES_FLAGS: [Flag; 1] = [(
     "On Windows, build runfiles trees only for actions that run.",
 )];
 
-const WINDOWS_FLAGS: [Flag; 5] = [
+const WINDOWS_FLAGS: [Flag; 8] = [
     (
         "build:windows --enable_runfiles",
         "On Windows, give tests a runfiles directory instead of only a manifest.",
@@ -128,8 +128,20 @@ const WINDOWS_FLAGS: [Flag; 5] = [
         "On Windows, prefer the MSVC-ABI host for actions and keep the plain host as a fallback.",
     ),
     (
-        "coverage:windows --features=-coverage",
+        "common:windows --experimental_override_platform_cpu_name=@rules_dx//tools/platforms:windows_msvc_host=wx",
+        "On Windows, name the MSVC-ABI host output directory wx.",
+    ),
+    (
+        "build:windows --features=-coverage",
         "On Windows, turn off C++ coverage instrumentation.",
+    ),
+    (
+        "build:windows --features=-gcc_coverage_map_format",
+        "On Windows, turn off gcov coverage maps.",
+    ),
+    (
+        "build:windows --per_file_copt=.*compiler-rt/lib/profile/.*@-D__MINGW_EXTENSION=",
+        "On Windows, build the LLVM profile runtime without MinGW extensions.",
     ),
 ];
 
@@ -799,7 +811,10 @@ mod tests {
                 "build:windows --@rules_dx//config:toolchain_linker_preference=rust",
                 "common:windows --host_platform=@rules_dx//tools/platforms:windows_msvc_host",
                 "common:windows --extra_execution_platforms=@rules_dx//tools/platforms:windows_msvc_host,@rules_dx//tools/platforms:host",
-                "coverage:windows --features=-coverage",
+                "common:windows --experimental_override_platform_cpu_name=@rules_dx//tools/platforms:windows_msvc_host=wx",
+                "build:windows --features=-coverage",
+                "build:windows --features=-gcc_coverage_map_format",
+                "build:windows --per_file_copt=.*compiler-rt/lib/profile/.*@-D__MINGW_EXTENSION=",
                 "build --java_runtime_version=remotejdk_21",
                 "build --tool_java_runtime_version=remotejdk_21",
                 "build --tool_java_language_version=17",
@@ -914,8 +929,8 @@ mod tests {
                 total += 1;
             }
         }
-        assert_eq!(total, 58);
-        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 58);
+        assert_eq!(total, 61);
+        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 61);
         let options = |layer: Layer| -> BTreeSet<String> {
             layer
                 .flags()
@@ -1007,7 +1022,7 @@ mod tests {
         let flags = rendered_flag_lines(&render_all(DEFAULT_REPO));
         assert!(flags.contains("build:dx_build_dev --compilation_mode=fastbuild"));
         assert!(flags.contains("build --host_compilation_mode=fastbuild"));
-        assert_eq!(flags.len(), 58);
+        assert_eq!(flags.len(), 61);
         assert!(!flags.iter().any(|line| line.starts_with('#')));
         assert!(!flags.iter().any(String::is_empty));
     }

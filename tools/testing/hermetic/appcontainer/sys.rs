@@ -11,10 +11,10 @@ use windows_sys::Win32::Security::Isolation::{
     CreateAppContainerProfile, DeleteAppContainerProfile, DeriveAppContainerSidFromAppContainerName,
 };
 use windows_sys::Win32::Security::{
-    ACL, GetSecurityDescriptorControl, InitializeSecurityDescriptor, SE_DACL_AUTO_INHERITED,
-    SE_DACL_PROTECTED, SECURITY_CAPABILITIES, SECURITY_DESCRIPTOR, SID_AND_ATTRIBUTES,
-    SetFileSecurityW, SetSecurityDescriptorControl, SetSecurityDescriptorDacl, TOKEN_DUPLICATE,
-    TOKEN_QUERY,
+    ACE_HEADER, ACL, DeleteAce, GetAce, GetSecurityDescriptorControl, INHERITED_ACE,
+    InitializeSecurityDescriptor, SE_DACL_AUTO_INHERITED, SE_DACL_PROTECTED, SECURITY_CAPABILITIES,
+    SECURITY_DESCRIPTOR, SID_AND_ATTRIBUTES, SetFileSecurityW, SetSecurityDescriptorControl,
+    SetSecurityDescriptorDacl, TOKEN_DUPLICATE, TOKEN_QUERY,
 };
 use windows_sys::Win32::System::Console::{
     GetStdHandle, STD_ERROR_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE,
@@ -57,6 +57,8 @@ const TRUSTEE_IS_UNKNOWN: i32 = 0;
 const NO_MULTIPLE_TRUSTEE: i32 = 0;
 const SE_FILE_OBJECT: i32 = 1;
 const DACL_SECURITY_INFORMATION: u32 = 4;
+const UNPROTECTED_DACL_SECURITY_INFORMATION: u32 = 0x2000_0000;
+const PROTECTED_DACL_SECURITY_INFORMATION: u32 = 0x8000_0000;
 const READ_CONTROL: u32 = 0x0002_0000;
 const WRITE_DAC: u32 = 0x0004_0000;
 // GetFinalPathNameByHandleW asks the mount manager for drive letters.
@@ -178,6 +180,11 @@ pub(crate) fn path_lock_name(path: &str) -> String {
 }
 
 fn set_access_locked(path: &str, sid: *mut c_void, mode: i32) -> Result<(), String> {
+    apply_access(path, sid, mode, true)
+}
+
+/// Applies `mode` for `sid` to `path`, and with `tree` to everything below it as well.
+fn apply_access(path: &str, sid: *mut c_void, mode: i32, tree: bool) -> Result<(), String> {
     let wpath = wide(path);
     let mut old: *mut ACL = null_mut();
     let mut descriptor: *mut c_void = null_mut();
@@ -197,10 +204,15 @@ fn set_access_locked(path: &str, sid: *mut c_void, mode: i32) -> Result<(), Stri
         },
         &format!("reading the ACL of {path}"),
     )?;
+    let inheritance = if tree || std::path::Path::new(path).is_dir() {
+        SUB_CONTAINERS_AND_OBJECTS_INHERIT
+    } else {
+        NO_INHERITANCE
+    };
     let entry = EXPLICIT_ACCESS_W {
         grfAccessPermissions: FILE_ALL_ACCESS,
         grfAccessMode: mode,
-        grfInheritance: SUB_CONTAINERS_AND_OBJECTS_INHERIT,
+        grfInheritance: inheritance,
         Trustee: TRUSTEE_W {
             pMultipleTrustee: null_mut(),
             MultipleTrusteeOperation: NO_MULTIPLE_TRUSTEE,
@@ -216,21 +228,13 @@ fn set_access_locked(path: &str, sid: *mut c_void, mode: i32) -> Result<(), Stri
         "building the ACL",
     )
     .and_then(|()| {
-        check(
-            // SAFETY: wpath is NUL-terminated and merged is the ACL built above.
-            unsafe {
-                SetNamedSecurityInfoW(
-                    wpath.as_ptr(),
-                    SE_FILE_OBJECT,
-                    DACL_SECURITY_INFORMATION,
-                    null_mut(),
-                    null_mut(),
-                    merged,
-                    null_mut(),
-                )
-            },
-            &format!("setting the ACL of {path}"),
-        )
+        if tree {
+            write_acl(path, descriptor, merged, &|below| {
+                apply_access(below, sid, mode, false)
+            })
+        } else {
+            write_acl_here(path, descriptor, merged)
+        }
     });
     // SAFETY: merged and descriptor were allocated by the ACL calls above and are freed once.
     unsafe {
@@ -238,6 +242,137 @@ fn set_access_locked(path: &str, sid: *mut c_void, mode: i32) -> Result<(), Stri
         LocalFree(descriptor as _);
     }
     result
+}
+
+/// Writes `acl` to `path` and its descendants in the inheritance form of `descriptor`.
+/// Where that form is not auto-inherited, `below` makes the same change to each descendant.
+pub(crate) fn write_acl(
+    path: &str,
+    descriptor: *mut c_void,
+    acl: *mut ACL,
+    below: &dyn Fn(&str) -> Result<(), String>,
+) -> Result<(), String> {
+    let control = dacl_control(path, descriptor)?;
+    if control & SE_DACL_AUTO_INHERITED == 0 {
+        write_dacl_here(path, control, acl)?;
+        return for_each_below(std::path::Path::new(path), below);
+    }
+    drop_inherited(acl);
+    let protection = if control & SE_DACL_PROTECTED != 0 {
+        PROTECTED_DACL_SECURITY_INFORMATION
+    } else {
+        UNPROTECTED_DACL_SECURITY_INFORMATION
+    };
+    let wpath = wide(path);
+    check(
+        // SAFETY: wpath is NUL-terminated and acl is a valid ACL.
+        unsafe {
+            SetNamedSecurityInfoW(
+                wpath.as_ptr(),
+                SE_FILE_OBJECT,
+                DACL_SECURITY_INFORMATION | protection,
+                null_mut(),
+                null_mut(),
+                acl,
+                null_mut(),
+            )
+        },
+        &format!("setting the ACL of {path}"),
+    )
+}
+
+/// Writes `acl` to `path` alone in the inheritance form of `descriptor`.
+pub(crate) fn write_acl_here(
+    path: &str,
+    descriptor: *mut c_void,
+    acl: *mut ACL,
+) -> Result<(), String> {
+    write_dacl_here(path, dacl_control(path, descriptor)?, acl)
+}
+
+/// Calls `edit` on every file and directory below `dir`, without following links.
+fn for_each_below(
+    dir: &std::path::Path,
+    edit: &dyn Fn(&str) -> Result<(), String>,
+) -> Result<(), String> {
+    if !std::fs::symlink_metadata(dir).is_ok_and(|meta| meta.is_dir()) {
+        return Ok(());
+    }
+    let entries =
+        std::fs::read_dir(dir).map_err(|err| format!("listing {}: {err}", dir.display()))?;
+    for entry in entries {
+        let entry = entry.map_err(|err| format!("listing {}: {err}", dir.display()))?;
+        let path = entry.path();
+        let kind = entry
+            .file_type()
+            .map_err(|err| format!("reading {}: {err}", path.display()))?;
+        if kind.is_symlink() {
+            continue;
+        }
+        edit(&path.to_string_lossy())?;
+        if kind.is_dir() {
+            for_each_below(&path, edit)?;
+        }
+    }
+    Ok(())
+}
+
+fn dacl_control(path: &str, descriptor: *mut c_void) -> Result<u16, String> {
+    let mut control = 0u16;
+    let mut revision = 0u32;
+    // SAFETY: descriptor is a valid security descriptor and both out-pointers are valid.
+    if unsafe { GetSecurityDescriptorControl(descriptor, &mut control, &mut revision) } == 0 {
+        return Err(format!(
+            "reading the ACL control of {path}: {}",
+            std::io::Error::last_os_error()
+        ));
+    }
+    Ok(control)
+}
+
+/// Writes `acl` to `path` alone with the protection and auto-inherit bits of `control`.
+fn write_dacl_here(path: &str, control: u16, acl: *mut ACL) -> Result<(), String> {
+    let wpath = wide(path);
+    // SAFETY: SECURITY_DESCRIPTOR is plain C data for which all-zero is valid.
+    let mut fresh: SECURITY_DESCRIPTOR = unsafe { std::mem::zeroed() };
+    let target = &mut fresh as *mut _ as *mut c_void;
+    let keep = SE_DACL_PROTECTED | SE_DACL_AUTO_INHERITED;
+    // SAFETY: target points to the local security descriptor and acl is a valid ACL.
+    let ok = unsafe {
+        InitializeSecurityDescriptor(target, SECURITY_DESCRIPTOR_REVISION) != 0
+            && SetSecurityDescriptorDacl(target, 1, acl, 0) != 0
+            && SetSecurityDescriptorControl(target, keep, control & keep) != 0
+            && SetFileSecurityW(wpath.as_ptr(), DACL_SECURITY_INFORMATION, target) != 0
+    };
+    if ok {
+        Ok(())
+    } else {
+        Err(format!(
+            "setting the ACL of {path}: {}",
+            std::io::Error::last_os_error()
+        ))
+    }
+}
+
+/// Deletes every inherited entry from `acl`, leaving only the explicit ones.
+fn drop_inherited(acl: *mut ACL) {
+    if acl.is_null() {
+        return;
+    }
+    // SAFETY: acl was checked non-null and points to a valid ACL header.
+    for index in (0..unsafe { (*acl).AceCount } as u32).rev() {
+        let mut ace: *mut c_void = null_mut();
+        // SAFETY: acl is valid, index is below AceCount and ace is a valid out-pointer.
+        if unsafe { GetAce(acl, index, &mut ace) } == 0 {
+            continue;
+        }
+        // SAFETY: GetAce returned a valid ACE pointer, which starts with an ACE header.
+        let flags = unsafe { (*(ace as *const ACE_HEADER)).AceFlags };
+        if u32::from(flags) & INHERITED_ACE != 0 {
+            // SAFETY: acl is valid and index is below its AceCount.
+            unsafe { DeleteAce(acl, index) };
+        }
+    }
 }
 
 /// Holds the named lock while one ACL is read, changed and written back.
@@ -293,30 +428,7 @@ fn set_traverse(path: &str, sid: *mut c_void, mode: i32) -> Result<(), String> {
         unsafe { SetEntriesInAclW(1, &entry, old, &mut merged) },
         &format!("building the ACL of {path}"),
     )
-    .and_then(|()| {
-        let mut control = 0u16;
-        let mut revision = 0u32;
-        // SAFETY: SECURITY_DESCRIPTOR is plain C data for which all-zero is valid.
-        let mut fresh: SECURITY_DESCRIPTOR = unsafe { std::mem::zeroed() };
-        let target = &mut fresh as *mut _ as *mut c_void;
-        let keep = SE_DACL_PROTECTED | SE_DACL_AUTO_INHERITED;
-        // SAFETY: descriptor was read above and target points to the local security descriptor.
-        let ok = unsafe {
-            GetSecurityDescriptorControl(descriptor, &mut control, &mut revision) != 0
-                && InitializeSecurityDescriptor(target, SECURITY_DESCRIPTOR_REVISION) != 0
-                && SetSecurityDescriptorDacl(target, 1, merged, 0) != 0
-                && SetSecurityDescriptorControl(target, keep, control & keep) != 0
-                && SetFileSecurityW(wpath.as_ptr(), DACL_SECURITY_INFORMATION, target) != 0
-        };
-        if ok {
-            Ok(())
-        } else {
-            Err(format!(
-                "setting the ACL of {path}: {}",
-                std::io::Error::last_os_error()
-            ))
-        }
-    });
+    .and_then(|()| write_acl_here(path, descriptor, merged));
     // SAFETY: merged and descriptor were allocated by the ACL calls above and are freed once.
     unsafe {
         LocalFree(merged as _);

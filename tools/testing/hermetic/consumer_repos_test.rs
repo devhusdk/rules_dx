@@ -4,18 +4,16 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use dx_module_bazel::{ModuleFile, Value};
+use dx_path::label::repo_of;
 use dx_testing::{read_text, runfiles_root};
 
 /// Repositories every consumer has: the `rules_dx` repo name from `defs.bzl`, the
 /// `rules_dx` module itself, and the ones Bazel provides.
 const DEFAULT_REPOS: &[&str] = &["my_dx", "rules_dx", "platforms", "bazel_tools"];
 
-/// The repository a label string names after `@` or `@@`, if it names one.
+/// The external repository a label string names, if it names one (`@//p` is the main repo).
 fn label_repo(label: &str) -> Option<&str> {
-    let rest = label.strip_prefix('@')?;
-    let rest = rest.strip_prefix('@').unwrap_or(rest);
-    let name = rest.split(['/', ':']).next().unwrap_or_default();
-    (!name.is_empty()).then_some(name)
+    repo_of(label).filter(|name| !name.is_empty())
 }
 
 /// Repository names after `@` in the label-like strings of a BUILD file.

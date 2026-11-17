@@ -26,7 +26,7 @@ module(name = "my_project")
 bazel_dep(name = "rules_dx", version = "<release>")
 ```
 
-A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small Haskell package from [`haskell/tests/consumer`](../../haskell/tests/consumer/BUILD.bazel):
+A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small Haskell package from [`haskell/tests/consumer`](https://github.com/devhusdk/rules_dx/blob/main/haskell/tests/consumer/BUILD.bazel):
 
 ```python
 
@@ -44,7 +44,7 @@ tools/dx test //...
 
 The toolchain pins cabal-install 3.18.2.0 next to GHC.
 `bazel run @rules_dx//haskell/private/tools/lock -- --dir <set directory>`
-runs it for a directory with `.cabal` files and a `cabal.project` that sets `index-state:`. It writes `cabal.project.freeze` and `cabal.lock.json`, which lists each package with its version, sdist sha256, `.cabal` revision and sha256, components and dependencies. A public sublibrary of another package is recorded as `lib:<sub>` and depended on as `<pkg>:<sub>`, which the hub builds as `<pkg>-lib-<sub>`. Resolving needs network access to Hackage. `dx update` and `dx update --check` run the same step. `dx security`, `dx license` and `dx update` read `cabal.project.freeze`. `stack.yaml.lock` is not resolved; `dx update` of a set whose only lock is `stack.yaml.lock` reports that the lock must be resolved first.
+runs it for a directory with `.cabal` files and a `cabal.project` that sets `index-state:`. It writes `cabal.project.freeze` and `cabal.lock.json`, which lists each package with its version, sdist sha256, `.cabal` revision and sha256, components and dependencies. A public sublibrary of another package is recorded as `lib:<sub>` and depended on as `<pkg>:<sub>`, which the hub builds as `<pkg>-lib-<sub>`. Resolving needs network access to Hackage. `dx update` and `dx update --apply` run the same step. `dx security`, `dx license` and `dx update` read `cabal.project.freeze`. `stack.yaml.lock` is not resolved; `dx update` of a set whose only lock is `stack.yaml.lock` reports that the lock must be resolved first.
 
 ### Building Hackage packages
 

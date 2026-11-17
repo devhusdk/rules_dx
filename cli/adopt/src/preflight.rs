@@ -5,6 +5,7 @@ use std::fmt::Write as _;
 use std::path::Path;
 
 use dx_module_bazel::{ModuleFile, Value, compare_module_versions};
+use dx_path::label::repo_of;
 
 /// `rules_dx`'s own non-dev `bazel_dep` versions, the floors an override must meet.
 /// The drift test keeps this equal to `//:MODULE.bazel`.
@@ -312,11 +313,6 @@ fn eco_of(call: &dx_module_bazel::Call) -> Option<Eco> {
     }
 }
 
-fn label_repo(label: &str) -> &str {
-    let rest = label.trim_start_matches('@');
-    rest.split("//").next().unwrap_or(rest)
-}
-
 /// Repos imported from a recognised extension, and the bindings by ecosystem.
 type EcoMap = Vec<(String, Eco)>;
 
@@ -391,7 +387,7 @@ fn toolchain_conflicts(sources: &[Source], snippet: Option<&ModuleFile>) -> Vec<
     if let Some(snippet) = snippet {
         let (snippet_repos, _) = eco_repos(snippet);
         for (label, _) in registered_labels(snippet) {
-            let repo = label_repo(label);
+            let repo = repo_of(label).unwrap_or_default();
             let eco = snippet_repos
                 .iter()
                 .find(|(r, _)| r == repo)
@@ -419,7 +415,7 @@ fn toolchain_conflicts(sources: &[Source], snippet: Option<&ModuleFile>) -> Vec<
                 for (user_label, line) in registered_labels(source.module) {
                     let ours = repos
                         .iter()
-                        .find(|(r, _)| r == label_repo(user_label))
+                        .find(|(r, _)| r == repo_of(user_label).unwrap_or_default())
                         .map(|(_, e)| *e);
                     let same = matches!(
                         (eco, ours),

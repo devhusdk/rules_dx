@@ -4,6 +4,8 @@
 
 pub mod bazel_package;
 pub mod host;
+pub mod label;
+pub mod lookup;
 pub mod nested_bazel;
 pub mod proto_validate;
 pub mod runfiles;

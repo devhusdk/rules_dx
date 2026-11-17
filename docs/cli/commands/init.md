@@ -139,7 +139,7 @@ Output: `--output text|json`. JSON covers the check only; see Init plan below.
 
 ## Fixed file set
 
-`dx init --apply` writes these paths. The `dx owns` column says what dx still
+`dx init --apply` writes these paths. The "dx owns" column says what dx still
 touches after you edit the file:
 
 - `whole`: dx rewrites the whole file to match the running dx. Do not edit it.

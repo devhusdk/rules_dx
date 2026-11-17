@@ -119,7 +119,7 @@ fn locked_pypi_packages(workspace: &Path) -> Result<BTreeMap<String, BTreeSet<St
             .into_iter()
             .filter(|package| !package.is_git && !package.is_private)
         {
-            out.entry(dx_audit::vuln::normalize_pypi_name(&package.name))
+            out.entry(dx_ecosystems::pep503_name(&package.name))
                 .or_default()
                 .insert(package.version);
         }

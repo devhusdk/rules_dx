@@ -1,5 +1,7 @@
 """The rules_dx python extension: one interpreter toolchain hub with no version target setting."""
 
+load("//core:root_only.bzl", "warn_dropped_tags")
+
 _TOOLCHAINS_ON = str(Label("//config:toolchains_on"))
 
 _PLATFORMS = {
@@ -60,6 +62,7 @@ _hub = repository_rule(
 def _impl(module_ctx):
     pins = json.decode(module_ctx.read(Label("//python:pins.json")))
     version = pins["default_version"]
+    warn_dropped_tags("python", module_ctx.modules, ["toolchain"])
     for mod in module_ctx.modules:
         if not mod.is_root:
             continue

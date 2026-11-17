@@ -3,28 +3,11 @@
 use super::EditError;
 use crate::edit::version::WidenVersion;
 use dx_adopt::lock_hubs::manifest_of;
+use dx_ecosystems::pep503_name;
 use toml_edit::{Array, DocumentMut, Item, Value};
 
 fn unsupported(reason: impl Into<String>) -> EditError {
     EditError::unsupported_manifest("uv", reason)
-}
-
-/// PEP 503 normalization: lowercase with runs of `-`, `_` and `.` as one `-`.
-pub(crate) fn normalize(name: &str) -> String {
-    let mut out = String::new();
-    let mut separator = false;
-    for c in name.chars() {
-        if matches!(c, '-' | '_' | '.') {
-            separator = true;
-        } else {
-            if separator && !out.is_empty() {
-                out.push('-');
-            }
-            separator = false;
-            out.push(c.to_ascii_lowercase());
-        }
-    }
-    out
 }
 
 /// The requirement widened to `>=version`, or `None` when it names another package.
@@ -38,7 +21,7 @@ fn widen_requirement(
         .find(|c: char| !(c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.')))
         .unwrap_or(trimmed.len());
     let (name, rest) = trimmed.split_at(name_end);
-    if normalize(name) != normalize(package) {
+    if pep503_name(name) != pep503_name(package) {
         return Ok(None);
     }
     let lead = requirement

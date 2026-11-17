@@ -8,6 +8,7 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use dx_module_bazel::{Arg, ModuleFile, NewTag};
+use dx_path::label::repo_of;
 
 use crate::AdoptError;
 use crate::load_graph::build_file_labels;
@@ -39,10 +40,7 @@ pub fn plan_loaded_deps(root: &Path) -> Result<LockHubs, AdoptError> {
     };
     let declared = module_deps(root);
     let labels = build_file_labels(root).map_err(refuse)?;
-    let loaded: BTreeSet<&str> = labels
-        .iter()
-        .filter_map(|label| label_repo(label))
-        .collect();
+    let loaded: BTreeSet<&str> = labels.iter().filter_map(|label| repo_of(label)).collect();
     let modules = included_modules(root, &text)?;
     let links_npm = modules.iter().any(|module| {
         module
@@ -105,12 +103,6 @@ pub fn plan_loaded_deps(root: &Path) -> Result<LockHubs, AdoptError> {
         new,
     });
     Ok(LockHubs { edit, notes })
-}
-
-fn label_repo(label: &str) -> Option<&str> {
-    let rest = label.strip_prefix('@')?;
-    let rest = rest.strip_prefix('@').unwrap_or(rest);
-    Some(rest.split_once("//").map_or(rest, |(repo, _)| repo))
 }
 
 fn included_modules(root: &Path, text: &str) -> Result<Vec<ModuleFile>, AdoptError> {

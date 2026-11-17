@@ -62,7 +62,7 @@ fn header(tier: &Tier) -> String {
         format!(" Native file: `{}`.", tier.native)
     };
     format!(
-        "## {}\n\nSource: {}.{native}\n\n",
+        "### {}\n\nSource: {}.{native}\n\n",
         tier.tool,
         tier.source.trim_end_matches('.')
     )
@@ -81,9 +81,20 @@ fn block(out: &mut String, language: &str, body: &str) {
     out.push_str("\n\n");
 }
 
-fn intro(title: &str, text: &str) -> String {
+// Both pages share the steps for picking a tier; only the opening line, the
+// example `dx.toml` and the line before the per-tool reference differ.
+fn intro(title: &str, purpose: &str, tier: &str, reference: &str) -> String {
     format!(
-        "# {title}\n\n{text} This page is generated. To refresh it, run `{UPDATE_COMMAND}`.\n\n"
+        "# {title}\n\n{purpose}\n\n\
+         ## Pick the tier\n\n\
+         1. Open `dx.toml` at the root of your workspace, the folder that holds `MODULE.bazel`. Create it if it is missing.\n\
+         2. Set `tier`:\n\n\
+         \x20  ```toml\n   schema_version = 1\n   tier = \"{tier}\"\n   ```\n\n\
+         3. Run `tools/dx config <tool>`, such as `tools/dx config ruff`, to see the files that tool now reads.\n\n\
+         Without `dx.toml`, every tool runs at the standard tier. To give one family, such as `rust`, its own tier, set `tier` under `[families.rust]`. The [config reference](cli/commands/config.md#dxtoml) lists every key.\n\n\
+         To change a single setting, edit the tool's own config file at the root of your repo. The [quality page](cli/commands/quality.md) lists the file each tool reads.\n\n\
+         ## Tools\n\n\
+         {reference} Each section names the tool, where its tier config comes from, and the native config file you edit to change it. This page is generated. To refresh it, run `{UPDATE_COMMAND}`.\n\n"
     )
 }
 
@@ -93,7 +104,9 @@ fn intro(title: &str, text: &str) -> String {
 pub fn standard_page(tiers: &[Tier], files: &BTreeMap<String, String>) -> Result<String, String> {
     let mut out = intro(
         "Standard tiers",
-        "This page lists the config each tool gets at the standard tier.",
+        "This page shows the config each lint and format tool runs with when you use the standard tier, the default.",
+        "standard",
+        "Each section below shows the full standard config of one tool.",
     );
     for tier in tiers {
         let body = read(files, &tier.standard_path)?;
@@ -109,7 +122,9 @@ pub fn standard_page(tiers: &[Tier], files: &BTreeMap<String, String>) -> Result
 pub fn strict_page(tiers: &[Tier], files: &BTreeMap<String, String>) -> Result<String, String> {
     let mut out = intro(
         "Strict tiers",
-        "This page shows what the strict tier changes against the standard tier of each tool. A tier file is self-contained, so the diff is the whole difference.",
+        "This page shows what each lint and format tool checks on top of the standard tier when you switch to the strict tier.",
+        "strict",
+        "Each section below is a diff from the standard config of one tool to its strict config. Each tier file is complete on its own, so the diff is the whole difference.",
     );
     for tier in tiers {
         let standard = read(files, &tier.standard_path)?;

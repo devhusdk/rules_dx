@@ -29,7 +29,7 @@ The build file declares the package as an `elixir_app` with
 
 #### From hex.lock.json
 
-With `mix.exs` and `mix.lock` or `rebar.lock` in the set, `dx lock` writes `hex.lock.json` and `dx generate --apply` adds the `hex.lock` stanza for the `@hex` hub to `MODULE.bazel`. The hub holds one `elixir_app` per locked package; `rebar.lock` packages have no dependencies.
+With `mix.exs` and `mix.lock` or `rebar.lock` in the set, `dx update --apply` writes `hex.lock.json` and `dx generate --apply` adds the `hex.lock` stanza for the `@hex` hub to `MODULE.bazel`. The hub holds one `elixir_app` per locked package; `rebar.lock` packages have no dependencies.
 
 Depend on `@hex//jason`. An entry that is not from `hexpm` (`:git`, `:path`) fails with a message naming it.
 

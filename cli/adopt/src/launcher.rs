@@ -200,32 +200,40 @@ pub fn pins_from_manifest_dir(dir: &Path) -> Result<LauncherPins, AdoptError> {
     }
 }
 
+/// Reads the `"dx"` entry of `PINS` in a schema 1 `pins.bzl`, which fill_pins writes as
+/// one `"<os>_<cpu>": "<sha256>",` line per platform; the asset is `dx-<os>-<cpu>`.
 fn pins_from_bzl(text: &str, version: &str) -> Result<LauncherPins, AdoptError> {
     let mut pinned_version = None;
     let mut pins = LauncherPins::default();
-    let mut in_sha256 = false;
+    let mut in_pins = false;
+    let mut in_dx = false;
     for line in text.lines() {
         let line = line.trim();
         if let Some(rest) = line.strip_prefix("DX_VERSION") {
             pinned_version = quoted(rest.trim_start().strip_prefix('=').unwrap_or(""));
-        } else if line.starts_with("SHA256") {
-            in_sha256 = true;
-        } else if in_sha256 && line.starts_with('}') {
-            in_sha256 = false;
-        } else if in_sha256 {
-            let Some((asset, hash)) = line.split_once(':') else {
-                continue;
+        } else if line.starts_with("PINS = {") {
+            in_pins = !line.ends_with('}');
+        } else if in_pins && line == "}" {
+            in_pins = false;
+        } else if in_pins && line == "\"dx\": {" {
+            in_dx = true;
+        } else if in_dx && line.starts_with('}') {
+            in_dx = false;
+        } else if in_dx {
+            let Some((key, hash)) = line.split_once(':') else {
+                return Err(pins_error(format!("bad pins.bzl line {line:?}")));
             };
-            let (Some(asset), Some(hash)) = (quoted(asset), quoted(hash.trim_end_matches(',')))
+            let (Some(key), Some(hash)) = (quoted(key), quoted(hash.trim_end_matches(',')))
             else {
                 return Err(pins_error(format!("bad pins.bzl line {line:?}")));
             };
+            let asset = format!("dx-{}", key.replacen('_', "-", 1));
             let Some(slot) = RELEASE_ASSETS
                 .iter()
                 .position(|known| *known == asset)
                 .and_then(|i| pins.sha256.get_mut(i))
             else {
-                return Err(pins_error(format!("unknown asset {asset:?}")));
+                return Err(pins_error(format!("unknown dx platform {key:?}")));
             };
             if !valid_pin(hash) {
                 return Err(pins_error(format!("{asset} hash is not 64 lowercase hex")));
@@ -1010,11 +1018,24 @@ mod tests {
     }
 
     fn bzl(version: &str, hash: &str) -> String {
-        let rows: String = RELEASE_ASSETS
-            .iter()
-            .map(|asset| format!("    \"{asset}\": \"{hash}\",\n"))
-            .collect();
-        format!("DX_VERSION = \"{version}\"\n\nSHA256 = {{\n{rows}}}\n")
+        if hash.is_empty() {
+            return format!("SCHEMA = 1\n\nDX_VERSION = \"{version}\"\n\nPINS = {{}}\n");
+        }
+        let rows = |tool: &str| -> String {
+            RELEASE_ASSETS
+                .iter()
+                .map(|asset| {
+                    let key = asset.trim_start_matches("dx-").replacen('-', "_", 1);
+                    format!("        \"{key}\": \"{hash}\",\n")
+                })
+                .map(|row| if tool == "dx" { row } else { row.replace(hash, &"b".repeat(64)) })
+                .collect()
+        };
+        format!(
+            "SCHEMA = 1\n\nDX_VERSION = \"{version}\"\n\nPINS = {{\n    \"dx\": {{\n{}    }},\n    \"gazelle\": {{\n{}    }},\n}}\n",
+            rows("dx"),
+            rows("gazelle")
+        )
     }
 
     #[test]

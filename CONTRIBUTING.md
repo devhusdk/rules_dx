@@ -114,7 +114,7 @@ It fails when a floor and its tested version differ, or when a consumer `module_
 
 ## Run the quality tests
 
-These cover the `dx check` and `dx quality` machinery in `core/quality/`:
+These cover the `dx check`, `dx lint`, `dx typecheck` and `dx format` machinery in `core/quality/`:
 
 ```sh
 bazel test //core/quality/testdata:real_results

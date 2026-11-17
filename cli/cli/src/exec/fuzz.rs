@@ -8,6 +8,7 @@ use super::common::{
     set_field,
 };
 use dx_output::{FinishedCounts, NoticeEvent, OutputMode, command_finished, notice_value};
+use dx_path::label::Label;
 use dx_plan::args::grammar::fuzz_seconds;
 use dx_plan::args::{BuildMode, Invocation};
 use dx_plan::plan::{plan_run, shell_join};
@@ -23,13 +24,9 @@ fn runner_label(label: &str) -> String {
 }
 
 fn out_dir(label: &str) -> String {
-    let path = label.trim_start_matches('@').trim_start_matches("//");
-    let (package, name) = path.split_once(':').unwrap_or((path, ""));
-    let name = if name.is_empty() {
-        package.rsplit('/').next().unwrap_or(package)
-    } else {
-        name
-    };
+    // Resolved fuzz targets are always labels; anything else names its own directory.
+    let (package, name) =
+        Label::parse(label).map_or(("", label), |parsed| (parsed.package, parsed.name));
     if package.is_empty() || package == name {
         format!(".dx/local/fuzz/{name}/")
     } else {

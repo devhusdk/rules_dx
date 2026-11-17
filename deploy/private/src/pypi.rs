@@ -14,24 +14,6 @@ use std::fmt::Write as _;
 use std::io;
 use std::path::Path;
 
-/// Returns one distribution name with PEP 503 normalization applied.
-pub fn pypi_normalize_name(raw: &str) -> String {
-    let mut out = String::new();
-    let mut pending = false;
-    for c in raw.chars() {
-        if matches!(c, '.' | '_' | '-') {
-            pending = true;
-            continue;
-        }
-        if pending && !out.is_empty() {
-            out.push('-');
-        }
-        pending = false;
-        out.push(c.to_ascii_lowercase());
-    }
-    out
-}
-
 fn pypi_valid_name(name: &str) -> bool {
     let bytes = name.as_bytes();
     !bytes.is_empty()
@@ -68,7 +50,7 @@ pub fn pypi_artifact_identity(base: &str) -> Result<(String, String), String> {
             "pypi_deploy: invalid distribution name or version in {base:?}"
         ));
     }
-    Ok((pypi_normalize_name(name), version.to_owned()))
+    Ok((dx_ecosystems::pep503_name(name), version.to_owned()))
 }
 
 const NATIVE_SUFFIXES: &[&str] = &[".so", ".pyd", ".dylib"];
@@ -291,9 +273,9 @@ pub fn pypi_build_wheelhouse(
     std::fs::create_dir_all(&index_dir)?;
     let mut body = String::from("<!DOCTYPE html>\n<html><body>\n");
     for (base, digest) in &entries {
-        write!(
+        writeln!(
             body,
-            "<a href=\"../../{base}#sha256={digest}\">{base}</a><br/>\n"
+            "<a href=\"../../{base}#sha256={digest}\">{base}</a><br/>"
         )
         .ok();
     }
@@ -953,7 +935,7 @@ mod tests {
     fn wheel_bytes_with(files: &[&str], wheel_file: Option<&str>) -> Vec<u8> {
         let mut record = String::from("pkg-1.0.dist-info/RECORD,,\n");
         for file in files {
-            write!(record, "{file},sha256=x,1\n").ok();
+            writeln!(record, "{file},sha256=x,1").ok();
         }
         let mut members = vec![("pkg-1.0.dist-info/RECORD", record.as_bytes(), 0o644)];
         if let Some(wheel_file) = wheel_file {
@@ -965,7 +947,7 @@ mod tests {
     fn wheel_file(tags: &[&str], purelib: bool) -> String {
         let mut text = format!("Wheel-Version: 1.0\nRoot-Is-Purelib: {purelib}\n");
         for tag in tags {
-            write!(text, "Tag: {tag}\n").ok();
+            writeln!(text, "Tag: {tag}").ok();
         }
         text
     }
@@ -1096,7 +1078,6 @@ mod tests {
 
     #[test]
     fn pypi_index_uses_normalized_distribution_identity() {
-        assert_eq!(pypi_normalize_name("Foo.Bar__baz--Qux"), "foo-bar-baz-qux");
         assert_eq!(
             pypi_artifact_identity("My_Pkg.Name-1.0-py3-none-any.whl").expect("wheel"),
             ("my-pkg-name".to_owned(), "1.0".to_owned())

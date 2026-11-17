@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
+use dx_path::label::{Label, Repo};
 use serde_json::Value;
 
 use super::{QueryRunner, ResolveError};
@@ -223,15 +224,9 @@ impl RuleGraph {
     pub fn main_repo_input_paths(&self) -> HashSet<String> {
         self.users
             .keys()
-            .filter_map(|label| label.strip_prefix("//"))
-            .filter_map(|rest| rest.split_once(':'))
-            .map(|(package, name)| {
-                if package.is_empty() {
-                    name.to_owned()
-                } else {
-                    format!("{package}/{name}")
-                }
-            })
+            .filter_map(|label| Label::parse(label))
+            .filter(|label| label.repo == Repo::Local && !label.relative)
+            .map(|label| label.file_path())
             .collect()
     }
 

@@ -1,26 +1,12 @@
 """Plans the @dx_prebuilt repos and renders the hub BUILD file."""
 
-ASSET_PLATFORMS = {
-    "dx-linux-arm64": ("linux", "aarch64"),
-    "dx-linux-x86_64": ("linux", "x86_64"),
-    "dx-macos-arm64": ("macos", "aarch64"),
-    "dx-windows-arm64": ("windows", "aarch64"),
-    "dx-windows-x86_64": ("windows", "x86_64"),
-}
-
-GAZELLE_ASSET_PLATFORMS = {
-    "dx-gazelle-linux-arm64": ("linux", "aarch64"),
-    "dx-gazelle-linux-x86_64": ("linux", "x86_64"),
-    "dx-gazelle-macos-arm64": ("macos", "aarch64"),
-    "dx-gazelle-windows-arm64": ("windows", "aarch64"),
-    "dx-gazelle-windows-x86_64": ("windows", "x86_64"),
-}
+load(":tools.bzl", "RELEASE_CPU", "RELEASE_OS", "TOOLS", "asset_name", "split_key")
 
 KNOWN_OS = ["android", "freebsd", "ios", "linux", "macos", "openbsd", "windows"]
 
 KNOWN_CPU = ["aarch64", "arm", "i386", "ppc64le", "riscv64", "s390x", "x86_32", "x86_64"]
 
-SOURCE_LABEL = "@rules_dx//cli/cli:dx"
+SOURCE_LABEL = TOOLS["dx"].source
 
 SOURCE_TOOLS = {
     "codegen_shard_writer": "@rules_dx//cli/codegen_shard:codegen_shard_writer",
@@ -49,8 +35,8 @@ def valid_sha256(text):
     """Returns whether text is 64 lowercase hex digits."""
     return len(text) == 64 and all([c in _HEX for c in text.elems()])
 
-def plan_root(modules, ext = "dx_prebuilt"):
-    """Reads the module tags: returns struct(error, source, overrides)."""
+def plan_root(modules, ext = "dx_prebuilt", tool = "dx"):
+    """Reads the module tags: returns struct(error, source, overrides), overrides keyed "<os>_<cpu>"."""
     rules_dx_is_root = False
     from_source = False
     overrides = {}
@@ -64,54 +50,72 @@ def plan_root(modules, ext = "dx_prebuilt"):
         if mod.tags.from_source:
             from_source = True
         for tag in mod.tags.asset:
-            if not valid_sha256(tag.sha256):
-                return struct(error = ext + ".asset(name = \"{}\"): sha256 must be 64 lowercase hex digits".format(tag.name), source = False, overrides = {})
-            overrides[tag.name] = struct(cpu = tag.cpu, os = tag.os, sha256 = tag.sha256, url = tag.url)
+            where = ext + ".asset(name = \"{}\", os = \"{}\", cpu = \"{}\")".format(tag.name, tag.os, tag.cpu)
+            error = ""
+            if tag.name != tool:
+                error = where + ": name is the tool, \"{}\"".format(tool)
+            elif tag.os not in KNOWN_OS or tag.cpu not in KNOWN_CPU:
+                error = where + ": os must be one of {} and cpu one of {}".format(KNOWN_OS, KNOWN_CPU)
+            elif not valid_sha256(tag.sha256):
+                error = where + ": sha256 must be 64 lowercase hex digits"
+            elif "{}_{}".format(tag.os, tag.cpu) in overrides:
+                error = where + ": a second asset for the same os and cpu"
+            if error:
+                return struct(error = error, source = False, overrides = {})
+            overrides["{}_{}".format(tag.os, tag.cpu)] = struct(cpu = tag.cpu, os = tag.os, sha256 = tag.sha256, url = tag.url)
     return struct(error = "", source = rules_dx_is_root or from_source, overrides = overrides)
-
-def repo_name(asset, prefix = "dx_prebuilt_", strip = "dx-"):
-    """Returns the http_file repo name for a release asset."""
-    return prefix + "".join([c if c.isalnum() else "_" for c in asset.removeprefix(strip).elems()])
 
 def _supported(assets):
     return ", ".join(["{} {}".format(a.os, a.cpu) for a in assets])
 
-def plan_assets(version, pins, url_template, overrides, platforms = ASSET_PLATFORMS, exe = "dx", repo_prefix = "dx_prebuilt_", strip = "dx-"):
-    """Returns one struct per asset: its platform and, when pinned, a verified download."""
-    ext = repo_prefix.removesuffix("_")
-    names = sorted({name: None for name in list(pins.keys()) + list(overrides.keys())}.keys())
-    planned = []
-    seen = {}
-    for name in names:
-        override = overrides.get(name)
-        os, cpu = platforms.get(name, ("", ""))
-        if override and override.os:
-            os = override.os
-        if override and override.cpu:
-            cpu = override.cpu
-        if not os or not cpu:
-            fail(ext + ".asset(name = \"{}\") needs os and cpu: it is not a dx release asset".format(name))
-        if os not in KNOWN_OS or cpu not in KNOWN_CPU:
-            fail(ext + ".asset(name = \"{}\"): os must be one of {} and cpu one of {}".format(name, KNOWN_OS, KNOWN_CPU))
-        key = "{}_{}".format(os, cpu)
-        if key in seen:
-            fail(ext + ": assets {} and {} both target {} {}".format(seen[key], name, os, cpu))
-        seen[key] = name
-        if override:
-            url, sha256 = override.url, override.sha256
-        else:
-            url, sha256 = url_template.format(version = version, asset = name), pins.get(name, "")
-        planned.append(struct(
-            asset = name,
-            cpu = cpu,
-            exe = exe + ".exe" if os == "windows" else exe,
-            key = key,
-            os = os,
-            repo = repo_name(name, repo_prefix, strip) if sha256 else "",
-            sha256 = sha256,
-            url = url if sha256 else "",
-        ))
-    return planned
+def _planned(os, cpu, exe, repo_prefix, asset, sha256, url):
+    key = "{}_{}".format(os, cpu)
+    return struct(
+        asset = asset,
+        cpu = cpu,
+        exe = exe + ".exe" if os == "windows" else exe,
+        key = key,
+        os = os,
+        repo = repo_prefix + key if sha256 else "",
+        sha256 = sha256,
+        url = url if sha256 else "",
+    )
+
+def plan_assets(tool, version, pins, url_template, overrides, exe = "dx", repo_prefix = "dx_prebuilt_"):
+    """Returns one struct per platform of tool, sorted by key: its platform and, when pinned, a verified download.
+
+    pins is pins.bzl's PINS; overrides comes from plan_root. A platform with no pin
+    takes its registry fallback's download, and failing that builds from source.
+    """
+    entry = TOOLS[tool]
+    tool_pins = pins.get(tool, {})
+    planned = {}
+    for release_key in entry.platforms:
+        os, cpu = split_key(release_key)
+        os, cpu = RELEASE_OS[os], RELEASE_CPU[cpu]
+        asset = asset_name(tool, release_key)
+        sha256 = tool_pins.get(release_key, "")
+        planned["{}_{}".format(os, cpu)] = _planned(os, cpu, exe, repo_prefix, asset, sha256, url_template.format(version = version, asset = asset))
+    for key, override in overrides.items():
+        planned[key] = _planned(override.os, override.cpu, exe, repo_prefix, "", override.sha256, override.url)
+    for release_key, fallback_key in entry.fallbacks.items():
+        os, cpu = split_key(release_key)
+        key = "{}_{}".format(RELEASE_OS[os], RELEASE_CPU[cpu])
+        os, cpu = split_key(fallback_key)
+        fallback = planned["{}_{}".format(RELEASE_OS[os], RELEASE_CPU[cpu])]
+        if not planned[key].repo and fallback.repo:
+            # Same download, so the same repo: http_file runs once for both platforms.
+            planned[key] = struct(
+                asset = fallback.asset,
+                cpu = planned[key].cpu,
+                exe = planned[key].exe,
+                key = key,
+                os = planned[key].os,
+                repo = fallback.repo,
+                sha256 = fallback.sha256,
+                url = fallback.url,
+            )
+    return [planned[key] for key in sorted(planned.keys())]
 
 def alias_build(actual):
     """Returns the hub BUILD text that points dx at one label and the tools at their sources."""

@@ -8,7 +8,7 @@ registers the toolchain.
 
 ### Locked Hex packages
 
-A `rebar.lock` becomes `hex.lock.json` through `dx lock` and is served by the `hex` hub, as `@hex//cowboy`. The lock also becomes a `hex` dependency set for `dx security`, `dx license` and `dx update`; `dx update` refreshes it with the pinned rebar3.
+A `rebar.lock` becomes `hex.lock.json` through `dx update --apply` and is served by the `hex` hub, as `@hex//cowboy`. The lock also becomes a `hex` dependency set for `dx security`, `dx license` and `dx update`; `dx update` refreshes it with the pinned rebar3.
 
 ## Generate
 

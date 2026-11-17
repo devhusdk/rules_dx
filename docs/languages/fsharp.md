@@ -26,7 +26,7 @@ module(name = "my_project")
 bazel_dep(name = "rules_dx", version = "<release>")
 ```
 
-A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small F# package from [`fsharp/tests/consumer`](../../fsharp/tests/consumer/BUILD.bazel):
+A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small F# package from [`fsharp/tests/consumer`](https://github.com/devhusdk/rules_dx/blob/main/fsharp/tests/consumer/BUILD.bazel):
 
 ```python
 load("@rules_dx//fsharp:defs.bzl", "fsharp_library", "fsharp_test")
@@ -86,7 +86,7 @@ for example `A.fs -> B.fs (B)`; split the directory or list `srcs` by hand. The
 
 ### NuGet packages
 
-Keep a `paket.dependencies` file in your module and lock it with `dx lock`
+Keep a `paket.dependencies` file in your module and lock it with `dx update --apply`
 into `nuget.lock.json`. Declare the lock in your `MODULE.bazel`:
 
 ```python

@@ -428,5 +428,26 @@ impl Ecosystem {
     }
 }
 
+/// A Python package name in PEP 503 form: lowercase, each run of `-`, `_` and `.` folded to one `-`.
+///
+/// Callers that key Bazel hub repositories swap the `-` for `_`; the output holds no `_` so that swap is lossless.
+#[must_use]
+pub fn pep503_name(raw: &str) -> String {
+    let mut out = String::with_capacity(raw.len());
+    let mut separator = false;
+    for ch in raw.trim().chars() {
+        if matches!(ch, '-' | '_' | '.') {
+            separator = true;
+            continue;
+        }
+        if separator && !out.is_empty() {
+            out.push('-');
+        }
+        separator = false;
+        out.extend(ch.to_lowercase());
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests;

@@ -3,7 +3,7 @@
 load("//android/private/packaging:defs.bzl", "abi_transition_settings")
 load("//android/private/packaging:repos.bzl", "ABI_PLATFORMS", "APP_SDK_API_LEVEL", "APP_SDK_BUILD_TOOLS", "APP_SDK_LICENSES", "APP_SDK_PLATFORM", "APP_SDK_REPOSITORY", "KNOWN_ABIS", "TUPLE_ABIS", "abi_errors", "abi_platforms", "abis_for", "app_id_errors", "manifest_lib_name", "sdk_request_errors")
 load("//android/private/packaging:validate.bzl", "android_aab_check_errors", "android_apk_manifest_errors", "android_apk_set_errors", "android_release_sign_errors", "rust_android_apk_errors")
-load("//android/private/sdk:repos.bzl", "ANDROID_API_LEVEL", "ANDROID_NDK_RELEASE", "ANDROID_NDK_REVISION", "ANDROID_TARGET", "BUILD_TOOLS", "BUILD_TOOLS_ARCHIVE_PREFIX", "BUILD_TOOLS_ARCHIVE_SEPARATOR", "BUILD_TOOLS_ARTIFACTS", "BUNDLETOOL_REPOSITORY", "BUNDLETOOL_SHA256", "BUNDLETOOL_VERSION", "DEFAULT_MIRROR", "DEFAULT_PLATFORM_LEVEL", "EMULATOR_ARTIFACTS", "EMULATOR_BUILD", "HUB_NAME", "NDK_ARTIFACTS", "OPT_IN_PACKAGES", "PLATFORM_ARTIFACTS", "PLATFORM_CONSTRAINTS", "PLATFORM_TOOLS", "PLATFORM_TOOLS_ARCHIVE_PREFIX", "PLATFORM_TOOLS_ARTIFACTS", "REQUIRED_LICENSES", "SDK_PACKAGES", "SDK_PLATFORM", "app_sdk_hub_build", "app_sdk_layout", "app_sdk_substitutions", "artifact_errors", "build_tools_build", "build_tools_no_match_error", "build_tools_repositories", "build_tools_repository_name", "bundletool_url", "canonical_id_for", "default_request", "emulator_build", "emulator_repository_name", "fetches_payload", "hub_build", "ndk_build", "ndk_repositories", "ndk_repository_name", "no_match_error", "package_repositories", "platform_build", "platform_repository_name", "platform_tools_build", "platform_tools_repository_name", "request_errors", "unavailable_hub_build", "url_for")
+load("//android/private/sdk:repos.bzl", "ANDROID_API_LEVEL", "ANDROID_NDK_RELEASE", "ANDROID_NDK_REVISION", "ANDROID_TARGET", "BUILD_TOOLS", "BUILD_TOOLS_ARCHIVE_PREFIX", "BUILD_TOOLS_ARCHIVE_SEPARATOR", "BUILD_TOOLS_ARTIFACTS", "BUNDLETOOL_REPOSITORY", "BUNDLETOOL_SHA256", "BUNDLETOOL_VERSION", "DEFAULT_MIRROR", "DEFAULT_PLATFORM_LEVEL", "EMULATOR_ARTIFACTS", "EMULATOR_BUILD", "HUB_NAME", "NDK_ARTIFACTS", "OPT_IN_PACKAGES", "PLATFORM_ARTIFACTS", "PLATFORM_CONSTRAINTS", "PLATFORM_TOOLS", "PLATFORM_TOOLS_ARCHIVE_PREFIX", "PLATFORM_TOOLS_ARTIFACTS", "REQUIRED_LICENSES", "SDK_PACKAGES", "SDK_PLATFORM", "app_sdk_hub_build", "app_sdk_layout", "app_sdk_substitutions", "artifact_errors", "build_tools_build", "build_tools_no_match_error", "build_tools_repositories", "build_tools_repository_name", "bundletool_url", "canonical_id_for", "default_request", "emulator_build", "emulator_repository_name", "fetches_payload", "hub_build", "ndk_build", "ndk_repositories", "ndk_repository_name", "no_match_error", "package_repositories", "platform_build", "platform_repository_name", "platform_tools_build", "platform_tools_repository_name", "request_errors", "select_request", "unavailable_hub_build", "url_for")
 load("//android/private/toolchain:repos.bzl", "toolchain_build", "toolchain_repo_errors")
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 
@@ -327,6 +327,21 @@ def _android_checks():
     checks.append(expect_contains("no-match names the qualified host", no_match_error(), "linux_x86_64"))
     checks.append(expect_contains("no-match names the release", no_match_error(), "r27"))
     checks.append(expect_equal("default request is clean", request_errors(default_request()), []))
+    root = _request(api_level = 31, extra_packages = ["emulator"])
+    dep = _request(api_level = 33, extra_packages = ["platform-tools"], mirror = "https://dep.example.com")
+    checks.append(expect_equal("root tag wins over a dependency tag", select_request([root], [dep], default_request()).request, root))
+    checks.append(expect_equal("root tag alone is taken", select_request([root], [], default_request()).request, root))
+    checks.append(expect_equal(
+        "two root tags fail",
+        select_request([root, root], [dep], default_request()).error,
+        "android: configure the Android SDK once",
+    ))
+    merged = select_request([], [dep, _request(extra_packages = ["platform-tools", "emulator"])], default_request())
+    checks.append(expect_equal("dependency tags merge without a root tag", merged.error, ""))
+    checks.append(expect_equal("dependency packages merge once each", merged.request.extra_packages, ["platform-tools", "emulator"]))
+    checks.append(expect_equal("dependency api level is ignored", merged.request.api_level, default_request().api_level))
+    checks.append(expect_equal("dependency mirror is ignored", merged.request.mirror, default_request().mirror))
+    checks.append(expect_equal("no tag takes the default", select_request([], [], default_request()).request, default_request()))
     checks.append(expect_false("no request fetches nothing", fetches_payload([])))
     checks.append(expect_false("disabled request fetches nothing", fetches_payload([_request(enabled = False)])))
     checks.append(expect_true("default request fetches", fetches_payload([default_request()])))

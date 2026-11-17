@@ -97,6 +97,7 @@ rust_library(
     ) + [
         "//cli/adopt:dx_adopt",
         "//cli/digest:dx_digest",
+        "//cli/ecosystems:dx_ecosystems",
         "//cli/error:dx_error",
         "//cli/families:dx_families",
         "//cli/gomod:dx_gomod",
@@ -201,6 +202,7 @@ rust_test(
     ) + [
         "//cli/adopt:dx_adopt",
         "//cli/digest:dx_digest",
+        "//cli/ecosystems:dx_ecosystems",
         "//cli/error:dx_error",
         "//cli/families:dx_families",
         "//cli/gomod:dx_gomod",

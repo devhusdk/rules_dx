@@ -273,9 +273,10 @@ impl FakeRegistry {
     }
 }
 
-fn fake_read_request(
-    stream: &mut std::net::TcpStream,
-) -> Option<(String, Vec<(String, String)>, Vec<u8>)> {
+/// A request the fake server read: the request line, its headers and its body.
+type RawRequest = (String, Vec<(String, String)>, Vec<u8>);
+
+fn fake_read_request(stream: &mut std::net::TcpStream) -> Option<RawRequest> {
     use std::io::Read as _;
     let mut seen = Vec::new();
     let mut buf = [0u8; 8192];

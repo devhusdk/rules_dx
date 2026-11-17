@@ -1,9 +1,18 @@
 # Licenses
 
-This page lists the license of each tool rules_dx downloads. It is generated.
-To refresh it, run `bazel run //docs:update_licenses`.
+Use this page to check the license of a tool rules_dx downloads before you turn that tool on.
 
-Terraform is BUSL-1.1. That is not an open-source license and it restricts some uses. Read it before you enable terraform.
+## Check a tool
+
+1. Find the tool in the table below, such as `terraform`.
+2. Read its License column. `terraform` shows `BUSL-1.1`.
+3. Read that license before you use the tool. BUSL-1.1 is not an open-source license, and it restricts some uses.
+
+A row with more than one license, such as `Apache-2.0, MIT`, lists every license the tool's download names. This page covers the tools rules_dx downloads, not your own dependencies. To check those, run `tools/dx license //...`; see [`dx license`](cli/commands/audit-update.md).
+
+## Tools
+
+The Version column is the version rules_dx pins, so it is the exact build you get. This page is generated. To refresh it, run `bazel run //docs:update_licenses`.
 
 | Tool | Version | License |
 | --- | --- | --- |

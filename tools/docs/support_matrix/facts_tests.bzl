@@ -129,7 +129,7 @@ def _typecheck_gaps(facts):
             gaps.append(row["name"])
     return gaps
 
-_PENDING_UNSUPPORTED = ["appimage", "apple", "cc_gcc", "cc_msvc", "cuda", "fortran", "ocaml", "perl", "swift"]
+_PENDING_UNSUPPORTED = ["appimage", "apple", "cc_gcc", "cc_msvc", "cuda", "fortran", "ocaml", "perl"]
 
 def support_matrix_facts_tests(name):
     """Declares the support matrix facts schema test."""

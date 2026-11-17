@@ -660,7 +660,8 @@ mod size_budget_tests {
         let scratch = scratch_dir();
         let big = scratch.path().join("big.bin");
         std::fs::write(&big, vec![0u8; 2_000_000]).expect("big");
-        let error = check_files_size_budget(&[big.clone()], 1_000_000).expect_err("over budget");
+        let error = check_files_size_budget(std::slice::from_ref(&big), 1_000_000)
+            .expect_err("over budget");
         assert!(error.contains("2000000 bytes"), "{error}");
         assert!(error.contains("1000000 bytes"), "{error}");
         assert_eq!(check_files_size_budget(&[big], 2_000_000), Ok(2_000_000));

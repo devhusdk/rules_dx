@@ -287,6 +287,24 @@ fn archive_applies_checkout_attributes_only_where_they_change_bytes() {
     assert_eq!(member("MODULE.bazel"), MODULE.as_bytes());
 }
 
+#[test]
+fn archive_reads_attributes_from_the_commit_not_the_checkout() {
+    let fixture = Fixture::new();
+    write(
+        &fixture.repo.join(".gitattributes"),
+        b"*.sh text eol=crlf\n",
+    );
+    dx_test_scratch::git(&fixture.repo, &fixture.repo, &["add", ".gitattributes"]);
+    let archive = fixture.archive("committed.tar.gz");
+    let member = |name: &str| {
+        dx_deploy_tools::archive_read_member(&archive, &format!("rules_dx-{VERSION}/{name}"))
+            .expect(name)
+    };
+    assert_eq!(member("a.cmd"), b"@echo off\r\nrem candidate\r\n");
+    assert_eq!(member("tool.sh"), b"#!/bin/sh\necho tool\n");
+    assert_eq!(member(".gitattributes"), b"*.cmd text eol=crlf\n");
+}
+
 const FILLED_PINS: &[u8] = b"SHA256 = {\"dx\": \"abc\"}\n";
 
 #[test]

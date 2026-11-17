@@ -235,16 +235,71 @@ fn changes_on_checkout(attr: &[u8], value: &[u8]) -> bool {
     }
 }
 
-fn git_pipe<T>(
-    repo: &Path,
+struct CommitIndex {
+    dir: PathBuf,
+    index: PathBuf,
+    tree: PathBuf,
+    out: PathBuf,
+}
+
+impl CommitIndex {
+    fn new(repo: &Path, commit: &str) -> Result<Self, String> {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |elapsed| elapsed.as_nanos());
+        let dir = std::env::temp_dir().join(format!(
+            "dx-candidate-{}-{nanos}-{commit}",
+            std::process::id()
+        ));
+        std::fs::create_dir(&dir)
+            .map_err(|error| format!("candidate: create {}: {error}", dir.display()))?;
+        let scratch = Self {
+            index: dir.join("index"),
+            tree: dir.join("tree"),
+            out: dir.join("out"),
+            dir,
+        };
+        for path in [&scratch.tree, &scratch.out] {
+            std::fs::create_dir(path)
+                .map_err(|error| format!("candidate: create {}: {error}", path.display()))?;
+        }
+        scratch.pipe(repo, &["read-tree", commit], &[], |_| Ok(()))?;
+        Ok(scratch)
+    }
+
+    fn pipe<T>(
+        &self,
+        repo: &Path,
+        args: &[&str],
+        input: &[u8],
+        read: impl FnOnce(&[u8]) -> Result<T, String>,
+    ) -> Result<T, String> {
+        let work_tree = format!("--work-tree={}", self.tree.display());
+        let mut full = vec![work_tree.as_str()];
+        full.extend_from_slice(&READ_CONFIG);
+        full.extend_from_slice(args);
+        let mut cmd = capture::git(repo);
+        cmd.env("GIT_INDEX_FILE", &self.index).args(&full);
+        git_run(&mut cmd, &full, input, read)
+    }
+}
+
+impl Drop for CommitIndex {
+    fn drop(&mut self) {
+        if let Err(error) = std::fs::remove_dir_all(&self.dir) {
+            eprintln!("candidate: remove {}: {error}", self.dir.display());
+        }
+    }
+}
+
+fn git_run<T>(
+    cmd: &mut std::process::Command,
     args: &[&str],
     input: &[u8],
     read: impl FnOnce(&[u8]) -> Result<T, String>,
 ) -> Result<T, String> {
     let command = format!("git {}", args.join(" "));
-    let mut cmd = capture::git(repo);
-    cmd.args(args);
-    let output = run_captured_with_input(&mut cmd, Some(input), DEFAULT_TIMEOUT)
+    let output = run_captured_with_input(cmd, Some(input), DEFAULT_TIMEOUT)
         .map_err(|error| format!("candidate: {command} failed: {error}"))?;
     if !output.success() {
         return Err(format!(
@@ -255,22 +310,35 @@ fn git_pipe<T>(
     read(&output.stdout)
 }
 
-fn filtered_paths(
+fn git_pipe<T>(
     repo: &Path,
-    commit: &str,
-    entries: &[(String, u32)],
-) -> Result<Vec<bool>, String> {
+    args: &[&str],
+    input: &[u8],
+    read: impl FnOnce(&[u8]) -> Result<T, String>,
+) -> Result<T, String> {
+    let mut cmd = capture::git(repo);
+    cmd.args(args);
+    git_run(&mut cmd, args, input, read)
+}
+
+fn nul_separated(paths: impl IntoIterator<Item = impl AsRef<str>>) -> Vec<u8> {
     let mut input = Vec::new();
-    for (path, _) in entries {
-        input.extend_from_slice(path.as_bytes());
+    for path in paths {
+        input.extend_from_slice(path.as_ref().as_bytes());
         input.push(0);
     }
-    let source = format!("--attr-source={commit}");
-    let mut args = vec![source.as_str()];
-    args.extend_from_slice(&READ_CONFIG);
-    args.extend_from_slice(&["check-attr", "-z", "--stdin"]);
+    input
+}
+
+fn filtered_paths(
+    repo: &Path,
+    index: &CommitIndex,
+    entries: &[(String, u32)],
+) -> Result<Vec<bool>, String> {
+    let input = nul_separated(entries.iter().map(|(path, _)| path));
+    let mut args = vec!["check-attr", "--cached", "-z", "--stdin"];
     args.extend_from_slice(&FILTER_ATTRS);
-    let raw = git_pipe(repo, &args, &input, |stdout| Ok(stdout.to_vec()))?;
+    let raw = index.pipe(repo, &args, &input, |stdout| Ok(stdout.to_vec()))?;
     let fields: Vec<&[u8]> = raw.split(|byte| *byte == 0).collect();
     let mut flagged = std::collections::BTreeSet::new();
     for record in fields.chunks(3) {
@@ -294,17 +362,30 @@ fn cat_blobs(repo: &Path, commit: &str, entries: &[(String, u32)]) -> Result<Vec
     let mut blobs = git_pipe(repo, &["cat-file", "--batch"], input.as_bytes(), |stdout| {
         read_batch(stdout, commit, entries)
     })?;
-    let flagged = filtered_paths(repo, commit, entries)?;
-    let source = format!("--attr-source={commit}");
+    let index = CommitIndex::new(repo, commit)?;
+    let flagged = filtered_paths(repo, &index, entries)?;
+    let checkout: Vec<&str> = entries
+        .iter()
+        .zip(&flagged)
+        .filter(|(_, filter)| **filter)
+        .map(|((path, _), _)| path.as_str())
+        .collect();
+    if checkout.is_empty() {
+        return Ok(blobs);
+    }
+    let prefix = format!("--prefix={}/", index.out.display());
+    index.pipe(
+        repo,
+        &["checkout-index", &prefix, "-z", "--stdin"],
+        &nul_separated(&checkout),
+        |_| Ok(()),
+    )?;
     for ((blob, (path, _)), filter) in blobs.iter_mut().zip(entries).zip(flagged) {
-        if !filter {
-            continue;
+        if filter {
+            let file = index.out.join(path);
+            *blob = std::fs::read(&file)
+                .map_err(|error| format!("candidate: read {}: {error}", file.display()))?;
         }
-        let object = format!("{commit}:{path}");
-        let mut args = vec![source.as_str()];
-        args.extend_from_slice(&READ_CONFIG);
-        args.extend_from_slice(&["cat-file", "--filters", &object]);
-        *blob = git_pipe(repo, &args, &[], |stdout| Ok(stdout.to_vec()))?;
     }
     Ok(blobs)
 }

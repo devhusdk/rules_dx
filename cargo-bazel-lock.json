@@ -1,5 +1,5 @@
 {
-  "checksum": "ee4c85308a1f8d41f8956d982334c68247347e7ea017ace04f5f75ae14afea8a",
+  "checksum": "606f5f0b2b9135ee39d12080481accd2c4b40251783954c9ca9744a01ac74b1d",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -4426,6 +4426,35 @@
       ],
       "version": "0.16.6"
     },
+    "const-oid 0.10.3": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "library_target_name": "const_oid",
+      "license": "Apache-2.0 OR MIT",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "const-oid",
+      "package_url": "https://github.com/RustCrypto/formats",
+      "repository": {
+        "Http": {
+          "sha256": "be95d4a884358a21a199689323c29e9256b4a1b315e22f183d155422041d3a9a",
+          "url": "https://static.crates.io/crates/const-oid/0.10.3/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "const_oid",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.10.3"
+    },
     "const-oid 0.9.6": {
       "common_attrs": {
         "edition": "2021"
@@ -7160,14 +7189,20 @@
     "digest 0.11.3": {
       "common_attrs": {
         "crate_features": [
+          "alloc",
           "block-api",
           "default",
-          "mac"
+          "mac",
+          "oid"
         ],
         "deps": [
           {
             "id": "block-buffer 0.12.1",
             "target": "block_buffer"
+          },
+          {
+            "id": "const-oid 0.10.3",
+            "target": "const_oid"
           },
           {
             "alias": "common",
@@ -8010,7 +8045,7 @@
       "common_attrs": {
         "deps": [
           {
-            "id": "base64 0.22.1",
+            "id": "base64 0.23.1",
             "target": "base64"
           },
           {
@@ -8273,7 +8308,7 @@
       "common_attrs": {
         "deps": [
           {
-            "id": "base64 0.22.1",
+            "id": "base64 0.23.1",
             "target": "base64"
           },
           {
@@ -8405,7 +8440,7 @@
             "target": "hex"
           },
           {
-            "id": "sha2 0.10.9",
+            "id": "sha2 0.11.1",
             "target": "sha2"
           },
           {
@@ -9131,7 +9166,7 @@
       "common_attrs": {
         "deps": [
           {
-            "id": "base64 0.22.1",
+            "id": "base64 0.23.1",
             "target": "base64"
           },
           {
@@ -9268,7 +9303,7 @@
       "common_attrs": {
         "deps": [
           {
-            "id": "base64 0.22.1",
+            "id": "base64 0.23.1",
             "target": "base64"
           },
           {
@@ -17525,7 +17560,7 @@
       "common_attrs": {
         "deps": [
           {
-            "id": "base64 0.22.1",
+            "id": "base64 0.23.1",
             "target": "base64"
           },
           {
@@ -25269,6 +25304,60 @@
       ],
       "version": "0.10.9"
     },
+    "sha2 0.11.1": {
+      "common_attrs": {
+        "crate_features": [
+          "alloc",
+          "default",
+          "oid"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "cfg-if 1.0.4",
+              "target": "cfg_if"
+            },
+            {
+              "id": "digest 0.11.3",
+              "target": "digest"
+            }
+          ],
+          "selects": {
+            "cfg(any(target_arch = \"aarch64\", target_arch = \"x86_64\", target_arch = \"x86\"))": [
+              {
+                "id": "cpufeatures 0.3.1",
+                "target": "cpufeatures"
+              }
+            ]
+          }
+        },
+        "edition": "2024"
+      },
+      "library_target_name": "sha2",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "sha2",
+      "package_url": "https://github.com/RustCrypto/hashes",
+      "repository": {
+        "Http": {
+          "sha256": "47d7069beb7d6ac7b9acd1039986e73443f24234f41074da099d6f994ac9ad19",
+          "url": "https://static.crates.io/crates/sha2/0.11.1/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "sha2",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.11.1"
+    },
     "sha3 0.10.9": {
       "common_attrs": {
         "crate_features": [
@@ -32982,7 +33071,7 @@
     }
   },
   "direct_deps": [
-    "base64 0.22.1",
+    "base64 0.23.1",
     "blake3 1.8.7",
     "cargo-lock 11.1.0",
     "chrono 0.4.45",
@@ -33038,6 +33127,7 @@
     "serde_json 1.0.151",
     "sha1 0.10.7",
     "sha2 0.10.9",
+    "sha2 0.11.1",
     "similar 3.2.0",
     "spdx 0.13.5",
     "starlark_syntax 0.14.2",

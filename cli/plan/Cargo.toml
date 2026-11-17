@@ -9,7 +9,7 @@ name = "dx_plan"
 path = "src/lib.rs"
 
 [dependencies]
-base64 = "0.22"
+base64 = "0.23"
 clap = { version = "4", features = ["derive"] }
 clap_lex = "1"
 clap_complete = { version = "4", features = ["unstable-dynamic"] }

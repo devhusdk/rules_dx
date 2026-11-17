@@ -2,6 +2,7 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//rust:defs.bzl", "rust_static_library")
 load("//apple:defs.bzl", "apple_macos_app")
+load("//swift:defs.bzl", "swift_library")
 
 _MACOS_ARM64 = [
     "@platforms//os:macos",
@@ -27,8 +28,27 @@ apple_macos_app(
     version = "2.3",
 )
 
+swift_library(
+    name = "desk",
+    srcs = ["DeskApp.swift"],
+    module_name = "desk",
+    tags = ["manual"],
+    target_compatible_with = _MACOS_ARM64,
+)
+
+apple_macos_app(
+    name = "desk_app",
+    bundle_id = "com.example.desk",
+    entry = ":desk",
+    tags = ["manual"],
+    version = "1.0",
+)
+
 build_test(
     name = "ledger_build_test",
     target_compatible_with = _MACOS_ARM64,
-    targets = [":ledger"],
+    targets = [
+        ":desk_app",
+        ":ledger",
+    ],
 )

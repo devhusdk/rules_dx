@@ -746,7 +746,12 @@ mod tests {
             names
                 .iter()
                 .enumerate()
-                .map(|(index, name)| (index as u32 + 10, (*name).to_owned()))
+                .map(|(index, name)| {
+                    (
+                        u32::try_from(index).expect("index") + 10,
+                        (*name).to_owned(),
+                    )
+                })
                 .collect()
         };
         assert_eq!(
@@ -762,13 +767,23 @@ mod tests {
         let chain: Vec<(u32, String)> = ["timeout", "/usr/bin/env", "bash", "nice", "claude"]
             .iter()
             .enumerate()
-            .map(|(index, name)| (index as u32 + 10, (*name).to_owned()))
+            .map(|(index, name)| {
+                (
+                    u32::try_from(index).expect("index") + 10,
+                    (*name).to_owned(),
+                )
+            })
             .collect();
         assert_eq!(outliving_ancestor(&chain, None), Some(14));
         let chain: Vec<(u32, String)> = ["flock", "/usr/bin/timeout", "gtimeout", "bash", "claude"]
             .iter()
             .enumerate()
-            .map(|(index, name)| (index as u32 + 10, (*name).to_owned()))
+            .map(|(index, name)| {
+                (
+                    u32::try_from(index).expect("index") + 10,
+                    (*name).to_owned(),
+                )
+            })
             .collect();
         assert_eq!(outliving_ancestor(&chain, None), Some(14));
     }

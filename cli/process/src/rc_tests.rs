@@ -639,10 +639,10 @@ fn the_process_share_clears_only_its_own_value() {
 
 #[test]
 fn a_live_share_source_is_read_on_every_call() {
+    use std::sync::atomic::{AtomicU64, Ordering};
     let _guard = SHARE_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    use std::sync::atomic::{AtomicU64, Ordering};
     let cpus = Arc::new(AtomicU64::new(8));
     let seen = Arc::clone(&cpus);
     let token = set_share_source(move || LocalShare {

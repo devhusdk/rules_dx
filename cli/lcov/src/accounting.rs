@@ -340,9 +340,9 @@ fn whole_file_excluded(path: &str, source: &str) -> bool {
         Some(LineComment::ParenStar) => "(*",
         _ => "//",
     };
-    source.lines().enumerate().all(|(index, line)| {
+    source.lines().zip(1_u32..).all(|(line, number)| {
         let text = line.trim();
-        text.is_empty() || text.starts_with(marker) || is_ignored(&ignores, index as u32 + 1)
+        text.is_empty() || text.starts_with(marker) || is_ignored(&ignores, number)
     })
 }
 

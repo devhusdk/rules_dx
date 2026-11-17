@@ -256,7 +256,7 @@ mod sys {
         if writeln!(cursor, "{pid} {namespace} {start} {boot}").is_err() {
             return;
         }
-        let len = cursor.position() as usize;
+        let len = usize::try_from(cursor.position()).unwrap_or(line.len());
         // SAFETY: `line` holds `len` initialized bytes and `fd` is the lease descriptor.
         unsafe {
             libc::ftruncate(fd, 0);

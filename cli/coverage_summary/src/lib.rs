@@ -111,11 +111,19 @@ fn source_lines(events: &[Value]) -> Vec<String> {
 
 /// `MmSSs` of a duration in microseconds, rounded down to whole seconds.
 #[must_use]
+#[expect(
+    clippy::cast_possible_truncation,
+    reason = "float to int casts saturate"
+)]
 pub fn clock(micros: f64) -> String {
     let seconds = (micros / 1_000_000.0).floor() as i64;
     format!("{}m{:02}s", seconds.div_euclid(60), seconds.rem_euclid(60))
 }
 
+#[expect(
+    clippy::cast_possible_truncation,
+    reason = "float to int casts saturate"
+)]
 fn percent_of(part: f64, whole: f64) -> i64 {
     (part * 100.0 / whole).floor() as i64
 }

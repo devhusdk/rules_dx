@@ -20,7 +20,7 @@ fn a_lease_without_a_live_dx_stops_its_group() {
     let dir = scratch.path().join("groups");
     std::fs::create_dir_all(&dir).expect("dir");
     let mut child = sleeper();
-    let pgid = child.id() as i32;
+    let pgid = child.id().cast_signed();
     std::fs::write(
         dir.join("424242-0.lock"),
         format!("{}\n", lease_line(pgid).expect("line")),
@@ -41,7 +41,7 @@ fn a_lease_held_by_a_live_dx_is_left_alone() {
     let dir = scratch.path().join("groups");
     std::fs::create_dir_all(&dir).expect("dir");
     let mut child = sleeper();
-    let pgid = child.id() as i32;
+    let pgid = child.id().cast_signed();
     let path = dir.join("424243-0.lock");
     let held = dx_atomic_fs::lease::try_lock_file(&path, true)
         .expect("lock")
@@ -64,7 +64,7 @@ fn a_lease_for_a_finished_group_is_dropped_quietly() {
         .process_group(0)
         .spawn()
         .expect("probe");
-    let pgid = child.id() as i32;
+    let pgid = child.id().cast_signed();
     let line = lease_line(pgid).expect("line");
     drop(child.wait());
     std::fs::write(dir.join("424244-0.lock"), format!("{line}\n")).expect("lease");
@@ -89,7 +89,7 @@ fn a_lease_naming_a_reused_group_number_is_dropped_without_a_signal() {
     let dir = scratch.path().join("groups");
     std::fs::create_dir_all(&dir).expect("dir");
     let mut child = sleeper();
-    let pgid = child.id() as i32;
+    let pgid = child.id().cast_signed();
     let line = format!("{pgid} {} 1 {}", sys::namespace(), sys::boot_id());
     std::fs::write(dir.join("424245-0.lock"), format!("{line}\n")).expect("lease");
     let reaped = reap_in(&dir);
@@ -108,7 +108,7 @@ fn a_lease_from_another_pid_namespace_is_left_alone() {
     let dir = scratch.path().join("groups");
     std::fs::create_dir_all(&dir).expect("dir");
     let mut child = sleeper();
-    let pgid = child.id() as i32;
+    let pgid = child.id().cast_signed();
     let path = dir.join("424246-0.lock");
     std::fs::write(&path, format!("{pgid} pid:[1] 77 boot-a\n")).expect("lease");
     assert_eq!(reap_in(&dir), [] as [crate::groups::Reaped; 0]);
@@ -125,7 +125,7 @@ fn a_lease_dropped_with_its_group_still_running_leaves_nothing_to_reap() {
     let scratch = dx_test_scratch::scratch("dx-groups-drop-");
     let dir = scratch.path().join("groups");
     let mut child = sleeper();
-    let pgid = child.id() as i32;
+    let pgid = child.id().cast_signed();
     let lease = GroupLease::acquire_in(&dir).expect("lease");
     lease.record(pgid);
     drop(lease);
@@ -217,7 +217,7 @@ fn an_owned_run_holds_a_lease_naming_its_group_and_removes_it() {
     let pgid = pgid.get();
     assert_eq!(outcome, crate::lifecycle::StreamOutcome::Withdrawn);
     assert!(pgid > 1, "the lease names the child group");
-    assert_ne!(pgid, std::process::id() as i32);
+    assert_ne!(pgid, std::process::id().cast_signed());
     assert!(reaped_none.get(), "a held lease is not reaped");
     assert!(alive.get(), "the group runs while the lease is held");
     assert_eq!(leases(&dir), [] as [std::path::PathBuf; 0]);
@@ -381,7 +381,7 @@ fn a_lease_with_unknown_start_is_dropped_without_a_signal() {
     let dir = scratch.path().join("groups");
     std::fs::create_dir_all(&dir).expect("dir");
     let mut child = sleeper();
-    let pgid = child.id() as i32;
+    let pgid = child.id().cast_signed();
     let path = dir.join("424250-0.lock");
     let line = format!("{pgid} {} - {}", sys::namespace(), sys::boot_id());
     std::fs::write(&path, format!("{line}\n")).expect("lease");
@@ -401,7 +401,7 @@ fn a_lease_from_another_boot_is_dropped_without_a_signal() {
     let dir = scratch.path().join("groups");
     std::fs::create_dir_all(&dir).expect("dir");
     let mut child = sleeper();
-    let pgid = child.id() as i32;
+    let pgid = child.id().cast_signed();
     let line = lease_line(pgid).expect("line");
     let mut fields: Vec<&str> = line.split(' ').collect();
     fields[3] = "not-this-boot";
@@ -429,7 +429,7 @@ fn a_stop_is_written_to_the_reap_log() {
     let dir = scratch.path().join("groups");
     std::fs::create_dir_all(&dir).expect("dir");
     let mut child = sleeper();
-    let pgid = child.id() as i32;
+    let pgid = child.id().cast_signed();
     std::fs::write(
         dir.join("424253-0.lock"),
         format!("{}\n", lease_line(pgid).expect("line")),
@@ -470,7 +470,11 @@ fn the_lease_root_names_the_groups_directory() {
 fn the_reap_log_rotates_once_it_passes_its_cap() {
     let scratch = dx_test_scratch::scratch("dx-groups-rotate-");
     let dir = scratch.path();
-    std::fs::write(dir.join(LOG_NAME), vec![b'x'; LOG_CAP as usize + 1]).expect("big log");
+    std::fs::write(
+        dir.join(LOG_NAME),
+        vec![b'x'; usize::try_from(LOG_CAP).expect("cap") + 1],
+    )
+    .expect("big log");
     log_decision(dir, "stop", 1, &recorded("77"), &observed());
     assert!(dir.join(format!("{LOG_NAME}.1")).is_file());
     let fresh = std::fs::read_to_string(dir.join(LOG_NAME)).expect("fresh log");
@@ -494,7 +498,7 @@ fn a_group_that_ignores_the_first_signal_is_killed() {
         .spawn()
         .expect("shell starts");
     dx_testing::wait_armed(&armed);
-    let pgid = child.id() as i32;
+    let pgid = child.id().cast_signed();
     std::fs::write(
         dir.join("424260-0.lock"),
         format!("{}\n", lease_line(pgid).expect("line")),
@@ -571,7 +575,7 @@ fn an_unreadable_stat_of_a_gone_leader_is_absent() {
         Leader::Present("7".to_owned())
     );
     assert_eq!(sys::settle_leader(Leader::Absent, || false), Leader::Absent);
-    assert!(!sys::gone(std::process::id() as i32));
+    assert!(!sys::gone(std::process::id().cast_signed()));
 }
 
 #[cfg(not(unix))]
@@ -581,7 +585,7 @@ fn without_unix_groups_only_start_times_are_known_and_a_lease_is_dropped() {
     stop_group(&recorded("77"));
     assert_eq!(sys::cmdline(4000), "");
     assert!(sys::start_time(-1).is_none());
-    assert!(sys::start_time(std::process::id() as i32).is_some());
+    assert!(sys::start_time(std::process::id().cast_signed()).is_some());
     assert!(sys::own_groups().is_empty());
     assert_eq!(sys::leader(4000), Leader::Unknown);
     assert!(lease_line(-1).is_none());
@@ -682,7 +686,7 @@ fn a_child_replaces_its_lease_text_before_spawn_returns() {
     lease.record_from_child(&mut command);
     let mut child = command.spawn().expect("child starts");
     let text = std::fs::read_to_string(&lease.path).expect("lease text");
-    let pgid = child.id() as i32;
+    let pgid = child.id().cast_signed();
     let start = sys::start_time(pgid);
     sys::signal_group(pgid, 9);
     drop(child.wait());
@@ -696,8 +700,8 @@ fn a_child_replaces_its_lease_text_before_spawn_returns() {
 fn a_written_lease_is_not_recorded_again() {
     let scratch = dx_test_scratch::scratch("dx-groups-written-");
     let lease = GroupLease::acquire_in(scratch.path()).expect("lease");
-    let line = lease_line(std::process::id() as i32).expect("line");
-    lease.record_unwritten(std::process::id() as i32);
+    let line = lease_line(std::process::id().cast_signed()).expect("line");
+    lease.record_unwritten(std::process::id().cast_signed());
     assert_eq!(held_text(&lease), format!("{line}\n"));
     lease.record_unwritten(i32::MAX);
     assert_eq!(held_text(&lease), format!("{line}\n"));

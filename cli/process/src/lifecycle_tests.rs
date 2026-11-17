@@ -1100,7 +1100,7 @@ fn assert_survived(probe: &mut Probe) {
 fn owned_child_gets_every_forwarded_sigint() {
     let scratch = dx_test_scratch::scratch("dx-forward-owned");
     let (mut child, log) = counting_probe(scratch.path());
-    let target = -(child.0.id() as i32);
+    let target = -child.0.id().cast_signed();
     backend::send(target, 2);
     assert_eq!(sigints(&log, 1), 1);
     backend::send(target, 2);
@@ -1332,8 +1332,8 @@ fn streamed_withdraw_kills_a_tree_that_ignores_sigterm() {
 #[cfg(unix)]
 #[test]
 fn streamed_stop_during_withdraw_is_a_cancel() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
     use std::sync::atomic::{AtomicBool, Ordering};
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
     let sink = Sink::default();
     let script = "trap '' TERM; sleep 3";
     let spec = streamed(
@@ -1854,8 +1854,8 @@ fn a_stop_reaches_only_the_runs_still_registered() {
     let (mut a, a_log) = counting_probe(scratch.path());
     let other = dx_test_scratch::scratch("dx-forward-table-b");
     let (b, b_log) = counting_probe(other.path());
-    let first = Forwarding::register_in(&TABLE, -(a.0.id() as i32));
-    let mut second = Forwarding::register_in(&TABLE, -(b.0.id() as i32));
+    let first = Forwarding::register_in(&TABLE, -a.0.id().cast_signed());
+    let mut second = Forwarding::register_in(&TABLE, -b.0.id().cast_signed());
     second.clear();
     forward_from(&TABLE, 2, ignore, backend::send);
     assert_eq!(sigints(&a_log, 1), 1);

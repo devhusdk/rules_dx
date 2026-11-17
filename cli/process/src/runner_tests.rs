@@ -180,9 +180,9 @@ fn bazel_probe(dir: &Path) -> String {
 
 #[test]
 fn a_withdrawable_bazel_build_keeps_its_stderr() {
+    use std::io::IsTerminal as _;
     let scratch = dx_test_scratch::scratch("dx-runner-");
     let cwd = scratch.path();
-    use std::io::IsTerminal as _;
     let scratch = dx_test_scratch::scratch("dx-runner-bazel-tail");
     let argv = [
         bazel_probe(scratch.path()),

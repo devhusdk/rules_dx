@@ -150,7 +150,7 @@ fn random_seed() -> i64 {
             .duration_since(std::time::UNIX_EPOCH)
             .map_or(0, |elapsed| elapsed.as_nanos()),
     );
-    (hasher.finish() >> 1) as i64
+    (hasher.finish() >> 1).cast_signed()
 }
 
 type Spawn<'a> = dyn Fn(Vec<String>, Option<&Path>) -> Result<i32, Failure> + 'a;

@@ -1009,11 +1009,6 @@ mod tests {
 
     #[test]
     fn remote_uris_fail_without_network_fetch() {
-        let stream = [
-            named_set("1", &["bytestream://remote/cache/a.pb".to_owned()]),
-            completed("//q:a", true, &group_ref("dx_results", &["1"])),
-        ]
-        .join("\n");
         struct NoReadReader {
             reads: std::cell::Cell<usize>,
         }
@@ -1026,6 +1021,11 @@ mod tests {
                 ))
             }
         }
+        let stream = [
+            named_set("1", &["bytestream://remote/cache/a.pb".to_owned()]),
+            completed("//q:a", true, &group_ref("dx_results", &["1"])),
+        ]
+        .join("\n");
         let reader = NoReadReader {
             reads: std::cell::Cell::new(0),
         };
@@ -1168,12 +1168,6 @@ mod tests {
 
     #[test]
     fn duplicate_artifacts_deduplicated() {
-        let stream = [
-            named_set("1", &[out_uri("a.pb")]),
-            named_set("2", &[out_uri("a.pb")]),
-            completed("//q:a", true, &group_ref("dx_results", &["1", "2"])),
-        ]
-        .join("\n");
         struct CountingReader {
             reads: std::cell::Cell<usize>,
         }
@@ -1183,6 +1177,12 @@ mod tests {
                 Ok(vec![7])
             }
         }
+        let stream = [
+            named_set("1", &[out_uri("a.pb")]),
+            named_set("2", &[out_uri("a.pb")]),
+            completed("//q:a", true, &group_ref("dx_results", &["1", "2"])),
+        ]
+        .join("\n");
         let reader = CountingReader {
             reads: std::cell::Cell::new(0),
         };

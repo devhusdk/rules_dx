@@ -22,7 +22,11 @@ fn elf_with(machine: u16, interp: Option<&str>, needed: &[&str], sections: bool)
     put(&mut image, 58, &64u16.to_le_bytes());
     let phnum = usize::from(interp.is_some()) + if needed.is_empty() { 0 } else { 2 };
     put(&mut image, 32, &64u64.to_le_bytes());
-    put(&mut image, 56, &(phnum as u16).to_le_bytes());
+    put(
+        &mut image,
+        56,
+        &u16::try_from(phnum).expect("phnum").to_le_bytes(),
+    );
     let mut next = 0usize;
     let mut header = |image: &mut Vec<u8>, kind: u32, at: u64, size: u64| {
         let base = 64 + next * 56;
@@ -164,7 +168,7 @@ fn macho(cputype: u32, platform: u32, minos: u32, dylibs: &[&str]) -> Vec<u8> {
         let size = (24 + name.len() + 1).div_ceil(8) * 8;
         let start = commands.len();
         commands.extend_from_slice(&macho::LC_LOAD_DYLIB.to_le_bytes());
-        commands.extend_from_slice(&(size as u32).to_le_bytes());
+        commands.extend_from_slice(&u32_of(size).to_le_bytes());
         commands.extend_from_slice(&24u32.to_le_bytes());
         commands.extend_from_slice(&[0u8; 12]);
         commands.extend_from_slice(name.as_bytes());
@@ -175,8 +179,8 @@ fn macho(cputype: u32, platform: u32, minos: u32, dylibs: &[&str]) -> Vec<u8> {
     image.extend_from_slice(&cputype.to_le_bytes());
     image.extend_from_slice(&0u32.to_le_bytes());
     image.extend_from_slice(&macho::MH_EXECUTE.to_le_bytes());
-    image.extend_from_slice(&(1 + dylibs.len() as u32).to_le_bytes());
-    image.extend_from_slice(&(commands.len() as u32).to_le_bytes());
+    image.extend_from_slice(&(1 + u32_of(dylibs.len())).to_le_bytes());
+    image.extend_from_slice(&u32_of(commands.len()).to_le_bytes());
     image.extend_from_slice(&0u32.to_le_bytes());
     image.extend_from_slice(&0u32.to_le_bytes());
     image.extend_from_slice(&commands);
@@ -186,14 +190,14 @@ fn macho(cputype: u32, platform: u32, minos: u32, dylibs: &[&str]) -> Vec<u8> {
 fn fat(slices: &[Vec<u8>]) -> Vec<u8> {
     let mut image = Vec::new();
     image.extend_from_slice(&macho::FAT_MAGIC.to_be_bytes());
-    image.extend_from_slice(&(slices.len() as u32).to_be_bytes());
+    image.extend_from_slice(&u32_of(slices.len()).to_be_bytes());
     let mut at = 4096u32;
     for slice in slices {
         let cputype = u32::from_le_bytes([slice[4], slice[5], slice[6], slice[7]]);
         image.extend_from_slice(&cputype.to_be_bytes());
         image.extend_from_slice(&0u32.to_be_bytes());
         image.extend_from_slice(&at.to_be_bytes());
-        image.extend_from_slice(&(slice.len() as u32).to_be_bytes());
+        image.extend_from_slice(&u32_of(slice.len()).to_be_bytes());
         image.extend_from_slice(&12u32.to_be_bytes());
         at += 4096;
     }
@@ -750,4 +754,8 @@ fn producers_are_empty_for_a_pe_without_a_dans_marker() {
     let mut image = pe_with_rich(&[(1, 2, 3)]);
     put(&mut image, 0x40, &0u32.to_le_bytes());
     assert_eq!(producers(&image), [] as [String; 0]);
+}
+
+fn u32_of(value: usize) -> u32 {
+    u32::try_from(value).expect("fits u32")
 }

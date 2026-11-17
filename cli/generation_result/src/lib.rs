@@ -191,6 +191,7 @@ fn modification_text<'a>(
     let mut previous_end = 0_u64;
     let mut previous_start = None;
     let mut edits = Vec::with_capacity(modification.edits.len());
+    let mut ranges = Vec::with_capacity(modification.edits.len());
     for (index, edit) in modification.edits.iter().enumerate() {
         if edit.start_byte > edit.end_byte {
             return Err(Error::InvertedEdit {
@@ -198,14 +199,16 @@ fn modification_text<'a>(
                 index,
             });
         }
-        if edit.end_byte > original.len() as u64 {
+        let bounds = usize::try_from(edit.start_byte)
+            .ok()
+            .zip(usize::try_from(edit.end_byte).ok())
+            .filter(|&(_, end)| end <= original.len());
+        let Some((start, end)) = bounds else {
             return Err(Error::EditOutOfBounds {
                 path: path.to_owned(),
                 index,
             });
-        }
-        let start = edit.start_byte as usize;
-        let end = edit.end_byte as usize;
+        };
         if !original.is_char_boundary(start) || !original.is_char_boundary(end) {
             return Err(Error::EditNotUtf8Boundary {
                 path: path.to_owned(),
@@ -233,6 +236,7 @@ fn modification_text<'a>(
         }
         previous_start = Some(edit.start_byte);
         previous_end = edit.end_byte;
+        ranges.push((start, end));
         edits.push(Replacement {
             start_byte: edit.start_byte,
             end_byte: edit.end_byte,
@@ -248,14 +252,10 @@ fn modification_text<'a>(
             .sum::<usize>();
     let mut candidate = String::with_capacity(capacity);
     let mut cursor = 0;
-    for (edit, replacement) in modification.edits.iter().zip(&edits) {
-        candidate.push_str(
-            original
-                .get(cursor..edit.start_byte as usize)
-                .unwrap_or_default(),
-        );
+    for ((start, end), replacement) in ranges.into_iter().zip(&edits) {
+        candidate.push_str(original.get(cursor..start).unwrap_or_default());
         candidate.push_str(replacement.text);
-        cursor = edit.end_byte as usize;
+        cursor = end;
     }
     candidate.push_str(original.get(cursor..).unwrap_or_default());
     if candidate == original {

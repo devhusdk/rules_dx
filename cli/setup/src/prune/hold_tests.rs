@@ -257,8 +257,8 @@ fn iteration_pair(i: u64) -> SetupPair {
 
 #[test]
 fn hold_vs_apply_race_never_sees_partial_generation() {
-    let _fork = dx_testing::holding();
     const ROUNDS: u64 = 25;
+    let _fork = dx_testing::holding();
     let (_scratch, workspace) = workspace("dx-prune-hold-race-");
     select(&workspace, &iteration_pair(0));
     let done = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
@@ -327,11 +327,11 @@ fn hold_vs_apply_race_never_sees_partial_generation() {
 
 #[test]
 fn a_streamed_child_keeps_its_selection_through_cleanup() {
-    let _fork = dx_testing::spawning();
     use dx_process::lifecycle::{
         CleanupBudget, EnvPolicy, Exit, StreamGroup, StreamOutcome, StreamOutput, StreamSpec,
         StreamStdin, run_streamed,
     };
+    let _fork = dx_testing::spawning();
     let (scratch, workspace) = workspace("dx-prune-hold-streamed-");
     select(&workspace, &setup_pair('1', '2'));
     let held = hold_current(&workspace, WAIT)

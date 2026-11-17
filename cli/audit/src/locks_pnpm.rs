@@ -65,7 +65,7 @@ fn check_pnpm_lockfile_version(value: &yaml_serde::Value) -> Result<(), DxError>
         version
             .as_f64()
             .filter(|number| number.is_finite() && *number >= 0.0)
-            .map(|number| number.floor() as u64)
+            .and_then(|number| number.floor().to_string().parse::<u64>().ok())
     };
     if major == Some(PNPM_LOCKFILE_MAJOR) {
         Ok(())

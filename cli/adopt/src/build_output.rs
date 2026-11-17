@@ -523,7 +523,7 @@ mod tests {
     #[test]
     fn oversized_files_need_an_allow_entry() {
         let root = temp();
-        let big = vec![0u8; (MAX_FILE_BYTES + 1) as usize];
+        let big = vec![0u8; usize::try_from(MAX_FILE_BYTES + 1).expect("size")];
         std::fs::write(root.join("big.bin"), &big).expect("big");
         std::fs::write(root.join("kept.bin"), &big).expect("kept");
         std::fs::write(root.join("small.txt"), "x").expect("small");
@@ -559,7 +559,7 @@ mod tests {
     }
 
     fn big() -> Vec<u8> {
-        vec![0u8; (MAX_FILE_BYTES + 1) as usize]
+        vec![0u8; usize::try_from(MAX_FILE_BYTES + 1).expect("size")]
     }
 
     fn repo_on_main() -> Fixture {

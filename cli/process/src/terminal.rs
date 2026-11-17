@@ -348,7 +348,7 @@ extern "C" fn report_settled(_: libc::c_int, _: *mut libc::siginfo_t, _: *mut li
 }
 
 unsafe fn report(signo: libc::c_int) {
-    let byte = signo as u8;
+    let byte = u8::try_from(signo).unwrap_or(SETTLED);
     // SAFETY: the pipe descriptor is open and byte is a valid one-byte buffer.
     unsafe {
         libc::write(
@@ -392,7 +392,7 @@ unsafe fn close_others(keep: i32) {
     if unsafe { libc::getrlimit(libc::RLIMIT_NOFILE, &raw mut limit) } == 0
         && limit.rlim_cur < MAX_CLOSE as libc::rlim_t
     {
-        top = limit.rlim_cur as i32;
+        top = i32::try_from(limit.rlim_cur).unwrap_or(MAX_CLOSE);
     }
     let mut fd = 3;
     while fd < top {

@@ -91,7 +91,7 @@ pub fn end_owned_descendants(owned: &mut OwnedChild) {
 
 #[expect(unsafe_code, reason = "signalling a process group has no safe std API")]
 fn signal_group(owned: &mut OwnedChild, signo: i32) {
-    let id = owned.child.id() as i32;
+    let id = owned.child.id().cast_signed();
     let target = if owned.descendants == Descendants::Foreground {
         id
     } else {
@@ -186,7 +186,7 @@ pub fn spawn_streamed(
 pub fn stream_target(child: &Child, group: Group) -> i32 {
     match group {
         Group::Join(pgid) => -pgid, // LCOV_EXCL_LINE - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        Group::Owned | Group::Own => -(child.id() as i32),
+        Group::Owned | Group::Own => -child.id().cast_signed(),
     }
 }
 

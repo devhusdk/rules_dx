@@ -369,7 +369,12 @@ fn concurrent_first_runs_share_one_download() {
         .collect();
     for (i, child) in children.into_iter().enumerate() {
         let output = child.wait_with_output().expect("wait");
-        assert_eq!(output.status.code(), Some(i as i32), "{}", stderr(&output));
+        assert_eq!(
+            output.status.code(),
+            Some(i32::try_from(i).expect("code")),
+            "{}",
+            stderr(&output)
+        );
     }
     let dir = fixture.cache.path().join("bin").join(VERSION);
     assert_eq!(support::leftovers(&dir), [] as [String; 0]);

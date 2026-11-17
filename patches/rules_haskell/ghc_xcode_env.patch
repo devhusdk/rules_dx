@@ -1,0 +1,55 @@
+Give ghc actions the Xcode env so an Xcode cc toolchain (wrapped_clang) gets DEVELOPER_DIR and SDKROOT on macOS.
+
+diff --git a/haskell/cc.bzl b/haskell/cc.bzl
+--- a/haskell/cc.bzl
++++ b/haskell/cc.bzl
+@@ -158,6 +158,15 @@
+     if cc_wrapper.as_tool.runfiles_manifest:
+         env["CC_WRAPPER_MANIFEST"] = cc_wrapper.as_tool.runfiles_manifest.path
+ 
++    # An Xcode cc toolchain (apple_support's wrapped_clang) reads DEVELOPER_DIR
++    # and SDKROOT. Bazel fills both in for local darwin spawns only when the
++    # action env names the Xcode and SDK versions, as native cc actions do.
++    xcode_config = getattr(real_ctx.attr, "_xcode_config", None)
++    if hs_toolchain.is_darwin and xcode_config and paths.basename(cc_toolchain.ar_executable) != "llvm-libtool-darwin":
++        xcode_config = xcode_config[apple_common.XcodeVersionConfig]
++        env.update(apple_common.apple_host_system_env(xcode_config))
++        env.update(apple_common.target_apple_env(xcode_config, apple_common.platform.macos))
++
+     cc_libraries_info = deps_HaskellCcLibrariesInfo(
+         ctx.attr.deps + getattr(ctx.attr, "plugins", []) + getattr(ctx.attr, "setup_deps", []),
+     )
+diff --git a/haskell/defs.bzl b/haskell/defs.bzl
+--- a/haskell/defs.bzl
++++ b/haskell/defs.bzl
+@@ -87,6 +87,12 @@
+     "_cc_toolchain": attr.label(
+         default = Label("@rules_cc//cc:current_cc_toolchain"),
+     ),
++    "_xcode_config": attr.label(
++        default = configuration_field(
++            name = "xcode_config_label",
++            fragment = "apple",
++        ),
++    ),
+     "_ghc_wrapper": attr.label(
+         executable = True,
+         cfg = "exec",
+@@ -175,7 +181,7 @@
+         toolchains = use_cc_toolchain() + [
+             "@rules_haskell//haskell:toolchain",
+         ],
+-        fragments = ["cpp"],
++        fragments = ["apple", "cpp"],
+         **kwargs
+     )
+ 
+@@ -208,7 +214,7 @@
+     toolchains = use_cc_toolchain() + [
+         "@rules_haskell//haskell:toolchain",
+     ],
+-    fragments = ["cpp"],
++    fragments = ["apple", "cpp"],
+ )
+ 
+ def _haskell_worker_wrapper(rule_type, **kwargs):

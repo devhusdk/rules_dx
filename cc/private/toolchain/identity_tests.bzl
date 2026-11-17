@@ -81,7 +81,7 @@ aspect_field transitive_count=0""")
 
 EXPECTED_MSVC_IDENTITY_OBSERVATIONS = """subject //cc/private/toolchain:identity_under_test_msvc
 field cc.abi=msvc
-field cc.builtin_includes=external/+msvc_runtime+msvc_runtime/sysroot/Contents/VC/Tools/MSVC/14.50.35717/include | external/+windows_sdk+windows_sdk/sysroot/base/c/Include/10.0.26100.0/shared | external/+windows_sdk+windows_sdk/sysroot/base/c/Include/10.0.26100.0/ucrt | external/+windows_sdk+windows_sdk/sysroot/base/c/Include/10.0.26100.0/um | external/+windows_sdk+windows_sdk/sysroot/base/c/Include/10.0.26100.0/winrt
+field cc.builtin_includes=external/+cc+dx_msvc_runtime/sysroot/Contents/VC/Tools/MSVC/14.50.35717/include | external/+cc+dx_windows_sdk/sysroot/base/c/Include/10.0.26100.0/shared | external/+cc+dx_windows_sdk/sysroot/base/c/Include/10.0.26100.0/ucrt | external/+cc+dx_windows_sdk/sysroot/base/c/Include/10.0.26100.0/um | external/+cc+dx_windows_sdk/sysroot/base/c/Include/10.0.26100.0/winrt
 field cc.compiler=msvc-cl
 field cc.coverage=
 field cc.driver=msvc

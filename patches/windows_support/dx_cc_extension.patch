@@ -1,0 +1,180 @@
+diff --git a/windows/private/extensions/msvc_runtime.bzl b/windows/private/extensions/msvc_runtime.bzl
+--- a/windows/private/extensions/msvc_runtime.bzl
++++ b/windows/private/extensions/msvc_runtime.bzl
+@@ -588,9 +588,38 @@
+                 return sorted(_HOST_TOOL_ARCHITECTURES)
+     return sorted(hosts)
+ 
+-def _msvc_runtime_extension_impl(module_ctx):
+-    config = _read_configure_tag(module_ctx)
+-    host_tools = _read_host_tools(module_ctx)
++MSVC_RUNTIME_CONFIGURE_ATTRS = _MSVC_RUNTIME_ATTR | {
++    "visual_studio_channel_url": attr.string(
++        default = _DEFAULT_VS_CHANNEL_URL,
++        doc = "Visual Studio release channel URL used to resolve the installer manifest, use `visual_studio_installer_manifest_url` and `visual_studio_installer_manifest_integrity` for reproducibility instead",
++    ),
++    "visual_studio_installer_manifest_url": attr.string(
++        doc = "Override URL for the Visual Studio installer manifest, if set the installer manifest will not be resolved from a query to `visual_studio_channel_url`",
++    ),
++    "visual_studio_installer_manifest_integrity": attr.string(
++        doc = "Optional SRI integrity for the downloaded Visual Studio installer manifest.",
++    ),
++    "pins": attr.label(
++        allow_single_file = True,
++        doc = "JSON file whose visual_studio_installer_manifest url and integrity replace the two manifest attributes.",
++    ),
++}
++
++def msvc_runtime_repository(module_ctx, name, config, host_tools):
++    """Declares the MSVC runtime repository from a configure tag.
++
++    Args:
++        module_ctx: the module extension context.
++        name: name of the repository.
++        config: tag with the msvc_runtime.configure attributes.
++        host_tools: host architectures whose compiler tools are kept.
++
++    Returns:
++        struct with the extension facts and whether the result is reproducible.
++    """
++    for host in host_tools:
++        if host not in _HOST_TOOL_ARCHITECTURES:
++            fail("msvc_runtime.host_tools: unsupported host {}, expected one of {}".format(host, _HOST_TOOL_ARCHITECTURES))
+     manifest_url = config.visual_studio_installer_manifest_url
+     manifest_integrity = config.visual_studio_installer_manifest_integrity
+     if config.pins:
+@@ -606,19 +635,26 @@
+         _INSTALLER_MANIFEST_FACTS_KEY,
+     )
+ 
+-    repository_name = "msvc_runtime"
+     _msvc_runtime_repository(
+-        name = repository_name,
++        name = name,
+         msvc_version = config.msvc_version,
+         architectures = config.architectures,
+         host_tools = host_tools,
+         installer_manifest_url = installer_manifest["url"],
+         installer_manifest_integrity = installer_manifest["integrity"],
+     )
++    return struct(
++        facts = {_INSTALLER_MANIFEST_FACTS_KEY: installer_manifest},
++        reproducible = bool(manifest_url and manifest_integrity),
++    )
++
++def _msvc_runtime_extension_impl(module_ctx):
++    repository_name = "msvc_runtime"
++    result = msvc_runtime_repository(module_ctx, repository_name, _read_configure_tag(module_ctx), _read_host_tools(module_ctx))
+ 
+     metadata_kwargs = {
+-        "facts": {_INSTALLER_MANIFEST_FACTS_KEY: installer_manifest},
+-        "reproducible": bool(manifest_url and manifest_integrity),
++        "facts": result.facts,
++        "reproducible": result.reproducible,
+     }
+     if module_ctx.root_module_has_non_dev_dependency:
+         metadata_kwargs["root_module_direct_deps"] = [repository_name]
+@@ -634,22 +670,7 @@
+ msvc_runtime = module_extension(
+     implementation = _msvc_runtime_extension_impl,
+     tag_classes = {
+-        "configure": tag_class(attrs = _MSVC_RUNTIME_ATTR | {
+-            "visual_studio_channel_url": attr.string(
+-                default = _DEFAULT_VS_CHANNEL_URL,
+-                doc = "Visual Studio release channel URL used to resolve the installer manifest, use `visual_studio_installer_manifest_url` and `visual_studio_installer_manifest_integrity` for reproducibility instead",
+-            ),
+-            "visual_studio_installer_manifest_url": attr.string(
+-                doc = "Override URL for the Visual Studio installer manifest, if set the installer manifest will not be resolved from a query to `visual_studio_channel_url`",
+-            ),
+-            "visual_studio_installer_manifest_integrity": attr.string(
+-                doc = "Optional SRI integrity for the downloaded Visual Studio installer manifest.",
+-            ),
+-            "pins": attr.label(
+-                allow_single_file = True,
+-                doc = "JSON file whose visual_studio_installer_manifest url and integrity replace the two manifest attributes.",
+-            ),
+-        }),
++        "configure": tag_class(attrs = MSVC_RUNTIME_CONFIGURE_ATTRS),
+         "host_tools": tag_class(
+             attrs = {
+                 "hosts": attr.string_list(
+diff --git a/windows/private/extensions/windows_sdk.bzl b/windows/private/extensions/windows_sdk.bzl
+--- a/windows/private/extensions/windows_sdk.bzl
++++ b/windows/private/extensions/windows_sdk.bzl
+@@ -356,44 +356,63 @@
+                 return sorted(_HOST_TOOL_ARCHITECTURES)
+     return sorted(hosts)
+ 
+-def _windows_sdk_extension_impl(module_ctx):
+-    config = _read_configure_tag(module_ctx)
++WINDOWS_SDK_CONFIGURE_ATTRS = _WINDOWS_SDK_ATTR | {
++    "pins": attr.label(
++        allow_single_file = True,
++        doc = "JSON file whose windows_sdk_integrity replaces the windows_sdk_integrity attribute.",
++    ),
++}
++
++def windows_sdk_repository(module_ctx, name, config, host_tools):
++    """Declares the Windows SDK repository from a configure tag.
++
++    Args:
++        module_ctx: the module extension context.
++        name: name of the repository.
++        config: tag with the windows_sdk.configure attributes.
++        host_tools: host architectures whose SDK tools are kept.
++
++    Returns:
++        struct with whether the result is reproducible.
++    """
++    for host in host_tools:
++        if host not in _HOST_TOOL_ARCHITECTURES:
++            fail("windows_sdk.host_tools: unsupported host {}, expected one of {}".format(host, _HOST_TOOL_ARCHITECTURES))
+     integrity = config.windows_sdk_integrity
+     if config.pins:
+         integrity = json.decode(module_ctx.read(config.pins))["windows_sdk_integrity"]
+ 
+-    repository_name = "windows_sdk"
+     _windows_sdk_repository(
+-        name = repository_name,
++        name = name,
+         windows_sdk_version = config.windows_sdk_version,
+         windows_sdk_integrity = integrity,
+         transformations = config.transformations,
+         architectures = config.architectures,
+-        host_tools = _read_host_tools(module_ctx),
++        host_tools = host_tools,
+     )
++    return struct(reproducible = bool(integrity))
++
++def _windows_sdk_extension_impl(module_ctx):
++    repository_name = "windows_sdk"
++    result = windows_sdk_repository(module_ctx, repository_name, _read_configure_tag(module_ctx), _read_host_tools(module_ctx))
+ 
+     if module_ctx.root_module_has_non_dev_dependency:
+         return module_ctx.extension_metadata(
+             root_module_direct_deps = [repository_name],
+             root_module_direct_dev_deps = [],
+-            reproducible = bool(integrity),
++            reproducible = result.reproducible,
+         )
+     else:
+         return module_ctx.extension_metadata(
+             root_module_direct_deps = [],
+             root_module_direct_dev_deps = [repository_name],
+-            reproducible = bool(integrity),
++            reproducible = result.reproducible,
+         )
+ 
+ windows_sdk = module_extension(
+     implementation = _windows_sdk_extension_impl,
+     tag_classes = {
+-        "configure": tag_class(attrs = _WINDOWS_SDK_ATTR | {
+-            "pins": attr.label(
+-                allow_single_file = True,
+-                doc = "JSON file whose windows_sdk_integrity replaces the windows_sdk_integrity attribute.",
+-            ),
+-        }),
++        "configure": tag_class(attrs = WINDOWS_SDK_CONFIGURE_ATTRS),
+         "host_tools": tag_class(
+             attrs = {
+                 "hosts": attr.string_list(

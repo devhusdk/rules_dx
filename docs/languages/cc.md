@@ -221,7 +221,6 @@ common --@rules_dx//cc:compiler=msvc
 It supports a Windows x86_64 host that targets Windows x86_64. Accept the license in the root `MODULE.bazel`:
 
 ```text
-msvc = use_extension("@rules_dx//cc:extensions.bzl", "msvc")
 dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
 dx_licenses.accept(ids = ["visual-studio-build-tools"])
 ```

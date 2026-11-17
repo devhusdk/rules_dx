@@ -580,7 +580,24 @@ gcc_toolchains.toolchain(
 use_repo(gcc_toolchains, "custom_gcc_x86_64")
 
 cc = use_extension("//cc:extensions.bzl", "cc")
-use_repo(cc, "dx_cc_toolchains", "dx_gcc_linux_aarch64", "dx_gcc_linux_aarch64_cross", "dx_gcc_linux_x86_64")
+cc.msvc_runtime(
+    msvc_version = "14.50.35717",
+    pins = "//cc:pins.json",
+)
+cc.windows_sdk(
+    pins = "//cc:pins.json",
+    transformations = {
+        "base/c/Include/10.0.26100.0/shared/driverspecs.h": "base/c/Include/10.0.26100.0/shared/DriverSpecs.h",
+        "base/c/Include/10.0.26100.0/shared/specstrings.h": "base/c/Include/10.0.26100.0/shared/SpecStrings.h",
+        "base/c/Include/10.0.26100.0/um/ole2.h": "base/c/Include/10.0.26100.0/um/Ole2.h",
+        "base/c/Include/10.0.26100.0/um/olectl.h": "base/c/Include/10.0.26100.0/um/OleCtl.h",
+        "**/*.h": "lowercase",
+        "**/*.lib": "lowercase",
+        "**/*.Lib": "lowercase",
+    },
+    windows_sdk_version = "10.0.26100.7705",
+)
+use_repo(cc, "dx_cc_toolchains", "dx_gcc_linux_aarch64", "dx_gcc_linux_aarch64_cross", "dx_gcc_linux_x86_64", "dx_msvc", "dx_msvc_runtime", "dx_windows_sdk")
 
 protoc_prebuilt = use_extension("@protobuf//bazel/private/oss/toolchains/prebuilt:protoc_extension.bzl", "protoc")
 use_repo(
@@ -720,6 +737,7 @@ dx_pins.archive(
         "//patches/windows_support:source_directory_headers.patch",
         "//patches/windows_support:pins.patch",
         "//patches/windows_support:reproducible_extensions.patch",
+        "//patches/windows_support:dx_cc_extension.patch",
     ],
     pins = "//cc:pins.json",
 )
@@ -3281,32 +3299,6 @@ use_repo(windows_msvc_runtime, "msvc_runtime")
 
 windows_sdk_ext = use_extension("@windows_support//windows:extensions.bzl", "windows_sdk")
 use_repo(windows_sdk_ext, "windows_sdk")
-
-dx_msvc_runtime_ext = use_extension("//cc:extensions.bzl", "msvc_runtime")
-dx_msvc_runtime_ext.configure(
-    msvc_version = "14.50.35717",
-    pins = "//cc:pins.json",
-)
-use_repo(dx_msvc_runtime_ext, dx_msvc_runtime = "msvc_runtime")
-
-dx_windows_sdk_ext = use_extension("//cc:extensions.bzl", "windows_sdk")
-dx_windows_sdk_ext.configure(
-    pins = "//cc:pins.json",
-    transformations = {
-        "base/c/Include/10.0.26100.0/shared/driverspecs.h": "base/c/Include/10.0.26100.0/shared/DriverSpecs.h",
-        "base/c/Include/10.0.26100.0/shared/specstrings.h": "base/c/Include/10.0.26100.0/shared/SpecStrings.h",
-        "base/c/Include/10.0.26100.0/um/ole2.h": "base/c/Include/10.0.26100.0/um/Ole2.h",
-        "base/c/Include/10.0.26100.0/um/olectl.h": "base/c/Include/10.0.26100.0/um/OleCtl.h",
-        "**/*.h": "lowercase",
-        "**/*.lib": "lowercase",
-        "**/*.Lib": "lowercase",
-    },
-    windows_sdk_version = "10.0.26100.7705",
-)
-use_repo(dx_windows_sdk_ext, dx_windows_sdk = "windows_sdk")
-
-msvc = use_extension("//cc:extensions.bzl", "msvc")
-use_repo(msvc, "dx_msvc")
 
 qt = use_extension("//qt:extensions.bzl", "qt")
 use_repo(qt, "dx_qt")

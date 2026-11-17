@@ -78057,7 +78057,7 @@
     }
   },
   "facts": {
-    "//cc:extensions.bzl%msvc_runtime": {
+    "//cc:extensions.bzl%cc": {
       "visual_studio_installer_manifest_v1": {
         "integrity": "sha256-qOhU+p8/uurCfXME4pfxZg1xN0ATid61fPeYPzPBb+8=",
         "request": {

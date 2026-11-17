@@ -2031,45 +2031,62 @@ fn oci_sign_plan_lines_name_the_two_cosign_commands() {
     );
 }
 
+/// What one signed live push left behind.
 #[cfg(unix)]
-#[test]
-fn oci_live_push_signs_and_attests_the_pushed_digest() {
+struct SignedPush {
+    code: i32,
+    outdir: std::path::PathBuf,
+    /// The `DOCKER_CONFIG` the stub cosign saw, empty when it never ran with one.
+    docker_config: String,
+    log: String,
+    sbom: std::path::PathBuf,
+    digest: String,
+}
+
+/// Pushes to a fake registry and signs with a stub cosign that checks the login is a
+/// 0600 file in a 0700 dir and records where it was; `sign_exit` is the exit of `cosign sign`.
+#[cfg(unix)]
+fn oci_signed_push(scratch: &std::path::Path, sign_exit: u8) -> SignedPush {
     use std::os::unix::fs::PermissionsExt as _;
-    let scratch = scratch_dir();
     let (image, _) = oci_save(
-        scratch.path(),
+        scratch,
         "image.tar.gz",
         &[oci_test_layer(false)],
         "linux/amd64",
     );
-    let log = scratch.path().join("cosign.log");
-    let cosign = scratch.path().join("cosign");
+    let log = scratch.join("cosign.log");
+    let seen = scratch.join("docker_config.seen");
+    let cosign = scratch.join("cosign");
     std::fs::write(
         &cosign,
         format!(
             "#!/bin/sh\nif [ \"$1\" = version ]; then echo 'GitVersion:    v0.0.1'; exit 0; fi\n\
-             test -f \"$DOCKER_CONFIG/config.json\" || exit 3\necho \"$*\" >> '{}'\n",
+             test -n \"$(find \"$DOCKER_CONFIG/config.json\" -perm 600)\" || exit 3\n\
+             test -n \"$(find \"$DOCKER_CONFIG\" -maxdepth 0 -perm 700)\" || exit 4\n\
+             echo \"$DOCKER_CONFIG\" > '{}'\necho \"$*\" >> '{}'\n\
+             if [ \"$1\" = sign ]; then exit {sign_exit}; fi\n",
+            seen.display(),
             log.display()
         ),
     )
     .expect("stub");
     std::fs::set_permissions(&cosign, std::fs::Permissions::from_mode(0o755)).expect("chmod");
     let sha256 = dx_digest::sha256_file_hex(&cosign).expect("hash");
-    let sbom = scratch.path().join("s.spdx.json");
+    let sbom = scratch.join("s.spdx.json");
     std::fs::write(&sbom, "{}").expect("sbom");
     let fake = FakeRegistry::start(FakeConfig::default());
     let target = registry::RegistryRef {
         endpoint: registry::Endpoint::for_test(&fake.origin),
         name: "demo/app".to_owned(),
     };
-    let live = scratch.path().join("live");
-    std::fs::create_dir_all(&live).expect("outdir");
+    let outdir = scratch.join("live");
+    std::fs::create_dir_all(&outdir).expect("outdir");
     let cosign_path = cosign.to_string_lossy().into_owned();
     let code = oci_live_push_to(
         &crate::http::upload_agent_with_proxy(None),
         &target,
         &image,
-        &live,
+        &outdir,
         &OciPush {
             registry: "registry.invalid",
             repository: "demo/app",
@@ -2090,24 +2107,95 @@ fn oci_live_push_signs_and_attests_the_pushed_digest() {
             }),
         },
     );
-    assert_eq!(code, 0);
     let digest = fake
         .requests()
         .last()
         .expect("manifest")
         .body_digest
         .clone();
-    let reference = format!("registry.invalid/demo/app@{digest}");
-    let logged = std::fs::read_to_string(&log).expect("log");
+    SignedPush {
+        code,
+        outdir,
+        docker_config: std::fs::read_to_string(&seen)
+            .unwrap_or_default()
+            .trim()
+            .to_owned(),
+        log: std::fs::read_to_string(&log).unwrap_or_default(),
+        sbom,
+        digest,
+    }
+}
+
+/// The registry login must never land in outdir, which outlives the run, and must be gone
+/// once signing returns.
+#[cfg(unix)]
+fn assert_login_cleaned_up(push: &SignedPush) {
+    assert!(!push.docker_config.is_empty(), "cosign ran with a login");
+    let docker_config = std::path::Path::new(&push.docker_config);
+    assert!(
+        !docker_config.starts_with(&push.outdir),
+        "{} is inside outdir",
+        docker_config.display()
+    );
+    assert!(
+        !docker_config.exists(),
+        "{} was left behind",
+        docker_config.display()
+    );
+    for entry in walk_files(&push.outdir) {
+        let body = std::fs::read(&entry).expect("read outdir file");
+        assert!(
+            !String::from_utf8_lossy(&body).contains("\"auths\""),
+            "{} holds a docker login",
+            entry.display()
+        );
+    }
+}
+
+#[cfg(unix)]
+fn walk_files(dir: &std::path::Path) -> Vec<std::path::PathBuf> {
+    let mut files = Vec::new();
+    for entry in std::fs::read_dir(dir).expect("read dir") {
+        let path = entry.expect("dir entry").path();
+        if path.is_dir() {
+            files.extend(walk_files(&path));
+        } else {
+            files.push(path);
+        }
+    }
+    files
+}
+
+#[cfg(unix)]
+#[test]
+fn oci_live_push_signs_and_attests_the_pushed_digest() {
+    let scratch = scratch_dir();
+    let push = oci_signed_push(scratch.path(), 0);
+    assert_eq!(push.code, 0);
+    let reference = format!("registry.invalid/demo/app@{}", push.digest);
     assert_eq!(
-        logged.lines().collect::<Vec<_>>(),
+        push.log.lines().collect::<Vec<_>>(),
         [
             format!("sign --key env://COSIGN_KEY --yes {reference}"),
             format!(
                 "attest --key env://COSIGN_KEY --yes --type spdxjson --predicate {} {reference}",
-                sbom.display()
+                push.sbom.display()
             ),
         ]
     );
-    assert!(!live.join("cosign-docker-config").exists());
+    assert_login_cleaned_up(&push);
+}
+
+#[cfg(unix)]
+#[test]
+fn oci_live_push_removes_the_login_when_signing_fails() {
+    let scratch = scratch_dir();
+    let push = oci_signed_push(scratch.path(), 1);
+    assert_eq!(push.code, 1);
+    let reference = format!("registry.invalid/demo/app@{}", push.digest);
+    assert_eq!(
+        push.log.lines().collect::<Vec<_>>(),
+        [format!("sign --key env://COSIGN_KEY --yes {reference}")]
+    );
+    assert_login_cleaned_up(&push);
 }

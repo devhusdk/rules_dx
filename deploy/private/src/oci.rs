@@ -1060,16 +1060,21 @@ struct OciSign<'a> {
 }
 
 /// Signs `registry/repository@digest` and attests the SBOM, with a throwaway registry login.
-fn oci_sign_pushed(
-    sign: &OciSign<'_>,
-    outdir: &Path,
-    push: &OciPush<'_>,
-    digest: &str,
-) -> Result<(), String> {
+fn oci_sign_pushed(sign: &OciSign<'_>, push: &OciPush<'_>, digest: &str) -> Result<(), String> {
     let reference = format!("{}/{}@{digest}", push.registry, push.repository);
-    let docker_config = outdir.join("cosign-docker-config");
+    // The config holds the registry user:secret. It lives in a private temp dir outside
+    // outdir, which is kept after the run, and the TempDir guard removes it on every
+    // return path, including a panic in signing. tempfile makes dirs with the default
+    // mode, so ask for 0700 explicitly; write_docker_config makes the file 0600.
+    let mut builder = tempfile::Builder::new();
+    builder.prefix("dx-cosign-docker-config-");
+    #[cfg(unix)]
+    builder.permissions(std::os::unix::fs::PermissionsExt::from_mode(0o700));
+    let docker_config = builder
+        .tempdir()
+        .map_err(|error| format!("signing: cannot create a DOCKER_CONFIG dir: {error}"))?;
     let result = write_docker_config(
-        &docker_config,
+        docker_config.path(),
         push.registry,
         push.creds.user,
         push.creds.secret,
@@ -1081,10 +1086,15 @@ fn oci_sign_pushed(
             sign.identity,
             &reference,
             sbom.as_deref(),
-            &docker_config,
+            docker_config.path(),
         )
     });
-    let _ = std::fs::remove_dir_all(&docker_config);
+    let shown = docker_config.path().display().to_string();
+    if let Err(error) = docker_config.close() {
+        // The push and signature already happened, so this warns instead of failing the
+        // deploy; the leftover login sits in the temp dir, never in outdir.
+        eprintln!("oci_deploy: warning: cannot remove the cosign login at {shown}: {error}");
+    }
     result?;
     println!(
         "oci_deploy: signed {reference} ({})",
@@ -1181,7 +1191,7 @@ fn oci_live_push_to(
                 println!("oci_deploy: not signed");
                 return 0;
             };
-            match oci_sign_pushed(&sign, outdir, push, &digest) {
+            match oci_sign_pushed(&sign, push, &digest) {
                 Ok(()) => 0,
                 Err(error) => {
                     eprintln!("oci_deploy: {error}");

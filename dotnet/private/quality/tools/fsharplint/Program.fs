@@ -2,6 +2,7 @@ module FSharpLintRunner
 
 open System
 open System.IO
+open System.Reflection.PortableExecutable
 open System.Text.Json
 open FSharp.Compiler.CodeAnalysis
 open FSharp.Compiler.Diagnostics
@@ -59,6 +60,11 @@ let private write path severity rule message (range: range) =
 let private emit (path: string) (warning: FSharpLint.Framework.Suggestion.LintWarning) =
     write path "warning" warning.RuleIdentifier warning.Details.Message warning.Details.Range
 
+let private isManaged (path: string) =
+    use stream = File.OpenRead path
+    use reader = new PEReader(stream)
+    reader.HasMetadata
+
 let private frameworkReferences (explicit: string list) =
     let named = explicit |> List.map Path.GetFileName |> Set.ofList
     let directory = Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory()
@@ -73,6 +79,7 @@ let private frameworkReferences (explicit: string list) =
             || name = "netstandard.dll"
             || name = "mscorlib.dll"
             || name = "WindowsBase.dll"))
+    |> Array.filter isManaged
     |> List.ofArray
 
 let private isError (diagnostic: FSharpDiagnostic) =

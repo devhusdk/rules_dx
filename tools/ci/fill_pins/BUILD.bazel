@@ -16,6 +16,10 @@ rust_library(
     crate_name = "fill_pins",
     crate_root = "src/lib.rs",
     rustc_env = {"DX_PREBUILT_REGISTRY": "$(execpath //cli/prebuilt:registry)"},
+    deps = all_crate_deps(
+        package_name = "tools/ci/ci_fill_pins",
+        normal = True,
+    ),
 )
 
 rust_binary(
@@ -27,7 +31,10 @@ rust_binary(
     ),
     crate_name = "fill_pins_bin",
     crate_root = "src/main.rs",
-    deps = [
+    deps = all_crate_deps(
+        package_name = "tools/ci/ci_fill_pins",
+        normal = True,
+    ) + [
         ":fill_pins",
         "//cli/process:dx_process",
     ],
@@ -52,6 +59,7 @@ rust_test(
         ":fill_pins",
         "//cli/adopt:dx_adopt",
         "//cli/test_scratch:dx_test_scratch",
+        "@crates//:tempfile",
     ],
 )
 

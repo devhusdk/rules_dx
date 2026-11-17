@@ -1058,10 +1058,12 @@ fn composer_env(set: &ResolvedSet) -> Result<Vec<(String, String)>, BackendError
 /// A directory for one resolver's state under the user cache dir, so it stays out of the workspace
 /// and out of the shared temp dir, where another user could create it first.
 fn tool_cache(set: &ResolvedSet, tool: &'static str, name: &str) -> Result<String, BackendError> {
-    let cache = dx_process::rc::user_cache_dir(&|var| std::env::var(var).ok())
-        .ok_or_else(|| BackendError::NoCacheDir {
-            set: set.name.clone(),
-            tool,
+    let cache =
+        dx_process::rc::user_cache_dir(&|var| std::env::var(var).ok()).ok_or_else(|| {
+            BackendError::NoCacheDir {
+                set: set.name.clone(),
+                tool,
+            }
         })?;
     let path = cache.join("dx").join("update").join(tool).join(name);
     path.to_str()
@@ -1140,7 +1142,10 @@ fn opam_argv(
 
 /// Keeps the opam root, with the snapshot as its only repository, out of the workspace.
 fn opam_env(set: &ResolvedSet) -> Result<Vec<(String, String)>, BackendError> {
-    Ok(vec![("OPAMROOT".to_owned(), tool_cache(set, "opam", "root")?)])
+    Ok(vec![(
+        "OPAMROOT".to_owned(),
+        tool_cache(set, "opam", "root")?,
+    )])
 }
 
 /// A `dart pub` run from the pinned Dart SDK in the set's directory.
@@ -1176,7 +1181,10 @@ fn pub_argv(
 
 /// Keeps pub's package cache out of the workspace.
 fn pub_env(set: &ResolvedSet) -> Result<Vec<(String, String)>, BackendError> {
-    Ok(vec![("PUB_CACHE".to_owned(), tool_cache(set, "pub", "cache")?)])
+    Ok(vec![(
+        "PUB_CACHE".to_owned(),
+        tool_cache(set, "pub", "cache")?,
+    )])
 }
 
 fn bazel(head: &dx_process::BazelHead, verb: &str, args: &[&str]) -> Vec<String> {

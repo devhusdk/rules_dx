@@ -25,7 +25,10 @@ rust_library(
     crate_name = "dx_site_build",
     crate_root = "src/lib.rs",
     visibility = VIS_TOOLS_PUBLIC,
-    deps = [],
+    deps = all_crate_deps(
+        package_name = "tools/docs/site/site_build",
+        normal = True,
+    ),
 )
 
 rust_test(
@@ -43,7 +46,11 @@ rust_test(
     coverage_lib = ":dx_site_build",
     crate_name = "dx_site_build",
     crate_root = "src/lib.rs",
-    deps = ["//cli/test_scratch:dx_test_scratch"],
+    deps = all_crate_deps(
+        package_name = "tools/docs/site/site_build",
+        normal = True,
+        normal_dev = True,
+    ) + ["//cli/test_scratch:dx_test_scratch"],
 )
 
 rust_binary(
@@ -58,7 +65,10 @@ rust_binary(
     deps = all_crate_deps(
         package_name = "tools/docs/site/site_build",
         normal = True,
-    ) + [":dx_site_build"],
+    ) + [
+        ":dx_site_build",
+        "@crates//:tempfile",
+    ],
 )
 
 real_source_target(

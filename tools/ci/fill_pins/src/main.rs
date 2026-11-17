@@ -30,7 +30,8 @@ fn main() -> ExitCode {
 
 fn run() -> Result<String, String> {
     if let Some(dir) = std::env::var_os("BUILD_WORKING_DIRECTORY") {
-        std::env::set_current_dir(&dir).map_err(|e| format!("cannot enter {}: {e}", dir.display()))?;
+        std::env::set_current_dir(&dir)
+            .map_err(|e| format!("cannot enter {}: {e}", dir.display()))?;
     }
     let mut args = std::env::args().skip(1);
     let tag = args.next().ok_or(USAGE)?;
@@ -88,7 +89,7 @@ fn run() -> Result<String, String> {
         }
     };
     let verify = |manifest: &Path, bundle: &Path| verify(&tag, &repo, manifest, bundle);
-    let message = if check {
+    if check {
         fill_pins::check(&tag, &dir, &text, &repo, filled, || fetch(&dir), verify)
             .map(|()| format!("{} matches {tag}", pins.display()))
     } else {
@@ -97,8 +98,7 @@ fn run() -> Result<String, String> {
             std::fs::write(&pins, out).map_err(|e| format!("write {}: {e}", pins.display()))?;
             Ok(format!("wrote {}", pins.display()))
         })
-    };
-    message
+    }
 }
 
 fn download(tag: &str, repo: &str, dir: &Path) -> Result<(), String> {

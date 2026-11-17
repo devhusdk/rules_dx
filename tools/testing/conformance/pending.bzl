@@ -271,7 +271,6 @@ msix runfiles_test *
 ocaml cross_test macos_arm64
 ocaml lint_error_test *
 ocaml lint_test *
-ocaml lock_test *
 ocaml runfiles_test *
 perl runfiles_test *
 php format_error_test *

@@ -196,7 +196,11 @@ mod tests {
             strings(&["//other/...", "//pkg:unit"]),
             "owners are replaced by mapped tests"
         );
-        assert_eq!(query.calls().len(), 1, "the graph query maps files to tests");
+        assert_eq!(
+            query.calls().len(),
+            1,
+            "the graph query maps files to tests"
+        );
     }
 
     #[test]

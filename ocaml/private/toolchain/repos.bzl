@@ -9,17 +9,6 @@ DIST_PREFIX = "dx_ocaml_"
 
 VERSION_FILE = "DX_OCAML_VERSION"
 
-DROPPED_PATHS = [
-    ".bazelignore",
-    ".bazelrc",
-    ".gitignore",
-    "MODULE.bazel",
-    "README.adoc",
-    "docs",
-    "stardoc",
-    "tools",
-]
-
 EMITTERS = {
     "sys": struct(
         exec_compatible_with = [str(Label("//ocaml/private/toolchain/platform/emitter:sys"))],
@@ -244,11 +233,3 @@ ocaml_dune_library(
     workspace = "dune-project",
 )
 """.format(package = package, library = library, dune = dune, rule = rule, deps = repr(["//{}".format(d) for d in deps]))
-
-DUNE_BUILD = """package(default_visibility = ["//visibility:public"])
-
-filegroup(
-    name = "srcs",
-    srcs = glob(["**"], exclude = ["**/BUILD", "**/BUILD.bazel"]),
-)
-"""

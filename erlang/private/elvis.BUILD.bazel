@@ -1,0 +1,24 @@
+load("@rules_dx//erlang/private:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_escript_archive")
+load("@rules_erlang//:erlang_app.bzl", "erlang_app")
+
+package(default_visibility = ["//visibility:public"])
+
+erlang_app(
+    app_name = "elvis",
+    app_version = "{version}",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    deps = [
+        "@dx_elvis_core//:erlang_app",
+        "@dx_erlang_getopt//:erlang_app",
+    ],
+)
+
+erlang_escript_archive(
+    name = "elvis",
+    app = ":erlang_app",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    headers = [
+        "shebang",
+        "{emu_args, \"+sbtu +A0 -noinput -noshell -mode minimal -escript main elvis\"}",
+    ],
+)

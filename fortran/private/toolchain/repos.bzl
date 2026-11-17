@@ -16,19 +16,6 @@ FLANG_PREFIX = "dx_fortran_flang_"
 
 FLANG_RT_NAME = "dx_fortran_flang_rt"
 
-DROPPED_PATHS = [
-    ".bazelignore",
-    ".bazelrc",
-    ".bazelversion",
-    ".bcr",
-    ".github",
-    ".gitignore",
-    "MODULE.bazel",
-    "docs",
-    "examples",
-    "test",
-]
-
 FLANG_RT_TREES = [
     "flang-rt",
     "flang/include/flang",

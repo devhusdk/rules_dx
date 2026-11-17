@@ -1,0 +1,12 @@
+load("@rules_dx//erlang/private:defs.bzl", "ERLANG_COMPATIBLE_WITH")
+load("@rules_erlang//:erlang_app.bzl", "erlang_app")
+
+package(default_visibility = ["//visibility:public"])
+
+erlang_app(
+    app_name = "elvis_core",
+    app_version = "{version}",
+    extra_apps = ["syntax_tools"],
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    deps = ["@dx_katana_code//:erlang_app"],
+)

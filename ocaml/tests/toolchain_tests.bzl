@@ -1,11 +1,11 @@
 """OCaml toolchain pin and acquisition tests."""
 
-load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
+load("//core:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
 load("//ocaml/private/toolchain:ocaml.bzl", "COMPILERS", "NATIVE_CC_TOOLS", "TOOLS", "native_cc_env", "toolchain_fields")
 load("//ocaml/private/toolchain:opam.bzl", "pick_annotation")
 load("//ocaml/private/toolchain:pins.bzl", "OCAML_CELLS", "OCAML_VERSION")
-load("//ocaml/private/toolchain:repos.bzl", "DROPPED_PATHS", "EMITTERS", "conda_stem", "dune_package_build", "hub_build", "placeholder_files", "relative_prefix", "softlink_paths")
+load("//ocaml/private/toolchain:repos.bzl", "EMITTERS", "conda_stem", "dune_package_build", "hub_build", "placeholder_files", "relative_prefix", "softlink_paths")
 
 def _checks():
     linux = OCAML_CELLS["linux_x86_64"]
@@ -20,7 +20,6 @@ def _checks():
         expect_contains("macos zstd version", macos["zstd"].archive.urls[0], "/zstd-1.5.7-"),
         expect_contains("macos zstd-static matches the zstd version", macos["zstd-static"].archive.urls[0], "/zstd-static-1.5.7-"),
         expect_equal("ocaml license", ocaml.license, "LGPL-2.1-only WITH OCaml-LGPL-linking-exception"),
-        expect_true("the upstream module file is dropped", "MODULE.bazel" in DROPPED_PATHS),
         expect_equal("bytecode compiler", TOOLS["compiler"], "bin/ocamlc.opt"),
         expect_equal("native compiler", TOOLS["native_compiler"], "bin/ocamlopt.opt"),
         expect_equal("each emitter has its compiler", COMPILERS, {"sys": "bin/ocamlopt.opt", "vm": "bin/ocamlc.opt"}),

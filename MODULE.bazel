@@ -1031,6 +1031,90 @@ dx_pins.archive(
     pins = "//erlang:pins.json",
 )
 dx_pins.archive(
+    name = "dx_elvis",
+    build = "//erlang/private:elvis.BUILD.bazel",
+    dropped = ["src/elvis.app.src"],
+    patches = ["//patches/elvis:lazy_format.patch"],
+    pins = "//erlang:pins.json",
+)
+dx_pins.archive(
+    name = "dx_elvis_core",
+    build = "//erlang/private:elvis_core.BUILD.bazel",
+    dropped = ["src/elvis_core.app.src"],
+    pins = "//erlang:pins.json",
+)
+dx_pins.archive(
+    name = "dx_erlang_getopt",
+    build = "//erlang/private:erlang_getopt.BUILD.bazel",
+    dropped = ["ebin"],
+    pins = "//erlang:pins.json",
+)
+dx_pins.archive(
+    name = "dx_erlfmt",
+    build = "//erlang/private:erlfmt.BUILD.bazel",
+    dropped = ["src/rebar3_fmt_prv.erl"],
+    pins = "//erlang:pins.json",
+)
+dx_pins.archive(
+    name = "dx_katana_code",
+    build = "//erlang/private:katana_code.BUILD.bazel",
+    dropped = ["src/katana_code.app.src"],
+    pins = "//erlang:pins.json",
+)
+dx_pins.archive(
+    name = "dx_rebar3",
+    pins = "//erlang:pins.json",
+)
+dx_pins.archive(
+    name = "rules_fortran",
+    dropped = [
+        ".bazelignore",
+        ".bazelrc",
+        ".bazelversion",
+        ".bcr",
+        ".github",
+        ".gitignore",
+        "MODULE.bazel",
+        "docs",
+        "examples",
+        "test",
+    ],
+    patches = ["//patches/rules_fortran:module_map_key.patch"],
+    pins = "//fortran:pins.json",
+)
+dx_pins.archive(
+    name = "rules_ocaml",
+    dropped = [
+        ".bazelignore",
+        ".bazelrc",
+        ".gitignore",
+        "MODULE.bazel",
+        "README.adoc",
+        "docs",
+        "stardoc",
+        "tools",
+    ],
+    patches = [
+        "//patches/rules_ocaml:hermetic_ocaml.patch",
+        "//patches/rules_ocaml:native_cc_env.patch",
+        "//patches/rules_ocaml:platform_alias.patch",
+        "//patches/rules_ocaml:static_cc_deps.patch",
+    ],
+    pins = "//ocaml:pins.json",
+)
+dx_pins.archive(
+    name = "dx_ocaml_dune",
+    build = "//ocaml/private:dune.BUILD.bazel",
+    key = "dune",
+    pins = "//ocaml:pins.json",
+)
+dx_pins.archive(
+    name = "dx_opam_repository",
+    build = "//ocaml/private:opam_repository.BUILD.bazel",
+    key = "opam_repository",
+    pins = "//ocaml:pins.json",
+)
+dx_pins.archive(
     name = "rules_powershell",
     pins = "//powershell:pins.json",
 )
@@ -1244,6 +1328,8 @@ use_repo(
     "dx_coreutils__macos_x86_64",
     "dx_coreutils__windows_arm64",
     "dx_coreutils__windows_x86_64",
+    "dx_elvis",
+    "dx_erlfmt",
     "dx_jazzer",
     "dx_jazzer_api",
     "dx_jmh_asm",
@@ -1260,6 +1346,8 @@ use_repo(
     "dx_luacov_reporter_lcov",
     "dx_luafilesystem",
     "dx_luals",
+    "dx_ocaml_dune",
+    "dx_opam_repository",
     "dx_paket",
     "dx_patchelf",
     "dx_penlight",
@@ -1271,6 +1359,7 @@ use_repo(
     "dx_powershell_toolchains__macos_x86_64",
     "dx_powershell_toolchains__windows_arm64",
     "dx_powershell_toolchains__windows_x86_64",
+    "dx_rebar3",
     "dx_rules_dart_pub",
     "dx_rules_flutter_pub",
     "dx_selene_src",
@@ -1294,7 +1383,9 @@ use_repo(
     "rules_dotnet",
     "rules_elixir",
     "rules_erlang",
+    "rules_fortran",
     "rules_haskell",
+    "rules_ocaml",
     "rules_powershell",
     "rules_ruby",
     "shared_tasks_adler2",
@@ -1660,7 +1751,7 @@ use_repo(cuda, "cuda")
 register_toolchains("@cuda//toolchain/...")
 
 erlang = use_extension("//erlang:extensions.bzl", "erlang")
-use_repo(erlang, "dx_elvis", "dx_erlang_argparse", "dx_erlang_toolchains", "dx_erlfmt", "dx_erlperf", "dx_otp_windows_arm64", "dx_otp_windows_x86_64", "dx_rebar3")
+use_repo(erlang, "dx_erlang_argparse", "dx_erlang_toolchains", "dx_erlperf", "dx_otp_windows_arm64", "dx_otp_windows_x86_64")
 
 elixir = use_extension("//elixir:extensions.bzl", "elixir")
 use_repo(elixir, "dx_credo", "dx_elixir", "dx_elixir_toolchains")
@@ -1688,7 +1779,7 @@ register_toolchains(
 bazel_dep(name = "rules_batch", version = "0.1.1")
 
 ocaml = use_extension("//ocaml:extensions.bzl", "ocaml")
-use_repo(ocaml, "dx_ocaml_dune", "dx_ocaml_toolchains", "dx_opam_repository", "rules_ocaml")
+use_repo(ocaml, "dx_ocaml_toolchains")
 
 opam_dev = use_extension("//ocaml:extensions.bzl", "opam", dev_dependency = True)
 opam_dev.lock(
@@ -1709,7 +1800,7 @@ use_repo(opam_dev, "ocaml_app", "ocaml_fuzz")
 register_toolchains("@dx_ocaml_toolchains//:all")
 
 fortran = use_extension("//fortran:extensions.bzl", "fortran")
-use_repo(fortran, "dx_fortran_toolchains", "rules_fortran")
+use_repo(fortran, "dx_fortran_toolchains")
 
 register_toolchains("@dx_fortran_toolchains//:all")
 

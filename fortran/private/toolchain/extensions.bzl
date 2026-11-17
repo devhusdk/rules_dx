@@ -1,20 +1,10 @@
 """Module extension for fortran/private/toolchain."""
 
 load("//core:repo.bzl", "hub_repo", "pinned_archive")
-load(":pins.bzl", "FORTRAN_CELLS", "RULES_FORTRAN_COMMIT", "RULES_FORTRAN_SHA256", "RULES_FORTRAN_URLS")
-load(":repos.bzl", "DROPPED_PATHS", "FLANG_PREFIX", "FLANG_RT_NAME", "HUB_NAME", "flang_build", "flang_rt_repo", "hub_build")
+load(":pins.bzl", "FORTRAN_CELLS")
+load(":repos.bzl", "FLANG_PREFIX", "FLANG_RT_NAME", "HUB_NAME", "flang_build", "flang_rt_repo", "hub_build")
 
 def _fortran_impl(mctx):
-    pinned_archive(
-        name = "rules_fortran",
-        dropped = DROPPED_PATHS,
-        patches = [
-            Label("//patches/rules_fortran:module_map_key.patch"),
-        ],
-        sha256 = RULES_FORTRAN_SHA256,
-        strip_prefix = "rules_fortran-" + RULES_FORTRAN_COMMIT,
-        urls = RULES_FORTRAN_URLS,
-    )
     for cell in sorted(FORTRAN_CELLS.keys()):
         pinned_archive(
             name = FLANG_PREFIX + cell,
@@ -29,5 +19,5 @@ def _fortran_impl(mctx):
 
 fortran = module_extension(
     implementation = _fortran_impl,
-    doc = "Creates rules_fortran, the pinned Flang compilers, flang-rt and the toolchain hub.",
+    doc = "Creates the pinned Flang compilers, flang-rt and the toolchain hub.",
 )

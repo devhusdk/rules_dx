@@ -1,10 +1,10 @@
 """The ocaml module extension."""
 
 load("//core:pins.bzl", "lock_problems", "lock_repo")
-load("//core:repo.bzl", "hub_repo", "pinned_archive")
+load("//core:repo.bzl", "hub_repo")
 load(":opam.bzl", "pick_annotation")
-load(":pins.bzl", "DUNE", "OCAML_CELLS", "OPAM_REPOSITORY", "RULES_OCAML")
-load(":repos.bzl", "DIST_PREFIX", "DROPPED_PATHS", "DUNE_BUILD", "HUB_NAME", "dist_repo", "dune_package_build", "hub_build")
+load(":pins.bzl", "OCAML_CELLS")
+load(":repos.bzl", "DIST_PREFIX", "HUB_NAME", "dist_repo", "dune_package_build", "hub_build")
 
 def _package_build(mctx, tag, package, annotation):
     name = package["name"]
@@ -32,41 +32,14 @@ def _declare_packages(mctx, tag, annotations):
     lock_repo(name = tag.name, lock = json.encode(lock), builds = builds)
 
 def _ocaml_impl(mctx):
-    pinned_archive(
-        name = "rules_ocaml",
-        dropped = DROPPED_PATHS,
-        patches = [
-            Label("//patches/rules_ocaml:hermetic_ocaml.patch"),
-            Label("//patches/rules_ocaml:native_cc_env.patch"),
-            Label("//patches/rules_ocaml:platform_alias.patch"),
-            Label("//patches/rules_ocaml:static_cc_deps.patch"),
-        ],
-        sha256 = RULES_OCAML.sha256,
-        strip_prefix = RULES_OCAML.strip_prefix,
-        urls = RULES_OCAML.urls,
-    )
     for cell in sorted(OCAML_CELLS.keys()):
         dist_repo(name = DIST_PREFIX + cell, cell = cell)
     hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build()})
-    pinned_archive(
-        name = "dx_ocaml_dune",
-        files = {"BUILD.bazel": DUNE_BUILD},
-        sha256 = DUNE.sha256,
-        strip_prefix = DUNE.strip_prefix,
-        urls = DUNE.urls,
-    )
-    pinned_archive(
-        name = "dx_opam_repository",
-        files = {"BUILD.bazel": 'exports_files(["repo"])'},
-        sha256 = OPAM_REPOSITORY.sha256,
-        strip_prefix = OPAM_REPOSITORY.strip_prefix,
-        urls = OPAM_REPOSITORY.urls,
-    )
     return mctx.extension_metadata(reproducible = True)
 
 ocaml = module_extension(
     implementation = _ocaml_impl,
-    doc = "Creates rules_ocaml, the pinned OCaml compilers and the toolchain hub.",
+    doc = "Creates the pinned OCaml compilers and the toolchain hub.",
 )
 
 def _opam_impl(mctx):

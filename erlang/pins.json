@@ -50,6 +50,9 @@
     },
     "dx_rebar3": {
       "version": "3.28.0",
+      "type": "file",
+      "path": "rebar3",
+      "executable": true,
       "sha256": "5a28b1cca082d3b023ec0f5df9d9f9d52557036c6f2a21c1ffa11b93a984dd42",
       "urls": [
         "https://github.com/erlang/rebar3/releases/download/3.28.0/rebar3"

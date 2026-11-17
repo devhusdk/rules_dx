@@ -4,7 +4,7 @@ load("@rules_fortran//fortran/private:providers.bzl", "FortranToolchainInfo")
 load("//fortran/private/lock:hub.bzl", fpm_build_file = "build_file")
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load("//fortran/private/toolchain:pins.bzl", "FLANG_RT_PREFIX", "FLANG_VERSION", "FORTRAN_CELLS")
-load("//fortran/private/toolchain:repos.bzl", "DROPPED_PATHS", "FLANG_RT_TREES", "flang_major", "flang_rt_build", "hub_build")
+load("//fortran/private/toolchain:repos.bzl", "FLANG_RT_TREES", "flang_major", "flang_rt_build", "hub_build")
 load("//fortran/private/toolchain:toolchain.bzl", "toolchain_fields")
 
 def _checks():
@@ -21,7 +21,6 @@ def _checks():
         expect_contains("flang-rt prefix names the flang version", FLANG_RT_PREFIX, FLANG_VERSION),
         expect_equal("flang-rt major matches flang", flang_major(FLANG_RT_PREFIX.split("-")[-1]), flang_major(FLANG_VERSION)),
         expect_true("flang-rt sources are extracted", "flang-rt" in FLANG_RT_TREES),
-        expect_true("the upstream module file is dropped", "MODULE.bazel" in DROPPED_PATHS),
         expect_equal("flang-rt build uses the hub flang", flang_rt_build("$(execpath {flang}) {compiler_files}", "hub"), "$(execpath @hub//:flang) @hub//:compiler_files"),
         expect_equal("the compiler doubles as the unused linker", fields["linker"], "flang"),
         expect_equal("the runtime is the flang-rt CcInfo", fields["runtime_ccinfo"], "rt"),

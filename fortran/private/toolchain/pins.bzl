@@ -1,16 +1,10 @@
-"""Pinned Flang compiler, flang-rt sources and rules_fortran identities; the archive data is in pins.json."""
+"""Pinned Flang compiler, and flang-rt source identities; the archive data is in pins.json."""
 
 load("@dx_pins_data//:pins.bzl", "DATA")
 
 _PINS = DATA["dx_fortran"]
 
 FLANG_VERSION = _PINS["version"]
-
-RULES_FORTRAN_COMMIT = _PINS["archives"]["rules_fortran"]["version"]
-
-RULES_FORTRAN_SHA256 = _PINS["archives"]["rules_fortran"]["sha256"]
-
-RULES_FORTRAN_URLS = _PINS["archives"]["rules_fortran"]["urls"]
 
 FLANG_RT_URLS = _PINS["archives"]["flang_rt"]["urls"]
 

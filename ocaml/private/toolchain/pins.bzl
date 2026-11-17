@@ -1,4 +1,4 @@
-"""Pinned OCaml compiler packages and rules_ocaml identities; the archive data is in pins.json."""
+"""Pinned OCaml compiler package identities; the archive data is in pins.json."""
 
 load("@dx_pins_data//:pins.bzl", "DATA")
 
@@ -9,8 +9,6 @@ OCAML_VERSION = _PINS["version"]
 def _archive(name):
     pin = _PINS["archives"][name]
     return struct(sha256 = pin["sha256"], strip_prefix = pin.get("strip_prefix", ""), urls = pin["urls"])
-
-RULES_OCAML = _archive("rules_ocaml")
 
 OPAM_REPOSITORY = _archive("opam_repository")
 

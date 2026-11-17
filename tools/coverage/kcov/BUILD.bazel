@@ -101,20 +101,21 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
-sh_test(
+rust_test(
     name = "static_smoke_test",
     size = "small",
-    srcs = ["smoke_test.sh"],
-    args = [
-        "$(rootpath :kcov_static)",
-        "$(rootpath :smoke)",
-    ],
+    srcs = ["smoke_test.rs"],
     data = [
         "smoke.c",
         ":kcov_static",
         ":smoke",
     ],
+    env = {
+        "DX_KCOV": "$(rootpath :kcov_static)",
+        "DX_KCOV_SMOKE": "$(rootpath :smoke)",
+    },
     target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
 )
 
 filegroup(

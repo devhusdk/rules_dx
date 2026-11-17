@@ -58,8 +58,13 @@ def render(module_text, readme_text):
         heading, _, body = block.partition("\n")
         for name in re.findall(r"[\w-]+", heading):
             sections[name] = sections.get(name, "") + body
+    tabled = set()
+    for body in _OVERRIDE.findall(module_text):
+        name = re.search(r'module_name = "([^"]+)"', body)
+        if name and name.group(1) in known:
+            tabled.update(_LABEL.findall(body))
     for directory, patch in sorted(set(_LABEL.findall(module_text))):
-        if patch in known.get(directory, (None, ()))[1]:
+        if (directory, patch) in tabled:
             continue
         if "`%s`" % patch not in sections.get(directory, ""):
             raise SystemExit("patches/README.md: no section for %s names %s, which MODULE.bazel applies" % (directory, patch))

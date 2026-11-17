@@ -419,7 +419,7 @@ def rust_bench(
         visibility = visibility,
         binary_kwargs = {"srcs": srcs, "crate": crate, "crate_features": (crate_features or []) + ["dx_bench"]},
         build_defaults = {"use_libtest_harness": False},
-        runner_kwargs = {"src": Label("//rust/private/bench_report")},
+        runner_kwargs = {"src": Label("//rust/private/tools/bench_report")},
         pass_binary = True,
         argv = ["--bench", "--output-format", "bencher"],
     )

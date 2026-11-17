@@ -1,7 +1,10 @@
 # gazelle:ignore
 
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
+load("//core/modules:versions.bzl", "GO_SDK_VERSION")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 load(":cgo_tests.bzl", "cgo_toolchain_tests")
 
 dx_wrapper_contract_tests(
@@ -14,6 +17,25 @@ dx_wrapper_contract_tests(
 )
 
 cgo_toolchain_tests(name = "cgo_toolchain_test")
+
+[
+    diff_test(
+        name = "gopls_%s_current_test" % tier,
+        size = "small",
+        failure_message = "gopls_%s.json is stale: run bazel build //go/private/quality/gopls_tier:gen_%s and copy bazel-bin/go/private/quality/gopls_tier/gen_%s.json over it" % (tier, tier, tier),
+        file1 = "//core/quality/tiers/gopls:gopls_%s.json" % tier,
+        file2 = "//go/private/quality/gopls_tier:gen_%s" % tier,
+    )
+    for tier in ["standard", "strict"]
+]
+
+ide_acquisition_test(
+    name = "ide_acquisition_test",
+    size = "small",
+    binary = "//go/private/ide:go_tool",
+    expected = "go" + GO_SDK_VERSION,
+    version_args = ["version"],
+)
 
 real_source_target(
     name = "corpus_starlark",

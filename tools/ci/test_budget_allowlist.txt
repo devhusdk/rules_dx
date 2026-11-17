@@ -317,8 +317,6 @@ gazelle/thrift/BUILD.bazel no-size 2
 gazelle/typescript/BUILD.bazel no-size 2
 gazelle/vue/BUILD.bazel no-size 2
 gazelle/zig/BUILD.bazel no-size 2
-go/private/ide/BUILD.bazel no-size 1
-go/private/quality/gopls_tier/BUILD.bazel no-size 1
 go/private/tools/analysis/cmd/dx_errcheck/BUILD.bazel no-size 1
 go/private/tools/analysis/cmd/dx_govet/BUILD.bazel no-size 1
 go/private/tools/analysis/cmd/dx_staticcheck/BUILD.bazel no-size 1
@@ -355,7 +353,6 @@ haskell/tests/mingw_cc/BUILD.bazel no-size 1
 haskell/tests/profile_tests.bzl no-size 2
 haskell/tests/runtime/BUILD.bazel no-size 1
 helm/tests/BUILD.bazel no-size 9
-java/private/ide/BUILD.bazel no-size 1
 java/tests/fixtures/adopt_java/greet/BUILD.bazel no-size 1
 java/tests/fixtures/bench/BUILD.bazel no-size 8
 java/tests/fixtures/bench/BUILD.bazel size-large 1
@@ -475,7 +472,6 @@ ruby/tests/fixtures/adopt_ruby/solo/BUILD.bazel no-size 1
 ruby/tests/fixtures/bench/BUILD.bazel no-size 2
 ruby/tests/fixtures/hello/BUILD.bazel no-size 2
 ruby/tests/fixtures/rspec/BUILD.bazel no-size 1
-rust/private/ide/BUILD.bazel no-size 2
 rust/tests/fixtures/adopt_rust/crates/api/BUILD.bazel no-size 4
 rust/tests/fixtures/adopt_rust/solo/BUILD.bazel no-size 1
 rust/tests/fixtures/bench/BUILD.bazel no-size 3

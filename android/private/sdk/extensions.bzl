@@ -3,7 +3,7 @@
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 load("//core:license.bzl", "accepted_ids")
 load("//core:repo.bzl", "hub_repo")
-load(":repos.bzl", "APP_SDK_FILES_NAME", "APP_SDK_HUB_NAME", "BUILD_TOOLS_ARCHIVE_PREFIX", "BUILD_TOOLS_ARCHIVE_SEPARATOR", "BUILD_TOOLS_ARTIFACTS", "BUNDLETOOL_REPOSITORY", "BUNDLETOOL_SHA256", "DEFAULT_MIRROR", "EMULATOR_ARTIFACTS", "HUB_NAME", "NDK_ARTIFACTS", "PLATFORM_ARTIFACTS", "PLATFORM_TOOLS_ARCHIVE_PREFIX", "PLATFORM_TOOLS_ARTIFACTS", "android_app_sdk_hub_repo", "android_app_sdk_repo", "android_build_tools_repo", "android_emulator_repo", "android_ndk_repo", "android_platform_repo", "android_platform_tools_repo", "app_sdk_hub_build", "app_sdk_layout", "app_sdk_substitutions", "artifact_errors", "bundletool_url", "canonical_id_for", "default_request", "hub_build", "license_errors", "package_repositories", "request_errors", "sdk_level", "url_for")
+load(":repos.bzl", "APP_SDK_FILES_NAME", "APP_SDK_HUB_NAME", "BUILD_TOOLS_ARCHIVE_PREFIX", "BUILD_TOOLS_ARCHIVE_SEPARATOR", "BUILD_TOOLS_ARTIFACTS", "BUNDLETOOL_REPOSITORY", "BUNDLETOOL_SHA256", "DEFAULT_MIRROR", "EMULATOR_ARTIFACTS", "HUB_NAME", "NDK_ARTIFACTS", "PLATFORM_ARTIFACTS", "PLATFORM_TOOLS_ARCHIVE_PREFIX", "PLATFORM_TOOLS_ARTIFACTS", "android_app_sdk_hub_repo", "android_app_sdk_repo", "android_build_tools_repo", "android_emulator_repo", "android_ndk_repo", "android_platform_repo", "android_platform_tools_repo", "app_sdk_hub_build", "app_sdk_layout", "app_sdk_substitutions", "artifact_errors", "bundletool_url", "canonical_id_for", "default_request", "hub_build", "license_errors", "package_repositories", "request_errors", "sdk_level", "select_request", "url_for")
 
 def _configure_tag(request, accept_licenses):
     return struct(
@@ -66,14 +66,16 @@ def _android_impl(module_ctx):
         sha256 = BUNDLETOOL_SHA256,
         urls = [bundletool_url()],
     )
-    requests = []
+    root_requests = []
+    other_requests = []
     accepted = accepted_ids(module_ctx)
     for module in module_ctx.modules:
         for tag in module.tags.configure:
-            requests.append(_configure_tag(tag, accepted))
-    if len(requests) > 1:
-        fail("android: configure the Android SDK once")
-    request = requests[0] if len(requests) == 1 else _configure_tag(default_request(), accepted)
+            (root_requests if module.is_root else other_requests).append(_configure_tag(tag, accepted))
+    selected = select_request(root_requests, other_requests, _configure_tag(default_request(), accepted))
+    if selected.error != "":
+        fail(selected.error)
+    request = selected.request
     license_error = "; ".join(license_errors(request))
     request = _configure_tag(request, default_request().accept_licenses)
     failures = request_errors(request)

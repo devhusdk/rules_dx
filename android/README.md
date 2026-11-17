@@ -40,6 +40,14 @@ The `dx_android_sdk` hub exposes `ndk`, `zipalign`, `apksigner_jar`,
 `bundletool_jar`, `android_jar`, `adb` and `emulator`. Targets for packages
 that were not requested are empty. Without a `configure` tag the defaults apply. Pass `mirror` to override the download host.
 
+Only your root `MODULE.bazel` decides the setup. When it has a
+`configure` tag, that tag is used as written and `configure` tags from
+dependencies (rules_dx sends one asking for `platform-tools`) are
+ignored, so list every package you want. When it has none, the defaults
+apply plus the `extra_packages` your dependencies ask for. Two
+`configure` tags in the root module fail with "configure the Android
+SDK once".
+
 The qualified host is Linux
 x86_64 with NDK r27 targeting API 31.
 

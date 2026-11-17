@@ -48,6 +48,26 @@ def _checks():
     visibility = ["//visibility:public"],
 )
 """),
+        expect_equal("both hub with exec aliases", pins_hub("t", ["linux_x86_64"], "//t:type", "both", ["bin"]), """toolchain(
+    name = "t__linux_x86_64",
+    exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+    target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+    toolchain = "@t__linux_x86_64//:toolchain",
+    toolchain_type = "//t:type",
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "linux_x86_64_exec",
+    constraint_values = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+)
+
+alias(
+    name = "bin",
+    actual = select({":linux_x86_64_exec": "@t__linux_x86_64//:bin"}),
+    visibility = ["//visibility:public"],
+)
+"""),
     ] + hub_checks(full + "\n" + minimal, "//t:type", 2, forbidden = ["@other"])
 
 def toolchain_tests(name, size = "small"):

@@ -683,6 +683,17 @@ dx_pins.pin(
     pins = "//core/patchelf:pins.json",
 )
 dx_pins.pin(
+    name = "dx_fortran_toolchains",
+    build = "//fortran/private:flang.BUILD.bazel",
+    compatible_with = "both",
+    exec_aliases = [
+        "compiler_files",
+        "flang",
+    ],
+    pins = "//fortran:pins.json",
+    toolchain_type = "@rules_fortran//fortran:toolchain_type",
+)
+dx_pins.pin(
     name = "dx_php",
     pins = "//php:pins.json",
 )
@@ -1436,6 +1447,7 @@ use_repo(
     "dx_d_libdparse",
     "dx_elvis",
     "dx_erlfmt",
+    "dx_fortran_toolchains",
     "dx_jazzer",
     "dx_jazzer_api",
     "dx_jmh_asm",
@@ -1890,7 +1902,7 @@ use_repo(opam_dev, "ocaml_app", "ocaml_fuzz")
 register_toolchains("@dx_ocaml_toolchains//:all")
 
 fortran = use_extension("//fortran:extensions.bzl", "fortran")
-use_repo(fortran, "dx_fortran_toolchains")
+use_repo(fortran, "dx_fortran_flang_rt")
 
 register_toolchains("@dx_fortran_toolchains//:all")
 

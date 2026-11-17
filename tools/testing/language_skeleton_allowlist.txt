@@ -11,9 +11,7 @@ fixture-hello android/tests/consumer
 fixture-hello ansible/tests/conformance/BUILD.bazel
 fixture-hello api_spec/tests/conformance/BUILD.bazel
 fixture-hello appimage/tests/conformance/BUILD.bazel
-fixture-hello appimage/tests/consumer
 fixture-hello apple/tests/conformance/BUILD.bazel
-fixture-hello apple/tests/consumer
 fixture-hello asciidoc/tests/conformance/BUILD.bazel
 fixture-hello avro/tests/conformance/BUILD.bazel
 fixture-hello bicep/tests/conformance/BUILD.bazel
@@ -24,7 +22,6 @@ fixture-hello dockerfile/tests/conformance/BUILD.bazel
 fixture-hello env/tests/conformance/BUILD.bazel
 fixture-hello env/tests/consumer
 fixture-hello flatbuffers/tests/conformance/BUILD.bazel
-fixture-hello flutter/tests/conformance/BUILD.bazel
 fixture-hello flutter/tests/consumer
 fixture-hello helm/tests/conformance/BUILD.bazel
 fixture-hello kubernetes/tests/conformance/BUILD.bazel
@@ -225,12 +222,7 @@ fixture-referenced typescript/tests/fixtures/playwright
 fixture-referenced zig/tests/fixtures/bench
 fixture-referenced zig/tests/fixtures/calc
 outside-lang core/quality/tools/python
-private-visibility android/private/packaging/BUILD.bazel
-private-visibility android/private/packaging/ops/BUILD.bazel
-private-visibility android/private/toolchain/BUILD.bazel
-private-visibility apple/private/bundle/BUILD.bazel
 private-visibility apple/private/provisioning/BUILD.bazel
-private-visibility apple/private/tools/ops/BUILD.bazel
 private-visibility astro/private/BUILD.bazel
 private-visibility cc/private/BUILD.bazel
 private-visibility cc/private/context/BUILD.bazel

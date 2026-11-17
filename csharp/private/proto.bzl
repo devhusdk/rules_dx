@@ -3,6 +3,8 @@
 load("@protobuf//bazel/common:proto_info.bzl", "ProtoInfo")
 load("//cli/exec_os:defs.bzl", "ExecOsInfo")
 
+_PROTO_TOOLCHAIN = "@protobuf//bazel/private:proto_toolchain_type"
+
 def pascal_case(name):
     """Returns the .cs base name protoc's C# generator writes for a proto basename."""
     out = ""
@@ -49,7 +51,9 @@ def _csharp_proto_srcs_impl(ctx):
     args.add_joined("--descriptor_set_in", descriptors, join_with = ";" if ctx.attr._exec_os[ExecOsInfo].windows else ":", format_each = "%s", omit_if_empty = True, map_each = _path)
     args.add_all(protos)
     ctx.actions.run(
-        executable = ctx.executable._protoc,
+        executable = ctx.toolchains[_PROTO_TOOLCHAIN].proto.proto_compiler,
+        # Run on the same exec platform as _exec_os, which picks the path separator.
+        toolchain = None,
         arguments = [args],
         inputs = descriptors,
         outputs = outs,
@@ -67,11 +71,8 @@ csharp_proto_srcs = rule(
             cfg = "exec",
             providers = [ExecOsInfo],
         ),
-        "_protoc": attr.label(
-            default = "@protobuf//:protoc",
-            executable = True,
-            cfg = "exec",
-        ),
     },
+    # The resolved toolchain is the prebuilt protoc binary where one exists, so no protobuf C++ builds.
+    toolchains = [config_common.toolchain_type(_PROTO_TOOLCHAIN, mandatory = True)],
     doc = "Generates the <Name>.cs files of one proto_library.",
 )

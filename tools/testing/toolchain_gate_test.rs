@@ -24,7 +24,7 @@ const GATED: &[&str] = &[
     "//python/private/windows_toolchains:all",
     "//scala/private/toolchain:semanticdb",
     "//scala/private/toolchain:semanticdb_scala3",
-    "//tools/platforms:protoc_windows_arm64",
+    "//tools/platforms/protoc:all",
     "@android_ndk_toolchain//:all",
     "@cuda//toolchain/...",
     "@dx_cc_toolchains//:all",

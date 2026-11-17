@@ -949,6 +949,7 @@ filegroup(
         "//tools/docs/zig/extract:module_srcs",
         "//tools/ide:module_srcs",
         "//tools/platforms:module_srcs",
+        "//tools/platforms/protoc:module_srcs",
         "//tools/repin_all:module_srcs",
         "//tools/testing:module_srcs",
         "//tools/testing/conformance:module_srcs",

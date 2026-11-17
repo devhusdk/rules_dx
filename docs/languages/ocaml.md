@@ -25,7 +25,7 @@ load("@rules_dx//ocaml:defs.bzl", "ocaml_lex", "ocaml_module", "ocaml_signature"
 
 ### `ocaml_lex`
 
-No documentation.
+Re-exported as `ocamllex` from `@rules_ocaml//build:rules.bzl`.
 
 ### `ocaml_module`
 

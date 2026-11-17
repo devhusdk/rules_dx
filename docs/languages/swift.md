@@ -25,7 +25,7 @@ load("@rules_dx//swift:defs.bzl", "swift_interop_hint", "swift_library", "swift_
 
 ### `swift_interop_hint`
 
-No documentation.
+Re-exported from `@rules_swift//swift:swift_interop_hint.bzl`.
 
 ### `swift_library`
 
@@ -37,7 +37,7 @@ Wraps swift_library and builds it for Linux, or with Xcode on macOS.
 
 ### `swift_library_group`
 
-No documentation.
+Re-exported from `@rules_swift//swift:swift_library_group.bzl`.
 
 ### `swift_binary`
 

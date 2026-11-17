@@ -188,7 +188,10 @@ def attrs_of(call):
 
 
 def describe(root, path, name, depth=0):
-    """Returns (kind, signature, doc, attrs) for the definition behind name, or None."""
+    """Returns (kind, signature, doc, attrs) for the definition behind name, or None.
+
+    A load from another repository returns ("reexport", label, upstream name, []).
+    """
     if depth > 6:
         return None
     text = read(root, path)
@@ -227,16 +230,20 @@ def describe(root, path, name, depth=0):
     if alias and alias.group(1) != name:
         target = alias.group(1)
         if target in imported:
-            label, remote = imported[target]
-            target_path = label_path(label, path)
-            if target_path:
-                return describe(root, target_path, remote, depth + 1)
+            return imported_describe(root, path, imported[target], depth)
         return describe(root, path, target, depth + 1)
     if name in imported:
-        label, remote = imported[name]
-        target_path = label_path(label, path)
-        if target_path:
-            return describe(root, target_path, remote, depth + 1)
+        return imported_describe(root, path, imported[name], depth)
+    return None
+
+
+def imported_describe(root, path, load, depth):
+    label, remote = load
+    if label.startswith("@"):
+        return ("reexport", label, remote, [])
+    target_path = label_path(label, path)
+    if target_path:
+        return describe(root, target_path, remote, depth + 1)
     return None
 
 
@@ -250,6 +257,9 @@ def render(name, info):
         out.append("No documentation.\n")
         return out
     kind, signature, doc, attrs = info
+    if kind == "reexport":
+        out.append("Re-exported from `%s`.\n" % signature if doc == name else "Re-exported as `%s` from `%s`.\n" % (doc, signature))
+        return out
     if signature:
         out.append("```python\n%s(%s)\n```\n" % (name, signature))
     if doc:

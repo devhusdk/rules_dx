@@ -2,6 +2,7 @@
 
 load("@rules_apple//apple:providers.bzl", "AppleBundleInfo")
 load("//apple/private/bundle:defs.bzl", "display")
+load("//apple/private/xcode:license.bzl", "XCODE_LICENSE_ATTR")
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
 load("//core:rlocation.bzl", "rlocation_path")
 load(":validate.bzl", "macos_bundle_errors")
@@ -71,6 +72,7 @@ _launcher_rule = rule(
         "_xcode_config": attr.label(
             default = configuration_field(name = "xcode_config_label", fragment = "apple"),
         ),
+        "_xcode_license": XCODE_LICENSE_ATTR,
     } | NATIVE_LAUNCHER_ATTRS,
     executable = True,
     fragments = ["apple"],

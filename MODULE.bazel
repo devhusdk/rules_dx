@@ -639,6 +639,9 @@ use_repo(ruby_coverage, "dx_ruby_bench_gems", "dx_ruby_coverage_gems")
 dx_licenses = use_extension("//core:extensions.bzl", "dx_licenses")
 use_repo(dx_licenses, "dx_licenses")
 
+apple = use_extension("//apple:extensions.bzl", "apple")
+use_repo(apple, "dx_apple_xcode")
+
 dx_licenses_dev = use_extension("//core:extensions.bzl", "dx_licenses", dev_dependency = True)
 dx_licenses_dev.accept(ids = [
     "android-sdk-license",

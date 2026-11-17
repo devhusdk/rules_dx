@@ -2,6 +2,7 @@
 
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("//apple/private/bundle:validate.bzl", "bundle_id_errors")
+load("//apple/private/xcode:license.bzl", "XCODE_LICENSE_ATTR")
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
 load("//core:rlocation.bzl", "rlocation_path")
 
@@ -71,6 +72,7 @@ _simctl = rule(
                 fragment = "apple",
             ),
         ),
+        "_xcode_license": XCODE_LICENSE_ATTR,
     } | NATIVE_LAUNCHER_ATTRS,
     executable = True,
     fragments = ["apple"],
@@ -155,6 +157,7 @@ declared_simulator = rule(
                 fragment = "apple",
             ),
         ),
+        "_xcode_license": XCODE_LICENSE_ATTR,
     },
     fragments = ["apple"],
 )

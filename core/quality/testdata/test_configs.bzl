@@ -51,6 +51,8 @@ _TOOL_DEFAULTS = {
     "//config:tool_phpstan": "//php/private/tools:phpstan",
     "//config:tool_ruff": "@dx_tools//:ruff",
     "//config:tool_sorbet": "//ruby/private/tools:sorbet",
+    "//config:tool_swift_format": "//config:no_swift_format",
+    "//config:tool_swift_lint": "//config:no_swift_lint",
     "//config:tool_zig_ast_check": "//config:no_zig_ast_check",
     "//config:tool_zig_fmt": "//config:no_zig_fmt",
 }
@@ -61,6 +63,8 @@ _TOOL_OVERRIDES = dict(_TOOL_DEFAULTS, **{
     "//config:tool_julia_format": "//julia/private/tools:julia_format",
     "//config:tool_perlcritic": "//perl/private/tools:perlcritic",
     "//config:tool_perltidy": "//perl/private/tools:perltidy",
+    "//config:tool_swift_format": "//swift/private/tools:swift_format",
+    "//config:tool_swift_lint": "//swift/private/tools:swift_format",
     "//config:tool_zig_ast_check": "//zig/private/tools:zig",
     "//config:tool_zig_fmt": "//zig/private/tools:zig",
 })

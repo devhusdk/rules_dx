@@ -15,7 +15,7 @@ pub const FIXTURES_DIR: &str = "tools/testing/starters/fixtures";
 /// `starter_fixture(layers = ...)`; they are written like the fixture's own files, and a fixture
 /// file with the same destination as a shared file panics.
 ///
-/// Each fixture file drops its `.fixture` suffix. `MODULE.bazel` and `.bazelrc` are appended to
+/// Each fixture file drops its `.fixture` suffix. `MODULE.bazel` is appended to
 /// what `dx init` wrote; every other file is written as is. Returns the project root.
 ///
 /// # Panics
@@ -68,7 +68,7 @@ pub fn scaffold_fixture(scratch: &Path, fixture: &str, name: &str, files: &str) 
             std::fs::create_dir_all(parent)
                 .unwrap_or_else(|error| panic!("mkdir {}: {error}", parent.display()));
         }
-        let body = if matches!(dest, "MODULE.bazel" | ".bazelrc") {
+        let body = if dest == "MODULE.bazel" {
             let mut head = std::fs::read(&target).unwrap_or_default();
             if !head.is_empty() && !head.ends_with(b"\n") {
                 head.push(b'\n');

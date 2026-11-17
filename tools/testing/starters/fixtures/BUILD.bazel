@@ -12,17 +12,17 @@ exports_files(
 
 starter_fixture(
     name = "astro",
-    layers = ["bazelrc", "readme-web", "js", "module-web"],
+    layers = ["readme-web", "js", "module-web"],
 )
 
 starter_fixture(
     name = "c",
-    layers = ["bazelrc", "readme"],
+    layers = ["readme"],
 )
 
 starter_fixture(
     name = "cpp",
-    layers = ["bazelrc", "readme"],
+    layers = ["readme"],
 )
 
 starter_fixture(
@@ -32,12 +32,11 @@ starter_fixture(
 
 starter_fixture(
     name = "cuda",
-    layers = ["bazelrc"],
 )
 
 starter_fixture(
     name = "d",
-    layers = ["bazelrc", "readme"],
+    layers = ["readme"],
 )
 
 starter_fixture(
@@ -47,12 +46,12 @@ starter_fixture(
 
 starter_fixture(
     name = "elixir",
-    layers = ["bazelrc", "readme"],
+    layers = ["readme"],
 )
 
 starter_fixture(
     name = "erlang",
-    layers = ["bazelrc", "readme"],
+    layers = ["readme"],
 )
 
 starter_fixture(
@@ -62,7 +61,7 @@ starter_fixture(
 
 starter_fixture(
     name = "fortran",
-    layers = ["bazelrc", "readme"],
+    layers = ["readme"],
 )
 
 starter_fixture(
@@ -77,22 +76,20 @@ starter_fixture(
 
 starter_fixture(
     name = "haskell",
-    layers = ["bazelrc"],
 )
 
 starter_fixture(
     name = "java",
-    layers = ["bazelrc", "readme"],
+    layers = ["readme"],
 )
 
 starter_fixture(
     name = "javascript",
-    layers = ["bazelrc", "readme", "node"],
+    layers = ["readme", "node"],
 )
 
 starter_fixture(
     name = "julia",
-    layers = ["bazelrc"],
 )
 
 starter_fixture(
@@ -102,32 +99,31 @@ starter_fixture(
 
 starter_fixture(
     name = "lua",
-    layers = ["bazelrc", "readme"],
+    layers = ["readme"],
 )
 
 starter_fixture(
     name = "mdx",
-    layers = ["bazelrc", "readme-web", "js", "module-web"],
+    layers = ["readme-web", "js", "module-web"],
 )
 
 starter_fixture(
     name = "ocaml",
-    layers = ["bazelrc", "readme"],
+    layers = ["readme"],
 )
 
 starter_fixture(
     name = "perl",
-    layers = ["bazelrc", "readme"],
+    layers = ["readme"],
 )
 
 starter_fixture(
     name = "php",
-    layers = ["bazelrc", "readme"],
+    layers = ["readme"],
 )
 
 starter_fixture(
     name = "powershell",
-    layers = ["bazelrc"],
 )
 
 starter_fixture(
@@ -137,7 +133,7 @@ starter_fixture(
 
 starter_fixture(
     name = "ruby",
-    layers = ["bazelrc", "readme"],
+    layers = ["readme"],
 )
 
 starter_fixture(
@@ -147,7 +143,6 @@ starter_fixture(
 
 starter_fixture(
     name = "rust-android",
-    layers = ["bazelrc"],
 )
 
 starter_fixture(
@@ -157,7 +152,7 @@ starter_fixture(
 
 starter_fixture(
     name = "svelte",
-    layers = ["bazelrc", "readme-web", "js", "module-web"],
+    layers = ["readme-web", "js", "module-web"],
 )
 
 starter_fixture(
@@ -167,17 +162,17 @@ starter_fixture(
 
 starter_fixture(
     name = "typescript",
-    layers = ["bazelrc", "readme", "node"],
+    layers = ["readme", "node"],
 )
 
 starter_fixture(
     name = "vue",
-    layers = ["bazelrc", "readme-web", "js", "module-web"],
+    layers = ["readme-web", "js", "module-web"],
 )
 
 starter_fixture(
     name = "zig",
-    layers = ["bazelrc", "readme"],
+    layers = ["readme"],
 )
 
 filegroup(

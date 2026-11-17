@@ -25,6 +25,7 @@ _EXTRA_KNOWN = [
 
 def _hub_impl(rctx):
     rctx.file("BUILD.bazel", rctx.attr.build)
+    return rctx.repo_metadata(reproducible = True)
 
 _hub = repository_rule(
     implementation = _hub_impl,
@@ -92,10 +93,14 @@ def _cc_impl(mctx):
     msvc_runtime = msvc_runtime_repository(mctx, "dx_msvc_runtime", _tag(mctx, "msvc_runtime"), hosts, Label(ACCEPTED_LABEL))
     windows_sdk = windows_sdk_repository(mctx, "dx_windows_sdk", _tag(mctx, "windows_sdk"), hosts)
     msvc_hub(mctx)
+    if not msvc_runtime.reproducible:
+        fail("cc.msvc_runtime needs pins or visual_studio_installer_manifest_url with visual_studio_installer_manifest_integrity")
+    if not windows_sdk.reproducible:
+        fail("cc.windows_sdk needs pins or windows_sdk_integrity")
     _hub(name = "dx_cc_toolchains", build = cc_hub())
     return mctx.extension_metadata(
         facts = msvc_runtime.facts,
-        reproducible = msvc_runtime.reproducible and windows_sdk.reproducible,
+        reproducible = True,
     )
 
 

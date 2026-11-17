@@ -10,18 +10,18 @@ This page fixes the shape of every language directory. A language directory is a
 
 ## Entries
 
-A language directory holds these entries and no others.
+A language directory holds only these entries.
 
-| Entry | Required | Holds |
-| --- | --- | --- |
-| `BUILD.bazel` | yes | `toolchain_type`, public flags, public platforms |
-| `defs.bzl` | yes | public rules, macros and providers |
-| `extensions.bzl` | no | public module extensions and repository rules |
-| `lang.json` | yes | manifest |
-| `pins.json` | no | tool pins |
-| `README.md` | no | guide |
-| `private/` | yes | implementation |
-| `tests/` | yes | tests and fixtures |
+Entry | Required | Holds
+--- | --- | ---
+`BUILD.bazel` | yes | `toolchain_type`, public flags, public platforms
+`defs.bzl` | yes | public rules, macros and providers
+`extensions.bzl` | no | public module extensions and repository rules
+`lang.json` | yes | manifest
+`pins.json` | no | tool pins
+`README.md` | no | guide
+`private/` | yes | implementation
+`tests/` | yes | tests and fixtures
 
 - A language has at most one pin file. The manifest `pins` field is `["pins.json"]` or empty.
 - A repository `BUILD` template is `<lang>/private/<repo>.BUILD.bazel`.
@@ -31,26 +31,26 @@ A language directory holds these entries and no others.
 
 ## Private directories
 
-These names are reserved inside `<lang>/private/`. Code with that role uses that name.
+These names are reserved inside `<lang>/private/` for code with that role.
 
-| Name | Holds |
-| --- | --- |
-| `toolchain/` | toolchain rules, repository rules and the hub |
-| `quality/` | aspects, tool rows and tool packages |
-| `coverage/` | coverage collectors and reports |
-| `bench/` | the bench harness |
-| `fuzz/` | the fuzz harness |
-| `ide/` | editor integration |
-| `tools/` | tool programs |
-| `platforms/` | private platforms and constraint values |
+Name | Holds
+--- | ---
+`toolchain/` | toolchain rules, repository rules and the hub
+`quality/` | aspects, tool rows and tool packages
+`coverage/` | coverage collectors and reports
+`bench/` | the bench harness
+`fuzz/` | the fuzz harness
+`ide/` | editor integration
+`tools/` | tool programs
+`platforms/` | private platforms and constraint values
 
-- `private/` holds no directory named `toolchains`, `tests`, `testing`, `testdata` or `fixtures`. One exception: `private/tools/<tool>/testdata/`.
+- `private/` holds no directory named `toolchains`, `tests`, `testing`, `testdata` or `fixtures`, except `private/tools/<tool>/testdata/`.
 - `<lang>/private/defs.bzl` defines the public macros.
 
 ## Public names
 
-- `defs.bzl` holds a docstring, `load` statements and `name = _name` assignments. It defines nothing.
-- `defs.bzl` exports rules, macros and providers. It exports no constant and no helper function.
+- `defs.bzl` holds a docstring, `load` statements and `name = _name` assignments and defines nothing.
+- `defs.bzl` exports only rules, macros and providers: no constant, no helper function.
 - Rule and macro names start with `<lang>_`.
 - A rule that builds another language's sources is named `<lang>_<other>_<kind>`. `<other>` is a language directory name.
 - A rule with a common role uses its suffix: `library`, `binary`, `test`, `bench` or `fuzz_test`.
@@ -71,7 +71,7 @@ These names are reserved inside `<lang>/private/`. Code with that role uses that
 - No other parameter selects a target platform. `platform`, `target_platform`, `cells`, `os` and `arch` are not parameter names.
 - The rule applies the transition in `core/platform.bzl`. No file under `<lang>/private/` names `//command_line_option:platforms`.
 - `target_compatible_with` only marks compatibility. A macro derives it from the manifest `platforms` field through `core/modules/langs.bzl`.
-- The manifest `platforms` field lists host and CI cells. A target-OS list, such as the one in `swift/private/platforms/support.bzl` (ios, linux, macos, windows) or `apple/private/ios/cell.bzl` (ios, macos), is outside this rule and is not derived from the manifest.
+- The manifest `platforms` field lists host and CI cells. A target-OS list, such as the one in `swift/private/platforms/support.bzl` (ios, linux, macos, windows) or `apple/private/ios/cell.bzl` (ios, macos), is outside this rule and not derived from the manifest.
 
 ## Toolchains
 
@@ -82,7 +82,7 @@ These names are reserved inside `<lang>/private/`. Code with that role uses that
 - With consumer tags, that tag is named `dx_<lang>` and sets no `build`. The `<lang>` extension loads `PINS["dx_<lang>"]` from `@dx_pins_data//:pins.bzl` and creates the hub with `pins_hub`.
 - A language that uses an upstream rule set's toolchain registers the upstream repository instead.
 - `register_toolchains` never takes a `//` label and never sets `dev_dependency`.
-- Where registration order matters, the hub names its targets so that name order is the order.
+- Where order matters, the hub names its targets so name order is registration order.
 - Every `use_extension` on a rules_dx label names `//<dir>:extensions.bzl`.
 - Every toolchain and SDK a public rule resolves is declared without `dev_dependency`. A consumer adds no `register_toolchains` line.
 - The `<lang>` extension declares the default repos when no module sets a tag. Its consumer tag only picks another pinned version.
@@ -92,11 +92,11 @@ These names are reserved inside `<lang>/private/`. Code with that role uses that
 ## Tests
 
 - `<lang>/tests/BUILD.bazel` declares the language tests.
-- Starlark suites are `<lang>/tests/<subject>_tests.bzl`. Rule and macro analysis tests are in `defs_tests.bzl`. Expected analysis failures are in `failure_tests.bzl`. Pin and hub checks are in `toolchain_tests.bzl`.
-- A unit test of a private tool program sits in that program's package. No other test sits in `private/`.
+- Starlark suites are `<lang>/tests/<subject>_tests.bzl`. Rule and macro analysis tests go in `defs_tests.bzl`, expected analysis failures in `failure_tests.bzl`, pin and hub checks in `toolchain_tests.bzl`.
+- A unit test of a private tool program sits in that program's package; no other test sits in `private/`.
 - A suite loads private symbols through the package visibility of `//<lang>/private`. `defs.bzl` exports nothing for tests.
 - A language with executable macros calls `dx_wrapper_contract_tests` from `//core:conformance.bzl` in `tests/BUILD.bazel`.
-- Shared test macros come from `core/` and `tools/testing/`. A language defines no copy of them.
+- A language defines no copy of the shared test macros in `core/` and `tools/testing/`.
 
 ## Fixtures
 
@@ -111,22 +111,22 @@ These names are reserved inside `<lang>/private/`. Code with that role uses that
 
 - `docs/languages/<lang>.md` is generated from `Install`, `Rules` and the README sections.
 - `<lang>/README.md` is the hand-written guide. Its first line is `# <title>`.
-- Its `##` headings come from this list, in this order: `Dependencies`, `Generate`, `Quality`, `Coverage`, `Bench and fuzz`, `API docs`, `Packaging`, `Toolchain`, `Platforms`, `License`.
+- Its `##` headings come from this ordered list: `Dependencies`, `Generate`, `Quality`, `Coverage`, `Bench and fuzz`, `API docs`, `Packaging`, `Toolchain`, `Platforms`, `License`.
 - Any other topic is a `###` heading under one of them.
 - It has no `Install`, `Start` or `Rules` section.
 
 ## Structure lint
 
-- `//tools/testing:language_skeleton_test` is a `rust_test`. It reads the snapshots that `docs/design/test-guards.md` names.
+- `//tools/testing:language_skeleton_test` is a `rust_test` that reads the snapshots that `docs/design/test-guards.md` names.
 - `paths.json` gives it entries, pin files, `private/` names and fixture directories. `files.json` gives it README text.
 - It checks the Entries, Private directories, Public names, Toolchains and README rules, the test and fixture locations, and the two decidable Platforms rules: the type of each `platforms` attr and the option name under `private/`.
 - `tools/testing/language_skeleton_allowlist.txt` holds one line per violation: `<rule> <path>`. Lines are sorted.
 - The lint fails on a violation with no line and on a line with no violation.
-- The allowlist only shrinks, and a new language directory passes with no line.
+- The allowlist only shrinks. A new language directory needs no line.
 
 ## New language
 
-A new language is these steps and no others.
+A new language takes these steps only.
 
 1. Add `<lang>/lang.json`.
 2. Add `<lang>/BUILD.bazel`, `<lang>/defs.bzl`, `<lang>/private/defs.bzl` and `<lang>/tests/BUILD.bazel`.

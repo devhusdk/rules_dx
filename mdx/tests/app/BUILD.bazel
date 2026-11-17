@@ -21,6 +21,7 @@ dx_web_app(
     library = mdx_library,
     library_name = "pages",
     library_srcs = glob(["src/**/*.mdx"]),
+    package_json = "package.json",
     ssr_entry = "src/entry-server.jsx",
     tests = {
         "site_static_test": [

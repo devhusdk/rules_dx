@@ -189,7 +189,10 @@ rust_test(
     ],
 )
 
-cc_hub_tests(name = "hub_test")
+cc_hub_tests(
+    name = "hub_test",
+    size = "small",
+)
 
 objc_library_tests(
     name = "objc_library_test",

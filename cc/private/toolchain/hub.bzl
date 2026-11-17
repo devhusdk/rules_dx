@@ -100,7 +100,7 @@ def _clang_cl():
             exec_compatible_with = ["@platforms//cpu:" + exec_cpu, "@platforms//os:" + exec_os],
             target_compatible_with = ["@platforms//cpu:" + target_cpu, "@platforms//os:" + target_os],
             target_settings = [_ON, _STAGE0, str(Label("@llvm//platforms/config:windows_%s_msvc" % target_cpu))],
-            toolchain = "//cc/private/toolchain/clang_cl:%s_%s_toolchain" % (exec_os, exec_cpu),
+            toolchain = "//cc/private/toolchain/clang_cl:%s_%s_cc_toolchain" % (exec_os, exec_cpu),
         )
         for (exec_os, exec_cpu) in MSVC_TARGET_STAGE0_SUPPORTED_EXECS
         for (target_os, target_cpu) in WINDOWS_TARGETS

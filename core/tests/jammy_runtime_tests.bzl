@@ -29,10 +29,11 @@ def _checks():
             ))
     return checks
 
-def jammy_runtime_tests(name):
+def jammy_runtime_tests(name, size):
     """Declares the pinned runtime .deb URL test."""
     starlark_test(
         name = name,
+        size = size,
         mode = "load",
         checks = _checks(),
     )

@@ -23,10 +23,7 @@ def _with_platforms(settings, platforms):
     return out
 
 def platforms_transition(implementation = _no_settings, inputs = [], outputs = [], platforms = _attr_platforms, single = ""):
-    """Returns the transition that builds for a platforms list, one configuration per platform.
-
-    platforms(attr, current) returns the platforms to build for, or [] to keep current, the command-line platforms.
-    """
+    """Returns a transition that builds once per platform that platforms(attr, current) returns, or for current when it returns []."""
 
     def _impl(settings, attr):
         chosen = platforms(attr, settings[_PLATFORMS])

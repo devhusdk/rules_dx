@@ -60,7 +60,7 @@ cc/tests/fixtures/foreign_cmake/BUILD.bazel no-size 4
 cc/tests/fixtures/fuzz/BUILD.bazel no-size 7
 cc/tests/fixtures/gcc_coverage/BUILD.bazel no-size 2
 cc/tests/fixtures/googletest/BUILD.bazel no-size 1
-cc/tests/fixtures/hello/BUILD.bazel no-size 16
+cc/tests/fixtures/hello/BUILD.bazel no-size 15
 cc/tests/fixtures/lcov_accounting/BUILD.bazel no-size 2
 cc/tests/fixtures/linux_corpus/BUILD.bazel no-size 1
 cc/tests/fixtures/msvc_shared/BUILD.bazel no-size 5
@@ -174,7 +174,7 @@ d/tests/fixtures/d-app/source/BUILD.bazel no-size 1
 d/tests/fixtures/d-app/source/base/BUILD.bazel no-size 1
 d/tests/fixtures/d-app/source/cli/BUILD.bazel no-size 1
 d/tests/fixtures/fuzz/BUILD.bazel no-size 6
-d/tests/fixtures/hello/BUILD.bazel no-size 2
+d/tests/fixtures/hello/BUILD.bazel no-size 1
 dart/tests/BUILD.bazel no-size 1
 dart/tests/bench/BUILD.bazel no-size 2
 dart/tests/codegen/BUILD.bazel no-size 1
@@ -579,7 +579,7 @@ zig/tests/fixtures/bench/BUILD.bazel no-size 3
 zig/tests/fixtures/bench/BUILD.bazel size-large 1
 zig/tests/fixtures/bench/BUILD.bazel timeout-long 1
 zig/tests/fixtures/calc/BUILD.bazel no-size 1
-zig/tests/fixtures/hello/BUILD.bazel no-size 2
+zig/tests/fixtures/hello/BUILD.bazel no-size 1
 zig/tests/fixtures/zig-app/catalog/BUILD.bazel no-size 1
 zig/tests/fixtures/zig-app/cli/BUILD.bazel no-size 1
 zig/tests/fixtures/zig-app/diagnostics/BUILD.bazel no-size 1

@@ -342,11 +342,17 @@ pub(crate) fn execute_verify(invocation: &Invocation, env: Env<'_>) -> i32 {
                 ),
             );
         }
+        // A missing gh fails instead of skipping: a green exit must mean both
+        // the Sigstore bundle and the GitHub attestation were checked.
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            lines.push(format!(
-                "{}: gh not found, attestation check skipped",
-                file.display()
-            ));
+            return failed(
+                out,
+                err,
+                format!(
+                    "{}: gh not found on PATH; install the GitHub CLI so `gh attestation verify` can check the asset against {repo}",
+                    file.display()
+                ),
+            );
         }
         Err(error) => return failed(out, err, format!("could not run gh: {error}")),
     }

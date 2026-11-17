@@ -377,7 +377,6 @@ pub const REQUIRED_PROBES: &[&str] = &[
     "network",
     "home_config",
     "home_config_control",
-    "warm_cache",
     "cache_miss",
 ];
 
@@ -3357,15 +3356,21 @@ fn run_all(
             "isolated": session.bazel,
         }),
     );
+    // The one cold build and test. It runs on a fresh output root that only shares the
+    // repository cache with `fetch`, downloads disabled and the network denied, so it
+    // also proves the repository cache alone is enough. Every later probe reuses `warm`.
     session.run(&Probe {
         name: "hermetic_test".to_owned(),
         net: Net::Denied,
         home: &clean_home,
-        output_root: &cold,
+        output_root: &warm,
         repos: &repos,
         command: "test",
         targets: session.hermetic_test_targets(),
-        extra: vec!["--test_output=errors".to_owned()],
+        extra: vec![
+            "--repository_disable_download".to_owned(),
+            "--test_output=errors".to_owned(),
+        ],
         expect: Expect::Pass,
     })?;
     // From a file: on Windows the run account's command line is capped at 1024 characters.
@@ -3375,7 +3380,7 @@ fn run_all(
         name: "artifacts".to_owned(),
         net: Net::Denied,
         home: &clean_home,
-        output_root: &cold,
+        output_root: &warm,
         repos: &repos,
         command: "cquery",
         targets: Vec::new(),
@@ -3424,20 +3429,6 @@ fn run_all(
         command: "build",
         targets: leak("home_config"),
         extra: Vec::new(),
-        expect: Expect::Pass,
-    })?;
-    session.run(&Probe {
-        name: "warm_cache".to_owned(),
-        net: Net::Denied,
-        home: &clean_home,
-        output_root: &warm,
-        repos: &repos,
-        command: "test",
-        targets: patterns.clone(),
-        extra: vec![
-            "--repository_disable_download".to_owned(),
-            "--test_output=errors".to_owned(),
-        ],
         expect: Expect::Pass,
     })?;
     let refetch_log = root.join("refetch.log");
@@ -3541,7 +3532,7 @@ fn run_all(
         );
         check_coverage(&sources, &session.manifest)?;
         if cfg!(windows) {
-            let output_base = PathBuf::from(windows_output_base(&cold));
+            let output_base = PathBuf::from(windows_output_base(&warm));
             let detected = detected_windows_sh(&output_base);
             set(evidence, "sh_toolchain", json!(detected));
             let system_root =
@@ -3552,7 +3543,7 @@ fn run_all(
         }
         let coverage_targets = session.manifest.coverage.clone();
         for (name, command, root) in [
-            ("dx_generate_check", "generate", &cold),
+            ("dx_generate_check", "generate", &warm),
             ("dx_coverage", "coverage", &warm),
         ] {
             session.run_dx(&DxRun {

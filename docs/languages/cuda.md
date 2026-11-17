@@ -13,6 +13,8 @@ For a CUDA project it writes this `MODULE.bazel`, tested in [`cuda/tests/consume
 module(name = "my_project")
 
 bazel_dep(name = "rules_dx", version = "<version>")
+dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
+dx_licenses.accept(ids = ["cuda-eula"])
 ```
 
 Load the rules from `@rules_dx//cuda:defs.bzl`:

@@ -29,7 +29,7 @@ load("@rules_dx//cc:defs.bzl", "cc_library", "cc_objc_library", "cc_binary")
 cc_library(name, srcs = None, hdrs = None, visibility = None, **kwargs)
 ```
 
-Minimal wrapper over cc_library. On macOS it builds no dylib unless linkstatic is set.
+Minimal wrapper over cc_library.
 
 ### `cc_objc_library`
 

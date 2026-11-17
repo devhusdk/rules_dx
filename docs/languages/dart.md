@@ -149,8 +149,9 @@ bazel build --platforms=//:linux_arm64 //app:cli
 ### Pub dependencies
 
 Declare a hub with the `pub` extension from `@rules_dx//dart:extensions.bzl`. The lock pins each package
-to a sha256. Make the lock with `dart pub get` on a developer machine, never
-inside an action.
+to a sha256. `dx generate --apply` writes `pubspec.lock` beside a root `pubspec.yaml`
+that has none with `pub get` of the pinned Dart SDK, and `dx update` moves its
+versions.
 
 ```python
 pub = use_extension("@rules_dx//dart:extensions.bzl", "pub")

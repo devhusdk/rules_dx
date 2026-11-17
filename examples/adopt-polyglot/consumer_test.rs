@@ -1,7 +1,9 @@
 //! Adopts the example in a scratch workspace with `dx init` and `dx generate`, then tests it.
 
 use std::collections::BTreeMap;
+use std::io::Write as _;
 use std::path::Path;
+use std::time::Instant;
 
 use dx_nested::compose::{
     rules_dx_override, rules_flutter_override, rules_py_override, write_rules_py_patches,
@@ -11,6 +13,19 @@ use dx_testing::{Run, read_text, resolve_runfiles, rules_dx_source, write_text};
 
 fn ok(run: &Run, what: &str) {
     assert_eq!(run.status.code(), Some(0), "{what}: {}", run.combined());
+}
+
+/// Runs `step`, writes its wall time to the test log, and checks it exits 0.
+fn timed(what: &str, step: impl FnOnce() -> Run) {
+    let started = Instant::now();
+    let run = step();
+    writeln!(
+        std::io::stderr(),
+        "step {what}: {:.1} s",
+        started.elapsed().as_secs_f64()
+    )
+    .ok();
+    ok(&run, what);
 }
 
 /// The handwritten thin entry of `native_cpp/main`, which `dx generate` does not write.
@@ -134,16 +149,17 @@ fn the_polyglot_example_adopts_and_tests_green() {
         &["init", "--apply"]
     };
 
-    ok(&dx(&case, init), "dx init --apply");
-    ok(&dx(&case, &["generate", "--apply"]), "dx generate --apply");
-    ok(&dx(&case, &["test", "//..."]), "dx test //...");
+    timed("dx init --apply", || dx(&case, init));
+    timed("dx generate --apply", || {
+        dx(&case, &["generate", "--apply"])
+    });
+    timed("dx test //...", || dx(&case, &["test", "//..."]));
 
     let before = snapshot(&root);
-    ok(&dx(&case, init), "second dx init --apply");
-    ok(
-        &dx(&case, &["generate", "--apply"]),
-        "second dx generate --apply",
-    );
+    timed("second dx init --apply", || dx(&case, init));
+    timed("second dx generate --apply", || {
+        dx(&case, &["generate", "--apply"])
+    });
     assert!(
         snapshot(&root) == before,
         "init and generate changed the adopted tree"

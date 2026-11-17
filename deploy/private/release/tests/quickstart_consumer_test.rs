@@ -329,7 +329,7 @@ fn load_budget(variable: &str) -> serde_json::Value {
 fn write_python_package(case: &Case) {
     write_text(
         &case.root().join("greet/BUILD.bazel"),
-        "load(\"@rules_dx//python:defs.bzl\", \"python_library\", \"python_test\")\n\npython_library(\n    name = \"greet\",\n    srcs = [\"greet.py\"],\n    imports = [\".\"],\n)\n\npython_test(\n    name = \"greet_test\",\n    srcs = [\"greet_test.py\"],\n    imports = [\".\"],\n    runner = \"plain\",\n    deps = [\":greet\"],\n)\n",
+        "load(\"@rules_dx//python:defs.bzl\", \"python_library\", \"python_test\")\n\npython_library(\n    name = \"greet\",\n    srcs = [\"greet.py\"],\n    imports = [\".\"],\n    visibility = [\"//visibility:public\"],\n)\n\npython_test(\n    name = \"greet_test\",\n    srcs = [\"greet_test.py\"],\n    imports = [\".\"],\n    runner = \"plain\",\n    deps = [\":greet\"],\n)\n",
     );
     write_text(
         &case.root().join("greet/greet.py"),

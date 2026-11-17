@@ -3,6 +3,7 @@ use std::fmt::Write as _;
 
 use dx_adopt::dependency_sets::Ecosystem;
 use dx_module_bazel::{Call, ModuleFile, Value};
+use dx_path::label::{Label, Repo};
 
 use super::rule_graph::apparent_repo_matches;
 
@@ -156,33 +157,24 @@ fn literal(
 }
 
 fn workspace_path(label: &str) -> Result<String, dx_error::DxError> {
-    let rest = if let Some(relative) = label.strip_prefix(':') {
-        relative
-    } else {
-        let local = label
-            .strip_prefix("@@")
-            .or_else(|| label.strip_prefix('@'))
-            .unwrap_or(label);
-        local.strip_prefix("//").ok_or_else(|| {
-            dx_error::DxError::failure(format!("label {label} is not in the main repository"))
-        })?
+    let parsed = Label::parse(label).filter(|parsed| {
+        matches!(
+            parsed.repo,
+            Repo::Local | Repo::Apparent("") | Repo::Canonical("")
+        )
+    });
+    let Some(parsed) = parsed else {
+        return Err(dx_error::DxError::failure(format!(
+            "label {label} is not in the main repository"
+        )));
     };
-    let (package, name) = if label.starts_with(':') {
-        ("", rest)
-    } else {
-        rest.split_once(':')
-            .ok_or_else(|| dx_error::DxError::failure(format!("label {label} names no file")))?
-    };
-    if name.is_empty() {
+    // An explicit `:name` is required, since `//a/b` names the package, not a file.
+    if !parsed.relative && !label.contains(':') {
         return Err(dx_error::DxError::failure(format!(
             "label {label} names no file"
         )));
     }
-    if package.is_empty() {
-        Ok(name.to_owned())
-    } else {
-        Ok(format!("{package}/{name}"))
-    }
+    Ok(parsed.file_path())
 }
 
 #[expect(
@@ -718,14 +710,15 @@ pub(crate) fn seeds<'a>(
     }
     let mut out: Vec<String> = labels
         .filter(|label| {
-            let Some((repo, target)) = label
-                .strip_prefix("@@")
-                .and_then(|rest| rest.split_once("//"))
+            let Some(Label {
+                repo: Repo::Canonical(repo),
+                name,
+                ..
+            }) = Label::parse(label)
             else {
                 return false;
             };
             if apparent_repo_matches(repo, hub) {
-                let name = target.rsplit_once(':').map_or(target, |(_, name)| name);
                 return names.contains(name)
                     || prefixes.iter().any(|prefix| name.starts_with(prefix));
             }
@@ -866,16 +859,15 @@ pub(crate) fn pip_seeds<'a>(
         .collect();
     let mut out: Vec<String> = labels
         .filter(|label| {
-            let Some((repo, target)) = label
-                .strip_prefix("@@")
-                .and_then(|rest| rest.split_once("//"))
+            let Some(Label {
+                repo: Repo::Canonical(repo),
+                package,
+                ..
+            }) = Label::parse(label)
             else {
                 return false;
             };
             if apparent_repo_matches(repo, hub) {
-                let package = target
-                    .split_once(':')
-                    .map_or(target, |(package, _)| package);
                 let top = package.split('/').next().unwrap_or_default();
                 return forms.contains(&dx_ecosystems::pep503_name(top)) || forms.contains(top);
             }
@@ -995,14 +987,15 @@ pub(crate) fn maven_seeds<'a>(
 ) -> Vec<String> {
     let mut out: Vec<String> = labels
         .filter(|label| {
-            let Some((repo, target)) = label
-                .strip_prefix("@@")
-                .and_then(|rest| rest.split_once("//"))
+            let Some(Label {
+                repo: Repo::Canonical(repo),
+                name,
+                ..
+            }) = Label::parse(label)
             else {
                 return false;
             };
             if apparent_repo_matches(repo, hub) {
-                let name = target.rsplit_once(':').map_or(target, |(_, name)| name);
                 return artifacts.contains_key(name);
             }
             let last = repo.rsplit('+').next().unwrap_or(repo);
@@ -1124,7 +1117,10 @@ pub(crate) fn gem_hubs(module_text: &str) -> Result<Vec<Hub>, dx_error::DxError>
         })?;
         let lock = literal(call, "lock", None)?.ok_or_else(|| {
             dx_error::DxError::failure({
-                format!("{} at MODULE.bazel line {} has no lock", call.name, call.line)
+                format!(
+                    "{} at MODULE.bazel line {} has no lock",
+                    call.name, call.line
+                )
             })
         })?;
         let lock = workspace_path(&lock)?;
@@ -1281,16 +1277,15 @@ pub(crate) fn npm_seeds<'a>(
     }
     let mut out: Vec<String> = labels
         .filter(|label| {
-            let Some((repo, target)) = label
-                .strip_prefix("@@")
-                .and_then(|rest| rest.split_once("//"))
+            let Some(Label {
+                repo: Repo::Canonical(repo),
+                package,
+                ..
+            }) = Label::parse(label)
             else {
                 return false;
             };
             if apparent_repo_matches(repo, hub) {
-                let package = target
-                    .split_once(':')
-                    .map_or(target, |(package, _)| package);
                 let package = package.strip_prefix("node_modules/").unwrap_or(package);
                 return packages_dirs.contains(package);
             }

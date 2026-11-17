@@ -155,6 +155,7 @@ rust_test(
     ) + [
         ":hermetic",
         "//cli/module_bazel:dx_module_bazel",
+        "//cli/path:dx_path",
         "//tools/testing:dx_testing",
     ],
 )

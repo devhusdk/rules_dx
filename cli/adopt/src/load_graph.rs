@@ -1,4 +1,5 @@
 use dx_error::DxError;
+use dx_path::label::repo_of;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
@@ -309,13 +310,6 @@ struct BazelrcRoots {
     repos: BTreeSet<String>,
 }
 
-/// The repository a label names, or `None` for a label in the main repository.
-fn label_repo(label: &str) -> Option<&str> {
-    let rest = label.strip_prefix('@')?;
-    let rest = rest.strip_prefix('@').unwrap_or(rest);
-    Some(rest.split_once("//").map_or(rest, |(repo, _)| repo))
-}
-
 /// Whether `name` is the repository `repo`, or one it owns when `repo` is canonical.
 fn repo_matches(name: &str, repo: &str) -> bool {
     name == repo || (repo.ends_with('+') && name.starts_with(repo))
@@ -362,7 +356,7 @@ fn bazelrc_roots(workspace: &Path) -> Result<BazelrcRoots, DxError> {
                 let named = word
                     .split(['=', ','])
                     .map(|item| item.trim_matches(|c| c == '"' || c == '\''))
-                    .filter_map(label_repo)
+                    .filter_map(repo_of)
                     .filter(|repo| !repo.is_empty())
                     .map(str::to_owned);
                 roots.repos.extend(named);
@@ -561,7 +555,7 @@ impl LoadGraph<'_> {
                 if let Some(target) = label_path(&label, &package, &self.names) {
                     targets.push(target.0.clone());
                     pending.push(target);
-                } else if let Some(repo) = label_repo(&label) {
+                } else if let Some(repo) = repo_of(&label) {
                     self.external
                         .entry(rel.clone())
                         .or_default()
@@ -616,7 +610,7 @@ pub fn external_repos(
 pub fn build_file_repos(workspace: &Path) -> Result<BTreeSet<String>, DxError> {
     Ok(build_file_labels(workspace)?
         .iter()
-        .filter_map(|label| label_repo(label).map(str::to_owned))
+        .filter_map(|label| repo_of(label).map(str::to_owned))
         .collect())
 }
 
@@ -631,7 +625,7 @@ pub fn build_file_labels(workspace: &Path) -> Result<BTreeSet<String>, DxError> 
         let labels =
             load_labels(&source).map_err(|error| DxError::failure(format!("{rel}: {error}")))?;
         for label in labels {
-            if label_repo(&label).is_some_and(|repo| !main_repo(repo, &names)) {
+            if repo_of(&label).is_some_and(|repo| !main_repo(repo, &names)) {
                 out.insert(label);
             }
         }
@@ -796,7 +790,7 @@ fn implementation_roots(
                         roots.push(build);
                     }
                 }
-            } else if let Some(repo) = label_repo(label) {
+            } else if let Some(repo) = repo_of(label) {
                 repos.insert(repo.to_owned());
             }
         }
@@ -910,7 +904,7 @@ pub fn repo_impact(
             || graph
                 .aspects
                 .iter()
-                .any(|label| label_repo(label).is_some_and(|name| repo_matches(name, repo)))
+                .any(|label| repo_of(label).is_some_and(|name| repo_matches(name, repo)))
         {
             BzlImpact::Global(format!("aspect loads @{repo}"))
         } else if graph.loads_repo(&graph.toolchain_inputs, repo) {

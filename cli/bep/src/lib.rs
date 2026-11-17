@@ -22,6 +22,7 @@ pub use test_outputs::{
     collect_test_events,
 };
 
+use dx_path::label::{Label, Repo};
 use std::io::BufRead;
 use std::path::{Path, PathBuf};
 
@@ -324,26 +325,14 @@ pub struct TestOutputIdentity {
 
 /// Splits a test label into its repository, package, and target parts.
 fn testlogs_label_parts(label: &str) -> Option<(Option<&str>, &str, &str)> {
-    let (repo, rest) = if let Some(rest) = label.strip_prefix("//") {
-        (None, rest)
-    } else if let Some(rest) = label.strip_prefix("@@") {
-        let (repo, rest) = rest.split_once("//")?;
-        (Some(repo).filter(|repo| !repo.is_empty()), rest)
-    } else {
-        let rest = label.strip_prefix('@')?;
-        let (repo, rest) = rest.split_once("//")?;
-        (Some(repo), rest)
+    let parsed = Label::parse(label).filter(|parsed| !parsed.relative)?;
+    let repo = match parsed.repo {
+        Repo::Local => None,
+        // `@@//p:t` is the main repository, which has no external testlogs directory.
+        Repo::Canonical(repo) => Some(repo).filter(|repo| !repo.is_empty()),
+        Repo::Apparent(repo) => Some(repo),
     };
-    let (package, target) = if let Some((package, target)) = rest.split_once(':') {
-        (package, target)
-    } else {
-        let base = rest.rsplit('/').next().unwrap_or(rest);
-        (rest, base)
-    };
-    if target.is_empty() {
-        return None;
-    }
-    Some((repo, package, target))
+    Some((repo, parsed.package, parsed.name))
 }
 
 fn missing_test_output(
@@ -563,7 +552,10 @@ mod tests {
         };
         let outputs = [
             output(None, &["out/lib.rs", "out/b.pb"]),
-            output(Some("core/env/private:plan.bzl%dx_env_plan_aspect"), &["out/lib.rs"]),
+            output(
+                Some("core/env/private:plan.bzl%dx_env_plan_aspect"),
+                &["out/lib.rs"],
+            ),
         ];
         assert_eq!(
             non_shard_artifact_paths(&outputs, ".shard.pb"),

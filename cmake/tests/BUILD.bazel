@@ -6,8 +6,8 @@ load(":defs_tests.bzl", "owns_cmake_class_test")
 cmake_library(
     name = "app",
     srcs = [
-        "fixtures/CMakeLists.txt",
-        "fixtures/helpers.cmake",
+        "fixtures/project/CMakeLists.txt",
+        "fixtures/project/helpers.cmake",
     ],
 )
 
@@ -20,7 +20,7 @@ owns_cmake_class_test(
 
 cmake_library(
     name = "bad_name",
-    srcs = ["fixtures/CMakeLists.txt.in"],
+    srcs = ["fixtures/project/CMakeLists.txt.in"],
     tags = ["manual"],
 )
 

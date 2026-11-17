@@ -6,8 +6,8 @@ load(":defs_tests.bzl", "owns_make_class_test")
 make_library(
     name = "app",
     srcs = [
-        "fixtures/Makefile",
-        "fixtures/rules.mk",
+        "fixtures/project/Makefile",
+        "fixtures/project/rules.mk",
     ],
 )
 
@@ -20,7 +20,7 @@ owns_make_class_test(
 
 make_library(
     name = "bad_name",
-    srcs = ["fixtures/Makefile.in"],
+    srcs = ["fixtures/project/Makefile.in"],
     tags = ["manual"],
 )
 

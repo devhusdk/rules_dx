@@ -3,7 +3,7 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = [
     "//msix/tests:__pkg__",
-    "//msix/tests/fixtures/msix-app:__subpackages__",
+    "//msix/tests/fixtures/msix_app:__subpackages__",
 ])
 
 exports_files([

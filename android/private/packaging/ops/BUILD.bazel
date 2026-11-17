@@ -24,7 +24,7 @@ rust_binary(
     name = "android_ops",
     srcs = ["src/main.rs"],
     crate_root = "src/main.rs",
-    visibility = ["//visibility:public"],
+    visibility = ["//:__subpackages__"],
     deps = [":ops"],
 )
 
@@ -39,5 +39,5 @@ exports_files(
         "src/lib.rs",
         "src/main.rs",
     ],
-    visibility = ["//visibility:public"],
+    visibility = ["//:__subpackages__"],
 )

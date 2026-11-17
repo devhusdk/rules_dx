@@ -237,7 +237,7 @@ exports_files(
         "src/lib.rs",
         "src/main.rs",
     ],
-    visibility = ["//visibility:public"],
+    visibility = ["//:__subpackages__"],
 )
 
 # keep

@@ -210,7 +210,7 @@ dx_wrapper_contract_tests(
             "env and env_inherit leave the upstream binary",
             ocaml_test_upstream_kwargs(dx_test_upstream_kwargs({
                 "env": {"K": "1"},
-                "env_inherit": ["HOME"],
+                "env_inherit": ["TZ"],
             })),
             {
                 "tags": [DX_UPSTREAM_TAG],
@@ -221,12 +221,12 @@ dx_wrapper_contract_tests(
             "env and env_inherit reach the test forwarder",
             dx_test_forward_kwargs({
                 "env": {"K": "1"},
-                "env_inherit": ["HOME"],
+                "env_inherit": ["TZ"],
             }),
             {
                 "size": "small",
                 "env": {"K": "1"},
-                "env_inherit": ["HOME"],
+                "env_inherit": ["TZ"],
             },
         ),
         expect_equal(

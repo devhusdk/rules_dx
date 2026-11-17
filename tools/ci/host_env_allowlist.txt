@@ -218,13 +218,12 @@ julia/tests/fixtures/julia-app/data/BUILD.bazel genrule 1
 julia/tests/fixtures/julia-app/diagnostics/BUILD.bazel genrule 1
 kotlin/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
 kotlin/tests/fixtures/kotlin-app/grades/BUILD.bazel genrule 1
-ocaml/private/BUILD.bazel env-inherit 3
-ocaml/private/BUILD.bazel home 3
 ocaml/private/coverage/BUILD.bazel sh-rule 2
 ocaml/private/coverage/collect.sh shebang 1
 ocaml/private/coverage/collect_test_upstream.sh shebang 1
 ocaml/private/tools/BUILD.bazel sh-rule 1
 ocaml/private/tools/opam.sh shebang 1
+ocaml/tests/BUILD.bazel env-inherit 3
 ocaml/tests/fixtures/bench/BUILD.bazel sh-rule 1
 ocaml/tests/fixtures/bench/run_test.sh shebang 1
 ocaml/tests/fixtures/ocaml_app/cli/BUILD.bazel sh-rule 1

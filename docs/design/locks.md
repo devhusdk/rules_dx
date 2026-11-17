@@ -13,18 +13,18 @@ This page fixes how languages lock, fetch and resolve third-party packages. Tool
 - Each ecosystem has one entry under `setup.hubs` in the `lang.json` of its first language below; the others name only it.
 - The entry holds `ecosystem`, `manifest`, `lock`, `state`, `extension`, `tag`, `hub`, `resolver` and `imports`.
 - `hub` is a repository name, or `*` for one repository per package.
-- Code reads these values through the generated registry. No other source file states them.
-- An ecosystem with no hub extension is not listed in `ecosystems`; a language with empty `ecosystems` has no set.
+- Code reads these values only through the generated registry.
+- An ecosystem with no hub extension is not in `ecosystems`; a language with empty `ecosystems` has no set.
 
 ## Foreign formats
 
-`dx audit` reads one version of each foreign format. Any other version fails and names the supported one.
+`dx audit` reads one version of each foreign format; any other fails and names the supported one.
 
-| Format | Supported version |
-| --- | --- |
-| `pnpm-lock.yaml` | `lockfileVersion` 9.0 |
-| `package-lock.json` | `lockfileVersion` 3 |
-| `.gitleaks.toml` | `[[allowlists]]`; `[allowlist]` is rejected |
+Format | Supported version
+--- | ---
+`pnpm-lock.yaml` | `lockfileVersion` 9.0
+`package-lock.json` | `lockfileVersion` 3
+`.gitleaks.toml` | `[[allowlists]]`; `[allowlist]` is rejected
 
 ## Classes
 
@@ -65,14 +65,14 @@ dx class, as ecosystem (languages): manifest; state; hub. The lock is `<ecosyste
 
 ## Manifest
 
-- The manifest is in the ecosystem's own format, never `MODULE.bazel`. A user changes a dependency by editing only the manifest.
+- The manifest is in the ecosystem's own format, never `MODULE.bazel`. A user edits only it to change a dependency.
 
 ## Lock
 
 - A dependency set has one lock, next to its root manifest.
-- A resolver writes a state file for itself; no hub or Gazelle code reads it.
+- A resolver writes its own state file; no hub or Gazelle code reads it.
 - Only the lock step writes a lock or state file. The tree holds no `*.digests.json`.
-- A dx class lock names every package of the closure with one exact version and every archive with URLs and sha256.
+- A dx class lock names every closure package with one exact version and every archive with URLs and sha256.
 
 ## dx lock schema
 
@@ -86,19 +86,19 @@ dx class, as ecosystem (languages): manifest; state; hub. The lock is `<ecosyste
 
 ## Groups
 
-- A `nuget.lock.json` holds one exact-version closure per Paket group under the top key `groups`, which maps the group name to its packages; its `packages` is empty.
+- A `nuget.lock.json` holds one exact-version closure per Paket group under `groups`, which maps group name to packages; its `packages` is empty.
 - Each group is its own hub: the `main` group is the set's hub name, another group is `<hub>.<group>`.
 - A package of a group is `@<group hub>//<name>`.
 
 ## Extension
 
-- A consumer loads a hub extension only from `@rules_dx//<lang>:extensions.bzl`. Its name is the ecosystem.
+- A consumer loads a hub extension only from `@rules_dx//<lang>:extensions.bzl`, named for the ecosystem.
 - A dx class extension has one tag, `lock`, with attributes `name` and `lock`. A development hub sets `dev_dependency = True`.
 - An upstream class extension is the upstream one under the rules_dx label. Its tag takes the lock label, and the manifest label if upstream needs it.
 - No tag has a `sha256`, `integrity`, `digest`, `digests`, `checksums`, `version` or `url` attribute.
 - No package is declared with `use_repo_rule` or one tag per package.
 - `lock_hub` in `core/pins.bzl` makes every dx class extension; the language passes one function returning a package's BUILD file.
-- An archive is downloaded only with the lock's digest. A package without one fails the extension.
+- An archive downloads only with the lock's digest; a package without one fails the extension.
 - Module extension facts hold only values derived from sha256-pinned inputs. An extension runs no resolver and returns `reproducible = True`.
 
 ## Hub
@@ -118,11 +118,11 @@ dx class, as ecosystem (languages): manifest; state; hub. The lock is `<ecosyste
 - `resolver` labels one runnable rules_dx target. dx runs `bazel run <resolver> -- --dir <set directory>`, plus `--check` to compare only.
 - No user BUILD file declares a lock, pin, resolve or digest target.
 - `dx generate --apply` runs the step for a set with a missing or stale lock, `dx update` to move versions, `dx check` with `--check`.
-- A dx class lock is stale when an `inputs` file has another sha256. For the upstream class the resolver's frozen mode decides.
+- A dx class lock is stale when an `inputs` file has another sha256. For upstream class the resolver's frozen mode decides.
 - The step runs the resolver rules_dx pins by sha256, starts no host program (see `host-tools.md`) and keeps the resolver's home, cache and config in a scratch directory.
-- The `maven` resolver runs the rules_jvm_external Maven resolver with the pinned JDK. It reads `libs.versions.toml` and writes `maven_install.json`.
+- The `maven` resolver runs the rules_jvm_external Maven resolver with the pinned JDK. It reads `libs.versions.toml`, writes `maven_install.json`.
 - The `pub` resolver runs `pub get` of the pinned Dart SDK on a copy of `pubspec.yaml` and `pubspec.lock` and writes `pubspec.lock`.
-- A step whose `inputs` match makes no network request. A package with unchanged name, version and URLs keeps its entry with no download.
+- A step whose `inputs` match makes no network request, and a package with unchanged name, version and URLs keeps its entry.
 
 ## Imports
 

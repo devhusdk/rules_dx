@@ -14,6 +14,7 @@ dx_web_app(
     config = "vite.config.mjs",
     library = svelte_library,
     library_srcs = glob(["src/**/*.svelte"]),
+    package_json = "package.json",
     public = glob(["public/**"]),
     ssr_entry = "src/entry-server.ts",
     tests = {

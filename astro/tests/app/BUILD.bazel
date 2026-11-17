@@ -14,6 +14,7 @@ dx_web_app(
     config = "astro.config.mjs",
     library = astro_library,
     library_srcs = glob(["src/**/*.astro"]),
+    package_json = "package.json",
     public = glob(["public/**"]),
     tests = {
         "site_static_test": [":site"],

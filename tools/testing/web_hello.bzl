@@ -25,7 +25,6 @@ def dx_web_app(build, library, library_srcs, srcs, tests, size, library_name = "
         name = "site",
         srcs = srcs + [":logo"],
         node_modules = "//:node_modules",
-        package_json = "package.json",
         **kwargs
     )
     javascript_web_server(

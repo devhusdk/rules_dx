@@ -1,4 +1,4 @@
-//! Runs `pub get` of the pinned Dart SDK on a copy of a set and writes its `pubspec.lock`.
+//! Runs `pub get` of the pinned Dart SDK on a copy of a set and writes its lockfile.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::path::{Path, PathBuf};

@@ -159,9 +159,3 @@ def clang_cl_toolchains(link_lib_env):
                 "//conditions:default": [],
             }),
         )
-
-        native.alias(
-            name = prefix + "_toolchain",
-            actual = ":" + prefix + "_cc_toolchain",
-            visibility = ["@dx_cc_toolchains//:__pkg__"],
-        )

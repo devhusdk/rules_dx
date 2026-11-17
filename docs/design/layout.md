@@ -6,14 +6,14 @@ This page fixes the repository layout.
 
 - The repo is one Bazel module, `rules_dx`. Users add one `bazel_dep`.
 - Language rule sets are `bazel_dep`s of `rules_dx` at their `# floor:` versions. Bazel fetches a rule set only when a loaded `.bzl` file needs it.
-- Core never loads a language `.bzl` file. One exception: `core/quality/tools.bzl` loads the `_tools.bzl` files. A test enforces it.
+- Core never loads a language `.bzl` file, except `core/quality/tools.bzl`, which loads the `_tools.bzl` files. A test enforces it.
 - dx loads a language's quality aspects only when the workspace has that language's files.
-- `rules_php`, `rules_lua` and `rules_qt` are rule-set modules that rules_dx owns. rules_dx depends on each like any upstream rule set, and each depends on rules_dx as a normal `bazel_dep`.
+- `rules_php`, `rules_lua` and `rules_qt` are rule-set modules that rules_dx owns. rules_dx depends on each like any upstream rule set, and each depends back as a normal `bazel_dep`.
 - A rule-set module holds the build rules: toolchain, `<lang>_library`, `<lang>_binary`, `<lang>_test`, `<lang>_bench`, providers, runtime pins and the dependency hub. Its public API is `@rules_<lang>//<lang>:defs.bzl` and `@rules_<lang>//<lang>:extensions.bzl`.
-- `<lang>/` in rules_dx keeps the dx layer: `lang.json`, quality, coverage, docs, Gazelle and CLI ecosystem code. `<lang>/private/defs.bzl` wraps the rule-set macros, as `zig/private/defs.bzl` wraps `@rules_zig`.
+- `<lang>/` in rules_dx keeps the dx layer: `lang.json`, quality, coverage, docs, Gazelle and CLI ecosystem code; `<lang>/private/defs.bzl` wraps the rule-set macros, as `zig/private/defs.bzl` wraps `@rules_zig`.
 - A rule-set module loads from rules_dx only `@rules_dx//rust:defs.bzl` and the files in `RULES_DX_ALLOW` of `tools/ci/rule_set_loads_test.rs`.
-- `NativeRuntimeInfo`, `dx_native_runtime` and every `consumer_archive` wrapper stay in rules_dx `deploy/`. A rule-set module ships no runtime metadata; `deploy/` wraps its outputs, as `qt_bundle_runtime` and `qt_consumer_archive` wrap `qt_bundle`.
-- rules_dx's floor on each rule-set module is `equals tested`. It moves with each rules_dx release.
+- `NativeRuntimeInfo`, `dx_native_runtime` and every `consumer_archive` wrapper stay in rules_dx `deploy/`. A rule-set module ships no runtime metadata; `deploy/` wraps its outputs as `qt_bundle_runtime` and `qt_consumer_archive` wrap `qt_bundle`.
+- rules_dx's floor on each rule-set module is `equals tested` and moves with each rules_dx release.
 - There are no family modules. A family is a grouping label in the language manifest, used for CI sharding and docs.
 
 ## Language directory
@@ -31,13 +31,12 @@ Each language owns one top-level directory.
 <lang>/tests/            tests
 ```
 
-- `defs.bzl` is the only file users load.
-- A module extension is named after its language (`qt`, `ocaml`). An extension that serves one sub-feature is named after that feature (`cuda_license`, `zig_deps`).
-- `private/` holds everything else. Users never load from it.
-- Toolchain code lives in `private/toolchain/`. A coverage package lives in `private/coverage/`.
-- `cc`, `go`, `haskell` and `zig` each keep their own `private/bench_run.sh`. Each script repeats the same prologue and `dx-bench/v1` JSON envelope around its own awk rule.
-- `tests/` holds the language tests and fixtures. Starlark test suites and `testdata/` live there, instantiated from `tests/BUILD.bazel`, not in `private/`.
-- Starlark suites are named `tests/defs_tests.bzl` for rule and macro analysis tests, `tests/failure_tests.bzl` for expected analysis failures, and `tests/toolchain_tests.bzl` for pin and hub checks.
+- A module extension is named after its language (`qt`, `ocaml`), or after its sub-feature if it serves one (`cuda_license`, `zig_deps`).
+- `defs.bzl` is the only file users load. `private/` holds everything else.
+- Toolchain code lives in `private/toolchain/`, coverage packages in `private/coverage/`.
+- `cc`, `go`, `haskell` and `zig` each keep their own `private/bench_run.sh`, which repeats the same prologue and `dx-bench/v1` JSON envelope around its own awk rule.
+- `tests/` holds the language tests, fixtures, Starlark suites and `testdata/`, instantiated from `tests/BUILD.bazel`, not in `private/`.
+- Starlark suites are `tests/defs_tests.bzl` (rule and macro analysis tests), `tests/failure_tests.bzl` (expected analysis failures) and `tests/toolchain_tests.bzl` (pin and hub checks).
 
 ## Labels
 
@@ -54,10 +53,10 @@ This rule covers every public `<lang>_binary`, `<lang>_test`, `<lang>_bench` and
 <lang>_<kind>(name, *, srcs = None, main = None, <other parameters>, **kwargs)
 ```
 
-- `name` is the only positional parameter. Every other parameter is keyword-only.
+- `name` is the only positional parameter; the rest are keyword-only.
 - `srcs` is the first keyword parameter of a macro that takes it.
 - `srcs` defaults to `None` in binary and test macros. A bench or fuzz macro may require it.
-- `main` names the entry file. It follows `srcs` and defaults to `None`.
+- `main` names the entry file, follows `srcs` and defaults to `None`.
 - No macro takes `entry_point`. JVM macros take `main_class` or `target_class`.
 - `tools/testing/signatures/macro_signatures.py` checks the parameter order, the defaults and the absence of `entry_point`. It lists the macros that require `srcs` or `main`.
 
@@ -79,12 +78,12 @@ docs/       user docs
 examples/   tested examples
 ```
 
-- `core/` holds providers, the quality framework, `dx_wrap`, and the toolchain and pins factory. It holds no language code.
+- `core/` holds providers, the quality framework, `dx_wrap`, and the toolchain and pins factory, and holds no language code.
 - `cli/` holds every Rust crate.
-- `dx/` holds only a `BUILD.bazel` with the targets `dx` runs in a consumer workspace. It holds no `.bzl` file.
+- `dx/` holds only a `BUILD.bazel` with the targets `dx` runs in a consumer workspace, and no `.bzl` file.
 - `ci/` holds one directory per CI system. Its file paths are public URLs.
-- `patches/` holds upstream patches and the rules_dx registry. The patch table is generated from them.
-- The root holds only language directories with a `lang.json` and the directories above. A test enforces the list, which has no pending entries.
+- `patches/` holds upstream patches and the rules_dx registry, and the patch table is generated from them.
+- The root holds only language directories with a `lang.json` and the directories above. A test enforces this list, with no pending entries.
 - Every `.bzl` file is loaded, every fixture and Rust file is named by a target or a test, every `filegroup` and exported file has a user, and every directory belongs to a package. `//tools/ci:unreferenced_files_test` enforces it.
 
 ## Quality code
@@ -92,11 +91,11 @@ examples/   tested examples
 - `core/quality/` holds the framework: runner, adapters, tiers, the tool table and the aspect factory.
 - A language's aspects, tool rows and tool packages live in `<lang>/private/quality/`.
 - A file family with no rules, such as Markdown, CSS, GraphQL, YAML, JSON, TOML, XML, shell or plain text, gets no root directory.
-- Such a family's aspects and tool rows for tools not run on Node stay in `core/quality/families/`. Its Node tools follow the Node tools section.
+- Such a family's aspects and non-Node tool rows stay in `core/quality/families/`. Its Node tools follow the section below.
 - A shard that serves several languages lives with the language that owns its runtime: `js` in `javascript/`, `jvm` in `java/`, `beam` in `erlang/`, `dotnet` in `dotnet/`, `cc` in `cc/`.
 - A tool has all its rows in one `_tools.bzl` table. Moving a tool binary never moves its rows.
-- A `<name>_tools.bzl` file is data. It loads only the core data files `//core/quality:tool_defs.bzl` and `//core/quality:taxonomy.bzl`.
-- `core/quality/tools.bzl` loads every `_tools.bzl` file. It is the only core file that loads from a language directory.
+- A `<name>_tools.bzl` file is data and loads only core data files `//core/quality:tool_defs.bzl` and `//core/quality:taxonomy.bzl`.
+- `core/quality/tools.bzl` loads every `_tools.bzl` file, the only core file that loads from a language directory.
 - A tier package `core/quality/tiers/<tool>/` loads only core `.bzl` files.
 - A tool shipped as a prebuilt binary or bundle has no runtime owner. Its package stays in `core/quality/tools/`.
 
@@ -106,7 +105,7 @@ examples/   tested examples
 - There is one tool hub, `@dx_npm_tools`. Its `package.json`, `pnpm-lock.yaml` and launcher live in `javascript/private/quality/`.
 - No other directory holds a tool `package.json`, a tool lockfile or a second `npm_translate_lock` for tools.
 - Every Node tool has one target in `javascript/private/quality/bin/`.
-- `javascript/private/quality/js.bzl` defines the `js` shard: the `real_js_*` aspects and probes. It runs every Node tool in the tool table.
+- `javascript/private/quality/js.bzl` defines the `js` shard: the `real_js_*` aspects and probes, and runs every Node tool in the tool table.
 - `javascript/private/quality/js_tools.bzl` holds the rows of Biome, ESLint, remark, Stylelint and `tsc`. The rows of Prettier, graphql-eslint, gplint and Redocly are in `core/quality/families/core_tools.bzl`.
 - `typescript/private/quality/` holds the `tsc` aspect and its report. Its tool defaults point at the hub.
 - The manifests of javascript, typescript, astro, mdx, svelte and vue name `javascript/private/quality:js.bzl` as their quality file.
@@ -117,17 +116,17 @@ examples/   tested examples
 `<lang>/lang.json` is the single description of a language.
 
 - Its fields are `name`, `title`, `family`, `ecosystems`, `manifests`, `lockfiles`, `tools`, `platforms`, `pins`, `entry_points` and `setup`.
-- Every manifest validates against one shared schema. A test checks it.
+- A test validates every manifest against one shared schema.
 - It drives quality registration, the dx ecosystem registry, `dx init`, the support matrix and the per-language docs.
-- Its `quality` entry names the aspect file, aspects and probes. dx loads the file when the workspace has a file with one of `file_extensions` or named one of `file_names` alone or before a dot.
-- `cli/families/languages.json` is generated from the `quality` and `docs` entries. The dx plan registry reads it.
+- Its `quality` entry names the aspect file, aspects and probes. dx loads the file when the workspace has a file with an extension in `file_extensions` or a name in `file_names` alone or before a dot.
+- `cli/families/languages.json` is generated from the `quality` and `docs` entries and read by the dx plan registry.
 
 ## Tool pins
 
 `<lang>/pins.json` holds the pinned tools.
 
 - Each pin records the `sha256` and the urls.
-- One shared extension in `core/` reads every `pins.json`.
+- One shared `core/` extension reads every `pins.json`.
 - `dx update` rewrites the files. Nobody edits them by hand.
 - The manifest `pins` field names the language's pin files.
 - A rule-set module reads its own `pins.json` with its own extension, and `dx update` rewrites it in that module's repo.

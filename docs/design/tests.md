@@ -30,7 +30,7 @@ Every test target and test macro follows these rules.
 ## Devices
 
 - A test that needs a device the machine may lack is incompatible until the machine declares the device with build flags.
-- The declared device is an input of the test. The test fails when the device it finds is not the declared one.
+- The declared device is an input of the test. The test fails when it finds another device.
 - Its rule behaviour is also proven by a unit, analysis or in-graph fixture test that needs no device.
 - An Android emulator is declared with `--@rules_dx//android:emulator_serial=<serial>`. A test that needs it reads the serial from `//android:declared_emulator` and is incompatible under `//android:emulator_undeclared`.
 - An iOS simulator runtime is declared with `--@rules_dx//apple:simulator_runtime=<version>`. A test that needs it reads the runtime and the Xcode version from `//apple:declared_simulator`, is incompatible under `//apple:simulator_undeclared`, and creates its own device in a `simctl --set` below `TEST_TMPDIR`.
@@ -41,12 +41,12 @@ Every test target and test macro follows these rules.
 
 A test is the first of four kinds that can prove the behaviour.
 
-| Kind | What it is | Allowed when |
-| --- | --- | --- |
-| Unit | A `rust_test`, or a Starlark unit test over pure functions. | The behaviour is a function of its arguments or of declared files. |
-| Analysis | A Starlark analysis test over providers, actions and failures. | The behaviour is what a rule declares: providers, action arguments, inputs, outputs or an analysis error. |
-| In-graph fixture | A test that depends on real fixture targets in this workspace and checks their built outputs. | The behaviour needs an action to run: a compiler, a linter, a packager. |
-| Nested | A test that runs a second Bazel in a consumer workspace. | No other kind can prove the same thing. |
+Kind | What it is | Allowed when
+--- | --- | ---
+Unit | A `rust_test`, or a Starlark unit test over pure functions. | The behaviour is a function of its arguments or of declared files.
+Analysis | A Starlark analysis test over providers, actions and failures. | The behaviour is what a rule declares: providers, action arguments, inputs, outputs or an analysis error.
+In-graph fixture | A test that depends on real fixture targets in this workspace and checks their built outputs. | The behaviour needs an action to run: a compiler, a linter, a packager.
+Nested | A test that runs a second Bazel in a consumer workspace. | No other kind can prove the same thing.
 
 - A fixture is a library, binary or file target, or a conformance subject.
 - A fixture whose test proves a property of a test rule is a test target.
@@ -76,24 +76,24 @@ A test is the first of four kinds that can prove the behaviour.
 - Every directory with a `lang.json` calls `dx_conformance_suite` from `//tools/testing/conformance:defs.bzl` once, in `<lang>/tests/conformance/BUILD.bazel`.
 - The package declares fixtures: files and targets of the `lang.json` `entry_points`. The suite declares every test and holds every assertion.
 
-| Test | Passes when |
-| --- | --- |
-| `build_test` | The fixture binary prints the expected line and exits 0. |
-| `pass_test` | The passing subject test exits 0. |
-| `fail_test` | The failing subject test exits non-zero and names its failing case. |
-| `coverage_test` | The passing subject test, built with `collect_code_coverage`, writes LCOV with a hit on the fixture library. |
-| `coverage_off_test` | The passing subject test, built without `collect_code_coverage` and run with the coverage environment, reports no hit on the fixture library. It follows `coverage_test`'s pending and `not_applicable` entries. |
-| `lint_test` | The lint aspect reports nothing on the clean fixture. |
-| `lint_error_test` | The lint aspect reports the expected rule, file and line on the dirty fixture. |
-| `format_test` | The format aspect reports nothing on the clean fixture. |
-| `format_error_test` | The format aspect reports the unformatted fixture file. |
-| `lock_test` | The fixture binary imports a package pinned by the checked-in lockfile. The lock check rejects a lockfile without it. |
-| `cross_test` | The fixture binary, built for another platform of the language, has that platform's object format, OS and CPU. |
-| `runfiles_test` | The fixture binary reads a `data` file through the language's runfiles library and prints it. |
+Test | Passes when
+--- | ---
+`build_test` | The fixture binary prints the expected line and exits 0.
+`pass_test` | The passing subject test exits 0.
+`fail_test` | The failing subject test exits non-zero and names its failing case.
+`coverage_test` | The passing subject test, built with `collect_code_coverage`, writes LCOV with a hit on the fixture library.
+`coverage_off_test` | The passing subject test, built without `collect_code_coverage` under the coverage environment, reports no fixture library hit. It follows `coverage_test`'s pending and `not_applicable` entries.
+`lint_test` | The lint aspect reports nothing on the clean fixture.
+`lint_error_test` | The lint aspect reports the expected rule, file and line on the dirty fixture.
+`format_test` | The format aspect reports nothing on the clean fixture.
+`format_error_test` | The format aspect reports the unformatted fixture file.
+`lock_test` | The fixture binary imports a package pinned by the checked-in lockfile. The lock check rejects a lockfile without it.
+`cross_test` | The fixture binary, built for another platform of the language, has that platform's object format, OS and CPU.
+`runfiles_test` | The fixture binary reads a `data` file through the language's runfiles library and prints it.
 
 - A subject test is a fixture declared with the suite's `subject_rule`: a `lang.json` `entry_points` name that declares a test target. Outside the suite's transition it is incompatible, so a pattern skips it.
 - A language without one lists `pass_test`, `fail_test` and `coverage_test` in `not_applicable`.
-- A suite test is an in-graph fixture test with `size = "small"`. It runs a subject from runfiles with Bazel's test environment.
+- A suite test is an in-graph fixture test with `size = "small"` that runs a subject from runfiles with Bazel's test environment.
 - `lang.json` `platforms` is never empty. A suite test runs on each of them and is incompatible on any other.
 - The suite's `not_applicable` maps a test, or a test and platform, to a reason. Nothing else omits a suite test.
 - `tools/testing/conformance/pending.bzl` holds a `<lang> <test> <platform>` line per suite test that does not pass yet; `*` is every `lang.json` platform. Such a test is incompatible on that platform. The list only shrinks. A language without a suite has a `*` line for each test; its manifest rows are `pending`.

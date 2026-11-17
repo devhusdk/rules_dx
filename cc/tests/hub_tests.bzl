@@ -20,7 +20,7 @@ _FIRST = [
 def _first(names, prefix):
     return [i for i, name in enumerate(names) if name.startswith(prefix)][0]
 
-def cc_hub_tests(name):
+def cc_hub_tests(name, size):
     """Asserts the hub holds every C and C++ toolchain, gated, in registration order."""
     entries = cc_hub_entries()
     names = [e.name for e in entries]
@@ -28,6 +28,7 @@ def cc_hub_tests(name):
     rest = names[len(_FIRST):]
     starlark_test(
         name = name,
+        size = size,
         mode = "load",
         checks = hub_checks(cc_hub(), CC_TOOLCHAIN_TYPE, len(entries)) + [
             expect_equal("sorted names are the registration order", sorted(hub_names), hub_names),

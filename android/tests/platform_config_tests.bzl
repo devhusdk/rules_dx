@@ -8,9 +8,10 @@ _android_subject = platform_config_subject_rule(android_transition, {
     "platforms": attr.string_list(doc = "The one Android platform label."),
 })
 
-def android_platform_config_test(name):
+def android_platform_config_test(name, size):
     platform_config_test(
         name = name,
+        size = size,
         subject_rule = _android_subject,
         constraints = ["@platforms//os:android", "@platforms//cpu:aarch64", "@platforms//cpu:x86_64"],
         subjects = {

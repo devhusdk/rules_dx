@@ -109,7 +109,10 @@ license_tests(name = "license")
 
 seven_zip_tests(name = "seven_zip")
 
-jammy_runtime_tests(name = "jammy_runtime")
+jammy_runtime_tests(
+    name = "jammy_runtime",
+    size = "small",
+)
 
 no_coverage_tests(name = "no_coverage")
 

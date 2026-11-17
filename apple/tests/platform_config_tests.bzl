@@ -10,9 +10,10 @@ _ios_cell_subject = platform_config_subject_rule(ios_cell_transition, {
     "xcode_version": attr.string(doc = "Xcode version."),
 })
 
-def apple_platform_config_test(name):
+def apple_platform_config_test(name, size):
     platform_config_test(
         name = name,
+        size = size,
         subject_rule = _ios_cell_subject,
         constraints = ["@platforms//os:ios", "@platforms//cpu:aarch64", "@platforms//cpu:x86_64"],
         subjects = {

@@ -1,0 +1,15 @@
+# The checked-in public API snapshot. `bazel run //tools/api:update` writes it.
+filegroup(
+    name = "snapshot",
+    srcs = [
+        "cli.json",
+        "schemas.txt",
+    ],
+    visibility = ["//tools/api:__pkg__"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

@@ -77,7 +77,10 @@ rust_library(
     ],
     crate_name = "dx_plan",
     crate_root = "src/lib.rs",
-    visibility = VIS_QUALITY_CLI + ["//tools/ci:__pkg__"],
+    visibility = VIS_QUALITY_CLI + [
+        "//tools/api:__pkg__",
+        "//tools/ci:__pkg__",
+    ],
     # keep
     deps = [
         "//cli/adopt:dx_adopt",

@@ -2,6 +2,7 @@ use std::collections::BTreeSet;
 
 /// Root directories every layout keeps.
 const SHARED: &[&str] = &[
+    "api",
     "bcr_test_module",
     "ci",
     "config",

@@ -1,0 +1,51 @@
+load("//rust:defs.bzl", "rust_binary", "rust_test")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+_DEPS = [
+    "//cli/digest:dx_digest",
+    "//cli/dx_config",
+    "//cli/output:dx_output",
+    "//cli/plan:dx_plan",
+    "@crates//:serde_json",
+]
+
+_SCHEMAS = [
+    "//cli/dx_config:schema/dx.schema.json",
+    "//cli/output:schema/events.schema.json",
+]
+
+# Rewrites api/ from the code. Run it when api_test says the public API changed.
+rust_binary(
+    name = "update",
+    srcs = [
+        "snapshot.rs",
+        "update.rs",
+    ],
+    compile_data = _SCHEMAS,
+    crate_name = "update",
+    crate_root = "update.rs",
+    deps = _DEPS,
+)
+
+rust_test(
+    name = "api_test",
+    size = "small",
+    srcs = [
+        "api_test.rs",
+        "snapshot.rs",
+    ],
+    compile_data = _SCHEMAS,
+    crate_name = "api_test",
+    crate_root = "api_test.rs",
+    data = ["//api:snapshot"],
+    env = {"DX_API_SNAPSHOT": "$(rlocationpaths //api:snapshot)"},
+    deps = _DEPS + ["//tools/testing:dx_testing"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

@@ -318,6 +318,8 @@ mod tests {
                 .map(|flag| HelpFlag {
                     name: (*flag).to_owned(),
                     aliases: if *flag == "--output" { vec!["-o".to_owned()] } else { Vec::new() },
+                    values: Vec::new(),
+                    defaults: Vec::new(),
                 })
                 .collect(),
             exit_codes: exit_codes.iter().map(|code| (*code).to_owned()).collect(),

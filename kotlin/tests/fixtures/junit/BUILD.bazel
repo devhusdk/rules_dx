@@ -1,6 +1,6 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//java/tests:coverage_tests.bzl", "jvm_coverage_env_test")
 load("@rules_dx//kotlin:defs.bzl", "kotlin_test")
+load("@rules_dx//tools/testing/conformance:defs.bzl", "dx_coverage_test")
 
 package(
     default_testonly = True,
@@ -31,10 +31,16 @@ kotlin_test(
     ],  # keep
 )
 
-jvm_coverage_env_test(
-    name = "hello_jupiter_coverage_env_test",
-    main_class = "org.junit.platform.console.ConsoleLauncher",
-    target = ":hello_jupiter_test",
+dx_coverage_test(
+    name = "hello_jupiter_coverage_test",
+    args = [
+        "execute",
+        "--select-class",
+        "hello.HelloJupiterTest",
+    ],
+    covered_source = "Hello.kt",
+    instrumented_packages = ["kotlin/tests/fixtures/hello"],
+    subject = ":hello_jupiter_test",
 )
 
 real_source_target(

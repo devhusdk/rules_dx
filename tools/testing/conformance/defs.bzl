@@ -312,7 +312,7 @@ dx_conformance_manifest = rule(
     doc = "Writes one JSON with the entries of every language and the platforms of each.",
 )
 
-def dx_coverage_test(name, subject, covered_source, size = "small", **kwargs):
+def dx_coverage_test(name, subject, covered_source, args = [], instrumented_packages = [], size = "small", **kwargs):
     """Declares a test that runs subject under code coverage and requires covered_source to be fully executed.
 
     Also declares name + "_off", which runs subject built without code coverage and requires no hits in covered_source.
@@ -321,9 +321,12 @@ def dx_coverage_test(name, subject, covered_source, size = "small", **kwargs):
       name: Name of the test.
       subject: Test target to run; built under the coverage transition.
       covered_source: File name whose lines the subject must cover.
+      args: Arguments passed to subject.
+      instrumented_packages: Packages instrumented besides the calling package.
       size: Size of the tests.
       **kwargs: Forwarded to the tests.
     """
+    args_env = {"DX_CONFORMANCE_ARGS": " ".join(args)} if args else {}
     dx_conformance_subject(
         name = name + "_off_subject",
         subject = subject,
@@ -335,18 +338,19 @@ def dx_coverage_test(name, subject, covered_source, size = "small", **kwargs):
         srcs = [Label("//tools/testing/conformance:runner_test.rs")],
         data = [":" + name + "_off_subject"],
         deps = [_CONFORMANCE_QUALITY, Label("//tools/testing:dx_testing")],
-        env = {
-            "DX_CONFORMANCE_MODE": "coverage_off",
-            "DX_CONFORMANCE_SUBJECT": "$(rlocationpaths :%s_off_subject)" % name,
-            "DX_CONFORMANCE_TEXT": covered_source,
-        },
+        env = dict(
+            args_env,
+            DX_CONFORMANCE_MODE = "coverage_off",
+            DX_CONFORMANCE_SUBJECT = "$(rlocationpaths :%s_off_subject)" % name,
+            DX_CONFORMANCE_TEXT = covered_source,
+        ),
         size = size,
         **kwargs
     )
     _coverage_subject(
         name = name + "_subject",
         subject = subject,
-        instrumentation_filter = "^//%s[/:]" % native.package_name(),
+        instrumentation_filter = ",".join(["^//%s[/:]" % package for package in [native.package_name()] + instrumented_packages]),
         windows = select({
             "@platforms//os:windows": True,
             "//conditions:default": False,
@@ -359,11 +363,12 @@ def dx_coverage_test(name, subject, covered_source, size = "small", **kwargs):
         srcs = [Label("//tools/testing/conformance:runner_test.rs")],
         data = [":" + name + "_subject"],
         deps = [_CONFORMANCE_QUALITY, Label("//tools/testing:dx_testing")],
-        env = {
-            "DX_CONFORMANCE_MODE": "coverage",
-            "DX_CONFORMANCE_SUBJECT": "$(rlocationpaths :%s_subject)" % name,
-            "DX_CONFORMANCE_TEXT": covered_source,
-        },
+        env = dict(
+            args_env,
+            DX_CONFORMANCE_MODE = "coverage",
+            DX_CONFORMANCE_SUBJECT = "$(rlocationpaths :%s_subject)" % name,
+            DX_CONFORMANCE_TEXT = covered_source,
+        ),
         size = size,
         **kwargs
     )

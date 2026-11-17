@@ -1,9 +1,9 @@
 # gazelle:ignore
-load("@rules_dx//java/tests:coverage_tests.bzl", "jvm_coverage_env_test")
-load("@rules_dx//core/tests:direct_sources.bzl", "dx_direct_sources_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/tests:direct_sources.bzl", "dx_direct_sources_test")
 load("@rules_dx//scala:defs.bzl", "scala_binary", "scala_library", "scala_test")
 load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
+load("@rules_dx//tools/testing/conformance:defs.bzl", "dx_coverage_test")
 
 package(
     default_testonly = True,
@@ -49,10 +49,10 @@ scala_test(
     ],
 )
 
-jvm_coverage_env_test(
-    name = "hello_test_coverage_env_test",
-    main_class = "io.bazel.rulesscala.scala_test.Runner",
-    target = ":hello_test",
+dx_coverage_test(
+    name = "hello_test_coverage_test",
+    covered_source = "Hello.scala",
+    subject = ":hello_test",
 )
 
 dx_hello_output_test(

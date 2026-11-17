@@ -1,5 +1,6 @@
 """Source fixtures for real aspects."""
 
+load("//core/modules:langs.bzl", "LANGS")
 load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
 load("//core/quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "NAMED_SOURCE_CLASSES", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "named_source_class_error")
 
@@ -14,22 +15,15 @@ def markdown_sibling_error(what, siblings, markdown_srcs):
     return ""
 
 # File class to the extensions its `<class>_srcs` attribute accepts.
-FIXTURE_EXTENSIONS = {
-    "ansible": [".yaml", ".yml"],
+_CLASS_EXTENSIONS = {
     "asciidoc": [".adoc", ".asciidoc", ".asc"],
-    "bicep": [".bicep", ".bicepparam"],
     "c": [".c", ".h"],
-    "cloudformation": [".yaml", ".yml", ".json", ".template"],
-    "cmake": True,
     "cpp": [".cc", ".cpp", ".cxx", ".hh", ".hpp", ".hxx"],
     "cue": [".cue"],
-    "dockerfile": True,
     "go_module": [".mod"],
     "graphql": [".graphql", ".gql"],
-    "haskell": [".hs"],
     "html": [".html", ".htm"],
     "html_template": [".html", ".htm", ".jinja", ".jinja2", ".j2", ".njk", ".hbs", ".tmpl", ".gohtml"],
-    "java": [".java"],
     "javascript": [".js", ".mjs", ".cjs"],
     "json": [".json"],
     "json5": [".json5"],
@@ -37,11 +31,7 @@ FIXTURE_EXTENSIONS = {
     "jsonnet": [".jsonnet", ".libsonnet"],
     "jsx": [".jsx"],
     "jupyter": [".ipynb"],
-    "kotlin": [".kt", ".kts"],
-    "kubernetes": [".yaml", ".yml", ".json"],
     "latex": [".tex", ".sty", ".cls"],
-    "lua": [".lua"],
-    "make": True,
     "markdown": [".md"],
     "nix": [".nix"],
     "objc": [".m"],
@@ -49,10 +39,7 @@ FIXTURE_EXTENSIONS = {
     "pkl": [".pkl"],
     "python": [".py"],
     "python_stub": [".pyi"],
-    "rego": [".rego"],
     "rst": [".rst", ".rest"],
-    "rust": [".rs"],
-    "scala": [".scala"],
     "shell": [".sh"],
     "starlark": [".bzl", ".bazel"],
     "terraform": [".tf", ".tfvars", ".hcl"],
@@ -105,6 +92,12 @@ FIXTURE_EXEMPT_CLASSES = [
     "xml",
     "zig",
 ]
+
+FIXTURE_EXTENSIONS = dict(_CLASS_EXTENSIONS, **{
+    lang: True if "file_names" in row["quality"] else row["quality"]["file_extensions"]
+    for lang, row in LANGS.items()
+    if lang in KNOWN_SEMANTIC_FILE_CLASSES and lang not in FIXTURE_EXEMPT_CLASSES and lang not in _CLASS_EXTENSIONS
+})
 
 def fixture_class_error():
     """Returns the error for a taxonomy class with neither a source attribute nor an exemption, or "" when covered."""

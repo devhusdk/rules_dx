@@ -1,4 +1,4 @@
-//! Adopts the example in a scratch workspace with `dx init` and `dx generate`, then tests it.
+//! Adopts the example in a scratch workspace with `dx init --apply`, which also runs `dx generate`, then tests it.
 
 use std::collections::BTreeMap;
 use std::io::Write as _;
@@ -150,16 +150,10 @@ fn the_polyglot_example_adopts_and_tests_green() {
     };
 
     timed("dx init --apply", || dx(&case, init));
-    timed("dx generate --apply", || {
-        dx(&case, &["generate", "--apply"])
-    });
     timed("dx test //...", || dx(&case, &["test", "//..."]));
 
     let before = snapshot(&root);
     timed("second dx init --apply", || dx(&case, init));
-    timed("second dx generate --apply", || {
-        dx(&case, &["generate", "--apply"])
-    });
     assert!(
         snapshot(&root) == before,
         "init and generate changed the adopted tree"

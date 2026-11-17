@@ -108,7 +108,6 @@ helm lint_test *
 helm lock_test *
 helm pass_test *
 helm runfiles_test *
-julia cross_test *
 julia format_error_test *
 julia format_test *
 julia lint_error_test *

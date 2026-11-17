@@ -14,6 +14,7 @@ def _rules_julia_impl(mctx):
             Label("//patches/rules_julia:package_name.patch"),
             Label("//patches/rules_julia:portable_cpu_target.patch"),
             Label("//patches/rules_julia:template_action_input.patch"),
+            Label("//patches/rules_julia:exec_toolchain.patch"),
         ],
         sha256 = RULES_JULIA.sha256,
         urls = RULES_JULIA.urls,

@@ -269,7 +269,6 @@ fixture-referenced typescript/tests/fixtures/modes
 fixture-referenced typescript/tests/fixtures/playwright
 fixture-referenced zig/tests/fixtures/bench
 fixture-referenced zig/tests/fixtures/calc
-outside-lang core/quality/tools/cc
 outside-lang core/quality/tools/python
 platforms-option apple/private/bundle/cell_tests.bzl
 platforms-option apple/private/ios/defs.bzl

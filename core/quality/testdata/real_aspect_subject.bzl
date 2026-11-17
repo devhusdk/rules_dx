@@ -145,7 +145,7 @@ load(
     "real_yaml_lint_aspect",
     "real_zig_typecheck_aspect",
 )
-load("//core/quality:families/cc.bzl", "CcShardProbeInfo")
+load("//cc/private/quality:cc.bzl", "CcShardProbeInfo")
 load("//core/quality:families/core_probe.bzl", "CoreShardProbeInfo")
 load("//javascript/private/quality:js.bzl", "JsShardProbeInfo")
 load("//python/private/quality:python.bzl", "PythonShardProbeInfo")

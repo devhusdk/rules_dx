@@ -62,7 +62,7 @@ ansible/private/quality:ansible.bzl
 core/quality:defs.bzl
 erlang/private/quality:beam.bzl
 bicep/private/quality:bicep.bzl
-core/quality:families/cc.bzl
+cc/private/quality:cc.bzl
 cloudformation/private/quality:cloudformation.bzl
 cmake/private/quality:cmake.bzl
 core/quality:families/core.bzl

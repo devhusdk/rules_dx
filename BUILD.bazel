@@ -441,6 +441,7 @@ filegroup(
         "//cc:module_srcs",
         "//cc/private:module_srcs",
         "//cc/private/context:module_srcs",
+        "//cc/private/quality:module_srcs",
         "//cc/private/toolchain:module_srcs",
         "//cc/private/toolchain/clang_cl:module_srcs",
         "//cc/private/toolchain/gcc_features:module_srcs",

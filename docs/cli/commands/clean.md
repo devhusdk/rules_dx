@@ -1,52 +1,84 @@
 # `dx clean`
 
+Use `dx clean` to throw away the local state dx can rebuild, when that state looks stale or broken.
+
 ```sh
 dx clean
 dx clean --bazel
 dx clean --expunge --bazel-startup-option=--output_base=/path/to/base
 ```
 
+Run `dx sync` afterwards. Editors lose their tool links until you do, so the output ends with `next: dx sync`.
+
+## Usage
+
 ```text
 dx clean [--bazel | --expunge]
 ```
 
-Resets the state dx can rebuild. It runs at once; there is no check mode and no `--apply`. It never touches anything outside `.dx/local/`, so committed `.dx/` files stay. Do not `rm -rf .dx`.
+`dx clean` acts at once. There is no check mode and no `--apply`.
 
-It deletes these entries of `.dx/local/`: `setups`, `environments`, `generated`, `bin`, `bin.next`, `bin.prev`, `ide`, `docs`, `profile`, `results.json`, `fingerprint`, `sync.fingerprint`, and the `leases` no live process holds.
-
-It keeps:
-
-- `fuzz/`: crash reproducers are your data.
-- `bench/`: baselines.
-- `advisory/`: keeps `dx security --offline` working. Delete it by hand.
-- `launcher/`: the running `tools/dx` may be using it.
+## Flags
 
 | Flag | What it does |
 | --- | --- |
 | `--bazel` | Also run `bazel clean`. |
 | `--expunge` | Also run `bazel clean --expunge`. |
 | `-o, --output text\|json` | Choose the output format. |
-| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--build-slots-wait`, `--bazel-startup-option` | Global flags. |
+| `--workspace <dir>` | Use this workspace directory. |
+| `-q, --quiet` | Hide summaries. |
+| `-v, --verbose` | Show more logs. |
+| `--color auto\|always\|never` | Set color output. |
+| `--build-slots <auto\|n\|off>` | Set build slots: `auto`, a count, or `off`. |
+| `--build-slots-wait <duration>` | Give up waiting for a build slot after this long. `0` fails at once. |
+| `--bazel-startup-option <token>` | Pass one Bazel startup option. Repeatable. |
 
-Both Bazel flags honour `--bazel-startup-option`. In a `dx worktree` slot, pass the slot's `--output_base` and only that slot's output base is cleaned.
+`--bazel` and `--expunge` use your `--bazel-startup-option` values. Bazel keeps its build outputs in an *output base* directory. In a `dx worktree` slot, pass the slot's `--output_base`, and only that slot's output base is cleaned.
 
-Scopes: none. A scope is a usage error.
+## Scopes
 
-dx waits up to 10 seconds for the commit lock (`.dx/local/.commit.lock`). If another dx command still holds it, `dx clean` exits `1` and names the holder.
+None. A scope is a usage error.
 
-Editors lose their tool links until you run `dx sync`, so the output ends with `next: dx sync`.
+## What it removes
+
+`dx clean` only touches `.dx/local/`. Committed files under `.dx/` stay. Do not `rm -rf .dx`.
+
+It deletes these entries of `.dx/local/`:
+
+- `setups`, `environments`, `generated`;
+- `bin`, `bin.next`, `bin.prev`;
+- `ide`, `docs`, `profile`;
+- `results.json`, `fingerprint`, `sync.fingerprint`;
+- the entries in `leases` that no running process holds.
+
+It keeps:
+
+- `fuzz/`: your crash reproducers.
+- `bench/`: your benchmark baselines.
+- `advisory/`: it keeps `dx security --offline` working. Delete it by hand if you want it gone.
+- `launcher/`: the running `tools/dx` may be using it.
+
+dx waits up to 10 seconds for the commit lock, `.dx/local/.commit.lock`. If another dx command still holds it, `dx clean` exits `1` and names that command. With `--bazel` or `--expunge`, dx runs Bazel after it removes the local entries.
 
 ## Output
 
-Text prints `removed <path> (<n> bytes)` for each entry, a `dx clean: removed <n> paths (<b> bytes)` line, and `next: dx sync`.
+Text prints:
 
-JSON emits one `notice` with code `clean_removed` per path, with `path` and the byte size in `message`, then one `clean_removed` notice with the total. A failure emits a `clean_failed` error.
+```text
+removed .dx/local/bin (1024 bytes)
+dx clean: removed 1 paths (1024 bytes)
+next: dx sync
+```
+
+JSON emits one `notice` with code `clean_removed` per path, with `path` set and the byte size in `message`. Then it emits one more `clean_removed` notice with the total. A failure emits a `clean_failed` error.
+
+`dx clean` writes no reports.
 
 ## Exit codes
 
 | Code | Meaning |
 | --- | --- |
 | `0` | Success. |
-| `1` | The commit lock stayed busy, a missing path could not be deleted, or `bazel clean` failed. |
+| `1` | The commit lock stayed busy, a path vanished while dx deleted it, or `bazel clean` failed. |
 | `2` | Usage error, including any scope or `--apply`. |
 | `3` | A delete failed on an I/O error such as permission denied. |

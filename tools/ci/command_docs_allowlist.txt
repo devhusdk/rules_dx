@@ -5,7 +5,6 @@ audit-update.md unknown-flag --bazel
 audit-update.md unknown-flag --cargo-index
 audit-update.md unknown-flag --check
 audit-update.md unknown-flag --connect-timeout
-audit-update.md unknown-flag --conservative
 audit-update.md unknown-flag --date
 audit-update.md unknown-flag --deployment
 audit-update.md unknown-flag --env-file
@@ -30,7 +29,6 @@ audit-update.md unknown-flag --squash
 audit-update.md unknown-flag --status-file
 audit-update.md unknown-flag --tags
 audit-update.md unknown-flag --trivy
-audit-update.md unknown-flag --update
 audit-update.md unknown-flag --var
 audit-update.md unknown-flag --with-all-dependencies
 bench.md unknown-flag --output-format
@@ -41,21 +39,11 @@ clean.md unknown-flag --offline
 completion.md unknown-flag --diff
 completion.md unknown-flag --output
 config.md unknown-flag --affected
-docs.md unknown-flag --diff
-docs.md unknown-flag --report
-fuzz.md unknown-flag --out
-fuzz.md unknown-flag --repro
-fuzz.md unknown-flag --time
-fuzz.md unknown-flag -r
-fuzz.md unknown-flag -s
-generate.md unknown-flag --fail-on
-generate.md unknown-flag --report
 init.md unknown-flag --cached
 init.md unknown-flag --files
 init.md unknown-flag --jobs
 init.md unknown-flag --version
 init.md unknown-flag -r
-offline-bundle.md unknown-flag --bundle
 offline-bundle.md unknown-flag --install-dir
 quality.md unknown-flag --aspects
 quality.md unknown-flag --bazelrc

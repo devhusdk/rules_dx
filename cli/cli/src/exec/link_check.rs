@@ -50,11 +50,16 @@ pub(crate) struct Outcome {
 }
 
 /// The runner request files the build published, each once.
-pub(crate) fn read_requests(bep: &Path, workspace: &Path) -> Vec<(String, Vec<u8>)> {
-    let Ok(account) = super::common::collect_output_account(
+pub(crate) fn read_requests(
+    bep: &Path,
+    foreign: &BTreeSet<String>,
+    workspace: &Path,
+) -> Vec<(String, Vec<u8>)> {
+    let Ok(account) = super::common::collect_own_account(
         bep,
         dx_plan::plan::LINK_REQUEST_OUTPUT_GROUP,
         workspace,
+        foreign,
     ) else {
         return Vec::new();
     };

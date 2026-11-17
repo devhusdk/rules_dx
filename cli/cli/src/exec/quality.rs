@@ -1,14 +1,15 @@
 use super::bazel_hint::{recorded, refine};
 use super::breaking_base;
 use super::build_failures::report_build_failures;
+use super::check_build::{SharedChecks, SharedRead};
 use super::common::{
     ActionTally, BAZEL_INTERRUPTED, CODE_ANALYSIS_FAILED, CODE_BAZEL_FAILED, CODE_BAZEL_SIGNALLED,
     CODE_DIFF_FAILED, CODE_INVALID_ARGUMENTS, CODE_NOT_CONVERGED, CODE_UNREADABLE_BEP, Env,
     Failure, FileChange, LatchedOut, PhaseEffects, PhaseKind, PhaseRun,
     REASON_INCOMPLETE_COLLECTION, SourceRead, bazel_exit_event, bazel_failure_code, bep_error_code,
-    check_stdout_write, collect_output_account, emit_built, emit_event, findings_summary,
-    operational_output, pre_exec, read_actions, report_dx_error, report_failure, resolve_failed,
-    run_bazel_output, server_died, warn_scope_excluded,
+    check_stdout_write, collect_output_account, collect_own_account, emit_built, emit_event,
+    findings_summary, operational_output, pre_exec, read_actions, report_dx_error, report_failure,
+    resolve_failed, run_bazel_output, server_died, warn_scope_excluded,
 };
 use super::guidance::{apply_hint, rerun_hint};
 use super::link_check;
@@ -35,7 +36,7 @@ use dx_plan::reports::{Destination, PlannedReport, plan_reports};
 use dx_plan::resolve::{ResolvedScope, path_filter, resolve};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
     let request = match invocation.quality_request() {
@@ -55,11 +56,17 @@ pub(crate) fn execute_quality_request(request: &QualityRequest, env: Env<'_>) ->
         &RealFileSystem,
         &mut PhaseKind::Selection,
         &mut PhaseEffects::default(),
+        None,
     )
 }
 
-pub(crate) fn execute_quality_phase(request: &QualityRequest, env: Env<'_>) -> PhaseRun {
-    execute_quality_phase_with_fs(request, env, &RealFileSystem)
+/// Runs one umbrella quality phase, from the build it shares with the other phases when given.
+pub(crate) fn execute_quality_phase(
+    request: &QualityRequest,
+    env: Env<'_>,
+    shared: Option<&mut SharedChecks>,
+) -> PhaseRun {
+    execute_quality_phase_with_fs(request, env, &RealFileSystem, shared)
 }
 
 /// Runs one quality phase whose apply writes go through `fs`.
@@ -67,10 +74,11 @@ pub(crate) fn execute_quality_phase_with_fs(
     request: &QualityRequest,
     env: Env<'_>,
     fs: &dyn FileSystem,
+    shared: Option<&mut SharedChecks>,
 ) -> PhaseRun {
     let mut kind = PhaseKind::Selection;
     let mut effects = PhaseEffects::default();
-    let code = run_quality(request, env, fs, &mut kind, &mut effects);
+    let code = run_quality(request, env, fs, &mut kind, &mut effects, shared);
     PhaseRun {
         code,
         kind,
@@ -84,6 +92,7 @@ fn run_quality(
     fs: &dyn FileSystem,
     kind: &mut PhaseKind,
     effects: &mut PhaseEffects,
+    shared: Option<&mut SharedChecks>,
 ) -> i32 {
     let Env {
         workspace,
@@ -121,6 +130,7 @@ fn run_quality(
         fs,
         kind,
         effects,
+        shared,
     );
     latched.exit_code(code)
 }
@@ -263,8 +273,12 @@ fn read_probe_shards(bep: &Path, workspace: &Path) -> Option<BTreeSet<String>> {
 }
 
 /// The skip notes of every target in the event file, one per tool however many targets dropped it.
-pub(super) fn read_skip_notes(bep: &Path, workspace: &Path) -> Vec<String> {
-    let Ok(account) = collect_output_account(bep, SKIP_OUTPUT_GROUP, workspace) else {
+pub(super) fn read_skip_notes(
+    bep: &Path,
+    foreign: &BTreeSet<String>,
+    workspace: &Path,
+) -> Vec<String> {
+    let Ok(account) = collect_own_account(bep, SKIP_OUTPUT_GROUP, workspace, foreign) else {
         return Vec::new();
     };
     let mut seen = BTreeSet::new();
@@ -299,12 +313,29 @@ struct Settled {
     failed: bool,
 }
 
+/// The build events a phase reads, and whether the phase owns them and removes them after.
+struct BepRead {
+    path: PathBuf,
+    /// The aspects of other phases sharing the build, whose outputs this phase leaves out.
+    foreign: BTreeSet<String>,
+    owned: bool,
+}
+
+impl BepRead {
+    fn discard(&self) {
+        if self.owned {
+            std::fs::remove_file(&self.path).ok();
+        }
+    }
+}
+
 fn run_quality_request(
     request: &QualityRequest,
     mut env: Env<'_>,
     fs: &dyn FileSystem,
     kind: &mut PhaseKind,
     effects: &mut PhaseEffects,
+    mut shared: Option<&mut SharedChecks>,
 ) -> i32 {
     let planned_reports = match plan_quality_reports(request, &mut env) {
         Ok(planned) => planned,
@@ -327,6 +358,7 @@ fn run_quality_request(
         Ok(rewritten) => rewritten,
         Err(exit) => return exit,
     };
+    let raw = request;
     let request = rewritten.as_ref().unwrap_or(request);
     let resolved = match resolve(
         &request.targets,
@@ -339,19 +371,65 @@ fn run_quality_request(
             return resolve_failed(request.common.output, env.out, env.err, &error);
         }
     };
-    let (build, probe_counts) =
-        match plan_quality_build(request, &mut env, kind, &resolved, bep_text, stdout_report) {
-            Ok(planned) => planned,
-            Err(exit) => return exit,
-        };
-    let build_run = match run_quality_build(request, &mut env, kind, &build, &bep, probe_counts) {
-        Ok(run) => run,
+    // An unreadable MODULE.bazel gives no deps, and the rules_dx root carries every family.
+    let deps: Vec<String> = dx_adopt::module_deps(env.workspace).into_iter().collect();
+    let extensions = (!deps.is_empty() && !dx_adopt::is_rules_dx_root(env.workspace))
+        .then(|| dx_adopt::file_extensions(env.workspace));
+    let consumer = extensions
+        .as_ref()
+        .map(|extensions| Consumer { extensions });
+    let planned = plan_quality_build(
+        request,
+        &mut env,
+        kind,
+        (&resolved, consumer),
+        bep_text,
+        stdout_report,
+        shared.is_none(),
+    );
+    let (build, probe_counts) = match planned {
+        Ok(planned) => planned,
         Err(exit) => return exit,
+    };
+    let shared_read = match shared.as_deref_mut() {
+        Some(shared) => match shared.read(raw, request, &resolved, consumer, &mut env, kind) {
+            Ok(read) => read,
+            Err(exit) => return exit,
+        },
+        None => None,
+    };
+    let (build_run, events) = match shared_read {
+        Some(read) => match shared_build_run(request, &mut env, &read) {
+            Ok(run) => (
+                run,
+                BepRead {
+                    path: read.bep,
+                    foreign: read.foreign,
+                    owned: false,
+                },
+            ),
+            Err(exit) => return exit,
+        },
+        None => match run_quality_build(request, &mut env, kind, &build, &bep, probe_counts) {
+            Ok(run) => (
+                run,
+                BepRead {
+                    path: bep.clone(),
+                    foreign: BTreeSet::new(),
+                    owned: true,
+                },
+            ),
+            Err(exit) => return exit,
+        },
     };
     let bazel_code = build_run.code;
     let compile_only = build_run.compile_only;
     let action_counts = build_run.actions;
-    let mut collected = match collect_run(request, &mut env, kind, &bep) {
+    let collected = collect_run(request, &mut env, kind, &events);
+    if let Some(shared) = shared {
+        shared.finish_read();
+    }
+    let mut collected = match collected {
         Ok(collected) => collected,
         Err(exit) => return exit,
     };
@@ -459,6 +537,29 @@ fn run_quality_build(
     })
 }
 
+/// The build outcome of one phase that read a shared build.
+///
+/// Bazel's failures name targets but not aspects, so a phase that owns a failure reports every
+/// failure of the shared build, as its own build would have for the targets it shares.
+fn shared_build_run(
+    request: &QualityRequest,
+    env: &mut Env<'_>,
+    read: &SharedRead,
+) -> Result<BuildRun, i32> {
+    let (compile_only, build_stage) = if read.code == 0 {
+        (false, false)
+    } else {
+        let reported = report_build_failures(&read.bep, request.common.output, env.out, env.err)?;
+        (reported.compile_only, reported.build_stage)
+    };
+    Ok(BuildRun {
+        code: read.code,
+        compile_only,
+        build_stage,
+        actions: read.actions,
+    })
+}
+
 fn plan_quality_reports(
     request: &QualityRequest,
     env: &mut Env<'_>,
@@ -540,13 +641,15 @@ fn announce_quality_start(
     Ok(())
 }
 
+/// Plans the phase's own build and announces the phase; `probe` narrows the build first.
 fn plan_quality_build(
     request: &QualityRequest,
     env: &mut Env<'_>,
     kind: &mut PhaseKind,
-    resolved: &ResolvedScope,
+    (resolved, consumer): (&ResolvedScope, Option<Consumer<'_>>),
     bep_text: &str,
     stdout_report: bool,
+    probe: bool,
 ) -> Result<(BuildPlan, Option<ActionCounts>), i32> {
     let (workspace, runner, temp_dir, pid, nonce, actions) = (
         env.workspace,
@@ -556,13 +659,6 @@ fn plan_quality_build(
         env.nonce,
         env.actions,
     );
-    // An unreadable MODULE.bazel gives no deps, and the rules_dx root carries every family.
-    let deps: Vec<String> = dx_adopt::module_deps(workspace).into_iter().collect();
-    let extensions = (!deps.is_empty() && !dx_adopt::is_rules_dx_root(workspace))
-        .then(|| dx_adopt::file_extensions(workspace));
-    let consumer = extensions
-        .as_ref()
-        .map(|extensions| Consumer { extensions });
     let mut build = match plan_build_with(
         request.command,
         resolved,
@@ -583,6 +679,9 @@ fn plan_quality_build(
     };
     *kind = PhaseKind::Tool;
     announce_quality_start(request, env, resolved, &build.summary, stdout_report)?;
+    if !probe {
+        return Ok((build, None));
+    }
     // The probe runs after the start event, so a run whose stdout already failed starts no Bazel.
     let mut probe_counts = None;
     match probe_shards(
@@ -643,8 +742,9 @@ fn collect_run(
     request: &QualityRequest,
     env: &mut Env<'_>,
     kind: &mut PhaseKind,
-    bep: &Path,
+    events: &BepRead,
 ) -> Result<Collected, i32> {
+    let (bep, foreign) = (events.path.as_path(), &events.foreign);
     let (workspace, query_runner, temp_dir, pid, nonce) = (
         env.workspace,
         env.query_runner,
@@ -666,10 +766,10 @@ fn collect_run(
             .then(|| invert_repo_mapping(&result.stdout))
             .flatten()
     };
-    let mut collected = match collect_results(bep, workspace, &repo_mapping) {
+    let mut collected = match collect_results(bep, foreign, workspace, &repo_mapping) {
         Ok(collected) => collected,
         Err(error) => {
-            std::fs::remove_file(bep).ok();
+            events.discard();
             *kind = PhaseKind::Incomplete;
             return Err(report_dx_error(
                 request.common.output,
@@ -680,11 +780,11 @@ fn collect_run(
             ));
         }
     };
-    for note in read_skip_notes(bep, workspace) {
+    for note in read_skip_notes(bep, foreign, workspace) {
         if request.common.output == OutputMode::Json {
             let notice = skip_notice(request.command.name(), &note);
             if let Err(exit) = emit_built(out, notice_event(&notice)) {
-                std::fs::remove_file(bep).ok();
+                events.discard();
                 return Err(exit);
             }
         } else {
@@ -692,11 +792,11 @@ fn collect_run(
         }
     }
     let link_requests = if request.online {
-        link_check::read_requests(bep, workspace)
+        link_check::read_requests(bep, foreign, workspace)
     } else {
         Vec::new()
     };
-    std::fs::remove_file(bep).ok();
+    events.discard();
     if !link_requests.is_empty() {
         let bazel = QueryBazel {
             query_runner,

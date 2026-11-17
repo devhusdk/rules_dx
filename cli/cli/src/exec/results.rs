@@ -7,7 +7,7 @@ use dx_plan::plan::OUTPUT_GROUP;
 use dx_plan::resolve::path_in_filter;
 use quality_result::{build_deps, decode_validated, proto};
 
-use super::common::{FileChange, apply_to_bytes, collect_output_account};
+use super::common::{FileChange, apply_to_bytes, collect_own_account};
 use super::quality_reconcile::{Conflict, Producer, reconcile};
 
 #[derive(Default)]
@@ -534,12 +534,14 @@ fn name_external_repos(
     });
 }
 
+/// Collects the results in `bep`, leaving out those of the `foreign` aspects.
 pub(crate) fn collect_results(
     bep: &Path,
+    foreign: &BTreeSet<String>,
     workspace: &Path,
     repo_mapping: RepoMapping<'_>,
 ) -> Result<Collected, dx_error::DxError> {
-    collect_results_in(bep, OUTPUT_GROUP, workspace, repo_mapping)
+    collect_results_in(bep, foreign, OUTPUT_GROUP, workspace, repo_mapping)
 }
 
 fn account_problems(account: &dx_bep::OutputAccount) -> Vec<String> {
@@ -623,11 +625,12 @@ fn mark_removals_fixable(
 
 pub(crate) fn collect_results_in(
     bep: &Path,
+    foreign: &BTreeSet<String>,
     group: &str,
     workspace: &Path,
     repo_mapping: RepoMapping<'_>,
 ) -> Result<Collected, dx_error::DxError> {
-    let account = collect_output_account(bep, group, workspace)?;
+    let account = collect_own_account(bep, group, workspace, foreign)?;
     let mut tools = BTreeSet::new();
     let mut initial = Vec::new();
     let mut producers = Vec::new();
@@ -907,7 +910,8 @@ mod tests {
         let dir = temp_dir("group-tmp");
         let bep = dir.path().join("empty.json");
         std::fs::write(&bep, "").expect("bep");
-        let Err(error) = collect_results_in(&bep, "", dir.path(), &|| None) else {
+        let Err(error) = collect_results_in(&bep, &BTreeSet::new(), "", dir.path(), &|| None)
+        else {
             panic!("empty output group must fail"); // LCOV_EXCL_LINE - reason: defensive branch, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
         };
         assert!(error.message().contains("invalid BEP config"));
@@ -956,7 +960,14 @@ mod tests {
     fn collect(harness: &Harness, lines: &[String]) -> Collected {
         let bep = harness.temp.join("events.json");
         std::fs::write(&bep, lines.join("\n")).expect("bep");
-        collect_results_in(&bep, "dx_results", &harness.workspace, &|| None).expect("collected")
+        collect_results_in(
+            &bep,
+            &BTreeSet::new(),
+            "dx_results",
+            &harness.workspace,
+            &|| None,
+        )
+        .expect("collected")
     }
 
     #[test]
@@ -1184,8 +1195,14 @@ mod tests {
         lines.push(LAST_EVENT.to_owned());
         let bep = harness.temp.join("events.json");
         std::fs::write(&bep, lines.join("\n")).expect("bep");
-        let collected = collect_results_in(&bep, "dx_results", &harness.workspace, &|| None)
-            .expect("a garbled line must not fail the run");
+        let collected = collect_results_in(
+            &bep,
+            &BTreeSet::new(),
+            "dx_results",
+            &harness.workspace,
+            &|| None,
+        )
+        .expect("a garbled line must not fail the run");
         assert!(
             collected
                 .problems

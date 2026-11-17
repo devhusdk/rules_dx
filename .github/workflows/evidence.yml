@@ -7,7 +7,7 @@ on:
         description: "Space-separated Bazel target patterns such as //cli/cli/... or //pkg:target. Apple on macos_arm64: //apple/... //apple/tests/fixtures/macos_ledger/... //apple/tests/fixtures/macos_bundle/... //apple/tests/fixtures/swift_app/... Android on linux_x86_64: //android/tests:androidsdk_build_test."
         required: true
       task:
-        description: "One of test, build or coverage."
+        description: "One of test, build, coverage or build_scripts. build_scripts lists each cargo_build_script in deps(scope) configured with collect_code_coverage on, with a somepath from the scope, in build-scripts.txt."
         required: false
         default: "test"
       platforms:
@@ -300,6 +300,17 @@ jobs:
             log="$1"
             if [ "$DX_TASK" = "build" ]; then
               bazel "${startup[@]}" build --noshow_progress "${profile[@]}" "${downloads[@]}" "${extra[@]}" "${patterns[@]}" "${flags[@]}" 2>&1 | tee "$log"
+            elif [ "$DX_TASK" = "build_scripts" ]; then
+              universe="set(${patterns[*]})"
+              covered="$RUNNER_TEMP/evidence/build-scripts.txt"
+              bazel cquery --noshow_progress --collect_code_coverage "${flags[@]}" "kind(\"cargo_build_script\", deps($universe))" --output=starlark --starlark:expr='str(target.label) if build_options(target)["//command_line_option:collect_code_coverage"] else ""' 2>"$log" | sort -u | sed '/^$/d' > "$covered.labels"
+              : > "$covered"
+              while read -r label; do
+                echo "== $label" >> "$covered"
+                bazel cquery --noshow_progress --collect_code_coverage "${flags[@]}" "somepath($universe, '$label')" 2>>"$log" >> "$covered"
+              done < "$covered.labels"
+              echo "build_scripts: $(wc -l < "$covered.labels") cargo_build_script targets configured with coverage on" | tee -a "$log"
+              cat "$covered"
             elif [ "$DX_TASK" = "coverage" ]; then
               bazel run --noshow_progress "${profile[@]}" //cli/cli:dx -- coverage --min-coverage 100 "${patterns[@]}" ${flags[@]:+-- "${flags[@]}"} 2>&1 | tee "$log"
             else
@@ -516,6 +527,11 @@ jobs:
               tail -n 20 "$RUNNER_TEMP/evidence/evidence.log"
               if [ "$DX_TASK" = coverage ]; then
                 grep -E 'coverage sources|coverage_sources_incomplete' "$RUNNER_TEMP/evidence/evidence.log" | tail -n 40
+              fi
+              if [ -f "$RUNNER_TEMP/evidence/build-scripts.txt.labels" ]; then
+                printf '\nBuild scripts with coverage on:\n```\n'
+                cat "$RUNNER_TEMP/evidence/build-scripts.txt.labels"
+                printf '```\n'
               fi
             fi
             if [ -f "$RUNNER_TEMP/evidence/relocated.log" ]; then

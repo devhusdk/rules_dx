@@ -129,6 +129,17 @@ fn accepts_the_coverage_task() {
     assert!(done.is_ok());
 }
 
+#[test]
+fn accepts_the_build_scripts_task() {
+    let done = check(&[
+        ("DX_SCOPE", "//..."),
+        ("DX_TASK", "build_scripts"),
+        ("DX_PLATFORMS", OK),
+        ("DX_TEST_TIMEOUT", "600"),
+    ]);
+    assert!(done.is_ok());
+}
+
 fn with_flags(flags: &str) -> Result<Vec<(String, String)>, String> {
     check(&[
         ("DX_SCOPE", "//a:t"),
@@ -193,6 +204,11 @@ fn rejects_bad_relocate() {
     assert!(
         coverage.contains("relocate supports test and build"),
         "{coverage}"
+    );
+    let build_scripts = relocate_result("build_scripts", "true").unwrap_err();
+    assert!(
+        build_scripts.contains("relocate supports test and build"),
+        "{build_scripts}"
     );
 }
 

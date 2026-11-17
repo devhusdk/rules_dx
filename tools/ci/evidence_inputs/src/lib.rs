@@ -12,7 +12,7 @@ pub const PLATFORMS: [(&str, &str); 5] = [
     ("windows_arm64", "windows-11-arm"),
 ];
 
-const TASKS: [&str; 3] = ["test", "build", "coverage"];
+const TASKS: [&str; 4] = ["test", "build", "coverage", "build_scripts"];
 
 const DISPLAYS: [&str; 4] = ["xcb", "wayland", "xcb,wayland", "wayland,xcb"];
 
@@ -177,7 +177,7 @@ pub fn validate(get: impl Fn(&str) -> String) -> Result<Validated, String> {
     if !["", "true", "false"].contains(&relocate.as_str()) {
         return Err(format!("relocate must be true or false, got '{relocate}'"));
     }
-    if relocate == "true" && task == "coverage" {
+    if relocate == "true" && !["test", "build"].contains(&task.as_str()) {
         return Err("relocate supports test and build".to_string());
     }
     let relocate = if relocate == "true" { "true" } else { "false" };

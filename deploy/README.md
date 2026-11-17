@@ -505,6 +505,10 @@ github_deploy(
 - `sign`: `auto` (default), `off` or `required`. A live run signs each asset with the pinned cosign and uploads
   `<asset>.sigstore.json` when `COSIGN_KEY` is set or the run has a GitHub OIDC token
   (`ACTIONS_ID_TOKEN_REQUEST_URL`); `required` fails without either.
+- `registry_deploys`: `crates_deploy` and `maven_deploy` targets published in the same release. The release body
+  gets a `## Attestations` section with one `gh attestation verify <file> -R <owner>/<repo>` line per `.crate`
+  and per `maven_deploy` file. The repository comes from `GITHUB_REPOSITORY`; a live run fails without it.
+- `attach`: `True` (default) also uploads the `maven_deploy` files as release assets.
 
 Default run stages `<name>-release/` with the assets (none for a notes-only draft) and a `would-run.txt`
 holding their sha256 and the `gh release create` command. Nothing is

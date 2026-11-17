@@ -1,5 +1,6 @@
 """Unit and analysis tests for the GitHub Release publisher."""
 
+load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":validate_github.bzl", "github_asset_collision_error", "github_notes_error", "github_tag_error")
 
@@ -97,4 +98,28 @@ def github_unit_tests(name):
                 "//mac:app.tar.gz share the asset name 'app.tar.gz'",
             ),
         ],
+    )
+
+def _attested_config_test_impl(ctx):
+    env = analysistest.begin(ctx)
+    writes = [a for a in analysistest.target_actions(env) if a.mnemonic == "FileWrite"]
+    asserts.equals(env, 1, len(writes), "want one FileWrite action")
+    config = json.decode(writes[0].content)["config"] if writes else {}
+    attestations = config.get("attestations", [])
+    asserts.equals(env, ["crates", "maven"], [a["registry"] for a in attestations])
+    asserts.equals(env, "crates_demo", attestations[0]["crate_name"] if attestations else "")
+    maven_rlocs = attestations[1]["rlocs"] if len(attestations) > 1 else []
+    asserts.equals(env, 4, len(maven_rlocs), "want the jar, pom, sources and javadoc")
+    for rloc in maven_rlocs:
+        asserts.true(env, rloc in config.get("asset_rlocs", []), "attach must upload " + rloc)
+    return analysistest.end(env)
+
+_attested_config_test = analysistest.make(_attested_config_test_impl)
+
+def github_attestation_tests(name):
+    """Checks that registry_deploys reach the github config and attach uploads the maven files."""
+    _attested_config_test(
+        name = name,
+        size = "small",
+        target_under_test = ":github_attested_config",
     )

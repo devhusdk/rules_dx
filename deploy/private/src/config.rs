@@ -49,6 +49,9 @@ pub struct GithubConfig {
     pub cosign_version: String,
     #[serde(default)]
     pub cosign_sha256: String,
+    /// The registry artifacts the release body lists attestation lines for.
+    #[serde(default)]
+    pub attestations: Vec<crate::github::Attestation>,
 }
 
 /// Pins one Homebrew tap formula: the GitHub release config it renders from and the tap.
@@ -437,7 +440,10 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
             &github.asset_rlocs,
             &github.deploy_name,
             &github.tag,
-            &crate::github::Notes::from_config(&github.notes, &github.notes_rloc),
+            &crate::github::ReleaseBody {
+                notes: &crate::github::Notes::from_config(&github.notes, &github.notes_rloc),
+                attestations: &github.attestations,
+            },
             &crate::github::GoApi {
                 mode: &github.api_compat,
                 baseline: &github.api_baseline,
@@ -790,7 +796,27 @@ mod tests {
                 cosign_rloc: String::new(),
                 cosign_version: String::new(),
                 cosign_sha256: String::new(),
+                attestations: Vec::new(),
             }))
+        );
+    }
+
+    #[test]
+    fn a_github_config_carries_its_attestations() {
+        let config = parse(
+            r#"{"config":{"deploy_name":"demo","tag":"v1.0.0","asset_rlocs":[],"api_compat":"off","api_baseline":"registry","sign":"off","attestations":[{"registry":"crates","rlocs":["_main/Cargo.toml"],"crate_name":"demo","version":"1.0.0"}]},"kind":"github"}"#,
+        );
+        let Ok(DeployConfig::Github(github)) = config else {
+            panic!("{config:?}");
+        };
+        assert_eq!(
+            github.attestations,
+            vec![crate::github::Attestation {
+                registry: "crates".to_owned(),
+                rlocs: vec!["_main/Cargo.toml".to_owned()],
+                crate_name: "demo".to_owned(),
+                version: "1.0.0".to_owned(),
+            }]
         );
     }
 
@@ -1112,6 +1138,7 @@ mod tests {
                 cosign_rloc: String::new(),
                 cosign_version: String::new(),
                 cosign_sha256: String::new(),
+                attestations: Vec::new(),
             }),
             DeployConfig::HomebrewTap(HomebrewTapConfig {
                 release_rloc: "a".to_owned(),

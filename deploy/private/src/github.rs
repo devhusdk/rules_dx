@@ -33,6 +33,87 @@ impl Notes {
     }
 }
 
+/// One registry deploy whose artifacts get attestation lines in the release body.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Attestation {
+    /// `crates` or `maven`.
+    pub registry: String,
+    /// The maven files, or the crate source files.
+    pub rlocs: Vec<String>,
+    #[serde(default)]
+    pub crate_name: String,
+    #[serde(default)]
+    pub version: String,
+}
+
+/// Returns the file names of the registry artifacts, in config order.
+fn attested_names(
+    attestations: &[Attestation],
+    resolve: &dyn Fn(&str) -> Option<std::path::PathBuf>,
+) -> Result<Vec<String>, String> {
+    let mut names = Vec::new();
+    for attestation in attestations {
+        let mut paths = Vec::new();
+        for rloc in &attestation.rlocs {
+            paths.push(resolve(rloc).ok_or_else(|| format!("cannot resolve {rloc}"))?);
+        }
+        match attestation.registry.as_str() {
+            "crates" => {
+                let version = crate::crates::crates_version(
+                    &paths,
+                    &attestation.crate_name,
+                    &attestation.version,
+                )?;
+                names.push(format!("{}-{version}.crate", attestation.crate_name));
+            }
+            "maven" => {
+                for path in &paths {
+                    let name = path
+                        .file_name()
+                        .map(|name| name.to_string_lossy().into_owned())
+                        .ok_or_else(|| format!("{} has no file name", path.display()))?;
+                    names.push(name);
+                }
+            }
+            other => return Err(format!("unknown attestation registry '{other}'")),
+        }
+    }
+    Ok(names)
+}
+
+/// Formats the `## Attestations` section of the release body.
+pub fn attestation_section(repo: &str, names: &[String]) -> String {
+    let mut text = String::from("## Attestations\n\n```sh\n");
+    for name in names {
+        text.push_str(&format!("gh attestation verify {name} -R {repo}\n"));
+    }
+    text.push_str("```\n");
+    text
+}
+
+/// Appends the attestation section to a release body.
+fn with_attestations(notes: Option<String>, section: Option<&str>) -> Option<String> {
+    match (notes, section) {
+        (notes, None) => notes,
+        (None, Some(section)) => Some(section.to_owned()),
+        (Some(notes), Some(section)) => {
+            let notes = notes.trim_end();
+            if notes.is_empty() {
+                Some(section.to_owned())
+            } else {
+                Some(format!("{notes}\n\n{section}"))
+            }
+        }
+    }
+}
+
+/// The release body settings of one github_deploy.
+pub struct ReleaseBody<'a> {
+    pub notes: &'a Notes,
+    pub attestations: &'a [Attestation],
+}
+
 /// Formats one GitHub release command.
 pub fn github_release_command(tag: &str, asset_bases: &[String]) -> String {
     release_command(tag, asset_bases, false)
@@ -318,7 +399,10 @@ pub fn github_main_with_notes(
         asset_rlocs,
         deploy_name,
         tag,
-        notes,
+        &ReleaseBody {
+            notes,
+            attestations: &[],
+        },
         &go_api,
         &signing,
         argv,
@@ -347,11 +431,12 @@ pub fn github_main_checked(
     asset_rlocs: &[String],
     deploy_name: &str,
     tag: &str,
-    notes: &Notes,
+    body: &ReleaseBody,
     go_api: &GoApi,
     signing: &Signing,
     argv: &[String],
 ) -> i32 {
+    let (notes, attestations) = (body.notes, body.attestations);
     let Some(run) = DeployRun::start(
         "github_deploy",
         "the release is exactly the artifacts pinned at analysis time",
@@ -400,6 +485,31 @@ pub fn github_main_checked(
             None => return 1,
         },
     };
+    let section = if attestations.is_empty() {
+        None
+    } else {
+        let names = match attested_names(attestations, &|rloc| run.resolve(rloc)) {
+            Ok(names) => names,
+            Err(error) => {
+                eprintln!("github_deploy: {error}");
+                return 1;
+            }
+        };
+        let repo = env_or_empty("GITHUB_REPOSITORY");
+        if repo.is_empty() && live {
+            eprintln!(
+                "github_deploy: GITHUB_REPOSITORY is not set; the attestation lines need OWNER/REPO"
+            );
+            return 1;
+        }
+        let repo = if repo.is_empty() {
+            "OWNER/REPO".to_owned()
+        } else {
+            repo
+        };
+        Some(attestation_section(&repo, &names))
+    };
+    let notes_text = notes_text.map(|text| with_attestations(text, section.as_deref()));
     let Some(sign_mode) = SignMode::parse(signing.mode) else {
         eprintln!("github_deploy: invalid sign '{}'", signing.mode);
         return 1;
@@ -602,7 +712,12 @@ pub fn github_main_checked(
                     }
                 }
                 Ok(None) => {}
-                Err(reason) => println!("  notes: unavailable ({reason})"),
+                Err(reason) => {
+                    println!("  notes: unavailable ({reason})");
+                    for line in section.iter().flat_map(|text| text.lines()) {
+                        println!("    {line}");
+                    }
+                }
             }
             println!("  staging: {}", staging.display());
             println!("  manifest: {}", staging.join("would-run.txt").display());
@@ -723,7 +838,10 @@ mod tests {
                     &["asset.tar.gz".to_owned()],
                     "demo",
                     "v1.3.0",
-                    &Notes::None,
+                    &ReleaseBody {
+                        notes: &Notes::None,
+                        attestations: &[],
+                    },
                     &go_api,
                     &Signing {
                         mode: "off",
@@ -993,6 +1111,122 @@ esac
             manifest
                 .ends_with("gh release create v1.1.0 --draft --verify-tag --notes-file notes.md"),
             "{manifest}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod attestation_tests {
+    use super::*;
+    use crate::test_support::*;
+
+    #[test]
+    fn attestation_section_has_one_verify_line_per_artifact() {
+        let names = vec!["demo-1.0.0.crate".to_owned(), "demo-1.0.0.jar".to_owned()];
+        assert_eq!(
+            attestation_section("acme/demo", &names),
+            "## Attestations\n\n```sh\ngh attestation verify demo-1.0.0.crate -R acme/demo\ngh attestation verify demo-1.0.0.jar -R acme/demo\n```\n"
+        );
+    }
+
+    #[test]
+    fn attestations_follow_the_notes() {
+        assert_eq!(
+            with_attestations(Some("x".to_owned()), None),
+            Some("x".to_owned())
+        );
+        assert_eq!(with_attestations(None, Some("s\n")), Some("s\n".to_owned()));
+        assert_eq!(
+            with_attestations(Some("## Features\n\n- a\n".to_owned()), Some("s\n")),
+            Some("## Features\n\n- a\n\ns\n".to_owned())
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn github_dry_run_release_body_lists_each_registry_artifact() {
+        if env_test_in_child(
+            "github::attestation_tests::github_dry_run_release_body_lists_each_registry_artifact",
+        ) {
+            return;
+        }
+        let scratch = scratch_dir();
+        let runfiles = scratch.path().join("runfiles");
+        write_crate_file(
+            &runfiles,
+            "crate/Cargo.toml",
+            "[package]\nname = \"demo\"\nversion = \"1.2.3\"\nedition = \"2024\"\n",
+        );
+        write_crate_file(&runfiles, "crate/src/lib.rs", "pub fn hello() {}\n");
+        write_crate_file(&runfiles, "maven/demo-1.2.3.jar", "jar");
+        write_crate_file(&runfiles, "maven/demo-1.2.3.pom", "pom");
+        let attestations = vec![
+            Attestation {
+                registry: "crates".to_owned(),
+                rlocs: vec!["crate/Cargo.toml".to_owned(), "crate/src/lib.rs".to_owned()],
+                crate_name: "demo".to_owned(),
+                version: String::new(),
+            },
+            Attestation {
+                registry: "maven".to_owned(),
+                rlocs: vec![
+                    "maven/demo-1.2.3.jar".to_owned(),
+                    "maven/demo-1.2.3.pom".to_owned(),
+                ],
+                crate_name: String::new(),
+                version: String::new(),
+            },
+        ];
+        let outdir = scratch.path().join("out");
+        let argv = vec!["prog".to_owned(), outdir.to_string_lossy().into_owned()];
+        let code = with_env(
+            &[
+                ("RUNFILES_DIR", Some(runfiles.to_string_lossy().as_ref())),
+                ("RUNFILES_MANIFEST_FILE", None),
+                ("BUILD_WORKSPACE_DIRECTORY", None),
+                ("DX_DEPLOY_LIVE", None),
+                ("GITHUB_PUBLISH_APPROVED", None),
+                ("GITHUB_REPOSITORY", Some("acme/demo")),
+            ],
+            || {
+                github_main_checked(
+                    &[],
+                    "demo",
+                    "v1.2.3",
+                    &ReleaseBody {
+                        notes: &Notes::None,
+                        attestations: &attestations,
+                    },
+                    &GoApi {
+                        mode: "off",
+                        baseline: "registry",
+                        apidiff_rloc: "",
+                        go_rloc: "",
+                        modules: &[],
+                    },
+                    &Signing {
+                        mode: "off",
+                        cosign_rloc: "",
+                        cosign_version: "",
+                        cosign_sha256: "",
+                    },
+                    &argv,
+                )
+            },
+        );
+        assert_eq!(code, 0);
+        let notes =
+            std::fs::read_to_string(outdir.join("demo-release").join("notes.md")).expect("notes");
+        assert_eq!(
+            notes,
+            attestation_section(
+                "acme/demo",
+                &[
+                    "demo-1.2.3.crate".to_owned(),
+                    "demo-1.2.3.jar".to_owned(),
+                    "demo-1.2.3.pom".to_owned(),
+                ]
+            )
         );
     }
 }

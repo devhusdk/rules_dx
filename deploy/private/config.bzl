@@ -10,6 +10,16 @@ DxDeployConfigInfo = provider(
     },
 )
 
+DxRegistryArtifactsInfo = provider(
+    doc = "The artifacts one registry deploy publishes, for the attestation lines of a github_deploy in the same release.",
+    fields = {
+        "registry": "String: 'crates' or 'maven'.",
+        "files": "List of Files: the maven files, or the crate source files.",
+        "crate_name": "String: the crate name, empty for maven.",
+        "version": "String: the crate version, empty to read it from the manifest.",
+    },
+)
+
 DEPLOY_TOOL = Label("//deploy/private:deploy_tool")
 
 def package_rlocation(ctx, name):

@@ -7,6 +7,7 @@ def _rules_julia_impl(mctx):
     pinned_archive(
         name = "rules_julia",
         patches = [
+            Label("//patches/rules_julia:config_base_toml.patch"),
             Label("//patches/rules_julia:in_process_resolve_test.patch"),
             Label("//patches/rules_julia:locate_installed_package.patch"),
             Label("//patches/rules_julia:package_annotation_version.patch"),

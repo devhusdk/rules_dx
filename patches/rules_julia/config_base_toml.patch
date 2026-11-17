@@ -1,0 +1,21 @@
+diff -ruN a/julia/private/rules_julia_common.jl b/julia/private/rules_julia_common.jl
+--- a/julia/private/rules_julia_common.jl
++++ b/julia/private/rules_julia_common.jl
+@@ -5,8 +5,6 @@
+ # time) plus a config file listing include paths and precompile depots
+ # relative to that tree.
+ 
+-import TOML
+-
+ const DEBUG = haskey(ENV, "RULES_JULIA_DEBUG")
+ 
+ function debug(msg)
+@@ -52,7 +50,7 @@
+ """
+ function read_config(path::String)
+     isfile(path) || return (String[], String[], String[])
+-    config = TOML.parsefile(path)
++    config = Base.parsed_toml(path)
+     entries(key) = collect(String, get(config, key, String[]))
+     return (entries("includes"), entries("depots"), entries("runfiles"))
+ end

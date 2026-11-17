@@ -12,8 +12,9 @@ use super::put;
 const PLATFORM_MARKERS: [&str; 4] = ["sys_platform", "sys-platform", "platform_system", "os_name"];
 
 #[must_use]
+/// A Python dependency key: PEP 503 form with `_` as the separator, as pip hub labels spell it.
 pub fn normalize_py(name: &str) -> String {
-    name.to_lowercase().replace(['-', '.'], "_")
+    dx_ecosystems::pep503_name(name).replace('-', "_")
 }
 
 struct Requirement {

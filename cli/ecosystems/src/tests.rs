@@ -233,3 +233,15 @@ fn registry_names_merge_manifest_lock_and_state() {
     );
     assert_eq!(Ecosystem::LuaRocks.registry_names(), ["luarocks.lock.json"]);
 }
+
+#[test]
+fn pep503_name_folds_separator_runs() {
+    assert_eq!(pep503_name("A__B"), "a-b");
+    assert_eq!(pep503_name("a.-b"), "a-b");
+    assert_eq!(pep503_name("a--b"), "a-b");
+    assert_eq!(pep503_name("a._b"), "a-b");
+    assert_eq!(pep503_name("Django"), "django");
+    assert_eq!(pep503_name("zope.interface"), "zope-interface");
+    assert_eq!(pep503_name("Foo.Bar__baz--Qux"), "foo-bar-baz-qux");
+    assert_eq!(pep503_name("  Pillow "), "pillow");
+}

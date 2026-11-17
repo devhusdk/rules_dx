@@ -3,7 +3,7 @@
 use dx_error::DxError;
 
 use super::{Candidate, Fetch, Findings, LookupError, wanted};
-use crate::edit::request::pyproject::normalize;
+use dx_ecosystems::pep503_name;
 use pep440_rs::{Version, VersionSpecifiers};
 use std::collections::BTreeMap;
 use std::str::FromStr;
@@ -120,7 +120,7 @@ fn split(requirement: &str) -> Option<(String, String)> {
     if name.is_empty() || spec.is_empty() {
         return None;
     }
-    Some((normalize(name), spec.to_owned()))
+    Some((pep503_name(name), spec.to_owned()))
 }
 
 fn repo(body: &str) -> Option<String> {

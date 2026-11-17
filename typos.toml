@@ -19,6 +19,7 @@ remvoe = "remvoe"
 fo = "fo"
 behaviou = "behaviou"
 secur = "secur"
+passin = "passin"
 
 [files]
 extend-exclude = ["*.lock", "*.min.js", "*.svg", "**/*_test.rs", "**/*_tests.rs"]

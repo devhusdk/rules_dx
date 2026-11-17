@@ -273,9 +273,9 @@ pub fn pypi_build_wheelhouse(
     std::fs::create_dir_all(&index_dir)?;
     let mut body = String::from("<!DOCTYPE html>\n<html><body>\n");
     for (base, digest) in &entries {
-        write!(
+        writeln!(
             body,
-            "<a href=\"../../{base}#sha256={digest}\">{base}</a><br/>\n"
+            "<a href=\"../../{base}#sha256={digest}\">{base}</a><br/>"
         )
         .ok();
     }
@@ -935,7 +935,7 @@ mod tests {
     fn wheel_bytes_with(files: &[&str], wheel_file: Option<&str>) -> Vec<u8> {
         let mut record = String::from("pkg-1.0.dist-info/RECORD,,\n");
         for file in files {
-            write!(record, "{file},sha256=x,1\n").ok();
+            writeln!(record, "{file},sha256=x,1").ok();
         }
         let mut members = vec![("pkg-1.0.dist-info/RECORD", record.as_bytes(), 0o644)];
         if let Some(wheel_file) = wheel_file {
@@ -947,7 +947,7 @@ mod tests {
     fn wheel_file(tags: &[&str], purelib: bool) -> String {
         let mut text = format!("Wheel-Version: 1.0\nRoot-Is-Purelib: {purelib}\n");
         for tag in tags {
-            write!(text, "Tag: {tag}\n").ok();
+            writeln!(text, "Tag: {tag}").ok();
         }
         text
     }

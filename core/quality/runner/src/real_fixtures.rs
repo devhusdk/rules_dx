@@ -498,10 +498,10 @@ pub(super) fn garbage_stdout(
     })
 }
 
-pub(super) const BIOME_LINT_DIRTY: &str = r#"{"summary":{"changed":0,"unchanged":1},"diagnostics":[{"severity":"warning","message":"This variable unusedVar is unused.","category":"lint/correctness/noUnusedVariables","location":{"path":"FILE","start":{"line":1,"column":7},"end":{"line":1,"column":16}},"advices":[]}],"command":"lint"}"#;
+pub(super) const BIOME_LINT_DIRTY: &str = r#"{"summary":{"changed":0,"unchanged":1},"diagnostics":[{"severity":"warning","message":"This variable unusedVar is unused.","category":"lint/correctness/noUnusedVariables","location":{"path":"FILE","start":{"line":1,"column":7},"end":{"line":1,"column":16}}}],"command":"lint"}"#;
 pub(super) const BIOME_LINT_CLEAN: &str =
     r#"{"summary":{"changed":0,"unchanged":1},"diagnostics":[],"command":"lint"}"#;
-pub(super) const BIOME_FMT_DIRTY: &str = r#"{"summary":{"changed":0,"unchanged":1},"diagnostics":[{"severity":"error","message":"Formatter would have printed the following content:","category":"format","location":{"path":"FILE","start":{"line":0,"column":0},"end":{"line":0,"column":0}},"advices":[]}],"command":"format"}"#;
+pub(super) const BIOME_FMT_DIRTY: &str = r#"{"summary":{"changed":0,"unchanged":1},"diagnostics":[{"severity":"error","message":"Formatter would have printed the following content:","category":"format","location":{"path":"FILE","start":{"line":0,"column":0},"end":{"line":0,"column":0}}}],"command":"format"}"#;
 pub(super) const BIOME_FMT_CLEAN: &str = r#"{"summary":{},"diagnostics":[],"command":"format"}"#;
 pub(super) const ESLINT_DIRTY: &str = r#"[{"filePath":"FILE","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"'unusedVar' is assigned a value but never used.","line":1,"column":7,"endLine":1,"endColumn":16}],"errorCount":1,"warningCount":0}]"#;
 pub(super) const KEEP_SORTED_DIRTY: &str = "# keep-sorted start\nc\nb\na\n# keep-sorted end\n";
@@ -1615,6 +1615,10 @@ fn scratch_home_checker_accepts_home_under_tmpdir() {
     assert_hermetic_scratch_home(&hermetic_env(Some("/scratch/t/home")));
 }
 
+/// The misspelling the typos fake reports. Built from parts so the repo's own
+/// typos lint does not flag the fixture.
+pub(super) const MISSPELLED: &str = concat!("te", "h");
+
 pub(super) fn typos_behavior(
     argv: &[OsString],
     _cwd: &Path,
@@ -1624,14 +1628,14 @@ pub(super) fn typos_behavior(
     let file = last_file(argv);
     let text = std::fs::read_to_string(&file).expect("checked file is materialized");
     if argv.iter().any(|arg| arg == "--write-changes") {
-        std::fs::write(&file, text.replace("teh", "the")).expect("fix writes back");
+        std::fs::write(&file, text.replace(MISSPELLED, "the")).expect("fix writes back");
         return Ok(ChildOutput {
             code: Some(0),
             stdout: Vec::new(),
             stderr: Vec::new(),
         });
     }
-    let Some(offset) = text.find("teh") else {
+    let Some(offset) = text.find(MISSPELLED) else {
         return Ok(ChildOutput {
             code: Some(0),
             stdout: Vec::new(),
@@ -1639,7 +1643,7 @@ pub(super) fn typos_behavior(
         });
     };
     let stdout = format!(
-        "{{\"type\":\"typo\",\"path\":\"{}\",\"line_num\":1,\"byte_offset\":{offset},\"typo\":\"teh\",\"corrections\":[\"the\"]}}\n",
+        "{{\"type\":\"typo\",\"path\":\"{}\",\"line_num\":1,\"byte_offset\":{offset},\"typo\":\"{MISSPELLED}\",\"corrections\":[\"the\"]}}\n",
         json_escape(&file),
     );
     Ok(ChildOutput {

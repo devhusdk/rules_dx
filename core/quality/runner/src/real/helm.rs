@@ -100,6 +100,10 @@ fn helm_tool(tool_id: &str, tool: &RealTool, scratch: &Scratch) -> Result<RealTo
     Ok(helm)
 }
 
+/// Rendered files the chart owns, and those with no source in the chart, keyed by
+/// the rendered path.
+type PreflightEntries = (Vec<RenderedEntry>, Vec<(String, RenderedEntry)>);
+
 fn preflight_rendered(
     tool_id: &str,
     rendered: &[parsers::RenderedFile],
@@ -107,7 +111,7 @@ fn preflight_rendered(
     context: &HelmContext,
     absolute_of: &dyn Fn(&str) -> Option<PathBuf>,
     findings: &mut Vec<FileFinding>,
-) -> Result<(Vec<RenderedEntry>, Vec<(String, RenderedEntry)>), RunnerError> {
+) -> Result<PreflightEntries, RunnerError> {
     let mut owned: Vec<RenderedEntry> = Vec::new();
     let mut unowned: Vec<(String, RenderedEntry)> = Vec::new();
     for file in rendered {

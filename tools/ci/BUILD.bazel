@@ -1424,10 +1424,12 @@ rust_test(
     data = [
         "command_docs_allowlist.txt",
         "//docs:command_docs",
+        "@dx_test_tags_sources//:prose.json",
     ],
     env = {
         "DX_ALLOWLIST": "$(rlocationpath command_docs_allowlist.txt)",
         "DX_COMMAND_DOCS": "$(rlocationpaths //docs:command_docs)",
+        "DX_PROSE_JSON": "$(rlocationpath @dx_test_tags_sources//:prose.json)",
     },
     deps = all_crate_deps(
         package_name = "tools/ci_tests",

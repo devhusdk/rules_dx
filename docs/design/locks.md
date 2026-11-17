@@ -18,7 +18,7 @@ This page fixes how languages lock, fetch and resolve third-party packages. Tool
 
 ## Foreign formats
 
-`dx audit` reads one version of each foreign format; any other fails and names the supported one.
+`dx security` and `dx license` read one version of each foreign format; any other fails and names the supported one.
 
 Format | Supported version
 --- | ---

@@ -8,7 +8,7 @@ the toolchain.
 
 ### NuGet packages
 
-Keep a `paket.dependencies` file in your module and lock it with `dx lock`
+Keep a `paket.dependencies` file in your module and lock it with `dx update --apply`
 into `nuget.lock.json`. Declare the lock in your `MODULE.bazel`:
 
 ```python

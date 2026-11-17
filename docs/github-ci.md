@@ -107,7 +107,7 @@ When the checkout is not a merge commit, scoped jobs warn and run `//...`. When 
 
    Artifacts are named `dx-reports-lint-<platform>`, `dx-reports-typecheck-<platform>`, `dx-reports-test-<platform>`, `dx-reports-build-<platform>` and `dx-reports-coverage-<platform>`, plus `-<invocation_id>` when set. They are kept 3 days. Reports carry test output and log tails. Treat them like logs.
 
-   The test and build artifacts also carry `profile-<check>.json`, the `dx --timings` report. The PR summary comment shows its cache hit rate, wall time and critical path per platform.
+   The test and build artifacts also carry `profile-<check>.json`, the `--timings` report. The PR summary comment shows its cache hit rate, wall time and critical path per platform.
 
 Common failures:
 

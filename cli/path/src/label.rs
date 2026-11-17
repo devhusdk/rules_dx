@@ -16,6 +16,17 @@ pub enum Repo<'a> {
     Canonical(&'a str),
 }
 
+/// Spells the repository as it prefixes `//`: nothing, `@name` or `@@name`.
+impl std::fmt::Display for Repo<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Repo::Local => Ok(()),
+            Repo::Apparent(name) => write!(f, "@{name}"),
+            Repo::Canonical(name) => write!(f, "@@{name}"),
+        }
+    }
+}
+
 /// One parsed label. The parts borrow from the text it was parsed from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Label<'a> {
@@ -237,6 +248,15 @@ mod tests {
         ] {
             assert_eq!(Label::parse(text), None, "{text}");
         }
+    }
+
+    #[test]
+    fn repos_spell_their_prefix() {
+        let prefix = |text| Label::parse(text).map(|l| l.repo.to_string());
+        assert_eq!(prefix("//p:n").as_deref(), Some(""));
+        assert_eq!(prefix("@r//p:n").as_deref(), Some("@r"));
+        assert_eq!(prefix("@//p:n").as_deref(), Some("@"));
+        assert_eq!(prefix("@@r+//p:n").as_deref(), Some("@@r+"));
     }
 
     #[test]

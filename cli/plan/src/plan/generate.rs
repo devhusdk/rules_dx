@@ -1,4 +1,5 @@
 use dx_error::DxError;
+use dx_path::label::{Label, Repo};
 use dx_process::describe_scope;
 
 use super::{BuildPlan, bazel_argv, rules_dx_label, workflow_scope_labels};
@@ -32,35 +33,23 @@ pub struct GenerateScopeElement {
 /// the safe direction. `//:x` stays repo-wide because Gazelle directory
 /// arguments are recursive.
 fn generate_traversal_dir(target: &str) -> String {
-    let label = target
-        .strip_prefix("@@")
-        .or_else(|| target.strip_prefix('@'))
-        .filter(|rest| rest.starts_with("//"))
-        .unwrap_or(target);
-    let label = ["all-targets", "all", "*"]
-        .iter()
-        .find_map(|name| {
-            label
-                .strip_suffix(name)
-                .and_then(|head| head.strip_suffix(':'))
-        })
-        .unwrap_or(label);
-    if label == "..." {
-        return String::new();
-    }
-    let Some(rest) = label.strip_prefix("//") else {
+    let Some(label) = Label::parse(target) else {
         return String::new();
     };
-    if rest == "..." {
+    match label.repo {
+        Repo::Local | Repo::Apparent("") | Repo::Canonical("") if !label.relative => {}
+        Repo::Local | Repo::Apparent(_) | Repo::Canonical(_) => return String::new(),
+    }
+    // `//...` and `//pkg/...` keep the wildcard in the package; the name (`all`,
+    // `*`, `all-targets` or a target) never narrows the directory further.
+    if label.package == "..." {
         return String::new();
     }
-    if let Some(dir) = rest.strip_suffix("/...") {
-        return dir.to_owned();
-    }
-    match rest.split_once(':') {
-        Some((package, _)) => package.to_owned(),
-        None => rest.to_owned(),
-    }
+    label
+        .package
+        .strip_suffix("/...")
+        .unwrap_or(label.package)
+        .to_owned()
 }
 
 /// Collapses target labels into sorted, non-overlapping Gazelle package patterns.
@@ -360,6 +349,10 @@ mod tests {
             ("@@//pkg/...", "pkg"),
             ("//:x", ""),
             ("@ext//p", ""),
+            ("@@ext+//p:n", ""),
+            ("@ext", ""),
+            (":n", ""),
+            ("pkg:n", ""),
         ] {
             assert_eq!(generate_traversal_dir(label), dir, "{label}");
         }

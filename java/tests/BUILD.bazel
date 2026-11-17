@@ -1,15 +1,25 @@
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal")
+load("//core/modules:versions.bzl", "JAVA_MAJOR")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//java:defs.bzl", "java_test")
 load("//java/private:jazzer.bzl", "jazzer_target_class")
 load("//java/private:kwargs.bzl", "java_entry_class", "java_entry_error", "java_entry_kwargs", "java_javacopts_with_warnings_as_errors", "java_test_main_class")
 load("//rust:defs.bzl", "rust_test")
+load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 
 exports_files([
     "coverage_tests.bzl",
     "jmh_tests.bzl",
 ])
+
+ide_acquisition_test(
+    name = "ide_acquisition_test",
+    size = "small",
+    binary = "//java/private/ide:java_tool",
+    expected = JAVA_MAJOR + ".",
+    version_args = ["-version"],
+)
 
 # keep
 java_test(

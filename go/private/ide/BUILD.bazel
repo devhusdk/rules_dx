@@ -1,6 +1,4 @@
-load("//core/modules:versions.bzl", "GO_SDK_VERSION")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 load("//tools/ide:ide_tool.bzl", "ide_go_tool")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -10,13 +8,6 @@ ide_go_tool(name = "go_tool")
 alias(
     name = "gopackagesdriver",
     actual = "@rules_go//go/tools/gopackagesdriver",
-)
-
-ide_acquisition_test(
-    name = "ide_acquisition_test",
-    binary = ":go_tool",
-    expected = "go" + GO_SDK_VERSION,
-    version_args = ["version"],
 )
 
 real_source_target(

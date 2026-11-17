@@ -1,5 +1,6 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 load(":crate_build_script_tests.bzl", "crate_build_scripts_no_coverage_test")
 load(":cross_link_tests.bzl", "cross_link_tests")
 load(":defs_tests.bzl", "rust_wrapper_registry_tests")
@@ -24,6 +25,26 @@ real_source_target(
         "toolchain_tests.bzl",
     ],
     tags = ["corpus"],
+)
+
+ide_acquisition_test(
+    name = "ide_acquisition_test",
+    size = "small",
+    binary = "@rules_rust//tools/rust_analyzer:discover_bazel_rust_project",
+    binary_two = "@rules_rust//tools/rust_analyzer:flycheck",
+    expected = "--bazel_startup_option",
+    expected_two = "--output-base",
+    version_args = ["--help"],
+    version_args_two = ["--help"],
+)
+
+ide_acquisition_test(
+    name = "rust_analyzer_acquisition_test",
+    size = "small",
+    binary = "//rust/private/ide:rust_analyzer_tool",
+    expected = "rust-analyzer",
+    tags = ["no-remote-exec"],
+    version_args = ["--version"],
 )
 
 crate_build_scripts_no_coverage_test(

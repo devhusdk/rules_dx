@@ -11,6 +11,7 @@ exports_files(
     visibility = [
         "//cli/adopt:__pkg__",
         "//go/private/quality/gopls_tier:__pkg__",
+        "//go/tests:__pkg__",
     ],
 )
 

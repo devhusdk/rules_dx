@@ -1,5 +1,4 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 load("//tools/ide:ide_tool.bzl", "ide_rust_analyzer_tool")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -16,25 +15,7 @@ alias(
     actual = "@rules_rust//tools/rust_analyzer:discover_bazel_rust_project",
 )
 
-ide_acquisition_test(
-    name = "ide_acquisition_test",
-    binary = "@rules_rust//tools/rust_analyzer:discover_bazel_rust_project",
-    binary_two = "@rules_rust//tools/rust_analyzer:flycheck",
-    expected = "--bazel_startup_option",
-    expected_two = "--output-base",
-    version_args = ["--help"],
-    version_args_two = ["--help"],
-)
-
 ide_rust_analyzer_tool(name = "rust_analyzer_tool")
-
-ide_acquisition_test(
-    name = "rust_analyzer_acquisition_test",
-    binary = ":rust_analyzer_tool",
-    expected = "rust-analyzer",
-    tags = ["no-remote-exec"],
-    version_args = ["--version"],
-)
 
 real_source_target(
     name = "corpus_starlark",

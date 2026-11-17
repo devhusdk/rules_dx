@@ -34,8 +34,8 @@ package_group(
     name = "dx_roots",
     packages = [
         "-//core/codegen/...",
+        "-//core/env/...",
         "-//core/quality/...",
-        "-//env/...",
         "-//gazelle/...",
         "-//tools/...",
         "public",
@@ -47,8 +47,8 @@ package_group(
     packages = [
         "-//cli/...",
         "-//core/codegen/...",
+        "-//core/env/...",
         "-//core/quality/...",
-        "-//env/...",
         "-//gazelle/...",
         "-//tools/...",
         "public",

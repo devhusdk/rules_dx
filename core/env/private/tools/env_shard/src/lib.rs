@@ -205,7 +205,7 @@ mod tests {
 
     fn sample() -> DxEnvShard {
         DxEnvShard {
-            producer: "//env:alpha".into(),
+            producer: "//core/env:alpha".into(),
             integration: "rust".into(),
             entries: vec![entry("abi", "gnu"), entry("runtime", "stable-x86_64")],
         }
@@ -243,7 +243,7 @@ mod tests {
         assert_eq!(
             validate(&shard),
             Err(Error::EmptyIntegration {
-                producer: "//env:alpha".into(),
+                producer: "//core/env:alpha".into(),
             })
         );
         let mut shard = sample();
@@ -251,7 +251,7 @@ mod tests {
         assert_eq!(
             validate(&shard),
             Err(Error::EmptyEntries {
-                producer: "//env:alpha".into(),
+                producer: "//core/env:alpha".into(),
             })
         );
     }
@@ -303,7 +303,7 @@ mod tests {
             assert_eq!(
                 validate(&shard),
                 Err(Error::BadExecPath {
-                    producer: "//env:alpha".into(),
+                    producer: "//core/env:alpha".into(),
                     path: path.into(),
                     reason,
                 }),
@@ -322,7 +322,7 @@ mod tests {
         assert_eq!(
             validate(&ordered),
             Err(Error::BadExecPath {
-                producer: "//env:alpha".into(),
+                producer: "//core/env:alpha".into(),
                 path: "/src/./rustc".into(),
                 reason: "must not be absolute",
             })
@@ -336,7 +336,7 @@ mod tests {
         assert_eq!(
             validate(&shard),
             Err(Error::DuplicateKey {
-                producer: "//env:alpha".into(),
+                producer: "//core/env:alpha".into(),
                 key: "abi".into(),
             })
         );
@@ -354,7 +354,7 @@ mod tests {
         assert_eq!(
             decode_validated(&bytes),
             Err(Error::EmptyIntegration {
-                producer: "//env:alpha".into(),
+                producer: "//core/env:alpha".into(),
             })
         );
     }
@@ -382,8 +382,8 @@ mod tests {
 
     #[test]
     fn shard_carries_its_fields() {
-        let built = shard("//env:alpha".into(), "rust".into(), vec![entry("K", "v")]);
-        assert_eq!(built.producer, "//env:alpha");
+        let built = shard("//core/env:alpha".into(), "rust".into(), vec![entry("K", "v")]);
+        assert_eq!(built.producer, "//core/env:alpha");
         assert_eq!(built.integration, "rust");
         assert_eq!(built.entries, vec![entry("K", "v")]);
     }

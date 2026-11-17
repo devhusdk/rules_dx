@@ -133,7 +133,7 @@ mod tests {
                 "--jobs=4",
                 crate::plan::CLIPPY_DIAGNOSTICS_FLAG,
                 crate::plan::RUSTC_DIAGNOSTICS_FLAG,
-                "--aspects=@rules_dx//env:plan.bzl%dx_env_plan_aspect",
+                "--aspects=@rules_dx//core/env/private:plan.bzl%dx_env_plan_aspect",
                 "--aspects=@rules_dx//core/codegen:codegen.bzl%dx_codegen_plan_aspect",
                 "--output_groups=dx_env_plans",
                 "--output_groups=dx_codegen_plans",

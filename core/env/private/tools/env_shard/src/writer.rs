@@ -46,7 +46,7 @@ mod tests {
 
     fn minimal(dir: &tempfile::TempDir, extra: &[&str]) -> Vec<String> {
         let mut argv = args(&[
-            "--producer=//env:alpha",
+            "--producer=//core/env:alpha",
             "--integration=rust",
             "--entry=TOKEN|secret",
         ]);
@@ -73,7 +73,7 @@ mod tests {
             run::<EnvKind>(&minimal(&dir, &[&format!("--entry={raw}")]))
                 .unwrap_or_else(|error| panic!("entry {raw:?} must write: {error}"));
             let shard = written(&dir);
-            assert_eq!(shard.producer, "//env:alpha");
+            assert_eq!(shard.producer, "//core/env:alpha");
             assert_eq!(shard.integration, "rust");
             let entry = shard
                 .entries
@@ -99,7 +99,7 @@ mod tests {
     #[test]
     fn a_missing_output_prints_the_env_usage() {
         let error = run::<EnvKind>(&args(&[
-            "--producer=//env:alpha",
+            "--producer=//core/env:alpha",
             "--integration=rust",
             "--entry=TOKEN|secret",
         ]))
@@ -131,7 +131,7 @@ mod tests {
             .expect_err("a duplicate key is rejected");
         assert_eq!(
             error,
-            WriterError::Codec("duplicate key for //env:alpha \"TOKEN\"".to_owned())
+            WriterError::Codec("duplicate key for //core/env:alpha \"TOKEN\"".to_owned())
         );
     }
 }

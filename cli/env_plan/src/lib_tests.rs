@@ -83,7 +83,7 @@ fn collect_records(outputs: &[TargetOutput]) -> Result<Vec<EnvRecord>, CollectEr
 fn frozen_identities_match_starlark() {
     assert_eq!(OUTPUT_GROUP, "dx_env_plans");
     assert_eq!(SHARD_SUFFIX, ".dxenv.pb");
-    assert_eq!(ENV_ASPECT, "env:plan.bzl%dx_env_plan_aspect");
+    assert_eq!(ENV_ASPECT, "core/env/private:plan.bzl%dx_env_plan_aspect");
     assert_eq!(REPOSITORY_TARGET, "dx:env");
 }
 
@@ -697,5 +697,5 @@ fn projection_rejects_bad_indexes() {
 #[test]
 fn renamed_repo_qualifies_labels() {
     assert_eq!(repository_target("dx"), "@dx//dx:env");
-    assert_eq!(aspect_label("dx"), "@dx//env:plan.bzl%dx_env_plan_aspect");
+    assert_eq!(aspect_label("dx"), "@dx//core/env/private:plan.bzl%dx_env_plan_aspect");
 }

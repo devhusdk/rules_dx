@@ -98,7 +98,7 @@ fn env_bootstrap() {
     assert!(
         doctor
             .combined()
-            .contains("rules_dx managed environment tool: //env:doctor"),
+            .contains("rules_dx managed environment tool: //core/env:doctor"),
         "unexpected doctor output: {}",
         doctor.combined()
     );

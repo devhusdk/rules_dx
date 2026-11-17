@@ -1,21 +1,16 @@
 # gazelle:ignore
 load("//core:failure_test.bzl", "failure_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//env/private:defs.bzl", "env_config", "env_metadata", "env_tool", "env_tree")
-load("//env/tests:defs_tests.bzl", "env_config_analysis_tests", "env_default_config_analysis_tests", "env_default_tree_analysis_tests", "env_defs_unit_tests", "env_tree_analysis_tests")
-load("//env/private:plan.bzl", "dx_env_shard", "env_plan_subject", "rust_env_shard")
-load("//env/tests:plan_tests.bzl", "env_plan_analysis_tests", "env_plan_defs_unit_tests", "env_shard_argv_test")
+load("//core/env/private:defs.bzl", "env_config", "env_metadata", "env_tool", "env_tree")
+load("//core/env/tests:defs_tests.bzl", "env_config_analysis_tests", "env_default_config_analysis_tests", "env_default_tree_analysis_tests", "env_defs_unit_tests", "env_tree_analysis_tests")
+load("//core/env/private:plan.bzl", "dx_env_shard", "env_plan_subject", "rust_env_shard")
+load("//core/env/tests:plan_tests.bzl", "env_plan_analysis_tests", "env_plan_defs_unit_tests", "env_shard_argv_test")
 
 package(default_visibility = ["//visibility:public"])
 
-exports_files([
-    "defs.bzl",
-    "lang.json",
-])
-
 alias(
     name = "tool_sh",
-    actual = "//env/private/stubs:tool_sh",
+    actual = "//core/env/private/stubs:tool_sh",
 )
 
 env_tool(
@@ -134,7 +129,7 @@ rust_env_shard(
     name = "env_rust_fixture",
     entries = ["runtime|stable-x86_64|env/private/tools/env_shard/src/lib.rs"],
     integration = "rust",
-    target = "//env/private/tools/env_shard",
+    target = "//core/env/private/tools/env_shard",
 )
 
 env_plan_subject(
@@ -153,7 +148,7 @@ env_shard_argv_test(
     name = "env_shard_alpha_argv_test",
     expected = [
         "--producer",
-        "//env:env_shard_alpha",
+        "//core/env:env_shard_alpha",
         "--integration",
         "rust",
         "--entry",
@@ -168,7 +163,7 @@ env_shard_argv_test(
     name = "env_rust_fixture_argv_test",
     expected = [
         "--producer",
-        "//env:env_rust_fixture",
+        "//core/env:env_rust_fixture",
         "--integration",
         "rust",
         "--entry",
@@ -181,7 +176,7 @@ env_shard_argv_test(
 
 alias(
     name = "doctor",
-    actual = "//env/private/stubs:doctor",
+    actual = "//core/env/private/stubs:doctor",
 )
 
 env_tool(
@@ -311,9 +306,6 @@ test_suite(
 
 real_source_target(
     name = "corpus_starlark",
-    starlark_srcs = [
-        "BUILD.bazel",
-        "defs.bzl",
-    ],
+    starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

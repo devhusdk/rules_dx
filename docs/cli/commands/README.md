@@ -367,10 +367,6 @@ dx rule that wraps it.
 |  |  | `@rules_dx//elixir:defs.bzl` | `elixir_bench` |
 |  |  | `@rules_dx//elixir:defs.bzl` | `elixir_escript_archive` |
 |  |  | `@rules_dx//elixir:defs.bzl` | `elixir_escript_headers` |
-|  |  | `@rules_dx//env:defs.bzl` | `env_config` |
-|  |  | `@rules_dx//env:defs.bzl` | `env_metadata` |
-|  |  | `@rules_dx//env:defs.bzl` | `env_tool` |
-|  |  | `@rules_dx//env:defs.bzl` | `env_tree` |
 |  |  | `@rules_dx//erlang:defs.bzl` | `erlang_bench` |
 |  |  | `@rules_dx//erlang:defs.bzl` | `erlang_erlc_opts` |
 |  |  | `@rules_dx//erlang:defs.bzl` | `erlang_nif` |

@@ -3,8 +3,8 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_ENV_SHARD")
 
-# gazelle:resolve rust proto //env/private/proto:plan_proto_rs
-# gazelle:resolve rust plan_proto //env/private/proto:plan_proto_rs
+# gazelle:resolve rust proto //core/env/private/proto:plan_proto_rs
+# gazelle:resolve rust plan_proto //core/env/private/proto:plan_proto_rs
 
 package(default_visibility = VIS_ENV_SHARD)
 
@@ -15,18 +15,18 @@ rust_library(
         "src/writer.rs",
     ],
     aliases = aliases(
-        package_name = "env/private/tools/env_shard",
+        package_name = "core/env/private/tools/env_shard",
         normal = True,
     ),
     crate_name = "env_shard",
     crate_root = "src/lib.rs",
     deps = all_crate_deps(
-        package_name = "env/private/tools/env_shard",
+        package_name = "core/env/private/tools/env_shard",
         normal = True,
     ) + [
         "//cli/path:dx_path",
         "//cli/shard_writer:dx_shard_writer",
-        "//env/private/proto:plan_proto_rs",
+        "//core/env/private/proto:plan_proto_rs",
         "@rules_rust_prost//private/3rdparty/crates:prost",
     ],
 )
@@ -35,14 +35,14 @@ rust_binary(
     name = "env_shard_writer",
     srcs = ["src/main.rs"],
     aliases = aliases(
-        package_name = "env/private/tools/env_shard",
+        package_name = "core/env/private/tools/env_shard",
         normal = True,
     ),
     crate_name = "env_shard_writer",
     crate_root = "src/main.rs",
     visibility = ["//visibility:public"],
     deps = all_crate_deps(
-        package_name = "env/private/tools/env_shard",
+        package_name = "core/env/private/tools/env_shard",
         normal = True,
     ) + [":env_shard"],
 )
@@ -51,18 +51,18 @@ rust_test(
     name = "env_shard_test",
     size = "small",
     aliases = aliases(
-        package_name = "env/private/tools/env_shard",
+        package_name = "core/env/private/tools/env_shard",
         normal = True,
         normal_dev = True,
     ),
     crate = ":env_shard",
     deps = all_crate_deps(
-        package_name = "env/private/tools/env_shard",
+        package_name = "core/env/private/tools/env_shard",
         normal = True,
         normal_dev = True,
     ) + [
         "//cli/shard_writer:dx_shard_writer",
-        "//env/private/proto:plan_proto_rs",
+        "//core/env/private/proto:plan_proto_rs",
         "@rules_rust_prost//private/3rdparty/crates:prost",
     ],
 )

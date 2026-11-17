@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(
-    "//env/private:plan.bzl",
+    "//core/env/private:plan.bzl",
     "DX_ENV_ADMITTED_INTEGRATIONS",
     "DX_ENV_PLAN_OUTPUT_GROUP",
     "DX_ENV_SHARD_SUFFIX",
@@ -21,14 +21,14 @@ load(
 
 def _record_a():
     return env_plan_record(
-        "//env:alpha",
+        "//core/env:alpha",
         "rust",
         [env_plan_entry("runtime", "stable-x86_64")],
     )
 
 def _record_b():
     return env_plan_record(
-        "//env:beta",
+        "//core/env:beta",
         "rust",
         [env_plan_entry("runtime", "stable-aarch64")],
     )
@@ -139,37 +139,37 @@ def env_plan_defs_unit_tests(name):
             expect_equal(
                 "env_plan_record_error rejects empty integration and empty entries",
                 [
-                    env_plan_record_error(env_plan_record("//env:a", "", [env_plan_entry("k", "v")])),
-                    env_plan_record_error(env_plan_record("//env:a", "rust", [])),
+                    env_plan_record_error(env_plan_record("//core/env:a", "", [env_plan_entry("k", "v")])),
+                    env_plan_record_error(env_plan_record("//core/env:a", "rust", [])),
                 ],
                 [
-                    "invalid env plan record '//env:a': integration must be a non-empty language class",
-                    "invalid env plan record '//env:a': entries must be non-empty (targets with no contribution carry no record)",
+                    "invalid env plan record '//core/env:a': integration must be a non-empty language class",
+                    "invalid env plan record '//core/env:a': entries must be non-empty (targets with no contribution carry no record)",
                 ],
             ),
             expect_equal(
                 "env_plan_record_error rejects bad entry keys",
-                env_plan_record_error(env_plan_record("//env:a", "rust", [env_plan_entry("a/b", "v")])),
-                "invalid env plan record '//env:a': invalid env plan key 'a/b': must not contain '/' or '\\'",
+                env_plan_record_error(env_plan_record("//core/env:a", "rust", [env_plan_entry("a/b", "v")])),
+                "invalid env plan record '//core/env:a': invalid env plan key 'a/b': must not contain '/' or '\\'",
             ),
             expect_equal(
                 "env_plan_record_error rejects bad entry values",
-                env_plan_record_error(env_plan_record("//env:a", "rust", [env_plan_entry("k", "")])),
-                "invalid env plan record '//env:a': invalid env plan value '': must be a non-empty identity input",
+                env_plan_record_error(env_plan_record("//core/env:a", "rust", [env_plan_entry("k", "")])),
+                "invalid env plan record '//core/env:a': invalid env plan value '': must be a non-empty identity input",
             ),
             expect_equal(
                 "env_plan_record_error rejects bad exec paths",
-                env_plan_record_error(env_plan_record("//env:a", "rust", [env_plan_entry("k", "v", "x.dxenv.pb")])),
-                "invalid env plan record '//env:a': invalid env plan exec path 'x.dxenv.pb': must not use the reserved shard suffix '.dxenv.pb'",
+                env_plan_record_error(env_plan_record("//core/env:a", "rust", [env_plan_entry("k", "v", "x.dxenv.pb")])),
+                "invalid env plan record '//core/env:a': invalid env plan exec path 'x.dxenv.pb': must not use the reserved shard suffix '.dxenv.pb'",
             ),
             expect_equal(
                 "env_plan_record_error rejects within-record duplicate keys",
-                env_plan_record_error(env_plan_record("//env:a", "rust", [env_plan_entry("k", "v1"), env_plan_entry("k", "v2")])),
-                "invalid env plan record '//env:a': duplicate key 'k'",
+                env_plan_record_error(env_plan_record("//core/env:a", "rust", [env_plan_entry("k", "v1"), env_plan_entry("k", "v2")])),
+                "invalid env plan record '//core/env:a': duplicate key 'k'",
             ),
             expect_equal(
                 "env_plan_conflict_error accepts disjoint records",
-                env_plan_conflict_error([_record_a(), env_plan_record("//env:beta", "rust", [env_plan_entry("abi", "gnu")])]),
+                env_plan_conflict_error([_record_a(), env_plan_record("//core/env:beta", "rust", [env_plan_entry("abi", "gnu")])]),
                 "",
             ),
             expect_equal(
@@ -180,51 +180,51 @@ def env_plan_defs_unit_tests(name):
             expect_equal(
                 "env_plan_conflict_error fails cross-producer collisions",
                 env_plan_conflict_error([_record_a(), _record_b()]),
-                "env plan conflict: identity key 'runtime' claimed by //env:alpha, //env:beta",
+                "env plan conflict: identity key 'runtime' claimed by //core/env:alpha, //core/env:beta",
             ),
             expect_equal(
                 "env_plan_conflict_error fails divergent values from one producer",
                 env_plan_conflict_error([
                     _record_a(),
-                    env_plan_record("//env:alpha", "rust", [env_plan_entry("runtime", "nightly-x86_64")]),
+                    env_plan_record("//core/env:alpha", "rust", [env_plan_entry("runtime", "nightly-x86_64")]),
                 ]),
-                "env plan conflict: identity key 'runtime' claimed by //env:alpha, //env:alpha",
+                "env plan conflict: identity key 'runtime' claimed by //core/env:alpha, //core/env:alpha",
             ),
             expect_equal(
                 "env_plan_conflict_error fails divergent exec paths",
                 env_plan_conflict_error([
                     _record_a(),
-                    env_plan_record("//env:alpha", "rust", [env_plan_entry("runtime", "stable-x86_64", "out/rustc")]),
+                    env_plan_record("//core/env:alpha", "rust", [env_plan_entry("runtime", "stable-x86_64", "out/rustc")]),
                 ]),
-                "env plan conflict: identity key 'runtime' claimed by //env:alpha, //env:alpha",
+                "env plan conflict: identity key 'runtime' claimed by //core/env:alpha, //core/env:alpha",
             ),
             expect_equal(
                 "env_plan_merge_records groups by owner and sorts entries",
                 [
                     (record.producer, record.integration, [entry.key for entry in record.entries])
                     for record in env_plan_merge_records([
-                        env_plan_record("//env:b", "rust", [env_plan_entry("z-key", "1"), env_plan_entry("a-key", "2")]),
+                        env_plan_record("//core/env:b", "rust", [env_plan_entry("z-key", "1"), env_plan_entry("a-key", "2")]),
                         _record_a(),
                         _record_a(),
-                        env_plan_record("//env:a", "python", [env_plan_entry("interpreter", "3.12")]),
+                        env_plan_record("//core/env:a", "python", [env_plan_entry("interpreter", "3.12")]),
                     ])
                 ],
                 [
-                    ("//env:a", "python", ["interpreter"]),
-                    ("//env:alpha", "rust", ["runtime"]),
-                    ("//env:b", "rust", ["a-key", "z-key"]),
+                    ("//core/env:a", "python", ["interpreter"]),
+                    ("//core/env:alpha", "rust", ["runtime"]),
+                    ("//core/env:b", "rust", ["a-key", "z-key"]),
                 ],
             ),
             expect_equal(
                 "env_plan_fingerprint renders the normalized hash input",
                 env_plan_fingerprint([_record_b(), _record_a(), _record_a()]),
-                "[{\"entries\":[{\"exec_path\":\"\",\"key\":\"runtime\",\"value\":\"stable-x86_64\"}],\"integration\":\"rust\",\"producer\":\"//env:alpha\"}," +
-                "{\"entries\":[{\"exec_path\":\"\",\"key\":\"runtime\",\"value\":\"stable-aarch64\"}],\"integration\":\"rust\",\"producer\":\"//env:beta\"}]",
+                "[{\"entries\":[{\"exec_path\":\"\",\"key\":\"runtime\",\"value\":\"stable-x86_64\"}],\"integration\":\"rust\",\"producer\":\"//core/env:alpha\"}," +
+                "{\"entries\":[{\"exec_path\":\"\",\"key\":\"runtime\",\"value\":\"stable-aarch64\"}],\"integration\":\"rust\",\"producer\":\"//core/env:beta\"}]",
             ),
             expect_equal(
                 "env_plan_fingerprint binds exec paths",
-                env_plan_fingerprint([env_plan_record("//env:a", "rust", [env_plan_entry("k", "v", "out/rustc")])]),
-                "[{\"entries\":[{\"exec_path\":\"out/rustc\",\"key\":\"k\",\"value\":\"v\"}],\"integration\":\"rust\",\"producer\":\"//env:a\"}]",
+                env_plan_fingerprint([env_plan_record("//core/env:a", "rust", [env_plan_entry("k", "v", "out/rustc")])]),
+                "[{\"entries\":[{\"exec_path\":\"out/rustc\",\"key\":\"k\",\"value\":\"v\"}],\"integration\":\"rust\",\"producer\":\"//core/env:a\"}]",
             ),
             expect_equal(
                 "env_plan_integration_error admits only the Rust first integration",
@@ -244,35 +244,35 @@ def env_plan_defs_unit_tests(name):
 
 _CHAIN_FINGERPRINT = (
     "[{\"entries\":[{\"exec_path\":\"\",\"key\":\"runtime\",\"value\":\"stable-x86_64\"}],\"integration\":\"rust\"," +
-    "\"producer\":\"//env:env_shard_alpha\"}," +
+    "\"producer\":\"//core/env:env_shard_alpha\"}," +
     "{\"entries\":[{\"exec_path\":\"\",\"key\":\"abi\",\"value\":\"gnu\"}],\"integration\":\"rust\"," +
-    "\"producer\":\"//env:env_shard_beta\"}]"
+    "\"producer\":\"//core/env:env_shard_beta\"}]"
 )
 
 _RUST_FINGERPRINT = (
     "[{\"entries\":[{\"exec_path\":\"env/private/tools/env_shard/src/lib.rs\",\"key\":\"runtime\",\"value\":\"stable-x86_64\"}]," +
-    "\"integration\":\"rust\",\"producer\":\"//env:env_rust_fixture\"}]"
+    "\"integration\":\"rust\",\"producer\":\"//core/env:env_rust_fixture\"}]"
 )
 
-EXPECTED_ENV_PLAN_OBSERVATIONS = """subject //env:env_plan_chain_subject
+EXPECTED_ENV_PLAN_OBSERVATIONS = """subject //core/env:env_plan_chain_subject
 field files=env_shard_alpha.dxenv.pb,env_shard_beta.dxenv.pb
 field fingerprint=%s
-field label=//env:env_shard_beta
+field label=//core/env:env_shard_beta
 field record_count=2
 aspect_field aspect_seen=True
 aspect_field field_count=4
 aspect_field has_subject=True
-aspect_field subject_label=//env:env_plan_chain_subject
+aspect_field subject_label=//core/env:env_plan_chain_subject
 aspect_field transitive_count=0
-subject //env:env_plan_rust_subject
+subject //core/env:env_plan_rust_subject
 field files=env_rust_fixture.dxenv.pb,lib.rs
 field fingerprint=%s
-field label=//env:env_rust_fixture
+field label=//core/env:env_rust_fixture
 field record_count=1
 aspect_field aspect_seen=True
 aspect_field field_count=4
 aspect_field has_subject=True
-aspect_field subject_label=//env:env_plan_rust_subject
+aspect_field subject_label=//core/env:env_plan_rust_subject
 aspect_field transitive_count=0""" % (_CHAIN_FINGERPRINT, _RUST_FINGERPRINT)
 
 def env_plan_analysis_tests(name):

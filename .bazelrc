@@ -25,7 +25,6 @@ common:macos --local_resources=nested_bazel=1
 startup:windows --output_user_root=C:/bz
 startup:windows --windows_enable_symlinks
 
-common:windows --experimental_override_platform_cpu_name=//tools/platforms:windows_msvc_host=wx
 # Skip the local Windows SDK probe; builds use the hermetic MSVC and need no rc.exe.
 common:windows --override_repository=bazel_tools+winsdk_configure+local_config_winsdk=%workspace%/tools/platforms/no_winsdk
 
@@ -73,10 +72,6 @@ build --test_env=PYTHONWARNINGS=error
 # Apple Clang's C++ profiles cannot merge with the hermetic LLVM in Rust test wrappers.
 coverage:macos --copt=-fno-profile-instr-generate
 coverage:macos --copt=-fno-coverage-mapping
-
-coverage:windows --features=-coverage
-coverage:windows --features=-gcc_coverage_map_format
-coverage:windows --per_file_copt=.*compiler-rt/lib/profile/.*@-D__MINGW_EXTENSION=
 
 common:bb --remote_cache=grpcs://remote.buildbuddy.io
 common:bb --remote_cache_compression

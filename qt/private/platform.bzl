@@ -26,6 +26,8 @@ _CPU = {
 
 QT_PLATFORMS = {cell: str(Label("//qt:" + cell)) for cell in qualified_cells()}
 
+QT_MSVC_PLATFORM_FLAGS = ["--{}=msvc".format(_COMPILER)]
+
 _PLATFORM_COMPILERS = {QT_PLATFORMS[cell]: CELLS[cell].layout.compiler for cell in QT_PLATFORMS}
 
 def qt_host_cell(constraints):

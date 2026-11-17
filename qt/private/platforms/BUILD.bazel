@@ -38,6 +38,15 @@ package(default_visibility = ["//visibility:public"])
     if CELLS[cell].layout.os == "linux"
 ]
 
+[
+    config_setting(
+        name = "os_cpu_" + cell,
+        constraint_values = [c for c in CELLS[cell].constraints if c.startswith("@platforms//")],
+    )
+    for cell in qualified_cells()
+    if CELLS[cell].layout.os == "windows"
+]
+
 qt_corpus(
     name = "corpus_starlark",
     starlark_srcs = [

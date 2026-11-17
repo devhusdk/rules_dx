@@ -1,4 +1,2 @@
-common --enable_platform_specific_config
-common:windows --@my_dx//cc:compiler=msvc
 build:dx_build_dev --compilation_mode=fastbuild
 build:dx_build_release --compilation_mode=opt

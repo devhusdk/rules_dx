@@ -19,9 +19,12 @@ rust_test(
 )
 
 platform_transition_filegroup(
-    name = "cc_rs_consumer_test_linux_arm64",
+    name = "cc_rs_consumer_linux_arm64",
     testonly = True,
-    srcs = [":cc_rs_consumer_test"],
+    srcs = [
+        ":cc_rs_consumer",
+        ":cc_rs_consumer_test",
+    ],
     target_compatible_with = [
         "@platforms//cpu:x86_64",
         "@platforms//os:linux",
@@ -35,5 +38,5 @@ build_test(
         "@platforms//cpu:x86_64",
         "@platforms//os:linux",
     ],
-    targets = [":cc_rs_consumer_test_linux_arm64"],
+    targets = [":cc_rs_consumer_linux_arm64"],
 )

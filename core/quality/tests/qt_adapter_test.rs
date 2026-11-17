@@ -25,8 +25,27 @@ fn qmllint_output_parses_through_the_adapter() {
         false,
     ));
     assert_eq!(out.status.code(), Some(255), "{}", out.combined());
-    let report: Value = dx_testing::serde_json::from_str(&out.stdout).expect("JSON report");
+    let mut report: Value = dx_testing::serde_json::from_str(&out.stdout).expect("JSON report");
     let pinned = dx_testing::read_json(&env_file("DX_QMLLINT_FIXTURE_DIRTY")).expect("fixture");
+    let absolute = std::path::absolute(&sample).expect("absolute path");
+    let absolute = absolute.to_str().expect("utf-8 path");
+    for warning in report["files"][0]["warnings"]
+        .as_array_mut()
+        .expect("warnings")
+    {
+        for suggestion in warning["suggestions"]
+            .as_array_mut()
+            .expect("suggestions")
+        {
+            for edit in suggestion["documentEdits"]
+                .as_array_mut()
+                .expect("documentEdits")
+            {
+                assert_eq!(edit["filename"], absolute);
+                edit["filename"] = pinned["files"][0]["filename"].clone();
+            }
+        }
+    }
     assert_eq!(report["revision"], pinned["revision"]);
     assert_eq!(
         report["files"][0]["warnings"],

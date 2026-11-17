@@ -1,5 +1,6 @@
 """Quality source-ownership boundary."""
 
+load("//core/modules:langs.bzl", "LANGS")
 load(":taxonomy.bzl", "TAXONOMY_CLASSES")
 
 QualitySourcesInfo = provider(
@@ -19,7 +20,6 @@ QualityToolsInfo = provider(
         "unavailable": "List[str]: tool IDs whose executable is an unavailable stub on this platform.",
     },
 )
-
 
 KNOWN_SEMANTIC_FILE_CLASSES = TAXONOMY_CLASSES
 
@@ -95,18 +95,18 @@ def dockerfile_name_error(basename):
 
 # Classes matched by exact, case-sensitive basename or suffix.
 NAMED_SOURCE_CLASSES = {
-    "make": {
-        "names": ["GNUmakefile", "Makefile", "makefile"],
-        "suffixes": [".mk"],
-    },
-    "cmake": {
-        "names": ["CMakeLists.txt"],
-        "suffixes": [".cmake"],
-    },
+    lang: {
+        "names": row["quality"]["file_names"],
+        "suffixes": row["quality"].get("file_extensions", []),
+    }
+    for lang, row in LANGS.items()
+    if "file_names" in row.get("quality", {})
 }
 
 def is_named_source(class_id, basename):
     """Reports whether a basename belongs to a name-matched class (case-sensitive)."""
+    if class_id == "dockerfile":
+        return is_dockerfile_name(basename)
     row = NAMED_SOURCE_CLASSES.get(class_id)
     if row == None:
         return False
@@ -119,6 +119,8 @@ def is_named_source(class_id, basename):
 
 def named_source_class_error(class_id, basename):
     """Returns the error for a basename the class matcher rejects, or ""."""
+    if class_id == "dockerfile":
+        return dockerfile_name_error(basename)
     if is_named_source(class_id, basename):
         return ""
     row = NAMED_SOURCE_CLASSES[class_id]

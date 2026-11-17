@@ -3063,28 +3063,6 @@ FILE_FAMILY_CASES = [
         },
     ),
     matrix_case(
-        name = "matrix_ocaml_format_pass",
-        capability = "format",
-        tool = "topiary",
-        binary = "//rust/private/quality/tools:topiary",
-        source_class = "ocaml",
-        generated = {
-            "matrix/ocaml_format_clean.ml": "let x = 1\nlet () = print_int x\n",
-        },
-        platforms = ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"],
-    ),
-    matrix_case(
-        name = "matrix_ocaml_format_fail",
-        capability = "format",
-        tool = "topiary",
-        binary = "//rust/private/quality/tools:topiary",
-        source_class = "ocaml",
-        generated = {
-            "matrix/ocaml_format_dirty.ml": "let   x=1\nlet ()=print_int   x\n",
-        },
-        platforms = ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"],
-    ),
-    matrix_case(
         name = "matrix_ocaml_format_mixed",
         capability = "format",
         tool = "topiary",

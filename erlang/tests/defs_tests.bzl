@@ -22,7 +22,7 @@ def erlang_wrapper_contract_tests(name, size):
         size = size,
         file_classes = ["erlang"],
         extra_checks = [
-            expect_equal("windows tree tests set the otp home from runfiles", windows_tree_home_commands("+erlang+dx_otp_windows_x86_64"), 'set "RULES_ERLANG_HOME=%TEST_SRCDIR%/+erlang+dx_otp_windows_x86_64"\nset "RULES_ERLANG_HOME=%RULES_ERLANG_HOME:/=\\%"\n'),
+            expect_equal("windows tree tests set the otp home from runfiles", windows_tree_home_commands("+erlang+dx_erlang_toolchains__windows_x86_64"), 'set "RULES_ERLANG_HOME=%TEST_SRCDIR%/+erlang+dx_erlang_toolchains__windows_x86_64"\nset "RULES_ERLANG_HOME=%RULES_ERLANG_HOME:/=\\%"\n'),
             expect_equal("erlang guard is a select by default", type(erlang_kwargs({})["target_compatible_with"]), "select"),
             expect_equal("erlang guard stays with a user list", type(erlang_kwargs({"target_compatible_with": ["//x:y"]})["target_compatible_with"]), "select"),
             expect_equal("warnings_as_errors adds -Werror once", erlang_erlc_kwargs({"warnings_as_errors": True, "erlc_opts": ["-Werror", "+debug_info"]}, [])["erlc_opts"], ["+debug_info", "-Werror"]),
@@ -86,8 +86,8 @@ def erlang_wrapper_contract_tests(name, size):
             ),
             expect_equal(
                 "external files live under their repo",
-                runfiles_path("_main", "../+erlang+dx_otp_linux_x86_64/DX_OTP_VERSION"),
-                "+erlang+dx_otp_linux_x86_64/DX_OTP_VERSION",
+                runfiles_path("_main", "../+erlang+dx_erlang_toolchains__linux_x86_64/DX_OTP_VERSION"),
+                "+erlang+dx_erlang_toolchains__linux_x86_64/DX_OTP_VERSION",
             ),
         ],
     )

@@ -245,7 +245,6 @@ jobs:
           udid=$(xcrun simctl create "dx-template iPhone 16 iOS $runtime" "iPhone 16" "com.apple.CoreSimulator.SimRuntime.iOS-${runtime//./-}")
           xcrun simctl bootstatus "$udid" -b
           echo "iOS $runtime template booted after $(( $(date +%s) - start ))s"
-          xcrun simctl shutdown "$udid"
       - name: Allow unprivileged user namespaces
         if: runner.os == 'Linux'
         run: |

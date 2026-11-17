@@ -33,7 +33,7 @@ Every test target and test macro follows these rules.
 - The declared device is an input of the test. The test fails when it finds another device.
 - Its rule behaviour is also proven by a unit, analysis or in-graph fixture test that needs no device.
 - An Android emulator is declared with `--@rules_dx//android:emulator_serial=<serial>`. A test that needs it reads the serial from `//android:declared_emulator` and is incompatible under `//android:emulator_undeclared`.
-- An iOS simulator runtime is declared with `--@rules_dx//apple:simulator_runtime=<version>`. A test that needs it reads the runtime and the Xcode version from `//apple:declared_simulator`, is incompatible under `//apple:simulator_undeclared`, and clones a host template into its own `simctl --set` below `TEST_TMPDIR`.
+- An iOS simulator runtime is declared with `--@rules_dx//apple:simulator_runtime=<version>`. A test that needs it reads the runtime and the Xcode version from `//apple:declared_simulator`, is incompatible under `//apple:simulator_undeclared`, and installs into the booted host template simulator, then uninstalls.
 - A device test carries a `resources:<device>:1` tag, such as `resources:android_emulator:1`. The root `.bazelrc` sets `--local_resources=<device>=<n>`.
 - A device test starts `adb` and `simctl` from runfiles or a pinned toolchain.
 

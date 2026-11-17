@@ -38,6 +38,7 @@ def _runs_cl_impl(ctx):
     return analysistest.end(env)
 
 _WINDOWS_X64 = [str(Label("//tools/platforms:windows_x86_64"))]
+_LINUX_X64 = [str(Label("//tools/platforms:linux_x86_64"))]
 _SETTINGS = {
     "//command_line_option:platforms": _WINDOWS_X64,
     "//command_line_option:extra_toolchains": [
@@ -51,7 +52,10 @@ _runs_cl_test = analysistest.make(
     _runs_cl_impl,
     config_settings = _SETTINGS | {"//command_line_option:extra_execution_platforms": _WINDOWS_X64},
 )
-_linux_exec_test = failure_test_rule(_SETTINGS)
+_linux_exec_test = failure_test_rule(_SETTINGS | {
+    "//command_line_option:extra_execution_platforms": _LINUX_X64,
+    "//command_line_option:host_platform": _LINUX_X64[0],
+})
 
 def msvc_sdist_tests(name, sdist, tool):
     """Declares the stub sdist build and its two analysis tests."""

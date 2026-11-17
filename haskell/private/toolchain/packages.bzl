@@ -2,6 +2,7 @@
 
 load("//core:pins.bzl", "lock_problems")
 load("//core:repo.bzl", "hub_repo")
+load(":pins.bzl", "CELLS", "qualified_cells")
 
 _DEFS = str(Label("//haskell/private:defs.bzl"))
 
@@ -142,12 +143,26 @@ def cabal_libraries(text):
         }
     return libraries
 
+def _os_library(dep):
+    name = dep[len(_TOOLCHAINS) + 1:] if dep.startswith(_TOOLCHAINS + ":") else ""
+    return name if [cell for cell in CELLS.values() if name in cell.os_libraries] else ""
+
+def render_deps(deps):
+    """Returns the deps expression; a GHC library only some cells ship is selected on those cells."""
+    expression = repr([dep for dep in deps if not _os_library(dep)])
+    for dep in deps:
+        name = _os_library(dep)
+        if name:
+            arms = {"{}:{}_platform".format(_TOOLCHAINS, cell): [dep] for cell in qualified_cells(CELLS) if name in CELLS[cell].os_libraries}
+            expression += " + select({})".format(repr(arms | {"//conditions:default": []}))
+    return expression
+
 def _target(kind, name, attrs, deps, tools):
     attrs = attrs + ([
         "tools = " + repr(tools),
     ] if tools else []) + [
         'srcs = glob(["**"], exclude = ["BUILD.bazel", "REPO.bazel"])',
-        "deps = " + repr(deps),
+        "deps = " + render_deps(deps),
         "target_compatible_with = HASKELL_COMPATIBLE_WITH",
         "verbose = False",
     ]

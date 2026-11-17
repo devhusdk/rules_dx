@@ -149,6 +149,8 @@ NO_HOST_TOOL = "dx-no-host-tool"
 
 BUNDLED_TOOLS = ["Merge objects command", "windres command", "ar command"]
 
+BUNDLED_FLAGS = ["C compiler flags", "C++ compiler flags", "C compiler link flags"]
+
 MINGW_ROOT = "$topdir/../mingw/"
 
 SETTINGS = {
@@ -298,7 +300,7 @@ def ghc_settings(source):
         key = stripped[2:stripped.index("\"", 2)]
         if key in SETTINGS:
             seen.append(key)
-            if key in BUNDLED_TOOLS and (MINGW_ROOT in source or "\"$tooldir/" in stripped):
+            if (key in BUNDLED_FLAGS and MINGW_ROOT in source) or (key in BUNDLED_TOOLS and (MINGW_ROOT in source or "\"$tooldir/" in stripped)):
                 lines.append(line)
                 continue
             line = line[:line.index("(")] + "(" + repr(key) + ", " + repr(SETTINGS[key]) + ")"

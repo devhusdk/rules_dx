@@ -2,7 +2,7 @@
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
-load("//haskell/private/toolchain:packages.bzl", "cabal_libraries", "components", "is_sha256", "package_build", "package_deps", "pin_problems", "tool_labels")
+load("//haskell/private/toolchain:packages.bzl", "cabal_libraries", "components", "is_sha256", "package_build", "package_deps", "pin_problems", "render_deps", "tool_labels")
 load("//haskell/private/toolchain:pins.bzl", "CELLS", "GLIBC_FLOOR", "qualified_cells")
 load("//haskell/private/toolchain:repos.bzl", "CLOSURE_DIR", "NO_HOST_TOOL", "cell_matches_host", "closure_library_dirs", "drop_host_sdk_dirs", "dropped_import_libs", "ghc_library_dir", "ghc_settings", "host_path", "hub_files", "os_libraries", "toolchain_libraries")
 
@@ -117,7 +117,7 @@ def _hub_names(hub):
 def _checks():
     darwin_rts = drop_host_sdk_dirs(_DARWIN_RTS_CONF)
     settings = ghc_settings(_SETTINGS)
-    windows_settings = ghc_settings(_SETTINGS.replace("\"Merge objects command\", \"/usr/bin/ld.gold\"", "\"Merge objects command\", \"\"").replace("\"ar command\", \"/usr/bin/ar\"", "\"ar command\", \"$topdir/../mingw//bin/llvm-ar.exe\"").replace("\"windres command\", \"/bin/false\"", "\"windres command\", \"$topdir/../mingw//bin/llvm-windres.exe\""))
+    windows_settings = ghc_settings(_SETTINGS.replace("\"Merge objects command\", \"/usr/bin/ld.gold\"", "\"Merge objects command\", \"\"").replace("\"ar command\", \"/usr/bin/ar\"", "\"ar command\", \"$topdir/../mingw//bin/llvm-ar.exe\"").replace("\"windres command\", \"/bin/false\"", "\"windres command\", \"$topdir/../mingw//bin/llvm-windres.exe\"").replace("\"C compiler link flags\", \"--target=x86_64-linux-gnu -fuse-ld=gold\"", "\"C compiler link flags\", \"-fuse-ld=lld --rtlib=compiler-rt -D_UCRT\""))
     checks = hub_checks(hub_files()["BUILD.bazel"], str(Label("@rules_haskell//haskell:toolchain")), 5, ["@rules_haskell"]) + [
         expect_equal("cells", sorted(CELLS.keys()), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]),
         expect_equal("qualified cells", qualified_cells(), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]),
@@ -144,6 +144,7 @@ def _checks():
         expect_false("windows settings keep bundled mingw paths", host_path(windows_settings)),
         expect_contains("windows settings keep the bundled windres", windows_settings, "(\"windres command\", \"$topdir/../mingw//bin/llvm-windres.exe\")"),
         expect_contains("windows settings keep the bundled merge objects tool", windows_settings, "(\"Merge objects command\", \"\")"),
+        expect_contains("windows settings keep the bundled link flags", windows_settings, "(\"C compiler link flags\", \"-fuse-ld=lld --rtlib=compiler-rt -D_UCRT\")"),
         expect_contains("windows settings keep the bundled ar", windows_settings, "(\"ar command\", \"$topdir/../mingw//bin/llvm-ar.exe\")"),
         expect_true("a drive path is a host path", host_path("(\"ar command\", \"C:\\\\tools\\\\ar.exe\")")),
         expect_true("an absolute path is a host path", host_path("(\"ar command\", \"/usr/bin/ar\")")),
@@ -188,6 +189,8 @@ def _checks():
         expect_contains("a lock package dep points at its repository", build, '"@hub_alex//:alex"'),
         expect_contains("a dep outside the lock is a GHC boot package", build, '"@dx_haskell_toolchains//lib:base"'),
         expect_contains("a sublibrary dep points at its alias", build, '"@hub_sub//:sub-lib-inner"'),
+        expect_equal("an os library dep is selected on the cells that ship it", render_deps(["@dx_haskell_toolchains//lib:base", "@dx_haskell_toolchains//lib:unix"]), '["@dx_haskell_toolchains//lib:base"] + select({"@dx_haskell_toolchains//lib:linux_arm64_platform": ["@dx_haskell_toolchains//lib:unix"], "@dx_haskell_toolchains//lib:linux_x86_64_platform": ["@dx_haskell_toolchains//lib:unix"], "@dx_haskell_toolchains//lib:macos_arm64_platform": ["@dx_haskell_toolchains//lib:unix"], "//conditions:default": []})'),
+        expect_equal("a Win32 dep is selected on windows only", render_deps(["@dx_haskell_toolchains//lib:Win32"]), '[] + select({"@dx_haskell_toolchains//lib:windows_x86_64_platform": ["@dx_haskell_toolchains//lib:Win32"], "//conditions:default": []})'),
         expect_false("lock deps alone do not name boot packages", "@dx_haskell_toolchains//lib:base" in package_deps("hub", lock, lock["packages"][1] | {"extra": {"cabal_components": ["lib"]}})),
     ]
     pinned = {"name": "pinned", "version": "1.0", "archives": [archive], "extra": {"cabal_revision": {"number": 2, "sha256": "b" * 64}}}

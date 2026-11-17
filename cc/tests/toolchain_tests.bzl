@@ -2,12 +2,12 @@
 
 load("@platforms//host:constraints.bzl", "HOST_CONSTRAINTS")
 load("//core:defs.bzl", "expect_equal", "starlark_test")
-load(":bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_compiler_identity", "cc_toolchain_identity")
-load(":pins.bzl", "GCC_GLIBC", "GCC_VERSION", "LLVM_CLANG_VERSION")
+load("//cc/private/toolchain:bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_compiler_identity", "cc_toolchain_identity")
+load("//cc/private/toolchain:pins.bzl", "GCC_GLIBC", "GCC_VERSION", "LLVM_CLANG_VERSION")
 
 _CLANG_MAJOR = LLVM_CLANG_VERSION.split(".")[0]
 
-EXPECTED_IDENTITY_OBSERVATIONS = """subject //cc/private/toolchain:identity_under_test
+EXPECTED_IDENTITY_OBSERVATIONS = """subject //cc/tests:identity_under_test
 field cc.abi=itanium
 field cc.builtin_includes=external/llvm++glibc+glibc_headers_x86_64-linux-gnu.2.28/include | external/llvm++kernel_headers+linux_kernel_headers_x86.4.19.325/include | external/llvm++llvm+llvm-project/compiler-rt/include | external/llvm++llvm_toolchain_minimal+llvm-toolchain-minimal-linux-amd64/lib/clang/%s | external/llvm++llvm_toolchain_minimal+llvm-toolchain-minimal-linux-amd64/lib/clang/%s/include
 field cc.compiler=clang
@@ -21,14 +21,14 @@ field cc.target=x86_64-unknown-linux-gnu
 aspect_field aspect_seen=True
 aspect_field field_count=10
 aspect_field has_subject=True
-aspect_field subject_label=//cc/private/toolchain:identity_under_test
+aspect_field subject_label=//cc/tests:identity_under_test
 aspect_field transitive_count=0""" % (_CLANG_MAJOR, _CLANG_MAJOR)
 
 
 def _gcc(template):
     return template.replace("@GCCU@", GCC_VERSION.replace(".", "_")).replace("@GCC@", GCC_VERSION).replace("@GLIBC@", GCC_GLIBC)
 
-EXPECTED_GCC_IDENTITY_OBSERVATIONS = _gcc("""subject //cc/private/toolchain:identity_under_test_gcc
+EXPECTED_GCC_IDENTITY_OBSERVATIONS = _gcc("""subject //cc/tests:identity_under_test_gcc
 field cc.abi=itanium
 field cc.builtin_includes=external/+cc+dx_gcc_linux_x86_64_@GCCU@/external/+cc+dx_gcc_linux_x86_64_@GCCU@/include/c++/@GCC@ | external/+cc+dx_gcc_linux_x86_64_@GCCU@/external/+cc+dx_gcc_linux_x86_64_@GCCU@/include/c++/@GCC@/x86_64-linux | external/+cc+dx_gcc_linux_x86_64_@GCCU@/external/+cc+dx_gcc_linux_x86_64_@GCCU@/lib/gcc/x86_64-linux/@GCC@/include | external/+cc+dx_gcc_linux_x86_64_@GCCU@/external/+cc+dx_gcc_linux_x86_64_@GCCU@/lib/gcc/x86_64-linux/@GCC@/include-fixed | external/+cc+dx_gcc_linux_x86_64_@GCCU@/external/+cc+dx_gcc_linux_x86_64_@GCCU@/sysroot/usr/include
 field cc.compiler=gcc
@@ -42,10 +42,10 @@ field cc.target=x86_64-linux-gnu
 aspect_field aspect_seen=True
 aspect_field field_count=10
 aspect_field has_subject=True
-aspect_field subject_label=//cc/private/toolchain:identity_under_test_gcc
+aspect_field subject_label=//cc/tests:identity_under_test_gcc
 aspect_field transitive_count=0""")
 
-EXPECTED_GCC_ARM64_IDENTITY_OBSERVATIONS = _gcc("""subject //cc/private/toolchain:identity_under_test_gcc_arm64
+EXPECTED_GCC_ARM64_IDENTITY_OBSERVATIONS = _gcc("""subject //cc/tests:identity_under_test_gcc_arm64
 field cc.abi=itanium
 field cc.builtin_includes=external/+cc+dx_gcc_linux_aarch64_cross_@GCCU@/external/+cc+dx_gcc_linux_aarch64_cross_@GCCU@/aarch64-linux/include | external/+cc+dx_gcc_linux_aarch64_cross_@GCCU@/external/+cc+dx_gcc_linux_aarch64_cross_@GCCU@/aarch64-linux/include/c++/@GCC@ | external/+cc+dx_gcc_linux_aarch64_cross_@GCCU@/external/+cc+dx_gcc_linux_aarch64_cross_@GCCU@/aarch64-linux/include/c++/@GCC@/aarch64-linux | external/+cc+dx_gcc_linux_aarch64_cross_@GCCU@/external/+cc+dx_gcc_linux_aarch64_cross_@GCCU@/lib/gcc/aarch64-linux/@GCC@/include | external/+cc+dx_gcc_linux_aarch64_cross_@GCCU@/external/+cc+dx_gcc_linux_aarch64_cross_@GCCU@/lib/gcc/aarch64-linux/@GCC@/include-fixed | external/+cc+dx_gcc_linux_aarch64_cross_@GCCU@/external/+cc+dx_gcc_linux_aarch64_cross_@GCCU@/sysroot/usr/include
 field cc.compiler=gcc
@@ -59,10 +59,10 @@ field cc.target=aarch64-linux-gnu
 aspect_field aspect_seen=True
 aspect_field field_count=10
 aspect_field has_subject=True
-aspect_field subject_label=//cc/private/toolchain:identity_under_test_gcc_arm64
+aspect_field subject_label=//cc/tests:identity_under_test_gcc_arm64
 aspect_field transitive_count=0""")
 
-EXPECTED_GCC_ARM64_NATIVE_IDENTITY_OBSERVATIONS = _gcc("""subject //cc/private/toolchain:identity_under_test_gcc_arm64_native
+EXPECTED_GCC_ARM64_NATIVE_IDENTITY_OBSERVATIONS = _gcc("""subject //cc/tests:identity_under_test_gcc_arm64_native
 field cc.abi=itanium
 field cc.builtin_includes=external/+cc+dx_gcc_linux_aarch64_@GCCU@/external/+cc+dx_gcc_linux_aarch64_@GCCU@/aarch64-linux/include | external/+cc+dx_gcc_linux_aarch64_@GCCU@/external/+cc+dx_gcc_linux_aarch64_@GCCU@/include/c++/@GCC@ | external/+cc+dx_gcc_linux_aarch64_@GCCU@/external/+cc+dx_gcc_linux_aarch64_@GCCU@/include/c++/@GCC@/aarch64-linux | external/+cc+dx_gcc_linux_aarch64_@GCCU@/external/+cc+dx_gcc_linux_aarch64_@GCCU@/lib/gcc/aarch64-linux/@GCC@/include | external/+cc+dx_gcc_linux_aarch64_@GCCU@/external/+cc+dx_gcc_linux_aarch64_@GCCU@/lib/gcc/aarch64-linux/@GCC@/include-fixed | external/+cc+dx_gcc_linux_aarch64_@GCCU@/external/+cc+dx_gcc_linux_aarch64_@GCCU@/sysroot/usr/include
 field cc.compiler=gcc
@@ -76,10 +76,10 @@ field cc.target=aarch64-linux-gnu
 aspect_field aspect_seen=True
 aspect_field field_count=10
 aspect_field has_subject=True
-aspect_field subject_label=//cc/private/toolchain:identity_under_test_gcc_arm64_native
+aspect_field subject_label=//cc/tests:identity_under_test_gcc_arm64_native
 aspect_field transitive_count=0""")
 
-EXPECTED_MSVC_IDENTITY_OBSERVATIONS = """subject //cc/private/toolchain:identity_under_test_msvc
+EXPECTED_MSVC_IDENTITY_OBSERVATIONS = """subject //cc/tests:identity_under_test_msvc
 field cc.abi=msvc
 field cc.builtin_includes=external/+cc+dx_msvc_runtime/sysroot/Contents/VC/Tools/MSVC/14.50.35717/include | external/+cc+dx_windows_sdk/sysroot/base/c/Include/10.0.26100.0/shared | external/+cc+dx_windows_sdk/sysroot/base/c/Include/10.0.26100.0/ucrt | external/+cc+dx_windows_sdk/sysroot/base/c/Include/10.0.26100.0/um | external/+cc+dx_windows_sdk/sysroot/base/c/Include/10.0.26100.0/winrt
 field cc.compiler=msvc-cl
@@ -94,7 +94,7 @@ field cc.version=14.50.35717
 aspect_field aspect_seen=True
 aspect_field field_count=11
 aspect_field has_subject=True
-aspect_field subject_label=//cc/private/toolchain:identity_under_test_msvc
+aspect_field subject_label=//cc/tests:identity_under_test_msvc
 aspect_field transitive_count=0"""
 
 EXPECTED_MSVC_ARM64_IDENTITY_OBSERVATIONS = (

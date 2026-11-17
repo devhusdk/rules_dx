@@ -3,7 +3,7 @@ load("@rules_dx//cc/tests:defs_tests.bzl", "cc_external_asan_env_tests", "cc_ext
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//cc/private/toolchain:identity_subject.bzl", "cc_toolchain_identity_subject")
 load(":fake_config.bzl", "fake_cc_toolchain_config")
-load(":tests.bzl", "external_toolchain_tests")
+load(":toolchain_tests.bzl", "external_toolchain_tests")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -80,18 +80,18 @@ fake_cc_toolchain_config(
 
 cc_toolchain_identity_subject(
     name = "gcc_subject",
-    extra_toolchains = ["//cc/private/toolchain/external:gcc_toolchain"],
+    extra_toolchains = ["//cc/tests/fixtures/external_toolchain:gcc_toolchain"],
 )
 
 cc_toolchain_identity_subject(
     name = "gcc_flag_subject",
     compiler = "gcc",
-    extra_toolchains = ["//cc/private/toolchain/external:gcc_toolchain"],
+    extra_toolchains = ["//cc/tests/fixtures/external_toolchain:gcc_toolchain"],
 )
 
 cc_toolchain_identity_subject(
     name = "icx_subject",
-    extra_toolchains = ["//cc/private/toolchain/external:icx_toolchain"],
+    extra_toolchains = ["//cc/tests/fixtures/external_toolchain:icx_toolchain"],
 )
 
 external_toolchain_tests(name = "external")
@@ -111,7 +111,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "fake_config.bzl",
-        "tests.bzl",
+        "toolchain_tests.bzl",
     ],
     tags = ["corpus"],
 )

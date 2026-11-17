@@ -339,12 +339,6 @@ test-location apple/private/signing/signing_tests.bzl
 test-location astro/private/ide/BUILD.bazel
 test-location cc/private/context/BUILD.bazel
 test-location cc/private/context/src/lib_tests.rs
-test-location cc/private/toolchain/BUILD.bazel
-test-location cc/private/toolchain/external/BUILD.bazel
-test-location cc/private/toolchain/gcc_unsupported_tests.bzl
-test-location cc/private/toolchain/identity_tests.bzl
-test-location cc/private/toolchain/msvc/BUILD.bazel
-test-location cc/private/toolchain/msvc/repos_tests.bzl
 test-location csharp/private/ide/BUILD.bazel
 test-location d/private/coverage/BUILD.bazel
 test-location env/private/env_shard/BUILD.bazel

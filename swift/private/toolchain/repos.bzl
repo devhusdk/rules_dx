@@ -197,6 +197,8 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files([
     ".swift-version",
+    "toolchain/usr/bin/llvm-cov.exe",
+    "toolchain/usr/bin/llvm-profdata.exe",
     "toolchain/usr/bin/swiftc.exe",
 ])
 
@@ -224,10 +226,16 @@ filegroup(
         [
             "platform/Developer/SDKs/Windows.sdk/usr/lib/swift/windows/**",
             "platform/Developer/Library/XCTest-*/usr/lib/swift/windows/**",
+            "platform/Developer/Library/Testing-*/usr/lib/swift/windows/**",
         ],
         exclude = ["**/*.pdb"],
         allow_empty = True,
     ),
+)
+
+filegroup(
+    name = "profile_runtime",
+    srcs = ["toolchain/usr/lib/clang/21/lib/x86_64-unknown-windows-msvc/clang_rt.profile.lib"],
 )
 
 filegroup(

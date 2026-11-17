@@ -86,8 +86,8 @@ dockerfile runfiles_test *
 dotnet cross_test *
 dotnet lock_test *
 dotnet runfiles_test *
-elixir cross_test *
-erlang cross_test *
+elixir cross_test windows_x86_64
+erlang cross_test windows_x86_64
 flutter runfiles_test *
 fortran cross_test *
 fortran lock_test *

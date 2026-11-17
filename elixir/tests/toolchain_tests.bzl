@@ -111,6 +111,7 @@ def _checks():
         expect_contains("launcher forces Unicode names and stdio", script, "+fnu -kernel standard_io_encoding unicode $ELIXIR_ERL_OPTIONS $ERL"),
         expect_equal("elixir runs only on qualified cells", ELIXIR_CELLS, ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64", "windows_arm64"]),
         expect_equal("the hub registers each Elixir cell", hub.count("toolchain("), len(ELIXIR_CELLS)),
+        expect_false("the hub leaves the target platform open", "target_compatible_with" in hub),
         expect_equal("the hub skips other OTP cells", [cell for cell in CELLS if cell not in ELIXIR_CELLS and '"' + cell + '"' in hub], []),
         expect_false("the hub names no rules_elixir target", "@rules_elixir" in hub),
         expect_contains("the hub names the rules_elixir type", hub, "//:toolchain_type"),

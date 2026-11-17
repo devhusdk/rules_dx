@@ -24,6 +24,8 @@ load("//erlang/private/toolchain:cells.bzl", "otp_compatible_with")
 load("//erlang/private/toolchain:pins.bzl", "OTP_DIALYZER_UNPORTED_CELLS", "OTP_NIF_UNPORTED_CELLS")
 load(":kwargs.bzl", "erlang_app_forward_kwargs", "erlang_bytecode_kwargs", "erlang_erlc_kwargs", "erlang_kwargs", "nif_library_name", "release_priv_path", _ERLANG_CELLS = "ERLANG_CELLS", _ERLANG_COMPATIBLE_WITH = "ERLANG_COMPATIBLE_WITH")
 
+_RUNTIME_TOOLCHAIN_TYPE = Label("//erlang/private/toolchain:runtime_toolchain_type")
+
 ERLANG_CELLS = _ERLANG_CELLS
 ERLANG_COMPATIBLE_WITH = _ERLANG_COMPATIBLE_WITH
 
@@ -135,13 +137,14 @@ def _check_escript_without_nifs(ctx):
 def _escript_binary_impl(ctx):
     _check_escript_without_nifs(ctx)
     archive = ctx.attr.upstream[DefaultInfo].files_to_run.executable
-    (_, _, erlang_runfiles) = erlang_dirs(ctx)
-    root = ctx.toolchains["@rules_erlang//tools:toolchain_type"].otpinfo.version_file
+    otp = ctx.toolchains[_RUNTIME_TOOLCHAIN_TYPE].otpinfo
+    erlang_runfiles = ctx.runfiles(transitive_files = depset([otp.version_file], transitive = [otp.tree]))
+    root = otp.version_file
     version_key = runfiles_path(ctx.workspace_name, root.short_path)
     otp_root = version_key.rpartition("/")[0]
     archive_key = runfiles_path(ctx.workspace_name, archive.short_path)
     launcher, _, launcher_runfiles = write_native_launcher(ctx, otp_launch_descriptor(otp_root, "escript", archive_key, target_is_windows(ctx), version_key))
-    runfiles = launcher_runfiles.merge(ctx.runfiles([archive])).merge(erlang_runfiles).merge(ctx.attr.upstream[DefaultInfo].default_runfiles)
+    runfiles = launcher_runfiles.merge(ctx.runfiles([archive])).merge(erlang_runfiles)
     for dep in ctx.attr.data:
         runfiles = runfiles.merge(dep[DefaultInfo].default_runfiles)
         runfiles = runfiles.merge(ctx.runfiles(transitive_files = dep[DefaultInfo].files))
@@ -161,7 +164,7 @@ _escript_binary = rule(
         "apps": attr.label_list(providers = [_ErlangAppInfo], doc = "The apps bundled into the archive; none may ship a NIF."),
     }, **dict(NATIVE_LAUNCHER_ATTRS, **dx_forward_data_attr())),
     provides = [DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
-    toolchains = ["@rules_erlang//tools:toolchain_type"],
+    toolchains = [_RUNTIME_TOOLCHAIN_TYPE],
 )
 
 def lcov_apps_dirs(short_paths):

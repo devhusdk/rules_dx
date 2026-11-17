@@ -92,6 +92,7 @@ dx_conformance_suite(
     size = "small",
     binary = ":hello",
     covered_source = "greet.erl",
+    cross_runfile = "escript",
     expected = "hello world",
     failing_case = "failing_case",
     failing_pattern = "{case}_test (module 'hello_tests')...*failed*",

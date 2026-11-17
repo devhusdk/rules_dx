@@ -8,8 +8,8 @@ rust_test(
     size = "small",
     srcs = ["libunwind_copy_test.rs"],
     data = ["@llvm-project//libunwind:libunwind.static.gnu_link_name"],
-    target_compatible_with = ["@platforms//os:linux"],
     env = {"DX_LIBUNWIND": "$(rootpath @llvm-project//libunwind:libunwind.static.gnu_link_name)"},
+    target_compatible_with = ["@platforms//os:linux"],
     deps = ["//tools/testing:dx_testing"],
 )
 
@@ -18,8 +18,8 @@ rust_test(
     size = "small",
     srcs = ["msvc_source_directories_test.rs"],
     data = ["@llvm//runtimes/msvc:BUILD.bazel"],
-    target_compatible_with = ["@platforms//os:linux"],
     env = {"DX_MSVC_RUNTIMES_BUILD": "$(rootpath @llvm//runtimes/msvc:BUILD.bazel)"},
+    target_compatible_with = ["@platforms//os:linux"],
     deps = ["//tools/testing:dx_testing"],
 )
 
@@ -55,8 +55,8 @@ rust_test(
     size = "small",
     srcs = ["lse_atomic_sources_test.rs"],
     data = [":aarch64_builtins"],
-    target_compatible_with = ["@platforms//os:linux"],
     env = {"DX_AARCH64_BUILTINS": "$(rootpath :aarch64_builtins)"},
+    target_compatible_with = ["@platforms//os:linux"],
     deps = ["//tools/testing:dx_testing"],
 )
 
@@ -65,8 +65,8 @@ rust_test(
     size = "small",
     srcs = ["macos_sdk_symlinks_test.rs"],
     data = ["@macos_sdk//sysroot"],
-    target_compatible_with = ["@platforms//os:linux"],
     env = {"DX_MACOS_SYSROOT": "$(rootpath @macos_sdk//sysroot)"},
+    target_compatible_with = ["@platforms//os:linux"],
     deps = ["//tools/testing:dx_testing"],
 )
 

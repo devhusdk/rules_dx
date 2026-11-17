@@ -13,6 +13,16 @@ javascript_library(
 )
 
 javascript_library(
+    name = "lint_dirty",
+    srcs = ["lint_dirty.js"],
+)
+
+javascript_library(
+    name = "format_dirty",
+    srcs = ["format_dirty.js"],
+)
+
+javascript_library(
     name = "jest_config",
     srcs = ["jest.config.cjs"],
 )
@@ -97,6 +107,15 @@ dx_conformance_suite(
         "stale": "pnpm-lock.stale.yaml",
     },
     passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "format_dirty.js",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 2,
+        "lint_rule": "noUnusedVariables",
+        "lint_source": "lint_dirty.js",
+    },
     runfiles = {
         "binary": ":runfiles_hello",
         "data": "data.txt",

@@ -224,10 +224,6 @@ java format_error_test *
 java format_test *
 java lint_error_test *
 java lint_test *
-javascript format_error_test *
-javascript format_test *
-javascript lint_error_test *
-javascript lint_test *
 julia cross_test *
 julia format_error_test *
 julia format_test *

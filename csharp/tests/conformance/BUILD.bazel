@@ -37,6 +37,13 @@ csharp_test(
     deps = [":greet"],
 )
 
+csharp_binary(
+    name = "runfiles_hello",
+    srcs = ["RunfilesMain.cs"],
+    data = ["data.txt"],
+    deps = ["@rules_dotnet//tools/runfiles"],
+)
+
 dx_conformance_suite(
     name = "",
     size = "small",
@@ -48,6 +55,11 @@ dx_conformance_suite(
     failing_test = ":fail_subject_test",
     lang = "csharp",
     passing_test = ":pass_subject_test",
+    runfiles = {
+        "binary": ":runfiles_hello",
+        "data": "data.txt",
+        "expected": "hello runfiles",
+    },
 )
 
 real_source_target(

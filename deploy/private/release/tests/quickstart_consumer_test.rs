@@ -6,7 +6,7 @@ use dx_nested::compose::{
 };
 use dx_nested::{self as nested, Case, footprint, plain_fixture};
 use dx_release_tools::presubmit;
-use dx_testing::{Run, read_text, resolve_runfiles, rules_dx_source, scratch_dir, write_text};
+use dx_testing::{Run, read_text, resolve_runfiles, rules_dx_source, write_text};
 
 /// Asserts `run` passed; a failing run's last lines also go to the uncaptured stderr, so a test
 /// killed by its timeout still shows them.
@@ -66,9 +66,12 @@ fn built_dx(case: &Case) -> std::path::PathBuf {
     std::path::PathBuf::from(info.stdout.trim()).join(files.stdout.trim())
 }
 
-/// The `PATH` of the nested commands: an empty directory.
+/// The `PATH` of the nested commands: the directory of the hermetic coreutils applets.
 pub(crate) fn nested_path() -> String {
-    scratch_dir("quickstart-path")
+    let applets = dx_testing::env_files("DX_COREUTILS");
+    applets[0]
+        .parent()
+        .expect("applet directory")
         .to_string_lossy()
         .into_owned()
 }

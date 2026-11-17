@@ -813,6 +813,7 @@ filegroup(
         "//php/private/lock:module_srcs",
         "//php/private/quality:module_srcs",
         "//php/private/toolchain:module_srcs",
+        "//php/private/tools/launcher:module_srcs",
         "//php/private/tools/lock:module_srcs",
         "//powershell:module_srcs",
         "//powershell/private:module_srcs",

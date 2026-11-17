@@ -1,0 +1,21 @@
+load("@rules_dx//rust:defs.bzl", "rust_binary")
+
+package(default_visibility = ["//visibility:private"])
+
+rust_binary(
+    name = "exec_launcher",
+    srcs = [
+        "//cli/launcher:src/launch.rs",
+        "//cli/launcher:src/main.rs",
+    ],
+    crate_name = "launcher",
+    crate_root = "//cli/launcher:src/main.rs",
+    visibility = ["//php:__subpackages__"],
+    deps = ["//cli/path:dx_path"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

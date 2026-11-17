@@ -2,6 +2,7 @@
 
 load("//apple/private/xcode:license.bzl", "XCODE_LICENSE_ATTR")
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
+load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//core:rlocation.bzl", "rlocation_path")
 load(":app.bzl", "AppleIosDeviceAppInfo")
 
@@ -40,7 +41,7 @@ def _export_impl(ctx):
         executable = launcher,
         runfiles = launcher_runfiles.merge_all([
             ctx.attr.meta[DefaultInfo].default_runfiles,
-            ctx.attr._ops[DefaultInfo].default_runfiles,
+            ctx.attr._ops[0][DefaultInfo].default_runfiles,
         ]),
     )
 
@@ -52,7 +53,7 @@ _export = rule(
         "_ops": attr.label(
             default = Label("//apple/private/tools/ops:apple_ops"),
             executable = True,
-            cfg = "target",
+            cfg = no_coverage_transition,
         ),
         "_xcode_config": attr.label(
             default = configuration_field(name = "xcode_config_label", fragment = "apple"),

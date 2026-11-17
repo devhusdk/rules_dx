@@ -4,6 +4,7 @@ load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("//apple/private/bundle:validate.bzl", "bundle_id_errors")
 load("//apple/private/xcode:license.bzl", "XCODE_LICENSE_ATTR")
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
+load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//core:rlocation.bzl", "rlocation_path")
 
 def simulator_errors(simulator):
@@ -26,7 +27,7 @@ def _simctl_impl(ctx):
         "env=DX_XCODE_VERSION\t" + (str(xcode) if xcode else ""),
         "env_default=DX_SIMCTL_DEVICE\t" + ctx.attr.simulator,
     ]
-    runfiles = [ctx.attr._ops[DefaultInfo].default_runfiles]
+    runfiles = [ctx.attr._ops[0][DefaultInfo].default_runfiles]
     if ctx.attr.bundle_id:
         lines.append("env=DX_SIMCTL_BUNDLE_ID\t" + ctx.attr.bundle_id)
     if ctx.attr.app:
@@ -64,7 +65,7 @@ _simctl = rule(
         "_ops": attr.label(
             default = Label("//apple/private/tools/ops:apple_ops"),
             executable = True,
-            cfg = "target",
+            cfg = no_coverage_transition,
         ),
         "_xcode_config": attr.label(
             default = configuration_field(

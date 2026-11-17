@@ -48,6 +48,7 @@ nested_bazel_test(
         "//patches/llvm:unwatched_overlay_inputs.patch",
         "//patches/ring:clang_cl_aarch64_windows.patch",
         "//patches/ring:msvc_fiat_include_path.patch",
+        "//patches/rules_flutter:coverage_enabled.patch",
         "//patches/rules_flutter:flutter_3_47_9.patch",
         "//patches/rules_flutter:ios_target_compatible_with.patch",
         "//patches/rules_flutter:lock_extension.patch",

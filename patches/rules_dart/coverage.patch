@@ -1,16 +1,33 @@
+diff -ruN a/dart/private/dart_test.bzl b/dart/private/dart_test.bzl
+--- a/dart/private/dart_test.bzl
++++ b/dart/private/dart_test.bzl
+@@ -107,6 +107,8 @@
+         env["RULES_DART_TEST_MAIN"] = runfiles_path(ctx.file.main, workspace_name)
+         env["RULES_DART_TEST_PATH"] = _test_path(ctx)
+         runner_files = [runner, ctx.file.main]
++        if ctx.configuration.coverage_enabled:
++            env["RULES_DART_COVERAGE"] = "1"
+     for key, value in ctx.attr.env.items():
+         if key.startswith("RULES_DART_"):
+             fail("%s: `env` cannot set %s; rules_dart uses the RULES_DART_ prefix to drive the test" % (ctx.label, key))
 diff -ruN a/dart/private/tools/test_runner.dart b/dart/private/tools/test_runner.dart
 --- a/dart/private/tools/test_runner.dart
 +++ b/dart/private/tools/test_runner.dart
-@@ -146,6 +146,8 @@
+@@ -146,6 +146,13 @@
    final xmlOutput = env['XML_OUTPUT_FILE'];
    final shardStatus = env['TEST_SHARD_STATUS_FILE'];
    final report = _join(tmp.path, 'results.json');
-+  final coverageOutput = env['COVERAGE_OUTPUT_FILE'];
++  // COVERAGE_OUTPUT_FILE says the run wants coverage; RULES_DART_COVERAGE says
++  // the test was built with --collect_code_coverage. A test built without it
++  // reports no coverage even when run in a coverage environment.
++  final coverageOutput = env['RULES_DART_COVERAGE'] == '1'
++      ? env['COVERAGE_OUTPUT_FILE']
++      : null;
 +  final coverageDir = File(_join(tmp.path, 'coverage/raw')).parent.path;
  
    // Touched before the run, as Bazel asks: it is how a test runner says it
    // supports sharding at all.
-@@ -165,6 +167,7 @@
+@@ -165,6 +172,7 @@
        // timeout a test states on its own case, and that one is the author's.
        '--timeout=${_suiteTimeout(env)}',
        '--file-reporter=json:$report',
@@ -18,7 +35,7 @@ diff -ruN a/dart/private/tools/test_runner.dart b/dart/private/tools/test_runner
        if (filter != null && filter.isNotEmpty) ...['--name', filter],
        if (totalShards != null && shardIndex != null) ...[
          '--total-shards',
-@@ -196,6 +199,15 @@
+@@ -196,6 +204,15 @@
      code = 0;
    }
  
@@ -34,7 +51,7 @@ diff -ruN a/dart/private/tools/test_runner.dart b/dart/private/tools/test_runner
    if (xmlOutput != null) {
      final reportFile = File(report);
      if (reportFile.existsSync()) {
-@@ -207,6 +219,47 @@
+@@ -207,6 +224,47 @@
    return code;
  }
  

@@ -29,7 +29,7 @@
 +            log_fatal "RUNFILES_MANIFEST_FILE $RUNFILES_MANIFEST_FILE does not exist"
 +            exit 1
 +        fi
-+        RUNFILES=$(mktemp -d "${TEST_TMPDIR:-${TMPDIR:-/tmp}}/js_binary_runfiles.XXXXXX")
++        RUNFILES=$(_normalize_path "$(mktemp -d "$(_normalize_path "${TEST_TMPDIR:-${TMPDIR:-/tmp}}")/js_binary_runfiles.XXXXXX")")
 +        while IFS= read -r _line || [ -n "$_line" ]; do
 +            [ -z "$_line" ] && continue
 +            _key=${_line%% *}

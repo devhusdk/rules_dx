@@ -1388,13 +1388,13 @@ fn remove_root_clears_read_only_trees_without_following_links() {
     for path in [root.join("ro/inner"), root.join("ro")] {
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o500)).unwrap();
     }
-    remove_root(&root);
+    assert!(remove_root(&root));
     assert!(!root.exists());
     assert_eq!(
         outside.metadata().unwrap().permissions().mode() & 0o777,
         0o500
     );
-    remove_root(&dir.path().join("never made"));
+    assert!(remove_root(&dir.path().join("never made")));
     std::fs::set_permissions(&outside, std::fs::Permissions::from_mode(0o700)).unwrap();
 }
 

@@ -29,7 +29,7 @@ struct Scene {
 fn scene(name: &str) -> Scene {
     let tmp = PathBuf::from(std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR is set under Bazel"));
     let root = tmp.join(format!("appcontainer probe {name}"));
-    hermetic::remove_root(&root);
+    assert!(hermetic::remove_root(&root), "{} is removed", root.display());
     let granted = root.join("granted");
     let ungranted = root.join("ungranted");
     std::fs::create_dir_all(&granted).expect("granted dir");

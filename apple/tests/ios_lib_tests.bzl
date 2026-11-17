@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load(":defs.bzl", "AppleIosLibInfo")
+load("//apple/private/ios:defs.bzl", "AppleIosLibInfo")
 
 _XCODES = str(Label("//apple/private/provisioning:managed_xcodes"))
 

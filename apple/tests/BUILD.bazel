@@ -34,6 +34,8 @@ real_source_target(
     testonly = True,
     starlark_srcs = [
         "BUILD.bazel",
+        "cell_tests.bzl",
+        "ios_lib_tests.bzl",
         "toolchain_tests.bzl",
     ],
     tags = ["corpus"],

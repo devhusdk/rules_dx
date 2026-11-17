@@ -4,7 +4,7 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//core:failure_test.bzl", "failure_test_rule")
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load(":defs.bzl", "adhoc_signing_transition")
+load("//apple/private/bundle:defs.bzl", "adhoc_signing_transition")
 load("//core/quality:sources.bzl", "single_target")
 
 _XCODES = str(Label("//apple/private/provisioning:managed_xcodes"))

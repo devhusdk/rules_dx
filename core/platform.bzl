@@ -10,7 +10,7 @@ DxPlatformInfo = provider(
 
 _PLATFORMS = "//command_line_option:platforms"
 
-def _attr_platforms(attr):
+def _attr_platforms(attr, _current):
     """Returns attr.platforms as strings, or [] when the rule has none."""
     return [str(p) for p in (getattr(attr, "platforms", None) or [])]
 
@@ -23,10 +23,13 @@ def _with_platforms(settings, platforms):
     return out
 
 def platforms_transition(implementation = _no_settings, inputs = [], outputs = [], platforms = _attr_platforms, single = ""):
-    """Returns the transition that builds for a platforms list, one configuration per platform."""
+    """Returns the transition that builds for a platforms list, one configuration per platform.
+
+    platforms(attr, current) returns the platforms to build for, or [] to keep current, the command-line platforms.
+    """
 
     def _impl(settings, attr):
-        chosen = platforms(attr)
+        chosen = platforms(attr, settings[_PLATFORMS])
         if not chosen:
             return _with_platforms(implementation(settings, attr, []), settings[_PLATFORMS])
         if single:
@@ -43,7 +46,7 @@ def platforms_transition(implementation = _no_settings, inputs = [], outputs = [
         outputs = [_PLATFORMS] + [s for s in outputs if s != _PLATFORMS],
     )
 
-platform_transition = platforms_transition(platforms = lambda attr: [str(attr.platform)] if attr.platform else [])
+platform_transition = platforms_transition(platforms = lambda attr, _current: [str(attr.platform)] if attr.platform else [])
 
 def _platform_probe_impl(ctx):
     """Reports the os and cpu of the target platform."""

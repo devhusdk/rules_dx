@@ -599,7 +599,6 @@ real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
-        "action_tests.bzl",
         "bindings.bzl",
         "identity_subject.bzl",
         "identity_tests.bzl",

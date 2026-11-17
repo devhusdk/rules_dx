@@ -72,13 +72,13 @@ pub fn coalesce_watch_paths(roots: &[&Path], mut paths: Vec<PathBuf>) -> Vec<Pat
 pub fn is_change(kind: &notify::EventKind) -> bool {
     use notify::event::{AccessKind, AccessMode, EventKind};
     match kind {
-        EventKind::Access(AccessKind::Close(AccessMode::Write)) => true,
-        EventKind::Access(_) => false,
-        EventKind::Any
+        EventKind::Access(AccessKind::Close(AccessMode::Write))
+        | EventKind::Any
         | EventKind::Create(_)
         | EventKind::Modify(_)
         | EventKind::Remove(_)
         | EventKind::Other => true,
+        EventKind::Access(_) => false,
     }
 }
 

@@ -454,11 +454,11 @@ fn lock_with_extensions(extensions: serde_json::Value) -> String {
     root.to_string()
 }
 
-fn general(specs: serde_json::Value) -> serde_json::Value {
+fn general(specs: &serde_json::Value) -> serde_json::Value {
     serde_json::json!({"general": {"bzlTransitiveDigest": "x", "generatedRepoSpecs": specs}})
 }
 
-fn spec(attributes: serde_json::Value) -> serde_json::Value {
+fn spec(attributes: &serde_json::Value) -> serde_json::Value {
     serde_json::json!({"repoRuleId": HTTP_FILE, "attributes": attributes})
 }
 
@@ -471,8 +471,8 @@ fn extension_inputs_of(
 #[test]
 fn extension_repos_with_urls_are_listed_with_origin_and_digest() {
     let inputs = extension_inputs_of(serde_json::json!({
-        EXT_A: general(serde_json::json!({
-            "tool_jar": spec(serde_json::json!({"urls": ["https://example.com/tool.jar"], "sha256": ARCHIVE_SHA})),
+        EXT_A: general(&serde_json::json!({
+            "tool_jar": spec(&serde_json::json!({"urls": ["https://example.com/tool.jar"], "sha256": ARCHIVE_SHA})),
             "custom": {"repoRuleId": "@@rules_a+//:repo.bzl%custom_repo", "attributes": {"url": "https://example.com/custom.tgz", "integrity": "sha256-abc="}},
         })),
     }))
@@ -495,7 +495,8 @@ fn extension_repos_with_urls_are_listed_with_origin_and_digest() {
 
 #[test]
 fn an_extension_repo_under_several_platform_keys_is_listed_once() {
-    let repo = spec(serde_json::json!({"url": "https://example.com/a.tgz", "sha256": ARCHIVE_SHA}));
+    let repo =
+        spec(&serde_json::json!({"url": "https://example.com/a.tgz", "sha256": ARCHIVE_SHA}));
     let inputs = extension_inputs_of(serde_json::json!({
         EXT_A: {
             "os:linux": {"generatedRepoSpecs": {"tool": repo.clone()}},
@@ -509,9 +510,9 @@ fn an_extension_repo_under_several_platform_keys_is_listed_once() {
 #[test]
 fn an_extension_hub_without_a_url_is_skipped() {
     let inputs = extension_inputs_of(serde_json::json!({
-        EXT_A: general(serde_json::json!({
+        EXT_A: general(&serde_json::json!({
             "hub": {"repoRuleId": "@@rules_a+//:hub.bzl%hub", "attributes": {"repos": ["a"]}},
-            "empty_urls": spec(serde_json::json!({"urls": []})),
+            "empty_urls": spec(&serde_json::json!({"urls": []})),
         })),
     }))
     .expect("parses");
@@ -525,7 +526,7 @@ fn a_malformed_extension_digest_fails() {
         serde_json::json!({"url": "https://example.com/a.tgz", "integrity": "md5-abc"}),
     ] {
         let error = extension_inputs_of(serde_json::json!({
-            EXT_A: general(serde_json::json!({"bad": spec(attributes)})),
+            EXT_A: general(&serde_json::json!({"bad": spec(&attributes)})),
         }))
         .expect_err("fails");
         assert!(
@@ -539,7 +540,7 @@ fn a_malformed_extension_digest_fails() {
 #[test]
 fn an_extension_repo_without_a_rule_fails() {
     let error = extension_inputs_of(serde_json::json!({
-        EXT_A: general(serde_json::json!({"norule": {"attributes": {"url": "https://example.com/a"}}})),
+        EXT_A: general(&serde_json::json!({"norule": {"attributes": {"url": "https://example.com/a"}}})),
     }))
     .expect_err("fails");
     assert!(
@@ -551,9 +552,9 @@ fn an_extension_repo_without_a_rule_fails() {
 #[test]
 fn an_extension_repo_without_a_digest_is_unpinned_and_empty_integrity_is_absent() {
     let inputs = extension_inputs_of(serde_json::json!({
-        EXT_A: general(serde_json::json!({
-            "loose": spec(serde_json::json!({"url": "https://example.com/loose.tgz"})),
-            "pinned": spec(serde_json::json!({"url": "https://example.com/p.tgz", "urls": [], "integrity": "", "sha256": ARCHIVE_SHA})),
+        EXT_A: general(&serde_json::json!({
+            "loose": spec(&serde_json::json!({"url": "https://example.com/loose.tgz"})),
+            "pinned": spec(&serde_json::json!({"url": "https://example.com/p.tgz", "urls": [], "integrity": "", "sha256": ARCHIVE_SHA})),
         })),
     }))
     .expect("parses");
@@ -567,7 +568,7 @@ fn an_extension_repo_without_a_digest_is_unpinned_and_empty_integrity_is_absent(
 #[test]
 fn an_old_style_extension_spec_names_its_rule_by_file_and_class() {
     let inputs = extension_inputs_of(serde_json::json!({
-        EXT_A: general(serde_json::json!({
+        EXT_A: general(&serde_json::json!({
             "old": {"bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl", "ruleClassName": "http_archive", "attributes": {"urls": ["https://example.com/old.tgz"], "sha256": ARCHIVE_SHA}},
         })),
     }))
@@ -579,8 +580,8 @@ fn an_old_style_extension_spec_names_its_rule_by_file_and_class() {
 #[test]
 fn two_extensions_generating_one_repo_from_different_urls_fail() {
     let error = extension_inputs_of(serde_json::json!({
-        EXT_A: general(serde_json::json!({"tool": spec(serde_json::json!({"url": "https://a.example/t.tgz", "sha256": ARCHIVE_SHA}))})),
-        EXT_B: general(serde_json::json!({"tool": spec(serde_json::json!({"url": "https://b.example/t.tgz", "sha256": ARCHIVE_SHA}))})),
+        EXT_A: general(&serde_json::json!({"tool": spec(&serde_json::json!({"url": "https://a.example/t.tgz", "sha256": ARCHIVE_SHA}))})),
+        EXT_B: general(&serde_json::json!({"tool": spec(&serde_json::json!({"url": "https://b.example/t.tgz", "sha256": ARCHIVE_SHA}))})),
     }))
     .expect_err("fails");
     assert!(error.message().contains(EXT_A), "{error}");
@@ -594,7 +595,7 @@ fn an_extension_repo_matching_a_module_download_fails_as_a_duplicate() {
         "http_archive = use_repo_rule(\"@bazel_tools//tools/build_defs/repo:http.bzl\", \"http_archive\")\nhttp_archive(name = \"tool\", urls = [\"https://a.example/t.tgz\"], sha256 = \"{ARCHIVE_SHA}\")\n"
     );
     let lock_text = lock_with_extensions(serde_json::json!({
-        EXT_A: general(serde_json::json!({"tool": spec(serde_json::json!({"url": "https://a.example/t.tgz", "sha256": ARCHIVE_SHA}))})),
+        EXT_A: general(&serde_json::json!({"tool": spec(&serde_json::json!({"url": "https://a.example/t.tgz", "sha256": ARCHIVE_SHA}))})),
     }));
     let error = inputs_of(&module, &lock_text).expect_err("fails");
     assert!(
@@ -622,9 +623,9 @@ fn a_lock_without_module_extensions_lists_no_extension_inputs() {
 #[test]
 fn patched_and_commit_pinned_extension_repos_keep_those_facts() {
     let inputs = extension_inputs_of(serde_json::json!({
-        EXT_A: general(serde_json::json!({
+        EXT_A: general(&serde_json::json!({
             "git_repo": {"repoRuleId": "@@bazel_tools//tools/build_defs/repo:git.bzl%git_repository", "attributes": {"remote": "https://example.com/r.git", "commit": "abc123"}},
-            "patched": spec(serde_json::json!({"url": "https://example.com/p.tgz", "sha256": ARCHIVE_SHA, "patches": ["//:fix.patch"]})),
+            "patched": spec(&serde_json::json!({"url": "https://example.com/p.tgz", "sha256": ARCHIVE_SHA, "patches": ["//:fix.patch"]})),
         })),
     }))
     .expect("parses");
@@ -661,13 +662,13 @@ x = use_extension(\"@a//:ext.bzl\", \"ext\")\n\
 y = use_extension(\"@rules_b//p:b.bzl\", \"b\")\n\
 z = use_extension(\"//:local.bzl\", \"local\")\n";
     let recorded = serde_json::json!({
-        "@@rules_a+//:ext.bzl%ext": general(serde_json::json!({})),
-        "@@rules_b+//p:b.bzl%b%isolated": general(serde_json::json!({})),
+        "@@rules_a+//:ext.bzl%ext": general(&serde_json::json!({})),
+        "@@rules_b+//p:b.bzl%b%isolated": general(&serde_json::json!({})),
     });
     assert_eq!(unrecorded_of(module, recorded), vec!["//:local.bzl%local"]);
     let tilde = serde_json::json!({
-        "@@rules_a~//:ext.bzl%ext": general(serde_json::json!({})),
-        "@@rules_b+//p:b.bzl%b": general(serde_json::json!({})),
+        "@@rules_a~//:ext.bzl%ext": general(&serde_json::json!({})),
+        "@@rules_b+//p:b.bzl%b": general(&serde_json::json!({})),
     });
     assert_eq!(
         unrecorded_of(module, tilde),

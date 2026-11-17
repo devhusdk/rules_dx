@@ -7,6 +7,7 @@ pub struct GenerationView {
     pub hex: String,
 }
 
+#[derive(Clone, Copy)]
 pub struct PruneInputs<'a> {
     pub records: &'a [SetupRecordView],
     pub generations: &'a [GenerationView],

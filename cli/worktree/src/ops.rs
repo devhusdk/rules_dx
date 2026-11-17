@@ -860,7 +860,7 @@ fn lease_once(
     stamp(host, &mut placeholder);
     stop_check(host)?;
     if fresh {
-        std::fs::create_dir_all(pool.slot_path(slot)).map_err(WorktreeError::io)?;
+        std::fs::create_dir_all(pool.slot_path(slot)).map_err(WorktreeError::from)?;
     }
     pool.write(&placeholder)?;
     let bases = if stale.is_empty() {
@@ -1024,7 +1024,7 @@ fn switch_slot(
     let path = pool.slot_path(slot);
     stop_check(host)?;
     if fresh {
-        std::fs::create_dir_all(&pool.base).map_err(WorktreeError::io)?;
+        std::fs::create_dir_all(&pool.base).map_err(WorktreeError::from)?;
         git::run(
             &pool.main,
             &[
@@ -1102,9 +1102,9 @@ pub(crate) fn copy_includes(main: &Path, dest: &Path) -> Result<usize, WorktreeE
         }
         let to = dest.join(relative);
         if let Some(parent) = to.parent() {
-            std::fs::create_dir_all(parent).map_err(WorktreeError::io)?;
+            std::fs::create_dir_all(parent).map_err(WorktreeError::from)?;
         }
-        std::fs::copy(&from, &to).map_err(WorktreeError::io)?;
+        std::fs::copy(&from, &to).map_err(WorktreeError::from)?;
         copied += 1;
     }
     Ok(copied)

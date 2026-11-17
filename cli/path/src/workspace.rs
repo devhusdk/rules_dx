@@ -12,9 +12,8 @@ impl WorkspaceRelativePath {
     /// Validates a serialized path against the shared ladder.
     pub fn new(path: &str) -> Result<Self, PathProblem> {
         match classify(path) {
-            Some(PathProblem::EmptyComponent) => {}
+            Some(PathProblem::EmptyComponent) | None => {}
             Some(problem) => return Err(problem),
-            None => {}
         }
         let canonical = path
             .split('/')

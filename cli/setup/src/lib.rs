@@ -362,7 +362,7 @@ fn ensure_setup_record(setups_dir: &Path, pair: &SetupPair) -> Result<PathBuf, C
 
 fn install_and_swap(
     setups_dir: &Path,
-    prior: Option<SetupPair>,
+    prior: Option<&SetupPair>,
     pair: &SetupPair,
 ) -> Result<CommitOutcome, CommitError> {
     fs::create_dir_all(setups_dir).map_err(|e| CommitError::Install {
@@ -373,7 +373,7 @@ fn install_and_swap(
     clear_stale_stage(&stage).map_err(map_commit_error)?;
     let record_name = setup_hex(pair);
     ensure_setup_record(setups_dir, pair)?;
-    if prior.as_ref() == Some(pair) {
+    if prior == Some(pair) {
         return Ok(CommitOutcome::AlreadyCurrent);
     }
     let fresh = prior.is_none();
@@ -412,7 +412,7 @@ pub fn commit_pair_with_timeout(
     let _lock = acquire_setup_commit_lock(&dx_dir, timeout)?;
     let setups_dir = dx_dir.join(SETUPS_DIR_NAME);
     let prior = read_current_pair(workspace_root)?;
-    install_and_swap(&setups_dir, prior, pair)
+    install_and_swap(&setups_dir, prior.as_ref(), pair)
 }
 
 pub fn commit_prepared(
@@ -454,7 +454,7 @@ pub fn commit_prepared_with_timeout(
     .map_err(|_| CommitError::NoCapability)?;
     let setups_dir = dx_dir.join(SETUPS_DIR_NAME);
     let prior = read_current_pair(workspace_root)?;
-    let outcome = install_and_swap(&setups_dir, prior, &pair)?;
+    let outcome = install_and_swap(&setups_dir, prior.as_ref(), &pair)?;
     Ok((pair, outcome))
 }
 

@@ -75,10 +75,11 @@ pub fn is_test_file(eco: Language, path: &Path) -> bool {
             name.starts_with("test_") || name.ends_with("_test.py") || s.contains("/tests/")
         }
         Language::Go => name.ends_with("_test.go") || s.contains("/tests/") || s.contains("/test/"),
-        Language::Java | Language::Kotlin | Language::Scala => {
-            name.contains("Test") || s.to_lowercase().contains("/test/") || s.contains("/tests/")
-        }
-        Language::Csharp | Language::Fsharp => {
+        Language::Java
+        | Language::Kotlin
+        | Language::Scala
+        | Language::Csharp
+        | Language::Fsharp => {
             name.contains("Test") || s.to_lowercase().contains("/test/") || s.contains("/tests/")
         }
         Language::Cc => {

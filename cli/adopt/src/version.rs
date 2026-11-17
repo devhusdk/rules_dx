@@ -264,9 +264,8 @@ pub fn module_dependency_status(dependency: &ModuleDependency) -> &'static str {
     }
     match dependency.resolved_version() {
         Some(version) if version == MODULE_VERSION => "ok",
-        Some(_) => "warn",
         None if dependency.override_kind.is_some() => "ok",
-        None => "warn",
+        Some(_) | None => "warn",
     }
 }
 

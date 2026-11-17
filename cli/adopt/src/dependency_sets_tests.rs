@@ -913,7 +913,7 @@ mod link_confinement {
         outside
     }
 
-    fn is_outside(result: Result<(), DependencySetsError>) -> bool {
+    fn is_outside(result: &Result<(), DependencySetsError>) -> bool {
         matches!(result, Err(DependencySetsError::OutsideWorkspace { .. }))
     }
 
@@ -921,7 +921,7 @@ mod link_confinement {
     fn manifest_linking_outside_is_rejected() {
         let (outer, workspace, set) = setup();
         link_out(outer.path(), &workspace, &set.manifests[0]);
-        assert!(is_outside(check_files(&workspace, &set, false)));
+        assert!(is_outside(&check_files(&workspace, &set, false)));
     }
 
     #[test]
@@ -933,8 +933,8 @@ mod link_confinement {
             std::fs::write(at, "").expect("manifest");
         }
         link_out(outer.path(), &workspace, &set.locks[0]);
-        assert!(is_outside(check_files(&workspace, &set, false)));
-        assert!(is_outside(check_files(&workspace, &set, true)));
+        assert!(is_outside(&check_files(&workspace, &set, false)));
+        assert!(is_outside(&check_files(&workspace, &set, true)));
     }
 
     #[test]
@@ -948,7 +948,7 @@ mod link_confinement {
         let at = workspace.join(&set.locks[0]);
         std::fs::create_dir_all(at.parent().expect("parent")).expect("dirs");
         std::os::unix::fs::symlink(outer.path().join("nope"), at).expect("link");
-        assert!(is_outside(check_files(&workspace, &set, false)));
+        assert!(is_outside(&check_files(&workspace, &set, false)));
     }
 
     #[test]

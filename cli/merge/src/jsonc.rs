@@ -47,7 +47,7 @@ pub fn remove_keys(text: &str, paths: &[&[&str]]) -> Result<String, Error> {
 }
 
 /// The text with `value` added to the array at `path` unless an equal entry is already there.
-pub fn append_missing(text: &str, path: &[&str], value: Value) -> Result<String, Error> {
+pub fn append_missing(text: &str, path: &[&str], value: &Value) -> Result<String, Error> {
     edit(text, |root| {
         let (last, parents) = path.split_last().ok_or_else(empty_path)?;
         let object = walk(root.clone(), parents)?;
@@ -61,9 +61,9 @@ pub fn append_missing(text: &str, path: &[&str], value: Value) -> Result<String,
         let present = array
             .elements()
             .iter()
-            .any(|node| node.to_serde_value().as_ref() == Some(&value));
+            .any(|node| node.to_serde_value().as_ref() == Some(value));
         if !present {
-            array.append(input(&value));
+            array.append(input(value));
         }
         Ok(())
     })
@@ -262,10 +262,10 @@ mod tests {
     #[test]
     fn append_missing_adds_once() {
         let text = "{\n  // c\n  \"list\": [\"a\"]\n}\n";
-        let once = append_missing(text, &["list"], json!("b")).unwrap();
+        let once = append_missing(text, &["list"], &json!("b")).unwrap();
         assert!(once.contains("// c") && once.contains("\"b\""));
-        assert_eq!(append_missing(&once, &["list"], json!("b")).unwrap(), once);
-        assert_eq!(append_missing(&once, &["list"], json!("a")).unwrap(), once);
+        assert_eq!(append_missing(&once, &["list"], &json!("b")).unwrap(), once);
+        assert_eq!(append_missing(&once, &["list"], &json!("a")).unwrap(), once);
     }
 
     #[test]
@@ -286,7 +286,7 @@ mod tests {
 
     #[test]
     fn append_missing_creates_the_array() {
-        let out = append_missing("{}", &["hooks", "list"], json!({"c": 1})).unwrap();
+        let out = append_missing("{}", &["hooks", "list"], &json!({"c": 1})).unwrap();
         assert_eq!(
             serde_json::from_str::<Value>(&out).unwrap(),
             json!({"hooks": {"list": [{"c": 1}]}})

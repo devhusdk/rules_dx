@@ -640,14 +640,14 @@ fn julia_workspace(build: &str) -> dx_test_scratch::TempDir {
 
 fn julia_update(
     workspace: &Path,
-    request: Selection,
+    request: &Selection,
     offline: bool,
     frozen: bool,
 ) -> Result<BackendPlan, BackendError> {
     plan_configured(
         workspace,
         &julia_set(),
-        &request,
+        request,
         offline,
         frozen,
         &no_head(),
@@ -660,7 +660,7 @@ fn julia_update_runs_pkg_update_then_the_resolver() {
     let dir = julia_workspace(JULIA_BUILD);
     let request = Selection::Packages(vec!["JSON".to_owned()]);
     let BackendPlan::Sequence(runs) =
-        julia_update(dir.path(), request, false, false).expect("plan")
+        julia_update(dir.path(), &request, false, false).expect("plan")
     else {
         panic!("expected a sequence");
     };
@@ -686,7 +686,7 @@ fn julia_update_runs_pkg_update_then_the_resolver() {
 fn julia_full_update_names_no_package() {
     let dir = julia_workspace(JULIA_BUILD);
     let BackendPlan::Sequence(runs) =
-        julia_update(dir.path(), Selection::Full, false, false).expect("plan")
+        julia_update(dir.path(), &Selection::Full, false, false).expect("plan")
     else {
         panic!("expected a sequence");
     };
@@ -699,15 +699,15 @@ fn julia_full_update_names_no_package() {
 #[test]
 fn julia_update_refuses_without_a_resolver_frozen_and_offline() {
     let bare = julia_workspace("");
-    let error = julia_update(bare.path(), Selection::Full, false, false).expect_err("refused");
+    let error = julia_update(bare.path(), &Selection::Full, false, false).expect_err("refused");
     assert!(error.to_string().contains("add a julia_pkg_resolve"));
     let dir = julia_workspace(JULIA_BUILD);
     assert!(matches!(
-        julia_update(dir.path(), Selection::Full, true, false),
+        julia_update(dir.path(), &Selection::Full, true, false),
         Err(BackendError::OfflineRequired { .. })
     ));
     assert!(matches!(
-        julia_update(dir.path(), Selection::Full, false, true),
+        julia_update(dir.path(), &Selection::Full, false, true),
         Err(BackendError::FrozenLocked { .. })
     ));
 }

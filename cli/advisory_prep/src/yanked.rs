@@ -107,7 +107,7 @@ fn locked_pypi_packages(workspace: &Path) -> Result<BTreeMap<String, BTreeSet<St
     for rel in set_locks(
         workspace,
         Ecosystem::Uv,
-        dx_adopt::lock_hubs::lock_of("uv").map_err(hub)?,
+        dx_adopt::lock_hubs::lock_of("uv").map_err(|error| hub(&error))?,
     )? {
         let Ok(text) = std::fs::read_to_string(workspace.join(&rel)) else {
             continue;
@@ -156,7 +156,7 @@ fn cargo_locks(workspace: &Path) -> Result<BTreeSet<String>, PrepError> {
     locks.extend(set_locks(
         workspace,
         Ecosystem::Cargo,
-        cargo_lock().map_err(hub)?,
+        cargo_lock().map_err(|error| hub(&error))?,
     )?);
     locks.retain(|rel| workspace.join(rel).is_file());
     Ok(locks)
@@ -186,7 +186,7 @@ fn set_locks(
     Ok(locks)
 }
 
-fn hub(error: dx_adopt::AdoptError) -> PrepError {
+fn hub(error: &dx_adopt::AdoptError) -> PrepError {
     PrepError::Usage {
         detail: error.to_string(),
     }

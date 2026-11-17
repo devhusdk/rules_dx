@@ -216,7 +216,7 @@ mod tests {
         std::os::unix::fs::symlink(target, pointer)
     }
 
-    fn skip_without_link_privileges(result: io::Result<()>) -> bool {
+    fn skip_without_link_privileges(result: &io::Result<()>) -> bool {
         if result.is_ok() {
             return false;
         } // LCOV_EXCL_LINE - reason: hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
@@ -420,7 +420,7 @@ mod tests {
         let probe_source = scratch.path().join("probe.bin");
         std::fs::write(&probe_source, b"probe\n").expect("probe source");
         let probe_link = scratch.path().join("probe-link");
-        if skip_without_link_privileges(file_pointer(&probe_source, &probe_link)) {
+        if skip_without_link_privileges(&file_pointer(&probe_source, &probe_link)) {
             // LCOV_EXCL_START - reason: hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             scratch.close().expect("cleanup");
             return;
@@ -488,7 +488,7 @@ mod tests {
         let outside = scratch.path().join("outside.toml");
         std::fs::write(&outside, b"secret\n").expect("outside");
         let destination = scratch.path().join("current.toml");
-        if skip_without_link_privileges(file_pointer(&outside, &destination)) {
+        if skip_without_link_privileges(&file_pointer(&outside, &destination)) {
             // LCOV_EXCL_START - reason: hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             scratch.close().expect("cleanup");
             return;
@@ -685,7 +685,7 @@ mod tests {
         let first = scratch.path().join("first");
         std::fs::create_dir(&first).expect("first dir");
         let pointer = scratch.path().join("current");
-        if skip_without_link_privileges(directory_pointer(&first, &pointer)) {
+        if skip_without_link_privileges(&directory_pointer(&first, &pointer)) {
             // LCOV_EXCL_START - reason: hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             scratch.close().expect("cleanup");
             return;
@@ -703,7 +703,7 @@ mod tests {
         let target = scratch.path().join("target.txt");
         std::fs::write(&target, b"target\n").expect("target");
         let link = scratch.path().join("link");
-        if skip_without_link_privileges(create_pointer(&target, &link, PointerKind::File)) {
+        if skip_without_link_privileges(&create_pointer(&target, &link, PointerKind::File)) {
             // LCOV_EXCL_START - reason: hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             scratch.close().expect("cleanup");
             return;
@@ -722,7 +722,7 @@ mod tests {
         let other = scratch.path().join("other");
         std::fs::create_dir(&other).expect("other dir");
         let link = scratch.path().join("link");
-        if skip_without_link_privileges(directory_pointer(&target, &link)) {
+        if skip_without_link_privileges(&directory_pointer(&target, &link)) {
             // LCOV_EXCL_START - reason: hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             scratch.close().expect("cleanup");
             return;

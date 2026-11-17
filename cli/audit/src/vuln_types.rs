@@ -121,9 +121,7 @@ pub const VULN_RULE_PREFIX: &str = "vuln";
 #[must_use]
 pub fn normalize_level(severity: &str) -> &'static str {
     match severity.trim().to_ascii_lowercase().as_str() {
-        "critical" | "high" | "error" => "error",
         "medium" | "low" | "moderate" | "warning" => "warning",
-        "" | "unknown" => "error",
         _ => "error",
     }
 }

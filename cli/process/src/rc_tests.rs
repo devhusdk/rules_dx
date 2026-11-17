@@ -180,7 +180,7 @@ fn any_rc_disk_cache_setting_skips_the_default() {
     }
 }
 
-fn resolved(machine: Machine) -> Option<PathBuf> {
+fn resolved(machine: &Machine) -> Option<PathBuf> {
     machine.policy().bazel_disk_cache
 }
 
@@ -190,36 +190,36 @@ fn disk_cache_precedence_follows_bazel_read_order() {
         .file(SYSTEM_RC, "build --disk_cache=/sys\n")
         .file("/ws/.bazelrc", "build --disk_cache=/ws-cache\n")
         .file("/home/u/.bazelrc", "build --disk_cache=/home\n");
-    assert_eq!(resolved(all), Some(PathBuf::from("/home")));
+    assert_eq!(resolved(&all), Some(PathBuf::from("/home")));
     let ws = Machine::local()
         .file(SYSTEM_RC, "build --disk_cache=/sys\n")
         .file("/ws/.bazelrc", "build --disk_cache=/ws-cache\n");
-    assert_eq!(resolved(ws), Some(PathBuf::from("/ws-cache")));
+    assert_eq!(resolved(&ws), Some(PathBuf::from("/ws-cache")));
     let build_over_common = Machine::local()
         .file(SYSTEM_RC, "build --disk_cache=/sys\n")
         .file("/home/u/.bazelrc", "common --disk_cache=/home\n");
-    assert_eq!(resolved(build_over_common), Some(PathBuf::from("/sys")));
+    assert_eq!(resolved(&build_over_common), Some(PathBuf::from("/sys")));
     let last_line = Machine::local().file(
         "/ws/.bazelrc",
         "build --disk_cache=/one\nbuild --disk_cache=/two\n",
     );
-    assert_eq!(resolved(last_line), Some(PathBuf::from("/two")));
+    assert_eq!(resolved(&last_line), Some(PathBuf::from("/two")));
 }
 
 #[test]
 fn disk_cache_forms_and_config_groups_resolve() {
     let split = Machine::local().file("/ws/.bazelrc", "build --disk_cache /x\n");
-    assert_eq!(resolved(split), Some(PathBuf::from("/x")));
+    assert_eq!(resolved(&split), Some(PathBuf::from("/x")));
     for value in ["c", "%workspace%/c"] {
         let machine =
             Machine::local().file("/ws/.bazelrc", &format!("build --disk_cache={value}\n"));
-        assert_eq!(resolved(machine), Some(PathBuf::from("/ws/c")), "{value}");
+        assert_eq!(resolved(&machine), Some(PathBuf::from("/ws/c")), "{value}");
     }
     let config = Machine::local().file(
         "/ws/.bazelrc",
         "build:ci --disk_cache=/x\ncommon --disk_cache=/y\n",
     );
-    assert_eq!(resolved(config), Some(PathBuf::from("/y")));
+    assert_eq!(resolved(&config), Some(PathBuf::from("/y")));
 }
 
 #[test]

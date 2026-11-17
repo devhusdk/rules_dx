@@ -137,7 +137,7 @@ pub(crate) fn range_events_to_intervals(
                     open = Some(Some(trimmed.to_owned()));
                 }
             }
-            osv::schema::Event::Fixed(version) => {
+            osv::schema::Event::Fixed(version) | osv::schema::Event::Limit(version) => {
                 let upper = version.trim().to_owned();
                 if let Some(lower) = open.take() {
                     out.push((lower, Some(upper), false));
@@ -151,14 +151,6 @@ pub(crate) fn range_events_to_intervals(
                     out.push((lower, Some(upper), true));
                 } else {
                     out.push((None, Some(upper), true));
-                }
-            }
-            osv::schema::Event::Limit(version) => {
-                let upper = version.trim().to_owned();
-                if let Some(lower) = open.take() {
-                    out.push((lower, Some(upper), false));
-                } else {
-                    out.push((None, Some(upper), false));
                 }
             }
             _ => {}

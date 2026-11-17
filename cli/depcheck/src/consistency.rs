@@ -56,9 +56,8 @@ fn load_lock(eco: Language, lock: &Path) -> Result<LockVersions, DepcheckError> 
         )),
         Language::Go => single(go::parse_go_lock(lock)),
         Language::Java | Language::Kotlin | Language::Scala => single(jvm::parse_jvm_lock(lock)),
-        Language::Csharp | Language::Fsharp => single(parse_paren_lock(lock)),
+        Language::Csharp | Language::Fsharp | Language::Ruby => single(parse_paren_lock(lock)),
         Language::Cc => single(cc::parse_cc_lock(lock)),
-        Language::Ruby => single(parse_paren_lock(lock)),
         Language::Perl => single(perl::parse_perl_lock(lock)),
         Language::Zig => single(zig::parse_zig_lock(lock)),
         Language::Julia => single(julia::parse_julia_lock(lock)),
@@ -79,6 +78,7 @@ type DepLoader = fn(Language, &Path) -> Result<BTreeMap<String, DepInfo>, Depche
 type PkgLoader = fn(Language, &Path) -> Result<LockVersions, DepcheckError>;
 
 /// One manifest/lock pair to check, with the parsers that read it.
+#[derive(Clone, Copy)]
 pub(crate) struct Pair<'a> {
     eco: Language,
     manifest: &'a Path,

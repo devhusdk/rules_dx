@@ -201,34 +201,9 @@ pub(crate) fn package_relative_paths(
     Ok(mapped)
 }
 
-fn create_private_dir(path: &Path) -> io::Result<()> {
-    let mut builder = std::fs::DirBuilder::new();
-    builder.recursive(false);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::DirBuilderExt as _;
-        builder.mode(0o700);
-    }
-    builder.create(path)
-}
-
+/// Creates a fresh owner-only directory in the temp dir; the caller removes it.
 pub(crate) fn tempfile_stage_dir(prefix: &str) -> io::Result<std::path::PathBuf> {
-    for counter in 0..100 {
-        let nanos = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_or(0, |d| d.as_nanos());
-        let dir =
-            std::env::temp_dir().join(format!("{prefix}{}-{nanos}-{counter}", std::process::id()));
-        match create_private_dir(&dir) {
-            Ok(()) => return Ok(dir),
-            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
-            Err(error) => return Err(error),
-        }
-    }
-    Err(io::Error::new(
-        io::ErrorKind::AlreadyExists,
-        "cannot stage tempdir",
-    ))
+    Ok(tempfile::Builder::new().prefix(prefix).tempdir()?.keep())
 }
 
 /// An owner-only temp directory that is removed on drop.
@@ -714,25 +689,6 @@ mod tests {
                 std::fs::read_to_string(&target).expect("read target"),
                 "keep"
             );
-        }
-    }
-
-    #[test]
-    fn private_dir_refuses_existing_dir() {
-        let scratch = scratch_dir();
-        let error = create_private_dir(scratch.path()).expect_err("existing");
-        assert_eq!(error.kind(), io::ErrorKind::AlreadyExists);
-        let child = scratch.path().join("child");
-        create_private_dir(&child).expect("child");
-        assert!(child.is_dir());
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt as _;
-            let mode = std::fs::metadata(&child)
-                .expect("stat")
-                .permissions()
-                .mode();
-            assert_eq!(mode & 0o777, 0o700, "private dir must stay owner-only");
         }
     }
 }

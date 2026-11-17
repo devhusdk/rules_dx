@@ -192,12 +192,21 @@ pub fn run_from_env() -> io::Result<u8> {
     let exe = argv.first().ok_or_else(|| bad("no argv[0]"))?;
     let key = std::env::var(MANIFEST_ENV).map_err(|_| bad(format!("missing {MANIFEST_ENV}")))?;
     let test_only = std::env::var("TESTBRIDGE_TEST_ONLY").ok();
-    let (scratch, temporary) = match std::env::var_os("TEST_TMPDIR") {
-        Some(dir) => (PathBuf::from(dir), false),
-        None => (
-            std::env::temp_dir().join(format!("rego_test_{}", std::process::id())),
-            true,
-        ),
+    let mut temporary = None;
+    let scratch = match std::env::var_os("TEST_TMPDIR") {
+        Some(dir) => PathBuf::from(dir),
+        None => {
+            let dir = tempfile::Builder::new()
+                .prefix("rego_test_")
+                .tempdir()
+                .map_err(|error| {
+                    io::Error::new(
+                        error.kind(),
+                        format!("cannot create a scratch directory: {error}"),
+                    )
+                })?;
+            temporary.insert(dir).path().to_path_buf()
+        }
     };
     let result = run(
         Path::new(exe),
@@ -206,9 +215,7 @@ pub fn run_from_env() -> io::Result<u8> {
         test_only.as_deref(),
         &scratch,
     );
-    if temporary {
-        let _ = std::fs::remove_dir_all(&scratch);
-    }
+    drop(temporary);
     let outcome = result?;
     print!("{}", outcome.stdout);
     eprint!("{}", outcome.stderr);

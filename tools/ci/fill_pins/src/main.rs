@@ -68,7 +68,6 @@ fn run() -> Result<String, String> {
     if manifest.is_some() && (check || dir.is_some()) {
         return Err("--manifest cannot be combined with --check or --dir".to_owned());
     }
-    let scratch = std::env::temp_dir().join(format!("dx-fill-pins-{}", std::process::id()));
     let text =
         std::fs::read_to_string(&pins).map_err(|e| format!("read {}: {e}", pins.display()))?;
     if let (Some(manifest), Some(gazelle)) = (manifest, gazelle_manifest) {
@@ -80,9 +79,13 @@ fn run() -> Result<String, String> {
         std::fs::write(&pins, out).map_err(|e| format!("write {}: {e}", pins.display()))?;
         return Ok(format!("wrote {}", pins.display()));
     }
-    let dir = dir.unwrap_or_else(|| scratch.clone());
+    let scratch = tempfile::Builder::new()
+        .prefix("dx-fill-pins-")
+        .tempdir()
+        .map_err(|e| format!("create scratch dir: {e}"))?;
+    let dir = dir.unwrap_or_else(|| scratch.path().to_path_buf());
     let fetch = |dir: &Path| {
-        if dir == scratch {
+        if dir == scratch.path() {
             download(&tag, &repo, dir)
         } else {
             Ok(())
@@ -99,7 +102,6 @@ fn run() -> Result<String, String> {
             Ok(format!("wrote {}", pins.display()))
         })
     };
-    drop(std::fs::remove_dir_all(&scratch));
     message
 }
 

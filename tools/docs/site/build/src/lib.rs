@@ -202,17 +202,12 @@ pub fn run(options: &Options) -> String {
     if !error.is_empty() {
         return error;
     }
-    let scratch = scratch_dir();
-    let book = scratch.join("book");
-    if !scratch_is_usable(&scratch) {
-        return format!(
-            "docs_site: cannot stage the book under '{}'",
-            scratch.display()
-        );
-    }
-    let staging = stage(&book, options, &pages);
-    if let Err(error) = staging {
-        drop(fs::remove_dir_all(&scratch));
+    let scratch = match tempfile::Builder::new().prefix("dx-site-build-").tempdir() {
+        Ok(scratch) => scratch,
+        Err(error) => return format!("docs_site: cannot create a staging directory: {error}"),
+    };
+    let book = scratch.path().join("book");
+    if let Err(error) = stage(&book, options, &pages) {
         return error;
     }
     let out = absolute(&options.out);
@@ -225,7 +220,7 @@ pub fn run(options: &Options) -> String {
         .arg(&out)
         .arg(&book)
         .output();
-    drop(fs::remove_dir_all(&scratch));
+    drop(scratch);
     let build = match build {
         Ok(build) => build,
         Err(error) => return format!("cannot run mdbook '{}': {error}", options.mdbook),
@@ -356,20 +351,6 @@ fn alias_errors(pages: &[Page], out: &Path) -> String {
         }
     }
     String::new()
-}
-
-fn scratch_dir() -> PathBuf {
-    let nanos = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |elapsed| elapsed.as_nanos());
-    std::env::temp_dir().join(format!("dx-site-build-{}-{nanos}", std::process::id()))
-}
-
-fn scratch_is_usable(scratch: &Path) -> bool {
-    if scratch.exists() {
-        drop(fs::remove_dir_all(scratch));
-    }
-    fs::create_dir_all(scratch).is_ok()
 }
 
 fn absolute(path: &str) -> PathBuf {

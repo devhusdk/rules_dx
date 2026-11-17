@@ -38,11 +38,11 @@ pub(super) fn plan(
             Ok(BackendPlan::Sequence(vec![
                 Run {
                     argv: opam_argv(workspace, set, head, &upgrade)?,
-                    env: opam_env(),
+                    env: opam_env(set)?,
                 },
                 Run {
                     argv: opam_argv(workspace, set, head, &["lock", manifest])?,
-                    env: opam_env(),
+                    env: opam_env(set)?,
                 },
                 Run {
                     argv: bazel(
@@ -91,7 +91,7 @@ pub(super) fn check(
                         ".",
                     ],
                 )?,
-                env: opam_env(),
+                env: opam_env(set)?,
             })
         }
         Selection::Packages(_) => Err(BackendError::Unsupported {

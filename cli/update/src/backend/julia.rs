@@ -41,11 +41,11 @@ pub(super) fn plan(
     Ok(BackendPlan::Sequence(vec![
         Run {
             argv: bazel(head, "run", &update),
-            env: julia_env(),
+            env: julia_env(set)?,
         },
         Run {
             argv: bazel(head, "run", &[resolve.as_str()]),
-            env: julia_env(),
+            env: julia_env(set)?,
         },
     ]))
 }

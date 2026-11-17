@@ -4,7 +4,7 @@ name = "ci_fill_pins"
 version = "0.0.0"
 edition = "2024"
 
-[dev-dependencies]
+[dependencies]
 tempfile = "3"
 
 [lib]

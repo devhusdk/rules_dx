@@ -33,7 +33,7 @@ pub(super) fn plan(
             Ok(BackendPlan::Sequence(vec![
                 Run {
                     argv: carton_argv(workspace, set, head, &command)?,
-                    env: carton_env(),
+                    env: carton_env(set)?,
                 },
                 Run {
                     argv: bazel(
@@ -41,7 +41,7 @@ pub(super) fn plan(
                         "run",
                         &[RESOLVER, "--", "--dir", &dir.to_string_lossy()],
                     ),
-                    env: carton_env(),
+                    env: carton_env(set)?,
                 },
             ]))
         }
@@ -65,7 +65,7 @@ pub(super) fn check(
             }
             Ok(CheckPlan::Run {
                 argv: carton_argv(workspace, set, head, &["install", "--deployment"])?,
-                env: carton_env(),
+                env: carton_env(set)?,
             })
         }
         Selection::Packages(_) => Err(BackendError::Unsupported {

@@ -212,3 +212,41 @@ jobs:
             echo "::endgroup::"
             published+=("$label")
           done
+      - name: Collect release asset checksums
+        id: checksums
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/release-assets"
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/releases" \
+            --jq ".[] | select(.tag_name == \"${GITHUB_REF_NAME}\") | .assets[] | \"\(.id)\t\(.name)\"" |
+            while IFS=$'\t' read -r id name; do
+              gh api -H "Accept: application/octet-stream" "repos/${GITHUB_REPOSITORY}/releases/assets/${id}" \
+                > "$RUNNER_TEMP/release-assets/${name}"
+            done
+          if command -v sha256sum > /dev/null; then
+            hash=(sha256sum)
+          else
+            hash=(shasum -a 256)
+          fi
+          (
+            cd "$RUNNER_TEMP/release-assets"
+            for name in *; do
+              if [ -f "$name" ] && [[ "$name" != *.sigstore.json ]]; then
+                "${hash[@]}" "$name"
+              fi
+            done
+          ) > "$RUNNER_TEMP/release-checksums.txt"
+          echo "file=$RUNNER_TEMP/release-checksums.txt" >> "$GITHUB_OUTPUT"
+          if [ -s "$RUNNER_TEMP/release-checksums.txt" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Attest release assets
+        if: ${{ steps.checksums.outputs.present == 'true' }}
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-checksums: ${{ steps.checksums.outputs.file }}

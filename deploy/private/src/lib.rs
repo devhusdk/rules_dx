@@ -29,6 +29,7 @@ mod pypi;
 mod registry;
 mod rubygems;
 mod run;
+pub mod signing;
 mod stage;
 #[cfg(test)]
 pub(crate) mod test_support;

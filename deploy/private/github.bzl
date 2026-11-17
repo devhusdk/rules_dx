@@ -1,5 +1,6 @@
 """Draft-only GitHub Release publisher for dx deploy."""
 
+load("//deploy/private/release:signing.bzl", "CosignInfo", "SIGNING_COSIGN_VERSION")
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deployment_budget")
 load("//core:rlocation.bzl", "rlocation_path")
@@ -40,6 +41,17 @@ def _github_config_impl(ctx):
         go_rloc = rlocation_path(ctx, ctx.file.go)
         apidiff_runfiles = ctx.runfiles(files = [ctx.executable.apidiff]).merge(ctx.attr.apidiff[DefaultInfo].default_runfiles).merge(ctx.attr.go[DefaultInfo].default_runfiles)
 
+    cosign_rloc = ""
+    cosign_sha256 = ""
+    cosign_runfiles = ctx.runfiles()
+    cosign_files = []
+    if ctx.attr.sign != "off":
+        cosign = ctx.attr.cosign[CosignInfo]
+        cosign_rloc = rlocation_path(ctx, cosign.file)
+        cosign_sha256 = cosign.sha256
+        cosign_files = [cosign.file]
+        cosign_runfiles = ctx.attr.cosign[DefaultInfo].default_runfiles
+
     return deploy_config(
         ctx,
         "github",
@@ -49,13 +61,17 @@ def _github_config_impl(ctx):
             "apidiff_rloc": apidiff_rloc,
             "go_rloc": go_rloc,
             "go_modules": ctx.attr.go_modules,
+            "sign": ctx.attr.sign,
+            "cosign_rloc": cosign_rloc,
+            "cosign_sha256": cosign_sha256,
+            "cosign_version": SIGNING_COSIGN_VERSION if cosign_rloc else "",
             "asset_rlocs": asset_rlocs,
             "deploy_name": ctx.attr.deploy_name,
             "tag": "current" if ctx.attr.tag_from_head else ctx.attr.release_tag,
             "notes": "file" if ctx.file.notes_file else ctx.attr.notes,
             "notes_rloc": rlocation_path(ctx, ctx.file.notes_file) if ctx.file.notes_file else "",
         },
-        ctx.runfiles(files = asset_files + ([ctx.file.notes_file] if ctx.file.notes_file else [])).merge(runfiles).merge(apidiff_runfiles),
+        ctx.runfiles(files = asset_files + cosign_files + ([ctx.file.notes_file] if ctx.file.notes_file else [])).merge(runfiles).merge(apidiff_runfiles).merge(cosign_runfiles),
     )
 
 _github_config = rule(
@@ -72,6 +88,12 @@ _github_config = rule(
             allow_single_file = True,
             cfg = "exec",
         ),
+        "cosign": attr.label(
+            doc = "The pinned cosign binary; set when sign is not off.",
+            cfg = "exec",
+            providers = [CosignInfo],
+        ),
+        "sign": attr.string(mandatory = True, doc = "'auto', 'off' or 'required'."),
         "go_modules": attr.string_list(doc = "Workspace-relative directories of the Go modules to check."),
         "artifacts": attr.label_list(mandatory = True, doc = "Files to attach as release assets."),
         "deploy_name": attr.string(mandatory = True, doc = "Deploy target name."),
@@ -82,7 +104,7 @@ _github_config = rule(
     },
 )
 
-def github_deploy(name, artifacts, release_tag = "", tag_from_head = False, build_mode = "release", sbom = None, notes = "commits", notes_file = None, api_compat = "fail", api_baseline = "registry", go_modules = [], size_budget = None, tags = None, visibility = None, testonly = False, target_compatible_with = None):
+def github_deploy(name, artifacts, release_tag = "", tag_from_head = False, build_mode = "release", sbom = None, notes = "commits", notes_file = None, api_compat = "fail", api_baseline = "registry", go_modules = [], sign = "auto", size_budget = None, tags = None, visibility = None, testonly = False, target_compatible_with = None):
     """Publishes pinned files as a draft-only GitHub Release."""
     attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     if tag_from_head:
@@ -99,6 +121,9 @@ def github_deploy(name, artifacts, release_tag = "", tag_from_head = False, buil
     if notes_file:
         notes = "none"
 
+    if sign not in ["auto", "off", "required"]:
+        fail("github_deploy: sign must be 'auto', 'off' or 'required', got '" + sign + "' (in " + native.package_name() + ":" + name + ")")
+
     api_error = api_compat_error("github_deploy", api_compat, api_baseline)
     if api_error != "":
         fail(api_error + " (in " + native.package_name() + ":" + name + ")")
@@ -112,6 +137,8 @@ def github_deploy(name, artifacts, release_tag = "", tag_from_head = False, buil
         go = Label("//deploy/private/pins:go") if checked else None,
         artifacts = artifacts + ([sbom] if sbom else []),
         go_modules = go_modules,
+        cosign = Label("//deploy/private/release:cosign") if sign != "off" else None,
+        sign = sign,
         deploy_name = name,
         notes = notes,
         notes_file = notes_file,

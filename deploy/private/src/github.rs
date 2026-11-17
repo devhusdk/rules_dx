@@ -6,6 +6,7 @@ use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, env_or_empty, exit_text, placeholder_refusal,
     run_publish, scrubbed_command,
 };
+use crate::signing::{CosignPin, SignMode, bundle_name, plan_identity, sign_assets};
 use crate::stage::*;
 use std::io;
 use std::path::Path;
@@ -307,7 +308,21 @@ pub fn github_main_with_notes(
         go_rloc: "",
         modules: &[],
     };
-    github_main_checked(asset_rlocs, deploy_name, tag, notes, &go_api, argv)
+    let signing = Signing {
+        mode: "off",
+        cosign_rloc: "",
+        cosign_version: "",
+        cosign_sha256: "",
+    };
+    github_main_checked(
+        asset_rlocs,
+        deploy_name,
+        tag,
+        notes,
+        &go_api,
+        &signing,
+        argv,
+    )
 }
 
 /// The Go API compatibility settings of one github_deploy.
@@ -319,6 +334,14 @@ pub struct GoApi<'a> {
     pub modules: &'a [String],
 }
 
+/// The signing settings of one github_deploy.
+pub struct Signing<'a> {
+    pub mode: &'a str,
+    pub cosign_rloc: &'a str,
+    pub cosign_version: &'a str,
+    pub cosign_sha256: &'a str,
+}
+
 /// Runs the GitHub deploy tool with a release body and a Go API compatibility check.
 pub fn github_main_checked(
     asset_rlocs: &[String],
@@ -326,6 +349,7 @@ pub fn github_main_checked(
     tag: &str,
     notes: &Notes,
     go_api: &GoApi,
+    signing: &Signing,
     argv: &[String],
 ) -> i32 {
     let Some(run) = DeployRun::start(
@@ -375,6 +399,21 @@ pub fn github_main_checked(
                 .map_err(|error| format!("cannot read notes {}: {error}", path.display())),
             None => return 1,
         },
+    };
+    let Some(sign_mode) = SignMode::parse(signing.mode) else {
+        eprintln!("github_deploy: invalid sign '{}'", signing.mode);
+        return 1;
+    };
+    let identity = match plan_identity(sign_mode, &env_or_empty) {
+        Ok(identity) => identity,
+        Err(error) if live => {
+            eprintln!("github_deploy: {error}");
+            return 1;
+        }
+        Err(error) => {
+            println!("github_deploy: {error}; a live run would fail");
+            None
+        }
     };
     let mode = ApiCompatMode::parse(go_api.mode);
     let (Some(mode), Some(baseline)) = (mode, Baseline::parse(go_api.baseline)) else {
@@ -447,12 +486,44 @@ pub fn github_main_checked(
                 return 1;
             }
         };
+        let bundles = match &identity {
+            Some(identity) => {
+                let Some(cosign) = run.resolve(signing.cosign_rloc) else {
+                    return 1;
+                };
+                let pin = CosignPin {
+                    path: &cosign.to_string_lossy(),
+                    version: signing.cosign_version,
+                    sha256: signing.cosign_sha256,
+                };
+                match sign_assets(&pin, identity, &assets, &outdir.join("signatures")) {
+                    Ok(bundles) => bundles,
+                    Err(error) => {
+                        eprintln!("github_deploy: {error}");
+                        return 1;
+                    }
+                }
+            }
+            None => Vec::new(),
+        };
         let mut cmd = scrubbed_command(
             Path::new("gh"),
             &[PUBLISH_CHILD_ENV_KEEP, GH_CHILD_ENV_EXTRA],
             &[],
         );
         cmd.arg("release").arg("create").arg(tag);
+        for bundle in &bundles {
+            match std::path::absolute(bundle) {
+                Ok(path) => cmd.arg(path),
+                Err(error) => {
+                    eprintln!(
+                        "github_deploy: cannot resolve {}: {error}",
+                        bundle.display()
+                    );
+                    return 1;
+                }
+            };
+        }
         for src in &assets {
             match std::path::absolute(src) {
                 Ok(path) => cmd.arg(path),
@@ -509,6 +580,15 @@ pub fn github_main_checked(
             }
             for line in sbom_lines(&sorted, &bases) {
                 println!("{line}");
+            }
+            match &identity {
+                Some(identity) => {
+                    println!("  sign: {}", identity.describe());
+                    for base in &bases {
+                        println!("  signature: {}", bundle_name(base));
+                    }
+                }
+                None => println!("  sign: none ({})", signing.mode),
             }
             println!(
                 "  command: {}",
@@ -645,6 +725,12 @@ mod tests {
                     "v1.3.0",
                     &Notes::None,
                     &go_api,
+                    &Signing {
+                        mode: "off",
+                        cosign_rloc: "",
+                        cosign_version: "",
+                        cosign_sha256: "",
+                    },
                     &argv,
                 )
             },

@@ -3,7 +3,7 @@ load("@rules_proto//proto:defs.bzl", "proto_library")
 load("//api_spec:defs.bzl", "api_spec_library")
 load("//kubernetes:defs.bzl", "kubernetes_schemas")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//core/quality:native_config.bzl", "clang_tidy_config", "eslint_config", "ruff_config")
+load("//core/quality:native_config.bzl", "clang_tidy_config", "eslint_config", "rubocop_config", "ruff_config")
 load("//core/quality:policy.bzl", "quality_family", "workspace_policy")
 load("//core/quality/private:generated_policy.bzl", "dx_generated_policy")
 
@@ -86,7 +86,8 @@ workspace_policy(
         select({
             "//config:config_tier_strict": ["//core/quality/tiers/yamllint:strict"],
             "//conditions:default": ["//core/quality/tiers/yamllint:standard"],
-        }),
+        }) +
+        [":policy_rubocop_config"],
     bases = select({
         "//config:config_tier_strict": [
             "//core/quality/tiers/gersemi:strict",
@@ -824,6 +825,11 @@ quality_family(
     ],
     family_id = "python",
     lint = ["ruff"],
+)
+
+rubocop_config(
+    name = "policy_rubocop_config",
+    src = "rubocop.yml",
 )
 
 ruff_config(

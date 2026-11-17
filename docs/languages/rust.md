@@ -179,6 +179,8 @@ Targets default to Rust edition 2024. Set `edition` on a target to build it with
 and emits the JavaScript bindings: `<name>.js`, `<name>_bg.wasm`, and the
 declarations. Guard browser-only code with
 `#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]`.
+The `wasm_bindgen` crate is already in `deps`, so `use wasm_bindgen::prelude::*`
+needs no `bazel_dep` beyond rules_dx.
 
 `rust_test(srcs = ["browser_test.rs"], wasm = "browser")` builds a test crate
 and runs its `#[wasm_bindgen_test]` cases in a browser that Bazel fetches. The

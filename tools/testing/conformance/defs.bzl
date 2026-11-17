@@ -2,7 +2,8 @@
 
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("//core/modules:langs.bzl", "LANGS")
-load("//core/quality/testdata:config_subject.bzl", "config_results")
+load("//core/quality:families/core.bzl", "real_format_aspect", "real_lint_aspect")
+load("//core/quality/testdata:config_subject.bzl", "config_results", "config_subject_rule")
 load("//rust:defs.bzl", "rust_test")
 load(":pending.bzl", "PENDING")
 load(":quality.bzl", "QUALITY_SUBJECTS")
@@ -29,6 +30,17 @@ _QUALITY_CONFIGS = {
     "php": "tool_overrides",
     "powershell": "tool_overrides",
     "ruby": "tool_overrides",
+}
+
+_core_format_subject = config_subject_rule([real_format_aspect], [OutputGroupInfo])
+
+_core_lint_subject = config_subject_rule([real_lint_aspect], [OutputGroupInfo])
+
+_CORE_QUALITY_SUBJECTS = {
+    "javascript": {
+        "format": _core_format_subject,
+        "lint": _core_lint_subject,
+    },
 }
 
 _CONFORMANCE_QUALITY = Label("//tools/testing/conformance:conformance_quality")
@@ -334,7 +346,7 @@ def _quality_tests(prefix, lang, quality, not_applicable, size, kwargs):
         source = quality[kind + "_source"]
         text = "%s %d" % (quality["lint_rule"], quality["lint_line"]) if kind == "lint" else ""
         for test, fixture, mode in [(clean, quality["clean"], kind), (error, quality[kind + "_dirty"], kind + "_error")]:
-            QUALITY_SUBJECTS[lang][kind](
+            _CORE_QUALITY_SUBJECTS.get(lang, QUALITY_SUBJECTS[lang])[kind](
                 name = prefix + test + "_subject",
                 config = _QUALITY_CONFIGS.get(lang, _QUALITY_CONFIG),
                 target = fixture,

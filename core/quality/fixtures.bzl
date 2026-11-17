@@ -1,7 +1,7 @@
 """Source fixtures for real aspects."""
 
 load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
-load("//core/quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "dockerfile_name_error", "named_source_class_error")
+load("//core/quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "NAMED_SOURCE_CLASSES", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "named_source_class_error")
 
 _GO_MOD = LOCK_REGISTRY["go"]["manifest"]
 
@@ -125,9 +125,7 @@ def _real_source_target_impl(ctx):
     for class_id in FIXTURE_EXTENSIONS:
         files = getattr(ctx.files, class_id + "_srcs")
         for source in files:
-            if class_id == "dockerfile":
-                error = dockerfile_name_error(source.basename)
-            elif class_id in ["make", "cmake"]:
+            if class_id in NAMED_SOURCE_CLASSES:
                 error = named_source_class_error(class_id, source.basename)
             elif class_id == "go_module" and source.basename != _GO_MOD:
                 error = "'%s' is not a go_module file name; accepted names: %s" % (source.basename, _GO_MOD)

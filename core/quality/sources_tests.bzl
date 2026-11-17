@@ -1,7 +1,8 @@
 """Versioned semantic-class registry tests (freeze)."""
 
 load("//core:defs.bzl", "expect_equal", "starlark_test")
-load(":sources.bzl", "DOCKERFILE_NAME_PATTERNS", "RUST", "dockerfile_name_error", "is_dockerfile_name", "is_known_semantic_class", "is_named_source", "named_source_class_error", "path_source_class", "sources_schema_error", "upstream_source_class")
+load("//core/modules:langs.bzl", "LANGS")
+load(":sources.bzl", "DOCKERFILE_NAME_PATTERNS", "NAMED_SOURCE_CLASSES", "RUST", "dockerfile_name_error", "is_dockerfile_name", "is_known_semantic_class", "is_named_source", "named_source_class_error", "path_source_class", "sources_schema_error", "upstream_source_class")
 
 FROZEN_SEMANTIC_FILE_CLASSES = [
     "julia",
@@ -182,6 +183,25 @@ def sources_registry_tests(name):
                 "Dockerfile name error lists the accepted patterns",
                 [dockerfile_name_error("Dockerfile.dev"), dockerfile_name_error("Dockerfile-dev")],
                 ["", "'Dockerfile-dev' is not a Dockerfile name; accepted names: " + ", ".join(DOCKERFILE_NAME_PATTERNS)],
+            ),
+            expect_equal(
+                "named source classes mirror lang.json quality file_names and file_extensions",
+                NAMED_SOURCE_CLASSES,
+                {
+                    lang: {"names": row["quality"]["file_names"], "suffixes": row["quality"].get("file_extensions", [])}
+                    for lang, row in LANGS.items()
+                    if "file_names" in row.get("quality", {})
+                },
+            ),
+            expect_equal(
+                "named source classes cover cmake, dockerfile and make",
+                sorted(NAMED_SOURCE_CLASSES.keys()),
+                ["cmake", "dockerfile", "make"],
+            ),
+            expect_equal(
+                "dockerfile named source uses the Dockerfile matcher",
+                [named_source_class_error("dockerfile", "Dockerfile.dev"), is_named_source("dockerfile", "Dockerfile.dev"), named_source_class_error("dockerfile", "Dockerfile-dev")],
+                ["", True, dockerfile_name_error("Dockerfile-dev")],
             ),
             expect_equal(
                 "make matcher accepts Makefile, makefile, GNUmakefile and *.mk",

@@ -327,7 +327,7 @@ jobs:
                 sed -i '1i INCOMPLETE: targets in scope failed analysis; this list omits their deps' "$covered"
                 echo "build_scripts: INCOMPLETE, analysis failed for some targets; $(wc -l < "$covered.labels") cargo_build_script instances configured with coverage on among the rest" | tee -a "$log"
                 cat "$covered"
-                grep -E '^ERROR' "$log" || true
+                cat "$log"
                 exit 3
               fi
               echo "build_scripts: $(wc -l < "$covered.labels") cargo_build_script instances configured with coverage on" | tee -a "$log"

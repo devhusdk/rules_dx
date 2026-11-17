@@ -29,6 +29,7 @@ julia_library(
 julia_binary(
     name = "hello",
     srcs = ["main.jl"],
+    data = ["data.txt"],
     deps = [":Greet"],
 )
 
@@ -67,6 +68,11 @@ dx_conformance_suite(
         "lint_line": 3,
         "lint_rule": "julialint/index_from_length",
         "lint_source": "lint_dirty/LintDirty.jl",
+    },
+    runfiles = {
+        "binary": ":hello",
+        "data": "data.txt",
+        "expected": "hello runfiles",
     },
 )
 

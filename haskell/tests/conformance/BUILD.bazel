@@ -20,6 +20,7 @@ haskell_binary(
     name = "hello",
     testonly = True,
     srcs = ["Main.hs"],
+    data = ["data.txt"],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
     deps = [
         ":conformance",
@@ -60,6 +61,11 @@ dx_conformance_suite(
     failing_test = ":fail_subject_test",
     lang = "haskell",
     passing_test = ":pass_subject_test",
+    runfiles = {
+        "binary": ":hello",
+        "data": "data.txt",
+        "expected": "hello runfiles",
+    },
 )
 
 real_source_target(

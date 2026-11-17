@@ -39,7 +39,7 @@ _CLANG_CL = Label("//rust/private:clang_cl")
 CLANG_CL_LINK_FLAGS = ["-Clink-arg=-DEFAULTLIB:libc++.lib"]
 _MSVC_OPT = Label("//rust/private:msvc_opt")
 
-_MSVC_LINK = Label("//rust/private/tools/msvc_paths:msvc_link")
+_MSVC_LINK = Label("//rust/private/tools/msvc_paths:msvc_link_exec")
 
 MSVC_OPT_LINK_FLAGS = [
     "-Clinker=$(execpath {})".format(_MSVC_LINK),

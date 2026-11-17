@@ -26,7 +26,7 @@ def rust_wrapper_registry_tests(name, size):
             expect_equal("msvc link flags", MSVC_LINK_FLAGS, ["-Clink-arg=kernel32.lib", "-Clink-arg=ntdll.lib", "-Clink-arg=/ignore:4099"]),
             expect_equal("clang-cl link flags", CLANG_CL_LINK_FLAGS, ["-Clink-arg=-DEFAULTLIB:libc++.lib"]),
             expect_equal("msvc opt link flags", MSVC_OPT_LINK_FLAGS, [
-                "-Clinker=$(execpath {})".format(Label("//rust/private/tools/msvc_paths:msvc_link")),
+                "-Clinker=$(execpath {})".format(Label("//rust/private/tools/msvc_paths:msvc_link_exec")),
                 "-Clinker-flavor=lld-link",
                 "-Clink-arg=/Brepro",
                 "-Clink-arg=/pdbsourcepath:X:\\dx",

@@ -1,4 +1,5 @@
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
+load("//cc/private/toolchain:select.bzl", "cc_toolchain_binary")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 
@@ -26,6 +27,15 @@ _LINUX_X86_64 = [
     for lang in _LANGS
 ]
 
+cc_toolchain_binary(
+    name = "rust_opt",
+    binary = "//rust/tests/conformance:hello",
+    compilation_mode = "opt",
+    compiler = "llvm",
+    platforms = ["//tools/platforms:windows_x86_64"],
+    target_compatible_with = _LINUX_X86_64,
+)
+
 [
     rust_test(
         name = lang + "_test",
@@ -43,12 +53,12 @@ _LINUX_X86_64 = [
             "//tools/testing/conformance:conformance_quality",
         ],
     )
-    for lang in _LANGS
+    for lang in _LANGS + ["rust_opt"]
 ]
 
 filegroup(
     name = "binaries",
-    srcs = [":" + lang for lang in _LANGS],
+    srcs = [":" + lang for lang in _LANGS + ["rust_opt"]],
     target_compatible_with = _LINUX_X86_64,
 )
 

@@ -1,6 +1,7 @@
 # gazelle:ignore
 load("//avro:defs.bzl", "avro_library")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
+load(":quality.bzl", "avro_format_subject")
 
 package(
     default_testonly = True,
@@ -10,6 +11,11 @@ package(
 avro_library(
     name = "conformance",
     srcs = ["greet.avsc"],
+)
+
+avro_library(
+    name = "format_dirty",
+    srcs = ["format_dirty.avsc"],
 )
 
 avro_library(
@@ -38,6 +44,9 @@ dx_conformance_suite(
     passing_test = ":conformance",
     quality = {
         "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "format_dirty.avsc",
+        "format_subject": avro_format_subject,
         "lint_dirty": ":lint_dirty",
         "lint_line": 1,
         "lint_rule": "error",

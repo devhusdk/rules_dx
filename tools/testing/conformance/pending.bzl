@@ -49,8 +49,6 @@ astro format_error_test *
 astro format_test *
 astro lint_error_test *
 astro lint_test *
-avro format_error_test *
-avro format_test *
 bicep build_test *
 bicep coverage_test *
 bicep cross_test *

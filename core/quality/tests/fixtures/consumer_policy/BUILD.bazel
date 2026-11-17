@@ -730,6 +730,7 @@ quality_family(
     name = "avro_family",
     disabled = ["audit"],
     family_id = "avro",
+    format = ["prettier"],
     lint = ["avro_tools"],
     typecheck = ["avro_tools"],
 )

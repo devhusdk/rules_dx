@@ -1,0 +1,56 @@
+# gazelle:ignore
+load("//sql:defs.bzl", "sql_library")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+sql_library(
+    name = "conformance",
+    srcs = ["clean.sql"],
+    dialect = "postgresql",
+)
+
+sql_library(
+    name = "lint_dirty",
+    srcs = ["lint_dirty.sql"],
+    dialect = "postgresql",
+)
+
+sql_library(
+    name = "format_dirty",
+    srcs = ["format_dirty.sql"],
+    dialect = "postgresql",
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":conformance",
+    covered_source = "",
+    expected = "",
+    failing_case = "",
+    failing_test = ":conformance",
+    lang = "sql",
+    not_applicable = {
+        "build_test": "sql has no binary rule",
+        "coverage_test": "sql has no test rule",
+        "cross_test": "sql has no binary rule",
+        "fail_test": "sql has no test rule",
+        "lock_test": "sql has no package manager",
+        "pass_test": "sql has no test rule",
+        "runfiles_test": "sql has no binary rule",
+    },
+    passing_test = ":conformance",
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "format_dirty.sql",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 1,
+        "lint_rule": "LT01",
+        "lint_source": "lint_dirty.sql",
+    },
+)

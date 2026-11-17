@@ -25,16 +25,19 @@ _QUALITY_CONFIG = "default"
 _QUALITY_CONFIGS = {
     "api_spec": "shared",
     "avro": "shared",
+    "cmake": "shared",
     "dart": "tool_overrides",
     "elixir": "tool_overrides",
     "erlang": "tool_overrides",
     "flutter": "tool_overrides",
     "julia": "tool_overrides",
     "lua": "tool_overrides",
+    "make": "shared",
     "perl": "tool_overrides",
     "php": "tool_overrides",
     "powershell": "tool_overrides",
     "ruby": "tool_overrides",
+    "sql": "shared",
     "swift": "tool_overrides",
 }
 

@@ -173,10 +173,20 @@ workspace_policy(
         lint = [tool],
     )
     for family, tool in [
-        ("sql", "sqlfluff"),
         ("starlark", "buildifier"),
     ]
 ]
+
+quality_family(
+    name = "sql_family",
+    disabled = [
+        "audit",
+        "typecheck",
+    ],
+    family_id = "sql",
+    format = ["sqlfluff"],
+    lint = ["sqlfluff"],
+)
 
 quality_family(
     name = "java_pmd_family",

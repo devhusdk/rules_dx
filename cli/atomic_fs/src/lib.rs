@@ -162,6 +162,16 @@ fn sync_outcome(result: io::Result<()>) -> io::Result<()> {
     }
 }
 
+/// Like [`sync_outcome`] for a directory. Linux filesystems without directory sync, such
+/// as some shared-folder mounts, fail it with EINVAL.
+#[cfg(unix)]
+fn dir_sync_outcome(result: io::Result<()>) -> io::Result<()> {
+    match result {
+        Err(error) if error.kind() == io::ErrorKind::InvalidInput => Ok(()),
+        other => sync_outcome(other),
+    }
+}
+
 fn cannot_sync(error: &io::Error) -> bool {
     // ENOTSUP in <sys/errno.h>. std maps it to Uncategorized there; only EOPNOTSUPP (102)
     // becomes Unsupported.
@@ -180,7 +190,7 @@ fn sync_parent(path: &Path) -> io::Result<()> {
     // A directory the caller may write but not read (mode 0300 or 0711) cannot be opened.
     // The rename has already landed, so skip the sync rather than report a failed write.
     match File::open(parent) {
-        Ok(dir) => sync_outcome(dir.sync_all()),
+        Ok(dir) => dir_sync_outcome(dir.sync_all()),
         Err(_) => Ok(()),
     }
 }
@@ -452,6 +462,17 @@ mod tests {
             cannot_sync(&io::Error::from_raw_os_error(45)),
             cfg!(target_vendor = "apple")
         );
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn a_directory_that_cannot_sync_counts_as_synced() {
+        assert!(dir_sync_outcome(Ok(())).is_ok());
+        assert!(dir_sync_outcome(Err(io::ErrorKind::InvalidInput.into())).is_ok());
+        assert!(dir_sync_outcome(Err(io::ErrorKind::Unsupported.into())).is_ok());
+        let failed =
+            dir_sync_outcome(Err(io::ErrorKind::Other.into())).expect_err("other errors stay");
+        assert_eq!(failed.kind(), io::ErrorKind::Other);
     }
 
     #[test]

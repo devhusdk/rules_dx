@@ -199,6 +199,19 @@ fn index_fixtures_write_the_lock_and_gemfile_lock() {
         archive.first().map(|a| a.sha256.clone()),
         Some(index.sha("rainbow-3.1.1"))
     );
+    let extras: Vec<String> = written
+        .packages
+        .iter()
+        .map(|package| serde_json::to_string(&package.extra).expect("extra"))
+        .collect();
+    assert_eq!(
+        extras,
+        vec![
+            "{}".to_owned(),
+            r#"{"gem_deps":{"rspec-support":"~> 3.13.0"}}"#.to_owned(),
+            "{}".to_owned(),
+        ]
+    );
     let state = std::fs::read_to_string(dir.path().join("Gemfile.lock")).expect("state");
     assert_eq!(
         state,

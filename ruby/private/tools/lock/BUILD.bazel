@@ -13,6 +13,7 @@ rust_library(
         "//cli/families:dx_families",
         "//cli/lock:dx_lock",
         "@crates//:flate2",
+        "@crates//:serde_json",
         "@crates//:tar",
     ],
 )
@@ -43,6 +44,7 @@ rust_test(
         "//cli/families:dx_families",
         "//cli/lock:dx_lock",
         "@crates//:flate2",
+        "@crates//:serde_json",
         "@crates//:tar",
         "@crates//:tempfile",
     ],

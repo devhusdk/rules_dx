@@ -99,6 +99,11 @@
         },
         "cabal_tools": {"$ref": "#/$defs/strings"},
         "zig_main": {"type": "string", "minLength": 1},
+        "gem_deps": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {"type": "string"}
+        },
         "d_library": {
           "type": "object",
           "additionalProperties": false,

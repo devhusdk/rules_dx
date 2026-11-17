@@ -649,7 +649,10 @@ impl<'a> Ruby<'a> {
                     && matches!(package.archives.as_slice(), [archive] if archive.urls == [url.clone()] && archive.sha256 == found.sha256)
             })
         }) {
-            return Ok(package.clone());
+            return Ok(Package {
+                extra: gem_deps(found),
+                ..package.clone()
+            });
         }
         let failed = |message: String| Error::new(format!("gem {name} {}: {message}", found.text));
         let bytes = self
@@ -676,9 +679,29 @@ impl<'a> Ruby<'a> {
             deps: found.deps.keys().cloned().collect(),
             provides: provides.into_iter().collect(),
             dev: false,
-            extra: BTreeMap::new(),
+            extra: gem_deps(found),
         })
     }
+}
+
+/// The `gem_deps` extra of a gem: each dependency mapped to its requirement clauses.
+fn gem_deps(found: &Indexed) -> BTreeMap<String, serde_json::Value> {
+    if found.deps.is_empty() {
+        return BTreeMap::new();
+    }
+    let deps = found
+        .deps
+        .iter()
+        .map(|(dep, requirements)| {
+            let suffix = requirement_suffix(requirements);
+            let clauses = suffix
+                .strip_prefix(" (")
+                .and_then(|rest| rest.strip_suffix(')'))
+                .unwrap_or("");
+            (dep.clone(), serde_json::Value::from(clauses))
+        })
+        .collect();
+    BTreeMap::from([("gem_deps".to_owned(), serde_json::Value::Object(deps))])
 }
 
 fn state_text(

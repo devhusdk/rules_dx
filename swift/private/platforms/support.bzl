@@ -1,25 +1,21 @@
-"""The platforms the Swift wrappers build for."""
+"""The platforms the Swift wrappers build for, from swift/lang.json plus iOS."""
 
-load("//core:platform_support.bzl", "compatible_with", "platform_support")
+load("//core:platform_support.bzl", "compatible_with", "lang_platforms", "platform_support")
+
+_CPUS = {"arm64": "aarch64", "x86_64": "x86_64"}
+
+SWIFT_PLATFORMS = {id: (os, _CPUS[cpu]) for id, (os, cpu) in lang_platforms("swift").items()}
 
 PLATFORM_SUPPORT = platform_support(
     "//swift/private:defs.bzl",
     "SWIFT_COMPATIBLE_WITH",
-    [
-        ["@platforms//os:ios"],
-        ["@platforms//os:linux", "@platforms//cpu:aarch64"],
-        ["@platforms//os:linux", "@platforms//cpu:x86_64"],
-        ["@platforms//os:macos"],
-        ["@platforms//os:windows", "@platforms//cpu:aarch64"],
-        ["@platforms//os:windows", "@platforms//cpu:x86_64"],
+    [["@platforms//os:ios"]] + [
+        ["@platforms//os:" + os, "@platforms//cpu:" + cpu]
+        for os, cpu in sorted(SWIFT_PLATFORMS.values())
     ],
-    [
-        Label("@platforms//os:ios"),
-        Label("//swift/private/platforms:is_linux_aarch64"),
-        Label("//swift/private/platforms:is_linux_x86_64"),
-        Label("@platforms//os:macos"),
-        Label("//swift/private/platforms:is_windows_aarch64"),
-        Label("//swift/private/platforms:is_windows_x86_64"),
+    [Label("@platforms//os:ios")] + [
+        Label("//swift/private/platforms:is_{}_{}".format(os, cpu))
+        for os, cpu in sorted(SWIFT_PLATFORMS.values())
     ],
 )
 

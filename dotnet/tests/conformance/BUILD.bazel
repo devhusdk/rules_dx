@@ -13,7 +13,6 @@ package(
 csharp_library(
     name = "greet",
     srcs = ["Greet.cs"],
-    out = "Greet",
 )
 
 csharp_library(

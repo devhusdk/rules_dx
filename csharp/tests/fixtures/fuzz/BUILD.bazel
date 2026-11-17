@@ -79,8 +79,8 @@ sh_test(
 dx_sharpfuzz_transitive_test(
     name = "transitive_fuzz_instrumented",
     chain = [
-        "wrapper_upstream.dll",
-        "parser_upstream.dll",
+        "wrapper.dll",
+        "parser.dll",
     ],
     harness = ":transitive_fuzz",
 )

@@ -34,7 +34,7 @@ Each language owns one top-level directory.
 - A module extension is named after its language (`qt`, `ocaml`), or after its sub-feature if it serves one (`cuda_license`, `zig_deps`).
 - `defs.bzl` is the only file users load. `private/` holds everything else.
 - Toolchain code lives in `private/toolchain/`, coverage packages in `private/coverage/`.
-- `cc`, `go`, `haskell` and `zig` each keep their own `private/bench_run.sh`, which repeats the same prologue and `dx-bench/v1` JSON envelope around its own awk rule.
+- `cc`, `go`, `haskell` and `zig` each keep their own `private/bench_run.sh` with the shared prologue, `dx-bench/v1` envelope and its own awk rule.
 - `tests/` holds the language tests, fixtures, Starlark suites and `testdata/`, instantiated from `tests/BUILD.bazel`, not in `private/`.
 - Starlark suites are `tests/defs_tests.bzl` (rule and macro analysis tests), `tests/failure_tests.bzl` (expected analysis failures) and `tests/toolchain_tests.bzl` (pin and hub checks).
 
@@ -95,13 +95,13 @@ examples/   tested examples
 - A shard that serves several languages lives with the language that owns its runtime: `js` in `javascript/`, `jvm` in `java/`, `beam` in `erlang/`, `dotnet` in `dotnet/`, `cc` in `cc/`.
 - A tool has all its rows in one `_tools.bzl` table. Moving a tool binary never moves its rows.
 - A `<name>_tools.bzl` file is data and loads only core data files `//core/quality:tool_defs.bzl` and `//core/quality:taxonomy.bzl`.
-- `core/quality/tools.bzl` loads every `_tools.bzl` file, the only core file that loads from a language directory.
+- `core/quality/tools.bzl` loads every `_tools.bzl` file; no other core file loads from a language directory.
 - A tier package `core/quality/tiers/<tool>/` loads only core `.bzl` files.
 - A tool shipped as a prebuilt binary or bundle has no runtime owner. Its package stays in `core/quality/tools/`.
 
 ## Node tools
 
-- `javascript/` owns every tool that runs on Node, whichever file family the tool checks.
+- `javascript/` owns every tool that runs on Node.
 - There is one tool hub, `@dx_npm_tools`. Its `package.json`, `pnpm-lock.yaml` and launcher live in `javascript/private/quality/`.
 - No other directory holds a tool `package.json`, a tool lockfile or a second `npm_translate_lock` for tools.
 - Every Node tool has one target in `javascript/private/quality/bin/`.

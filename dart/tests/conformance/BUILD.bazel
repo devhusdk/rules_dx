@@ -1,6 +1,6 @@
-# gazelle:ignore
-load("//dart/private:defs.bzl", "DART_COMPATIBLE_WITH")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//dart:defs.bzl", "dart_binary", "dart_library", "dart_test")
+load("//dart/private:defs.bzl", "DART_COMPATIBLE_WITH")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 
 package(
@@ -64,6 +64,7 @@ dart_test(
 
 dx_conformance_suite(
     name = "",
+    size = "small",
     binary = ":hello",
     covered_source = "greet.dart",
     expected = "hello world",
@@ -91,5 +92,11 @@ dx_conformance_suite(
         "lint_rule": "unused_local_variable",
         "lint_source": "lib/lint_dirty.dart",
     },
-    size = "small",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

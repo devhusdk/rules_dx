@@ -254,13 +254,16 @@ rust_library(
         "//cli/binfmt:dx_binfmt",
         "//cli/digest:dx_digest",
         "//cli/ecosystems:dx_ecosystems",
-        "//cli/path:dx_path",
         "//cli/process:dx_process",
         "//cli/sbom:dx_sbom",
         "//cli/update:dx_update",
         "@crates//:serde",
         "@rules_rust//rust/runfiles",
-    ],
+    ] + select({
+        # stage.rs searches PATH with dx_path's executable suffixes on Windows only.
+        "@platforms//os:windows": ["//cli/path:dx_path"],
+        "//conditions:default": [],
+    }),
 )
 
 rust_binary(
@@ -436,7 +439,6 @@ rust_test(
         "//cli/binfmt:dx_binfmt",
         "//cli/digest:dx_digest",
         "//cli/ecosystems:dx_ecosystems",
-        "//cli/path:dx_path",
         "//cli/process:dx_process",
         "//cli/sbom:dx_sbom",
         "//cli/test_scratch:dx_test_scratch",
@@ -444,7 +446,10 @@ rust_test(
         "//tools/testing:dx_testing",
         "@crates//:serde",
         "@rules_rust//rust/runfiles",
-    ],
+    ] + select({
+        "@platforms//os:windows": ["//cli/path:dx_path"],
+        "//conditions:default": [],
+    }),
 )
 
 exports_files(["Cargo.toml"])

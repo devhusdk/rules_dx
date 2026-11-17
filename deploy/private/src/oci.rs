@@ -1138,7 +1138,7 @@ fn oci_sign_plan_lines(
         None => format!("  sign: none ({mode}); a live run with an identity runs:"),
     }];
     for step in image_steps("cosign", identity.unwrap_or(&shown), reference, sbom) {
-        if step[1] == "sign" || step[1] == "attest" {
+        if matches!(step.get(1).map(String::as_str), Some("sign" | "attest")) {
             lines.push(format!("  {}", step.join(" ")));
         }
     }

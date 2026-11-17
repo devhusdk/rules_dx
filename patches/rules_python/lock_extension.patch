@@ -9,12 +9,3 @@
      else:
          return None
  
-@@ -1644,6 +1644,8 @@
-         "toolchain": _toolchain,
-     },
-     environ = ["RULES_PYTHON_BZLMOD_DEBUG"],
-+    os_dependent = True,
-+    arch_dependent = True,
- )
- 
- _DEBUG_BUILD_CONTENT = """

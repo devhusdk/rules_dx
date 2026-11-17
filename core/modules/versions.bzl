@@ -37,7 +37,7 @@ GO_SDK_SDKS = {
     "windows_arm64": ["go1.27.4.windows-arm64.zip", "9e7a72565792b8ab370b37ac9ac109799237abacb39ff2f541c438b963c0cc64"],
 }
 
-RULES_PYTHON_VERSION = "2.4.6"
+RULES_PYTHON_VERSION = "2.5.1"
 RULES_PY_VERSION = "2.0.0-alpha.11"
 PYTHON_VERSION = "3.12"
 

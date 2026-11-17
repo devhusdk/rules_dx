@@ -149,6 +149,11 @@ def sources_registry_tests(name):
                 ["cpp", "cpp", "cpp", "cpp", "cpp", "cpp", "cpp", "cpp", "c"],
             ),
             expect_equal(
+                "upstream java and kt extensions map to java and kotlin",
+                [upstream_source_class("java"), upstream_source_class("kt")],
+                ["java", "kotlin"],
+            ),
+            expect_equal(
                 "upstream cuda extensions map to cuda",
                 [upstream_source_class("cu"), upstream_source_class("cuh")],
                 ["cuda", "cuda"],

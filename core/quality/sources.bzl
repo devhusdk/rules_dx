@@ -31,6 +31,11 @@ PROTOBUF = "protobuf"
 
 UPSTREAM_PROTOBUF_EXTENSIONS = ["proto"]
 
+UPSTREAM_JVM_CLASS_EXTENSIONS = {
+    "java": ["java"],
+    "kotlin": ["kt"],
+}
+
 UPSTREAM_CC_CLASS_EXTENSIONS = {
     "c": ["c", "h"],
     "cpp": ["cc", "cpp", "cxx", "hh", "hpp", "hxx", "ipp", "inl", "tcc", "inc", "h++", "c++", "C", "H"],
@@ -45,6 +50,9 @@ def upstream_source_class(extension):
         return RUST
     if extension in UPSTREAM_PROTOBUF_EXTENSIONS:
         return PROTOBUF
+    for class_id in sorted(UPSTREAM_JVM_CLASS_EXTENSIONS.keys()):
+        if extension in UPSTREAM_JVM_CLASS_EXTENSIONS[class_id]:
+            return class_id
     for class_id in sorted(UPSTREAM_CC_CLASS_EXTENSIONS.keys()):
         if extension in UPSTREAM_CC_CLASS_EXTENSIONS[class_id]:
             return class_id

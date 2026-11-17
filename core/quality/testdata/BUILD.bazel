@@ -297,6 +297,18 @@ upstream_ownership_subject(
 )
 
 upstream_ownership_subject(
+    name = "upstream_java_android_subject",
+    testonly = True,
+    target = "//android/tests/fixtures/android_library:java_screen",
+)
+
+upstream_ownership_subject(
+    name = "upstream_kotlin_android_subject",
+    testonly = True,
+    target = "//android/tests/fixtures/android_library:kotlin_screen",
+)
+
+upstream_ownership_subject(
     name = "upstream_cc_subject",
     target = ":fixture_upstream_cc",
 )
@@ -335,6 +347,8 @@ upstream_ownership_tests(
         ":upstream_cc_empty_subject",
         ":upstream_cc_generated_subject",
         ":upstream_cc_subject",
+        ":upstream_java_android_subject",
+        ":upstream_kotlin_android_subject",
         ":upstream_rust_subject",
     ],
 )

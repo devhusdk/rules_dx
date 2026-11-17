@@ -11,6 +11,33 @@ load("//core/quality:sources.bzl", "single_target")
 
 _KT_TOOLCHAIN_TYPE = "@rules_kotlin//kotlin/internal:kt_toolchain_type"
 _SCALA_TOOLCHAIN_TYPE = "@rules_scala//scala:toolchain_type"
+_ANDROID_SDK_TOOLCHAIN_TYPE = "@rules_android//toolchains/android_sdk:toolchain_type"
+_ANDROID_KINDS = ["android_library", "kt_android_library"]
+
+JvmAndroidSdkInfo = provider(
+    doc = "Android platform jars an Android JVM target compiles against.",
+    fields = {"jars": "depset[File]: the android.jar of the resolved Android SDK"},
+)
+
+def _jvm_android_sdk_impl(_target, ctx):
+    if ctx.rule.kind not in _ANDROID_KINDS:
+        return []
+    toolchain = ctx.toolchains[_ANDROID_SDK_TOOLCHAIN_TYPE]
+    if toolchain == None:
+        fail("%s: %s needs a resolved Android SDK toolchain for quality checks" % (ctx.label, ctx.rule.kind))
+    return [JvmAndroidSdkInfo(jars = depset([toolchain.android_sdk_info.android_jar]))]
+
+jvm_android_sdk_aspect = aspect(
+    implementation = _jvm_android_sdk_impl,
+    doc = "Exposes the android.jar of the resolved Android SDK for android_library and kt_android_library targets.",
+    toolchains = [config_common.toolchain_type(_ANDROID_SDK_TOOLCHAIN_TYPE, mandatory = False)],
+)
+
+def android_sdk_jars(target):
+    """Returns the Android platform jars of one target as a depset."""
+    if JvmAndroidSdkInfo in target:
+        return target[JvmAndroidSdkInfo].jars
+    return depset()
 
 # The scalac driver supports Scala 2.13 and Scala 3.3 or newer (-Wunused does not exist before 3.3); targets on other versions get no result.
 _SCALAC_VERSION_PREFIX = "2.13."
@@ -70,6 +97,8 @@ def _unused_deps_map(target, ctx, attrs, implicit = []):
     if toolchain:
         for jar in toolchain.jvm_stdlibs.transitive_compile_time_jars.to_list():
             direct[jar.path] = True
+    for jar in android_sdk_jars(target).to_list():
+        direct[jar.path] = True
     for path in implicit:
         direct[path] = True
     indirect = _indirect_jars(target, direct)
@@ -201,7 +230,7 @@ def _kotlinc_check(target, ctx, attrs):
     deps = [d for d in getattr(attrs, "deps", []) + getattr(attrs, "associates", []) if JavaInfo in d]
     classpath = depset(
         transitive = [d[JavaInfo].transitive_compile_time_jars for d in deps] +
-                     [toolchain.jvm_stdlibs.transitive_compile_time_jars],
+                     [toolchain.jvm_stdlibs.transitive_compile_time_jars, android_sdk_jars(target)],
     )
     friends = target[KtJvmInfo].module_jars
     opts = attrs.kotlinc_opts[KotlincOptions] if getattr(attrs, "kotlinc_opts", None) else toolchain.kotlinc_options
@@ -337,7 +366,7 @@ def _jvm_check_impl(target, ctx):
         return []
     info = target[JavaInfo].compilation_info
     (classes, processor_jars, processor_data) = _plugin_data(target, attrs)
-    classpath = _depset(info.compilation_classpath)
+    classpath = depset(transitive = [_depset(info.compilation_classpath), android_sdk_jars(target)])
     boot_classpath = _depset(info.boot_classpath)
     options = javac_options(utils.tokenize_javacopts(ctx, info.javac_options))
 
@@ -372,6 +401,7 @@ jvm_check_aspect = aspect(
     implementation = _jvm_check_impl,
     doc = "Runs javac (rules_java), kotlinc (rules_kotlin) or scalac (rules_scala, Scala 2.13 and 3.3+) without emitting classes over a target's sources and records the diagnostics without failing the build.",
     attr_aspects = ["upstream"],
+    requires = [jvm_android_sdk_aspect],
     toolchains = [
         config_common.toolchain_type(_KT_TOOLCHAIN_TYPE, mandatory = False),
         config_common.toolchain_type(_SCALA_TOOLCHAIN_TYPE, mandatory = False),

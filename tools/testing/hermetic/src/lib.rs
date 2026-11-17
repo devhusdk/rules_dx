@@ -2427,7 +2427,7 @@ fn materialize_init(manifest: &Manifest, workspace: &Path, source: &Path) -> Res
             workspace,
             source,
             "apple_support",
-            &["toolchains_gate.patch"],
+            &["toolchains_gate.patch", "xcode_absolute_tools.patch"],
         )?;
     // A floor search resolves candidate versions: DX_CONSUMER_OVERRIDES=module=version,...
     let module = match std::env::var(dx_floor::OVERRIDES_ENV) {

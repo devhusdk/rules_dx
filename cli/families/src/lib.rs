@@ -13,8 +13,6 @@ use serde::Deserialize;
 pub struct QualityFiles {
     /// The aspect file, like `go/private/quality:go.bzl`.
     pub bzl: String,
-    /// Whether every workspace needs the file, whatever files it has.
-    pub every_workspace: bool,
     pub file_extensions: Vec<String>,
     /// Exact file names, like `CMakeLists.txt`.
     pub file_names: Vec<String>,
@@ -29,12 +27,10 @@ impl QualityFiles {
     /// file.
     #[must_use]
     pub fn wanted(&self, extensions: &BTreeSet<String>) -> bool {
-        self.every_workspace
-            || self
-                .file_extensions
-                .iter()
-                .chain(&self.file_names)
-                .any(|mark| extensions.contains(mark))
+        self.file_extensions
+            .iter()
+            .chain(&self.file_names)
+            .any(|mark| extensions.contains(mark))
     }
 
     /// The `bzl%name` labels of the aspects (or probes) of `command`.
@@ -226,7 +222,6 @@ fn merge_quality(manifests: Vec<Manifest>) -> Vec<QualityFiles> {
         if let Some(quality) = manifest.quality {
             let entry = merged.entry(quality.bzl.clone()).or_default();
             entry.bzl = quality.bzl;
-            entry.every_workspace |= quality.every_workspace;
             entry.file_extensions.extend(quality.file_extensions);
             entry.file_names.extend(quality.file_names);
             for (target, source) in [

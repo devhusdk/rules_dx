@@ -14,7 +14,6 @@ fn quality_entries_merge_by_aspect_file() {
         merged,
         vec![QualityFiles {
             bzl: "core/quality:families/a.bzl".to_owned(),
-            every_workspace: false,
             file_extensions: vec![".x".to_owned(), ".y".to_owned()],
             file_names: Vec::new(),
             aspects: BTreeMap::from([("lint".to_owned(), vec!["a_lint".to_owned()])]),
@@ -22,20 +21,6 @@ fn quality_entries_merge_by_aspect_file() {
         }]
     );
     assert!(parse_quality(&["{"]).is_err());
-}
-
-#[test]
-fn every_workspace_entry_is_wanted_without_its_files() {
-    let merged = parse_quality(&[
-        r#"{"quality": {"bzl": "a:a.bzl", "every_workspace": true, "file_extensions": [".x"]}}"#,
-        r#"{"quality": {"bzl": "b:b.bzl", "file_extensions": [".y"]}}"#,
-    ])
-    .expect("parse");
-    let none = std::collections::BTreeSet::new();
-    let y = std::collections::BTreeSet::from([".y".to_owned()]);
-    assert!(merged[0].wanted(&none));
-    assert!(!merged[1].wanted(&none));
-    assert!(merged[1].wanted(&y));
 }
 
 #[test]
@@ -51,17 +36,20 @@ fn file_name_entry_is_wanted_by_its_file_name() {
 }
 
 #[test]
-fn every_quality_extension_has_one_aspect_file() {
-    let mut owners: BTreeMap<&str, &str> = BTreeMap::new();
+fn every_quality_language_is_wanted_by_a_file() {
+    let mut owners: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
     for language in quality_languages() {
-        if language.every_workspace {
-            continue;
-        }
         assert!(!language.file_extensions.is_empty(), "{}", language.bzl);
         for ext in &language.file_extensions {
-            let seen = owners.insert(ext, &language.bzl);
-            assert!(seen.is_none(), "{ext} is in {seen:?} and {}", language.bzl);
+            owners.entry(ext).or_default().push(&language.bzl);
         }
+    }
+    let yaml = owners.get(".yaml").cloned().unwrap_or_default();
+    for (ext, files) in &owners {
+        assert!(
+            files.len() == 1 || files.iter().all(|file| yaml.contains(file)),
+            "{ext} is in {files:?}"
+        );
     }
     assert!(quality_languages().len() > 20);
 }

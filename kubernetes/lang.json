@@ -25,8 +25,8 @@
   ],
   "quality": {
     "bzl": "kubernetes/private/quality:kubernetes.bzl",
-    "every_workspace": true,
     "file_extensions": [
+      ".json",
       ".yaml",
       ".yml"
     ],

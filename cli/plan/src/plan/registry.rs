@@ -376,8 +376,8 @@ mod tests {
                     .iter()
                     .find(|language| language.bzl == file);
                 assert!(
-                    language.is_none_or(|language| language.every_workspace
-                        || language.bzl == "go/private/quality:go.bzl"),
+                    language.is_none_or(|language| language.bzl == "go/private/quality:go.bzl"
+                        || language.file_extensions.iter().any(|ext| ext == ".json")),
                     "{command:?}: {label}"
                 );
             }
@@ -446,11 +446,11 @@ mod tests {
     }
 
     #[test]
-    fn every_workspace_languages_are_selected_without_their_files() {
+    fn languages_without_their_files_are_not_selected() {
         let extensions = extensions(&[".go"]);
         let lint = aspects_for(Command::Lint, consumer(&extensions));
         assert!(
-            lint.contains(&"kubernetes/private/quality:kubernetes.bzl%real_kubernetes_lint_aspect")
+            !lint.contains(&"kubernetes/private/quality:kubernetes.bzl%real_kubernetes_lint_aspect")
         );
         assert!(
             !lint
@@ -458,6 +458,19 @@ mod tests {
         );
         assert!(!lint.contains(&"make/private/quality:make.bzl%real_make_lint_aspect"));
         assert!(!lint.contains(&"sql/private/quality:sql.bzl%real_sql_lint_aspect"));
+    }
+
+    #[test]
+    fn a_yaml_file_selects_the_yaml_languages() {
+        let yaml = extensions(&[".yaml"]);
+        let lint = aspects_for(Command::Lint, consumer(&yaml));
+        for label in [
+            "ansible/private/quality:ansible.bzl%real_ansible_lint_aspect",
+            "cloudformation/private/quality:cloudformation.bzl%real_cloudformation_lint_aspect",
+            "kubernetes/private/quality:kubernetes.bzl%real_kubernetes_lint_aspect",
+        ] {
+            assert!(lint.contains(&label), "{label}");
+        }
     }
 
     #[test]

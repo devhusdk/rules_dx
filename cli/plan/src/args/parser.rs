@@ -380,6 +380,9 @@ fn parse_inner<S: AsRef<OsStr>>(
         reason,
         accept,
         expires,
+        verify,
+        repo,
+        bundle,
         cases,
         create,
         force,
@@ -614,6 +617,31 @@ fn parse_inner<S: AsRef<OsStr>>(
             });
         }
     }
+    if command == Command::Security {
+        if verify.is_none() {
+            if repo.is_some() {
+                return Err(unsupported(command, "--repo without --verify"));
+            }
+            if bundle.is_some() {
+                return Err(unsupported(command, "--bundle without --verify"));
+            }
+        } else {
+            if repo.is_none() {
+                return Err(ArgsError::MissingValue {
+                    option: "--repo <owner/name>".to_owned(),
+                });
+            }
+            if !accept.is_empty() {
+                return Err(unsupported(command, "--verify with --accept"));
+            }
+            if affected || here || !reports.is_empty() || !targets.is_empty() {
+                return Err(unsupported(
+                    command,
+                    "--verify with scopes, --here, --affected or --report",
+                ));
+            }
+        }
+    }
     if command == Command::Generate
         && let Some(scope) = targets.iter().find(|scope| {
             scope.starts_with('@') && !scope.starts_with("@//") && !scope.starts_with("@@//")
@@ -779,6 +807,9 @@ fn parse_inner<S: AsRef<OsStr>>(
         reason,
         accept,
         expires,
+        verify,
+        repo,
+        bundle,
         cases,
         create,
         force,

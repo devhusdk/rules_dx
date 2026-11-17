@@ -356,6 +356,12 @@ pub struct Invocation {
     pub accept: Vec<String>,
     /// `--accept --expires`: the review date written to each exception.
     pub expires: Option<String>,
+    /// `dx security --verify`: the downloaded asset to verify.
+    pub verify: Option<String>,
+    /// `--verify --repo`: the GitHub repository, `owner/name`, that must have signed it.
+    pub repo: Option<String>,
+    /// `--verify --bundle`: the Sigstore bundle; unset means `<file>.sigstore.json`.
+    pub bundle: Option<String>,
     pub cases: bool,
     pub create: Option<String>,
     pub force: bool,
@@ -822,6 +828,9 @@ mod tests {
             reason: None,
             accept: Vec::new(),
             expires: None,
+            verify: None,
+            repo: None,
+            bundle: None,
             cases: false,
             create: None,
             force: false,

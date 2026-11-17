@@ -2,7 +2,7 @@
 
 use super::failure::{
     CODE_FETCH_FAILED, CODE_LOCKFILE_DRIFT, CODE_MODULE_NOT_FOUND, CODE_NO_TOOLCHAIN,
-    CODE_STALE_GENERATED,
+    CODE_PATH_TOO_LONG, CODE_STALE_GENERATED,
 };
 
 /// One recognised failure: its stable error code and what to do about it.
@@ -14,7 +14,11 @@ pub(crate) struct Hint {
 
 /// Classifies the stderr of a failed Bazel run; `None` means the generic hint applies.
 pub(crate) fn classify(stderr: &str) -> Option<Hint> {
-    module_not_found(stderr)
+    // Root causes come first: a long path or an untrusted certificate can also show
+    // up as a missing package, module or download further down the same stderr.
+    path_too_long(stderr)
+        .or_else(|| untrusted_certificate(stderr))
+        .or_else(|| module_not_found(stderr))
         .or_else(|| lockfile_drift(stderr))
         .or_else(|| no_toolchain(stderr))
         .or_else(|| stale_generated(stderr))
@@ -138,11 +142,42 @@ fn no_toolchain(stderr: &str) -> Option<Hint> {
     })
 }
 
+/// Windows refuses paths over MAX_PATH; a short output root keeps Bazel's paths under it.
+fn path_too_long(stderr: &str) -> Option<Hint> {
+    const SIGNS: &[&str] = &[
+        "The filename or extension is too long",
+        "The file name is too long",
+        "ERROR_FILENAME_EXCED_RANGE",
+        "exceeds MAX_PATH",
+    ];
+    SIGNS.iter().any(|sign| stderr.contains(sign)).then(|| Hint {
+        code: CODE_PATH_TOO_LONG,
+        next: "next: a Windows path is too long; add `startup --output_user_root=C:/b` to .bazelrc for a short output root (see docs/cli/commands/windows.md), then run the command again.".to_owned(),
+    })
+}
+
+/// Java rejects a server certificate it cannot chain to a trusted CA, as behind a TLS-inspecting proxy.
+fn untrusted_certificate(stderr: &str) -> Option<Hint> {
+    const SIGNS: &[&str] = &[
+        "PKIX path building failed",
+        "SSLHandshakeException",
+        "unable to find valid certification path",
+    ];
+    if !SIGNS.iter().any(|sign| stderr.contains(sign)) {
+        return None;
+    }
+    let named = first_url(stderr).map_or("a download".to_owned(), ToOwned::to_owned);
+    Some(Hint {
+        code: CODE_FETCH_FAILED,
+        next: format!(
+            "next: Bazel does not trust the certificate for {named}; add your company CA to Bazel's Java trust store as docs/proxy-and-ca.md shows, then run the command again."
+        ),
+    })
+}
+
 fn fetch_failed(stderr: &str) -> Option<Hint> {
     const SIGNS: &[&str] = &[
         "UnknownHostException",
-        "SSLHandshakeException",
-        "PKIX path building failed",
         "Unable to tunnel through proxy",
         "Connection refused",
         "Connect timed out",
@@ -154,17 +189,20 @@ fn fetch_failed(stderr: &str) -> Option<Hint> {
     if !SIGNS.iter().any(|sign| stderr.contains(sign)) {
         return None;
     }
-    let url = stderr
-        .split(|c: char| c.is_whitespace() || matches!(c, '[' | ']' | '(' | ')' | '\'' | '"' | ','))
-        .find(|word| word.starts_with("http://") || word.starts_with("https://"))
-        .map(|word| word.trim_end_matches(&[':', '.'][..]));
-    let named = url.map_or("a download".to_owned(), ToOwned::to_owned);
+    let named = first_url(stderr).map_or("a download".to_owned(), ToOwned::to_owned);
     Some(Hint {
         code: CODE_FETCH_FAILED,
         next: format!(
             "next: Bazel could not fetch {named}; check the network and proxy settings (HTTPS_PROXY) and the URL, or point at a populated cache with `--repository_cache`, then run the command again."
         ),
     })
+}
+
+fn first_url(stderr: &str) -> Option<&str> {
+    stderr
+        .split(|c: char| c.is_whitespace() || matches!(c, '[' | ']' | '(' | ')' | '\'' | '"' | ','))
+        .find(|word| word.starts_with("http://") || word.starts_with("https://"))
+        .map(|word| word.trim_end_matches(&[':', '.'][..]))
 }
 
 #[cfg(test)]
@@ -224,7 +262,49 @@ mod tests {
         );
         assert!(hint.next.contains("--repository_cache"), "{}", hint.next);
         assert_eq!(code("GET returned 403 Forbidden"), Some("fetch_failed"));
-        assert_eq!(code("PKIX path building failed"), Some("fetch_failed"));
+        assert!(!hint.next.contains("proxy-and-ca.md"), "{}", hint.next);
+    }
+
+    #[test]
+    fn certificate_failures_point_at_the_ca_guide() {
+        let hint = classify(
+            "ERROR: Error downloading [https://bcr.bazel.build/modules/x/MODULE.bazel] to /x: javax.net.ssl.SSLHandshakeException: PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target",
+        )
+        .unwrap();
+        assert_eq!(hint.code, "fetch_failed");
+        assert!(hint.next.contains("docs/proxy-and-ca.md"), "{}", hint.next);
+        assert!(
+            hint.next.contains("https://bcr.bazel.build/modules/x/MODULE.bazel"),
+            "{}",
+            hint.next
+        );
+        assert!(!hint.next.contains("HTTPS_PROXY"), "{}", hint.next);
+        for stderr in [
+            "PKIX path building failed",
+            "javax.net.ssl.SSLHandshakeException: Remote host terminated the handshake",
+        ] {
+            let hint = classify(stderr).unwrap_or_else(|| panic!("no hint for {stderr}"));
+            assert_eq!(hint.code, "fetch_failed", "{stderr}");
+            assert!(hint.next.contains("docs/proxy-and-ca.md"), "{}", hint.next);
+        }
+    }
+
+    #[test]
+    fn windows_long_paths_point_at_a_short_output_root() {
+        for stderr in [
+            "ERROR: C:/users/me/_bazel_me/abc/external/x/BUILD: java.io.IOException: CreateFile(): The filename or extension is too long.",
+            "ERROR: no such package '@@x//a': java.nio.file.FileSystemException: C:/x: The file name is too long",
+            "ERROR: CreateProcessW failed: ERROR_FILENAME_EXCED_RANGE",
+            "ERROR: path C:/very/long exceeds MAX_PATH",
+        ] {
+            let hint = classify(stderr).unwrap_or_else(|| panic!("no hint for {stderr}"));
+            assert_eq!(hint.code, "path_too_long", "{stderr}");
+            assert!(
+                hint.next.contains("startup --output_user_root=C:/b"),
+                "{}",
+                hint.next
+            );
+        }
     }
 
     #[test]

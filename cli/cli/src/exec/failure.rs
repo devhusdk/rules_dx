@@ -25,6 +25,7 @@ pub(crate) const CODE_STALE_GENERATED: &str = "stale_generated";
 pub(crate) const CODE_FETCH_FAILED: &str = "fetch_failed";
 pub(crate) const CODE_NO_TOOLCHAIN: &str = "no_toolchain";
 pub(crate) const CODE_MODULE_NOT_FOUND: &str = "module_not_found";
+pub(crate) const CODE_PATH_TOO_LONG: &str = "path_too_long";
 
 /// The class of one failure, reported as the `cause` of its `error` event.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -92,7 +93,7 @@ impl Cause {
                 Cause::Collection
             }
             "report_failed" => Cause::Report,
-            "disk_full" | "server_crashed" | "server_out_of_memory" => Cause::Host,
+            "disk_full" | "server_crashed" | "server_out_of_memory" | "path_too_long" => Cause::Host,
             "bazel_signalled" => Cause::Unknown,
             _ => Cause::Operational,
         }

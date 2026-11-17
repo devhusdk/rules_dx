@@ -40,10 +40,16 @@ def _ts_proto_srcs_impl(ctx):
     outs = [ctx.actions.declare_file(src.basename[:-len(".proto")] + "_pb.ts", sibling = src) for src in proto_info.direct_sources]
     plugin = ctx.executable._plugin
     descriptors = proto_info.transitive_descriptor_sets
+    windows = ctx.attr._exec_os[ExecOsInfo].windows
+    plugin_path = plugin.path
+    if windows:
+        # On Windows the plugin is a .bat launcher, which protoc starts through cmd.exe.
+        # cmd.exe reads a forward slash as a switch, so "bazel-out/..." would run "bazel-out".
+        plugin_path = plugin_path.replace("/", "\\")
     args = ctx.actions.args()
-    args.add("--plugin=protoc-gen-es=" + plugin.path)
+    args.add("--plugin=protoc-gen-es=" + plugin_path)
     args.add("--es_out=target=ts:" + _out_dir(ctx, proto_info))
-    args.add_joined("--descriptor_set_in", descriptors, join_with = ";" if ctx.attr._exec_os[ExecOsInfo].windows else ":", format_each = "%s", omit_if_empty = True, map_each = _path)
+    args.add_joined("--descriptor_set_in", descriptors, join_with = ";" if windows else ":", format_each = "%s", omit_if_empty = True, map_each = _path)
     args.add_all(protos)
     ctx.actions.run(
         executable = ctx.toolchains[_PROTO_TOOLCHAIN].proto.proto_compiler,

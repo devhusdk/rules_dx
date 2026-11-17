@@ -91,7 +91,17 @@ aspect_field field_count=3
 aspect_field has_subject=True
 aspect_field subject_label=//core/quality/testdata:upstream_cc_subject
 aspect_field transitive_count=0
-subject //core/quality/testdata:upstream_java_android_subject
+subject //core/quality/testdata:upstream_rust_subject
+field error=(none)
+field ownership=rust:upstream_clean.rs
+field recognized=True
+aspect_field aspect_seen=True
+aspect_field field_count=3
+aspect_field has_subject=True
+aspect_field subject_label=//core/quality/testdata:upstream_rust_subject
+aspect_field transitive_count=0"""
+
+UPSTREAM_ANDROID_OWNERSHIP_OBSERVATIONS = """subject //core/quality/testdata:upstream_java_android_subject
 field error=(none)
 field ownership=java:Screen.java
 field recognized=True
@@ -108,15 +118,6 @@ aspect_field aspect_seen=True
 aspect_field field_count=3
 aspect_field has_subject=True
 aspect_field subject_label=//core/quality/testdata:upstream_kotlin_android_subject
-aspect_field transitive_count=0
-subject //core/quality/testdata:upstream_rust_subject
-field error=(none)
-field ownership=rust:upstream_clean.rs
-field recognized=True
-aspect_field aspect_seen=True
-aspect_field field_count=3
-aspect_field has_subject=True
-aspect_field subject_label=//core/quality/testdata:upstream_rust_subject
 aspect_field transitive_count=0"""
 
 def upstream_ownership_tests(name, subjects):
@@ -126,4 +127,13 @@ def upstream_ownership_tests(name, subjects):
         mode = "analysis",
         subjects = subjects,
         expected_observations = UPSTREAM_OWNERSHIP_OBSERVATIONS,
+    )
+
+def upstream_android_ownership_tests(name, subjects):
+    """Instantiates the upstream ownership probe test for Android library subjects."""
+    starlark_test(
+        name = name,
+        mode = "analysis",
+        subjects = subjects,
+        expected_observations = UPSTREAM_ANDROID_OWNERSHIP_OBSERVATIONS,
     )

@@ -13,6 +13,18 @@ java_library(
     srcs = ["Greet.java"],
 )
 
+java_library(
+    name = "lint_dirty",
+    srcs = ["LintDirty.java"],
+    tags = ["manual"],
+)
+
+java_library(
+    name = "format_dirty",
+    srcs = ["FormatDirty.java"],
+    tags = ["manual"],
+)
+
 java_binary(
     name = "hello",
     srcs = ["Main.java"],
@@ -79,6 +91,15 @@ dx_conformance_suite(
         "stale": "maven_install.stale.json",
     },
     passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "FormatDirty.java",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 4,
+        "lint_rule": "UnusedPrivateMethod",
+        "lint_source": "LintDirty.java",
+    },
     runfiles = {
         "binary": ":runfiles_hello",
         "data": "data.txt",

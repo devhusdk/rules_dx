@@ -992,6 +992,43 @@ rust_test(
 )
 
 rust_test(
+    name = "aspect_to_list_test",
+    size = "small",
+    srcs = [
+        "aspect_to_list_test.rs",
+        "guard_scan.rs",
+    ],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "aspect_to_list_test",
+    crate_root = "aspect_to_list_test.rs",
+    data = [
+        "aspect_to_list_allowlist.txt",
+        "@dx_test_tags_sources//:code.json",
+        "@dx_test_tags_sources//:files.json",
+        "@dx_test_tags_sources//:sources.json",
+    ],
+    env = {
+        "ALLOWLIST": "$(rlocationpath aspect_to_list_allowlist.txt)",
+        "DX_CODE_JSON": "$(rlocationpath @dx_test_tags_sources//:code.json)",
+        "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
+        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+    },
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:starlark_syntax",
+    ],
+)
+
+rust_test(
     name = "host_env_test",
     size = "small",
     srcs = [

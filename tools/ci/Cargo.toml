@@ -30,6 +30,10 @@ name = "artifact_writes_test"
 path = "artifact_writes_test.rs"
 
 [[test]]
+name = "aspect_to_list_test"
+path = "aspect_to_list_test.rs"
+
+[[test]]
 name = "command_docs_test"
 path = "command_docs_test.rs"
 

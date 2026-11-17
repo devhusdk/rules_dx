@@ -1,4 +1,5 @@
-use crate::vuln::{LockedPackage, normalize_pypi_name};
+use crate::vuln::LockedPackage;
+use dx_ecosystems::pep503_name;
 use dx_error::DxError;
 
 const PYPI_HOST: &str = "pypi.org";
@@ -79,7 +80,7 @@ fn workspace_members(root: &toml::Table) -> Vec<String> {
             members
                 .iter()
                 .filter_map(toml::Value::as_str)
-                .map(normalize_pypi_name)
+                .map(pep503_name)
                 .collect()
         })
         .unwrap_or_default()
@@ -103,7 +104,7 @@ fn classify(source: &toml::Table, name: &str, members: &[String]) -> Result<Sour
     }
     for key in ["virtual", "editable"] {
         if let Some(path) = source.get(key).and_then(toml::Value::as_str) {
-            let member = path == "." || members.contains(&normalize_pypi_name(name));
+            let member = path == "." || members.contains(&pep503_name(name));
             return Ok(if member {
                 Source::Member
             } else {

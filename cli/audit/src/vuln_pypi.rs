@@ -2,24 +2,6 @@ use crate::vuln::VersionScope;
 use pep440_rs::Version;
 use std::str::FromStr;
 
-#[must_use]
-pub fn normalize_pypi_name(name: &str) -> String {
-    let mut out = String::with_capacity(name.len());
-    let mut separator = false;
-    for ch in name.trim().chars() {
-        if matches!(ch, '-' | '_' | '.') {
-            separator = true;
-            continue;
-        }
-        if separator && !out.is_empty() {
-            out.push('-');
-        }
-        separator = false;
-        out.extend(ch.to_lowercase());
-    }
-    out
-}
-
 fn clause(part: &str) -> Option<(&str, Version)> {
     let part = part.trim();
     for op in [">=", "<=", "!=", "==", ">", "<", "="] {

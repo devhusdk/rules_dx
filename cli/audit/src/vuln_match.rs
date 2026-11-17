@@ -1,7 +1,7 @@
 use super::{
     Advisory, LockedPackage, REASON_GIT, REASON_PRIVATE, REASON_VERSION_SYNTAX, Unassessed,
     VersionScope, VulnFinding, canonical_severity, family_assess, go_assess, is_version_family,
-    maven_assess, normalize_level, normalize_pypi_name, nuget_assess, pypi_assess, ruby_assess,
+    maven_assess, normalize_level, nuget_assess, pypi_assess, ruby_assess,
     split_gem_lock_version,
 };
 use crate::exception::{
@@ -58,7 +58,7 @@ pub fn package_identity(set: &str, name: &str) -> String {
     if is_nuget_set(set) {
         name.trim().to_lowercase()
     } else if set == "uv" {
-        normalize_pypi_name(name)
+        dx_ecosystems::pep503_name(name)
     } else {
         name.to_owned()
     }

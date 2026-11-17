@@ -806,24 +806,6 @@ pub(crate) fn pip_hubs(module_text: &str) -> Vec<Hub> {
     hubs
 }
 
-/// PEP 503 name with `-`, `_` and `.` runs folded to one `-`.
-fn pip_name(raw: &str) -> String {
-    let mut out = String::new();
-    let mut separator = false;
-    for ch in raw.trim().chars() {
-        if matches!(ch, '-' | '_' | '.') {
-            separator = true;
-        } else {
-            if separator && !out.is_empty() {
-                out.push('-');
-            }
-            separator = false;
-            out.push(ch.to_ascii_lowercase());
-        }
-    }
-    out
-}
-
 /// Requirement name to its whole logical line (version, markers, hashes).
 fn requirement_lines(text: &str) -> BTreeMap<String, String> {
     let mut out: BTreeMap<String, String> = BTreeMap::new();
@@ -837,7 +819,7 @@ fn requirement_lines(text: &str) -> BTreeMap<String, String> {
         let end = line
             .find(|ch: char| !(ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.')))
             .unwrap_or(line.len());
-        let name = pip_name(line.get(..end).unwrap_or_default());
+        let name = dx_ecosystems::pep503_name(line.get(..end).unwrap_or_default());
         if !name.is_empty() {
             let rest = line.get(end..).unwrap_or_default();
             writeln!(out.entry(name.clone()).or_default(), "{name}{rest}").ok();
@@ -895,7 +877,7 @@ pub(crate) fn pip_seeds<'a>(
                     .split_once(':')
                     .map_or(target, |(package, _)| package);
                 let top = package.split('/').next().unwrap_or_default();
-                return forms.contains(&pip_name(top)) || forms.contains(top);
+                return forms.contains(&dx_ecosystems::pep503_name(top)) || forms.contains(top);
             }
             let last = repo.rsplit('+').next().unwrap_or(repo);
             last.strip_prefix(&format!("{hub}_")).is_some_and(|rest| {

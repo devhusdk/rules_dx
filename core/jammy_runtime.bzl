@@ -2,10 +2,24 @@
 
 JAMMY_RUNTIME_MIRROR = "https://launchpad.net/ubuntu/+archive/primary/+files"
 
+JAMMY_POOL_MIRRORS = {
+    "amd64": "https://archive.ubuntu.com/ubuntu/pool",
+    "arm64": "https://ports.ubuntu.com/ubuntu-ports/pool",
+}
+
+def jammy_deb_urls(package):
+    """Returns the launchpad and Ubuntu archive pool URLs of one pinned .deb."""
+    arch = package.deb.removesuffix(".deb").rpartition("_")[2]
+    return [
+        JAMMY_RUNTIME_MIRROR + "/" + package.deb,
+        JAMMY_POOL_MIRRORS[arch] + "/" + package.pool + "/" + package.deb,
+    ]
+
 JAMMY_RUNTIME = {
     "linux_x86_64": [
         struct(
             deb = "libtinfo6_6.3-2ubuntu0.3_amd64.deb",
+            pool = "main/n/ncurses",
             libraries = {"libtinfo.so.6": "lib/x86_64-linux-gnu/libtinfo.so.6"},
             license = "X11",
             copyright = "usr/share/doc/libtinfo6/copyright",
@@ -14,6 +28,7 @@ JAMMY_RUNTIME = {
         ),
         struct(
             deb = "zlib1g_1.2.11.dfsg-2ubuntu9.2_amd64.deb",
+            pool = "main/z/zlib",
             libraries = {"libz.so.1": "lib/x86_64-linux-gnu/libz.so.1"},
             license = "Zlib",
             copyright = "usr/share/doc/zlib1g/copyright",
@@ -23,6 +38,7 @@ JAMMY_RUNTIME = {
         struct(
             copyright = "usr/share/doc/gcc-12-base/copyright",
             deb = "gcc-12-base_12.3.0-1ubuntu1~22.04.3_amd64.deb",
+            pool = "main/g/gcc-12",
             libraries = {},
             license = "GPL-3.0-or-later WITH GCC-exception-3.1",
             package = "gcc-12-base",
@@ -30,6 +46,7 @@ JAMMY_RUNTIME = {
         ),
         struct(
             deb = "libgcc-s1_12.3.0-1ubuntu1~22.04.3_amd64.deb",
+            pool = "main/g/gcc-12",
             libraries = {"libgcc_s.so.1": "lib/x86_64-linux-gnu/libgcc_s.so.1"},
             license = "GPL-3.0-or-later WITH GCC-exception-3.1",
             copyright = None,
@@ -38,6 +55,7 @@ JAMMY_RUNTIME = {
         ),
         struct(
             deb = "libstdc++6_12.3.0-1ubuntu1~22.04.3_amd64.deb",
+            pool = "main/g/gcc-12",
             libraries = {"libstdc++.so.6": "usr/lib/x86_64-linux-gnu/libstdc++.so.6"},
             license = "GPL-3.0-or-later WITH GCC-exception-3.1",
             copyright = None,
@@ -46,6 +64,7 @@ JAMMY_RUNTIME = {
         ),
         struct(
             deb = "libssl3_3.0.2-0ubuntu1.30_amd64.deb",
+            pool = "main/o/openssl",
             libraries = {"libcrypto.so.3": "usr/lib/x86_64-linux-gnu/libcrypto.so.3"},
             license = "Apache-2.0",
             copyright = "usr/share/doc/libssl3/copyright",
@@ -56,6 +75,7 @@ JAMMY_RUNTIME = {
     "linux_arm64": [
         struct(
             deb = "libtinfo6_6.3-2ubuntu0.3_arm64.deb",
+            pool = "main/n/ncurses",
             libraries = {"libtinfo.so.6": "lib/aarch64-linux-gnu/libtinfo.so.6"},
             license = "X11",
             copyright = "usr/share/doc/libtinfo6/copyright",
@@ -64,6 +84,7 @@ JAMMY_RUNTIME = {
         ),
         struct(
             deb = "zlib1g_1.2.11.dfsg-2ubuntu9.2_arm64.deb",
+            pool = "main/z/zlib",
             libraries = {"libz.so.1": "lib/aarch64-linux-gnu/libz.so.1"},
             license = "Zlib",
             copyright = "usr/share/doc/zlib1g/copyright",
@@ -73,6 +94,7 @@ JAMMY_RUNTIME = {
         struct(
             copyright = "usr/share/doc/gcc-12-base/copyright",
             deb = "gcc-12-base_12.3.0-1ubuntu1~22.04.3_arm64.deb",
+            pool = "main/g/gcc-12",
             libraries = {},
             license = "GPL-3.0-or-later WITH GCC-exception-3.1",
             package = "gcc-12-base",
@@ -80,6 +102,7 @@ JAMMY_RUNTIME = {
         ),
         struct(
             deb = "libgcc-s1_12.3.0-1ubuntu1~22.04.3_arm64.deb",
+            pool = "main/g/gcc-12",
             libraries = {"libgcc_s.so.1": "lib/aarch64-linux-gnu/libgcc_s.so.1"},
             license = "GPL-3.0-or-later WITH GCC-exception-3.1",
             copyright = None,
@@ -88,6 +111,7 @@ JAMMY_RUNTIME = {
         ),
         struct(
             deb = "libstdc++6_12.3.0-1ubuntu1~22.04.3_arm64.deb",
+            pool = "main/g/gcc-12",
             libraries = {"libstdc++.so.6": "usr/lib/aarch64-linux-gnu/libstdc++.so.6"},
             license = "GPL-3.0-or-later WITH GCC-exception-3.1",
             copyright = None,
@@ -96,6 +120,7 @@ JAMMY_RUNTIME = {
         ),
         struct(
             deb = "libssl3_3.0.2-0ubuntu1.30_arm64.deb",
+            pool = "main/o/openssl",
             libraries = {"libcrypto.so.3": "usr/lib/aarch64-linux-gnu/libcrypto.so.3"},
             license = "Apache-2.0",
             copyright = "usr/share/doc/libssl3/copyright",

@@ -2,7 +2,7 @@
 
 load("//core:deb_closure.bzl", "deb_closure")
 load("//core:toolchain.bzl", "toolchain_target")
-load(":pins.bzl", "CELLS", "GHC_VERSION", "RUNTIME_MIRROR", "qualified_cells")
+load(":pins.bzl", "CELLS", "GHC_VERSION", "qualified_cells", "runtime_urls")
 
 HUB_NAME = "dx_haskell_toolchains"
 
@@ -385,7 +385,7 @@ def _ghc_repo_impl(rctx):
     for path in GHC_DROPPED_PATHS:
         rctx.delete(path)
     if cell.runtime:
-        deb_closure(rctx, RUNTIME_MIRROR, cell.runtime, CLOSURE_DIR)
+        deb_closure(rctx, runtime_urls, cell.runtime, CLOSURE_DIR)
         rctx.symlink(CLOSURE_DIR + "/lib/libgmp.so.10", CLOSURE_DIR + "/lib/libgmp.so")
         for package in cell.runtime:
             for soname in package.libraries:

@@ -1,9 +1,9 @@
 """Hermetic LDC acquisition, the pinned rules_d sources and toolchain registration."""
 
 load("//core:deb_closure.bzl", "deb_closure")
-load("//core:jammy_runtime.bzl", "JAMMY_RUNTIME", "JAMMY_RUNTIME_MIRROR")
-load("//qt/private/toolchain:seven_zip.bzl", "seven_zip_extract", "seven_zip_fetch")
+load("//core:jammy_runtime.bzl", "JAMMY_RUNTIME", "jammy_deb_urls")
 load("//core:toolchain.bzl", "toolchain_target")
+load("//qt/private/toolchain:seven_zip.bzl", "seven_zip_extract", "seven_zip_fetch")
 load(":pins.bzl", "LDC_CELLS", "LDC_VERSION")
 
 HUB_NAME = "dx_d_toolchains"
@@ -238,7 +238,7 @@ def _ldc_impl(rctx):
     for path in ldc_required_paths(cell):
         if not rctx.path(path).exists:
             fail("LDC archive " + cell.archive + " has no " + path)
-    deb_closure(rctx, JAMMY_RUNTIME_MIRROR, ldc_runtime(rctx.attr.cell), CLOSURE_DIR)
+    deb_closure(rctx, jammy_deb_urls, ldc_runtime(rctx.attr.cell), CLOSURE_DIR)
     if cell.wrapper and cell.runtime:
         rctx.file(CLOSURE_MARKER, "")
     rctx.file(VERSION_FILE, LDC_VERSION + "\n")

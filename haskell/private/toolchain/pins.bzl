@@ -20,6 +20,10 @@ GLIBC_FLOOR = "2.28"
 
 RUNTIME_MIRROR = "https://snapshot.debian.org/archive"
 
+def runtime_urls(package):
+    """Returns the snapshot.debian.org URL of one pinned runtime .deb."""
+    return [RUNTIME_MIRROR + "/" + package.deb]
+
 CELLS = {
     "linux_x86_64": struct(
         blocker = "",

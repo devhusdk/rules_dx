@@ -20,6 +20,7 @@ def chromium_closure(pins, platform):
             deb = packages[name]["deb"],
             libraries = packages[name]["libraries"],
             package = name,
+            pool = packages[name]["pool"],
             sha256 = packages[name]["sha256"],
         )
         for name in sorted(packages)

@@ -1,7 +1,7 @@
 """Pinned Erlang/OTP runtime and native closure identities."""
 
 load("@dx_pins_data//:pins.bzl", "DATA")
-load("//core:jammy_runtime.bzl", "JAMMY_RUNTIME", "JAMMY_RUNTIME_MIRROR")
+load("//core:jammy_runtime.bzl", "JAMMY_RUNTIME", "jammy_deb_urls")
 
 _PINS = DATA["dx_erlang"]
 
@@ -26,7 +26,7 @@ HEX_SOURCES = {
 
 GLIBC_FLOOR = "2.35"
 
-RUNTIME_MIRROR = JAMMY_RUNTIME_MIRROR
+runtime_urls = jammy_deb_urls
 
 def _cell(cell):
     return _PINS["cells"][cell]

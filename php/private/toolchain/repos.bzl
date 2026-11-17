@@ -1,12 +1,10 @@
 """Hermetic PHP, Composer and PHPUnit acquisition and toolchain registration."""
 
-load(":cells.bzl", "PHP_CELLS")
+load("//core:toolchain.bzl", "cell_repo", "pins_hub")
 
 VC_REDIST_VERSION = "14.50.35710"
 
 HUB_NAME = "dx_php_toolchains"
-
-RUNTIME_PREFIX = "dx_php_"
 
 VERSION_FILE = "DX_PHP_VERSION"
 
@@ -21,7 +19,7 @@ package(default_visibility = ["//visibility:public"])
 exports_files(["{interpreter}", "{version_file}"])
 
 php_toolchain(
-    name = "php_toolchain",{coverage}
+    name = "toolchain",{coverage}
     interpreter = "{interpreter}",
     pcov = {pcov},
     version = "{version}",
@@ -75,37 +73,13 @@ def runtime_build(version, interpreter = "php", pcov = False, coverage = ""):
         version_file = VERSION_FILE,
     )
 
-_HUB_TOOLCHAIN = """toolchain(
-    name = {name},
-    {constraint} = {constraints},
-    toolchain = {toolchain},
-    toolchain_type = {toolchain_type},
-)
-"""
+def runtime_repository_name(cell):
+    """Returns the repository name one cell's runtime is acquired into."""
+    return cell_repo(HUB_NAME, cell)
 
 def hub_build(cells):
     """Returns the hub BUILD file: a runtime and an exec toolchain per cell."""
-    content = []
-    for cell in sorted(cells):
-        constraints = repr(list(PHP_CELLS[cell].exec_compatible_with))
-        toolchain = repr("@{}//:php_toolchain".format(RUNTIME_PREFIX + cell))
-        content.append("\n".join([
-            _HUB_TOOLCHAIN.format(
-                name = repr(cell),
-                constraint = "target_compatible_with",
-                constraints = constraints,
-                toolchain = toolchain,
-                toolchain_type = repr(TOOLCHAIN_TYPE),
-            ),
-            _HUB_TOOLCHAIN.format(
-                name = repr(cell + "_exec"),
-                constraint = "exec_compatible_with",
-                constraints = constraints,
-                toolchain = toolchain,
-                toolchain_type = repr(EXEC_TOOLCHAIN_TYPE),
-            ),
-        ]))
-    return "\n".join(content)
+    return pins_hub(HUB_NAME, cells, TOOLCHAIN_TYPE, "target", exec_toolchain_type = EXEC_TOOLCHAIN_TYPE)
 
 SOURCES_BUILD = """package(default_visibility = ["//visibility:public"])
 
@@ -145,20 +119,6 @@ php_coverage_runtime = repository_rule(
         "pcov": attr.string_list(mandatory = True, doc = "The PCOV zip: its sha256 and then its URLs."),
         "php": attr.string_list(mandatory = True, doc = "The PHP zip: its sha256 and then its URLs."),
         "_msvc_runtime": attr.label(default = "@dx_msvc_runtime//:BUILD.bazel", doc = "The hermetic MSVC redistributable."),
-    },
-)
-
-def _hub_impl(rctx):
-    rctx.file("REPO.bazel", "")
-    for path, content in rctx.attr.files.items():
-        rctx.file(path, content)
-    return rctx.repo_metadata(reproducible = True)
-
-php_hub = repository_rule(
-    implementation = _hub_impl,
-    doc = "Writes rendered files into a repository that downloads nothing.",
-    attrs = {
-        "files": attr.string_dict(doc = "Repository path to file content."),
     },
 )
 

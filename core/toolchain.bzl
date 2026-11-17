@@ -114,10 +114,11 @@ def cell_repo(name, cell):
     """Returns the name of the repository holding one cell of a pin."""
     return name + "__" + cell
 
-def pins_hub(name, cells, toolchain_type, compatible_with = "exec", exec_aliases = [], os_constraints = {}):
+def pins_hub(name, cells, toolchain_type, compatible_with = "exec", exec_aliases = [], os_constraints = {}, exec_toolchain_type = None):
     """Returns the hub BUILD file of a pin: one toolchain() per cell and an alias per exec_aliases target selecting the exec cell.
 
-    os_constraints maps an OS to constraints every cell of that OS adds after its OS and CPU."""
+    os_constraints maps an OS to constraints every cell of that OS adds after its OS and CPU.
+    exec_toolchain_type adds a second toolchain() per cell, named <cell repo>_exec, of that type on the cell's exec platform."""
     constraints = {
         cell: [_OS_CONSTRAINTS[cell.partition("_")[0]], _CPU_CONSTRAINTS[cell.partition("_")[2]]] + os_constraints.get(cell.partition("_")[0], [])
         for cell in cells
@@ -133,6 +134,17 @@ def pins_hub(name, cells, toolchain_type, compatible_with = "exec", exec_aliases
         )
         for cell in sorted(cells)
     ]
+    if exec_toolchain_type:
+        parts.extend([
+            toolchain_target(
+                name = cell_repo(name, cell) + "_exec",
+                exec_compatible_with = constraints[cell],
+                toolchain = "@{}//:toolchain".format(cell_repo(name, cell)),
+                toolchain_type = exec_toolchain_type,
+                visibility = ["//visibility:public"],
+            )
+            for cell in sorted(cells)
+        ])
     if exec_aliases:
         parts.extend([
             'config_setting(\n    name = "{}_exec",\n    constraint_values = {},\n)\n'.format(cell, repr(constraints[cell]))

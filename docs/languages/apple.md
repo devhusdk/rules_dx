@@ -351,7 +351,8 @@ bazel run //:install
 bazel run //:launch
 ```
 
-`simulator` is an available simulator's name or UDID. Each launcher
+`simulator` is an available simulator's name or UDID. A non-empty
+`DX_SIMCTL_DEVICE` in the environment replaces it. Each launcher
 exits with:
 
 - `0` when `xcrun simctl` succeeds;

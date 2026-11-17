@@ -9,3 +9,5 @@ Lint/RedundantCopDisableDirective:
   Enabled: true
 Style/Copyright:
   Enabled: false
+Layout/EndOfLine:
+  EnforcedStyle: lf

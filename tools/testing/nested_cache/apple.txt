@@ -660,3 +660,5 @@ https://static.rust-lang.org/dist/clippy-1.99.1-aarch64-apple-darwin.tar.xz c463
 https://static.rust-lang.org/dist/llvm-tools-1.99.1-aarch64-apple-darwin.tar.xz b348db9d79666aee4b5e2ff4269029fffd16815cbd47f47018cd0b06e4f815f5
 https://static.rust-lang.org/dist/rust-std-1.99.1-aarch64-apple-darwin.tar.xz fe79d6ab5a0321de26463999d8c112b8ad3eafbcbcf822d66a2300b45dde1031
 https://static.rust-lang.org/dist/rustc-1.99.1-aarch64-apple-darwin.tar.xz 23948a0a9c162fd2952defb3fb0462c44e8fcfd1a4ab8a274a1e1bdb2cf810a3
+id-bbea0fabfdbf037ddf6765848ce5875c610f16b7cd81c9c19c67665f0a3aca54 28c1ffa39d99e74ed70623899b207b41f79214c498c603915aef55972a851a15
+id-cd1d1dc5b23fba0907e4a8835a29837ddc4822bcd3717aa6312779144296b319 8d0ecfb7abd2c47a3b253f8f20ad76b4932f7f99c8f314951823d7b63a61d78d

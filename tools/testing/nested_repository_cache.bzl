@@ -30,7 +30,7 @@ nested_repository_cache = rule(
             doc = "Downloaded files mapped to their hex digest.",
         ),
         "urls": attr.string_list_dict(
-            doc = "Hex digest to the URLs the download is fetched from; each is a canonical id of the cache entry.",
+            doc = "Hex digest to the URLs the download is fetched from, each a canonical id of the cache entry, and `id-<hex>` canonical id hashes.",
         ),
     },
 )
@@ -81,7 +81,10 @@ def digest_integrity(digest):
     return "%s-%s" % (digest_algorithm(digest), "".join(encoded))
 
 def parse_cache_list(text, origin):
-    """Parses a cache list into hex digest to URLs: one `<url> <hex digest>` per line, `#` comments."""
+    """Parses a cache list into hex digest to URLs and `id-<hex>` canonical id hashes.
+
+    One `<url> <hex digest>` or `id-<hex> <hex digest>` per line, `#` comments.
+    """
     entries = {}
     for number, line in enumerate(text.splitlines(), 1):
         line = line.strip()
@@ -91,9 +94,16 @@ def parse_cache_list(text, origin):
         if len(parts) != 2:
             fail("%s:%d: want `<url> <digest>`, got %r" % (origin, number, line))
         url, digest = parts
-        if not digest_algorithm(digest):
+        algorithm = digest_algorithm(digest)
+        if not algorithm:
             fail("%s:%d: bad digest %r" % (origin, number, digest))
-        if not url.startswith("https://"):
+        if url.startswith("id-"):
+            if digest_algorithm(url[len("id-"):]) != algorithm:
+                fail("%s:%d: want `id-<%s hex>`, got %r" % (origin, number, algorithm, url))
+        elif not url.startswith("https://"):
             fail("%s:%d: want an https URL, got %r" % (origin, number, url))
         entries.setdefault(digest, []).append(url)
+    for digest, urls in entries.items():
+        if not [url for url in urls if url.startswith("https://")]:
+            fail("%s: %s has no https URL" % (origin, digest))
     return entries

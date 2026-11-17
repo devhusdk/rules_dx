@@ -1,0 +1,3 @@
+[workspace]
+members = ["rust/tests/fixtures/cc-rs"]
+resolver = "3"

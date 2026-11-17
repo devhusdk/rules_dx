@@ -101,7 +101,7 @@ jobs:
           tar -xzOf "$download/selene.tar.gz" "selene-$selene_version/LICENSE.md" > "$out/dx-tool-selene-$selene_version-LICENSE"
           if test "$host" = "linux-arm64"; then
             curl --fail --silent --show-error --location -o "$download/nixfmt.tar.gz" "https://github.com/NixOS/nixfmt/archive/refs/tags/v$nixfmt_version.tar.gz"
-            test "$(sha256_of "$download/nixfmt.tar.gz")" = "$nixfmt_sha256" || { echo "nixfmt archive sha256 differs from haskell_deps.json" >&2; exit 1; }
+            test "$(sha256_of "$download/nixfmt.tar.gz")" = "$nixfmt_sha256" || { echo "nixfmt archive sha256 differs from core/quality/tools/nixfmt/cabal.lock.json" >&2; exit 1; }
             tar -xzOf "$download/nixfmt.tar.gz" "nixfmt-$nixfmt_version/LICENSE" > "$out/dx-tool-nixfmt-$nixfmt_version-LICENSE"
             test -s "$out/dx-tool-nixfmt-$nixfmt_version-LICENSE"
           fi

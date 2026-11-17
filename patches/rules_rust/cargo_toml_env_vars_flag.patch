@@ -95,7 +95,7 @@ diff --git a/cargo/settings/settings.bzl b/cargo/settings/settings.bzl
 +    bool_flag(
 +        name = "cargo_toml_env_vars",
 +        scope = "universal",
-+        build_setting_default = True,
++        build_setting_default = False,
 +    )
 +
  def use_default_shell_env():

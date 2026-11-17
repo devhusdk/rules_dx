@@ -31,8 +31,6 @@
 --repo_env
 --//ruby/private/quality:rubocop
 --@rules_dx//config:clippy_flag
---@rules_rust//cargo/settings:cargo_toml_env_vars
---@rules_rust//cargo/settings:use_default_shell_env
 --@rules_rust//rust/settings:clippy.toml
 --@rules_rust//rust/settings:extra_rustc_flag
 --@rules_rust//rust/settings:extra_rustc_flags

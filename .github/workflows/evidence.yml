@@ -234,6 +234,19 @@ jobs:
               [ -S "$runtime/wayland-dx" ] || { cat "$RUNNER_TEMP/weston.log"; exit 1; }
               ;;
           esac
+      - name: Warm the iOS simulator runtimes
+        if: ${{ runner.os == 'macOS' && contains(steps.inputs.outputs.flags, 'simulator_runtime=') }}
+        env:
+          DX_FLAGS: ${{ steps.inputs.outputs.flags }}
+        run: |
+          set -eu
+          runtime=$(sed -nE 's/.*simulator_runtime=([0-9.]+).*/\1/p' <<< "$DX_FLAGS")
+          start=$(date +%s)
+          udid=$(xcrun simctl create dx-warm "iPhone 16" "com.apple.CoreSimulator.SimRuntime.iOS-${runtime//./-}")
+          xcrun simctl bootstatus "$udid" -b
+          echo "iOS $runtime simulator booted after $(( $(date +%s) - start ))s"
+          xcrun simctl shutdown "$udid"
+          xcrun simctl delete "$udid"
       - name: Allow unprivileged user namespaces
         if: runner.os == 'Linux'
         run: |

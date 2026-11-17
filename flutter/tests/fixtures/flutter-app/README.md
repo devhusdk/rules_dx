@@ -40,7 +40,7 @@ The evidence workflow with `android=true` boots the emulator on a `linux_x86_64`
 
 ## iOS simulator
 
-`:ios_app` wraps `flutter_ios_app` over the native app, and simulator builds need no signing. The runner files in `ios/Runner` are the ones rules_flutter ships. `:ios_boot`, `:ios_install` and `:ios_launch` use a host `iPhone 16` simulator under `bazel run`. `:inspect_ios_app_test` checks that the bundle names the bundle id and that the app, `Flutter` and `App` binaries are arm64 iOS simulator Mach-O files. `:ios_simulator_smoke_test` creates an `iPhone 16` on the declared runtime in its own simulator set, installs and launches the app, checks that it still runs five seconds later, and deletes the device. It is incompatible until the machine declares a runtime and takes one `ios_simulator` resource.
+`:ios_app` wraps `flutter_ios_app` over the native app, and simulator builds need no signing. The runner files in `ios/Runner` are the ones rules_flutter ships. `:ios_boot`, `:ios_install` and `:ios_launch` use a host `iPhone 16` simulator under `bazel run`. `:inspect_ios_app_test` checks that the bundle names the bundle id and that the app, `Flutter` and `App` binaries are arm64 iOS simulator Mach-O files. `:ios_simulator_smoke_test` creates an `iPhone 16` on the declared runtime in its own simulator set, boots it, installs and launches the app with retries until a 40 second deadline, prints the elapsed time of each step, checks that `launchctl` lists it within five seconds, and deletes the device. It is incompatible until the machine declares a runtime and takes one `ios_simulator` resource.
 
 `flutter_ios_app` builds the app for the arm64 simulator in debug mode on a macOS arm64 host, with no flag.
 

@@ -1064,7 +1064,7 @@ fn expand_tilde_without_home_keeps_the_path() {
         expand_tilde_with(Path::new("~/ws"), None),
         PathBuf::from("~/ws")
     );
-    let _ = expand_tilde(Path::new("~"));
+    drop(expand_tilde(Path::new("~")));
 }
 
 #[test]
@@ -1564,7 +1564,7 @@ fn workspace_start_and_run_output_base_read_the_environment() {
     let scratch = dx_test_scratch::scratch("dx-workspace-start-").unwrap();
     let cwd = scratch.path();
     assert!(workspace_start(cwd).is_absolute());
-    let _ = run_output_base();
+    drop(run_output_base());
 }
 
 #[test]

@@ -2027,6 +2027,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "dx_os_sys"
+version = "0.0.0"
+dependencies = [
+ "errno",
+ "libc",
+ "rustix",
+]
+
+[[package]]
 name = "dx_output"
 version = "0.0.0"
 dependencies = [
@@ -2077,7 +2086,6 @@ version = "0.0.0"
 name = "dx_process"
 version = "0.0.0"
 dependencies = [
- "libc",
  "thiserror 2.0.20",
 ]
 

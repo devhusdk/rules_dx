@@ -2602,6 +2602,7 @@ crate.from_cargo(
     manifests = [
         "//cc/private/tools/context:Cargo.toml",
         "//cli/process:Cargo.toml",
+        "//cli/os_sys:Cargo.toml",
         "//cli/apply:Cargo.toml",
         "//cli/atomic_fs:Cargo.toml",
         "//cli/merge:Cargo.toml",

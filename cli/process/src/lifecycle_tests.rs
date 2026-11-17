@@ -1110,7 +1110,6 @@ fn owned_child_gets_every_forwarded_sigint() {
 
 #[cfg(target_os = "linux")]
 #[test]
-#[expect(unsafe_code, reason = "getpgrp has no safe std API")]
 fn a_terminal_run_without_a_tty_puts_the_child_in_its_own_group() {
     let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let sink = Sink::default();
@@ -1137,8 +1136,7 @@ fn a_terminal_run_without_a_tty_puts_the_child_in_its_own_group() {
         .parse()
         .expect("pid");
     let pgid: i32 = fields.get(2).expect("pgrp").parse().expect("pgrp");
-    // SAFETY: getpgrp has no preconditions.
-    assert_ne!(pgid, unsafe { libc::getpgrp() }, "{stat}");
+    assert_ne!(pgid, dx_os_sys::process::own_group(), "{stat}");
     if !terminal_foreground() {
         assert_eq!(pgid, pid, "{stat}");
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
@@ -1814,15 +1812,11 @@ fn console_ctrl_c_and_break_act_as_sigint() {
 
 #[cfg(target_os = "linux")]
 #[test]
-#[expect(unsafe_code, reason = "the test sets errno through its libc location")]
 fn sending_a_signal_keeps_the_callers_errno() {
-    // SAFETY: __errno_location points at this thread's errno.
-    unsafe { *libc::__errno_location() = libc::EINTR };
+    const EINTR: i32 = 4;
+    dx_os_sys::errno::set(EINTR);
     backend::send(i32::MAX - 1, 15);
-    assert_eq!(
-        std::io::Error::last_os_error().raw_os_error(),
-        Some(libc::EINTR)
-    );
+    assert_eq!(std::io::Error::last_os_error().raw_os_error(), Some(EINTR));
 }
 
 #[test]

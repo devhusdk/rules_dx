@@ -470,8 +470,7 @@ impl Slot {
 static FORWARDS: [Slot; FORWARD_SLOTS] = [const { Slot::new() }; FORWARD_SLOTS];
 static REGISTER: Mutex<()> = Mutex::new(());
 
-/// The stop signals dx forwards to a streamed child: SIGINT, SIGTERM and SIGHUP.
-pub const STOP_SIGNALS: [i32; 3] = [2, 15, 1];
+pub use dx_os_sys::STOP_SIGNALS;
 
 /// Makes Ctrl-C and Ctrl-Break record a stop like SIGINT.
 #[cfg(windows)]
@@ -664,6 +663,8 @@ pub(crate) fn run_streamed_in(
         lease.record_from_child(&mut command);
     }
     let (mut child, tree) = backend::spawn_streamed(&mut command, group, &held)?;
+    // The spawn hooks own descriptor duplicates; close them now rather than at return.
+    drop(command);
     if let Some(lease) = lease.as_ref() {
         lease.record_unwritten(child.id().cast_signed());
     }
@@ -884,10 +885,6 @@ fn copy_out<R: io::Read + Send + 'static>(
 }
 
 #[cfg(unix)]
-#[expect(
-    unsafe_code,
-    reason = "terminal job control is libc fork, signal and tty calls"
-)]
 #[path = "terminal.rs"]
 mod terminal;
 

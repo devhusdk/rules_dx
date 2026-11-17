@@ -38,22 +38,8 @@ pub use rc::{
 pub use runner::{BinaryRunner, Holding};
 pub use stderr_tail::last_bazel_stderr;
 
-/// This thread's `errno`, for a signal handler to save on entry and restore on exit.
 #[cfg(unix)]
-#[expect(unsafe_code, reason = "the errno location is only exposed by libc")]
-#[must_use]
-pub fn errno_slot() -> *mut libc::c_int {
-    #[cfg(any(target_os = "linux", target_os = "android"))]
-    // SAFETY: __errno_location has no preconditions.
-    unsafe {
-        libc::__errno_location()
-    }
-    #[cfg(not(any(target_os = "linux", target_os = "android")))]
-    // SAFETY: __error has no preconditions.
-    unsafe {
-        libc::__error()
-    }
-}
+pub use dx_os_sys::errno::slot as errno_slot;
 
 pub trait Fs {
     fn is_file(&self, path: &Path) -> bool;
@@ -903,27 +889,12 @@ pub fn disk_space(path: &Path) -> Option<DiskSpace> {
 }
 
 #[cfg(unix)]
-#[expect(unsafe_code, reason = "statvfs has no safe std API")]
 fn dir_disk_space(dir: &Path) -> Option<DiskSpace> {
-    use std::os::unix::ffi::OsStrExt;
-
-    fn widen<T: Into<u64>>(value: T) -> u64 {
-        value.into()
-    }
-
-    let path = std::ffi::CString::new(dir.as_os_str().as_bytes()).ok()?;
-    let mut stat = std::mem::MaybeUninit::<libc::statvfs>::uninit();
-    // SAFETY: `path` is NUL-terminated and `stat` is writable for one statvfs.
-    (unsafe { libc::statvfs(path.as_ptr(), stat.as_mut_ptr()) } == 0).then_some(())?;
-    // SAFETY: statvfs returned 0, so it filled `stat`.
-    let stat = unsafe { stat.assume_init() };
-    let unit = widen(stat.f_frsize);
-    let total = widen(stat.f_blocks)
-        .checked_mul(unit)
-        .filter(|total| *total != 0)?;
-    // `f_bavail` is the space available to unprivileged users, the same figure `df` reports.
-    let free = widen(stat.f_bavail).checked_mul(unit)?;
-    Some(DiskSpace { free, total })
+    let space = dx_os_sys::fs::space(dir).ok()?;
+    (space.total != 0).then_some(DiskSpace {
+        free: space.free,
+        total: space.total,
+    })
 }
 
 #[cfg(not(unix))]

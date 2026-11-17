@@ -1,11 +1,9 @@
 """Hermetic OCaml acquisition and toolchain registration."""
 
-load("//core:toolchain.bzl", "toolchain_target")
+load("//core:toolchain.bzl", "cell_repo", "pins_hub")
 load(":pins.bzl", "OCAML_CELLS", "OCAML_VERSION")
 
 HUB_NAME = "dx_ocaml_toolchains"
-
-DIST_PREFIX = "dx_ocaml_"
 
 VERSION_FILE = "DX_OCAML_VERSION"
 
@@ -64,26 +62,6 @@ ocaml_import(
         "//conditions:default": "lib/ocaml/str/str.cma",
     }}),
     sigs = glob(["lib/ocaml/str/*.cmi", "lib/ocaml/str/*.cmx"]),
-)
-"""
-
-_CELL = """config_setting(
-    name = "{cell}",
-    constraint_values = {constraints},
-)
-"""
-
-_OCAMLRUN = """alias(
-    name = "ocamlrun",
-    actual = select({cases}),
-    visibility = ["//visibility:public"],
-)
-"""
-
-_ALIAS = """alias(
-    name = "{name}",
-    actual = select({cases}),
-    visibility = ["//visibility:public"],
 )
 """
 
@@ -183,39 +161,26 @@ dist_repo = repository_rule(
     },
 )
 
+def dist_repository_name(cell):
+    """Returns the repository name one cell's OCaml distribution is installed into."""
+    return cell_repo(HUB_NAME, cell)
+
 def hub_build():
     """Returns the hub BUILD file: toolchains per cell and emitter, and the target cell aliases."""
-    content = []
-    for cell in sorted(OCAML_CELLS.keys()):
-        for emitter in OCAML_CELLS[cell].emitters:
-            exec_constraints = OCAML_CELLS[cell].exec_compatible_with + EMITTERS[emitter].exec_compatible_with
-            target_constraints = OCAML_CELLS[cell].exec_compatible_with + EMITTERS[emitter].target_compatible_with
-            content.append("\n".join([
-                toolchain_target(
-                    name = "{}_{}".format(cell, emitter),
-                    exec_compatible_with = exec_constraints,
-                    target_compatible_with = target_constraints,
-                    toolchain = "@{}{}//:{}".format(DIST_PREFIX, cell, emitter),
-                    toolchain_type = str(Label("@rules_ocaml//toolchain/type:std")),
-                ),
-                toolchain_target(
-                    name = "{}_{}_profile".format(cell, emitter),
-                    exec_compatible_with = exec_constraints,
-                    target_compatible_with = target_constraints,
-                    toolchain = "@{}{}//:{}_profile".format(DIST_PREFIX, cell, emitter),
-                    toolchain_type = str(Label("@rules_ocaml//toolchain/type:profile")),
-                ),
-            ]))
-    for cell in sorted(OCAML_CELLS.keys()):
-        content.append(_CELL.format(cell = cell, constraints = repr(OCAML_CELLS[cell].exec_compatible_with)))
-    content.append(_OCAMLRUN.format(cases = repr({":" + cell: "@" + DIST_PREFIX + cell + "//:ocamlrun" for cell in sorted(OCAML_CELLS.keys())})))
-    content.append(_NONE)
-    for alias in sorted(CELL_ALIASES.keys()):
-        cases = {":" + cell: "@" + DIST_PREFIX + cell + CELL_ALIASES[alias] for cell in sorted(OCAML_CELLS.keys())}
-        if alias in EMPTY_DEFAULT_ALIASES:
-            cases["//conditions:default"] = ":none"
-        content.append(_ALIAS.format(name = alias, cases = repr(cases)))
-    return "\n".join(content)
+    aliases = {"ocamlrun": "//:ocamlrun"} | {alias: CELL_ALIASES[alias] for alias in sorted(CELL_ALIASES)}
+    return "\n".join([
+        pins_hub(
+            HUB_NAME,
+            OCAML_CELLS.keys(),
+            str(Label("@rules_ocaml//toolchain/type:std")),
+            "both",
+            aliases,
+            variants = EMITTERS,
+            companion_types = {"profile": str(Label("@rules_ocaml//toolchain/type:profile"))},
+            alias_defaults = {alias: ":none" for alias in EMPTY_DEFAULT_ALIASES},
+        ),
+        _NONE,
+    ])
 
 def dune_package_build(package, library, dune, rule, deps = []):
     """Returns the BUILD file that builds one dune package of an opam archive."""

@@ -102,6 +102,35 @@ alias(
     visibility = ["//visibility:public"],
 )
 """),
+        expect_equal("variants with a companion type and an alias default", pins_hub("t", ["macos_arm64"], "//t:type", "both", {"lib": "//:a/lib"}, variants = {"v": struct(exec_compatible_with = ["//e:v"], target_compatible_with = ["//x:v"])}, companion_types = {"profile": "//t:profile"}, alias_defaults = {"lib": ":none"}), """toolchain(
+    name = "t__macos_arm64_v",
+    exec_compatible_with = ["@platforms//os:macos", "@platforms//cpu:aarch64", "//e:v"],
+    target_compatible_with = ["@platforms//os:macos", "@platforms//cpu:aarch64", "//x:v"],
+    toolchain = "@t__macos_arm64//:v",
+    toolchain_type = "//t:type",
+    visibility = ["//visibility:public"],
+)
+
+toolchain(
+    name = "t__macos_arm64_v_profile",
+    exec_compatible_with = ["@platforms//os:macos", "@platforms//cpu:aarch64", "//e:v"],
+    target_compatible_with = ["@platforms//os:macos", "@platforms//cpu:aarch64", "//x:v"],
+    toolchain = "@t__macos_arm64//:v_profile",
+    toolchain_type = "//t:profile",
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "macos_arm64_exec",
+    constraint_values = ["@platforms//os:macos", "@platforms//cpu:aarch64"],
+)
+
+alias(
+    name = "lib",
+    actual = select({":macos_arm64_exec": "@t__macos_arm64//:a/lib", "//conditions:default": ":none"}),
+    visibility = ["//visibility:public"],
+)
+"""),
     ] + hub_checks(full + "\n" + minimal, "//t:type", 2, forbidden = ["@other"])
 
 def toolchain_tests(name, size = "small"):

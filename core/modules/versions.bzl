@@ -83,7 +83,7 @@ JULIA_VERSION = "1.12.5"
 RULES_PERL_VERSION = "2.1.0"
 LUA_VERSION = "5.5.0"
 AVRO_CPP_VERSION = "1.12.0.bcr.1"
-FMT_VERSION = "12.2.0.bcr.1"
+FMT_VERSION = "12.2.1"
 
 CONSUMER_BAZEL_DEPS = {
     "rules_rust": struct(floor = RULES_RUST_VERSION, tested = RULES_RUST_VERSION),
@@ -125,7 +125,7 @@ CONSUMER_BAZEL_DEPS = {
     "windows_support": struct(floor = "0.4.1", tested = "0.4.1"),
     "google_benchmark": struct(floor = "1.10.0", tested = "1.10.0"),
     "elfutils": struct(floor = "0.195", tested = "0.195"),
-    "zlib": struct(floor = "1.3.2.bcr.3", tested = "1.3.2.bcr.3"),
+    "zlib": struct(floor = "1.4", tested = "1.4"),
     "rules_rust_prost": struct(floor = "0.75.0", tested = "0.75.0"),
     "rules_cuda": struct(floor = RULES_CUDA_VERSION, tested = RULES_CUDA_VERSION),
 }

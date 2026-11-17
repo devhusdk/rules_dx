@@ -20,7 +20,7 @@ pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("google_benchmark", "1.10.0"),
     ("rules_python", "2.4.6"),
     ("elfutils", "0.195"),
-    ("zlib", "1.3.2.bcr.3"),
+    ("zlib", "1.4"),
     ("rules_go", "0.65.0"),
     ("gazelle", "0.54.0"),
     ("rules_shell", "0.8.0"),

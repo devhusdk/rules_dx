@@ -83,7 +83,7 @@ fn consumer_configured_uv_set_needs_a_package_and_widens_pyproject() {
     );
 }
 
-const PINNED_MODULE: &str = "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"gems\", gemfile = \"//apps/rb:Gemfile\", gemfile_lock = \"//apps/rb:Gemfile.lock\")\n";
+const PINNED_MODULE: &str = "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.lock(name = \"gems\", lock = \"//apps/rb:ruby.lock.json\")\n";
 
 #[test]
 fn consumer_ruby_set_refuses_an_unversioned_gem_without_mutation() {

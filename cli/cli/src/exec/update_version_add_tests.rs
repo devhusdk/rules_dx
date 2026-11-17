@@ -319,7 +319,7 @@ fn configured_ruby_set_adds_a_gem_line() {
     let harness = Harness::new("update-add-consumer-unsupported");
     harness.write_source(
         "MODULE.bazel",
-        "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"other\", gemfile = \"//:Gemfile\", gemfile_lock = \"//:Gemfile.lock\")\n",
+        "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.lock(name = \"other\", lock = \"//:ruby.lock.json\")\n",
     );
     harness.write_source("Gemfile", "source \"https://rubygems.org\"\n");
     let (code, _, err) = harness.run(&["update", "other:thing", "1.0.0", "--apply"]);

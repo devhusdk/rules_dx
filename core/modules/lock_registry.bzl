@@ -128,11 +128,11 @@ LOCK_REGISTRY = {
         "state": None,
     },
     "ruby": {
-        "hub": "bundle",
-        "imports": "name",
-        "lock": "Gemfile.lock",
+        "hub": "gems",
+        "imports": "provides",
+        "lock": "ruby.lock.json",
         "manifest": "Gemfile",
-        "state": None,
+        "state": "Gemfile.lock",
     },
     "swiftpm": {
         "hub": "swiftpkg",

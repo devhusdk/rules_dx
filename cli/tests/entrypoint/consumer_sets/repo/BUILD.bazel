@@ -69,7 +69,7 @@ uv.project(hub_name = "pypi", lock = "//services/worker:uv.lock", pyproject = "/
 npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
 npm.npm_translate_lock(name = "web", pnpm_lock = "//apps/web:pnpm-lock.yaml")
 ruby = use_extension("@rules_dx//ruby:extensions.bzl", "ruby")
-ruby.bundle_fetch(name = "gems", gemfile = "//apps/rb:Gemfile", gemfile_lock = "//apps/rb:Gemfile.lock")
+ruby.lock(name = "gems", lock = "//apps/rb:ruby.lock.json")
 crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 crate.from_cargo(name = "crates", cargo_lockfile = "//apps/rs:Cargo.lock", manifests = ["//apps/rs:Cargo.toml"])
 cpan = use_extension("@rules_dx//perl:extensions.bzl", "cpan")

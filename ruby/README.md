@@ -8,20 +8,24 @@ it. rules_dx registers the toolchain, so there is no setup in `MODULE.bazel`.
 
 ### Gems
 
-Declare your own bundle in `MODULE.bazel`:
+`dx update` runs `bazel run @rules_dx//ruby/private/tools/lock -- --dir <set directory>`. It reads
+`Gemfile`, resolves exact versions from the rubygems.org API, downloads each gem and writes
+`ruby.lock.json` and the state file `Gemfile.lock`. Unchanged gems are kept without a download.
+
+With `ruby.lock.json` beside the root `Gemfile`, `dx generate --apply` adds the `ruby.lock`
+stanza for the `@gems` hub to `MODULE.bazel`:
 
 ```python
 ruby = use_extension("@rules_dx//ruby:extensions.bzl", "ruby")
-ruby.bundle_fetch(
+ruby.lock(
     name = "gems",
-    gemfile = "//:Gemfile",
-    gemfile_lock = "//:Gemfile.lock",
+    lock = "//:ruby.lock.json",
 )
 use_repo(ruby, "gems")
 ```
 
-Each gem's sha256 comes from the `CHECKSUMS` section of `Gemfile.lock`, which
-`bundle lock --add-checksums` writes. A gem without one fails the fetch.
+The hub downloads each gem by the sha256 in `ruby.lock.json` and installs the bundle as one
+tree with the pinned Bundler. Each gem is also the label `@gems//<name>`.
 
 Depend on the bundle as `@gems`. To run RSpec, set `main` to its bin and pass
 the spec path in `args`:

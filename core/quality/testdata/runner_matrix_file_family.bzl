@@ -1838,7 +1838,7 @@ FILE_FAMILY_CASES = [
         name = "matrix_ruby_lint_standard",
         capability = "lint",
         tool = "rubocop",
-        binary = "@bundle//bin:rubocop",
+        binary = "@gems//bin:rubocop",
         source_class = "ruby",
         generated = {
             "matrix/rubocop_profile_standard.rb": "puts 1 + 2\n",
@@ -1852,7 +1852,7 @@ FILE_FAMILY_CASES = [
         name = "matrix_ruby_lint_strict",
         capability = "lint",
         tool = "rubocop",
-        binary = "@bundle//bin:rubocop",
+        binary = "@gems//bin:rubocop",
         source_class = "ruby",
         generated = {
             "matrix/rubocop_profile_strict.rb": "puts 1 + 2\n",
@@ -1866,7 +1866,7 @@ FILE_FAMILY_CASES = [
         name = "matrix_ruby_lint_clean_strict",
         capability = "lint",
         tool = "rubocop",
-        binary = "@bundle//bin:rubocop",
+        binary = "@gems//bin:rubocop",
         source_class = "ruby",
         generated = {
             "matrix/rubocop_clean_strict.rb": "# frozen_string_literal: true\n\n# Greeter says hello.\nclass Greeter\n  # Returns the greeting.\n  def greeting\n    'hello'\n  end\nend\n",

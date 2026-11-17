@@ -462,7 +462,7 @@ Review a bump pull request by reading the diff of `.dx/pins` and the list of new
 | `npm.npm_translate_lock` with `pnpm_lock` | `name` | `package.json` beside the lock | `pnpm_lock` |
 | `uv.project` | `<hub_name>-<pyproject directory name>` | `pyproject` | `lock` |
 | `go_deps.from_file` with `go_mod` | `go` | `go_mod` | `go.sum` beside it |
-| `ruby.bundle_fetch` | `name`, default `bundle` | `gemfile` | `gemfile_lock` |
+| `ruby.lock` of `@rules_dx//ruby:extensions.bzl` | `name` | `Gemfile` beside the lock | `lock` and `Gemfile.lock` beside it |
 | `composer.lock` of `@rules_dx//php:extensions.bzl` | `name` | `composer.json` beside the lock | `lock` |
 | `dub.lock` of `@rules_dx//d:extensions.bzl` | `name` | `dub.json` beside `lock` | `lock` |
 | `fpm.lock` of `@rules_dx//fortran:extensions.bzl` | `name` | `fpm.toml` beside the lock | `lock` |
@@ -505,15 +505,13 @@ use_repo(pnpm, "pnpm")
 
 ```starlark
 ruby = use_extension("@rules_dx//ruby:extensions.bzl", "ruby")
-ruby.bundle_fetch(
+ruby.lock(
     name = "gems",
-    gemfile = "//apps/rb:Gemfile",
-    gemfile_lock = "//apps/rb:Gemfile.lock",
+    lock = "//apps/rb:ruby.lock.json",
 )
 ```
 
-- `gemfile_lock` must sit beside the `Gemfile`, or the set is unsupported.
-- `dx update` and `--apply` report `pinned` and start no process, also under `--offline` and `--frozen`. A `set:package` selector is unsupported; run `bundle lock`.
+- `dx update` and `--apply` report `pinned` and start no process, also under `--offline` and `--frozen`. A `set:package` selector is unsupported; run `bazel run @rules_dx//ruby/private/tools/lock -- --dir <set directory>`.
 - `dx security` matches `Gemfile.lock` against `.dx/local/advisory/rubygems.json`. `dx license` needs `[[inventory]]` with `set = "ruby"`.
 
 ### julia

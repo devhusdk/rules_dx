@@ -1,5 +1,5 @@
 # Foreign Ruby bundle adopted without upstream changes (arrival file).
-# The Bazel graph uses the shared `@bundle` hub from
+# The Bazel graph uses the shared `@gems` hub from
 # `//third_party/ruby:Gemfile.lock`; this file records the foreign tree's
 # manifest and never drives the build directly.
 source "https://rubygems.org"

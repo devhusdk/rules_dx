@@ -79,6 +79,12 @@ def _ruby_gems_impl(rctx):
         "",
         "rb_bundle_install(\n    name = %r,\n    gemfile = %r,\n    gemfile_lock = %r,\n    gems = %r,\n)\n" % (name, _GEMFILE, _GEMFILE + ".lock", gems),
     ] + fragments))
+    for package in packages:
+        rctx.file("%s/BUILD.bazel" % package["name"], "\n".join([
+            "package(default_visibility = [\"//visibility:public\"])",
+            "",
+            "alias(\n    name = %r,\n    actual = %r,\n)\n" % (package["name"], "//:" + name),
+        ]))
     binaries = []
     for executable in sorted(executables):
         rctx.file("%s/%s" % (_BINSTUBS, executable))
@@ -93,7 +99,7 @@ def _ruby_gems_impl(rctx):
 
 ruby_gems = repository_rule(
     implementation = _ruby_gems_impl,
-    doc = "Downloads each gem of a dx Ruby lock by its sha256 and the pinned Bundler, and installs them as one `rb_bundle_install` tree with `bin` shims for gem executables.",
+    doc = "Downloads each gem of a dx Ruby lock by its sha256 and the pinned Bundler, and installs them as one `rb_bundle_install` tree with an alias per gem and `bin` shims for gem executables.",
     attrs = {
         "lock": attr.string(mandatory = True, doc = "The decoded dx Ruby lock as JSON text."),
     },

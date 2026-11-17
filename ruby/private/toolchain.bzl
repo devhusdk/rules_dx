@@ -1,7 +1,7 @@
-"""The Ruby module extension: the portable Ruby toolchain pinned in pins.json, gem hubs built from `ruby.lock.json` and gem bundles fetched from the Bundler lock."""
+"""The Ruby module extension: the portable Ruby toolchain pinned in pins.json and gem hubs built from `ruby.lock.json`."""
 
 load("@dx_pins_data//:pins.bzl", "DATA")
-load("@rules_ruby//ruby:deps.bzl", "rb_bundle_fetch", "rb_register_toolchains")
+load("@rules_ruby//ruby:deps.bzl", "rb_register_toolchains")
 load("//core:pins.bzl", "lock_tag")
 load(":gems.bzl", "ruby_gems_repos")
 
@@ -14,15 +14,6 @@ def _ruby_impl(module_ctx):
     direct_dev = []
     toolchains = []
     for mod in module_ctx.modules:
-        for bundle in mod.tags.bundle_fetch:
-            rb_bundle_fetch(
-                name = bundle.name,
-                srcs = bundle.srcs,
-                env = bundle.env,
-                gemfile = bundle.gemfile,
-                gemfile_lock = bundle.gemfile_lock,
-            )
-            (direct_dev if module_ctx.is_dev_dependency(bundle) else direct).append(bundle.name)
         for tag in mod.tags.lock:
             (direct_dev if module_ctx.is_dev_dependency(tag) else direct).append(ruby_gems_repos(module_ctx, tag))
         for toolchain in mod.tags.toolchain:
@@ -49,19 +40,9 @@ def _ruby_impl(module_ctx):
     )
 
 ruby = module_extension(
-    doc = "Registers the portable Ruby pinned in ruby/pins.json, builds gem hubs from `ruby.lock.json` and fetches gem bundles whose sha256s come from the CHECKSUMS section of the Bundler lock.",
+    doc = "Registers the portable Ruby pinned in ruby/pins.json, and builds gem hubs from `ruby.lock.json`.",
     implementation = _ruby_impl,
     tag_classes = {
-        "bundle_fetch": tag_class(
-            doc = "A gem bundle repository made from a Bundler manifest and its lock.",
-            attrs = {
-                "env": attr.string_dict(doc = "Environment variables for `bundle install`."),
-                "gemfile": attr.label(mandatory = True, doc = "The Bundler manifest."),
-                "gemfile_lock": attr.label(mandatory = True, doc = "The Bundler lock with a CHECKSUMS section."),
-                "name": attr.string(default = "bundle", doc = "Name of the bundle repository."),
-                "srcs": attr.label_list(doc = "Files the Bundler manifest reads."),
-            },
-        ),
         "lock": lock_tag,
         "toolchain": tag_class(
             doc = "The pinned portable Ruby toolchain, as @<name> and @dx_<name>_toolchains.",

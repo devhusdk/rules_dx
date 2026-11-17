@@ -699,11 +699,7 @@ source = { registry = "https://pypi.org/simple" }
     }
 
     fn pinned_module() -> String {
-        let v0 = manifest_of(Ecosystem::Ruby);
-        let v1 = lock_name(Ecosystem::Ruby);
-        format!(
-            "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"gems\", gemfile = \"//apps/rb:{v0}\", gemfile_lock = \"//apps/rb:{v1}\")\n"
-        )
+        "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.lock(name = \"gems\", lock = \"//apps/rb:ruby.lock.json\")\n".to_owned()
     }
 
     const GEMFILE_LOCK: &str = "GEM\n  remote: https://rubygems.org/\n  specs:\n    rack (2.2.0)\n\nPLATFORMS\n  ruby\n\nDEPENDENCIES\n  rack\n";

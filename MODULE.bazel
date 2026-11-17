@@ -1239,7 +1239,6 @@ dx_pins.archive(
         "//patches/rules_ruby:rubyinstaller_archive.patch",
         "//patches/rules_ruby:toolchains_gate.patch",
         "//patches/rules_ruby:toolchains_hub.patch",
-        "//patches/rules_ruby:lock_checksums.patch",
         "//patches/rules_ruby:windows_binary_rlocation.patch",
     ],
     pins = "//ruby:pins.json",
@@ -1541,10 +1540,10 @@ use_repo(
 ruby = use_extension("//ruby:extensions.bzl", "ruby")
 ruby.toolchain(name = "ruby")
 ruby.lock(
-    name = "bundle",
+    name = "gems",
     lock = "//third_party/ruby:ruby.lock.json",
 )
-use_repo(ruby, "bundle", "dx_ruby_toolchains", "ruby")
+use_repo(ruby, "dx_ruby_toolchains", "gems", "ruby")
 
 register_toolchains("@dx_ruby_toolchains//:all")
 

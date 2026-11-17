@@ -25,10 +25,10 @@ ruby_test(
     size = "small",
     srcs = ["greeter_spec.rb"],
     args = ["$(rootpath greeter_spec.rb)"],
-    main = "@bundle//bin:rspec",
+    main = "@gems//bin:rspec",
     deps = [
         ":spec_helper",
-        "@bundle",
+        "@gems",
     ],  # keep
 )
 

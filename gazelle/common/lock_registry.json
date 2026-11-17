@@ -127,9 +127,9 @@
   },
   {
     "ecosystem": "ruby",
-    "hub": "bundle",
-    "imports": "name",
-    "lock": "Gemfile.lock",
+    "hub": "gems",
+    "imports": "provides",
+    "lock": "ruby.lock.json",
     "manifest": "Gemfile"
   },
   {

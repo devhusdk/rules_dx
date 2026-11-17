@@ -16,6 +16,11 @@ pub fn cpanfile_snapshot() -> Result<&'static str, AdoptError> {
     state_of("cpan")
 }
 
+/// The Bundler state file name.
+pub fn gemfile_lock() -> Result<&'static str, AdoptError> {
+    state_of("ruby")
+}
+
 pub fn mix_lock() -> Result<&'static str, AdoptError> {
     lock_of("hex")
 }
@@ -363,12 +368,14 @@ pub fn discover(
             let lock = beside(&manifest, lock_of("go")?);
             sets.push(hub_set("go", Ecosystem::Go, vec![manifest], vec![lock])?);
         }
-        for bundle in module.bundle_fetches().map_err(hub)? {
+        for tag in module.ruby_locks().map_err(hub)? {
+            let lock = path(tag.lock)?;
+            let dir = manifest_dir(std::slice::from_ref(&lock));
             sets.push(hub_set(
-                bundle.name,
+                tag.name,
                 Ecosystem::Ruby,
-                vec![path(bundle.gemfile)?],
-                vec![path(bundle.gemfile_lock)?],
+                vec![in_dir(&dir, manifest_of("ruby")?)],
+                vec![lock, in_dir(&dir, gemfile_lock()?)],
             )?);
         }
         for cpan in module.cpan_installs().map_err(hub)? {

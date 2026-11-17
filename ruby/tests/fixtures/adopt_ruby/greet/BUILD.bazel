@@ -14,10 +14,10 @@ ruby_test(
     size = "small",
     srcs = ["greet_spec.rb"],
     args = ["$(rootpath greet_spec.rb)"],
-    main = "@bundle//bin:rspec",
+    main = "@gems//bin:rspec",
     deps = [
         ":greet",
-        "@bundle",  # keep
+        "@gems",  # keep
     ],
 )
 

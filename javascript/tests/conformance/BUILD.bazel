@@ -113,7 +113,7 @@ dx_conformance_suite(
         "format_source": "format_dirty.js",
         "lint_dirty": ":lint_dirty",
         "lint_line": 2,
-        "lint_rule": "noUnusedVariables",
+        "lint_rule": "lint/correctness/noUnusedVariables",
         "lint_source": "lint_dirty.js",
     },
     runfiles = {

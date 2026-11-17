@@ -5,7 +5,10 @@ fn subject_matches_mode() {
     let text = std::env::var("DX_CONFORMANCE_TEXT").unwrap_or_default();
     let pattern = std::env::var("DX_CONFORMANCE_PATTERN").unwrap_or_else(|_| "{case}".to_owned());
     if mode == "cross" {
-        assert_image(&key, &text);
+        match std::env::var("DX_CONFORMANCE_CROSS_RUNFILE") {
+            Ok(name) => assert_runfile_image(&name, &text),
+            Err(_) => assert_image(&key, &text),
+        }
         return;
     }
     if ["lint", "lint_error", "format", "format_error"].contains(&mode.as_str()) {
@@ -339,6 +342,61 @@ fn assert_image(key: &str, platform: &str) {
     panic!("no binary image among the subject files: {seen:?}");
 }
 
+fn assert_runfile_image(name: &str, platform: &str) {
+    let tmp = std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR must be set");
+    let srcdir = std::env::var("TEST_SRCDIR").unwrap_or_default();
+    let runfiles = std::env::var("RUNFILES_DIR").unwrap_or(srcdir);
+    let manifest = manifest_file(&runfiles, std::path::Path::new(&tmp));
+    let text = std::fs::read_to_string(&manifest).expect("runfiles manifest must be readable");
+    let keys = runfile_keys(&text, name);
+    assert!(!keys.is_empty(), "no runfile named {name} in {manifest:?}");
+    let (format, machine) = expected_image(platform);
+    let mut seen = Vec::new();
+    let mut matched = 0;
+    for key in keys {
+        let path = dx_testing::rlocation(key).expect("runfile must resolve");
+        let bytes = std::fs::read(&path).unwrap_or_else(|error| panic!("read {path:?}: {error}"));
+        match dx_testing::image_inspect(&bytes) {
+            Ok(images) => {
+                assert!(!images.is_empty(), "{key}: no image");
+                for image in images {
+                    assert_eq!(
+                        (image.format.name(), image.machine.as_str()),
+                        (format, machine),
+                        "{key}: format and machine for {platform}"
+                    );
+                }
+                matched += 1;
+            }
+            Err(error) => seen.push(format!("{key}: {error}")),
+        }
+    }
+    assert!(
+        matched > 0,
+        "no binary image among the {name} runfiles: {seen:?}"
+    );
+}
+
+fn runfile_keys<'a>(manifest: &'a str, name: &str) -> Vec<&'a str> {
+    manifest
+        .lines()
+        .map(|line| line.split_once(' ').map_or(line, |(key, _)| key))
+        .filter(|key| launcher_stem(key.rsplit('/').next().unwrap_or(key)) == name)
+        .collect()
+}
+
+#[test]
+fn runfile_keys_match_file_stem() {
+    let manifest = "_main/a/node_bin /x\nnodejs_linux_arm64/bin/nodejs/bin/node /y\nnodejs_windows_arm64/bin/nodejs/node.exe /z\n_main/node/greet.js /w\n";
+    assert_eq!(
+        runfile_keys(manifest, "node"),
+        [
+            "nodejs_linux_arm64/bin/nodejs/bin/node",
+            "nodejs_windows_arm64/bin/nodejs/node.exe"
+        ]
+    );
+}
+
 #[test]
 fn expected_image_names_format_and_machine() {
     assert_eq!(expected_image("linux_arm64"), ("elf", "aarch64"));
@@ -494,7 +552,7 @@ fn manifest_file(runfiles: &str, tmp: &std::path::Path) -> std::path::PathBuf {
                     .components()
                     .map(|part| part.as_os_str().to_string_lossy())
                     .collect();
-                lines.push(format!("{} {}", key.join("/"), without_verbatim(&real)));
+                lines.push(format!("{} {}", key.join("/"), manifest_target(&real)));
             }
         }
     }
@@ -504,20 +562,29 @@ fn manifest_file(runfiles: &str, tmp: &std::path::Path) -> std::path::PathBuf {
     manifest
 }
 
-fn without_verbatim(path: &std::path::Path) -> String {
+fn manifest_target(path: &std::path::Path) -> String {
     let text = path.to_string_lossy();
-    match text.strip_prefix(r"\\?\") {
-        Some(rest) if rest.as_bytes().get(1) == Some(&b':') => rest.to_owned(),
-        _ => text.into_owned(),
+    let text = match text.strip_prefix(r"\\?\UNC\") {
+        Some(rest) => format!(r"\\{rest}"),
+        None => text.strip_prefix(r"\\?\").unwrap_or(&text).to_owned(),
+    };
+    if cfg!(windows) {
+        text.replace('\\', "/")
+    } else {
+        text
     }
 }
 
 #[test]
-fn without_verbatim_drops_only_the_drive_prefix() {
-    let strip = |text: &str| without_verbatim(std::path::Path::new(text));
-    assert_eq!(strip(r"\\?\C:\a\java.exe"), r"C:\a\java.exe");
-    assert_eq!(strip(r"\\?\UNC\h\s"), r"\\?\UNC\h\s");
-    assert_eq!(strip("/a/b"), "/a/b");
+fn manifest_target_drops_verbatim_prefix() {
+    let target = |text: &str| manifest_target(std::path::Path::new(text));
+    assert_eq!(target("/a/b"), "/a/b");
+    if cfg!(windows) {
+        assert_eq!(target(r"\\?\D:\_bazel\x"), "D:/_bazel/x");
+        assert_eq!(target(r"\\?\UNC\host\share\x"), "//host/share/x");
+    } else {
+        assert_eq!(target(r"\\?\D:/x"), "D:/x");
+    }
 }
 
 fn stage_lock(

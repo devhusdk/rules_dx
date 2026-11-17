@@ -224,12 +224,10 @@ java format_error_test *
 java format_test *
 java lint_error_test *
 java lint_test *
-javascript cross_test *
 javascript format_error_test *
 javascript format_test *
 javascript lint_error_test *
 javascript lint_test *
-javascript runfiles_test *
 julia cross_test *
 julia format_error_test *
 julia format_test *
@@ -375,13 +373,10 @@ thrift lint_test *
 thrift lock_test *
 thrift pass_test *
 thrift runfiles_test *
-typescript cross_test *
 typescript format_error_test *
 typescript format_test *
 typescript lint_error_test *
 typescript lint_test *
-typescript lock_test *
-typescript runfiles_test *
 vue format_error_test *
 vue format_test *
 vue lint_error_test *

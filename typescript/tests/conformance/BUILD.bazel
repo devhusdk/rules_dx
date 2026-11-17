@@ -22,6 +22,26 @@ typescript_binary(
     deps = [":conformance"],
 )
 
+typescript_binary(
+    name = "lock_hello",
+    srcs = ["lock_main.ts"],
+    data = ["//:package_json"],
+    declaration = True,
+    tsconfig = "tsconfig.json",
+    deps = ["//:node_modules/clsx"],
+)
+
+typescript_binary(
+    name = "runfiles_hello",
+    srcs = ["runfiles_main.ts"],
+    data = [
+        "data.txt",
+        "//:package_json",
+    ],
+    declaration = True,
+    tsconfig = "tsconfig.json",
+)
+
 typescript_test(
     name = "pass_subject_test",
     size = "small",
@@ -55,10 +75,25 @@ dx_conformance_suite(
     size = "small",
     binary = ":hello",
     covered_source = "greet.js",
+    cross_runfile = "node",
     expected = "hello world",
     failing_case = "failing case",
     failing_pattern = "{case} (",
     failing_test = ":fail_subject_test",
     lang = "typescript",
+    lock = {
+        "binary": ":lock_hello",
+        "ecosystem": "js",
+        "expected": "hello lock",
+        "lockfile": "//:pnpm-lock.yaml",
+        "manifest": "//:package.json",
+        "package": "clsx",
+        "stale": "pnpm-lock.stale.yaml",
+    },
     passing_test = ":pass_subject_test",
+    runfiles = {
+        "binary": ":runfiles_hello",
+        "data": "data.txt",
+        "expected": "hello runfiles",
+    },
 )

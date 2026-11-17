@@ -367,8 +367,11 @@ def _quality_tests(prefix, lang, quality, not_applicable, size, kwargs):
             labels.append(test)
     return labels
 
-def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_test, failing_case, covered_source, failing_pattern = "--- FAIL: {case}", lock = {}, runfiles = {}, quality = {}, not_applicable = {}, size = "small", **kwargs):
-    """Declares the conformance tests of one language."""
+def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_test, failing_case, covered_source, failing_pattern = "--- FAIL: {case}", lock = {}, runfiles = {}, quality = {}, not_applicable = {}, cross_runfile = "", size = "small", **kwargs):
+    """Declares the conformance tests of one language.
+
+    A `cross_runfile` names the runfile, by file stem, whose image cross_test checks instead of the binary's outputs.
+    """
     if lang not in LANGS:
         fail("unknown lang %r" % lang)
     if _all_pending(lang):
@@ -447,7 +450,7 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
             srcs = [Label("//tools/testing/conformance:runner_test.rs")],
             data = [subject],
             deps = [_CONFORMANCE_QUALITY, Label("//tools/testing:dx_testing")],
-            env = _cross_select(lambda target: _env(mode, subject, target, failing_pattern)) if text == None else _env(mode, subject, text, failing_pattern),
+            env = _cross_select(lambda target: _env(mode, subject, target, failing_pattern) | ({"DX_CONFORMANCE_CROSS_RUNFILE": cross_runfile} if cross_runfile else {})) if text == None else _env(mode, subject, text, failing_pattern),
             size = size,
             target_compatible_with = _compatible_with(lang, test, not_applicable),
             **kwargs

@@ -5,7 +5,10 @@ fn subject_matches_mode() {
     let text = std::env::var("DX_CONFORMANCE_TEXT").unwrap_or_default();
     let pattern = std::env::var("DX_CONFORMANCE_PATTERN").unwrap_or_else(|_| "{case}".to_owned());
     if mode == "cross" {
-        assert_image(&key, &text);
+        match std::env::var("DX_CONFORMANCE_CROSS_RUNFILE") {
+            Ok(name) => assert_runfile_image(&name, &text),
+            Err(_) => assert_image(&key, &text),
+        }
         return;
     }
     if ["lint", "lint_error", "format", "format_error"].contains(&mode.as_str()) {
@@ -337,6 +340,39 @@ fn assert_image(key: &str, platform: &str) {
         }
     }
     panic!("no binary image among the subject files: {seen:?}");
+}
+
+fn assert_runfile_image(name: &str, platform: &str) {
+    let tmp = std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR must be set");
+    let srcdir = std::env::var("TEST_SRCDIR").unwrap_or_default();
+    let runfiles = std::env::var("RUNFILES_DIR").unwrap_or(srcdir);
+    let manifest = manifest_file(&runfiles, std::path::Path::new(&tmp));
+    let text = std::fs::read_to_string(&manifest).expect("runfiles manifest must be readable");
+    let keys = runfile_keys(&text, name);
+    assert!(!keys.is_empty(), "no runfile named {name} in {manifest:?}");
+    for key in keys {
+        assert_image(key, platform);
+    }
+}
+
+fn runfile_keys<'a>(manifest: &'a str, name: &str) -> Vec<&'a str> {
+    manifest
+        .lines()
+        .map(|line| line.split_once(' ').map_or(line, |(key, _)| key))
+        .filter(|key| launcher_stem(key.rsplit('/').next().unwrap_or(key)) == name)
+        .collect()
+}
+
+#[test]
+fn runfile_keys_match_file_stem() {
+    let manifest = "_main/a/node_bin /x\nnodejs_linux_arm64/bin/nodejs/bin/node /y\nnodejs_windows_arm64/bin/nodejs/node.exe /z\n_main/node/greet.js /w\n";
+    assert_eq!(
+        runfile_keys(manifest, "node"),
+        [
+            "nodejs_linux_arm64/bin/nodejs/bin/node",
+            "nodejs_windows_arm64/bin/nodejs/node.exe"
+        ]
+    );
 }
 
 #[test]

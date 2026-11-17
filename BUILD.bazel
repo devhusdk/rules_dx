@@ -795,6 +795,7 @@ filegroup(
         "//patches/rules_fortran:module_srcs",
         "//patches/rules_go:module_srcs",
         "//patches/rules_haskell:module_srcs",
+        "//patches/rules_js:module_srcs",
         "//patches/rules_julia:module_srcs",
         "//patches/rules_ocaml:module_srcs",
         "//patches/rules_oci:module_srcs",

@@ -1,0 +1,26 @@
+{
+  "ecosystem": "hex",
+  "inputs": {
+    "rebar.config": "7fe8429debdd32de54d9658abd284b8d12e45251cac90e2927b37401f23b2ee3",
+    "rebar.lock": "aa7ed064faf7085b6a0b406b60ad950bdcd63acca970efadc1644e3bddcf06fe"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "e38697edffd6e91bd12cea41b155115282630075c2a727e7a6b2947f5408b86a",
+          "urls": [
+            "https://repo.hex.pm/tarballs/thoas-1.2.1.tar"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "thoas",
+      "provides": [
+        "thoas"
+      ],
+      "version": "1.2.1"
+    }
+  ],
+  "schema": 1
+}

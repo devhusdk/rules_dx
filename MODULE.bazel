@@ -1868,7 +1868,11 @@ hex_dev.lock(
     name = "elixir_app_deps",
     lock = "//elixir/tests/fixtures/elixir_app:hex.lock.json",
 )
-use_repo(hex_dev, "elixir_app_deps")
+hex_dev.lock(
+    name = "erlang_lock_deps",
+    lock = "//erlang/tests/conformance/lock:hex.lock.json",
+)
+use_repo(hex_dev, "elixir_app_deps", "erlang_lock_deps")
 
 register_toolchains(
     "@dx_elixir_toolchains//:all",

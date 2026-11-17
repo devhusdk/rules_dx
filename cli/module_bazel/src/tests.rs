@@ -1148,7 +1148,7 @@ fn ruby_locks_follow_the_rules_dx_ruby_extension() {
 #[test]
 fn pub_locks_follow_the_rules_dart_rules_flutter_and_own_extensions() {
     let file = parse(
-        "pub = use_extension(\"@rules_dart//dart/pub:extensions.bzl\", \"pub\")\npub.from_lock(name = \"deps\", lock = \"//dart:pubspec.lock\")\nflutter = use_extension(\"@rules_flutter//flutter:extensions.bzl\", \"flutter\")\nflutter.pub(name = \"app\", lock = \"//app:pubspec.lock\")\nflutter.toolchain(flutter_version = \"3\")\nother = use_extension(\"//dart:extensions.bzl\", \"pub\")\nother.from_lock(name = \"x\", lock = \"//x:pubspec.lock\")\n",
+        "pub = use_extension(\"@rules_dart//dart/pub:extensions.bzl\", \"pub\")\npub.from_lock(name = \"deps\", lock = \"//dart:pubspec.lock\")\nflutter = use_extension(\"@rules_flutter//flutter:extensions.bzl\", \"flutter\")\nflutter.pub(name = \"app\", lock = \"//app:pubspec.lock\")\nflutter.toolchain(flutter_version = \"3\")\nflutter_pub = use_extension(\"@rules_flutter//flutter/pub:extensions.bzl\", \"pub\")\nflutter_pub.from_lock(name = \"ui\", lock = \"//ui:pubspec.lock\")\nother = use_extension(\"//dart:extensions.bzl\", \"pub\")\nother.from_lock(name = \"x\", lock = \"//x:pubspec.lock\")\nown_flutter = use_extension(\"@rules_dx//flutter:extensions.bzl\", \"pub\")\nown_flutter.from_lock(name = \"y\", lock = \"//y:pubspec.lock\")\nwrong = use_extension(\"@rules_flutter//flutter:extensions.bzl\", \"pub\")\nwrong.from_lock(name = \"no\", lock = \"//no:pubspec.lock\")\n",
     );
     let found: Vec<_> = file
         .pub_locks()
@@ -1160,8 +1160,10 @@ fn pub_locks_follow_the_rules_dart_rules_flutter_and_own_extensions() {
         found,
         [
             ("deps", "//dart:pubspec.lock"),
+            ("ui", "//ui:pubspec.lock"),
             ("app", "//app:pubspec.lock"),
-            ("x", "//x:pubspec.lock")
+            ("x", "//x:pubspec.lock"),
+            ("y", "//y:pubspec.lock")
         ]
     );
 }

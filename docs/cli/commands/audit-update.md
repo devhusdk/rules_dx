@@ -484,7 +484,7 @@ Review a bump pull request by reading the diff of `.dx/pins` and the list of new
 | `luarocks.lock` of `@rules_dx//lua:extensions.bzl` | `name` | `lock` | |
 | `zig.lock` of `@rules_dx//zig:extensions.bzl` | `name` | `build.zig.zon` beside `lock` | `lock` |
 | `cpan.lock` of `@rules_dx//perl:extensions.bzl` | `name` | `cpanfile` beside the lock | `cpanfile.snapshot` and `cpan.lock.json` |
-| `pub.from_lock` of `@rules_dart//dart/pub:extensions.bzl`, `flutter.pub` of rules_flutter | `name` | `pubspec.yaml` beside the lock | `pubspec.lock` |
+| `pub.from_lock` of `@rules_dart//dart/pub:extensions.bzl`, `@rules_flutter//flutter/pub:extensions.bzl` or `@rules_dx//flutter:extensions.bzl`, `flutter.pub` of rules_flutter | `name` | `pubspec.yaml` beside the lock | `pubspec.lock` |
 | `julia.from_manifest` of `@rules_dx//julia:extensions.bzl` or `pkg.from_manifest` of `@rules_julia//julia/pkg:extensions.bzl` | `name` | `Project.toml` beside the lockfile | `Manifest.toml` and `Manifest.bazel.json` beside the lockfile |
 | `nuget.lock` tag of `@rules_dx//csharp:extensions.bzl` | `nuget` | `paket.dependencies` | `nuget.lock.json`, `paket.lock` |
 

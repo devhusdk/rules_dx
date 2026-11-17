@@ -442,7 +442,7 @@ fn gui_renders_offscreen_against_only_pinned_libraries() {
         run.combined()
     );
     assert!(
-        run.stdout.contains("Totals: 7 passed, 0 failed"),
+        run.stdout.contains("Totals: 8 passed, 0 failed"),
         "{}",
         run.stdout
     );

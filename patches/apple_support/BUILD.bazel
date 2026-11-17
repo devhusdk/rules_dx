@@ -3,10 +3,17 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 exports_files([
     "gcov_gcno_file.patch",
     "toolchains_gate.patch",
+    "xcode_absolute_tools.patch",
 ])
 
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
 )

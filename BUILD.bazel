@@ -770,6 +770,7 @@ filegroup(
         "//ocaml/private/toolchain/platform/emitter:module_srcs",
         "//ocaml/private/toolchain/platform/executor:module_srcs",
         "//ocaml/private/tools/lock:module_srcs",
+        "//patches/apple_support:module_srcs",
         "//patches/avro-cpp:module_srcs",
         "//patches/capnproto:module_srcs",
         "//patches/elfutils:module_srcs",

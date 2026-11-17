@@ -3,7 +3,8 @@
 use std::collections::BTreeMap;
 
 use dx_nested::compose::{
-    rules_flutter_override, rules_py_override, write_root_patch_overrides, write_rules_py_patches,
+    rules_flutter_override, rules_py_override, write_root_patch_override,
+    write_root_patch_overrides, write_rules_py_patches,
 };
 
 /// The fixture directory under the source snapshot.
@@ -54,8 +55,17 @@ fn one_macro_call_builds_each_app_with_no_flag() {
         ),
     );
     write_rules_py_patches(case.root(), &source).unwrap_or_else(|error| panic!("{error}"));
-    let root_overrides =
+    let mut root_overrides =
         write_root_patch_overrides(case.root(), &source).unwrap_or_else(|error| panic!("{error}"));
+    for (module, skip) in [
+        ("apple_support", &["toolchains_gate.patch"][..]),
+        ("rules_swift", &[][..]),
+    ] {
+        root_overrides.push_str(
+            &write_root_patch_override(case.root(), &source, module, skip)
+                .unwrap_or_else(|error| panic!("{error}")),
+        );
+    }
     let composed = dx_testing::read_text(&case.root().join("MODULE.bazel"));
     case.write("MODULE.bazel", &format!("{composed}{root_overrides}"));
     for (rel, text) in &files {

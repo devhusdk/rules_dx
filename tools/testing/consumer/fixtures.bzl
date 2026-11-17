@@ -22,6 +22,7 @@ CONSUMER_FIXTURES = [
     "elixir",
     "erlang",
     "flatbuffers",
+    "fortran",
     "fsharp",
     "go",
     "haskell",

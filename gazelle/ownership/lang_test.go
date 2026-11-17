@@ -17,6 +17,8 @@ func TestNames(t *testing.T) {
 		"guide.rst":       isRst,
 		"guide.rest":      isRst,
 		"query.sql":       isSQL,
+		"greet.f90":       isFortran,
+		"legacy.f":        isFortran,
 	} {
 		if !f(name) {
 			t.Errorf("%s should match", name)
@@ -28,6 +30,7 @@ func TestNames(t *testing.T) {
 		"key.asc":         isAsciiDoc,
 		"guide.rst.txt":   isRst,
 		"query.sql.gz":    isSQL,
+		"greet.f90.bak":   isFortran,
 	} {
 		if f(name) {
 			t.Errorf("%s should not match", name)
@@ -88,6 +91,9 @@ func TestYAMLSniff(t *testing.T) {
 		{"# c\nResources:\n  B:\n", isCloudFormation, true},
 		{"  Resources:\n", isCloudFormation, false},
 		{"key: value\n", isCloudFormation, false},
+		{"module greet\nend module greet\n", isFortranModule, true},
+		{"program main\nend program main\n", isFortranModule, false},
+		{"  PROGRAM calc_test\nEND PROGRAM\n", isFortranModule, false},
 	} {
 		if got := c.f([]byte(c.head)); got != c.want {
 			t.Errorf("%q: got %v, want %v", c.head, got, c.want)

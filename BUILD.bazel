@@ -218,6 +218,7 @@ load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude kubernetes/tests/consumer
 # gazelle:exclude make/tests/consumer
 # gazelle:exclude terraform/tests/consumer
+# gazelle:exclude fortran/tests/consumer
 # gazelle:exclude make/tests/fixtures
 # gazelle:exclude terraform/tests/fixtures
 # gazelle:exclude kubernetes/tests/fixtures

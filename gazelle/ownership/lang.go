@@ -42,6 +42,7 @@ var (
 	apiSpecRoot     = regexp.MustCompile(`(?m)^(?:openapi|asyncapi):`)
 	k8sAPIVersion   = regexp.MustCompile(`(?m)^apiVersion:`)
 	k8sKind         = regexp.MustCompile(`(?m)^kind:`)
+	fortranProgram  = regexp.MustCompile(`(?im)^[ \t]*program[ \t]+\w`)
 )
 
 var families = []family{
@@ -58,6 +59,7 @@ var families = []family{
 	{"kubernetes_library", "kubernetes", "kubernetes:defs.bzl", isYAML, isKubernetes},
 	{"api_spec_library", "api_spec", "api_spec:defs.bzl", isYAML, isAPISpec},
 	{"helm_library", "helm", "helm:defs.bzl", isHelmChart, nil},
+	{"fortran_library", "fortran", "fortran:defs.bzl", isFortran, isFortranModule},
 }
 
 // isDockerfile matches the names is_dockerfile_name in core/quality/sources.bzl accepts.
@@ -110,6 +112,16 @@ func isHelmChart(name string) bool {
 	return name == "Chart.yaml"
 }
 
+// isFortran matches the file_extensions in fortran/lang.json.
+func isFortran(name string) bool {
+	for _, suffix := range []string{".f", ".f03", ".f08", ".f90", ".f95"} {
+		if strings.HasSuffix(name, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
 func isYAML(name string) bool {
 	return strings.HasSuffix(name, ".yml") || strings.HasSuffix(name, ".yaml")
 }
@@ -119,6 +131,8 @@ func isAnsiblePlaybook(head []byte) bool { return ansiblePlaybook.Match(head) }
 func isKubernetes(head []byte) bool { return k8sAPIVersion.Match(head) && k8sKind.Match(head) }
 
 func isAPISpec(head []byte) bool { return apiSpecRoot.Match(head) }
+
+func isFortranModule(head []byte) bool { return !fortranProgram.Match(head) }
 
 func isCloudFormation(head []byte) bool { return cfnTemplate.Match(head) }
 

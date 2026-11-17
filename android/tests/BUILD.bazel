@@ -1,8 +1,25 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 load(":defs_tests.bzl", "android_native_library_tests")
 load(":platforms_tests.bzl", "android_platform_tests")
 load(":toolchain_tests.bzl", "android_metadata_tests", "android_packaging_tests", "android_toolchain_tests")
+
+build_test(
+    name = "androidsdk_build_test",
+    size = "small",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    targets = [
+        "@dx_androidsdk//:sdk",
+        "@dx_androidsdk//:sdk-toolchain",
+        "@dx_androidsdk//:aapt2_binary",
+        "@dx_androidsdk//:d8_jar_import",
+        "@dx_androidsdk//:files",
+    ],
+)
 
 rust_test(
     name = "ops_test",

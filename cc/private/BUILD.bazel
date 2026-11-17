@@ -1,7 +1,6 @@
 # gazelle:ignore
 # gazelle:exclude fuzz_driver.cc
 load("//core/quality:fixtures.bzl", "real_source_target")
-load(":clang_syntax_tests.bzl", "clang_syntax_unit_tests")
 load(":defs.bzl", "cc_coverage_probe", "cc_library")
 
 package(default_visibility = ["//cc:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
@@ -16,14 +15,11 @@ cc_coverage_probe(
     visibility = ["//:__subpackages__"],
 )
 
-clang_syntax_unit_tests(name = "clang_syntax_unit")
-
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
         "clang_syntax.bzl",
-        "clang_syntax_tests.bzl",
         "defs.bzl",
     ],
     tags = ["corpus"],

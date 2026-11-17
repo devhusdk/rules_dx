@@ -1,13 +1,12 @@
 //deploy/private/release/tests:release_consumer_smoke_test nested-cold-over-60 300
 //examples/adopt-polyglot:consumer_test nested-cold-over-60 300
 //tools/testing/hermetic:cpp_rust nested-cold-over-60 653
-android/private/packaging/BUILD.bazel no-size 25
-android/private/sdk/BUILD.bazel no-size 1
 android/tests/fixtures/adopt-android/app/BUILD.bazel no-size 3
 android/tests/fixtures/adopt-android/native/BUILD.bazel no-size 2
 android/tests/fixtures/consumer_android/BUILD.bazel no-size 2
 android/tests/fixtures/native_lib/BUILD.bazel no-size 3
 android/tests/fixtures/rust_apk/BUILD.bazel no-size 26
+android/tests/packaging/BUILD.bazel no-size 25
 ansible/tests/BUILD.bazel no-size 3
 ansible/tests/layout_tests.bzl no-size 1
 ansible/tests/lock_tests.bzl no-size 1
@@ -34,9 +33,6 @@ avro/tests/BUILD.bazel no-size 6
 bicep/tests/BUILD.bazel no-size 3
 bicep/tests/defs_tests.bzl no-size 1
 capnproto/tests/BUILD.bazel no-size 11
-cc/private/BUILD.bazel no-size 2
-cc/private/clang_syntax_tests.bzl no-size 1
-cc/private/ide/BUILD.bazel no-size 2
 cc/private/toolchain/BUILD.bazel no-size 34
 cc/private/toolchain/external/BUILD.bazel no-size 3
 cc/private/toolchain/external/tests.bzl no-size 1
@@ -45,6 +41,7 @@ cc/private/toolchain/identity_tests.bzl no-size 9
 cc/private/toolchain/msvc/BUILD.bazel no-size 5
 cc/private/toolchain/msvc/repos_tests.bzl no-size 3
 cc/private/toolchain/msvc/tests.bzl no-size 4
+cc/tests/clang_syntax_tests.bzl no-size 1
 cc/tests/fixtures/adopt-cpp/greet/BUILD.bazel no-size 1
 cc/tests/fixtures/adopt-cpp/solo/BUILD.bazel no-size 1
 cc/tests/fixtures/args/BUILD.bazel flaky 1
@@ -249,8 +246,8 @@ elixir/tests/negative/BUILD.bazel no-size 3
 elixir/tests/runtime/BUILD.bazel no-size 3
 elixir/tests/tags/BUILD.bazel no-size 1
 env/BUILD.bazel no-size 12
-env/private/plan_tests.bzl no-size 2
 env/tests/defs_tests.bzl no-size 5
+env/tests/plan_tests.bzl no-size 2
 erlang/private/toolchain/BUILD.bazel no-size 2
 erlang/tests/fixtures/bench/BUILD.bazel no-size 2
 erlang/tests/fixtures/erlang_app/checksum/BUILD.bazel no-size 1

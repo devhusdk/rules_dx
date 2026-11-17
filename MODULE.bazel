@@ -2272,8 +2272,8 @@ dx_python = use_extension("//python:extensions.bzl", "python")
 use_repo(dx_python, "dx_python_toolchains")
 
 register_toolchains(
-    "@dx_python_toolchains//:all",
     "//python/private/windows_toolchains:all",
+    "@dx_python_toolchains//:all",
     "@python_interpreters//:all",
 )
 

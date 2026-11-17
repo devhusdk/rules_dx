@@ -1,3 +1,5 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+
 _EXEC_TOOLS_ENABLED = "@rules_python//python/config_settings:is_exec_tools_toolchain_enabled"
 
 [
@@ -36,3 +38,9 @@ _EXEC_TOOLS_ENABLED = "@rules_python//python/config_settings:is_exec_tools_toolc
         "x86_64",
     ]
 ]
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

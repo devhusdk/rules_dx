@@ -76,7 +76,8 @@ Measured on Linux x86_64 with the pinned Bazel 9.3.1, an empty module and one wr
 - rules_dx reaches the consumer through `local_path_override` on the `module_srcs` runfiles.
 - A consumer has a checked-in `MODULE.bazel.lock`. The nested Bazel runs with `--lockfile_mode=error`.
 - Every file the consumer downloads is a test input: registry files, module archives, toolchain archives.
-- `nested_repository_cache` declares them. It reads a checked-in list of URL and sha256, one `http_file` per entry, and gives a manifest of sha256 to runfile.
+- `nested_repository_cache` declares them. It reads a checked-in list of URL and hex digest, one `http_file` per entry, and gives a manifest of digest to runfile.
+- The digest is the checksum Bazel keys the repository cache with: sha256, or sha384 or sha512 for a download with that integrity.
 - The harness builds a repository cache under `TEST_TMPDIR` from the manifest and passes `--repository_cache`.
 - A nested test declares one cache set with `nested_bazel_test(cache = "<set>")`.
 - The downloader config blocks every host, `bcr.bazel.build` included.
@@ -84,7 +85,7 @@ Measured on Linux x86_64 with the pinned Bazel 9.3.1, an empty module and one wr
 - `bazel run //tools/testing:nested_cache_update -- <test label>` runs the tests online with `DX_NESTED_BAZEL_NETWORK=1`. In that record mode the test writes `<set>.txt` and `<set>.MODULE.bazel.lock` to its undeclared outputs, and the tool copies them to `tools/testing/nested_cache`.
 - Other hosts record through evidence.yml with `flags=--config=nested_record`; `harness.txt` is the union of the host records.
 - The test calls `case.use_lock("<set>")` where it needs the checked-in lock; in record mode that call removes the lock and registers the workspace.
-- `bazel run //tools/testing:nested_cache_update -- --from <dir>...` merges the records of several hosts. Each `<dir>` holds `<set>.txt` and a `<stem>.MODULE.bazel.lock` per `use_lock` stem: an unpacked evidence artifact's `test.outputs/nested_cache` or the local testlogs. The tool unions the lists by URL, fails when one URL has two sha256 values, fails when the locks of one stem differ, and writes the result to `tools/testing/nested_cache`.
+- `bazel run //tools/testing:nested_cache_update -- --from <dir>...` merges the records of several hosts. Each `<dir>` holds `<set>.txt` and a `<stem>.MODULE.bazel.lock` per `use_lock` stem: an unpacked evidence artifact's `test.outputs/nested_cache` or the local testlogs. The tool unions the lists by URL, fails when one URL has two digests, fails when the locks of one stem differ, and writes the result to `tools/testing/nested_cache`.
 - A full re-record runs on linux_x86_64, macos_arm64 and windows_x86_64 through `evidence.yml` with `flags=--config=nested_record`, then merges the three artifacts with `--from`.
 - The list is the registry files, module archives, patches and overlays of the lock, and every checksummed download in the Bazel workspace rules log. Nothing is edited by hand.
 

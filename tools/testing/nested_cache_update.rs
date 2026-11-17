@@ -18,7 +18,7 @@ fn split_label(label: &str) -> Option<(&str, &str)> {
     (!name.is_empty() && !name.contains('/')).then_some((package, name))
 }
 
-/// Unions `<url> <sha256>` lists keyed by URL with lowercase sha256, dropping `file://` entries; one URL with two sha256 values is an error.
+/// Unions `<url> <digest>` lists keyed by URL with lowercase digests, dropping `file://` entries; one URL with two digests is an error.
 fn union_lists(lists: &[(String, String)]) -> Result<String, String> {
     let mut merged: BTreeMap<&str, String> = BTreeMap::new();
     for (origin, text) in lists {
@@ -33,7 +33,7 @@ fn union_lists(lists: &[(String, String)]) -> Result<String, String> {
             if let Some(previous) = merged.insert(url, sha.clone())
                 && previous != sha
             {
-                return Err(format!("{origin}: {url} has sha256 {sha} and {previous}"));
+                return Err(format!("{origin}: {url} has digest {sha} and {previous}"));
             }
         }
     }
@@ -88,7 +88,8 @@ fn merge(workspace: &Path, dirs: &[PathBuf]) {
     let target = workspace.join(DIR);
     let write = |name: String, text: String| {
         let dst = target.join(&name);
-        std::fs::write(&dst, text).unwrap_or_else(|error| fail(&format!("cannot write {}: {error}", dst.display())));
+        std::fs::write(&dst, text)
+            .unwrap_or_else(|error| fail(&format!("cannot write {}: {error}", dst.display())));
         println!("wrote {DIR}/{name}");
     };
     for (set, set_dirs) in sets {

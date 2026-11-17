@@ -1,7 +1,7 @@
 """Module extension for tools/testing."""
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
-load(":nested_repository_cache.bzl", "nested_repository_cache_set", "parse_cache_list")
+load(":nested_repository_cache.bzl", "digest_integrity", "nested_repository_cache_set", "parse_cache_list")
 
 
 _PLATFORMS = ["darwin-arm64", "darwin-x86_64", "linux-arm64", "linux-x86_64", "windows-x86_64"]
@@ -60,20 +60,21 @@ def _nested_repository_cache_impl(mctx):
         for cache_set in module.tags.set:
             entries = parse_cache_list(mctx.read(cache_set.list), str(cache_set.list))
             repos = {}
-            for sha256, url in entries.items():
-                repo = "nested_cache_" + sha256
-                repos[sha256] = repo
-                if sha256 not in declared:
-                    declared[sha256] = url
+            for digest, urls in entries.items():
+                repo = "nested_cache_" + digest
+                repos[digest] = repo
+                if digest not in declared:
+                    declared[digest] = urls
                     http_file(
                         name = repo,
                         downloaded_file_path = "blob",
-                        sha256 = sha256,
-                        urls = [url],
+                        integrity = digest_integrity(digest),
+                        urls = urls,
                     )
             nested_repository_cache_set(
                 name = cache_set.name,
                 entries = json.encode(repos),
+                urls = json.encode(entries),
                 rule_bzl = Label(":nested_repository_cache.bzl"),
             )
     return mctx.extension_metadata(reproducible = True)
@@ -86,7 +87,7 @@ nested_repository_cache = module_extension(
         "set": tag_class(
             doc = "One cache set: every file a nested consumer downloads.",
             attrs = {
-                "list": attr.label(mandatory = True, doc = "The checked-in list of `<url> <sha256>` lines."),
+                "list": attr.label(mandatory = True, doc = "The checked-in list of `<url> <hex digest>` lines."),
                 "name": attr.string(mandatory = True, doc = "The repository whose `cache` target carries the set."),
             },
         ),

@@ -15,7 +15,7 @@ _UNKNOWN = cc_compiler_identity("", "")
 def _rewrite(argv, src = "a.c", identity = _LLVM):
     return clang_syntax_argv(argv, src, identity)
 
-def clang_syntax_unit_tests(name):
+def clang_syntax_unit_tests(name, **kwargs):
     starlark_test(
         name = name,
         mode = "unit",
@@ -221,4 +221,5 @@ def clang_syntax_unit_tests(name):
                 "",
             ),
         ],
+        **kwargs
     )

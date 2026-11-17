@@ -126,7 +126,10 @@ rust_test(
     deps = [],
 )
 
-clang_syntax_unit_tests(name = "clang_syntax_unit")
+clang_syntax_unit_tests(
+    name = "clang_syntax_unit",
+    size = "small",
+)
 
 ide_acquisition_test(
     name = "ide_acquisition_test",
@@ -190,6 +193,7 @@ cc_hub_tests(name = "hub_test")
 
 objc_library_tests(
     name = "objc_library_test",
+    size = "small",
     target = "//cc/tests/fixtures/objc_forward:objc_library_fixture",
     target_compatible_with = ["@platforms//os:macos"],
 )

@@ -6,7 +6,6 @@ android/tests/fixtures/adopt-android/native/BUILD.bazel no-size 2
 android/tests/fixtures/consumer_android/BUILD.bazel no-size 2
 android/tests/fixtures/native_lib/BUILD.bazel no-size 3
 android/tests/fixtures/rust_apk/BUILD.bazel no-size 26
-android/tests/packaging/BUILD.bazel no-size 25
 ansible/tests/BUILD.bazel no-size 3
 ansible/tests/layout_tests.bzl no-size 1
 ansible/tests/lock_tests.bzl no-size 1
@@ -41,7 +40,6 @@ cc/private/toolchain/identity_tests.bzl no-size 9
 cc/private/toolchain/msvc/BUILD.bazel no-size 5
 cc/private/toolchain/msvc/repos_tests.bzl no-size 3
 cc/private/toolchain/msvc/tests.bzl no-size 4
-cc/tests/clang_syntax_tests.bzl no-size 1
 cc/tests/fixtures/adopt-cpp/greet/BUILD.bazel no-size 1
 cc/tests/fixtures/adopt-cpp/solo/BUILD.bazel no-size 1
 cc/tests/fixtures/args/BUILD.bazel flaky 1

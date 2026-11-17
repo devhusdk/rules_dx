@@ -160,12 +160,7 @@ fn a_group_set_up_once_denies_its_members_until_teardown() {
     trail.mark("second group dropped");
     remove_host_denies(&scene.isolation);
     trail.mark("host denies removed");
-    assert_eq!(
-        [icacls(&scene.granted), icacls(&scene.ungranted)],
-        before,
-        "{}",
-        trail.text
-    );
+    trail.assert_restored([icacls(&scene.granted), icacls(&scene.ungranted)], &before);
 }
 
 /// Takes the scene's denies off `dxh-host`, which keeps them after a group is dropped.
@@ -202,12 +197,7 @@ fn stale_groups_are_removed_when_a_new_group_is_set_up() {
     trail.mark("fresh group set up and dropped");
     remove_host_denies(&scene.isolation);
     trail.mark("host denies removed");
-    assert_eq!(
-        [icacls(&scene.granted), icacls(&scene.ungranted)],
-        before,
-        "{}",
-        trail.text
-    );
+    trail.assert_restored([icacls(&scene.granted), icacls(&scene.ungranted)], &before);
     let listed = std::process::Command::new("net")
         .args(["localgroup", stale.as_str()])
         .output()
@@ -242,6 +232,19 @@ impl Trail {
             self.text
                 .push_str(&format!("  {} {}\n", path.display(), sddl(path)));
         }
+    }
+
+    /// Fails when `now` differs from `before`, writing both and the trail to the uncaptured stderr.
+    fn assert_restored(&self, now: [String; 2], before: &[String; 2]) {
+        if &now != before {
+            use std::io::Write;
+            let _ = writeln!(
+                std::io::stderr(),
+                "ACL before: {before:?}\nACL now: {now:?}\nACL trail:\n{}",
+                self.text
+            );
+        }
+        assert_eq!(&now, before, "{}", self.text);
     }
 }
 

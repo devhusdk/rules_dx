@@ -306,10 +306,6 @@ svelte format_error_test *
 svelte format_test *
 svelte lint_error_test *
 svelte lint_test *
-swift format_error_test *
-swift format_test *
-swift lint_error_test *
-swift lint_test *
 swift lock_test *
 swift runfiles_test *
 terraform build_test *

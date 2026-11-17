@@ -225,6 +225,7 @@ fn the_readme_quickstart_runs_as_written() {
         }
         write_text(&case.root().join(name), &text);
     }
+    case.use_lock("release_quickstart");
 
     assert!(
         !case.root().join("BUILD.bazel").exists() && !case.root().join("BUILD").exists(),
@@ -375,6 +376,7 @@ fn bcr_test_module_runs_its_presubmit_targets() {
             + &llvm_override()
             + &windows_support_override()),
     );
+    case.use_lock("release_bcr");
 
     let host = presubmit::host_platforms();
     let flags = presubmit::host_run_flags(&presubmit, host);

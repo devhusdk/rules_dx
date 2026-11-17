@@ -130,6 +130,7 @@ fn consumer(candidate: &Candidate, archive: &Path, registry: &Path) -> Case {
     write_windows_support_patches(&root, &rules_dx_source())
         .unwrap_or_else(|error| panic!("{error}"));
     write(&root.join("MODULE.bazel"), module.as_bytes());
+    case.use_lock("release_candidate");
     write(&root.join("BUILD.bazel"), BUILD.as_bytes());
     write(&root.join("main.rs"), b"fn main() {}\n");
     write(&root.join("app_test.rs"), b"#[test]\nfn passes() {}\n");

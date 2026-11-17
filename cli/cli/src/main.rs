@@ -5,7 +5,7 @@
     clippy::wildcard_enum_match_arm
 )]
 
-use std::io::{self, IsTerminal, Write};
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use dx_cli::bazel_restart::{RestartingQueryRunner, RestartingRunner};
@@ -352,7 +352,7 @@ fn parse_invocation(
             return Err(usage_error(code, &error.to_string(), json, command));
         }
     };
-    invocation.piped = !io::stdout().is_terminal();
+    invocation.piped = !dx_output::stdout_is_terminal();
     Ok(invocation)
 }
 // LCOV_EXCL_STOP - reason: end thin run shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md

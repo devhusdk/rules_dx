@@ -34,6 +34,7 @@ rust_library(
     }),
     deps = [
         "@crates//:libc",
+        "@crates//:serde_json",
         "@crates//:zip",
     ],
 )
@@ -78,6 +79,7 @@ rust_test(
     deps = [
         ":ops",
         "//cli/test_scratch:dx_test_scratch",
+        "@crates//:serde_json",
         "@crates//:zip",
     ],
 )

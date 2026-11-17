@@ -5196,6 +5196,17 @@ fn notebooks_only_settle_through_ruff() {
 }
 
 #[test]
+fn latexindent_par_dir_sits_beside_the_scratch_and_outlives_it() {
+    let parent = tempfile::tempdir().expect("parent");
+    let scratch = Scratch::create(parent.path()).expect("scratch");
+    let dir = latexindent_par_dir("latexindent", &scratch).expect("par dir");
+    assert_eq!(dir.parent(), scratch.root().parent());
+    assert!(!dir.starts_with(scratch.root()));
+    scratch.close().expect("close");
+    assert!(dir.is_dir(), "the PAR unpack root survives scratch cleanup");
+}
+
+#[test]
 fn latexindent_crlf_settles_to_the_source_line_ending() {
     let crlf = "a\r\n\tb\r\n";
     let lf = RealBackend::settle("latexindent", "a.tex", "a\nb\n", crlf.to_owned());

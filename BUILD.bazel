@@ -826,6 +826,7 @@ filegroup(
         "//powershell/private/tools/lock:module_srcs",
         "//python:module_srcs",
         "//python/private:module_srcs",
+        "//python/private/coverage:module_srcs",
         "//python/private/quality:module_srcs",
         "//qt:extension_srcs",
         "//qt/tests:module_srcs",

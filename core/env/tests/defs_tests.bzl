@@ -1,8 +1,8 @@
 """Unit and analysis tests for the bootstrap environment registry."""
 
 load("//core:defs.bzl", "display_label", "expect_equal", "starlark_test")
-load("//env/private:defs.bzl", "env_host_filename", "env_tool_record", "env_tree_metadata")
-load("//env/private:validate.bzl", "env_collision_error", "env_name_error", "env_tool_error")
+load("//core/env/private:defs.bzl", "env_host_filename", "env_tool_record", "env_tree_metadata")
+load("//core/env/private:validate.bzl", "env_collision_error", "env_name_error", "env_tool_error")
 
 def env_defs_unit_tests(name):
     starlark_test(
@@ -82,8 +82,8 @@ def env_defs_unit_tests(name):
             ),
             expect_equal(
                 "display_label strips the canonical marker from main-repo labels",
-                display_label(Label("//env:tool_alpha")),
-                "//env:tool_alpha",
+                display_label(Label("//core/env:tool_alpha")),
+                "//core/env:tool_alpha",
             ),
             expect_equal(
                 "display_label passes marker-free labels through",
@@ -93,8 +93,8 @@ def env_defs_unit_tests(name):
             expect_equal(
                 "env_collision_error accepts disjoint records",
                 env_collision_error([
-                    env_tool_record("//env:tool_alpha", "alpha", ["a"]),
-                    env_tool_record("//env:tool_beta", "beta", []),
+                    env_tool_record("//core/env:tool_alpha", "alpha", ["a"]),
+                    env_tool_record("//core/env:tool_beta", "beta", []),
                 ]),
                 "",
             ),
@@ -116,28 +116,28 @@ def env_defs_unit_tests(name):
             expect_equal(
                 "env_collision_error reports a primary/alias cross-tool collision",
                 env_collision_error([
-                    env_tool_record("//env:tool_alpha", "alpha", ["a"]),
-                    env_tool_record("//env:tool_beta", "beta", ["a"]),
+                    env_tool_record("//core/env:tool_alpha", "alpha", ["a"]),
+                    env_tool_record("//core/env:tool_beta", "beta", ["a"]),
                 ]),
-                "host-name collision: host name 'a' claimed by //env:tool_alpha, //env:tool_beta",
+                "host-name collision: host name 'a' claimed by //core/env:tool_alpha, //core/env:tool_beta",
             ),
             expect_equal(
                 "env_collision_error folds case across owners",
                 env_collision_error([
-                    env_tool_record("//env:tool_alpha", "Alpha", []),
-                    env_tool_record("//env:tool_beta", "ALPHA", []),
+                    env_tool_record("//core/env:tool_alpha", "Alpha", []),
+                    env_tool_record("//core/env:tool_beta", "ALPHA", []),
                 ]),
-                "host-name collision: host name 'alpha' claimed by //env:tool_alpha, //env:tool_beta",
+                "host-name collision: host name 'alpha' claimed by //core/env:tool_alpha, //core/env:tool_beta",
             ),
             expect_equal(
                 "env_collision_error lists every collision sorted",
                 env_collision_error([
-                    env_tool_record("//env:tool_alpha", "shared", ["z-shared"]),
-                    env_tool_record("//env:tool_beta", "beta", ["Shared"]),
-                    env_tool_record("//env:tool_gamma", "gamma", ["Z-Shared"]),
+                    env_tool_record("//core/env:tool_alpha", "shared", ["z-shared"]),
+                    env_tool_record("//core/env:tool_beta", "beta", ["Shared"]),
+                    env_tool_record("//core/env:tool_gamma", "gamma", ["Z-Shared"]),
                 ]),
-                "host-name collision: host name 'shared' claimed by //env:tool_alpha, //env:tool_beta; " +
-                "host name 'z-shared' claimed by //env:tool_alpha, //env:tool_gamma",
+                "host-name collision: host name 'shared' claimed by //core/env:tool_alpha, //core/env:tool_beta; " +
+                "host name 'z-shared' claimed by //core/env:tool_alpha, //core/env:tool_gamma",
             ),
             expect_equal(
                 "env_host_filename keeps logical names on POSIX",
@@ -153,8 +153,8 @@ def env_defs_unit_tests(name):
                 "env_tree_metadata versions and sorts the tool entries",
                 json.decode(env_tree_metadata(
                     [
-                        env_tool_record("//env:tool_beta", "beta", []),
-                        env_tool_record("//env:tool_alpha", "alpha", ["a"]),
+                        env_tool_record("//core/env:tool_beta", "beta", []),
+                        env_tool_record("//core/env:tool_alpha", "alpha", ["a"]),
                     ],
                     False,
                 )),
@@ -164,13 +164,13 @@ def env_defs_unit_tests(name):
                             "aliases": ["a"],
                             "bin_name": "alpha",
                             "host_names": ["alpha", "a"],
-                            "owner": "//env:tool_alpha",
+                            "owner": "//core/env:tool_alpha",
                         },
                         {
                             "aliases": [],
                             "bin_name": "beta",
                             "host_names": ["beta"],
-                            "owner": "//env:tool_beta",
+                            "owner": "//core/env:tool_beta",
                         },
                     ],
                 },
@@ -178,7 +178,7 @@ def env_defs_unit_tests(name):
             expect_equal(
                 "env_tree_metadata maps host names on Windows",
                 json.decode(env_tree_metadata(
-                    [env_tool_record("//env:tool_alpha", "alpha", ["a"])],
+                    [env_tool_record("//core/env:tool_alpha", "alpha", ["a"])],
                     True,
                 ))["tools"],
                 [
@@ -186,20 +186,20 @@ def env_defs_unit_tests(name):
                         "aliases": ["a"],
                         "bin_name": "alpha",
                         "host_names": ["alpha.exe", "a.exe"],
-                        "owner": "//env:tool_alpha",
+                        "owner": "//core/env:tool_alpha",
                     },
                 ],
             ),
         ],
     )
 
-EXPECTED_ENV_OBSERVATIONS = """subject //env:config_under_test
+EXPECTED_ENV_OBSERVATIONS = """subject //core/env:config_under_test
 field count=2
 field names=a,alpha,beta
 aspect_field aspect_seen=True
 aspect_field field_count=2
 aspect_field has_subject=True
-aspect_field subject_label=//env:config_under_test
+aspect_field subject_label=//core/env:config_under_test
 aspect_field transitive_count=0"""
 
 def env_config_analysis_tests(name):
@@ -210,7 +210,7 @@ def env_config_analysis_tests(name):
         expected_observations = EXPECTED_ENV_OBSERVATIONS,
     )
 
-EXPECTED_TREE_OBSERVATIONS = """subject //env:tree_under_test
+EXPECTED_TREE_OBSERVATIONS = """subject //core/env:tree_under_test
 file a
 file alpha
 file beta
@@ -221,10 +221,10 @@ field platform=posix
 aspect_field aspect_seen=True
 aspect_field field_count=3
 aspect_field has_subject=True
-aspect_field subject_label=//env:tree_under_test
+aspect_field subject_label=//core/env:tree_under_test
 aspect_field transitive_count=0"""
 
-WINDOWS_TREE_OBSERVATIONS = """subject //env:tree_under_test
+WINDOWS_TREE_OBSERVATIONS = """subject //core/env:tree_under_test
 file a
 file alpha
 file beta
@@ -235,7 +235,7 @@ field platform=windows
 aspect_field aspect_seen=True
 aspect_field field_count=3
 aspect_field has_subject=True
-aspect_field subject_label=//env:tree_under_test
+aspect_field subject_label=//core/env:tree_under_test
 aspect_field transitive_count=0"""
 
 def env_tree_analysis_tests(name):
@@ -247,13 +247,13 @@ def env_tree_analysis_tests(name):
         windows_expected_observations = WINDOWS_TREE_OBSERVATIONS,
     )
 
-EXPECTED_DEFAULT_CONFIG_OBSERVATIONS = """subject //env:default_config
+EXPECTED_DEFAULT_CONFIG_OBSERVATIONS = """subject //core/env:default_config
 field count=8
 field names=biome,clangd,doctor,dx,node,quality_markdown,ruff,shellcheck
 aspect_field aspect_seen=True
 aspect_field field_count=2
 aspect_field has_subject=True
-aspect_field subject_label=//env:default_config
+aspect_field subject_label=//core/env:default_config
 aspect_field transitive_count=0"""
 
 def env_default_config_analysis_tests(name):
@@ -264,7 +264,7 @@ def env_default_config_analysis_tests(name):
         expected_observations = EXPECTED_DEFAULT_CONFIG_OBSERVATIONS,
     )
 
-EXPECTED_DEFAULT_TREE_OBSERVATIONS = """subject //env:default_tree
+EXPECTED_DEFAULT_TREE_OBSERVATIONS = """subject //core/env:default_tree
 file biome
 file clangd
 file default_tree.metadata.json
@@ -280,10 +280,10 @@ field platform=posix
 aspect_field aspect_seen=True
 aspect_field field_count=3
 aspect_field has_subject=True
-aspect_field subject_label=//env:default_tree
+aspect_field subject_label=//core/env:default_tree
 aspect_field transitive_count=0"""
 
-WINDOWS_DEFAULT_TREE_OBSERVATIONS = """subject //env:default_tree
+WINDOWS_DEFAULT_TREE_OBSERVATIONS = """subject //core/env:default_tree
 file biome
 file clangd
 file default_tree.metadata.json
@@ -299,7 +299,7 @@ field platform=windows
 aspect_field aspect_seen=True
 aspect_field field_count=3
 aspect_field has_subject=True
-aspect_field subject_label=//env:default_tree
+aspect_field subject_label=//core/env:default_tree
 aspect_field transitive_count=0"""
 
 def env_default_tree_analysis_tests(name):

@@ -17,8 +17,6 @@ fixture-hello capnproto/tests/conformance/BUILD.bazel
 fixture-hello cloudformation/tests/conformance/BUILD.bazel
 fixture-hello cmake/tests/conformance/BUILD.bazel
 fixture-hello dockerfile/tests/conformance/BUILD.bazel
-fixture-hello env/tests/conformance/BUILD.bazel
-fixture-hello env/tests/consumer
 fixture-hello flatbuffers/tests/conformance/BUILD.bazel
 fixture-hello flutter/tests/consumer
 fixture-hello helm/tests/conformance/BUILD.bazel
@@ -143,7 +141,6 @@ fixture-referenced d/tests/fixtures/bench
 fixture-referenced d/tests/fixtures/coverage
 fixture-referenced d/tests/fixtures/fuzz
 fixture-referenced elixir/tests/fixtures/bench
-fixture-referenced env/tests/fixtures/env_codegen
 fixture-referenced erlang/tests/fixtures/bench
 fixture-referenced fsharp/tests/fixtures/bench
 fixture-referenced fsharp/tests/fixtures/fantomas
@@ -220,7 +217,6 @@ private-visibility dart/private/tools/BUILD.bazel
 private-visibility dotnet/private/fuzz/BUILD.bazel
 private-visibility elixir/private/bench/BUILD.bazel
 private-visibility elixir/private/tools/BUILD.bazel
-private-visibility env/private/tools/env_shard/BUILD.bazel
 private-visibility erlang/private/BUILD.bazel
 private-visibility erlang/private/bench/BUILD.bazel
 private-visibility erlang/private/toolchain/BUILD.bazel
@@ -288,7 +284,6 @@ test-location php/private/coverage/BUILD.bazel
 test-location rego/private/launcher/BUILD.bazel
 test-location rego/private/launcher/src/opa_tests.rs
 test-location typescript/private/ide/BUILD.bazel
-title env/lang.json
 wrap apple/defs.bzl
 wrap erlang/defs.bzl
 wrap flatbuffers/defs.bzl

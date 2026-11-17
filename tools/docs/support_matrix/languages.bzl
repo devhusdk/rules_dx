@@ -538,7 +538,6 @@ NOT_LANGUAGES = [
     "docs",
     "dotnet",
     "dx",
-    "env",
     "examples",
     "families",
     "gazelle",

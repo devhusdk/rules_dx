@@ -56,7 +56,7 @@ const PACKAGES: &[&str] = &[
     "elixir/private",
     "elixir/private/toolchain",
     "elixir/private/tools",
-    "env",
+    "core/env",
     "erlang/private",
     "erlang/private/toolchain",
     "examples/shared-rust",

@@ -563,7 +563,7 @@ mod tests {
         };
         let outputs = [
             output(None, &["out/lib.rs", "out/b.pb"]),
-            output(Some("env:plan.bzl%dx_env_plan_aspect"), &["out/lib.rs"]),
+            output(Some("core/env/private:plan.bzl%dx_env_plan_aspect"), &["out/lib.rs"]),
         ];
         assert_eq!(
             non_shard_artifact_paths(&outputs, ".shard.pb"),

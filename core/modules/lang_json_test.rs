@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
-const NON_LANGUAGE: [&str; 2] = ["appimage", "env"];
+const NON_LANGUAGE: [&str; 1] = ["appimage"];
 
 fn language_dirs(root: &Path) -> BTreeSet<PathBuf> {
     let mut dirs = BTreeSet::new();

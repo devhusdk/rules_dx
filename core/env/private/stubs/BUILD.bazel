@@ -14,7 +14,7 @@ write_file(
     out = "doctor.sh",
     content = [
         "#!/bin/sh",
-        "echo 'rules_dx managed environment tool: //env:doctor'",
+        "echo 'rules_dx managed environment tool: //core/env:doctor'",
         "",
     ],
     is_executable = True,
@@ -31,7 +31,7 @@ rust_binary(
     testonly = False,
     srcs = ["src/bin_tool.rs"],
     aliases = aliases(
-        package_name = "env/private/env_stubs",
+        package_name = "core/env/private/env_stubs",
         normal = True,
     ),
     crate_name = "tool_sh",

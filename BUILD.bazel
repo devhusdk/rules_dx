@@ -6,7 +6,7 @@ load("//javascript:defs.bzl", "js_library")
 # gazelle:dx_fixture_testonly true
 # gazelle:resolve rust dx_deploy_tools //deploy/private:dx_deploy_tools
 # gazelle:resolve rust doc_ir_proto //tools/docs/ir/proto:doc_ir_proto_rs
-# gazelle:resolve rust marker_proto //env/private/proto:marker_proto_rs
+# gazelle:resolve rust marker_proto //core/env/private/proto:marker_proto_rs
 # gazelle:resolve rust proto //core/quality/result/proto:result_proto_rs
 # gazelle:resolve rust result_proto //core/quality/result/proto:result_proto_rs
 # gazelle:resolve rust prost @rules_rust_prost//private/3rdparty/crates:prost
@@ -358,7 +358,6 @@ filegroup(
         "//dockerfile:lang.json",
         "//dotnet:lang.json",
         "//elixir:lang.json",
-        "//env:lang.json",
         "//erlang:lang.json",
         "//flatbuffers:lang.json",
         "//flutter:lang.json",
@@ -654,9 +653,9 @@ filegroup(
         "//elixir/private/lock:module_srcs",
         "//elixir/private/toolchain:module_srcs",
         "//elixir/private/tools/lock:module_srcs",
-        "//env/private/proto:module_srcs",
-        "//env/private/stubs:module_srcs",
-        "//env/private/tools/env_shard:module_srcs",
+        "//core/env/private/proto:module_srcs",
+        "//core/env/private/stubs:module_srcs",
+        "//core/env/private/tools/env_shard:module_srcs",
         "//erlang:extension_srcs",
         "//erlang/private/quality:module_srcs",
         "//examples/shared-rust:module_srcs",

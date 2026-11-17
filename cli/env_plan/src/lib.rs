@@ -14,7 +14,7 @@ pub const OUTPUT_GROUP: &str = "dx_env_plans";
 pub const SHARD_SUFFIX: &str = ".dxenv.pb";
 
 /// Repo-relative label; qualify it with [`aspect_label`].
-pub const ENV_ASPECT: &str = "env:plan.bzl%dx_env_plan_aspect";
+pub const ENV_ASPECT: &str = "core/env/private:plan.bzl%dx_env_plan_aspect";
 
 /// Repo-relative label; qualify it with [`repository_target`].
 pub const REPOSITORY_TARGET: &str = "dx:env";

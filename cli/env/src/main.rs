@@ -8,8 +8,8 @@ use dx_env::{RefreshOptions, RefreshOutcome, identity_hex, parse_staged, probe_s
 use dx_error::DxError;
 
 const METADATA_CANDIDATES: &[(&str, &str)] = &[
-    ("rules_dx/env/default_tree.metadata.json", "_main"),
-    ("_main/env/default_tree.metadata.json", "_main"),
+    ("rules_dx/core/env/default_tree.metadata.json", "_main"),
+    ("_main/core/env/default_tree.metadata.json", "_main"),
 ];
 
 const USAGE: &str =

@@ -81,6 +81,9 @@ config/settings_tests.bzl no-size 4
 core/codegen/BUILD.bazel no-size 2
 core/codegen/codegen_tests.bzl no-size 2
 core/coreutils/BUILD.bazel no-size 2
+core/env/BUILD.bazel no-size 12
+core/env/tests/defs_tests.bzl no-size 5
+core/env/tests/plan_tests.bzl no-size 2
 core/fuzz.bzl no-size 1
 core/fuzz_bench_tests.bzl no-size 1
 core/modules/BUILD.bazel no-size 3
@@ -233,9 +236,6 @@ elixir/tests/fixtures/elixir_app/stock/BUILD.bazel no-size 1
 elixir/tests/negative/BUILD.bazel no-size 3
 elixir/tests/runtime/BUILD.bazel no-size 2
 elixir/tests/tags/BUILD.bazel no-size 1
-env/BUILD.bazel no-size 12
-env/tests/defs_tests.bzl no-size 5
-env/tests/plan_tests.bzl no-size 2
 erlang/private/toolchain/BUILD.bazel no-size 2
 erlang/tests/fixtures/bench/BUILD.bazel no-size 2
 erlang/tests/fixtures/erlang_app/checksum/BUILD.bazel no-size 1

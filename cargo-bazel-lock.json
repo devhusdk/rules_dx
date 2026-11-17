@@ -1,5 +1,5 @@
 {
-  "checksum": "742679e06cf0c9b738b0aaad82678be4252d1ab90f5a43fdb71cc7ea784da1b7",
+  "checksum": "956732c2026e359ecbe00e02e5bf063bbf4176e5980611aecadf2e37b646f2e0",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -33265,8 +33265,8 @@
     "dx_tool_resolve 0.0.0": "cli/dx_tool_resolve",
     "dx_update 0.0.0": "cli/dx_update",
     "dx_worktree 0.0.0": "cli/dx_worktree",
-    "env_shard 0.0.0": "env/private/tools/env_shard",
-    "env_stubs 0.0.0": "env/private/env_stubs",
+    "env_shard 0.0.0": "core/env/private/tools/env_shard",
+    "env_stubs 0.0.0": "core/env/private/env_stubs",
     "flatbuffers_tests 0.0.0": "flatbuffers/flatbuffers_tests",
     "fortran_extract 0.0.0": "tools/docs/fortran/fortran_extract",
     "fpm_lock 0.0.0": "fortran/private/tools/fpm_lock",

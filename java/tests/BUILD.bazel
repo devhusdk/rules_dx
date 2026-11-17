@@ -9,7 +9,6 @@ load("//rust:defs.bzl", "rust_test")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 
 exports_files([
-    "coverage_tests.bzl",
     "jmh_tests.bzl",
 ])
 
@@ -95,7 +94,6 @@ real_source_target(
     testonly = True,
     starlark_srcs = [
         "BUILD.bazel",
-        "coverage_tests.bzl",
         "jmh_tests.bzl",
     ],
     tags = ["corpus"],

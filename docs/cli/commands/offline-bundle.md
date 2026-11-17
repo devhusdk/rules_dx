@@ -59,7 +59,7 @@ It checks every `SHA256SUMS`, installs the launcher for the host, copies each sn
 
 The retrieval date is the `retrieved_at` from the bundle, not the install day. `dx security` and `dx license` report `advisory_refresh_failed` for an old bundle until you rebuild it from a fresh snapshot.
 
-It prints three `bootstrap-offline:` lines on stdout: the installed launcher with its sha256, the number of snapshots, and a note that the first Bazel module fetch still needs the network.
+It prints three `bootstrap-offline:` lines on stdout: the installed launcher with its sha256, the number of snapshots, and a note that the first Bazel module fetch still needs the network. Run [`dx fetch`](fetch.md) once while online; after that `dx build --offline` and `dx test --offline` need no network.
 
 ## Exit Codes
 

@@ -1,6 +1,6 @@
 run Bazel build over resolved targets
 
-Usage: dx build [--here] [--affected [--since <ref>|--base <ref>]] [--debug|--release] [--timings] [--no-retry] [scope ...] [-- bazel-options ...]
+Usage: dx build [--offline] [--here] [--affected [--since <ref>|--base <ref>]] [--debug|--release] [--timings] [--no-retry] [scope ...] [-- bazel-options ...]
 
 Arguments:
   [TARGETS]...
@@ -37,6 +37,9 @@ Options:
           Set output format
           
           [possible values: text, json]
+
+      --offline
+          Never download; use only what dx fetch already fetched
 
       --debug
           Use debug build

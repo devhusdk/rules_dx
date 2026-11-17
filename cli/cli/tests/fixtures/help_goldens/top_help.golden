@@ -34,6 +34,7 @@ Commands:
   worktree    lease warm checkout slots (add, release, list, path, prune; prune checks by default, --apply deletes)
   fuzz        run dx-fuzz targets for a time budget and store crashes under .dx/local/fuzz
   config      list each tool root config file, the base it extends and whether you edited it; diff shows the change; override copies a base to the root file
+  fetch       download what resolved targets need so build and test can run with --offline; --vendor also copies it into a directory
 
 Options:
   -h, --help

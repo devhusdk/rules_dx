@@ -50,6 +50,7 @@ Read these in order:
 - [Quality](cli/commands/quality.md)
 - [Check](cli/commands/check.md)
 - [Clean](cli/commands/clean.md)
+- [Fetch](cli/commands/fetch.md)
 - [Generate](cli/commands/generate.md)
 - [Docs](cli/commands/docs.md)
 - [Sync](cli/commands/sync.md)

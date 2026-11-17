@@ -127,7 +127,8 @@ pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
         | Command::Watch
         | Command::Docs
         | Command::Worktree
-        | Command::Fuzz => pre_exec(invocation.output, out, err, "not an adoption command"),
+        | Command::Fuzz
+        | Command::Fetch => pre_exec(invocation.output, out, err, "not an adoption command"),
     }
 }
 

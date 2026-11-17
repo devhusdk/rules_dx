@@ -950,7 +950,7 @@ mod tests {
         use clap::ValueEnum;
         let dir = repo();
         let (plan, _) = run(dir.path(), Command::Test, &[]);
-        let cases: [(&[&str], &str); 16] = [
+        let cases: [(&[&str], &str); 17] = [
             (&["check", "--affected", "--output=json"], "check"),
             (
                 &["check", "--apply", "--affected", "--output=json"],
@@ -979,6 +979,7 @@ mod tests {
             (&["build", "--affected", "--output=json"], "default"),
             (&["test", "--affected", "--output=json"], "default"),
             (&["coverage", "--affected", "--output=json"], "default"),
+            (&["fetch", "--affected", "--output=json"], "default"),
             (&["security", "--affected", "--output=json"], "default"),
             (&["license", "--affected", "--output=json"], "default"),
             (&["check", "--affected", "--output=json"], "check"),

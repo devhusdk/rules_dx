@@ -291,6 +291,10 @@ const EXAMPLES: &[(Command, &[&str])] = &[
         Command::Config,
         &["config", "config hlint", "config diff hlint"],
     ),
+    (
+        Command::Fetch,
+        &["fetch //...", "fetch --affected", "fetch --vendor //..."],
+    ),
 ];
 
 fn examples_text(command: Command) -> String {
@@ -643,7 +647,8 @@ mod tests {
             | Command::Docs
             | Command::Worktree
             | Command::Fuzz
-            | Command::Config => Vec::new(),
+            | Command::Config
+            | Command::Fetch => Vec::new(),
         }
     }
 

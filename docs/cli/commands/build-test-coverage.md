@@ -22,7 +22,7 @@ A few Bazel words this page uses:
 Build targets.
 
 ```text
-dx build [--here] [--affected [--since <ref>|--base <ref>]] [--debug|--release] [--timings] [--no-retry] [--report failures=<path>] [scope...] [-- bazel-options...]
+dx build [--offline] [--here] [--affected [--since <ref>|--base <ref>]] [--debug|--release] [--timings] [--no-retry] [--report failures=<path>] [scope...] [-- bazel-options...]
 ```
 
 ```sh
@@ -35,7 +35,7 @@ dx build --release //app -- --local_resources=cpu=4
 Build and run tests.
 
 ```text
-dx test [--here] [--affected [--since <ref>|--base <ref>]] [--debug|--release] [--timings] [--no-retry] [--report junit|failures|results=<path>] [scope...] [-- bazel-options...]
+dx test [--offline] [--here] [--affected [--since <ref>|--base <ref>]] [--debug|--release] [--timings] [--no-retry] [--report junit|failures|results=<path>] [scope...] [-- bazel-options...]
 ```
 
 ```sh
@@ -82,6 +82,7 @@ dx run --release //app -- --port 8080
 
 | Flag | Commands | What it does |
 | --- | --- | --- |
+| `--offline` | `build`, `test` | Never download. Use only what [`dx fetch`](fetch.md) fetched. Passes `--repository_disable_download` to Bazel and to the scope queries. |
 | `--here` | `build`, `test`, `coverage` | Use the current directory tree: `//path/...`, or `//...` at the workspace root. |
 | `--affected` | `build`, `test`, `coverage` | Use only the targets your git changes reach. |
 | `--since <ref>` | `build`, `test`, `coverage` | With `--affected`: compare against this git ref instead of the merge-base with the default branch. Without `--affected`, exits `2`. |

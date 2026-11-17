@@ -50,7 +50,8 @@ pub fn sync_preset_layers(invocation: &Invocation, workspace: &Path, err: &mut d
         | Command::Docs
         | Command::Worktree
         | Command::Fuzz
-        | Command::Config => Mode::Fast,
+        | Command::Config
+        | Command::Fetch => Mode::Fast,
     };
     match dx_generate::sync(workspace, mode, &mut dx_adopt::detected_families) {
         Ok(report) => {

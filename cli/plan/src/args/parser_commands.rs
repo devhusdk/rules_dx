@@ -262,7 +262,8 @@ fn an_output_mode_is_gated_exactly_where_the_registry_declares_it() {
                 | Command::Docs
                 | Command::Worktree
                 | Command::Fuzz
-                | Command::Config => owned_option_words(command, &[flag]),
+                | Command::Config
+                | Command::Fetch => owned_option_words(command, &[flag]),
             };
             match parse(&words) {
                 Ok(got) => {
@@ -907,6 +908,67 @@ fn completion_takes_exactly_one_shell() {
 }
 
 #[test]
+fn build_and_test_offline_disable_bazel_downloads_and_never_use_nofetch() {
+    for command in ["build", "test"] {
+        let got = parse(&strings(&[
+            command,
+            "--offline",
+            "//a:one",
+            "--",
+            "--jobs=4",
+        ]))
+        .expect("offline parses");
+        assert!(got.offline, "command: {command}");
+        assert_eq!(
+            got.raw_bazel_options(),
+            ["--repository_disable_download", "--jobs=4"],
+            "command: {command}"
+        );
+        assert!(
+            !got.raw_bazel_options()
+                .iter()
+                .any(|o| o.contains("nofetch")),
+            "command: {command}"
+        );
+        let online = parse(&strings(&[command, "//a:one"])).expect("online parses");
+        assert!(online.raw_bazel_options().is_empty(), "command: {command}");
+    }
+}
+
+#[test]
+fn fetch_takes_scopes_affected_and_an_optional_vendor_dir() {
+    let bare = parse(&strings(&["fetch"])).expect("bare fetch");
+    assert_eq!(bare.command, Command::Fetch);
+    assert_eq!(bare.vendor, None);
+    let vendor = parse(&strings(&["fetch", "--vendor", "//pkg/..."])).expect("vendor");
+    assert_eq!(vendor.vendor.as_deref(), Some("vendor_src"));
+    assert_eq!(vendor.targets, ["//pkg/..."]);
+    let dir = parse(&strings(&["fetch", "--vendor=third_party/vendor"])).expect("vendor dir");
+    assert_eq!(dir.vendor.as_deref(), Some("third_party/vendor"));
+    assert!(
+        parse(&strings(&["fetch", "--affected"]))
+            .expect("affected")
+            .affected
+    );
+    assert!(parse(&strings(&["fetch", "--vendor="])).is_err());
+    assert!(
+        parse(&strings(&["fetch", "--release"]))
+            .expect("release")
+            .release
+    );
+    for option in ["--report=junit=r.xml", "--timings", "--no-retry"] {
+        assert_eq!(
+            parse(&strings(&["fetch", option])),
+            Err(ArgsError::UnsupportedOption {
+                command: "fetch",
+                option: option.to_owned(),
+            }),
+            "option: {option}"
+        );
+    }
+}
+
+#[test]
 fn offline_and_frozen_are_independent_policies_on_audit_and_update() {
     for command in ["security", "license", "update"] {
         let got = parse(&strings(&[command, "--offline"])).expect("offline parses");
@@ -931,7 +993,8 @@ fn offline_and_frozen_are_independent_policies_on_audit_and_update() {
     assert!(!update_frozen.offline);
     for words in [
         vec!["lint", "--offline"],
-        vec!["build", "//a:one", "--offline"],
+        vec!["coverage", "//a:one", "--offline"],
+        vec!["fetch", "--offline"],
         vec!["clean", "--offline"],
         vec!["sync", "--offline"],
         vec!["status", "--offline"],

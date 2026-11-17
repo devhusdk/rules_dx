@@ -132,13 +132,11 @@ helm lint_test *
 helm lock_test *
 helm pass_test *
 helm runfiles_test *
-java cross_test *
 julia cross_test *
 julia format_error_test *
 julia format_test *
 julia lint_error_test *
 julia lint_test *
-kotlin cross_test *
 kotlin format_error_test *
 kotlin format_test *
 kotlin lint_error_test *
@@ -200,7 +198,6 @@ rst lock_test *
 rst pass_test *
 rst runfiles_test *
 ruby runfiles_test *
-scala cross_test *
 scala lint_error_test *
 scala lint_test *
 svelte format_error_test *

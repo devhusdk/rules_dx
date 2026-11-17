@@ -30,10 +30,10 @@ Each suite column names the platforms the conformance test runs on, `n/a` with i
 | F# | none | `nuget` | `fsharp_bench` | `fsharp_fuzz_test` | all | all | all | all | pending | all |
 | Go | none | `go`; cgo is not supported on `windows_x86_64` and `windows_arm64`: the hermetic Windows toolchain is MSVC ABI only, and cgo needs the MinGW (GNU) ABI | `go_bench` | `go_fuzz_test` | all | all | all | all | all | all |
 | Haskell | `windows_arm64`: GHC 9.10.3 ships no Windows arm64 bindist | `hackage` from `cabal.project.freeze`; none for `stack.yaml.lock` | `haskell_bench` | n/a | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | pending | pending |
-| Java | none | `maven` | `java_bench` | `java_fuzz_test` | all | all | all | all | pending | all |
+| Java | none | `maven` | `java_bench` | `java_fuzz_test` | all | all | all | all | all | all |
 | JavaScript | none | `npm` | `javascript_bench` | `javascript_fuzz_test` | all | all | all | all | all | all |
 | Julia | `windows_arm64`: julialang.org and rules_julia 0.8.0 ship no Windows arm64 Julia build | `julia` | `julia_bench` | n/a | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | pending | pending |
-| Kotlin | none | `maven` | `kotlin_bench` | `kotlin_fuzz_test` | all | all | all | all | pending | all |
+| Kotlin | none | `maven` | `kotlin_bench` | `kotlin_fuzz_test` | all | all | all | all | all | all |
 | Lua | none | `luarocks` (pinned, no advisories) | `lua_bench` | n/a | all | all | all | all | n/a: lua_binary is a script the interpreter runs; it has no object format | all |
 | MDX | none | `npm` | n/a | n/a | n/a: mdx has no binary rule | all | all | all | n/a: mdx has no binary rule | n/a: mdx has no binary rule |
 | OCaml | `windows_x86_64`: conda-forge win-64 OCaml stops at 5.3.0, below the pinned 5.5.2; `windows_arm64`: conda-forge ships no win-arm64 OCaml package | `opam` | `ocaml_bench` | `ocaml_fuzz_test` | `linux_arm64`, `linux_x86_64`, `macos_arm64` | `linux_arm64`, `linux_x86_64`, `macos_arm64` | `linux_arm64`, `linux_x86_64`, `macos_arm64` | `linux_arm64`, `linux_x86_64`, `macos_arm64` | `linux_arm64`, `linux_x86_64`; pending on `macos_arm64` | `linux_arm64`, `linux_x86_64`, `macos_arm64` |
@@ -44,7 +44,7 @@ Each suite column names the platforms the conformance test runs on, `n/a` with i
 | Python | none | `uv`; none for `poetry.lock` and `Pipfile.lock`: uv is the supported manager | `python_bench` | `python_fuzz_test` | all | all | all | all | n/a: python_binary is a script the interpreter runs; it has no object format | all |
 | Ruby | `windows_arm64`: not in lang.json platforms | `ruby` | `ruby_bench` | n/a | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` | n/a: ruby_binary is a script the interpreter runs; it has no object format | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_x86_64` |
 | Rust | none | `cargo` | `rust_bench` | `rust_fuzz_test` | all | all | all | all | all | all |
-| Scala | none | `maven` | `scala_bench` | `scala_fuzz_test` | all | all | all | all | pending | all |
+| Scala | none | `maven` | `scala_bench` | `scala_fuzz_test` | all | all | all | all | all | all |
 | Svelte | none | `npm` | n/a | n/a | n/a: svelte has no binary rule | all | all | all | n/a: svelte has no binary rule | n/a: svelte has no binary rule |
 | Swift | none | `swiftpm` | `swift_bench` | `swift_fuzz_test` | all | all | all | all | `linux_arm64`, `linux_x86_64`; n/a: swift cross-compiles to linux only from a linux host | pending |
 | TypeScript | none | `npm` | `typescript_bench` | `typescript_fuzz_test` | all | all | all | all | all | all |

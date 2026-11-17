@@ -64,6 +64,7 @@ dx_conformance_suite(
     size = "small",
     binary = ":hello",
     covered_source = "Greet.scala",
+    cross_runfile = "java",
     expected = "hello world",
     failing_case = "failingCase",
     failing_pattern = "AssertionError: {case}",

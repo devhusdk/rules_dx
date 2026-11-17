@@ -2480,7 +2480,7 @@ mod tests {
             calls,
             format!(
                 "{}|unset|--output_user_root={} --max_idle_secs=5 --host_jvm_args=-Xmx1536m --bazelrc={} --nohome_rc --nosystem_rc info release\n",
-                root.display(),
+                root.canonicalize().expect("canonical root").display(),
                 user_root.display(),
                 first.home().join("bazelrc").display()
             )
@@ -2515,7 +2515,7 @@ mod tests {
             std::fs::read_to_string(&log).expect("log"),
             format!(
                 "{}|unset|--output_user_root={} --max_idle_secs=5 --host_jvm_args=-Xmx1536m --bazelrc={} --nohome_rc --nosystem_rc info release\n",
-                root.display(),
+                root.canonicalize().expect("canonical root").display(),
                 server.user_root().display(),
                 server.home().join("bazelrc").display()
             )

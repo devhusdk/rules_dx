@@ -106,34 +106,44 @@ pub fn zombie(pid: u32) -> bool {
     })
 }
 
+/// Size of `struct kinfo_proc` on 64-bit macOS.
+#[cfg(target_os = "macos")]
+const KINFO_PROC_SIZE: usize = 648;
+
+/// Offset of `kp_proc.p_stat` within `struct kinfo_proc` on 64-bit macOS.
+#[cfg(target_os = "macos")]
+const KINFO_PROC_P_STAT: usize = 36;
+
 /// Whether `pid` is a zombie: exited but not yet reaped by its parent.
 #[cfg(target_os = "macos")]
-#[expect(unsafe_code, reason = "proc_pidinfo has no safe std API")]
+#[expect(unsafe_code, reason = "sysctl KERN_PROC_PID has no safe std API")]
 #[must_use]
 pub fn zombie(pid: u32) -> bool {
     let Ok(pid) = libc::c_int::try_from(pid) else {
         return false;
     };
-    let mut info = std::mem::MaybeUninit::<libc::proc_bsdinfo>::zeroed();
-    let Ok(size) = libc::c_int::try_from(std::mem::size_of::<libc::proc_bsdinfo>()) else {
-        return false;
-    };
-    // SAFETY: `info` is writable for `size` bytes and PROC_PIDTBSDINFO fills one `proc_bsdinfo`.
-    let written = unsafe {
-        libc::proc_pidinfo(
-            pid,
-            libc::PROC_PIDTBSDINFO,
+    let mut buffer = [0u64; KINFO_PROC_SIZE / 8];
+    let mut len = std::mem::size_of_val(&buffer);
+    let mut mib = [libc::CTL_KERN, libc::KERN_PROC, libc::KERN_PROC_PID, pid];
+    // SAFETY: `buffer` is writable for `len` bytes and `mib` names a read-only query.
+    let rc = unsafe {
+        libc::sysctl(
+            mib.as_mut_ptr(),
+            4,
+            buffer.as_mut_ptr().cast(),
+            &raw mut len,
+            std::ptr::null_mut(),
             0,
-            info.as_mut_ptr().cast(),
-            size,
         )
     };
-    if written != size {
+    if rc != 0 || len != KINFO_PROC_SIZE {
         return false;
     }
-    // SAFETY: the kernel wrote the whole struct, checked above.
-    let info = unsafe { info.assume_init() };
-    info.pbi_status == libc::SZOMB
+    buffer
+        .iter()
+        .flat_map(|word| word.to_ne_bytes())
+        .nth(KINFO_PROC_P_STAT)
+        .is_some_and(|stat| u32::from(stat) == libc::SZOMB)
 }
 
 /// Whether `pid` is a zombie: exited but not yet reaped by its parent.

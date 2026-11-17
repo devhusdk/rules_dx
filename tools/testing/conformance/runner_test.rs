@@ -744,7 +744,12 @@ fn stage_copies_every_file_of_a_siblings_dir() {
     std::fs::write(siblings.join("tool.exe"), "exe").expect("subject must write");
     std::fs::write(siblings.join("runtime.dll"), "dll").expect("sibling must write");
     let out = root.join("out");
-    let staged = stage(&siblings.join("tool.exe"), "_main/pkg/tool.exe", &out);
+    let staged = stage(
+        &siblings.join("tool.exe"),
+        "_main/pkg/tool.exe",
+        &out,
+        cfg!(unix),
+    );
     let dir = staged.parent().expect("staged subject must have a dir");
     assert_eq!(
         std::fs::read_to_string(dir.join("runtime.dll")).expect("sibling must stage"),

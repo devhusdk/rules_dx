@@ -2,6 +2,7 @@
 
 load("//core/modules:langs.bzl", "LANGS")
 load(":taxonomy.bzl", "TAXONOMY_CLASSES")
+load(":tool_defs.bzl", "is_canonical_token")
 
 QualitySourcesInfo = provider(
     doc = "Directly owned repository sources keyed by semantic file class.",
@@ -177,14 +178,6 @@ def is_known_semantic_class(class_id):
     """Reports whether a class ID is in the registry."""
     return class_id in KNOWN_SEMANTIC_FILE_CLASSES
 
-def _is_canonical_id(text):
-    if text == "":
-        return False
-    for c in text.elems():
-        if c not in "abcdefghijklmnopqrstuvwxyz0123456789_":
-            return False
-    return True
-
 def sources_schema_error(classes = None):
     """Validates the class-registry schema."""
     ids = KNOWN_SEMANTIC_FILE_CLASSES if classes == None else classes
@@ -192,7 +185,7 @@ def sources_schema_error(classes = None):
         return "sources registry: want a non-empty class list"
     seen = {}
     for class_id in ids:
-        if type(class_id) != "string" or not _is_canonical_id(class_id):
+        if type(class_id) != "string" or not is_canonical_token(class_id):
             return "sources registry: non-canonical class ID '" + str(class_id) + "' (want [a-z0-9_])"
         if class_id in seen:
             return "sources registry: duplicate class ID '" + class_id + "'"

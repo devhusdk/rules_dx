@@ -2,7 +2,6 @@
 
 #![expect(unsafe_code, reason = "Command::pre_exec is unsafe")]
 
-use std::io;
 use std::os::fd::OwnedFd;
 use std::os::unix::process::CommandExt;
 use std::process::Command;
@@ -16,7 +15,7 @@ pub fn die_with_parent(command: &mut Command, signo: i32) {
         command.pre_exec(move || {
             crate::process::die_with_parent(signo)?;
             if std::os::unix::process::parent_id() != parent {
-                return Err(io::Error::from(io::ErrorKind::BrokenPipe));
+                return Err(std::io::Error::from(std::io::ErrorKind::BrokenPipe));
             }
             Ok(())
         })

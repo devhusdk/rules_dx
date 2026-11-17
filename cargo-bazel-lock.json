@@ -1,5 +1,5 @@
 {
-  "checksum": "8ec5baf6bfdbe4060db3daebab2e3d6daf62b0967c35be7f9d3d893775bdc176",
+  "checksum": "58971d8c1415f1b607ce93a59c33db792406e5d19e7f52c88de07f8e692706fc",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -9142,6 +9142,46 @@
       ],
       "version": "0.0.0"
     },
+    "dx_os_sys 0.0.0": {
+      "common_attrs": {
+        "deps": {
+          "common": [],
+          "selects": {
+            "cfg(unix)": [
+              {
+                "id": "errno 0.3.14",
+                "target": "errno"
+              },
+              {
+                "id": "libc 0.2.189",
+                "target": "libc"
+              },
+              {
+                "id": "rustix 1.1.4",
+                "target": "rustix"
+              }
+            ]
+          }
+        },
+        "edition": "2024"
+      },
+      "library_target_name": "dx_os_sys",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "dx_os_sys",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_os_sys",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "dx_output 0.0.0": {
       "common_attrs": {
         "deps": [
@@ -9341,10 +9381,6 @@
     "dx_process 0.0.0": {
       "common_attrs": {
         "deps": [
-          {
-            "id": "libc 0.2.189",
-            "target": "libc"
-          },
           {
             "id": "thiserror 2.0.20",
             "target": "thiserror"
@@ -10643,9 +10679,25 @@
     },
     "errno 0.3.14": {
       "common_attrs": {
-        "crate_features": [
-          "std"
-        ],
+        "crate_features": {
+          "common": [
+            "std"
+          ],
+          "selects": {
+            "aarch64-apple-darwin": [
+              "default"
+            ],
+            "aarch64-unknown-linux-gnu": [
+              "default"
+            ],
+            "x86_64-unknown-linux-gnu": [
+              "default"
+            ],
+            "x86_64-unknown-nixos-gnu": [
+              "default"
+            ]
+          }
+        },
         "deps": {
           "common": [],
           "selects": {
@@ -16233,7 +16285,8 @@
           "errno",
           "general",
           "ioctl",
-          "no_std"
+          "no_std",
+          "prctl"
         ],
         "edition": "2021"
       },
@@ -23179,12 +23232,40 @@
         ]
       },
       "common_attrs": {
-        "crate_features": [
-          "alloc",
-          "default",
-          "fs",
-          "std"
-        ],
+        "crate_features": {
+          "common": [
+            "alloc",
+            "default",
+            "fs",
+            "std"
+          ],
+          "selects": {
+            "aarch64-apple-darwin": [
+              "event",
+              "pipe",
+              "process",
+              "termios"
+            ],
+            "aarch64-unknown-linux-gnu": [
+              "event",
+              "pipe",
+              "process",
+              "termios"
+            ],
+            "x86_64-unknown-linux-gnu": [
+              "event",
+              "pipe",
+              "process",
+              "termios"
+            ],
+            "x86_64-unknown-nixos-gnu": [
+              "event",
+              "pipe",
+              "process",
+              "termios"
+            ]
+          }
+        },
         "deps": {
           "common": [
             {
@@ -33117,6 +33198,7 @@
     "cxx-gen 0.7.205",
     "cxx-qt 0.10.0",
     "cxx-qt-gen 0.10.0",
+    "errno 0.3.14",
     "flate2 1.1.10",
     "globset 0.4.20",
     "gomod-parser 0.5.3",
@@ -33149,6 +33231,7 @@
     "regex 1.13.1",
     "reqwest 0.13.5",
     "rustdoc-types 0.61.0",
+    "rustix 1.1.4",
     "rustls 0.23.46",
     "ruzstd 0.9.1",
     "saphyr-parser 0.2.2",
@@ -33280,6 +33363,7 @@
     "dx_merge 0.0.0": "cli/dx_merge",
     "dx_module_bazel 0.0.0": "cli/dx_module_bazel",
     "dx_nested 0.0.0": "tools/testing/dx_nested",
+    "dx_os_sys 0.0.0": "cli/dx_os_sys",
     "dx_output 0.0.0": "cli/dx_output",
     "dx_path 0.0.0": "cli/dx_path",
     "dx_plan 0.0.0": "cli/dx_plan",

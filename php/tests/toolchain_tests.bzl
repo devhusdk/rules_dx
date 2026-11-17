@@ -53,10 +53,10 @@ def _checks():
         expect_equal("the version file is named", VERSION_FILE, "DX_PHP_VERSION"),
         expect_contains("the runtime repo pins the version", runtime_build(PHP_VERSION), 'version = "' + PHP_VERSION + '",'),
         expect_equal("a cell declares two toolchains", hub.count("toolchain("), 2 * len(PHP_CELLS)),
-        expect_contains("the runtime toolchain matches the target", hub, "target_compatible_with = [\"@platforms//os:linux\", \"@platforms//cpu:x86_64\"],\n    toolchain = \"@dx_php_linux_x86_64//:php_toolchain\",\n    toolchain_type = \"" + str(Label("//php/private/toolchain:toolchain_type")) + "\","),
-        expect_contains("the exec toolchain matches the exec platform", hub, "exec_compatible_with = [\"@platforms//os:linux\", \"@platforms//cpu:x86_64\"],\n    toolchain = \"@dx_php_linux_x86_64//:php_toolchain\",\n    toolchain_type = \"" + str(Label("//php/private/toolchain:exec_toolchain_type")) + "\","),
-        expect_contains("the windows runtime toolchain matches the target", hub, "target_compatible_with = [\"@platforms//os:windows\", \"@platforms//cpu:x86_64\"],\n    toolchain = \"@dx_php_windows_x86_64//:php_toolchain\","),
-        expect_contains("the macos exec toolchain matches the exec platform", hub, "exec_compatible_with = [\"@platforms//os:macos\", \"@platforms//cpu:aarch64\"],\n    toolchain = \"@dx_php_macos_arm64//:php_toolchain\",\n    toolchain_type = \"" + str(Label("//php/private/toolchain:exec_toolchain_type")) + "\","),
+        expect_contains("the runtime toolchain matches the target", hub, "target_compatible_with = [\"@platforms//os:linux\", \"@platforms//cpu:x86_64\"],\n    toolchain = \"@dx_php_toolchains__linux_x86_64//:toolchain\",\n    toolchain_type = \"" + str(Label("//php/private/toolchain:toolchain_type")) + "\","),
+        expect_contains("the exec toolchain matches the exec platform", hub, "exec_compatible_with = [\"@platforms//os:linux\", \"@platforms//cpu:x86_64\"],\n    toolchain = \"@dx_php_toolchains__linux_x86_64//:toolchain\",\n    toolchain_type = \"" + str(Label("//php/private/toolchain:exec_toolchain_type")) + "\","),
+        expect_contains("the windows runtime toolchain matches the target", hub, "target_compatible_with = [\"@platforms//os:windows\", \"@platforms//cpu:x86_64\"],\n    toolchain = \"@dx_php_toolchains__windows_x86_64//:toolchain\","),
+        expect_contains("the macos exec toolchain matches the exec platform", hub, "exec_compatible_with = [\"@platforms//os:macos\", \"@platforms//cpu:aarch64\"],\n    toolchain = \"@dx_php_toolchains__macos_arm64//:toolchain\",\n    toolchain_type = \"" + str(Label("//php/private/toolchain:exec_toolchain_type")) + "\","),
     ]
 
 def php_metadata_tests(name, size):

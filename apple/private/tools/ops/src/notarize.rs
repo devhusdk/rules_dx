@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use crate::signing::{
     Flags, absolute, caller, describe, hardened, outside_bazel_out, private_files, text, value,
 };
-use crate::util::{Env, Failure, Outcome, Scratch, exit_code, has_extension, reject, usage};
+use crate::util::{Env, Failure, Outcome, exit_code, has_extension, reject, scratch, usage};
 use crate::xcode::{DITTO, SPCTL, Tools};
 
 pub const PREFIX: &str = "dx-apple-notarize";
@@ -147,7 +147,7 @@ pub fn run(tools: &Tools<'_>, args: &[String], env: Env<'_>) -> Outcome {
         )));
     }
 
-    let work = Scratch::new(env, "notarize")?;
+    let work = scratch(env, "notarize")?;
     let zip = work
         .path()
         .join(format!("{}.zip", name.trim_end_matches(".app")));

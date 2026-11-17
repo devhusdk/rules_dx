@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::util::{Captured, Failure, Outcome, Scratch, apks_in, capture, reject, usage};
+use crate::util::{Captured, Failure, Outcome, apks_in, capture, reject, scratch_beside, usage};
 
 pub const PREFIX: &str = "dx-android-apk-set";
 
@@ -52,7 +52,7 @@ pub fn run(args: &[String]) -> Outcome {
             return Err(usage(format!("no {what} at {}", path.display())));
         }
     }
-    let work = Scratch::beside(&apks)
+    let work = scratch_beside(&apks)
         .map_err(|error| reject(format!("cannot create a scratch directory: {error}")))?;
     let tmp = format!("--jvm_flag=-Djava.io.tmpdir={}", work.path().display());
     let built = capture(

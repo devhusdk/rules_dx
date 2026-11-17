@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::util::{
-    Captured, Failure, Outcome, Scratch, caller_path, capture, missing, passes, reject, runnable,
-    usage,
+    Captured, Failure, Outcome, caller_path, capture, missing, passes, reject, runnable,
+    scratch_beside, usage,
 };
 
 pub const PREFIX: &str = "dx-android-sign";
@@ -101,12 +101,12 @@ fn same_file(left: &Path, right: &Path) -> bool {
     }
 }
 
-fn scratch(out: &Path) -> Result<Scratch, Failure> {
+fn scratch(out: &Path) -> Result<tempfile::TempDir, Failure> {
     if let Some(parent) = out.parent() {
         std::fs::create_dir_all(parent)
             .map_err(|error| usage(format!("cannot create {}: {error}", parent.display())))?;
     }
-    Scratch::beside(out)
+    scratch_beside(out)
         .map_err(|error| usage(format!("cannot create a scratch directory: {error}")))
 }
 

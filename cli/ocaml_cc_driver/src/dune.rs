@@ -6,7 +6,7 @@
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 
 /// What one dune step builds.
@@ -183,22 +183,28 @@ pub fn copy_tree(from: &Path, to: &Path) -> Result<(), String> {
     Ok(())
 }
 
-struct Scratch(PathBuf);
+/// A scratch tree, removed on drop. Dune leaves read-only files, so it is made writable first.
+struct Scratch(tempfile::TempDir);
+
+impl Scratch {
+    fn path(&self) -> &Path {
+        self.0.path()
+    }
+}
 
 impl Drop for Scratch {
+    // Runs before the inner `TempDir` drops and removes the tree.
     fn drop(&mut self) {
-        make_writable(&self.0);
-        drop(fs::remove_dir_all(&self.0));
+        make_writable(self.0.path());
     }
 }
 
 fn scratch_dir() -> Result<Scratch, String> {
-    let nanos = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |d| d.as_nanos());
-    let dir = std::env::temp_dir().join(format!("dx_dune.{}.{nanos}", std::process::id()));
-    fs::create_dir_all(&dir).map_err(|e| io(&dir.display().to_string(), &e))?;
-    Ok(Scratch(dir))
+    tempfile::Builder::new()
+        .prefix("dx_dune.")
+        .tempdir()
+        .map(Scratch)
+        .map_err(|e| io("scratch directory", &e))
 }
 
 fn run(
@@ -291,11 +297,11 @@ pub fn execute(request: &Request) -> Result<(), String> {
     let root = std::env::current_dir().map_err(|e| io("current directory", &e))?;
     let scratch = scratch_dir()?;
     let ocaml_bin = root.join(&request.ocaml_bin);
-    let env = step_env(&root, &scratch.0, &ocaml_bin)?;
+    let env = step_env(&root, scratch.path(), &ocaml_bin)?;
     let jobs = request.jobs.as_str();
     match &request.step {
         Step::Bootstrap { source, output } => {
-            let dir = scratch.0.join("dune");
+            let dir = scratch.path().join("dune");
             copy_tree(&root.join(source), &dir)?;
             run(
                 &ocaml_bin.join("ocaml"),
@@ -311,7 +317,7 @@ pub fn execute(request: &Request) -> Result<(), String> {
             target,
             output,
         } => {
-            let dir = scratch.0.join("ws");
+            let dir = scratch.path().join("ws");
             copy_tree(&root.join(workspace), &dir)?;
             let goal = format!("./{target}");
             run(
@@ -331,7 +337,7 @@ pub fn execute(request: &Request) -> Result<(), String> {
             tree,
             archives,
         } => {
-            let dir = scratch.0.join("ws");
+            let dir = scratch.path().join("ws");
             copy_tree(&root.join(workspace), &dir)?;
             let dune_file = dir.join("dune");
             let vendored = fs::read_to_string(&dune_file)

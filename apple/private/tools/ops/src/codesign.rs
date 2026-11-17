@@ -7,7 +7,7 @@ use crate::signing::{
     entries, hardened, is_link, keys, macho, output_path, private_files, read_identity, text,
     value,
 };
-use crate::util::{Env, Failure, Outcome, Scratch, has_extension, missing, reject, usage};
+use crate::util::{Env, Failure, Outcome, has_extension, missing, reject, scratch, usage};
 use crate::xcode::{CODESIGN, DITTO, PLUTIL, SECURITY, Tools};
 
 pub const PREFIX: &str = "dx-apple-sign";
@@ -342,7 +342,7 @@ pub fn run(tools: &Tools<'_>, args: &[String], env: Env<'_>) -> Outcome {
         )));
     }
 
-    let work = Scratch::new(env, "sign")?;
+    let work = scratch(env, "sign")?;
     let unpacked = work.path().join("unpacked");
     std::fs::create_dir_all(&unpacked)
         .map_err(|e| usage(format!("cannot create {}: {e}", unpacked.display())))?;

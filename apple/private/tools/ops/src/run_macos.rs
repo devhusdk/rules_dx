@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use crate::util::{Env, Outcome, Scratch, exit_code, missing, reject, usage};
+use crate::util::{Env, Outcome, exit_code, missing, reject, scratch, usage};
 use crate::xcode::{DITTO, PLUTIL, Tools};
 
 pub const PREFIX: &str = "apple_macos_app";
@@ -19,7 +19,7 @@ pub fn run(tools: &Tools<'_>, args: &[String], env: Env<'_>) -> Outcome {
     if !Path::new(zipped).is_file() {
         return Err(usage(format!("{zipped} is not in the runfiles")));
     }
-    let work = Scratch::new(env, "macos-app")?;
+    let work = scratch(env, "macos-app")?;
     let target = work.path().to_string_lossy().into_owned();
     let unpacked = tools.tool(DITTO, &["-x", "-k", zipped, &target]);
     match unpacked.code {

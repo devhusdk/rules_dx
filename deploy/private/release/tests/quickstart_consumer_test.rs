@@ -137,8 +137,7 @@ fn initial_rc() -> &'static str {
     if cfg!(windows) { WINDOWS_SYMLINKS } else { "" }
 }
 
-/// The sorted names of the repos in the case's output base, so a footprint above its budget names
-/// what it fetched.
+/// The sorted names of the repos in the case's output base.
 fn external_repos(case: &Case) -> String {
     let info = bazel(case, &["info", "output_base"]);
     let external = std::path::PathBuf::from(info.stdout.trim()).join("external");

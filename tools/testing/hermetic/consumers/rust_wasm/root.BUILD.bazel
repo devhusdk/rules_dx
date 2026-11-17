@@ -5,7 +5,6 @@ rust_binary(
     srcs = ["web.rs"],
     crate_root = "web.rs",
     wasm = "browser",
-    deps = ["@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen"],
 )
 
 rust_binary(

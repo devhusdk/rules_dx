@@ -42,6 +42,41 @@ def main() -> None:
     assert root == helper._msvc_worktree_root("bazel-out/a/bin/one.whl")
     assert root != helper._msvc_worktree_root("bazel-out/a/bin/two.whl")
 
+    check_clang_cl(helper)
+
+
+def check_clang_cl(helper) -> None:
+    assert helper._is_clang_cl("external/llvm/bin/clang-cl.exe")
+    assert not helper._is_clang_cl("external/llvm/bin/clang.exe")
+    cwd = os.getcwd()
+    with tempfile.TemporaryDirectory() as tmp:
+        os.chdir(tmp)
+        try:
+            for directory in ("llvm/bin", "sdk/ucrt", "libcxx", "sdk/lib", "resource/lib/windows"):
+                os.makedirs(directory)
+            for tool in ("clang-cl.exe", "lld-link.exe", "llvm-lib.exe"):
+                open(os.path.join("llvm/bin", tool), "w").close()
+            env = {
+                "CC": "llvm/bin/clang-cl.exe",
+                "AR": os.path.abspath("llvm/bin/llvm-lib.exe"),
+                "PATH": "/usr/bin",
+                "CFLAGS": "--target=x86_64-pc-windows-msvc /imsvcsdk/ucrt /MD -fPIC",
+                "CXXFLAGS": "/clang:-isystem /clang:libcxx /std:c++17",
+                "LDSHAREDFLAGS": "/clang:-Xlinker /clang:/LIBPATH:sdk/lib /clang:-fuse-ld=lld -resource-dir=" + os.path.abspath("resource"),
+            }
+            helper._clang_cl_env(env, os.path.join(tmp, "short"))
+            bin_dir = os.path.join(tmp, "short", "clang_cl_bin")
+            assert env["PATH"] == bin_dir + os.pathsep + "/usr/bin", env["PATH"]
+            for tool in ("cl.exe", "link.exe", "lib.exe"):
+                assert os.path.isfile(os.path.join(bin_dir, tool)), tool
+            abs_path = os.path.abspath
+            expected_cl = '--target=x86_64-pc-windows-msvc "/imsvc{}" /MD /clang:-isystem "/clang:{}"'.format(abs_path("sdk/ucrt"), abs_path("libcxx"))
+            assert env["CL"] == expected_cl, env["CL"]
+            expected_link = '"/LIBPATH:{}" /LIBPATH:{}'.format(abs_path("sdk/lib"), abs_path("resource/lib/windows"))
+            assert env["_LINK_"] == expected_link, env["_LINK_"]
+        finally:
+            os.chdir(cwd)
+
 
 if __name__ == "__main__":
     main()

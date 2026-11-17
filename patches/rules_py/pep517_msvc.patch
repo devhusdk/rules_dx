@@ -187,7 +187,7 @@ diff -ru a/uv/private/pep517_whl/tools/build_helper.py b/uv/private/pep517_whl/t
  import importlib
  import os
  import platform as _platform
-@@ -576,6 +577,25 @@
+@@ -576,6 +577,72 @@
      return site_dir
  
  
@@ -210,18 +210,66 @@ diff -ru a/uv/private/pep517_whl/tools/build_helper.py b/uv/private/pep517_whl/t
 +        env["PATH"] = pathsep.join([ant_bin_dir, env.get("PATH", defpath)])
 +
 +
++def _is_clang_cl(value: str) -> bool:
++    return path.basename(value.split(" ")[0]).lower() == "clang-cl.exe"
++
++
++def _clang_cl_path_flag(flag: str) -> str:
++    for prefix in ("/imsvc", "/clang:", "/LIBPATH:", "/I"):
++        value = flag[len(prefix):]
++        if flag.startswith(prefix) and value and not path.isabs(value) and path.exists(value):
++            return '"{}{}"'.format(prefix, path.abspath(value))
++    return flag
++
++
++def _clang_cl_env(env: dict[str, str], short_root: str) -> None:
++    # setuptools on Windows runs cl.exe, link.exe and lib.exe from PATH and
++    # ignores CC and CFLAGS; clang-cl, lld-link and llvm-lib take those names
++    # and read the toolchain flags from the CL and _LINK_ variables.
++    cc = _absolutize_path(env["CC"].split(" ")[0])
++    bin_dir = path.join(short_root, "clang_cl_bin")
++    makedirs(bin_dir, exist_ok=True)
++    tools = {"cl.exe": cc, "link.exe": path.join(path.dirname(cc), "lld-link.exe")}
++    if env.get("AR"):
++        tools["lib.exe"] = shlex.split(env["AR"])[0]
++    for name, source in tools.items():
++        os.link(source, path.join(bin_dir, name))
++    env["PATH"] = pathsep.join([bin_dir, env.get("PATH", defpath)])
++
++    cxx_flags = env.get("CXXFLAGS", "").split()
++    libcxx_includes = []
++    for i, flag in enumerate(cxx_flags[:-1]):
++        if flag == "/clang:-isystem":
++            libcxx_includes += [flag, cxx_flags[i + 1]]
++    compile_flags = [flag for flag in env.get("CFLAGS", "").split() if flag != "-fPIC"] + libcxx_includes
++    env["CL"] = " ".join(_clang_cl_path_flag(flag) for flag in compile_flags)
++
++    link_flags = []
++    ldshared = env.get("LDSHAREDFLAGS", "").split()
++    for i, flag in enumerate(ldshared):
++        if flag == "/clang:-Xlinker" and i + 1 < len(ldshared):
++            link_flags.append(ldshared[i + 1].removeprefix("/clang:"))
++        elif flag.startswith("-resource-dir="):
++            resource_dir = flag.split("=", 1)[1]
++            for runtime_dir in ("lib/windows", "lib/x86_64-pc-windows-msvc"):
++                if path.isdir(path.join(resource_dir, runtime_dir)):
++                    link_flags.append("/LIBPATH:" + path.abspath(path.join(resource_dir, runtime_dir)))
++    env["_LINK_"] = " ".join(_clang_cl_path_flag(flag) for flag in link_flags)
++
++
  def _compiler_env(
      tmpdir: str,
      execroot_marker: str | None = None,
-@@ -583,6 +603,7 @@
+@@ -583,6 +650,8 @@
      target_os: str = "",
      target_cpu: str = "",
      toolchain_flags: bool = False,
 +    msvc: bool = False,
++    short_root: str | None = None,
  ) -> dict[str, str]:
      env = dict(os.environ)
      if execroot_marker:
-@@ -629,6 +650,21 @@
+@@ -629,6 +698,24 @@
      # helper still runs there; bare tool names deliberately remain on PATH.
      _absolutize_tool_paths(env)
  
@@ -230,6 +278,9 @@ diff -ru a/uv/private/pep517_whl/tools/build_helper.py b/uv/private/pep517_whl/t
 +        # tree; run the short base interpreter against the venv packages.
 +        env["PYTHONPATH"] = pathsep.join(entry for entry in sys.path if entry)
 +        sys.executable = sys._base_executable
++    if os.name == "nt" and short_root and toolchain_flags and not cross and _is_clang_cl(env.get("CC", "")):
++        _clang_cl_env(env, short_root)
++        msvc = True
 +    if msvc:
 +        # setuptools finds cl.exe through PATH, INCLUDE and LIB from the
 +        # toolchain, and only when it is told no Visual Studio is needed.
@@ -243,7 +294,7 @@ diff -ru a/uv/private/pep517_whl/tools/build_helper.py b/uv/private/pep517_whl/t
      cc_path = _resolve_compiler_path(env, "CC", "cc")
      cxx_path = _resolve_compiler_path(env, "CXX", "c++")
      if env.pop("RULES_PY_INFER_CXX_COMPANION", None) == "1":
-@@ -756,22 +792,7 @@
+@@ -756,22 +843,7 @@
      ]:
          _override_tool(env, key, wrapper)
  
@@ -267,7 +318,7 @@ diff -ru a/uv/private/pep517_whl/tools/build_helper.py b/uv/private/pep517_whl/t
  
      return env
  
-@@ -1140,10 +1161,32 @@
+@@ -1140,10 +1212,32 @@
  PARSER.add_argument("--execroot-marker", help="Token in env values to replace with the absolute execroot")
  PARSER.add_argument("--cross", action="store_true", help="Cross-compilation mode: target platform != exec platform")
  PARSER.add_argument("--toolchain-flags", action="store_true", help="CFLAGS/CXXFLAGS/LDFLAGS/LDSHAREDFLAGS carry the C++ toolchain's action flags")
@@ -300,7 +351,7 @@ diff -ru a/uv/private/pep517_whl/tools/build_helper.py b/uv/private/pep517_whl/t
  def main() -> None:
      opts, _ = PARSER.parse_known_args()
  
-@@ -1152,6 +1195,11 @@
+@@ -1152,6 +1246,11 @@
      makedirs(tmp_root, exist_ok=False)
  
      t = path.join(tmp_root, "worktree")
@@ -312,18 +363,19 @@ diff -ru a/uv/private/pep517_whl/tools/build_helper.py b/uv/private/pep517_whl/t
  
      shutil.unpack_archive(opts.srcarchive, t)
  
-@@ -1197,7 +1245,10 @@
+@@ -1197,7 +1297,11 @@
          target_os=opts.target_os,
          target_cpu=opts.target_cpu,
          toolchain_flags=opts.toolchain_flags,
 +        msvc=opts.msvc,
++        short_root=msvc_root,
      )
 +    if msvc_root:
 +        _shorten_bin_dirs(build_env, msvc_root)
  
      if _legacy_metadata_conflicts_with_pyproject(t):
          print(
-@@ -1306,6 +1357,8 @@
+@@ -1306,6 +1409,8 @@
          exit(1)
  
      os.replace(path.join(outdir, inventory[0]), path.abspath(opts.output))

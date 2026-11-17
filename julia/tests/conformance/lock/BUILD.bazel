@@ -1,0 +1,20 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//julia:defs.bzl", "julia_binary")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//julia/tests/conformance:__pkg__"],
+)
+
+julia_binary(
+    name = "lock_hello",
+    srcs = ["lock_hello.jl"],
+    deps = ["@julia_app_deps//:OrderedCollections"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

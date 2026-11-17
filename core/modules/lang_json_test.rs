@@ -520,6 +520,26 @@ const LOADS_BEGIN: &str = "# BEGIN GENERATED LANG ASPECT LOADS\n";
 const LOADS_END: &str = "# END GENERATED LANG ASPECT LOADS\n";
 const EXPORTS_BEGIN: &str = "# BEGIN GENERATED LANG ASPECT EXPORTS\n";
 const EXPORTS_END: &str = "# END GENERATED LANG ASPECT EXPORTS\n";
+const SHARDS_BEGIN: &str = "# BEGIN GENERATED LANG SHARD ASPECTS\n";
+const SHARDS_END: &str = "# END GENERATED LANG SHARD ASPECTS\n";
+
+fn lang_shard_aspects(root: &Path) -> BTreeSet<String> {
+    let mut found = BTreeSet::new();
+    for dir in language_dirs(root) {
+        let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
+        let manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
+        let Some(Value::Object(groups)) = manifest.get("quality").and_then(|q| q.get("aspects"))
+        else {
+            continue;
+        };
+        for group in groups.values() {
+            for name in group.as_array().expect("group") {
+                found.insert(name.as_str().expect("aspect").to_owned());
+            }
+        }
+    }
+    found
+}
 
 fn every_lang_aspect(root: &Path) -> BTreeSet<(String, String)> {
     let mut found = BTreeSet::new();
@@ -563,6 +583,13 @@ fn aspect_registration_is_generated_from_every_lang_json() {
     let current = dx_testing::read_runfiles("core/quality/testdata/all_languages.bzl");
     let text = splice(&current, LOADS_BEGIN, LOADS_END, &loads);
     let text = splice(&text, EXPORTS_BEGIN, EXPORTS_END, &exports);
+    let mut shards = String::from("_LANG_SHARD_ASPECTS = {\n");
+    for name in lang_shard_aspects(&root) {
+        let shard = name.strip_suffix("_aspect").expect("aspect name ends in _aspect");
+        writeln!(shards, "    \"{shard}\": _{name},").expect("write to String");
+    }
+    shards.push_str("}\n");
+    let text = splice(&text, SHARDS_BEGIN, SHARDS_END, &shards);
     let scratch_guard = dx_test_scratch::scratch("all_languages_bzl");
     let scratch = scratch_guard.path();
     let actual = scratch.join("all_languages.bzl");

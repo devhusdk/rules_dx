@@ -12,7 +12,7 @@ Declare each Hex package once, pinned to a version and the tarball digest.
 Nothing runs `mix deps.get` and no Hex or Mix home is read.
 
 ```python
-hex_package = use_repo_rule("@rules_dx//elixir:repositories.bzl", "hex_package")
+hex_package = use_repo_rule("@rules_dx//elixir:extensions.bzl", "hex_package")
 
 hex_package(
     name = "jason",

@@ -412,11 +412,9 @@ Module extensions, for `use_extension` in `MODULE.bazel`:
 
 - `@rules_dx//core:extensions.bzl`: `dx_pins`, `dx_source_archives`, `dx_licenses` and `dx_prebuilt`.
 - `@rules_dx//android:extensions.bzl`: Android SDK and NDK toolchain.
-- `@rules_dx//android:repositories.bzl`: `android_ndk_toolchain_repo`, for `use_repo_rule`.
 - `@rules_dx//apple/private/ios:simulator.bzl`: iOS simulator.
 - `@rules_dx//cuda:extensions.bzl`: CUDA toolchain.
 - `@rules_dx//elixir:extensions.bzl`: Hex packages for Elixir.
-- `@rules_dx//elixir:repositories.bzl`: `hex_package`, for `use_repo_rule`.
 - `@rules_dx//msix:extensions.bzl`: MSIX tools.
 - `@rules_dx//powershell:extensions.bzl`: PowerShell Gallery modules.
 - `@rules_dx//qt:extensions.bzl`: Qt SDK.

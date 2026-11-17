@@ -1,6 +1,10 @@
-# gazelle:ignore
-load("//capnproto:defs.bzl", "capnproto_library")
+load("//capnproto:defs.bzl", "capnproto_cc_library", "capnproto_java_library", "capnproto_library")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
+
+# The dirty fixtures stay in their own manual targets; gazelle would merge them
+# into the clean library.
+# gazelle:exclude lint_dirty.capnp
 
 package(
     default_testonly = True,
@@ -9,9 +13,11 @@ package(
 
 capnproto_library(
     name = "conformance",
+    testonly = True,
     srcs = ["clean.capnp"],
 )
 
+# keep
 capnproto_library(
     name = "lint_dirty",
     srcs = ["lint_dirty.capnp"],
@@ -46,4 +52,25 @@ dx_conformance_suite(
         "lint_rule": "error",
         "lint_source": "lint_dirty.capnp",
     },
+)
+
+capnproto_cc_library(
+    name = "conformance_cc",
+    testonly = True,
+    visibility = ["//visibility:public"],
+    deps = [":conformance"],
+)
+
+capnproto_java_library(
+    name = "conformance_java",
+    testonly = True,
+    visibility = ["//visibility:public"],
+    deps = [":conformance"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

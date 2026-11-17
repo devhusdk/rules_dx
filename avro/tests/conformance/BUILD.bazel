@@ -1,7 +1,12 @@
-# gazelle:ignore
-load("//avro:defs.bzl", "avro_library")
+load("//avro:defs.bzl", "avro_cc_library", "avro_java_library", "avro_library")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
 load(":quality.bzl", "avro_format_subject")
+
+# The dirty fixtures stay in their own manual targets; gazelle would merge them
+# into the clean library.
+# gazelle:exclude lint_dirty.avsc
+# gazelle:exclude format_dirty.avsc
 
 package(
     default_testonly = True,
@@ -10,14 +15,17 @@ package(
 
 avro_library(
     name = "conformance",
+    testonly = True,
     srcs = ["greet.avsc"],
 )
 
+# keep
 avro_library(
     name = "format_dirty",
     srcs = ["format_dirty.avsc"],
 )
 
+# keep
 avro_library(
     name = "lint_dirty",
     srcs = ["lint_dirty.avsc"],
@@ -52,4 +60,28 @@ dx_conformance_suite(
         "lint_rule": "error",
         "lint_source": "lint_dirty.avsc",
     },
+)
+
+avro_cc_library(
+    name = "conformance_cc",
+    testonly = True,
+    visibility = ["//visibility:public"],
+    deps = [":conformance"],
+)
+
+avro_java_library(
+    name = "conformance_java",
+    testonly = True,
+    visibility = ["//visibility:public"],
+    deps = [":conformance"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = [
+        "BUILD.bazel",
+        "quality.bzl",
+    ],
+    tags = ["corpus"],
 )

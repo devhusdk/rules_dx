@@ -1,6 +1,10 @@
-# gazelle:ignore
-load("//thrift:defs.bzl", "thrift_library")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//thrift:defs.bzl", "thrift_cc_library", "thrift_java_library", "thrift_library", "thrift_rust_library")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
+
+# The dirty fixtures stay in their own manual targets; gazelle would merge them
+# into the clean library.
+# gazelle:exclude lint_dirty.thrift
 
 package(
     default_testonly = True,
@@ -9,9 +13,11 @@ package(
 
 thrift_library(
     name = "conformance",
+    testonly = True,
     srcs = ["clean.thrift"],
 )
 
+# keep
 thrift_library(
     name = "lint_dirty",
     srcs = ["lint_dirty.thrift"],
@@ -46,4 +52,32 @@ dx_conformance_suite(
         "lint_rule": "error",
         "lint_source": "lint_dirty.thrift",
     },
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+thrift_cc_library(
+    name = "conformance_cc",
+    testonly = True,
+    visibility = ["//visibility:public"],
+    deps = [":conformance"],
+)
+
+thrift_java_library(
+    name = "conformance_java",
+    testonly = True,
+    visibility = ["//visibility:public"],
+    deps = [":conformance"],
+)
+
+thrift_rust_library(
+    name = "conformance_rust",
+    testonly = True,
+    library = ":conformance",
+    visibility = ["//visibility:public"],
 )

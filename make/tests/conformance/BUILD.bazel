@@ -1,4 +1,4 @@
-# gazelle:ignore
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//make:defs.bzl", "make_library")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
 
@@ -50,4 +50,11 @@ dx_conformance_suite(
         "lint_rule": "minphony",
         "lint_source": "lint_dirty/Makefile",
     },
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

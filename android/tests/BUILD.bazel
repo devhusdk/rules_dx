@@ -425,4 +425,7 @@ test_suite(
     ],
 )
 
-android_platform_config_test(name = "platform_config_analysis")
+android_platform_config_test(
+    name = "platform_config_analysis",
+    size = "small",
+)

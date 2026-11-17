@@ -141,4 +141,7 @@ test_suite(
     ],
 )
 
-swift_platform_config_test(name = "platform_config_analysis")
+swift_platform_config_test(
+    name = "platform_config_analysis",
+    size = "small",
+)

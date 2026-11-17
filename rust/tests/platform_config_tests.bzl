@@ -8,9 +8,10 @@ _rust_binary_subject = platform_config_subject_rule(
     RUST_LIBSTDCXX_ATTRS | {"wasm": attr.string(doc = "Wasm target, or empty.")},
 )
 
-def rust_platform_config_test(name):
+def rust_platform_config_test(name, size):
     platform_config_test(
         name = name,
+        size = size,
         subject_rule = _rust_binary_subject,
         constraints = ["@platforms//os:wasi", "@platforms//cpu:wasm32"],
         subjects = {

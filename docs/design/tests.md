@@ -82,7 +82,7 @@ Test | Passes when
 `pass_test` | The passing subject test exits 0.
 `fail_test` | The failing subject test exits non-zero and names its failing case.
 `coverage_test` | The passing subject test, built with `collect_code_coverage`, writes LCOV with a hit on the fixture library.
-`coverage_off_test` | The passing subject test, built without `collect_code_coverage` and run with the coverage environment, reports no hit on the fixture library. It follows `coverage_test`'s pending and `not_applicable` entries.
+`coverage_off_test` | The passing subject test, built without `collect_code_coverage` under the coverage environment, reports no fixture library hit. It follows `coverage_test`'s pending and `not_applicable` entries.
 `lint_test` | The lint aspect reports nothing on the clean fixture.
 `lint_error_test` | The lint aspect reports the expected rule, file and line on the dirty fixture.
 `format_test` | The format aspect reports nothing on the clean fixture.

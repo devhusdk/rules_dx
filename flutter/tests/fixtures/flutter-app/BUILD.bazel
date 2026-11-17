@@ -65,7 +65,7 @@ rust_test(
 
 rust_test(
     name = "ios_simulator_smoke_test",
-    size = "small",
+    size = "medium",
     srcs = ["ios/simulator_smoke_test.rs"],
     crate_root = "ios/simulator_smoke_test.rs",
     data = [

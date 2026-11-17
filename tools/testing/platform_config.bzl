@@ -43,7 +43,7 @@ def platform_config_subject_rule(cfg, attrs = {}):
         },
     )
 
-def platform_config_test(name, subject_rule, constraints, subjects):
+def platform_config_test(name, size, subject_rule, constraints, subjects):
     """Builds one subject per entry of subjects and checks the configurations each reports.
 
     subjects maps a subject suffix to (kwargs for subject_rule, expected configurations).
@@ -73,6 +73,7 @@ aspect_field subject_label={l}
 aspect_field transitive_count=0""".format(l = label, e = expected))
     starlark_test(
         name = name,
+        size = size,
         mode = "analysis",
         subjects = [":" + name + "_" + suffix for suffix in sorted(subjects.keys())],
         expected_observations = "\n".join(blocks),

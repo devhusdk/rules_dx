@@ -446,7 +446,7 @@ patches/windows_support/BUILD.bazel no-size 1
 patches/windows_support/source_directory_headers_test.bzl no-size 1
 perl/tests/BUILD.bazel no-size 1
 perl/tests/bench/BUILD.bazel no-size 3
-perl/tests/coverage/BUILD.bazel no-size 2
+perl/tests/coverage/BUILD.bazel no-size 1
 perl/tests/fixtures/perl-app/cli/BUILD.bazel no-size 1
 perl/tests/fixtures/perl-app/report/BUILD.bazel no-size 1
 perl/tests/negative/BUILD.bazel no-size 3
@@ -455,7 +455,6 @@ php/tests/bench/BUILD.bazel no-size 2
 php/tests/fixtures/hello/BUILD.bazel no-size 1
 php/tests/negative/BUILD.bazel no-size 3
 powershell/tests/fixtures/hello/BUILD.bazel no-size 1
-powershell/tests/fixtures/pester/BUILD.bazel no-size 1
 python/tests/BUILD.bazel no-size 4
 python/tests/analysis/BUILD.bazel no-size 4
 python/tests/fixtures/adopt-python/app/BUILD.bazel no-size 1
@@ -485,7 +484,7 @@ rst/tests/BUILD.bazel no-size 1
 ruby/private/coverage/extensions.bzl no-size 1
 ruby/tests/fixtures/adopt-ruby/solo/BUILD.bazel no-size 1
 ruby/tests/fixtures/bench/BUILD.bazel no-size 2
-ruby/tests/fixtures/hello/BUILD.bazel no-size 3
+ruby/tests/fixtures/hello/BUILD.bazel no-size 2
 ruby/tests/fixtures/rspec/BUILD.bazel no-size 1
 rust/private/ide/BUILD.bazel no-size 2
 rust/tests/fixtures/adopt-rust/crates/api/BUILD.bazel no-size 4

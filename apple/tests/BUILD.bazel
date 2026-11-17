@@ -62,4 +62,7 @@ filegroup(
     visibility = ["//:__subpackages__"],
 )
 
-apple_platform_config_test(name = "platform_config_analysis")
+apple_platform_config_test(
+    name = "platform_config_analysis",
+    size = "small",
+)

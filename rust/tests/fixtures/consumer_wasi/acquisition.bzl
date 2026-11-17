@@ -8,13 +8,19 @@ _WASIP1_PLATFORM = Label("@rules_rust//rust/platform:wasip1")
 _WASI_TRIPLE = "wasm32-wasip1"
 
 def _wasi_transition_impl(_settings, _attr):
-    """Selects the WASI preview 1 platform for one dependency edge."""
-    return {"//command_line_option:platforms": [str(_WASIP1_PLATFORM)]}
+    """Selects the WASI preview 1 platform without coverage for one dependency edge."""
+    return {
+        "//command_line_option:collect_code_coverage": False,
+        "//command_line_option:platforms": [str(_WASIP1_PLATFORM)],
+    }
 
 wasi_transition = transition(
     implementation = _wasi_transition_impl,
     inputs = [],
-    outputs = ["//command_line_option:platforms"],
+    outputs = [
+        "//command_line_option:collect_code_coverage",
+        "//command_line_option:platforms",
+    ],
 )
 
 def _wasi_subject_proxy_impl(ctx):

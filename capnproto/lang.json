@@ -25,6 +25,10 @@
   ],
   "quality": {
     "bzl": "core/quality:families/generation.bzl",
+    "family": "capnp",
+    "classes": [
+      "capnp"
+    ],
     "file_extensions": [
       ".capnp"
     ],

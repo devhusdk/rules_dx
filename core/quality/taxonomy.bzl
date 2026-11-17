@@ -7,10 +7,6 @@ OTHER_FAMILIES = {
         owner = "//asciidoc:defs.bzl",
         classes = ["asciidoc"],
     ),
-    "capnp": struct(
-        owner = "//capnproto:defs.bzl",
-        classes = ["capnp"],
-    ),
     "core": struct(
         owner = "other",
         classes = ["github_workflow"],
@@ -99,10 +95,6 @@ OTHER_FAMILIES = {
         owner = "other",
         classes = ["protobuf"],
     ),
-    "qml": struct(
-        owner = "//qt:defs.bzl",
-        classes = ["qml"],
-    ),
     "rst": struct(
         owner = "//rst:defs.bzl",
         classes = ["rst"],
@@ -138,7 +130,7 @@ OTHER_FAMILIES = {
 }
 
 LANG_JSON_FAMILIES = {
-    lang: struct(
+    row["quality"].get("family", lang): struct(
         owner = "//" + lang + ":defs.bzl",
         classes = row["quality"]["classes"],
     )

@@ -32,6 +32,10 @@
   ],
   "quality": {
     "bzl": "cc/private/quality:cc.bzl",
+    "family": "qml",
+    "classes": [
+      "qml"
+    ],
     "file_extensions": [
       ".qml"
     ]

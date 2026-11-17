@@ -2,7 +2,7 @@ load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//core/quality:unavailable_tool.bzl", "dx_unavailable_tool")
 load(":host_swift.bzl", "swift_host_launcher")
-load(":swift_tool.bzl", "swift_format_tool")
+load(":swift_tool.bzl", "swift_format_tool", "swift_format_windows")
 load(":swift_tool_tests.bzl", "swift_format_copy_test")
 load(":xcode_swift.bzl", "swift_xcode_launcher")
 
@@ -47,11 +47,29 @@ native_binary(
     ],
 )
 
+[
+    swift_format_windows(
+        name = "swift_format_windows_" + cpu,
+        data = ["@dx_swift_windows_%s//:toolchain_bin" % cpu],
+        program = "@dx_swift_windows_%s//:toolchain/usr/bin/swift-format.exe" % cpu,
+        target_compatible_with = [
+            "@platforms//cpu:" + cpu,
+            "@platforms//os:windows",
+        ],
+    )
+    for cpu in [
+        "aarch64",
+        "x86_64",
+    ]
+]
+
 alias(
     name = "swift_format",
     actual = select({
         "@platforms//os:linux": ":swift_format_linux",
         ":is_macos_arm64": ":swift_format_macos",
+        "//swift/private/platforms:is_windows_aarch64": ":swift_format_windows_aarch64",
+        "//swift/private/platforms:is_windows_x86_64": ":swift_format_windows_x86_64",
         "//conditions:default": ":swift_format_unsupported",
     }),
 )

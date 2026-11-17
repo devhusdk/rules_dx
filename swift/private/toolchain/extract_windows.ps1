@@ -416,12 +416,12 @@ foreach ($assembly in $identities.Keys) {
     }
 }
 
-foreach ($required in @("toolchain\usr\bin\swiftc.exe", "toolchain\usr\bin\llvm-cov.exe", "toolchain\usr\bin\llvm-profdata.exe", "toolchain\usr\bin\llbuildSwift.dll", "toolchain\usr\bin\_InternalSwiftScan.dll", "runtime\usr\bin\swiftCore.dll", "platform\Developer\SDKs\Windows.sdk\usr\lib\swift\windows", "platform\Developer\Library\XCTest-$XCTestVersion\usr", "platform\Developer\Library\Testing-$XCTestVersion\usr\lib\swift\windows\Testing.swiftmodule")) {
+foreach ($required in @("toolchain\usr\bin\swiftc.exe", "toolchain\usr\bin\llvm-cov.exe", "toolchain\usr\bin\llvm-profdata.exe", "toolchain\usr\bin\swift-format.exe", "toolchain\usr\bin\llbuildSwift.dll", "toolchain\usr\bin\_InternalSwiftScan.dll", "runtime\usr\bin\swiftCore.dll", "platform\Developer\SDKs\Windows.sdk\usr\lib\swift\windows", "platform\Developer\Library\XCTest-$XCTestVersion\usr", "platform\Developer\Library\Testing-$XCTestVersion\usr\lib\swift\windows\Testing.swiftmodule")) {
     if (-not (Test-Path -LiteralPath (Join-Path $Out $required))) { Fail "$required is missing from the extracted layout" }
 }
 
 $machines = @{ "windows_x86_64" = 0x8664; "windows_arm64" = 0xAA64 }
-$peChecked = @("toolchain\usr\bin\swiftc.exe", "runtime\usr\bin\swiftCore.dll")
+$peChecked = @("toolchain\usr\bin\swiftc.exe", "toolchain\usr\bin\swift-format.exe", "runtime\usr\bin\swiftCore.dll")
 if ($Cell -eq "windows_x86_64") {
     $testingDll = "platform\Developer\Library\Testing-$XCTestVersion\usr\bin64\Testing.dll"
     if (-not (Test-Path -LiteralPath (Join-Path $Out $testingDll))) { Fail "$testingDll is missing from the extracted layout" }

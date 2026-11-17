@@ -111,7 +111,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Rust | `clippy`, `typos` | `rustfmt` | `rustc` | `rustdoc` | `rustc dead_code` |
 | Scala | `scalafix`, `typos` | `scalafmt` | `scalac` | `scaladoc` | `scalac -Wunused` |
 | Svelte | `eslint`, `typos` | `prettier` | `tsc` | `svelte2tsx` | `eslint @typescript-eslint/no-unused-vars` |
-| Swift | `swift_lint` (not on `windows_x86_64`: swift_lint runs the swift-format pinned only for Linux and macOS arm64; `windows_arm64`: swift_lint runs the swift-format pinned only for Linux and macOS arm64), `typos` | `swift_format` (not on `windows_x86_64`: swift-format is pinned only for Linux and macOS arm64; `windows_arm64`: swift-format is pinned only for Linux and macOS arm64) | `swiftc` | `swift-symbolgraph-extract` | no |
+| Swift | `swift_lint` (not on `windows_arm64`: the Swift Windows toolchain is registered but unverified on windows_arm64), `typos` | `swift_format` (not on `windows_arm64`: the Swift Windows toolchain is registered but unverified on windows_arm64) | `swiftc` | `swift-symbolgraph-extract` | no |
 | TypeScript | `biome`, `eslint`, `typos` | `biome` | `tsc` | `typedoc` | `eslint no-unused-vars` |
 | Vue | `eslint`, `typos` | `prettier` | `tsc` | `vue-component-meta` | `eslint @typescript-eslint/no-unused-vars` |
 | Zig | `typos`, `zig_ast_check` | `zig_fmt` | `zig` | `zig std.zig.Ast` | `zig ast-check unused local, unused parameter` |

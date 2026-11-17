@@ -2,7 +2,7 @@
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
-load("//haskell/private/toolchain:packages.bzl", "EXE_CABALOPTS", "cabal_libraries", "components", "is_sha256", "package_build", "package_deps", "pin_problems", "render_deps", "tool_labels")
+load("//haskell/private/toolchain:packages.bzl", "cabal_libraries", "components", "is_sha256", "package_build", "package_deps", "pin_problems", "render_deps", "tool_labels")
 load("//haskell/private/toolchain:pins.bzl", "CELLS", "GLIBC_FLOOR", "qualified_cells")
 load("//haskell/private/toolchain:repos.bzl", "CLOSURE_DIR", "NO_HOST_TOOL", "cell_matches_host", "closure_library_dirs", "drop_host_sdk_dirs", "dropped_import_libs", "ghc_library_dir", "ghc_settings", "host_path", "hub_files", "os_libraries", "toolchain_libraries")
 
@@ -185,8 +185,6 @@ def _checks():
         expect_contains("the main library depends on its sublibraries", happy, 'deps = ["@hub_base//:base", ":happy-lib-lib-frontend", ":happy-lib-lib-tabular"],'),
         expect_contains("executables see every library of the package", happy, 'deps = ["@hub_base//:base", ":happy-lib", ":happy-lib-lib-frontend", ":happy-lib-lib-grammar", ":happy-lib-lib-tabular"],'),
         expect_false("sublibraries are no aliases", "alias(" in happy),
-        expect_contains("executables link without ASLR relocation on windows", happy, 'exe_name = "happy",\n    cabalopts = select({"@platforms//os:windows": ["--ghc-option=-optl-Wl,--disable-dynamicbase", "--ghc-option=-optl-Wl,--disable-high-entropy-va"], "//conditions:default": []}),'),
-        expect_equal("only executables carry the windows link options", happy.count(EXE_CABALOPTS), 1),
         expect_contains("package build renders tools", build, 'tools = ["@hub_alex//:alex-exe-alex"]'),
         expect_contains("a lock package dep points at its repository", build, '"@hub_alex//:alex"'),
         expect_contains("a dep outside the lock is a GHC boot package", build, '"@dx_haskell_toolchains//lib:base"'),

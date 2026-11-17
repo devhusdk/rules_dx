@@ -26,7 +26,7 @@ module(name = "my_project")
 bazel_dep(name = "rules_dx", version = "<release>")
 ```
 
-A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small Haskell package from [`haskell/tests/consumer`](../../haskell/tests/consumer/BUILD.bazel):
+A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small Haskell package from [`haskell/tests/consumer`](https://github.com/devhusdk/rules_dx/blob/main/haskell/tests/consumer/BUILD.bazel):
 
 ```python
 

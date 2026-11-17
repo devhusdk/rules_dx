@@ -363,7 +363,7 @@ def quick_start(root, lang, title):
     if build is not None:
         out.append(
             "A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds."
-            " This one is a small %s package from [`%s`](../../%s/BUILD.bazel):\n" % (title, consumer, consumer)
+            " This one is a small %s package from [`%s`](https://github.com/devhusdk/rules_dx/blob/main/%s/BUILD.bazel):\n" % (title, consumer, consumer)
         )
         out.append("```python\n%s\n```\n" % without_markers(build))
     out.append("Build and test everything. `//...` means every target in the repository:\n")

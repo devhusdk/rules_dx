@@ -26,7 +26,7 @@ module(name = "my_project")
 bazel_dep(name = "rules_dx", version = "<release>")
 ```
 
-A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small reStructuredText package from [`rst/tests/consumer`](../../rst/tests/consumer/BUILD.bazel):
+A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small reStructuredText package from [`rst/tests/consumer`](https://github.com/devhusdk/rules_dx/blob/main/rst/tests/consumer/BUILD.bazel):
 
 ```python
 load("@rules_dx//rst:defs.bzl", "rst_library")

@@ -331,5 +331,5 @@ rules_dx declares the Qt SDK and registers its toolchains; a consumer adds no
 
 See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/support-matrix.md).
 
-Windows needs `--//cc:compiler=msvc`; without it Qt targets are incompatible and skipped. A real display and GPU rendering are not supported. Other platforms fail analysis and list the qualified cells. Fetching needs a
+`qt_cc_binary`, `qt_cc_test` and `qt_bundle` take `platforms`. On a host build they build for the Qt platform of the host, with `--//cc:compiler=msvc` on Windows. Other Qt targets on Windows need `--//cc:compiler=msvc`; without it they are incompatible and skipped. A real display and GPU rendering are not supported. Other platforms fail analysis and list the qualified cells. Fetching needs a
 Linux x86_64 or Linux arm64 host.

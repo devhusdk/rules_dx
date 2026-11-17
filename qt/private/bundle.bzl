@@ -4,6 +4,7 @@ load("//qt/private/toolchain:needs.bzl", "QtNeedsInfo")
 load("//qt/private/toolchain:pins.bzl", "RUNTIME_PLUGINS")
 load(":cells.bzl", "QT_BUNDLE_COMPATIBLE_WITH")
 load(":constants.bzl", "QT_REPOSITORY")
+load(":platform.bzl", "QT_PLATFORMS_ATTR", "QT_PLATFORM_TRANSITION")
 load(":text.bzl", "qt_framework_path", "qt_module_path")
 
 def _soname(basename):
@@ -117,7 +118,8 @@ def _qt_bundle_impl(ctx):
 _qt_bundle = rule(
     implementation = _qt_bundle_impl,
     doc = "Stages the linked shared libraries (Windows DLLs under bin/), their dependencies, QML modules, plugins and licenses one Qt binary runs with.",
-    attrs = {
+    cfg = QT_PLATFORM_TRANSITION,
+    attrs = QT_PLATFORMS_ATTR | {
         "binary": attr.label(mandatory = True, providers = [RunEnvironmentInfo], doc = "qt_cc_binary to bundle."),
         "display_plugins": attr.label_list(allow_files = True, doc = "Display platform plugin files to ship."),
         "license_files": attr.label_list(allow_files = True, doc = "License texts below a licenses directory."),

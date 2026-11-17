@@ -46,6 +46,7 @@ qt_corpus(
         "coverage.bzl",
         "defs.bzl",
         "generate.bzl",
+        "platform.bzl",
         "providers.bzl",
         "rust.bzl",
         "rust_bridge.bzl",

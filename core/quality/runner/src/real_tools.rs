@@ -917,7 +917,11 @@ fn staged_file(rel: &str) -> MirrorFile {
 }
 
 fn shfmt_editorconfig_bytes(tool: &RealTool) -> Vec<u8> {
-    let mirrors = RealBackend::mirror_tool_files("shfmt", tool, &[], Path::new("/s"));
+    root_editorconfig_bytes("shfmt", tool, &[])
+}
+
+fn root_editorconfig_bytes(tool_id: &str, tool: &RealTool, staged: &[MirrorFile]) -> Vec<u8> {
+    let mirrors = RealBackend::mirror_tool_files(tool_id, tool, staged, Path::new("/s"));
     let found: Vec<_> = mirrors
         .iter()
         .filter(|mirror| mirror.mirror_rel == Path::new(".editorconfig"))
@@ -927,6 +931,25 @@ fn shfmt_editorconfig_bytes(tool: &RealTool) -> Vec<u8> {
         MirrorContents::Bytes(bytes) => bytes.clone(),
         MirrorContents::Link(_) => panic!("bytes"),
     }
+}
+
+#[test]
+fn fantomas_gets_a_root_editorconfig_with_lf_newlines() {
+    assert_eq!(
+        root_editorconfig_bytes("fantomas", &plain_tool(), &[]),
+        b"root = true\n\n[*.{fs,fsi,fsx}]\nend_of_line = lf\n"
+    );
+    let mirrors = RealBackend::mirror_tool_files(
+        "fantomas",
+        &plain_tool(),
+        &[staged_file(".editorconfig")],
+        Path::new("/s"),
+    );
+    assert!(
+        mirrors
+            .iter()
+            .all(|mirror| mirror.mirror_rel != Path::new(".editorconfig"))
+    );
 }
 
 #[test]

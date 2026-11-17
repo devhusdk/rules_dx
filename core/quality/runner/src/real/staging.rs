@@ -46,6 +46,11 @@ fn shfmt_editorconfig(bound: Option<&[u8]>) -> Vec<u8> {
     out
 }
 
+/// fantomas reads `.editorconfig`, searching up from each file, and otherwise writes the host
+/// newline.
+const FANTOMAS_CONFIG_REL: &str = ".editorconfig";
+const FANTOMAS_EDITORCONFIG: &[u8] = b"root = true\n\n[*.{fs,fsi,fsx}]\nend_of_line = lf\n";
+
 /// helmfmt reads `~/.helmfmt` and then `./.helmfmt` of its working directory, the scratch root.
 const HELMFMT_CONFIG_REL: &str = ".helmfmt";
 
@@ -185,6 +190,13 @@ impl RealBackend {
             mirrors.push(MirrorFile {
                 mirror_rel: PathBuf::from(SHFMT_CONFIG_REL),
                 contents: MirrorContents::Bytes(shfmt_editorconfig(bound)),
+            });
+        }
+        if tool_id == "fantomas" {
+            mirrors.retain(|mirror| mirror.mirror_rel != Path::new(FANTOMAS_CONFIG_REL));
+            mirrors.push(MirrorFile {
+                mirror_rel: PathBuf::from(FANTOMAS_CONFIG_REL),
+                contents: MirrorContents::Bytes(FANTOMAS_EDITORCONFIG.to_vec()),
             });
         }
         if tool_id == "helmfmt" {

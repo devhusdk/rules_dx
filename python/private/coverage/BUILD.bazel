@@ -23,3 +23,12 @@ real_source_target(
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = [
+        "BUILD.bazel",
+        "sitecustomize.py",
+    ],
+    visibility = ["//:__subpackages__"],
+)

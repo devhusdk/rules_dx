@@ -16,7 +16,7 @@ pub(crate) fn ok(run: &Run, what: &str) {
         let combined = run.combined();
         let lines: Vec<&str> = combined.lines().collect();
         let tail = lines[lines.len().saturating_sub(80)..].join("\n");
-        let _ = writeln!(std::io::stderr(), "{what} failed:\n{tail}");
+        drop(writeln!(std::io::stderr(), "{what} failed:\n{tail}"));
     }
     assert_eq!(run.status.code(), Some(0), "{what}: {}", run.combined());
 }
@@ -137,7 +137,23 @@ fn initial_rc() -> &'static str {
     if cfg!(windows) { WINDOWS_SYMLINKS } else { "" }
 }
 
+/// The sorted names of the repos in the case's output base.
+fn external_repos(case: &Case) -> String {
+    let info = bazel(case, &["info", "output_base"]);
+    let external = std::path::PathBuf::from(info.stdout.trim()).join("external");
+    let mut names: Vec<String> = std::fs::read_dir(&external)
+        .unwrap_or_else(|error| panic!("read {}: {error}", external.display()))
+        .filter_map(Result::ok)
+        .filter(|entry| entry.path().is_dir())
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .filter(|name| !name.starts_with('@') && !name.ends_with('@'))
+        .collect();
+    names.sort();
+    names.join(" ")
+}
+
 fn run_in(case: &Case, args: &[&str], what: &str) -> Run {
+    crate::stage("quickstart_consumer_test", what);
     let run = bazel(case, args);
     ok(&run, what);
     run
@@ -235,11 +251,6 @@ fn the_readme_quickstart_runs_as_written() {
         "dx --help",
     );
     let dx = built_dx(&case);
-    let module = case.root().join("MODULE.bazel");
-    write_text(
-        &module,
-        &read_text(&module).replace(&rules_py_override(), ""),
-    );
     write_text(&case.root().join(".bazelrc"), initial_rc());
     let root = case.root().to_string_lossy().into_owned();
     let env = nested_env();
@@ -258,6 +269,7 @@ fn the_readme_quickstart_runs_as_written() {
     } else {
         &["init", "--apply"]
     };
+    crate::stage("quickstart_consumer_test", "dx init --apply");
     let init = case.run(&dx, init_args, &pairs);
     ok(&init, "dx init --apply");
     run_in(
@@ -269,12 +281,13 @@ fn the_readme_quickstart_runs_as_written() {
     let python = load_budget("DX_PYTHON_CONSUMER_BUDGET");
     let mut failures = Vec::new();
     let mut within_budget = |name: &str, budget: &serde_json::Value, stage: &str| {
+        crate::stage("quickstart_consumer_test", &format!("measure {name} {stage}"));
         let measured = plain_fixture::measure_case(&case);
         eprintln!("footprint {name} {stage}: {}", measured.to_json());
         if cfg!(target_os = "linux")
             && let Err(error) = footprint::check_budget(&measured, &budget[stage])
         {
-            failures.push(format!("{name} {stage}:\n{error}"));
+            failures.push(format!("{name} {stage}:\n{error}\nrepos: {}", external_repos(&case)));
         }
     };
     within_budget("core", &core, "after_test");
@@ -315,7 +328,7 @@ fn load_budget(variable: &str) -> serde_json::Value {
 fn write_python_package(case: &Case) {
     write_text(
         &case.root().join("greet/BUILD.bazel"),
-        "load(\"@rules_dx//python:defs.bzl\", \"python_library\", \"python_test\")\n\npython_library(\n    name = \"greet\",\n    srcs = [\"greet.py\"],\n    imports = [\".\"],\n)\n\npython_test(\n    name = \"greet_test\",\n    srcs = [\"greet_test.py\"],\n    imports = [\".\"],\n    runner = \"plain\",\n    deps = [\":greet\"],\n)\n",
+        "load(\"@rules_dx//python:defs.bzl\", \"python_library\", \"python_test\")\n\npython_library(\n    name = \"greet\",\n    srcs = [\"greet.py\"],\n    imports = [\".\"],\n    visibility = [\"//visibility:public\"],\n)\n\npython_test(\n    name = \"greet_test\",\n    srcs = [\"greet_test.py\"],\n    imports = [\".\"],\n    runner = \"plain\",\n    deps = [\":greet\"],\n)\n",
     );
     write_text(
         &case.root().join("greet/greet.py"),

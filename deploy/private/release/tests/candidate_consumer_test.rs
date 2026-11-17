@@ -169,13 +169,8 @@ fn dx(case: &Case, command: &str, extra: &[&str]) -> Run {
     case.run(&resolve_runfiles(&rel), &argv, &env)
 }
 
-/// Names the step about to run on the uncaptured stderr, so a test killed mid-step shows it.
 fn stage(name: &str) {
-    use std::io::Write;
-    drop(writeln!(
-        std::io::stderr(),
-        "candidate_consumer_test: {name}"
-    ));
+    crate::stage("candidate_consumer_test", name);
 }
 
 /// Consumes the archive through the registry and checks what Bazel fetched.
@@ -230,16 +225,19 @@ fn assert_registry_consumer(candidate: &Candidate, archive: &Path, built_integri
     let build = std::fs::read_to_string(case.root().join("BUILD.bazel")).unwrap_or_default();
     if build != BUILD {
         use std::io::Write;
-        let _ = writeln!(std::io::stderr(), "dx check rewrote BUILD.bazel:\n{build}");
+        drop(writeln!(
+            std::io::stderr(),
+            "dx check rewrote BUILD.bazel:\n{build}"
+        ));
     }
     if check.status.code() != Some(0) {
         use std::io::Write;
         let diff = dx(&case, "generate", &["--diff", "//...", "--", policy]);
-        let _ = writeln!(
+        drop(writeln!(
             std::io::stderr(),
             "dx generate --diff:\n{}",
             diff.combined()
-        );
+        ));
     }
     ok(&check, "dx check");
 

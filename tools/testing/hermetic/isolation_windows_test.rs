@@ -129,7 +129,6 @@ fn a_group_set_up_once_denies_its_members_until_teardown() {
     std::fs::write(&secret, "hidden").expect("secret");
     let open = scene.granted.join("open.txt");
     std::fs::write(&open, "visible").expect("open");
-    let before = [icacls(&scene.granted), icacls(&scene.ungranted)];
     let mut trail = Trail::new(&scene);
     let name = format!("dxh-{}-test", std::process::id());
     let out = scene.root.join("out");
@@ -160,7 +159,7 @@ fn a_group_set_up_once_denies_its_members_until_teardown() {
     trail.mark("second group dropped");
     remove_host_denies(&scene.isolation);
     trail.mark("host denies removed");
-    trail.assert_restored([icacls(&scene.granted), icacls(&scene.ungranted)], &before);
+    trail.assert_restored();
 }
 
 /// Takes the scene's denies off `dxh-host`, which keeps them after a group is dropped.
@@ -177,7 +176,6 @@ fn stale_groups_are_removed_when_a_new_group_is_set_up() {
         .write()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     let mut scene = scene("stale group");
-    let before = [icacls(&scene.granted), icacls(&scene.ungranted)];
     let mut trail = Trail::new(&scene);
     let mut child = std::process::Command::new("cmd")
         .args(["/c", "exit 0"])
@@ -197,7 +195,7 @@ fn stale_groups_are_removed_when_a_new_group_is_set_up() {
     trail.mark("fresh group set up and dropped");
     remove_host_denies(&scene.isolation);
     trail.mark("host denies removed");
-    trail.assert_restored([icacls(&scene.granted), icacls(&scene.ungranted)], &before);
+    trail.assert_restored();
     let listed = std::process::Command::new("net")
         .args(["localgroup", stale.as_str()])
         .output()
@@ -209,6 +207,7 @@ fn stale_groups_are_removed_when_a_new_group_is_set_up() {
 /// (`AI`, `P`) and the inherited (`ID`) entries that `icacls` leaves out.
 struct Trail {
     paths: [PathBuf; 3],
+    before: Vec<String>,
     text: String,
 }
 
@@ -220,31 +219,32 @@ impl Trail {
                 scene.granted.clone(),
                 scene.ungranted.clone(),
             ],
+            before: Vec::new(),
             text: String::new(),
         };
-        trail.mark("before");
+        trail.before = trail.mark("before");
         trail
     }
 
-    fn mark(&mut self, step: &str) {
+    fn mark(&mut self, step: &str) -> Vec<String> {
+        let now: Vec<String> = self.paths.iter().map(|path| sddl(path)).collect();
         self.text.push_str(&format!("{step}:\n"));
-        for path in &self.paths {
+        for (path, sddl) in self.paths.iter().zip(&now) {
             self.text
-                .push_str(&format!("  {} {}\n", path.display(), sddl(path)));
+                .push_str(&format!("  {} {sddl}\n", path.display()));
         }
+        now
     }
 
-    /// Fails when `now` differs from `before`, writing both and the trail to the uncaptured stderr.
-    fn assert_restored(&self, now: [String; 2], before: &[String; 2]) {
-        if &now != before {
+    /// Fails when the SDDL now differs from the SDDL before, writing the trail to the uncaptured
+    /// stderr.
+    fn assert_restored(&mut self) {
+        let now = self.mark("now");
+        if now != self.before {
             use std::io::Write;
-            let _ = writeln!(
-                std::io::stderr(),
-                "ACL before: {before:?}\nACL now: {now:?}\nACL trail:\n{}",
-                self.text
-            );
+            let _ = writeln!(std::io::stderr(), "ACL trail:\n{}", self.text);
         }
-        assert_eq!(&now, before, "{}", self.text);
+        assert_eq!(now, self.before, "{}", self.text);
     }
 }
 
@@ -259,7 +259,14 @@ fn sddl(path: &Path) -> String {
         ])
         .output()
         .expect("powershell runs");
-    String::from_utf8_lossy(&out.stdout).trim().to_owned()
+    let sddl = String::from_utf8_lossy(&out.stdout).trim().to_owned();
+    assert!(
+        sddl.contains("D:"),
+        "no SDDL for {}: {}",
+        path.display(),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    sddl
 }
 
 fn icacls(path: &Path) -> String {

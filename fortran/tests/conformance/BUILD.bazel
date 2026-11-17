@@ -13,6 +13,18 @@ fortran_library(
     srcs = ["greet.f90"],
 )
 
+fortran_library(
+    name = "lint_dirty",
+    srcs = ["lint_dirty.f90"],
+    tags = ["manual"],
+)
+
+fortran_library(
+    name = "format_dirty",
+    srcs = ["format_dirty.f90"],
+    tags = ["manual"],
+)
+
 fortran_binary(
     name = "hello",
     srcs = ["hello.f90"],
@@ -46,6 +58,15 @@ dx_conformance_suite(
     failing_test = ":fail_subject_test",
     lang = "fortran",
     passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":greet",
+        "format_dirty": ":format_dirty",
+        "format_source": "format_dirty.f90",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 1,
+        "lint_rule": "C001",
+        "lint_source": "lint_dirty.f90",
+    },
 )
 
 real_source_target(

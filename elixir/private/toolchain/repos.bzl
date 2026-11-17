@@ -160,7 +160,6 @@ def hub_build(cells):
     return "\n".join([toolchain_target(
         name = cell,
         exec_compatible_with = CELLS[cell].exec_compatible_with,
-        target_compatible_with = CELLS[cell].exec_compatible_with,
         toolchain = "@{}//:elixir".format(DIST_NAME),
         toolchain_type = str(Label("@rules_elixir//:toolchain_type")),
     ) for cell in cells])

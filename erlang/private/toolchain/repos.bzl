@@ -17,6 +17,8 @@ load(
 
 HUB_NAME = "dx_erlang_toolchains"
 
+RUNTIME_TOOLCHAIN_TYPE = str(Label("//erlang/private/toolchain:runtime_toolchain_type"))
+
 CLOSURE_DIR = "dx_closure"
 
 VERSION_FILE = "DX_OTP_VERSION"
@@ -196,10 +198,10 @@ otp_repo = repository_rule(
 )
 
 def hub_build():
-    """Returns the hub BUILD file: one Erlang toolchain per qualified cell and the erl_nif alias."""
+    """Returns the hub BUILD file: per qualified cell an exec Erlang toolchain and a target runtime toolchain, and the erl_nif alias."""
     return "\n".join([
         'load("@rules_cc//cc:defs.bzl", "cc_library")\n\npackage(default_visibility = ["//visibility:public"])\n',
-        pins_hub(HUB_NAME, CELLS.keys(), str(Label("@rules_erlang//tools:toolchain_type")), "both"),
+        pins_hub(HUB_NAME, CELLS.keys(), RUNTIME_TOOLCHAIN_TYPE, "target", exec_toolchain_type = str(Label("@rules_erlang//tools:toolchain_type"))),
         _HUB_NIF.format(
             compatible = repr(nif_compatible_cases(CELLS.keys())),
             deps = repr(nif_header_cases(CELLS.keys())),

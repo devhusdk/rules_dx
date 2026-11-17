@@ -101,6 +101,7 @@ dx_conformance_suite(
     size = "small",
     binary = ":hello",
     covered_source = "greet.ex",
+    cross_runfile = "escript",
     expected = "hello world",
     failing_case = "failing_case",
     failing_pattern = "test {case} (FailTest)",

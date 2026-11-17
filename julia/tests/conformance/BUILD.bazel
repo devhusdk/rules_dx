@@ -14,6 +14,18 @@ julia_library(
     data = ["Project.toml"],
 )
 
+julia_library(
+    name = "LintDirty",
+    srcs = ["lint_dirty/LintDirty.jl"],
+    tags = ["manual"],
+)
+
+julia_library(
+    name = "FormatDirty",
+    srcs = ["format_dirty/FormatDirty.jl"],
+    tags = ["manual"],
+)
+
 julia_binary(
     name = "hello",
     srcs = ["main.jl"],
@@ -47,6 +59,15 @@ dx_conformance_suite(
     failing_test = ":fail_subject_test",
     lang = "julia",
     passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":Greet",
+        "format_dirty": ":FormatDirty",
+        "format_source": "format_dirty/FormatDirty.jl",
+        "lint_dirty": ":LintDirty",
+        "lint_line": 3,
+        "lint_rule": "julialint/index_from_length",
+        "lint_source": "lint_dirty/LintDirty.jl",
+    },
 )
 
 real_source_target(

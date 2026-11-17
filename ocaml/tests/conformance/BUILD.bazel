@@ -15,6 +15,20 @@ ocaml_module(
 )
 
 ocaml_module(
+    name = "lint_dirty",
+    struct = "lint_dirty.ml",
+    tags = ["manual"],
+    target_compatible_with = OCAML_COMPATIBLE_WITH,
+)
+
+ocaml_module(
+    name = "format_dirty",
+    struct = "format_dirty.ml",
+    tags = ["manual"],
+    target_compatible_with = OCAML_COMPATIBLE_WITH,
+)
+
+ocaml_module(
     name = "main",
     struct = "main.ml",
     target_compatible_with = OCAML_COMPATIBLE_WITH,
@@ -65,7 +79,20 @@ dx_conformance_suite(
     failing_pattern = "{case}",
     failing_test = ":fail_subject_test",
     lang = "ocaml",
+    not_applicable = {
+        "lint_error_test:windows_x86_64": "zanuda has no Windows build",
+        "lint_test:windows_x86_64": "zanuda has no Windows build",
+    },
     passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":greet",
+        "format_dirty": ":format_dirty",
+        "format_source": "format_dirty.ml",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 1,
+        "lint_rule": "list_length_comparisons",
+        "lint_source": "lint_dirty.ml",
+    },
 )
 
 real_source_target(

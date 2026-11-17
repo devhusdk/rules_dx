@@ -1322,7 +1322,7 @@ mod tests {
 
     #[test]
     fn dx_on_path_finds_the_dx_this_host_runs() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-path-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-path-").unwrap();
         let empty = scratch.path().join("empty");
         let bin = scratch.path().join("bin");
         std::fs::create_dir_all(&empty).expect("empty");

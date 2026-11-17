@@ -24,7 +24,7 @@ fn is_artifact(name: &str) -> bool {
 }
 
 fn root_directories() -> Vec<String> {
-    let root = dx_testing::rules_dx_source();
+    let root = dx_testing::rules_dx_source().unwrap();
     let entries =
         std::fs::read_dir(&root).unwrap_or_else(|error| panic!("{}: {error}", root.display()));
     let mut names = Vec::new();
@@ -41,7 +41,7 @@ fn root_directories() -> Vec<String> {
 
 #[test]
 fn every_root_directory_is_a_language_or_allowlisted() {
-    let root = dx_testing::rules_dx_source();
+    let root = dx_testing::rules_dx_source().unwrap();
     let allowed: BTreeSet<&str> = SHARED.iter().copied().collect();
     let stray: Vec<String> = root_directories()
         .into_iter()

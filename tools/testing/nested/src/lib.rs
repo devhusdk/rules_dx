@@ -1740,8 +1740,13 @@ impl Case {
     }
 
     /// Seeds this workspace's `MODULE.bazel.lock` with the extension facts of the `rules_dx` checkout.
-    pub fn seed_rules_dx_lock(&self) {
-        seed_rules_dx_lock(&self.root, &dx_testing::rules_dx_source());
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the `rules_dx` checkout cannot be found.
+    pub fn seed_rules_dx_lock(&self) -> Result<(), String> {
+        seed_rules_dx_lock(&self.root, &dx_testing::rules_dx_source()?);
+        Ok(())
     }
 
     #[track_caller]
@@ -1919,9 +1924,16 @@ impl Case {
     /// Starts a case whose workspace depends on this `rules_dx` checkout, with `extra_module` appended.
     ///
     /// The workspace imports the preset layers from `.dx/bazelrc`, the way `dx init` lays them out.
-    #[must_use]
-    pub fn consumer(name: &str, extra_module: &str) -> Case {
-        Case::consumer_at(name, &dx_testing::rules_dx_source(), extra_module)
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the `rules_dx` checkout cannot be found.
+    pub fn consumer(name: &str, extra_module: &str) -> Result<Case, String> {
+        Ok(Case::consumer_at(
+            name,
+            &dx_testing::rules_dx_source()?,
+            extra_module,
+        ))
     }
 
     /// Like `consumer`, with `rules_dx` read from `rules`.

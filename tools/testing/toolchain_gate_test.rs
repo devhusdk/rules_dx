@@ -66,7 +66,7 @@ fn registered(module: &str) -> BTreeSet<String> {
 }
 
 fn module() -> String {
-    let path = dx_testing::rules_dx_source().join("MODULE.bazel");
+    let path = dx_testing::rules_dx_source().unwrap().join("MODULE.bazel");
     std::fs::read_to_string(&path).unwrap_or_else(|error| panic!("{}: {error}", path.display()))
 }
 

@@ -19,7 +19,7 @@ fn tail(path: &Path) -> String {
 fn consumer(name: &str, committed: &str) -> Result<dx_nested::Case, String> {
     let Ok(rel) = std::env::var("DX_HERMETIC_MANIFEST") else {
         let case =
-            dx_nested::Case::consumer("consumer_maven_pin", &dx_nested::consumer_maven(name));
+            dx_nested::Case::consumer("consumer_maven_pin", &dx_nested::consumer_maven(name))?;
         case.write("BUILD.bazel", "");
         case.write(name, committed);
         return Ok(case);

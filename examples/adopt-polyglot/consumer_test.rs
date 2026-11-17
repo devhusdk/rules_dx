@@ -117,7 +117,7 @@ fn dx(case: &Case, args: &[&str]) -> Run {
 
 #[test]
 fn the_polyglot_example_adopts_and_tests_green() {
-    let source = rules_dx_source();
+    let source = rules_dx_source().unwrap_or_else(|error| panic!("{error}"));
     let case = nested::case("adopt_polyglot");
     let root = case.root().to_path_buf();
     let example = resolve_runfiles("examples/adopt-polyglot/Cargo.toml");

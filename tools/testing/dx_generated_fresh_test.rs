@@ -1,6 +1,6 @@
 #[test]
 fn dx_build_matches_dx_generate() {
-    let root = dx_testing::rules_dx_source();
+    let root = dx_testing::rules_dx_source().unwrap();
     let planned = dx_generate::plan(&root, &mut dx_adopt::detected_families)
         .unwrap_or_else(|error| panic!("dx generate: {error}"));
     let want = planned

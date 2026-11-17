@@ -992,7 +992,7 @@ mod tests {
     #[test]
     fn plan_skips_symlinks_and_ignored_dirs() {
         use notify::RecursiveMode::{NonRecursive, Recursive};
-        let scratch = dx_test_scratch::scratch("dx-watch-plan-");
+        let scratch = dx_test_scratch::scratch("dx-watch-plan-").unwrap();
         let root = scratch.path().join("ws");
         let outside = scratch.path().join("output_base");
         std::fs::create_dir_all(outside.join("k8-fastbuild/bin")).expect("output base");
@@ -1024,7 +1024,7 @@ mod tests {
 
     #[test]
     fn bazelignore_lists_relative_dirs() {
-        let scratch = dx_test_scratch::scratch("dx-watch-bazelignore-");
+        let scratch = dx_test_scratch::scratch("dx-watch-bazelignore-").unwrap();
         let root = scratch.path();
         std::fs::write(
             root.join(".bazelignore"),
@@ -1054,7 +1054,7 @@ mod tests {
     #[cfg(target_os = "linux")]
     #[test]
     fn session_adds_no_watches_under_a_bazel_out_symlink_or_ignored_dir() {
-        let scratch = dx_test_scratch::scratch("dx-watch-symlink-");
+        let scratch = dx_test_scratch::scratch("dx-watch-symlink-").unwrap();
         let root = scratch.path().join("ws");
         let outside = scratch.path().join("output_base");
         std::fs::create_dir_all(outside.join("bin")).expect("output base");

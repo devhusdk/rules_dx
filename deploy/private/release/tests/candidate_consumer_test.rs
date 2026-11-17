@@ -124,10 +124,11 @@ fn consumer(candidate: &Candidate, archive: &Path, registry: &Path) -> Case {
         windows_support_override(),
     );
     assert!(!module.contains("module_name = \"rules_dx\""), "{module}");
-    write_rules_py_patches(&root, &rules_dx_source()).unwrap_or_else(|error| panic!("{error}"));
-    write_rules_rust_patches(&root, &rules_dx_source()).unwrap_or_else(|error| panic!("{error}"));
-    write_llvm_patches(&root, &rules_dx_source()).unwrap_or_else(|error| panic!("{error}"));
-    write_windows_support_patches(&root, &rules_dx_source())
+    let source = rules_dx_source().unwrap_or_else(|error| panic!("{error}"));
+    write_rules_py_patches(&root, &source).unwrap_or_else(|error| panic!("{error}"));
+    write_rules_rust_patches(&root, &source).unwrap_or_else(|error| panic!("{error}"));
+    write_llvm_patches(&root, &source).unwrap_or_else(|error| panic!("{error}"));
+    write_windows_support_patches(&root, &source)
         .unwrap_or_else(|error| panic!("{error}"));
     write(&root.join("MODULE.bazel"), module.as_bytes());
     case.use_lock("release_candidate");
@@ -258,7 +259,7 @@ fn assert_swift_consumer(case: &Case) {
             .replace("@rules_dx//", "@my_dx//");
         write(&case.root().join("swift").join(file), text.as_bytes());
     }
-    let module = dx_testing::read_text(&rules_dx_source().join("MODULE.bazel"));
+    let module = dx_testing::read_text(&rules_dx_source().unwrap_or_else(|error| panic!("{error}")).join("MODULE.bazel"));
     let version = module
         .split("bazel_dep(name = \"rules_swift\", version = \"")
         .nth(1)
@@ -350,7 +351,7 @@ fn assert_gcc_consumer(case: &Case) {
 
 #[test]
 fn a_candidate_archive_builds_tests_and_checks_a_registry_consumer() {
-    let root = rules_dx_source();
+    let root = rules_dx_source().unwrap_or_else(|error| panic!("{error}"));
     let scratch_dir = dx_test_scratch::scratch("candidate-snapshot").unwrap();
     let scratch = scratch_dir.path();
     stage("snapshot commit");

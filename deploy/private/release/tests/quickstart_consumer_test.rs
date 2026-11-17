@@ -206,7 +206,7 @@ fn copy_patches(source: &std::path::Path, case: &Case, package: &str) {
 
 #[test]
 fn the_readme_quickstart_runs_as_written() {
-    let source = rules_dx_source();
+    let source = rules_dx_source().unwrap_or_else(|error| panic!("{error}"));
     let files = quickstart_files(&read_text(&source.join("README.md")));
     let names: Vec<&str> = files.iter().map(|(name, _)| name.as_str()).collect();
     assert_eq!(names, [".bazelversion", "MODULE.bazel"]);
@@ -352,7 +352,7 @@ fn write_python_package(case: &Case) {
 
 #[test]
 fn bcr_test_module_runs_its_presubmit_targets() {
-    let source = rules_dx_source();
+    let source = rules_dx_source().unwrap_or_else(|error| panic!("{error}"));
     let presubmit = read_text(&source.join(".bcr/presubmit.yml"));
     let case = nested::case("quickstart_bcr");
     for name in [

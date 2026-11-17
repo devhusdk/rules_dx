@@ -35,7 +35,7 @@ fn area_module_srcs_carry_the_sources_nested_consumers_read() {
 
 #[test]
 fn rules_dx_source_names_the_checkout() {
-    let source = dx_testing::rules_dx_source();
+    let source = dx_testing::rules_dx_source().unwrap();
     assert!(source.join("MODULE.bazel").is_file(), "{source:?}");
 }
 

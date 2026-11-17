@@ -157,7 +157,7 @@ fn every_gh_step_sets_gh_token() {
 /// job timeout, so the dx step must run on remote execution.
 #[test]
 fn updates_are_verified_on_remote_execution() {
-    let steps = steps(WORKFLOW, "update");
+    let steps = steps(WORKFLOW, "update").unwrap();
     let dx = steps
         .iter()
         .position(|step| run_of(step).contains("tools/dx update --pr"))

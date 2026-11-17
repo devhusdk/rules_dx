@@ -516,24 +516,21 @@ fn find_runfile(rel: &str) -> std::io::Result<PathBuf> {
 
 /// Names the `rules_dx` checkout behind the `//:MODULE.bazel` runfile of the calling test.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics when the operation fails.
-#[must_use]
-#[track_caller]
-#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
-pub fn rules_dx_source() -> PathBuf {
-    let module = find_runfile("MODULE.bazel").unwrap_or_else(|error| {
-        panic!(
+/// Returns `Err` when the runfile is missing or has no checkout above it.
+pub fn rules_dx_source() -> Result<PathBuf, String> {
+    let module = find_runfile("MODULE.bazel").map_err(|error| {
+        format!(
             "runfile MODULE.bazel: {error}; add //:module_srcs or an area module_srcs to the test's data"
         )
-    });
+    })?;
     let real = std::fs::canonicalize(&module)
-        .unwrap_or_else(|error| panic!("{}: {error}", module.display()));
-    dx_path::without_verbatim(
-        real.parent()
-            .unwrap_or_else(|| panic!("no checkout above {}", real.display())),
-    )
+        .map_err(|error| format!("{}: {error}", module.display()))?;
+    let checkout = real
+        .parent()
+        .ok_or_else(|| format!("no checkout above {}", real.display()))?;
+    Ok(dx_path::without_verbatim(checkout))
 }
 
 /// Writes the `@dx_test_tags_sources` snapshot named by `DX_SOURCES_JSON`, `DX_FILES_JSON` and, when set, `DX_RUST_JSON` and `DX_PROSE_JSON` into a scratch tree and names its root.
@@ -1159,7 +1156,7 @@ mod tests {
 
     #[test]
     fn rules_dx_source_holds_the_module_and_its_bazel_version() {
-        let source = rules_dx_source();
+        let source = rules_dx_source().unwrap();
         assert!(source.join("MODULE.bazel").is_file(), "{source:?}");
         assert!(source.join(".bazelversion").is_file(), "{source:?}");
     }

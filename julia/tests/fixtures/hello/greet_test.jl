@@ -1,6 +1,3 @@
 using Greet
-using Test
 
-@testset "greeting" begin
-    @test greeting("julia") == "Hello, julia!"
-end
+greeting("julia") == "Hello, julia!" || error("greeting: got $(repr(greeting("julia")))")

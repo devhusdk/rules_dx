@@ -1,0 +1,132 @@
+diff -ruN a/julia/pkg/private/pkg_tester_core.jl b/julia/pkg/private/pkg_tester_core.jl
+--- a/julia/pkg/private/pkg_tester_core.jl
++++ b/julia/pkg/private/pkg_tester_core.jl
+@@ -6,8 +6,8 @@
+ - `Manifest.toml` must have been resolved from the current `Project.toml`.
+ - When a `Manifest.bazel.json` is tracked, it must be in sync with `Manifest.toml`.
+ 
+-Paths arrive as absolute paths in the environment; `pkg_tester.jl` resolves
+-runfiles and launches this script once per manifest with the matching Julia.
++`pkg_tester.jl` calls `check` in its own process for manifests declared for
++its Julia, and runs this script with the matching Julia for the others.
+ Since external JSON packages are unavailable, the JSON checks are textual.
+ """
+ 
+@@ -198,12 +198,12 @@
+     return errors
+ end
+ 
+-function main()
+-    project_toml = ENV["RULES_JULIA_PKG_TEST_PROJECT_TOML"]
+-    manifest_toml = ENV["RULES_JULIA_PKG_TEST_MANIFEST_TOML"]
+-    manifest_bazel_json = get(ENV, "RULES_JULIA_PKG_TEST_MANIFEST_BAZEL_JSON", nothing)
+-    expected_version = VersionNumber(ENV["RULES_JULIA_PKG_TEST_JULIA_VERSION"])
+-
++function check(
++    project_toml::String,
++    manifest_toml::String,
++    manifest_bazel_json::Union{String,Nothing},
++    expected_version::VersionNumber,
++)
+     errors = String[]
+ 
+     println("  Checking $(basename(manifest_toml)) against Project.toml (Julia $(VERSION))...")
+@@ -217,21 +217,33 @@
+ 
+     if isempty(errors)
+         println("  OK")
+-        exit(0)
++        return true
+     end
+ 
+     println("  Errors found:")
+     for (i, error) in enumerate(errors)
+         println("    $i. $error")
+     end
+-    exit(1)
++    return false
+ end
+ 
+-try
+-    main()
+-catch e
+-    println(stderr, "Fatal error:")
+-    showerror(stderr, e, catch_backtrace())
+-    println(stderr)
+-    exit(1)
++function main()
++    ok = check(
++        ENV["RULES_JULIA_PKG_TEST_PROJECT_TOML"],
++        ENV["RULES_JULIA_PKG_TEST_MANIFEST_TOML"],
++        get(ENV, "RULES_JULIA_PKG_TEST_MANIFEST_BAZEL_JSON", nothing),
++        VersionNumber(ENV["RULES_JULIA_PKG_TEST_JULIA_VERSION"]),
++    )
++    exit(ok ? 0 : 1)
++end
++
++if abspath(PROGRAM_FILE) == @__FILE__
++    try
++        main()
++    catch e
++        println(stderr, "Fatal error:")
++        showerror(stderr, e, catch_backtrace())
++        println(stderr)
++        exit(1)
++    end
+ end
+diff -ruN a/julia/pkg/private/pkg_tester.jl b/julia/pkg/private/pkg_tester.jl
+--- a/julia/pkg/private/pkg_tester.jl
++++ b/julia/pkg/private/pkg_tester.jl
+@@ -1,13 +1,16 @@
+ """
+ Julia Package Lockfile Test driver
+ 
+-Runs `pkg_tester_core.jl` once per manifest, each time with the Julia that
+-the manifest is declared for, so every manifest is verified by the Pkg that
+-resolved it. Runfiles are resolved here and passed on as absolute paths.
++Verifies every manifest with the Pkg of the Julia it is declared for. Manifests
++declared for this process's Julia are checked in process; the others run
++`pkg_tester_core.jl` under their own Julia.
+ """
+ 
+ using Runfiles: rlocation
+ 
++module PkgTesterCore
++end
++
+ function locate(rlocationpath::String)
+     path = rlocation(rlocationpath)
+     if path === nothing || !ispath(path)
+@@ -30,6 +33,7 @@
+     end
+ 
+     entries = split(ENV["RULES_JULIA_PKG_TEST_MANIFESTS"], ";"; keepempty = false)
++    in_process = false
+     failures = String[]
+     for entry in entries
+         version, manifest_rlocation, julia_rlocation = split(entry, "|")
+@@ -38,6 +42,24 @@
+ 
+         println("Manifest $(basename(manifest_toml)), declared for Julia $version")
+ 
++        declared = VersionNumber(String(version))
++        if (declared.major, declared.minor) == (VERSION.major, VERSION.minor)
++            if !in_process
++                Base.include(PkgTesterCore, core)
++                in_process = true
++            end
++            ok = Base.invokelatest(
++                PkgTesterCore.check,
++                project_toml,
++                manifest_toml,
++                manifest_bazel_json,
++                declared,
++            )
++            ok || push!(failures, "$(basename(manifest_toml)) (Julia $version)")
++            println()
++            continue
++        end
++
+         env = copy(ENV)
+         env["RULES_JULIA_PKG_TEST_PROJECT_TOML"] = project_toml
+         env["RULES_JULIA_PKG_TEST_MANIFEST_TOML"] = manifest_toml

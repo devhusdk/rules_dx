@@ -65,4 +65,11 @@ function run_report(
     return ok ? 0 : 1
 end
 
+precompile(parse_readings, (Vector{SubString{String}},))
+precompile(run_report, (String, Int))
+precompile(
+    Core.kwcall,
+    (@NamedTuple{io::IOBuffer, err::IOBuffer}, typeof(run_report), String, Int),
+)
+
 end

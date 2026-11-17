@@ -561,7 +561,7 @@ https://github.com/aspect-build/rules_js/releases/download/v3.6.0/rules_js-v3.6.
 https://github.com/aspect-build/rules_py/releases/download/v2.0.0-alpha.11/rules_py-v2.0.0-alpha.11.tar.gz 4e50948fbb8564a8b3a3b1f354cd9ec7ffdfe304f63c6a5feb1fdbcfbfc782bd
 https://github.com/aspect-build/rules_ts/releases/download/v3.10.1/rules_ts-v3.10.1.tar.gz 7d3de71af89429c076efe8288f083e716b91da51bd4307268efae55ac54876d8
 https://github.com/aspect-build/tools_telemetry/releases/download/v0.5.1/tools_telemetry-v0.5.1.tar.gz 75451cee2e047ed69fd4c0fbc6cff61d0a41e4e8373c3e21050bf982714d2ead
-https://github.com/aspect-build/zstd-prebuilt/releases/download/v1.5.6-bcr1/zstd_linux_amd64 0F0BD1193509A598629D7FA745C4B0B6D5FA6719E0C94C01EF0F20E466D801A7
+https://github.com/aspect-build/zstd-prebuilt/releases/download/v1.5.6-bcr1/zstd_linux_amd64 0f0bd1193509a598629d7fa745c4b0b6d5fa6719e0c94c01ef0f20e466d801a7
 https://github.com/astral-sh/python-build-standalone/releases/download/20260303/cpython-3.12.13+20260303-x86_64-unknown-linux-gnu-install_only.tar.gz 4e5ac5a04afc4fe164e92e3844d6dbda03b33baeb62e032b5c9a8198280221e2
 https://github.com/bats-core/bats-core/archive/v1.10.0.tar.gz a1a9f7875aa4b6a9480ca384d5865f1ccf1b0b1faead6b47aa47d79709a5c5fd
 https://github.com/bazel-contrib/bazel-gazelle/releases/download/v0.54.0/bazel-gazelle-v0.54.0.tar.gz 9dae87c03ea06b2990b8836256909a18367e191f885d5bb1d030e8ba80491b42

@@ -18,19 +18,19 @@ fn split_label(label: &str) -> Option<(&str, &str)> {
     (!name.is_empty() && !name.contains('/')).then_some((package, name))
 }
 
-/// Unions `<url> <sha256>` lists keyed by URL, dropping `file://` entries; one URL with two sha256 values is an error.
+/// Unions `<url> <sha256>` lists keyed by URL with lowercase sha256, dropping `file://` entries; one URL with two sha256 values is an error.
 fn union_lists(lists: &[(String, String)]) -> Result<String, String> {
-    let mut merged: BTreeMap<&str, &str> = BTreeMap::new();
+    let mut merged: BTreeMap<&str, String> = BTreeMap::new();
     for (origin, text) in lists {
         for line in text.lines().filter(|line| !line.trim().is_empty()) {
             let (url, sha) = line
                 .split_once(' ')
                 .ok_or_else(|| format!("{origin}: malformed line `{line}`"))?;
-            let (url, sha) = (url.trim(), sha.trim());
+            let (url, sha) = (url.trim(), sha.trim().to_ascii_lowercase());
             if url.starts_with("file://") {
                 continue;
             }
-            if let Some(previous) = merged.insert(url, sha)
+            if let Some(previous) = merged.insert(url, sha.clone())
                 && previous != sha
             {
                 return Err(format!("{origin}: {url} has sha256 {sha} and {previous}"));
@@ -181,6 +181,12 @@ mod tests {
     fn union_drops_file_urls() {
         let merged = union_lists(&[list("file:///tmp/x/tool a\nhttps://a y\n")]).unwrap();
         assert_eq!(merged, "https://a y\n");
+    }
+
+    #[test]
+    fn union_lowercases_sha256() {
+        let merged = union_lists(&[list("https://a 0F0B\n")]).unwrap();
+        assert_eq!(merged, "https://a 0f0b\n");
     }
 
     #[test]

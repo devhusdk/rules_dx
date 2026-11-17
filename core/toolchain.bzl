@@ -114,15 +114,30 @@ def cell_repo(name, cell):
     """Returns the name of the repository holding one cell of a pin."""
     return name + "__" + cell
 
-def pins_hub(name, cells, toolchain_type, compatible_with = "exec"):
-    """Returns the hub BUILD file of a pin: one toolchain() per cell."""
-    return "\n".join([
+def pins_hub(name, cells, toolchain_type, compatible_with = "exec", exec_aliases = []):
+    """Returns the hub BUILD file of a pin: one toolchain() per cell and an alias per exec_aliases target selecting the exec cell."""
+    constraints = {cell: [_OS_CONSTRAINTS[cell.partition("_")[0]], _CPU_CONSTRAINTS[cell.partition("_")[2]]] for cell in cells}
+    sides = ["exec", "target"] if compatible_with == "both" else [compatible_with]
+    parts = [
         toolchain_target(
             name = cell_repo(name, cell),
             toolchain = "@{}//:toolchain".format(cell_repo(name, cell)),
             toolchain_type = toolchain_type,
             visibility = ["//visibility:public"],
-            **{compatible_with + "_compatible_with": [_OS_CONSTRAINTS[cell.partition("_")[0]], _CPU_CONSTRAINTS[cell.partition("_")[2]]]}
+            **{side + "_compatible_with": constraints[cell] for side in sides}
         )
         for cell in sorted(cells)
-    ])
+    ]
+    if exec_aliases:
+        parts.extend([
+            'config_setting(\n    name = "{}_exec",\n    constraint_values = {},\n)\n'.format(cell, repr(constraints[cell]))
+            for cell in sorted(cells)
+        ])
+        parts.extend([
+            'alias(\n    name = "{}",\n    actual = select({}),\n    visibility = ["//visibility:public"],\n)\n'.format(
+                target,
+                repr({":{}_exec".format(cell): "@{}//:{}".format(cell_repo(name, cell), target) for cell in sorted(cells)}),
+            )
+            for target in exec_aliases
+        ])
+    return "\n".join(parts)

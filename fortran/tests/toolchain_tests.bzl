@@ -3,20 +3,17 @@
 load("@rules_fortran//fortran/private:providers.bzl", "FortranToolchainInfo")
 load("//fortran/private/lock:hub.bzl", fpm_build_file = "build_file")
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
+load("//core:toolchain.bzl", "hub_checks", "pins_hub")
 load("//fortran/private/toolchain:pins.bzl", "FLANG_RT_PREFIX", "FLANG_VERSION", "FORTRAN_CELLS")
-load("//fortran/private/toolchain:repos.bzl", "FLANG_RT_TREES", "flang_major", "flang_rt_build", "hub_build")
+load("//fortran/private/toolchain:repos.bzl", "FLANG_RT_TREES", "HUB_NAME", "flang_major", "flang_rt_build")
 load("//fortran/private/toolchain:toolchain.bzl", "toolchain_fields")
 
 def _checks():
-    linux = FORTRAN_CELLS["linux_x86_64"]
     fields = toolchain_fields("flang", "ar", depset(), "rt")
-    root = hub_build()["BUILD.bazel"]
+    hub = pins_hub(HUB_NAME, FORTRAN_CELLS.keys(), "@rules_fortran//fortran:toolchain_type", "both", ["compiler_files", "flang"])
     return [
         expect_contains("fpm packages link their locked dependencies", fpm_build_file({"deps": ["stdlib"], "name": "app"}), '["//stdlib"]'),
-        expect_true("hub root loads nothing", "load(" not in root),
-        expect_true("hub root names no rules_fortran", "@rules_fortran" not in root),
-        expect_contains("hub root uses the rules_fortran type", root, "//fortran:toolchain_type"),
-        expect_contains("hub impl holds the loads", hub_build()["impl/BUILD.bazel"], "load("),
+        expect_contains("hub aliases the exec flang", hub, 'name = "flang"'),
         expect_equal("pinned cells", sorted(FORTRAN_CELLS.keys()), ["linux_arm64", "linux_x86_64", "macos_arm64"]),
         expect_contains("flang-rt prefix names the flang version", FLANG_RT_PREFIX, FLANG_VERSION),
         expect_equal("flang-rt major matches flang", flang_major(FLANG_RT_PREFIX.split("-")[-1]), flang_major(FLANG_VERSION)),
@@ -26,7 +23,7 @@ def _checks():
         expect_equal("the runtime is the flang-rt CcInfo", fields["runtime_ccinfo"], "rt"),
         expect_equal("no prebuilt runtime libraries", fields["runtime_libraries"], []),
         expect_equal("toolchain fields match the upstream provider", sorted(fields.keys()), sorted(dir(FortranToolchainInfo(**fields)))),
-    ]
+    ] + hub_checks(hub, "//fortran:toolchain_type", len(FORTRAN_CELLS))
 
 def fortran_metadata_tests(name, size):
     """Declares the Fortran toolchain metadata test."""

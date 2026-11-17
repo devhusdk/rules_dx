@@ -55,7 +55,7 @@ def _dx_pins_impl(mctx):
                 continue
             for cell, pin in pins["cells"].items():
                 cell_archive_rule(name = cell_repo(tag.name, cell), build = build, pin = json.encode(pin), tool = tag.name)
-            hub_repo(name = tag.name, files = {"BUILD.bazel": pins_hub(tag.name, pins["cells"].keys(), str(tag.toolchain_type), tag.compatible_with)})
+            hub_repo(name = tag.name, files = {"BUILD.bazel": pins_hub(tag.name, pins["cells"].keys(), str(tag.toolchain_type), tag.compatible_with, tag.exec_aliases)})
         for tag in mod.tags.archive:
             pin = json.decode(mctx.read(tag.pins))["archives"][tag.key or tag.name]
             archives[tag.name] = pin
@@ -122,7 +122,8 @@ dx_pins = module_extension(
             attrs = {
                 "aliases": attr.string_dict(doc = "Host cell to the pinned cell that serves it."),
                 "build": attr.label(allow_single_file = True, doc = "BUILD file template; {binary} is replaced by the cell's binary path. Unset records the pins in dx_pins_data only."),
-                "compatible_with": attr.string(default = "exec", values = ["exec", "target"], doc = "Which toolchain() constraint attribute the cell platform fills."),
+                "compatible_with": attr.string(default = "exec", values = ["both", "exec", "target"], doc = "Which toolchain() constraint attributes the cell platform fills."),
+                "exec_aliases": attr.string_list(doc = "Targets of each cell repository the hub exposes as aliases selecting the exec platform's cell."),
                 "name": attr.string(mandatory = True, doc = "Hub, or sole, repository name."),
                 "pins": attr.label(mandatory = True, allow_single_file = True, doc = "JSON file of version and cells."),
                 "toolchain_type": attr.label(doc = "Toolchain type the hub registers; unset for a host-selected repository."),

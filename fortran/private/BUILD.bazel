@@ -9,6 +9,7 @@ package(default_visibility = [
 
 exports_files([
     "defs.bzl",
+    "flang.BUILD.bazel",
     "flang_rt.BUILD.bazel",
     "kwargs.bzl",
 ])
@@ -40,6 +41,7 @@ real_source_target(
         "BUILD.bazel",
         "defs.bzl",
         "kwargs.bzl",
+        "flang.BUILD.bazel",
         "flang_rt.BUILD.bazel",
     ],
     tags = ["corpus"],

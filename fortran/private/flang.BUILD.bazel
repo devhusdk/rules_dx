@@ -1,0 +1,37 @@
+load("@rules_dx//fortran/private/toolchain:toolchain.bzl", "dx_fortran_toolchain")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "{binary}",
+    "bin/llvm-ar",
+])
+
+filegroup(
+    name = "flang",
+    srcs = ["{binary}"],
+)
+
+filegroup(
+    name = "llvm_ar",
+    srcs = ["bin/llvm-ar"],
+)
+
+filegroup(
+    name = "compiler_files",
+    srcs = ["{binary}"] + glob(
+        [
+            "bin/flang-*",
+            "include/flang/**",
+        ],
+        allow_empty = False,
+    ),
+)
+
+dx_fortran_toolchain(
+    name = "toolchain",
+    archiver = ":llvm_ar",
+    compiler = ":flang",
+    compiler_files = ":compiler_files",
+    runtime = "@dx_fortran_flang_rt//:flang_rt",
+)

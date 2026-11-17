@@ -93,14 +93,40 @@ fn label_patterns_cover_scopes() {
     assert!(covers("@repo//...", "@repo//a:b"));
     assert!(!covers("@repo//...", "//a:b"));
     assert!(!covers("//...", "cargo"));
+    assert!(covers("@@repo+//...", "@@repo+//a:b"));
+    assert!(covers("@@repo+//a:all", "@@repo+//a:b"));
+    assert!(covers("@repo", "@repo//:repo"));
+    assert!(covers("//a", "//a:a"));
+    assert!(!covers("//...", "@@repo+//a:b"));
+    assert!(!covers("//a:all", ":b"));
 }
 
 #[test]
 fn bad_patterns_are_rejected() {
-    for bad in ["cli", "//cli/", "//a/.../b", "//a:", ""] {
+    for bad in [
+        "cli",
+        "//cli/",
+        "//a/.../b",
+        "//a:",
+        "",
+        ":a",
+        "@",
+        "@r:a",
+        "//a/...:x",
+    ] {
         assert!(!is_valid_pattern(bad), "{bad}");
     }
-    for good in ["//...", "//a:b", "//a", "@r//a/...", "//a:all"] {
+    for good in [
+        "//...",
+        "//a:b",
+        "//a",
+        "@r//a/...",
+        "//a:all",
+        "@r",
+        "@r//a",
+        "@@r+//a:b",
+        "@@r+//...",
+    ] {
         assert!(is_valid_pattern(good), "{good}");
     }
 }

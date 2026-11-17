@@ -838,6 +838,7 @@ filegroup(
         "//ruby/private:module_srcs",
         "//ruby/private/coverage:module_srcs",
         "//ruby/private/quality:module_srcs",
+        "//ruby/private/tools/lock:module_srcs",
         "//rust:module_srcs",
         "//rust/private:module_srcs",
         "//rust/private/quality:module_srcs",

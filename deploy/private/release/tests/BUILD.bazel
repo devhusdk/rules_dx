@@ -34,6 +34,7 @@ rust_test(
         "//cli/cli:dx",
         "//core/coreutils:applets",
         "//core/modules:core_budget.json",
+        "//core/modules:python_consumer_budget.json",
         "//deploy:module_srcs",
         "//patches/gomod-parser:glued_comment.patch",
         "//patches/llvm:clang_cl_profile_no_mingw.patch",
@@ -75,6 +76,7 @@ rust_test(
         "DX_COREUTILS": "$(rootpaths //core/coreutils:applets)",
         "DX_BIN": "$(rootpath //cli/cli:dx)",
         "DX_CORE_BUDGET": "$(rootpath //core/modules:core_budget.json)",
+        "DX_PYTHON_CONSUMER_BUDGET": "$(rootpath //core/modules:python_consumer_budget.json)",
         "RUST_TEST_THREADS": "1",
     } | NESTED_BAZEL_NETWORK_ENV,
     # The consumers fetch the rust and GCC toolchains and bcr modules.

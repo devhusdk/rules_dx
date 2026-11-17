@@ -1,7 +1,7 @@
 load("@rules_scala//scala:scala_toolchain.bzl", "scala_toolchain")
 load("//core/quality:fixtures.bzl", "real_source_target")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//:__subpackages__"])
 
 config_setting(
     name = "scala_2_13_18",

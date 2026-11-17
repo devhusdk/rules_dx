@@ -1,5 +1,4 @@
 fixture android
-fixture appimage
 fixture env
 fixture flutter
 fixture msix

@@ -1,0 +1,17 @@
+load("@rules_dx//appimage:defs.bzl", "appimage_package")
+load("@rules_dx//go:defs.bzl", "go_binary")
+
+go_binary(
+    name = "appimage_app",
+    srcs = ["main.go"],
+)
+
+appimage_package(
+    name = "hello_appimage",
+    app_name = "hello",
+    binary = ":appimage_app",
+    desktop = "hello.desktop",
+    icon = "hello.svg",
+    notice = ["NOTICE.txt"],
+    version = "1.0",
+)

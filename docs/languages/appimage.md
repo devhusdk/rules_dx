@@ -4,13 +4,16 @@
 
 ## Install
 
-Add `rules_dx` to `MODULE.bazel`:
+Run `dx init --apply` in the repository, as in the [Quickstart](../../README.md#quickstart).
+
+For a AppImage project it writes this `MODULE.bazel`, tested in [`appimage/tests/consumer`](../../appimage/tests/consumer/consumer.MODULE.bazel):
 
 ```python
+# dx: yours; dx adds its missing lines
+module(name = "my_project")
+
 bazel_dep(name = "rules_dx", version = "<version>")
 ```
-
-Then run `dx init --apply`, as in the [Quickstart](../../README.md#quickstart).
 
 Load the rules from `@rules_dx//appimage:defs.bzl`:
 
@@ -98,6 +101,10 @@ Outputs:
   glibc, image digest and a digest for every packaged file.
 
 `AppRun` is a link to `usr/bin/<app_name>`. The runtime sets `$APPDIR`.
+
+`dx init` and `tools/dx generate` write `<name>_appimage` for a directory that
+holds `<name>.desktop`, `<name>.png` or `<name>.svg`, a `NOTICE`, `LICENSE` or
+`COPYING` file and exactly one `*_binary` target, with `version = "1.0"`.
 
 ### Build and run
 

@@ -8,5 +8,7 @@
 // kubernetes_library for manifests and api_spec_library for OpenAPI and
 // AsyncAPI documents. Each rule owns the matching files of one directory and has no dependencies. It also generates an oci_image_quality
 // for each oci_image rule in a BUILD file, named after the image with a
-// _quality suffix.
+// _quality suffix, and an appimage_package named <name>_appimage for each
+// <name>.desktop file with a <name>.png or <name>.svg icon and a notice file
+// beside it, packaging the one *_binary rule of the directory.
 package ownership

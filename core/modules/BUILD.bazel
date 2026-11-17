@@ -185,6 +185,7 @@ exports_files([
     "lock.schema.json",
     "lock_registry.bzl",
     "python_budget.json",
+    "python_consumer_budget.json",
     "versions.bzl",
 ])
 

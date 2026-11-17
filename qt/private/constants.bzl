@@ -1,6 +1,6 @@
 """Shared Qt rule constants."""
 
-QT_REPOSITORY = "@dx_qt"
+QT_REPOSITORY = "@@" + Label("@dx_qt").repo_name
 
 QT_CC_HDRS = [".h", ".hh", ".hpp", ".hxx"]
 

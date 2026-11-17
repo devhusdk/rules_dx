@@ -255,29 +255,66 @@ fn the_readme_quickstart_runs_as_written() {
         &["run", "@rules_dx//:dx", "--", "test", "//..."],
         "dx test //...",
     );
-    let budget_path = std::env::var("DX_CORE_BUDGET")
-        .unwrap_or_else(|_| panic!("DX_CORE_BUDGET must name the budget"));
-    let budget: serde_json::Value =
-        serde_json::from_str(&read_text(&resolve_runfiles(&budget_path)))
-            .unwrap_or_else(|error| panic!("{budget_path}: {error}"));
+    let core = load_budget("DX_CORE_BUDGET");
+    let python = load_budget("DX_PYTHON_CONSUMER_BUDGET");
     let mut failures = Vec::new();
-    let mut within_budget = |stage: &str| {
+    let mut within_budget = |name: &str, budget: &serde_json::Value, stage: &str| {
         let measured = plain_fixture::measure_case(&case);
-        eprintln!("footprint {stage}: {}", measured.to_json());
+        eprintln!("footprint {name} {stage}: {}", measured.to_json());
         if cfg!(target_os = "linux")
             && let Err(error) = footprint::check_budget(&measured, &budget[stage])
         {
-            failures.push(format!("{stage}:\n{error}"));
+            failures.push(format!("{name} {stage}:\n{error}"));
         }
     };
-    within_budget("after_test");
+    within_budget("core", &core, "after_test");
     run_in(
         &case,
         &["run", "@rules_dx//:dx", "--", "check", "//..."],
         "dx check //...",
     );
-    within_budget("after_check");
+    within_budget("core", &core, "after_check");
+    write_python_package(&case);
+    let started = std::time::Instant::now();
+    run_in(
+        &case,
+        &["run", "@rules_dx//:dx", "--", "test", "//..."],
+        "dx test //... with a Python package",
+    );
+    eprintln!("fetch python after_test: {}s", started.elapsed().as_secs());
+    within_budget("python", &python, "after_test");
+    let started = std::time::Instant::now();
+    run_in(
+        &case,
+        &["run", "@rules_dx//:dx", "--", "check", "//..."],
+        "dx check //... with a Python package",
+    );
+    eprintln!("fetch python after_check: {}s", started.elapsed().as_secs());
+    within_budget("python", &python, "after_check");
     assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+fn load_budget(variable: &str) -> serde_json::Value {
+    let path =
+        std::env::var(variable).unwrap_or_else(|_| panic!("{variable} must name the budget"));
+    serde_json::from_str(&read_text(&resolve_runfiles(&path)))
+        .unwrap_or_else(|error| panic!("{path}: {error}"))
+}
+
+/// Adds a Python-only package to the quickstart consumer: a library and its stdlib test.
+fn write_python_package(case: &Case) {
+    write_text(
+        &case.root().join("greet/BUILD.bazel"),
+        "load(\"@rules_dx//python:defs.bzl\", \"python_library\", \"python_test\")\n\npython_library(\n    name = \"greet\",\n    srcs = [\"greet.py\"],\n    imports = [\".\"],\n)\n\npython_test(\n    name = \"greet_test\",\n    srcs = [\"greet_test.py\"],\n    imports = [\".\"],\n    runner = \"plain\",\n    deps = [\":greet\"],\n)\n",
+    );
+    write_text(
+        &case.root().join("greet/greet.py"),
+        "\"\"\"Greeting helper.\"\"\"\n\n\ndef greet(name):\n    \"\"\"Return a greeting for name.\"\"\"\n    return f\"Hello, {name}!\"\n",
+    );
+    write_text(
+        &case.root().join("greet/greet_test.py"),
+        "\"\"\"Stdlib test of greet.\"\"\"\n\nimport unittest\n\nfrom greet import greet\n\n\nclass GreetTest(unittest.TestCase):\n    def test_greet(self) -> None:\n        self.assertEqual(greet(\"world\"), \"Hello, world!\")\n\n\nif __name__ == \"__main__\":\n    unittest.main()\n",
+    );
 }
 
 #[test]

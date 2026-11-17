@@ -132,31 +132,25 @@ pub fn parse_taplo_format_check(
 ) -> Result<Vec<FileFinding>, ParseError> {
     const TOOL: &str = "taplo";
     check_output_size(TOOL, stderr)?;
-    let stderr_text = std::str::from_utf8(stderr).map_err(|err| ParseError::Shape {
-        tool: TOOL,
-        detail: err.to_string(),
-    })?;
     let mut findings = parse_taplo_lint(stderr, Some(0), files)?;
-    for line in stderr_text.lines() {
-        if let Some(rest) = line
-            .find("the file is not properly formatted")
-            .and_then(|marker| line.get(marker..))
-        {
-            let path = rest
-                .split_once("path=\"")
-                .and_then(|(_, quoted)| quoted.split_once('"').map(|(path, _)| path))
-                .ok_or_else(|| missing(TOOL, "format path", line))?;
-            let checked = known(TOOL, files, path)?;
+    if code == Some(0) || !findings.is_empty() {
+        return Ok(findings);
+    }
+    match files {
+        [only] => {
+            let checked = known(TOOL, files, only)?;
             findings.push(unformatted_at(TOOL, checked, 1, 1, ColumnEncoding::Scalars));
+            Ok(findings)
         }
-    }
-    if findings.is_empty() && code != Some(0) {
-        return Err(ParseError::Shape {
+        _ => Err(ParseError::Shape {
             tool: TOOL,
-            detail: format!("exit {} with no parsed findings", code_name(code)),
-        });
+            detail: format!(
+                "exit {} across {} files names no file",
+                code_name(code),
+                files.len()
+            ),
+        }),
     }
-    Ok(findings)
 }
 
 #[cfg(test)]
@@ -186,16 +180,32 @@ mod tests {
 
     #[test]
     fn taplo_format_check_adds_unformatted_files() {
-        let stderr = b" INFO collect\nERROR taplo:format_files: the file is not properly formatted path=\"/s/fmt.toml\"\nERROR operation failed\n";
-        let findings = parse_taplo_format_check(stderr, Some(1), &["/s/fmt.toml"]).expect("parsed");
+        for stderr in [
+            &b" INFO collect\nERROR taplo:format_files: the file is not properly formatted path=\"/s/fmt.toml\"\n"[..],
+            b" INFO collect\n",
+            b"",
+        ] {
+            let findings =
+                parse_taplo_format_check(stderr, Some(1), &["/s/fmt.toml"]).expect("parsed");
+            assert_eq!(findings.len(), 1);
+            assert_eq!(findings[0].file, "/s/fmt.toml");
+            assert_eq!(findings[0].finding.message, "file is not formatted");
+            assert_eq!(findings[0].finding.severity, ToolSeverity::Warning);
+        }
+        let findings =
+            parse_taplo_format_check(TAPLO_DIRTY_STDERR.as_bytes(), Some(1), &["/s/dirty.toml"])
+                .expect("parsed");
         assert_eq!(findings.len(), 1);
-        assert_eq!(findings[0].finding.message, "file is not formatted");
-        assert_eq!(findings[0].finding.severity, ToolSeverity::Warning);
-        let mixed = [TAPLO_DIRTY_STDERR.as_bytes(), &stderr[..]].concat();
-        let findings = parse_taplo_format_check(&mixed, Some(1), &["/s/dirty.toml", "/s/fmt.toml"])
-            .expect("parsed");
-        assert_eq!(findings.len(), 2);
-        assert!(parse_taplo_format_check(b" INFO collect\n", Some(1), &["/s/fmt.toml"]).is_err());
+        assert_eq!(findings[0].finding.severity, ToolSeverity::Error);
+        assert!(
+            parse_taplo_format_check(b" INFO collect\n", Some(0), &["/s/fmt.toml"])
+                .expect("parsed")
+                .is_empty()
+        );
+        assert!(
+            parse_taplo_format_check(b" INFO collect\n", Some(1), &["/s/a.toml", "/s/b.toml"])
+                .is_err()
+        );
     }
 
     #[test]
@@ -218,13 +228,5 @@ mod tests {
         );
         assert!(parse_taplo_lint(b"\xff", Some(1), &["/s/x.toml"]).is_err());
         assert!(parse_taplo_format_check(b"\xff", Some(1), &["/s/x.toml"]).is_err());
-        assert!(
-            parse_taplo_format_check(
-                b"ERROR taplo:format_files: the file is not properly formatted\n",
-                Some(1),
-                &["/s/x.toml"]
-            )
-            .is_err()
-        );
     }
 }

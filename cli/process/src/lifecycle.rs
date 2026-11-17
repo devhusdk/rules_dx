@@ -663,7 +663,7 @@ pub(crate) fn run_streamed_in(
     }
     let (mut child, tree) = backend::spawn_streamed(&mut command, group, &held)?;
     if let Some(lease) = lease.as_ref() {
-        lease.record_unwritten(child.id() as i32);
+        lease.record_unwritten(child.id().cast_signed());
     }
     let target = backend::stream_target(&child, group);
     let mut forwarding = Forwarding::register(target);
@@ -703,7 +703,7 @@ pub(crate) fn run_streamed_in(
         }
         if let Some(job) = job.as_ref() {
             record_reported(job); // LCOV_EXCL_LINE - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-            job.tend(child.id() as i32); // LCOV_EXCL_LINE - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+            job.tend(child.id().cast_signed()); // LCOV_EXCL_LINE - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         }
         if stopped.is_none() {
             stopped = stop();

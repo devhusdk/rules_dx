@@ -178,13 +178,13 @@ fn windows_cache_file_has_exe_but_asset_does_not() {
 
 #[test]
 fn cache_root_precedence() {
+    type Case<'a> = (&'a [(&'a str, &'a str)], bool, Option<&'a str>);
     let all = [
         ("DX_CACHE_DIR", "/dx"),
         ("XDG_CACHE_HOME", "/xdg"),
         ("HOME", "/home/u"),
         ("USERPROFILE", "/profile"),
     ];
-    type Case<'a> = (&'a [(&'a str, &'a str)], bool, Option<&'a str>);
     let cases: [Case<'_>; 8] = [
         (&all, false, Some("/dx")),
         (&all[1..], false, Some("/xdg/dx")),

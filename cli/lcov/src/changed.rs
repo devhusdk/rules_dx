@@ -185,7 +185,10 @@ pub fn parse_added_lines(diff: &str) -> AddedLines {
 /// Every line of one new file, which counts as added in full.
 #[must_use]
 pub fn all_lines(text: &str) -> BTreeSet<u32> {
-    (1..=text.lines().count() as u32).collect()
+    text.lines()
+        .zip(1_u32..)
+        .map(|(_, number)| number)
+        .collect()
 }
 
 /// Finds `key` exactly, or by lowercase when exactly one entry matches that way.

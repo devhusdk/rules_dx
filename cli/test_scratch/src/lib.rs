@@ -106,12 +106,6 @@ fn output_within(
 ) -> Result<std::process::Output, String> {
     use std::io::Read;
     use std::process::Stdio;
-    let mut child = cmd
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|err| format!("did not start: {err}"))?;
     fn drain<R: Read + Send + 'static>(stream: Option<R>) -> std::thread::JoinHandle<Vec<u8>> {
         std::thread::spawn(move || {
             let mut bytes = Vec::new();
@@ -121,6 +115,12 @@ fn output_within(
             bytes
         })
     }
+    let mut child = cmd
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|err| format!("did not start: {err}"))?;
     let stdout = drain(child.stdout.take());
     let stderr = drain(child.stderr.take());
     let start = std::time::Instant::now();

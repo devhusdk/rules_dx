@@ -2230,7 +2230,11 @@ fn add_refuses_disk_full_after_reclaim() {
     );
     assert!(!base.exists(), "reclaim ran before the refusal");
     assert_eq!(pool.records().len(), records, "no slot record is left");
-    assert!(!pool.slot_path(records as u32 + 1).exists());
+    assert!(
+        !pool
+            .slot_path(u32::try_from(records).expect("records") + 1)
+            .exists()
+    );
 }
 
 #[test]

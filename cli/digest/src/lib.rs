@@ -278,7 +278,9 @@ mod tests {
             FILE_CHUNK + 1,
             3 * FILE_CHUNK,
         ] {
-            let bytes: Vec<u8> = (0..len).map(|i| (i % 251) as u8).collect();
+            let bytes: Vec<u8> = (0..len)
+                .map(|i| u8::try_from(i % 251).expect("byte"))
+                .collect();
             let path = scratch.path().join(format!("payload-{len}.bin"));
             std::fs::write(&path, &bytes).expect("write");
             assert_eq!(

@@ -159,5 +159,8 @@ fn settling_reports_pending_stop_signals_before_the_settled_byte() {
     // SAFETY: bytes is a valid three-byte buffer and read is an open pipe end.
     let got = unsafe { libc::read(read.as_raw_fd(), bytes.as_mut_ptr().cast(), 3) };
     assert_eq!(got, 2);
-    assert_eq!(bytes[..2], [libc::SIGHUP as u8, SETTLED]);
+    assert_eq!(
+        bytes[..2],
+        [u8::try_from(libc::SIGHUP).expect("signal"), SETTLED]
+    );
 }

@@ -433,6 +433,10 @@ pub(crate) fn shutdown_argv(
 /// Bazel locks the output base with fcntl (OFD, else POSIX), which `flock` probes do not see on Linux.
 #[cfg(unix)]
 #[expect(unsafe_code, reason = "fcntl F_GETLK has no safe std API")]
+#[expect(
+    clippy::cast_possible_truncation,
+    reason = "the fcntl lock constants fit the short flock fields"
+)]
 pub(crate) fn lock_busy(file: &std::fs::File) -> Option<bool> {
     use std::os::fd::AsRawFd;
     // SAFETY: a zeroed `flock` is a valid value; every field the call reads is set below.
@@ -1182,6 +1186,10 @@ mod tests {
     #[cfg(target_os = "linux")]
     #[test]
     #[expect(unsafe_code, reason = "F_OFD_SETLK has no safe std API")]
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "the fcntl lock constants fit the short flock fields"
+    )]
     fn the_idle_probe_sees_fcntl_locks_and_ignores_flock() {
         use std::os::fd::AsRawFd;
         let scratch = dx_test_scratch::scratch("dx-wt-idle-");

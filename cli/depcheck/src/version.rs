@@ -166,9 +166,6 @@ fn satisfies_tilde(spec: &str, locked: &(Vec<u64>, bool)) -> Option<bool> {
 }
 
 pub(crate) fn versions_equal(spec: &str, locked: &str) -> bool {
-    if spec.contains(['-', '+']) || locked.contains(['-', '+']) {
-        return spec == locked;
-    }
     fn numeric_parts(value: &str) -> Option<Vec<u64>> {
         let mut parts = Vec::new();
         for part in value.split('.') {
@@ -178,6 +175,9 @@ pub(crate) fn versions_equal(spec: &str, locked: &str) -> bool {
             parts.push(part.parse::<u64>().ok()?);
         }
         Some(parts)
+    }
+    if spec.contains(['-', '+']) || locked.contains(['-', '+']) {
+        return spec == locked;
     }
     match (numeric_parts(spec), numeric_parts(locked)) {
         (Some(mut a), Some(mut b)) => {

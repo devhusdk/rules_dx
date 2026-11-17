@@ -372,6 +372,7 @@ mod tests {
 
     #[test]
     fn diagnostics_init_filters_levels_and_follows_color_gate() {
+        const ANSI: &str = "\x1b[";
         if let Ok(spec) = std::env::var("DX_OUTPUT_DIAG_CHILD") {
             let (verbose, mode) = spec.split_once(':').expect("verbose:mode");
             let verbose = verbose == "true";
@@ -408,7 +409,6 @@ mod tests {
             );
             stderr
         };
-        const ANSI: &str = "\x1b[";
 
         let quiet = run("false:never", &[]);
         assert!(quiet.contains("dx-probe-error"), "{quiet}");

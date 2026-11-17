@@ -1143,6 +1143,7 @@ dx_pins.archive(
         "//patches/rules_erlang:03_auto_sname.patch",
         "//patches/rules_erlang:04_otp_tree.patch",
         "//patches/rules_erlang:05_windows_eunit_cover.patch",
+        "//patches/rules_erlang:06_coverage_enabled.patch",
     ],
     pins = "//erlang:pins.json",
 )

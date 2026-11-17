@@ -6,6 +6,7 @@ exports_files([
     "03_auto_sname.patch",
     "04_otp_tree.patch",
     "05_windows_eunit_cover.patch",
+    "06_coverage_enabled.patch",
 ])
 
 real_source_target(

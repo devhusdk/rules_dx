@@ -309,13 +309,34 @@ dx_conformance_manifest = rule(
 def dx_coverage_test(name, subject, covered_source, size = "small", **kwargs):
     """Declares a test that runs subject under code coverage and requires covered_source to be fully executed.
 
+    Also declares name + "_off", which runs subject built without code coverage and requires no hits in covered_source.
+
     Args:
       name: Name of the test.
       subject: Test target to run; built under the coverage transition.
       covered_source: File name whose lines the subject must cover.
-      size: Size of the test.
-      **kwargs: Forwarded to the test.
+      size: Size of the tests.
+      **kwargs: Forwarded to the tests.
     """
+    dx_conformance_subject(
+        name = name + "_off_subject",
+        subject = subject,
+        testonly = True,
+        visibility = ["//visibility:private"],
+    )
+    rust_test(
+        name = name + "_off",
+        srcs = [Label("//tools/testing/conformance:runner_test.rs")],
+        data = [":" + name + "_off_subject"],
+        deps = [_CONFORMANCE_QUALITY, Label("//tools/testing:dx_testing")],
+        env = {
+            "DX_CONFORMANCE_MODE": "coverage_off",
+            "DX_CONFORMANCE_SUBJECT": "$(rlocationpaths :%s_off_subject)" % name,
+            "DX_CONFORMANCE_TEXT": covered_source,
+        },
+        size = size,
+        **kwargs
+    )
     _coverage_subject(
         name = name + "_subject",
         subject = subject,

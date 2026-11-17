@@ -827,6 +827,7 @@ def _normalize_frameworks(ctx):
         if not framework.basename.endswith(".framework"):
             continue
         name = framework.basename.removesuffix(".framework")
+        ctx.delete("include/" + name)
         _move_real(ctx, "lib/" + framework.basename + "/Versions/A/Headers", "include/" + name)
         for link in ["Headers", "Resources", name, "Versions/Current"]:
             ctx.delete("lib/" + framework.basename + "/" + link)

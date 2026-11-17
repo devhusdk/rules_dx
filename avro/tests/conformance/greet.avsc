@@ -1,0 +1,11 @@
+{
+  "type": "record",
+  "name": "Greeting",
+  "namespace": "conformance",
+  "fields": [
+    {
+      "name": "text",
+      "type": "string"
+    }
+  ]
+}

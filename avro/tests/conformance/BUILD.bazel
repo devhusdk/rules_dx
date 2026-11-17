@@ -1,0 +1,46 @@
+# gazelle:ignore
+load("//avro:defs.bzl", "avro_library")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+avro_library(
+    name = "conformance",
+    srcs = ["greet.avsc"],
+)
+
+avro_library(
+    name = "lint_dirty",
+    srcs = ["lint_dirty.avsc"],
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":conformance",
+    covered_source = "",
+    expected = "",
+    failing_case = "",
+    failing_test = ":conformance",
+    lang = "avro",
+    not_applicable = {
+        "build_test": "avro has no binary rule",
+        "coverage_test": "avro has no test rule",
+        "cross_test": "avro has no binary rule",
+        "fail_test": "avro has no test rule",
+        "lock_test": "avro has no package manager",
+        "pass_test": "avro has no test rule",
+        "runfiles_test": "avro has no binary rule",
+    },
+    passing_test = ":conformance",
+    quality = {
+        "clean": ":conformance",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 1,
+        "lint_rule": "error",
+        "lint_source": "lint_dirty.avsc",
+    },
+)

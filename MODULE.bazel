@@ -1156,6 +1156,7 @@ dx_pins.archive(
         "//patches/rules_ruby:toolchains_gate.patch",
         "//patches/rules_ruby:toolchains_hub.patch",
         "//patches/rules_ruby:lock_checksums.patch",
+        "//patches/rules_ruby:windows_binary_rlocation.patch",
     ],
     pins = "//ruby:pins.json",
 )

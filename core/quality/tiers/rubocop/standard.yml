@@ -9,3 +9,5 @@ Security:
   Enabled: true
 Layout:
   Enabled: true
+Layout/EndOfLine:
+  EnforcedStyle: lf

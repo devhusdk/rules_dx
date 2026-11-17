@@ -81,7 +81,7 @@ _rust_binary_transition = platforms_transition(
     _rust_binary_settings,
     inputs = ["//command_line_option:features", _EXTRA_RUSTC_FLAG, MSVC_CRT_FROM_RUST, _COVERAGE],
     outputs = ["//command_line_option:features", MSVC_CRT_FROM_RUST, _COVERAGE],
-    platforms = lambda attr: [str(_WASIP1_PLATFORM)] if attr.wasm == "wasi" else [],
+    platforms = lambda attr, _current: [str(_WASIP1_PLATFORM)] if attr.wasm == "wasi" else [],
 )
 
 _LIBSTDCXX_ATTRS = {
@@ -513,7 +513,7 @@ def _no_coverage_settings(_settings, _attr, _platforms):
 _wasm32_transition = platforms_transition(
     _no_coverage_settings,
     outputs = [_COVERAGE],
-    platforms = lambda _attr: [str(_WASM32_PLATFORM)],
+    platforms = lambda _attr, _current: [str(_WASM32_PLATFORM)],
 )
 
 def _rust_browser_forward_impl(ctx):
@@ -669,7 +669,7 @@ _wasi_test_transition = platforms_transition(
     _wasi_test_settings,
     inputs = [_EXTRA_EXEC],
     outputs = [_COVERAGE, _EXTRA_EXEC],
-    platforms = lambda _attr: [str(_WASIP1_PLATFORM)],
+    platforms = lambda _attr, _current: [str(_WASIP1_PLATFORM)],
 )
 
 def _rust_wasi_run_test_impl(ctx):

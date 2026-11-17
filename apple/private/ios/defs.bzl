@@ -8,6 +8,7 @@ load("//apple/private/provisioning:defs.bzl", _deployment_floor = "deployment_fl
 load("//apple/private/provisioning:validate.bzl", _version_below = "provisioning_version_below")
 load(":cell.bzl", "APPLE_HOSTS", "CELL_ATTRS", "MACH_O_PLATFORMS", "ios_platform", "target_cell")
 load(":validate.bzl", "IOS_PLATFORMS", "ios_config_errors", "ios_sdk_for", "ios_triple_for", _DEVICE_ENV = "DEVICE_ENV")
+load("//core:platform.bzl", "platforms_transition")
 load("//core/quality:sources.bzl", "single_target")
 
 DEVICE_ENV = _DEVICE_ENV
@@ -24,8 +25,6 @@ _ALIASES = {
     "simulator/x86_64": Label("//apple:ios_x86_64"),
 }
 
-_PLATFORMS_SETTING = "//command_line_option:platforms"
-
 _PLATFORM_TYPE_SETTING = "//command_line_option:apple_platform_type"
 
 _MINIMUM_OS_SETTING = "//command_line_option:ios_minimum_os"
@@ -35,7 +34,6 @@ _XCODE_SETTING = "//command_line_option:xcode_version"
 _EXTRA_TOOLCHAINS_SETTING = EXTRA_TOOLCHAINS_SETTING
 
 CELL_SETTINGS = [
-    _PLATFORMS_SETTING,
     _PLATFORM_TYPE_SETTING,
     _MINIMUM_OS_SETTING,
     _XCODE_SETTING,
@@ -79,19 +77,25 @@ def platform_for(environment, arch):
     """Returns the apple_support platform Label for one cell, or None."""
     return _PLATFORMS.get(environment + "/" + arch)
 
-def cell_settings(settings, environment, arch, deployment, xcode):
-    """Returns the build settings that build one cell, unchanged on an iOS platform."""
-    unchanged = {key: settings[key] for key in CELL_SETTINGS}
+def cell_platforms(environment, arch, current):
+    """Returns the platforms one cell builds for, or [] to keep current, an iOS platform or an invalid cell."""
     platform = platform_for(environment, arch)
     if platform == None:
-        return unchanged
-    current = settings[_PLATFORMS_SETTING]
-    toolchains = apple_extra_toolchains(settings[_EXTRA_TOOLCHAINS_SETTING])
+        return []
     if len(current) > 0 and _label(current[0]) in _PLATFORMS.values():
+        return []
+    return [str(platform)]
+
+def cell_settings(settings, environment, arch, deployment, xcode, platforms):
+    """Returns the build settings beside the platforms that build one cell, unchanged on an iOS platform."""
+    unchanged = {key: settings[key] for key in CELL_SETTINGS}
+    if platform_for(environment, arch) == None:
+        return unchanged
+    toolchains = apple_extra_toolchains(settings[_EXTRA_TOOLCHAINS_SETTING])
+    if not platforms:
         return dict(unchanged, **{_EXTRA_TOOLCHAINS_SETTING: toolchains})
     changed = dict(unchanged)
     changed[_EXTRA_TOOLCHAINS_SETTING] = toolchains
-    changed[_PLATFORMS_SETTING] = [platform]
     changed[_PLATFORM_TYPE_SETTING] = "ios"
     changed[_MINIMUM_OS_SETTING] = deployment if deployment != "" else _deployment_floor(ios_sdk_for(environment))
     if xcode != "":
@@ -291,13 +295,11 @@ ios_lib_cell = rule(
     fragments = ["apple"],
 )
 
-def _cell_transition_impl(settings, attr):
-    return cell_settings(settings, attr.environment, attr.arch, attr.deployment, attr.xcode_version)
-
-_cell_transition = transition(
-    implementation = _cell_transition_impl,
+_cell_transition = platforms_transition(
+    implementation = lambda settings, attr, platforms: cell_settings(settings, attr.environment, attr.arch, attr.deployment, attr.xcode_version, platforms),
     inputs = CELL_SETTINGS,
     outputs = CELL_SETTINGS,
+    platforms = lambda attr, current: cell_platforms(attr.environment, attr.arch, current),
 )
 
 def _ios_lib_impl(ctx):

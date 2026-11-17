@@ -1,6 +1,6 @@
 """Apple iOS pin and selection coverage."""
 
-load("//apple/private/ios:defs.bzl", "CELL_SETTINGS", "DEVICE_ENV", "SIMULATOR_ENV", "apple_extra_toolchains", "cell_settings", "deployment_env", "framework_linkopts", "ios_platform_errors", "platform_for", "platform_slice", "split_platform")
+load("//apple/private/ios:defs.bzl", "CELL_SETTINGS", "DEVICE_ENV", "SIMULATOR_ENV", "apple_extra_toolchains", "cell_platforms", "cell_settings", "deployment_env", "framework_linkopts", "ios_platform_errors", "platform_for", "platform_slice", "split_platform")
 load("//apple/private/ios:validate.bzl", "ios_arch_errors", "ios_arches", "ios_config_errors", "ios_default_config", "ios_deployment_errors", "ios_environment_errors", "ios_environments", "ios_framework_errors", "ios_sdk_errors", "ios_sdk_for", "ios_triple_errors", "ios_triple_for", "ios_xcode_errors")
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 
@@ -17,7 +17,6 @@ _LINUX = Label("@platforms//host")
 _APPLE_CC = str(Label("@local_config_apple_cc_toolchains//:all"))
 
 _ORDER = [
-    "//command_line_option:platforms",
     "//command_line_option:apple_platform_type",
     "//command_line_option:ios_minimum_os",
     "//command_line_option:xcode_version",
@@ -32,6 +31,13 @@ def _settings(platform, toolchains = []):
         "//command_line_option:platforms": [platform],
         "//command_line_option:xcode_version": None,
     }
+
+def _cell(settings, environment, arch, deployment, xcode):
+    current = settings["//command_line_option:platforms"]
+    platforms = cell_platforms(environment, arch, current)
+    built = dict(cell_settings(settings, environment, arch, deployment, xcode, platforms))
+    built["//command_line_option:platforms"] = platforms or [str(platform) for platform in current]
+    return built
 
 def _plain(settings):
     plain = dict(settings)
@@ -188,12 +194,12 @@ def _ios_checks():
     for platform in [_IOS_DEVICE, _IOS_SIM, _IOS_X86]:
         checks.append(expect_equal(
             "an iOS platform keeps its settings: " + str(platform),
-            _plain(cell_settings(_settings(platform), "device", "arm64", "18.0", "16.4")),
+            _cell(_settings(platform), "device", "arm64", "18.0", "16.4"),
             _plain(_settings(platform, [_APPLE_CC])),
         ))
     checks.append(expect_equal(
         "a macOS build moves to the simulator cell",
-        _plain(cell_settings(_settings(_MACOS), "simulator", "x86_64", "18.0", "16.4")),
+        _cell(_settings(_MACOS), "simulator", "x86_64", "18.0", "16.4"),
         {
             "//command_line_option:apple_platform_type": "ios",
             "//command_line_option:extra_toolchains": [_APPLE_CC],
@@ -204,7 +210,7 @@ def _ios_checks():
     ))
     checks.append(expect_equal(
         "a Linux build moves to the device cell at the floor",
-        _plain(cell_settings(_settings(_LINUX), "device", "arm64", "", "")),
+        _cell(_settings(_LINUX), "device", "arm64", "", ""),
         {
             "//command_line_option:apple_platform_type": "ios",
             "//command_line_option:extra_toolchains": [_APPLE_CC],
@@ -215,7 +221,7 @@ def _ios_checks():
     ))
     checks.append(expect_equal(
         "an invalid cell keeps its settings",
-        _plain(cell_settings(_settings(_MACOS), "device", "x86_64", "", "")),
+        _cell(_settings(_MACOS), "device", "x86_64", "", ""),
         _plain(_settings(_MACOS)),
     ))
     checks.append(expect_equal(
@@ -225,7 +231,7 @@ def _ios_checks():
     ))
     checks.append(expect_equal(
         "an iOS cell keeps the Xcode C++ toolchains once",
-        _plain(cell_settings(_settings(_IOS_SIM, [_APPLE_CC, "//a:b"]), "simulator", "arm64", "", "")),
+        _cell(_settings(_IOS_SIM, [_APPLE_CC, "//a:b"]), "simulator", "arm64", "", ""),
         _plain(_settings(_IOS_SIM, [_APPLE_CC, "//a:b"])),
     ))
     checks.append(expect_equal("cell settings", CELL_SETTINGS, _ORDER))

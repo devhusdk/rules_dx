@@ -294,7 +294,7 @@ _x64_windows = platforms_transition(
     _x64_windows_impl,
     inputs = [_EXTRA_EXECUTION_PLATFORMS],
     outputs = [_EXTRA_EXECUTION_PLATFORMS],
-    platforms = lambda _attr: [_X64_WINDOWS],
+    platforms = lambda _attr, _current: [_X64_WINDOWS],
 )
 
 def _nif_x64_lib_impl(ctx):

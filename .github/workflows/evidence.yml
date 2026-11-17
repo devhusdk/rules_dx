@@ -310,6 +310,7 @@ jobs:
               if [ "$rc" -ne 0 ]; then cat "$log"; exit "$rc"; fi
               if [ ! -s "$covered.tops" ]; then echo "build_scripts: scope holds no targets outside manual" | tee -a "$log"; exit 2; fi
               universe="set($(sed 's/.*/"&"/' "$covered.tops" | tr '\n' ' '))"
+              scope="$(paste -sd, "$covered.tops")"
               printf 'kind("cargo_build_script", deps(%s))\n' "$universe" > "$covered.query"
               partial=0
               rc=0
@@ -320,13 +321,13 @@ jobs:
               : > "$covered"
               while read -r label hash; do
                 rc=0
-                on="$(bazel cquery --noshow_progress --collect_code_coverage "${flags[@]}" "config('$label', $hash)" --output=starlark --starlark:expr='str(build_options(target)["//command_line_option:collect_code_coverage"])' 2>>"$log" < /dev/null)" || rc=$?
+                on="$(bazel cquery --noshow_progress --collect_code_coverage "--universe_scope=$scope" "${flags[@]}" "config('$label', $hash)" --output=starlark --starlark:expr='str(build_options(target)["//command_line_option:collect_code_coverage"])' 2>>"$log" < /dev/null)" || rc=$?
                 if [ "$rc" -ne 0 ]; then cat "$log"; exit "$rc"; fi
                 [ "$on" = True ] || continue
                 echo "$label $hash" >> "$covered.labels"
                 echo "== $label ($hash)" >> "$covered"
                 printf "somepath(%s, config('%s', %s))\n" "$universe" "$label" "$hash" > "$covered.path"
-                bazel cquery --noshow_progress --collect_code_coverage "${flags[@]}" --query_file="$covered.path" 2>>"$log" >> "$covered" < /dev/null || rc=$?
+                bazel cquery --noshow_progress --collect_code_coverage "--universe_scope=$scope" "${flags[@]}" --query_file="$covered.path" 2>>"$log" >> "$covered" < /dev/null || rc=$?
                 if [ "$rc" -ne 0 ]; then cat "$log"; exit "$rc"; fi
               done < "$covered.instances"
               if [ "$partial" -eq 1 ]; then

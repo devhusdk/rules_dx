@@ -78,8 +78,8 @@ jobs:
           fi
           case "$host" in
             linux-*)
-              tools=(deadnix-$deadnix_version selene-$selene_version)
-              if test "$host" = "linux-arm64"; then tools+=(nixfmt-$nixfmt_version); fi
+              tools=("deadnix-$deadnix_version" "selene-$selene_version")
+              if test "$host" = "linux-arm64"; then tools+=("nixfmt-$nixfmt_version"); fi
               for tool in "${tools[@]}"; do
                 if readelf -l "$out/dx-tool-$tool-$host" | grep -q INTERP; then
                   echo "dx-tool-$tool-$host is dynamically linked" >&2

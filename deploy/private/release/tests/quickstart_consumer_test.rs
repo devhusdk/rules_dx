@@ -137,6 +137,22 @@ fn initial_rc() -> &'static str {
     if cfg!(windows) { WINDOWS_SYMLINKS } else { "" }
 }
 
+/// The sorted names of the repos in the case's output base, so a footprint above its budget names
+/// what it fetched.
+fn external_repos(case: &Case) -> String {
+    let info = bazel(case, &["info", "output_base"]);
+    let external = std::path::PathBuf::from(info.stdout.trim()).join("external");
+    let mut names: Vec<String> = std::fs::read_dir(&external)
+        .unwrap_or_else(|error| panic!("read {}: {error}", external.display()))
+        .filter_map(Result::ok)
+        .filter(|entry| entry.path().is_dir())
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .filter(|name| !name.starts_with('@') && !name.ends_with('@'))
+        .collect();
+    names.sort();
+    names.join(" ")
+}
+
 fn run_in(case: &Case, args: &[&str], what: &str) -> Run {
     crate::stage("quickstart_consumer_test", what);
     let run = bazel(case, args);
@@ -272,7 +288,7 @@ fn the_readme_quickstart_runs_as_written() {
         if cfg!(target_os = "linux")
             && let Err(error) = footprint::check_budget(&measured, &budget[stage])
         {
-            failures.push(format!("{name} {stage}:\n{error}"));
+            failures.push(format!("{name} {stage}:\n{error}\nrepos: {}", external_repos(&case)));
         }
     };
     within_budget("core", &core, "after_test");

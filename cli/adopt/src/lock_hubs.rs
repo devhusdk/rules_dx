@@ -257,8 +257,8 @@ pub fn plan_lock_hubs(root: &Path) -> Result<LockHubs, AdoptError> {
 }
 
 /// The ecosystems whose `setup.hubs` tag takes a `name` and a root `lock` label.
-const LOCK_TAG_ECOSYSTEMS: [&str; 9] = [
-    "composer", "luarocks", "dub", "zig", "swiftpm", "hex", "cabal", "opam", "cpan",
+const LOCK_TAG_ECOSYSTEMS: [&str; 10] = [
+    "composer", "luarocks", "dub", "zig", "swiftpm", "hex", "cabal", "opam", "cpan", "ruby",
 ];
 
 fn plan_with(

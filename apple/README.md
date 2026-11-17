@@ -64,7 +64,7 @@ installs, or launches a simulator.
 
 ```python
 load("@rules_dx//apple:defs.bzl", "apple_ios_app", "apple_ios_app_test")
-load("@rules_rust//rust:defs.bzl", "rust_static_library")
+load("@rules_dx//rust:defs.bzl", "rust_static_library")
 
 rust_static_library(
     name = "ledger_rust",
@@ -299,7 +299,7 @@ platform, never merged by architecture name.
 
 ```python
 load("@rules_dx//apple:defs.bzl", "apple_ios_xcframework")
-load("@rules_rust//rust:defs.bzl", "rust_static_library")
+load("@rules_dx//rust:defs.bzl", "rust_static_library")
 
 rust_static_library(
     name = "share_rust",
@@ -404,7 +404,7 @@ and ships it signed ad hoc.
 
 ```python
 load("@rules_dx//apple:defs.bzl", "apple_macos_app")
-load("@rules_rust//rust:defs.bzl", "rust_static_library")
+load("@rules_dx//rust:defs.bzl", "rust_static_library")
 
 rust_static_library(
     name = "ledger_rust",
@@ -441,19 +441,6 @@ The app needs `srcs`, `library`, or both. `frameworks` takes frameworks
 `<bundle_name>.bundle`, binaries, or files placed by their package-relative
 path under `Contents/PlugIns`. Without `infoplists`, the app gets a default
 `Info.plist`.
-
-Your `MODULE.bazel` needs the Rust macOS triple:
-
-```python
-rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
-rust.toolchain(
-    edition = "2021",
-    extra_target_triples = ["aarch64-apple-darwin"],
-)
-use_repo(rust, "rust_toolchains")
-
-register_toolchains("@rust_toolchains//:all")
-```
 
 ```sh
 bazel build //:ledger

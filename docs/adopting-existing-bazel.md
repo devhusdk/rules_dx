@@ -2,7 +2,8 @@
 
 1. Commit a clean tree and run `bazel test //...`. It must pass.
 
-2. Add the dep to `MODULE.bazel`:
+2. Install `dx` as in the [tutorial](tutorial.md#install). Add the dep to
+   `MODULE.bazel`:
 
    ```python
    bazel_dep(name = "rules_dx", version = "...")
@@ -11,8 +12,8 @@
 3. Preview, then write the files:
 
    ```sh
-   bazel run @rules_dx//:dx -- init
-   bazel run @rules_dx//:dx -- init --apply
+   dx init
+   dx init --apply
    ```
 
    Commit `MODULE.bazel.lock`. See [Init](cli/commands/init.md).

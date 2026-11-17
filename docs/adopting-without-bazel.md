@@ -12,16 +12,13 @@ repo root:
 ```sh
 dx init
 dx init --apply
-dx generate --apply
 ```
 
-`dx init` shows what it would write. `--apply` writes it. `dx generate` writes
-the `BUILD.bazel` files from your manifests.
-
-Declare the lock files in `MODULE.bazel` yourself. Add a `crate.from_cargo`
-stanza for `Cargo.lock`, a `uv.project` stanza for `uv.lock` and an
-`npm_translate_lock` stanza for your JavaScript lock file. `dx update` reads
-them, so your manifest and lock file stay the source of truth.
+`dx init` shows what it would write. `--apply` writes it: `MODULE.bazel` with
+one stanza per lock file, `.bazelversion`, `.bazelrc` and `tools/dx`. It ends
+with `dx generate`, which writes the `BUILD.bazel` files from your manifests.
+`dx update` reads the lock file stanzas, so your manifest and lock file stay the
+source of truth.
 
 ## Commands
 

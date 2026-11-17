@@ -244,7 +244,6 @@ private-visibility android/private/packaging/ops/BUILD.bazel
 private-visibility android/private/toolchain/BUILD.bazel
 private-visibility apple/private/bundle/BUILD.bazel
 private-visibility apple/private/ios/BUILD.bazel
-private-visibility apple/private/macos/BUILD.bazel
 private-visibility apple/private/provisioning/BUILD.bazel
 private-visibility apple/private/tools/ops/BUILD.bazel
 private-visibility astro/private/BUILD.bazel
@@ -260,7 +259,6 @@ private-visibility d/private/toolchain/BUILD.bazel
 private-visibility dart/private/BUILD.bazel
 private-visibility dart/private/bench/BUILD.bazel
 private-visibility dart/private/tools/BUILD.bazel
-private-visibility dart/private/tools/dart_apitool/BUILD.bazel
 private-visibility dotnet/private/fuzz/BUILD.bazel
 private-visibility elixir/private/bench/BUILD.bazel
 private-visibility elixir/private/tools/BUILD.bazel
@@ -275,7 +273,6 @@ private-visibility fortran/private/toolchain/BUILD.bazel
 private-visibility haskell/private/toolchain/BUILD.bazel
 private-visibility haskell/private/tools/hlint/bin/BUILD.bazel
 private-visibility haskell/private/tools/ormolu/bin/BUILD.bazel
-private-visibility haskell/private/tools/weeder/BUILD.bazel
 private-visibility java/private/jmh/BUILD.bazel
 private-visibility javascript/private/BUILD.bazel
 private-visibility javascript/private/quality/bin/BUILD.bazel
@@ -286,7 +283,6 @@ private-visibility julia/private/tools/BUILD.bazel
 private-visibility julia/private/tools/jet/BUILD.bazel
 private-visibility julia/private/tools/lint/BUILD.bazel
 private-visibility kotlin/private/BUILD.bazel
-private-visibility kotlin/private/toolchain/BUILD.bazel
 private-visibility lua/private/BUILD.bazel
 private-visibility lua/private/quality/BUILD.bazel
 private-visibility lua/private/toolchain/BUILD.bazel
@@ -300,7 +296,6 @@ private-visibility ocaml/private/toolchain/platform/emitter/BUILD.bazel
 private-visibility ocaml/private/toolchain/platform/executor/BUILD.bazel
 private-visibility ocaml/private/tools/BUILD.bazel
 private-visibility perl/private/BUILD.bazel
-private-visibility perl/private/coverage/BUILD.bazel
 private-visibility perl/private/tools/BUILD.bazel
 private-visibility php/private/toolchain/BUILD.bazel
 private-visibility php/private/tools/BUILD.bazel
@@ -314,7 +309,6 @@ private-visibility rust/private/BUILD.bazel
 private-visibility rust/private/bench_report/BUILD.bazel
 private-visibility rust/private/quality/tools/BUILD.bazel
 private-visibility rust/private/tools/msvc_paths/BUILD.bazel
-private-visibility scala/private/toolchain/BUILD.bazel
 private-visibility swift/private/BUILD.bazel
 private-visibility swift/private/bench/BUILD.bazel
 private-visibility swift/private/platforms/BUILD.bazel

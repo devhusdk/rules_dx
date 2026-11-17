@@ -19,7 +19,7 @@ alias(
         ":coverage_on": ":collector_files",
         "//conditions:default": ":none",
     }),
-    visibility = ["//visibility:public"],
+    visibility = ["//:__subpackages__"],
 )
 
 filegroup(
@@ -31,7 +31,7 @@ perl_library(
     name = "dx_lcov",
     srcs = ["DxLcov.pm"],
     tags = ["manual"],
-    visibility = ["//visibility:public"],
+    visibility = ["//:__subpackages__"],
 )
 
 real_source_target(

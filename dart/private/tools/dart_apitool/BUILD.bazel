@@ -3,7 +3,7 @@ load("//dart:defs.bzl", "dart_binary")
 
 # gazelle:dx_external pub dart/private/tools/dart_apitool/pubspec.lock dart_apitool_deps
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//:__subpackages__"])
 
 exports_files([
     "pubspec.lock",

@@ -1,14 +1,13 @@
 """The rules_dx python extension: one interpreter toolchain hub with no version target setting."""
 
 _TOOLCHAINS_ON = str(Label("//config:toolchains_on"))
-_LIBC_FLAG = "@rules_py//uv/private/constraints/platform:platform_libc"
 
 _PLATFORMS = {
-    "aarch64-apple-darwin": struct(os = "macos", cpu = "aarch64", libc = None),
-    "aarch64-pc-windows-msvc": struct(os = "windows", cpu = "aarch64", libc = None),
-    "aarch64-unknown-linux-gnu": struct(os = "linux", cpu = "aarch64", libc = "glibc"),
-    "x86_64-pc-windows-msvc": struct(os = "windows", cpu = "x86_64", libc = None),
-    "x86_64-unknown-linux-gnu": struct(os = "linux", cpu = "x86_64", libc = "glibc"),
+    "aarch64-apple-darwin": struct(os = "macos", cpu = "aarch64"),
+    "aarch64-pc-windows-msvc": struct(os = "windows", cpu = "aarch64"),
+    "aarch64-unknown-linux-gnu": struct(os = "linux", cpu = "aarch64"),
+    "x86_64-pc-windows-msvc": struct(os = "windows", cpu = "x86_64"),
+    "x86_64-unknown-linux-gnu": struct(os = "linux", cpu = "x86_64"),
 }
 
 def _repo_name(version, triple):
@@ -27,11 +26,6 @@ def _hub_impl(rctx):
     version = rctx.attr.python_version
     lines = [
         'package(default_visibility = ["//visibility:public"])',
-        "",
-        "config_setting(",
-        '    name = "libc_glibc",',
-        '    flag_values = {"%s": "glibc"},' % _LIBC_FLAG,
-        ")",
     ]
     for triple, platform in sorted(_PLATFORMS.items()):
         repo = _repo_name(version, triple)
@@ -39,7 +33,7 @@ def _hub_impl(rctx):
             "@platforms//os:" + platform.os,
             "@platforms//cpu:" + platform.cpu,
         ]
-        settings = [_TOOLCHAINS_ON] + ([":libc_glibc"] if platform.libc else [])
+        settings = [_TOOLCHAINS_ON]
         for suffix, target, toolchain_type, target_side in [
             ("", "runtime", "@bazel_tools//tools/python:toolchain_type", True),
             ("_py_cc", "py_cc_toolchain", "@rules_python//python/cc:toolchain_type", True),

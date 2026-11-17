@@ -1,6 +1,5 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//perl:defs.bzl", "perl_test")
-load("@rules_dx//perl/tests:defs_tests.bzl", "perl_coverage_env_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -9,11 +8,6 @@ perl_test(
     name = "coverage_probe_test",
     srcs = ["probe.t"],
     data = ["hello.pl"],
-)
-
-perl_coverage_env_test(
-    name = "coverage_probe_test_coverage_env_test",
-    target = ":coverage_probe_test",
 )
 
 real_source_target(

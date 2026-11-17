@@ -166,7 +166,7 @@ impl ScriptRunner {
         } else if argv.contains(&"uv".to_owned())
             && argv
                 .iter()
-                .any(|arg| arg.contains("python/tests/fixtures/adopt-python"))
+                .any(|arg| arg.contains("python/tests/fixtures/adopt_python"))
         {
             "uv-adopt".to_owned()
         } else if argv.contains(&"uv".to_owned())
@@ -177,7 +177,7 @@ impl ScriptRunner {
             "uv-adopt-polyglot".to_owned()
         } else if argv
             .iter()
-            .any(|arg| arg.contains("javascript/tests/fixtures/adopt-js-ts"))
+            .any(|arg| arg.contains("javascript/tests/fixtures/adopt_js_ts"))
         {
             "npm-adopt".to_owned()
         } else if argv

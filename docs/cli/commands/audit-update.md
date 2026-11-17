@@ -47,7 +47,7 @@ A scope selects sets by path. A `...` scope selects the nearest set above it in 
 //examples/adopt-polyglot/...                                                         npm-adopt-polyglot, uv-adopt-polyglot
 ```
 
-Adopt fixtures under `tests/fixtures/adopt-*` select their own `-adopt` set. `//...` and `MODULE.bazel` select every set.
+Adopt fixtures under `tests/fixtures/adopt_*` select their own `-adopt` set. `//...` and `MODULE.bazel` select every set.
 
 ### Security
 

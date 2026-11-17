@@ -1205,11 +1205,11 @@ fn audit_errors_stay_typed_with_stable_display() {
     use std::error::Error as _;
     assert_eq!(
         AuditError::NoOwningSet {
-            scope: "cc/tests/fixtures/adopt-cpp/solo:solo".to_owned(),
+            scope: "cc/tests/fixtures/adopt_cpp/solo:solo".to_owned(),
             sets: "cargo, go, npm".to_owned(),
         }
         .to_string(),
-        "no owning dependency set for \"cc/tests/fixtures/adopt-cpp/solo:solo\"; audited sets: cargo, go, npm"
+        "no owning dependency set for \"cc/tests/fixtures/adopt_cpp/solo:solo\"; audited sets: cargo, go, npm"
     );
     let read = AuditError::Read {
         rel: dx_ecosystems::Ecosystem::Npm.lockfiles()[0].clone(),

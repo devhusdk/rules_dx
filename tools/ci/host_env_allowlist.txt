@@ -1,6 +1,6 @@
 .bazelrc rc-env-passthrough 1
-android/tests/fixtures/adopt-android/app/BUILD.bazel sh-rule 1
-android/tests/fixtures/adopt-android/app/inspect_apk.sh shebang 1
+android/tests/fixtures/adopt_android/app/BUILD.bazel sh-rule 1
+android/tests/fixtures/adopt_android/app/inspect_apk.sh shebang 1
 android/tests/fixtures/native_lib/BUILD.bazel default-shell-env 1
 android/tests/fixtures/rust_apk/BUILD.bazel genrule 1
 android/tests/fixtures/rust_apk/BUILD.bazel sh-rule 29
@@ -239,7 +239,7 @@ qt/tests/fixtures/qt_rust/app/ledger_symbols_test.sh shebang 1
 qt/tests/qt_test.rs host-path 1
 rego/tests/BUILD.bazel genrule 1
 rust/private/defs.bzl env-inherit 1
-rust/tests/fixtures/adopt-rust/crates/api/BUILD.bazel default-shell-env 1
+rust/tests/fixtures/adopt_rust/crates/api/BUILD.bazel default-shell-env 1
 rust/tests/fixtures/bench/BUILD.bazel sh-rule 1
 rust/tests/fixtures/bench/run_test.sh shebang 1
 rust/tests/fixtures/cc_optout/BUILD.bazel default-shell-env 1

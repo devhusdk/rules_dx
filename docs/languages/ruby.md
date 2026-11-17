@@ -140,7 +140,7 @@ ruby_test(
 ## Generate
 
 `dx generate` writes `ruby_library` and `ruby_test` targets from your `.rb`
-files and `require` lines. The command reference covers `dx generate`. The `ruby/tests/fixtures/adopt-ruby` tree shows a full run.
+files and `require` lines. The command reference covers `dx generate`. The `ruby/tests/fixtures/adopt_ruby` tree shows a full run.
 
 ## Quality
 

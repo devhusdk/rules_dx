@@ -129,7 +129,7 @@ pub fn vuln_locks(set: &str) -> Result<Vec<String>, PrepError> {
             "package-lock.json".to_owned(),
             "yarn.lock".to_owned(),
         ],
-        "npm-adopt" => vec![under("javascript/tests/fixtures/adopt-js-ts", "npm")?],
+        "npm-adopt" => vec![under("javascript/tests/fixtures/adopt_js_ts", "npm")?],
         "npm-adopt-polyglot" => vec![under("examples/adopt-polyglot", "npm")?],
         "npm-tools" => vec![under("javascript/private/quality", "npm")?],
         "maven" => vec![under("third_party/jvm", "maven")?],
@@ -138,7 +138,7 @@ pub fn vuln_locks(set: &str) -> Result<Vec<String>, PrepError> {
         "go" => vec![format!("third_party/go/{}", go_manifest()?)],
         "ruby" | "rubygems" => vec![
             under("third_party/ruby", "ruby")?,
-            under("ruby/tests/fixtures/adopt-ruby", "ruby")?,
+            under("ruby/tests/fixtures/adopt_ruby", "ruby")?,
         ],
         _ => Vec::new(),
     })
@@ -306,7 +306,7 @@ mod tests {
         );
         assert_eq!(
             vuln_locks("npm-adopt"),
-            [format!("javascript/tests/fixtures/adopt-js-ts/{pnpm}")]
+            [format!("javascript/tests/fixtures/adopt_js_ts/{pnpm}")]
         );
         assert_eq!(
             vuln_locks("npm-adopt-polyglot"),
@@ -340,7 +340,7 @@ mod tests {
             vuln_locks("ruby"),
             [
                 format!("third_party/ruby/{gemfile}"),
-                format!("ruby/tests/fixtures/adopt-ruby/{gemfile}"),
+                format!("ruby/tests/fixtures/adopt_ruby/{gemfile}"),
             ]
         );
         assert!(!is_empty_set("ruby"));

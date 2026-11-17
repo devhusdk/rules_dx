@@ -34,7 +34,7 @@ read `.fsproj` files. A file comes after every sibling it uses:
 A `Name.fsi` signature file goes right before its `Name.fs`. A lone `.fsi` is
 refused. When two files need each other, generation stops and names one edge,
 for example `A.fs -> B.fs (B)`; split the directory or list `srcs` by hand. The
-`fsharp/tests/fixtures/adopt-fsharp` tree shows a full run.
+`fsharp/tests/fixtures/adopt_fsharp` tree shows a full run.
 
 ### NuGet packages
 

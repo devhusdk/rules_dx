@@ -72,6 +72,10 @@ workspace_policy(
             "//conditions:default": ["//core/quality/tiers/scalafix:standard"],
         }) +
         select({
+            "//config:config_tier_strict": ["//core/quality/tiers/regal:strict"],
+            "//conditions:default": ["//core/quality/tiers/regal:standard"],
+        }) +
+        select({
             "//config:config_tier_strict": ["//core/quality/tiers/roslyn:strict"],
             "//conditions:default": ["//core/quality/tiers/roslyn:standard"],
         }) +

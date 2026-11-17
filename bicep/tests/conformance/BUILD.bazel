@@ -1,0 +1,55 @@
+# gazelle:ignore
+load("//bicep:defs.bzl", "bicep_library")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+bicep_library(
+    name = "conformance",
+    srcs = ["clean.bicep"],
+)
+
+bicep_library(
+    name = "lint_dirty",
+    srcs = ["lint_dirty.bicep"],
+    tags = ["manual"],
+)
+
+bicep_library(
+    name = "format_dirty",
+    srcs = ["format_dirty.bicep"],
+    tags = ["manual"],
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":conformance",
+    covered_source = "",
+    expected = "",
+    failing_case = "",
+    failing_test = ":conformance",
+    lang = "bicep",
+    not_applicable = {
+        "build_test": "bicep has no binary rule",
+        "coverage_test": "bicep has no test rule",
+        "cross_test": "bicep has no binary rule",
+        "fail_test": "bicep has no test rule",
+        "lock_test": "bicep has no package manager",
+        "pass_test": "bicep has no test rule",
+        "runfiles_test": "bicep has no binary rule",
+    },
+    passing_test = ":conformance",
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "format_dirty.bicep",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 1,
+        "lint_rule": "no-unused-params",
+        "lint_source": "lint_dirty.bicep",
+    },
+)

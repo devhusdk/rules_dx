@@ -25,6 +25,7 @@ _QUALITY_CONFIG = "default"
 _QUALITY_CONFIGS = {
     "api_spec": "shared",
     "avro": "shared",
+    "bicep": "shared",
     "cmake": "shared",
     "csharp": "shared",
     "dart": "tool_overrides",
@@ -39,9 +40,11 @@ _QUALITY_CONFIGS = {
     "perl": "tool_overrides",
     "php": "tool_overrides",
     "powershell": "tool_overrides",
+    "rego": "shared",
     "ruby": "tool_overrides",
     "sql": "shared",
     "swift": "tool_overrides",
+    "terraform": "shared",
 }
 
 _core_format_subject = config_subject_rule([real_format_aspect], [OutputGroupInfo])

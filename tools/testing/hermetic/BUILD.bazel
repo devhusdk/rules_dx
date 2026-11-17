@@ -1023,8 +1023,10 @@ hermetic_qualification(
     files = {
         "consumers/rust_wasm/main.rs": "main.rs",
         "consumers/rust_wasm/root.BUILD.bazel": "BUILD.bazel",
+        "consumers/rust_wasm/web.rs": "web.rs",
     },
     languages = ["rust"],
+    module_fragment = "consumers/rust_wasm/module_fragment.bazel",
     patterns = [
         "//:tool_wasi",
         "//:tool_web",

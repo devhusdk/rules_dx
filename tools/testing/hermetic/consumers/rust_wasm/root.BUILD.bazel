@@ -2,9 +2,10 @@ load("@rules_dx//rust:defs.bzl", "rust_binary")
 
 rust_binary(
     name = "tool_web",
-    srcs = ["main.rs"],
-    crate_root = "main.rs",
+    srcs = ["web.rs"],
+    crate_root = "web.rs",
     wasm = "browser",
+    deps = ["@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen"],
 )
 
 rust_binary(

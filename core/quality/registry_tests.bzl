@@ -42,7 +42,12 @@ def registry_unit_tests(name):
             expect_equal(
                 "lang.json quality languages without classes",
                 sorted([lang for lang, row in LANGS.items() if "quality" in row and "classes" not in row["quality"]]),
-                ["capnproto", "dotnet", "qt"],
+                ["dotnet"],
+            ),
+            expect_equal(
+                "taxonomy keys a lang.json row by its quality family",
+                [TAXONOMY["capnp"].owner, TAXONOMY["qml"].owner, TAXONOMY["qml"].classes, "capnproto" in TAXONOMY],
+                ["//capnproto:defs.bzl", "//qt:defs.bzl", ["qml"], False],
             ),
             expect_equal(
                 "taxonomy keeps the lang.json classes and owner",

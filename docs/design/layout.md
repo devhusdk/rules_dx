@@ -119,6 +119,7 @@ examples/   tested examples
 - A test validates every manifest against one shared schema.
 - It drives quality registration, the dx ecosystem registry, `dx init`, the support matrix and the per-language docs.
 - Its `quality` entry names the aspect file, aspects and probes. dx loads the file when the workspace has a file with an extension in `file_extensions` or a name in `file_names` alone or before a dot.
+- `quality.classes` lists the file classes of its quality taxonomy row, keyed by `quality.family` or else by `name`.
 - `cli/families/languages.json` is generated from the `quality` and `docs` entries and read by the dx plan registry.
 
 ## Tool pins

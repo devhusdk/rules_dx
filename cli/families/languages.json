@@ -213,6 +213,10 @@
           ]
         },
         "bzl": "core/quality:families/generation.bzl",
+        "classes": [
+          "capnp"
+        ],
+        "family": "capnp",
         "file_extensions": [
           ".capnp"
         ]
@@ -1528,6 +1532,10 @@
       "name": "qt",
       "quality": {
         "bzl": "cc/private/quality:cc.bzl",
+        "classes": [
+          "qml"
+        ],
+        "family": "qml",
         "file_extensions": [
           ".qml"
         ]

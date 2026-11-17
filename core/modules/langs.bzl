@@ -441,6 +441,10 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "core/quality:families/generation.bzl",
+      "classes": [
+        "capnp"
+      ],
+      "family": "capnp",
       "file_extensions": [
         ".capnp"
       ]
@@ -2778,6 +2782,10 @@ LANGS = json.decode("""{
     ],
     "quality": {
       "bzl": "cc/private/quality:cc.bzl",
+      "classes": [
+        "qml"
+      ],
+      "family": "qml",
       "file_extensions": [
         ".qml"
       ]

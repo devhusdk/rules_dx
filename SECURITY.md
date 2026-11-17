@@ -1,11 +1,9 @@
 # Security Policy
 
-## Reporting Vulnerabilities
+This page tells you how to report a security problem in rules_dx privately.
 
-Report vulnerabilities through GitHub private vulnerability reporting.
-Do not open public issues.
+## Report a vulnerability
 
-[Submit a private vulnerability report](https://github.com/devhusdk/rules_dx/security/advisories/new)
-
-Include the affected version, impact, and reproduction steps.
-Do not include credentials.
+1. Open a [private vulnerability report](https://github.com/devhusdk/rules_dx/security/advisories/new) on GitHub. Do not open a public issue.
+2. Include the affected version, the impact, and the steps to reproduce it.
+3. Leave out credentials, tokens and other secrets.

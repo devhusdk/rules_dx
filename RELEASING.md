@@ -1,74 +1,109 @@
 # Releasing rules_dx
 
-Run these steps in order. Replace `X.Y.Z` with the version.
+This page walks you through a release, from the version bump to the Bazel Central Registry (BCR), the public index that Bazel downloads modules from. Do the steps in order. The first release is `v0.1.0`, so the examples use `0.1.0`; for a later release, put your version in its place.
 
-## 1. Bump the version
+You need `gh` on `PATH`, logged in to `devhusdk/rules_dx` with rights to push tags, run workflows and publish releases.
 
-Set `X.Y.Z` by hand in these places and merge to `main`. `bazel run //deploy/private/release:bump_version -- X.Y.Z` edits them all:
+## 1. Rehearse on main
+
+A dry run builds and checks every release file without uploading anything. Run it on `main` before you bump the version:
+
+```sh
+gh workflow run release.yml --ref main -f dry_run=true -f approve=true
+```
+
+`approve=true` also checks line coverage in every cell, a cell being one platform's build of `dx`. Without it the run builds and reports only. The run summary says `published: **no**`. Fix anything it reports before you go on.
+
+## 2. Bump the version
+
+```sh
+bazel run //deploy/private/release:bump_version -- 0.1.0
+```
+
+It sets the version in:
 
 - `MODULE.bazel`: `module(version = ...)`
 - `cli/prebuilt/pins.bzl`: `DX_VERSION`
-- `cli/adopt/src/version.rs`: `DX_VERSION`
-- `cli/adopt/src/version.rs`: `MODULE_VERSION`
+- `cli/adopt/src/version.rs`: `DX_VERSION` and `MODULE_VERSION`
 - `cli/shim/src/protocol.rs`: `SHIM_VERSION`
 
-It also points every `devhusdk/rules_dx/.github/actions/assert-no-secret@<sha>` and `devhusdk/rules_dx/.github/actions/remote-cache-helper@<sha>` reference in `reusable-consumer.yml` and `reusable-docs.yml` at the `--workflow-ref` commit (default `origin/main`) and refreshes `tools/ci/starter_pin.sha256`.
+It also points the `assert-no-secret` and `remote-cache-helper` action pins in `reusable-consumer.yml` and `reusable-docs.yml` at a commit of `main`, and refreshes `tools/ci/starter_pin.sha256`. The commit is `origin/main` unless you pass `--workflow-ref <commit>`.
 
-The `source` job in `release.yml` compares the first four with the tag, and the source archive step compares `MODULE.bazel` with it. A mismatch fails with `land the version bump first`.
+Open a pull request with the result and merge it to `main`.
 
-## 2. Tag
+## 3. Tag the release commit
 
-```sh
-git tag vX.Y.Z <commit>
-git push origin vX.Y.Z
-```
-
-The tag must name the commit you want to release. The `source` job fails if it does not.
-
-## 3. Create the draft
+Tag the merged bump commit and push the tag:
 
 ```sh
-GITHUB_PUBLISH_APPROVED=1 tools/dx deploy --apply //cli/cli:github_draft -- vX.Y.Z
+git fetch origin
+git tag v0.1.0 <commit>
+git push origin v0.1.0
 ```
 
-This creates a draft with release notes only. It carries no binaries. It needs `gh` on `PATH` and logged in, and the tag on GitHub. Without `--apply` and the approval variable it stages a dry run and publishes nothing.
+The release workflow checks that `MODULE.bazel`, `cli/prebuilt/pins.bzl` and both constants in `cli/adopt/src/version.rs` say `0.1.0`. If one does not, it fails with `land the version bump first`.
 
-## 4. Run the release workflow
+## 4. Create the draft release
 
 ```sh
-gh workflow run release.yml --ref vX.Y.Z
+tools/dx deploy //cli/cli:github_draft -- v0.1.0
+GITHUB_PUBLISH_APPROVED=1 tools/dx deploy --apply //cli/cli:github_draft -- v0.1.0
 ```
 
-The release has one source archive, `rules_dx-X.Y.Z.tar.gz`, and one source file, `source.json`.
+The first command is a dry run: it stages the draft and prints what it would do. The second creates a draft release with the release notes and no files. The tag must already be on GitHub.
 
-The workflow builds every cell, writes `dx-sha256sums.txt` and, for the pure-Go `dx-gazelle-<os>-<cpu>` binaries, a separate `dx-gazelle-sha256sums.txt`, builds the `dx-tool-<tool>-<version>-<host>` quality and coverage tool binaries with their licences, the deadnix source crate, the kcov source archive and the `dx-python-tools-<host>.tar.gz` Python quality tool bundles and lists them in `dx-tool-sha256sums.txt`, fills the sha256 values into `SHA256` and `GAZELLE_SHA256` in the `cli/prebuilt/pins.bzl` of the release source archive, attests the three manifests and the source archive (`rules_dx-X.Y.Z.tar.gz.intoto.jsonl`), and uploads the assets to the draft through `release_driver`. `main` keeps the pins empty. The assets job writes the `release-ledger/v1` JSON to `$RUNNER_TEMP/ledger.json` and uploads it as the `release-ledger` artifact. It fails when:
+## 5. Build and upload the release files
 
-- there is no release for the tag (go back to step 3)
-- the release already holds a different file of the same name (delete that asset by hand)
-- the release holds an asset outside the manifest, the source archive, its `.sha256`, or `source.json` (delete that asset by hand)
-- an archive does not verify against the attestation bundle
+```sh
+gh workflow run release.yml --ref v0.1.0
+```
 
-## 5. Publish
+Run it from the tag: the workflow only attests the files when it runs on the tag. It builds `dx` for every platform and uploads to the draft:
 
-Check the draft on GitHub, then publish it. The assets job has already unpacked the Linux archive and run `dx --version` as a final check.
+- the source archive `rules_dx-0.1.0.tar.gz`, its `.sha256`, its attestation `rules_dx-0.1.0.tar.gz.intoto.jsonl`, and `source.json`
+- the `dx` archives, listed in `dx-sha256sums.txt`
+- the `dx-gazelle-<os>-<cpu>` binaries, listed in `dx-gazelle-sha256sums.txt`
+- the `dx-tool-<tool>-<version>-<host>` quality and coverage tools with their licences, the deadnix source crate, the kcov source archive and the `dx-python-tools-<host>.tar.gz` bundles, listed in `dx-tool-sha256sums.txt`
 
-Publishing starts `release-consumer.yml`. It builds the quickstart consumer against the published source archive on all five platforms and checks that `@rules_dx//:dx` is the prebuilt download and prints the released version. Do not submit to the BCR (step 6) until it is green. To rerun it, dispatch it with the tag.
+The source archive's `cli/prebuilt/pins.bzl` has the `SHA256` and `GAZELLE_SHA256` values filled in, so consumers download the prebuilt `dx`. On `main` those pins stay empty. The workflow also unpacks the Linux archive and runs `dx --version`, and uploads a `release-ledger` artifact that records the release.
 
-## 6. Submit to the Bazel Central Registry
+It fails when:
 
-Submission is automatic. When every `consumer` cell in `release-consumer.yml` is green, its `bcr` job calls the `bazel-contrib/publish-to-bcr` reusable workflow (pinned by SHA, `attest: true`; that job alone holds `contents: write`, `id-token: write` and `attestations: write`). It reads `.bcr/config.yml` for the module roots, pushes a branch to the registry fork and opens one pull request that adds `rules_dx` at `X.Y.Z`. The `bcr-ledger` job then records the pull request URL in the `bcr-ledger` artifact and the run summary, or records `failed` when the submission did not succeed.
+- there is no draft for the tag: go back to step 4
+- the tag does not point at the commit being released
+- the draft already holds a different file with the same name: delete that file from the draft
+- the draft holds a file the release does not list: delete that file from the draft
+- a file does not match its attestation
 
-One-time setup, done by the owner:
+After you fix the cause, run the workflow again with the same command.
 
-- the repository variable `BCR_REGISTRY_FORK`, for example `owner/bazel-central-registry`. While it is unset the `bcr` job is skipped.
+## 6. Publish
+
+Open the draft on GitHub, check the notes and files, and publish it.
+
+Publishing starts `release-consumer.yml`. It builds a small consumer project against the published source archive on each platform and checks that `@rules_dx//:dx` is the prebuilt download and prints `0.1.0`. To run it again:
+
+```sh
+gh workflow run release-consumer.yml -f tag=v0.1.0
+```
+
+Wait until every `consumer` job is green.
+
+## 7. Submit to the Bazel Central Registry
+
+Once every `consumer` job is green, the `bcr` job in `release-consumer.yml` opens a draft pull request on the BCR that adds `rules_dx` at `0.1.0`. It reads the module root from `.bcr/config.yml`. The `bcr-ledger` job then records the pull request URL, or `failed`, in the run summary and the `bcr-ledger` artifact.
+
+Before the first release, the owner sets up two things once:
+
+- the repository variable `BCR_REGISTRY_FORK`, the owner's fork of the registry, for example `owner/bazel-central-registry`. While it is unset the `bcr` job is skipped.
 - the repository secret `BCR_PUBLISH_TOKEN`, a classic personal access token with the `repo` and `workflow` scopes that can push to that fork.
 
-The pull request opens as a draft. The owner reviews it, waits for BCR CI, and marks it ready for review.
+The owner reviews the BCR pull request, waits for BCR CI, and marks it ready for review.
 
-If the job is skipped or fails, check the entry by hand and open the pull request yourself:
+If the `bcr` job is skipped or fails, check the entry by hand:
 
 ```sh
 BCR_DRY_RUN=1 bazel run //deploy/private/release:bcr_demo
 ```
 
-It prints the pull request it would open and submits nothing. A failure names the field that is missing or does not match the module. Open one BCR pull request that adds `rules_dx` at `X.Y.Z` with the `source.json` from the release.
+It prints the pull request it would open and submits nothing. A failure names the field that is missing or does not match the module. Then open one BCR pull request yourself that adds `rules_dx` at `0.1.0` with the `source.json` from the release.

@@ -1,47 +1,54 @@
-//! Proxy choice from `https_proxy`, `http_proxy`, `all_proxy` and `no_proxy`.
+//! Proxy choice from `https_proxy`, `all_proxy`, `http_proxy` and `no_proxy`.
 
 use ureq::Proxy;
 
 use crate::Error;
 
-/// The proxy for each URL scheme, with the `no_proxy` hosts built in.
-#[derive(Clone, Debug, Default)]
+/// The variables that name the proxy, first set one wins. `http_proxy` comes last so a
+/// host that sets only it still reaches `https://` URLs through it, as ureq's own
+/// `Proxy::try_from_env` does.
+const PROXY_VARIABLES: [&str; 6] = [
+    "https_proxy",
+    "HTTPS_PROXY",
+    "all_proxy",
+    "ALL_PROXY",
+    "http_proxy",
+    "HTTP_PROXY",
+];
+
+/// The proxy for `https://` URLs, with the `no_proxy` hosts built in.
+///
+/// ureq talks to an HTTP proxy only through `CONNECT`, which many proxies refuse for
+/// port 80, so `http://` URLs (local mirrors and test servers) go direct.
+#[derive(Clone, Debug)]
 pub(crate) struct Proxies {
-    https: Option<Proxy>,
-    http: Option<Proxy>,
+    /// A bad value only fails the requests that would use it.
+    https: Result<Option<Proxy>, Error>,
 }
 
 impl Proxies {
-    /// Reads the proxy variables through `env`; a variable that is set but is not a proxy URL is an error.
-    pub(crate) fn from_env(env: &dyn Fn(&str) -> Option<String>) -> Result<Self, Error> {
+    /// Reads the proxy variables through `env`.
+    pub(crate) fn from_env(env: &dyn Fn(&str) -> Option<String>) -> Self {
         let bypass = first(env, &["no_proxy", "NO_PROXY"])
             .map(|(_, value)| bypass_entries(&value))
             .unwrap_or_default();
-        let https = first(
-            env,
-            &["https_proxy", "HTTPS_PROXY", "all_proxy", "ALL_PROXY"],
-        );
-        let http = first(env, &["http_proxy", "HTTP_PROXY", "all_proxy", "ALL_PROXY"]);
-        Ok(Self {
-            https: https
+        Self {
+            https: first(env, &PROXY_VARIABLES)
                 .map(|(name, value)| proxy(name, &value, &bypass))
-                .transpose()?,
-            http: http
-                .map(|(name, value)| proxy(name, &value, &bypass))
-                .transpose()?,
-        })
+                .transpose(),
+        }
     }
 
-    /// The proxy for `url`, picked by its scheme. ureq applies the `no_proxy` hosts on every redirect hop.
-    pub(crate) fn for_url(&self, url: &str) -> Option<Proxy> {
-        let scheme = url.split_once("://").map(|(scheme, _)| scheme)?;
-        if scheme.eq_ignore_ascii_case("https") {
-            self.https.clone()
-        } else if scheme.eq_ignore_ascii_case("http") {
-            self.http.clone()
-        } else {
-            None
-        }
+    /// The proxy for `url`, picked by its scheme. ureq keeps it for every redirect hop
+    /// and applies the `no_proxy` hosts on each one.
+    ///
+    /// # Errors
+    /// Fails when `url` needs the proxy and its variable is not a proxy URL.
+    pub(crate) fn for_url(&self, url: &str) -> Result<Option<Proxy>, Error> {
+        let https = url
+            .split_once("://")
+            .is_some_and(|(scheme, _)| scheme.eq_ignore_ascii_case("https"));
+        if https { self.https.clone() } else { Ok(None) }
     }
 }
 
@@ -113,48 +120,60 @@ mod tests {
         url.parse().expect("uri")
     }
 
-    #[test]
-    fn each_scheme_reads_its_own_variable() {
-        let proxies = Proxies::from_env(&env(&[
-            ("HTTPS_PROXY", "http://secure.proxy:3128"),
-            ("http_proxy", "plain.proxy:8080"),
-        ]))
-        .expect("proxies");
-        let https = proxies
+    fn https_proxy(pairs: &'static [(&'static str, &'static str)]) -> Proxy {
+        Proxies::from_env(&env(pairs))
             .for_url("https://example.com/a")
-            .expect("https proxy");
-        assert_eq!((https.host(), https.port()), ("secure.proxy", 3128));
-        let http = proxies.for_url("http://example.com/a").expect("http proxy");
-        assert_eq!((http.host(), http.port()), ("plain.proxy", 8080));
-        assert!(proxies.for_url("file:///tmp/a").is_none());
+            .expect("valid proxy")
+            .expect("a proxy")
     }
 
     #[test]
-    fn all_proxy_covers_both_schemes() {
-        let proxies =
-            Proxies::from_env(&env(&[("ALL_PROXY", "http://any.proxy:1")])).expect("proxies");
-        assert!(proxies.for_url("https://example.com").is_some());
-        assert!(proxies.for_url("http://example.com").is_some());
+    fn https_proxy_wins_over_all_proxy_and_http_proxy() {
+        let proxy = https_proxy(&[
+            ("HTTP_PROXY", "http://plain.proxy:1"),
+            ("ALL_PROXY", "http://any.proxy:2"),
+            ("HTTPS_PROXY", "http://secure.proxy:3128"),
+        ]);
+        assert_eq!((proxy.host(), proxy.port()), ("secure.proxy", 3128));
+    }
+
+    #[test]
+    fn all_proxy_wins_over_http_proxy() {
+        let proxy = https_proxy(&[
+            ("http_proxy", "http://plain.proxy:1"),
+            ("all_proxy", "http://any.proxy:2"),
+        ]);
+        assert_eq!((proxy.host(), proxy.port()), ("any.proxy", 2));
+    }
+
+    #[test]
+    fn http_proxy_alone_still_covers_https_urls() {
+        let proxy = https_proxy(&[("http_proxy", "plain.proxy:8080")]);
+        assert_eq!((proxy.host(), proxy.port()), ("plain.proxy", 8080));
+    }
+
+    #[test]
+    fn plain_http_and_other_schemes_go_direct() {
+        let proxies = Proxies::from_env(&env(&[("HTTPS_PROXY", "http://proxy:3128")]));
+        assert_eq!(proxies.for_url("http://mirror.example/a"), Ok(None));
+        assert_eq!(proxies.for_url("file:///tmp/a"), Ok(None));
     }
 
     #[test]
     fn no_variables_means_no_proxy() {
-        let proxies = Proxies::from_env(&env(&[])).expect("proxies");
-        assert!(proxies.for_url("https://example.com").is_none());
-        assert!(proxies.for_url("http://example.com").is_none());
+        let proxies = Proxies::from_env(&env(&[]));
+        assert_eq!(proxies.for_url("https://example.com"), Ok(None));
     }
 
     #[test]
     fn no_proxy_covers_the_host_and_its_subdomains() {
-        let proxies = Proxies::from_env(&env(&[
+        let proxy = https_proxy(&[
             ("HTTPS_PROXY", "http://proxy:3128"),
             (
                 "NO_PROXY",
                 "localhost, .internal.example ,*.corp,mirror.example",
             ),
-        ]))
-        .expect("proxies");
-        let proxy = proxies.for_url("https://x").expect("proxy");
+        ]);
         for host in [
             "https://localhost/",
             "https://internal.example/",
@@ -175,31 +194,29 @@ mod tests {
 
     #[test]
     fn a_star_bypasses_everything() {
-        let proxies = Proxies::from_env(&env(&[
-            ("HTTPS_PROXY", "http://proxy:3128"),
-            ("no_proxy", "*"),
-        ]))
-        .expect("proxies");
-        let proxy = proxies.for_url("https://x").expect("proxy");
+        let proxy = https_proxy(&[("HTTPS_PROXY", "http://proxy:3128"), ("no_proxy", "*")]);
         assert!(proxy.is_no_proxy(&uri("https://anything.example/")));
     }
 
     #[test]
     fn credentials_survive_the_rebuild() {
-        let proxies = Proxies::from_env(&env(&[("HTTPS_PROXY", "http://me:p%40ss@proxy:3128")]))
-            .expect("proxies");
-        let proxy = proxies.for_url("https://x").expect("proxy");
+        let proxy = https_proxy(&[("HTTPS_PROXY", "http://me:p%40ss@proxy:3128")]);
         assert_eq!(proxy.username(), Some("me"));
         assert_eq!(proxy.password(), Some("p@ss"));
     }
 
     #[test]
     fn a_bad_proxy_url_names_the_variable_but_not_the_value() {
-        let error = Proxies::from_env(&env(&[("HTTPS_PROXY", "ftp://me:secret@proxy")]))
-            .expect_err("bad proxy");
+        let proxies = Proxies::from_env(&env(&[("HTTPS_PROXY", "ftp://me:secret@proxy")]));
         assert_eq!(
-            error,
-            Error::Config("HTTPS_PROXY is not a proxy URL".into())
+            proxies.for_url("https://example.com"),
+            Err(Error::Config("HTTPS_PROXY is not a proxy URL".into()))
         );
+    }
+
+    #[test]
+    fn a_bad_proxy_url_does_not_fail_urls_that_go_direct() {
+        let proxies = Proxies::from_env(&env(&[("HTTPS_PROXY", "ftp://me:secret@proxy")]));
+        assert_eq!(proxies.for_url("http://mirror.example/a"), Ok(None));
     }
 }

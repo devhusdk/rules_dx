@@ -93,7 +93,8 @@ impl Client {
     /// A client that reads proxy and CA settings from the process environment.
     ///
     /// # Errors
-    /// Fails when a proxy variable is not a proxy URL or the CA bundle cannot be read.
+    /// Fails when the CA bundle cannot be read. A proxy variable that is not a proxy URL
+    /// fails each request that would go through it instead.
     pub fn new(settings: Settings) -> Result<Self, Error> {
         Self::with_env(settings, |name| std::env::var(name).ok())
     }
@@ -101,14 +102,15 @@ impl Client {
     /// A client that reads proxy and CA settings through `env` instead of the process environment.
     ///
     /// # Errors
-    /// Fails when a proxy variable is not a proxy URL or the CA bundle cannot be read.
+    /// Fails when the CA bundle cannot be read. A proxy variable that is not a proxy URL
+    /// fails each request that would go through it instead.
     pub fn with_env(
         settings: Settings,
         env: impl Fn(&str) -> Option<String>,
     ) -> Result<Self, Error> {
         // An empty variable means unset, as it does for curl.
         let env = |name: &str| env(name).filter(|value| !value.trim().is_empty());
-        let proxies = Proxies::from_env(&env)?;
+        let proxies = Proxies::from_env(&env);
         // The provider is set here rather than left to ureq's feature flags, so the
         // TLS stack does not depend on which other crates enable which features.
         let tls = TlsConfig::builder()
@@ -240,7 +242,7 @@ impl Client {
         url: &str,
         headers: &[(&str, &str)],
     ) -> Result<ureq::http::Response<ureq::Body>, Failure> {
-        let proxy = self.proxies.for_url(url);
+        let proxy = self.proxies.for_url(url).map_err(Failure::Final)?;
         let response = match method {
             Method::Get => prepare(self.agent.get(url), headers, proxy).call(),
             Method::Head => prepare(self.agent.head(url), headers, proxy).call(),

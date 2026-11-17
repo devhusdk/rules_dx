@@ -235,21 +235,20 @@ fn https_only_refuses_plain_http() {
     assert!(error.to_string().contains("https"), "{error}");
 }
 
-#[test]
-fn a_plain_http_url_tunnels_through_http_proxy() {
-    // ureq speaks only CONNECT to an HTTP proxy, for http:// URLs too.
-    let proxy = Server::start(&[Reply::Full(502, b"")]);
-    let proxy_url = proxy.url.clone();
-    let env = move |name: &str| (name == "http_proxy").then(|| proxy_url.clone());
-    let settings = Settings {
+/// An address nothing listens on, so a direct connection is refused at once.
+fn closed_address() -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+    let address = listener.local_addr().expect("address").to_string();
+    drop(listener);
+    address
+}
+
+/// Settings for a proxy test: one try, so the proxy sees one request per call.
+fn once() -> Settings {
+    Settings {
         attempts: 1,
         ..quick()
-    };
-    let client = Client::with_env(settings, env).expect("client");
-    client
-        .bytes("http://mirror.example/a", &[], 1024)
-        .expect_err("the proxy refuses the tunnel");
-    assert_eq!(proxy.requests(), ["CONNECT mirror.example:80 HTTP/1.1"]);
+    }
 }
 
 #[test]
@@ -257,11 +256,7 @@ fn an_https_url_tunnels_through_https_proxy() {
     let proxy = Server::start(&[Reply::Full(502, b"")]);
     let proxy_url = proxy.url.clone();
     let env = move |name: &str| (name == "HTTPS_PROXY").then(|| proxy_url.clone());
-    let settings = Settings {
-        attempts: 1,
-        ..Settings::default()
-    };
-    let client = Client::with_env(settings, env).expect("client");
+    let client = Client::with_env(once(), env).expect("client");
     client
         .bytes("https://mirror.example/a", &[], 1024)
         .expect_err("the proxy refuses the tunnel");
@@ -269,16 +264,25 @@ fn an_https_url_tunnels_through_https_proxy() {
 }
 
 #[test]
-fn no_proxy_hosts_skip_the_proxy() {
+fn http_proxy_alone_still_carries_https_urls() {
+    let proxy = Server::start(&[Reply::Full(502, b"")]);
+    let proxy_url = proxy.url.clone();
+    let env = move |name: &str| (name == "http_proxy").then(|| proxy_url.clone());
+    let client = Client::with_env(once(), env).expect("client");
+    client
+        .bytes("https://mirror.example/a", &[], 1024)
+        .expect_err("the proxy refuses the tunnel");
+    assert_eq!(proxy.requests(), ["CONNECT mirror.example:443 HTTP/1.1"]);
+}
+
+#[test]
+fn a_plain_http_url_goes_direct() {
     let proxy = Server::start(&[Reply::Full(200, b"via proxy")]);
     let direct = Server::start(&[Reply::Full(200, b"direct")]);
     let proxy_url = proxy.url.clone();
-    let env = move |name: &str| match name {
-        "http_proxy" => Some(proxy_url.clone()),
-        "NO_PROXY" => Some("localhost,127.0.0.1".to_owned()),
-        _ => None,
-    };
-    let client = Client::with_env(quick(), env).expect("client");
+    let env =
+        move |name: &str| matches!(name, "http_proxy" | "HTTPS_PROXY").then(|| proxy_url.clone());
+    let client = Client::with_env(once(), env).expect("client");
     assert_eq!(
         client.bytes(&format!("{}/a", direct.url), &[], 1024),
         Ok(b"direct".to_vec())
@@ -287,22 +291,51 @@ fn no_proxy_hosts_skip_the_proxy() {
 }
 
 #[test]
-fn an_empty_proxy_variable_counts_as_unset() {
-    let direct = Server::start(&[Reply::Full(200, b"direct")]);
-    let env = |name: &str| (name == "http_proxy").then(String::new);
-    let client = Client::with_env(quick(), env).expect("client");
-    assert_eq!(
-        client.bytes(&format!("{}/a", direct.url), &[], 1024),
-        Ok(b"direct".to_vec())
-    );
+fn no_proxy_hosts_skip_the_proxy() {
+    let proxy = Server::start(&[Reply::Full(502, b"")]);
+    let url = format!("https://{}/a", closed_address());
+    let proxy_url = proxy.url.clone();
+    let env = move |name: &str| match name {
+        "HTTPS_PROXY" => Some(proxy_url.clone()),
+        "NO_PROXY" => Some("localhost,127.0.0.1".to_owned()),
+        _ => None,
+    };
+    let error = Client::with_env(once(), env)
+        .expect("client")
+        .bytes(&url, &[], 1024)
+        .expect_err("nothing listens");
+    assert!(matches!(&error, Error::Transport { .. }), "{error}");
+    assert_eq!(proxy.requests(), [] as [String; 0]);
 }
 
 #[test]
-fn a_bad_proxy_variable_fails_the_client() {
+fn an_empty_proxy_variable_counts_as_unset() {
+    let proxy = Server::start(&[Reply::Full(502, b"")]);
+    let proxy_url = proxy.url.clone();
+    let env = move |name: &str| match name {
+        "HTTPS_PROXY" => Some(" ".to_owned()),
+        "http_proxy" => Some(proxy_url.clone()),
+        _ => None,
+    };
+    let client = Client::with_env(once(), env).expect("client");
+    client
+        .bytes("https://mirror.example/a", &[], 1024)
+        .expect_err("the proxy refuses the tunnel");
+    assert_eq!(proxy.requests(), ["CONNECT mirror.example:443 HTTP/1.1"]);
+}
+
+#[test]
+fn a_bad_proxy_variable_fails_only_the_requests_that_use_it() {
+    let direct = Server::start(&[Reply::Full(200, b"direct")]);
     let env = |name: &str| (name == "https_proxy").then(|| "gopher://proxy".to_owned());
+    let client = Client::with_env(once(), env).expect("client");
     assert_eq!(
-        Client::with_env(Settings::default(), env).map(|_| ()),
+        client.bytes("https://mirror.example/a", &[], 1024),
         Err(Error::Config("https_proxy is not a proxy URL".into()))
+    );
+    assert_eq!(
+        client.bytes(&format!("{}/a", direct.url), &[], 1024),
+        Ok(b"direct".to_vec())
     );
 }
 

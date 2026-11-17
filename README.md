@@ -23,6 +23,13 @@ your `PATH` as `bazel`. In an empty directory, create two files.
 bazel_dep(name = "rules_dx", version = "<release>")
 ```
 
+On Windows, also accept the [Visual Studio Build Tools license](https://visualstudio.microsoft.com/license-terms/) in `MODULE.bazel`:
+
+```starlark
+dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
+dx_licenses.accept(ids = ["visual-studio-build-tools"])
+```
+
 Then set the project up and run its tests:
 
 ```sh

@@ -54,6 +54,18 @@ fn quickstart_files(readme: &str) -> Vec<(String, String)> {
     files
 }
 
+/// The README quickstart block that accepts the Visual Studio Build Tools license on Windows.
+fn windows_license(readme: &str) -> String {
+    let start = readme
+        .find("dx_licenses = use_extension(")
+        .expect("the README quickstart accepts the Windows license");
+    let end = start
+        + readme[start..]
+            .find("```")
+            .expect("the license block ends with a fence");
+    readme[start..end].to_owned()
+}
+
 /// Builds `@rules_dx//:dx` and returns the path of the binary.
 fn built_dx(case: &Case) -> std::path::PathBuf {
     run_in(case, &["build", "@rules_dx//:dx"], "build dx");
@@ -207,7 +219,8 @@ fn copy_patches(source: &std::path::Path, case: &Case, package: &str) {
 #[test]
 fn the_readme_quickstart_runs_as_written() {
     let source = rules_dx_source().unwrap_or_else(|error| panic!("{error}"));
-    let files = quickstart_files(&read_text(&source.join("README.md")));
+    let readme = read_text(&source.join("README.md"));
+    let files = quickstart_files(&readme);
     let names: Vec<&str> = files.iter().map(|(name, _)| name.as_str()).collect();
     assert_eq!(names, [".bazelversion", "MODULE.bazel"]);
 
@@ -219,6 +232,9 @@ fn the_readme_quickstart_runs_as_written() {
         if name == "MODULE.bazel" {
             assert_eq!(text.lines().filter(|l| !l.trim().is_empty()).count(), 1);
             text.push('\n');
+            if cfg!(windows) {
+                text.push_str(&windows_license(&readme));
+            }
             text.push_str(&rules_py_override());
             text.push_str(&rules_flutter_override().unwrap_or_else(|error| panic!("{error}")));
             text.push_str(&rules_rust_override());
@@ -263,18 +279,8 @@ fn the_readme_quickstart_runs_as_written() {
         .map(|(key, value)| (*key, value.as_str()))
         .collect();
     pairs.push(("BUILD_WORKSPACE_DIRECTORY", root.as_str()));
-    let init_args: &[&str] = if cfg!(windows) {
-        &[
-            "init",
-            "--apply",
-            "--accept-license",
-            "visual-studio-build-tools",
-        ]
-    } else {
-        &["init", "--apply"]
-    };
     crate::stage("quickstart_consumer_test", "dx init --apply");
-    let init = case.run(&dx, init_args, &pairs);
+    let init = case.run(&dx, &["init", "--apply"], &pairs);
     ok(&init, "dx init --apply");
     run_in(
         &case,

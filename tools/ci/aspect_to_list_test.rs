@@ -129,6 +129,9 @@ my_rule = rule(implementation = _rule_impl)
 "#;
     let files = BTreeMap::from([("pkg/a.bzl".to_owned(), source.to_owned())]);
     let counts = scan(&files);
-    assert_eq!(counts.get(&("pkg/a.bzl".to_owned(), KIND.to_owned())), Some(&2));
+    assert_eq!(
+        counts.get(&("pkg/a.bzl".to_owned(), KIND.to_owned())),
+        Some(&2)
+    );
     assert_eq!(counts.len(), 1);
 }

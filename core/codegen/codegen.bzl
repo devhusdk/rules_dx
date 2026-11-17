@@ -292,6 +292,7 @@ def _dx_codegen_plan_aspect_impl(target, ctx):
         files.extend(prost.files)
     if prost != None or (DxCodegenPlanInfo in target and target[DxCodegenPlanInfo].direct):
         sources = ctx.actions.declare_file(ctx.label.name + DX_CODEGEN_SOURCES_SUFFIX)
+
         # Written straight from the depset: dx sync sorts and dedups the lines.
         lines = ctx.actions.args()
         lines.set_param_file_format("multiline")

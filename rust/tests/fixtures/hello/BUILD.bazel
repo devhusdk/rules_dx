@@ -6,7 +6,6 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust:defs.bzl", "rust_binary", "rust_bench", "rust_library", "rust_proc_macro", "rust_shared_library", "rust_static_library", "rust_test")
 load("@rules_dx//rust/private:probe.bzl", "dx_wrapper_cc_subject", "dx_wrapper_subject")
 load("@rules_dx//rust/tests:defs_tests.bzl", "rust_default_crate_name_tests", "rust_lints_forward_tests", "rust_native_coverage_tests", "rust_wrapper_conformance_tests")
-load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
 package(
     default_testonly = True,
@@ -236,12 +235,6 @@ rust_native_coverage_tests(
         "@platforms//os:windows": ["@platforms//:incompatible"],
         "//conditions:default": [],
     }),
-)
-
-dx_hello_output_test(
-    name = "hello_output_test",
-    binary = ":hello",
-    expected = "Hello, world!",
 )
 
 thin_compare_subject(

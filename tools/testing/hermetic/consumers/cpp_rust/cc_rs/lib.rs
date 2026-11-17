@@ -1,10 +1,5 @@
 use cxx::let_cxx_string;
-use std::os::raw::{c_char, c_ulong};
-
-unsafe extern "C" {
-    fn zlibVersion() -> *const c_char;
-    fn crc32(crc: c_ulong, buf: *const u8, len: u32) -> c_ulong;
-}
+use libz_sys::{crc32, zlibVersion};
 
 pub fn zlib_version() -> String {
     // SAFETY: zlibVersion returns a static NUL-terminated string.

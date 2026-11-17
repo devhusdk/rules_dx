@@ -2,6 +2,7 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//cuda:defs.bzl", "cuda_binary", "cuda_library", "cuda_test")
 load("//cuda/private:defs.bzl", "CUDA_COMPATIBLE_WITH")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+load("//tools/testing/conformance:quality.bzl", "cc_format_subject")
 
 package(
     default_testonly = True,
@@ -17,6 +18,12 @@ cuda_library(
     name = "greet",
     srcs = ["greet.cu"],
     hdrs = ["greet.h"],
+    cuda_archs = _ARCHS,
+)
+
+cuda_library(
+    name = "format_dirty",
+    srcs = ["format_dirty.cu"],
     cuda_archs = _ARCHS,
 )
 
@@ -45,6 +52,14 @@ cuda_test(
     deps = [":greet"],
 )
 
+cuda_binary(
+    name = "runfiles_hello",
+    srcs = ["runfiles_main.cc"],
+    cuda_archs = _ARCHS,
+    data = ["data.txt"],
+    deps = ["@rules_cc//cc/runfiles"],
+)
+
 dx_conformance_suite(
     name = "",
     size = "small",
@@ -56,6 +71,17 @@ dx_conformance_suite(
     failing_test = ":fail_subject_test",
     lang = "cuda",
     passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":greet",
+        "format_dirty": ":format_dirty",
+        "format_source": "format_dirty.cu",
+        "format_subject": cc_format_subject,
+    },
+    runfiles = {
+        "binary": ":runfiles_hello",
+        "data": "data.txt",
+        "expected": "hello runfiles",
+    },
 )
 
 real_source_target(

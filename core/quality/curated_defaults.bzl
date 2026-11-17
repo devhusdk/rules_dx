@@ -34,6 +34,12 @@ CURATED_DEFAULTS = {
         "lint": ["actionlint", "zizmor"],
         "typecheck": [],
     },
+    "cuda": {
+        "audit": [],
+        "format": ["clang_format"],
+        "lint": ["typos"],
+        "typecheck": [],
+    },
     "d": {
         "audit": [],
         "format": [],

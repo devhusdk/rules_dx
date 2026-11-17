@@ -260,7 +260,7 @@ pub fn set_require_version(text: &str, module: &str, version: &str) -> Result<St
     let mut expected = before;
     for requirement in &mut expected.require {
         if requirement.module == module {
-            requirement.version = version.to_owned();
+            version.clone_into(&mut requirement.version);
         }
     }
     if after != expected {
@@ -383,10 +383,9 @@ fn direct_require_block(text: &str) -> Option<RequireBlock> {
                 *direct = true;
             }
             if block.entries.is_empty() {
-                block.indent = line
-                    .strip_suffix(line.trim_start())
+                line.strip_suffix(line.trim_start())
                     .unwrap_or_default()
-                    .to_owned();
+                    .clone_into(&mut block.indent);
             }
             block.entries.push((start, first.value.clone()));
             continue;

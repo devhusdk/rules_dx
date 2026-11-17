@@ -89,7 +89,11 @@ fn maven_lock_label() -> String {
     let lock = Ecosystem::Maven
         .registry_names()
         .into_iter()
-        .find(|name| name.ends_with(".json"))
+        .find(|name| {
+            std::path::Path::new(name)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
+        })
         .unwrap_or_default();
     format!("\"//third_party/jvm:{lock}\"")
 }

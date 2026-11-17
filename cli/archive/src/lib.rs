@@ -24,7 +24,10 @@ impl Format {
     pub fn from_name(name: &str) -> Option<Format> {
         if name.ends_with(".tar.gz") {
             Some(Format::TarGz)
-        } else if name.ends_with(".zip") {
+        } else if std::path::Path::new(name)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("zip"))
+        {
             Some(Format::Zip)
         } else {
             None

@@ -77,7 +77,11 @@ fn paren_comment(line: &str) -> Option<&str> {
 
 pub(crate) fn comment_text(path: &str, line: &str) -> String {
     match line_comment_syntax(path) {
-        Some(LineComment::SlashSlash) if path.ends_with(".rs") => {
+        Some(LineComment::SlashSlash)
+            if std::path::Path::new(path)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("rs")) =>
+        {
             rust_comment(line).unwrap_or_default().to_string()
         }
         Some(LineComment::SlashSlash) => slash_comment(line).unwrap_or_default().to_string(),

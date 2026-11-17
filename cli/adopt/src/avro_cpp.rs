@@ -77,7 +77,9 @@ fn scan(root: &Path) -> Found {
             };
             if kind.is_dir() {
                 pending.push(entry.path());
-            } else if name.ends_with(".avsc") || name.ends_with(".avdl") {
+            } else if std::path::Path::new(&name).extension().is_some_and(|ext| {
+                ext.eq_ignore_ascii_case("avsc") || ext.eq_ignore_ascii_case("avdl")
+            }) {
                 found.schema = true;
             }
         }

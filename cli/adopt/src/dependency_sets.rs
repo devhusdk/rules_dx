@@ -584,7 +584,11 @@ fn validate_set(set: &DependencySet) -> Result<(), DependencySetsError> {
     for manifest in &set.manifests {
         let file = manifest.rsplit('/').next().unwrap_or(manifest);
         let allowed = set.ecosystem.alt_manifests().iter().any(|alt| alt == file)
-            || (set.ecosystem == Ecosystem::Opam && file.ends_with(".opam") && file != ".opam");
+            || (set.ecosystem == Ecosystem::Opam
+                && std::path::Path::new(file)
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("opam"))
+                && file != ".opam");
         if file != set.ecosystem.manifest_name() && !allowed {
             return Err(DependencySetsError::InvalidManifest {
                 name: name.clone(),
@@ -1258,7 +1262,11 @@ pub fn check_backend_settings(
 /// A cabal set keeps its state file and its json lock on the same versions.
 fn check_cabal_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
     check_pinned_lock(set, cabal_freeze()?)?;
-    let Some(sidecar) = set.locks.iter().find(|lock| lock.ends_with(".json")) else {
+    let Some(sidecar) = set.locks.iter().find(|lock| {
+        std::path::Path::new(lock)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
+    }) else {
         return Ok(());
     };
     let stale = |detail: String| DependencySetsError::StaleCabalLock {
@@ -1305,7 +1313,11 @@ fn check_cabal_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Depende
 
 /// The `.json` lock `cpan.lock` reads, beside the cpan state file.
 fn cpan_json_lock(set: &ResolvedSet) -> Option<&String> {
-    set.locks.iter().find(|lock| lock.ends_with(".json"))
+    set.locks.iter().find(|lock| {
+        std::path::Path::new(lock)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
+    })
 }
 
 /// The `//pkg:name` of the first `rule` call in the BUILD file of the set's directory.
@@ -1752,7 +1764,10 @@ fn check_pinned_lock(set: &ResolvedSet, file: &str) -> Result<(), DependencySets
 
 /// An ansible set has exactly the one collections lock its tag names.
 fn check_ansible_layout(set: &ResolvedSet) -> Result<(), DependencySetsError> {
-    if matches!(set.locks.as_slice(), [lock] if lock.ends_with(".json")) {
+    if matches!(set.locks.as_slice(), [lock] if std::path::Path::new(lock)
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("json")))
+    {
         return Ok(());
     }
     Err(DependencySetsError::MissingPinnedLock {

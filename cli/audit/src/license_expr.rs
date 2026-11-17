@@ -37,22 +37,19 @@ pub enum LicenseExpr {
 pub fn parse_license(text: &str) -> LicenseExpr {
     let parsed = spdx::Expression::parse(text)
         .or_else(|_| spdx::Expression::parse_mode(text, spdx::ParseMode::LAX));
-    let expr = match parsed {
-        Ok(expr) => expr,
-        Err(_) => return LicenseExpr::Unknown,
+    let Ok(expr) = parsed else {
+        return LicenseExpr::Unknown;
     };
     let mut stack: Vec<LicenseExpr> = Vec::new();
     for node in expr.iter() {
         match node {
             spdx::expression::ExprNode::Req(req) => stack.push(leaf_expr(req)),
             spdx::expression::ExprNode::Op(op) => {
-                let rhs = match stack.pop() {
-                    Some(expr) => expr,
-                    None => return LicenseExpr::Unknown,
+                let Some(rhs) = stack.pop() else {
+                    return LicenseExpr::Unknown;
                 };
-                let lhs = match stack.pop() {
-                    Some(expr) => expr,
-                    None => return LicenseExpr::Unknown,
+                let Some(lhs) = stack.pop() else {
+                    return LicenseExpr::Unknown;
                 };
                 stack.push(match op {
                     spdx::expression::Operator::Or => merge_or(lhs, rhs),

@@ -700,21 +700,15 @@ pub fn parse_selector(selector: &str) -> Result<(UpdateSet, String), EditError> 
             set: set.name().to_owned(),
         });
     }
-    let (head, tail) = match selector.split_once(':') {
-        Some((head, tail)) => (head, tail),
-        None => {
-            return Err(EditError::UnknownSelector {
-                selector: selector.to_owned(),
-            });
-        }
+    let Some((head, tail)) = selector.split_once(':') else {
+        return Err(EditError::UnknownSelector {
+            selector: selector.to_owned(),
+        });
     };
-    let set = match UpdateSet::parse(head) {
-        Some(set) => set,
-        None => {
-            return Err(EditError::UnknownSelector {
-                selector: selector.to_owned(),
-            });
-        }
+    let Some(set) = UpdateSet::parse(head) else {
+        return Err(EditError::UnknownSelector {
+            selector: selector.to_owned(),
+        });
     };
     if tail.is_empty() {
         return Err(EditError::InvalidPackage {

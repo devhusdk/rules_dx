@@ -591,7 +591,10 @@ fn rendered_bazel_files_pass_buildifier() {
     let dir = scratch.path();
     for (index, case) in cases.iter().enumerate() {
         for (path, bytes) in rendered(case) {
-            if !path.ends_with(".bazel") {
+            if !std::path::Path::new(&path)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("bazel"))
+            {
                 continue;
             }
             let file = dir.join(index.to_string()).join(&path);

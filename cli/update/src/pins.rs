@@ -26,7 +26,10 @@ pub fn listed(workspace: &Path) -> Vec<String> {
             continue;
         };
         for pin in pins.iter().filter_map(Value::as_str) {
-            if pin.ends_with(".json") {
+            if std::path::Path::new(pin)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
+            {
                 found.push(format!("{dir}/{pin}"));
             }
         }

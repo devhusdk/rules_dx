@@ -33,7 +33,10 @@ fn go_files(root: &Path) -> Vec<PathBuf> {
                 if !skipped {
                     stack.push(path);
                 }
-            } else if name.ends_with(".go") {
+            } else if std::path::Path::new(&name)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("go"))
+            {
                 out.push(path);
             }
         }

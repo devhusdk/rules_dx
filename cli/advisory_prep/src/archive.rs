@@ -39,7 +39,10 @@ pub enum ArchiveError {
 pub fn json_entries(archive: &[u8]) -> Result<Vec<(String, Vec<u8>)>, ArchiveError> {
     let mut out = Vec::new();
     for entry in central_entries(archive)? {
-        if entry.name.ends_with(".json") {
+        if std::path::Path::new(&entry.name)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
+        {
             out.push((entry.name.clone(), entry_bytes(archive, &entry)?));
         }
     }

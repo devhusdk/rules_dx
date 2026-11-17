@@ -31,7 +31,11 @@ pub fn is_npm_git_reference(text: &str) -> bool {
         return true;
     }
     let without_fragment = lower.split(['#', '?']).next().unwrap_or(&lower);
-    if without_fragment.ends_with(".git") || without_fragment.contains(".git/") {
+    if std::path::Path::new(without_fragment)
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("git"))
+        || without_fragment.contains(".git/")
+    {
         return true;
     }
     false

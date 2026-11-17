@@ -27,7 +27,7 @@ pub fn parse_dotnet_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, D
             continue;
         }
         if let Some(caps) = group_re.captures(line) {
-            group = caps[1].to_owned();
+            caps[1].clone_into(&mut group);
             continue;
         }
         let Some(caps) = nuget_re.captures(line) else {

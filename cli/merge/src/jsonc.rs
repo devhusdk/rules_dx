@@ -100,9 +100,8 @@ pub fn rename_key(
     new_name: &str,
 ) -> Result<String, Error> {
     edit(text, |root| {
-        let object = match walk_existing(root.clone(), parents) {
-            Some(object) => object,
-            None => return Ok(()),
+        let Some(object) = walk_existing(root.clone(), parents) else {
+            return Ok(());
         };
         let found = object
             .properties()

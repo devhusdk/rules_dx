@@ -137,7 +137,11 @@ pub fn leftovers(dir: &std::path::Path) -> Vec<String> {
             entries
                 .flatten()
                 .map(|e| e.file_name().to_string_lossy().into_owned())
-                .filter(|name| name.ends_with(".part"))
+                .filter(|name| {
+                    std::path::Path::new(name)
+                        .extension()
+                        .is_some_and(|ext| ext.eq_ignore_ascii_case("part"))
+                })
                 .collect()
         })
         .unwrap_or_default()

@@ -4,17 +4,17 @@ Acquire pinned Android SDK packages on an opt-in basis. Disabled setups
 fetch no Android payload.
 
 ```python
-android_sdk = use_extension("@rules_dx//android:extensions.bzl", "android_sdk")
+android = use_extension("@rules_dx//android:extensions.bzl", "android")
 
 dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
 dx_licenses.accept(ids = ["android-sdk-license"])
-android_sdk.configure(
+android.configure(
     # api_level = 31,                       # 31-34, default 34
     # extra_packages = ["platform-tools"],  # and/or "emulator"
 )
 
 use_repo(
-    android_sdk,
+    android,
     "dx_android_sdk",
     "dx_android_ndk_linux_x86_64",
     "dx_android_build_tools_linux_x86_64",
@@ -100,7 +100,7 @@ android_adb_log(name = "log", serial = "emulator-5554")
 
 Run one with `bazel run //path:install`. `serial` names the target
 device or emulator. The launcher runs the pinned adb when
-`extra_packages` of the `android_sdk` extension lists `platform-tools`;
+`extra_packages` of the `android` extension lists `platform-tools`;
 `ADB` names another adb by path. `android_adb_install` takes exactly one of `apk` or `apk_set`;
 `apk_set` names an [`android_apk_set`](#apk-sets) and installs its
 split APKs with `adb install-multiple -r`. Neither or both fail at
@@ -192,7 +192,7 @@ missing bundletool, bad arguments, or an APK given `--abi` or
 `platforms` or `resources` on an APK fail at analysis.
 
 The check runs the pinned bundletool 1.15.5 on the rules_java JDK. The jar is
-downloaded with a checksum through the `android_sdk` extension.
+downloaded with a checksum through the `android` extension.
 
 Build and check the fixture bundles on a qualified host:
 
@@ -295,7 +295,7 @@ To start a new app, run `dx init --apply <dir>` and add the sources and
 targets above.
 
 Packaging builds read the `androidsdk` repository from the pinned
-build-tools, platform and platform-tools packages that `android_sdk`
+build-tools, platform and platform-tools packages that `android`
 downloads, so no `ANDROID_HOME` is needed on Linux x86_64. Elsewhere the
 repository is empty. rules_dx pins its own `rules_android_maven` install with a lock file. A
 consumer root adds its own `maven.install(name = "rules_android_maven",
@@ -303,10 +303,10 @@ lock_file = ...)` the same way, or the first fetch resolves it through
 Coursier. A consumer root swaps in the SDK with:
 
 ```python
-android_sdk = use_extension("@rules_dx//android:extensions.bzl", "android_sdk")
+android = use_extension("@rules_dx//android:extensions.bzl", "android")
 dx_licenses.accept(ids = ["android-sdk-license"])
-android_sdk.configure()
-use_repo(android_sdk, "dx_androidsdk")
+android.configure()
+use_repo(android, "dx_androidsdk")
 
 android_sdk_repository = use_extension("@rules_android//rules/android_sdk_repository:rule.bzl", "android_sdk_repository_extension")
 override_repo(android_sdk_repository, androidsdk = "dx_androidsdk")
@@ -367,10 +367,10 @@ consumer that adopts these rules end to end.
 ### Toolchain
 
 `rules_dx` registers the NDK clang toolchains for both tuples; a consumer
-adds no `register_toolchains` line. The NDK comes from the `android_sdk`
+adds no `register_toolchains` line. The NDK comes from the `android`
 extension's pinned download on Linux x86_64 and is fetched only after
 `dx_licenses.accept(ids = ["android-sdk-license"])` is in the root
-module. `android_sdk.configure` is the one optional tag.
+module. `android.configure` is the one optional tag.
 
 ### Backend decision
 

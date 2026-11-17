@@ -1,4 +1,4 @@
-"""The android_sdk module extension."""
+"""The android module extension."""
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 load("//core:license.bzl", "accepted_ids")
@@ -47,9 +47,9 @@ def _declare_app_sdk(request, license_error):
         build = app_sdk_hub_build(APP_SDK_FILES_NAME, sdk_level(request)) if request.enabled else "",
     )
 
-def _android_sdk_impl(module_ctx):
+def _android_impl(module_ctx):
     if len(module_ctx.modules) == 0:
-        fail("android_sdk: the extension is only reachable from a module graph")
+        fail("android: the extension is only reachable from a module graph")
     errors = (
         artifact_errors() +
         artifact_errors(BUILD_TOOLS_ARTIFACTS, BUILD_TOOLS_ARCHIVE_PREFIX, True, BUILD_TOOLS_ARCHIVE_SEPARATOR) +
@@ -58,7 +58,7 @@ def _android_sdk_impl(module_ctx):
         artifact_errors(EMULATOR_ARTIFACTS, "")
     )
     if len(errors) > 0:
-        fail("android_sdk: " + "; ".join(errors))
+        fail("android: " + "; ".join(errors))
     http_file(
         name = BUNDLETOOL_REPOSITORY,
         canonical_id = canonical_id_for(bundletool_url(), "bundletool"),
@@ -72,13 +72,13 @@ def _android_sdk_impl(module_ctx):
         for tag in module.tags.configure:
             requests.append(_configure_tag(tag, accepted))
     if len(requests) > 1:
-        fail("android_sdk: configure the Android SDK once")
+        fail("android: configure the Android SDK once")
     request = requests[0] if len(requests) == 1 else _configure_tag(default_request(), accepted)
     license_error = "; ".join(license_errors(request))
     request = _configure_tag(request, default_request().accept_licenses)
     failures = request_errors(request)
     if len(failures) > 0:
-        fail("android_sdk: " + "; ".join(failures))
+        fail("android: " + "; ".join(failures))
     repos = package_repositories(request)
     if request.enabled:
         mirror = request.mirror if request.mirror != "" else DEFAULT_MIRROR
@@ -107,8 +107,8 @@ def _android_sdk_impl(module_ctx):
     )
     return module_ctx.extension_metadata(reproducible = True)
 
-android_sdk = module_extension(
-    implementation = _android_sdk_impl,
+android = module_extension(
+    implementation = _android_impl,
     tag_classes = {
         "configure": tag_class(attrs = {
             "api_level": attr.int(

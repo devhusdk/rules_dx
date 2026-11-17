@@ -334,44 +334,44 @@ def _android_checks():
         "missing license fails",
         request_errors(_request(accept_licenses = [])),
         [
-            'android_sdk: accept android-sdk-license before acquisition; add dx_licenses.accept(ids = ["android-sdk-license"]) to the root MODULE.bazel',
+            'android: accept android-sdk-license before acquisition; add dx_licenses.accept(ids = ["android-sdk-license"]) to the root MODULE.bazel',
         ],
     ))
     checks.append(expect_equal(
         "plain http mirror fails",
         request_errors(_request(mirror = "http://mirror.example.com/android")),
-        ["android_sdk: mirror 'http://mirror.example.com/android' must use https"],
+        ["android: mirror 'http://mirror.example.com/android' must use https"],
     ))
     checks.append(expect_equal(
         "downgraded api level fails",
         request_errors(_request(api_level = 29)),
-        ["android_sdk: api_level 29 is below 31"],
+        ["android: api_level 29 is below 31"],
     ))
     checks.append(expect_equal(
         "pinned extra package fails",
         request_errors(_request(extra_packages = ["platforms;android-34"])),
-        ["android_sdk: extra package 'platforms;android-34' must be one of platform-tools, emulator"],
+        ["android: extra package 'platforms;android-34' must be one of platform-tools, emulator"],
     ))
     checks.append(expect_equal(
         "unknown extra package fails",
         request_errors(_request(extra_packages = ["anything"])),
-        ["android_sdk: extra package 'anything' must be one of platform-tools, emulator"],
+        ["android: extra package 'anything' must be one of platform-tools, emulator"],
     ))
     checks.append(expect_equal(
         "repeated extra package fails",
         request_errors(_request(extra_packages = ["emulator", "emulator"])),
-        ["android_sdk: extra package 'emulator' is listed twice"],
+        ["android: extra package 'emulator' is listed twice"],
     ))
     checks.append(expect_equal("opt-in packages pass", request_errors(_request(extra_packages = ["platform-tools", "emulator"])), []))
     checks.append(expect_equal(
         "unpinned api level fails",
         request_errors(_request(api_level = 35)),
-        ["android_sdk: api_level 35 is not pinned; want one of 31, 32, 33, 34"],
+        ["android: api_level 35 is not pinned; want one of 31, 32, 33, 34"],
     ))
     checks.append(expect_equal(
         "downgraded api level fails",
         request_errors(_request(api_level = 29)),
-        ["android_sdk: api_level 29 is below 31"],
+        ["android: api_level 29 is below 31"],
     ))
     checks.append(expect_equal("pinned api level passes", request_errors(_request(api_level = 32)), []))
     checks.append(expect_equal("default api level is zero", default_request().api_level, 0))

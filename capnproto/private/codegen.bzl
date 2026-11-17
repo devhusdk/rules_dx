@@ -106,6 +106,7 @@ def _cc_aspect_impl(target, ctx):
         )
         linking_context, _ = cc_common.create_linking_context_from_compilation_outputs(
             name = name + "_capnp_cc",
+            disallow_dynamic_library = True,
             actions = ctx.actions,
             feature_configuration = feature_configuration,
             cc_toolchain = cc_toolchain,

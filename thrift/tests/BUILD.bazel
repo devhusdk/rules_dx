@@ -31,11 +31,6 @@ cc_test(
     }),
     linkstatic = True,
     deps = [":shapes_cc"],  # keep
-    # Windows: generated code includes arpa/inet.h.
-    target_compatible_with = select({
-        "@platforms//os:windows": ["@platforms//:incompatible"],
-        "//conditions:default": [],
-    }),
 )
 
 codegen_shard_argv_test(

@@ -27,7 +27,7 @@ no_coverage_transition = transition(
 )
 
 NATIVE_LAUNCHER_ATTRS = {
-    "_exec_launcher": attr.label(default = Label("//cli/launcher:exec_launcher"), executable = True, cfg = no_coverage_transition, doc = "The native launcher."),
+    "_exec_launcher": attr.label(default = Label("//php/private/tools/launcher:exec_launcher"), executable = True, cfg = no_coverage_transition, doc = "The native launcher."),
     "_windows_os": attr.label(default = Label("@platforms//os:windows")),
 }
 

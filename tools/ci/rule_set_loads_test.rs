@@ -31,6 +31,7 @@ const RULE_SETS: [(&str, &[&str]); 3] = [
             "php/private/providers.bzl",
             "php/private/lock/",
             "php/private/toolchain/",
+            "php/private/tools/launcher/",
         ],
     ),
     (

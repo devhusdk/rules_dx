@@ -1,0 +1,17 @@
+diff -ruN a/julia/pkg/private/pkg_resolve.jl b/julia/pkg/private/pkg_resolve.jl
+--- a/julia/pkg/private/pkg_resolve.jl
++++ b/julia/pkg/private/pkg_resolve.jl
+@@ -191,8 +191,8 @@
+     the package declares no artifacts.
+     """
+     pkg_id = Base.PkgId(Base.UUID(uuid), name)
+-    entry_point = Base.locate_package(pkg_id)
+-    if entry_point === nothing
++    entry_point = Base.manifest_uuid_path(Base.active_project(), pkg_id)
++    if !(entry_point isa String)
+         error("Unable to locate installed package $name [$uuid]")
+     end
+     package_dir = dirname(dirname(entry_point))
+ 
+     artifacts_toml = nothing
+     for candidate in ("Artifacts.toml", "JuliaArtifacts.toml")

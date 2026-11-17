@@ -1228,6 +1228,17 @@ quality_family(
 )
 
 quality_family(
+    name = "tool_override_swift_family",
+    disabled = [
+        "audit",
+        "typecheck",
+    ],
+    family_id = "swift",
+    format = ["swift_format"],
+    lint = ["swift_lint"],
+)
+
+quality_family(
     name = "tool_override_zig_family",
     disabled = ["audit"],
     family_id = "zig",

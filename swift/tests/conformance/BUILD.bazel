@@ -16,6 +16,7 @@ swift_library(
 
 swift_library(
     name = "lint_dirty",
+    testonly = True,
     srcs = ["LintDirty.swift"],
     module_name = "LintDirty",
     tags = ["manual"],
@@ -23,6 +24,7 @@ swift_library(
 
 swift_library(
     name = "format_dirty",
+    testonly = True,
     srcs = ["FormatDirty.swift"],
     module_name = "FormatDirty",
     tags = ["manual"],

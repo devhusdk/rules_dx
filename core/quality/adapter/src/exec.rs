@@ -1015,6 +1015,12 @@ mod tests {
         if cfg!(windows) {
             allowed.push("SystemRoot");
         }
+        // CoreFoundation writes this into the process's own environment when
+        // it initialises, so the probe lists it even though the adapter
+        // cleared the environment and never passed it.
+        if cfg!(target_vendor = "apple") {
+            allowed.push("__CF_USER_TEXT_ENCODING");
+        }
         for line in text.lines() {
             let (key, _) = line.split_once('=').expect("KEY=VALUE line");
             assert!(

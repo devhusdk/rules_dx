@@ -13,6 +13,18 @@ cc_library(
     hdrs = ["greet.h"],
 )
 
+cc_library(
+    name = "lint_dirty",
+    srcs = ["lint_dirty.cc"],
+    tags = ["manual"],
+)
+
+cc_library(
+    name = "format_dirty",
+    srcs = ["format_dirty.cc"],
+    tags = ["manual"],
+)
+
 cc_binary(
     name = "hello",
     srcs = ["main.cc"],
@@ -54,6 +66,15 @@ dx_conformance_suite(
     failing_test = ":fail_subject_test",
     lang = "cc",
     passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "format_dirty.cc",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 6,
+        "lint_rule": "readability-else-after-return",
+        "lint_source": "lint_dirty.cc",
+    },
     runfiles = {
         "binary": ":runfiles_hello",
         "data": "data.txt",

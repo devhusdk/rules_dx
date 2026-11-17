@@ -12,6 +12,18 @@ zig_library(
     main = "greet.zig",
 )
 
+zig_library(
+    name = "lint_dirty",
+    main = "lint_dirty.zig",
+    tags = ["manual"],
+)
+
+zig_library(
+    name = "format_dirty",
+    main = "format_dirty.zig",
+    tags = ["manual"],
+)
+
 zig_binary(
     name = "hello",
     main = "main.zig",
@@ -44,5 +56,14 @@ dx_conformance_suite(
     failing_test = ":fail_subject_test",
     lang = "zig",
     passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "format_dirty.zig",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 2,
+        "lint_rule": "ast_check",
+        "lint_source": "lint_dirty.zig",
+    },
     size = "small",
 )

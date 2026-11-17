@@ -93,10 +93,6 @@ capnproto lint_test *
 capnproto lock_test *
 capnproto pass_test *
 capnproto runfiles_test *
-cc format_error_test *
-cc format_test *
-cc lint_error_test *
-cc lint_test *
 cc lock_test *
 cloudformation build_test *
 cloudformation coverage_test *
@@ -400,10 +396,6 @@ vue format_test *
 vue lint_error_test *
 vue lint_test *
 zig coverage_test windows_x86_64
-zig format_error_test *
-zig format_test *
-zig lint_error_test *
-zig lint_test *
 zig lock_test *
 zig runfiles_test *
 """

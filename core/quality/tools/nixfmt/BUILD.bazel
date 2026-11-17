@@ -7,6 +7,29 @@ _PROJECT = ["cabal.project"]
 
 exports_files(_PROJECT + ["cabal.lock.json"])
 
+filegroup(
+    name = "nixfmt",
+    srcs = ["@haskell_nixfmt_hackage//:nixfmt-exe-nixfmt"],
+    target_compatible_with = select({
+        "//haskell/private/toolchain:cell_linux_arm64": [],
+        "//haskell/private/toolchain:cell_macos_arm64": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+)
+
+genrule(
+    name = "nixfmt_static",
+    srcs = [":nixfmt"],
+    outs = ["nixfmt_static.readelf.txt"],
+    cmd = "$(execpath @llvm//tools:llvm-readelf) -l $(execpath :nixfmt) > $@ && ! grep -q INTERP $@",
+    target_compatible_with = [
+        "@llvm//constraints/libc:musl",
+        "@platforms//cpu:arm64",
+        "@platforms//os:linux",
+    ],
+    tools = ["@llvm//tools:llvm-readelf"],
+)
+
 build_test(
     name = "nixfmt_build_test",
     target_compatible_with = select({

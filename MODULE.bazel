@@ -569,6 +569,8 @@ osx.libraries(names = ["libffi"])
 use_repo(osx, "macos_sdk")
 
 # Gated on the Haskell-only flag, so it must come before the general C toolchains.
+register_toolchains("@dx_haskell_toolchains//:linux_arm64_musl")
+
 register_toolchains("@dx_haskell_toolchains//:all")
 
 apple_cc_configure = use_extension("@apple_support//crosstool:setup.bzl", "apple_cc_configure_extension")
@@ -1099,6 +1101,7 @@ dx_pins.archive(
         "//patches/rules_haskell:cabal_llvm_ar.patch",
         "//patches/rules_haskell:cc_wrapper_darwin_ffi.patch",
         "//patches/rules_haskell:cabal_binary_dep_data.patch",
+        "//patches/rules_haskell:cabal_static_exe.patch",
     ],
     pins = "//haskell:pins.json",
 )

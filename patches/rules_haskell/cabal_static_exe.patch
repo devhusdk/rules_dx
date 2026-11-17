@@ -1,0 +1,20 @@
+--- a/haskell/cabal.bzl
++++ b/haskell/cabal.bzl
+@@ -209,7 +209,7 @@
+         verbose,
+         transitive_haddocks,
+         generate_paths_module,
+-        is_library = False,  # @unused
++        is_library = False,
+         darwin_tools = None,
+         dynamic_file = None,
+         static_binary = True,
+@@ -359,7 +359,7 @@
+     if hs.toolchain.fully_static_link:
+         extra_args.append("--hsc2hs-option=--lflag=-static")
+ 
+-    if hs.features.fully_static_link:
++    if hs.features.fully_static_link and not is_library:
+         extra_args.append("--ghc-option=-optl-static")
+ 
+     path_args = [

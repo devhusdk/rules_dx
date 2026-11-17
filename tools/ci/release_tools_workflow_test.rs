@@ -21,7 +21,9 @@ const PYTHON_HOSTS: [&str; 5] = [
     "windows-arm64",
 ];
 
-const ASSETS: [&str; 7] = [
+const ASSETS: [&str; 9] = [
+    "dx-tool-nixfmt-1.5.0-LICENSE",
+    "dx-tool-nixfmt-1.5.0-linux-arm64",
     "dx-tool-kcov-43-linux-x86_64",
     "dx-tool-kcov-43-linux-arm64",
     "dx-tool-deadnix-1.3.1-LICENSE",
@@ -95,7 +97,7 @@ fn release_calls_the_tools_workflow_before_the_source_job() {
 fn release_writes_and_checks_the_tool_manifest() {
     let text = read_runfiles(RELEASE);
     assert!(text.contains("pattern: release-tool-*"));
-    assert!(text.contains("test \"$(wc -l < out/dx-tool-sha256sums.txt)\" -eq 20"));
+    assert!(text.contains("test \"$(wc -l < out/dx-tool-sha256sums.txt)\" -eq 22"));
     assert!(text.contains("sha256sum -c dx-tool-sha256sums.txt"));
     assert!(text.contains("out/dx-tool-sha256sums.txt; (cd out && sha256sum dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-tool-sha256sums.txt)"));
     for asset in ASSETS {

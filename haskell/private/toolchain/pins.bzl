@@ -123,3 +123,47 @@ CELLS = {
 def qualified_cells(cells = CELLS):
     """Returns the cells that are not blocked."""
     return [cell for cell in sorted(cells.keys()) if cells[cell].blocker == ""]
+
+ALPINE_MIRROR = "https://dl-cdn.alpinelinux.org/alpine/v3.18/main"
+
+MUSL_CELLS = {
+    "linux_arm64_musl": struct(
+        blocker = "",
+        exe_suffix = "",
+        os_libraries = ["unix"],
+        ghc_libdir_triple = "aarch64-linux",
+        host = struct(os = ["linux"], arch = ["aarch64", "arm64"]),
+        python = "@python_3_12_aarch64_unknown_linux_gnu//:bin/python3",
+        deb_arch = "",
+        locale = "C.UTF-8",
+        exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],
+        target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64", str(Label("@llvm//constraints/libc:musl"))],
+        ghc = _archive("ghc__linux_arm64_musl"),
+        cabal = _archive("cabal__linux_arm64"),
+        runtime = [],
+        loader = "ld-musl-aarch64.so.1",
+        apks = [
+            struct(package = "musl", apk = "aarch64/musl-1.2.4-r3.apk", sha256 = "d9674ebd60a55330fcca142a02e7e3e5a9ee889d65dc929311f53f735c5c8ac5", license = "MIT", libraries = {"ld-musl-aarch64.so.1": "lib/ld-musl-aarch64.so.1"}),
+            struct(package = "libffi", apk = "aarch64/libffi-3.4.4-r2.apk", sha256 = "87d1e17785b654351efa2aca7ee27c61453237690802cdc90b21f1feaa323793", license = "MIT", libraries = {"libffi.so.8": "usr/lib/libffi.so.8.1.2"}),
+            struct(package = "libncursesw", apk = "aarch64/libncursesw-6.4_p20230506-r0.apk", sha256 = "a7a3c246e0f3aa7e0666bb8ecb2718cc544db430a14fb7691c01b687cc4d43d2", license = "X11", libraries = {"libncursesw.so.6": "usr/lib/libncursesw.so.6.4"}),
+            struct(package = "gmp", apk = "aarch64/gmp-6.2.1-r3.apk", sha256 = "13f042e07fe32b5487111d6dec4289f6e745cc950a6d64232be679f2435b715d", license = "LGPL-3.0-or-later OR GPL-2.0-or-later", libraries = {"libgmp.so.10": "usr/lib/libgmp.so.10.4.1"}),
+            struct(package = "gmp-dev", apk = "aarch64/gmp-dev-6.2.1-r3.apk", sha256 = "c05f5c9a8fe1400607761a6946137ec338e99595645cab3e3038374e4e46e461", license = "LGPL-3.0-or-later OR GPL-2.0-or-later", libraries = {"libgmp.a": "usr/lib/libgmp.a"}),
+            struct(package = "libstdc++", apk = "aarch64/libstdc++-12.2.1_git20220924-r10.apk", sha256 = "5d233534267802336584f8b203a83197d7ce4b1314497c65b22aae9a7935143b", license = "GPL-3.0-or-later WITH GCC-exception-3.1", libraries = {"libstdc++.so.6": "usr/lib/libstdc++.so.6.0.30"}),
+            struct(package = "libgcc", apk = "aarch64/libgcc-12.2.1_git20220924-r10.apk", sha256 = "45907c59e25a6698019f9f39d3f4d61b7a5e11a7c41fcd3a7fa5a3a430e2a692", license = "GPL-3.0-or-later WITH GCC-exception-3.1", libraries = {"libgcc_s.so.1": "usr/lib/libgcc_s.so.1"}),
+        ],
+        loader_aliases = {
+            "libc.musl-aarch64.so.1": "ld-musl-aarch64.so.1",
+            "libc.so": "ld-musl-aarch64.so.1",
+            "libdl.so": "ld-musl-aarch64.so.1",
+            "libm.so": "ld-musl-aarch64.so.1",
+            "libpthread.so": "ld-musl-aarch64.so.1",
+            "librt.so": "ld-musl-aarch64.so.1",
+            "libffi.so": "libffi.so.8",
+            "libgmp.so": "libgmp.so.10",
+            "libstdc++.so": "libstdc++.so.6",
+        },
+        gmp_license = _GMP_LICENSE,
+    ),
+}
+
+ALL_CELLS = CELLS | MUSL_CELLS

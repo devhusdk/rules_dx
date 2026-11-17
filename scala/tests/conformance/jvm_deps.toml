@@ -1,0 +1,7 @@
+[[dep]]
+group = "junit"
+artifact = "junit"
+version = "4.13.2"
+scope = "compile"
+optional = false
+platform = false

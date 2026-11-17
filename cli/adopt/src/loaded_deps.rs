@@ -1,6 +1,8 @@
 //! Plans a `bazel_dep` for each rule set the workspace's BUILD files load from that the root
 //! module does not declare, at the version `rules_dx` itself depends on, and the TypeScript
-//! compiler repository `ts_project` reads when TypeScript rules are loaded.
+//! compiler repository `ts_project` reads when TypeScript rules are loaded. BUILD files that load
+//! from an `npm_translate_lock` hub get `aspect_rules_js`, whose platform labels the hub's links
+//! select on.
 
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -16,6 +18,7 @@ use crate::preflight::RULES_DX_DEPS;
 
 const MODULE_FILE: &str = "MODULE.bazel";
 const RULES_DX: &str = "rules_dx";
+const JS_MODULE: &str = "aspect_rules_js";
 const TS_MODULE: &str = "aspect_rules_ts";
 const TS_COMPILER: &str = "npm_typescript";
 const TS_EXTENSION: &str = "typescript";
@@ -40,10 +43,19 @@ pub fn plan_loaded_deps(root: &Path) -> Result<LockHubs, AdoptError> {
         .iter()
         .filter_map(|label| label_repo(label))
         .collect();
+    let modules = included_modules(root, &text)?;
+    let links_npm = modules.iter().any(|module| {
+        module
+            .npm_translate_locks()
+            .unwrap_or_default()
+            .iter()
+            .any(|lock| loaded.contains(lock.name))
+    });
     let mut new = text.clone();
     let mut notes = Vec::new();
     for (name, version) in RULES_DX_DEPS {
-        if !loaded.contains(*name) || declared.contains(*name) {
+        let needed = loaded.contains(*name) || (*name == JS_MODULE && links_npm);
+        if !needed || declared.contains(*name) {
             continue;
         }
         new = ModuleFile::parse(&new)
@@ -63,7 +75,7 @@ pub fn plan_loaded_deps(root: &Path) -> Result<LockHubs, AdoptError> {
         || labels.iter().any(|label| {
             label.starts_with(&ts_prefix) || label.starts_with(&format!("@{ts_prefix}"))
         });
-    if loads_ts && !is_rules_dx_root(root) && !imports_ts_compiler(root, &text)? {
+    if loads_ts && !is_rules_dx_root(root) && !imports_ts_compiler(&modules) {
         if !declared.contains(TS_MODULE) && !loaded.contains(TS_MODULE) {
             new = ModuleFile::parse(&new)
                 .and_then(|file| {
@@ -122,16 +134,19 @@ fn label_repo(label: &str) -> Option<&str> {
     Some(rest.split_once("//").map_or(rest, |(repo, _)| repo))
 }
 
-fn imports_ts_compiler(root: &Path, text: &str) -> Result<bool, AdoptError> {
+fn included_modules(root: &Path, text: &str) -> Result<Vec<ModuleFile>, AdoptError> {
     let read_include = |label: &str| -> Result<String, AdoptError> {
         let rel = dx_module_bazel::include_rel("", label).map_err(refuse)?;
         std::fs::read_to_string(root.join(rel))
             .map_err(|e| refuse(format!("cannot read included {label}: {e}")))
     };
-    let modules = dx_module_bazel::load_with_includes(text, &read_include)
-        .map_err(|error| error.into_error(refuse))?;
+    dx_module_bazel::load_with_includes(text, &read_include)
+        .map_err(|error| error.into_error(refuse))
+}
+
+fn imports_ts_compiler(modules: &[ModuleFile]) -> bool {
     let extension = format!("@{RULES_DX}//{TS_EXTENSION}:extensions.bzl");
-    Ok(modules.iter().any(|module| {
+    modules.iter().any(|module| {
         module
             .hub_bindings(&extension, TS_EXTENSION)
             .iter()
@@ -141,7 +156,7 @@ fn imports_ts_compiler(root: &Path, text: &str) -> Result<bool, AdoptError> {
                     .iter()
                     .any(|(repo, _)| *repo == TS_COMPILER)
             })
-    }))
+    })
 }
 
 #[cfg(test)]
@@ -250,6 +265,45 @@ mod tests {
                 "{new:?}"
             );
         }
+    }
+
+    #[test]
+    fn loads_from_an_npm_hub_get_aspect_rules_js() {
+        let module = format!("{MODULE}include(\"//:js.MODULE.bazel\")\n");
+        let hubs = plan(&[
+            ("MODULE.bazel", module.as_str()),
+            (
+                "js.MODULE.bazel",
+                "npm = use_extension(\"@rules_dx//javascript:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(\n    name = \"npm\",\n    pnpm_lock = \"//:pnpm-lock.yaml\",\n)\nuse_repo(npm, \"npm\")\n",
+            ),
+            (
+                "BUILD.bazel",
+                "load(\"@npm//:defs.bzl\", \"npm_link_all_packages\")\n",
+            ),
+        ]);
+        let edit = hubs.edit.expect("edit");
+        assert_eq!(
+            edit.new,
+            format!(
+                "{MODULE}bazel_dep(name = \"aspect_rules_js\", version = \"{}\")\ninclude(\"//:js.MODULE.bazel\")\n",
+                version("aspect_rules_js")
+            )
+        );
+    }
+
+    #[test]
+    fn an_npm_hub_nothing_loads_from_adds_no_dep() {
+        let module = format!(
+            "{MODULE}npm = use_extension(\"@rules_dx//javascript:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(\n    name = \"npm\",\n    pnpm_lock = \"//:pnpm-lock.yaml\",\n)\nuse_repo(npm, \"npm\")\n"
+        );
+        let hubs = plan(&[
+            ("MODULE.bazel", module.as_str()),
+            (
+                "BUILD.bazel",
+                "load(\"@rules_dx//rust:defs.bzl\", \"rust_library\")\n",
+            ),
+        ]);
+        assert_eq!(hubs.edit, None);
     }
 
     #[test]

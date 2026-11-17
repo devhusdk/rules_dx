@@ -199,8 +199,18 @@ exports_files([
     ".swift-version",
     "toolchain/usr/bin/llvm-cov.exe",
     "toolchain/usr/bin/llvm-profdata.exe",
+    "toolchain/usr/bin/swift-format.exe",
     "toolchain/usr/bin/swiftc.exe",
 ])
+
+filegroup(
+    name = "toolchain_bin",
+    srcs = glob(
+        ["toolchain/usr/bin/**"],
+        exclude = ["**/*.pdb"],
+        allow_empty = True,
+    ),
+)
 
 alias(
     name = "swiftc",
@@ -287,7 +297,7 @@ def _swift_windows_impl(repository_ctx):
     repository_ctx.file("BUILD.bazel", _SWIFT_WINDOWS_BUILD)
     repository_ctx.file(".swift-version", version + "\n")
     if host_cell(repository_ctx) != cell:
-        for path in ["toolchain/usr/bin/swiftc.exe", "toolchain/usr/bin/swift-symbolgraph-extract.exe"]:
+        for path in ["toolchain/usr/bin/swift-format.exe", "toolchain/usr/bin/swiftc.exe", "toolchain/usr/bin/swift-symbolgraph-extract.exe"]:
             repository_ctx.file(path, "")
         return repository_ctx.repo_metadata(reproducible = True)
     repository_ctx.download(

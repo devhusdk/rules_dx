@@ -1,5 +1,7 @@
 """Exposes swift-format from the pinned Swift toolchain archive."""
 
+load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
+load("//core:rlocation.bzl", "rlocation_path")
 load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE", "coreutils")
 
 def _swift_format_impl(ctx):
@@ -41,4 +43,20 @@ swift_format_tool = rule(
     executable = True,
     doc = "A copy of swift-format beside links to the libraries it loads.",
     toolchains = [COREUTILS_TOOLCHAIN_TYPE],
+)
+
+def _swift_format_windows_impl(ctx):
+    program = ctx.file.program
+    launcher, _, launcher_runfiles = write_native_launcher(ctx, "program=" + rlocation_path(ctx, program) + "\n")
+    runfiles = launcher_runfiles.merge(ctx.runfiles(files = [program], transitive_files = depset(ctx.files.data)))
+    return [DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = runfiles)]
+
+swift_format_windows = rule(
+    implementation = _swift_format_windows_impl,
+    attrs = NATIVE_LAUNCHER_ATTRS | {
+        "data": attr.label_list(allow_files = True, doc = "The toolchain bin directory swift-format loads its DLLs from."),
+        "program": attr.label(allow_single_file = True, mandatory = True, doc = "swift-format.exe inside the Swift Windows toolchain."),
+    },
+    executable = True,
+    doc = "Runs swift-format.exe of the pinned Swift Windows toolchain in place beside its DLLs.",
 )

@@ -166,7 +166,7 @@ pub fn run_apk(args: &[String]) -> Outcome {
         "unknown".clone_into(&mut build_tools);
     }
     let fix = format!(
-        "build-tools {build_tools} is missing; configure the android_sdk extension to acquire build-tools"
+        "build-tools {build_tools} is missing; configure the android extension to acquire build-tools"
     );
     if !runnable(&zipalign) {
         return Err(missing(format!("no zipalign: {fix}")));

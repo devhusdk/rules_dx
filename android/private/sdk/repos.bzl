@@ -346,7 +346,7 @@ def license_errors(request):
         return []
     quoted = ['"' + name + '"' for name in missing]
     return [
-        "android_sdk: accept " + ", ".join(missing) + " before acquisition; " +
+        "android: accept " + ", ".join(missing) + " before acquisition; " +
         "add dx_licenses.accept(ids = [" + ", ".join(quoted) + "]) to the root MODULE.bazel",
     ]
 
@@ -356,20 +356,20 @@ def request_errors(request):
     if not request.enabled:
         return errors
     if request.api_level != 0 and request.api_level < ANDROID_API_LEVEL:
-        errors.append("android_sdk: api_level " + str(request.api_level) + " is below " + str(ANDROID_API_LEVEL))
+        errors.append("android: api_level " + str(request.api_level) + " is below " + str(ANDROID_API_LEVEL))
     elif request.api_level != 0 and request.api_level not in PLATFORM_ARTIFACTS:
         levels = ", ".join([str(level) for level in sorted(PLATFORM_ARTIFACTS.keys())])
-        errors.append("android_sdk: api_level " + str(request.api_level) + " is not pinned; want one of " + levels)
+        errors.append("android: api_level " + str(request.api_level) + " is not pinned; want one of " + levels)
     seen = []
     for package in request.extra_packages:
         if package not in OPT_IN_PACKAGES:
-            errors.append("android_sdk: extra package '" + package + "' must be one of " + ", ".join(OPT_IN_PACKAGES))
+            errors.append("android: extra package '" + package + "' must be one of " + ", ".join(OPT_IN_PACKAGES))
         elif package in seen:
-            errors.append("android_sdk: extra package '" + package + "' is listed twice")
+            errors.append("android: extra package '" + package + "' is listed twice")
         seen.append(package)
     errors.extend(license_errors(request))
     if request.mirror != "" and not request.mirror.startswith("https://"):
-        errors.append("android_sdk: mirror '" + request.mirror + "' must use https")
+        errors.append("android: mirror '" + request.mirror + "' must use https")
     return errors
 
 def sdk_level(request):
@@ -740,7 +740,7 @@ def _acquire(ctx, errors, build):
     if ctx.attr.license_error != "":
         fail(ctx.attr.license_error)
     if len(errors) > 0:
-        fail("android_sdk: " + "; ".join(errors))
+        fail("android: " + "; ".join(errors))
     ctx.download_and_extract(
         url = ctx.attr.url,
         sha256 = ctx.attr.sha256,
@@ -749,7 +749,7 @@ def _acquire(ctx, errors, build):
         strip_prefix = ctx.attr.directory,
     )
     if not ctx.path("extracted/" + ctx.attr.anchor).exists:
-        fail("android_sdk: '" + ctx.attr.archive + "' holds no '" + ctx.attr.anchor + "'")
+        fail("android: '" + ctx.attr.archive + "' holds no '" + ctx.attr.anchor + "'")
     ctx.file("BUILD.bazel", build(ctx.attr.anchor))
     return ctx.repo_metadata(reproducible = True)
 

@@ -97,7 +97,7 @@ pub fn run(args: &[String]) -> Outcome {
     }
     if flags.adb.is_empty() {
         return Err(missing(
-            "no adb: add platform-tools to extra_packages of the android_sdk extension, or set ADB to an adb path",
+            "no adb: add platform-tools to extra_packages of the android extension, or set ADB to an adb path",
         ));
     }
     let adb = PathBuf::from(&flags.adb);

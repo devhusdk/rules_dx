@@ -13,6 +13,14 @@ const HOSTS: [(&str, &str); 4] = [
     ("windows-x86_64", "windows-latest"),
 ];
 
+const PYTHON_HOSTS: [&str; 5] = [
+    "linux-x86_64",
+    "linux-arm64",
+    "macos-arm64",
+    "windows-x86_64",
+    "windows-arm64",
+];
+
 const ASSETS: [&str; 3] = [
     "dx-tool-deadnix-1.3.1-LICENSE",
     "dx-tool-selene-0.32.0-LICENSE",
@@ -44,6 +52,7 @@ fn workflow_is_reusable_and_read_only() {
     assert_eq!(workflow["permissions"]["contents"], "read");
     assert_eq!(workflow["permissions"].as_object().expect("permissions").len(), 1);
     assert_eq!(workflow["jobs"]["tools"]["permissions"]["contents"], "read");
+    assert_eq!(workflow["jobs"]["python-tools"]["permissions"]["contents"], "read");
 }
 
 #[test]
@@ -51,6 +60,17 @@ fn each_host_uploads_its_artifact() {
     let text = read_runfiles(TOOLS);
     assert!(text.contains("name: release-tool-${{ matrix.host }}"));
     assert!(text.contains("//rust/private/quality/tools:deadnix //rust/private/quality/tools:selene"));
+}
+
+#[test]
+fn python_tools_job_builds_every_bundle_host() {
+    let workflow = document(TOOLS);
+    assert_eq!(workflow["jobs"]["python-tools"]["runs-on"], "ubuntu-latest");
+    let text = read_runfiles(TOOLS);
+    assert!(text.contains(&format!("hosts=({})", PYTHON_HOSTS.join(" "))));
+    assert!(text.contains("//core/quality/tools/python_bundle:dx_python_tools_${host//-/_}"));
+    assert!(text.contains("asset=\"$out/dx-python-tools-$host.tar.gz\""));
+    assert!(text.contains("name: release-tool-python-tools"));
 }
 
 #[test]
@@ -68,12 +88,14 @@ fn release_calls_the_tools_workflow_before_the_source_job() {
 fn release_writes_and_checks_the_tool_manifest() {
     let text = read_runfiles(RELEASE);
     assert!(text.contains("pattern: release-tool-*"));
-    assert!(text.contains("test \"$(wc -l < out/dx-tool-sha256sums.txt)\" -eq 11"));
+    assert!(text.contains("test \"$(wc -l < out/dx-tool-sha256sums.txt)\" -eq 16"));
     assert!(text.contains("sha256sum -c dx-tool-sha256sums.txt"));
     assert!(text.contains("out/dx-tool-sha256sums.txt; (cd out && sha256sum dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-tool-sha256sums.txt)"));
     for asset in ASSETS {
         assert!(text.contains(asset), "{RELEASE} must name {asset}");
     }
+    assert!(text.contains(&format!("for host in {}; do\n            tool_asset=\"dx-python-tools-$host.tar.gz\"", PYTHON_HOSTS.join(" "))));
+    assert!(text.contains(" dx-tool-* dx-python-tools-*; do"));
     for tool in ["deadnix-1.3.1", "selene-0.32.0"] {
         assert!(text.contains(tool), "{RELEASE} must name {tool}");
     }

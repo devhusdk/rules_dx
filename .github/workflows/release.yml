@@ -142,6 +142,12 @@ jobs:
             printf '%s  %s\n' "$(sha256sum "out/$tool_asset" | cut -d' ' -f1)" "$tool_asset" >> out/dx-tool-sha256sums.txt
             files="$files $tool_asset"
           done
+          for host in linux-x86_64 linux-arm64 macos-arm64 windows-x86_64 windows-arm64; do
+            tool_asset="dx-python-tools-$host.tar.gz"
+            test -s "out/$tool_asset" || { echo "want a non-empty out/$tool_asset" >&2; exit 1; }
+            printf '%s  %s\n' "$(sha256sum "out/$tool_asset" | cut -d' ' -f1)" "$tool_asset" >> out/dx-tool-sha256sums.txt
+            files="$files $tool_asset"
+          done
           files="$files dx-tool-sha256sums.txt"
           printf '%s\n' "$files" > out/files.list
           LC_ALL=C sort -k2 sums.tmp > out/dx-sha256sums.txt
@@ -149,7 +155,7 @@ jobs:
           (cd out && sha256sum -c dx-sha256sums.txt)
           test "$(wc -l < out/dx-gazelle-sha256sums.txt)" -eq 5 || { echo "want 5 gazelle manifest lines, got $(wc -l < out/dx-gazelle-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-gazelle-sha256sums.txt)
-          test "$(wc -l < out/dx-tool-sha256sums.txt)" -eq 11 || { echo "want 11 tool manifest lines, got $(wc -l < out/dx-tool-sha256sums.txt)" >&2; exit 1; }
+          test "$(wc -l < out/dx-tool-sha256sums.txt)" -eq 16 || { echo "want 16 tool manifest lines, got $(wc -l < out/dx-tool-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-tool-sha256sums.txt)
       - name: Build and verify the source archive
         env:
@@ -160,7 +166,7 @@ jobs:
           cp cli/prebuilt/pins.bzl "$pins"
           bazel run //tools/ci/fill_pins:fill_pins_bin -- "$RELEASE_TAG" --manifest "$PWD/out/dx-sha256sums.txt" --gazelle-manifest "$PWD/out/dx-gazelle-sha256sums.txt" --pins "$pins" --repo "$GITHUB_REPOSITORY"
           bazel run //deploy/private/release:source_archive -- "$RELEASE_TAG" "$CANDIDATE_COMMIT" "$SOURCE_DIR" --pins "$pins"
-          for file in dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-tool-sha256sums.txt files.list dx-*.sha256 dx-linux-x86_64 dx-linux-arm64 dx-macos-arm64 dx-windows-x86_64 dx-windows-arm64 dx-gazelle-linux-x86_64 dx-gazelle-linux-arm64 dx-gazelle-macos-arm64 dx-gazelle-windows-x86_64 dx-gazelle-windows-arm64 dx-tool-*; do
+          for file in dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-tool-sha256sums.txt files.list dx-*.sha256 dx-linux-x86_64 dx-linux-arm64 dx-macos-arm64 dx-windows-x86_64 dx-windows-arm64 dx-gazelle-linux-x86_64 dx-gazelle-linux-arm64 dx-gazelle-macos-arm64 dx-gazelle-windows-x86_64 dx-gazelle-windows-arm64 dx-tool-* dx-python-tools-*; do
             case "$file" in *.tar.gz.sha256|*.zip.sha256) continue ;; esac
             cp "out/$file" "$SOURCE_DIR/"
           done

@@ -26,7 +26,6 @@ startup:windows --output_user_root=C:/bz
 startup:windows --windows_enable_symlinks
 
 common:windows --experimental_override_platform_cpu_name=//tools/platforms:windows_msvc_host=wx
-common:windows --extra_toolchains=@pythons_hub//:all
 # Skip the local Windows SDK probe; builds use the hermetic MSVC and need no rc.exe.
 common:windows --override_repository=bazel_tools+winsdk_configure+local_config_winsdk=%workspace%/tools/platforms/no_winsdk
 build:windows --per_file_copt=external/protobuf[+]/upb/wire/encode[.]c@-D__SEH__

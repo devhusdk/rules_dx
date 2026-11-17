@@ -8,7 +8,6 @@
 --experimental_remote_downloader
 --experimental_remote_downloader_local_fallback
 --experimental_strict_java_deps
---extra_toolchains
 --features
 --host_jvm_args
 --host_linkopt

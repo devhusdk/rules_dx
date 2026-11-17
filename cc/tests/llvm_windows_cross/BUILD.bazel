@@ -1,0 +1,59 @@
+load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_test")
+
+package(default_testonly = True)
+
+_LANGS = [
+    "cc",
+    "go",
+    "zig",
+]
+
+_LINUX_X86_64 = [
+    "@platforms//os:linux",
+    "@platforms//cpu:x86_64",
+]
+
+[
+    platform_transition_filegroup(
+        name = lang,
+        srcs = ["//%s/tests/conformance:hello" % lang],
+        target_compatible_with = _LINUX_X86_64,
+        target_platform = "//tools/platforms:windows_x86_64",
+    )
+    for lang in _LANGS
+]
+
+[
+    rust_test(
+        name = lang + "_test",
+        size = "small",
+        srcs = ["//tools/testing/conformance:runner_test.rs"],
+        data = [":" + lang],
+        env = {
+            "DX_CONFORMANCE_MODE": "cross",
+            "DX_CONFORMANCE_SUBJECT": "$(rlocationpaths :%s)" % lang,
+            "DX_CONFORMANCE_TEXT": "windows_x86_64",
+        },
+        target_compatible_with = _LINUX_X86_64,
+        deps = [
+            "//tools/testing:dx_testing",
+            "//tools/testing/conformance:conformance_quality",
+        ],
+    )
+    for lang in _LANGS
+]
+
+filegroup(
+    name = "binaries",
+    srcs = [":" + lang for lang in _LANGS],
+    target_compatible_with = _LINUX_X86_64,
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

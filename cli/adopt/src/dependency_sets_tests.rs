@@ -477,13 +477,13 @@ fn the_repos_own_dart_hub_becomes_a_pub_set() {
 }
 
 #[test]
-fn bundle_fetches_become_ruby_sets() {
-    let module = "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(gemfile = \"//r:Gemfile\", gemfile_lock = \"//r:Gemfile.lock\")\n";
+fn ruby_lock_tags_become_ruby_sets() {
+    let module = "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.lock(name = \"gems\", lock = \"//r:ruby.lock.json\")\n";
     let registry = found(module, &[]);
-    let set = registry.find("bundle").expect("bundle");
+    let set = registry.find("gems").expect("gems");
     assert_eq!(set.ecosystem, Ecosystem::Ruby);
     assert_eq!(set.manifests, ["r/Gemfile"]);
-    assert_eq!(set.locks, ["r/Gemfile.lock"]);
+    assert_eq!(set.locks, ["r/ruby.lock.json", "r/Gemfile.lock"]);
 }
 
 #[test]
@@ -1194,7 +1194,7 @@ fn pinned() -> Registry {
             "gems",
             Ecosystem::Ruby,
             &["apps/rb/Gemfile"],
-            &["apps/rb/Gemfile.lock"],
+            &["apps/rb/ruby.lock.json", "apps/rb/Gemfile.lock"],
         ),
         (
             "modules",
@@ -1262,9 +1262,9 @@ fn pinned_sets_must_declare_the_lock_beside_their_manifest() {
             "ruby",
             "apps/rb/Gemfile",
             "apps/rb/gems.locked",
-            "apps/rb/Gemfile.lock",
+            "apps/rb/ruby.lock.json",
         ),
-        ("ruby", "Gemfile", "other/Gemfile.lock", "Gemfile.lock"),
+        ("ruby", "Gemfile", "other/ruby.lock.json", "ruby.lock.json"),
         (
             "powershell",
             "tools/ps/PSGallery.requirements.psd1",

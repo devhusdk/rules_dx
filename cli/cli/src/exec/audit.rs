@@ -449,7 +449,12 @@ fn parse_one_lock(
             Some("yarn.lock") => dx_audit::locks::parse_yarn_lock(text),
             _ => dx_audit::locks::parse_pnpm_lock(text),
         },
-        dx_adopt::dependency_sets::Ecosystem::Ruby => dx_audit::locks::parse_gemfile_lock(text),
+        dx_adopt::dependency_sets::Ecosystem::Ruby => match rel.rsplit('/').next() {
+            Some(name) if name == dx_adopt::dependency_sets::gemfile_lock()? => {
+                dx_audit::locks::parse_gemfile_lock(text)
+            }
+            _ => Ok(Vec::new()),
+        },
         dx_adopt::dependency_sets::Ecosystem::Cpan => match rel.rsplit('/').next() {
             Some(name) if name == dx_adopt::dependency_sets::cpanfile_snapshot()? => {
                 dx_audit::locks::parse_cpanfile_snapshot(text)

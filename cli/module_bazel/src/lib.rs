@@ -246,12 +246,11 @@ pub struct GoModFile<'a> {
     pub line: usize,
 }
 
-/// One `ruby.bundle_fetch` tag.
+/// One `ruby.lock` tag of the `rules_dx` ruby extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct BundleFetch<'a> {
+pub struct RubyLock<'a> {
     pub name: &'a str,
-    pub gemfile: &'a str,
-    pub gemfile_lock: &'a str,
+    pub lock: &'a str,
     pub line: usize,
 }
 
@@ -974,15 +973,14 @@ impl ModuleFile {
         Ok(out)
     }
 
-    /// Every `ruby.bundle_fetch` tag in source order. The name defaults to `bundle`.
-    pub fn bundle_fetches(&self) -> Result<Vec<BundleFetch<'_>>, ModuleError> {
-        const TAG: &str = "ruby.bundle_fetch";
-        self.tags(RUBY_MODULE, "ruby:extensions.bzl", "ruby", "bundle_fetch")
+    /// Every `ruby.lock` tag of the `rules_dx` ruby extension in source order.
+    pub fn ruby_locks(&self) -> Result<Vec<RubyLock<'_>>, ModuleError> {
+        const TAG: &str = "ruby.lock";
+        self.tags(RUBY_MODULE, "ruby:extensions.bzl", "ruby", "lock")
             .map(|call| {
-                Ok(BundleFetch {
-                    name: literal(call, TAG, "name")?.unwrap_or("bundle"),
-                    gemfile: required(call, TAG, "gemfile")?,
-                    gemfile_lock: required(call, TAG, "gemfile_lock")?,
+                Ok(RubyLock {
+                    name: required(call, TAG, "name")?,
+                    lock: required(call, TAG, "lock")?,
                     line: call.line,
                 })
             })

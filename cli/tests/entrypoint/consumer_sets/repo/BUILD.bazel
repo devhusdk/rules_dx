@@ -28,6 +28,7 @@ genrule(
         "sets_ok/apps/web/pnpm-lock.yaml",
         "sets_ok/apps/rb/Gemfile",
         "sets_ok/apps/rb/Gemfile.lock",
+        "sets_ok/apps/rb/ruby.lock.json",
         "sets_ok/apps/rs/Cargo.toml",
         "sets_ok/apps/rs/Cargo.lock",
         "sets_ok/perl/cpanfile",
@@ -69,7 +70,7 @@ uv.project(hub_name = "pypi", lock = "//services/worker:uv.lock", pyproject = "/
 npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
 npm.npm_translate_lock(name = "web", pnpm_lock = "//apps/web:pnpm-lock.yaml")
 ruby = use_extension("@rules_dx//ruby:extensions.bzl", "ruby")
-ruby.bundle_fetch(name = "gems", gemfile = "//apps/rb:Gemfile", gemfile_lock = "//apps/rb:Gemfile.lock")
+ruby.lock(name = "gems", lock = "//apps/rb:ruby.lock.json")
 crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 crate.from_cargo(name = "crates", cargo_lockfile = "//apps/rs:Cargo.lock", manifests = ["//apps/rs:Cargo.toml"])
 cpan = use_extension("@rules_dx//perl:extensions.bzl", "cpan")
@@ -134,6 +135,7 @@ version = "0.1.0"
 EOF
 cp "$(location sets_ok/apps/rs/Cargo.lock)" "$$orig/consumer_sets_cargo_lock.orig"
 echo 'source "https://rubygems.org"' > "$(location sets_ok/apps/rb/Gemfile)"
+echo '{"ecosystem": "ruby", "packages": []}' > "$(location sets_ok/apps/rb/ruby.lock.json)"
 cat > "$(location sets_ok/apps/rb/Gemfile.lock)" <<'EOF'
 GEM
   remote: https://rubygems.org/

@@ -38,7 +38,7 @@ ruby_binary(
     name = "lock_hello",
     srcs = ["lock_main.rb"],
     main = "lock_main.rb",
-    deps = ["@bundle"],
+    deps = ["@gems"],
 )
 
 ruby_test(

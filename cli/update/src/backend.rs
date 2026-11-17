@@ -640,11 +640,9 @@ pub fn plan_configured_bazel_lock(
     })
 }
 
-/// The `bundle lock --update <gem> --conservative` run that refreshes a ruby set's lock.
-///
-/// It runs the pinned toolchain Ruby through Bazel in the manifest's directory, never a
-/// host Ruby, and touches only that gem and what it needs.
+/// The pinned ruby resolver run that re-resolves `gem` of a ruby set and writes its locks.
 pub fn plan_ruby_lock(
+    workspace: &Path,
     set: &ResolvedSet,
     gem: &str,
     offline: bool,
@@ -661,8 +659,15 @@ pub fn plan_ruby_lock(
             set: set.name.clone(),
         });
     }
-    let mut argv = bazel(head, "run", &["@ruby//:bundle", "--"]);
-    argv.extend(strings(&["lock", "--update", gem, "--conservative"]));
+    let resolver = dx_families::hub("ruby")
+        .and_then(|hub| hub.resolver.as_deref())
+        .ok_or_else(|| BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: "the ruby registry entry names no resolver",
+        })?;
+    let dir = workspace.join(&set.dir);
+    let mut argv = resolver_run_argv(head, resolver, &dir.to_string_lossy());
+    argv.extend(strings(&["--upgrade", gem]));
     Ok(DirRun {
         argv,
         env: Vec::new(),

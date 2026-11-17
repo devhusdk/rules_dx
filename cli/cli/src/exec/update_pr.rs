@@ -1548,7 +1548,7 @@ mod tests {
         let gemfile = manifest_of(Ecosystem::Ruby);
         let gemfile_lock = lock_of(Ecosystem::Ruby);
         let module = format!(
-            "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(gemfile = \"//:{gemfile}\", gemfile_lock = \"//:{gemfile_lock}\")\n"
+            "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.lock(name = \"gems\", lock = \"//:ruby.lock.json\")\n"
         );
         let (code, out, argv) = run_pr_with(
             &[
@@ -1562,9 +1562,9 @@ mod tests {
             )],
         );
         let _ = code;
-        assert!(!out.contains("skipped bundle:rake"), "{out}");
+        assert!(!out.contains("skipped gems:rake"), "{out}");
         assert!(
-            format!("{out}{argv}").contains("dx-update/bundle"),
+            format!("{out}{argv}").contains("dx-update/gems"),
             "{out}{argv}"
         );
     }

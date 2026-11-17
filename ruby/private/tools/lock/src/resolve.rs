@@ -579,7 +579,7 @@ impl<'a> Ruby<'a> {
         Spec {
             ecosystem: hub.ecosystem.clone(),
             manifest: vec![hub.manifest.clone()],
-            state: vec![STATE.to_owned()],
+            state: hub.state.iter().cloned().collect(),
         }
     }
 

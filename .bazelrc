@@ -102,6 +102,6 @@ common:rbe --strategy=TestRunner=remote,sandboxed,local
 
 build:linux --@rules_rust_wasm_bindgen//settings:test_browser=firefox
 
-build --//ruby/private/quality:rubocop=@bundle//bin:rubocop
+build --//ruby/private/quality:rubocop=@gems//bin:rubocop
 
 try-import %workspace%/user.bazelrc

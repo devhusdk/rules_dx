@@ -581,7 +581,7 @@ fn planned_families(files: &[(&str, &str)]) -> Vec<&'static str> {
         .collect()
 }
 
-const RUBY_MODULE: &str = "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"gems\", gemfile = \"//rb:Gemfile\", gemfile_lock = \"//rb:Gemfile.lock\")\n";
+const RUBY_MODULE: &str = "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.lock(name = \"gems\", lock = \"//rb:ruby.lock.json\")\n";
 
 #[test]
 fn configured_ruby_sets_plan_rubygems() {

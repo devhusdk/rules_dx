@@ -44,7 +44,7 @@ pub(crate) struct Hub {
     /// The `pnpm_lock` of an `npm.npm_translate_lock` hub, which has no Cargo
     /// lock (`cargo_lockfile` is empty).
     pub(crate) pnpm_lockfile: Option<String>,
-    /// A `ruby.bundle_fetch` repo; `cargo_lockfile` then holds its ruby lock.
+    /// A `ruby.lock` hub; `cargo_lockfile` then holds the Bundler state beside its lock.
     pub(crate) gems: bool,
 }
 
@@ -58,7 +58,7 @@ pub(crate) enum LockKind {
     /// A go manifest or go lock named by `go_deps.from_file`.
     Go(Vec<String>),
     Pnpm(Vec<String>),
-    /// A ruby lock named by `ruby.bundle_fetch`.
+    /// The Bundler state beside a lock named by `ruby.lock`.
     Ruby(Vec<String>),
     Unknown,
 }
@@ -1097,7 +1097,7 @@ pub(crate) fn classify(path: &str, hubs: &[Hub]) -> LockKind {
     LockKind::Unknown
 }
 
-/// The `ruby.bundle_fetch` repos with the ruby lock each one reads.
+/// The `ruby.lock` hubs with the Bundler state beside each lock.
 pub(crate) fn gem_hubs(module_text: &str) -> Result<Vec<Hub>, dx_error::DxError> {
     let module = ModuleFile::parse(module_text)
         .map_err(|error| dx_error::DxError::failure(error.to_string()))?;
@@ -1120,7 +1120,7 @@ pub(crate) fn gem_hubs(module_text: &str) -> Result<Vec<Hub>, dx_error::DxError>
     }
     let mut hubs = Vec::new();
     for call in module.calls() {
-        let Some((binding, "bundle_fetch")) = call.name.split_once('.') else {
+        let Some((binding, "lock")) = call.name.split_once('.') else {
             continue;
         };
         if !bindings.contains(binding) {
@@ -1140,17 +1140,21 @@ pub(crate) fn gem_hubs(module_text: &str) -> Result<Vec<Hub>, dx_error::DxError>
                 )
             })
         })?;
-        let gemfile_lock = literal(call, "gemfile_lock", None)?.ok_or_else(|| {
+        let lock = literal(call, "lock", None)?.ok_or_else(|| {
             dx_error::DxError::failure({
-                format!(
-                    "{} at MODULE.bazel line {} has no gemfile_lock",
-                    call.name, call.line
-                )
+                format!("{} at MODULE.bazel line {} has no lock", call.name, call.line)
             })
         })?;
+        let lock = workspace_path(&lock)?;
+        let state = dx_adopt::dependency_sets::gemfile_lock()
+            .map_err(|error| dx_error::DxError::failure(error.to_string()))?;
+        let gemfile_lock = match lock.rsplit_once('/') {
+            Some((dir, _)) => format!("{dir}/{state}"),
+            None => state.to_owned(),
+        };
         hubs.push(Hub {
             name,
-            cargo_lockfile: workspace_path(&gemfile_lock)?,
+            cargo_lockfile: gemfile_lock,
             lockfile: None,
             pip: false,
             maven: false,
@@ -1414,17 +1418,11 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
 
     #[test]
     fn gem_hubs_and_changed_gems() {
-        let module = &format!(
-            "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"bundle\", gemfile_lock = \"//third_party/ruby:{}\")\n",
-            lock_of(Ecosystem::Ruby)
-        );
+        let module = "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.lock(name = \"gems\", lock = \"//third_party/ruby:ruby.lock.json\")\n";
         let hubs = gem_hubs(module).expect("hubs");
         assert_eq!(
-            classify(
-                &format!("third_party/ruby/{}", lock_of(Ecosystem::Ruby)),
-                &hubs
-            ),
-            LockKind::Ruby(vec!["bundle".to_owned()])
+            classify("third_party/ruby/Gemfile.lock", &hubs),
+            LockKind::Ruby(vec!["gems".to_owned()])
         );
         assert_eq!(
             classify(lock_of(Ecosystem::Cargo), &hubs),

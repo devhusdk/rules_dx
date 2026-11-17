@@ -833,9 +833,9 @@ fn consumer_npm_parent_pnpm_workspace_is_unsupported() {
     assert!(runner.calls.borrow().is_empty());
 }
 
-const PINNED_MODULE: &str = "uv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"deps\", pyproject = \"//apps/frontend:pyproject.toml\", lock = \"//apps/frontend:uv.lock\")\nruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"gems\", gemfile = \"//apps/rb:Gemfile\", gemfile_lock = \"//apps/rb:Gemfile.lock\")\n";
+const PINNED_MODULE: &str = "uv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"deps\", pyproject = \"//apps/frontend:pyproject.toml\", lock = \"//apps/frontend:uv.lock\")\nruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.lock(name = \"gems\", lock = \"//apps/rb:ruby.lock.json\")\n";
 
-const PINNED_FILES: [(&str, &str); 2] = [
+const PINNED_FILES: [(&str, &str); 3] = [
     (
         "apps/rb/Gemfile",
         "source \"https://rubygems.org\"\ngem \"rspec-core\"\n",
@@ -844,6 +844,7 @@ const PINNED_FILES: [(&str, &str); 2] = [
         "apps/rb/Gemfile.lock",
         "GEM\n  remote: https://rubygems.org/\n  specs:\n    rspec-core (3.13.0)\n",
     ),
+    ("apps/rb/ruby.lock.json", "{\"ecosystem\": \"ruby\", \"packages\": []}\n"),
 ];
 
 fn pinned_harness(name: &str) -> Harness {
@@ -924,23 +925,6 @@ fn consumer_pinned_package_selection_is_unsupported_without_fallback() {
         assert!(runner.launches.borrow().is_empty());
         assert_pinned_files_unchanged(&harness);
     }
-}
-
-#[test]
-fn consumer_pinned_set_without_its_lock_declared_is_unsupported() {
-    let harness = consumer_harness(
-        "pinned-lock",
-        "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"gems\", gemfile = \"//apps/rb:Gemfile\", gemfile_lock = \"//apps/rb:gems.locked\")\n",
-        true,
-    );
-    harness.write_source("apps/rb/Gemfile", PINNED_FILES[0].1);
-    harness.write_source("apps/rb/gems.locked", PINNED_FILES[1].1);
-    let runner = ScriptRunner::new(&[]);
-    let (code, out, err) = run_with(&["update"], &runner, &harness);
-    assert_eq!(code, 1, "{out}{err}");
-    assert!(err.contains("apps/rb/Gemfile.lock"), "{err}");
-    assert!(!out.contains("pins are manual"), "{out}");
-    assert!(runner.launches.borrow().is_empty());
 }
 
 const CARGO_MANIFEST: &str =

@@ -699,11 +699,7 @@ source = { registry = "https://pypi.org/simple" }
     }
 
     fn pinned_module() -> String {
-        let v0 = manifest_of(Ecosystem::Ruby);
-        let v1 = lock_name(Ecosystem::Ruby);
-        format!(
-            "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"gems\", gemfile = \"//apps/rb:{v0}\", gemfile_lock = \"//apps/rb:{v1}\")\n"
-        )
+        "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.lock(name = \"gems\", lock = \"//apps/rb:ruby.lock.json\")\n".to_owned()
     }
 
     const GEMFILE_LOCK: &str = "GEM\n  remote: https://rubygems.org/\n  specs:\n    rack (2.2.0)\n\nPLATFORMS\n  ruby\n\nDEPENDENCIES\n  rack\n";
@@ -724,8 +720,12 @@ source = { registry = "https://pypi.org/simple" }
             "source \"https://rubygems.org\"\ngem \"rack\"\n",
         );
         harness.write_source(
-            &format!("apps/rb/{}", lock_name(Ecosystem::Ruby)),
+            &format!("apps/rb/{}", dx_adopt::dependency_sets::gemfile_lock().expect("state")),
             GEMFILE_LOCK,
+        );
+        harness.write_source(
+            "apps/rb/ruby.lock.json",
+            "{\"ecosystem\": \"ruby\", \"packages\": []}\n",
         );
         harness
     }
@@ -739,7 +739,7 @@ source = { registry = "https://pypi.org/simple" }
         assert_eq!(code, 1, "{out}{err}");
         assert!(out.contains("vuln/GHSA-rack-0001"), "{out}");
         assert!(
-            out.contains(&format!("apps/rb/{}", lock_name(Ecosystem::Ruby))),
+            out.contains(&format!("apps/rb/{}", dx_adopt::dependency_sets::gemfile_lock().expect("state"))),
             "{out}"
         );
         assert!(!out.contains("pypi"), "{out}");

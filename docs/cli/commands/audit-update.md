@@ -411,7 +411,7 @@ Without `--apply` it exits `0` when the manifest already declares the version, a
 | `maven` | Literal coordinate in the set's `maven.install`, then `@<set>//:pin`. Use `<set>:<group>:<artifact> <version>`. |
 | `npm`, `uv` | `package.json` or `pyproject.toml`, then refreshes the lock. |
 | `nuget` | `paket.dependencies` only. Run `paket update`, then `dx update <set>`. |
-| `ruby` | Literal requirement on the gem's Gemfile line, then `bundle lock --update <gem> --conservative` with `@ruby//:bundle` in the Gemfile directory. |
+| `ruby` | Literal requirement on the gem's Gemfile line, then `bazel run @rules_dx//ruby/private/tools/lock -- --dir <set directory> --upgrade <gem>`. |
 
 A missing package is inserted in the same manifest and shape: a `bazel_dep` after the last one, a `[dependencies]` entry, a `require` line, a `maven.install` coordinate, a `dependencies` entry in `package.json`, a `nuget` line, a `[project].dependencies` requirement `name>=version` in `pyproject.toml` for configured `uv` sets, or a `gem "name", "~> <major>.<minor>"` line after the last top-level `gem` in the `Gemfile` for `ruby` sets.
 
@@ -462,7 +462,7 @@ Review a bump pull request by reading the diff of `.dx/pins` and the list of new
 | `npm.npm_translate_lock` with `pnpm_lock` | `name` | `package.json` beside the lock | `pnpm_lock` |
 | `uv.project` | `<hub_name>-<pyproject directory name>` | `pyproject` | `lock` |
 | `go_deps.from_file` with `go_mod` | `go` | `go_mod` | `go.sum` beside it |
-| `ruby.bundle_fetch` | `name`, default `bundle` | `gemfile` | `gemfile_lock` |
+| `ruby.lock` of `@rules_dx//ruby:extensions.bzl` | `name` | `Gemfile` beside the lock | `lock` and `Gemfile.lock` beside it |
 | `composer.lock` of `@rules_dx//php:extensions.bzl` | `name` | `composer.json` beside the lock | `lock` |
 | `dub.lock` of `@rules_dx//d:extensions.bzl` | `name` | `dub.json` beside `lock` | `lock` |
 | `fpm.lock` of `@rules_dx//fortran:extensions.bzl` | `name` | `fpm.toml` beside the lock | `lock` |
@@ -505,15 +505,13 @@ use_repo(pnpm, "pnpm")
 
 ```starlark
 ruby = use_extension("@rules_dx//ruby:extensions.bzl", "ruby")
-ruby.bundle_fetch(
+ruby.lock(
     name = "gems",
-    gemfile = "//apps/rb:Gemfile",
-    gemfile_lock = "//apps/rb:Gemfile.lock",
+    lock = "//apps/rb:ruby.lock.json",
 )
 ```
 
-- `gemfile_lock` must sit beside the `Gemfile`, or the set is unsupported.
-- `dx update` and `--apply` report `pinned` and start no process, also under `--offline` and `--frozen`. A `set:package` selector is unsupported; run `bundle lock`.
+- `dx update` and `--apply` report `pinned` and start no process, also under `--offline` and `--frozen`. A `set:package` selector is unsupported; run `bazel run @rules_dx//ruby/private/tools/lock -- --dir <set directory>`.
 - `dx security` matches `Gemfile.lock` against `.dx/local/advisory/rubygems.json`. `dx license` needs `[[inventory]]` with `set = "ruby"`.
 
 ### julia

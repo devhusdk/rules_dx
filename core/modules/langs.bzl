@@ -2842,13 +2842,13 @@ LANGS = json.decode("""{
         {
           "ecosystem": "ruby",
           "extension": "@rules_dx//ruby:extensions.bzl",
-          "hub": "bundle",
-          "imports": "name",
-          "lock": "Gemfile.lock",
+          "hub": "gems",
+          "imports": "provides",
+          "lock": "ruby.lock.json",
           "manifest": "Gemfile",
-          "resolver": null,
-          "state": null,
-          "tag": "bundle_fetch"
+          "resolver": "@rules_dx//ruby/private/tools/lock",
+          "state": "Gemfile.lock",
+          "tag": "lock"
         }
       ]
     },

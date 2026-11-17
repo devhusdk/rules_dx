@@ -19,13 +19,13 @@
       {
         "ecosystem": "ruby",
         "manifest": "Gemfile",
-        "lock": "Gemfile.lock",
-        "state": null,
+        "lock": "ruby.lock.json",
+        "state": "Gemfile.lock",
         "extension": "@rules_dx//ruby:extensions.bzl",
-        "tag": "bundle_fetch",
-        "hub": "bundle",
-        "resolver": null,
-        "imports": "name"
+        "tag": "lock",
+        "hub": "gems",
+        "resolver": "@rules_dx//ruby/private/tools/lock",
+        "imports": "provides"
       }
     ]
   },

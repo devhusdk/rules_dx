@@ -1,6 +1,5 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_test")
-load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
+load("//tools/testing/hermetic:defs.bzl", "nested_bazel_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -60,10 +59,13 @@ filegroup(
 )
 
 # keep
-rust_test(
+nested_bazel_test(
     name = "consumer_test",
+    size = "large",
     timeout = "moderate",
     srcs = ["consumer_test.rs"],
+    cache = "adopt_polyglot",
+    cache_locks = "//tools/testing/nested_cache:adopt_polyglot_locks",
     data = [
         ":sources",
         "//:module_srcs",
@@ -76,14 +78,12 @@ rust_test(
         "//patches/rules_py:pep517_msvc.patch",
         "//patches/rules_py:py_cc_toolchain_platform.patch",
         "//patches/rules_py:venv_bin_files.patch",
-    ] + NESTED_BAZEL_DATA,
+        "//patches/rules_py:win32_x86_32.patch",
+    ],
     env = {
         "DX_COREUTILS": "$(rootpaths //core/coreutils:applets)",
         "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    # The consumer fetches toolchains and registry modules.
-    tags = NESTED_BAZEL_NETWORK_TAGS,
+    },
     deps = [
         "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",

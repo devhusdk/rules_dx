@@ -2,10 +2,18 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 exports_files(
     [
+        "adopt_polyglot.txt",
         "harness.txt",
         "release.txt",
     ],
     visibility = ["//tools/testing:__pkg__"],
+)
+
+filegroup(
+    name = "adopt_polyglot_locks",
+    testonly = True,
+    srcs = ["adopt_polyglot.MODULE.bazel.lock"],
+    visibility = ["//visibility:public"],
 )
 
 filegroup(

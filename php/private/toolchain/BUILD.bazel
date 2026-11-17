@@ -19,10 +19,6 @@ cell_settings(
     cells = PHP_CELLS,
 )
 
-toolchain_type(name = "toolchain_type")
-
-toolchain_type(name = "exec_toolchain_type")
-
 php_library(
     name = "toolchain",
     srcs = ["version_check.php"],

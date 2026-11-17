@@ -15,8 +15,6 @@ exports_files([
 
 otp_cell_settings(name = "cell")
 
-toolchain_type(name = "runtime_toolchain_type")
-
 unsupported_value("unsupported")
 
 build_test(

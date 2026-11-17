@@ -17,7 +17,7 @@ load(
 
 HUB_NAME = "dx_erlang_toolchains"
 
-RUNTIME_TOOLCHAIN_TYPE = str(Label("//erlang/private/toolchain:runtime_toolchain_type"))
+RUNTIME_TOOLCHAIN_TYPE = str(Label("//erlang:toolchain_type"))
 
 CLOSURE_DIR = "dx_closure"
 

@@ -16,6 +16,8 @@ _JEST_ONLY_KEYS = [
 
 NODE_JEST_WINDOWS_ARGS = ["--coverageProvider=v8"]
 
+NODE_JEST_COVERAGE_OFF_ARGS = ["--coverage=false"]
+
 def node_jest_chdir(package_json, kwargs):
     """Returns the jest working directory: the package of a main-repository package_json below the root, or None."""
     if package_json == None or "chdir" in kwargs:
@@ -33,6 +35,9 @@ def node_jest_upstream_attrs(node_modules, kwargs, package_json = None):
         "fixed_args": user_args + select({
             Label("@platforms//os:windows"): NODE_JEST_WINDOWS_ARGS,
             "//conditions:default": [],
+        }) + select({
+            Label("//core:coverage_on"): [],
+            "//conditions:default": NODE_JEST_COVERAGE_OFF_ARGS,
         }),
     }
     chdir = node_jest_chdir(package_json, kwargs)

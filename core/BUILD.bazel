@@ -8,6 +8,12 @@ bool_flag(
     visibility = ["//visibility:public"],
 )
 
+config_setting(
+    name = "coverage_on",
+    values = {"collect_code_coverage": "true"},
+    visibility = ["//visibility:public"],
+)
+
 exports_files([
     "canonical.bzl",
     "cells.bzl",

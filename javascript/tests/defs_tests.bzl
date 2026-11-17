@@ -5,7 +5,7 @@ load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal")
 load("//core:wrapper.bzl", "dx_args_label_error", "dx_args_label_references")
 load("//javascript/private:defs.bzl", "javascript_binary_upstream_data", "javascript_test_rejection")
-load("//core:node_test.bzl", "NODE_JEST_WINDOWS_ARGS", "node_jest_upstream_attrs", "node_test_env", "node_test_upstream_data", "node_test_wrap_args")
+load("//core:node_test.bzl", "NODE_JEST_COVERAGE_OFF_ARGS", "NODE_JEST_WINDOWS_ARGS", "node_jest_upstream_attrs", "node_test_env", "node_test_upstream_data", "node_test_wrap_args")
 
 visibility(["//..."])
 
@@ -107,6 +107,11 @@ def javascript_wrapper_contract_tests(name):
                 "the Windows jest default selects the v8 coverage provider",
                 NODE_JEST_WINDOWS_ARGS,
                 ["--coverageProvider=v8"],
+            ),
+            expect_equal(
+                "jest without collect_code_coverage turns jest coverage off",
+                NODE_JEST_COVERAGE_OFF_ARGS,
+                ["--coverage=false"],
             ),
             expect_equal(
                 "jest attrs take fixed_args out of kwargs",

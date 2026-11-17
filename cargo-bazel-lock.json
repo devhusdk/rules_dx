@@ -1,5 +1,5 @@
 {
-  "checksum": "8654d5084b4d86d06fa0e3bd8c2eacc249b96df3de84f4170de9595300c10752",
+  "checksum": "8ee5fec7187740ecbaa41ea0bd518c4bef6c5f71766825c743e361a469071b5f",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -8364,18 +8364,16 @@
             "target": "tar"
           },
           {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          },
+          {
             "id": "ureq 3.5.0",
             "target": "ureq"
           },
           {
             "id": "zip 9.1.2",
             "target": "zip"
-          }
-        ],
-        "deps_dev": [
-          {
-            "id": "tempfile 3.27.0",
-            "target": "tempfile"
           }
         ],
         "edition": "2024"

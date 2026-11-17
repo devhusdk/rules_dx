@@ -123,13 +123,23 @@ fn the_polyglot_example_adopts_and_tests_green() {
     );
     write_rules_py_patches(&root, &source).unwrap_or_else(|error| panic!("{error}"));
     case.use_lock("adopt_polyglot");
+    let init: &[&str] = if cfg!(windows) {
+        &[
+            "init",
+            "--apply",
+            "--accept-license",
+            "visual-studio-build-tools",
+        ]
+    } else {
+        &["init", "--apply"]
+    };
 
-    ok(&dx(&case, &["init", "--apply"]), "dx init --apply");
+    ok(&dx(&case, init), "dx init --apply");
     ok(&dx(&case, &["generate", "--apply"]), "dx generate --apply");
     ok(&dx(&case, &["test", "//..."]), "dx test //...");
 
     let before = snapshot(&root);
-    ok(&dx(&case, &["init", "--apply"]), "second dx init --apply");
+    ok(&dx(&case, init), "second dx init --apply");
     ok(
         &dx(&case, &["generate", "--apply"]),
         "second dx generate --apply",

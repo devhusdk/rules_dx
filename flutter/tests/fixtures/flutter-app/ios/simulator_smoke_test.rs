@@ -61,7 +61,18 @@ impl Simulators {
 }
 
 fn step(start: Instant, name: &str) {
-    eprintln!("{name}: {:.1}s", start.elapsed().as_secs_f64());
+    let line = format!("{name}: {:.1}s\n", start.elapsed().as_secs_f64());
+    eprint!("{line}");
+    if let Ok(dir) = std::env::var("TEST_UNDECLARED_OUTPUTS_DIR") {
+        let path = Path::new(&dir).join("steps.txt");
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)
+            .unwrap_or_else(|error| panic!("open {}: {error}", path.display()));
+        std::io::Write::write_all(&mut file, line.as_bytes())
+            .unwrap_or_else(|error| panic!("write {}: {error}", path.display()));
+    }
 }
 
 struct Device<'a> {

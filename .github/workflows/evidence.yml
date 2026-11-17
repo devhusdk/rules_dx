@@ -234,6 +234,13 @@ jobs:
               [ -S "$runtime/wayland-dx" ] || { cat "$RUNNER_TEMP/weston.log"; exit 1; }
               ;;
           esac
+      - name: Warm the iOS simulator runtimes
+        if: ${{ runner.os == 'macOS' && contains(steps.inputs.outputs.flags, 'simulator_runtime=') }}
+        run: |
+          set -eu
+          start=$(date +%s)
+          xcrun simctl runtime dyld_shared_cache update --all
+          echo "simulator dyld caches ready after $(( $(date +%s) - start ))s"
       - name: Allow unprivileged user namespaces
         if: runner.os == 'Linux'
         run: |

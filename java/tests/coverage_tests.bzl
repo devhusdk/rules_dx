@@ -1,8 +1,8 @@
 """Analysis tests for the JVM test coverage environment."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load(":coverage.bzl", "DX_JVM_TEST_RUNNER")
 load("//core:conformance.bzl", "coverage_env_tests")
+load("//java/private:coverage.bzl", "DX_JVM_TEST_RUNNER")
 
 def _coverage_env_impl(ctx):
     env = analysistest.begin(ctx)

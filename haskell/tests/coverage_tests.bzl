@@ -41,8 +41,8 @@ _coverage_off_test = analysistest.make(
     attrs = {"expect_lcov": attr.bool(default = False)},
 )
 
-def dx_haskell_coverage_tests(name, target):
+def dx_haskell_coverage_tests(name, target, size):
     """Asserts a Haskell test converts hpc data to LCOV only under coverage."""
-    _coverage_on_test(name = name + "_on", size = "small", target_under_test = target)
-    _coverage_off_test(name = name + "_off", size = "small", tags = ["no-coverage"], target_under_test = target)
+    _coverage_on_test(name = name + "_on", size = size, target_under_test = target)
+    _coverage_off_test(name = name + "_off", size = size, tags = ["no-coverage"], target_under_test = target)
     native.test_suite(name = name, tests = [name + "_on", name + "_off"])

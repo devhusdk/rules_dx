@@ -4,12 +4,19 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 load("//haskell/private:defs.bzl", "DEFAULT_GHCOPTS", "GMP", "HASKELL_CELLS", "HASKELL_COMPATIBLE_WITH", "STANDARD_GHCOPTS", "STRICT_GHCOPTS", "with_gmp")
 load("//haskell/private:kwargs.bzl", "haskell_kwargs", "haskell_upstream_kwargs")
 load("//haskell/private/toolchain:pins.bzl", "qualified_cells")
+load(":coverage_tests.bzl", "dx_haskell_coverage_tests")
 load(":profile_tests.bzl", "profile_ghcopts_tests")
 load(":toolchain_tests.bzl", "haskell_metadata_tests")
 
 haskell_metadata_tests(
     name = "metadata",
     size = "small",
+)
+
+dx_haskell_coverage_tests(
+    name = "haskell_coverage_test",
+    size = "small",
+    target = "//haskell/tests/fixtures/coverage:greeter_test",
 )
 
 dx_wrapper_contract_tests(
@@ -145,6 +152,7 @@ real_source_target(
     testonly = True,
     starlark_srcs = [
         "BUILD.bazel",
+        "coverage_tests.bzl",
         "profile_tests.bzl",
         "toolchain_tests.bzl",
     ],

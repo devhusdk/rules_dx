@@ -9,9 +9,7 @@ package(default_visibility = [
 exports_files([
     "jazzer.bzl",
     "jmh.bzl",
-    "jmh_tests.bzl",
     "coverage.bzl",
-    "coverage_tests.bzl",
     "defs.bzl",
     "kwargs.bzl",
 ])
@@ -21,10 +19,8 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "coverage.bzl",
-        "coverage_tests.bzl",
         "defs.bzl",
         "jmh.bzl",
-        "jmh_tests.bzl",
         "kwargs.bzl",
         "jazzer.bzl",
         "pmd_dist.BUILD.bazel",

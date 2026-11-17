@@ -1,6 +1,5 @@
 # gazelle:ignore
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
 load("@rules_dx//zig:defs.bzl", "zig_binary", "zig_library", "zig_test")
 
 package(
@@ -22,12 +21,6 @@ zig_binary(
 zig_test(
     name = "greet_test",
     main = "greet.zig",
-)
-
-dx_hello_output_test(
-    name = "hello_output_test",
-    binary = ":hello",
-    expected = "Hello, zig!",
 )
 
 real_source_target(

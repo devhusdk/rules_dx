@@ -11,6 +11,7 @@ rust_binary(
     srcs = [
         "src/blocker_refs.rs",
         "src/evidence.rs",
+        "src/evidence_inputs.rs",
         "src/lock_merge.rs",
         "src/main.rs",
         "src/pr_check.rs",
@@ -30,6 +31,7 @@ rust_binary(
         normal = True,
     ) + [
         "//cli/binfmt:dx_binfmt",
+        "//tools/ci/evidence_inputs",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],

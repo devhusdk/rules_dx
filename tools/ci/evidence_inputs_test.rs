@@ -1,27 +1,9 @@
-use dx_testing::read_runfiles;
-#[cfg(unix)]
-use dx_testing::resolve_runfiles;
 use evidence_inputs::{PLATFORMS, validate};
-#[cfg(unix)]
-use std::process::Command;
 
 #[path = "evidence_rules/status.rs"]
 mod status;
 
 const WORKFLOW: &str = ".github/workflows/evidence.yml";
-
-const SCRIPT: &str = "tools/ci/evidence_inputs.sh";
-
-#[cfg(unix)]
-const VARS: [&str; 7] = [
-    "DX_SCOPE",
-    "DX_TASK",
-    "DX_PLATFORMS",
-    "DX_DISPLAYS",
-    "DX_TEST_TIMEOUT",
-    "DX_FLAGS",
-    "DX_RELOCATE",
-];
 
 fn lookup<'a>(inputs: &[(&str, &'a str)], name: &str) -> &'a str {
     inputs
@@ -30,61 +12,8 @@ fn lookup<'a>(inputs: &[(&str, &'a str)], name: &str) -> &'a str {
         .map_or("", |(_, value)| value)
 }
 
-#[cfg(unix)]
-fn has_jq() -> bool {
-    Command::new("jq")
-        .arg("--version")
-        .output()
-        .is_ok_and(|output| output.status.success())
-}
-
-/// Runs `evidence_inputs.sh` and returns what it wrote to `GITHUB_OUTPUT`, or None when it rejects the inputs.
-#[cfg(unix)]
-fn script(inputs: &[(&str, &str)], jq: bool) -> Option<String> {
-    let dir = dx_test_scratch::scratch("evidence-inputs");
-    let out = dir.path().join("github_output");
-    let mut command = Command::new("bash");
-    command
-        .arg(resolve_runfiles(SCRIPT))
-        .env("GITHUB_OUTPUT", out.to_string_lossy().replace('\\', "/"))
-        .env_remove("DX_EVIDENCE_NO_JQ");
-    for name in VARS {
-        command.env(name, lookup(inputs, name));
-    }
-    if !jq {
-        command.env("DX_EVIDENCE_NO_JQ", "1");
-    }
-    let output = command.output().expect("run evidence_inputs.sh");
-    let written = std::fs::read_to_string(&out).unwrap_or_default();
-    output.status.success().then_some(written)
-}
-
-/// Validates with `evidence_inputs/src/lib.rs` and checks that the script agrees with and without jq.
 fn check(inputs: &[(&str, &str)]) -> Result<Vec<(String, String)>, String> {
-    let validated = validate(|name| lookup(inputs, name).to_string()).map(|done| done.outputs);
-    #[cfg(unix)]
-    script_agrees(inputs, &validated);
-    validated
-}
-
-#[cfg(unix)]
-/// Asserts that the script prints what `validated` holds, with and without jq.
-fn script_agrees(inputs: &[(&str, &str)], validated: &Result<Vec<(String, String)>, String>) {
-    let expected = validated.as_ref().ok().map(|outputs| {
-        outputs
-            .iter()
-            .map(|(key, value)| format!("{key}={value}\n"))
-            .collect::<Vec<String>>()
-            .concat()
-    });
-    let modes: &[bool] = if has_jq() { &[false, true] } else { &[false] };
-    for &jq in modes {
-        assert_eq!(
-            script(inputs, jq),
-            expected,
-            "{SCRIPT} (jq: {jq}) disagrees with evidence_inputs/src/lib.rs on {inputs:?}"
-        );
-    }
+    validate(|name| lookup(inputs, name).to_string()).map(|done| done.outputs)
 }
 
 fn run(scope: &str, platforms: &str, timeout: &str) -> Result<Vec<(String, String)>, String> {
@@ -289,20 +218,7 @@ fn the_workflow_runner_map_matches_platforms() {
 }
 
 #[test]
-fn the_script_knows_the_same_platforms() {
-    let text = read_runfiles(SCRIPT);
-    let known: Vec<&str> = text
-        .lines()
-        .find_map(|line| line.strip_prefix("known=(")?.strip_suffix(')'))
-        .expect("evidence_inputs.sh declares known=(...)")
-        .split_whitespace()
-        .collect();
-    let expected: Vec<&str> = PLATFORMS.iter().map(|(name, _)| *name).collect();
-    assert_eq!(known, expected);
-}
-
-#[test]
-fn the_script_accepts_spaced_platform_lists() {
+fn accepts_spaced_platform_lists() {
     for platforms in [
         r#"["linux_x86_64", "windows_arm64"]"#,
         r#"[ "windows_x86_64" ]"#,
@@ -313,16 +229,20 @@ fn the_script_accepts_spaced_platform_lists() {
 }
 
 #[test]
-fn the_workflow_validates_with_the_script_before_setting_up_bazel() {
+fn the_workflow_validates_with_producers_bin_after_setting_up_bazel() {
     let steps = ci_workflow::steps(WORKFLOW, "evidence");
-    let position = |field: &str, value: &str| {
-        steps
-            .iter()
-            .position(|step| step[field].as_str() == Some(value))
-    };
-    let validate = position("run", "bash tools/ci/evidence_inputs.sh")
-        .expect("evidence.yml runs evidence_inputs.sh");
-    let setup = position("uses", "./.github/actions/setup-bazel")
+    let setup = steps
+        .iter()
+        .position(|step| step["uses"].as_str() == Some("./.github/actions/setup-bazel"))
         .expect("evidence.yml sets up Bazel");
-    assert!(validate < setup);
+    let validate = steps
+        .iter()
+        .position(|step| step["id"].as_str() == Some("inputs"))
+        .expect("evidence.yml validates its inputs");
+    let run = steps[validate]["run"].as_str().unwrap_or_default();
+    assert!(
+        run.contains("bazel run --noshow_progress //tools/ci/producers:producers_bin -- --evidence-inputs"),
+        "{run}"
+    );
+    assert_eq!(validate, setup + 1);
 }

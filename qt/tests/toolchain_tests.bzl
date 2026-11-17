@@ -524,7 +524,7 @@ def _build_checks():
         expect_false("base cell builds no qml", 'name = "qml",' in base),
         expect_false("base cell builds no qmllint", 'srcs = ["launcher/launcher.c", "launcher/qmllint.c"]' in base),
         expect_contains("full cell launches qmllint", full, 'srcs = ["launcher/launcher.c", "launcher/qmllint.c"]'),
-        expect_contains("qmllint carries its plugins", full, 'data = ["bin/qmllint", ":plugins", ":qml_imports", ":runtime"],'),
+        expect_contains("qmllint carries its plugins", full, 'data = ["bin/qmllint", "bin/qt.conf", ":plugins", ":qml_imports", ":runtime"],'),
         expect_contains("base cell launches moc from libexec", base, 'data = ["libexec/moc", ":runtime"],'),
         expect_contains("base cell launches rcc", base, 'srcs = ["launcher/launcher.c", "launcher/rcc.c"]'),
         expect_contains("base cell launches uic", base, 'srcs = ["launcher/launcher.c", "launcher/uic.c"]'),

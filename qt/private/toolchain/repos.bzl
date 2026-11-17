@@ -25,8 +25,8 @@ SHARED_TARGETS = {"licenses": "qttools", "needs": "qtbase", "runtime": "qttools"
 TOOLS = {
     "lrelease": struct(data = [], path = "bin/lrelease"),
     "moc": struct(data = [], path = "libexec/moc"),
-    "qmlformat": struct(data = [":plugins", ":qml_imports"], path = "bin/qmlformat"),
-    "qmllint": struct(data = [":plugins", ":qml_imports"], path = "bin/qmllint"),
+    "qmlformat": struct(data = ["bin/qt.conf", ":plugins", ":qml_imports"], path = "bin/qmlformat"),
+    "qmllint": struct(data = ["bin/qt.conf", ":plugins", ":qml_imports"], path = "bin/qmllint"),
     "qmltyperegistrar": struct(data = [], path = "libexec/qmltyperegistrar"),
     "rcc": struct(data = [], path = "libexec/rcc"),
     "uic": struct(data = [], path = "libexec/uic"),
@@ -915,6 +915,8 @@ def _qt_cell_repo_impl(ctx):
     if not ctx.path("sbom/" + module + "-" + QT_VERSION + ".spdx.json").exists:
         fail("qt: the pinned archives carry no sbom/" + module + "-" + QT_VERSION + ".spdx.json")
     ctx.delete(_EXTRACT)
+    if not base:
+        ctx.file("bin/qt.conf", "[Paths]\nPrefix = ..\n")
     for root in required:
         _link_required(ctx, root)
     tools = [name for name in sorted(TOOLS.keys()) if name in MODULES[module].targets]

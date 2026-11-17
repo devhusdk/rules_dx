@@ -28,7 +28,7 @@ rust_library(
         package_name = "cli/dx_ide",
         normal = True,
     ) + [
-        "//cc/private/context:cc_context",
+        "//cc/private/tools/context:cc_context",
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "//cli/error:dx_error",
@@ -52,7 +52,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
-        "//cc/private/context:cc_context",
+        "//cc/private/tools/context:cc_context",
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "//cli/error:dx_error",

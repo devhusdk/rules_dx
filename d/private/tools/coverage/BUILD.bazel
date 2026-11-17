@@ -18,7 +18,7 @@ rust_binary(
         "src/main.rs",
     ],
     aliases = aliases(
-        package_name = "d/private/d_coverage_launcher",
+        package_name = "d/private/tools/d_coverage_launcher",
         normal = True,
     ),
     crate_name = "d_coverage_launcher",
@@ -31,7 +31,7 @@ rust_test(
     name = "d_coverage_launcher_bin_test",
     size = "small",
     aliases = aliases(
-        package_name = "d/private/d_coverage_launcher",
+        package_name = "d/private/tools/d_coverage_launcher",
         normal = True,
         normal_dev = True,
     ),

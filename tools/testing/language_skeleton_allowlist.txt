@@ -216,10 +216,10 @@ outside-lang core/quality/tools/python
 private-visibility apple/private/provisioning/BUILD.bazel
 private-visibility astro/private/BUILD.bazel
 private-visibility cc/private/BUILD.bazel
-private-visibility cc/private/context/BUILD.bazel
 private-visibility cc/private/toolchain/BUILD.bazel
 private-visibility cc/private/toolchain/gcc_features/BUILD.bazel
 private-visibility cc/private/toolchain/gcc_repo/BUILD.bazel
+private-visibility cc/private/tools/context/BUILD.bazel
 private-visibility cuda/private/gpu/BUILD.bazel
 private-visibility cuda/private/toolchain/BUILD.bazel
 private-visibility d/private/BUILD.bazel
@@ -230,7 +230,7 @@ private-visibility dart/private/tools/BUILD.bazel
 private-visibility dotnet/private/fuzz/BUILD.bazel
 private-visibility elixir/private/bench/BUILD.bazel
 private-visibility elixir/private/tools/BUILD.bazel
-private-visibility env/private/env_shard/BUILD.bazel
+private-visibility env/private/tools/env_shard/BUILD.bazel
 private-visibility erlang/private/BUILD.bazel
 private-visibility erlang/private/bench/BUILD.bazel
 private-visibility erlang/private/toolchain/BUILD.bazel
@@ -270,8 +270,8 @@ private-visibility php/private/tools/BUILD.bazel
 private-visibility python/private/BUILD.bazel
 private-visibility qt/private/BUILD.bazel
 private-visibility qt/private/platforms/BUILD.bazel
-private-visibility qt/private/rust/BUILD.bazel
 private-visibility qt/private/toolchain/BUILD.bazel
+private-visibility qt/private/tools/rust/BUILD.bazel
 private-visibility ruby/private/tools/BUILD.bazel
 private-visibility rust/private/BUILD.bazel
 private-visibility rust/private/quality/tools/BUILD.bazel
@@ -291,13 +291,8 @@ register-label kotlin/private/toolchain
 register-label scala/private/toolchain
 register-label tools/platforms
 test-location api_spec/private/codegen/BUILD.bazel
-test-location appimage/private/packer/BUILD.bazel
 test-location astro/private/ide/BUILD.bazel
-test-location cc/private/context/BUILD.bazel
-test-location cc/private/context/src/lib_tests.rs
 test-location csharp/private/ide/BUILD.bazel
-test-location d/private/coverage/BUILD.bazel
-test-location env/private/env_shard/BUILD.bazel
 test-location erlang/private/toolchain/BUILD.bazel
 test-location flutter/tests/BUILD.bazel
 test-location fsharp/private/ide/BUILD.bazel
@@ -305,11 +300,8 @@ test-location lua/private/runtime/BUILD.bazel
 test-location lua/private/runtime/launcher_test.lua
 test-location php/private/BenchTest.php
 test-location php/private/coverage/BUILD.bazel
-test-location qt/private/rust/BUILD.bazel
 test-location rego/private/launcher/BUILD.bazel
 test-location rego/private/launcher/src/opa_tests.rs
-test-location rust/private/quality/tools/progenitor/BUILD.bazel
-test-location rust/private/quality/tools/topiary/BUILD.bazel
 test-location typescript/private/ide/BUILD.bazel
 title env/lang.json
 wrap apple/defs.bzl

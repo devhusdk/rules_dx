@@ -17,8 +17,8 @@ filegroup(
         "pins.json",
         "//qt/private:module_srcs",
         "//qt/private/platforms:module_srcs",
-        "//qt/private/rust:module_srcs",
         "//qt/private/toolchain:module_srcs",
+        "//qt/private/tools/rust:module_srcs",
     ],
 )
 

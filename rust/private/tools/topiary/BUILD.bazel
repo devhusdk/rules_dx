@@ -16,13 +16,13 @@ rust_binary(
     name = "dx_topiary",
     srcs = ["main.rs"],
     aliases = aliases(
-        package_name = "rust/private/quality/tools/dx_topiary",
+        package_name = "rust/private/tools/dx_topiary",
         normal = True,
     ),
     crate_name = "dx_topiary",
     crate_root = "main.rs",
     deps = all_crate_deps(
-        package_name = "rust/private/quality/tools/dx_topiary",
+        package_name = "rust/private/tools/dx_topiary",
         normal = True,
     ),
 )
@@ -31,13 +31,13 @@ rust_test(
     name = "dx_topiary_bin_test",
     size = "small",
     aliases = aliases(
-        package_name = "rust/private/quality/tools/dx_topiary",
+        package_name = "rust/private/tools/dx_topiary",
         normal = True,
         normal_dev = True,
     ),
     crate = ":dx_topiary",
     deps = all_crate_deps(
-        package_name = "rust/private/quality/tools/dx_topiary",
+        package_name = "rust/private/tools/dx_topiary",
         normal = True,
         normal_dev = True,
     ),

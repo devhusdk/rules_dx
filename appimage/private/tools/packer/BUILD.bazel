@@ -11,14 +11,14 @@ rust_library(
     name = "appimage_packer_lib",
     srcs = ["src/lib.rs"],
     aliases = aliases(
-        package_name = "appimage/private/appimage_packer",
+        package_name = "appimage/private/tools/appimage_packer",
         normal = True,
     ),
     crate_name = "appimage_packer",
     crate_root = "src/lib.rs",
     target_compatible_with = _LINUX,
     deps = all_crate_deps(
-        package_name = "appimage/private/appimage_packer",
+        package_name = "appimage/private/tools/appimage_packer",
         normal = True,
     ),
 )
@@ -27,14 +27,14 @@ rust_binary(
     name = "appimage_packer",
     srcs = ["src/main.rs"],
     aliases = aliases(
-        package_name = "appimage/private/appimage_packer",
+        package_name = "appimage/private/tools/appimage_packer",
         normal = True,
     ),
     crate_name = "appimage_packer",
     crate_root = "src/main.rs",
     target_compatible_with = _LINUX,
     deps = all_crate_deps(
-        package_name = "appimage/private/appimage_packer",
+        package_name = "appimage/private/tools/appimage_packer",
         normal = True,
     ) + [":appimage_packer_lib"],
 )
@@ -42,7 +42,7 @@ rust_binary(
 rust_test(
     name = "appimage_packer_test",
     aliases = aliases(
-        package_name = "appimage/private/appimage_packer",
+        package_name = "appimage/private/tools/appimage_packer",
         normal = True,
         normal_dev = True,
     ),
@@ -50,7 +50,7 @@ rust_test(
     env = {"RUST_TEST_THREADS": "1"},
     target_compatible_with = _LINUX,
     deps = all_crate_deps(
-        package_name = "appimage/private/appimage_packer",
+        package_name = "appimage/private/tools/appimage_packer",
         normal = True,
         normal_dev = True,
     ),

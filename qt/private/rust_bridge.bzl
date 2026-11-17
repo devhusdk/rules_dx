@@ -3,9 +3,9 @@
 load(":constants.bzl", "QT_TOOL_ENV")
 load(":text.bzl", "qt_package_path", "qt_relative", "qt_stem")
 
-QT_BRIDGE_TOOL = Label("//qt/private/rust:qt_rust_bridge")
+QT_BRIDGE_TOOL = Label("//qt/private/tools/rust:qt_rust_bridge")
 
-_CXX_QT_FILES = Label("//qt/private/rust:cxx_qt_runtime_files")
+_CXX_QT_FILES = Label("//qt/private/tools/rust:cxx_qt_runtime_files")
 
 def _bridge(ctx, mode, src, outputs, include = None):
     args = ctx.actions.args()

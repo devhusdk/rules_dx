@@ -11,7 +11,7 @@ ansible/tests/layout_tests.bzl no-size 1
 ansible/tests/lock_tests.bzl no-size 1
 api_spec/private/codegen/BUILD.bazel no-size 1
 api_spec/tests/BUILD.bazel no-size 10
-appimage/private/packer/BUILD.bazel no-size 1
+appimage/private/tools/packer/BUILD.bazel no-size 1
 appimage/tests/BUILD.bazel no-size 10
 apple/tests/fixtures/macos_bundle/BUILD.bazel no-size 1
 apple/tests/fixtures/macos_ledger/BUILD.bazel no-size 1

@@ -123,7 +123,7 @@ fn under(dir: &str, ecosystem: &str) -> Result<String, PrepError> {
 
 pub fn vuln_locks(set: &str) -> Result<Vec<String>, PrepError> {
     Ok(match set {
-        "cargo" => vec![under("cc/private/context", "cargo")?],
+        "cargo" => vec![under("cc/private/tools/context", "cargo")?],
         "npm" => vec![
             under("", "npm")?,
             "package-lock.json".to_owned(),
@@ -294,7 +294,7 @@ mod tests {
         let pnpm = lock_name("npm");
         assert_eq!(
             vuln_locks("cargo"),
-            [format!("cc/private/context/{}", lock_name("cargo"))]
+            [format!("cc/private/tools/context/{}", lock_name("cargo"))]
         );
         assert_eq!(
             vuln_locks("npm"),

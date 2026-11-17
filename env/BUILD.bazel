@@ -132,9 +132,9 @@ dx_env_shard(
 
 rust_env_shard(
     name = "env_rust_fixture",
-    entries = ["runtime|stable-x86_64|env/private/env_shard/src/lib.rs"],
+    entries = ["runtime|stable-x86_64|env/private/tools/env_shard/src/lib.rs"],
     integration = "rust",
-    target = "//env/private/env_shard",
+    target = "//env/private/tools/env_shard",
 )
 
 env_plan_subject(
@@ -172,7 +172,7 @@ env_shard_argv_test(
         "--integration",
         "rust",
         "--entry",
-        "runtime|stable-x86_64|env/private/env_shard/src/lib.rs",
+        "runtime|stable-x86_64|env/private/tools/env_shard/src/lib.rs",
         "--output",
     ],
     output = "env/env_rust_fixture.dxenv.pb",

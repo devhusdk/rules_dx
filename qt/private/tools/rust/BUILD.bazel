@@ -10,13 +10,13 @@ rust_binary(
     name = "qt_rust_bridge",
     srcs = ["src/main.rs"],
     aliases = aliases(
-        package_name = "qt/private/qt_rust_bridge",
+        package_name = "qt/private/tools/qt_rust_bridge",
         normal = True,
     ),
     crate_name = "qt_rust_bridge",
     crate_root = "src/main.rs",
     deps = all_crate_deps(
-        package_name = "qt/private/qt_rust_bridge",
+        package_name = "qt/private/tools/qt_rust_bridge",
         normal = True,
     ),
 )
@@ -46,13 +46,13 @@ rust_test(
     name = "qt_rust_bridge_bin_test",
     size = "small",
     aliases = aliases(
-        package_name = "qt/private/qt_rust_bridge",
+        package_name = "qt/private/tools/qt_rust_bridge",
         normal = True,
         normal_dev = True,
     ),
     crate = ":qt_rust_bridge",
     deps = all_crate_deps(
-        package_name = "qt/private/qt_rust_bridge",
+        package_name = "qt/private/tools/qt_rust_bridge",
         normal = True,
         normal_dev = True,
     ),

@@ -28,8 +28,6 @@ startup:windows --windows_enable_symlinks
 common:windows --experimental_override_platform_cpu_name=//tools/platforms:windows_msvc_host=wx
 # Skip the local Windows SDK probe; builds use the hermetic MSVC and need no rc.exe.
 common:windows --override_repository=bazel_tools+winsdk_configure+local_config_winsdk=%workspace%/tools/platforms/no_winsdk
-build:windows --per_file_copt=external/protobuf[+]/upb/wire/encode[.]c@-D__SEH__
-build:windows --host_per_file_copt=external/protobuf[+]/upb/wire/encode[.]c@-D__SEH__
 
 build --@rules_rust//rust/settings:extra_rustc_flags=--deny=warnings
 build --@rules_rust//rust/settings:clippy.toml=//tools/workspace:clippy.toml
@@ -64,9 +62,6 @@ build:macos --@rules_rust//rust/settings:pipelined_compilation=true
 build:windows --@rules_rust//rust/settings:pipelined_compilation=false
 # Statically link the MSVC CRT so Windows binaries need no vcruntime DLLs.
 build:windows --@rules_rust//rust/settings:extra_rustc_flag=-Ctarget-feature=+crt-static
-
-build:dx_tool_release_linux_haskell --platforms=//tools/platforms:linux_arm64_musl
-build:dx_tool_release_linux_haskell --features=fully_static_link
 
 build --javacopt=-Xlint:all
 build --experimental_strict_java_deps=error

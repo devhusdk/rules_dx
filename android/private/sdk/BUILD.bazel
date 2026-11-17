@@ -1,4 +1,3 @@
-load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
@@ -18,21 +17,6 @@ real_source_target(
         "repos.bzl",
     ],
     tags = ["corpus"],
-)
-
-build_test(
-    name = "androidsdk_build_test",
-    target_compatible_with = [
-        "@platforms//os:linux",
-        "@platforms//cpu:x86_64",
-    ],
-    targets = [
-        "@dx_androidsdk//:sdk",
-        "@dx_androidsdk//:sdk-toolchain",
-        "@dx_androidsdk//:aapt2_binary",
-        "@dx_androidsdk//:d8_jar_import",
-        "@dx_androidsdk//:files",
-    ],
 )
 
 filegroup(

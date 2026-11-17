@@ -1,6 +1,8 @@
 load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//rust:defs.bzl", "rust_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
+load(":clang_syntax_tests.bzl", "clang_syntax_unit_tests")
 load(":defs_tests.bzl", "cc_wrapper_contract_tests", "objc_library_tests")
 load(":hub_tests.bzl", "cc_hub_tests")
 load(":resolved_toolchain.bzl", "APPLE_SUPPORT_TOOLCHAIN_ID", "resolved_cc_toolchain")
@@ -124,6 +126,26 @@ rust_test(
     deps = [],
 )
 
+clang_syntax_unit_tests(
+    name = "clang_syntax_unit",
+    size = "small",
+)
+
+ide_acquisition_test(
+    name = "ide_acquisition_test",
+    size = "small",
+    binary = "//cc/private/ide:version",
+    expected = ".",
+)
+
+ide_acquisition_test(
+    name = "clangd_acquisition_test",
+    size = "small",
+    binary = "@llvm//tools:clangd",
+    expected = "clangd",
+    version_args = ["--version"],
+)
+
 cc_wrapper_contract_tests(
     name = "wrapper_contract_tests",
     size = "small",
@@ -171,6 +193,7 @@ cc_hub_tests(name = "hub_test")
 
 objc_library_tests(
     name = "objc_library_test",
+    size = "small",
     target = "//cc/tests/fixtures/objc_forward:objc_library_fixture",
     target_compatible_with = ["@platforms//os:macos"],
 )
@@ -180,6 +203,7 @@ real_source_target(
     testonly = True,
     starlark_srcs = [
         "BUILD.bazel",
+        "clang_syntax_tests.bzl",
         "defs_tests.bzl",
         "hub_tests.bzl",
         "resolved_toolchain.bzl",

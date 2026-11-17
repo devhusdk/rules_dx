@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(
-    ":plan.bzl",
+    "//env/private:plan.bzl",
     "DX_ENV_ADMITTED_INTEGRATIONS",
     "DX_ENV_PLAN_OUTPUT_GROUP",
     "DX_ENV_SHARD_SUFFIX",

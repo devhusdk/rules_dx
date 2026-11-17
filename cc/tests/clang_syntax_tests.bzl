@@ -2,7 +2,7 @@
 
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//cc/private/toolchain:bindings.bzl", "cc_compiler_identity")
-load(":clang_syntax.bzl", "clang_syntax_argv", "clang_tidy_argv", "clang_syntax_source", "cuda_tidy_argv")
+load("//cc/private:clang_syntax.bzl", "clang_syntax_argv", "clang_tidy_argv", "clang_syntax_source", "cuda_tidy_argv")
 
 _CLANG = "external/llvm/bin/clang"
 
@@ -15,7 +15,7 @@ _UNKNOWN = cc_compiler_identity("", "")
 def _rewrite(argv, src = "a.c", identity = _LLVM):
     return clang_syntax_argv(argv, src, identity)
 
-def clang_syntax_unit_tests(name):
+def clang_syntax_unit_tests(name, **kwargs):
     starlark_test(
         name = name,
         mode = "unit",
@@ -221,4 +221,5 @@ def clang_syntax_unit_tests(name):
                 "",
             ),
         ],
+        **kwargs
     )

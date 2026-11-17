@@ -227,7 +227,7 @@ _objc_library_test = analysistest.make(_objc_library_impl)
 
 def objc_library_tests(name, target, **kwargs):
     """Asserts objc_library is the plain upstream rule: ObjcInfo and CcInfo, no forwarder provider."""
-    _objc_library_test(name = name, size = "small", target_under_test = target, **kwargs)
+    _objc_library_test(name = name, target_under_test = target, **kwargs)
 
 def _build_id_impl(ctx):
     env = analysistest.begin(ctx)

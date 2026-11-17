@@ -4,13 +4,18 @@
 
 ## Install
 
-Add `rules_dx` to `MODULE.bazel`:
+Run `dx init --apply` in the repository, as in the [Quickstart](../../README.md#quickstart).
+
+For a Apple project it writes this `MODULE.bazel`, tested in [`apple/tests/consumer`](../../apple/tests/consumer/consumer.MODULE.bazel):
 
 ```python
-bazel_dep(name = "rules_dx", version = "<version>")
-```
+# dx: yours; dx adds its missing lines
+module(name = "my_project")
 
-Then run `dx init --apply`, as in the [Quickstart](../../README.md#quickstart).
+bazel_dep(name = "rules_dx", version = "<version>")
+dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
+dx_licenses.accept(ids = ["apple-xcode-license"])
+```
 
 Load the rules from `@rules_dx//apple:defs.bzl`:
 
@@ -63,7 +68,7 @@ Declares an explicit launcher that signs one device app into a distributable IPA
 ### `apple_macos_app`
 
 ```python
-apple_macos_app(name, srcs = None, hdrs = [], deps = None, library = None, frameworks = [], plugins = [], resources = [], infoplists = [], bundle_id = "", version = "", deployment = "", platform = None, xcode_version = "", entitlements = None, provisioning_profile = None, tags = None, testonly = False, visibility = None)
+apple_macos_app(name, srcs = None, hdrs = [], deps = None, entry = None, library = None, frameworks = [], plugins = [], resources = [], infoplists = [], bundle_id = "", version = "", deployment = "", platform = None, xcode_version = "", entitlements = None, provisioning_profile = None, tags = None, testonly = False, visibility = None)
 ```
 
 Builds one upstream macOS application over a Rust library, checked and ad hoc signed.
@@ -558,9 +563,10 @@ platform fails with "arch 'x86_64' is outside macos".
 XCFrameworks. `xcode_version` defaults to 16.4. Both defaults are in
 `apple/pins.json`.
 
-`srcs` holds the native entry point. `library` is any target with
-`CcInfo` that links one static archive, such as `rust_static_library`.
-The app needs `srcs`, `library`, or both. `frameworks` takes frameworks
+`srcs` holds the native entry point; set `entry` instead for a Swift
+`@main` module, never both. `library` is any target with `CcInfo` that
+links one static archive, such as `rust_static_library`. The app needs
+`srcs` or `entry`, `library`, or both. `frameworks` takes frameworks
 `macos_dynamic_framework` targets, checked by bundle name under
 `Contents/Frameworks`. `plugins` takes `macos_bundle` targets, checked as
 `<bundle_name>.bundle`, binaries, or files placed by their package-relative
@@ -610,7 +616,8 @@ Failures read:
 - `apple_macos_app: plugin '//app:empty' places nothing under PlugIns`
 - `apple_macos_app: deployment '16.0' is above the Xcode 16 'macosx' ceiling 15.0`
 - `apple_macos_app: building signs ad hoc only; signing is a separate operation`
-- `apple_macos_app: srcs or library is required; pass the native entry point or a Rust static library`
+- `apple_macos_app: srcs, entry or library is required; pass the native entry point, a Swift @main module or a Rust static library`
+- `apple_macos_app: set srcs or entry for the app entry point, not both`
 - `apple_macos_app: app declares macos/arm64 but this build targets macos/x86_64; build the app target, which selects its cell`
 - `apple_macos_app: <file> loads host runtime <path>; embed it under Frameworks`
 

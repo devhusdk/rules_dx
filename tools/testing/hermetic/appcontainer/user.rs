@@ -71,7 +71,7 @@ use crate::args::{
 use crate::sys::{
     CREATE_SUSPENDED, CREATE_UNICODE_ENVIRONMENT, DENY_ACCESS, GRANT_ACCESS, INFINITE,
     REVOKE_ACCESS, STARTF_USESTDHANDLES, check, kill_on_close_job, path_lock_name, set_access,
-    trustee_entry, user_defaults, wide, with_acl_lock, write_acl,
+    trustee_entry, user_defaults, wide, with_acl_lock, write_acl, write_acl_here,
 };
 
 const RPC_C_AUTHN_DEFAULT: u32 = 0xFFFF_FFFF;
@@ -1328,6 +1328,11 @@ fn remove_access(path: &str, sid: *mut c_void) -> Result<(), String> {
 }
 
 fn remove_access_locked(path: &str, sid: *mut c_void) -> Result<(), String> {
+    remove_entries(path, sid, true)
+}
+
+/// Deletes the explicit entries for `sid` on `path`, and with `tree` on everything below it.
+fn remove_entries(path: &str, sid: *mut c_void, tree: bool) -> Result<(), String> {
     let (acl, descriptor) = read_acl(path)?;
     let mut removed = false;
     for (index, _) in own_entries(acl, sid) {
@@ -1336,10 +1341,14 @@ fn remove_access_locked(path: &str, sid: *mut c_void) -> Result<(), String> {
             removed = true;
         }
     }
-    let result = if removed {
-        write_acl(path, descriptor, acl)
-    } else {
+    let result = if !removed {
         Ok(())
+    } else if tree {
+        write_acl(path, descriptor, acl, &|below| {
+            remove_entries(below, sid, false)
+        })
+    } else {
+        write_acl_here(path, descriptor, acl)
     };
     // SAFETY: descriptor was allocated by read_acl and is freed once.
     unsafe { LocalFree(descriptor as _) };

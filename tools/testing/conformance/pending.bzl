@@ -60,7 +60,6 @@ cloudformation lint_test *
 cloudformation lock_test *
 cloudformation pass_test *
 cloudformation runfiles_test *
-csharp cross_test *
 cuda coverage_test *
 cuda cross_test *
 cuda lint_error_test *
@@ -91,7 +90,6 @@ erlang cross_test windows_x86_64
 flutter runfiles_test *
 fortran cross_test *
 fortran lock_test *
-fsharp cross_test *
 haskell cross_test *
 haskell format_error_test *
 haskell format_test *

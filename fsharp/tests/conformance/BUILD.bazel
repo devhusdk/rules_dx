@@ -86,6 +86,7 @@ dx_conformance_suite(
     size = "small",
     binary = ":hello",
     covered_source = "Greet.fs",
+    cross_runfile = "dotnet",
     expected = "hello world",
     failing_case = "failing_case",
     failing_pattern = "{case}",

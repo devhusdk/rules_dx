@@ -1,0 +1,43 @@
+diff --git a/dotnet/private/rules/common/attrs.bzl b/dotnet/private/rules/common/attrs.bzl
+--- a/dotnet/private/rules/common/attrs.bzl
++++ b/dotnet/private/rules/common/attrs.bzl
+@@ -201,6 +201,10 @@
+         default = "//dotnet/private/sdk/runtime_packs:runtime_pack",
+         cfg = runtime_pack_transition,
+     ),
++    "_target_runtime": attr.label(
++        doc = "The dotnet host of the target platform",
++        default = Label("@rules_dx//dotnet/private:target_runtime"),
++    ),
+ }
+ 
+ # These are attributes that are common across all the binary/library/test C# rules
+diff --git a/dotnet/private/rules/common/binary.bzl b/dotnet/private/rules/common/binary.bzl
+--- a/dotnet/private/rules/common/binary.bzl
++++ b/dotnet/private/rules/common/binary.bzl
+@@ -9,7 +9,6 @@
+     "collect_transitive_runfiles",
+     "generate_depsjson",
+     "generate_runtimeconfig",
+-    "get_toolchain",
+     "is_core_framework",
+     "is_standard_framework",
+     "to_rlocation_path",
+@@ -44,7 +43,7 @@
+     return result
+ 
+ def _create_launcher(ctx, runfiles, executable):
+-    runtime = get_toolchain(ctx).runtime
++    runtime = ctx.attr._target_runtime
+     windows_constraint = ctx.attr._windows_constraint[platform_common.ConstraintValueInfo]
+ 
+     launcher = ctx.actions.declare_file("{}.{}".format(executable.basename, "bat" if ctx.target_platform_has_constraint(windows_constraint) else "sh"), sibling = executable)
+@@ -70,7 +69,7 @@
+             is_executable = True,
+         )
+ 
+-    runfiles.extend(get_toolchain(ctx).dotnetinfo.runtime_files)
++    runfiles.extend(runtime.files.to_list() + runtime.default_runfiles.files.to_list())
+ 
+     return launcher
+ 

@@ -443,8 +443,12 @@ use_repo(
     "dotnet_apphost_x86_64-apple-darwin",
     "dotnet_apphost_x86_64-pc-windows-msvc",
     "dotnet_apphost_x86_64-unknown-linux-gnu",
+    "dx_dotnet_aarch64-apple-darwin",
+    "dx_dotnet_arm64-pc-windows-msvc",
     "dx_dotnet_arm64-unknown-linux-gnu",
     "dx_dotnet_toolchains",
+    "dx_dotnet_x86_64-apple-darwin",
+    "dx_dotnet_x86_64-pc-windows-msvc",
     "dx_dotnet_x86_64-unknown-linux-gnu",
 )
 
@@ -920,6 +924,7 @@ dx_pins.archive(
         "//patches/rules_dotnet:sdk_versions.patch",
         "//patches/rules_dotnet:canonical_labels.patch",
         "//patches/rules_dotnet:toolchains_gate.patch",
+        "//patches/rules_dotnet:target_runtime.patch",
     ],
     pins = "//dotnet:pins.json",
 )

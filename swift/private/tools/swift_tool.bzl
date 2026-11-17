@@ -47,9 +47,9 @@ swift_format_tool = rule(
 
 def _swift_format_windows_impl(ctx):
     program = ctx.file.program
-    launcher, descriptor, launcher_runfiles = write_native_launcher(ctx, "program=" + rlocation_path(ctx, program) + "\n")
+    launcher, _, launcher_runfiles = write_native_launcher(ctx, "program=" + rlocation_path(ctx, program) + "\n")
     runfiles = launcher_runfiles.merge(ctx.runfiles(files = [program], transitive_files = depset(ctx.files.data)))
-    return [DefaultInfo(executable = launcher, files = depset([launcher, descriptor]), runfiles = runfiles)]
+    return [DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = runfiles)]
 
 swift_format_windows = rule(
     implementation = _swift_format_windows_impl,

@@ -1,4 +1,5 @@
 load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
+load("//powershell:defs.bzl", "powershell_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//core/quality:unavailable_tool.bzl", "dx_unavailable_tool")
 load(":host_swift.bzl", "swift_host_launcher")
@@ -62,6 +63,16 @@ native_binary(
         "x86_64",
     ]
 ]
+
+powershell_test(
+    name = "swift_format_windows_test",
+    size = "small",
+    srcs = ["swift_format_windows_test.ps1"],
+    data = [":swift_format"],
+    env = {"DX_SWIFT_FORMAT": "$(rlocationpath :swift_format)"},
+    target_compatible_with = ["@platforms//os:windows"],
+    deps = ["@rules_powershell//powershell/runfiles"],
+)
 
 alias(
     name = "swift_format",

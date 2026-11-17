@@ -1,0 +1,53 @@
+load("//qt:defs.bzl", "qt_cc_binary", "qt_cc_test")
+load("//core/quality:fixtures.bzl", "real_source_target")
+
+_QML_META = select({
+    "@platforms//os:linux": [],
+    "//conditions:default": ["@dx_qt//:quick"],
+})
+
+qt_cc_binary(
+    name = "tally",
+    srcs = ["main.cc"],
+    modules = ["qml"],
+    resource_prefix = "/tally",
+    resources = ["banner.txt"],
+    deps = ["//qt/tests/fixtures/qt_app/tally"] + _QML_META,
+)
+
+qt_cc_test(
+    name = "counter_test",
+    srcs = ["counter_test.cc"],
+    moc_hdrs = ["counter_test.h"],
+    modules = [
+        "qml",
+        "test",
+    ],
+    deps = ["//qt/tests/fixtures/qt_app/tally"] + _QML_META,
+)
+
+qt_cc_test(
+    name = "panel_test",
+    srcs = ["panel_test.cc"],
+    forms = ["panel.ui"],
+    moc_hdrs = ["panel_test.h"],
+    modules = [
+        "test",
+        "widgets",
+    ],
+    deps = ["//qt/tests/fixtures/qt_app/tally"],
+)
+
+qt_cc_test(
+    name = "tally_quick_test",
+    srcs = ["tally_quick_test.cc"],
+    data = ["tst_tally.qml"],
+    modules = ["quick_test"],
+    deps = ["//qt/tests/fixtures/qt_app/tally"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -384,7 +384,7 @@ def _module_test_impl(ctx):
     asserts.equals(env, {"c": ["counter.h"], "cpp": ["counter.cc"], "qml": ["Badge.qml", "Main.qml"]}, owned)
     paths = [f.short_path for f in target[DefaultInfo].files.to_list()]
     for want in ["tally_qml/Tally/qmldir", "tally_qml/Tally/tally.qmltypes", "tally_qml/Tally/Main.qml", "tally_qml/Tally/Badge.qml"]:
-        asserts.true(env, "qt/tests/fixtures/qt-app/tally/" + want in paths, "missing " + want + " in " + str(paths))
+        asserts.true(env, "qt/tests/fixtures/qt_app/tally/" + want in paths, "missing " + want + " in " + str(paths))
     asserts.equals(env, ["tally_metatypes.json"], _basenames(target[QtInfo].metatypes.to_list()))
     asserts.true(env, CcInfo in target, "CcInfo is not forwarded")
     return analysistest.end(env)
@@ -397,7 +397,7 @@ def _rust_module_test_impl(ctx):
     asserts.equals(env, {}, {key: value for key, value in target[QualitySourcesInfo].direct_sources.items() if value.to_list()})
     paths = [f.short_path for f in target[DefaultInfo].files.to_list()]
     for want in ["model_qml/Ledger/Model/qmldir", "model_qml/Ledger/Model/model.qmltypes"]:
-        asserts.true(env, "qt/tests/fixtures/qt-rust/model/" + want in paths, "missing " + want + " in " + str(paths))
+        asserts.true(env, "qt/tests/fixtures/qt_rust/model/" + want in paths, "missing " + want + " in " + str(paths))
     asserts.equals(env, ["model_metatypes.json"], _basenames(target[QtInfo].metatypes.to_list()))
     asserts.true(env, CcInfo in target, "CcInfo is not forwarded")
     for linker_input in target[CcInfo].linking_context.linker_inputs.to_list():
@@ -439,7 +439,7 @@ def _bridge_test_impl(ctx):
     actions = [action for action in analysistest.target_actions(env) if action.mnemonic == "QtRustBridge"]
     asserts.equals(env, 1, len(actions))
     argv = actions[0].argv
-    asserts.equals(env, ["qt", "qt/tests/fixtures/qt-rust/model/ledger_model.rs", "qt/tests/fixtures/qt-rust/model/ledger_model"], argv[1:4], str(argv))
+    asserts.equals(env, ["qt", "qt/tests/fixtures/qt_rust/model/ledger_model.rs", "qt/tests/fixtures/qt_rust/model/ledger_model"], argv[1:4], str(argv))
     outputs = [f.basename for f in actions[0].outputs.to_list()]
     asserts.equals(env, ["ledger_model.cxx.cpp", "ledger_model.cxx.h", "ledger_model.cxxqt.cpp", "ledger_model.cxxqt.h"], sorted(outputs))
     asserts.equals(env, [f.basename for f in actions[0].outputs.to_list()], [arg.rpartition("/")[2] for arg in argv[4:]])
@@ -466,9 +466,9 @@ def _moc_test_impl(ctx):
     env = analysistest.begin(ctx)
     argv = _argv(env, "QtMoc")
     asserts.true(env, "--output-json" in argv, str(argv))
-    asserts.true(env, "-fqt/tests/fixtures/ticker.h" in argv, str(argv))
+    asserts.true(env, "-fqt/tests/fixtures/widgets/ticker.h" in argv, str(argv))
     asserts.true(env, len([arg for arg in argv if arg.startswith("-I") and arg.endswith("/include/QtCore")]) > 0, str(argv))
-    asserts.true(env, argv[-1].endswith("qt/tests/fixtures/ticker.h"), str(argv))
+    asserts.true(env, argv[-1].endswith("qt/tests/fixtures/widgets/ticker.h"), str(argv))
     outputs = [f.basename for action in analysistest.target_actions(env) if action.mnemonic == "QtMoc" for f in action.outputs.to_list()]
     asserts.equals(env, ["moc_fixtures_ticker.cpp", "moc_fixtures_ticker.cpp.json"], sorted(outputs))
     return analysistest.end(env)
@@ -478,7 +478,7 @@ _moc_test = analysistest.make(_moc_test_impl)
 def _uic_test_impl(ctx):
     env = analysistest.begin(ctx)
     argv = _argv(env, "QtUic")
-    asserts.true(env, argv[-1].endswith("qt/tests/fixtures/dialog.ui"), str(argv))
+    asserts.true(env, argv[-1].endswith("qt/tests/fixtures/widgets/dialog.ui"), str(argv))
     asserts.true(env, argv[-2].endswith("qt/tests/_qt/form/ui_dialog.h"), str(argv))
     return analysistest.end(env)
 
@@ -496,7 +496,7 @@ _widgets_test = analysistest.make(_widgets_test_impl)
 def _lrelease_test_impl(ctx):
     env = analysistest.begin(ctx)
     argv = _argv(env, "QtLrelease")
-    asserts.equals(env, ["-silent", "qt/tests/fixtures/de.ts", "-qm"], argv[1:4], str(argv))
+    asserts.equals(env, ["-silent", "qt/tests/fixtures/widgets/de.ts", "-qm"], argv[1:4], str(argv))
     asserts.true(env, argv[-1].endswith("qt/tests/_qt/translated/i18n/de.qm"), str(argv))
     embedded = [f.basename for action in analysistest.target_actions(env) if action.mnemonic == "QtRcc" for f in action.inputs.to_list()]
     asserts.true(env, "de.qm" in embedded, str(embedded))
@@ -532,7 +532,7 @@ _frameworks_test = analysistest.make(_frameworks_test_impl, attrs = {
 def _bundle_test_impl(ctx):
     env = analysistest.begin(ctx)
     target = analysistest.target_under_test(env)
-    prefix = "qt/tests/fixtures/qt-tasks/app/" + target.label.name + "/"
+    prefix = "qt/tests/fixtures/qt_tasks/app/" + target.label.name + "/"
     members = [f.short_path[len(prefix):] for f in target[DefaultInfo].files.to_list()]
     for want in ["lib/libQt6Core.so.6", "lib/libQt6Qml.so.6", "lib/libicuuc.so.73", "lib/libstdc++.so.6", "qml/QML/qmldir", "qml/QtQml/qmldir", "qml/QtQml/libqmlplugin.so", "licenses/qt/LGPL-3.0-only.txt"]:
         asserts.true(env, want in members, "missing " + want)
@@ -549,7 +549,7 @@ _bundle_test = analysistest.make(_bundle_test_impl)
 def _macos_bundle_test_impl(ctx):
     env = analysistest.begin(ctx)
     target = analysistest.target_under_test(env)
-    prefix = "qt/tests/fixtures/qt-tasks/app/" + target.label.name + "/"
+    prefix = "qt/tests/fixtures/qt_tasks/app/" + target.label.name + "/"
     members = [f.short_path[len(prefix):] for f in target[DefaultInfo].files.to_list()]
     for want in ["lib/QtCore.framework/Versions/A/QtCore", "lib/QtQml.framework/Versions/A/QtQml", "qml/QtQml/libqmlplugin.dylib"]:
         asserts.true(env, want in members, "missing " + want)
@@ -569,7 +569,7 @@ def qt_rules_tests(name):
     )
     _module_test(
         name = name + "_module",
-        target_under_test = "//qt/tests/fixtures/qt-app/tally",
+        target_under_test = "//qt/tests/fixtures/qt_app/tally",
         target_compatible_with = QT_COMPATIBLE_WITH,
     )
     _compile_test(
@@ -650,22 +650,22 @@ def qt_rules_tests(name):
     )
     _bundle_test(
         name = name + "_bundle",
-        target_under_test = "//qt/tests/fixtures/qt-tasks/app:runtime",
+        target_under_test = "//qt/tests/fixtures/qt_tasks/app:runtime",
         target_compatible_with = _LINUX,
     )
     _macos_bundle_test(
         name = name + "_macos_bundle",
-        target_under_test = "//qt/tests/fixtures/qt-tasks/app:runtime",
+        target_under_test = "//qt/tests/fixtures/qt_tasks/app:runtime",
         target_compatible_with = _MACOS_ARM64,
     )
     _rust_module_test(
         name = name + "_rust_module",
-        target_under_test = "//qt/tests/fixtures/qt-rust/model",
+        target_under_test = "//qt/tests/fixtures/qt_rust/model",
         target_compatible_with = QT_COMPATIBLE_WITH,
     )
     _bridge_test(
         name = name + "_bridge",
-        target_under_test = "//qt/tests/fixtures/qt-rust/model:model_bridge",
+        target_under_test = "//qt/tests/fixtures/qt_rust/model:model_bridge",
         target_compatible_with = QT_COMPATIBLE_WITH,
     )
     failures = {
@@ -676,7 +676,7 @@ def qt_rules_tests(name):
         "clashing_translations": "translated_other both embed :/i18n/de.qm",
         "twin_translations": "both produce de.qm",
         "foreign": "shared.h' must be in package qt/tests; give it its own target",
-        "rust_foreign": "bridge '" + str(Label("//qt/tests/other:bridge.rs")) + "' must be in package qt/tests; give it its own target",
+        "rust_foreign": "bridge '" + str(Label("//qt/tests/fixtures/other:bridge.rs")) + "' must be in package qt/tests; give it its own target",
     }
     for fixture in sorted(failures.keys()):
         failure_test(

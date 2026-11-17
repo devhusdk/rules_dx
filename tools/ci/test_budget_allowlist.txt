@@ -474,10 +474,10 @@ python/tests/runtime_tests.bzl no-size 1
 python/tests/sdist_native/BUILD.bazel no-size 5
 python/tests/sdist_native/msvc/BUILD.bazel no-size 1
 qt/tests/BUILD.bazel no-size 8
-qt/tests/fixtures/qt-app/app/BUILD.bazel no-size 3
-qt/tests/fixtures/qt-rust/app/BUILD.bazel no-size 2
-qt/tests/fixtures/qt-rust/ledger/BUILD.bazel no-size 1
-qt/tests/fixtures/qt-tasks/app/BUILD.bazel no-size 2
+qt/tests/fixtures/qt_app/app/BUILD.bazel no-size 3
+qt/tests/fixtures/qt_rust/app/BUILD.bazel no-size 2
+qt/tests/fixtures/qt_rust/ledger/BUILD.bazel no-size 1
+qt/tests/fixtures/qt_tasks/app/BUILD.bazel no-size 2
 qt/tests/rules_tests.bzl no-size 20
 qt/tests/tags/BUILD.bazel no-size 2
 rego/tests/BUILD.bazel no-size 4

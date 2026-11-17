@@ -1,0 +1,79 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("@rules_dx//deploy:defs.bzl", "qt_consumer_archive")
+load("@rules_dx//qt:defs.bzl", "qt_bundle", "qt_cc_binary", "qt_cc_test")
+load("//core/quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//:__subpackages__"])
+
+_QML_META = select({
+    "@platforms//os:linux": [],
+    "//conditions:default": ["@dx_qt//:quick"],
+})
+
+_NTDLL = select({
+    "@platforms//os:windows": ["ntdll.lib"],
+    "//conditions:default": [],
+})
+
+qt_cc_binary(
+    name = "ledger",
+    srcs = ["main.cc"],
+    linkopts = _NTDLL,
+    modules = ["qml"],
+    deps = ["//qt/tests/fixtures/qt_rust/ui"] + _QML_META,
+)
+
+qt_cc_test(
+    name = "ledger_test",
+    srcs = ["ledger_test.cc"],
+    linkopts = _NTDLL,
+    moc_hdrs = ["ledger_test.h"],
+    modules = [
+        "qml",
+        "test",
+    ],
+    deps = [
+        "//qt/tests/fixtures/qt_rust/model",
+        "//qt/tests/fixtures/qt_rust/ui",
+    ] + _QML_META,
+)
+
+sh_test(
+    name = "ledger_symbols_test",
+    srcs = ["ledger_symbols_test.sh"],
+    args = [
+        "$(rootpath @llvm//tools:llvm-nm)",
+        "$(rootpath :ledger_test)",
+    ],
+    data = [
+        ":ledger_test",
+        "@llvm//tools:llvm-nm",
+    ],
+)
+
+qt_bundle(
+    name = "runtime",
+    binary = ":ledger",
+    licenses = [
+        "licenses/apache/LICENSE",
+        "licenses/llvm/LICENSE.TXT",
+    ],
+    qml_modules = [
+        "QML",
+        "QtQml",
+    ],
+)
+
+qt_consumer_archive(
+    name = "ledger_release",
+    app = ":ledger",
+    notice = "NOTICE",
+    resources = [":runtime"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    shell_srcs = ["ledger_symbols_test.sh"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

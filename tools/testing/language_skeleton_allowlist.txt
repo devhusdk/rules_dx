@@ -128,19 +128,6 @@ fixture-name python/tests/analysis
 fixture-name python/tests/fixtures/adopt-python
 fixture-name python/tests/fixtures/python-service
 fixture-name python/tests/sdist_native
-fixture-name qt/tests/fixtures/QtFake.framework
-fixture-name qt/tests/fixtures/Thing.qml
-fixture-name qt/tests/fixtures/app.cc
-fixture-name qt/tests/fixtures/console_app.cc
-fixture-name qt/tests/fixtures/de.ts
-fixture-name qt/tests/fixtures/dialog.ui
-fixture-name qt/tests/fixtures/plugin_path.cc
-fixture-name qt/tests/fixtures/qt-app
-fixture-name qt/tests/fixtures/qt-rust
-fixture-name qt/tests/fixtures/qt-tasks
-fixture-name qt/tests/fixtures/selected.cc
-fixture-name qt/tests/fixtures/ticker.h
-fixture-name qt/tests/other
 fixture-name qt/tests/tags
 fixture-name ruby/tests/fixtures/adopt-ruby
 fixture-name rust/tests/fixtures/adopt-rust
@@ -226,7 +213,6 @@ fixture-referenced python/tests/fixtures/fuzz
 fixture-referenced python/tests/fixtures/native_ext
 fixture-referenced python/tests/fixtures/no_srcs
 fixture-referenced python/tests/fixtures/python_audit
-fixture-referenced qt/tests/fixtures/QtFake.framework
 fixture-referenced ruby/tests/fixtures/bench
 fixture-referenced ruby/tests/fixtures/rspec
 fixture-referenced rust/tests/fixtures/cargo_metadata

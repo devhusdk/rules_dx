@@ -235,8 +235,8 @@ python/tests/fixtures/fuzz/run_test.sh shebang 1
 python/tests/fixtures/python-service/ledger/core/BUILD.bazel genrule 1
 python/tests/sdist_native/msvc/BUILD.bazel genrule 1
 python/tests/sdist_native/msvc/BUILD.bazel shebang 1
-qt/tests/fixtures/qt-rust/app/BUILD.bazel sh-rule 1
-qt/tests/fixtures/qt-rust/app/ledger_symbols_test.sh shebang 1
+qt/tests/fixtures/qt_rust/app/BUILD.bazel sh-rule 1
+qt/tests/fixtures/qt_rust/app/ledger_symbols_test.sh shebang 1
 qt/tests/qt_test.rs host-path 1
 rego/tests/BUILD.bazel genrule 1
 rust/private/defs.bzl env-inherit 1

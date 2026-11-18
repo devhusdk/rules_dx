@@ -32,6 +32,12 @@ zig_binary(
 )
 
 zig_binary(
+    name = "lock_hello",
+    main = "lock_main.zig",
+    deps = ["@zig_zig.tests.fixtures.zig_deps//clap"],
+)
+
+zig_binary(
     name = "runfiles_hello",
     data = ["data.txt"],
     main = "runfiles_main.zig",
@@ -63,6 +69,15 @@ dx_conformance_suite(
     failing_pattern = "test.{case}...",
     failing_test = ":fail_subject_test",
     lang = "zig",
+    lock = {
+        "binary": ":lock_hello",
+        "ecosystem": "zig",
+        "expected": "hello lock",
+        "lockfile": "//zig/tests/fixtures/zig_deps:zig.lock.json",
+        "manifest": "//zig/tests/fixtures/zig_deps:build.zig.zon",
+        "package": "clap",
+        "stale": "zig.stale.lock.json",
+    },
     passing_test = ":pass_subject_test",
     quality = {
         "clean": ":conformance",

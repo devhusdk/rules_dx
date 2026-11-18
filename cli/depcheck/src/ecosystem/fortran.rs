@@ -40,23 +40,13 @@ pub fn parse_fortran_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, 
 
 /// Reads an fpm lock: the `name` and `version` of each locked package.
 pub fn parse_fortran_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
-    let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
-    let data: serde_json::Value = serde_json::from_str(&text).map_err(DepcheckError::LockJson)?;
-    let mut pkgs = BTreeMap::new();
-    for package in data
-        .get("packages")
-        .and_then(|v| v.as_array())
+    Ok(super::lock_packages(path)?
         .into_iter()
-        .flatten()
-    {
-        let Some(name) = package.get("name").and_then(|v| v.as_str()) else {
-            continue;
-        };
-        let version = package
-            .get("version")
-            .and_then(|v| v.as_str())
-            .unwrap_or("0");
-        pkgs.insert(normalize_lower(name), version.to_owned());
-    }
-    Ok(pkgs)
+        .map(|(name, version)| {
+            (
+                normalize_lower(&name),
+                version.unwrap_or_else(|| "0".to_owned()),
+            )
+        })
+        .collect())
 }

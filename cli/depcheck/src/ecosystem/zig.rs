@@ -54,17 +54,12 @@ pub fn parse_zig_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Depc
     Ok(deps)
 }
 
-/// Reads the fetched package hashes, one `<name> <hash>` per line. `#` starts a comment.
+/// Reads a `zig.lock.json`: each package's `version` is the manifest `.hash` it was locked from.
 pub fn parse_zig_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
-    let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
-    let mut hashes = BTreeMap::new();
-    for line in text.lines() {
-        let line = line.split('#').next().unwrap_or("").trim();
-        if let Some((name, hash)) = line.split_once(char::is_whitespace) {
-            hashes.insert(name.to_owned(), hash.trim().to_owned());
-        }
-    }
-    Ok(hashes)
+    Ok(super::lock_packages(path)?
+        .into_iter()
+        .filter_map(|(name, hash)| Some((name, hash?)))
+        .collect())
 }
 
 fn strip_comments(text: &str) -> String {

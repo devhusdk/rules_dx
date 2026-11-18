@@ -181,5 +181,4 @@ vue format_test *
 vue lint_error_test *
 vue lint_test *
 zig coverage_test windows_x86_64
-zig lock_test *
 """

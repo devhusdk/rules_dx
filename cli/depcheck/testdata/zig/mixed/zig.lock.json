@@ -1,0 +1,18 @@
+{
+  "ecosystem": "zig",
+  "packages": [
+    {
+      "name": "clap",
+      "version": "1220bbbb"
+    },
+    {
+      "name": "known",
+      "version": "1220cccc"
+    },
+    {
+      "name": "zlib",
+      "version": "1220aaaa"
+    }
+  ],
+  "schema": 1
+}

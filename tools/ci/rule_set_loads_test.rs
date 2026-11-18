@@ -60,7 +60,8 @@ const RULE_SETS: [(&str, &[&str]); 3] = [
 ];
 
 /// The only `rules_dx` files a rule-set file may load, as `//` labels.
-const RULES_DX_ALLOW: [&str; 3] = [
+const RULES_DX_ALLOW: [&str; 4] = [
+    "//core:platform.bzl",
     "//core:wrapper.bzl",
     "//core/quality:sources.bzl",
     "//rust:defs.bzl",

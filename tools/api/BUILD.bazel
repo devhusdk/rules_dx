@@ -10,6 +10,7 @@ _DEPS = [
     "//cli/module_bazel:dx_module_bazel",
     "//cli/output:dx_output",
     "//cli/plan:dx_plan",
+    "@crates//:serde",
     "@crates//:serde_json",
 ]
 
@@ -19,10 +20,11 @@ _SNAPSHOT_SRCS = [
     "//config:BUILD.bazel",
 ]
 
-# Rewrites api/ from the code. Run it when api_test says the public API changed.
+# Rewrites api/ and docs/supported-surface.md from the code. Run it when api_test says the public API changed.
 rust_binary(
     name = "update",
     srcs = [
+        "page.rs",
         "snapshot.rs",
         "update.rs",
     ],
@@ -37,13 +39,20 @@ rust_test(
     size = "small",
     srcs = [
         "api_test.rs",
+        "page.rs",
         "snapshot.rs",
     ],
     compile_data = _SNAPSHOT_SRCS,
     crate_name = "api_test",
     crate_root = "api_test.rs",
-    data = ["//api:snapshot"],
-    env = {"DX_API_SNAPSHOT": "$(rlocationpaths //api:snapshot)"},
+    data = [
+        "//api:snapshot",
+        "//docs:supported-surface.md",
+    ],
+    env = {
+        "DX_API_SNAPSHOT": "$(rlocationpaths //api:snapshot)",
+        "DX_SURFACE_PAGE": "$(rlocationpath //docs:supported-surface.md)",
+    },
     deps = _DEPS + ["//tools/testing:dx_testing"],
 )
 

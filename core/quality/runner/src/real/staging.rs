@@ -615,14 +615,11 @@ mod semanticdb_tests {
 
     fn jar(dir: &std::path::Path, members: &[&str]) -> std::path::PathBuf {
         let path = dir.join("owned.jar");
-        let mut writer = zip::ZipWriter::new(std::fs::File::create(&path).expect("jar"));
+        let mut writer = dx_archive_testing::RawZip::new();
         for name in members {
-            writer
-                .start_file(*name, zip::write::SimpleFileOptions::default())
-                .expect("start");
-            std::io::Write::write_all(&mut writer, name.as_bytes()).expect("write");
+            writer.add_file(name, name.as_bytes()).expect("add");
         }
-        writer.finish().expect("finish");
+        std::fs::write(&path, writer.finish().expect("finish")).expect("jar");
         path
     }
 

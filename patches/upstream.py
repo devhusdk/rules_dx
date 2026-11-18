@@ -8,9 +8,9 @@ diff, which every patch tool skips:
     Upstream: fixed upstream in v0.9.0
 
 A header may name several refs separated by commas. A ref is a pull request or
-an issue. The report lists refs whose pull request is merged and contained in a
-release tag, patches marked fixed in a release, refs that were closed without a
-merge, and patches with no header.
+an issue. The report lists refs whose pull request is merged, or closed by the
+commit that landed it, and contained in a release tag, patches marked fixed in a
+release, refs that were closed without a merge, and patches with no header.
 """
 
 import json
@@ -118,10 +118,28 @@ def status(api, repo, number):
         # A closed issue: someone has to find the fix and its release.
         return ("closed", None)
     pull = api.get("/repos/%s/pulls/%d" % (repo, number))
-    if not pull["merged"]:
-        return ("closed", None)
-    tag = shipped_in(api, repo, pull["merge_commit_sha"], pull["merged_at"])
+    if pull["merged"]:
+        sha, merged_at = pull["merge_commit_sha"], pull["merged_at"]
+    else:
+        landed = landed_commit(api, repo, number)
+        if landed is None:
+            return ("closed", None)
+        sha, merged_at = landed
+    tag = shipped_in(api, repo, sha, merged_at)
     return ("released", tag) if tag else ("open", None)
+
+
+def landed_commit(api, repo, number):
+    """Returns (sha, closed_at) when a commit closed the pull request, else None.
+
+    Repositories that import pull requests with Copybara, such as Bazel, land
+    them as a separate commit and close the pull request unmerged.
+    """
+    events = api.get("/repos/%s/issues/%d/events?per_page=100" % (repo, number)) or []
+    for event in reversed(events):
+        if event.get("event") == "closed" and event.get("commit_id"):
+            return (event["commit_id"], event["created_at"])
+    return None
 
 
 def patch_files(root):

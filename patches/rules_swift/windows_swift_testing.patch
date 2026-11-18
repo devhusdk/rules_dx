@@ -1,4 +1,4 @@
-Upstream: bazelbuild/rules_swift#2018
+Upstream: bazelbuild/rules_swift#2020
 diff --git a/swift/toolchains/swift_toolchain.bzl b/swift/toolchains/swift_toolchain.bzl
 index 0734fd9..b1168ee 100644
 --- a/swift/toolchains/swift_toolchain.bzl

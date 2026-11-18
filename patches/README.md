@@ -65,7 +65,7 @@ When the upstream fix is in a release rules_dx uses, delete the patch file, its 
 | `rules_flutter` | 0.0.8 | `ios_target_compatible_with.patch` | `flutter_ios_app` applies its `target_compatible_with` to every target it generates, not only drops it. Consumer fix: #11417 |
 | `rules_flutter` | 0.0.8 | `coverage_enabled.patch` | Root only. Only a `flutter_test` built with `--collect_code_coverage` writes LCOV; one built without it ignores `COVERAGE_OUTPUT_FILE` |
 | `rules_swift` | 4.3.0 | `windows_absolute_sdk.patch` | Root only. Windows Swift actions pass `-sdk` through the wrapper as an absolute path |
-| `rules_swift` | 4.3.0 | `windows_swift_testing.patch` | Root only. The Windows toolchain puts the Swift Testing module and import library directories on the compile and link paths (bazelbuild/rules_swift#2018; drop when a rules_swift release has it) |
+| `rules_swift` | 4.3.0 | `windows_swift_testing.patch` | Root only. The Windows toolchain puts the Swift Testing module and import library directories on the compile and link paths (bazelbuild/rules_swift#2020; drop when a rules_swift release has it) |
 | `rules_swift` | 4.3.0 | `windows_unknown_vendor.patch` | Root only. Windows target triples use the `unknown` vendor |
 | `rules_swift` | 4.3.0 | `xcode_select_absolute_path.patch` | The `system_sdk` extension runs `/usr/bin/xcode-select`, so Xcode discovery works with no host `PATH`. Consumer fix: #11150 |
 | `rules_python` | 2.4.6 | `single_import_lib.patch` | `py_extension` on Windows links one CPython import library: the stable ABI one for limited API modules, else the versioned one. It passed both as one linker argument (bazel-contrib/rules_python#4426; drop when a rules_python release has it). Consumer fix: #11418 |

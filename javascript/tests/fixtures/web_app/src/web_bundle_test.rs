@@ -80,7 +80,7 @@ fn bundle_serves_over_http() {
     std::thread::spawn(move || {
         let mut line = String::new();
         let outcome = BufReader::new(stdout).read_line(&mut line);
-        let _ = done.send((outcome, line));
+        let _: Result<(), _> = done.send((outcome, line));
     });
     let (outcome, line) = ready
         .recv_timeout(Duration::from_secs(30))

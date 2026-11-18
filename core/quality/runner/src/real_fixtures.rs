@@ -989,7 +989,7 @@ pub(super) fn fatal_fix(
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
-    let _ = last_file(argv);
+    let _: String = last_file(argv);
     Ok(ChildOutput {
         code: Some(2),
         stdout: Vec::new(),
@@ -1060,7 +1060,7 @@ pub(super) fn taplo_garbage(
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
-    let _ = last_file(argv);
+    let _: String = last_file(argv);
     Ok(ChildOutput {
         code: Some(1),
         stdout: Vec::new(),

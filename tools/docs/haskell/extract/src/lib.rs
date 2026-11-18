@@ -382,7 +382,7 @@ fn symbol(
     docs: String,
     line: usize,
 ) -> Symbol {
-    let _ = &module.name;
+    let _: &String = &module.name;
     Symbol {
         id: format!("{LANGUAGE}:{}:{id}", context.package),
         kind: kind as i32,

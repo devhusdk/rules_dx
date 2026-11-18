@@ -739,7 +739,7 @@ fn stale_prev_undeletable_reports_install() {
         Error::Install { reason } if reason.contains("cannot clear stale")
     ));
     drop(held);
-    let _ = fs::remove_dir_all(&root);
+    let _: std::io::Result<()> = fs::remove_dir_all(&root);
 }
 
 #[cfg(windows)]
@@ -759,7 +759,7 @@ fn stale_stage_undeletable_reports_install() {
         Error::Install { reason } if reason.contains("cannot clear stale staging")
     ));
     drop(held);
-    let _ = fs::remove_dir_all(&root);
+    let _: std::io::Result<()> = fs::remove_dir_all(&root);
 }
 
 #[test]

@@ -2193,12 +2193,12 @@ mod cmd {
             if std::mem::replace(&mut self.stopped, true) {
                 return;
             }
-            let _ = Command::new(system_exe("taskkill.exe"))
+            let _: std::io::Result<std::process::Output> = Command::new(system_exe("taskkill.exe"))
                 .args(["/T", "/F", "/PID", &self.child.id().to_string()])
                 .output();
-            let _ = self.child.kill();
-            let _ = std::io::Read::read_to_end(&mut self.out, &mut Vec::new());
-            let _ = self.child.wait();
+            let _: std::io::Result<()> = self.child.kill();
+            let _: std::io::Result<usize> = std::io::Read::read_to_end(&mut self.out, &mut Vec::new());
+            let _: std::io::Result<std::process::ExitStatus> = self.child.wait();
         }
     }
 
@@ -2474,7 +2474,7 @@ mod cmd {
             ];
             paths.extend(rc_names().iter().map(|extra| root.join(extra)));
             for path in &paths {
-                let _ = std::fs::remove_file(path);
+                let _: std::io::Result<()> = std::fs::remove_file(path);
             }
             for (slot, text) in rc.files {
                 let path = match slot {
@@ -2485,8 +2485,8 @@ mod cmd {
                 };
                 std::fs::write(path, text.replace('\n', "\r\n")).expect("rc file");
             }
-            let _ = std::fs::remove_dir_all(state(&root));
-            let _ = std::fs::remove_file(&args);
+            let _: std::io::Result<()> = std::fs::remove_dir_all(state(&root));
+            let _: std::io::Result<()> = std::fs::remove_file(&args);
             let mut vars: Vec<(String, String)> = vec![
                 (
                     "USERPROFILE".to_owned(),
@@ -2608,10 +2608,10 @@ mod cmd {
                 root.join(".bazelrc"),
                 data.join("bazel.bazelrc"),
             ] {
-                let _ = std::fs::remove_file(path);
+                let _: std::io::Result<()> = std::fs::remove_file(path);
             }
-            let _ = std::fs::remove_dir_all(state(&root));
-            let _ = std::fs::remove_file(&args);
+            let _: std::io::Result<()> = std::fs::remove_dir_all(state(&root));
+            let _: std::io::Result<()> = std::fs::remove_file(&args);
             if let Some(text) = home_rc {
                 std::fs::write(home.join(".bazelrc"), text.replace('\n', "\r\n")).expect("home rc");
             }

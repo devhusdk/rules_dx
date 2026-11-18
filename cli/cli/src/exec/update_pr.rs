@@ -1557,7 +1557,7 @@ mod tests {
             ],
             &[("proxy.golang.org/example.com/x/@v/list", "v1.0.0\nv1.1.0\n")],
         );
-        let _ = code;
+        let _: i32 = code;
         assert!(
             format!("{out}{argv}").contains("dx-update/go"),
             "{out}{argv}"
@@ -1583,7 +1583,7 @@ mod tests {
                 "[{\"number\":\"1.5\",\"prerelease\":false}]",
             )],
         );
-        let _ = code;
+        let _: i32 = code;
         assert!(!out.contains("skipped gems:rake"), "{out}");
         assert!(
             format!("{out}{argv}").contains("dx-update/gems"),

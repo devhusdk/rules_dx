@@ -163,7 +163,7 @@ pub fn create_pointer(target: &Path, pointer: &Path, kind: PointerKind) -> io::R
     }
     #[cfg(not(windows))]
     {
-        let _ = kind;
+        let _: PointerKind = kind;
         std::os::unix::fs::symlink(target, pointer)
     }
 }

@@ -44,7 +44,7 @@ pub use stderr_tail::last_bazel_stderr;
 pub trait Fs {
     fn is_file(&self, path: &Path) -> bool;
     fn broken_marker_hint(&self, dir: &Path) -> Option<String> {
-        let _ = dir;
+        let _: &Path = dir;
         None
     }
 }
@@ -860,7 +860,7 @@ pub trait Runner {
         withdraw: Option<&dyn Fn() -> bool>,
         held: &[&std::fs::File],
     ) -> io::Result<Option<ChildStatus>> {
-        let _ = held;
+        let _: &[&std::fs::File] = held;
         match withdraw {
             Some(withdraw) => self.run_withdrawable(argv, cwd, env, withdraw),
             None => self.run(argv, cwd, env).map(Some),
@@ -869,19 +869,19 @@ pub trait Runner {
 
     /// Names the absolute path one pinned-tool variable points at.
     fn pinned_tool(&self, var: &str) -> PinnedVar {
-        let _ = var;
+        let _: &str = var;
         PinnedVar::Unset
     }
 
     /// Reads the first line `path --version` prints; `None` when it cannot run.
     fn tool_version(&self, path: &Path) -> Option<String> {
-        let _ = path;
+        let _: &Path = path;
         None
     }
 
     /// Reads the free bytes on the disk holding `path`; `None` when it cannot tell.
     fn free_disk_bytes(&self, path: &Path) -> Option<u64> {
-        let _ = path;
+        let _: &Path = path;
         None
     }
 }

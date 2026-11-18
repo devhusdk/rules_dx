@@ -289,7 +289,7 @@ fn hold_vs_apply_race_never_sees_partial_generation() {
     };
     for round in 1..=ROUNDS {
         select(&workspace, &iteration_pair(round));
-        let _ = prune(&workspace);
+        let _: crate::prune::PruneOutcome = prune(&workspace);
     }
     done.store(true, std::sync::atomic::Ordering::SeqCst);
     assert!(reader.join().expect("reader") > 0);

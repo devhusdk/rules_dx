@@ -243,7 +243,7 @@ impl Trail {
         let now = self.mark("now");
         if now != self.before {
             use std::io::Write;
-            let _ = writeln!(std::io::stderr(), "ACL trail:\n{}", self.text);
+            let _: std::io::Result<()> = writeln!(std::io::stderr(), "ACL trail:\n{}", self.text);
         }
         assert_eq!(now, self.before, "{}", self.text);
     }

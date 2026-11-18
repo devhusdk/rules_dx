@@ -15,5 +15,7 @@ pub use consensus::{ConsensusError, merge};
 pub use envelope::{
     ENVELOPE_VERSION, Envelope, EnvelopeError, FileOperation, emit_envelope, parse_envelope,
 };
-pub use validators::{BLOCKED_EXTENSIONS, MAX_OPERATION_BYTES, ValidationError, validate};
+pub use validators::{
+    BLOCKED_EXTENSIONS, MAX_OPERATION_BYTES, ValidationError, validate, validate_path,
+};
 // LCOV_EXCL_STOP - reason: end re-export only, issue: 1055, policy: docs/cli/commands/build-test-coverage.md

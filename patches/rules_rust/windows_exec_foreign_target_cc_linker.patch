@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: none (rules_dx only: linker_preference wiring for the hermetic toolchain)
 diff --git a/rust/private/repository_utils.bzl b/rust/private/repository_utils.bzl
 --- a/rust/private/repository_utils.bzl
 +++ b/rust/private/repository_utils.bzl

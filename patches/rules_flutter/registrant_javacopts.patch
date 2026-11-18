@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: aran/rules_flutter#20
 --- a/flutter/android.bzl
 +++ b/flutter/android.bzl
 @@ -52,6 +52,7 @@

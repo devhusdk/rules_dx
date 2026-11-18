@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: bazel-contrib/rules_d#277
 diff --git a/d/private/rules/cc_toolchain.bzl b/d/private/rules/cc_toolchain.bzl
 --- a/d/private/rules/cc_toolchain.bzl
 +++ b/d/private/rules/cc_toolchain.bzl

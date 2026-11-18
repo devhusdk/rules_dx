@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: periareon/rules_julia#51
 diff -ruN a/julia/private/binary_wrapper.bzl b/julia/private/binary_wrapper.bzl
 --- a/julia/private/binary_wrapper.bzl	2026-11-18 04:05:50.843525322 +0100
 +++ b/julia/private/binary_wrapper.bzl	2026-11-18 04:06:29.648564030 +0100

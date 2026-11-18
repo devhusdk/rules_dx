@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: hermeticbuild/hermetic-llvm#970
 diff --git a/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel b/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel
 index 8e4dc73..35759bb 100644
 --- a/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel

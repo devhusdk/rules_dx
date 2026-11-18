@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: none (rules_dx only: opt-out flag so the extractor crates are never fetched)
 diff --git a/cargo/private/BUILD.bazel b/cargo/private/BUILD.bazel
 --- a/cargo/private/BUILD.bazel
 +++ b/cargo/private/BUILD.bazel

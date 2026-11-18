@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: miinso/rules_fortran#48
 --- a/fortran/private/fortran_library.bzl
 +++ b/fortran/private/fortran_library.bzl
 @@ -59,10 +59,10 @@

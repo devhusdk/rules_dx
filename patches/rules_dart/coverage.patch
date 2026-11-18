@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: fixed upstream in v0.9.0
 diff -ruN a/dart/private/dart_test.bzl b/dart/private/dart_test.bzl
 --- a/dart/private/dart_test.bzl
 +++ b/dart/private/dart_test.bzl

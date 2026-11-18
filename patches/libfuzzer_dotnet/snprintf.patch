@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: Metalnem/libfuzzer-dotnet#30
 --- a/libfuzzer-dotnet.cc
 +++ b/libfuzzer-dotnet.cc
 @@ -148,7 +148,7 @@

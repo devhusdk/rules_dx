@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: bazelbuild/rules_swift#2025
 diff --git a/swift/toolchains/swift_toolchain.bzl b/swift/toolchains/swift_toolchain.bzl
 --- a/swift/toolchains/swift_toolchain.bzl
 +++ b/swift/toolchains/swift_toolchain.bzl

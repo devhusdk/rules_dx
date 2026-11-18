@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: fixed upstream in v0.1.0
 diff -ruN a/flutter/private/flutter_test.bzl b/flutter/private/flutter_test.bzl
 --- a/flutter/private/flutter_test.bzl
 +++ b/flutter/private/flutter_test.bzl

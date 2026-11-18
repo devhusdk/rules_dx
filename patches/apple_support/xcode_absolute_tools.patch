@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: none (rules_dx only: hard-codes /usr/bin tools for a hermetic PATH)
 diff --git a/crosstool/osx_cc_configure.bzl b/crosstool/osx_cc_configure.bzl
 --- a/crosstool/osx_cc_configure.bzl
 +++ b/crosstool/osx_cc_configure.bzl

@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: none (rules_dx only: Bazel long-path workaround for MSVC)
 diff --git a/build.rs b/build.rs
 --- a/build.rs
 +++ b/build.rs

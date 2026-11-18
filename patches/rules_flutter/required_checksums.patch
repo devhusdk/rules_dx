@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: fixed upstream in v0.1.0
 diff --git a/flutter/private/flutter_android_engine_repo.bzl b/flutter/private/flutter_android_engine_repo.bzl
 --- a/flutter/private/flutter_android_engine_repo.bzl
 +++ b/flutter/private/flutter_android_engine_repo.bzl

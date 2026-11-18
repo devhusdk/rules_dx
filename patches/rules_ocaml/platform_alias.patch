@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: none (rules_dx only: aliases platform constraints to rules_dx)
 diff -ruN a/platform/emitter/BUILD.bazel b/platform/emitter/BUILD.bazel
 --- a/platform/emitter/BUILD.bazel
 +++ b/platform/emitter/BUILD.bazel

@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: none (rules_dx only: musl is unsupported upstream; elfutils takes patches by mailing list, not GitHub)
 diff --git a/libdwfl/argp-std.c b/libdwfl/argp-std.c
 index 55e9871..5d31698 100644
 --- a/libdwfl/argp-std.c

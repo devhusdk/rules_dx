@@ -96,11 +96,13 @@ workspace_policy(
         "//config:config_tier_strict": [
             "//core/quality/tiers/gersemi:strict",
             "//core/quality/tiers/hlint:strict",
+            "//core/quality/tiers/julialint:strict",
             "//core/quality/tiers/mbake:strict",
         ],
         "//conditions:default": [
             "//core/quality/tiers/gersemi:standard",
             "//core/quality/tiers/hlint:standard",
+            "//core/quality/tiers/julialint:standard",
             "//core/quality/tiers/mbake:standard",
         ],
     }),

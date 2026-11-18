@@ -1287,12 +1287,10 @@ quality_family(
 
 quality_family(
     name = "tool_override_julia_family",
-    disabled = [
-        "audit",
-        "lint",
-    ],
+    disabled = ["audit"],
     family_id = "julia",
     format = ["julia_format"],
+    lint = ["julialint"],
     typecheck = ["jet"],
 )
 

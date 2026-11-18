@@ -33,7 +33,7 @@ pub fn resolve_exact_target(targets: &[String]) -> Result<Option<String>, ExactS
                 Err(ExactScopeError::TargetPattern {
                     value: single.clone(),
                 })
-            } else if single.starts_with("//") || single.starts_with('@') {
+            } else if is_exact_label(single) {
                 Ok(Some(single.clone()))
             } else {
                 Err(ExactScopeError::NotTargetLabel {
@@ -44,6 +44,23 @@ pub fn resolve_exact_target(targets: &[String]) -> Result<Option<String>, ExactS
         _ => Err(ExactScopeError::MultipleTargets {
             count: targets.len(),
         }),
+    }
+}
+
+// Bazel never reads a label with whitespace or control characters as the label the user typed.
+fn is_exact_label(value: &str) -> bool {
+    let body = value
+        .strip_prefix("//")
+        .or_else(|| value.strip_prefix("@@"))
+        .or_else(|| value.strip_prefix('@'));
+    match body {
+        Some(body) => {
+            !body.is_empty()
+                && !value
+                    .chars()
+                    .any(|character| character.is_whitespace() || character.is_control())
+        }
+        None => false,
     }
 }
 
@@ -70,6 +87,10 @@ mod tests {
             resolve_exact_target(&labels(&["@repo//a:b"])),
             Ok(Some(label("@repo//a:b")))
         );
+        assert_eq!(
+            resolve_exact_target(&labels(&["@@repo//a:b"])),
+            Ok(Some(label("@@repo//a:b")))
+        );
     }
 
     #[test]
@@ -95,5 +116,39 @@ mod tests {
         let error = resolve_exact_target(&labels(&["//a", "//b"])).unwrap_err();
         assert_eq!(error, ExactScopeError::MultipleTargets { count: 2 });
         assert_eq!(error.to_string(), "expected at most one target, found 2");
+    }
+
+    #[test]
+    fn exact_target_rejects_empty_label_body() {
+        for value in ["//", "@", "@@"] {
+            assert_eq!(
+                resolve_exact_target(&labels(&[value])),
+                Err(ExactScopeError::NotTargetLabel {
+                    value: label(value)
+                })
+            );
+        }
+    }
+
+    #[test]
+    fn exact_target_rejects_whitespace_and_control_characters() {
+        for value in [
+            "//a b",
+            "//a:b\n",
+            "//a:b\r",
+            "//a:b\t",
+            " //a:b",
+            "@repo//a:b ",
+            "//a:b\u{0}",
+            "//a:b\u{7f}",
+            "//a:b\u{a0}",
+        ] {
+            assert_eq!(
+                resolve_exact_target(&labels(&[value])),
+                Err(ExactScopeError::NotTargetLabel {
+                    value: label(value)
+                })
+            );
+        }
     }
 }

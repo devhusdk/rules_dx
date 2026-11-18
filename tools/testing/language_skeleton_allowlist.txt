@@ -191,13 +191,10 @@ private-visibility cuda/private/toolchain/BUILD.bazel
 private-visibility d/private/BUILD.bazel
 private-visibility d/private/toolchain/BUILD.bazel
 private-visibility dart/private/BUILD.bazel
-private-visibility dart/private/bench/BUILD.bazel
 private-visibility dart/private/tools/BUILD.bazel
 private-visibility dotnet/private/fuzz/BUILD.bazel
-private-visibility elixir/private/bench/BUILD.bazel
 private-visibility elixir/private/tools/BUILD.bazel
 private-visibility erlang/private/BUILD.bazel
-private-visibility erlang/private/bench/BUILD.bazel
 private-visibility erlang/private/toolchain/BUILD.bazel
 private-visibility erlang/private/tools/BUILD.bazel
 private-visibility flutter/private/BUILD.bazel
@@ -207,7 +204,6 @@ private-visibility haskell/private/toolchain/BUILD.bazel
 private-visibility javascript/private/BUILD.bazel
 private-visibility javascript/private/quality/bin/BUILD.bazel
 private-visibility julia/private/BUILD.bazel
-private-visibility julia/private/bench/BUILD.bazel
 private-visibility julia/private/coverage/BUILD.bazel
 private-visibility julia/private/tools/BUILD.bazel
 private-visibility kotlin/private/BUILD.bazel

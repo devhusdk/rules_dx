@@ -46,6 +46,18 @@ def dx_forwarded_quiet(upstream, providers):
     """Forwards the upstream providers that are present without warning on absence."""
     return [upstream[p] for p in providers if p in upstream]
 
+def dx_private_dep_rule(dep, providers, doc):
+    """Creates a rule whose targets forward the providers of dep, reached through a private attribute."""
+
+    def _impl(ctx):
+        return dx_forwarded_quiet(ctx.attr._dep, providers)
+
+    return rule(
+        implementation = _impl,
+        doc = doc,
+        attrs = {"_dep": attr.label(default = dep)},
+    )
+
 def dx_preserved_providers(upstream, required, what):
     """Returns the required upstream provider instances, failing when absent."""
     out = []

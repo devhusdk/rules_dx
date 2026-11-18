@@ -6,7 +6,7 @@ load("//dart/private:dart_config.bzl", _dart_config = "dart_config")
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
 load("//core:platform_support.bzl", "compatible_with")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_private_dep_rule", "dx_upstream_tags", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//dart/private:platforms.bzl", DART_SUPPORT = "PLATFORM_SUPPORT")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
@@ -101,13 +101,25 @@ def dart_test(name, *, srcs = None, main = None, visibility = None, **kwargs):
     kwargs = dx_language_kwargs(kwargs, compatible_with = DART_COMPATIBLE_WITH)
     dx_wrap_test(name, _dart_test, _dart_forward_test, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)
 
+_dart_bench_lib = dx_private_dep_rule(
+    Label("//dart/private/bench"),
+    [DartInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo, OutputGroupInfo],
+    "Provides the dx_bench package dart_bench links.",
+)
+
 def dart_bench(name, *, srcs = None, main = None, deps = None, tags = None, **kwargs):
     """A dart_test run by dx bench: `main` calls runBenchmarks from package:dx_bench with BenchmarkBase objects."""
+    _dart_bench_lib(
+        name = name + "_dx_bench",
+        testonly = True,
+        tags = dx_upstream_tags(tags),
+        visibility = ["//visibility:private"],
+    )
     dart_test(
         name = name,
         main = main,
         srcs = srcs,
-        deps = (deps or []) + [Label("//dart/private/bench")],
+        deps = (deps or []) + [":" + name + "_dx_bench"],
         tags = merge_tags(tags, "dx-bench"),
         **with_default_size(kwargs)
     )

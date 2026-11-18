@@ -40,7 +40,7 @@ pub const FAMILIES: &[CuratedFamily] = &[
     },
     CuratedFamily {
         id: "cuda",
-        lint: &["typos"],
+        lint: &["clang_tidy", "typos"],
         format: &["clang_format"],
         typecheck: &[],
         audit: &[],

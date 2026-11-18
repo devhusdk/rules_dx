@@ -83,6 +83,14 @@ TOOLS = [
                 fix = "check_only",
                 platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
             ),
+            row(
+                capability = "lint",
+                classes = ["cuda"],
+                context = "target_coupled",
+                family = "cuda",
+                fix = "check_only",
+                platforms = ["linux_arm64", "linux_x86_64"],
+            ),
         ],
     ),
     tool(

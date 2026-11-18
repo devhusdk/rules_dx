@@ -164,14 +164,14 @@ mod tests {
         let base = dx_test_scratch::scratch("dx-run-sweep-").unwrap();
         let base = base.path();
         let gone = base.join("dx-run-999999-abc");
-        std::fs::create_dir(&gone).expect("gone dir");
+        std::fs::create_dir_all(&gone).expect("gone dir");
         std::fs::write(gone.join(OWNER_LOCK), b"").expect("gone lock");
         std::fs::write(gone.join("dx-bep-1-0.json"), b"{}").expect("gone file");
         let (live, _) = create_run_temp_dir(base, std::process::id()).expect("live dir");
         let unlocked = base.join("dx-run-1-nolock");
-        std::fs::create_dir(&unlocked).expect("nolock dir");
+        std::fs::create_dir_all(&unlocked).expect("nolock dir");
         let old_format = base.join("dx-run-abcdef");
-        std::fs::create_dir(&old_format).expect("old dir");
+        std::fs::create_dir_all(&old_format).expect("old dir");
         let bep = base.join("dx-bep-1-0.json");
         std::fs::write(&bep, b"{}").expect("bep");
         remove_stale_run_dirs(base);

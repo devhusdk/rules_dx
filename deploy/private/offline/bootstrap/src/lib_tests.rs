@@ -146,7 +146,7 @@ fn a_bundle_without_the_two_bundle_dirs_is_refused() {
             options.bundle.as_deref().unwrap()
         )
     );
-    std::fs::create_dir(root.path().join("bazelisk")).expect("bazelisk dir");
+    std::fs::create_dir_all(root.path().join("bazelisk")).expect("bazelisk dir");
     assert_eq!(
         run(&options, "linux", "x86_64", "2026-01-01"),
         format!(
@@ -159,8 +159,8 @@ fn a_bundle_without_the_two_bundle_dirs_is_refused() {
 #[test]
 fn an_unsupported_host_is_refused() {
     let root = dx_test_scratch::scratch("dx-bootstrap-host-").unwrap();
-    std::fs::create_dir(root.path().join("bazelisk")).expect("bazelisk dir");
-    std::fs::create_dir(root.path().join("advisory")).expect("advisory dir");
+    std::fs::create_dir_all(root.path().join("bazelisk")).expect("bazelisk dir");
+    std::fs::create_dir_all(root.path().join("advisory")).expect("advisory dir");
     let options = Options {
         bundle: Some(root.path().to_string_lossy().into_owned()),
         install_dir: root.path().join("bin").to_string_lossy().into_owned(),
@@ -218,8 +218,8 @@ fn bundle_with_launcher(name: &str, bytes: &[u8]) -> (dx_test_scratch::TempDir, 
 fn stage_bundle(root: &Path, bytes: &[u8]) -> Options {
     let bazelisk = root.join("bazelisk");
     let advisory = root.join("advisory");
-    std::fs::create_dir(&bazelisk).expect("bazelisk dir");
-    std::fs::create_dir(&advisory).expect("advisory dir");
+    std::fs::create_dir_all(&bazelisk).expect("bazelisk dir");
+    std::fs::create_dir_all(&advisory).expect("advisory dir");
     let asset = host_launcher("linux", "x86_64").expect("launcher");
     std::fs::write(bazelisk.join(asset), bytes).expect("launcher");
     let sum = dx_digest::sha256_file_hex(&bazelisk.join(asset)).expect("digest");
@@ -370,7 +370,7 @@ fn the_default_install_dir_is_under_home_then_userprofile() {
 fn the_identity_url_is_a_file_uri_of_the_bundle() {
     let scratch = dx_test_scratch::scratch("dx-bootstrap-url-").unwrap();
     let root = scratch.path().join("dx bootstrap url");
-    std::fs::create_dir(&root).expect("bundle dir");
+    std::fs::create_dir_all(&root).expect("bundle dir");
     let mut options = stage_bundle(&root, b"launcher");
     options.bundle = Some(root.to_string_lossy().into_owned());
     assert_eq!(run(&options, "linux", "x86_64", "2026-01-01"), "");

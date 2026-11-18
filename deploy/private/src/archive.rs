@@ -271,6 +271,10 @@ impl Write for HashingFile {
     }
 }
 
+#[expect(
+    clippy::create_dir,
+    reason = "extraction fails when the dir already exists"
+)]
 fn archive_extract_capped(
     path: &Path,
     dir: &Path,

@@ -404,7 +404,7 @@ fn scan_finds_every_cache_secret() {
         let dir = dx_test_scratch::scratch("secret-scan").unwrap();
         let upload = dir.path().join("upload");
         if let Some(content) = content {
-            std::fs::create_dir(&upload).expect("create upload dir");
+            std::fs::create_dir_all(&upload).expect("create upload dir");
             std::fs::write(upload.join("report.txt"), content).expect("write upload");
         }
         let upload = upload.to_str().expect("utf-8 path");
@@ -430,7 +430,7 @@ fn scan_follows_symlinks() {
     for (name, target, expected) in cases {
         let dir = dx_test_scratch::scratch("secret-scan-link").unwrap();
         let upload = dir.path().join("upload");
-        std::fs::create_dir(&upload).expect("create upload dir");
+        std::fs::create_dir_all(&upload).expect("create upload dir");
         std::fs::write(dir.path().join("outside.txt"), "has k3y").expect("write outside");
         std::os::unix::fs::symlink(target, upload.join("link")).expect("symlink");
         let env = [

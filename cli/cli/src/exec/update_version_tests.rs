@@ -1066,7 +1066,7 @@ fn unreadable_and_non_utf8_manifests_fail_without_refresh() {
 #[test]
 fn unreadable_bazelversion_is_infra() {
     let harness = Harness::new("update-bazelversion-dir");
-    std::fs::create_dir(harness.workspace.join(".bazelversion")).expect("directory");
+    std::fs::create_dir_all(harness.workspace.join(".bazelversion")).expect("directory");
     let (code, out, err) = harness.run(&[
         "update",
         "bazel:.bazelversion",

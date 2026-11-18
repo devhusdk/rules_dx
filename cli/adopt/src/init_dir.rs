@@ -258,7 +258,7 @@ mod tests {
         assert!(is_fresh_dir(&root));
         std::fs::create_dir_all(root.join(".git")).expect("git");
         assert!(is_fresh_dir(&root));
-        std::fs::create_dir(root.join("src")).expect("src");
+        std::fs::create_dir_all(root.join("src")).expect("src");
         assert!(!is_fresh_dir(&root));
         assert_eq!(fresh_blocker(&root).as_deref(), Some("src/"));
         scratch.close().expect("cleanup");
@@ -277,7 +277,7 @@ mod tests {
         ] {
             std::fs::write(root.join(name), "x\n").expect(name);
         }
-        std::fs::create_dir(root.join(".github")).expect("github");
+        std::fs::create_dir_all(root.join(".github")).expect("github");
         assert!(is_fresh_dir(root));
         std::fs::write(root.join("notes.txt"), "mine\n").expect("notes");
         assert!(!is_fresh_dir(root));

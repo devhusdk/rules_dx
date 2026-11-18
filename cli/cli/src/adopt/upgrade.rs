@@ -1329,7 +1329,7 @@ mod tests {
         let (_scratch, root) = pinned("dx-adopt-upgrade-lock-dir-", OLD);
         std::fs::write(root.join("MODULE.bazel"), dep(OLD)).expect("module");
         std::fs::remove_file(root.join("MODULE.bazel.lock")).expect("lock");
-        std::fs::create_dir(root.join("MODULE.bazel.lock")).expect("lock dir");
+        std::fs::create_dir_all(root.join("MODULE.bazel.lock")).expect("lock dir");
         let runner = Recorder::default();
         let (code, _out, err) = run_with(&upgrade(&["--apply"]), &root, &runner);
         assert_eq!(code, 3, "{err}");
@@ -1349,7 +1349,7 @@ mod tests {
             _env: &[(&str, &str)],
         ) -> std::io::Result<dx_process::ChildStatus> {
             std::fs::remove_file(cwd.join("MODULE.bazel"))?;
-            std::fs::create_dir(cwd.join("MODULE.bazel"))?;
+            std::fs::create_dir_all(cwd.join("MODULE.bazel"))?;
             Ok(dx_process::ChildStatus::exited(1))
         }
     }

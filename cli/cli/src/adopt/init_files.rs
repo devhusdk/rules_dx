@@ -794,7 +794,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-init-doc-rows-").unwrap();
         let root = scratch.path();
         std::fs::write(root.join("app.py"), "print(1)\n").expect("source");
-        std::fs::create_dir(root.join("pkg")).expect("pkg");
+        std::fs::create_dir_all(root.join("pkg")).expect("pkg");
         std::fs::write(
             root.join("pkg/BUILD.bazel"),
             "dx_deployment(name = \"app\")\n",

@@ -478,7 +478,7 @@ fn unmanaged_current_states_fail_closed() {
     ));
     fs::remove_file(&current).expect("remove file pointer");
 
-    fs::create_dir(&current).expect("dir pointer");
+    fs::create_dir_all(&current).expect("dir pointer");
     assert!(matches!(
         read_current_pair(&workspace),
         Err(CommitError::CurrentInvalid { .. })

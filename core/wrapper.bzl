@@ -33,8 +33,7 @@ def dx_forwarded_optional(upstream, providers, what = "dx wrapper"):
     """Forwards the upstream providers that are present, warning on each skip."""
     missing = [p for p in providers if p not in upstream]
     if len(missing) > 0:
-        print(dx_optional_forward_warning(
-            # buildifier: disable=print
+        print(dx_optional_forward_warning(  # buildifier: disable=print
             what,
             str(upstream.label),
             [str(p) for p in providers],

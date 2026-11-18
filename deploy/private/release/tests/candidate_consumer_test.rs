@@ -226,19 +226,14 @@ fn assert_registry_consumer(candidate: &Candidate, archive: &Path, built_integri
     let build = std::fs::read_to_string(case.root().join("BUILD.bazel")).unwrap_or_default();
     if build != BUILD {
         use std::io::Write;
-        drop(writeln!(
-            std::io::stderr(),
-            "dx check rewrote BUILD.bazel:\n{build}"
-        ));
+        writeln!(std::io::stderr(), "dx check rewrote BUILD.bazel:\n{build}")
+            .expect("stderr is writable");
     }
     if check.status.code() != Some(0) {
         use std::io::Write;
         let diff = dx(&case, "generate", &["--diff", "//...", "--", policy]);
-        drop(writeln!(
-            std::io::stderr(),
-            "dx generate --diff:\n{}",
-            diff.combined()
-        ));
+        writeln!(std::io::stderr(), "dx generate --diff:\n{}", diff.combined())
+            .expect("stderr is writable");
     }
     ok(&check, "dx check");
 

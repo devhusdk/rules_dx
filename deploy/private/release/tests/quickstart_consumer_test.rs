@@ -16,7 +16,7 @@ pub(crate) fn ok(run: &Run, what: &str) {
         let combined = run.combined();
         let lines: Vec<&str> = combined.lines().collect();
         let tail = lines[lines.len().saturating_sub(80)..].join("\n");
-        drop(writeln!(std::io::stderr(), "{what} failed:\n{tail}"));
+        writeln!(std::io::stderr(), "{what} failed:\n{tail}").expect("stderr is writable");
     }
     assert_eq!(run.status.code(), Some(0), "{what}: {}", run.combined());
 }

@@ -55,15 +55,21 @@ impl GroupLease {
         Some(GroupLease { file, path })
     }
 
-    pub(crate) fn record(&self, pgid: i32) {
-        self.write_line(lease_line(pgid));
+    pub(crate) fn record(&self, pgid: i32) -> std::io::Result<()> {
+        self.write_line(lease_line(pgid))
     }
 
     /// Records `pgid` unless the child already wrote the lease.
-    pub(crate) fn record_unwritten(&self, pgid: i32) {
+    pub(crate) fn record_unwritten(&self, pgid: i32) -> std::io::Result<()> {
         if self.file.metadata().is_ok_and(|meta| meta.len() == 0) {
-            self.record(pgid);
+            self.record(pgid)?;
         }
+        Ok(())
+    }
+
+    /// The lease file path.
+    pub(crate) fn path(&self) -> &Path {
+        &self.path
     }
 
     /// Makes the spawned child write this lease for its own group before it execs.
@@ -75,15 +81,15 @@ impl GroupLease {
         }
     }
 
-    fn write_line(&self, line: Option<String>) {
+    fn write_line(&self, line: Option<String>) -> std::io::Result<()> {
         let mut file = &self.file;
-        drop(file.set_len(0));
-        drop(file.seek(SeekFrom::Start(0)));
+        file.set_len(0)?;
+        file.seek(SeekFrom::Start(0))?;
         let Some(line) = line else {
-            return;
+            return Ok(());
         };
-        drop(writeln!(file, "{line}"));
-        drop(file.flush());
+        writeln!(file, "{line}")?;
+        file.flush()
     }
 }
 

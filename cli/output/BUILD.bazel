@@ -1,7 +1,7 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_library", "rust_test")
-load("//tools/visibility:visibility.bzl", "VIS_CLI_ENV_GENERATION_QUALITY")
+load("//tools/visibility:visibility.bzl", "VIS_CLI_DEPLOY_ENV_GENERATION_QUALITY", "VIS_CLI_ENV_GENERATION_QUALITY")
 
 package(default_visibility = VIS_CLI_ENV_GENERATION_QUALITY)
 
@@ -31,7 +31,10 @@ rust_library(
     compile_data = ["schema/events.schema.json"],
     crate_name = "dx_output",
     crate_root = "src/lib.rs",
-    visibility = VIS_CLI_ENV_GENERATION_QUALITY + ["//tools/api:__pkg__"],
+    visibility = VIS_CLI_DEPLOY_ENV_GENERATION_QUALITY + [
+        "//tools/api:__pkg__",
+        "//tools/testing/process_probe:__pkg__",
+    ],
     deps = all_crate_deps(
         package_name = "cli/dx_output",
         normal = True,

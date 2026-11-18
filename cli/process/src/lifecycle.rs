@@ -666,8 +666,13 @@ pub(crate) fn run_streamed_in(
     let (mut child, tree) = backend::spawn_streamed(&mut command, group, &held)?;
     // The spawn hooks own descriptor duplicates; close them now rather than at return.
     drop(command);
-    if let Some(lease) = lease.as_ref() {
-        lease.record_unwritten(child.id().cast_signed());
+    if let Some(lease) = lease.as_ref()
+        && let Err(error) = lease.record_unwritten(child.id().cast_signed())
+    {
+        eprintln!(
+            "dx: cannot record process group lease {}: {error}",
+            lease.path().display()
+        );
     }
     let target = backend::stream_target(&child, group);
     let mut forwarding = Forwarding::register(target);

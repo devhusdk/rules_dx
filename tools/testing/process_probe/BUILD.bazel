@@ -22,7 +22,10 @@ rust_binary(
     ),
     crate_name = "process_probe",
     crate_root = "src/main.rs",
-    deps = ["//cli/path:dx_path"],
+    deps = [
+        "//cli/output:dx_output",
+        "//cli/path:dx_path",
+    ],
 )
 
 rust_test(

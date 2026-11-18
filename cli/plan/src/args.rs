@@ -141,7 +141,10 @@ pub use invocation::{
     OperationMode, QualityRequest, ReportRequest, UmbrellaOrigin, UmbrellaRequest, apply_here,
     bare_scope_note, here_scope,
 };
-pub use pages::{HelpFlag, HelpSurface, ROOT_PAGE, exit_codes_in, help_surface};
+pub use pages::{
+    HelpEnv, HelpFlag, HelpPositional, HelpSurface, ROOT_PAGE, exit_codes_in, help_environment,
+    help_surface,
+};
 pub use parser::{
     BREAKING_AGAINST_OPTION, ci_ignores_env, early_output_flag, is_discovery_exempt,
     json_output_intent, parse, parse_with, parse_with_ci,

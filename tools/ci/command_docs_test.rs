@@ -322,6 +322,7 @@ mod tests {
                     defaults: Vec::new(),
                 })
                 .collect(),
+            positionals: Vec::new(),
             exit_codes: exit_codes.iter().map(|code| (*code).to_owned()).collect(),
         }
     }

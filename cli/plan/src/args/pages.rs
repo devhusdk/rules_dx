@@ -13,12 +13,32 @@ pub struct HelpFlag {
     pub defaults: Vec<String>,
 }
 
+/// One positional argument `--help` lists, in order: its value name, whether it is required, whether it takes
+/// more than one word, the values it accepts when they are a fixed set, and its defaults.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HelpPositional {
+    pub name: String,
+    pub required: bool,
+    pub multiple: bool,
+    pub values: Vec<String>,
+    pub defaults: Vec<String>,
+}
+
+/// One environment variable `dx --help` documents: its name, the shape of its value, and the flag it defaults.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HelpEnv {
+    pub name: String,
+    pub shape: String,
+    pub default_for: Option<String>,
+}
+
 /// What `--help` says about `dx` (an empty path), one command or one subcommand, and the page that documents it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HelpSurface {
     pub path: Vec<String>,
     pub page: Option<&'static str>,
     pub flags: Vec<HelpFlag>,
+    pub positionals: Vec<HelpPositional>,
     pub exit_codes: Vec<String>,
 }
 
@@ -83,32 +103,83 @@ fn visible_flags(command: &clap::Command) -> Vec<HelpFlag> {
             for alias in arg.get_all_short_aliases().unwrap_or_default() {
                 spellings.push(format!("-{alias}"));
             }
-            // Switches carry clap's implicit `true`/`false` values and `false` default; they say
-            // nothing a user types, so only flags that take a value report them.
-            let takes_value = arg.get_action().takes_values();
             let mut spellings = spellings.into_iter();
             spellings.next().map(|name| HelpFlag {
                 name,
                 aliases: spellings.collect(),
-                values: arg
-                    .get_possible_values()
-                    .iter()
-                    .filter(|_| takes_value)
-                    .filter(|value| !value.is_hide_set())
-                    .map(|value| value.get_name().to_owned())
-                    .collect(),
-                defaults: arg
-                    .get_default_values()
-                    .iter()
-                    .filter(|_| takes_value)
-                    .map(|value| value.to_string_lossy().into_owned())
-                    .collect(),
+                values: accepted_values(arg),
+                defaults: default_values(arg),
             })
         })
         .collect();
     flags.sort();
     flags.dedup();
     flags
+}
+
+// Switches carry clap's implicit `true`/`false` values and `false` default; they say nothing a user
+// types, so only arguments that take a value report them.
+fn accepted_values(arg: &clap::Arg) -> Vec<String> {
+    if !arg.get_action().takes_values() {
+        return Vec::new();
+    }
+    arg.get_possible_values()
+        .iter()
+        .filter(|value| !value.is_hide_set())
+        .map(|value| value.get_name().to_owned())
+        .collect()
+}
+
+fn default_values(arg: &clap::Arg) -> Vec<String> {
+    if !arg.get_action().takes_values() {
+        return Vec::new();
+    }
+    arg.get_default_values()
+        .iter()
+        .map(|value| value.to_string_lossy().into_owned())
+        .collect()
+}
+
+fn visible_positionals(command: &clap::Command) -> Vec<HelpPositional> {
+    command
+        .get_positionals()
+        .filter(|arg| !arg.is_hide_set())
+        .map(|arg| HelpPositional {
+            name: arg
+                .get_value_names()
+                .and_then(|names| names.first())
+                .map_or_else(
+                    || arg.get_id().as_str().to_ascii_uppercase(),
+                    ToString::to_string,
+                ),
+            required: arg.is_required_set(),
+            multiple: arg
+                .get_num_args()
+                .is_some_and(|range| range.max_values() > 1),
+            values: accepted_values(arg),
+            defaults: default_values(arg),
+        })
+        .collect()
+}
+
+/// Every environment variable `dx --help` documents, `DX_` flag defaults first.
+#[must_use]
+pub fn help_environment() -> Vec<HelpEnv> {
+    let defaults = dx_adopt::defaults::ENV_DEFAULTS
+        .into_iter()
+        .map(|(name, flag, shape)| HelpEnv {
+            name: name.to_owned(),
+            shape: shape.to_owned(),
+            default_for: Some(flag.to_owned()),
+        });
+    let others = super::help::OTHER_ENV
+        .into_iter()
+        .map(|(name, shape, _)| HelpEnv {
+            name: name.to_owned(),
+            shape: shape.to_owned(),
+            default_for: None,
+        });
+    defaults.chain(others).collect()
 }
 
 fn collect(
@@ -132,6 +203,7 @@ fn collect(
             path: sub_path.clone(),
             page: sub_page,
             flags: visible_flags(sub),
+            positionals: visible_positionals(sub),
             exit_codes: exit_codes_in(&sub.clone().render_long_help().to_string()),
         });
         collect(sub, &sub_path, sub_page, out);
@@ -147,6 +219,7 @@ pub fn help_surface() -> Vec<HelpSurface> {
         path: Vec::new(),
         page: Some(ROOT_PAGE),
         flags: visible_flags(&root),
+        positionals: visible_positionals(&root),
         exit_codes: Vec::new(),
     }];
     collect(&root, &[], None, &mut out);
@@ -155,7 +228,7 @@ pub fn help_surface() -> Vec<HelpSurface> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Command, ROOT_PAGE, exit_codes_in, help_surface};
+    use super::{Command, ROOT_PAGE, exit_codes_in, help_environment, help_surface};
 
     #[test]
     fn every_command_names_its_page() {
@@ -168,6 +241,28 @@ mod tests {
         let help = "Usage: dx watch\n  --jobs 4\nExit codes: 2 usage errors; 1 failures; 141 when stdout closes; 2 again.\n";
         assert_eq!(exit_codes_in(help), ["2", "1", "141"]);
         assert_eq!(exit_codes_in("Usage: dx 7\n"), [] as [String; 0]);
+    }
+
+    #[test]
+    fn the_environment_matches_the_top_help() {
+        let help = super::super::help::render_top_help();
+        let environment = help_environment();
+        for env in &environment {
+            assert!(
+                help.contains(&format!("  {}=<{}>", env.name, env.shape)),
+                "{env:?} not in top help"
+            );
+        }
+        assert!(
+            environment.iter().any(
+                |env| env.name == "DX_OUTPUT" && env.default_for.as_deref() == Some("--output")
+            )
+        );
+        assert!(
+            environment
+                .iter()
+                .any(|env| env.name == "NO_COLOR" && env.default_for.is_none())
+        );
     }
 
     #[test]

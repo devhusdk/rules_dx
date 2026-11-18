@@ -38,9 +38,6 @@ pub use rc::{
 pub use runner::{BinaryRunner, Holding};
 pub use stderr_tail::last_bazel_stderr;
 
-#[cfg(unix)]
-pub use dx_os_sys::errno::slot as errno_slot;
-
 pub trait Fs {
     fn is_file(&self, path: &Path) -> bool;
     fn broken_marker_hint(&self, dir: &Path) -> Option<String> {

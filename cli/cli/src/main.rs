@@ -21,35 +21,17 @@ use dx_process::lifecycle::{self, EnvPolicy, StreamOutput, StreamSpec, StreamStd
 use dx_process::{discover_real, operational_code, pre_exec_code, stdout_io_code};
 
 #[cfg(unix)]
-#[expect(
-    unsafe_code,
-    reason = "a signal handler saves and restores errno through a raw pointer"
-)]
-extern "C" fn forward_to_child(signo: libc::c_int) {
-    let errno = dx_process::errno_slot();
-    // SAFETY: `errno_slot` returns this thread's valid errno location.
-    let saved = unsafe { *errno };
+extern "C" fn forward_to_child(signo: i32) {
+    let _errno = dx_os_sys::errno::ErrnoGuard::save();
     lifecycle::forward_stop(signo);
-    // SAFETY: same location as above, still valid on this thread.
-    unsafe { *errno = saved };
 }
 
 #[cfg(unix)]
-#[expect(unsafe_code, reason = "sigaction has no safe std API")]
+#[expect(unsafe_code, reason = "installing a signal handler is unsafe")]
 fn install_forwarding() {
-    for signo in lifecycle::STOP_SIGNALS {
-        // SAFETY: zeroed `sigaction` is valid; the handler only calls async-signal-safe functions.
-        unsafe {
-            let mut action: libc::sigaction = std::mem::zeroed();
-            action.sa_sigaction = forward_to_child as *const () as libc::sighandler_t;
-            action.sa_flags = libc::SA_RESTART;
-            libc::sigemptyset(&raw mut action.sa_mask);
-            let mut inherited: libc::sigaction = std::mem::zeroed();
-            libc::sigaction(signo, &raw const action, &raw mut inherited);
-            if signo == libc::SIGHUP && inherited.sa_sigaction == libc::SIG_IGN {
-                libc::sigaction(signo, &raw const inherited, std::ptr::null_mut());
-            }
-        }
+    // SAFETY: forward_to_child only saves errno and calls the async-signal-safe forward_stop.
+    if let Err(error) = unsafe { dx_os_sys::signals::handle_stops(forward_to_child) } {
+        eprintln!("dx: cannot forward stop signals: {error}");
     }
 }
 
@@ -62,14 +44,11 @@ fn install_forwarding() {
 fn install_forwarding() {}
 
 #[cfg(unix)]
-#[expect(unsafe_code, reason = "re-raising a signal has no safe std API")]
 fn die_by_signal(signo: i32) {
     if signo > 0 {
         let _cleaned = dx_plan::plan::clean_for_stop();
-        // SAFETY: restoring the default disposition and raising a signal has no memory effects.
-        unsafe {
-            libc::signal(signo, libc::SIG_DFL);
-            libc::raise(signo);
+        if let Err(error) = dx_os_sys::signals::raise_default(signo) {
+            eprintln!("dx: cannot re-raise signal {signo}: {error}");
         }
     }
 }

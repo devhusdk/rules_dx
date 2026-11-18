@@ -27,19 +27,3 @@ pub fn get() -> i32 {
 pub fn set(code: i32) {
     ::errno::set_errno(::errno::Errno(code));
 }
-
-/// The calling thread's `errno` location.
-#[expect(unsafe_code, reason = "the errno location is only exposed by libc")]
-#[must_use]
-pub fn slot() -> *mut libc::c_int {
-    #[cfg(any(target_os = "linux", target_os = "android"))]
-    // SAFETY: __errno_location has no preconditions.
-    unsafe {
-        libc::__errno_location()
-    }
-    #[cfg(not(any(target_os = "linux", target_os = "android")))]
-    // SAFETY: __error has no preconditions.
-    unsafe {
-        libc::__error()
-    }
-}

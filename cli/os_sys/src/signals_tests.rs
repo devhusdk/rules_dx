@@ -23,3 +23,8 @@ fn background_tty_writes_block_sigttou_in_this_thread() {
     .join()
     .expect("thread");
 }
+
+#[test]
+fn raising_an_ignored_by_default_signal_returns() {
+    raise_default(libc::SIGURG).expect("raise");
+}

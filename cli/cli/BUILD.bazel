@@ -151,6 +151,7 @@ rust_library(
         "@crates//:serde_json",
         "@crates//:tempfile",
         "@crates//:thiserror",
+        "@crates//:tracing",
     ],
 )
 
@@ -459,6 +460,7 @@ rust_test(
         "@crates//:serde_json",
         "@crates//:tempfile",
         "@crates//:thiserror",
+        "@crates//:tracing",
     ] + select({
         "@platforms//os:windows": [],
         "//conditions:default": ["@crates//:libc"],

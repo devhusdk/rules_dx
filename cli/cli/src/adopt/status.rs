@@ -291,6 +291,7 @@ fn bindings(workspace: &std::path::Path) -> Bindings {
     let mut root_files = std::collections::BTreeSet::new();
     match std::fs::read_dir(workspace) {
         Ok(entries) => {
+            // An entry that vanished or cannot be read mid-listing is not a root file.
             root_files.extend(
                 entries.filter_map(|entry| {
                     Some(entry.ok()?.file_name().to_string_lossy().into_owned())
@@ -547,6 +548,7 @@ pub(crate) fn execute_status(
     if let Some(check) = lease_check(workspace) {
         checks.push(check);
     }
+    // An unset or non-UTF-8 variable counts as unset.
     let env_get = |name: &str| std::env::var(name).ok();
     if let Some(check) = dx_plan::slots::slots_dir(&env_get).and_then(|dir| slots_check(&dir)) {
         checks.push(check);

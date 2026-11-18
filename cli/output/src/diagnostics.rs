@@ -201,10 +201,42 @@ pub fn init_diagnostics_with_color(verbose: bool, color: ColorMode) {
     init_diagnostics(verbose);
 }
 
+/// Writes `text` to the diagnostic stream. A failed write is logged, not returned: a closed or
+/// broken stderr must not change the command's result.
+pub fn write_stderr(err: &mut dyn std::io::Write, text: std::fmt::Arguments<'_>) {
+    if let Err(error) = err.write_fmt(text) {
+        tracing::info!(%error, "stderr write failed");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::fmt::Write as _;
+
+    struct BrokenWriter;
+
+    impl std::io::Write for BrokenWriter {
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            Err(std::io::Error::other("closed"))
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Err(std::io::Error::other("closed"))
+        }
+    }
+
+    #[test]
+    fn write_stderr_writes_the_text_unchanged() {
+        let mut err = Vec::new();
+        write_stderr(&mut err, format_args!("dx: {} {}\n", "a", 1));
+        assert_eq!(err, b"dx: a 1\n");
+    }
+
+    #[test]
+    fn write_stderr_on_a_failing_writer_returns() {
+        write_stderr(&mut BrokenWriter, format_args!("dx: lost\n"));
+    }
 
     #[test]
     fn excerpt_keeps_the_first_error_and_the_tail() {

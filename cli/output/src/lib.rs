@@ -19,7 +19,7 @@ pub use diagnostics::{
     ColorMode, DEFAULT_LOG_FILTER, Excerpt, VERBOSE_LOG_FILTER, color_enabled, color_enabled_for,
     color_override, colors_allowed, colors_allowed_for, diagnostic_excerpt, first_diagnostic_line,
     init_diagnostics, init_diagnostics_with_color, set_color_override, stdout_is_terminal,
-    truncate_line,
+    truncate_line, write_stderr,
 };
 pub use findings::{
     DiagnosticEvent, FindingRecord, NoticeEvent, Origin, PackageRef, Position, RelatedEvent,

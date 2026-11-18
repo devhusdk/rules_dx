@@ -2,6 +2,7 @@ use std::io::Write;
 
 use dx_adopt::Applied;
 use dx_exec_core::common::{check_stdout_write, report_dx_error};
+use dx_output::write_stderr;
 use dx_plan::args::Invocation;
 
 use dx_error::DxError;
@@ -21,10 +22,13 @@ pub(super) fn report(
     err: &mut dyn Write,
 ) -> i32 {
     for path in &applied.refused {
-        writeln!(err, "dx: {path} (absent-only, left untouched)").ok();
+        write_stderr(
+            err,
+            format_args!("dx: {path} (absent-only, left untouched)\n"),
+        );
     }
     for note in notes {
-        writeln!(err, "dx: {note}").ok();
+        write_stderr(err, format_args!("dx: {note}\n"));
     }
     let mut closed = None;
     if !summaries_suppressed(invocation) {

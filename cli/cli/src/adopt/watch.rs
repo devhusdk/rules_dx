@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use dx_adopt::AdoptError;
-use dx_output::OutputMode;
+use dx_output::{OutputMode, write_stderr};
 
 use crate::exec::Env;
 use dx_exec_core::common::{check_stdout_write, report_dx_error};
@@ -111,7 +111,7 @@ impl Progress {
             Progress::Silent => Ok(()),
             Progress::Stdout => check_stdout_write(writeln!(out, "{line}")),
             Progress::Stderr => {
-                writeln!(err, "{line}").ok();
+                write_stderr(err, format_args!("{line}\n"));
                 Ok(())
             }
         }
@@ -274,7 +274,7 @@ fn announce_round(
 ) -> Result<Instant, i32> {
     if round > 1 {
         if clear_screen {
-            write!(out, "{CLEAR_SCREEN}").ok();
+            check_stdout_write(write!(out, "{CLEAR_SCREEN}"))?;
         }
         progress.say(&mut *out, &mut *err, SEPARATOR)?;
     }

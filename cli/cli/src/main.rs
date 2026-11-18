@@ -1,7 +1,9 @@
 #![deny(
     clippy::indexing_slicing,
     clippy::let_underscore_must_use,
+    clippy::map_err_ignore,
     clippy::string_slice,
+    clippy::unused_result_ok,
     clippy::wildcard_enum_match_arm
 )]
 
@@ -11,7 +13,7 @@ use std::path::{Path, PathBuf};
 use dx_cli::{ActionTally, Env, execute, print_actions, print_cache_retries};
 use dx_exec_core::bazel_restart::{RestartingQueryRunner, RestartingRunner};
 use dx_exec_core::common::flush_out;
-use dx_output::OutputMode;
+use dx_output::{OutputMode, write_stderr};
 use dx_plan::args::{is_discovery_exempt, json_output_intent, parse_with_ci};
 use dx_plan::plan::{create_run_temp_dir, remove_on_stop};
 use dx_plan::resolve::{QueryResult, QueryRunner};
@@ -141,7 +143,7 @@ impl QueryRunner for BinaryQueryRunner {
 }
 
 fn startup_failure(stderr_text: &str, code: &str, message: &str, exit: i32, json: bool) -> i32 {
-    drop(writeln!(io::stderr(), "{stderr_text}"));
+    write_stderr(&mut io::stderr(), format_args!("{stderr_text}\n"));
     if !json {
         return exit;
     }
@@ -218,6 +220,7 @@ fn apply_bazel_sh(invocation: &dx_plan::args::Invocation) -> Option<i32> {
         return None;
     }
     let exists = |path: &Path| path.is_file();
+    // An unreadable candidate is treated like a missing one; resolution moves to the next.
     let read = |path: &Path| std::fs::read(path).ok();
     match resolve_bazel_sh(&|name| std::env::var_os(name), &exists, &read) {
         Ok(BazelSh::Set(bash)) => {
@@ -300,7 +303,7 @@ fn report_reaped(
     let mut pending = Vec::new();
     for group in reaped {
         let message = dx_process::groups::reaped_message(group);
-        drop(writeln!(err, "dx: {message}"));
+        write_stderr(err, format_args!("dx: {message}\n"));
         if invocation.output == OutputMode::Json {
             let event = dx_output::notice_value(&dx_output::NoticeEvent {
                 related_command: Some(invocation.command.name().to_owned()),
@@ -457,10 +460,10 @@ fn retries_cache(invocation: &dx_plan::args::Invocation) -> bool {
 fn remove_run_dir(temp_dir: dx_plan::plan::run_temp::RunTempDir) {
     let temp_display = temp_dir.path().display().to_string();
     if let Err(error) = temp_dir.close() {
-        drop(writeln!(
-            io::stderr(),
-            "dx: warning: cannot remove temporary directory {temp_display}: {error}",
-        ));
+        write_stderr(
+            &mut io::stderr(),
+            format_args!("dx: warning: cannot remove temporary directory {temp_display}: {error}\n"),
+        );
     }
 }
 
@@ -479,6 +482,7 @@ fn locate_workspace(invocation: &mut dx_plan::args::Invocation) -> Result<PathBu
 }
 
 fn run() -> i32 {
+    // An unset or non-UTF-8 variable counts as unset.
     let env_get = |name: &str| std::env::var(name).ok();
     let is_ci = dx_process::is_ci();
     let mut invocation = match parse_invocation(&env_get, is_ci) {
@@ -542,9 +546,10 @@ fn run() -> i32 {
     if let Some(notice) =
         dx_cli::exec::first_run::first_run_notice(&invocation, &workspace, &env_get)
     {
-        drop(writeln!(err, "{notice}"));
+        write_stderr(&mut err, format_args!("{notice}\n"));
     }
     let mut after_first = dx_plan::slots::AfterFirstLine::new(&mut out, pending);
+    // Unset or non-UTF-8 test overrides fall back to the defaults.
     let audit_today = std::env::var(dx_cli::exec::AUDIT_TODAY_ENV).ok();
     let edit_commit_json = std::env::var(dx_cli::exec::EDIT_COMMIT_JSON_ENV).ok();
     let actions = ActionTally::default();

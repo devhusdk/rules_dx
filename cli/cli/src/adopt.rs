@@ -1,3 +1,5 @@
+#![deny(clippy::unused_result_ok, clippy::map_err_ignore)]
+
 pub(crate) mod agents;
 pub(crate) mod claude_md;
 mod completion;

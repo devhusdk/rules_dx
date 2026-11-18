@@ -1,12 +1,11 @@
 use std::ffi::OsString;
-use std::fmt::Write as _;
 use std::io::Write;
 
 use dx_exec_core::common::{check_stdout_write, emit_built, emit_event, refusal, report_dx_error};
 use dx_exec_core::notice_codes::{CODE_INIT_ABSENT, CODE_INIT_PLAN_PARTIAL};
 use dx_output::{
     FinishedCounts, NoticeEvent, OutputMode, PlanFindingEvent, command_finished, command_started,
-    init_plan_event, notice_event,
+    init_plan_event, notice_event, write_stderr,
 };
 use dx_plan::args::{Agent, Invocation};
 
@@ -101,11 +100,13 @@ impl Target {
         }
         command.push_str(" --apply");
         if let Some(ci) = self.ci {
-            write!(command, " --ci={}", ci_name(ci)).ok();
+            command.push_str(" --ci=");
+            command.push_str(ci_name(ci));
         }
         if !self.agents.is_empty() {
             let names: Vec<&str> = self.agents.iter().map(|agent| agent.name()).collect();
-            write!(command, " --agents={}", names.join(",")).ok();
+            command.push_str(" --agents=");
+            command.push_str(&names.join(","));
         }
         command
     }
@@ -230,12 +231,13 @@ fn collect_init_notes(
     if plan.applicable {
         let hard: Vec<&str> = plan.hard().map(|f| f.subject.as_str()).collect();
         if !hard.is_empty() {
-            write!(
+            write_stderr(
                 err,
-                "{}",
-                dx_adopt::render_plan_text(&target.module, &target.apply_command(), &plan)
-            )
-            .ok();
+                format_args!(
+                    "{}",
+                    dx_adopt::render_plan_text(&target.module, &target.apply_command(), &plan)
+                ),
+            );
             return Err(operational(
                 invocation,
                 out,
@@ -404,12 +406,18 @@ fn render_creation_plan(prefix: &str, paths: &[&String], apply: &str) -> String 
     }
     let mut text = format!("would create {} files:\n", paths.len());
     for (group, files) in &groups {
-        writeln!(text, "  {group}").ok();
+        text.push_str("  ");
+        text.push_str(group);
+        text.push('\n');
         for file in files {
-            writeln!(text, "    {file}").ok();
+            text.push_str("    ");
+            text.push_str(file);
+            text.push('\n');
         }
     }
-    writeln!(text, "run `{apply}` to create them").ok();
+    text.push_str("run `");
+    text.push_str(apply);
+    text.push_str("` to create them\n");
     text
 }
 
@@ -444,7 +452,10 @@ fn emit_check_plan(
             });
             emit_built(out, event)?;
         } else if !summaries_suppressed(invocation) {
-            writeln!(err, "advisory: {} ({}:{})", f.hint, f.file, f.line).ok();
+            write_stderr(
+                err,
+                format_args!("advisory: {} ({}:{})\n", f.hint, f.file, f.line),
+            );
         }
     }
     if let (Some(plan), true) = (plan, json) {
@@ -533,9 +544,19 @@ fn check_init(
     let stale: Vec<String> = prefixed(&target.prefix, wiring.stale).collect();
     let absent: Vec<String> = prefixed(&target.prefix, wiring.absent).collect();
     let other: Vec<String> = prefixed(&target.prefix, wiring.other).collect();
-    let invalid_pin = dx_adopt::read_version_pin(workspace)
-        .ok()
-        .filter(|pin| !dx_adopt::pin_is_valid(pin));
+    let invalid_pin = match dx_adopt::read_version_pin(workspace) {
+        Ok(pin) => Some(pin).filter(|pin| !dx_adopt::pin_is_valid(pin)),
+        Err(dx_adopt::AdoptError::MissingVersionPin { .. }) => None,
+        Err(error) => {
+            return report_dx_error(
+                invocation.output,
+                out,
+                err,
+                CODE_INIT_FAILED,
+                &from_adopt("", &error),
+            );
+        }
+    };
     let plan = Some(dx_adopt::preflight(
         workspace,
         &dx_adopt::render_consumer_module_setup(),
@@ -572,7 +593,7 @@ fn check_init(
                 return exit;
             }
         } else if !absent.is_empty() {
-            writeln!(err, "{}", absent_message(&absent, &apply)).ok();
+            write_stderr(err, format_args!("{}\n", absent_message(&absent, &apply)));
         } else if !summaries_suppressed(invocation)
             && let Err(exit) = check_stdout_write(writeln!(out, "init current: {module}"))
         {
@@ -895,6 +916,20 @@ mod tests {
             assert_eq!(code, 0, "{out}");
             assert!(out.contains("init current"), "{out}");
         }
+    }
+
+    #[test]
+    fn init_check_fails_on_an_unreadable_pin() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-check-pin-dir-").unwrap();
+        let root = scratch.path().to_path_buf();
+        let (code, _out, _err) = run(&invocation(&["init", "--apply"]), &root);
+        assert_eq!(code, 0);
+        std::fs::remove_file(root.join(".dx/pins")).expect("pin");
+        std::fs::create_dir(root.join(".dx/pins")).expect("pin dir");
+        let (code, _out, err) = run(&invocation(&["init"]), &root);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("init_failed"), "{err}");
+        assert!(err.contains(".dx/pins"), "{err}");
     }
 
     #[test]

@@ -113,9 +113,15 @@ impl Watch {
 
 impl Drop for Watch {
     fn drop(&mut self) {
-        fs::write(self.state.join("stop"), "").ok();
-        self.child.kill().ok();
-        self.child.wait().ok();
+        if let Err(e) = fs::write(self.state.join("stop"), "") {
+            eprintln!("write stop: {e}");
+        }
+        if let Err(e) = self.child.kill() {
+            eprintln!("kill watch: {e}");
+        }
+        if let Err(e) = self.child.wait() {
+            eprintln!("wait watch: {e}");
+        }
     }
 }
 

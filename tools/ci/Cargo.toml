@@ -114,6 +114,10 @@ name = "lock_registry_test"
 path = "lock_registry_test.rs"
 
 [[test]]
+name = "rust_test_crate_deps_test"
+path = "rust_test_crate_deps_test.rs"
+
+[[test]]
 name = "rule_set_loads_test"
 path = "rule_set_loads_test.rs"
 

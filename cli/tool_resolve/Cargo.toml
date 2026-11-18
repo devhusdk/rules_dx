@@ -8,12 +8,7 @@ edition = "2024"
 name = "dx_tool_resolve"
 path = "src/lib.rs"
 
-[[bin]]
-name = "tool_resolve"
-path = "src/main.rs"
-
 [dependencies]
-clap = { version = "4", features = ["derive"] }
 thiserror = "2"
 
 [dev-dependencies]

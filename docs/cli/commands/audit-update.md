@@ -144,7 +144,7 @@ Yanked versions:
 To export the Gitleaks path:
 
 ```sh
-export "$(bazel run @rules_dx//cli/tool_resolve -- --label @rules_dx//core/quality/artifacts:gitleaks --var DX_GITLEAKS_BIN --print)"
+export "$(bazel run @rules_dx//dx/tool_resolve -- --label @rules_dx//core/quality/artifacts:gitleaks --var DX_GITLEAKS_BIN --print)"
 ```
 
 ### Container images
@@ -272,11 +272,11 @@ To move the pins to the newest snapshots, run `dx update advisory`. See [Advisor
 ### Build snapshots
 
 ```sh
-bazel run @rules_dx//cli/advisory_prep --
-bazel run @rules_dx//cli/advisory_prep -- --out .dx/local/advisory --date 2026-11-03
-bazel run @rules_dx//cli/advisory_prep -- --archive cargo=/path/cargo.zip
-bazel run @rules_dx//cli/advisory_prep -- --pin <dir> --pin-url-base <url>
-bazel run @rules_dx//cli/advisory_prep -- --help
+bazel run @rules_dx//dx/advisory_prep --
+bazel run @rules_dx//dx/advisory_prep -- --out .dx/local/advisory --date 2026-11-03
+bazel run @rules_dx//dx/advisory_prep -- --archive cargo=/path/cargo.zip
+bazel run @rules_dx//dx/advisory_prep -- --pin <dir> --pin-url-base <url>
+bazel run @rules_dx//dx/advisory_prep -- --help
 ```
 
 `advisory_prep` converts one archive per advisory family your locks need. It writes `<out>/<family>.json` and the sidecar `<out>/<family>.meta.json`, which holds the set, source URL, payload `sha256`, stamped date and payload path. Relative paths are relative to the workspace root.
@@ -314,7 +314,7 @@ The trivy pin: `oci_deploy` image scans fetch the archive, check its sha256 and 
 ## Tool Resolution
 
 ```sh
-bazel run @rules_dx//cli/tool_resolve -- --label @rules_dx//core/quality/artifacts:gitleaks --var DX_GITLEAKS_BIN --print
+bazel run @rules_dx//dx/tool_resolve -- --label @rules_dx//core/quality/artifacts:gitleaks --var DX_GITLEAKS_BIN --print
 ```
 
 `tool_resolve` runs `bazel cquery --output=files` for the label and writes the absolute artifact path to a variable. An `external/` path is read under `bazel info output_base`. Any other path is a built output, read under `bazel info execution_root`, so build the label first.
@@ -751,8 +751,8 @@ dx runs the pinned uv `0.13.7` and the pinned Python interpreter.
 - A relative path is rejected, `PATH` is never searched, and a uv that does not report `0.13.7` is rejected. With no usable tool, the set fails with `backend_unavailable` and the run exits `1`.
 
 ```sh
-export "$(bazel run @rules_dx//cli/tool_resolve -- --label @dx_tools//:uv --var DX_UV_BIN --print)"
-export "$(bazel run @rules_dx//cli/tool_resolve -- --label @rules_dx//cli/update:python_interpreter --var DX_UV_PYTHON --print)"
+export "$(bazel run @rules_dx//dx/tool_resolve -- --label @dx_tools//:uv --var DX_UV_BIN --print)"
+export "$(bazel run @rules_dx//dx/tool_resolve -- --label @rules_dx//cli/update:python_interpreter --var DX_UV_PYTHON --print)"
 ```
 
 - `--apply` runs `uv lock` in the set directory and writes that lock only. A check runs `uv lock --check` and fails with `updater exited 1` when stale.

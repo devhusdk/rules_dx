@@ -14,6 +14,7 @@ rust_library(
     ),
     crate_name = "dx_error",
     crate_root = "src/lib.rs",
+    visibility = VIS_CLI_PLATFORM + ["//dx:__subpackages__"],
     deps = [],
 )
 

@@ -37,6 +37,7 @@ rust_library(
     ),
     crate_name = "dx_process",
     crate_root = "src/lib.rs",
+    visibility = VIS_CLI_DEPLOY_QUALITY_TOOLS + ["//dx:__subpackages__"],
     deps = all_crate_deps(
         package_name = "cli/dx_process",
         normal = True,

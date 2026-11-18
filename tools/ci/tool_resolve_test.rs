@@ -6,7 +6,7 @@ const WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
 
 const AUDIT: &str = "security-audit";
 
-const RESOLVE_TARGET: &str = "@rules_dx//cli/tool_resolve";
+const RESOLVE_TARGET: &str = "@rules_dx//dx/tool_resolve";
 
 const TOOL_LABEL: &str = "@rules_dx//core/quality/artifacts:gitleaks";
 

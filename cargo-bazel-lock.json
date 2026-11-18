@@ -1,5 +1,5 @@
 {
-  "checksum": "6fc093b0308f4d4c511cc7abc276447ec141b78833e99d75db14409e0d0b668f",
+  "checksum": "a812c18cd298dd8924380b3834ac6cec72533593702afad77dd1375af4ce38f6",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -313,6 +313,35 @@
         }
       ],
       "version": "2.0.1"
+    },
+    "advisory_prep 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "chrono 0.4.45",
+            "target": "chrono"
+          },
+          {
+            "id": "clap 4.6.7",
+            "target": "clap"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "advisory_prep",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
     },
     "aead 0.5.2": {
       "common_attrs": {
@@ -7664,14 +7693,6 @@
       "common_attrs": {
         "deps": [
           {
-            "id": "chrono 0.4.45",
-            "target": "chrono"
-          },
-          {
-            "id": "clap 4.6.7",
-            "target": "clap"
-          },
-          {
             "id": "crc32fast 1.5.2",
             "target": "crc32fast"
           },
@@ -9661,10 +9682,6 @@
     "dx_tool_resolve 0.0.0": {
       "common_attrs": {
         "deps": [
-          {
-            "id": "clap 4.6.7",
-            "target": "clap"
-          },
           {
             "id": "thiserror 2.0.20",
             "target": "thiserror"
@@ -28433,6 +28450,25 @@
       ],
       "version": "1.1.2+spec-1.1.0"
     },
+    "tool_resolve 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "clap 4.6.7",
+            "target": "clap"
+          }
+        ],
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "tool_resolve",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
     "tower 0.5.3": {
       "common_attrs": {
         "crate_features": [
@@ -33145,6 +33181,7 @@
     "tokio 1.54.1"
   ],
   "workspace_members": {
+    "advisory_prep 0.0.0": "dx/advisory_prep",
     "ansible_lock 0.0.0": "ansible/private/tools/ansible_lock",
     "api_spec_tests 0.0.0": "api_spec/api_spec_tests",
     "appimage_packer 0.0.0": "appimage/private/tools/appimage_packer",
@@ -33325,6 +33362,7 @@
     "terraform_lock 0.0.0": "terraform/private/tools/terraform_lock",
     "thrift_tests 0.0.0": "thrift/thrift_tests",
     "tiers 0.0.0": "tools/docs/tiers",
+    "tool_resolve 0.0.0": "dx/tool_resolve",
     "typescript_docs_tests 0.0.0": "tools/docs/typescript_docs_tests",
     "typescript_extract 0.0.0": "tools/docs/typescript/typescript_extract",
     "typescript_scoped_fixture 0.0.0": "typescript/tests/fixtures/typescript_scoped_fixture",

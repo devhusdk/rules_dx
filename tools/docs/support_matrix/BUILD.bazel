@@ -114,6 +114,7 @@ rust_binary(
         normal = True,
     ) + [
         ":support_matrix",
+        "//cli/atomic_fs:dx_atomic_fs",
         "@crates//:serde",
         "@crates//:serde_json",
     ],
@@ -175,7 +176,10 @@ exports_files(
         "src/lib.rs",
         "src/main.rs",
     ],
-    visibility = ["//core/quality:__pkg__"],
+    visibility = [
+        "//core/quality:__pkg__",
+        "//tools/ci:__pkg__",
+    ],
 )
 
 filegroup(

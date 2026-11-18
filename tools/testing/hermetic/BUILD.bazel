@@ -198,6 +198,7 @@ rust_binary(
         normal = True,
     ) + [
         ":hermetic",
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/os_sys:dx_os_sys",
         "//cli/path:dx_path",
     ],
@@ -1315,6 +1316,11 @@ exports_files(
         "src/lib.rs",
     ],
     visibility = ["//core/quality:__pkg__"],
+)
+
+exports_files(
+    ["appcontainer/user.rs"],
+    visibility = ["//tools/ci:__pkg__"],
 )
 
 _HERMETIC_BINARIES = [

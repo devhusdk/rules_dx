@@ -7,6 +7,8 @@ package(default_visibility = VIS_CLI_DEPLOY_ENV_GENERATION_QUALITY + [
     "//appimage/private/tools/packer:__pkg__",
     "//apple/private/tools/ops:__pkg__",
     "//tools/docs/ir/ir:__pkg__",
+    "//tools/docs/support_matrix:__pkg__",
+    "//tools/testing/hermetic:__pkg__",
 ])
 
 exports_files([

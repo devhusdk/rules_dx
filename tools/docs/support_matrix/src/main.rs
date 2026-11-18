@@ -17,11 +17,8 @@ const FACTS: &str = "tools/docs/support_matrix/facts.json";
 
 fn write(workspace: &Path, path: &str, text: &str) -> Result<(), String> {
     let target = workspace.join(path);
-    let staging = workspace.join(format!("{path}.tmp"));
-    std::fs::write(&staging, text)
-        .map_err(|error| format!("write {}: {error}", staging.display()))?;
-    std::fs::rename(&staging, &target)
-        .map_err(|error| format!("rename {}: {error}", target.display()))
+    dx_atomic_fs::write_atomic(&target, text.as_bytes())
+        .map_err(|error| format!("write {}: {error}", target.display()))
 }
 
 fn unlisted_dirs(workspace: &Path, facts_json: &str) -> Result<Vec<String>, String> {

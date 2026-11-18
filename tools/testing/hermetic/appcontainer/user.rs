@@ -971,11 +971,9 @@ fn read_host_denies(list: &std::path::Path) -> Vec<String> {
 
 fn write_host_denies(list: &std::path::Path, keys: &[String]) -> Result<(), String> {
     let text: String = keys.iter().map(|key| format!("{key}\n")).collect();
-    let partial = list.with_extension("tmp");
     list.parent()
         .map_or(Ok(()), std::fs::create_dir_all)
-        .and_then(|()| std::fs::write(&partial, text))
-        .and_then(|()| std::fs::rename(&partial, list))
+        .and_then(|()| dx_atomic_fs::write_atomic(list, text.as_bytes()))
         .map_err(|err| format!("cannot write {}: {err}", list.display()))
 }
 

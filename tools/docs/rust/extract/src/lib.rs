@@ -6,7 +6,6 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fmt::Write as _;
 use std::fs;
 
-use documentation_ir::encode_shard;
 use documentation_ir::proto::{DocIr, Relations, SourceRef, Symbol, SymbolKind, Visibility};
 use rustdoc_types::{
     Crate, FORMAT_VERSION, GenericArg, GenericArgs, GenericBound, GenericParamDef,
@@ -124,34 +123,13 @@ pub fn run(options: &Options) -> String {
         Ok(sources) => sources,
         Err(error) => return error,
     };
-    let bytes = match convert(&json, &options.package, &options.krate, &sources) {
-        Ok(bytes) => bytes,
+    let shard = match extract(&json, &options.package, &options.krate, &sources) {
+        Ok(shard) => shard,
         Err(error) => return error,
     };
-    let partial = format!("{}.partial", options.out);
-    if let Err(error) = fs::write(&partial, bytes) {
-        drop(fs::remove_file(&partial));
-        return format!("cannot write '{}': {error}", options.out);
-    }
-    if let Err(error) = fs::rename(&partial, &options.out) {
-        drop(fs::remove_file(&partial));
-        return format!("cannot write '{}': {error}", options.out);
-    }
-    String::new()
-}
-
-/// Converts one rustdoc JSON text into encoded shard bytes.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
-pub fn convert(
-    json: &str,
-    package: &str,
-    krate: &str,
-    sources: &[Source],
-) -> Result<Vec<u8>, String> {
-    encode_shard(&extract(json, package, krate, sources)?).map_err(|error| format!("{error:?}"))
+    documentation_ir::tool::write_shard(&options.out, &shard)
+        .err()
+        .unwrap_or_default()
 }
 
 /// Converts one rustdoc JSON text into a sorted shard.

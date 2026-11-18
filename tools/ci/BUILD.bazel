@@ -236,6 +236,9 @@ rust_test(
         "//cli/shard_writer:src/lib.rs",
         "//core/quality/runner:src/entry.rs",
         "//tools/docs/ir/ir:src/tool.rs",
+        "//tools/docs/rust/extract:src/lib.rs",
+        "//tools/docs/support_matrix:src/main.rs",
+        "//tools/testing/hermetic:appcontainer/user.rs",
     ],
     deps = all_crate_deps(
         package_name = "tools/ci_tests",

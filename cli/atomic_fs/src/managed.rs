@@ -175,7 +175,7 @@ pub fn replace_pointer(target: &Path, pointer: &Path, kind: PointerKind) -> io::
         .filter(|parent| !parent.as_os_str().is_empty())
         .unwrap_or(Path::new("."));
     std::fs::create_dir_all(crate::long_path(parent)?)?;
-    let stage = tempfile::Builder::new()
+    let ((), stage) = tempfile::Builder::new()
         .prefix(&crate::staging_prefix(pointer))
         .suffix(crate::STAGING_SUFFIX)
         .make_in(crate::long_path(parent)?, |path| {

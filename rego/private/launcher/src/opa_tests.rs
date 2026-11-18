@@ -1,4 +1,5 @@
 use crate::opa::*;
+use dx_path::Resolver;
 use std::path::{Path, PathBuf};
 
 const GOOD: &str =
@@ -74,7 +75,7 @@ fn stages_from_a_manifest_only_runfiles() {
     let scratch = dx_test_scratch::scratch("rego_launcher_stage").unwrap();
     let dir = scratch.path().to_path_buf();
     let exe = fake_runfiles(&dir);
-    let resolver = resolver_for(&exe).unwrap();
+    let resolver = Resolver::for_executable(&exe).unwrap();
     let descriptor = parse(
         GOOD.replace("opa=_main/opa\n", "opa=_main/a.rego\n")
             .as_str(),

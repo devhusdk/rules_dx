@@ -797,36 +797,6 @@ fn invoked_exe() -> Result<PathBuf, HarnessError> {
         })
 }
 
-fn tree_ancestor(exe: &Path) -> Option<PathBuf> {
-    let mut root = PathBuf::new();
-    for component in exe.components() {
-        root.push(component.as_os_str());
-        if component
-            .as_os_str()
-            .to_string_lossy()
-            .ends_with(".runfiles")
-        {
-            return Some(root);
-        }
-    }
-    None
-}
-
-fn resolver_for(exe: &Path) -> Result<Resolver, HarnessError> {
-    if let Some(tree) = tree_ancestor(exe)
-        && tree.is_dir()
-    {
-        return Resolver::for_tree(&tree).map_err(|error| HarnessError::NoRunfiles {
-            binary: display(exe),
-            detail: error.to_string(),
-        });
-    }
-    Resolver::for_binary(exe).map_err(|error| HarnessError::NoRunfiles {
-        binary: display(exe),
-        detail: error.to_string(),
-    })
-}
-
 fn run() -> Result<(), HarnessError> {
     let exe = match invoked_exe() {
         Ok(exe) => exe,
@@ -835,7 +805,10 @@ fn run() -> Result<(), HarnessError> {
             detail: error.to_string(),
         })?,
     };
-    let resolver = resolver_for(&exe)?;
+    let resolver = Resolver::for_executable(&exe).map_err(|error| HarnessError::NoRunfiles {
+        binary: display(&exe),
+        detail: error.to_string(),
+    })?;
     let key = env_value(MANIFEST_ENV)?;
     let manifest_path = lookup(&resolver, &key)?;
     let bytes = std::fs::read(&manifest_path).map_err(|error| HarnessError::BadManifest {
@@ -1170,19 +1143,6 @@ mod tests {
                 .expect_err("empty field must fail");
             assert!(error.to_string().contains(field), "{error}");
         }
-    }
-
-    #[test]
-    fn tree_ancestor_stops_at_the_first_runfiles_dir() {
-        assert_eq!(
-            tree_ancestor(Path::new(
-                "/sandbox/bin/core/quality/testdata/case.runfiles/_main/core/quality/testdata/case"
-            )),
-            Some(PathBuf::from(
-                "/sandbox/bin/core/quality/testdata/case.runfiles"
-            ))
-        );
-        assert_eq!(tree_ancestor(Path::new("/out/bin/tool")), None);
     }
 
     #[test]

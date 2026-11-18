@@ -1005,7 +1005,9 @@ pub fn make_writable(path: &Path) {
         )]
         permissions.set_readonly(false);
     }
-    drop(std::fs::set_permissions(path, permissions));
+    if std::fs::set_permissions(path, permissions).is_err() {
+        return;
+    }
     if metadata.is_dir() {
         for entry in std::fs::read_dir(path).into_iter().flatten().flatten() {
             make_writable(&entry.path());
@@ -1018,7 +1020,7 @@ pub fn make_writable(path: &Path) {
 pub fn remove_tree(path: &Path) -> bool {
     if std::fs::remove_dir_all(path).is_err() {
         make_writable(path);
-        drop(std::fs::remove_dir_all(path));
+        dx_atomic_fs::discard_dir(path);
     }
     !path.exists()
 }

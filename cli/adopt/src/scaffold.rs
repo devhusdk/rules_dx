@@ -1705,7 +1705,7 @@ mod tests {
             assert_eq!(super::detect_default_branch(&dir), "trunk");
             assert!(render_consumer_caller_for("trunk").contains("branches: [trunk]"));
         }
-        drop(std::fs::remove_dir_all(&dir));
+        dx_atomic_fs::discard_dir(&dir);
         assert_eq!(
             super::detect_default_branch(std::path::Path::new("/nonexistent-dx-dir")),
             "main"
@@ -1715,7 +1715,7 @@ mod tests {
     #[test]
     fn ignores_origin_head_pointing_at_missing_branch() {
         let dir = std::env::temp_dir().join(format!("dx-adopt-stale-head-{}", std::process::id()));
-        drop(std::fs::remove_dir_all(&dir));
+        dx_atomic_fs::discard_dir(&dir);
         std::fs::create_dir_all(&dir).expect("temp dir");
         let git = |args: &[&str]| {
             dx_process::capture::run_checked(
@@ -1734,7 +1734,7 @@ mod tests {
         {
             assert_eq!(super::detect_default_branch(&dir), "trunk");
         }
-        drop(std::fs::remove_dir_all(&dir));
+        dx_atomic_fs::discard_dir(&dir);
     }
 
     #[test]

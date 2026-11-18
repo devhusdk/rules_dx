@@ -78,6 +78,14 @@ pub fn discard_dir(path: impl AsRef<Path>) {
     log_discard_error(path, std::fs::remove_dir_all(path));
 }
 
+/// Writes a file that readers treat as a hint, such as a holder label; an error is logged with the path.
+pub fn write_hint(path: impl AsRef<Path>, content: impl AsRef<[u8]>) {
+    let path = path.as_ref();
+    if let Err(error) = std::fs::write(path, content) {
+        tracing::info!(path = %path.display(), %error, "cannot write hint file");
+    }
+}
+
 fn log_discard_error(path: &Path, result: io::Result<()>) {
     if let Err(error) = result
         && error.kind() != io::ErrorKind::NotFound
@@ -354,6 +362,17 @@ mod tests {
         assert!(!dir.exists());
         discard_file(&file);
         discard_dir(&dir);
+    }
+
+    #[test]
+    fn write_hint_writes_and_tolerates_a_missing_parent() {
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-").unwrap();
+        let file = scratch.path().join("holder");
+        write_hint(&file, "label");
+        assert_eq!(std::fs::read_to_string(&file).expect("read hint"), "label");
+        let orphan = scratch.path().join("missing").join("holder");
+        write_hint(&orphan, "label");
+        assert!(!orphan.exists());
     }
 
     #[test]

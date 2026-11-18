@@ -746,8 +746,10 @@ fn apply_signal_flags(plan: &Plan) -> Result<(), Failure> {
 
 fn main() -> ExitCode {
     let code = run().unwrap_or_else(|failure| {
-        let mut err = io::stderr();
-        drop(writeln!(err, "process_probe: {}", failure.message));
+        dx_output::write_stderr(
+            &mut io::stderr(),
+            format_args!("process_probe: {}\n", failure.message),
+        );
         failure.code
     });
     u8::try_from(code).map_or(ExitCode::FAILURE, ExitCode::from)
@@ -768,9 +770,10 @@ fn run() -> Result<i32, Failure> {
     let plan = match parse(&args) {
         Ok(plan) => plan,
         Err(message) => {
-            let mut err = io::stderr();
-            drop(writeln!(err, "process_probe: {message}"));
-            drop(err.write_all(USAGE.as_bytes()));
+            dx_output::write_stderr(
+                &mut io::stderr(),
+                format_args!("process_probe: {message}\n{USAGE}"),
+            );
             return Ok(EXIT_USAGE);
         }
     };

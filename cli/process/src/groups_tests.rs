@@ -127,7 +127,7 @@ fn a_lease_dropped_with_its_group_still_running_leaves_nothing_to_reap() {
     let mut child = sleeper();
     let pgid = child.id().cast_signed();
     let lease = GroupLease::acquire_in(&dir).expect("lease");
-    lease.record(pgid);
+    lease.record(pgid).expect("record");
     drop(lease);
     assert_eq!(reap_in(&dir), [] as [crate::groups::Reaped; 0]);
     let alive = group_alive(pgid);
@@ -517,7 +517,7 @@ fn a_group_that_ignores_the_first_signal_is_killed() {
 fn recording_a_group_with_an_unknown_start_leaves_the_lease_empty() {
     let scratch = dx_test_scratch::scratch("dx-groups-empty-").unwrap();
     let lease = GroupLease::acquire_in(scratch.path()).expect("lease");
-    lease.record(i32::MAX);
+    lease.record(i32::MAX).expect("record");
     assert_eq!(std::fs::metadata(&lease.path).expect("lease file").len(), 0);
 }
 
@@ -603,8 +603,8 @@ fn a_recorded_line_replaces_the_lease_text() {
     use std::io::{Read, Seek, SeekFrom};
     let scratch = dx_test_scratch::scratch("dx-groups-line-").unwrap();
     let mut lease = GroupLease::acquire_in(scratch.path()).expect("lease");
-    lease.write_line(Some(lease_text(4000, "77")));
-    lease.write_line(Some(lease_text(4001, "78")));
+    lease.write_line(Some(lease_text(4000, "77"))).expect("write");
+    lease.write_line(Some(lease_text(4001, "78"))).expect("write");
     let mut text = String::new();
     lease.file.seek(SeekFrom::Start(0)).expect("rewind");
     lease.file.read_to_string(&mut text).expect("lease text");
@@ -692,9 +692,9 @@ fn a_written_lease_is_not_recorded_again() {
     let scratch = dx_test_scratch::scratch("dx-groups-written-").unwrap();
     let lease = GroupLease::acquire_in(scratch.path()).expect("lease");
     let line = lease_line(std::process::id().cast_signed()).expect("line");
-    lease.record_unwritten(std::process::id().cast_signed());
+    lease.record_unwritten(std::process::id().cast_signed()).expect("record");
     assert_eq!(held_text(&lease), format!("{line}\n"));
-    lease.record_unwritten(i32::MAX);
+    lease.record_unwritten(i32::MAX).expect("record");
     assert_eq!(held_text(&lease), format!("{line}\n"));
 }
 

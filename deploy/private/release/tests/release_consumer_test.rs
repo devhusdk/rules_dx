@@ -13,5 +13,5 @@ pub(crate) fn stage(test: &str, name: &str) {
         .get_or_init(std::time::Instant::now)
         .elapsed()
         .as_secs();
-    drop(writeln!(std::io::stderr(), "{test}: [{elapsed}s] {name}"));
+    writeln!(std::io::stderr(), "{test}: [{elapsed}s] {name}").expect("stderr is writable");
 }

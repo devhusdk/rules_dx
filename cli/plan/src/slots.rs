@@ -1520,7 +1520,7 @@ impl Gate {
                 let reaped = self.reap(&layout);
                 let (err, events) = &mut *out.borrow_mut();
                 let message = wait_message(holder) + &reaped_suffix(reaped.unwrap_or(0));
-                drop(writeln!(err, "dx: {message}"));
+                dx_output::write_stderr(&mut **err, format_args!("dx: {message}\n"));
                 if json {
                     let mut event = notice_event(
                         command,
@@ -1550,7 +1550,7 @@ impl Gate {
                 }
                 let (err, events) = &mut *out.borrow_mut();
                 let message = format!("skipped build slot {}: {error}", path.display());
-                drop(writeln!(err, "dx: {message}"));
+                dx_output::write_stderr(&mut **err, format_args!("dx: {message}\n"));
                 if json {
                     notice(
                         &mut **events,
@@ -1586,7 +1586,7 @@ impl Gate {
                     return Err(Stop::Busy(holder.clone()));
                 }
                 let message = format!("build slots disabled: {error}");
-                drop(writeln!(err, "dx: {message}"));
+                dx_output::write_stderr(err, format_args!("dx: {message}\n"));
                 if json {
                     notice(
                         &mut *events,
@@ -1609,7 +1609,7 @@ impl Gate {
         else {
             return;
         };
-        drop(writeln!(err, "dx: {message}"));
+        dx_output::write_stderr(err, format_args!("dx: {message}\n"));
         if self.json {
             notice(
                 events,

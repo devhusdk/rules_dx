@@ -354,8 +354,23 @@ fn pages_failure_text(output: &dx_process::capture::Captured, token: &str) -> St
 }
 
 fn pages_fail(err: &mut dyn std::io::Write, name: &str, message: &str) -> i32 {
-    drop(writeln!(err, "cloudflare_pages_deploy: {name}: {message}"));
+    dx_output::write_stderr(err, format_args!("cloudflare_pages_deploy: {name}: {message}\n"));
     1
+}
+
+/// Writes the report lines to `out`; a failed write is reported on `err` and fails the run.
+fn pages_report(
+    out: &mut dyn std::io::Write,
+    err: &mut dyn std::io::Write,
+    name: &str,
+    lines: &[String],
+) -> i32 {
+    let mut text = lines.join("\n");
+    text.push('\n');
+    match out.write_all(text.as_bytes()) {
+        Ok(()) => 0,
+        Err(error) => pages_fail(err, name, &format!("cannot write the report: {error}")),
+    }
 }
 
 /// Stages one site, runs Wrangler and reports the deployment.
@@ -417,21 +432,24 @@ fn pages_check_run(
         Err(message) => return pages_fail(err, launch.deploy_name, &message),
     };
     let bytes: u64 = files.iter().map(|file| file.size).sum();
-    drop(writeln!(
+    pages_report(
         out,
-        "cloudflare_pages_deploy: checked {} (branch {}, {intent}, build_mode: {build_mode}); nothing uploaded",
-        launch.project, launch.branch
-    ));
-    drop(writeln!(out, "  account: {}", launch.account_id));
-    drop(writeln!(out, "  project: {}", launch.project));
-    drop(writeln!(out, "  branch: {}", launch.branch));
-    drop(writeln!(out, "  intent: {intent}"));
-    drop(writeln!(out, "  files: {} ({bytes} bytes)", files.len()));
-    drop(writeln!(
-        out,
-        "  publish: CLOUDFLARE_PUBLISH_APPROVED=1 with CLOUDFLARE_API_TOKEN, then dx deploy --apply"
-    ));
-    0
+        err,
+        launch.deploy_name,
+        &[
+            format!(
+                "cloudflare_pages_deploy: checked {} (branch {}, {intent}, build_mode: {build_mode}); nothing uploaded",
+                launch.project, launch.branch
+            ),
+            format!("  account: {}", launch.account_id),
+            format!("  project: {}", launch.project),
+            format!("  branch: {}", launch.branch),
+            format!("  intent: {intent}"),
+            format!("  files: {} ({bytes} bytes)", files.len()),
+            "  publish: CLOUDFLARE_PUBLISH_APPROVED=1 with CLOUDFLARE_API_TOKEN, then dx deploy --apply"
+                .to_owned(),
+        ],
+    )
 }
 
 /// Owner approval gate for `cloudflare_pages_deploy`.
@@ -537,10 +555,12 @@ fn pages_deploy_staged(
     if !output.success() {
         let code = output.code.unwrap_or(1);
         let tail = pages_failure_text(&output, &env.token);
-        drop(writeln!(
+        dx_output::write_stderr(
             err,
-            "cloudflare_pages_deploy: {name}: wrangler failed with exit {code}; nothing is confirmed published\n{tail}"
-        ));
+            format_args!(
+                "cloudflare_pages_deploy: {name}: wrangler failed with exit {code}; nothing is confirmed published\n{tail}\n"
+            ),
+        );
         return code;
     }
     let text = std::fs::read_to_string(&result_file).unwrap_or_default();
@@ -549,19 +569,24 @@ fn pages_deploy_staged(
         Err(message) => return pages_fail(err, name, &pages_redact(&message, &env.token)),
     };
     let bytes: u64 = files.iter().map(|file| file.size).sum();
-    drop(writeln!(
+    pages_report(
         out,
-        "cloudflare_pages_deploy: deployed {} (branch {}, {}, build_mode: {})",
-        launch.project, launch.branch, deployment.environment, env.build_mode
-    ));
-    drop(writeln!(out, "  account: {}", launch.account_id));
-    drop(writeln!(out, "  project: {}", launch.project));
-    drop(writeln!(out, "  branch: {}", launch.branch));
-    drop(writeln!(out, "  intent: {}", deployment.environment));
-    drop(writeln!(out, "  files: {} ({bytes} bytes)", files.len()));
-    drop(writeln!(out, "  deployment: {}", deployment.id));
-    drop(writeln!(out, "  url: {}", deployment.url));
-    0
+        err,
+        name,
+        &[
+            format!(
+                "cloudflare_pages_deploy: deployed {} (branch {}, {}, build_mode: {})",
+                launch.project, launch.branch, deployment.environment, env.build_mode
+            ),
+            format!("  account: {}", launch.account_id),
+            format!("  project: {}", launch.project),
+            format!("  branch: {}", launch.branch),
+            format!("  intent: {}", deployment.environment),
+            format!("  files: {} ({bytes} bytes)", files.len()),
+            format!("  deployment: {}", deployment.id),
+            format!("  url: {}", deployment.url),
+        ],
+    )
 }
 
 /// Runs the Cloudflare Pages deploy tool.

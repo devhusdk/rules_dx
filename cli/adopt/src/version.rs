@@ -77,7 +77,8 @@ pub fn write_version_pin(root: &Path, version: &str) -> Result<(), AdoptError> {
 /// Under `bazel run`, rewrites a stale `.dx/pins` to `module_version` so the next
 /// launcher call skips Bazel. A file is current when it names `module_version` and
 /// holds a hash for every release asset. Does nothing when the file is missing,
-/// current, or when `pins` lacks a hash for any release asset. Errors are ignored.
+/// current, or when `pins` lacks a hash for any release asset. A failed write is reported
+/// on stderr.
 pub fn refresh_stale_pins(
     workspace: Option<&Path>,
     module_version: &str,
@@ -104,7 +105,9 @@ pub fn refresh_stale_pins(
     if !has_all_hashes(&pins) {
         return;
     }
-    drop(write_version_pins(root, module_version, &pins));
+    if let Err(error) = write_version_pins(root, module_version, &pins) {
+        eprintln!("dx: cannot refresh the version pins: {error}");
+    }
 }
 
 /// `refresh_stale_pins` for the running binary: the `BUILD_WORKSPACE_DIRECTORY`

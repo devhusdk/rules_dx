@@ -253,16 +253,16 @@ fn read_only_cache_names_the_path() {
 }
 
 #[test]
-fn old_part_files_are_swept_and_fresh_ones_kept() {
+fn old_staging_files_are_swept_and_fresh_ones_kept() {
     let server = Server::start();
     server.release(VERSION, ASSET, b"binary", b"binary");
     let cache = tempfile::tempdir().expect("tempdir");
     let dest = dest(&cache);
     let dir = dest.parent().expect("dir");
     std::fs::create_dir_all(dir).expect("mkdir");
-    let old = dir.join(format!(".{ASSET}.1.2-3.part"));
-    let fresh = dir.join(format!(".{ASSET}.4.5-6.part"));
-    let other = dir.join(".dx-other.1.2-3.part");
+    let old = dir.join(format!(".{ASSET}.abc123.tmp"));
+    let fresh = dir.join(format!(".{ASSET}.def456.tmp"));
+    let other = dir.join(".dx-other.abc123.tmp");
     for path in [&old, &fresh, &other] {
         std::fs::write(path, b"partial").expect("write");
     }

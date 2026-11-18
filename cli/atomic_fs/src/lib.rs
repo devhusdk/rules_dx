@@ -255,9 +255,20 @@ impl StagedFile {
         self.staging.as_file_mut()
     }
 
+    /// The staging file's own path.
+    pub fn path(&self) -> &Path {
+        self.staging.path()
+    }
+
     /// Syncs the staging file and renames it over `dest`.
     pub fn commit(self) -> io::Result<()> {
         persist(self.staging, &self.dest, Durability::Synced)
+    }
+
+    /// Like [`StagedFile::commit`] onto `dest`, a path in the directory of the one given
+    /// to [`StagedFile::create`], for content whose name is known only once written.
+    pub fn commit_as(self, dest: &Path) -> io::Result<()> {
+        persist(self.staging, dest, Durability::Synced)
     }
 }
 
@@ -324,6 +335,22 @@ mod tests {
             dir_entries(&scratch.path().join("out")),
             vec!["a.bin".to_owned()]
         );
+    }
+
+    #[test]
+    fn staged_file_commit_as_names_dest_after_writing() {
+        use std::io::Write as _;
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-").unwrap();
+        let first = StagedFile::create(&scratch.path().join(".layer")).expect("stage");
+        let mut second = StagedFile::create(&scratch.path().join(".layer")).expect("stage");
+        assert_ne!(first.path(), second.path());
+        assert_eq!(first.path().parent(), Some(scratch.path()));
+        drop(first);
+        second.file_mut().write_all(b"blob").expect("write");
+        let dest = scratch.path().join("abc");
+        second.commit_as(&dest).expect("commit");
+        assert_eq!(std::fs::read(&dest).expect("read"), b"blob");
+        assert_eq!(dir_entries(scratch.path()), vec!["abc".to_owned()]);
     }
 
     #[test]

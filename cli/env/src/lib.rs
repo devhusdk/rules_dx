@@ -72,6 +72,19 @@ impl From<dx_atomic_fs::commit::LockError> for Error {
     }
 }
 
+impl From<dx_atomic_fs::commit::CommitError> for Error {
+    fn from(error: dx_atomic_fs::commit::CommitError) -> Self {
+        use dx_atomic_fs::commit::CommitError;
+        match error {
+            CommitError::Foreign { path, reason } => Error::Unmanaged {
+                path,
+                detail: reason,
+            },
+            CommitError::Install { reason } => Error::Install { reason },
+        }
+    }
+}
+
 pub struct RefreshOptions {
     pub workspace_root: PathBuf,
     pub staged_bin: PathBuf,
@@ -302,7 +315,7 @@ pub fn refresh(
     let bin_dir = dx_dir.join(BIN_DIR_NAME);
     let prev_dir = dx_dir.join(PREV_DIR_NAME);
     let stage_dir = dx_dir.join(STAGE_DIR_NAME);
-    recover_crashed_swap(&prev_dir, &bin_dir)?;
+    dx_atomic_fs::commit::recover_tree_swap(&bin_dir, &prev_dir)?;
     if prev_dir.exists() {
         fs::remove_dir_all(&prev_dir).map_err(|e| Error::Install {
             reason: format!("cannot clear stale {}: {e}", prev_dir.display()),
@@ -316,9 +329,7 @@ pub fn refresh(
     }
     let fresh = current.is_none();
     stage_tree(&stage_dir, &staged, &candidate)?;
-    commit_swap(&bin_dir, &prev_dir, &stage_dir, &|from, to| {
-        fs::rename(from, to)
-    })?;
+    dx_atomic_fs::commit::swap_tree(&bin_dir, &prev_dir, &stage_dir)?;
     drop(fs::remove_dir_all(&prev_dir));
     if fresh {
         Ok(RefreshOutcome::InstalledFresh)
@@ -437,19 +448,6 @@ fn unmanaged(bin_dir: &Path, detail: &str) -> Error {
     }
 }
 
-fn recover_crashed_swap(prev_dir: &Path, bin_dir: &Path) -> Result<(), Error> {
-    if !prev_dir.exists() {
-        return Ok(());
-    }
-    if bin_dir.exists() {
-        return Ok(());
-    }
-    fs::rename(prev_dir, bin_dir).map_err(|e| Error::Install {
-        reason: format!("cannot restore interrupted tree: {e}"),
-    })?;
-    Ok(())
-}
-
 fn stage_tree(
     stage_dir: &Path,
     staged: &[(String, PathBuf)],
@@ -474,30 +472,6 @@ fn stage_tree(
         symlink_entry(target, &stage_dir.join(name)).map_err(|e| Error::Install {
             reason: format!("cannot stage host name '{name}': {e}"),
         })?;
-    }
-    Ok(())
-}
-
-fn commit_swap(
-    bin_dir: &Path,
-    prev_dir: &Path,
-    stage_dir: &Path,
-    rename: &dyn Fn(&Path, &Path) -> io::Result<()>,
-) -> Result<(), Error> {
-    let retired = bin_dir.exists();
-    if retired {
-        rename(bin_dir, prev_dir).map_err(|e| Error::Install {
-            reason: format!("cannot retire current tree: {e}"),
-        })?;
-    }
-    if let Err(e) = rename(stage_dir, bin_dir) {
-        let reason = match retired.then(|| rename(prev_dir, bin_dir)) {
-            Some(Err(e2)) => {
-                format!("cannot publish staged tree: {e}; cannot restore previous tree: {e2}")
-            }
-            _ => format!("cannot publish staged tree: {e}"),
-        };
-        return Err(Error::Install { reason });
     }
     Ok(())
 }

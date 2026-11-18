@@ -1,6 +1,4 @@
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{Duration, SystemTime};
 
 use crate::protocol::ShimError;
 
@@ -63,8 +61,8 @@ pub fn install(request: &Request<'_>) -> Result<PathBuf, ShimError> {
             ShimError::failure(format!("bad pinned sha256 for {}: '{hash}'", request.url))
         })?,
     };
-    sweep_stale_parts(dir, request.asset);
-    let mut part = PartFile::create(dir, request.asset).map_err(|e| not_writable(&e))?;
+    dx_atomic_fs::remove_stale_staging(dest);
+    let mut part = PartFile::create(dest).map_err(|e| not_writable(&e))?;
     let got = download(&client, request, &mut part)?;
     if !dx_digest::verify(&want, &got) {
         return Err(ShimError::failure(mismatch_message(
@@ -76,7 +74,9 @@ pub fn install(request: &Request<'_>) -> Result<PathBuf, ShimError> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&part.path, std::fs::Permissions::from_mode(0o755))
+        part.staged
+            .file_mut()
+            .set_permissions(std::fs::Permissions::from_mode(0o755))
             .map_err(|e| not_writable(&e))?;
     }
     part.persist(dest).map_err(|e| not_writable(&e))?;
@@ -115,22 +115,19 @@ fn download(
     request: &Request<'_>,
     part: &mut PartFile,
 ) -> Result<String, ShimError> {
-    let path = part.path.clone();
-    let cannot_write = |e: &dyn std::fmt::Display| format!("cannot write {}: {e}", path.display());
-    let written = match part.file.as_mut() {
-        None => Err("the download part file is not open".to_owned()),
-        Some(file) => client
-            .download_into(request.url, &[], file, MAX_BINARY_BYTES)
-            .map_err(|e| match e {
-                dx_http::Error::Write { message, .. } => cannot_write(&message),
-                other @ (dx_http::Error::Config(_)
-                | dx_http::Error::Status { .. }
-                | dx_http::Error::Transport { .. }
-                | dx_http::Error::TooLarge { .. }) => fetch_message(request, other),
-            })
-            .and_then(|got| file.sync_all().map(|()| got).map_err(|e| cannot_write(&e))),
-    };
-    written.map_err(ShimError::failure)
+    let path = part.staged.path().to_path_buf();
+    client
+        .download_into(request.url, &[], part.staged.file_mut(), MAX_BINARY_BYTES)
+        .map_err(|e| match e {
+            dx_http::Error::Write { message, .. } => {
+                format!("cannot write {}: {message}", path.display())
+            }
+            other @ (dx_http::Error::Config(_)
+            | dx_http::Error::Status { .. }
+            | dx_http::Error::Transport { .. }
+            | dx_http::Error::TooLarge { .. }) => fetch_message(request, other),
+        })
+        .map_err(ShimError::failure)
 }
 
 fn sidecar(client: &dx_http::Client, request: &Request<'_>) -> Result<String, ShimError> {
@@ -145,31 +142,6 @@ fn sidecar(client: &dx_http::Client, request: &Request<'_>) -> Result<String, Sh
 #[must_use]
 pub fn parse_hash(text: &str) -> Option<String> {
     dx_digest::is_hex_any_case(text, dx_digest::DIGEST_LEN).then(|| text.to_ascii_lowercase())
-}
-
-const STALE_PART_AGE: Duration = Duration::from_hours(1);
-
-// A killed run leaves its part file behind.
-fn sweep_stale_parts(dir: &Path, asset: &str) {
-    let prefix = format!(".{asset}.");
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let name = entry.file_name();
-        let name = name.to_string_lossy();
-        if !(name.starts_with(&prefix) && name.ends_with(".part")) {
-            continue;
-        }
-        let age = entry
-            .metadata()
-            .and_then(|m| m.modified())
-            .ok()
-            .and_then(|t| SystemTime::now().duration_since(t).ok());
-        if age.is_some_and(|age| age > STALE_PART_AGE) {
-            drop(std::fs::remove_file(entry.path()));
-        }
-    }
 }
 
 #[cfg(unix)]
@@ -242,49 +214,39 @@ mod interrupt {
     pub fn clear() {}
 }
 
+/// A download staged beside its destination that an interrupt removes until it is published.
 struct PartFile {
-    path: PathBuf,
-    file: Option<std::fs::File>,
+    staged: dx_atomic_fs::StagedFile,
+    _watch: Watch,
+}
+
+/// Stops the interrupt handler from removing the part file once dropped.
+struct Watch;
+
+impl Drop for Watch {
+    fn drop(&mut self) {
+        interrupt::clear();
+    }
 }
 
 impl PartFile {
-    fn create(dir: &Path, asset: &str) -> std::io::Result<Self> {
-        static COUNTER: AtomicU64 = AtomicU64::new(0);
-        let nanos = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_or(0, |d| d.subsec_nanos());
-        let nonce = COUNTER.fetch_add(1, Ordering::Relaxed);
-        let path = dir.join(format!(
-            ".{asset}.{}.{nanos}-{nonce}.part",
-            std::process::id()
-        ));
-        let file = std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&path)?;
-        interrupt::watch(&path);
+    fn create(dest: &Path) -> std::io::Result<Self> {
+        let staged = dx_atomic_fs::StagedFile::create(dest)?;
+        interrupt::watch(staged.path());
         Ok(Self {
-            path,
-            file: Some(file),
+            staged,
+            _watch: Watch,
         })
     }
 
-    fn persist(mut self, dest: &Path) -> std::io::Result<()> {
-        drop(self.file.take());
-        interrupt::clear();
-        match std::fs::rename(&self.path, dest) {
+    fn persist(self, dest: &Path) -> std::io::Result<()> {
+        let Self { staged, _watch } = self;
+        drop(_watch);
+        match staged.commit() {
             Ok(()) => Ok(()),
             Err(_) if dest.is_file() => Ok(()),
             Err(e) => Err(e),
         }
-    }
-}
-
-impl Drop for PartFile {
-    fn drop(&mut self) {
-        drop(self.file.take());
-        interrupt::clear();
-        drop(std::fs::remove_file(&self.path));
     }
 }
 

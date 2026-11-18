@@ -110,3 +110,23 @@ BCR_DRY_RUN=1 bazel run //deploy/private/release:bcr_demo
 ```
 
 It prints the pull request it would open and submits nothing. A failure names the field that is missing or does not match the module. Then open one BCR pull request yourself that adds `rules_dx` at `0.1.0` with the `source.json` from the release.
+
+## Release order with the rule-set modules
+
+PHP, Lua and Qt rules ship as their own modules: `rules_php`, `rules_lua` and `rules_qt`. Each one depends on `rules_dx`, and `rules_dx` depends on each one. Release them in this order:
+
+1. Release `rules_dx` with the steps above and wait until its BCR pull request is merged.
+2. In the rule-set repository, set its `bazel_dep` on `rules_dx` to that release, then release the rule set to the BCR from its own `.bcr/` metadata. Its BCR presubmit builds the plain-Bazel fixture, with no `dx` CLI.
+3. Once the rule set is in the BCR, open a `rules_dx` pull request that raises its `bazel_dep` floor to the new version and updates `<lang>/defs.bzl` for any API change. Merge it before the next `rules_dx` release.
+
+The first releases go:
+
+1. `rules_dx` `0.1.0`, with PHP, Lua and Qt rules in-tree.
+2. `rules_php`, `rules_lua` and `rules_qt` `0.1.0`, each depending on `rules_dx` `0.1.0` or later.
+3. The next `rules_dx` release, depending on those rule-set releases.
+
+Versions are `0.x` semver. A minor release may change the API before `1.0`.
+
+While you work across both repositories you may point `rules_dx` at a local checkout of a rule set with `local_path_override`. Remove it before you tag: the `source` job fails and names the module.
+
+`rules_dx` users write only `bazel_dep(name = "rules_dx", ...)` and load `@rules_dx//<lang>:defs.bzl`. `dx upgrade` moves them to new rule-set releases through `rules_dx`.

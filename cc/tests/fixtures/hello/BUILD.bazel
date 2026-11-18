@@ -86,6 +86,13 @@ cc_test(
     deps = [":hello_c_lib"],
 )
 
+cc_test(
+    name = "hello_c_static_test",
+    srcs = ["hello_c_test.c"],
+    linkstatic = True,
+    deps = [":hello_c_lib"],
+)
+
 cc_macos_no_dylib_test(
     name = "macos_no_dylib_test",
     target = ":hello_c_lib_upstream",

@@ -7,6 +7,10 @@ use dx_path::label::Label;
 /// The schema version this dx writes and reads.
 pub const CURRENT_SCHEMA_VERSION: u32 = 1;
 
+/// The additive revision of the dx.toml schema within `CURRENT_SCHEMA_VERSION`. Adding a key bumps it; files keep
+/// declaring only the major.
+pub const SCHEMA_MINOR: u32 = 1;
+
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum ConventionProblem {
     #[error("schema_version is missing; add `schema_version = {CURRENT_SCHEMA_VERSION}`")]

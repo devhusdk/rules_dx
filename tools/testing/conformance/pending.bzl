@@ -39,7 +39,6 @@ d format_error_test *
 d format_test *
 d lint_error_test *
 d lint_test *
-d lock_test *
 dotnet cross_test *
 dotnet lock_test *
 dotnet runfiles_test *

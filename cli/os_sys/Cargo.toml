@@ -16,6 +16,7 @@ rustix = { version = "1", features = [
   "fs",
   "pipe",
   "process",
+  "pty",
   "std",
   "termios",
 ] }

@@ -103,6 +103,15 @@ pub fn raise_default(signo: i32) -> io::Result<()> {
     check(unsafe { libc::raise(signo) })
 }
 
+/// Ignores `signo` in the calling process; async-signal-safe.
+pub fn ignore(signo: i32) -> io::Result<()> {
+    // SAFETY: SIG_IGN installs no handler code.
+    if unsafe { libc::signal(signo, libc::SIG_IGN) } == libc::SIG_ERR {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(())
+}
+
 extern "C" fn unlink_and_exit(signo: i32) {
     let path = UNLINK_ON_STOP.load(Ordering::SeqCst);
     if !path.is_null() {

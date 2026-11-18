@@ -5,13 +5,15 @@
 
 #![expect(
     unsafe_code,
-    reason = "getpgrp, getpgid and getsid may return 0, which rustix cannot represent"
+    reason = "getpgrp, getpgid and getsid may return 0, which rustix cannot represent, and rustix has no rt_sigqueueinfo"
 )]
 
 use rustix::process::{Pid, Signal, WaitId, WaitIdOptions, WaitOptions};
 use std::io;
 
-pub use libc::{SIGCONT, SIGHUP, SIGINT, SIGKILL, SIGTERM, SIGTSTP, SIGTTIN, SIGTTOU, SIGUSR1};
+pub use libc::{
+    SIGCONT, SIGHUP, SIGINT, SIGKILL, SIGSTOP, SIGTERM, SIGTSTP, SIGTTIN, SIGTTOU, SIGUSR1,
+};
 
 /// What a signal-0 probe learned about a process or group.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -123,6 +125,24 @@ pub fn reap(child: i32) -> io::Result<()> {
 pub fn stop_self() -> io::Result<()> {
     rustix::process::kill_process(rustix::process::getpid(), Signal::TSTP)?;
     Ok(())
+}
+
+/// Queues `signo` to the process `target` with `SI_QUEUE` and no sender pid.
+#[cfg(target_os = "linux")]
+pub fn queue_unattributed(target: i32, signo: i32) -> io::Result<()> {
+    let target = pid(target)?.as_raw_nonzero().get();
+    // SAFETY: siginfo_t is plain C data for which all-zero is valid.
+    let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
+    info.si_signo = signo;
+    info.si_code = libc::SI_QUEUE;
+    // SAFETY: info outlives the call and is the siginfo_t that rt_sigqueueinfo reads.
+    let status =
+        unsafe { libc::syscall(libc::SYS_rt_sigqueueinfo, target, signo, &raw const info) };
+    if status < 0 {
+        Err(io::Error::last_os_error())
+    } else {
+        Ok(())
+    }
 }
 
 /// Asks the kernel to send `signo` to the calling process when its parent dies; async-signal-safe.

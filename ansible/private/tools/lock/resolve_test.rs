@@ -1,9 +1,8 @@
 //! The ansible lock step writes the golden lock with an empty `PATH`; the archives come from the fetcher.
 
-use std::sync::Mutex;
-
 use ansible_lock::{Ansible, parse_requirements};
-use dx_lock::{Args, Error, Fetch, Outcome, run};
+use dx_lock::{Args, Error, Outcome, run};
+use dx_lock_testing::FixtureFetch;
 
 const MANIFEST: &str = "---
 # Versions are exact.
@@ -14,25 +13,14 @@ collections:
     version: '2.0.0'
 ";
 
-struct Archives(Mutex<Vec<String>>);
-
-impl Fetch for Archives {
-    fn sha256(&self, url: &str) -> Result<String, Error> {
-        self.0.lock().expect("asked").push(url.to_owned());
-        let name = if url.ends_with("/dxtest-tiny-1.0.0.tar.gz") {
-            "TINY"
-        } else if url.ends_with("/dxtest-other-2.0.0.tar.gz") {
-            "OTHER"
-        } else {
-            return Err(Error::new(format!("unexpected download of {url}")));
-        };
-        Ok(dx_digest::sha256_hex(
-            &std::fs::read(dx_testing::env_file(name)).map_err(|e| Error::new(e.to_string()))?,
-        ))
-    }
+fn archives() -> FixtureFetch {
+    FixtureFetch::new(&[
+        ("/dxtest-tiny-1.0.0.tar.gz", "TINY"),
+        ("/dxtest-other-2.0.0.tar.gz", "OTHER"),
+    ])
 }
 
-fn lock(dir: &std::path::Path, archives: &Archives) -> Result<Outcome, Error> {
+fn lock(dir: &std::path::Path, archives: &FixtureFetch) -> Result<Outcome, Error> {
     let hub = dx_families::hub("ansible").expect("ansible is registered");
     run(
         &Ansible::spec(hub),
@@ -51,9 +39,9 @@ fn pinned_collections_write_the_golden_lock() {
     let hub = dx_families::hub("ansible").expect("ansible is registered");
     let dir = tempfile::tempdir().expect("set directory");
     std::fs::write(dir.path().join(&hub.manifest), MANIFEST).expect("manifest");
-    let archives = Archives(Mutex::default());
+    let archives = archives();
     assert_eq!(lock(dir.path(), &archives), Ok(Outcome::Written));
-    assert_eq!(archives.0.lock().expect("asked").len(), 2);
+    assert_eq!(archives.asked().len(), 2);
     dx_testing::snapshot_diff(
         &dx_testing::env_file("GOLDEN"),
         &dir.path().join(hub.lock.as_deref().expect("lock")),
@@ -67,13 +55,10 @@ fn a_fresh_lock_downloads_nothing() {
     let hub = dx_families::hub("ansible").expect("ansible is registered");
     let dir = tempfile::tempdir().expect("set directory");
     std::fs::write(dir.path().join(&hub.manifest), MANIFEST).expect("manifest");
-    assert_eq!(
-        lock(dir.path(), &Archives(Mutex::default())),
-        Ok(Outcome::Written)
-    );
-    let archives = Archives(Mutex::default());
+    assert_eq!(lock(dir.path(), &archives()), Ok(Outcome::Written));
+    let archives = archives();
     assert_eq!(lock(dir.path(), &archives), Ok(Outcome::Fresh));
-    assert!(archives.0.lock().expect("asked").is_empty());
+    assert!(archives.asked().is_empty());
 }
 
 #[test]

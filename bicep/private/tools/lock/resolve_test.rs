@@ -3,7 +3,8 @@
 use std::cell::RefCell;
 
 use bicep_lock::{Bicep, Registry, references};
-use dx_lock::{Args, Error, Fetch, Outcome, run};
+use dx_lock::{Args, Error, Outcome, run};
+use dx_lock_testing::NoFetch;
 
 const MAIN: &str = "// module old 'br:example.com/old:1'
 module storage 'br:mcr.microsoft.com/bicep/avm/res/storage/storage-account:0.14.3' = {
@@ -15,7 +16,8 @@ module vnet 'br/public:avm/res/network/virtual-network:0.1.0' = {
 }
 ";
 
-const SECOND: &str = "module again 'br:MCR.microsoft.com/bicep/avm/res/storage/storage-account:0.14.3' = {
+const SECOND: &str =
+    "module again 'br:MCR.microsoft.com/bicep/avm/res/storage/storage-account:0.14.3' = {
   name: 'again'
 }
 ";
@@ -25,15 +27,8 @@ struct Site(RefCell<Vec<String>>);
 impl Registry for Site {
     fn manifest(&self, url: &str) -> Result<Vec<u8>, Error> {
         self.0.borrow_mut().push(url.to_owned());
-        std::fs::read(dx_testing::env_file("MANIFEST")).map_err(|error| Error::new(error.to_string()))
-    }
-}
-
-struct NoFetch;
-
-impl Fetch for NoFetch {
-    fn sha256(&self, url: &str) -> Result<String, Error> {
-        Err(Error::new(format!("unexpected download of {url}")))
+        std::fs::read(dx_testing::env_file("MANIFEST"))
+            .map_err(|error| Error::new(error.to_string()))
     }
 }
 
@@ -77,16 +72,38 @@ fn the_registry_fixture_writes_the_golden_lock() {
 #[test]
 fn two_tags_of_one_module_fail() {
     let dir = tempfile::tempdir().expect("set directory");
-    std::fs::write(dir.path().join("a.bicep"), "module a 'br:example.com/m:1' = {}\n").expect("a");
-    std::fs::write(dir.path().join("b.bicep"), "module b 'br:example.com/m:2' = {}\n").expect("b");
+    std::fs::write(
+        dir.path().join("a.bicep"),
+        "module a 'br:example.com/m:1' = {}\n",
+    )
+    .expect("a");
+    std::fs::write(
+        dir.path().join("b.bicep"),
+        "module b 'br:example.com/m:2' = {}\n",
+    )
+    .expect("b");
     let error = lock(dir.path(), &Site(RefCell::default())).expect_err("two tags");
-    assert!(error.to_string().contains("example.com/m is referenced with the tags 1 and 2"), "{error}");
+    assert!(
+        error
+            .to_string()
+            .contains("example.com/m is referenced with the tags 1 and 2"),
+        "{error}"
+    );
 }
 
 #[test]
 fn malformed_references_fail() {
-    for text in ["'br:example.com/m'", "'br:example.com:5000/m:1'", "'br:example.com/m:'", "'br:host:1'"] {
+    for text in [
+        "'br:example.com/m'",
+        "'br:example.com:5000/m:1'",
+        "'br:example.com/m:'",
+        "'br:host:1'",
+    ] {
         assert!(references(text).is_err(), "{text}");
     }
-    assert!(references("'ts:sub/rg/spec:1' 'br'").expect("no reference").is_empty());
+    assert!(
+        references("'ts:sub/rg/spec:1' 'br'")
+            .expect("no reference")
+            .is_empty()
+    );
 }

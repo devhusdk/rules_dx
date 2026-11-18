@@ -3,7 +3,8 @@
 use std::cell::RefCell;
 
 use dub_lock::{Download, Dub};
-use dx_lock::{Args, Error, Fetch, Outcome, run};
+use dx_lock::{Args, Error, Outcome, run};
+use dx_lock_testing::NoFetch;
 
 const SILLY: &str = "https://code.dlang.org/packages/silly/1.1.1.zip";
 const BASE: &str = "https://code.dlang.org/packages/base/0.2.3.zip";
@@ -28,14 +29,6 @@ impl Download for Registry {
                 .map_err(|error| Error::new(error.to_string())),
             other => Err(Error::new(format!("unexpected download of {other}"))),
         }
-    }
-}
-
-struct NoFetch;
-
-impl Fetch for NoFetch {
-    fn sha256(&self, url: &str) -> Result<String, Error> {
-        Err(Error::new(format!("unexpected download of {url}")))
     }
 }
 

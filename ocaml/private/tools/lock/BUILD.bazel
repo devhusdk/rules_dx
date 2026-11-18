@@ -56,8 +56,14 @@ rust_test(
     ),
     crate_name = "resolve_test",
     crate_root = "resolve_test.rs",
-    data = ["testdata/golden.lock.json"],
-    env = {"GOLDEN": "$(rootpath testdata/golden.lock.json)"},
+    data = [
+        "testdata/fmt-lite.txt",
+        "testdata/golden.lock.json",
+    ],
+    env = {
+        "FMT_LITE": "$(rootpath testdata/fmt-lite.txt)",
+        "GOLDEN": "$(rootpath testdata/golden.lock.json)",
+    },
     tags = ["block-network"],
     target_compatible_with = ["@platforms//os:linux"],
     deps = all_crate_deps(
@@ -66,9 +72,9 @@ rust_test(
         normal_dev = True,
     ) + [
         ":opam_lock_lib",
-        "//cli/digest:dx_digest",
         "//cli/families:dx_families",
         "//cli/lock:dx_lock",
+        "//cli/lock:dx_lock_testing",
         "//tools/testing:dx_testing",
     ],
 )

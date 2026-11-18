@@ -1,8 +1,7 @@
 //! The nuget lock step writes the golden lock from registry fixtures with an empty `PATH` and no network.
 
-use std::cell::RefCell;
-
-use dx_lock::{Args, Error, Fetch, Outcome, run};
+use dx_lock::{Args, Error, Outcome, run};
+use dx_lock_testing::{FixtureFetch, NoFetch};
 use nuget_lock::{
     Download, Nuget, Tool, assemblies, lock_groups, manifest_frameworks, normalize_version, tools,
 };
@@ -38,25 +37,17 @@ NUGET
     Alpha.Core (1.2.0)
 ";
 
-struct Registry(RefCell<Vec<String>>);
+struct Registry(FixtureFetch);
 
-impl Download for Registry {
-    fn bytes(&self, url: &str) -> Result<Vec<u8>, Error> {
-        self.0.borrow_mut().push(url.to_owned());
-        let fixture = match url {
-            ALPHA => "ALPHA",
-            BETA => "BETA",
-            other => return Err(Error::new(format!("unexpected download of {other}"))),
-        };
-        std::fs::read(dx_testing::env_file(fixture)).map_err(|error| Error::new(error.to_string()))
+impl Registry {
+    fn new() -> Self {
+        Self(FixtureFetch::new(&[(ALPHA, "ALPHA"), (BETA, "BETA")]))
     }
 }
 
-struct NoFetch;
-
-impl Fetch for NoFetch {
-    fn sha256(&self, url: &str) -> Result<String, Error> {
-        Err(Error::new(format!("unexpected download of {url}")))
+impl Download for Registry {
+    fn bytes(&self, url: &str) -> Result<Vec<u8>, Error> {
+        self.0.bytes(url)
     }
 }
 
@@ -85,10 +76,7 @@ fn lock(dir: &std::path::Path, registry: &Registry) -> Result<Outcome, Error> {
 #[test]
 fn registry_fixtures_write_the_golden_lock() {
     let dir = set(MANIFEST, STATE);
-    assert_eq!(
-        lock(dir.path(), &Registry(RefCell::default())),
-        Ok(Outcome::Written)
-    );
+    assert_eq!(lock(dir.path(), &Registry::new()), Ok(Outcome::Written));
     dx_testing::snapshot_diff(
         &dx_testing::env_file("GOLDEN"),
         &dir.path().join("nuget.lock.json"),
@@ -102,24 +90,21 @@ fn registry_fixtures_write_the_golden_lock() {
 #[test]
 fn unchanged_packages_are_kept_without_a_download() {
     let dir = set(MANIFEST, STATE);
-    assert_eq!(
-        lock(dir.path(), &Registry(RefCell::default())),
-        Ok(Outcome::Written)
-    );
+    assert_eq!(lock(dir.path(), &Registry::new()), Ok(Outcome::Written));
     std::fs::write(
         dir.path().join("paket.dependencies"),
         format!("{MANIFEST}\n"),
     )
     .expect("manifest");
-    let registry = Registry(RefCell::default());
+    let registry = Registry::new();
     assert_eq!(lock(dir.path(), &registry), Ok(Outcome::Written));
-    assert_eq!(registry.0.borrow().as_slice(), Vec::<String>::new());
+    assert!(registry.0.asked().is_empty());
 }
 
 #[test]
 fn a_group_missing_from_the_state_fails() {
     let dir = set(&format!("{MANIFEST}\ngroup docs\nnuget Beta\n"), STATE);
-    let error = lock(dir.path(), &Registry(RefCell::default())).expect_err("refused");
+    let error = lock(dir.path(), &Registry::new()).expect_err("refused");
     assert!(
         error.to_string().contains("paket.lock has no group docs"),
         "{error}"
@@ -132,7 +117,7 @@ fn another_source_fails() {
         "source https://example.com/v3/index.json\nnuget Beta\n",
         STATE,
     );
-    let error = lock(dir.path(), &Registry(RefCell::default())).expect_err("refused");
+    let error = lock(dir.path(), &Registry::new()).expect_err("refused");
     assert!(
         error
             .to_string()
@@ -180,7 +165,7 @@ fn a_group_without_a_framework_fails() {
         "source https://api.nuget.org/v3/index.json\nnuget Beta\n",
         STATE,
     );
-    let error = lock(dir.path(), &Registry(RefCell::default())).expect_err("refused");
+    let error = lock(dir.path(), &Registry::new()).expect_err("refused");
     assert!(
         error
             .to_string()

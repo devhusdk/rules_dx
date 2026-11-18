@@ -2,7 +2,8 @@
 
 use std::cell::RefCell;
 
-use dx_lock::{Args, Error, Fetch, Outcome, run};
+use dx_lock::{Args, Error, Outcome, run};
+use dx_lock_testing::NoFetch;
 use terraform_lock::{Registry, Terraform, requirements, satisfies};
 
 const MAIN: &str = "terraform {
@@ -41,14 +42,6 @@ impl Registry for Site {
             return Err(Error::new(format!("unexpected request {url}")));
         };
         std::fs::read(dx_testing::env_file(var)).map_err(|error| Error::new(error.to_string()))
-    }
-}
-
-struct NoFetch;
-
-impl Fetch for NoFetch {
-    fn sha256(&self, url: &str) -> Result<String, Error> {
-        Err(Error::new(format!("unexpected download of {url}")))
     }
 }
 
@@ -108,13 +101,20 @@ fn a_provider_without_a_release_fails() {
     )
     .expect("a");
     let error = lock(dir.path(), &Site(RefCell::default())).expect_err("no release");
-    assert!(error.to_string().contains("no release satisfies"), "{error}");
+    assert!(
+        error.to_string().contains("no release satisfies"),
+        "{error}"
+    );
 }
 
 #[test]
 fn sources_off_the_public_registry_fail() {
-    assert!(requirements("terraform { required_providers { x = { source = \"example.com/a/b\" } } }").is_err());
-    let found = requirements("terraform { required_providers { aws = \"~> 5.0\" } }").expect("tilde constraint");
+    assert!(
+        requirements("terraform { required_providers { x = { source = \"example.com/a/b\" } } }")
+            .is_err()
+    );
+    let found = requirements("terraform { required_providers { aws = \"~> 5.0\" } }")
+        .expect("tilde constraint");
     assert_eq!(found.len(), 1);
 }
 
@@ -140,6 +140,10 @@ fn constraints_follow_terraform() {
         ("3.3.0-beta1", ">= 3.2", false),
         ("3.3.0rc1", "~> 3.2", false),
     ] {
-        assert_eq!(satisfies(version, constraint), Ok(holds), "{version} {constraint}");
+        assert_eq!(
+            satisfies(version, constraint),
+            Ok(holds),
+            "{version} {constraint}"
+        );
     }
 }

@@ -1,6 +1,7 @@
 //! The hex lock step writes the golden lock from a `mix.lock` or `rebar.lock` with an empty `PATH` and no network.
 
-use dx_lock::{Args, Error, Fetch, Outcome, Spec, run};
+use dx_lock::{Args, Error, Outcome, Spec, run};
+use dx_lock_testing::NoFetch;
 use hex_lock::Hex;
 
 const MIX_EXS: &str = "defmodule Bench.MixProject do
@@ -32,14 +33,6 @@ const REBAR_LOCK: &str = r#"{"1.2.0",
  {<<"jsx">>, <<"0C5CC8FDC11B53CC25CF65AC6705AD39E54ECC56D1C22E4ADB8F5A53FB9427F3">>}]}
 ].
 "#;
-
-struct NoFetch;
-
-impl Fetch for NoFetch {
-    fn sha256(&self, url: &str) -> Result<String, Error> {
-        Err(Error::new(format!("unexpected download of {url}")))
-    }
-}
 
 fn set(files: &[(&str, &str)]) -> tempfile::TempDir {
     let dir = tempfile::tempdir().expect("set directory");

@@ -152,21 +152,15 @@ fn maven_reject_symlinks(
 
 /// Returns the lowercase hex md5, sha1, sha256 and sha512 of some bytes.
 pub fn maven_checksums(bytes: &[u8]) -> [(&'static str, String); 4] {
-    use sha2::Digest as _;
+    use sha1::Digest as _;
     [
         (MAVEN_CHECKSUMS[0], format!("{:x}", md5::Md5::digest(bytes))),
         (
             MAVEN_CHECKSUMS[1],
             format!("{:x}", sha1::Sha1::digest(bytes)),
         ),
-        (
-            MAVEN_CHECKSUMS[2],
-            format!("{:x}", sha2::Sha256::digest(bytes)),
-        ),
-        (
-            MAVEN_CHECKSUMS[3],
-            format!("{:x}", sha2::Sha512::digest(bytes)),
-        ),
+        (MAVEN_CHECKSUMS[2], dx_digest::sha256_hex(bytes)),
+        (MAVEN_CHECKSUMS[3], dx_digest::sha512_hex(bytes)),
     ]
 }
 

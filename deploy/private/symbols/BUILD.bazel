@@ -18,6 +18,7 @@ rust_binary(
         normal = True,
     ) + [
         ":dx_symbols",
+        "//cli/digest:dx_digest",
         "//cli/process:dx_process",
     ],
 )
@@ -173,7 +174,7 @@ rust_library(
     deps = all_crate_deps(
         package_name = "deploy/private/dx_symbols",
         normal = True,
-    ),
+    ) + ["//cli/digest:dx_digest"],
 )
 
 rust_test(
@@ -195,7 +196,10 @@ rust_test(
         package_name = "deploy/private/dx_symbols",
         normal = True,
         normal_dev = True,
-    ) + ["//cli/test_scratch:dx_test_scratch"],
+    ) + [
+        "//cli/digest:dx_digest",
+        "//cli/test_scratch:dx_test_scratch",
+    ],
 )
 
 exports_files(

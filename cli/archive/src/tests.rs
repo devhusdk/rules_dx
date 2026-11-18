@@ -56,9 +56,17 @@ fn round_trip(format: Format, build: BuildArchive) {
     build(&archive, MEMBERS);
     let dest = dir.path().join("out γ dir");
     let members = extract(&archive, format, &dest, Limits::default()).expect("extract");
+    check_members(&dest, &members);
+    let bytes = std::fs::read(&archive).expect("read");
+    let from_bytes = dir.path().join("nested/from bytes");
+    let members = extract_bytes(&bytes, format, &from_bytes, Limits::default()).expect("bytes");
+    check_members(&from_bytes, &members);
+}
+
+fn check_members(dest: &Path, members: &[Member]) {
     assert_eq!(
         members,
-        vec![
+        [
             Member {
                 name: "dx".to_owned(),
                 size: 18,
@@ -165,36 +173,292 @@ fn duplicates_are_refused_case_insensitively() {
 }
 
 #[test]
-fn non_regular_entries_are_refused() {
+fn absolute_names_are_refused_in_both_formats() {
     let dir = scratch();
-    for kind in [
-        tar::EntryType::Symlink,
-        tar::EntryType::Link,
-        tar::EntryType::Char,
-        tar::EntryType::Directory,
+    let tar = dir.path().join("abs.tar.gz");
+    tar_gz(&tar, &[("/tmp/dx-archive-abs", b"x", 0o644)]);
+    assert!(expect_refused(Format::TarGz, &tar).contains("must be relative"));
+    let zip = dir.path().join("abs.zip");
+    zip_file(&zip, &[("/tmp/dx-archive-abs", b"x", 0o644)]);
+    assert!(expect_refused(Format::Zip, &zip).contains("must be relative"));
+}
+
+#[test]
+fn dot_dot_names_are_refused_in_both_formats() {
+    for name in ["../escape", "lib/../../escape"] {
+        let dir = scratch();
+        let tar = dir.path().join("up.tar.gz");
+        tar_gz(&tar, &[(name, b"x", 0o644)]);
+        assert!(
+            expect_refused(Format::TarGz, &tar).contains("'..'"),
+            "{name}"
+        );
+        let zip = dir.path().join("up.zip");
+        zip_file(&zip, &[(name, b"x", 0o644)]);
+        assert!(expect_refused(Format::Zip, &zip).contains("'..'"), "{name}");
+        assert!(!dir.path().join("escape").exists(), "{name}");
+    }
+}
+
+/// One tar entry of any type; `link` is the symlink or hardlink target.
+type TarEntry<'a> = (&'a str, tar::EntryType, &'a str, &'a [u8], u32);
+
+fn tar_entries(path: &Path, entries: &[TarEntry<'_>]) {
+    let mut builder = tar::Builder::new(Vec::new());
+    for (name, kind, link, data, mode) in entries {
+        let mut header = tar::Header::new_gnu();
+        header.set_entry_type(*kind);
+        header.set_size(data.len() as u64);
+        header.set_mode(*mode);
+        if !link.is_empty() {
+            builder
+                .append_link(&mut header, name, link)
+                .expect("append link");
+        } else {
+            builder
+                .append_data(&mut header, name, *data)
+                .expect("append");
+        }
+    }
+    write_gz(path, &builder.into_inner().expect("tar"));
+}
+
+enum ZipEntry<'a> {
+    File(&'a str, &'a [u8], u32),
+    Dir(&'a str),
+    Link(&'a str, &'a str),
+}
+
+fn zip_entries(path: &Path, entries: &[ZipEntry<'_>]) {
+    let mut writer = zip::ZipWriter::new(io::Cursor::new(Vec::new()));
+    for entry in entries {
+        match entry {
+            ZipEntry::File(name, data, mode) => {
+                let options = zip::write::SimpleFileOptions::default().unix_permissions(*mode);
+                writer.start_file(*name, options).expect("start");
+                writer.write_all(data).expect("data");
+            }
+            ZipEntry::Dir(name) => writer
+                .add_directory(*name, zip::write::SimpleFileOptions::default())
+                .expect("dir"),
+            ZipEntry::Link(name, target) => writer
+                .add_symlink(*name, *target, zip::write::SimpleFileOptions::default())
+                .expect("symlink"),
+        }
+    }
+    std::fs::write(path, writer.finish().expect("zip").into_inner()).expect("write");
+}
+
+#[test]
+fn hardlinks_and_devices_are_refused() {
+    let dir = scratch();
+    for (kind, link) in [
+        (tar::EntryType::Link, "/etc/passwd"),
+        (tar::EntryType::Link, "other"),
+        (tar::EntryType::Char, ""),
+        (tar::EntryType::Fifo, ""),
     ] {
         let archive = dir.path().join(format!("{kind:?}.tar.gz"));
-        let mut builder = tar::Builder::new(Vec::new());
-        let mut header = tar::Header::new_ustar();
-        header.set_path("entry").expect("path");
-        header.set_size(0);
-        header.set_entry_type(kind);
-        if matches!(kind, tar::EntryType::Symlink | tar::EntryType::Link) {
-            header.set_link_name("/etc/passwd").expect("link");
-        }
-        header.set_cksum();
-        builder.append(&header, io::empty()).expect("append");
-        write_gz(&archive, &builder.into_inner().expect("tar"));
+        tar_entries(&archive, &[("entry", kind, link, b"", 0o644)]);
         let error = expect_refused(Format::TarGz, &archive);
         assert!(error.contains("not a regular file"), "{kind:?}: {error}");
     }
-    let archive = dir.path().join("link.zip");
-    let mut writer = zip::ZipWriter::new(io::Cursor::new(Vec::new()));
-    writer
-        .add_symlink("link", "/etc", zip::write::SimpleFileOptions::default())
-        .expect("symlink");
-    std::fs::write(&archive, writer.finish().expect("zip").into_inner()).expect("write");
-    assert!(expect_refused(Format::Zip, &archive).contains("not a regular file"));
+}
+
+#[test]
+fn directories_and_inner_symlinks_are_extracted_in_both_formats() {
+    let dir = scratch();
+    let tar = dir.path().join("tree.tar.gz");
+    tar_entries(
+        &tar,
+        &[
+            ("pkg/", tar::EntryType::Directory, "", b"", 0o755),
+            ("pkg/bin/", tar::EntryType::Directory, "", b"", 0o755),
+            (
+                "pkg/lib/tool",
+                tar::EntryType::Regular,
+                "",
+                b"#!/bin/sh
+",
+                0o755,
+            ),
+            (
+                "pkg/bin/tool",
+                tar::EntryType::Symlink,
+                "../lib/tool",
+                b"",
+                0o777,
+            ),
+            ("pkg/current", tar::EntryType::Symlink, ".", b"", 0o777),
+            ("pkg/empty/", tar::EntryType::Directory, "", b"", 0o755),
+        ],
+    );
+    let zip = dir.path().join("tree.zip");
+    zip_entries(
+        &zip,
+        &[
+            ZipEntry::Dir("pkg/"),
+            ZipEntry::Dir("pkg/bin/"),
+            ZipEntry::File(
+                "pkg/lib/tool",
+                b"#!/bin/sh
+",
+                0o755,
+            ),
+            ZipEntry::Link("pkg/bin/tool", "../lib/tool"),
+            ZipEntry::Link("pkg/current", "."),
+            ZipEntry::Dir("pkg/empty/"),
+        ],
+    );
+    for (format, archive) in [(Format::TarGz, &tar), (Format::Zip, &zip)] {
+        let dest = dir.path().join(format!("out{}", format.suffix()));
+        let members = extract(archive, format, &dest, Limits::default()).expect("extract");
+        assert_eq!(
+            members,
+            [Member {
+                name: "pkg/lib/tool".to_owned(),
+                size: 10,
+                executable: true,
+            }],
+            "{format:?}"
+        );
+        assert!(dest.join("pkg/empty").is_dir(), "{format:?}");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            let link = dest.join("pkg/bin/tool");
+            assert!(
+                std::fs::symlink_metadata(&link)
+                    .expect("link")
+                    .file_type()
+                    .is_symlink(),
+                "{format:?}"
+            );
+            assert_eq!(
+                std::fs::read(&link).expect("read"),
+                b"#!/bin/sh
+"
+            );
+            let mode = std::fs::metadata(&link).expect("meta").permissions().mode();
+            assert_eq!(mode & 0o777, 0o755, "{format:?}");
+            assert_eq!(
+                std::fs::read(dest.join("pkg/current/lib/tool")).expect("read"),
+                b"#!/bin/sh
+"
+            );
+        }
+    }
+}
+
+#[test]
+fn pax_global_headers_are_skipped() {
+    let dir = scratch();
+    let archive = dir.path().join("git.tar.gz");
+    tar_entries(
+        &archive,
+        &[
+            (
+                "pax_global_header",
+                tar::EntryType::XGlobalHeader,
+                "",
+                b"52 comment=0123456789abcdef0123456789abcdef01234567\n",
+                0o666,
+            ),
+            ("repo/README", tar::EntryType::Regular, "", b"hi", 0o644),
+        ],
+    );
+    let dest = dir.path().join("out");
+    let members = extract(&archive, Format::TarGz, &dest, Limits::default()).expect("extract");
+    assert_eq!(members.len(), 1);
+    assert!(!dest.join("pax_global_header").exists());
+}
+
+const ESCAPING_LINKS: &[(&str, &str)] = &[
+    ("link", "/etc/passwd"),
+    ("link", ".."),
+    ("link", "../outside"),
+    ("a/link", "../.."),
+    ("a/b/link", "../../../outside"),
+    ("link", "a/../.."),
+    ("link", "a/../b"),
+    ("link", "C:/Windows"),
+    ("link", "..\\outside"),
+    ("link", ""),
+];
+
+#[test]
+fn escaping_symlink_targets_are_named() {
+    for &(name, target) in ESCAPING_LINKS {
+        assert!(
+            link_target_error(name, target).is_some(),
+            "{name} -> {target} must be refused"
+        );
+    }
+    for (name, target) in [
+        ("link", "."),
+        ("link", "./a/b"),
+        ("a/link", ".."),
+        ("a/b/link", "../../c/d"),
+        ("a/link", "../a/./b/"),
+    ] {
+        assert!(
+            link_target_error(name, target).is_none(),
+            "{name} -> {target} must be accepted"
+        );
+    }
+}
+
+#[test]
+fn escaping_symlinks_are_refused_in_both_formats() {
+    for &(name, target) in ESCAPING_LINKS {
+        let dir = scratch();
+        let tar = dir.path().join("link.tar.gz");
+        tar_entries(&tar, &[(name, tar::EntryType::Symlink, target, b"", 0o777)]);
+        let zip = dir.path().join("link.zip");
+        zip_entries(&zip, &[ZipEntry::Link(name, target)]);
+        for (format, archive) in [(Format::TarGz, &tar), (Format::Zip, &zip)] {
+            let error = expect_refused(format, archive);
+            assert!(
+                error.contains("points outside"),
+                "{format:?} {name} -> {target}: {error}"
+            );
+            assert!(
+                std::fs::symlink_metadata(archive.with_extension("out").join(name)).is_err(),
+                "{format:?} {name} -> {target} was created"
+            );
+        }
+    }
+}
+
+#[test]
+fn members_below_a_symlink_are_refused_in_both_formats() {
+    let dir = scratch();
+    let tar = dir.path().join("through.tar.gz");
+    tar_entries(
+        &tar,
+        &[
+            ("sub/", tar::EntryType::Directory, "", b"", 0o755),
+            ("link", tar::EntryType::Symlink, "sub", b"", 0o777),
+            ("link/file", tar::EntryType::Regular, "", b"x", 0o644),
+        ],
+    );
+    let zip = dir.path().join("through.zip");
+    zip_entries(
+        &zip,
+        &[
+            ZipEntry::Dir("sub/"),
+            ZipEntry::Link("link", "sub"),
+            ZipEntry::File("link/file", b"x", 0o644),
+        ],
+    );
+    for (format, archive) in [(Format::TarGz, &tar), (Format::Zip, &zip)] {
+        let error = expect_refused(format, archive);
+        assert!(
+            error.contains("below an archive symlink"),
+            "{format:?}: {error}"
+        );
+        assert!(!archive.with_extension("out").join("sub/file").exists());
+    }
 }
 
 #[test]

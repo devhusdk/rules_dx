@@ -1,5 +1,5 @@
 {
-  "checksum": "f50337f0fed949fd3a75ee415952842679169c78376be417fbd65695a7335cd4",
+  "checksum": "0b122d715ef6c1f2133c82b1b3a899e309a1e637e874a58f7247b9c62565a590",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -2903,16 +2903,18 @@
       "common_attrs": {
         "deps": [
           {
-            "id": "flate2 1.1.10",
-            "target": "flate2"
-          },
-          {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
           },
           {
             "id": "tar 0.4.46",
             "target": "tar"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "flate2 1.1.10",
+            "target": "flate2"
           }
         ],
         "edition": "2024"
@@ -7851,10 +7853,6 @@
             "target": "chrono"
           },
           {
-            "id": "flate2 1.1.10",
-            "target": "flate2"
-          },
-          {
             "id": "mvn_version 0.1.0",
             "target": "mvn_version"
           },
@@ -7903,10 +7901,6 @@
             "target": "spdx"
           },
           {
-            "id": "tar 0.4.46",
-            "target": "tar"
-          },
-          {
             "id": "thiserror 2.0.20",
             "target": "thiserror"
           },
@@ -7929,8 +7923,16 @@
         ],
         "deps_dev": [
           {
+            "id": "flate2 1.1.10",
+            "target": "flate2"
+          },
+          {
             "id": "jsonschema 0.60.2",
             "target": "jsonschema"
+          },
+          {
+            "id": "tar 0.4.46",
+            "target": "tar"
           },
           {
             "id": "tempfile 3.27.0",
@@ -26907,19 +26909,19 @@
       "common_attrs": {
         "deps": [
           {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "deps_dev": [
+          {
             "id": "flate2 1.1.10",
             "target": "flate2"
           },
           {
-            "id": "serde_json 1.0.151",
-            "target": "serde_json"
-          },
-          {
             "id": "tar 0.4.46",
             "target": "tar"
-          }
-        ],
-        "deps_dev": [
+          },
           {
             "id": "tempfile 3.27.0",
             "target": "tempfile"

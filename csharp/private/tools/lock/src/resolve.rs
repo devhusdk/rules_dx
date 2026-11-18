@@ -387,11 +387,13 @@ impl Paket {
     pub fn install(&self, scratch: &Scratch) -> Result<(), Error> {
         let failed = |error: &dyn std::fmt::Display| Error::new(format!("paket: {error}"));
         let root = scratch.tmp().join("paket");
-        let file = std::fs::File::open(&self.nupkg).map_err(|error| failed(&error))?;
-        zip::ZipArchive::new(file)
-            .map_err(|error| failed(&error))?
-            .extract(&root)
-            .map_err(|error| failed(&error))?;
+        dx_archive::extract(
+            &self.nupkg,
+            dx_archive::Format::Zip,
+            &root,
+            dx_archive::Limits::default(),
+        )
+        .map_err(|error| failed(&error))?;
         let dll = std::fs::read_dir(root.join("tools"))
             .map_err(|error| failed(&error))?
             .filter_map(Result::ok)

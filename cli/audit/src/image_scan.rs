@@ -13,6 +13,12 @@ use crate::exception::RiskException;
 
 const FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_mins(15);
 const LOCK_NAME: &str = "trivy.lock";
+/// The trivy database runs to gigabytes; its sha256 pin is the real guard.
+const TRIVY_LIMITS: dx_archive::Limits = dx_archive::Limits {
+    max_entries: 4096,
+    max_entry_bytes: 8 << 30,
+    max_total_bytes: 16 << 30,
+};
 
 pub const SEVERITIES: [&str; 4] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 
@@ -240,8 +246,7 @@ fn install_trivy_pin(
         )));
     }
     drop(std::fs::remove_dir_all(partial));
-    tar::Archive::new(flate2::read::GzDecoder::new(bytes.as_slice()))
-        .unpack(partial)
+    dx_archive::extract_bytes(&bytes, dx_archive::Format::TarGz, partial, TRIVY_LIMITS)
         .map_err(|error| DxError::failure(format!("unpacking the trivy archive: {error}")))?;
     match std::fs::remove_dir_all(cache) {
         Ok(()) => {}
@@ -328,7 +333,7 @@ mod tests {
             file,
             flate2::Compression::default(),
         ));
-        builder.append_dir_all(".", &src).expect("pack");
+        builder.append_dir_all("db", src.join("db")).expect("pack");
         builder.into_inner().expect("tar").finish().expect("gz");
         let bytes = std::fs::read(&archive).expect("read");
         let sha = if tamper {

@@ -70,7 +70,13 @@ def buf_breaking_analysis_tests(name, size):
     """Instantiates the base image input tests as one suite."""
     target = "//core/quality/tests/fixtures/consumer_policy:clean_protobuf"
     for suffix, config in [("_with_image", "buf_breaking_image"), ("_without_image", "shared"), ("_two_images", "buf_breaking_two_images")]:
-        _subject(name = name + suffix + "_subject", config = config, target = target, testonly = True)
+        _subject(
+            name = name + suffix + "_subject",
+            config = config,
+            target = target,
+            testonly = True,
+            tags = ["manual"] if suffix == "_two_images" else [],
+        )
     _with_image_test(name = name + "_with_image", size = size, target_under_test = name + "_with_image_subject")
     _without_image_test(name = name + "_without_image", size = size, target_under_test = name + "_without_image_subject")
     failure_test(name = name + "_two_images", size = size, target = name + "_two_images_subject", expected_failure_substring = "//config:buf_breaking_against must name one image file, got 2")

@@ -9,6 +9,7 @@ exports_files([
     "src/lib.rs",
     "src/lib_tests.rs",
     "src/proxy.rs",
+    "src/rewrites.rs",
 ])
 
 rust_library(
@@ -16,6 +17,7 @@ rust_library(
     srcs = [
         "src/lib.rs",
         "src/proxy.rs",
+        "src/rewrites.rs",
     ],
     aliases = aliases(
         package_name = "cli/dx_http",
@@ -39,13 +41,17 @@ rust_test(
         "src/lib.rs",
         "src/lib_tests.rs",
         "src/proxy.rs",
+        "src/rewrites.rs",
     ],
     aliases = aliases(
         package_name = "cli/dx_http",
         normal = True,
         normal_dev = True,
     ),
-    compile_data = ["testdata/ca.pem"],
+    compile_data = [
+        "testdata/ca.pem",
+        "//tools/workspace:downloader.cfg",
+    ],
     coverage_lib = ":dx_http",
     crate_name = "dx_http",
     crate_root = "src/lib.rs",

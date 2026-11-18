@@ -201,14 +201,20 @@ fn seed_resolver_lock(
         wiring.failed(env.err, format!("{lock} not created: non-UTF-8 path"));
         return;
     };
-    let argv = dx_update::backend::resolver_run_argv(&request.bazel_head(), resolver, dir);
+    let head = request.bazel_head();
+    let argv = dx_update::backend::resolver_run_argv(&head, resolver, dir);
+    let run_env = dx_update::backend::resolver_env(env.workspace, &head);
+    let run_env: Vec<(&str, &str)> = run_env
+        .iter()
+        .map(|(name, value)| (name.as_str(), value.as_str()))
+        .collect();
     report_seed(
         env.workspace,
         env.err,
         wiring,
         lock,
         &hub.ecosystem,
-        env.runner.run(&argv, env.workspace, &[]),
+        env.runner.run(&argv, env.workspace, &run_env),
     );
 }
 

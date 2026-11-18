@@ -4,6 +4,7 @@
 //! timeouts, retries with backoff, and downloads that hash while they stream.
 
 mod proxy;
+mod rewrites;
 
 #[cfg(test)]
 mod lib_tests;
@@ -20,6 +21,8 @@ use ureq::tls::{PemItem, RootCerts, TlsConfig, TlsProvider};
 use ureq::typestate::WithBody;
 
 use proxy::Proxies;
+
+pub use rewrites::Rewrites;
 
 pub use ureq::http::HeaderMap;
 
@@ -83,6 +86,9 @@ pub enum Error {
     /// The body arrived but could not be stored.
     #[error("cannot store {url}: {message}")]
     Write { url: String, message: String },
+    /// The downloader config blocks every URL the request could use.
+    #[error("{0}")]
+    Blocked(String),
 }
 
 /// One configured HTTP client. Cheap to share by reference across threads.
@@ -91,6 +97,7 @@ pub struct Client {
     agent: ureq::Agent,
     proxies: Proxies,
     settings: Settings,
+    rewrites: Rewrites,
 }
 
 impl Client {
@@ -138,7 +145,30 @@ impl Client {
             agent,
             proxies,
             settings,
+            rewrites: Rewrites::default(),
         })
+    }
+
+    /// This client with downloads and `HEAD` requests sent through `rewrites`. Each one tries
+    /// the rewritten URLs in order and returns the first success, else the last failure.
+    #[must_use]
+    pub fn with_rewrites(self, rewrites: Rewrites) -> Self {
+        Self { rewrites, ..self }
+    }
+
+    fn each_url<T>(
+        &self,
+        url: &str,
+        mut attempt: impl FnMut(&str) -> Result<T, Error>,
+    ) -> Result<T, Error> {
+        let mut last = None;
+        for candidate in self.rewrites.amend(url)? {
+            match attempt(&candidate) {
+                Ok(value) => return Ok(value),
+                Err(error) => last = Some(error),
+            }
+        }
+        Err(last.unwrap_or_else(|| Error::Blocked(url.to_owned())))
     }
 
     /// Sends `HEAD url` and returns the response headers.
@@ -146,9 +176,11 @@ impl Client {
     /// # Errors
     /// Fails on a status outside 2xx or when every try fails.
     pub fn head(&self, url: &str, headers: &[(&str, &str)]) -> Result<HeaderMap, Error> {
-        self.retrying(|| {
-            self.call(Method::Head, url, headers)
-                .map(|response| response.headers().clone())
+        self.each_url(url, |url| {
+            self.retrying(|| {
+                self.call(Method::Head, url, headers)
+                    .map(|response| response.headers().clone())
+            })
         })
     }
 
@@ -291,6 +323,16 @@ impl Client {
     }
 
     fn stream(
+        &self,
+        url: &str,
+        headers: &[(&str, &str)],
+        limit: u64,
+        sink: &mut dyn Sink,
+    ) -> Result<(), Error> {
+        self.each_url(url, |url| self.stream_one(url, headers, limit, sink))
+    }
+
+    fn stream_one(
         &self,
         url: &str,
         headers: &[(&str, &str)],

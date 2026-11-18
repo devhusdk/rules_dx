@@ -678,12 +678,79 @@ pub fn plan_ruby_lock(
     argv.extend(strings(&["--upgrade", gem]));
     Ok(DirRun {
         argv,
-        env: Vec::new(),
+        env: resolver_env(workspace, head),
         dir: set.dir.clone(),
     })
 }
 
+/// The variable that names the downloader config Bazel uses; lock tools fetch through it.
+pub const DOWNLOADER_CONFIG_ENV: &str = "DX_DOWNLOADER_CONFIG";
+
+/// The environment a resolver run adds: the absolute downloader config `bazel run` uses, if any.
+#[must_use]
+pub fn resolver_env(workspace: &Path, head: &dx_process::BazelHead) -> Vec<(String, String)> {
+    dx_process::downloader_config(
+        &|name| std::env::var(name).ok(),
+        workspace,
+        &dx_process::rc::read_file,
+        dx_process::current().read_user_rc,
+        &head.startup,
+        &head.options,
+    )
+    .map(|path| {
+        vec![(
+            DOWNLOADER_CONFIG_ENV.to_owned(),
+            path.to_string_lossy().into_owned(),
+        )]
+    })
+    .unwrap_or_default()
+}
+
+fn with_env(env: &mut Vec<(String, String)>, extra: &[(String, String)]) {
+    env.extend(extra.iter().cloned());
+}
+
+/// Adds `extra` to the environment of every command in `plan`.
+fn plan_with_env(mut plan: BackendPlan, extra: &[(String, String)]) -> BackendPlan {
+    match &mut plan {
+        BackendPlan::Run { env, .. } => with_env(env, extra),
+        BackendPlan::Staged(run) => with_env(&mut run.env, extra),
+        BackendPlan::Sequence(runs) => runs
+            .iter_mut()
+            .for_each(|run| with_env(&mut run.env, extra)),
+        BackendPlan::Noop => {}
+    }
+    plan
+}
+
+/// Adds `extra` to the environment of every command in `plan`.
+fn check_with_env(mut plan: CheckPlan, extra: &[(String, String)]) -> CheckPlan {
+    match &mut plan {
+        CheckPlan::Run { env, .. } => with_env(env, extra),
+        CheckPlan::Staged(run) => with_env(&mut run.env, extra),
+        CheckPlan::Sequence(runs) => runs
+            .iter_mut()
+            .for_each(|run| with_env(&mut run.env, extra)),
+        CheckPlan::Pinned | CheckPlan::Unavailable => {}
+    }
+    plan
+}
+
+/// The plan that refreshes `set`. Every command it runs gets [`resolver_env`].
 pub fn plan_configured(
+    workspace: &Path,
+    set: &ResolvedSet,
+    request: &Selection,
+    offline: bool,
+    frozen: bool,
+    head: &dx_process::BazelHead,
+    closure: &UvClosure,
+) -> Result<BackendPlan, BackendError> {
+    let plan = plan_backend(workspace, set, request, offline, frozen, head, closure)?;
+    Ok(plan_with_env(plan, &resolver_env(workspace, head)))
+}
+
+fn plan_backend(
     workspace: &Path,
     set: &ResolvedSet,
     request: &Selection,
@@ -719,12 +786,25 @@ pub fn plan_configured(
     }
 }
 
+/// The plan that checks `set`. Every command it runs gets [`resolver_env`].
 pub fn check_configured(
     workspace: &Path,
     set: &ResolvedSet,
     request: &Selection,
     offline: bool,
     _frozen: bool,
+    head: &dx_process::BazelHead,
+    closure: &UvClosure,
+) -> Result<CheckPlan, BackendError> {
+    let plan = check_backend(workspace, set, request, offline, head, closure)?;
+    Ok(check_with_env(plan, &resolver_env(workspace, head)))
+}
+
+fn check_backend(
+    workspace: &Path,
+    set: &ResolvedSet,
+    request: &Selection,
+    offline: bool,
     head: &dx_process::BazelHead,
     closure: &UvClosure,
 ) -> Result<CheckPlan, BackendError> {

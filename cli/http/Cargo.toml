@@ -9,6 +9,7 @@ name = "dx_http"
 path = "src/lib.rs"
 
 [dependencies]
+regex = "1"
 rustls = { version = "0.23", default-features = false, features = [
   "ring",
   "std",

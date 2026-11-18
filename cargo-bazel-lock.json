@@ -1,5 +1,5 @@
 {
-  "checksum": "07e433e7c0c18a9d896111909306f7850549a4db1c740004b096a8b83de0b73c",
+  "checksum": "159c40fa438f647c0f2287d80f38b680cc71b3c99e9daad7b36f9bfaaba86199",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -8805,6 +8805,10 @@
     "dx_http 0.0.0": {
       "common_attrs": {
         "deps": [
+          {
+            "id": "regex 1.13.1",
+            "target": "regex"
+          },
           {
             "id": "rustls 0.23.46",
             "target": "rustls"

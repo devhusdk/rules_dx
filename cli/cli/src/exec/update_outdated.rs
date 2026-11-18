@@ -1209,7 +1209,9 @@ fn http_settings(https_only: bool) -> dx_http::Settings {
 fn http_error(error: dx_http::Error) -> DxError {
     match error {
         dx_http::Error::Status { code, .. } => DxError::failure(format!("HTTP {code}")),
-        dx_http::Error::Config(message) => DxError::failure(message),
+        dx_http::Error::Config(message) | dx_http::Error::Blocked(message) => {
+            DxError::failure(message)
+        }
         other @ (dx_http::Error::Transport { .. }
         | dx_http::Error::TooLarge { .. }
         | dx_http::Error::Write { .. }) => DxError::infra(other.to_string()),
@@ -1238,6 +1240,7 @@ impl Fetch for HttpFetch {
                     DxError::failure(format!("HTTP {code} for {url}"))
                 }
                 other @ (dx_http::Error::Config(_)
+                | dx_http::Error::Blocked(_)
                 | dx_http::Error::Transport { .. }
                 | dx_http::Error::TooLarge { .. }
                 | dx_http::Error::Write { .. }) => http_error(other),

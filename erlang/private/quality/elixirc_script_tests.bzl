@@ -1,7 +1,8 @@
 """Unit tests of the elixirc replay command."""
 
+load("@bazel_skylib//lib:partial.bzl", "partial")
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
-load("//core/quality:elixirc.bzl", "elixirc_command")
+load("//erlang/private/quality:elixirc.bzl", "elixirc_command")
 
 visibility("private")
 
@@ -34,5 +35,5 @@ def _env_test_impl(ctx):
 _host_path_test = unittest.make(_host_path_test_impl)
 _env_test = unittest.make(_env_test_impl)
 
-def elixirc_script_test_suite(name):
-    unittest.suite(name, _host_path_test, _env_test)
+def elixirc_script_test_suite(name, size):
+    unittest.suite(name, partial.make(_host_path_test, size = size), partial.make(_env_test, size = size))

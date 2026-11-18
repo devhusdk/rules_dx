@@ -1,7 +1,7 @@
 """Exposes the Scala compiler and library jars to a test."""
 
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
-load("//core/quality:jvm_check.bzl", "scalac_toolchain_jars")
+load("//java/private/quality:jvm_check.bzl", "scalac_toolchain_jars")
 
 _TOOLCHAIN_TYPE = "@rules_scala//scala:toolchain_type"
 

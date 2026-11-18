@@ -1,8 +1,8 @@
 """Erlang and Elixir real quality aspects."""
 
 load("//erlang/private:providers.bzl", "BeamInfo", "DialyzerToolInfo")
-load("//core/quality:elixirc.bzl", "ElixircInfo", "elixirc_aspect")
-load("//core/quality:erlc.bzl", "ErlcInfo", "erlc_aspect")
+load("//erlang/private/quality:elixirc.bzl", "ElixircInfo", "elixirc_aspect")
+load("//erlang/private/quality:erlc.bzl", "ErlcInfo", "erlc_aspect")
 load("//core/quality:family_hooks.bzl", "stage", "without")
 load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 

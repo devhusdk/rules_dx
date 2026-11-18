@@ -37,7 +37,7 @@ pub fn resolve_on(
         return Err(protocol::unsupported_platform(&version, os, arch));
     };
     let windows = platform.os == "windows";
-    let root = protocol::cache_root(env_get, windows).ok_or_else(|| {
+    let root = protocol::cache_root(env_get, windows)?.ok_or_else(|| {
         ShimError::failure(if windows {
             "USERPROFILE is not set; set DX_CACHE_DIR"
         } else {

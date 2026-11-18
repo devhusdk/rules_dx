@@ -270,7 +270,7 @@ def _oci_layout_fixture_impl(ctx):
     out = ctx.actions.declare_directory(ctx.label.name)
     ctx.actions.run(
         executable = ctx.executable._archiver,
-        arguments = ["--oci-layout", out.path, ctx.attr.platform, ctx.attr.reference, ctx.file.image.path],
+        arguments = ["archiver", "--oci-layout", out.path, ctx.attr.platform, ctx.attr.reference, ctx.file.image.path],
         inputs = [ctx.file.image],
         outputs = [out],
         mnemonic = "OciLayoutFixture",
@@ -296,7 +296,7 @@ oci_layout_fixture = rule(
         ),
         "_archiver": attr.label(
             doc = "Archiver tool.",
-            default = Label("//deploy/private:archiver"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
             cfg = "exec",
         ),

@@ -96,12 +96,7 @@ deploy/private/release/src/bin_release_driver.rs compat-word 2
 deploy/private/release/src/bin_release_tool.rs compat-word 2
 deploy/private/release/src/bin_source_archive.rs compat-word 2
 deploy/private/src/api_compat.rs compat-word 28
-deploy/private/src/bin_archiver.rs compat-word 10
-deploy/private/src/bin_cloudflare_verify.rs compat-word 2
 deploy/private/src/bin_deploy_tool.rs compat-word 2
-deploy/private/src/bin_hasher.rs compat-word 2
-deploy/private/src/bin_npm_pack.rs compat-word 2
-deploy/private/src/bin_size_checker.rs compat-word 2
 deploy/private/src/config.rs compat-word 41
 deploy/private/src/crates.rs compat-word 20
 deploy/private/src/github.rs compat-word 5

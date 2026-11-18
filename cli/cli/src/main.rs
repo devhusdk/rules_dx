@@ -179,6 +179,9 @@ fn run_as_tool() -> Option<i32> {
     let lossy = |args: std::iter::Peekable<std::env::ArgsOs>| -> Vec<String> {
         args.map(|arg| arg.to_string_lossy().into_owned()).collect()
     };
+    let named = |name: &str, args: std::iter::Peekable<std::env::ArgsOs>| -> Vec<String> {
+        std::iter::once(name.to_owned()).chain(lossy(args)).collect()
+    };
     Some(match tool {
         Tool::Runner => quality_runner::entry::run_cli(&lossy(args)),
         Tool::Markdown => quality_markdown::entry::run_process(&lossy(args)),
@@ -191,6 +194,13 @@ fn run_as_tool() -> Option<i32> {
         Tool::Capture => capture::run_process(args),
         Tool::ApiSpecPreflight => api_spec_codegen::preflight::run_process(&lossy(args)),
         Tool::OapiCodegen => api_spec_codegen::oapi_codegen::run_process(&lossy(args)),
+        Tool::Archiver => dx_deploy_tools::entry::archiver(&named("archiver", args)),
+        Tool::Hasher => dx_deploy_tools::entry::hasher(&named("hasher", args)),
+        Tool::SizeChecker => dx_deploy_tools::entry::size_checker(&named("size_checker", args)),
+        Tool::CloudflareVerify => {
+            dx_deploy_tools::cloudflare_pages_verify_main(&named("cloudflare_verify", args))
+        }
+        Tool::NpmPacker => dx_deploy_tools::npm_pack_main(&named("npm_packer", args)),
     })
 }
 // LCOV_EXCL_STOP - reason: end thin multicall shim, issue: 6517, policy: docs/cli/commands/build-test-coverage.md

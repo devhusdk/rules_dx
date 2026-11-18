@@ -130,19 +130,15 @@ exports_files([
     "rubygems_tests.bzl",
     "src/api_compat.rs",
     "src/archive.rs",
-    "src/bin_archiver.rs",
-    "src/bin_cloudflare_verify.rs",
     "src/bin_deploy_tool.rs",
     "src/bin_deploy_app.rs",
     "src/bin_deploy_program.rs",
-    "src/bin_hasher.rs",
-    "src/bin_npm_pack.rs",
-    "src/bin_size_checker.rs",
     "src/cloudflare.rs",
     "src/config.rs",
     "src/conan.rs",
     "src/cpan.rs",
     "src/crates.rs",
+    "src/entry.rs",
     "src/github.rs",
     "src/go_api.rs",
     "src/hackage.rs",
@@ -212,6 +208,7 @@ rust_library(
         "src/config.rs",
         "src/cpan.rs",
         "src/crates.rs",
+        "src/entry.rs",
         "src/github.rs",
         "src/go_api.rs",
         "src/hackage.rs",
@@ -271,38 +268,6 @@ rust_library(
 )
 
 rust_binary(
-    name = "archiver",
-    srcs = ["src/bin_archiver.rs"],
-    aliases = aliases(
-        package_name = "deploy/dx_deploy_tools",
-        normal = True,
-    ),
-    crate_name = "archiver",
-    crate_root = "src/bin_archiver.rs",
-    visibility = ["//visibility:public"],
-    deps = all_crate_deps(
-        package_name = "deploy/dx_deploy_tools",
-        normal = True,
-    ) + [":dx_deploy_tools"],
-)
-
-rust_binary(
-    name = "cloudflare_verify",
-    srcs = ["src/bin_cloudflare_verify.rs"],
-    aliases = aliases(
-        package_name = "deploy/dx_deploy_tools",
-        normal = True,
-    ),
-    crate_name = "cloudflare_verify",
-    crate_root = "src/bin_cloudflare_verify.rs",
-    visibility = ["//visibility:public"],
-    deps = all_crate_deps(
-        package_name = "deploy/dx_deploy_tools",
-        normal = True,
-    ) + [":dx_deploy_tools"],
-)
-
-rust_binary(
     name = "deploy_tool",
     srcs = ["src/bin_deploy_tool.rs"],
     aliases = aliases(
@@ -311,38 +276,6 @@ rust_binary(
     ),
     crate_name = "deploy_tool",
     crate_root = "src/bin_deploy_tool.rs",
-    visibility = ["//visibility:public"],
-    deps = all_crate_deps(
-        package_name = "deploy/dx_deploy_tools",
-        normal = True,
-    ) + [":dx_deploy_tools"],
-)
-
-rust_binary(
-    name = "hasher",
-    srcs = ["src/bin_hasher.rs"],
-    aliases = aliases(
-        package_name = "deploy/dx_deploy_tools",
-        normal = True,
-    ),
-    crate_name = "hasher",
-    crate_root = "src/bin_hasher.rs",
-    visibility = ["//visibility:public"],
-    deps = all_crate_deps(
-        package_name = "deploy/dx_deploy_tools",
-        normal = True,
-    ) + [":dx_deploy_tools"],
-)
-
-rust_binary(
-    name = "size_checker",
-    srcs = ["src/bin_size_checker.rs"],
-    aliases = aliases(
-        package_name = "deploy/dx_deploy_tools",
-        normal = True,
-    ),
-    crate_name = "size_checker",
-    crate_root = "src/bin_size_checker.rs",
     visibility = ["//visibility:public"],
     deps = all_crate_deps(
         package_name = "deploy/dx_deploy_tools",
@@ -361,6 +294,7 @@ rust_test(
         "src/config.rs",
         "src/cpan.rs",
         "src/crates.rs",
+        "src/entry.rs",
         "src/github.rs",
         "src/go_api.rs",
         "src/hackage.rs",
@@ -464,22 +398,6 @@ rust_test(
 )
 
 exports_files(["Cargo.toml"])
-
-rust_binary(
-    name = "npm_packer",
-    srcs = ["src/bin_npm_pack.rs"],
-    aliases = aliases(
-        package_name = "deploy/dx_deploy_tools",
-        normal = True,
-    ),
-    crate_name = "npm_packer",
-    crate_root = "src/bin_npm_pack.rs",
-    visibility = ["//visibility:public"],
-    deps = all_crate_deps(
-        package_name = "deploy/dx_deploy_tools",
-        normal = True,
-    ) + [":dx_deploy_tools"],
-)
 
 rust_binary(
     name = "deploy_program",
@@ -1529,12 +1447,12 @@ rust_test(
         ":native_probe_msvc_config",
         "//cli/update:python_files",
         "//cli/update:python_interpreter",
-        "//deploy/private:archiver",
         "//deploy/private/native_probe/dx_native_probe:msvc_vcruntime_notice",
+        "@dx_prebuilt//:dx",
         "@dx_tools//:uv",
     ],
     env = {
-        "DX_ARCHIVER": "$(rootpath //deploy/private:archiver)",
+        "DX_ARCHIVER": "$(rootpath @dx_prebuilt//:dx)",
         "DX_MSVC_CONFIG": "$(rootpath :native_probe_msvc_config)",
         "DX_MSVC_NOTICE": "$(rootpath //deploy/private/native_probe/dx_native_probe:msvc_vcruntime_notice)",
         "DX_MSVC_PROG": "$(rootpath :native_probe_msvc)",
@@ -2299,16 +2217,16 @@ genrule(
     name = "oci_demo_app_layer",
     srcs = ["oci_demo_root/hello.txt"],
     outs = ["oci_demo_app_layer.tar.gz"],
-    cmd = "$(execpath :archiver) --members $@ app/hello.txt=$(location oci_demo_root/hello.txt)",
-    tools = [":archiver"],
+    cmd = "$(execpath @dx_prebuilt//:dx) archiver --members $@ app/hello.txt=$(location oci_demo_root/hello.txt)",
+    tools = ["@dx_prebuilt//:dx"],
 )
 
 genrule(
     name = "oci_demo_etc_layer",
     srcs = ["oci_demo_root/demo.conf"],
     outs = ["oci_demo_etc_layer.tar.gz"],
-    cmd = "$(execpath :archiver) --members $@ etc/demo.conf=$(location oci_demo_root/demo.conf)",
-    tools = [":archiver"],
+    cmd = "$(execpath @dx_prebuilt//:dx) archiver --members $@ etc/demo.conf=$(location oci_demo_root/demo.conf)",
+    tools = ["@dx_prebuilt//:dx"],
 )
 
 genrule(
@@ -2318,8 +2236,8 @@ genrule(
         ":oci_demo_etc_layer",
     ],
     outs = ["oci_demo.tar"],
-    cmd = "$(execpath :archiver) --image $@ linux/amd64 /app/hello $(location :oci_demo_app_layer) $(location :oci_demo_etc_layer)",
-    tools = [":archiver"],
+    cmd = "$(execpath @dx_prebuilt//:dx) archiver --image $@ linux/amd64 /app/hello $(location :oci_demo_app_layer) $(location :oci_demo_etc_layer)",
+    tools = ["@dx_prebuilt//:dx"],
 )
 
 oci_deploy(

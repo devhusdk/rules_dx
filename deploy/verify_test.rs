@@ -936,7 +936,7 @@ fn archiver_imports(
     let out_dir = dx_test_scratch::scratch("pypi-imports").unwrap();
     let out = out_dir.path().join("ok");
     let mut command = std::process::Command::new(env_file("DX_ARCHIVER"));
-    command.arg("--imports").arg(out).args(["--check", check]);
+    command.args(["archiver", "--imports"]).arg(out).args(["--check", check]);
     for name in provides {
         command.args(["--provides", name]);
     }

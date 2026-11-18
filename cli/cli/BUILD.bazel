@@ -184,6 +184,7 @@ rust_binary(
         "//core/quality/markdown:quality_markdown_lib",
         "//core/quality/notebook:quality_notebook_lib",
         "//core/quality/runner:quality_runner_lib",
+        "//deploy/private:dx_deploy_tools",
         "//tools/coverage/collect:collect_native_lib",
         "@crates//:tracing",
     ] + select({

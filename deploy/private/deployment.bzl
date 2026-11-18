@@ -80,7 +80,7 @@ def _dx_deployment_impl(ctx):
         args.add_all(artifact_files)
         ctx.actions.run(
             executable = ctx.executable._size_checker,
-            arguments = [args],
+            arguments = ["size_checker", args],
             inputs = artifact_files,
             outputs = [stamp],
             mnemonic = "DxSizeBudget",
@@ -158,7 +158,7 @@ dx_deployment = rule(
         ),
         "_size_checker": attr.label(
             cfg = "exec",
-            default = Label("//deploy/private:size_checker"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
         "build_mode": attr.string(

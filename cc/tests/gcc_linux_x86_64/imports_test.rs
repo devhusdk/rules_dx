@@ -4,7 +4,7 @@ use std::process::Command;
 fn archiver(scratch: &std::path::Path, args: &[&str]) -> std::process::Output {
     let tool = env_file("ARCHIVER");
     Command::new(tool)
-        .arg("--imports")
+        .args(["archiver", "--imports"])
         .arg(scratch.join("ok"))
         .args(args)
         .output()

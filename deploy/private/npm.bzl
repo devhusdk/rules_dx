@@ -7,7 +7,7 @@ load("//core:rlocation.bzl", "rlocation_path")
 load(":deployment.bzl", "dx_deployment")
 load(":validate_npm.bzl", "npm_access_error", "npm_package_error", "npm_provenance_error", "npm_registry_url_error", "npm_tag_error")
 
-_NPM_PACKER = Label("//deploy/private:npm_packer")
+_DX = Label("@dx_prebuilt//:dx")
 
 def npm_effective_provenance(access, provenance):
     """Resolves the default provenance policy for an access mode."""
@@ -80,8 +80,8 @@ def npm_deploy(name, package = "", dist_tag = "latest", srcs = None, registry_ur
         name = pack_target,
         srcs = srcs,
         outs = [tarball, feed],
-        tools = [_NPM_PACKER],
-        cmd = "$(location " + str(_NPM_PACKER) + ") " + shell.quote(package) + " " + shell.quote(dist_tag) + " " + shell.quote(registry_url) + " " + shell.quote(access) + " " + shell.quote(provenance) + " $(OUTS) $(SRCS)",
+        tools = [_DX],
+        cmd = "$(location " + str(_DX) + ") npm_packer " + shell.quote(package) + " " + shell.quote(dist_tag) + " " + shell.quote(registry_url) + " " + shell.quote(access) + " " + shell.quote(provenance) + " $(OUTS) $(SRCS)",
         **attrs
     )
 

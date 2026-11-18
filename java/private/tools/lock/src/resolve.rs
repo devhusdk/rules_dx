@@ -2,8 +2,8 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
+use dx_lock::{RESOLVER_TIMEOUT, Scratch};
 use serde_json::{Value, json};
 
 /// The JDK and resolver jar the lock step runs.
@@ -220,52 +220,38 @@ pub fn lock(tools: &Tools, request: &Request) -> Result<Outcome, String> {
     let manifest = std::fs::read_to_string(&manifest_path)
         .map_err(|error| format!("{}: {error}", manifest_path.display()))?;
     let config = config(&manifest, &request.repositories)?;
-    let scratch = request
-        .dir
-        .join(format!(".dx-maven-lock-{}", std::process::id()));
-    std::fs::create_dir_all(scratch.join("home")).map_err(|error| error.to_string())?;
-    let result = resolve(tools, &config, &scratch);
-    let outcome = result.and_then(|resolved| {
-        let lock_path = request.dir.join(&request.lock);
-        let current = std::fs::read(&lock_path).ok();
-        if current.as_deref() == Some(resolved.as_slice()) {
-            Ok(Outcome::Fresh)
-        } else if request.check {
-            Ok(Outcome::Stale)
-        } else {
-            std::fs::write(&lock_path, &resolved)
-                .map_err(|error| format!("{}: {error}", lock_path.display()))?;
-            Ok(Outcome::Written)
-        }
-    });
-    std::fs::remove_dir_all(&scratch).ok();
-    outcome
+    let resolved = resolve(tools, &config)?;
+    let lock_path = request.dir.join(&request.lock);
+    let current = std::fs::read(&lock_path).ok();
+    if current.as_deref() == Some(resolved.as_slice()) {
+        Ok(Outcome::Fresh)
+    } else if request.check {
+        Ok(Outcome::Stale)
+    } else {
+        std::fs::write(&lock_path, &resolved)
+            .map_err(|error| format!("{}: {error}", lock_path.display()))?;
+        Ok(Outcome::Written)
+    }
 }
 
-fn resolve(tools: &Tools, config: &str, scratch: &Path) -> Result<Vec<u8>, String> {
-    let config_path = scratch.join("config.json");
-    let output = scratch.join("lock.json");
-    let home = scratch.join("home");
+fn resolve(tools: &Tools, config: &str) -> Result<Vec<u8>, String> {
+    let scratch = Scratch::new().map_err(|error| error.to_string())?;
+    let config_path = scratch.set().join("config.json");
+    let output = scratch.set().join("lock.json");
     std::fs::write(&config_path, config).map_err(|error| error.to_string())?;
-    let status = Command::new(&tools.java)
-        .env_clear()
-        .env("HOME", &home)
-        .env("TMPDIR", scratch)
+    let mut command = scratch.command(&tools.java);
+    command
         .env("RJE_VERBOSE", "false")
-        .arg(format!("-Duser.home={}", home.display()))
-        .arg(format!("-Djava.io.tmpdir={}", scratch.display()))
+        .arg(format!("-Duser.home={}", scratch.home().display()))
+        .arg(format!("-Djava.io.tmpdir={}", scratch.tmp().display()))
         .arg("-jar")
         .arg(&tools.jar)
         .arg("--argsfile")
         .arg(&config_path)
         .arg("--use_isolated_cache")
         .arg("--output")
-        .arg(&output)
-        .current_dir(scratch)
-        .status()
-        .map_err(|error| format!("{}: {error}", tools.java.display()))?;
-    if !status.success() {
-        return Err(format!("the maven resolver failed: {status}"));
-    }
+        .arg(&output);
+    Scratch::run(&mut command, RESOLVER_TIMEOUT)
+        .map_err(|error| format!("the maven resolver failed: {error}"))?;
     std::fs::read(&output).map_err(|error| format!("{}: {error}", output.display()))
 }

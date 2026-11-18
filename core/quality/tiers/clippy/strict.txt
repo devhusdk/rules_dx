@@ -33,6 +33,7 @@
 -Dclippy::multiple_unsafe_ops_per_block
 -Dclippy::string_add
 -Dclippy::create_dir
+-Dclippy::iter_over_hash_type
 -Dunsafe_code
 -Dunsafe_op_in_unsafe_fn
 -Dunused_must_use

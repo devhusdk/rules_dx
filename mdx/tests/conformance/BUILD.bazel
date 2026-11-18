@@ -13,6 +13,16 @@ mdx_library(
     srcs = ["Hello.mdx"],
 )
 
+mdx_library(
+    name = "lint_dirty",
+    srcs = ["lint_dirty.mdx"],
+)
+
+mdx_library(
+    name = "format_dirty",
+    srcs = ["format_dirty.mdx"],
+)
+
 mdx_test(
     name = "pass_subject_test",
     size = "small",
@@ -80,5 +90,14 @@ dx_conformance_suite(
         "runfiles_test": "mdx has no binary rule",
     },
     passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "format_dirty.mdx",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 3,
+        "lint_rule": "broken-link",
+        "lint_source": "lint_dirty.mdx",
+    },
     size = "small",
 )

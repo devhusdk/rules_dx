@@ -122,6 +122,12 @@ LDC_CELLS = {
     ),
 }
 
+# A cross cell runs the host cell's compiler with -mtriple and links the target cell's runtime.
+LDC_CROSS_CELLS = {
+    "linux_arm64_to_linux_x86_64": struct(host = "linux_arm64", target = "linux_x86_64", triple = "x86_64-linux-gnu"),
+    "linux_x86_64_to_linux_arm64": struct(host = "linux_x86_64", target = "linux_arm64", triple = "aarch64-linux-gnu"),
+}
+
 LIBDPARSE_VERSION = _ARCHIVES["dx_d_libdparse"]["version"]
 
 DCD_VERSION = _ARCHIVES["dx_d_dcd"]["version"]

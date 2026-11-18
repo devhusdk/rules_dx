@@ -89,6 +89,7 @@ rust_test(
         "//cli/archive:dx_archive_testing",
         "//cli/families:dx_families",
         "//cli/lock:dx_lock",
+        "//cli/lock:dx_lock_testing",
         "//tools/testing:dx_testing",
         "@crates//:tempfile",
     ],

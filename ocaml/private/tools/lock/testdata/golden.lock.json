@@ -27,7 +27,7 @@
     {
       "archives": [
         {
-          "sha256": "08ad1293cacd2a8c5063e770aafe7cf14f4a94a8da9f47f6ce1606a60de6c30e",
+          "sha256": "5a235d55c6bb5365040dbc572968d7fb03915ef7d5aaa6a16f581f56a73180cf",
           "strip_prefix": "fmt-lite-0.9.0",
           "urls": [
             "https://example.org/fmt-lite-0.9.0.tbz"

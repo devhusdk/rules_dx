@@ -1318,6 +1318,22 @@ mod sh {
     }
 
     #[test]
+    fn an_execroot_inside_another_execroot_never_reaches_the_outer_checkout() {
+        let repo = source_repo("dx-launcher-execroot-nested-");
+        let decoy = repo.base.join("decoy");
+        checkout(&decoy);
+        dx_testing::executable_script(&decoy.join("tools/dx"), "#!/bin/sh\necho decoy \"$@\"\n");
+        let marker = decoy.display().to_string();
+        let outer = execroot(&repo.base, "outer", &repo.root(), Some(&marker));
+        let inner = execroot(&outer.join("_tmp"), "ob", &repo.root(), Some(""));
+        let (code, out, err) =
+            repo.run_in(&inner.join("bazel-out/k8-fastbuild/bin/cli"), &["status"]);
+        assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
+        assert_nothing_built_in(&inner);
+        assert_nothing_built_in(&outer);
+    }
+
+    #[test]
     fn a_signalled_rebuild_leaves_no_temp_files() {
         for (sig, signo) in [("TERM", 15), ("INT", 2), ("HUP", 1)] {
             signalled_rebuild(&format!("dx-launcher-sig-{sig}-"), sig, signo, true);
@@ -1480,7 +1496,12 @@ mod sh {
         let mut child = spawn(&mut cmd);
         let input = format!(r#"{{"tool_name":"Bash","tool_input":{{"command":"{command}"}}}}"#);
         // stop never reads its input, so the launcher may exit before the write lands.
-        match child.stdin.take().expect("stdin").write_all(input.as_bytes()) {
+        match child
+            .stdin
+            .take()
+            .expect("stdin")
+            .write_all(input.as_bytes())
+        {
             Err(e) if e.kind() != std::io::ErrorKind::BrokenPipe => panic!("write stdin: {e}"),
             _ => {}
         }

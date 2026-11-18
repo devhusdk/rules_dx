@@ -87,6 +87,9 @@ while [ "$here" != / ]; do
       here=$v
       break
     fi
+    # An execroot can sit inside another one (a test's temp dir, say); never climb into the outer one's checkout.
+    here=/
+    break
   fi
   here=${here%/*}
   here=${here:-/}

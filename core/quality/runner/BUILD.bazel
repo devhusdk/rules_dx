@@ -74,7 +74,6 @@ rust_library(
         "@crates//:serde_json",
         "@crates//:thiserror",
         "@crates//:tracing",
-        "@crates//:zip",
     ],
 )
 
@@ -186,6 +185,7 @@ rust_test(
         normal_dev = True,
     ) + [
         "//cli/archive:dx_archive",
+        "//cli/archive:dx_archive_testing",
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "//cli/output:dx_output",

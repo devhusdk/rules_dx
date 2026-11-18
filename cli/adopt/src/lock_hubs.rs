@@ -499,7 +499,7 @@ impl Planner<'_> {
             .and_then(|workspace| workspace.get("members"))
             .and_then(|members| members.as_array());
         for member in members.into_iter().flatten().filter_map(|m| m.as_str()) {
-            let member = member.trim_matches('/');
+            let member = clean_rel(member);
             if member.contains(['*', '?', '[']) {
                 self.notes.push(format!(
                     "{manifest} member \"{member}\" is a glob; add its {manifest} to crate.from_cargo manifests"
@@ -532,7 +532,7 @@ impl Planner<'_> {
                     let Some(rest) = line.trim().strip_prefix("# gazelle:exclude") else {
                         continue;
                     };
-                    if let Some(target) = rest.split_whitespace().next() {
+                    if let Some(target) = rest.split_whitespace().next().map(clean_rel) {
                         excluded.insert(if dir.is_empty() {
                             target.to_owned()
                         } else {
@@ -837,6 +837,15 @@ impl Planner<'_> {
     }
 }
 
+/// A relative path without `./` prefixes or leading and trailing `/`; `"."` for the root.
+fn clean_rel(path: &str) -> &str {
+    let mut rest = path.trim_matches('/');
+    while let Some(stripped) = rest.strip_prefix("./") {
+        rest = stripped.trim_start_matches('/');
+    }
+    if rest.is_empty() { "." } else { rest }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -931,6 +940,22 @@ mod tests {
         assert_eq!(hubs.notes.len(), 2, "{:?}", hubs.notes);
         assert!(hubs.notes[0].contains("libs/*"), "{:?}", hubs.notes);
         assert!(hubs.notes[1].contains("gone"), "{:?}", hubs.notes);
+    }
+
+    #[test]
+    fn cargo_members_with_a_dot_slash_get_clean_labels() {
+        let hubs = plan(&[
+            (t("{cargo:lock}"), ""),
+            (
+                t("{cargo:manifest}"),
+                "[workspace]\nmembers = [\"./app\", \"./\"]\n",
+            ),
+            (t("app/{cargo:manifest}"), ""),
+        ]);
+        let text = new_text(&hubs);
+        assert!(text.contains(t("\"//app:{cargo:manifest}\"")), "{text}");
+        assert!(!text.contains("//./"), "{text}");
+        assert!(hubs.notes.is_empty(), "{:?}", hubs.notes);
     }
 
     #[test]
@@ -1484,6 +1509,21 @@ mod tests {
             ),
         ]);
         assert_eq!(hubs, LockHubs::default());
+    }
+
+    #[test]
+    fn an_exclude_is_cleaned_like_gazelle_cleans_it() {
+        for exclude in ["web/", "./web", "./web/"] {
+            let hubs = plan(&[
+                ("BUILD.bazel", &format!("# gazelle:exclude {exclude}\n")),
+                (t("web/{npm:lock}"), ""),
+                (
+                    t("web/{npm:manifest}"),
+                    "{\"dependencies\": {\"left-pad\": \"1.3.0\"}}",
+                ),
+            ]);
+            assert_eq!(hubs, LockHubs::default(), "{exclude}");
+        }
     }
 
     #[test]

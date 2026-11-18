@@ -264,13 +264,32 @@ impl CiProvider {
             dx_process::capture::git(root).args(["remote", "get-url", "origin"]),
             dx_process::capture::DEFAULT_TIMEOUT,
         )
-        .is_ok_and(|out| out.stdout_text().contains("gitlab"));
+        .is_ok_and(|out| remote_is_gitlab(out.stdout_text().trim()));
         if gitlab_remote {
             Self::Gitlab
         } else {
             Self::Github
         }
     }
+}
+
+/// Whether a git remote URL, in URL or scp form, points at a GitLab host.
+fn remote_is_gitlab(url: &str) -> bool {
+    let (after_scheme, scp) = match url.split_once("://") {
+        Some((_, rest)) => (rest, false),
+        None => (url, true),
+    };
+    let authority = if scp {
+        match after_scheme.split_once(':') {
+            Some((authority, _)) if !authority.contains('/') => authority,
+            _ => return false,
+        }
+    } else {
+        after_scheme.split('/').next().unwrap_or_default()
+    };
+    let host = authority.rsplit('@').next().unwrap_or_default();
+    let host = host.split(':').next().unwrap_or_default();
+    host.to_ascii_lowercase().contains("gitlab")
 }
 
 pub const DEFAULT_BRANCH_FALLBACK: &str = "main";
@@ -630,7 +649,7 @@ fn merge_owned(kind: FileKind, existing: &str, generated: &str) -> Result<String
                     other.as_str().map(str::to_lowercase) == id.as_str().map(str::to_lowercase)
                 });
                 if !skipped {
-                    text = dx_merge::jsonc::append_missing(&text, &["recommendations"], &id)?;
+                    text = dx_merge::jsonc::append_missing(&text, &["recommendations"], id)?;
                 }
             }
             let stale: Vec<serde_json::Value> = TOOL_EDITOR_EXTENSIONS
@@ -960,8 +979,10 @@ pub fn owned_file_drift(root: &Path, file: &ScaffoldFile) -> Result<bool, DxErro
     if file.kind == FileKind::WriteOnce {
         return Ok(false);
     }
-    let Ok(existing) = std::fs::read_to_string(root.join(&file.path)) else {
-        return Ok(false);
+    let existing = match std::fs::read_to_string(root.join(&file.path)) {
+        Ok(existing) => existing,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(error) => return Err(DxError::failure(format!("{}: {error}", file.path))),
     };
     match merge_owned(file.kind, &existing, &file.content) {
         Ok(merged) => Ok(merged != existing),
@@ -1150,6 +1171,45 @@ mod tests {
         assert_eq!(super::CiProvider::detect(root), super::CiProvider::Github);
         std::fs::write(root.join(".gitlab-ci.yml"), "").expect("gitlab");
         assert_eq!(super::CiProvider::detect(root), super::CiProvider::Gitlab);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn only_a_gitlab_host_means_gitlab() {
+        for url in [
+            "https://gitlab.com/acme/app.git",
+            "git@gitlab.example.com:acme/app.git",
+            "ssh://git@gitlab.internal:2222/acme/app.git",
+        ] {
+            assert!(super::remote_is_gitlab(url), "{url}");
+        }
+        for url in [
+            "git@github.com:acme/gitlab-sync.git",
+            "https://github.com/gitlab/app.git",
+            "/srv/gitlab/app.git",
+            "",
+        ] {
+            assert!(!super::remote_is_gitlab(url), "{url}");
+        }
+    }
+
+    #[test]
+    fn owned_file_drift_reports_an_unreadable_file() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-drift-").unwrap();
+        let root = scratch.path();
+        let file = super::ScaffoldFile {
+            path: ".vscode/settings.json".to_owned(),
+            content: "{}\n".to_owned(),
+            kind: FileKind::VscodeKeys,
+        };
+        assert_eq!(super::owned_file_drift(root, &file), Ok(false));
+        std::fs::create_dir_all(root.join(".vscode")).expect("dir");
+        std::fs::write(root.join(&file.path), b"\xff\xfe").expect("bytes");
+        let error = super::owned_file_drift(root, &file).expect_err("not UTF-8");
+        assert!(
+            error.message().contains(".vscode/settings.json"),
+            "{error:?}"
+        );
         scratch.close().expect("cleanup");
     }
 

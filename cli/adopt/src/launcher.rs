@@ -51,14 +51,16 @@ impl LauncherPins {
             let Some((hash, asset)) = line.split_once("  ") else {
                 return Err(pins_error(format!("bad manifest line {line:?}")));
             };
-            let archive = RELEASE_ASSETS
-                .iter()
-                .any(|known| asset == archive_name(known) || asset == symbols_name(known));
-            let sbom = asset.strip_suffix(".spdx.json").is_some_and(|base| {
-                RELEASE_ASSETS
-                    .iter()
-                    .any(|known| base == archive_name(known) || base == symbols_name(known))
-            });
+            if hash.is_empty() || !valid_pin(hash) {
+                return Err(pins_error(format!("{asset} hash is not 64 lowercase hex")));
+            }
+            let packaged = |name: &str| {
+                RELEASE_ASSETS.iter().any(|known| {
+                    name == archive_name(known) || symbols_name(known).as_deref() == Some(name)
+                })
+            };
+            let archive = packaged(asset);
+            let sbom = asset.strip_suffix(".spdx.json").is_some_and(packaged);
             if archive || sbom {
                 if !seen_archives.insert(asset.to_owned()) {
                     return Err(pins_error(format!("{asset} is listed twice")));
@@ -72,9 +74,6 @@ impl LauncherPins {
             else {
                 return Err(pins_error(format!("unknown asset {asset:?}")));
             };
-            if hash.is_empty() || !valid_pin(hash) {
-                return Err(pins_error(format!("{asset} hash is not 64 lowercase hex")));
-            }
             if !slot.is_empty() {
                 return Err(pins_error(format!("{asset} is listed twice")));
             }
@@ -260,13 +259,9 @@ fn archive_name(raw: &str) -> String {
     format!("{raw}{suffix}")
 }
 
-/// The debug symbols asset for a raw release asset: `<raw>-pdb.zip` on Windows, empty elsewhere.
-fn symbols_name(raw: &str) -> String {
-    if raw.contains("windows") {
-        format!("{raw}-pdb.zip")
-    } else {
-        String::new()
-    }
+/// The debug symbols asset for a raw release asset: `<raw>-pdb.zip` on Windows, none elsewhere.
+fn symbols_name(raw: &str) -> Option<String> {
+    raw.contains("windows").then(|| format!("{raw}-pdb.zip"))
 }
 
 fn valid_pin(pin: &str) -> bool {
@@ -1134,6 +1129,9 @@ mod tests {
             MANIFEST.replace(&"1".repeat(64), &"1".repeat(63)),
             MANIFEST.replace(&"1".repeat(64), ""),
             MANIFEST.replacen("  ", " ", 1),
+            format!("{MANIFEST}{}  \n", "a".repeat(64)),
+            format!("{MANIFEST}{}  .spdx.json\n", "a".repeat(64)),
+            format!("{MANIFEST}not-a-hash  dx-linux-x86_64.tar.gz\n"),
             format!("{MANIFEST}\n"),
             format!("\n{MANIFEST}"),
             String::new(),

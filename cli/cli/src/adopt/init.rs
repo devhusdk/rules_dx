@@ -54,8 +54,7 @@ impl Target {
         if module.is_empty() {
             return Err(dx_adopt::AdoptError::InitInvalidModule {
                 module: given.to_owned(),
-                reason: "the directory name holds no [a-z0-9] character to name the module"
-                    .to_owned(),
+                reason: "the directory name holds no [a-z] letter to name the module".to_owned(),
             });
         }
         let root = if dir.is_empty() {

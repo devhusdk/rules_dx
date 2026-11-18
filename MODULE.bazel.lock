@@ -59310,7 +59310,7 @@
     },
     "@@rules_python+//python/extensions:python.bzl%python": {
       "os:linux,arch:aarch64": {
-        "bzlTransitiveDigest": "8Z7mqxfm12rhCiU+Iz5KRfyXKcINNwgXCJFj0r8VpHI=",
+        "bzlTransitiveDigest": "deml12rlwztLOUsW2NVj4Ar1ZTJbhO8gqQfk4xDAnJk=",
         "usagesDigest": "Ly043mKod3pIlMqbsOauaTJWdMSwoX0jfjq354u2r7g=",
         "recordedInputs": [
           "ENV:RULES_PYTHON_BZLMOD_DEBUG \\0",
@@ -66672,7 +66672,7 @@
         }
       },
       "os:osx,arch:aarch64": {
-        "bzlTransitiveDigest": "8Z7mqxfm12rhCiU+Iz5KRfyXKcINNwgXCJFj0r8VpHI=",
+        "bzlTransitiveDigest": "deml12rlwztLOUsW2NVj4Ar1ZTJbhO8gqQfk4xDAnJk=",
         "usagesDigest": "Ly043mKod3pIlMqbsOauaTJWdMSwoX0jfjq354u2r7g=",
         "recordedInputs": [
           "ENV:RULES_PYTHON_BZLMOD_DEBUG \\0",
@@ -70328,7 +70328,7 @@
         }
       },
       "os:windows,arch:aarch64": {
-        "bzlTransitiveDigest": "8Z7mqxfm12rhCiU+Iz5KRfyXKcINNwgXCJFj0r8VpHI=",
+        "bzlTransitiveDigest": "deml12rlwztLOUsW2NVj4Ar1ZTJbhO8gqQfk4xDAnJk=",
         "usagesDigest": "Ly043mKod3pIlMqbsOauaTJWdMSwoX0jfjq354u2r7g=",
         "recordedInputs": [
           "ENV:RULES_PYTHON_BZLMOD_DEBUG \\0",
@@ -73940,7 +73940,7 @@
         }
       },
       "os:windows,arch:amd64": {
-        "bzlTransitiveDigest": "8Z7mqxfm12rhCiU+Iz5KRfyXKcINNwgXCJFj0r8VpHI=",
+        "bzlTransitiveDigest": "deml12rlwztLOUsW2NVj4Ar1ZTJbhO8gqQfk4xDAnJk=",
         "usagesDigest": "Ly043mKod3pIlMqbsOauaTJWdMSwoX0jfjq354u2r7g=",
         "recordedInputs": [
           "ENV:RULES_PYTHON_BZLMOD_DEBUG \\0",

@@ -10,7 +10,7 @@ load("//erlang/private:providers.bzl", "BeamInfo", "DialyzerPltInfo", "ErlangNif
 load("//erlang/private/toolchain:cells.bzl", "otp_compatible_with")
 load("//erlang/private/toolchain:pins.bzl", "OTP_DIALYZER_UNPORTED_CELLS")
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
-load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap_test")
+load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_private_dep_rule", "dx_upstream_tags", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load(":kwargs.bzl", "elixir_app_kwargs", "elixir_cover_opts", "elixir_kwargs", _COVER_LOAD = "COVER_LOAD", _ELIXIR_CELLS = "ELIXIR_CELLS", _ELIXIR_COMPATIBLE_WITH = "ELIXIR_COMPATIBLE_WITH")
 
@@ -172,12 +172,24 @@ def elixir_test(name, *, srcs = None, visibility = None, **kwargs):
     apps = {"apps": kwargs["deps"]} if kwargs.get("deps") else None
     dx_wrap_test(name, _ex_unit_test, _ex_unit_forward_test, helper_first(srcs), visibility = visibility, upstream_kwargs = upstream, extra_forward_kwargs = apps, **kwargs)
 
+_elixir_bench_lib = dx_private_dep_rule(
+    Label("//elixir/private/bench:dx_bench"),
+    [_ErlangAppInfo, BeamInfo, ErlangNifInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo, OutputGroupInfo],
+    "Provides the dx_bench app elixir_bench links.",
+)
+
 def elixir_bench(name, *, srcs, tags = None, deps = None, **kwargs):
     """elixir_test run by dx bench: DxBench.run in srcs runs Benchee and writes dx-bench.json."""
+    _elixir_bench_lib(
+        name = name + "_dx_bench",
+        testonly = True,
+        tags = dx_upstream_tags(tags),
+        visibility = ["//visibility:private"],
+    )
     elixir_test(
         name = name,
         srcs = srcs,
         tags = merge_tags(tags, "dx-bench"),
-        deps = (deps or []) + [Label("//elixir/private/bench:dx_bench")],
+        deps = (deps or []) + [":" + name + "_dx_bench"],
         **with_default_size(kwargs)
     )

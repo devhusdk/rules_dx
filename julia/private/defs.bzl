@@ -6,7 +6,7 @@ load("//julia/private/coverage:coverage.bzl", "dx_julia_coverage_aspect", "dx_ju
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
 load("//core:platform_support.bzl", "compatible_with")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_private_dep_rule", "dx_upstream_tags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//julia/private:platforms.bzl", JULIA_SUPPORT = "PLATFORM_SUPPORT")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
@@ -81,13 +81,25 @@ def julia_standalone_binary(name, **kwargs):
     kwargs = dx_language_kwargs(kwargs, compatible_with = JULIA_COMPATIBLE_WITH)
     _julia_standalone_binary(name = name, **kwargs)
 
+_julia_bench_lib = dx_private_dep_rule(
+    Label("//julia/private/bench:DxBench"),
+    [_JuliaInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo, OutputGroupInfo],
+    "Provides the DxBench library julia_bench links.",
+)
+
 def julia_bench(name, *, srcs = None, main = None, deps = None, tags = None, **kwargs):
     """A julia_test run by dx bench: main calls DxBench.run_benchmarks(["name" => fn, ...]), which times each function with BenchmarkTools and writes dx-bench.json."""
+    _julia_bench_lib(
+        name = name + "_dx_bench",
+        testonly = True,
+        tags = dx_upstream_tags(tags),
+        visibility = ["//visibility:private"],
+    )
     julia_test(
         name = name,
         srcs = srcs,
         main = main,
-        deps = (deps or []) + [Label("//julia/private/bench:DxBench")],
+        deps = (deps or []) + [":" + name + "_dx_bench"],
         tags = merge_tags(tags, "dx-bench"),
         **with_default_size(kwargs)
     )

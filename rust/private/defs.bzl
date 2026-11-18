@@ -205,6 +205,9 @@ _rust_forward_binary = dx_executable_forward_rule(
     sibling_files = _runtime_dlls,
 )
 
+def _shard_launcher(ctx):
+    return ctx.attr._shard_runner[DefaultInfo] if ctx.attr.sharded else None
+
 _rust_forward_test = dx_executable_forward_rule(
     _RUST,
     kind = "test",
@@ -222,6 +225,12 @@ _rust_forward_test = dx_executable_forward_rule(
         "coverage_lib": attr.label(
             doc = "The library whose sources the test compiles itself, so coverage counts them as production code.",
         ),
+        "sharded": attr.bool(doc = "Runs the binary through the shard runner, which honours the Bazel test sharding protocol."),
+        "_shard_runner": attr.label(
+            default = Label("//rust/private/tools/shard_runner"),
+            executable = True,
+            cfg = "target",
+        ),
     },
     upstream_cfg = _cpp_runtime_transition,
     upstream_aspects = [dx_data_coverage_aspect, dx_msvc_crt_aspect],
@@ -230,6 +239,7 @@ _rust_forward_test = dx_executable_forward_rule(
     toolchains = dx_native_coverage_toolchains(),
     runtime = "mandatory",
     sibling_files = _runtime_dlls,
+    launcher = _shard_launcher,
 )
 
 def rust_build_script(name, build_script_env = None, toolchains = None, use_cc_toolchain = None, **kwargs):
@@ -381,7 +391,7 @@ def rust_test(
         runtime_dlls = None,
         test_groups = None,
         **kwargs):
-    """Minimal wrapper over rust_test. runtime_dlls are symlinked next to the executable. edition defaults to 2024. test_groups maps a suffix to libtest filters: the crate compiles once, each group runs as name_suffix with its filters, name_rest runs every test no filter matches, and the test_suite name covers them all."""
+    """Minimal wrapper over rust_test. runtime_dlls are symlinked next to the executable. edition defaults to 2024. With shard_count above 1, a shard runner splits the libtest tests over the shards. test_groups maps a suffix to libtest filters: the crate compiles once, each group runs as name_suffix with its filters, name_rest runs every test no filter matches, and the test_suite name covers them all."""
     if test_groups != None:
         error = _rust_test_groups_error(test_groups, wasm, kwargs)
         if error != None:
@@ -429,6 +439,9 @@ def rust_test(
         forward_kwargs["coverage_lib"] = coverage_lib
     if runtime_dlls != None:
         forward_kwargs["runtime_dlls"] = runtime_dlls
+    shard_count = kwargs.get("shard_count")
+    if type(shard_count) == "int" and shard_count > 1:
+        forward_kwargs["sharded"] = True
     dx_wrap_test(name, _rust_test, _rust_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, extra_forward_kwargs = forward_kwargs, upstream_env = True, groups = rust_test_group_args(test_groups) if test_groups != None else None, **kwargs)
 
 def _rust_bench_report_impl(ctx):

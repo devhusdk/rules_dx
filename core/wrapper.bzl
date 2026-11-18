@@ -1,6 +1,7 @@
 """Shared wrapper-forwarder plumbing for language rules."""
 
 load("//core:resources.bzl", "dx_test_resource_tags")
+load("//core:rlocation.bzl", "rlocation_path")
 load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE", "applet_file_name", "coreutils")
 load("//core/quality:pipeline.bzl", "upstream_tags")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "quality_sources_info", "single_target")
@@ -173,6 +174,17 @@ def dx_symlink_default_info(ctx, what, extra_runfiles = None, executable = None,
         executable = link,
         files = depset([link]),
         runfiles = runfiles,
+    )
+
+def _dx_launched_default_info(ctx, binary_info, launcher):
+    """Returns DefaultInfo running launcher's executable, with the binary of binary_info in its files and runfiles."""
+    launcher_exe = launcher.files_to_run.executable
+    launcher_link = ctx.actions.declare_file(ctx.label.name + ".launcher/" + dx_symlink_executable_name(ctx.label.name, launcher_exe))
+    ctx.actions.symlink(output = launcher_link, target_file = launcher_exe, is_executable = True)
+    return DefaultInfo(
+        executable = launcher_link,
+        files = depset([launcher_link], transitive = [binary_info.files]),
+        runfiles = binary_info.default_runfiles.merge(ctx.runfiles(files = [launcher_link]).merge(launcher.default_runfiles)),
     )
 
 def dx_lcov_merger_attr():
@@ -387,8 +399,26 @@ def _dx_with_run_environment(ctx, providers):
             out.append(provider)
     return out + [dx_run_environment(ctx, base)]
 
-def dx_executable_forward_rule(language, kind, provides = DX_EXEC_PROVIDES, required_providers = [], upstream_providers = None, extra_attrs = None, optional_providers = [], runtime = "besteffort", extra_quality_attrs = None, coverage_runfiles = None, toolchains = [], quiet_providers = [], upstream_cfg = None, upstream_aspects = None, coverage_providers = None, validate = None, cfg = None, sibling_files = None):
-    """Creates the executable or test forwarding rule for one wrapper."""
+def _dx_launcher_environment(ctx, providers, binary):
+    out = []
+    env = {}
+    inherited = []
+    for provider in providers:
+        if type(provider) == "RunEnvironmentInfo":
+            env = dict(provider.environment)
+            inherited = provider.inherited_environment
+        else:
+            out.append(provider)
+    env["DX_TEST_BINARY"] = rlocation_path(ctx, binary)
+    env["DX_COVERAGE_TEST_BINARY"] = binary.short_path
+    return out + [RunEnvironmentInfo(environment = env, inherited_environment = inherited)]
+
+def dx_executable_forward_rule(language, kind, provides = DX_EXEC_PROVIDES, required_providers = [], upstream_providers = None, extra_attrs = None, optional_providers = [], runtime = "besteffort", extra_quality_attrs = None, coverage_runfiles = None, toolchains = [], quiet_providers = [], upstream_cfg = None, upstream_aspects = None, coverage_providers = None, validate = None, cfg = None, sibling_files = None, launcher = None):
+    """Creates the executable or test forwarding rule for one wrapper.
+
+    launcher(ctx) returns None or the DefaultInfo of an executable that runs in place of the binary.
+    It finds the binary through the DX_TEST_BINARY runfiles key; DX_COVERAGE_TEST_BINARY names it for the coverage collector.
+    """
     what = language.what
     quality_specs = language.quality_specs
     allow_files = language.allow_files
@@ -404,8 +434,16 @@ def dx_executable_forward_rule(language, kind, provides = DX_EXEC_PROVIDES, requ
         if coverage != None and coverage.runfiles != None:
             extra_runfiles = coverage.runfiles if extra_runfiles == None else extra_runfiles.merge(coverage.runfiles)
         coverage_executable = getattr(coverage, "executable", None) if coverage != None else None
+        launcher_info = launcher(ctx) if launcher != None else None
+        if launcher_info != None and coverage_executable != None:
+            fail(what + ": a launcher cannot replace a coverage executable: " + str(ctx.label))
+        default_info = dx_symlink_default_info(ctx, what, extra_runfiles, coverage_executable, sibling_files(ctx) if sibling_files != None else [])
+        binary = None
+        if launcher_info != None:
+            binary = default_info.files.to_list()[0]
+            default_info = _dx_launched_default_info(ctx, default_info, launcher_info)
         providers = (
-            [dx_symlink_default_info(ctx, what, extra_runfiles, coverage_executable, sibling_files(ctx) if sibling_files != None else [])] +
+            [default_info] +
             dx_preserved_providers(upstream, required_providers, what) +
             dx_forwarded_optional(upstream, optional_providers, what) +
             dx_forwarded_quiet(upstream, quiet_providers) +
@@ -413,6 +451,8 @@ def dx_executable_forward_rule(language, kind, provides = DX_EXEC_PROVIDES, requ
             [dx_quality_sources(_dx_quality_files(ctx, extra_quality_attrs), quality_specs, str(ctx.label))] +
             _dx_tools_providers(ctx, quality_tools)
         )
+        if launcher_info != None:
+            providers = _dx_launcher_environment(ctx, providers, binary)
         return _dx_with_run_environment(ctx, providers)
 
     attrs = dx_forward_attrs(

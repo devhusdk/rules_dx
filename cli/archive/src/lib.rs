@@ -3,7 +3,7 @@
 //! Safe extraction of tar, tar.gz and zip archives into a fresh directory, plus read-only
 //! member visits with name, kind and mode ([`visit_entries`], [`visit`], [`visit_tar`]), zip
 //! member reads ([`read_zip_member`]) and listings ([`zip_names`]), and deterministic writers
-//! ([`TarWriter`], [`ZipWriter`]).
+//! ([`TarWriter`], [`TarStream`], [`ZipWriter`]).
 
 use std::collections::HashSet;
 use std::fs::File;
@@ -11,7 +11,7 @@ use std::io::{self, Read, Seek, Write};
 use std::path::Path;
 
 mod write;
-pub use write::{TarWriter, ZipWriter, fits_ustar, gzip};
+pub use write::{TarStream, TarWriter, ZipWriter, fits_ustar, gzip};
 
 /// The archive container, named by suffix and confirmed by magic bytes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

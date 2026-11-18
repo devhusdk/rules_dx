@@ -4,7 +4,7 @@
 //! headers whose checksum field matches python's tarfile, and the gzip header carries no name or time.
 
 use std::collections::HashSet;
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 
 use crate::{invalid_input, link_target_error, member_name_error};
 
@@ -48,6 +48,40 @@ fn check_link(name: &str, target: &str) -> io::Result<()> {
     }
 }
 
+/// Checks `name` and returns a ustar header with mtime, uid and gid 0 and the permission bits of `mode`.
+fn ustar_header(
+    seen: &mut HashSet<String>,
+    name: &str,
+    path: &str,
+    kind: tar::EntryType,
+    size: u64,
+    mode: u32,
+) -> io::Result<tar::Header> {
+    check_new(seen, name)?;
+    if !fits_ustar(path) {
+        return Err(invalid_input(format!(
+            "tar member name {name:?} must be at most 100 bytes, or split at a '/' into a prefix of at most 155 bytes and a name of at most 100 bytes"
+        )));
+    }
+    let mut header = tar::Header::new_ustar();
+    header.set_entry_type(kind);
+    header.set_mode(mode & 0o7777);
+    header.set_uid(0);
+    header.set_gid(0);
+    header.set_size(size);
+    header.set_mtime(0);
+    header.set_path(path)?;
+    Ok(header)
+}
+
+/// Writes the checksum field the way python's tarfile does.
+fn set_cksum(header: &mut tar::Header) -> io::Result<()> {
+    header.set_cksum();
+    let field = format!("{:06o}\0 ", header.cksum()?);
+    header.as_old_mut().cksum.copy_from_slice(field.as_bytes());
+    Ok(())
+}
+
 /// Builds a ustar image in memory; finish it as plain tar or tar.gz.
 pub struct TarWriter {
     builder: tar::Builder<Vec<u8>>,
@@ -77,27 +111,11 @@ impl TarWriter {
         size: u64,
         mode: u32,
     ) -> io::Result<tar::Header> {
-        check_new(&mut self.seen, name)?;
-        if !fits_ustar(path) {
-            return Err(invalid_input(format!(
-                "tar member name {name:?} must be at most 100 bytes, or split at a '/' into a prefix of at most 155 bytes and a name of at most 100 bytes"
-            )));
-        }
-        let mut header = tar::Header::new_ustar();
-        header.set_entry_type(kind);
-        header.set_mode(mode & 0o7777);
-        header.set_uid(0);
-        header.set_gid(0);
-        header.set_size(size);
-        header.set_mtime(0);
-        header.set_path(path)?;
-        Ok(header)
+        ustar_header(&mut self.seen, name, path, kind, size, mode)
     }
 
     fn append(&mut self, mut header: tar::Header, data: &[u8]) -> io::Result<()> {
-        header.set_cksum();
-        let field = format!("{:06o}\0 ", header.cksum()?);
-        header.as_old_mut().cksum.copy_from_slice(field.as_bytes());
+        set_cksum(&mut header)?;
         self.builder.append(&header, data)
     }
 
@@ -137,6 +155,69 @@ impl TarWriter {
     /// Returns the gzipped tar image.
     pub fn finish(self) -> io::Result<Vec<u8>> {
         gzip(&self.finish_tar()?)
+    }
+}
+
+/// Streams regular files into a ustar archive on `sink`; the output matches [`TarWriter::finish_tar`]
+/// for the same members.
+pub struct TarStream<W: Write> {
+    sink: W,
+    seen: HashSet<String>,
+    written: u64,
+}
+
+impl<W: Write> TarStream<W> {
+    pub fn new(sink: W) -> Self {
+        TarStream {
+            sink,
+            seen: HashSet::new(),
+            written: 0,
+        }
+    }
+
+    /// Adds a regular file of `size` bytes read from `reader`; only the permission bits of `mode`
+    /// are kept. Fails if `reader` yields more or fewer than `size` bytes.
+    pub fn add_file_from(
+        &mut self,
+        name: &str,
+        size: u64,
+        reader: &mut impl Read,
+        mode: u32,
+    ) -> io::Result<()> {
+        let mut header = ustar_header(
+            &mut self.seen,
+            name,
+            name,
+            tar::EntryType::Regular,
+            size,
+            mode,
+        )?;
+        set_cksum(&mut header)?;
+        self.sink.write_all(header.as_bytes())?;
+        let copied = io::copy(&mut reader.by_ref().take(size), &mut self.sink)?;
+        let mut extra = [0u8; 1];
+        if copied != size || reader.read(&mut extra)? != 0 {
+            return Err(invalid_input(format!(
+                "tar member {name:?} did not yield exactly {size} bytes"
+            )));
+        }
+        let padded = size.div_ceil(512) * 512;
+        self.pad(usize::try_from(padded - size).map_err(io::Error::other)?)?;
+        self.written += 512 + padded;
+        Ok(())
+    }
+
+    fn pad(&mut self, len: usize) -> io::Result<()> {
+        io::copy(&mut io::repeat(0).take(len as u64), &mut self.sink).map(|_| ())
+    }
+
+    /// Writes the end-of-archive blocks, pads to a whole record and returns the flushed sink.
+    pub fn finish(mut self) -> io::Result<W> {
+        let end = self.written + 1024;
+        let total = end.div_ceil(RECORDSIZE as u64) * RECORDSIZE as u64;
+        self.pad(usize::try_from(total - self.written).map_err(io::Error::other)?)?;
+        self.sink.flush()?;
+        Ok(self.sink)
     }
 }
 

@@ -60,6 +60,7 @@ rust_library(
     visibility = VIS_QUALITY + ["//cli/cli:__pkg__"],
     # tempfile is a Cargo dependency for the tests only, so the library names its crates.
     deps = [
+        "//cli/archive:dx_archive",
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "//cli/output:dx_output",
@@ -184,6 +185,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        "//cli/archive:dx_archive",
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "//cli/output:dx_output",

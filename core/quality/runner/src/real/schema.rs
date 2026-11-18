@@ -136,10 +136,11 @@ pub(super) const TOOLS: &[ToolDef] = &[
             let pairs = &call.staged.pairs;
             let capability = call.capability;
 
-            let root =
-                without_verbatim(std::fs::canonicalize(call.staged.scratch.root()).map_err(
-                    |err| execution(call.tool_id, format!("canonicalize scratch root: {err}")),
-                )?);
+            let root = dx_path::without_verbatim(
+                &std::fs::canonicalize(call.staged.scratch.root()).map_err(|err| {
+                    execution(call.tool_id, format!("canonicalize scratch root: {err}"))
+                })?,
+            );
             let mut findings = Vec::new();
             for (workspace, absolute) in pairs {
                 // The compiler's import root is the scratch root.
@@ -235,19 +236,22 @@ pub(super) const TOOLS: &[ToolDef] = &[
             let pairs = &call.staged.pairs;
             let capability = call.capability;
 
-            let root =
-                without_verbatim(std::fs::canonicalize(call.staged.scratch.root()).map_err(
-                    |err| execution(call.tool_id, format!("canonicalize scratch root: {err}")),
-                )?);
+            let root = dx_path::without_verbatim(
+                &std::fs::canonicalize(call.staged.scratch.root()).map_err(|err| {
+                    execution(call.tool_id, format!("canonicalize scratch root: {err}"))
+                })?,
+            );
             let out_dir = root.join(".dx-thrift-out");
             std::fs::create_dir_all(&out_dir)
                 .map_err(|err| execution(call.tool_id, format!("create output dir: {err}")))?;
             let mut findings = Vec::new();
             for (workspace, absolute) in pairs {
                 // thrift prints realpaths of the staged copy, so check and report that one.
-                let file = without_verbatim(std::fs::canonicalize(root.join(workspace)).map_err(
-                    |err| execution(call.tool_id, format!("resolve {workspace}: {err}")),
-                )?);
+                let file = dx_path::without_verbatim(
+                    &std::fs::canonicalize(root.join(workspace)).map_err(|err| {
+                        execution(call.tool_id, format!("resolve {workspace}: {err}"))
+                    })?,
+                );
                 let invocation = commands::thrift_check(&call.tool.binary, &file, &root, &out_dir);
                 let out =
                     backend.run(call.tool_id, call.tool, &invocation, &call.staged.scratch)?;
@@ -367,11 +371,11 @@ fn declared_input_escape(
     root: &Path,
     dependencies: &[String],
 ) -> Result<(), RunnerError> {
-    let root = without_verbatim(root.to_path_buf());
+    let root = dx_path::without_verbatim(root);
     for dependency in dependencies {
         let normal = lexical_normal(Path::new(dependency));
         let inside = std::fs::canonicalize(&normal)
-            .map(without_verbatim)
+            .map(|real| dx_path::without_verbatim(&real))
             .is_ok_and(|real| real.starts_with(&root));
         if !inside {
             return Err(execution(
@@ -419,43 +423,6 @@ fn import_path_copy(
         .find(|(path, _)| workspace.ends_with(path.as_str()))
         .or(same.first());
     Ok(chosen.map(|(_, copy)| (*copy).clone()))
-}
-
-/// Drops the `\\?\` prefix from a drive-letter path, which kj rejects; UNC paths stay as they are.
-pub(super) fn without_verbatim(path: PathBuf) -> PathBuf {
-    let text = path.to_string_lossy().into_owned();
-    let Some(rest) = text.strip_prefix(r"\\?\") else {
-        return path;
-    };
-    if let [drive, b':', ..] = rest.as_bytes()
-        && drive.is_ascii_alphabetic()
-    {
-        PathBuf::from(rest)
-    } else {
-        path
-    }
-}
-
-#[cfg(test)]
-mod verbatim_tests {
-    use super::without_verbatim;
-    use std::path::PathBuf;
-
-    #[test]
-    fn only_drive_letter_paths_lose_the_prefix() {
-        assert_eq!(
-            without_verbatim(PathBuf::from(r"\\?\D:\a")),
-            PathBuf::from(r"D:\a")
-        );
-        assert_eq!(
-            without_verbatim(PathBuf::from(r"\\?\UNC\h\s")),
-            PathBuf::from(r"\\?\UNC\h\s")
-        );
-        assert_eq!(
-            without_verbatim(PathBuf::from("/tmp/x")),
-            PathBuf::from("/tmp/x")
-        );
-    }
 }
 
 #[cfg(test)]

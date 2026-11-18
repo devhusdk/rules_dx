@@ -96,7 +96,20 @@ pub fn remove_stale_staging(target: &Path) {
     }
 }
 
+/// Writes content to path so readers see the old or the new file, never a partial one,
+/// and syncs it so the new file survives a crash.
+/// An existing file keeps its mode; a new one gets 0644.
 pub fn write_atomic(path: &Path, content: &[u8]) -> io::Result<()> {
+    write_staged(path, content, Durability::Synced)
+}
+
+/// Like [`write_atomic`] without the disk syncs, for files a crash may lose: scratch trees
+/// thrown away after the run, and Bazel action outputs, which Bazel re-checks by digest.
+pub fn write_scratch(path: &Path, content: &[u8]) -> io::Result<()> {
+    write_staged(path, content, Durability::Unsynced)
+}
+
+fn write_staged(path: &Path, content: &[u8], durability: Durability) -> io::Result<()> {
     use std::io::Write as _;
     let mut staging = staging_for(path)?;
     #[cfg(unix)]
@@ -109,7 +122,83 @@ pub fn write_atomic(path: &Path, content: &[u8]) -> io::Result<()> {
             .set_permissions(std::fs::Permissions::from_mode(mode))?;
     }
     staging.write_all(content)?;
-    staging.persist(long_path(path)?).map_err(|err| err.error)?;
+    persist(staging, path, durability)
+}
+
+/// Whether a staged file is flushed to disk around its rename.
+#[derive(Clone, Copy)]
+pub(crate) enum Durability {
+    Synced,
+    /// For files a crash may lose: scratch trees, and copies that stand in for a link,
+    /// since links are not synced either.
+    Unsynced,
+}
+
+/// Renames staging over dest. Synced flushes staging first, since without it a crash
+/// after the rename can leave dest empty, then syncs dest's directory.
+fn persist(
+    staging: tempfile::NamedTempFile,
+    dest: &Path,
+    durability: Durability,
+) -> io::Result<()> {
+    match durability {
+        Durability::Synced => {
+            sync_outcome(staging.as_file().sync_all())?;
+            staging.persist(long_path(dest)?).map_err(|err| err.error)?;
+            sync_parent(dest)
+        }
+        Durability::Unsynced => {
+            staging.persist(long_path(dest)?).map_err(|err| err.error)?;
+            Ok(())
+        }
+    }
+}
+
+/// The result of a sync, where a filesystem that cannot sync counts as done, as it did
+/// before writes were synced. macOS SMB shares fail F_FULLFSYNC with ENOTSUP.
+fn sync_outcome(result: io::Result<()>) -> io::Result<()> {
+    match result {
+        Err(error) if cannot_sync(&error) => Ok(()),
+        other => other,
+    }
+}
+
+/// Like [`sync_outcome`] for a directory. Linux filesystems without directory sync, such
+/// as some shared-folder mounts, fail it with EINVAL.
+#[cfg(unix)]
+fn dir_sync_outcome(result: io::Result<()>) -> io::Result<()> {
+    match result {
+        Err(error) if error.kind() == io::ErrorKind::InvalidInput => Ok(()),
+        other => sync_outcome(other),
+    }
+}
+
+fn cannot_sync(error: &io::Error) -> bool {
+    // ENOTSUP in <sys/errno.h>. std maps it to Uncategorized there; only EOPNOTSUPP (102)
+    // becomes Unsupported.
+    const APPLE_ENOTSUP: i32 = 45;
+    error.kind() == io::ErrorKind::Unsupported
+        || (cfg!(target_vendor = "apple") && error.raw_os_error() == Some(APPLE_ENOTSUP))
+}
+
+/// Syncs the directory that holds path, so the renamed entry survives a crash.
+#[cfg(unix)]
+fn sync_parent(path: &Path) -> io::Result<()> {
+    let parent = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    // A directory the caller may write but not read (mode 0300 or 0711) cannot be opened.
+    // The rename has already landed, so skip the sync rather than report a failed write.
+    match File::open(parent) {
+        Ok(dir) => dir_sync_outcome(dir.sync_all()),
+        Err(_) => Ok(()),
+    }
+}
+
+/// Nothing to do: Windows cannot open a directory as a plain file to sync it.
+#[cfg(not(unix))]
+fn sync_parent(_path: &Path) -> io::Result<()> {
     Ok(())
 }
 
@@ -117,6 +206,7 @@ pub(crate) fn persist_copy(
     mut source: File,
     mut staging: tempfile::NamedTempFile,
     dest: &Path,
+    durability: Durability,
 ) -> io::Result<()> {
     io::copy(&mut source, staging.as_file_mut())?;
     #[cfg(unix)]
@@ -128,26 +218,19 @@ pub(crate) fn persist_copy(
             .as_file()
             .set_permissions(std::fs::Permissions::from_mode(bits))?;
     }
-    staging.persist(long_path(dest)?).map_err(|err| err.error)?;
-    Ok(())
+    persist(staging, dest, durability)
 }
 
 /// Copies src to dest through a temp file, staged 0644 or 0755 when src is executable.
 pub fn copy_atomic(src: &Path, dest: &Path) -> io::Result<()> {
     let source = File::open(src)?;
-    persist_copy(source, staging_for(dest)?, dest)
+    persist_copy(source, staging_for(dest)?, dest, Durability::Synced)
 }
 
 /// The path spelled so Windows accepts it past the legacy length limit.
 #[cfg(windows)]
 fn long_path(path: &Path) -> io::Result<std::path::PathBuf> {
-    let absolute = std::path::absolute(path)?;
-    if absolute.as_os_str().as_encoded_bytes().starts_with(br"\\") {
-        return Ok(absolute);
-    }
-    let mut verbatim = std::ffi::OsString::from(r"\\?\");
-    verbatim.push(absolute.as_os_str());
-    Ok(verbatim.into())
+    Ok(dx_path::verbatim(&std::path::absolute(path)?))
 }
 
 /// The path unchanged, since only Windows limits its length.
@@ -181,7 +264,7 @@ mod tests {
 
     #[test]
     fn writes_and_overwrites_without_stray_staging_files() {
-        let scratch = dx_test_scratch::scratch("dx-atomic-fs-");
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-").unwrap();
         let dir = scratch.path().to_path_buf();
         let nested = dir.join("sub").join("a.txt");
         assert_eq!(
@@ -222,7 +305,7 @@ mod tests {
 
     #[test]
     fn creates_parent_directories() {
-        let scratch = dx_test_scratch::scratch("dx-atomic-fs-parents-");
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-parents-").unwrap();
         let nested = scratch.path().join("a").join("b").join("c.txt");
         write_atomic(&nested, b"deep\n").expect("deep write");
         assert_eq!(std::fs::read(&nested).expect("deep read"), b"deep\n");
@@ -239,7 +322,7 @@ mod tests {
             std::fs::write("dx-atomic-fs-bare-child-ok", b"ok").expect("sentinel");
             return;
         }
-        let scratch = dx_test_scratch::scratch("dx-atomic-fs-bare-");
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-bare-").unwrap();
         let original = std::env::current_dir().expect("cwd");
         let spawn = || {
             std::process::Command::new(std::env::current_exe().expect("test binary"))
@@ -264,7 +347,7 @@ mod tests {
     fn preserves_existing_mode_on_overwrite() {
         {
             use std::os::unix::fs::PermissionsExt as _;
-            let scratch = dx_test_scratch::scratch("dx-atomic-fs-mode-");
+            let scratch = dx_test_scratch::scratch("dx-atomic-fs-mode-").unwrap();
             let executable = scratch.path().join("run.sh");
             write_atomic(&executable, b"#!/bin/sh\necho hi\n").expect("create executable");
             std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755))
@@ -307,7 +390,7 @@ mod tests {
     #[test]
     #[cfg(not(unix))]
     fn non_unix_copies_replace_the_destination() {
-        let scratch = dx_test_scratch::scratch("dx-atomic-fs-copy-bytes-");
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-copy-bytes-").unwrap();
         let src = scratch.path().join("src.bin");
         std::fs::write(&src, b"payload\n").expect("write src");
         let dest = scratch.path().join("dest.bin");
@@ -320,7 +403,7 @@ mod tests {
     #[test]
     #[cfg(not(unix))]
     fn non_unix_round_trips_bytes_without_mode_assertions() {
-        let scratch = dx_test_scratch::scratch("dx-atomic-fs-bytes-");
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-bytes-").unwrap();
         let target = scratch.path().join("roundtrip.txt");
         write_atomic(&target, b"hello\n").expect("write");
         assert_eq!(std::fs::read(&target).expect("read back"), b"hello\n");
@@ -348,8 +431,61 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
+    fn writes_into_a_directory_it_cannot_read() {
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-write-only-dir-").unwrap();
+        let dir = scratch.path().join("drop");
+        std::fs::create_dir(&dir).expect("mkdir");
+        chmod(&dir, 0o300);
+        let target = dir.join("out.txt");
+        let first = write_atomic(&target, b"first\n");
+        let second = write_atomic(&target, b"second\n");
+        chmod(&dir, 0o755);
+        first.expect("create in write-only dir");
+        second.expect("replace in write-only dir");
+        assert_eq!(std::fs::read(&target).expect("read back"), b"second\n");
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn a_filesystem_that_cannot_sync_counts_as_synced() {
+        assert!(sync_outcome(Ok(())).is_ok());
+        assert!(sync_outcome(Err(io::ErrorKind::Unsupported.into())).is_ok());
+        let failed = sync_outcome(Err(io::ErrorKind::Other.into())).expect_err("other errors stay");
+        assert_eq!(failed.kind(), io::ErrorKind::Other);
+        assert_eq!(
+            cannot_sync(&io::Error::from_raw_os_error(45)),
+            cfg!(target_vendor = "apple")
+        );
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn a_directory_that_cannot_sync_counts_as_synced() {
+        assert!(dir_sync_outcome(Ok(())).is_ok());
+        assert!(dir_sync_outcome(Err(io::ErrorKind::InvalidInput.into())).is_ok());
+        assert!(dir_sync_outcome(Err(io::ErrorKind::Unsupported.into())).is_ok());
+        let failed =
+            dir_sync_outcome(Err(io::ErrorKind::Other.into())).expect_err("other errors stay");
+        assert_eq!(failed.kind(), io::ErrorKind::Other);
+    }
+
+    #[test]
+    fn write_scratch_replaces_and_keeps_the_mode() {
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-scratch-").unwrap();
+        let target = scratch.path().join("mirror").join("a.txt");
+        write_scratch(&target, b"first\n").expect("create");
+        write_scratch(&target, b"second\n").expect("replace");
+        assert_eq!(std::fs::read(&target).expect("read back"), b"second\n");
+        assert_eq!(names_in(&scratch.path().join("mirror")), ["a.txt"]);
+        #[cfg(unix)]
+        assert_eq!(mode_of(&target), 0o644);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
     fn staging_file_is_a_staging_sibling() {
-        let scratch = dx_test_scratch::scratch("dx-atomic-fs-staging-sibling-");
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-staging-sibling-").unwrap();
         let dir = scratch.path().to_path_buf();
         let target = long_path(&dir.join("out.sarif")).expect("long path");
         let staging = staging_for(&target).expect("staging");
@@ -388,14 +524,14 @@ mod tests {
     #[test]
     fn remove_stale_staging_ignores_bare_and_missing_parents() {
         remove_stale_staging(Path::new("bare-name-without-parent"));
-        let scratch = dx_test_scratch::scratch("dx-atomic-fs-stale-missing-");
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-stale-missing-").unwrap();
         remove_stale_staging(&scratch.path().join("missing").join("file"));
         scratch.close().expect("cleanup");
     }
 
     #[test]
     fn a_very_long_file_name_still_writes() {
-        let scratch = dx_test_scratch::scratch("dx-atomic-fs-long-name-");
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-long-name-").unwrap();
         let dir = scratch.path().to_path_buf();
         let target = dir.join("n".repeat(250));
         write_atomic(&target, b"x").expect("write");
@@ -420,7 +556,7 @@ mod tests {
     #[test]
     #[cfg(unix)]
     fn copy_atomic_restages_a_read_only_source() {
-        let scratch = dx_test_scratch::scratch("dx-atomic-fs-copy-ro-");
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-copy-ro-").unwrap();
         let src = scratch.path().join("src.txt");
         std::fs::write(&src, b"payload\n").expect("write src");
         chmod(&src, 0o444);
@@ -437,7 +573,7 @@ mod tests {
     #[test]
     #[cfg(unix)]
     fn copy_atomic_keeps_exec_bit_as_0755() {
-        let scratch = dx_test_scratch::scratch("dx-atomic-fs-copy-exec-");
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-copy-exec-").unwrap();
         let src = scratch.path().join("tool");
         std::fs::write(&src, b"#!/bin/sh\n").expect("write src");
         chmod(&src, 0o555);
@@ -452,7 +588,7 @@ mod tests {
     #[test]
     #[cfg(unix)]
     fn copy_atomic_replaces_a_read_only_dest() {
-        let scratch = dx_test_scratch::scratch("dx-atomic-fs-copy-dest-");
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-copy-dest-").unwrap();
         let src = scratch.path().join("src.txt");
         std::fs::write(&src, b"new\n").expect("write src");
         let dest = scratch.path().join("dest.txt");
@@ -466,7 +602,7 @@ mod tests {
 
     #[test]
     fn copy_atomic_missing_source_leaves_no_staging_file() {
-        let scratch = dx_test_scratch::scratch("dx-atomic-fs-copy-missing-");
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-copy-missing-").unwrap();
         let out = scratch.path().join("out");
         std::fs::create_dir_all(&out).expect("mkdir out");
         let err = copy_atomic(&scratch.path().join("absent"), &out.join("dest"))
@@ -478,7 +614,7 @@ mod tests {
 
     #[test]
     fn remove_stale_staging_keeps_fresh_and_unrelated_files() {
-        let scratch = dx_test_scratch::scratch("dx-atomic-fs-stale-");
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-stale-").unwrap();
         let dir = scratch.path();
         let target = dir.join("bazel");
         let old = dir.join(".bazel.abc.tmp");
@@ -519,7 +655,7 @@ mod tests {
     #[test]
     fn lock_exclusive_acquires_uncontended() {
         let _holding = dx_testing::holding();
-        let scratch = dx_test_scratch::scratch("dx-atomic-fs-lock-");
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-lock-").unwrap();
         let path = scratch.path().join(".commit.lock");
         let file = open_lock_file(&path);
         lock_exclusive(&file, Duration::from_secs(10)).expect("acquire");
@@ -533,7 +669,7 @@ mod tests {
     #[test]
     fn lock_exclusive_times_out_while_held() {
         let _holding = dx_testing::holding();
-        let scratch = dx_test_scratch::scratch("dx-atomic-fs-lock-busy-");
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-lock-busy-").unwrap();
         let path = scratch.path().join(".commit.lock");
         let held = open_lock_file(&path);
         lock_exclusive(&held, Duration::from_secs(10)).expect("hold lock");
@@ -550,7 +686,7 @@ mod tests {
     #[test]
     fn lock_exclusive_waits_then_acquires() {
         let _holding = dx_testing::holding();
-        let scratch = dx_test_scratch::scratch("dx-atomic-fs-lock-wait-");
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-lock-wait-").unwrap();
         let path = scratch.path().join(".commit.lock");
         let held = open_lock_file(&path);
         lock_exclusive(&held, Duration::from_secs(10)).expect("hold lock");

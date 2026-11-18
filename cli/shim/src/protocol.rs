@@ -198,15 +198,17 @@ pub fn effective_arch(
     if on_apple_silicon { "aarch64" } else { arch }
 }
 
+const SYSCTL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+
 fn read_sysctl(key: &str) -> Option<String> {
     let path = std::env::var_os("PATH").unwrap_or_default();
     let mut dirs: Vec<_> = std::env::split_paths(&path).collect();
     dirs.extend(["/usr/sbin".into(), "/sbin".into()]);
-    let output = std::process::Command::new("sysctl")
+    let mut command = std::process::Command::new("sysctl");
+    command
         .args(["-n", key])
-        .env("PATH", std::env::join_paths(dirs).ok()?)
-        .output()
-        .ok()?;
+        .env("PATH", std::env::join_paths(dirs).ok()?);
+    let output = dx_process::capture::run_captured(&mut command, SYSCTL_TIMEOUT).ok()?;
     String::from_utf8(output.stdout).ok()
 }
 

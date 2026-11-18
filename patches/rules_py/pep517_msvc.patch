@@ -1,3 +1,4 @@
+Upstream: aspect-build/rules_py#1662
 diff -ru a/uv/private/pep517_whl/cc_layer.bzl b/uv/private/pep517_whl/cc_layer.bzl
 --- a/uv/private/pep517_whl/cc_layer.bzl
 +++ b/uv/private/pep517_whl/cc_layer.bzl

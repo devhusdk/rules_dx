@@ -39,6 +39,7 @@ const QUERY_OPTIONS: &[&str] = &[
     "distdir",
     "repository_cache",
     "repo_contents_cache",
+    "repository_disable_download",
     "downloader_config",
     "check_direct_dependencies",
     "ignore_dev_dependency",

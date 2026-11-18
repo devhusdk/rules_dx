@@ -261,22 +261,22 @@ mod tests {
 
     fn apply(dir: &Path, plan: &AvroCpp) {
         for edit in &plan.edits {
-            write(dir, &edit.path, &edit.new);
+            write(dir, &edit.path, &edit.new).unwrap();
         }
     }
 
     fn fires(build_path: &str, build: &str) -> bool {
-        let dir = scratch("avro_cpp_fires");
-        write(dir.path(), MODULE_FILE, MODULE);
-        write(dir.path(), build_path, build);
+        let dir = scratch("avro_cpp_fires").unwrap();
+        write(dir.path(), MODULE_FILE, MODULE).unwrap();
+        write(dir.path(), build_path, build).unwrap();
         !plan_avro_cpp(dir.path()).expect("plan").edits.is_empty()
     }
 
     #[test]
     fn adds_the_dependency_overrides_and_patch_the_first_time() {
-        let dir = scratch("avro_cpp_first");
-        write(dir.path(), MODULE_FILE, MODULE);
-        write(dir.path(), "svc/BUILD.bazel", BUILD);
+        let dir = scratch("avro_cpp_first").unwrap();
+        write(dir.path(), MODULE_FILE, MODULE).unwrap();
+        write(dir.path(), "svc/BUILD.bazel", BUILD).unwrap();
         let plan = plan_avro_cpp(dir.path()).expect("plan");
         assert_eq!(
             paths(&plan),
@@ -298,9 +298,9 @@ mod tests {
 
     #[test]
     fn a_second_run_plans_nothing() {
-        let dir = scratch("avro_cpp_again");
-        write(dir.path(), MODULE_FILE, MODULE);
-        write(dir.path(), "svc/BUILD.bazel", BUILD);
+        let dir = scratch("avro_cpp_again").unwrap();
+        write(dir.path(), MODULE_FILE, MODULE).unwrap();
+        write(dir.path(), "svc/BUILD.bazel", BUILD).unwrap();
         let plan = plan_avro_cpp(dir.path()).expect("plan");
         apply(dir.path(), &plan);
         assert_eq!(plan_avro_cpp(dir.path()).expect("plan"), AvroCpp::default());
@@ -308,12 +308,12 @@ mod tests {
 
     #[test]
     fn keeps_a_dependency_and_extension_the_user_wrote() {
-        let dir = scratch("avro_cpp_user");
+        let dir = scratch("avro_cpp_user").unwrap();
         let module = format!(
             "{MODULE}bazel_dep(name = \"avro-cpp\", version = \"1.11.0\")\nx = use_extension(\"@rules_dx//avro:extensions.bzl\", \"avro_cc\")\n"
         );
-        write(dir.path(), MODULE_FILE, &module);
-        write(dir.path(), "BUILD.bazel", BUILD);
+        write(dir.path(), MODULE_FILE, &module).unwrap();
+        write(dir.path(), "BUILD.bazel", BUILD).unwrap();
         let plan = plan_avro_cpp(dir.path()).expect("plan");
         assert_eq!(
             module_edit(&plan).new,
@@ -326,12 +326,12 @@ mod tests {
 
     #[test]
     fn keeps_an_override_the_user_wrote_and_writes_no_patch() {
-        let dir = scratch("avro_cpp_archive");
+        let dir = scratch("avro_cpp_archive").unwrap();
         let module = format!(
             "{MODULE}archive_override(\n    module_name = \"avro-cpp\",\n    urls = [\"https://example.com/avro.tar.gz\"],\n)\n"
         );
-        write(dir.path(), MODULE_FILE, &module);
-        write(dir.path(), "BUILD.bazel", BUILD);
+        write(dir.path(), MODULE_FILE, &module).unwrap();
+        write(dir.path(), "BUILD.bazel", BUILD).unwrap();
         let plan = plan_avro_cpp(dir.path()).expect("plan");
         assert_eq!(paths(&plan), [MODULE_FILE]);
         let new = &module_edit(&plan).new;
@@ -341,16 +341,17 @@ mod tests {
 
     #[test]
     fn rewrites_a_stale_patch() {
-        let dir = scratch("avro_cpp_stale");
-        write(dir.path(), MODULE_FILE, MODULE);
-        write(dir.path(), "BUILD.bazel", BUILD);
+        let dir = scratch("avro_cpp_stale").unwrap();
+        write(dir.path(), MODULE_FILE, MODULE).unwrap();
+        write(dir.path(), "BUILD.bazel", BUILD).unwrap();
         let plan = plan_avro_cpp(dir.path()).expect("plan");
         apply(dir.path(), &plan);
         write(
             dir.path(),
             "third_party/rules_dx/avro-cpp/iterator.patch",
             "old\n",
-        );
+        )
+        .unwrap();
         let plan = plan_avro_cpp(dir.path()).expect("plan");
         assert_eq!(
             paths(&plan),
@@ -376,19 +377,19 @@ mod tests {
 
     #[test]
     fn plans_nothing_for_a_nested_module() {
-        let dir = scratch("avro_cpp_nested_module");
-        write(dir.path(), MODULE_FILE, MODULE);
-        write(dir.path(), "sub/MODULE.bazel", "module(name = \"sub\")\n");
-        write(dir.path(), "sub/BUILD.bazel", BUILD);
+        let dir = scratch("avro_cpp_nested_module").unwrap();
+        write(dir.path(), MODULE_FILE, MODULE).unwrap();
+        write(dir.path(), "sub/MODULE.bazel", "module(name = \"sub\")\n").unwrap();
+        write(dir.path(), "sub/BUILD.bazel", BUILD).unwrap();
         assert_eq!(plan_avro_cpp(dir.path()).expect("plan"), AvroCpp::default());
     }
 
     #[test]
     fn fires_for_a_schema_with_rules_cc_and_no_build_file() {
-        let dir = scratch("avro_cpp_schema_rules_cc");
+        let dir = scratch("avro_cpp_schema_rules_cc").unwrap();
         let module = format!("{MODULE}bazel_dep(name = \"rules_cc\", version = \"0.2.0\")\n");
-        write(dir.path(), MODULE_FILE, &module);
-        write(dir.path(), "svc/user.avsc", "{\"type\": \"string\"}\n");
+        write(dir.path(), MODULE_FILE, &module).unwrap();
+        write(dir.path(), "svc/user.avsc", "{\"type\": \"string\"}\n").unwrap();
         let plan = plan_avro_cpp(dir.path()).expect("plan");
         assert!(
             module_edit(&plan)
@@ -399,35 +400,35 @@ mod tests {
 
     #[test]
     fn plans_nothing_for_a_schema_without_rules_cc() {
-        let dir = scratch("avro_cpp_schema_no_rules_cc");
-        write(dir.path(), MODULE_FILE, MODULE);
-        write(dir.path(), "svc/user.avsc", "{\"type\": \"string\"}\n");
+        let dir = scratch("avro_cpp_schema_no_rules_cc").unwrap();
+        write(dir.path(), MODULE_FILE, MODULE).unwrap();
+        write(dir.path(), "svc/user.avsc", "{\"type\": \"string\"}\n").unwrap();
         assert_eq!(plan_avro_cpp(dir.path()).expect("plan"), AvroCpp::default());
     }
 
     #[test]
     fn plans_nothing_for_a_schema_in_a_nested_module() {
-        let dir = scratch("avro_cpp_schema_nested_module");
+        let dir = scratch("avro_cpp_schema_nested_module").unwrap();
         let module = format!("{MODULE}bazel_dep(name = \"rules_cc\", version = \"0.2.0\")\n");
-        write(dir.path(), MODULE_FILE, &module);
-        write(dir.path(), "sub/MODULE.bazel", "module(name = \"sub\")\n");
-        write(dir.path(), "sub/user.avdl", "protocol P {}\n");
+        write(dir.path(), MODULE_FILE, &module).unwrap();
+        write(dir.path(), "sub/MODULE.bazel", "module(name = \"sub\")\n").unwrap();
+        write(dir.path(), "sub/user.avdl", "protocol P {}\n").unwrap();
         assert_eq!(plan_avro_cpp(dir.path()).expect("plan"), AvroCpp::default());
     }
 
     #[test]
     fn plans_nothing_in_rules_dx() {
-        let dir = scratch("avro_cpp_rules_dx");
-        write(dir.path(), MODULE_FILE, "module(name = \"rules_dx\")\n");
-        write(dir.path(), "BUILD.bazel", BUILD);
+        let dir = scratch("avro_cpp_rules_dx").unwrap();
+        write(dir.path(), MODULE_FILE, "module(name = \"rules_dx\")\n").unwrap();
+        write(dir.path(), "BUILD.bazel", BUILD).unwrap();
         assert_eq!(plan_avro_cpp(dir.path()).expect("plan"), AvroCpp::default());
     }
 
     #[test]
     fn plans_nothing_without_avro_cc_library() {
-        let dir = scratch("avro_cpp_none");
-        write(dir.path(), MODULE_FILE, MODULE);
-        write(dir.path(), "BUILD.bazel", "avro_library(name = \"u\")\n");
+        let dir = scratch("avro_cpp_none").unwrap();
+        write(dir.path(), MODULE_FILE, MODULE).unwrap();
+        write(dir.path(), "BUILD.bazel", "avro_library(name = \"u\")\n").unwrap();
         assert_eq!(plan_avro_cpp(dir.path()).expect("plan"), AvroCpp::default());
     }
 }

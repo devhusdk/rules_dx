@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use crate::util::{
-    Env, Failure, Outcome, Scratch, exit_code, has_extension, missing, reject, usage,
+    Env, Failure, Outcome, exit_code, has_extension, missing, reject, scratch, usage,
 };
 use crate::xcode::{Tools, XCRUN};
 
@@ -86,7 +86,7 @@ fn install(tools: &Tools<'_>, env: Env<'_>, udid: &str, app: &str) -> Outcome {
     if !has_extension(app, "ipa") {
         return Err(usage(format!("{app} is neither an .ipa nor an .app")));
     }
-    let work = Scratch::new(env, "simctl")?;
+    let work = scratch(env, "simctl")?;
     let file = std::fs::File::open(app_path)
         .map_err(|error| reject(format!("cannot read {app}: {error}")))?;
     zip::ZipArchive::new(file)

@@ -9,10 +9,20 @@ load("@rules_scala//scala:providers.bzl", "DepsInfo", "ScalaInfo")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//core/quality:sources.bzl", "single_target")
 
+visibility(["//java/..."])
+
 _KT_TOOLCHAIN_TYPE = "@rules_kotlin//kotlin/internal:kt_toolchain_type"
 _SCALA_TOOLCHAIN_TYPE = "@rules_scala//scala:toolchain_type"
 _ANDROID_SDK_TOOLCHAIN_TYPE = "@rules_android//toolchains/android_sdk:toolchain_type"
 _ANDROID_KINDS = ["android_library", "kt_android_library"]
+
+# The check drivers speak Bazel's JSON worker protocol (java/private/quality/tools/worker), so local
+# builds keep one warm JVM, and for kotlinc and scalac one loaded compiler, per mnemonic instead of a
+# cold start per target. Singleplex: --worker_sandboxing in the generated bazelrc sandboxes it.
+_WORKER = {
+    "requires-worker-protocol": "json",
+    "supports-workers": "1",
+}
 
 JvmAndroidSdkInfo = provider(
     doc = "Android platform jars an Android JVM target compiles against.",
@@ -260,6 +270,7 @@ def _kotlinc_check(target, ctx, attrs):
             transitive = [classpath, plugin_jars, friends],
         ),
         outputs = [log],
+        execution_requirements = _WORKER,
         resource_set = dx_heavy_resources,
         toolchain = None,
     )
@@ -341,6 +352,7 @@ def _scalac_check(target, ctx, attrs):
         arguments = [args],
         inputs = depset(sources + srcjars + analyzer_jars, transitive = [classpath, jars.compiler, plugin_jars]),
         outputs = [log],
+        execution_requirements = _WORKER,
         resource_set = dx_heavy_resources,
         toolchain = None,
     )
@@ -392,6 +404,7 @@ def _jvm_check_impl(target, ctx):
             transitive = [classpath, boot_classpath, processor_jars, processor_data],
         ),
         outputs = [log],
+        execution_requirements = _WORKER,
         resource_set = dx_heavy_resources,
         toolchain = None,
     )

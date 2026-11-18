@@ -15,6 +15,9 @@ load(
     "plan_shard_subject_records",
 )
 
+# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
+visibility("public")
+
 DxCodegenPlanInfo = provider(
     doc = "Normalized codegen plan records: direct plus transitive collection.",
     fields = {

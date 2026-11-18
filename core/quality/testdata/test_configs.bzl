@@ -1,5 +1,7 @@
 """Build settings of every quality test configuration."""
 
+visibility("private")
+
 MAX_TEST_CONFIGS = 26
 
 _CLIPPY_STANDARD = ["-Wclippy::all", "-Dwarnings"]

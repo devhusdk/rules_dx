@@ -2,6 +2,8 @@
 
 load("//core:failure_test.bzl", "failure_test_rule")
 
+visibility("private")
+
 def _ambiguous_nodes_impl(ctx):
     """Writes two node runtimes into one runfiles closure."""
     runtimes = []

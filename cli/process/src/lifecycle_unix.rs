@@ -1,18 +1,8 @@
 use super::backend::Group;
 use super::{Command, Descendants, ExitStatus};
+use dx_os_sys::process::{Presence, SIGKILL, SIGTERM};
 use std::io;
 use std::process::{Child, ChildStderr, ChildStdout};
-
-const SIGTERM: i32 = 15;
-const SIGKILL: i32 = 9;
-
-#[expect(unsafe_code, reason = "signal and terminal group calls are libc FFI")]
-// SAFETY: the declarations match the libc signatures of kill, getpgrp and tcgetpgrp.
-unsafe extern "C" {
-    fn kill(pid: i32, sig: i32) -> i32;
-    fn getpgrp() -> i32;
-    fn tcgetpgrp(fd: i32) -> i32;
-}
 
 pub struct OwnedChild {
     child: std::process::Child,
@@ -37,34 +27,10 @@ impl OwnedChild {
     }
 }
 
-// LCOV_EXCL_START - reason: runs in the forked child, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-/// Runs in the child between fork and exec: die with the parent, and fail if it is already gone.
+/// Makes the child die with dx, and fail to spawn if dx is already gone.
 #[cfg(target_os = "linux")]
-#[expect(unsafe_code, reason = "PR_SET_PDEATHSIG has no safe std API")]
-fn child_guard(parent: u32) -> io::Result<()> {
-    const PR_SET_PDEATHSIG: i32 = 1;
-    // SAFETY: the declaration matches the libc signature of prctl.
-    unsafe extern "C" {
-        fn prctl(option: i32, arg2: u64, arg3: u64, arg4: u64, arg5: u64) -> i32;
-    }
-    // SAFETY: PR_SET_PDEATHSIG takes a signal number and no pointers.
-    unsafe { prctl(PR_SET_PDEATHSIG, SIGTERM as u64, 0, 0, 0) };
-    if std::os::unix::process::parent_id() != parent {
-        return Err(io::Error::from(io::ErrorKind::BrokenPipe));
-    }
-    Ok(())
-}
-// LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-
-#[cfg(target_os = "linux")]
-#[expect(unsafe_code, reason = "Command::pre_exec is unsafe")]
 fn stop_with_parent(command: &mut Command) {
-    use std::os::unix::process::CommandExt;
-    let parent = std::process::id();
-    // SAFETY: child_guard only calls prctl and getppid, which are async-signal-safe.
-    unsafe {
-        command.pre_exec(move || child_guard(parent));
-    }
+    dx_os_sys::spawn::die_with_parent(command, SIGTERM);
 }
 
 #[cfg(not(target_os = "linux"))]
@@ -89,7 +55,6 @@ pub fn end_owned_descendants(owned: &mut OwnedChild) {
     }
 }
 
-#[expect(unsafe_code, reason = "signalling a process group has no safe std API")]
 fn signal_group(owned: &mut OwnedChild, signo: i32) {
     let id = owned.child.id().cast_signed();
     let target = if owned.descendants == Descendants::Foreground {
@@ -97,10 +62,8 @@ fn signal_group(owned: &mut OwnedChild, signo: i32) {
     } else {
         -id
     };
-    // SAFETY: kill has no memory preconditions.
-    unsafe {
-        kill(target, signo);
-    }
+    // The child may have exited and been reaped already; there is nothing left to signal then.
+    drop(dx_os_sys::process::signal(target, signo));
 }
 
 pub fn terminate_graceful(owned: &mut OwnedChild) {
@@ -119,43 +82,16 @@ pub fn termination_signal(status: &ExitStatus) -> Option<i32> {
 /// Nothing beyond the inherited descriptors keeps a Unix tree's locks.
 pub struct StreamTree;
 
-const F_GETFD: i32 = 1;
-const F_SETFD: i32 = 2;
-const FD_CLOEXEC: i32 = 1;
-
-#[expect(
-    unsafe_code,
-    reason = "fcntl F_SETFD in a pre_exec hook needs the raw libc call"
-)]
-// SAFETY: the declaration matches the variadic libc signature of fcntl.
-unsafe extern "C" {
-    fn fcntl(fd: i32, cmd: i32, ...) -> i32;
-}
-
-/// Clears close-on-exec on the held descriptors in the child only,
+/// Clears close-on-exec on duplicates of the held descriptors in the child only,
 /// so concurrent spawns from other threads never inherit them.
-#[expect(unsafe_code, reason = "Command::pre_exec is unsafe")]
-fn inherit_held(command: &mut Command, held: &[std::fs::File]) {
-    use std::os::fd::AsRawFd;
-    use std::os::unix::process::CommandExt;
-    if held.is_empty() {
-        return;
-    }
-    let fds: Vec<i32> = held.iter().map(AsRawFd::as_raw_fd).collect();
-    // SAFETY: the hook only calls fcntl on descriptors collected before the fork.
-    unsafe {
-        // LCOV_EXCL_START - reason: runs in the forked child, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        command.pre_exec(move || {
-            for &fd in &fds {
-                let flags = fcntl(fd, F_GETFD);
-                if flags < 0 || fcntl(fd, F_SETFD, flags & !FD_CLOEXEC) < 0 {
-                    return Err(io::Error::last_os_error());
-                }
-            }
-            Ok(())
-        });
-        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-    }
+fn inherit_held(command: &mut Command, held: &[std::fs::File]) -> io::Result<()> {
+    use std::os::fd::AsFd;
+    let fds = held
+        .iter()
+        .map(|file| file.as_fd().try_clone_to_owned())
+        .collect::<io::Result<Vec<_>>>()?;
+    dx_os_sys::spawn::inherit(command, fds);
+    Ok(())
 }
 
 pub fn spawn_streamed(
@@ -178,7 +114,7 @@ pub fn spawn_streamed(
             command.process_group(0);
         }
     }
-    inherit_held(command, held);
+    inherit_held(command, held)?;
     Ok((command.spawn()?, StreamTree))
 }
 
@@ -190,34 +126,13 @@ pub fn stream_target(child: &Child, group: Group) -> i32 {
     }
 }
 
-#[expect(
-    unsafe_code,
-    reason = "a signal sent from a handler saves errno through its libc location"
-)]
+/// Signals `target`; safe to call from a signal handler, and leaves `errno` as it was.
 pub fn send(target: i32, signo: i32) {
     if target != 0 {
-        // SAFETY: errno_slot points at this thread's errno and kill has no memory preconditions.
-        unsafe {
-            let slot = errno_slot();
-            let saved = *slot;
-            kill(target, signo);
-            *slot = saved;
-        }
+        let _errno = dx_os_sys::errno::ErrnoGuard::save();
+        // A target that is already gone needs no signal.
+        drop(dx_os_sys::process::signal(target, signo));
     }
-}
-
-#[cfg(any(target_os = "linux", target_os = "android"))]
-#[expect(unsafe_code, reason = "the errno location is only exposed by libc")]
-unsafe fn errno_slot() -> *mut i32 {
-    // SAFETY: __errno_location has no preconditions.
-    unsafe { libc::__errno_location() }
-}
-
-#[cfg(not(any(target_os = "linux", target_os = "android")))]
-#[expect(unsafe_code, reason = "the errno location is only exposed by libc")]
-unsafe fn errno_slot() -> *mut i32 {
-    // SAFETY: __error has no preconditions.
-    unsafe { libc::__error() }
 }
 
 pub fn send_kill(target: i32) {
@@ -228,20 +143,14 @@ pub fn force_stream(_child: &mut Child, target: i32) {
     send_kill(target);
 }
 
-#[expect(unsafe_code, reason = "kill with signal 0 has no safe std API")]
 pub fn tree_alive(target: i32) -> bool {
-    // SAFETY: kill with signal 0 only checks that the target exists.
-    target != 0 && unsafe { kill(target, 0) } == 0
+    target != 0 && dx_os_sys::process::probe(target) == Presence::Reachable
 }
 
-#[expect(unsafe_code, reason = "tcgetpgrp and getpgrp have no safe std API")]
 pub fn terminal_foreground() -> bool {
-    use std::os::fd::AsRawFd;
     let Ok(tty) = std::fs::File::open("/dev/tty") else {
         return false;
     };
-    // SAFETY: `tty` is an open descriptor; getpgrp has no preconditions.
-    let foreground = unsafe { tcgetpgrp(tty.as_raw_fd()) }; // LCOV_EXCL_LINE - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-    // SAFETY: getpgrp has no preconditions.
-    foreground > 0 && foreground == unsafe { getpgrp() } // LCOV_EXCL_LINE - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+    dx_os_sys::tty::foreground_group(&tty) // LCOV_EXCL_LINE - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        .is_ok_and(|foreground| foreground == dx_os_sys::process::own_group()) // LCOV_EXCL_LINE - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 }

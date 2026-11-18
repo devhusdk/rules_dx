@@ -158,7 +158,7 @@ fn dsym_check_rejects_missing_uuid_and_non_macho() {
 
 #[test]
 fn dwarf_file_needs_exactly_one_file_in_the_bundle() {
-    let scratch = dx_test_scratch::scratch("dsym-dwarf-one");
+    let scratch = dx_test_scratch::scratch("dsym-dwarf-one").unwrap();
     let bundle = scratch.path().to_path_buf();
     let err = dwarf_file(&bundle).unwrap_err();
     assert!(err.contains("cannot read dSYM"), "{err}");
@@ -174,7 +174,7 @@ fn dwarf_file_needs_exactly_one_file_in_the_bundle() {
 #[test]
 fn manifest_records_uuid_arch_digest_and_tool() {
     let uuid = [9u8; 16];
-    let scratch = dx_test_scratch::scratch("dsym-manifest");
+    let scratch = dx_test_scratch::scratch("dsym-manifest").unwrap();
     let root = scratch.path();
     let bin = macho(ARM64, MH_EXECUTE, Some(uuid));
     std::fs::write(root.join("app"), &bin).unwrap();
@@ -187,7 +187,7 @@ fn manifest_records_uuid_arch_digest_and_tool() {
     assert_eq!(json["arch"], "aarch64");
     assert_eq!(json["dwarf"], "Contents/Resources/DWARF/app");
     assert_eq!(json["dsymutil"], "LLVM version 22");
-    assert_eq!(json["sha256"], format!("{:x}", Sha256::digest(&bin)));
+    assert_eq!(json["sha256"], dx_digest::sha256_hex(&bin));
 }
 
 fn msf(info: Option<(&[u8; 16], u32)>, dbi: Option<(u32, u16)>) -> Vec<u8> {

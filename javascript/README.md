@@ -1,32 +1,25 @@
 # JavaScript
 
-Build, run and test JavaScript with Node.
+This directory helps you build, run and test JavaScript code with rules_dx.
 
-```python
-load("@rules_dx//javascript:defs.bzl", "javascript_binary", "javascript_library", "javascript_test")
+Load its rules in a `BUILD.bazel` file, the file that declares what Bazel
+builds, from `@rules_dx//javascript:defs.bzl`.
+`extensions.bzl` holds the module extension: the part you call from
+`MODULE.bazel` to set up toolchains and dependencies.
+The tests live in `tests/`. The [JavaScript page](../docs/languages/javascript.md) shows
+setup, every rule and the tools dx runs.
 
-javascript_library(
-    name = "greet",
-    srcs = ["greet.js"],
-)
+Run the JavaScript tests from a rules_dx checkout:
 
-javascript_binary(
-    name = "hello",
-    srcs = ["main.js"],
-    data = [":greet"],
-    main = "main.js",
-)
-
-javascript_test(
-    name = "greet_test",
-    srcs = ["greet.test.js"],
-    data = [":greet"],
-    node_modules = "//:node_modules",
-)
+```sh
+tools/dx test //javascript/...
 ```
 
-`javascript_test` runs `jest` by default and needs `node_modules`. Set `runner = "node"` with an
-`main` to run the file with Node instead.
+## Writing targets
+
+`javascript_test` runs `jest` by default and needs `node_modules`. Set
+`runner = "node"` with a `main` to run the file with Node instead.
+
 On Windows, Jest coverage uses the v8 provider.
 
 ## Dependencies

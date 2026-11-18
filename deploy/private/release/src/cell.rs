@@ -239,6 +239,9 @@ pub trait Runner {
 pub struct Consumer {
     pub template: PathBuf,
     pub checkout: PathBuf,
+    /// Licence ids `dx init` accepts in the staged consumer. The release workflow owns the
+    /// list, so this crate never names a licence itself.
+    pub accept_licenses: Vec<String>,
 }
 
 /// The debug symbols archive of a Windows cell and its independent rebuild.
@@ -522,8 +525,8 @@ pub fn stage_consumer(
         "--workspace",
         &workspace,
     ];
-    if windows {
-        init.extend(["--accept-license", "visual-studio-build-tools"]);
+    for id in &consumer.accept_licenses {
+        init.extend(["--accept-license", id.as_str()]);
     }
     ran(runner, exe, &init, &dir).map_err(|error| format!("stage: {error}"))?;
     let written = std::fs::read_to_string(dir.join("MODULE.bazel"))
@@ -1224,7 +1227,7 @@ fn read_matrix(path: &str) -> Result<Vec<Cell>, String> {
     parse_matrix(&text)
 }
 
-pub const QUALIFY_USAGE: &str = "qualify --matrix <release_matrix.json> --cell <name> --archive <path> --rebuild <path> --work <dir> --sha <commit> --version <version> --workflow-ref <ref> --workflow-sha <commit> --run-id <id> --job <name> --out <record.json> [--consumer <template dir> --checkout <rules_dx dir>] [--symbols <zip> --symbols-rebuild <zip>]";
+pub const QUALIFY_USAGE: &str = "qualify --matrix <release_matrix.json> --cell <name> --archive <path> --rebuild <path> --work <dir> --sha <commit> --version <version> --workflow-ref <ref> --workflow-sha <commit> --run-id <id> --job <name> --out <record.json> [--consumer <template dir> --checkout <rules_dx dir> [--accept-licenses <id,id>]] [--symbols <zip> --symbols-rebuild <zip>]";
 
 pub const VERIFY_USAGE: &str = "verify --matrix <release_matrix.json> --records <dir> --archives <dir> --sha <commit> --version <version> --workflow-ref <ref>";
 
@@ -1254,7 +1257,13 @@ pub fn parse_qualify_args(
             "job",
             "out",
         ],
-        &["consumer", "checkout", "symbols", "symbols-rebuild"],
+        &[
+            "consumer",
+            "checkout",
+            "accept-licenses",
+            "symbols",
+            "symbols-rebuild",
+        ],
     )?;
     let symbols = match (flags.get("symbols"), flags.get("symbols-rebuild")) {
         (Some(archive), Some(rebuild)) => Some(Symbols {
@@ -1265,13 +1274,21 @@ pub fn parse_qualify_args(
         (None, Some(_)) => return Err("--symbols-rebuild needs --symbols".to_owned()),
         (None, None) => None,
     };
+    let accept_licenses = match flags.get("accept-licenses") {
+        Some(list) => parse_license_ids(list)?,
+        None => Vec::new(),
+    };
     let consumer = match (flags.get("consumer"), flags.get("checkout")) {
         (Some(template), Some(checkout)) => Some(Consumer {
             template: PathBuf::from(*template),
             checkout: PathBuf::from(*checkout),
+            accept_licenses,
         }),
         (Some(_), None) => return Err("--consumer needs --checkout".to_owned()),
         (None, Some(_)) => return Err("--checkout needs --consumer".to_owned()),
+        (None, None) if flags.contains_key("accept-licenses") => {
+            return Err("--accept-licenses needs --consumer".to_owned());
+        }
         (None, None) => None,
     };
     let name = flag(&flags, "cell");
@@ -1296,6 +1313,20 @@ pub fn parse_qualify_args(
         symbols,
     };
     Ok((inputs, PathBuf::from(flag(&flags, "out"))))
+}
+
+/// Splits the comma-separated `--accept-licenses` value; an empty id is a typo, not "none".
+fn parse_license_ids(list: &str) -> Result<Vec<String>, String> {
+    list.split(',')
+        .map(|id| {
+            let id = id.trim();
+            if id.is_empty() {
+                Err(format!("--accept-licenses {list:?} has an empty id"))
+            } else {
+                Ok(id.to_owned())
+            }
+        })
+        .collect()
 }
 
 /// Parsed `verify` flags.

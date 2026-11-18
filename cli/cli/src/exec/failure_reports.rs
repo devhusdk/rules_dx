@@ -1,6 +1,6 @@
 use super::build_failures::to_event;
-use super::common::{emit_built, report_failed, write_report_document};
 use dx_bep::{BuildFailure, StderrRef, collect_build_failures};
+use dx_exec_core::common::{emit_built, report_failed, write_report_document};
 use dx_output::{OutputMode, build_failure_event, report_event};
 use dx_plan::args::Invocation;
 use dx_plan::reports::PlannedReport;

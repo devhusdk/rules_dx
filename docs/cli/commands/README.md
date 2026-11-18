@@ -37,6 +37,7 @@ A few Bazel words you will see on this page:
 - [`dx test`](build-test-coverage.md): run tests.
 - [`dx coverage`](build-test-coverage.md): collect LCOV coverage.
 - [`dx bench`](bench.md): run `dx-bench` tests and print their numbers.
+- [`dx fetch`](fetch.md): download what targets need, for offline builds.
 - [`dx run`](build-test-coverage.md): build and run a target.
 - [`dx deploy`](deploy.md): dry run one deploy target, or publish it with `--apply`.
 - [`dx lint`](quality.md): run linters.
@@ -410,7 +411,7 @@ Packaging and deploy:
 
 Module extensions, for `use_extension` in `MODULE.bazel`:
 
-- `@rules_dx//core:extensions.bzl`: `dx_pins`, `dx_source_archives` and `dx_licenses`.
+- `@rules_dx//core:extensions.bzl`: `dx_pins`, `dx_source_archives`, `dx_licenses` and `dx_prebuilt`.
 - `@rules_dx//android:extensions.bzl`: Android SDK and NDK toolchain.
 - `@rules_dx//apple/private/ios:simulator.bzl`: iOS simulator.
 - `@rules_dx//cuda:extensions.bzl`: CUDA toolchain.

@@ -19,7 +19,7 @@ pub enum ArgsError {
     Usage { text: String },
     /// No command was named.
     #[error(
-        "missing command: want security|license|lint|typecheck|format|generate|build|test|coverage|bench|run|deploy|check|clean|update|sync|init|upgrade|status|watch|completion|docs|worktree|fuzz|config"
+        "missing command: want security|license|lint|typecheck|format|generate|build|test|coverage|bench|run|deploy|check|clean|update|sync|init|upgrade|status|watch|completion|docs|worktree|fuzz|config|fetch"
     )]
     MissingCommand,
     /// The command does not take this flag.
@@ -74,6 +74,9 @@ pub enum ArgsError {
     /// A base ref was given without affected selection.
     #[error("option \"--since\" requires \"--affected\"")]
     SinceNeedsAffected,
+    /// A base branch was given without affected selection.
+    #[error("option \"--base\" requires \"--affected\"")]
+    BaseNeedsAffected,
     /// Affected selection was asked for alongside the here tree.
     #[error("option \"--affected\" cannot be combined with \"--here\"")]
     AffectedWithHere,

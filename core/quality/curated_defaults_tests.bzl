@@ -3,6 +3,8 @@
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":curated_defaults.bzl", "CURATED_DEFAULTS", "curated_schema_error")
 
+visibility("private")
+
 def curated_defaults_unit_tests(name):
     starlark_test(
         name = name,

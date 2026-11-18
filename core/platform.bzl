@@ -1,5 +1,7 @@
 """Reads the operating system and cpu of a Bazel platform label for rules that record them."""
 
+visibility(["//android/...", "//appimage/...", "//apple/...", "//cc/...", "//core/...", "//deploy/...", "//erlang/...", "//msix/...", "//qt/...", "//rust/...", "//swift/..."])
+
 DxPlatformInfo = provider(
     doc = "Operating system and cpu of the platform a probe was built for.",
     fields = {

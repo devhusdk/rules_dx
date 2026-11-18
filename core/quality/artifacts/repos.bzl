@@ -1,5 +1,7 @@
 """dx_tools use_repo inventory."""
 
+visibility("private")
+
 DX_TOOL_REPOS = [
     "dx_actionlint_linux_arm64",
     "dx_actionlint_linux_x86_64",

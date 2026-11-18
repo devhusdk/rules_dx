@@ -1,3 +1,4 @@
+Upstream: aspect-build/rules_py#1664
 diff --git a/uv/private/extension/defs.bzl b/uv/private/extension/defs.bzl
 --- a/uv/private/extension/defs.bzl
 +++ b/uv/private/extension/defs.bzl

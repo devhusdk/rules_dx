@@ -2,8 +2,8 @@ use std::ffi::OsString;
 use std::fmt::Write as _;
 use std::io::Write;
 
-use crate::exec::common::{check_stdout_write, emit_built, emit_event, refusal, report_dx_error};
-use crate::exec::notice_codes::{CODE_INIT_ABSENT, CODE_INIT_PLAN_PARTIAL};
+use dx_exec_core::common::{check_stdout_write, emit_built, emit_event, refusal, report_dx_error};
+use dx_exec_core::notice_codes::{CODE_INIT_ABSENT, CODE_INIT_PLAN_PARTIAL};
 use dx_output::{
     FinishedCounts, NoticeEvent, OutputMode, PlanFindingEvent, command_finished, command_started,
     init_plan_event, notice_event,
@@ -620,7 +620,7 @@ mod tests {
 
     #[test]
     fn license_ids_cover_given_accepted_and_missing() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-licenses-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-licenses-").unwrap();
         let root = scratch.path();
         std::fs::write(root.join("main.cc"), "int main() {}\n").expect("cc");
         let vs = "visual-studio-build-tools".to_owned();
@@ -652,7 +652,7 @@ mod tests {
 
     #[test]
     fn accept_license_writes_the_tag_once() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-accept-license-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-accept-license-").unwrap();
         let root = scratch.path().to_path_buf();
         let apply = invocation(&["init", "--apply", "--accept-license", "cuda-eula"]);
         let (code, out, err) = run(&apply, &root);
@@ -685,7 +685,7 @@ mod tests {
 
     #[test]
     fn init_check_names_missing_hooks_and_agents_block() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-check-wiring-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-check-wiring-").unwrap();
         let root = scratch.path().to_path_buf();
         let apply = invocation(&["init", "--apply", "--agents=claude"]);
         let check = invocation(&["init"]);
@@ -715,7 +715,7 @@ mod tests {
 
     #[test]
     fn default_apply_writes_no_tool_files_and_check_is_clean() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-no-tools-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-no-tools-").unwrap();
         let root = scratch.path().to_path_buf();
         assert_eq!(run(&invocation(&["init", "--apply"]), &root).0, 0);
         assert!(root.join("AGENTS.md").exists());
@@ -727,7 +727,7 @@ mod tests {
 
     #[test]
     fn agents_on_an_existing_repo_adds_only_that_tools_files() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-add-agent-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-add-agent-").unwrap();
         let root = scratch.path().to_path_buf();
         assert_eq!(run(&invocation(&["init", "--apply"]), &root).0, 0);
         let add = invocation(&["init", "--apply", "--agents=claude,claude"]);
@@ -750,7 +750,7 @@ mod tests {
 
     #[test]
     fn a_deleted_tool_file_is_not_drift_and_is_not_recreated() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-deleted-tool-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-deleted-tool-").unwrap();
         let root = scratch.path().to_path_buf();
         let apply = invocation(&["init", "--apply", "--agents=claude"]);
         assert_eq!(run(&apply, &root).0, 0);
@@ -762,7 +762,7 @@ mod tests {
 
     #[test]
     fn a_deleted_agents_md_is_named_as_absent_and_check_exits_zero() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-absent-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-absent-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::write(root.join("README.md"), "# Demo\n").expect("readme");
         assert_eq!(run(&invocation(&["init", "--apply"]), &root).0, 0);
@@ -795,7 +795,7 @@ mod tests {
 
     #[test]
     fn a_named_agent_with_a_missing_file_is_drift_and_the_hint_keeps_the_flag() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-named-agent-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-named-agent-").unwrap();
         let root = scratch.path().to_path_buf();
         assert_eq!(run(&invocation(&["init", "--apply"]), &root).0, 0);
         let (code, _out, err) = run(&invocation(&["init", "--agents=codex"]), &root);
@@ -806,7 +806,7 @@ mod tests {
 
     #[test]
     fn init_apply_with_a_vscode_file_writes_nothing() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-vscode-file-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-vscode-file-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::write(root.join(".vscode"), "file\n").expect("blocker");
         let (code, out, err) = run(&invocation(&["init", "--apply"]), &root);
@@ -821,7 +821,7 @@ mod tests {
 
     #[test]
     fn init_apply_finishes_every_write_when_stdout_closes() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-closed-stdout-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-closed-stdout-").unwrap();
         let root = scratch.path().to_path_buf();
         let inv = invocation(&["init", "--apply"]);
         let mut out = Truncated::after_lines(1);
@@ -836,7 +836,7 @@ mod tests {
 
     #[test]
     fn a_non_semver_pin_fails_init_before_any_write() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-semver-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-semver-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/pins"), "v1\n").expect("pin");
@@ -849,7 +849,7 @@ mod tests {
 
     #[test]
     fn init_check_reports_a_stale_launcher() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-check-stale-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-check-stale-").unwrap();
         let root = scratch.path().to_path_buf();
         let (code, _out, _err) = run(&invocation(&["init", "--apply"]), &root);
         assert_eq!(code, 0);
@@ -878,7 +878,7 @@ mod tests {
     #[test]
     fn init_check_reports_an_invalid_pin_as_drift() {
         for bad in ["", "v1"] {
-            let scratch = dx_test_scratch::scratch("dx-adopt-init-check-pin-");
+            let scratch = dx_test_scratch::scratch("dx-adopt-init-check-pin-").unwrap();
             let root = scratch.path().to_path_buf();
             let (code, _out, _err) = run(&invocation(&["init", "--apply"]), &root);
             assert_eq!(code, 0);
@@ -900,7 +900,7 @@ mod tests {
     #[test]
     fn init_full_applies_every_part() {
         let inv = invocation(&["init", "--apply", "--agents=claude,codex,gemini,copilot"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-apply-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-apply-").unwrap();
         let root = scratch.path().to_path_buf();
         let (code, _out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
@@ -935,7 +935,7 @@ mod tests {
 
     #[test]
     fn init_apply_appends_the_import_to_an_existing_claude_md() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-claude-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-claude-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::write(root.join("CLAUDE.md"), "# Mine\n").expect("seed");
         let inv = invocation(&["init", "--apply"]);
@@ -953,7 +953,7 @@ mod tests {
 
     #[test]
     fn init_apply_merges_hooks_and_allow_rules_into_existing_settings() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-allow-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-allow-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".claude")).expect("dir");
         std::fs::write(root.join(".claude/settings.json"), "{\"hooks\": {}}\n").expect("seed");
@@ -971,7 +971,7 @@ mod tests {
 
     #[test]
     fn init_check_reports_a_bazelignore_without_dx_as_stale() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-bazelignore-stale-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-bazelignore-stale-").unwrap();
         let root = scratch.path().to_path_buf();
         assert_eq!(run(&invocation(&["init", "--apply"]), &root).0, 0);
         let check = invocation(&["init"]);
@@ -986,7 +986,7 @@ mod tests {
     #[test]
     fn init_notes_an_existing_bazelignore_without_dx() {
         let inv = invocation(&["init", "--apply"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-bazelignore-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-bazelignore-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::write(root.join(".bazelignore"), "node_modules\n").expect("seed");
         let (code, _out, err) = run(&inv, &root);
@@ -1013,7 +1013,7 @@ mod tests {
 
     #[test]
     fn init_notes_a_gitignore_that_hides_dx_config() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-gitignore-config-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-gitignore-config-").unwrap();
         let root = scratch.path().to_path_buf();
         dx_process::capture::run_checked(
             dx_process::capture::git(&root).args(["init", "-q"]),
@@ -1033,7 +1033,7 @@ mod tests {
 
     #[test]
     fn init_apply_adds_the_block_to_a_hand_written_file_and_keeps_the_rest() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-agents-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-agents-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::write(root.join("AGENTS.md"), "# Mine\n\nKeep this.\n").expect("seed");
         let inv = invocation(&["init", "--apply"]);
@@ -1057,7 +1057,7 @@ mod tests {
 
     #[test]
     fn init_check_prints_the_plan() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-plan-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-plan-").unwrap();
         let root = scratch.path().to_path_buf();
         let (code, _out, _err) = run(&invocation(&["init", "--apply"]), &root);
         assert_eq!(code, 0);
@@ -1072,7 +1072,7 @@ mod tests {
     }
 
     fn adopted_root(name: &str, extra: &str) -> std::path::PathBuf {
-        let scratch = dx_test_scratch::scratch(name);
+        let scratch = dx_test_scratch::scratch(name).unwrap();
         let root = scratch.path().to_path_buf();
         std::mem::forget(scratch);
         let (code, _out, _err) = run(&invocation(&["init", "--apply"]), &root);
@@ -1152,7 +1152,7 @@ mod tests {
 
     #[test]
     fn init_default_checks_without_writing_and_apply_writes() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-check-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-check-").unwrap();
         let root = scratch.path().to_path_buf();
         let inv = invocation(&["init"]);
         let (code, out, err) = run(&inv, &root);
@@ -1178,7 +1178,7 @@ mod tests {
             .into_iter()
             .flat_map(|module| [(module, false), (module, true)])
         {
-            let scratch = dx_test_scratch::scratch("dx-adopt-init-reject-");
+            let scratch = dx_test_scratch::scratch("dx-adopt-init-reject-").unwrap();
             let root = scratch.path().to_path_buf();
             std::fs::write(root.join("sentinel"), "stay").expect("sentinel");
             let mut words = vec!["init", module];
@@ -1209,7 +1209,7 @@ mod tests {
 
     #[test]
     fn init_dir_creates_a_fresh_workspace_and_rechecks_clean() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-dir-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-dir-").unwrap();
         let root = scratch.path().to_path_buf();
         let (code, out, err) = run(&invocation(&["init", "nested/Demo App"]), &root);
         assert_eq!(code, 1, "{err}");
@@ -1236,18 +1236,19 @@ mod tests {
 
     #[test]
     fn init_dir_reapply_keeps_edited_files() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-reapply-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-reapply-").unwrap();
         let root = scratch.path().to_path_buf();
         let (code, _out, err) = run(&invocation(&["init", "--apply", "demo"]), &root);
         assert_eq!(code, 0, "{err}");
         let module = root.join("demo/MODULE.bazel");
-        let source = root.join("demo/hello.c");
+        // Not a C file: on Windows cc needs a licence, and this test is about edits surviving.
+        let source = root.join("demo/notes.txt");
         let edited_module = format!(
             "{}# edited\n",
             std::fs::read_to_string(&module).expect("module")
         );
         std::fs::write(&module, &edited_module).expect("edit module");
-        std::fs::write(&source, "/* edited */\n").expect("source");
+        std::fs::write(&source, "edited\n").expect("source");
         let (code, _out, err) = run(&invocation(&["init", "--apply", "demo"]), &root);
         assert_eq!(code, 0, "{err}");
         assert_eq!(
@@ -1256,13 +1257,13 @@ mod tests {
         );
         assert_eq!(
             std::fs::read_to_string(&source).expect("source"),
-            "/* edited */\n"
+            "edited\n"
         );
     }
 
     #[test]
     fn init_retry_after_an_interrupted_fresh_init_writes_bazelversion() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-retry-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-retry-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::write(
             root.join("MODULE.bazel"),
@@ -1279,7 +1280,7 @@ mod tests {
 
     #[test]
     fn init_in_a_non_empty_tree_without_a_module_creates_one() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-existing-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-existing-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::create_dir(root.join("src")).expect("src");
         let (code, out, err) = run(&invocation(&["init", "--apply"]), &root);
@@ -1291,7 +1292,7 @@ mod tests {
 
     #[test]
     fn init_check_in_an_empty_dir_prints_a_plan_not_a_failure() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-plan-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-plan-").unwrap();
         let root = scratch.path().to_path_buf();
         let (code, out, err) = run(&invocation(&["init"]), &root);
         assert_eq!(code, 1, "{err}");
@@ -1307,7 +1308,7 @@ mod tests {
 
     #[test]
     fn init_apply_ends_with_the_next_steps() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-next-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-next-").unwrap();
         let root = scratch.path().to_path_buf();
         let (code, out, err) = run(&invocation(&["init", "--apply"]), &root);
         assert_eq!(code, 0, "{err}");
@@ -1322,7 +1323,7 @@ mod tests {
 
     #[test]
     fn dx_on_path_finds_the_dx_this_host_runs() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-path-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-path-").unwrap();
         let empty = scratch.path().join("empty");
         let bin = scratch.path().join("bin");
         std::fs::create_dir_all(&empty).expect("empty");
@@ -1352,7 +1353,7 @@ mod tests {
 
     #[test]
     fn github_settings_notes_only_for_github_workflows() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-github-notes-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-github-notes-").unwrap();
         let root = scratch.path().to_path_buf();
         let (code, out, err) = run(&invocation(&["init", "--apply", "--ci=github"]), &root);
         assert_eq!(code, 0, "{err}");
@@ -1366,7 +1367,7 @@ mod tests {
         ] {
             assert!(text.contains(needle), "{needle}: {text}");
         }
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-no-github-notes-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-no-github-notes-").unwrap();
         let root = scratch.path().to_path_buf();
         let (code, out, err) = run(&invocation(&["init", "--apply", "--ci=gitlab"]), &root);
         assert_eq!(code, 0, "{err}");
@@ -1383,7 +1384,7 @@ mod tests {
 
     #[test]
     fn init_writes_the_module_into_a_repo_with_only_readme_license_and_gitignore() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-repo-files-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-repo-files-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::write(root.join("README.md"), "mine\n").expect("readme");
         std::fs::write(root.join("LICENSE"), "license\n").expect("license");
@@ -1398,7 +1399,7 @@ mod tests {
 
     #[test]
     fn init_apply_writes_every_file_and_check_follows_them() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-full-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-full-").unwrap();
         let root = scratch.path().to_path_buf();
         let (code, _out, err) = run(
             &invocation(&["init", "--apply", "--agents=claude,codex,gemini,copilot"]),
@@ -1476,7 +1477,7 @@ mod tests {
 
     #[test]
     fn a_second_apply_leaves_the_tree_byte_identical() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-twice-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-twice-").unwrap();
         let root = scratch.path().to_path_buf();
         let inv = invocation(&["init", "--apply"]);
         assert_eq!(run(&inv, &root).0, 0);
@@ -1489,7 +1490,7 @@ mod tests {
 
     #[test]
     fn fresh_init_dir_writes_bazelrc_imports_only_and_a_second_apply_changes_nothing() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-dir-twice-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-dir-twice-").unwrap();
         let root = scratch.path().to_path_buf();
         let inv = invocation(&["init", "--apply", "demo"]);
         assert_eq!(run(&inv, &root).0, 0);
@@ -1505,7 +1506,7 @@ mod tests {
 
     #[test]
     fn apply_rewrites_a_stale_ci_pin_and_editor_key_in_place() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-stale-pin-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-stale-pin-").unwrap();
         let root = scratch.path().to_path_buf();
         let inv = invocation(&["init", "--apply"]);
         assert_eq!(run(&inv, &root).0, 0);

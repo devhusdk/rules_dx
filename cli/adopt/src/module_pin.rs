@@ -143,9 +143,9 @@ mod tests {
     const DEP: &str = "bazel_dep(name = \"rules_dx\", version = \"1.0.0\")\n";
 
     fn plan(files: &[(&str, &str)]) -> Result<ModuleEdit, AdoptError> {
-        let dir = scratch("module_pin");
+        let dir = scratch("module_pin").unwrap();
         for (rel, text) in files {
-            write(dir.path(), rel, text);
+            write(dir.path(), rel, text).unwrap();
         }
         plan_rules_dx_version(dir.path(), "2.0.0")
     }
@@ -206,8 +206,8 @@ mod tests {
 
     #[test]
     fn refuses_an_empty_version() {
-        let dir = scratch("module_pin_empty");
-        write(dir.path(), "MODULE.bazel", DEP);
+        let dir = scratch("module_pin_empty").unwrap();
+        write(dir.path(), "MODULE.bazel", DEP).unwrap();
         assert_eq!(
             plan_rules_dx_version(dir.path(), ""),
             Err(AdoptError::EmptyVersion)
@@ -230,8 +230,8 @@ mod tests {
 
     #[test]
     fn writes_the_plan_and_rejects_a_stale_one() {
-        let dir = scratch("module_pin_write");
-        write(dir.path(), "MODULE.bazel", DEP);
+        let dir = scratch("module_pin_write").unwrap();
+        write(dir.path(), "MODULE.bazel", DEP).unwrap();
         let edit = plan_rules_dx_version(dir.path(), "2.0.0").expect("plan");
         write_module_edit(dir.path(), &edit).expect("write");
         let text = std::fs::read_to_string(dir.path().join("MODULE.bazel")).expect("read");
@@ -244,8 +244,8 @@ mod tests {
     #[test]
     fn a_failed_write_leaves_module_bazel_unchanged() {
         use std::os::unix::fs::PermissionsExt;
-        let dir = scratch("module_pin_failed_write");
-        write(dir.path(), "MODULE.bazel", DEP);
+        let dir = scratch("module_pin_failed_write").unwrap();
+        write(dir.path(), "MODULE.bazel", DEP).unwrap();
         let edit = plan_rules_dx_version(dir.path(), "2.0.0").expect("plan");
         let root = dir.path();
         std::fs::set_permissions(root, std::fs::Permissions::from_mode(0o555)).expect("chmod");

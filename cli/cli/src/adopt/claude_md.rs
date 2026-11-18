@@ -146,7 +146,7 @@ mod tests {
 
     #[test]
     fn refresh_leaves_an_absent_file_and_imports_into_an_existing_one() {
-        let dir = scratch("dx-claude-md-refresh-");
+        let dir = scratch("dx-claude-md-refresh-").unwrap();
         assert!(!refresh(dir.path()).expect("absent"));
         assert!(!dir.path().join(FILE).exists());
         std::fs::write(dir.path().join(FILE), "# Mine\n").expect("write");
@@ -169,7 +169,7 @@ mod tests {
 
     #[test]
     fn an_absent_file_is_created() {
-        let dir = scratch("dx-claude-md-absent-");
+        let dir = scratch("dx-claude-md-absent-").unwrap();
         assert_eq!(state(dir.path()).expect("state"), State::Absent);
         assert!(write(dir.path()).expect("write"));
         assert_eq!(get(dir.path(), FILE), "@AGENTS.md\n");
@@ -178,14 +178,14 @@ mod tests {
 
     #[test]
     fn a_directory_in_place_of_the_file_is_an_error() {
-        let dir = scratch("dx-claude-md-dir-");
+        let dir = scratch("dx-claude-md-dir-").unwrap();
         std::fs::create_dir(dir.path().join(FILE)).expect("dir");
         assert!(state(dir.path()).is_err());
     }
 
     #[test]
     fn an_existing_file_gets_the_line_appended() {
-        let dir = scratch("dx-claude-md-append-");
+        let dir = scratch("dx-claude-md-append-").unwrap();
         put(dir.path(), FILE, "# Mine\n");
         assert!(write(dir.path()).expect("write"));
         assert_eq!(get(dir.path(), FILE), "# Mine\n\n@AGENTS.md\n");
@@ -199,7 +199,7 @@ mod tests {
 
     #[test]
     fn an_existing_import_is_left_alone() {
-        let dir = scratch("dx-claude-md-present-");
+        let dir = scratch("dx-claude-md-present-").unwrap();
         put(dir.path(), FILE, "Read @AGENTS.md first\n");
         assert_eq!(state(dir.path()).expect("state"), State::Imported);
         assert!(!write(dir.path()).expect("write"));
@@ -208,7 +208,7 @@ mod tests {
 
     #[test]
     fn imports_in_fences_and_backticks_do_not_count() {
-        let dir = scratch("dx-claude-md-fence-");
+        let dir = scratch("dx-claude-md-fence-").unwrap();
         put(
             dir.path(),
             FILE,
@@ -221,7 +221,7 @@ mod tests {
 
     #[test]
     fn the_nested_file_counts() {
-        let dir = scratch("dx-claude-md-nested-");
+        let dir = scratch("dx-claude-md-nested-").unwrap();
         put(dir.path(), NESTED, "@../AGENTS.md\n");
         assert_eq!(state(dir.path()).expect("state"), State::Imported);
         assert!(!write(dir.path()).expect("write"));
@@ -231,7 +231,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn a_symlink_to_agents_is_never_written() {
-        let dir = scratch("dx-claude-md-link-");
+        let dir = scratch("dx-claude-md-link-").unwrap();
         put(dir.path(), AGENTS, "# Agents\n");
         std::os::unix::fs::symlink(AGENTS, dir.path().join(FILE)).expect("link");
         assert_eq!(state(dir.path()).expect("state"), State::Linked);
@@ -242,7 +242,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn a_dangling_symlink_to_agents_is_never_written() {
-        let dir = scratch("dx-claude-md-dangling-");
+        let dir = scratch("dx-claude-md-dangling-").unwrap();
         std::os::unix::fs::symlink(AGENTS, dir.path().join(FILE)).expect("link");
         assert!(!write(dir.path()).expect("write"));
         assert!(!dir.path().join(AGENTS).exists());
@@ -251,7 +251,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn a_symlink_to_another_file_is_written_through() {
-        let dir = scratch("dx-claude-md-other-");
+        let dir = scratch("dx-claude-md-other-").unwrap();
         put(dir.path(), "docs/memory.md", "# Memory\n");
         std::os::unix::fs::symlink("docs/memory.md", dir.path().join(FILE)).expect("link");
         assert!(write(dir.path()).expect("write"));

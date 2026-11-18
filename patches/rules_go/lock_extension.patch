@@ -1,3 +1,4 @@
+Upstream: none (rules_dx only: locks the go_sdk extension per platform)
 --- a/go/private/extensions.bzl
 +++ b/go/private/extensions.bzl
 @@ -414,7 +414,7 @@

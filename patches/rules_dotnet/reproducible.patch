@@ -1,3 +1,4 @@
+Upstream: bazel-contrib/rules_dotnet#583
 diff -ruN a/dotnet/repositories.bzl b/dotnet/repositories.bzl
 --- a/dotnet/repositories.bzl
 +++ b/dotnet/repositories.bzl

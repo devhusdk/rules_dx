@@ -30,7 +30,7 @@ fn assert_fails_when(step: &Value, condition: &str, context: &str) {
 
 /// Returns the declared needs of one job as names.
 fn needs_of(workflow: &str, job: &str) -> Vec<String> {
-    let document = document(workflow);
+    let document = document(workflow).unwrap();
     document["jobs"][job]["needs"]
         .as_array()
         .unwrap_or_else(|| panic!("{workflow} job {job} declares no needs"))
@@ -41,7 +41,7 @@ fn needs_of(workflow: &str, job: &str) -> Vec<String> {
 
 #[test]
 fn the_outer_gate_requires_every_declared_dependency() {
-    let document = document(CI_WORKFLOW);
+    let document = document(CI_WORKFLOW).unwrap();
     let wanted = json!([
         "coverage-cells",
         "dogfood",
@@ -94,7 +94,7 @@ fn the_outer_gate_requires_every_declared_dependency() {
 
 #[test]
 fn the_consumer_gate_requires_every_declared_check() {
-    let document = document(CONSUMER_WORKFLOW);
+    let document = document(CONSUMER_WORKFLOW).unwrap();
     assert_eq!(
         document["jobs"][AGGREGATE]["name"],
         json!("dx-ci (aggregate)"),
@@ -155,7 +155,7 @@ fn aggregates_needs(job: &Value) -> bool {
 #[test]
 fn every_aggregate_job_needs_every_other_job() {
     for workflow in [CI_WORKFLOW, CONSUMER_WORKFLOW] {
-        let all = jobs(workflow);
+        let all = jobs(workflow).unwrap();
         assert!(all.len() > 1, "{workflow} declares no aggregate job");
         let aggregates: Vec<&(String, Value)> = all
             .iter()
@@ -191,7 +191,7 @@ fn every_aggregate_job_needs_every_other_job() {
 /// Keeps every native platform in the dogfood and preflight matrices at full coverage.
 #[test]
 fn the_native_matrix_keeps_all_five_platforms() {
-    let document = document(CI_WORKFLOW);
+    let document = document(CI_WORKFLOW).unwrap();
     let wanted = json!([
         "linux_x86_64",
         "linux_arm64",
@@ -231,7 +231,7 @@ fn the_native_matrix_keeps_all_five_platforms() {
 #[test]
 fn every_gate_workflow_runs_on_merge_group_checks_requested() {
     for workflow in [CI_WORKFLOW, "examples/docs-ci/caller.yml"] {
-        let on = triggers(workflow);
+        let on = triggers(workflow).unwrap();
         assert_eq!(
             on["merge_group"]["types"],
             json!(["checks_requested"]),
@@ -242,7 +242,7 @@ fn every_gate_workflow_runs_on_merge_group_checks_requested() {
 
 #[test]
 fn the_scheduled_report_only_follows_the_gate() {
-    let document = document(CI_WORKFLOW);
+    let document = document(CI_WORKFLOW).unwrap();
     let job = &document["jobs"]["scheduled-report"];
     assert_eq!(job["needs"], json!(["ci"]));
     assert!(
@@ -264,7 +264,7 @@ fn the_scheduled_report_only_follows_the_gate() {
 
 #[test]
 fn ci_can_be_dispatched_but_takes_no_inputs() {
-    let on = triggers(CI_WORKFLOW);
+    let on = triggers(CI_WORKFLOW).unwrap();
     assert!(
         on.get("workflow_dispatch").is_some(),
         "{CI_WORKFLOW} must be dispatchable so a maintainer can run the matrix: {on}"
@@ -278,7 +278,7 @@ fn ci_can_be_dispatched_but_takes_no_inputs() {
 
 #[test]
 fn ci_runs_on_a_schedule_so_main_has_a_known_result() {
-    let on = triggers(CI_WORKFLOW);
+    let on = triggers(CI_WORKFLOW).unwrap();
     let cron = on["schedule"][0]["cron"]
         .as_str()
         .expect("ci.yml needs a schedule cron");
@@ -292,7 +292,7 @@ fn ci_runs_on_a_schedule_so_main_has_a_known_result() {
 
 #[test]
 fn preflight_passes_no_runner_specific_test_args() {
-    for step in steps(CI_WORKFLOW, "preflight") {
+    for step in steps(CI_WORKFLOW, "preflight").unwrap() {
         let run = step["run"].as_str().unwrap_or_default();
         assert!(
             !run.contains("--test_arg"),
@@ -304,7 +304,7 @@ fn preflight_passes_no_runner_specific_test_args() {
 #[test]
 fn every_matrix_cell_records_its_runner_image() {
     for (workflow, job) in [(CI_WORKFLOW, "preflight"), (CONSUMER_WORKFLOW, "checks")] {
-        let all = steps(workflow, job);
+        let all = steps(workflow, job).unwrap();
         let found = all
             .iter()
             .find(|step| step["name"] == json!("Record the runner image"))
@@ -330,7 +330,7 @@ fn every_matrix_cell_records_its_runner_image() {
 /// One run per ref, and nothing is cancelled.
 #[test]
 fn one_run_per_ref_and_none_cancel() {
-    let ci = document(CI_WORKFLOW);
+    let ci = document(CI_WORKFLOW).unwrap();
     assert_eq!(
         ci["concurrency"]["group"],
         json!("ci-${{ github.workflow }}-${{ github.ref }}"),
@@ -341,6 +341,7 @@ fn one_run_per_ref_and_none_cancel() {
 #[test]
 fn pull_request_comments_stay_pull_request_only() {
     let comments: Vec<Value> = jobs(CONSUMER_WORKFLOW)
+        .unwrap()
         .iter()
         .flat_map(|(_, job)| job["steps"].as_array().cloned().unwrap_or_default())
         .filter(|step| {
@@ -377,7 +378,7 @@ fn pages_publication_stays_on_default_branch_push() {
 
 #[test]
 fn the_gate_job_can_never_be_skipped() {
-    let document = document(CI_WORKFLOW);
+    let document = document(CI_WORKFLOW).unwrap();
     let job = &document["jobs"]["gate"];
     assert_eq!(job["name"], json!("gate"));
     assert!(job.get("if").is_none(), "gate must not have an if: {job}");
@@ -389,7 +390,7 @@ fn the_gate_job_can_never_be_skipped() {
 
 #[test]
 fn the_gate_job_runs_the_gate_action() {
-    let document = document(CI_WORKFLOW);
+    let document = document(CI_WORKFLOW).unwrap();
     let steps = document["jobs"]["gate"]["steps"]
         .as_array()
         .expect("gate steps");
@@ -403,7 +404,7 @@ fn the_gate_job_runs_the_gate_action() {
 
 #[test]
 fn the_gate_fails_when_dx_check_fails() {
-    let document = document(GATE_ACTION);
+    let document = document(GATE_ACTION).unwrap();
     let steps = document["runs"]["steps"].as_array().expect("gate steps");
     let piped: Vec<_> = steps
         .iter()
@@ -428,8 +429,8 @@ fn the_gate_fails_when_dx_check_fails() {
 
 #[test]
 fn the_ruleset_requires_the_gate_job_name() {
-    let ruleset = document(RULESET);
-    let name = document(CI_WORKFLOW)["jobs"]["gate"]["name"].clone();
+    let ruleset = document(RULESET).unwrap();
+    let name = document(CI_WORKFLOW).unwrap()["jobs"]["gate"]["name"].clone();
     assert_eq!(ruleset["enforcement"], json!("active"));
     assert_eq!(ruleset["bypass_actors"], json!([]));
     assert_eq!(ruleset["target"], json!("branch"));
@@ -463,7 +464,7 @@ fn no_other_workflow_job_reports_the_gate_context() {
         if name == CI_WORKFLOW {
             continue;
         }
-        let document = document(&name);
+        let document = document(&name).unwrap();
         for (id, job) in document["jobs"].as_object().into_iter().flatten() {
             assert_ne!(id, "gate", "{name} job id collides with the gate context");
             assert_ne!(
@@ -596,7 +597,7 @@ fn every_workflow_swallows_no_failure_outside_the_allow_list() {
     let mut found = Vec::new();
     for path in dx_testing::workflow_files() {
         let file = path.rsplit('/').next().unwrap_or(&path).to_owned();
-        for (job, step, kind) in swallows(&path) {
+        for (job, step, kind) in swallows(&path).unwrap() {
             found.push((file.clone(), job, step, kind));
         }
     }
@@ -622,6 +623,7 @@ fn every_workflow_swallows_no_failure_outside_the_allow_list() {
 fn the_swallow_scanner_finds_entries() {
     assert!(
         swallows(CONSUMER_WORKFLOW)
+            .unwrap()
             .iter()
             .any(|(_, _, kind)| kind == "|| true"),
         "{CONSUMER_WORKFLOW} swallows failures the scanner must report"
@@ -632,7 +634,7 @@ fn the_swallow_scanner_finds_entries() {
 fn compiler_probes_run_before_the_evidence_step_and_fail_normally() {
     const EVIDENCE_ACTION: &str = ".github/actions/compiler-evidence/action.yml";
     for job in ["hermetic", "starter-consumer"] {
-        let all = steps(CI_WORKFLOW, job);
+        let all = steps(CI_WORKFLOW, job).unwrap();
         let probe = all
             .iter()
             .position(|step| step["name"] == json!("Run the compiler probe tests"))
@@ -653,7 +655,7 @@ fn compiler_probes_run_before_the_evidence_step_and_fail_normally() {
             "{job} evidence step must run always"
         );
     }
-    let action = document(EVIDENCE_ACTION);
+    let action = document(EVIDENCE_ACTION).unwrap();
     let record = &action["runs"]["steps"][0];
     assert_eq!(record["name"], json!("Record compiler evidence"));
     assert_eq!(record["if"], json!("always()"));
@@ -668,7 +670,7 @@ fn compiler_probes_run_before_the_evidence_step_and_fail_normally() {
 
 #[test]
 fn the_gate_job_merges_evidence_without_swallowing() {
-    let all = steps(CI_WORKFLOW, GATE);
+    let all = steps(CI_WORKFLOW, GATE).unwrap();
     for step in all.iter().filter(|step| {
         let uses = step["uses"].as_str().unwrap_or_default();
         step["name"] == json!("Merge compiler evidence")
@@ -696,8 +698,8 @@ fn the_gate_job_merges_evidence_without_swallowing() {
 #[test]
 fn issue_label_jobs_read_gh_output_before_searching_it() {
     let workflow = ".github/workflows/issue-labels.yml";
-    for (id, _) in jobs(workflow) {
-        for line in ci_workflow::scripts(workflow, &id).lines() {
+    for (id, _) in jobs(workflow).unwrap() {
+        for line in ci_workflow::scripts(workflow, &id).unwrap().lines() {
             let (producer, consumer) = line.rsplit_once('|').unwrap_or(("", line));
             let quiet = consumer
                 .split_whitespace()
@@ -710,7 +712,7 @@ fn issue_label_jobs_read_gh_output_before_searching_it() {
         }
     }
     for id in ["blocked-issues", "unreviewed-merges"] {
-        let script = ci_workflow::scripts(workflow, id);
+        let script = ci_workflow::scripts(workflow, id).unwrap();
         assert!(
             script.contains("comments=$(gh ")
                 && script.contains(r#"[[ "$comments" != *"$marker"* ]]"#),

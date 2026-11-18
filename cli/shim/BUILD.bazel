@@ -22,7 +22,12 @@ rust_library(
     deps = all_crate_deps(
         package_name = "cli/dx_shim",
         normal = True,
-    ) + ["//cli/error:dx_error"],
+    ) + [
+        "//cli/digest:dx_digest",
+        "//cli/error:dx_error",
+        "//cli/http:dx_http",
+        "//cli/process:dx_process",
+    ],
 )
 
 rust_binary(
@@ -64,7 +69,10 @@ rust_test(
         normal_dev = True,
     ) + [
         "//cli/adopt:dx_adopt",
+        "//cli/digest:dx_digest",
         "//cli/error:dx_error",
+        "//cli/http:dx_http",
+        "//cli/process:dx_process",
     ],
 )
 

@@ -22,7 +22,7 @@ fn run(verb: &str) -> (Option<i32>, String, String) {
 }
 
 fn run_with(verb: &str, flags: &[&str]) -> (Option<i32>, String, String, Option<String>) {
-    let scratch = dx_test_scratch::scratch("dx-failure-launcher-");
+    let scratch = dx_test_scratch::scratch("dx-failure-launcher-").unwrap();
     let base = scratch.path().to_path_buf();
     let workspace = base.join("ws");
     let bin = base.join("bin");
@@ -143,7 +143,7 @@ exit 0
 
 #[test]
 fn the_launcher_reports_a_bazel_killed_by_its_own_signal() {
-    let scratch = dx_test_scratch::scratch("dx-signalled-launcher-");
+    let scratch = dx_test_scratch::scratch("dx-signalled-launcher-").unwrap();
     let base = scratch.path();
     let workspace = base.join("ws");
     let bin = base.join("bin");

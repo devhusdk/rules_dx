@@ -7,7 +7,7 @@ fn deleted_field_fails_conformance() {
     let flatc = std::env::var("FLATC").expect("flatc path");
     let baseline = std::env::var("BASELINE").expect("baseline schema");
     let library = std::env::var("LIBRARY").expect("library schema");
-    let scratch = dx_test_scratch::scratch("conform_deleted");
+    let scratch = dx_test_scratch::scratch("conform_deleted").unwrap();
     let out = scratch.path();
     let output = Command::new(flatc)
         .args(["--binary", "--schema", "-I", ".", "--conform", &baseline])

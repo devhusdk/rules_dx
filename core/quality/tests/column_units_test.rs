@@ -135,7 +135,7 @@ fn assert_sarif_lands(
 
 #[test]
 fn eslint_columns_are_utf16_units() {
-    let dir_guard = dx_test_scratch::scratch("eslint");
+    let dir_guard = dx_test_scratch::scratch("eslint").unwrap();
     let dir = dir_guard.path();
     let text = "const s = \"\u{1F600}\u{e9}\"; missing();\n";
     let file = write(dir, "a.js", text);
@@ -161,7 +161,7 @@ fn eslint_columns_are_utf16_units() {
 
 #[test]
 fn pmd_sarif_columns_land_after_an_emoji() {
-    let dir_guard = dx_test_scratch::scratch("pmd");
+    let dir_guard = dx_test_scratch::scratch("pmd").unwrap();
     let dir = dir_guard.path();
     let text = "class B {\n  void f() { String s = \"\u{1F600}\u{e9}\"; int unused = (1) + s.length(); }\n}\n";
     let file = write(dir, "B.java", text);

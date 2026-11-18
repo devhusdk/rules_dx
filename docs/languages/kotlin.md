@@ -52,6 +52,14 @@ Build and test everything. `//...` means every target in the repository:
 tools/dx test //...
 ```
 
+## Writing targets
+
+Warnings fail the build unless a target turns that off.
+
+`kotlin_test` infers `test_class` from the sources and the package path. Set
+it to override. Other attributes pass through to `kt_jvm_library`,
+`kt_jvm_binary` and `kt_jvm_test`.
+
 ## Dependencies
 
 ### Internal members

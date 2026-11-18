@@ -2,7 +2,9 @@
 
 load("//core:defs.bzl", "expect_equal", "expect_false", "expect_match", "expect_true", "starlark_test")
 load("@dx_pins_data//:pins.bzl", "DATA")
-load(":execution_requirements.bzl", "DX_FORBIDDEN_NO_REMOTE", "DX_NO_REMOTE_EXEC", "SHFMT_FORMAT_REMOTE", "dx_has_forbidden_marker", "dx_is_local_only", "dx_is_remote_qualified", "dx_remote_platforms", "dx_stage_execution_requirements", "remote_platform_error", "remote_record_error")
+load(":execution_requirements.bzl", "DX_FORBIDDEN_NO_REMOTE", "DX_NO_REMOTE_EXEC", "REMOTE_QUALIFIED", "SHFMT_FORMAT_REMOTE", "dx_has_forbidden_marker", "dx_is_local_only", "dx_is_remote_qualified", "dx_remote_platforms", "dx_stage_execution_requirements", "remote_platform_error", "remote_record_error")
+
+visibility("private")
 
 def _artifact_platforms():
     """Returns the pinned artifact platforms keyed by tool."""
@@ -86,7 +88,7 @@ def execution_requirements_unit_tests(name):
             ),
             expect_equal(
                 "mixed qualified and unqualified stages stay local-only",
-                dx_stage_execution_requirements(["shfmt", "taplo"], "format"),
+                dx_stage_execution_requirements(["shfmt", "ruff"], "format"),
                 {"no-remote-exec": "1"},
             ),
             expect_equal(
@@ -113,6 +115,31 @@ def execution_requirements_unit_tests(name):
                 remote_platform_error(SHFMT_FORMAT_REMOTE, _artifact_platforms()),
                 "",
             ),
+            expect_equal(
+                "the text lint stage runs remotely once keep-sorted and typos both qualify",
+                dx_stage_execution_requirements(["keep_sorted", "typos"], "lint"),
+                {},
+            ),
+            expect_equal(
+                "taplo is qualified for format only",
+                [dx_is_remote_qualified("taplo", "format"), dx_is_remote_qualified("taplo", "lint")],
+                [True, False],
+            ),
+        ] + [
+            expect_equal(
+                record["tool"] + " " + record["capability"] + " remote record validates",
+                remote_record_error(record),
+                "",
+            )
+            for record in REMOTE_QUALIFIED
+        ] + [
+            expect_equal(
+                "pinned artifacts cover every qualified " + record["tool"] + " platform",
+                remote_platform_error(record, _artifact_platforms()),
+                "",
+            )
+            for record in REMOTE_QUALIFIED
+        ] + [
             expect_match(
                 "a qualified platform without a pinned artifact fails",
                 remote_platform_error(SHFMT_FORMAT_REMOTE, {"shfmt": ["linux_x86_64"]}),

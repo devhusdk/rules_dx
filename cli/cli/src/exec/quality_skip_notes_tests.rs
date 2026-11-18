@@ -31,9 +31,21 @@ fn a_tool_dropped_by_two_targets_is_noted_once() {
     let bep = dir.path().join("events.json");
     std::fs::write(&bep, lines.join("\n")).expect("bep");
     assert_eq!(
-        read_skip_notes(&bep, dir.path()),
+        read_skip_notes(&bep, &std::collections::BTreeSet::new(), dir.path()),
         vec![note.trim_end().to_owned()]
     );
+}
+
+#[test]
+fn a_foreign_aspect_s_skip_notes_are_left_out() {
+    let dir = tempfile::tempdir().expect("temp");
+    let note = "hlint: skipped, no pinned artifact for this execution platform\n";
+    let mut lines = vec![named_set(dir.path(), "1", note)];
+    lines.extend(target("//a:a", "1"));
+    let bep = dir.path().join("events.json");
+    std::fs::write(&bep, lines.join("\n")).expect("bep");
+    let foreign = ["q:a.bzl%real_lint_aspect".to_owned()].into();
+    assert!(read_skip_notes(&bep, &foreign, dir.path()).is_empty());
 }
 
 #[test]

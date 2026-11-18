@@ -37,33 +37,19 @@ pub fn missing(message: impl Into<String>) -> Failure {
     }
 }
 
-/// A directory removed when the operation ends.
-pub struct Scratch(PathBuf);
-
-impl Scratch {
-    /// Creates a new directory named after `base` and this process.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the operation fails.
-    pub fn beside(base: &Path) -> std::io::Result<Scratch> {
-        let mut name = base.file_name().unwrap_or_default().to_os_string();
-        name.push(format!(".dx-work.{}", std::process::id()));
-        let path = base.with_file_name(name);
-        std::fs::create_dir_all(&path)?;
-        Ok(Scratch(path))
-    }
-
-    #[must_use]
-    pub fn path(&self) -> &Path {
-        &self.0
-    }
-}
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        drop(std::fs::remove_dir_all(&self.0));
-    }
+/// A new directory next to `base`, named after it; removed when the operation ends.
+///
+/// It sits on the same file system as `base`, so files built in it can be renamed into place.
+///
+/// # Errors
+///
+/// Returns an error when the directory cannot be made.
+pub fn scratch_beside(base: &Path) -> std::io::Result<tempfile::TempDir> {
+    let mut prefix = base.file_name().unwrap_or_default().to_os_string();
+    prefix.push(".dx-work.");
+    tempfile::Builder::new()
+        .prefix(&prefix)
+        .tempdir_in(base.parent().unwrap_or_else(|| Path::new("")))
 }
 
 /// Whether `path` is a file this process may run.

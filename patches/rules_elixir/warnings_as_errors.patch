@@ -1,3 +1,4 @@
+Upstream: bazelverse/rules_elixir#4
 diff --git a/private/elixir_bytecode.bzl b/private/elixir_bytecode.bzl
 --- a/private/elixir_bytecode.bzl
 +++ b/private/elixir_bytecode.bzl

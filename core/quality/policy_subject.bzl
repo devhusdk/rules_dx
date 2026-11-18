@@ -4,6 +4,8 @@ load("//core:defs.bzl", "DxSubjectInfo")
 load("//core/quality:native_config.bzl", "DxNativeConfigInfo")
 load(":policy.bzl", "CAPABILITIES", "QualityPolicyInfo")
 
+visibility(["//config/...", "//core/..."])
+
 def _policy_subject_impl(ctx):
     fields = {}
     family_ids = ctx.attr.family_ids or ctx.attr.policy[QualityPolicyInfo].families.keys()

@@ -1,5 +1,7 @@
 """Resource cost declarations for heavy actions and tests."""
 
+visibility(["//android/...", "//api_spec/...", "//apple/...", "//cc/...", "//core/...", "//go/...", "//javascript/...", "//rust/...", "//tools/...", "//typescript/..."])
+
 _EXTRA_MEMORY_MB = 512
 
 def _memory(os_name, linux_mb):

@@ -1,4 +1,4 @@
-use proc_macro::TokenStream;
+use proc_macro::{Literal, TokenStream, TokenTree};
 
 #[proc_macro]
 pub fn expansion_family(_input: TokenStream) -> TokenStream {
@@ -7,7 +7,5 @@ pub fn expansion_family(_input: TokenStream) -> TokenStream {
     } else {
         "native"
     };
-    format!("{family:?}")
-        .parse()
-        .expect("a string literal is a token stream")
+    TokenStream::from(TokenTree::Literal(Literal::string(family)))
 }

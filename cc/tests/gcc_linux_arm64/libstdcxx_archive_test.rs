@@ -23,7 +23,7 @@ fn dynamic_libstdcxx_app_ships_its_runtime_and_runs_from_the_archive() {
         ]
     );
 
-    let guard = dx_test_scratch::scratch("gcc-libstdcxx-archive");
+    let guard = dx_test_scratch::scratch("gcc-libstdcxx-archive").unwrap();
     let scratch = guard.path();
     let dir = scratch.join("out");
     archive_extract(&archive, &dir).expect("extract archive");

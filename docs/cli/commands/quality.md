@@ -1,6 +1,8 @@
-# Quality Commands
+# Quality commands
 
-`dx lint` runs linters, `dx typecheck` runs type checkers and compilers in check mode, and `dx format` checks formatting. Each reports drift without writing files.
+Use `dx lint`, `dx typecheck` and `dx format` to find and fix code problems before review.
+
+`dx lint` runs linters. `dx typecheck` runs type checkers and compilers in check mode. `dx format` checks formatting. Each reports what it finds and writes nothing until you pass `--apply`.
 
 ```sh
 tools/dx lint //...
@@ -9,6 +11,8 @@ tools/dx typecheck --fail-on error //cli/...
 tools/dx format --here
 tools/dx format --apply //cli/...
 ```
+
+## Usage
 
 ```text
 dx lint [flags] [scope...] [-- bazel-options ...]
@@ -33,6 +37,7 @@ dx format [flags] [scope...] [-- bazel-options ...]
 | `--here` | Scope to the current directory tree. |
 | `--affected` | Scope to targets your changes reach. With none, prints `no affected targets` and exits `0`. With `--diff`, the line goes to stderr and stdout stays empty. |
 | `--since <ref>` | With `--affected`: diff from this ref instead of the merge-base. Without `--affected`, exit `2`. |
+| `--base <ref>` | With `--affected`: take the merge-base with this branch instead of the default branch. Not with `--since`. |
 | `--workspace <dir>` | Use this workspace dir. |
 | `-q, --quiet` | Hide summaries. Findings and failures still print. |
 | `-v, --verbose` | Show more logs. |
@@ -43,7 +48,7 @@ dx format [flags] [scope...] [-- bazel-options ...]
 
 ## Scopes
 
-No scope means `//...`. Pass Bazel labels or patterns, or workspace-relative files and dirs. `--here` and `--affected` cannot be combined with explicit scopes or with each other. When every scope is a file or directory, findings and fixes are limited to those paths; the rest of the owning target is checked but neither reported nor rewritten. A label or pattern among the scopes reports its whole target. Targets that do not fit the target platform are skipped, even when named. See [Scope Defaults](scope-defaults.md).
+No scope means `//...`, every target in the workspace. A Bazel target is one buildable unit, such as a library or a test. Pass Bazel labels such as `//cli:dx` or patterns such as `//cli/...`, or workspace-relative files and dirs. `--here` cannot be combined with explicit scopes or with `--affected`. `--affected` with scopes keeps only the affected targets inside them. When every scope is a file or directory, findings and fixes are limited to those paths; the rest of the owning target is checked but neither reported nor rewritten. A label or pattern among the scopes reports its whole target. Targets that do not fit the target platform are skipped, even when named. See [Scope defaults](scope-defaults.md).
 
 ## Bazel options
 
@@ -77,7 +82,7 @@ Failures:
 
 - `dx: incomplete_results: <reason>` (JSON: an `incomplete_results` error) means a target failed, a result was invalid, or the build events ended early. Fixes are never applied.
 - `dx: not_converged: <target> ... did not converge: OSCILLATION|ITERATION_LIMIT` means a target's fixes oscillated or hit the ten-round limit. That target proposes no fixes.
-- A failed build reports `bazel_failed` (compile errors) or `analysis_failed`, with a `build_failure` event or a `dx: build failure:` line.
+- A failed build reports `bazel_failed` for compile errors, or `analysis_failed`, with a `build_failure` event or a `dx: build failure:` line.
 
 Several targets that fix the same file apply identical fixes once. Fixes that disagree leave the file unchanged and print a `Conflict:` line.
 

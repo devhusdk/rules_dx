@@ -61,7 +61,7 @@ fn manifests(dx: &str, gazelle: &str) -> Vec<(String, String)> {
 }
 
 fn release_dir(text: &str, bundle: bool) -> TempDir {
-    let dir = scratch("fill_pins");
+    let dir = scratch("fill_pins").unwrap();
     std::fs::write(dir.path().join(fill_pins::MANIFEST), text).unwrap();
     std::fs::write(
         dir.path().join(fill_pins::GAZELLE_MANIFEST),
@@ -74,12 +74,18 @@ fn release_dir(text: &str, bundle: bool) -> TempDir {
     dir
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "fill_pins::fill takes a fallible verifier")]
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "fill_pins::fill takes a fallible verifier"
+)]
 fn ok(_: &Path, _: &Path) -> Result<(), String> {
     Ok(())
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "fill_pins::check takes a fallible fetch")]
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "fill_pins::check takes a fallible fetch"
+)]
 fn nothing() -> Result<(), String> {
     Ok(())
 }
@@ -102,14 +108,32 @@ fn writes_one_pin_per_tool_and_platform_and_keeps_the_head() {
     let out = filled();
     let head = PINS.strip_suffix("PINS = {}\n").unwrap();
     let mut pins = String::from("PINS = {\n    \"dx\": {\n");
-    for (n, key) in ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"].iter().enumerate() {
+    for (n, key) in [
+        "linux_arm64",
+        "linux_x86_64",
+        "macos_arm64",
+        "windows_arm64",
+        "windows_x86_64",
+    ]
+    .iter()
+    .enumerate()
+    {
         let asset = format!("dx-{}", key.replacen('_', "-", 1));
         let index = assets("dx").iter().position(|a| *a == asset).unwrap();
         assert_eq!(index, n);
         pins.push_str(&format!("        \"{key}\": \"{}\",\n", hash(n + 1)));
     }
     pins.push_str("    },\n    \"gazelle\": {\n");
-    for (n, key) in ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"].iter().enumerate() {
+    for (n, key) in [
+        "linux_arm64",
+        "linux_x86_64",
+        "macos_arm64",
+        "windows_arm64",
+        "windows_x86_64",
+    ]
+    .iter()
+    .enumerate()
+    {
         pins.push_str(&format!("        \"{key}\": \"{}\",\n", hash(n + 11)));
     }
     pins.push_str("    },\n}\n");
@@ -170,12 +194,19 @@ fn refuses_an_asset_the_registry_does_not_know() {
     let error =
         fill_pins::fill_from_manifests("v1.2.3", &manifests(&dx, &gazelle_manifest()), PINS, REPO)
             .unwrap_err();
-    assert!(error.contains("\"dx-tool-deadnix-linux-x86_64\" is not in cli/prebuilt/tools.bzl"), "{error}");
+    assert!(
+        error.contains("\"dx-tool-deadnix-linux-x86_64\" is not in cli/prebuilt/tools.bzl"),
+        "{error}"
+    );
 }
 
 #[test]
 fn refuses_a_registry_entry_with_no_line() {
-    let gazelle: String = gazelle_manifest().lines().skip(1).map(|l| format!("{l}\n")).collect();
+    let gazelle: String = gazelle_manifest()
+        .lines()
+        .skip(1)
+        .map(|l| format!("{l}\n"))
+        .collect();
     let error =
         fill_pins::fill_from_manifests("v1.2.3", &manifests(&manifest(), &gazelle), PINS, REPO)
             .unwrap_err();
@@ -184,7 +215,11 @@ fn refuses_a_registry_entry_with_no_line() {
 
 #[test]
 fn refuses_an_asset_listed_twice_across_manifests() {
-    let gazelle = format!("{}{}", gazelle_manifest(), manifest().lines().last().unwrap());
+    let gazelle = format!(
+        "{}{}",
+        gazelle_manifest(),
+        manifest().lines().last().unwrap()
+    );
     let error =
         fill_pins::fill_from_manifests("v1.2.3", &manifests(&manifest(), &gazelle), PINS, REPO)
             .unwrap_err();
@@ -198,8 +233,13 @@ fn refuses_malformed_lines_and_hashes() {
         manifest().replace(&hash(1), &"z".repeat(64)),
     ] {
         assert!(
-            fill_pins::fill_from_manifests("v1.2.3", &manifests(&dx, &gazelle_manifest()), PINS, REPO)
-                .is_err(),
+            fill_pins::fill_from_manifests(
+                "v1.2.3",
+                &manifests(&dx, &gazelle_manifest()),
+                PINS,
+                REPO
+            )
+            .is_err(),
             "{dx}"
         );
     }
@@ -219,7 +259,9 @@ fn refuses_a_tag_that_differs_from_dx_version_or_an_old_schema() {
 fn manifest_mode_points_the_url_at_the_repo() {
     let all = manifests(&manifest(), &gazelle_manifest());
     let out = fill_pins::fill_from_manifests("v1.2.3", &all, PINS, "someone/fork").unwrap();
-    assert!(out.contains("URL_TEMPLATE = \"https://github.com/someone/fork/releases/download/v{version}/{asset}\""));
+    assert!(out.contains(
+        "URL_TEMPLATE = \"https://github.com/someone/fork/releases/download/v{version}/{asset}\""
+    ));
     let error = fill_pins::fill_from_manifests("v1.2.3", &all, PINS, "no-slash").unwrap_err();
     assert!(error.contains("must be OWNER/NAME"), "{error}");
 }
@@ -249,16 +291,23 @@ fn check_passes_when_the_pins_equal_the_manifests() {
 fn check_fails_on_a_differing_pin() {
     let dir = release_dir(&manifest(), true);
     let pins = filled().replace(&hash(11), &hash(9));
-    let error = fill_pins::check("v1.2.3", dir.path(), &pins, REPO, false, nothing, ok).unwrap_err();
+    let error =
+        fill_pins::check("v1.2.3", dir.path(), &pins, REPO, false, nothing, ok).unwrap_err();
     assert!(error.contains("differs from the attested"), "{error}");
 }
 
 #[test]
 fn check_fails_when_verification_fails() {
     let dir = release_dir(&manifest(), true);
-    let error = fill_pins::check("v1.2.3", dir.path(), &filled(), REPO, false, nothing, |_, _| {
-        Err("not attested".to_owned())
-    })
+    let error = fill_pins::check(
+        "v1.2.3",
+        dir.path(),
+        &filled(),
+        REPO,
+        false,
+        nothing,
+        |_, _| Err("not attested".to_owned()),
+    )
     .unwrap_err();
     assert_eq!(error, "not attested");
 }
@@ -266,8 +315,15 @@ fn check_fails_when_verification_fails() {
 #[test]
 fn check_uses_the_repo_in_the_expected_pins() {
     let dir = release_dir(&manifest(), true);
-    let error =
-        fill_pins::check("v1.2.3", dir.path(), &filled(), "someone/fork", false, nothing, ok)
-            .unwrap_err();
+    let error = fill_pins::check(
+        "v1.2.3",
+        dir.path(),
+        &filled(),
+        "someone/fork",
+        false,
+        nothing,
+        ok,
+    )
+    .unwrap_err();
     assert!(error.contains("differs from the attested"), "{error}");
 }

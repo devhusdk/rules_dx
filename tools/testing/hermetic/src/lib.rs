@@ -268,16 +268,9 @@ pub fn windows_msvc_denies(
 
 /// Resolves symlinks and drops the `\\?\` prefix Windows adds, so paths compare equal.
 fn canonical(path: &Path) -> Option<PathBuf> {
-    std::fs::canonicalize(path).ok().map(strip_verbatim)
-}
-
-/// Drops a `\\?\` prefix from a drive path and leaves UNC and POSIX paths alone.
-fn strip_verbatim(path: PathBuf) -> PathBuf {
-    let text = path.to_string_lossy();
-    match text.strip_prefix(r"\\?\") {
-        Some(rest) if !rest.starts_with("UNC\\") => PathBuf::from(rest),
-        _ => path,
-    }
+    std::fs::canonicalize(path)
+        .ok()
+        .map(|real| dx_path::without_verbatim(&real))
 }
 
 /// Reads a directory variable, falling back to the default location when Bazel's test environment lacks it.
@@ -1022,17 +1015,15 @@ impl Isolation {
 
     fn grant_args(&self, command: &mut Command) {
         for grant in &self.grants {
-            let text = grant.to_string_lossy();
             command.arg("--grant");
-            command.arg(text.strip_prefix(r"\\?\").unwrap_or(&text));
+            command.arg(dx_path::without_verbatim(grant));
         }
     }
 
     fn deny_args(&self, command: &mut Command) {
         for deny in &self.denies {
-            let text = deny.to_string_lossy();
             command.arg("--deny");
-            command.arg(text.strip_prefix(r"\\?\").unwrap_or(&text));
+            command.arg(dx_path::without_verbatim(deny));
         }
     }
 
@@ -1533,7 +1524,10 @@ impl Session {
             self.manifest.dx.to_string_lossy().into_owned(),
         ];
         invocation.extend(args);
-        let recorded = invocation.get(UNIX_ENV_PREFIX..).unwrap_or_default().to_vec();
+        let recorded = invocation
+            .get(UNIX_ENV_PREFIX..)
+            .unwrap_or_default()
+            .to_vec();
         // Lint exits 1 when it reports findings, which the manifest then compares.
         let expect = if command == "lint" {
             Expect::Findings
@@ -2043,7 +2037,11 @@ pub fn verify_evidence(evidence: &Value, commit: &str, manifest: &Manifest) -> R
     Ok(())
 }
 
-fn verify_evidence_header(evidence: &Value, commit: &str, manifest: &Manifest) -> Result<(), String> {
+fn verify_evidence_header(
+    evidence: &Value,
+    commit: &str,
+    manifest: &Manifest,
+) -> Result<(), String> {
     let label = manifest.label.as_str();
     let languages = manifest.languages.as_slice();
     if at(evidence, "/schema") != SCHEMA {
@@ -2399,7 +2397,7 @@ fn run_init(manifest: &Manifest, workspace: &Path) -> Result<(), String> {
     }
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
     let init = dx_testing::run(&manifest.dx, &args, &[])
-    .map_err(|err| format!("cannot run dx init: {err}"))?;
+        .map_err(|err| format!("cannot run dx init: {err}"))?;
     if !init.status.success() {
         return Err(format!("dx init failed: {}", init.combined()));
     }
@@ -3027,7 +3025,7 @@ pub fn qualify(manifest: Manifest, root: &Path, out: &Path) -> Value {
 /// Returns `Err` when the operation fails.
 pub fn source_tree(manifest: &Manifest) -> Result<PathBuf, String> {
     std::fs::canonicalize(&manifest.module_file)
-        .map(strip_verbatim)
+        .map(|real| dx_path::without_verbatim(&real))
         .map_err(|err| format!("cannot resolve the rules_dx source tree: {err}"))?
         .parent()
         .map(Path::to_path_buf)

@@ -2,6 +2,8 @@
 
 load(":runner_matrix_tests.bzl", "matrix_case")
 
+visibility("private")
+
 PYTHON_CASES = [
     matrix_case(
         name = "matrix_python_lint_pass",

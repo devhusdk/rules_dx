@@ -1,5 +1,7 @@
 """License ids accepted through dx_licenses and the gate every restricted download reads."""
 
+visibility(["//android/...", "//apple/...", "//cc/...", "//core/...", "//cuda/...", "//msix/..."])
+
 APPLE_XCODE = "apple-xcode-license"
 ANDROID_SDK = "android-sdk-license"
 CUDA_EULA = "cuda-eula"

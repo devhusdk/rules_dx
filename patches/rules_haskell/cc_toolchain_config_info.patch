@@ -1,5 +1,5 @@
 Load CcToolchainConfigInfo from rules_cc; the native global is None under Bazel 9.
-Upstream: https://github.com/tweag/rules_haskell/issues/2483, https://github.com/tweag/rules_haskell/pull/2484
+Upstream: tweag/rules_haskell#2484
 
 --- a/haskell/cc_toolchain_config.bzl
 +++ b/haskell/cc_toolchain_config.bzl

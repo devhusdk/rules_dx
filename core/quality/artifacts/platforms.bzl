@@ -2,6 +2,8 @@
 
 load(":hub.bzl", "TOOL_PLATFORMS")
 
+visibility(["//cli/...", "//core/...", "//javascript/..."])
+
 _OSES = ["linux", "macos", "windows"]
 
 _CPUS = ["x86_64", "arm64"]

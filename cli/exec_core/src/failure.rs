@@ -1,4 +1,4 @@
-use super::common::{CODE_INVALID_RESULT, emit_event, flush_out, stdout_output_code};
+use crate::common::{CODE_INVALID_RESULT, emit_event, flush_out, stdout_output_code};
 use dx_output::{
     Excerpt, FailureFacts, FinishedCounts, OutputMode, command_finished, failure_event,
 };
@@ -6,26 +6,26 @@ use dx_plan::resolve::{QueryFailure, ResolveError};
 use dx_process::{interrupted, interrupted_code, operational_code, pre_exec_code};
 use std::io::Write;
 
-pub(crate) const CODE_INVALID_ARGUMENTS: &str = "invalid_arguments";
-pub(crate) const CODE_INVALID_SCOPE: &str = "invalid_scope";
-pub(crate) const CODE_NO_OWNER: &str = "no_owner";
-pub(crate) const CODE_NO_TESTS: &str = "no_tests";
-pub(crate) const CODE_NOT_DEPLOYABLE: &str = "not_deployable";
-pub(crate) const CODE_QUERY_LAUNCH_FAILED: &str = "query_launch_failed";
-pub(crate) const CODE_QUERY_FAILED: &str = "query_failed";
-pub(crate) const CODE_BAZEL_FAILED: &str = "bazel_failed";
-pub(crate) const CODE_TESTS_FAILED: &str = "tests_failed";
-pub(crate) const CODE_APPLICATION_FAILED: &str = "application_failed";
-pub(crate) const CODE_ANALYSIS_FAILED: &str = "analysis_failed";
-pub(crate) const CODE_DISK_FULL: &str = "disk_full";
-pub(crate) const CODE_SERVER_CRASHED: &str = "server_crashed";
-pub(crate) const CODE_SERVER_OUT_OF_MEMORY: &str = "server_out_of_memory";
-pub(crate) const CODE_LOCKFILE_DRIFT: &str = "lockfile_drift";
-pub(crate) const CODE_STALE_GENERATED: &str = "stale_generated";
-pub(crate) const CODE_FETCH_FAILED: &str = "fetch_failed";
-pub(crate) const CODE_NO_TOOLCHAIN: &str = "no_toolchain";
-pub(crate) const CODE_MODULE_NOT_FOUND: &str = "module_not_found";
-pub(crate) const CODE_PATH_TOO_LONG: &str = "path_too_long";
+pub const CODE_INVALID_ARGUMENTS: &str = "invalid_arguments";
+pub const CODE_INVALID_SCOPE: &str = "invalid_scope";
+pub const CODE_NO_OWNER: &str = "no_owner";
+pub const CODE_NO_TESTS: &str = "no_tests";
+pub const CODE_NOT_DEPLOYABLE: &str = "not_deployable";
+pub const CODE_QUERY_LAUNCH_FAILED: &str = "query_launch_failed";
+pub const CODE_QUERY_FAILED: &str = "query_failed";
+pub const CODE_BAZEL_FAILED: &str = "bazel_failed";
+pub const CODE_TESTS_FAILED: &str = "tests_failed";
+pub const CODE_APPLICATION_FAILED: &str = "application_failed";
+pub const CODE_ANALYSIS_FAILED: &str = "analysis_failed";
+pub const CODE_DISK_FULL: &str = "disk_full";
+pub const CODE_SERVER_CRASHED: &str = "server_crashed";
+pub const CODE_SERVER_OUT_OF_MEMORY: &str = "server_out_of_memory";
+pub const CODE_LOCKFILE_DRIFT: &str = "lockfile_drift";
+pub const CODE_STALE_GENERATED: &str = "stale_generated";
+pub const CODE_FETCH_FAILED: &str = "fetch_failed";
+pub const CODE_NO_TOOLCHAIN: &str = "no_toolchain";
+pub const CODE_MODULE_NOT_FOUND: &str = "module_not_found";
+pub const CODE_PATH_TOO_LONG: &str = "path_too_long";
 
 /// The class of one failure, reported as the `cause` of its `error` event.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -146,7 +146,7 @@ impl Failure {
     }
 
     /// The failure of scope resolution, keeping a query's native status and excerpt.
-    pub(crate) fn resolve(error: &ResolveError) -> Self {
+    pub fn resolve(error: &ResolveError) -> Self {
         let (code, exit) = match error {
             ResolveError::QueryFailed {
                 failure: QueryFailure::Launch { .. },
@@ -227,10 +227,10 @@ impl Failure {
 }
 
 fn next_hint(failure: &Failure) -> Option<String> {
-    super::bazel_hint::recorded()
+    crate::bazel_hint::recorded()
         .filter(|hint| hint.code == failure.code)
         .map(|hint| hint.next)
-        .or_else(|| super::guidance::next_action(&failure.code).map(str::to_owned))
+        .or_else(|| crate::guidance::next_action(&failure.code).map(str::to_owned))
 }
 
 /// The printed next step without its `next: ` prefix, for the `error` event.
@@ -243,7 +243,7 @@ fn next_step(failure: &Failure) -> Option<String> {
 }
 
 /// Builds the `error` event of one failure; an event that fails to build becomes `invalid_result`.
-pub(crate) fn error_event_of(failure: &Failure) -> Result<serde_json::Value, i32> {
+pub fn error_event_of(failure: &Failure) -> Result<serde_json::Value, i32> {
     let cause = failure.cause();
     let next = next_step(failure);
     let facts = FailureFacts {
@@ -512,7 +512,7 @@ mod tests {
     #[test]
     fn a_refusal_prints_one_line_and_no_usage() {
         let (mut out, mut err) = (Vec::new(), Vec::new());
-        let exit = super::super::common::refusal(
+        let exit = crate::common::refusal(
             OutputMode::Text { quiet: false },
             &mut out,
             &mut err,

@@ -844,10 +844,10 @@ mod tests {
         "module(name = \"app\")\n\nbazel_dep(name = \"rules_dx\", version = \"1.0.0\")\n";
 
     fn plan(files: &[(&str, &str)]) -> LockHubs {
-        let dir = scratch("lock_hubs");
-        write(dir.path(), MODULE_FILE, MODULE);
+        let dir = scratch("lock_hubs").unwrap();
+        write(dir.path(), MODULE_FILE, MODULE).unwrap();
         for (rel, text) in files {
-            write(dir.path(), rel, text);
+            write(dir.path(), rel, text).unwrap();
         }
         plan_lock_hubs(dir.path()).expect("plan")
     }
@@ -944,14 +944,14 @@ mod tests {
 
     #[test]
     fn a_wired_lock_tag_ecosystem_is_left_alone() {
-        let dir = scratch("lock_hubs");
+        let dir = scratch("lock_hubs").unwrap();
         let module = format!(
             "{MODULE}hex = use_extension(\"@rules_dx//elixir:extensions.bzl\", \"hex\")\nhex.lock(name = \"deps\", lock = \"//:{}\")\nuse_repo(hex, \"deps\")\n",
             lock_of("hex").expect("hub")
         );
-        write(dir.path(), MODULE_FILE, &module);
-        write(dir.path(), lock_of("hex").expect("hub"), "");
-        write(dir.path(), manifest_of("hex").expect("hub"), "");
+        write(dir.path(), MODULE_FILE, &module).unwrap();
+        write(dir.path(), lock_of("hex").expect("hub"), "").unwrap();
+        write(dir.path(), manifest_of("hex").expect("hub"), "").unwrap();
         assert_eq!(plan_lock_hubs(dir.path()).expect("plan").edit, None);
     }
 
@@ -977,7 +977,7 @@ mod tests {
 
     #[test]
     fn a_wired_go_mod_is_left_alone() {
-        let dir = scratch("lock_hubs");
+        let dir = scratch("lock_hubs").unwrap();
         write(
             dir.path(),
             MODULE_FILE,
@@ -985,18 +985,19 @@ mod tests {
                 "{MODULE}go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \"//:{}\")\n",
                 manifest_of("go").expect("hub")
             ),
-        );
+        ).unwrap();
         write(
             dir.path(),
             manifest_of("go").expect("hub"),
             "module example.com/app\n",
-        );
+        )
+        .unwrap();
         assert_eq!(plan_lock_hubs(dir.path()).expect("plan").edit, None);
     }
 
     #[test]
     fn a_pub_extension_from_this_repository_is_left_alone() {
-        let dir = scratch("lock_hubs");
+        let dir = scratch("lock_hubs").unwrap();
         write(
             dir.path(),
             MODULE_FILE,
@@ -1004,9 +1005,9 @@ mod tests {
                 "{MODULE}pub = use_extension(\"//dart:extensions.bzl\", \"pub\")\npub.from_lock(\n    name = \"pub_deps\",\n    lock = \"//:{}\",\n)\nuse_repo(pub, \"pub_deps\")\n",
                 lock_of("pub").expect("hub")
             ),
-        );
-        write(dir.path(), lock_of("pub").expect("hub"), "");
-        write(dir.path(), manifest_of("pub").expect("hub"), "");
+        ).unwrap();
+        write(dir.path(), lock_of("pub").expect("hub"), "").unwrap();
+        write(dir.path(), manifest_of("pub").expect("hub"), "").unwrap();
         assert_eq!(plan_lock_hubs(dir.path()).expect("plan").edit, None);
     }
 
@@ -1016,9 +1017,9 @@ mod tests {
     }
 
     fn unlocked(files: &[(&str, &str)]) -> Vec<&'static str> {
-        let dir = scratch("unlocked");
+        let dir = scratch("unlocked").unwrap();
         for (rel, text) in files {
-            write(dir.path(), rel, text);
+            write(dir.path(), rel, text).unwrap();
         }
         unlocked_manifests(dir.path()).expect("hub")
     }
@@ -1202,8 +1203,8 @@ mod tests {
 
     #[test]
     fn the_pnpm_tool_gets_an_extension_once() {
-        let dir = scratch("pnpm_tool");
-        write(dir.path(), "MODULE.bazel", MODULE);
+        let dir = scratch("pnpm_tool").unwrap();
+        write(dir.path(), "MODULE.bazel", MODULE).unwrap();
         let plan = plan_pnpm_tool(dir.path()).expect("plan");
         let edit = plan.edit.expect("edit");
         assert!(
@@ -1216,7 +1217,7 @@ mod tests {
             "{}",
             edit.new
         );
-        write(dir.path(), "MODULE.bazel", &edit.new);
+        write(dir.path(), "MODULE.bazel", &edit.new).unwrap();
         assert_eq!(
             plan_pnpm_tool(dir.path()).expect("again"),
             LockHubs::default()
@@ -1281,10 +1282,10 @@ mod tests {
             lock_of("npm").expect("hub"),
             lock_of("npm").expect("hub"),
         );
-        let dir = scratch("pnpm_settings");
-        write(dir.path(), MODULE_FILE, &module);
+        let dir = scratch("pnpm_settings").unwrap();
+        write(dir.path(), MODULE_FILE, &module).unwrap();
         for (rel, text) in files {
-            write(dir.path(), rel, text);
+            write(dir.path(), rel, text).unwrap();
         }
         plan_pnpm_settings(dir.path()).expect("plan")
     }
@@ -1320,14 +1321,15 @@ mod tests {
             "{MODULE}\nnpm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(\n    name = \"web\",\n    pnpm_lock = \"//:{}\",\n)\nuse_repo(npm, \"web\")\n",
             lock_of("npm").expect("hub")
         );
-        let dir = scratch("lock_hubs_manual");
-        write(dir.path(), MODULE_FILE, &module);
-        write(dir.path(), t("{npm:lock}"), "");
+        let dir = scratch("lock_hubs_manual").unwrap();
+        write(dir.path(), MODULE_FILE, &module).unwrap();
+        write(dir.path(), t("{npm:lock}"), "").unwrap();
         write(
             dir.path(),
             t("{npm:manifest}"),
             "{\"dependencies\": {\"left-pad\": \"1.3.0\"}}",
-        );
+        )
+        .unwrap();
         assert_eq!(
             plan_lock_hubs(dir.path()).expect("plan"),
             LockHubs::default()
@@ -1336,20 +1338,21 @@ mod tests {
 
     #[test]
     fn a_second_run_plans_nothing() {
-        let dir = scratch("lock_hubs_twice");
-        write(dir.path(), MODULE_FILE, MODULE);
-        write(dir.path(), t("{cargo:lock}"), "");
-        write(dir.path(), t("{cargo:manifest}"), "");
-        write(dir.path(), t("{uv:lock}"), "");
-        write(dir.path(), t("{uv:manifest}"), "");
-        write(dir.path(), t("{npm:lock}"), "");
+        let dir = scratch("lock_hubs_twice").unwrap();
+        write(dir.path(), MODULE_FILE, MODULE).unwrap();
+        write(dir.path(), t("{cargo:lock}"), "").unwrap();
+        write(dir.path(), t("{cargo:manifest}"), "").unwrap();
+        write(dir.path(), t("{uv:lock}"), "").unwrap();
+        write(dir.path(), t("{uv:manifest}"), "").unwrap();
+        write(dir.path(), t("{npm:lock}"), "").unwrap();
         write(
             dir.path(),
             t("{npm:manifest}"),
             "{\"dependencies\": {\"left-pad\": \"1.3.0\"}}",
-        );
+        )
+        .unwrap();
         let first = plan_lock_hubs(dir.path()).expect("plan");
-        write(dir.path(), MODULE_FILE, new_text(&first));
+        write(dir.path(), MODULE_FILE, new_text(&first)).unwrap();
         assert_eq!(
             plan_lock_hubs(dir.path()).expect("plan"),
             LockHubs::default()
@@ -1361,19 +1364,20 @@ mod tests {
         let module = format!(
             "{MODULE}\nnpm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\n"
         );
-        let dir = scratch("lock_hubs_aspect_npm");
-        write(dir.path(), MODULE_FILE, &module);
-        write(dir.path(), t("web/{npm:lock}"), "");
+        let dir = scratch("lock_hubs_aspect_npm").unwrap();
+        write(dir.path(), MODULE_FILE, &module).unwrap();
+        write(dir.path(), t("web/{npm:lock}"), "").unwrap();
         write(
             dir.path(),
             t("web/{npm:manifest}"),
             "{\"dependencies\": {\"left-pad\": \"1.3.0\"}}",
-        );
+        )
+        .unwrap();
         let first = plan_lock_hubs(dir.path()).expect("plan");
         let text = new_text(&first);
         assert!(text.contains("dx_npm = use_extension("), "{text}");
         ModuleFile::parse(text).expect("re-parses");
-        write(dir.path(), MODULE_FILE, text);
+        write(dir.path(), MODULE_FILE, text).unwrap();
         assert_eq!(
             plan_lock_hubs(dir.path()).expect("plan"),
             LockHubs::default()
@@ -1416,8 +1420,8 @@ mod tests {
             lock_of("uv").expect("hub"),
             manifest_of("uv").expect("hub")
         );
-        let dir = scratch("lock_hubs_gone");
-        write(dir.path(), MODULE_FILE, &module);
+        let dir = scratch("lock_hubs_gone").unwrap();
+        write(dir.path(), MODULE_FILE, &module).unwrap();
         let hubs = plan_lock_hubs(dir.path()).expect("plan");
         assert_eq!(hubs.edit, None);
         assert_eq!(hubs.notes.len(), 1, "{:?}", hubs.notes);
@@ -1472,10 +1476,10 @@ mod tests {
         let module = format!(
             "{MODULE}\nuv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuse_repo(uv, pypi = \"dx_pypi\")\n"
         );
-        let dir = scratch("lock_hubs_alias");
-        write(dir.path(), MODULE_FILE, &module);
-        write(dir.path(), t("{uv:lock}"), "");
-        write(dir.path(), t("{uv:manifest}"), "");
+        let dir = scratch("lock_hubs_alias").unwrap();
+        write(dir.path(), MODULE_FILE, &module).unwrap();
+        write(dir.path(), t("{uv:lock}"), "").unwrap();
+        write(dir.path(), t("{uv:manifest}"), "").unwrap();
         assert_eq!(
             plan_lock_hubs(dir.path()).expect("plan"),
             LockHubs::default()

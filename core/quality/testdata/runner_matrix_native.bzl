@@ -2,6 +2,8 @@
 
 load(":runner_matrix_tests.bzl", "matrix_case")
 
+visibility("private")
+
 NATIVE_CASES = [
     matrix_case(
         name = "matrix_c_format_pass",

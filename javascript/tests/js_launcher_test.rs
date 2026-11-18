@@ -72,7 +72,7 @@ fn a_descriptor_is_named_after_the_launcher() {
 
 #[test]
 fn a_descriptor_names_every_launch_input() {
-    let scratch = dx_test_scratch::scratch("descriptor");
+    let scratch = dx_test_scratch::scratch("descriptor").unwrap();
     let dir = scratch.path();
     let path = write(
         &dir,
@@ -93,7 +93,7 @@ fn a_descriptor_names_every_launch_input() {
 
 #[test]
 fn an_incomplete_descriptor_names_the_missing_key() {
-    let scratch = dx_test_scratch::scratch("incomplete");
+    let scratch = dx_test_scratch::scratch("incomplete").unwrap();
     let dir = scratch.path();
     for missing in ["entry", "node", "require", "wrapper"] {
         let mut body = String::new();
@@ -115,7 +115,7 @@ fn an_incomplete_descriptor_names_the_missing_key() {
 
 #[test]
 fn a_repeated_single_key_fails() {
-    let scratch = dx_test_scratch::scratch("repeated");
+    let scratch = dx_test_scratch::scratch("repeated").unwrap();
     let dir = scratch.path();
     let path = write(
         &dir,
@@ -131,7 +131,7 @@ fn a_repeated_single_key_fails() {
 
 #[test]
 fn a_launcher_runs_node_flags_before_the_entry_and_script_args_after() {
-    let scratch = dx_test_scratch::scratch("flags");
+    let scratch = dx_test_scratch::scratch("flags").unwrap();
     let dir = scratch.path();
     let fix = staged(&dir, "tool", "_main/pkg/bin/tool.mjs");
     let args = [
@@ -175,7 +175,7 @@ fn a_launcher_runs_node_flags_before_the_entry_and_script_args_after() {
 
 #[test]
 fn a_launcher_reads_its_own_descriptor_and_not_another_tools() {
-    let scratch = dx_test_scratch::scratch("own-descriptor");
+    let scratch = dx_test_scratch::scratch("own-descriptor").unwrap();
     let dir = scratch.path();
     let first = staged(&dir, "tool", "_main/pkg/bin/tool.mjs");
     let other = staged(&dir, "other", "_main/pkg/bin/other.mjs");
@@ -192,7 +192,7 @@ fn a_launcher_reads_its_own_descriptor_and_not_another_tools() {
 
 #[test]
 fn a_tool_whose_package_path_has_spaces_runs() {
-    let scratch = dx_test_scratch::scratch("spaced");
+    let scratch = dx_test_scratch::scratch("spaced").unwrap();
     let dir = scratch.path();
     let fix = staged(&dir, "tool", "_main/pkg with space/bin/tool.mjs");
     let planned = plan_in(&fix.exe, &[], &dir).expect("plan");
@@ -206,7 +206,7 @@ fn a_tool_whose_package_path_has_spaces_runs() {
 
 #[test]
 fn a_launcher_sets_the_execution_environment() {
-    let scratch = dx_test_scratch::scratch("env");
+    let scratch = dx_test_scratch::scratch("env").unwrap();
     let dir = scratch.path();
     let fix = staged(&dir, "tool", "_main/pkg/bin/tool.mjs");
     let planned = plan_in(&fix.exe, &[], &dir).expect("plan");
@@ -239,7 +239,7 @@ fn a_launcher_sets_the_execution_environment() {
 
 #[test]
 fn a_key_below_a_mapped_directory_resolves() {
-    let scratch = dx_test_scratch::scratch("mapped-dir");
+    let scratch = dx_test_scratch::scratch("mapped-dir").unwrap();
     let dir = scratch.path();
     let fix = staged(&dir, "tool", "_main/pkg/bin/tool.mjs");
     write(
@@ -259,7 +259,7 @@ fn a_key_below_a_mapped_directory_resolves() {
 
 #[test]
 fn a_dotted_key_below_a_mapped_directory_resolves() {
-    let scratch = dx_test_scratch::scratch("mapped-dotted");
+    let scratch = dx_test_scratch::scratch("mapped-dotted").unwrap();
     let dir = scratch.path();
     let fix = staged(&dir, "tool", "_main/pkg/bin/tool.mjs");
     write(
@@ -289,7 +289,7 @@ fn a_dotted_key_below_a_mapped_directory_resolves() {
 
 #[test]
 fn a_missing_file_below_a_mapped_directory_says_so() {
-    let scratch = dx_test_scratch::scratch("mapped-absent");
+    let scratch = dx_test_scratch::scratch("mapped-absent").unwrap();
     let dir = scratch.path();
     let fix = staged(&dir, "tool", "_main/pkg/bin/tool.mjs");
     write(
@@ -322,7 +322,7 @@ fn a_missing_file_below_a_mapped_directory_says_so() {
 
 #[test]
 fn a_launcher_without_a_descriptor_names_the_file_it_read() {
-    let scratch = dx_test_scratch::scratch("no-descriptor");
+    let scratch = dx_test_scratch::scratch("no-descriptor").unwrap();
     let dir = scratch.path();
     let exe = write(&dir, "tool.exe", "launcher\n");
     let error = plan(&exe, &[]).expect_err("no descriptor");
@@ -336,7 +336,7 @@ fn a_launcher_without_a_descriptor_names_the_file_it_read() {
 
 #[test]
 fn a_key_the_manifest_does_not_name_says_so() {
-    let scratch = dx_test_scratch::scratch("absent-key");
+    let scratch = dx_test_scratch::scratch("absent-key").unwrap();
     let dir = scratch.path();
     let exe = write(&dir, "tool.exe", "launcher\n");
     write(
@@ -359,7 +359,7 @@ fn a_key_the_manifest_does_not_name_says_so() {
 
 #[test]
 fn a_launcher_without_its_own_runfiles_says_so() {
-    let scratch = dx_test_scratch::scratch("no-runfiles");
+    let scratch = dx_test_scratch::scratch("no-runfiles").unwrap();
     let dir = scratch.path();
     let exe = write(&dir, "tool.exe", "launcher\n");
     write(
@@ -381,7 +381,7 @@ fn a_launcher_without_its_own_runfiles_says_so() {
 
 #[test]
 fn a_launcher_resolves_a_runfiles_tree_beside_the_binary() {
-    let scratch = dx_test_scratch::scratch("tree");
+    let scratch = dx_test_scratch::scratch("tree").unwrap();
     let dir = scratch.path();
     let fix = staged(&dir, "tool", "_main/pkg/bin/tool.mjs");
     std::fs::remove_file(dir.join("tool.exe.runfiles_manifest")).expect("drop manifest");
@@ -528,7 +528,7 @@ exit "${PROBE_EXIT:-0}"
 
     #[test]
     fn a_launcher_runs_the_planned_argv_with_the_planned_environment() {
-        let scratch = dx_test_scratch::scratch("e2e");
+        let scratch = dx_test_scratch::scratch("e2e").unwrap();
         let dir = scratch.path();
         let sub = dir.join("work");
         std::fs::create_dir_all(&sub).expect("work");
@@ -585,7 +585,7 @@ exit "${PROBE_EXIT:-0}"
 
     #[test]
     fn a_launcher_keeps_ambient_values_over_its_defaults() {
-        let scratch = dx_test_scratch::scratch("ambient");
+        let scratch = dx_test_scratch::scratch("ambient").unwrap();
         let dir = scratch.path();
         let (run, _, _) = run_launcher(
             &dir,
@@ -605,7 +605,7 @@ exit "${PROBE_EXIT:-0}"
 
     #[test]
     fn a_launcher_passes_the_runtime_exit_code_through() {
-        let scratch = dx_test_scratch::scratch("exit");
+        let scratch = dx_test_scratch::scratch("exit").unwrap();
         let dir = scratch.path();
         let (run, _, _) = run_launcher(
             &dir,
@@ -620,7 +620,7 @@ exit "${PROBE_EXIT:-0}"
 
     #[test]
     fn a_launcher_ignores_the_inherited_manifest() {
-        let scratch = dx_test_scratch::scratch("inherited");
+        let scratch = dx_test_scratch::scratch("inherited").unwrap();
         let dir = scratch.path();
         let parent = dir.join("parent");
         std::fs::create_dir_all(&parent).expect("parent");

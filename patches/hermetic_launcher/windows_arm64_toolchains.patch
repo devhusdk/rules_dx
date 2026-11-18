@@ -1,3 +1,4 @@
+Upstream: hermeticbuild/hermetic-launcher#94
 diff -ru a/launcher/private/prebuilt/BUILD.bazel b/launcher/private/prebuilt/BUILD.bazel
 --- a/launcher/private/prebuilt/BUILD.bazel
 +++ b/launcher/private/prebuilt/BUILD.bazel

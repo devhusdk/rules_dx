@@ -217,7 +217,7 @@ mod tests {
 
     #[test]
     fn fallback_skips_build_directory_markers() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-git-build-dir-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-git-build-dir-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::write(root.join("BUILD.bazel"), "").expect("root build");
         std::fs::create_dir_all(root.join("web/BUILD")).expect("build dir");
@@ -236,7 +236,7 @@ mod tests {
 
     #[test]
     fn change_selection_dedupes_and_falls_back_to_packages() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-git-selection-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-git-selection-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join("pkg")).expect("pkg");
         std::fs::write(root.join("pkg/BUILD.bazel"), "").expect("build");

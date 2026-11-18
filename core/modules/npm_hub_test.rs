@@ -50,7 +50,7 @@ fn collect(dir: &Path, root: &Path, found: &mut Vec<String>) {
 
 #[test]
 fn only_dx_npm_tools_is_a_non_dev_npm_hub() {
-    let root = dx_testing::rules_dx_source();
+    let root = dx_testing::rules_dx_source().unwrap();
     let source = std::fs::read_to_string(root.join("MODULE.bazel")).expect("MODULE.bazel");
     let problems = hub_violations(&source);
     assert!(problems.is_empty(), "{}", problems.join("\n"));
@@ -64,7 +64,7 @@ fn a_second_non_dev_hub_is_reported() {
 
 #[test]
 fn dx_node_tools_package_json_lives_only_in_the_owner() {
-    let root = dx_testing::rules_dx_source();
+    let root = dx_testing::rules_dx_source().unwrap();
     let mut found = Vec::new();
     collect(&root, &root, &mut found);
     assert!(found.iter().all(|dir| dir == OWNER), "{found:?}");

@@ -52,6 +52,40 @@ Build and test everything. `//...` means every target in the repository:
 tools/dx test //...
 ```
 
+## WebAssembly
+
+One `rust_binary` builds native, browser and WASI outputs. The `wasm`
+attribute picks the output:
+
+```python
+load("@rules_dx//rust:defs.bzl", "rust_binary", "rust_test")
+
+rust_binary(
+    name = "tool",
+    srcs = ["main.rs"],
+)
+
+rust_binary(
+    name = "tool_web",
+    srcs = ["main.rs"],
+    wasm = "browser",
+)
+
+rust_binary(
+    name = "tool_wasi",
+    srcs = ["main.rs"],
+    wasm = "wasi",
+)
+
+rust_test(
+    name = "tool_wasi_test",
+    srcs = ["tool_test.rs"],
+    env = {"TOOL_MODE": "check"},
+    preopens = {"/data": ":input.txt"},
+    wasm = "wasi",
+)
+```
+
 ## Bench and fuzz
 
 `rust_bench(name, srcs, deps, ...)` is a `rust_test` built with the

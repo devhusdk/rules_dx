@@ -32,7 +32,7 @@ mod tests {
 
     #[test]
     fn expansion_reads_the_rule_graph_and_unions_schema() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
             graph_rule_of_kind(
@@ -69,7 +69,7 @@ mod tests {
 
     #[test]
     fn a_flatbuffers_library_graph_expands_to_the_library_plus_the_schema() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-fbs-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-fbs-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
             graph_rule_of_kind(
@@ -94,7 +94,7 @@ mod tests {
 
     #[test]
     fn a_capnp_library_graph_expands_to_the_library_plus_the_schema() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-capnp-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-capnp-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
             graph_rule_of_kind(
@@ -119,7 +119,7 @@ mod tests {
 
     #[test]
     fn a_capnp_rust_library_graph_expands_to_the_library_plus_the_schema() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-capnp-rs-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-capnp-rs-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
             graph_rule_of_kind(
@@ -147,7 +147,8 @@ mod tests {
 
     #[test]
     fn a_capnp_java_library_graph_expands_to_the_library_plus_the_schema() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-capnp-java-");
+        let scratch =
+            dx_test_scratch::scratch("dx-resolve-test-codegen-expand-capnp-java-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
             graph_rule_of_kind(
@@ -172,7 +173,7 @@ mod tests {
 
     #[test]
     fn a_flatbuffers_rust_library_graph_expands_to_the_library_plus_the_schema() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-fbs-rs-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-fbs-rs-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
             graph_rule_of_kind(
@@ -200,7 +201,7 @@ mod tests {
 
     #[test]
     fn an_openapi_library_graph_expands_to_the_library_plus_the_spec() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-openapi-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-openapi-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
             graph_rule_of_kind(
@@ -225,7 +226,7 @@ mod tests {
 
     #[test]
     fn a_graph_without_libraries_keeps_the_single_label() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-empty-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-empty-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[graph_rule_of_kind(
             "//core/codegen:result_bin",
@@ -241,7 +242,7 @@ mod tests {
 
     #[test]
     fn expansion_failures_keep_the_bazel_status_and_excerpt() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-fail-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-fail-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::failed("\n  query failed: blah  \nmore\n")]);
         let err = expand_codegen_roots("//core/codegen:result_proto", &workspace, &query, &[])

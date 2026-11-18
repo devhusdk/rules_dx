@@ -25,6 +25,7 @@ pub enum Command {
     Worktree,
     Fuzz,
     Config,
+    Fetch,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -50,6 +51,8 @@ pub enum WorkflowVerb {
     Coverage,
     Bench,
     Run,
+    Fetch,
+    Vendor,
 }
 
 impl WorkflowVerb {
@@ -61,6 +64,8 @@ impl WorkflowVerb {
             WorkflowVerb::Coverage => "coverage",
             WorkflowVerb::Bench => "bench",
             WorkflowVerb::Run => "run",
+            WorkflowVerb::Fetch => "fetch",
+            WorkflowVerb::Vendor => "vendor",
         }
     }
 
@@ -72,7 +77,9 @@ impl WorkflowVerb {
             other @ (WorkflowVerb::Build
             | WorkflowVerb::Test
             | WorkflowVerb::Coverage
-            | WorkflowVerb::Run) => other.name(),
+            | WorkflowVerb::Run
+            | WorkflowVerb::Fetch
+            | WorkflowVerb::Vendor) => other.name(),
         }
     }
 
@@ -109,7 +116,7 @@ pub struct OutputCaps {
     pub streamed: bool,
 }
 
-pub static COMMANDS: [&CommandMeta; 25] = [
+pub static COMMANDS: [&CommandMeta; 26] = [
     &SECURITY,
     &LICENSE,
     &LINT,
@@ -135,6 +142,7 @@ pub static COMMANDS: [&CommandMeta; 25] = [
     &WORKTREE,
     &FUZZ,
     &CONFIG,
+    &FETCH,
 ];
 
 static SECURITY: CommandMeta = CommandMeta {
@@ -142,8 +150,8 @@ static SECURITY: CommandMeta = CommandMeta {
     name: "security",
     scope_policy: "default-//...",
     describe: "run security audit over resolved scopes (non-mutating; live Gitleaks plus advisory/vuln backends)",
-    usage: "Usage: dx security [--accept <advisory>[:<package>]|uncovered:<set> --reason <text> --expires <YYYY-MM-DD>] [--offline] [--frozen] [--here] [--affected [--since <ref>]] [scope ...]\n       dx security --verify <file> --repo <owner/name> [--bundle <file>.sigstore.json]",
-    scopes: "Scopes: dependency-set/package/target selectors; With no scope, this command runs //...; pass --affected to run only what your changes reach. It audits secrets plus vulnerabilities. Pass --here for the current directory tree instead; --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base (or the ref given with --since) plus their reverse dependencies; it cannot be combined with scopes or --here.",
+    usage: "Usage: dx security [--accept <advisory>[:<package>]|uncovered:<set> --reason <text> --expires <YYYY-MM-DD>] [--offline] [--frozen] [--here] [--affected [--since <ref>|--base <ref>]] [scope ...]\n       dx security --verify <file> --repo <owner/name> [--bundle <file>.sigstore.json]",
+    scopes: "Scopes: dependency-set/package/target selectors; With no scope, this command runs //...; pass --affected to run only what your changes reach. It audits secrets plus vulnerabilities. Pass --here for the current directory tree instead; --here cannot be combined with explicit scopes. --affected selects targets changed since the merge-base with the default branch (or --base, or dx.toml [affected] base), or since the ref given with --since, plus their reverse dependencies; it cannot be combined with scopes or --here.",
     is_managed: false,
     is_adoption: false,
     default_release: false,
@@ -157,8 +165,8 @@ static LICENSE: CommandMeta = CommandMeta {
     name: "license",
     scope_policy: "default-//...",
     describe: "run license audit over resolved scopes (non-mutating)",
-    usage: "Usage: dx license [--accept <package> --reason <text> --expires <YYYY-MM-DD>] [--offline] [--frozen] [--here] [--affected [--since <ref>]] [scope ...]",
-    scopes: "Scopes: dependency-set/package/target selectors; With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead; --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base (or the ref given with --since) plus their reverse dependencies; it cannot be combined with scopes or --here.",
+    usage: "Usage: dx license [--accept <package> --reason <text> --expires <YYYY-MM-DD>] [--offline] [--frozen] [--here] [--affected [--since <ref>|--base <ref>]] [scope ...]",
+    scopes: "Scopes: dependency-set/package/target selectors; With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead; --here cannot be combined with explicit scopes. --affected selects targets changed since the merge-base with the default branch (or --base, or dx.toml [affected] base), or since the ref given with --since, plus their reverse dependencies; it cannot be combined with scopes or --here.",
     is_managed: false,
     is_adoption: false,
     default_release: false,
@@ -172,8 +180,8 @@ static LINT: CommandMeta = CommandMeta {
     name: "lint",
     scope_policy: "default-//...",
     describe: "run lint analysis over resolved scopes (check by default; --apply writes fixes)",
-    usage: "Usage: dx lint|typecheck|format [--apply] [--online] [--breaking-against[=REF]] [--here] [--affected [--since <ref>]] [scope ...] [-- bazel-options ...]",
-    scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base (or the ref given with --since) plus their reverse dependencies; it cannot be combined with scopes or --here.",
+    usage: "Usage: dx lint|typecheck|format [--apply] [--online] [--breaking-against[=REF]] [--here] [--affected [--since <ref>|--base <ref>]] [scope ...] [-- bazel-options ...]",
+    scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the merge-base with the default branch (or --base, or dx.toml [affected] base), or since the ref given with --since, plus their reverse dependencies; scopes keep only the affected targets inside them, and it cannot be combined with --here.",
     is_managed: false,
     is_adoption: false,
     default_release: false,
@@ -187,8 +195,8 @@ static TYPECHECK: CommandMeta = CommandMeta {
     name: "typecheck",
     scope_policy: "default-//...",
     describe: "run typecheck analysis over resolved scopes (check by default; --apply writes fixes)",
-    usage: "Usage: dx lint|typecheck|format [--apply] [--here] [--affected [--since <ref>]] [scope ...] [-- bazel-options ...]",
-    scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base (or the ref given with --since) plus their reverse dependencies; it cannot be combined with scopes or --here.",
+    usage: "Usage: dx lint|typecheck|format [--apply] [--here] [--affected [--since <ref>|--base <ref>]] [scope ...] [-- bazel-options ...]",
+    scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the merge-base with the default branch (or --base, or dx.toml [affected] base), or since the ref given with --since, plus their reverse dependencies; scopes keep only the affected targets inside them, and it cannot be combined with --here.",
     is_managed: false,
     is_adoption: false,
     default_release: false,
@@ -202,8 +210,8 @@ static FORMAT: CommandMeta = CommandMeta {
     name: "format",
     scope_policy: "default-//...",
     describe: "check or rewrite formatting over resolved scopes (check by default; --apply writes fixes)",
-    usage: "Usage: dx lint|typecheck|format [--apply] [--here] [--affected [--since <ref>]] [scope ...] [-- bazel-options ...]",
-    scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base (or the ref given with --since) plus their reverse dependencies; it cannot be combined with scopes or --here.",
+    usage: "Usage: dx lint|typecheck|format [--apply] [--here] [--affected [--since <ref>|--base <ref>]] [scope ...] [-- bazel-options ...]",
+    scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the merge-base with the default branch (or --base, or dx.toml [affected] base), or since the ref given with --since, plus their reverse dependencies; scopes keep only the affected targets inside them, and it cannot be combined with --here.",
     is_managed: false,
     is_adoption: false,
     default_release: false,
@@ -232,8 +240,8 @@ static BUILD: CommandMeta = CommandMeta {
     name: "build",
     scope_policy: "default-//...",
     describe: "run Bazel build over resolved targets",
-    usage: "Usage: dx build [--here] [--affected [--since <ref>]] [--debug|--release] [--timings] [--no-retry] [scope ...] [-- bazel-options ...]",
-    scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base (or the ref given with --since) plus their reverse dependencies; it cannot be combined with scopes or --here.",
+    usage: "Usage: dx build [--offline] [--here] [--affected [--since <ref>|--base <ref>]] [--debug|--release] [--timings] [--no-retry] [scope ...] [-- bazel-options ...]",
+    scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the merge-base with the default branch (or --base, or dx.toml [affected] base), or since the ref given with --since, plus their reverse dependencies; scopes keep only the affected targets inside them, and it cannot be combined with --here.",
     is_managed: false,
     is_adoption: false,
     default_release: false,
@@ -247,8 +255,8 @@ static TEST: CommandMeta = CommandMeta {
     name: "test",
     scope_policy: "default-//...",
     describe: "run Bazel test over resolved targets",
-    usage: "Usage: dx test [--here] [--affected [--since <ref>]] [--debug|--release] [--timings] [--no-retry] [scope ...] [-- bazel-options ...]",
-    scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base (or the ref given with --since) plus their reverse dependencies; it cannot be combined with scopes or --here.",
+    usage: "Usage: dx test [--offline] [--here] [--affected [--since <ref>|--base <ref>]] [--debug|--release] [--timings] [--no-retry] [scope ...] [-- bazel-options ...]",
+    scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the merge-base with the default branch (or --base, or dx.toml [affected] base), or since the ref given with --since, plus their reverse dependencies; scopes keep only the affected targets inside them, and it cannot be combined with --here.",
     is_managed: false,
     is_adoption: false,
     default_release: false,
@@ -262,8 +270,8 @@ static COVERAGE: CommandMeta = CommandMeta {
     name: "coverage",
     scope_policy: "default-//...",
     describe: "collect LCOV coverage with optional threshold",
-    usage: "Usage: dx coverage [--here] [--affected [--since <ref>]] [--timings] [--no-retry] [--min-coverage <percent>] [--min-changed-line-coverage <percent>] [scope ...] [-- bazel-options ...]",
-    scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base (or the ref given with --since) plus their reverse dependencies; it cannot be combined with scopes or --here.",
+    usage: "Usage: dx coverage [--here] [--affected [--since <ref>|--base <ref>]] [--timings] [--no-retry] [--min-coverage <percent>] [--min-changed-line-coverage <percent>] [scope ...] [-- bazel-options ...]",
+    scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the merge-base with the default branch (or --base, or dx.toml [affected] base), or since the ref given with --since, plus their reverse dependencies; scopes keep only the affected targets inside them, and it cannot be combined with --here.",
     is_managed: false,
     is_adoption: false,
     default_release: false,
@@ -322,8 +330,8 @@ static CHECK: CommandMeta = CommandMeta {
     name: "check",
     scope_policy: "default-//...",
     describe: "run generate+format+lint+typecheck in order (check by default; --apply writes fixes, then verifies with a read-only check)",
-    usage: "Usage: dx check [--apply] [--no-retry] [--here] [--affected [--since <ref>]] [scope ...] [-- bazel-options ...]",
-    scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base (or the ref given with --since) plus their reverse dependencies; it cannot be combined with scopes or --here.",
+    usage: "Usage: dx check [--apply] [--no-retry] [--here] [--affected [--since <ref>|--base <ref>]] [scope ...] [-- bazel-options ...]",
+    scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the merge-base with the default branch (or --base, or dx.toml [affected] base), or since the ref given with --since, plus their reverse dependencies; scopes keep only the affected targets inside them, and it cannot be combined with --here.",
     is_managed: false,
     is_adoption: false,
     default_release: false,
@@ -512,6 +520,21 @@ static CONFIG: CommandMeta = CommandMeta {
     labels: LabelsPolicy::Never,
 };
 
+static FETCH: CommandMeta = CommandMeta {
+    command: Command::Fetch,
+    name: "fetch",
+    scope_policy: "default-//...",
+    describe: "download what resolved targets need so build and test can run with --offline; --vendor also copies it into a directory",
+    usage: "Usage: dx fetch [--vendor[=DIR]] [--here] [--affected [--since <ref>|--base <ref>]] [--debug|--release] [scope ...] [-- bazel-options ...]",
+    scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the merge-base with the default branch (or --base, or dx.toml [affected] base), or since the ref given with --since, plus their reverse dependencies; scopes keep only the affected targets inside them, and it cannot be combined with --here.",
+    is_managed: false,
+    is_adoption: false,
+    default_release: false,
+    workflow_verb: Some(WorkflowVerb::Fetch),
+    first_slot: FirstSlot::None,
+    labels: LabelsPolicy::Always,
+};
+
 impl Command {
     #[must_use]
     pub fn meta(self) -> &'static CommandMeta {
@@ -541,6 +564,7 @@ impl Command {
             Command::Worktree => &WORKTREE,
             Command::Fuzz => &FUZZ,
             Command::Config => &CONFIG,
+            Command::Fetch => &FETCH,
         }
     }
 
@@ -589,14 +613,14 @@ impl Command {
     #[must_use]
     pub fn output_caps(self) -> OutputCaps {
         use Command::{
-            Bench, Build, Check, Clean, Completion, Config, Coverage, Deploy, Docs, Format, Fuzz,
-            Generate, Init, License, Lint, Run, Security, Status, Sync, Test, Typecheck, Update,
-            Upgrade, Watch, Worktree,
+            Bench, Build, Check, Clean, Completion, Config, Coverage, Deploy, Docs, Fetch, Format,
+            Fuzz, Generate, Init, License, Lint, Run, Security, Status, Sync, Test, Typecheck,
+            Update, Upgrade, Watch, Worktree,
         };
         let (json, streamed) = match self {
             Completion | Deploy => (false, false),
             Lint | Typecheck | Format | Generate | Build | Test | Coverage | Bench | Run
-            | Check | Update | Sync | Watch | Docs | Fuzz => (true, true),
+            | Check | Update | Sync | Watch | Docs | Fuzz | Fetch => (true, true),
             Security | License | Clean | Init | Upgrade | Status | Worktree | Config => {
                 (true, false)
             }
@@ -700,9 +724,10 @@ pub(crate) mod owners {
     pub(crate) const APPLY_COMMANDS: [Command; 11] = [
         Lint, Typecheck, Format, Generate, Deploy, Check, Update, Init, Upgrade, Watch, Worktree,
     ];
-    pub(crate) const BUILD_MODE_OWNERS: [Command; 5] = [Build, Test, Run, Deploy, Watch];
-    pub(crate) const AFFECTED_OWNERS: [Command; 11] = [
+    pub(crate) const BUILD_MODE_OWNERS: [Command; 6] = [Build, Test, Run, Deploy, Watch, Fetch];
+    pub(crate) const AFFECTED_OWNERS: [Command; 12] = [
         Security, License, Lint, Typecheck, Format, Generate, Build, Test, Coverage, Deploy, Check,
+        Fetch,
     ];
 }
 
@@ -796,7 +821,8 @@ mod tests {
                 Command::Bench,
                 Command::Check,
                 Command::Docs,
-                Command::Fuzz
+                Command::Fuzz,
+                Command::Fetch
             ])
         );
         assert_eq!(
@@ -886,6 +912,7 @@ mod tests {
             Command::Worktree,
             Command::Fuzz,
             Command::Config,
+            Command::Fetch,
         ];
         assert_eq!(commands.len(), Command::value_variants().len());
         for command in commands {
@@ -973,7 +1000,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|bench|run|deploy|check|clean|update|sync|init|upgrade|status|watch|completion|docs|worktree|fuzz|config",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|bench|run|deploy|check|clean|update|sync|init|upgrade|status|watch|completion|docs|worktree|fuzz|config|fetch",
             "pipe_list order must match declaration order"
         );
     }
@@ -1237,10 +1264,16 @@ mod tests {
             verbs.push(verb.name());
         }
         verbs.sort_unstable();
-        assert_eq!(verbs, ["bench", "build", "coverage", "run", "test"]);
+        assert_eq!(
+            verbs,
+            ["bench", "build", "coverage", "fetch", "run", "test"]
+        );
+        assert_eq!(WorkflowVerb::Vendor.bazel_command(), "vendor");
         assert!(WorkflowVerb::Test.collects_reports());
         assert!(WorkflowVerb::Coverage.collects_reports());
         assert!(!WorkflowVerb::Build.collects_reports());
         assert!(!WorkflowVerb::Run.collects_reports());
+        assert!(!WorkflowVerb::Fetch.collects_reports());
+        assert!(!WorkflowVerb::Vendor.collects_reports());
     }
 }

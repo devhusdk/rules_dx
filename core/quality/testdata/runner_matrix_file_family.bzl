@@ -2,6 +2,8 @@
 
 load(":runner_matrix_tests.bzl", "matrix_case")
 
+visibility("private")
+
 _TERRAFORM_ENV = [
     "terraform=CHECKPOINT_DISABLE=1",
     "terraform=TF_IN_AUTOMATION=1",

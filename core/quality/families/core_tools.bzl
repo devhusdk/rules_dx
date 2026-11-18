@@ -3,6 +3,8 @@
 load("//core/quality:taxonomy.bzl", "TAXONOMY")
 load("//core/quality:tool_defs.bzl", "config", "row", "severity", "tool")
 
+visibility(["//tools/..."])
+
 # Families and classes typos does not spell check; every other taxonomy class is checked.
 _TYPOS_EXCLUDED_FAMILIES = ["core", "cue", "json", "jupyter", "oci_image"]
 

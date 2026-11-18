@@ -12,6 +12,8 @@ load(":policy.bzl", "family_section_error")
 load(":real_core.bzl", "real_merged_output_groups")
 load(":unavailable_tool.bzl", "DxUnavailableToolInfo")
 
+visibility("private")
+
 def _f(path, is_source = True, extension = "rs", repo_name = ""):
     return struct(path = path, is_source = is_source, extension = extension, owner = struct(repo_name = repo_name))
 

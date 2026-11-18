@@ -99,7 +99,7 @@ fn plain_git_leaves_the_environment_alone() {
 
 #[test]
 fn git_runs_in_the_given_directory() {
-    let scratch = dx_test_scratch::scratch("dx-process-git-");
+    let scratch = dx_test_scratch::scratch("dx-process-git-").unwrap();
     let mut command = git(scratch.path());
     command.args(["init", "-q"]);
     dx_test_scratch::isolate_git(&mut command, scratch.path());
@@ -109,7 +109,7 @@ fn git_runs_in_the_given_directory() {
 
 #[test]
 fn input_reaches_stdin_of_the_child() {
-    let scratch = dx_test_scratch::scratch("dx-process-input-");
+    let scratch = dx_test_scratch::scratch("dx-process-input-").unwrap();
     let mut init = git(scratch.path());
     init.args(["init", "-q"]);
     dx_test_scratch::isolate_git(&mut init, scratch.path());

@@ -122,20 +122,22 @@ fn bazel_labels_put_negatives_before_kept_targets() {
 
 #[test]
 fn load_reads_dx_toml_and_rejects_a_bad_pattern() {
-    let scratch = dx_test_scratch::scratch("dx-resolve-exclude-");
+    let scratch = dx_test_scratch::scratch("dx-resolve-exclude-").unwrap();
     let root = scratch.path();
     assert_eq!(load(root).expect("missing file"), Vec::<String>::new());
     write(
         root,
         "dx.toml",
         "schema_version = 1\n[scope]\nexclude = [\"//third_party/...\"]\n",
-    );
+    )
+    .unwrap();
     assert_eq!(load(root).expect("load"), strings(&["//third_party/..."]));
     write(
         root,
         "dx.toml",
         "schema_version = 1\n[scope]\nexclude = [\"third_party\"]\n",
-    );
+    )
+    .unwrap();
     let err = load(root).expect_err("bad pattern");
     assert!(
         matches!(&err, ResolveError::Config { message } if message.contains("third_party")),
@@ -146,13 +148,14 @@ fn load_reads_dx_toml_and_rejects_a_bad_pattern() {
 
 #[test]
 fn resolve_applies_dx_toml_excludes_for_every_entry_point() {
-    let scratch = dx_test_scratch::scratch("dx-resolve-exclude-entry-");
+    let scratch = dx_test_scratch::scratch("dx-resolve-exclude-entry-").unwrap();
     let root = scratch.path();
     write(
         root,
         "dx.toml",
         "schema_version = 1\n[scope]\nexclude = [\"//third_party/...\"]\n",
-    );
+    )
+    .unwrap();
     let query = super::super::NeverQuery;
     let whole = super::super::resolve(&[], root, &query, &[]).expect("resolve");
     assert_eq!(whole.targets, strings(&["//..."]));

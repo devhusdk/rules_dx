@@ -166,7 +166,7 @@ pub fn run_request(
     let bytes = encode_validated(&result).map_err(|error| RunnerError::InvalidResult {
         detail: error.to_string(),
     })?;
-    dx_atomic_fs::write_atomic(Path::new(output), &bytes).map_err(|error| {
+    dx_atomic_fs::write_scratch(Path::new(output), &bytes).map_err(|error| {
         RunnerError::UnwritableOutput {
             output: output.to_owned(),
             detail: error.to_string(),

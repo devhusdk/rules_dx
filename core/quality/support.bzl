@@ -6,6 +6,8 @@ load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load(":tool_defs.bzl", "is_canonical_token")
 load(":tools.bzl", "TOOLS")
 
+visibility(["//core/...", "//tools/..."])
+
 SUPPORT_DEFAULTS = {
     "artifact": "pinned",
     "execution": "direct",

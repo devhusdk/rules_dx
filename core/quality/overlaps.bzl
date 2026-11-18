@@ -3,6 +3,8 @@
 load(":adapters.bzl", "REAL_CLASS_TO_FAMILY")
 load(":tools.bzl", "TOOLS")
 
+visibility("private")
+
 def _claims(tools):
     claims = {}
     for tool in tools:

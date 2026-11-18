@@ -6,6 +6,8 @@ load("//cli/prebuilt:tools.bzl", "TOOLS")
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load(":hub.bzl", "DISPATCH", "builds_from_source", "hub_languages", "prebuilt_build", "render_hub_build")
 
+visibility("private")
+
 _HASH = "0123456789abcdef" * 4
 
 def _names(labels):

@@ -7,7 +7,7 @@ use crate::signing::{
     Flags, Keychain, absolute, base64_decode, caller, codesign, detail, entries, fingerprint, keys,
     output_path, private_files, read_identity, text, value,
 };
-use crate::util::{Env, Outcome, Scratch, missing, reject, usage};
+use crate::util::{Env, Outcome, missing, reject, scratch, usage};
 use crate::xcode::{CODESIGN, DITTO, PLUTIL, SECURITY, Tools};
 
 pub const PREFIX: &str = "dx-apple-export";
@@ -145,7 +145,7 @@ pub fn run(tools: &Tools<'_>, args: &[String], env: Env<'_>) -> Outcome {
         )));
     }
 
-    let work = Scratch::new(env, "export")?;
+    let work = scratch(env, "export")?;
     let work_dir = work.path();
     let unpacked = work_dir.join("unpacked");
     let unzipped = std::fs::File::open(&ipa)

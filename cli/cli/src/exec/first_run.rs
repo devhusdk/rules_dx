@@ -130,6 +130,7 @@ pub fn first_run_notice(
             | Command::Format
             | Command::Typecheck
             | Command::Generate
+            | Command::Fetch
     );
     if !bazel_backed || !invocation.chatty() || !workspace.join("MODULE.bazel").is_file() {
         return None;
@@ -156,7 +157,7 @@ mod tests {
 
     impl Host {
         fn new() -> Host {
-            let scratch = dx_test_scratch::scratch("dx-first-run-");
+            let scratch = dx_test_scratch::scratch("dx-first-run-").unwrap();
             let home = scratch.path().join("home");
             let workspace = scratch.path().join("ws");
             std::fs::create_dir_all(&home).expect("home");

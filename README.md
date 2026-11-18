@@ -94,7 +94,7 @@ windows aarch64.
 To pick a binary yourself, add this to your root `MODULE.bazel`:
 
 ```starlark
-dx_prebuilt = use_extension("@rules_dx//cli/prebuilt:extension.bzl", "dx_prebuilt")
+dx_prebuilt = use_extension("@rules_dx//core:extensions.bzl", "dx_prebuilt")
 dx_prebuilt.asset(name = "dx", os = "linux", cpu = "x86_64", url = "https://...", sha256 = "...")
 ```
 

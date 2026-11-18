@@ -1,3 +1,4 @@
+Upstream: periareon/rules_julia#42, periareon/rules_julia#49
 diff -ruN a/julia/private/julia.bzl b/julia/private/julia.bzl
 --- a/julia/private/julia.bzl
 +++ b/julia/private/julia.bzl

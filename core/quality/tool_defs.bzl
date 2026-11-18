@@ -1,5 +1,7 @@
 """Constructors for quality tool rows: tool(), row(), config() and severity()."""
 
+visibility(["//ansible/...", "//bicep/...", "//cc/...", "//cloudformation/...", "//cmake/...", "//core/...", "//d/...", "//dart/...", "//dockerfile/...", "//dotnet/...", "//erlang/...", "//fortran/...", "//go/...", "//haskell/...", "//java/...", "//javascript/...", "//julia/...", "//kubernetes/...", "//lua/...", "//make/...", "//ocaml/...", "//perl/...", "//powershell/...", "//python/...", "//rego/...", "//ruby/...", "//rust/...", "//sql/...", "//swift/...", "//terraform/...", "//zig/..."])
+
 def row(state = "supported", transport = "batched", context = "owned", **fields):
     """Returns one support record; the tool id is added by tool()."""
     return dict(fields, state = state, transport = transport, context = context)

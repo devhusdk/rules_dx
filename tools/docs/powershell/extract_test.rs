@@ -19,7 +19,7 @@ fn ledger() -> DocIr {
 }
 
 fn symbol<'a>(shard: &'a DocIr, name: &str) -> &'a Symbol {
-    shard_test_support::symbol(shard, &format!("powershell:{}:{name}", shard.package))
+    shard_test_support::symbol(shard, &format!("powershell:{}:{name}", shard.package)).unwrap()
 }
 
 fn assert_config(value: &str, manifest: &str, version: &str) {
@@ -99,7 +99,7 @@ fn a_function_with_two_parameter_sets_renders_both() {
     );
     let keys: Vec<&str> = add.extensions.iter().map(|e| e.key.as_str()).collect();
     assert_eq!(keys, ["powershell.aliases", "powershell.config"]);
-    assert_eq!(extension(add, "powershell.aliases"), Some("ale"));
+    assert_eq!(extension(add, "powershell.aliases").unwrap(), Some("ale"));
 }
 
 #[test]
@@ -119,7 +119,7 @@ fn help_at_the_end_of_the_body_is_read() {
         balance.returns.as_ref().map(|r| r.r#type.as_str()),
         Some("int")
     );
-    assert_eq!(extension(balance, "powershell.incomplete"), None);
+    assert_eq!(extension(balance, "powershell.incomplete").unwrap(), None);
 }
 
 #[test]
@@ -132,7 +132,10 @@ fn a_function_without_help_is_marked_incomplete() {
     );
     assert_eq!(remove.doc_markdown, "");
     assert_eq!(remove.returns, None);
-    assert_eq!(extension(remove, "powershell.incomplete"), Some("help"));
+    assert_eq!(
+        extension(remove, "powershell.incomplete").unwrap(),
+        Some("help")
+    );
 }
 
 #[test]
@@ -148,7 +151,7 @@ fn a_crlf_source_maps_to_lf_text() {
         "Test-LedgerBalance [-Ledger] <object> [[-Tolerance] <int>] [<CommonParameters>]"
     );
     assert_eq!(
-        extension(test, "powershell.incomplete"),
+        extension(test, "powershell.incomplete").unwrap(),
         Some("params=Tolerance")
     );
     let source = std::fs::read(dx_testing::resolve_runfiles(&format!(
@@ -204,11 +207,14 @@ fn the_tally_shard_uses_literal_exports_and_its_own_config() {
         "Add-Tally [[-Name] <string>] [[-Count] <int>]"
     );
     assert_eq!(add.examples, ["Add-Tally -Name votes -Count 2"]);
-    let tally_config = extension(add, "powershell.config").expect("tally config");
+    let tally_config = extension(add, "powershell.config")
+        .unwrap()
+        .expect("tally config");
     assert_config(tally_config, "", "");
     let shard = ledger();
-    let ledger_config =
-        extension(symbol(&shard, "Add-LedgerEntry"), "powershell.config").expect("ledger config");
+    let ledger_config = extension(symbol(&shard, "Add-LedgerEntry"), "powershell.config")
+        .unwrap()
+        .expect("ledger config");
     assert_config(ledger_config, &format!("{LEDGER_DIR}/Ledger.psd1"), "1.4.0");
     assert_ne!(tally_config, ledger_config);
 }
@@ -235,7 +241,7 @@ fn re_encoding_a_shard_is_byte_identical() {
 #[test]
 fn the_mapper_fails_without_writing_on_bad_api_json() {
     let mapper = dx_testing::env_file("DX_POWERSHELL_EXTRACT");
-    let scratch = dx_test_scratch::scratch("bad_api");
+    let scratch = dx_test_scratch::scratch("bad_api").unwrap();
     let dir = scratch.path();
     for (name, json) in [
         (

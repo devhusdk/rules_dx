@@ -3,6 +3,8 @@
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":fixtures.bzl", "converter_attrs", "fixture_class_error", "markdown_sibling_error")
 
+visibility("private")
+
 def fixtures_unit_tests(name):
     starlark_test(
         name = name,

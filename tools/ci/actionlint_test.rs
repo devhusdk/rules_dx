@@ -41,7 +41,7 @@ fn tool(variable: &str) -> PathBuf {
 
 /// Returns one staged project root holding every named file at its own path.
 fn stage(files: &[(String, String)]) -> dx_test_scratch::TempDir {
-    let staged = dx_test_scratch::scratch("actionlint");
+    let staged = dx_test_scratch::scratch("actionlint").unwrap();
     let root = staged.path();
     std::fs::create_dir_all(root.join(PROJECT_MARKER)).expect("project marker");
     for (source, target) in files {
@@ -256,7 +256,7 @@ fn every_matrix_runner_is_a_platform_runner() {
     let table = platform_table();
     let mut problems = Vec::new();
     let mut checked = 0;
-    for (workflow, document) in ci_workflow::all() {
+    for (workflow, document) in ci_workflow::all().unwrap() {
         let (found, count) = matrix_runner_problems(&workflow, &document, &table);
         problems.extend(found);
         checked += count;
@@ -275,7 +275,7 @@ fn every_matrix_runner_is_a_platform_runner() {
 #[test]
 fn a_retired_matrix_runner_is_caught() {
     let text = "jobs:\n  build:\n    strategy:\n      matrix:\n        include:\n          - platform: macos_arm64\n            runner: macos-13\n          - name: dx-macos-arm64\n            runner: macos-13\n";
-    let document = ci_workflow::parse("retired.yml", text);
+    let document = ci_workflow::parse("retired.yml", text).unwrap();
     let (problems, checked) = matrix_runner_problems("retired.yml", &document, &platform_table());
     assert_eq!(checked, 2);
     assert_eq!(problems.len(), 2, "{problems:?}");

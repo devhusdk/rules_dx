@@ -271,6 +271,7 @@ pub fn needs_slot(command: Command) -> bool {
             | Command::Security
             | Command::License
             | Command::Docs
+            | Command::Fetch
     )
 }
 

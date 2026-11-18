@@ -35,7 +35,7 @@ const ASSETS: [&str; 9] = [
 
 #[test]
 fn matrix_pins_hosts_and_runners() {
-    let workflow = document(TOOLS);
+    let workflow = document(TOOLS).unwrap();
     let include = workflow["jobs"]["tools"]["strategy"]["matrix"]["include"]
         .as_array()
         .expect("matrix include");
@@ -53,7 +53,7 @@ fn matrix_pins_hosts_and_runners() {
 
 #[test]
 fn workflow_is_reusable_and_read_only() {
-    let workflow = document(TOOLS);
+    let workflow = document(TOOLS).unwrap();
     assert!(read_runfiles(TOOLS).contains("\n  workflow_call:\n"));
     assert_eq!(workflow["permissions"]["contents"], "read");
     assert_eq!(workflow["permissions"].as_object().expect("permissions").len(), 1);
@@ -73,7 +73,7 @@ fn each_host_uploads_its_artifact() {
 
 #[test]
 fn python_tools_job_builds_every_bundle_host() {
-    let workflow = document(TOOLS);
+    let workflow = document(TOOLS).unwrap();
     assert_eq!(workflow["jobs"]["python-tools"]["runs-on"], "ubuntu-latest");
     let text = read_runfiles(TOOLS);
     assert!(text.contains(&format!("hosts=({})", PYTHON_HOSTS.join(" "))));
@@ -84,7 +84,7 @@ fn python_tools_job_builds_every_bundle_host() {
 
 #[test]
 fn release_calls_the_tools_workflow_before_the_source_job() {
-    let workflow = document(RELEASE);
+    let workflow = document(RELEASE).unwrap();
     assert_eq!(
         workflow["jobs"]["tools"]["uses"],
         "./.github/workflows/release-tools.yml"

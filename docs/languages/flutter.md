@@ -24,6 +24,35 @@ Build and test everything. `//...` means every target in the repository:
 tools/dx test //...
 ```
 
+## Apps
+
+- `flutter_web_app` builds the web bundle.
+- `flutter_android_app` wraps the upstream rule and uses `android_binary`, so
+  no Gradle runs. Set `android_abi` to `arm64` (default) or `x64`. It needs
+  the managed `androidsdk` override from rules_dx.
+- `flutter_ios_app` and every target it generates build only on a macOS host.
+  On other hosts Bazel skips them as incompatible.
+
+## Setup
+
+rules_dx depends on rules_flutter and registers its toolchains. You need no
+host Flutter, Dart or Android SDK.
+
+Start a project:
+
+```sh
+dx init --apply demo-app
+```
+
+Then add `rules_flutter` with a `flutter.pub` hub to `MODULE.bazel`, add a
+`pubspec.lock`, and declare `flutter_library` and `flutter_test` targets.
+
+Regenerate `pubspec.lock` for a package directory:
+
+```sh
+bazel run @rules_flutter//flutter:pub -- get --directory <dir>
+```
+
 ## Rules
 
 `load` brings rules into a `BUILD.bazel` file. Load the ones you use from `@rules_dx//flutter:defs.bzl`:

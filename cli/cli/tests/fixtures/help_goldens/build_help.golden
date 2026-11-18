@@ -1,6 +1,6 @@
 run Bazel build over resolved targets
 
-Usage: dx build [--here] [--affected [--since <ref>]] [--debug|--release] [--timings] [--no-retry] [scope ...] [-- bazel-options ...]
+Usage: dx build [--offline] [--here] [--affected [--since <ref>|--base <ref>]] [--debug|--release] [--timings] [--no-retry] [scope ...] [-- bazel-options ...]
 
 Arguments:
   [TARGETS]...
@@ -38,6 +38,9 @@ Options:
           
           [possible values: text, json]
 
+      --offline
+          Never download; use only what dx fetch already fetched
+
       --debug
           Use debug build
 
@@ -62,13 +65,16 @@ Options:
       --since <REF>
           With --affected, compare against this ref instead of the default branch merge-base
 
+      --base <REF>
+          With --affected, take the merge-base with this branch instead of the default branch
+
   -h, --help
           Print help
 
 Examples:
   dx build //...
   dx build --release //app -- --local_resources=cpu=4
-Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the default branch merge-base (or the ref given with --since) plus their reverse dependencies; it cannot be combined with scopes or --here.
+Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. With no scope, this command runs //...; pass --affected to run only what your changes reach. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes. --affected selects targets changed since the merge-base with the default branch (or --base, or dx.toml [affected] base), or since the ref given with --since, plus their reverse dependencies; scopes keep only the affected targets inside them, and it cannot be combined with --here.
 Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures; Bazel-authoritative failures preserve Bazel's code.
 Output: --output text|json (json streams events while the command runs); --report failures=<destination> (repeatable).
 Environment: NO_COLOR=<non-empty> disables color; BUILD_WORKSPACE_DIRECTORY=<dir> sets the workspace start. `dx --help` lists every DX_ default.

@@ -11,7 +11,7 @@ use dx_output::{
 };
 use dx_plan::args::Invocation;
 
-use crate::exec::common::{check_stdout_write, emit_built, report_dx_error};
+use dx_exec_core::common::{check_stdout_write, emit_built, report_dx_error};
 
 const CODE_CONFIG_FAILED: &str = "config_failed";
 const TIER_BASE: &str = "tier base";
@@ -313,7 +313,7 @@ mod tests {
     use crate::adopt::test_support::{env, events_of_kind, invocation, json_events};
 
     fn workspace(files: &[(&str, &str)]) -> tempfile::TempDir {
-        let scratch = dx_test_scratch::scratch("config-verb-");
+        let scratch = dx_test_scratch::scratch("config-verb-").unwrap();
         for (name, text) in files {
             let path = scratch.path().join(name);
             std::fs::create_dir_all(path.parent().expect("parent")).expect("dir");

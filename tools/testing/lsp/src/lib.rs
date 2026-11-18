@@ -7,7 +7,7 @@ use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, TryRecvError};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, PoisonError};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -19,6 +19,7 @@ pub enum Error {
     Server(i64, String),
     Timeout(String),
     MissingContext(String),
+    Io(String),
 }
 
 impl std::fmt::Display for Error {
@@ -34,6 +35,7 @@ impl std::fmt::Display for Error {
             Error::MissingContext(detail) => {
                 write!(formatter, "lsp: missing generated context: {detail}")
             }
+            Error::Io(detail) => write!(formatter, "lsp: io failed: {detail}"),
         }
     }
 }
@@ -43,17 +45,17 @@ impl std::error::Error for Error {}
 pub const MAX_HEADER_BYTES: usize = 65536;
 pub const MAX_BODY_BYTES: usize = 1 << 30;
 
-#[must_use]
 /// Frames `message` for the wire.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics when the operation fails.
-pub fn encode(message: &serde_json::Value) -> Vec<u8> {
-    let body = serde_json::to_vec(message).expect("lsp message serializes");
+/// Returns `Err` when the message does not serialize.
+pub fn encode(message: &serde_json::Value) -> Result<Vec<u8>, Error> {
+    let body = serde_json::to_vec(message)
+        .map_err(|err| Error::Malformed(format!("lsp message does not serialize: {err}")))?;
     let mut out = format!("Content-Length: {}\r\n\r\n", body.len()).into_bytes();
     out.extend_from_slice(&body);
-    out
+    Ok(out)
 }
 
 /// Returns the `Content-Length` of a message header.
@@ -195,10 +197,6 @@ impl Session {
     /// # Errors
     ///
     /// Returns `Err` when the operation fails.
-    ///
-    /// # Panics
-    ///
-    /// Panics when the operation fails.
     pub fn from_command(mut command: Command) -> Result<Session, Error> {
         command
             .stdin(Stdio::piped())
@@ -210,9 +208,10 @@ impl Session {
                 command.get_program().to_string_lossy()
             ))
         })?;
-        let stdin = child.stdin.take().expect("lsp child keeps stdin");
-        let stdout = child.stdout.take().expect("lsp child keeps stdout");
-        let mut stderr = child.stderr.take().expect("lsp child keeps stderr");
+        let piped = |what: &str| Error::Transport(format!("lsp child has no {what} pipe"));
+        let stdin = child.stdin.take().ok_or_else(|| piped("stdin"))?;
+        let stdout = child.stdout.take().ok_or_else(|| piped("stdout"))?;
+        let mut stderr = child.stderr.take().ok_or_else(|| piped("stderr"))?;
         let stderr_log = Arc::new(Mutex::new(Vec::new()));
         let stderr_sink = Arc::clone(&stderr_log);
         thread::spawn(move || {
@@ -221,7 +220,7 @@ impl Session {
                 if read == 0 {
                     break;
                 }
-                let mut kept = stderr_sink.lock().expect("stderr lock");
+                let mut kept = stderr_sink.lock().unwrap_or_else(PoisonError::into_inner);
                 kept.extend(chunk.iter().take(read));
                 if kept.len() > STDERR_KEEP_BYTES {
                     let excess = kept.len() - STDERR_KEEP_BYTES;
@@ -262,7 +261,7 @@ impl Session {
     ///
     /// Returns `Err` when the operation fails.
     pub fn send(&mut self, message: &serde_json::Value) -> Result<(), Error> {
-        let bytes = encode(message);
+        let bytes = encode(message)?;
         self.stdin
             .write_all(&bytes)
             .map_err(|err| Error::Transport(format!("cannot write lsp message: {err}")))?;
@@ -279,12 +278,12 @@ impl Session {
     pub fn request(&mut self, method: &str, params: serde_json::Value) -> Result<i64, Error> {
         self.next_id += 1;
         let id = self.next_id;
-        let mut message = serde_json::json!({
+        let message = serde_json::json!({
             "jsonrpc": "2.0",
             "id": id,
             "method": method,
+            "params": params,
         });
-        message["params"] = params;
         self.send(&message)?;
         Ok(id)
     }
@@ -295,16 +294,20 @@ impl Session {
     ///
     /// Returns `Err` when the operation fails.
     pub fn notify(&mut self, method: &str, params: serde_json::Value) -> Result<(), Error> {
-        let mut message = serde_json::json!({
+        let message = serde_json::json!({
             "jsonrpc": "2.0",
             "method": method,
+            "params": params,
         });
-        message["params"] = params;
         self.send(&message)
     }
 
     fn stderr_tail(&self) -> String {
-        let bytes = self.stderr.lock().expect("stderr lock").clone();
+        let bytes = self
+            .stderr
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone();
         let text = String::from_utf8_lossy(&bytes);
         let lines: Vec<&str> = text.lines().collect();
         lines
@@ -566,14 +569,15 @@ pub fn require_context(directory: &Path, name: &str) -> Result<PathBuf, Error> {
 
 /// Writes `text` to `path`, creating its parent directories.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics when the operation fails.
-pub fn write_text(path: &Path, text: &str) {
+/// Returns `Err` when a directory or the file cannot be written.
+pub fn write_text(path: &Path, text: &str) -> Result<(), Error> {
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).unwrap_or_else(|_| panic!("create {}", parent.display()));
+        std::fs::create_dir_all(parent)
+            .map_err(|err| Error::Io(format!("create {}: {err}", parent.display())))?;
     }
-    std::fs::write(path, text).unwrap_or_else(|_| panic!("write {}", path.display()));
+    std::fs::write(path, text).map_err(|err| Error::Io(format!("write {}: {err}", path.display())))
 }
 
 #[must_use]
@@ -602,18 +606,19 @@ pub fn error_code(message: &serde_json::Value) -> Option<i64> {
 
 /// Line and character of the `occurrence`th (zero based) match of `needle`.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics when the operation fails.
-#[must_use]
-pub fn position_of(text: &str, needle: &str, occurrence: usize) -> (u32, u32) {
-    let offset = text
+/// Returns `Err` when that occurrence does not exist.
+pub fn position_of(text: &str, needle: &str, occurrence: usize) -> Result<(u32, u32), Error> {
+    let (offset, _) = text
         .match_indices(needle)
         .nth(occurrence)
-        .unwrap_or_else(|| panic!("{needle:?} occurrence {occurrence} not found"))
-        .0;
-    offset_to_position(text, offset)
-        .unwrap_or_else(|| panic!("{needle:?} occurrence {occurrence} is not on a char boundary"))
+        .ok_or_else(|| Error::Malformed(format!("{needle:?} occurrence {occurrence} not found")))?;
+    offset_to_position(text, offset).ok_or_else(|| {
+        Error::Malformed(format!(
+            "{needle:?} occurrence {occurrence} is not on a char boundary"
+        ))
+    })
 }
 
 /// The first `uri` or `targetUri` of a definition result.
@@ -626,24 +631,24 @@ pub fn location_uri(result: &serde_json::Value) -> Option<String> {
         .map(str::to_owned)
 }
 
-#[must_use]
 /// Returns the environment that scopes a language server to `root`.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics when the operation fails.
-pub fn scoped_env(root: &Path) -> Vec<(String, String)> {
+/// Returns `Err` when a scratch directory cannot be created.
+pub fn scoped_env(root: &Path) -> Result<Vec<(String, String)>, Error> {
     let home = root.join("home");
     let tmp = root.join("tmp");
-    std::fs::create_dir_all(&home).expect("home scratch exists");
     let bin = root.join("bin");
-    std::fs::create_dir_all(&tmp).expect("tmp scratch exists");
-    std::fs::create_dir_all(&bin).expect("bin scratch exists");
-    vec![
+    for dir in [&home, &tmp, &bin] {
+        std::fs::create_dir_all(dir)
+            .map_err(|err| Error::Io(format!("create {}: {err}", dir.display())))?;
+    }
+    Ok(vec![
         ("PATH".to_owned(), bin.to_string_lossy().into_owned()),
         ("HOME".to_owned(), home.to_string_lossy().into_owned()),
         ("TMPDIR".to_owned(), tmp.to_string_lossy().into_owned()),
-    ]
+    ])
 }
 
 /// Returns the URI a definition request resolves to.
@@ -651,10 +656,6 @@ pub fn scoped_env(root: &Path) -> Vec<(String, String)> {
 /// # Errors
 ///
 /// Returns `Err` when the operation fails.
-///
-/// # Panics
-///
-/// Panics when the operation fails.
 pub fn definition_uri(
     session: &mut Session,
     file_uri: &str,
@@ -665,7 +666,7 @@ pub fn definition_uri(
 ) -> Result<serde_json::Value, Error> {
     let offset = text
         .find(needle)
-        .unwrap_or_else(|| panic!("fixture holds {needle}"));
+        .ok_or_else(|| Error::Malformed(format!("fixture does not hold {needle}")))?;
     let (line, character) = offset_to_position(text, offset + 2)
         .ok_or_else(|| Error::Malformed(format!("{needle} is too short to point into")))?;
     let id = session.request(
@@ -716,18 +717,17 @@ pub fn poll_definition(
     }
 }
 
-#[must_use]
 /// Returns the first location of an LSP definition result.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics when the operation fails.
-pub fn first_location(result: &serde_json::Value, what: &str) -> serde_json::Value {
+/// Returns `Err` when the result holds no location.
+pub fn first_location(result: &serde_json::Value, what: &str) -> Result<serde_json::Value, Error> {
     result
         .as_array()
         .and_then(|items| items.first())
         .cloned()
-        .unwrap_or_else(|| panic!("{what} resolves to a location, saw {result}"))
+        .ok_or_else(|| Error::Malformed(format!("{what} resolves to no location, saw {result}")))
 }
 
 #[cfg(test)]
@@ -742,7 +742,7 @@ mod tests {
             "method": "initialize",
             "params": {"rootUri": "file:///x"},
         });
-        let bytes = encode(&message);
+        let bytes = encode(&message).expect("encode");
         let back = read_message(&mut &bytes[..]).expect("round trip decodes");
         assert_eq!(back, message);
     }
@@ -772,8 +772,8 @@ mod tests {
     fn lsp_frames_read_back_to_back() {
         let first = serde_json::json!({"id": 1});
         let second = serde_json::json!({"id": 2});
-        let mut bytes = encode(&first);
-        bytes.extend(encode(&second));
+        let mut bytes = encode(&first).expect("encode");
+        bytes.extend(encode(&second).expect("encode"));
         let mut reader = &bytes[..];
         assert_eq!(read_message(&mut reader).expect("first"), first);
         assert_eq!(read_message(&mut reader).expect("second"), second);
@@ -824,8 +824,8 @@ mod tests {
     #[test]
     fn lsp_position_of_counts_occurrences_across_lines() {
         let text = "ab\nxab\n";
-        assert_eq!(position_of(text, "ab", 0), (0, 0));
-        assert_eq!(position_of(text, "ab", 1), (1, 1));
+        assert_eq!(position_of(text, "ab", 0), Ok((0, 0)));
+        assert_eq!(position_of(text, "ab", 1), Ok((1, 1)));
     }
 
     #[test]
@@ -842,11 +842,14 @@ mod tests {
     #[test]
     fn lsp_log_keeps_publications_and_stderr() {
         let publish = |diagnostics: serde_json::Value| {
-            String::from_utf8(encode(&serde_json::json!({
-                "jsonrpc": "2.0",
-                "method": "textDocument/publishDiagnostics",
-                "params": {"uri": "file:///a", "diagnostics": diagnostics},
-            })))
+            String::from_utf8(
+                encode(&serde_json::json!({
+                    "jsonrpc": "2.0",
+                    "method": "textDocument/publishDiagnostics",
+                    "params": {"uri": "file:///a", "diagnostics": diagnostics},
+                }))
+                .expect("encode"),
+            )
             .expect("frame is utf8")
         };
         let script = format!(

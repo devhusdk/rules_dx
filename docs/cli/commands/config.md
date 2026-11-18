@@ -131,6 +131,7 @@ exclude = ["//third_party/..."]
 | `scope` | table | empty | What dx leaves out. |
 | `large_files` | table | empty | Files the large-file check skips. |
 | `check` | table | empty | Extra checks for `dx check`. |
+| `affected` | table | empty | Settings for `--affected`. See below. |
 
 ### dx.toml `[families.<id>]`
 
@@ -164,6 +165,12 @@ A plain list replaces the curated tools: `lint = ["clippy"]`. A list whose entri
 | Key | Type | Default | Meaning |
 |---|---|---|---|
 | `commits` | string | off | `"conventional"` makes `dx check --affected` report each commit subject since the merge base that is not a conventional commit. See [Check](check.md). |
+
+### dx.toml `[affected]`
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `base` | string | detected | The branch, such as `"origin/develop"`, whose merge base with `HEAD` `--affected` diffs from. Left out, dx uses `origin/HEAD`, else `main` or `master`. A base given on the command line overrides it, see [Scope defaults](scope-defaults.md#--affected). |
 
 ## security.toml
 

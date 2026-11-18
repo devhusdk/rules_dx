@@ -1075,7 +1075,7 @@ mod tests {
             "skeleton",
         )
         .expect("ambient_files parses");
-        let scratch = dx_test_scratch::scratch("dx-ambient-plant");
+        let scratch = dx_test_scratch::scratch("dx-ambient-plant").unwrap();
         let dir = scratch.path().to_path_buf();
         plant_ambient_files(&dir, &manifest.ambient_files).expect("planted");
         let text = std::fs::read_to_string(dir.join(".shellcheckrc")).expect("rc");
@@ -1084,7 +1084,7 @@ mod tests {
 
     #[test]
     fn ambient_files_reject_keys_that_leave_the_scratch_parent() {
-        let scratch = dx_test_scratch::scratch("dx-ambient-reject");
+        let scratch = dx_test_scratch::scratch("dx-ambient-reject").unwrap();
         let dir = scratch.path().to_path_buf();
         for key in ["/etc/x", "../x", "a/../../x", "C:\\x", "", "\\x"] {
             let files = BTreeMap::from([(key.to_owned(), "x".to_owned())]);

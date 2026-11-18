@@ -539,6 +539,8 @@ rust_test(
         "//config:corpus_starlark",
         "//core:corpus_starlark",
         "//core/codegen:corpus_starlark",
+        "//core/env:corpus_starlark",
+        "//core/env/private:corpus_starlark",
         "//core/modules:corpus_starlark",
         "//core/quality:corpus_starlark",
         "//core/quality/artifacts:corpus_starlark",
@@ -569,8 +571,6 @@ rust_test(
         "//elixir/private/tools:corpus_starlark",
         "//elixir/private/tools/lock:corpus_starlark",
         "//elixir/tests:corpus_starlark",
-        "//core/env:corpus_starlark",
-        "//core/env/private:corpus_starlark",
         "//erlang/private:corpus_starlark",
         "//erlang/private/bench:corpus_starlark",
         "//erlang/private/quality:corpus_starlark",
@@ -1103,6 +1103,41 @@ rust_test(
 )
 
 rust_test(
+    name = "verbatim_prefix_test",
+    size = "small",
+    srcs = [
+        "guard_scan.rs",
+        "verbatim_prefix_test.rs",
+    ],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "verbatim_prefix_test",
+    crate_root = "verbatim_prefix_test.rs",
+    data = [
+        "@dx_test_tags_sources//:code.json",
+        "@dx_test_tags_sources//:files.json",
+        "@dx_test_tags_sources//:sources.json",
+    ],
+    env = {
+        "DX_CODE_JSON": "$(rlocationpath @dx_test_tags_sources//:code.json)",
+        "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
+        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+    },
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:starlark_syntax",
+    ],
+)
+
+rust_test(
     name = "host_program_test",
     size = "small",
     srcs = [
@@ -1383,6 +1418,35 @@ rust_test(
 )
 
 rust_test(
+    name = "bzl_visibility_test",
+    size = "small",
+    srcs = [
+        "bzl_visibility_test.rs",
+        "guard_rules/scan.rs",
+    ],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "bzl_visibility_test",
+    crate_root = "bzl_visibility_test.rs",
+    data = [
+        "@dx_test_tags_sources//:files.json",
+        "@dx_test_tags_sources//:sources.json",
+    ],
+    env = {
+        "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
+        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+    },
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + ["//tools/testing:dx_testing"],
+)
+
+rust_test(
     name = "rule_set_loads_test",
     size = "small",
     srcs = [
@@ -1577,6 +1641,7 @@ rust_test(
     crate_root = "zero_compat_test.rs",
     data = [
         "zero_compat_allowlist.txt",
+        "//api:deprecations.txt",
         "@dx_test_tags_sources//:all_paths.json",
         "@dx_test_tags_sources//:all_rust.json",
         "@dx_test_tags_sources//:files.json",
@@ -1585,6 +1650,7 @@ rust_test(
     ],
     env = {
         "DX_ALLOWLIST": "$(rlocationpath zero_compat_allowlist.txt)",
+        "DX_DEPRECATIONS": "$(rlocationpath //api:deprecations.txt)",
         "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
         "DX_PATHS_JSON": "$(rlocationpath @dx_test_tags_sources//:all_paths.json)",
         "DX_PROSE_JSON": "$(rlocationpath @dx_test_tags_sources//:prose.json)",

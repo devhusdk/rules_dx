@@ -110,11 +110,11 @@ fn missing_status(browser: &mut Browser) -> String {
 fn relocated_app_runs_wasm_in_a_browser() {
     let root = dx_testing::resolve_runfiles(&format!("{APP}/index.html"));
     let root = root.parent().expect("app dir").to_path_buf();
-    let scratch = dx_test_scratch::scratch("web-relocated");
+    let scratch = dx_test_scratch::scratch("web-relocated").unwrap();
     let relocated = scratch.path();
     copy_tree(&root, relocated);
     let server = Server::start(relocated);
-    let profile_scratch = dx_test_scratch::scratch("firefox-profile");
+    let profile_scratch = dx_test_scratch::scratch("firefox-profile").unwrap();
     let profile = profile_scratch.path();
     let mut browser =
         Browser::start(&firefox_binary(), profile).expect("start Firefox for the web app");

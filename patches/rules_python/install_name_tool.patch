@@ -1,3 +1,4 @@
+Upstream: none (not yet sent upstream)
 --- a/python/private/python_repository.bzl
 +++ b/python/private/python_repository.bzl
 @@ -215,12 +215,13 @@

@@ -742,7 +742,7 @@ fn consumer_npm_startup_options_and_offline_check_reach_the_bazel_run() {
 #[test]
 fn consumer_npm_bazel_run_sees_the_held_slot() {
     let harness = mixed_harness("npm-slot");
-    let scratch = dx_test_scratch::scratch("dx-update-consumer-slot-");
+    let scratch = dx_test_scratch::scratch("dx-update-consumer-slot-").unwrap();
     let gate = dx_plan::slots::Gate::new(scratch.path().join("slots"), 1, "me".to_owned(), false);
     let runner = ScriptRunner::new(&[]);
     let (code, out, err) = dx_plan::slots::with_gate(Some(gate), || {
@@ -873,7 +873,8 @@ fn resolver_tail(argv: &[String]) -> Vec<String> {
         .unwrap_or_else(|| panic!("no ruby resolver in {argv:?}"));
     argv[at + 1..]
         .iter()
-        .filter(|arg| !arg.starts_with('/'))
+        // The scratch dirs are host paths: `D:/...` on Windows, not `/...`.
+        .filter(|arg| !std::path::Path::new(arg).is_absolute())
         .cloned()
         .collect()
 }

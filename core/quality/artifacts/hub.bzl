@@ -1,5 +1,7 @@
 """Explicit platform-keyed tool repository selection."""
 
+visibility(["//core/...", "//deploy/..."])
+
 PLATFORM_CONSTRAINTS = {
     "linux_x86_64": ["os_linux", "cpu_x86_64"],
     "linux_arm64": ["os_linux", "cpu_arm64"],

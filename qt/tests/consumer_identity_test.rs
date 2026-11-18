@@ -13,7 +13,7 @@ fn identity_records_the_os_supplied_runtime() {
     let archives = archives();
     assert_eq!(archives.len(), 3, "{archives:?}");
     let want = std::env::var("DX_QT_RUNTIME_RECORD").expect("DX_QT_RUNTIME_RECORD must be set");
-    let guard = dx_test_scratch::scratch("qt-consumer-identity");
+    let guard = dx_test_scratch::scratch("qt-consumer-identity").unwrap();
     let scratch = guard.path();
     for (index, archive) in archives.iter().enumerate() {
         let dir = scratch.join(index.to_string());
@@ -63,7 +63,7 @@ fn ledger_runs_from_the_extracted_archive() {
         .into_iter()
         .find(|path| path.to_string_lossy().contains("ledger_release"))
         .expect("ledger_release archive");
-    let guard = dx_test_scratch::scratch("qt-consumer-run");
+    let guard = dx_test_scratch::scratch("qt-consumer-run").unwrap();
     let scratch = guard.path();
     let dir = scratch.join("ledger");
     dx_deploy_tools::archive_extract(&archive, &dir).expect("extract");

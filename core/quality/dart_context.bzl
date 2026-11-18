@@ -2,6 +2,8 @@
 
 load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
 
+visibility(["//core/...", "//dart/..."])
+
 _PUBSPEC = LOCK_REGISTRY["pub"]["manifest"]
 
 DART_FORMAT = "format"

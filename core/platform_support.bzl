@@ -3,6 +3,9 @@
 load("//core/modules:langs.bzl", "LANGS")
 load(":cells.bzl", "cell_setting", "unknown_cells", "unsupported_constraint")
 
+# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
+visibility("public")
+
 _INCOMPATIBLE = Label("@platforms//:incompatible")
 
 def lang_cells(lang):

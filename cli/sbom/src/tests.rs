@@ -202,7 +202,7 @@ fn checksums_select_sha256_case_insensitively() {
 
 #[test]
 fn spdx_package_count_reads_the_packages_array() {
-    let scratch = dx_test_scratch::scratch("dx_sbom_count_");
+    let scratch = dx_test_scratch::scratch("dx_sbom_count_").unwrap();
     let dir = scratch.path().to_path_buf();
     let good = dir.join("g.spdx.json");
     std::fs::write(&good, br#"{"packages":[{"name":"a"},{"name":"b"}]}"#).expect("write");

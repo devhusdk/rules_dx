@@ -56,6 +56,9 @@ tools/dx test //...
 
 ## Packaging
 
+The tools are pinned and fetched by Bazel. You need no FUSE or distro
+packages to build or run an AppImage.
+
 ### Use
 
 `MODULE.bazel` needs nothing extra. The tools come from `@dx_appimage_tools`,
@@ -155,8 +158,6 @@ Linux host.
 
 ```sh
 bazel test //appimage/... //appimage/tests/fixtures/appimage_app/...
-# Consumer qualification (manual; needs network and a native bazelisk):
-bazel test //tools/testing/hermetic:appimage
 ```
 
 The [appimage_app fixture](../../appimage/tests/fixtures/appimage_app/README.md) is a two-package
@@ -211,3 +212,5 @@ AppImage builds and tests on:
 
 - Linux arm64
 - Linux x86_64
+
+Any other target platform fails analysis with `target platform is unsupported`.

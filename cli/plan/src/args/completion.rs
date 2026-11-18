@@ -693,7 +693,8 @@ mod tests {
                 | Command::Check
                 | Command::Sync
                 | Command::Docs
-                | Command::Fuzz => {
+                | Command::Fuzz
+                | Command::Fetch => {
                     assert!(fixed.is_empty(), "{command:?} takes no fixed tasks");
                     assert!(labels, "{command:?} must accept label scopes");
                 }
@@ -782,6 +783,7 @@ mod tests {
             "--release",
             "--report",
             "--here",
+            "--offline",
             "-h",
         ] {
             assert!(
@@ -799,7 +801,6 @@ mod tests {
             "--port",
             "--host",
             "--open",
-            "--offline",
             "--frozen",
         ] {
             assert!(

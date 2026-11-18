@@ -1,5 +1,5 @@
 {
-  "checksum": "6fc093b0308f4d4c511cc7abc276447ec141b78833e99d75db14409e0d0b668f",
+  "checksum": "58971d8c1415f1b607ce93a59c33db792406e5d19e7f52c88de07f8e692706fc",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -313,6 +313,35 @@
         }
       ],
       "version": "2.0.1"
+    },
+    "advisory_prep 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "chrono 0.4.45",
+            "target": "chrono"
+          },
+          {
+            "id": "clap 4.6.7",
+            "target": "clap"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "advisory_prep",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
     },
     "aead 0.5.2": {
       "common_attrs": {
@@ -1232,10 +1261,6 @@
           {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
-          },
-          {
-            "id": "sha2 0.10.9",
-            "target": "sha2"
           }
         ],
         "deps_dev": [
@@ -2878,16 +2903,18 @@
       "common_attrs": {
         "deps": [
           {
-            "id": "flate2 1.1.10",
-            "target": "flate2"
-          },
-          {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
           },
           {
             "id": "tar 0.4.46",
             "target": "tar"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "flate2 1.1.10",
+            "target": "flate2"
           }
         ],
         "edition": "2024"
@@ -3517,7 +3544,7 @@
     },
     "ci_fill_pins 0.0.0": {
       "common_attrs": {
-        "deps_dev": [
+        "deps": [
           {
             "id": "tempfile 3.27.0",
             "target": "tempfile"
@@ -7399,10 +7426,6 @@
           {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
-          },
-          {
-            "id": "sha2 0.10.9",
-            "target": "sha2"
           }
         ],
         "edition": "2024"
@@ -7664,14 +7687,6 @@
       "common_attrs": {
         "deps": [
           {
-            "id": "chrono 0.4.45",
-            "target": "chrono"
-          },
-          {
-            "id": "clap 4.6.7",
-            "target": "clap"
-          },
-          {
             "id": "crc32fast 1.5.2",
             "target": "crc32fast"
           },
@@ -7838,10 +7853,6 @@
             "target": "chrono"
           },
           {
-            "id": "flate2 1.1.10",
-            "target": "flate2"
-          },
-          {
             "id": "mvn_version 0.1.0",
             "target": "mvn_version"
           },
@@ -7890,10 +7901,6 @@
             "target": "spdx"
           },
           {
-            "id": "tar 0.4.46",
-            "target": "tar"
-          },
-          {
             "id": "thiserror 2.0.20",
             "target": "thiserror"
           },
@@ -7916,8 +7923,16 @@
         ],
         "deps_dev": [
           {
+            "id": "flate2 1.1.10",
+            "target": "flate2"
+          },
+          {
             "id": "jsonschema 0.60.2",
             "target": "jsonschema"
+          },
+          {
+            "id": "tar 0.4.46",
+            "target": "tar"
           },
           {
             "id": "tempfile 3.27.0",
@@ -8074,10 +8089,6 @@
           {
             "id": "tracing 0.1.44",
             "target": "tracing"
-          },
-          {
-            "id": "ureq 3.5.0",
-            "target": "ureq"
           }
         ],
         "deps_dev": [
@@ -8341,10 +8352,6 @@
           {
             "id": "sha1 0.10.7",
             "target": "sha1"
-          },
-          {
-            "id": "sha2 0.10.9",
-            "target": "sha2"
           },
           {
             "id": "tar 0.4.46",
@@ -8615,6 +8622,43 @@
       ],
       "version": "0.0.0"
     },
+    "dx_exec_core 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          },
+          {
+            "id": "thiserror 2.0.20",
+            "target": "thiserror"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "dx_exec_core",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "dx_exec_core",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_exec_core",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "dx_families 0.0.0": {
       "common_attrs": {
         "deps": [
@@ -8772,6 +8816,47 @@
       ],
       "version": "0.0.0"
     },
+    "dx_http 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "rustls 0.23.46",
+            "target": "rustls"
+          },
+          {
+            "id": "thiserror 2.0.20",
+            "target": "thiserror"
+          },
+          {
+            "id": "ureq 3.5.0",
+            "target": "ureq"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "dx_http",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "dx_http",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_http",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "dx_ide 0.0.0": {
       "common_attrs": {
         "deps": [
@@ -8900,10 +8985,6 @@
           {
             "id": "tempfile 3.27.0",
             "target": "tempfile"
-          },
-          {
-            "id": "ureq 3.5.0",
-            "target": "ureq"
           }
         ],
         "deps_dev": [
@@ -9055,6 +9136,46 @@
         {
           "Library": {
             "crate_name": "dx_nested",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "dx_os_sys 0.0.0": {
+      "common_attrs": {
+        "deps": {
+          "common": [],
+          "selects": {
+            "cfg(unix)": [
+              {
+                "id": "errno 0.3.14",
+                "target": "errno"
+              },
+              {
+                "id": "libc 0.2.189",
+                "target": "libc"
+              },
+              {
+                "id": "rustix 1.1.4",
+                "target": "rustix"
+              }
+            ]
+          }
+        },
+        "edition": "2024"
+      },
+      "library_target_name": "dx_os_sys",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "dx_os_sys",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_os_sys",
             "crate_root": "src/lib.rs"
           }
         }
@@ -9260,10 +9381,6 @@
     "dx_process 0.0.0": {
       "common_attrs": {
         "deps": [
-          {
-            "id": "libc 0.2.189",
-            "target": "libc"
-          },
           {
             "id": "thiserror 2.0.20",
             "target": "thiserror"
@@ -9501,14 +9618,6 @@
             {
               "id": "semver 1.0.27",
               "target": "semver"
-            },
-            {
-              "id": "sha2 0.10.9",
-              "target": "sha2"
-            },
-            {
-              "id": "ureq 3.5.0",
-              "target": "ureq"
             }
           ],
           "selects": {
@@ -9559,10 +9668,6 @@
           {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
-          },
-          {
-            "id": "sha2 0.10.9",
-            "target": "sha2"
           }
         ],
         "edition": "2024"
@@ -9661,10 +9766,6 @@
     "dx_tool_resolve 0.0.0": {
       "common_attrs": {
         "deps": [
-          {
-            "id": "clap 4.6.7",
-            "target": "clap"
-          },
           {
             "id": "thiserror 2.0.20",
             "target": "thiserror"
@@ -10578,9 +10679,25 @@
     },
     "errno 0.3.14": {
       "common_attrs": {
-        "crate_features": [
-          "std"
-        ],
+        "crate_features": {
+          "common": [
+            "std"
+          ],
+          "selects": {
+            "aarch64-apple-darwin": [
+              "default"
+            ],
+            "aarch64-unknown-linux-gnu": [
+              "default"
+            ],
+            "x86_64-unknown-linux-gnu": [
+              "default"
+            ],
+            "x86_64-unknown-nixos-gnu": [
+              "default"
+            ]
+          }
+        },
         "deps": {
           "common": [],
           "selects": {
@@ -16168,7 +16285,8 @@
           "errno",
           "general",
           "ioctl",
-          "no_std"
+          "no_std",
+          "prctl"
         ],
         "edition": "2021"
       },
@@ -17555,10 +17673,6 @@
           {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
-          },
-          {
-            "id": "sha2 0.10.9",
-            "target": "sha2"
           },
           {
             "id": "zip 9.1.2",
@@ -23118,12 +23232,40 @@
         ]
       },
       "common_attrs": {
-        "crate_features": [
-          "alloc",
-          "default",
-          "fs",
-          "std"
-        ],
+        "crate_features": {
+          "common": [
+            "alloc",
+            "default",
+            "fs",
+            "std"
+          ],
+          "selects": {
+            "aarch64-apple-darwin": [
+              "event",
+              "pipe",
+              "process",
+              "termios"
+            ],
+            "aarch64-unknown-linux-gnu": [
+              "event",
+              "pipe",
+              "process",
+              "termios"
+            ],
+            "x86_64-unknown-linux-gnu": [
+              "event",
+              "pipe",
+              "process",
+              "termios"
+            ],
+            "x86_64-unknown-nixos-gnu": [
+              "event",
+              "pipe",
+              "process",
+              "termios"
+            ]
+          }
+        },
         "deps": {
           "common": [
             {
@@ -25724,6 +25866,12 @@
     },
     "site_build 0.0.0": {
       "common_attrs": {
+        "deps": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
         "edition": "2024"
       },
       "library_target_name": "dx_site_build",
@@ -26914,19 +27062,19 @@
       "common_attrs": {
         "deps": [
           {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "deps_dev": [
+          {
             "id": "flate2 1.1.10",
             "target": "flate2"
           },
           {
-            "id": "serde_json 1.0.151",
-            "target": "serde_json"
-          },
-          {
             "id": "tar 0.4.46",
             "target": "tar"
-          }
-        ],
-        "deps_dev": [
+          },
           {
             "id": "tempfile 3.27.0",
             "target": "tempfile"
@@ -28433,6 +28581,25 @@
       ],
       "version": "1.1.2+spec-1.1.0"
     },
+    "tool_resolve 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "clap 4.6.7",
+            "target": "clap"
+          }
+        ],
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "tool_resolve",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
     "tower 0.5.3": {
       "common_attrs": {
         "crate_features": [
@@ -29718,15 +29885,11 @@
     "ureq 3.5.0": {
       "common_attrs": {
         "crate_features": [
-          "_ring",
           "_rustls",
           "_tls",
-          "default",
           "gzip",
           "platform-verifier",
-          "rustls",
-          "rustls-no-provider",
-          "rustls-webpki-roots"
+          "rustls-no-provider"
         ],
         "deps": [
           {
@@ -29764,10 +29927,6 @@
           {
             "id": "utf8-zero 0.8.1",
             "target": "utf8_zero"
-          },
-          {
-            "id": "webpki-roots 1.0.11",
-            "target": "webpki_roots"
           }
         ],
         "edition": "2024"
@@ -30942,41 +31101,6 @@
         {
           "Library": {
             "crate_name": "webpki_root_certs",
-            "crate_root": "src/lib.rs"
-          }
-        }
-      ],
-      "version": "1.0.11"
-    },
-    "webpki-roots 1.0.11": {
-      "common_attrs": {
-        "deps": [
-          {
-            "alias": "pki_types",
-            "id": "rustls-pki-types 1.15.1",
-            "target": "rustls_pki_types"
-          }
-        ],
-        "edition": "2021"
-      },
-      "library_target_name": "webpki_roots",
-      "license": "CDLA-Permissive-2.0",
-      "license_file": "LICENSE",
-      "license_ids": [
-        "CDLA-Permissive-2.0"
-      ],
-      "name": "webpki-roots",
-      "package_url": "https://github.com/rustls/webpki-roots",
-      "repository": {
-        "Http": {
-          "sha256": "f5f280bbb2b287bc8e7de7e3852945a0ff50d1bbcb5ed42b6c7a568c546df171",
-          "url": "https://static.crates.io/crates/webpki-roots/1.0.11/download"
-        }
-      },
-      "targets": [
-        {
-          "Library": {
-            "crate_name": "webpki_roots",
             "crate_root": "src/lib.rs"
           }
         }
@@ -33074,6 +33198,7 @@
     "cxx-gen 0.7.205",
     "cxx-qt 0.10.0",
     "cxx-qt-gen 0.10.0",
+    "errno 0.3.14",
     "flate2 1.1.10",
     "globset 0.4.20",
     "gomod-parser 0.5.3",
@@ -33106,6 +33231,7 @@
     "regex 1.13.1",
     "reqwest 0.13.5",
     "rustdoc-types 0.61.0",
+    "rustix 1.1.4",
     "rustls 0.23.46",
     "ruzstd 0.9.1",
     "saphyr-parser 0.2.2",
@@ -33115,7 +33241,6 @@
     "serde-sarif 0.8.0",
     "serde_json 1.0.151",
     "sha1 0.10.7",
-    "sha2 0.10.9",
     "sha2 0.11.1",
     "similar 3.2.0",
     "spdx 0.13.5",
@@ -33145,6 +33270,7 @@
     "tokio 1.54.1"
   ],
   "workspace_members": {
+    "advisory_prep 0.0.0": "dx/advisory_prep",
     "ansible_lock 0.0.0": "ansible/private/tools/ansible_lock",
     "api_spec_tests 0.0.0": "api_spec/api_spec_tests",
     "appimage_packer 0.0.0": "appimage/private/tools/appimage_packer",
@@ -33221,11 +33347,13 @@
     "dx_env 0.0.0": "cli/dx_env",
     "dx_env_plan 0.0.0": "cli/dx_env_plan",
     "dx_error 0.0.0": "cli/dx_error",
+    "dx_exec_core 0.0.0": "cli/dx_exec_core",
     "dx_families 0.0.0": "cli/dx_families",
     "dx_fingerprint 0.0.0": "cli/dx_fingerprint",
     "dx_floor 0.0.0": "tools/testing/dx_floor",
     "dx_generate 0.0.0": "cli/dx_generate",
     "dx_gomod 0.0.0": "cli/dx_gomod",
+    "dx_http 0.0.0": "cli/dx_http",
     "dx_ide 0.0.0": "cli/dx_ide",
     "dx_install_tools 0.0.0": "deploy/private/dx_install_tools",
     "dx_js_launcher 0.0.0": "javascript/private/quality/dx_js_launcher",
@@ -33235,6 +33363,7 @@
     "dx_merge 0.0.0": "cli/dx_merge",
     "dx_module_bazel 0.0.0": "cli/dx_module_bazel",
     "dx_nested 0.0.0": "tools/testing/dx_nested",
+    "dx_os_sys 0.0.0": "cli/dx_os_sys",
     "dx_output 0.0.0": "cli/dx_output",
     "dx_path 0.0.0": "cli/dx_path",
     "dx_plan 0.0.0": "cli/dx_plan",
@@ -33325,6 +33454,7 @@
     "terraform_lock 0.0.0": "terraform/private/tools/terraform_lock",
     "thrift_tests 0.0.0": "thrift/thrift_tests",
     "tiers 0.0.0": "tools/docs/tiers",
+    "tool_resolve 0.0.0": "dx/tool_resolve",
     "typescript_docs_tests 0.0.0": "tools/docs/typescript_docs_tests",
     "typescript_extract 0.0.0": "tools/docs/typescript/typescript_extract",
     "typescript_scoped_fixture 0.0.0": "typescript/tests/fixtures/typescript_scoped_fixture",

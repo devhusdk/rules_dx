@@ -122,7 +122,7 @@ fn problems(root: &Path, dir: &Path, schema: &Value) -> Vec<String> {
 
 #[test]
 fn every_language_dir_has_a_valid_lang_json() {
-    let root = dx_testing::rules_dx_source();
+    let root = dx_testing::rules_dx_source().unwrap();
     let schema: Value =
         serde_json::from_str(&dx_testing::read_runfiles("core/modules/lang.schema.json"))
             .expect("lang.schema.json");
@@ -211,7 +211,7 @@ fn schema_rejects_a_hub_missing_any_key() {
 
 #[test]
 fn every_hub_names_an_extension_its_own_language_exports() {
-    let root = dx_testing::rules_dx_source();
+    let root = dx_testing::rules_dx_source().unwrap();
     let mut hubs = 0;
     let mut found = Vec::new();
     for dir in language_dirs(&root) {
@@ -252,7 +252,7 @@ fn every_hub_names_an_extension_its_own_language_exports() {
 
 #[test]
 fn ecosystems_are_dx_ids_and_every_id_is_used() {
-    let root = dx_testing::rules_dx_source();
+    let root = dx_testing::rules_dx_source().unwrap();
     let table: Value =
         serde_json::from_str(&dx_testing::read_runfiles("cli/ecosystems/ecosystems.json"))
             .expect("ecosystems.json");
@@ -285,7 +285,7 @@ fn ecosystems_are_dx_ids_and_every_id_is_used() {
 
 #[test]
 fn languages_json_lists_every_depcheck_language() {
-    let root = dx_testing::rules_dx_source();
+    let root = dx_testing::rules_dx_source().unwrap();
     let mut rows = Vec::new();
     for dir in language_dirs(&root) {
         let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
@@ -308,7 +308,7 @@ fn languages_json_lists_every_depcheck_language() {
     let text = serde_json::to_string_pretty(&serde_json::json!({"languages": rows}))
         .expect("serializes")
         + "\n";
-    let scratch_guard = dx_test_scratch::scratch("languages_json");
+    let scratch_guard = dx_test_scratch::scratch("languages_json").unwrap();
     let scratch = scratch_guard.path();
     let actual = scratch.join("languages.json");
     dx_testing::write_text(&actual, &text);
@@ -319,7 +319,7 @@ fn languages_json_lists_every_depcheck_language() {
 
 #[test]
 fn families_languages_json_lists_every_quality_docs_and_setup_entry() {
-    let root = dx_testing::rules_dx_source();
+    let root = dx_testing::rules_dx_source().unwrap();
     let mut rows = Vec::new();
     for dir in language_dirs(&root) {
         let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
@@ -343,7 +343,7 @@ fn families_languages_json_lists_every_quality_docs_and_setup_entry() {
     let text = serde_json::to_string_pretty(&serde_json::json!({"languages": rows}))
         .expect("serializes")
         + "\n";
-    let scratch_guard = dx_test_scratch::scratch("families_languages_json");
+    let scratch_guard = dx_test_scratch::scratch("families_languages_json").unwrap();
     let scratch = scratch_guard.path();
     let actual = scratch.join("languages.json");
     dx_testing::write_text(&actual, &text);
@@ -359,7 +359,7 @@ fn bzl_label_path(label: &str) -> String {
 
 #[test]
 fn every_quality_bzl_exists() {
-    let root = dx_testing::rules_dx_source();
+    let root = dx_testing::rules_dx_source().unwrap();
     let mut problems = Vec::new();
     for dir in language_dirs(&root) {
         let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
@@ -394,7 +394,7 @@ fn tools_files(dir: &Path) -> Vec<String> {
 
 #[test]
 fn every_tools_bzl_is_loaded_by_quality_tools() {
-    let root = dx_testing::rules_dx_source();
+    let root = dx_testing::rules_dx_source().unwrap();
     let tools = std::fs::read_to_string(root.join("tools/quality/family_tools.bzl")).expect("family_tools.bzl");
     let mut expected = BTreeSet::new();
     for dir in language_dirs(&root) {
@@ -425,7 +425,7 @@ fn every_tools_bzl_is_loaded_by_quality_tools() {
 
 #[test]
 fn langs_bzl_is_generated_from_every_lang_json() {
-    let root = dx_testing::rules_dx_source();
+    let root = dx_testing::rules_dx_source().unwrap();
     let mut langs = serde_json::Map::new();
     for dir in language_dirs(&root) {
         let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
@@ -442,7 +442,7 @@ fn langs_bzl_is_generated_from_every_lang_json() {
     let text = format!(
         "\"\"\"Generated from every <lang>/lang.json by //core/modules:lang_json_test; refresh with UPDATE_EXPECT=1.\"\"\"\n\nLANGS = json.decode(\"\"\"{body}\"\"\")\n"
     );
-    let scratch_guard = dx_test_scratch::scratch("langs_bzl");
+    let scratch_guard = dx_test_scratch::scratch("langs_bzl").unwrap();
     let scratch = scratch_guard.path();
     let actual = scratch.join("langs.bzl");
     dx_testing::write_text(&actual, &text);
@@ -495,7 +495,7 @@ fn loaded_names(text: &str) -> BTreeSet<(String, String)> {
 
 #[test]
 fn every_lang_json_aspect_is_loaded_from_its_bzl() {
-    let root = dx_testing::rules_dx_source();
+    let root = dx_testing::rules_dx_source().unwrap();
     let loaded = loaded_names(&dx_testing::read_runfiles(
         "core/quality/testdata/all_languages.bzl",
     ));
@@ -566,7 +566,7 @@ fn splice(text: &str, begin: &str, end: &str, body: &str) -> String {
 
 #[test]
 fn aspect_registration_is_generated_from_every_lang_json() {
-    let root = dx_testing::rules_dx_source();
+    let root = dx_testing::rules_dx_source().unwrap();
     let aspects = every_lang_aspect(&root);
     let mut by_label: std::collections::BTreeMap<&str, Vec<&str>> =
         std::collections::BTreeMap::new();
@@ -590,7 +590,7 @@ fn aspect_registration_is_generated_from_every_lang_json() {
     }
     shards.push_str("}\n");
     let text = splice(&text, SHARDS_BEGIN, SHARDS_END, &shards);
-    let scratch_guard = dx_test_scratch::scratch("all_languages_bzl");
+    let scratch_guard = dx_test_scratch::scratch("all_languages_bzl").unwrap();
     let scratch = scratch_guard.path();
     let actual = scratch.join("all_languages.bzl");
     dx_testing::write_text(&actual, &text);
@@ -604,7 +604,7 @@ fn aspect_registration_is_generated_from_every_lang_json() {
 }
 
 fn lock_registry_entries() -> Vec<Value> {
-    let root = dx_testing::rules_dx_source();
+    let root = dx_testing::rules_dx_source().unwrap();
     let mut entries = std::collections::BTreeMap::new();
     for dir in language_dirs(&root) {
         let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
@@ -637,7 +637,7 @@ fn gazelle_lock_registry_is_generated_from_every_lang_json() {
         entry.as_object_mut().expect("object").remove("state");
     }
     let text = serde_json::to_string_pretty(&entries).expect("serializes") + "\n";
-    let scratch_guard = dx_test_scratch::scratch("gazelle_lock_registry");
+    let scratch_guard = dx_test_scratch::scratch("gazelle_lock_registry").unwrap();
     let scratch = scratch_guard.path();
     let actual = scratch.join("lock_registry.json");
     dx_testing::write_text(&actual, &text);
@@ -668,7 +668,7 @@ fn starlark_lock_registry_is_generated_from_every_lang_json() {
         text.push_str("    },\n");
     }
     text.push_str("}\n");
-    let scratch_guard = dx_test_scratch::scratch("starlark_lock_registry");
+    let scratch_guard = dx_test_scratch::scratch("starlark_lock_registry").unwrap();
     let scratch = scratch_guard.path();
     let actual = scratch.join("lock_registry.bzl");
     dx_testing::write_text(&actual, &text);
@@ -708,7 +708,7 @@ fn pin_files(dir: &Path, base: &Path, found: &mut BTreeSet<String>) {
 
 #[test]
 fn entry_points_list_every_rule_defs_bzl_exports() {
-    let root = dx_testing::rules_dx_source();
+    let root = dx_testing::rules_dx_source().unwrap();
     let mut problems = Vec::new();
     for dir in language_dirs(&root) {
         let Ok(defs) = std::fs::read_to_string(root.join(&dir).join("defs.bzl")) else {
@@ -741,7 +741,7 @@ fn exported_names_reads_defs_and_assignments() {
 
 #[test]
 fn pins_list_every_pins_json_under_the_language_dir() {
-    let root = dx_testing::rules_dx_source();
+    let root = dx_testing::rules_dx_source().unwrap();
     let mut problems = Vec::new();
     for dir in language_dirs(&root) {
         let base = root.join(&dir);
@@ -788,7 +788,7 @@ fn unsupported_platforms(cell: &str) -> BTreeSet<String> {
 
 #[test]
 fn lang_json_platforms_equal_the_support_matrix() {
-    let root = dx_testing::rules_dx_source();
+    let root = dx_testing::rules_dx_source().unwrap();
     let matrix = std::fs::read_to_string(dx_testing::resolve_runfiles("docs/support-matrix.md"))
         .expect("support-matrix.md");
     let mut rows = std::collections::BTreeMap::new();
@@ -838,7 +838,7 @@ fn lang_json_platforms_equal_the_support_matrix() {
 
 #[test]
 fn lang_json_platforms_are_not_empty_and_unsupported_names_only_missing_platforms() {
-    let root = dx_testing::rules_dx_source();
+    let root = dx_testing::rules_dx_source().unwrap();
     let mut problems = Vec::new();
     for dir in language_dirs(&root) {
         let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
@@ -941,8 +941,8 @@ fn conformance_quality_bzl(root: &Path) -> String {
 
 #[test]
 fn conformance_quality_subjects_are_generated_from_every_lang_json() {
-    let text = conformance_quality_bzl(&dx_testing::rules_dx_source());
-    let scratch_guard = dx_test_scratch::scratch("conformance_quality_bzl");
+    let text = conformance_quality_bzl(&dx_testing::rules_dx_source().unwrap());
+    let scratch_guard = dx_test_scratch::scratch("conformance_quality_bzl").unwrap();
     let actual = scratch_guard.path().join("quality.bzl");
     dx_testing::write_text(&actual, &text);
     let expected = dx_testing::resolve_runfiles("tools/testing/conformance/quality.bzl");

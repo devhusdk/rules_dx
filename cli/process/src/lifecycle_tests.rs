@@ -28,7 +28,7 @@ fn ambient_probe_env() -> Vec<(OsString, OsString)> {
 
 #[test]
 fn controlled_launch_delivers_only_the_declared_environment() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let spec = SpawnSpec {
         argv: probe_argv(&[
             "--require-env=DX_LIFECYCLE_PROBE=kept",
@@ -53,7 +53,7 @@ fn controlled_launch_delivers_only_the_declared_environment() {
 
 #[test]
 fn inherited_launch_keeps_the_parent_environment() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let spec = SpawnSpec {
         argv: probe_argv(&["--require-env=TEST_SRCDIR"]),
         cwd: scratch.path().to_path_buf(),
@@ -73,7 +73,7 @@ fn inherited_launch_keeps_the_parent_environment() {
 
 #[test]
 fn inherited_launch_forwards_extra_entries() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let spec = SpawnSpec {
         argv: probe_argv(&["--require-env=DX_LIFECYCLE_PROBE=kept"]),
         cwd: scratch.path().to_path_buf(),
@@ -95,7 +95,7 @@ fn inherited_launch_forwards_extra_entries() {
 
 #[test]
 fn exit_code_and_both_streams_round_trip() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let spec = controlled_spec(
         scratch.path(),
         probe_argv(&[
@@ -126,7 +126,7 @@ fn exit_code_and_both_streams_round_trip() {
 
 #[test]
 fn signal_exit_is_distinct_from_an_exit_code() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let first = controlled_spec(
         scratch.path(),
         probe_argv(&["--exit-code=3"]),
@@ -171,7 +171,7 @@ fn polling_a_running_child_gives_up_at_the_deadline() {
 #[cfg(unix)]
 #[test]
 fn a_signaled_child_reports_its_signal() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let spec = controlled_spec(
         scratch.path(),
         probe_argv(&["--raise-signal=15"]),
@@ -188,7 +188,7 @@ fn a_signaled_child_reports_its_signal() {
 
 #[test]
 fn timeout_kills_a_sleeping_child_within_a_bound() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let spec = controlled_spec(
         scratch.path(),
         probe_argv(&["--sleep-ms=30000"]),
@@ -207,7 +207,7 @@ fn timeout_kills_a_sleeping_child_within_a_bound() {
 
 #[test]
 fn timeout_reaps_a_descendant_holding_the_pipes() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-descendant");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-descendant").unwrap();
     let lock = scratch.path().join("descendant.alive");
     let spec = controlled_spec(
         scratch.path(),
@@ -245,7 +245,7 @@ fn the_standard_budget_keeps_its_bounds() {
 
 #[test]
 fn a_stop_probe_ends_a_blocked_child_before_its_deadline() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-stop-probe");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-stop-probe").unwrap();
     let lock = scratch.path().join("child.alive");
     let spec = controlled_spec(
         scratch.path(),
@@ -267,7 +267,7 @@ fn a_stop_probe_ends_a_blocked_child_before_its_deadline() {
 
 #[test]
 fn a_stop_probe_bounds_a_descendant_holding_stdout() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-stop-descendant");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-stop-descendant").unwrap();
     let lock = scratch.path().join("descendant.alive");
     let spec = controlled_spec(
         scratch.path(),
@@ -291,7 +291,7 @@ fn a_stop_probe_bounds_a_descendant_holding_stdout() {
 
 #[test]
 fn a_tight_budget_bounds_a_blocked_child() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-tight-blocked");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-tight-blocked").unwrap();
     let lock = scratch.path().join("child.alive");
     let spec = controlled_spec(
         scratch.path(),
@@ -316,7 +316,7 @@ fn a_tight_budget_bounds_a_blocked_child() {
 
 #[test]
 fn a_tight_budget_bounds_a_descendant_holding_stdout_after_exit() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-tight-descendant");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-tight-descendant").unwrap();
     let lock = scratch.path().join("descendant.alive");
     let mut spec = controlled_spec(
         scratch.path(),
@@ -345,7 +345,7 @@ fn a_tight_budget_bounds_a_descendant_holding_stdout_after_exit() {
 #[cfg(unix)]
 #[test]
 fn timeout_kills_a_group_whose_leader_exits_on_term() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-term-group");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-term-group").unwrap();
     let pidfile = scratch.path().join("child.pid");
     let script = format!(
         "sh -c 'trap \"\" TERM; echo $$ > {pid}; while :; do sleep 1; done' & wait",
@@ -409,7 +409,7 @@ fn daemon_probe(
 
 #[test]
 fn a_detachable_run_leaves_a_detached_server_running() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-detachable");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-detachable").unwrap();
     let lock = scratch.path().join("server.alive");
     let spec = daemon_probe(scratch.path(), &lock, 30000, Descendants::Detachable);
     assert_eq!(
@@ -421,7 +421,7 @@ fn a_detachable_run_leaves_a_detached_server_running() {
 
 #[test]
 fn a_detachable_run_reaps_an_attached_descendant() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-detachable-attached");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-detachable-attached").unwrap();
     let lock = scratch.path().join("descendant.alive");
     let mut spec = controlled_spec(
         scratch.path(),
@@ -476,7 +476,7 @@ fn attached_targets_is_the_intersection_in_any_order() {
 #[cfg(windows)]
 #[test]
 fn a_detachable_run_reaps_a_client_but_keeps_its_detached_server() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-detachable-chain");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-detachable-chain").unwrap();
     let lock = scratch.path().join("server.alive");
     let mut spec = controlled_spec(
         scratch.path(),
@@ -497,7 +497,7 @@ fn a_detachable_run_reaps_a_client_but_keeps_its_detached_server() {
 #[cfg(windows)]
 #[test]
 fn an_owned_run_kills_a_detached_server() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-owned-server");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-owned-server").unwrap();
     let lock = scratch.path().join("server.alive");
     let spec = daemon_probe(scratch.path(), &lock, 0, Descendants::Owned);
     let outcome = run_within(&spec, INTERACTIVE).expect("probe runs");
@@ -516,7 +516,7 @@ fn an_owned_run_kills_a_detached_server() {
 
 #[test]
 fn an_owned_run_ends_an_attached_descendant_after_a_clean_exit() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-owned-attached");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-owned-attached").unwrap();
     let lock = scratch.path().join("descendant.alive");
     let mut spec = controlled_spec(
         scratch.path(),
@@ -540,7 +540,7 @@ fn an_owned_run_ends_an_attached_descendant_after_a_clean_exit() {
 
 #[test]
 fn a_tight_budget_drains_large_output_concurrently() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let mut spec = controlled_spec(
         scratch.path(),
         probe_argv(&["--stdout-bytes=1048576"]),
@@ -562,7 +562,7 @@ fn a_tight_budget_drains_large_output_concurrently() {
 
 #[test]
 fn large_output_drains_without_a_timeout() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let spec = controlled_spec(
         scratch.path(),
         probe_argv(&["--stdout-bytes=1048576"]),
@@ -587,7 +587,7 @@ fn large_output_drains_without_a_timeout() {
 
 #[test]
 fn output_past_the_caller_limit_reports_the_limit() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let mut spec = controlled_spec(
         scratch.path(),
         probe_argv(&["--stdout-bytes=17"]),
@@ -605,7 +605,7 @@ fn output_past_the_caller_limit_reports_the_limit() {
 
 #[test]
 fn empty_argv_is_rejected_before_spawning() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let mut spec = controlled_spec(scratch.path(), Vec::new(), Duration::from_secs(10));
     spec.capture = CapturePolicy { max_bytes: 16 };
     let err = run(&spec).expect_err("empty argv");
@@ -614,7 +614,7 @@ fn empty_argv_is_rejected_before_spawning() {
 
 #[test]
 fn a_missing_binary_is_an_io_error() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let spec = controlled_spec(
         scratch.path(),
         vec![OsString::from("/nonexistent-dx-tool-9f2c1d")],
@@ -708,7 +708,7 @@ fn withdraw_after_armed(lock: &std::path::Path, delay: Duration) -> impl Fn() ->
 
 #[test]
 fn streamed_exit_code_and_stdout_reach_the_caller() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     for group in [StreamGroup::Owned, StreamGroup::Terminal] {
         let sink = Sink::default();
         let spec = streamed(
@@ -727,7 +727,7 @@ fn streamed_exit_code_and_stdout_reach_the_caller() {
 
 #[test]
 fn streamed_large_output_is_copied_completely() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let sink = Sink::default();
     let spec = streamed(
         scratch.path(),
@@ -744,7 +744,7 @@ fn streamed_large_output_is_copied_completely() {
 
 #[test]
 fn streamed_controlled_env_delivers_only_the_declared_entries() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let sink = Sink::default();
     let mut spec = streamed(
         scratch.path(),
@@ -767,7 +767,7 @@ fn streamed_controlled_env_delivers_only_the_declared_entries() {
 #[cfg(unix)]
 #[test]
 fn streamed_signal_exit_is_reported() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let sink = Sink::default();
     let spec = streamed(
         scratch.path(),
@@ -798,7 +798,7 @@ fn settle_after_skipped_launch(scratch: &std::path::Path) {
 
 #[test]
 fn streamed_stop_before_launch_never_spawns() {
-    let scratch = dx_test_scratch::scratch("dx-stream-before");
+    let scratch = dx_test_scratch::scratch("dx-stream-before").unwrap();
     let marker = scratch.path().join("child.finished");
     let sink = Sink::default();
     let spec = streamed(
@@ -817,7 +817,7 @@ fn streamed_stop_before_launch_never_spawns() {
 
 #[test]
 fn streamed_empty_argv_is_rejected() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let sink = Sink::default();
     let spec = streamed(scratch.path(), Vec::new(), &sink, StreamGroup::Owned);
     let err = run_streamed(spec, STREAM_BUDGET, &never).expect_err("empty argv");
@@ -827,7 +827,7 @@ fn streamed_empty_argv_is_rejected() {
 #[cfg(any(unix, windows))]
 #[test]
 fn streamed_stop_kills_an_owned_tree_that_ignores_it() {
-    let scratch = dx_test_scratch::scratch("dx-stream-blocked");
+    let scratch = dx_test_scratch::scratch("dx-stream-blocked").unwrap();
     let lock = scratch.path().join("descendant.alive");
     let sink = Sink::default();
     let spec = streamed(
@@ -857,7 +857,7 @@ fn streamed_stop_kills_an_owned_tree_that_ignores_it() {
 
 #[test]
 fn streamed_drain_is_bounded_when_a_descendant_keeps_stdout() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let sink = Sink::default();
     let spec = streamed(
         scratch.path(),
@@ -885,7 +885,7 @@ fn streamed_drain_is_bounded_when_a_descendant_keeps_stdout() {
 
 #[test]
 fn streamed_stderr_reaches_its_own_sink() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     for group in [StreamGroup::Owned, StreamGroup::Terminal] {
         let out = Sink::default();
         let err = Sink::default();
@@ -920,7 +920,7 @@ fn streamed_stderr_reaches_its_own_sink() {
 #[cfg(unix)]
 #[test]
 fn streamed_stop_with_both_streams_forwarded_kills_the_owned_tree() {
-    let scratch = dx_test_scratch::scratch("dx-stream-both");
+    let scratch = dx_test_scratch::scratch("dx-stream-both").unwrap();
     let lock = scratch.path().join("descendant.alive");
     let out = Sink::default();
     let err = Sink::default();
@@ -952,7 +952,7 @@ fn streamed_stop_with_both_streams_forwarded_kills_the_owned_tree() {
 
 #[test]
 fn streamed_drain_is_bounded_when_a_descendant_keeps_stderr() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let out = Sink::default();
     let err = Sink::default();
     let mut spec = streamed_both(
@@ -985,7 +985,7 @@ fn streamed_drain_is_bounded_when_a_descendant_keeps_stderr() {
 #[cfg(unix)]
 #[test]
 fn streamed_stop_during_drain_cleans_up_the_owned_descendant() {
-    let scratch = dx_test_scratch::scratch("dx-stream-drain");
+    let scratch = dx_test_scratch::scratch("dx-stream-drain").unwrap();
     let lock = scratch.path().join("descendant.alive");
     let sink = Sink::default();
     let spec = streamed(
@@ -1019,7 +1019,7 @@ fn streamed_stop_during_drain_cleans_up_the_owned_descendant() {
 
 #[test]
 fn streamed_terminal_stop_during_drain_returns_without_waiting() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let sink = Sink::default();
     let spec = streamed(
         scratch.path(),
@@ -1098,7 +1098,7 @@ fn assert_survived(probe: &mut Probe) {
 #[cfg(unix)]
 #[test]
 fn owned_child_gets_every_forwarded_sigint() {
-    let scratch = dx_test_scratch::scratch("dx-forward-owned");
+    let scratch = dx_test_scratch::scratch("dx-forward-owned").unwrap();
     let (mut child, log) = counting_probe(scratch.path());
     let target = -child.0.id().cast_signed();
     backend::send(target, 2);
@@ -1110,9 +1110,8 @@ fn owned_child_gets_every_forwarded_sigint() {
 
 #[cfg(target_os = "linux")]
 #[test]
-#[expect(unsafe_code, reason = "getpgrp has no safe std API")]
 fn a_terminal_run_without_a_tty_puts_the_child_in_its_own_group() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let sink = Sink::default();
     let spec = streamed(
         scratch.path(),
@@ -1137,8 +1136,7 @@ fn a_terminal_run_without_a_tty_puts_the_child_in_its_own_group() {
         .parse()
         .expect("pid");
     let pgid: i32 = fields.get(2).expect("pgrp").parse().expect("pgrp");
-    // SAFETY: getpgrp has no preconditions.
-    assert_ne!(pgid, unsafe { libc::getpgrp() }, "{stat}");
+    assert_ne!(pgid, dx_os_sys::process::own_group(), "{stat}");
     if !terminal_foreground() {
         assert_eq!(pgid, pid, "{stat}");
         // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
@@ -1148,7 +1146,7 @@ fn a_terminal_run_without_a_tty_puts_the_child_in_its_own_group() {
 
 #[test]
 fn streamed_withdraw_before_launch_never_spawns() {
-    let scratch = dx_test_scratch::scratch("dx-stream-withdraw-before");
+    let scratch = dx_test_scratch::scratch("dx-stream-withdraw-before").unwrap();
     let marker = scratch.path().join("child.finished");
     let sink = Sink::default();
     let spec = streamed(
@@ -1167,7 +1165,7 @@ fn streamed_withdraw_before_launch_never_spawns() {
 
 #[test]
 fn streamed_exit_before_withdraw_reports_the_exit() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let sink = Sink::default();
     let spec = streamed(
         scratch.path(),
@@ -1184,7 +1182,7 @@ fn streamed_exit_before_withdraw_reports_the_exit() {
 #[cfg(unix)]
 #[test]
 fn streamed_self_exit_stops_the_rest_of_the_owned_group() {
-    let scratch = dx_test_scratch::scratch("dx-stream-self-exit-group");
+    let scratch = dx_test_scratch::scratch("dx-stream-self-exit-group").unwrap();
     let lock = scratch.path().join("leftover.alive");
     let sink = Sink::default();
     let script = format!(
@@ -1215,7 +1213,7 @@ fn streamed_self_exit_stops_the_rest_of_the_owned_group() {
 #[cfg(unix)]
 #[test]
 fn streamed_self_exit_stops_a_descendant_holding_stdout() {
-    let scratch = dx_test_scratch::scratch("dx-stream-self-exit-stdout");
+    let scratch = dx_test_scratch::scratch("dx-stream-self-exit-stdout").unwrap();
     let lock = scratch.path().join("descendant.alive");
     let sink = Sink::default();
     let spec = streamed(
@@ -1245,7 +1243,7 @@ fn streamed_self_exit_stops_a_descendant_holding_stdout() {
 #[cfg(unix)]
 #[test]
 fn streamed_self_exit_leaves_a_detached_server_running() {
-    let scratch = dx_test_scratch::scratch("dx-stream-self-exit-server");
+    let scratch = dx_test_scratch::scratch("dx-stream-self-exit-server").unwrap();
     let lock = scratch.path().join("server.alive");
     let sink = Sink::default();
     let spec = streamed(
@@ -1269,7 +1267,7 @@ fn streamed_self_exit_leaves_a_detached_server_running() {
 #[cfg(any(unix, windows))]
 #[test]
 fn streamed_withdraw_terminates_the_owned_tree() {
-    let scratch = dx_test_scratch::scratch("dx-stream-withdraw");
+    let scratch = dx_test_scratch::scratch("dx-stream-withdraw").unwrap();
     let lock = scratch.path().join("descendant.alive");
     let sink = Sink::default();
     let spec = streamed(
@@ -1300,7 +1298,7 @@ fn streamed_withdraw_terminates_the_owned_tree() {
 #[cfg(unix)]
 #[test]
 fn streamed_withdraw_kills_a_tree_that_ignores_sigterm() {
-    let scratch = dx_test_scratch::scratch("dx-stream-withdraw-ignored");
+    let scratch = dx_test_scratch::scratch("dx-stream-withdraw-ignored").unwrap();
     let lock = scratch.path().join("alive");
     let sink = Sink::default();
     let script = format!(
@@ -1333,7 +1331,7 @@ fn streamed_withdraw_kills_a_tree_that_ignores_sigterm() {
 #[test]
 fn streamed_stop_during_withdraw_is_a_cancel() {
     use std::sync::atomic::{AtomicBool, Ordering};
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let sink = Sink::default();
     let script = "trap '' TERM; sleep 3";
     let spec = streamed(
@@ -1371,7 +1369,7 @@ fn streamed_stop_during_withdraw_is_a_cancel() {
 #[cfg(unix)]
 #[test]
 fn streamed_null_stdin_reads_end_of_file() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let sink = Sink::default();
     let mut spec = streamed(
         scratch.path(),
@@ -1433,7 +1431,7 @@ fn wait_alive(lock: &std::path::Path) {
 #[test]
 fn streamed_held_lock_is_held_while_the_child_runs() {
     let _serial = dx_testing::spawning();
-    let scratch = dx_test_scratch::scratch("dx-stream-held-run");
+    let scratch = dx_test_scratch::scratch("dx-stream-held-run").unwrap();
     let lease = scratch.path().join("lease.lock");
     let alive = scratch.path().join("child.alive");
     let sink = Sink::default();
@@ -1464,7 +1462,7 @@ fn streamed_held_lock_is_held_while_the_child_runs() {
 #[test]
 fn streamed_held_lock_outlives_parent_in_descendant() {
     let _serial = dx_testing::spawning();
-    let scratch = dx_test_scratch::scratch("dx-stream-held-descendant");
+    let scratch = dx_test_scratch::scratch("dx-stream-held-descendant").unwrap();
     let lease = scratch.path().join("lease.lock");
     let alive = scratch.path().join("descendant.alive");
     let sink = Sink::default();
@@ -1500,7 +1498,7 @@ fn streamed_held_lock_outlives_parent_in_descendant() {
 #[test]
 fn streamed_sibling_spawn_does_not_inherit_held() {
     let _serial = dx_testing::spawning();
-    let scratch = dx_test_scratch::scratch("dx-stream-held-sibling");
+    let scratch = dx_test_scratch::scratch("dx-stream-held-sibling").unwrap();
     let lease = scratch.path().join("lease.lock");
     let child_alive = scratch.path().join("child.alive");
     let sibling_alive = scratch.path().join("sibling.alive");
@@ -1548,7 +1546,7 @@ fn streamed_sibling_spawn_does_not_inherit_held() {
 #[test]
 fn streamed_without_held_is_unchanged() {
     let _serial = dx_testing::spawning();
-    let scratch = dx_test_scratch::scratch("dx-stream-unheld");
+    let scratch = dx_test_scratch::scratch("dx-stream-unheld").unwrap();
     let lease = scratch.path().join("lease.lock");
     let alive = scratch.path().join("descendant.alive");
     let parent_lock = held_lease(&lease);
@@ -1581,7 +1579,7 @@ const HELD_PARENT_ENV: &str = "DX_STREAM_HELD_PARENT_DIR";
 /// Runs as the parent process for the crash tests; a no-op otherwise.
 #[test]
 fn streamed_held_parent_main() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let Some(dir) = std::env::var_os(HELD_PARENT_ENV).map(std::path::PathBuf::from) else {
         return;
     };
@@ -1624,7 +1622,7 @@ fn crash_held_parent(
     std::path::PathBuf,
     std::path::PathBuf,
 ) {
-    let scratch = dx_test_scratch::scratch(prefix);
+    let scratch = dx_test_scratch::scratch(prefix).unwrap();
     let mut parent = std::process::Command::new(std::env::current_exe().expect("test binary"))
         .arg("lifecycle::lifecycle_tests::streamed_held_parent_main")
         .arg("--exact")
@@ -1670,7 +1668,7 @@ fn stream_group_follows_the_terminal_foreground() {
 
 #[test]
 fn a_stop_seen_after_spawning_cancels_the_run() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let sink = Sink::default();
     let spec = streamed(
         scratch.path(),
@@ -1814,15 +1812,11 @@ fn console_ctrl_c_and_break_act_as_sigint() {
 
 #[cfg(target_os = "linux")]
 #[test]
-#[expect(unsafe_code, reason = "the test sets errno through its libc location")]
 fn sending_a_signal_keeps_the_callers_errno() {
-    // SAFETY: __errno_location points at this thread's errno.
-    unsafe { *libc::__errno_location() = libc::EINTR };
+    const EINTR: i32 = 4;
+    dx_os_sys::errno::set(EINTR);
     backend::send(i32::MAX - 1, 15);
-    assert_eq!(
-        std::io::Error::last_os_error().raw_os_error(),
-        Some(libc::EINTR)
-    );
+    assert_eq!(std::io::Error::last_os_error().raw_os_error(), Some(EINTR));
 }
 
 #[test]
@@ -1850,9 +1844,9 @@ fn stream_stdin_is_null_only_for_an_inherited_terminal_in_an_own_group() {
 fn a_stop_reaches_only_the_runs_still_registered() {
     static TABLE: [Slot; FORWARD_SLOTS] = [const { Slot::new() }; FORWARD_SLOTS];
     fn ignore(_: i32) {}
-    let scratch = dx_test_scratch::scratch("dx-forward-table");
+    let scratch = dx_test_scratch::scratch("dx-forward-table").unwrap();
     let (mut a, a_log) = counting_probe(scratch.path());
-    let other = dx_test_scratch::scratch("dx-forward-table-b");
+    let other = dx_test_scratch::scratch("dx-forward-table-b").unwrap();
     let (b, b_log) = counting_probe(other.path());
     let first = Forwarding::register_in(&TABLE, -a.0.id().cast_signed());
     let mut second = Forwarding::register_in(&TABLE, -b.0.id().cast_signed());
@@ -1897,7 +1891,7 @@ fn a_full_forwarding_table_registers_without_a_slot() {
 #[cfg(unix)]
 #[test]
 fn a_stop_seen_after_registering_sends_one_sigint() {
-    let scratch = dx_test_scratch::scratch("dx-forward-once");
+    let scratch = dx_test_scratch::scratch("dx-forward-once").unwrap();
     let log = scratch.path().join("owned.sigint");
     let sink = Sink::default();
     let spec = streamed(
@@ -1917,7 +1911,8 @@ fn a_stop_seen_after_registering_sends_one_sigint() {
         }
         dx_test_scratch::eventually("sigint log", Duration::from_secs(10), || {
             log.exists().then_some(())
-        });
+        })
+        .unwrap();
         Some(2)
     };
     assert_eq!(
@@ -1996,7 +1991,7 @@ fn a_drain_retries_interrupts_and_keeps_what_it_read_after_an_error() {
 #[cfg(unix)]
 #[test]
 fn a_child_that_ignores_term_is_killed_after_the_graceful_wait() {
-    let scratch = dx_test_scratch::scratch("dx-lifecycle-");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let script = "trap '' TERM; exec sleep 30";
     let spec = controlled_spec(
         scratch.path(),

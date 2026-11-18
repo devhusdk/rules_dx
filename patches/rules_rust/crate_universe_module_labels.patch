@@ -1,3 +1,4 @@
+Upstream: none (not yet sent upstream)
 --- a/crate_universe/extensions.bzl
 +++ b/crate_universe/extensions.bzl
 @@ -533,6 +533,14 @@

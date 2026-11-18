@@ -31,9 +31,9 @@ fn run(root: &Path, mode: Mode, count: &mut usize) -> SyncReport {
 }
 
 fn workspace() -> TempDir {
-    let dir = scratch("sync");
-    write(dir.path(), "dx.toml", DX_TOML);
-    write(dir.path(), "MODULE.bazel", "module(name = \"ws\")\n");
+    let dir = scratch("sync").unwrap();
+    write(dir.path(), "dx.toml", DX_TOML).unwrap();
+    write(dir.path(), "MODULE.bazel", "module(name = \"ws\")\n").unwrap();
     dir
 }
 
@@ -89,7 +89,8 @@ fn removing_a_tool_deletes_its_base() {
         dir.path(),
         "dx.toml",
         "schema_version = 1\n[families.python]\ndisabled = true\n",
-    );
+    )
+    .unwrap();
     let mut count = 0;
     let report = run(dir.path(), Mode::Fast, &mut count);
     assert_eq!(count, 1);
@@ -108,7 +109,8 @@ fn editing_dx_toml_rerenders() {
         dir.path(),
         "dx.toml",
         "schema_version = 1\ntier = \"strict\"\n",
-    );
+    )
+    .unwrap();
     let mut count = 0;
     let report = run(dir.path(), Mode::Fast, &mut count);
     assert_eq!(count, 1);
@@ -123,7 +125,7 @@ fn editing_dx_toml_rerenders() {
 fn a_root_ruff_toml_rerenders() {
     let dir = synced();
     assert!(!read(dir.path(), ".dx/BUILD.bazel").contains("ruff_config"));
-    write(dir.path(), "ruff.toml", "line-length = 100\n");
+    write(dir.path(), "ruff.toml", "line-length = 100\n").unwrap();
     let mut count = 0;
     run(dir.path(), Mode::Fast, &mut count);
     assert_eq!(count, 1);
@@ -141,14 +143,16 @@ fn an_override_copy_rebinds_hlint() {
         dir.path(),
         "dx.toml",
         "schema_version = 1\n[families.haskell]\nlint = [\"hlint\"]\n",
-    );
+    )
+    .unwrap();
     haskell(dir.path(), &mut 0);
     assert!(!read(dir.path(), ".dx/BUILD.bazel").contains("hlint_config("));
     write(
         dir.path(),
         ".hlint.yaml",
         "# dx: override of base abc\n- warn: {name: x}\n",
-    );
+    )
+    .unwrap();
     let mut count = 0;
     haskell(dir.path(), &mut count);
     assert_eq!(count, 1);
@@ -170,11 +174,11 @@ fn a_deleted_output_is_restored() {
 #[test]
 fn local_and_pins_survive_and_strays_go() {
     let dir = synced();
-    write(dir.path(), ".dx/pins", "dx = \"1.0.0\"\n");
-    write(dir.path(), ".dx/local/setups/keep", "x");
-    write(dir.path(), ".dx/stray/old.txt", "x");
-    write(dir.path(), ".dx/config/local", "x");
-    write(dir.path(), "notes.txt", "x");
+    write(dir.path(), ".dx/pins", "dx = \"1.0.0\"\n").unwrap();
+    write(dir.path(), ".dx/local/setups/keep", "x").unwrap();
+    write(dir.path(), ".dx/stray/old.txt", "x").unwrap();
+    write(dir.path(), ".dx/config/local", "x").unwrap();
+    write(dir.path(), "notes.txt", "x").unwrap();
     let report = run(dir.path(), Mode::Fast, &mut 0);
     assert_eq!(
         report.deleted,
@@ -197,19 +201,22 @@ fn a_referenced_dx_file_dx_does_not_render_is_kept_with_a_warning() {
         root,
         ".dx/config/eslint/extra.mjs",
         "import \"./frameworks.mjs\";\n",
-    );
-    write(root, ".dx/config/eslint/frameworks.mjs", "x");
-    write(root, ".dx/config/eslint/standard.mjs", "x");
+    )
+    .unwrap();
+    write(root, ".dx/config/eslint/frameworks.mjs", "x").unwrap();
+    write(root, ".dx/config/eslint/standard.mjs", "x").unwrap();
     write(
         root,
         "eslint.config.mjs",
         "export { default } from \"./.dx/config/eslint/extra.mjs\";\n",
-    );
+    )
+    .unwrap();
     write(
         root,
         "tsconfig.json",
         "{ \"extends\": \"./.dx/config/tsconfig/base.json\" }\n",
-    );
+    )
+    .unwrap();
     let report = run(root, Mode::Fast, &mut 0);
     assert_eq!(
         report.warnings,
@@ -224,14 +231,14 @@ fn a_referenced_dx_file_dx_does_not_render_is_kept_with_a_warning() {
     }
     assert_eq!(run(root, Mode::Fast, &mut 0), SyncReport::default());
 
-    write(root, "eslint.config.mjs", "export default [];\n");
+    write(root, "eslint.config.mjs", "export default [];\n").unwrap();
     let report = run(root, Mode::Fast, &mut 0);
     assert_eq!(report.deleted.len(), 3, "{report:?}");
 }
 
 #[test]
 fn reference_files_cover_the_targets_and_the_build_files_above_them() {
-    let dir = scratch("references");
+    let dir = scratch("references").unwrap();
     let root = dir.path();
     for rel in [
         "configs/BUILD.bazel",
@@ -242,9 +249,9 @@ fn reference_files_cover_the_targets_and_the_build_files_above_them() {
         "styles/sub/b.yml",
         "unrelated/c.txt",
     ] {
-        write(root, rel, "x");
+        write(root, rel, "x").unwrap();
     }
-    write(root, ".gitignore", "*.bak\n");
+    write(root, ".gitignore", "*.bak\n").unwrap();
     let targets = BTreeSet::from(["configs/base.toml".to_owned(), "styles".to_owned()]);
     let expected: BTreeSet<String> = [
         "configs/BUILD.bazel",
@@ -268,9 +275,10 @@ fn a_new_file_under_the_vale_styles_rerenders() {
         dir.path(),
         "dx.toml",
         "schema_version = 1\n[families.markdown]\nlint = [\"vale\"]\n",
-    );
-    write(dir.path(), ".vale.ini", "StylesPath = styles\n");
-    write(dir.path(), "styles/a.yml", "x");
+    )
+    .unwrap();
+    write(dir.path(), ".vale.ini", "StylesPath = styles\n").unwrap();
+    write(dir.path(), "styles/a.yml", "x").unwrap();
     markdown(dir.path(), &mut 0);
     assert!(read(dir.path(), ".dx/BUILD.bazel").contains("\"//:styles/a.yml\""));
     let mut count = 0;
@@ -280,7 +288,7 @@ fn a_new_file_under_the_vale_styles_rerenders() {
         "the root BUILD this sync wrote must not cause a miss"
     );
 
-    write(dir.path(), "styles/b.yml", "x");
+    write(dir.path(), "styles/b.yml", "x").unwrap();
     markdown(dir.path(), &mut count);
     assert_eq!(count, 1);
     assert!(read(dir.path(), ".dx/BUILD.bazel").contains("\"//:styles/b.yml\""));
@@ -289,12 +297,12 @@ fn a_new_file_under_the_vale_styles_rerenders() {
 #[test]
 fn a_build_file_above_a_ruff_extend_target_rerenders() {
     let dir = synced();
-    write(dir.path(), "ruff.toml", "extend = \"configs/base.toml\"\n");
-    write(dir.path(), "configs/base.toml", "line-length = 100\n");
+    write(dir.path(), "ruff.toml", "extend = \"configs/base.toml\"\n").unwrap();
+    write(dir.path(), "configs/base.toml", "line-length = 100\n").unwrap();
     run(dir.path(), Mode::Fast, &mut 0);
     assert!(read(dir.path(), ".dx/BUILD.bazel").contains("\"//:configs/base.toml\""));
 
-    write(dir.path(), "configs/BUILD.bazel", "");
+    write(dir.path(), "configs/BUILD.bazel", "").unwrap();
     let mut count = 0;
     run(dir.path(), Mode::Fast, &mut count);
     assert_eq!(count, 1);
@@ -306,19 +314,20 @@ fn a_build_file_above_a_ruff_extend_target_rerenders() {
 #[test]
 fn removing_a_user_export_rerenders() {
     let dir = synced();
-    write(dir.path(), "ruff.toml", "line-length = 100\n");
+    write(dir.path(), "ruff.toml", "line-length = 100\n").unwrap();
     write(
         dir.path(),
         "BUILD.bazel",
         "exports_files([\"ruff.toml\"])\n",
-    );
+    )
+    .unwrap();
     let report = run(dir.path(), Mode::Fast, &mut 0);
     assert!(
         !report.written.iter().any(|path| path == "BUILD.bazel"),
         "{report:?}"
     );
 
-    write(dir.path(), "BUILD.bazel", "");
+    write(dir.path(), "BUILD.bazel", "").unwrap();
     let mut count = 0;
     run(dir.path(), Mode::Fast, &mut count);
     assert_eq!(count, 1);
@@ -329,7 +338,7 @@ fn removing_a_user_export_rerenders() {
 fn a_dx_toml_edit_during_a_sync_is_not_marked_synced() {
     let dir = workspace();
     let mut detect = |root: &Path| {
-        write(root, "dx.toml", "schema_version = 1\ntier = \"strict\"\n");
+        write(root, "dx.toml", "schema_version = 1\ntier = \"strict\"\n").unwrap();
         BTreeSet::from(["python".to_owned()])
     };
     sync(dir.path(), Mode::Fast, &mut detect).expect("sync");
@@ -344,7 +353,7 @@ fn a_dx_toml_edit_during_a_sync_is_not_marked_synced() {
 #[test]
 fn a_failing_sync_is_not_retried_until_an_input_changes() {
     let dir = synced();
-    write(dir.path(), "ruff.toml", "extend = \"configs/base.toml\"\n");
+    write(dir.path(), "ruff.toml", "extend = \"configs/base.toml\"\n").unwrap();
     let mut count = 0;
     let first = try_run(dir.path(), Mode::Fast, &mut count).expect_err("missing target");
     assert!(matches!(first, SyncError::Generate(_)), "{first:?}");
@@ -355,7 +364,7 @@ fn a_failing_sync_is_not_retried_until_an_input_changes() {
     assert_eq!(second.to_string(), first.to_string());
     assert_eq!(count, 1);
 
-    write(dir.path(), "configs/base.toml", "line-length = 100\n");
+    write(dir.path(), "configs/base.toml", "line-length = 100\n").unwrap();
     run(dir.path(), Mode::Fast, &mut count);
     assert_eq!(count, 2);
     assert!(read(dir.path(), ".dx/BUILD.bazel").contains("\"//:configs/base.toml\""));

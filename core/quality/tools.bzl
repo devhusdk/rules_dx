@@ -2,6 +2,8 @@
 
 load(":tools_registry.bzl", "FAMILY_TOOL_ROWS")
 
+visibility(["//core/...", "//tools/..."])
+
 def _tool(row):
     return struct(
         adapters = row["adapters"],

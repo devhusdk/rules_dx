@@ -2,6 +2,8 @@
 
 load(":runner_matrix_tests.bzl", "matrix_case")
 
+visibility("private")
+
 MARKUP_CASES = [
     matrix_case(
         name = "matrix_graphql_format_pass",

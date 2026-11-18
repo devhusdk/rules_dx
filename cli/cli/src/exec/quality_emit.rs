@@ -6,12 +6,12 @@ use dx_output::{
     Resolution, Snapshot, Span, change_value, finding_value, notice_event, refusal_value,
 };
 
-use super::common::{
+use super::quality_reconcile::Conflict;
+use super::quality_reports::Snapshots;
+use dx_exec_core::common::{
     FileChange, REASON_INCOMPLETE_COLLECTION, change_event_for, check_stdout_write, emit_built,
     emit_event, text_finding,
 };
-use super::quality_reconcile::Conflict;
-use super::quality_reports::Snapshots;
 use dx_plan::args::QualityRequest;
 use dx_plan::reports::sarif::byte_to_line;
 

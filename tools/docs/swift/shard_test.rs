@@ -8,12 +8,12 @@ use shard_test_support::shard;
 const PREFIX: &str = "swift:shapes:";
 
 fn symbol<'a>(shard: &'a DocIr, name: &str) -> &'a Symbol {
-    shard_test_support::symbol(shard, &format!("{PREFIX}{name}"))
+    shard_test_support::symbol(shard, &format!("{PREFIX}{name}")).unwrap()
 }
 
 #[test]
 fn the_fixture_shard_documents_the_module() {
-    let shard = shard("DX_FIXTURE_SHARD");
+    let shard = shard("DX_FIXTURE_SHARD").unwrap();
     validate_shard(&shard).expect("validate_shard passes");
     assert_eq!(shard.language, "swift");
     assert_eq!(shard.package, "shapes");
@@ -91,7 +91,7 @@ fn the_fixture_shard_documents_the_module() {
 
 #[test]
 fn the_fixture_shard_documents_members_added_to_other_modules_types() {
-    let shard = shard("DX_FIXTURE_SHARD");
+    let shard = shard("DX_FIXTURE_SHARD").unwrap();
     let shout = symbol(&shard, "Swift.String.shout~28~29");
     assert_eq!(shout.kind, SymbolKind::Method as i32);
     assert_eq!(shout.doc_markdown, "Upper-cases the string.");
@@ -108,7 +108,7 @@ fn the_fixture_shard_documents_members_added_to_other_modules_types() {
 
 #[test]
 fn docc_symbol_links_become_dx_links() {
-    let shard = shard("DX_FIXTURE_SHARD");
+    let shard = shard("DX_FIXTURE_SHARD").unwrap();
     let area = symbol(&shard, "Shapes.Measured.area");
     assert_eq!(
         area.doc_markdown,

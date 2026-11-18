@@ -94,12 +94,7 @@ pub(crate) fn resolved(path: &Path) -> PathBuf {
 }
 
 fn normalize(path: &Path) -> String {
-    let text = dx_path::posix(path);
-    let text = if let Some(rest) = text.strip_prefix("//?/UNC/") {
-        format!("//{rest}")
-    } else {
-        text.strip_prefix("//?/").unwrap_or(&text).to_owned()
-    };
+    let text = dx_path::posix(&dx_path::without_verbatim(path));
     let text = text.trim_end_matches('/').to_owned();
     if cfg!(windows) {
         text.to_lowercase()
@@ -948,7 +943,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn paths_compare_through_symlinks_even_when_the_tail_is_gone() {
-        let scratch = dx_test_scratch::scratch("dx-wt-links-");
+        let scratch = dx_test_scratch::scratch("dx-wt-links-").unwrap();
         let real = scratch.path().join("real");
         let link = scratch.path().join("link");
         std::fs::create_dir_all(real.join("x")).expect("real");
@@ -964,7 +959,7 @@ mod tests {
 
     #[test]
     fn output_bases_are_found_by_their_workspace_marker() {
-        let scratch = dx_test_scratch::scratch("dx-wt-bases-");
+        let scratch = dx_test_scratch::scratch("dx-wt-bases-").unwrap();
         let root = scratch.path().join("root");
         std::fs::create_dir_all(root.join("install")).expect("install");
         std::fs::create_dir_all(root.join("aaa")).expect("base");
@@ -981,7 +976,7 @@ mod tests {
 
     #[test]
     fn walked_size_counts_files_and_skips_symlink_targets() {
-        let scratch = dx_test_scratch::scratch("dx-wt-size-");
+        let scratch = dx_test_scratch::scratch("dx-wt-size-").unwrap();
         let dir = scratch.path().join("d");
         std::fs::create_dir_all(dir.join("sub")).expect("dirs");
         std::fs::write(dir.join("a"), vec![0u8; 100]).expect("a");
@@ -992,7 +987,7 @@ mod tests {
 
     #[test]
     fn walk_bytes_returns_early_when_stopped() {
-        let scratch = dx_test_scratch::scratch("dx-wt-stop-walk-");
+        let scratch = dx_test_scratch::scratch("dx-wt-stop-walk-").unwrap();
         let dir = scratch.path().join("d");
         for sub in ["one", "two"] {
             std::fs::create_dir_all(dir.join(sub)).expect("dir");
@@ -1029,7 +1024,7 @@ mod tests {
 
     #[test]
     fn downloads_are_found_with_their_newest_file_time() {
-        let scratch = dx_test_scratch::scratch("dx-wt-downloads-");
+        let scratch = dx_test_scratch::scratch("dx-wt-downloads-").unwrap();
         let root = scratch.path().join("root");
         let old = download(&root, "aaa", &[("file", 100)]);
         let reading = download(&root, "bbb", &[("file", 100), ("id-x", 500)]);
@@ -1070,7 +1065,7 @@ mod tests {
 
     #[test]
     fn a_root_without_a_repository_cache_has_no_downloads() {
-        let scratch = dx_test_scratch::scratch("dx-wt-no-downloads-");
+        let scratch = dx_test_scratch::scratch("dx-wt-no-downloads-").unwrap();
         let root = scratch.path().join("root");
         std::fs::create_dir_all(root.join("cache").join("repos").join("v1").join("contents"))
             .expect("contents");
@@ -1082,7 +1077,7 @@ mod tests {
 
     #[test]
     fn scan_downloads_stops_when_the_stop_probe_fires() {
-        let scratch = dx_test_scratch::scratch("dx-wt-stop-downloads-");
+        let scratch = dx_test_scratch::scratch("dx-wt-stop-downloads-").unwrap();
         let root = scratch.path().join("root");
         download(&root, "aaa", &[("file", 100)]);
         download(&root, "bbb", &[("file", 100)]);
@@ -1099,14 +1094,14 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn du_stops_when_the_stop_probe_fires() {
-        let scratch = dx_test_scratch::scratch("dx-wt-stop-du-");
+        let scratch = dx_test_scratch::scratch("dx-wt-stop-du-").unwrap();
         assert_eq!(du_bytes(scratch.path(), &|| Some(15)), None);
     }
 
     #[cfg(unix)]
     #[test]
     fn du_measures_a_tree_when_not_stopped() {
-        let scratch = dx_test_scratch::scratch("dx-wt-du-");
+        let scratch = dx_test_scratch::scratch("dx-wt-du-").unwrap();
         std::fs::write(scratch.path().join("f"), vec![1u8; 64 * 1024]).expect("file");
         assert!(du_bytes(scratch.path(), &|| None).is_some_and(|bytes| bytes > 0));
     }
@@ -1183,7 +1178,7 @@ mod tests {
     )]
     fn the_idle_probe_sees_fcntl_locks_and_ignores_flock() {
         use std::os::fd::AsRawFd;
-        let scratch = dx_test_scratch::scratch("dx-wt-idle-");
+        let scratch = dx_test_scratch::scratch("dx-wt-idle-").unwrap();
         let base = scratch.path().join("base");
         std::fs::create_dir_all(&base).expect("base");
         let lock = base.join("lock");
@@ -1215,7 +1210,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn a_missing_lock_file_is_unknown_and_use_follows_the_newest_file() {
-        let scratch = dx_test_scratch::scratch("dx-wt-used-");
+        let scratch = dx_test_scratch::scratch("dx-wt-used-").unwrap();
         let base = scratch.path().join("base");
         std::fs::create_dir_all(&base).expect("base");
         assert_eq!(output_base_idle(&base), None);

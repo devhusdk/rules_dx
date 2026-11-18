@@ -2,6 +2,9 @@
 
 load(":lock_registry.bzl", "LOCK_REGISTRY")
 
+# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
+visibility("public")
+
 RULES_RUST_VERSION = "0.75.0"
 RULES_RUST_PROST_VERSION = "0.75.0"
 RULES_RUST_WASM_BINDGEN_VERSION = "0.75.0"
@@ -72,7 +75,7 @@ RUBY_VERSION = "3.4.12"
 RULES_ZIG_VERSION = "0.17.0"
 ZIG_VERSION = "0.17.0"
 
-RULES_SWIFT_VERSION = "4.2.2"
+RULES_SWIFT_VERSION = "4.3.0"
 SWIFT_VERSION = "6.4.2"
 
 RULES_JULIA_VERSION = "0.8.0"

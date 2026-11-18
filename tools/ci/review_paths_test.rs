@@ -30,6 +30,7 @@ fn list_holds_the_review_prefixes() {
 #[test]
 fn every_workflow_prefix_names_a_parsed_workflow() {
     let workflows: Vec<String> = ci_workflow::all()
+        .unwrap()
         .into_iter()
         .map(|(path, _)| path)
         .collect();
@@ -47,7 +48,7 @@ fn every_workflow_prefix_names_a_parsed_workflow() {
         assert!(!covered.is_empty(), "{prefix} matches no workflow");
         for path in covered {
             assert!(
-                !ci_workflow::jobs(path).is_empty(),
+                !ci_workflow::jobs(path).unwrap().is_empty(),
                 "{path} under {prefix} declares no job"
             );
         }

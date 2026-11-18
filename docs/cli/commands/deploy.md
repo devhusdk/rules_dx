@@ -41,7 +41,7 @@ dx deploy --apply --affected --since origin/release
 
 ```text
 dx deploy [--apply] [--debug|--release] <label> [-- app-args ...]
-dx deploy [--apply] [--debug|--release] --affected [--since <ref>]
+dx deploy [--apply] [--debug|--release] --affected [--since <ref>|--base <ref>]
 ```
 
 ## Dry run
@@ -62,7 +62,7 @@ NPM_PUBLISH_APPROVED=1 tools/dx deploy --apply //pkg:npm
 
 ## Affected deployments
 
-`--affected` finds the files changed since the merge base with the default branch. It then deploys every `dx_deployment` tagged `release` that those changes reach, one after another. `--since <ref>` compares against `<ref>` instead. `--affected` takes no label. Targets under `[scope] exclude` in `dx.toml` are skipped. When nothing is affected, dx prints `no affected targets` and exits `0`.
+`--affected` finds the files changed since the merge base with the default branch. It then deploys every `dx_deployment` tagged `release` that those changes reach, one after another. `--base <ref>` takes the merge base with that branch instead. `--since <ref>` compares against `<ref>` instead. `--affected` takes no label. Targets under `[scope] exclude` in `dx.toml` are skipped. When nothing is affected, dx prints `no affected targets` and exits `0`.
 
 ## Agent sessions
 
@@ -90,6 +90,7 @@ PHP, opam and CPAN have deploy rules: `packagist_deploy`, `opam_deploy` and `cpa
 | `--release` | Build in release mode. |
 | `--affected` | Deploy every `dx_deployment` tagged `release` that your change reaches. Takes no label. |
 | `--since <ref>` | With `--affected`, compare against `<ref>` instead of the merge base with the default branch. |
+| `--base <ref>` | With `--affected`, take the merge base with this branch instead of the default branch. Not with `--since`. |
 | `--workspace <dir>` | Run in this workspace. |
 | `-q, --quiet` | Hide summaries. |
 | `-v, --verbose` | Show more logs. |

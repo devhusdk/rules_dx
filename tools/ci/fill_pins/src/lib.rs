@@ -37,14 +37,16 @@ pub struct Entry {
 pub fn parse_registry(text: &str) -> Result<Vec<Entry>, String> {
     text.lines()
         .filter(|line| !line.is_empty())
-        .map(|line| match line.split(' ').collect::<Vec<_>>().as_slice() {
-            [tool, key, asset] => Ok(Entry {
-                tool: (*tool).to_owned(),
-                key: (*key).to_owned(),
-                asset: (*asset).to_owned(),
-            }),
-            _ => Err(format!("registry: bad line {line:?}")),
-        })
+        .map(
+            |line| match line.split(' ').collect::<Vec<_>>().as_slice() {
+                [tool, key, asset] => Ok(Entry {
+                    tool: (*tool).to_owned(),
+                    key: (*key).to_owned(),
+                    asset: (*asset).to_owned(),
+                }),
+                _ => Err(format!("registry: bad line {line:?}")),
+            },
+        )
         .collect()
 }
 
@@ -126,7 +128,9 @@ pub fn fill_with_registry(
                 if companion_of(asset, &known) {
                     continue;
                 }
-                return Err(format!("{name}: {asset:?} is not in cli/prebuilt/tools.bzl"));
+                return Err(format!(
+                    "{name}: {asset:?} is not in cli/prebuilt/tools.bzl"
+                ));
             }
             if hash.len() != 64 || !hash.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')) {
                 return Err(format!("{name}: {asset} hash is not 64 lowercase hex"));

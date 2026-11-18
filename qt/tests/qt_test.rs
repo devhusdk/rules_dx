@@ -188,7 +188,7 @@ const UNQUALIFIED: &str = "import QtQml\n\nQtObject {\n    property int a: b\n}\
 #[cfg(windows)]
 fn runnable(variable: &str) -> (Option<dx_test_scratch::TempDir>, PathBuf) {
     let exe = env_file(variable);
-    let scratch = dx_test_scratch::scratch("qt-exe");
+    let scratch = dx_test_scratch::scratch("qt-exe").unwrap();
     let dir = scratch.path();
     let copy = dir.join(exe.file_name().expect("executable name"));
     std::fs::copy(&exe, &copy).expect("copy executable");
@@ -209,7 +209,7 @@ fn runnable(variable: &str) -> (Option<dx_test_scratch::TempDir>, PathBuf) {
 }
 
 fn scratch_file(name: &str, text: &str) -> (dx_test_scratch::TempDir, PathBuf) {
-    let scratch = dx_test_scratch::scratch("qt");
+    let scratch = dx_test_scratch::scratch("qt").unwrap();
     let path = scratch.path().join(name);
     std::fs::write(&path, text).expect("write QML source");
     (scratch, path)
@@ -748,7 +748,7 @@ fn assert_launcher_refusal(code: Option<i32>, stderr: &str) {
 #[test]
 fn launcher_fails_explicitly_without_the_pinned_runfiles() {
     let launcher = std::fs::canonicalize(env_file("DX_QMLLINT")).expect("launcher");
-    let scratch = dx_test_scratch::scratch("qt-launcher");
+    let scratch = dx_test_scratch::scratch("qt-launcher").unwrap();
     let copy = scratch.path().join("qmllint");
     std::fs::copy(&launcher, &copy).expect("copy launcher");
     let output = run_fresh_copy(&copy);

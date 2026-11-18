@@ -392,7 +392,7 @@ mod tests {
 
     #[test]
     fn deploy_hint_runs_both_queries() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-deploy-hint-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-deploy-hint-").unwrap();
         let query = FakeQuery::new(vec![
             FakeQuery::ok("//deploy:a\n//deploy:b\n"),
             FakeQuery::ok("//deploy:b\n"),
@@ -416,7 +416,7 @@ mod tests {
 
     #[test]
     fn run_labels_pass_through_without_query() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-labels-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-labels-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = NeverQuery;
         let got = resolve_run(&strings(&["//app:bin"]), &workspace, &query, &[]).expect("resolve");
@@ -425,7 +425,7 @@ mod tests {
 
     #[test]
     fn run_empty_scope_runs_the_only_executable() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-empty-one-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-empty-one-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![
             FakeQuery::ok("//app:bin\n//app:lib\n"),
@@ -444,7 +444,7 @@ mod tests {
 
     #[test]
     fn run_empty_scope_without_executables_is_no_runnable() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-empty-none-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-empty-none-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![
             FakeQuery::ok("//app:lib\n"),
@@ -456,7 +456,7 @@ mod tests {
 
     #[test]
     fn run_empty_scope_lists_at_most_ten_executables() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-empty-many-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-empty-many-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let labels: Vec<String> = (0..12).map(|i| format!("//app:b{i:02}")).collect();
         let listing = labels.join("\n") + "\n";
@@ -480,10 +480,10 @@ mod tests {
 
     #[test]
     fn run_file_resolves_single_binary_owner() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-file-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-file-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "app/BUILD.bazel", "");
-        write(&workspace, "app/main.py", "x = 1\n");
+        write(&workspace, "app/BUILD.bazel", "").unwrap();
+        write(&workspace, "app/main.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![
             FakeQuery::ok(&graph_stdout(&[graph_rule(
                 "//app:bin",
@@ -507,10 +507,10 @@ mod tests {
 
     #[test]
     fn run_file_without_binary_reports_no_runnable() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-no-bin-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-no-bin-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![
             FakeQuery::ok(&graph_stdout(&[graph_rule(
                 "//pkg:lib",
@@ -532,10 +532,10 @@ mod tests {
 
     #[test]
     fn run_file_without_any_owner_reports_no_owner() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-no-owner-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-no-owner-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![FakeQuery::ok("\n")]);
         let err =
             resolve_run(&strings(&["pkg/a.py"]), &workspace, &query, &[]).expect_err("no owner");
@@ -550,11 +550,11 @@ mod tests {
 
     #[test]
     fn run_mixed_owned_and_orphan_files_report_orphan() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-partial-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-partial-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/run.py", "x = 1\n");
-        write(&workspace, "pkg/orphan.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/run.py", "x = 1\n").unwrap();
+        write(&workspace, "pkg/orphan.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
             graph_rule("//pkg:bin", &["//pkg:run.py"], &[]),
             graph_rule("//pkg:lib", &["//pkg:run.py"], &[]),
@@ -578,11 +578,11 @@ mod tests {
 
     #[test]
     fn run_mixed_owned_files_select_runnable() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-multi-owned-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-multi-owned-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/run.py", "x = 1\n");
-        write(&workspace, "pkg/helper.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/run.py", "x = 1\n").unwrap();
+        write(&workspace, "pkg/helper.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![
             FakeQuery::ok(&graph_stdout(&[
                 graph_rule("//pkg:bin", &["//pkg:run.py"], &[]),
@@ -603,7 +603,7 @@ mod tests {
 
     #[test]
     fn run_dir_with_two_binaries_reports_ambiguous_candidates() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-ambiguous-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-ambiguous-").unwrap();
         let workspace = scratch.path().to_path_buf();
         std::fs::create_dir_all(workspace.join("app")).expect("dir");
         let query = FakeQuery::new(vec![
@@ -631,10 +631,10 @@ mod tests {
 
     #[test]
     fn runnable_query_failures_are_query_failed() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-query-fail-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-query-fail-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "app/BUILD.bazel", "");
-        write(&workspace, "app/main.py", "x = 1\n");
+        write(&workspace, "app/BUILD.bazel", "").unwrap();
+        write(&workspace, "app/main.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![FakeQuery::failed("nope\n")]);
         let err =
             resolve_run(&strings(&["app/main.py"]), &workspace, &query, &[]).expect_err("fail");
@@ -643,10 +643,10 @@ mod tests {
 
     #[test]
     fn run_mixed_label_and_file_skips_label_in_second_pass() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-mixed-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-mixed-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "app/BUILD.bazel", "");
-        write(&workspace, "app/main.py", "x = 1\n");
+        write(&workspace, "app/BUILD.bazel", "").unwrap();
+        write(&workspace, "app/main.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![
             FakeQuery::ok(&graph_stdout(&[graph_rule(
                 "//app:bin",
@@ -668,7 +668,7 @@ mod tests {
 
     #[test]
     fn run_cross_pattern_order_is_input_order_with_sorted_batches() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-cross-pattern-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-cross-pattern-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![
             FakeQuery::ok("//b:two\n//b:one\n"),
@@ -676,8 +676,8 @@ mod tests {
             FakeQuery::ok("//a:two\n//a:one\n"),
             FakeQuery::ok("@@//a:two|True\n@@//a:one|True\n"),
         ]);
-        write(&workspace, "a/BUILD.bazel", "");
-        write(&workspace, "b/BUILD.bazel", "");
+        write(&workspace, "a/BUILD.bazel", "").unwrap();
+        write(&workspace, "b/BUILD.bazel", "").unwrap();
         let got = resolve_run(&strings(&["//b/...", "//a/..."]), &workspace, &query, &[])
             .expect("cross-pattern");
         assert_eq!(
@@ -685,13 +685,13 @@ mod tests {
             strings(&["//b:one", "//b:two", "//a:one", "//a:two"]),
             "batches stay in input order, each sorted"
         );
-        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-dedup-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-dedup-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![
             FakeQuery::ok("//a:bin\n//a:other\n"),
             FakeQuery::ok("@@//a:bin|True\n@@//a:other|True\n"),
         ]);
-        write(&workspace, "a/BUILD.bazel", "");
+        write(&workspace, "a/BUILD.bazel", "").unwrap();
         let got =
             resolve_run(&strings(&["//a:bin", "//a/..."]), &workspace, &query, &[]).expect("dedup");
         assert_eq!(got, strings(&["//a:bin", "//a:other"]));
@@ -699,10 +699,10 @@ mod tests {
 
     #[test]
     fn run_file_alias_is_fail_closed_with_explicit_label_hint() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-alias-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-alias-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "app/BUILD.bazel", "");
-        write(&workspace, "app/main.py", "x = 1\n");
+        write(&workspace, "app/BUILD.bazel", "").unwrap();
+        write(&workspace, "app/main.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![
             FakeQuery::ok(&graph_stdout(&[graph_rule(
                 "//app:lib",
@@ -727,10 +727,10 @@ mod tests {
 
     #[test]
     fn run_file_resolves_custom_executable_without_binary_suffix() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-custom-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-custom-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![
             FakeQuery::ok(&graph_stdout(&[graph_rule(
                 "//pkg:custom_run",
@@ -752,7 +752,7 @@ mod tests {
 
     #[test]
     fn run_pattern_resolves_alias_to_actual_and_drops_nonexecutables() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-alias-actual-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-alias-actual-").unwrap();
         let workspace = scratch.path().to_path_buf();
         std::fs::create_dir_all(workspace.join("pkg")).expect("dir");
         let query = FakeQuery::new(vec![
@@ -767,10 +767,10 @@ mod tests {
 
     #[test]
     fn executable_probe_failures_are_query_failed() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-probe-fail-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-probe-fail-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![
             FakeQuery::ok(&graph_stdout(&[graph_rule(
                 "//pkg:bin",
@@ -785,10 +785,10 @@ mod tests {
 
     #[test]
     fn executable_probe_malformed_observation_is_query_failed() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-probe-malformed-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-probe-malformed-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![
             FakeQuery::ok(&graph_stdout(&[graph_rule(
                 "//pkg:bin",
@@ -825,7 +825,7 @@ mod tests {
 
     #[test]
     fn deploy_observation_carries_the_sbom_field() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-deploy-sbom-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-deploy-sbom-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![
             FakeQuery::ok("True|release|None|True|||out/app.spdx.json\n"),

@@ -188,7 +188,7 @@ mod tests {
 
     #[test]
     fn a_key_resolves_from_an_explicit_tree_root() {
-        let scratch = dx_test_scratch::scratch("dx-path-runfiles-explicit-tree-");
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-explicit-tree-").unwrap();
         let dir = scratch.path().to_path_buf();
         let target = write(&dir, "tree/_main/pkg/tool.txt", "from the tree\n");
         let resolver = Resolver::for_tree(&dir.join("tree")).expect("resolver");
@@ -197,7 +197,7 @@ mod tests {
 
     #[test]
     fn an_explicit_tree_root_must_exist() {
-        let scratch = dx_test_scratch::scratch("dx-path-runfiles-missing-tree-");
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-missing-tree-").unwrap();
         let dir = scratch.path().to_path_buf();
         let error = Resolver::for_tree(&dir.join("absent")).expect_err("no such tree");
         assert!(error.to_string().contains("no runfiles tree"), "{error}");
@@ -217,7 +217,7 @@ mod tests {
 
     #[test]
     fn an_extensionless_binary_finds_the_exe_runfiles() {
-        let scratch = dx_test_scratch::scratch("dx-path-runfiles-extensionless-");
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-extensionless-").unwrap();
         let dir = scratch.path().to_path_buf();
         let binary = write(&dir, "tool", "binary\n");
         let target = write(
@@ -232,7 +232,7 @@ mod tests {
 
     #[test]
     fn a_tool_inside_another_targets_runfiles_reads_that_manifest() {
-        let scratch = dx_test_scratch::scratch("dx-path-runfiles-enclosing-");
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-enclosing-").unwrap();
         let dir = scratch.path().to_path_buf();
         let tool = write(&dir, "tool.txt", "from the enclosing manifest\n");
         let binary = write(&dir, "test.runfiles/_main/pkg/bin/tool.exe", "binary\n");
@@ -248,7 +248,7 @@ mod tests {
 
     #[test]
     fn a_key_resolves_from_the_manifest_beside_the_binary() {
-        let scratch = dx_test_scratch::scratch("dx-path-runfiles-manifest-");
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-manifest-").unwrap();
         let dir = scratch.path().to_path_buf();
         let tool = write(&dir, "tool.txt", "from the manifest\n");
         let binary = write(&dir, "tool.exe", "not really a binary\n");
@@ -270,7 +270,7 @@ mod tests {
 
     #[test]
     fn a_key_with_spaces_and_escapes_resolves() {
-        let scratch = dx_test_scratch::scratch("dx-path-runfiles-escapes-");
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-escapes-").unwrap();
         let dir = scratch.path().to_path_buf();
         let binary = write(&dir, "tool.exe", "binary\n");
         let spaced = write(&dir, "a b/c.txt", "spaced\n");
@@ -293,7 +293,7 @@ mod tests {
 
     #[test]
     fn a_suffixless_manifest_beside_a_suffixed_binary_is_read() {
-        let scratch = dx_test_scratch::scratch("dx-path-runfiles-suffixless-");
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-suffixless-").unwrap();
         let dir = scratch.path().to_path_buf();
         let binary = write(&dir, "tool.exe", "binary\n");
         let manifest = write(
@@ -311,7 +311,7 @@ mod tests {
 
     #[test]
     fn a_key_from_another_repository_resolves_through_the_repo_mapping() {
-        let scratch = dx_test_scratch::scratch("dx-path-runfiles-mapping-");
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-mapping-").unwrap();
         let dir = scratch.path().to_path_buf();
         let binary = write(&dir, "tool.exe", "binary\n");
         let mapping = write(&dir, "repo_mapping", ",dep,dep+1.0.0+\n");
@@ -338,7 +338,7 @@ mod tests {
 
     #[test]
     fn an_absolute_key_is_returned_as_written() {
-        let scratch = dx_test_scratch::scratch("dx-path-runfiles-absolute-");
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-absolute-").unwrap();
         let dir = scratch.path().to_path_buf();
         let binary = write(&dir, "tool.exe", "binary\n");
         write(
@@ -354,7 +354,7 @@ mod tests {
 
     #[test]
     fn a_key_resolves_from_the_tree_beside_the_binary() {
-        let scratch = dx_test_scratch::scratch("dx-path-runfiles-tree-");
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-tree-").unwrap();
         let dir = scratch.path().to_path_buf();
         let binary = write(&dir, "tool.exe", "binary\n");
         let target = write(
@@ -369,7 +369,7 @@ mod tests {
 
     #[test]
     fn the_manifest_inside_the_tree_beside_the_binary_is_read() {
-        let scratch = dx_test_scratch::scratch("dx-path-runfiles-tree-manifest-");
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-tree-manifest-").unwrap();
         let dir = scratch.path().to_path_buf();
         let binary = write(&dir, "tool.exe", "binary\n");
         let mapping = write(&dir, "repo_mapping", ",dep,dep+\n");
@@ -392,7 +392,7 @@ mod tests {
 
     #[test]
     fn a_populated_tree_wins_over_its_stale_manifest() {
-        let scratch = dx_test_scratch::scratch("dx-path-runfiles-stale-tree-manifest-");
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-stale-tree-manifest-").unwrap();
         let dir = scratch.path().to_path_buf();
         let binary = write(&dir, "tool.exe", "binary\n");
         let tool = write(
@@ -421,7 +421,7 @@ mod tests {
 
     #[test]
     fn a_tree_with_only_a_manifest_and_mapping_reads_the_manifest() {
-        let scratch = dx_test_scratch::scratch("dx-path-runfiles-tree-manifest-mapping-");
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-tree-manifest-mapping-").unwrap();
         let dir = scratch.path().to_path_buf();
         let binary = write(&dir, "tool.exe", "binary\n");
         let mapping = write(&dir, "real/repo_mapping", ",dep,dep+\n");
@@ -444,7 +444,7 @@ mod tests {
 
     #[test]
     fn a_suffixless_tree_beside_a_suffixed_binary_is_read() {
-        let scratch = dx_test_scratch::scratch("dx-path-runfiles-suffixless-tree-");
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-suffixless-tree-").unwrap();
         let dir = scratch.path().to_path_buf();
         let binary = write(&dir, "tool.exe", "binary\n");
         write(&dir, "tool.runfiles/_main/pkg/tool.txt", "from the tree\n");
@@ -457,7 +457,7 @@ mod tests {
 
     #[test]
     fn a_populated_tree_wins_over_a_stale_sibling_manifest() {
-        let scratch = dx_test_scratch::scratch("dx-path-runfiles-both-");
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-both-").unwrap();
         let dir = scratch.path().to_path_buf();
         let binary = write(&dir, "tool.exe", "binary\n");
         let tree = dir.join("tool.exe.runfiles");
@@ -487,7 +487,7 @@ mod tests {
 
     #[test]
     fn a_sibling_manifest_wins_over_a_tree_holding_only_manifest_and_mapping() {
-        let scratch = dx_test_scratch::scratch("dx-path-runfiles-windows-layout-");
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-windows-layout-").unwrap();
         let dir = scratch.path().to_path_buf();
         let binary = write(&dir, "tool.exe", "binary\n");
         write(
@@ -507,7 +507,7 @@ mod tests {
 
     #[test]
     fn a_suffixless_populated_tree_wins_over_a_suffixed_sibling_manifest() {
-        let scratch = dx_test_scratch::scratch("dx-path-runfiles-suffixless-both-");
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-suffixless-both-").unwrap();
         let dir = scratch.path().to_path_buf();
         let binary = write(&dir, "tool.exe", "binary\n");
         write(&dir, "tool.runfiles/_main/pkg/tool.txt", "from the tree\n");
@@ -535,7 +535,7 @@ mod tests {
 
     #[test]
     fn an_empty_tree_with_no_manifest_is_read_as_a_tree() {
-        let scratch = dx_test_scratch::scratch("dx-path-runfiles-empty-tree-alone-");
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-empty-tree-alone-").unwrap();
         let dir = scratch.path().to_path_buf();
         let binary = write(&dir, "tool.exe", "binary\n");
         std::fs::create_dir_all(dir.join("tool.exe.runfiles")).expect("tree");
@@ -545,7 +545,7 @@ mod tests {
 
     #[test]
     fn a_tool_inside_another_targets_runfiles_reads_the_manifest_inside_it() {
-        let scratch = dx_test_scratch::scratch("dx-path-runfiles-enclosing-inner-");
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-enclosing-inner-").unwrap();
         let dir = scratch.path().to_path_buf();
         let tool = write(&dir, "tool.txt", "from the inner manifest\n");
         let binary = write(&dir, "test.runfiles/_main/pkg/bin/tool.exe", "binary\n");
@@ -561,7 +561,7 @@ mod tests {
 
     #[test]
     fn a_tool_inside_another_targets_runfiles_reads_that_tree() {
-        let scratch = dx_test_scratch::scratch("dx-path-runfiles-enclosing-tree-");
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-enclosing-tree-").unwrap();
         let dir = scratch.path().to_path_buf();
         let binary = write(&dir, "test.runfiles/_main/pkg/bin/tool.exe", "binary\n");
         let resolver = Resolver::for_binary(&binary).expect("resolver");
@@ -574,7 +574,7 @@ mod tests {
 
     #[test]
     fn an_empty_tree_falls_back_to_the_sibling_manifest() {
-        let scratch = dx_test_scratch::scratch("dx-path-runfiles-empty-tree-");
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-empty-tree-").unwrap();
         let dir = scratch.path().to_path_buf();
         let binary = write(&dir, "tool.exe", "binary\n");
         std::fs::create_dir_all(dir.join("tool.exe.runfiles")).expect("tree");
@@ -589,7 +589,7 @@ mod tests {
 
     #[test]
     fn a_missing_key_reports_the_key_and_the_file_it_read() {
-        let scratch = dx_test_scratch::scratch("dx-path-runfiles-missing-key-");
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-missing-key-").unwrap();
         let dir = scratch.path().to_path_buf();
         let binary = write(&dir, "tool.exe", "binary\n");
         let manifest = write(
@@ -614,7 +614,7 @@ mod tests {
 
     #[test]
     fn a_directory_lookup_of_a_missing_key_reports_the_key_and_the_tree() {
-        let scratch = dx_test_scratch::scratch("dx-path-runfiles-directory-missing-key-");
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-directory-missing-key-").unwrap();
         let dir = scratch.path().to_path_buf();
         let tree = dir.join("tree");
         write(&dir, "tree/_main/pkg/tool.txt", "from the tree\n");
@@ -640,7 +640,7 @@ mod tests {
 
     #[test]
     fn a_binary_with_no_runfiles_reports_the_file_it_looked_for() {
-        let scratch = dx_test_scratch::scratch("dx-path-runfiles-no-runfiles-");
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-no-runfiles-").unwrap();
         let dir = scratch.path().to_path_buf();
         let binary = write(&dir, "tool.exe", "binary\n");
         let error = Resolver::for_binary(&binary).expect_err("nothing beside the binary");
@@ -657,7 +657,7 @@ mod tests {
 
     #[test]
     fn a_malformed_repository_mapping_is_reported() {
-        let scratch = dx_test_scratch::scratch("dx-path-runfiles-bad-mapping-");
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-bad-mapping-").unwrap();
         let dir = scratch.path().to_path_buf();
         let binary = write(&dir, "tool.exe", "binary\n");
         let mapping = write(&dir, "repo_mapping", "not,enough\n");
@@ -679,7 +679,7 @@ mod tests {
         use std::ffi::OsStr;
         use std::os::unix::ffi::OsStrExt;
 
-        let scratch = dx_test_scratch::scratch("dx-path-runfiles-non-utf8-");
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-non-utf8-").unwrap();
         let dir = scratch.path().to_path_buf();
         let parent = dir.join(OsStr::from_bytes(b"d\xff"));
         std::fs::create_dir_all(parent.join("bin.runfiles")).expect("tree");

@@ -138,6 +138,7 @@ fn every_command_page_has_its_own_route() {
         "docs/cli/commands/check.html",
         "docs/cli/commands/clean.html",
         "docs/cli/commands/deploy.html",
+        "docs/cli/commands/fetch.html",
         "docs/cli/commands/generate.html",
         "docs/cli/commands/docs.html",
         "docs/cli/commands/init.html",
@@ -777,7 +778,7 @@ fn a_consumer_crate_renders_its_own_api_reference() {
 
 #[test]
 fn a_site_missing_a_route_is_refused_by_the_rendered_check() {
-    let scratch_tmp = dx_test_scratch::scratch("rendered-missing-route");
+    let scratch_tmp = dx_test_scratch::scratch("rendered-missing-route").unwrap();
     let scratch = scratch_tmp.path().to_path_buf();
     copy_tree(&site(USER_SITE), &scratch);
     let commands = scratch.join("docs/cli/commands/README.html");
@@ -794,7 +795,7 @@ fn a_site_missing_a_route_is_refused_by_the_rendered_check() {
 
 #[test]
 fn a_site_with_a_dangling_anchor_is_refused_by_the_rendered_check() {
-    let scratch_tmp = dx_test_scratch::scratch("rendered-missing-anchor");
+    let scratch_tmp = dx_test_scratch::scratch("rendered-missing-anchor").unwrap();
     let scratch = scratch_tmp.path().to_path_buf();
     copy_tree(&site(USER_SITE), &scratch);
     let index = std::fs::read_to_string(scratch.join("index.html")).expect("read index");
@@ -808,7 +809,7 @@ fn a_site_with_a_dangling_anchor_is_refused_by_the_rendered_check() {
 
 #[test]
 fn a_site_that_demotes_its_navigation_widgets_is_refused() {
-    let scratch_tmp = dx_test_scratch::scratch("rendered-missing-widgets");
+    let scratch_tmp = dx_test_scratch::scratch("rendered-missing-widgets").unwrap();
     let scratch = scratch_tmp.path().to_path_buf();
     copy_tree(&site(USER_SITE), &scratch);
     let index = std::fs::read_to_string(scratch.join("index.html")).expect("read index");
@@ -824,7 +825,7 @@ fn a_site_that_demotes_its_navigation_widgets_is_refused() {
 
 #[test]
 fn a_site_without_its_stylesheet_is_refused() {
-    let scratch_tmp = dx_test_scratch::scratch("rendered-missing-css");
+    let scratch_tmp = dx_test_scratch::scratch("rendered-missing-css").unwrap();
     let scratch = scratch_tmp.path().to_path_buf();
     copy_tree(&site(USER_SITE), &scratch);
     std::fs::remove_file(asset(&scratch, "css/general.css").expect("find the stylesheet"))
@@ -834,7 +835,7 @@ fn a_site_without_its_stylesheet_is_refused() {
 
 #[test]
 fn a_site_with_a_root_relative_link_is_refused() {
-    let scratch_tmp = dx_test_scratch::scratch("rendered-root-relative");
+    let scratch_tmp = dx_test_scratch::scratch("rendered-root-relative").unwrap();
     let scratch = scratch_tmp.path().to_path_buf();
     copy_tree(&site(USER_SITE), &scratch);
     let index = std::fs::read_to_string(scratch.join("index.html")).expect("read index");

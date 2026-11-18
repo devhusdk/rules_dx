@@ -40,11 +40,20 @@ fn raw_current_dir_reads(source: &str) -> Vec<String> {
 #[test]
 fn raw_current_dir_reads_stay_out_of_cli_production_code() {
     let mut sources = Vec::new();
-    rust_sources(&workspace_root().join("cli/cli/src"), &mut sources);
-    assert!(
-        sources.iter().any(|path| path.ends_with("exec/common.rs")),
-        "cli/cli/src sources are not in the test data"
-    );
+    // dx_exec_core holds the shared verb plumbing, so it is production CLI code too.
+    for (dir, sentinel) in [
+        ("cli/cli/src", "exec/run.rs"),
+        ("cli/exec_core/src", "common.rs"),
+    ] {
+        let before = sources.len();
+        rust_sources(&workspace_root().join(dir), &mut sources);
+        assert!(
+            sources[before..]
+                .iter()
+                .any(|path| path.ends_with(sentinel)),
+            "{dir} sources are not in the test data"
+        );
+    }
     let mut hits = Vec::new();
     for path in sources {
         let file = path

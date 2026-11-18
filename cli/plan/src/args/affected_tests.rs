@@ -25,15 +25,35 @@ fn affected_is_accepted_by_the_scope_taking_commands() {
 }
 
 #[test]
-fn affected_conflicts_with_scopes_and_here() {
-    assert_eq!(
-        parse(&strings(&["test", "--affected", "//a:b"])),
-        Err(ArgsError::ConflictingAffected)
-    );
-    assert_eq!(
-        parse(&strings(&["test", "//a:b", "--affected"])),
-        Err(ArgsError::ConflictingAffected)
-    );
+fn affected_takes_scopes_on_the_graph_commands() {
+    for command in [
+        Command::Build,
+        Command::Test,
+        Command::Coverage,
+        Command::Lint,
+        Command::Typecheck,
+        Command::Format,
+        Command::Check,
+    ] {
+        let name = command.name();
+        for words in [[name, "--affected", "//a/..."], [name, "//a/...", "--affected"]] {
+            let invocation = parse(&strings(&words)).expect("parses");
+            assert!(invocation.affected, "{name}");
+            assert_eq!(invocation.targets, ["//a/..."], "{name}");
+        }
+    }
+    for command in [Command::Security, Command::License, Command::Deploy] {
+        assert_eq!(
+            parse(&strings(&[command.name(), "--affected", "//a:b"])),
+            Err(ArgsError::ConflictingAffected),
+            "{}",
+            command.name()
+        );
+    }
+}
+
+#[test]
+fn affected_conflicts_with_here() {
     assert_eq!(
         parse(&strings(&["lint", "--affected", "--here"])),
         Err(ArgsError::AffectedWithHere)
@@ -89,4 +109,17 @@ fn deploy_takes_affected_and_since_but_no_label() {
         Err(ArgsError::ConflictingAffected)
     );
     assert!(parse(&strings(&["deploy", "--since=main"])).is_err());
+}
+
+#[test]
+fn base_needs_affected_and_excludes_since() {
+    let got = parse(&strings(&["test", "--affected", "--base", "origin/develop"])).expect("base");
+    assert_eq!(got.base.as_deref(), Some("origin/develop"));
+    assert_eq!(got.since, None);
+    assert!(matches!(
+        parse(&strings(&["test", "--base", "origin/develop"])),
+        Err(ArgsError::BaseNeedsAffected)
+    ));
+    assert!(parse(&strings(&["test", "--affected", "--base=a", "--since=b"])).is_err());
+    assert!(parse(&strings(&["test", "--affected", "--base="])).is_err());
 }

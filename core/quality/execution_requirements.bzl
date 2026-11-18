@@ -3,20 +3,36 @@
 load("//core/quality:adapters.bzl", "REAL_ADAPTERS")
 load("//core/quality/artifacts:hub.bzl", "TOOL_PLATFORMS")
 
+visibility("private")
+
 DX_NO_REMOTE_EXEC = "no-remote-exec"
 
 DX_FORBIDDEN_NO_REMOTE = "no-remote"
 
-SHFMT_FORMAT_REMOTE = {
-    "capability": "format",
-    "closure": "declared",
-    "platforms": ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"],
-    "runner": "hermetic",
-    "state": "qualified",
-    "tool": "shfmt",
-}
+def _qualified(tool, capability):
+    """One remote record for a pinned single-binary tool on every qualified platform."""
+    return {
+        "capability": capability,
+        "closure": "declared",
+        "platforms": list(TOOL_PLATFORMS),
+        "runner": "hermetic",
+        "state": "qualified",
+        "tool": tool,
+    }
 
-REMOTE_QUALIFIED = [SHFMT_FORMAT_REMOTE]
+SHFMT_FORMAT_REMOTE = _qualified("shfmt", "format")
+
+# A tool qualifies when its action reads only declared inputs: a pinned @dx_tools
+# binary built for the exec platform (cfg = "exec"), the staged sources and configs,
+# and the runner's hermetic env (no HOME, no host PATH, no network). A stage runs
+# remotely only when every tool in it is listed here, see dx_stage_execution_requirements.
+REMOTE_QUALIFIED = [
+    SHFMT_FORMAT_REMOTE,
+    _qualified("keep_sorted", "lint"),
+    _qualified("shellcheck", "lint"),
+    _qualified("taplo", "format"),
+    _qualified("typos", "lint"),
+]
 
 def dx_is_local_only(requirements):
     """Reports whether requirements carry the local-only marker."""

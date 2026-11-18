@@ -25,14 +25,14 @@ fn findings(name: &str, document: &Value) -> (usize, Vec<String>) {
 }
 
 fn parse(name: &str, text: &str) -> Value {
-    ci_workflow::parse(name, text)
+    ci_workflow::parse(name, text).unwrap()
 }
 
 #[test]
 fn every_run_block_is_expression_free() {
     let mut scanned = 0;
     let mut found = Vec::new();
-    for (name, document) in ci_workflow::all() {
+    for (name, document) in ci_workflow::all().unwrap() {
         let (count, hits) = findings(&name, &document);
         scanned += count;
         found.extend(hits);
@@ -91,7 +91,7 @@ fn jobs_without_timeout(name: &str, document: &Value) -> Vec<String> {
 #[test]
 fn every_job_sets_a_timeout() {
     let mut missing = Vec::new();
-    for (name, document) in ci_workflow::all() {
+    for (name, document) in ci_workflow::all().unwrap() {
         missing.extend(jobs_without_timeout(&name, &document));
     }
     assert!(
@@ -120,7 +120,7 @@ fn undefined_matrix_refs(name: &str, document: &Value) -> Vec<String> {
 #[test]
 fn every_matrix_reference_is_defined() {
     let mut missing = Vec::new();
-    for (name, document) in ci_workflow::all() {
+    for (name, document) in ci_workflow::all().unwrap() {
         missing.extend(undefined_matrix_refs(&name, &document));
     }
     assert!(

@@ -1,8 +1,9 @@
+Upstream: bazelbuild/rules_swift#2018
 diff --git a/swift/toolchains/swift_toolchain.bzl b/swift/toolchains/swift_toolchain.bzl
 index 0734fd9..b1168ee 100644
 --- a/swift/toolchains/swift_toolchain.bzl
 +++ b/swift/toolchains/swift_toolchain.bzl
-@@ -322,6 +322,27 @@ def _all_action_configs(os, arch, target_triple, sdkroot, xctest_version, additi
+@@ -324,6 +324,27 @@ def _all_action_configs(os, arch, target_triple, sdkroot, xctest_version, additi
                      ),
                  )
  
@@ -30,7 +31,7 @@ index 0734fd9..b1168ee 100644
      action_configs.extend(all_actions_action_configs())
      action_configs.extend(
          compile_action_configs(
-@@ -370,6 +391,7 @@ def _swift_windows_linkopts_cc_info(
+@@ -372,6 +393,7 @@ def _swift_windows_linkopts_cc_info(
      linkopts = [
          "-LIBPATH:{}".format(platform_lib_dir),
          "-LIBPATH:{}".format(paths.join(sdkroot, "..", "..", "Library", "XCTest-{}".format(xctest_version), "usr", "lib", "swift", "windows", arch)),

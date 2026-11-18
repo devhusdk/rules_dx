@@ -5,6 +5,8 @@ load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load(":curated_defaults.bzl", "CROSS_FAMILY_TOOLS", "CURATED_DEFAULTS")
 load(":tools.bzl", "TOOLS")
 
+visibility(["//docs/..."])
+
 BEGIN = "<!-- tool-config-table:begin (generated from core/quality/tools.bzl; run `bazel run //docs:update_tool_configs`) -->"
 END = "<!-- tool-config-table:end -->"
 

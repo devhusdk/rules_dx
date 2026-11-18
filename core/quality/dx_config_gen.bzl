@@ -8,6 +8,8 @@ load(":overlaps.bzl", "overlap_rows")
 load(":real_aspect_labels.bzl", "REAL_ASPECT_LABELS", "REAL_PROBE_LABELS")
 load(":tools.bzl", "TOOLS")
 
+visibility(["//cli/..."])
+
 _HEADER = """// Generated from core/quality/curated_defaults.bzl and core/quality/tools.bzl.
 
 use crate::select::{CuratedFamily, Overlap};

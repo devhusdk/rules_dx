@@ -1,8 +1,24 @@
 # Apple
 
-Accept the Xcode and Apple SDKs Agreement once in the root `MODULE.bazel`.
-Without it every Apple rule fails analysis and names the id. Loading these
-rules changes no toolchain.
+This directory helps you build and package apps for Apple platforms with rules_dx.
+
+Load its rules in a `BUILD.bazel` file, the file that declares what Bazel
+builds, from `@rules_dx//apple:defs.bzl`.
+`extensions.bzl` holds the module extension: the part you call from
+`MODULE.bazel` to set up toolchains and dependencies.
+The tests live in `tests/`. The [Apple page](../docs/languages/apple.md) shows
+setup, every rule and the tools dx runs.
+
+Run the Apple tests from a rules_dx checkout:
+
+```sh
+tools/dx test //apple/...
+```
+
+## License
+
+Accept the Xcode and Apple SDKs Agreement once in your root `MODULE.bazel`.
+Without it every Apple rule fails analysis and names the license id.
 
 ```python
 dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")

@@ -1383,7 +1383,7 @@ fn real_gitleaks_skips_git_ignored_paths_but_scans_tracked_and_untracked_files()
     for own_config in [false, true] {
         let harness = Harness::new(&format!("audit-real-gitleaks-{own_config}"));
         let root = harness.workspace.as_path();
-        dx_test_scratch::git(root, root, &["init", "-q"]);
+        dx_test_scratch::git(root, root, &["init", "-q"]).unwrap();
         harness.write_source(".gitignore", "ign/\nlocal.env\n");
         harness.write_source("ign/x.txt", &line);
         harness.write_source("ign/kept.txt", &line);
@@ -1395,8 +1395,8 @@ fn real_gitleaks_skips_git_ignored_paths_but_scans_tracked_and_untracked_files()
                 "[extend]\npath = \".dx/config/gitleaks/base.toml\"\n\n[[allowlists]]\ndescription = \"fixtures\"\nregexes = [\"never-matches-anything\"]\n",
             );
         }
-        dx_test_scratch::git(root, root, &["add", ".gitignore"]);
-        dx_test_scratch::git(root, root, &["add", "-f", "ign/kept.txt"]);
+        dx_test_scratch::git(root, root, &["add", ".gitignore"]).unwrap();
+        dx_test_scratch::git(root, root, &["add", "-f", "ign/kept.txt"]).unwrap();
         let (paths, incomplete) = real_secret_paths(&harness);
         assert_eq!(incomplete, None, "own_config={own_config}");
         assert_eq!(

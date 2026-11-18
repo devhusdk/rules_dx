@@ -34,9 +34,12 @@ pub fn coverage_sources_aspect_flag() -> String {
 
 fn workflow_defaults(verb: WorkflowVerb) -> &'static [&'static str] {
     match verb {
-        WorkflowVerb::Build | WorkflowVerb::Test | WorkflowVerb::Coverage | WorkflowVerb::Bench => {
-            &[SKIP_INCOMPATIBLE_FLAG]
-        }
+        WorkflowVerb::Build
+        | WorkflowVerb::Test
+        | WorkflowVerb::Coverage
+        | WorkflowVerb::Bench
+        | WorkflowVerb::Fetch
+        | WorkflowVerb::Vendor => &[SKIP_INCOMPATIBLE_FLAG],
         WorkflowVerb::Run => &[],
     }
 }

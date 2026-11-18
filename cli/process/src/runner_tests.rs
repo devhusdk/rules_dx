@@ -24,7 +24,7 @@ fn cancelling() -> BinaryRunner {
 
 #[test]
 fn run_keeps_exit_codes() {
-    let scratch = dx_test_scratch::scratch("dx-runner-");
+    let scratch = dx_test_scratch::scratch("dx-runner-").unwrap();
     let cwd = scratch.path();
     for code in [0, 3, 42] {
         let argv = probe_argv(&[&format!("--exit-code={code}")]);
@@ -35,7 +35,7 @@ fn run_keeps_exit_codes() {
 
 #[test]
 fn run_passes_extra_env() {
-    let scratch = dx_test_scratch::scratch("dx-runner-");
+    let scratch = dx_test_scratch::scratch("dx-runner-").unwrap();
     let cwd = scratch.path();
     let argv = probe_argv(&["--require-env=DX_RUNNER_PROBE=forwarded"]);
     let ok = runner()
@@ -50,7 +50,7 @@ fn run_passes_extra_env() {
 
 #[test]
 fn run_hermetic_clears_ambient_env() {
-    let scratch = dx_test_scratch::scratch("dx-runner-");
+    let scratch = dx_test_scratch::scratch("dx-runner-").unwrap();
     let cwd = scratch.path();
     let argv = probe_argv(&["--forbid-env=TEST_SRCDIR"]);
     let hermetic = runner().run_hermetic(&argv, cwd, &[]).expect("hermetic");
@@ -61,7 +61,7 @@ fn run_hermetic_clears_ambient_env() {
 
 #[test]
 fn run_hermetic_forwards_extra_env() {
-    let scratch = dx_test_scratch::scratch("dx-runner-");
+    let scratch = dx_test_scratch::scratch("dx-runner-").unwrap();
     let cwd = scratch.path();
     let argv = probe_argv(&["--require-env=DX_RUNNER_PROBE=forwarded"]);
     let status = runner()
@@ -72,7 +72,7 @@ fn run_hermetic_forwards_extra_env() {
 
 #[test]
 fn bad_invocations_are_errors() {
-    let scratch = dx_test_scratch::scratch("dx-runner-");
+    let scratch = dx_test_scratch::scratch("dx-runner-").unwrap();
     let cwd = scratch.path();
     let empty = runner().run(&[], cwd, &[]).expect_err("empty argv");
     assert_eq!(empty.kind(), io::ErrorKind::InvalidInput);
@@ -82,7 +82,7 @@ fn bad_invocations_are_errors() {
 
 #[test]
 fn run_withdrawable_honours_withdraw() {
-    let scratch = dx_test_scratch::scratch("dx-runner-");
+    let scratch = dx_test_scratch::scratch("dx-runner-").unwrap();
     let cwd = scratch.path();
     let argv = probe_argv(&["--exit-code=5"]);
     let withdrawn = runner()
@@ -97,7 +97,7 @@ fn run_withdrawable_honours_withdraw() {
 
 #[test]
 fn cancellation_reports_through_on_stop() {
-    let scratch = dx_test_scratch::scratch("dx-runner-");
+    let scratch = dx_test_scratch::scratch("dx-runner-").unwrap();
     let cwd = scratch.path();
     let argv = probe_argv(&["--exit-code=0"]);
     let status = cancelling().run(&argv, cwd, &[]).expect("run");
@@ -116,7 +116,7 @@ fn cancellation_reports_through_on_stop() {
 
 #[test]
 fn stream_spec_follows_flags() {
-    let scratch = dx_test_scratch::scratch("dx-runner-");
+    let scratch = dx_test_scratch::scratch("dx-runner-").unwrap();
     let cwd = scratch.path();
     let argv = probe_argv(&[]);
     let hermetic = stream_spec(&argv, cwd, &[("A", "b")], true, true, Vec::new(), true);
@@ -181,9 +181,9 @@ fn bazel_probe(dir: &Path) -> String {
 #[test]
 fn a_withdrawable_bazel_build_keeps_its_stderr() {
     use std::io::IsTerminal as _;
-    let scratch = dx_test_scratch::scratch("dx-runner-");
+    let scratch = dx_test_scratch::scratch("dx-runner-").unwrap();
     let cwd = scratch.path();
-    let scratch = dx_test_scratch::scratch("dx-runner-bazel-tail");
+    let scratch = dx_test_scratch::scratch("dx-runner-bazel-tail").unwrap();
     let argv = [
         bazel_probe(scratch.path()),
         "--stderr-text=lockfile_mode=error".to_owned(),
@@ -211,7 +211,7 @@ fn stream_cleanup_budget_is_fixed() {
 
 #[test]
 fn free_disk_bytes_delegates() {
-    let scratch = dx_test_scratch::scratch("dx-runner-");
+    let scratch = dx_test_scratch::scratch("dx-runner-").unwrap();
     let cwd = scratch.path();
     assert!(runner().free_disk_bytes(cwd).is_some());
 }
@@ -248,10 +248,10 @@ fn detached_descendant_argv() -> Vec<String> {
 #[cfg(unix)]
 #[test]
 fn run_app_hands_held_lock_to_detached_descendant() {
-    let scratch = dx_test_scratch::scratch("dx-runner-");
+    let scratch = dx_test_scratch::scratch("dx-runner-").unwrap();
     let cwd = scratch.path();
     let _serial = dx_testing::spawning();
-    let scratch = dx_test_scratch::scratch("dx-run-app-held");
+    let scratch = dx_test_scratch::scratch("dx-run-app-held").unwrap();
     let path = scratch.path().join("busy");
     let held = dx_atomic_fs::lease::try_lock_file_shared(&path, true)
         .expect("lock")
@@ -273,10 +273,10 @@ fn run_app_hands_held_lock_to_detached_descendant() {
 #[cfg(unix)]
 #[test]
 fn holding_run_does_not_inherit_held() {
-    let scratch = dx_test_scratch::scratch("dx-runner-");
+    let scratch = dx_test_scratch::scratch("dx-runner-").unwrap();
     let cwd = scratch.path();
     let _serial = dx_testing::spawning();
-    let scratch = dx_test_scratch::scratch("dx-holding-run");
+    let scratch = dx_test_scratch::scratch("dx-holding-run").unwrap();
     let path = scratch.path().join("busy");
     let held = dx_atomic_fs::lease::try_lock_file_shared(&path, true)
         .expect("lock")
@@ -363,7 +363,7 @@ fn pinned_tool_reads_the_environment() {
 
 #[test]
 fn run_app_with_withdraw_runs_and_withdraws() {
-    let scratch = dx_test_scratch::scratch("dx-runner-");
+    let scratch = dx_test_scratch::scratch("dx-runner-").unwrap();
     let cwd = scratch.path();
     let argv = probe_argv(&["--exit-code=4"]);
     let ran = runner()
@@ -378,7 +378,7 @@ fn run_app_with_withdraw_runs_and_withdraws() {
 
 #[test]
 fn holding_forwards_every_runner_call() {
-    let scratch = dx_test_scratch::scratch("dx-runner-");
+    let scratch = dx_test_scratch::scratch("dx-runner-").unwrap();
     let cwd = scratch.path();
     let inner = runner();
     let holding = Holding::new(&inner, Vec::new());
@@ -414,7 +414,7 @@ fn holding_forwards_every_runner_call() {
 #[cfg(unix)]
 #[test]
 fn tool_version_returns_the_first_line() {
-    let scratch = dx_test_scratch::scratch("dx-runner-version");
+    let scratch = dx_test_scratch::scratch("dx-runner-version").unwrap();
     let tool = scratch.path().join("tool");
     dx_testing::executable_script(&tool, "#!/bin/sh\necho 'tool 1.2.3'\n");
     assert_eq!(runner().tool_version(&tool).as_deref(), Some("tool 1.2.3"));

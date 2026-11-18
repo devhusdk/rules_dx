@@ -76,7 +76,9 @@ def main(argv):
         module_text = handle.read()
     with open(argv[2], encoding="utf-8") as handle:
         readme_text = handle.read()
-    sys.stdout.write(render(module_text, readme_text))
+    # Bytes, not text: on Windows a text stdout writes CRLF and the host code
+    # page, and README.md is checked out as UTF-8 with LF (.gitattributes).
+    sys.stdout.buffer.write(render(module_text, readme_text).encode("utf-8"))
 
 
 if __name__ == "__main__":

@@ -1,14 +1,15 @@
-use super::common::{
+use super::check_build::SharedChecks;
+use super::generate::execute_generate_phase;
+use super::generate::execute_generate_request;
+use super::quality::execute_quality_request;
+use super::quality::{execute_quality_phase, guard_build_output};
+use dx_exec_core::common::{
     ActionTally, BAZEL_TESTS_FAILED, CODE_COLLECTION_FAILED, CODE_COMMIT_NOT_CONVENTIONAL,
     CODE_UMBRELLA_PHASE_FINDINGS, CODE_UMBRELLA_PHASE_SKIPPED, CODE_VERIFICATION_FAILED, Env,
     LatchedOut, PhaseEffects, PhaseKind, PhaseRun, check_stdout_write, emit_built, emit_event,
     pre_exec, report_failed, write_report_file,
 };
-use super::failure::CODE_INVALID_SCOPE;
-use super::generate::execute_generate_phase;
-use super::generate::execute_generate_request;
-use super::quality::execute_quality_request;
-use super::quality::{execute_quality_phase, guard_build_output};
+use dx_exec_core::failure::CODE_INVALID_SCOPE;
 use dx_output::{
     FinishedCounts, NoticeEvent, OutputMode, command_finished, command_started, error_event,
     nest_phase_event, notice_event, quality_started, read_event, report_event, with_correlation,
@@ -943,6 +944,8 @@ struct Run {
     quality_applied: bool,
     generate_clean: bool,
     rerun_planned: bool,
+    /// In check mode, the one build the format, lint and typecheck phases read.
+    shared: Option<SharedChecks>,
 }
 
 enum Step {
@@ -978,6 +981,7 @@ impl Run {
             quality_applied: false,
             generate_clean: false,
             rerun_planned: false,
+            shared: (!request.applies()).then(|| SharedChecks::new(request)),
         }
     }
 
@@ -1092,6 +1096,7 @@ fn execute_phase(
     phase_reports: Vec<ReportRequest>,
     phase_out: &mut Vec<u8>,
     phase_err: &mut Vec<u8>,
+    shared: Option<&mut SharedChecks>,
 ) -> PhaseRun {
     let request = base.request;
     let phase_env = base.env(phase_nonce, phase_out, phase_err);
@@ -1102,7 +1107,7 @@ fn execute_phase(
         execute_test_phase(test, phase_env)
     } else {
         match request.phase_quality_request(phase, phase_reports) {
-            Ok(phase_request) => execute_quality_phase(&phase_request, phase_env),
+            Ok(phase_request) => execute_quality_phase(&phase_request, phase_env, shared),
             Err(message) if request.common.output == OutputMode::Json => PhaseRun {
                 code: pre_exec(
                     request.common.output,
@@ -1161,6 +1166,7 @@ fn run_step(
         phase_reports,
         &mut phase_out,
         &mut phase_err,
+        run.shared.as_mut(),
     );
     if code != 0 && interrupted().is_some() {
         kind = PhaseKind::Cancelled;

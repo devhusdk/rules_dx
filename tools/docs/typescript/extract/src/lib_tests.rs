@@ -525,7 +525,7 @@ fn parse_reads_one_flat_flag_set() {
 
 #[test]
 fn run_writes_a_valid_shard_and_reports_file_errors() {
-    let scratch = dx_test_scratch::scratch("dx-docs-ts-run");
+    let scratch = dx_test_scratch::scratch("dx-docs-ts-run").unwrap();
     let dir = scratch.path();
     let path = |name: &str| dir.join(name).to_string_lossy().into_owned();
     let options = |typedoc: String, out: String| Options {

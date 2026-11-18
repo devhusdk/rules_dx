@@ -16,13 +16,16 @@ pub struct RuleGraph {
     manual: HashSet<String>,
     release: HashSet<String>,
     kinds: HashMap<String, String>,
+    /// Tags of test and `test_suite` rules, with a test's size counted as a tag, as
+    /// `test_suite` filtering sees them.
+    filter_tags: HashMap<String, Vec<String>>,
 }
 
 const QUERY_FLAGS: [&str; 9] = [
     "query",
     "--keep_going",
     "--output=streamed_jsonproto",
-    "--proto:output_rule_attrs=tags",
+    "--proto:output_rule_attrs=tags,size",
     "--noproto:default_values",
     "--noproto:locations",
     "--noproto:instantiation_stack",
@@ -31,7 +34,7 @@ const QUERY_FLAGS: [&str; 9] = [
 ];
 
 #[expect(clippy::disallowed_methods, reason = "query takes no build settings")]
-fn query_argv(startup_options: &[String]) -> Vec<String> {
+pub(crate) fn query_argv(startup_options: &[String]) -> Vec<String> {
     let mut argv = dx_process::startup_argv(startup_options);
     argv.extend(QUERY_FLAGS.iter().map(|flag| (*flag).to_owned()));
     argv
@@ -45,6 +48,41 @@ pub(crate) fn is_graph_query(argv: &[String]) -> bool {
             .rev()
             .zip(QUERY_FLAGS.iter().rev())
             .all(|(have, want)| have == want)
+}
+
+/// Whether Bazel treats a rule of this class as a test: test rule classes must end in `_test`.
+fn is_test_kind(kind: &str) -> bool {
+    kind.ends_with("_test")
+}
+
+fn attribute<'a>(rule: &'a Value, wanted: &str) -> Option<&'a Value> {
+    rule.get("attribute")
+        .and_then(Value::as_array)?
+        .iter()
+        .find(|attribute| attribute.get("name").and_then(Value::as_str) == Some(wanted))
+}
+
+fn tags_of(rule: &Value) -> Vec<String> {
+    attribute(rule, "tags")
+        .and_then(|tags| tags.get("stringListValue"))
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .map(str::to_owned)
+        .collect()
+}
+
+/// Whether a test with `tags` passes the filter a `test_suite` with `suite_tags` applies:
+/// none of its negative tags and all of its positive ones, `manual` aside.
+fn suite_admits(suite_tags: &[String], tags: &[String]) -> bool {
+    suite_tags
+        .iter()
+        .filter(|tag| tag.as_str() != "manual")
+        .all(|tag| match tag.strip_prefix('-') {
+            Some(excluded) => !tags.iter().any(|have| have == excluded),
+            None => tags.iter().any(|have| have == tag),
+        })
 }
 
 fn has_manual_tag(rule: &Value) -> bool {
@@ -123,6 +161,7 @@ impl RuleGraph {
             manual: HashSet::new(),
             release: HashSet::new(),
             kinds: HashMap::new(),
+            filter_tags: HashMap::new(),
         };
         for line in text.lines().filter(|line| !line.trim().is_empty()) {
             let value: Value = serde_json::from_str(line).map_err(|error| {
@@ -178,6 +217,18 @@ impl RuleGraph {
                 graph.release.insert(name.to_owned());
             }
             if let Some(kind) = rule.get("ruleClass").and_then(Value::as_str) {
+                if is_test_kind(kind) {
+                    let mut tags = tags_of(rule);
+                    // Size is a filter tag too; `--noproto:default_values` leaves out the default.
+                    let size = attribute(rule, "size")
+                        .and_then(|size| size.get("stringValue"))
+                        .and_then(Value::as_str)
+                        .unwrap_or("medium");
+                    tags.push(size.to_owned());
+                    graph.filter_tags.insert(name.to_owned(), tags);
+                } else if kind == "test_suite" {
+                    graph.filter_tags.insert(name.to_owned(), tags_of(rule));
+                }
                 graph.kinds.insert(name.to_owned(), kind.to_owned());
             }
             graph.inputs.insert(name.to_owned(), inputs);
@@ -313,6 +364,55 @@ impl RuleGraph {
         })
     }
 
+    /// The tests `tests(set(rules))` would return, read from the rule kinds alone.
+    ///
+    /// Test rules stand for themselves, manual or not. A `test_suite` stands for the tests and
+    /// suites among its inputs, which are its `tests` or, when that is empty, the non-manual
+    /// tests of its package, filtered by the suite's tags. Rules of other kinds add nothing.
+    #[must_use]
+    pub fn tests_of(&self, rules: &[String]) -> Vec<String> {
+        let mut tests: Vec<String> = rules
+            .iter()
+            .flat_map(|rule| self.expand_tests(rule, &mut Vec::new()))
+            .map(str::to_owned)
+            .collect();
+        tests.sort();
+        tests.dedup();
+        tests
+    }
+
+    /// The tests `rule` stands for. `stack` holds the suites being expanded, so a suite cycle
+    /// ends instead of recursing forever.
+    fn expand_tests<'a>(&'a self, rule: &'a str, stack: &mut Vec<&'a str>) -> Vec<&'a str> {
+        let Some(kind) = self.kinds.get(rule) else {
+            return Vec::new();
+        };
+        if is_test_kind(kind) {
+            return vec![rule];
+        }
+        if kind != "test_suite" || stack.contains(&rule) {
+            return Vec::new();
+        }
+        stack.push(rule);
+        let suite_tags = self.filter_tags.get(rule).map_or(&[][..], Vec::as_slice);
+        let mut tests = Vec::new();
+        for member in self.inputs.get(rule).into_iter().flatten() {
+            for test in self.expand_tests(member, stack) {
+                let tags = self.filter_tags.get(test).map_or(&[][..], Vec::as_slice);
+                if suite_admits(suite_tags, tags) {
+                    tests.push(test);
+                }
+            }
+        }
+        stack.pop();
+        tests
+    }
+
+    /// The owners and every rule that uses them, manual or not.
+    pub(crate) fn users_of<'a>(&'a self, owners: &'a [String]) -> HashSet<&'a str> {
+        self.reach(owners)
+    }
+
     /// Rules of the kind that use the label, keeping manual rules.
     pub(crate) fn dependents_of_kind(
         &self,
@@ -333,6 +433,11 @@ impl RuleGraph {
         self.keep(self.reach(seeds), |rule| {
             self.kinds.get(rule).is_some_and(|class| kind(class))
         })
+    }
+
+    /// Rules the seeds reach, the seeds included.
+    pub(crate) fn reached_rules(&self, seeds: &[String]) -> Vec<String> {
+        self.keep(self.reach(seeds), |_| true)
     }
 
     /// Graph labels that stand for the label, with apparent repos resolved.

@@ -11,7 +11,7 @@ struct Host {
 
 impl Host {
     fn new(files: &[&str]) -> Host {
-        let dir = dx_test_scratch::scratch("bazel-wrapper");
+        let dir = dx_test_scratch::scratch("bazel-wrapper").unwrap();
         // The wrapper prints paths with backslashes; TEST_TMPDIR may use forward slashes.
         let root = PathBuf::from(dir.path().to_string_lossy().replace('/', "\\"));
         for file in files {

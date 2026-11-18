@@ -4,6 +4,8 @@ load(":runner_matrix_file_family.bzl", "TFLINT_HEADER")
 load(":runner_matrix_tests.bzl", "matrix_case")
 load("//core/quality/tiers:corpora.bzl", "TIER_JAVASCRIPT", "TIER_JSON", "TIER_TOML", "TIER_YAML", "tier_labels")
 
+visibility("private")
+
 _NO_PLATFORMS = ["linux_x86_64"]
 
 def _fixpoint_case(name, tool, binary, source_class, paths, config = None):

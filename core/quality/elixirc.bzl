@@ -8,6 +8,8 @@ load("@rules_erlang//tools:erlang_toolchain.bzl", "TREE_ERLANG_HOME")
 load("//core:resources.bzl", "dx_medium_resources")
 load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE", "applet_file_name", "coreutils")
 
+visibility(["//core/...", "//erlang/..."])
+
 _TOOLCHAIN = Label("@rules_elixir//:toolchain_type")
 
 ElixircInfo = provider(
@@ -103,7 +105,7 @@ def _elixirc_impl(target, ctx):
         mnemonic = "ElixircWarnings",
         progress_message = "elixirc diagnostics %{label}",
         executable = ctx.executable._capture,
-        arguments = ["--stdout", log.path, "--stderr", log.path, "--status", status.path, "--expand-bazel", "--"] + command,
+        arguments = ["capture", "--stdout", log.path, "--stderr", log.path, "--status", status.path, "--expand-bazel", "--"] + command,
         inputs = depset(
             direct = ctx.rule.files.srcs + ctx.rule.files.data + erl_libs_files,
             transitive = [erlang_runfiles.files, elixir_runfiles.files, applets.files],
@@ -120,7 +122,7 @@ elixirc_aspect = aspect(
     attr_aspects = ["upstream", "beam", "beam_files_dir"],
     attrs = {
         "_capture": attr.label(
-            default = "//core/quality/capture",
+            default = "@dx_prebuilt//:dx",
             executable = True,
             cfg = "exec",
             doc = "Runs one program with its streams and exit code written to files.",

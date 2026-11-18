@@ -2,6 +2,8 @@
 
 load(":runner_matrix_tests.bzl", "matrix_case")
 
+visibility("private")
+
 STRUCTURED_CASES = [
     matrix_case(
         name = "matrix_protobuf_format_pass",

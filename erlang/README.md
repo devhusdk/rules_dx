@@ -1,8 +1,19 @@
 # Erlang
 
-Build and test Erlang with a pinned OTP 29.1.2 runtime. Nothing is installed
-on the host and nothing is fetched until a target needs it. `rules_dx`
-registers the toolchain.
+This directory helps you build, run and test Erlang code with rules_dx.
+
+Load its rules in a `BUILD.bazel` file, the file that declares what Bazel
+builds, from `@rules_dx//erlang:defs.bzl`.
+`extensions.bzl` holds the module extension: the part you call from
+`MODULE.bazel` to set up toolchains and dependencies.
+The tests live in `tests/`. The [Erlang page](../docs/languages/erlang.md) shows
+setup, every rule and the tools dx runs.
+
+Run the Erlang tests from a rules_dx checkout:
+
+```sh
+tools/dx test //erlang/...
+```
 
 ## Dependencies
 

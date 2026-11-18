@@ -8,9 +8,9 @@
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
-use dx_cli::bazel_restart::{RestartingQueryRunner, RestartingRunner};
-use dx_cli::exec::common::flush_out;
 use dx_cli::{ActionTally, Env, execute, print_actions, print_cache_retries};
+use dx_exec_core::bazel_restart::{RestartingQueryRunner, RestartingRunner};
+use dx_exec_core::common::flush_out;
 use dx_output::OutputMode;
 use dx_plan::args::{is_discovery_exempt, json_output_intent, parse_with_ci};
 use dx_plan::plan::{create_run_temp_dir, remove_on_stop};
@@ -147,7 +147,7 @@ fn startup_failure(stderr_text: &str, code: &str, message: &str, exit: i32, json
     }
     let stdout = io::stdout();
     let mut out = stdout.lock();
-    if let Err(io_exit) = dx_cli::exec::common::emit_startup_outcome(&mut out, code, message, exit)
+    if let Err(io_exit) = dx_exec_core::common::emit_startup_outcome(&mut out, code, message, exit)
     {
         return io_exit;
     }
@@ -182,18 +182,30 @@ fn main() {
 
 // LCOV_EXCL_START - reason: thin multicall shim, issue: 6517, policy: docs/cli/commands/build-test-coverage.md
 fn run_as_tool() -> Option<i32> {
-    use dx_cli::multicall::{Tool, tool_for};
-    let mut args = std::env::args_os();
-    let tool = tool_for(&args.next()?)?;
-    let args: Vec<String> = args.map(|arg| arg.to_string_lossy().into_owned()).collect();
+    use dx_cli::multicall::{Tool, subcommand_for, tool_for};
+    let mut args = std::env::args_os().peekable();
+    let argv0 = args.next()?;
+    let tool = match tool_for(&argv0) {
+        Some(tool) => tool,
+        None => {
+            let tool = subcommand_for(args.peek()?)?;
+            args.next();
+            tool
+        }
+    };
+    let lossy = |args: std::iter::Peekable<std::env::ArgsOs>| -> Vec<String> {
+        args.map(|arg| arg.to_string_lossy().into_owned()).collect()
+    };
     Some(match tool {
-        Tool::Runner => quality_runner::entry::run_cli(&args),
-        Tool::Markdown => quality_markdown::entry::run_process(&args),
-        Tool::Notebook => quality_notebook::entry::run_process(&args),
-        Tool::LspCheck => lsp_check::entry::run_process(&args),
-        Tool::CollectNative => collect_native::run_process(args),
-        Tool::EnvShardWriter => env_shard::writer::run_process(&args),
-        Tool::CodegenShardWriter => codegen_shard::writer::run_process(&args),
+        Tool::Runner => quality_runner::entry::run_cli(&lossy(args)),
+        Tool::Markdown => quality_markdown::entry::run_process(&lossy(args)),
+        Tool::Notebook => quality_notebook::entry::run_process(&lossy(args)),
+        Tool::LspCheck => lsp_check::entry::run_process(&lossy(args)),
+        Tool::CollectNative => collect_native::run_process(lossy(args)),
+        Tool::EnvShardWriter => env_shard::writer::run_process(&lossy(args)),
+        Tool::CodegenShardWriter => codegen_shard::writer::run_process(&lossy(args)),
+        Tool::ReleaseTree => release_tree::run_process(&lossy(args)),
+        Tool::Capture => capture::run_process(args),
     })
 }
 // LCOV_EXCL_STOP - reason: end thin multicall shim, issue: 6517, policy: docs/cli/commands/build-test-coverage.md
@@ -500,9 +512,11 @@ fn run() -> i32 {
     let runner =
         RestartingRunner::new(dx_process::BinaryRunner::new(inherit_stdout, die_by_signal))
             .with_cache_retry(cache_retry);
-    let query_runner = RestartingQueryRunner::new(BinaryQueryRunner {
+    let bazel_query_runner = RestartingQueryRunner::new(BinaryQueryRunner {
         runner: dx_process::BinaryRunner::new(inherit_stdout, die_by_signal),
     });
+    // A warm run whose BUILD inputs are unchanged reads the rule graph from disk.
+    let query_runner = dx_plan::resolve::PersistentGraphQuery::new(&bazel_query_runner);
     let stdout = io::stdout();
     let mut out = stdout.lock();
     let mut err = io::stderr();

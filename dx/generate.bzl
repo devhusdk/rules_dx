@@ -2,6 +2,8 @@
 
 load("@gazelle//:def.bzl", "gazelle")
 
+visibility(["//dx/...", "//tools/..."])
+
 GENERATE_EXCLUDES = [
     "-exclude=.dx",
     "-exclude=**/node_modules",

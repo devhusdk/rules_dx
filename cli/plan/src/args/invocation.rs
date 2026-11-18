@@ -319,6 +319,8 @@ pub struct Invocation {
     pub affected: bool,
     /// `--since`: the ref `--affected` compares against instead of the merge-base.
     pub since: Option<String>,
+    /// `--base`: the branch whose merge-base `--affected` compares against.
+    pub base: Option<String>,
     pub affected_handoff: Option<AffectedHandoff>,
     pub serve: bool,
     pub port: Option<u16>,
@@ -326,6 +328,8 @@ pub struct Invocation {
     pub open: bool,
     /// The network policy: no rules_dx-controlled network acquisition when set.
     pub offline: bool,
+    /// `dx fetch --vendor`: the directory `bazel vendor` writes to.
+    pub vendor: Option<String>,
     /// The resolution policy: no manifest or lock resolution changes when set.
     pub frozen: bool,
     /// `dx update --outdated`: list packages whose newest stable version is out of range.
@@ -807,12 +811,14 @@ mod tests {
             here: true,
             affected: false,
             since: None,
+            base: None,
             affected_handoff: None,
             serve: false,
             port: None,
             host: None,
             open: false,
             offline: false,
+            vendor: None,
             frozen: false,
             outdated: false,
             prune: false,
@@ -1082,7 +1088,7 @@ mod tests {
             .is_err()
         );
 
-        let scratch = dx_test_scratch::scratch("dx-here-bazel-run-");
+        let scratch = dx_test_scratch::scratch("dx-here-bazel-run-").unwrap();
         let ws = scratch.path().join("ws");
         std::fs::create_dir_all(ws.join("cli/cli")).expect("dirs");
         let runfiles = scratch.path().join("runfiles");

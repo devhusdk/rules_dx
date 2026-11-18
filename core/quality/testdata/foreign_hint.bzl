@@ -1,5 +1,7 @@
 """Unrelated integration hint for aspect_hints coexistence."""
 
+visibility("private")
+
 ForeignHintInfo = provider(
     doc = "Marker an unrelated integration publishes through aspect_hints.",
     fields = {

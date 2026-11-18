@@ -2,7 +2,7 @@ use super::*;
 
 #[test]
 fn malformed_records_and_foreign_parent_files_fail_closed() {
-    let scratch = dx_test_scratch::scratch("setup-record-failures-");
+    let scratch = dx_test_scratch::scratch("setup-record-failures-").unwrap();
     let setup = pair('a', 'b');
     let setups = scratch.path().join("setups");
     let record = setups.join(setup_hex(&setup));
@@ -300,7 +300,7 @@ fn generation_dir_names_keep_the_on_disk_layout() {
 #[test]
 fn fresh_install_noop_and_replacement() {
     let scratch = {
-        let __scratch = dx_test_scratch::scratch("dx-setup-test-lifecycle-");
+        let __scratch = dx_test_scratch::scratch("dx-setup-test-lifecycle-").unwrap();
         std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
         __scratch
     };
@@ -342,7 +342,7 @@ fn fresh_install_noop_and_replacement() {
 #[test]
 fn workspace_path_with_spaces_commits() {
     let scratch = {
-        let __scratch = dx_test_scratch::scratch("dx-setup-test-with space-");
+        let __scratch = dx_test_scratch::scratch("dx-setup-test-with space-").unwrap();
         std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
         __scratch
     };
@@ -362,7 +362,7 @@ fn workspace_path_with_spaces_commits() {
 #[test]
 fn prepared_commits_carry_forward_under_one_lock() {
     let scratch = {
-        let __scratch = dx_test_scratch::scratch("dx-setup-test-carry-commit-");
+        let __scratch = dx_test_scratch::scratch("dx-setup-test-carry-commit-").unwrap();
         std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
         __scratch
     };
@@ -390,7 +390,7 @@ fn prepared_commits_carry_forward_under_one_lock() {
 #[test]
 fn prepared_without_capability_fails_before_mutation() {
     let scratch = {
-        let __scratch = dx_test_scratch::scratch("dx-setup-test-no-capability-");
+        let __scratch = dx_test_scratch::scratch("dx-setup-test-no-capability-").unwrap();
         std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
         __scratch
     };
@@ -414,7 +414,7 @@ fn prepared_without_capability_fails_before_mutation() {
 #[test]
 fn record_mismatch_preserves_current() {
     let scratch = {
-        let __scratch = dx_test_scratch::scratch("dx-setup-test-mismatch-");
+        let __scratch = dx_test_scratch::scratch("dx-setup-test-mismatch-").unwrap();
         std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
         __scratch
     };
@@ -452,7 +452,7 @@ fn record_mismatch_preserves_current() {
 #[test]
 fn unmanaged_current_states_fail_closed() {
     let scratch = {
-        let __scratch = dx_test_scratch::scratch("dx-setup-test-unmanaged-");
+        let __scratch = dx_test_scratch::scratch("dx-setup-test-unmanaged-").unwrap();
         std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
         __scratch
     };
@@ -503,7 +503,7 @@ fn unmanaged_current_states_fail_closed() {
 #[test]
 fn digest_spoofed_pointer_fails_closed() {
     let scratch = {
-        let __scratch = dx_test_scratch::scratch("dx-setup-test-spoof-");
+        let __scratch = dx_test_scratch::scratch("dx-setup-test-spoof-").unwrap();
         std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
         __scratch
     };
@@ -541,7 +541,7 @@ fn digest_spoofed_pointer_fails_closed() {
 #[test]
 fn stale_staged_pointer_is_reclaimed() {
     let scratch = {
-        let __scratch = dx_test_scratch::scratch("dx-setup-test-stale-next-");
+        let __scratch = dx_test_scratch::scratch("dx-setup-test-stale-next-").unwrap();
         std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
         __scratch
     };
@@ -566,7 +566,7 @@ fn stale_staged_pointer_is_reclaimed() {
 #[test]
 fn workspace_missing_fails() {
     let scratch = {
-        let __scratch = dx_test_scratch::scratch("dx-setup-test-ws-missing-");
+        let __scratch = dx_test_scratch::scratch("dx-setup-test-ws-missing-").unwrap();
         std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
         __scratch
     };
@@ -586,7 +586,7 @@ fn workspace_missing_fails() {
 #[test]
 fn busy_lock_fails_after_deadline() {
     let scratch = {
-        let __scratch = dx_test_scratch::scratch("dx-setup-test-busy-");
+        let __scratch = dx_test_scratch::scratch("dx-setup-test-busy-").unwrap();
         std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
         __scratch
     };
@@ -616,7 +616,7 @@ fn busy_lock_fails_after_deadline() {
 #[test]
 fn lock_open_failure_aborts() {
     let scratch = {
-        let __scratch = dx_test_scratch::scratch("dx-setup-test-lock-open-");
+        let __scratch = dx_test_scratch::scratch("dx-setup-test-lock-open-").unwrap();
         std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
         __scratch
     };
@@ -636,7 +636,7 @@ fn lock_open_failure_aborts() {
 #[test]
 fn concurrent_commits_serialize_with_idempotent_reuse() {
     let scratch = {
-        let __scratch = dx_test_scratch::scratch("dx-setup-test-concurrent-");
+        let __scratch = dx_test_scratch::scratch("dx-setup-test-concurrent-").unwrap();
         std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
         __scratch
     };
@@ -678,7 +678,7 @@ fn concurrent_commits_serialize_with_idempotent_reuse() {
 #[test]
 fn staged_directory_preserves_current() {
     let scratch = {
-        let __scratch = dx_test_scratch::scratch("dx-setup-test-staged-dir-");
+        let __scratch = dx_test_scratch::scratch("dx-setup-test-staged-dir-").unwrap();
         std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
         __scratch
     };

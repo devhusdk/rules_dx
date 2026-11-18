@@ -190,7 +190,7 @@ mod tests {
 
     #[test]
     fn needed_licenses_follow_the_files_and_the_platform() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-licenses-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-licenses-").unwrap();
         let root = scratch.path();
         std::fs::write(root.join("main.cc"), "int main() {}\n").expect("write");
         let needed = needed_licenses(root, "windows_x86_64");

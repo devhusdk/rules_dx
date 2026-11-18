@@ -4,8 +4,7 @@ use std::path::{Path, PathBuf};
 
 use url::Url;
 
-const VERBATIM_PREFIX: &str = r"\\?\";
-const VERBATIM_UNC_PREFIX: &str = r"\\?\UNC\";
+use crate::verbatim::without_verbatim;
 
 /// Why a path and a file URI could not be spelled for each other.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -41,21 +40,6 @@ pub fn uri(path: &Path) -> Result<String, UriError> {
         _ => Err(UriError::NotEncodable {
             path: path.to_string_lossy().into_owned(),
         }),
-    }
-}
-
-/// Returns one path without its verbatim prefix.
-#[must_use]
-pub fn without_verbatim(path: &Path) -> PathBuf {
-    let Some(text) = path.to_str() else {
-        return path.to_path_buf();
-    };
-    if let Some(share) = text.strip_prefix(VERBATIM_UNC_PREFIX) {
-        PathBuf::from(format!(r"\\{share}"))
-    } else if let Some(rest) = text.strip_prefix(VERBATIM_PREFIX) {
-        PathBuf::from(rest)
-    } else {
-        path.to_path_buf()
     }
 }
 
@@ -152,34 +136,6 @@ mod tests {
         ] {
             assert_eq!(uri_of(path), want, "path: {path:?}");
         }
-    }
-
-    #[test]
-    fn without_verbatim_drops_the_prefix_whatever_the_host() {
-        for (path, want) in [
-            (r"\\?\UNC\srv\share\a.py", r"\\srv\share\a.py"),
-            (r"\\?\C:\tmp\a.py", r"C:\tmp\a.py"),
-            (r"C:\tmp\a.py", r"C:\tmp\a.py"),
-        ] {
-            assert_eq!(without_verbatim(Path::new(path)), PathBuf::from(want));
-        }
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn without_verbatim_keeps_a_path_that_is_not_text() {
-        use std::os::unix::ffi::OsStrExt;
-        let path = Path::new(std::ffi::OsStr::from_bytes(b"/tmp/\xff"));
-        assert_eq!(without_verbatim(path), path);
-    }
-
-    #[cfg(windows)]
-    #[test]
-    fn without_verbatim_keeps_a_path_that_is_not_text() {
-        use std::os::windows::ffi::OsStringExt;
-        let text = std::ffi::OsString::from_wide(&[0xD800]);
-        let path = Path::new(&text);
-        assert_eq!(without_verbatim(path), path);
     }
 
     #[test]

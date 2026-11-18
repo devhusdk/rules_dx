@@ -3,16 +3,12 @@
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 load(":nested_repository_cache.bzl", "digest_integrity", "nested_repository_cache_set", "parse_cache_list")
 
-
 _PLATFORMS = ["darwin-arm64", "darwin-x86_64", "linux-arm64", "linux-x86_64", "windows-x86_64"]
-
 
 _RELEASE = "https://github.com/bazelbuild/bazel/releases/download/{v}/bazel-{v}-{p}{s}"
 
-
 def _suffix(platform):
     return ".exe" if platform.startswith("windows-") else ""
-
 
 def _fetch_shas(mctx, version):
     shas = {}
@@ -28,7 +24,6 @@ def _fetch_shas(mctx, version):
             fail("bad sha256 for bazel {} {}: {}".format(version, platform, sha256))
         shas[platform] = sha256
     return shas
-
 
 def _nested_bazel_impl(mctx):
     """Declares one pinned Bazel binary per platform."""
@@ -46,12 +41,10 @@ def _nested_bazel_impl(mctx):
         )
     return mctx.extension_metadata(reproducible = True, facts = {version: shas})
 
-
 nested_bazel = module_extension(
     implementation = _nested_bazel_impl,
     doc = "Creates the pinned Bazel binaries for nested Bazel tests.",
 )
-
 
 def _nested_repository_cache_impl(mctx):
     """Declares one http_file per list entry and one `cache` repository per set."""
@@ -78,7 +71,6 @@ def _nested_repository_cache_impl(mctx):
                 rule_bzl = Label(":nested_repository_cache.bzl"),
             )
     return mctx.extension_metadata(reproducible = True)
-
 
 nested_repository_cache = module_extension(
     implementation = _nested_repository_cache_impl,

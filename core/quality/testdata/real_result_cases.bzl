@@ -2,6 +2,8 @@
 
 load(":real_results.bzl", "real_result_test")
 
+visibility(["//core/..."])
+
 _MACOS_ONLY = ["@platforms//os:macos"]
 
 def _gcc_case(tool, capability, name, target, contains, absent, config = "cc_syntax"):
@@ -543,6 +545,20 @@ REAL_RESULT_CASES = [
         "capability": "lint",
         "class": "rust",
         "contains": ["core/quality/testdata/rust_owned/pedantic.rs", "doc_markdown"],
+        "absent": [],
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
+    },
+    {
+        "name": "real_result_clippy_testonly_unwrap",
+        "target": "//core/quality/testdata/rust_owned:testonly_unwrap",
+        "config": "shared_clippy_strict",
+        "tool": "clippy",
+        "capability": "lint",
+        "class": "rust",
+        "contains": ["core/quality/testdata/rust_owned/testonly_unwrap.rs", "unwrap_used"],
         "absent": [],
         "linux_arm64": True,
         "macos_arm64": True,

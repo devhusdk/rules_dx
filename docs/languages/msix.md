@@ -226,6 +226,8 @@ Otherwise `Add-AppxPackage` fails with `0x800B0109` and installs nothing.
 
 ## Toolchain
 
+You need no Windows SDK or Visual Studio install.
+
 ### Pins
 
 | Tool | License |
@@ -295,3 +297,11 @@ MSIX builds and tests on:
 
 - Windows arm64
 - Windows x86_64
+
+MSIX packages build for `windows_x86_64` and `windows_arm64` targets, on a
+Windows x64 or arm64 host. `msix_package` and `msix_sign` add
+`@platforms//os:windows` to `target_compatible_with`, so `bazel build //...`
+skips them on Linux and macOS. A Windows target with another CPU fails
+analysis with `target platform is unsupported`. A build with no Windows
+execution platform fails analysis with
+`packaging needs a windows_x86_64 or windows_arm64 execution platform`.

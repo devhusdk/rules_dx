@@ -4,6 +4,8 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//core/quality:sources.bzl", "forwarded_upstream")
 
+visibility(["//cc/...", "//core/..."])
+
 NvccSyntaxInfo = provider(
     doc = "Front-end-only replays of the CudaCompile actions of one CUDA target.",
     fields = {
@@ -139,7 +141,7 @@ def _nvcc_syntax_impl(target, ctx):
             mnemonic = "NvccSyntax",
             progress_message = "CUDA front-end check %{label}: " + src,
             executable = ctx.executable._capture,
-            arguments = ["--stderr", log.path, "--status", status.path, "--"] + rewritten.argv,
+            arguments = ["capture", "--stderr", log.path, "--status", status.path, "--"] + rewritten.argv,
             inputs = all_inputs,
             outputs = [log, status],
             env = action.env,
@@ -162,7 +164,7 @@ nvcc_syntax_aspect = aspect(
     attr_aspects = ["upstream"],
     attrs = {
         "_capture": attr.label(
-            default = "//core/quality/capture",
+            default = "@dx_prebuilt//:dx",
             executable = True,
             cfg = "exec",
             doc = "Runs one program with its streams and exit code written to files.",

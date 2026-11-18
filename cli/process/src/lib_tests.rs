@@ -110,7 +110,7 @@ fn nearest_legacy_wins_over_distant_module() {
 
 #[test]
 fn real_fs_roundtrip_discovers_workspace() {
-    let scratch = dx_test_scratch::scratch("dx-discover-");
+    let scratch = dx_test_scratch::scratch("dx-discover-").unwrap();
     let root = scratch.path().to_path_buf();
     let nested = root.join("a").join("b");
     std::fs::create_dir_all(&nested).expect("dirs");
@@ -123,7 +123,7 @@ fn real_fs_roundtrip_discovers_workspace() {
 
 #[test]
 fn real_fs_missing_module_suggests_override() {
-    let scratch = dx_test_scratch::scratch("dx-missing-");
+    let scratch = dx_test_scratch::scratch("dx-missing-").unwrap();
     let root = scratch.path().to_path_buf();
     std::fs::create_dir_all(&root).expect("dirs");
     // On Windows the test tmpdir sits inside the execroot, below its MODULE.bazel.
@@ -141,7 +141,7 @@ fn real_fs_missing_module_suggests_override() {
 
 #[test]
 fn bazel_run_dir_keeps_absolute_values_and_falls_back_to_cwd() {
-    let scratch = dx_test_scratch::scratch("dx-bazel-run-dir-");
+    let scratch = dx_test_scratch::scratch("dx-bazel-run-dir-").unwrap();
     let cwd = scratch.path().join("cwd");
     let given = scratch.path().join("given");
     std::fs::create_dir_all(&cwd).expect("cwd");
@@ -172,7 +172,7 @@ fn current_directory_is_the_process_cwd_outside_bazel_run() {
 
 #[test]
 fn bazel_run_dir_resolves_workspace_and_here_outside_the_runfiles_cwd() {
-    let scratch = dx_test_scratch::scratch("dx-bazel-run-here-");
+    let scratch = dx_test_scratch::scratch("dx-bazel-run-here-").unwrap();
     let ws = scratch.path().join("ws");
     let sub = ws.join("pkg").join("sub");
     let runfiles = scratch.path().join("runfiles");
@@ -969,7 +969,7 @@ fn pinned_var_classifies_values() {
         PinnedVar::classify(Some("relative/x".into())),
         PinnedVar::NotAbsolute
     );
-    let scratch = dx_test_scratch::scratch("dx-pinned-var-");
+    let scratch = dx_test_scratch::scratch("dx-pinned-var-").unwrap();
     let absolute = scratch.path().join("uv");
     assert_eq!(
         PinnedVar::classify(Some(absolute.clone().into())),
@@ -1064,7 +1064,7 @@ fn expand_tilde_without_home_keeps_the_path() {
         expand_tilde_with(Path::new("~/ws"), None),
         PathBuf::from("~/ws")
     );
-    let _ = expand_tilde(Path::new("~"));
+    drop(expand_tilde(Path::new("~")));
 }
 
 #[test]
@@ -1092,7 +1092,7 @@ fn override_display_joins_relative_and_keeps_absolute() {
 
 #[test]
 fn real_fs_canonicalizes_dotdot_and_trailing_slash() {
-    let scratch = dx_test_scratch::scratch("dx-workspace-canonical-");
+    let scratch = dx_test_scratch::scratch("dx-workspace-canonical-").unwrap();
     let root = scratch.path().to_path_buf();
     let nested = root.join("a").join("b");
     std::fs::create_dir_all(&nested).expect("dirs");
@@ -1113,7 +1113,7 @@ fn real_fs_canonicalizes_dotdot_and_trailing_slash() {
 #[cfg(unix)]
 #[test]
 fn real_fs_symlinked_root_canonicalizes() {
-    let scratch = dx_test_scratch::scratch("dx-workspace-symlink-");
+    let scratch = dx_test_scratch::scratch("dx-workspace-symlink-").unwrap();
     let root = scratch.path().to_path_buf();
     let real = root.join("real");
     std::fs::create_dir_all(&real).expect("dirs");
@@ -1130,7 +1130,7 @@ fn real_fs_symlinked_root_canonicalizes() {
 
 #[test]
 fn real_fs_broken_marker_carries_io_hint() {
-    let scratch = dx_test_scratch::scratch("dx-workspace-broken-");
+    let scratch = dx_test_scratch::scratch("dx-workspace-broken-").unwrap();
     let root = scratch.path().to_path_buf();
     std::fs::create_dir_all(&root).expect("dirs");
     let missing = root.join("missing-target");
@@ -1152,7 +1152,7 @@ fn real_fs_broken_marker_carries_io_hint() {
 
 #[test]
 fn real_fs_override_keeps_display_path() {
-    let scratch = dx_test_scratch::scratch("dx-workspace-display-");
+    let scratch = dx_test_scratch::scratch("dx-workspace-display-").unwrap();
     let root = scratch.path().to_path_buf();
     std::fs::create_dir_all(&root).expect("dirs");
     let display = root.join("./missing/../missing");
@@ -1179,14 +1179,14 @@ fn free_disk_bytes_defaults_to_unknown() {
 
 #[test]
 fn disk_space_reads_the_disk_holding_a_real_directory() {
-    let scratch = dx_test_scratch::scratch("dx-disk-space-");
+    let scratch = dx_test_scratch::scratch("dx-disk-space-").unwrap();
     let space = disk_space(scratch.path()).expect("reads the temp dir");
     assert!(space.total > 0 && space.free <= space.total, "{space:?}");
 }
 
 #[test]
 fn disk_space_reads_the_nearest_existing_ancestor() {
-    let scratch = dx_test_scratch::scratch("dx-disk-space-missing-");
+    let scratch = dx_test_scratch::scratch("dx-disk-space-missing-").unwrap();
     let missing = scratch.path().join("dx-missing").join("child");
     assert!(!missing.exists());
     let space = disk_space(&missing).expect("reads the temp dir");
@@ -1281,7 +1281,7 @@ fn probe_returns_stdout_only_on_success() {
 #[test]
 fn remove_tree_deletes_read_only_trees() {
     use std::os::unix::fs::PermissionsExt as _;
-    let scratch = dx_test_scratch::scratch("dx-remove-tree-");
+    let scratch = dx_test_scratch::scratch("dx-remove-tree-").unwrap();
     let build = |name: &str| {
         let dir = scratch.path().join(name).join("ro");
         std::fs::create_dir_all(&dir).expect("dir");
@@ -1306,7 +1306,7 @@ fn remove_tree_deletes_read_only_trees() {
 #[test]
 fn remove_tree_reports_a_tree_held_open() {
     use std::os::windows::fs::OpenOptionsExt as _;
-    let scratch = dx_test_scratch::scratch("dx-remove-tree-held-");
+    let scratch = dx_test_scratch::scratch("dx-remove-tree-held-").unwrap();
     let tree = scratch.path().join("tree");
     std::fs::create_dir_all(&tree).expect("tree");
     let held = std::fs::OpenOptions::new()
@@ -1325,7 +1325,7 @@ fn remove_tree_reports_a_tree_held_open() {
 #[test]
 fn remove_tree_never_chmods_a_symlink_target() {
     use std::os::unix::fs::PermissionsExt as _;
-    let scratch = dx_test_scratch::scratch("dx-remove-tree-link-");
+    let scratch = dx_test_scratch::scratch("dx-remove-tree-link-").unwrap();
     let outside = scratch.path().join("outside");
     std::fs::create_dir_all(&outside).expect("outside");
     std::fs::set_permissions(&outside, std::fs::Permissions::from_mode(0o555)).expect("outside");
@@ -1467,7 +1467,7 @@ fn the_default_marker_hint_is_none() {
 
 #[test]
 fn real_marker_hint_reports_only_a_broken_marker() {
-    let scratch = dx_test_scratch::scratch("dx-marker-hint-");
+    let scratch = dx_test_scratch::scratch("dx-marker-hint-").unwrap();
     let root = scratch.path();
     assert_eq!(RealFs.broken_marker_hint(root), None);
     let plain = scratch.path().join("plain");
@@ -1512,7 +1512,7 @@ fn link(target: &Path, link: &Path) -> std::io::Result<()> {
 
 #[test]
 fn make_writable_clears_read_only_entries_but_not_through_links() {
-    let scratch = dx_test_scratch::scratch("dx-writable-tree-");
+    let scratch = dx_test_scratch::scratch("dx-writable-tree-").unwrap();
     let tree = scratch.path().join("tree");
     let outside = scratch.path().join("outside.txt");
     std::fs::create_dir_all(&tree).expect("tree");
@@ -1542,14 +1542,14 @@ fn make_writable_clears_read_only_entries_but_not_through_links() {
 #[cfg(windows)]
 #[test]
 fn disk_space_of_a_missing_directory_is_none() {
-    let scratch = dx_test_scratch::scratch("dx-no-such-dir-");
+    let scratch = dx_test_scratch::scratch("dx-no-such-dir-").unwrap();
     let missing = scratch.path().join("dx-no-such-dir-8104");
     assert_eq!(dir_disk_space(&missing), None);
 }
 
 #[test]
 fn an_override_with_a_legacy_marker_is_unsupported() {
-    let scratch = dx_test_scratch::scratch("dx-override-legacy-");
+    let scratch = dx_test_scratch::scratch("dx-override-legacy-").unwrap();
     let root = scratch.path();
     std::fs::write(root.join("WORKSPACE"), "").expect("marker");
     let err = discover_real(root, Some(root)).expect_err("legacy");
@@ -1561,10 +1561,10 @@ fn an_override_with_a_legacy_marker_is_unsupported() {
 
 #[test]
 fn workspace_start_and_run_output_base_read_the_environment() {
-    let scratch = dx_test_scratch::scratch("dx-workspace-start-");
+    let scratch = dx_test_scratch::scratch("dx-workspace-start-").unwrap();
     let cwd = scratch.path();
     assert!(workspace_start(cwd).is_absolute());
-    let _ = run_output_base();
+    drop(run_output_base());
 }
 
 #[test]
@@ -1574,7 +1574,7 @@ fn pinned_env_reads_an_unset_variable() {
 
 #[test]
 fn make_writable_ignores_a_missing_path() {
-    let scratch = dx_test_scratch::scratch("dx-writable-missing-");
+    let scratch = dx_test_scratch::scratch("dx-writable-missing-").unwrap();
     make_writable(&scratch.path().join("absent"));
 }
 

@@ -1,5 +1,7 @@
 """Runfiles-relative paths of files, as the runfiles libraries expect them."""
 
+visibility(["//apple/...", "//core/...", "//d/...", "//deploy/...", "//dotnet/...", "//elixir/...", "//erlang/...", "//haskell/...", "//javascript/...", "//julia/...", "//lua/...", "//ocaml/...", "//powershell/...", "//rego/...", "//ruby/...", "//swift/...", "//tools/..."])
+
 def rlocation_path(ctx, file):
     """Returns the rlocation path of file, which starts with the repository name."""
     return runfiles_path(ctx.workspace_name, file.short_path)

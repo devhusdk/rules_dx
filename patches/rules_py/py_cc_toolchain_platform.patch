@@ -1,3 +1,4 @@
+Upstream: aspect-build/rules_py#1665
 diff --git a/py/private/interpreter/repository.bzl b/py/private/interpreter/repository.bzl
 --- a/py/private/interpreter/repository.bzl
 +++ b/py/private/interpreter/repository.bzl

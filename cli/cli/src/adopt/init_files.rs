@@ -619,7 +619,7 @@ mod tests {
 
     #[test]
     fn init_refuses_when_module_bazel_is_ahead_of_the_binary() {
-        let scratch = dx_test_scratch::scratch("dx-init-ahead-");
+        let scratch = dx_test_scratch::scratch("dx-init-ahead-").unwrap();
         let root = scratch.path();
         std::fs::write(
             root.join("MODULE.bazel"),
@@ -634,7 +634,7 @@ mod tests {
 
     #[test]
     fn everything_init_writes_is_owned_and_present() {
-        let scratch = dx_test_scratch::scratch("dx-init-owned-");
+        let scratch = dx_test_scratch::scratch("dx-init-owned-").unwrap();
         let root = scratch.path();
         let mut files = plan(root, "my_project", true, &Agent::ALL).expect("plan");
         let (code, out, err) = run(
@@ -657,7 +657,7 @@ mod tests {
 
     #[test]
     fn fresh_init_files_start_with_their_header_where_the_format_has_comments() {
-        let scratch = dx_test_scratch::scratch("dx-init-headers-");
+        let scratch = dx_test_scratch::scratch("dx-init-headers-").unwrap();
         let root = scratch.path();
         let files = plan(root, "my_project", true, &[]).expect("plan");
         let commentless = [
@@ -695,7 +695,7 @@ mod tests {
 
     #[test]
     fn a_workspace_with_only_the_fresh_files_is_still_fresh() {
-        let scratch = dx_test_scratch::scratch("dx-init-headers-fresh-");
+        let scratch = dx_test_scratch::scratch("dx-init-headers-fresh-").unwrap();
         let root = scratch.path();
         for file in dx_adopt::plan_fresh_files("demo") {
             std::fs::write(root.join(&file.path), &file.content).expect("write");
@@ -706,7 +706,7 @@ mod tests {
 
     #[test]
     fn init_writes_no_audit_files_and_keeps_an_existing_licenses_toml() {
-        let scratch = dx_test_scratch::scratch("dx-init-audit-");
+        let scratch = dx_test_scratch::scratch("dx-init-audit-").unwrap();
         let root = scratch.path();
         std::fs::write(root.join("license.toml"), "[policy]\nblocked = []\n").expect("licenses");
         let (code, _out, err) = run(&invocation(&["init", "--apply"]), root);
@@ -723,14 +723,14 @@ mod tests {
 
     #[test]
     fn init_keeps_hand_written_files_after_a_fresh_init() {
-        let scratch = dx_test_scratch::scratch("dx-init-headers-keep-");
+        let scratch = dx_test_scratch::scratch("dx-init-headers-keep-").unwrap();
         let root = scratch.path();
         let (code, _out, err) = run(&invocation(&["init", "--apply"]), root);
         assert_eq!(code, 0, "{err}");
         let ci = std::fs::read_to_string(root.join(".github/workflows/ci.yml")).expect("ci");
         assert!(ci.starts_with("# dx: yours, except the rules_dx pin\n"));
 
-        let other = dx_test_scratch::scratch("dx-init-headers-hand-");
+        let other = dx_test_scratch::scratch("dx-init-headers-hand-").unwrap();
         let root = other.path();
         std::fs::write(root.join("main.rs"), "fn main() {}\n").expect("source");
         std::fs::write(root.join(".editorconfig"), "root = true\n").expect("editorconfig");
@@ -780,7 +780,7 @@ mod tests {
 
     #[test]
     fn init_doc_has_one_row_per_planned_file_with_the_ownership_label() {
-        let scratch = dx_test_scratch::scratch("dx-init-doc-rows-");
+        let scratch = dx_test_scratch::scratch("dx-init-doc-rows-").unwrap();
         let root = scratch.path();
         std::fs::write(root.join("app.py"), "print(1)\n").expect("source");
         std::fs::create_dir(root.join("pkg")).expect("pkg");
@@ -838,7 +838,7 @@ mod tests {
 
     #[test]
     fn every_planned_file_has_content() {
-        let scratch = dx_test_scratch::scratch("dx-init-owned-content-");
+        let scratch = dx_test_scratch::scratch("dx-init-owned-content-").unwrap();
         for file in plan(scratch.path(), "my_project", true, &Agent::ALL).expect("plan") {
             assert!(!file.content.is_empty(), "{}", file.path);
         }
@@ -846,7 +846,7 @@ mod tests {
 
     #[test]
     fn each_path_is_listed_once() {
-        let scratch = dx_test_scratch::scratch("dx-init-owned-once-");
+        let scratch = dx_test_scratch::scratch("dx-init-owned-once-").unwrap();
         let files = plan(scratch.path(), "my_project", true, &Agent::ALL).expect("plan");
         let mut paths: Vec<&str> = files.iter().map(|file| file.path.as_str()).collect();
         paths.sort_unstable();
@@ -864,7 +864,7 @@ mod tests {
 
     #[test]
     fn apply_writes_the_owned_list_and_check_and_status_accept_it() {
-        let scratch = dx_test_scratch::scratch("dx-init-owned-equal-");
+        let scratch = dx_test_scratch::scratch("dx-init-owned-equal-").unwrap();
         let root = scratch.path();
         let owned = || {
             plan(root, "my_project", true, &Agent::ALL)
@@ -898,7 +898,7 @@ mod tests {
 
     #[test]
     fn apply_wires_the_root_lock_files_once() {
-        let scratch = dx_test_scratch::scratch("dx-init-lock-hubs-");
+        let scratch = dx_test_scratch::scratch("dx-init-lock-hubs-").unwrap();
         let root = scratch.path();
         std::fs::write(root.join("MODULE.bazel"), "module(name = \"app\")\n").expect("write");
         let npm = dx_adopt::dependency_sets::Ecosystem::Npm;
@@ -925,7 +925,7 @@ mod tests {
 
     #[test]
     fn apply_adds_no_family_module_for_a_shell_workspace() {
-        let scratch = dx_test_scratch::scratch("dx-init-family-deps-");
+        let scratch = dx_test_scratch::scratch("dx-init-family-deps-").unwrap();
         let root = scratch.path();
         let module =
             "module(name = \"app\")\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
@@ -940,7 +940,7 @@ mod tests {
 
     #[test]
     fn drift_in_an_empty_dir_is_owned() {
-        let scratch = dx_test_scratch::scratch("dx-init-owned-drift-");
+        let scratch = dx_test_scratch::scratch("dx-init-owned-drift-").unwrap();
         let root = scratch.path();
         let files = plan(root, "my_project", true, &Agent::ALL).expect("plan");
         for path in drift_of(root).missing {
@@ -951,7 +951,7 @@ mod tests {
 
     #[test]
     fn a_removed_planned_file_is_missing_only_when_essential() {
-        let scratch = dx_test_scratch::scratch("dx-init-planned-removed-");
+        let scratch = dx_test_scratch::scratch("dx-init-planned-removed-").unwrap();
         let root = scratch.path();
         let (code, _out, err) = run(
             &invocation(&["init", "--apply", "--agents=claude,codex,gemini,copilot"]),
@@ -994,7 +994,7 @@ mod tests {
 
     #[test]
     fn removing_an_owned_file_after_init_is_reported_missing() {
-        let scratch = dx_test_scratch::scratch("dx-init-owned-removed-");
+        let scratch = dx_test_scratch::scratch("dx-init-owned-removed-").unwrap();
         let root = scratch.path();
         let (code, _out, err) = run(
             &invocation(&["init", "--apply", "--agents=claude,codex,gemini,copilot"]),
@@ -1020,7 +1020,7 @@ mod tests {
 
     #[test]
     fn init_on_an_empty_directory_writes_no_override_files() {
-        let scratch = dx_test_scratch::scratch("dx-init-no-overrides-");
+        let scratch = dx_test_scratch::scratch("dx-init-no-overrides-").unwrap();
         let root = scratch.path();
         let (code, out, err) = run(
             &invocation(&["init", "--apply", "--agents=claude,codex,gemini,copilot"]),
@@ -1037,7 +1037,7 @@ mod tests {
 
     #[test]
     fn drift_names_each_owned_gap() {
-        let scratch = dx_test_scratch::scratch("dx-init-owned-gaps-");
+        let scratch = dx_test_scratch::scratch("dx-init-owned-gaps-").unwrap();
         let root = scratch.path();
         let (code, _out, err) = run(
             &invocation(&["init", "--apply", "--agents=claude,codex,gemini,copilot"]),
@@ -1071,9 +1071,10 @@ mod tests {
 
     #[test]
     fn old_dx_keys_in_vscode_settings_are_stale() {
-        let scratch = dx_test_scratch::scratch("dx-init-owned-vscode-");
+        let scratch = dx_test_scratch::scratch("dx-init-owned-vscode-").unwrap();
         let root = scratch.path();
-        std::fs::write(root.join("main.c"), "int main(void) { return 0; }\n").expect("c file");
+        // Rust, not C: cc needs a licence on Windows hosts.
+        std::fs::write(root.join("main.rs"), "fn main() {}\n").expect("source");
         let (code, _out, err) = run(
             &invocation(&["init", "--apply", "--agents=claude,codex,gemini,copilot"]),
             root,
@@ -1081,8 +1082,13 @@ mod tests {
         assert_eq!(code, 0, "{err}");
         let path = root.join(".vscode/settings.json");
         let text = std::fs::read_to_string(&path).expect("read");
-        let (key, _) = text.split_once(':').expect("key");
-        std::fs::write(&path, format!("{key}: 1,\n\"x\": 1}}\n")).expect("write");
+        // Keep one flat dx key with an old value and drop the rest. A nested key such as
+        // evenBetterToml.schema.associations would not do: a non-object there is refused,
+        // not stale.
+        let key = "rust-analyzer.check.overrideCommand";
+        assert!(text.contains(key), "{text}");
+        let old = serde_json::json!({key: 1, "x": 1});
+        std::fs::write(&path, format!("{old}\n")).expect("write");
         assert!(
             drift_of(root)
                 .stale

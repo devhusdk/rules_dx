@@ -106,14 +106,15 @@ fn probe_keeps_json_stdout_to_the_build_events() {
 #[test]
 fn interrupted_probe_cancels_the_phase_without_a_build() {
     let mut harness = clean_harness("probe-interrupted");
-    harness.probe_code = Some(super::super::common::BAZEL_INTERRUPTED);
+    harness.probe_code = Some(dx_exec_core::common::BAZEL_INTERRUPTED);
     let parsed =
         dx_plan::args::parse(&dx_testing::cli::strings(&["lint", "--output=text"])).expect("parse");
     let inv = dx_plan::args::apply_here(&parsed, &harness.workspace, &harness.cwd).expect("here");
     let request = inv.quality_request().expect("quality request");
     let runner = harness.runner();
     let (mut out, mut err) = (Vec::new(), Vec::new());
-    let run = super::execute_quality_phase(&request, harness.env(&runner, &mut out, &mut err));
+    let run =
+        super::execute_quality_phase(&request, harness.env(&runner, &mut out, &mut err), None);
     assert_eq!(run.kind, super::PhaseKind::Cancelled);
     assert_ne!(run.code, 0);
     assert_eq!(harness.probe_argv.borrow().len(), 1);

@@ -35,15 +35,16 @@ fn compare(first: &[u8], second: &[u8], allowlist: &str) -> Result<Vec<String>, 
 }
 
 fn run(argv: &[String], workspace: &Path) -> Result<(), String> {
-    let status = Command::new(&argv[0])
-        .args(&argv[1..])
+    let (program, args) = argv.split_first().ok_or("empty command")?;
+    let status = Command::new(program)
+        .args(args)
         .current_dir(workspace)
         .status()
-        .map_err(|e| format!("{}: {e}", argv[0]))?;
+        .map_err(|e| format!("{program}: {e}"))?;
     if status.success() {
         Ok(())
     } else {
-        Err(format!("`{}` exited with {status}", argv[1..].join(" ")))
+        Err(format!("`{}` exited with {status}", args.join(" ")))
     }
 }
 

@@ -6,7 +6,7 @@ const WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
 
 const AUDIT: &str = "security-audit";
 
-const RESOLVE_TARGET: &str = "@rules_dx//cli/tool_resolve";
+const RESOLVE_TARGET: &str = "@rules_dx//dx/tool_resolve";
 
 const TOOL_LABEL: &str = "@rules_dx//core/quality/artifacts:gitleaks";
 
@@ -14,7 +14,7 @@ const TOOL_VAR: &str = "DX_GITLEAKS_BIN";
 
 #[test]
 fn one_resolve_step_runs_the_pinned_native_command() {
-    let audit = steps(WORKFLOW, AUDIT);
+    let audit = steps(WORKFLOW, AUDIT).unwrap();
     let resolve: Vec<&Value> = audit
         .iter()
         .filter(|step| {
@@ -48,7 +48,7 @@ fn one_resolve_step_runs_the_pinned_native_command() {
 
 #[test]
 fn no_audit_step_parses_tool_paths_with_host_utilities() {
-    let all = scripts(WORKFLOW, AUDIT);
+    let all = scripts(WORKFLOW, AUDIT).unwrap();
     for absent in ["cquery", "tail -1", "output_base", "2>/dev/null"] {
         assert!(
             !all.contains(absent),
@@ -56,6 +56,7 @@ fn no_audit_step_parses_tool_paths_with_host_utilities() {
         );
     }
     let tool_steps = steps(WORKFLOW, AUDIT)
+        .unwrap()
         .iter()
         .filter(|step| step["name"] != "Configure the remote cache credential helper")
         .filter_map(|step| step["run"].as_str().map(str::to_owned))
@@ -70,11 +71,11 @@ fn no_audit_step_parses_tool_paths_with_host_utilities() {
 #[test]
 fn the_audit_still_receives_the_resolved_tool() {
     assert!(
-        scripts(WORKFLOW, AUDIT).contains(TOOL_LABEL),
+        scripts(WORKFLOW, AUDIT).unwrap().contains(TOOL_LABEL),
         "{WORKFLOW} job {AUDIT} must still resolve {TOOL_LABEL}"
     );
     assert!(
-        scripts(WORKFLOW, AUDIT).contains(TOOL_VAR),
+        scripts(WORKFLOW, AUDIT).unwrap().contains(TOOL_VAR),
         "{WORKFLOW} job {AUDIT} must still export {TOOL_VAR}"
     );
 }

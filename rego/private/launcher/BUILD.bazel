@@ -17,7 +17,10 @@ rust_binary(
     ],
     crate_name = "launcher",
     crate_root = "src/main.rs",
-    deps = ["//cli/path:dx_path"],
+    deps = [
+        "//cli/path:dx_path",
+        "@crates//:tempfile",
+    ],
 )
 
 rust_test(
@@ -33,6 +36,7 @@ rust_test(
     deps = [
         "//cli/path:dx_path",
         "//cli/test_scratch:dx_test_scratch",
+        "@crates//:tempfile",
     ],
 )
 

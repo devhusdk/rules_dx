@@ -65,16 +65,17 @@ fn one_macro_call_builds_each_app_with_no_flag() {
     let module = files
         .get(STORED_MODULE)
         .unwrap_or_else(|| panic!("{PREFIX}{STORED_MODULE} is missing from the snapshot"));
-    let source = dx_testing::rules_dx_source();
+    let source = dx_testing::rules_dx_source().unwrap_or_else(|error| panic!("{error}"));
     let case = dx_nested::Case::consumer(
         "apple_consumer",
         &format!(
             "{}{}{}",
             module_body(module),
             rules_py_override(),
-            rules_flutter_override(),
+            rules_flutter_override().unwrap_or_else(|error| panic!("{error}")),
         ),
-    );
+    )
+    .unwrap_or_else(|error| panic!("{error}"));
     write_rules_py_patches(case.root(), &source).unwrap_or_else(|error| panic!("{error}"));
     let mut root_overrides =
         write_root_patch_overrides(case.root(), &source).unwrap_or_else(|error| panic!("{error}"));

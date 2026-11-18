@@ -6,7 +6,7 @@ use shard_test_support::{line_of, shard, symbol};
 
 #[test]
 fn the_fixture_shard_lists_the_public_api() {
-    let shard = shard("DX_FIXTURE_SHARD");
+    let shard = shard("DX_FIXTURE_SHARD").unwrap();
     validate_shard(&shard).expect("validate_shard passes");
     assert_eq!(shard.language, "python");
     assert_eq!(shard.package, "mylib");
@@ -19,8 +19,8 @@ fn the_fixture_shard_lists_the_public_api() {
 
 #[test]
 fn signatures_keep_the_bare_star() {
-    let shard = shard("DX_FIXTURE_SHARD");
-    let area = symbol(&shard, "python:mylib:shapes.area");
+    let shard = shard("DX_FIXTURE_SHARD").unwrap();
+    let area = symbol(&shard, "python:mylib:shapes.area").unwrap();
     assert!(
         area.signature_text.contains("width, *, height"),
         "{}",
@@ -31,8 +31,8 @@ fn signatures_keep_the_bare_star() {
 
 #[test]
 fn sources_are_repo_relative_and_generated_modules_are_flagged() {
-    let shard = shard("DX_FIXTURE_SHARD");
-    let line = line_of("DX_FIXTURE_SHAPES_PY", "def area");
+    let shard = shard("DX_FIXTURE_SHARD").unwrap();
+    let line = line_of("DX_FIXTURE_SHAPES_PY", "def area").unwrap();
     for symbol in &shard.symbols {
         let source = symbol.source.as_ref().expect("source");
         assert!(
@@ -51,10 +51,10 @@ fn sources_are_repo_relative_and_generated_modules_are_flagged() {
 
 #[test]
 fn the_numpy_shard_supplies_param_types_and_docs() {
-    let shard = shard("DX_FIXTURE_NUMPY_SHARD");
+    let shard = shard("DX_FIXTURE_NUMPY_SHARD").unwrap();
     validate_shard(&shard).expect("validate_shard passes");
     assert_eq!(shard.package, "npylib");
-    let scale = symbol(&shard, "python:npylib:scale");
+    let scale = symbol(&shard, "python:npylib:scale").unwrap();
     assert_eq!(scale.params[0].r#type, "list of int");
     assert_eq!(scale.params[1].doc, "The factor.");
 }

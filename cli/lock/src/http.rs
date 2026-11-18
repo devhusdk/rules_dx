@@ -1,33 +1,42 @@
 //! Archive downloads over HTTPS.
 
-use std::time::Duration;
+use dx_http::{Client, Settings};
 
 use crate::{Error, Fetch};
 
-/// Downloads archives with the platform's certificate verifier.
-pub struct HttpFetch(ureq::Agent);
+/// The largest registry document or archive a lock step reads.
+const BODY_LIMIT: u64 = 1 << 30;
 
-fn agent(https_only: bool) -> ureq::Agent {
-    let tls = ureq::tls::TlsConfig::builder()
-        .root_certs(ureq::tls::RootCerts::PlatformVerifier)
-        .build();
-    ureq::Agent::config_builder()
-        .https_only(https_only)
-        .http_status_as_error(false)
-        .tls_config(tls)
-        .proxy(ureq::Proxy::try_from_env())
-        .user_agent("rules_dx")
-        .timeout_connect(Some(Duration::from_secs(30)))
-        .timeout_recv_response(Some(Duration::from_secs(60)))
-        .build()
-        .into()
+/// Downloads registry documents and archives through the shared dx HTTP client.
+pub struct HttpFetch(Result<Client, Error>);
+
+fn settings() -> Settings {
+    Settings {
+        https_only: true,
+        user_agent: "rules_dx".to_owned(),
+        ..Settings::default()
+    }
+}
+
+fn lock_error(error: dx_http::Error) -> Error {
+    match error {
+        dx_http::Error::Status { code, .. } => Error::new(format!("HTTP {code}")),
+        other @ (dx_http::Error::Config(_)
+        | dx_http::Error::Transport { .. }
+        | dx_http::Error::TooLarge { .. }
+        | dx_http::Error::Write { .. }) => Error::new(other.to_string()),
+    }
 }
 
 impl HttpFetch {
-    /// A fetcher that refuses any URL that is not HTTPS.
+    /// A fetcher that refuses any URL that is not HTTPS. A bad proxy or CA setting fails each download.
     #[must_use]
     pub fn new() -> Self {
-        Self(agent(true))
+        Self(Client::new(settings()).map_err(lock_error))
+    }
+
+    fn client(&self) -> Result<&Client, Error> {
+        self.0.as_ref().map_err(Clone::clone)
     }
 }
 
@@ -41,7 +50,7 @@ impl HttpFetch {
     /// Downloads `url` and returns its bytes.
     ///
     /// # Errors
-    /// Fails when the request fails or the status is not 200.
+    /// Fails when the request fails or the status is not 2xx.
     pub fn bytes(&self, url: &str) -> Result<Vec<u8>, Error> {
         self.accepting(url, "*/*")
     }
@@ -49,30 +58,19 @@ impl HttpFetch {
     /// Downloads `url` with the `Accept` header `accept` and returns its bytes.
     ///
     /// # Errors
-    /// Fails when the request fails or the status is not 200.
+    /// Fails when the request fails or the status is not 2xx.
     pub fn accepting(&self, url: &str, accept: &str) -> Result<Vec<u8>, Error> {
-        let mut response = self
-            .0
-            .get(url)
-            .header("Accept", accept)
-            .call()
-            .map_err(|error| Error::new(error.to_string()))?;
-        let status = response.status().as_u16();
-        if status != 200 {
-            return Err(Error::new(format!("HTTP {status}")));
-        }
-        response
-            .body_mut()
-            .with_config()
-            .limit(1 << 30)
-            .read_to_vec()
-            .map_err(|error| Error::new(error.to_string()))
+        self.client()?
+            .bytes(url, &[("Accept", accept)], BODY_LIMIT)
+            .map_err(lock_error)
     }
 }
 
 impl Fetch for HttpFetch {
     fn sha256(&self, url: &str) -> Result<String, Error> {
-        self.bytes(url).map(|bytes| dx_digest::sha256_hex(&bytes))
+        self.client()?
+            .sha256(url, &[], BODY_LIMIT)
+            .map_err(lock_error)
     }
 }
 
@@ -104,28 +102,31 @@ mod tests {
         format!("http://127.0.0.1:{port}/archive")
     }
 
+    /// A fetcher for loopback URLs that ignores the host's proxy settings.
+    fn plain() -> HttpFetch {
+        let settings = Settings {
+            https_only: false,
+            ..settings()
+        };
+        HttpFetch(Client::with_env(settings, |_| None).map_err(lock_error))
+    }
+
     #[test]
     fn a_download_returns_the_sha256_of_its_bytes() {
         let url = serve("200 OK", "alpha");
-        assert_eq!(
-            HttpFetch(agent(false)).sha256(&url),
-            Ok(dx_digest::sha256_hex(b"alpha"))
-        );
+        assert_eq!(plain().sha256(&url), Ok(dx_digest::sha256_hex(b"alpha")));
     }
 
     #[test]
     fn a_download_returns_its_bytes() {
         let url = serve("200 OK", "alpha");
-        assert_eq!(HttpFetch(agent(false)).bytes(&url), Ok(b"alpha".to_vec()));
+        assert_eq!(plain().bytes(&url), Ok(b"alpha".to_vec()));
     }
 
     #[test]
     fn a_missing_archive_names_the_status() {
         let url = serve("404 Not Found", "gone");
-        assert_eq!(
-            HttpFetch(agent(false)).sha256(&url),
-            Err(Error::new("HTTP 404"))
-        );
+        assert_eq!(plain().sha256(&url), Err(Error::new("HTTP 404")));
     }
 
     #[test]

@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use crate::exec::common::check_stdout_write;
+use dx_exec_core::common::check_stdout_write;
 use dx_plan::args::Invocation;
 
 use super::pre_exec;
@@ -41,7 +41,7 @@ mod tests {
     fn completion_renders_from_single_source() {
         for &shell in dx_plan::args::COMPLETION_SHELLS {
             let inv = invocation(&["completion", shell]);
-            let scratch = dx_test_scratch::scratch("dx-adopt-completion-renders-");
+            let scratch = dx_test_scratch::scratch("dx-adopt-completion-renders-").unwrap();
             let root = scratch.path().to_path_buf();
             let (code, out, _err) = run(&inv, &root);
             assert_eq!(code, 0, "shell {shell}");
@@ -86,7 +86,7 @@ mod tests {
     #[test]
     fn completion_rejects_unknown_shell() {
         let inv = invocation(&["completion", "tcsh"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-completion-unknown-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-completion-unknown-").unwrap();
         let root = scratch.path().to_path_buf();
         let (code, out, err) = run(&inv, &root);
         assert_eq!(code, 2);

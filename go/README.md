@@ -1,33 +1,24 @@
 # Go
 
-Build, test, format and typecheck Go with `rules_go`.
+This directory helps you build, run and test Go code with rules_dx.
 
-```python
-load("@rules_dx//go:defs.bzl", "go_binary", "go_library", "go_test")
+Load its rules in a `BUILD.bazel` file, the file that declares what Bazel
+builds, from `@rules_dx//go:defs.bzl`.
+`extensions.bzl` holds the module extension: the part you call from
+`MODULE.bazel` to set up toolchains and dependencies.
+The tests live in `tests/`. The [Go page](../docs/languages/go.md) shows
+setup, every rule and the tools dx runs.
 
-go_library(
-    name = "greet",
-    srcs = ["greet.go"],
-    importpath = "example.com/demo/greet",
-)
+Run the Go tests from a rules_dx checkout:
 
-go_binary(
-    name = "hello",
-    srcs = ["main.go"],
-    deps = [":greet"],
-)
-
-go_test(
-    name = "greet_test",
-    srcs = ["greet_test.go"],
-    embed = [":greet"],
-)
+```sh
+tools/dx test //go/...
 ```
+
+## Dependencies
 
 `go_library` requires `importpath`. `dx generate` fills it in as the `go.mod`
 module path plus the directory.
-
-## Dependencies
 
 Add the module to `go.mod` and wire it in `MODULE.bazel`:
 

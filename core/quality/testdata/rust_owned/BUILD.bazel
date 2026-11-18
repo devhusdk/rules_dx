@@ -37,6 +37,14 @@ rust_library(
 )
 
 rust_library(
+    name = "testonly_unwrap",
+    testonly = True,
+    srcs = ["testonly_unwrap.rs"],
+    edition = "2021",
+    tags = ["manual"],
+)
+
+rust_library(
     name = "unused_dep",
     srcs = ["unused_dep.rs"],
     edition = "2021",

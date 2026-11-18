@@ -1,11 +1,19 @@
 # PHP
 
-Build, run and test PHP 8.5 with a pinned static PHP CLI build from
-[static-php-cli](https://github.com/crazywhalecc/static-php-cli), the pinned
-[Composer](https://getcomposer.org) 2.10 for autoloading and the pinned
-[PHPUnit](https://phpunit.de) 13 for tests. Nothing is installed on the host,
-and nothing is fetched until a target needs it. rules_dx registers the
-toolchains, so there is no toolchain setup in `MODULE.bazel`.
+This directory helps you build, run and test PHP code with rules_dx.
+
+Load its rules in a `BUILD.bazel` file, the file that declares what Bazel
+builds, from `@rules_dx//php:defs.bzl`.
+`extensions.bzl` holds the module extension: the part you call from
+`MODULE.bazel` to set up toolchains and dependencies.
+The tests live in `tests/`. The [PHP page](../docs/languages/php.md) shows
+setup, every rule and the tools dx runs.
+
+Run the PHP tests from a rules_dx checkout:
+
+```sh
+tools/dx test //php/...
+```
 
 ## Dependencies
 

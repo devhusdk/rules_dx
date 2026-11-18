@@ -5,6 +5,13 @@ This page helps you add, change or drop a patch that rules_dx applies to another
 ## Add a patch to a module
 
 1. Put the patch file in `patches/<module>/`, for example `patches/rules_rust/my_fix.patch`, and add it to `exports_files` in that directory's `BUILD.bazel`.
+   Start the file with an `Upstream:` line above the diff that names the upstream pull request, or the issue when there is no pull request yet:
+
+   ```text
+   Upstream: bazelbuild/rules_rust#4390
+   ```
+
+   Name several with commas. When the fix will never go upstream, say why: `Upstream: none (rules_dx only: gates the toolchains behind //config:toolchains_on)`. Every Monday `.github/workflows/patch-upstream.yml` checks these lines and opens an issue when an upstream fix is in a release, so you know which patch to drop.
 2. Add its label, such as `//patches/rules_rust:my_fix.patch`, to the `patches` list of the module's `single_version_override` in `MODULE.bazel`.
 3. Add a row to the table below. Leave the Version cell as it is; the next step fills it in.
 4. Refresh the page:
@@ -54,11 +61,10 @@ When the upstream fix is in a release rules_dx uses, delete the patch file, its 
 | `rules_flutter` | 0.0.8 | `flutter_3_47_9.patch` | Root only. `FLUTTER_VERSIONS` and `ARTIFACT_CHECKSUMS` list Flutter 3.47.9, which no rules_flutter release has yet |
 | `rules_flutter` | 0.0.8 | `ios_target_compatible_with.patch` | `flutter_ios_app` applies its `target_compatible_with` to every target it generates, not only drops it. Consumer fix: #11417 |
 | `rules_flutter` | 0.0.8 | `coverage_enabled.patch` | Root only. Only a `flutter_test` built with `--collect_code_coverage` writes LCOV; one built without it ignores `COVERAGE_OUTPUT_FILE` |
-| `rules_swift` | 4.2.2 | `clang_cl_no_split_cold_code.patch` | The exec worker builds with LLVM clang-cl, which rejects the Apple-only `-fno-split-cold-code` (bazelbuild/rules_swift#2005). Consumer fix: #11817 |
-| `rules_swift` | 4.2.2 | `windows_absolute_sdk.patch` | Root only. Windows Swift actions pass `-sdk` through the wrapper as an absolute path |
-| `rules_swift` | 4.2.2 | `windows_swift_testing.patch` | Root only. The Windows toolchain puts the Swift Testing module and import library directories on the compile and link paths (bazelbuild/rules_swift#2018; drop when a rules_swift release has it) |
-| `rules_swift` | 4.2.2 | `windows_unknown_vendor.patch` | Root only. Windows target triples use the `unknown` vendor |
-| `rules_swift` | 4.2.2 | `xcode_select_absolute_path.patch` | The `system_sdk` extension runs `/usr/bin/xcode-select`, so Xcode discovery works with no host `PATH`. Consumer fix: #11150 |
+| `rules_swift` | 4.3.0 | `windows_absolute_sdk.patch` | Root only. Windows Swift actions pass `-sdk` through the wrapper as an absolute path |
+| `rules_swift` | 4.3.0 | `windows_swift_testing.patch` | Root only. The Windows toolchain puts the Swift Testing module and import library directories on the compile and link paths (bazelbuild/rules_swift#2018; drop when a rules_swift release has it) |
+| `rules_swift` | 4.3.0 | `windows_unknown_vendor.patch` | Root only. Windows target triples use the `unknown` vendor |
+| `rules_swift` | 4.3.0 | `xcode_select_absolute_path.patch` | The `system_sdk` extension runs `/usr/bin/xcode-select`, so Xcode discovery works with no host `PATH`. Consumer fix: #11150 |
 | `rules_python` | 2.4.6 | `single_import_lib.patch` | `py_extension` on Windows links one CPython import library: the stable ABI one for limited API modules, else the versioned one. It passed both as one linker argument (bazel-contrib/rules_python#4426; drop when a rules_python release has it). Consumer fix: #11418 |
 | `aspect_rules_js` | 3.6.0 | `manifest_only_runfiles.patch` | Root only. The `js_binary` bash launcher accepts a `RUNFILES_MANIFEST_FILE` at any path and builds its runfiles tree from the manifest when there is no runfiles directory beside it |
 | `rules_python` | 2.4.6 | `install_name_tool.patch` | Root only. The macOS `python_repository` skips the LC_ID_DYLIB fixup, which needs `install_name_tool` on PATH, when `libpython` already names itself `@rpath/` |

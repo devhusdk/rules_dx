@@ -1,19 +1,19 @@
 use super::build_failures::report_build_failures;
-use super::common::{
-    BAZEL_NO_TESTS, CODE_COVERAGE_BELOW_MINIMUM, CODE_COVERAGE_SOURCES,
-    CODE_COVERAGE_SOURCES_INCOMPLETE, CODE_NO_COVERAGE_COLLECTOR, CODE_TESTS_FAILED,
-    CODE_TESTS_FILTERED, CODE_WORKSPACE_WITHOUT_TESTS, FsArtifacts, bazel_exit_event,
-    bazel_failure_code, bep_error_code, collect_output_account, emit_built, emit_event, kept_child,
-    report_dx_error, report_failed_with_next, write_report_document,
-};
 use super::coverage_candidate::{Candidate, Unavailable, candidate, tracked_orphans};
-use super::failure::CODE_NO_TESTS;
 use super::failure_reports::write_failure_reports;
 use super::skipped_targets::{group_skipped, skipped_notice};
 use dx_bep::{
     ArtifactReader, OutputLocations, TestEvents, TestResultFile, TestResultRecord,
     collect_test_events,
 };
+use dx_exec_core::common::{
+    BAZEL_NO_TESTS, CODE_COVERAGE_BELOW_MINIMUM, CODE_COVERAGE_SOURCES,
+    CODE_COVERAGE_SOURCES_INCOMPLETE, CODE_NO_COVERAGE_COLLECTOR, CODE_TESTS_FAILED,
+    CODE_TESTS_FILTERED, CODE_WORKSPACE_WITHOUT_TESTS, FsArtifacts, bazel_exit_event,
+    bazel_failure_code, bep_error_code, collect_output_account, emit_built, emit_event, kept_child,
+    report_dx_error, report_failed_with_next, write_report_document,
+};
+use dx_exec_core::failure::CODE_NO_TESTS;
 use dx_lcov::{CellAccount, SOURCES_OUTPUT_GROUP, SourceManifest, parse_source_manifest};
 use dx_output::{
     ActionCounts, FinishedCounts, NoticeEvent, OutputMode, TestCase, TestCounts, TestOutcome,
@@ -354,7 +354,7 @@ fn finish(
     let no_tests = bazel_code == BAZEL_NO_TESTS && reported.is_empty();
     if no_tests {
         writeln!(err, "dx: {CODE_NO_TESTS}: no test targets match the scope").ok();
-        if let Some(next) = super::guidance::next_action(CODE_NO_TESTS) {
+        if let Some(next) = dx_exec_core::guidance::next_action(CODE_NO_TESTS) {
             writeln!(err, "{next}").ok();
         }
     }
@@ -483,7 +483,7 @@ fn write_planned_reports(
                 reports_ok = false;
                 let message = format!("failed to render {name} report: {reason}");
                 let next = (!run.detail.is_empty() && reason.message() == run.detail)
-                    .then_some(super::guidance::EVIDENCE_GAP_NEXT);
+                    .then_some(dx_exec_core::guidance::EVIDENCE_GAP_NEXT);
                 sink.failed(&message, next)?;
                 continue;
             }

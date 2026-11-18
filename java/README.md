@@ -1,29 +1,28 @@
 # Java
 
-Build, run and test Java. Warnings fail the build unless a target turns that off.
+This directory helps you build, run and test Java code with rules_dx.
 
-```python
-load("@rules_dx//java:defs.bzl", "java_binary", "java_library", "java_test")
+Load its rules in a `BUILD.bazel` file, the file that declares what Bazel
+builds, from `@rules_dx//java:defs.bzl`.
+`extensions.bzl` holds the module extension: the part you call from
+`MODULE.bazel` to set up toolchains and dependencies.
+The tests live in `tests/`. The [Java page](../docs/languages/java.md) shows
+setup, every rule and the tools dx runs.
 
-java_library(
-    name = "greet",
-    srcs = ["Greet.java"],
-)
+Run the Java tests from a rules_dx checkout:
 
-java_binary(
-    name = "hello",
-    srcs = ["Hello.java"],
-    deps = [":greet"],
-)
-
-java_test(
-    name = "GreetTest",
-    srcs = ["GreetTest.java"],
-    deps = [":greet"],
-)
+```sh
+tools/dx test //java/...
 ```
 
-`java_binary` and `java_test` infer `main_class` and `test_class` from the sources and the package path. Set them to override. Without `srcs`, or with `select()` srcs, the class comes from the package path; if the package path has no Java root, the build fails and asks for `test_class` or `main_class`.
+## Writing targets
+
+Warnings fail the build unless a target turns that off.
+
+`java_binary` and `java_test` infer `main_class` and `test_class` from the
+sources and the package path. Set them to override. Without `srcs`, or with
+`select()` srcs, the class comes from the package path. If the package path
+has no Java root, the build fails and asks for `test_class` or `main_class`.
 
 ## Dependencies
 

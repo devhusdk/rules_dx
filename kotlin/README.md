@@ -1,30 +1,25 @@
 # Kotlin
 
-Build, run and test Kotlin on the JVM with `rules_kotlin`. Warnings fail the build unless a target turns that off.
+This directory helps you build, run and test Kotlin code with rules_dx.
 
-```python
-load("@rules_dx//kotlin:defs.bzl", "kotlin_binary", "kotlin_library", "kotlin_test")
+Load its rules in a `BUILD.bazel` file, the file that declares what Bazel
+builds, from `@rules_dx//kotlin:defs.bzl`.
+The tests live in `tests/`. The [Kotlin page](../docs/languages/kotlin.md) shows
+setup, every rule and the tools dx runs.
 
-kotlin_library(
-    name = "greet",
-    srcs = ["Greet.kt"],
-)
+Run the Kotlin tests from a rules_dx checkout:
 
-kotlin_binary(
-    name = "hello",
-    srcs = ["Hello.kt"],
-    main_class = "demo.HelloKt",
-    deps = [":greet"],
-)
-
-kotlin_test(
-    name = "GreetTest",
-    srcs = ["GreetTest.kt"],
-    deps = [":greet"],
-)
+```sh
+tools/dx test //kotlin/...
 ```
 
-`kotlin_test` infers `test_class` from the sources and the package path. Set it to override. Other attributes pass through to `kt_jvm_library`, `kt_jvm_binary` and `kt_jvm_test`.
+## Writing targets
+
+Warnings fail the build unless a target turns that off.
+
+`kotlin_test` infers `test_class` from the sources and the package path. Set
+it to override. Other attributes pass through to `kt_jvm_library`,
+`kt_jvm_binary` and `kt_jvm_test`.
 
 ## Dependencies
 

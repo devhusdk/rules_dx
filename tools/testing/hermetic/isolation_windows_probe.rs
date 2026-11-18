@@ -2,7 +2,7 @@
 //! `read PATH` or `canon PATH`.
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream, ToSocketAddrs};
-use std::process::{Command, Stdio};
+use std::process::{Command, ExitCode, Stdio};
 use std::time::Duration;
 
 fn connect(addr: &str) -> Result<(), String> {
@@ -75,9 +75,9 @@ fn parent() -> Result<(), String> {
     }
 }
 
-fn main() {
+fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let result = match args.iter().map(String::as_str).collect::<Vec<_>>()[..] {
+    let result = match args.iter().map(String::as_str).collect::<Vec<_>>().as_slice() {
         ["connect", addr] => connect(addr),
         ["resolve", host] => resolve(host),
         ["loopback"] => loopback(),
@@ -95,10 +95,13 @@ fn main() {
         ),
     };
     match result {
-        Ok(()) => println!("ok"),
+        Ok(()) => {
+            println!("ok");
+            ExitCode::SUCCESS
+        }
         Err(err) => {
             eprintln!("error: {err}");
-            std::process::exit(1);
+            ExitCode::FAILURE
         }
     }
 }

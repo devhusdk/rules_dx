@@ -83,7 +83,7 @@ fn app_action_is_pinned_to_a_sha_with_a_tag() {
 
 #[test]
 fn app_token_comes_before_the_dx_step() {
-    let steps = steps(WORKFLOW, "update");
+    let steps = steps(WORKFLOW, "update").unwrap();
     let app = steps
         .iter()
         .position(|step| {
@@ -104,7 +104,7 @@ fn app_token_comes_before_the_dx_step() {
 
 #[test]
 fn git_pushes_through_gh_without_leaking_the_token() {
-    let body = strings(WORKFLOW).join("\n");
+    let body = strings(WORKFLOW).unwrap().join("\n");
     assert!(
         body.contains("gh auth setup-git"),
         "{WORKFLOW} must configure git through gh"
@@ -121,7 +121,7 @@ fn git_pushes_through_gh_without_leaking_the_token() {
 
 #[test]
 fn schedule_and_dispatch_only() {
-    let on = triggers(WORKFLOW);
+    let on = triggers(WORKFLOW).unwrap();
     let mut names: Vec<&str> = on
         .as_object()
         .unwrap_or_else(|| panic!("{WORKFLOW} declares no trigger table"))
@@ -139,7 +139,7 @@ fn schedule_and_dispatch_only() {
 #[test]
 fn every_gh_step_sets_gh_token() {
     let mut found = 0;
-    for step in steps(WORKFLOW, "update") {
+    for step in steps(WORKFLOW, "update").unwrap() {
         if invokes_gh(run_of(&step)) {
             found += 1;
             assert!(
@@ -154,10 +154,10 @@ fn every_gh_step_sets_gh_token() {
 
 /// Each update group runs `dx check --affected` and `dx test --affected`, and a
 /// .bazelversion bump affects every target. On one cold runner that outlived the
-/// job timeout (#13136), so the dx step must run on remote execution.
+/// job timeout, so the dx step must run on remote execution.
 #[test]
 fn updates_are_verified_on_remote_execution() {
-    let steps = steps(WORKFLOW, "update");
+    let steps = steps(WORKFLOW, "update").unwrap();
     let dx = steps
         .iter()
         .position(|step| run_of(step).contains("tools/dx update --pr"))

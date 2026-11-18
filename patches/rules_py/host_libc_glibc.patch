@@ -1,3 +1,4 @@
+Upstream: aspect-build/rules_py#1686
 --- a/uv/private/host/repository.bzl
 +++ b/uv/private/host/repository.bzl
 @@ -23,38 +23,10 @@

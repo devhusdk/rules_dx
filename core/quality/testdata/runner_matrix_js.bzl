@@ -2,6 +2,8 @@
 
 load(":runner_matrix_tests.bzl", "BIOME_BINARY", "matrix_case")
 
+visibility("private")
+
 JS_CASES = [
     matrix_case(
         name = "matrix_javascript_lint_pass",

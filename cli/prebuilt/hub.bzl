@@ -2,6 +2,8 @@
 
 load(":tools.bzl", "RELEASE_CPU", "RELEASE_OS", "TOOLS", "asset_name", "split_key")
 
+visibility(["//cli/...", "//gazelle/..."])
+
 KNOWN_OS = ["android", "freebsd", "ios", "linux", "macos", "openbsd", "windows"]
 
 KNOWN_CPU = ["aarch64", "arm", "i386", "ppc64le", "riscv64", "s390x", "x86_32", "x86_64"]

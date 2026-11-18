@@ -52,6 +52,15 @@ Build and test everything. `//...` means every target in the repository:
 tools/dx test //...
 ```
 
+## Writing targets
+
+Warnings fail the build unless a target turns that off.
+
+`java_binary` and `java_test` infer `main_class` and `test_class` from the
+sources and the package path. Set them to override. Without `srcs`, or with
+`select()` srcs, the class comes from the package path. If the package path
+has no Java root, the build fails and asks for `test_class` or `main_class`.
+
 ## Dependencies
 
 List the artifacts in a rules_jvm_external `maven_install.json` and run

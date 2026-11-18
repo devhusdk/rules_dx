@@ -1099,7 +1099,7 @@ mod tests {
     }
 
     fn paths_for(ci: super::CiProvider) -> Vec<String> {
-        let scratch = dx_test_scratch::scratch("dx-adopt-ci-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-ci-").unwrap();
         let files = super::plan_init_files_at(scratch.path(), "demo", Some(ci)).expect("plans");
         scratch.close().expect("cleanup");
         files.into_iter().map(|f| f.path).collect()
@@ -1118,7 +1118,7 @@ mod tests {
 
     #[test]
     fn release_caller_needs_a_dx_deployment_in_the_tree() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-release-gate-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-release-gate-").unwrap();
         let root = scratch.path();
         let has_release = |root: &std::path::Path| {
             super::plan_init_files_at(root, "demo", Some(super::CiProvider::Github))
@@ -1145,7 +1145,7 @@ mod tests {
 
     #[test]
     fn detection_prefers_the_ci_file_the_repo_has() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-detect-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-detect-").unwrap();
         let root = scratch.path();
         assert_eq!(super::CiProvider::detect(root), super::CiProvider::Github);
         std::fs::write(root.join(".gitlab-ci.yml"), "").expect("gitlab");
@@ -1233,7 +1233,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn envrc_adds_the_managed_bin_without_running_the_pinned_dx() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-envrc-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-envrc-").unwrap();
         let root = scratch.path();
         std::fs::create_dir_all(root.join("tools")).expect("tools");
         std::fs::write(root.join(".envrc"), super::ENVRC_CONTENT).expect("envrc");
@@ -1333,7 +1333,7 @@ mod tests {
     }
 
     fn recommendations(files: &[(&str, &str)]) -> Vec<String> {
-        let scratch = dx_test_scratch::scratch("dx-adopt-editor-recs-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-editor-recs-").unwrap();
         let root = scratch.path().join("root");
         for (path, text) in files {
             let dest = root.join(path);
@@ -1357,7 +1357,7 @@ mod tests {
     }
 
     fn root_builds(files: &[(&str, &str)]) -> Vec<(String, super::FileKind)> {
-        let scratch = dx_test_scratch::scratch("dx-adopt-root-build-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-root-build-").unwrap();
         for (path, text) in files {
             std::fs::write(scratch.path().join(path), text).expect("file");
         }
@@ -1385,7 +1385,7 @@ mod tests {
         let template_path = std::env::var("DX_CONSUMER_TEMPLATE").expect("template path");
         let lib_path = std::env::var("DX_CONSUMER_LIB").expect("lib path");
         let template = std::fs::read_to_string(template_path).expect("template");
-        let scratch = dx_test_scratch::scratch("dx-adopt-consumer-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-consumer-").unwrap();
         let root = scratch.path();
         std::fs::create_dir_all(root.join("src")).expect("src dir");
         std::fs::write(root.join("BUILD.bazel"), &template).expect("root build");
@@ -1532,7 +1532,7 @@ mod tests {
 
     #[test]
     fn apply_init_writes_absent_only_and_refuses_existing() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(&root).expect("tmp");
         let first = entries(|a| apply_init(&root, "demo", a)).expect("init");
@@ -1550,7 +1550,7 @@ mod tests {
 
     #[test]
     fn editorconfig_and_gitattributes_are_written_once() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-editor-files-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-editor-files-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(&root).expect("tmp");
         let first = entries(|a| apply_init(&root, "demo", a)).expect("init");
@@ -1597,7 +1597,7 @@ mod tests {
 
     #[test]
     fn the_version_pin_is_generated_and_rewritten_when_stale() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-pin-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-pin-").unwrap();
         let root = scratch.path().to_path_buf();
         let pin = root.join(".dx/pins");
         entries(|a| apply_init(&root, "demo", a)).expect("init");
@@ -1827,7 +1827,7 @@ mod tests {
 
     #[test]
     fn ruff_configuration_follows_the_root_file() {
-        let root = dx_test_scratch::scratch("ruff-config");
+        let root = dx_test_scratch::scratch("ruff-config").unwrap();
         std::fs::write(root.path().join("app.py"), "").expect("write");
         let none = EditorTools::detect(root.path());
         assert_eq!(none.ruff_config, "");
@@ -2217,7 +2217,7 @@ mod tests {
     #[test]
     fn apply_init_writes_nothing_for_invalid_modules() {
         for hostile in ["Bad Name", "../evil", "with\nnewline"] {
-            let scratch = dx_test_scratch::scratch("dx-adopt-init-reject-");
+            let scratch = dx_test_scratch::scratch("dx-adopt-init-reject-").unwrap();
             let root = scratch.path().to_path_buf();
             std::fs::write(root.join("sentinel"), "stay").expect("sentinel");
             assert!(
@@ -2241,7 +2241,7 @@ mod tests {
 
     #[test]
     fn apply_scaffold_refuses_a_file_parent_before_writing() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-file-parent-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-file-parent-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::write(root.join(".vscode"), "file\n").expect("blocker");
         let mut applied = super::Applied::default();
@@ -2264,7 +2264,7 @@ mod tests {
 
     #[test]
     fn init_leaves_existing_files_untouched() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-shared-collision-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-shared-collision-").unwrap();
         let root = scratch.path().join("root");
         std::fs::create_dir_all(&root).expect("root");
         std::fs::write(root.join(".envrc"), "mine\n").expect("handwritten");
@@ -2300,7 +2300,7 @@ mod tests {
 
     #[test]
     fn devcontainer_refresh_changes_only_the_pins() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-devcontainer-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-devcontainer-").unwrap();
         let root = scratch.path();
         std::fs::create_dir_all(root.join(".devcontainer")).expect("dir");
         let path = root.join(".devcontainer/devcontainer.json");
@@ -2326,7 +2326,7 @@ mod tests {
 
     #[test]
     fn devcontainer_refresh_leaves_other_images_alone() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-devcontainer-other-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-devcontainer-other-").unwrap();
         let root = scratch.path();
         std::fs::create_dir_all(root.join(".devcontainer")).expect("dir");
         let path = root.join(".devcontainer/devcontainer.json");
@@ -2339,7 +2339,7 @@ mod tests {
 
     #[test]
     fn recommendations_gain_detected_ids_and_respect_unwanted() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-owned-recs-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-owned-recs-").unwrap();
         let root = scratch.path();
         std::fs::create_dir_all(root.join(".vscode")).expect("dir");
         std::fs::write(root.join("main.go"), "package main\n").expect("go");
@@ -2367,7 +2367,7 @@ mod tests {
 
     #[test]
     fn owned_settings_keep_comments_and_user_keys() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-owned-json-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-owned-json-").unwrap();
         let root = scratch.path();
         std::fs::create_dir_all(root.join(".vscode")).expect("dir");
         let mine = "{\n  // mine\n  \"editor.tabSize\": 2,\n  \"go.toolsManagement.checkForUpdates\": \"on\",\n  \"search.exclude\": {\"**/mine\": true,},\n}\n";
@@ -2389,7 +2389,7 @@ mod tests {
 
     #[test]
     fn an_old_bazel_run_rust_command_is_replaced_by_the_launcher() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-owned-rust-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-owned-rust-").unwrap();
         let root = scratch.path();
         std::fs::create_dir_all(root.join(".vscode")).expect("dir");
         let old = "{\"rust-analyzer.check.overrideCommand\": [\"bazel\", \"run\", \"@rules_rust//tools/rust_analyzer:flycheck\", \"--\", \"--saved-file\", \"$saved_file\"]}\n";
@@ -2406,7 +2406,7 @@ mod tests {
 
     #[test]
     fn second_apply_changes_nothing() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-owned-twice-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-owned-twice-").unwrap();
         let root = scratch.path();
         let first = entries(|a| apply_init(root, "demo", a)).expect("first");
         assert!(
@@ -2441,7 +2441,7 @@ mod tests {
 
     #[test]
     fn pin_update_changes_exactly_one_line() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-owned-pin-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-owned-pin-").unwrap();
         let root = scratch.path();
         std::fs::create_dir_all(root.join(".github/workflows")).expect("dir");
         let old = old_ci();
@@ -2458,7 +2458,7 @@ mod tests {
 
     #[test]
     fn pin_update_repins_release_and_keeps_added_jobs() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-owned-release-pin-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-owned-release-pin-").unwrap();
         let root = scratch.path();
         std::fs::create_dir_all(root.join(".github/workflows")).expect("dir");
         let release = root.join(".github/workflows/release.yml");
@@ -2476,7 +2476,7 @@ mod tests {
 
     #[test]
     fn ci_without_the_workflow_call_is_left_untouched() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-owned-refused-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-owned-refused-").unwrap();
         let root = scratch.path();
         std::fs::create_dir_all(root.join(".github/workflows")).expect("dir");
         let mine = "name: ci\njobs: {}\n";
@@ -2506,7 +2506,7 @@ mod tests {
 
         #[test]
         fn init_refuses_external_symlinked_ancestor_and_writes_nothing() {
-            let scratch = dx_test_scratch::scratch("dx-adopt-symlink-out-");
+            let scratch = dx_test_scratch::scratch("dx-adopt-symlink-out-").unwrap();
             let root = scratch.path().join("root");
             let outside = scratch.path().join("outside");
             std::fs::create_dir_all(&root).expect("root");
@@ -2524,7 +2524,7 @@ mod tests {
 
         #[test]
         fn dangling_symlink_is_refused() {
-            let scratch = dx_test_scratch::scratch("dx-adopt-symlink-dangling-");
+            let scratch = dx_test_scratch::scratch("dx-adopt-symlink-dangling-").unwrap();
             let root = scratch.path().join("root");
             std::fs::create_dir_all(&root).expect("root");
             symlink(scratch.path().join("missing"), root.join(".github")).expect("symlink");
@@ -2534,7 +2534,7 @@ mod tests {
 
         #[test]
         fn internal_symlink_is_allowed() {
-            let scratch = dx_test_scratch::scratch("dx-adopt-symlink-in-");
+            let scratch = dx_test_scratch::scratch("dx-adopt-symlink-in-").unwrap();
             let root = scratch.path().join("root");
             std::fs::create_dir_all(root.join("real")).expect("real");
             symlink(root.join("real"), root.join(".github")).expect("symlink");

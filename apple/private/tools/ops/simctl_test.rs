@@ -189,8 +189,8 @@ fn a_host_without_xcrun_fails_with_127() {
 
 #[test]
 fn install_passes_an_app_bundle_through() {
-    let root = scratch("simctl-app");
-    write(root.path(), "Ledger.app/Info.plist", "x");
+    let root = scratch("simctl-app").unwrap();
+    write(root.path(), "Ledger.app/Info.plist", "x").unwrap();
     let app = root
         .path()
         .join("Ledger.app")
@@ -208,7 +208,7 @@ fn install_passes_an_app_bundle_through() {
 
 #[test]
 fn install_unpacks_the_ipa_and_installs_its_app_bundle() {
-    let root = scratch("simctl-ipa");
+    let root = scratch("simctl-ipa").unwrap();
     let ipa = root.path().join("Ledger.ipa");
     let mut writer = zip::ZipWriter::new(std::fs::File::create(&ipa).unwrap());
     writer
@@ -245,8 +245,8 @@ fn install_unpacks_the_ipa_and_installs_its_app_bundle() {
 
 #[test]
 fn install_rejects_a_missing_or_foreign_app() {
-    let root = scratch("simctl-bad");
-    write(root.path(), "notes.txt", "x");
+    let root = scratch("simctl-bad").unwrap();
+    write(root.path(), "notes.txt", "x").unwrap();
     let notes = root.path().join("notes.txt").to_string_lossy().into_owned();
     let fake = simulator();
     let device = env(&[("DX_SIMCTL_DEVICE", "iPhone 16")]);

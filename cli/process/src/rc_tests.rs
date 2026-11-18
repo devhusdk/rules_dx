@@ -1103,7 +1103,7 @@ fn a_bom_prefixed_rc_parses_its_first_build_line() {
 
 #[test]
 fn read_file_decodes_bytes_and_drops_a_bom() {
-    let dir = dx_test_scratch::scratch("dx-rc-decode-");
+    let dir = dx_test_scratch::scratch("dx-rc-decode-").unwrap();
     let path = dir.path().join(".bazelrc");
     std::fs::write(&path, b"\xEF\xBB\xBF# M\xFCller\nbuild --disk_cache=/x\n").expect("write");
     assert_eq!(
@@ -1114,7 +1114,7 @@ fn read_file_decodes_bytes_and_drops_a_bom() {
 
 #[test]
 fn read_file_is_none_for_a_missing_or_unreadable_path() {
-    let dir = dx_test_scratch::scratch("dx-rc-missing-");
+    let dir = dx_test_scratch::scratch("dx-rc-missing-").unwrap();
     assert_eq!(read_file(&dir.path().join("absent.bazelrc")), None);
     assert_eq!(read_file(dir.path()), None);
 }
@@ -1135,9 +1135,12 @@ fn import_path_joins_workspace_imports_per_component() {
 #[cfg(windows)]
 #[test]
 fn import_path_reads_under_a_verbatim_workspace() {
-    let dir = dx_test_scratch::scratch("dx-rc-verbatim-");
+    let dir = dx_test_scratch::scratch("dx-rc-verbatim-").unwrap();
     let ws = std::fs::canonicalize(dir.path()).expect("canonicalize");
-    assert!(ws.to_string_lossy().starts_with(r"\\?\"));
+    assert!(matches!(
+        ws.components().next(),
+        Some(std::path::Component::Prefix(prefix)) if prefix.kind().is_verbatim()
+    ));
     std::fs::create_dir_all(ws.join("tools")).expect("mkdir");
     std::fs::write(ws.join("tools").join("x.bazelrc"), "build --x\n").expect("write");
     assert_eq!(

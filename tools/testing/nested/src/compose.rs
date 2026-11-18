@@ -139,16 +139,16 @@ pub const RULES_FLUTTER_PATCHES: [&str; 6] = [
 const FLUTTER_PINS: &str = include_str!("../../../../flutter/pins.json");
 
 /// The `sha256-` integrity of a lowercase hex SHA-256.
-fn sha256_integrity(hex: &str) -> String {
+fn sha256_integrity(hex: &str) -> Result<String, String> {
     const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let bytes: Vec<u8> = (0..hex.len() / 2)
+    let bytes = (0..hex.len() / 2)
         .map(|at| {
             let digits = hex
                 .get(at * 2..at * 2 + 2)
-                .unwrap_or_else(|| panic!("sha256 {hex} is not ASCII hex"));
-            u8::from_str_radix(digits, 16).unwrap_or_else(|error| panic!("sha256 {hex}: {error}"))
+                .ok_or_else(|| format!("sha256 {hex} is not ASCII hex"))?;
+            u8::from_str_radix(digits, 16).map_err(|error| format!("sha256 {hex}: {error}"))
         })
-        .collect();
+        .collect::<Result<Vec<u8>, String>>()?;
     let mut out = String::from("sha256-");
     for chunk in bytes.chunks(3) {
         let word = chunk.iter().enumerate().fold(0u32, |word, (at, byte)| {
@@ -157,40 +157,40 @@ fn sha256_integrity(hex: &str) -> String {
         for at in 0..=chunk.len() {
             let sextet = ALPHABET
                 .get((word >> (18 - 6 * at) & 63) as usize)
-                .unwrap_or_else(|| panic!("base64 sextet of {hex} out of range"));
+                .ok_or_else(|| format!("base64 sextet of {hex} out of range"))?;
             out.push(char::from(*sextet));
         }
     }
     out.push_str(&"=".repeat((3 - bytes.len() % 3) % 3));
-    out
+    Ok(out)
 }
 
 /// Pins the patched `rules_flutter` the way the root MODULE.bazel does, from `flutter/pins.json`.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics when the operation fails.
-pub fn rules_flutter_override() -> String {
+/// Returns `Err` when `flutter/pins.json` lacks a valid `rules_flutter` pin.
+pub fn rules_flutter_override() -> Result<String, String> {
     let pins: serde_json::Value = serde_json::from_str(FLUTTER_PINS)
-        .unwrap_or_else(|error| panic!("flutter/pins.json: {error}"));
+        .map_err(|error| format!("flutter/pins.json: {error}"))?;
     let pin = pins.pointer("/archives/rules_flutter");
     let field = |name: &str| {
         pin.and_then(|pin| pin.get(name))
             .and_then(serde_json::Value::as_str)
-            .unwrap_or_else(|| panic!("flutter/pins.json rules_flutter has no {name}"))
+            .ok_or_else(|| format!("flutter/pins.json rules_flutter has no {name}"))
     };
-    let integrity = sha256_integrity(field("sha256"));
-    let strip_prefix = field("strip_prefix");
+    let integrity = sha256_integrity(field("sha256")?)?;
+    let strip_prefix = field("strip_prefix")?;
     let url = pin
         .and_then(|pin| pin.pointer("/urls/0"))
         .and_then(serde_json::Value::as_str)
-        .unwrap_or_else(|| panic!("flutter/pins.json rules_flutter has no urls"));
+        .ok_or("flutter/pins.json rules_flutter has no urls")?;
     let patches = RULES_FLUTTER_PATCHES
         .map(|name| format!("        \"//patches/rules_flutter:{name}.patch\",\n"))
         .concat();
-    format!(
+    Ok(format!(
         "archive_override(\n    module_name = \"rules_flutter\",\n    integrity = \"{integrity}\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    strip_prefix = \"{strip_prefix}\",\n    urls = [\"{url}\"],\n)\n"
-    )
+    ))
 }
 
 /// Drops the `module()` line and any comment or blank lines before it.
@@ -252,7 +252,7 @@ pub fn compose_module(
         body,
         rules_dx_override(rules_dx),
         rules_py_override(),
-        rules_flutter_override(),
+        rules_flutter_override()?,
     ))
 }
 
@@ -466,7 +466,7 @@ mod tests {
             format!(
                 "module(name = \"hermetic_consumer\")\n\nbazel_dep(name = \"rules_dx\", repo_name = \"my_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nregister_toolchains(\"@llvm//toolchain:all\")\nbazel_dep(name = \"googletest\", version = \"1.18.0\")\nlocal_path_override(\n    module_name = \"rules_dx\",\n    path = \"/src/rules dx\",\n)\n{}{}",
                 rules_py_override(),
-                rules_flutter_override(),
+                rules_flutter_override().unwrap(),
             )
         );
     }
@@ -558,10 +558,10 @@ mod tests {
 
     #[test]
     fn integrity_pads_like_base64() {
-        assert_eq!(sha256_integrity("ff"), "sha256-/w==");
-        assert_eq!(sha256_integrity("ffff"), "sha256-//8=");
-        assert_eq!(sha256_integrity("ffffff"), "sha256-////");
-        assert_eq!(sha256_integrity("4d616e"), "sha256-TWFu");
+        assert_eq!(sha256_integrity("ff").unwrap(), "sha256-/w==");
+        assert_eq!(sha256_integrity("ffff").unwrap(), "sha256-//8=");
+        assert_eq!(sha256_integrity("ffffff").unwrap(), "sha256-////");
+        assert_eq!(sha256_integrity("4d616e").unwrap(), "sha256-TWFu");
     }
 
     #[test]

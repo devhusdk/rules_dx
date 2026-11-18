@@ -73,7 +73,7 @@ fn compile(
     flags: &[&str],
 ) -> Compile {
     let root = workspace_root();
-    let scratch = dx_test_scratch::scratch("dx-cc-driver");
+    let scratch = dx_test_scratch::scratch("dx-cc-driver").unwrap();
     let object = scratch.path().join(format!("{tag}.o"));
     let mut argv: Vec<String> = vec![bin.to_owned()];
     for flag in flags {

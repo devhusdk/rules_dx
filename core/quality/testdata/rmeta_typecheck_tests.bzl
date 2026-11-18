@@ -4,6 +4,8 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_rust//rust:defs.bzl", "rust_clippy_aspect")
 load("@rules_rust//rust:rust_common.bzl", "rust_common")
 
+visibility("private")
+
 def _rmeta_impl(ctx):
     """Checks the rustc_rmeta_output group holds one .rmeta.rustc-output file."""
     env = analysistest.begin(ctx)

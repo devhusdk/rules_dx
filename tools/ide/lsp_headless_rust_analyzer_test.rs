@@ -38,15 +38,15 @@ struct RustFixture {
 }
 
 fn stage_rust(tag: &str, feature: bool) -> RustFixture {
-    let root_tmp = dx_test_scratch::scratch(tag);
+    let root_tmp = dx_test_scratch::scratch(tag).unwrap();
     let root = root_tmp.path().to_path_buf();
     let src = root.join("src");
     let lib = src.join("lib.rs");
-    write_text(&lib, RUST_LIB);
+    write_text(&lib, RUST_LIB).expect("write fixture");
     let typed = src.join("typed.rs");
-    write_text(&typed, RUST_TYPED);
+    write_text(&typed, RUST_TYPED).expect("write fixture");
     let broken = src.join("broken.rs");
-    write_text(&broken, RUST_BROKEN);
+    write_text(&broken, RUST_BROKEN).expect("write fixture");
     let cfg: Vec<&str> = if feature {
         vec!["feature=\"dx_probe\""]
     } else {
@@ -63,7 +63,7 @@ fn stage_rust(tag: &str, feature: bool) -> RustFixture {
         }],
     });
     let rendered = serde_json::to_string_pretty(&project).expect("rust project serializes");
-    write_text(&root.join("rust-project.json"), &format!("{rendered}\n"));
+    write_text(&root.join("rust-project.json"), &format!("{rendered}\n")).expect("write fixture");
     RustFixture {
         lib_uri: file_uri(&lib),
         lib_text: RUST_LIB.to_owned(),
@@ -78,7 +78,7 @@ fn stage_rust(tag: &str, feature: bool) -> RustFixture {
 fn rust_project_definition_resolves_through_selected_features() {
     let analyzer = toolchain_pick("DX_LSP_TOOLCHAIN_FILES", "bin/rust-analyzer");
     let fixture = stage_rust("lsp-rust-feature", true);
-    let vars = scoped_env(&fixture.root);
+    let vars = scoped_env(&fixture.root).expect("scoped env");
     require_context(&fixture.root, "rust-project.json").expect("generated context exists");
     let mut session = Session::spawn(&analyzer, &[], &vars).expect("rust-analyzer starts");
     let deadline = Instant::now() + Duration::from_secs(240);
@@ -111,7 +111,7 @@ fn rust_project_definition_resolves_through_selected_features() {
         deadline,
     )
     .expect("rust-analyzer answers definition");
-    let target = first_location(&result, "base helper definition");
+    let target = first_location(&result, "base helper definition").expect("definition location");
     assert_eq!(
         target.get("uri").and_then(serde_json::Value::as_str),
         Some(fixture.lib_uri.as_str()),
@@ -151,7 +151,7 @@ fn rust_project_definition_resolves_through_selected_features() {
 fn rust_project_hides_feature_gated_items_without_the_feature() {
     let analyzer = toolchain_pick("DX_LSP_TOOLCHAIN_FILES", "bin/rust-analyzer");
     let fixture = stage_rust("lsp-rust-no-feature", false);
-    let vars = scoped_env(&fixture.root);
+    let vars = scoped_env(&fixture.root).expect("scoped env");
     require_context(&fixture.root, "rust-project.json").expect("generated context exists");
     let mut session = Session::spawn(&analyzer, &[], &vars).expect("rust-analyzer starts");
     let deadline = Instant::now() + Duration::from_secs(240);
@@ -184,7 +184,7 @@ fn rust_project_hides_feature_gated_items_without_the_feature() {
         deadline,
     )
     .expect("rust-analyzer answers definition");
-    let target = first_location(&result, "base helper definition");
+    let target = first_location(&result, "base helper definition").expect("definition location");
     assert_eq!(
         target.get("uri").and_then(serde_json::Value::as_str),
         Some(fixture.lib_uri.as_str()),
@@ -210,7 +210,7 @@ fn rust_project_hides_feature_gated_items_without_the_feature() {
 fn rust_project_syntax_diagnostic_publishes_without_check_runner() {
     let analyzer = toolchain_pick("DX_LSP_TOOLCHAIN_FILES", "bin/rust-analyzer");
     let fixture = stage_rust("lsp-rust-syntax", true);
-    let vars = scoped_env(&fixture.root);
+    let vars = scoped_env(&fixture.root).expect("scoped env");
     require_context(&fixture.root, "rust-project.json").expect("generated context exists");
     let mut session = Session::spawn(&analyzer, &[], &vars).expect("rust-analyzer starts");
     let deadline = Instant::now() + Duration::from_secs(240);
@@ -271,8 +271,8 @@ fn rust_project_syntax_diagnostic_publishes_without_check_runner() {
 fn rust_project_malformed_json_is_explicit() {
     let analyzer = toolchain_pick("DX_LSP_TOOLCHAIN_FILES", "bin/rust-analyzer");
     let fixture = stage_rust("lsp-rust-malformed", true);
-    write_text(&fixture.root.join("rust-project.json"), "{not json");
-    let vars = scoped_env(&fixture.root);
+    write_text(&fixture.root.join("rust-project.json"), "{not json").expect("write fixture");
+    let vars = scoped_env(&fixture.root).expect("scoped env");
     let mut session = Session::spawn(&analyzer, &[], &vars).expect("rust-analyzer starts");
     let deadline = Instant::now() + Duration::from_secs(240);
     session

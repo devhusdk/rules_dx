@@ -1,3 +1,4 @@
+Upstream: none (not yet sent upstream)
 --- a/haskell/private/coverage_wrapper.sh.tpl
 +++ b/haskell/private/coverage_wrapper.sh.tpl
 @@ -93,72 +93,4 @@

@@ -14,7 +14,7 @@ fn gcc_archive_runs_on_a_clean_environment_without_toolchain_files() {
     names.sort();
     assert_eq!(names, ["IDENTITY.txt", "NOTICE", "hello_gcc"]);
 
-    let guard = dx_test_scratch::scratch("gcc-archive");
+    let guard = dx_test_scratch::scratch("gcc-archive").unwrap();
     let scratch = guard.path();
     let dir = scratch.join("out");
     archive_extract(&archive, &dir).expect("extract archive");

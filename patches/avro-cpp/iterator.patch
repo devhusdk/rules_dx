@@ -1,3 +1,4 @@
+Upstream: apache/avro#3471, apache/avro#3788, apache/avro#4076, apache/avro#4077
 diff --git a/impl/Stream.cc b/impl/Stream.cc
 --- a/impl/Stream.cc
 +++ b/impl/Stream.cc

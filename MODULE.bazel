@@ -1563,18 +1563,17 @@ register_toolchains("@dx_ruby_toolchains//:all")
 bazel_dep(name = "rules_zig", version = "0.17.0")
 
 # floor: equals tested
-bazel_dep(name = "rules_swift", version = "4.2.2")
+bazel_dep(name = "rules_swift", version = "4.3.0")
 single_version_override(
     module_name = "rules_swift",
     patch_strip = 1,
     patches = [
-        "//patches/rules_swift:clang_cl_no_split_cold_code.patch",
         "//patches/rules_swift:windows_absolute_sdk.patch",
         "//patches/rules_swift:windows_swift_testing.patch",
         "//patches/rules_swift:windows_unknown_vendor.patch",
         "//patches/rules_swift:xcode_select_absolute_path.patch",
     ],
-    version = "4.2.2",
+    version = "4.3.0",
 )
 
 # floor: equals tested
@@ -1756,8 +1755,8 @@ bazel_dep(name = "toml.bzl", version = "0.5.0")
 rules_julia = use_extension("//julia/private/toolchain:extensions.bzl", "rules_julia")
 use_repo(rules_julia, "rules_julia")
 
-julia = use_extension("//julia:extensions.bzl", "toolchain")
-use_repo(julia, "julia_toolchains")
+julia_toolchain = use_extension("//julia:extensions.bzl", "julia_toolchain")
+use_repo(julia_toolchain, "julia_toolchains")
 
 register_toolchains("@julia_toolchains//:all")
 
@@ -2222,7 +2221,7 @@ dx_dev_hub.link(
 )
 use_repo(dx_dev_hub, "dx_npm_link")
 
-dx_prebuilt = use_extension("//cli/prebuilt:extension.bzl", "dx_prebuilt")
+dx_prebuilt = use_extension("//core:extensions.bzl", "dx_prebuilt")
 use_repo(dx_prebuilt, "dx_prebuilt")
 
 dx_gazelle = use_extension("//gazelle/dispatch:extension.bzl", "dx_gazelle")
@@ -2603,6 +2602,7 @@ crate.from_cargo(
     manifests = [
         "//cc/private/tools/context:Cargo.toml",
         "//cli/process:Cargo.toml",
+        "//cli/os_sys:Cargo.toml",
         "//cli/apply:Cargo.toml",
         "//cli/atomic_fs:Cargo.toml",
         "//cli/merge:Cargo.toml",
@@ -2613,6 +2613,8 @@ crate.from_cargo(
         "//cli/advisory_prep:Cargo.toml",
         "//cli/coverage_summary:Cargo.toml",
         "//cli/tool_resolve:Cargo.toml",
+        "//dx/advisory_prep:Cargo.toml",
+        "//dx/tool_resolve:Cargo.toml",
         "//cli/output:Cargo.toml",
         "//cli/path:Cargo.toml",
         "//cli/error:Cargo.toml",
@@ -2622,8 +2624,10 @@ crate.from_cargo(
         "//cli/shard_writer:Cargo.toml",
         "//cli/bep:Cargo.toml",
         "//cli/cli:Cargo.toml",
+        "//cli/exec_core:Cargo.toml",
         "//cli/diff:Cargo.toml",
         "//cli/digest:Cargo.toml",
+        "//cli/http:Cargo.toml",
         "//cli/dx_config:Cargo.toml",
         "//cli/generate:Cargo.toml",
         "//cli/ide:Cargo.toml",

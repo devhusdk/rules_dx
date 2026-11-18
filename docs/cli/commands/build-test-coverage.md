@@ -22,7 +22,7 @@ A few Bazel words this page uses:
 Build targets.
 
 ```text
-dx build [--here] [--affected [--since <ref>]] [--debug|--release] [--timings] [--no-retry] [--report failures=<path>] [scope...] [-- bazel-options...]
+dx build [--offline] [--here] [--affected [--since <ref>|--base <ref>]] [--debug|--release] [--timings] [--no-retry] [--report failures=<path>] [scope...] [-- bazel-options...]
 ```
 
 ```sh
@@ -35,7 +35,7 @@ dx build --release //app -- --local_resources=cpu=4
 Build and run tests.
 
 ```text
-dx test [--here] [--affected [--since <ref>]] [--debug|--release] [--timings] [--no-retry] [--report junit|failures|results=<path>] [scope...] [-- bazel-options...]
+dx test [--offline] [--here] [--affected [--since <ref>|--base <ref>]] [--debug|--release] [--timings] [--no-retry] [--report junit|failures|results=<path>] [scope...] [-- bazel-options...]
 ```
 
 ```sh
@@ -49,7 +49,7 @@ dx test //pkg:test -- --test_filter=case_name
 Run tests and collect LCOV coverage. Optionally fail below a minimum.
 
 ```text
-dx coverage [--here] [--affected [--since <ref>]] [--timings] [--no-retry] [--fail-on info|warning|error] [--min-coverage <percent>] [--min-changed-line-coverage <percent>] [--report lcov|sources|failures|results=<path>] [scope...] [-- bazel-options...]
+dx coverage [--here] [--affected [--since <ref>|--base <ref>]] [--timings] [--no-retry] [--fail-on info|warning|error] [--min-coverage <percent>] [--min-changed-line-coverage <percent>] [--report lcov|sources|failures|results=<path>] [scope...] [-- bazel-options...]
 ```
 
 ```sh
@@ -82,9 +82,11 @@ dx run --release //app -- --port 8080
 
 | Flag | Commands | What it does |
 | --- | --- | --- |
+| `--offline` | `build`, `test` | Never download. Use only what [`dx fetch`](fetch.md) fetched. Passes `--repository_disable_download` to Bazel and to the scope queries. |
 | `--here` | `build`, `test`, `coverage` | Use the current directory tree: `//path/...`, or `//...` at the workspace root. |
 | `--affected` | `build`, `test`, `coverage` | Use only the targets your git changes reach. |
 | `--since <ref>` | `build`, `test`, `coverage` | With `--affected`: compare against this git ref instead of the merge-base with the default branch. Without `--affected`, exits `2`. |
+| `--base <ref>` | `build`, `test`, `coverage` | With `--affected`: take the merge-base with this branch instead of the default branch. Not with `--since`. |
 | `--debug` | `build`, `test`, `run` | Compile with the `dx_build_debug` build mode. |
 | `--release` | `build`, `test`, `run` | Compile with the `dx_build_release` build mode. |
 | `--timings` | all four | Print where build time went. For `run`, it reports on the build step. |
@@ -126,8 +128,9 @@ A scope picks what to run. Pass labels, patterns, files, or directories. With no
 - For `test` and `coverage`, a file runs the tests that depend on its owning targets.
 - A test tagged `manual` runs only when it owns the file. A *tag* is a word in a target's `tags` list.
 - `--here` uses the current directory tree.
-- `--affected` uses the targets changed since the merge-base with the default branch, or since `--since <ref>`, plus the targets that depend on them. On `test` and `coverage` it runs only the affected tests. With nothing affected, dx prints `no affected targets` and exits `0`.
-- `--here` and `--affected` do not combine with scopes or with each other.
+- `--affected` uses the targets changed since the merge-base with the default branch (or with `--base <ref>`), or since `--since <ref>`, plus the targets that depend on them. On `test` and `coverage` it runs only the affected tests. With nothing affected, dx prints `no affected targets` and exits `0`.
+- `--here` does not combine with scopes or `--affected`.
+- `--affected` with scopes keeps only the affected targets inside them, for example `dx test --affected //svc/...`.
 
 `dx test //...` in a workspace with no test targets prints `the workspace has no test targets` and exits `0`. A narrower pattern with no tests exits `1` with `no_tests`.
 

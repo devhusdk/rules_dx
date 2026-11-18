@@ -43,11 +43,12 @@ fn callers_forward_every_workflow_secret() {
     for (workflow, caller) in PAIRS {
         let path = workflow_path(workflow);
         let secrets = keys(
-            &workflow_call(&path)["secrets"],
+            &workflow_call(&path).unwrap()["secrets"],
             &format!("{path} on.workflow_call.secrets"),
         );
         assert!(!secrets.is_empty(), "{workflow} declares no secrets");
         let calls: Vec<(String, String, Value)> = reusable_calls(caller)
+            .unwrap()
             .into_iter()
             .filter(|(_, called, _)| called == workflow)
             .collect();
@@ -74,6 +75,7 @@ fn docs_page_names_every_workflow_check() {
     for (workflow, _) in PAIRS {
         let path = workflow_path(workflow);
         let checks: Vec<String> = jobs(&path)
+            .unwrap()
             .into_iter()
             .map(|(id, job)| job["name"].as_str().map_or(id, str::to_owned))
             .filter(|name| !name.contains("${{"))
@@ -91,12 +93,12 @@ fn docs_page_names_every_workflow_check() {
 #[test]
 fn every_caller_input_is_a_workflow_input() {
     for caller in callers() {
-        let calls = reusable_calls(caller);
+        let calls = reusable_calls(caller).unwrap();
         assert!(!calls.is_empty(), "{caller} calls no reusable workflow");
         for (id, workflow, job) in calls {
             let path = workflow_path(&workflow);
             let inputs = keys(
-                &workflow_call(&path)["inputs"],
+                &workflow_call(&path).unwrap()["inputs"],
                 &format!("{path} on.workflow_call.inputs"),
             );
             let passed = keys(&job["with"], &format!("{caller} job {id} with"));
@@ -114,9 +116,9 @@ fn every_caller_input_is_a_workflow_input() {
 #[test]
 fn every_caller_passes_every_required_workflow_input() {
     for caller in callers() {
-        for (id, workflow, job) in reusable_calls(caller) {
+        for (id, workflow, job) in reusable_calls(caller).unwrap() {
             let path = workflow_path(&workflow);
-            let inputs = workflow_call(&path)["inputs"].clone();
+            let inputs = workflow_call(&path).unwrap()["inputs"].clone();
             let passed = keys(&job["with"], &format!("{caller} job {id} with"));
             for name in keys(&inputs, &format!("{path} on.workflow_call.inputs")) {
                 if inputs[&name]["required"] != Value::Bool(true) {
@@ -136,7 +138,9 @@ fn reusable_workflows_launch_dx_through_the_public_label() {
     const CRATE_LABEL: &str = "//cli/cli:dx";
     const PUBLIC_LABEL: &str = "@rules_dx//:dx";
     for (workflow, _) in PAIRS {
-        let text = ci_workflow::strings(&workflow_path(workflow)).join("\n");
+        let text = ci_workflow::strings(&workflow_path(workflow))
+            .unwrap()
+            .join("\n");
         assert!(
             text.contains(PUBLIC_LABEL),
             "{workflow} must launch dx through {PUBLIC_LABEL}"
@@ -151,14 +155,25 @@ fn reusable_workflows_launch_dx_through_the_public_label() {
 #[test]
 fn docs_page_embeds_every_starter_verbatim() {
     let page = read_runfiles(DOCS);
-    for starter in ["examples/consumer-ci/caller.yml", "examples/docs-ci/caller.yml"] {
-        let block: String = read_runfiles(starter)
-            .lines()
-            .map(|line| if line.is_empty() { "\n".to_owned() } else { format!("   {line}\n") })
-            .collect();
-        assert!(
-            page.contains(&block),
-            "{DOCS} does not embed {starter} verbatim, indented 3 spaces"
-        );
+    for starter in [
+        "examples/consumer-ci/caller.yml",
+        "examples/docs-ci/caller.yml",
+    ] {
+        let text = read_runfiles(starter);
+        // A starter sits at the top level or inside a numbered list step.
+        let embedded = ["", "   "].iter().any(|indent| {
+            let block: String = text
+                .lines()
+                .map(|line| {
+                    if line.is_empty() {
+                        "\n".to_owned()
+                    } else {
+                        format!("{indent}{line}\n")
+                    }
+                })
+                .collect();
+            page.contains(&block)
+        });
+        assert!(embedded, "{DOCS} does not embed {starter} verbatim");
     }
 }

@@ -1,5 +1,9 @@
 # Scope defaults
 
+Use this page to see which targets a dx command runs on when you name none, and how to narrow it.
+
+A scope tells a command what to work on. It is a Bazel label such as `//cli:dx`, a pattern such as `//cli/...` for every target under `cli/`, a file or directory, or one of the `--here` and `--affected` flags. A target is one buildable unit, such as a library, a binary or a test.
+
 ```sh
 dx lint --here
 dx build //cli/...
@@ -11,7 +15,7 @@ dx check --affected --output=json
 
 | Command | No scope means |
 | --- | --- |
-| `build`, `test`, `coverage`, `bench`, `fuzz`, `lint`, `typecheck`, `format`, `check`, `security`, `license` | `//...`. Pass `--affected` for only what your changes reach. |
+| `build`, `test`, `coverage`, `fetch`, `bench`, `fuzz`, `lint`, `typecheck`, `format`, `check`, `security`, `license` | `//...`. Pass `--affected` for only what your changes reach. |
 | `generate` | The whole repo. |
 | `docs` | The docs sites, shards, and API trees under `//...`. |
 | `update` | Every set. Or pass `set`, `set:package`, a label, or a path. `<set:package> <version>` takes one package and one version. |
@@ -26,16 +30,16 @@ dx check --affected --output=json
 
 - Labels and patterns: `//...`, `//pkg:target`. Only `dx run` accepts `@repo//...`.
 - Files and directories: workspace-relative paths. A file resolves to the rules that use it. A directory becomes `//dir/...`. Paths with control characters are refused.
-- `--here`: the current directory tree, as `//path/...` (`//...` at the root). Under `bazel run` it uses `BUILD_WORKING_DIRECTORY`. It does not combine with scopes. Accepted by `build`, `test`, `coverage`, `bench`, `fuzz`, `lint`, `typecheck`, `format`, `generate`, `check`, `security`, `license`, and `docs`.
-- `--affected`: the targets your changes reach. `format` and the format phase of `check` use only the rules that own a changed file. `generate` and the generate phase of `check` use the directories of the changed files. A `MODULE.bazel.lock` change that only rewrites the `bzlTransitiveDigest` or `usagesDigest` of a module extension selects nothing. It does not combine with scopes or `--here`. Accepted by `build`, `test`, `coverage`, `lint`, `typecheck`, `format`, `generate`, `check`, `security`, and `license`. `docs` rejects it.
+- `--here`: the current directory tree, as `//path/...` (`//...` at the root). Under `bazel run` it uses `BUILD_WORKING_DIRECTORY`. It does not combine with scopes. Accepted by `build`, `test`, `coverage`, `fetch`, `bench`, `fuzz`, `lint`, `typecheck`, `format`, `generate`, `check`, `security`, `license`, and `docs`.
+- `--affected`: the targets your changes reach. `format` and the format phase of `check` use only the rules that own a changed file. `generate` and the generate phase of `check` use the directories of the changed files. A `MODULE.bazel.lock` change that only rewrites the `bzlTransitiveDigest` or `usagesDigest` of a module extension selects nothing. It does not combine with `--here`. With scopes, `build`, `test`, `coverage`, `fetch`, `lint`, `typecheck`, `format`, and `check` keep only the affected targets inside them, so `dx test --affected //svc/...` runs the affected tests under `//svc`; `generate`, `security`, and `license` reject scopes with it. Accepted by `build`, `test`, `coverage`, `fetch`, `lint`, `typecheck`, `format`, `generate`, `check`, `security`, and `license`. `docs` rejects it.
 
 Targets that do not fit the target platform are skipped by `build`, `test`, `coverage`, `lint`, `typecheck`, `format`, and `check`. Skipped tests report `skipped`. Pass `-- --noskip_incompatible_explicit_targets` to fail on them. `dx run` fails on them.
 
 ## `--affected`
 
-Changes are the diff from the merge-base with the default branch (`origin/HEAD`, else `origin/main`, `main`, `origin/master`, `master`), plus staged, unstaged, and untracked files. A rename counts both paths. `--since <ref>` replaces the merge-base with that ref, for example `dx test --affected --since HEAD~1` for the last commit only. `--since` without `--affected` is a usage error, and a ref that names no commit exits `2`. In a subdirectory workspace, changes outside it are ignored.
+Changes are the diff from the merge-base with the base branch, plus staged, unstaged, and untracked files. The base branch is `--base <ref>` when given, else `base` under `[affected]` in [dx.toml](config.md), else the default branch (`origin/HEAD`, else `origin/main`, `main`, `origin/master`, `master`). A rename counts both paths. `--since <ref>` replaces the merge-base with that ref, for example `dx test --affected --since HEAD~1` for the last commit only. `--since` without `--affected` is a usage error, and a ref that names no commit exits `2`. In a subdirectory workspace, changes outside it are ignored.
 
-Each changed file maps to its owning targets, then to their reverse dependencies in `//...`. Targets tagged `manual` are left out.
+Each changed file maps to its owning targets, then to their reverse dependencies in `//...`: the targets that depend on them. Targets tagged `manual` are left out.
 
 - `test` and `coverage` keep only test targets.
 - `security` and `license` keep only targets a dependency set owns. `security` still runs the secrets scan when any file changed.
@@ -74,7 +78,9 @@ dx prints `dx: affected: resolving changes since <sha>` and then a summary on st
 
 All exit `2`.
 
+- Not in a git checkout: `<dir> is not inside a git work tree`.
 - No default branch: `cannot find the default branch: expected origin/HEAD, main, or master`.
 - Shallow checkout: run `git fetch --unshallow` or pass explicit scopes.
 - A failed `bazel query`: `query_failed`, or `query_launch_failed` when it cannot start.
-- `--affected` with scopes or `--here`.
+- `--affected` with `--here`, or with scopes on `generate`, `security`, `license`, or `deploy`.
+- `--base` with `--since`, or without `--affected`.

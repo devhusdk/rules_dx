@@ -14,12 +14,12 @@ const SHAPES: &str = "tools/docs/ruby/fixture/lib/geometry/shapes.rb";
 const CRLF_SHAPES: &str = "tools/docs/ruby/fixture/crlf/shapes.rb";
 
 fn symbol<'a>(shard: &'a DocIr, name: &str) -> &'a Symbol {
-    shard_test_support::symbol(shard, &format!("{PREFIX}{name}"))
+    shard_test_support::symbol(shard, &format!("{PREFIX}{name}")).unwrap()
 }
 
 #[test]
 fn the_fixture_shard_maps_every_shape() {
-    let shard = shard("DX_FIXTURE_SHARD");
+    let shard = shard("DX_FIXTURE_SHARD").unwrap();
     validate_shard(&shard).expect("validate_shard passes");
     assert_eq!(shard.language, "ruby");
     assert_eq!(shard.package, "geometry");
@@ -105,7 +105,7 @@ fn the_fixture_shard_maps_every_shape() {
 
 #[test]
 fn signatures_docs_types_and_sources_come_from_yard() {
-    let shard = shard("DX_FIXTURE_SHARD");
+    let shard = shard("DX_FIXTURE_SHARD").unwrap();
     let shape = symbol(&shard, "Geometry.Shape");
     assert_eq!(shape.signature_text, "class Geometry::Shape");
     assert_eq!(shape.doc_markdown, "A closed plane figure.");
@@ -139,7 +139,7 @@ fn signatures_docs_types_and_sources_come_from_yard() {
     let source = area.source.as_ref().expect("a source");
     assert_eq!(
         (source.file.as_str(), source.line),
-        (SHAPES, line_of("DX_FIXTURE_SHAPES_RB", "def area"))
+        (SHAPES, line_of("DX_FIXTURE_SHAPES_RB", "def area").unwrap())
     );
     assert!(!source.generated);
     assert_eq!(
@@ -178,12 +178,12 @@ fn signatures_docs_types_and_sources_come_from_yard() {
         (source.file.as_str(), source.line),
         (
             GEOMETRY,
-            line_of("DX_FIXTURE_GEOMETRY_RB", "module Geometry")
+            line_of("DX_FIXTURE_GEOMETRY_RB", "module Geometry").unwrap()
         )
     );
     for symbol in &shard.symbols {
         assert_eq!(
-            extension(symbol, "ruby.config"),
+            extension(symbol, "ruby.config").unwrap(),
             Some("ruby=3.4.12;yard=0.9.45;format=1"),
             "{}",
             symbol.id
@@ -193,27 +193,28 @@ fn signatures_docs_types_and_sources_come_from_yard() {
 
 #[test]
 fn undocumented_and_untyped_members_are_marked_incomplete() {
-    let shard = shard("DX_FIXTURE_SHARD");
+    let shard = shard("DX_FIXTURE_SHARD").unwrap();
     assert_eq!(
         extension(
             symbol(&shard, "Geometry.Circle.diameter"),
             "ruby.incomplete"
-        ),
+        )
+        .unwrap(),
         Some("doc;return_type")
     );
     assert_eq!(
-        extension(symbol(&shard, "Geometry.Circle.shift"), "ruby.incomplete"),
+        extension(symbol(&shard, "Geometry.Circle.shift"), "ruby.incomplete").unwrap(),
         Some("param_types=offset")
     );
     assert_eq!(
-        extension(symbol(&shard, "Geometry.Circle.area"), "ruby.incomplete"),
+        extension(symbol(&shard, "Geometry.Circle.area"), "ruby.incomplete").unwrap(),
         None
     );
 }
 
 #[test]
 fn a_dependent_library_links_into_its_dependency() {
-    let ext = shard("DX_FIXTURE_EXT_SHARD");
+    let ext = shard("DX_FIXTURE_EXT_SHARD").unwrap();
     validate_shard(&ext).expect("validate_shard passes");
     assert_eq!(ext.package, "geometry_ext");
     let square = find(&ext, "ruby:geometry_ext:GeometryExt.Square").expect("Square");
@@ -230,7 +231,7 @@ fn a_dependent_library_links_into_its_dependency() {
         (source.file.as_str(), source.line),
         (
             "tools/docs/ruby/fixture/ext/square.rb",
-            line_of("DX_FIXTURE_SQUARE_RB", "class Square")
+            line_of("DX_FIXTURE_SQUARE_RB", "class Square").unwrap()
         )
     );
     assert!(
@@ -253,8 +254,8 @@ fn a_dependent_library_links_into_its_dependency() {
 
 #[test]
 fn a_changed_method_changes_only_that_symbol() {
-    let base = shard("DX_FIXTURE_SHARD");
-    let changed = shard("DX_FIXTURE_CHANGED_SHARD");
+    let base = shard("DX_FIXTURE_SHARD").unwrap();
+    let changed = shard("DX_FIXTURE_CHANGED_SHARD").unwrap();
     assert_eq!(base.symbols.len(), changed.symbols.len());
     for (before, after) in base.symbols.iter().zip(&changed.symbols) {
         assert_eq!(before.id, after.id);
@@ -277,8 +278,8 @@ fn a_changed_method_changes_only_that_symbol() {
 
 #[test]
 fn crlf_sources_yield_the_same_shard() {
-    let base = shard("DX_FIXTURE_SHARD");
-    let crlf = shard("DX_FIXTURE_CRLF_SHARD");
+    let base = shard("DX_FIXTURE_SHARD").unwrap();
+    let crlf = shard("DX_FIXTURE_CRLF_SHARD").unwrap();
     assert_eq!(base.symbols.len(), crlf.symbols.len());
     for (before, after) in base.symbols.iter().zip(&crlf.symbols) {
         let mut after = after.clone();
@@ -299,7 +300,7 @@ struct Driver {
 
 impl Driver {
     fn new(name: &str) -> Driver {
-        let dir_tmp = dx_test_scratch::scratch(name);
+        let dir_tmp = dx_test_scratch::scratch(name).unwrap();
         let dir = dir_tmp.path().to_path_buf();
         let broken = dx_testing::env_file("DX_TESTDATA_BROKEN");
         let root = broken
@@ -561,7 +562,7 @@ fn extract(json: &Path, out: &Path) -> (i32, String) {
 
 #[test]
 fn the_converter_rejects_a_new_format_and_truncated_json() {
-    let dir_tmp = dx_test_scratch::scratch("ruby-extract");
+    let dir_tmp = dx_test_scratch::scratch("ruby-extract").unwrap();
     let dir = dir_tmp.path().to_path_buf();
     let json =
         std::fs::read_to_string(dx_testing::env_file("DX_FIXTURE_JSON")).expect("driver json");

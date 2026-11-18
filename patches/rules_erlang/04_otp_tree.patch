@@ -1,3 +1,4 @@
+Upstream: bazelverse/rules_erlang#18
 diff --git a/private/ct.bzl b/private/ct.bzl
 --- a/private/ct.bzl
 +++ b/private/ct.bzl

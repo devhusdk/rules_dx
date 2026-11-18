@@ -5,6 +5,8 @@ load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_a
 load("//php/private:php.bzl", "external_path")
 load("//php/private:providers.bzl", "PhpInfo")
 
+visibility(["//core/...", "//tools/..."])
+
 TOOLS = {
     "phpcs": {
         "attr": attr.label(default = "//config:tool_phpcs", allow_files = True, cfg = "exec"),

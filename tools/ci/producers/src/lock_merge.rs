@@ -424,7 +424,7 @@ mod tests {
     }
 
     fn merged(locks: &[(&str, String)]) -> Result<String, String> {
-        let dir = dx_test_scratch::scratch("lock-merge");
+        let dir = dx_test_scratch::scratch("lock-merge")?;
         for (platform, text) in locks {
             let platform_dir = dir.path().join(format!("lock-{platform}"));
             std::fs::create_dir_all(&platform_dir).expect("create platform dir");

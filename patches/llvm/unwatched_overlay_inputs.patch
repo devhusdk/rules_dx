@@ -1,3 +1,4 @@
+Upstream: bazelbuild/bazel#32483
 diff -ruN a/private/llvm_project_archive.bzl b/private/llvm_project_archive.bzl
 --- a/private/llvm_project_archive.bzl	2026-11-07 03:07:33.986516422 +0100
 +++ b/private/llvm_project_archive.bzl	2026-11-07 03:07:43.390885795 +0100

@@ -43,6 +43,8 @@ pub fn graph_stdout(lines: &[String]) -> String {
 /// # Panics
 ///
 /// Panics when the operation fails.
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn json_events(out: &str) -> Vec<serde_json::Value> {
     out.lines()
         .map(serde_json::from_str)
@@ -56,6 +58,8 @@ pub fn json_events(out: &str) -> Vec<serde_json::Value> {
 ///
 /// Panics when the operation fails.
 #[must_use]
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn event_kinds(events: &[serde_json::Value]) -> Vec<&str> {
     events
         .iter()
@@ -73,6 +77,8 @@ pub fn event_kinds(events: &[serde_json::Value]) -> Vec<&str> {
 ///
 /// Panics when the operation fails.
 #[must_use]
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn event<'a>(events: &'a [serde_json::Value], kind: &str) -> &'a serde_json::Value {
     events
         .iter()

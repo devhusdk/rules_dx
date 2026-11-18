@@ -120,7 +120,7 @@ fn readme_pages_get_the_alias_mdbook_own_rewriting_needs() {
 
 #[test]
 fn alias_errors_leave_a_non_readme_page_alone() {
-    let scratch = dx_test_scratch::scratch("dx-site-build-tests-alias-other");
+    let scratch = dx_test_scratch::scratch("dx-site-build-tests-alias-other").unwrap();
     let dir = scratch.path().to_path_buf();
     let out = dir.join("out");
     fs::create_dir_all(out.join("docs")).expect("a writable output directory");
@@ -189,7 +189,7 @@ fn run_rejects_an_unreadable_manifest() {
 
 #[test]
 fn run_rejects_a_manifest_that_names_a_page_twice() {
-    let scratch = dx_test_scratch::scratch("dx-site-build-tests-duplicate");
+    let scratch = dx_test_scratch::scratch("dx-site-build-tests-duplicate").unwrap();
     let dir = scratch.path().to_path_buf();
     let manifest = write(
         &dir,
@@ -213,7 +213,7 @@ fn run_rejects_a_manifest_that_names_a_page_twice() {
 
 #[test]
 fn run_reports_a_missing_mdbook_binary() {
-    let scratch = dx_test_scratch::scratch("dx-site-build-tests-missing-binary");
+    let scratch = dx_test_scratch::scratch("dx-site-build-tests-missing-binary").unwrap();
     let dir = scratch.path().to_path_buf();
     let guide = write(&dir, "guide.md", "# Guide\n");
     let manifest = write(&dir, "pages.tsv", &format!("docs/guide.md\t{guide}\n"));
@@ -231,7 +231,7 @@ fn run_reports_a_missing_mdbook_binary() {
 
 #[test]
 fn alias_errors_name_the_rendered_page_mdbook_never_wrote() {
-    let scratch = dx_test_scratch::scratch("dx-site-build-tests-alias");
+    let scratch = dx_test_scratch::scratch("dx-site-build-tests-alias").unwrap();
     let dir = scratch.path().to_path_buf();
     let out = dir.join("out");
     fs::create_dir_all(out.join("docs")).expect("a writable output directory");
@@ -275,7 +275,7 @@ fn parse_takes_the_api_tree_and_summary_together() {
 
 #[test]
 fn an_api_tree_routes_every_page_under_api() {
-    let scratch = dx_test_scratch::scratch("dx-site-build-tests-api-tree");
+    let scratch = dx_test_scratch::scratch("dx-site-build-tests-api-tree").unwrap();
     let dir = scratch.path().to_path_buf();
     let a = write(&dir, "tree/rust/demo/add.md", "# add\n");
     let b = write(&dir, "tree/rust/demo/shapes.Circle.md", "# Circle\n");
@@ -309,7 +309,7 @@ fn an_api_tree_routes_every_page_under_api() {
 
 #[test]
 fn run_rejects_an_api_page_that_collides_with_a_manifest_route() {
-    let scratch = dx_test_scratch::scratch("dx-site-build-tests-api-collision");
+    let scratch = dx_test_scratch::scratch("dx-site-build-tests-api-collision").unwrap();
     let dir = scratch.path().to_path_buf();
     let page_path = write(&dir, "add.md", "# add\n");
     let manifest = write(
@@ -335,7 +335,7 @@ fn run_rejects_an_api_page_that_collides_with_a_manifest_route() {
 
 #[test]
 fn stage_appends_the_api_summary_to_a_read_only_summary() {
-    let scratch = dx_test_scratch::scratch("dx-site-build-tests-read-only-summary");
+    let scratch = dx_test_scratch::scratch("dx-site-build-tests-read-only-summary").unwrap();
     let dir = scratch.path().to_path_buf();
     let summary = write(&dir, "SUMMARY.md", "# Summary");
     let mut readonly = fs::metadata(&summary).expect("a summary").permissions();

@@ -183,7 +183,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn a_symlinked_file_stays_a_symlink() {
-        let dir = scratch("dx-agents-symlink-");
+        let dir = scratch("dx-agents-symlink-").unwrap();
         std::fs::write(dir.path().join("real.md"), "# Mine\n").expect("seed");
         std::os::unix::fs::symlink("real.md", dir.path().join(FILE)).expect("link");
         assert!(write(dir.path(), false).expect("write"));
@@ -197,7 +197,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn a_dangling_symlink_is_created_through_the_link() {
-        let dir = scratch("dx-agents-dangling-");
+        let dir = scratch("dx-agents-dangling-").unwrap();
         std::os::unix::fs::symlink("real.md", dir.path().join(FILE)).expect("link");
         assert!(write(dir.path(), true).expect("write"));
         let meta = std::fs::symlink_metadata(dir.path().join(FILE)).expect("meta");
@@ -208,7 +208,7 @@ mod tests {
 
     #[test]
     fn a_missing_file_is_created_with_the_block() {
-        let dir = scratch("dx-agents-create-");
+        let dir = scratch("dx-agents-create-").unwrap();
         assert!(write(dir.path(), true).expect("write"));
         let text = std::fs::read_to_string(dir.path().join(FILE)).expect("read");
         assert_eq!(text, block());
@@ -218,7 +218,7 @@ mod tests {
 
     #[test]
     fn a_stale_block_is_replaced_and_other_text_is_kept() {
-        let dir = scratch("dx-agents-stale-");
+        let dir = scratch("dx-agents-stale-").unwrap();
         let old = format!("# Mine\n\nkeep\n\n{BEGIN}\n- old\n{END}\n\n## After\nkeep too\n");
         std::fs::write(dir.path().join(FILE), &old).expect("seed");
         assert_eq!(workspace_state(dir.path()).expect("state"), State::Stale);
@@ -233,7 +233,7 @@ mod tests {
 
     #[test]
     fn a_file_without_a_block_gets_one_appended() {
-        let dir = scratch("dx-agents-append-");
+        let dir = scratch("dx-agents-append-").unwrap();
         std::fs::write(dir.path().join(FILE), "# Mine\nno newline").expect("seed");
         assert_eq!(workspace_state(dir.path()).expect("state"), State::Missing);
         assert!(write(dir.path(), true).expect("write"));
@@ -243,7 +243,7 @@ mod tests {
 
     #[test]
     fn a_block_without_an_end_marker_is_refused_and_the_file_kept() {
-        let dir = scratch("dx-agents-orphan-");
+        let dir = scratch("dx-agents-orphan-").unwrap();
         let old = format!("# Mine\n{BEGIN}\nuser text\n");
         std::fs::write(dir.path().join(FILE), &old).expect("seed");
         let error = write(dir.path(), true).expect_err("orphan");
@@ -256,7 +256,7 @@ mod tests {
 
     #[test]
     fn planned_reads_without_writing_and_fails_on_an_orphan_or_a_directory() {
-        let dir = scratch("dx-agents-planned-");
+        let dir = scratch("dx-agents-planned-").unwrap();
         assert_eq!(planned(dir.path(), false).expect("absent"), None);
         assert_eq!(planned(dir.path(), true).expect("create"), Some(block()));
         assert!(!dir.path().join(FILE).exists());
@@ -267,7 +267,7 @@ mod tests {
             std::fs::read_to_string(dir.path().join(FILE)).expect("read"),
             old
         );
-        let nested = scratch("dx-agents-planned-dir-");
+        let nested = scratch("dx-agents-planned-dir-").unwrap();
         std::fs::create_dir(nested.path().join(FILE)).expect("dir");
         assert!(planned(nested.path(), true).is_err());
     }

@@ -44,7 +44,7 @@ fn run(
     Option<String>,
     Option<Value>,
 ) {
-    let scratch = dx_test_scratch::scratch("dx-case-launcher-");
+    let scratch = dx_test_scratch::scratch("dx-case-launcher-").unwrap();
     let base = scratch.path().to_path_buf();
     let workspace = base.join("ws");
     let bin = base.join("bin");

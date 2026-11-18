@@ -1,9 +1,9 @@
 use super::affected::{PlanError, named_base};
-use super::common::{
+use dx_error::DxError;
+use dx_exec_core::common::{
     CODE_CHANGED_LINE_BELOW_MINIMUM, CODE_CHANGED_LINE_INCOMPLETE, CODE_CHANGED_LINE_UNAVAILABLE,
     emit_built, git_output,
 };
-use dx_error::DxError;
 use dx_lcov::{AddedLines, CellAccount, all_lines, changed_account, parse_added_lines};
 use dx_output::{ChangedLineCoverageEvent, OutputMode};
 use dx_plan::resolve::QueryRunner;
@@ -167,7 +167,7 @@ fn verdict(gate: &ChangedGate<'_>, minimum: u32) -> Verdict {
         error: Some((CODE_CHANGED_LINE_UNAVAILABLE, message)),
         lines: Vec::new(),
     };
-    let (branch, merge_base) = match named_base(gate.workspace, gate.runner) {
+    let (branch, merge_base) = match named_base(gate.workspace, gate.runner, None) {
         Ok(named) => named,
         Err(PlanError::Git(message)) => return unavailable(event, message),
         Err(PlanError::Resolve(error)) => return unavailable(event, error.to_string()),

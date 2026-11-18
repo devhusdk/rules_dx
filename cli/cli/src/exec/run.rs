@@ -1,4 +1,4 @@
-use super::common::{
+use dx_exec_core::common::{
     AppExit, CODE_APPLICATION_FAILED, CODE_INVALID_ARGUMENTS, Env, app_exited_line,
     app_signalled_line, bazel_exit_event, bazel_failure_code, emit_built, emit_event, kept_child,
     pre_exec, report_dx_error, resolve_failed, run_bazel, run_bazel_app,
@@ -96,7 +96,12 @@ impl Launcher<'_> {
         let json = invocation.output == OutputMode::Json;
         let mut phase = dx_plan::slots::Phase::new(invocation.command);
         if let Err(stop) = phase.need(true, &mut *err, &mut *out) {
-            return Some(super::failure::slot_stop(invocation.output, out, err, stop));
+            return Some(dx_exec_core::failure::slot_stop(
+                invocation.output,
+                out,
+                err,
+                stop,
+            ));
         }
         let mut options = invocation.quiet_bazel_options();
         let trace = if invocation.timings {
@@ -397,7 +402,7 @@ fn run_targets(
 mod tests {
     use super::super::test_support::*;
     use super::*;
-    use super::super::failure::Failure;
+    use dx_exec_core::failure::Failure;
     use dx_plan::args::Command;
     use dx_plan::args::parse;
     use dx_plan::resolve::ResolveError;
@@ -536,7 +541,7 @@ mod tests {
         codes: &[i32],
     ) -> (i32, Vec<(Vec<String>, bool, bool)>, String) {
         let harness = Harness::new(name);
-        let scratch = dx_test_scratch::scratch("dx-run-slot-");
+        let scratch = dx_test_scratch::scratch("dx-run-slot-").unwrap();
         let dir = scratch.path().join("slots");
         let runner = SlotRunner {
             dir: dir.clone(),

@@ -11,14 +11,16 @@ rust_test(
     crate_name = "agents",
     crate_root = "tests/agents.rs",
     data = [
-        "//:MODULE.bazel",
+        "//:.claude/settings.json",
+        "//:AGENTS.md",
         "//cli/cli:dx",
         "//cli/cli/tests/fake_generate",
     ],
     env = {
+        "DX_AGENTS_MD": "$(rootpath //:AGENTS.md)",
         "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_CLAUDE_SETTINGS": "$(rootpath //:.claude/settings.json)",
         "DX_FAKE_GENERATE": "$(rootpath //cli/cli/tests/fake_generate)",
-        "DX_MODULE": "$(rootpath //:MODULE.bazel)",
         "RUST_TEST_THREADS": "1",
     },
     deps = [

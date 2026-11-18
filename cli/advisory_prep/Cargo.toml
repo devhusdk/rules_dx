@@ -8,13 +8,7 @@ edition = "2024"
 name = "dx_advisory_prep"
 path = "src/lib.rs"
 
-[[bin]]
-name = "advisory_prep"
-path = "src/main.rs"
-
 [dependencies]
-chrono = "0.4"
-clap = { version = "4", features = ["derive"] }
 crc32fast = "1"
 flate2 = { version = "1", default-features = false, features = ["zlib"] }
 serde = { version = "1", features = ["derive"] }

@@ -4,6 +4,8 @@ load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expe
 load(":adapters.bzl", "SYNTHETIC_ADAPTERS", "SYNTHETIC_CLASS_TO_FAMILY", "adapter_supported_classes")
 load(":pipeline.bzl", "aspect_capability_blocked", "authorize_classes", "depset_subject_paths", "drop_pipeline_tool", "file_subject_paths", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_stages", "prune_tool_generated_sources", "resolve_pipeline", "runfiles_subject_paths", "stage_sources", "target_subject_classes", "upstream_tags")
 
+visibility("private")
+
 _LINT_SELECTIONS = {
     "python": ["lint-a"],
     "rust": ["lint-a", "lint-b"],

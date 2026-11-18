@@ -3,6 +3,9 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
+# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
+visibility("public")
+
 def owns_class_test(class_id, basenames, others = {}, sort = False):
     """Returns an analysis test proving a library owns exactly `basenames` in `class_id` and `others`."""
     expected = dict(others)

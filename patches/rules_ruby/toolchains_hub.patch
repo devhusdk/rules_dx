@@ -1,3 +1,4 @@
+Upstream: none (rules_dx only: names the toolchains repo dx_<name>_toolchains)
 diff --git a/ruby/extensions.bzl b/ruby/extensions.bzl
 --- a/ruby/extensions.bzl
 +++ b/ruby/extensions.bzl

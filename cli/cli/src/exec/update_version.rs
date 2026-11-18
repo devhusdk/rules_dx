@@ -1,11 +1,11 @@
-use super::common::{
+use super::dep_edit;
+use super::update_version_add;
+use dx_error::{DxError, ErrorKind};
+use dx_exec_core::common::{
     CODE_OFFLINE_REQUIRED, CODE_UPDATE_NO_CHANGE, CODE_UPDATE_WIDEN_FAILED, CODE_UPDATE_WIDENED,
     Env, check_stdout_write, emit_built, emit_event, frozen_summary, offline_summary, operational,
     pre_exec, report_dx_error,
 };
-use super::dep_edit;
-use super::update_version_add;
-use dx_error::{DxError, ErrorKind};
 use dx_output::{
     FinishedCounts, NoticeEvent, OutputMode, command_finished, command_started, notice_event,
 };

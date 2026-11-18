@@ -258,7 +258,18 @@ mod tests {
         let temp = workspace();
         let record = with_sources(&temp);
         super::record(temp.path(), &record, None).expect("record");
-        std::fs::write(temp.path().join("api/a.proto"), "syntax = \"proto2\";\n").expect("edit");
+        let source = temp.path().join("api/a.proto");
+        let before = std::fs::metadata(&source)
+            .and_then(|metadata| metadata.modified())
+            .expect("mtime");
+        std::fs::write(&source, "syntax = \"proto2\";\n").expect("edit");
+        // The digest reads size and mtime, and this edit keeps the size. A filesystem with coarse
+        // mtimes can stamp the edit with the recorded mtime, so move it on as a later edit would.
+        std::fs::File::options()
+            .write(true)
+            .open(&source)
+            .and_then(|file| file.set_modified(before + std::time::Duration::from_secs(2)))
+            .expect("set mtime");
         assert_eq!(check(temp.path()), Check::Changed(record));
     }
 

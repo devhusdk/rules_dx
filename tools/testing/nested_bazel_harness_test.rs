@@ -1,4 +1,4 @@
-//! Offline self-tests of the nested Bazel harness: the pinned binary runs without bazelisk, a locked consumer resolves `rules_dx` extensions from its repository cache sets, and nested servers stop with their test binary, and a restarted server refetches no repository rule unless its declared environment changed, which the probe proves the guard catches.
+//! Offline self-tests of the nested Bazel harness: the pinned binary runs without bazelisk, a locked consumer resolves `rules_dx` extensions from its repository cache sets, and nested servers stop with their test binary, and a restarted server refetches no repository rule unless its declared environment changed, which the probe proves the guard catches, and a consumer cannot load an internal `.bzl`.
 
 use std::time::{Duration, Instant};
 
@@ -145,7 +145,10 @@ fn indirect_consumer(name: &str) -> Case {
     );
     case.write(
         "MODULE.bazel",
-        &format!("{module}{}", nested::compose::rules_flutter_override()),
+        &format!(
+            "{module}{}",
+            nested::compose::rules_flutter_override().unwrap_or_else(|error| panic!("{error}"))
+        ),
     );
     let rules = resolve_runfiles("MODULE.bazel");
     let rules = std::path::absolute(&rules).unwrap_or_else(|error| panic!("{rules:?}: {error}"));
@@ -298,6 +301,20 @@ probe = repository_rule(implementation = _impl, environ = ["DX_REFETCH_PROBE"])
 }
 
 #[test]
+fn a_consumer_that_loads_an_internal_bzl_fails() {
+    if nested::recording() {
+        return;
+    }
+    let (case, _) = locked_consumer("internal_load");
+    // `taxonomy.bzl` declares `visibility("private")`; tools/ci:bzl_visibility_test keeps every internal file declared.
+    case.write(
+        "BUILD.bazel",
+        "load(\"@rules_dx//core/quality:taxonomy.bzl\", \"OTHER_FAMILIES\")\n\nfilegroup(name = \"all\", tags = [str(len(OTHER_FAMILIES))])\n",
+    );
+    case.build_fails_with("//:all", &["is not visible for loading"]);
+}
+
+#[test]
 fn a_download_outside_the_cache_sets_fails_with_its_url() {
     if nested::recording() {
         return;
@@ -386,7 +403,7 @@ fn nested_servers_stop_when_their_test_binary_exits() {
     let rel = std::env::var("DX_NESTED_PROBE")
         .unwrap_or_else(|_| panic!("DX_NESTED_PROBE must name the probe"));
     let version = read_runfiles(".bazelversion");
-    let probe_tmp = dx_test_scratch::scratch("probe");
+    let probe_tmp = dx_test_scratch::scratch("probe").unwrap();
     let probe = run(
         &resolve_runfiles(&rel),
         &[],

@@ -1,15 +1,15 @@
 use super::build_failures::report_build_failures;
-use super::common::{
-    CODE_UNREADABLE_BEP, Env, bazel_failure_code, check_stdout_write, emit_bazel_exit, emit_built,
-    emit_event, emit_started, flush_out, kept_child, operational, pre_exec, read_actions,
-    report_dx_error, resolve_failed, run_bazel, warn_scope_excluded,
-};
 use super::deploy::execute_deploy;
 use super::failure_reports::write_failure_reports;
 use super::profile_report;
 use super::run::execute_run;
 use super::skipped_targets::{group_skipped, read_skipped, skipped_notice};
 use super::test_reports::{TestReportsRequest, execute_test_reports};
+use dx_exec_core::common::{
+    CODE_UNREADABLE_BEP, Env, bazel_failure_code, check_stdout_write, emit_bazel_exit, emit_built,
+    emit_event, emit_started, flush_out, kept_child, operational, pre_exec, read_actions,
+    report_dx_error, resolve_failed, run_bazel, warn_scope_excluded,
+};
 use dx_output::{
     ActionCounts, FinishedCounts, NoticeEvent, OutputMode, command_finished, notice_event,
 };
@@ -90,6 +90,10 @@ fn execute_checked(
             &dx_process::unsupported_command(invocation.command.name()).to_string(),
         );
     };
+    let verb = match (verb, &invocation.vendor) {
+        (WorkflowVerb::Fetch, Some(_)) => WorkflowVerb::Vendor,
+        (verb, _) => verb,
+    };
     let bep = bep_path(temp_dir, pid, nonce);
     let Some(bep_text) = bep.to_str().map(ToString::to_string) else {
         return operational(
@@ -142,7 +146,7 @@ struct Launch<'a> {
     workspace: &'a std::path::Path,
     runner: &'a dyn dx_process::Runner,
     query_runner: &'a dyn dx_plan::resolve::QueryRunner,
-    tally: &'a super::common::ActionTally,
+    tally: &'a dx_exec_core::common::ActionTally,
     verb: WorkflowVerb,
     bep: &'a std::path::Path,
     trace: Option<&'a str>,
@@ -196,7 +200,10 @@ fn launch_plan(
         std::fs::remove_file(bep).ok();
         return kept_child(err, bazel_code, exit);
     }
-    if verb == WorkflowVerb::Build {
+    if matches!(
+        verb,
+        WorkflowVerb::Build | WorkflowVerb::Fetch | WorkflowVerb::Vendor
+    ) {
         let tail = BuildTail {
             workspace,
             query_runner,
@@ -239,7 +246,7 @@ fn plan_report_set(
     workspace: &std::path::Path,
 ) -> Result<ReportSet, String> {
     let results_default = invocation.output == OutputMode::Json
-        && invocation.command != Command::Build
+        && !matches!(invocation.command, Command::Build | Command::Fetch)
         && !invocation
             .reports
             .iter()
@@ -311,10 +318,18 @@ fn plan_for(
     } else {
         Some(invocation.build_mode())
     };
+    let mut bazel_options = bazel_options.to_vec();
+    if let Some(dir) = invocation
+        .vendor
+        .as_deref()
+        .filter(|_| verb == WorkflowVerb::Vendor)
+    {
+        bazel_options.push(format!("--vendor_dir={dir}"));
+    }
     plan_workflow(
         verb,
         resolved,
-        bazel_options,
+        &bazel_options,
         Some(bep_text),
         build_mode,
         &invocation.bazel_startup_options,
@@ -394,7 +409,8 @@ fn selection_context(invocation: &Invocation) -> Option<SelectionContext> {
         | Command::Docs
         | Command::Worktree
         | Command::Fuzz
-        | Command::Config => None,
+        | Command::Config
+        | Command::Fetch => None,
     }
 }
 
@@ -407,7 +423,7 @@ fn resolve_scope(
     err: &mut dyn Write,
 ) -> Result<dx_plan::resolve::ResolvedScope, i32> {
     let resolved = match (invocation.command, selection) {
-        (Command::Build, _) => resolve(
+        (Command::Build | Command::Fetch, _) => resolve(
             &invocation.targets,
             workspace,
             query_runner,
@@ -488,6 +504,17 @@ fn finish_build(
         std::fs::remove_file(bep).ok();
         return kept_child(err, bazel_code, exit);
     }
+    let cached = if bazel_code == 0 && invocation.command == Command::Fetch {
+        match super::dx_asset::cache_running_dx(workspace, invocation.output, out, err) {
+            Ok(cached) => cached,
+            Err(exit) => {
+                std::fs::remove_file(bep).ok();
+                return exit;
+            }
+        }
+    } else {
+        true
+    };
     let groups = group_skipped(&read_skipped(bep), invocation, workspace, query_runner);
     if let Err(exit) = skipped_notice(invocation.output, out, err, &groups) {
         std::fs::remove_file(bep).ok();
@@ -507,7 +534,7 @@ fn finish_build(
         Ok(landed) => landed,
         Err(exit) => return kept_child(err, bazel_code, exit),
     };
-    let code = if bazel_code == 0 && !reports_ok {
+    let code = if bazel_code == 0 && !(reports_ok && cached) {
         1
     } else {
         bazel_code
@@ -791,7 +818,7 @@ mod tests {
     #[test]
     fn profile_passes_the_trace_flag_and_reports_json_and_text() {
         let harness = Harness::new("build-profile");
-        let dir = harness.workspace.join(".dx/local").join("timings");
+        let dir = harness.workspace.join(".dx").join("local").join("timings");
         std::fs::create_dir_all(&dir).expect("dir");
         let id = dx_plan::plan::run_id(std::process::id(), 0, &harness.temp);
         let trace = dir.join(format!("{id}.json.gz"));
@@ -837,7 +864,7 @@ mod tests {
     #[test]
     fn profile_reports_json_and_text_from_the_trace() {
         let harness = Harness::new("build-profile-report");
-        let dir = harness.workspace.join(".dx/local").join("timings");
+        let dir = harness.workspace.join(".dx").join("local").join("timings");
         std::fs::create_dir_all(&dir).expect("dir");
         let trace = dir.join("1.json.gz");
         let json =
@@ -1379,7 +1406,7 @@ mod tests {
                 "query".to_owned(),
                 "--keep_going".to_owned(),
                 "--output=streamed_jsonproto".to_owned(),
-                "--proto:output_rule_attrs=tags".to_owned(),
+                "--proto:output_rule_attrs=tags,size".to_owned(),
                 "--noproto:default_values".to_owned(),
                 "--noproto:locations".to_owned(),
                 "--noproto:instantiation_stack".to_owned(),
@@ -1416,50 +1443,26 @@ mod tests {
     }
 
     #[test]
-    fn test_file_scope_selection_shares_execution_configuration() {
+    fn test_file_scope_selection_reads_tests_from_the_graph() {
         let harness = Harness::new("wf-test-selection");
         harness.write_source("pkg/BUILD.bazel", "");
         harness.write_source("pkg/a.py", "x = 1\n");
         harness.query.script_graph(&[
             graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
-            graph_rule("//pkg:unit", &["//pkg:lib"], &[]),
+            graph_rule_of_kind("//pkg:unit", "py_test", &["//pkg:lib"], &[]),
         ]);
-        harness.query.script_stdout("//pkg:unit\n");
-        harness
-            .query
-            .script_stdout("//pkg:lib (abc)\n//pkg:unit (abc)\n");
         let inv = invocation(&["test", "pkg/a.py", "--", "--platforms=//:x"]);
         let run = harness.probe_with(&inv, &[Some(0)]);
         let queries = harness.query.calls.borrow();
-        assert_eq!(queries.len(), 3, "graph plus mapping: {queries:?}");
-        assert_eq!(
-            queries[0][3], "query",
-            "ownership stays unconfigured: {queries:?}"
-        );
-        assert_eq!(
-            queries[2][3], "cquery",
-            "test mapping uses execution configuration: {queries:?}"
-        );
-        assert_eq!(
-            harness.query.expressions.borrow()[2],
-            "rdeps(set(\"//pkg:unit\"), set(\"//pkg:lib\"))"
-        );
-        assert!(
-            queries[2].contains(&"--platforms=//:x".to_owned()),
-            "mapping shares platforms with execution: {queries:?}"
-        );
-        assert!(
-            queries[2].contains(&"--config=dx_build_dev".to_owned()),
-            "mapping shares profile with execution: {queries:?}"
-        );
-        for query in &queries[..2] {
-            for dropped in ["--platforms=//:x", "--config=dx_build_dev"] {
-                assert!(
-                    !query.contains(&dropped.to_owned()),
-                    "unconfigured queries ignore configuration: {query:?}"
-                );
-            }
+        assert_eq!(queries.len(), 1, "only the rule graph: {queries:?}");
+        assert_eq!(queries[0][3], "query", "ownership stays unconfigured");
+        for dropped in ["--platforms=//:x", "--config=dx_build_dev"] {
+            assert!(
+                !queries[0].contains(&dropped.to_owned()),
+                "the graph query ignores configuration: {queries:?}"
+            );
         }
+        assert!(run.argv[0].contains(&"//pkg:unit".to_owned()), "{run:?}");
         assert_eq!(run.argv.len(), 1, "{run:?}");
         let argv = &run.argv[0];
         assert!(argv.contains(&"--platforms=//:x".to_owned()), "{argv:?}");
@@ -1474,9 +1477,10 @@ mod tests {
         let harness = Harness::new("wf-test-conflict");
         harness.write_source("pkg/BUILD.bazel", "");
         harness.write_source("pkg/a.py", "x = 1\n");
-        harness
-            .query
-            .script_graph(&[graph_rule("//pkg:lib", &["//pkg:a.py"], &[])]);
+        harness.query.script_graph(&[
+            graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
+            graph_rule_of_kind("//pkg:unit", "py_test", &["//pkg:lib"], &[]),
+        ]);
         let (code, _, err) = harness.run(&["test", "pkg/a.py", "--", "--config=dx_build_release"]);
         assert_eq!(code, 2, "{err}");
         assert!(err.contains("config"), "{err}");

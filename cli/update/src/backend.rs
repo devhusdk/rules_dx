@@ -191,6 +191,10 @@ pub enum BackendError {
     FrozenLocked { set: String },
     #[error("invalid_path: cannot update {set}: {path} is not valid UTF-8")]
     NonUtf8Path { set: String, path: String },
+    #[error(
+        "no_cache_dir: cannot run {tool} for {set}: set XDG_CACHE_HOME, HOME or LOCALAPPDATA to give it a cache directory"
+    )]
+    NoCacheDir { set: String, tool: &'static str },
     #[error("backend_unavailable: cannot run {tool} for {set}: set {var} to the absolute path of {what}; PATH is never searched{}", resolution_suffix(.detail))]
     BackendUnavailable {
         set: String,
@@ -220,6 +224,7 @@ impl BackendError {
             BackendError::FrozenLocked { .. } => "frozen_locked",
             BackendError::NonUtf8Path { .. } => "invalid_path",
             BackendError::BackendUnavailable { .. } => "backend_unavailable",
+            BackendError::NoCacheDir { .. } => "no_cache_dir",
             BackendError::Hubs { .. } => "setup_hubs",
         }
     }
@@ -228,7 +233,9 @@ impl BackendError {
 impl From<BackendError> for DxError {
     fn from(error: BackendError) -> Self {
         match error {
-            BackendError::BackendUnavailable { .. } => DxError::infra(error.to_string()),
+            BackendError::BackendUnavailable { .. } | BackendError::NoCacheDir { .. } => {
+                DxError::infra(error.to_string())
+            }
             BackendError::Hubs { .. }
             | BackendError::Unsupported { .. }
             | BackendError::OfflineRequired { .. }
@@ -1035,18 +1042,36 @@ fn composer_argv(
 }
 
 /// Keeps Composer's home and download cache out of the workspace.
-fn composer_env() -> Vec<(String, String)> {
-    let root = std::env::temp_dir().join("dx-composer");
-    vec![
+fn composer_env(set: &ResolvedSet) -> Result<Vec<(String, String)>, BackendError> {
+    Ok(vec![
         (
             "COMPOSER_HOME".to_owned(),
-            root.join("home").to_string_lossy().into_owned(),
+            tool_cache(set, "composer", "home")?,
         ),
         (
             "COMPOSER_CACHE_DIR".to_owned(),
-            root.join("cache").to_string_lossy().into_owned(),
+            tool_cache(set, "composer", "cache")?,
         ),
-    ]
+    ])
+}
+
+/// A directory for one resolver's state under the user cache dir, so it stays out of the workspace
+/// and out of the shared temp dir, where another user could create it first.
+fn tool_cache(set: &ResolvedSet, tool: &'static str, name: &str) -> Result<String, BackendError> {
+    let cache =
+        dx_process::rc::user_cache_dir(&|var| std::env::var(var).ok()).ok_or_else(|| {
+            BackendError::NoCacheDir {
+                set: set.name.clone(),
+                tool,
+            }
+        })?;
+    let path = cache.join("dx").join("update").join(tool).join(name);
+    path.to_str()
+        .map(str::to_owned)
+        .ok_or_else(|| BackendError::NonUtf8Path {
+            set: set.name.clone(),
+            path: path.to_string_lossy().into_owned(),
+        })
 }
 
 /// Runs the script in a temp copy of the set directory, then compares or copies back the state file `$state`.
@@ -1082,21 +1107,19 @@ fn swift_argv(
 }
 
 /// Keeps carton's `local/` install tree out of the workspace.
-fn carton_env() -> Vec<(String, String)> {
-    let path = std::env::temp_dir().join("dx-carton-local");
-    vec![(
+fn carton_env(set: &ResolvedSet) -> Result<Vec<(String, String)>, BackendError> {
+    Ok(vec![(
         "PERL_CARTON_PATH".to_owned(),
-        path.to_string_lossy().into_owned(),
-    )]
+        tool_cache(set, "carton", "local")?,
+    )])
 }
 
 /// Keeps the Julia package depot out of the workspace.
-fn julia_env() -> Vec<(String, String)> {
-    let path = std::env::temp_dir().join("dx-julia-depot");
-    vec![(
+fn julia_env(set: &ResolvedSet) -> Result<Vec<(String, String)>, BackendError> {
+    Ok(vec![(
         "JULIA_DEPOT_PATH".to_owned(),
-        path.to_string_lossy().into_owned(),
-    )]
+        tool_cache(set, "julia", "depot")?,
+    )])
 }
 
 /// An `opam` run from the pinned binary and opam-repository snapshot in the set's directory.
@@ -1118,9 +1141,11 @@ fn opam_argv(
 }
 
 /// Keeps the opam root, with the snapshot as its only repository, out of the workspace.
-fn opam_env() -> Vec<(String, String)> {
-    let path = std::env::temp_dir().join("dx-opam-root");
-    vec![("OPAMROOT".to_owned(), path.to_string_lossy().into_owned())]
+fn opam_env(set: &ResolvedSet) -> Result<Vec<(String, String)>, BackendError> {
+    Ok(vec![(
+        "OPAMROOT".to_owned(),
+        tool_cache(set, "opam", "root")?,
+    )])
 }
 
 /// A `dart pub` run from the pinned Dart SDK in the set's directory.
@@ -1155,9 +1180,11 @@ fn pub_argv(
 }
 
 /// Keeps pub's package cache out of the workspace.
-fn pub_env() -> Vec<(String, String)> {
-    let path = std::env::temp_dir().join("dx-pub-cache");
-    vec![("PUB_CACHE".to_owned(), path.to_string_lossy().into_owned())]
+fn pub_env(set: &ResolvedSet) -> Result<Vec<(String, String)>, BackendError> {
+    Ok(vec![(
+        "PUB_CACHE".to_owned(),
+        tool_cache(set, "pub", "cache")?,
+    )])
 }
 
 fn bazel(head: &dx_process::BazelHead, verb: &str, args: &[&str]) -> Vec<String> {

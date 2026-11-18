@@ -71,6 +71,7 @@ load("//javascript:defs.bzl", "js_library")
 # gazelle:exclude avro/private/tools/avro_union
 # gazelle:exclude java/private/quality/tools/kotlinc_check
 # gazelle:exclude java/private/quality/tools/scalac_check
+# gazelle:exclude java/private/quality/tools/worker
 # gazelle:exclude javascript/private/quality/bin
 # gazelle:exclude tools/docs/powershell/fixture
 # gazelle:exclude tools/docs/go/fixture
@@ -302,6 +303,8 @@ js_library(
 npm_link_all_packages(name = "node_modules")
 
 exports_files([
+    "AGENTS.md",
+    ".claude/settings.json",
     "CODE_OF_CONDUCT.md",
     "CONTRIBUTING.md",
     "LICENSE",
@@ -473,6 +476,7 @@ filegroup(
         "//cli/env:module_srcs",
         "//cli/env_plan:module_srcs",
         "//cli/error:module_srcs",
+        "//cli/exec_core:module_srcs",
         "//cli/exec_os:module_srcs",
         "//cli/families:module_srcs",
         "//cli/fingerprint:module_srcs",
@@ -481,6 +485,7 @@ filegroup(
         "//cli/generation_result:module_srcs",
         "//cli/gomod:module_srcs",
         "//cli/hpc_coverage:module_srcs",
+        "//cli/http:module_srcs",
         "//cli/ide:module_srcs",
         "//cli/launcher:module_srcs",
         "//cli/lcov:module_srcs",
@@ -488,6 +493,7 @@ filegroup(
         "//cli/merge:module_srcs",
         "//cli/module_bazel:module_srcs",
         "//cli/ocaml_cc_driver:module_srcs",
+        "//cli/os_sys:module_srcs",
         "//cli/output:module_srcs",
         "//cli/path:module_srcs",
         "//cli/plan:module_srcs",
@@ -515,6 +521,7 @@ filegroup(
         "//core/coreutils:module_srcs",
         "//core/modules:module_srcs",
         "//core/patchelf:module_srcs",
+        "//core/private:module_srcs",
         "//core/quality:module_srcs",
         "//core/quality/adapter:module_srcs",
         "//core/quality/artifacts:module_srcs",
@@ -650,6 +657,8 @@ filegroup(
         "//dotnet/private/coverage:module_srcs",
         "//dotnet/private/quality:module_srcs",
         "//dx:module_srcs",
+        "//dx/advisory_prep:module_srcs",
+        "//dx/tool_resolve:module_srcs",
         "//elixir:module_srcs",
         "//elixir/private:module_srcs",
         "//elixir/private/bench:module_srcs",

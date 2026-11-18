@@ -84,22 +84,8 @@ pub fn available_memory() -> Option<u64> {
 
 /// Physical memory reported by `hw.memsize`.
 #[cfg(target_os = "macos")]
-#[expect(unsafe_code, reason = "sysctlbyname has no safe std API")]
 pub fn available_memory() -> Option<u64> {
-    let mut value: u64 = 0;
-    let mut size = std::mem::size_of::<u64>();
-    let name = c"hw.memsize";
-    // SAFETY: the name is NUL-terminated and `value` is writable for `size` bytes.
-    let status = unsafe {
-        libc::sysctlbyname(
-            name.as_ptr(),
-            (&mut value as *mut u64).cast(),
-            &mut size,
-            std::ptr::null_mut(),
-            0,
-        )
-    };
-    (status == 0).then_some(value)
+    dx_os_sys::macos::memsize()
 }
 
 /// Physical memory reported by `GlobalMemoryStatusEx`.

@@ -5,6 +5,8 @@ load("@rules_erlang//:util.bzl", "path_join")
 load("@rules_erlang//private:util.bzl", "erl_libs_contents")
 load("//core:resources.bzl", "dx_medium_resources")
 
+visibility(["//erlang/..."])
+
 _TOOLCHAIN = "@rules_erlang//tools:toolchain_type"
 
 ErlcInfo = provider(

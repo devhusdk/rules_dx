@@ -135,7 +135,7 @@ fn plain_arguments_pass_through() {
 
 #[test]
 fn stderr_and_status_are_recorded_and_stdout_is_left_alone() {
-    let dir = dx_test_scratch::scratch("capture-stderr");
+    let dir = dx_test_scratch::scratch("capture-stderr").unwrap();
     let log = dir.path().join("a.log");
     let status = dir.path().join("a.exit");
     let request = Request {
@@ -156,7 +156,7 @@ fn stderr_and_status_are_recorded_and_stdout_is_left_alone() {
 
 #[test]
 fn one_file_for_both_streams_holds_both() {
-    let dir = dx_test_scratch::scratch("capture-merged");
+    let dir = dx_test_scratch::scratch("capture-merged").unwrap();
     let log = dir.path().join("b.log");
     let request = Request {
         stdout: Some(log.clone()),
@@ -176,7 +176,7 @@ fn one_file_for_both_streams_holds_both() {
 
 #[test]
 fn separate_files_split_the_streams() {
-    let dir = dx_test_scratch::scratch("capture-split");
+    let dir = dx_test_scratch::scratch("capture-split").unwrap();
     let out = dir.path().join("c.out");
     let err = dir.path().join("c.err");
     let request = Request {
@@ -206,7 +206,7 @@ fn exit_code_passes_through_without_status_or_ignore_exit() {
 
 #[test]
 fn expanded_arguments_reach_the_program() {
-    let dir = dx_test_scratch::scratch("capture-expand");
+    let dir = dx_test_scratch::scratch("capture-expand").unwrap();
     let log = dir.path().join("d.log");
     let request = Request {
         stdout: Some(log.clone()),
@@ -227,7 +227,7 @@ fn expanded_arguments_reach_the_program() {
 
 #[test]
 fn unexpandable_placeholder_does_not_run_the_program() {
-    let dir = dx_test_scratch::scratch("capture-unset");
+    let dir = dx_test_scratch::scratch("capture-unset").unwrap();
     let log = dir.path().join("e.log");
     let request = Request {
         stdout: Some(log.clone()),
@@ -248,7 +248,7 @@ fn unexpandable_placeholder_does_not_run_the_program() {
 
 #[test]
 fn missing_program_is_status_127_with_the_error_in_the_log() {
-    let dir = dx_test_scratch::scratch("capture-missing");
+    let dir = dx_test_scratch::scratch("capture-missing").unwrap();
     let log = dir.path().join("f.log");
     let status = dir.path().join("f.exit");
     let missing = dir

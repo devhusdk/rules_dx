@@ -1,7 +1,7 @@
 const WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
 
 fn prepare_script() -> String {
-    let document = ci_workflow::document(WORKFLOW);
+    let document = ci_workflow::document(WORKFLOW).unwrap();
     let steps = document["jobs"]["advisory-snapshots"]["steps"]
         .as_array()
         .expect("steps")
@@ -30,7 +30,7 @@ fn the_prepare_step_is_one_advisory_prep_run() {
     );
     for needle in [
         "bazel run --lockfile_mode=error",
-        "@rules_dx//cli/advisory_prep",
+        "@rules_dx//dx/advisory_prep",
         "--ci",
         "--workspace \"$GITHUB_WORKSPACE\"",
         "--out \"$GITHUB_WORKSPACE/.dx/local/advisory\"",

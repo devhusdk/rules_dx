@@ -238,12 +238,12 @@ def _failing_tidy(ctx, log, src, error):
         mnemonic = "ClangTidy",
         progress_message = "clang-tidy %{label}: " + src,
         executable = ctx.executable._capture,
-        arguments = ["--fail", error],
+        arguments = ["capture", "--fail", error],
         outputs = [log],
     )
 
 def _tidy_capture(log):
-    return ["--stdout", log.path, "--stderr", log.path, "--ignore-exit", "--expand-bazel", "--"]
+    return ["capture", "--stdout", log.path, "--stderr", log.path, "--ignore-exit", "--expand-bazel", "--"]
 
 def _compile_actions(target):
     actions = getattr(target, "actions", None)
@@ -353,7 +353,7 @@ def _clang_syntax_impl(target, ctx):
             mnemonic = "ClangSyntax",
             progress_message = "Syntax check %{label}: " + src,
             executable = ctx.executable._capture,
-            arguments = capture + rewritten.argv,
+            arguments = ["capture"] + capture + rewritten.argv,
             inputs = all_inputs,
             outputs = [log, status],
             env = base_env,
@@ -404,6 +404,6 @@ clang_syntax_aspect = aspect(
             providers = [QualityPolicyInfo],
         ),
         "_clang_tidy": attr.label(default = "@llvm//tools:clang-tidy", allow_single_file = True, cfg = "exec"),
-        "_capture": attr.label(default = "//core/quality/capture", executable = True, cfg = "exec"),
+        "_capture": attr.label(default = "@dx_prebuilt//:dx", executable = True, cfg = "exec"),
     },
 )

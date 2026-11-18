@@ -140,7 +140,7 @@ impl Run {
     }
 
     fn query(name: &str, words: &[&str], query_args: &dyn Fn(&Path) -> String) -> Self {
-        let scratch = dx_test_scratch::scratch(name);
+        let scratch = dx_test_scratch::scratch(name).unwrap();
         let base = scratch.path().to_path_buf();
         let mut command = dx_session(&base, words, "", &query_args(&base));
         command.process_group(0);
@@ -153,7 +153,7 @@ impl Run {
         probe_args: &dyn Fn(&Path) -> String,
         tty: Option<&Pty>,
     ) -> Self {
-        let scratch = dx_test_scratch::scratch(name);
+        let scratch = dx_test_scratch::scratch(name).unwrap();
         let base = scratch.path().to_path_buf();
         let command = match tty {
             Some(pty) => {
@@ -364,7 +364,7 @@ fn a_closed_stdout_ends_the_run_promptly() {
         (&["build", "//..."][..], Some(141)),
         (&["build", "//...", "--output=json"][..], Some(141)),
     ] {
-        let scratch = dx_test_scratch::scratch("dx-stream-pipe-");
+        let scratch = dx_test_scratch::scratch("dx-stream-pipe-").unwrap();
         let writer = closed_pipe();
         let started = Instant::now();
         let status = dx_command(scratch.path(), words, "--stdout-bytes=8388608")
@@ -736,7 +736,7 @@ fn a_terminal_build_resumes_after_ctrl_z() {
 #[test]
 fn the_terminal_returns_to_dx_after_a_build() {
     let pty = open_pty();
-    let scratch = dx_test_scratch::scratch("dx-stream-tty-return-");
+    let scratch = dx_test_scratch::scratch("dx-stream-tty-return-").unwrap();
     let base = scratch.path().to_path_buf();
     let session = dx_session(&base, &["build", "//..."], "", "");
     let script = format!(
@@ -1089,7 +1089,7 @@ fn hang_up_waits_for_every_reader_copy() {
 
 #[test]
 fn a_stdout_closed_before_the_start_event_starts_no_bazel() {
-    let scratch = dx_test_scratch::scratch("dx-stream-nostart-");
+    let scratch = dx_test_scratch::scratch("dx-stream-nostart-").unwrap();
     let writer = closed_pipe();
     let (mut command, gate) = gated_command(scratch.path(), 0);
     fs::write(gate, "").expect("gate open");
@@ -1104,7 +1104,7 @@ fn a_stdout_closed_before_the_start_event_starts_no_bazel() {
 
 #[test]
 fn an_ignored_hangup_does_not_stop_dx() {
-    let scratch = dx_test_scratch::scratch("dx-stream-nohup-");
+    let scratch = dx_test_scratch::scratch("dx-stream-nohup-").unwrap();
     let (mut command, gate) = gated_command(scratch.path(), 0);
     // SAFETY: the pre_exec closure calls only signal, which is async-signal-safe.
     unsafe {
@@ -1140,7 +1140,7 @@ fn an_ignored_hangup_does_not_stop_dx() {
 fn a_stdout_closed_after_the_start_event_fails_the_completion() {
     use std::io::Read;
     for (child_exit, want) in [(0, 141), (3, 3)] {
-        let scratch = dx_test_scratch::scratch("dx-stream-closed-");
+        let scratch = dx_test_scratch::scratch("dx-stream-closed-").unwrap();
         let (mut reader, writer) = io::pipe().expect("pipe");
         let probe = writer.try_clone().expect("pipe clone");
         let (mut command, gate) = gated_command(scratch.path(), child_exit);
@@ -1176,7 +1176,7 @@ fn a_stdout_closed_after_the_start_event_fails_the_completion() {
 #[cfg(target_os = "linux")]
 #[test]
 fn a_failing_destination_is_an_operational_failure() {
-    let scratch = dx_test_scratch::scratch("dx-stream-full-");
+    let scratch = dx_test_scratch::scratch("dx-stream-full-").unwrap();
     let (mut command, gate) = gated_command(scratch.path(), 0);
     fs::write(gate, "").expect("gate open");
     let status = command
@@ -1207,7 +1207,7 @@ fn write_source(base: &Path) -> PathBuf {
 #[test]
 fn quality_with_stdout_closed_before_the_start_event_starts_nothing() {
     for words in QUALITY_WORDS {
-        let scratch = dx_test_scratch::scratch("dx-quality-nostart-");
+        let scratch = dx_test_scratch::scratch("dx-quality-nostart-").unwrap();
         let writer = closed_pipe();
         let (mut command, gate) = gated_words(scratch.path(), 0, words);
         let source = write_source(scratch.path());
@@ -1227,7 +1227,7 @@ fn quality_with_stdout_closed_before_the_start_event_starts_nothing() {
 fn quality_with_stdout_closed_after_the_start_event_ends_with_141() {
     use std::io::Read;
     for words in QUALITY_WORDS {
-        let scratch = dx_test_scratch::scratch("dx-quality-closed-");
+        let scratch = dx_test_scratch::scratch("dx-quality-closed-").unwrap();
         let (mut reader, writer) = io::pipe().expect("pipe");
         let probe = writer.try_clone().expect("pipe clone");
         let (mut command, gate) = gated_words(scratch.path(), 0, words);
@@ -1261,7 +1261,7 @@ fn quality_with_stdout_closed_after_the_start_event_ends_with_141() {
 #[test]
 fn quality_with_a_failing_destination_starts_nothing() {
     for words in QUALITY_WORDS {
-        let scratch = dx_test_scratch::scratch("dx-quality-full-");
+        let scratch = dx_test_scratch::scratch("dx-quality-full-").unwrap();
         let (mut command, gate) = gated_words(scratch.path(), 0, words);
         let source = write_source(scratch.path());
         fs::write(gate, "").expect("gate open");
@@ -1289,7 +1289,7 @@ const DELIVERY_WORDS: [&[&str]; 2] = [
 #[test]
 fn generate_and_adoption_with_stdout_closed_start_nothing() {
     for words in DELIVERY_WORDS {
-        let scratch = dx_test_scratch::scratch("dx-delivery-closed-");
+        let scratch = dx_test_scratch::scratch("dx-delivery-closed-").unwrap();
         let writer = closed_pipe();
         let (mut command, gate) = gated_words(scratch.path(), 0, words);
         fs::write(gate, "").expect("gate open");
@@ -1307,7 +1307,7 @@ fn generate_and_adoption_with_stdout_closed_start_nothing() {
 #[test]
 fn generate_and_adoption_with_a_failing_destination_start_nothing() {
     for words in DELIVERY_WORDS {
-        let scratch = dx_test_scratch::scratch("dx-delivery-full-");
+        let scratch = dx_test_scratch::scratch("dx-delivery-full-").unwrap();
         let (mut command, gate) = gated_words(scratch.path(), 0, words);
         fs::write(gate, "").expect("gate open");
         let status = command
@@ -1382,7 +1382,7 @@ fn write_dependency_sets(base: &Path) {
 
 #[test]
 fn a_build_waiting_for_a_slot_starts_with_command_started() {
-    let scratch = dx_test_scratch::scratch("dx-stream-slot-");
+    let scratch = dx_test_scratch::scratch("dx-stream-slot-").unwrap();
     let base = scratch.path();
     let held = hold_all_slots(base);
     let (mut child, stdout, _) = spawn_waiting(base, &["build", "//...", "--output=json"]);
@@ -1417,7 +1417,7 @@ fn a_stop_signal_during_the_slot_wait_cancels_with_128_plus_signal() {
             (sets_text, true),
             (sets_json, true),
         ] {
-            let scratch = dx_test_scratch::scratch("dx-stream-slot-stop-");
+            let scratch = dx_test_scratch::scratch("dx-stream-slot-stop-").unwrap();
             let base = scratch.path();
             if configured {
                 write_dependency_sets(base);

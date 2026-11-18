@@ -5,6 +5,8 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//core:defs.bzl", "DxSubjectInfo", "starlark_test")
 load("//core/quality/testdata:all_languages.bzl", "upstream_direct_sources")
 
+visibility("private")
+
 def _render_ownership(direct_sources):
     """Renders derived ownership as sorted class to basename text."""
     parts = []

@@ -6,6 +6,8 @@ load("//core:failure_test.bzl", "failure_test")
 load("//core/quality/testdata:all_languages.bzl", "real_cc_lint_aspect")
 load("//core/quality/testdata:config_subject.bzl", "config_subject_rule")
 
+visibility("private")
+
 _syntax_subject = config_subject_rule([clang_syntax_aspect], [ClangSyntaxInfo])
 _lint_subject = config_subject_rule([real_cc_lint_aspect])
 

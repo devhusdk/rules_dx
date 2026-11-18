@@ -79,6 +79,7 @@ fn check_uses(value: &str, workflow: &str) -> Result<String, String> {
 
 fn pinned_commit(caller: &str, workflow: &str) -> String {
     let line = ci_workflow::jobs(caller)
+        .unwrap()
         .into_iter()
         .find_map(|(_, job)| job["uses"].as_str().map(str::to_owned))
         .unwrap_or_else(|| panic!("{caller} has no job with uses:"));
@@ -144,7 +145,7 @@ fn every_tools_ci_script_runs_from_its_bazel_target_and_is_never_inlined() {
             .trim_end_matches("/src/lib.rs");
         let target = format!("@rules_dx//tools/ci/{name}:{name}_bin");
         for workflow in REUSABLE {
-            let strings = ci_workflow::strings(&format!(".github/workflows/{workflow}"));
+            let strings = ci_workflow::strings(&format!(".github/workflows/{workflow}")).unwrap();
             assert!(
                 !strings.iter().any(|text| text.contains(summary)),
                 "{workflow} carries an inline copy of {script}"
@@ -286,7 +287,7 @@ fn bare_main_repo_label_check_flags_only_unqualified_labels() {
 #[test]
 fn reusable_workflows_name_no_main_repo_label() {
     for workflow in REUSABLE {
-        for text in ci_workflow::strings(&format!(".github/workflows/{workflow}")) {
+        for text in ci_workflow::strings(&format!(".github/workflows/{workflow}")).unwrap() {
             if let Some((_, label)) = bare_main_repo_labels(&text).into_iter().next() {
                 panic!(
                     "{workflow} names {label}, which a caller's repository does not have; qualify it with @rules_dx or take it as an input"

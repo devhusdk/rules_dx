@@ -1,6 +1,6 @@
 //! Builds one browsable index from the Rust API shards a `dx docs` build produced.
 
-use super::common::collect_output_account;
+use dx_exec_core::common::collect_output_account;
 use dx_plan::plan::{DOCS_SHARD_OUTPUT_GROUP, DOCS_TOOLS_OUTPUT_GROUP};
 use dx_process::Runner;
 use std::path::{Path, PathBuf};

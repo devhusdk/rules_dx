@@ -324,9 +324,16 @@ fn release_consumer_writes_the_bazelversion_floor() {
 #[test]
 fn docs_name_the_bazel_floor() {
     let floor = bazel_floor(&read_runfiles("MODULE.bazel"));
-    let quickstart = format!("`.bazelversion`:\n\n```text\n{floor}\n```");
-    assert!(
-        read_runfiles("README.md").contains(&quickstart),
+    let readme = read_runfiles("README.md");
+    // The quickstart shows the .bazelversion contents in the first text block after its name.
+    let quickstart = readme
+        .split_once("`.bazelversion`")
+        .and_then(|(_, rest)| rest.split_once("```text\n"))
+        .and_then(|(_, rest)| rest.split_once("\n```"))
+        .map(|(version, _)| version);
+    assert_eq!(
+        quickstart,
+        Some(floor.as_str()),
         "README.md quickstart .bazelversion is not {floor}"
     );
     let required = format!("Bazel {floor} or later is required.");
@@ -639,7 +646,7 @@ fn workflow_values() -> Vec<(String, String)> {
     let found: Vec<(String, String)> = dx_testing::workflow_files()
         .into_iter()
         .map(|name| {
-            let text = ci_workflow::strings(&name).join("\n");
+            let text = ci_workflow::strings(&name).unwrap().join("\n");
             (name, text)
         })
         .collect();
@@ -706,6 +713,7 @@ fn coverage_floors(text: &str) -> Vec<String> {
 fn required_coverage_floor() -> String {
     const CI: &str = ".github/workflows/ci.yml";
     let floors: Vec<String> = ci_workflow::jobs(CI)
+        .unwrap()
         .into_iter()
         .filter_map(|(_, job)| job["with"]["min_coverage"].as_str().map(str::to_owned))
         .collect();
@@ -976,7 +984,7 @@ fn uses_actions_checkout(step: &serde_json::Value) -> bool {
 fn evidence_checks_out_in_parallel_without_actions_checkout() {
     const EVIDENCE: &str = ".github/workflows/evidence.yml";
     let mut parallel = 0;
-    for (id, job) in ci_workflow::jobs_of(&ci_workflow::document(EVIDENCE)) {
+    for (id, job) in ci_workflow::jobs_of(&ci_workflow::document(EVIDENCE).unwrap()) {
         for step in ci_workflow::steps_of(job) {
             assert!(
                 !uses_actions_checkout(step),
@@ -1004,7 +1012,7 @@ fn evidence_checks_out_in_parallel_without_actions_checkout() {
 fn ci_windows_jobs_check_out_with_git() {
     const CI: &str = ".github/workflows/ci.yml";
     for name in ["hermetic-windows", "starter-consumer", "preflight"] {
-        let steps = ci_workflow::steps(CI, name);
+        let steps = ci_workflow::steps(CI, name).unwrap();
         assert!(
             steps
                 .iter()
@@ -1025,7 +1033,7 @@ fn windows_capable_jobs_check_out_in_parallel() {
         ".github/workflows/ci.yml",
         ".github/workflows/reusable-consumer.yml",
     ] {
-        for (id, job) in ci_workflow::jobs_of(&ci_workflow::document(path)) {
+        for (id, job) in ci_workflow::jobs_of(&ci_workflow::document(path).unwrap()) {
             let runner = job
                 .get("runs-on")
                 .map_or_else(String::new, ToString::to_string);

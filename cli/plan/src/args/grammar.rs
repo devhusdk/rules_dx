@@ -144,11 +144,13 @@ pub(crate) struct Flags {
     pub(crate) here: bool,
     pub(crate) affected: bool,
     pub(crate) since: Option<String>,
+    pub(crate) base: Option<String>,
     pub(crate) serve: bool,
     pub(crate) port: Option<u16>,
     pub(crate) host: Option<String>,
     pub(crate) open: bool,
     pub(crate) offline: bool,
+    pub(crate) vendor: Option<String>,
     pub(crate) frozen: bool,
     pub(crate) outdated: bool,
     pub(crate) prune: bool,
@@ -555,6 +557,14 @@ flag_group! {
 }
 
 flag_group! {
+    /// With --affected, take the merge-base with this branch instead of the default branch.
+    BaseFlag, {
+        #[arg(long, allow_negative_numbers = true, overrides_with = "base", conflicts_with = "since", value_name = "REF", value_parser = non_empty)]
+        base: Option<String>,
+    }
+}
+
+flag_group! {
     /// Serve docs locally.
     ServeFlag, {
         #[arg(long, overrides_with = "serve")]
@@ -596,6 +606,30 @@ flag_group! {
     OfflineFlag, {
         #[arg(long, overrides_with = "offline")]
         offline: bool,
+    }
+}
+
+flag_group! {
+    /// Never download; use only what dx fetch already fetched.
+    BazelOfflineFlag, {
+        #[arg(long, overrides_with = "offline")]
+        offline: bool,
+    }
+}
+
+flag_group! {
+    /// Run bazel vendor into DIR (default vendor_src) instead of bazel fetch.
+    VendorFlag, {
+        #[arg(
+            long,
+            value_name = "DIR",
+            num_args = 0..=1,
+            require_equals = true,
+            default_missing_value = "vendor_src",
+            overrides_with = "vendor",
+            value_parser = non_empty
+        )]
+        vendor: Option<String>,
     }
 }
 
@@ -1056,6 +1090,7 @@ command_args! {
         here: HereFlag,
         affected: AffectedFlag,
         since: SinceFlag,
+        base: BaseFlag,
     };
     /// The flags `dx license` accepts.
     License => 1, NoPassthroughTail, {
@@ -1068,6 +1103,7 @@ command_args! {
         here: HereFlag,
         affected: AffectedFlag,
         since: SinceFlag,
+        base: BaseFlag,
     };
     /// The flags `dx lint` accepts.
     Lint => 2, BazelTail, {
@@ -1084,6 +1120,7 @@ command_args! {
         here: HereFlag,
         affected: AffectedFlag,
         since: SinceFlag,
+        base: BaseFlag,
     };
     /// The flags `dx typecheck` accepts.
     Typecheck => 3, BazelTail, {
@@ -1098,6 +1135,7 @@ command_args! {
         here: HereFlag,
         affected: AffectedFlag,
         since: SinceFlag,
+        base: BaseFlag,
     };
     /// The flags `dx format` accepts.
     Format => 4, BazelTail, {
@@ -1111,6 +1149,7 @@ command_args! {
         here: HereFlag,
         affected: AffectedFlag,
         since: SinceFlag,
+        base: BaseFlag,
     };
     /// The flags `dx generate` accepts.
     Generate => 5, BazelTail, {
@@ -1123,6 +1162,7 @@ command_args! {
     /// The flags `dx build` accepts.
     Build => 6, BazelTail, {
         output: OutputFlag,
+        offline: BazelOfflineFlag,
         own: BuildModeArgs,
         timings: TimingsFlag,
         no_retry: NoRetryFlag,
@@ -1130,10 +1170,12 @@ command_args! {
         here: HereFlag,
         affected: AffectedFlag,
         since: SinceFlag,
+        base: BaseFlag,
     };
     /// The flags `dx test` accepts.
     Test => 7, BazelTail, {
         output: OutputFlag,
+        offline: BazelOfflineFlag,
         own: BuildModeArgs,
         timings: TimingsFlag,
         no_retry: NoRetryFlag,
@@ -1141,6 +1183,7 @@ command_args! {
         here: HereFlag,
         affected: AffectedFlag,
         since: SinceFlag,
+        base: BaseFlag,
     };
     /// The flags `dx coverage` accepts.
     #[expect(clippy::struct_field_names, reason = "the fields are the clap argument ids")]
@@ -1155,6 +1198,7 @@ command_args! {
         here: HereFlag,
         affected: AffectedFlag,
         since: SinceFlag,
+        base: BaseFlag,
     };
     /// The flags `dx bench` accepts.
     Bench => 9, BazelTail, {
@@ -1176,6 +1220,7 @@ command_args! {
         apply: ApplyFlag,
         affected: AffectedFlag,
         since: SinceFlag,
+        base: BaseFlag,
     };
     /// The flags `dx check` accepts.
     Check => 12, BazelTail, {
@@ -1191,6 +1236,7 @@ command_args! {
         here: HereFlag,
         affected: AffectedFlag,
         since: SinceFlag,
+        base: BaseFlag,
     };
     /// The flags `dx clean` accepts.
     #[expect(clippy::struct_field_names, reason = "the fields are the clap argument ids")]
@@ -1248,6 +1294,7 @@ command_args! {
         here: HereFlag,
         affected: AffectedFlag,
         since: SinceFlag,
+        base: BaseFlag,
         poll: PollFlag,
         own: BuildModeArgs,
     };
@@ -1273,6 +1320,16 @@ command_args! {
     Fuzz => 23, NoPassthroughTail, { output: OutputFlag, own: FuzzArgs, here: HereFlag, };
     /// The flags `dx config` accepts.
     Config => 24, NoPassthroughTail, { output: OutputFlag, };
+    /// The flags `dx fetch` accepts.
+    Fetch => 25, BazelTail, {
+        output: OutputFlag,
+        vendor: VendorFlag,
+        own: BuildModeArgs,
+        here: HereFlag,
+        affected: AffectedFlag,
+        since: SinceFlag,
+        base: BaseFlag,
+    };
 }
 
 #[derive(Parser)]

@@ -2,6 +2,8 @@
 
 load("//core/quality:real_core.bzl", "real_config", "real_make_aspect")
 
+visibility(["//core/..."])
+
 TOOLS = {
     "djlint": {
         "attr": attr.label(default = "@dx_prebuilt//:python_tool_djlint", cfg = "exec", executable = True),

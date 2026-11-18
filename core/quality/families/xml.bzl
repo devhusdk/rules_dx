@@ -2,6 +2,8 @@
 
 load("//core/quality:real_core.bzl", "real_config", "real_make_aspect")
 
+visibility(["//core/..."])
+
 TOOLS = {
     "xmllint": {
         "attr": attr.label(default = "@dx_tools//:xmllint", allow_single_file = True, cfg = "exec"),

@@ -137,7 +137,7 @@ fn marker_rejects_short_identity() {
 
 #[test]
 fn parse_staged_ok() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-parse-ok-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-parse-ok-").unwrap();
     let root = scratch.path().to_path_buf();
     let (_, _, text) = write_staged(
         &root,
@@ -380,7 +380,7 @@ fn lock_errors_convert_to_env_errors() {
 
 #[test]
 fn workspace_missing() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-ws-missing-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-ws-missing-").unwrap();
     let root = scratch.path().to_path_buf();
     let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &["a"])]);
     let mut opts = options(&root, staged_bin, metadata);
@@ -394,7 +394,7 @@ fn workspace_missing() {
 
 #[test]
 fn staged_inputs_fail_before_workspace_mutation() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-staged-fail-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-staged-fail-").unwrap();
     let root = scratch.path().to_path_buf();
     let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &["a"])]);
     let missing_metadata = options(&root, staged_bin.clone(), root.join("nope.json"));
@@ -413,7 +413,7 @@ fn staged_inputs_fail_before_workspace_mutation() {
 
 #[test]
 fn staged_rejects_non_link_and_dangling() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-staged-links-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-staged-links-").unwrap();
     let root = scratch.path().to_path_buf();
     let (staged_bin, metadata, text) = write_staged(&root, &[("a", "//o:a", &["a"])]);
     fs::remove_file(staged_bin.join("a")).expect("remove link");
@@ -435,7 +435,7 @@ fn staged_rejects_non_link_and_dangling() {
 
 #[test]
 fn fresh_install_noop_and_replacement() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-lifecycle-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-lifecycle-").unwrap();
     let root = scratch.path().to_path_buf();
     let (staged_bin, metadata, _) = write_staged(&root, &[("alpha", "//o:alpha", &["alpha", "a"])]);
     let opts = options(&root, staged_bin, metadata);
@@ -478,7 +478,7 @@ fn native_tool(_target: &Path) -> &'static [&'static str] {
 
 #[test]
 fn workspace_path_with_spaces_installs() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-with space-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-with space-").unwrap();
     let root = scratch.path().to_path_buf();
     let host = dx_path::host::host_filename_for("a", cfg!(windows));
     let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &[host.as_str()])]);
@@ -504,7 +504,7 @@ fn workspace_path_with_spaces_installs() {
 }
 
 fn installed_fixture(prefix: &str) -> (dx_test_scratch::TempDir, PathBuf, RefreshOptions) {
-    let scratch = dx_test_scratch::scratch(prefix);
+    let scratch = dx_test_scratch::scratch(prefix).unwrap();
     let root = scratch.path().to_path_buf();
     let (staged_bin, metadata, _) =
         write_staged(&root, &[("a", "//o:a", &["a"]), ("b", "//o:b", &["b"])]);
@@ -603,7 +603,7 @@ fn corrupt_marker_on_installed_tree_refuses() {
 
 #[test]
 fn already_current_cleans_stale_staging() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-noop-clean-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-noop-clean-").unwrap();
     let root = scratch.path().to_path_buf();
     let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &["a"])]);
     let opts = options(&root, staged_bin, metadata);
@@ -618,7 +618,7 @@ fn already_current_cleans_stale_staging() {
 
 #[test]
 fn unmanaged_states_refuse_without_mutation() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-unmanaged-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-unmanaged-").unwrap();
     let root = scratch.path().to_path_buf();
     let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &["a"])]);
     let opts = options(&root, staged_bin, metadata);
@@ -670,7 +670,7 @@ fn unmanaged_states_refuse_without_mutation() {
 #[test]
 fn stale_prev_undeletable_reports_install() {
     use std::os::unix::fs::PermissionsExt;
-    let scratch = dx_test_scratch::scratch("dx-env-test-stale-prev-perms-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-stale-prev-perms-").unwrap();
     let root = scratch.path().to_path_buf();
     let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &["a"])]);
     let opts = options(&root, staged_bin, metadata);
@@ -694,7 +694,7 @@ fn stale_prev_undeletable_reports_install() {
 #[test]
 fn stale_stage_undeletable_reports_install() {
     use std::os::unix::fs::PermissionsExt;
-    let scratch = dx_test_scratch::scratch("dx-env-test-stale-stage-perms-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-stale-stage-perms-").unwrap();
     let root = scratch.path().to_path_buf();
     let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &["a"])]);
     let opts = options(&root, staged_bin, metadata);
@@ -726,7 +726,7 @@ fn hold_open(path: &Path) -> fs::File {
 #[cfg(windows)]
 #[test]
 fn stale_prev_undeletable_reports_install() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-stale-prev-held-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-stale-prev-held-").unwrap();
     let root = scratch.path().to_path_buf();
     let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &["a"])]);
     let opts = options(&root, staged_bin, metadata);
@@ -750,7 +750,7 @@ fn stale_prev_undeletable_reports_install() {
 #[cfg(windows)]
 #[test]
 fn stale_stage_undeletable_reports_install() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-stale-stage-held-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-stale-stage-held-").unwrap();
     let root = scratch.path().to_path_buf();
     let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &["a"])]);
     let opts = options(&root, staged_bin, metadata);
@@ -769,7 +769,7 @@ fn stale_stage_undeletable_reports_install() {
 
 #[test]
 fn duplicate_host_name_reports_install() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-dup-host-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-dup-host-").unwrap();
     let root = scratch.path().to_path_buf();
     let target_a = root.join("tool-a");
     let target_b = root.join("tool-b");
@@ -790,7 +790,7 @@ fn duplicate_host_name_reports_install() {
 
 #[test]
 fn marker_named_host_leaves_its_target_intact() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-marker-host-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-marker-host-").unwrap();
     let root = scratch.path().to_path_buf();
     let target = root.join("tool");
     let script = b"#!/bin/sh\necho tool\n";
@@ -811,7 +811,7 @@ fn marker_named_host_leaves_its_target_intact() {
 
 #[test]
 fn crash_between_renames_restores_then_replaces() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-crash-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-crash-").unwrap();
     let root = scratch.path().to_path_buf();
     let (staged_bin, metadata, _) = write_staged(&root, &[("old", "//o:old", &["old"])]);
     let opts = options(&root, staged_bin, metadata);
@@ -828,7 +828,7 @@ fn crash_between_renames_restores_then_replaces() {
 
 #[test]
 fn stale_prev_is_cleared() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-stale-prev-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-stale-prev-").unwrap();
     let root = scratch.path().to_path_buf();
     let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &["a"])]);
     let opts = options(&root, staged_bin, metadata);
@@ -842,7 +842,7 @@ fn stale_prev_is_cleared() {
 
 #[test]
 fn busy_lock_fails_after_deadline() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-busy-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-busy-").unwrap();
     let root = scratch.path().to_path_buf();
     let dx = dx_path::state::local_dir(&root.join("ws"));
     fs::create_dir_all(&dx).expect("dx dir");
@@ -874,7 +874,7 @@ fn busy_lock_fails_after_deadline() {
 
 #[test]
 fn lock_open_failure_aborts() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-lock-open-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-lock-open-").unwrap();
     let root = scratch.path().to_path_buf();
     let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &["a"])]);
     let opts = options(&root, staged_bin, metadata);
@@ -891,7 +891,7 @@ fn lock_open_failure_aborts() {
 
 #[test]
 fn dx_creation_failure_aborts() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-dx-create-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-dx-create-").unwrap();
     let root = scratch.path().to_path_buf();
     let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &["a"])]);
     let opts = options(&root, staged_bin, metadata);
@@ -906,7 +906,7 @@ fn dx_creation_failure_aborts() {
 
 #[test]
 fn probe_failure_reports_before_mutation() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-probe-fail-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-probe-fail-").unwrap();
     let root = scratch.path().to_path_buf();
     let win_root = root.join("win");
     fs::create_dir_all(&win_root).expect("win root");
@@ -950,7 +950,7 @@ fn probe_failure_reports_before_mutation() {
 
 #[test]
 fn unreadable_installed_tree_reports_unmanaged() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-blocked-bin-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-blocked-bin-").unwrap();
     let root = scratch.path().to_path_buf();
     let bin = root.join("bad\0name");
     let error = read_current_identity(&bin).unwrap_err();
@@ -964,7 +964,7 @@ fn unreadable_installed_tree_reports_unmanaged() {
 
 #[test]
 fn crash_restore_failure_reports_install() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-crash-fail-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-crash-fail-").unwrap();
     let root = scratch.path().to_path_buf();
     let prev = root.join(PREV_DIR_NAME);
     fs::create_dir_all(&prev).expect("prev dir");
@@ -980,7 +980,7 @@ fn crash_restore_failure_reports_install() {
 
 #[test]
 fn uncreatable_staging_reports_install() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-stage-fail-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-stage-fail-").unwrap();
     let root = scratch.path().to_path_buf();
     let target = root.join("tool");
     fs::write(&target, b"tool").expect("tool");
@@ -997,7 +997,7 @@ fn uncreatable_staging_reports_install() {
 
 #[test]
 fn commit_swap_failures_report_install() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-swap-fail-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-swap-fail-").unwrap();
     let root = scratch.path().to_path_buf();
     let bin = root.join(BIN_DIR_NAME);
     fs::create_dir_all(&bin).expect("bin dir");
@@ -1030,7 +1030,7 @@ fn commit_swap_failures_report_install() {
 
 #[test]
 fn commit_swap_publish_failure_restores_previous_tree() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-swap-restore-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-swap-restore-").unwrap();
     let root = scratch.path().to_path_buf();
     let bin = root.join(BIN_DIR_NAME);
     fs::create_dir_all(&bin).expect("bin dir");
@@ -1049,7 +1049,7 @@ fn commit_swap_publish_failure_restores_previous_tree() {
 
 #[test]
 fn commit_swap_restore_failure_reports_both() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-swap-both-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-swap-both-").unwrap();
     let root = scratch.path().to_path_buf();
     let bin = root.join(BIN_DIR_NAME);
     fs::create_dir_all(&bin).expect("bin dir");
@@ -1081,7 +1081,7 @@ fn commit_swap_restore_failure_reports_both() {
 
 #[test]
 fn default_probe_accepts_writable_dir() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-probe-ok-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-probe-ok-").unwrap();
     let root = scratch.path().to_path_buf();
     probe_symlink(&root).expect("probe succeeds");
     assert!(!root.join("symlink.probe").exists());
@@ -1090,7 +1090,7 @@ fn default_probe_accepts_writable_dir() {
 
 #[test]
 fn default_probe_replaces_stale_probe() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-probe-stale-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-probe-stale-").unwrap();
     let root = scratch.path().to_path_buf();
     let file_dir = root.join("file");
     let link_dir = root.join("link");
@@ -1107,7 +1107,7 @@ fn default_probe_replaces_stale_probe() {
 
 #[test]
 fn refresh_succeeds_with_stale_probe() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-refresh-stale-probe-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-refresh-stale-probe-").unwrap();
     let root = scratch.path().to_path_buf();
     let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &["a"])]);
     let opts = options(&root, staged_bin, metadata);
@@ -1130,7 +1130,7 @@ fn empty_logical_names_are_rejected() {
 
 #[test]
 fn probe_fails_when_the_stale_probe_cannot_be_removed() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-probe-stuck-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-probe-stuck-").unwrap();
     let root = scratch.path().to_path_buf();
     let stuck = root.join("symlink.probe");
     fs::create_dir_all(stuck.join("inner")).expect("non-empty probe dir");
@@ -1140,7 +1140,7 @@ fn probe_fails_when_the_stale_probe_cannot_be_removed() {
 
 #[test]
 fn verify_installed_reports_an_unlistable_tree() {
-    let scratch = dx_test_scratch::scratch("dx-env-test-verify-missing-");
+    let scratch = dx_test_scratch::scratch("dx-env-test-verify-missing-").unwrap();
     let root = scratch.path().to_path_buf();
     let error = verify_installed(&root.join("missing"), &[]).unwrap_err();
     assert!(matches!(error, Error::Unmanaged { .. }));

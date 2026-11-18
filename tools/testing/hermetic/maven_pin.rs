@@ -12,14 +12,14 @@ const PIN_DEADLINE: Duration = Duration::from_mins(30);
 
 fn tail(path: &Path) -> String {
     let text = std::fs::read_to_string(path).unwrap_or_default();
-    let lines: Vec<&str> = text.lines().collect();
-    lines[lines.len().saturating_sub(200)..].join("\n")
+    let skip = text.lines().count().saturating_sub(200);
+    text.lines().skip(skip).collect::<Vec<_>>().join("\n")
 }
 
 fn consumer(name: &str, committed: &str) -> Result<dx_nested::Case, String> {
     let Ok(rel) = std::env::var("DX_HERMETIC_MANIFEST") else {
         let case =
-            dx_nested::Case::consumer("consumer_maven_pin", &dx_nested::consumer_maven(name));
+            dx_nested::Case::consumer("consumer_maven_pin", &dx_nested::consumer_maven(name))?;
         case.write("BUILD.bazel", "");
         case.write(name, committed);
         return Ok(case);

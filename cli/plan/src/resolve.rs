@@ -5,6 +5,7 @@ pub mod entry;
 pub mod exclude;
 #[cfg(test)]
 pub(crate) mod fake_query;
+pub mod graph_cache;
 pub mod graph_memo;
 pub(crate) mod lock_inputs;
 pub(crate) mod module_inputs;
@@ -28,6 +29,7 @@ pub use codegen_expand::expand_codegen_roots;
 pub use entry::{resolve, resolve_for_generate, resolve_for_test_with_selection};
 #[cfg(test)]
 pub(crate) use fake_query::FakeQuery;
+pub use graph_cache::PersistentGraphQuery;
 pub use graph_memo::MemoizedGraphQuery;
 pub(crate) use packages::PackageCache;
 pub use query::quote_set;
@@ -132,10 +134,10 @@ mod tests {
 
     #[test]
     fn query_io_errors_become_query_failed() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-query-io-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-query-io-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
         let err = resolve(&strings(&["pkg/a.py"]), &workspace, &FailIo, &[]).expect_err("io");
         assert!(matches!(err, ResolveError::QueryFailed { .. }), "{err:?}");
         let err = resolve_run(&strings(&["pkg/a.py"]), &workspace, &FailIo, &[]).expect_err("io");
@@ -152,9 +154,9 @@ mod tests {
 
     #[test]
     fn scope_through_a_regular_file_is_not_found() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-not-a-dir-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-not-a-dir-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg", "file, not dir\n");
+        write(&workspace, "pkg", "file, not dir\n").unwrap();
         let query = NeverQuery;
         for err in [
             resolve(&strings(&["pkg/a.py"]), &workspace, &query, &[]).expect_err("resolve"),
@@ -180,7 +182,7 @@ mod tests {
 
     #[test]
     fn test_scope_rejects_external_and_relative() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-reject-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-reject-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = NeverQuery;
         assert_eq!(
@@ -229,7 +231,7 @@ mod tests {
 
     #[test]
     fn test_scope_missing_files_fail() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-missing-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-missing-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = NeverQuery;
         assert_eq!(
@@ -255,7 +257,7 @@ mod tests {
 
     #[test]
     fn control_chars_in_names_are_rejected() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-control-names-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-control-names-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = NeverQuery;
         for scope in ["app\x01", "app\x01/main.py"] {

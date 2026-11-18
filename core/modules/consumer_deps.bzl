@@ -2,6 +2,8 @@
 
 load(":versions.bzl", "CONSUMER_BAZEL_DEPS")
 
+visibility("private")
+
 def _consumer_deps_json_impl(ctx):
     out = ctx.actions.declare_file(ctx.label.name + ".json")
     table = {

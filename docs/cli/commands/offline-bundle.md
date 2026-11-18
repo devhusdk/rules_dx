@@ -1,6 +1,8 @@
-# Offline Bundle
+# Offline bundle
 
-`offline_bundle` assembles a vendored bundle for an airgapped host. The `bootstrap_offline` tool installs Bazel from the bundle and fills `.dx/local/advisory`. It is not a `dx` command.
+Use an offline bundle to set up Bazel and the security advisory data on a host with no network access.
+
+The `offline_bundle` macro builds the bundle on a connected machine. A macro is a Bazel function you call in a `BUILD.bazel` file to declare targets. The `bootstrap_offline` tool installs Bazel from the bundle on the offline host and fills `.dx/local/advisory`. It is not a `dx` command.
 
 ```sh
 bazel build //:offline_demo
@@ -28,7 +30,7 @@ offline_bundle(
 | `advisory_meta` | Dict of advisory set to the `<set>.meta.json` written by `advisory_prep`. Holds `retrieved_at` and the snapshot `sha256`. Needs exactly the sets in `advisory`. |
 | `launchers` | Bazelisk labels, named `bazelisk-darwin-amd64`, `bazelisk-darwin-arm64`, `bazelisk-linux-amd64`, `bazelisk-linux-arm64` or `bazelisk-windows-amd64.exe`. Ship every host you install on. |
 
-## Output Tree
+## Output tree
 
 Read the bundle from `bazel-bin/<pkg>/<name>/`:
 
@@ -59,9 +61,9 @@ It checks every `SHA256SUMS`, installs the launcher for the host, copies each sn
 
 The retrieval date is the `retrieved_at` from the bundle, not the install day. `dx security` and `dx license` report `advisory_refresh_failed` for an old bundle until you rebuild it from a fresh snapshot.
 
-It prints three `bootstrap-offline:` lines on stdout: the installed launcher with its sha256, the number of snapshots, and a note that the first Bazel module fetch still needs the network.
+It prints three `bootstrap-offline:` lines on stdout: the installed launcher with its sha256, the number of snapshots, and a note that the first Bazel module fetch still needs the network. Run [`dx fetch`](fetch.md) once while online; after that `dx build --offline` and `dx test --offline` need no network.
 
-## Exit Codes
+## Exit codes
 
 | Code | Meaning |
 | --- | --- |

@@ -2,6 +2,8 @@
 
 load("//core/quality:tool_defs.bzl", "config", "row", "tool")
 
+visibility(["//tools/..."])
+
 TOOLS = [
     tool(
         id = "docstrfmt",

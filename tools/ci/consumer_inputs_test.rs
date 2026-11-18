@@ -9,7 +9,7 @@ const WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
 const MATRIX_JOB: &str = "checks";
 
 fn coverage_step(prefix: &str) -> Value {
-    let coverage = job(WORKFLOW, MATRIX_JOB);
+    let coverage = job(WORKFLOW, MATRIX_JOB).unwrap();
     let steps = coverage["steps"]
         .as_array()
         .unwrap_or_else(|| panic!("{WORKFLOW} job checks has no steps"))
@@ -27,7 +27,7 @@ fn coverage_step(prefix: &str) -> Value {
 #[test]
 fn the_render_step_runs_coverage_summary_for_its_cell() {
     let step = coverage_step("Render first-party coverage summary");
-    let render = text_at(&step["run"], "render step run");
+    let render = text_at(&step["run"], "render step run").unwrap();
     let words: Vec<&str> = render
         .lines()
         .filter(|line| !line.trim_start().starts_with('#'))
@@ -79,7 +79,7 @@ fn the_render_step_runs_coverage_summary_for_its_cell() {
 
 #[test]
 fn piped_status_capture_steps_run_under_bash() {
-    let workflow = document(WORKFLOW);
+    let workflow = document(WORKFLOW).unwrap();
     let mut checked = 0;
     for (id, job) in jobs_of(&workflow) {
         let default = job

@@ -167,6 +167,7 @@ pub fn spec(command: Command) -> CommandSpec {
         | Command::Fuzz
         | Command::Status
         | Command::Config
+        | Command::Fetch
         | Command::Watch
         | Command::Completion => CommandSpec {
             command,
@@ -452,7 +453,8 @@ mod tests {
         let extensions = extensions(&[".go"]);
         let lint = aspects_for(Command::Lint, consumer(&extensions));
         assert!(
-            !lint.contains(&"kubernetes/private/quality:kubernetes.bzl%real_kubernetes_lint_aspect")
+            !lint
+                .contains(&"kubernetes/private/quality:kubernetes.bzl%real_kubernetes_lint_aspect")
         );
         assert!(
             !lint
@@ -608,7 +610,8 @@ mod tests {
             | Command::Docs
             | Command::Worktree
             | Command::Fuzz
-            | Command::Config => (registry_gen::FORMAT_ASPECTS, registry_gen::FORMAT_PROBES),
+            | Command::Config
+            | Command::Fetch => (registry_gen::FORMAT_ASPECTS, registry_gen::FORMAT_PROBES),
         };
         assert_eq!(&entry.aspects[..core.0.len()], core.0);
         assert_eq!(&entry.probes[..core.1.len()], core.1);

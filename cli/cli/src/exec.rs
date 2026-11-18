@@ -1,13 +1,12 @@
 mod affected;
 mod audit;
 mod auto_sync;
-mod bazel_hint;
 mod bench;
 mod breaking_base;
 mod build_failures;
 mod changed_coverage;
+mod check_build;
 mod clean;
-pub mod common;
 mod compiler_stderr;
 mod coverage_candidate;
 #[cfg(test)]
@@ -18,13 +17,12 @@ mod dep_edit;
 mod deploy;
 mod docs;
 mod docs_index;
-mod failure;
+mod dx_asset;
 mod failure_reports;
 pub mod first_run;
 mod fuzz;
 mod generate;
 mod generated_drift;
-mod guidance;
 #[cfg(test)]
 mod help_launcher_tests;
 pub(crate) mod ide_refresh;
@@ -34,7 +32,6 @@ mod managed_codegen;
 mod managed_env;
 mod managed_prepare;
 mod managed_staging;
-pub(crate) mod notice_codes;
 mod pinned_tool;
 pub mod preset_sync;
 mod profile_report;
@@ -75,8 +72,10 @@ mod worktree;
 use dx_plan::args::{Command, Invocation};
 
 pub use audit::AUDIT_TODAY_ENV;
-pub use common::{ActionTally, Env, print_actions, print_cache_retries};
-pub use failure::{cancel, install_panic_events, install_panic_hint, set_usage_command, slot_stop};
+pub use dx_exec_core::common::{ActionTally, Env, print_actions, print_cache_retries};
+pub use dx_exec_core::failure::{
+    cancel, install_panic_events, install_panic_hint, set_usage_command, slot_stop,
+};
 pub(crate) use managed_env::{ENV_ARTIFACTS_DIR, ENV_VALUES_FILE};
 pub use update_version::COMMIT_JSON_ENV as EDIT_COMMIT_JSON_ENV;
 pub use worktree::{hook_kind, run_worktree_hook};
@@ -154,7 +153,7 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
         proc_root,
         edit_commit_json,
     } = env;
-    let mut latched = common::LatchedOut::new(out);
+    let mut latched = dx_exec_core::common::LatchedOut::new(out);
     let code = dispatch(
         invocation,
         Env {
@@ -188,7 +187,7 @@ fn dispatch(invocation: &Invocation, env: Env<'_>) -> i32 {
     );
     if invocation.here {
         let Env { out, err, .. } = env;
-        return common::pre_exec(
+        return dx_exec_core::common::pre_exec(
             invocation.output,
             out,
             err,
@@ -202,7 +201,7 @@ fn dispatch(invocation: &Invocation, env: Env<'_>) -> i32 {
     ) {
         Some(Err(refusal)) => {
             let Env { out, err, .. } = env;
-            return common::refusal_dx_error(invocation.output, out, err, &refusal);
+            return dx_exec_core::common::refusal_dx_error(invocation.output, out, err, &refusal);
         }
         held => held
             .and_then(Result::ok)
@@ -210,7 +209,7 @@ fn dispatch(invocation: &Invocation, env: Env<'_>) -> i32 {
     };
     if let Some(refusal) = lease_refusal(invocation, env.workspace) {
         let Env { out, err, .. } = env;
-        return common::refusal(invocation.output, out, err, &refusal);
+        return dx_exec_core::common::refusal(invocation.output, out, err, &refusal);
     }
     // The busy handle rides only on app children (`run_app`); builds get none.
     let holding = busy
@@ -311,7 +310,11 @@ fn init_then_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
     if code != 0 {
         return code;
     }
-    match dx_generate::sync(&root, dx_generate::Mode::Full, &mut dx_adopt::detected_families) {
+    match dx_generate::sync(
+        &root,
+        dx_generate::Mode::Full,
+        &mut dx_adopt::detected_families,
+    ) {
         Ok(_) => 0,
         Err(error) => {
             writeln!(err, "dx: .dx not synced after generate: {error}").ok();
@@ -355,9 +358,12 @@ fn dispatch_inner(invocation: &Invocation, env: Env<'_>) -> i32 {
         Command::Watch => crate::adopt::watch::execute_watch(invocation, env),
         Command::Check => umbrella::execute_umbrella(invocation, env),
         Command::Bench => bench::execute_bench(invocation, env),
-        Command::Build | Command::Test | Command::Coverage | Command::Run | Command::Deploy => {
-            workflow::execute_workflow(invocation, env)
-        }
+        Command::Build
+        | Command::Test
+        | Command::Coverage
+        | Command::Run
+        | Command::Deploy
+        | Command::Fetch => workflow::execute_workflow(invocation, env),
         Command::Generate => generate::execute_generate(invocation, env),
         Command::Clean => clean::execute_clean(invocation, env),
         Command::Sync => managed::execute_managed(invocation, env),
@@ -421,7 +427,7 @@ mod tests {
         assert_ne!(code, 141);
     }
 
-    const QUIET_ROWS: [(Command, &[&str]); 12] = [
+    const QUIET_ROWS: [(Command, &[&str]); 13] = [
         (Command::Generate, &["generate"]),
         (Command::Docs, &["docs"]),
         (Command::Sync, &["sync"]),
@@ -443,6 +449,7 @@ mod tests {
         (Command::Typecheck, &["typecheck"]),
         (Command::Format, &["format"]),
         (Command::Check, &["check"]),
+        (Command::Fetch, &["fetch"]),
     ];
 
     const NO_BAZEL_BUILD: [Command; 11] = [
@@ -476,9 +483,12 @@ mod tests {
         run.argv
             .into_iter()
             .filter(|argv| {
-                argv.iter()
-                    .take_while(|arg| *arg != "--")
-                    .any(|arg| matches!(arg.as_str(), "build" | "run" | "test" | "coverage"))
+                argv.iter().take_while(|arg| *arg != "--").any(|arg| {
+                    matches!(
+                        arg.as_str(),
+                        "build" | "run" | "test" | "coverage" | "fetch"
+                    )
+                })
             })
             .collect()
     }
@@ -614,7 +624,7 @@ mod tests {
         unclaimed: bool,
         gone: bool,
     ) -> tempfile::TempDir {
-        let scratch = dx_test_scratch::scratch("dx-exec-lease-");
+        let scratch = dx_test_scratch::scratch("dx-exec-lease-").unwrap();
         let slot = scratch.path().join("pool").join("1");
         std::fs::create_dir_all(&slot).expect("slot");
         std::fs::create_dir_all(scratch.path().join("pool").join(".dx")).expect("meta");

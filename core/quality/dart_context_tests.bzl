@@ -3,6 +3,8 @@
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":dart_context.bzl", "DART_ANALYZE", "DART_FORMAT", "dart_merge_packages", "dart_package_entries", "dart_pubspec_stub", "dart_pubspec_stubs")
 
+visibility("private")
+
 def _pkg(name, lib_root, language_version = ""):
     return struct(package_name = name, lib_root = lib_root, language_version = language_version)
 

@@ -173,24 +173,27 @@ fn longest_prefix_match(haystack: &[u8], needle: &[u8]) -> usize {
     if needle.is_empty() {
         return 0;
     }
+    let fallback = |failure: &[usize], k: usize| failure.get(k - 1).copied().unwrap_or(0);
     let mut failure = vec![0usize; needle.len()];
     let mut k = 0;
-    for i in 1..needle.len() {
-        while k > 0 && needle[i] != needle[k] {
-            k = failure[k - 1];
+    for (i, &byte) in needle.iter().enumerate().skip(1) {
+        while k > 0 && needle.get(k) != Some(&byte) {
+            k = fallback(&failure, k);
         }
-        if needle[i] == needle[k] {
+        if needle.get(k) == Some(&byte) {
             k += 1;
         }
-        failure[i] = k;
+        if let Some(slot) = failure.get_mut(i) {
+            *slot = k;
+        }
     }
     let mut best = 0;
     let mut matched = 0;
     for &byte in haystack {
-        while matched > 0 && byte != needle[matched] {
-            matched = failure[matched - 1];
+        while matched > 0 && needle.get(matched) != Some(&byte) {
+            matched = fallback(&failure, matched);
         }
-        if byte == needle[matched] {
+        if needle.get(matched) == Some(&byte) {
             matched += 1;
         }
         best = best.max(matched);
@@ -208,7 +211,11 @@ fn longest_prefix_match(haystack: &[u8], needle: &[u8]) -> usize {
 fn first_missing_line<'a>(haystack: &[u8], needle: &'a str) -> (usize, &'a str) {
     let bytes = needle.as_bytes();
     let matched = longest_prefix_match(haystack, bytes);
-    let mut index = bytes[..matched].split(|&byte| byte == b'\n').count() - 1;
+    let mut index = bytes
+        .iter()
+        .take(matched)
+        .filter(|&&byte| byte == b'\n')
+        .count();
     if matched > 0 && bytes.get(matched) == Some(&b'\n') {
         index += 1;
     }
@@ -218,11 +225,13 @@ fn first_missing_line<'a>(haystack: &[u8], needle: &'a str) -> (usize, &'a str) 
 /// Returns the 1-based line of the first line ending that is not the wanted kind.
 fn first_bad_line_ending(bytes: &[u8], crlf: bool) -> Option<usize> {
     let mut line = 1;
-    for (index, &byte) in bytes.iter().enumerate() {
+    let mut previous = None;
+    for &byte in bytes {
+        let after_cr = previous == Some(b'\r');
+        previous = Some(byte);
         if byte != b'\n' {
             continue;
         }
-        let after_cr = index > 0 && bytes[index - 1] == b'\r';
         if after_cr != crlf {
             return Some(line);
         }
@@ -534,12 +543,16 @@ fn finish(
     }
 }
 
-fn main() {
-    std::process::exit(finish(
+fn main() -> std::process::ExitCode {
+    let code = finish(
         &run(),
         &mut std::io::stdout().lock(),
         &mut std::io::stderr().lock(),
-    ))
+    );
+    u8::try_from(code).map_or(
+        std::process::ExitCode::FAILURE,
+        std::process::ExitCode::from,
+    )
 }
 
 #[cfg(test)]
@@ -572,7 +585,7 @@ mod tests {
 
     fn evaluated(value: &serde_json::Value) -> Report {
         let mut report = evaluate(value).expect("manifest evaluates");
-        let scratch = dx_test_scratch::scratch("starlark-harness");
+        let scratch = dx_test_scratch::scratch("starlark-harness").unwrap();
         let dir = scratch.path();
         let resolver = Resolver::for_tree(dir).expect("tree resolver");
         evaluate_files(value, &resolver, &mut report).expect("files evaluate");
@@ -593,7 +606,7 @@ mod tests {
         tree_files: &[(&str, &[u8])],
         manifest_value: &serde_json::Value,
     ) -> std::io::Result<Report> {
-        let scratch = dx_test_scratch::scratch("starlark-harness");
+        let scratch = dx_test_scratch::scratch("starlark-harness").unwrap();
         let dir = scratch.path();
         let tree = dir.join("probe_test.runfiles");
         for (rel, bytes) in tree_files {
@@ -809,7 +822,7 @@ mod tests {
 
     #[test]
     fn file_entries_check_every_needle_against_raw_bytes() {
-        let scratch = dx_test_scratch::scratch("starlark-harness");
+        let scratch = dx_test_scratch::scratch("starlark-harness").unwrap();
         let dir = scratch.path();
         write(
             dir,
@@ -840,7 +853,7 @@ mod tests {
 
     #[test]
     fn a_missing_substring_reports_needle_and_path() {
-        let scratch = dx_test_scratch::scratch("starlark-harness");
+        let scratch = dx_test_scratch::scratch("starlark-harness").unwrap();
         let dir = scratch.path();
         write(dir, "_main/pkg/present.txt", b"here\n");
         let value = manifest(
@@ -860,7 +873,7 @@ mod tests {
 
     #[test]
     fn a_multiline_needle_matches_only_contiguous_lines() {
-        let scratch = dx_test_scratch::scratch("starlark-harness");
+        let scratch = dx_test_scratch::scratch("starlark-harness").unwrap();
         let dir = scratch.path();
         write(dir, "_main/pkg/joined.txt", b"a\nb\n");
         write(dir, "_main/pkg/split.txt", b"a\nx\nb\n");
@@ -884,7 +897,7 @@ mod tests {
 
     #[test]
     fn a_missing_multiline_needle_reports_only_the_missing_line() {
-        let scratch = dx_test_scratch::scratch("starlark-harness");
+        let scratch = dx_test_scratch::scratch("starlark-harness").unwrap();
         let dir = scratch.path();
         write(dir, "_main/pkg/block.txt", b"a\nb\nc\n");
         let value = manifest(
@@ -904,7 +917,7 @@ mod tests {
 
     #[test]
     fn an_out_of_order_needle_line_is_reported() {
-        let scratch = dx_test_scratch::scratch("starlark-harness");
+        let scratch = dx_test_scratch::scratch("starlark-harness").unwrap();
         let dir = scratch.path();
         write(dir, "_main/pkg/split.txt", b"a\nx\nb\n");
         let value = manifest(
@@ -930,7 +943,7 @@ mod tests {
 
     #[test]
     fn a_missing_runfile_is_an_error() {
-        let scratch = dx_test_scratch::scratch("starlark-harness");
+        let scratch = dx_test_scratch::scratch("starlark-harness").unwrap();
         let dir = scratch.path();
         let value = manifest(
             serde_json::json!([]),
@@ -946,7 +959,7 @@ mod tests {
     }
 
     fn endings_report(bytes: &[u8], kind: &str) -> Report {
-        let scratch = dx_test_scratch::scratch("starlark-harness");
+        let scratch = dx_test_scratch::scratch("starlark-harness").unwrap();
         let dir = scratch.path();
         write(dir, "_main/pkg/t.txt", bytes);
         let value = manifest(
@@ -988,7 +1001,7 @@ mod tests {
 
     #[test]
     fn an_unknown_line_ending_kind_is_an_error() {
-        let scratch = dx_test_scratch::scratch("starlark-harness");
+        let scratch = dx_test_scratch::scratch("starlark-harness").unwrap();
         let dir = scratch.path();
         write(dir, "_main/pkg/t.txt", b"a\n");
         let value = manifest(
@@ -1005,7 +1018,7 @@ mod tests {
 
     #[test]
     fn a_file_entry_without_needles_is_an_error() {
-        let scratch = dx_test_scratch::scratch("starlark-harness");
+        let scratch = dx_test_scratch::scratch("starlark-harness").unwrap();
         let dir = scratch.path();
         write(dir, "_main/pkg/empty.txt", b"x\n");
         let value = manifest(
@@ -1144,7 +1157,7 @@ mod tests {
 
     #[test]
     fn run_with_rejects_an_unknown_manifest_key() {
-        let scratch = dx_test_scratch::scratch("starlark-harness");
+        let scratch = dx_test_scratch::scratch("starlark-harness").unwrap();
         let dir = scratch.path();
         let exe = write(dir, "probe_test", b"stand-in");
         std::fs::create_dir_all(dir.join("probe_test.runfiles/_main/pkg")).expect("empty tree");

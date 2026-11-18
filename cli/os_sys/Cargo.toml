@@ -1,0 +1,21 @@
+[package]
+license = "Apache-2.0"
+name = "dx_os_sys"
+version = "0.0.0"
+edition = "2024"
+
+[lib]
+name = "dx_os_sys"
+path = "src/lib.rs"
+
+[target.'cfg(unix)'.dependencies]
+errno = "0.3"
+libc = "0.2"
+rustix = { version = "1", features = [
+  "event",
+  "fs",
+  "pipe",
+  "process",
+  "std",
+  "termios",
+] }

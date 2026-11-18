@@ -37,6 +37,12 @@
         {
           "aliases": [],
           "defaults": [],
+          "name": "--base",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
           "name": "--bazel-startup-option",
           "values": []
         },
@@ -190,6 +196,12 @@
         {
           "aliases": [],
           "defaults": [],
+          "name": "--base",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
           "name": "--bazel-startup-option",
           "values": []
         },
@@ -320,6 +332,12 @@
           "aliases": [],
           "defaults": [],
           "name": "--apply",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--base",
           "values": []
         },
         {
@@ -472,6 +490,12 @@
         {
           "aliases": [],
           "defaults": [],
+          "name": "--base",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
           "name": "--bazel-startup-option",
           "values": []
         },
@@ -602,6 +626,12 @@
           "aliases": [],
           "defaults": [],
           "name": "--apply",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--base",
           "values": []
         },
         {
@@ -825,6 +855,12 @@
         {
           "aliases": [],
           "defaults": [],
+          "name": "--base",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
           "name": "--bazel-startup-option",
           "values": []
         },
@@ -866,6 +902,12 @@
           "aliases": [],
           "defaults": [],
           "name": "--no-retry",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--offline",
           "values": []
         },
         {
@@ -944,6 +986,12 @@
         {
           "aliases": [],
           "defaults": [],
+          "name": "--base",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
           "name": "--bazel-startup-option",
           "values": []
         },
@@ -985,6 +1033,12 @@
           "aliases": [],
           "defaults": [],
           "name": "--no-retry",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--offline",
           "values": []
         },
         {
@@ -1058,6 +1112,12 @@
           "aliases": [],
           "defaults": [],
           "name": "--affected",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--base",
           "values": []
         },
         {
@@ -1382,6 +1442,12 @@
         {
           "aliases": [],
           "defaults": [],
+          "name": "--base",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
           "name": "--bazel-startup-option",
           "values": []
         },
@@ -1467,6 +1533,12 @@
           "aliases": [],
           "defaults": [],
           "name": "--apply",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--base",
           "values": []
         },
         {
@@ -2210,6 +2282,12 @@
         {
           "aliases": [],
           "defaults": [],
+          "name": "--base",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
           "name": "--bazel-startup-option",
           "values": []
         },
@@ -2750,6 +2828,119 @@
           ],
           "defaults": [],
           "name": "--quiet",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-v"
+          ],
+          "defaults": [],
+          "name": "--verbose",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--workspace",
+          "values": []
+        }
+      ]
+    },
+    {
+      "command": "dx fetch",
+      "exit_codes": [
+        "0",
+        "2",
+        "1"
+      ],
+      "flags": [
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--affected",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--base",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--bazel-startup-option",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--build-slots-wait",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--color",
+          "values": [
+            "auto",
+            "always",
+            "never"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--debug",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--here",
+          "values": []
+        },
+        {
+          "aliases": [
+            "-o"
+          ],
+          "defaults": [],
+          "name": "--output",
+          "values": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "aliases": [
+            "-q"
+          ],
+          "defaults": [],
+          "name": "--quiet",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--release",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--since",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--vendor",
           "values": []
         },
         {

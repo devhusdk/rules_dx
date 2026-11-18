@@ -1,6 +1,6 @@
 # `dx watch`
 
-Reruns one command when files change.
+Use `dx watch` to rerun a build, test, run or check command each time you save a file.
 
 ```sh
 dx watch build //app/...
@@ -10,11 +10,15 @@ dx watch lint --output json --affected
 dx watch run //app:bin
 ```
 
+## Usage
+
 ```text
 dx watch [--apply] [--debug|--release] [flags] <build|test|run|lint|typecheck|format|check> [scope ...] [-- bazel-options|app-args ...]
 ```
 
 Flags go to the wrapped command and are checked as `dx <command>` checks them. A flag the wrapped command rejects fails before watching starts. Args after `--` reach the wrapped command unchanged.
+
+## Flags
 
 | Flag | What it does |
 | --- | --- |
@@ -23,14 +27,23 @@ Flags go to the wrapped command and are checked as `dx <command>` checks them. A
 | `--here` | Resolve the scope once from the current directory. |
 | `--affected` | Re-resolve the affected targets each iteration. |
 | `--since <ref>` | With `--affected`: diff from this ref instead of the merge-base. |
+| `--base <ref>` | With `--affected`: take the merge-base with this branch instead of the default branch. |
 | `--poll` | Poll the tree every second instead of using the platform watcher, on any platform. |
 | `--fail-on`, `--report`, `--diff`, `--unsafe`, `--include-edits`, `--max-findings` | Passed to the wrapped command when it takes them. |
 | `-o, --output text\|json` | Choose the output format. |
-| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--build-slots-wait`, `--bazel-startup-option` | Global flags. |
+| `--workspace <dir>` | Use this workspace directory. |
+| `-q, --quiet` | Hide summaries. |
+| `-v, --verbose` | Show more logs. |
+| `--color auto\|always\|never` | Set color output. |
+| `--build-slots <auto\|n\|off>` | Set build slots: `auto`, a count, or `off`. |
+| `--build-slots-wait <duration>` | Give up waiting for a build slot after this long. `0` fails at once. |
+| `--bazel-startup-option <token>` | Pass one Bazel startup option. Repeatable. |
 
-Scopes: the wrapped command's scopes, re-resolved each iteration. Other commands fail with `not watchable`.
+## Scopes
 
-Local only. `CI=true` is refused.
+The wrapped command and its scopes, resolved again on each iteration. Only `build`, `test`, `run`, `lint`, `typecheck`, `format` and `check` can be watched. Other commands fail with `not watchable`.
+
+`dx watch` runs on your machine only. It refuses to start when `CI=true`.
 
 ## Behavior
 
@@ -53,6 +66,8 @@ watch:test:debounce=200ms scope=//... iteration=2
 iteration 2: failed (exit 1) in 1.3s; watching
 stopped
 ```
+
+`dx watch` writes no reports of its own. The wrapped command writes the reports you pass with `--report`.
 
 Under JSON, each iteration is one event stream ending in `command_finished`. A restarted app reports `143`.
 

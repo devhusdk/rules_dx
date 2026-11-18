@@ -4,6 +4,9 @@ load("//core/quality:family_hooks.bzl", "default_files_hook")
 load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
 load("//core/quality:sources.bzl", "QualityToolsInfo")
 
+# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
+visibility("public")
+
 TOOLS = {
     "actionlint": {
         "attr": attr.label(default = "//config:tool_actionlint", allow_single_file = True, cfg = "exec"),

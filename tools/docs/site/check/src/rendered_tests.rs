@@ -81,7 +81,7 @@ const DEEP: &str = r##"<!DOCTYPE html>
 "##;
 
 fn site(name: &str) -> dx_test_scratch::TempDir {
-    let guard = dx_test_scratch::scratch(name);
+    let guard = dx_test_scratch::scratch(name).unwrap();
     let dir = guard.path();
     write(dir, "index.html", HOME);
     write(dir, "page.html", PAGE);
@@ -300,7 +300,7 @@ fn a_page_without_a_title_or_heading_fails() {
 
 #[test]
 fn an_empty_site_fails() {
-    let guard = dx_test_scratch::scratch("rendered-empty");
+    let guard = dx_test_scratch::scratch("rendered-empty").unwrap();
     let dir = guard.path();
     let report = check_rendered(&rendered(dir), &[]);
     assert_eq!(report, "rendered site has no HTML page");

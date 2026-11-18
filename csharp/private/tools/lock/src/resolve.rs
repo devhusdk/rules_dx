@@ -7,7 +7,6 @@ use std::io::Cursor;
 use base64::Engine as _;
 use dx_lock::{Archive, Error, HttpFetch, Lock, Package, Resolution, Resolver, Scratch, Spec};
 use serde_json::Value;
-use sha2::{Digest as _, Sha512};
 
 /// The `NuGet` v3 service index that every Paket `source` names.
 pub const SOURCE: &str = "https://api.nuget.org/v3/index.json";
@@ -367,7 +366,7 @@ pub fn tools(bytes: &[u8]) -> Result<BTreeMap<String, Vec<Tool>>, Error> {
 pub fn sha512(bytes: &[u8]) -> String {
     format!(
         "sha512-{}",
-        base64::engine::general_purpose::STANDARD.encode(Sha512::digest(bytes))
+        base64::engine::general_purpose::STANDARD.encode(dx_digest::sha512(bytes))
     )
 }
 
@@ -388,11 +387,13 @@ impl Paket {
     pub fn install(&self, scratch: &Scratch) -> Result<(), Error> {
         let failed = |error: &dyn std::fmt::Display| Error::new(format!("paket: {error}"));
         let root = scratch.tmp().join("paket");
-        let file = std::fs::File::open(&self.nupkg).map_err(|error| failed(&error))?;
-        zip::ZipArchive::new(file)
-            .map_err(|error| failed(&error))?
-            .extract(&root)
-            .map_err(|error| failed(&error))?;
+        dx_archive::extract(
+            &self.nupkg,
+            dx_archive::Format::Zip,
+            &root,
+            dx_archive::Limits::default(),
+        )
+        .map_err(|error| failed(&error))?;
         let dll = std::fs::read_dir(root.join("tools"))
             .map_err(|error| failed(&error))?
             .filter_map(Result::ok)

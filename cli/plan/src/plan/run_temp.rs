@@ -161,7 +161,7 @@ mod tests {
 
     #[test]
     fn remove_stale_run_dirs_keeps_live_and_removes_gone_owners() {
-        let base = dx_test_scratch::scratch("dx-run-sweep-");
+        let base = dx_test_scratch::scratch("dx-run-sweep-").unwrap();
         let base = base.path();
         let gone = base.join("dx-run-999999-abc");
         std::fs::create_dir(&gone).expect("gone dir");

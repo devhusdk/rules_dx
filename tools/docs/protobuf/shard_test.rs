@@ -8,12 +8,12 @@ use shard_test_support::shard;
 const PREFIX: &str = "protobuf:shop:";
 
 fn symbol<'a>(shard: &'a DocIr, name: &str) -> &'a Symbol {
-    shard_test_support::symbol(shard, &format!("{PREFIX}{name}"))
+    shard_test_support::symbol(shard, &format!("{PREFIX}{name}")).unwrap()
 }
 
 #[test]
 fn the_fixture_shard_documents_every_item_with_its_comment() {
-    let shard = shard("DX_FIXTURE_SHARD");
+    let shard = shard("DX_FIXTURE_SHARD").unwrap();
     validate_shard(&shard).expect("validate_shard passes");
     assert_eq!(shard.language, "protobuf");
     assert_eq!(shard.package, "shop");
@@ -54,7 +54,7 @@ fn the_fixture_shard_documents_every_item_with_its_comment() {
 
 #[test]
 fn the_imported_proto_is_not_documented_by_the_importing_shard() {
-    let shard = shard("DX_FIXTURE_SHARD");
+    let shard = shard("DX_FIXTURE_SHARD").unwrap();
     assert!(!shard.symbols.iter().any(|s| s.id.contains("Stamp")));
     let source = symbol(&shard, "shop.v1.Order")
         .source

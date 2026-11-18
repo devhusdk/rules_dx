@@ -6,7 +6,7 @@ use std::path::Path;
 use dx_output::{DiagnosticEvent, Severity};
 use dx_plan::resolve::QueryRunner;
 
-use super::common::git_output;
+use dx_exec_core::common::git_output;
 
 const TOOL: &str = "dx";
 const DRIFT_RULE: &str = "dx/generated-drift";
@@ -116,24 +116,25 @@ mod tests {
 
     /// A workspace with a python file whose generated `.dx` is committed.
     fn committed() -> dx_test_scratch::TempDir {
-        let scratch = dx_test_scratch::scratch("dx-drift-");
+        let scratch = dx_test_scratch::scratch("dx-drift-").unwrap();
         let root = scratch.path();
-        dx_test_scratch::write(root, "MODULE.bazel", "");
-        dx_test_scratch::write(root, "dx.toml", "schema_version = 1\n");
-        dx_test_scratch::write(root, "pkg/a.py", "");
+        dx_test_scratch::write(root, "MODULE.bazel", "").unwrap();
+        dx_test_scratch::write(root, "dx.toml", "schema_version = 1\n").unwrap();
+        dx_test_scratch::write(root, "pkg/a.py", "").unwrap();
         dx_generate::sync(
             root,
             dx_generate::Mode::Full,
             &mut dx_adopt::detected_families,
         )
         .expect("sync");
-        dx_test_scratch::git(root, root, &["init", "--quiet"]);
+        dx_test_scratch::git(root, root, &["init", "--quiet"]).unwrap();
         dx_test_scratch::git(
             root,
             root,
             &["add", ".dx", "MODULE.bazel", "dx.toml", "pkg"],
-        );
-        dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "base"]);
+        )
+        .unwrap();
+        dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "base"]).unwrap();
         scratch
     }
 
@@ -158,7 +159,7 @@ mod tests {
     fn a_hand_edit_is_drift() {
         let scratch = committed();
         let root = scratch.path();
-        dx_test_scratch::write(root, BASE, "edited\n");
+        dx_test_scratch::write(root, BASE, "edited\n").unwrap();
         let want = vec![(Some(DRIFT_RULE.to_owned()), Some(BASE.to_owned()))];
         assert_eq!(rules(root, &[]), want);
     }
@@ -167,9 +168,9 @@ mod tests {
     fn a_committed_edit_the_hook_rewrote_is_drift() {
         let scratch = committed();
         let root = scratch.path();
-        dx_test_scratch::write(root, BASE, "edited\n");
-        dx_test_scratch::git(root, root, &["add", BASE]);
-        dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "edit"]);
+        dx_test_scratch::write(root, BASE, "edited\n").unwrap();
+        dx_test_scratch::git(root, root, &["add", BASE]).unwrap();
+        dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "edit"]).unwrap();
         dx_generate::sync(
             root,
             dx_generate::Mode::Full,
@@ -184,8 +185,8 @@ mod tests {
     fn untracked_dx_is_not_drift() {
         let scratch = committed();
         let root = scratch.path();
-        dx_test_scratch::git(root, root, &["rm", "--quiet", "--cached", "-r", ".dx"]);
-        dx_test_scratch::write(root, BASE, "edited\n");
+        dx_test_scratch::git(root, root, &["rm", "--quiet", "--cached", "-r", ".dx"]).unwrap();
+        dx_test_scratch::write(root, BASE, "edited\n").unwrap();
         assert!(
             rules(root, &[BASE.to_owned()]).is_empty(),
             "{:?}",

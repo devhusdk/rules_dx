@@ -1,3 +1,4 @@
+Upstream: none (not yet sent upstream)
 --- a/oci/private/image_index.sh.tpl
 +++ b/oci/private/image_index.sh.tpl
 @@ -36,5 +36,5 @@

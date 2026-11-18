@@ -1,3 +1,4 @@
+Upstream: bazelbuild/rules_rust#4390
 --- a/rust/private/rustc.bzl
 +++ b/rust/private/rustc.bzl
 @@ -1909,6 +1909,14 @@

@@ -37,7 +37,7 @@ fn trusting_cosign(scratch: &Path) -> PathBuf {
 }
 
 fn verify(identity: &str, issuer: &str, subject: &Path) -> Output {
-    let scratch = dx_test_scratch::scratch("cosign_verify");
+    let scratch = dx_test_scratch::scratch("cosign_verify").unwrap();
     let scratch = scratch.path();
     let wrapper = trusting_cosign(scratch);
     let dx_verify = env_file("DX_VERIFY_BIN");
@@ -71,7 +71,7 @@ fn valid_signature_verifies() {
 
 #[test]
 fn tampered_bytes_fail() {
-    let scratch = dx_test_scratch::scratch("cosign_tamper");
+    let scratch = dx_test_scratch::scratch("cosign_tamper").unwrap();
     let scratch = scratch.path();
     let tampered = scratch.join("artifact.bin");
     let mut bytes = std::fs::read(fixture("artifact.bin")).expect("read");
@@ -114,7 +114,7 @@ fn wrong_issuer_fails() {
 
 #[test]
 fn sign_blob_argv_parses_with_pinned_cosign() {
-    let scratch = dx_test_scratch::scratch("cosign_sign");
+    let scratch = dx_test_scratch::scratch("cosign_sign").unwrap();
     let scratch = scratch.path();
     let bundle = scratch.join("out.bundle");
     let mut argv = dx_release_tools::signing_sign_argv(

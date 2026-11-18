@@ -1,9 +1,9 @@
-use super::common::{
+use super::docs_index::{CODE_INDEX_FAILED, build_index, built_shards, execution_root};
+use dx_exec_core::common::{
     Env, bazel_exit_event, bazel_failure_code, bep_error_code, check_stdout_write,
     collect_output_account, emit_built, emit_event, kept_child, operational, pre_exec,
     report_dx_error, resolve_failed, run_bazel,
 };
-use super::docs_index::{CODE_INDEX_FAILED, build_index, built_shards, execution_root};
 use dx_output::{FinishedCounts, OutputMode, command_finished, command_started, operation_event};
 use dx_plan::args::Invocation;
 use dx_plan::plan::{Consumer, DOCS_SITE_OUTPUT_GROUP, bep_path, plan_docs};

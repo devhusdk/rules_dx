@@ -11,7 +11,8 @@ fn report_runs_in_the_guest() {
         &[],
         &BTreeMap::new(),
         &[],
-    );
+    )
+    .expect("the WASI runtime runs");
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert_eq!(output.status.code(), Some(0), "stderr: {stderr}");
     let expected = [

@@ -4,6 +4,8 @@ load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//core/modules:langs.bzl", "LANGS")
 load(":sources.bzl", "DOCKERFILE_NAME_PATTERNS", "NAMED_SOURCE_CLASSES", "RUST", "dockerfile_name_error", "is_dockerfile_name", "is_known_semantic_class", "is_named_source", "named_source_class_error", "path_source_class", "sources_schema_error", "upstream_source_class")
 
+visibility("private")
+
 FROZEN_SEMANTIC_FILE_CLASSES = [
     "julia",
     "text",

@@ -1,3 +1,4 @@
+Upstream: baz-scm/gomod-parser#52
 --- a/src/parser.rs
 +++ b/src/parser.rs
 @@ -182,7 +182,7 @@

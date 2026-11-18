@@ -33,8 +33,8 @@ fn scripted(app: bool) -> Fake {
 
 #[test]
 fn the_app_is_unpacked_and_run_with_the_arguments() {
-    let root = scratch("macos-run");
-    write(root.path(), "Ledger.zip", "PK");
+    let root = scratch("macos-run").unwrap();
+    write(root.path(), "Ledger.zip", "PK").unwrap();
     let zipped = root
         .path()
         .join("Ledger.zip")
@@ -66,8 +66,8 @@ fn the_app_is_unpacked_and_run_with_the_arguments() {
 
 #[test]
 fn the_exit_code_of_the_app_is_kept() {
-    let root = scratch("macos-code");
-    write(root.path(), "Ledger.zip", "PK");
+    let root = scratch("macos-code").unwrap();
+    write(root.path(), "Ledger.zip", "PK").unwrap();
     let zipped = root
         .path()
         .join("Ledger.zip")
@@ -102,8 +102,8 @@ fn a_missing_archive_or_argument_fails_before_running_anything() {
 
 #[test]
 fn a_host_without_ditto_fails_with_127() {
-    let root = scratch("macos-noditto");
-    write(root.path(), "Ledger.zip", "PK");
+    let root = scratch("macos-noditto").unwrap();
+    write(root.path(), "Ledger.zip", "PK").unwrap();
     let zipped = root
         .path()
         .join("Ledger.zip")
@@ -122,8 +122,8 @@ fn a_host_without_ditto_fails_with_127() {
 
 #[test]
 fn an_archive_without_an_app_fails() {
-    let root = scratch("macos-noapp");
-    write(root.path(), "Ledger.zip", "PK");
+    let root = scratch("macos-noapp").unwrap();
+    write(root.path(), "Ledger.zip", "PK").unwrap();
     let zipped = root
         .path()
         .join("Ledger.zip")
@@ -138,8 +138,8 @@ fn an_archive_without_an_app_fails() {
 
 #[test]
 fn a_failed_unpack_keeps_the_ditto_exit_code() {
-    let root = scratch("macos-badzip");
-    write(root.path(), "Ledger.zip", "PK");
+    let root = scratch("macos-badzip").unwrap();
+    write(root.path(), "Ledger.zip", "PK").unwrap();
     let zipped = root
         .path()
         .join("Ledger.zip")

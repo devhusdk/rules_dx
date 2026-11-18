@@ -30,10 +30,10 @@ pub enum DivError {
     DivisionByZero,
 }
 
-pub fn div(numer: i32, denom: i32) -> Result<i32, DivError> {
+pub fn div(numerator: i32, denom: i32) -> Result<i32, DivError> {
     let mut err = 0;
     // SAFETY: native_div takes plain integers and err is a valid i32 out-pointer.
-    let value = unsafe { native_div(numer, denom, &mut err) };
+    let value = unsafe { native_div(numerator, denom, &mut err) };
     if err == 0 {
         Ok(value)
     } else {

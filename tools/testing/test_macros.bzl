@@ -1,6 +1,9 @@
+"""Format test macros."""
+
 load("//rust:defs.bzl", "rust_test")
 
 def dx_format_test(name, tool, srcs, args, config = None, data = [], env = {}, **kwargs):
+    """Runs a formatter tool over srcs as a test."""
     env = dict(env)
     env["DX_FORMAT_TOOL"] = "$(rootpath %s)" % tool
     env["DX_FORMAT_ARGS"] = " ".join(args)

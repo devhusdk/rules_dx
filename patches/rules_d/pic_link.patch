@@ -1,3 +1,4 @@
+Upstream: none (not yet sent upstream)
 diff --git a/d/private/rules/cc_toolchain.bzl b/d/private/rules/cc_toolchain.bzl
 --- a/d/private/rules/cc_toolchain.bzl
 +++ b/d/private/rules/cc_toolchain.bzl

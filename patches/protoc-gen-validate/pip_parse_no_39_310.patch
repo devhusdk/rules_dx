@@ -1,3 +1,4 @@
+Upstream: none (rules_dx only: skips python 3.9 and 3.10 for windows_arm64)
 --- a/MODULE.bazel
 +++ b/MODULE.bazel
 @@ -87,7 +87,7 @@

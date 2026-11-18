@@ -1,5 +1,7 @@
 """Warnings for module extensions that read tags from the root module only."""
 
+visibility(["//core/...", "//python/..."])
+
 def dropped_tag_warnings(extension, modules, tag_classes):
     """Returns one warning per non-root module and tag class whose tags the extension ignores.
 

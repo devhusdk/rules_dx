@@ -15,7 +15,7 @@ const PLIST: &str = "<plist><dict>\n\t<key>CFBundleShortVersionString</key>\n\t<
 
 fn install(root: &std::path::Path, app: &str, version: &str) -> PathBuf {
     let text = PLIST.replace("15.2", version);
-    write(root, &format!("{app}/Contents/version.plist"), &text);
+    write(root, &format!("{app}/Contents/version.plist"), &text).unwrap();
     root.join(app).join("Contents/Developer")
 }
 
@@ -37,10 +37,10 @@ fn a_configured_version_matches_the_installed_short_version() {
 
 #[test]
 fn the_developer_directory_is_the_installed_xcode_of_that_version() {
-    let root = scratch("xcode-find");
+    let root = scratch("xcode-find").unwrap();
     let wanted = install(root.path(), "Xcode-15.2.app", "15.2");
     install(root.path(), "Xcode-16.app", "16.0");
-    write(root.path(), "Notes.txt", "x");
+    write(root.path(), "Notes.txt", "x").unwrap();
     assert_eq!(
         developer_dir("15.2.0.15C500b", None, root.path()),
         Ok(wanted)
@@ -49,7 +49,7 @@ fn the_developer_directory_is_the_installed_xcode_of_that_version() {
 
 #[test]
 fn a_preset_developer_directory_wins_only_for_the_same_version() {
-    let root = scratch("xcode-preset");
+    let root = scratch("xcode-preset").unwrap();
     let other = install(root.path(), "Other.app", "15.2");
     let first = install(root.path(), "A.app", "15.2");
     let preset = other.to_string_lossy().into_owned();
@@ -63,7 +63,7 @@ fn a_preset_developer_directory_wins_only_for_the_same_version() {
 
 #[test]
 fn a_missing_or_unset_version_fails_instead_of_guessing() {
-    let root = scratch("xcode-missing");
+    let root = scratch("xcode-missing").unwrap();
     install(root.path(), "Xcode.app", "15.2");
     let missing = developer_dir("14.0", None, root.path()).unwrap_err();
     assert_eq!(missing.code, 127);

@@ -12,7 +12,7 @@ use quality_result::encode_validated;
 use quality_result::proto;
 use quality_result::proto::{Capability, Convergence, FileSnapshot, QualityResult, Stage};
 use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::io::{self};
 #[cfg(unix)]
 use std::os::fd::AsRawFd;
@@ -23,10 +23,12 @@ use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 pub(crate) use crate::test_support::parsed as invocation;
-pub(crate) use dx_testing::cli::{event, event_kinds, events_of_kind, graph_rule, json_events};
+pub(crate) use dx_testing::cli::{
+    event, event_kinds, events_of_kind, graph_rule, graph_rule_of_kind, json_events,
+};
 
 pub(crate) fn temp_dir(prefix: &str) -> tempfile::TempDir {
-    dx_test_scratch::scratch(&format!("dx-exec-test-{prefix}-"))
+    dx_test_scratch::scratch(&format!("dx-exec-test-{prefix}-")).unwrap()
 }
 
 /// A real file system whose atomic writes fail for the listed paths, so tests
@@ -606,6 +608,7 @@ impl Harness {
             &request,
             self.env(&runner, &mut out, &mut err),
             fs,
+            None,
         );
         (
             run.code,
@@ -1418,6 +1421,116 @@ pub(crate) fn quiet_proc(harness: &Harness) -> PathBuf {
     let proc_root = harness.workspace.join("quiet-proc");
     std::fs::create_dir_all(&proc_root).expect("empty process table");
     proc_root
+}
+
+// Spelled as Bazel names them in build events, parameter values included.
+pub(crate) const FORMAT_ASPECT: &str =
+    r#"@@rules_dx+//core/quality:families/core.bzl%real_format_aspect[unsafe_fixes="false"]"#;
+pub(crate) const LINT_ASPECT: &str =
+    r#"@@rules_dx+//core/quality:families/core.bzl%real_lint_aspect[unsafe_fixes="false"]"#;
+pub(crate) const TYPECHECK_ASPECT: &str =
+    r#"@@rules_dx+//core/quality:families/core.bzl%real_typecheck_aspect[unsafe_fixes="false"]"#;
+
+/// Plays Bazel for aspect builds: the event file holds the events of the aspects the argv
+/// passes and the events of no aspect, and the build fails when one of them failed. Other
+/// launches, such as generate, go to `inner`.
+pub(crate) struct AspectRunner<R> {
+    pub(crate) inner: R,
+    /// Each event with the aspect that owns it, `None` for events of every build.
+    pub(crate) events: Vec<(Option<&'static str>, String)>,
+    pub(crate) builds: RefCell<Vec<Vec<String>>>,
+}
+
+impl<R: Runner> Runner for AspectRunner<R> {
+    fn free_disk_bytes(&self, path: &Path) -> Option<u64> {
+        self.inner.free_disk_bytes(path)
+    }
+
+    fn run(&self, argv: &[String], cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
+        let aspects = argv.iter().find_map(|arg| arg.strip_prefix("--aspects="));
+        let Some(aspects) = aspects.filter(|_| !is_shard_probe(argv)) else {
+            return self.inner.run(argv, cwd, env);
+        };
+        self.builds.borrow_mut().push(argv.to_vec());
+        let passed: BTreeSet<&str> = aspects.split(',').map(dx_bep::aspect_key).collect();
+        let mut lines = Vec::new();
+        let mut failed = false;
+        for (owner, line) in &self.events {
+            if owner.is_none_or(|owner| passed.contains(dx_bep::aspect_key(owner))) {
+                failed |= line.contains(r#""success":false"#);
+                lines.push(line.clone());
+            }
+        }
+        lines.push(LAST_EVENT.to_owned());
+        if let Some(bep) = argv
+            .iter()
+            .find_map(|arg| arg.strip_prefix("--build_event_json_file="))
+        {
+            std::fs::write(bep, lines.join("\n"))?;
+        }
+        Ok(ChildStatus::exited(i32::from(failed)))
+    }
+}
+
+/// The events of one aspect over `//test:corpus`: its result and a skip note.
+pub(crate) fn aspect_events(
+    harness: &Harness,
+    aspect: &'static str,
+    finding: &str,
+    success: bool,
+) -> Vec<(Option<&'static str>, String)> {
+    let name = dx_bep::aspect_key(aspect)
+        .rsplit('%')
+        .next()
+        .expect("aspect name");
+    let result = if finding.is_empty() {
+        harness.valid_result(vec![], vec![])
+    } else {
+        harness.valid_result(vec![Harness::diagnostic(finding, false)], vec![])
+    };
+    let result_uri = write_bep_artifact(harness, &format!("{name}.pb"), &result);
+    let note = format!("{name}-tool: skipped, not pinned for this platform\n");
+    let skip_uri = write_bep_artifact(harness, &format!("{name}.skip"), note.as_bytes());
+    let set = |id: String, uri: &str| {
+        serde_json::json!({"id": {"namedSet": {"id": id}}, "namedSetOfFiles": {"files": [{"uri": uri}]}})
+            .to_string()
+    };
+    let completed = serde_json::json!({
+        "id": {"targetCompleted": {"label": "//test:corpus", "aspect": aspect}},
+        "completed": {"success": success, "outputGroup": [
+            {"name": "dx_results", "fileSets": [{"id": format!("{name}-r")}]},
+            {"name": "dx_skips", "fileSets": [{"id": format!("{name}-s")}]},
+        ]},
+    })
+    .to_string();
+    let mut events = vec![
+        set(format!("{name}-r"), &result_uri),
+        set(format!("{name}-s"), &skip_uri),
+        completed,
+    ];
+    if !success {
+        let stderr = stderr_file(harness, name, "error: the tool failed\n");
+        events.push(failed_action(
+            "//test:corpus",
+            "c1",
+            "Lint",
+            "out/corpus.lint",
+            &stderr,
+        ));
+    }
+    events
+        .into_iter()
+        .map(|line| (Some(aspect), line))
+        .collect()
+}
+
+/// The event of `label` failing under `aspect`, as Bazel reports a failed tool or compile.
+pub(crate) fn failed_target(label: &str, aspect: &str) -> String {
+    serde_json::json!({
+        "id": {"targetCompleted": {"label": label, "aspect": aspect}},
+        "completed": {"success": false},
+    })
+    .to_string()
 }
 
 #[cfg(test)]

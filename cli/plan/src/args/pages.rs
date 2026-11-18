@@ -47,6 +47,7 @@ impl Command {
             Command::Worktree => "worktree.md",
             Command::Fuzz => "fuzz.md",
             Command::Config => "config.md",
+            Command::Fetch => "fetch.md",
         }
     }
 }

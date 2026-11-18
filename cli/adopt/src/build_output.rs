@@ -418,7 +418,7 @@ mod tests {
     }
 
     fn temp() -> Fixture {
-        let sandbox = dx_test_scratch::scratch("dx-build-output-");
+        let sandbox = dx_test_scratch::scratch("dx-build-output-").unwrap();
         let repo = sandbox
             .path()
             .canonicalize()
@@ -549,7 +549,7 @@ mod tests {
     }
 
     fn git(root: &Path, args: &[&str]) {
-        dx_test_scratch::git(root, sandbox_of(root), args);
+        dx_test_scratch::git(root, sandbox_of(root), args).unwrap();
     }
 
     fn write(root: &Path, rel: &str, body: &[u8]) {

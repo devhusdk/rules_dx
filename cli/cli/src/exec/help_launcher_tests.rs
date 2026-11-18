@@ -29,7 +29,7 @@ fn usage_errors_print_the_command_usage() {
     let binary = std::path::Path::new(&root)
         .join(workspace)
         .join("cli/cli/dx");
-    let scratch = dx_test_scratch::scratch("usage-banner-");
+    let scratch = dx_test_scratch::scratch("usage-banner-").unwrap();
     std::fs::write(scratch.path().join("MODULE.bazel"), "").expect("scratch workspace");
     let rendered = |argv: &[&str]| -> String {
         let output = assert_cmd::Command::new(&binary)
@@ -76,7 +76,7 @@ fn clap_renders_the_error_and_supplies_the_suggestion() {
     let binary = std::path::Path::new(&root)
         .join(workspace)
         .join("cli/cli/dx");
-    let scratch = dx_test_scratch::scratch("clap-error-");
+    let scratch = dx_test_scratch::scratch("clap-error-").unwrap();
     std::fs::write(scratch.path().join("MODULE.bazel"), "").expect("scratch workspace");
     let rendered = |argv: &[&str]| -> String {
         let output = assert_cmd::Command::new(&binary)

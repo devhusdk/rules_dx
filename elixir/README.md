@@ -1,8 +1,19 @@
 # Elixir
 
-Build and test Elixir with a pinned Elixir 1.20.5 on the pinned OTP 29.1.2
-runtime. Nothing is installed on the host and nothing is fetched until a
-target needs it. `rules_dx` registers the toolchain.
+This directory helps you build, run and test Elixir code with rules_dx.
+
+Load its rules in a `BUILD.bazel` file, the file that declares what Bazel
+builds, from `@rules_dx//elixir:defs.bzl`.
+`extensions.bzl` holds the module extension: the part you call from
+`MODULE.bazel` to set up toolchains and dependencies.
+The tests live in `tests/`. The [Elixir page](../docs/languages/elixir.md) shows
+setup, every rule and the tools dx runs.
+
+Run the Elixir tests from a rules_dx checkout:
+
+```sh
+tools/dx test //elixir/...
+```
 
 ## Dependencies
 
@@ -34,8 +45,6 @@ With `mix.exs` and `mix.lock` or `rebar.lock` in the set, `dx update --apply` wr
 Depend on `@hex//jason`. An entry that is not from `hexpm` (`:git`, `:path`) fails with a message naming it.
 
 ### Adopt a Mix project
-
-rules_dx is not released yet. Install starts with the first BCR release.
 
 1. Add `bazel_dep(name = "rules_dx", version = "...")` to `MODULE.bazel`.
 2. Run `bazel run @rules_dx//:dx -- generate --apply`. A module resolves to the `mix.lock` package named after it (`Jason` is `jason`, `Phoenix.LiveView` is `phoenix_live_view`).

@@ -51,6 +51,10 @@ on:
         type: boolean
         required: false
         default: false
+      accept_licenses:
+        description: "release_cell only: comma-separated licence ids the cell's consumer accepts at dx init, as release-cells.yml windows_accept_licenses passes to Windows cells."
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -144,6 +148,7 @@ jobs:
           RUN_ID: ${{ github.run_id }}
           JOB: ${{ github.job }}
           SHA: ${{ github.sha }}
+          ACCEPT_LICENSES: ${{ inputs.accept_licenses }}
         run: |
           export CELL="dx-${DX_PLATFORM/_/-}"
           out="$RUNNER_TEMP/evidence/release-cell"

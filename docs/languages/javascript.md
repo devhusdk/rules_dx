@@ -63,6 +63,13 @@ Build and test everything. `//...` means every target in the repository:
 tools/dx test //...
 ```
 
+## Writing targets
+
+`javascript_test` runs `jest` by default and needs `node_modules`. Set
+`runner = "node"` with a `main` to run the file with Node instead.
+
+On Windows, Jest coverage uses the v8 provider.
+
 ## Dependencies
 
 Add the package to the root `package.json`, then run `dx generate --apply`. dx

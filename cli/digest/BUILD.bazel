@@ -5,6 +5,8 @@ load("//tools/visibility:visibility.bzl", "VIS_CLI_DEPLOY_GENERATION_QUALITY")
 
 package(default_visibility = VIS_CLI_DEPLOY_GENERATION_QUALITY + [
     "//ansible/private/tools/lock:__pkg__",
+    "//appimage/private/tools/packer:__pkg__",
+    "//apple/private/tools/ops:__pkg__",
     "//bicep/private/tools/lock:__pkg__",
     "//csharp/private/tools/lock:__pkg__",
     "//d/private/tools/lock:__pkg__",
@@ -17,6 +19,7 @@ package(default_visibility = VIS_CLI_DEPLOY_GENERATION_QUALITY + [
     "//ruby/private/tools/lock:__pkg__",
     "//swift/private/tools/lock:__pkg__",
     "//tools/api:__pkg__",
+    "//tools/docs/dotnet/extract:__pkg__",
     "//tools/testing:__pkg__",
     "//tools/testing/hermetic:__pkg__",
     "//tools/testing/nested:__pkg__",

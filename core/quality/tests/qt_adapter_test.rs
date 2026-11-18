@@ -78,7 +78,7 @@ fn qmlformat_output_parses_through_the_adapter() {
         parse_qmlformat(out.stdout.as_bytes(), out.status.code(), &input, name).expect("parsed");
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].file, name);
-    let dir_guard = dx_test_scratch::scratch("qt-adapter");
+    let dir_guard = dx_test_scratch::scratch("qt-adapter").unwrap();
     let dir = dir_guard.path();
     let formatted = dir.join("Formatted.qml");
     std::fs::write(&formatted, &out.stdout).expect("write formatted source");
@@ -102,7 +102,7 @@ const DIRTY: &str = "import QtQuick\nItem {   property string greet:\"hello\"\n}
 const MALFORMED: &str = "import QtQuick\nItem { property string greet: \n";
 
 fn scratch_file(name: &str, content: &str) -> (dx_test_scratch::TempDir, PathBuf) {
-    let guard = dx_test_scratch::scratch("qt-adapter");
+    let guard = dx_test_scratch::scratch("qt-adapter").unwrap();
     let file = guard.path().join(name);
     std::fs::write(&file, content).expect("write source");
     (guard, file)
@@ -265,7 +265,7 @@ fn qmllint_unknown_import_is_reported_not_ignored() {
 
 #[test]
 fn qmllint_missing_file_is_an_infrastructure_failure() {
-    let dir_guard = dx_test_scratch::scratch("qt-adapter");
+    let dir_guard = dx_test_scratch::scratch("qt-adapter").unwrap();
     let dir = dir_guard.path();
     let (out, parsed) = lint(&[dir.join("Gone.qml").as_path()], &[], false);
     assert_eq!(out.status.code(), Some(255), "{}", out.combined());
@@ -275,7 +275,7 @@ fn qmllint_missing_file_is_an_infrastructure_failure() {
 
 #[test]
 fn qmllint_declared_import_dir_resolves_a_module() {
-    let dir_guard = dx_test_scratch::scratch("qt-adapter");
+    let dir_guard = dx_test_scratch::scratch("qt-adapter").unwrap();
     let dir = dir_guard.path();
     let module = dir.join("mods/Foo");
     std::fs::create_dir_all(&module).expect("module dir");
@@ -309,7 +309,7 @@ fn qmllint_declared_import_dir_resolves_a_module() {
 
 #[test]
 fn qmllint_ignores_the_host_import_path_variable() {
-    let dir_guard = dx_test_scratch::scratch("qt-adapter");
+    let dir_guard = dx_test_scratch::scratch("qt-adapter").unwrap();
     let dir = dir_guard.path();
     let module = dir.join("mods/Foo");
     std::fs::create_dir_all(&module).expect("module dir");

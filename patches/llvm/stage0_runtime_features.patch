@@ -1,3 +1,4 @@
+Upstream: hermeticbuild/hermetic-llvm#925
 diff --git a/tests/stage0_features/BUILD.bazel b/tests/stage0_features/BUILD.bazel
 new file mode 100644
 index 0000000..be73377

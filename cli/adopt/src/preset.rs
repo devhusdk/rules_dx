@@ -343,7 +343,7 @@ mod tests {
 
     #[test]
     fn empty_dir_gets_layers_and_imports_then_nothing() {
-        let scratch = dx_test_scratch::scratch("dx-preset-empty-");
+        let scratch = dx_test_scratch::scratch("dx-preset-empty-").unwrap();
         let root = scratch.path();
         let (wrote, notes) = apply(root);
         assert_eq!(wrote, [BAZELRC, GITIGNORE]);
@@ -355,7 +355,7 @@ mod tests {
 
     #[test]
     fn existing_bazelrc_keeps_its_bytes_below_the_block() {
-        let scratch = dx_test_scratch::scratch("dx-preset-rc-");
+        let scratch = dx_test_scratch::scratch("dx-preset-rc-").unwrap();
         let root = scratch.path();
         std::fs::write(root.join(".bazelrc"), "build --jobs=2\r\n").expect("rc");
         apply(root);
@@ -369,7 +369,7 @@ mod tests {
 
     #[test]
     fn telemetry_opt_out_still_gets_imports() {
-        let scratch = dx_test_scratch::scratch("dx-preset-telemetry-");
+        let scratch = dx_test_scratch::scratch("dx-preset-telemetry-").unwrap();
         let root = scratch.path();
         std::fs::write(root.join(".bazelrc"), "common --repo_env=DO_NOT_TRACK=1\n").expect("rc");
         let (wrote, _) = apply(root);
@@ -380,7 +380,7 @@ mod tests {
 
     #[test]
     fn collision_and_symlinked_rc_add_no_import() {
-        let scratch = dx_test_scratch::scratch("dx-preset-collide-");
+        let scratch = dx_test_scratch::scratch("dx-preset-collide-").unwrap();
         let root = scratch.path();
         std::fs::write(root.join(".bazelrc"), "build --verbose_failures\n").expect("rc");
         let (wrote, notes) = apply(root);
@@ -409,7 +409,7 @@ mod tests {
 
     #[test]
     fn commented_import_opts_a_layer_out_and_unlisted_one_is_noted() {
-        let scratch = dx_test_scratch::scratch("dx-preset-optout-");
+        let scratch = dx_test_scratch::scratch("dx-preset-optout-").unwrap();
         let root = scratch.path();
         apply(root);
         let resources = dx_preset::import_line(CONSUMER_DIR, Layer::Resources);
@@ -433,7 +433,7 @@ mod tests {
 
     #[test]
     fn wiring_appends_the_missing_ignore_lines() {
-        let scratch = dx_test_scratch::scratch("dx-preset-ignore-");
+        let scratch = dx_test_scratch::scratch("dx-preset-ignore-").unwrap();
         let root = scratch.path();
         std::fs::write(root.join(".bazelrc"), "build --jobs=2\n").expect("rc");
         std::fs::write(root.join(".gitignore"), "target/\nmine.log").expect("ignore");
@@ -480,13 +480,13 @@ mod tests {
 
     #[test]
     fn tracked_layers_get_the_git_rm_note() {
-        let scratch = dx_test_scratch::scratch("dx-preset-tracked-");
+        let scratch = dx_test_scratch::scratch("dx-preset-tracked-").unwrap();
         let root = scratch.path().join("repo");
         std::fs::create_dir_all(&root).expect("dir");
-        dx_test_scratch::git(&root, scratch.path(), &["init", "-q"]);
+        dx_test_scratch::git(&root, scratch.path(), &["init", "-q"]).unwrap();
         apply(&root);
         write(&root, &layer_rel(Layer::Resources), "build --jobs=2\n").expect("layer");
-        dx_test_scratch::git(&root, scratch.path(), &["add", "-f", CONSUMER_DIR]);
+        dx_test_scratch::git(&root, scratch.path(), &["add", "-f", CONSUMER_DIR]).unwrap();
         assert!(preset_drift(&root).other.contains(&tracked_note()));
         assert!(apply(&root).1.contains(&tracked_note()));
     }

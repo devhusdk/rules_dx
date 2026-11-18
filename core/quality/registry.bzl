@@ -8,6 +8,8 @@ load(":support.bzl", "support_schema_error")
 load(":taxonomy.bzl", "taxonomy_schema_error")
 load(":wrapper_owners.bzl", "WRAPPER_OWNERS", "wrapper_schema_error")
 
+visibility("private")
+
 def registry_classes():
     """Returns the sorted registry classes via query (never duplicated)."""
     return sorted(REAL_CLASS_TO_FAMILY.keys())

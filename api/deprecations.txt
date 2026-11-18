@@ -1,0 +1,3 @@
+# Public names on their way out, one per line: remove_in=X.Y.Z deprecated_since=X.Y.Z <what>
+# //tools/ci:zero_compat_test checks these against the deprecated() calls and deprecated aliases in code,
+# and fails once the module version reaches remove_in.

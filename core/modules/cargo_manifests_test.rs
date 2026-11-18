@@ -49,7 +49,7 @@ fn declared(source: &str) -> BTreeSet<String> {
 
 #[test]
 fn module_manifests_match_cargo_tomls_on_disk() {
-    let root = dx_testing::rules_dx_source();
+    let root = dx_testing::rules_dx_source().unwrap();
     let mut on_disk = BTreeSet::new();
     walk(&root, &root, &mut on_disk);
     let in_module = declared(&dx_testing::read_runfiles("MODULE.bazel"));

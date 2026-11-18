@@ -3,6 +3,8 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//core/quality/testdata:all_languages.bzl", "real_lint_aspect")
 
+visibility("private")
+
 def _lint_actions(env):
     return [a for a in analysistest.target_under_test(env).actions if a.mnemonic == "DxRealQualityLint"]
 

@@ -18,8 +18,6 @@ path = "fake/fake_dx.rs"
 
 [dependencies]
 semver = "1"
-sha2 = "0.10"
-ureq = { version = "3", features = ["platform-verifier"] }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = [

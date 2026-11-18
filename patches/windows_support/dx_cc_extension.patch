@@ -1,3 +1,4 @@
+Upstream: none (rules_dx only: exports the repository functions the rules_dx cc extension calls)
 diff --git a/windows/private/extensions/msvc_runtime.bzl b/windows/private/extensions/msvc_runtime.bzl
 --- a/windows/private/extensions/msvc_runtime.bzl
 +++ b/windows/private/extensions/msvc_runtime.bzl

@@ -137,7 +137,7 @@ fn expand_for_test(
     }
     let graph = RuleGraph::load(workspace, runner, startup_options)?;
     let file_owners = owners_in_graph(&classified.files, &graph)?;
-    let tests = tests_for_owners(&file_owners, &graph, workspace, runner, selection)?;
+    let tests = tests_for_owners(&file_owners, &graph, selection)?;
     let mut targets = classified.labels;
     targets.extend(classified.patterns);
     targets.extend(tests);
@@ -151,16 +151,16 @@ mod tests {
     use super::*;
     use crate::resolve::{FakeQuery, NeverQuery, QueryResult};
     use dx_test_scratch::write;
-    use dx_testing::cli::{graph_rule, graph_stdout, strings};
+    use dx_testing::cli::{graph_rule, graph_rule_of_kind, graph_stdout, strings};
     use std::cell::RefCell;
 
     #[test]
     fn generate_scope_maps_new_files_and_dirs_without_a_query() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-generate-scope-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-generate-scope-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "svc/new.py", "x = 1\n");
-        write(&workspace, "top.py", "x = 1\n");
-        write(&workspace, "fresh/deep/a.txt", "x");
+        write(&workspace, "svc/new.py", "x = 1\n").unwrap();
+        write(&workspace, "top.py", "x = 1\n").unwrap();
+        write(&workspace, "fresh/deep/a.txt", "x").unwrap();
         let got = resolve_for_generate(&strings(&["svc/new.py"]), &workspace).expect("file");
         assert_eq!(got.targets, strings(&["//svc/..."]));
         let got = resolve_for_generate(&strings(&["top.py"]), &workspace).expect("root file");
@@ -174,18 +174,15 @@ mod tests {
 
     #[test]
     fn test_scope_maps_files_to_tests_and_keeps_patterns() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
-        let query = FakeQuery::new(vec![
-            FakeQuery::ok(&graph_stdout(&[
-                graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
-                graph_rule("//pkg:unit", &["//pkg:lib"], &[]),
-            ])),
-            FakeQuery::ok("//pkg:unit\n"),
-        ]);
-        write(&workspace, "other/BUILD.bazel", "");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
+        let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
+            graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
+            graph_rule_of_kind("//pkg:unit", "py_test", &["//pkg:lib"], &[]),
+        ]))]);
+        write(&workspace, "other/BUILD.bazel", "").unwrap();
         let got = resolve_for_test_with_selection(
             &strings(&["pkg/a.py", "//other/..."]),
             &workspace,
@@ -199,16 +196,20 @@ mod tests {
             strings(&["//other/...", "//pkg:unit"]),
             "owners are replaced by mapped tests"
         );
-        assert_eq!(query.calls().len(), 2, "one graph query plus one mapping");
+        assert_eq!(
+            query.calls().len(),
+            1,
+            "the graph query maps files to tests"
+        );
     }
 
     #[test]
     fn test_scope_with_orphan_file_reports_no_owner() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-orphan-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-orphan-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
-        write(&workspace, "pkg/orphan.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
+        write(&workspace, "pkg/orphan.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[graph_rule(
             "//pkg:lib",
             &["//pkg:a.py"],
@@ -254,17 +255,17 @@ mod tests {
                         0,
                         graph_stdout(&[
                             graph_rule("//pkg:lib", &["//pkg:a.py", "//pkg:b.py"], &[]),
-                            graph_rule("//pkg:unit", &["//pkg:lib"], &[]),
-                            graph_rule("//pkg:e2e", &["//pkg:lib", "@@android+sdk//:core"], &[]),
+                            graph_rule_of_kind("//pkg:unit", "py_test", &["//pkg:lib"], &[]),
+                            graph_rule_of_kind(
+                                "//pkg:e2e",
+                                "sh_test",
+                                &["//pkg:lib", "@@android+sdk//:core"],
+                                &[],
+                            ),
                         ]),
                     )
-                } else if expression.starts_with("tests(") {
-                    (0, "//pkg:e2e\n//pkg:unit\n".to_owned())
                 } else {
-                    (
-                        0,
-                        "//pkg:lib (abc)\n//pkg:e2e (abc)\n//pkg:unit (abc)\n".to_owned(),
-                    )
+                    (2, String::new())
                 };
             Ok(QueryResult {
                 code: Some(code),
@@ -283,10 +284,10 @@ mod tests {
 
     #[test]
     fn file_scopes_never_query_rdeps_over_the_workspace() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-no-rdeps-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-no-rdeps-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
         for selection in selections() {
             let query = Routed {
                 expressions: RefCell::new(Vec::new()),
@@ -300,22 +301,16 @@ mod tests {
             )
             .expect("resolve");
             let expressions = query.expressions.borrow();
-            assert_eq!(expressions[0], "kind('rule', //...)");
-            for expression in &expressions[1..] {
-                assert!(!expression.contains("rdeps(//"), "{expression}");
-                assert!(!expression.contains("//..."), "{expression}");
-            }
-            let expected = if selection.configured() { 3 } else { 2 };
-            assert_eq!(expressions.len(), expected, "{expressions:?}");
+            assert_eq!(*expressions, ["kind('rule', //...)"]);
         }
     }
 
     #[test]
     fn an_unloadable_external_repo_does_not_fail_a_file_scope() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-external-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-external-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
         for selection in selections() {
             let query = Routed {
                 expressions: RefCell::new(Vec::new()),
@@ -335,11 +330,11 @@ mod tests {
 
     #[test]
     fn file_scopes_resolve_owners_without_loading_external_repos() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-file-scope-external-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-file-scope-external-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
-        write(&workspace, "pkg/b.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
+        write(&workspace, "pkg/b.py", "x = 1\n").unwrap();
         let query = Routed {
             expressions: RefCell::new(Vec::new()),
         };
@@ -355,10 +350,10 @@ mod tests {
 
     #[test]
     fn test_scope_without_files_matches_plain_resolve() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-labels-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-labels-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = NeverQuery;
-        write(&workspace, "b/BUILD.bazel", "");
+        write(&workspace, "b/BUILD.bazel", "").unwrap();
         let got = resolve_for_test_with_selection(
             &strings(&["//a:one", "//b/..."]),
             &workspace,
@@ -373,7 +368,7 @@ mod tests {
 
     #[test]
     fn test_scope_dir_only_resolves_without_query() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-dir-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-dir-").unwrap();
         let workspace = scratch.path().to_path_buf();
         std::fs::create_dir_all(workspace.join("app")).expect("dir");
         let query = NeverQuery;

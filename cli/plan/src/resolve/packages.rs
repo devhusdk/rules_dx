@@ -68,10 +68,10 @@ mod tests {
 
     #[test]
     fn file_label_uses_nearest_enclosing_package() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-packages-nearest-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-packages-nearest-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/sub/BUILD.bazel", "");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/sub/BUILD.bazel", "").unwrap();
         let mut cache = PackageCache::default();
         assert_eq!(
             cache
@@ -89,10 +89,10 @@ mod tests {
 
     #[test]
     fn file_label_maps_root_and_reports_missing_package() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-packages-root-missing-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-packages-root-missing-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "BUILD.bazel", "");
-        write(&workspace, "top.py", "x = 1\n");
+        write(&workspace, "BUILD.bazel", "").unwrap();
+        write(&workspace, "top.py", "x = 1\n").unwrap();
         let mut cache = PackageCache::default();
         assert_eq!(
             cache
@@ -100,9 +100,9 @@ mod tests {
                 .expect("label"),
             "//:top.py",
         );
-        let scratch = dx_test_scratch::scratch("dx-resolve-packages-missing-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-packages-missing-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/a.py", "x = 1\n");
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
         let mut cache = PackageCache::default();
         assert!(matches!(
             cache.file_label(&workspace, "pkg/a.py", "pkg/a.py"),
@@ -112,11 +112,11 @@ mod tests {
 
     #[test]
     fn file_label_skips_build_directories() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-packages-build-dir-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-packages-build-dir-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "BUILD.bazel", "");
-        write(&workspace, "web/src/app.ts", "");
-        write(&workspace, "web/BUILD/bundle.js", "");
+        write(&workspace, "BUILD.bazel", "").unwrap();
+        write(&workspace, "web/src/app.ts", "").unwrap();
+        write(&workspace, "web/BUILD/bundle.js", "").unwrap();
         let mut cache = PackageCache::default();
         assert_eq!(
             cache
@@ -124,10 +124,10 @@ mod tests {
                 .expect("label"),
             "//:web/src/app.ts",
         );
-        let scratch = dx_test_scratch::scratch("dx-resolve-packages-build-dir-only-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-packages-build-dir-only-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD/out.js", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD/out.js", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
         let mut cache = PackageCache::default();
         assert!(matches!(
             cache.file_label(&workspace, "pkg/a.py", "pkg/a.py"),
@@ -137,14 +137,15 @@ mod tests {
 
     #[test]
     fn file_label_ignores_build_contents() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-packages-contents-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-packages-contents-").unwrap();
         let workspace = scratch.path().to_path_buf();
         write(
             &workspace,
             "pkg/BUILD.bazel",
             "this is not valid starlark ((((",
-        );
-        write(&workspace, "pkg/a.py", "x = 1\n");
+        )
+        .unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
         let mut cache = PackageCache::default();
         assert_eq!(
             cache

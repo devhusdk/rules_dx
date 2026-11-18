@@ -19,6 +19,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
+name = "advisory_prep"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "clap",
+ "tempfile",
+]
+
+[[package]]
 name = "aead"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -211,7 +220,6 @@ name = "appimage_packer"
 version = "0.0.0"
 dependencies = [
  "serde_json",
- "sha2 0.10.9",
  "tempfile",
 ]
 
@@ -1596,7 +1604,6 @@ version = "0.0.0"
 dependencies = [
  "serde",
  "serde_json",
- "sha2 0.10.9",
 ]
 
 [[package]]
@@ -1662,8 +1669,6 @@ dependencies = [
 name = "dx_advisory_prep"
 version = "0.0.0"
 dependencies = [
- "chrono",
- "clap",
  "crc32fast",
  "flate2",
  "serde",
@@ -1766,7 +1771,6 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.20",
  "tracing",
- "ureq",
 ]
 
 [[package]]
@@ -1830,7 +1834,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sha1",
- "sha2 0.10.9",
  "tar",
  "tempfile",
  "ureq",
@@ -1894,6 +1897,15 @@ name = "dx_error"
 version = "0.0.0"
 
 [[package]]
+name = "dx_exec_core"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.20",
+]
+
+[[package]]
 name = "dx_families"
 version = "0.0.0"
 dependencies = [
@@ -1934,6 +1946,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "dx_http"
+version = "0.0.0"
+dependencies = [
+ "rustls",
+ "tempfile",
+ "thiserror 2.0.20",
+ "ureq",
+]
+
+[[package]]
 name = "dx_ide"
 version = "0.0.0"
 dependencies = [
@@ -1969,7 +1991,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "ureq",
 ]
 
 [[package]]
@@ -2003,6 +2024,15 @@ version = "0.0.0"
 dependencies = [
  "serde_json",
  "tempfile",
+]
+
+[[package]]
+name = "dx_os_sys"
+version = "0.0.0"
+dependencies = [
+ "errno",
+ "libc",
+ "rustix",
 ]
 
 [[package]]
@@ -2056,7 +2086,6 @@ version = "0.0.0"
 name = "dx_process"
 version = "0.0.0"
 dependencies = [
- "libc",
  "thiserror 2.0.20",
 ]
 
@@ -2115,9 +2144,7 @@ name = "dx_shim"
 version = "0.0.0"
 dependencies = [
  "semver",
- "sha2 0.10.9",
  "tempfile",
- "ureq",
  "windows-sys 0.61.2",
 ]
 
@@ -2128,7 +2155,6 @@ dependencies = [
  "hex",
  "object",
  "serde_json",
- "sha2 0.10.9",
 ]
 
 [[package]]
@@ -2152,7 +2178,6 @@ dependencies = [
 name = "dx_tool_resolve"
 version = "0.0.0"
 dependencies = [
- "clap",
  "tempfile",
  "thiserror 2.0.20",
 ]
@@ -3790,7 +3815,6 @@ version = "0.0.0"
 dependencies = [
  "base64 0.23.1",
  "serde_json",
- "sha2 0.10.9",
  "tempfile",
  "zip",
 ]
@@ -5522,6 +5546,9 @@ dependencies = [
 [[package]]
 name = "site_build"
 version = "0.0.0"
+dependencies = [
+ "tempfile",
+]
 
 [[package]]
 name = "site_check"
@@ -6047,6 +6074,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d56353a2a665ad0f41a421187180aab746c8c325620617ad883a99a1cbe66d2"
 
 [[package]]
+name = "tool_resolve"
+version = "0.0.0"
+dependencies = [
+ "clap",
+]
+
+[[package]]
 name = "tower"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6337,7 +6371,6 @@ dependencies = [
  "rustls-platform-verifier",
  "ureq-proto",
  "utf8-zero",
- "webpki-roots",
 ]
 
 [[package]]
@@ -6575,15 +6608,6 @@ name = "webpki-root-certs"
 version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e49d0e65abc00c142e8f9428da991da9f1a250c39be97459901eb12b9b49f62a"
-dependencies = [
- "rustls-pki-types",
-]
-
-[[package]]
-name = "webpki-roots"
-version = "1.0.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f5f280bbb2b287bc8e7de7e3852945a0ff50d1bbcb5ed42b6c7a568c546df171"
 dependencies = [
  "rustls-pki-types",
 ]

@@ -466,12 +466,13 @@ fn stage_tree(
     fs::create_dir_all(stage_dir).map_err(|e| Error::Install {
         reason: format!("cannot create staging {}: {e}", stage_dir.display()),
     })?;
-    fs::write(stage_dir.join(MARKER_FILE_NAME), encode_marker(identity)).map_err(|e| {
-        // LCOV_EXCL_START - reason: freshly created staging dir, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-        Error::Install {
-            reason: format!("cannot stage provenance marker: {e}"),
-        }
-    })?;
+    dx_atomic_fs::write_atomic(&stage_dir.join(MARKER_FILE_NAME), &encode_marker(identity))
+        .map_err(|e| {
+            // LCOV_EXCL_START - reason: freshly created staging dir, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+            Error::Install {
+                reason: format!("cannot stage provenance marker: {e}"),
+            }
+        })?;
     // LCOV_EXCL_STOP - reason: end freshly created staging dir, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
     for (name, target) in staged {
         symlink_entry(target, &stage_dir.join(name)).map_err(|e| Error::Install {

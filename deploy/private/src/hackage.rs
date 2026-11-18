@@ -324,18 +324,11 @@ mod tests {
     }
 
     fn write_sdist(dir: &Path, file_name: &str, entry: &str, cabal: &str) -> std::path::PathBuf {
-        let mut builder = tar::Builder::new(Vec::new());
-        let mut header = tar::Header::new_gnu();
-        header.set_size(cabal.len() as u64);
-        header.set_mode(0o644);
-        builder
-            .append_data(&mut header, entry, cabal.as_bytes())
-            .expect("append cabal");
-        let bytes = builder.into_inner().expect("finish tar");
-        let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
-        std::io::Write::write_all(&mut encoder, &bytes).expect("gzip");
+        let mut tar = dx_archive::TarWriter::new();
+        tar.add_file(entry, cabal.as_bytes(), 0o644)
+            .expect("append");
         let path = dir.join(file_name);
-        std::fs::write(&path, encoder.finish().expect("finish gzip")).expect("write sdist");
+        std::fs::write(&path, tar.finish().expect("finish tar.gz")).expect("write sdist");
         path
     }
 

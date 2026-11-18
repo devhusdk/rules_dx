@@ -648,6 +648,25 @@ fn writers_refuse_unsafe_and_duplicate_names() {
 }
 
 #[test]
+fn zip_writer_deflates_unix_members_at_the_dos_epoch() {
+    let mut writer = ZipWriter::new();
+    writer
+        .add_file("NOTICE", b"notice\n", 0o644)
+        .expect("notice");
+    writer.add_file("dx.exe", b"MZ app\n", 0o755).expect("exe");
+    let bytes = writer.finish().expect("zip");
+    let mut archive = zip::ZipArchive::new(io::Cursor::new(bytes)).expect("open zip");
+    assert_eq!(archive.len(), 2);
+    for index in 0..archive.len() {
+        let entry = archive.by_index(index).expect("entry");
+        assert_eq!(entry.compression(), zip::CompressionMethod::Deflated);
+        assert_eq!(entry.system(), zip::System::Unix);
+        let stamp = entry.last_modified().expect("time");
+        assert_eq!((stamp.year(), stamp.month(), stamp.day()), (1980, 1, 1));
+    }
+}
+
+#[test]
 fn writers_add_dirs_and_inner_symlinks() {
     let dir = scratch();
     let mut tar = TarWriter::new();
@@ -988,7 +1007,12 @@ fn visit_strips_dot_slash_and_skips_the_root_dir() {
         visit_tar_all(&tar).expect("visit"),
         [
             ("blobs".to_owned(), EntryKind::Dir, None, Vec::new()),
-            ("index.json".to_owned(), EntryKind::File, None, b"{}".to_vec()),
+            (
+                "index.json".to_owned(),
+                EntryKind::File,
+                None,
+                b"{}".to_vec()
+            ),
         ]
     );
     let dir = scratch();
@@ -996,10 +1020,15 @@ fn visit_strips_dot_slash_and_skips_the_root_dir() {
     write_gz(&gz, &tar);
     let gz = std::fs::read(&gz).expect("read");
     let mut names = Vec::new();
-    visit(io::Cursor::new(gz), Format::TarGz, Limits::default(), |name, _, _| {
-        names.push(name.to_owned());
-        Ok(())
-    })
+    visit(
+        io::Cursor::new(gz),
+        Format::TarGz,
+        Limits::default(),
+        |name, _, _| {
+            names.push(name.to_owned());
+            Ok(())
+        },
+    )
     .expect("gz");
     assert_eq!(names, ["blobs", "index.json"]);
     let escaping = raw_tar(&[("./../x", tar::EntryType::Regular, "", b"x")]);

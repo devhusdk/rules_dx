@@ -603,16 +603,11 @@ mod tests {
     use crate::test_support::*;
 
     fn duplicate_tar(name: &str) -> Vec<u8> {
-        let mut builder = tar::Builder::new(Vec::new());
+        let mut tar = dx_archive_testing::RawTar::new();
         for body in [&b"1"[..], &b"2"[..]] {
-            let mut header = tar::Header::new_ustar();
-            header.set_path(name).expect("path");
-            header.set_size(1);
-            header.set_mode(0o644);
-            header.set_cksum();
-            builder.append(&header, body).expect("append");
+            tar.add_file(name, body).expect("append");
         }
-        builder.into_inner().expect("tar")
+        tar.finish().expect("tar")
     }
 
     #[test]
@@ -859,19 +854,22 @@ mod tests {
             std::fs::read(&out).expect("out"),
             std::fs::read(&again).expect("again")
         );
-        let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(
-            std::fs::File::open(&out).expect("open"),
-        ));
         let mut found = false;
-        for entry in archive.entries().expect("entries") {
-            let mut entry = entry.expect("entry");
-            if entry.path().expect("path").to_str() == Some(name) {
-                let mut body = Vec::new();
-                std::io::Read::read_to_end(&mut entry, &mut body).expect("read");
-                assert_eq!(body, b"\x89PNG\x00bytes");
-                found = true;
-            }
-        }
+        dx_archive::visit(
+            std::fs::File::open(&out).expect("open"),
+            dx_archive::Format::TarGz,
+            dx_archive::Limits::default(),
+            |entry, _, body| {
+                if entry == name {
+                    let mut bytes = Vec::new();
+                    body.read_to_end(&mut bytes)?;
+                    assert_eq!(bytes, b"\x89PNG\x00bytes");
+                    found = true;
+                }
+                Ok(())
+            },
+        )
+        .expect("entries");
         assert!(found);
     }
 
@@ -922,23 +920,24 @@ mod tests {
             &out,
         )
         .expect("archive members");
-        let gz = std::fs::read(&out).expect("read gz");
-        let mut decoder = flate2::read::GzDecoder::new(&gz[..]);
-        let mut archive = tar::Archive::new(&mut decoder);
-        let mut entries = archive.entries().expect("entries");
-        let first = entries.next().expect("first entry").expect("read first");
+        let mut seen = Vec::new();
+        dx_archive::visit_entries(
+            std::fs::File::open(&out).expect("open"),
+            dx_archive::Format::TarGz,
+            dx_archive::Limits::default(),
+            |entry, _| {
+                seen.push((entry.name.to_owned(), entry.mode));
+                Ok(())
+            },
+        )
+        .expect("entries");
         assert_eq!(
-            first.path().expect("first path").to_str(),
-            Some("consumer_app")
+            seen,
+            vec![
+                ("consumer_app".to_owned(), Some(0o755)),
+                ("resources/banner.txt".to_owned(), Some(0o644)),
+            ]
         );
-        assert_eq!(first.header().mode().expect("first mode"), 0o755);
-        let second = entries.next().expect("second entry").expect("read second");
-        assert_eq!(
-            second.path().expect("second path").to_str(),
-            Some("resources/banner.txt")
-        );
-        assert_eq!(second.header().mode().expect("second mode"), 0o644);
-        assert!(entries.next().is_none(), "want exactly two members");
     }
 
     #[test]
@@ -1072,23 +1071,19 @@ mod tests {
         let bytes = std::fs::read(&forward).expect("read forward");
         assert_eq!(bytes, std::fs::read(&reverse).expect("read reverse"));
         assert_eq!(&bytes[..4], b"PK\x03\x04");
-        let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes)).expect("open zip");
-        assert_eq!(archive.len(), 2);
         let mut seen = Vec::new();
-        for index in 0..archive.len() {
-            let mut entry = archive.by_index(index).expect("entry");
-            assert_eq!(entry.compression(), zip::CompressionMethod::Deflated);
-            assert_eq!(entry.system(), zip::System::Unix);
-            let stamp = entry.last_modified().expect("time");
-            assert_eq!((stamp.year(), stamp.month(), stamp.day()), (1980, 1, 1));
-            let mut body = Vec::new();
-            std::io::Read::read_to_end(&mut entry, &mut body).expect("read entry");
-            seen.push((
-                entry.name().expect("name").into_owned(),
-                entry.unix_mode().expect("mode") & 0o7777,
-                body,
-            ));
-        }
+        dx_archive::visit_entries(
+            std::io::Cursor::new(bytes),
+            dx_archive::Format::Zip,
+            dx_archive::Limits::default(),
+            |entry, body| {
+                let mut bytes = Vec::new();
+                body.read_to_end(&mut bytes)?;
+                seen.push((entry.name.to_owned(), entry.mode.expect("unix mode"), bytes));
+                Ok(())
+            },
+        )
+        .expect("entries");
         assert_eq!(
             seen,
             vec![
@@ -1158,17 +1153,12 @@ mod tests {
     #[test]
     fn archive_listing_rejects_links_duplicates_and_cut_tails() {
         let scratch = scratch_dir();
-        let mut builder = tar::Builder::new(Vec::new());
-        let mut link = tar::Header::new_ustar();
-        link.set_entry_type(tar::EntryType::Symlink);
-        link.set_size(0);
-        builder
-            .append_link(&mut link, "p/link", "target")
-            .expect("link");
+        let mut tar = dx_archive_testing::RawTar::new();
+        tar.add_symlink("p/link", "target").expect("link");
         let linked = scratch.path().join("link.tar.gz");
         std::fs::write(
             &linked,
-            dx_archive::gzip(&builder.into_inner().expect("tar")).expect("gz"),
+            dx_archive::gzip(&tar.finish().expect("tar")).expect("gz"),
         )
         .expect("write");
         let error = archive_listing(&linked).expect_err("symlink");
@@ -1186,17 +1176,10 @@ mod tests {
         assert!(archive_listing(&cut).is_err());
     }
 
-    fn zip_image(entries: &[(&str, Option<u32>, &[u8])]) -> Vec<u8> {
-        let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
-        for (name, mode, data) in entries {
-            let mut options = zip::write::SimpleFileOptions::default();
-            if let Some(mode) = mode {
-                options = options.unix_permissions(*mode).system(zip::System::Unix);
-            }
-            writer.start_file(*name, options).expect("start");
-            writer.write_all(data).expect("data");
-        }
-        writer.finish().expect("finish").into_inner()
+    fn zip_image(build: impl FnOnce(&mut dx_archive_testing::RawZip) -> io::Result<()>) -> Vec<u8> {
+        let mut zip = dx_archive_testing::RawZip::new();
+        build(&mut zip).expect("member");
+        zip.finish().expect("finish")
     }
 
     #[test]
@@ -1264,56 +1247,32 @@ mod tests {
         let cases: Vec<(&str, Vec<u8>, &str)> = vec![
             (
                 "up.zip",
-                zip_image(&[("../escape", Some(0o644), b"x")]),
+                zip_image(|zip| zip.add_file("../escape", b"x")),
                 "must not contain '.' or '..'",
             ),
             (
                 "abs.zip",
-                zip_image(&[("/abs", Some(0o644), b"x")]),
+                zip_image(|zip| zip.add_file("/abs", b"x")),
                 "must be relative",
             ),
             (
                 "drive.zip",
-                zip_image(&[("C:evil", Some(0o644), b"x")]),
+                zip_image(|zip| zip.add_file("C:evil", b"x")),
                 "must not contain ':'",
             ),
             (
                 "link.zip",
-                {
-                    let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
-                    writer
-                        .add_symlink("link", "/etc", zip::write::SimpleFileOptions::default())
-                        .expect("symlink");
-                    writer.finish().expect("finish").into_inner()
-                },
+                zip_image(|zip| zip.add_symlink("link", "/etc")),
                 "not a regular file",
             ),
             (
                 "dir.zip",
-                {
-                    let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
-                    writer
-                        .add_directory(
-                            "d/",
-                            zip::write::SimpleFileOptions::default().system(zip::System::Unix),
-                        )
-                        .expect("dir");
-                    writer.finish().expect("finish").into_inner()
-                },
+                zip_image(|zip| zip.add_dir("d")),
                 "not a regular file",
             ),
             (
                 "modeless.zip",
-                {
-                    let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
-                    writer
-                        .start_file(
-                            "x",
-                            zip::write::SimpleFileOptions::default().system(zip::System::Dos),
-                        )
-                        .expect("start");
-                    writer.finish().expect("finish").into_inner()
-                },
+                zip_image(|zip| zip.add_dos_file("x", b"")),
                 "has no unix mode",
             ),
             ("garbage.zip", b"not a zip".to_vec(), "archive listing"),
@@ -1333,17 +1292,12 @@ mod tests {
     fn archive_extract_rejects_traversal_duplicates_links_and_modeless_zip() {
         let scratch = scratch_dir();
         reject_zip_cases(scratch.path());
-        let mut builder = tar::Builder::new(Vec::new());
-        let mut link = tar::Header::new_ustar();
-        link.set_entry_type(tar::EntryType::Symlink);
-        link.set_size(0);
-        builder
-            .append_link(&mut link, "link", "/etc")
-            .expect("link");
+        let mut tar = dx_archive_testing::RawTar::new();
+        tar.add_symlink("link", "/etc").expect("link");
         let linked = scratch.path().join("link.tar.gz");
         std::fs::write(
             &linked,
-            dx_archive::gzip(&builder.into_inner().expect("tar")).expect("gz"),
+            dx_archive::gzip(&tar.finish().expect("tar")).expect("gz"),
         )
         .expect("write");
         let error = archive_extract(&linked, &scratch.path().join("tar.out")).expect_err("link");

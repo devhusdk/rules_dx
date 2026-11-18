@@ -64,7 +64,10 @@ fn oci_layout_builds_index() {
     for blob in std::fs::read_dir(layout.join("blobs").join("sha256")).expect("blobs") {
         let name = blob.expect("blob").file_name();
         let name = name.to_string_lossy();
-        assert!(dx_digest::is_hex_any_case(&name, dx_digest::DIGEST_LEN), "{name}");
+        assert!(
+            dx_digest::is_hex_any_case(&name, dx_digest::DIGEST_LEN),
+            "{name}"
+        );
     }
     let index = std::fs::read_to_string(layout.join("index.json")).expect("index");
     assert!(!index.contains('\n'), "index is compact");
@@ -114,26 +117,14 @@ fn oci_layout_builds_index() {
 }
 
 fn oci_tar(path: &Path, files: &[(&str, &[u8])], links: &[(&str, &str)]) {
-    let mut builder = tar::Builder::new(Vec::new());
+    let mut tar = dx_archive_testing::RawTar::new();
     for (name, body) in files {
-        let mut header = tar::Header::new_ustar();
-        header.set_path(name).expect("path");
-        header.set_size(body.len() as u64);
-        header.set_mode(0o644);
-        header.set_cksum();
-        builder.append(&header, *body).expect("append");
+        tar.add_file(name, body).expect("append");
     }
     for (name, target) in links {
-        let mut header = tar::Header::new_ustar();
-        header.set_entry_type(tar::EntryType::Symlink);
-        header.set_size(0);
-        header.set_mode(0o777);
-        header.set_path(name).expect("link path");
-        header.set_link_name(target).expect("link target");
-        header.set_cksum();
-        builder.append(&header, io::empty()).expect("append link");
+        tar.add_symlink(name, target).expect("append link");
     }
-    std::fs::write(path, builder.into_inner().expect("tar")).expect("write archive");
+    std::fs::write(path, tar.finish().expect("tar")).expect("write archive");
 }
 
 fn oci_save(
@@ -274,14 +265,10 @@ fn oci_declared_image_id_rejects_unsupported_archives() {
     std::fs::write(&archive, b"image").expect("rootfs");
     assert!(oci_declared_image_id(&archive, "linux/amd64").is_err());
     let layer = {
-        let mut builder = tar::Builder::new(Vec::new());
-        let mut header = tar::Header::new_ustar();
-        header.set_path("etc/os-release").expect("path");
-        header.set_size(2);
-        header.set_mode(0o644);
-        header.set_cksum();
-        builder.append(&header, &b"x\n"[..]).expect("append");
-        builder.into_inner().expect("tar")
+        let mut tar = dx_archive::TarWriter::new();
+        tar.add_file("etc/os-release", b"x\n", 0o644)
+            .expect("append");
+        tar.finish_tar().expect("tar")
     };
     std::fs::write(&archive, layer).expect("layer");
     assert!(
@@ -811,25 +798,14 @@ fn oci_archive_image_id_reads_oci_layout_archives() {
 
 /// Writes member names verbatim, the way `tar -C layout .` stores them.
 fn oci_raw_tar(path: &Path, dirs: &[&str], files: &[(String, Vec<u8>)]) {
-    let mut builder = tar::Builder::new(Vec::new());
-    let entries = dirs
-        .iter()
-        .map(|dir| (*dir, tar::EntryType::Directory, &[][..]))
-        .chain(
-            files
-                .iter()
-                .map(|(name, body)| (name.as_str(), tar::EntryType::Regular, body.as_slice())),
-        );
-    for (name, kind, body) in entries {
-        let mut header = tar::Header::new_ustar();
-        header.as_mut_bytes()[..name.len()].copy_from_slice(name.as_bytes());
-        header.set_entry_type(kind);
-        header.set_size(body.len() as u64);
-        header.set_mode(0o644);
-        header.set_cksum();
-        builder.append(&header, body).expect("append");
+    let mut tar = dx_archive_testing::RawTar::new();
+    for dir in dirs {
+        tar.add_dir(dir).expect("append dir");
     }
-    std::fs::write(path, builder.into_inner().expect("tar")).expect("write archive");
+    for (name, body) in files {
+        tar.add_file(name, body).expect("append");
+    }
+    std::fs::write(path, tar.finish().expect("tar")).expect("write archive");
 }
 
 #[test]
@@ -1547,15 +1523,21 @@ fn oci_layout_platform_matches_the_artifact_bytes() {
                 .join(blob.get(7..).expect("string slice within bounds")),
         )
         .expect("layer blob");
-        let mut archive = tar::Archive::new(stored.as_slice());
-        let mut entry = archive
-            .entries()
-            .expect("entries")
-            .next()
-            .expect("entry")
-            .expect("entry");
-        let mut bytes = Vec::new();
-        entry.read_to_end(&mut bytes).expect("read app");
+        let mut first = None;
+        dx_archive::visit_tar(
+            stored.as_slice(),
+            dx_archive::Limits::default(),
+            |_, _, body| {
+                if first.is_none() {
+                    let mut bytes = Vec::new();
+                    body.read_to_end(&mut bytes)?;
+                    first = Some(bytes);
+                }
+                Ok(())
+            },
+        )
+        .expect("entries");
+        let bytes = first.expect("entry");
         let observed = match u16::from_le_bytes([bytes[18], bytes[19]]) {
             0x3e => "amd64",
             0xb7 => "arm64",

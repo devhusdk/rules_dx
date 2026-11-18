@@ -1371,17 +1371,7 @@ pub(crate) mod tests {
         let first = maven_bundle_zip(&house).expect("zip");
         let second = maven_bundle_zip(&house).expect("zip again");
         assert_eq!(first, second);
-        let mut archive = zip::ZipArchive::new(io::Cursor::new(first)).expect("open");
-        let names: Vec<String> = (0..archive.len())
-            .map(|index| {
-                archive
-                    .by_index(index)
-                    .expect("entry")
-                    .name()
-                    .expect("name")
-                    .into_owned()
-            })
-            .collect();
+        let names = dx_archive::zip_names(io::Cursor::new(first)).expect("names");
         let dir = "com/example/maven_demo/1.0.0/";
         let mut want = Vec::new();
         for base in ["maven_demo-1.0.0.jar", "maven_demo-1.0.0.pom"] {
@@ -1869,11 +1859,7 @@ pub(crate) mod tests {
         }
         let first = maven_bundle_zip(&house).expect("zip");
         assert_eq!(first, maven_bundle_zip(&house).expect("zip again"));
-        let archive = zip::ZipArchive::new(std::io::Cursor::new(first)).expect("archive");
-        let names: Vec<String> = archive
-            .file_names()
-            .map(|n| n.expect("name").into_owned())
-            .collect();
+        let names = dx_archive::zip_names(std::io::Cursor::new(first)).expect("names");
         for want in [
             "demo-1-sources.jar",
             "demo-1-javadoc.jar.asc",

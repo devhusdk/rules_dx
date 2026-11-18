@@ -441,6 +441,7 @@ rust_test(
         normal_dev = True,
     ) + [
         "//cli/archive:dx_archive",
+        "//cli/archive:dx_archive_testing",
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/audit:dx_audit",
         "//cli/binfmt:dx_binfmt",

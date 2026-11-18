@@ -396,26 +396,14 @@ mod tests {
     }
 
     fn write_gem(path: &Path, files: &[&str]) {
-        let mut inner = tar::Builder::new(Vec::new());
+        let mut inner = dx_archive::TarWriter::new();
         for name in files {
-            let mut header = tar::Header::new_gnu();
-            header.set_size(2);
-            header.set_mode(0o644);
-            inner
-                .append_data(&mut header, name, &b"x\n"[..])
-                .expect("inner");
+            inner.add_file(name, b"x\n", 0o644).expect("inner");
         }
-        let mut data = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
-        io::Write::write_all(&mut data, &inner.into_inner().expect("tar")).expect("gzip");
-        let data = data.finish().expect("finish");
-        let mut outer = tar::Builder::new(std::fs::File::create(path).expect("gem"));
-        let mut header = tar::Header::new_gnu();
-        header.set_size(data.len() as u64);
-        header.set_mode(0o644);
-        outer
-            .append_data(&mut header, "data.tar.gz", data.as_slice())
-            .expect("outer");
-        outer.finish().expect("finish");
+        let data = inner.finish().expect("data.tar.gz");
+        let mut outer = dx_archive::TarWriter::new();
+        outer.add_file("data.tar.gz", &data, 0o644).expect("outer");
+        std::fs::write(path, outer.finish_tar().expect("finish")).expect("gem");
     }
 
     #[test]

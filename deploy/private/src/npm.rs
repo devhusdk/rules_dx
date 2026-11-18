@@ -1041,15 +1041,17 @@ mod tests {
             &srcs,
         )
         .expect("pack");
-        let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(
-            std::fs::File::open(&tgz).expect("open"),
-        ));
         let mut modes = std::collections::BTreeMap::new();
-        for entry in archive.entries().expect("entries") {
-            let entry = entry.expect("entry");
-            let name = String::from_utf8_lossy(&entry.path_bytes()).into_owned();
-            modes.insert(name, entry.header().mode().expect("mode"));
-        }
+        dx_archive::visit_entries(
+            std::fs::File::open(&tgz).expect("open"),
+            dx_archive::Format::TarGz,
+            dx_archive::Limits::default(),
+            |entry, _| {
+                modes.insert(entry.name.to_owned(), entry.mode.expect("mode"));
+                Ok(())
+            },
+        )
+        .expect("entries");
         assert_eq!(modes["package/bin/cli.js"], 0o755);
         assert_eq!(modes["package/dist/index.js"], 0o644);
     }

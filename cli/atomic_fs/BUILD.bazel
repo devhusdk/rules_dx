@@ -27,7 +27,7 @@ rust_library(
         "src/lease.rs",
         "src/lib.rs",
         "src/managed.rs",
-    "src/path_io.rs",
+        "src/path_io.rs",
     ],
     aliases = aliases(
         package_name = "cli/dx_atomic_fs",

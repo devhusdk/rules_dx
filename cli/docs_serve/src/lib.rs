@@ -2,7 +2,7 @@
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
-use std::io::{self, BufRead, BufReader, Write};
+use std::io::{self, BufRead, BufReader, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
@@ -12,6 +12,8 @@ use std::time::Duration;
 
 const READ_TIMEOUT: Duration = Duration::from_secs(5);
 const ACCEPT_POLL: Duration = Duration::from_millis(50);
+const MAX_LINE: u64 = 8192;
+const MAX_HEADERS: usize = 100;
 
 /// A bound listener that serves one site directory under a base path.
 pub struct Site {
@@ -129,14 +131,26 @@ fn spawn_connection(stream: TcpStream, root: &Arc<Path>, prefix: &Arc<str>) {
 fn serve(mut stream: TcpStream, root: &Path, prefix: &str) -> io::Result<()> {
     stream.set_read_timeout(Some(READ_TIMEOUT))?;
     let mut reader = BufReader::new(stream.try_clone()?);
-    let mut request_line = String::new();
-    if reader.read_line(&mut request_line)? == 0 {
+    let Some(line) = read_head_line(&mut reader)? else {
+        return reply(&mut stream, 400, "text/plain", b"Bad Request", true);
+    };
+    if line.is_empty() {
         return Ok(());
     }
+    let Ok(request_line) = String::from_utf8(line) else {
+        return reply(&mut stream, 400, "text/plain", b"Bad Request", true);
+    };
+    let mut headers = 0;
     loop {
-        let mut header = String::new();
-        if reader.read_line(&mut header)? == 0 || header.trim().is_empty() {
+        let Some(header) = read_head_line(&mut reader)? else {
+            return reply(&mut stream, 400, "text/plain", b"Bad Request", true);
+        };
+        if header.trim_ascii().is_empty() {
             break;
+        }
+        headers += 1;
+        if headers > MAX_HEADERS {
+            return reply(&mut stream, 400, "text/plain", b"Bad Request", true);
         }
     }
     let mut parts = request_line.split_whitespace();
@@ -159,6 +173,19 @@ fn serve(mut stream: TcpStream, root: &Path, prefix: &str) -> io::Result<()> {
         return reply(&mut stream, 404, "text/plain", b"Not Found", with_body);
     };
     reply(&mut stream, 200, content_type(&candidate), &body, with_body)
+}
+
+/// Reads one line of at most `MAX_LINE` bytes; `None` means it was longer.
+fn read_head_line(reader: &mut impl BufRead) -> io::Result<Option<Vec<u8>>> {
+    let mut line = Vec::new();
+    let read = reader
+        .by_ref()
+        .take(MAX_LINE)
+        .read_until(b'\n', &mut line)?;
+    if read as u64 == MAX_LINE && line.last() != Some(&b'\n') {
+        return Ok(None);
+    }
+    Ok(Some(line))
 }
 
 /// Maps a request path to a file under `root`, or `None` when it must be refused.
@@ -187,6 +214,9 @@ fn percent_decode(text: &str) -> Option<String> {
     while let Some(byte) = bytes.next() {
         if byte == b'%' {
             let hex = [bytes.next()?, bytes.next()?];
+            if !hex.iter().all(u8::is_ascii_hexdigit) {
+                return None;
+            }
             out.push(u8::from_str_radix(std::str::from_utf8(&hex).ok()?, 16).ok()?);
         } else {
             out.push(byte);
@@ -204,7 +234,7 @@ fn content_type(path: &Path) -> &'static str {
         .extension()
         .and_then(|ext| ext.to_str())
         .unwrap_or_default();
-    match extension {
+    match extension.to_ascii_lowercase().as_str() {
         "html" => "text/html; charset=utf-8",
         "css" => "text/css; charset=utf-8",
         "js" | "mjs" => "text/javascript; charset=utf-8",
@@ -235,6 +265,7 @@ fn reply(
 ) -> io::Result<()> {
     let reason = match status {
         200 => "OK",
+        400 => "Bad Request",
         405 => "Method Not Allowed",
         _ => "Not Found",
     };
@@ -422,5 +453,61 @@ mod tests {
         let server = start(&dir, "");
         let port = server.local_addr().port();
         assert!(Site::bind("127.0.0.1", port, dir.as_ref().to_path_buf(), "").is_err());
+    }
+
+    fn raw(handle: &Handle, bytes: &[u8]) -> String {
+        let mut stream = TcpStream::connect(handle.local_addr()).expect("connect");
+        stream
+            .set_read_timeout(Some(Duration::from_secs(10)))
+            .expect("timeout");
+        drop(stream.write_all(bytes));
+        let mut out = Vec::new();
+        drop(stream.read_to_end(&mut out));
+        String::from_utf8_lossy(&out).into_owned()
+    }
+
+    #[test]
+    fn oversized_request_line_gets_400() {
+        let dir = fixture();
+        let server = start(&dir, "");
+        let long = format!("GET /{} HTTP/1.1\r\n\r\n", "a".repeat(1 << 20));
+        assert!(raw(&server, long.as_bytes()).starts_with("HTTP/1.1 400 "));
+    }
+
+    #[test]
+    fn endless_headers_get_400() {
+        let dir = fixture();
+        let server = start(&dir, "");
+        let mut request = String::from("GET / HTTP/1.1\r\n");
+        for i in 0..5000 {
+            request.push_str(&format!("X-{i}: y\r\n"));
+        }
+        request.push_str("\r\n");
+        assert!(raw(&server, request.as_bytes()).starts_with("HTTP/1.1 400 "));
+    }
+
+    #[test]
+    fn non_utf8_request_line_gets_400() {
+        let dir = fixture();
+        let server = start(&dir, "");
+        let reply = raw(&server, b"GET /\xff\xfe HTTP/1.1\r\n\r\n");
+        assert!(reply.starts_with("HTTP/1.1 400 "), "{reply}");
+    }
+
+    #[test]
+    fn percent_escapes_need_two_hex_digits() {
+        assert_eq!(percent_decode("%+1"), None);
+        assert_eq!(percent_decode("%-1"), None);
+        assert_eq!(percent_decode("%4"), None);
+        assert_eq!(percent_decode("a%41"), Some("aA".to_owned()));
+    }
+
+    #[test]
+    fn extensions_match_any_case() {
+        assert_eq!(content_type(Path::new("A.CSS")), "text/css; charset=utf-8");
+        assert_eq!(
+            content_type(Path::new("Index.Html")),
+            "text/html; charset=utf-8"
+        );
     }
 }

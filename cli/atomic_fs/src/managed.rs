@@ -128,7 +128,7 @@ pub fn remove_managed(path: &Path) -> io::Result<()> {
 }
 
 fn copy_file(source: &Path, destination: &Path) -> io::Result<Mechanism> {
-    let input = std::fs::File::open(source)?;
+    let input = crate::open_source(source)?;
     let parent = destination
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())

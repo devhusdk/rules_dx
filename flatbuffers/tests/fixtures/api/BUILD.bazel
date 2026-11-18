@@ -7,7 +7,7 @@ package(default_visibility = ["//flatbuffers:__subpackages__"])
 flatbuffers_library(
     name = "api",
     srcs = ["shape.fbs"],
-    deps = ["//flatbuffers/tests/base"],
+    deps = ["//flatbuffers/tests/fixtures/base"],
 )
 
 real_source_target(

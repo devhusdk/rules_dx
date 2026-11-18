@@ -39,11 +39,6 @@ fixture-name erlang/tests/nif_cpp
 fixture-name erlang/tests/nif_escript
 fixture-name erlang/tests/runtime
 fixture-name erlang/tests/tags
-fixture-name flatbuffers/tests/api
-fixture-name flatbuffers/tests/base
-fixture-name flatbuffers/tests/conform
-fixture-name flatbuffers/tests/lost
-fixture-name flatbuffers/tests/multi
 fixture-name flutter/tests/contract
 fixture-name flutter/tests/negative
 fixture-name flutter/tests/runtime

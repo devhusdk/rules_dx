@@ -169,6 +169,7 @@ rust_binary(
     # keep
     deps = [
         ":dx_cli",
+        "//api_spec/private/codegen",
         "//cli/adopt:dx_adopt",
         "//cli/codegen_shard",
         "//cli/exec_core:dx_exec_core",

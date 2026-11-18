@@ -1,8 +1,7 @@
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
 //! Runs oapi-codegen with the Go SDK as its only PATH entry and a scratch home beside the output.
 
 use std::path::{Path, PathBuf};
-use std::process::{Command, ExitCode};
+use std::process::Command;
 
 /// The parsed command line.
 #[derive(Debug, PartialEq)]
@@ -15,7 +14,7 @@ struct Args {
 
 fn parse(args: &[String]) -> Result<Args, String> {
     let [go, tool, out, rest @ ..] = args else {
-        return Err("usage: oapi_codegen GO OAPI_CODEGEN OUT [ARG...]".to_owned());
+        return Err("usage: dx oapi_codegen GO OAPI_CODEGEN OUT [ARG...]".to_owned());
     };
     Ok(Args {
         go: PathBuf::from(go),
@@ -40,7 +39,7 @@ fn go_dir(cwd: &Path, go: &Path) -> Result<PathBuf, String> {
         .ok_or_else(|| format!("{} has no parent directory", go.display()))
 }
 
-fn generate(args: &Args, cwd: &Path, scratch: &Path) -> Result<ExitCode, String> {
+fn generate(args: &Args, cwd: &Path, scratch: &Path) -> Result<i32, String> {
     let home = scratch.join("home");
     let cache = scratch.join("gocache");
     for dir in [&home, &cache] {
@@ -56,13 +55,12 @@ fn generate(args: &Args, cwd: &Path, scratch: &Path) -> Result<ExitCode, String>
         .status()
         .map_err(|error| format!("{}: {error}", args.tool.display()))?;
     Ok(match status.code() {
-        Some(0) => ExitCode::SUCCESS,
-        Some(code) => ExitCode::from(u8::try_from(code).unwrap_or(1)),
-        None => ExitCode::FAILURE,
+        Some(code) => u8::try_from(code).map_or(1, i32::from),
+        None => 1,
     })
 }
 
-fn run(args: &[String]) -> Result<ExitCode, String> {
+fn run(args: &[String]) -> Result<i32, String> {
     let args = parse(args)?;
     let cwd = std::env::current_dir().map_err(|error| format!("current directory: {error}"))?;
     let scratch = scratch_dir(&cwd, &args.out);
@@ -78,15 +76,13 @@ fn run(args: &[String]) -> Result<ExitCode, String> {
     Ok(code)
 }
 
-fn main() -> ExitCode {
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    match run(&args) {
-        Ok(code) => code,
-        Err(message) => {
-            eprintln!("oapi_codegen: {message}");
-            ExitCode::FAILURE
-        }
-    }
+/// Runs the driver with the arguments after its name and returns the exit code.
+#[must_use]
+pub fn run_process(args: &[String]) -> i32 {
+    run(args).unwrap_or_else(|message| {
+        eprintln!("oapi_codegen: {message}");
+        1
+    })
 }
 
 #[cfg(test)]

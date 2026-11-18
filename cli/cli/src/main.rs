@@ -189,6 +189,8 @@ fn run_as_tool() -> Option<i32> {
         Tool::CodegenShardWriter => codegen_shard::writer::run_process(&lossy(args)),
         Tool::ReleaseTree => release_tree::run_process(&lossy(args)),
         Tool::Capture => capture::run_process(args),
+        Tool::ApiSpecPreflight => api_spec_codegen::preflight::run_process(&lossy(args)),
+        Tool::OapiCodegen => api_spec_codegen::oapi_codegen::run_process(&lossy(args)),
     })
 }
 // LCOV_EXCL_STOP - reason: end thin multicall shim, issue: 6517, policy: docs/cli/commands/build-test-coverage.md

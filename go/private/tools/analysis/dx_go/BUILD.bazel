@@ -26,6 +26,7 @@ go_test(
     size = "small",
     srcs = ["main_test.go"],
     embed = [":dx_go_lib"],
+    deps = ["//go/private/tools/analysis/unit"],
 )
 
 # dx_go picks the tool from the name it runs as.

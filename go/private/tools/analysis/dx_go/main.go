@@ -33,11 +33,13 @@ func toolName(argv0 string) string {
 }
 
 // run picks the tool from argv[0], or from argv[1] when invoked as dx_go itself.
+// In the second case it sets os.Args[0] to the tool name.
 func run(argv []string, stdout, stderr io.Writer) int {
 	name := toolName(argv[0])
 	args := argv[1:]
 	if name == "dx_go" && len(args) > 0 {
 		name, args = toolName(args[0]), args[1:]
+		os.Args = append([]string{name}, args...)
 	}
 	if t, ok := tools[name]; ok {
 		return t(args, stdout, stderr)

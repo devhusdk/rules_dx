@@ -2,11 +2,20 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"rules_dx/go/private/tools/analysis/unit"
 	"strings"
 	"testing"
 )
+
+func TestMain(m *testing.M) {
+	if os.Getenv(unit.ChildEnv) != "" {
+		os.Exit(run(os.Args, os.Stdout, os.Stderr))
+	}
+	os.Exit(m.Run())
+}
 
 func TestToolName(t *testing.T) {
 	for argv0, want := range map[string]string{
@@ -43,6 +52,31 @@ func TestDispatchesOnSubcommand(t *testing.T) {
 	var out, errOut bytes.Buffer
 	if code := run([]string{"/x/dx_go", "dx_modfmt", "-c", "-l", path}, &out, &errOut); code != 0 {
 		t.Fatalf("code = %d, stderr = %s", code, errOut.String())
+	}
+}
+
+func TestSubcommandReachesTheToolInItsChild(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "a.go")
+	if err := os.WriteFile(src, []byte("package p\n\nfunc F() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(unit.Config{ImportPath: "example.com/p", GoFiles: []string{src}, GOOS: "linux", GOARCH: "amd64"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := filepath.Join(dir, "cfg.json")
+	if err := os.WriteFile(cfg, raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	args := os.Args
+	t.Cleanup(func() { os.Args = args })
+	var out, errOut bytes.Buffer
+	if code := run([]string{"/x/dx_go", "dx_govet", cfg}, &out, &errOut); code != 0 {
+		t.Fatalf("code = %d, stderr = %s", code, errOut.String())
+	}
+	if strings.Contains(out.String(), `"error"`) {
+		t.Fatalf("child did not run dx_govet: %s", out.String())
 	}
 }
 

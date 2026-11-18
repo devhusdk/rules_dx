@@ -1208,6 +1208,8 @@ fn non_semver_grammar_reads_four_parts_and_release_flavors() {
     assert!(!satisfies_non_semver(">= 1.2.3.4", "1.2.3"));
     assert!(satisfies_non_semver(">= 5.6", "5.6.15.Final"));
     assert!(!satisfies_non_semver(">= 8.4", "8.4.0rc1"));
+    assert!(!satisfies_non_semver(">= 1.0.0-beta", "1.0.0-alpha"));
+    assert!(satisfies_non_semver(">= 1.0.0-alpha", "1.0.0-beta"));
 }
 
 #[test]

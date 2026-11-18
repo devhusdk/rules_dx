@@ -1,5 +1,10 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//dart:defs.bzl", "dart_library", "dart_test")
+load("@rules_dx//dart:defs.bzl", "dart_library", "dart_package_metadata", "dart_test")
+
+dart_package_metadata(
+    name = "pubspec-metadata",
+    package_name = "ledger",
+)
 
 _PUBLIC = ["//visibility:public"]
 
@@ -22,7 +27,7 @@ filegroup(
 
 dart_library(
     name = "ledger",
-    package_name = "ledger",
+    package = ":pubspec-metadata",
     srcs = ["lib/ledger.dart"],
     aspect_hints = ["//dart/tests/fixtures/dart_app:dart_config"],
     visibility = _PUBLIC,

@@ -41,7 +41,6 @@ real_source_target(
         "BUILD.bazel",
         "defs.bzl",
         "platforms.bzl",
-        "pub.bzl",
     ],
     tags = ["corpus"],
 )

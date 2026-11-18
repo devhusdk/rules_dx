@@ -102,6 +102,10 @@ pub(crate) fn bazel(case: &Case, args: &[&str]) -> Run {
     case.bazel_with(args, &pairs)
 }
 
+/// The root rules_python patches the release consumers leave out. lock_extension.patch locks the python
+/// extension per host, and one release lock serves every platform.
+pub(crate) const RULES_PYTHON_SKIP: [&str; 1] = ["lock_extension.patch"];
+
 /// The symlink line `docs/cli/commands/windows.md` has a Windows user add to `.bazelrc` or `user.bazelrc`.
 pub(crate) const WINDOWS_SYMLINKS: &str = "startup:windows --windows_enable_symlinks\n";
 
@@ -170,6 +174,9 @@ fn copy_rules_py_patches(source: &std::path::Path, case: &Case) {
     for package in [
         "rules_py",
         "rules_flutter",
+        "cgrindel_bazel_starlib",
+        "rules_swift",
+        "apple_support",
         "rules_rust",
         "llvm",
         "windows_support",
@@ -271,6 +278,11 @@ fn the_readme_quickstart_runs_as_written() {
     module.push_str(&windows_support_override());
     module.push_str(&apple_overrides(&source, case.root()));
     module.push_str(&rules_dx_override(&source));
+    // The nested server has no PATH; see candidate_consumer_test's rules_python override.
+    module.push_str(
+        &write_root_patch_override(case.root(), &source, "rules_python", &RULES_PYTHON_SKIP)
+            .unwrap_or_else(|error| panic!("{error}")),
+    );
     write_text(&module_path, &module);
     if cfg!(windows) {
         let rc_path = case.root().join(".bazelrc");

@@ -30,7 +30,6 @@ pub = use_extension("@rules_dx//dart:extensions.bzl", "pub")
 pub.from_lock(
     name = "my_pub_deps",
     lock = "//third_party/dart:pubspec.lock",
-    on_version_conflict = "upgrade",
 )
 use_repo(pub, "my_pub_deps")
 ```

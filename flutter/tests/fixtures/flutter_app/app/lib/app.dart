@@ -8,7 +8,7 @@ import 'package:flutter_app/src/parts_model.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 Future<PartsModel> loadModel(AssetBundle bundle) async {
-  final data = jsonDecode(await bundle.loadString('packages/flutter_app/assets/items.json')) as Map<String, Object?>;
+  final data = jsonDecode(await bundle.loadString('assets/items.json')) as Map<String, Object?>;
   return PartsModel((data['items'] as List<Object?>).cast<String>());
 }
 
@@ -21,7 +21,7 @@ class PartsApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      theme: ThemeData(fontFamily: 'DxSquare', package: 'flutter_app'),
+      theme: ThemeData(fontFamily: 'DxSquare'),
       locale: locale,
       localizationsDelegates: const [
         AppLocalizations.delegate,

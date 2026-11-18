@@ -1,6 +1,11 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//dart:defs.bzl", "dart_library")
+load("@rules_dx//dart:defs.bzl", "dart_library", "dart_package_metadata")
 load("@rules_dx//dart/private:defs.bzl", "DART_COMPATIBLE_WITH")
+
+dart_package_metadata(
+    name = "pubspec-metadata",
+    package_name = "model",
+)
 
 _PUBLIC = ["//visibility:public"]
 
@@ -25,7 +30,7 @@ genrule(
 
 dart_library(
     name = "model",
-    package_name = "model",
+    package = ":pubspec-metadata",
     srcs = [
         "lib/model.dart",
         ":schema_g_dart",

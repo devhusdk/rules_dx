@@ -37,13 +37,14 @@ Start a project:
 dx init --apply demo-app
 ```
 
-Then add `rules_flutter` with a `flutter.pub` hub to `MODULE.bazel`, add a
-`pubspec.lock`, and declare `flutter_library` and `flutter_test` targets.
+Then add a `pub.from_lock` hub from `@rules_dx//flutter:extensions.bzl` to
+`MODULE.bazel`, add a `pubspec.lock`, and declare `flutter_library` and
+`flutter_test` targets.
 
 Regenerate `pubspec.lock` for a package directory:
 
 ```sh
-bazel run @rules_flutter//flutter:pub -- get --directory <dir>
+bazel run @rules_flutter//flutter/pub -- get --directory <dir>
 ```
 
 ## Packaging
@@ -75,7 +76,7 @@ Re-exported from `@rules_flutter//flutter:defs.bzl`.
 flutter_library(name, srcs = None, visibility = None, **kwargs)
 ```
 
-Thin wrapper over flutter_library; fonts_json assets must come from font_files.
+Thin wrapper over flutter_library.
 
 ### `flutter_test`
 
@@ -93,18 +94,26 @@ flutter_application(name, *, srcs = None, main = None, visibility = None, **kwar
 
 Thin wrapper over flutter_application. main is name.dart, then lib/main.dart, else the single src.
 
+### `flutter_font_family`
+
+Re-exported from `@rules_flutter//flutter:defs.bzl`.
+
+### `flutter_font`
+
+Re-exported from `@rules_flutter//flutter:defs.bzl`.
+
 ### `flutter_web_app`
 
 ```python
-flutter_web_app(name, *, srcs = None, main = None, visibility = None, **kwargs)
+flutter_web_app(name, *, application, visibility = None, **kwargs)
 ```
 
-Thin wrapper over flutter_web_app. main is name.dart, then lib/main.dart, else the single src.
+Thin wrapper over flutter_web_app, the web bundle of a flutter_application.
 
 ### `flutter_web_bundle`
 
 ```python
-flutter_web_bundle(name, **kwargs)
+flutter_web_bundle(name, *, application, **kwargs)
 ```
 
 Thin wrapper over flutter_web_bundle, for dart2js or canvaskit builds.
@@ -112,7 +121,7 @@ Thin wrapper over flutter_web_bundle, for dart2js or canvaskit builds.
 ### `flutter_android_app`
 
 ```python
-flutter_android_app(name, application, package_name, android_abi = "arm64", visibility = None, **kwargs)
+flutter_android_app(name, application, application_id, android_abi = "arm64", visibility = None, **kwargs)
 ```
 
 Thin wrapper over flutter_android_app. An unknown android_abi fails when the target is analyzed.

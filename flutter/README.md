@@ -28,13 +28,14 @@ Start a project:
 dx init --apply demo-app
 ```
 
-Then add `rules_flutter` with a `flutter.pub` hub to `MODULE.bazel`, add a
-`pubspec.lock`, and declare `flutter_library` and `flutter_test` targets.
+Then add a `pub.from_lock` hub from `@rules_dx//flutter:extensions.bzl` to
+`MODULE.bazel`, add a `pubspec.lock`, and declare `flutter_library` and
+`flutter_test` targets.
 
 Regenerate `pubspec.lock` for a package directory:
 
 ```sh
-bazel run @rules_flutter//flutter:pub -- get --directory <dir>
+bazel run @rules_flutter//flutter/pub -- get --directory <dir>
 ```
 
 ## API docs

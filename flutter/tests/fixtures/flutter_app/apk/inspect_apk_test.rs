@@ -33,8 +33,8 @@ fn apk_packages_the_engine_the_app_and_its_assets() {
         format!("lib/{abi}/libflutter.so"),
         format!("lib/{abi}/libapp.so"),
         "classes.dex".to_owned(),
-        "assets/flutter_assets/packages/flutter_app/assets/items.json".to_owned(),
-        "assets/flutter_assets/packages/flutter_app/assets/fonts/DxSquare.ttf".to_owned(),
+        "assets/flutter_assets/assets/items.json".to_owned(),
+        "assets/flutter_assets/assets/fonts/DxSquare.ttf".to_owned(),
     ] {
         assert!(names.contains(&want), "apk misses {want}: {names:?}");
     }

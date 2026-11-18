@@ -1,0 +1,11 @@
+Upstream: none (not yet sent upstream)
+--- a/dart/BUILD.bazel
++++ b/dart/BUILD.bazel
+@@ -150,6 +150,7 @@
+ bool_flag(
+     name = "analysis_summaries",
+     build_setting_default = True,
++    scope = "universal",
+     visibility = ["//visibility:public"],
+ )
+ 

@@ -1,13 +1,18 @@
 # gazelle:ignore
 
-load("@rules_dx//dart:defs.bzl", "dart_binary", "dart_library", "dart_test")
+load("@rules_dx//dart:defs.bzl", "dart_binary", "dart_library", "dart_package_metadata", "dart_test")
 load("@rules_dx//core:defs.bzl", "starlark_test")
 load("@rules_dx//core:tag_probe.bzl", "tag_subject")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
+dart_package_metadata(
+    name = "pubspec-metadata",
+    package_name = "tags_lib",
+)
+
 dart_library(
     name = "lib",
-    package_name = "tags_lib",
+    package = ":pubspec-metadata",
     srcs = ["lib/tags_lib.dart"],
     tags = [
         "manual",

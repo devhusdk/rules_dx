@@ -1,14 +1,14 @@
 """Thin Dart wrappers over rules_dart."""
 
-load("@rules_dart//dart:defs.bzl", _dart_binary = "dart_binary", _dart_codegen = "dart_codegen", _dart_js_binary = "dart_js_binary", _dart_library = "dart_library", _dart_test = "dart_test", _dart_wasm_binary = "dart_wasm_binary")
+load("@rules_dart//dart:defs.bzl", _dart_binary = "dart_binary", _dart_codegen = "dart_codegen", _dart_js_binary = "dart_js_binary", _dart_library = "dart_library", _dart_package_metadata = "dart_package_metadata", _dart_test = "dart_test", _dart_wasm_binary = "dart_wasm_binary")
 load("@rules_dart//dart:providers.bzl", "DartAnalyzableInfo", "DartCompileInfo", "DartInfo")
-load("//dart/private:dart_config.bzl", _dart_config = "dart_config")
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
 load("//core:platform_support.bzl", "compatible_with")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_private_dep_rule", "dx_upstream_tags", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
-load("//dart/private:platforms.bzl", DART_SUPPORT = "PLATFORM_SUPPORT")
+load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_private_dep_rule", "dx_upstream", "dx_upstream_tags", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
+load("//dart/private:dart_config.bzl", _dart_config = "dart_config")
+load("//dart/private:platforms.bzl", DART_SUPPORT = "PLATFORM_SUPPORT")
 
 dart_config = _dart_config
 
@@ -32,6 +32,16 @@ _dart_library_forward = dx_library_forward_rule(
     ),
 )
 
+def _dart_launcher_config(ctx):
+    exe = dx_upstream(ctx)[DefaultInfo].files_to_run.executable
+    stem = exe.short_path[:-len(".exe")] if exe.extension == "exe" else exe.short_path
+    configs = [f for f in dx_upstream(ctx)[DefaultInfo].default_runfiles.files.to_list() if f.short_path == stem + ".launcher.json"]
+    if not configs:
+        return []
+    config = ctx.actions.declare_file(ctx.label.name + ".launcher.json")
+    ctx.actions.symlink(output = config, target_file = configs[0])
+    return [config]
+
 _dart_binary_forward = dx_executable_forward_rule(
     _DART,
     "executable",
@@ -39,6 +49,7 @@ _dart_binary_forward = dx_executable_forward_rule(
         provides = DX_EXEC_PROVIDES + [DartAnalyzableInfo, DartCompileInfo, QualityToolsInfo],
         required_providers = [(DartAnalyzableInfo, "DartAnalyzableInfo"), (DartCompileInfo, "DartCompileInfo")],
         upstream_providers = [[DartAnalyzableInfo, DartCompileInfo]],
+        sibling_files = _dart_launcher_config,
     ),
 )
 
@@ -60,25 +71,19 @@ _dart_forward_test = dx_executable_forward_rule(
         required_providers = [(DartAnalyzableInfo, "DartAnalyzableInfo")],
         upstream_providers = [[DartAnalyzableInfo]],
         extra_attrs = dx_lcov_merger_attr(),
+        sibling_files = _dart_launcher_config,
     ),
 )
 
 # Re-exported unchanged: BUILD files need it to generate Dart sources.
 dart_codegen = _dart_codegen
 
-def dart_root_package_name(package, name, kwargs):
-    """Returns the package name a root-package library needs, or None."""
-    if package != "" or "package_name" in kwargs or "package" in kwargs:
-        return None
-    return name
+dart_package_metadata = _dart_package_metadata
 
 def dart_library(name, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over dart_library."""
     kwargs = dx_without_warnings_attr(kwargs)
     kwargs = dx_language_kwargs(kwargs, compatible_with = DART_COMPATIBLE_WITH)
-    root_name = dart_root_package_name(native.package_name(), name, kwargs)
-    if root_name != None:
-        kwargs["package_name"] = root_name
     dx_wrap(name, _dart_library, _dart_library_forward, srcs or [], visibility = visibility, **kwargs)
 
 def dart_binary(name, *, srcs = None, main = None, visibility = None, **kwargs):

@@ -2,14 +2,15 @@ Upstream: none (not yet sent upstream)
 diff -ruN a/dart/private/tools/test_runner.dart b/dart/private/tools/test_runner.dart
 --- a/dart/private/tools/test_runner.dart
 +++ b/dart/private/tools/test_runner.dart
-@@ -36,7 +36,9 @@
- 
-   final r = Runfiles.create();
-   final dart = r.rlocation(dartKey);
--  final dill = r.rlocation(dillKey);
-+  final dill = Platform.isWindows
-+      ? File(r.rlocation(dillKey)).resolveSymbolicLinksSync()
-+      : r.rlocation(dillKey);
- 
-   // Empty counts as unset, so a test that starts another `dart_test` binary
-   // can keep its own runner settings from leaking into the child.
+@@ -65,7 +65,10 @@
+                 .cast<String>(),
+             into: scratch.directory('k'),
+           )
+-        : r.rlocation(config['dill'] as String);
++        : Platform.isWindows
++            ? File(r.rlocation(config['dill'] as String))
++                .resolveSymbolicLinksSync()
++            : r.rlocation(config['dill'] as String);
+   } on KernelListException catch (e) {
+     stderr.writeln('dart_test: $e');
+     scratch.delete();

@@ -29,7 +29,6 @@ exports_files([
     "defs.bzl",
     "extensions.bzl",
     "lang.json",
-    "pins.json",
 ])
 
 filegroup(
@@ -37,7 +36,6 @@ filegroup(
     srcs = glob([
         "*.bzl",
         "BUILD.bazel",
-        "pins.json",
     ]),
     visibility = ["//:__subpackages__"],
 )

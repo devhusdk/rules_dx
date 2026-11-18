@@ -653,6 +653,21 @@ fn the_consumer_materializes_from_dx_init() {
     for patch in dx_nested::compose::RULES_FLUTTER_PATCHES {
         std::fs::write(flutter.join(format!("{patch}.patch")), "").unwrap();
     }
+    let starlib = source.join("patches/cgrindel_bazel_starlib");
+    std::fs::create_dir_all(&starlib).unwrap();
+    for patch in dx_nested::compose::STARLIB_PATCHES {
+        std::fs::write(starlib.join(format!("{patch}.patch")), "").unwrap();
+    }
+    let swift = source.join("patches/rules_swift");
+    std::fs::create_dir_all(&swift).unwrap();
+    for patch in dx_nested::compose::RULES_SWIFT_PATCHES {
+        std::fs::write(swift.join(format!("{patch}.patch")), "").unwrap();
+    }
+    let apple = source.join("patches/apple_support");
+    std::fs::create_dir_all(&apple).unwrap();
+    for patch in dx_nested::compose::APPLE_SUPPORT_PATCHES {
+        std::fs::write(apple.join(format!("{patch}.patch")), "").unwrap();
+    }
     let rules_python = source.join("patches/rules_python");
     std::fs::create_dir_all(&rules_python).unwrap();
     std::fs::write(rules_python.join("fix.patch"), "").unwrap();

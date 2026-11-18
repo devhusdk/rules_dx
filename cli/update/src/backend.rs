@@ -1220,7 +1220,7 @@ fn opam_env(set: &ResolvedSet) -> Result<Vec<(String, String)>, BackendError> {
 /// A `dart pub` run from the pinned Dart SDK in the set's directory.
 ///
 /// Flutter sets run the Dart SDK inside the pinned Flutter toolchain through
-/// `@rules_flutter//flutter:pub`, which points `FLUTTER_ROOT` at a tree for the pinned version.
+/// `@rules_flutter//flutter/pub`, which points `FLUTTER_ROOT` at a tree for the pinned version.
 fn pub_argv(
     workspace: &Path,
     set: &ResolvedSet,
@@ -1233,7 +1233,7 @@ fn pub_argv(
     });
     let dir = set_dir(workspace, set)?;
     if flutter {
-        let mut argv = bazel(head, "run", &["@rules_flutter//flutter:pub", "--"]);
+        let mut argv = bazel(head, "run", &["@rules_flutter//flutter/pub", "--"]);
         argv.extend(strings(command));
         argv.extend(["--directory".to_owned(), dir]);
         return Ok(argv);

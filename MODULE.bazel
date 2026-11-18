@@ -887,25 +887,6 @@ dx_pins.archive(
     pins = "//cuda:pins.json",
 )
 dx_pins.archive(
-    name = "dx_rules_dart_pub",
-    dropped = ["MODULE.bazel"],
-    key = "rules_dart",
-    patches = ["//patches/rules_dart:hermetic_tar.patch"],
-    pins = "//dart:pins.json",
-)
-dx_pins.archive(
-    name = "dx_rules_flutter_pub",
-    dropped = ["MODULE.bazel"],
-    key = "rules_flutter",
-    patches = [
-        "//patches/rules_flutter:registrant_javacopts.patch",
-        "//patches/rules_flutter:engine_labels.patch",
-        "//patches/rules_flutter:hermetic_pub.patch",
-        "//patches/rules_flutter:flutter_3_47_9.patch",
-    ],
-    pins = "//flutter:pins.json",
-)
-dx_pins.archive(
     name = "dx_paket",
     pins = "//dotnet:pins.json",
 )
@@ -1543,8 +1524,6 @@ use_repo(
     "dx_powershell_toolchains__windows_arm64",
     "dx_powershell_toolchains__windows_x86_64",
     "dx_rebar3",
-    "dx_rules_dart_pub",
-    "dx_rules_flutter_pub",
     "dx_selene_src",
     "dx_sorbet",
     "dx_swift_format_macos_arm64",
@@ -1708,70 +1687,70 @@ swiftpm.lock(
 use_repo(swiftpm, "swiftpkg")
 
 # floor: equals tested
-bazel_dep(name = "rules_dart", version = "0.8.1")
+bazel_dep(name = "rules_dart", version = "0.9.1")
 single_version_override(
     module_name = "rules_dart",
     patch_strip = 1,
     patches = [
-        "//patches/rules_dart:coverage.patch",
         "//patches/rules_dart:external_pkgsrcs.patch",
         "//patches/rules_dart:windows_long_dill.patch",
+        "//patches/rules_dart:summaries_scope.patch",
+        "//patches/rules_dart:cross_revision.patch",
     ],
-    version = "0.8.1",
+    version = "0.9.1",
 )
 
 dart = use_extension("@rules_dart//dart:extensions.bzl", "dart")
 dart.toolchain(dart_version = "3.13.7")
 
 # floor: equals tested
-bazel_dep(name = "rules_flutter", version = "0.0.8")
-
-# Pinned to the commit with aran/rules_flutter#5; drop flutter_3_47_9.patch once a release lists 3.47.9.
+bazel_dep(name = "rules_flutter", version = "0.1.0")
 archive_override(
     module_name = "rules_flutter",
-    integrity = "sha256-sNPw28M2Y+oIctymkU3ZY9svCoAG5VaULN5iB+lvzGk=",
+    integrity = "sha256-UIvAoBsmcH65Wf9C+JZdXd32j17373CT/Q1UZ4lV7E8=",
     patch_strip = 1,
     patches = [
         "//patches/rules_flutter:lock_extension.patch",
         "//patches/rules_flutter:registrant_javacopts.patch",
-        "//patches/rules_flutter:required_checksums.patch",
-        "//patches/rules_flutter:flutter_3_47_9.patch",
-        "//patches/rules_flutter:ios_target_compatible_with.patch",
-        "//patches/rules_flutter:coverage_enabled.patch",
+        "//patches/rules_flutter:windows_golden_comparator.patch",
     ],
-    strip_prefix = "rules_flutter-2b203359a0a79edaae66126ea5c212d1d7b19353",
-    urls = ["https://github.com/aran/rules_flutter/archive/2b203359a0a79edaae66126ea5c212d1d7b19353.tar.gz"],
+    strip_prefix = "rules_flutter-0.1.0",
+    urls = ["https://github.com/aran/rules_flutter/releases/download/v0.1.0/rules_flutter-v0.1.0.tar.gz"],
+)
+
+single_version_override(
+    module_name = "cgrindel_bazel_starlib",
+    patch_strip = 1,
+    patches = ["//patches/cgrindel_bazel_starlib:absent_local_git.patch"],
+    version = "0.30.0",
 )
 
 flutter = use_extension("@rules_flutter//flutter:extensions.bzl", "flutter")
 flutter.toolchain(flutter_version = "3.47.9")
 use_repo(
     flutter,
-    "flutter_android_engine_arm64",
-    "flutter_android_engine_arm64_profile",
-    "flutter_android_engine_x64",
-    "flutter_android_engine_x64_profile",
     "flutter_dev_root",
     "flutter_toolchains",
     "flutter_web_sdk",
 )
 
 flutter_pub = use_extension("//flutter:extensions.bzl", "pub", dev_dependency = True)
-flutter_pub.lock(
+flutter_pub.from_lock(
     name = "dx_flutter_app_deps",
     lock = "//flutter/tests/fixtures/flutter_app:pubspec.lock",
 )
-flutter_pub.lock(
+flutter_pub.from_lock(
     name = "dx_flutter_deps",
     lock = "//flutter/tests/runtime:pubspec.lock",
 )
-use_repo(flutter_pub, "dx_flutter_app_deps", "dx_flutter_deps")
+flutter_pub.from_lock(
+    name = "dx_flutter_padded_archive",
+    lock = "//flutter/tests/runtime:padded_archive.pubspec.lock",
+)
+use_repo(flutter_pub, "dx_flutter_app_deps", "dx_flutter_deps", "dx_flutter_padded_archive")
 
 # floor: equals tested
 bazel_dep(name = "tar.bzl", version = "0.10.9")
-
-# needed: @dx_rules_dart_pub (dx_pins extension) loads @yaml.bzl
-bazel_dep(name = "yaml.bzl", version = "0.1.2")
 
 bsd_tar_toolchains = use_extension("@tar.bzl//tar:extensions.bzl", "toolchains")
 use_repo(
@@ -1792,20 +1771,26 @@ pub = use_extension(
 pub.from_lock(
     name = "dx_dart_deps",
     lock = "//third_party/dart:pubspec.lock",
-    on_version_conflict = "upgrade",
 )
 pub.from_lock(
     name = "dx_dart_padded_archive",
-    lock = "//dart/tests:padded_archive.pubspec.lock",
+    lock = "//flutter/tests/runtime:padded_archive.pubspec.lock",
+    resolve = {"flutter": "@dx_flutter_deps//:flutter"},
 )
 use_repo(pub, "dx_dart_deps", "dx_dart_padded_archive")
+
+rules_dart_pub = use_extension(
+    "@rules_dart//dart/pub:extensions.bzl",
+    "pub",
+    dev_dependency = True,
+)
+use_repo(rules_dart_pub, "ext_pub_deps")
 
 # pub_deploy's api_compat check runs this pinned dart_apitool.
 pub_tools = use_extension("//dart:extensions.bzl", "pub")
 pub_tools.from_lock(
     name = "dart_apitool_deps",
     lock = "//dart/private/tools/dart_apitool:pubspec.lock",
-    on_version_conflict = "upgrade",
 )
 pub_tools.from_lock(
     name = "dx_dart_bench_deps",

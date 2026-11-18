@@ -13,10 +13,13 @@ def _dart_docs_shard(target, ctx):
     if ctx.rule.kind.endswith("_test") or ctx.rule.kind.endswith("_binary") or ctx.label.name.endswith("_upstream"):
         return None
     info = target[_DartInfo]
-    root = info.lib_root + "/lib/" if info.lib_root else "lib/"
+    if not info.packages:
+        return None
+    own = info.packages[0]
+    root = own.package_root + "/lib/" if own.package_root else "lib/"
     if ctx.toolchains[_DART_TOOLCHAIN] == None or not [f for f in info.srcs if repo_relative_path(f.short_path).startswith(root) and f.extension == "dart"]:
         return None
-    return dart_shard_action(ctx, info, info.package_name, "_dx_docs/" + ctx.label.name, ctx.executable._dart_extract).shard
+    return dart_shard_action(ctx, info, own.package_name, "_dx_docs/" + ctx.label.name, ctx.executable._dart_extract).shard
 
 def _real_dart_docs_aspect_impl(target, ctx):
     shard = _dart_docs_shard(target, ctx)

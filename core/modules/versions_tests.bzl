@@ -43,11 +43,8 @@ def versions_contract_tests(name):
         mode = "execution",
         checks = [
             expect_equal("python module follows canonical", _MOD_PYTHON_VERSION, _PYTHON_VERSION),
-            expect_equal("dart archive url follows canonical", _ARCHIVES["dx_rules_dart_pub"]["urls"][0], "https://github.com/aran/rules_dart/releases/download/v" + _RULES_DART_VERSION + "/rules_dart-v" + _RULES_DART_VERSION + ".tar.gz"),
-            expect_equal("dart archive strip prefix follows canonical", _ARCHIVES["dx_rules_dart_pub"]["strip_prefix"], "rules_dart-" + _RULES_DART_VERSION),
             expect_equal("dotnet archive url follows canonical", _ARCHIVES["rules_dotnet"]["urls"][0], "https://github.com/bazel-contrib/rules_dotnet/releases/download/v" + _RULES_DOTNET_VERSION + "/rules_dotnet-v" + _RULES_DOTNET_VERSION + ".tar.gz"),
             expect_equal("dotnet archive strip prefix follows canonical", _ARCHIVES["rules_dotnet"]["strip_prefix"], "rules_dotnet-" + _RULES_DOTNET_VERSION),
-            expect_equal("dart pins.json follows canonical", _ARCHIVES["dx_rules_dart_pub"]["version"], _RULES_DART_VERSION),
             expect_equal("dotnet pins.json follows canonical", _ARCHIVES["rules_dotnet"]["version"], _RULES_DOTNET_VERSION),
             expect_equal("cuda pins.json follows canonical", _DATA["dx_cuda"]["version"], _CUDA_REDIST_VERSION),
             expect_equal("rust module follows canonical", _MOD_RUST_VERSION, _RUST_VERSION),

@@ -22,8 +22,9 @@ def dart_shard_action(ctx, info, package, stem, extract_tool):
     sdk = ctx.toolchains[_DART_TOOLCHAIN].dart_sdk_info
     packages = {}
     for pkg in info.transitive_packages.to_list():
-        packages[pkg.package_name] = pkg.lib_root
-    packages[info.package_name] = info.lib_root
+        packages[pkg.package_name] = pkg.package_root
+    for pkg in info.packages:
+        packages[pkg.package_name] = pkg.package_root
     roots = sorted(packages.items(), key = lambda item: -len(item[1]))
     staged = []
     for f in sorted(info.transitive_srcs.to_list(), key = lambda f: f.path):
@@ -37,7 +38,7 @@ def dart_shard_action(ctx, info, package, stem, extract_tool):
                 ctx.actions.symlink(output = link, target_file = f)
                 staged.append(link)
                 break
-    own = info.package_name
+    own = info.packages[0].package_name if info.packages else package
     root_dir = ctx.bin_dir.path + "/" + ctx.label.package + "/" + stem + ".root"
     pubspecs = []
     for name in sorted(packages.keys()):
@@ -55,7 +56,7 @@ def dart_shard_action(ctx, info, package, stem, extract_tool):
         executable = sdk.dart,
         arguments = ["doc", "--output", html.path, root_dir + "/" + own],
         inputs = depset(staged + pubspecs + [config]),
-        tools = sdk.tool_files,
+        tools = sdk.files.all,
         outputs = [html, home],
         mnemonic = "DxDocsDartDoc",
         toolchain = _DART_TOOLCHAIN,
@@ -85,7 +86,7 @@ def dart_shard_action(ctx, info, package, stem, extract_tool):
 
 def _dart_doc_shard_impl(ctx):
     info = ctx.attr.lib[DartInfo]
-    package = ctx.attr.package or info.package_name
+    package = ctx.attr.package or info.packages[0].package_name
     action = dart_shard_action(ctx, info, package, ctx.label.name, ctx.executable._extract)
     return [
         DefaultInfo(files = depset([action.shard])),

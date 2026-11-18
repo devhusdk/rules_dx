@@ -101,6 +101,8 @@ pub enum CollectError {
     #[error("unreported artifact {path:?}: claimed by no entry")]
     UnreportedArtifact { path: String },
     #[error("{0}")]
+    Bep(#[from] dx_bep::BepError),
+    #[error("{0}")]
     Fingerprint(#[from] dx_fingerprint::FingerprintError),
 }
 
@@ -143,8 +145,8 @@ pub fn decode_shards(outputs: &[TargetOutput]) -> Result<Vec<EnvRecord>, Collect
     Ok(records)
 }
 
-fn backing_artifact_paths(outputs: &[TargetOutput]) -> Vec<String> {
-    dx_bep::non_shard_artifact_paths(outputs, SHARD_SUFFIX)
+fn backing_artifact_paths(outputs: &[TargetOutput]) -> Result<Vec<String>, CollectError> {
+    Ok(dx_bep::non_shard_artifact_paths(outputs, SHARD_SUFFIX)?)
 }
 
 type Bound<'a> = [(&'a EnvRecord, &'a EnvEntry)];
@@ -345,7 +347,7 @@ fn plan_projection(
     outputs: &[TargetOutput],
 ) -> Result<Vec<ProjectionEntry>, CollectError> {
     let bound = bound_entries(records);
-    let backing_paths = backing_artifact_paths(outputs);
+    let backing_paths = backing_artifact_paths(outputs)?;
     let resolved = bind_artifacts(&bound, &backing_paths)?;
     let mut projection: Vec<ProjectionEntry> = bound
         .iter()

@@ -119,6 +119,8 @@ pub enum BepError {
         attempt: u32,
         reason: String,
     },
+    #[error("non-UTF-8 artifact path {path:?}: want a UTF-8 exec path")]
+    NonUtf8ArtifactPath { path: String },
 }
 
 pub(crate) fn malformed(line: u64, path: &str, detail: &str) -> BepError {
@@ -520,37 +522,53 @@ pub fn exec_matches(artifact_path: &Path, exec_path: &str) -> bool {
     if exec_path.is_empty() {
         return false;
     }
-    let rendered = artifact_path.as_os_str().to_string_lossy();
-    suffix_matches(&rendered, exec_path)
+    // Compare raw bytes: a lossy rendering maps distinct non-UTF-8 paths to the same text.
+    bytes_suffix_matches(
+        artifact_path.as_os_str().as_encoded_bytes(),
+        exec_path.as_bytes(),
+    )
 }
 
 /// Whether `exec_path` names `artifact` outright or as a whole trailing path suffix.
 #[must_use]
 pub fn suffix_matches(artifact: &str, exec_path: &str) -> bool {
+    bytes_suffix_matches(artifact.as_bytes(), exec_path.as_bytes())
+}
+
+fn bytes_suffix_matches(artifact: &[u8], exec_path: &[u8]) -> bool {
     if artifact == exec_path {
         return true;
     }
     artifact
         .strip_suffix(exec_path)
-        .is_some_and(|head| head.ends_with('/'))
+        .is_some_and(|head| head.ends_with(b"/"))
 }
 
 /// Paths of the non-shard artifacts, each once, in first-seen order.
-#[must_use]
-pub fn non_shard_artifact_paths(outputs: &[TargetOutput], suffix: &str) -> Vec<String> {
+pub fn non_shard_artifact_paths(
+    outputs: &[TargetOutput],
+    suffix: &str,
+) -> Result<Vec<String>, BepError> {
     let mut paths = Vec::new();
     let mut seen = std::collections::BTreeSet::new();
     for output in outputs {
         for artifact in &output.artifacts {
             if !is_shard_artifact(&artifact.exec_path, suffix) {
-                let path = artifact.exec_path.display().to_string();
-                if seen.insert(path.clone()) {
-                    paths.push(path);
+                // A lossy rendering would merge distinct paths, so reject them by name.
+                let path =
+                    artifact
+                        .exec_path
+                        .to_str()
+                        .ok_or_else(|| BepError::NonUtf8ArtifactPath {
+                            path: artifact.exec_path.display().to_string(),
+                        })?;
+                if seen.insert(path) {
+                    paths.push(path.to_owned());
                 }
             }
         }
     }
-    paths
+    Ok(paths)
 }
 
 #[cfg(test)]
@@ -594,7 +612,7 @@ mod tests {
             artifacts: vec![artifact("out/a.shard.pb"), artifact("out/b.pb")],
         };
         assert_eq!(
-            non_shard_artifact_paths(&[output], ".shard.pb"),
+            non_shard_artifact_paths(&[output], ".shard.pb").unwrap(),
             ["out/b.pb"]
         );
     }
@@ -622,9 +640,57 @@ mod tests {
             ),
         ];
         assert_eq!(
-            non_shard_artifact_paths(&outputs, ".shard.pb"),
+            non_shard_artifact_paths(&outputs, ".shard.pb").unwrap(),
             ["out/lib.rs", "out/b.pb"]
         );
+    }
+
+    #[cfg(unix)]
+    fn non_utf8(prefix: &str, byte: u8, suffix: &str) -> PathBuf {
+        use std::os::unix::ffi::OsStringExt;
+        let mut bytes = prefix.as_bytes().to_vec();
+        bytes.push(byte);
+        bytes.extend_from_slice(suffix.as_bytes());
+        PathBuf::from(std::ffi::OsString::from_vec(bytes))
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn non_shard_artifact_paths_reject_non_utf8_paths_by_name() {
+        let artifact = |exec_path: PathBuf| CollectedArtifact {
+            exec_path,
+            bytes: Vec::new(),
+        };
+        let output = TargetOutput {
+            label: "//a:t".to_owned(),
+            aspect: None,
+            configuration: None,
+            success: true,
+            declared: true,
+            incomplete: false,
+            artifacts: vec![
+                artifact(non_utf8("out/", 0xff, "/lib.rs")),
+                artifact(non_utf8("out/", 0xfe, "/lib.rs")),
+            ],
+        };
+        let error = non_shard_artifact_paths(&[output], ".shard.pb").unwrap_err();
+        assert_eq!(
+            error,
+            BepError::NonUtf8ArtifactPath {
+                path: "out/\u{fffd}/lib.rs".to_owned(),
+            }
+        );
+        assert!(error.to_string().contains("out/\u{fffd}/lib.rs"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn exec_matches_keeps_non_utf8_paths_distinct() {
+        let artifact = non_utf8("out/", 0xff, "/lib.rs");
+        assert!(exec_matches(&artifact, "lib.rs"));
+        assert!(!exec_matches(&artifact, "\u{fffd}/lib.rs"));
+        assert!(!exec_matches(&artifact, "out/\u{fffd}/lib.rs"));
+        assert!(!exec_matches(&non_utf8("out/", 0xff, ""), "out/\u{fffd}"));
     }
 
     #[test]

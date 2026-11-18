@@ -1,5 +1,5 @@
 package conformance
 
 fun main() {
-    println(Greet.greet("world"))
+    println(Greet.hello("world"))
 }

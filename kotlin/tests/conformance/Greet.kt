@@ -1,5 +1,7 @@
 package conformance
 
+/** Greets by name. */
 object Greet {
-    fun greet(name: String): String = "hello $name"
+    /** Returns a greeting for [name]. */
+    fun hello(name: String): String = "hello $name"
 }

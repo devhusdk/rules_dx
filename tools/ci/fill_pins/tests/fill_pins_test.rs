@@ -4,6 +4,7 @@ use std::path::Path;
 use tempfile::TempDir;
 
 const REPO: &str = "devhusdk/rules_dx";
+const NATIVE_TOOLS: [&str; 2] = ["progenitor", "topiary"];
 const PINS: &str = "\"\"\"Pins.\"\"\"\n\nSCHEMA = 1\n\nDX_VERSION = \"1.2.3\"\n\nURL_TEMPLATE = \"https://github.com/devhusdk/rules_dx/releases/download/v{version}/{asset}\"\n\nPINS = {}\n";
 
 fn hash(n: usize) -> String {
@@ -27,7 +28,7 @@ fn assets(tool: &str) -> Vec<String> {
 }
 
 /// The dx manifest as release.yml writes it: each binary plus its launcher archive,
-/// Windows symbols and SBOMs, and the native launcher assets.
+/// Windows symbols and SBOMs, the native launcher assets and the native build tools.
 fn manifest() -> String {
     let mut lines = Vec::new();
     for (n, asset) in assets("dx").iter().enumerate() {
@@ -43,6 +44,11 @@ fn manifest() -> String {
     }
     for (n, asset) in assets("launcher").iter().enumerate() {
         lines.push(format!("{}  {asset}\n", hash(n + 16)));
+    }
+    for tool in NATIVE_TOOLS {
+        for asset in assets(tool) {
+            lines.push(format!("{}  {asset}\n", hash(4)));
+        }
     }
     lines.concat()
 }
@@ -151,6 +157,15 @@ fn writes_one_pin_per_tool_and_platform_and_keeps_the_head() {
     }
     for entry in registry().into_iter().filter(|e| e.key == "any") {
         by_tool.insert(entry.tool, vec![("any".to_owned(), hash(3))]);
+    }
+    for tool in NATIVE_TOOLS {
+        let keys: Vec<(String, String)> = registry()
+            .into_iter()
+            .filter(|e| e.tool == tool)
+            .map(|e| (e.key, hash(4)))
+            .collect();
+        assert_eq!(keys.len(), 4);
+        by_tool.insert(tool.to_owned(), keys);
     }
     assert!(by_tool.contains_key("javac_check"));
     let mut pins = String::from("PINS = {\n");

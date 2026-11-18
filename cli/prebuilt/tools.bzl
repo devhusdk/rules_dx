@@ -24,6 +24,17 @@ RELEASE_CPU = {
 
 _NATIVE = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]
 
+def _exec_native(tool):
+    return struct(
+        asset = "dx-" + tool + "-{os}-{cpu}",
+        role = "exec",
+        platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+        fallbacks = {"windows_arm64": "windows_x86_64"},
+        source = "@rules_dx//rust/private/quality/tools:" + tool + "_source",
+        member = "",
+        main_class = "",
+    )
+
 def _jar(tool, source, main_class):
     return struct(
         asset = "dx-" + tool.replace("_", "-") + "-any.jar",
@@ -86,6 +97,8 @@ TOOLS = {
         member = "",
         main_class = "",
     ),
+    "progenitor": _exec_native("progenitor"),
+    "topiary": _exec_native("topiary"),
     "avro_union": _jar("avro_union", "@rules_dx//avro/private/tools/avro_union", "dx.avro.tools.AvroUnion"),
     "javac_check": _jar("javac_check", "@rules_dx//java/private/quality/tools/javac_check", "dx.quality.javac.Main"),
     "javadoc_extract": _jar("javadoc_extract", "@rules_dx//tools/docs/jvm/javadoc:javadoc_extract", "dx.docs.javadoc.Main"),
@@ -93,6 +106,9 @@ TOOLS = {
     "kotlinc_check": _jar("kotlinc_check", "@rules_dx//java/private/quality/tools/kotlinc_check", "dx.quality.kotlinc.Main"),
     "scalac_check": _jar("scalac_check", "@rules_dx//java/private/quality/tools/scalac_check", "dx.quality.scalac.Main"),
 }
+
+# The build tools released as one native binary per exec platform.
+NATIVE_TOOLS = ["progenitor", "topiary"]
 
 # The tools released as one platform-independent jar each.
 JAR_TOOLS = sorted([tool for tool, entry in TOOLS.items() if entry.main_class])

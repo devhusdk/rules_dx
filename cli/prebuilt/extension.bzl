@@ -2,7 +2,8 @@
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 load("//core:repo.bzl", "hub_repo")
-load(":hub.bzl", "SOURCE_LABEL", "alias_build", "consumer_build", "plan_assets", "plan_jars", "plan_root", "with_jars")
+load(":hub.bzl", "SOURCE_LABEL", "alias_build", "consumer_build", "plan_assets", "plan_jars", "plan_native_tools", "plan_root", "with_jars", "with_native_tools")
+load(":tools.bzl", "NATIVE_TOOLS")
 load(":pins.bzl", "DX_VERSION", "PINS", "URL_TEMPLATE")
 
 # Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
@@ -19,7 +20,7 @@ ASSET_ATTRS = {
 }
 
 _asset = tag_class(
-    doc = "Adds or replaces dx, the launcher or the Go lint tools for one os and cpu; honoured only in the root module.",
+    doc = "Adds or replaces dx, the launcher, the Go lint tools or a native tool for one os and cpu; honoured only in the root module.",
     attrs = ASSET_ATTRS,
 )
 
@@ -53,13 +54,14 @@ _from_source = tag_class(
 )
 
 def _dx_prebuilt_impl(module_ctx):
-    plan = plan_root(module_ctx.modules, tools = ["dx", "launcher", "go"])
+    plan = plan_root(module_ctx.modules, tools = ["dx", "launcher", "go"] + NATIVE_TOOLS)
     if plan.error:
         fail(plan.error)
     rules_dx_is_root = any([m.name == "rules_dx" and m.is_root for m in module_ctx.modules])
     if plan.source:
         jars = plan_jars(DX_VERSION, {}, URL_TEMPLATE)
-        hub_repo(name = "dx_prebuilt", files = {"BUILD.bazel": with_jars(alias_build(SOURCE_LABEL), jars)})
+        native_tools = plan_native_tools(DX_VERSION, {}, URL_TEMPLATE, {})
+        hub_repo(name = "dx_prebuilt", files = {"BUILD.bazel": with_jars(with_native_tools(alias_build(SOURCE_LABEL), native_tools), jars)})
     else:
         assets = plan_assets("dx", DX_VERSION, PINS, URL_TEMPLATE, plan.overrides.get("dx", {}))
         launcher_assets = plan_assets(
@@ -81,9 +83,11 @@ def _dx_prebuilt_impl(module_ctx):
             repo_prefix = "dx_go_prebuilt_",
         )
         jars = plan_jars(DX_VERSION, PINS, URL_TEMPLATE)
-        declare_downloads(assets + launcher_assets + go_assets)
+        native_tools = plan_native_tools(DX_VERSION, PINS, URL_TEMPLATE, plan.overrides)
+        declare_downloads(assets + launcher_assets + go_assets + [a for tool in sorted(native_tools) for a in native_tools[tool]])
         _declare_jars(jars)
-        hub_repo(name = "dx_prebuilt", files = {"BUILD.bazel": with_jars(consumer_build(assets, launcher_assets, go_assets), jars)})
+        build = with_native_tools(consumer_build(assets, launcher_assets, go_assets), native_tools)
+        hub_repo(name = "dx_prebuilt", files = {"BUILD.bazel": with_jars(build, jars)})
     return module_ctx.extension_metadata(
         reproducible = True,
         root_module_direct_deps = ["dx_prebuilt"] if rules_dx_is_root else [],

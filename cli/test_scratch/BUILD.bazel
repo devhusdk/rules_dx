@@ -21,7 +21,10 @@ rust_library(
         normal = True,
     ) + [
         "//cli/process:dx_process",
-    ],
+    ] + select({
+        "@platforms//os:windows": [],
+        "//conditions:default": ["//cli/os_sys:dx_os_sys"],
+    }),
 )
 
 rust_test(
@@ -41,7 +44,10 @@ rust_test(
         normal_dev = True,
     ) + [
         "//cli/process:dx_process",
-    ],
+    ] + select({
+        "@platforms//os:windows": [],
+        "//conditions:default": ["//cli/os_sys:dx_os_sys"],
+    }),
 )
 
 real_source_target(

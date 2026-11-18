@@ -433,14 +433,21 @@ mod tests {
         std::fs::write(&stage, "stale").expect("staged file");
         std::fs::set_permissions(&guarded, std::fs::Permissions::from_mode(0o555))
             .expect("chmod 555");
-        let error = clear_stale_stage(&stage).expect_err("unremovable stage fails");
-        assert!(matches!(error, CommitError::Install { .. }));
+        let result = clear_stale_stage(&stage);
         std::fs::set_permissions(&guarded, std::fs::Permissions::from_mode(0o755))
             .expect("chmod back");
-        assert_eq!(
-            std::fs::read(&stage).expect("refused stage survives"),
-            b"stale"
-        );
+        // Root may delete from a read-only directory, so for root the stage is cleared.
+        if dx_test_scratch::running_as_root() {
+            result.expect("root clears the stage");
+            assert!(!stage.exists(), "stage cleared");
+        } else {
+            let error = result.expect_err("unremovable stage fails");
+            assert!(matches!(error, CommitError::Install { .. }));
+            assert_eq!(
+                std::fs::read(&stage).expect("refused stage survives"),
+                b"stale"
+            );
+        }
         scratch.close().expect("cleanup");
     }
 

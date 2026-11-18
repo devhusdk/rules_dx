@@ -73,7 +73,7 @@ mod tests {
         let path = std::env::join_paths([first.path(), second.path()]).unwrap();
 
         assert_eq!(find_in(&path, &["tool"]), None);
-        std::fs::create_dir(first.path().join("tool")).unwrap();
+        std::fs::create_dir_all(first.path().join("tool")).unwrap();
         assert_eq!(find_in(&path, &["tool"]), None);
 
         std::fs::write(second.path().join("tool"), b"x").unwrap();

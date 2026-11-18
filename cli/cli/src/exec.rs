@@ -915,7 +915,7 @@ mod tests {
     fn remove_scratch_returns_and_keeps_a_directory() {
         let dir = super::test_support::temp_dir("remove-scratch-dir");
         let nested = dir.path().join("nested");
-        std::fs::create_dir(&nested).expect("create dir");
+        std::fs::create_dir_all(&nested).expect("create dir");
         super::remove_scratch(&nested);
         assert!(nested.is_dir());
     }

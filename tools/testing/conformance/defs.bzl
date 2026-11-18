@@ -26,6 +26,7 @@ _QUALITY_CONFIG = "default"
 _QUALITY_CONFIGS = {
     "ansible": "shared",
     "api_spec": "shared",
+    "asciidoc": "shared",
     "astro": "shared",
     "avro": "shared",
     "bicep": "shared",
@@ -46,6 +47,7 @@ _QUALITY_CONFIGS = {
     "php": "tool_overrides",
     "powershell": "tool_overrides",
     "rego": "shared",
+    "rst": "shared",
     "ruby": "tool_overrides",
     "sql": "shared",
     "svelte": "shared",
@@ -63,6 +65,9 @@ _core_lint_subject = config_subject_rule([real_lint_aspect], [OutputGroupInfo])
 _JS_QUALITY_SUBJECTS = QUALITY_SUBJECTS["javascript"]
 
 _CORE_QUALITY_SUBJECTS = {
+    "asciidoc": {
+        "lint": _core_lint_subject,
+    },
     "astro": _JS_QUALITY_SUBJECTS,
     "javascript": {
         "format": _core_format_subject,
@@ -70,6 +75,10 @@ _CORE_QUALITY_SUBJECTS = {
     },
     "mdx": {
         "format": _JS_QUALITY_SUBJECTS["format"],
+        "lint": _core_lint_subject,
+    },
+    "rst": {
+        "format": _core_format_subject,
         "lint": _core_lint_subject,
     },
     "svelte": _JS_QUALITY_SUBJECTS,

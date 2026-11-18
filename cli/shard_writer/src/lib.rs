@@ -316,7 +316,7 @@ mod tests {
     fn an_unwritable_output_surfaces_the_io_error() {
         let dir = scratch();
         let blocked = dir.path().join("blocked");
-        std::fs::create_dir(&blocked).expect("a directory blocks the write");
+        std::fs::create_dir_all(&blocked).expect("a directory blocks the write");
         let argv = args(&[
             "--producer=//x:alpha",
             "--group=rust",

@@ -42,11 +42,11 @@ mod tests {
     #[test]
     fn a_build_directory_is_not_a_package() {
         let dir = tempfile::tempdir().expect("tempdir");
-        std::fs::create_dir(dir.path().join("BUILD")).expect("mkdir");
+        std::fs::create_dir_all(dir.path().join("BUILD")).expect("mkdir");
         std::fs::write(dir.path().join("BUILD/out.js"), "").expect("write");
         assert!(!is_package_dir(dir.path()));
         let dir = tempfile::tempdir().expect("tempdir");
-        std::fs::create_dir(dir.path().join("BUILD.bazel")).expect("mkdir");
+        std::fs::create_dir_all(dir.path().join("BUILD.bazel")).expect("mkdir");
         assert!(!is_package_dir(dir.path()));
     }
 
@@ -76,7 +76,7 @@ mod tests {
         std::os::unix::fs::symlink("missing", dir.path().join("BUILD")).expect("symlink");
         assert!(!is_package_dir(dir.path()));
         let dir = tempfile::tempdir().expect("tempdir");
-        std::fs::create_dir(dir.path().join("out")).expect("mkdir");
+        std::fs::create_dir_all(dir.path().join("out")).expect("mkdir");
         std::os::unix::fs::symlink("out", dir.path().join("BUILD.bazel")).expect("symlink");
         assert!(!is_package_dir(dir.path()));
     }

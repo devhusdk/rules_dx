@@ -367,7 +367,7 @@ mod tests {
         std::fs::write(tree.join("a.app"), b"a").expect("file");
         std::fs::write(tree.join("sub/c.beam"), b"c").expect("file");
         let empty = dir.path().join("empty");
-        std::fs::create_dir(&empty).expect("empty");
+        std::fs::create_dir_all(&empty).expect("empty");
         let entry = RequestTool {
             binary: None,
             config_rel: None,

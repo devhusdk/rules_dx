@@ -153,7 +153,7 @@ mod tests {
     fn external() -> tempfile::TempDir {
         let dir = tempfile::tempdir().expect("tempdir");
         for name in ["rules_lua+", "a+"] {
-            std::fs::create_dir(dir.path().join(name)).expect("repo");
+            std::fs::create_dir_all(dir.path().join(name)).expect("repo");
         }
         dir
     }
@@ -230,7 +230,7 @@ mod tests {
     #[test]
     fn lists_dotfiles_and_directories() {
         let dir = tempfile::tempdir().expect("tempdir");
-        std::fs::create_dir(dir.path().join(".dx")).expect("dir");
+        std::fs::create_dir_all(dir.path().join(".dx")).expect("dir");
         std::fs::write(dir.path().join(".dx/bazelrc"), "").expect("file");
         std::fs::write(dir.path().join("BUILD.bazel"), "").expect("file");
         assert_eq!(

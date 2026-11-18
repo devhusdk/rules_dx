@@ -287,7 +287,7 @@ mod tests {
         let temp = workspace();
         let record = with_sources(&temp);
         super::record(temp.path(), &record, None).expect("record");
-        std::fs::create_dir(temp.path().join("api/v2")).expect("new package");
+        std::fs::create_dir_all(temp.path().join("api/v2")).expect("new package");
         assert_eq!(check(temp.path()), Check::Changed(record));
     }
 }

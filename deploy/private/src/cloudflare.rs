@@ -746,7 +746,7 @@ mod tests {
             pages_runfiles_root(Some(String::new()), Some(exe.clone())),
             None
         );
-        std::fs::create_dir(dir.path().join("prog.runfiles")).expect("tree");
+        std::fs::create_dir_all(dir.path().join("prog.runfiles")).expect("tree");
         let want = std::fs::canonicalize(dir.path().join("prog.runfiles")).expect("canon");
         assert_eq!(
             pages_runfiles_root(None, Some(exe)).as_deref(),

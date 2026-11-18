@@ -1,13 +1,13 @@
 //! Every download carries a digest, every digest lives in a pins.json, no pin is written twice and no reference is mutable, outside `tools/ci/pin_locations_allowlist.txt`.
 
-#[path = "guard_rules/scan.rs"]
-mod scan;
-
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::path::Path;
-use std::collections::{BTreeMap, BTreeSet};
 
-use scan::{Counts, Masked, add, calls, is_skipped, is_starlark, masked};
+use dx_guard::allowlist::{Counts, REMOVE, add, render};
+use dx_guard::masked::{Masked, calls, masked};
+use dx_guard::snapshot::{is_skipped, tree};
+use dx_guard::starlark::is_bazel_file;
 use starlark_syntax as _;
 use yaml_serde as _;
 
@@ -268,8 +268,10 @@ fn scan_files(files: &[(String, String)]) -> Counts {
             continue;
         }
         let pins = name == "pins.json";
-        let rust = Path::new(name).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("rs"));
-        if !pins && !rust && !is_starlark(path) {
+        let rust = Path::new(name)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("rs"));
+        if !pins && !rust && !is_bazel_file(path) {
             continue;
         }
         let found = digests(text);
@@ -334,7 +336,7 @@ fn scan_files(files: &[(String, String)]) -> Counts {
 #[test]
 fn pins_have_one_location_outside_the_allowlist() {
     let root = dx_testing::source_snapshot();
-    let files = scan::tree(&root);
+    let files = tree(&root);
     assert!(
         files.len() >= MIN_FILES,
         "only {} files in the snapshot",
@@ -351,17 +353,19 @@ fn pins_have_one_location_outside_the_allowlist() {
         );
     }
     assert!(
-        files.iter().any(|(path, _)| Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("rs"))),
+        files.iter().any(|(path, _)| Path::new(path)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("rs"))),
         "the snapshot has no .rs file"
     );
     let found = scan_files(&files);
     let allowlist = dx_testing::read_runfiles(ALLOWLIST);
-    let problems = scan::problems(&found, &allowlist, &KINDS, ALLOWLIST);
+    let problems = dx_guard::allowlist::check(&found, &allowlist, &KINDS, REMOVE);
     assert!(
         problems.is_empty(),
         "{}\n\nwanted {ALLOWLIST}:\n{}",
         problems.join("\n"),
-        scan::render(&found)
+        render(&found)
     );
 }
 
@@ -376,7 +380,7 @@ fn fixture(files: &[(&str, &str)]) -> Vec<(String, String)> {
 }
 
 fn hits(files: &[(&str, &str)]) -> String {
-    scan::render(&scan_files(&fixture(files)))
+    render(&scan_files(&fixture(files)))
 }
 
 #[test]
@@ -527,37 +531,28 @@ fn the_allowlist_only_shrinks() {
         "x/repos.bzl",
         "http_archive(name = \"a\")\nhttp_archive(name = \"b\")\n",
     )]));
-    let check = |allowlist: &str| scan::problems(&found, allowlist, &KINDS, ALLOWLIST);
+    let check = |allowlist: &str| dx_guard::allowlist::check(&found, allowlist, &KINDS, REMOVE);
     assert_eq!(check("x/repos.bzl no-digest 2\n"), Vec::<String>::new());
     for (allowlist, needle) in [
-        ("", "allows none"),
-        ("x/repos.bzl no-digest 1\n", "allows 1"),
-        ("x/repos.bzl no-digest 3\n", "lower the line"),
+        ("", "0 allowed"),
+        ("x/repos.bzl no-digest 1\n", "1 allowed"),
+        ("x/repos.bzl no-digest 3\n", "lower the allowlist count"),
         (
             "x/repos.bzl no-digest 2\ny/repos.bzl no-digest 1\n",
-            "spare line",
+            "delete the allowlist line",
         ),
         (
             "x/repos.bzl mutable-ref 1\nx/repos.bzl no-digest 2\n",
-            "spare line",
+            "delete the allowlist line",
         ),
         (
             "x/repos.bzl no-digest 2\nx/repos.bzl no-digest 2\n",
-            "not sorted",
+            "not sorted or repeated",
         ),
-        ("x/repos.bzl unknown 2\n", "is not `<path> <kind> <count>`"),
-        (
-            "x/repos.bzl no-digest 0\n",
-            "is not `<path> <kind> <count>`",
-        ),
-        (
-            "x/repos.bzl  no-digest 2\n",
-            "is not `<path> <kind> <count>`",
-        ),
-        (
-            "# x\nx/repos.bzl no-digest 2\n",
-            "is not `<path> <kind> <count>`",
-        ),
+        ("x/repos.bzl unknown 2\n", "malformed line"),
+        ("x/repos.bzl no-digest 0\n", "malformed line"),
+        ("x/repos.bzl  no-digest 2\n", "malformed line"),
+        ("# x\nx/repos.bzl no-digest 2\n", "malformed line"),
     ] {
         let problems = check(allowlist);
         assert!(

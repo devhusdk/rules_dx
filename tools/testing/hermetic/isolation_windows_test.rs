@@ -186,7 +186,7 @@ fn stale_groups_are_removed_when_a_new_group_is_set_up() {
     child.wait().expect("the test binary exits");
     let stale = format!("dxh-{dead}");
     let out = scene.root.join("out");
-    std::mem::forget(
+    let _stale = std::mem::ManuallyDrop::new(
         AclGroup::setup(&mut scene.isolation, &stale, &out).expect("stale group setup"),
     );
     trail.mark("stale group set up");

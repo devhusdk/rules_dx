@@ -76,7 +76,7 @@ fn wire_module(request: &GenerateRequest, env: &mut Env<'_>) -> Wiring {
                 format!("would create {lock}; run dx generate --apply"),
             );
         } else if *manifest == manifest_of(Ecosystem::Cargo) {
-            match std::fs::write(workspace.join(lock), "") {
+            match dx_atomic_fs::write_atomic(&workspace.join(lock), b"") {
                 Ok(()) => seeded_cargo = true,
                 Err(error) => {
                     wiring.failed(env.err, format!("{lock} not created: {error}"));
@@ -194,7 +194,8 @@ fn wire_pnpm_settings(workspace: &Path, apply: bool, err: &mut dyn Write, wiring
             );
             continue;
         }
-        match std::fs::write(workspace.join(&path), dx_adopt::PNPM_SETTINGS) {
+        match dx_atomic_fs::write_atomic(&workspace.join(&path), dx_adopt::PNPM_SETTINGS.as_bytes())
+        {
             Ok(()) => wiring.info(err, format!("wrote {path}")),
             Err(error) => wiring.failed(err, format!("{path} not created: {error}")),
         }

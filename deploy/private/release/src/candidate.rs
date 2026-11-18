@@ -253,7 +253,7 @@ impl CommitIndex {
             dir,
         };
         for path in [&scratch.tree, &scratch.out] {
-            std::fs::create_dir(path)
+            std::fs::create_dir_all(path)
                 .map_err(|error| format!("candidate: create {}: {error}", path.display()))?;
         }
         scratch.pipe(repo, &["read-tree", commit], &[], |_| Ok(()))?;

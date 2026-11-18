@@ -265,35 +265,6 @@ pub fn descriptor_for(resolver: &Resolver, exe: &Path) -> PathBuf {
         .unwrap_or(beside)
 }
 
-/// Finds the `.runfiles` directory above one executable path, when there is one.
-fn tree_ancestor(exe: &Path) -> Option<PathBuf> {
-    let mut root = PathBuf::new();
-    for component in exe.components() {
-        root.push(component.as_os_str());
-        if component
-            .as_os_str()
-            .to_string_lossy()
-            .ends_with(".runfiles")
-        {
-            return Some(root);
-        }
-    }
-    None
-}
-
-/// Resolves the runfiles of the invoked executable without following symlinks.
-pub fn resolver_for(exe: &Path) -> io::Result<Resolver> {
-    let exe = if exe.is_absolute() {
-        exe.to_path_buf()
-    } else {
-        std::env::current_dir()?.join(exe)
-    };
-    if let Some(tree) = tree_ancestor(&exe).filter(|tree| tree.is_dir()) {
-        return Resolver::for_tree(&tree);
-    }
-    Resolver::for_binary(&exe)
-}
-
 /// Resolves one key, reading a file inside a tree artifact through the tree's own manifest entry.
 fn locate(resolver: &Resolver, key: &str) -> io::Result<PathBuf> {
     let error = match resolver.lookup(key) {
@@ -422,7 +393,7 @@ pub fn copy_into(
 
 /// Runs the program named by the descriptor beside `exe` and returns its exit code.
 pub fn run(exe: &Path, user_args: &[OsString]) -> io::Result<i32> {
-    let resolver = resolver_for(exe);
+    let resolver = Resolver::for_executable(exe);
     let path = match &resolver {
         Ok(resolver) => descriptor_for(resolver, exe),
         Err(_) => descriptor_path(exe),

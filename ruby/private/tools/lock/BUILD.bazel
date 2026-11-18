@@ -45,6 +45,7 @@ rust_test(
         "//cli/digest:dx_digest",
         "//cli/families:dx_families",
         "//cli/lock:dx_lock",
+        "//cli/lock:dx_lock_testing",
         "@crates//:serde_json",
         "@crates//:tempfile",
     ],

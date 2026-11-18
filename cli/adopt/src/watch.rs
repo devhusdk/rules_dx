@@ -1068,8 +1068,8 @@ mod tests {
         std::fs::write(outside.join("bin/out.o"), "built").expect("output write");
         std::fs::write(root.join("vendor/pkg/a.rs"), "vendored").expect("vendor write");
         std::fs::write(root.join(".git/index"), "index").expect("git write");
-        std::fs::create_dir(root.join("src/new")).expect("new dir");
-        std::fs::create_dir(root.join("fresh")).expect("fresh dir");
+        std::fs::create_dir_all(root.join("src/new")).expect("new dir");
+        std::fs::create_dir_all(root.join("fresh")).expect("fresh dir");
         let mut seen = raw_until(&session, "fresh");
         std::fs::write(root.join("fresh/b.rs"), "b").expect("write in fresh dir");
         std::fs::write(root.join("src/new/a.rs"), "a").expect("write in new dir");

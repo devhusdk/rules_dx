@@ -228,7 +228,7 @@ mod tests {
     fn counts_repo_directories_and_skips_markers() {
         let dir = tempfile::tempdir().expect("tempdir");
         for repo in ["a+", "b+", "@foo@"] {
-            std::fs::create_dir(dir.path().join(repo)).expect("mkdir");
+            std::fs::create_dir_all(dir.path().join(repo)).expect("mkdir");
         }
         std::fs::write(dir.path().join("a+.marker"), "").expect("write");
         std::fs::write(dir.path().join("@b+"), "").expect("write");

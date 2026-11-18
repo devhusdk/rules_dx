@@ -121,7 +121,7 @@ fn finds_the_exe_runfiles_for_an_extensionless_argv0() {
     std::fs::create_dir_all(tree.join("_main")).unwrap();
     std::fs::write(dir.join("app.launch"), "").unwrap();
     assert_eq!(descriptor_path(&dir.join("app")), dir.join("app.launch"));
-    let resolver = resolver_for(&dir.join("app")).unwrap();
+    let resolver = Resolver::for_executable(&dir.join("app")).unwrap();
     assert_eq!(runfiles_env(&resolver), ("RUNFILES_DIR", tree.clone()));
 }
 
@@ -216,7 +216,7 @@ fn plans_from_a_runfiles_tree() {
     std::fs::write(main.join("bin/php"), "").unwrap();
     std::fs::write(main.join("x.phar"), "").unwrap();
     std::fs::write(main.join("t.php/vendor/autoload.php"), "").unwrap();
-    let resolver = resolver_for(&dir.join("app.exe")).unwrap();
+    let resolver = Resolver::for_executable(&dir.join("app.exe")).unwrap();
     assert_eq!(runfiles_env(&resolver), ("RUNFILES_DIR", tree.clone()));
     let descriptor = parse(GOOD).unwrap();
 
@@ -253,7 +253,7 @@ fn plans_from_a_manifest_with_a_tree_artifact() {
         ),
     )
     .unwrap();
-    let resolver = resolver_for(&dir.join("app.exe")).unwrap();
+    let resolver = Resolver::for_executable(&dir.join("app.exe")).unwrap();
     assert_eq!(
         runfiles_env(&resolver),
         (
@@ -275,7 +275,7 @@ fn names_a_missing_runfile() {
     let dir = scratch.path().to_path_buf();
     let tree = dir.join("app.runfiles");
     std::fs::create_dir_all(tree.join("_main")).unwrap();
-    let resolver = resolver_for(&dir.join("app.exe")).unwrap();
+    let resolver = Resolver::for_executable(&dir.join("app.exe")).unwrap();
     let error = plan(&resolver, &parse(GOOD).unwrap(), &|_| None).unwrap_err();
     assert!(error.to_string().contains("_main/bin/php"), "{error}");
 }

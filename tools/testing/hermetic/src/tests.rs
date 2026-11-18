@@ -2124,7 +2124,7 @@ fn windows_bash_prefers_bazel_sh_then_the_first_existing_candidate() {
     let git = file("git-bash.exe");
     let missing = dir.path().join("missing-bash.exe");
     let root = dir.path().join("Windows");
-    std::fs::create_dir(&root).unwrap();
+    std::fs::create_dir_all(&root).unwrap();
     let stub = root.join("bash.exe");
     std::fs::write(&stub, "").unwrap();
     let system_root = root.to_string_lossy().to_uppercase();
@@ -2162,7 +2162,7 @@ fn rename_preset_points_layers_at_the_consumer_repo_name() {
 fn copy_latest_profile_takes_the_newest_trace() {
     let dir = tempfile::tempdir().unwrap();
     let base = dir.path().join("base");
-    std::fs::create_dir(&base).unwrap();
+    std::fs::create_dir_all(&base).unwrap();
     let now = std::time::SystemTime::now();
     for (name, age) in [
         ("command-old.profile.gz", 60),
@@ -2183,7 +2183,7 @@ fn copy_latest_profile_takes_the_newest_trace() {
     );
 
     let empty = dir.path().join("empty");
-    std::fs::create_dir(&empty).unwrap();
+    std::fs::create_dir_all(&empty).unwrap();
     let missing = dir.path().join("none.profile.gz");
     copy_latest_profile(&empty, &missing);
     assert!(!missing.exists());

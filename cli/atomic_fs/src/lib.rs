@@ -599,7 +599,7 @@ mod tests {
     fn writes_into_a_directory_it_cannot_read() {
         let scratch = dx_test_scratch::scratch("dx-atomic-fs-write-only-dir-").unwrap();
         let dir = scratch.path().join("drop");
-        std::fs::create_dir(&dir).expect("mkdir");
+        std::fs::create_dir_all(&dir).expect("mkdir");
         chmod(&dir, 0o300);
         let target = dir.join("out.txt");
         let first = write_atomic(&target, b"first\n");

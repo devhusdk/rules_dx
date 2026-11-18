@@ -4,8 +4,9 @@ load("//cc/private/toolchain:identity_subject.bzl", "cc_toolchain_identity_subje
 load("//cc/private/toolchain:select.bzl", "cc_toolchain_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
+load("//tools/testing/conformance:defs.bzl", "dx_coverage_test")
 load(":clang_syntax_tests.bzl", "clang_syntax_unit_tests")
-load(":defs_tests.bzl", "cc_gcov_coverage_env_test", "cc_wrapper_contract_tests", "objc_library_tests")
+load(":defs_tests.bzl", "cc_wrapper_contract_tests", "objc_library_tests")
 load(":failure_tests.bzl", "gcc_unsupported_tests")
 load(":hub_tests.bzl", "cc_hub_tests")
 load(":msvc_repos_tests.bzl", "msvc_repos_tests", "msvc_unavailable_tests", "msvc_unsupported_tests")
@@ -692,10 +693,25 @@ cc_toolchain_test(
     test = "//cc/tests/fixtures/msvc_shared:pe_machine_test",
 )
 
-cc_gcov_coverage_env_test(
-    name = "gcc_coverage_env_test",
-    size = "small",
-    target = "//cc/tests/fixtures/hello:hello_c_test",
+cc_toolchain_test(
+    name = "gcc_hello_c_static_test",
+    compiler = "gcc",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    test = "//cc/tests/fixtures/hello:hello_c_static_test",
+)
+
+dx_coverage_test(
+    name = "gcc_coverage_test",
+    covered_source = "hello.c",
+    instrumented_packages = ["cc/tests/fixtures/hello"],
+    subject = ":gcc_hello_c_static_test",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
 )
 
 test_suite(
@@ -709,8 +725,10 @@ test_suite(
         ":gcc_arm64_tsan_test",
         ":gcc_arm64_ubsan_test",
         ":gcc_asan_test",
-        ":gcc_coverage_env_test",
+        ":gcc_coverage_test",
+        ":gcc_coverage_test_off",
         ":gcc_dynamic_libstdcxx_test",
+        ":gcc_hello_c_static_test",
         ":gcc_hello_c_test",
         ":gcc_hello_lib_test",
         ":gcc_hello_test",

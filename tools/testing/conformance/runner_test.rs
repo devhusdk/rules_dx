@@ -99,6 +99,7 @@ fn subject_matches_mode() {
         .to_owned();
     if collecting && native {
         envs.push(("LLVM_PROFILE_FILE", profile.as_str()));
+        envs.push(("GCOV_PREFIX", raw_s.as_str()));
         envs.push(("TEST_BINARY", binary.as_str()));
     }
     let subject_args: Vec<String> = std::env::var("DX_CONFORMANCE_ARGS")

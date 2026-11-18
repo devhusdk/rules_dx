@@ -497,7 +497,7 @@ fn destination_must_be_new_or_empty() {
     let archive = dir.path().join("dx.tar.gz");
     tar_gz(&archive, MEMBERS);
     let dest: PathBuf = dir.path().join("dest");
-    std::fs::create_dir(&dest).expect("dest");
+    std::fs::create_dir_all(&dest).expect("dest");
     std::fs::write(dest.join("keep"), b"keep").expect("keep");
     let error = extract(&archive, Format::TarGz, &dest, Limits::default()).expect_err("busy");
     assert!(error.to_string().contains("not empty"), "{error}");
@@ -506,7 +506,7 @@ fn destination_must_be_new_or_empty() {
     let error = extract(&archive, Format::TarGz, &file_dest, Limits::default()).expect_err("file");
     assert!(error.to_string().contains("not a directory"), "{error}");
     let empty = dir.path().join("empty");
-    std::fs::create_dir(&empty).expect("empty");
+    std::fs::create_dir_all(&empty).expect("empty");
     extract(&archive, Format::TarGz, &empty, Limits::default()).expect("empty dir works");
 }
 

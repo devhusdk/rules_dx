@@ -757,6 +757,10 @@ impl Drop for SocketDir {
     }
 }
 
+#[expect(
+    clippy::create_dir,
+    reason = "a fresh socket dir must not already exist"
+)]
 fn short_socket_dir() -> io::Result<SocketDir> {
     static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
     let base = if Path::new("/tmp").is_dir() {

@@ -619,7 +619,7 @@ pub(super) fn announce_profile(
     };
     let report_file = profile_report::report_path(workspace);
     let value = report.json();
-    if let Err(error) = std::fs::write(&report_file, format!("{value}\n")) {
+    if let Err(error) = dx_atomic_fs::write_atomic(&report_file, format!("{value}\n").as_bytes()) {
         dx_output::write_stderr(
             err,
             format_args!(

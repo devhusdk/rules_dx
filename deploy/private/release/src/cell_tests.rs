@@ -305,7 +305,7 @@ struct Fixture {
 fn stage(cell: Cell, members: Members) -> Fixture {
     let dir = tempfile::TempDir::new().expect("tempdir");
     for sub in ["out", "rebuild", "template", "checkout"] {
-        std::fs::create_dir(dir.path().join(sub)).expect("mkdir");
+        std::fs::create_dir_all(dir.path().join(sub)).expect("mkdir");
     }
     for (source, _) in CONSUMER_FILES {
         std::fs::write(dir.path().join("template").join(source), source).expect("template");
@@ -809,8 +809,8 @@ impl Release {
 /// Qualifies two synthetic cells and stages their records and archives like the aggregate job.
 pub(crate) fn release() -> Release {
     let dir = tempfile::TempDir::new().expect("tempdir");
-    std::fs::create_dir(dir.path().join("records")).expect("records");
-    std::fs::create_dir(dir.path().join("archives")).expect("archives");
+    std::fs::create_dir_all(dir.path().join("records")).expect("records");
+    std::fs::create_dir_all(dir.path().join("archives")).expect("archives");
     let mut matrix = Vec::new();
     for format in FORMATS {
         let mut cell = synthetic_cell(format);
@@ -956,7 +956,7 @@ fn verify_rejects_missing_duplicate_unknown_and_malformed_records() {
     assert_error(&release, "want \"release-cell/v1\"");
     release.edit("unknown.json", |value| value["extra"] = 1.into());
     assert_error(&release, "unknown field");
-    std::fs::create_dir(records.join("dir.json")).expect("dir");
+    std::fs::create_dir_all(records.join("dir.json")).expect("dir");
     assert_error(&release, "cannot read");
     let missing = verify(
         &release.matrix,
@@ -1482,7 +1482,7 @@ fn rename_with_retry_moves_and_gives_up() {
     let to = dir.path().join("to");
     let none = std::time::Duration::ZERO;
     assert!(rename_with_retry(&from, &to, 3, none).is_err());
-    std::fs::create_dir(&from).expect("mkdir");
+    std::fs::create_dir_all(&from).expect("mkdir");
     rename_with_retry(&from, &to, 3, none).expect("rename");
     assert!(to.is_dir() && !from.exists());
 }

@@ -401,7 +401,7 @@ mod tests {
         clear_stale_stage(&stage).expect("clear foreign staged file");
         assert!(stage.symlink_metadata().is_err(), "file removed");
 
-        std::fs::create_dir(&stage).expect("foreign staged dir");
+        std::fs::create_dir_all(&stage).expect("foreign staged dir");
         let error = clear_stale_stage(&stage).expect_err("a staged directory stays refused");
         assert!(matches!(error, CommitError::Foreign { .. }));
         assert!(stage.is_dir(), "the refused directory survives");
@@ -425,7 +425,7 @@ mod tests {
         use std::os::unix::fs::PermissionsExt as _;
         let scratch = dx_test_scratch::scratch("dx-commit-stage-readonly-").unwrap();
         let guarded = scratch.path().join("guarded");
-        std::fs::create_dir(&guarded).expect("guarded dir");
+        std::fs::create_dir_all(&guarded).expect("guarded dir");
         let stage = guarded.join("current.next");
         std::fs::write(&stage, "stale").expect("staged file");
         std::fs::set_permissions(&guarded, std::fs::Permissions::from_mode(0o555))
@@ -548,7 +548,7 @@ mod tests {
         publish_pointer_swap(&swap_in(&dir, "record-a")).expect("first publish");
         let current = dir.join("current");
         dx_test_scratch::remove_directory_link(&current).expect("remove pointer");
-        std::fs::create_dir(&current).expect("blocking directory");
+        std::fs::create_dir_all(&current).expect("blocking directory");
         let marker = current.join("kept.txt");
         std::fs::write(&marker, "prior").expect("prior marker");
         let error = publish_pointer_swap(&swap_in(&dir, "record-b")).expect_err("rename must fail");

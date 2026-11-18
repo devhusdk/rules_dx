@@ -73,7 +73,7 @@ fn license_policy_read_failures_and_empty_default_are_explicit() {
         Err(super::AuditError::NotUtf8 { .. })
     ));
     std::fs::remove_file(&path).expect("remove");
-    std::fs::create_dir(&path).expect("directory");
+    std::fs::create_dir_all(&path).expect("directory");
     assert!(matches!(
         super::load_license_policy(&harness.workspace),
         Err(super::AuditError::Read { .. })
@@ -290,7 +290,7 @@ fn security_policy_read_failures_and_absent_file_are_explicit() {
         Err(super::AuditError::NotUtf8 { .. })
     ));
     std::fs::remove_file(&path).expect("remove");
-    std::fs::create_dir(&path).expect("directory");
+    std::fs::create_dir_all(&path).expect("directory");
     assert!(matches!(
         super::load_security_policy(&harness.workspace),
         Err(super::AuditError::Read { .. })
@@ -675,7 +675,7 @@ fn advisory_loader_rejects_corrupt_pinned_snapshots() {
         match variant {
             "directory" => {
                 std::fs::remove_file(&cached).expect("remove snapshot");
-                std::fs::create_dir(&cached).expect("directory snapshot");
+                std::fs::create_dir_all(&cached).expect("directory snapshot");
             }
             "tampered" => std::fs::write(&cached, "[ ]").expect("tamper"),
             "no-pin" => std::fs::remove_file(harness.workspace.join(".dx/pins")).expect("pins"),

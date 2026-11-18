@@ -134,7 +134,7 @@ impl Rewrite {
             }
             Rewrite::Block => {
                 std::fs::remove_file(path).expect("remove capture");
-                std::fs::create_dir(path).expect("capture directory");
+                std::fs::create_dir_all(path).expect("capture directory");
             }
             Rewrite::Bytes(payload) => {
                 std::fs::write(path, payload).expect("rewrite capture");
@@ -1841,7 +1841,7 @@ fn umbrella_report_write_failure_fails() {
 #[test]
 fn umbrella_report_into_a_directory_ends_with_one_finished() {
     let harness = umbrella_clean("umbrella-report-dir");
-    std::fs::create_dir(harness.workspace.join("out.sarif")).expect("directory");
+    std::fs::create_dir_all(harness.workspace.join("out.sarif")).expect("directory");
     let (code, out, _) = harness.run(&["check", "--output=json", "--report=sarif=out.sarif"]);
     assert_eq!(code, 1, "{out}");
     let events = json_events(&out);

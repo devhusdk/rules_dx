@@ -24,7 +24,7 @@ impl Scratch {
             builder.permissions(std::fs::Permissions::from_mode(0o700));
         }
         let scratch = Scratch(builder.tempdir()?.keep());
-        std::fs::create_dir(scratch.0.join("out"))?;
+        std::fs::create_dir_all(scratch.0.join("out"))?;
         Ok(scratch)
     }
 }
@@ -180,7 +180,7 @@ fn stage_inputs(
         let copied = dx_path::workspace::resolve_target_in_workspace(workspace, rel)
             .and_then(std::fs::read)
             .and_then(|bytes| {
-                std::fs::write(inputs_dir.join(file_name(rel)), &bytes)?;
+                dx_atomic_fs::write_scratch(&inputs_dir.join(file_name(rel)), &bytes)?;
                 staged_inputs.insert(file_name(rel).to_owned(), bytes);
                 Ok(())
             });

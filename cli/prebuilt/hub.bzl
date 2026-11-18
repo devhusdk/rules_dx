@@ -10,6 +10,8 @@ KNOWN_CPU = ["aarch64", "arm", "i386", "ppc64le", "riscv64", "s390x", "x86_32", 
 
 SOURCE_LABEL = TOOLS["dx"].source
 
+LAUNCHER_SOURCE = TOOLS["launcher"].source
+
 SOURCE_TOOLS = {
     "codegen_shard_writer": "@rules_dx//cli/codegen_shard:codegen_shard_writer",
     "collect_native": "@rules_dx//tools/coverage/collect:collect_native",
@@ -37,8 +39,8 @@ def valid_sha256(text):
     """Returns whether text is 64 lowercase hex digits."""
     return len(text) == 64 and all([c in _HEX for c in text.elems()])
 
-def plan_root(modules, ext = "dx_prebuilt", tool = "dx"):
-    """Reads the module tags: returns struct(error, source, overrides), overrides keyed "<os>_<cpu>"."""
+def plan_root(modules, ext = "dx_prebuilt", tools = ["dx"]):
+    """Reads the module tags: returns struct(error, source, overrides), overrides keyed by tool, then "<os>_<cpu>"."""
     rules_dx_is_root = False
     from_source = False
     overrides = {}
@@ -54,17 +56,17 @@ def plan_root(modules, ext = "dx_prebuilt", tool = "dx"):
         for tag in mod.tags.asset:
             where = ext + ".asset(name = \"{}\", os = \"{}\", cpu = \"{}\")".format(tag.name, tag.os, tag.cpu)
             error = ""
-            if tag.name != tool:
-                error = where + ": name is the tool, \"{}\"".format(tool)
+            if tag.name not in tools:
+                error = where + ": name is one of the tools {}".format(json.encode(tools))
             elif tag.os not in KNOWN_OS or tag.cpu not in KNOWN_CPU:
                 error = where + ": os must be one of {} and cpu one of {}".format(KNOWN_OS, KNOWN_CPU)
             elif not valid_sha256(tag.sha256):
                 error = where + ": sha256 must be 64 lowercase hex digits"
-            elif "{}_{}".format(tag.os, tag.cpu) in overrides:
+            elif "{}_{}".format(tag.os, tag.cpu) in overrides.get(tag.name, {}):
                 error = where + ": a second asset for the same os and cpu"
             if error:
                 return struct(error = error, source = False, overrides = {})
-            overrides["{}_{}".format(tag.os, tag.cpu)] = struct(cpu = tag.cpu, os = tag.os, sha256 = tag.sha256, url = tag.url)
+            overrides.setdefault(tag.name, {})["{}_{}".format(tag.os, tag.cpu)] = struct(cpu = tag.cpu, os = tag.os, sha256 = tag.sha256, url = tag.url)
     return struct(error = "", source = rules_dx_is_root or from_source, overrides = overrides)
 
 def _supported(assets):
@@ -120,9 +122,9 @@ def plan_assets(tool, version, pins, url_template, overrides, exe = "dx", repo_p
     return [planned[key] for key in sorted(planned.keys())]
 
 def alias_build(actual):
-    """Returns the hub BUILD text that points dx at one label and the tools at their sources."""
+    """Returns the hub BUILD text that points dx at one label and the tools and launcher at their sources."""
     lines = []
-    for name, label in [("dx", actual)] + sorted(SOURCE_TOOLS.items()):
+    for name, label in [("dx", actual), ("launcher", LAUNCHER_SOURCE)] + sorted(SOURCE_TOOLS.items()):
         lines += [
             "alias(",
             '    name = "{}",'.format(name),
@@ -163,9 +165,13 @@ def _select(entries, default):
     lines.append("    })")
     return "\n".join(lines)
 
-def consumer_build(assets):
-    """Returns the hub BUILD text that selects a prebuilt dx by os and cpu."""
-    if not [a for a in assets if a.repo]:
+def consumer_build(assets, launcher_assets = []):
+    """Returns the hub BUILD text that selects a prebuilt dx and launcher by os and cpu.
+
+    The launcher selects on the platform of the configuration that depends on it;
+    a platform with no launcher download builds it from source.
+    """
+    if not [a for a in assets + launcher_assets if a.repo]:
         return alias_build(SOURCE_LABEL)
     python_tools = _python_tool_aliases()
     lines = [
@@ -178,6 +184,11 @@ def consumer_build(assets):
         '    name = "dx",',
         "    actual = " + _select([(":" + a.key, ":dx_" + a.key if a.repo else SOURCE_LABEL) for a in assets], ":unsupported") + ",",
         ")",
+        "",
+        "alias(",
+        '    name = "launcher",',
+        "    actual = " + _select([(":" + a.key, ":launcher_" + a.key) for a in launcher_assets if a.repo], LAUNCHER_SOURCE) + ",",
+        ")",
     ]
     for tool, label in sorted(SOURCE_TOOLS.items()):
         lines += [
@@ -187,17 +198,30 @@ def consumer_build(assets):
             "    actual = " + _select([(":" + a.key, ":{}_{}".format(tool, a.key) if a.repo else label) for a in assets], ":unsupported") + ",",
             ")",
         ]
-    for a in assets:
+    platforms = {a.key: a for a in launcher_assets}
+    platforms.update({a.key: a for a in assets})
+    for key, a in sorted(platforms.items()):
         lines += [
             "",
             "config_setting(",
-            '    name = "{}",'.format(a.key),
+            '    name = "{}",'.format(key),
             "    constraint_values = [",
             '        "@platforms//os:{}",'.format(a.os),
             '        "@platforms//cpu:{}",'.format(a.cpu),
             "    ],",
             ")",
         ]
+    for a in launcher_assets:
+        if a.repo:
+            lines += [
+                "",
+                "native_binary(",
+                '    name = "launcher_{}",'.format(a.key),
+                '    src = "@{}//file:{}",'.format(a.repo, a.exe),
+                '    out = "{}/{}",'.format(a.key, a.exe),
+                ")",
+            ]
+    for a in assets:
         if a.repo:
             lines += [
                 "",

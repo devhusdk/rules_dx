@@ -1,7 +1,7 @@
 """Tests for the @dx_prebuilt plan, pins and hub BUILD text."""
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(":hub.bzl", "SOURCE_LABEL", "SOURCE_TOOLS", "alias_build", "consumer_build", "plan_assets", "plan_root", "valid_sha256")
+load(":hub.bzl", "LAUNCHER_SOURCE", "SOURCE_LABEL", "SOURCE_TOOLS", "alias_build", "consumer_build", "plan_assets", "plan_root", "valid_sha256")
 load(":pins.bzl", "DX_VERSION", "PINS", "SCHEMA", "URL_TEMPLATE")
 load(":tools.bzl", "TOOLS", "asset_name", "registry_lines")
 
@@ -48,6 +48,10 @@ def _checks():
     mirror = [a for a in mirrored if a.key == "macos_aarch64"][0]
     riscv = [a for a in mirrored if a.key == "linux_riscv64"][0]
     unpinned_build = consumer_build(unpinned)
+    launchers = plan_assets("launcher", "1.2.3", {"launcher": {"linux_x86_64": _HASH, "windows_x86_64": _HASH}}, URL_TEMPLATE, {}, exe = "dx-launcher", repo_prefix = "dx_launcher_prebuilt_")
+    launcher_build = consumer_build(unpinned, launchers)
+    both_build = consumer_build(pinned, launchers)
+    launcher_root = plan_root([_mod("app", True, assets = [_tag(), _tag(name = "launcher")])], tools = ["dx", "launcher"])
     return [
         expect_equal("pins.bzl is schema 1", SCHEMA, 1),
         expect_equal("pins name only registry tools and platforms", [(t, k) for t, by_key in PINS.items() for k in by_key if t not in TOOLS or k not in TOOLS[t].platforms], []),
@@ -99,13 +103,24 @@ def _checks():
         expect_contains("the root hub aliases the source dx", alias_build(SOURCE_LABEL), 'actual = "@rules_dx//cli/cli:dx",'),
         expect_contains("a non-root module cannot set tags", middle.error, "only the root module may set asset or from_source tags; middle sets them"),
         expect_contains("a bad sha names its asset", badsha.error, 'dx_prebuilt.asset(name = "dx", os = "linux", cpu = "x86_64"): sha256 must be 64 lowercase hex digits'),
-        expect_contains("an asset name is the tool", badname.error, 'name is the tool, "dx"'),
+        expect_contains("an asset name is the tool", badname.error, 'name is one of the tools ["dx"]'),
         expect_contains("cpu uses @platforms spelling", badcpu.error, "cpu one of"),
         expect_contains("one asset per os and cpu", twice.error, "a second asset for the same os and cpu"),
         expect_true("from_source builds from source", sourced.source),
         expect_true("rules_dx as root builds from source", rooted.source),
         expect_false("a consumer root does not build from source", pinned_root.source),
-        expect_equal("a root asset is an override", pinned_root.overrides.keys(), ["linux_x86_64"]),
+        expect_equal("a root asset is an override", pinned_root.overrides["dx"].keys(), ["linux_x86_64"]),
+        expect_equal("a root launcher asset overrides only the launcher", sorted(launcher_root.overrides.keys()), ["dx", "launcher"]),
+        expect_equal("the launcher is a target-platform asset", TOOLS["launcher"].role, "target"),
+        expect_equal("launcher assets", [asset_name("launcher", k) for k in TOOLS["launcher"].platforms], ["dx-launcher-linux-arm64", "dx-launcher-linux-x86_64", "dx-launcher-macos-arm64", "dx-launcher-windows-arm64", "dx-launcher-windows-x86_64"]),
+        expect_contains("the root hub aliases the source launcher", alias_build(SOURCE_LABEL), 'name = "launcher",\n    actual = "@rules_dx//cli/launcher:exec_launcher",'),
+        expect_contains("an unpinned hub builds the launcher from source", unpinned_build, 'actual = "@rules_dx//cli/launcher:exec_launcher",'),
+        expect_contains("a pinned launcher runs its download", launcher_build, 'name = "launcher_linux_x86_64",\n    src = "@dx_launcher_prebuilt_linux_x86_64//file:dx-launcher",\n    out = "linux_x86_64/dx-launcher",'),
+        expect_contains("a windows launcher keeps .exe", launcher_build, 'out = "windows_x86_64/dx-launcher.exe",'),
+        expect_contains("the launcher selects its platform", launcher_build, '":linux_x86_64": ":launcher_linux_x86_64",'),
+        expect_contains("other targets build the launcher from source", launcher_build, '"//conditions:default": "{}",'.format(LAUNCHER_SOURCE)),
+        expect_false("an unpinned launcher platform downloads nothing", "dx_launcher_prebuilt_linux_aarch64" in launcher_build),
+        expect_equal("dx and launcher share one config_setting per platform", both_build.count('name = "linux_x86_64",\n    constraint_values'), 1),
         expect_equal("a valid root has no error", pinned_root.error, ""),
     ]
 

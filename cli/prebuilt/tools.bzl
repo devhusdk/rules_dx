@@ -51,6 +51,15 @@ TOOLS = {
         source = "@dx_gazelle//:gazelle_source",
         member = "",
     ),
+    # Android and iOS targets have no asset and build the launcher from source.
+    "launcher": struct(
+        asset = "dx-launcher-{os}-{cpu}",
+        role = "target",
+        platforms = _NATIVE,
+        fallbacks = {},
+        source = "@rules_dx//cli/launcher:exec_launcher",
+        member = "",
+    ),
 }
 
 def split_key(key):

@@ -1,4 +1,4 @@
-//! Builds the dx release archive and the pure-Go dx gazelle twice and qualifies them as one release cell.
+//! Builds the dx release archive, the pure-Go dx gazelle and the native launcher twice and qualifies them as one release cell.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -8,6 +8,7 @@ const CONFIG: &str = "--config=dx_build_release";
 const PURE: &str = "--@rules_go//go/config:pure";
 const RELEASE: &str = "//deploy/private/release";
 const GAZELLE: &str = "@dx_gazelle//:gazelle";
+const LAUNCHER: &str = "//cli/launcher:exec_launcher";
 
 struct Env {
     cell: String,
@@ -135,9 +136,9 @@ fn symbols_name(cell: &str) -> Option<String> {
         .then(|| format!("{cell}-pdb.zip"))
 }
 
-/// The gazelle asset name of a cell.
-fn gazelle_name(cell: &str) -> String {
-    format!("dx-gazelle-{}", cell.strip_prefix("dx-").unwrap_or(cell))
+/// The asset name of `tool` in a cell, such as `dx-gazelle-linux-x86_64`.
+fn tool_asset_name(tool: &str, cell: &str) -> String {
+    format!("dx-{tool}-{}", cell.strip_prefix("dx-").unwrap_or(cell))
 }
 
 fn same_bytes(left: &Path, right: &Path) -> Result<bool, String> {
@@ -154,6 +155,7 @@ fn rebuild_cell(
     symbols: Option<&str>,
     pdb: &str,
     gazelle_asset: &str,
+    launcher_asset: &str,
     archive_name: &str,
 ) -> Result<(PathBuf, Vec<String>), String> {
     // The determinism input is a second, independent build: its own output base, no caches.
@@ -163,7 +165,7 @@ fn rebuild_cell(
         base: Some(rebuild_base),
     };
     let no_cache = ["--disk_cache=", "--remote_cache="];
-    let mut rebuilt_targets = vec![format!("{RELEASE}:dx_host_cell")];
+    let mut rebuilt_targets = vec![format!("{RELEASE}:dx_host_cell"), LAUNCHER.to_owned()];
     if symbols.is_some() {
         rebuilt_targets.push(pdb.to_owned());
     }
@@ -175,6 +177,10 @@ fn rebuild_cell(
         &rebuild.file(&rebuild_root, &[], &format!("{RELEASE}:dx_host_cell"))?,
         &rebuilt_archive,
     )?;
+    let rebuilt_launcher = rebuild.file(&rebuild_root, &[], LAUNCHER)?;
+    if !same_bytes(&out.join(launcher_asset), &rebuilt_launcher)? {
+        return Err(format!("{launcher_asset} differs between two builds"));
+    }
     let mut qualify_symbols = Vec::new();
     if let Some(symbols) = symbols {
         let rebuilt_symbols = env.temp.join(format!("rebuilt-{symbols}"));
@@ -204,6 +210,7 @@ fn build_cell(env: &Env, out: &Path) -> Result<(), String> {
         &[],
         &[
             "//cli/cli:dx",
+            LAUNCHER,
             &format!("{RELEASE}:release_cell"),
             &format!("{RELEASE}:release_matrix"),
             &format!("{RELEASE}:dx_host_cell"),
@@ -218,10 +225,15 @@ fn build_cell(env: &Env, out: &Path) -> Result<(), String> {
     let gazelle_flags = [PURE];
     main.build(&gazelle_flags, &[GAZELLE])?;
     let root = main.execution_root()?;
-    let gazelle_asset = gazelle_name(&env.cell);
+    let gazelle_asset = tool_asset_name("gazelle", &env.cell);
     copy(
         &main.file(&root, &gazelle_flags, GAZELLE)?,
         &out.join(&gazelle_asset),
+    )?;
+    let launcher_asset = tool_asset_name("launcher", &env.cell);
+    copy(
+        &main.file(&root, &[], LAUNCHER)?,
+        &out.join(&launcher_asset),
     )?;
     let dx = main.file(&root, &[], "//cli/cli:dx")?;
     let tool = main.file(&root, &[], &format!("{RELEASE}:release_cell"))?;
@@ -258,6 +270,7 @@ fn build_cell(env: &Env, out: &Path) -> Result<(), String> {
         symbols.as_deref(),
         &pdb,
         &gazelle_asset,
+        &launcher_asset,
         &archive_name,
     )?;
 
@@ -327,7 +340,7 @@ pub fn cell(args: &[String]) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{gazelle_name, symbols_name};
+    use super::{symbols_name, tool_asset_name};
 
     #[test]
     fn only_windows_cells_ship_symbols() {
@@ -339,7 +352,14 @@ mod tests {
     }
 
     #[test]
-    fn gazelle_assets_drop_the_dx_prefix() {
-        assert_eq!(gazelle_name("dx-linux-x86_64"), "dx-gazelle-linux-x86_64");
+    fn tool_assets_drop_the_dx_prefix() {
+        assert_eq!(
+            tool_asset_name("gazelle", "dx-linux-x86_64"),
+            "dx-gazelle-linux-x86_64"
+        );
+        assert_eq!(
+            tool_asset_name("launcher", "dx-windows-arm64"),
+            "dx-launcher-windows-arm64"
+        );
     }
 }

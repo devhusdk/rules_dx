@@ -1,7 +1,7 @@
 //! npm publisher: deterministic pack, pack verification and the npm publish.
 
 use crate::api_compat::{
-    ApiCompatMode, Baseline, Outcome, conclude, fetch, highest_below, previous_git_tag,
+    ApiCompatMode, Baseline, Outcome, conclude, fetch, fetch_to, highest_below, previous_git_tag,
     workspace_dir,
 };
 use crate::archive::*;
@@ -612,14 +612,13 @@ fn npm_api_diff(
     let Some((_, tarball)) = published.iter().find(|(v, _)| *v == previous) else {
         return skipped(format!("{name} {previous} is not on {}", check.registry));
     };
-    let bytes = match fetch(tarball, 512 << 20) {
-        Ok(Some(bytes)) => bytes,
-        Ok(None) => return skipped(format!("{tarball} not found")),
-        Err(error) => return skipped(error),
-    };
     let published_tgz = work.join("published.tgz");
     let published_dir = work.join("published");
-    std::fs::write(&published_tgz, bytes).map_err(|error| format!("npm_deploy: {error}"))?;
+    match fetch_to(tarball, &published_tgz, 512 << 20) {
+        Ok(true) => {}
+        Ok(false) => return skipped(format!("{tarball} not found")),
+        Err(error) => return skipped(error),
+    }
     archive_extract(&published_tgz, &published_dir)
         .map_err(|error| format!("npm_deploy: {error}"))?;
     let published_pkg = published_dir.join("package");

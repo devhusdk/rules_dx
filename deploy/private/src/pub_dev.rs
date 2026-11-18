@@ -276,7 +276,7 @@ fn pub_previous_version(body: &[u8], next: &str) -> Option<String> {
 
 /// Compares the staged package with the earlier version `api_baseline` picks.
 fn pub_api_check(
-    agent: &ureq::Agent,
+    client: &dx_http::Client,
     (dart, apitool): (&Path, &Path),
     flutter: Option<(&Path, &Path)>,
     (package_name, version): (&str, &str),
@@ -303,7 +303,7 @@ fn pub_api_check(
     };
     let result = tools.and_then(|(dart, flutter_root)| {
         pub_api_compare(
-            agent,
+            client,
             (&dart, apitool, flutter_root),
             (package_name, version),
             (staging, registry_url),
@@ -362,7 +362,7 @@ fn flutter_sdk_tree(_: &Path, _: &Path) -> Result<std::path::PathBuf, String> {
 }
 
 fn pub_api_compare(
-    agent: &ureq::Agent,
+    client: &dx_http::Client,
     (dart, apitool, flutter_root): (&Path, &Path, Option<&Path>),
     (package_name, version): (&str, &str),
     (staging, registry_url): (&Path, &str),
@@ -393,7 +393,7 @@ fn pub_api_compare(
             "{}/api/packages/{package_name}",
             registry_url.trim_end_matches('/')
         );
-        let body = match fetch_with(agent, &url, 16 << 20) {
+        let body = match fetch_with(client, &url, 16 << 20) {
             Ok(Some(body)) => body,
             Ok(None) => return Ok(Outcome::FirstRelease),
             Err(error) => return Ok(Outcome::Skipped(error)),
@@ -530,17 +530,20 @@ pub fn pub_main_checked(
             return Ok(());
         }
         let outcome = match &tools {
-            Some((dart, apitool)) => pub_api_check(
-                &crate::http::publish_agent(),
-                (dart, apitool),
-                flutter
-                    .as_ref()
-                    .map(|(dart, root)| (dart.as_path(), root.as_path())),
-                (package_name, version),
-                (staging, registry_url),
-                (api.baseline, api.package_dir),
-                &workspace_dir(),
-            ),
+            Some((dart, apitool)) => match crate::http::client() {
+                Ok(client) => pub_api_check(
+                    &client,
+                    (dart, apitool),
+                    flutter
+                        .as_ref()
+                        .map(|(dart, root)| (dart.as_path(), root.as_path())),
+                    (package_name, version),
+                    (staging, registry_url),
+                    (api.baseline, api.package_dir),
+                    &workspace_dir(),
+                ),
+                Err(error) => Ok(Outcome::Skipped(error)),
+            },
             None => Ok(Outcome::Skipped(
                 "the Dart SDK or dart_apitool is not available".to_owned(),
             )),
@@ -861,12 +864,12 @@ mod tests {
         );
         let staging = scratch.path().join("stage");
         write_crate_file(&staging, manifest_name(), PUBSPEC);
-        let agent = crate::http::publish_agent_with_proxy(None);
+        let client = crate::http::test_client();
         let run_with =
             |name: &str, version: &str, staging: &Path, flutter_sdk: Option<(&Path, &Path)>| {
                 with_env(&[("PUB_API_TOKEN", Some("sekret"))], || {
                     pub_api_check(
-                        &agent,
+                        &client,
                         (&fake, Path::new("dart_apitool.dill")),
                         flutter_sdk,
                         (name, version),

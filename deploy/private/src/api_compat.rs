@@ -250,28 +250,54 @@ pub fn previous_git_tag(workspace: &std::path::Path, next: &str) -> Result<Optio
 ///
 /// Returns an error when the operation fails.
 pub fn fetch(url: &str, limit: u64) -> Result<Option<Vec<u8>>, String> {
-    fetch_with(&crate::http::publish_agent(), url, limit)
+    fetch_with(&crate::http::client()?, url, limit)
 }
 
-/// Downloads `url` with `agent` up to `limit` bytes; None when the server answers 404 or 410.
+/// Downloads `url` with `client` up to `limit` bytes; None when the server answers 404 or 410.
 ///
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn fetch_with(agent: &ureq::Agent, url: &str, limit: u64) -> Result<Option<Vec<u8>>, String> {
-    match agent.get(url).call() {
-        Ok(response) if matches!(response.status().as_u16(), 404 | 410) => Ok(None),
-        Ok(response) if !response.status().is_success() => {
-            Err(format!("cannot query {url}: HTTP {}", response.status()))
-        }
-        Ok(mut response) => response
-            .body_mut()
-            .with_config()
-            .limit(limit)
-            .read_to_vec()
-            .map(Some)
-            .map_err(|error| format!("cannot read {url}: {error}")),
-        Err(ureq::Error::StatusCode(404)) => Ok(None),
+pub fn fetch_with(
+    client: &dx_http::Client,
+    url: &str,
+    limit: u64,
+) -> Result<Option<Vec<u8>>, String> {
+    match client.bytes(url, &[], limit) {
+        Ok(body) => Ok(Some(body)),
+        Err(dx_http::Error::Status {
+            code: 404 | 410, ..
+        }) => Ok(None),
+        Err(error) => Err(format!("cannot query {url}: {error}")),
+    }
+}
+
+/// Downloads `url` up to `limit` bytes into `dest`; false when the server answers 404 or 410.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
+pub fn fetch_to(url: &str, dest: &std::path::Path, limit: u64) -> Result<bool, String> {
+    fetch_to_with(&crate::http::client()?, url, dest, limit)
+}
+
+/// Downloads `url` with `client` up to `limit` bytes into `dest`; false when the server
+/// answers 404 or 410. `dest` is replaced only once the whole body has arrived.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
+pub fn fetch_to_with(
+    client: &dx_http::Client,
+    url: &str,
+    dest: &std::path::Path,
+    limit: u64,
+) -> Result<bool, String> {
+    match client.download_to(url, &[], dest, limit) {
+        Ok(_) => Ok(true),
+        Err(dx_http::Error::Status {
+            code: 404 | 410, ..
+        }) => Ok(false),
         Err(error) => Err(format!("cannot query {url}: {error}")),
     }
 }

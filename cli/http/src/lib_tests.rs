@@ -13,12 +13,31 @@ enum Reply {
     Cut(usize, &'static [u8]),
     /// Promises `length` bytes, sends `body`, then goes silent with the socket open.
     Stall(usize, &'static [u8]),
+    /// A 302 that points at `Location`.
+    Redirect(&'static str),
+}
+
+/// The headers (lowercased names) and body of one request.
+#[derive(Clone, Debug, Default)]
+struct Seen {
+    headers: Vec<(String, String)>,
+    body: Vec<u8>,
+}
+
+impl Seen {
+    fn header(&self, name: &str) -> Option<&str> {
+        self.headers
+            .iter()
+            .find(|(key, _)| key == name)
+            .map(|(_, value)| value.as_str())
+    }
 }
 
 /// A loopback server that records the first line of every request it gets.
 struct Server {
     url: String,
     seen: Arc<Mutex<Vec<String>>>,
+    full: Arc<Mutex<Vec<Seen>>>,
 }
 
 impl Server {
@@ -27,6 +46,8 @@ impl Server {
         let url = format!("http://{}", listener.local_addr().expect("address"));
         let seen = Arc::new(Mutex::new(Vec::new()));
         let log = Arc::clone(&seen);
+        let full = Arc::new(Mutex::new(Vec::new()));
+        let full_log = Arc::clone(&full);
         let replies = replies.to_vec();
         std::thread::spawn(move || {
             for (index, stream) in listener.incoming().enumerate() {
@@ -37,10 +58,15 @@ impl Server {
                     .cloned()
                     .expect("a reply");
                 let log = Arc::clone(&log);
-                std::thread::spawn(move || answer(stream, &reply, &log));
+                let full_log = Arc::clone(&full_log);
+                std::thread::spawn(move || answer(stream, &reply, &log, &full_log));
             }
         });
-        Self { url, seen }
+        Self { url, seen, full }
+    }
+
+    fn seen(&self) -> Vec<Seen> {
+        self.full.lock().expect("log").clone()
     }
 
     fn requests(&self) -> Vec<String> {
@@ -48,28 +74,44 @@ impl Server {
     }
 }
 
-fn answer(stream: TcpStream, reply: &Reply, log: &Mutex<Vec<String>>) {
+fn answer(stream: TcpStream, reply: &Reply, log: &Mutex<Vec<String>>, full: &Mutex<Vec<Seen>>) {
     let mut reader = BufReader::new(stream.try_clone().expect("clone"));
     let mut first = String::new();
     if reader.read_line(&mut first).is_err() {
         return;
     }
     log.lock().expect("log").push(first.trim_end().to_owned());
+    let mut seen = Seen::default();
     loop {
         let mut line = String::new();
         match reader.read_line(&mut line) {
             Ok(0) | Err(_) => break,
             Ok(_) if line == "\r\n" => break,
-            Ok(_) => {}
+            Ok(_) => {
+                if let Some((name, value)) = line.trim_end().split_once(':') {
+                    seen.headers
+                        .push((name.to_ascii_lowercase(), value.trim().to_owned()));
+                }
+            }
         }
     }
+    let length = seen
+        .header("content-length")
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or(0);
+    drop((&mut reader).take(length).read_to_end(&mut seen.body));
+    full.lock().expect("log").push(seen);
     let mut out = stream;
-    let (code, length, body) = match reply {
-        Reply::Full(code, body) => (*code, body.len(), *body),
-        Reply::Cut(length, body) | Reply::Stall(length, body) => (200, *length, *body),
+    let (code, length, body, location) = match reply {
+        Reply::Full(code, body) => (*code, body.len(), *body, String::new()),
+        Reply::Cut(length, body) | Reply::Stall(length, body) => {
+            (200, *length, *body, String::new())
+        }
+        Reply::Redirect(to) => (302, 0, &b""[..], format!("Location: {to}\r\n")),
     };
-    let head =
-        format!("HTTP/1.1 {code} X\r\nContent-Length: {length}\r\nConnection: close\r\n\r\n");
+    let head = format!(
+        "HTTP/1.1 {code} X\r\nContent-Length: {length}\r\n{location}Connection: close\r\n\r\n"
+    );
     drop(out.write_all(head.as_bytes()));
     drop(out.write_all(body));
     drop(out.flush());
@@ -381,4 +423,160 @@ fn an_unusable_ca_bundle_fails_the_client() {
             empty.display()
         )))
     );
+}
+
+#[test]
+fn a_post_carries_its_body_and_headers() {
+    let server = Server::start(&[Reply::Full(201, b"made")]);
+    let url = format!("{}/a", server.url);
+    let response = client(quick())
+        .send(
+            Method::Post,
+            &url,
+            &[("Content-Type", "application/json"), ("X-Token", "t")],
+            Body::Bytes(b"{\"a\":1}"),
+            1024,
+        )
+        .expect("post");
+    assert_eq!(
+        (response.status, response.body.as_slice()),
+        (201, &b"made"[..])
+    );
+    let seen = server.seen();
+    assert_eq!(server.requests(), ["POST /a HTTP/1.1"]);
+    assert_eq!(seen[0].body, b"{\"a\":1}");
+    assert_eq!(seen[0].header("content-type"), Some("application/json"));
+    assert_eq!(seen[0].header("x-token"), Some("t"));
+}
+
+#[test]
+fn a_put_streams_a_file_body() {
+    let mut file = tempfile::tempfile().expect("file");
+    file.write_all(b"layer bytes").expect("write");
+    file.rewind().expect("rewind");
+    let server = Server::start(&[Reply::Full(201, b"")]);
+    let url = format!("{}/blob", server.url);
+    let response = client(quick())
+        .send(
+            Method::Put,
+            &url,
+            &[("Content-Length", "11")],
+            Body::File(file),
+            0,
+        )
+        .expect("put");
+    assert_eq!(response.status, 201);
+    assert_eq!(server.seen()[0].body, b"layer bytes");
+}
+
+#[test]
+fn a_post_is_not_retried_on_a_busy_answer() {
+    let server = Server::start(&[Reply::Full(503, b"busy"), Reply::Full(201, b"")]);
+    let url = format!("{}/a", server.url);
+    let response = client(quick())
+        .send(Method::Post, &url, &[], Body::Empty, 2)
+        .expect("post");
+    assert_eq!(
+        (response.status, response.body.as_slice()),
+        (503, &b"bu"[..])
+    );
+    assert_eq!(server.requests().len(), 1);
+}
+
+#[test]
+fn a_get_is_retried_until_it_answers_and_returns_the_last_answer() {
+    let server = Server::start(&[Reply::Full(503, b""), Reply::Full(200, b"ok")]);
+    let url = format!("{}/a", server.url);
+    let response = client(quick())
+        .send(Method::Get, &url, &[], Body::Empty, 1024)
+        .expect("get");
+    assert_eq!(
+        (response.status, response.body.as_slice()),
+        (200, &b"ok"[..])
+    );
+    assert_eq!(server.requests().len(), 2);
+
+    let busy = Server::start(&[Reply::Full(503, b"")]);
+    let url = format!("{}/a", busy.url);
+    let response = client(quick())
+        .send(Method::Get, &url, &[], Body::Empty, 1024)
+        .expect("get");
+    assert_eq!(response.status, 503);
+    assert_eq!(busy.requests().len(), 3);
+}
+
+#[test]
+fn without_redirects_the_3xx_answer_is_returned() {
+    let target = Server::start(&[Reply::Full(200, b"moved")]);
+    let server = Server::start(&[Reply::Redirect("/elsewhere")]);
+    let url = format!("{}/a", server.url);
+    let settings = Settings {
+        follow_redirects: false,
+        ..quick()
+    };
+    let response = client(settings)
+        .send(Method::Get, &url, &[], Body::Empty, 1024)
+        .expect("get");
+    assert_eq!(response.status, 302);
+    assert_eq!(response.header("location"), Some("/elsewhere"));
+    assert_eq!(server.requests().len(), 1);
+
+    let followed = Server::start(&[Reply::Redirect(Box::leak(
+        format!("{}/b", target.url).into_boxed_str(),
+    ))]);
+    let url = format!("{}/a", followed.url);
+    assert_eq!(
+        client(quick()).bytes(&url, &[], 1024),
+        Ok(b"moved".to_vec())
+    );
+}
+
+fn entries(dir: &std::path::Path) -> Vec<String> {
+    let mut names: Vec<String> = std::fs::read_dir(dir)
+        .expect("list")
+        .map(|entry| {
+            entry
+                .expect("entry")
+                .file_name()
+                .to_string_lossy()
+                .into_owned()
+        })
+        .collect();
+    names.sort();
+    names
+}
+
+#[test]
+fn download_to_lands_the_file() {
+    let server = Server::start(&[Reply::Cut(5, b"al"), Reply::Full(200, b"alpha")]);
+    let url = format!("{}/a", server.url);
+    let dir = tempfile::tempdir().expect("dir");
+    let dest = dir.path().join("sub").join("a.bin");
+    assert_eq!(
+        client(quick()).download_to(&url, &[], &dest, 1024),
+        Ok(dx_digest::sha256_hex(b"alpha"))
+    );
+    assert_eq!(std::fs::read(&dest).expect("read"), b"alpha");
+    assert_eq!(entries(&dir.path().join("sub")), ["a.bin"]);
+}
+
+#[test]
+fn a_failed_download_to_leaves_neither_dest_nor_staging() {
+    let dir = tempfile::tempdir().expect("dir");
+    let dest = dir.path().join("a.bin");
+    let missing = Server::start(&[Reply::Full(404, b"")]);
+    let url = format!("{}/a", missing.url);
+    assert_eq!(
+        client(quick()).download_to(&url, &[], &dest, 1024),
+        Err(Error::Status { url, code: 404 })
+    );
+    assert_eq!(entries(dir.path()), [] as [String; 0]);
+
+    let cut = Server::start(&[Reply::Cut(5, b"al")]);
+    let url = format!("{}/a", cut.url);
+    let error = client(once())
+        .download_to(&url, &[], &dest, 1024)
+        .expect_err("cut");
+    assert!(matches!(error, Error::Transport { .. }), "{error}");
+    assert_eq!(entries(dir.path()), [] as [String; 0]);
 }

@@ -227,6 +227,40 @@ pub fn copy_atomic(src: &Path, dest: &Path) -> io::Result<()> {
     persist_copy(source, staging_for(dest)?, dest, Durability::Synced)
 }
 
+/// A file written in place beside `dest` and renamed over it on [`StagedFile::commit`].
+/// Dropping it without a commit removes the staging file and leaves `dest` untouched.
+pub struct StagedFile {
+    staging: tempfile::NamedTempFile,
+    dest: std::path::PathBuf,
+}
+
+impl StagedFile {
+    /// Opens a 0644 staging file beside `dest`, creating `dest`'s parent directories.
+    pub fn create(dest: &Path) -> io::Result<Self> {
+        let staging = staging_for(dest)?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            staging
+                .as_file()
+                .set_permissions(std::fs::Permissions::from_mode(0o644))?;
+        }
+        Ok(Self {
+            staging,
+            dest: dest.to_owned(),
+        })
+    }
+
+    pub fn file_mut(&mut self) -> &mut File {
+        self.staging.as_file_mut()
+    }
+
+    /// Syncs the staging file and renames it over `dest`.
+    pub fn commit(self) -> io::Result<()> {
+        persist(self.staging, &self.dest, Durability::Synced)
+    }
+}
+
 /// The path spelled so Windows accepts it past the legacy length limit.
 #[cfg(windows)]
 fn long_path(path: &Path) -> io::Result<std::path::PathBuf> {
@@ -261,6 +295,47 @@ pub fn lock_exclusive(file: &File, timeout: Duration) -> Result<(), std::fs::Try
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    fn dir_entries(dir: &Path) -> Vec<String> {
+        std::fs::read_dir(dir)
+            .expect("list dir")
+            .map(|entry| {
+                entry
+                    .expect("entry")
+                    .file_name()
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn staged_file_commit_replaces_dest() {
+        use std::io::Write as _;
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-").unwrap();
+        let dest = scratch.path().join("out").join("a.bin");
+        write_atomic(&dest, b"old").expect("seed");
+        let mut staged = StagedFile::create(&dest).expect("stage");
+        staged.file_mut().write_all(b"new").expect("write");
+        assert_eq!(std::fs::read(&dest).expect("read"), b"old");
+        staged.commit().expect("commit");
+        assert_eq!(std::fs::read(&dest).expect("read"), b"new");
+        assert_eq!(
+            dir_entries(&scratch.path().join("out")),
+            vec!["a.bin".to_owned()]
+        );
+    }
+
+    #[test]
+    fn staged_file_drop_leaves_no_sibling() {
+        use std::io::Write as _;
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-").unwrap();
+        let dest = scratch.path().join("a.bin");
+        let mut staged = StagedFile::create(&dest).expect("stage");
+        staged.file_mut().write_all(b"partial").expect("write");
+        drop(staged);
+        assert!(dir_entries(scratch.path()).is_empty());
+    }
 
     #[test]
     fn writes_and_overwrites_without_stray_staging_files() {

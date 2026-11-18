@@ -2,7 +2,6 @@
 
 use crate::run::{DeployRun, OwnerGate, deploy_build_mode, env_or_empty};
 use dx_ecosystems::Ecosystem;
-use std::io::Read;
 use std::path::Path;
 
 /// The file name of a Composer manifest.
@@ -49,23 +48,25 @@ pub fn packagist_check_name(actual: &str, expected: &str) -> Result<(), String> 
 /// Triggers the Packagist update of the repository registered for the package.
 fn packagist_live_update(package: &str, repository_url: &str, username: &str, token: &str) -> i32 {
     let body = serde_json::json!({"repository": {"url": repository_url}}).to_string();
-    let result = crate::http::publish_agent()
-        .post(PACKAGIST_UPDATE_URL)
-        .header("Authorization", format!("Bearer {username}:{token}"))
-        .header("Content-Type", "application/json")
-        .send(body.as_bytes());
+    let authorization = format!("Bearer {username}:{token}");
+    let result = crate::http::client().and_then(|client| {
+        client
+            .send(
+                dx_http::Method::Post,
+                PACKAGIST_UPDATE_URL,
+                &[
+                    ("Authorization", authorization.as_str()),
+                    ("Content-Type", "application/json"),
+                ],
+                dx_http::Body::Bytes(body.as_bytes()),
+                2048,
+            )
+            .map_err(|error| error.to_string())
+    });
     match result {
-        Ok(mut response) => {
-            let status = response.status().as_u16();
-            let mut text = Vec::new();
-            drop(
-                response
-                    .body_mut()
-                    .as_reader()
-                    .take(2048)
-                    .read_to_end(&mut text),
-            );
-            let text = String::from_utf8_lossy(&text).replace(token, "***");
+        Ok(response) => {
+            let status = response.status;
+            let text = response.text().replace(token, "***");
             if (200..300).contains(&status) {
                 println!("packagist_deploy: update requested for {package} (HTTP {status})");
                 0

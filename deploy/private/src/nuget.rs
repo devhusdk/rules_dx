@@ -1,8 +1,8 @@
 //! NuGet publisher: feed staging, nuspec identity checks and the dotnet push.
 
 use crate::api_compat::{
-    ApiCompatMode, Baseline, Outcome, changes_or_failure, conclude, fetch_with, highest_below,
-    previous_git_tag, workspace_dir,
+    ApiCompatMode, Baseline, Outcome, changes_or_failure, conclude, fetch_to_with, fetch_with,
+    highest_below, previous_git_tag, workspace_dir,
 };
 use crate::archive::*;
 use crate::run::{
@@ -401,7 +401,7 @@ fn apicompat_changes(output: &str) -> Vec<String> {
 
 /// Compares the nupkg with the earlier release `api_baseline` picks from the feed at `source`.
 fn nuget_api_check(
-    agent: &ureq::Agent,
+    client: &dx_http::Client,
     (dotnet, apicompat): (&Path, &Path),
     (package_id, version): (&str, &str),
     (nupkg, source): (&Path, &str),
@@ -410,7 +410,7 @@ fn nuget_api_check(
 ) -> Result<Outcome, String> {
     let baseline = Baseline::parse(baseline)
         .ok_or_else(|| format!("nuget_deploy: invalid api_baseline '{baseline}'"))?;
-    let index = match fetch_with(agent, source, 16 << 20) {
+    let index = match fetch_with(client, source, 16 << 20) {
         Ok(Some(body)) => body,
         Ok(None) => return Ok(Outcome::Skipped(format!("{source} not found"))),
         Err(error) => return Ok(Outcome::Skipped(error)),
@@ -429,7 +429,7 @@ fn nuget_api_check(
         }
     } else {
         let url = format!("{base}{id}/index.json");
-        let body = match fetch_with(agent, &url, 16 << 20) {
+        let body = match fetch_with(client, &url, 16 << 20) {
             Ok(Some(body)) => body,
             Ok(None) => return Ok(Outcome::FirstRelease),
             Err(error) => return Ok(Outcome::Skipped(error)),
@@ -447,17 +447,20 @@ fn nuget_api_check(
     };
     let lower = previous.to_ascii_lowercase();
     let url = format!("{base}{id}/{lower}/{id}.{lower}.nupkg");
-    let old = match fetch_with(agent, &url, 512 << 20) {
-        Ok(Some(bytes)) => bytes,
-        Ok(None) => return Ok(Outcome::Skipped(format!("{url} not found"))),
-        Err(error) => return Ok(Outcome::Skipped(error)),
-    };
     let work =
         tempfile_stage_dir("nuget-api-").map_err(|error| format!("nuget_deploy: {error}"))?;
     let old_nupkg = work.join(format!("{id}.{lower}.nupkg"));
+    let skipped = match fetch_to_with(client, &url, &old_nupkg, 512 << 20) {
+        Ok(true) => None,
+        Ok(false) => Some(format!("{url} not found")),
+        Err(error) => Some(error),
+    };
+    if let Some(reason) = skipped {
+        drop(std::fs::remove_dir_all(&work));
+        return Ok(Outcome::Skipped(reason));
+    }
     let home = work.join("home");
-    let output = std::fs::write(&old_nupkg, old)
-        .and_then(|()| std::fs::create_dir_all(&home))
+    let output = std::fs::create_dir_all(&home)
         .map_err(|error| error.to_string())
         .and_then(|()| {
             let home = home.display().to_string();
@@ -565,14 +568,17 @@ pub fn nuget_main_checked(
                 .zip(run.resolve(api.apicompat_rloc))
         };
         let outcome = match tools {
-            Some((dotnet, apicompat)) => nuget_api_check(
-                &crate::http::publish_agent(),
-                (&dotnet, &apicompat),
-                (package_id, package_version),
-                (&nupkg, package_source),
-                api.baseline,
-                &workspace_dir(),
-            ),
+            Some((dotnet, apicompat)) => match crate::http::client() {
+                Ok(client) => nuget_api_check(
+                    &client,
+                    (&dotnet, &apicompat),
+                    (package_id, package_version),
+                    (&nupkg, package_source),
+                    api.baseline,
+                    &workspace_dir(),
+                ),
+                Err(error) => Ok(Outcome::Skipped(error)),
+            },
             None => Ok(Outcome::Skipped(
                 "the .NET toolchain or ApiCompat is not available".to_owned(),
             )),
@@ -721,11 +727,11 @@ API breaking changes found. If those are intentional, the APICompat suppression 
         )
         .expect("fake tool");
         set_mode(&fake, 0o755);
-        let agent = crate::http::publish_agent_with_proxy(None);
+        let client = crate::http::test_client();
         let source = format!("{registry}/v3/index.json");
         let run = |id: &str, version: &str| {
             nuget_api_check(
-                &agent,
+                &client,
                 (&fake, Path::new("apicompat.dll")),
                 (id, version),
                 (Path::new("new.nupkg"), &source),

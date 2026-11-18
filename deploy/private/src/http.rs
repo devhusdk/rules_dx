@@ -3,47 +3,30 @@ use std::time::Duration;
 use base64::Engine as _;
 use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
 
-/// Builds the HTTPS agent for publish uploads with the proxy from the environment.
-pub fn publish_agent() -> ureq::Agent {
-    publish_agent_with_proxy(ureq::Proxy::try_from_env())
+/// Settings for publish and upload calls: plain http for loopback registries, a stall
+/// timeout instead of an overall deadline, and redirects returned to the caller.
+fn settings() -> dx_http::Settings {
+    dx_http::Settings {
+        https_only: false,
+        idle_timeout: Duration::from_secs(300),
+        follow_redirects: false,
+        ..dx_http::Settings::default()
+    }
 }
 
-/// Builds the HTTPS agent for publish uploads with an explicit proxy.
-pub fn publish_agent_with_proxy(proxy: Option<ureq::Proxy>) -> ureq::Agent {
-    agent_config(proxy)
-        .timeout_global(Some(Duration::from_secs(600)))
-        .build()
-        .into()
+/// Builds the client for publish and upload calls with proxy and CA from the environment.
+pub fn client() -> Result<dx_http::Client, String> {
+    dx_http::Client::new(settings()).map_err(|error| error.to_string())
 }
 
-/// Builds the HTTPS agent for large blob uploads with the proxy from the environment.
-pub fn upload_agent() -> ureq::Agent {
-    upload_agent_with_proxy(ureq::Proxy::try_from_env())
-}
-
-/// Builds the HTTPS agent for large blob uploads: no global deadline, only stall timeouts.
-pub fn upload_agent_with_proxy(proxy: Option<ureq::Proxy>) -> ureq::Agent {
-    agent_config(proxy)
-        .timeout_per_read(Some(Duration::from_secs(300)))
-        .timeout_per_write(Some(Duration::from_secs(300)))
-        .build()
-        .into()
-}
-
-fn agent_config(
-    proxy: Option<ureq::Proxy>,
-) -> ureq::config::ConfigBuilder<ureq::typestate::AgentScope> {
-    drop(rustls::crypto::ring::default_provider().install_default());
-    let tls = ureq::tls::TlsConfig::builder()
-        .provider(ureq::tls::TlsProvider::Rustls)
-        .root_certs(ureq::tls::RootCerts::PlatformVerifier)
-        .build();
-    ureq::Agent::config_builder()
-        .tls_config(tls)
-        .max_redirects(0)
-        .http_status_as_error(false)
-        .timeout_connect(Some(Duration::from_secs(30)))
-        .proxy(proxy)
+/// A client that ignores the environment and tries each request once.
+#[cfg(test)]
+pub fn test_client() -> dx_http::Client {
+    let settings = dx_http::Settings {
+        attempts: 1,
+        ..settings()
+    };
+    dx_http::Client::with_env(settings, |_| None).expect("http client")
 }
 
 /// Encodes one file as a single-part multipart/form-data body and returns its content type.

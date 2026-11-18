@@ -5,7 +5,6 @@ use crate::run::{
     scrubbed_command,
 };
 use base64::Engine as _;
-use std::io::Read;
 use std::path::Path;
 
 /// Owner approval gate for opam_deploy.
@@ -102,7 +101,7 @@ fn opam_lint(opam: &Path, file: &Path, home: &Path) -> bool {
 }
 
 struct Github<'a> {
-    agent: ureq::Agent,
+    client: dx_http::Client,
     token: &'a str,
 }
 
@@ -114,38 +113,31 @@ impl Github<'_> {
         body: Option<serde_json::Value>,
     ) -> Result<(u16, serde_json::Value), String> {
         let url = format!("{GITHUB_API}{path}");
-        let header = |req: ureq::RequestBuilder<ureq::typestate::WithoutBody>| {
-            req.header("Authorization", format!("Bearer {}", self.token))
-                .header("Accept", "application/vnd.github+json")
-                .header("User-Agent", "dx-opam-deploy")
-        };
-        let result = match (method, body) {
-            ("GET", _) => header(self.agent.get(&url)).call(),
+        let authorization = format!("Bearer {}", self.token);
+        let mut headers = vec![
+            ("Authorization", authorization.as_str()),
+            ("Accept", "application/vnd.github+json"),
+            ("User-Agent", "dx-opam-deploy"),
+        ];
+        let payload;
+        let (verb, body) = match (method, body) {
+            ("GET", _) => (dx_http::Method::Get, dx_http::Body::Empty),
             (_, body) => {
-                let payload = body.unwrap_or(serde_json::Value::Null).to_string();
-                let request = match method {
-                    "PUT" => self.agent.put(&url),
-                    _ => self.agent.post(&url),
+                payload = body.unwrap_or(serde_json::Value::Null).to_string();
+                headers.push(("Content-Type", "application/json"));
+                let verb = match method {
+                    "PUT" => dx_http::Method::Put,
+                    _ => dx_http::Method::Post,
                 };
-                request
-                    .header("Authorization", format!("Bearer {}", self.token))
-                    .header("Accept", "application/vnd.github+json")
-                    .header("User-Agent", "dx-opam-deploy")
-                    .header("Content-Type", "application/json")
-                    .send(payload.as_bytes())
+                (verb, dx_http::Body::Bytes(payload.as_bytes()))
             }
         };
-        let mut response = result.map_err(|error| pages_redact(&error.to_string(), self.token))?;
-        let status = response.status().as_u16();
-        let mut text = Vec::new();
-        drop(
-            response
-                .body_mut()
-                .as_reader()
-                .take(1 << 20)
-                .read_to_end(&mut text),
-        );
-        let text = pages_redact(&String::from_utf8_lossy(&text), self.token);
+        let response = self
+            .client
+            .send(verb, &url, &headers, body, 1 << 20)
+            .map_err(|error| pages_redact(&error.to_string(), self.token))?;
+        let status = response.status;
+        let text = pages_redact(&response.text(), self.token);
         if !(200..300).contains(&status) {
             return Err(format!("{method} {path}: HTTP {status}: {}", text.trim()));
         }
@@ -169,7 +161,7 @@ fn opam_live_pull_request(
     token: &str,
 ) -> Result<String, String> {
     let github = Github {
-        agent: crate::http::publish_agent(),
+        client: crate::http::client()?,
         token,
     };
     let fork = text_field(

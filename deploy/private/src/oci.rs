@@ -1158,12 +1158,19 @@ fn oci_live_push(image: &Path, outdir: &Path, push: &OciPush<'_>) -> i32 {
             return 1;
         }
     };
-    oci_live_push_to(&crate::http::upload_agent(), &target, image, outdir, push)
+    let client = match crate::http::client() {
+        Ok(client) => client,
+        Err(error) => {
+            eprintln!("oci_deploy: {error}");
+            return 1;
+        }
+    };
+    oci_live_push_to(&client, &target, image, outdir, push)
 }
 
 /// Stages the layout and pushes exactly those bytes to the target.
 fn oci_live_push_to(
-    agent: &ureq::Agent,
+    client: &dx_http::Client,
     target: &registry::RegistryRef,
     image: &Path,
     outdir: &Path,
@@ -1181,7 +1188,7 @@ fn oci_live_push_to(
         .map_err(|error| error.to_string())
         .and_then(|layout| {
             let config = oci_layout_config_digest(&layout)?;
-            let digest = registry::push_layout(agent, target, tag, &layout, creds)?;
+            let digest = registry::push_layout(client, target, tag, &layout, creds)?;
             Ok((digest, config))
         });
     match pushed {

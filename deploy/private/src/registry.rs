@@ -225,7 +225,7 @@ pub(crate) fn check_realm(endpoint: &Endpoint, realm: &str) -> Result<(), String
     }
 }
 
-fn transport(what: &str, error: &ureq::Error) -> String {
+fn transport(what: &str, error: &dx_http::Error) -> String {
     format!("registry: {what} failed: {error}")
 }
 
@@ -235,14 +235,6 @@ fn status_error(what: &str, status: u16) -> String {
     } else {
         format!("registry: {what} returned HTTP {status}")
     }
-}
-
-fn header(response: &ureq::http::Response<ureq::Body>, name: &str) -> Option<String> {
-    response
-        .headers()
-        .get(name)
-        .and_then(|value| value.to_str().ok())
-        .map(str::to_owned)
 }
 
 fn valid_digest(digest: &str) -> bool {
@@ -266,26 +258,31 @@ fn blob_path(layout: &Path, digest: &str) -> Result<PathBuf, String> {
 
 /// One authenticated session against one repository.
 struct Session<'a> {
-    agent: &'a ureq::Agent,
+    client: &'a dx_http::Client,
     target: &'a RegistryRef,
     authorization: Option<String>,
 }
 
 impl<'a> Session<'a> {
     fn open(
-        agent: &'a ureq::Agent,
+        client: &'a dx_http::Client,
         target: &'a RegistryRef,
         creds: Credentials<'_>,
     ) -> Result<Self, String> {
         let origin = &target.endpoint.origin;
-        let ping = agent
-            .get(format!("{origin}/v2/"))
-            .call()
+        let ping = client
+            .send(
+                dx_http::Method::Get,
+                &format!("{origin}/v2/"),
+                &[],
+                dx_http::Body::Empty,
+                0,
+            )
             .map_err(|error| transport("ping", &error))?;
-        let status = ping.status().as_u16();
+        let status = ping.status;
         if status == 200 {
             return Ok(Self {
-                agent,
+                client,
                 target,
                 authorization: None,
             });
@@ -294,7 +291,7 @@ impl<'a> Session<'a> {
             return Err(format!("registry: ping returned HTTP {status}"));
         }
         let challenges: Vec<String> = ping
-            .headers()
+            .headers
             .get_all("www-authenticate")
             .iter()
             .filter_map(|value| value.to_str().ok().map(str::to_owned))
@@ -323,22 +320,20 @@ impl<'a> Session<'a> {
                 }
                 let scope = format!("repository:{}:pull,push", target.name);
                 write!(url, "scope={}", query_escape(&scope)).ok();
-                let mut reply = agent
-                    .get(url)
-                    .header("Authorization", basic_auth(creds.user, creds.secret))
-                    .call()
+                let basic = basic_auth(creds.user, creds.secret);
+                let reply = client
+                    .send(
+                        dx_http::Method::Get,
+                        &url,
+                        &[("Authorization", basic.as_str())],
+                        dx_http::Body::Empty,
+                        1 << 20,
+                    )
                     .map_err(|error| transport("token request", &error))?;
-                let status = reply.status().as_u16();
-                if status != 200 {
-                    return Err(status_error("token request", status));
+                if reply.status != 200 {
+                    return Err(status_error("token request", reply.status));
                 }
-                let body = reply
-                    .body_mut()
-                    .with_config()
-                    .limit(1 << 20)
-                    .read_to_vec()
-                    .map_err(|_| "registry auth: unreadable token response".to_owned())?;
-                let json: serde_json::Value = serde_json::from_slice(&body)
+                let json: serde_json::Value = serde_json::from_slice(&reply.body)
                     .map_err(|_| "registry auth: malformed token response".to_owned())?;
                 let token = ["token", "access_token"]
                     .iter()
@@ -352,7 +347,7 @@ impl<'a> Session<'a> {
             }
         };
         Ok(Self {
-            agent,
+            client,
             target,
             authorization: Some(authorization),
         })
@@ -365,11 +360,12 @@ impl<'a> Session<'a> {
         )
     }
 
-    fn authorize<B>(&self, request: ureq::RequestBuilder<B>) -> ureq::RequestBuilder<B> {
-        match &self.authorization {
-            Some(value) => request.header("Authorization", value),
-            None => request,
-        }
+    /// The `Authorization` header for this session, when it has one.
+    fn auth(&self) -> Vec<(&str, &str)> {
+        self.authorization
+            .iter()
+            .map(|value| ("Authorization", value.as_str()))
+            .collect()
     }
 
     /// Resolves an upload `Location` and appends the digest query.
@@ -395,23 +391,35 @@ impl<'a> Session<'a> {
     fn push_blob(&self, layout: &Path, digest: &str) -> Result<(), String> {
         let path = blob_path(layout, digest)?;
         let head = self
-            .authorize(self.agent.head(self.url(&format!("blobs/{digest}"))))
-            .call()
+            .client
+            .send(
+                dx_http::Method::Head,
+                &self.url(&format!("blobs/{digest}")),
+                &self.auth(),
+                dx_http::Body::Empty,
+                0,
+            )
             .map_err(|error| transport("blob check", &error))?;
-        if head.status().as_u16() == 200 {
+        if head.status == 200 {
             return Ok(());
         }
         let start = self
-            .authorize(self.agent.post(self.url("blobs/uploads/")))
-            .send_empty()
+            .client
+            .send(
+                dx_http::Method::Post,
+                &self.url("blobs/uploads/"),
+                &self.auth(),
+                dx_http::Body::Empty,
+                0,
+            )
             .map_err(|error| transport("blob upload start", &error))?;
-        let status = start.status().as_u16();
-        if status != 202 {
-            return Err(status_error("blob upload start", status));
+        if start.status != 202 {
+            return Err(status_error("blob upload start", start.status));
         }
-        let location = header(&start, "location")
+        let location = start
+            .header("location")
             .ok_or_else(|| "registry: blob upload start returned no Location".to_owned())?;
-        let url = self.upload_url(&location, digest)?;
+        let url = self.upload_url(location, digest)?;
         let origin = origin_of(&url)
             .ok_or_else(|| "registry: upload location is not an http(s) URL".to_owned())?;
         let same_origin = origin == self.target.endpoint.origin;
@@ -424,18 +432,25 @@ impl<'a> Session<'a> {
             .metadata()
             .map_err(|error| format!("oci layout: cannot stat blob {digest}: {error}"))?
             .len();
-        let mut put = self
-            .agent
-            .put(url)
-            .header("Content-Type", "application/octet-stream")
-            .header("Content-Length", length.to_string());
+        let length = length.to_string();
+        let mut headers = vec![
+            ("Content-Type", "application/octet-stream"),
+            ("Content-Length", length.as_str()),
+        ];
         if same_origin {
-            put = self.authorize(put);
+            headers.extend(self.auth());
         }
-        let done = put
-            .send(file)
+        let done = self
+            .client
+            .send(
+                dx_http::Method::Put,
+                &url,
+                &headers,
+                dx_http::Body::File(file),
+                0,
+            )
             .map_err(|error| transport("blob upload", &error))?;
-        let status = done.status().as_u16();
+        let status = done.status;
         if status != 201 {
             return Err(status_error(&format!("blob upload of {digest}"), status));
         }
@@ -449,16 +464,22 @@ impl<'a> Session<'a> {
         media_type: &str,
         bytes: &[u8],
     ) -> Result<(), String> {
+        let mut headers = self.auth();
+        headers.push(("Content-Type", media_type));
         let done = self
-            .authorize(self.agent.put(self.url(&format!("manifests/{tag}"))))
-            .header("Content-Type", media_type)
-            .send(bytes)
+            .client
+            .send(
+                dx_http::Method::Put,
+                &self.url(&format!("manifests/{tag}")),
+                &headers,
+                dx_http::Body::Bytes(bytes),
+                0,
+            )
             .map_err(|error| transport("manifest upload", &error))?;
-        let status = done.status().as_u16();
-        if status != 201 {
-            return Err(status_error("manifest upload", status));
+        if done.status != 201 {
+            return Err(status_error("manifest upload", done.status));
         }
-        if let Some(pushed) = header(&done, "docker-content-digest")
+        if let Some(pushed) = done.header("docker-content-digest")
             && pushed.trim() != digest
         {
             return Err(format!(
@@ -543,7 +564,7 @@ fn staged_manifest(
 
 /// Pushes the single image of an OCI layout by tag and returns its manifest digest.
 pub(crate) fn push_layout(
-    agent: &ureq::Agent,
+    client: &dx_http::Client,
     target: &RegistryRef,
     tag: &str,
     layout: &Path,
@@ -568,7 +589,7 @@ pub(crate) fn push_layout(
             manifests.len()
         ));
     };
-    let session = Session::open(agent, target, creds)?;
+    let session = Session::open(client, target, creds)?;
     for blob in &manifest.blobs {
         session.push_blob(layout, blob)?;
     }
@@ -591,8 +612,8 @@ mod tests {
         }
     }
 
-    fn agent() -> ureq::Agent {
-        crate::http::upload_agent_with_proxy(None)
+    fn client() -> dx_http::Client {
+        crate::http::test_client()
     }
 
     /// Writes a layout with one config and two layers; returns the manifest digest.
@@ -636,7 +657,7 @@ mod tests {
             endpoint: Endpoint::for_test(&fake.origin),
             name: "demo/app".to_owned(),
         };
-        push_layout(&agent(), &target, "1.2.3", layout, creds())
+        push_layout(&client(), &target, "1.2.3", layout, creds())
     }
 
     fn auth_of(request: &FakeRequest) -> &str {
@@ -913,7 +934,7 @@ mod tests {
             name: "a".to_owned(),
         };
         let session = Session {
-            agent: &agent(),
+            client: &client(),
             target: &session_target,
             authorization: None,
         };
@@ -996,7 +1017,7 @@ mod tests {
             endpoint: Endpoint::for_test(&fake.origin),
             name: "demo/app".to_owned(),
         };
-        assert!(push_layout(&agent(), &target, "bad tag", &layout, creds()).is_err());
+        assert!(push_layout(&client(), &target, "bad tag", &layout, creds()).is_err());
         let index = layout.join("index.json");
         let one = std::fs::read_to_string(&index).expect("index");
         let value: serde_json::Value = serde_json::from_str(&one).expect("json");
@@ -1004,12 +1025,12 @@ mod tests {
         let two =
             serde_json::json!({"schemaVersion": 2, "manifests": [descriptor.clone(), descriptor]});
         std::fs::write(&index, two.to_string()).expect("two");
-        let error = push_layout(&agent(), &target, "1.2.3", &layout, creds()).expect_err("two");
+        let error = push_layout(&client(), &target, "1.2.3", &layout, creds()).expect_err("two");
         assert!(error.contains("exactly one manifest"), "{error}");
         let hex = digest.trim_start_matches("sha256:");
         std::fs::write(&index, one).expect("restore");
         std::fs::write(layout.join("blobs/sha256").join(hex), b"{}").expect("tamper");
-        let error = push_layout(&agent(), &target, "1.2.3", &layout, creds()).expect_err("tamper");
+        let error = push_layout(&client(), &target, "1.2.3", &layout, creds()).expect_err("tamper");
         assert!(error.contains("does not match"), "{error}");
         assert!(fake.requests().is_empty());
     }

@@ -90,10 +90,17 @@ void Describe(EXCEPTION_POINTERS *info, char *out, size_t size) {
   int n = std::snprintf(out, size, "gpu-fault: code=0x%08lX %s\n",
                         info->ExceptionRecord->ExceptionCode, frame);
   const CONTEXT *context = info->ContextRecord;
+#if defined(_M_ARM64)
+  n += std::snprintf(
+      out + n, size - n,
+      "gpu-fault: regs x0=0x%llX x1=0x%llX x2=0x%llX x3=0x%llX sp=0x%llX\n",
+      context->X0, context->X1, context->X2, context->X3, context->Sp);
+#else
   n += std::snprintf(
       out + n, size - n,
       "gpu-fault: regs rcx=0x%llX rdx=0x%llX r8=0x%llX r9=0x%llX rsp=0x%llX\n",
       context->Rcx, context->Rdx, context->R8, context->R9, context->Rsp);
+#endif
   if (info->ExceptionRecord->NumberParameters >= 2) {
     n += std::snprintf(
         out + n, size - n, "gpu-fault: access=%llu target=0x%llX\n",

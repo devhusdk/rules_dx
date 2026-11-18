@@ -86,7 +86,11 @@ pub fn schemas_txt() -> String {
         ),
         (
             "dx.schema.json",
-            dx_config::conventions::CURRENT_SCHEMA_VERSION.to_string(),
+            format!(
+                "{}.{}",
+                dx_config::conventions::CURRENT_SCHEMA_VERSION,
+                dx_config::conventions::SCHEMA_MINOR
+            ),
             CONFIG_SCHEMA,
         ),
     ];
@@ -132,13 +136,14 @@ mod tests {
 
     #[test]
     fn a_schema_change_needs_a_version_bump() {
-        let before = "events.schema.json 4.0 sha256:aa\ndx.schema.json 1 sha256:bb\n";
+        let before = "events.schema.json 4.0 sha256:aa\ndx.schema.json 1.0 sha256:bb\n";
         assert!(unbumped_schemas(before, before).is_empty());
         assert!(unbumped_schemas(before, "events.schema.json 4.1 sha256:cc\n").is_empty());
+        assert!(unbumped_schemas(before, "dx.schema.json 1.1 sha256:cc\n").is_empty());
         assert!(unbumped_schemas(before, "new.schema.json 1 sha256:dd\n").is_empty());
         assert_eq!(
-            unbumped_schemas(before, "dx.schema.json 1 sha256:cc\n"),
-            ["dx.schema.json changed but its version is still 1; bump the schema version first"]
+            unbumped_schemas(before, "dx.schema.json 1.0 sha256:cc\n"),
+            ["dx.schema.json changed but its version is still 1.0; bump the schema version first"]
         );
     }
 

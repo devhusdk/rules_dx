@@ -1,8 +1,10 @@
 use crate::win32::{
-    Access, creation_time, disinherit_std_handles, is_running, open, processes, resume,
-    resume_threads, suspend, terminate, total_physical_memory, working_set_bytes,
+    Access, creation_time, disinherit_std_handles, exit_code, is_running, open, processes, resume,
+    resume_thread, resume_threads, suspend, terminate, total_physical_memory, wait,
+    working_set_bytes,
 };
 use std::os::windows::io::AsHandle;
+use std::time::Duration;
 
 #[test]
 fn this_process_is_running_and_has_a_start_and_a_working_set() {
@@ -106,4 +108,39 @@ fn an_exited_child_cannot_be_suspended_resumed_or_terminated() {
 #[test]
 fn std_handles_can_be_made_uninheritable() {
     disinherit_std_handles().expect("disinherit");
+}
+
+#[test]
+fn a_waited_child_reports_its_exit_code() {
+    let child = std::process::Command::new("cmd")
+        .args(["/C", "exit 7"])
+        .spawn()
+        .expect("spawn");
+    assert!(wait(child.as_handle(), None).expect("wait"));
+    assert_eq!(exit_code(child.as_handle()).expect("exit code"), 7);
+}
+
+#[test]
+fn a_running_process_times_out_and_is_still_active() {
+    let me = open(std::process::id(), Access::Wait).expect("open self");
+    assert!(!wait(me.as_handle(), Some(Duration::from_millis(1))).expect("wait"));
+    assert_eq!(exit_code(me.as_handle()).expect("exit code"), 259);
+}
+
+#[test]
+fn a_duplicate_handle_opens_this_process() {
+    assert!(open(std::process::id(), Access::Duplicate).is_ok());
+}
+
+#[test]
+fn a_file_handle_is_not_a_process_or_thread() {
+    let file = std::fs::File::open(std::env::current_exe().expect("exe")).expect("open");
+    assert!(exit_code(file.as_handle()).is_err());
+    assert!(resume_thread(file.as_handle()).is_err());
+}
+
+#[test]
+fn a_query_only_handle_cannot_be_waited_on_forever() {
+    let me = open(std::process::id(), Access::Query).expect("open self");
+    assert!(wait(me.as_handle(), None).is_err());
 }

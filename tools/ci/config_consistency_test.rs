@@ -324,9 +324,16 @@ fn release_consumer_writes_the_bazelversion_floor() {
 #[test]
 fn docs_name_the_bazel_floor() {
     let floor = bazel_floor(&read_runfiles("MODULE.bazel"));
-    let quickstart = format!("`.bazelversion`:\n\n```text\n{floor}\n```");
-    assert!(
-        read_runfiles("README.md").contains(&quickstart),
+    let readme = read_runfiles("README.md");
+    // The quickstart shows the .bazelversion contents in the first text block after its name.
+    let quickstart = readme
+        .split_once("`.bazelversion`")
+        .and_then(|(_, rest)| rest.split_once("```text\n"))
+        .and_then(|(_, rest)| rest.split_once("\n```"))
+        .map(|(version, _)| version);
+    assert_eq!(
+        quickstart,
+        Some(floor.as_str()),
         "README.md quickstart .bazelversion is not {floor}"
     );
     let required = format!("Bazel {floor} or later is required.");

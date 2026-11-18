@@ -154,7 +154,7 @@ fn every_gh_step_sets_gh_token() {
 
 /// Each update group runs `dx check --affected` and `dx test --affected`, and a
 /// .bazelversion bump affects every target. On one cold runner that outlived the
-/// job timeout (#13136), so the dx step must run on remote execution.
+/// job timeout, so the dx step must run on remote execution.
 #[test]
 fn updates_are_verified_on_remote_execution() {
     let steps = steps(WORKFLOW, "update");

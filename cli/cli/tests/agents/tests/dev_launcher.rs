@@ -1318,6 +1318,22 @@ mod sh {
     }
 
     #[test]
+    fn an_execroot_inside_another_execroot_never_reaches_the_outer_checkout() {
+        let repo = source_repo("dx-launcher-execroot-nested-");
+        let decoy = repo.base.join("decoy");
+        checkout(&decoy);
+        dx_testing::executable_script(&decoy.join("tools/dx"), "#!/bin/sh\necho decoy \"$@\"\n");
+        let marker = decoy.display().to_string();
+        let outer = execroot(&repo.base, "outer", &repo.root(), Some(&marker));
+        let inner = execroot(&outer.join("_tmp"), "ob", &repo.root(), Some(""));
+        let (code, out, err) =
+            repo.run_in(&inner.join("bazel-out/k8-fastbuild/bin/cli"), &["status"]);
+        assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
+        assert_nothing_built_in(&inner);
+        assert_nothing_built_in(&outer);
+    }
+
+    #[test]
     fn a_signalled_rebuild_leaves_no_temp_files() {
         for (sig, signo) in [("TERM", 15), ("INT", 2), ("HUP", 1)] {
             signalled_rebuild(&format!("dx-launcher-sig-{sig}-"), sig, signo, true);
@@ -1470,6 +1486,183 @@ mod sh {
         assert_eq!(code, Some(1), "{err}");
         assert!(err.contains("bazel is not on PATH"), "{err}");
         assert!(!err.contains("bazel run @rules_dx"), "{err}");
+    }
+
+    fn hook_without_dx(hook: &str, command: &str) -> (Option<i32>, String, usize) {
+        use std::io::Write;
+        let repo = source_repo("dx-launcher-hook-no-dx-");
+        let mut cmd = repo.command_in(&repo.root(), &["worktree", "hook", hook]);
+        cmd.stdin(std::process::Stdio::piped());
+        let mut child = spawn(&mut cmd);
+        let input = format!(r#"{{"tool_name":"Bash","tool_input":{{"command":"{command}"}}}}"#);
+        // stop never reads its input, so the launcher may exit before the write lands.
+        match child
+            .stdin
+            .take()
+            .expect("stdin")
+            .write_all(input.as_bytes())
+        {
+            Err(e) if e.kind() != std::io::ErrorKind::BrokenPipe => panic!("write stdin: {e}"),
+            _ => {}
+        }
+        let out = child.wait_with_output().expect("launcher runs");
+        (
+            out.status.code(),
+            String::from_utf8_lossy(&out.stderr).into_owned(),
+            repo.builds(),
+        )
+    }
+
+    #[test]
+    fn a_tool_call_hook_without_a_dx_passes_without_building() {
+        for hook in ["guard", "stop"] {
+            let (code, err, builds) = hook_without_dx(hook, "tools/dx test //cli/path:all");
+            assert_eq!((code, builds), (Some(0), 0), "{hook}: {err}");
+        }
+    }
+
+    #[test]
+    fn the_guard_without_a_dx_holds_back_a_deploy_with_apply() {
+        let (code, err, builds) = hook_without_dx("guard", "tools/dx deploy --apply //app:push");
+        assert_eq!((code, builds), (Some(2), 0), "{err}");
+        assert!(err.contains("dx is not built yet"), "{err}");
+        let (code, err, _) = hook_without_dx("guard", "tools/dx deploy //app:push");
+        assert_eq!(code, Some(0), "{err}");
+    }
+
+    /// Takes the stub bazel off PATH and serves it to a fake curl as the pinned Bazelisk. With
+    /// `pinned`, pin.env carries the stub's real sha256; otherwise a wrong one.
+    fn bazelisk_host(name: &str, pinned: bool) -> SourceRepo {
+        let repo = source_repo(name);
+        let served = repo.base.join("served-bazelisk");
+        std::fs::rename(repo.base.join("stub/bazel"), &served).expect("move stub");
+        let applets = dx_testing::env_files("DX_COREUTILS");
+        let sha256sum = applets[0].parent().expect("applets").join("sha256sum");
+        let out = Command::new(sha256sum)
+            .arg(&served)
+            .output()
+            .expect("sha256sum");
+        let text = String::from_utf8_lossy(&out.stdout).into_owned();
+        let sum = if pinned {
+            text.split(' ').next().expect("sum").to_owned()
+        } else {
+            "0".repeat(64)
+        };
+        std::fs::create_dir_all(repo.root().join("tools/bazelisk")).expect("pin dir");
+        std::fs::write(
+            repo.root().join("tools/bazelisk/pin.env"),
+            format!("BAZELISK_VERSION=9.9.9\nBAZELISK_SHA256_LINUX_AMD64={sum}\n"),
+        )
+        .expect("pin");
+        repo.fake(
+            "uname",
+            "case $1 in -m) echo x86_64 ;; *) echo Linux ;; esac",
+        );
+        repo.fake(
+            "curl",
+            &format!(
+                "out=\nfor a in \"$@\"; do\n  [ \"$prev\" = -o ] && out=$a\n  prev=$a\ndone\nprintf '%s\\n' \"$a\" >> '{}'\ncp '{}' \"$out\"",
+                repo.base.join("fetches").display(),
+                served.display()
+            ),
+        );
+        repo
+    }
+
+    #[test]
+    fn source_launcher_fetches_the_pinned_bazelisk_once_when_bazel_is_missing() {
+        let repo = bazelisk_host("dx-launcher-fetch-bazelisk-", true);
+        repo.run_ok();
+        repo.touch_build_file();
+        repo.run_ok();
+        assert_eq!(repo.builds(), 2);
+        let fetches = std::fs::read_to_string(repo.base.join("fetches")).expect("fetch log");
+        assert_eq!(
+            fetches,
+            "https://github.com/bazelbuild/bazelisk/releases/download/v9.9.9/bazelisk-linux-amd64\n"
+        );
+        let dir = repo.base.join("home/.cache/dx/bazelisk/9.9.9");
+        let names: Vec<String> = std::fs::read_dir(&dir)
+            .expect("bazelisk dir")
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(names, ["bazel"]);
+    }
+
+    #[test]
+    fn source_launcher_refuses_a_bazelisk_that_does_not_match_its_pin() {
+        let repo = bazelisk_host("dx-launcher-bad-bazelisk-", false);
+        let (code, _, err) = repo.run_in(&repo.root(), &["status"]);
+        assert_eq!(code, Some(1), "{err}");
+        assert!(err.contains("does not match its sha256"), "{err}");
+        assert!(err.contains("bazel is not on PATH"), "{err}");
+        assert_eq!(repo.builds(), 0);
+        let dir = repo.base.join("home/.cache/dx/bazelisk/9.9.9");
+        assert_eq!(std::fs::read_dir(&dir).expect("bazelisk dir").count(), 0);
+    }
+
+    #[test]
+    fn the_fetched_bazelisk_downloads_bazel_from_github_unless_told_otherwise() {
+        let repo = bazelisk_host("dx-launcher-bazelisk-base-", true);
+        std::fs::write(
+            repo.base.join("payload"),
+            "#!/bin/sh\necho \"$BAZELISK_BASE_URL\"\n",
+        )
+        .expect("payload");
+        let (code, out, err) = repo.run_in(&repo.root(), &["status"]);
+        assert_eq!(
+            (code, out.as_str()),
+            (
+                Some(0),
+                "https://github.com/bazelbuild/bazel/releases/download\n"
+            ),
+            "{err}"
+        );
+        let (code, out, err) = spawn(
+            repo.command_in(&repo.root(), &["status"])
+                .env("BAZELISK_BASE_URL", "https://mirror.example"),
+        )
+        .wait_with_output()
+        .map(|o| {
+            (
+                o.status.code(),
+                String::from_utf8_lossy(&o.stdout).into_owned(),
+                String::from_utf8_lossy(&o.stderr).into_owned(),
+            )
+        })
+        .expect("launcher runs");
+        assert_eq!(
+            (code, out.as_str()),
+            (Some(0), "https://mirror.example\n"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn a_failed_first_build_names_an_unreachable_module_registry() {
+        let repo = source_repo("dx-launcher-bcr-");
+        repo.break_build();
+        let probes = repo.base.join("probes");
+        repo.fake(
+            "curl",
+            &format!(
+                "for a in \"$@\"; do u=$a; done\necho \"$u\" >> '{}'\nexit 22",
+                probes.display()
+            ),
+        );
+        let (code, _, err) = repo.run_in(&repo.root(), &["status"]);
+        assert_eq!(code, Some(1), "{err}");
+        assert!(err.contains("cannot reach bcr.bazel.build"), "{err}");
+        assert_eq!(
+            std::fs::read_to_string(&probes).expect("probe log"),
+            "https://bcr.bazel.build/bazel_registry.json\n"
+        );
+        repo.fake("curl", "exit 0");
+        let (code, _, err) = repo.run_in(&repo.root(), &["status"]);
+        assert_eq!(code, Some(1), "{err}");
+        assert!(err.contains("bazel build //:dx failed"), "{err}");
+        assert!(!err.contains("cannot reach"), "{err}");
     }
 
     #[test]

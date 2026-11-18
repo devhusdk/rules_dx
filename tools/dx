@@ -51,6 +51,27 @@ state="$root/.dx/local/launcher"
 if [ "${1:-}" = worktree ] && [ "${2:-}" = hook ]; then
   [ -x "$state/dx$exe" ] && exec "$state/dx$exe" "$@"
   [ -x "$bin" ] && exec "$bin" "$@"
+  # No dx is built yet, as in a fresh clone. Agents run guard and stop on every tool call, and their hook timeout
+  # would kill the first dx build again and again, so they pass. Without a dx no slot is leased; guard still holds
+  # back a deploy with --apply.
+  case ${3:-} in
+  guard)
+    hk_in=
+    while IFS= read -r hk_line || [ -n "$hk_line" ]; do hk_in="$hk_in $hk_line"; done
+    case $hk_in in
+    *deploy*)
+      case $hk_in in
+      *--apply*)
+        echo "dx: dx is not built yet; run tools/dx --version, then run the deploy again" >&2
+        exit 2
+        ;;
+      esac
+      ;;
+    esac
+    exit 0
+    ;;
+  stop) exit 0 ;;
+  esac
 fi
 here=$(pwd -P) || here=/
 while [ "$here" != / ]; do
@@ -66,6 +87,9 @@ while [ "$here" != / ]; do
       here=$v
       break
     fi
+    # An execroot can sit inside another one (a test's temp dir, say); never climb into the outer one's checkout.
+    here=/
+    break
   fi
   here=${here%/*}
   here=${here:-/}
@@ -73,6 +97,64 @@ done
 if [ "$here" != / ] && [ "$here" != "$(cd -P -- "$root" && pwd -P)" ] && [ -x "$here/tools/dx" ]; then
   exec "$here/tools/dx" "$@"
 fi
+# Without bazel on PATH, Linux uses the Bazelisk pinned in tools/bazelisk/pin.env, kept under the user cache, as
+# bazel. dx runs bazel from PATH, so its directory goes on PATH for dx too. Sets bz_dir; fails when there is no pin.
+bazelisk_pin() {
+  case $os/$(uname -m) in
+  linux/x86_64) bz_arch=linux-amd64 bz_key=BAZELISK_SHA256_LINUX_AMD64 ;;
+  linux/aarch64 | linux/arm64) bz_arch=linux-arm64 bz_key=BAZELISK_SHA256_LINUX_ARM64 ;;
+  *) return 1 ;;
+  esac
+  bz_v=
+  bz_sum=
+  [ -r "$root/tools/bazelisk/pin.env" ] || return 1
+  while IFS='=' read -r bz_k bz_val || [ -n "$bz_k" ]; do
+    case $bz_k in
+    BAZELISK_VERSION) bz_v=$bz_val ;;
+    "$bz_key") bz_sum=$bz_val ;;
+    esac
+  done <"$root/tools/bazelisk/pin.env"
+  bz_cache=${XDG_CACHE_HOME:-${HOME:+$HOME/.cache}}
+  [ -n "$bz_v" ] && [ -n "$bz_sum" ] && [ -n "$bz_cache" ] || return 1
+  bz_dir=$bz_cache/dx/bazelisk/$bz_v
+}
+download_bazelisk() {
+  bz_url=https://github.com/bazelbuild/bazelisk/releases/download/v$bz_v/bazelisk-$bz_arch
+  echo "dx: bazel is not on PATH; fetching Bazelisk $bz_v to $bz_dir" >&2
+  mkdir -p "$bz_dir" || return 1
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL --proto '=https' --tlsv1.2 --retry 3 -o "$bz_tmp" "$bz_url" || return 1
+  elif command -v wget >/dev/null 2>&1; then
+    wget -q --https-only -O "$bz_tmp" "$bz_url" || return 1
+  else
+    echo "dx: neither curl nor wget is on PATH" >&2
+    return 1
+  fi
+  bz_got=$(sha256sum "$bz_tmp") || return 1
+  if [ "${bz_got%% *}" != "$bz_sum" ]; then
+    echo "dx: the Bazelisk download does not match its sha256 in tools/bazelisk/pin.env" >&2
+    return 1
+  fi
+  chmod +x "$bz_tmp" && mv -f "$bz_tmp" "$bz_dir/bazel"
+}
+if ! command -v bazel >/dev/null 2>&1 && bazelisk_pin; then
+  bz_tmp=$bz_dir/bazel.$$
+  if [ -x "$bz_dir/bazel" ] || download_bazelisk; then
+    PATH=$bz_dir:$PATH
+    # Some container proxies block releases.bazel.build; GitHub serves the same Bazel releases.
+    BAZELISK_BASE_URL=${BAZELISK_BASE_URL:-https://github.com/bazelbuild/bazel/releases/download}
+    export PATH BAZELISK_BASE_URL
+  fi
+  rm -f "$bz_tmp"
+fi
+# False only when curl or wget runs and cannot fetch $1.
+reachable() {
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsS --max-time 10 -o /dev/null "$1" 2>/dev/null
+  elif command -v wget >/dev/null 2>&1; then
+    wget -q -T 10 -O /dev/null "$1"
+  fi
+}
 # True when an input of the last built dx is newer than that build. With arguments, only inputs under those path
 # prefixes count.
 input_newer() {
@@ -351,6 +433,9 @@ if stale; then
       echo "dx: //:dx does not build; running the previous dx" >&2
       exec "$state/dx$exe" "$@"
     fi
+    # A proxy that blocks the module registry fails the first build; name the host, not only Bazel's fetch error.
+    reachable https://bcr.bazel.build/bazel_registry.json ||
+      die "cannot reach bcr.bazel.build, the Bazel module registry; allow it in the network settings"
     die "bazel build //:dx failed"
   fi
   sync_copy || true

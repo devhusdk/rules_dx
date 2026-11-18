@@ -1,9 +1,10 @@
 //! No Rust code or repository rule starts a host program by name outside `tools/ci/host_program_allowlist.txt`, and the allowlist holds no spare entry.
 
-mod guard_scan;
-
 use std::path::Path;
-use guard_scan::{Counts, Token, callee_name, exprs, hit, is_starlark, parse, rust_tokens, string};
+use dx_guard::allowlist::{self, Counts, hit};
+use dx_guard::lexer::{Token, rust_tokens};
+use dx_guard::snapshot::snapshot;
+use dx_guard::starlark::{callee_name, exprs, is_starlark, parse, string};
 use starlark_syntax::syntax::ast::{ArgumentP, ExprP};
 use yaml_serde as _;
 
@@ -156,10 +157,10 @@ fn name(value: &str) -> Token {
 #[test]
 fn the_tree_matches_the_allowlist() {
     let mut counts = Counts::new();
-    for (path, source) in &guard_scan::snapshot() {
+    for (path, source) in &snapshot() {
         scan(path, source, &mut counts);
     }
-    guard_scan::verify(&counts, &KINDS);
+    allowlist::verify(&counts, &KINDS);
 }
 
 #[test]
@@ -287,7 +288,7 @@ def _impl(rctx):
 fn a_spare_or_loose_allowlist_line_fails() {
     let mut found = Counts::new();
     hit(&mut found, "cli/process/src/capture.rs", "spawn-by-name");
-    let check = |allowlist: &str| guard_scan::problems(&found, allowlist, &KINDS);
+    let check = |allowlist: &str| allowlist::check(&found, allowlist, &KINDS, allowlist::REMOVE);
     assert_eq!(
         check("cli/process/src/capture.rs spawn-by-name 1\n"),
         Vec::<String>::new(),

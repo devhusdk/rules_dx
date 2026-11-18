@@ -1,11 +1,12 @@
 //! No action leaves the sandbox, reaches the network or shares /tmp outside `tools/ci/sandbox_escape_allowlist.txt`, the allowlist holds no spare entry, and no test file calls `env::temp_dir`.
 
-mod guard_scan;
-
 use std::path::Path;
 use std::collections::{BTreeMap, BTreeSet};
 
-use guard_scan::{Counts, Token, callee_name, exprs, hit, is_starlark, parse, rust_tokens, string};
+use dx_guard::allowlist::{self, Counts, hit};
+use dx_guard::lexer::{Token, rust_tokens};
+use dx_guard::snapshot::snapshot;
+use dx_guard::starlark::{callee_name, exprs, is_starlark, parse, string};
 use starlark_syntax::syntax::ast::{ArgumentP, AssignTargetP, AstExpr, AstStmt, ExprP, StmtP};
 use yaml_serde as _;
 
@@ -479,9 +480,9 @@ fn rc_files(entries: &[(&str, &str)]) -> BTreeMap<String, String> {
 
 #[test]
 fn the_tree_matches_the_allowlist() {
-    let files = guard_scan::snapshot();
+    let files = snapshot();
     assert!(files.contains_key(ROOT_RC), "no {ROOT_RC} in the snapshot");
-    guard_scan::verify(&scan_files(&files), &KINDS);
+    allowlist::verify(&scan_files(&files), &KINDS);
 }
 
 /// Test files that call `env::temp_dir`, with the call count.
@@ -495,7 +496,7 @@ fn test_temp_dirs(sources: &[(&str, &str)]) -> Vec<(String, usize)> {
 
 #[test]
 fn no_test_file_calls_env_temp_dir() {
-    let files = guard_scan::snapshot();
+    let files = snapshot();
     let sources: Vec<(&str, &str)> = files
         .iter()
         .map(|(path, source)| (path.as_str(), source.as_str()))
@@ -680,7 +681,7 @@ fn a_spare_or_loose_allowlist_line_fails() {
     let mut found = Counts::new();
     hit(&mut found, "pkg/defs.bzl", "tmp-path");
     hit(&mut found, "pkg/defs.bzl", "tmp-path");
-    let check = |allowlist: &str| guard_scan::problems(&found, allowlist, &KINDS);
+    let check = |allowlist: &str| allowlist::check(&found, allowlist, &KINDS, allowlist::REMOVE);
     assert_eq!(check("pkg/defs.bzl tmp-path 2\n"), Vec::<String>::new());
     assert_eq!(
         check(""),

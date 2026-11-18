@@ -84,7 +84,7 @@ pub fn rules_rust_override() -> String {
 }
 
 /// The patches of `//patches/llvm` that `llvm_override` names, without `.patch`.
-pub const LLVM_PATCHES: [&str; 8] = [
+pub const LLVM_PATCHES: [&str; 9] = [
     "libunwind_copy",
     "clang_cl_profile_no_mingw",
     "unwatched_overlay_inputs",
@@ -93,6 +93,7 @@ pub const LLVM_PATCHES: [&str; 8] = [
     "stage0_runtime_features",
     "macos_sdk_resolve_symlinks",
     "msvc_fuzzer",
+    "msvc_coverage",
 ];
 
 /// Pins llvm 0.8.27 with the patches of the root MODULE.bazel.

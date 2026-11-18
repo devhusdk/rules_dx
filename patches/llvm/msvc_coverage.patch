@@ -1,0 +1,96 @@
+Upstream: none (not yet sent upstream)
+diff --git a/runtimes/BUILD.bazel b/runtimes/BUILD.bazel
+--- a/runtimes/BUILD.bazel
++++ b/runtimes/BUILD.bazel
+@@ -248,6 +248,15 @@
+     flag_values = {"//config:fuzzer_selected_config": "true"},
+ )
+ 
++config_setting(
++    name = "coverage_windows_msvc_enabled",
++    constraint_values = [
++        "//constraints/windows/abi:msvc",
++        "@platforms//os:windows",
++    ],
++    values = {"collect_code_coverage": "true"},
++)
++
+ resource_directory(
+     name = "resource_directory_default",
+     srcs = select({
+@@ -280,6 +289,11 @@
+         },
+         "//conditions:default": {},
+     }) | select({
++        ":coverage_windows_msvc_enabled": {
++            "//runtimes/compiler-rt:clang_rt.profile.static": "clang_rt.profile",
++        },
++        "//conditions:default": {},
++    }) | select({
+         ":_ubsan_runtime_disabled": {},
+         "//conditions:default": {
+             "//runtimes/compiler-rt:clang_rt.ubsan_standalone.static": "libclang_rt.ubsan_standalone",
+diff --git a/toolchain/features/msvc/BUILD.bazel b/toolchain/features/msvc/BUILD.bazel
+--- a/toolchain/features/msvc/BUILD.bazel
++++ b/toolchain/features/msvc/BUILD.bazel
+@@ -23,13 +23,11 @@
+ _UNSUPPORTED_FEATURES = [
+     "asan",
+     "cfi",
+-    "coverage",
+     "dfsan",
+     "fission",
+     "fdo_optimize",
+     "fully_static_link",
+     "gcc_coverage_map_format",
+-    "llvm_coverage_map_format",
+     "lsan",
+     "msan",
+     "nsan",
+@@ -48,11 +46,9 @@
+ ]
+ 
+ _UNSUPPORTED_LEGACY_FEATURES = {
+-    "coverage": "@rules_cc//cc/toolchains/features/legacy:coverage",
+     "fdo_optimize": "@rules_cc//cc/toolchains/features/legacy:fdo_optimize",
+     "fully_static_link": "@rules_cc//cc/toolchains/features/legacy:fully_static_link",
+     "gcc_coverage_map_format": "@rules_cc//cc/toolchains/features/legacy:gcc_coverage_map_format",
+-    "llvm_coverage_map_format": "@rules_cc//cc/toolchains/features/legacy:llvm_coverage_map_format",
+     "per_object_debug_info": "@rules_cc//cc/toolchains/features/legacy:per_object_debug_info",
+ }
+ 
+@@ -251,6 +247,22 @@
+ )
+ 
+ cc_args(
++    name = "llvm_coverage_map_format_link_args",
++    actions = _LINK_ACTIONS,
++    args = ["-fprofile-instr-generate"],
++)
++
++cc_feature(
++    name = "llvm_coverage_map_format",
++    args = [
++        "//toolchain/args:llvm_coverage_map_format_compile_args",
++        ":llvm_coverage_map_format_link_args",
++    ],
++    overrides = "@rules_cc//cc/toolchains/features/legacy:llvm_coverage_map_format",
++    requires_any_of = ["//toolchain/features:coverage_stub"],
++)
++
++cc_args(
+     name = "pdb_args",
+     actions = _LINK_ACTIONS,
+     args = [
+@@ -265,9 +277,11 @@
+         ":dynamic_link_msvcrt",
+         ":dynamic_linking_mode",
+         ":interface_library",
++        ":llvm_coverage_map_format",
+         ":static_link_msvcrt",
+         ":static_linking_mode",
+         ":supported_configuration",
++        "//toolchain/features:coverage_stub",
+     ] + [
+         ":unsupported_" + feature
+         for feature in _UNSUPPORTED_FEATURES

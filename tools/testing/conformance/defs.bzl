@@ -102,8 +102,8 @@ subject_transition = transition(
     outputs = [str(_FLAG)],
 )
 
-# Mirrors the coverage:windows lines of .bazelrc.
-WINDOWS_COVERAGE_OFF = ["-coverage", "-gcc_coverage_map_format"]
+# Mirrors the build:windows coverage line of .bazelrc.
+WINDOWS_GCC_COVERAGE_OFF = ["-gcc_coverage_map_format"]
 
 def coverage_subject_settings(features, windows, instrumentation_filter):
     """Returns the build settings of a coverage subject.
@@ -117,7 +117,7 @@ def coverage_subject_settings(features, windows, instrumentation_filter):
       Dict of the settings the coverage transition sets.
     """
     if windows:
-        features = features + [f for f in WINDOWS_COVERAGE_OFF if f not in features]
+        features = features + [f for f in WINDOWS_GCC_COVERAGE_OFF if f not in features]
     return {
         "//command_line_option:collect_code_coverage": True,
         "//command_line_option:features": features,

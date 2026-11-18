@@ -114,7 +114,7 @@ fn a_complete_rendered_site_holds_together() {
         "{}",
         route_report(&rendered(dir))
     );
-    drop(fs::remove_dir_all(dir));
+    fs::remove_dir_all(dir).expect("remove the rendered site");
 }
 
 #[test]
@@ -137,7 +137,7 @@ fn every_page_is_found_and_parsed() {
     assert_eq!(page.highlighted, 1, "{page:?}");
     assert_eq!(page.headings, vec!["Page", "Usage"], "{page:?}");
     assert!(page.ids.contains(&"usage".to_string()), "{page:?}");
-    drop(fs::remove_dir_all(dir));
+    fs::remove_dir_all(dir).expect("remove the rendered site");
 }
 
 #[test]
@@ -147,7 +147,7 @@ fn a_missing_asset_fails() {
     fs::remove_file(dir.join("book.js")).expect("remove the navigation script");
     let report = check_rendered(&rendered(dir), &[]);
     assert!(report.contains("has no book.js"), "{report}");
-    drop(fs::remove_dir_all(dir));
+    fs::remove_dir_all(dir).expect("remove the rendered site");
 }
 
 #[test]
@@ -157,7 +157,7 @@ fn a_missing_search_index_fails() {
     fs::remove_file(dir.join("searchindex.js")).expect("remove the search index");
     let report = check_rendered(&rendered(dir), &[]);
     assert!(report.contains("has no searchindex.js"), "{report}");
-    drop(fs::remove_dir_all(dir));
+    fs::remove_dir_all(dir).expect("remove the rendered site");
 }
 
 #[test]
@@ -171,7 +171,7 @@ fn a_dangling_link_fails_with_its_target() {
     );
     let report = check_rendered(&rendered(dir), &[]);
     assert!(report.contains("links to missing 'gone.html'"), "{report}");
-    drop(fs::remove_dir_all(dir));
+    fs::remove_dir_all(dir).expect("remove the rendered site");
 }
 
 #[test]
@@ -191,7 +191,7 @@ fn a_dangling_anchor_fails_with_its_target() {
         report.contains("links to missing anchor 'nested/deep.html#nope'"),
         "{report}"
     );
-    drop(fs::remove_dir_all(dir));
+    fs::remove_dir_all(dir).expect("remove the rendered site");
 }
 
 fn with_link(link: &str) -> String {
@@ -203,7 +203,7 @@ fn report_for(name: &str, page: &str) -> String {
     let dir = guard.path();
     write(dir, "page.html", page);
     let report = check_rendered(&rendered(dir), &[]);
-    drop(fs::remove_dir_all(dir));
+    fs::remove_dir_all(dir).expect("remove the rendered site");
     report
 }
 
@@ -276,7 +276,7 @@ fn a_missing_reference_asset_fails() {
         report.contains("references missing asset '../css/absent.css'"),
         "{report}"
     );
-    drop(fs::remove_dir_all(dir));
+    fs::remove_dir_all(dir).expect("remove the rendered site");
 }
 
 #[test]
@@ -295,7 +295,7 @@ fn a_page_without_a_title_or_heading_fails() {
         report.contains("page.html has no viewport meta tag"),
         "{report}"
     );
-    drop(fs::remove_dir_all(dir));
+    fs::remove_dir_all(dir).expect("remove the rendered site");
 }
 
 #[test]
@@ -304,7 +304,7 @@ fn an_empty_site_fails() {
     let dir = guard.path();
     let report = check_rendered(&rendered(dir), &[]);
     assert_eq!(report, "rendered site has no HTML page");
-    drop(fs::remove_dir_all(dir));
+    fs::remove_dir_all(dir).expect("remove the rendered site");
 }
 
 #[test]
@@ -314,7 +314,7 @@ fn a_site_without_an_index_page_fails() {
     fs::remove_file(dir.join("index.html")).expect("remove the index page");
     let report = check_rendered(&rendered(dir), &[]);
     assert!(report.contains("has no index.html at its root"), "{report}");
-    drop(fs::remove_dir_all(dir));
+    fs::remove_dir_all(dir).expect("remove the rendered site");
 }
 
 #[test]
@@ -326,7 +326,7 @@ fn a_forbidden_needle_is_reported_with_its_page() {
         report.contains("publishes \"sidebar-toggle-anchor\""),
         "{report}"
     );
-    drop(fs::remove_dir_all(dir));
+    fs::remove_dir_all(dir).expect("remove the rendered site");
 }
 
 #[test]
@@ -350,7 +350,7 @@ fn a_landing_page_without_navigation_widgets_fails() {
         report.contains("index.html has no sidebar toggle"),
         "{report}"
     );
-    drop(fs::remove_dir_all(dir));
+    fs::remove_dir_all(dir).expect("remove the rendered site");
 }
 
 #[test]
@@ -374,7 +374,7 @@ fn a_landing_page_without_a_code_block_fails() {
         report.contains("index.html renders no highlighted code block"),
         "{report}"
     );
-    drop(fs::remove_dir_all(dir));
+    fs::remove_dir_all(dir).expect("remove the rendered site");
 }
 
 #[test]
@@ -384,7 +384,7 @@ fn an_empty_search_object_fails() {
     write(dir, "searchindex.js", "var search = 1;\n");
     let report = check_rendered(&rendered(dir), &[]);
     assert_eq!(report, "the search index holds no search object");
-    drop(fs::remove_dir_all(dir));
+    fs::remove_dir_all(dir).expect("remove the rendered site");
 }
 
 #[test]
@@ -440,7 +440,7 @@ fn a_hashed_search_index_is_found() {
     )
     .expect("hash the search index");
     assert_eq!(check_rendered(&rendered(dir), &[]), "");
-    drop(fs::remove_dir_all(dir));
+    fs::remove_dir_all(dir).expect("remove the rendered site");
 }
 
 #[test]
@@ -450,5 +450,5 @@ fn several_search_indexes_fail() {
     write(dir, "searchindex-c0036e0f.js", "window.search = {};\n");
     let report = check_rendered(&rendered(dir), &[]);
     assert_eq!(report, "rendered site has several searchindex.js files");
-    drop(fs::remove_dir_all(dir));
+    fs::remove_dir_all(dir).expect("remove the rendered site");
 }

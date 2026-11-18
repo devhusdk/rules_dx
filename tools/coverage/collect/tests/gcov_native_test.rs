@@ -93,7 +93,7 @@ fn setup(name: &str) -> Run {
 
 fn collect(run: &Run) -> Output {
     let execroot = run.root.parent().unwrap().join("execroot");
-    drop(fs::create_dir_all(&execroot));
+    fs::create_dir_all(&execroot).expect("create execroot");
     drop(std::os::unix::fs::symlink(
         std::env::var("TEST_SRCDIR").unwrap(),
         execroot.join("external"),

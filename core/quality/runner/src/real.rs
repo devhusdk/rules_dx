@@ -753,7 +753,7 @@ impl SocketDir {
 
 impl Drop for SocketDir {
     fn drop(&mut self) {
-        drop(std::fs::remove_dir_all(&self.0));
+        dx_atomic_fs::discard_dir(&self.0);
     }
 }
 

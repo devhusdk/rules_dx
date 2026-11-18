@@ -211,8 +211,10 @@ pub fn run(options: &Options) -> String {
         return error;
     }
     let out = absolute(&options.out);
-    if let Some(parent) = out.parent() {
-        drop(fs::create_dir_all(parent));
+    if let Some(parent) = out.parent()
+        && let Err(error) = fs::create_dir_all(parent)
+    {
+        return format!("docs_site: cannot create {}: {error}", parent.display());
     }
     let build = Command::new(&options.mdbook)
         .arg("build")

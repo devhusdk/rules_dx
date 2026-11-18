@@ -354,7 +354,7 @@ mod tests {
     #[test]
     fn listed_reads_json_pins_of_each_lang_json() {
         let root = std::env::temp_dir().join(format!("dx-pins-listed-{}", std::process::id()));
-        drop(std::fs::remove_dir_all(&root));
+        dx_atomic_fs::discard_dir(&root);
         std::fs::create_dir_all(root.join("b")).unwrap();
         std::fs::create_dir_all(root.join("a")).unwrap();
         std::fs::write(

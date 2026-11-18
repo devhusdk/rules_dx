@@ -143,7 +143,7 @@ fn expect_like_fresh(
     version: &str,
 ) -> Result<(), String> {
     let fresh = work.join(format!("fresh-{version}"));
-    drop(std::fs::remove_dir_all(&fresh));
+    dx_atomic_fs::discard_dir(&fresh);
     std::fs::create_dir_all(&fresh).map_err(|error| error.to_string())?;
     std::fs::copy(root.join(".bazelversion"), fresh.join(".bazelversion"))
         .map_err(|error| error.to_string())?;
@@ -183,7 +183,7 @@ struct Scratch(PathBuf);
 
 impl Drop for Scratch {
     fn drop(&mut self) {
-        drop(std::fs::remove_dir_all(&self.0));
+        dx_atomic_fs::discard_dir(&self.0);
     }
 }
 
@@ -231,7 +231,8 @@ pub fn e2e(args: &[String]) -> Result<(), String> {
         if let Some((f, t)) = resolve(&from, &to, &versions) {
             (from, to) = (f, t);
         } else {
-            let message = "upgrade-e2e: not enough rules_dx versions on the BCR to resolve the missing input";
+            let message =
+                "upgrade-e2e: not enough rules_dx versions on the BCR to resolve the missing input";
             if matches!(
                 std::env::var("GITHUB_EVENT_NAME").as_deref(),
                 Ok("workflow_dispatch" | "release")

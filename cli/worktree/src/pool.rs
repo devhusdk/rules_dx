@@ -525,7 +525,7 @@ impl Pool {
     }
 
     pub(crate) fn remove(&self, slot: u32) {
-        drop(std::fs::remove_file(self.record_path(slot)));
+        dx_atomic_fs::discard_file(self.record_path(slot));
     }
 
     /// The slot a path is, or is inside.
@@ -673,7 +673,7 @@ fn claim_marker(marker: &Path, bytes: &[u8]) -> std::io::Result<bool> {
     let staged = marker.with_extension(format!("claim-{}-{claim}", std::process::id()));
     std::fs::write(&staged, bytes)?;
     let linked = std::fs::hard_link(&staged, marker);
-    drop(std::fs::remove_file(&staged));
+    dx_atomic_fs::discard_file(&staged);
     match linked {
         Ok(()) => Ok(true),
         Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => Ok(false),

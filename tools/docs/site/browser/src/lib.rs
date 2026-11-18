@@ -57,7 +57,7 @@ impl Browser {
     ) -> Result<Self, Launch> {
         let port = control_port();
         let home = profile.join(format!("attempt-{attempt}"));
-        drop(std::fs::remove_dir_all(&home));
+        dx_atomic_fs::discard_dir(&home);
         std::fs::create_dir_all(&home).map_err(|error| {
             Launch::Fatal(format!(
                 "browser: cannot create the profile '{}': {error}",
@@ -290,7 +290,7 @@ impl Drop for Browser {
     fn drop(&mut self) {
         drop(self.child.kill());
         drop(self.child.wait());
-        drop(std::fs::remove_dir_all(&self.profile));
+        dx_atomic_fs::discard_dir(&self.profile);
     }
 }
 

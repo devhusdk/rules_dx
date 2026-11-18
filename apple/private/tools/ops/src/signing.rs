@@ -376,7 +376,7 @@ pub fn read_identity(
                 ],
             )
             .success();
-    drop(std::fs::remove_file(&pem));
+    dx_atomic_fs::discard_file(&pem);
     if !exported || std::fs::metadata(&p12).map_or(true, |meta| meta.len() == 0) {
         return Err(unreadable());
     }

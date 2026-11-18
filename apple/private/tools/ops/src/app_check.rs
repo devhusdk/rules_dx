@@ -401,13 +401,13 @@ fn verify(tools: &Tools<'_>, args: &[String], scratch: &Path) -> Result<(), Fail
 pub fn run(tools: &Tools<'_>, args: &[String]) -> Outcome {
     let identity = args.first().map_or("", String::as_str);
     let scratch = PathBuf::from(format!("{identity}.scratch"));
-    drop(std::fs::remove_dir_all(&scratch));
+    dx_atomic_fs::discard_dir(&scratch);
     let result = verify(tools, args, &scratch);
-    drop(std::fs::remove_dir_all(&scratch));
-    if result.is_err() {
-        if let Some(out) = args.get(1) {
-            drop(std::fs::remove_file(out));
-        }
+    dx_atomic_fs::discard_dir(&scratch);
+    if result.is_err()
+        && let Some(out) = args.get(1)
+    {
+        dx_atomic_fs::discard_file(out);
     }
     result.map(|()| 0)
 }

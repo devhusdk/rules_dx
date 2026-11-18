@@ -214,6 +214,14 @@ mod tests {
     use super::*;
     use std::fmt::Write as _;
 
+    fn discard(path: &std::path::Path) {
+        if let Err(error) = std::fs::remove_file(path)
+            && error.kind() != std::io::ErrorKind::NotFound
+        {
+            panic!("cannot remove {}: {error}", path.display());
+        }
+    }
+
     struct BrokenWriter;
 
     impl std::io::Write for BrokenWriter {
@@ -551,7 +559,7 @@ mod tests {
         }
         let sentinel =
             std::env::temp_dir().join(format!("dx-output-no-color-{}", std::process::id()));
-        drop(std::fs::remove_file(&sentinel));
+        discard(&sentinel);
         let before = std::env::var_os("NO_COLOR");
         let spawn = |mode: &str| {
             std::process::Command::new(std::env::current_exe().expect("test binary"))
@@ -576,7 +584,7 @@ mod tests {
             before,
             "child NO_COLOR mutation dies with the child"
         );
-        drop(std::fs::remove_file(&sentinel));
+        discard(&sentinel);
     }
 
     #[test]

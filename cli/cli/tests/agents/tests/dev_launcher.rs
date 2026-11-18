@@ -416,7 +416,7 @@ mod sh {
         let stub = base.join("stub/bazel");
         dx_testing::executable_script(
             &stub,
-            "#!/bin/sh\n[ -z \"${STUB_ARGS:-}\" ] || { printf '%s\\t' \"$@\"; echo; } >> \"$STUB_ARGS\"\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      if [ -n \"${STUB_BUILD_HOLD:-}\" ]; then\n        : > \"$STUB_BUILD_HOLD.started\"\n        tries=0\n        while [ ! -e \"$STUB_BUILD_HOLD\" ]; do\n          tries=$((tries + 1))\n          if [ \"$tries\" -gt 600 ]; then echo 'stub bazel: hold timeout' >&2; exit 3; fi\n          sleep 0.05\n        done\n      fi\n      if [ -n \"${STUB_BARRIER:-}\" ]; then\n        : > \"$STUB_BARRIER/$$\"\n        tries=0\n        while [ \"$(ls \"$STUB_BARRIER\" | wc -l)\" -lt \"$STUB_BARRIER_N\" ]; do\n          tries=$((tries + 1))\n          if [ \"$tries\" -gt 600 ]; then echo 'stub bazel: barrier timeout' >&2; exit 3; fi\n          sleep 0.05\n        done\n      else\n        sleep 0.1\n      fi\n      mkdir -p bazel-bin/cli/cli\n      exe=\n      case \"$(uname -s)\" in MINGW*|MSYS*|CYGWIN*) exe=.exe;; esac\n      if [ -f \"$STUB_KEEP\" ] && [ -x \"bazel-bin/cli/cli/dx$exe\" ]; then exit 0; fi\n      src=\"$STUB_PAYLOAD\"\n      [ -f payload ] && src=payload\n      cp \"$src\" \"bazel-bin/cli/cli/dx.$$\"\n      chmod +x \"bazel-bin/cli/cli/dx.$$\"\n      mv \"bazel-bin/cli/cli/dx.$$\" \"bazel-bin/cli/cli/dx$exe\"\n      exit 0\n      ;;\n    cquery)\n      [ ! -f \"$STUB_CQUERY_FAIL\" ] || { echo 'Server shut down explicitly' >&2; exit 37; }\n      case \"$*\" in *'deps(//:dx)'*) echo '\"//:dx\"';; esac\n      exit 0\n      ;;\n    query)\n      [ ! -f \"$STUB_QUERY_FAIL\" ] || { echo 'Server shut down explicitly' >&2; exit 37; }\n      for q in \"$@\"; do\n        case \"$q\" in --query_file=*) while IFS= read -r l; do [ \"$l\" != '\"//:dx\"' ] || echo //:BUILD.bazel; done < \"${q#--query_file=}\";; esac\n      done\n      echo //cli/cli:BUILD.bazel\n      sleep 0.1\n      echo @rules_rust//rust:defs.bzl\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
+            "#!/bin/sh\n[ -z \"${STUB_ARGS:-}\" ] || { printf '%s\\t' \"$@\"; echo; } >> \"$STUB_ARGS\"\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      if [ -n \"${STUB_BUILD_HOLD:-}\" ]; then\n        : > \"$STUB_BUILD_HOLD.started\"\n        tries=0\n        while [ ! -e \"$STUB_BUILD_HOLD\" ]; do\n          tries=$((tries + 1))\n          if [ \"$tries\" -gt 600 ]; then echo 'stub bazel: hold timeout' >&2; exit 3; fi\n          sleep 0.05\n        done\n      fi\n      if [ -n \"${STUB_BARRIER:-}\" ]; then\n        : > \"$STUB_BARRIER/$$\"\n        tries=0\n        while [ \"$(ls \"$STUB_BARRIER\" | wc -l)\" -lt \"$STUB_BARRIER_N\" ]; do\n          tries=$((tries + 1))\n          if [ \"$tries\" -gt 600 ]; then echo 'stub bazel: barrier timeout' >&2; exit 3; fi\n          sleep 0.05\n        done\n      else\n        sleep 0.1\n      fi\n      mkdir -p bazel-bin/cli/cli\n      exe=\n      case \"$(uname -s)\" in MINGW*|MSYS*|CYGWIN*) exe=.exe;; esac\n      if [ -f \"$STUB_KEEP\" ] && [ -x \"bazel-bin/cli/cli/dx$exe\" ]; then exit 0; fi\n      src=\"$STUB_PAYLOAD\"\n      [ -f payload ] && src=payload\n      cp \"$src\" \"bazel-bin/cli/cli/dx.$$\"\n      chmod +x \"bazel-bin/cli/cli/dx.$$\"\n      mv \"bazel-bin/cli/cli/dx.$$\" \"bazel-bin/cli/cli/dx$exe\"\n      exit 0\n      ;;\n    cquery)\n      [ ! -f \"$STUB_CQUERY_FAIL\" ] || { echo 'Server shut down explicitly' >&2; exit 37; }\n      case \"$*\" in *'deps(//cli/cli:dx)'*) echo '\"//cli/cli:dx\"';; esac\n      exit 0\n      ;;\n    query)\n      [ ! -f \"$STUB_QUERY_FAIL\" ] || { echo 'Server shut down explicitly' >&2; exit 37; }\n      for q in \"$@\"; do\n        case \"$q\" in --query_file=*) while IFS= read -r l; do [ \"$l\" != '\"//cli/cli:dx\"' ] || echo //:BUILD.bazel; done < \"${q#--query_file=}\";; esac\n      done\n      echo //cli/cli:BUILD.bazel\n      sleep 0.1\n      echo @rules_rust//rust:defs.bzl\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
         );
         SourceRepo {
             base,
@@ -619,9 +619,9 @@ mod sh {
         repo.touch_build_file();
         let (code, out, err) = repo.run();
         assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
-        assert!(err.contains("dx: building //:dx\n"), "{err}");
+        assert!(err.contains("dx: building //cli/cli:dx\n"), "{err}");
         assert!(
-            err.contains("dx: //:dx does not build; running the previous dx\n"),
+            err.contains("dx: //cli/cli:dx does not build; running the previous dx\n"),
             "{err}"
         );
         assert!(!err.contains("bazel run @rules_dx"), "{err}");
@@ -661,7 +661,9 @@ mod sh {
             let (exit, out, err) = repo.run();
             assert_eq!((exit, out.as_str()), (Some(0), "ran status\n"), "{err}");
             assert!(
-                err.contains(&format!("{CRASH_NOTICE} {code}); trying //:dx again\n")),
+                err.contains(&format!(
+                    "{CRASH_NOTICE} {code}); trying //cli/cli:dx again\n"
+                )),
                 "{err}"
             );
             assert_eq!(repo.builds(), 2);
@@ -678,7 +680,10 @@ mod sh {
         repo.crash("build", 37, 10);
         let (exit, out, err) = repo.run();
         assert_eq!((exit, out.as_str()), (Some(1), ""), "{err}");
-        assert!(err.contains("dx: bazel build //:dx failed\n"), "{err}");
+        assert!(
+            err.contains("dx: bazel build //cli/cli:dx failed\n"),
+            "{err}"
+        );
         assert_eq!(repo.builds(), 2);
 
         let repo = source_repo("dx-launcher-crash-twice-copy-");
@@ -688,7 +693,7 @@ mod sh {
         let (exit, out, err) = repo.run();
         assert_eq!((exit, out.as_str()), (Some(0), "ran status\n"), "{err}");
         assert!(
-            err.contains("dx: //:dx does not build; running the previous dx\n"),
+            err.contains("dx: //cli/cli:dx does not build; running the previous dx\n"),
             "{err}"
         );
         assert_eq!(repo.builds(), 3, "one build before, two after");
@@ -775,7 +780,7 @@ mod sh {
         repo.break_build();
         let (code, _, err) = repo.run_in(&repo.root(), &["update", "--apply", "dx_crates"]);
         assert_eq!(code, Some(1), "{err}");
-        assert!(err.contains("dx: bazel build //:dx failed"), "{err}");
+        assert!(err.contains("dx: bazel build //cli/cli:dx failed"), "{err}");
         assert_eq!(repo.builds(), 2);
         assert_eq!(repo.state_files(), vec!["CACHEDIR.TAG"]);
     }
@@ -796,7 +801,7 @@ mod sh {
         let (code, out, err) = repo.run();
         assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
         assert!(
-            err.contains("dx: //:dx does not build; running the previous dx\n"),
+            err.contains("dx: //cli/cli:dx does not build; running the previous dx\n"),
             "{err}"
         );
         assert_eq!(repo.builds(), 2);
@@ -991,8 +996,11 @@ mod sh {
         repo.break_build();
         let (code, out, err) = repo.run();
         assert_eq!((code, out.as_str()), (Some(1), ""), "{err}");
-        assert!(err.contains("dx: building //:dx\n"), "{err}");
-        assert!(err.contains("dx: bazel build //:dx failed\n"), "{err}");
+        assert!(err.contains("dx: building //cli/cli:dx\n"), "{err}");
+        assert!(
+            err.contains("dx: bazel build //cli/cli:dx failed\n"),
+            "{err}"
+        );
         assert!(!err.contains("bazel run @rules_dx"), "{err}");
         assert!(!err.contains("previous dx"), "{err}");
         assert!(!err.contains("crashed"), "{err}");
@@ -1088,7 +1096,7 @@ mod sh {
             let out = spawn(&mut cmd).wait_with_output().expect("launcher runs");
             let stderr = String::from_utf8_lossy(&out.stderr);
             assert_eq!(out.status.code(), Some(0), "{name}: {stderr}");
-            assert_eq!(stderr, "dx: building //:dx\n", "{name}");
+            assert_eq!(stderr, "dx: building //cli/cli:dx\n", "{name}");
             let mut lookup: std::collections::HashMap<String, String> = vars.into_iter().collect();
             lookup.insert("HOME".to_owned(), home.to_string_lossy().into_owned());
             let policy = RcPolicy::from_env(&|key| lookup.get(key).cloned(), &root, &|path| {
@@ -1116,7 +1124,7 @@ mod sh {
                     "--progress_report_interval=30",
                     "--show_result=0",
                     "--ui_event_filters=-info",
-                    "//:dx",
+                    "//cli/cli:dx",
                 ]
                 .map(str::to_owned),
             );
@@ -1210,7 +1218,7 @@ mod sh {
             "{err}"
         );
         assert!(err.contains("running the fresh dx anyway"), "{err}");
-        assert!(!err.contains("bazel build //:dx failed"), "{err}");
+        assert!(!err.contains("bazel build //cli/cli:dx failed"), "{err}");
         assert_eq!(repo.builds(), 1, "only the slot dx is built");
         assert!(!state(&repo.root()).exists());
         assert!(!state(&slot).join("built").exists(), "the slot stays stale");
@@ -1320,7 +1328,7 @@ mod sh {
         assert_eq!(out.status.signal(), Some(signo), "{err}");
         assert!(out.stdout.is_empty(), "{:?}", out.stdout);
         assert!(!err.contains("running the previous dx"), "{err}");
-        assert!(!err.contains("bazel build //:dx failed"), "{err}");
+        assert!(!err.contains("bazel build //cli/cli:dx failed"), "{err}");
         let files = repo.state_files();
         assert!(
             files.iter().all(|f| !f
@@ -1448,7 +1456,7 @@ mod sh {
         assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
         assert!(
             err.contains(
-                "dx: bazel query for the inputs of //:dx failed; running the fresh dx anyway\n"
+                "dx: bazel query for the inputs of //cli/cli:dx failed; running the fresh dx anyway\n"
             ),
             "{err}"
         );
@@ -1496,12 +1504,12 @@ mod sh {
             "{err}"
         );
         assert!(
-            err.contains(&format!("{CRASH_NOTICE} 37); trying //:dx again\n")),
+            err.contains(&format!("{CRASH_NOTICE} 37); trying //cli/cli:dx again\n")),
             "{err}"
         );
         assert!(
             err.contains(
-                "dx: bazel query for the inputs of //:dx failed; running the fresh dx anyway\n"
+                "dx: bazel query for the inputs of //cli/cli:dx failed; running the fresh dx anyway\n"
             ),
             "{err}"
         );
@@ -1751,7 +1759,7 @@ mod sh {
         repo.fake("curl", "exit 0");
         let (code, _, err) = repo.run_in(&repo.root(), &["status"]);
         assert_eq!(code, Some(1), "{err}");
-        assert!(err.contains("bazel build //:dx failed"), "{err}");
+        assert!(err.contains("bazel build //cli/cli:dx failed"), "{err}");
         assert!(!err.contains("cannot reach"), "{err}");
     }
 
@@ -2611,7 +2619,7 @@ mod cmd {
         let root = repo.root();
         let (code, out) = repo.run(&[]);
         assert_eq!(code, Some(0), "{out}");
-        assert!(out.contains("dx: building //:dx"), "{out}");
+        assert!(out.contains("dx: building //cli/cli:dx"), "{out}");
         assert!(state(&root).join("dx.exe").exists());
         std::fs::write(
             repo.base.join("stub/bazel.cmd"),
@@ -2628,9 +2636,9 @@ mod cmd {
         drop(preset);
         let (code, out) = repo.run(&[]);
         assert_eq!(code, Some(0), "{out}");
-        assert!(out.contains("dx: building //:dx"), "{out}");
+        assert!(out.contains("dx: building //cli/cli:dx"), "{out}");
         assert!(
-            out.contains("dx: //:dx does not build; running the previous dx"),
+            out.contains("dx: //cli/cli:dx does not build; running the previous dx"),
             "{out}"
         );
         assert!(!out.contains("bazel run @rules_dx"), "{out}");
@@ -2664,7 +2672,7 @@ mod cmd {
         let (code, out) = repo.run(&[]);
         assert_eq!(code, Some(0), "{out}");
         assert!(
-            out.contains("dx: the Bazel server crashed (exit 37); trying //:dx again"),
+            out.contains("dx: the Bazel server crashed (exit 37); trying //cli/cli:dx again"),
             "{out}"
         );
         assert_eq!(repo.builds(), 2);
@@ -2680,7 +2688,7 @@ mod cmd {
         crash_stub(&repo, 33, 10);
         let (code, out) = repo.run(&[]);
         assert_eq!(code, Some(1), "{out}");
-        assert!(out.contains("dx: bazel build //:dx failed"), "{out}");
+        assert!(out.contains("dx: bazel build //cli/cli:dx failed"), "{out}");
         assert_eq!(repo.builds(), 2);
     }
 
@@ -2728,7 +2736,7 @@ mod cmd {
         let (code, out) = repo.run(&[]);
         assert_eq!(code, Some(0), "{out}");
         assert!(
-            out.contains("dx: //:dx does not build; running the previous dx"),
+            out.contains("dx: //cli/cli:dx does not build; running the previous dx"),
             "{out}"
         );
         assert_eq!(repo.builds(), 2);
@@ -2760,7 +2768,7 @@ mod cmd {
         assert_eq!(code, Some(0), "{out}");
         assert!(
             out.contains(
-                "dx: bazel query for the inputs of //:dx failed; running the fresh dx anyway"
+                "dx: bazel query for the inputs of //cli/cli:dx failed; running the fresh dx anyway"
             ),
             "{out}"
         );

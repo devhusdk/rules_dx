@@ -94,6 +94,8 @@ def _config_env_test_impl(ctx):
             {"DX_DEPLOY_CONFIG": _RELEASE_DEMO_CONFIG},
             target[RunEnvironmentInfo].environment,
         )
+    exe = target[DefaultInfo].files_to_run.executable
+    asserts.equals(env, "deploy_tool", exe.basename.removesuffix(".exe"), "a deployment runs dx under the deploy_tool name")
     runfiles = [f.short_path for f in target[DefaultInfo].default_runfiles.files.to_list()]
     asserts.true(
         env,

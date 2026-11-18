@@ -108,6 +108,8 @@ def _checks():
         expect_contains("a windows rule helper keeps .exe", pinned_build, 'out = "windows_x86_64/codegen_shard_writer.exe",'),
         expect_contains("the coverage collector is the downloaded dx", pinned_build, 'out = "linux_x86_64/collect_native",'),
         expect_contains("the lsp driver is the downloaded dx", pinned_build, 'out = "linux_x86_64/lsp_check",'),
+        expect_contains("the deploy tool is the downloaded dx", pinned_build, 'out = "linux_x86_64/deploy_tool",'),
+        expect_contains("an unpinned hub aliases the source deploy tool", unpinned_build, 'actual = "@rules_dx//deploy/private:deploy_tool",'),
         expect_contains("an unpinned hub aliases the source shard writers", unpinned_build, 'actual = "@rules_dx//cli/codegen_shard:codegen_shard_writer",'),
         expect_contains("an unpinned platform builds the tool from source", pinned_build, '":linux_aarch64": "@rules_dx//core/quality/markdown:quality_markdown",'),
         expect_contains("the root hub aliases the source runner", alias_build(SOURCE_LABEL), 'name = "quality_runner",\n    actual = "@rules_dx//core/quality/runner:quality_runner",'),

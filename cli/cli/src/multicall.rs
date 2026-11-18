@@ -1,7 +1,7 @@
 //! `dx` runs a bundled tool when started under that tool's name, so the prebuilt hub can ship one
 //! binary and expose it as `quality_runner`, `quality_markdown`, `quality_notebook`, `lsp_check`,
-//! `collect_native`, `env_shard_writer` and `codegen_shard_writer`. Rule helpers that need no alias
-//! run as `dx <tool> [ARG]...`, so a host without symlinks keeps one copy of dx.
+//! `collect_native`, `env_shard_writer`, `codegen_shard_writer` and `deploy_tool`. Rule helpers
+//! that need no alias run as `dx <tool> [ARG]...`, so a host without symlinks keeps one copy of dx.
 
 use std::ffi::OsStr;
 use std::path::Path;
@@ -15,6 +15,7 @@ pub enum Tool {
     CollectNative,
     EnvShardWriter,
     CodegenShardWriter,
+    DeployTool,
     Capture,
     ReleaseTree,
     ApiSpecPreflight,
@@ -37,6 +38,7 @@ pub fn tool_for(argv0: &OsStr) -> Option<Tool> {
         "collect_native" => Some(Tool::CollectNative),
         "env_shard_writer" => Some(Tool::EnvShardWriter),
         "codegen_shard_writer" => Some(Tool::CodegenShardWriter),
+        "deploy_tool" => Some(Tool::DeployTool),
         _ => None,
     }
 }
@@ -82,6 +84,7 @@ mod tests {
             ("collect_native", Tool::CollectNative),
             ("env_shard_writer.exe", Tool::EnvShardWriter),
             ("codegen_shard_writer", Tool::CodegenShardWriter),
+            ("deploy_tool.exe", Tool::DeployTool),
         ] {
             assert_eq!(tool_for(OsStr::new(name)), Some(tool), "{name}");
         }
@@ -147,6 +150,7 @@ mod tests {
         }
         for name in [
             "quality_runner",
+            "deploy_tool",
             "capture.exe",
             "test",
             "check",

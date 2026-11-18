@@ -20,7 +20,7 @@ DxRegistryArtifactsInfo = provider(
     },
 )
 
-DEPLOY_TOOL = Label("//deploy/private:deploy_tool")
+DEPLOY_TOOL = Label("@dx_prebuilt//:deploy_tool")
 
 def package_rlocation(ctx, name):
     """Returns the runfiles rlocation for one file name in the rule's package."""

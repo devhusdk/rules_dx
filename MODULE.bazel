@@ -1245,6 +1245,7 @@ dx_pins.archive(
 )
 dx_pins.archive(
     name = "rules_powershell",
+    patches = ["//patches/rules_powershell:inline_runfiles_sh.patch"],
     pins = "//powershell:pins.json",
 )
 dx_pins.archive(

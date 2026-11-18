@@ -10,6 +10,8 @@ load(
     "real_avro_typecheck_aspect",
     "real_bicep_format_aspect",
     "real_bicep_lint_aspect",
+    "real_biome_format_aspect",
+    "real_biome_lint_aspect",
     "real_capnp_lint_aspect",
     "real_capnp_typecheck_aspect",
     "real_cc_format_aspect",
@@ -140,6 +142,7 @@ load(
     "real_typecheck_probe_aspect",
     "real_typst_format_aspect",
     "real_typst_lint_aspect",
+    "real_vale_lint_aspect",
     "real_xml_lint_aspect",
     "real_yaml_format_aspect",
     "real_yaml_lint_aspect",
@@ -206,6 +209,8 @@ _REAL_ASPECTS = [
     real_cc_lint_aspect,
     real_cc_typecheck_aspect,
     real_lint_aspect,
+    real_biome_lint_aspect,
+    real_vale_lint_aspect,
     real_nix_format_aspect,
     real_nix_lint_aspect,
     real_ocaml_format_aspect,
@@ -219,6 +224,7 @@ _REAL_ASPECTS = [
     real_sql_format_aspect,
     real_sql_lint_aspect,
     real_format_aspect,
+    real_biome_format_aspect,
     real_go_format_aspect,
     real_go_lint_aspect,
     real_go_typecheck_aspect,
@@ -322,7 +328,7 @@ def real_aspect_subject(target, name = None, **kwargs):
         **kwargs
     )
 
-_CORE_ASPECTS = [real_lint_aspect, real_format_aspect, real_typecheck_aspect]
+_CORE_ASPECTS = [real_lint_aspect, real_biome_lint_aspect, real_vale_lint_aspect, real_format_aspect, real_biome_format_aspect, real_typecheck_aspect]
 
 real_rust_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_rust_lint_aspect, real_rust_format_aspect])
 

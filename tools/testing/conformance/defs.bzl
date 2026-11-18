@@ -3,7 +3,7 @@
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("//core:rlocation.bzl", "runfiles_path")
 load("//core/modules:langs.bzl", "LANGS")
-load("//core/quality:families/core.bzl", "real_format_aspect", "real_lint_aspect")
+load("//core/quality:families/core.bzl", "real_biome_format_aspect", "real_biome_lint_aspect", "real_format_aspect", "real_lint_aspect", "real_vale_lint_aspect")
 load("//core/quality/testdata:config_subject.bzl", "config_results", "config_subject_rule")
 load("//rust:defs.bzl", "rust_test")
 load(":pending.bzl", "PENDING")
@@ -68,9 +68,9 @@ def quality_config(lang, kind):
         return config.get(kind, _QUALITY_CONFIG)
     return config
 
-_core_format_subject = config_subject_rule([real_format_aspect], [OutputGroupInfo])
+_core_format_subject = config_subject_rule([real_format_aspect, real_biome_format_aspect], [OutputGroupInfo])
 
-_core_lint_subject = config_subject_rule([real_lint_aspect], [OutputGroupInfo])
+_core_lint_subject = config_subject_rule([real_lint_aspect, real_biome_lint_aspect, real_vale_lint_aspect], [OutputGroupInfo])
 
 # Framework and MDX sources go through the JavaScript aspects; mdx links are linted by the core aspect.
 _JS_QUALITY_SUBJECTS = QUALITY_SUBJECTS["javascript"]

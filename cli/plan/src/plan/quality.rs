@@ -855,6 +855,14 @@ mod tests {
                 "rust/private/quality:rust.bzl%real_rust_lint_aspect",
             ]
         );
+        let web: BTreeSet<String> = ["real_biome_lint".to_owned()].into();
+        assert_eq!(
+            select_aspects(lint.aspects.to_vec(), Some(&web)),
+            vec![
+                "core/quality:families/core.bzl%real_lint_aspect",
+                "core/quality:families/core.bzl%real_biome_lint_aspect",
+            ]
+        );
         let unknown: BTreeSet<String> = ["real_nonexistent_lint".to_owned()].into();
         assert_eq!(
             select_aspects(lint.aspects.to_vec(), Some(&unknown)),

@@ -378,7 +378,7 @@ consumer_policy_tests(
         {
             "case": "asciidoc_vale",
             "expected_dx_results": [
-                "clean_asciidoc-real-lint.pb",
+                "clean_asciidoc-real-lint-vale.pb",
             ],
             "config": "shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_asciidoc",
@@ -386,7 +386,7 @@ consumer_policy_tests(
         {
             "case": "rst_vale",
             "expected_dx_results": [
-                "clean_rst-real-lint.pb",
+                "clean_rst-real-lint-vale.pb",
             ],
             "config": "shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_rst",
@@ -543,8 +543,8 @@ consumer_policy_tests(
         {
             "case": "json_biome",
             "expected_dx_results": [
-                "clean_json-real-format.pb",
-                "clean_json-real-lint.pb",
+                "clean_json-real-format-biome.pb",
+                "clean_json-real-lint-biome.pb",
             ],
             "config": "shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_json",

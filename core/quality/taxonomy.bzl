@@ -45,10 +45,6 @@ OTHER_FAMILIES = {
         owner = "//javascript:defs.bzl",
         classes = ["graphql"],
     ),
-    "helm": struct(
-        owner = "//helm:defs.bzl",
-        classes = ["helm"],
-    ),
     "html": struct(
         owner = "//javascript:defs.bzl",
         classes = ["html"],

@@ -1761,6 +1761,25 @@ LANGS = json.decode("""{
       "windows_arm64",
       "windows_x86_64"
     ],
+    "quality": {
+      "bzl": "kubernetes/private/quality:kubernetes.bzl",
+      "classes": [
+        "helm"
+      ],
+      "defaults": {
+        "audit": [],
+        "format": [],
+        "lint": [
+          "helm",
+          "typos"
+        ],
+        "typecheck": []
+      },
+      "file_extensions": [],
+      "file_names": [
+        "Chart.yaml"
+      ]
+    },
     "title": "Helm",
     "tools": [
       "helm",

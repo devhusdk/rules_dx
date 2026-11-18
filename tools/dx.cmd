@@ -74,17 +74,17 @@ if /i "%CI%"=="yes" set "DX_CI=1"
 if not defined DX_RC if not defined DX_CI call powershell -NoProfile -NonInteractive -Command "$w=[IO.Path]::GetFullPath($env:DX_ROOT); $seen=@{}; $global:g=$false; function U($t) { if ($t.Length -gt 1 -and ($t[0] -eq [char]34 -or $t[0] -eq [char]39) -and $t[-1] -eq $t[0]) { $t.Substring(1, $t.Length - 2) } else { $t } }; function S($f, $d) { if ($d -gt 16 -or $seen.ContainsKey($f)) { return $false }; $seen[$f]=1; try { $ls=[IO.File]::ReadAllLines($f) } catch { return $false }; foreach ($l in $ls) { $l=$l.Trim(); if ($l.StartsWith('#')) { continue }; $ws=@($l -split '\s+' | Where-Object { $_ } | ForEach-Object { U $_ }); if ($ws.Count -eq 0) { continue }; if ($ws[0] -ceq 'import' -or $ws[0] -ceq 'try-import') { $t=(U $l.Substring($ws[0].Length).Trim()).Replace(('{0}workspace{0}' -f [char]37), $w); if (-not [IO.Path]::IsPathRooted($t)) { $t=[IO.Path]::Combine($w, $t) }; if (S $t ($d + 1)) { return $true }; continue }; foreach ($t in $ws) { $t=$t.TrimStart([char]34, [char]39); if ($t.StartsWith('--disk_cache', 'Ordinal') -or $t.StartsWith('--nodisk_cache', 'Ordinal')) { return $true }; foreach ($n in @('--experimental_disk_cache_gc_max_size', '--experimental_disk_cache_gc_max_age')) { if ($t -ceq $n -or $t.StartsWith($n + '=', 'Ordinal')) { $global:g=$true } } } }; return $false }; $c=$env:XDG_CACHE_HOME; if (-not $c) { if ($env:HOME) { $c=[IO.Path]::Combine($env:HOME, '.cache') } else { $c=$env:LOCALAPPDATA } }; if (-not $c) { exit 0 }; $h=$env:HOME; if (-not $h) { $h=$env:USERPROFILE }; $r=@([IO.Path]::Combine($w, '.bazelrc')); if ($h) { $r+=[IO.Path]::Combine($h, '.bazelrc') }; if ($env:ProgramData) { $r+=[IO.Path]::Combine($env:ProgramData, 'bazel.bazelrc') }; foreach ($f in $r) { if (S $f 0) { exit 0 } }; $o=[char]34 + '--disk_cache=' + [IO.Path]::Combine($c, 'dx', 'disk-cache').Replace('/', '\') + [char]34; if (-not $global:g) { $o+=' --experimental_disk_cache_gc_max_size=20G --experimental_disk_cache_gc_max_age=14d' }; $o" > "%DX_STATE%\dc.%DX_TAG%"
 if exist "%DX_STATE%\dc.%DX_TAG%" set /p DX_DC=<"%DX_STATE%\dc.%DX_TAG%"
 del /q "%DX_STATE%\dc.%DX_TAG%" 2>nul
-echo dx: building //:dx 1>&2
+echo dx: building //cli/cli:dx 1>&2
 REM Exit 33 or 37 means the Bazel server crashed; retry once. Keep in sync with tools/dx.
 :dxbuildrun
-call bazel %DX_RC% build %DX_DC% --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx 1>&2
+call bazel %DX_RC% build %DX_DC% --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //cli/cli:dx 1>&2
 set "DX_EC=%errorlevel%"
 if not defined DX_BRETRY if "%DX_EC%"=="33" goto dxbcrash
 if not defined DX_BRETRY if "%DX_EC%"=="37" goto dxbcrash
 goto dxbdone
 :dxbcrash
 set "DX_BRETRY=1"
-echo dx: the Bazel server crashed (exit %DX_EC%); trying //:dx again 1>&2
+echo dx: the Bazel server crashed (exit %DX_EC%); trying //cli/cli:dx again 1>&2
 powershell -NoProfile -NonInteractive -Command "[Threading.Thread]::Sleep(2000)"
 goto dxbuildrun
 :dxbdone
@@ -93,23 +93,23 @@ set "DX_REPIN="
 if not "%DX_FAIL%"=="0" call :dxwantsrepin %*
 if "%DX_FAIL%"=="0" goto dxbuilt
 if not defined DX_REPIN goto dxbuilt
-echo dx: //:dx does not build; repinning the Cargo lock (CARGO_BAZEL_REPIN=1) and building it again 1>&2
+echo dx: //cli/cli:dx does not build; repinning the Cargo lock (CARGO_BAZEL_REPIN=1) and building it again 1>&2
 setlocal
 rem Keep in sync with the SetId::Cargo plan env in cli/update/src/backend.rs.
 set "CARGO_BAZEL_REPIN=1"
-call bazel %DX_RC% build %DX_DC% --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx 1>&2
+call bazel %DX_RC% build %DX_DC% --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //cli/cli:dx 1>&2
 endlocal & set "DX_FAIL=%errorlevel%"
 :dxbuilt
 if not "%DX_FAIL%"=="0" (
   popd
   if not defined DX_REPIN echo dx: if a Cargo.toml dependency changed, run tools\dx update --apply dx_crates to repin 1>&2
   if exist "%DX_STATE%\dx.exe" (
-    echo dx: //:dx does not build; running the previous dx 1>&2
+    echo dx: //cli/cli:dx does not build; running the previous dx 1>&2
     del /q "%DX_STATE%\*.%DX_TAG%" 2>nul
     set "BIN=%DX_STATE%\dx.exe"
     goto run
   )
-  echo dx: bazel build //:dx failed 1>&2
+  echo dx: bazel build //cli/cli:dx failed 1>&2
   del /q "%DX_STATE%\*.%DX_TAG%" 2>nul
   exit /b 1
 )
@@ -117,8 +117,8 @@ call powershell -NoProfile -NonInteractive -Command "%DX_SYNC%"
 if "%errorlevel%"=="0" set "DX_COPY=1"
 :dxqueryrun
 REM A plain query follows every select() branch and fetches repos only other platforms use. Keep in sync with tools/dx.
-> "%DX_STATE%\deps.%DX_TAG%" echo let s = set(//:dx
-call bazel %DX_RC% cquery --noshow_progress --ui_event_filters=-info --output=starlark "--starlark:expr=repr('//' + target.label.package + ':' + target.label.name) if target.label.repo_name == '' else ''" "deps(//:dx)" >> "%DX_STATE%\deps.%DX_TAG%"
+> "%DX_STATE%\deps.%DX_TAG%" echo let s = set(//cli/cli:dx
+call bazel %DX_RC% cquery --noshow_progress --ui_event_filters=-info --output=starlark "--starlark:expr=repr('//' + target.label.package + ':' + target.label.name) if target.label.repo_name == '' else ''" "deps(//cli/cli:dx)" >> "%DX_STATE%\deps.%DX_TAG%"
 set "DX_EC=%errorlevel%"
 if not "%DX_EC%"=="0" goto dxqchk
 >> "%DX_STATE%\deps.%DX_TAG%" echo ^) in kind^('source file', $s^) + buildfiles^($s^)
@@ -130,13 +130,13 @@ if not defined DX_QRETRY if "%DX_EC%"=="37" goto dxqcrash
 goto dxqdone
 :dxqcrash
 set "DX_QRETRY=1"
-echo dx: the Bazel server crashed (exit %DX_EC%); trying //:dx again 1>&2
+echo dx: the Bazel server crashed (exit %DX_EC%); trying //cli/cli:dx again 1>&2
 powershell -NoProfile -NonInteractive -Command "[Threading.Thread]::Sleep(2000)"
 goto dxqueryrun
 :dxqdone
 if not "%DX_EC%"=="0" (
   popd
-  echo dx: bazel query for the inputs of //:dx failed; running the fresh dx anyway 1>&2
+  echo dx: bazel query for the inputs of //cli/cli:dx failed; running the fresh dx anyway 1>&2
   del /q "%DX_STATE%\*.%DX_TAG%" 2>nul
   goto dxcopy
 )

@@ -77,12 +77,6 @@ rust_library(
         package_name = "cli/dx_update",
         normal = True,
     ),
-    # Root files read through `include_str!` by src/root_sets_tests.rs.
-    compile_data = glob(["testdata/*.log"]) + [
-        "//:MODULE.bazel",
-        "//third_party/dotnet:extension.bzl",
-        "//third_party/dotnet:paket.dependencies",
-    ],
     crate_name = "dx_update",
     crate_root = "src/lib.rs",
     deps = all_crate_deps(

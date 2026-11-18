@@ -72,10 +72,6 @@ rust_library(
         package_name = "cli/dx_plan",
         normal = True,
     ),
-    compile_data = [
-        "//docs:cli/commands/README.md",
-        "//docs:tutorial.md",
-    ],
     crate_name = "dx_plan",
     crate_root = "src/lib.rs",
     visibility = VIS_QUALITY_CLI + [

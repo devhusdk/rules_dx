@@ -343,13 +343,13 @@ sync_copy() {
 retry_crash() {
   "$@" && return 0 || ec=$?
   case $ec in 33 | 37) ;; *) return "$ec" ;; esac
-  echo "dx: the Bazel server crashed (exit $ec); trying //:dx again" >&2
+  echo "dx: the Bazel server crashed (exit $ec); trying //cli/cli:dx again" >&2
   sleep "${DX_RESTART_WAIT:-2}"
   "$@" && return 0 || return $?
 }
 build_dx() {
   # shellcheck disable=SC2086 # rc and gc are option lists that must split
-  (cd "$root" && bazel $rc build ${dc:+"$dc"} $gc --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx >&2)
+  (cd "$root" && bazel $rc build ${dc:+"$dc"} $gc --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //cli/cli:dx >&2)
 }
 # A plain query follows every select() branch and fetches repos only other platforms use, like the MinGW runtime.
 # cquery keeps to the main repo targets this host builds; the query adds their BUILD and .bzl files. Its only warning
@@ -357,8 +357,8 @@ build_dx() {
 query_inputs() {
   # shellcheck disable=SC2086,SC2016 # rc is an option list that must split; $s is a query variable, not shell
   # Each attempt truncates the files, so a retry never keeps a crashed attempt's partial output.
-  (cd "$root" && echo 'let s = set(//:dx' >"$state/deps.$$" &&
-    bazel $rc cquery --noshow_progress --ui_event_filters=-info --output=starlark "--starlark:expr=repr('//' + target.label.package + ':' + target.label.name) if target.label.repo_name == '' else ''" 'deps(//:dx)' >>"$state/deps.$$" &&
+  (cd "$root" && echo 'let s = set(//cli/cli:dx' >"$state/deps.$$" &&
+    bazel $rc cquery --noshow_progress --ui_event_filters=-info --output=starlark "--starlark:expr=repr('//' + target.label.package + ':' + target.label.name) if target.label.repo_name == '' else ''" 'deps(//cli/cli:dx)' >>"$state/deps.$$" &&
     echo ') in kind("source file", $s) + buildfiles($s)' >>"$state/deps.$$" &&
     bazel $rc query --noshow_progress --ui_event_filters=-info,-warning --query_file="${state#"$root"/}/deps.$$" >"$state/query.$$")
 }
@@ -417,16 +417,16 @@ if stale; then
     # Keep in sync with DISK_CACHE_GC_MAX_SIZE and DISK_CACHE_GC_MAX_AGE in cli/process/src/rc.rs.
     [ "${found:-}" = gc ] || gc="--experimental_disk_cache_gc_max_size=20G --experimental_disk_cache_gc_max_age=14d"
   fi
-  echo "dx: building //:dx" >&2
+  echo "dx: building //cli/cli:dx" >&2
   built=
   hint=
   if retry_crash build_dx; then
     built=1
   elif wants_cargo_repin "$@"; then
-    echo "dx: //:dx does not build; repinning the Cargo lock (CARGO_BAZEL_REPIN=1) and building it again" >&2
+    echo "dx: //cli/cli:dx does not build; repinning the Cargo lock (CARGO_BAZEL_REPIN=1) and building it again" >&2
     # Keep in sync with the SetId::Cargo plan env in cli/update/src/backend.rs.
     # shellcheck disable=SC2086 # rc and gc are option lists that must split
-    if (cd "$root" && CARGO_BAZEL_REPIN=1 bazel $rc build ${dc:+"$dc"} $gc --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx >&2); then
+    if (cd "$root" && CARGO_BAZEL_REPIN=1 bazel $rc build ${dc:+"$dc"} $gc --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //cli/cli:dx >&2); then
       built=1
     fi
   else
@@ -436,13 +436,13 @@ if stale; then
     [ -z "$hint" ] || echo "dx: if a Cargo.toml dependency changed, run tools/dx update --apply dx_crates to repin" >&2
     if [ -x "$state/dx$exe" ]; then
       rm -f "$state/built.$$"
-      echo "dx: //:dx does not build; running the previous dx" >&2
+      echo "dx: //cli/cli:dx does not build; running the previous dx" >&2
       exec "$state/dx$exe" "$@"
     fi
     # A proxy that blocks the module registry fails the first build; name the host, not only Bazel's fetch error.
     reachable https://bcr.bazel.build/bazel_registry.json ||
       die "cannot reach bcr.bazel.build, the Bazel module registry; allow it in the network settings"
-    die "bazel build //:dx failed"
+    die "bazel build //cli/cli:dx failed"
   fi
   sync_copy || true
   if retry_crash query_inputs; then
@@ -458,7 +458,7 @@ if stale; then
     mv "$state/built.$$" "$state/built"
   else
     # The fresh dx is already stored. Leave built alone so the next call rebuilds and queries again.
-    echo "dx: bazel query for the inputs of //:dx failed; running the fresh dx anyway" >&2
+    echo "dx: bazel query for the inputs of //cli/cli:dx failed; running the fresh dx anyway" >&2
     rm -f "$state/built.$$" "$state/inputs.$$" "$state/query.$$" "$state/deps.$$"
   fi
 fi

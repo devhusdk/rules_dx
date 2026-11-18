@@ -920,6 +920,51 @@ fn widen_impact(
     }
 }
 
+/// Widens to everything when the changed labels reach a toolchain, or a target that dx's
+/// aspects or the bazelrc flags use: their users have no rule edge in the query graph.
+fn widen_implicit_users(
+    workspace: &Path,
+    aspect_labels: &[String],
+    graph: &RuleGraph,
+    labels: &[String],
+    owners: &[String],
+    widened: &mut Vec<WidenedScope>,
+) {
+    if let Some(toolchain) = graph
+        .reached_of_kind(owners, |kind| kind == "toolchain")
+        .first()
+    {
+        push_widened(
+            widened,
+            "//...".to_owned(),
+            format!("changed files reach toolchain {toolchain}"),
+        );
+    }
+    let implicit = match dx_adopt::implicit_dependencies(workspace, aspect_labels) {
+        Ok(implicit) => implicit,
+        Err(detail) => {
+            push_widened(
+                widened,
+                "//...".to_owned(),
+                format!("cannot read load graph: {detail}"),
+            );
+            return;
+        }
+    };
+    let reached = graph.reached_rules(owners);
+    if let Some(used) = labels
+        .iter()
+        .chain(&reached)
+        .find(|label| implicit.contains(label.as_str()))
+    {
+        push_widened(
+            widened,
+            "//...".to_owned(),
+            format!("changed files reach {used}, which aspects or bazelrc flags use"),
+        );
+    }
+}
+
 /// # Errors
 ///
 /// Returns an error when the operation fails.
@@ -1203,6 +1248,7 @@ pub fn resolve_affected(
             .map(|(_, label, _)| label.clone())
             .collect();
         let owners = loaded.owners_of(&labels);
+        widen_implicit_users(workspace, aspect_labels, loaded, &labels, &owners, &mut widened);
         if owners.is_empty() {
             for (path, _, fallback) in &candidates {
                 if let Some((scope, reason)) = unowned(workspace, path, fallback) {
@@ -3058,6 +3104,89 @@ mod tests {
             selection.widened,
             widened(&[("//...", "aspect input tools/defs.bzl")])
         );
+    }
+
+    fn implicit_workspace(prefix: &str) -> tempfile::TempDir {
+        let scratch = bzl_workspace(prefix);
+        let workspace = scratch.path();
+        write(
+            workspace,
+            "core/quality/aspects.bzl",
+            "lint_aspect = aspect(attrs = {\"_runner\": attr.label(default = \"@demo//runner\")})\n",
+        )
+        .unwrap();
+        write(workspace, "runner/BUILD.bazel", "").unwrap();
+        write(workspace, "runner/main.rs", "fn main() {}\n").unwrap();
+        write(workspace, "cfg/BUILD.bazel", "").unwrap();
+        write(workspace, "cfg/typos.toml", "\n").unwrap();
+        write(workspace, ".bazelrc", "common --//cfg:workspace=//cfg:policy\n").unwrap();
+        scratch
+    }
+
+    fn implicit_graph() -> QueryResult {
+        graph(&[
+            ("//runner:runner", &["//runner:main.rs"]),
+            ("//cfg:typos", &["//cfg:typos.toml"]),
+            ("//cfg:policy", &["//cfg:typos"]),
+            ("//app:lib", &["//app:main.py"]),
+        ])
+    }
+
+    #[test]
+    fn changes_that_reach_an_aspect_attribute_default_widen() {
+        let scratch = implicit_workspace("dx-changed-implicit-aspect-");
+        let workspace = scratch.path();
+        let query = FakeQuery::new(vec![implicit_graph()]);
+        let selection = bzl_resolve(
+            workspace,
+            &[change("runner/main.rs", dx_adopt::ChangeKind::Modified)],
+            &query,
+            &["@demo//core/quality:aspects.bzl%lint_aspect"],
+        );
+        assert!(selection.targets.contains(&"//...".to_owned()));
+        assert_eq!(
+            selection.widened,
+            widened(&[(
+                "//...",
+                "changed files reach //runner:runner, which aspects or bazelrc flags use"
+            )])
+        );
+    }
+
+    #[test]
+    fn changes_that_reach_a_bazelrc_flag_value_widen() {
+        let scratch = implicit_workspace("dx-changed-implicit-flag-");
+        let workspace = scratch.path();
+        let query = FakeQuery::new(vec![implicit_graph()]);
+        let selection = bzl_resolve(
+            workspace,
+            &[change("cfg/typos.toml", dx_adopt::ChangeKind::Modified)],
+            &query,
+            &["@demo//core/quality:aspects.bzl%lint_aspect"],
+        );
+        assert!(selection.targets.contains(&"//...".to_owned()));
+        assert_eq!(
+            selection.widened,
+            widened(&[(
+                "//...",
+                "changed files reach //cfg:policy, which aspects or bazelrc flags use"
+            )])
+        );
+    }
+
+    #[test]
+    fn changes_no_aspect_or_flag_uses_keep_their_owners() {
+        let scratch = implicit_workspace("dx-changed-implicit-none-");
+        let workspace = scratch.path();
+        let query = FakeQuery::new(vec![implicit_graph()]);
+        let selection = bzl_resolve(
+            workspace,
+            &[change("app/main.py", dx_adopt::ChangeKind::Modified)],
+            &query,
+            &["@demo//core/quality:aspects.bzl%lint_aspect"],
+        );
+        assert_eq!(selection.targets, strings(&["//app:lib"]));
+        assert!(selection.widened.is_empty(), "{:?}", selection.widened);
     }
 
     #[test]

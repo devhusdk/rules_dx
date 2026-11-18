@@ -49,7 +49,9 @@ pub use licenses::{
     NeededLicense, accepted_license_ids, host_platform, known_license_ids, needed_licenses,
     render_license_accept,
 };
-pub use load_graph::{BzlImpact, bzl_impact, external_repos, module_inputs, repo_impact};
+pub use load_graph::{
+    BzlImpact, bzl_impact, external_repos, implicit_dependencies, module_inputs, repo_impact,
+};
 pub use loaded_deps::plan_loaded_deps;
 pub use lock_hubs::{
     LockHubs, PNPM_SETTINGS, RESOLVER_LOCKS, plan_lock_hubs, plan_pnpm_settings, plan_pnpm_tool,

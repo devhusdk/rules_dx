@@ -1,5 +1,26 @@
 {
   "ecosystem": "fpm",
-  "packages": [],
+  "inputs": {
+    "fpm.toml": "46fd4baf7c211e52d7258d7ca14633cc3e88b90bb68f47ad64e19f253b9d2ef3"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "e7d99209de0d1c4faebf3be64303a3adf2940c07cf86d47858c4032c5d38dfc2",
+          "strip_prefix": "test-drive-0.5.0",
+          "urls": [
+            "https://github.com/fortran-lang/test-drive/archive/v0.5.0.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "test-drive",
+      "provides": [
+        "test-drive"
+      ],
+      "version": "v0.5.0"
+    }
+  ],
   "schema": 1
 }

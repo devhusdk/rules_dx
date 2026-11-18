@@ -1,9 +1,7 @@
 program lock_main
-  use testdrive_version, only: get_testdrive_version
+  use testdrive, only: to_string
   implicit none
-  integer :: major, minor, patch
 
-  call get_testdrive_version(major, minor, patch)
-  if (major < 0) error stop 1
+  if (to_string(7) /= "7") error stop 1
   print '(a)', 'hello lock'
 end program lock_main

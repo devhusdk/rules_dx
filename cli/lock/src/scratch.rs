@@ -2,6 +2,7 @@
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::Duration;
 
 use crate::Error;
 
@@ -10,6 +11,9 @@ pub struct Scratch {
     root: tempfile::TempDir,
     set: PathBuf,
 }
+
+/// How long a resolver's package manager may run.
+pub const RESOLVER_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 
 /// The scratch directories and the variables that point a program at each.
 const DIRS: [(&str, &[&str]); 4] = [
@@ -50,6 +54,12 @@ impl Scratch {
         self.root.path().join("tmp")
     }
 
+    /// The scratch home directory.
+    #[must_use]
+    pub fn home(&self) -> PathBuf {
+        self.root.path().join("home")
+    }
+
     /// A command that runs `program` in the set directory with an empty `PATH` and no host environment.
     pub fn command(&self, program: impl AsRef<std::ffi::OsStr>) -> Command {
         let mut command = Command::new(program);
@@ -60,5 +70,26 @@ impl Scratch {
             }
         }
         command
+    }
+
+    /// Runs `command`, killing it and its descendants after `timeout`, and returns its stdout.
+    ///
+    /// # Errors
+    /// Fails when the command cannot start, times out or exits non-zero; the message carries its output.
+    pub fn run(command: &mut Command, timeout: Duration) -> Result<Vec<u8>, Error> {
+        let captured = dx_process::capture::run_captured(command, timeout)
+            .map_err(|error| Error::new(error.to_string()))?;
+        if captured.success() {
+            return Ok(captured.stdout);
+        }
+        let status = captured
+            .code
+            .map_or_else(|| "a signal".to_owned(), |code| format!("exit {code}"));
+        Err(Error::new(format!(
+            "{} failed with {status}:\n{}{}",
+            captured.command,
+            captured.stdout_text(),
+            captured.stderr_text()
+        )))
     }
 }

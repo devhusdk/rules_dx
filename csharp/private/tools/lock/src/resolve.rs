@@ -5,7 +5,9 @@ use std::collections::BTreeMap;
 use std::io::Cursor;
 
 use base64::Engine as _;
-use dx_lock::{Archive, Error, HttpFetch, Lock, Package, Resolution, Resolver, Scratch, Spec};
+use dx_lock::{
+    Archive, Error, HttpFetch, Lock, Package, RESOLVER_TIMEOUT, Resolution, Resolver, Scratch, Spec,
+};
 use serde_json::Value;
 
 /// The `NuGet` v3 service index that every Paket `source` names.
@@ -429,25 +431,18 @@ impl Paket {
             .map(|entry| entry.path().join("any").join("paket.dll"))
             .find(|path| path.is_file())
             .ok_or_else(|| failed(&"the package has no paket.dll"))?;
-        let output = scratch
-            .command(&self.dotnet)
+        let mut command = scratch.command(&self.dotnet);
+        command
             .env("DOTNET_ROLL_FORWARD", "Major")
             .env("DOTNET_NOLOGO", "1")
             .env("DOTNET_CLI_TELEMETRY_OPTOUT", "1")
             .env("DOTNET_GENERATE_ASPNET_CERTIFICATE", "false")
             .env("DOTNET_SYSTEM_GLOBALIZATION_INVARIANT", "1")
             .arg(&dll)
-            .arg("install")
-            .output()
-            .map_err(|error| failed(&error))?;
-        if output.status.success() {
-            return Ok(());
-        }
-        Err(failed(&format!(
-            "install failed:\n{}{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        )))
+            .arg("install");
+        Scratch::run(&mut command, RESOLVER_TIMEOUT)
+            .map(drop)
+            .map_err(|error| failed(&error))
     }
 }
 

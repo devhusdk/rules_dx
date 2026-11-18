@@ -21,7 +21,7 @@ use globset::{Glob, GlobSetBuilder};
 
 pub use http::{DOWNLOADER_CONFIG_ENV, HttpFetch};
 pub use model::{Archive, Lock, PLATFORMS, Package, Resolution, SCHEMA, is_sha256};
-pub use scratch::Scratch;
+pub use scratch::{RESOLVER_TIMEOUT, Scratch};
 
 /// Why a lock step failed.
 #[derive(Clone, Debug, Eq, PartialEq)]

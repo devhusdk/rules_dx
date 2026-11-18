@@ -215,9 +215,12 @@ pub struct CellRecord {
 
 impl CellRecord {
     /// Renders the record as pretty ASCII JSON.
-    #[must_use]
-    pub fn render(&self) -> String {
-        crate::render_pretty(&serde_json::to_value(self).unwrap_or_default())
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the record cannot be rendered as JSON.
+    pub fn render(&self) -> Result<String, String> {
+        crate::render_pretty(self)
     }
 }
 
@@ -399,7 +402,7 @@ pub fn root_overrides(root_module: &str) -> Vec<String> {
         if let Some(block) = open.as_mut() {
             block.push(line);
             if line.trim_end() == ")" {
-                blocks.extend(open.take().map(|block| block.join("\n") + "\n"));
+                blocks.extend(open.take().map(|block| format!("{}\n", block.join("\n"))));
             }
         } else if OVERRIDE_CALLS.iter().any(|call| line.starts_with(call)) {
             if line.trim_end().ends_with(')') {
@@ -1376,7 +1379,7 @@ pub fn parse_verify_args(args: &[String]) -> Result<VerifyArgs, String> {
 pub fn qualify_main(args: &[String], runner: &dyn Runner) -> Result<CellRecord, String> {
     let (inputs, out) = parse_qualify_args(args, std::env::consts::OS, std::env::consts::ARCH)?;
     let record = qualify(&inputs, runner);
-    std::fs::write(&out, record.render())
+    std::fs::write(&out, record.render()?)
         .map_err(|error| format!("cannot write {}: {error}", out.display()))?;
     Ok(record)
 }

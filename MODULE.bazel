@@ -79,6 +79,9 @@ single_version_override(
 # llvm-project sources: haskell's LLVM backend builds llc and opt from them, and
 # //patches/llvm/tests:libunwind_copy_test reads the patched libunwind.a
 llvm_project = use_extension("@llvm//extensions:llvm.bzl", "llvm")
+
+# The macOS to linux arm64 haskell cross cell runs llc for AArch64.
+llvm_project.configure(targets = ["AArch64"])
 use_repo(llvm_project, "llvm-project")
 
 # dev only: qualifies a real foreign CMake build; cmake_library stays quality-only

@@ -320,8 +320,8 @@ fn only_the_ecosystems_the_dependency_sets_need_are_prepared() {
     let shared = workspace_with(&["pnpm-lock.yaml", "third_party/dotnet/nuget.lock.json"]);
     assert_eq!(families_of(shared.path()), vec!["npm", "nuget"]);
     let ruby = workspace_with(&[
-        "third_party/ruby/Gemfile.lock",
-        "ruby/tests/fixtures/adopt_ruby/Gemfile.lock",
+        "third_party/ruby/ruby.lock.json",
+        "ruby/tests/fixtures/adopt_ruby/ruby.lock.json",
     ]);
     assert_eq!(families_of(ruby.path()), vec!["rubygems"]);
     let powershell = workspace_with(&["third_party/powershell/powershell.lock.json"]);

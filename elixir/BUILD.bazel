@@ -15,6 +15,7 @@ real_source_target(
         "BUILD.bazel",
         "defs.bzl",
         "extensions.bzl",
+        "repositories.bzl",
     ],
     tags = ["corpus"],
 )
@@ -23,6 +24,7 @@ exports_files([
     "README.md",
     "defs.bzl",
     "extensions.bzl",
+    "repositories.bzl",
     "lang.json",
     "pins.json",
 ])

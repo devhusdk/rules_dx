@@ -2,6 +2,7 @@
 
 use std::cell::{Cell, RefCell};
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 use dx_lock::{
     Archive, Args, Error, Fetch, Lock, Outcome, Package, Resolution, Resolver, Scratch, Spec, run,
@@ -78,12 +79,12 @@ impl Resolver for Remembers {
 /// Reads archives from the registry fixture and records every URL asked for.
 #[derive(Default)]
 struct Archives {
-    asked: RefCell<Vec<String>>,
+    asked: Mutex<Vec<String>>,
 }
 
 impl Fetch for Archives {
     fn sha256(&self, url: &str) -> Result<String, Error> {
-        self.asked.borrow_mut().push(url.to_owned());
+        self.asked.lock().expect("asked").push(url.to_owned());
         let name = url
             .strip_prefix("https://registry.example/")
             .ok_or_else(|| Error::new("not the fixture registry"))?;
@@ -96,8 +97,11 @@ impl Fetch for Archives {
 }
 
 impl Archives {
+    /// The URLs asked for, sorted: the downloads run in parallel.
     fn asked(&self) -> Vec<String> {
-        self.asked.borrow().clone()
+        let mut asked = self.asked.lock().expect("asked").clone();
+        asked.sort();
+        asked
     }
 }
 

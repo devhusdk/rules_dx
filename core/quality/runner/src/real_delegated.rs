@@ -2496,10 +2496,10 @@ fn scalac_unused_dependency_is_a_diagnostic_without_a_path() {
         r#"{"tool":"scalac","exit":0,"diagnostics":[{"file":"","line":0,"column":0,"severity":"warning","code":"scalac.unused.dep","message":"Target '//p:gone' is specified as a dependency to //p:lib but isn't used"}]}"#,
     )
     .expect("write log");
-    let map = scratch.path().join("lib.unused_deps.json");
+    let map = scratch.path().join("lib.unused_deps.jsonl");
     std::fs::write(
         &map,
-        r#"{"package":"p","target":"lib","deps":[{"label":"//p:gone","jars":["gone.jar"]}]}"#,
+        r#"{"package":"p","target":"lib","label":"//p:lib","deps":[{"label":"//p:gone","jars":["gone.jar"]}]}"#,
     )
     .expect("write map");
     let mut tool = delegated_tool(log);
@@ -2529,10 +2529,11 @@ fn scalac_missing_dependency_is_a_missing_deps_diagnostic() {
         r#"{"tool":"scalac","exit":0,"diagnostics":[{"file":"","line":0,"column":0,"severity":"warning","code":"scalac.missing.dep","message":"Target '//p:far' is used but isn't explicitly declared, please add it to the deps."}]}"#,
     )
     .expect("write log");
-    let map = scratch.path().join("lib.unused_deps.json");
+    let map = scratch.path().join("lib.unused_deps.jsonl");
     std::fs::write(
         &map,
-        r#"{"package":"p","target":"lib","deps":[],"indirect":[{"jar":"far.jar","label":"//p:far"}]}"#,
+        r#"{"package":"p","target":"lib","label":"//p:lib","deps":[]}
+{"jar":"far.jar","label":"//p:far"}"#,
     )
     .expect("write map");
     let mut tool = delegated_tool(log);

@@ -896,6 +896,38 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           bazel mod show_repo --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS --repo_env=CARGO_BAZEL_DIGEST_CHECK=1 @crates @dx_quality_crates @dx_thrift_crates >/dev/null
+      - name: Check the direct zip and tar dependents match the allowlist (#13357)
+        if: ${{ matrix.platform == 'linux_x86_64' }}
+        run: |
+          # shellcheck disable=SC2086
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          allowlist=tools/ci/archive_crates_allowlist.txt
+          crates='filter("//(zip|tar)-[0-9][^:]*:(zip|tar)-[0-9]", @crates//...) + filter("//:(zip|tar)$", @crates//:all)'
+          found="$(bazel query --noshow_progress --output=label "$@" "$crates")"
+          if [ "$(printf '%s\n' "$found" | grep -c .)" -lt 4 ]; then
+            echo "::error::The zip and tar crate query found only: ${found}"
+            exit 1
+          fi
+          rc=0
+          bazel query --keep_going --noshow_progress --output=label "$@" "filter(\"^//\", rdeps(//..., $crates, 1)) except //cli/archive/..." > "$RUNNER_TEMP/archive-dependents" || rc=$?
+          if [ "$rc" -ne 0 ] && [ "$rc" -ne 3 ]; then
+            exit "$rc"
+          fi
+          LC_ALL=C sort -u -o "$RUNNER_TEMP/archive-dependents" "$RUNNER_TEMP/archive-dependents"
+          LC_ALL=C sort -u "$allowlist" > "$RUNNER_TEMP/archive-allowlist"
+          new="$(LC_ALL=C comm -23 "$RUNNER_TEMP/archive-dependents" "$RUNNER_TEMP/archive-allowlist")"
+          stale="$(LC_ALL=C comm -13 "$RUNNER_TEMP/archive-dependents" "$RUNNER_TEMP/archive-allowlist")"
+          if [ -n "$new" ]; then
+            echo "::error::These targets depend on the zip or tar crate directly; use //cli/archive:dx_archive instead:"
+            printf '%s\n' "$new"
+          fi
+          if [ -n "$stale" ]; then
+            echo "::error::These ${allowlist} lines no longer depend on zip or tar; delete them:"
+            printf '%s\n' "$stale"
+          fi
+          if [ -n "$new" ] || [ -n "$stale" ]; then
+            exit 1
+          fi
       - name: Record the Windows rmeta diagnostics (#4850)
         if: ${{ failure() && steps.bootstrap-build.outcome == 'failure' && runner.os == 'Windows' }}
         env:

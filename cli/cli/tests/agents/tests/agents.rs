@@ -13,15 +13,6 @@ struct Out {
     stderr: String,
 }
 
-fn repo_root() -> PathBuf {
-    env_file("DX_MODULE")
-        .canonicalize()
-        .expect("MODULE.bazel resolves to the source tree")
-        .parent()
-        .expect("repo root")
-        .to_path_buf()
-}
-
 fn read(path: &Path) -> String {
     std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {}: {error}", path.display()))
 }
@@ -140,11 +131,11 @@ fn rules_dx_commits_what_dx_init_writes() {
     init(&root, &env);
     assert_eq!(
         read(&root.join(".claude/settings.json")),
-        read(&repo_root().join(".claude/settings.json"))
+        read(&env_file("DX_CLAUDE_SETTINGS"))
     );
     assert_eq!(
         block(&read(&root.join("AGENTS.md"))),
-        block(&read(&repo_root().join("AGENTS.md")))
+        block(&read(&env_file("DX_AGENTS_MD")))
     );
 }
 

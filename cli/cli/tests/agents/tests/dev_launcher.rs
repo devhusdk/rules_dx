@@ -314,26 +314,41 @@ mod sh {
     }
 
     fn backdate(path: &Path, ago: std::time::Duration) {
+        set_mtime(path, ago_from_now(ago));
+    }
+
+    fn ago_from_now(ago: std::time::Duration) -> std::time::SystemTime {
+        std::time::SystemTime::now()
+            .checked_sub(ago)
+            .expect("clock past epoch")
+    }
+
+    fn set_mtime(path: &Path, when: std::time::SystemTime) {
         let file = std::fs::File::options()
             .write(true)
             .open(path)
             .expect("open");
-        let when = std::time::SystemTime::now()
-            .checked_sub(ago)
-            .expect("clock past epoch");
         file.set_modified(when).expect("backdate");
     }
 
+    /// Gives every file under `dir` the same mtime. One instant for the whole tree matters: the
+    /// launcher compares its inputs with `-nt` against `.dx/local/launcher/built`, which lives in
+    /// the tree too, so a per-file `now - ago` would leave whichever file read_dir visits after
+    /// `built` a few microseconds newer and trigger a rebuild, depending on the directory order.
     fn backdate_tree(dir: &Path, ago: std::time::Duration) {
+        set_tree_mtime(dir, ago_from_now(ago));
+    }
+
+    fn set_tree_mtime(dir: &Path, when: std::time::SystemTime) {
         for entry in std::fs::read_dir(dir).expect("read_dir") {
             let path = entry.expect("entry").path();
             let kind = std::fs::symlink_metadata(&path)
                 .expect("metadata")
                 .file_type();
             if kind.is_dir() {
-                backdate_tree(&path, ago);
+                set_tree_mtime(&path, when);
             } else if kind.is_file() {
-                backdate(&path, ago);
+                set_mtime(&path, when);
             }
         }
     }

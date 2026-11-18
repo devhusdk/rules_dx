@@ -302,6 +302,8 @@ js_library(
 npm_link_all_packages(name = "node_modules")
 
 exports_files([
+    "AGENTS.md",
+    ".claude/settings.json",
     "CODE_OF_CONDUCT.md",
     "CONTRIBUTING.md",
     "LICENSE",

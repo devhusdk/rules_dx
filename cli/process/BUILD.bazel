@@ -44,6 +44,7 @@ rust_library(
     ) + [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/error:dx_error",
+        "//cli/os_sys:dx_os_sys",
     ],
 )
 
@@ -73,7 +74,6 @@ rust_test(
         "src/slot_pool.rs",
         "src/slot_pool_tests.rs",
         "src/stderr_tail.rs",
-        "src/terminal_tests.rs",
     ] + select({
         "@platforms//os:windows": [
             "src/lifecycle_windows.rs",
@@ -106,6 +106,7 @@ rust_test(
     ) + [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/error:dx_error",
+        "//cli/os_sys:dx_os_sys",
         "//cli/test_scratch:dx_test_scratch",
         "//tools/bazelrc:dx_preset",
         "//tools/testing:dx_testing",

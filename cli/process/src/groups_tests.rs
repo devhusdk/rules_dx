@@ -666,15 +666,6 @@ fn a_group_with_an_unreadable_leader_keeps_its_lease_and_is_logged() {
     assert!(log.contains(" keep-unknown "));
 }
 
-#[cfg(target_os = "linux")]
-#[test]
-fn stat_start_reads_the_twenty_second_field_after_the_name() {
-    let stat = b"42 (a) b) c) S 1 42 42 0 -1 4194560 1 0 0 0 0 0 0 0 20 0 1 0 98765 1 2\n";
-    assert_eq!(sys::stat_start(stat), Some(&b"98765"[..]));
-    assert_eq!(sys::stat_start(b"42 (short) S 1"), None);
-    assert_eq!(sys::stat_start(b"no name"), None);
-}
-
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 #[test]
 fn a_child_replaces_its_lease_text_before_spawn_returns() {

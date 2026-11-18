@@ -492,6 +492,7 @@ filegroup(
         "//cli/merge:module_srcs",
         "//cli/module_bazel:module_srcs",
         "//cli/ocaml_cc_driver:module_srcs",
+        "//cli/os_sys:module_srcs",
         "//cli/output:module_srcs",
         "//cli/path:module_srcs",
         "//cli/plan:module_srcs",

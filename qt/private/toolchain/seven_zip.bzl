@@ -20,7 +20,7 @@ def host_cell_of(os_name, arch):
 def seven_zip_fetch(rctx, output):
     """Downloads the pinned extractor of the repository host into output and returns its path.
 
-    Callers keep output in the repository: windows_arm64 hosts lock the extractor after it exits (#7495).
+    Callers keep output in the repository: windows_arm64 hosts lock the extractor after it exits.
     """
     extractors = seven_zip_extractors(json.decode(rctx.read(Label("//qt:pins.json"))))
     host = host_cell_of(rctx.os.name, rctx.os.arch)

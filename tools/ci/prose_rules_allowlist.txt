@@ -1,6 +1,6 @@
 .github/workflows/README.md issue-number 4
 AGENTS.md history-word 2
-MODULE.bazel issue-number 18
+MODULE.bazel issue-number 17
 cli/plan/src/args/invocation.rs link-chain 2
 core/quality/policy.bzl link-chain 1
 docs/AGENTS.md history-word 1

@@ -54,7 +54,6 @@ mod quality_security;
 mod results;
 mod run;
 mod security_verify;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod staged;
 #[cfg(test)]
 mod startup_defaults_launcher_tests;

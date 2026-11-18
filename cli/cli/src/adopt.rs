@@ -287,14 +287,7 @@ mod tests {
             }
             let mut boundaries = vec![0, baseline.len() - 1];
             if words[0] != "completion" {
-                boundaries.extend(
-                    baseline
-                        .iter()
-                        .enumerate()
-                        .filter(|(_, byte)| **byte == b'\n')
-                        .map(|(index, _)| index + 1)
-                        .filter(|offset| *offset < baseline.len()),
-                );
+                boundaries.extend(document_starts(&baseline));
             }
             boundaries.sort_unstable();
             boundaries.dedup();
@@ -306,6 +299,35 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// Offsets where the record kind changes: the JSON `event` field, or the
+    /// first word of a text line. Lines of one kind share a write path.
+    fn document_starts(output: &[u8]) -> Vec<usize> {
+        let kind = |line: &[u8]| -> String {
+            serde_json::from_slice::<serde_json::Value>(line)
+                .ok()
+                .and_then(|event| event["event"].as_str().map(str::to_owned))
+                .unwrap_or_else(|| {
+                    String::from_utf8_lossy(line)
+                        .split_whitespace()
+                        .next()
+                        .unwrap_or_default()
+                        .to_owned()
+                })
+        };
+        let mut starts = Vec::new();
+        let mut previous = None;
+        let mut offset = 0;
+        for line in output.split_inclusive(|byte| *byte == b'\n') {
+            let current = kind(line);
+            if previous.as_ref() != Some(&current) {
+                starts.push(offset);
+                previous = Some(current);
+            }
+            offset += line.len();
+        }
+        starts
     }
 
     #[test]

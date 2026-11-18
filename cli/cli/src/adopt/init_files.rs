@@ -966,7 +966,7 @@ mod tests {
             };
             let mode = std::fs::metadata(&full).expect("metadata").permissions();
             std::fs::remove_file(&full).expect("remove");
-            let drift = super::drift(root, &files);
+            let drift = super::drift(root, std::slice::from_ref(file));
             assert_eq!(
                 drift.missing.contains(&file.path),
                 file.essential,

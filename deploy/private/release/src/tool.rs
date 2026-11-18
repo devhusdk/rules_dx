@@ -710,7 +710,7 @@ mod tests {
         assert_eq!(release_tool_run(&source_argv), 0);
         assert_eq!(
             std::fs::read_to_string(&source).expect("source"),
-            crate::render_bcr_source("rules_dx", "1.2.3")
+            crate::render_bcr_source("rules_dx", "1.2.3").expect("render")
         );
     }
 }

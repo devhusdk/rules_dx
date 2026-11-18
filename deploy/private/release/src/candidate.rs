@@ -834,7 +834,7 @@ pub fn stage_local_registry(
         &dir.join("bazel_registry.json"),
         render_pretty(&serde_json::json!({
             "mirrors": [format!("{}/", file_url(&mirror))],
-        }))
+        }))?
         .as_bytes(),
     )?;
     let prefix = candidate.strip_prefix();
@@ -858,7 +858,7 @@ pub fn stage_local_registry(
             "repository": [RELEASE_REPOSITORY.replace("https://github.com/", "github:")],
             "versions": [version],
             "yanked_versions": {},
-        }))
+        }))?
         .as_bytes(),
     )?;
     write_file(

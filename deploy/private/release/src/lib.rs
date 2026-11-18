@@ -58,8 +58,16 @@ fn basename(path: &Path) -> io::Result<String> {
         })
 }
 
-pub(crate) fn render_pretty(value: &serde_json::Value) -> String {
-    dx_fingerprint::to_json_ascii_pretty(value).unwrap_or_default()
+/// Renders a value as pretty ASCII JSON with a trailing newline.
+///
+/// # Errors
+///
+/// Returns an error when the value cannot be serialized as JSON.
+pub(crate) fn render_pretty<T: serde::Serialize + ?Sized>(value: &T) -> Result<String, String> {
+    serde_json::to_value(value)
+        .map_err(dx_fingerprint::FingerprintError::from)
+        .and_then(|value| dx_fingerprint::to_json_ascii_pretty(&value))
+        .map_err(|error| format!("cannot render JSON: {error}"))
 }
 
 #[must_use]
@@ -78,23 +86,34 @@ pub fn bin_error(diagnostic: impl std::fmt::Display) -> i32 {
     1
 }
 
-#[must_use]
-pub fn render_spdx(base: &str, digest: &str, package: &str, supplier: &str) -> String {
+/// # Errors
+///
+/// Returns an error when the document cannot be rendered as JSON.
+pub fn render_spdx(
+    base: &str,
+    digest: &str,
+    package: &str,
+    supplier: &str,
+) -> Result<String, String> {
     render_spdx_with_crates(base, digest, package, supplier, &[])
 }
 
-#[must_use]
+/// # Errors
+///
+/// Returns an error when the document cannot be rendered as JSON.
 pub fn render_spdx_with_crates(
     base: &str,
     digest: &str,
     package: &str,
     supplier: &str,
     crates: &[NoticeEntry],
-) -> String {
+) -> Result<String, String> {
     render_spdx_full(base, digest, package, supplier, crates, &[])
 }
 
-#[must_use]
+/// # Errors
+///
+/// Returns an error when the document cannot be rendered as JSON.
 pub fn render_spdx_full(
     base: &str,
     digest: &str,
@@ -102,7 +121,7 @@ pub fn render_spdx_full(
     supplier: &str,
     crates: &[NoticeEntry],
     runtimes: &[runtimes::RuntimeRecord],
-) -> String {
+) -> Result<String, String> {
     let mut document = spdx::Document::new(
         &format!("{package}-{base}"),
         &format!("{RELEASE_REPOSITORY}/releases/{base}-{digest}"),
@@ -161,8 +180,7 @@ pub fn render_spdx_full(
         });
     }
     add_runtimes(&mut document, runtimes);
-    let value = serde_json::to_value(&document).unwrap_or(serde_json::Value::Null);
-    render_pretty(&value)
+    render_pretty(&document)
 }
 
 fn add_runtimes(document: &mut spdx::Document, runtimes: &[runtimes::RuntimeRecord]) {
@@ -207,8 +225,10 @@ fn add_runtimes(document: &mut spdx::Document, runtimes: &[runtimes::RuntimeReco
     }
 }
 
-#[must_use]
-pub fn render_provenance(base: &str, digest: &str, builder: &str) -> String {
+/// # Errors
+///
+/// Returns an error when the document cannot be rendered as JSON.
+pub fn render_provenance(base: &str, digest: &str, builder: &str) -> Result<String, String> {
     render_pretty(&serde_json::json!({
         "_type": "https://in-toto.io/Statement/v1",
         "predicate": {
@@ -226,8 +246,10 @@ pub fn render_provenance(base: &str, digest: &str, builder: &str) -> String {
     }))
 }
 
-#[must_use]
-pub fn render_bcr_source(module: &str, version: &str) -> String {
+/// # Errors
+///
+/// Returns an error when the document cannot be rendered as JSON.
+pub fn render_bcr_source(module: &str, version: &str) -> Result<String, String> {
     render_pretty(&serde_json::json!({
         "integrity": "<integrity-filled-at-release>",
         "strip_prefix": bcr_strip_prefix(module, version),
@@ -360,7 +382,9 @@ pub fn write_spdx_locked(
     };
     std::fs::write(
         dst,
-        render_spdx_full(&base, &digest, package, supplier, &crates, &records).as_bytes(),
+        render_spdx_full(&base, &digest, package, supplier, &crates, &records)
+            .map_err(io::Error::other)?
+            .as_bytes(),
     )?;
     Ok(())
 }
@@ -374,7 +398,8 @@ pub fn write_provenance(src: &Path, dst: &Path, builder: &str) -> io::Result<()>
     }
     let digest = dx_digest::sha256_file_hex(src)?;
     let base = basename(src)?;
-    std::fs::write(dst, render_provenance(&base, &digest, builder).as_bytes())?;
+    let text = render_provenance(&base, &digest, builder).map_err(io::Error::other)?;
+    std::fs::write(dst, text.as_bytes())?;
     Ok(())
 }
 
@@ -382,7 +407,8 @@ pub fn write_provenance(src: &Path, dst: &Path, builder: &str) -> io::Result<()>
 ///
 /// Returns an error when the operation fails.
 pub fn write_bcr_source(dst: &Path, module: &str, version: &str) -> io::Result<()> {
-    std::fs::write(dst, render_bcr_source(module, version).as_bytes())?;
+    let text = render_bcr_source(module, version).map_err(io::Error::other)?;
+    std::fs::write(dst, text.as_bytes())?;
     Ok(())
 }
 
@@ -436,11 +462,11 @@ pub fn render_bcr_source_for_digest(
     }
     bcr_candidate_version_error(version)?;
     let integrity = bcr_integrity_of_digest(digest)?;
-    Ok(render_pretty(&serde_json::json!({
+    render_pretty(&serde_json::json!({
         "integrity": integrity,
         "strip_prefix": bcr_strip_prefix(module, version),
         "url": bcr_source_url(module, version),
-    })))
+    }))
 }
 
 /// # Errors
@@ -690,31 +716,33 @@ pub fn render_signing_dry_run(
     writeln!(out, "  trust root: {SIGNING_TRUST_ROOT}").ok();
     writeln!(out, "  identity: {identity}").ok();
     writeln!(out, "  issuer: {issuer}").ok();
-    write!(out, 
-        "  cosign: {cosign_version} (pinned and sha256-checked per deploy/private/release/pins.json)\n"
-    ).ok();
-    write!(
+    writeln!(
         out,
-        "  bundle media type: {SIGNING_BUNDLE_MEDIA_TYPE} (Sigstore bundle v0.3)\n"
+        "  cosign: {cosign_version} (pinned and sha256-checked per deploy/private/release/pins.json)"
+    ).ok();
+    writeln!(
+        out,
+        "  bundle media type: {SIGNING_BUNDLE_MEDIA_TYPE} (Sigstore bundle v0.3)"
     )
     .ok();
     for asset in assets {
         let base = basename_of(asset);
         let bundle = signing_bundle_for(asset, outdir);
-        write!(out, "  asset: {base} ({asset})\n").ok();
-        write!(
+        writeln!(out, "  asset: {base} ({asset})").ok();
+        writeln!(
             out,
-            "  command: cosign sign-blob --yes --bundle {bundle} {asset}\n"
+            "  command: cosign sign-blob --yes --bundle {bundle} {asset}"
         )
         .ok();
-        write!(
+        writeln!(
             out,
-            "  command: gh attestation create {asset} --bundle {bundle}\n"
+            "  command: gh attestation create {asset} --bundle {bundle}"
         )
         .ok();
     }
-    write!(out, 
-        "  verify: cosign verify-blob --bundle <bundle> --certificate-identity {identity} --certificate-oidc-issuer {issuer} <binary>\n"
+    writeln!(
+        out,
+        "  verify: cosign verify-blob --bundle <bundle> --certificate-identity {identity} --certificate-oidc-issuer {issuer} <binary>"
     ).ok();
     out
 }
@@ -776,14 +804,14 @@ fn signing_live(
         return Err(bad.detail.clone());
     }
     let mut out = String::new();
-    write!(
+    writeln!(
         out,
-        "signing: live sign with cosign {} on {SIGNING_TRUST_ROOT}:\n",
+        "signing: live sign with cosign {} on {SIGNING_TRUST_ROOT}:",
         pin.version
     )
     .ok();
     for record in &records {
-        write!(out, "  signed: {} (verified)\n", record.detail).ok();
+        writeln!(out, "  signed: {} (verified)", record.detail).ok();
     }
     Ok(out)
 }
@@ -854,10 +882,10 @@ fn signing_sign_one(
 pub fn render_release_dry_run(tag: &str, approve: &str) -> String {
     let mut out = String::new();
     out.push_str("release: dry run (RELEASE_DRY_RUN=1); would release, publishing nothing:\n");
-    write!(out, "  tag: {tag}\n").ok();
-    write!(
+    writeln!(out, "  tag: {tag}").ok();
+    writeln!(
         out,
-        "  approve: {approve} (real release needs RELEASE_APPROVE=1 + owner approval)\n"
+        "  approve: {approve} (real release needs RELEASE_APPROVE=1 + owner approval)"
     )
     .ok();
     out.push_str("  steps:\n");
@@ -882,8 +910,9 @@ pub fn render_release_dry_run(tag: &str, approve: &str) -> String {
     out.push_str(
         "    7. bazel run //deploy/private/install:dx_verify --binary <dx> --bundle <bundle> --identity <id> --issuer <issuer> --notice <NOTICE> --notice-manifest <manifest> --notice-bundle <NOTICE.bundle> (fail-before-install)\n",
     );
-    write!(out, 
-        "  tag creation: git tag {tag} must already exist in the remote (pushed beforehand with owner approval); this program never creates or pushes tags\n"
+    writeln!(
+        out,
+        "  tag creation: git tag {tag} must already exist in the remote (pushed beforehand with owner approval); this program never creates or pushes tags"
     ).ok();
     out.push_str("  publishing: nothing (dry run never tags, releases, submits, or pushes)\n");
     out.push_str("  ceiling: this program never creates or pushes tags\n");
@@ -1145,13 +1174,13 @@ pub fn render_notice(root: &str, entries: &[(NoticeEntry, String)]) -> String {
         ))
     });
     let mut out = String::new();
-    write!(out, "NOTICE for {root}\n").ok();
+    writeln!(out, "NOTICE for {root}").ok();
     out.push_str(
         "Generated by rules_dx notice_bundle from the audited license inventory; do not edit.\n",
     );
     out.push('\n');
     for (entry, words) in &sorted {
-        write!(out, "{}\n", notice_entry_header(entry)).ok();
+        writeln!(out, "{}", notice_entry_header(entry)).ok();
         let trimmed = words.trim_end_matches('\n');
         out.push_str(trimmed);
         out.push('\n');

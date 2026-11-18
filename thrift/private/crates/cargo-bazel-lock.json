@@ -1,5 +1,5 @@
 {
-  "checksum": "f46f4a4454c3b0346f4a2c165a1e0c0dc4bcaaf6ce87c2018593450f662ee205",
+  "checksum": "61618de985e41270da7f0087a15653ec65d5fbf1b949c7bbcc7b45ee386e56e9",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -50,7 +50,7 @@
       ],
       "version": "1.5.1"
     },
-    "bumpalo 3.20.3": {
+    "bumpalo 3.20.4": {
       "common_attrs": {
         "crate_features": [
           "default"
@@ -68,8 +68,8 @@
       "package_url": "https://github.com/fitzgen/bumpalo",
       "repository": {
         "Http": {
-          "sha256": "72f5acc6cb2ba439de613abc23857ec3d78374d8ed5ac84e9d11336e87da8649",
-          "url": "https://static.crates.io/crates/bumpalo/3.20.3/download"
+          "sha256": "87a0cf66fd1eb2fb7b822cb78370d82303750809bc6ba855f3f58e517d3238db",
+          "url": "https://static.crates.io/crates/bumpalo/3.20.4/download"
         }
       },
       "targets": [
@@ -80,7 +80,7 @@
           }
         }
       ],
-      "version": "3.20.3"
+      "version": "3.20.4"
     },
     "byteorder 1.5.0": {
       "common_attrs": {
@@ -164,7 +164,7 @@
             "target": "threadpool"
           },
           {
-            "id": "uuid 1.29.0",
+            "id": "uuid 1.29.3",
             "target": "uuid"
           },
           {
@@ -833,7 +833,7 @@
       ],
       "version": "0.4.12"
     },
-    "syn 3.0.9": {
+    "syn 3.0.10": {
       "common_attrs": {
         "crate_features": [
           "clone-impls",
@@ -874,8 +874,8 @@
       "package_url": "https://github.com/dtolnay/syn",
       "repository": {
         "Http": {
-          "sha256": "d78c8dee4c7bf0e14673097256fed6142ce9d3b85a408189d07482442145823b",
-          "url": "https://static.crates.io/crates/syn/3.0.9/download"
+          "sha256": "4ae9ccbea3a7b0b09443036490c8f34a8b1b760fd345e5c0dae0aac718faea79",
+          "url": "https://static.crates.io/crates/syn/3.0.10/download"
         }
       },
       "targets": [
@@ -886,7 +886,7 @@
           }
         }
       ],
-      "version": "3.0.9"
+      "version": "3.0.10"
     },
     "threadpool 1.8.1": {
       "common_attrs": {
@@ -953,7 +953,7 @@
       ],
       "version": "1.0.27"
     },
-    "uuid 1.29.0": {
+    "uuid 1.29.3": {
       "common_attrs": {
         "crate_features": [
           "default",
@@ -972,8 +972,8 @@
       "package_url": "https://github.com/uuid-rs/uuid",
       "repository": {
         "Http": {
-          "sha256": "4a0e2d11620c50695fe12bbbfde96b3477fe606e7284c22d505c12ce51214514",
-          "url": "https://static.crates.io/crates/uuid/1.29.0/download"
+          "sha256": "3c14b15dffa2f4bd712103e857140aa04a4f2ff6e955c77d7eb8e53ee02a3b64",
+          "url": "https://static.crates.io/crates/uuid/1.29.3/download"
         }
       },
       "targets": [
@@ -984,7 +984,7 @@
           }
         }
       ],
-      "version": "1.29.0"
+      "version": "1.29.3"
     },
     "varint-rs 2.2.1": {
       "common_attrs": {
@@ -1144,7 +1144,7 @@
       "common_attrs": {
         "deps": [
           {
-            "id": "bumpalo 3.20.3",
+            "id": "bumpalo 3.20.4",
             "target": "bumpalo"
           },
           {
@@ -1156,7 +1156,7 @@
             "target": "quote"
           },
           {
-            "id": "syn 3.0.9",
+            "id": "syn 3.0.10",
             "target": "syn"
           },
           {
@@ -1258,7 +1258,7 @@
     "log 0.4.35",
     "ordered-float 3.9.2",
     "threadpool 1.8.1",
-    "uuid 1.29.0",
+    "uuid 1.29.3",
     "varint-rs 2.2.1"
   ],
   "direct_dev_deps": [],

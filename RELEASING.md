@@ -43,6 +43,8 @@ git push origin v0.1.0
 
 The release workflow checks that `MODULE.bazel`, `cli/prebuilt/pins.bzl` and both constants in `cli/adopt/src/version.rs` say `0.1.0`. If one does not, it fails with `land the version bump first`.
 
+The `source` job also fails when `MODULE.bazel` overrides a `bazel_dep`, such as a rule-set module like `rules_php`, with `local_path_override`. The error names the module. Depend on its released version in the BCR before you tag.
+
 ## 4. Create the draft release
 
 ```sh

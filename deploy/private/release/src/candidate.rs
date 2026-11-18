@@ -12,8 +12,8 @@ use dx_process::capture::{
 use crate::{
     BCR_WANT_MODULE, GitState, RELEASE_REMOTE, RELEASE_REPOSITORY, bcr_candidate_error,
     bcr_candidate_version_error, bcr_integrity_of_digest, bcr_source_url, bcr_strip_prefix,
-    modules::module_version_error, render_bcr_source_for_digest, render_pretty,
-    write_bcr_source_for_archive,
+    modules::{local_override_error, module_version_error},
+    render_bcr_source_for_digest, render_pretty, write_bcr_source_for_archive,
 };
 
 /// One release candidate: a `SemVer` version at one full commit.
@@ -606,6 +606,7 @@ fn stage_release_source(
     source_archive_error(staged, repo, candidate, pins)?;
     let module_text = commit_module_file(repo, candidate)?;
     module_version_error(&module_text, candidate.version())?;
+    local_override_error(&module_text)?;
     let archive = std::fs::read(staged)
         .map_err(|error| format!("candidate: cannot read {}: {error}", staged.display()))?;
     let sidecar = format!("{}  {name}\n", built.digest).into_bytes();

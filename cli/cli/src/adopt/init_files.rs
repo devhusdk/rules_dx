@@ -18,6 +18,15 @@ fn adopt_refresh(what: &str, error: &AdoptError) -> DxError {
     )
 }
 
+fn unparsable_notes(prefix: &str, paths: &[&str]) -> Vec<String> {
+    paths
+        .iter()
+        .map(|path| {
+            format!("{prefix}{path} is not a JSON object; fix or delete it so dx can add its hooks")
+        })
+        .collect()
+}
+
 fn io_refresh(what: &str, error: &std::io::Error) -> DxError {
     DxError::from_io(format!("{what} not refreshed: {error}"), error)
 }
@@ -390,6 +399,7 @@ pub(super) fn apply(
         applied
             .wrote
             .extend(outcome.wrote.iter().map(|path| format!("{prefix}{path}")));
+        notes.extend(unparsable_notes(prefix, &outcome.unparsable));
         for (path, missing) in &outcome.missing {
             notes.push(format!(
                 "{prefix}{path} exists; add these hooks: {}",
@@ -484,6 +494,7 @@ fn refresh(
     }
     if has(|kind| *kind == Kind::Hooks) {
         let outcome = setup::refresh(root).map_err(|error| io_refresh("hooks", &error))?;
+        notes.extend(unparsable_notes(prefix, &outcome.unparsable));
         record(applied, outcome.wrote);
     }
     if has(|kind| *kind == Kind::AgentsBlock)

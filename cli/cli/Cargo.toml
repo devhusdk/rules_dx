@@ -15,8 +15,6 @@ serde-sarif = "0.8"
 tempfile = "3"
 thiserror = "2"
 tracing = "0.1"
-# Used only by tests.
-libc = "0.2"
 
 [lib]
 name = "dx_cli"

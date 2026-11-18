@@ -6,8 +6,9 @@
 )]
 
 use crate::signals::Blocked;
+use std::ffi::CString;
 use std::io;
-use std::os::fd::{AsFd, AsRawFd};
+use std::os::fd::{AsFd, AsRawFd, OwnedFd};
 
 /// The process group in the foreground of `tty`; 0 when no group is in the foreground.
 pub fn foreground_group(tty: impl AsFd) -> io::Result<i32> {
@@ -33,4 +34,15 @@ pub fn set_foreground_group(tty: impl AsFd, group: i32) -> io::Result<()> {
 /// The width of the terminal behind `fd` in columns; 0 when the terminal does not say.
 pub fn columns(fd: impl AsFd) -> io::Result<u16> {
     Ok(rustix::termios::tcgetwinsize(fd)?.ws_col)
+}
+
+/// Opens a new pseudoterminal: its close-on-exec master and the path of its slave.
+pub fn open_pty() -> io::Result<(OwnedFd, CString)> {
+    use rustix::pty::OpenptFlags;
+    let master = rustix::pty::openpt(OpenptFlags::RDWR | OpenptFlags::NOCTTY)?;
+    rustix::io::fcntl_setfd(&master, rustix::io::FdFlags::CLOEXEC)?;
+    rustix::pty::grantpt(&master)?;
+    rustix::pty::unlockpt(&master)?;
+    let slave = rustix::pty::ptsname(&master, Vec::new())?;
+    Ok((master, slave))
 }

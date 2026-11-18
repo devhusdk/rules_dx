@@ -59,6 +59,7 @@ rust_test(
         "src/signals.rs",
         "src/signals_tests.rs",
         "src/spawn.rs",
+        "src/spawn_tests.rs",
         "src/tty.rs",
         "src/win32.rs",
         "src/win32_tests.rs",

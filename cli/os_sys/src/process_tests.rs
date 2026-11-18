@@ -54,6 +54,28 @@ fn a_child_can_be_signalled_and_reaped() {
     assert!(child.try_wait().is_err(), "already reaped");
 }
 
+#[cfg(target_os = "linux")]
+#[test]
+fn an_unattributed_signal_reaches_the_child() {
+    let mut child = std::process::Command::new("/bin/sleep")
+        .arg("30")
+        .spawn()
+        .expect("sleep");
+    let pid = i32::try_from(child.id()).expect("pid");
+    queue_unattributed(pid, SIGTERM).expect("rt_sigqueueinfo");
+    let status = child.wait().expect("wait");
+    assert_eq!(
+        std::os::unix::process::ExitStatusExt::signal(&status),
+        Some(SIGTERM)
+    );
+    assert_eq!(
+        queue_unattributed(i32::MAX - 1, SIGTERM)
+            .expect_err("missing")
+            .raw_os_error(),
+        Some(libc::ESRCH)
+    );
+}
+
 #[cfg(any(target_os = "linux", target_os = "android"))]
 #[test]
 fn stat_start_reads_the_twenty_second_field_after_the_name() {

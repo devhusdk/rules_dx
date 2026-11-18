@@ -2,7 +2,8 @@
 
 #![expect(unsafe_code, reason = "Command::pre_exec is unsafe")]
 
-use std::os::fd::OwnedFd;
+use std::ffi::CString;
+use std::os::fd::{IntoRawFd, OwnedFd};
 use std::os::unix::process::CommandExt;
 use std::process::Command;
 
@@ -38,6 +39,31 @@ pub fn inherit(command: &mut Command, fds: Vec<OwnedFd>) {
             Ok(())
         })
     };
+}
+
+/// Makes the child lead a new session whose controlling terminal is `tty`.
+pub fn in_terminal(command: &mut Command, tty: CString) {
+    // SAFETY: the hook calls only setsid, open and ioctl, which are async-signal-safe,
+    // and opens `tty` through its existing C string without allocating.
+    unsafe {
+        command.pre_exec(move || {
+            rustix::process::setsid()?;
+            let fd = rustix::fs::open(
+                tty.as_c_str(),
+                rustix::fs::OFlags::RDWR,
+                rustix::fs::Mode::empty(),
+            )?;
+            rustix::process::ioctl_tiocsctty(&fd)?;
+            let _kept_across_exec = fd.into_raw_fd();
+            Ok(())
+        })
+    };
+}
+
+/// Makes the child start with `signo` ignored.
+pub fn ignore_signal(command: &mut Command, signo: i32) {
+    // SAFETY: the hook calls only signal, which is async-signal-safe.
+    unsafe { command.pre_exec(move || crate::signals::ignore(signo)) };
 }
 
 /// Makes the child replace the text of `file` with `<pid> <namespace> <start> <boot>` before
@@ -110,3 +136,7 @@ fn write_line(file: &std::fs::File, start: std::fmt::Arguments<'_>, namespace: &
         drop(file.write_all_at(text, 0));
     }
 }
+
+#[cfg(test)]
+#[path = "spawn_tests.rs"]
+mod spawn_tests;

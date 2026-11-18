@@ -1,5 +1,5 @@
 {
-  "checksum": "159c40fa438f647c0f2287d80f38b680cc71b3c99e9daad7b36f9bfaaba86199",
+  "checksum": "f7d23a701d5de3f37b193be38557b6d476923c05756880e705f50a08214ea219",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -8053,10 +8053,6 @@
           {
             "id": "flate2 1.1.10",
             "target": "flate2"
-          },
-          {
-            "id": "libc 0.2.189",
-            "target": "libc"
           },
           {
             "id": "serde 1.0.229",
@@ -23253,24 +23249,28 @@
               "event",
               "pipe",
               "process",
+              "pty",
               "termios"
             ],
             "aarch64-unknown-linux-gnu": [
               "event",
               "pipe",
               "process",
+              "pty",
               "termios"
             ],
             "x86_64-unknown-linux-gnu": [
               "event",
               "pipe",
               "process",
+              "pty",
               "termios"
             ],
             "x86_64-unknown-nixos-gnu": [
               "event",
               "pipe",
               "process",
+              "pty",
               "termios"
             ]
           }

@@ -1761,7 +1761,6 @@ dependencies = [
  "chrono",
  "clap",
  "flate2",
- "libc",
  "predicates",
  "serde",
  "serde-sarif",

@@ -26,6 +26,11 @@ def clang_syntax_unit_tests(name, **kwargs):
                 ["tidy", "--header-filter=", "a.cu", "--", "-x", "cuda", "--cuda-host-only", "-nocudalib", "-Wno-unknown-cuda-version", "--cuda-path=external/cuda", "-Iinc", "-DX=1", "-isystem/x", "-std=c++17"],
             ),
             expect_equal(
+                "CUDA: separated host flags keep their value from the next -Xcompiler argument",
+                cuda_tidy_argv("tidy", ["external/cuda/bin/nvcc", "-Xcompiler", "-target", "-Xcompiler", "x86_64-linux-gnu", "-Xcompiler", "-nostdlibinc", "-Xcompiler", "-isystem", "-Xcompiler", "libcxx/include", "-Xcompiler", "-Wall", "-Xcompiler", "--sysroot=/dev/null", "-c", "a.cu"], "a.cu").argv[10:],
+                ["-target", "x86_64-linux-gnu", "-nostdlibinc", "-isystem", "libcxx/include", "--sysroot=/dev/null"],
+            ),
+            expect_equal(
                 "clang-tidy takes the config file right after the executable",
                 clang_tidy_argv("tidy", [_CLANG, "-c", "a.c"], "a.c", _LLVM, "q/.clang-tidy").argv[:5],
                 ["tidy", "--config-file=q/.clang-tidy", "--header-filter=", "a.c", "--"],

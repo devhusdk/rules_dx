@@ -170,7 +170,7 @@ Any other host or target platform fails with a message that names the supported 
 
 ### macOS
 
-On a macOS host, Apple targets including `macos_*` resolve the Xcode toolchain; `@llvm` with the pinned `@macos_sdk` serves macOS targets only from Linux and Windows hosts.
+On a macOS host, Apple targets including `macos_*` resolve the Xcode toolchain; `@llvm` with the pinned `@macos_sdk` serves macOS targets only from Linux and Windows hosts. The dx preset sets macOS 14.0 as the minimum for target and host builds; override it with `--macos_minimum_os`, `--host_macos_minimum_os` and the matching `MACOSX_DEPLOYMENT_TARGET` in `--action_env` and `--host_action_env`.
 
 ## Rules
 

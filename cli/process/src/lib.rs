@@ -1005,7 +1005,8 @@ pub fn make_writable(path: &Path) {
         )]
         permissions.set_readonly(false);
     }
-    if std::fs::set_permissions(path, permissions).is_err() {
+    // A directory we cannot chmod is still walked: its children may be ours, and remove_tree reports what stays.
+    if std::fs::set_permissions(path, permissions).is_err() && !metadata.is_dir() {
         return;
     }
     if metadata.is_dir() {

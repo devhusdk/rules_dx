@@ -350,8 +350,7 @@ fn observe(recorded: &Recorded) -> Observed {
 const LOG_NAME: &str = "reaped.log";
 const LOG_CAP: u64 = 64 * 1024;
 
-/// Appends one decision line to `reaped.log`; errors are ignored so startup is never slowed,
-/// and a full log that cannot be rotated takes no more lines.
+/// Appends one decision line to `reaped.log`, never slowing startup; a full log that cannot rotate takes no more.
 fn log_decision(dir: &Path, what: &str, pid: u32, recorded: &Recorded, now: &Observed) {
     let log = dir.join(LOG_NAME);
     if std::fs::metadata(&log).is_ok_and(|meta| meta.len() > LOG_CAP)

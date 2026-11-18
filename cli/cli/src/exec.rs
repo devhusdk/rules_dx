@@ -38,13 +38,21 @@ mod managed_staging;
 mod pinned_tool;
 pub mod preset_sync;
 mod profile_report;
+#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod quality;
+#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod quality_apply;
+#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod quality_emit;
+#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod quality_patch;
+#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod quality_reconcile;
+#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod quality_reports;
+#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod quality_security;
+#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod results;
 mod run;
 mod rustc_stderr;

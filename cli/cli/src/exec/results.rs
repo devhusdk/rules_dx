@@ -1,5 +1,4 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use dx_output::{DiagnosticEvent, Origin, RelatedEvent, Severity, Snapshot};
@@ -108,19 +107,17 @@ impl Unstable {
     pub(crate) fn describe(&self) -> String {
         let mut text = self.label.clone();
         if self.producer.trim_start_matches("@@") != self.label {
-            write!(text, " ({})", self.producer).ok();
+            text.push_str(&format!(" ({})", self.producer));
         }
         if let Some(configuration) = &self.configuration {
-            write!(text, " in configuration {configuration}").ok();
+            text.push_str(&format!(" in configuration {configuration}"));
         }
-        write!(
-            text,
+        text.push_str(&format!(
             " did not converge: {} after {} round(s) of {}",
             self.convergence,
             self.rounds,
             self.tools.join(", ")
-        )
-        .ok();
+        ));
         text
     }
 }

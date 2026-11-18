@@ -101,6 +101,7 @@ fn metadata_without_a_string_updated_at_is_reported() {
 #[test]
 fn a_spaced_sidecar_and_spaced_metadata_are_read() {
     let out = tempfile::tempdir().expect("tempdir");
+    write_db(out.path());
     std::fs::write(
         out.path().join(META_FILE),
         "{ \"db_updated_at\" : \"then\", \"retrieved_at\" : \"2026-11-05\" }",
@@ -139,4 +140,39 @@ fn packing_the_same_directory_twice_gives_the_same_bytes() {
     let first = pack_cache(&cache, &out.path().join("a").join("t.tar.gz")).expect("first");
     let second = pack_cache(&cache, &out.path().join("b").join("t.tar.gz")).expect("second");
     assert_eq!(first, second);
+}
+
+#[test]
+fn a_same_day_sidecar_without_its_cache_downloads_again() {
+    let out = tempfile::tempdir().expect("tempdir");
+    prepare_with(out.path(), "2026-11-05", |_| {
+        write_db(out.path());
+        Ok(())
+    })
+    .expect("first");
+    std::fs::remove_dir_all(out.path().join(CACHE_DIR)).expect("removes the cache");
+    let again = prepare_with(out.path(), "2026-11-05", |_| {
+        write_db(out.path());
+        Ok(())
+    })
+    .expect("second");
+    assert!(again.fetched);
+    assert!(
+        out.path()
+            .join(CACHE_DIR)
+            .join("db/metadata.json")
+            .is_file()
+    );
+}
+
+#[test]
+fn packing_a_missing_cache_names_the_cache() {
+    let out = tempfile::tempdir().expect("tempdir");
+    let cache = out.path().join("absent-cache");
+    let error =
+        pack_cache(&cache, &out.path().join("pin").join("trivy.tar.gz")).expect_err("fails");
+    assert!(
+        error.to_string().contains(&cache.display().to_string()),
+        "{error}"
+    );
 }

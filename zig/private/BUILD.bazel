@@ -1,4 +1,3 @@
-load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = [
@@ -11,18 +10,6 @@ exports_files([
     "bench_run.sh",
     "defs.bzl",
 ])
-
-bool_flag(
-    name = "kcov",
-    build_setting_default = False,
-    visibility = ["//visibility:public"],
-)
-
-config_setting(
-    name = "kcov_build",
-    flag_values = {":kcov": "true"},
-    visibility = ["//visibility:public"],
-)
 
 platform(
     name = "kcov_linux_x86_64",

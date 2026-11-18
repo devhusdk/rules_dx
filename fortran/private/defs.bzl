@@ -6,7 +6,7 @@ load("@rules_fortran//fortran:defs.bzl", "FortranInfo", _fortran_library = "fort
 load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//tools/coverage/kcov:kcov.bzl", "dx_kcov_attrs", "dx_kcov_test_coverage")
-load(":kwargs.bzl", _FORTRAN_COMPATIBLE_WITH = "FORTRAN_COMPATIBLE_WITH", "fortran_library_kwargs", "fortran_link_kwargs", "fortran_with_defaults")
+load(":kwargs.bzl", "fortran_library_kwargs", "fortran_link_kwargs", "fortran_with_defaults", _FORTRAN_COMPATIBLE_WITH = "FORTRAN_COMPATIBLE_WITH")
 
 FORTRAN_COMPATIBLE_WITH = _FORTRAN_COMPATIBLE_WITH
 
@@ -41,7 +41,7 @@ def _kcov_upstream_impl(settings, _attr):
     return {
         "//command_line_option:collect_code_coverage": False,
         "//command_line_option:strip": "never" if coverage else settings["//command_line_option:strip"],
-        "//fortran/private:kcov": coverage,
+        "//fortran:kcov": coverage,
     }
 
 _kcov_upstream = transition(
@@ -53,7 +53,7 @@ _kcov_upstream = transition(
     outputs = [
         "//command_line_option:collect_code_coverage",
         "//command_line_option:strip",
-        "//fortran/private:kcov",
+        "//fortran:kcov",
     ],
 )
 

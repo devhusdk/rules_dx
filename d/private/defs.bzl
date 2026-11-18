@@ -99,7 +99,7 @@ def _string_srcs(name, kwargs):
 def _cover(kwargs):
     """Adds ldc's -cov to dopts under bazel coverage."""
     return dx_append_flags(kwargs, "dopts", select({
-        Label("//d/private:coverage"): ["-cov"],
+        Label("//d:coverage"): ["-cov"],
         "//conditions:default": [],
     }))
 

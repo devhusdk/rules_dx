@@ -3,28 +3,61 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::BTreeMap;
+use std::fmt;
+use std::path::Path;
 use std::process::ExitCode;
 
-use tiers::{parse_manifest, standard_page, strict_page};
+use dx_atomic_fs::path_io::{self, PathIoError};
+use tiers::{TiersError, parse_manifest, standard_page, strict_page};
 
-fn run() -> Result<(), String> {
+#[derive(Debug)]
+enum RunError {
+    Usage,
+    Io(PathIoError),
+    Tiers(TiersError),
+}
+
+impl fmt::Display for RunError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Usage => f.write_str("usage: tiers MANIFEST STANDARD_OUT STRICT_OUT"),
+            Self::Io(error) => error.fmt(f),
+            Self::Tiers(error) => error.fmt(f),
+        }
+    }
+}
+
+impl From<PathIoError> for RunError {
+    fn from(error: PathIoError) -> Self {
+        Self::Io(error)
+    }
+}
+
+impl From<TiersError> for RunError {
+    fn from(error: TiersError) -> Self {
+        Self::Tiers(error)
+    }
+}
+
+fn run() -> Result<(), RunError> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let [manifest, standard_out, strict_out] = &args[..] else {
-        return Err("usage: tiers MANIFEST STANDARD_OUT STRICT_OUT".to_owned());
+        return Err(RunError::Usage);
     };
-    let text = std::fs::read_to_string(manifest).map_err(|error| format!("{manifest}: {error}"))?;
+    let text = path_io::read_to_string(Path::new(manifest))?;
     let tiers = parse_manifest(&text)?;
     let mut files = BTreeMap::new();
     for tier in &tiers {
         for path in [&tier.standard_path, &tier.strict_path] {
-            let body = std::fs::read_to_string(path).map_err(|error| format!("{path}: {error}"))?;
+            let body = path_io::read_to_string(Path::new(path))?;
             files.insert(path.clone(), body);
         }
     }
-    std::fs::write(standard_out, standard_page(&tiers, &files)?)
-        .map_err(|error| format!("{standard_out}: {error}"))?;
-    std::fs::write(strict_out, strict_page(&tiers, &files)?)
-        .map_err(|error| format!("{strict_out}: {error}"))
+    let standard = standard_page(&tiers, &files)?;
+    let strict = strict_page(&tiers, &files)?;
+    path_io::write_scratch(Path::new(standard_out), standard.as_bytes())?;
+    path_io::write_scratch(Path::new(strict_out), strict.as_bytes())?;
+    Ok(())
 }
 
 fn main() -> ExitCode {

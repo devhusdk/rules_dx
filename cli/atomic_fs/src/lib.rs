@@ -3,6 +3,7 @@
 pub mod commit;
 pub mod lease;
 pub mod managed;
+pub mod path_io;
 
 use std::fs::File;
 use std::io;

@@ -20,7 +20,6 @@ rust_binary(
         ":dx_symbols",
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
-        "//cli/process:dx_process",
     ],
 )
 
@@ -36,10 +35,7 @@ rust_binary(
     deps = all_crate_deps(
         package_name = "deploy/private/dx_symbols",
         normal = True,
-    ) + [
-        ":dx_symbols",
-        "//cli/process:dx_process",
-    ],
+    ) + [":dx_symbols"],
 )
 
 rust_binary(
@@ -165,7 +161,10 @@ real_source_target(
 
 rust_library(
     name = "dx_symbols",
-    srcs = ["src/lib.rs"],
+    srcs = [
+        "src/cli.rs",
+        "src/lib.rs",
+    ],
     aliases = aliases(
         package_name = "deploy/private/dx_symbols",
         normal = True,
@@ -175,13 +174,18 @@ rust_library(
     deps = all_crate_deps(
         package_name = "deploy/private/dx_symbols",
         normal = True,
-    ) + ["//cli/digest:dx_digest"],
+    ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/digest:dx_digest",
+        "//cli/process:dx_process",
+    ],
 )
 
 rust_test(
     name = "dx_symbols_test",
     size = "small",
     srcs = [
+        "src/cli.rs",
         "src/lib.rs",
         "src/tests.rs",
     ],
@@ -198,7 +202,9 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
+        "//cli/process:dx_process",
         "//cli/test_scratch:dx_test_scratch",
     ],
 )
@@ -213,6 +219,7 @@ exports_files(
         "src/bin_dsym.rs",
         "src/bin_pdb.rs",
         "src/bin_split.rs",
+        "src/cli.rs",
         "src/lib.rs",
     ],
     visibility = ["//core/quality:__pkg__"],

@@ -40,7 +40,10 @@ rust_binary(
     ),
     crate_name = "render",
     crate_root = "src/main.rs",
-    deps = [":tiers"],
+    deps = [
+        ":tiers",
+        "//cli/atomic_fs:dx_atomic_fs",
+    ],
 )
 
 real_source_target(

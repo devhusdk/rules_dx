@@ -19,7 +19,7 @@ ASSET_ATTRS = {
 }
 
 _asset = tag_class(
-    doc = "Adds or replaces dx or the launcher for one os and cpu; honoured only in the root module.",
+    doc = "Adds or replaces dx, the launcher or the Go lint tools for one os and cpu; honoured only in the root module.",
     attrs = ASSET_ATTRS,
 )
 
@@ -48,12 +48,12 @@ def declare_downloads(assets):
             )
 
 _from_source = tag_class(
-    doc = "Builds dx and the launcher from source instead; honoured only in the root module.",
+    doc = "Builds dx, the launcher and the Go lint tools from source instead; honoured only in the root module.",
     attrs = {},
 )
 
 def _dx_prebuilt_impl(module_ctx):
-    plan = plan_root(module_ctx.modules, tools = ["dx", "launcher"])
+    plan = plan_root(module_ctx.modules, tools = ["dx", "launcher", "go"])
     if plan.error:
         fail(plan.error)
     rules_dx_is_root = any([m.name == "rules_dx" and m.is_root for m in module_ctx.modules])
@@ -71,10 +71,19 @@ def _dx_prebuilt_impl(module_ctx):
             exe = "dx-launcher",
             repo_prefix = "dx_launcher_prebuilt_",
         )
+        go_assets = plan_assets(
+            "go",
+            DX_VERSION,
+            PINS,
+            URL_TEMPLATE,
+            plan.overrides.get("go", {}),
+            exe = "dx-go",
+            repo_prefix = "dx_go_prebuilt_",
+        )
         jars = plan_jars(DX_VERSION, PINS, URL_TEMPLATE)
-        declare_downloads(assets + launcher_assets)
+        declare_downloads(assets + launcher_assets + go_assets)
         _declare_jars(jars)
-        hub_repo(name = "dx_prebuilt", files = {"BUILD.bazel": with_jars(consumer_build(assets, launcher_assets), jars)})
+        hub_repo(name = "dx_prebuilt", files = {"BUILD.bazel": with_jars(consumer_build(assets, launcher_assets, go_assets), jars)})
     return module_ctx.extension_metadata(
         reproducible = True,
         root_module_direct_deps = ["dx_prebuilt"] if rules_dx_is_root else [],

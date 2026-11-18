@@ -1,7 +1,7 @@
 """Tests for the @dx_prebuilt plan, pins and hub BUILD text."""
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(":hub.bzl", "LAUNCHER_SOURCE", "SOURCE_LABEL", "SOURCE_TOOLS", "alias_build", "consumer_build", "plan_assets", "plan_jars", "plan_root", "valid_sha256", "with_jars")
+load(":hub.bzl", "GO_TOOLS", "LAUNCHER_SOURCE", "SOURCE_LABEL", "SOURCE_TOOLS", "alias_build", "consumer_build", "plan_assets", "plan_jars", "plan_root", "valid_sha256", "with_jars")
 load(":pins.bzl", "DX_VERSION", "PINS", "SCHEMA", "URL_TEMPLATE")
 load(":tools.bzl", "JAR_TOOLS", "TOOLS", "asset_name", "registry_lines")
 
@@ -52,6 +52,9 @@ def _checks():
     launcher_build = consumer_build(unpinned, launchers)
     both_build = consumer_build(pinned, launchers)
     launcher_root = plan_root([_mod("app", True, assets = [_tag(), _tag(name = "launcher")])], tools = ["dx", "launcher"])
+    go_root = plan_root([_mod("app", True, assets = [_tag(name = "go")])], tools = ["dx", "launcher", "go"])
+    go_assets = plan_assets("go", "1.2.3", {}, URL_TEMPLATE, go_root.overrides["go"], exe = "dx-go", repo_prefix = "dx_go_prebuilt_")
+    go_build = consumer_build(unpinned, [], go_assets)
     source_jars = with_jars(alias_build(SOURCE_LABEL), plan_jars("1.2.3", {}, URL_TEMPLATE))
     pinned_jars = plan_jars("1.2.3", {"javac_check": {"any": _HASH}}, URL_TEMPLATE)
     pinned_jars_build = with_jars(pinned_build, pinned_jars)
@@ -137,6 +140,15 @@ def _checks():
         expect_false("an unpinned launcher platform downloads nothing", "dx_launcher_prebuilt_linux_aarch64" in launcher_build),
         expect_equal("dx and launcher share one config_setting per platform", both_build.count('name = "linux_x86_64",\n    constraint_values'), 1),
         expect_equal("a valid root has no error", pinned_root.error, ""),
+        expect_equal("a release builds no go assets yet", [line for line in registry_lines() if line.startswith("go ")], []),
+        expect_equal("an unreleased go plans only its overrides", [a.key for a in go_assets], ["linux_x86_64"]),
+        expect_equal("a go override downloads dx-go", go_assets[0].repo, "dx_go_prebuilt_linux_x86_64"),
+        expect_contains("a go override declares its download", go_build, 'name = "dx_govet_linux_x86_64",\n    src = "@dx_go_prebuilt_linux_x86_64//file:dx-go",\n    out = "linux_x86_64/dx_govet",'),
+        expect_contains("a go tool selects its download", go_build, '":linux_x86_64": ":dx_staticcheck_linux_x86_64",'),
+        expect_contains("other platforms build the go tool from source", go_build, '"//conditions:default": "{}",'.format(GO_TOOLS["dx_staticcheck"])),
+        expect_contains("an unpinned hub aliases the source go tools", unpinned_build, 'name = "dx_govet",\n    actual = "@rules_dx//go/private/tools/analysis/dx_go:dx_govet",'),
+        expect_contains("the root hub aliases the source go tools", alias_build(SOURCE_LABEL), 'name = "dx_modfmt",\n    actual = "@rules_dx//go/private/tools/analysis/dx_go:dx_modfmt",'),
+        expect_equal("the go multicall answers to five names", sorted(GO_TOOLS.keys()), ["dx_errcheck", "dx_gotype", "dx_govet", "dx_modfmt", "dx_staticcheck"]),
     ]
 
 def dx_prebuilt_hub_tests(name):

@@ -65,7 +65,7 @@ fn read_bundle_tells_message_from_attestation_bundles() {
 }
 
 #[test]
-fn read_bundle_reads_the_legacy_pem_certificate() {
+fn read_bundle_reads_a_pem_certificate_in_the_cert_field() {
     let der = certificate(SIGNER, false);
     let engine = base64::engine::general_purpose::STANDARD;
     let pem = format!(
@@ -76,7 +76,7 @@ fn read_bundle_reads_the_legacy_pem_certificate() {
         r#"{{"base64Signature":"AA==","cert":"{}"}}"#,
         engine.encode(pem)
     );
-    let info = read_bundle(&text).expect("legacy");
+    let info = read_bundle(&text).expect("pem cert");
     assert_eq!(info.kind, BundleKind::Message);
     assert_eq!(info.signer.as_deref(), Some(SIGNER));
 }

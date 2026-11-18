@@ -34,6 +34,12 @@ const ALIAS_REMOVAL: &str = "removed in rules_dx ";
 /// The name of this guard, which is no compat word.
 const OWN_NAME: &str = "zero_compat";
 
+/// Spellings of the dx shim, the global dx launcher in `cli/shim`; its name is no compat word.
+const SHIM_NAMES: [&str; 4] = ["cli/shim", "dx_shim", "dx-shim", "dx shim"];
+
+/// What starts a Clippy lint path; a lint's name is no compat word.
+const CLIPPY_LINT: &str = "clippy::";
+
 /// The kinds an allowlist line may name.
 const KINDS: [&str; 5] = [
     "alias",
@@ -64,16 +70,29 @@ fn ident_byte(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || byte == b'_'
 }
 
+/// `text` without the names that only look like compat words: this guard's, the dx shim's and Clippy lints'.
+fn without_names(text: &str) -> String {
+    let mut text = text.replace(OWN_NAME, "");
+    for name in SHIM_NAMES {
+        text = text.replace(name, "");
+    }
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text.as_str();
+    while let Some(at) = rest.find(CLIPPY_LINT) {
+        out.push_str(rest.get(..at).unwrap_or_default());
+        let lint = rest.get(at + CLIPPY_LINT.len()..).unwrap_or_default();
+        rest = lint.trim_start_matches(|letter: char| letter.is_ascii_lowercase() || letter == '_');
+    }
+    out.push_str(rest);
+    out
+}
+
 /// How often a compat word stands as one word of an identifier, string or comment in `text`.
 fn compat_words(text: &str) -> usize {
     let mut count = 0;
     let mut word = String::new();
     let mut previous_lower = false;
-    for letter in text
-        .replace(OWN_NAME, "")
-        .chars()
-        .chain(std::iter::once(' '))
-    {
+    for letter in without_names(text).chars().chain(std::iter::once(' ')) {
         let breaks =
             !letter.is_ascii_alphabetic() || (letter.is_ascii_uppercase() && previous_lower);
         if breaks {
@@ -660,6 +679,11 @@ mod tests {
             compat_words("zero_compat_test zero_compat_allowlist.txt"),
             0
         );
+        assert_eq!(
+            compat_words("//cli/shim:dx_shim dx-shim dx shim where \"clippy::deprecated_semver\""),
+            0
+        );
+        assert_eq!(compat_words("the shim clippy::x_y deprecated"), 2);
         let found = hits(&[
             ("a/x.bzl", "X = [\"legacy\"]  # deprecated\n"),
             ("a/x.rs", "fn shim_path() {}\n"),

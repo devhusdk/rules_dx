@@ -1,10 +1,35 @@
 use crate::win32::{
     Access, creation_time, disinherit_std_handles, exit_code, is_running, open, processes, resume,
-    resume_thread, resume_threads, suspend, terminate, total_physical_memory, wait,
+    resume_thread, resume_threads, suspend, system_dirs, terminate, total_physical_memory, wait,
     working_set_bytes,
 };
 use std::os::windows::io::AsHandle;
+use std::process::{Command, Stdio};
 use std::time::Duration;
+
+const CHILD: &str = "DX_OS_SYS_TEST_CHILD";
+
+/// This test binary run again as a child that exits with `code`, or sleeps for 30 seconds on `None`.
+pub(crate) fn child(code: Option<i32>) -> Command {
+    let mut command = Command::new(std::env::current_exe().expect("exe"));
+    command
+        .args(["--exact", "win32_tests::child_main"])
+        .env(
+            CHILD,
+            code.map_or_else(|| "sleep".to_owned(), |code| code.to_string()),
+        )
+        .stdin(Stdio::null());
+    command
+}
+
+#[test]
+fn child_main() {
+    match std::env::var(CHILD).as_deref() {
+        Ok("sleep") => std::thread::sleep(Duration::from_secs(30)),
+        Ok(code) => std::process::exit(code.parse().expect("exit code")),
+        Err(_) => {}
+    }
+}
 
 #[test]
 fn this_process_is_running_and_has_a_start_and_a_working_set() {
@@ -16,10 +41,7 @@ fn this_process_is_running_and_has_a_start_and_a_working_set() {
 
 #[test]
 fn an_exited_child_is_not_running() {
-    let mut child = std::process::Command::new("cmd")
-        .args(["/C", "exit 0"])
-        .spawn()
-        .expect("spawn");
+    let mut child = child(Some(0)).spawn().expect("spawn");
     child.wait().expect("wait");
     assert!(!is_running(child.as_handle()).expect("wait"));
 }
@@ -58,8 +80,7 @@ fn the_process_table_lists_this_process_and_its_parent() {
 #[test]
 fn a_suspended_child_resumes() {
     use std::os::windows::process::CommandExt;
-    let mut child = std::process::Command::new("cmd")
-        .args(["/C", "exit 3"])
+    let mut child = child(Some(3))
         .creation_flags(crate::win32::CREATE_SUSPENDED)
         .spawn()
         .expect("spawn");
@@ -80,11 +101,7 @@ fn the_machine_has_physical_memory() {
 
 #[test]
 fn a_suspended_child_resumes_and_terminates_with_the_given_code() {
-    let mut child = std::process::Command::new("cmd")
-        .args(["/C", "ping -n 30 127.0.0.1 >NUL"])
-        .stdin(std::process::Stdio::null())
-        .spawn()
-        .expect("spawn");
+    let mut child = child(None).spawn().expect("spawn");
     suspend(child.id()).expect("suspend");
     resume(child.id()).expect("resume");
     terminate(child.id(), 7).expect("terminate");
@@ -93,10 +110,7 @@ fn a_suspended_child_resumes_and_terminates_with_the_given_code() {
 
 #[test]
 fn an_exited_child_cannot_be_suspended_resumed_or_terminated() {
-    let mut child = std::process::Command::new("cmd")
-        .args(["/C", "exit 0"])
-        .spawn()
-        .expect("spawn");
+    let mut child = child(Some(0)).spawn().expect("spawn");
     let pid = child.id();
     child.wait().expect("wait");
     drop(child);
@@ -112,10 +126,7 @@ fn std_handles_can_be_made_uninheritable() {
 
 #[test]
 fn a_waited_child_reports_its_exit_code() {
-    let child = std::process::Command::new("cmd")
-        .args(["/C", "exit 7"])
-        .spawn()
-        .expect("spawn");
+    let child = child(Some(7)).spawn().expect("spawn");
     assert!(wait(child.as_handle(), None).expect("wait"));
     assert_eq!(exit_code(child.as_handle()).expect("exit code"), 7);
 }
@@ -143,4 +154,11 @@ fn a_file_handle_is_not_a_process_or_thread() {
 fn a_query_only_handle_cannot_be_waited_on_forever() {
     let me = open(std::process::id(), Access::Query).expect("open self");
     assert!(wait(me.as_handle(), None).is_err());
+}
+
+#[test]
+fn the_system_directory_is_inside_the_windows_directory() {
+    let [system, windows] = system_dirs().expect("system dirs");
+    assert!(system.is_dir(), "{}", system.display());
+    assert_eq!(system.parent(), Some(windows.as_path()));
 }

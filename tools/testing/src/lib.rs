@@ -705,6 +705,17 @@ pub fn executable_script(path: &Path, body: &str) {
     assert!(status.success(), "write {}: {status}", path.display());
 }
 
+/// [`executable_script`] of a POSIX shell script that runs `body`.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
+#[cfg(unix)]
+#[track_caller]
+pub fn shell_script(path: &Path, body: &str) {
+    executable_script(path, &format!("#!/bin/sh\n{body}"));
+}
+
 /// Places `tool`, the fake generate binary, in `dir` as `bazel`, `uv` and `python`
 /// (`.exe` on Windows) for a `dx generate` run, which answers with a clean, complete
 /// result manifest and fills the lock files `dx generate` seeds; returns a PATH of
@@ -1100,10 +1111,10 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn executable_script_writes_a_runnable_file() {
+    fn shell_script_writes_a_runnable_file() {
         let dir = scratch("dx-exec-script");
         let path = dir.path().join("tool");
-        executable_script(&path, "#!/bin/sh\necho hi\n");
+        shell_script(&path, "echo hi\n");
         let out = std::process::Command::new(&path).output().expect("run");
         assert_eq!(String::from_utf8_lossy(&out.stdout), "hi\n");
     }

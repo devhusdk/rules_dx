@@ -244,15 +244,8 @@ struct CommitIndex {
 
 impl CommitIndex {
     fn new(repo: &Path, commit: &str) -> Result<Self, String> {
-        let nanos = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_or(0, |elapsed| elapsed.as_nanos());
-        let dir = std::env::temp_dir().join(format!(
-            "dx-candidate-{}-{nanos}-{commit}",
-            std::process::id()
-        ));
-        std::fs::create_dir(&dir)
-            .map_err(|error| format!("candidate: create {}: {error}", dir.display()))?;
+        let dir = dx_deploy_tools::tempfile_stage_dir(&format!("dx-candidate-{commit}-"))
+            .map_err(|error| format!("candidate: create scratch dir: {error}"))?;
         let scratch = Self {
             index: dir.join("index"),
             tree: dir.join("tree"),

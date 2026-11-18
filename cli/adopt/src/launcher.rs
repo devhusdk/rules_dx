@@ -459,7 +459,7 @@ while read -r ver sum asset || [ -n "$ver" ]; do
   fi
 done < "$pins"
 [ -n "$want" ] || via_bazel "no pinned binary for $os-$arch at $VERSION" "$@"
-# Same rules as the shim's DX_RELEASE_BASE_URL (cli/shim/src/protocol.rs).
+# Same rules as the dx shim's DX_RELEASE_BASE_URL (cli/shim/src/protocol.rs).
 base=${DX_RELEASE_BASE_URL:-https://github.com/devhusdk/rules_dx/releases/download}
 case $base in
   https://?*) ;;
@@ -577,7 +577,7 @@ for /f "usebackq tokens=1,2,3" %%A in ("%~dp0..\%DX_PINS%") do if "%%A"=="%VERSI
 if not defined WANT goto bazel
 set "DX_BASE=https://github.com/devhusdk/rules_dx/releases/download"
 if not defined DX_RELEASE_BASE_URL goto dxbase
-rem The shim's DX_RELEASE_BASE_URL rules, plus plain URL characters only, so
+rem The dx shim's DX_RELEASE_BASE_URL rules, plus plain URL characters only, so
 rem the value is safe to expand below. `set` prints it without expanding it.
 set DX_RELEASE_BASE_URL | findstr /r /x /c:"DX_RELEASE_BASE_URL=https://[0-9a-zA-Z._~:/+=,;@-][0-9a-zA-Z._~:/+=,;@-]*" /c:"DX_RELEASE_BASE_URL=http://127\.0\.0\.1" /c:"DX_RELEASE_BASE_URL=http://127\.0\.0\.1[:/][0-9a-zA-Z._~:/+=,;-]*" /c:"DX_RELEASE_BASE_URL=http://localhost" /c:"DX_RELEASE_BASE_URL=http://localhost[:/][0-9a-zA-Z._~:/+=,;-]*" /c:"DX_RELEASE_BASE_URL=http://\[::1\]" /c:"DX_RELEASE_BASE_URL=http://\[::1\][:/][0-9a-zA-Z._~:/+=,;-]*" >nul
 if errorlevel 1 goto badbase
@@ -1186,7 +1186,7 @@ mod tests {
     }
 
     #[test]
-    fn launchers_share_the_shim_cache_root() {
+    fn launchers_share_the_dx_shim_cache_root() {
         let sh = sh();
         let dx = sh.find("cache=\"$DX_CACHE_DIR\"").expect("DX_CACHE_DIR");
         let xdg = sh
@@ -1415,7 +1415,7 @@ mod tests {
                 .expect("module");
                 let curl = dir.path().join("stub/curl");
                 let body = if curl_ok {
-                    "#!/bin/sh\necho call >> \"$STUB_LOG\"\nwhile [ $# -gt 0 ]; do\n  if [ \"$1\" = -o ]; then out=\"$2\"; fi\n  url=\"$1\"\n  shift\ndone\ncase \"$url\" in\n  *.sha256) cp \"$STUB_SIDECAR\" \"$out\" ;;\n  *) cp \"$STUB_PAYLOAD\" \"$out\" ;;\nesac\n"
+                    "#!/bin/sh\necho call >> \"$STUB_LOG\"\nwhile [ $# -gt 0 ]; do\n  if [ \"$1\" = -o ]; then out=\"$2\"; fi\n  url=\"$1\"\n  shift\ndone\necho \"$url\" >> \"$STUB_LOG.url\"\ncase \"$url\" in\n  *.sha256) cp \"$STUB_SIDECAR\" \"$out\" ;;\n  *) cp \"$STUB_PAYLOAD\" \"$out\" ;;\nesac\n"
                 } else {
                     "#!/bin/sh\necho call >> \"$STUB_LOG\"\nexit 6\n"
                 };
@@ -1822,14 +1822,7 @@ mod tests {
         #[test]
         fn a_mirror_base_url_replaces_github() {
             let fx = Fixture::new("dx-launcher-mirror-", true, None);
-            let urls = fx.base.join("urls");
-            fx.stub(
-                "curl",
-                &format!(
-                    "#!/bin/sh\nwhile [ $# -gt 0 ]; do\n  if [ \"$1\" = -o ]; then out=\"$2\"; fi\n  url=\"$1\"\n  shift\ndone\necho \"$url\" >> '{}'\ncp \"$STUB_PAYLOAD\" \"$out\"\n",
-                    urls.display()
-                ),
-            );
+            let urls = fx.base.join("calls.url");
             let mirror = [("DX_RELEASE_BASE_URL", "https://mirror.example/dx//")];
             let (code, out, err) = fx.run_env(&fx.base, &mirror, &["status"]);
             assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
@@ -1841,7 +1834,7 @@ mod tests {
         }
 
         #[test]
-        fn a_base_url_the_shim_would_refuse_fails_before_downloading() {
+        fn a_base_url_the_dx_shim_would_refuse_fails_before_downloading() {
             for (i, base) in [
                 "http://mirror.example/dx",
                 "http://localhost@mirror.example/dx",
@@ -2471,7 +2464,7 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
         }
 
         #[test]
-        fn a_base_url_the_shim_would_refuse_fails_before_downloading() {
+        fn a_base_url_the_dx_shim_would_refuse_fails_before_downloading() {
             for (i, base) in [
                 "http://mirror.example/dx",
                 "http://localhost@mirror.example/dx",

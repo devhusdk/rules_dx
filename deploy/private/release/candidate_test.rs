@@ -10,6 +10,7 @@ use dx_release_tools::{
 
 const VERSION: &str = "1.2.3-rc1";
 const TAG: &str = "v1.2.3-rc1";
+const TOOL_SH: &[u8] = b"#!/bin/sh\necho tool\n";
 
 const MODULE: &str = r#"module(
     name = "rules_dx",
@@ -61,7 +62,7 @@ impl Fixture {
         write(&repo.join(".gitattributes"), b"*.cmd text eol=crlf\n");
         write(&repo.join("a.cmd"), b"@echo off\nrem candidate\n");
         write(&repo.join("b=c.txt"), b"equals\n");
-        write(&repo.join("tool.sh"), b"#!/bin/sh\necho tool\n");
+        write(&repo.join("tool.sh"), TOOL_SH);
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt as _;
@@ -308,7 +309,7 @@ fn archive_reads_attributes_from_the_commit_not_the_checkout() {
             .expect(name)
     };
     assert_eq!(member("a.cmd"), b"@echo off\r\nrem candidate\r\n");
-    assert_eq!(member("tool.sh"), b"#!/bin/sh\necho tool\n");
+    assert_eq!(member("tool.sh"), TOOL_SH);
     assert_eq!(member(".gitattributes"), b"*.cmd text eol=crlf\n");
 }
 

@@ -319,7 +319,7 @@ pub(crate) fn execute_init(
         }
         Ok(())
     });
-    let runner = dx_runner(dx_on_path(std::env::var_os("PATH")));
+    let runner = host_runner();
     if result.is_ok() {
         notes.push(sync_note(
             runner,
@@ -360,6 +360,11 @@ fn dx_on_path(path: Option<OsString>) -> bool {
 
 fn dx_runner(on_path: bool) -> &'static str {
     if on_path { "dx" } else { "tools/dx" }
+}
+
+/// The dx command the next steps name on this host's `PATH`.
+fn host_runner() -> &'static str {
+    dx_runner(dx_on_path(std::env::var_os("PATH")))
 }
 
 fn sync_note(runner: &str, envrc_refused: bool) -> String {
@@ -631,7 +636,7 @@ fn check_init(
 
 #[cfg(test)]
 mod tests {
-    use super::{dx_on_path, dx_runner, license_ids, next_steps, sync_note};
+    use super::{dx_on_path, dx_runner, host_runner, license_ids, next_steps, sync_note};
     use crate::adopt::test_support::{Truncated, env, invocation, run};
     use dx_process::pre_exec_code;
 
@@ -1349,13 +1354,7 @@ mod tests {
         let root = scratch.path().to_path_buf();
         let (code, out, err) = run(&invocation(&["init", "--apply"]), &root);
         assert_eq!(code, 0, "{err}");
-        assert!(
-            out.ends_with(&next_steps(
-                dx_runner(dx_on_path(std::env::var_os("PATH"))),
-                false
-            )),
-            "{out}"
-        );
+        assert!(out.ends_with(&next_steps(host_runner(), false)), "{out}");
     }
 
     #[test]

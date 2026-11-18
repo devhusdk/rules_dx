@@ -771,11 +771,16 @@ mod tests {
         );
     }
 
+    /// A github deploy config with `fields` after the ones every github config sets.
+    fn github_config(fields: &str) -> String {
+        format!(
+            r#"{{"config":{{"deploy_name":"demo","tag":"v1.0.0","api_compat":"off","api_baseline":"registry","sign":"off",{fields}}},"kind":"github"}}"#
+        )
+    }
+
     #[test]
     fn a_github_config_round_trips() {
-        let config = parse(
-            r#"{"config":{"deploy_name":"demo","tag":"v1.0.0","asset_rlocs":["_main/a","x;y"],"api_compat":"off","api_baseline":"registry","sign":"off"},"kind":"github"}"#,
-        );
+        let config = parse(&github_config(r#""asset_rlocs":["_main/a","x;y"]"#));
         assert_eq!(
             config,
             Ok(DeployConfig::Github(GithubConfig {
@@ -800,9 +805,9 @@ mod tests {
 
     #[test]
     fn a_github_config_carries_its_attestations() {
-        let config = parse(
-            r#"{"config":{"deploy_name":"demo","tag":"v1.0.0","asset_rlocs":[],"api_compat":"off","api_baseline":"registry","sign":"off","attestations":[{"registry":"crates","rlocs":["_main/Cargo.toml"],"crate_name":"demo","version":"1.0.0"}]},"kind":"github"}"#,
-        );
+        let config = parse(&github_config(
+            r#""asset_rlocs":[],"attestations":[{"registry":"crates","rlocs":["_main/Cargo.toml"],"crate_name":"demo","version":"1.0.0"}]"#,
+        ));
         let Ok(DeployConfig::Github(github)) = config else {
             panic!("{config:?}");
         };

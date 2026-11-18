@@ -177,12 +177,13 @@ fn stale_groups_are_removed_when_a_new_group_is_set_up() {
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     let mut scene = scene("stale group");
     let mut trail = Trail::new(&scene);
-    let mut child = std::process::Command::new("cmd")
-        .args(["/c", "exit 0"])
+    let mut child = std::process::Command::new(std::env::current_exe().expect("exe"))
+        .arg("--list")
+        .stdout(std::process::Stdio::null())
         .spawn()
-        .expect("cmd starts");
+        .expect("the test binary starts");
     let dead = child.id();
-    child.wait().expect("cmd exits");
+    child.wait().expect("the test binary exits");
     let stale = format!("dxh-{dead}");
     let out = scene.root.join("out");
     std::mem::forget(

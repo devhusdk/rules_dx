@@ -25,10 +25,13 @@ pub enum LiveObservation {
 }
 
 fn classify_managed_path(
-    dx_dir: &Path,
+    dx_dirs: &[PathBuf],
     observed: &Path,
 ) -> (Option<String>, Option<GenerationView>) {
-    let Ok(relative) = observed.strip_prefix(dx_dir) else {
+    let Some(relative) = dx_dirs
+        .iter()
+        .find_map(|dx_dir| observed.strip_prefix(dx_dir).ok())
+    else {
         return (None, None);
     };
     let mut components = relative.components();
@@ -118,7 +121,7 @@ fn checked<T>(path: &Path, result: io::Result<T>) -> Result<Option<T>, Stop> {
 fn read_targets(
     proc: &dyn ProcFs,
     dir: &Path,
-    dx_dir: &Path,
+    dx_dirs: &[PathBuf],
     targets: &mut Vec<PathBuf>,
 ) -> Result<(), Stop> {
     for name in ["cwd", "exe"] {
@@ -138,7 +141,7 @@ fn read_targets(
     for line in String::from_utf8_lossy(&maps).lines() {
         if let Some(start) = line.find('/') {
             let mapped = Path::new(line.get(start..).unwrap_or_default());
-            if mapped.starts_with(dx_dir) {
+            if dx_dirs.iter().any(|dx_dir| mapped.starts_with(dx_dir)) {
                 targets.push(mapped.to_path_buf());
             }
         }
@@ -149,15 +152,15 @@ fn read_targets(
 fn observe_process(
     proc: &dyn ProcFs,
     dir: &Path,
-    dx_dir: &Path,
+    dx_dirs: &[PathBuf],
     live: &mut LiveHexes,
 ) -> Result<(), dx_error::DxError> {
     let mut targets: Vec<PathBuf> = Vec::new();
-    let outcome = read_targets(proc, dir, dx_dir, &mut targets);
+    let outcome = read_targets(proc, dir, dx_dirs, &mut targets);
     for target in &targets {
         let text = target.to_string_lossy();
         let trimmed: &str = text.trim_end_matches(" (deleted)");
-        let (setup, generation) = classify_managed_path(dx_dir, Path::new(trimmed));
+        let (setup, generation) = classify_managed_path(dx_dirs, Path::new(trimmed));
         if let Some(hex) = setup {
             live.setup.push(hex);
         }
@@ -191,6 +194,13 @@ fn scan_with(proc: &dyn ProcFs, proc_root: &Path, dx_dir: &Path) -> LiveObservat
             };
         }
     };
+    // The kernel reports /proc link targets canonical, so a symlinked
+    // `.dx/local` or workspace parent must match by its resolved path too.
+    let mut dx_dirs = vec![dx_dir.to_path_buf()];
+    let canonical = dx_process::canonicalize_or_keep(dx_dir);
+    if canonical != dx_dir {
+        dx_dirs.push(canonical);
+    }
     let mut live = LiveHexes::default();
     let mut unreadable: Vec<String> = Vec::new();
     for name in names {
@@ -205,7 +215,7 @@ fn scan_with(proc: &dyn ProcFs, proc_root: &Path, dx_dir: &Path) -> LiveObservat
         let pid = name.to_string_lossy();
         if !pid.is_empty()
             && pid.bytes().all(|byte| byte.is_ascii_digit())
-            && let Err(reason) = observe_process(proc, &proc_root.join(&name), dx_dir, &mut live)
+            && let Err(reason) = observe_process(proc, &proc_root.join(&name), &dx_dirs, &mut live)
         {
             unreadable.push(format!("process {pid}: {reason}"));
         }
@@ -660,6 +670,37 @@ mod tests {
             plan.prune_generations,
             [] as [crate::prune::planning::GenerationView; 0]
         );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn symlinked_dx_dir_still_sees_live_generation() {
+        let scratch = dx_test_scratch::scratch("dx-prune-test-scan-symlink-").unwrap();
+        let root = fs::canonicalize(scratch.path()).expect("canonical scratch");
+        let real = root.join("real");
+        fs::create_dir_all(real.join("ws")).expect("create workspace");
+        let link = root.join("link");
+        stage_symlink(&real, &link);
+        let real_dx_dir = dx_path::state::local_dir(&real.join("ws"));
+        let env_hex = digest('1');
+        let env_dir = real_dx_dir.join("environments").join(&env_hex);
+        fs::create_dir_all(&env_dir).expect("create environment");
+        let proc_root = root.join("proc");
+        stage_process(&proc_root, "77", None, &[&env_dir.join("x")]);
+        let expected = vec![GenerationView {
+            kind: GenerationUse::Environment,
+            hex: env_hex,
+        }];
+        for dx_dir in [dx_path::state::local_dir(&link.join("ws")), real_dx_dir] {
+            match scan_live_observation(&proc_root, &dx_dir) {
+                LiveObservation::Known(live) => {
+                    assert_eq!(live.generations, expected, "{}", dx_dir.display());
+                }
+                other @ (LiveObservation::Unknown { .. } | LiveObservation::Unavailable { .. }) => {
+                    panic!("a listed proc root is known: {other:?}")
+                }
+            }
+        }
     }
 
     #[cfg(target_os = "linux")]

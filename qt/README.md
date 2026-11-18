@@ -15,30 +15,6 @@ Run the Qt tests from a rules_dx checkout:
 tools/dx test //qt/...
 ```
 
-## Setup
-
-Adding `rules_dx` is all you need: every Qt module (`qtbase`,
-`qtdeclarative`, `qttools`) is declared, and Bazel fetches nothing until a
-target needs it. `qttools` carries only `lrelease`. To download from a
-mirror, call `configure` in your root module:
-
-```python
-qt = use_extension("@rules_dx//qt:extensions.bzl", "qt")
-qt.configure(
-    mirror = "https://mirror.example/qtsdkrepository",
-)
-```
-
-`configure` takes:
-
-- `version`: must be the pinned Qt version. Other versions fail.
-- `mirror`: an https mirror of `download.qt.io/online/qtsdkrepository`.
-- `runtime_mirror`: an https mirror of `vault.almalinux.org`, with its
-  `9.6/` and `10.1/` `BaseOS/` and `AppStream/` trees.
-
-`configure` is optional, works only in the root module, and is called at
-most once.
-
 ## Quality
 
 `dx format` runs `@dx_qt//:qmlformat` when a `qml` family selects
@@ -114,6 +90,30 @@ archive finds its libraries from any directory with no environment. Qt finds
 binary overrides these paths.
 
 ## Toolchain
+
+### Setup
+
+Adding `rules_dx` is all you need: every Qt module (`qtbase`,
+`qtdeclarative`, `qttools`) is declared, and Bazel fetches nothing until a
+target needs it. `qttools` carries only `lrelease`. To download from a
+mirror, call `configure` in your root module:
+
+```python
+qt = use_extension("@rules_dx//qt:extensions.bzl", "qt")
+qt.configure(
+    mirror = "https://mirror.example/qtsdkrepository",
+)
+```
+
+`configure` takes:
+
+- `version`: must be the pinned Qt version. Other versions fail.
+- `mirror`: an https mirror of `download.qt.io/online/qtsdkrepository`.
+- `runtime_mirror`: an https mirror of `vault.almalinux.org`, with its
+  `9.6/` and `10.1/` `BaseOS/` and `AppStream/` trees.
+
+`configure` is optional, works only in the root module, and is called at
+most once.
 
 ### Your own cell
 

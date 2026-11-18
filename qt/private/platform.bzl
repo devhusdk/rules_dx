@@ -72,8 +72,7 @@ QT_PLATFORM_TRANSITION = transition(
 )
 
 QT_PLATFORMS_ATTR = {
-    "platforms": attr.label_list(
-        doc = "Platform to build for. Defaults to the Qt platform of the host on a host build, else the current target platform.",
-        providers = [platform_common.PlatformInfo],
+    "platforms": attr.string_list(
+        doc = "Platform label to build for. Defaults to the Qt platform of the host on a host build, else the current target platform.",
     ),
 }

@@ -139,6 +139,7 @@ def qt_bundle(name, binary, qml_modules = [], licenses = [], display = [], plugi
             fail("qt_bundle: plugin '" + plugin + "' is not one of " + ", ".join(sorted(RUNTIME_PLUGINS.keys())))
     compatible = kwargs.pop("target_compatible_with", None)
     kwargs["target_compatible_with"] = (compatible or []) + QT_BUNDLE_COMPATIBLE_WITH
+    kwargs["platforms"] = [str(native.package_relative_label(p)) for p in kwargs.get("platforms", [])]
     _qt_bundle(
         name = name,
         binary = binary,

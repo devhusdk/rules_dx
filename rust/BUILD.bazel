@@ -14,6 +14,7 @@ filegroup(
         "BUILD.bazel",
         "defs.bzl",
         "extensions.bzl",
+        "lang.json",
         "pins.json",
     ],
     visibility = ["//:__subpackages__"],

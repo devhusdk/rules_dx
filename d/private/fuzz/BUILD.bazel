@@ -6,5 +6,5 @@ d_library(
     testonly = True,
     srcs = ["fuzz_driver.d"],
     target_compatible_with = D_COMPATIBLE_WITH,
-    visibility = ["//visibility:public"],
+    visibility = ["//:__subpackages__"],
 )

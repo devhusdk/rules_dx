@@ -91,10 +91,11 @@ const WRAPPER: &str = "core/wrapper.bzl";
 const WRAPS: [&str; 2] = ["dx_wrap_binary", "dx_wrap_test"];
 
 /// Tags that declare a development hub or test dependencies.
-const DEV_TAGS: [&str; 6] = [
+const DEV_TAGS: [&str; 7] = [
     "annotation",
     "crates",
     "from_lock",
+    "from_manifest",
     "license",
     "lock",
     "provider",
@@ -1982,7 +1983,7 @@ fn dev_proxy_tags_accepts_test_dependency_tags() {
         append(
             files,
             "MODULE.bazel",
-            "toy_dev.from_lock(name = \"x\")\ntoy_dev.crates(name = \"y\")\n",
+            "toy_dev.from_lock(name = \"x\")\ntoy_dev.crates(name = \"y\")\ntoy_dev.from_manifest(name = \"z\")\n",
         );
     });
     assert_eq!(found, [] as [String; 0]);

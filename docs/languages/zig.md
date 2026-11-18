@@ -51,14 +51,6 @@ Build and test everything. `//...` means every target in the repository:
 tools/dx test //...
 ```
 
-## Writing targets
-
-- `main` is the module root. `srcs` lists the other `.zig` files.
-- `zig_library` imports by its target name. Set `import_name` to change it.
-- A `cc_library` in `deps` is imported as `@import("c")`.
-- `extra_srcs` carries files read with `@embedFile`.
-- Other attributes pass through to `rules_zig`.
-
 ## Dependencies
 
 ### Packages
@@ -70,6 +62,14 @@ With `zig.lock.json` beside the root `build.zig.zon`, `dx generate --apply` adds
 A package is `@zig//<name>`, imported by that name. Its root module is the first existing of `src/<name>.zig`, `src/root.zig`, `<name>.zig`, `src/main.zig`, `root.zig`, `main.zig`. Its own `build.zig.zon` dependencies become deps and must be listed in the root `build.zig.zon` with the same `.hash`.
 
 `bazel run @rules_dx//zig/private/tools/lock -- --dir <absolute directory of build.zig.zon>` downloads each archive and writes `zig.lock.json` beside it; `dx update` runs it. A second run with unchanged inputs downloads nothing.
+
+### Writing targets
+
+- `main` is the module root. `srcs` lists the other `.zig` files.
+- `zig_library` imports by its target name. Set `import_name` to change it.
+- A `cc_library` in `deps` is imported as `@import("c")`.
+- `extra_srcs` carries files read with `@embedFile`.
+- Other attributes pass through to `rules_zig`.
 
 ## Generate
 

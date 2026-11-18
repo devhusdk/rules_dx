@@ -52,14 +52,6 @@ Build and test everything. `//...` means every target in the repository:
 tools/dx test //...
 ```
 
-## Writing targets
-
-Warnings fail the build unless a target turns that off.
-
-`kotlin_test` infers `test_class` from the sources and the package path. Set
-it to override. Other attributes pass through to `kt_jvm_library`,
-`kt_jvm_binary` and `kt_jvm_test`.
-
 ## Dependencies
 
 ### Internal members
@@ -81,6 +73,14 @@ List the artifacts in a rules_jvm_external `maven_install.json` and run
 A dependency is the label `@maven//:<group>_<artifact>`, with dots and dashes
 turned into underscores, for example `@maven//:com_google_guava_guava`. See
 [generate](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/generate.md).
+
+### Writing targets
+
+Warnings fail the build unless a target turns that off.
+
+`kotlin_test` infers `test_class` from the sources and the package path. Set
+it to override. Other attributes pass through to `kt_jvm_library`,
+`kt_jvm_binary` and `kt_jvm_test`.
 
 ## Quality
 

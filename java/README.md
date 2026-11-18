@@ -15,15 +15,6 @@ Run the Java tests from a rules_dx checkout:
 tools/dx test //java/...
 ```
 
-## Writing targets
-
-Warnings fail the build unless a target turns that off.
-
-`java_binary` and `java_test` infer `main_class` and `test_class` from the
-sources and the package path. Set them to override. Without `srcs`, or with
-`select()` srcs, the class comes from the package path. If the package path
-has no Java root, the build fails and asks for `test_class` or `main_class`.
-
 ## Dependencies
 
 List the artifacts in a rules_jvm_external `maven_install.json` and run
@@ -31,6 +22,15 @@ List the artifacts in a rules_jvm_external `maven_install.json` and run
 A dependency is the label `@maven//:<group>_<artifact>`, with dots and dashes
 turned into underscores, for example `@maven//:com_google_guava_guava`. See
 [generate](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/generate.md).
+
+### Writing targets
+
+Warnings fail the build unless a target turns that off.
+
+`java_binary` and `java_test` infer `main_class` and `test_class` from the
+sources and the package path. Set them to override. Without `srcs`, or with
+`select()` srcs, the class comes from the package path. If the package path
+has no Java root, the build fails and asks for `test_class` or `main_class`.
 
 ## Quality
 

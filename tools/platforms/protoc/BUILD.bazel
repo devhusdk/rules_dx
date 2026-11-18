@@ -1,38 +1,6 @@
-# Prebuilt protoc for every exec platform protobuf publishes a release binary for, so no build
-# compiles protobuf C++ just to get protoc. protobuf registers the same toolchains itself, but only
-# behind --@protobuf//bazel/flags:prefer_prebuilt_protoc, which consumers would have to set; these
-# are gated by //config:toolchains like the rest of rules_dx's hubs instead. The toolchain attribute
-# is not followed during analysis, so only the selected platform's binary is fetched.
-
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
-
-[
-    toolchain(
-        name = name,
-        exec_compatible_with = [
-            "@platforms//os:" + os,
-            "@platforms//cpu:" + cpu,
-        ],
-        target_settings = ["//config:toolchains_on"],
-        toolchain = "@prebuilt_protoc.%s//:prebuilt_protoc_toolchain" % repo,
-        toolchain_type = "@protobuf//bazel/private:proto_toolchain_type",
-    )
-    for name, os, cpu, repo in [
-        ("linux_aarch64", "linux", "aarch64", "linux_aarch_64"),
-        ("linux_ppc64le", "linux", "ppc64le", "linux_ppcle_64"),
-        ("linux_s390x", "linux", "s390x", "linux_s390_64"),
-        ("linux_x86_32", "linux", "x86_32", "linux_x86_32"),
-        ("linux_x86_64", "linux", "x86_64", "linux_x86_64"),
-        ("macos_aarch64", "macos", "aarch64", "osx_aarch_64"),
-        ("macos_x86_64", "macos", "x86_64", "osx_x86_64"),
-        ("windows_x86_32", "windows", "x86_32", "win32"),
-        ("windows_x86_64", "windows", "x86_64", "win64"),
-        # protobuf publishes no Windows ARM64 protoc; the x64 binary runs under emulation.
-        ("windows_arm64", "windows", "arm64", "win64"),
-    ]
-]
 
 filegroup(
     name = "module_srcs",

@@ -15,7 +15,20 @@ Run the Rust tests from a rules_dx checkout:
 tools/dx test //rust/...
 ```
 
-## WebAssembly
+## Bench and fuzz
+
+`rust_bench(name, srcs, deps, ...)` is a `rust_test` built with the
+`dx_bench` feature and tagged `dx-bench`. It runs the binary with
+`--bench --output-format bencher`, sets `CRITERION_HOME` under the undeclared
+outputs, and writes the `test NAME ... bench: N ns/iter (+/- M)` lines to
+`dx-bench.json`. `dx bench` runs it. The test is built without the libtest harness
+(`use_libtest_harness = False`), so criterion's own `main` runs; pass
+`use_libtest_harness = True` for nightly `#[bench]` functions.
+`@rules_dx//rust/tests/fixtures/bench` is a criterion example.
+
+## Toolchain
+
+### WebAssembly
 
 One `rust_binary` builds native, browser and WASI outputs. The `wasm`
 attribute picks the output:
@@ -48,19 +61,6 @@ rust_test(
     wasm = "wasi",
 )
 ```
-
-## Bench and fuzz
-
-`rust_bench(name, srcs, deps, ...)` is a `rust_test` built with the
-`dx_bench` feature and tagged `dx-bench`. It runs the binary with
-`--bench --output-format bencher`, sets `CRITERION_HOME` under the undeclared
-outputs, and writes the `test NAME ... bench: N ns/iter (+/- M)` lines to
-`dx-bench.json`. `dx bench` runs it. The test is built without the libtest harness
-(`use_libtest_harness = False`), so criterion's own `main` runs; pass
-`use_libtest_harness = True` for nightly `#[bench]` functions.
-`@rules_dx//rust/tests/fixtures/bench` is a criterion example.
-
-## Toolchain
 
 ### Native
 

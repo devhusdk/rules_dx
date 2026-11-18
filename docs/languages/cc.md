@@ -52,12 +52,6 @@ Build and test everything. `//...` means every target in the repository:
 tools/dx test //...
 ```
 
-## Objective-C
-
-`cc_objc_library` is the upstream rule under your name. rules_apple resources
-and frameworks, and rules_swift `module_name`, behave exactly as upstream.
-dx assigns `srcs`, `non_arc_srcs` and `hdrs` to quality checks by their paths.
-
 ## Dependencies
 
 ### CMake dependencies
@@ -171,6 +165,12 @@ Any other host or target platform fails with a message that names the supported 
 ### macOS
 
 On a macOS host, Apple targets including `macos_*` resolve the Xcode toolchain; `@llvm` with the pinned `@macos_sdk` serves macOS targets only from Linux and Windows hosts. The dx preset sets macOS 14.0 as the minimum for target and host builds; override it with `--macos_minimum_os`, `--host_macos_minimum_os` and the matching `MACOSX_DEPLOYMENT_TARGET` in `--action_env` and `--host_action_env`.
+
+### Objective-C
+
+`cc_objc_library` is the upstream rule under your name. rules_apple resources
+and frameworks, and rules_swift `module_name`, behave exactly as upstream.
+dx assigns `srcs`, `non_arc_srcs` and `hdrs` to quality checks by their paths.
 
 ## Rules
 

@@ -52,17 +52,6 @@ Build and test everything. `//...` means every target in the repository:
 tools/dx test //...
 ```
 
-## Writing targets
-
-`swift_library`, `swift_binary` and `swift_test` build for Linux on their own.
-You need no `--platforms` or `--extra_execution_platforms` flags. To build for
-another platform, pass `platforms = ["//your:platform"]` to the wrapper. It
-takes one label; empty uses the current target platform.
-
-On a Linux host the Swift tools run on the host CPU and build for `aarch64`
-and `x86_64` Linux alike. Binaries and tests link the Swift runtime
-statically and need only the system C library.
-
 ## Quality
 
 ### Format and lint
@@ -239,6 +228,17 @@ See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/sup
 On Windows Swift binaries and tests carry the Swift runtime, XCTest and
 Swift Testing DLLs next to the executable, so they run as `sh_test` or
 `rust_test` data.
+
+### Writing targets
+
+`swift_library`, `swift_binary` and `swift_test` build for Linux on their own.
+You need no `--platforms` or `--extra_execution_platforms` flags. To build for
+another platform, pass `platforms = ["//your:platform"]` to the wrapper. It
+takes one label; empty uses the current target platform.
+
+On a Linux host the Swift tools run on the host CPU and build for `aarch64`
+and `x86_64` Linux alike. Binaries and tests link the Swift runtime
+statically and need only the system C library.
 
 ## API docs
 

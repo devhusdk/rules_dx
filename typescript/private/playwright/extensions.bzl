@@ -6,7 +6,7 @@ load(":repos.bzl", "chromium_repo", "hub_build", "repository_name")
 visibility(["//..."])
 
 def _playwright_impl(module_ctx):
-    pins = json.decode(module_ctx.read(Label(":pins.json")))
+    pins = json.decode(module_ctx.read(Label("//typescript:pins.json")))
     for platform in sorted(pins["cells"].keys()):
         cell = pins["cells"][platform]
         chromium_repo(

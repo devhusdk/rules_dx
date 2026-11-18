@@ -1,4 +1,4 @@
-"""Ubuntu 22.04 library closure the Chromium headless shell loads on Linux; the data is in typescript/private/playwright/pins.json."""
+"""Ubuntu 22.04 library closure the Chromium headless shell loads on Linux; the data is in typescript/pins.json."""
 
 load("//core:jammy_runtime.bzl", "JAMMY_RUNTIME")
 

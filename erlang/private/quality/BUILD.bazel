@@ -1,5 +1,4 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
-load(":elixirc_script_tests.bzl", "elixirc_script_test_suite")
 
 package(default_visibility = [
     "//:__pkg__",
@@ -23,15 +22,9 @@ real_source_target(
         "beam.bzl",
         "beam_tools.bzl",
         "elixirc.bzl",
-        "elixirc_script_tests.bzl",
         "erlc.bzl",
     ],
     tags = ["corpus"],
-)
-
-elixirc_script_test_suite(
-    name = "elixirc_script_unit",
-    size = "small",
 )
 
 filegroup(

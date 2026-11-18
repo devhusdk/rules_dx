@@ -15,54 +15,6 @@ Run the Android tests from a rules_dx checkout:
 tools/dx test //android/...
 ```
 
-## Setup
-
-Turn the SDK on in your root `MODULE.bazel` and accept its license there:
-
-```python
-android = use_extension("@rules_dx//android:extensions.bzl", "android")
-
-dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
-dx_licenses.accept(ids = ["android-sdk-license"])
-android.configure(
-    # api_level = 31,                       # 31-34, default 34
-    # extra_packages = ["platform-tools"],  # and/or "emulator"
-)
-
-use_repo(
-    android,
-    "dx_android_sdk",
-    "dx_android_ndk_linux_x86_64",
-    "dx_android_build_tools_linux_x86_64",
-    "dx_android_platform",
-)
-```
-
-Bazel fetches each package only when a build needs it:
-
-- the NDK (`dx_android_ndk_linux_x86_64`)
-- build-tools (`dx_android_build_tools_linux_x86_64`)
-- `platforms;android-<api_level>` for `api_level` 31 to 34, default 34
-  (`dx_android_platform`; the name does not depend on the level)
-- through `extra_packages`: `platform-tools`
-  (`dx_android_platform_tools_linux_x86_64`) and `emulator`
-  (`dx_android_emulator_linux_x86_64`, about 350 MB). The emulator ships
-  no system image.
-
-Any other `extra_packages` entry, a repeated entry, or an `api_level`
-outside 31 to 34 fails with an error that names the allowed values.
-
-The `dx_android_sdk` hub exposes `ndk`, `zipalign`, `apksigner_jar`,
-`bundletool_jar`, `android_jar`, `adb` and `emulator`. Targets for packages
-you did not request are empty. Without a `configure` tag the defaults apply.
-Pass `mirror` to download from another host.
-
-Only your root `MODULE.bazel` decides the setup. When it has a `configure`
-tag, that tag is used as written and `configure` tags from dependencies are
-ignored, so list every package you want. When it has none, the defaults apply
-plus the `extra_packages` your dependencies ask for. Two `configure` tags in
-the root module fail with "configure the Android SDK once".
-
 ## Packaging
 
 ### Application packaging
@@ -383,6 +335,54 @@ See [`tests/fixtures/adopt_android`](tests/fixtures/adopt_android/README.md) for
 consumer that adopts these rules end to end.
 
 ## Toolchain
+
+### Setup
+
+Turn the SDK on in your root `MODULE.bazel` and accept its license there:
+
+```python
+android = use_extension("@rules_dx//android:extensions.bzl", "android")
+
+dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
+dx_licenses.accept(ids = ["android-sdk-license"])
+android.configure(
+    # api_level = 31,                       # 31-34, default 34
+    # extra_packages = ["platform-tools"],  # and/or "emulator"
+)
+
+use_repo(
+    android,
+    "dx_android_sdk",
+    "dx_android_ndk_linux_x86_64",
+    "dx_android_build_tools_linux_x86_64",
+    "dx_android_platform",
+)
+```
+
+Bazel fetches each package only when a build needs it:
+
+- the NDK (`dx_android_ndk_linux_x86_64`)
+- build-tools (`dx_android_build_tools_linux_x86_64`)
+- `platforms;android-<api_level>` for `api_level` 31 to 34, default 34
+  (`dx_android_platform`; the name does not depend on the level)
+- through `extra_packages`: `platform-tools`
+  (`dx_android_platform_tools_linux_x86_64`) and `emulator`
+  (`dx_android_emulator_linux_x86_64`, about 350 MB). The emulator ships
+  no system image.
+
+Any other `extra_packages` entry, a repeated entry, or an `api_level`
+outside 31 to 34 fails with an error that names the allowed values.
+
+The `dx_android_sdk` hub exposes `ndk`, `zipalign`, `apksigner_jar`,
+`bundletool_jar`, `android_jar`, `adb` and `emulator`. Targets for packages
+you did not request are empty. Without a `configure` tag the defaults apply.
+Pass `mirror` to download from another host.
+
+Only your root `MODULE.bazel` decides the setup. When it has a `configure`
+tag, that tag is used as written and `configure` tags from dependencies are
+ignored, so list every package you want. When it has none, the defaults apply
+plus the `extra_packages` your dependencies ask for. Two `configure` tags in
+the root module fail with "configure the Android SDK once".
 
 ### Toolchain
 

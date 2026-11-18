@@ -13,11 +13,6 @@ Run the Scala tests from a rules_dx checkout:
 tools/dx test //scala/...
 ```
 
-## Writing targets
-
-Warnings fail the build unless a target turns that off. Other attributes pass
-through to `rules_scala`.
-
 ## Dependencies
 
 List the artifacts in a rules_jvm_external `maven_install.json` and run
@@ -25,6 +20,11 @@ List the artifacts in a rules_jvm_external `maven_install.json` and run
 A dependency is the label `@maven//:<group>_<artifact>`, with dots and dashes
 turned into underscores, for example `@maven//:com_google_guava_guava`. See
 [generate](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/generate.md).
+
+### Writing targets
+
+Warnings fail the build unless a target turns that off. Other attributes pass
+through to `rules_scala`.
 
 ## Quality
 

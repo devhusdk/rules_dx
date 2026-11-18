@@ -561,10 +561,10 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          bazel test --noshow_progress --test_output=errors "$@" //cc/tests/llvm_windows_cross:all
+          bazel test --noshow_progress --test_output=errors "$@" //cc/tests/fixtures/llvm_windows_cross:all
           mkdir -p "$RUNNER_TEMP/llvm-windows"
           for lang in cc go rust rust_opt zig; do
-            file="$(bazel cquery --noshow_progress "$@" --output=files "//cc/tests/llvm_windows_cross:$lang" 2>/dev/null)"
+            file="$(bazel cquery --noshow_progress "$@" --output=files "//cc/tests/fixtures/llvm_windows_cross:$lang" 2>/dev/null)"
             test "$(printf '%s\n' "$file" | wc -l)" -eq 1
             cp "$file" "$RUNNER_TEMP/llvm-windows/$lang.exe"
           done

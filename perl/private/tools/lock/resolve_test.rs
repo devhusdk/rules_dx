@@ -1,8 +1,7 @@
 //! The cpan lock step writes the golden lock with an empty `PATH`; the archives come from the fetcher.
 
-use std::sync::Mutex;
-
-use dx_lock::{Args, Error, Fetch, Outcome, run};
+use dx_lock::{Args, Error, Outcome, run};
+use dx_lock_testing::FixtureFetch;
 use perl_lock::{Cpan, packages, parse_requires, parse_snapshot};
 
 const CPANFILE: &str = "requires 'Text::CSV', '== 2.06';\nrequires \"Clone::PP\", '== 1.09';\n";
@@ -26,22 +25,11 @@ DISTRIBUTIONS
       perl 5.006
 ";
 
-struct Archives(Mutex<Vec<String>>);
-
-impl Fetch for Archives {
-    fn sha256(&self, url: &str) -> Result<String, Error> {
-        self.0.lock().expect("asked").push(url.to_owned());
-        let name = if url.ends_with("/Text-CSV-2.06.tar.gz") {
-            "TEXT_CSV"
-        } else if url.ends_with("/Clone-PP-1.09.tar.gz") {
-            "CLONE_PP"
-        } else {
-            return Err(Error::new(format!("unexpected download of {url}")));
-        };
-        Ok(dx_digest::sha256_hex(
-            &std::fs::read(dx_testing::env_file(name)).map_err(|e| Error::new(e.to_string()))?,
-        ))
-    }
+fn archives() -> FixtureFetch {
+    FixtureFetch::new(&[
+        ("/Text-CSV-2.06.tar.gz", "TEXT_CSV"),
+        ("/Clone-PP-1.09.tar.gz", "CLONE_PP"),
+    ])
 }
 
 fn set() -> tempfile::TempDir {
@@ -56,7 +44,7 @@ fn set() -> tempfile::TempDir {
     dir
 }
 
-fn lock(dir: &std::path::Path, archives: &Archives) -> Result<Outcome, Error> {
+fn lock(dir: &std::path::Path, archives: &FixtureFetch) -> Result<Outcome, Error> {
     let hub = dx_families::hub("cpan").expect("cpan is registered");
     run(
         &Cpan::spec(hub),
@@ -74,9 +62,9 @@ fn lock(dir: &std::path::Path, archives: &Archives) -> Result<Outcome, Error> {
 fn the_snapshot_writes_the_golden_lock() {
     let hub = dx_families::hub("cpan").expect("cpan is registered");
     let dir = set();
-    let archives = Archives(Mutex::default());
+    let archives = archives();
     assert_eq!(lock(dir.path(), &archives), Ok(Outcome::Written));
-    assert_eq!(archives.0.lock().expect("asked").len(), 2);
+    assert_eq!(archives.asked().len(), 2);
     dx_testing::snapshot_diff(
         &dx_testing::env_file("GOLDEN"),
         &dir.path().join(hub.lock.as_deref().expect("lock")),
@@ -88,13 +76,10 @@ fn the_snapshot_writes_the_golden_lock() {
 #[test]
 fn a_fresh_lock_downloads_nothing() {
     let dir = set();
-    assert_eq!(
-        lock(dir.path(), &Archives(Mutex::default())),
-        Ok(Outcome::Written)
-    );
-    let archives = Archives(Mutex::default());
+    assert_eq!(lock(dir.path(), &archives()), Ok(Outcome::Written));
+    let archives = archives();
     assert_eq!(lock(dir.path(), &archives), Ok(Outcome::Fresh));
-    assert!(archives.0.lock().expect("asked").is_empty());
+    assert!(archives.asked().is_empty());
 }
 
 #[test]

@@ -72,9 +72,9 @@ rust_test(
         normal_dev = True,
     ) + [
         ":perl_lock_lib",
-        "//cli/digest:dx_digest",
         "//cli/families:dx_families",
         "//cli/lock:dx_lock",
+        "//cli/lock:dx_lock_testing",
         "//tools/testing:dx_testing",
     ],
 )

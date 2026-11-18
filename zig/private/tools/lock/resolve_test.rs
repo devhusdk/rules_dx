@@ -1,8 +1,7 @@
 //! The zig lock step writes the golden lock from pinned archives with an empty `PATH` and no network.
 
-use std::cell::RefCell;
-
-use dx_lock::{Args, Error, Fetch, Outcome, run};
+use dx_lock::{Args, Error, Outcome, run};
+use dx_lock_testing::{FixtureFetch, NoFetch};
 use zig_lock::{Download, Zig};
 
 const MINI: &str = "https://example.com/mini-1.tar.gz";
@@ -25,28 +24,23 @@ const MANIFEST: &str = "// root manifest
 }
 ";
 
-struct Archives(RefCell<Vec<String>>);
+struct Archives(FixtureFetch);
 
-impl Download for Archives {
-    fn bytes(&self, url: &str) -> Result<Vec<u8>, Error> {
-        self.0.borrow_mut().push(url.to_owned());
-        let name = match url {
-            MINI => "MINI",
-            "https://example.com/mini-1.tar.xz" => "MINI_XZ",
-            "https://example.com/mini-1.tar.zst" => "MINI_ZST",
-            "https://example.com/bomb-1.tar.xz" => "BOMB_XZ",
-            BASE => "BASE",
-            other => return Err(Error::new(format!("unexpected download of {other}"))),
-        };
-        std::fs::read(dx_testing::env_file(name)).map_err(|error| Error::new(error.to_string()))
+impl Archives {
+    fn new() -> Self {
+        Self(FixtureFetch::new(&[
+            (MINI, "MINI"),
+            ("https://example.com/mini-1.tar.xz", "MINI_XZ"),
+            ("https://example.com/mini-1.tar.zst", "MINI_ZST"),
+            ("https://example.com/bomb-1.tar.xz", "BOMB_XZ"),
+            (BASE, "BASE"),
+        ]))
     }
 }
 
-struct NoFetch;
-
-impl Fetch for NoFetch {
-    fn sha256(&self, url: &str) -> Result<String, Error> {
-        Err(Error::new(format!("unexpected download of {url}")))
+impl Download for Archives {
+    fn bytes(&self, url: &str) -> Result<Vec<u8>, Error> {
+        self.0.bytes(url)
     }
 }
 
@@ -75,9 +69,9 @@ fn lock(dir: &std::path::Path, archives: &Archives) -> Result<Outcome, Error> {
 #[test]
 fn pinned_archives_write_the_golden_lock() {
     let dir = set(MANIFEST);
-    let archives = Archives(RefCell::default());
+    let archives = Archives::new();
     assert_eq!(lock(dir.path(), &archives), Ok(Outcome::Written));
-    assert_eq!(archives.0.borrow().as_slice(), [BASE, MINI]);
+    assert_eq!(archives.0.asked(), [BASE, MINI]);
     let hub = dx_families::hub("zig").expect("zig is registered");
     let actual = dir.path().join(hub.lock.as_deref().expect("lock"));
     dx_testing::snapshot_diff(
@@ -90,10 +84,7 @@ fn pinned_archives_write_the_golden_lock() {
 
 fn other_format_lock(extension: &str, sha256: &str, inputs: &str) {
     let dir = set(&MANIFEST.replace("mini-1.tar.gz", &format!("mini-1.{extension}")));
-    assert_eq!(
-        lock(dir.path(), &Archives(RefCell::default())),
-        Ok(Outcome::Written)
-    );
+    assert_eq!(lock(dir.path(), &Archives::new()), Ok(Outcome::Written));
     let hub = dx_families::hub("zig").expect("zig is registered");
     let actual =
         std::fs::read_to_string(dir.path().join(hub.lock.as_deref().expect("lock"))).expect("lock");
@@ -132,21 +123,18 @@ fn a_tar_zst_archive_writes_the_same_lock() {
 #[test]
 fn unchanged_packages_are_kept_without_a_download() {
     let dir = set(MANIFEST);
-    assert_eq!(
-        lock(dir.path(), &Archives(RefCell::default())),
-        Ok(Outcome::Written)
-    );
+    assert_eq!(lock(dir.path(), &Archives::new()), Ok(Outcome::Written));
     let hub = dx_families::hub("zig").expect("zig is registered");
     std::fs::write(dir.path().join(&hub.manifest), format!("{MANIFEST}\n")).expect("manifest");
-    let archives = Archives(RefCell::default());
+    let archives = Archives::new();
     assert_eq!(lock(dir.path(), &archives), Ok(Outcome::Written));
-    assert_eq!(archives.0.borrow().as_slice(), Vec::<String>::new());
+    assert_eq!(archives.0.asked(), Vec::<String>::new());
 }
 
 #[test]
 fn an_unsupported_archive_fails_with_its_url() {
     let dir = set(&MANIFEST.replace("mini-1.tar.gz", "mini-1.tar.bz2"));
-    let error = lock(dir.path(), &Archives(RefCell::default())).expect_err("refused");
+    let error = lock(dir.path(), &Archives::new()).expect_err("refused");
     assert!(
         error
             .to_string()
@@ -162,7 +150,7 @@ fn a_dependency_missing_from_the_root_fails() {
         "",
     );
     let dir = set(&manifest);
-    let error = lock(dir.path(), &Archives(RefCell::default())).expect_err("refused");
+    let error = lock(dir.path(), &Archives::new()).expect_err("refused");
     assert!(
         error
             .to_string()
@@ -174,7 +162,7 @@ fn a_dependency_missing_from_the_root_fails() {
 #[test]
 fn a_plain_http_url_fails() {
     let dir = set(&MANIFEST.replace("https://example.com/mini", "http://example.com/mini"));
-    let error = lock(dir.path(), &Archives(RefCell::default())).expect_err("refused");
+    let error = lock(dir.path(), &Archives::new()).expect_err("refused");
     assert!(
         error
             .to_string()
@@ -188,7 +176,7 @@ struct UnsafeArchive;
 impl Download for UnsafeArchive {
     fn bytes(&self, url: &str) -> Result<Vec<u8>, Error> {
         if url != BASE {
-            return Archives(RefCell::default()).bytes(url);
+            return Archives::new().bytes(url);
         }
         let failed = |error: std::io::Error| Error::new(error.to_string());
         let mut writer = dx_archive_testing::RawZip::new();
@@ -221,7 +209,7 @@ fn an_archive_with_an_unsafe_member_is_refused() {
 #[test]
 fn an_xz_bomb_is_refused() {
     let dir = set(&MANIFEST.replace("mini-1.tar.gz", "bomb-1.tar.xz"));
-    let error = lock(dir.path(), &Archives(RefCell::default())).expect_err("bomb");
+    let error = lock(dir.path(), &Archives::new()).expect_err("bomb");
     assert!(
         error
             .to_string()

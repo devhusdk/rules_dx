@@ -2121,6 +2121,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "dx_semver"
+version = "0.0.0"
+dependencies = [
+ "semver",
+ "thiserror 2.0.20",
+]
+
+[[package]]
 name = "dx_setup"
 version = "0.0.0"
 dependencies = [

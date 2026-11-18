@@ -74,6 +74,29 @@ rust_test(
     ],
 )
 
+rust_library(
+    name = "dx_lock_testing",
+    testonly = True,
+    srcs = ["src/testing.rs"],
+    crate_name = "dx_lock_testing",
+    crate_root = "src/testing.rs",
+    deps = [
+        ":dx_lock",
+        "//cli/digest:dx_digest",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rust_test(
+    name = "dx_lock_testing_test",
+    size = "small",
+    crate = ":dx_lock_testing",
+    data = ["testdata/registry/alpha-1.2.0.pkg"],
+    env = {
+        "DX_LOCK_TESTING_FIXTURE": "$(rootpath testdata/registry/alpha-1.2.0.pkg)",
+    },
+)
+
 rust_binary(
     name = "fixture_resolver",
     testonly = True,

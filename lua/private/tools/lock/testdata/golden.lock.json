@@ -7,7 +7,7 @@
     {
       "archives": [
         {
-          "sha256": "0000000000000000000000000000000000000000000000000000000000000023",
+          "sha256": "0fba79f243f4c9036a9a3f80543ac7824ec7058aea5a7485e44c5607ba2febf3",
           "strip_prefix": "leaf-1.2",
           "urls": [
             "https://example.com/leaf-1.2.tar.gz"
@@ -29,7 +29,7 @@
     {
       "archives": [
         {
-          "sha256": "000000000000000000000000000000000000000000000000000000000000003c",
+          "sha256": "574928a0f7e743423ba835f1c6f3e166756312c1e1d400bfc224ac4899756d3a",
           "strip_prefix": "mid-2.1",
           "urls": [
             "https://github.com/example/mid/archive/refs/tags/v2.1.tar.gz"

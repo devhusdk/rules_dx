@@ -338,7 +338,7 @@ fn write_last(workspace: &Path, document: &serde_json::Value) -> std::io::Result
     std::fs::create_dir_all(&dir)?;
     let mut text = serde_json::to_string_pretty(document).map_err(std::io::Error::other)?;
     text.push('\n');
-    std::fs::write(dir.join("last.json"), text)
+    dx_atomic_fs::write_atomic(&dir.join("last.json"), text.as_bytes())
 }
 
 pub(crate) fn execute_bench(invocation: &Invocation, mut env: Env<'_>) -> i32 {

@@ -211,7 +211,7 @@ fn declare(
         let Some(text) = texts.get(manifest) else {
             continue;
         };
-        std::fs::write(workspace.join(manifest), text)
+        dx_atomic_fs::write_atomic(&workspace.join(manifest), text.as_bytes())
             .map_err(|error| DxError::from_io(format!("{manifest}: {error}"), &error))?;
     }
     if failures.is_empty() {

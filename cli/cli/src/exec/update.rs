@@ -809,12 +809,9 @@ mod tests {
         let manifest = dir
             .path()
             .join(format!("web/{}", Ecosystem::Npm.manifest_name()));
-        std::fs::set_permissions(&manifest, std::fs::Permissions::from_mode(0o444)).unwrap();
-        if std::fs::OpenOptions::new()
-            .write(true)
-            .open(&manifest)
-            .is_ok()
-        {
+        let parent = manifest.parent().expect("manifest dir");
+        std::fs::set_permissions(parent, std::fs::Permissions::from_mode(0o555)).unwrap();
+        if std::fs::write(parent.join("probe"), b"").is_ok() {
             return;
         }
         let (mut out, mut err) = (Vec::new(), Vec::new());
@@ -827,6 +824,7 @@ mod tests {
             &mut err,
         )
         .expect_err("fails");
+        std::fs::set_permissions(parent, std::fs::Permissions::from_mode(0o755)).unwrap();
         assert_runtime_failure(code, dx_error::EXIT_INFRA, &out, &err);
     }
 }

@@ -2219,6 +2219,7 @@ FILE_FAMILY_CASES = [
         generated = {
             "matrix/psscriptanalyzer_format_dirty.ps1": "if ($a){\nWrite-Output 1}\n",
         },
+        size = "medium",
         tags = ["no-remote-exec"],
     ),
     matrix_case(
@@ -2241,6 +2242,7 @@ FILE_FAMILY_CASES = [
         generated = {
             "matrix/psscriptanalyzer_format_crlf.ps1": "if ($a){\r\nWrite-Output 1}\r\n",
         },
+        size = "medium",
         tags = ["no-remote-exec"],
     ),
     matrix_case(

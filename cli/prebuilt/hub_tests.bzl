@@ -1,9 +1,9 @@
 """Tests for the @dx_prebuilt plan, pins and hub BUILD text."""
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(":hub.bzl", "GO_TOOLS", "LAUNCHER_SOURCE", "SOURCE_LABEL", "SOURCE_TOOLS", "alias_build", "consumer_build", "plan_assets", "plan_jars", "plan_root", "valid_sha256", "with_jars")
+load(":hub.bzl", "GO_TOOLS", "LAUNCHER_SOURCE", "SOURCE_LABEL", "SOURCE_TOOLS", "alias_build", "consumer_build", "plan_assets", "plan_jars", "plan_native_tools", "plan_root", "valid_sha256", "with_jars", "with_native_tools")
 load(":pins.bzl", "DX_VERSION", "PINS", "SCHEMA", "URL_TEMPLATE")
-load(":tools.bzl", "JAR_TOOLS", "TOOLS", "asset_name", "registry_lines")
+load(":tools.bzl", "JAR_TOOLS", "NATIVE_TOOLS", "TOOLS", "asset_name", "registry_lines")
 
 visibility("private")
 
@@ -59,7 +59,53 @@ def _checks():
     pinned_jars = plan_jars("1.2.3", {"javac_check": {"any": _HASH}}, URL_TEMPLATE)
     pinned_jars_build = with_jars(pinned_build, pinned_jars)
     javac = [j for j in pinned_jars if j.tool == "javac_check"][0]
+    source_native = with_native_tools(alias_build(SOURCE_LABEL), plan_native_tools("1.2.3", {}, URL_TEMPLATE, {}))
+    native = plan_native_tools("1.2.3", {"topiary": {"linux_x86_64": _HASH, "windows_x86_64": _HASH}}, URL_TEMPLATE, {})
+    native_build = with_native_tools(pinned_build, native)
+    flatc_build = with_native_tools(pinned_build, plan_native_tools("1.2.3", {"flatc": {"linux_x86_64": _HASH, "windows_x86_64": _HASH}}, URL_TEMPLATE, {}))
+    flatc_root = plan_root([_mod("app", True, assets = [_tag(name = "flatc")])], tools = ["dx", "launcher", "go"] + NATIVE_TOOLS)
+    topiary_windows_arm = [a for a in native["topiary"] if a.key == "windows_aarch64"][0]
+    source_haskell = with_native_tools(alias_build(SOURCE_LABEL), plan_native_tools("1.2.3", {}, URL_TEMPLATE, {}))
+    weeder_pins = {"weeder": {"linux_arm64": _HASH, "windows_x86_64": _HASH}}
+    pinned_haskell = plan_native_tools("1.2.3", weeder_pins, URL_TEMPLATE, {})
+    pinned_haskell_build = with_native_tools(alias_build(SOURCE_LABEL), pinned_haskell)
+    weeder_windows_arm = [a for a in pinned_haskell["weeder"] if a.key == "windows_aarch64"][0]
     return [
+        expect_equal("the native tools", NATIVE_TOOLS, ["capnp", "flatc", "hpc_lcov", "progenitor", "thrift", "topiary", "weeder"]),
+        expect_equal("capnp assets", [asset_name("capnp", k) for k in TOOLS["capnp"].platforms], ["dx-capnp-linux-arm64", "dx-capnp-linux-x86_64", "dx-capnp-macos-arm64", "dx-capnp-windows-arm64", "dx-capnp-windows-x86_64"]),
+        expect_contains("the registry lists the code generators for fill_pins", registry_lines(), "thrift macos_arm64 dx-thrift-macos-arm64"),
+        expect_equal("native tools run on the exec platform except hpc_lcov", [t for t in NATIVE_TOOLS if TOOLS[t].role != "exec"], ["hpc_lcov"]),
+        expect_contains("a pinned code generator runs its download", flatc_build, 'name = "flatc_linux_x86_64",\n    src = "@dx_flatc_prebuilt_linux_x86_64//file:flatc",\n    out = "linux_x86_64/flatc",'),
+        expect_contains("an unpinned code generator platform builds from source", flatc_build, '"//conditions:default": "@dx_flatbuffers//:flatc",'),
+        expect_contains("a code generator with no pins builds from source", flatc_build, 'name = "capnp",\n    actual = "@dx_capnproto//src/capnp:capnp_tool",'),
+        expect_contains("the root hub aliases the source code generators", source_native, 'name = "thrift",\n    actual = "@dx_thrift//:thrift_compiler",'),
+        expect_equal("a root asset may name a code generator", flatc_root.overrides.keys(), ["flatc"]),
+        expect_equal("topiary assets", [asset_name("topiary", k) for k in TOOLS["topiary"].platforms], ["dx-topiary-linux-arm64", "dx-topiary-linux-x86_64", "dx-topiary-macos-arm64", "dx-topiary-windows-x86_64"]),
+        expect_contains("the registry lists progenitor for fill_pins", registry_lines(), "progenitor macos_arm64 dx-progenitor-macos-arm64"),
+        expect_equal("an unpinned native tool plans no windows arm64", [a.key for a in plan_native_tools("1.2.3", {}, URL_TEMPLATE, {})["topiary"]], ["linux_aarch64", "linux_x86_64", "macos_aarch64", "windows_x86_64"]),
+        expect_equal("windows arm64 runs the x86_64 topiary", topiary_windows_arm.repo, "dx_topiary_prebuilt_windows_x86_64"),
+        expect_contains("windows arm64 selects the shared download", native_build, 'name = "topiary_windows_aarch64",\n    src = "@dx_topiary_prebuilt_windows_x86_64//file:topiary.exe",'),
+        expect_contains("a pinned native tool selects on the exec platform", native_build, '":native_linux_x86_64": ":topiary_linux_x86_64",'),
+        expect_contains("an unpinned native platform builds from source", native_build, '"//conditions:default": "@rules_dx//rust/private/quality/tools:topiary_source",'),
+        expect_contains("an unpinned native tool builds from source", native_build, 'name = "progenitor",\n    actual = "@rules_dx//rust/private/quality/tools:progenitor_source",'),
+        expect_equal("native tools share one config_setting per platform", native_build.count('name = "native_linux_x86_64",'), 1),
+        expect_equal("the native hub loads native_binary once", native_build.count("native_binary.bzl"), 1),
+        expect_false("a source hub selects no native download", "dx_topiary_prebuilt" in source_native),
+        expect_true("a pinned native tool loads native_binary", with_native_tools(alias_build(SOURCE_LABEL), native).startswith('load("@bazel_skylib//rules:native_binary.bzl", "native_binary")\n')),
+        expect_equal("haskell assets", [asset_name(t, k) for t in ["hpc_lcov", "weeder"] for k in TOOLS[t].platforms], ["dx-hpc-lcov-linux-arm64", "dx-hpc-lcov-macos-arm64", "dx-hpc-lcov-windows-x86_64", "dx-weeder-linux-arm64", "dx-weeder-macos-arm64", "dx-weeder-windows-x86_64"]),
+        expect_contains("the registry lists the haskell tools for fill_pins", registry_lines(), "weeder macos_arm64 dx-weeder-macos-arm64"),
+        expect_equal("hpc_lcov runs on the target platform", TOOLS["hpc_lcov"].role, "target"),
+        expect_equal("weeder runs on the exec platform", TOOLS["weeder"].role, "exec"),
+        expect_contains("an unpinned haskell tool builds from source", source_haskell, 'name = "weeder",\n    actual = "@rules_dx//haskell/private/tools/weeder/bin:source",'),
+        expect_false("a source hub downloads no haskell tool", "dx_weeder_prebuilt_" in source_haskell),
+        expect_equal("windows arm64 takes the x86_64 haskell download", weeder_windows_arm.repo, "dx_weeder_prebuilt_windows_x86_64"),
+        expect_equal("windows arm64 runs the x86_64 exe", weeder_windows_arm.exe, "weeder.exe"),
+        expect_contains("a pinned haskell tool selects its platform", pinned_haskell_build, '":native_linux_aarch64": ":weeder_linux_aarch64",'),
+        expect_contains("windows arm64 runs the shared haskell download", pinned_haskell_build, 'name = "weeder_windows_aarch64",\n    src = "@dx_weeder_prebuilt_windows_x86_64//file:weeder.exe",'),
+        expect_contains("an unpinned haskell platform builds from source", pinned_haskell_build, '"//conditions:default": "@rules_dx//haskell/private/tools/weeder/bin:source",'),
+        expect_true("a pinned haskell hub loads native_binary", pinned_haskell_build.startswith('load("@bazel_skylib//rules:native_binary.bzl", "native_binary")\n')),
+        expect_equal("native_binary is loaded once", with_native_tools(pinned_build, pinned_haskell).count("native_binary.bzl"), 1),
+        expect_false("an unpinned haskell tool downloads nothing", "dx_hpc_lcov_prebuilt_" in pinned_haskell_build),
         expect_equal("the jar tools", JAR_TOOLS, ["avro_union", "javac_check", "javadoc_extract", "jmh_generate", "kotlinc_check", "scalac_check"]),
         expect_equal("a jar is one any asset", [asset_name(t, k) for t in JAR_TOOLS for k in TOOLS[t].platforms], ["dx-avro-union-any.jar", "dx-javac-check-any.jar", "dx-javadoc-extract-any.jar", "dx-jmh-generate-any.jar", "dx-kotlinc-check-any.jar", "dx-scalac-check-any.jar"]),
         expect_contains("the registry lists the jars for fill_pins", registry_lines(), "javac_check any dx-javac-check-any.jar"),

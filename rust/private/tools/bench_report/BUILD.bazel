@@ -8,6 +8,10 @@ rust_binary(
     srcs = ["src/main.rs"],
     crate_name = "bench_report",
     crate_root = "src/main.rs",
+    deps = [
+        "@crates//:serde",
+        "@crates//:serde_json",
+    ],
 )
 
 rust_test(

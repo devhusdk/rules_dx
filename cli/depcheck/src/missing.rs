@@ -260,10 +260,6 @@ mod tests {
         eco.manifest_name()
     }
 
-    fn lock(eco: Ecosystem) -> &'static str {
-        eco.lockfiles()[0].as_str()
-    }
-
     fn write(dir: &Path, rel: &str, text: &str) {
         let path = dir.join(rel);
         std::fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");
@@ -330,7 +326,7 @@ mod tests {
                     manifest(Ecosystem::Cargo),
                     "[package]\nname = \"app\"\nversion = \"0.1.0\"\n\n[dependencies]\nserde = \"1\"\n",
                 ),
-                (lock(Ecosystem::Cargo), text),
+                (Ecosystem::Cargo.lockfile(), text),
                 (
                     "src/lib.rs",
                     "mod time;\nuse serde::Serialize;\n\nfn f() {\n    itoa::Buffer::new();\n}\n",
@@ -342,7 +338,7 @@ mod tests {
                 ("member/src/lib.rs", "use time::Duration;\n"),
             ],
             manifest(Ecosystem::Cargo),
-            lock(Ecosystem::Cargo),
+            Ecosystem::Cargo.lockfile(),
         );
         assert_eq!(got, vec!["itoa@src/lib.rs:5"]);
     }
@@ -357,14 +353,14 @@ mod tests {
                     manifest(Ecosystem::Npm),
                     "{\"dependencies\": {\"react\": \"^18\"}}",
                 ),
-                (lock(Ecosystem::Npm), text),
+                (Ecosystem::Npm.lockfile(), text),
                 (
                     "src/a.js",
                     "import React from 'react';\nconst l = require('lodash/fp');\n",
                 ),
             ],
             manifest(Ecosystem::Npm),
-            lock(Ecosystem::Npm),
+            Ecosystem::Npm.lockfile(),
         );
         assert_eq!(got, vec!["lodash@src/a.js:2"]);
     }
@@ -379,14 +375,14 @@ mod tests {
                     manifest(Ecosystem::Uv),
                     "[project]\nname = \"app\"\nversion = \"0.1.0\"\ndependencies = [\"requests>=2\"]\n",
                 ),
-                (lock(Ecosystem::Uv), text),
+                (Ecosystem::Uv.lockfile(), text),
                 (
                     "app/main.py",
                     "import requests\nimport app\n\nfrom urllib3 import PoolManager\n",
                 ),
             ],
             manifest(Ecosystem::Uv),
-            lock(Ecosystem::Uv),
+            Ecosystem::Uv.lockfile(),
         );
         assert_eq!(got, vec!["urllib3@app/main.py:4"]);
     }
@@ -401,11 +397,11 @@ mod tests {
                     manifest(Ecosystem::Ruby),
                     "source 'https://rubygems.org'\ngem 'sinatra'\n",
                 ),
-                (lock(Ecosystem::Ruby), text),
+                (Ecosystem::Ruby.lockfile(), text),
                 ("app.rb", "require 'sinatra'\nrequire 'rack/utils'\n"),
             ],
             manifest(Ecosystem::Ruby),
-            lock(Ecosystem::Ruby),
+            Ecosystem::Ruby.lockfile(),
         );
         assert_eq!(got, vec!["rack@app.rb:2"]);
     }

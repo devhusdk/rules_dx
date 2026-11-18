@@ -378,8 +378,9 @@ julia/private/tools/lint/BUILD.bazel no-size 1
 julia/tests/BUILD.bazel no-size 1
 julia/tests/fixtures/bench/BUILD.bazel no-size 3
 julia/tests/fixtures/hello/BUILD.bazel no-size 8
-julia/tests/fixtures/julia_app/archive/BUILD.bazel no-size 1
+julia/tests/fixtures/julia_app/archive/BUILD.bazel size-medium 1
 julia/tests/fixtures/julia_app/cli/BUILD.bazel no-size 1
+julia/tests/fixtures/julia_app/cli/BUILD.bazel size-medium 1
 julia/tests/fixtures/julia_app/diagnostics/BUILD.bazel no-size 1
 julia/tests/fixtures/julia_app/stats/BUILD.bazel no-size 1
 julia/tests/fixtures/julia_app/third_party/BUILD.bazel no-size 1

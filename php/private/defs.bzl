@@ -1,9 +1,9 @@
 """Thin dx wrappers over the owned PHP rules."""
 
+load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//php/private/toolchain:cells.bzl", "PHP_CELLS")
-load(":entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load(":php.bzl", "PHP_SOURCE_EXTS", _php_binary = "php_binary", _php_library = "php_library", _php_test = "php_test")
 load(":providers.bzl", _PhpInfo = "PhpInfo")
 

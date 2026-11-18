@@ -244,6 +244,8 @@ pub struct Outcome {
     pub missing_allow: Vec<String>,
     /// The ask rules an existing Claude Code settings file lacks.
     pub missing_ask: Vec<String>,
+    /// Each existing hooks file that is not a JSON object, such as a truncated or empty one.
+    pub unparsable: Vec<&'static str>,
 }
 
 /// Writes each absent hooks file whose path is in `create` and adds missing entries to existing ones in place.
@@ -290,24 +292,31 @@ fn sync(workspace: &Path, write: bool, create: &[&str]) -> io::Result<Outcome> {
         missing: Vec::new(),
         missing_allow: Vec::new(),
         missing_ask: Vec::new(),
+        unparsable: Vec::new(),
     };
     for file in HOOK_FILES {
         let path = workspace.join(file.path);
         if path.exists() {
             let existing = std::fs::read_to_string(&path)?;
+            if !matches!(dx_merge::jsonc::parse(&existing), Ok(Value::Object(_))) {
+                outcome.unparsable.push(file.path);
+                continue;
+            }
             let (rules, ask) = if file.allow {
                 (missing_allow(&existing), missing_ask(&existing))
             } else {
                 (Vec::new(), Vec::new())
             };
             let missing = missing_entries(file, &existing);
-            if write
-                && (!missing.is_empty() || !rules.is_empty() || !ask.is_empty())
-                && let Ok(merged) = merge(file, &existing)
-            {
-                dx_atomic_fs::write_atomic(&path, merged.as_bytes())?;
-                outcome.wrote.push(file.path.to_owned());
-                continue;
+            if write && (!missing.is_empty() || !rules.is_empty() || !ask.is_empty()) {
+                match merge(file, &existing) {
+                    Ok(merged) => {
+                        dx_atomic_fs::write_atomic(&path, merged.as_bytes())?;
+                        outcome.wrote.push(file.path.to_owned());
+                        continue;
+                    }
+                    Err(_) => outcome.unparsable.push(file.path),
+                }
             }
             outcome.missing_allow.extend(rules);
             outcome.missing_ask.extend(ask);
@@ -316,10 +325,7 @@ fn sync(workspace: &Path, write: bool, create: &[&str]) -> io::Result<Outcome> {
             }
         } else if create.contains(&file.path) {
             if write {
-                if let Some(parent) = path.parent() {
-                    std::fs::create_dir_all(parent)?;
-                }
-                std::fs::write(&path, settings_text(file))?;
+                dx_atomic_fs::write_atomic(&path, settings_text(file).as_bytes())?;
             }
             outcome.wrote.push(file.path.to_owned());
         }
@@ -499,11 +505,69 @@ mod tests {
         std::fs::create_dir_all(dir.path().join(".gemini")).expect("dir");
         std::fs::write(dir.path().join(GEMINI.path), "{ nope").expect("settings");
         let outcome = apply(dir.path(), &ALL).expect("apply");
-        assert_eq!(outcome.missing[0].0, GEMINI.path);
+        assert_eq!(outcome.unparsable, vec![GEMINI.path]);
+        assert!(!outcome.wrote.contains(&GEMINI.path.to_owned()));
         assert_eq!(
             std::fs::read_to_string(dir.path().join(GEMINI.path)).expect("read"),
             "{ nope"
         );
+    }
+
+    #[test]
+    fn truncated_settings_file_is_reported() {
+        let fresh = settings_text(&CLAUDE);
+        let half = fresh.get(..40).expect("prefix");
+        for broken in ["", half] {
+            let dir = scratch("dx-worktree-setup-truncated-").unwrap();
+            std::fs::create_dir_all(dir.path().join(".claude")).expect("dir");
+            std::fs::write(dir.path().join(CLAUDE.path), broken).expect("settings");
+            for outcome in [
+                refresh(dir.path()).expect("refresh"),
+                inspect(dir.path(), &ALL).expect("inspect"),
+            ] {
+                assert_eq!(outcome.unparsable, vec![CLAUDE.path], "{broken:?}");
+                assert!(!outcome.wrote.contains(&CLAUDE.path.to_owned()));
+            }
+            assert_eq!(
+                std::fs::read_to_string(dir.path().join(CLAUDE.path)).expect("read"),
+                broken
+            );
+        }
+    }
+
+    #[test]
+    fn a_settings_file_merge_cannot_edit_is_reported() {
+        let dir = scratch("dx-worktree-setup-wrong-type-").unwrap();
+        std::fs::create_dir_all(dir.path().join(".codex")).expect("dir");
+        let own = "{\"hooks\": []}\n";
+        std::fs::write(dir.path().join(CODEX.path), own).expect("hooks");
+        let outcome = refresh(dir.path()).expect("refresh");
+        assert_eq!(outcome.unparsable, vec![CODEX.path]);
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join(CODEX.path)).expect("read"),
+            own
+        );
+    }
+
+    // A rename replaces a dangling link; a plain write would follow it and create its target.
+    #[cfg(unix)]
+    #[test]
+    fn create_uses_atomic_write() {
+        let dir = scratch("dx-worktree-setup-atomic-").unwrap();
+        std::fs::create_dir_all(dir.path().join(".codex")).expect("dir");
+        let target = dir.path().join("elsewhere.json");
+        std::os::unix::fs::symlink(&target, dir.path().join(CODEX.path)).expect("link");
+        let outcome = apply(dir.path(), &[CODEX.path]).expect("apply");
+        assert_eq!(outcome.wrote, vec![CODEX.path.to_owned()]);
+        assert!(!target.exists());
+        let meta = std::fs::symlink_metadata(dir.path().join(CODEX.path)).expect("meta");
+        assert!(meta.is_file());
+        let text = std::fs::read_to_string(dir.path().join(CODEX.path)).expect("read");
+        assert_eq!(text, settings_text(&CODEX));
+        let names: Vec<_> = std::fs::read_dir(dir.path().join(".codex"))
+            .expect("list")
+            .collect();
+        assert_eq!(names.len(), 1);
     }
 
     #[test]

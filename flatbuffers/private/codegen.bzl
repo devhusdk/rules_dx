@@ -13,7 +13,7 @@ load(":defs.bzl", "FlatBuffersInfo", "resolve_root")
 # The compiler is the pinned source build, never the lint flag.
 _PRIVATE_ATTRS = {
     "_flatc": attr.label(
-        default = Label("@dx_flatbuffers//:flatc"),
+        default = Label("@dx_prebuilt//:flatc"),
         executable = True,
         cfg = "exec",
     ),

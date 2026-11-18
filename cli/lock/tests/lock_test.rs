@@ -3,9 +3,11 @@
 use std::cell::{Cell, RefCell};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 use dx_lock::{
-    Archive, Args, Error, Fetch, Lock, Outcome, Package, Resolution, Resolver, Scratch, Spec, run,
+    Archive, Args, Error, Fetch, Lock, Outcome, Package, RESOLVER_TIMEOUT, Resolution, Resolver,
+    Scratch, Spec, run,
 };
 
 fn runfile(variable: &str) -> PathBuf {
@@ -32,16 +34,33 @@ struct Registry {
 impl Resolver for Registry {
     fn resolve(&self, scratch: &Scratch, _: Option<&Lock>) -> Result<Resolution, Error> {
         self.starts.set(self.starts.get() + 1);
-        let output = scratch
-            .command(runfile("FIXTURE_RESOLVER"))
-            .arg(runfile("REGISTRY_INDEX"))
-            .output()
-            .map_err(|error| Error::new(error.to_string()))?;
-        if !output.status.success() {
-            return Err(Error::new(String::from_utf8_lossy(&output.stderr)));
-        }
-        Resolution::from_json(&output.stdout)
+        let mut command = scratch.command(runfile("FIXTURE_RESOLVER"));
+        command.arg(runfile("REGISTRY_INDEX"));
+        Resolution::from_json(&Scratch::run(&mut command, RESOLVER_TIMEOUT)?)
     }
+}
+
+#[test]
+fn a_hanging_resolver_is_stopped_at_the_timeout() {
+    let scratch = Scratch::new().expect("scratch");
+    let mut command = scratch.command(runfile("FIXTURE_RESOLVER"));
+    command.arg("--hang");
+    let started = Instant::now();
+    let error = Scratch::run(&mut command, Duration::from_secs(1)).expect_err("hang");
+    assert!(error.to_string().contains("timed out after 1s"), "{error}");
+    assert!(started.elapsed() < Duration::from_secs(30), "{error}");
+}
+
+#[test]
+fn a_failing_resolver_reports_its_exit_and_output() {
+    let scratch = Scratch::new().expect("scratch");
+    let mut command = scratch.command(runfile("FIXTURE_RESOLVER"));
+    command.arg(scratch.set().join("missing.json"));
+    let error = Scratch::run(&mut command, RESOLVER_TIMEOUT)
+        .expect_err("missing index")
+        .to_string();
+    assert!(error.contains("failed with exit 1"), "{error}");
+    assert!(error.contains("fixture_resolver: "), "{error}");
 }
 
 /// Returns a closure given by the test.

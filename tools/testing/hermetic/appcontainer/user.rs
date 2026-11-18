@@ -171,7 +171,7 @@ impl Drop for Session {
             end_job(&job);
         }
         for path in &self.acl_paths {
-            let _ = remove_access(path, self.sid());
+            let _: Result<(), String> = remove_access(path, self.sid());
         }
         if let Some(port) = self.dns_port.take()
             && let Err(err) = set_port_access(port.as_handle(), self.sid(), REVOKE_ACCESS)
@@ -191,7 +191,7 @@ impl Drop for Session {
 
 /// Kills what is left in the job and waits until it is empty, so the profile is no longer in use.
 fn end_job(job: &JobObject) {
-    let _ = job.terminate(1);
+    let _: std::io::Result<()> = job.terminate(1);
     for _ in 0..100 {
         if job.active_processes().is_ok_and(|active| active > 0) {
             std::thread::sleep(Duration::from_millis(100));
@@ -739,7 +739,7 @@ fn spawn(config: &Config, session: &Session, password: &str) -> Result<i32, Stri
             break;
         }
         if let Err(err) = check_dns_client(session) {
-            let _ = job.terminate(1);
+            let _: std::io::Result<()> = job.terminate(1);
             wait_exit(process.as_handle())?;
             return Err(err);
         }
@@ -817,7 +817,7 @@ pub fn setup_group(config: &Config) -> Result<i32, String> {
         first
     });
     if let Err(err) = applied {
-        let _ = teardown_group(config);
+        let _: Result<i32, String> = teardown_group(config);
         return Err(err);
     }
     Ok(0)

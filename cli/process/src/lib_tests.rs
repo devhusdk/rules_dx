@@ -1066,6 +1066,32 @@ fn expand_tilde_without_home_keeps_the_path() {
 }
 
 #[test]
+fn empty_home_leaves_tilde_path_unexpanded() {
+    let env = |name: &str| (name == "HOME").then(|| OsString::from(""));
+    assert_eq!(home_with(env), None);
+    assert_eq!(
+        expand_tilde_with(Path::new("~/ws"), home_with(env)),
+        PathBuf::from("~/ws")
+    );
+}
+
+#[test]
+fn empty_home_falls_back_to_userprofile() {
+    let env = |name: &str| match name {
+        "HOME" => Some(OsString::new()),
+        "USERPROFILE" => Some(OsString::from("/users/me")),
+        _ => None,
+    };
+    assert_eq!(home_with(env), Some(OsString::from("/users/me")));
+    assert_eq!(
+        expand_tilde_with(Path::new("~/ws"), home_with(env)),
+        PathBuf::from("/users/me").join("ws")
+    );
+    let empty_userprofile = |name: &str| (name == "USERPROFILE").then(OsString::new);
+    assert_eq!(home_with(empty_userprofile), None);
+}
+
+#[test]
 fn output_base_of_value_ignores_unset_and_empty() {
     assert_eq!(output_base_of_value(None), None);
     assert_eq!(

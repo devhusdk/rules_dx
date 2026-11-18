@@ -88,7 +88,7 @@ mod tests {
         impl QueryRunner for Capturing {
             fn run_query(&self, argv: &[String], cwd: &Path) -> std::io::Result<QueryResult> {
                 self.seen.borrow_mut().push(argv.to_vec());
-                let _ = cwd;
+                let _: &Path = cwd;
                 Ok(QueryResult {
                     code: self.output.code,
                     stdout: self.output.stdout.clone(),

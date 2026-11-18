@@ -19,6 +19,7 @@ rust_binary(
         "src/release_cell.rs",
         "src/review_paths.rs",
         "src/table.rs",
+        "src/test_log_tails.rs",
         "src/upgrade_e2e.rs",
     ],
     aliases = aliases(
@@ -32,6 +33,7 @@ rust_binary(
         normal = True,
     ) + [
         "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/bep:dx_bep",
         "//cli/binfmt:dx_binfmt",
         "//cli/process:dx_process",
         "//tools/ci/evidence_inputs",
@@ -54,6 +56,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        "//cli/path:dx_path",
         "//cli/test_scratch:dx_test_scratch",
         "@crates//:serde_json",
     ],

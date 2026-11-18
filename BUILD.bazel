@@ -123,6 +123,7 @@ load("//javascript:defs.bzl", "js_library")
 # gazelle:exclude gazelle/php/builtins_dump.php
 # gazelle:exclude haskell/tests/runtime/src
 # gazelle:exclude dotnet/private/quality/tools/fsharplint
+# gazelle:exclude dotnet/private/quality/tools/roslyn_worker
 # gazelle:exclude gazelle/astro
 # gazelle:exclude gazelle/avro
 # gazelle:exclude gazelle/capnproto
@@ -502,6 +503,7 @@ filegroup(
         "//cli/process:module_srcs",
         "//cli/release_tree:module_srcs",
         "//cli/roots:module_srcs",
+        "//cli/runtime:module_srcs",
         "//cli/sbom:module_srcs",
         "//cli/sbom/schema:module_srcs",
         "//cli/semver:module_srcs",
@@ -816,6 +818,7 @@ filegroup(
         "//patches/rules_kotlin:module_srcs",
         "//patches/rules_ocaml:module_srcs",
         "//patches/rules_oci:module_srcs",
+        "//patches/rules_perl:module_srcs",
         "//patches/rules_powershell:module_srcs",
         "//patches/rules_python:module_srcs",
         "//patches/rules_ruby:module_srcs",

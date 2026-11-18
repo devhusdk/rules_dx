@@ -359,10 +359,10 @@ impl WatchSession {
         // Symlinks such as `bazel-out` point at trees that never trigger a rerun.
         let mut notify_config = notify::Config::default().with_follow_symlinks(false);
         if poll {
-            eprintln!(
+            dx_error::stdio::eprint_line(format_args!(
                 "watching by polling every {}s",
                 WATCH_POLL_INTERVAL.as_secs()
-            );
+            ));
             notify_config = notify_config.with_poll_interval(WATCH_POLL_INTERVAL);
         }
         let config = notify_debouncer_mini::Config::default()
@@ -390,7 +390,8 @@ impl WatchSession {
                     .duration_since(std::time::UNIX_EPOCH)
                     .map_or(0, |since| since.as_nanos())
             ));
-            if std::fs::write(&marker, b"").is_ok() {
+            // A plain create: a staged write would raise events for a non-marker name.
+            if std::fs::File::create(&marker).is_ok() {
                 dx_atomic_fs::discard_file(&marker);
             }
         }
@@ -913,15 +914,15 @@ mod tests {
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join("src")).expect("source dir");
         std::fs::write(root.join("src/main.rs"), "fn main() {}").expect("source");
-        let _ = std::fs::read(root.join("src/main.rs")).expect("warm read");
-        let _ = std::fs::read_dir(root.join("src"))
+        let _: Vec<u8> = std::fs::read(root.join("src/main.rs")).expect("warm read");
+        let _: usize = std::fs::read_dir(root.join("src"))
             .expect("warm list")
             .count();
         let session = WatchSession::start(&root, &[], false).expect("session starts");
         std::fs::write(root.join("warm.txt"), "warm").expect("warm");
-        let _ = wait_for(&session, "warm.txt");
-        let _ = std::fs::read(root.join("src/main.rs")).expect("read");
-        let _ = std::fs::read_dir(root.join("src")).expect("list").count();
+        let _: Vec<PathBuf> = wait_for(&session, "warm.txt");
+        let _: Vec<u8> = std::fs::read(root.join("src/main.rs")).expect("read");
+        let _: usize = std::fs::read_dir(root.join("src")).expect("list").count();
         std::fs::write(root.join("sentinel.txt"), "done").expect("sentinel");
         let changes = wait_for(&session, "sentinel.txt");
         assert!(
@@ -1147,7 +1148,7 @@ mod tests {
             trigger.iter().any(|path| path.ends_with("sub/out.sarif")),
             "{trigger:?}"
         );
-        let _ = session.drain().expect("drain");
+        let _: Vec<PathBuf> = session.drain().expect("drain");
         std::fs::write(root.join(".tmpabc"), "x").expect("write");
         let trigger = session.wait(Duration::from_secs(5)).expect("wait");
         assert!(

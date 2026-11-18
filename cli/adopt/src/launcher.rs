@@ -700,7 +700,7 @@ fn write_launcher(
             .map_err(|e| write_error(&e))?;
     }
     #[cfg(not(unix))]
-    let _ = executable;
+    let _: bool = executable;
     Ok(())
 }
 

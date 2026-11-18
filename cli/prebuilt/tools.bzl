@@ -24,6 +24,31 @@ RELEASE_CPU = {
 
 _NATIVE = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]
 
+def _exec_native(tool):
+    return struct(
+        asset = "dx-" + tool + "-{os}-{cpu}",
+        role = "exec",
+        platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+        fallbacks = {"windows_arm64": "windows_x86_64"},
+        source = "@rules_dx//rust/private/quality/tools:" + tool + "_source",
+        member = "",
+        main_class = "",
+    )
+
+# Haskell tools: windows_arm64 runs the x86_64 build under emulation.
+_HASKELL = ["linux_arm64", "macos_arm64", "windows_x86_64"]
+
+def _haskell(tool, role, source):
+    return struct(
+        asset = "dx-" + tool.replace("_", "-") + "-{os}-{cpu}",
+        role = role,
+        platforms = _HASKELL,
+        fallbacks = {"windows_arm64": "windows_x86_64"},
+        source = source,
+        member = "",
+        main_class = "",
+    )
+
 def _jar(tool, source, main_class):
     return struct(
         asset = "dx-" + tool.replace("_", "-") + "-any.jar",
@@ -35,8 +60,20 @@ def _jar(tool, source, main_class):
         main_class = main_class,
     )
 
+def _native_exec(source):
+    return struct(
+        asset = "dx-{tool}-{os}-{cpu}",
+        role = "exec",
+        platforms = _NATIVE,
+        fallbacks = {"windows_arm64": "windows_x86_64"},
+        source = source,
+        member = "",
+        main_class = "",
+    )
+
 # Each tool:
-#   asset: the release asset name; {os} and {cpu} are filled from the platform key.
+#   asset: the release asset name; {os} and {cpu} are filled from the platform key
+#     and {tool} from the tool name.
 #   role: "exec" when the tool runs during the build (the hub selects on the exec
 #     platform), "target" when it ships inside the built output (target platform).
 #   platforms: the platform keys a release builds.
@@ -86,13 +123,23 @@ TOOLS = {
         member = "",
         main_class = "",
     ),
+    "capnp": _native_exec("@dx_capnproto//src/capnp:capnp_tool"),
+    "flatc": _native_exec("@dx_flatbuffers//:flatc"),
+    "thrift": _native_exec("@dx_thrift//:thrift_compiler"),
+    "progenitor": _exec_native("progenitor"),
+    "topiary": _exec_native("topiary"),
     "avro_union": _jar("avro_union", "@rules_dx//avro/private/tools/avro_union", "dx.avro.tools.AvroUnion"),
     "javac_check": _jar("javac_check", "@rules_dx//java/private/quality/tools/javac_check", "dx.quality.javac.Main"),
     "javadoc_extract": _jar("javadoc_extract", "@rules_dx//tools/docs/jvm/javadoc:javadoc_extract", "dx.docs.javadoc.Main"),
     "jmh_generate": _jar("jmh_generate", "@rules_dx//java/private/jmh:jmh_generate", "dx.bench.JmhGenerate"),
     "kotlinc_check": _jar("kotlinc_check", "@rules_dx//java/private/quality/tools/kotlinc_check", "dx.quality.kotlinc.Main"),
     "scalac_check": _jar("scalac_check", "@rules_dx//java/private/quality/tools/scalac_check", "dx.quality.scalac.Main"),
+    "hpc_lcov": _haskell("hpc_lcov", "target", "@rules_dx//haskell/private/coverage:hpc_lcov_source"),
+    "weeder": _haskell("weeder", "exec", "@rules_dx//haskell/private/tools/weeder/bin:source"),
 }
+
+# The tools released as one native binary per platform.
+NATIVE_TOOLS = ["capnp", "flatc", "hpc_lcov", "progenitor", "thrift", "topiary", "weeder"]
 
 # The tools released as one platform-independent jar each.
 JAR_TOOLS = sorted([tool for tool, entry in TOOLS.items() if entry.main_class])
@@ -105,7 +152,7 @@ def split_key(key):
 def asset_name(tool, key):
     """Returns the release asset name of tool on the platform key."""
     os, cpu = split_key(key)
-    return TOOLS[tool].asset.format(os = os, cpu = cpu)
+    return TOOLS[tool].asset.format(tool = tool, os = os, cpu = cpu)
 
 def registry_lines():
     """Returns one "<tool> <key> <asset>" line per release asset, sorted, for fill_pins."""

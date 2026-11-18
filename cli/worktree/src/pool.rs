@@ -671,7 +671,7 @@ fn claim_marker(marker: &Path, bytes: &[u8]) -> std::io::Result<bool> {
     static CLAIMS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
     let claim = CLAIMS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let staged = marker.with_extension(format!("claim-{}-{claim}", std::process::id()));
-    std::fs::write(&staged, bytes)?;
+    dx_atomic_fs::write_atomic(&staged, bytes)?;
     let linked = std::fs::hard_link(&staged, marker);
     dx_atomic_fs::discard_file(&staged);
     match linked {

@@ -1,4 +1,9 @@
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::string_slice
+)]
 
 //! The lock step of a dx class ecosystem and the only writer of `<ecosystem>.lock.json`.
 
@@ -16,7 +21,7 @@ use globset::{Glob, GlobSetBuilder};
 
 pub use http::{DOWNLOADER_CONFIG_ENV, HttpFetch};
 pub use model::{Archive, Lock, PLATFORMS, Package, Resolution, SCHEMA, is_sha256};
-pub use scratch::Scratch;
+pub use scratch::{RESOLVER_TIMEOUT, Scratch};
 
 /// Why a lock step failed.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -418,7 +423,7 @@ pub fn run(
     }
     let scratch = Scratch::new()?;
     for name in inputs.copied() {
-        std::fs::write(scratch.set().join(name), read(&dir.join(name))?)
+        dx_atomic_fs::write_scratch(&scratch.set().join(name), &read(&dir.join(name))?)
             .map_err(|error| Error::new(format!("{name}: {error}")))?;
     }
     let kept_packages = |packages: &[Package]| -> Vec<Package> {
@@ -481,15 +486,15 @@ pub fn main(spec: &Spec, resolver: &dyn Resolver) -> ExitCode {
     });
     match outcome {
         Ok((Outcome::Stale, args)) => {
-            eprintln!(
+            dx_error::stdio::eprint_line(format_args!(
                 "{} is stale; run `dx generate --apply`",
                 args.dir.join(spec.lock_name()).display()
-            );
+            ));
             ExitCode::from(1)
         }
         Ok(_) => ExitCode::SUCCESS,
         Err(error) => {
-            eprintln!("{}: {error}", spec.lock_name());
+            dx_error::stdio::eprint_line(format_args!("{}: {error}", spec.lock_name()));
             ExitCode::from(2)
         }
     }

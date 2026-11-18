@@ -11,6 +11,7 @@ rust_binary(
     ],
     crate_name = "hpc_coverage",
     crate_root = "src/main.rs",
+    deps = ["//cli/error:dx_error"],
 )
 
 rust_test(
@@ -23,7 +24,10 @@ rust_test(
     ],
     crate_name = "hpc_coverage",
     crate_root = "src/main.rs",
-    deps = ["//cli/test_scratch:dx_test_scratch"],
+    deps = [
+        "//cli/error:dx_error",
+        "//cli/test_scratch:dx_test_scratch",
+    ],
 )
 
 real_source_target(

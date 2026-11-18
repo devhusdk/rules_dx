@@ -101,11 +101,21 @@ Use these steps when you or an agent start from a fresh Linux checkout, such as 
 
    When `bazel` is not on `PATH`, `tools/dx` downloads the Bazelisk pinned in `tools/bazelisk/pin.env` from GitHub, checks its sha256 and keeps it in `~/.cache/dx/bazelisk`. That Bazelisk fetches Bazel from GitHub releases too, unless you set `BAZELISK_BASE_URL`. The first build takes about 7 minutes on 4 CPUs, up to 6 GB of memory and about 15 GB of disk.
 
-   The build needs `bcr.bazel.build`, the Bazel module registry. If the network blocks it, the first build stops with a line that names the host; allow it in the container's network settings.
+   The first run needs these hosts: `github.com` and `release-assets.githubusercontent.com` for the Bazelisk and Bazel downloads, and `bcr.bazel.build`, the Bazel module registry. If the network blocks one, `tools/dx` stops with a line that names the host; allow it in the container's network settings.
 
    GitHub source archives also come from `mirror.bazel.build` and `bcr.cloudflaremirrors.com`. `tools/workspace/downloader.cfg` tries those first, so a proxy that blocks `github.com/<owner>/<repo>/archive/` or `codeload.github.com` needs no other step.
 
-2. Run one test:
+2. Work in a slot, as `AGENTS.md` says. A slot is a second checkout with its own Bazel server and output base. Stop the primary checkout's Bazel server first, so only one server holds memory:
+
+   ```sh
+   ~/.cache/dx/bazelisk/*/bazel shutdown
+   cd "$(tools/dx worktree add <branch> --create=origin/main --path-only)"
+   tools/dx --version
+   ```
+
+   On 4 CPUs and 15 GB with the remote cache, `worktree add` and the slot's first `tools/dx --version` take about 1 minute each. The slot's Bazel server uses about 2 GB of memory, and the slot adds about 0.6 GB of disk. If you skip `bazel shutdown`, the primary server stays up for 15 idle minutes and holds about 1.5 GB more.
+
+3. Run one test:
 
    ```sh
    tools/dx test //cli/path:dx_path_test

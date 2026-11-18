@@ -1,34 +1,32 @@
 //! The lua lock step writes the golden lock from the registry fixture with an empty `PATH` and no network.
 
-use std::cell::RefCell;
-
-use dx_lock::{Args, Error, Fetch, Outcome, run};
+use dx_lock::{Args, Error, Outcome, run};
+use dx_lock_testing::FixtureFetch;
 use lua_lock::{BASE, Download, Lua};
 
 const APP: &str = "package = \"app\"\nversion = \"0.0-0\"\ndependencies = {\n  \"lua >= 5.1\", -- interpreter\n  \"mid ~> 2.0\",\n}\n";
 
-struct Site(RefCell<Vec<String>>);
+struct Site(FixtureFetch);
 
-impl Download for Site {
-    fn bytes(&self, url: &str) -> Result<Vec<u8>, Error> {
-        self.0.borrow_mut().push(url.to_owned());
-        let name = match url.strip_prefix(&format!("{BASE}/")) {
-            Some("manifest-5.5.json") => "MANIFEST",
-            Some("mid-2.1-1.rockspec") => "MID_21",
-            Some("mid-2.0-1.rockspec") => "MID_20",
-            Some("leaf-1.2-0.rockspec") => "LEAF",
-            _ => return Err(Error::new(format!("unexpected download of {url}"))),
-        };
-        std::fs::read(dx_testing::env_file(name)).map_err(|error| Error::new(error.to_string()))
+impl Site {
+    fn new() -> Self {
+        Self(FixtureFetch::new(&[
+            ("/manifest-5.5.json", "MANIFEST"),
+            ("/mid-2.1-1.rockspec", "MID_21"),
+            ("/mid-2.0-1.rockspec", "MID_20"),
+            ("/leaf-1.2-0.rockspec", "LEAF"),
+        ]))
     }
 }
 
-struct Digests;
-
-impl Fetch for Digests {
-    fn sha256(&self, url: &str) -> Result<String, Error> {
-        Ok(format!("{:064x}", url.len()))
+impl Download for Site {
+    fn bytes(&self, url: &str) -> Result<Vec<u8>, Error> {
+        self.0.bytes(url)
     }
+}
+
+fn archives() -> FixtureFetch {
+    FixtureFetch::new(&[("/leaf-1.2.tar.gz", "LEAF"), ("/v2.1.tar.gz", "MID_21")])
 }
 
 fn set(manifest: &str) -> tempfile::TempDir {
@@ -48,13 +46,13 @@ fn lock(dir: &std::path::Path, site: &Site) -> Result<Outcome, Error> {
             upgrade: Vec::new(),
         },
         &Lua::new(&spec, BASE, site),
-        &Digests,
+        &archives(),
     )
 }
 
 fn fetched(site: &Site) -> Vec<String> {
     site.0
-        .borrow()
+        .asked()
         .iter()
         .map(|url| url.trim_start_matches(&format!("{BASE}/")).to_owned())
         .collect()
@@ -67,7 +65,7 @@ fn the_registry_fixture_writes_the_golden_lock() {
         APP
     );
     let dir = set(APP);
-    let site = Site(RefCell::default());
+    let site = Site::new();
     assert_eq!(lock(dir.path(), &site), Ok(Outcome::Written));
     assert_eq!(
         fetched(&site),
@@ -90,12 +88,9 @@ fn the_registry_fixture_writes_the_golden_lock() {
 #[test]
 fn unchanged_rocks_are_kept_without_a_download() {
     let dir = set(APP);
-    assert_eq!(
-        lock(dir.path(), &Site(RefCell::default())),
-        Ok(Outcome::Written)
-    );
+    assert_eq!(lock(dir.path(), &Site::new()), Ok(Outcome::Written));
     std::fs::write(dir.path().join("app.rockspec"), format!("{APP}\n")).expect("manifest");
-    let site = Site(RefCell::default());
+    let site = Site::new();
     assert_eq!(lock(dir.path(), &site), Ok(Outcome::Written));
     assert_eq!(fetched(&site), Vec::<String>::new());
 }
@@ -103,7 +98,7 @@ fn unchanged_rocks_are_kept_without_a_download() {
 #[test]
 fn a_bound_no_release_meets_fails_with_the_rock() {
     let dir = set(&APP.replace("~> 2.0", ">= 4"));
-    let error = lock(dir.path(), &Site(RefCell::default())).expect_err("refused");
+    let error = lock(dir.path(), &Site::new()).expect_err("refused");
     assert!(
         error
             .to_string()
@@ -115,6 +110,6 @@ fn a_bound_no_release_meets_fails_with_the_rock() {
 #[test]
 fn a_rockspec_that_runs_code_fails() {
     let dir = set(&APP.replace("\"mid ~> 2.0\"", "require(\"mid\")"));
-    let error = lock(dir.path(), &Site(RefCell::default())).expect_err("refused");
+    let error = lock(dir.path(), &Site::new()).expect_err("refused");
     assert!(error.to_string().contains("app.rockspec"), "{error}");
 }

@@ -196,9 +196,9 @@ def sources_registry_tests(name):
                 },
             ),
             expect_equal(
-                "named source classes cover cmake, dockerfile and make",
+                "named source classes cover cmake, dockerfile, helm and make",
                 sorted(NAMED_SOURCE_CLASSES.keys()),
-                ["cmake", "dockerfile", "make"],
+                ["cmake", "dockerfile", "helm", "make"],
             ),
             expect_equal(
                 "dockerfile named source uses the Dockerfile matcher",

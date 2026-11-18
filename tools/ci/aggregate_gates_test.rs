@@ -1,4 +1,6 @@
 use serde_json::{Value, json};
+use starlark_syntax as _;
+use yaml_serde as _;
 
 use ci_workflow::{document, jobs, steps, swallows, triggers};
 use dx_testing::read_runfiles;
@@ -63,6 +65,7 @@ fn the_outer_gate_requires_every_declared_dependency() {
         "msvc-cross-run-arm64",
         "network",
         "preflight",
+        "quality-matrix",
         "starter-consumer",
         "workflow-check"
     ]);
@@ -263,6 +266,18 @@ fn the_scheduled_report_only_follows_the_gate() {
 }
 
 #[test]
+fn coverage_cells_runs_only_after_dogfood_succeeds() {
+    let document = document(CI_WORKFLOW).unwrap();
+    let job = &document["jobs"]["coverage-cells"];
+    assert_eq!(job["needs"], json!(["dogfood"]));
+    assert_eq!(
+        job["if"],
+        json!("${{ !cancelled() && needs.dogfood.result == 'success' }}"),
+        "coverage-cells must skip when dogfood was skipped or failed, not report every cell missing"
+    );
+}
+
+#[test]
 fn ci_can_be_dispatched_but_takes_no_inputs() {
     let on = triggers(CI_WORKFLOW).unwrap();
     assert!(
@@ -438,10 +453,7 @@ fn the_ruleset_requires_the_gate_job_name() {
         ruleset["conditions"]["ref_name"]["include"],
         json!(["~DEFAULT_BRANCH"])
     );
-    assert_eq!(
-        ruleset["rules"].as_array().map(Vec::len),
-        Some(1)
-    );
+    assert_eq!(ruleset["rules"].as_array().map(Vec::len), Some(1));
     let rule = &ruleset["rules"][0];
     assert_eq!(rule["type"], json!("required_status_checks"));
     let parameters = &rule["parameters"];

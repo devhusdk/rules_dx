@@ -46,7 +46,7 @@ impl Server {
         std::thread::spawn(move || {
             let mut line = String::new();
             let outcome = BufReader::new(stdout).read_line(&mut line);
-            let _ = done.send((outcome, line));
+            let _: Result<(), _> = done.send((outcome, line));
         });
         let (outcome, line) = ready
             .recv_timeout(Duration::from_secs(30))
@@ -63,8 +63,8 @@ impl Server {
 
 impl Drop for Server {
     fn drop(&mut self) {
-        let _ = self.child.kill();
-        let _ = self.child.wait();
+        let _: std::io::Result<()> = self.child.kill();
+        let _: std::io::Result<std::process::ExitStatus> = self.child.wait();
     }
 }
 
@@ -147,5 +147,5 @@ fn relocated_app_runs_wasm_in_a_browser() {
         "404",
         "missing assets stay visible"
     );
-    let _ = TcpStream::connect(("127.0.0.1", server.port)).expect("server stays up");
+    let _: TcpStream = TcpStream::connect(("127.0.0.1", server.port)).expect("server stays up");
 }

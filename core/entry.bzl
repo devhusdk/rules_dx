@@ -1,6 +1,6 @@
 """Shared main inference for executable wrappers."""
 
-visibility(["//core/...", "//dart/...", "//flutter/...", "//javascript/...", "//julia/...", "//lua/...", "//ocaml/...", "//perl/...", "//python/...", "//ruby/...", "//zig/..."])
+visibility(["//core/...", "//dart/...", "//flutter/...", "//javascript/...", "//julia/...", "//lua/...", "//ocaml/...", "//perl/...", "//php/...", "//python/...", "//ruby/...", "//zig/..."])
 
 def dx_main_candidates(name, ext, dirs = []):
     """Returns the paths tried when main is unset: the name's stem, then each dir."""

@@ -3,7 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
-use dx_lock::Scratch;
+use dx_lock::{RESOLVER_TIMEOUT, Scratch};
 
 /// One lock step for one dependency set.
 pub struct Request {
@@ -59,18 +59,9 @@ pub fn lock(dart: &Path, request: &Request) -> Result<Outcome, String> {
     if let Some(root) = std::env::var_os("SYSTEMROOT") {
         command.env("SYSTEMROOT", root);
     }
-    let output = command
-        .args(PUB_ARGS)
-        .output()
-        .map_err(|error| format!("{}: {error}", dart.display()))?;
-    if !output.status.success() {
-        return Err(format!(
-            "dart pub get failed: {}\n{}{}",
-            output.status,
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        ));
-    }
+    command.args(PUB_ARGS);
+    Scratch::run(&mut command, RESOLVER_TIMEOUT)
+        .map_err(|error| format!("dart pub get failed: {error}"))?;
     let resolved_path = scratch.set().join(&request.lock);
     let resolved = std::fs::read(&resolved_path)
         .map_err(|error| format!("dart pub get wrote no {}: {error}", request.lock))?;

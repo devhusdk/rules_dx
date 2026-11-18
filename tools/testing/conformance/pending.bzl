@@ -12,17 +12,9 @@ android lint_test *
 android lock_test *
 android pass_test *
 android runfiles_test *
-ansible build_test *
-ansible coverage_test *
-ansible cross_test *
-ansible fail_test *
 ansible format_error_test *
 ansible format_test *
-ansible lint_error_test *
-ansible lint_test *
 ansible lock_test *
-ansible pass_test *
-ansible runfiles_test *
 apple build_test *
 apple coverage_test *
 apple cross_test *
@@ -59,7 +51,6 @@ d format_test *
 d lint_error_test *
 d lint_test *
 d lock_test *
-dart runfiles_test *
 dotnet cross_test *
 dotnet lock_test *
 dotnet runfiles_test *
@@ -67,7 +58,6 @@ elixir cross_test windows_x86_64
 erlang cross_test windows_x86_64
 flutter runfiles_test *
 fortran cross_test *
-fortran lock_test *
 haskell format_error_test *
 haskell format_test *
 haskell lint_error_test *
@@ -87,11 +77,6 @@ julia format_error_test *
 julia format_test *
 julia lint_error_test *
 julia lint_test *
-kotlin format_error_test *
-kotlin format_test *
-kotlin lint_error_test *
-kotlin lint_test *
-lua runfiles_test *
 mdx format_error_test *
 mdx format_test *
 mdx lint_error_test *
@@ -110,7 +95,6 @@ msix runfiles_test *
 ocaml cross_test macos_arm64
 ocaml lint_error_test *
 ocaml lint_test *
-perl runfiles_test *
 php runfiles_test *
 powershell runfiles_test *
 python runfiles_test *

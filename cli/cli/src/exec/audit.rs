@@ -371,7 +371,7 @@ fn no_dependency_sets() -> String {
     let cargo = dx_ecosystems::Ecosystem::Cargo;
     format!(
         "no dependency sets: this workspace declares no hubs in MODULE.bazel. Add one, for example:\n\ncrate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(\n    name = \"crates\",\n    cargo_lockfile = \"//:{}\",\n    manifests = [\"//:{}\"],\n)",
-        cargo.lockfiles().first().map_or("", String::as_str),
+        cargo.lockfile(),
         cargo.manifest_name()
     )
 }

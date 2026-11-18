@@ -1,4 +1,4 @@
-"""Generated from every <lang>/lang.json by //core/modules:lang_json_test; refresh with UPDATE_EXPECT=1."""
+"""Generated from every <lang>/lang.json by //core/modules:lang_projections; refresh with `bazel run //core/modules:update_lang_projections`."""
 
 visibility(["//core/...", "//ruby/...", "//tools/..."])
 
@@ -1761,6 +1761,25 @@ LANGS = json.decode("""{
       "windows_arm64",
       "windows_x86_64"
     ],
+    "quality": {
+      "bzl": "kubernetes/private/quality:kubernetes.bzl",
+      "classes": [
+        "helm"
+      ],
+      "defaults": {
+        "audit": [],
+        "format": [],
+        "lint": [
+          "helm",
+          "typos"
+        ],
+        "typecheck": []
+      },
+      "file_extensions": [],
+      "file_names": [
+        "Chart.yaml"
+      ]
+    },
     "title": "Helm",
     "tools": [
       "helm",

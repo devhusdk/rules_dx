@@ -61,7 +61,7 @@ fn run() -> io::Result<ExitCode> {
         .args(["-flavor", "link"])
         .args(&args)
         .status();
-    let _ = fs::remove_dir_all(&copy_dir);
+    let _: io::Result<()> = fs::remove_dir_all(&copy_dir);
     Ok(exit_code(status?))
 }
 

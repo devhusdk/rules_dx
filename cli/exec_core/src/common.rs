@@ -192,6 +192,7 @@ pub const REASON_INCOMPLETE_COLLECTION: &str = "incomplete_collection";
 pub const REASON_CONFLICTING_DIGESTS: &str = "conflicting_digests";
 pub const REASON_CONFLICTING_CANDIDATES: &str = "conflicting_candidates";
 pub const REASON_OUTSIDE_SCOPE: &str = "outside_scope";
+pub const REASON_OUTSIDE_WORKSPACE: &str = "outside_workspace";
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ExecError {
@@ -518,8 +519,8 @@ pub enum SourceRead {
     Stale,
 }
 
-pub fn read_verified(workspace: &Path, path: &str, expected: &[u8; 32]) -> SourceRead {
-    match std::fs::read(workspace.join(path)) {
+pub fn read_verified(file: &Path, expected: &[u8; 32]) -> SourceRead {
+    match std::fs::read(file) {
         Err(_) => SourceRead::Unreadable,
         Ok(bytes) => {
             if digest(&bytes) == *expected {

@@ -192,7 +192,7 @@ fn identity_sha1(
             format!("cannot list the code signing identities in {keychain}")
         }));
     }
-    let _ = work;
+    let _: &Path = work;
     let mut matches = std::collections::BTreeSet::new();
     for line in listed.stdout.lines() {
         let mut fields = line.split_whitespace();

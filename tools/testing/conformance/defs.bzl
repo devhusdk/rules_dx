@@ -24,6 +24,7 @@ _QUALITY_KEYS = {
 _QUALITY_CONFIG = "default"
 
 _QUALITY_CONFIGS = {
+    "ansible": "shared",
     "api_spec": "shared",
     "avro": "shared",
     "bicep": "shared",

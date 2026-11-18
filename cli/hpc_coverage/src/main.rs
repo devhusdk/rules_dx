@@ -2,7 +2,12 @@
 //!
 //! Arguments: `<test> <hpc_lcov> [<mix file>...] -- [<test argument>...]`.
 
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::string_slice
+)]
 
 mod run;
 #[cfg(test)]
@@ -13,7 +18,7 @@ fn main() {
     match run::run(&args, &|name| std::env::var_os(name)) {
         Ok(code) => std::process::exit(code),
         Err(error) => {
-            eprintln!("hpc_coverage: {error}");
+            dx_error::stdio::eprint_line(format_args!("hpc_coverage: {error}"));
             std::process::exit(1);
         }
     }

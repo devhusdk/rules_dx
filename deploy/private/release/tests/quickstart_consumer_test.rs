@@ -21,77 +21,37 @@ pub(crate) fn ok(run: &Run, what: &str) {
     assert_eq!(run.status.code(), Some(0), "{what}: {}", run.combined());
 }
 
-/// The fenced files under `## Quickstart`. A file's name is the code span that
-/// opens the paragraph before its fence ("`MODULE.bazel` makes the directory
-/// ..."); a span with a space in it is a command, not a file name, and fences
-/// after any other paragraph are commands or optional blocks.
-fn quickstart_files(readme: &str) -> Vec<(String, String)> {
-    let mut files = Vec::new();
+/// The fenced code blocks under `## Quickstart`, each as its lines.
+fn quickstart_blocks(readme: &str) -> Vec<Vec<String>> {
+    let mut blocks = Vec::new();
     let mut in_section = false;
-    let mut in_paragraph = false;
-    let mut paragraph_start: Option<&str> = None;
-    let mut name: Option<String> = None;
-    let mut body: Option<String> = None;
+    let mut block: Option<Vec<String>> = None;
     for line in readme.lines() {
-        if let Some(text) = body.as_mut() {
+        if let Some(lines) = block.as_mut() {
             if line.starts_with("```") {
-                if let Some(name) = name.take() {
-                    files.push((name, body.take().unwrap_or_default()));
-                } else {
-                    body = None;
-                }
-                paragraph_start = None;
+                blocks.extend(block.take());
             } else {
-                text.push_str(line);
-                text.push('\n');
+                lines.push(line.to_owned());
             }
         } else if line.starts_with("## ") {
             in_section = line == "## Quickstart";
-            paragraph_start = None;
-            in_paragraph = false;
-        } else if !in_section {
-            continue;
-        } else if line.starts_with("```") {
-            name = paragraph_start
-                .and_then(|start| start.strip_prefix('`'))
-                .and_then(|rest| rest.split_once('`'))
-                .map(|(name, _)| name)
-                .filter(|name| !name.contains(char::is_whitespace))
-                .map(str::to_owned);
-            body = Some(String::new());
-            in_paragraph = false;
-        } else if line.trim().is_empty() {
-            in_paragraph = false;
-        } else if !in_paragraph {
-            paragraph_start = Some(line);
-            in_paragraph = true;
+        } else if in_section && line.starts_with("```") {
+            block = Some(Vec::new());
         }
     }
-    files
+    blocks
 }
 
-/// The README quickstart block that accepts the Visual Studio Build Tools license on Windows.
-fn windows_license(readme: &str) -> String {
-    let start = readme
-        .find("dx_licenses = use_extension(")
-        .expect("the README quickstart accepts the Windows license");
-    let end = start
-        + readme[start..]
-            .find("```")
-            .expect("the license block ends with a fence");
-    readme[start..end].to_owned()
-}
-
-/// Builds `@rules_dx//:dx` and returns the path of the binary.
-fn built_dx(case: &Case) -> std::path::PathBuf {
-    run_in(case, &["build", "@rules_dx//:dx"], "build dx");
-    let files = run_in(
-        case,
-        &["cquery", "--output=files", "@rules_dx//:dx"],
-        "cquery dx",
-    );
-    let info = run_in(case, &["info", "execution_root"], "info execution_root");
-    std::path::PathBuf::from(info.stdout.trim()).join(files.stdout.trim())
+/// The README `dx init` command for this platform, split into arguments after `dx`.
+fn init_args(blocks: &[Vec<String>]) -> Vec<String> {
+    let command = if cfg!(windows) {
+        blocks[1][0].as_str()
+    } else {
+        blocks[0][0].as_str()
+    };
+    let mut words = command.split_whitespace().map(str::to_owned);
+    assert_eq!(words.next().as_deref(), Some("dx"), "{command}");
+    words.collect()
 }
 
 /// The `PATH` of the nested commands: the directory of the hermetic coreutils applets.
@@ -147,7 +107,7 @@ pub(crate) const WINDOWS_SYMLINKS: &str = "startup:windows --windows_enable_syml
 
 /// The `.bazelrc` the consumer starts with: the preset's `//config:toolchains` lines, which a
 /// source-built dx needs before `dx init` writes the preset, and on Windows the preset's Windows
-/// lines and `WINDOWS_SYMLINKS`. The quickstart cuts it back to `initial_rc` before `dx init`.
+/// lines and `WINDOWS_SYMLINKS`.
 fn write_source_dx_rc(case: &Case) {
     let mut rc = String::from("common --enable_platform_specific_config\n");
     rc.extend(
@@ -186,8 +146,23 @@ fn external_repos(case: &Case) -> String {
 fn run_in(case: &Case, args: &[&str], what: &str) -> Run {
     crate::stage("quickstart_consumer_test", what);
     let run = bazel(case, args);
+    if run.status.code() != Some(0) {
+        report_test_logs(case, what);
+    }
     ok(&run, what);
     run
+}
+
+/// Copies the consumer's `test.log` files to the undeclared outputs and writes their heads to
+/// the uncaptured stderr.
+fn report_test_logs(case: &Case, what: &str) {
+    use std::io::Write;
+    let Some(outputs) = std::env::var_os("TEST_UNDECLARED_OUTPUTS_DIR") else {
+        return;
+    };
+    let dest = std::path::Path::new(&outputs).join("consumer_testlogs");
+    let heads = dx_testing::copy_test_logs(&case.root().join("bazel-testlogs"), &dest);
+    writeln!(std::io::stderr(), "{what} consumer test logs:{heads}").expect("stderr is writable");
 }
 
 /// Gives the consumer the patch files named by `rules_py_override` and `rules_flutter_override` and the lockfile's crate patches, which resolve in the root module.
@@ -251,30 +226,56 @@ fn copy_patches(source: &std::path::Path, case: &Case, package: &str) {
 fn the_readme_quickstart_runs_as_written() {
     let source = rules_dx_source().unwrap_or_else(|error| panic!("{error}"));
     let readme = read_text(&source.join("README.md"));
-    let files = quickstart_files(&readme);
-    let names: Vec<&str> = files.iter().map(|(name, _)| name.as_str()).collect();
-    assert_eq!(names, [".bazelversion", "MODULE.bazel"]);
+    let blocks = quickstart_blocks(&readme);
+    assert_eq!(
+        blocks[0],
+        ["dx init --apply", "tools/dx test //..."],
+        "the first quickstart block sets the project up and tests it"
+    );
+    assert_eq!(
+        blocks[1],
+        ["dx init --apply --accept-license visual-studio-build-tools"],
+        "the second quickstart block is the Windows setup"
+    );
 
     let case = nested::case("quickstart_readme");
+    let dx = resolve_runfiles(&std::env::var("DX_BIN").expect("DX_BIN must name dx"));
+    let root = case.root().to_string_lossy().into_owned();
+    let env = nested_env();
+    let mut pairs: Vec<(&str, &str)> = env
+        .iter()
+        .map(|(key, value)| (*key, value.as_str()))
+        .collect();
+    pairs.push(("BUILD_WORKSPACE_DIRECTORY", root.as_str()));
+    let args = init_args(&blocks);
+    let args: Vec<&str> = args.iter().map(String::as_str).collect();
+    crate::stage("quickstart_consumer_test", "dx init --apply");
+    let init = case.run(&dx, &args, &pairs);
+    ok(&init, "dx init --apply");
+    for name in ["MODULE.bazel", ".bazelversion"] {
+        assert!(
+            case.root().join(name).is_file(),
+            "dx init --apply writes {name} in an empty directory"
+        );
+    }
+
+    // The overrides `tools/testing/consumer/pending.txt` still lists; a registry release needs none.
     copy_rules_py_patches(&source, &case);
-    write_source_dx_rc(&case);
-    for (name, text) in &files {
-        let mut text = text.replace("<release>", "0.0.0");
-        if name == "MODULE.bazel" {
-            assert_eq!(text.lines().filter(|l| !l.trim().is_empty()).count(), 1);
-            text.push('\n');
-            if cfg!(windows) {
-                text.push_str(&windows_license(&readme));
-            }
-            text.push_str(&rules_py_override());
-            text.push_str(&rules_flutter_override().unwrap_or_else(|error| panic!("{error}")));
-            text.push_str(&rules_rust_override());
-            text.push_str(&llvm_override());
-            text.push_str(&windows_support_override());
-            text.push_str(&apple_overrides(&source, case.root()));
-            text.push_str(&rules_dx_override(&source));
-        }
-        write_text(&case.root().join(name), &text);
+    let module_path = case.root().join("MODULE.bazel");
+    let mut module = read_text(&module_path);
+    module.push('\n');
+    module.push_str(&rules_py_override());
+    module.push_str(&rules_flutter_override().unwrap_or_else(|error| panic!("{error}")));
+    module.push_str(&rules_rust_override());
+    module.push_str(&llvm_override());
+    module.push_str(&windows_support_override());
+    module.push_str(&apple_overrides(&source, case.root()));
+    module.push_str(&rules_dx_override(&source));
+    write_text(&module_path, &module);
+    if cfg!(windows) {
+        let rc_path = case.root().join(".bazelrc");
+        let rc = std::fs::read_to_string(&rc_path).unwrap_or_default();
+        write_text(&rc_path, &format!("{WINDOWS_SYMLINKS}{rc}"));
     }
     case.use_lock("release_quickstart");
 
@@ -297,23 +298,6 @@ fn the_readme_quickstart_runs_as_written() {
     );
     std::fs::remove_dir_all(case.root().join("app"))
         .unwrap_or_else(|error| panic!("remove app: {error}"));
-    run_in(
-        &case,
-        &["run", "@rules_dx//:dx", "--", "--help"],
-        "dx --help",
-    );
-    let dx = built_dx(&case);
-    write_text(&case.root().join(".bazelrc"), initial_rc());
-    let root = case.root().to_string_lossy().into_owned();
-    let env = nested_env();
-    let mut pairs: Vec<(&str, &str)> = env
-        .iter()
-        .map(|(key, value)| (*key, value.as_str()))
-        .collect();
-    pairs.push(("BUILD_WORKSPACE_DIRECTORY", root.as_str()));
-    crate::stage("quickstart_consumer_test", "dx init --apply");
-    let init = case.run(&dx, &["init", "--apply"], &pairs);
-    ok(&init, "dx init --apply");
     run_in(
         &case,
         &["run", "@rules_dx//:dx", "--", "test", "//..."],

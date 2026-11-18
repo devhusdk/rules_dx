@@ -126,6 +126,23 @@ fn lookups_resolve_rows() {
 }
 
 #[test]
+fn lockfile_names_the_preferred_lock_of_every_ecosystem() {
+    for ecosystem in Ecosystem::ALL {
+        match ecosystem.lockfiles() {
+            [first, ..] => assert_eq!(ecosystem.lockfile(), first, "{ecosystem:?}"),
+            [] => assert_eq!(ecosystem.lockfile(), "", "{ecosystem:?}"),
+        }
+    }
+    assert!(
+        Ecosystem::ALL
+            .iter()
+            .filter(|ecosystem| !ecosystem.lockfiles().is_empty())
+            .count()
+            > 1
+    );
+}
+
+#[test]
 fn every_language_row_is_complete() {
     assert_eq!(language_rows().len(), Language::ALL.len());
     for language in Language::ALL {

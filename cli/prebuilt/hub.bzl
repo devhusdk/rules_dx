@@ -1,6 +1,6 @@
 """Plans the @dx_prebuilt repos and renders the hub BUILD file."""
 
-load(":tools.bzl", "JAR_TOOLS", "RELEASE_CPU", "RELEASE_OS", "TOOLS", "asset_name", "split_key")
+load(":tools.bzl", "JAR_TOOLS", "NATIVE_TOOLS", "RELEASE_CPU", "RELEASE_OS", "TOOLS", "asset_name", "split_key")
 
 visibility(["//cli/..."])
 
@@ -116,21 +116,25 @@ def plan_assets(tool, version, pins, url_template, overrides, exe = "dx", repo_p
         planned[key] = _planned(override.os, override.cpu, exe, repo_prefix, "", override.sha256, override.url)
     for release_key, fallback_key in entry.fallbacks.items():
         os, cpu = split_key(release_key)
-        key = "{}_{}".format(RELEASE_OS[os], RELEASE_CPU[cpu])
-        os, cpu = split_key(fallback_key)
-        fallback = planned["{}_{}".format(RELEASE_OS[os], RELEASE_CPU[cpu])]
-        if not planned[key].repo and fallback.repo:
+        os, cpu = RELEASE_OS[os], RELEASE_CPU[cpu]
+        key = "{}_{}".format(os, cpu)
+        own = planned.get(key) or _planned(os, cpu, exe, repo_prefix, "", "", "")
+        fallback_os, fallback_cpu = split_key(fallback_key)
+        fallback = planned["{}_{}".format(RELEASE_OS[fallback_os], RELEASE_CPU[fallback_cpu])]
+        if not own.repo and fallback.repo:
             # Same download, so the same repo: http_file runs once for both platforms.
-            planned[key] = struct(
+            own = struct(
                 asset = fallback.asset,
-                cpu = planned[key].cpu,
-                exe = planned[key].exe,
+                cpu = own.cpu,
+                exe = own.exe,
                 key = key,
-                os = planned[key].os,
+                os = own.os,
                 repo = fallback.repo,
                 sha256 = fallback.sha256,
                 url = fallback.url,
             )
+        if own.repo or key in planned:
+            planned[key] = own
     return [planned[key] for key in sorted(planned.keys())]
 
 def plan_jars(version, pins, url_template):
@@ -180,6 +184,61 @@ def with_jars(build, jars):
             '    runtime_deps = [":{}_jar"],'.format(jar.tool),
             ")",
         ]
+    return "\n".join(loads + [build.rstrip("\n")] + lines + [""])
+
+def plan_native_tools(version, pins, url_template, overrides):
+    """Returns {tool: plan_assets of tool} for every native tool of the registry."""
+    return {
+        tool: plan_assets(tool, version, pins, url_template, overrides.get(tool, {}), exe = tool, repo_prefix = "dx_{}_prebuilt_".format(tool))
+        for tool in NATIVE_TOOLS
+    }
+
+_NATIVE_BINARY_LOAD = 'load("@bazel_skylib//rules:native_binary.bzl", "native_binary")'
+
+def with_native_tools(build, native_tools):
+    """Returns the hub BUILD text build plus one target per native tool.
+
+    A tool selects its download on the platform it runs on and builds from source on
+    any platform with no download.
+    """
+    lines = []
+    keys = {}
+    for tool, assets in sorted(native_tools.items()):
+        pinned = [a for a in assets if a.repo]
+        if not pinned:
+            actual = '"{}"'.format(TOOLS[tool].source)
+        else:
+            actual = _select([(":native_" + a.key, ":{}_{}".format(tool, a.key)) for a in pinned], TOOLS[tool].source)
+        lines += [
+            "",
+            "alias(",
+            '    name = "{}",'.format(tool),
+            "    actual = " + actual + ",",
+            '    visibility = ["//visibility:public"],',
+            ")",
+        ]
+        for a in pinned:
+            keys[a.key] = a
+            lines += [
+                "",
+                "native_binary(",
+                '    name = "{}_{}",'.format(tool, a.key),
+                '    src = "@{}//file:{}",'.format(a.repo, a.exe),
+                '    out = "{}/{}",'.format(a.key, a.exe),
+                ")",
+            ]
+    for key, a in sorted(keys.items()):
+        lines += [
+            "",
+            "config_setting(",
+            '    name = "native_{}",'.format(key),
+            "    constraint_values = [",
+            '        "@platforms//os:{}",'.format(a.os),
+            '        "@platforms//cpu:{}",'.format(a.cpu),
+            "    ],",
+            ")",
+        ]
+    loads = [_NATIVE_BINARY_LOAD] if keys and _NATIVE_BINARY_LOAD not in build else []
     return "\n".join(loads + [build.rstrip("\n")] + lines + [""])
 
 def alias_build(actual):

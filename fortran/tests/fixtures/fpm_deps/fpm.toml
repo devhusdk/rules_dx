@@ -1,0 +1,4 @@
+name = "fpm_deps_fixture"
+
+[dependencies]
+test-drive = { git = "https://github.com/fortran-lang/test-drive", tag = "v0.5.0" }

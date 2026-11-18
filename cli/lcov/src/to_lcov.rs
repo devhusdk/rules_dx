@@ -1,5 +1,7 @@
 //! Converts a Clover or Cobertura XML coverage report to LCOV.
 
+#![deny(clippy::print_stderr, clippy::print_stdout)]
+
 use std::env;
 use std::fmt::Write as _;
 use std::fs;
@@ -102,7 +104,7 @@ fn main() -> ExitCode {
     match run(&args) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
-            eprintln!("dx: {error}");
+            dx_error::stdio::eprint_line(format_args!("dx: {error}"));
             error.into()
         }
     }

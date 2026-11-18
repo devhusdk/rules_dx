@@ -515,7 +515,10 @@ fn report_unreadable(path: &Path, error: &std::io::Error) {
     static REPORTED: Mutex<BTreeSet<PathBuf>> = Mutex::new(BTreeSet::new());
     let mut reported = REPORTED.lock().unwrap_or_else(PoisonError::into_inner);
     if reported.insert(path.to_path_buf()) {
-        eprintln!("dx: cannot read rc file {}: {error}", path.display());
+        dx_error::stdio::eprint_line(format_args!(
+            "dx: cannot read rc file {}: {error}",
+            path.display()
+        ));
     }
 }
 
@@ -530,10 +533,13 @@ pub fn build_verb_options(bazel_command: &str, user_options: &[String]) -> Vec<S
     current().verb_options(bazel_command, share().as_ref(), user_options)
 }
 
-/// The user cache directory: `XDG_CACHE_HOME`, then HOME/.cache, then LOCALAPPDATA.
+/// The user cache directory: an absolute `XDG_CACHE_HOME`, then HOME/.cache, then LOCALAPPDATA.
 pub fn user_cache_dir(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
     let non_empty = |name: &str| env_get(name).filter(|value| !value.is_empty());
-    match non_empty("XDG_CACHE_HOME") {
+    // The XDG spec says to ignore a relative XDG_CACHE_HOME; using it would give each cwd its own cache.
+    // has_root, not is_absolute, so a rooted `/x` still counts on Windows.
+    let xdg = non_empty("XDG_CACHE_HOME").filter(|cache| Path::new(cache).has_root());
+    match xdg {
         Some(cache) => Some(PathBuf::from(cache)),
         None => match non_empty("HOME") {
             Some(home) => Some(PathBuf::from(home).join(".cache")),
@@ -550,10 +556,7 @@ pub fn default_disk_cache(cache: &Path) -> PathBuf {
 
 /// The home directory Bazel expands `~` and finds the user rc in.
 fn home_dir(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
-    let non_empty = |name: &str| env_get(name).filter(|value| !value.is_empty());
-    non_empty("HOME")
-        .or_else(|| non_empty("USERPROFILE"))
-        .map(PathBuf::from)
+    crate::home_with(env_get).map(PathBuf::from)
 }
 
 /// The system rc file: under `ProgramData` on Windows, else `/etc`.

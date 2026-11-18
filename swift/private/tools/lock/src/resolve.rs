@@ -4,7 +4,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
-use dx_lock::{Archive, Error, HttpFetch, Lock, Package, Resolution, Resolver, Scratch, Spec};
+use dx_lock::{
+    Archive, Error, HttpFetch, Lock, Package, RESOLVER_TIMEOUT, Resolution, Resolver, Scratch, Spec,
+};
 use serde_json::{Map, Value, json};
 
 /// Downloads archives.
@@ -261,22 +263,16 @@ impl<'a> Swift<'a> {
         command: &str,
         args: &[&str],
     ) -> Result<Value, String> {
-        let output = scratch
-            .command(&self.swift)
+        let mut swift = scratch.command(&self.swift);
+        swift
             .arg("package")
             .arg("--disable-sandbox")
             .arg(command)
             .args(args)
-            .current_dir(package)
-            .output()
-            .map_err(|error| format!("swift: {error}"))?;
-        if !output.status.success() {
-            return Err(format!(
-                "swift package {command} failed:\n{}",
-                String::from_utf8_lossy(&output.stderr)
-            ));
-        }
-        serde_json::from_slice(&output.stdout).map_err(|error| error.to_string())
+            .current_dir(package);
+        let stdout =
+            Scratch::run(&mut swift, RESOLVER_TIMEOUT).map_err(|error| error.to_string())?;
+        serde_json::from_slice(&stdout).map_err(|error| error.to_string())
     }
 
     fn describe(&self, scratch: &Scratch, pin: Pin) -> Result<Described, Error> {

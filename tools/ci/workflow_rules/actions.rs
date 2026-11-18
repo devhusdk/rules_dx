@@ -55,13 +55,6 @@ fn action_pins() -> Vec<ActionPin> {
     pins
 }
 
-fn is_commit_sha(text: &str) -> bool {
-    text.len() == 40
-        && text
-            .chars()
-            .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c))
-}
-
 fn pinned_sha(site: &str) -> &str {
     site.rsplit_once(" = ")
         .map(|(_, sha)| sha)
@@ -73,8 +66,8 @@ fn every_action_pin_is_a_commit_sha_with_its_tag() {
     for pin in action_pins() {
         let at = format!("{}:{}", pin.workflow, pin.line);
         assert!(
-            is_commit_sha(&pin.sha),
-            "{at} pins {} at {:?}; a 40-char lowercase commit SHA is the only accepted ref",
+            dx_digest::is_commit_sha(&pin.sha) && pin.sha == pin.sha.to_ascii_lowercase(),
+            "{at} pins {} at {:?}; a lowercase commit SHA is the only accepted ref",
             pin.action,
             pin.sha
         );

@@ -42,12 +42,6 @@ OTHER_DEFAULTS = {
         "lint": ["biome"],
         "typecheck": [],
     },
-    "helm": {
-        "audit": [],
-        "format": [],
-        "lint": ["helm", "typos"],
-        "typecheck": [],
-    },
     "markdown": {
         "audit": [],
         "format": [],

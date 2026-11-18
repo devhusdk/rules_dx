@@ -81,7 +81,8 @@ pub(crate) fn ensure(host: &Host<'_>) -> Result<Cached, String> {
         return Ok(Cached::NotPinned { asset });
     };
     let windows = platform.os == "windows";
-    let Some(root) = protocol::cache_root(host.env_get, windows) else {
+    let Some(root) = protocol::cache_root(host.env_get, windows).map_err(|error| error.message)?
+    else {
         return Ok(Cached::NoCacheDir {
             home: if windows { "USERPROFILE" } else { "HOME" },
         });

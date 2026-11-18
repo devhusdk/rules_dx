@@ -219,7 +219,7 @@ pub fn main_code(args: &[String]) -> i32 {
     match run(args) {
         Ok(code) => code,
         Err((code, message)) => {
-            eprintln!("{message}");
+            dx_error::stdio::eprint_line(format_args!("{message}"));
             code
         }
     }

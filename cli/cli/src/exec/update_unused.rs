@@ -620,10 +620,6 @@ mod tests {
         ecosystem.manifest_name()
     }
 
-    fn lock_of(ecosystem: Ecosystem) -> &'static str {
-        ecosystem.lockfiles()[0].as_str()
-    }
-
     fn target(set: &str, ecosystem: Ecosystem, manifest: &str) -> ResolvedTarget {
         ResolvedTarget {
             set: ResolvedSet::of(&DependencySet {
@@ -708,7 +704,7 @@ mod tests {
             "MODULE.bazel",
             &format!(
                 "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = \"dx_crates\", cargo_lockfile = \"//rs:{}\", manifests = [\"//rs:{}\"])\nuse_repo(crate, {visible} = \"dx_crates\")\n",
-                lock_of(Ecosystem::Cargo),
+                Ecosystem::Cargo.lockfile(),
                 manifest_of(Ecosystem::Cargo),
             ),
         );
@@ -718,7 +714,7 @@ mod tests {
             &format!("rs/{}", manifest_of(Ecosystem::Cargo)),
         )];
         resolved[0].set.repository = Some("dx_crates".to_owned());
-        resolved[0].set.locks = vec![format!("rs/{}", lock_of(Ecosystem::Cargo))];
+        resolved[0].set.locks = vec![format!("rs/{}", Ecosystem::Cargo.lockfile())];
         resolved
     }
 
@@ -861,7 +857,7 @@ mod tests {
             "MODULE.bazel",
             &format!(
                 "uv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"pypi\", lock = \"//py:{}\", pyproject = \"//py:{}\")\n",
-                lock_of(Ecosystem::Uv),
+                Ecosystem::Uv.lockfile(),
                 manifest_of(Ecosystem::Uv)
             ),
         );
@@ -1086,7 +1082,7 @@ mod tests {
         );
         write(
             root,
-            &format!("rs/{}", lock_of(Ecosystem::Cargo)),
+            &format!("rs/{}", Ecosystem::Cargo.lockfile()),
             "version = 3\n\n[[package]]\nname = \"regex\"\nversion = \"1.0.0\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
         );
         write(root, "rs/src/lib.rs", "use regex::Regex;\n");

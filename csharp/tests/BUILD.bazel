@@ -25,12 +25,22 @@ _PACKAGE = {
     "version": "1.2.0",
 }
 
+_BETA = dict(
+    _PACKAGE,
+    archives = [dict(_PACKAGE["archives"][0], urls = ["https://api.nuget.org/v3-flatcontainer/beta/2.0.0/beta.2.0.0.nupkg"])],
+    deps = [],
+    extra = {"nuget_frameworks": ["net10.0"], "nuget_sha512": "sha512-BB=="},
+    name = "Beta",
+    provides = ["Beta"],
+    version = "2.0.0",
+)
+
 _LOCK = {
     "ecosystem": "nuget",
     "groups": {
         "docs": [],
-        "main": [_PACKAGE],
-        "tools": [_PACKAGE],
+        "main": [_PACKAGE, _BETA],
+        "tools": [_PACKAGE, _BETA],
     },
     "packages": [],
     "schema": 1,
@@ -75,6 +85,16 @@ starlark_test(
                     "runner": "dotnet",
                 }]},
                 "version": "1.2.0",
+            }, {
+                "dependencies": {"net10.0": []},
+                "framework_list": [],
+                "id": "Beta",
+                "name": "Beta",
+                "sha512": "sha512-BB==",
+                "sources": ["https://api.nuget.org/v3/index.json"],
+                "targeting_pack_overrides": [],
+                "tools": {},
+                "version": "2.0.0",
             }],
         ),
     ],

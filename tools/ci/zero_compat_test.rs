@@ -505,9 +505,14 @@ fn deprecation_problems(found: &[(String, String)], snapshot: &str, module: &str
                     ));
                 }
             }
-            (None, _) | (_, None) => problems.push(format!(
-                "api/deprecations.txt: {line:?} has a version that is not MAJOR.MINOR.PATCH"
-            )),
+            // A line with a bad version is reported once; it is not also
+            // matched against code, so it cannot cascade into a second error.
+            (None, _) | (_, None) => {
+                problems.push(format!(
+                    "api/deprecations.txt: {line:?} has a version that is not MAJOR.MINOR.PATCH"
+                ));
+                continue;
+            }
         }
         recorded.push((what.to_owned(), remove_in.to_owned()));
     }

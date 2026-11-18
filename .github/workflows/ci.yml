@@ -42,7 +42,8 @@ jobs:
   coverage-cells:
     name: coverage-cells (one exact coverage report from every native cell)
     needs: [dogfood]
-    if: ${{ !cancelled() }}
+    # Without a successful dogfood there are no cell reports to check, and dogfood is already red.
+    if: ${{ !cancelled() && needs.dogfood.result == 'success' }}
     timeout-minutes: 15
     runs-on: ubuntu-latest
     permissions:
@@ -909,7 +910,7 @@ jobs:
             echo "::error::The zip and tar dependents query did not find //cli/archive:dx_archive_upstream"
             exit 1
           fi
-          grep -v '^//cli/archive[:/]' "$RUNNER_TEMP/archive-all" > "$RUNNER_TEMP/archive-dependents" || true
+          awk '!/^\/\/cli\/archive[:\/]/' "$RUNNER_TEMP/archive-all" > "$RUNNER_TEMP/archive-dependents"
           LC_ALL=C sort -u -o "$RUNNER_TEMP/archive-dependents" "$RUNNER_TEMP/archive-dependents"
           LC_ALL=C sort -u "$allowlist" > "$RUNNER_TEMP/archive-allowlist"
           new="$(LC_ALL=C comm -23 "$RUNNER_TEMP/archive-dependents" "$RUNNER_TEMP/archive-allowlist")"

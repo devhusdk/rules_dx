@@ -69,6 +69,7 @@ mod test_filter;
 mod test_reports;
 #[cfg(test)]
 pub(crate) mod test_support;
+#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod umbrella;
 mod update;
 mod update_add_missing;
@@ -79,6 +80,7 @@ mod update_prune;
 mod update_unused;
 mod update_version;
 mod update_version_add;
+#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod workflow;
 mod worktree;
 

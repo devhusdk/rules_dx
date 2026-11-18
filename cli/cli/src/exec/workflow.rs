@@ -180,7 +180,7 @@ fn launch_plan(
     let bazel_code = match run_bazel(invocation, out, err, workspace, runner, argv, &[]) {
         Ok(code) => code,
         Err(exit) => {
-            std::fs::remove_file(bep).ok();
+            super::remove_scratch(bep);
             *host = true;
             return exit;
         }
@@ -197,7 +197,7 @@ fn launch_plan(
             action_counts,
         )
     {
-        std::fs::remove_file(bep).ok();
+        super::remove_scratch(bep);
         return kept_child(err, bazel_code, exit);
     }
     if matches!(
@@ -252,7 +252,7 @@ fn plan_report_set(
             .iter()
             .any(|report| StandardFormat::parse(&report.format) == Some(StandardFormat::Results));
     if results_default {
-        std::fs::remove_file(results_path(workspace)).ok();
+        super::remove_scratch(&results_path(workspace));
     }
     let planned_reports = match plan_reports(
         workspace,
@@ -276,7 +276,11 @@ fn plan_report_set(
         .any(|report| report.destination == Destination::Stdout);
     if results_default {
         let path = results_path(workspace);
-        std::fs::create_dir_all(dx_path::state::local_dir(workspace)).ok();
+        let local = dx_path::state::local_dir(workspace);
+        // The results report write names the path when the directory is missing.
+        if let Err(error) = std::fs::create_dir_all(&local) {
+            tracing::info!(%error, path = %local.display(), "cannot create the local state dir");
+        }
         results_reports.push(PlannedReport {
             format: StandardFormat::Results,
             destination: Destination::File(path.to_string_lossy().into_owned()),
@@ -501,14 +505,14 @@ fn finish_build(
     if bazel_code != 0
         && let Err(exit) = report_build_failures(bep, invocation.output, out, err)
     {
-        std::fs::remove_file(bep).ok();
+        super::remove_scratch(bep);
         return kept_child(err, bazel_code, exit);
     }
     let cached = if bazel_code == 0 && invocation.command == Command::Fetch {
         match super::dx_asset::cache_running_dx(workspace, invocation.output, out, err) {
             Ok(cached) => cached,
             Err(exit) => {
-                std::fs::remove_file(bep).ok();
+                super::remove_scratch(bep);
                 return exit;
             }
         }
@@ -517,7 +521,7 @@ fn finish_build(
     };
     let groups = group_skipped(&read_skipped(bep), invocation, workspace, query_runner);
     if let Err(exit) = skipped_notice(invocation.output, out, err, &groups) {
-        std::fs::remove_file(bep).ok();
+        super::remove_scratch(bep);
         return kept_child(err, bazel_code, exit);
     }
     let reports = write_failure_reports(
@@ -529,7 +533,7 @@ fn finish_build(
         out,
         err,
     );
-    std::fs::remove_file(bep).ok();
+    super::remove_scratch(bep);
     let reports_ok = match reports {
         Ok(landed) => landed,
         Err(exit) => return kept_child(err, bazel_code, exit),
@@ -542,15 +546,7 @@ fn finish_build(
     if invocation.output == OutputMode::Json
         && let Err(exit) = emit_build_completion(invocation, out, bazel_code, code, actions)
     {
-        if code == 0 {
-            return exit;
-        }
-        writeln!(
-            err,
-            "dx: could not write the final events to stdout; keeping exit {code}"
-        )
-        .ok();
-        return code;
+        return kept_child(err, code, exit);
     }
     code
 }
@@ -592,10 +588,10 @@ pub(super) fn announce_profile(
         local: counts.local,
     });
     let bytes = bep
-        .and_then(|bep| std::fs::File::open(bep).ok())
+        .and_then(open_bep)
         .and_then(|file| dx_bep::collect_bytes_received(std::io::BufReader::new(file)));
     let totals = bep
-        .and_then(|bep| std::fs::File::open(bep).ok())
+        .and_then(open_bep)
         .and_then(|file| dx_bep::collect_build_totals(std::io::BufReader::new(file)));
     let report = profile_report::read_trace(std::path::Path::new(trace))
         .map_err(|error| error.to_string())
@@ -616,14 +612,22 @@ pub(super) fn announce_profile(
                 return emit_built(out, notice_event(&notice));
             }
             if invocation.chatty() {
-                writeln!(err, "dx: {message}").ok();
+                dx_output::write_stderr(err, format_args!("dx: {message}\n"));
             }
             return Ok(());
         }
     };
     let report_file = profile_report::report_path(workspace);
     let value = report.json();
-    std::fs::write(&report_file, format!("{value}\n")).ok();
+    if let Err(error) = std::fs::write(&report_file, format!("{value}\n")) {
+        dx_output::write_stderr(
+            err,
+            format_args!(
+                "dx: warning: could not write {}: {error}\n",
+                report_file.display()
+            ),
+        );
+    }
     if invocation.output == OutputMode::Json {
         let notice = NoticeEvent {
             related_command: Some(invocation.command.name().to_owned()),
@@ -633,9 +637,20 @@ pub(super) fn announce_profile(
         return emit_built(out, notice_event(&notice));
     }
     if invocation.chatty() {
-        writeln!(err, "{}", report.text()).ok();
+        dx_output::write_stderr(err, format_args!("{}\n", report.text()));
     }
     Ok(())
+}
+
+/// Opens the build event file; the profile report leaves out what it cannot read.
+fn open_bep(bep: &std::path::Path) -> Option<std::fs::File> {
+    match std::fs::File::open(bep) {
+        Ok(file) => Some(file),
+        Err(error) => {
+            tracing::info!(%error, path = %bep.display(), "cannot open the build event file");
+            None
+        }
+    }
 }
 
 fn emit_build_completion(

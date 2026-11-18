@@ -5,6 +5,8 @@
 use std::path::PathBuf;
 use std::process::{Command, ExitCode, Stdio};
 
+use serde::Serialize;
+
 struct Measurement {
     name: String,
     mean: f64,
@@ -33,36 +35,39 @@ fn number(text: &str) -> Option<f64> {
     text.trim().replace(',', "").parse().ok()
 }
 
-fn quote(text: &str) -> String {
-    let mut out = String::from("\"");
-    for ch in text.chars() {
-        match ch {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
-            c => out.push(c),
-        }
-    }
-    out.push('"');
-    out
+#[derive(Serialize)]
+struct Document<'a> {
+    schema: &'static str,
+    results: Vec<Entry<'a>>,
 }
 
-fn render(results: &[Measurement]) -> String {
-    let entries: Vec<String> = results
-        .iter()
-        .map(|m| {
-            format!(
-                "{{\"name\":{},\"unit\":\"ns/iter\",\"mean\":{},\"stddev\":{},\"iterations\":0}}",
-                quote(&m.name),
-                m.mean,
-                m.stddev
-            )
-        })
-        .collect();
-    format!(
-        "{{\"schema\":\"dx-bench/v1\",\"results\":[{}]}}\n",
-        entries.join(",")
-    )
+#[derive(Serialize)]
+struct Entry<'a> {
+    name: &'a str,
+    unit: &'static str,
+    mean: f64,
+    stddev: f64,
+    iterations: u64,
+}
+
+fn render(results: &[Measurement]) -> Result<String, String> {
+    let document = Document {
+        schema: "dx-bench/v1",
+        results: results
+            .iter()
+            .map(|m| Entry {
+                name: &m.name,
+                unit: "ns/iter",
+                mean: m.mean,
+                stddev: m.stddev,
+                iterations: 0,
+            })
+            .collect(),
+    };
+    let mut json = serde_json::to_string(&document)
+        .map_err(|error| format!("could not encode dx-bench.json: {error}"))?;
+    json.push('\n');
+    Ok(json)
 }
 
 fn run(args: &[String]) -> Result<(), String> {
@@ -88,7 +93,7 @@ fn run(args: &[String]) -> Result<(), String> {
         return Err("the benchmark printed no bencher lines".to_string());
     }
     std::fs::create_dir_all(&outputs).map_err(|error| error.to_string())?;
-    std::fs::write(outputs.join("dx-bench.json"), render(&results))
+    std::fs::write(outputs.join("dx-bench.json"), render(&results)?)
         .map_err(|error| format!("could not write dx-bench.json: {error}"))
 }
 
@@ -130,10 +135,25 @@ mod tests {
             name: "a\"b".into(),
             mean: 1.5,
             stddev: 0.0,
-        }]);
+        }])
+        .unwrap();
         assert_eq!(
             json,
-            "{\"schema\":\"dx-bench/v1\",\"results\":[{\"name\":\"a\\\"b\",\"unit\":\"ns/iter\",\"mean\":1.5,\"stddev\":0,\"iterations\":0}]}\n"
+            "{\"schema\":\"dx-bench/v1\",\"results\":[{\"name\":\"a\\\"b\",\"unit\":\"ns/iter\",\"mean\":1.5,\"stddev\":0.0,\"iterations\":0}]}\n"
         );
+    }
+
+    #[test]
+    fn escapes_quotes_and_control_characters_in_names() {
+        let name = "q\"b\\s\nn\tt\u{1}c";
+        let json = render(&[Measurement {
+            name: name.into(),
+            mean: 2.0,
+            stddev: 1.0,
+        }])
+        .unwrap();
+        assert!(json.contains(r#""name":"q\"b\\s\nn\tt\u0001c""#), "{json}");
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["results"][0]["name"], name);
     }
 }

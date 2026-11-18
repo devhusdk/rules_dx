@@ -132,7 +132,8 @@ def report(api, root):
     """Returns the Markdown report, or "" when nothing needs a person."""
     released, closed, missing, bad = [], [], [], []
     for path in patch_files(root):
-        name = os.path.relpath(path, os.path.dirname(root))
+        # Forward slashes on every host, so the issue body reads the same.
+        name = os.path.relpath(path, os.path.dirname(root)).replace(os.sep, "/")
         with open(path, encoding="utf-8") as handle:
             value = header(handle.read())
         if value is None:
@@ -170,7 +171,8 @@ def report(api, root):
 def main(argv):
     root = argv[1] if len(argv) > 1 else os.path.join(os.environ.get("BUILD_WORKSPACE_DIRECTORY", "."), "patches")
     token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
-    sys.stdout.write(report(GitHub(token), root))
+    # Bytes, so Windows writes LF and UTF-8 like the other runners.
+    sys.stdout.buffer.write(report(GitHub(token), root).encode("utf-8"))
 
 
 if __name__ == "__main__":

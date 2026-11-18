@@ -594,7 +594,7 @@ fn oci_read_members(
     links: &OciLinks,
     names: &[String],
 ) -> io::Result<std::collections::HashMap<String, Vec<u8>>> {
-    let mut wanted: std::collections::HashMap<String, Vec<&str>> = std::collections::HashMap::new();
+    let mut wanted: std::collections::BTreeMap<String, Vec<&str>> = std::collections::BTreeMap::new();
     for name in names {
         wanted
             .entry(oci_resolve(links, name)?)

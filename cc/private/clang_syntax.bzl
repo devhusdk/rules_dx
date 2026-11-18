@@ -33,6 +33,11 @@ _MNEMONICS = ["CppCompile", "ObjcCompile", "CudaCompile"]
 _CUDA_VALUE_FLAGS = ["-I", "-isystem", "-iquote", "-D", "-U", "-include"]
 _CUDA_PASS_THROUGH = ["-Xcompiler", "--compiler-options", "-Xcudafe"]
 
+# Host compiler flags that set the header search and target; a hermetic host toolchain needs them to find its libc and libc++ headers.
+_CUDA_HOST_VALUE_FLAGS = ["-I", "-isystem", "-iquote", "-D", "-U", "-target"]
+_CUDA_HOST_FLAGS = ["-nostdinc", "-nostdinc++", "-nostdlibinc"]
+_CUDA_HOST_PREFIXES = ("-I", "-D", "-U", "-isystem", "-std=", "-iquote", "--sysroot=", "-resource-dir=", "--target=")
+
 # Flags that produce build outputs and are not wanted for a syntax-only run.
 _DROP = ["-MD", "-MMD", "-MG", "-MP", "-fcolor-diagnostics", "-fdiagnostics-color"]
 _DROP_WITH_VALUE = ["-o", "-MF", "-MT", "-MQ", "--serialize-diagnostics"]
@@ -205,6 +210,9 @@ def cuda_tidy_argv(tidy, argv, src, config = ""):
     if root != "":
         flags.append("--cuda-path=" + root)
     i = 1
+
+    # A separated host flag value arrives in the next -Xcompiler part, often in a later -Xcompiler argument.
+    host_value = False
     for _ in range(len(argv)):
         if i >= len(argv):
             break
@@ -215,9 +223,15 @@ def cuda_tidy_argv(tidy, argv, src, config = ""):
             i += 1
         elif arg in ["-Xcompiler", "--compiler-options"] and i < len(argv):
             for part in argv[i].split(","):
-                if part.startswith("/"):
+                if host_value:
+                    flags.append(part)
+                    host_value = False
+                elif part.startswith("/"):
                     return struct(argv = [], error = "clang-tidy does not support nvcc with an MSVC host compiler (flag %s)" % part)
-                if part.startswith(("-I", "-D", "-U", "-isystem", "-std=", "-iquote")):
+                elif part in _CUDA_HOST_VALUE_FLAGS:
+                    flags.append(part)
+                    host_value = True
+                elif part in _CUDA_HOST_FLAGS or part.startswith(_CUDA_HOST_PREFIXES):
                     flags.append(part)
             i += 1
         elif arg in _CUDA_PASS_THROUGH and i < len(argv):

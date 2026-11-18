@@ -41,6 +41,14 @@ ruby_binary(
     deps = ["@gems"],
 )
 
+ruby_binary(
+    name = "runfiles_hello",
+    srcs = ["runfiles_main.rb"],
+    data = ["data.txt"],
+    main = "runfiles_main.rb",
+    deps = ["@rules_ruby//ruby/runfiles"],  # keep
+)
+
 ruby_test(
     name = "pass_subject_test",
     size = "small",
@@ -88,6 +96,11 @@ dx_conformance_suite(
         "lint_line": 1,
         "lint_rule": "Style/FrozenStringLiteralComment",
         "lint_source": "lib/lint_dirty.rb",
+    },
+    runfiles = {
+        "binary": ":runfiles_hello",
+        "data": "data.txt",
+        "expected": "hello runfiles",
     },
 )
 

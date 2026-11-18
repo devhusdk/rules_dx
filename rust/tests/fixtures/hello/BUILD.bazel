@@ -199,6 +199,7 @@ rust_test(
     crate = ":hello_lib",
     deps = all_crate_deps(
         normal = True,
+        normal_dev = True,
         package_name = "rust/tests/fixtures/hello",
     ),
 )
@@ -223,6 +224,7 @@ rust_test(
     data = ["@rules_dx//cc/tests/fixtures/hello"],
     deps = all_crate_deps(
         normal = True,
+        normal_dev = True,
         package_name = "rust/tests/fixtures/hello",
     ),
 )

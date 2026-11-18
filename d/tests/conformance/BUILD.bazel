@@ -23,6 +23,13 @@ d_binary(
 )
 
 d_binary(
+    name = "lock_hello",
+    srcs = ["lock_main.d"],
+    target_compatible_with = D_COMPATIBLE_WITH,
+    deps = ["@dub_d.tests.fixtures.d_app//semver"],
+)
+
+d_binary(
     name = "runfiles_hello",
     srcs = ["runfiles_main.d"],
     data = ["data.txt"],
@@ -54,6 +61,15 @@ dx_conformance_suite(
     failing_pattern = "): {case}",
     failing_test = ":fail_subject_test",
     lang = "d",
+    lock = {
+        "binary": ":lock_hello",
+        "ecosystem": "d",
+        "expected": "hello lock",
+        "lockfile": "//d/tests/fixtures/d_app:dub.selections.json",
+        "manifest": "//d/tests/fixtures/d_app:dub.json",
+        "package": "semver",
+        "stale": "dub.selections.stale.json",
+    },
     passing_test = ":pass_subject_test",
     runfiles = {
         "binary": ":runfiles_hello",

@@ -130,8 +130,8 @@ fn keeps_in(keep: &[&str], name: &str, ignore_case: bool) -> bool {
 }
 
 /// Filters process env to a keep-list plus extras.
-fn minimal_env(keep: &[&str], extra: &[(&str, &str)]) -> std::collections::HashMap<String, String> {
-    let mut env = std::collections::HashMap::new();
+fn minimal_env(keep: &[&str], extra: &[(&str, &str)]) -> std::collections::BTreeMap<String, String> {
+    let mut env = std::collections::BTreeMap::new();
     for (key, value) in std::env::vars_os() {
         let (Some(key), Some(value)) = (key.to_str(), value.to_str()) else {
             continue;
@@ -526,6 +526,7 @@ mod tests {
                 assert_eq!(env.get("DX_TEST_EXTRA").map(String::as_str), Some("extra"));
                 assert!(!env.contains_key("DX_TEST_DROP"));
                 assert!(!env.contains_key("DX_TEST_ABSENT"));
+                assert!(env.keys().is_sorted());
             },
         );
     }

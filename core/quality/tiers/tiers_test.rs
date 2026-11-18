@@ -33,7 +33,6 @@ const READ_WITHOUT_TIER_BASE: &[&str] = &[
     "deadnix",
     "gitleaks",
     "gopls",
-    "julialint",
     "prettier",
     "tsconfig",
     "zanuda",

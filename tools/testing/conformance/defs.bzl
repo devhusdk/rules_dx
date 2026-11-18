@@ -27,6 +27,7 @@ _QUALITY_CONFIGS = {
     "ansible": "shared",
     "api_spec": "shared",
     "asciidoc": "shared",
+    "astro": "shared",
     "avro": "shared",
     "bicep": "shared",
     "capnproto": "shared",
@@ -40,6 +41,7 @@ _QUALITY_CONFIGS = {
     "flutter": "tool_overrides",
     "fsharp": "shared",
     "haskell": "shared",
+    "helm": "shared",
     "julia": "tool_overrides",
     "lua": "tool_overrides",
     "make": "shared",
@@ -52,9 +54,11 @@ _QUALITY_CONFIGS = {
     "ruby": "tool_overrides",
     "scala": {"lint": "shared"},
     "sql": "shared",
+    "svelte": "shared",
     "swift": "tool_overrides",
     "terraform": "shared",
     "thrift": "shared",
+    "vue": "shared",
 }
 
 def quality_config(lang, kind):
@@ -68,22 +72,32 @@ _core_format_subject = config_subject_rule([real_format_aspect], [OutputGroupInf
 
 _core_lint_subject = config_subject_rule([real_lint_aspect], [OutputGroupInfo])
 
+# Framework and MDX sources go through the JavaScript aspects; mdx links are linted by the core aspect.
+_JS_QUALITY_SUBJECTS = QUALITY_SUBJECTS["javascript"]
+
 _CORE_QUALITY_SUBJECTS = {
     "asciidoc": {
         "lint": _core_lint_subject,
     },
+    "astro": _JS_QUALITY_SUBJECTS,
     "javascript": {
         "format": _core_format_subject,
+        "lint": _core_lint_subject,
+    },
+    "mdx": {
+        "format": _JS_QUALITY_SUBJECTS["format"],
         "lint": _core_lint_subject,
     },
     "rst": {
         "format": _core_format_subject,
         "lint": _core_lint_subject,
     },
+    "svelte": _JS_QUALITY_SUBJECTS,
     "typescript": {
         "format": _core_format_subject,
         "lint": _core_lint_subject,
     },
+    "vue": _JS_QUALITY_SUBJECTS,
 }
 
 _CONFORMANCE_QUALITY = Label("//tools/testing/conformance:conformance_quality")

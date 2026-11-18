@@ -1,0 +1,12 @@
+Upstream: none (not yet sent upstream)
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -152,7 +152,7 @@
+ 
+ use_repo(python, "python_3_11_aarch64-apple-darwin")
+ 
+-register_toolchains("//:python_3_11_ios_sim_arm64_workaround")
++register_toolchains("//:python_3_11_ios_sim_arm64_workaround", dev_dependency = True)
+ 
+ pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+ 

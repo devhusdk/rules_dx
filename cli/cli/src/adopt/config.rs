@@ -202,7 +202,7 @@ fn override_tool(workspace: &Path, tool: &str) -> Result<String, DxError> {
     })?;
     let sha = blob_sha(workspace, &base)?;
     let header = format!("{} dx: override of base {sha}\n", config.comment);
-    std::fs::write(workspace.join(name), format!("{header}{text}"))
+    dx_atomic_fs::write_atomic(&workspace.join(name), format!("{header}{text}").as_bytes())
         .map_err(|error| DxError::from_io(format!("cannot write {name}: {error}"), &error))?;
     Ok((*name).to_owned())
 }

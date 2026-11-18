@@ -179,7 +179,7 @@ pub(crate) fn build_index(
         ),
     ];
     for (path, content) in files {
-        std::fs::write(&path, content)
+        dx_atomic_fs::write_scratch(&path, content.as_bytes())
             .map_err(|error| failed(format!("cannot write {}: {error}", path.display())))?;
     }
     run_tool(

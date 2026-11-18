@@ -976,7 +976,9 @@ fn write_bcr_newest(workspace: &Path, fetch: &dyn Fetch, found: &mut Findings) {
     };
     match bcr::newest_snapshot(&module, bcr::DEFAULT_BASE, fetch) {
         Ok(snapshot) => {
-            if let Err(error) = std::fs::write(workspace.join(BCR_NEWEST_FILE), snapshot) {
+            if let Err(error) =
+                dx_atomic_fs::write_atomic(&workspace.join(BCR_NEWEST_FILE), snapshot.as_bytes())
+            {
                 fail(format!("cannot write {BCR_NEWEST_FILE}: {error}"));
             }
         }

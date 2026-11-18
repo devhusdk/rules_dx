@@ -216,7 +216,7 @@ fn apply_pins(
 }
 
 fn write_pins(workspace: &Path, text: &str) -> Result<(), DxError> {
-    std::fs::write(workspace.join(PINS), text)
+    dx_atomic_fs::write_atomic(&workspace.join(PINS), text.as_bytes())
         .map_err(|error| DxError::from_io(format!("cannot write {PINS}: {error}"), &error))
 }
 

@@ -74,8 +74,9 @@ pub(crate) fn query(
 pub(crate) fn unicode_string(buffer: &[u64]) -> io::Result<String> {
     let outside = || io::Error::other("the UNICODE_STRING points outside its buffer");
     let header = buffer.first().copied().ok_or_else(outside)?;
-    let length = (header & 0xffff) as usize;
-    let pointer = buffer.get(1).copied().ok_or_else(outside)? as usize;
+    let length = usize::try_from(header & 0xffff).map_err(|_| outside())?;
+    let pointer = buffer.get(1).copied().ok_or_else(outside)?;
+    let pointer = usize::try_from(pointer).map_err(|_| outside())?;
     if length == 0 {
         return Ok(String::new());
     }
@@ -109,7 +110,7 @@ pub fn command_line(process: BorrowedHandle<'_>) -> io::Result<String> {
 
 /// Splits a SYSTEM_HANDLE_INFORMATION_EX buffer into its entries.
 pub(crate) fn parse_handles(words: &[u64]) -> io::Result<Vec<SystemHandle>> {
-    let count = words.first().copied().unwrap_or(0) as usize;
+    let count = usize::try_from(words.first().copied().unwrap_or(0)).map_err(io::Error::other)?;
     let (entries, _) = words
         .get(HANDLE_HEADER_WORDS..)
         .unwrap_or_default()
@@ -120,14 +121,16 @@ pub(crate) fn parse_handles(words: &[u64]) -> io::Result<Vec<SystemHandle>> {
             entries.len()
         )));
     }
-    Ok(entries
+    entries
         .iter()
         .take(count)
-        .map(|&[_, pid, handle, _, _]| SystemHandle {
-            pid: pid as usize,
-            handle: handle as usize,
+        .map(|&[_, pid, handle, _, _]| {
+            Ok(SystemHandle {
+                pid: usize::try_from(pid).map_err(io::Error::other)?,
+                handle: usize::try_from(handle).map_err(io::Error::other)?,
+            })
         })
-        .collect())
+        .collect()
 }
 
 /// Every open handle in every process.

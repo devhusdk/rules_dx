@@ -63,6 +63,7 @@ fn the_outer_gate_requires_every_declared_dependency() {
         "msix-install",
         "msvc-cross-build",
         "msvc-cross-run-arm64",
+        "native-lint",
         "network",
         "preflight",
         "quality-matrix",

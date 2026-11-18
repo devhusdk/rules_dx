@@ -6,8 +6,8 @@
 )]
 mod guard_scan;
 
-use std::path::Path;
 use guard_scan::{Token, rust_tokens, snapshot};
+use std::path::Path;
 use yaml_serde as _;
 
 /// The lints of core/quality/tiers/clippy/strict.txt that no source may allow.
@@ -114,7 +114,11 @@ fn problems(source: &str) -> Vec<String> {
 fn no_source_allows_a_strict_lint_or_expects_without_reason() {
     let found: Vec<String> = snapshot()
         .iter()
-        .filter(|(path, _)| Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("rs")))
+        .filter(|(path, _)| {
+            Path::new(path)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("rs"))
+        })
         .flat_map(|(path, source)| {
             problems(source)
                 .into_iter()
@@ -150,17 +154,21 @@ fn flags_expect_without_reason() {
 
 #[test]
 fn passes_other_attributes() {
-    assert_eq!(problems(
+    assert_eq!(
+        problems(
             "#[allow(dead_code)]\n#[expect(clippy::panic, reason = \"r\")]\nfn f() { v.expect(\"x\"); let a = [1]; }"
-        ), Vec::<String>::new());
+        ),
+        Vec::<String>::new()
+    );
 }
 
 /// The result discards of one Rust source that `clippy::unused_result_ok` and
-/// `clippy::map_err_ignore` cannot see: `drop(write!(..))`, `drop(writeln!(..))` and
-/// `let _ = <expr>.ok();`.
+/// `clippy::map_err_ignore` cannot see: `drop(write!(..))`, `drop(writeln!(..))`,
+/// `drop(fs::..)`, `drop(std::fs::..)` and `let _ = <expr>.ok();`.
 fn discards(source: &str) -> Vec<String> {
     let tokens = rust_tokens(source);
-    let word = |at: usize, text: &str| matches!(tokens.get(at), Some(Token::Word(word)) if word == text);
+    let word =
+        |at: usize, text: &str| matches!(tokens.get(at), Some(Token::Word(word)) if word == text);
     let punct = |at: usize, c: char| tokens.get(at) == Some(&Token::Punct(c));
     let mut out = Vec::new();
     for at in 0..tokens.len() {
@@ -169,6 +177,16 @@ fn discards(source: &str) -> Vec<String> {
                 if word(at + 2, mac) {
                     out.push(format!("drop({mac}!(..)) discards the write error"));
                 }
+            }
+        }
+        if word(at, "drop") && punct(at + 1, '(') {
+            let fs = if word(at + 2, "std") && punct(at + 3, ':') && punct(at + 4, ':') {
+                at + 5
+            } else {
+                at + 2
+            };
+            if word(fs, "fs") && punct(fs + 1, ':') && punct(fs + 2, ':') {
+                out.push("drop(fs::..) discards the file-system error".to_owned());
             }
         }
         if word(at, "let") && word(at + 1, "_") && punct(at + 2, '=') {
@@ -203,7 +221,11 @@ fn discards(source: &str) -> Vec<String> {
 fn no_source_discards_a_result_unseen_by_the_lints() {
     let found: Vec<String> = snapshot()
         .iter()
-        .filter(|(path, _)| Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("rs")))
+        .filter(|(path, _)| {
+            Path::new(path)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("rs"))
+        })
         .flat_map(|(path, source)| {
             discards(source)
                 .into_iter()
@@ -230,6 +252,13 @@ fn flags_dropped_writes_and_ok_discards() {
         discards("fn f() { let _ = std::fs::remove_file(path(a, [b])).ok(); }"),
         ["let _ = <expr>.ok() discards the error"]
     );
+    assert_eq!(
+        discards("fn f() { drop(fs::remove_dir_all(&work)); drop(std::fs::write(p, b)); }"),
+        [
+            "drop(fs::..) discards the file-system error",
+            "drop(fs::..) discards the file-system error"
+        ]
+    );
 }
 
 #[test]
@@ -237,7 +266,9 @@ fn passes_handled_results_and_other_drops() {
     assert_eq!(
         discards(
             "fn f() { drop(guard); writeln!(out, \"x\")?; let _ = tx.send(1); let a = b.ok(); \
-             let _ = { c.ok() }; // drop(writeln!(err))\n let s = \"drop(write!(x))\"; }"
+             let _ = { c.ok() }; // drop(writeln!(err))\n let s = \"drop(write!(x))\"; \
+             drop(fs_guard); drop(std::os::unix::fs::symlink(a, b)?); \
+             let t = \"drop(fs::remove_file(p))\"; dx_atomic_fs::discard_file(p); }"
         ),
         Vec::<String>::new()
     );

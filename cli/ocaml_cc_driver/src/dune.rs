@@ -142,7 +142,9 @@ fn add_write(path: &Path) {
     {
         let mut permissions = meta.permissions();
         permissions.set_mode(permissions.mode() | 0o700);
-        drop(fs::set_permissions(path, permissions));
+        if let Err(error) = fs::set_permissions(path, permissions) {
+            eprintln!("cannot make {} writable: {error}", path.display());
+        }
     }
 }
 

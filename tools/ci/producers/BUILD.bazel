@@ -30,6 +30,7 @@ rust_binary(
         package_name = "tools/ci/ci_producers",
         normal = True,
     ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/binfmt:dx_binfmt",
         "//cli/process:dx_process",
         "//tools/ci/evidence_inputs",

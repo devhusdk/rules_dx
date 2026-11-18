@@ -481,7 +481,7 @@ struct Planted(std::path::PathBuf);
 #[cfg(unix)]
 impl Drop for Planted {
     fn drop(&mut self) {
-        drop(std::fs::remove_file(&self.0));
+        dx_atomic_fs::discard_file(&self.0);
     }
 }
 
@@ -494,7 +494,7 @@ fn a_planted_file_at_the_old_temp_path_has_no_effect() {
         .parent()
         .expect("temp file has a parent")
         .join("dx-advisory-cargo.zip");
-    drop(std::fs::remove_file(&old));
+    dx_atomic_fs::discard_file(&old);
     let _guard = Planted(old.clone());
     let (one, _) = two_archives();
 

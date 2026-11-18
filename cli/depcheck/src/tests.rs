@@ -1800,7 +1800,10 @@ fn find_usages_walks_odd_files() {
         let mode = std::fs::Permissions::from_mode(0o000);
         std::fs::set_permissions(&locked, mode).expect("chmod");
         let odd = dir.path().join(std::ffi::OsStr::from_bytes(b"bad\xff"));
-        drop(std::fs::write(&odd, "fn odd() {}\n"));
+        // Filesystems that reject non-UTF-8 names leave the case without the odd file.
+        if let Err(error) = std::fs::write(&odd, "fn odd() {}\n") {
+            eprintln!("cannot create a non-UTF-8 file name: {error}");
+        }
     }
     let rust_hits =
         find_usages(Language::Rust, dir.path(), &["codegen".to_owned()]).expect("usages");

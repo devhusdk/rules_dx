@@ -132,10 +132,7 @@ fn write_holder(root: &ManagedRoot) {
         .to_string_lossy()
         .into_owned();
     let text = format!("dx {command} (pid {})", std::process::id());
-    drop(std::fs::write(
-        root.dir().join(COMMIT_HOLDER_FILE_NAME),
-        text,
-    ));
+    crate::write_hint(root.dir().join(COMMIT_HOLDER_FILE_NAME), text);
 }
 
 fn read_holder(root: &ManagedRoot) -> Option<String> {
@@ -218,7 +215,7 @@ pub fn recover_tree_swap(swap: &TreeSwap) -> Result<(), CommitError> {
 /// Moves `current` aside, renames `stage` in and restores `current` when that fails.
 pub fn publish_tree_swap(swap: &TreeSwap) -> Result<(), CommitError> {
     publish_tree_swap_with(swap, &|from, to| std::fs::rename(from, to))?;
-    drop(std::fs::remove_dir_all(&swap.retired));
+    crate::discard_dir(&swap.retired);
     Ok(())
 }
 

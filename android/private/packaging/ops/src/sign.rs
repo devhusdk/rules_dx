@@ -251,7 +251,7 @@ pub fn run_apk(args: &[String]) -> Outcome {
     let mut out_idsig = out.clone().into_os_string();
     out_idsig.push(".idsig");
     let out_idsig = PathBuf::from(out_idsig);
-    drop(std::fs::remove_file(&out_idsig));
+    dx_atomic_fs::discard_file(&out_idsig);
     publish(&signed, &out)?;
     if v4 {
         publish(&idsig, &out_idsig)?;

@@ -1693,7 +1693,7 @@ pub fn copy_test_logs(testlogs: &Path, dest: &Path) -> String {
         {
             eprintln!("cannot create {}: {err}", parent.display());
         }
-        drop(std::fs::write(&target, &content));
+        dx_atomic_fs::write_hint(&target, &content);
         let content = String::from_utf8_lossy(&content);
         let head: Vec<&str> = content.lines().take(40).collect();
         write!(

@@ -202,6 +202,7 @@ rust_test(
         normal_dev = True,
     ) + [
         "//cli/adopt:dx_adopt",
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "//cli/ecosystems:dx_ecosystems",
         "//cli/error:dx_error",

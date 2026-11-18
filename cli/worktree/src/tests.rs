@@ -1832,7 +1832,7 @@ fn a_slot_whose_busy_file_cannot_be_opened_lists_as_busy() {
     let host = FakeHost::new();
     host.live(20);
     ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
-    drop(std::fs::remove_file(pool.busy_path(1)));
+    dx_atomic_fs::discard_file(pool.busy_path(1));
     std::fs::create_dir(pool.busy_path(1)).expect("busy file that cannot be opened");
     assert!(pool.busy(1));
     let listing = ops::list(&pool, &host, false).expect("list");

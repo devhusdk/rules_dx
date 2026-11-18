@@ -252,8 +252,10 @@ fn rewrite_fixed(path: &str) {
     };
     let out = fixed_bytes(&bytes);
     let tmp = format!("{path}.dxtmp");
-    if std::fs::write(&tmp, &out).is_ok() {
-        drop(std::fs::rename(&tmp, path));
+    if std::fs::write(&tmp, &out).is_ok()
+        && let Err(error) = std::fs::rename(&tmp, path)
+    {
+        eprintln!("fake_format: cannot replace {path}: {error}");
     }
 }
 

@@ -2,12 +2,12 @@
 
 use runfiles as _;
 use serde as _;
-use yaml_serde as _;
 use support_matrix::runfiles_source::RunfilesSource;
 use support_matrix::{
-    CONSUMER_LABELS_PATH, MATRIX_PATH, ROW_LABELS_PATH, Source, UNSUPPORTED_PATH, UPDATE_COMMAND,
-    diff, generate, parse_facts, unsupported_json,
+    CONSUMER_LABELS_PATH, MATRIX_PATH, ROW_LABELS_PATH, Source, SupportMatrixError,
+    UNSUPPORTED_PATH, UPDATE_COMMAND, diff, generate, parse_facts, unsupported_json,
 };
+use yaml_serde as _;
 
 fn generated() -> (String, RunfilesSource) {
     let source = RunfilesSource::create().expect("runfiles");
@@ -57,7 +57,7 @@ fn a_row_test_missing_from_every_platform_file_fails() {
         .expect("facts");
     struct Renamed<'a>(&'a RunfilesSource);
     impl Source for Renamed<'_> {
-        fn read(&self, path: &str) -> Result<String, String> {
+        fn read(&self, path: &str) -> Result<String, SupportMatrixError> {
             let text = self.0.read(path)?;
             if path != CONSUMER_LABELS_PATH {
                 return Ok(text);
@@ -69,7 +69,14 @@ fn a_row_test_missing_from_every_platform_file_fails() {
         }
     }
     let error = generate(&facts, &Renamed(&source)).expect_err("an unqueried row test");
-    assert!(error.contains("support_matrix:row_tests"), "{error}");
+    assert!(
+        matches!(&error, SupportMatrixError::UnqueriedLabel { label, .. } if label == "//tools/testing/hermetic:not_queried"),
+        "{error}"
+    );
+    assert!(
+        error.to_string().contains("support_matrix:row_tests"),
+        "{error}"
+    );
 }
 
 #[test]
@@ -102,15 +109,15 @@ fn every_compiler_and_target_row_has_a_row_tagged_test() {
 fn a_row_tag_naming_no_row_fails() {
     struct WithRow<'a>(&'a RunfilesSource);
     impl Source for WithRow<'_> {
-        fn read(&self, path: &str) -> Result<String, String> {
+        fn read(&self, path: &str) -> Result<String, SupportMatrixError> {
             let text = self.0.read(path)?;
             if path != ROW_LABELS_PATH {
                 return Ok(text);
             }
             let mut labels: serde_json::Map<String, serde_json::Value> =
-                serde_json::from_str(&text).map_err(|error| error.to_string())?;
+                serde_json::from_str(&text).expect("row labels parse");
             labels.insert("no_such_row".to_owned(), serde_json::json!([]));
-            serde_json::to_string(&labels).map_err(|error| error.to_string())
+            Ok(serde_json::to_string(&labels).expect("row labels serialize"))
         }
     }
     let source = RunfilesSource::create().expect("runfiles");
@@ -119,7 +126,8 @@ fn a_row_tag_naming_no_row_fails() {
         .expect("facts");
     let error = generate(&facts, &WithRow(&source)).expect_err("a row tag naming no row");
     assert!(
-        error.contains("no_such_row") && error.contains("support_matrix:row_tests"),
+        matches!(&error, SupportMatrixError::UnknownRow { row, .. } if row == "no_such_row")
+            && error.to_string().contains("support_matrix:row_tests"),
         "{error}"
     );
 }
@@ -141,5 +149,5 @@ fn a_removed_suite_test_fails_without_a_pending_or_not_applicable_entry() {
         .clone();
     entries.retain(|e| !(e["lang"] == removed && e["capability"] == "build_test"));
     let error = generate(&value.to_string(), &source).expect_err("a removed suite test");
-    assert!(error.contains("pending.bzl"), "{error}");
+    assert!(error.to_string().contains("pending.bzl"), "{error}");
 }

@@ -1,45 +1,152 @@
 //! Reads the platform facts the support matrix needs from GitHub Actions workflows.
 
 use std::collections::BTreeMap;
+use std::fmt;
 
 use serde_json::Value;
+
+/// A workflow the support matrix cannot read, with the problem found in it.
+#[derive(Debug)]
+pub struct WorkflowError {
+    pub path: String,
+    pub problem: Problem,
+}
+
+/// What is wrong with a workflow.
+#[derive(Debug)]
+pub enum Problem {
+    Yaml(yaml_serde::Error),
+    NotString(&'static str),
+    NotList(&'static str),
+    DogfoodList(serde_json::Error),
+    PreflightEntry(&'static str),
+    NoLane { platform: String },
+    LaneSuite { platform: String, suite: String },
+    LaneDuplicate { platform: String, label: String },
+    NoJobs,
+    NoRunsOn { job: String },
+    UnknownRunner { job: String, label: String },
+    UnterminatedTag { job: String },
+    TagPattern { job: String, tag: String },
+    NoMatrixInclude { job: String },
+    MatrixExclude { job: String },
+    PlatformWithoutRunner { job: String, platform: String },
+}
+
+impl fmt::Display for Problem {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Yaml(source) => write!(f, "not valid workflow YAML: {source}"),
+            Self::NotString(field) => write!(f, "{field} is not a string"),
+            Self::NotList(field) => write!(f, "{field} is not a list"),
+            Self::DogfoodList(source) => {
+                write!(f, "dogfood platforms are not a JSON list: {source}")
+            }
+            Self::PreflightEntry(lacks) => write!(f, "a preflight entry lacks {lacks}"),
+            Self::NoLane { platform } => write!(f, "no preflight lane for {platform}"),
+            Self::LaneSuite { platform, suite } => {
+                write!(f, "the {platform} preflight lane must run {suite}")
+            }
+            Self::LaneDuplicate { platform, label } => {
+                write!(f, "the {platform} preflight lane lists {label} twice")
+            }
+            Self::NoJobs => f.write_str("declares no jobs"),
+            Self::NoRunsOn { job } => write!(f, "job {job} has no string runs-on"),
+            Self::UnknownRunner { job, label } => write!(
+                f,
+                "job {job} runs on {label}, which no preflight platform uses"
+            ),
+            Self::UnterminatedTag { job } => {
+                write!(f, "job {job} has an unterminated attr(tags,")
+            }
+            Self::TagPattern { job, tag } => write!(
+                f,
+                "job {job} selects tests by tag pattern {tag:?}, which the support matrix reader does not understand"
+            ),
+            Self::NoMatrixInclude { job } => write!(f, "job {job} has no matrix.include"),
+            Self::MatrixExclude { job } => write!(
+                f,
+                "job {job} has matrix.exclude, so the reader cannot tell which cells run"
+            ),
+            Self::PlatformWithoutRunner { job, platform } => write!(
+                f,
+                "job {job} has platform {platform} with no matrix.include runner"
+            ),
+        }
+    }
+}
+
+impl fmt::Display for WorkflowError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}: {}", self.path, self.problem)
+    }
+}
+
+impl std::error::Error for WorkflowError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match &self.problem {
+            Problem::Yaml(source) => Some(source),
+            Problem::DogfoodList(source) => Some(source),
+            Problem::NotString(_)
+            | Problem::NotList(_)
+            | Problem::PreflightEntry(_)
+            | Problem::NoLane { .. }
+            | Problem::LaneSuite { .. }
+            | Problem::LaneDuplicate { .. }
+            | Problem::NoJobs
+            | Problem::NoRunsOn { .. }
+            | Problem::UnknownRunner { .. }
+            | Problem::UnterminatedTag { .. }
+            | Problem::TagPattern { .. }
+            | Problem::NoMatrixInclude { .. }
+            | Problem::MatrixExclude { .. }
+            | Problem::PlatformWithoutRunner { .. } => None,
+        }
+    }
+}
+
+fn error(path: &str, problem: Problem) -> WorkflowError {
+    WorkflowError {
+        path: path.to_owned(),
+        problem,
+    }
+}
 
 fn field<'a>(value: &'a Value, key: &str) -> &'a Value {
     static NULL: Value = Value::Null;
     value.get(key).unwrap_or(&NULL)
 }
 
-fn document(path: &str, text: &str) -> Result<Value, String> {
-    yaml_serde::from_str(text)
-        .map_err(|error| format!("{path} is not valid workflow YAML: {error}"))
+fn document(path: &str, text: &str) -> Result<Value, WorkflowError> {
+    yaml_serde::from_str(text).map_err(|source| error(path, Problem::Yaml(source)))
 }
 
 /// Returns the platforms the `dogfood` job of `ci.yml` passes to the reusable workflow.
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn dogfood_platforms(path: &str, text: &str) -> Result<Vec<String>, String> {
+/// Returns a [`WorkflowError`] naming the workflow and the problem in it.
+pub fn dogfood_platforms(path: &str, text: &str) -> Result<Vec<String>, WorkflowError> {
     let document = document(path, text)?;
     let Some(platforms) = field(
         field(field(field(&document, "jobs"), "dogfood"), "with"),
         "platforms",
     )
     .as_str() else {
-        return Err(format!(
-            "{path}: jobs.dogfood.with.platforms is not a string"
+        return Err(error(
+            path,
+            Problem::NotString("jobs.dogfood.with.platforms"),
         ));
     };
-    serde_json::from_str(platforms)
-        .map_err(|error| format!("{path}: dogfood platforms are not a JSON list: {error}"))
+    serde_json::from_str(platforms).map_err(|source| error(path, Problem::DogfoodList(source)))
 }
 
 /// Returns the runner label of each platform in the `preflight` matrix of `ci.yml`.
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn runner_platforms(path: &str, text: &str) -> Result<BTreeMap<String, String>, String> {
+/// Returns a [`WorkflowError`] naming the workflow and the problem in it.
+pub fn runner_platforms(path: &str, text: &str) -> Result<BTreeMap<String, String>, WorkflowError> {
     let document = document(path, text)?;
     let Some(include) = field(
         field(
@@ -49,8 +156,9 @@ pub fn runner_platforms(path: &str, text: &str) -> Result<BTreeMap<String, Strin
         "include",
     )
     .as_array() else {
-        return Err(format!(
-            "{path}: jobs.preflight.strategy.matrix.include is not a list"
+        return Err(error(
+            path,
+            Problem::NotList("jobs.preflight.strategy.matrix.include"),
         ));
     };
     let mut runners = BTreeMap::new();
@@ -59,9 +167,7 @@ pub fn runner_platforms(path: &str, text: &str) -> Result<BTreeMap<String, Strin
             field(entry, "platform").as_str(),
             field(entry, "runner").as_str(),
         ) else {
-            return Err(format!(
-                "{path}: a preflight entry lacks platform or runner"
-            ));
+            return Err(error(path, Problem::PreflightEntry("platform or runner")));
         };
         runners.insert(runner.to_owned(), platform.to_owned());
     }
@@ -72,8 +178,11 @@ pub fn runner_platforms(path: &str, text: &str) -> Result<BTreeMap<String, Strin
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn preflight_quality(path: &str, text: &str) -> Result<BTreeMap<String, Vec<String>>, String> {
+/// Returns a [`WorkflowError`] naming the workflow and the problem in it.
+pub fn preflight_quality(
+    path: &str,
+    text: &str,
+) -> Result<BTreeMap<String, Vec<String>>, WorkflowError> {
     let document = document(path, text)?;
     let Some(include) = field(
         field(
@@ -83,14 +192,15 @@ pub fn preflight_quality(path: &str, text: &str) -> Result<BTreeMap<String, Vec<
         "include",
     )
     .as_array() else {
-        return Err(format!(
-            "{path}: jobs.preflight.strategy.matrix.include is not a list"
+        return Err(error(
+            path,
+            Problem::NotList("jobs.preflight.strategy.matrix.include"),
         ));
     };
     let mut lanes = BTreeMap::new();
     for entry in include {
         let Some(platform) = field(entry, "platform").as_str() else {
-            return Err(format!("{path}: a preflight entry lacks platform"));
+            return Err(error(path, Problem::PreflightEntry("platform")));
         };
         let labels = field(entry, "quality")
             .as_str()
@@ -108,31 +218,44 @@ pub fn preflight_quality(path: &str, text: &str) -> Result<BTreeMap<String, Vec<
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
+/// Returns a [`WorkflowError`] naming the workflow and the problem in it.
 pub fn check_evidence_lanes(
     path: &str,
     lanes: &BTreeMap<String, Vec<String>>,
     platforms: &[&str],
-) -> Result<(), String> {
+) -> Result<(), WorkflowError> {
     for platform in platforms {
         if *platform == "linux_x86_64" {
             continue;
         }
         let Some(labels) = lanes.get(*platform) else {
-            return Err(format!("{path}: no preflight lane for {platform}"));
+            return Err(error(
+                path,
+                Problem::NoLane {
+                    platform: (*platform).to_owned(),
+                },
+            ));
         };
         let suite = format!("//core/quality/testdata:runner_matrix_{platform}");
         if !labels.contains(&suite) {
-            return Err(format!(
-                "{path}: the {platform} preflight lane must run {suite}"
+            return Err(error(
+                path,
+                Problem::LaneSuite {
+                    platform: (*platform).to_owned(),
+                    suite,
+                },
             ));
         }
     }
     for (platform, labels) in lanes {
         for (index, label) in labels.iter().enumerate() {
             if labels.iter().take(index).any(|earlier| earlier == label) {
-                return Err(format!(
-                    "{path}: the {platform} preflight lane lists {label} twice"
+                return Err(error(
+                    path,
+                    Problem::LaneDuplicate {
+                        platform: platform.clone(),
+                        label: label.clone(),
+                    },
                 ));
             }
         }
@@ -157,20 +280,20 @@ fn runner_label(runs_on: &str) -> &str {
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
+/// Returns a [`WorkflowError`] naming the workflow and the problem in it.
 pub fn workflow_platforms(
     path: &str,
     text: &str,
     runners: &BTreeMap<String, String>,
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<String>, WorkflowError> {
     let document = document(path, text)?;
     let Some(jobs) = field(&document, "jobs").as_object() else {
-        return Err(format!("{path} declares no jobs"));
+        return Err(error(path, Problem::NoJobs));
     };
     let mut platforms = Vec::new();
     for (id, job) in jobs {
         let Some(runs_on) = field(job, "runs-on").as_str() else {
-            return Err(format!("{path}: job {id} has no string runs-on"));
+            return Err(error(path, Problem::NoRunsOn { job: id.clone() }));
         };
         if runs_on.contains("matrix.platform") {
             for platform in runners.values() {
@@ -185,8 +308,12 @@ pub fn workflow_platforms(
             continue;
         }
         let Some(platform) = runners.get(label) else {
-            return Err(format!(
-                "{path}: job {id} runs on {label}, which no preflight platform uses"
+            return Err(error(
+                path,
+                Problem::UnknownRunner {
+                    job: id.clone(),
+                    label: label.to_owned(),
+                },
             ));
         };
         if !platforms.contains(platform) {
@@ -203,12 +330,12 @@ pub fn workflow_platforms(
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
+/// Returns a [`WorkflowError`] naming the workflow and the problem in it.
 pub fn tag_job_platforms(
     path: &str,
     text: &str,
     runners: &BTreeMap<String, String>,
-) -> Result<BTreeMap<String, Vec<String>>, String> {
+) -> Result<BTreeMap<String, Vec<String>>, WorkflowError> {
     let document = document(path, text)?;
     let Some(jobs) = field(&document, "jobs").as_object() else {
         return Ok(BTreeMap::new());
@@ -224,7 +351,7 @@ pub fn tag_job_platforms(
             while let Some((before, after)) = rest.split_once("attr(tags,") {
                 rest = after;
                 let Some((tag, _)) = rest.split_once(',') else {
-                    return Err(format!("{path}: job {id} has an unterminated attr(tags,"));
+                    return Err(error(path, Problem::UnterminatedTag { job: id.clone() }));
                 };
                 // `except attr(tags, ...)` removes targets from a query; it selects
                 // no tests for this job, so its pattern says nothing about platforms.
@@ -237,9 +364,12 @@ pub fn tag_job_platforms(
                         .chars()
                         .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
                 {
-                    return Err(format!(
-                        "{path}: job {id} selects tests by tag pattern {tag:?}, \
-                         which the support matrix reader does not understand"
+                    return Err(error(
+                        path,
+                        Problem::TagPattern {
+                            job: id.clone(),
+                            tag: tag.to_owned(),
+                        },
                     ));
                 }
                 tags.push(tag.to_owned());
@@ -249,20 +379,17 @@ pub fn tag_job_platforms(
             continue;
         }
         let Some(runs_on) = field(job, "runs-on").as_str() else {
-            return Err(format!("{path}: job {id} has no string runs-on"));
+            return Err(error(path, Problem::NoRunsOn { job: id.clone() }));
         };
         let labels: Vec<String> = if runs_on.trim() == "${{ matrix.runner }}" {
             let Some(include) =
                 field(field(field(job, "strategy"), "matrix"), "include").as_array()
             else {
-                return Err(format!("{path}: job {id} has no matrix.include"));
+                return Err(error(path, Problem::NoMatrixInclude { job: id.clone() }));
             };
             let matrix = field(field(job, "strategy"), "matrix");
             if !field(matrix, "exclude").is_null() {
-                return Err(format!(
-                    "{path}: job {id} has matrix.exclude, so the reader cannot tell \
-                     which cells run"
-                ));
+                return Err(error(path, Problem::MatrixExclude { job: id.clone() }));
             }
             if let Some(axis) = field(matrix, "platform").as_array() {
                 for value in axis {
@@ -271,8 +398,12 @@ pub fn tag_job_platforms(
                             && field(entry, "runner").as_str().is_some()
                     });
                     if !covered {
-                        return Err(format!(
-                            "{path}: job {id} has platform {value} with no matrix.include runner"
+                        return Err(error(
+                            path,
+                            Problem::PlatformWithoutRunner {
+                                job: id.clone(),
+                                platform: value.to_string(),
+                            },
                         ));
                     }
                 }
@@ -286,8 +417,12 @@ pub fn tag_job_platforms(
         };
         for label in labels {
             let Some(platform) = runners.get(&label) else {
-                return Err(format!(
-                    "{path}: job {id} runs on {label}, which no preflight platform uses"
+                return Err(error(
+                    path,
+                    Problem::UnknownRunner {
+                        job: id.clone(),
+                        label: label.to_owned(),
+                    },
                 ));
             };
             for tag in &tags {
@@ -339,9 +474,15 @@ jobs:
         let ci = lane_ci("//x:y");
         let lanes = preflight_quality("ci.yml", &ci).expect("lanes");
         let error = check_evidence_lanes("ci.yml", &lanes, &["macos_arm64"]).expect_err("suite");
-        assert!(error.contains("runner_matrix_macos_arm64"), "{error}");
+        assert!(
+            error.to_string().contains("runner_matrix_macos_arm64"),
+            "{error}"
+        );
         let error = check_evidence_lanes("ci.yml", &lanes, &["windows_arm64"]).expect_err("lane");
-        assert!(error.contains("no preflight lane"), "{error}");
+        assert!(
+            matches!(&error.problem, Problem::NoLane { platform } if platform == "windows_arm64"),
+            "{error}"
+        );
     }
 
     #[test]
@@ -349,7 +490,7 @@ jobs:
         let ci = lane_ci("//core/quality/testdata:runner_matrix_macos_arm64 //x:y //x:y");
         let lanes = preflight_quality("ci.yml", &ci).expect("lanes");
         let error = check_evidence_lanes("ci.yml", &lanes, &["macos_arm64"]).expect_err("dup");
-        assert!(error.contains("twice"), "{error}");
+        assert!(error.to_string().contains("twice"), "{error}");
     }
 
     #[test]
@@ -402,7 +543,7 @@ jobs:
         let runners = runner_platforms("ci.yml", CI).expect("runners");
         let extra = "jobs:\n  apple:\n    runs-on: macos-26\n";
         let error = workflow_platforms("evidence.yml", extra, &runners).expect_err("unknown");
-        assert!(error.contains("macos-26"), "{error}");
+        assert!(error.to_string().contains("macos-26"), "{error}");
     }
 
     #[test]
@@ -446,7 +587,12 @@ jobs:
     fn rejects_matrix_exclude_in_tag_jobs() {
         let runners = runner_platforms("ci.yml", CI).expect("runners");
         let text = "jobs:\n  c:\n    runs-on: ${{ matrix.runner }}\n    strategy:\n      matrix:\n        shard: [0]\n        include:\n          - runner: ubuntu-latest\n        exclude:\n          - shard: 0\n    steps:\n      - run: bazel query 'attr(tags, t_1, //...)'\n";
-        assert!(tag_job_platforms("ci.yml", text, &runners).is_err());
+        let error = tag_job_platforms("ci.yml", text, &runners).expect_err("exclude");
+        assert!(
+            matches!(error.problem, Problem::MatrixExclude { .. }),
+            "{error}"
+        );
+        assert_eq!(error.path, "ci.yml");
     }
 
     #[test]

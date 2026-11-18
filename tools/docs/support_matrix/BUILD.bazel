@@ -47,6 +47,7 @@ rust_library(
         package_name = "tools/docs/support_matrix",
         normal = True,
     ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
         "@crates//:serde",
         "@crates//:serde_json",
         "@crates//:yaml_serde",
@@ -135,6 +136,7 @@ rust_binary(
         normal = True,
     ) + [
         ":support_matrix",
+        "//cli/atomic_fs:dx_atomic_fs",
         "@crates//:serde_json",
     ],
 )

@@ -60,6 +60,11 @@ const FORTITUDE_CHECK_TAIL: &[&str] = &[
     "--output-format",
     "json",
 ];
+/// The sentinel, then tab-separated fields; the message is last because upstream substitutes it
+/// before `{type}` and `{name}`.
+pub const DSCANNER_FORMAT: &str =
+    "dx\t{filepath}\t{line}\t{column}\t{endLine}\t{endColumn}\t{type}\t{name}\t{message}";
+const DSCANNER_CHECK_ARGS: &[&str] = &["--styleCheck", "--errorFormat", DSCANNER_FORMAT];
 // ffmt has no `--config` flag.
 const FFMT_CHECK_ARGS: &[&str] = &["--check", "--no-cache", "--no-ignore", "--color", "never"];
 const FFMT_FIX_ARGS: &[&str] = &["--no-cache", "--no-ignore", "--color", "never"];
@@ -1705,6 +1710,12 @@ pub fn fortitude_check(binary: &Path, files: &[&Path], config: Option<&Path>) ->
         files,
         "",
     )
+}
+
+/// One batched style check over explicit files with D-Scanner's built-in check set.
+#[must_use]
+pub fn dscanner_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, DSCANNER_CHECK_ARGS, files, "")
 }
 
 /// `ffmt --check` prints one unformatted path per line and exits 1; `config_dir_rel` is the

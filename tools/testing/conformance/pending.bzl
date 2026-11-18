@@ -37,8 +37,12 @@ cuda lint_test *
 d cross_test *
 d format_error_test *
 d format_test *
-d lint_error_test *
-d lint_test *
+d lint_error_test linux_arm64
+d lint_error_test macos_arm64
+d lint_error_test windows_x86_64
+d lint_test linux_arm64
+d lint_test macos_arm64
+d lint_test windows_x86_64
 d lock_test *
 dotnet cross_test *
 dotnet lock_test *

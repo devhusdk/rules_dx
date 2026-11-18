@@ -231,19 +231,28 @@ mod tests {
         }
     }
 
+    /// The npm hub of the lock registry and its `npm_translate_lock` block.
+    fn npm_hub() -> (&'static str, String) {
+        let hub = dx_families::hub("npm").expect("npm hub");
+        let lock = hub.lock.as_deref().expect("npm lock");
+        let name = hub.hub.as_str();
+        (
+            name,
+            format!(
+                "npm = use_extension(\"@rules_dx//javascript:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(\n    name = \"{name}\",\n    pnpm_lock = \"//:{lock}\",\n)\nuse_repo(npm, \"{name}\")\n"
+            ),
+        )
+    }
+
     #[test]
     fn loads_from_an_npm_hub_get_aspect_rules_js() {
+        let (name, block) = npm_hub();
         let module = format!("{MODULE}include(\"//:js.MODULE.bazel\")\n");
+        let build = format!("load(\"@{name}//:defs.bzl\", \"npm_link_all_packages\")\n");
         let hubs = plan(&[
             ("MODULE.bazel", module.as_str()),
-            (
-                "js.MODULE.bazel",
-                "npm = use_extension(\"@rules_dx//javascript:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(\n    name = \"npm\",\n    pnpm_lock = \"//:pnpm-lock.yaml\",\n)\nuse_repo(npm, \"npm\")\n",
-            ),
-            (
-                "BUILD.bazel",
-                "load(\"@npm//:defs.bzl\", \"npm_link_all_packages\")\n",
-            ),
+            ("js.MODULE.bazel", block.as_str()),
+            ("BUILD.bazel", build.as_str()),
         ]);
         let edit = hubs.edit.expect("edit");
         assert_eq!(
@@ -257,9 +266,7 @@ mod tests {
 
     #[test]
     fn an_npm_hub_nothing_loads_from_adds_no_dep() {
-        let module = format!(
-            "{MODULE}npm = use_extension(\"@rules_dx//javascript:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(\n    name = \"npm\",\n    pnpm_lock = \"//:pnpm-lock.yaml\",\n)\nuse_repo(npm, \"npm\")\n"
-        );
+        let module = format!("{MODULE}{}", npm_hub().1);
         let hubs = plan(&[
             ("MODULE.bazel", module.as_str()),
             (

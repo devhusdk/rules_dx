@@ -28,6 +28,7 @@ py_binary(
 
 py_unittest_test(
     name = "upstream_unit_test",
+    size = "small",
     srcs = [
         "upstream.py",
         "upstream_test.py",

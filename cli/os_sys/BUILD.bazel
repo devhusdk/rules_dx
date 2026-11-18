@@ -83,6 +83,7 @@ rust_test(
 
 rust_test_srcs_split_tests(
     name = "test_srcs_split_test",
+    size = "small",
     lib = ":dx_os_sys",
     test = ":dx_os_sys_test",
     test_src = "cli/os_sys/src/lib_tests.rs",

@@ -421,13 +421,13 @@ def rust_test(
         forward_kwargs["sharded"] = True
     dx_wrap_test(name, _rust_test, _rust_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, extra_forward_kwargs = forward_kwargs, upstream_env = True, **kwargs)
 
-def _rust_bench_report_impl(ctx):
+def _rust_benchmark_report_impl(ctx):
     report = ctx.attr._report[DefaultInfo]
     link = dx_symlink_executable(ctx, report.files_to_run.executable)
     return [DefaultInfo(executable = link, files = depset([link]), runfiles = ctx.runfiles(files = [link]).merge(report.default_runfiles))]
 
-_rust_bench_report = rule(
-    implementation = _rust_bench_report_impl,
+_rust_benchmark_report = rule(
+    implementation = _rust_benchmark_report_impl,
     doc = "Provides the bench_report runner executable.",
     executable = True,
     attrs = {
@@ -445,7 +445,7 @@ def rust_bench(
         visibility = None,
         **kwargs):
     """A rust_test run by `dx bench`; it reports its bencher output as dx-bench.json."""
-    _rust_bench_report(
+    _rust_benchmark_report(
         name = name + "_bench_report",
         testonly = True,
         tags = dx_upstream_tags(tags),

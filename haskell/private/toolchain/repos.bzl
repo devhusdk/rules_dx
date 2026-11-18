@@ -2,7 +2,7 @@
 
 load("//core:deb_closure.bzl", "deb_closure")
 load("//core:toolchain.bzl", "cell_repo", "pins_hub", "toolchain_target")
-load(":pins.bzl", "ALL_CELLS", "ALPINE_MIRROR", "CELLS", "CROSS_CELLS", "GHC_VERSION", "MUSL_CELLS", "qualified_cells", "runtime_urls")
+load(":pins.bzl", "ALL_CELLS", "CELLS", "CROSS_CELLS", "GHC_VERSION", "MUSL_CELLS", "qualified_cells", "runtime_urls")
 
 HUB_NAME = "dx_haskell_toolchains"
 
@@ -440,7 +440,7 @@ def _apk_closure(rctx, cell):
     for package in cell.apks:
         scratch = "_apks/" + package.package
         rctx.download_and_extract(
-            url = ALPINE_MIRROR + "/" + package.apk,
+            url = package.url,
             sha256 = package.sha256,
             output = scratch,
             type = "tar.gz",
@@ -448,7 +448,7 @@ def _apk_closure(rctx, cell):
         for soname, path in package.libraries.items():
             source = rctx.path(scratch + "/" + path)
             if not source.exists:
-                fail("{} does not ship {}".format(package.apk, path))
+                fail("{} does not ship {}".format(package.url, path))
             rctx.rename(source.realpath, CLOSURE_DIR + "/lib/" + soname)
     rctx.delete("_apks")
     for alias, target in cell.loader_aliases.items():

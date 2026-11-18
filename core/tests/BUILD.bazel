@@ -108,7 +108,10 @@ entry_tests(name = "entry")
 
 license_tests(name = "license")
 
-root_only_tests(name = "root_only")
+root_only_tests(
+    name = "root_only",
+    size = "small",
+)
 
 seven_zip_tests(name = "seven_zip")
 
@@ -174,7 +177,10 @@ starlark_test(
     mode = "execution",
 )
 
-wrapper_forward_spec_tests(name = "wrapper_forward_spec")
+wrapper_forward_spec_tests(
+    name = "wrapper_forward_spec",
+    size = "small",
+)
 
 wrapper_kwarg_hooks_tests(name = "wrapper_kwarg_hooks")
 

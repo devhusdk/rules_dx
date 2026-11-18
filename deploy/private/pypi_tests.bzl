@@ -83,16 +83,16 @@ _attestations_linux_x86_64_test = analysistest.make(
     config_settings = {"//command_line_option:platforms": str(Label("//tools/platforms:linux_x86_64"))},
 )
 
-def pypi_attestations_tool_tests(name):
+def pypi_attestations_tool_tests(name, size):
     """Checks the pypi-attestations alias picks the stub only on windows_arm64."""
     _attestations_windows_arm64_test(
         name = name + "_windows_arm64",
-        size = "small",
+        size = size,
         target_under_test = "//core/quality/tools/python:pypi_attestations_tool",
     )
     _attestations_linux_x86_64_test(
         name = name + "_linux_x86_64",
-        size = "small",
+        size = size,
         target_under_test = "//core/quality/tools/python:pypi_attestations_tool",
     )
     native.test_suite(

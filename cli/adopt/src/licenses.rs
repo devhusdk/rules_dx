@@ -4,28 +4,23 @@
 use std::collections::BTreeSet;
 use std::fmt::Write as _;
 use std::path::Path;
+use std::sync::LazyLock;
 
 /// The `use_extension` line that binds the `dx_licenses` extension.
 pub const LICENSE_EXTENSION_LINE: &str =
     "dx_licenses = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_licenses\")";
 
-/// `core/license.bzl`, the one source of each license's terms hash.
-const LICENSE_BZL: &str = include_str!("../../../core/license.bzl");
+/// `core/licenses/pins.json`, the one source of each license's terms hash.
+const LICENSE_TERMS: &str = include_str!("../../../core/licenses/pins.json");
 
-/// The `terms_sha256` that `core/license.bzl` pins for `id`: the `NAME = "<id>"` constant,
-/// then the `NAME: struct(url = ..., terms_sha256 = "<hash>")` entry of `LICENSES`.
+/// The decoded `LICENSE_TERMS`, an object from license id to its `url` and `terms_sha256`.
+static TERMS: LazyLock<serde_json::Value> =
+    LazyLock::new(|| serde_json::from_str(LICENSE_TERMS).unwrap_or_default());
+
+/// The `terms_sha256` that `core/licenses/pins.json` pins for `id`.
 #[must_use]
 pub fn terms_sha256(id: &str) -> Option<&'static str> {
-    let quoted_id = format!(" = \"{id}\"");
-    let constant = LICENSE_BZL
-        .lines()
-        .find_map(|line| line.strip_suffix(quoted_id.as_str()))?;
-    let entry = format!("{constant}: struct(");
-    let line = LICENSE_BZL
-        .lines()
-        .find_map(|line| line.trim_start().strip_prefix(entry.as_str()))?;
-    let (_, rest) = line.split_once("terms_sha256 = \"")?;
-    rest.split_once('"').map(|(hash, _)| hash)
+    TERMS.get(id)?.get("terms_sha256")?.as_str()
 }
 
 /// Whether `word` is a sha256 hex digest, the value side of a `terms_sha256` entry.
@@ -221,6 +216,13 @@ mod tests {
             assert!(terms_sha256(&id).is_some_and(is_sha256), "{id}");
         }
         assert_eq!(terms_sha256("nope"), None);
+        let pinned: BTreeSet<String> = TERMS
+            .as_object()
+            .expect("core/licenses/pins.json is an object")
+            .keys()
+            .cloned()
+            .collect();
+        assert_eq!(pinned, known_license_ids());
     }
 
     #[test]

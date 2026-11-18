@@ -322,8 +322,8 @@ mod tests {
         let src = dir.path().join("download");
         std::fs::write(&src, "bytes").expect("write");
         let cache = dir.path().join("cache");
-        let hash = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
-        let other = "bbea0fabfdbf037ddf6765848ce5875c610f16b7cd81c9c19c67665f0a3aca54";
+        let hash = dx_digest::sha256_hex(b"abc");
+        let other = sha('e');
         let files = vec![Download {
             digest: A.to_owned(),
             file: src,
@@ -369,7 +369,7 @@ mod tests {
         let placed = cache.join(format!("content_addressable/sha256/{A}/file"));
         assert_eq!(entry(&cache, A), placed);
         assert_eq!(std::fs::read_to_string(&placed).expect("read"), "bytes");
-        let id = "id-ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+        let id = format!("id-{}", dx_digest::sha256_hex(b"abc"));
         assert!(
             placed.with_file_name(id).is_file(),
             "canonical id of the URL"

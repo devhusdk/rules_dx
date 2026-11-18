@@ -1,6 +1,7 @@
 """The hex hub: one repository whose packages are the locked Hex releases."""
 
 load("//core:pins.bzl", "lock_problems", "lock_tag")
+load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
 
 _DEFS = {
     "elixir": str(Label("//elixir/private:defs.bzl")),
@@ -38,7 +39,7 @@ def _hex_repo_impl(rctx):
             )
             rctx.extract(scratch + "/contents.tar.gz", output = name)
             rctx.delete(scratch)
-        lang = "elixir" if rctx.path(name + "/mix.exs").exists else "erlang"
+        lang = "elixir" if rctx.path(name + "/" + LOCK_REGISTRY["hex"]["manifest"]).exists else "erlang"
         rctx.file(name + "/BUILD.bazel", build_file(package, lang))
     rctx.file("BUILD.bazel", "")
     return rctx.repo_metadata(reproducible = True)

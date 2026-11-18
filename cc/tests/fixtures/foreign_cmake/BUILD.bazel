@@ -211,6 +211,7 @@ filegroup(
 
 cc_toolchain_test(
     name = "zlib_msvc_static_cl_test",
+    size = "small",
     compiler = "msvc",
     tags = _THIRD_PARTY,
     target_compatible_with = _WINDOWS_X86_64,
@@ -219,6 +220,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "zlib_msvc_shared_cl_test",
+    size = "small",
     compiler = "msvc",
     tags = _THIRD_PARTY,
     target_compatible_with = _WINDOWS_X86_64,

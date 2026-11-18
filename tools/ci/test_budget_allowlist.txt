@@ -9,7 +9,6 @@ android/tests/fixtures/rust_apk/BUILD.bazel no-size 26
 ansible/tests/BUILD.bazel no-size 3
 ansible/tests/layout_tests.bzl no-size 1
 ansible/tests/lock_tests.bzl no-size 1
-api_spec/private/codegen/BUILD.bazel no-size 1
 api_spec/tests/BUILD.bazel no-size 10
 appimage/private/tools/packer/BUILD.bazel no-size 1
 appimage/tests/BUILD.bazel no-size 10

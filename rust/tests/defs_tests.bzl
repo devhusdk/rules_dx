@@ -348,11 +348,11 @@ _test_srcs_split_test = analysistest.make(
     },
 )
 
-def rust_test_srcs_split_tests(name, lib, test, test_src):
+def rust_test_srcs_split_tests(name, lib, test, test_src, size = "small"):
     """Asserts a test_srcs-only file builds only into the unit test."""
     _test_srcs_split_test(
         name = name,
-        size = "small",
+        size = size,
         target_under_test = test,
         lib = lib,
         test_src = test_src,
@@ -491,8 +491,8 @@ _shard_runner_test = analysistest.make(
     attrs = {"sharded": attr.bool(mandatory = True)},
 )
 
-def rust_shard_runner_tests(name, sharded, unsharded):
+def rust_shard_runner_tests(name, sharded, unsharded, size):
     """Asserts a sharded rust_test runs through the shard runner and an unsharded one does not."""
-    _shard_runner_test(name = name + "_sharded", size = "small", target_under_test = sharded, sharded = True)
-    _shard_runner_test(name = name + "_unsharded", size = "small", target_under_test = unsharded, sharded = False)
+    _shard_runner_test(name = name + "_sharded", size = size, target_under_test = sharded, sharded = True)
+    _shard_runner_test(name = name + "_unsharded", size = size, target_under_test = unsharded, sharded = False)
     native.test_suite(name = name, tests = [name + "_sharded", name + "_unsharded"])

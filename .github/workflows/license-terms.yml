@@ -1,7 +1,7 @@
 name: license-terms
 
 # Checks that each license's terms still hash to the terms_sha256 pinned in
-# core/license.bzl. Scheduled only: a vendor editing its terms is news for the
+# core/licenses/pins.json. Scheduled only: a vendor editing its terms is news for the
 # maintainers (bump the pin so users re-accept), not a reason to fail a PR.
 
 on:
@@ -36,7 +36,7 @@ jobs:
         run: |
           set -uo pipefail
           title="licenses: terms changed upstream"
-          report=$(python3 -I tools/licenses/terms_check.py core/license.bzl)
+          report=$(python3 -I tools/licenses/terms_check.py core/licenses/pins.json)
           status=$?
           printf '%s\n' "$report"
           number=$(gh issue list --state open --search "\"$title\" in:title" --json number,title --jq "[.[] | select(.title == \"$title\")][0].number // empty")
@@ -46,7 +46,7 @@ jobs:
           if [ "$status" -ne 1 ]; then
             exit "$status"
           fi
-          body="The scheduled terms check found terms that no longer match core/license.bzl: $RUN_URL"$'\n\n'"$report"$'\n\n'"Read the new terms, then set the new terms_sha256 in core/license.bzl so acceptances of the old terms ask users to re-accept."
+          body="The scheduled terms check found terms that no longer match core/licenses/pins.json: $RUN_URL"$'\n\n'"$report"$'\n\n'"Read the new terms, then set the new terms_sha256 in core/licenses/pins.json so acceptances of the old terms ask users to re-accept."
           if [ -n "$number" ]; then
             gh issue comment "$number" --body "$body"
           else

@@ -1,5 +1,47 @@
 {
   "archives": {
+    "apk__gmp": {
+      "sha256": "13f042e07fe32b5487111d6dec4289f6e745cc950a6d64232be679f2435b715d",
+      "urls": [
+        "https://dl-cdn.alpinelinux.org/alpine/v3.18/main/aarch64/gmp-6.2.1-r3.apk"
+      ]
+    },
+    "apk__gmp-dev": {
+      "sha256": "c05f5c9a8fe1400607761a6946137ec338e99595645cab3e3038374e4e46e461",
+      "urls": [
+        "https://dl-cdn.alpinelinux.org/alpine/v3.18/main/aarch64/gmp-dev-6.2.1-r3.apk"
+      ]
+    },
+    "apk__libffi": {
+      "sha256": "87d1e17785b654351efa2aca7ee27c61453237690802cdc90b21f1feaa323793",
+      "urls": [
+        "https://dl-cdn.alpinelinux.org/alpine/v3.18/main/aarch64/libffi-3.4.4-r2.apk"
+      ]
+    },
+    "apk__libgcc": {
+      "sha256": "45907c59e25a6698019f9f39d3f4d61b7a5e11a7c41fcd3a7fa5a3a430e2a692",
+      "urls": [
+        "https://dl-cdn.alpinelinux.org/alpine/v3.18/main/aarch64/libgcc-12.2.1_git20220924-r10.apk"
+      ]
+    },
+    "apk__libncursesw": {
+      "sha256": "a7a3c246e0f3aa7e0666bb8ecb2718cc544db430a14fb7691c01b687cc4d43d2",
+      "urls": [
+        "https://dl-cdn.alpinelinux.org/alpine/v3.18/main/aarch64/libncursesw-6.4_p20230506-r0.apk"
+      ]
+    },
+    "apk__libstdc++": {
+      "sha256": "5d233534267802336584f8b203a83197d7ce4b1314497c65b22aae9a7935143b",
+      "urls": [
+        "https://dl-cdn.alpinelinux.org/alpine/v3.18/main/aarch64/libstdc++-12.2.1_git20220924-r10.apk"
+      ]
+    },
+    "apk__musl": {
+      "sha256": "d9674ebd60a55330fcca142a02e7e3e5a9ee889d65dc929311f53f735c5c8ac5",
+      "urls": [
+        "https://dl-cdn.alpinelinux.org/alpine/v3.18/main/aarch64/musl-1.2.4-r3.apk"
+      ]
+    },
     "cabal__linux_arm64": {
       "sha256": "e4d940131ab0b78943a4b5ce64a9ef5acc452ea849df197787eaeecb1c3bf276",
       "urls": [

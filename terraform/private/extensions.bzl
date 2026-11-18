@@ -21,13 +21,7 @@ PLATFORM_TARGETS = {
     "windows_arm64": "windows_arm64",
 }
 
-def _repo_impl(ctx):
-    ctx.download_and_extract(
-        url = ctx.attr.urls,
-        sha256 = ctx.attr.sha256,
-        output = "%s/%s/%s" % (ctx.attr.source, ctx.attr.version, ctx.attr.target),
-    )
-    ctx.file("BUILD.bazel", """load("@rules_dx//terraform:defs.bzl", "terraform_provider")
+_PROVIDER_BUILD = """load("@rules_dx//terraform:defs.bzl", "terraform_provider")
 
 terraform_provider(
     name = "provider",
@@ -37,17 +31,26 @@ terraform_provider(
     version = {version},
     visibility = ["//visibility:public"],
 )
-""".format(source = repr(ctx.attr.source), target = repr(ctx.attr.target), version = repr(ctx.attr.version)))
+"""
+
+def _repo_impl(ctx):
+    ctx.download_and_extract(
+        url = ctx.attr.urls,
+        sha256 = ctx.attr.sha256,
+        output = "%s/%s/%s" % (ctx.attr.source, ctx.attr.version, ctx.attr.target),
+    )
+    ctx.file("BUILD.bazel", _PROVIDER_BUILD.format(source = repr(ctx.attr.source), target = repr(ctx.attr.target), version = repr(ctx.attr.version)))
     return ctx.repo_metadata(reproducible = True)
 
 _provider_repo = repository_rule(
     implementation = _repo_impl,
+    doc = "Fetches one Terraform provider archive for one platform.",
     attrs = {
-        "sha256": attr.string(mandatory = True),
-        "source": attr.string(mandatory = True),
-        "target": attr.string(mandatory = True),
-        "urls": attr.string_list(mandatory = True),
-        "version": attr.string(mandatory = True),
+        "sha256": attr.string(mandatory = True, doc = "SHA-256 of the provider archive."),
+        "source": attr.string(mandatory = True, doc = "Provider source address, e.g. hashicorp/null."),
+        "target": attr.string(mandatory = True, doc = "Terraform platform the archive is for, e.g. linux_amd64."),
+        "urls": attr.string_list(mandatory = True, doc = "Download URLs of the provider archive."),
+        "version": attr.string(mandatory = True, doc = "Provider version."),
     },
 )
 

@@ -45,11 +45,9 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
-# size: large, nested Bazel consumer build
 nested_bazel_test(
     name = "consumer_build_test",
-    size = "large",
-    timeout = "long",
+    size = "small",
     srcs = ["consumer_build_test.rs"],
     cache = "apple",
     cache_locks = "//tools/testing/nested_cache:apple_locks",

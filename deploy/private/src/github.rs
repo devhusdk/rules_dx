@@ -1154,9 +1154,10 @@ mod attestation_tests {
         }
         let scratch = scratch_dir();
         let runfiles = scratch.path().join("runfiles");
+        let manifest = format!("crate/{}", dx_ecosystems::Ecosystem::Cargo.manifest_name());
         write_crate_file(
             &runfiles,
-            "crate/Cargo.toml",
+            &manifest,
             "[package]\nname = \"demo\"\nversion = \"1.2.3\"\nedition = \"2024\"\n",
         );
         write_crate_file(&runfiles, "crate/src/lib.rs", "pub fn hello() {}\n");
@@ -1165,7 +1166,7 @@ mod attestation_tests {
         let attestations = vec![
             Attestation {
                 registry: "crates".to_owned(),
-                rlocs: vec!["crate/Cargo.toml".to_owned(), "crate/src/lib.rs".to_owned()],
+                rlocs: vec![manifest.clone(), "crate/src/lib.rs".to_owned()],
                 crate_name: "demo".to_owned(),
                 version: String::new(),
             },

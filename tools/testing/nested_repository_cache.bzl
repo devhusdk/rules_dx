@@ -81,10 +81,7 @@ def digest_integrity(digest):
     return "%s-%s" % (digest_algorithm(digest), "".join(encoded))
 
 def parse_cache_list(text, origin):
-    """Parses a cache list into hex digest to URLs and `id-<hex>` canonical id hashes.
-
-    One `<url> <hex digest>` or `id-<hex> <hex digest>` per line, `#` comments.
-    """
+    """Parses `<url> <hex digest>` or `id-<hex> <hex digest>` lines into digest to URLs and canonical id hashes."""
     entries = {}
     for number, line in enumerate(text.splitlines(), 1):
         line = line.strip()

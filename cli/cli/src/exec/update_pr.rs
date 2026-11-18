@@ -1564,8 +1564,9 @@ mod tests {
     fn run_plans_ruby_sets() {
         let gemfile = manifest_of(Ecosystem::Ruby);
         let gemfile_lock = lock_of(Ecosystem::Ruby);
+        let hub_lock = dx_adopt::lock_hubs::lock_of("ruby").expect("ruby lock");
         let module = format!(
-            "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.lock(name = \"gems\", lock = \"//:ruby.lock.json\")\n"
+            "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.lock(name = \"gems\", lock = \"//:{hub_lock}\")\n"
         );
         let (code, out, argv) = run_pr_with(
             &[

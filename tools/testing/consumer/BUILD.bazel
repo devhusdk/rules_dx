@@ -31,12 +31,11 @@ rust_test(
     ],
 )
 
-# size: large, nested Bazel consumer build and test from an empty output base. Fails when the
+# A nested Bazel consumer build and test from an empty output base. Fails when the
 # repositories a fresh Go-only consumer fetches differ from cold_start/go.txt.
 nested_bazel_test(
     name = "go_cold_start_test",
-    size = "large",
-    timeout = "long",
+    size = "small",
     srcs = ["cold_start_test.rs"],
     crate_name = "cold_start_test",
     crate_root = "cold_start_test.rs",

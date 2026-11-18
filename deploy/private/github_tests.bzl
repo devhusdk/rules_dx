@@ -116,10 +116,10 @@ def _attested_config_test_impl(ctx):
 
 _attested_config_test = analysistest.make(_attested_config_test_impl)
 
-def github_attestation_tests(name):
+def github_attestation_tests(name, size):
     """Checks that registry_deploys reach the github config and attach uploads the maven files."""
     _attested_config_test(
         name = name,
-        size = "small",
+        size = size,
         target_under_test = ":github_attested_config",
     )

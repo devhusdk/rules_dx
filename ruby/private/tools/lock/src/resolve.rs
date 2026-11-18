@@ -1,4 +1,4 @@
-//! Resolves a Bundler gem set from its `Gemfile` through the rubygems.org compact index and writes its lock and `Gemfile.lock`.
+//! Resolves a Bundler gem set from its manifest through the rubygems.org compact index and writes its lock and Bundler state file.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use dx_lock::{Archive, Error, HttpFetch, Lock, Package, Resolution, Resolver, Scratch, Spec};
@@ -7,9 +7,6 @@ use std::collections::{BTreeMap, BTreeSet};
 
 /// The gem host.
 pub const BASE: &str = "https://rubygems.org";
-
-/// The state file the resolver writes.
-pub const STATE: &str = "Gemfile.lock";
 
 const PINS: &str = include_str!("../../../../pins.json");
 
@@ -249,7 +246,7 @@ fn requirement_suffix(requirements: &[Requirement]) -> String {
     format!(" ({})", clauses.join(", "))
 }
 
-/// One `gem` line of a Gemfile.
+/// One `gem` line of a Bundler manifest.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Wanted {
     /// The requirement clauses.
@@ -292,7 +289,7 @@ fn is_dev(groups: &[String]) -> bool {
             .all(|group| group == "development" || group == "test")
 }
 
-/// The `gem` lines of a Gemfile, by gem name.
+/// The `gem` lines of a Bundler manifest, by gem name.
 ///
 /// # Errors
 /// Fails on a source other than rubygems.org, on a git, path or gemspec dependency, and on a line it does not read.
@@ -300,7 +297,7 @@ pub fn parse_gemfile(text: &str) -> Result<BTreeMap<String, Wanted>, Error> {
     let mut gems = BTreeMap::new();
     let mut groups: Vec<Vec<String>> = Vec::new();
     for (number, line) in text.lines().enumerate() {
-        let failed = |message: &str| Error::new(format!("Gemfile line {}: {message}", number + 1));
+        let failed = |message: &str| Error::new(format!("line {}: {message}", number + 1));
         let line = line.split_once('#').map_or(line, |(code, _)| code).trim();
         if line.is_empty() {
             continue;
@@ -410,7 +407,7 @@ pub fn parse_gemfile(text: &str) -> Result<BTreeMap<String, Wanted>, Error> {
         }
     }
     if !groups.is_empty() {
-        return Err(Error::new("Gemfile has a group without end"));
+        return Err(Error::new("a group has no end"));
     }
     Ok(gems)
 }
@@ -570,7 +567,7 @@ fn gem_provides(name: &str, bytes: &[u8]) -> Result<BTreeSet<String>, String> {
     Ok(provides)
 }
 
-/// The versions and `BUNDLED WITH` value of a previous `Gemfile.lock`.
+/// The versions and `BUNDLED WITH` value of a previous Bundler state file.
 fn previous_state(text: &str) -> (BTreeMap<String, String>, Option<String>) {
     let mut versions = BTreeMap::new();
     let mut bundled = None;
@@ -602,6 +599,7 @@ fn previous_state(text: &str) -> (BTreeMap<String, String>, Option<String>) {
 /// The resolver of the ruby ecosystem.
 pub struct Ruby<'a> {
     manifest: String,
+    state: String,
     ruby: String,
     download: &'a dyn Download,
 }
@@ -614,6 +612,7 @@ impl<'a> Ruby<'a> {
     pub fn new(spec: &Spec, download: &'a dyn Download) -> Self {
         Self {
             manifest: spec.manifest.first().cloned().unwrap_or_default(),
+            state: spec.state.first().cloned().unwrap_or_default(),
             ruby: pinned_ruby(),
             download,
         }
@@ -821,8 +820,9 @@ impl Resolver for Ruby<'_> {
         let read = |name: &str| std::fs::read_to_string(scratch.set().join(name));
         let manifest = read(&self.manifest)
             .map_err(|error| Error::new(format!("{}: {error}", self.manifest)))?;
-        let root = parse_gemfile(&manifest)?;
-        let (previous, bundled) = read(STATE)
+        let root = parse_gemfile(&manifest)
+            .map_err(|error| Error::new(format!("{}: {error}", self.manifest)))?;
+        let (previous, bundled) = read(&self.state)
             .map(|text| previous_state(&text))
             .unwrap_or_default();
         let mut listed = BTreeMap::new();
@@ -904,10 +904,10 @@ impl Resolver for Ruby<'_> {
             package.dev = !runtime.contains(name);
         }
         std::fs::write(
-            scratch.set().join(STATE),
+            scratch.set().join(&self.state),
             state_text(&root, &chosen, bundled.as_deref()),
         )
-        .map_err(|error| Error::new(format!("{STATE}: {error}")))?;
+        .map_err(|error| Error::new(format!("{}: {error}", self.state)))?;
         Ok(Resolution {
             groups: BTreeMap::new(),
             packages: packages.into_values().collect(),

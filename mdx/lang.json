@@ -35,6 +35,19 @@
     "classes": [
       "mdx"
     ],
+    "defaults": {
+      "audit": [],
+      "format": [
+        "remark"
+      ],
+      "lint": [
+        "lychee",
+        "typos"
+      ],
+      "typecheck": [
+        "tsc"
+      ]
+    },
     "file_extensions": [
       ".mdx"
     ]

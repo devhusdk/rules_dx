@@ -51,6 +51,17 @@
     "classes": [
       "zig"
     ],
+    "defaults": {
+      "audit": [],
+      "format": [
+        "zig_fmt"
+      ],
+      "lint": [
+        "typos",
+        "zig_ast_check"
+      ],
+      "typecheck": []
+    },
     "file_extensions": [
       ".zig"
     ],

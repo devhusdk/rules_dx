@@ -39,6 +39,18 @@
     "classes": [
       "scala"
     ],
+    "defaults": {
+      "audit": [],
+      "format": [
+        "scalafmt"
+      ],
+      "lint": [
+        "typos"
+      ],
+      "typecheck": [
+        "scalac"
+      ]
+    },
     "file_extensions": [
       ".sc",
       ".scala"

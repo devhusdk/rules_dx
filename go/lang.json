@@ -56,6 +56,21 @@
     "classes": [
       "go"
     ],
+    "defaults": {
+      "audit": [],
+      "format": [
+        "gofumpt"
+      ],
+      "lint": [
+        "errcheck",
+        "govet",
+        "staticcheck",
+        "typos"
+      ],
+      "typecheck": [
+        "gotype"
+      ]
+    },
     "file_extensions": [
       ".go"
     ],

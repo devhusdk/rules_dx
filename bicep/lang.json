@@ -48,6 +48,17 @@
     "classes": [
       "bicep"
     ],
+    "defaults": {
+      "audit": [],
+      "format": [
+        "bicep"
+      ],
+      "lint": [
+        "bicep",
+        "typos"
+      ],
+      "typecheck": []
+    },
     "file_extensions": [
       ".bicep",
       ".bicepparam"

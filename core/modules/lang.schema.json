@@ -79,6 +79,17 @@
         "bzl": {"type": "string", "minLength": 1},
         "family": {"type": "string", "minLength": 1},
         "classes": {"$ref": "#/$defs/strings"},
+        "defaults": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["audit", "format", "lint", "typecheck"],
+          "properties": {
+            "audit": {"$ref": "#/$defs/strings"},
+            "format": {"$ref": "#/$defs/strings"},
+            "lint": {"$ref": "#/$defs/strings"},
+            "typecheck": {"$ref": "#/$defs/strings"}
+          }
+        },
         "file_extensions": {"$ref": "#/$defs/strings"},
         "file_names": {"$ref": "#/$defs/strings"},
         "aspects": {"$ref": "#/$defs/commands"},

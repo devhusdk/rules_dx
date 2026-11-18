@@ -122,6 +122,18 @@
         "classes": [
           "astro"
         ],
+        "defaults": {
+          "audit": [],
+          "format": [
+            "prettier"
+          ],
+          "lint": [
+            "typos"
+          ],
+          "typecheck": [
+            "tsc"
+          ]
+        },
         "file_extensions": [
           ".astro"
         ]
@@ -172,6 +184,17 @@
         "classes": [
           "bicep"
         ],
+        "defaults": {
+          "audit": [],
+          "format": [
+            "bicep"
+          ],
+          "lint": [
+            "bicep",
+            "typos"
+          ],
+          "typecheck": []
+        },
         "file_extensions": [
           ".bicep",
           ".bicepparam"
@@ -261,6 +284,17 @@
           "c",
           "cpp"
         ],
+        "defaults": {
+          "audit": [],
+          "format": [
+            "clang_format"
+          ],
+          "lint": [
+            "clang_tidy",
+            "typos"
+          ],
+          "typecheck": []
+        },
         "file_extensions": [
           ".c",
           ".cc",
@@ -313,6 +347,15 @@
         "classes": [
           "cloudformation"
         ],
+        "defaults": {
+          "audit": [],
+          "format": [],
+          "lint": [
+            "cfn_lint",
+            "typos"
+          ],
+          "typecheck": []
+        },
         "file_extensions": [
           ".yaml",
           ".yml",
@@ -418,6 +461,14 @@
         "classes": [
           "d"
         ],
+        "defaults": {
+          "audit": [],
+          "format": [],
+          "lint": [
+            "typos"
+          ],
+          "typecheck": []
+        },
         "file_extensions": [
           ".d"
         ],
@@ -476,6 +527,19 @@
         "classes": [
           "dart"
         ],
+        "defaults": {
+          "audit": [],
+          "format": [
+            "dart"
+          ],
+          "lint": [
+            "dart",
+            "typos"
+          ],
+          "typecheck": [
+            "dart"
+          ]
+        },
         "file_extensions": [
           ".dart"
         ],
@@ -519,6 +583,15 @@
         "classes": [
           "dockerfile"
         ],
+        "defaults": {
+          "audit": [],
+          "format": [],
+          "lint": [
+            "hadolint",
+            "typos"
+          ],
+          "typecheck": []
+        },
         "file_extensions": [
           ".containerfile",
           ".dockerfile"
@@ -721,6 +794,17 @@
         "classes": [
           "fortran"
         ],
+        "defaults": {
+          "audit": [],
+          "format": [
+            "ffmt"
+          ],
+          "lint": [
+            "fortitude",
+            "typos"
+          ],
+          "typecheck": []
+        },
         "file_extensions": [
           ".f",
           ".f03",
@@ -783,6 +867,21 @@
         "classes": [
           "go"
         ],
+        "defaults": {
+          "audit": [],
+          "format": [
+            "gofumpt"
+          ],
+          "lint": [
+            "errcheck",
+            "govet",
+            "staticcheck",
+            "typos"
+          ],
+          "typecheck": [
+            "gotype"
+          ]
+        },
         "file_extensions": [
           ".go"
         ],
@@ -841,6 +940,14 @@
         "classes": [
           "haskell"
         ],
+        "defaults": {
+          "audit": [],
+          "format": [],
+          "lint": [
+            "typos"
+          ],
+          "typecheck": []
+        },
         "file_extensions": [
           ".hs"
         ],
@@ -900,6 +1007,20 @@
         "classes": [
           "java"
         ],
+        "defaults": {
+          "audit": [],
+          "format": [
+            "google_java_format"
+          ],
+          "lint": [
+            "pmd",
+            "spotbugs",
+            "typos"
+          ],
+          "typecheck": [
+            "javac"
+          ]
+        },
         "file_extensions": [
           ".java"
         ],
@@ -962,6 +1083,17 @@
           "javascript",
           "jsx"
         ],
+        "defaults": {
+          "audit": [],
+          "format": [
+            "biome"
+          ],
+          "lint": [
+            "biome",
+            "typos"
+          ],
+          "typecheck": []
+        },
         "file_extensions": [
           ".cjs",
           ".js",
@@ -1034,6 +1166,15 @@
         "classes": [
           "julia"
         ],
+        "defaults": {
+          "audit": [],
+          "format": [],
+          "lint": [
+            "julialint",
+            "typos"
+          ],
+          "typecheck": []
+        },
         "file_extensions": [
           ".jl"
         ],
@@ -1079,6 +1220,19 @@
         "classes": [
           "kotlin"
         ],
+        "defaults": {
+          "audit": [],
+          "format": [
+            "ktfmt"
+          ],
+          "lint": [
+            "detekt",
+            "typos"
+          ],
+          "typecheck": [
+            "kotlinc"
+          ]
+        },
         "file_extensions": [
           ".kt",
           ".kts"
@@ -1100,6 +1254,15 @@
         "classes": [
           "kubernetes"
         ],
+        "defaults": {
+          "audit": [],
+          "format": [],
+          "lint": [
+            "kubeconform",
+            "typos"
+          ],
+          "typecheck": []
+        },
         "file_extensions": [
           ".json",
           ".yaml",
@@ -1220,6 +1383,19 @@
         "classes": [
           "mdx"
         ],
+        "defaults": {
+          "audit": [],
+          "format": [
+            "remark"
+          ],
+          "lint": [
+            "lychee",
+            "typos"
+          ],
+          "typecheck": [
+            "tsc"
+          ]
+        },
         "file_extensions": [
           ".mdx"
         ]
@@ -1267,6 +1443,16 @@
         "classes": [
           "ocaml"
         ],
+        "defaults": {
+          "audit": [],
+          "format": [
+            "topiary"
+          ],
+          "lint": [
+            "typos"
+          ],
+          "typecheck": []
+        },
         "file_extensions": [
           ".ml",
           ".mli"
@@ -1434,6 +1620,14 @@
         "classes": [
           "powershell"
         ],
+        "defaults": {
+          "audit": [],
+          "format": [],
+          "lint": [
+            "typos"
+          ],
+          "typecheck": []
+        },
         "file_extensions": [
           ".ps1",
           ".psd1",
@@ -1493,6 +1687,19 @@
           "python",
           "python_stub"
         ],
+        "defaults": {
+          "audit": [],
+          "format": [
+            "ruff"
+          ],
+          "lint": [
+            "ruff",
+            "typos"
+          ],
+          "typecheck": [
+            "ty"
+          ]
+        },
         "file_extensions": [
           ".py",
           ".pyi"
@@ -1661,6 +1868,19 @@
         "classes": [
           "rust"
         ],
+        "defaults": {
+          "audit": [],
+          "format": [
+            "rustfmt"
+          ],
+          "lint": [
+            "clippy",
+            "typos"
+          ],
+          "typecheck": [
+            "rustc"
+          ]
+        },
         "file_extensions": [
           ".rs"
         ],
@@ -1714,6 +1934,18 @@
         "classes": [
           "scala"
         ],
+        "defaults": {
+          "audit": [],
+          "format": [
+            "scalafmt"
+          ],
+          "lint": [
+            "typos"
+          ],
+          "typecheck": [
+            "scalac"
+          ]
+        },
         "file_extensions": [
           ".sc",
           ".scala"
@@ -1762,6 +1994,18 @@
         "classes": [
           "svelte"
         ],
+        "defaults": {
+          "audit": [],
+          "format": [
+            "prettier"
+          ],
+          "lint": [
+            "typos"
+          ],
+          "typecheck": [
+            "tsc"
+          ]
+        },
         "file_extensions": [
           ".svelte"
         ]
@@ -1794,6 +2038,14 @@
         "classes": [
           "swift"
         ],
+        "defaults": {
+          "audit": [],
+          "format": [],
+          "lint": [
+            "typos"
+          ],
+          "typecheck": []
+        },
         "file_extensions": [
           ".swift"
         ],
@@ -1915,6 +2167,19 @@
           "tsx",
           "typescript"
         ],
+        "defaults": {
+          "audit": [],
+          "format": [
+            "biome"
+          ],
+          "lint": [
+            "biome",
+            "typos"
+          ],
+          "typecheck": [
+            "tsc"
+          ]
+        },
         "file_extensions": [
           ".cts",
           ".mts",
@@ -1939,6 +2204,18 @@
         "classes": [
           "vue"
         ],
+        "defaults": {
+          "audit": [],
+          "format": [
+            "prettier"
+          ],
+          "lint": [
+            "typos"
+          ],
+          "typecheck": [
+            "tsc"
+          ]
+        },
         "file_extensions": [
           ".vue"
         ]
@@ -1971,6 +2248,17 @@
         "classes": [
           "zig"
         ],
+        "defaults": {
+          "audit": [],
+          "format": [
+            "zig_fmt"
+          ],
+          "lint": [
+            "typos",
+            "zig_ast_check"
+          ],
+          "typecheck": []
+        },
         "file_extensions": [
           ".zig"
         ],

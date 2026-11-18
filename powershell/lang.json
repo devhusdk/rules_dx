@@ -52,6 +52,14 @@
     "classes": [
       "powershell"
     ],
+    "defaults": {
+      "audit": [],
+      "format": [],
+      "lint": [
+        "typos"
+      ],
+      "typecheck": []
+    },
     "file_extensions": [
       ".ps1",
       ".psd1",

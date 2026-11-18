@@ -54,6 +54,17 @@
     "classes": [
       "fortran"
     ],
+    "defaults": {
+      "audit": [],
+      "format": [
+        "ffmt"
+      ],
+      "lint": [
+        "fortitude",
+        "typos"
+      ],
+      "typecheck": []
+    },
     "file_extensions": [
       ".f",
       ".f03",

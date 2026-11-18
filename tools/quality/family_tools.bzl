@@ -95,4 +95,5 @@ FAMILY_TOOLS = {
 def tools_registry_bzl():
     """Returns the source of //core/quality:tools_registry.bzl."""
     return ('"""Generated from //tools/quality:family_tools.bzl by //core/quality:tools_registry; refresh with bazel run //core/quality:tools_registry."""\n\n' +
+            'visibility("private")\n\n' +
             'FAMILY_TOOL_ROWS = json.decode(r"""' + json.encode_indent(FAMILY_TOOLS, indent = "  ") + '""")\n')

@@ -51,15 +51,36 @@ fn rejects_a_non_numeric_count() {
 }
 
 #[test]
-fn attribute_skips_earlier_attributes_and_stops_at_bad_quoting() {
-    assert_eq!(super::attribute("a=\"1\" b='2'", "b"), Some("2".to_owned()));
-    assert_eq!(super::attribute("a=\"1\" b=2", "b"), None);
-    assert_eq!(super::attribute("a=\"1\"", "c"), None);
-}
-
-#[test]
 fn decodes_numeric_character_references_in_filenames() {
     let xml = r#"<coverage><project><file name="/w/caf&#233;.php"><line num="1" type="stmt" count="1"/></file></project></coverage>"#;
     let lcov = clover_to_lcov(xml).expect("converts");
     assert!(lcov.starts_with("SF:/w/café.php\n"), "{lcov}");
+}
+
+#[test]
+fn keeps_a_greater_than_sign_inside_a_quoted_attribute() {
+    let xml = r#"<coverage><file name="/w/a>b.php"><line num="1" type="stmt" count="1"/></file></coverage>"#;
+    let lcov = clover_to_lcov(xml).expect("converts");
+    assert!(lcov.starts_with("SF:/w/a>b.php\nDA:1,1\n"), "{lcov}");
+}
+
+#[test]
+fn skips_tags_inside_comments() {
+    let xml = r#"<coverage><!-- a > b <line num="9" type="stmt" count="1"/> --><file name="/w/a.php"><line num="1" type="stmt" count="1"/></file></coverage>"#;
+    let lcov = clover_to_lcov(xml).expect("converts");
+    assert_eq!(lcov, "SF:/w/a.php\nDA:1,1\nLF:1\nLH:1\nend_of_record\n");
+}
+
+#[test]
+fn skips_tags_inside_cdata() {
+    let xml = r#"<coverage><file name="/w/a.php"><![CDATA[ > <file name="/w/ghost.php"> ]]><line num="1" type="stmt" count="1"/></file></coverage>"#;
+    let lcov = clover_to_lcov(xml).expect("converts");
+    assert_eq!(lcov, "SF:/w/a.php\nDA:1,1\nLF:1\nLH:1\nend_of_record\n");
+}
+
+#[test]
+fn rejects_an_unterminated_comment() {
+    let xml =
+        r#"<coverage><file name="/w/a.php"><line num="1" type="stmt" count="1"/></file><!-- a > b"#;
+    assert!(clover_to_lcov(xml).is_err());
 }

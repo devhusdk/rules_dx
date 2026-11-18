@@ -14,6 +14,7 @@ mod cobertura;
 pub mod ignores;
 mod lang;
 pub mod parse;
+mod xml;
 
 pub use accounting::{
     CellAccount, Disposition, SOURCES_ASPECT, SOURCES_OUTPUT_GROUP, SourceManifest, SourceRow,

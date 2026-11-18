@@ -5,7 +5,18 @@ mod snapshot;
 
 #[test]
 fn checked_in_snapshot_matches_the_code() {
-    let files = snapshot::render().expect("snapshot renders");
+    let lang_builds: Vec<(String, String)> = snapshot::lang_build_paths()
+        .expect("DX_API_LANG_BUILDS is set")
+        .into_iter()
+        .map(|path| {
+            let package = snapshot::package_of(&path).expect("a package BUILD file");
+            (
+                package,
+                dx_testing::read_text(&dx_testing::resolve_runfiles(&path)),
+            )
+        })
+        .collect();
+    let files = snapshot::render(&lang_builds).expect("snapshot renders");
     let paths = dx_testing::env_text("DX_API_SNAPSHOT");
     let mut stale = Vec::new();
     for (name, text) in &files {

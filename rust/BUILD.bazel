@@ -42,3 +42,8 @@ real_source_target(
     ],
     tags = ["corpus"],
 )
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/api:__pkg__"],
+)

@@ -1,4 +1,5 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//core/modules:langs.bzl", "LANGS")
 load("//rust:defs.bzl", "rust_binary", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
@@ -20,6 +21,10 @@ _SNAPSHOT_SRCS = [
     "//config:BUILD.bazel",
 ]
 
+_LANG_BUILDS = ["//%s:BUILD.bazel" % lang for lang in sorted(LANGS)]
+
+_LANG_ENV = {"DX_API_LANG_BUILDS": " ".join(["$(rootpath %s)" % build for build in _LANG_BUILDS])}
+
 # Rewrites api/ and docs/supported-surface.md from the code. Run it when api_test says the public API changed.
 rust_binary(
     name = "update",
@@ -31,6 +36,8 @@ rust_binary(
     compile_data = _SNAPSHOT_SRCS,
     crate_name = "update",
     crate_root = "update.rs",
+    data = _LANG_BUILDS,
+    env = _LANG_ENV,
     deps = _DEPS,
 )
 
@@ -48,8 +55,8 @@ rust_test(
     data = [
         "//api:snapshot",
         "//docs:supported-surface.md",
-    ],
-    env = {
+    ] + _LANG_BUILDS,
+    env = _LANG_ENV | {
         "DX_API_SNAPSHOT": "$(rlocationpaths //api:snapshot)",
         "DX_SURFACE_PAGE": "$(rlocationpath //docs:supported-surface.md)",
     },

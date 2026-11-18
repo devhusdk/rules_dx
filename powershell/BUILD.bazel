@@ -45,3 +45,8 @@ filegroup(
     ]),
     visibility = ["//:__subpackages__"],
 )
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/api:__pkg__"],
+)

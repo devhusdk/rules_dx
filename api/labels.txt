@@ -13,12 +13,12 @@
 //config:tool_dialyzer label_flag "//erlang/private/tools:dialyzer"
 //config:tool_elvis label_flag "//erlang/private/tools:elvis"
 //config:tool_erlfmt label_flag "//erlang/private/tools:erlfmt"
-//config:tool_errcheck label_flag "//go/private/tools/analysis/dx_go:dx_errcheck"
+//config:tool_errcheck label_flag "@dx_prebuilt//:dx_errcheck"
 //config:tool_flatc label_flag "@dx_flatbuffers//:flatc"
 //config:tool_gersemi label_flag "@dx_tools//:gersemi"
 //config:tool_gofumpt label_flag "@cc_mvdan_gofumpt//:gofumpt"
-//config:tool_gotype label_flag "//go/private/tools/analysis/dx_go:dx_gotype"
-//config:tool_govet label_flag "//go/private/tools/analysis/dx_go:dx_govet"
+//config:tool_gotype label_flag "@dx_prebuilt//:dx_gotype"
+//config:tool_govet label_flag "@dx_prebuilt//:dx_govet"
 //config:tool_hadolint label_flag "@dx_tools//:hadolint"
 //config:tool_helm label_flag "@dx_tools//:helm"
 //config:tool_helmfmt label_flag "@dx_tools//:helmfmt"
@@ -29,7 +29,7 @@
 //config:tool_kubeconform label_flag "@dx_tools//:kubeconform"
 //config:tool_luals label_flag "//lua/private/tools:luals"
 //config:tool_mix_format label_flag "//elixir/private/tools:mix_format"
-//config:tool_modfmt label_flag "//go/private/tools/analysis/dx_go:dx_modfmt"
+//config:tool_modfmt label_flag "@dx_prebuilt//:dx_modfmt"
 //config:tool_nixfmt label_flag "//core/quality/tools/nixfmt/bin:nixfmt"
 //config:tool_opa label_flag "@dx_tools//:opa"
 //config:tool_ormolu label_flag "//haskell/private/tools/ormolu/bin"
@@ -43,7 +43,7 @@
 //config:tool_regal label_flag "@dx_tools//:regal"
 //config:tool_ruff label_flag "@dx_tools//:ruff"
 //config:tool_sorbet label_flag "//ruby/private/tools:sorbet"
-//config:tool_staticcheck label_flag "//go/private/tools/analysis/dx_go:dx_staticcheck"
+//config:tool_staticcheck label_flag "@dx_prebuilt//:dx_staticcheck"
 //config:tool_stylua label_flag "@dx_tools//:stylua"
 //config:tool_swift_format label_flag ":no_swift_format"
 //config:tool_swift_lint label_flag ":no_swift_lint"
@@ -57,3 +57,22 @@
 //config:toolchains bool_flag False
 //config:warnings_as_errors bool_flag True
 //config:workspace label_flag ":default_workspace_policy"
+//android:android_device platform
+//android:android_emulator platform
+//android:arm64-v8a platform
+//android:x86_64 platform
+//apple:macos_arm64 platform
+//apple:macos_x86_64 platform
+//erlang:toolchain_type toolchain_type
+//lua:toolchain_type toolchain_type
+//msix:toolchain_type toolchain_type
+//msix:windows_arm64 platform
+//msix:windows_x86_32 platform
+//msix:windows_x86_64 platform
+//php:exec_toolchain_type toolchain_type
+//php:toolchain_type toolchain_type
+//qt:linux_arm64 platform
+//qt:linux_x86_64 platform
+//qt:macos_arm64 platform
+//qt:windows_arm64 platform
+//qt:windows_x86_64 platform

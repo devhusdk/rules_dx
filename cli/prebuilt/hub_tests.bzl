@@ -62,9 +62,19 @@ def _checks():
     source_native = with_native_tools(alias_build(SOURCE_LABEL), plan_native_tools("1.2.3", {}, URL_TEMPLATE, {}))
     native = plan_native_tools("1.2.3", {"topiary": {"linux_x86_64": _HASH, "windows_x86_64": _HASH}}, URL_TEMPLATE, {})
     native_build = with_native_tools(pinned_build, native)
+    flatc_build = with_native_tools(pinned_build, plan_native_tools("1.2.3", {"flatc": {"linux_x86_64": _HASH, "windows_x86_64": _HASH}}, URL_TEMPLATE, {}))
+    flatc_root = plan_root([_mod("app", True, assets = [_tag(name = "flatc")])], tools = ["dx", "launcher", "go"] + NATIVE_TOOLS)
     topiary_windows_arm = [a for a in native["topiary"] if a.key == "windows_aarch64"][0]
     return [
-        expect_equal("the native tools", NATIVE_TOOLS, ["progenitor", "topiary"]),
+        expect_equal("the native tools", NATIVE_TOOLS, ["capnp", "flatc", "progenitor", "thrift", "topiary"]),
+        expect_equal("capnp assets", [asset_name("capnp", k) for k in TOOLS["capnp"].platforms], ["dx-capnp-linux-arm64", "dx-capnp-linux-x86_64", "dx-capnp-macos-arm64", "dx-capnp-windows-arm64", "dx-capnp-windows-x86_64"]),
+        expect_contains("the registry lists the code generators for fill_pins", registry_lines(), "thrift macos_arm64 dx-thrift-macos-arm64"),
+        expect_equal("native tools run on the exec platform", [TOOLS[t].role for t in NATIVE_TOOLS], ["exec"] * len(NATIVE_TOOLS)),
+        expect_contains("a pinned code generator runs its download", flatc_build, 'name = "flatc_linux_x86_64",\n    src = "@dx_flatc_prebuilt_linux_x86_64//file:flatc",\n    out = "linux_x86_64/flatc",'),
+        expect_contains("an unpinned code generator platform builds from source", flatc_build, '"//conditions:default": "@dx_flatbuffers//:flatc",'),
+        expect_contains("a code generator with no pins builds from source", flatc_build, 'name = "capnp",\n    actual = "@dx_capnproto//src/capnp:capnp_tool",'),
+        expect_contains("the root hub aliases the source code generators", source_native, 'name = "thrift",\n    actual = "@dx_thrift//:thrift_compiler",'),
+        expect_equal("a root asset may name a code generator", flatc_root.overrides.keys(), ["flatc"]),
         expect_equal("topiary assets", [asset_name("topiary", k) for k in TOOLS["topiary"].platforms], ["dx-topiary-linux-arm64", "dx-topiary-linux-x86_64", "dx-topiary-macos-arm64", "dx-topiary-windows-x86_64"]),
         expect_contains("the registry lists progenitor for fill_pins", registry_lines(), "progenitor macos_arm64 dx-progenitor-macos-arm64"),
         expect_equal("an unpinned native tool plans no windows arm64", [a.key for a in plan_native_tools("1.2.3", {}, URL_TEMPLATE, {})["topiary"]], ["linux_aarch64", "linux_x86_64", "macos_aarch64", "windows_x86_64"]),

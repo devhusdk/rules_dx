@@ -46,8 +46,20 @@ def _jar(tool, source, main_class):
         main_class = main_class,
     )
 
+def _native_exec(source):
+    return struct(
+        asset = "dx-{tool}-{os}-{cpu}",
+        role = "exec",
+        platforms = _NATIVE,
+        fallbacks = {"windows_arm64": "windows_x86_64"},
+        source = source,
+        member = "",
+        main_class = "",
+    )
+
 # Each tool:
-#   asset: the release asset name; {os} and {cpu} are filled from the platform key.
+#   asset: the release asset name; {os} and {cpu} are filled from the platform key
+#     and {tool} from the tool name.
 #   role: "exec" when the tool runs during the build (the hub selects on the exec
 #     platform), "target" when it ships inside the built output (target platform).
 #   platforms: the platform keys a release builds.
@@ -97,6 +109,9 @@ TOOLS = {
         member = "",
         main_class = "",
     ),
+    "capnp": _native_exec("@dx_capnproto//src/capnp:capnp_tool"),
+    "flatc": _native_exec("@dx_flatbuffers//:flatc"),
+    "thrift": _native_exec("@dx_thrift//:thrift_compiler"),
     "progenitor": _exec_native("progenitor"),
     "topiary": _exec_native("topiary"),
     "avro_union": _jar("avro_union", "@rules_dx//avro/private/tools/avro_union", "dx.avro.tools.AvroUnion"),
@@ -108,7 +123,7 @@ TOOLS = {
 }
 
 # The build tools released as one native binary per exec platform.
-NATIVE_TOOLS = ["progenitor", "topiary"]
+NATIVE_TOOLS = ["capnp", "flatc", "progenitor", "thrift", "topiary"]
 
 # The tools released as one platform-independent jar each.
 JAR_TOOLS = sorted([tool for tool, entry in TOOLS.items() if entry.main_class])
@@ -121,7 +136,7 @@ def split_key(key):
 def asset_name(tool, key):
     """Returns the release asset name of tool on the platform key."""
     os, cpu = split_key(key)
-    return TOOLS[tool].asset.format(os = os, cpu = cpu)
+    return TOOLS[tool].asset.format(tool = tool, os = os, cpu = cpu)
 
 def registry_lines():
     """Returns one "<tool> <key> <asset>" line per release asset, sorted, for fill_pins."""

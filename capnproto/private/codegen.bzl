@@ -15,7 +15,7 @@ load(":providers.bzl", "CapnprotoInfo")
 # The compiler is the pinned source build, never the lint flag.
 _PRIVATE_ATTRS = {
     "_capnp": attr.label(
-        default = Label("@dx_capnproto//src/capnp:capnp_tool"),
+        default = Label("@dx_prebuilt//:capnp"),
         executable = True,
         cfg = "exec",
     ),

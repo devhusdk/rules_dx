@@ -1,3 +1,4 @@
+use crate::locks::sort_unique;
 use crate::vuln::LockedPackage;
 use dx_error::DxError;
 
@@ -25,6 +26,6 @@ pub fn parse_luarocks_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
         };
         out.push(LockedPackage::new(LUAROCKS_SET, name, version.trim()));
     }
-    out.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
+    sort_unique(&mut out);
     Ok(out)
 }

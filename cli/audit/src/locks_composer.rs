@@ -1,3 +1,4 @@
+use crate::locks::sort_unique;
 use crate::vuln::LockedPackage;
 use dx_error::DxError;
 
@@ -29,6 +30,6 @@ pub fn parse_composer_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
             out.push(LockedPackage::new(COMPOSER_SET, name, version));
         }
     }
-    out.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
+    sort_unique(&mut out);
     Ok(out)
 }

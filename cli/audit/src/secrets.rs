@@ -57,13 +57,10 @@ pub fn parse_ignored(stdout: &[u8]) -> Vec<String> {
 pub fn ignored_path_patterns(paths: &[String]) -> Vec<String> {
     paths
         .iter()
-        .filter_map(|path| {
-            let path = path.replace('\\', "/");
-            match path.strip_suffix('/') {
-                Some("") => None,
-                Some(dir) => Some(format!("^{}(?:/|$)", regex::escape(dir))),
-                None => Some(format!("^{}$", regex::escape(&path))),
-            }
+        .filter_map(|path| match path.strip_suffix('/') {
+            Some("") => None,
+            Some(dir) => Some(format!("^{}(?:/|$)", regex::escape(dir))),
+            None => Some(format!("^{}$", regex::escape(path))),
         })
         .collect()
 }
@@ -140,7 +137,10 @@ fn require_descriptions(text: &str, allowlists: &[toml::Value]) -> Result<(), Dx
     let headers: Vec<usize> = text
         .lines()
         .enumerate()
-        .filter(|(_, line)| matches!(line.trim(), "[[allowlists]]" | "[allowlist]"))
+        .filter(|(_, line)| {
+            let header = line.split('#').next().unwrap_or_default().trim();
+            matches!(header, "[[allowlists]]" | "[allowlist]")
+        })
         .map(|(index, _)| index + 1)
         .collect();
     for (index, entry) in allowlists.iter().enumerate() {
@@ -493,5 +493,19 @@ paths = ['''vendor/.*''']
         assert_eq!(findings.len(), 2);
         assert_eq!(findings[0].rule, "gitleaks/a");
         assert_eq!(findings[1].path, Some("src/b.py".to_owned()));
+    }
+
+    #[test]
+    fn description_errors_point_at_headers_with_trailing_comments() {
+        let text = "[extend]\npath = \".dx/config/gitleaks/base.toml\"\n\n[[allowlists]] # tests\npaths = [\"a\"]\n";
+        let error = scoped_config(Some(text), &[], "/base.toml").expect_err("needs description");
+        assert!(error.to_string().contains(":4:"), "{error}");
+    }
+
+    #[test]
+    fn backslashes_in_ignored_names_are_kept() {
+        let patterns = ignored_path_patterns(&["a\\b.txt".to_owned()]);
+        let pattern = regex::Regex::new(&patterns[0]).expect("regex");
+        assert!(pattern.is_match("a\\b.txt"));
     }
 }

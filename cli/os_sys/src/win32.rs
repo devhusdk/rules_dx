@@ -31,6 +31,11 @@ use windows_sys::Win32::System::Threading::{
     PROCESS_TERMINATE, ResumeThread, THREAD_SUSPEND_RESUME, TerminateProcess, WaitForSingleObject,
 };
 
+/// The byte size of `T` as the `u32` that Win32 size fields and parameters take.
+pub(crate) fn struct_size<T>() -> io::Result<u32> {
+    u32::try_from(size_of::<T>()).map_err(io::Error::other)
+}
+
 // windows-sys does not bind these undocumented ntdll exports.
 #[link(name = "ntdll", kind = "raw-dylib")]
 unsafe extern "system" {
@@ -208,7 +213,7 @@ pub fn creation_time(process: BorrowedHandle<'_>) -> io::Result<u64> {
 
 /// The process's working set in bytes.
 pub fn working_set_bytes(process: BorrowedHandle<'_>) -> io::Result<u64> {
-    let size = size_of::<PROCESS_MEMORY_COUNTERS>() as u32;
+    let size = struct_size::<PROCESS_MEMORY_COUNTERS>()?;
     let mut counters = PROCESS_MEMORY_COUNTERS {
         cb: size,
         ..Default::default()
@@ -218,7 +223,7 @@ pub fn working_set_bytes(process: BorrowedHandle<'_>) -> io::Result<u64> {
     if ok == 0 {
         return Err(io::Error::last_os_error());
     }
-    Ok(counters.WorkingSetSize as u64)
+    u64::try_from(counters.WorkingSetSize).map_err(io::Error::other)
 }
 
 fn snapshot(flags: u32) -> io::Result<OwnedHandle> {
@@ -233,7 +238,7 @@ fn snapshot(flags: u32) -> io::Result<OwnedHandle> {
 pub fn processes() -> io::Result<Vec<ProcessEntry>> {
     let snapshot = snapshot(TH32CS_SNAPPROCESS)?;
     let mut entry = PROCESSENTRY32W {
-        dwSize: size_of::<PROCESSENTRY32W>() as u32,
+        dwSize: struct_size::<PROCESSENTRY32W>()?,
         ..Default::default()
     };
     let mut entries = Vec::new();
@@ -269,7 +274,7 @@ fn open_thread(thread_id: u32) -> io::Result<OwnedHandle> {
 pub fn resume_threads(pid: u32) -> io::Result<()> {
     let snapshot = snapshot(TH32CS_SNAPTHREAD)?;
     let mut entry = THREADENTRY32 {
-        dwSize: size_of::<THREADENTRY32>() as u32,
+        dwSize: struct_size::<THREADENTRY32>()?,
         ..Default::default()
     };
     let mut resumed = 0usize;
@@ -296,7 +301,7 @@ pub fn resume_threads(pid: u32) -> io::Result<()> {
 /// The installed physical memory in bytes.
 pub fn total_physical_memory() -> io::Result<u64> {
     let mut status = MEMORYSTATUSEX {
-        dwLength: size_of::<MEMORYSTATUSEX>() as u32,
+        dwLength: struct_size::<MEMORYSTATUSEX>()?,
         ..Default::default()
     };
     // SAFETY: status is writable and its length field is set.

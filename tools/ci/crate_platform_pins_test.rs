@@ -268,18 +268,18 @@ fn workspace_dependents(name: &str) -> BTreeSet<String> {
         let attrs = &lock["crates"][member.0]["common_attrs"];
         // A dependency list is a plain array, or `common` plus per-platform `selects`.
         let lists = |deps: &Value| -> Vec<Value> {
-            match deps {
-                Value::Array(_) => vec![deps.clone()],
-                _ => std::iter::once(deps["common"].clone())
-                    .chain(
-                        deps["selects"]
-                            .as_object()
-                            .into_iter()
-                            .flatten()
-                            .map(|(_, list)| list.clone()),
-                    )
-                    .collect(),
+            if deps.is_array() {
+                return vec![deps.clone()];
             }
+            std::iter::once(deps["common"].clone())
+                .chain(
+                    deps["selects"]
+                        .as_object()
+                        .into_iter()
+                        .flatten()
+                        .map(|(_, list)| list.clone()),
+                )
+                .collect()
         };
         let uses = ["deps", "deps_dev"].iter().any(|kind| {
             lists(&attrs[*kind])

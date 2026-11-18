@@ -1,8 +1,6 @@
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
 //! Offline gate every `api_spec_typescript_client` runs before Redocly generates anything.
 
 use std::collections::BTreeMap;
-use std::process::ExitCode;
 
 use quality_adapter::api_spec_preflight::{check_root, openapi_root_problem};
 
@@ -74,19 +72,20 @@ fn run(args: &[String]) -> Result<Vec<String>, String> {
     Ok(lines)
 }
 
-fn main() -> ExitCode {
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    match run(&args) {
-        Ok(lines) if lines.is_empty() => ExitCode::SUCCESS,
+/// Runs the preflight with the arguments after its name and returns the exit code.
+#[must_use]
+pub fn run_process(args: &[String]) -> i32 {
+    match run(args) {
+        Ok(lines) if lines.is_empty() => 0,
         Ok(lines) => {
             for line in lines {
                 eprintln!("{line}");
             }
-            ExitCode::FAILURE
+            1
         }
         Err(err) => {
             eprintln!("openapi codegen preflight: {err}");
-            ExitCode::FAILURE
+            1
         }
     }
 }

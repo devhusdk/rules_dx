@@ -17,6 +17,8 @@ pub enum Tool {
     CodegenShardWriter,
     Capture,
     ReleaseTree,
+    ApiSpecPreflight,
+    OapiCodegen,
 }
 
 /// The tool `dx` was started as, judged by the file stem of argv[0] so `.exe` does not matter.
@@ -40,6 +42,8 @@ pub fn subcommand_for(arg1: &OsStr) -> Option<Tool> {
     match arg1.to_str()? {
         "capture" => Some(Tool::Capture),
         "release_tree" => Some(Tool::ReleaseTree),
+        "api_spec_preflight" => Some(Tool::ApiSpecPreflight),
+        "oapi_codegen" => Some(Tool::OapiCodegen),
         _ => None,
     }
 }
@@ -103,16 +107,25 @@ mod tests {
 
     #[test]
     fn subcommands_pick_their_tool() {
-        assert_eq!(subcommand_for(OsStr::new("capture")), Some(Tool::Capture));
-        assert_eq!(
-            subcommand_for(OsStr::new("release_tree")),
-            Some(Tool::ReleaseTree)
-        );
+        for (name, tool) in [
+            ("capture", Tool::Capture),
+            ("release_tree", Tool::ReleaseTree),
+            ("api_spec_preflight", Tool::ApiSpecPreflight),
+            ("oapi_codegen", Tool::OapiCodegen),
+        ] {
+            assert_eq!(subcommand_for(OsStr::new(name)), Some(tool), "{name}");
+        }
     }
 
     #[test]
     fn subcommands_have_no_alias_and_aliases_are_not_subcommands() {
-        for name in ["capture", "release_tree", "capture.exe"] {
+        for name in [
+            "capture",
+            "release_tree",
+            "capture.exe",
+            "api_spec_preflight",
+            "oapi_codegen",
+        ] {
             assert_eq!(tool_for(OsStr::new(name)), None, "{name}");
         }
         for name in ["quality_runner", "capture.exe", "test", "check", "", "--help"] {

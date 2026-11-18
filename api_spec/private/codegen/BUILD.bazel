@@ -1,33 +1,36 @@
 # gazelle:ignore
 load("@crates//:crates.bzl", "aliases")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_binary", "rust_test")
+load("//rust:defs.bzl", "rust_library", "rust_test")
 
 package(default_visibility = ["//api_spec/private:__pkg__"])
 
-rust_binary(
-    name = "preflight",
-    srcs = ["preflight_main.rs"],
+rust_library(
+    name = "codegen",
+    srcs = [
+        "lib.rs",
+        "oapi_codegen.rs",
+        "preflight.rs",
+    ],
     aliases = aliases(
         package_name = "api_spec/private/openapi_codegen_preflight",
         normal = True,
     ),
-    crate_name = "preflight",
-    crate_root = "preflight_main.rs",
+    crate_name = "api_spec_codegen",
+    crate_root = "lib.rs",
+    visibility = ["//cli/cli:__pkg__"],
     deps = ["//core/quality/adapter:quality_adapter"],
 )
 
-rust_binary(
-    name = "oapi_codegen",
-    srcs = ["oapi_codegen_main.rs"],
-    crate_name = "oapi_codegen",
-    crate_root = "oapi_codegen_main.rs",
-)
-
 rust_test(
-    name = "oapi_codegen_test",
+    name = "codegen_test",
     size = "small",
-    crate = ":oapi_codegen",
+    aliases = aliases(
+        package_name = "api_spec/private/openapi_codegen_preflight",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":codegen",
 )
 
 exports_files([
@@ -39,17 +42,6 @@ real_source_target(
     name = "corpus_starlark",
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
-)
-
-rust_test(
-    name = "preflight_test",
-    aliases = aliases(
-        package_name = "api_spec/private/openapi_codegen_preflight",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate = ":preflight",
-    deps = [],
 )
 
 real_source_target(

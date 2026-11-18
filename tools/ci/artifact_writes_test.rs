@@ -6,7 +6,8 @@ const WRITERS: [&str; 2] = [
     "core/quality/runner/src/entry.rs",
 ];
 
-const ATOMIC: &str = "dx_atomic_fs::write_atomic(";
+/// Bazel re-checks action outputs by digest, so they need the atomic replace but not the syncs.
+const ATOMIC: &str = "dx_atomic_fs::write_scratch(";
 const IN_PLACE: &str = "std::fs::write(";
 
 /// Returns a writer's production half: everything above its test module.
@@ -27,7 +28,7 @@ fn every_artifact_writer_commits_its_output_atomically() {
         let text = production(writer);
         assert!(
             text.contains(ATOMIC),
-            "{writer} does not commit its output with dx_atomic_fs::write_atomic"
+            "{writer} does not commit its output with dx_atomic_fs::write_scratch"
         );
         assert!(
             !text.contains(IN_PLACE),

@@ -96,7 +96,20 @@ pub fn remove_stale_staging(target: &Path) {
     }
 }
 
+/// Writes content to path so readers see the old or the new file, never a partial one,
+/// and syncs it so the new file survives a crash.
+/// An existing file keeps its mode; a new one gets 0644.
 pub fn write_atomic(path: &Path, content: &[u8]) -> io::Result<()> {
+    write_staged(path, content, Durability::Synced)
+}
+
+/// Like [`write_atomic`] without the disk syncs, for files a crash may lose: scratch trees
+/// thrown away after the run, and Bazel action outputs, which Bazel re-checks by digest.
+pub fn write_scratch(path: &Path, content: &[u8]) -> io::Result<()> {
+    write_staged(path, content, Durability::Unsynced)
+}
+
+fn write_staged(path: &Path, content: &[u8], durability: Durability) -> io::Result<()> {
     use std::io::Write as _;
     let mut staging = staging_for(path)?;
     #[cfg(unix)]
@@ -109,7 +122,83 @@ pub fn write_atomic(path: &Path, content: &[u8]) -> io::Result<()> {
             .set_permissions(std::fs::Permissions::from_mode(mode))?;
     }
     staging.write_all(content)?;
-    staging.persist(long_path(path)?).map_err(|err| err.error)?;
+    persist(staging, path, durability)
+}
+
+/// Whether a staged file is flushed to disk around its rename.
+#[derive(Clone, Copy)]
+pub(crate) enum Durability {
+    Synced,
+    /// For files a crash may lose: scratch trees, and copies that stand in for a link,
+    /// since links are not synced either.
+    Unsynced,
+}
+
+/// Renames staging over dest. Synced flushes staging first, since without it a crash
+/// after the rename can leave dest empty, then syncs dest's directory.
+fn persist(
+    staging: tempfile::NamedTempFile,
+    dest: &Path,
+    durability: Durability,
+) -> io::Result<()> {
+    match durability {
+        Durability::Synced => {
+            sync_outcome(staging.as_file().sync_all())?;
+            staging.persist(long_path(dest)?).map_err(|err| err.error)?;
+            sync_parent(dest)
+        }
+        Durability::Unsynced => {
+            staging.persist(long_path(dest)?).map_err(|err| err.error)?;
+            Ok(())
+        }
+    }
+}
+
+/// The result of a sync, where a filesystem that cannot sync counts as done, as it did
+/// before writes were synced. macOS SMB shares fail F_FULLFSYNC with ENOTSUP.
+fn sync_outcome(result: io::Result<()>) -> io::Result<()> {
+    match result {
+        Err(error) if cannot_sync(&error) => Ok(()),
+        other => other,
+    }
+}
+
+/// Like [`sync_outcome`] for a directory. Linux filesystems without directory sync, such
+/// as some shared-folder mounts, fail it with EINVAL.
+#[cfg(unix)]
+fn dir_sync_outcome(result: io::Result<()>) -> io::Result<()> {
+    match result {
+        Err(error) if error.kind() == io::ErrorKind::InvalidInput => Ok(()),
+        other => sync_outcome(other),
+    }
+}
+
+fn cannot_sync(error: &io::Error) -> bool {
+    // ENOTSUP in <sys/errno.h>. std maps it to Uncategorized there; only EOPNOTSUPP (102)
+    // becomes Unsupported.
+    const APPLE_ENOTSUP: i32 = 45;
+    error.kind() == io::ErrorKind::Unsupported
+        || (cfg!(target_vendor = "apple") && error.raw_os_error() == Some(APPLE_ENOTSUP))
+}
+
+/// Syncs the directory that holds path, so the renamed entry survives a crash.
+#[cfg(unix)]
+fn sync_parent(path: &Path) -> io::Result<()> {
+    let parent = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    // A directory the caller may write but not read (mode 0300 or 0711) cannot be opened.
+    // The rename has already landed, so skip the sync rather than report a failed write.
+    match File::open(parent) {
+        Ok(dir) => dir_sync_outcome(dir.sync_all()),
+        Err(_) => Ok(()),
+    }
+}
+
+/// Nothing to do: Windows cannot open a directory as a plain file to sync it.
+#[cfg(not(unix))]
+fn sync_parent(_path: &Path) -> io::Result<()> {
     Ok(())
 }
 
@@ -117,6 +206,7 @@ pub(crate) fn persist_copy(
     mut source: File,
     mut staging: tempfile::NamedTempFile,
     dest: &Path,
+    durability: Durability,
 ) -> io::Result<()> {
     io::copy(&mut source, staging.as_file_mut())?;
     #[cfg(unix)]
@@ -128,14 +218,13 @@ pub(crate) fn persist_copy(
             .as_file()
             .set_permissions(std::fs::Permissions::from_mode(bits))?;
     }
-    staging.persist(long_path(dest)?).map_err(|err| err.error)?;
-    Ok(())
+    persist(staging, dest, durability)
 }
 
 /// Copies src to dest through a temp file, staged 0644 or 0755 when src is executable.
 pub fn copy_atomic(src: &Path, dest: &Path) -> io::Result<()> {
     let source = File::open(src)?;
-    persist_copy(source, staging_for(dest)?, dest)
+    persist_copy(source, staging_for(dest)?, dest, Durability::Synced)
 }
 
 /// The path spelled so Windows accepts it past the legacy length limit.
@@ -339,6 +428,59 @@ mod tests {
             .permissions()
             .mode()
             & 0o777
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn writes_into_a_directory_it_cannot_read() {
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-write-only-dir-");
+        let dir = scratch.path().join("drop");
+        std::fs::create_dir(&dir).expect("mkdir");
+        chmod(&dir, 0o300);
+        let target = dir.join("out.txt");
+        let first = write_atomic(&target, b"first\n");
+        let second = write_atomic(&target, b"second\n");
+        chmod(&dir, 0o755);
+        first.expect("create in write-only dir");
+        second.expect("replace in write-only dir");
+        assert_eq!(std::fs::read(&target).expect("read back"), b"second\n");
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn a_filesystem_that_cannot_sync_counts_as_synced() {
+        assert!(sync_outcome(Ok(())).is_ok());
+        assert!(sync_outcome(Err(io::ErrorKind::Unsupported.into())).is_ok());
+        let failed = sync_outcome(Err(io::ErrorKind::Other.into())).expect_err("other errors stay");
+        assert_eq!(failed.kind(), io::ErrorKind::Other);
+        assert_eq!(
+            cannot_sync(&io::Error::from_raw_os_error(45)),
+            cfg!(target_vendor = "apple")
+        );
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn a_directory_that_cannot_sync_counts_as_synced() {
+        assert!(dir_sync_outcome(Ok(())).is_ok());
+        assert!(dir_sync_outcome(Err(io::ErrorKind::InvalidInput.into())).is_ok());
+        assert!(dir_sync_outcome(Err(io::ErrorKind::Unsupported.into())).is_ok());
+        let failed =
+            dir_sync_outcome(Err(io::ErrorKind::Other.into())).expect_err("other errors stay");
+        assert_eq!(failed.kind(), io::ErrorKind::Other);
+    }
+
+    #[test]
+    fn write_scratch_replaces_and_keeps_the_mode() {
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-scratch-");
+        let target = scratch.path().join("mirror").join("a.txt");
+        write_scratch(&target, b"first\n").expect("create");
+        write_scratch(&target, b"second\n").expect("replace");
+        assert_eq!(std::fs::read(&target).expect("read back"), b"second\n");
+        assert_eq!(names_in(&scratch.path().join("mirror")), ["a.txt"]);
+        #[cfg(unix)]
+        assert_eq!(mode_of(&target), 0o644);
+        scratch.close().expect("cleanup");
     }
 
     #[test]

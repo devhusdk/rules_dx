@@ -104,7 +104,7 @@ pub fn run<K: ShardKind>(args: &[String]) -> Result<(), WriterError> {
     let bytes = K::encode(&K::shard(producer, group, entries))
         .map_err(|error| WriterError::Codec(error.to_string()))?;
     let output = output.ok_or_else(usage::<K>)?;
-    dx_atomic_fs::write_atomic(&output, &bytes)
+    dx_atomic_fs::write_scratch(&output, &bytes)
         .map_err(|error| WriterError::Io(format!("cannot write {}: {error}", output.display())))
 }
 

@@ -305,7 +305,8 @@ fn load_pinned(
             let bytes =
                 fetch_pinned(&pin.url).map_err(|error| fetch_error(error.message().to_owned()))?;
             check_pin_sha(&pin, label, &bytes)?;
-            store_cached(&cache, &bytes).map_err(|error| fetch_error(error.to_string()))?;
+            dx_atomic_fs::write_atomic(&cache, &bytes)
+                .map_err(|error| fetch_error(error.to_string()))?;
             bytes
         }
         Err(error) => return Err(fetch_error(format!("could not read the cache: {error}"))),
@@ -338,14 +339,6 @@ fn check_pin_sha(
         want: pin.sha256.clone(),
         actual,
     })
-}
-
-fn store_cached(cache: &Path, bytes: &[u8]) -> std::io::Result<()> {
-    let dir = cache.parent().unwrap_or(Path::new("."));
-    std::fs::create_dir_all(dir)?;
-    let partial = cache.with_extension(format!("part{}", std::process::id()));
-    std::fs::write(&partial, bytes)?;
-    std::fs::rename(&partial, cache)
 }
 
 fn fetch_pinned(url: &str) -> Result<Vec<u8>, DxError> {

@@ -680,13 +680,8 @@ def dx_with_tag(tags, tag):
         out.append(tag)
     return out
 
-def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, coverage_collector = True, upstream_visibility = None, upstream_env = False, groups = None, **kwargs):
-    """Instantiates one private upstream test plus its public forwarder.
-
-    With groups, a list of (suffix, args), it instantiates one forwarder
-    name_suffix per entry over the same upstream plus a test_suite name; only
-    the forwarder whose suffix is "rest" carries srcs.
-    """
+def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, coverage_collector = True, upstream_visibility = None, upstream_env = False, **kwargs):
+    """Instantiates one private upstream test plus its public forwarder."""
     base = dict(upstream_kwargs) if upstream_kwargs != None else dict(kwargs)
     effective = dx_test_upstream_kwargs(base, srcs = srcs, upstream_visibility = upstream_visibility, upstream_env = upstream_env)
     forward_srcs = quality_srcs if quality_srcs != None else (srcs if srcs != None else [])
@@ -702,30 +697,13 @@ def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, ups
         name = name + "_upstream",
         **effective
     )
-    if groups == None:
-        forward_rule(
-            name = name,
-            testonly = True,
-            upstream = name + "_upstream",
-            srcs = forward_srcs,
-            visibility = visibility,
-            **forward_kwargs
-        )
-        return
-    for suffix, args in groups:
-        forward_rule(
-            name = name + "_" + suffix,
-            testonly = True,
-            upstream = name + "_upstream",
-            srcs = forward_srcs if suffix == "rest" else [],
-            visibility = visibility,
-            args = args,
-            **forward_kwargs
-        )
-    native.test_suite(
+    forward_rule(
         name = name,
-        tests = [":" + name + "_" + suffix for suffix, _ in groups],
+        testonly = True,
+        upstream = name + "_upstream",
+        srcs = forward_srcs,
         visibility = visibility,
+        **forward_kwargs
     )
 
 def dx_wrap(name, upstream_rule, forward_rule, srcs = None, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, upstream_visibility = None, **kwargs):

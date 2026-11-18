@@ -7,7 +7,7 @@ load("@rules_rust_wasm_bindgen//:providers.bzl", "RustWasmBindgenInfo")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//core/quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "RUST")
-load("//rust/private:defs.bzl", "CLANG_CL_LINK_FLAGS", "MSVC_LINK_FLAGS", "MSVC_OPT_LINK_FLAGS", "rust_test_group_args")
+load("//rust/private:defs.bzl", "CLANG_CL_LINK_FLAGS", "MSVC_LINK_FLAGS", "MSVC_OPT_LINK_FLAGS")
 
 def rust_wrapper_registry_tests(name, size):
     """Instantiates Rust wrapper registry tests."""
@@ -22,12 +22,6 @@ def rust_wrapper_registry_tests(name, size):
         },
         extra_checks = [
             expect_equal("RUST class id", RUST, "rust"),
-            expect_equal("test groups keep their order and end with rest", rust_test_group_args({"b": ["b::"], "a": ["a::x", "a::y"]}), [
-                ("b", ["b::"]),
-                ("a", ["a::x", "a::y"]),
-                ("rest", ["--skip", "b::", "--skip", "a::x", "--skip", "a::y"]),
-            ]),
-            expect_equal("no test groups leaves rest unfiltered", rust_test_group_args({}), [("rest", [])]),
             expect_equal("rust is a known class", RUST in KNOWN_SEMANTIC_FILE_CLASSES, True),
             expect_equal("msvc link flags", MSVC_LINK_FLAGS, ["-Clink-arg=kernel32.lib", "-Clink-arg=ntdll.lib", "-Clink-arg=/ignore:4099"]),
             expect_equal("clang-cl link flags", CLANG_CL_LINK_FLAGS, ["-Clink-arg=-DEFAULTLIB:libc++.lib"]),

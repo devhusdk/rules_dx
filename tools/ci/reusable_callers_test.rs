@@ -47,7 +47,8 @@ fn callers_forward_every_workflow_secret() {
             &format!("{path} on.workflow_call.secrets"),
         );
         assert!(!secrets.is_empty(), "{workflow} declares no secrets");
-        let calls: Vec<(String, String, Value)> = reusable_calls(caller).unwrap()
+        let calls: Vec<(String, String, Value)> = reusable_calls(caller)
+            .unwrap()
             .into_iter()
             .filter(|(_, called, _)| called == workflow)
             .collect();
@@ -73,7 +74,8 @@ fn docs_page_names_every_workflow_check() {
     let page = read_runfiles(DOCS);
     for (workflow, _) in PAIRS {
         let path = workflow_path(workflow);
-        let checks: Vec<String> = jobs(&path).unwrap()
+        let checks: Vec<String> = jobs(&path)
+            .unwrap()
             .into_iter()
             .map(|(id, job)| job["name"].as_str().map_or(id, str::to_owned))
             .filter(|name| !name.contains("${{"))
@@ -136,7 +138,9 @@ fn reusable_workflows_launch_dx_through_the_public_label() {
     const CRATE_LABEL: &str = "//cli/cli:dx";
     const PUBLIC_LABEL: &str = "@rules_dx//:dx";
     for (workflow, _) in PAIRS {
-        let text = ci_workflow::strings(&workflow_path(workflow)).unwrap().join("\n");
+        let text = ci_workflow::strings(&workflow_path(workflow))
+            .unwrap()
+            .join("\n");
         assert!(
             text.contains(PUBLIC_LABEL),
             "{workflow} must launch dx through {PUBLIC_LABEL}"

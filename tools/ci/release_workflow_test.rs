@@ -82,7 +82,8 @@ fn publish_step_maps_every_gate_credential_from_secrets() {
         credentials.contains(&"NPM_API_TOKEN".to_owned()),
         "{credentials:?}"
     );
-    let step = steps(WORKFLOW, "release").unwrap()
+    let step = steps(WORKFLOW, "release")
+        .unwrap()
         .into_iter()
         .find(|step| step["name"] == "Publish")
         .expect("release job has a Publish step");
@@ -194,7 +195,8 @@ fn summary_trap_runs_on_exit() {
 #[test]
 fn workflow_text_is_readable() {
     assert!(
-        strings(WORKFLOW).unwrap()
+        strings(WORKFLOW)
+            .unwrap()
             .iter()
             .any(|text| text.contains("rules-dx-release"))
     );

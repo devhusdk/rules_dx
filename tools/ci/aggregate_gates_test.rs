@@ -340,7 +340,8 @@ fn one_run_per_ref_and_none_cancel() {
 
 #[test]
 fn pull_request_comments_stay_pull_request_only() {
-    let comments: Vec<Value> = jobs(CONSUMER_WORKFLOW).unwrap()
+    let comments: Vec<Value> = jobs(CONSUMER_WORKFLOW)
+        .unwrap()
         .iter()
         .flat_map(|(_, job)| job["steps"].as_array().cloned().unwrap_or_default())
         .filter(|step| {
@@ -621,7 +622,8 @@ fn every_workflow_swallows_no_failure_outside_the_allow_list() {
 #[test]
 fn the_swallow_scanner_finds_entries() {
     assert!(
-        swallows(CONSUMER_WORKFLOW).unwrap()
+        swallows(CONSUMER_WORKFLOW)
+            .unwrap()
             .iter()
             .any(|(_, _, kind)| kind == "|| true"),
         "{CONSUMER_WORKFLOW} swallows failures the scanner must report"

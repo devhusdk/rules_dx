@@ -1640,8 +1640,8 @@ mod tests {
     fn base_comes_from_the_flag_then_dx_toml_then_detection() {
         let dir = repo();
         let root = dir.path();
-        dx_test_scratch::git(root, root, &["branch", "develop", "main"]);
-        dx_test_scratch::git(root, root, &["branch", "release", "main"]);
+        dx_test_scratch::git(root, root, &["branch", "develop", "main"]).unwrap();
+        dx_test_scratch::git(root, root, &["branch", "release", "main"]).unwrap();
         let runner = GitRunner::new(&[]);
         let branch = |requested| named_base(root, &runner, requested).map(|(branch, _)| branch);
         assert!(matches!(branch(None).as_deref(), Ok("main")));
@@ -1649,7 +1649,8 @@ mod tests {
             root,
             "dx.toml",
             "schema_version = 1\n\n[affected]\nbase = \"develop\"\n",
-        );
+        )
+        .unwrap();
         assert!(matches!(branch(None).as_deref(), Ok("develop")));
         assert!(matches!(branch(Some("release")).as_deref(), Ok("release")));
         let Err(PlanError::Git(message)) = branch(Some("nope")) else {
@@ -1660,7 +1661,8 @@ mod tests {
             root,
             "dx.toml",
             "schema_version = 1\n\n[affected]\nbase = \"gone\"\n",
-        );
+        )
+        .unwrap();
         let Err(PlanError::Git(message)) = branch(None) else {
             panic!("expected a git error");
         };

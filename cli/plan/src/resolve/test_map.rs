@@ -83,7 +83,7 @@ mod tests {
     const GRAPH: &str = "kind('rule', //...)";
 
     fn map(query: &FakeQuery, owners: &[&str], selection: &SelectionContext) -> Vec<String> {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-").unwrap();
         map_owners_to_tests_with_selection(&strings(owners), scratch.path(), query, selection)
             .expect("map")
     }
@@ -174,7 +174,7 @@ mod tests {
 
     #[test]
     fn empty_test_mapping_suggests_explicit_label() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-empty-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-empty-").unwrap();
         let query = FakeQuery::new(vec![FakeQuery::graph(&[
             graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
             graph_rule("//pkg:bin", &["//pkg:lib"], &[]),
@@ -200,7 +200,7 @@ mod tests {
 
     #[test]
     fn graph_failures_keep_the_bazel_status_and_excerpt() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-fail-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-fail-").unwrap();
         let query = FakeQuery::new(vec![FakeQuery::failed("\n  query failed: blah  \nmore\n")]);
         let err = map_owners_to_tests_with_selection(
             &strings(&["//pkg:lib"]),
@@ -220,7 +220,7 @@ mod tests {
 
     #[test]
     fn empty_owners_map_to_no_tests_without_query() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-no-query-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-no-query-").unwrap();
         let got = map_owners_to_tests_with_selection(
             &[],
             scratch.path(),
@@ -283,7 +283,7 @@ mod tests {
 
     #[test]
     fn an_owner_missing_from_the_graph_reports_no_tests_after_the_graph_only() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-no-candidates-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-no-candidates-").unwrap();
         for selection in [
             SelectionContext::unconfigured(&[]),
             SelectionContext::for_tests_configured(&[], &[]),

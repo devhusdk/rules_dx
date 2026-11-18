@@ -433,7 +433,7 @@ mod tests {
     #[test]
     #[cfg(unix)]
     fn writes_into_a_directory_it_cannot_read() {
-        let scratch = dx_test_scratch::scratch("dx-atomic-fs-write-only-dir-");
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-write-only-dir-").unwrap();
         let dir = scratch.path().join("drop");
         std::fs::create_dir(&dir).expect("mkdir");
         chmod(&dir, 0o300);
@@ -472,7 +472,7 @@ mod tests {
 
     #[test]
     fn write_scratch_replaces_and_keeps_the_mode() {
-        let scratch = dx_test_scratch::scratch("dx-atomic-fs-scratch-");
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-scratch-").unwrap();
         let target = scratch.path().join("mirror").join("a.txt");
         write_scratch(&target, b"first\n").expect("create");
         write_scratch(&target, b"second\n").expect("replace");

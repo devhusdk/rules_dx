@@ -30,6 +30,7 @@ rust_library(
         normal = True,
     ) + [
         "//cli/digest:dx_digest",
+        "//cli/path:dx_path",
         "//cli/process:dx_process",
         "//tools/bazelrc:dx_preset",
         "//tools/testing:dx_testing",

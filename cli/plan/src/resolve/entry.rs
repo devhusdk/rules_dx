@@ -176,13 +176,13 @@ mod tests {
     fn test_scope_maps_files_to_tests_and_keeps_patterns() {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
             graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
             graph_rule_of_kind("//pkg:unit", "py_test", &["//pkg:lib"], &[]),
         ]))]);
-        write(&workspace, "other/BUILD.bazel", "");
+        write(&workspace, "other/BUILD.bazel", "").unwrap();
         let got = resolve_for_test_with_selection(
             &strings(&["pkg/a.py", "//other/..."]),
             &workspace,

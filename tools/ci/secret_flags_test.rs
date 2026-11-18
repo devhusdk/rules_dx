@@ -66,7 +66,8 @@ fn is_upload(step: &Value) -> bool {
 #[test]
 fn no_remote_header_carries_a_secret() {
     for path in ci_files() {
-        for line in ci_workflow::strings(&path).unwrap()
+        for line in ci_workflow::strings(&path)
+            .unwrap()
             .iter()
             .flat_map(|text| text.lines())
         {

@@ -127,7 +127,8 @@ fn windows_arm64_set_or_blocklist_covers_ci_preflight() {
 
 #[test]
 fn workflow_runs_every_set_in_its_own_step() {
-    let names: Vec<String> = steps(WORKFLOW, "analysis").unwrap()
+    let names: Vec<String> = steps(WORKFLOW, "analysis")
+        .unwrap()
         .iter()
         .filter(|step| step["run"].is_string())
         .filter(|step| step["name"].as_str() != Some("affected tests"))
@@ -175,7 +176,8 @@ fn workflow_builds_the_tool_before_the_sets() {
 
 /// Returns the `affected tests` step of the `affected` job.
 fn affected_step() -> serde_json::Value {
-    steps(WORKFLOW, "affected").unwrap()
+    steps(WORKFLOW, "affected")
+        .unwrap()
         .into_iter()
         .find(|s| s["name"].as_str() == Some("affected tests"))
         .expect("affected tests step")

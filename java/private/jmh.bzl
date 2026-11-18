@@ -100,7 +100,7 @@ _jmh_generated = rule(
 )
 
 def jmh_bench_generated(name, library, test, srcs, deps, tags, kwargs, library_kwargs = {}):
-    """Like jmh_bench for compilers without Java annotation processors."""
+    """Like jmh_bench, but generates the JMH code from the compiled library jar."""
     library_kwargs, run, inner = _split(tags, kwargs, library_kwargs)
     library(
         name = name + "_bin",

@@ -1,9 +1,9 @@
 """Tests for the @dx_prebuilt plan, pins and hub BUILD text."""
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(":hub.bzl", "GO_TOOLS", "LAUNCHER_SOURCE", "SOURCE_LABEL", "SOURCE_TOOLS", "alias_build", "consumer_build", "plan_assets", "plan_jars", "plan_root", "valid_sha256", "with_jars")
+load(":hub.bzl", "GO_TOOLS", "LAUNCHER_SOURCE", "SOURCE_LABEL", "SOURCE_TOOLS", "alias_build", "consumer_build", "plan_assets", "plan_jars", "plan_native_tools", "plan_root", "valid_sha256", "with_jars", "with_native_tools")
 load(":pins.bzl", "DX_VERSION", "PINS", "SCHEMA", "URL_TEMPLATE")
-load(":tools.bzl", "JAR_TOOLS", "TOOLS", "asset_name", "registry_lines")
+load(":tools.bzl", "JAR_TOOLS", "NATIVE_TOOLS", "TOOLS", "asset_name", "registry_lines")
 
 visibility("private")
 
@@ -59,7 +59,24 @@ def _checks():
     pinned_jars = plan_jars("1.2.3", {"javac_check": {"any": _HASH}}, URL_TEMPLATE)
     pinned_jars_build = with_jars(pinned_build, pinned_jars)
     javac = [j for j in pinned_jars if j.tool == "javac_check"][0]
+    source_native = with_native_tools(alias_build(SOURCE_LABEL), plan_native_tools("1.2.3", {}, URL_TEMPLATE, {}))
+    native = plan_native_tools("1.2.3", {"topiary": {"linux_x86_64": _HASH, "windows_x86_64": _HASH}}, URL_TEMPLATE, {})
+    native_build = with_native_tools(pinned_build, native)
+    topiary_windows_arm = [a for a in native["topiary"] if a.key == "windows_aarch64"][0]
     return [
+        expect_equal("the native tools", NATIVE_TOOLS, ["progenitor", "topiary"]),
+        expect_equal("topiary assets", [asset_name("topiary", k) for k in TOOLS["topiary"].platforms], ["dx-topiary-linux-arm64", "dx-topiary-linux-x86_64", "dx-topiary-macos-arm64", "dx-topiary-windows-x86_64"]),
+        expect_contains("the registry lists progenitor for fill_pins", registry_lines(), "progenitor macos_arm64 dx-progenitor-macos-arm64"),
+        expect_equal("an unpinned native tool plans no windows arm64", [a.key for a in plan_native_tools("1.2.3", {}, URL_TEMPLATE, {})["topiary"]], ["linux_aarch64", "linux_x86_64", "macos_aarch64", "windows_x86_64"]),
+        expect_equal("windows arm64 runs the x86_64 topiary", topiary_windows_arm.repo, "dx_topiary_prebuilt_windows_x86_64"),
+        expect_contains("windows arm64 selects the shared download", native_build, 'name = "topiary_windows_aarch64",\n    src = "@dx_topiary_prebuilt_windows_x86_64//file:topiary.exe",'),
+        expect_contains("a pinned native tool selects on the exec platform", native_build, '":native_linux_x86_64": ":topiary_linux_x86_64",'),
+        expect_contains("an unpinned native platform builds from source", native_build, '"//conditions:default": "@rules_dx//rust/private/quality/tools:topiary_source",'),
+        expect_contains("an unpinned native tool builds from source", native_build, 'name = "progenitor",\n    actual = "@rules_dx//rust/private/quality/tools:progenitor_source",'),
+        expect_equal("native tools share one config_setting per platform", native_build.count('name = "native_linux_x86_64",'), 1),
+        expect_equal("the native hub loads native_binary once", native_build.count("native_binary.bzl"), 1),
+        expect_false("a source hub selects no native download", "dx_topiary_prebuilt" in source_native),
+        expect_true("a pinned native tool loads native_binary", with_native_tools(alias_build(SOURCE_LABEL), native).startswith('load("@bazel_skylib//rules:native_binary.bzl", "native_binary")\n')),
         expect_equal("the jar tools", JAR_TOOLS, ["avro_union", "javac_check", "javadoc_extract", "jmh_generate", "kotlinc_check", "scalac_check"]),
         expect_equal("a jar is one any asset", [asset_name(t, k) for t in JAR_TOOLS for k in TOOLS[t].platforms], ["dx-avro-union-any.jar", "dx-javac-check-any.jar", "dx-javadoc-extract-any.jar", "dx-jmh-generate-any.jar", "dx-kotlinc-check-any.jar", "dx-scalac-check-any.jar"]),
         expect_contains("the registry lists the jars for fill_pins", registry_lines(), "javac_check any dx-javac-check-any.jar"),

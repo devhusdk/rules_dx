@@ -64,7 +64,12 @@ jobs:
           }
           bazel test "${flags[@]}" //lua/tests:selene_smoke_test
           bazel build "${flags[@]}" //rust/private/quality/tools:deadnix //rust/private/quality/tools:selene
+          bazel build "${flags[@]}" //rust/private/quality/tools:topiary //rust/private/quality/tools:progenitor
           root="$(bazel info "${flags[@]}" execution_root)"
+          for tool in topiary progenitor; do
+            cp "$root/$(bazel cquery "${flags[@]}" --output=files "//rust/private/quality/tools:$tool")" "$out/dx-$tool-$host"
+            chmod +x "$out/dx-$tool-$host"
+          done
           for tool in deadnix selene; do
             case "$tool" in deadnix) version="$deadnix_version" ;; *) version="$selene_version" ;; esac
             built="$root/$(bazel cquery "${flags[@]}" --output=files "//rust/private/quality/tools:$tool")"
@@ -78,11 +83,11 @@ jobs:
           fi
           case "$host" in
             linux-*)
-              tools=("deadnix-$deadnix_version" "selene-$selene_version")
-              if test "$host" = "linux-arm64"; then tools+=("nixfmt-$nixfmt_version"); fi
+              tools=("tool-deadnix-$deadnix_version" "tool-selene-$selene_version" topiary progenitor)
+              if test "$host" = "linux-arm64"; then tools+=("tool-nixfmt-$nixfmt_version"); fi
               for tool in "${tools[@]}"; do
-                if readelf -l "$out/dx-tool-$tool-$host" | grep -q INTERP; then
-                  echo "dx-tool-$tool-$host is dynamically linked" >&2
+                if readelf -l "$out/dx-$tool-$host" | grep -q INTERP; then
+                  echo "dx-$tool-$host is dynamically linked" >&2
                   exit 1
                 fi
               done

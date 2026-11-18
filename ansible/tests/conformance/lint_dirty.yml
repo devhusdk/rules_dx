@@ -1,0 +1,6 @@
+---
+- name: Dirty play
+  hosts: all
+  tasks:
+    - ansible.builtin.debug:
+        msg: hello

@@ -1,15 +1,3 @@
-android_ndk_toolchain_repo = use_repo_rule("@rules_dx//android:extensions.bzl", "android_ndk_toolchain_repo")
-
-android_ndk_toolchain_repo(
-    name = "android_ndk_toolchain",
-    api_level = 31,
-    cxx_runtime = "static",
-)
-
-register_toolchains(
-    "@android_ndk_toolchain//:all",
-)
-
 dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
 dx_licenses.accept(ids = ["android-sdk-license"])
 

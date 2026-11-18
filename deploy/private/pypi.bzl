@@ -1,9 +1,10 @@
 """Local-first PyPI publisher for dx deploy."""
 
 load("//core:msvc_crt.bzl", "dx_msvc_crt_reset_transition")
+load("//core:rlocation.bzl", "rlocation_path")
+load("//core/quality:unavailable_tool.bzl", "DxUnavailableToolInfo")
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deployment_budget")
-load("//core:rlocation.bzl", "rlocation_path")
 load(":deployment.bzl", "dx_deployment")
 load(":validate_pypi.bzl", "PYPI_DEFAULT_REGISTRY_URL", "pypi_name_error", "pypi_registry_url_error", "pypi_wheel_error")
 
@@ -27,10 +28,11 @@ def _pypi_config_impl(ctx):
         "api_package": ctx.attr.api_package or ctx.attr.dist_name.replace("-", "_"),
         "api_src": ctx.attr.api_src,
         "dist_name": ctx.attr.dist_name,
-        "attestations_rloc": rlocation_path(ctx, ctx.executable._pypi_attestations),
         "registry_url": ctx.attr.registry_url,
         "wheel_rloc": wheel_rloc,
     }
+    attestations_available = DxUnavailableToolInfo not in ctx.attr._pypi_attestations
+    values["attestations_rloc"] = rlocation_path(ctx, ctx.executable._pypi_attestations) if attestations_available else ""
     griffe = ctx.attr._griffe[DefaultInfo]
     if ctx.attr.api_compat != "off":
         values["griffe_rloc"] = rlocation_path(ctx, ctx.executable._griffe)
@@ -50,7 +52,8 @@ def _pypi_config_impl(ctx):
         files.append(sdist_file)
 
     runfiles = ctx.runfiles(files = files)
-    runfiles = runfiles.merge(ctx.attr._pypi_attestations[DefaultInfo].default_runfiles)
+    if attestations_available:
+        runfiles = runfiles.merge(ctx.attr._pypi_attestations[DefaultInfo].default_runfiles)
     if ctx.attr.api_compat != "off":
         runfiles = runfiles.merge(griffe.default_runfiles)
     return deploy_config(ctx, "pypi", values, runfiles)
@@ -71,7 +74,7 @@ _pypi_config = rule(
             cfg = "exec",
         ),
         "_pypi_attestations": attr.label(
-            default = Label("//core/quality/tools/python:pypi_attestations"),
+            default = Label("//core/quality/tools/python:pypi_attestations_tool"),
             executable = True,
             cfg = "exec",
         ),

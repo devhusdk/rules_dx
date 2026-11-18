@@ -1134,6 +1134,8 @@ A dry run needs no credentials. `dx deploy --apply` publishes and needs:
 When the identity variables are set, the run first signs the staged files with
 the `pypi-attestations` pinned in `core/quality/tools/python/uv.lock` and passes
 the `.publish.attestation` files to `twine upload --attestations`.
+Signing is unavailable on windows_arm64 execution platforms, so a run that
+would sign there refuses before it uploads.
 
 `twine` must be on `PATH`. The run calls `twine upload --non-interactive
 --repository-url <registry_url>` with the wheel and sdist files. It does

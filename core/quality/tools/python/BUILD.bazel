@@ -98,8 +98,22 @@ py_binary(
     ],
     dep_group = "dx-python-tools",
     main = "pypi_attestations_main.py",
-    visibility = ["//deploy/private:__pkg__"],
     deps = ["@pypi//pypi_attestations"],
+)
+
+# rfc3161-client and cryptography have no win_arm64 wheel and their sdists need maturin, Rust and OpenSSL.
+alias(
+    name = "pypi_attestations_tool",
+    actual = select({
+        ":windows_arm64": ":pypi_attestations_unsupported",
+        "//conditions:default": ":pypi_attestations",
+    }),
+    visibility = ["//deploy/private:__pkg__"],
+)
+
+dx_unavailable_tool(
+    name = "pypi_attestations_unsupported",
+    tool = "pypi_attestations",
 )
 
 py_binary(

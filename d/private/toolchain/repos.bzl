@@ -4,7 +4,7 @@ load("//core:deb_closure.bzl", "deb_closure")
 load("//core:jammy_runtime.bzl", "JAMMY_RUNTIME", "jammy_deb_urls")
 load("//core:toolchain.bzl", "cell_repo", "pins_hub")
 load("//qt/private/toolchain:seven_zip.bzl", "seven_zip_extract", "seven_zip_fetch")
-load(":pins.bzl", "LDC_CELLS", "LDC_VERSION", "MSVC_ABI")
+load(":pins.bzl", "LDC_CELLS", "LDC_CROSS_CELLS", "LDC_VERSION", "MSVC_ABI")
 
 HUB_NAME = "dx_d_toolchains"
 
@@ -180,6 +180,43 @@ ldc_repo = repository_rule(
     },
 )
 
+CROSS_BUILD = """load("@rules_d//d:toolchain.bzl", "d_toolchain")
+
+package(default_visibility = ["//visibility:public"])
+
+d_toolchain(
+    name = "toolchain",
+    compiler_flags = {compiler_flags},
+    d_compiler = "@{host}//:dmd",
+    druntime = "@{target}//:druntime",
+    dub_tool = "@{host}//:dub",
+    libphobos = "@{target}//:libphobos",
+    linker_flags = [],
+)
+"""
+
+def cross_build(cross):
+    """Renders the BUILD file of one cross cell."""
+    return CROSS_BUILD.format(
+        compiler_flags = repr(LDC_CELLS[cross.host].compiler_flags + ["-mtriple=" + cross.triple]),
+        host = ldc_repository_name(cross.host),
+        target = ldc_repository_name(cross.target),
+    )
+
 def hub_build():
-    """Returns the hub BUILD file: one D toolchain per qualified cell."""
-    return pins_hub(HUB_NAME, LDC_CELLS.keys(), str(Label("//d/private/toolchain:toolchain_type")), "both", os_constraints = {"windows": [MSVC_ABI]})
+    """Returns the hub BUILD file: one D toolchain per qualified cell and per cross cell."""
+    cross_constraints = {
+        name: struct(
+            exec_compatible_with = LDC_CELLS[cross.host].exec_compatible_with,
+            target_compatible_with = LDC_CELLS[cross.target].exec_compatible_with,
+        )
+        for name, cross in LDC_CROSS_CELLS.items()
+    }
+    return pins_hub(
+        HUB_NAME,
+        list(LDC_CELLS.keys()) + list(LDC_CROSS_CELLS.keys()),
+        str(Label("//d/private/toolchain:toolchain_type")),
+        "both",
+        os_constraints = {"windows": [MSVC_ABI]},
+        cell_constraints = cross_constraints,
+    )

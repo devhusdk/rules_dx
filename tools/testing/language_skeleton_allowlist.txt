@@ -10,12 +10,8 @@ fixture-hello ansible/tests/conformance/BUILD.bazel
 fixture-hello appimage/tests/conformance/BUILD.bazel
 fixture-hello apple/tests/conformance/BUILD.bazel
 fixture-hello asciidoc/tests/conformance/BUILD.bazel
-fixture-hello cloudformation/tests/conformance/BUILD.bazel
-fixture-hello dockerfile/tests/conformance/BUILD.bazel
-fixture-hello flatbuffers/tests/conformance/BUILD.bazel
 fixture-hello flutter/tests/consumer
 fixture-hello helm/tests/conformance/BUILD.bazel
-fixture-hello kubernetes/tests/conformance/BUILD.bazel
 fixture-hello msix/tests/conformance/BUILD.bazel
 fixture-hello qt/tests/conformance/BUILD.bazel
 fixture-hello rst/tests/conformance/BUILD.bazel
@@ -234,7 +230,6 @@ register-label core/quality
 register-label java/private/toolchain
 register-label kotlin/private/toolchain
 register-label scala/private/toolchain
-register-label tools/platforms
 test-location api_spec/private/codegen/BUILD.bazel
 test-location astro/private/ide/BUILD.bazel
 test-location csharp/private/ide/BUILD.bazel

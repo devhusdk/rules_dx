@@ -813,6 +813,7 @@ filegroup(
         "//patches/rules_haskell:module_srcs",
         "//patches/rules_js:module_srcs",
         "//patches/rules_julia:module_srcs",
+        "//patches/rules_kotlin:module_srcs",
         "//patches/rules_ocaml:module_srcs",
         "//patches/rules_oci:module_srcs",
         "//patches/rules_powershell:module_srcs",

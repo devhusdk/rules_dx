@@ -1,7 +1,8 @@
-"""The rules_dx Rust toolchain hub: every target triple of the Rust manifest platforms and the Android tuples."""
+"""The rules_dx Rust toolchain hub: every target triple of the Rust manifest platforms, the Android tuples and the iOS environments."""
 
 load("@rules_rust//rust/private:repositories.bzl", "rust_register_toolchains")
 load("//android/private/platforms:defs.bzl", "rust_triples")
+load("//apple/private/ios:validate.bzl", "ios_rust_triples")
 load("//core/modules:versions.bzl", "RUSTFMT_VERSION", "RUST_EDITION", "RUST_VERSION")
 
 HUB_NAME = "dx_rust_toolchains"
@@ -15,12 +16,13 @@ PLATFORM_TRIPLES = {
 }
 
 def target_triples(rust_platforms):
-    """Returns the sorted Rust target triples for the Rust manifest platforms plus every Android triple."""
+    """Returns the sorted Rust target triples for the Rust manifest platforms plus every Android and iOS triple."""
     unknown = [p for p in rust_platforms if p not in PLATFORM_TRIPLES]
     if unknown:
         fail("rust/lang.json platforms have no Rust triple: {}".format(", ".join(unknown)))
     triples = {PLATFORM_TRIPLES[p]: True for p in rust_platforms}
     triples.update({t: True for t in rust_triples()})
+    triples.update({t: True for t in ios_rust_triples()})
     return sorted(triples.keys())
 
 def _dx_rust_toolchains_impl(module_ctx):

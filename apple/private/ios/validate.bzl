@@ -42,6 +42,10 @@ def ios_sdk_for(environment):
     """Returns the SDK identity for one environment, or empty."""
     return _ENVIRONMENTS[environment].sdk if environment in _ENVIRONMENTS else ""
 
+def ios_rust_triples():
+    """Returns the sorted Rust target triples of every iOS environment and arch."""
+    return sorted([t for env in _ENVIRONMENTS.values() for t in env.triples.values()])
+
 def ios_triple_for(environment, arch):
     """Returns the Rust target triple for one environment and arch, or empty."""
     if environment not in _ENVIRONMENTS:

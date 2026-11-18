@@ -145,7 +145,14 @@ mod tests {
         ] {
             assert_eq!(tool_for(OsStr::new(name)), None, "{name}");
         }
-        for name in ["quality_runner", "capture.exe", "test", "check", "", "--help"] {
+        for name in [
+            "quality_runner",
+            "capture.exe",
+            "test",
+            "check",
+            "",
+            "--help",
+        ] {
             assert_eq!(subcommand_for(OsStr::new(name)), None, "{name}");
         }
     }

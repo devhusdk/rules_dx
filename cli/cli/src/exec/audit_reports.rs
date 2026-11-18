@@ -113,7 +113,11 @@ fn the_built_in_license_table_passes_only_its_allow_list() {
         ("Zlib", "license/Zlib"),
     ] {
         let (code, out, err) = run_with(
-            &["license", "//cc/private/tools/context:demo", "--report=sarif=-"],
+            &[
+                "license",
+                "//cc/private/tools/context:demo",
+                "--report=sarif=-",
+            ],
             &AuditRunner::clean(),
             &|harness| {
                 write_demo_license(harness, license);
@@ -213,7 +217,10 @@ fn an_internal_license_scope_skips_the_review_and_notice_tables() {
 #[test]
 fn a_repo_wide_internal_policy_covers_sub_scopes_and_affected_labels() {
     let policy = "schema_version = 1\n[policy]\nblocked = [\"AGPL-3.0-only\"]\n[policy.distributed]\nallow = []\nreview = []\ndeny = []\n[distribution]\ninternal = [\"//...\"]\n";
-    for scope in ["//cc/private/tools/context:all", "//cc/private/tools/context:app"] {
+    for scope in [
+        "//cc/private/tools/context:all",
+        "//cc/private/tools/context:app",
+    ] {
         for (license, code) in [("MIT", 0), ("AGPL-3.0-only", 1)] {
             let (code_seen, out, err) = run_with(
                 &["license", scope, "--report=sarif=-"],
@@ -313,7 +320,11 @@ fn license_exceptions_only_approve_matching_current_findings() {
         ),
     ] {
         let (code, out, err) = run_with(
-            &["license", "//cc/private/tools/context:demo", "--output=json"],
+            &[
+                "license",
+                "//cc/private/tools/context:demo",
+                "--output=json",
+            ],
             &AuditRunner::clean(),
             &|h| {
                 write_demo_license(h, license);
@@ -355,7 +366,11 @@ fn license_accept_writes_an_exception_that_covers_the_finding() {
     let policy = "# keep this comment\nschema_version = 1\n[policy.distributed]\nallow = []\ndeny = [\"GPL-3.0-only\"]\n\n[[inventory]]\npackage = \"demo\"\nset = \"cargo\"\nlicense = \"GPL-3.0-only\"\nversions = \"1.0.0\"\ntext_present = true\n";
     harness.write_source("license.toml", policy);
     let run = |extra: &[&str]| {
-        let mut argv = vec!["license", "//cc/private/tools/context:demo", "--output=json"];
+        let mut argv = vec![
+            "license",
+            "//cc/private/tools/context:demo",
+            "--output=json",
+        ];
         argv.extend_from_slice(extra);
         let words: Vec<String> = argv.iter().map(|word| (*word).to_owned()).collect();
         let invocation = dx_plan::args::parse(&words).expect("parse");
@@ -862,7 +877,11 @@ fn audit_json_emits_each_vulnerability_and_license_finding() {
     );
 
     let (code, out, err) = run_with(
-        &["license", "--output=json", "//cc/private/tools/context:demo"],
+        &[
+            "license",
+            "--output=json",
+            "//cc/private/tools/context:demo",
+        ],
         &AuditRunner::clean(),
         &denied_license,
     );
@@ -916,7 +935,11 @@ fn audit_text_prints_one_line_per_vulnerability_and_license_finding() {
     assert!(line.ends_with("[vuln/GHSA-go-test-0001]"), "{line}");
 
     let (code, out, err) = run_with(
-        &["license", "//cc/private/tools/context:demo", "--report=sarif=-"],
+        &[
+            "license",
+            "//cc/private/tools/context:demo",
+            "--report=sarif=-",
+        ],
         &AuditRunner::clean(),
         &denied_license,
     );

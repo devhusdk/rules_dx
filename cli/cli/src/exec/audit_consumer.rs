@@ -720,7 +720,10 @@ source = { registry = "https://pypi.org/simple" }
             "source \"https://rubygems.org\"\ngem \"rack\"\n",
         );
         harness.write_source(
-            &format!("apps/rb/{}", dx_adopt::dependency_sets::gemfile_lock().expect("state")),
+            &format!(
+                "apps/rb/{}",
+                dx_adopt::dependency_sets::gemfile_lock().expect("state")
+            ),
             GEMFILE_LOCK,
         );
         harness.write_source(
@@ -739,7 +742,10 @@ source = { registry = "https://pypi.org/simple" }
         assert_eq!(code, 1, "{out}{err}");
         assert!(out.contains("vuln/GHSA-rack-0001"), "{out}");
         assert!(
-            out.contains(&format!("apps/rb/{}", dx_adopt::dependency_sets::gemfile_lock().expect("state"))),
+            out.contains(&format!(
+                "apps/rb/{}",
+                dx_adopt::dependency_sets::gemfile_lock().expect("state")
+            )),
             "{out}"
         );
         assert!(!out.contains("pypi"), "{out}");

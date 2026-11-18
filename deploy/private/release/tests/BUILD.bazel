@@ -31,6 +31,8 @@ nested_bazel_test(
         "//core/modules:core_budget.json",
         "//core/modules:python_consumer_budget.json",
         "//deploy:module_srcs",
+        "//patches/apple_support:gcov_gcno_file.patch",
+        "//patches/apple_support:xcode_absolute_tools.patch",
         "//patches/gomod-parser:glued_comment.patch",
         "//patches/llvm:clang_cl_profile_no_mingw.patch",
         "//patches/llvm:libunwind_copy.patch",

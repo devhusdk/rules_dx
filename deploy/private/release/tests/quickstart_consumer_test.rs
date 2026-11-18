@@ -205,10 +205,19 @@ fn copy_rules_py_patches(source: &std::path::Path, case: &Case) {
     }
 }
 
-/// Repeats the root `rules_swift` override and copies its patches into the consumer.
-fn rules_swift_override(source: &std::path::Path, case: &Case) -> String {
-    write_root_patch_override(case.root(), source, "rules_swift", &[])
-        .unwrap_or_else(|error| panic!("{error}"))
+/// Repeats the root `apple_support` (without `toolchains_gate.patch`) and `rules_swift` overrides
+/// and copies their patches into `root`.
+pub(crate) fn apple_overrides(source: &std::path::Path, root: &std::path::Path) -> String {
+    [
+        ("apple_support", &["toolchains_gate.patch"][..]),
+        ("rules_swift", &[][..]),
+    ]
+    .into_iter()
+    .map(|(module, skip)| {
+        write_root_patch_override(root, source, module, skip)
+            .unwrap_or_else(|error| panic!("{error}"))
+    })
+    .collect()
 }
 
 fn copy_patches(source: &std::path::Path, case: &Case, package: &str) {
@@ -262,7 +271,7 @@ fn the_readme_quickstart_runs_as_written() {
             text.push_str(&rules_rust_override());
             text.push_str(&llvm_override());
             text.push_str(&windows_support_override());
-            text.push_str(&rules_swift_override(&source, &case));
+            text.push_str(&apple_overrides(&source, case.root()));
             text.push_str(&rules_dx_override(&source));
         }
         write_text(&case.root().join(name), &text);
@@ -413,7 +422,7 @@ fn bcr_test_module_runs_its_presubmit_targets() {
             + &rules_rust_override()
             + &llvm_override()
             + &windows_support_override()
-            + &rules_swift_override(&source, &case)),
+            + &apple_overrides(&source, case.root())),
     );
     case.use_lock("release_bcr");
 

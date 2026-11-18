@@ -9,8 +9,7 @@ load(":native_runtime.bzl", "NativeRuntimeInfo")
 load(":validate_archive.bzl", "consumer_identity_error")
 load(":validate_resources.bzl", "resource_path_error")
 
-_ARCHIVER = Label("//deploy/private:archiver")
-_HASHER = str(Label("//deploy/private:hasher"))
+_DX = Label("@dx_prebuilt//:dx")
 
 def _archive_stage_impl(ctx):
     """Stages one executable as a single file preserving its basename."""
@@ -110,8 +109,8 @@ def archive_deploy(name, app, build_mode = "release", size_budget = None, sbom =
         name = archive_target,
         srcs = [":" + stage_target],
         outs = [tarball],
-        tools = [_ARCHIVER],
-        cmd = "$(location " + str(_ARCHIVER) + ") $(location :" + stage_target + ") $(OUTS)",
+        tools = [_DX],
+        cmd = "$(location " + str(_DX) + ") archiver $(location :" + stage_target + ") $(OUTS)",
         **attrs
     )
 
@@ -119,8 +118,8 @@ def archive_deploy(name, app, build_mode = "release", size_budget = None, sbom =
         name = checksum_target,
         srcs = [":" + archive_target],
         outs = [checksum],
-        tools = [_HASHER],
-        cmd = "$(location " + _HASHER + ") $(location :" + archive_target + ") $(OUTS)",
+        tools = [_DX],
+        cmd = "$(location " + str(_DX) + ") hasher $(location :" + archive_target + ") $(OUTS)",
         **attrs
     )
 
@@ -315,7 +314,7 @@ def _consumer_stage_impl(ctx):
             args.add(member + "=" + out.path)
         ctx.actions.run(
             executable = ctx.executable._archiver,
-            arguments = [args],
+            arguments = ["archiver", args],
             inputs = depset(by_member.values()),
             outputs = [stamp],
             mnemonic = "DxConsumerImports",
@@ -371,7 +370,7 @@ _consumer_stage = rule(
         ),
         "_archiver": attr.label(
             cfg = "exec",
-            default = _ARCHIVER,
+            default = _DX,
             executable = True,
         ),
     } | PLATFORM_ATTRS,
@@ -395,7 +394,7 @@ def _consumer_tarball_impl(ctx):
         args.add(member + "=" + by_member[member].path)
     ctx.actions.run(
         executable = ctx.executable._archiver,
-        arguments = [args],
+        arguments = ["archiver", args],
         inputs = depset(by_member.values()),
         outputs = [out],
         mnemonic = "DxConsumerArchive",
@@ -418,7 +417,7 @@ _consumer_tarball = rule(
         ),
         "_archiver": attr.label(
             cfg = "exec",
-            default = _ARCHIVER,
+            default = _DX,
             executable = True,
         ),
     },
@@ -475,7 +474,7 @@ def consumer_archive(name, app, min_runtime, linkage = "dynamic", resources = []
         tags = tags,
         target_compatible_with = target_compatible_with,
         testonly = testonly,
-        tools = [_HASHER],
+        tools = [_DX],
         visibility = visibility,
-        cmd = "$(location " + _HASHER + ") $(location :" + archive_target + ") $(OUTS)",
+        cmd = "$(location " + str(_DX) + ") hasher $(location :" + archive_target + ") $(OUTS)",
     )

@@ -6,7 +6,7 @@ load("//core:rlocation.bzl", "rlocation_path")
 load(":deployment.bzl", "dx_deployment")
 load(":validate_cloudflare.bzl", "cloudflare_pages_error")
 
-_VERIFY = Label("//deploy/private:cloudflare_verify")
+_DX = Label("@dx_prebuilt//:dx")
 
 def cloudflare_pages_intent(branch, production_branch):
     """Returns 'production' or 'preview' for a branch."""
@@ -68,8 +68,8 @@ def cloudflare_pages_deploy(name, account_id, project, branch, production_branch
         name = check_target,
         srcs = [site],
         outs = [name + ".pages.json"],
-        tools = [_VERIFY],
-        cmd = "$(location " + str(_VERIFY) + ") " + " ".join([
+        tools = [_DX],
+        cmd = "$(location " + str(_DX) + ") cloudflare_verify " + " ".join([
             shell.quote(account_id),
             shell.quote(project),
             shell.quote(branch),

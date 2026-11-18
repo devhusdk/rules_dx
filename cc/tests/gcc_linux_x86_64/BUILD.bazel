@@ -125,11 +125,11 @@ rust_test(
     crate_root = "imports_test.rs",
     data = [
         ":hello_cxx_gcc",
-        "//deploy/private:archiver",
+        "@dx_prebuilt//:dx",
     ],
     env = {
         "APP": "$(rootpath :hello_cxx_gcc)",
-        "ARCHIVER": "$(rootpath //deploy/private:archiver)",
+        "ARCHIVER": "$(rootpath @dx_prebuilt//:dx)",
     },
     target_compatible_with = [
         "@platforms//os:linux",

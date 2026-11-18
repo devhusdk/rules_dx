@@ -9,28 +9,8 @@ name = "dx_deploy_tools"
 path = "src/lib.rs"
 
 [[bin]]
-name = "archiver"
-path = "src/bin_archiver.rs"
-
-[[bin]]
 name = "deploy_tool"
 path = "src/bin_deploy_tool.rs"
-
-[[bin]]
-name = "size_checker"
-path = "src/bin_size_checker.rs"
-
-[[bin]]
-name = "hasher"
-path = "src/bin_hasher.rs"
-
-[[bin]]
-name = "cloudflare_verify"
-path = "src/bin_cloudflare_verify.rs"
-
-[[bin]]
-name = "npm_packer"
-path = "src/bin_npm_pack.rs"
 
 [[bin]]
 name = "deploy_program"

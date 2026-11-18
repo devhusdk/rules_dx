@@ -7,6 +7,7 @@ mod conan;
 mod config;
 mod cpan;
 mod crates;
+pub mod entry;
 mod github;
 mod go_api;
 mod hackage;

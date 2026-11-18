@@ -149,9 +149,9 @@ def release_cells(name, cells = RELEASE_MATRIX, app = "//cli/cli:dx", pdb = "//c
                 name = cell_name + "_pdb_checksum",
                 srcs = [":" + cell_name + "_pdb_archive"],
                 outs = [symbols + ".sha256"],
-                cmd = "$(location //deploy/private:hasher) $(location :" + cell_name + "_pdb_archive) $(OUTS)",
+                cmd = "$(location " + str(Label("@dx_prebuilt//:dx")) + ") hasher $(location :" + cell_name + "_pdb_archive) $(OUTS)",
                 target_compatible_with = constraints,
-                tools = ["//deploy/private:hasher"],
+                tools = [Label("@dx_prebuilt//:dx")],
             )
             sbom_release(
                 name = cell_name + "_pdb_sbom",

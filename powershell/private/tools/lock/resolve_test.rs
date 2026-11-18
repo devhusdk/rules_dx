@@ -1,6 +1,6 @@
 //! The powershell lock step writes the golden lock with an empty `PATH`; the archives come from the fetcher.
 
-use std::cell::RefCell;
+use std::sync::Mutex;
 
 use dx_lock::{Args, Error, Fetch, Outcome, run};
 use powershell_lock::{Powershell, parse_requirements};
@@ -12,11 +12,11 @@ const MANIFEST: &str = "@{
 }
 ";
 
-struct Archives(RefCell<Vec<String>>);
+struct Archives(Mutex<Vec<String>>);
 
 impl Fetch for Archives {
     fn sha256(&self, url: &str) -> Result<String, Error> {
-        self.0.borrow_mut().push(url.to_owned());
+        self.0.lock().expect("asked").push(url.to_owned());
         let name = if url.ends_with("/Pester/5.7.1") {
             "PESTER"
         } else if url.ends_with("/PSScriptAnalyzer/1.25.0") {
@@ -49,9 +49,9 @@ fn pinned_modules_write_the_golden_lock() {
     let hub = dx_families::hub("powershell").expect("powershell is registered");
     let dir = tempfile::tempdir().expect("set directory");
     std::fs::write(dir.path().join(&hub.manifest), MANIFEST).expect("manifest");
-    let archives = Archives(RefCell::default());
+    let archives = Archives(Mutex::default());
     assert_eq!(lock(dir.path(), &archives), Ok(Outcome::Written));
-    assert_eq!(archives.0.borrow().len(), 2);
+    assert_eq!(archives.0.lock().expect("asked").len(), 2);
     dx_testing::snapshot_diff(
         &dx_testing::env_file("GOLDEN"),
         &dir.path().join(hub.lock.as_deref().expect("lock")),
@@ -66,12 +66,12 @@ fn a_fresh_lock_downloads_nothing() {
     let dir = tempfile::tempdir().expect("set directory");
     std::fs::write(dir.path().join(&hub.manifest), MANIFEST).expect("manifest");
     assert_eq!(
-        lock(dir.path(), &Archives(RefCell::default())),
+        lock(dir.path(), &Archives(Mutex::default())),
         Ok(Outcome::Written)
     );
-    let archives = Archives(RefCell::default());
+    let archives = Archives(Mutex::default());
     assert_eq!(lock(dir.path(), &archives), Ok(Outcome::Fresh));
-    assert!(archives.0.borrow().is_empty());
+    assert!(archives.0.lock().expect("asked").is_empty());
 }
 
 #[test]

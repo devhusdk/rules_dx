@@ -1,6 +1,6 @@
 //! The cpan lock step writes the golden lock with an empty `PATH`; the archives come from the fetcher.
 
-use std::cell::RefCell;
+use std::sync::Mutex;
 
 use dx_lock::{Args, Error, Fetch, Outcome, run};
 use perl_lock::{Cpan, packages, parse_requires, parse_snapshot};
@@ -26,11 +26,11 @@ DISTRIBUTIONS
       perl 5.006
 ";
 
-struct Archives(RefCell<Vec<String>>);
+struct Archives(Mutex<Vec<String>>);
 
 impl Fetch for Archives {
     fn sha256(&self, url: &str) -> Result<String, Error> {
-        self.0.borrow_mut().push(url.to_owned());
+        self.0.lock().expect("asked").push(url.to_owned());
         let name = if url.ends_with("/Text-CSV-2.06.tar.gz") {
             "TEXT_CSV"
         } else if url.ends_with("/Clone-PP-1.09.tar.gz") {
@@ -74,9 +74,9 @@ fn lock(dir: &std::path::Path, archives: &Archives) -> Result<Outcome, Error> {
 fn the_snapshot_writes_the_golden_lock() {
     let hub = dx_families::hub("cpan").expect("cpan is registered");
     let dir = set();
-    let archives = Archives(RefCell::default());
+    let archives = Archives(Mutex::default());
     assert_eq!(lock(dir.path(), &archives), Ok(Outcome::Written));
-    assert_eq!(archives.0.borrow().len(), 2);
+    assert_eq!(archives.0.lock().expect("asked").len(), 2);
     dx_testing::snapshot_diff(
         &dx_testing::env_file("GOLDEN"),
         &dir.path().join(hub.lock.as_deref().expect("lock")),
@@ -89,18 +89,21 @@ fn the_snapshot_writes_the_golden_lock() {
 fn a_fresh_lock_downloads_nothing() {
     let dir = set();
     assert_eq!(
-        lock(dir.path(), &Archives(RefCell::default())),
+        lock(dir.path(), &Archives(Mutex::default())),
         Ok(Outcome::Written)
     );
-    let archives = Archives(RefCell::default());
+    let archives = Archives(Mutex::default());
     assert_eq!(lock(dir.path(), &archives), Ok(Outcome::Fresh));
-    assert!(archives.0.borrow().is_empty());
+    assert!(archives.0.lock().expect("asked").is_empty());
 }
 
 #[test]
 fn requirements_become_distribution_deps() {
     let packages = packages(CPANFILE, SNAPSHOT).expect("packages");
-    let csv = packages.iter().find(|p| p.name == "Text-CSV").expect("Text-CSV");
+    let csv = packages
+        .iter()
+        .find(|p| p.name == "Text-CSV")
+        .expect("Text-CSV");
     assert_eq!(csv.version, "2.06");
     assert_eq!(csv.deps, vec!["Clone-PP".to_owned()]);
     assert_eq!(csv.archives[0].strip_prefix, "Text-CSV-2.06");
@@ -109,7 +112,12 @@ fn requirements_become_distribution_deps() {
 #[test]
 fn a_module_outside_the_snapshot_is_refused() {
     assert!(packages("requires 'Moo';\n", SNAPSHOT).is_err());
-    assert_eq!(parse_requires("requires 'A::B', '1';\n# requires 'C'\n"), vec!["A::B"]);
+    assert_eq!(
+        parse_requires("requires 'A::B', '1';\n# requires 'C'\n"),
+        vec!["A::B"]
+    );
     assert!(parse_snapshot("DISTRIBUTIONS\n").is_err());
-    assert!(parse_snapshot("# carton snapshot format: version 1.0\nDISTRIBUTIONS\n  A-1\n").is_err());
+    assert!(
+        parse_snapshot("# carton snapshot format: version 1.0\nDISTRIBUTIONS\n  A-1\n").is_err()
+    );
 }

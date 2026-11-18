@@ -81,23 +81,27 @@ mod tests {
 
     use super::*;
 
-    /// Serves one response on a loopback port and returns its URL.
-    fn serve(status: &'static str, body: &'static str) -> String {
+    /// Serves one connection per response, in order, on a loopback port and returns its URL.
+    fn serve(responses: &[(&'static str, &'static str)]) -> String {
+        let responses = responses.to_vec();
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
         let port = listener.local_addr().expect("address").port();
         std::thread::spawn(move || {
-            let (mut stream, _) = listener.accept().expect("accept");
-            let mut request = Vec::new();
-            let mut byte = [0_u8; 1];
-            while !request.ends_with(b"\r\n\r\n") && stream.read(&mut byte).expect("read") == 1 {
-                request.push(byte[0]);
+            for (status, body) in responses {
+                let (mut stream, _) = listener.accept().expect("accept");
+                let mut request = Vec::new();
+                let mut byte = [0_u8; 1];
+                while !request.ends_with(b"\r\n\r\n") && stream.read(&mut byte).expect("read") == 1
+                {
+                    request.push(byte[0]);
+                }
+                let head = format!(
+                    "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    body.len()
+                );
+                stream.write_all(head.as_bytes()).expect("head");
+                stream.write_all(body.as_bytes()).expect("body");
             }
-            let head = format!(
-                "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-                body.len()
-            );
-            stream.write_all(head.as_bytes()).expect("head");
-            stream.write_all(body.as_bytes()).expect("body");
         });
         format!("http://127.0.0.1:{port}/archive")
     }
@@ -106,6 +110,7 @@ mod tests {
     fn plain() -> HttpFetch {
         let settings = Settings {
             https_only: false,
+            first_backoff: std::time::Duration::from_millis(10),
             ..settings()
         };
         HttpFetch(Client::with_env(settings, |_| None).map_err(lock_error))
@@ -113,19 +118,25 @@ mod tests {
 
     #[test]
     fn a_download_returns_the_sha256_of_its_bytes() {
-        let url = serve("200 OK", "alpha");
+        let url = serve(&[("200 OK", "alpha")]);
         assert_eq!(plain().sha256(&url), Ok(dx_digest::sha256_hex(b"alpha")));
     }
 
     #[test]
     fn a_download_returns_its_bytes() {
-        let url = serve("200 OK", "alpha");
+        let url = serve(&[("200 OK", "alpha")]);
         assert_eq!(plain().bytes(&url), Ok(b"alpha".to_vec()));
     }
 
     #[test]
+    fn a_flaky_server_is_retried() {
+        let url = serve(&[("503 Service Unavailable", "busy"), ("200 OK", "alpha")]);
+        assert_eq!(plain().sha256(&url), Ok(dx_digest::sha256_hex(b"alpha")));
+    }
+
+    #[test]
     fn a_missing_archive_names_the_status() {
-        let url = serve("404 Not Found", "gone");
+        let url = serve(&[("404 Not Found", "gone")]);
         assert_eq!(plain().sha256(&url), Err(Error::new("HTTP 404")));
     }
 

@@ -1,6 +1,7 @@
 //! The opam lock step writes the golden lock with an empty `PATH`; opam files and archives come from fakes.
 
 use std::cell::RefCell;
+use std::sync::Mutex;
 
 use dx_lock::{Args, Error, Fetch, Outcome, run};
 use opam_lock::{Download, Opam, UNPINNED, parse_depend_names, parse_locked, parse_url};
@@ -62,11 +63,11 @@ impl Download for Files {
     }
 }
 
-struct Archives(RefCell<Vec<String>>);
+struct Archives(Mutex<Vec<String>>);
 
 impl Fetch for Archives {
     fn sha256(&self, url: &str) -> Result<String, Error> {
-        self.0.borrow_mut().push(url.to_owned());
+        self.0.lock().expect("asked").push(url.to_owned());
         if url == "https://example.org/fmt-lite-0.9.0.tbz" {
             Ok(dx_digest::sha256_hex(FMT_LITE_ARCHIVE))
         } else {
@@ -101,10 +102,10 @@ fn the_locked_file_writes_the_golden_lock() {
     let hub = dx_families::hub("opam").expect("opam is registered");
     let dir = set();
     let files = Files(RefCell::default());
-    let archives = Archives(RefCell::default());
+    let archives = Archives(Mutex::default());
     assert_eq!(lock(dir.path(), &files, &archives), Ok(Outcome::Written));
     assert_eq!(files.0.borrow().len(), 2);
-    assert_eq!(archives.0.borrow().len(), 1);
+    assert_eq!(archives.0.lock().expect("asked").len(), 1);
     dx_testing::snapshot_diff(
         &dx_testing::env_file("GOLDEN"),
         &dir.path().join(hub.lock.as_deref().expect("lock")),
@@ -117,14 +118,18 @@ fn the_locked_file_writes_the_golden_lock() {
 fn a_fresh_lock_downloads_nothing() {
     let dir = set();
     assert_eq!(
-        lock(dir.path(), &Files(RefCell::default()), &Archives(RefCell::default())),
+        lock(
+            dir.path(),
+            &Files(RefCell::default()),
+            &Archives(Mutex::default())
+        ),
         Ok(Outcome::Written)
     );
     let files = Files(RefCell::default());
-    let archives = Archives(RefCell::default());
+    let archives = Archives(Mutex::default());
     assert_eq!(lock(dir.path(), &files, &archives), Ok(Outcome::Fresh));
     assert!(files.0.borrow().is_empty());
-    assert!(archives.0.borrow().is_empty());
+    assert!(archives.0.lock().expect("asked").is_empty());
 }
 
 #[test]
@@ -151,5 +156,9 @@ fn opam_fields_are_read() {
     assert_eq!(url.src, "https://example.org/fmt-lite-0.9.0.tbz");
     assert_eq!(url.sha256, "");
     assert!(parse_url("url { src: \"http://x/a.tbz\" }\n").is_err());
-    assert!(parse_locked("depends: [\"a\" {>= \"1\"} \"b\" {= \"1\" | = \"2\"}]").expect("pins").is_empty());
+    assert!(
+        parse_locked("depends: [\"a\" {>= \"1\"} \"b\" {= \"1\" | = \"2\"}]")
+            .expect("pins")
+            .is_empty()
+    );
 }

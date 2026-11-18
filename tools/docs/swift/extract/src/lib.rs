@@ -9,6 +9,7 @@
 use documentation_ir::proto::{
     DocIr, Extension, Param, Relations, Returns, SourceRef, Symbol, SymbolKind, Visibility,
 };
+use documentation_ir::tool::{Source, parse_sources};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
@@ -17,14 +18,6 @@ use std::fs;
 const LANGUAGE: &str = "swift";
 const KEY_CONFIG: &str = "swift.config";
 const KEY_EXTENDS: &str = "swift.extends";
-
-/// One source file of the library: where the compiler read it, and where it lives in the repository.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Source {
-    pub exec_path: String,
-    pub rel: String,
-    pub generated: bool,
-}
 
 /// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -68,28 +61,6 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
         package: flags.one("--package")?,
         config: flags.optional("--config")?.unwrap_or_default(),
     })
-}
-
-/// Parses a srcs manifest of `exec_path<TAB>rel<TAB>generated` lines.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
-pub fn parse_sources(text: &str) -> Result<Vec<Source>, String> {
-    text.lines()
-        .filter(|line| !line.is_empty())
-        .map(|line| {
-            let parts: Vec<&str> = line.split('\t').collect();
-            match parts.as_slice() {
-                [exec_path, rel, generated] => Ok(Source {
-                    exec_path: (*exec_path).to_owned(),
-                    rel: (*rel).to_owned(),
-                    generated: *generated == "1",
-                }),
-                _ => Err(format!("bad srcs manifest line '{line}'")),
-            }
-        })
-        .collect()
 }
 
 /// Reads, converts, validates and writes one shard. Nothing is written on error.

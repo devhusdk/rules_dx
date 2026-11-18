@@ -172,6 +172,51 @@ fn pubspec_declares_dependency(path: &Path) -> bool {
     !dx_depcheck::parse_dart_manifest(path).is_ok_and(|deps| deps.is_empty())
 }
 
+/// One `MODULE.bazel` dependency set whose lock comes from the resolver of its `setup.hubs` entry.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ResolverSet {
+    /// The set name.
+    pub name: String,
+    /// The set directory relative to the workspace; `.` is the root.
+    pub dir: String,
+    /// The manifest file name of the `setup.hubs` entry.
+    pub manifest: &'static str,
+    /// The resolver label.
+    pub resolver: &'static str,
+}
+
+/// The `MODULE.bazel` sets with a dx class lock, `<ecosystem>.lock.json`, whose directory holds the manifest.
+///
+/// Only a dx class resolver skips the network when the lock matches its inputs; the pub and
+/// maven resolvers resolve again on every run, so a plain check would need the network.
+pub fn resolver_sets(root: &Path) -> Result<Vec<ResolverSet>, AdoptError> {
+    let Some(registry) = crate::dependency_sets::load(root).map_err(refuse)? else {
+        return Ok(Vec::new());
+    };
+    let mut out = Vec::new();
+    for set in registry.sets {
+        let Some(hub) = dx_families::hub(set.ecosystem.name()) else {
+            continue;
+        };
+        let Some(resolver) = hub.resolver.as_deref() else {
+            continue;
+        };
+        if hub.lock.as_deref() != Some(format!("{}.lock.json", hub.ecosystem).as_str()) {
+            continue;
+        }
+        let dir = crate::dependency_sets::manifest_dir(&set.manifests);
+        if root_match(&root.join(&dir), &hub.manifest).is_some() {
+            out.push(ResolverSet {
+                name: set.name,
+                dir,
+                manifest: &hub.manifest,
+                resolver,
+            });
+        }
+    }
+    Ok(out)
+}
+
 /// The ecosystems whose lock comes from the pinned resolver of their `setup.hubs` entry.
 pub const RESOLVER_LOCKS: [&str; 5] = ["composer", "dub", "luarocks", "maven", "pub"];
 
@@ -1058,6 +1103,50 @@ mod tests {
             ]),
             [] as [&str; 0]
         );
+    }
+
+    /// A `MODULE.bazel` stanza for `ecosystem` naming the set `name` whose lock sits in `dir`.
+    fn lock_stanza(ecosystem: &str, name: &str, dir: &str) -> String {
+        let hub = dx_families::hub(ecosystem).expect("hub");
+        format!(
+            "{e} = use_extension(\"{x}\", \"{e}\")\n{e}.{tag}(name = \"{name}\", lock = \"//{dir}:{lock}\")\n",
+            e = hub.ecosystem,
+            x = hub.extension,
+            tag = hub.tag.as_deref().expect("tag"),
+            lock = hub.lock.as_deref().expect("lock"),
+        )
+    }
+
+    #[test]
+    fn resolver_sets_need_a_dx_class_lock_and_the_manifest() {
+        let dir = scratch("resolver_sets").unwrap();
+        let module = [
+            lock_stanza("composer", "web", "php"),
+            lock_stanza("composer", "gone", "old"),
+            lock_stanza("pub", "dart", "dart"),
+        ]
+        .concat();
+        write(dir.path(), MODULE_FILE, &module).unwrap();
+        write(dir.path(), &format!("dart/{}", t("{pub:manifest}")), "").unwrap();
+        write(
+            dir.path(),
+            &format!("php/{}", t("{composer:manifest}")),
+            "{}",
+        )
+        .unwrap();
+        let sets = resolver_sets(dir.path()).expect("sets");
+        let hub = dx_families::hub("composer").expect("hub");
+        assert_eq!(
+            sets,
+            [ResolverSet {
+                name: "web".to_owned(),
+                dir: "php".to_owned(),
+                manifest: t("{composer:manifest}"),
+                resolver: hub.resolver.as_deref().expect("resolver"),
+            }]
+        );
+        let none = scratch("resolver_sets_none").unwrap();
+        assert_eq!(resolver_sets(none.path()).expect("sets"), []);
     }
 
     #[test]

@@ -131,7 +131,7 @@ pub fn pack_cache(cache: &Path, dest: &Path) -> Result<Vec<u8>, PrepError> {
             .map_err(|error| fail(error.to_string()))?;
     }
     let bytes = writer.finish().map_err(|error| fail(error.to_string()))?;
-    std::fs::write(dest, &bytes).map_err(|error| fail(error.to_string()))?;
+    dx_atomic_fs::write_atomic(dest, &bytes).map_err(|error| fail(error.to_string()))?;
     Ok(bytes)
 }
 

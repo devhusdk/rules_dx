@@ -390,7 +390,8 @@ impl WatchSession {
                     .duration_since(std::time::UNIX_EPOCH)
                     .map_or(0, |since| since.as_nanos())
             ));
-            if std::fs::write(&marker, b"").is_ok() {
+            // A plain create: a staged write would raise events for a non-marker name.
+            if std::fs::File::create(&marker).is_ok() {
                 dx_atomic_fs::discard_file(&marker);
             }
         }

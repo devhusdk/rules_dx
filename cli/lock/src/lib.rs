@@ -423,7 +423,7 @@ pub fn run(
     }
     let scratch = Scratch::new()?;
     for name in inputs.copied() {
-        std::fs::write(scratch.set().join(name), read(&dir.join(name))?)
+        dx_atomic_fs::write_scratch(&scratch.set().join(name), &read(&dir.join(name))?)
             .map_err(|error| Error::new(format!("{name}: {error}")))?;
     }
     let kept_packages = |packages: &[Package]| -> Vec<Package> {

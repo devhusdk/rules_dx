@@ -1,12 +1,7 @@
 //! Only dx_path spells a Windows verbatim prefix; other Rust code calls `dx_path::without_verbatim` and its siblings.
 
-#[expect(
-    dead_code,
-    reason = "the guard reads only the snapshot and the Rust lexer"
-)]
-mod guard_scan;
-
-use guard_scan::{Token, rust_tokens, snapshot};
+use dx_guard::lexer::{Token, rust_tokens};
+use dx_guard::snapshot::snapshot;
 use std::path::Path;
 use yaml_serde as _;
 

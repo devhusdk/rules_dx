@@ -10,11 +10,11 @@
     dead_code,
     reason = "the guard reads only Starlark, not the Rust lexer"
 )]
-mod guard_scan;
-
 use std::collections::{BTreeMap, BTreeSet};
 
-use guard_scan::{Counts, callee_name, exprs, hit, is_starlark, parse};
+use dx_guard::allowlist::{self, Counts, hit};
+use dx_guard::snapshot::snapshot;
+use dx_guard::starlark::{callee_name, exprs, is_starlark, parse};
 use starlark_syntax::syntax::ast::{ArgumentP, AstExpr, AstStmt, ExprP, StmtP};
 use yaml_serde as _;
 
@@ -102,7 +102,7 @@ fn scan(files: &BTreeMap<String, String>) -> Counts {
 
 #[test]
 fn the_tree_matches_the_allowlist() {
-    guard_scan::verify(&scan(&guard_scan::snapshot()), &[KIND]);
+    allowlist::verify(&scan(&snapshot()), &[KIND]);
 }
 
 #[test]

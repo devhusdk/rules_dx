@@ -336,6 +336,7 @@ single_version_override(
     patches = [
         "//patches/grpc:pip_parse_no_310.patch",
         "//patches/grpc:upb_reflection_cc.patch",
+        "//patches/grpc:register_toolchains_dev.patch",
     ],
     version = "1.85.1",
 )

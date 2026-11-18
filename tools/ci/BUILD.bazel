@@ -873,6 +873,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        "//cli/digest:dx_digest",
         "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",

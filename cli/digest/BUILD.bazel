@@ -19,6 +19,7 @@ package(default_visibility = VIS_CLI_DEPLOY_GENERATION_QUALITY + [
     "//ruby/private/tools/lock:__pkg__",
     "//swift/private/tools/lock:__pkg__",
     "//tools/api:__pkg__",
+    "//tools/ci:__pkg__",
     "//tools/docs/dotnet/extract:__pkg__",
     "//tools/testing:__pkg__",
     "//tools/testing/hermetic:__pkg__",

@@ -1036,6 +1036,31 @@ fn zig_and_fpm_run_their_lock_steps() {
             run(&Selection::Full, true),
             Err(BackendError::OfflineRequired { .. })
         ));
+        let check = |request: &Selection| {
+            check_configured(
+                dir.path(),
+                &set,
+                request,
+                false,
+                false,
+                &no_head(),
+                &UvClosure::default(),
+            )
+        };
+        let CheckPlan::Run { argv, .. } = check(&Selection::Full).expect("check") else {
+            panic!("expected a run");
+        };
+        assert_eq!(
+            argv[argv.len() - 6..].join(" "),
+            format!(
+                "run {resolver} -- --dir {} --check",
+                dir.path().join("native").display()
+            )
+        );
+        assert!(matches!(
+            check(&named),
+            Err(BackendError::Unsupported { .. })
+        ));
     }
 }
 
@@ -2743,8 +2768,11 @@ fn every_ecosystem_row_has_a_backend() {
         };
         let pinned =
             ecosystem.supported_check() == "pinned" && ecosystem.supported_update() == "pinned";
+        let resolver = dx_families::hub(ecosystem.name()).is_some_and(|hub| hub.resolver.is_some());
         assert!(
-            module == expected || (module == "pinned" && pinned),
+            module == expected
+                || (module == "pinned" && pinned)
+                || (module == "resolver" && resolver),
             "{} dispatches to {module}",
             ecosystem.name()
         );

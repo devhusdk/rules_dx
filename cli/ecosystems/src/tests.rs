@@ -181,6 +181,7 @@ fn backend_columns_name_a_module_or_pinned() {
         for backend in [&row.plan_backend, &row.check_backend] {
             assert!(
                 backend == "pinned"
+                    || backend == "resolver"
                     || backend == &row.name
                     || (row.name == "pub" && backend == "pub_dev"),
                 "{} names backend {backend}",

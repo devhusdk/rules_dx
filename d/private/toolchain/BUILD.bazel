@@ -38,6 +38,15 @@ cc_library(
     alwayslink = True,
 )
 
+# The libFuzzer runtime d_fuzz_test links on cells whose linker ignores -fsanitize=fuzzer.
+cc_library(
+    name = "fuzzer_runtime",
+    deps = select({
+        ":cell_windows_x86_64": ["@dx_d_toolchains__windows_x86_64//:fuzzer_runtime"],
+        "//conditions:default": [],
+    }),
+)
+
 filegroup(
     name = "module_srcs",
     srcs = glob([

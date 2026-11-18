@@ -125,10 +125,24 @@ def d_test(name, *, srcs = None, visibility = None, **kwargs):
     dx_wrap_test(name, _d_test, _d_forward_test, srcs, visibility = visibility, quality_srcs = quality_srcs, extra_forward_kwargs = {"deps": kwargs.get("deps", [])}, coverage_collector = D_COVERAGE_COLLECTOR, **kwargs)
 
 def d_fuzz_test(name, *, srcs = None, visibility = None, tags = None, dopts = None, linkopts = None, **kwargs):
-    """A libFuzzer binary with AddressSanitizer plus a `<name>_run` runner for `dx fuzz`."""
-    flags = ["-fsanitize=fuzzer,address"]
+    """A libFuzzer binary, with AddressSanitizer except on Windows, plus a `<name>_run` runner for `dx fuzz`."""
+
+    # lld-link ignores -fsanitize=, so on Windows the binary links LDC's libFuzzer archive
+    # through :fuzzer_runtime instead. AddressSanitizer stays off there, as for every dx
+    # fuzz binary on Windows (see dx_fuzz_binary_select).
+    windows = Label("@platforms//os:windows")
+    compile_flags = select({
+        windows: ["-fsanitize=fuzzer"],
+        "//conditions:default": ["-fsanitize=fuzzer,address"],
+    })
+    link_flags = select({
+        windows: [],
+        "//conditions:default": ["-fsanitize=fuzzer,address"],
+    })
     kwargs["target_compatible_with"] = (kwargs.get("target_compatible_with") or []) + D_COMPATIBLE_WITH
-    dx_fuzz_test(name, d_binary, {"srcs": srcs, "dopts": flags + (dopts or []), "linkopts": flags + (linkopts or [])}, tags = tags, visibility = visibility, **kwargs)
+    deps = (kwargs.pop("deps", None) or []) + [Label("//d/private/toolchain:fuzzer_runtime")]
+    binary_kwargs = {"srcs": srcs, "deps": deps, "dopts": compile_flags + (dopts or []), "linkopts": link_flags + (linkopts or [])}
+    dx_fuzz_test(name, d_binary, binary_kwargs, tags = tags, visibility = visibility, **kwargs)
 
 def d_bench(name, *, srcs = None, visibility = None, tags = None, **kwargs):
     """A d_binary run by `dx bench`; it writes dx-bench.json to TEST_UNDECLARED_OUTPUTS_DIR."""

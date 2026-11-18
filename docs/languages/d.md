@@ -136,7 +136,7 @@ Thin wrapper over the rules_d d_test rule.
 d_fuzz_test(name, *, srcs = None, visibility = None, tags = None, dopts = None, linkopts = None, **kwargs)
 ```
 
-A libFuzzer binary with AddressSanitizer plus a `<name>_run` runner for `dx fuzz`.
+A libFuzzer binary, with AddressSanitizer except on Windows, plus a `<name>_run` runner for `dx fuzz`.
 
 ### `d_bench`
 

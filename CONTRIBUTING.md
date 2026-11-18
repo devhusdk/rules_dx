@@ -91,6 +91,14 @@ Use these steps when you or an agent start from a fresh Linux checkout, such as 
    tools/dx --version
    ```
 
+   With a read-only key in `BUILDBUDDY_API_KEY` and `remote.buildbuddy.io` reachable, write this line to `user.bazelrc` before `tools/dx --version`, so the first build and every later one read the remote cache:
+
+   ```sh
+   echo 'common --config=bb-ro' >> user.bazelrc
+   ```
+
+   The line holds no key; `--config=bb-ro` reads it from `BUILDBUDDY_API_KEY`.
+
    When `bazel` is not on `PATH`, `tools/dx` downloads the Bazelisk pinned in `tools/bazelisk/pin.env` from GitHub, checks its sha256 and keeps it in `~/.cache/dx/bazelisk`. That Bazelisk fetches Bazel from GitHub releases too, unless you set `BAZELISK_BASE_URL`. The first build takes about 7 minutes on 4 CPUs, up to 6 GB of memory and about 15 GB of disk.
 
    The build needs `bcr.bazel.build`, the Bazel module registry. If the network blocks it, the first build stops with a line that names the host; allow it in the container's network settings.
@@ -107,7 +115,7 @@ Until dx is built, the hooks in `.claude/settings.json` let commands run without
 
 Without user namespaces, Bazel uses `processwrapper-sandbox` instead of `linux-sandbox` on its own. You need no flag.
 
-Without a key, the remote cache returns no hits, so leave `--config=bb` and `--config=ci` off. With a read-only key in `BUILDBUDDY_API_KEY` and `remote.buildbuddy.io` reachable, add `-- --config=bb-ro`.
+Without a key, the remote cache returns no hits, so leave `--config=bb` and `--config=ci` off. With a read-only key, the `user.bazelrc` line from step 1 already turns on `--config=bb-ro`.
 
 ## Add a language
 

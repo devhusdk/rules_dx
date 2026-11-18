@@ -1248,7 +1248,14 @@ pub fn resolve_affected(
             .map(|(_, label, _)| label.clone())
             .collect();
         let owners = loaded.owners_of(&labels);
-        widen_implicit_users(workspace, aspect_labels, loaded, &labels, &owners, &mut widened);
+        widen_implicit_users(
+            workspace,
+            aspect_labels,
+            loaded,
+            &labels,
+            &owners,
+            &mut widened,
+        );
         if owners.is_empty() {
             for (path, _, fallback) in &candidates {
                 if let Some((scope, reason)) = unowned(workspace, path, fallback) {
@@ -3119,7 +3126,12 @@ mod tests {
         write(workspace, "runner/main.rs", "fn main() {}\n").unwrap();
         write(workspace, "cfg/BUILD.bazel", "").unwrap();
         write(workspace, "cfg/typos.toml", "\n").unwrap();
-        write(workspace, ".bazelrc", "common --//cfg:workspace=//cfg:policy\n").unwrap();
+        write(
+            workspace,
+            ".bazelrc",
+            "common --//cfg:workspace=//cfg:policy\n",
+        )
+        .unwrap();
         scratch
     }
 

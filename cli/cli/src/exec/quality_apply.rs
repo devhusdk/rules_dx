@@ -1,9 +1,11 @@
 use dx_apply::FileSystem;
 use dx_exec_core::common::{
-    FileChange, REASON_INCOMPLETE_COLLECTION, REASON_INVALID_EDITS, REASON_STALE_SOURCE,
-    REASON_UNREADABLE_SOURCE, REASON_WRITE_FAILED, SourceRead, apply_to_bytes, read_verified,
+    FileChange, REASON_INCOMPLETE_COLLECTION, REASON_INVALID_EDITS, REASON_OUTSIDE_SCOPE,
+    REASON_STALE_SOURCE, REASON_UNREADABLE_SOURCE, REASON_WRITE_FAILED, SourceRead, apply_to_bytes,
+    read_verified,
 };
 use dx_output::{DiagnosticEvent, Threshold, meets_threshold};
+use dx_plan::resolve::path_in_filter;
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -14,12 +16,14 @@ pub(crate) struct ApplyOutcome {
 }
 
 /// Writes each verified candidate through `fs`; a failed write is reported
-/// as `write_failed` and does not roll back files already written.
+/// as `write_failed` and does not roll back files already written. With
+/// `writable`, a change to any other path is reported as `outside_scope`.
 pub(crate) fn apply_collected_changes(
     fs: &dyn FileSystem,
     workspace: &Path,
     apply: bool,
     complete: bool,
+    writable: Option<&[String]>,
     changes: &[FileChange],
 ) -> ApplyOutcome {
     let mut sources: BTreeMap<String, SourceRead> = BTreeMap::new();
@@ -39,6 +43,11 @@ pub(crate) fn apply_collected_changes(
         }
     } else {
         for change in changes {
+            if writable.is_some_and(|paths| !path_in_filter(&change.path, paths)) {
+                applied.insert(change.path.clone(), false);
+                not_applied.push((change.path.clone(), REASON_OUTSIDE_SCOPE));
+                continue;
+            }
             let reason = match sources.get(&change.path) {
                 Some(SourceRead::Bytes(original)) => {
                     match apply_to_bytes(original, &change.edits) {
@@ -177,8 +186,8 @@ mod tests {
     use dx_apply::RealFileSystem;
     use dx_digest::blake3 as digest;
     use dx_exec_core::common::{
-        FileChange, REASON_INCOMPLETE_COLLECTION, REASON_INVALID_EDITS, REASON_STALE_SOURCE,
-        REASON_WRITE_FAILED,
+        FileChange, REASON_INCOMPLETE_COLLECTION, REASON_INVALID_EDITS, REASON_OUTSIDE_SCOPE,
+        REASON_STALE_SOURCE, REASON_WRITE_FAILED,
     };
 
     fn write_workspace(name: &str, files: &[(&str, &[u8])]) -> tempfile::TempDir {
@@ -203,8 +212,14 @@ mod tests {
     fn check_mode_writes_nothing() {
         let workspace = write_workspace("apply-check", &[("src/a.rs", b"BAD\n")]);
         let change = full_replace("src/a.rs", b"BAD\n", "GOOD\n");
-        let outcome =
-            apply_collected_changes(&RealFileSystem, workspace.path(), false, true, &[change]);
+        let outcome = apply_collected_changes(
+            &RealFileSystem,
+            workspace.path(),
+            false,
+            true,
+            None,
+            &[change],
+        );
         assert_eq!(
             std::fs::read(workspace.path().join("src/a.rs")).expect("read back"),
             b"BAD\n"
@@ -217,8 +232,14 @@ mod tests {
     fn incomplete_collection_writes_nothing() {
         let workspace = write_workspace("apply-incomplete", &[("src/a.rs", b"BAD\n")]);
         let change = full_replace("src/a.rs", b"BAD\n", "GOOD\n");
-        let outcome =
-            apply_collected_changes(&RealFileSystem, workspace.path(), true, false, &[change]);
+        let outcome = apply_collected_changes(
+            &RealFileSystem,
+            workspace.path(),
+            true,
+            false,
+            None,
+            &[change],
+        );
         assert_eq!(
             std::fs::read(workspace.path().join("src/a.rs")).expect("read back"),
             b"BAD\n"
@@ -247,6 +268,7 @@ mod tests {
             workspace.path(),
             true,
             true,
+            None,
             &[valid, stale],
         );
         assert_eq!(
@@ -270,7 +292,7 @@ mod tests {
         let workspace = write_workspace("apply-write-fails", &[("src/a.rs", b"BAD\n")]);
         let change = full_replace("src/a.rs", b"BAD\n", "GOOD\n");
         let fs = FailingWrites::new(&[workspace.path().join("src/a.rs")]);
-        let outcome = apply_collected_changes(&fs, workspace.path(), true, true, &[change]);
+        let outcome = apply_collected_changes(&fs, workspace.path(), true, true, None, &[change]);
         assert_eq!(
             std::fs::read(workspace.path().join("src/a.rs")).expect("read back"),
             b"BAD\n"
@@ -291,7 +313,8 @@ mod tests {
         let first = full_replace("src/a.rs", b"BAD\n", "GOOD\n");
         let second = full_replace("src/b.rs", b"ALSO\n", "FINE\n");
         let fs = FailingWrites::new(&[workspace.path().join("src/a.rs")]);
-        let outcome = apply_collected_changes(&fs, workspace.path(), true, true, &[first, second]);
+        let outcome =
+            apply_collected_changes(&fs, workspace.path(), true, true, None, &[first, second]);
         assert_eq!(
             std::fs::read(workspace.path().join("src/a.rs")).expect("read back"),
             b"BAD\n"
@@ -309,6 +332,38 @@ mod tests {
     }
 
     #[test]
+    fn a_change_outside_the_writable_paths_is_refused() {
+        let workspace = write_workspace(
+            "apply-outside",
+            &[("svc/a.rs", b"BAD\n"), ("lib/BUILD.bazel", b"BAD\n")],
+        );
+        let inside = full_replace("svc/a.rs", b"BAD\n", "GOOD\n");
+        let outside = full_replace("lib/BUILD.bazel", b"BAD\n", "GOOD\n");
+        let writable = ["svc/a.rs".to_owned(), "svc/BUILD.bazel".to_owned()];
+        let outcome = apply_collected_changes(
+            &RealFileSystem,
+            workspace.path(),
+            true,
+            true,
+            Some(&writable),
+            &[inside, outside],
+        );
+        assert_eq!(
+            std::fs::read(workspace.path().join("svc/a.rs")).expect("read back"),
+            b"GOOD\n"
+        );
+        assert_eq!(
+            std::fs::read(workspace.path().join("lib/BUILD.bazel")).expect("read back"),
+            b"BAD\n"
+        );
+        assert_eq!(outcome.applied.get("lib/BUILD.bazel"), Some(&false));
+        assert_eq!(
+            outcome.not_applied,
+            vec![("lib/BUILD.bazel".to_owned(), REASON_OUTSIDE_SCOPE)]
+        );
+    }
+
+    #[test]
     fn invalid_edits_rejected_without_write() {
         let workspace = write_workspace("apply-invalid", &[("src/a.rs", b"BAD\n")]);
         let change = FileChange {
@@ -316,8 +371,14 @@ mod tests {
             original_digest: digest(b"BAD\n"),
             edits: vec![(5, 2, "X".to_owned())],
         };
-        let outcome =
-            apply_collected_changes(&RealFileSystem, workspace.path(), true, true, &[change]);
+        let outcome = apply_collected_changes(
+            &RealFileSystem,
+            workspace.path(),
+            true,
+            true,
+            None,
+            &[change],
+        );
         assert_eq!(
             std::fs::read(workspace.path().join("src/a.rs")).expect("read back"),
             b"BAD\n"

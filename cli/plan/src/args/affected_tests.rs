@@ -36,7 +36,10 @@ fn affected_takes_scopes_on_the_graph_commands() {
         Command::Check,
     ] {
         let name = command.name();
-        for words in [[name, "--affected", "//a/..."], [name, "//a/...", "--affected"]] {
+        for words in [
+            [name, "--affected", "//a/..."],
+            [name, "//a/...", "--affected"],
+        ] {
             let invocation = parse(&strings(&words)).expect("parses");
             assert!(invocation.affected, "{name}");
             assert_eq!(invocation.targets, ["//a/..."], "{name}");
@@ -113,7 +116,13 @@ fn deploy_takes_affected_and_since_but_no_label() {
 
 #[test]
 fn base_needs_affected_and_excludes_since() {
-    let got = parse(&strings(&["test", "--affected", "--base", "origin/develop"])).expect("base");
+    let got = parse(&strings(&[
+        "test",
+        "--affected",
+        "--base",
+        "origin/develop",
+    ]))
+    .expect("base");
     assert_eq!(got.base.as_deref(), Some("origin/develop"));
     assert_eq!(got.since, None);
     assert!(matches!(

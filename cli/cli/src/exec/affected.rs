@@ -426,7 +426,8 @@ pub(crate) fn plan(
 const BAZEL_LOCK: &str = "MODULE.bazel.lock";
 
 /// The package patterns generate must visit for these changed files: each
-/// file's nearest existing directory, so new and deleted files count.
+/// file's nearest existing directory alone, so new and deleted files count and
+/// the packages below stay untouched.
 fn generate_scope(workspace: &Path, changed_files: &[String]) -> Vec<String> {
     let labels: Vec<String> = changed_files
         .iter()
@@ -617,24 +618,44 @@ fn narrow_to_scope(plan: &mut AffectedPlan, scope: &[String]) {
     plan.targets.retain(inside);
     plan.tests.retain(inside);
     plan.format.retain(inside);
-    // Generate patterns are whole packages, so keep the ones that overlap a scope
-    // either way: `//a/...` for a `//a:b` scope, or `//a/b:all` for a `//a/...` scope.
-    plan.generate.retain(|pattern| {
-        exclude::covered(scope, pattern)
-            || scope
-                .iter()
-                .any(|entry| exclude::covered(std::slice::from_ref(pattern), entry))
-    });
+    plan.generate = dx_plan::plan::generate_package_scope_within(&plan.generate, scope);
 }
 
-fn scope_handoff(next: &mut Invocation, plan: &AffectedPlan) {
+fn scope_handoff(next: &mut Invocation, plan: &AffectedPlan, workspace: &Path) {
     next.targets.clone_from(&plan.targets);
     next.affected_handoff = Some(dx_plan::args::AffectedHandoff {
         tests: plan.tests.clone(),
         base: Some(plan.base.clone()),
         generate: plan.generate.clone(),
         format: plan.format.clone(),
+        writable: Some(writable_paths(workspace, &plan.changed_files)),
     });
+}
+
+const BUILD_FILE_NAMES: [&str; 2] = ["BUILD.bazel", "BUILD"];
+
+/// The changed files plus the BUILD file of each one's package, the nearest directory
+/// above it that has one. A fixer may write only these, however far the affected
+/// targets reach.
+fn writable_paths(workspace: &Path, changed_files: &[String]) -> Vec<String> {
+    let mut paths = changed_files.to_vec();
+    for file in changed_files {
+        let mut dir = Path::new(file).parent();
+        while let Some(path) = dir {
+            let build = BUILD_FILE_NAMES
+                .iter()
+                .map(|name| path.join(name))
+                .find(|build| workspace.join(build).is_file());
+            if let Some(build) = build {
+                paths.push(build.to_string_lossy().replace('\\', "/"));
+                break;
+            }
+            dir = path.parent();
+        }
+    }
+    paths.sort();
+    paths.dedup();
+    paths
 }
 
 pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
@@ -692,7 +713,7 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         return code;
     }
-    scope_handoff(&mut next, &plan);
+    scope_handoff(&mut next, &plan, workspace);
     if invocation.output != OutputMode::Json {
         return execute(
             &next,
@@ -911,7 +932,7 @@ mod tests {
         };
         assert_eq!(
             generate_scope(dir.path(), &files(&["MODULE.bazel.lock", "svc/a.py"])),
-            ["//svc/..."]
+            ["//svc:all"]
         );
         assert!(
             generate_scope(dir.path(), &files(&["MODULE.bazel.lock"])).is_empty(),
@@ -920,7 +941,7 @@ mod tests {
         );
         assert_eq!(
             generate_scope(dir.path(), &files(&["MODULE.bazel", "svc/a.py"])),
-            ["//..."]
+            ["//:all", "//svc:all"]
         );
     }
 
@@ -937,11 +958,38 @@ mod tests {
                 dir.path(),
                 &files(&["svc/new.py", "svc/gone/x.py", "lib/a/b.py"])
             ),
-            files(&["//lib/a/...", "//svc/..."])
+            files(&["//lib/a:all", "//svc:all"])
         );
         assert_eq!(
             generate_scope(dir.path(), &files(&["README.md", "svc/new.py"])),
-            files(&["//..."])
+            files(&["//:all", "//svc:all"])
+        );
+    }
+
+    #[test]
+    fn writable_paths_are_the_changed_files_and_their_package_build_files() {
+        let dir = dx_test_scratch::scratch("dx-affected-writable-").unwrap();
+        write(dir.path(), "BUILD.bazel", "").unwrap();
+        write(dir.path(), "svc/BUILD", "").unwrap();
+        write(dir.path(), "svc/src/a.rs", "").unwrap();
+        write(dir.path(), "svc/sub/BUILD.bazel", "").unwrap();
+        write(dir.path(), "lib/b.py", "").unwrap();
+        let files = |names: &[&str]| -> Vec<String> {
+            names.iter().map(|name| (*name).to_owned()).collect()
+        };
+        assert_eq!(
+            writable_paths(
+                dir.path(),
+                &files(&["svc/src/a.rs", "lib/b.py", "svc/gone/c.rs", "README.md"])
+            ),
+            files(&[
+                "BUILD.bazel",
+                "README.md",
+                "lib/b.py",
+                "svc/BUILD",
+                "svc/gone/c.rs",
+                "svc/src/a.rs",
+            ])
         );
     }
 
@@ -1382,7 +1430,7 @@ mod tests {
         let graph = graph();
         let (plan, _) = run(dir.path(), Command::Check, &[&graph]);
         assert_eq!(plan.targets, ["//a:lib", "//a:t"]);
-        assert_eq!(plan.generate, ["//a/..."]);
+        assert_eq!(plan.generate, ["//a:all"]);
         assert_eq!(plan.format, ["//a:lib"]);
     }
 
@@ -1692,7 +1740,7 @@ mod tests {
         assert_eq!(plan.targets, labels(&["//svc/api:lib", "//svc:bin"]));
         assert_eq!(plan.tests, labels(&["//svc/api:test"]));
         assert_eq!(plan.format, labels(&["//svc/api:lib"]));
-        assert_eq!(plan.generate, labels(&["//svc/api:all", "//..."]));
+        assert_eq!(plan.generate, labels(&["//svc:all", "//svc/api/..."]));
         narrow_to_scope(&mut plan, &labels(&["//web/..."]));
         assert!(plan.empty());
     }

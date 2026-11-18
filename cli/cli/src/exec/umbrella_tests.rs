@@ -3399,7 +3399,7 @@ fn check_loads_the_rule_graph_once_across_phases() {
         3,
         "every analysis phase plans the same owners: {out}"
     );
-    assert!(out.contains("Running generate for //pkg/..."), "{out}");
+    assert!(out.contains("Running generate for //pkg:all"), "{out}");
     assert_eq!(graph_calls(&harness), 1, "one graph load for the run");
 }
 

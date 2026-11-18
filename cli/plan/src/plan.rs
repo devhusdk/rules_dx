@@ -15,7 +15,7 @@ use dx_process::ProtectedFlag;
 
 pub use generate::{
     GENERATE_ENV_INTENDED, GENERATE_ENV_MODE, GENERATE_ENV_SCOPE, generate_package_scope,
-    generate_scope_json, plan_generate,
+    generate_package_scope_within, generate_scope_json, plan_generate,
 };
 pub use managed::{plan_managed, plan_managed_with_roots};
 pub use quality::{

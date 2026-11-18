@@ -54,6 +54,8 @@ A scope picks what to check. Pass a label such as `//pkg:target` (one Bazel targ
 - `--here` does not combine with scopes or `--affected`.
 - `--affected` with scopes keeps only the affected targets inside them.
 - With nothing affected, dx prints `no affected targets`, runs no phase, and exits `0`. With `--diff`, that line goes to stderr and stdout stays empty.
+- The generate phase writes only the `BUILD` files of packages in scope. A file or `//pkg:target` is its own package. `//pkg/...` or a directory is the tree under it. `--affected` is the directories of the changed files.
+- With `--affected`, the other phases write only the changed files and the `BUILD` file of each one's package. A fix to any other file is refused as `outside_scope`.
 
 Read [Scope defaults](scope-defaults.md) for details.
 

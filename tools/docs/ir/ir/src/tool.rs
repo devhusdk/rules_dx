@@ -120,6 +120,41 @@ impl Flags {
     }
 }
 
+/// One source file of a documented library, as one line of the srcs manifest that `shard.bzl` writes.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Source {
+    pub exec_path: String,
+    pub rel: String,
+    pub generated: bool,
+}
+
+/// Parses a srcs manifest of `exec_path<TAB>rel<TAB>generated` lines, where generated is `0` or `1`.
+///
+/// # Errors
+///
+/// Returns an error naming the first line without three fields or with another generated flag.
+pub fn parse_sources(text: &str) -> Result<Vec<Source>, String> {
+    text.lines()
+        .filter(|line| !line.is_empty())
+        .map(|line| {
+            let fields: Vec<&str> = line.split('\t').collect();
+            let [exec_path, rel, generated] = fields.as_slice() else {
+                return Err(format!("bad srcs manifest line '{line}'"));
+            };
+            let generated = match *generated {
+                "1" => true,
+                "0" => false,
+                _ => return Err(format!("bad srcs manifest line '{line}'")),
+            };
+            Ok(Source {
+                exec_path: (*exec_path).to_owned(),
+                rel: (*rel).to_owned(),
+                generated,
+            })
+        })
+        .collect()
+}
+
 /// Encodes and writes one shard.
 ///
 /// # Errors
@@ -252,5 +287,40 @@ mod tests {
         };
         let detail = write_shard(&out, &shard).err().unwrap_or_default();
         assert!(detail.starts_with("cannot write "), "{detail}");
+    }
+
+    #[test]
+    fn sources_are_parsed() {
+        assert_eq!(
+            parse_sources("bazel-out/a.d\tpkg/a.d\t1\n\nb.d\tpkg/b.d\t0\n"),
+            Ok(vec![
+                Source {
+                    exec_path: "bazel-out/a.d".to_owned(),
+                    rel: "pkg/a.d".to_owned(),
+                    generated: true,
+                },
+                Source {
+                    exec_path: "b.d".to_owned(),
+                    rel: "pkg/b.d".to_owned(),
+                    generated: false,
+                },
+            ])
+        );
+    }
+
+    #[test]
+    fn malformed_source_lines_are_rejected() {
+        assert_eq!(
+            parse_sources("a\tb\n"),
+            Err("bad srcs manifest line 'a\tb'".to_owned())
+        );
+        assert_eq!(
+            parse_sources("a\tb\t0\tc\n"),
+            Err("bad srcs manifest line 'a\tb\t0\tc'".to_owned())
+        );
+        assert_eq!(
+            parse_sources("a\tb\tyes\n"),
+            Err("bad srcs manifest line 'a\tb\tyes'".to_owned())
+        );
     }
 }

@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use dx_plan::args::help_surface;
+use dx_plan::args::{help_environment, help_surface};
 use serde_json::{Value, json};
 
 /// The files under `api/` this crate writes, in the order `update` writes them.
@@ -19,7 +19,8 @@ pub fn render() -> Result<BTreeMap<&'static str, String>, serde_json::Error> {
     ]))
 }
 
-/// Each `dx` command and subcommand with its flags, their accepted values and defaults, and exit codes.
+/// Each `dx` command and subcommand with its flags and positionals, their accepted values and defaults, and exit
+/// codes, then the environment variables `dx --help` documents.
 fn cli_json() -> Result<String, serde_json::Error> {
     let commands: Vec<Value> = help_surface()
         .into_iter()
@@ -36,16 +37,41 @@ fn cli_json() -> Result<String, serde_json::Error> {
                     })
                 })
                 .collect();
+            let positionals: Vec<Value> = entry
+                .positionals
+                .into_iter()
+                .map(|positional| {
+                    json!({
+                        "name": positional.name,
+                        "required": positional.required,
+                        "multiple": positional.multiple,
+                        "values": positional.values,
+                        "defaults": positional.defaults,
+                    })
+                })
+                .collect();
             let mut command = vec!["dx".to_owned()];
             command.extend(entry.path);
             json!({
                 "command": command.join(" "),
                 "flags": flags,
+                "positionals": positionals,
                 "exit_codes": entry.exit_codes,
             })
         })
         .collect();
-    let mut text = serde_json::to_string_pretty(&json!({ "commands": commands }))?;
+    let environment: Vec<Value> = help_environment()
+        .into_iter()
+        .map(|env| {
+            json!({
+                "name": env.name,
+                "shape": env.shape,
+                "default_for": env.default_for,
+            })
+        })
+        .collect();
+    let mut text =
+        serde_json::to_string_pretty(&json!({ "commands": commands, "environment": environment }))?;
     text.push('\n');
     Ok(text)
 }
@@ -132,6 +158,24 @@ mod tests {
             commands
                 .iter()
                 .any(|command| command["command"] == "dx test"),
+            "{cli}"
+        );
+        let test = commands
+            .iter()
+            .find(|command| command["command"] == "dx test")
+            .expect("dx test entry");
+        assert!(test["positionals"].as_array().is_some(), "{test}");
+        let environment = cli["environment"].as_array().expect("environment list");
+        assert!(
+            environment
+                .iter()
+                .any(|env| env["name"] == "DX_OUTPUT" && env["default_for"] == "--output"),
+            "{cli}"
+        );
+        assert!(
+            environment
+                .iter()
+                .any(|env| env["name"] == "NO_COLOR" && env["default_for"].is_null()),
             "{cli}"
         );
         assert!(files["schemas.txt"].starts_with("events.schema.json "));

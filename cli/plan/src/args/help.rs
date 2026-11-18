@@ -111,6 +111,21 @@ pub(crate) fn render_top_help() -> String {
     out
 }
 
+/// Variables `dx --help` documents besides the `DX_` flag defaults: name, value shape and meaning.
+pub(crate) const OTHER_ENV: [(&str, &str, &str); 3] = [
+    ("NO_COLOR", "non-empty", "Disable color output."),
+    (
+        "BUILD_WORKSPACE_DIRECTORY",
+        "dir",
+        "Workspace start under `bazel run`.",
+    ),
+    (
+        "BUILD_WORKING_DIRECTORY",
+        "dir",
+        "Current directory under `bazel run`, for `--here` and a relative `worktree release <path>`.",
+    ),
+];
+
 fn render_env_help() -> String {
     use dx_adopt::defaults::ENV_DEFAULTS;
     let mut out = String::new();
@@ -125,12 +140,10 @@ fn render_env_help() -> String {
     out.push_str(
         "  <duration> is seconds, or a number ending in s, m or h. 0 fails at once when no slot is free.\n",
     );
-    out.push_str("  NO_COLOR=<non-empty>\n");
-    out.push_str("      Disable color output.\n");
-    out.push_str("  BUILD_WORKSPACE_DIRECTORY=<dir>\n");
-    out.push_str("      Workspace start under `bazel run`.\n");
-    out.push_str("  BUILD_WORKING_DIRECTORY=<dir>\n");
-    out.push_str("      Current directory under `bazel run`, for `--here` and a relative `worktree release <path>`.\n");
+    for (env, shape, meaning) in OTHER_ENV {
+        writeln!(out, "  {env}=<{shape}>").ok();
+        writeln!(out, "      {meaning}").ok();
+    }
     out.push_str("  In CI the DX_ variables are ignored; flags still win.\n");
     out
 }

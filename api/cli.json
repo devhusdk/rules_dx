@@ -12,7 +12,8 @@
           "name": "--version",
           "values": []
         }
-      ]
+      ],
+      "positionals": []
     },
     {
       "command": "dx security",
@@ -171,6 +172,15 @@
           "name": "--workspace",
           "values": []
         }
+      ],
+      "positionals": [
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "TARGETS",
+          "required": false,
+          "values": []
+        }
       ]
     },
     {
@@ -310,6 +320,15 @@
           "aliases": [],
           "defaults": [],
           "name": "--workspace",
+          "values": []
+        }
+      ],
+      "positionals": [
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "TARGETS",
+          "required": false,
           "values": []
         }
       ]
@@ -465,6 +484,22 @@
           "name": "--workspace",
           "values": []
         }
+      ],
+      "positionals": [
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "TARGETS",
+          "required": false,
+          "values": []
+        },
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "BAZEL_OPTIONS",
+          "required": false,
+          "values": []
+        }
       ]
     },
     {
@@ -606,6 +641,22 @@
           "name": "--workspace",
           "values": []
         }
+      ],
+      "positionals": [
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "TARGETS",
+          "required": false,
+          "values": []
+        },
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "BAZEL_OPTIONS",
+          "required": false,
+          "values": []
+        }
       ]
     },
     {
@@ -741,6 +792,22 @@
           "name": "--workspace",
           "values": []
         }
+      ],
+      "positionals": [
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "TARGETS",
+          "required": false,
+          "values": []
+        },
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "BAZEL_OPTIONS",
+          "required": false,
+          "values": []
+        }
       ]
     },
     {
@@ -834,6 +901,22 @@
           "aliases": [],
           "defaults": [],
           "name": "--workspace",
+          "values": []
+        }
+      ],
+      "positionals": [
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "TARGETS",
+          "required": false,
+          "values": []
+        },
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "BAZEL_OPTIONS",
+          "required": false,
           "values": []
         }
       ]
@@ -967,6 +1050,22 @@
           "name": "--workspace",
           "values": []
         }
+      ],
+      "positionals": [
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "TARGETS",
+          "required": false,
+          "values": []
+        },
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "BAZEL_OPTIONS",
+          "required": false,
+          "values": []
+        }
       ]
     },
     {
@@ -1096,6 +1195,22 @@
           "aliases": [],
           "defaults": [],
           "name": "--workspace",
+          "values": []
+        }
+      ],
+      "positionals": [
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "TARGETS",
+          "required": false,
+          "values": []
+        },
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "BAZEL_OPTIONS",
+          "required": false,
           "values": []
         }
       ]
@@ -1233,6 +1348,22 @@
           "name": "--workspace",
           "values": []
         }
+      ],
+      "positionals": [
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "TARGETS",
+          "required": false,
+          "values": []
+        },
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "BAZEL_OPTIONS",
+          "required": false,
+          "values": []
+        }
       ]
     },
     {
@@ -1320,6 +1451,22 @@
           "aliases": [],
           "defaults": [],
           "name": "--workspace",
+          "values": []
+        }
+      ],
+      "positionals": [
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "TARGETS",
+          "required": false,
+          "values": []
+        },
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "BAZEL_OPTIONS",
+          "required": false,
           "values": []
         }
       ]
@@ -1417,6 +1564,22 @@
           "name": "--workspace",
           "values": []
         }
+      ],
+      "positionals": [
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "TARGET",
+          "required": false,
+          "values": []
+        },
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "APP_ARGS",
+          "required": false,
+          "values": []
+        }
       ]
     },
     {
@@ -1511,6 +1674,22 @@
           "aliases": [],
           "defaults": [],
           "name": "--workspace",
+          "values": []
+        }
+      ],
+      "positionals": [
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "TARGET",
+          "required": false,
+          "values": []
+        },
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "APP_ARGS",
+          "required": false,
           "values": []
         }
       ]
@@ -1660,6 +1839,22 @@
           "name": "--workspace",
           "values": []
         }
+      ],
+      "positionals": [
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "TARGETS",
+          "required": false,
+          "values": []
+        },
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "BAZEL_OPTIONS",
+          "required": false,
+          "values": []
+        }
       ]
     },
     {
@@ -1743,7 +1938,8 @@
           "name": "--workspace",
           "values": []
         }
-      ]
+      ],
+      "positionals": []
     },
     {
       "command": "dx update",
@@ -1907,6 +2103,15 @@
           "name": "--workspace",
           "values": []
         }
+      ],
+      "positionals": [
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "TARGETS",
+          "required": false,
+          "values": []
+        }
       ]
     },
     {
@@ -1976,6 +2181,22 @@
           "aliases": [],
           "defaults": [],
           "name": "--workspace",
+          "values": []
+        }
+      ],
+      "positionals": [
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "TARGETS",
+          "required": false,
+          "values": []
+        },
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "BAZEL_OPTIONS",
+          "required": false,
           "values": []
         }
       ]
@@ -2088,6 +2309,15 @@
           "name": "--workspace",
           "values": []
         }
+      ],
+      "positionals": [
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "TARGETS",
+          "required": false,
+          "values": []
+        }
       ]
     },
     {
@@ -2171,7 +2401,8 @@
           "name": "--workspace",
           "values": []
         }
-      ]
+      ],
+      "positionals": []
     },
     {
       "command": "dx status",
@@ -2254,7 +2485,8 @@
           "name": "--workspace",
           "values": []
         }
-      ]
+      ],
+      "positionals": []
     },
     {
       "command": "dx watch",
@@ -2416,6 +2648,22 @@
           "name": "--workspace",
           "values": []
         }
+      ],
+      "positionals": [
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "TARGETS",
+          "required": false,
+          "values": []
+        },
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "BAZEL_OPTIONS",
+          "required": false,
+          "values": []
+        }
       ]
     },
     {
@@ -2474,6 +2722,15 @@
           "aliases": [],
           "defaults": [],
           "name": "--workspace",
+          "values": []
+        }
+      ],
+      "positionals": [
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "TARGETS",
+          "required": false,
           "values": []
         }
       ]
@@ -2575,6 +2832,22 @@
           "aliases": [],
           "defaults": [],
           "name": "--workspace",
+          "values": []
+        }
+      ],
+      "positionals": [
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "TARGETS",
+          "required": false,
+          "values": []
+        },
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "BAZEL_OPTIONS",
+          "required": false,
           "values": []
         }
       ]
@@ -2684,6 +2957,15 @@
           "name": "--workspace",
           "values": []
         }
+      ],
+      "positionals": [
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "TARGETS",
+          "required": false,
+          "values": []
+        }
       ]
     },
     {
@@ -2773,6 +3055,15 @@
           "name": "--workspace",
           "values": []
         }
+      ],
+      "positionals": [
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "TARGETS",
+          "required": false,
+          "values": []
+        }
       ]
     },
     {
@@ -2842,6 +3133,15 @@
           "aliases": [],
           "defaults": [],
           "name": "--workspace",
+          "values": []
+        }
+      ],
+      "positionals": [
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "TARGETS",
+          "required": false,
           "values": []
         }
       ]
@@ -2957,7 +3257,55 @@
           "name": "--workspace",
           "values": []
         }
+      ],
+      "positionals": [
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "TARGETS",
+          "required": false,
+          "values": []
+        },
+        {
+          "defaults": [],
+          "multiple": true,
+          "name": "BAZEL_OPTIONS",
+          "required": false,
+          "values": []
+        }
       ]
+    }
+  ],
+  "environment": [
+    {
+      "default_for": "--output",
+      "name": "DX_OUTPUT",
+      "shape": "mode"
+    },
+    {
+      "default_for": "--build-slots",
+      "name": "DX_BUILD_SLOTS",
+      "shape": "auto|n|off"
+    },
+    {
+      "default_for": "--build-slots-wait",
+      "name": "DX_BUILD_SLOTS_WAIT",
+      "shape": "duration"
+    },
+    {
+      "default_for": null,
+      "name": "NO_COLOR",
+      "shape": "non-empty"
+    },
+    {
+      "default_for": null,
+      "name": "BUILD_WORKSPACE_DIRECTORY",
+      "shape": "dir"
+    },
+    {
+      "default_for": null,
+      "name": "BUILD_WORKING_DIRECTORY",
+      "shape": "dir"
     }
   ]
 }

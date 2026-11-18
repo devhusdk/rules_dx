@@ -146,8 +146,23 @@ fn external_repos(case: &Case) -> String {
 fn run_in(case: &Case, args: &[&str], what: &str) -> Run {
     crate::stage("quickstart_consumer_test", what);
     let run = bazel(case, args);
+    if run.status.code() != Some(0) {
+        report_test_logs(case, what);
+    }
     ok(&run, what);
     run
+}
+
+/// Copies the consumer's `test.log` files to the undeclared outputs and writes their heads to
+/// the uncaptured stderr.
+fn report_test_logs(case: &Case, what: &str) {
+    use std::io::Write;
+    let Some(outputs) = std::env::var_os("TEST_UNDECLARED_OUTPUTS_DIR") else {
+        return;
+    };
+    let dest = std::path::Path::new(&outputs).join("consumer_testlogs");
+    let heads = dx_testing::copy_test_logs(&case.root().join("bazel-testlogs"), &dest);
+    writeln!(std::io::stderr(), "{what} consumer test logs:{heads}").expect("stderr is writable");
 }
 
 /// Gives the consumer the patch files named by `rules_py_override` and `rules_flutter_override` and the lockfile's crate patches, which resolve in the root module.

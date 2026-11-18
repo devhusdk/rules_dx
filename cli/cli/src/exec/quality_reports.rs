@@ -5,11 +5,11 @@ use std::path::Path;
 use dx_digest::blake3 as digest;
 use dx_output::{DiagnosticEvent, OutputMode, Snapshot, report_event};
 
+use super::results::Collected;
 use dx_exec_core::common::{
     SourceRead, apply_to_bytes, check_stdout_write, emit_built, report_failed,
     write_report_document,
 };
-use super::results::Collected;
 use dx_plan::reports::{PlannedReport, ReportError, render_sarif_with_failures};
 
 pub(crate) struct StandardReports<'a> {
@@ -234,9 +234,9 @@ pub(crate) fn write_standard_reports(
 
 #[cfg(test)]
 mod tests {
-    use dx_exec_core::common::FileChange;
     use super::super::test_support::temp_dir;
     use super::*;
+    use dx_exec_core::common::FileChange;
     use dx_output::Severity;
 
     const ORIGINAL: &[u8] = "é = 1\r\nbad\r\n".as_bytes();

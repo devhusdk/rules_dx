@@ -48,7 +48,9 @@ fn raw_current_dir_reads_stay_out_of_cli_production_code() {
         let before = sources.len();
         rust_sources(&workspace_root().join(dir), &mut sources);
         assert!(
-            sources[before..].iter().any(|path| path.ends_with(sentinel)),
+            sources[before..]
+                .iter()
+                .any(|path| path.ends_with(sentinel)),
             "{dir} sources are not in the test data"
         );
     }

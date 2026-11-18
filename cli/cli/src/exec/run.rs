@@ -96,7 +96,12 @@ impl Launcher<'_> {
         let json = invocation.output == OutputMode::Json;
         let mut phase = dx_plan::slots::Phase::new(invocation.command);
         if let Err(stop) = phase.need(true, &mut *err, &mut *out) {
-            return Some(dx_exec_core::failure::slot_stop(invocation.output, out, err, stop));
+            return Some(dx_exec_core::failure::slot_stop(
+                invocation.output,
+                out,
+                err,
+                stop,
+            ));
         }
         let mut options = invocation.quiet_bazel_options();
         let trace = if invocation.timings {

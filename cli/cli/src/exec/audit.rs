@@ -1,12 +1,12 @@
+use super::pinned_tool::QueryBazel;
+use dx_audit::secrets::CONFIG_FILE_NAME;
+use dx_error::DxError;
 use dx_exec_core::common::{
     CODE_AUDIT_ACCEPTED, CODE_AUDIT_FAILED, CODE_INVALID_ARGUMENTS, CODE_INVALID_RESULT,
     CODE_OFFLINE_REQUIRED, Env, audit_clean_code, check_stdout_write, emit_built, emit_event,
     frozen_summary, offline_summary, pre_exec, report_dx_error, report_failed, text_finding,
     write_report_document,
 };
-use super::pinned_tool::QueryBazel;
-use dx_audit::secrets::CONFIG_FILE_NAME;
-use dx_error::DxError;
 use dx_output::{
     DiagnosticEvent, FindingRecord, FinishedCounts, NoticeEvent, OutputMode, PackageRef, Severity,
     Threshold, command_finished, command_started, diagnostic_event, error_event, notice_event,

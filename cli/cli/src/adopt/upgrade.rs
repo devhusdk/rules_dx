@@ -2,10 +2,10 @@ use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::Path;
 
+use dx_error::{DxError, ErrorKind};
 use dx_exec_core::common::{
     check_stdout_write, emit_built, emit_event, emit_started, report_dx_error,
 };
-use dx_error::{DxError, ErrorKind};
 use dx_output::{FinishedCounts, StatusEvent, command_finished, command_started, status_event};
 use dx_plan::args::Invocation;
 use dx_plan::resolve::QueryRunner;

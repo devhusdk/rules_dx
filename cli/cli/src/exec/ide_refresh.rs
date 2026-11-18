@@ -84,11 +84,7 @@ impl dx_ide::Runner for BazelBuild<'_> {
         self.build_files(&labels, &[])
     }
 
-    fn build_group(
-        &self,
-        labels: &[String],
-        group: &str,
-    ) -> Result<Vec<PathBuf>, DxError> {
+    fn build_group(&self, labels: &[String], group: &str) -> Result<Vec<PathBuf>, DxError> {
         self.build_files(labels, &[format!("--output_groups={group}")])
     }
 

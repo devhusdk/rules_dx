@@ -1,7 +1,7 @@
 //! The one-line notice for targets Bazel skipped as incompatible with the platform.
 
-use dx_exec_core::common::{CODE_TARGETS_SKIPPED, emit_built};
 use dx_bep::{EventGap, EventLedger};
+use dx_exec_core::common::{CODE_TARGETS_SKIPPED, emit_built};
 use dx_output::{NoticeEvent, OutputMode, notice_event};
 use dx_plan::args::Invocation;
 use dx_plan::resolve::{QueryRunner, SelectionContext};

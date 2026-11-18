@@ -1,9 +1,9 @@
-use dx_exec_core::common::{
-    CODE_OFFLINE_REQUIRED, Env, check_stdout_write, emit_built, operational, pre_exec,
-};
 use super::update_unused::{self, Missing, Unused};
 use dx_adopt::dependency_sets::{self, Ecosystem, Selection};
 use dx_error::DxError;
+use dx_exec_core::common::{
+    CODE_OFFLINE_REQUIRED, Env, check_stdout_write, emit_built, operational, pre_exec,
+};
 use dx_output::{
     FinishedCounts, NoticeEvent, OutputMode, command_finished, command_started, error_event,
     notice_event,
@@ -587,7 +587,8 @@ fn collect_cabal(acc: &mut Acc, cx: &Ctx<'_>) {
         .cloned()
         .collect();
     if freezes.is_empty() {
-        acc.read_errors.extend(stack_lock_errors(name, &target.set.locks));
+        acc.read_errors
+            .extend(stack_lock_errors(name, &target.set.locks));
     }
     merge(
         &mut acc.found,

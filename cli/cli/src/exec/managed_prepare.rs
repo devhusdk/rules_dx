@@ -1,24 +1,22 @@
 use std::path::{Path, PathBuf};
 
+use super::managed_codegen::{collect_managed_codegen, empty_generated_id, stage_codegen_side};
+use super::managed_env::{collect_managed_env, empty_env_id, stage_env_side};
 use dx_exec_core::common::{
     CODE_INVALID_BEP, CODE_INVALID_RESULT, CODE_MANAGED_COMMIT_FAILED, CODE_UNREADABLE_BEP,
 };
-use super::managed_codegen::{collect_managed_codegen, empty_generated_id, stage_codegen_side};
-use super::managed_env::{collect_managed_env, empty_env_id, stage_env_side};
 
 pub(crate) fn map_commit_error(error: dx_setup::CommitError) -> dx_error::DxError {
     match error {
         dx_setup::CommitError::NoCapability => dx_error::DxError::failure(
             "selected scope provides neither environment nor codegen capability",
         ),
-        other @
-(dx_setup::CommitError::WorkspaceRoot { .. } | dx_setup::CommitError::Busy {
-.. } | dx_setup::CommitError::LockFailed { .. } |
-dx_setup::CommitError::CurrentInvalid { .. } |
-dx_setup::CommitError::RecordMismatch { .. } |
-dx_setup::CommitError::Install { .. }) => {
-            dx_error::DxError::failure(other.to_string())
-        }
+        other @ (dx_setup::CommitError::WorkspaceRoot { .. }
+        | dx_setup::CommitError::Busy { .. }
+        | dx_setup::CommitError::LockFailed { .. }
+        | dx_setup::CommitError::CurrentInvalid { .. }
+        | dx_setup::CommitError::RecordMismatch { .. }
+        | dx_setup::CommitError::Install { .. }) => dx_error::DxError::failure(other.to_string()),
     }
 }
 

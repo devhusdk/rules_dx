@@ -466,8 +466,7 @@ fn print_status_text(
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
-    if let Err(exit) =
-        check_stdout_write(writeln!(out, "{}", dx_adopt::render_status_text(checks)))
+    if let Err(exit) = check_stdout_write(writeln!(out, "{}", dx_adopt::render_status_text(checks)))
     {
         return exit;
     }

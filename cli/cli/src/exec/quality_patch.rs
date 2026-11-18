@@ -1,5 +1,5 @@
-use dx_exec_core::common::{FileChange, SourceRead, apply_to_bytes};
 use dx_diff::{FilePatch, PatchKind, render_patch};
+use dx_exec_core::common::{FileChange, SourceRead, apply_to_bytes};
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -23,25 +23,25 @@ pub(crate) fn render_diff_patch(
     let mut owned: Vec<(String, String, String)> = Vec::with_capacity(changes.len());
     for change in changes {
         let Some(SourceRead::Bytes(original)) = sources.get(&change.path) else {
-                return Err(PatchError::MissingSource {
-                    path: change.path.clone(),
-                });
-            };
+            return Err(PatchError::MissingSource {
+                path: change.path.clone(),
+            });
+        };
         let Ok(original_text) = std::str::from_utf8(original) else {
-                return Err(PatchError::NonUtf8Source {
-                    path: change.path.clone(),
-                });
-            };
+            return Err(PatchError::NonUtf8Source {
+                path: change.path.clone(),
+            });
+        };
         let Some(candidate) = apply_to_bytes(original, &change.edits) else {
             return Err(PatchError::Unappliable {
                 path: change.path.clone(),
             });
         };
         let Ok(candidate_text) = String::from_utf8(candidate) else {
-                return Err(PatchError::NonUtf8Candidate {
-                    path: change.path.clone(),
-                });
-            };
+            return Err(PatchError::NonUtf8Candidate {
+                path: change.path.clone(),
+            });
+        };
         owned.push((
             change.path.clone(),
             original_text.to_owned(),
@@ -64,8 +64,8 @@ pub(crate) fn render_diff_patch(
 
 #[cfg(test)]
 mod tests {
-    use dx_exec_core::common::{FileChange, SourceRead};
     use super::{PatchError, render_diff_patch};
+    use dx_exec_core::common::{FileChange, SourceRead};
     use std::collections::BTreeMap;
 
     #[test]

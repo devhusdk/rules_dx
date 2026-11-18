@@ -1,6 +1,3 @@
-use dx_exec_core::common::{
-    Env, check_stdout_write, emit_built, frozen_summary, offline_summary, pre_exec,
-};
 use super::super::pinned_tool::{PinnedTool, PinnedToolError, QueryBazel, resolve_pinned};
 use super::super::staged::{StagedError, ToolRun, run_staged_core, write_outputs};
 use super::{
@@ -8,6 +5,9 @@ use super::{
     unavailable_message,
 };
 use dx_adopt::dependency_sets::{self, Ecosystem, ResolvedSet, ResolvedTarget, Selection};
+use dx_exec_core::common::{
+    Env, check_stdout_write, emit_built, frozen_summary, offline_summary, pre_exec,
+};
 use dx_plan::args::Invocation;
 use std::collections::BTreeMap;
 

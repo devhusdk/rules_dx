@@ -5,11 +5,11 @@
 //! Bazel's exit code only when a failure there may be its own, so a lint failure leaves format
 //! clean.
 
+use dx_bep::aspect_key;
 use dx_exec_core::common::{
     BAZEL_INTERRUPTED, Env, PhaseKind, collect_output_account, read_actions, run_bazel_output,
     server_died,
 };
-use dx_bep::aspect_key;
 use dx_output::ActionCounts;
 use dx_plan::args::{Command, QualityRequest, UmbrellaRequest};
 use dx_plan::plan::{Consumer, OUTPUT_GROUP, Selection, command_aspects, plan_shared_build};

@@ -1,9 +1,9 @@
-use dx_exec_core::common::{check_stdout_write, emit_built};
 use dx_adopt::dependency_sets::{
     Ecosystem, HexBackend, ResolvedSet, ResolvedTarget, Selection, cargo_fetch_repository,
     hex_backend,
 };
 use dx_ecosystems::Language;
+use dx_exec_core::common::{check_stdout_write, emit_built};
 use dx_output::{NoticeEvent, notice_event};
 use dx_path::label::Label;
 use dx_plan::resolve::{QueryRunner, run_label_query_file};

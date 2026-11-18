@@ -1,7 +1,17 @@
-use dx_exec_core::bazel_hint::{recorded, refine};
 use super::breaking_base;
 use super::build_failures::report_build_failures;
 use super::check_build::{SharedChecks, SharedRead};
+use super::link_check;
+use super::pinned_tool::QueryBazel;
+use super::quality_apply::{apply_collected_changes, project_status, terminal_on_disk};
+use super::quality_emit::{EmitCounts, EmitInputs, emit_findings};
+use super::quality_patch::render_diff_patch;
+use super::quality_reports::{
+    Snapshots, StandardReports, verified_snapshots, write_standard_reports,
+};
+use super::results::{Collected, collect_results, invert_repo_mapping};
+use dx_apply::{FileSystem, RealFileSystem};
+use dx_exec_core::bazel_hint::{recorded, refine};
 use dx_exec_core::common::{
     ActionTally, BAZEL_INTERRUPTED, CODE_ANALYSIS_FAILED, CODE_BAZEL_FAILED, CODE_BAZEL_SIGNALLED,
     CODE_DIFF_FAILED, CODE_INVALID_ARGUMENTS, CODE_NOT_CONVERGED, CODE_UNREADABLE_BEP, Env,
@@ -12,17 +22,7 @@ use dx_exec_core::common::{
     resolve_failed, run_bazel_output, server_died, warn_scope_excluded,
 };
 use dx_exec_core::guidance::{apply_hint, rerun_hint};
-use super::link_check;
 use dx_exec_core::notice_codes::{CODE_CHANGES_PROPOSED, CODE_TOOL_SKIPPED};
-use super::pinned_tool::QueryBazel;
-use super::quality_apply::{apply_collected_changes, project_status, terminal_on_disk};
-use super::quality_emit::{EmitCounts, EmitInputs, emit_findings};
-use super::quality_patch::render_diff_patch;
-use super::quality_reports::{
-    Snapshots, StandardReports, verified_snapshots, write_standard_reports,
-};
-use super::results::{Collected, collect_results, invert_repo_mapping};
-use dx_apply::{FileSystem, RealFileSystem};
 use dx_output::{
     ActionCounts, DiagnosticEvent, FindingCounts, FinishedCounts, NoticeEvent, OutputMode,
     Severity, command_finished, meets_threshold, notice_event, quality_started,

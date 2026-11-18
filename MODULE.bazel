@@ -2623,6 +2623,7 @@ crate.from_cargo(
         "//cli/shard_writer:Cargo.toml",
         "//cli/bep:Cargo.toml",
         "//cli/cli:Cargo.toml",
+        "//cli/exec_core:Cargo.toml",
         "//cli/diff:Cargo.toml",
         "//cli/digest:Cargo.toml",
         "//cli/dx_config:Cargo.toml",

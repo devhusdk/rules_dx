@@ -1,6 +1,6 @@
-use dx_exec_core::common::CODE_FROZEN_LOCKED;
 use super::super::test_support::*;
 use super::*;
+use dx_exec_core::common::CODE_FROZEN_LOCKED;
 
 const HELLO_CARGO: &str = "rust/tests/fixtures/hello/Cargo.toml";
 
@@ -1658,7 +1658,6 @@ fn live_json_emits_planned_or_widened_and_finished() {
         "9.3.0\n"
     );
 }
-
 
 /// One already-current declaration per set: selector, version, manifest, text.
 fn current_pins() -> Vec<(&'static str, &'static str, &'static str, String)> {

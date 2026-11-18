@@ -1,4 +1,8 @@
 use super::check_build::SharedChecks;
+use super::generate::execute_generate_phase;
+use super::generate::execute_generate_request;
+use super::quality::execute_quality_request;
+use super::quality::{execute_quality_phase, guard_build_output};
 use dx_exec_core::common::{
     ActionTally, BAZEL_TESTS_FAILED, CODE_COLLECTION_FAILED, CODE_COMMIT_NOT_CONVENTIONAL,
     CODE_UMBRELLA_PHASE_FINDINGS, CODE_UMBRELLA_PHASE_SKIPPED, CODE_VERIFICATION_FAILED, Env,
@@ -6,10 +10,6 @@ use dx_exec_core::common::{
     pre_exec, report_failed, write_report_file,
 };
 use dx_exec_core::failure::CODE_INVALID_SCOPE;
-use super::generate::execute_generate_phase;
-use super::generate::execute_generate_request;
-use super::quality::execute_quality_request;
-use super::quality::{execute_quality_phase, guard_build_output};
 use dx_output::{
     FinishedCounts, NoticeEvent, OutputMode, command_finished, command_started, error_event,
     nest_phase_event, notice_event, quality_started, read_event, report_event, with_correlation,

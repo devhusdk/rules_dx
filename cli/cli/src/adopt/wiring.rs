@@ -1,7 +1,7 @@
 use std::io::Write;
 
-use dx_exec_core::common::{check_stdout_write, report_dx_error};
 use dx_adopt::Applied;
+use dx_exec_core::common::{check_stdout_write, report_dx_error};
 use dx_plan::args::Invocation;
 
 use dx_error::DxError;

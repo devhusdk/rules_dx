@@ -1,7 +1,7 @@
-use dx_exec_core::common::{PhaseKind, PhaseRun};
 use super::super::quality::execute_quality_phase;
 use super::super::test_support::*;
 use super::SharedChecks;
+use dx_exec_core::common::{PhaseKind, PhaseRun};
 use dx_plan::args::{Command, Invocation};
 use dx_testing::cli::json_events;
 use serde_json::Value;

@@ -8,9 +8,9 @@
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
+use dx_cli::{ActionTally, Env, execute, print_actions, print_cache_retries};
 use dx_exec_core::bazel_restart::{RestartingQueryRunner, RestartingRunner};
 use dx_exec_core::common::flush_out;
-use dx_cli::{ActionTally, Env, execute, print_actions, print_cache_retries};
 use dx_output::OutputMode;
 use dx_plan::args::{is_discovery_exempt, json_output_intent, parse_with_ci};
 use dx_plan::plan::{create_run_temp_dir, remove_on_stop};

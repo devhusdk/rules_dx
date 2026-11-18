@@ -531,11 +531,7 @@ pub fn read_verified(workspace: &Path, path: &str, expected: &[u8; 32]) -> Sourc
 }
 
 /// Sets one field of a JSON object; other values are left as they are.
-pub fn set_field(
-    value: &mut serde_json::Value,
-    key: &str,
-    field: impl Into<serde_json::Value>,
-) {
+pub fn set_field(value: &mut serde_json::Value, key: &str, field: impl Into<serde_json::Value>) {
     if let Some(map) = value.as_object_mut() {
         map.insert(key.to_owned(), field.into());
     }
@@ -705,12 +701,7 @@ pub fn refusal_dx_error(
 }
 
 /// Reports a refusal that is not an argument error, without usage text.
-pub fn refusal(
-    output: OutputMode,
-    out: &mut dyn Write,
-    err: &mut dyn Write,
-    message: &str,
-) -> i32 {
+pub fn refusal(output: OutputMode, out: &mut dyn Write, err: &mut dyn Write, message: &str) -> i32 {
     report_failure(
         output,
         out,

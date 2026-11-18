@@ -1,4 +1,5 @@
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("//core:cells.bzl", "cell_settings", "cells_compatible_with")
 load("//core/modules:cuda.bzl", "CUDA_CELLS", "cuda_qualified_cells")
 load("//core/quality:fixtures.bzl", "real_source_target")
@@ -26,6 +27,27 @@ bool_flag(
 config_setting(
     name = "static_runtime_enabled",
     flag_values = {":static_runtime": "True"},
+)
+
+config_setting(
+    name = "windows_llvm",
+    constraint_values = ["@platforms//os:windows"],
+    flag_values = {"//cc:compiler": "llvm"},
+)
+
+config_setting(
+    name = "windows_llvm_msvcstl",
+    constraint_values = [
+        "@llvm//constraints/cxxstdlib:msvcstl",
+        "@platforms//os:windows",
+    ],
+    flag_values = {"//cc:compiler": "llvm"},
+)
+
+write_file(
+    name = "empty_cu",
+    out = "empty.cu",
+    content = [""],
 )
 
 cuda_windows_static_runtime(

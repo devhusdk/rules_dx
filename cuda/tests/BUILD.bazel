@@ -1,7 +1,6 @@
 load("@crates//:crates.bzl", "aliases")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("//cc:defs.bzl", "cc_test")
-load("//cc/private:defs.bzl", "CC_COVERAGE_INPUTS")
 load("//cc/private/toolchain:select.bzl", "cc_toolchain_test")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core/private/testing:defs.bzl", "expect_equal", "expect_true")
@@ -11,7 +10,7 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 load("//cuda:defs.bzl", "cuda_binary", "cuda_component_library", "cuda_library", "cuda_test")
 load("//cuda/private:defs.bzl", "CUDA_COMPATIBLE_WITH", "cuda_gpu_env", "cuda_split_srcs", "cuda_target_compatible_with")
 load("//cuda/private/toolchain:check.bzl", "arch_errors", "compiler_errors", "component_errors", "component_markers", "cuda_check", "cuda_gpu_check", "gpu_device_errors", "gpu_device_source", "gpu_requirement_errors", "toolkit_errors")
-load("//cuda/private/toolchain:transition.bzl", "CUDA_HOST_COMPILER_SETTING", "cuda_host_settings")
+load("//cuda/private/toolchain:transition.bzl", "CUDA_HOST_COMPILER_SETTING", "CUDA_HOST_COPTS_SETTING", "CUDA_HOST_INPUTS", "cuda_host_settings")
 load("//rust:defs.bzl", "rust_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 load(":cell_tests.bzl", "cuda_cell_tests")
@@ -503,15 +502,18 @@ dx_wrapper_contract_tests(
             "nvcc compile adds llvm coverage maps under coverage",
             cuda_host_settings(
                 dict(zip(
-                    CC_COVERAGE_INPUTS,
+                    CUDA_HOST_INPUTS,
                     [
                         [],
                         True,
                         "",
                         "",
+                        ["-O1"],
+                        "",
                     ],
                 )),
                 "",
+                [],
             )["//command_line_option:features"],
             [
                 "llvm_coverage_map_format",
@@ -522,15 +524,18 @@ dx_wrapper_contract_tests(
             "nvcc compile keeps features without coverage",
             cuda_host_settings(
                 dict(zip(
-                    CC_COVERAGE_INPUTS,
+                    CUDA_HOST_INPUTS,
                     [
                         ["a"],
                         False,
                         "",
                         "",
+                        ["-O1"],
+                        "",
                     ],
                 )),
                 "",
+                [],
             )["//command_line_option:features"],
             ["a"],
         ),
@@ -538,15 +543,18 @@ dx_wrapper_contract_tests(
             "nvcc compile keeps the current compiler without a host compiler",
             cuda_host_settings(
                 dict(zip(
-                    CC_COVERAGE_INPUTS,
+                    CUDA_HOST_INPUTS,
                     [
                         [],
                         False,
                         "",
                         "gcc",
+                        ["-O1"],
+                        "",
                     ],
                 )),
                 "",
+                [],
             )[CUDA_HOST_COMPILER_SETTING],
             "gcc",
         ),
@@ -554,17 +562,79 @@ dx_wrapper_contract_tests(
             "nvcc compile switches to the host compiler",
             cuda_host_settings(
                 dict(zip(
-                    CC_COVERAGE_INPUTS,
+                    CUDA_HOST_INPUTS,
                     [
                         [],
                         False,
                         "",
                         "llvm",
+                        ["-O1"],
+                        "",
                     ],
                 )),
                 "msvc",
+                [],
             )[CUDA_HOST_COMPILER_SETTING],
             "msvc",
+        ),
+        expect_equal(
+            "nvcc compile keeps copts without host copts",
+            [
+                cuda_host_settings(
+                    dict(zip(
+                        CUDA_HOST_INPUTS,
+                        [
+                            [],
+                            False,
+                            "",
+                            "llvm",
+                            ["-O1"],
+                            "",
+                        ],
+                    )),
+                    "msvc",
+                    [],
+                )[key]
+                for key in [
+                    "//command_line_option:copt",
+                    CUDA_HOST_COPTS_SETTING,
+                ]
+            ],
+            [
+                ["-O1"],
+                "",
+            ],
+        ),
+        expect_equal(
+            "nvcc compile appends the host copts to C, C++ and nvcc host compiles",
+            [
+                cuda_host_settings(
+                    dict(zip(
+                        CUDA_HOST_INPUTS,
+                        [
+                            [],
+                            False,
+                            "",
+                            "llvm",
+                            ["-O1"],
+                            "",
+                        ],
+                    )),
+                    "msvc",
+                    ["/DX"],
+                )[key]
+                for key in [
+                    "//command_line_option:copt",
+                    CUDA_HOST_COPTS_SETTING,
+                ]
+            ],
+            [
+                [
+                    "-O1",
+                    "/DX",
+                ],
+                ["/DX"],
+            ],
         ),
         expect_equal(
             "device and host sources split",

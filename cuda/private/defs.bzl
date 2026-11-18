@@ -51,6 +51,7 @@ _cuda_library_forward = dx_library_forward_rule(
                 cfg = cuda_host_transition,
             ),
             "host_compiler": attr.string(doc = "The //cc:compiler nvcc compiles with; empty keeps the current one."),
+            "host_copts": attr.string_list(doc = "Copts for C, C++ and nvcc host compiles under the host compiler."),
             "_toolkit_check": attr.label(default = Label("//cuda/private/toolchain:toolkit_check"), cfg = cuda_host_transition),
         },
         runtime = "besteffort",
@@ -63,6 +64,19 @@ _cuda_library_forward = dx_library_forward_rule(
 _HOST_COMPILER = select({
     Label("@platforms//os:windows"): "msvc",
     "//conditions:default": "",
+})
+
+# clang-cl with libc++ compiles with ISO wide stdio; cl.exe objects it links must match.
+_HOST_COPTS = select({
+    Label("//cuda/private/toolchain:windows_llvm_msvcstl"): [],
+    Label("//cuda/private/toolchain:windows_llvm"): ["/D_CRT_STDIO_ISO_WIDE_SPECIFIERS"],
+    "//conditions:default": [],
+})
+
+# lib.exe writes no archive for a library without objects.
+_EMPTY_SRCS = select({
+    Label("@platforms//os:windows"): [Label("//cuda/private/toolchain:empty.cu")],
+    "//conditions:default": [],
 })
 
 # Outside cuda_host_transition the upstream library needs the dynamic CUDA runtime.
@@ -112,7 +126,7 @@ def cuda_library(name, srcs, cuda_archs, hdrs = None, visibility = None, tags = 
     compatible = cuda_target_compatible_with(target_compatible_with)
     _cuda_library(
         name = name + "_upstream",
-        srcs = srcs,
+        srcs = srcs if srcs else _EMPTY_SRCS,
         hdrs = hdrs or [],
         archs = cuda_archs,
         rdc = rdc,
@@ -141,6 +155,7 @@ def cuda_library(name, srcs, cuda_archs, hdrs = None, visibility = None, tags = 
         upstream = name + "_upstream",
         check = name + "_cuda_check",
         host_compiler = _HOST_COMPILER,
+        host_copts = _HOST_COPTS,
         srcs = srcs,
         hdrs = hdrs or [],
         target_compatible_with = compatible,
@@ -183,6 +198,7 @@ def cuda_objects(name, srcs, cuda_archs, hdrs = None, deps = None, visibility = 
         upstream = name + "_upstream",
         check = name + "_cuda_check",
         host_compiler = _HOST_COMPILER,
+        host_copts = _HOST_COPTS,
         srcs = srcs,
         hdrs = hdrs or [],
         target_compatible_with = compatible,

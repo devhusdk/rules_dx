@@ -1,0 +1,16 @@
+[package]
+license = "Apache-2.0"
+name = "advisory_prep"
+version = "0.0.0"
+edition = "2024"
+
+[[bin]]
+name = "advisory_prep"
+path = "src/main.rs"
+
+[dependencies]
+chrono = "0.4"
+clap = { version = "4", features = ["derive"] }
+
+[dev-dependencies]
+tempfile = "3"

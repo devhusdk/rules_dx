@@ -31,7 +31,7 @@ pub enum Freshness {
 pub const CODE_ADVISORY_REFRESH_FAILED: &str = "advisory_refresh_failed";
 
 /// Command that creates or refreshes the advisory snapshots.
-pub const REFRESH_COMMAND: &str = "bazel run @rules_dx//cli/advisory_prep --";
+pub const REFRESH_COMMAND: &str = "bazel run @rules_dx//dx/advisory_prep --";
 
 /// Maps a dependency set name to its advisory family; the sole set-to-family step.
 #[must_use]

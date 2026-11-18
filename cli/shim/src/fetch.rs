@@ -3,7 +3,6 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime};
 
-use sha2::{Digest, Sha256};
 
 use crate::protocol::ShimError;
 
@@ -69,7 +68,7 @@ pub fn install(request: &Request<'_>) -> Result<PathBuf, ShimError> {
     sweep_stale_parts(dir, request.asset);
     let part = PartFile::create(dir, request.asset).map_err(|e| not_writable(&e))?;
     let got = download(&agent, request, &part)?;
-    if got != want {
+    if !dx_digest::verify(&want, &got) {
         return Err(ShimError::failure(mismatch_message(
             request.url,
             &want,
@@ -136,24 +135,29 @@ fn download(
         .file
         .as_ref()
         .ok_or_else(|| ShimError::failure("the download part file is not open"))?;
-    let mut hasher = Sha256::new();
+    let mut hasher = dx_digest::Sha256Writer::new();
     let mut buf = vec![0u8; 64 * 1024];
     let failed =
         |e: &dyn std::fmt::Display| ShimError::failure(download_failed_message(request.url, e));
     loop {
-        let n = reader.read(&mut buf).map_err(|e| failed(&e))?;
+        let n = match reader.read(&mut buf) {
+            Ok(n) => n,
+            // A signal landing mid-read is not a failed download; read again.
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(e) => return Err(failed(&e)),
+        };
         if n == 0 {
             break;
         }
         let chunk = buf.get(..n).unwrap_or_default();
-        hasher.update(chunk);
+        hasher.write_all(chunk).map_err(|e| failed(&e))?;
         file.write_all(chunk).map_err(|e| {
             ShimError::failure(format!("cannot write {}: {e}", part.path.display()))
         })?;
     }
     file.sync_all()
         .map_err(|e| ShimError::failure(format!("cannot write {}: {e}", part.path.display())))?;
-    Ok(format!("{:x}", hasher.finalize()))
+    Ok(hasher.finish_hex())
 }
 
 fn sidecar(agent: &ureq::Agent, request: &Request<'_>) -> Result<String, ShimError> {
@@ -171,8 +175,7 @@ fn sidecar(agent: &ureq::Agent, request: &Request<'_>) -> Result<String, ShimErr
 
 #[must_use]
 pub fn parse_hash(text: &str) -> Option<String> {
-    (text.len() == 64 && text.bytes().all(|b| b.is_ascii_hexdigit()))
-        .then(|| text.to_ascii_lowercase())
+    dx_digest::is_hex_any_case(text, dx_digest::DIGEST_LEN).then(|| text.to_ascii_lowercase())
 }
 
 const STALE_PART_AGE: Duration = Duration::from_hours(1);

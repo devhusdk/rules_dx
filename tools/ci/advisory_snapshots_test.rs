@@ -14,7 +14,7 @@ const ARTIFACT: &str = "${{ needs.validate.outputs.snapshot_artifact }}";
 
 const RETRIEVED_AT: &str = "${{ needs.advisory-snapshots.outputs.retrieved_at }}";
 
-const PREP_TARGET: &str = "@rules_dx//cli/advisory_prep";
+const PREP_TARGET: &str = "@rules_dx//dx/advisory_prep";
 
 /// Returns the `uses` action of every step that names one.
 fn actions(name: &str) -> Vec<String> {
@@ -85,7 +85,7 @@ fn script_running(name: &str, needle: &str) -> String {
 fn the_preparation_runs_the_pinned_native_command_once() {
     let script = script_running(PREP, PREP_TARGET);
     for needle in [
-        "@rules_dx//cli/advisory_prep -- \\",
+        "@rules_dx//dx/advisory_prep -- \\",
         "--workspace \"$GITHUB_WORKSPACE\"",
         "--out \"$GITHUB_WORKSPACE/.dx/local/advisory\"",
         "--ci",

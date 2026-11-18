@@ -22,6 +22,22 @@ fn decode_scope(value: &OsStr) -> Result<String, ArgsError> {
 }
 
 /// Names the positionals the command's own usage line requires.
+/// Whether `--affected` with scopes keeps only the affected targets inside them.
+/// Deploy takes a single label, and security and license take dependency-set
+/// selectors rather than Bazel patterns, so for those the two still conflict.
+fn affected_narrows_by_scope(command: Command) -> bool {
+    matches!(
+        command,
+        Command::Build
+            | Command::Test
+            | Command::Coverage
+            | Command::Lint
+            | Command::Typecheck
+            | Command::Format
+            | Command::Check
+    )
+}
+
 fn missing_positional(command: Command) -> ArgsError {
     ArgsError::MissingValue {
         option: command.required_slot().unwrap_or(command.name()).to_owned(),
@@ -360,6 +376,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         here,
         affected,
         since,
+        base,
         serve,
         port,
         host,
@@ -453,10 +470,13 @@ fn parse_inner<S: AsRef<OsStr>>(
     if since.is_some() && !affected {
         return Err(ArgsError::SinceNeedsAffected);
     }
+    if base.is_some() && !affected {
+        return Err(ArgsError::BaseNeedsAffected);
+    }
     if affected && here {
         return Err(ArgsError::AffectedWithHere);
     }
-    if affected && !targets.is_empty() {
+    if affected && !targets.is_empty() && !affected_narrows_by_scope(command) {
         return Err(ArgsError::ConflictingAffected);
     }
     for scope in &targets {
@@ -786,6 +806,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         here,
         affected,
         since,
+        base,
         affected_handoff: None,
         serve,
         port,

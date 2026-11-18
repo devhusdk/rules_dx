@@ -23,6 +23,7 @@ pub use test_outputs::{
 };
 
 use dx_path::label::{Label, Repo};
+use std::collections::BTreeSet;
 use std::io::BufRead;
 use std::path::{Path, PathBuf};
 
@@ -33,6 +34,7 @@ pub trait ArtifactReader {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CollectorConfig {
     output_group: String,
+    foreign_aspects: BTreeSet<String>,
 }
 
 impl CollectorConfig {
@@ -42,6 +44,7 @@ impl CollectorConfig {
         }
         Ok(CollectorConfig {
             output_group: output_group.to_owned(),
+            foreign_aspects: BTreeSet::new(),
         })
     }
 
@@ -49,6 +52,29 @@ impl CollectorConfig {
     pub fn output_group(&self) -> &str {
         &self.output_group
     }
+
+    /// Leaves out the outputs and gaps of these aspects, each named without its repository
+    /// (`pkg:file.bzl%name`), so one build can serve several readers.
+    #[must_use]
+    pub fn without_aspects(mut self, foreign: BTreeSet<String>) -> Self {
+        self.foreign_aspects = foreign;
+        self
+    }
+
+    /// Whether `aspect`, as a build event names it, is one the reader leaves out.
+    #[must_use]
+    pub fn is_foreign(&self, aspect: Option<&str>) -> bool {
+        aspect.is_some_and(|aspect| self.foreign_aspects.contains(aspect_key(aspect)))
+    }
+}
+
+/// An aspect name without its repository or parameters: Bazel spells the repository as the main
+/// repo (`//pkg:f.bzl%a`), an apparent name or a canonical one (`@@rules_dx+//pkg:f.bzl%a`), and
+/// appends the aspect's parameter values (`%a[unsafe_fixes="false"]`).
+#[must_use]
+pub fn aspect_key(aspect: &str) -> &str {
+    let named = aspect.split_once("//").map_or(aspect, |(_, rest)| rest);
+    named.split_once('[').map_or(named, |(name, _)| name)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -207,19 +233,9 @@ pub fn is_bytestream_uri(uri: &str) -> bool {
     uri.starts_with("bytestream://")
 }
 
-const VERBATIM_PREFIX: &str = r"\\?\";
-
-fn strip_verbatim_prefix(path: &Path) -> PathBuf {
-    let text = path.to_string_lossy();
-    match text.strip_prefix(VERBATIM_PREFIX) {
-        Some(rest) => PathBuf::from(rest),
-        None => path.to_path_buf(),
-    }
-}
-
 #[must_use]
 pub fn local_path_for_bep_file(workspace: &Path, path_prefix: &[String], name: &str) -> PathBuf {
-    let mut path = strip_verbatim_prefix(workspace);
+    let mut path = dx_path::without_verbatim(workspace);
     for part in path_prefix {
         path.push(part);
     }
@@ -286,7 +302,7 @@ impl OutputLocations {
     fn testlogs_root(&self) -> PathBuf {
         match &self.testlogs {
             Some(root) => root.clone(),
-            None => strip_verbatim_prefix(&self.workspace).join("bazel-testlogs"),
+            None => dx_path::without_verbatim(&self.workspace).join("bazel-testlogs"),
         }
     }
 
@@ -294,7 +310,7 @@ impl OutputLocations {
     fn config_testlogs_root(&self, mnemonic: &str) -> PathBuf {
         let mut root = match &self.output_path {
             Some(root) => root.clone(),
-            None => strip_verbatim_prefix(&self.workspace).join("bazel-out"),
+            None => dx_path::without_verbatim(&self.workspace).join("bazel-out"),
         };
         root.push(mnemonic);
         root.push("testlogs");
@@ -721,6 +737,30 @@ mod tests {
         assert_eq!(
             local_path_for_bep_file(ws, &["bazel-out".to_owned()], "a.pb"),
             base.join("bazel-out").join("a.pb")
+        );
+    }
+
+    #[test]
+    fn verbatim_share_workspaces_keep_their_share() {
+        let ws = Path::new(r"\\?\UNC\h\s\ws");
+        assert_eq!(
+            testlog_path(
+                &OutputLocations::new(ws),
+                None,
+                "//x:t",
+                "test.lcov",
+                IDENTITY
+            )
+            .expect("path"),
+            PathBuf::from(r"\\h\s\ws")
+                .join("bazel-testlogs")
+                .join("x")
+                .join("t")
+                .join("coverage.dat")
+        );
+        assert_eq!(
+            local_path_for_bep_file(ws, &["bazel-out".to_owned()], "a.pb"),
+            PathBuf::from(r"\\h\s\ws").join("bazel-out").join("a.pb")
         );
     }
 

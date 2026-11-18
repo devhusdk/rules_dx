@@ -268,7 +268,7 @@ pub fn npm_verify_pack(
         ..
     } = parse_npm_feed(&body)?;
     let actual = dx_digest::sha256_file_hex(tgz_path)?;
-    if expected != actual {
+    if !dx_digest::verify(&expected, &actual) {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
             format!(
@@ -299,7 +299,7 @@ pub fn npm_verify_pack(
 pub fn npm_check_staged(staged_tgz: &Path, feed_path: &Path) -> io::Result<()> {
     let expected = parse_npm_feed(&std::fs::read_to_string(feed_path)?)?.sha256;
     let actual = dx_digest::sha256_file_hex(staged_tgz)?;
-    if expected != actual {
+    if !dx_digest::verify(&expected, &actual) {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
             format!(

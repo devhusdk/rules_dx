@@ -2,7 +2,6 @@
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
-use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -92,7 +91,7 @@ fn split(a: &Args) -> Result<(), String> {
     let manifest = serde_json::json!({
         "build_id": pair.build_id,
         "arch": pair.arch,
-        "sha256": format!("{:x}", Sha256::digest(&stripped)),
+        "sha256": dx_digest::sha256_hex(&stripped),
         "debug_file": a.debug.file_name().and_then(|n| n.to_str()),
         "objcopy": version.lines().next().unwrap_or(""),
     });

@@ -254,8 +254,7 @@ pub fn acl_waves(paths: &[&str]) -> Vec<Vec<usize>> {
 /// path was written: lower case, backslashes, no `\\?\` prefix and no trailing backslash.
 pub fn path_key(path: &str) -> String {
     let path = path.replace('/', "\\");
-    path.strip_prefix(r"\\?\")
-        .unwrap_or(&path)
+    dx_path::without_verbatim_str(&path)
         .trim_end_matches('\\')
         .to_lowercase()
 }
@@ -575,6 +574,9 @@ mod tests {
             key
         );
         assert_eq!(path_key("C:/Program Files/Microsoft Visual Studio/"), key);
+        assert_eq!(path_key(r"\\?\UNC\Srv\Share\VS\"), r"\\srv\share\vs");
+        assert_eq!(path_key("//?/UNC/srv/share/vs"), r"\\srv\share\vs");
+        assert_eq!(path_key(r"\\srv\share\vs"), r"\\srv\share\vs");
     }
 
     #[test]

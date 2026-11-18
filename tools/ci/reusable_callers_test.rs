@@ -151,14 +151,25 @@ fn reusable_workflows_launch_dx_through_the_public_label() {
 #[test]
 fn docs_page_embeds_every_starter_verbatim() {
     let page = read_runfiles(DOCS);
-    for starter in ["examples/consumer-ci/caller.yml", "examples/docs-ci/caller.yml"] {
-        let block: String = read_runfiles(starter)
-            .lines()
-            .map(|line| if line.is_empty() { "\n".to_owned() } else { format!("   {line}\n") })
-            .collect();
-        assert!(
-            page.contains(&block),
-            "{DOCS} does not embed {starter} verbatim, indented 3 spaces"
-        );
+    for starter in [
+        "examples/consumer-ci/caller.yml",
+        "examples/docs-ci/caller.yml",
+    ] {
+        let text = read_runfiles(starter);
+        // A starter sits at the top level or inside a numbered list step.
+        let embedded = ["", "   "].iter().any(|indent| {
+            let block: String = text
+                .lines()
+                .map(|line| {
+                    if line.is_empty() {
+                        "\n".to_owned()
+                    } else {
+                        format!("{indent}{line}\n")
+                    }
+                })
+                .collect();
+            page.contains(&block)
+        });
+        assert!(embedded, "{DOCS} does not embed {starter} verbatim");
     }
 }

@@ -33,6 +33,7 @@ rust_library(
         "//flutter/tests/fixtures/flutter_app:__pkg__",
     ],
     deps = [
+        "//cli/digest:dx_digest",
         "@crates//:libc",
         "@crates//:serde_json",
         "@crates//:tempfile",
@@ -79,6 +80,7 @@ rust_test(
     crate_root = "app_check_test.rs",
     deps = [
         ":ops",
+        "//cli/digest:dx_digest",
         "//cli/test_scratch:dx_test_scratch",
         "@crates//:serde_json",
         "@crates//:zip",

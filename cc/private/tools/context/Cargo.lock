@@ -19,6 +19,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
+name = "advisory_prep"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "clap",
+ "tempfile",
+]
+
+[[package]]
 name = "aead"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -211,7 +220,6 @@ name = "appimage_packer"
 version = "0.0.0"
 dependencies = [
  "serde_json",
- "sha2 0.10.9",
  "tempfile",
 ]
 
@@ -1596,7 +1604,6 @@ version = "0.0.0"
 dependencies = [
  "serde",
  "serde_json",
- "sha2 0.10.9",
 ]
 
 [[package]]
@@ -1662,8 +1669,6 @@ dependencies = [
 name = "dx_advisory_prep"
 version = "0.0.0"
 dependencies = [
- "chrono",
- "clap",
  "crc32fast",
  "flate2",
  "serde",
@@ -1830,7 +1835,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sha1",
- "sha2 0.10.9",
  "tar",
  "tempfile",
  "ureq",
@@ -2115,7 +2119,6 @@ name = "dx_shim"
 version = "0.0.0"
 dependencies = [
  "semver",
- "sha2 0.10.9",
  "tempfile",
  "ureq",
  "windows-sys 0.61.2",
@@ -2128,7 +2131,6 @@ dependencies = [
  "hex",
  "object",
  "serde_json",
- "sha2 0.10.9",
 ]
 
 [[package]]
@@ -2152,7 +2154,6 @@ dependencies = [
 name = "dx_tool_resolve"
 version = "0.0.0"
 dependencies = [
- "clap",
  "tempfile",
  "thiserror 2.0.20",
 ]
@@ -3790,7 +3791,6 @@ version = "0.0.0"
 dependencies = [
  "base64 0.23.1",
  "serde_json",
- "sha2 0.10.9",
  "tempfile",
  "zip",
 ]
@@ -6048,6 +6048,13 @@ name = "toml_writer"
 version = "1.1.2+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d56353a2a665ad0f41a421187180aab746c8c325620617ad883a99a1cbe66d2"
+
+[[package]]
+name = "tool_resolve"
+version = "0.0.0"
+dependencies = [
+ "clap",
+]
 
 [[package]]
 name = "tower"

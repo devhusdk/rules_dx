@@ -4,13 +4,11 @@
 
 use std::collections::BTreeMap;
 use std::fs;
-use std::io::Read;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 
 const FIXED_ARGS: usize = 13;
 
@@ -103,32 +101,11 @@ fn parse_entry(entry: &str) -> Result<Entry, String> {
     Err(format!("unknown entry '{entry}'"))
 }
 
-#[must_use]
-pub fn sha256_hex(bytes: &[u8]) -> String {
-    hex(&Sha256::digest(bytes))
-}
-
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
-}
+pub use dx_digest::sha256_hex;
 
 fn hash_file(path: &Path) -> Result<String, String> {
-    let mut file = fs::File::open(path).map_err(|e| format!("open {}: {e}", path.display()))?;
-    let mut hasher = Sha256::new();
-    let mut buffer = vec![0u8; 1 << 16];
-    loop {
-        let read = file
-            .read(&mut buffer)
-            .map_err(|e| format!("read {}: {e}", path.display()))?;
-        if read == 0 {
-            break;
-        }
-        let chunk = buffer
-            .get(..read)
-            .ok_or_else(|| format!("read {}: {read} bytes overflow the buffer", path.display()))?;
-        hasher.update(chunk);
-    }
-    Ok(hex(&hasher.finalize()))
+    let file = fs::File::open(path).map_err(|e| format!("open {}: {e}", path.display()))?;
+    dx_digest::sha256_reader_hex(file).map_err(|e| format!("read {}: {e}", path.display()))
 }
 
 #[must_use]

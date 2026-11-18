@@ -18,7 +18,7 @@ cli/fuzz_run/src/run.rs tmp-path 1
 cli/launcher/src/launch_tests.rs tmp-path 1
 cli/ocaml_cc_driver/src/dune.rs tmp-path 1
 cli/path/src/spelling.rs tmp-path 7
-cli/path/src/uri.rs tmp-path 19
+cli/path/src/uri.rs tmp-path 18
 cli/plan/src/args/completion.rs tmp-path 3
 cli/plan/src/args/parser_core.rs tmp-path 1
 cli/plan/src/disk.rs tmp-path 1
@@ -43,7 +43,6 @@ core/quality/runner/src/lib_determinism.rs tmp-path 2
 core/quality/runner/src/lib_gates.rs tmp-path 1
 core/quality/runner/src/matrix_harness.rs tmp-path 3
 core/quality/runner/src/real.rs tmp-path 3
-core/quality/runner/src/real/schema.rs tmp-path 2
 core/quality/runner/src/real_core.rs tmp-path 4
 core/quality/runner/src/real_fixtures.rs tmp-path 2
 core/quality/runner/src/real_tools.rs tmp-path 2
@@ -63,5 +62,5 @@ rego/private/launcher/src/opa.rs tmp-path 1
 tools/ci/fill_pins/src/main.rs tmp-path 1
 tools/coverage/collect/src/collect.rs tmp-path 1
 tools/docs/site/build/src/lib.rs tmp-path 1
-tools/testing/hermetic/src/tests.rs tmp-path 3
+tools/testing/hermetic/src/tests.rs tmp-path 1
 tools/testing/src/lib.rs tmp-path 1

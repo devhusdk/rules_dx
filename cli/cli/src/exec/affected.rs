@@ -7,10 +7,9 @@ use dx_plan::args::{Command, Invocation};
 use dx_plan::resolve::{
     AffectedSelection, QueryRunner, ResolveError, RuleGraph, WidenedScope, collect_range,
     collect_working_tree, exclude, local_override_changes, merge_base, missing_base_shallow_error,
-    quote_set, resolve_affected, run_label_query_file, shallow_clone,
+    resolve, resolve_affected, shallow_clone,
 };
 use serde_json::{Value, json};
-use std::fmt::Write as _;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -37,8 +36,6 @@ pub(crate) struct AffectedPlan {
     pub(crate) format: Vec<String>,
     pub(crate) widened: Vec<WidenedScope>,
     pub(crate) unscoped: bool,
-    /// External-repo test labels dropped because the test phase rejects them.
-    pub(crate) skipped_external: Vec<String>,
 }
 
 /// How many widened scopes the stderr summary names before "and N more".
@@ -69,9 +66,6 @@ impl AffectedPlan {
         });
         if command == Command::Check {
             set_field(&mut value, "tests", json!(self.tests));
-        }
-        if !self.skipped_external.is_empty() {
-            set_field(&mut value, "skipped_external", json!(self.skipped_external));
         }
         value
     }
@@ -105,21 +99,11 @@ impl AffectedPlan {
                 more => format!("; widened to {shown} and {more} more"),
             }
         };
-        let mut line = format!(
+        format!(
             "dx: affected: {} targets from {} changed files since {base}{suffix}",
             self.targets.len(),
             self.changed_files.len()
-        );
-        if !self.skipped_external.is_empty() {
-            write!(
-                line,
-                "\ndx: affected: skipping {} external-repo tests: {}",
-                self.skipped_external.len(),
-                self.skipped_external.join(", ")
-            )
-            .ok();
-        }
-        line
+        )
     }
 }
 
@@ -161,6 +145,53 @@ fn resolves_to_commit(runner: &dyn QueryRunner, workspace: &Path, name: &str) ->
     .is_some()
 }
 
+/// Fails with a plain message when `workspace` is not inside a git work tree, so
+/// a missing repository is not misreported as a missing default branch.
+fn require_work_tree(runner: &dyn QueryRunner, workspace: &Path) -> Result<(), PlanError> {
+    match git_text(runner, workspace, &["rev-parse", "--is-inside-work-tree"]).as_deref() {
+        Some("true") => Ok(()),
+        _ => Err(PlanError::Git(format!(
+            "{} is not inside a git work tree; --affected compares against git history, so run it in a git checkout",
+            workspace.display()
+        ))),
+    }
+}
+
+/// The `[affected] base` ref from `dx.toml`, when set.
+fn configured_base(workspace: &Path) -> Result<Option<String>, PlanError> {
+    match dx_config::load(workspace) {
+        Ok(config) => Ok(config.and_then(|config| config.affected.base)),
+        Err(problem) => Err(PlanError::Resolve(ResolveError::Config {
+            message: problem.to_string(),
+        })),
+    }
+}
+
+/// The branch to take the merge-base with: `--base`, else `dx.toml` `[affected] base`,
+/// else the detected default branch.
+fn base_branch(
+    runner: &dyn QueryRunner,
+    workspace: &Path,
+    requested: Option<&str>,
+) -> Result<String, PlanError> {
+    let (name, source) = match requested {
+        Some(name) => (name.to_owned(), "--base"),
+        None => match configured_base(workspace)? {
+            Some(name) => (name, "dx.toml [affected] base"),
+            None => return default_branch(runner, workspace),
+        },
+    };
+    if resolves_to_commit(runner, workspace, &name) {
+        return Ok(name);
+    }
+    if shallow_clone(workspace) {
+        return Err(PlanError::Git(missing_base_shallow_error()));
+    }
+    Err(PlanError::Git(format!(
+        "{source} {name:?} does not name a commit"
+    )))
+}
+
 fn default_branch(runner: &dyn QueryRunner, workspace: &Path) -> Result<String, PlanError> {
     let head = git_text(
         runner,
@@ -189,28 +220,6 @@ fn default_branch(runner: &dyn QueryRunner, workspace: &Path) -> Result<String, 
     )))
 }
 
-fn tests_expression(rules: &[String]) -> String {
-    format!("tests(set({}))", quote_set(rules))
-}
-
-fn tests_of(
-    rules: &[String],
-    workspace: &Path,
-    runner: &dyn QueryRunner,
-    startup_options: &[String],
-) -> Result<Vec<String>, ResolveError> {
-    if rules.is_empty() {
-        return Ok(Vec::new());
-    }
-    run_label_query_file(
-        &tests_expression(rules),
-        &format!("tests of {} affected rules", rules.len()),
-        workspace,
-        runner,
-        startup_options,
-    )
-}
-
 fn audit_owned(workspace: &Path, target: &str) -> bool {
     match dx_adopt::dependency_sets::load(workspace) {
         Ok(Some(registry)) => !dx_adopt::dependency_sets::owning_sets(&registry, target).is_empty(),
@@ -224,6 +233,7 @@ pub(crate) fn since_base(
     runner: &dyn QueryRunner,
     rev: &str,
 ) -> Result<String, PlanError> {
+    require_work_tree(runner, workspace)?;
     let spec = format!("{rev}^{{commit}}");
     git_text(
         runner,
@@ -236,17 +246,20 @@ pub(crate) fn since_base(
 pub(crate) fn affected_base(
     workspace: &Path,
     runner: &dyn QueryRunner,
+    requested: Option<&str>,
 ) -> Result<String, PlanError> {
-    named_base(workspace, runner).map(|(_, base)| base)
+    require_work_tree(runner, workspace)?;
+    named_base(workspace, runner, requested).map(|(_, base)| base)
 }
 
-/// The default branch and its merge-base with `HEAD`.
+/// The base branch (see [`base_branch`]) and its merge-base with `HEAD`.
 pub(crate) fn named_base(
     workspace: &Path,
     runner: &dyn QueryRunner,
+    requested: Option<&str>,
 ) -> Result<(String, String), PlanError> {
     let git = PathBuf::from("git");
-    let branch = default_branch(runner, workspace)?;
+    let branch = base_branch(runner, workspace, requested)?;
     let base = merge_base(&git, workspace, runner, &branch, "HEAD")
         .map_err(|error| PlanError::Git(error.to_string()))?;
     Ok((branch, base))
@@ -279,10 +292,10 @@ fn scope_to_graph(
     let mut rules = graph.affected(&selection.targets);
     rules.retain(|rule| !exclude::covered(&excludes, rule));
     let tests = if tests_only(command) || command == Command::Check {
-        let (mut tests, external) =
-            split_external(tests_of(&rules, workspace, runner, startup_options)?);
+        // The graph holds only main-repo rules, so every test it names is one the test phase
+        // accepts.
+        let mut tests = graph.tests_of(&rules);
         tests.retain(|test| !exclude::covered(&excludes, test));
-        plan.skipped_external = external;
         tests
     } else {
         Vec::new()
@@ -354,7 +367,6 @@ pub(crate) fn plan(
         format: Vec::new(),
         widened: Vec::new(),
         unscoped: false,
-        skipped_external: Vec::new(),
     };
     if changes.is_empty() && overrides.is_empty() {
         return Ok(plan);
@@ -432,14 +444,6 @@ fn generate_scope(workspace: &Path, changed_files: &[String]) -> Vec<String> {
         })
         .collect();
     dx_plan::plan::generate_package_scope(&labels)
-}
-
-/// Splits off external-repo labels, which the test phase rejects as `invalid_scope`.
-/// Main-repo spellings (`@//`, `@@//`) stay.
-fn split_external(tests: Vec<String>) -> (Vec<String>, Vec<String>) {
-    tests.into_iter().partition(|label| {
-        !label.starts_with('@') || label.starts_with("@//") || label.starts_with("@@//")
-    })
 }
 
 /// Adds the `affected` object to the first `command_started` line and passes the rest through.
@@ -582,18 +586,45 @@ fn resolve_plan(
 ) -> Result<AffectedPlan, PlanError> {
     let base = match &invocation.since {
         Some(rev) => since_base(workspace, query_runner, rev),
-        None => affected_base(workspace, query_runner),
+        None => affected_base(workspace, query_runner, invocation.base.as_deref()),
     }?;
     if text {
         writeln!(err, "{}", resolving_line(&base)).ok();
     }
-    plan(
+    let mut plan = plan(
         invocation.command,
         workspace,
         query_runner,
         &invocation.bazel_startup_options,
         base,
-    )
+    )?;
+    if !invocation.targets.is_empty() && !plan.empty() {
+        let scope = resolve(
+            &invocation.targets,
+            workspace,
+            query_runner,
+            &invocation.bazel_startup_options,
+        )?;
+        narrow_to_scope(&mut plan, &scope.targets);
+    }
+    Ok(plan)
+}
+
+/// Keeps only the affected targets inside the scopes the user also named, so
+/// `dx test --affected //svc/...` runs the affected tests under `//svc`.
+fn narrow_to_scope(plan: &mut AffectedPlan, scope: &[String]) {
+    let inside = |label: &String| exclude::covered(scope, label);
+    plan.targets.retain(inside);
+    plan.tests.retain(inside);
+    plan.format.retain(inside);
+    // Generate patterns are whole packages, so keep the ones that overlap a scope
+    // either way: `//a/...` for a `//a:b` scope, or `//a/b:all` for a `//a/...` scope.
+    plan.generate.retain(|pattern| {
+        exclude::covered(scope, pattern)
+            || scope
+                .iter()
+                .any(|entry| exclude::covered(std::slice::from_ref(pattern), entry))
+    });
 }
 
 fn scope_handoff(next: &mut Invocation, plan: &AffectedPlan) {
@@ -730,7 +761,6 @@ mod tests {
                 })
                 .collect(),
             unscoped: false,
-            skipped_external: Vec::new(),
         }
     }
 
@@ -852,7 +882,7 @@ mod tests {
     fn graph() -> String {
         let rules = [
             json!({"name": "//a:lib", "ruleInput": ["//a:a.txt", "//a:b.txt", "//a:new.txt", "//a:key.txt", "//a:c.txt"]}),
-            json!({"name": "//a:t", "ruleInput": ["//a:lib"]}),
+            json!({"name": "//a:t", "ruleClass": "sh_test", "ruleInput": ["//a:lib"]}),
             json!({"name": "//a:m", "ruleInput": ["//a:lib"], "attribute": [{"name": "tags", "stringListValue": ["manual"]}]}),
             json!({"name": "//a:android", "ruleInput": ["@@rules_android++sdk+androidsdk//:core"]}),
             json!({"name": "//a:ruby", "ruleInput": ["@@rules_ruby++ruby+ruby_x86_64_windows//:ruby"]}),
@@ -866,7 +896,7 @@ mod tests {
 
     fn run(root: &Path, command: Command, answers: &[&str]) -> (AffectedPlan, GitRunner) {
         let runner = GitRunner::new(answers);
-        let base = affected_base(root, &runner).ok().expect("base");
+        let base = affected_base(root, &runner, None).ok().expect("base");
         let plan = plan(command, root, &runner, &[], base).ok().expect("plan");
         assert!(runner.bazel.borrow().is_empty(), "unused bazel answers");
         (plan, runner)
@@ -1297,7 +1327,7 @@ mod tests {
             "{summary}"
         );
         assert!(!summary.contains("//..."), "{summary}");
-        let (plan, _) = run(root, Command::Test, &[&graph, "//a:t\n"]);
+        let (plan, _) = run(root, Command::Test, &[&graph]);
         assert_eq!(plan.targets, ["//a:t"]);
     }
 
@@ -1328,21 +1358,18 @@ mod tests {
     }
 
     #[test]
-    fn tests_only_commands_query_tests_and_check_adds_a_test_list() {
+    fn tests_come_from_the_graph_and_check_adds_a_test_list() {
         let dir = repo();
         write(dir.path(), "a/a.txt", "changed\n");
         let graph = graph();
-        let (plan, runner) = run(dir.path(), Command::Test, &[&graph, "//a:t\n"]);
+        let (plan, runner) = run(dir.path(), Command::Test, &[&graph]);
         assert_eq!(plan.targets, ["//a:t"]);
-        assert_eq!(
-            runner.expressions.borrow()[1],
-            "tests(set(\"//a:lib\" \"//a:t\"))"
-        );
+        assert_eq!(runner.expressions.borrow().len(), 1, "only the graph query");
 
-        let (plan, runner) = run(dir.path(), Command::Check, &[&graph, "//a:t\n"]);
+        let (plan, runner) = run(dir.path(), Command::Check, &[&graph]);
         assert_eq!(plan.targets, ["//a:lib", "//a:t"]);
         assert_eq!(plan.tests, ["//a:t"]);
-        assert_eq!(runner.expressions.borrow().len(), 2);
+        assert_eq!(runner.expressions.borrow().len(), 1, "only the graph query");
     }
 
     #[test]
@@ -1350,7 +1377,7 @@ mod tests {
         let dir = repo();
         write(dir.path(), "a/a.txt", "changed\n");
         let graph = graph();
-        let (plan, _) = run(dir.path(), Command::Check, &[&graph, "//a:t\n"]);
+        let (plan, _) = run(dir.path(), Command::Check, &[&graph]);
         assert_eq!(plan.targets, ["//a:lib", "//a:t"]);
         assert_eq!(plan.generate, ["//a/..."]);
         assert_eq!(plan.format, ["//a:lib"]);
@@ -1381,29 +1408,8 @@ mod tests {
         let dir = repo();
         write(dir.path(), "a/a.txt", "changed\n");
         let graph = graph();
-        let (plan, _) = run(dir.path(), Command::Check, &[&graph, "//a:t\n"]);
+        let (plan, _) = run(dir.path(), Command::Check, &[&graph]);
         assert_eq!(plan.json(Command::Check)["tests"], json!(["//a:t"]));
-    }
-
-    #[test]
-    fn external_repo_tests_are_skipped_and_reported() {
-        let dir = repo();
-        write(dir.path(), "a/a.txt", "changed\n");
-        let graph = graph();
-        let answer = "//a:t\n@shared_consumer//:x_test\n@@//a:u\n";
-        let (plan, _) = run(dir.path(), Command::Check, &[&graph, answer]);
-        assert_eq!(plan.tests, ["//a:t", "@@//a:u"]);
-        assert_eq!(plan.skipped_external, ["@shared_consumer//:x_test"]);
-        assert_eq!(
-            plan.json(Command::Check)["skipped_external"],
-            json!(["@shared_consumer//:x_test"])
-        );
-        assert!(
-            plan.summary()
-                .contains("skipping 1 external-repo tests: @shared_consumer//:x_test")
-        );
-        let (plan, _) = run(dir.path(), Command::Test, &[&graph, answer]);
-        assert_eq!(plan.targets, ["//a:t", "@@//a:u"]);
     }
 
     #[test]
@@ -1420,7 +1426,6 @@ mod tests {
             format: Vec::new(),
             widened: Vec::new(),
             unscoped: false,
-            skipped_external: Vec::new(),
         };
         assert!(
             plan.summary()
@@ -1542,7 +1547,7 @@ mod tests {
         dx_test_scratch::git(dir.path(), dir.path(), &["commit", "--quiet", "-m", "x"]);
         let runner = GitRunner::new(&[]);
         assert!(matches!(
-            affected_base(dir.path(), &runner),
+            affected_base(dir.path(), &runner, None),
             Err(PlanError::Git(_))
         ));
     }
@@ -1566,7 +1571,7 @@ mod tests {
             ],
         );
         let runner = GitRunner::new(&[]);
-        let Ok((branch, _)) = named_base(root, &runner) else {
+        let Ok((branch, _)) = named_base(root, &runner, None) else {
             panic!("expected a base");
         };
         assert_eq!(branch, "origin/main");
@@ -1584,7 +1589,7 @@ mod tests {
         dx_test_scratch::git(dir.path(), dir.path(), &["add", "."]);
         dx_test_scratch::git(dir.path(), dir.path(), &["commit", "--quiet", "-m", "x"]);
         let runner = GitRunner::new(&[]);
-        let Err(PlanError::Git(message)) = affected_base(dir.path(), &runner) else {
+        let Err(PlanError::Git(message)) = affected_base(dir.path(), &runner, None) else {
             panic!("expected a git error");
         };
         assert!(message.contains("origin/main"), "{message}");
@@ -1603,11 +1608,83 @@ mod tests {
         dx_test_scratch::git(dir.path(), dir.path(), &["commit", "--quiet", "-m", "x"]);
         write(dir.path(), ".git/shallow", "");
         let runner = GitRunner::new(&[]);
-        let Err(PlanError::Git(message)) = affected_base(dir.path(), &runner) else {
+        let Err(PlanError::Git(message)) = affected_base(dir.path(), &runner, None) else {
             panic!("expected a git error");
         };
         assert!(message.contains("shallow"), "{message}");
         assert!(message.contains("git fetch origin"), "{message}");
+    }
+
+    #[test]
+    fn outside_git_says_so_instead_of_blaming_the_default_branch() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let runner = GitRunner::new(&[]);
+        let Err(PlanError::Git(message)) = affected_base(dir.path(), &runner, None) else {
+            panic!("expected a git error");
+        };
+        assert!(message.contains("not inside a git work tree"), "{message}");
+        let Err(PlanError::Git(message)) = since_base(dir.path(), &runner, "HEAD") else {
+            panic!("expected a git error");
+        };
+        assert!(message.contains("not inside a git work tree"), "{message}");
+    }
+
+    #[test]
+    fn base_comes_from_the_flag_then_dx_toml_then_detection() {
+        let dir = repo();
+        let root = dir.path();
+        dx_test_scratch::git(root, root, &["branch", "develop", "main"]);
+        dx_test_scratch::git(root, root, &["branch", "release", "main"]);
+        let runner = GitRunner::new(&[]);
+        let branch = |requested| named_base(root, &runner, requested).map(|(branch, _)| branch);
+        assert!(matches!(branch(None).as_deref(), Ok("main")));
+        write(
+            root,
+            "dx.toml",
+            "schema_version = 1\n\n[affected]\nbase = \"develop\"\n",
+        );
+        assert!(matches!(branch(None).as_deref(), Ok("develop")));
+        assert!(matches!(branch(Some("release")).as_deref(), Ok("release")));
+        let Err(PlanError::Git(message)) = branch(Some("nope")) else {
+            panic!("expected a git error");
+        };
+        assert!(message.contains("--base \"nope\""), "{message}");
+        write(
+            root,
+            "dx.toml",
+            "schema_version = 1\n\n[affected]\nbase = \"gone\"\n",
+        );
+        let Err(PlanError::Git(message)) = branch(None) else {
+            panic!("expected a git error");
+        };
+        assert!(
+            message.contains("dx.toml [affected] base \"gone\""),
+            "{message}"
+        );
+    }
+
+    #[test]
+    fn scopes_narrow_the_affected_plan() {
+        let labels = |items: &[&str]| -> Vec<String> {
+            items.iter().map(|item| (*item).to_owned()).collect()
+        };
+        let mut plan = AffectedPlan {
+            base: "b".to_owned(),
+            changed_files: labels(&["svc/a.rs", "web/b.ts"]),
+            targets: labels(&["//svc/api:lib", "//svc:bin", "//web:app"]),
+            tests: labels(&["//svc/api:test", "//web:test"]),
+            generate: labels(&["//svc/api:all", "//web:all", "//..."]),
+            format: labels(&["//svc/api:lib", "//web:app"]),
+            widened: Vec::new(),
+            unscoped: false,
+        };
+        narrow_to_scope(&mut plan, &labels(&["//svc/api/...", "//svc:bin"]));
+        assert_eq!(plan.targets, labels(&["//svc/api:lib", "//svc:bin"]));
+        assert_eq!(plan.tests, labels(&["//svc/api:test"]));
+        assert_eq!(plan.format, labels(&["//svc/api:lib"]));
+        assert_eq!(plan.generate, labels(&["//svc/api:all", "//..."]));
+        narrow_to_scope(&mut plan, &labels(&["//web/..."]));
+        assert!(plan.empty());
     }
 
     #[test]

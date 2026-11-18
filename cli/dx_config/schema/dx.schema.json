@@ -2,6 +2,21 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "definitions": {
+    "AffectedConfig": {
+      "additionalProperties": false,
+      "description": "How `--affected` finds the changes to select from.",
+      "properties": {
+        "base": {
+          "default": null,
+          "description": "The branch or ref, such as `origin/develop`, whose merge base with `HEAD` `--affected`\ncompares against. Left out, dx tries origin/HEAD, then main and master.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
     "CheckConfig": {
       "additionalProperties": false,
       "description": "What `dx check --affected` runs besides the quality phases.",
@@ -1762,6 +1777,9 @@
   },
   "description": "The optional root file for tier, tool selection and scope.",
   "properties": {
+    "affected": {
+      "$ref": "#/definitions/AffectedConfig"
+    },
     "check": {
       "$ref": "#/definitions/CheckConfig"
     },

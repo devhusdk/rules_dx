@@ -1137,7 +1137,10 @@ fn import_path_joins_workspace_imports_per_component() {
 fn import_path_reads_under_a_verbatim_workspace() {
     let dir = dx_test_scratch::scratch("dx-rc-verbatim-");
     let ws = std::fs::canonicalize(dir.path()).expect("canonicalize");
-    assert!(ws.to_string_lossy().starts_with(r"\\?\"));
+    assert!(matches!(
+        ws.components().next(),
+        Some(std::path::Component::Prefix(prefix)) if prefix.kind().is_verbatim()
+    ));
     std::fs::create_dir_all(ws.join("tools")).expect("mkdir");
     std::fs::write(ws.join("tools").join("x.bazelrc"), "build --x\n").expect("write");
     assert_eq!(

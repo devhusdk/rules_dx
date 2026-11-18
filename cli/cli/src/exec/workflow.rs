@@ -1379,7 +1379,7 @@ mod tests {
                 "query".to_owned(),
                 "--keep_going".to_owned(),
                 "--output=streamed_jsonproto".to_owned(),
-                "--proto:output_rule_attrs=tags".to_owned(),
+                "--proto:output_rule_attrs=tags,size".to_owned(),
                 "--noproto:default_values".to_owned(),
                 "--noproto:locations".to_owned(),
                 "--noproto:instantiation_stack".to_owned(),
@@ -1416,50 +1416,26 @@ mod tests {
     }
 
     #[test]
-    fn test_file_scope_selection_shares_execution_configuration() {
+    fn test_file_scope_selection_reads_tests_from_the_graph() {
         let harness = Harness::new("wf-test-selection");
         harness.write_source("pkg/BUILD.bazel", "");
         harness.write_source("pkg/a.py", "x = 1\n");
         harness.query.script_graph(&[
             graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
-            graph_rule("//pkg:unit", &["//pkg:lib"], &[]),
+            graph_rule_of_kind("//pkg:unit", "py_test", &["//pkg:lib"], &[]),
         ]);
-        harness.query.script_stdout("//pkg:unit\n");
-        harness
-            .query
-            .script_stdout("//pkg:lib (abc)\n//pkg:unit (abc)\n");
         let inv = invocation(&["test", "pkg/a.py", "--", "--platforms=//:x"]);
         let run = harness.probe_with(&inv, &[Some(0)]);
         let queries = harness.query.calls.borrow();
-        assert_eq!(queries.len(), 3, "graph plus mapping: {queries:?}");
-        assert_eq!(
-            queries[0][3], "query",
-            "ownership stays unconfigured: {queries:?}"
-        );
-        assert_eq!(
-            queries[2][3], "cquery",
-            "test mapping uses execution configuration: {queries:?}"
-        );
-        assert_eq!(
-            harness.query.expressions.borrow()[2],
-            "rdeps(set(\"//pkg:unit\"), set(\"//pkg:lib\"))"
-        );
-        assert!(
-            queries[2].contains(&"--platforms=//:x".to_owned()),
-            "mapping shares platforms with execution: {queries:?}"
-        );
-        assert!(
-            queries[2].contains(&"--config=dx_build_dev".to_owned()),
-            "mapping shares profile with execution: {queries:?}"
-        );
-        for query in &queries[..2] {
-            for dropped in ["--platforms=//:x", "--config=dx_build_dev"] {
-                assert!(
-                    !query.contains(&dropped.to_owned()),
-                    "unconfigured queries ignore configuration: {query:?}"
-                );
-            }
+        assert_eq!(queries.len(), 1, "only the rule graph: {queries:?}");
+        assert_eq!(queries[0][3], "query", "ownership stays unconfigured");
+        for dropped in ["--platforms=//:x", "--config=dx_build_dev"] {
+            assert!(
+                !queries[0].contains(&dropped.to_owned()),
+                "the graph query ignores configuration: {queries:?}"
+            );
         }
+        assert!(run.argv[0].contains(&"//pkg:unit".to_owned()), "{run:?}");
         assert_eq!(run.argv.len(), 1, "{run:?}");
         let argv = &run.argv[0];
         assert!(argv.contains(&"--platforms=//:x".to_owned()), "{argv:?}");
@@ -1474,9 +1450,10 @@ mod tests {
         let harness = Harness::new("wf-test-conflict");
         harness.write_source("pkg/BUILD.bazel", "");
         harness.write_source("pkg/a.py", "x = 1\n");
-        harness
-            .query
-            .script_graph(&[graph_rule("//pkg:lib", &["//pkg:a.py"], &[])]);
+        harness.query.script_graph(&[
+            graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
+            graph_rule_of_kind("//pkg:unit", "py_test", &["//pkg:lib"], &[]),
+        ]);
         let (code, _, err) = harness.run(&["test", "pkg/a.py", "--", "--config=dx_build_release"]);
         assert_eq!(code, 2, "{err}");
         assert!(err.contains("config"), "{err}");

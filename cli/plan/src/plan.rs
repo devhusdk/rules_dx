@@ -18,7 +18,10 @@ pub use generate::{
     generate_scope_json, plan_generate,
 };
 pub use managed::{plan_managed, plan_managed_with_roots};
-pub use quality::{Selection, plan_build, plan_build_with, plan_docs, plan_probe};
+pub use quality::{
+    Selection, command_aspects, plan_build, plan_build_with, plan_docs, plan_probe,
+    plan_shared_build,
+};
 pub(crate) use quality::{workflow_bazel_labels, workflow_scope_labels};
 pub use registry::{Consumer, spec};
 pub use run_deploy::{

@@ -12,6 +12,7 @@ pub use dx_binfmt::{
     inspect as image_inspect, machine as image_machine, machines as image_machines,
 };
 
+pub use dx_path::without_verbatim;
 pub use serde_json;
 
 #[derive(Debug)]

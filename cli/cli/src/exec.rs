@@ -6,6 +6,7 @@ mod bench;
 mod breaking_base;
 mod build_failures;
 mod changed_coverage;
+mod check_build;
 mod clean;
 pub mod common;
 mod compiler_stderr;

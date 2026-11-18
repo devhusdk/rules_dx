@@ -44,6 +44,8 @@ pub struct DxConfig {
     pub large_files: LargeFiles,
     #[serde(default)]
     pub check: CheckConfig,
+    #[serde(default)]
+    pub affected: AffectedConfig,
 }
 
 /// Oversized files a change may keep. Lock files are always allowed.
@@ -62,6 +64,16 @@ pub struct CheckConfig {
     /// Lint the commit subjects since the merge base. Off when left out.
     #[serde(default)]
     pub commits: Option<CommitsPolicy>,
+}
+
+/// How `--affected` finds the changes to select from.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AffectedConfig {
+    /// The branch or ref, such as `origin/develop`, whose merge base with `HEAD` `--affected`
+    /// compares against. Left out, dx tries origin/HEAD, then main and master.
+    #[serde(default)]
+    pub base: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Deserialize, JsonSchema)]

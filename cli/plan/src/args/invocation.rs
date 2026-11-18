@@ -319,6 +319,8 @@ pub struct Invocation {
     pub affected: bool,
     /// `--since`: the ref `--affected` compares against instead of the merge-base.
     pub since: Option<String>,
+    /// `--base`: the branch whose merge-base `--affected` compares against.
+    pub base: Option<String>,
     pub affected_handoff: Option<AffectedHandoff>,
     pub serve: bool,
     pub port: Option<u16>,
@@ -807,6 +809,7 @@ mod tests {
             here: true,
             affected: false,
             since: None,
+            base: None,
             affected_handoff: None,
             serve: false,
             port: None,

@@ -1,5 +1,5 @@
 {
-  "checksum": "29ca393ab38e1ce234015642597c82a632ec13160683a970c28b83d00757cd57",
+  "checksum": "7e720f28032c64ce2fb1f995b7ac4bb37efd18f629a06d2d7d37b38aa1c083f6",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -313,6 +313,35 @@
         }
       ],
       "version": "2.0.1"
+    },
+    "advisory_prep 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "chrono 0.4.45",
+            "target": "chrono"
+          },
+          {
+            "id": "clap 4.6.7",
+            "target": "clap"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "advisory_prep",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
     },
     "aead 0.5.2": {
       "common_attrs": {
@@ -1232,10 +1261,6 @@
           {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
-          },
-          {
-            "id": "sha2 0.10.9",
-            "target": "sha2"
           }
         ],
         "deps_dev": [
@@ -7399,10 +7424,6 @@
           {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
-          },
-          {
-            "id": "sha2 0.10.9",
-            "target": "sha2"
           }
         ],
         "edition": "2024"
@@ -7663,14 +7684,6 @@
     "dx_advisory_prep 0.0.0": {
       "common_attrs": {
         "deps": [
-          {
-            "id": "chrono 0.4.45",
-            "target": "chrono"
-          },
-          {
-            "id": "clap 4.6.7",
-            "target": "clap"
-          },
           {
             "id": "crc32fast 1.5.2",
             "target": "crc32fast"
@@ -8341,10 +8354,6 @@
           {
             "id": "sha1 0.10.7",
             "target": "sha1"
-          },
-          {
-            "id": "sha2 0.10.9",
-            "target": "sha2"
           },
           {
             "id": "tar 0.4.46",
@@ -9503,10 +9512,6 @@
               "target": "semver"
             },
             {
-              "id": "sha2 0.10.9",
-              "target": "sha2"
-            },
-            {
               "id": "ureq 3.5.0",
               "target": "ureq"
             }
@@ -9559,10 +9564,6 @@
           {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
-          },
-          {
-            "id": "sha2 0.10.9",
-            "target": "sha2"
           }
         ],
         "edition": "2024"
@@ -9661,10 +9662,6 @@
     "dx_tool_resolve 0.0.0": {
       "common_attrs": {
         "deps": [
-          {
-            "id": "clap 4.6.7",
-            "target": "clap"
-          },
           {
             "id": "thiserror 2.0.20",
             "target": "thiserror"
@@ -17555,10 +17552,6 @@
           {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
-          },
-          {
-            "id": "sha2 0.10.9",
-            "target": "sha2"
           },
           {
             "id": "zip 9.1.2",
@@ -28439,6 +28432,25 @@
       ],
       "version": "1.1.2+spec-1.1.0"
     },
+    "tool_resolve 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "clap 4.6.7",
+            "target": "clap"
+          }
+        ],
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "tool_resolve",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
     "tower 0.5.3": {
       "common_attrs": {
         "crate_features": [
@@ -33121,7 +33133,6 @@
     "serde-sarif 0.8.0",
     "serde_json 1.0.151",
     "sha1 0.10.7",
-    "sha2 0.10.9",
     "sha2 0.11.1",
     "similar 3.2.0",
     "spdx 0.13.5",
@@ -33151,6 +33162,7 @@
     "tokio 1.54.1"
   ],
   "workspace_members": {
+    "advisory_prep 0.0.0": "dx/advisory_prep",
     "ansible_lock 0.0.0": "ansible/private/tools/ansible_lock",
     "api_spec_tests 0.0.0": "api_spec/api_spec_tests",
     "appimage_packer 0.0.0": "appimage/private/tools/appimage_packer",
@@ -33331,6 +33343,7 @@
     "terraform_lock 0.0.0": "terraform/private/tools/terraform_lock",
     "thrift_tests 0.0.0": "thrift/thrift_tests",
     "tiers 0.0.0": "tools/docs/tiers",
+    "tool_resolve 0.0.0": "dx/tool_resolve",
     "typescript_docs_tests 0.0.0": "tools/docs/typescript_docs_tests",
     "typescript_extract 0.0.0": "tools/docs/typescript/typescript_extract",
     "typescript_scoped_fixture 0.0.0": "typescript/tests/fixtures/typescript_scoped_fixture",

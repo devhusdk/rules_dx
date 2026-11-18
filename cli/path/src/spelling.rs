@@ -47,11 +47,9 @@ pub fn posix_str(path: &str) -> String {
 /// Returns one path as a runfiles manifest key.
 #[must_use]
 pub fn manifest(path: &Path) -> String {
-    let text = posix(path);
-    match text.strip_prefix("//?/") {
-        Some(rest) => rest.to_owned(),
-        None => text,
-    }
+    posix_str(&crate::verbatim::without_verbatim_str(
+        &path.to_string_lossy(),
+    ))
 }
 
 /// Returns one path the way Git's `sh` on Windows reads it.
@@ -102,6 +100,14 @@ mod tests {
         assert_eq!(
             spell_of("//?/C:/tmp/a.py", Spelling::Manifest),
             "C:/tmp/a.py"
+        );
+        assert_eq!(
+            spell_of(r"\\?\UNC\srv\share\a.py", Spelling::Manifest),
+            "//srv/share/a.py"
+        );
+        assert_eq!(
+            spell_of("//?/UNC/srv/share/a.py", Spelling::Manifest),
+            "//srv/share/a.py"
         );
         assert_eq!(spell_of("/tmp/a.py", Spelling::Manifest), "/tmp/a.py");
     }

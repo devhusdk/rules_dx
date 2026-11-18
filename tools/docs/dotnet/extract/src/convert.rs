@@ -5,7 +5,6 @@ use documentation_ir::escape_id_segment;
 use documentation_ir::proto::{
     DocIr, Extension, Param, Relations, Returns, SourceRef, Symbol, SymbolKind, Visibility,
 };
-use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 
@@ -153,13 +152,11 @@ fn segment_group(item: &Item, overloaded: bool) -> Result<String, String> {
     }
     let mut segment = escape_id_segment(&item.name);
     if overloaded {
-        let digest = Sha256::digest(item.doc_id.as_bytes());
-        let hex = digest
-            .iter()
-            .take(4)
-            .map(|b| format!("{b:02x}"))
-            .collect::<Vec<_>>()
-            .concat();
+        // The first four digest bytes keep overload ids short and stable.
+        let hex: String = dx_digest::sha256_hex(item.doc_id.as_bytes())
+            .chars()
+            .take(8)
+            .collect();
         segment.push_str("~~");
         segment.push_str(&hex);
     }

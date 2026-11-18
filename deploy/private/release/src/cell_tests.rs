@@ -334,6 +334,12 @@ fn stage(cell: Cell, members: Members) -> Fixture {
     std::fs::write(&sidecar, format!("{sha}  {}\n", cell.archive_name())).expect("sidecar");
     let rebuild = dir.path().join("rebuild").join(cell.archive_name());
     std::fs::write(&rebuild, &bytes).expect("rebuild");
+    // The workflow hands Windows cells their licence ids; the fixture id shows they pass through.
+    let accept_licenses = if cell.os == "windows" {
+        vec![FIXTURE_LICENSE.to_owned()]
+    } else {
+        Vec::new()
+    };
     let inputs = QualifyInputs {
         runner_os: cell.os.clone(),
         runner_arch: cell.machine.clone(),
@@ -351,6 +357,7 @@ fn stage(cell: Cell, members: Members) -> Fixture {
         consumer: Some(Consumer {
             template: dir.path().join("template"),
             checkout: dir.path().join("checkout"),
+            accept_licenses,
         }),
         symbols: None,
     };
@@ -413,11 +420,11 @@ fn qualify_passes_the_host_binary_in_tar_gz_and_zip() {
         assert_eq!(record.archive.name, cell.archive_name());
         assert_eq!(record.members.len(), 4 + cell.runtime.len());
         let exe_name = cell.exe.clone();
-        // A Windows cell accepts the Build Tools licence at init, as stage does.
+        // A Windows cell accepts the licence ids it was given at init, as stage does.
         let accept = if cell.os == "windows" {
-            " --accept-license visual-studio-build-tools"
+            format!(" --accept-license {FIXTURE_LICENSE}")
         } else {
-            ""
+            String::new()
         };
         assert_eq!(
             *runner.calls.borrow(),
@@ -1230,6 +1237,8 @@ fn version_main_asks_the_executable() {
     );
 }
 
+const FIXTURE_LICENSE: &str = "fixture-license";
+
 fn consumer_of(fixture: &Fixture) -> Consumer {
     fixture.inputs.consumer.clone().expect("consumer")
 }
@@ -1447,6 +1456,23 @@ fn parse_qualify_args_needs_consumer_and_checkout_together() {
             want
         );
     }
+    let licenses = |list: &str| {
+        let mut args = base.clone();
+        args.extend(["--accept-licenses".to_owned(), list.to_owned()]);
+        args
+    };
+    assert_eq!(
+        parse_qualify_args(&licenses("a"), "linux", "x86_64").unwrap_err(),
+        "--accept-licenses needs --consumer"
+    );
+    assert_eq!(
+        parse_qualify_args(&licenses("a,,b"), "linux", "x86_64").unwrap_err(),
+        "--accept-licenses \"a,,b\" has an empty id"
+    );
+    assert_eq!(
+        parse_license_ids("a, b"),
+        Ok(vec!["a".to_owned(), "b".to_owned()])
+    );
 }
 
 #[test]

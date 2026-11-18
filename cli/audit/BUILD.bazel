@@ -86,6 +86,7 @@ rust_library(
     visibility = VIS_CLI + [
         "//deploy/private:__pkg__",
         "//deploy/private/release:__pkg__",
+        "//dx/advisory_prep:__pkg__",
     ],
     # keep
     deps = [

@@ -144,6 +144,7 @@ pub(crate) struct Flags {
     pub(crate) here: bool,
     pub(crate) affected: bool,
     pub(crate) since: Option<String>,
+    pub(crate) base: Option<String>,
     pub(crate) serve: bool,
     pub(crate) port: Option<u16>,
     pub(crate) host: Option<String>,
@@ -551,6 +552,14 @@ flag_group! {
     SinceFlag, {
         #[arg(long, allow_negative_numbers = true, overrides_with = "since", value_name = "REF", value_parser = non_empty)]
         since: Option<String>,
+    }
+}
+
+flag_group! {
+    /// With --affected, take the merge-base with this branch instead of the default branch.
+    BaseFlag, {
+        #[arg(long, allow_negative_numbers = true, overrides_with = "base", conflicts_with = "since", value_name = "REF", value_parser = non_empty)]
+        base: Option<String>,
     }
 }
 
@@ -1056,6 +1065,7 @@ command_args! {
         here: HereFlag,
         affected: AffectedFlag,
         since: SinceFlag,
+        base: BaseFlag,
     };
     /// The flags `dx license` accepts.
     License => 1, NoPassthroughTail, {
@@ -1068,6 +1078,7 @@ command_args! {
         here: HereFlag,
         affected: AffectedFlag,
         since: SinceFlag,
+        base: BaseFlag,
     };
     /// The flags `dx lint` accepts.
     Lint => 2, BazelTail, {
@@ -1084,6 +1095,7 @@ command_args! {
         here: HereFlag,
         affected: AffectedFlag,
         since: SinceFlag,
+        base: BaseFlag,
     };
     /// The flags `dx typecheck` accepts.
     Typecheck => 3, BazelTail, {
@@ -1098,6 +1110,7 @@ command_args! {
         here: HereFlag,
         affected: AffectedFlag,
         since: SinceFlag,
+        base: BaseFlag,
     };
     /// The flags `dx format` accepts.
     Format => 4, BazelTail, {
@@ -1111,6 +1124,7 @@ command_args! {
         here: HereFlag,
         affected: AffectedFlag,
         since: SinceFlag,
+        base: BaseFlag,
     };
     /// The flags `dx generate` accepts.
     Generate => 5, BazelTail, {
@@ -1130,6 +1144,7 @@ command_args! {
         here: HereFlag,
         affected: AffectedFlag,
         since: SinceFlag,
+        base: BaseFlag,
     };
     /// The flags `dx test` accepts.
     Test => 7, BazelTail, {
@@ -1141,6 +1156,7 @@ command_args! {
         here: HereFlag,
         affected: AffectedFlag,
         since: SinceFlag,
+        base: BaseFlag,
     };
     /// The flags `dx coverage` accepts.
     #[expect(clippy::struct_field_names, reason = "the fields are the clap argument ids")]
@@ -1155,6 +1171,7 @@ command_args! {
         here: HereFlag,
         affected: AffectedFlag,
         since: SinceFlag,
+        base: BaseFlag,
     };
     /// The flags `dx bench` accepts.
     Bench => 9, BazelTail, {
@@ -1176,6 +1193,7 @@ command_args! {
         apply: ApplyFlag,
         affected: AffectedFlag,
         since: SinceFlag,
+        base: BaseFlag,
     };
     /// The flags `dx check` accepts.
     Check => 12, BazelTail, {
@@ -1191,6 +1209,7 @@ command_args! {
         here: HereFlag,
         affected: AffectedFlag,
         since: SinceFlag,
+        base: BaseFlag,
     };
     /// The flags `dx clean` accepts.
     #[expect(clippy::struct_field_names, reason = "the fields are the clap argument ids")]
@@ -1248,6 +1267,7 @@ command_args! {
         here: HereFlag,
         affected: AffectedFlag,
         since: SinceFlag,
+        base: BaseFlag,
         poll: PollFlag,
         own: BuildModeArgs,
     };

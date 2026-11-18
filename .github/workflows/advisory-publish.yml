@@ -42,10 +42,10 @@ jobs:
           set -euo pipefail
           date="$(date -u +%F)"
           echo "date=$date" >> "$GITHUB_OUTPUT"
-          bazel build //cli/advisory_prep:trivy
-          trivy_file="$(bazel cquery --output=files //cli/advisory_prep:trivy)"
+          bazel build //dx/advisory_prep:trivy
+          trivy_file="$(bazel cquery --output=files //dx/advisory_prep:trivy)"
           trivy="$(bazel info execution_root)/$trivy_file"
-          bazel run //cli/advisory_prep -- \
+          bazel run //dx/advisory_prep -- \
             --workspace "$GITHUB_WORKSPACE" \
             --out "$RUNNER_TEMP/advisory" \
             --date "$date" \

@@ -764,7 +764,7 @@ fn quality_phase(harness: &Harness, words: &[&str]) -> super::PhaseRun {
     let runner = harness.runner();
     let mut out = Vec::new();
     let mut err = Vec::new();
-    super::execute_quality_phase(&request, harness.env(&runner, &mut out, &mut err))
+    super::execute_quality_phase(&request, harness.env(&runner, &mut out, &mut err), None)
 }
 
 #[test]

@@ -2,48 +2,115 @@
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
-use support_matrix as _;
-use yaml_serde as _;
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
+use std::io;
 use std::path::Path;
 use std::process::{Command, ExitCode};
+use support_matrix as _;
+use yaml_serde as _;
 
+use dx_atomic_fs::path_io::{self, PathIoError};
 use serde_json::Value;
 
 const DIR: &str = "tools/docs/support_matrix";
+const USAGE: &str = "usage: row_tests <bazel> <platform> [bazel flags]";
+
+#[derive(Debug)]
+enum RowTestsError {
+    Usage,
+    NoWorkspace,
+    Spawn {
+        program: String,
+        source: io::Error,
+    },
+    Bazel {
+        verb: String,
+        stderr: String,
+    },
+    QueryLine {
+        line: String,
+        source: serde_json::Error,
+    },
+    NoRule {
+        line: String,
+    },
+    Serialize {
+        path: String,
+        source: serde_json::Error,
+    },
+    Write(PathIoError),
+}
+
+impl fmt::Display for RowTestsError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Usage => f.write_str(USAGE),
+            Self::NoWorkspace => {
+                f.write_str("run with bazel run so BUILD_WORKSPACE_DIRECTORY is set")
+            }
+            Self::Spawn { program, source } => write!(f, "run {program}: {source}"),
+            Self::Bazel { verb, stderr } => write!(f, "bazel {verb} failed: {stderr}"),
+            Self::QueryLine { line, source } => write!(f, "bad query line {line}: {source}"),
+            Self::NoRule { line } => write!(f, "no rule in {line}"),
+            Self::Serialize { path, source } => write!(f, "serialize {path}: {source}"),
+            Self::Write(source) => source.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for RowTestsError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Spawn { source, .. } => Some(source),
+            Self::QueryLine { source, .. } | Self::Serialize { source, .. } => Some(source),
+            Self::Write(source) => Some(source),
+            Self::Usage | Self::NoWorkspace | Self::Bazel { .. } | Self::NoRule { .. } => None,
+        }
+    }
+}
 
 fn bazel(
     program: &str,
     workspace: &Path,
-    args: &[&str],
+    verb: &str,
+    rest: &[&str],
     flags: &[String],
-) -> Result<String, String> {
-    let (verb, rest) = args.split_first().ok_or("no bazel verb")?;
+) -> Result<String, RowTestsError> {
     let done = Command::new(program)
         .current_dir(workspace)
         .arg(verb)
         .args(flags)
         .args(rest)
         .output()
-        .map_err(|error| format!("run bazel: {error}"))?;
+        .map_err(|source| RowTestsError::Spawn {
+            program: program.to_owned(),
+            source,
+        })?;
     if !done.status.success() {
-        return Err(format!(
-            "bazel {verb} failed: {}",
-            String::from_utf8_lossy(&done.stderr)
-        ));
+        return Err(RowTestsError::Bazel {
+            verb: verb.to_owned(),
+            stderr: String::from_utf8_lossy(&done.stderr).into_owned(),
+        });
     }
     Ok(String::from_utf8_lossy(&done.stdout).into_owned())
 }
 
-fn rules(text: &str) -> Result<Vec<Value>, String> {
+fn rules(text: &str) -> Result<Vec<Value>, RowTestsError> {
     text.lines()
         .filter(|line| !line.trim().is_empty())
         .map(|line| {
-            let value: Value = serde_json::from_str(line).map_err(|error| error.to_string())?;
+            let value: Value =
+                serde_json::from_str(line).map_err(|source| RowTestsError::QueryLine {
+                    line: line.to_owned(),
+                    source,
+                })?;
             value
                 .get("rule")
                 .cloned()
-                .ok_or_else(|| format!("no rule in {line}"))
+                .ok_or_else(|| RowTestsError::NoRule {
+                    line: line.to_owned(),
+                })
         })
         .collect()
 }
@@ -97,29 +164,33 @@ fn labels_by_row(rules: &[Value], prefix: &str) -> BTreeMap<String, BTreeSet<Str
     out
 }
 
-fn write_json(workspace: &Path, path: &str, value: &impl serde::Serialize) -> Result<(), String> {
-    let mut text = serde_json::to_string_pretty(value).map_err(|error| error.to_string())?;
+fn write_json(
+    workspace: &Path,
+    path: &str,
+    value: &impl serde::Serialize,
+) -> Result<(), RowTestsError> {
+    let mut text =
+        serde_json::to_string_pretty(value).map_err(|source| RowTestsError::Serialize {
+            path: path.to_owned(),
+            source,
+        })?;
     text.push('\n');
-    std::fs::write(workspace.join(path), text).map_err(|error| format!("write {path}: {error}"))
+    path_io::write_scratch(&workspace.join(path), text.as_bytes()).map_err(RowTestsError::Write)
 }
 
-fn run() -> Result<(), String> {
+fn run() -> Result<(), RowTestsError> {
     let mut args = std::env::args().skip(1);
-    let usage = "usage: row_tests <bazel> <platform> [bazel flags]";
-    let program = args.next().ok_or(usage)?;
-    let platform = args.next().ok_or(usage)?;
+    let program = args.next().ok_or(RowTestsError::Usage)?;
+    let platform = args.next().ok_or(RowTestsError::Usage)?;
     let flags: Vec<String> = args.collect();
-    let workspace = std::env::var_os("BUILD_WORKSPACE_DIRECTORY")
-        .ok_or("run with bazel run so BUILD_WORKSPACE_DIRECTORY is set")?;
+    let workspace =
+        std::env::var_os("BUILD_WORKSPACE_DIRECTORY").ok_or(RowTestsError::NoWorkspace)?;
     let workspace = Path::new(&workspace);
     let tagged = rules(&bazel(
         &program,
         workspace,
-        &[
-            "query",
-            "attr(tags, \"row:\", //...)",
-            "--output=streamed_jsonproto",
-        ],
+        "query",
+        &["attr(tags, \"row:\", //...)", "--output=streamed_jsonproto"],
         &flags,
     )?)?;
     let mut all = BTreeSet::new();
@@ -140,7 +211,8 @@ fn run() -> Result<(), String> {
     let compatible = bazel(
         &program,
         workspace,
-        &["cquery", &platforms, &query, "--output=starlark", &starlark],
+        "cquery",
+        &[&platforms, &query, "--output=starlark", &starlark],
         &flags,
     )?;
     let compatible: Vec<&str> = compatible
@@ -153,7 +225,8 @@ fn run() -> Result<(), String> {
         let found = rules(&bazel(
             &program,
             workspace,
-            &["query", &query, "--output=streamed_jsonproto"],
+            "query",
+            &[&query, "--output=streamed_jsonproto"],
             &flags,
         )?)?;
         for rule in &found {

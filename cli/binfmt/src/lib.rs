@@ -231,11 +231,27 @@ pub fn machines(bytes: &[u8]) -> Result<Vec<String>, Error> {
             }
             Ok(names)
         }
+        FileKind::MachO32 => Ok(vec![macho_header_machine::<
+            macho::MachHeader32<object::Endianness>,
+        >(bytes)?]),
+        FileKind::MachO64 => Ok(vec![macho_header_machine::<
+            macho::MachHeader64<object::Endianness>,
+        >(bytes)?]),
         _ => Ok(inspect(bytes)?
             .into_iter()
             .map(|image| image.machine)
             .collect()),
     }
+}
+
+fn macho_header_machine<H: MachHeader<Endian = object::Endianness>>(
+    bytes: &[u8],
+) -> Result<String, Error> {
+    let header = H::parse(bytes, 0).map_err(|error| fail("bad Mach-O header", error))?;
+    let endian = header
+        .endian()
+        .map_err(|error| fail("bad Mach-O header", error))?;
+    Ok(macho_machine_name(header.cputype(endian)))
 }
 
 /// Lists how an image names the tools that built it.
@@ -294,7 +310,12 @@ fn elf_producers<H: object::read::elf::FileHeader<Endian = object::Endianness>>(
     data.split(|byte| *byte == 0)
         .filter(|part| !part.is_empty())
         .map(utf8)
-        .collect()
+        .fold(Vec::new(), |mut found, producer| {
+            if !found.contains(&producer) {
+                found.push(producer);
+            }
+            found
+        })
 }
 
 fn utf8(bytes: &[u8]) -> String {
@@ -328,7 +349,14 @@ fn inspect_elf<H: object::read::elf::FileHeader<Endian = object::Endianness>>(
     }
     let abi = match interp {
         None => Abi::Static,
-        Some(path) if path.contains("musl") => Abi::Musl,
+        Some(path)
+            if path
+                .rsplit('/')
+                .next()
+                .is_some_and(|name| name.contains("musl")) =>
+        {
+            Abi::Musl
+        }
         Some(_) => Abi::Gnu,
     };
     let segments = header
@@ -442,11 +470,16 @@ fn inspect_macho<H: MachHeader<Endian = object::Endianness>>(bytes: &[u8]) -> Re
                     minos: apple_version(build.minos.get(endian)),
                 });
             }
-            LoadCommandVariant::VersionMin(min)
-                if abi.is_none() && command.cmd() == macho::LC_VERSION_MIN_MACOSX =>
-            {
+            LoadCommandVariant::VersionMin(min) if abi.is_none() => {
+                let platform = match command.cmd() {
+                    macho::LC_VERSION_MIN_MACOSX => macho::PLATFORM_MACOS,
+                    macho::LC_VERSION_MIN_IPHONEOS => macho::PLATFORM_IOS,
+                    macho::LC_VERSION_MIN_TVOS => macho::PLATFORM_TVOS,
+                    macho::LC_VERSION_MIN_WATCHOS => macho::PLATFORM_WATCHOS,
+                    _ => continue,
+                };
                 abi = Some(Abi::Apple {
-                    platform: "macos".to_owned(),
+                    platform: apple_platform(platform),
                     minos: apple_version(min.version.get(endian)),
                 });
             }

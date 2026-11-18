@@ -1,6 +1,6 @@
 """Pin helpers shared by the package-hub repository rules."""
 
-visibility(["//ansible/...", "//bicep/...", "//core/...", "//csharp/...", "//d/...", "//elixir/...", "//fortran/...", "//haskell/...", "//lua/...", "//ocaml/...", "//perl/...", "//powershell/...", "//ruby/...", "//swift/...", "//terraform/...", "//zig/..."])
+visibility(["//ansible/...", "//bicep/...", "//core/...", "//csharp/...", "//d/...", "//elixir/...", "//fortran/...", "//haskell/...", "//lua/...", "//ocaml/...", "//perl/...", "//php/...", "//powershell/...", "//ruby/...", "//swift/...", "//terraform/...", "//zig/..."])
 
 def spoke_name(hub, package, replaced, replacement = "_"):
     """Returns the repository name of one package: <hub>__<name>, with each character in `replaced` turned into `replacement`."""
@@ -142,13 +142,15 @@ lock_tag = tag_class(
     },
 )
 
-def lock_repos(mctx, build_file):
-    """Creates one repository per `lock` tag of the module context; `build_file(package)` returns the BUILD file text of a decoded lock package."""
+def lock_repos(mctx, build_file, validate = None):
+    """Creates one repository per `lock` tag of the module context; `build_file(package)` returns the BUILD file text of a decoded lock package and `validate(lock)`, when set, returns the ecosystem problems of a lock that `lock_problems` accepts."""
     for module in mctx.modules:
         for tag in module.tags.lock:
             text = mctx.read(tag.lock)
             lock = json.decode(text)
             problems = lock_problems(lock)
+            if not problems and validate:
+                problems = validate(lock)
             if problems:
                 fail("%s %s" % (tag.lock, "; ".join(problems)))
             lock_repo(

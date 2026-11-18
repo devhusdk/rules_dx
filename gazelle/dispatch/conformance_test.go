@@ -161,6 +161,8 @@ var conformanceRows = map[string]conformanceRow{
 			"@rules_dx//api_spec:defs.bzl":       {"api_spec_library"},
 			"@rules_dx//helm:defs.bzl":           {"helm_library"},
 			"@rules_dx//fortran:defs.bzl":        {"fortran_library"},
+			"@rules_dx//appimage:defs.bzl":       {"appimage_package"},
+			"@rules_dx//msix:defs.bzl":           {"msix_package"},
 		},
 	},
 	"perl": {
@@ -257,6 +259,9 @@ var conformanceRows = map[string]conformanceRow{
 		files: map[string]string{"Demo.swift": "import Foundation\n"},
 		kind:  "swift_library", target: "demo", defs: "swift:defs.bzl",
 		symbols: []string{"swift_library", "swift_test"},
+		extraLoads: map[string][]string{
+			"@rules_dx//apple:defs.bzl": {"apple_ios_app", "apple_macos_app"},
+		},
 	},
 	"typescript": {
 		files: map[string]string{"demo.ts": "export const x = 1;\n", "tsconfig.json": "{}\n"},

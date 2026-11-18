@@ -1,17 +1,23 @@
+#![cfg(windows)]
+
 use crate::nt::{
     SystemHandle, command_line, object_name, object_type_name, parse_handles, query,
     system_handles, unicode_string,
 };
-use windows_sys::Win32::Foundation::STATUS_INFO_LENGTH_MISMATCH;
 use crate::win32::{Access, open};
 use std::os::windows::io::{AsHandle, AsRawHandle};
+use windows_sys::Win32::Foundation::STATUS_INFO_LENGTH_MISMATCH;
 
 #[test]
 fn this_process_command_line_names_its_executable() {
     let me = open(std::process::id(), Access::Query).expect("open self");
     let line = command_line(me.as_handle()).expect("command line");
     let exe = std::env::current_exe().expect("exe");
-    let stem = exe.file_stem().expect("stem").to_string_lossy().into_owned();
+    let stem = exe
+        .file_stem()
+        .expect("stem")
+        .to_string_lossy()
+        .into_owned();
     assert!(line.contains(&stem), "{line}");
 }
 
@@ -35,7 +41,11 @@ fn the_handle_table_holds_an_open_file_of_this_process() {
 fn a_file_has_the_file_type_and_a_device_name() {
     let file = std::fs::File::open(std::env::current_exe().expect("exe")).expect("open");
     assert_eq!(object_type_name(file.as_handle()).expect("type"), "File");
-    assert!(object_name(file.as_handle()).expect("name").starts_with("\\Device\\"));
+    assert!(
+        object_name(file.as_handle())
+            .expect("name")
+            .starts_with("\\Device\\")
+    );
 }
 
 #[test]
@@ -83,7 +93,11 @@ fn a_query_grows_its_buffer_to_the_length_asked_for() {
     let buffer = query("test", 8, |buffer, len, needed| {
         sizes.push((buffer.len(), len));
         *needed = 40;
-        if len < 40 { STATUS_INFO_LENGTH_MISMATCH } else { 0 }
+        if len < 40 {
+            STATUS_INFO_LENGTH_MISMATCH
+        } else {
+            0
+        }
     })
     .expect("query");
     assert_eq!(buffer.len(), 5);

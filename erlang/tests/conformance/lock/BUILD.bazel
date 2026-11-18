@@ -1,6 +1,8 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//erlang:defs.bzl", "erlang_app", "erlang_escript_archive")
 
+# gazelle:resolve erlang thoas @erlang_lock_deps//thoas
+
 package(
     default_testonly = True,
     default_visibility = ["//erlang/tests/conformance:__pkg__"],
@@ -12,6 +14,9 @@ exports_files([
 ])
 
 erlang_app(
+    name = "erlang_app",
+    testonly = True,
+    srcs = ["src/lock_hello.erl"],
     app_description = "Conformance locked package.",
     app_name = "lock_hello",
     app_version = "1.0.0",

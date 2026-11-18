@@ -30,15 +30,13 @@ impl CtrlEvent {
     }
 }
 
-#[cfg(all(test, windows))]
-pub(crate) use windows::trampoline;
 #[cfg(windows)]
 pub use windows::{
     CtrlHandler, add_handler, ignore_ctrl_c, process_ids, restore_ctrl_c, send_ctrl_c,
 };
 
 #[cfg(windows)]
-mod windows {
+pub(crate) mod windows {
     use super::CtrlEvent;
     use std::io;
     use windows_sys::Win32::System::Console::{

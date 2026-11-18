@@ -1,3 +1,5 @@
+#![cfg(windows)]
+
 use crate::win32::{
     Access, creation_time, disinherit_std_handles, exit_code, is_running, open, processes, resume,
     resume_thread, resume_threads, suspend, system_dirs, terminate, total_physical_memory, wait,

@@ -39,15 +39,15 @@ pub mod win32;
 #[cfg(test)]
 #[path = "console_tests.rs"]
 mod console_tests;
-#[cfg(all(test, windows))]
+#[cfg(test)]
 #[path = "job_object_tests.rs"]
 mod job_object_tests;
 #[cfg(test)]
 #[path = "lib_tests.rs"]
 mod lib_tests;
-#[cfg(all(test, windows))]
+#[cfg(test)]
 #[path = "nt_tests.rs"]
 mod nt_tests;
-#[cfg(all(test, windows))]
+#[cfg(test)]
 #[path = "win32_tests.rs"]
 mod win32_tests;

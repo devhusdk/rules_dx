@@ -58,6 +58,11 @@ impl RawTar {
         self.append(name, tar::EntryType::Regular, None, data)
     }
 
+    /// Adds a directory named `name` verbatim.
+    pub fn add_dir(&mut self, name: &str) -> io::Result<()> {
+        self.append(name, tar::EntryType::Directory, None, &[])
+    }
+
     /// Adds a symlink with `target` verbatim.
     pub fn add_symlink(&mut self, name: &str, target: &str) -> io::Result<()> {
         self.append(name, tar::EntryType::Symlink, Some(target), &[])
@@ -81,7 +86,9 @@ impl Default for RawZip {
 }
 
 fn stored() -> zip::write::SimpleFileOptions {
-    zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored)
+    zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Stored)
+        .system(zip::System::Unix)
 }
 
 impl RawZip {
@@ -96,6 +103,14 @@ impl RawZip {
     pub fn add_file(&mut self, name: &str, data: &[u8]) -> io::Result<()> {
         self.writer
             .start_file(name, stored())
+            .map_err(io::Error::other)?;
+        self.writer.write_all(data)
+    }
+
+    /// Adds a stored regular file made on DOS, so it carries no unix mode.
+    pub fn add_dos_file(&mut self, name: &str, data: &[u8]) -> io::Result<()> {
+        self.writer
+            .start_file(name, stored().system(zip::System::Dos))
             .map_err(io::Error::other)?;
         self.writer.write_all(data)
     }

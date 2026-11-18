@@ -6,7 +6,7 @@ use crate::run::{
 };
 use crate::stage::*;
 use std::collections::BTreeSet;
-use std::io::{self, Read};
+use std::io;
 use std::path::{Path, PathBuf};
 
 /// Owner approval gate for rubygems_deploy.
@@ -89,23 +89,35 @@ fn gem_file_list(gem: &Path) -> Result<BTreeSet<String>, String> {
         format!("rubygems_deploy: cannot read {}: {error}", gem.display())
     };
     let file = std::fs::File::open(gem).map_err(|error| fail(&error))?;
-    let mut outer = tar::Archive::new(file);
-    for entry in outer.entries().map_err(|error| fail(&error))? {
-        let mut entry = entry.map_err(|error| fail(&error))?;
-        if entry.path().map_err(|error| fail(&error))?.to_str() != Some("data.tar.gz") {
-            continue;
-        }
-        let mut data = Vec::new();
-        entry.read_to_end(&mut data).map_err(|error| fail(&error))?;
-        let mut inner = tar::Archive::new(flate2::read::GzDecoder::new(data.as_slice()));
-        let mut paths = BTreeSet::new();
-        for item in inner.entries().map_err(|error| fail(&error))? {
-            let item = item.map_err(|error| fail(&error))?;
-            if item.header().entry_type().is_file() {
-                let path = item.path().map_err(|error| fail(&error))?;
-                paths.insert(path.to_string_lossy().replace('\\', "/"));
+    let mut data = None;
+    dx_archive::visit(
+        file,
+        dx_archive::Format::Tar,
+        crate::archive::LISTING_LIMITS,
+        |name, _, body| {
+            if data.is_none() && name == "data.tar.gz" {
+                let mut bytes = Vec::new();
+                body.read_to_end(&mut bytes)?;
+                data = Some(bytes);
             }
-        }
+            Ok(())
+        },
+    )
+    .map_err(|error| fail(&error))?;
+    if let Some(data) = data {
+        let mut paths = BTreeSet::new();
+        dx_archive::visit(
+            io::Cursor::new(data),
+            dx_archive::Format::TarGz,
+            crate::archive::LISTING_LIMITS,
+            |name, kind, _| {
+                if kind == dx_archive::EntryKind::File {
+                    paths.insert(name.to_owned());
+                }
+                Ok(())
+            },
+        )
+        .map_err(|error| fail(&error))?;
         return Ok(paths);
     }
     Err(format!(
@@ -417,6 +429,18 @@ mod tests {
         assert_eq!(gem_file_list(&gem), Ok(want));
         std::fs::write(&gem, b"not a tar").expect("corrupt");
         assert!(gem_file_list(&gem).is_err());
+    }
+
+    #[test]
+    fn gem_file_list_refuses_a_dot_dot_member() {
+        let scratch = scratch_dir();
+        let gem = scratch.path().join("demo-1.2.3.gem");
+        let data = raw_tar_gz("../lib/demo.rb", b"x\n");
+        let mut outer = dx_archive::TarWriter::new();
+        outer.add_file("data.tar.gz", &data, 0o644).expect("outer");
+        std::fs::write(&gem, outer.finish_tar().expect("tar")).expect("gem");
+        let error = gem_file_list(&gem).expect_err("dot dot");
+        assert!(error.contains("'..'"), "{error}");
     }
 
     #[test]

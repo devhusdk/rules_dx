@@ -182,93 +182,58 @@ fn is_zip(path: &Path) -> bool {
     path.extension().is_some_and(|ext| ext == "zip")
 }
 
-/// Checks one member's type and uniqueness, then hands it to the visitor.
-fn archive_entry<T>(
-    seen: &mut std::collections::HashSet<String>,
-    name: String,
-    regular: bool,
-    mode: u32,
-    body: &mut dyn Read,
-    visit: &mut impl FnMut(String, u32, &mut dyn Read) -> io::Result<Option<T>>,
-) -> io::Result<Option<T>> {
-    if !regular {
-        return Err(listing_error(format!(
-            "archive listing: member {name:?} is not a regular file"
-        )));
-    }
-    if !seen.insert(name.clone()) {
-        return Err(listing_error(format!(
-            "archive listing: duplicate member {name:?}"
-        )));
-    }
-    visit(name, mode, body)
-}
+/// Limits for reading release archives: deploy reads whole archives it built or was handed to publish.
+pub(crate) const LISTING_LIMITS: dx_archive::Limits = dx_archive::Limits {
+    max_entries: usize::MAX,
+    max_entry_bytes: u64::MAX,
+    max_total_bytes: u64::MAX,
+};
 
 fn archive_entries<T>(
     path: &Path,
+    limits: dx_archive::Limits,
     mut visit: impl FnMut(String, u32, &mut dyn Read) -> io::Result<Option<T>>,
 ) -> io::Result<Vec<T>> {
     let file = std::fs::File::open(path)?;
+    let format = if is_zip(path) {
+        dx_archive::Format::Zip
+    } else {
+        dx_archive::Format::TarGz
+    };
     let mut seen = std::collections::HashSet::new();
     let mut out = Vec::new();
-    if is_zip(path) {
-        let mut archive = zip::ZipArchive::new(file)
-            .map_err(|error| listing_error(format!("archive listing: {error}")))?;
-        for index in 0..archive.len() {
-            let mut entry = archive
-                .by_index(index)
-                .map_err(|error| listing_error(format!("archive listing: {error}")))?;
-            let name = entry
-                .name()
-                .map_err(|error| listing_error(format!("archive listing: {error}")))?
-                .into_owned();
-            let unix = entry.system() == zip::System::Unix;
-            let Some(mode) = entry.unix_mode().filter(|_| unix) else {
-                return Err(listing_error(format!(
-                    "archive listing: member {name:?} has no unix mode"
-                )));
-            };
-            let regular = entry.is_file() && !entry.is_symlink();
-            if let Some(item) = archive_entry(
-                &mut seen,
-                name,
-                regular,
-                mode & 0o7777,
-                &mut entry,
-                &mut visit,
-            )? {
-                out.push(item);
-            }
+    dx_archive::visit_entries(file, format, limits, |entry, body| {
+        let name = entry.name;
+        if entry.kind != dx_archive::EntryKind::File {
+            return Err(listing_error(format!(
+                "member {name:?} is not a regular file"
+            )));
         }
-        return Ok(out);
-    }
-    let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(file));
-    for entry in archive.entries()? {
-        let mut entry = entry?;
-        let name =
-            entry.path()?.to_str().map(str::to_owned).ok_or_else(|| {
-                listing_error("archive listing: member name is not UTF-8".to_owned())
-            })?;
-        let regular = entry.header().entry_type() == tar::EntryType::Regular;
-        let mode = if regular { entry.header().mode()? } else { 0 };
-        if let Some(item) = archive_entry(&mut seen, name, regular, mode, &mut entry, &mut visit)? {
+        let Some(mode) = entry.mode else {
+            return Err(listing_error(format!("member {name:?} has no unix mode")));
+        };
+        if !seen.insert(name.to_owned()) {
+            return Err(listing_error(format!("duplicate member {name:?}")));
+        }
+        if let Some(item) = visit(name.to_owned(), mode, body)? {
             out.push(item);
         }
-    }
-    io::copy(&mut archive.into_inner(), &mut io::sink())?;
+        Ok(())
+    })
+    .map_err(|e| io::Error::new(e.kind(), format!("archive listing: {e}")))?;
     Ok(out)
 }
 
 /// Lists name, mode and sha256 of every regular member of a tar.gz or zip.
 pub fn archive_listing(path: &Path) -> io::Result<Vec<(String, u32, String)>> {
-    archive_entries(path, |name, mode, body| {
+    archive_entries(path, LISTING_LIMITS, |name, mode, body| {
         Ok(Some((name, mode, dx_digest::sha256_reader_hex(body)?)))
     })
 }
 
 /// Returns the bytes of one named member of a tar.gz or zip.
 pub fn archive_read_member(path: &Path, member: &str) -> io::Result<Vec<u8>> {
-    let mut found = archive_entries(path, |name, _, body| {
+    let mut found = archive_entries(path, LISTING_LIMITS, |name, _, body| {
         if name != member {
             return Ok(None);
         }
@@ -312,17 +277,16 @@ fn archive_extract_capped(
     max_entry_bytes: u64,
     max_total_bytes: u64,
 ) -> io::Result<Vec<(String, u32, String)>> {
-    let mut total = 0u64;
     std::fs::create_dir_all(dir.parent().unwrap_or(dir))?;
     std::fs::create_dir(dir)?;
-    archive_entries(path, |name, mode, body| {
+    let limits = dx_archive::Limits {
+        max_entry_bytes,
+        max_total_bytes,
+        ..LISTING_LIMITS
+    };
+    archive_entries(path, limits, |name, mode, body| {
         if let Some(reason) = name_error(&name, true) {
             return Err(listing_error(format!("archive extract: {reason}")));
-        }
-        if name.contains(':') {
-            return Err(listing_error(format!(
-                "archive extract: archive member name {name:?} must not contain ':'"
-            )));
         }
         let target = dir.join(&name);
         std::fs::create_dir_all(target.parent().unwrap_or(dir))?;
@@ -334,15 +298,8 @@ fn archive_extract_capped(
             file,
             hash: dx_digest::Sha256Writer::new(),
         };
-        let cap = max_entry_bytes.min(max_total_bytes - total);
-        let written = io::copy(&mut body.take(cap + 1), &mut out)?;
-        if written > cap {
-            return Err(listing_error(format!(
-                "archive extract: member {name:?} exceeds the size cap"
-            )));
-        }
+        io::copy(body, &mut out)?;
         out.flush()?;
-        total += written;
         let HashingFile { file, hash } = out;
         drop(file);
         set_member_mode(&target, mode)?;
@@ -1396,20 +1353,8 @@ mod tests {
         std::fs::write(&duplicated, dx_archive::gzip(&dup).expect("gz")).expect("write");
         let error = archive_extract(&duplicated, &scratch.path().join("dup.out")).expect_err("dup");
         assert!(error.to_string().contains("duplicate member"), "{error}");
-        let mut raw = tar::Header::new_gnu();
-        raw.set_entry_type(tar::EntryType::Regular);
-        raw.set_size(1);
-        raw.set_mode(0o644);
-        raw.as_gnu_mut().expect("gnu").name[..9].copy_from_slice(b"../escape");
-        raw.set_cksum();
-        let mut builder = tar::Builder::new(Vec::new());
-        builder.append(&raw, &b"x"[..]).expect("append");
         let escaping = scratch.path().join("escape.tar.gz");
-        std::fs::write(
-            &escaping,
-            dx_archive::gzip(&builder.into_inner().expect("tar")).expect("gz"),
-        )
-        .expect("write");
+        std::fs::write(&escaping, raw_tar_gz("../escape", b"x")).expect("write");
         let error =
             archive_extract(&escaping, &scratch.path().join("esc.out")).expect_err("escape");
         assert!(error.to_string().contains("'..'"), "{error}");

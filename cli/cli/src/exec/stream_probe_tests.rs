@@ -775,7 +775,7 @@ fn the_next_run_stops_what_a_killed_dx_left_behind_from_a_query() {
         wait_for_file(&mut run, &alive);
         wait_for_lease(&mut run, query);
         run.signal(SIGKILL);
-        let _ = run.exit();
+        let _: ExitStatus = run.exit();
         assert!(group_alive(query), "the descendant should outlive dx");
         let mut next_words = vec!["build", "//..."];
         if json {
@@ -833,7 +833,7 @@ fn the_next_run_stops_what_a_killed_dx_left_behind() {
         let alive = run.dir().join("descendant.alive");
         wait_for_file(&mut run, &alive);
         run.signal(SIGKILL);
-        let _ = run.exit();
+        let _: ExitStatus = run.exit();
         let leftover_dirs = run_dirs(&run);
         assert_eq!(leftover_dirs.len(), 1, "{leftover_dirs:?}");
         assert!(group_alive(build), "the descendant should outlive dx");

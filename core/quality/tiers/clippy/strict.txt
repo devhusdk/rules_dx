@@ -16,6 +16,7 @@
 -Dclippy::fallible_impl_from
 -Dclippy::wildcard_enum_match_arm
 -Dclippy::let_underscore_must_use
+-Dclippy::let_underscore_untyped
 -Dclippy::undocumented_unsafe_blocks
 -Dclippy::allow_attributes_without_reason
 -Dclippy::allow_attributes

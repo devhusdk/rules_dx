@@ -914,15 +914,15 @@ mod tests {
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join("src")).expect("source dir");
         std::fs::write(root.join("src/main.rs"), "fn main() {}").expect("source");
-        let _ = std::fs::read(root.join("src/main.rs")).expect("warm read");
-        let _ = std::fs::read_dir(root.join("src"))
+        let _: Vec<u8> = std::fs::read(root.join("src/main.rs")).expect("warm read");
+        let _: usize = std::fs::read_dir(root.join("src"))
             .expect("warm list")
             .count();
         let session = WatchSession::start(&root, &[], false).expect("session starts");
         std::fs::write(root.join("warm.txt"), "warm").expect("warm");
-        let _ = wait_for(&session, "warm.txt");
-        let _ = std::fs::read(root.join("src/main.rs")).expect("read");
-        let _ = std::fs::read_dir(root.join("src")).expect("list").count();
+        let _: Vec<PathBuf> = wait_for(&session, "warm.txt");
+        let _: Vec<u8> = std::fs::read(root.join("src/main.rs")).expect("read");
+        let _: usize = std::fs::read_dir(root.join("src")).expect("list").count();
         std::fs::write(root.join("sentinel.txt"), "done").expect("sentinel");
         let changes = wait_for(&session, "sentinel.txt");
         assert!(
@@ -1148,7 +1148,7 @@ mod tests {
             trigger.iter().any(|path| path.ends_with("sub/out.sarif")),
             "{trigger:?}"
         );
-        let _ = session.drain().expect("drain");
+        let _: Vec<PathBuf> = session.drain().expect("drain");
         std::fs::write(root.join(".tmpabc"), "x").expect("write");
         let trigger = session.wait(Duration::from_secs(5)).expect("wait");
         assert!(

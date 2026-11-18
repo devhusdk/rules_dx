@@ -136,7 +136,7 @@ fn empty_report(
 }
 
 fn empty_report_unchecked(argv: &[OsString], _cwd: &Path) -> io::Result<ChildOutput> {
-    let _ = last_file(argv);
+    let _: String = last_file(argv);
     Ok(ChildOutput {
         code: Some(0),
         stdout: Vec::new(),
@@ -1917,7 +1917,7 @@ fn compile_check_tool(tool_id: &str, log: &Path, exit: Option<&str>) -> RealTool
             )]
         })
         .unwrap_or_default();
-    let _ = tool_id;
+    let _: &str = tool_id;
     tool
 }
 

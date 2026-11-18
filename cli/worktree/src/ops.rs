@@ -984,7 +984,7 @@ fn make_room(
             .collect();
         if !owned.is_empty() && !stop_server(host, &path) {
             // The free-space reading below decides whether this helped.
-            let _ = drop_bases(host, &owned);
+            let _: bool = drop_bases(host, &owned);
             let after = host.disk_space(&pool.base);
             if let Some(still) = full(after) {
                 space = still

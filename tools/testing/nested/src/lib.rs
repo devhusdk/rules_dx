@@ -3023,7 +3023,7 @@ mod portable_tests {
         );
         assert!(alive(pid));
         owner.kill().expect("kill owner");
-        let _ = owner.wait();
+        let _: std::io::Result<std::process::ExitStatus> = owner.wait();
         let started = Instant::now();
         while alive(pid) {
             if started.elapsed() >= Duration::from_secs(30) {
@@ -3036,8 +3036,8 @@ mod portable_tests {
             }
             std::thread::sleep(Duration::from_millis(50));
         }
-        let _ = stray.wait();
-        let _ = reaper.wait();
+        let _: std::io::Result<std::process::ExitStatus> = stray.wait();
+        let _: std::io::Result<std::process::ExitStatus> = reaper.wait();
     }
 
     #[cfg(windows)]

@@ -4059,7 +4059,7 @@ mod hooks {
         for _ in 0..6 {
             deep = format!("bash -c '{}'", deep.replace('\'', "'\\''"));
         }
-        let _ = guard_for_agent(&deep);
+        let _: hook::Guard = guard_for_agent(&deep);
     }
 
     #[test]

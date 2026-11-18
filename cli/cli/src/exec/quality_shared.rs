@@ -10,7 +10,7 @@ fn result_for(
     terminal: &[u8],
     edits: Vec<proto::Edit>,
 ) -> Vec<u8> {
-    let _ = original;
+    let _: &[u8] = original;
     harness.result_full(
         vec![Harness::diagnostic("unused", true)],
         vec![],

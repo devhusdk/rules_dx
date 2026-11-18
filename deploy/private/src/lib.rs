@@ -943,11 +943,11 @@ mod tests {
         let npm_deploy: fn(&[String], &str, &str) -> i32 = crate::npm_deploy_main;
         let npm_pack: fn(&[String]) -> i32 = crate::npm_pack_main;
         let pages: fn(&crate::PagesLaunch<'_>, &[String]) -> i32 = crate::cloudflare_pages_main;
-        let _ = (
+        let _signatures = (
             archive, pypi, nuget, crates, rubygems, github, homebrew, maven, oci, octopus,
             npm_deploy, npm_pack, pages,
         );
-        let _ = crate::MavenLaunch {
+        let _: crate::MavenLaunch<'_> = crate::MavenLaunch {
             jar_rloc: "",
             pom_rloc: "",
             sources_rloc: "",
@@ -957,7 +957,7 @@ mod tests {
             version: "",
             ..Default::default()
         };
-        let _ = crate::OctopusLaunch {
+        let _: crate::OctopusLaunch<'_> = crate::OctopusLaunch {
             package_rloc: "",
             package: "",
             deploy_name: "",
@@ -968,7 +968,7 @@ mod tests {
             space_default: "",
             url_default: "",
         };
-        let _ = crate::PagesLaunch {
+        let _: crate::PagesLaunch<'_> = crate::PagesLaunch {
             deploy_name: "",
             account_id: "",
             project: "",

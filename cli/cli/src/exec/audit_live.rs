@@ -1117,7 +1117,7 @@ pub(super) fn audit_live_tampered_advisory_fails_on_sha_mismatch() {
 pub(super) fn audit_live_license_clean_and_denied() {
     let runner = AuditRunner::clean();
     let (code, out, err) = run_with(&["license"], &runner, &|_harness| {});
-    let _ = (code, out, err);
+    let _: (i32, String, String) = (code, out, err);
     let runner = AuditRunner::clean();
     let (code, out, err) = run_with(&["license"], &runner, &clean_workspace);
     assert_eq!(

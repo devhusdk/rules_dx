@@ -259,7 +259,7 @@ pub fn run_command_with_input(
     // LCOV_EXCL_START - reason: try_wait failing on a live child cannot be provoked, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     if let Some(err) = wait_error {
         backend::terminate_forced(&mut owned);
-        let _ = poll_exit(&mut owned, hard);
+        let _: Option<ExitStatus> = poll_exit(&mut owned, hard);
         return Err(err);
     }
     // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
@@ -284,11 +284,11 @@ pub fn run_command_with_input(
         }
     } else {
         backend::terminate_graceful(&mut owned);
-        let _ = poll_exit(&mut owned, hard.min(Instant::now() + cleanup.graceful));
+        let _: Option<ExitStatus> = poll_exit(&mut owned, hard.min(Instant::now() + cleanup.graceful));
         backend::terminate_forced(&mut owned);
-        let _ = poll_exit(&mut owned, hard.min(Instant::now() + cleanup.forced));
-        let _ = collect(&stdout_rx, hard);
-        let _ = collect(&stderr_rx, hard);
+        let _: Option<ExitStatus> = poll_exit(&mut owned, hard.min(Instant::now() + cleanup.forced));
+        let _: Drain = collect(&stdout_rx, hard);
+        let _: Drain = collect(&stderr_rx, hard);
         Ok(ChildOutcome::TimedOut)
     }
 }
@@ -838,7 +838,7 @@ fn withdraw_leftover(tree: &Tree, target: i32) -> bool {
 fn settle_owned_tree(tree: &Tree, target: i32, cleanup: CleanupBudget) {
     if !wait_tree_gone(tree, target, Instant::now() + cleanup.graceful) {
         (tree.kill)(target);
-        let _ = wait_tree_gone(tree, target, Instant::now() + cleanup.forced);
+        let _: bool = wait_tree_gone(tree, target, Instant::now() + cleanup.forced);
     }
 }
 

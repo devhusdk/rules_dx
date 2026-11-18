@@ -101,6 +101,27 @@ impl Resolver {
         ))
     }
 
+    /// Reads the runfiles of an invoked executable without following symlinks.
+    ///
+    /// An executable inside a `.runfiles` directory reads that tree; any other
+    /// reads the runfiles beside it. A relative path is read against the current
+    /// directory.
+    pub fn for_executable(exe: &Path) -> io::Result<Self> {
+        if exe.is_absolute() {
+            return Resolver::for_executable_in(Path::new(""), exe);
+        }
+        Resolver::for_executable_in(&std::env::current_dir()?, exe)
+    }
+
+    /// Reads the runfiles of an executable named relative to `cwd`.
+    fn for_executable_in(cwd: &Path, exe: &Path) -> io::Result<Self> {
+        let exe = cwd.join(exe);
+        if let Some(tree) = tree_ancestor(&exe).filter(|tree| tree.is_dir()) {
+            return Resolver::for_tree(&tree);
+        }
+        Resolver::for_binary(&exe)
+    }
+
     /// Names the manifest or tree this resolver read.
     #[must_use]
     pub fn source(&self) -> &Path {
@@ -155,6 +176,22 @@ impl Resolver {
             directory,
         })
     }
+}
+
+/// Returns the first `.runfiles` directory on one path, when there is one.
+fn tree_ancestor(exe: &Path) -> Option<PathBuf> {
+    let mut root = PathBuf::new();
+    for component in exe.components() {
+        root.push(component.as_os_str());
+        if component
+            .as_os_str()
+            .to_string_lossy()
+            .ends_with(".runfiles")
+        {
+            return Some(root);
+        }
+    }
+    None
 }
 
 fn tree_beside(binary: &Path) -> Option<PathBuf> {
@@ -350,6 +387,56 @@ mod tests {
         let absolute = dir.join("elsewhere");
         let key = absolute.to_string_lossy().into_owned();
         assert_eq!(found(&resolver, &key), absolute);
+    }
+
+    #[test]
+    fn an_executable_inside_a_runfiles_tree_reads_that_tree() {
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-exe-tree-").unwrap();
+        let dir = scratch.path().to_path_buf();
+        let exe = write(&dir, "x.runfiles/_main/pkg/x", "binary\n");
+        let target = write(&dir, "x.runfiles/_main/pkg/data.txt", "from the tree\n");
+        write(
+            &dir,
+            "x.runfiles/_main/pkg/x.runfiles/_main/pkg/data.txt",
+            "nested\n",
+        );
+        let resolver = Resolver::for_executable(&exe).expect("resolver");
+        assert_eq!(resolver.source(), dir.join("x.runfiles"));
+        assert_eq!(found(&resolver, "_main/pkg/data.txt"), target);
+    }
+
+    #[test]
+    fn a_relative_executable_is_read_against_the_working_directory() {
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-exe-relative-").unwrap();
+        let dir = scratch.path().to_path_buf();
+        let target = write(&dir, "x.runfiles/_main/pkg/data.txt", "from the tree\n");
+        write(&dir, "x.runfiles/_main/pkg/x", "binary\n");
+        let resolver = Resolver::for_executable_in(&dir, Path::new("x.runfiles/_main/pkg/x"))
+            .expect("resolver");
+        assert_eq!(resolver.source(), dir.join("x.runfiles"));
+        assert_eq!(found(&resolver, "_main/pkg/data.txt"), target);
+    }
+
+    #[test]
+    fn an_executable_outside_any_tree_reads_the_runfiles_beside_it() {
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-exe-beside-").unwrap();
+        let dir = scratch.path().to_path_buf();
+        let exe = write(&dir, "bin/x", "binary\n");
+        let target = write(&dir, "bin/x.runfiles/_main/pkg/data.txt", "beside\n");
+        let resolver = Resolver::for_executable(&exe).expect("resolver");
+        assert_eq!(resolver.source(), dir.join("bin/x.runfiles"));
+        assert_eq!(found(&resolver, "_main/pkg/data.txt"), target);
+    }
+
+    #[test]
+    fn tree_ancestor_stops_at_the_first_runfiles_dir() {
+        assert_eq!(
+            tree_ancestor(Path::new(
+                "/b/case.runfiles/_main/pkg/case.runfiles/_main/case"
+            )),
+            Some(PathBuf::from("/b/case.runfiles"))
+        );
+        assert_eq!(tree_ancestor(Path::new("/out/bin/tool")), None);
     }
 
     #[test]

@@ -48,6 +48,17 @@ The file rewrites URLs.
 rewrite github.com/(.*) mirror.example.com/github/$1
 ```
 
+When your proxy blocks GitHub source archives, fetch them from the Bazel mirrors instead. Bazel tries the URLs in order and checks each archive's checksum. The last line keeps the GitHub URL.
+
+```text
+rewrite (github\.com/[^/]+/[^/]+/archive/.+) mirror.bazel.build/$1
+rewrite (github\.com/[^/]+/[^/]+/archive/.+) bcr.cloudflaremirrors.com/$1
+rewrite (github\.com/[^/]+/[^/]+/archive/.+) $1
+rewrite codeload\.github\.com/([^/]+)/([^/]+)/(tar\.gz|zip)/(.+) mirror.bazel.build/github.com/$1/$2/archive/$4.$3
+rewrite codeload\.github\.com/([^/]+)/([^/]+)/(tar\.gz|zip)/(.+) bcr.cloudflaremirrors.com/github.com/$1/$2/archive/$4.$3
+rewrite codeload\.github\.com/([^/]+)/([^/]+)/(tar\.gz|zip)/(.+) codeload.github.com/$1/$2/$3/$4
+```
+
 ## tools/dx
 
 `tools/dx` downloads the pinned `dx` binary with `curl`, or with `wget` when `curl` is missing. Both read `HTTPS_PROXY` and `NO_PROXY`.

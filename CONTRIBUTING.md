@@ -95,6 +95,8 @@ Use these steps when you or an agent start from a fresh Linux checkout, such as 
 
    The build needs `bcr.bazel.build`, the Bazel module registry. If the network blocks it, the first build stops with a line that names the host; allow it in the container's network settings.
 
+   GitHub source archives also come from `mirror.bazel.build` and `bcr.cloudflaremirrors.com`. `tools/workspace/downloader.cfg` tries those first, so a proxy that blocks `github.com/<owner>/<repo>/archive/` or `codeload.github.com` needs no other step.
+
 2. Run one test:
 
    ```sh

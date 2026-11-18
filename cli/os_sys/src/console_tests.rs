@@ -18,8 +18,9 @@ fn an_undefined_ctrl_event_has_no_mapping() {
 
 #[cfg(windows)]
 mod windows {
+    use crate::console::windows::trampoline;
     use crate::console::{
-        CtrlEvent, CtrlHandler, add_handler, ignore_ctrl_c, process_ids, restore_ctrl_c, trampoline,
+        CtrlEvent, CtrlHandler, add_handler, ignore_ctrl_c, process_ids, restore_ctrl_c,
     };
 
     struct PassOn;

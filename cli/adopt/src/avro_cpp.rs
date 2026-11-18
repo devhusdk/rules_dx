@@ -123,14 +123,37 @@ fn file_edit(root: &Path, path: String, want: &str) -> Option<ModuleEdit> {
     })
 }
 
+/// The `*_override` call for module `name` in `file` or one of the files it includes.
+fn any_override<'a>(
+    file: &'a ModuleFile,
+    includes: &'a [ModuleFile],
+    name: &str,
+) -> Option<&'a Call> {
+    std::iter::once(file)
+        .chain(includes)
+        .find_map(|file| module_override(file, name))
+}
+
+/// The root and every file it includes, read relative to `root`.
+fn load_modules(root: &Path, text: &str) -> Result<Vec<ModuleFile>, AdoptError> {
+    let read_include = |label: &str| -> Result<String, AdoptError> {
+        let rel = dx_module_bazel::include_rel("", label).map_err(refuse)?;
+        std::fs::read_to_string(root.join(rel))
+            .map_err(|e| refuse(format!("cannot read included {label}: {e}")))
+    };
+    dx_module_bazel::load_with_includes(text, &read_include)
+        .map_err(|error| error.into_error(refuse))
+}
+
 /// Plans the patched avro-cpp and the fmt `single_version_override`s, and the patch they name.
 fn plan_overrides(
     root: &Path,
+    includes: &[ModuleFile],
     out: &mut String,
     edits: &mut Vec<ModuleEdit>,
 ) -> Result<(), AdoptError> {
     let file = ModuleFile::parse(out).map_err(refuse)?;
-    if module_override(&file, MODULE_NAME).is_none() {
+    if any_override(&file, includes, MODULE_NAME).is_none() {
         append(
             out,
             &format!(
@@ -139,7 +162,7 @@ fn plan_overrides(
             ),
         );
     }
-    if module_override(&file, FMT_MODULE).is_none() {
+    if any_override(&file, includes, FMT_MODULE).is_none() {
         append(
             out,
             &format!(
@@ -149,7 +172,7 @@ fn plan_overrides(
         );
     }
     let file = ModuleFile::parse(out).map_err(refuse)?;
-    let patched = module_override(&file, MODULE_NAME)
+    let patched = any_override(&file, includes, MODULE_NAME)
         .is_some_and(|call| call.str_list("patches").contains(&PATCH_LABEL));
     if patched {
         edits.extend(file_edit(
@@ -182,23 +205,40 @@ pub fn plan_avro_cpp(root: &Path) -> Result<AvroCpp, AdoptError> {
     if !found.avro_cc && !found.schema {
         return Ok(AvroCpp::default());
     }
-    let mut file = ModuleFile::parse(&text).map_err(refuse)?;
+    let mut modules = load_modules(root, &text)?.into_iter();
+    let Some(mut file) = modules.next() else {
+        return Ok(AvroCpp::default());
+    };
+    let includes: Vec<ModuleFile> = modules.collect();
     if is_rules_dx(&file) {
         return Ok(AvroCpp::default());
     }
-    if !found.avro_cc && file.bazel_dep(CC_MODULE).is_err() {
+    let has_dep = |file: &ModuleFile, name: &str| {
+        std::iter::once(file)
+            .chain(&includes)
+            .any(|file| file.bazel_dep(name).is_ok())
+    };
+    if !found.avro_cc && !has_dep(&file, CC_MODULE) {
         return Ok(AvroCpp::default());
     }
     let mut out = text.clone();
-    if file.bazel_dep(MODULE_NAME).is_err() {
+    if !has_dep(&file, MODULE_NAME) {
         out = file
             .insert_bazel_dep(MODULE_NAME, dx_versions::AVRO_CPP_VERSION)
             .map_err(refuse)?;
         file = ModuleFile::parse(&out).map_err(refuse)?;
     }
+    // An include keeps its bindings to itself, so its override_repo only counts next to
+    // its own use_extension.
+    let included_override = includes.iter().any(|module| {
+        module
+            .extension_bindings(EXTENSION_BZL, EXTENSION)
+            .iter()
+            .any(|(name, _)| overrides(module, name))
+    });
     let existing = file.extension_bindings(EXTENSION_BZL, EXTENSION);
     let bound = existing.first().map(|(name, _)| (*name).to_owned());
-    if !bound.as_deref().is_some_and(|name| overrides(&file, name)) {
+    if !included_override && !bound.as_deref().is_some_and(|name| overrides(&file, name)) {
         let binding = bound.clone().unwrap_or_else(|| EXTENSION.to_owned());
         let mut block = String::new();
         if bound.is_none() {
@@ -216,7 +256,7 @@ pub fn plan_avro_cpp(root: &Path) -> Result<AvroCpp, AdoptError> {
         append(&mut out, &block);
     }
     let mut edits = Vec::new();
-    plan_overrides(root, &mut out, &mut edits)?;
+    plan_overrides(root, &includes, &mut out, &mut edits)?;
     ModuleFile::parse(&out).map_err(refuse)?;
     if out != text {
         edits.push(ModuleEdit {
@@ -337,6 +377,58 @@ mod tests {
         let new = &module_edit(&plan).new;
         assert_eq!(new.matches("module_name = \"avro-cpp\"").count(), 1);
         assert!(new.contains("module_name = \"fmt\""));
+    }
+
+    #[test]
+    fn an_included_file_with_everything_plans_no_edit() {
+        let dir = scratch("avro_cpp_included").unwrap();
+        write(dir.path(), MODULE_FILE, MODULE).unwrap();
+        write(dir.path(), "BUILD.bazel", BUILD).unwrap();
+        let first = plan_avro_cpp(dir.path()).expect("plan");
+        apply(dir.path(), &first);
+        let deps = module_edit(&first)
+            .new
+            .strip_prefix(MODULE)
+            .expect("appended after the root");
+        write(dir.path(), "deps.MODULE.bazel", deps).unwrap();
+        let module = format!("{MODULE}include(\"//:deps.MODULE.bazel\")\n");
+        write(dir.path(), MODULE_FILE, &module).unwrap();
+        assert_eq!(plan_avro_cpp(dir.path()).expect("plan"), AvroCpp::default());
+    }
+
+    #[test]
+    fn an_included_dependency_and_override_are_not_planned_again() {
+        let dir = scratch("avro_cpp_included_dep").unwrap();
+        let module = format!("{MODULE}include(\"//:deps.MODULE.bazel\")\n");
+        write(dir.path(), MODULE_FILE, &module).unwrap();
+        write(
+            dir.path(),
+            "deps.MODULE.bazel",
+            "bazel_dep(name = \"avro-cpp\", version = \"1.11.0\")\nsingle_version_override(\n    module_name = \"fmt\",\n    version = \"10.0.0\",\n)\n",
+        )
+        .unwrap();
+        write(dir.path(), "BUILD.bazel", BUILD).unwrap();
+        let plan = plan_avro_cpp(dir.path()).expect("plan");
+        let new = &module_edit(&plan).new;
+        assert!(!new.contains("bazel_dep(name = \"avro-cpp\""));
+        assert!(!new.contains("module_name = \"fmt\""));
+        assert!(new.contains("override_repo(avro_cc, dx_avro_cpp = \"avro-cpp\")"));
+        assert!(new.contains("module_name = \"avro-cpp\""));
+    }
+
+    #[test]
+    fn a_schema_with_rules_cc_in_an_include_fires() {
+        let dir = scratch("avro_cpp_included_rules_cc").unwrap();
+        let module = format!("{MODULE}include(\"//:deps.MODULE.bazel\")\n");
+        write(dir.path(), MODULE_FILE, &module).unwrap();
+        write(
+            dir.path(),
+            "deps.MODULE.bazel",
+            "bazel_dep(name = \"rules_cc\", version = \"0.2.0\")\n",
+        )
+        .unwrap();
+        write(dir.path(), "svc/user.avsc", "{\"type\": \"string\"}\n").unwrap();
+        assert!(!plan_avro_cpp(dir.path()).expect("plan").edits.is_empty());
     }
 
     #[test]

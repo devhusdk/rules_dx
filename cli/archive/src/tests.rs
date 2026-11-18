@@ -538,3 +538,193 @@ fn zip_names_lists_the_central_directory_in_order() {
     let error = zip_names(io::Cursor::new(b"not a zip")).expect_err("not a zip");
     assert!(error.to_string().starts_with("zip: "), "{error}");
 }
+
+fn written(format: Format, build: impl FnOnce(&mut dyn FnMut(&str, &[u8], u32))) -> Vec<u8> {
+    match format {
+        Format::TarGz => {
+            let mut writer = TarWriter::new();
+            build(&mut |name, data, mode| writer.add_file(name, data, mode).expect("add"));
+            writer.finish().expect("finish")
+        }
+        Format::Zip => {
+            let mut writer = ZipWriter::new();
+            build(&mut |name, data, mode| writer.add_file(name, data, mode).expect("add"));
+            writer.finish().expect("finish")
+        }
+    }
+}
+
+fn write_members(path: &Path, format: Format, members: &[RawMember<'_>]) {
+    let bytes = written(format, |add| {
+        for (name, data, mode) in members {
+            add(name, data, *mode);
+        }
+    });
+    std::fs::write(path, bytes).expect("write");
+}
+
+#[test]
+fn tar_writer_round_trips() {
+    round_trip(Format::TarGz, |path, members| {
+        write_members(path, Format::TarGz, members);
+    });
+}
+
+#[test]
+fn zip_writer_round_trips() {
+    round_trip(Format::Zip, |path, members| {
+        write_members(path, Format::Zip, members);
+    });
+}
+
+const PINNED: &[RawMember<'_>] = &[
+    ("bin/tool", b"#!/bin/sh\necho hi\n", 0o755),
+    ("README.md", b"hello\n", 0o644),
+];
+
+fn pinned_long_name() -> String {
+    format!("{}/{}", "p".repeat(120), "n".repeat(90))
+}
+
+#[test]
+fn writers_keep_release_archive_digests() {
+    let long = pinned_long_name();
+    for (format, digest) in [
+        (
+            Format::TarGz,
+            "9bb4f7acd2ab2a5ef51a01cd9bb05ac99e70e06606057068d6d8fbcf7cb79fa3",
+        ),
+        (
+            Format::Zip,
+            "e8852d59fca6e9956e3447451ce1f9b5bc9b096b57986ade1937a8d5691c2660",
+        ),
+    ] {
+        let bytes = written(format, |add| {
+            for (name, data, mode) in PINNED {
+                add(name, data, *mode);
+            }
+            add(&long, b"deep\n", 0o600);
+        });
+        assert_eq!(dx_digest::sha256_hex(&bytes), digest, "{format:?}");
+    }
+}
+
+#[test]
+fn gzip_header_has_no_name_or_time() {
+    let bytes = TarWriter::new().finish().expect("finish");
+    let header = bytes.get(..10).expect("header");
+    assert_eq!(header, [0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 2, 255]);
+    assert_eq!(gzip(b"x").expect("gzip").get(..10), Some(header));
+}
+
+#[test]
+fn tar_writer_pads_to_a_whole_record() {
+    let mut writer = TarWriter::new();
+    writer.add_file("a", b"a", 0o644).expect("add");
+    assert_eq!(writer.finish_tar().expect("tar").len(), 20 * 512);
+}
+
+#[test]
+fn writers_refuse_unsafe_and_duplicate_names() {
+    let mut tar = TarWriter::new();
+    let mut zip = ZipWriter::new();
+    for name in ["../x", "/x", "a\\b", "a//b", "c:x", "a/./b"] {
+        assert!(tar.add_file(name, b"", 0o644).is_err(), "{name}");
+        assert!(zip.add_file(name, b"", 0o644).is_err(), "{name}");
+    }
+    tar.add_file("a", b"", 0o644).expect("first");
+    zip.add_file("a", b"", 0o644).expect("first");
+    assert!(tar.add_dir("a", 0o755).is_err());
+    assert!(zip.add_dir("a", 0o755).is_err());
+    assert!(tar.add_symlink("l", "../../etc").is_err());
+    assert!(zip.add_symlink("l", "/etc").is_err());
+    let long = format!("{}/x", "p".repeat(200));
+    assert!(tar.add_file(&long, b"", 0o644).is_err());
+}
+
+#[test]
+fn writers_add_dirs_and_inner_symlinks() {
+    let dir = scratch();
+    let mut tar = TarWriter::new();
+    let mut zip = ZipWriter::new();
+    tar.add_dir("d", 0o755).expect("dir");
+    zip.add_dir("d", 0o755).expect("dir");
+    tar.add_file("d/f", b"f", 0o644).expect("file");
+    zip.add_file("d/f", b"f", 0o644).expect("file");
+    tar.add_symlink("l", "d/f").expect("link");
+    zip.add_symlink("l", "d/f").expect("link");
+    for (format, bytes) in [
+        (Format::TarGz, tar.finish().expect("tar")),
+        (Format::Zip, zip.finish().expect("zip")),
+    ] {
+        let dest = dir.path().join(format.suffix().trim_start_matches('.'));
+        extract_bytes(&bytes, format, &dest, Limits::default()).expect("extract");
+        assert!(dest.join("d").is_dir());
+        assert_eq!(std::fs::read(dest.join("d/f")).expect("read"), b"f");
+        #[cfg(unix)]
+        assert_eq!(std::fs::read(dest.join("l")).expect("read link"), b"f");
+    }
+}
+
+#[test]
+fn tar_header_matches_python_ustar() {
+    let mut writer = TarWriter::new();
+    writer
+        .add_file("hello", b"hello world\n", 0o755)
+        .expect("add");
+    let tar = writer.finish_tar().expect("tar");
+    let bytes = tar.get(..512).expect("header");
+    assert_eq!(bytes.get(0..6), Some(&b"hello\0"[..]));
+    assert!(
+        bytes
+            .get(6..100)
+            .expect("name")
+            .iter()
+            .all(|byte| *byte == 0)
+    );
+    assert_eq!(bytes.get(100..108), Some(&b"0000755\0"[..]));
+    assert_eq!(bytes.get(108..116), Some(&b"0000000\0"[..]));
+    assert_eq!(bytes.get(116..124), Some(&b"0000000\0"[..]));
+    assert_eq!(bytes.get(124..136), Some(&b"00000000014\0"[..]));
+    assert_eq!(bytes.get(136..148), Some(&b"00000000000\0"[..]));
+    assert_eq!(bytes.get(148..156), Some(&b"006771\0 "[..]));
+    assert_eq!(bytes.get(156), Some(&b'0'));
+    assert!(
+        bytes
+            .get(157..257)
+            .expect("link")
+            .iter()
+            .all(|byte| *byte == 0)
+    );
+    assert_eq!(bytes.get(257..265), Some(&b"ustar\x0000"[..]));
+    assert!(
+        bytes
+            .get(265..512)
+            .expect("rest")
+            .iter()
+            .all(|byte| *byte == 0)
+    );
+    assert_eq!(tar.get(512..524), Some(&b"hello world\n"[..]));
+    let mut big = TarWriter::new();
+    big.add_file("f", &[b'x'; 10240], 0o644).expect("add");
+    assert_eq!(big.finish_tar().expect("tar").len(), 2 * 20 * 512);
+}
+
+#[test]
+fn ustar_boundaries() {
+    let tail = "n".repeat(100);
+    let prefix = "p".repeat(155);
+    assert!(fits_ustar(&"n".repeat(100)));
+    assert!(!fits_ustar(&"n".repeat(101)));
+    assert!(fits_ustar(&format!("{prefix}/{tail}")));
+    assert!(!fits_ustar(&format!("{prefix}p/{tail}")));
+    assert!(!fits_ustar(&format!("{prefix}/{tail}n")));
+    assert!(!fits_ustar(&"n".repeat(300)));
+    let wide = "\u{e9}".repeat(60);
+    assert!(!fits_ustar(&wide));
+    assert!(fits_ustar(&format!("{wide}/x")));
+    let mut writer = TarWriter::new();
+    for name in ["", "a\0b", &"n".repeat(101), &"n".repeat(300)] {
+        assert!(writer.add_file(name, b"", 0o644).is_err(), "{name:?}");
+    }
+}

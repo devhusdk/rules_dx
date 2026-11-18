@@ -249,6 +249,7 @@ rust_library(
         package_name = "deploy/dx_deploy_tools",
         normal = True,
     ) + [
+        "//cli/archive:dx_archive",
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/audit:dx_audit",
         "//cli/binfmt:dx_binfmt",
@@ -436,6 +437,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        "//cli/archive:dx_archive",
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/audit:dx_audit",
         "//cli/binfmt:dx_binfmt",

@@ -1109,6 +1109,7 @@ dx_pins.archive(
         "//patches/rules_haskell:cc_wrapper_darwin_ffi.patch",
         "//patches/rules_haskell:cabal_binary_dep_data.patch",
         "//patches/rules_haskell:cabal_static_exe.patch",
+        "//patches/rules_haskell:ghc_xcode_env.patch",
     ],
     pins = "//haskell:pins.json",
 )

@@ -1,0 +1,100 @@
+Give ghc actions the Xcode env so an Xcode cc toolchain (wrapped_clang) gets DEVELOPER_DIR and SDKROOT on macOS.
+GHC hands the cc toolchain flags to every phase, assembler included, where clang reports them as unused, so ghc actions drop treat_warnings_as_errors as the cabal rules do.
+On macOS GHC's rts/ghc_ffi.h includes "ffi.h", which the SDK keeps under usr/include/ffi.
+The static library action takes the same Xcode env, since Xcode's libtool fails with "DEVELOPER_DIR not set" without it.
+
+diff --git a/haskell/cc.bzl b/haskell/cc.bzl
+--- a/haskell/cc.bzl
++++ b/haskell/cc.bzl
+@@ -158,6 +158,21 @@
+     if cc_wrapper.as_tool.runfiles_manifest:
+         env["CC_WRAPPER_MANIFEST"] = cc_wrapper.as_tool.runfiles_manifest.path
+ 
++    # An Xcode cc toolchain (apple_support's wrapped_clang) reads DEVELOPER_DIR
++    # and SDKROOT. Bazel fills both in for local darwin spawns only when the
++    # action env names the Xcode and SDK versions, as native cc actions do.
++    xcode_config = getattr(real_ctx.attr, "_xcode_config", None)
++    if hs_toolchain.is_darwin and xcode_config and paths.basename(cc_toolchain.ar_executable) != "llvm-libtool-darwin":
++        xcode_config = xcode_config[apple_common.XcodeVersionConfig]
++        env.update(apple_common.apple_host_system_env(xcode_config))
++        env.update(apple_common.target_apple_env(xcode_config, apple_common.platform.macos))
++
++    # GHC's rts/ghc_ffi.h includes "ffi.h", which the macOS SDK keeps under
++    # usr/include/ffi. -iwithsysroot resolves it against whichever SDK the cc
++    # toolchain passes as its sysroot.
++    if hs_toolchain.is_darwin:
++        compiler_flags = compiler_flags + ["-iwithsysroot/usr/include/ffi"]
++
+     cc_libraries_info = deps_HaskellCcLibrariesInfo(
+         ctx.attr.deps + getattr(ctx.attr, "plugins", []) + getattr(ctx.attr, "setup_deps", []),
+     )
+diff --git a/haskell/defs.bzl b/haskell/defs.bzl
+--- a/haskell/defs.bzl
++++ b/haskell/defs.bzl
+@@ -87,6 +87,12 @@
+     "_cc_toolchain": attr.label(
+         default = Label("@rules_cc//cc:current_cc_toolchain"),
+     ),
++    "_xcode_config": attr.label(
++        default = configuration_field(
++            name = "xcode_config_label",
++            fragment = "apple",
++        ),
++    ),
+     "_ghc_wrapper": attr.label(
+         executable = True,
+         cfg = "exec",
+@@ -175,7 +181,7 @@
+         toolchains = use_cc_toolchain() + [
+             "@rules_haskell//haskell:toolchain",
+         ],
+-        fragments = ["cpp"],
++        fragments = ["apple", "cpp"],
+         **kwargs
+     )
+ 
+@@ -208,7 +214,7 @@
+     toolchains = use_cc_toolchain() + [
+         "@rules_haskell//haskell:toolchain",
+     ],
+-    fragments = ["cpp"],
++    fragments = ["apple", "cpp"],
+ )
+ 
+ def _haskell_worker_wrapper(rule_type, **kwargs):
+diff --git a/haskell/private/haskell_impl.bzl b/haskell/private/haskell_impl.bzl
+--- a/haskell/private/haskell_impl.bzl
++++ b/haskell/private/haskell_impl.bzl
+@@ -186,6 +186,7 @@
+     cc = cc_interop_info(
+         ctx,
+         override_cc_toolchain = hs.tools_config.maybe_exec_cc_toolchain,
++        unsupported_features = ["treat_warnings_as_errors"],
+     )
+     java = java_interop_info(deps)
+ 
+@@ -428,6 +429,7 @@
+     cc = cc_interop_info(
+         ctx,
+         override_cc_toolchain = hs.tools_config.maybe_exec_cc_toolchain,
++        unsupported_features = ["treat_warnings_as_errors"],
+     )
+     java = java_interop_info(ctx.attr.deps + ctx.attr.narrowed_deps)
+ 
+diff --git a/haskell/private/actions/link.bzl b/haskell/private/actions/link.bzl
+--- a/haskell/private/actions/link.bzl
++++ b/haskell/private/actions/link.bzl
+@@ -354,8 +354,11 @@
+             command = "{ar} $@".format(ar = cc.tools.ar),
+             arguments = [args],
+ 
+-            # Use the default macosx toolchain
+-            env = {"SDKROOT": "macosx"},
++            # With an Xcode cc toolchain, cc.env carries the Xcode version
++            # keys and Bazel sets DEVELOPER_DIR and SDKROOT from them, which
++            # Xcode's libtool needs. A preset SDKROOT would clash with that, so
++            # the default macosx SDK is only named for other toolchains.
++            env = cc.env if "XCODE_VERSION_OVERRIDE" in cc.env else {"SDKROOT": "macosx"},
+         )
+     else:
+         hs.actions.run(

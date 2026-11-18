@@ -1,43 +1,69 @@
 use crate::run::*;
 use std::ffi::OsString;
+use std::path::{Path, PathBuf};
 
 #[test]
-fn finds_the_first_tix_file_and_the_mix_directories() {
-    let scratch = dx_test_scratch::scratch("hpc_coverage_data_").unwrap();
-    let dir = scratch.path().to_path_buf();
-    std::fs::create_dir_all(dir.join("mix/b-pkg")).unwrap();
-    std::fs::create_dir_all(dir.join("mix/a-pkg")).unwrap();
-    std::fs::write(dir.join("z.tix"), "").unwrap();
-    std::fs::write(dir.join("greeter_test.tix"), "").unwrap();
-    std::fs::write(dir.join("notes.txt"), "").unwrap();
-    let data = hpc_data(&dir).unwrap();
-    assert_eq!(data.tix, dir.join("greeter_test.tix"));
-    assert_eq!(data.mix, [dir.join("mix/a-pkg"), dir.join("mix/b-pkg")]);
+fn a_mix_file_belongs_to_its_first_hpc_ancestor() {
     assert_eq!(
-        lcov_args(&dir.join("cov"), &data),
+        hpc_dir(Path::new("/r/pkg/lib_.hpc/lib-0.1/Greet.mix")),
+        Path::new("/r/pkg/lib_.hpc")
+    );
+    assert_eq!(
+        hpc_dir(Path::new("/r/pkg/test_.hpc/Main.mix")),
+        Path::new("/r/pkg/test_.hpc")
+    );
+    assert_eq!(
+        hpc_dir(Path::new("/r/other/Main.mix")),
+        Path::new("/r/other")
+    );
+}
+
+#[test]
+fn the_hpc_directories_are_distinct_and_sorted() {
+    let mix: Vec<OsString> = ["/r/b_.hpc/B.mix", "/r/a_.hpc/p/A.mix", "/r/b_.hpc/C.mix"]
+        .into_iter()
+        .map(OsString::from)
+        .collect();
+    assert_eq!(
+        hpc_dirs(&mix),
+        [PathBuf::from("/r/a_.hpc"), PathBuf::from("/r/b_.hpc")]
+    );
+}
+
+#[test]
+fn the_tix_file_is_named_after_the_test_binary() {
+    assert_eq!(
+        tix_path(Path::new("/out"), Path::new("/r/pass_test.exe")),
+        Path::new("/out/pass_test.tix")
+    );
+    assert_eq!(
+        tix_path(Path::new("/out"), Path::new("/r/pass_test")),
+        Path::new("/out/pass_test.tix")
+    );
+}
+
+#[test]
+fn the_converter_gets_the_lcov_file_the_tix_file_and_the_hpc_directories() {
+    assert_eq!(
+        lcov_args(
+            Path::new("/cov"),
+            Path::new("/out/t.tix"),
+            &[PathBuf::from("/r/a_.hpc")]
+        ),
         [
-            dir.join("cov/haskell.dat").into_os_string(),
-            dir.join("greeter_test.tix").into_os_string(),
-            dir.join("mix/a-pkg").into_os_string(),
-            dir.join("mix/b-pkg").into_os_string(),
+            Path::new("/cov").join("haskell.dat").into_os_string(),
+            OsString::from("/out/t.tix"),
+            OsString::from("/r/a_.hpc"),
         ]
     );
 }
 
 #[test]
-fn a_run_without_a_tix_file_has_no_data() {
-    let scratch = dx_test_scratch::scratch("hpc_coverage_empty_").unwrap();
-    let dir = scratch.path().to_path_buf();
-    std::fs::create_dir_all(dir.join("mix/a-pkg")).unwrap();
-    assert_eq!(hpc_data(&dir), None);
-    assert_eq!(hpc_data(&dir.join("absent")), None);
-}
-
-#[test]
-fn a_run_needs_the_test_and_the_converter() {
+fn a_run_needs_the_test_the_converter_and_the_separator() {
     let none = |_: &str| -> Option<OsString> { None };
     assert!(run(&[], &none).is_err());
     assert!(run(&["test".into()], &none).is_err());
+    assert!(run(&["test".into(), "lcov".into()], &none).is_err());
 }
 
 #[test]
@@ -45,6 +71,27 @@ fn a_missing_test_program_is_an_error_that_names_it() {
     let scratch = dx_test_scratch::scratch("hpc_coverage_missing_").unwrap();
     let dir = scratch.path().to_path_buf();
     let test = dir.join("no_such_test").into_os_string();
-    let error = run(&[test, "lcov".into()], &|_| None).unwrap_err();
+    let error = run(&[test, "lcov".into(), "--".into()], &|_| None).unwrap_err();
     assert!(error.contains("no_such_test"), "{error}");
+}
+
+#[test]
+fn a_covered_run_without_a_tix_file_fails() {
+    let scratch = dx_test_scratch::scratch("hpc_coverage_no_tix_").unwrap();
+    let dir = scratch.path().to_path_buf();
+    let test = std::env::current_exe().unwrap().into_os_string();
+    let outputs = dir.clone().into_os_string();
+    let env = move |name: &str| match name {
+        "COVERAGE_DIR" => Some(OsString::from("cov")),
+        "TEST_UNDECLARED_OUTPUTS_DIR" => Some(outputs.clone()),
+        _ => None,
+    };
+    let args = [
+        test,
+        "lcov".into(),
+        "--".into(),
+        "--exact".into(),
+        "run_tests::the_tix_file_is_named_after_the_test_binary".into(),
+    ];
+    assert_eq!(run(&args, &env), Ok(1));
 }

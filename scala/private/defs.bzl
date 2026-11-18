@@ -7,7 +7,7 @@ load("//java/private:coverage.bzl", "dx_jvm_test_coverage")
 load("//java/private:defs.bzl", "java_jmh_test")
 load("//java/private:jazzer.bzl", "jazzer_fuzz", "jazzer_target_class")
 load("//java/private:jmh.bzl", "jmh_bench_generated")
-load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load(":validate.bzl", "scala_scalacopts_with_warnings_as_errors")
 
@@ -26,32 +26,38 @@ _SCALA = dx_language_spec(what = "scala_*", quality_specs = _DX_SCALA_SOURCE_SPE
 
 _scala_library_forward = dx_library_forward_rule(
     _SCALA,
-    provides = _DX_SCALA_LIBRARY_PROVIDES,
-    required_providers = [(JavaInfo, "JavaInfo")],
-    upstream_providers = [[JavaInfo]],
-    quiet_providers = [SemanticdbInfo],
+    dx_forward_spec(
+        provides = _DX_SCALA_LIBRARY_PROVIDES,
+        required_providers = [(JavaInfo, "JavaInfo")],
+        upstream_providers = [[JavaInfo]],
+        quiet_providers = [SemanticdbInfo],
+    ),
 )
 
 _scala_binary_forward = dx_executable_forward_rule(
     _SCALA,
-    kind = "executable",
-    upstream_providers = [[JavaInfo]],
-    optional_providers = [JavaInfo],
-    quiet_providers = [SemanticdbInfo],
+    "executable",
+    dx_forward_spec(
+        upstream_providers = [[JavaInfo]],
+        optional_providers = [JavaInfo],
+        quiet_providers = [SemanticdbInfo],
+    ),
 )
 
 _scala_forward_test = dx_executable_forward_rule(
     _SCALA,
-    kind = "test",
-    upstream_providers = [[JavaInfo]],
-    extra_attrs = dict(
-        dx_lcov_merger_attr(),
-        main_class = attr.string(default = _SCALA_TEST_RUNNER),
+    "test",
+    dx_forward_spec(
+        upstream_providers = [[JavaInfo]],
+        extra_attrs = dict(
+            dx_lcov_merger_attr(),
+            main_class = attr.string(default = _SCALA_TEST_RUNNER),
+        ),
+        optional_providers = [JavaInfo],
+        quiet_providers = [SemanticdbInfo],
+        coverage_providers = dx_jvm_test_coverage,
+        runtime = "mandatory",
     ),
-    optional_providers = [JavaInfo],
-    quiet_providers = [SemanticdbInfo],
-    coverage_providers = dx_jvm_test_coverage,
-    runtime = "mandatory",
 )
 
 def scala_library(name, srcs = None, visibility = None, **kwargs):

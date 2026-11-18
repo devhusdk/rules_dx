@@ -10,7 +10,7 @@ load("//erlang/private:providers.bzl", "BeamInfo", "DialyzerPltInfo", "ErlangNif
 load("//erlang/private/toolchain:cells.bzl", "otp_compatible_with")
 load("//erlang/private/toolchain:pins.bzl", "OTP_DIALYZER_UNPORTED_CELLS")
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
-load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_private_dep_rule", "dx_upstream_tags", "dx_wrap_test")
+load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_private_dep_rule", "dx_upstream_tags", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load(":kwargs.bzl", "elixir_app_kwargs", "elixir_cover_opts", "elixir_kwargs", _COVER_LOAD = "COVER_LOAD", _ELIXIR_CELLS = "ELIXIR_CELLS", _ELIXIR_COMPATIBLE_WITH = "ELIXIR_COMPATIBLE_WITH")
 
@@ -48,25 +48,27 @@ _ELIXIR = dx_language_spec(what = "elixir_*", quality_specs = _SPECS, allow_file
 
 _elixir_app_forward = dx_library_forward_rule(
     _ELIXIR,
-    extra_providers = _beam_info,
-    extra_attrs = {
-        "nifs": attr.label_list(
-            doc = "erlang_nif targets this app loads from its priv directory.",
-            providers = [ErlangNifInfo],
-        ),
-        "_dialyzer_code": attr.label_list(
-            default = ["//elixir/private/tools:dialyzer_code"],
-            doc = "The Elixir compiler beams dialyzer loads to read the debug info of Elixir beams.",
-        ),
-        "_dialyzer_plts": attr.label_list(
-            default = ["//elixir/private/tools:elixir_plt"],
-            doc = "The Elixir standard-library PLT dialyzer checks Elixir beams against.",
-        ),
-    },
-    provides = [_ErlangAppInfo, BeamInfo, ErlangNifInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
-    required_providers = [(_ErlangAppInfo, "ErlangAppInfo")],
-    upstream_providers = [[_ErlangAppInfo]],
-    runtime = "besteffort",
+    dx_forward_spec(
+        extra_providers = _beam_info,
+        extra_attrs = {
+            "nifs": attr.label_list(
+                doc = "erlang_nif targets this app loads from its priv directory.",
+                providers = [ErlangNifInfo],
+            ),
+            "_dialyzer_code": attr.label_list(
+                default = ["//elixir/private/tools:dialyzer_code"],
+                doc = "The Elixir compiler beams dialyzer loads to read the debug info of Elixir beams.",
+            ),
+            "_dialyzer_plts": attr.label_list(
+                default = ["//elixir/private/tools:elixir_plt"],
+                doc = "The Elixir standard-library PLT dialyzer checks Elixir beams against.",
+            ),
+        },
+        provides = [_ErlangAppInfo, BeamInfo, ErlangNifInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
+        required_providers = [(_ErlangAppInfo, "ErlangAppInfo")],
+        upstream_providers = [[_ErlangAppInfo]],
+        runtime = "besteffort",
+    ),
 )
 
 def cover_sources(apps):
@@ -105,16 +107,18 @@ def _ex_unit_test_coverage(ctx, upstream):
 
 _ex_unit_forward_test = dx_executable_forward_rule(
     _ELIXIR,
-    kind = "test",
-    provides = [DefaultInfo, QualitySourcesInfo],
-    extra_attrs = dx_lcov_merger_attr() | {
-        "apps": attr.label_list(
-            doc = "Elixir app targets whose sources feed test coverage.",
-            providers = [_ErlangAppInfo],
-        ),
-        "_cover_script": attr.label(default = "//elixir/private/coverage:dx_cover.exs", allow_single_file = True),
-    },
-    coverage_providers = _ex_unit_test_coverage,
+    "test",
+    dx_forward_spec(
+        provides = [DefaultInfo, QualitySourcesInfo],
+        extra_attrs = dx_lcov_merger_attr() | {
+            "apps": attr.label_list(
+                doc = "Elixir app targets whose sources feed test coverage.",
+                providers = [_ErlangAppInfo],
+            ),
+            "_cover_script": attr.label(default = "//elixir/private/coverage:dx_cover.exs", allow_single_file = True),
+        },
+        coverage_providers = _ex_unit_test_coverage,
+    ),
 )
 
 def app_sources(kwargs, glob = None):

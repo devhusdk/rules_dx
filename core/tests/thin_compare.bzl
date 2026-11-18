@@ -3,7 +3,7 @@
 load("//core:canonical.bzl", "strip_canonical")
 load("//core:conformance.bzl", "dx_render_run_env", "dx_render_run_inherited")
 load("//core:defs.bzl", "DxSubjectInfo", "starlark_test")
-load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_language_spec", "dx_library_forward_rule")
+load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_library_forward_rule")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
 def _render_direct_sources(info):
@@ -85,16 +85,20 @@ _THIN = dx_language_spec(what = "thin_demo", quality_specs = [("text", ["txt"])]
 
 thin_demo_library_forward = dx_library_forward_rule(
     _THIN,
-    provides = [DefaultInfo, QualitySourcesInfo],
-    required_providers = [(QualitySourcesInfo, "QualitySourcesInfo")],
-    upstream_providers = None,
+    dx_forward_spec(
+        provides = [DefaultInfo, QualitySourcesInfo],
+        required_providers = [(QualitySourcesInfo, "QualitySourcesInfo")],
+        upstream_providers = None,
+    ),
 )
 
 thin_demo_executable_forward = dx_executable_forward_rule(
     _THIN,
-    kind = "executable",
-    provides = [DefaultInfo, QualitySourcesInfo],
-    runtime = "mandatory",
+    "executable",
+    dx_forward_spec(
+        provides = [DefaultInfo, QualitySourcesInfo],
+        runtime = "mandatory",
+    ),
 )
 
 def thin_compare_cc_tests(name):

@@ -2,7 +2,7 @@
 
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//core:resources.bzl", "dx_bundler_resources", "dx_quality_resource_set", "dx_test_resource_tags")
-load("//core:wrapper.bzl", "DX_UPSTREAM_TAG", "dx_append_flags", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_language_kwargs", "dx_optional_forward_warning", "dx_quality_srcs", "dx_setdefaults", "dx_src_path", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_forward_kwargs", "dx_wrap_upstream_kwargs")
+load("//core:wrapper.bzl", "DX_UPSTREAM_TAG", "dx_append_flags", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_spec", "dx_forward_spec_error", "dx_language_kwargs", "dx_optional_forward_warning", "dx_quality_srcs", "dx_setdefaults", "dx_src_path", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_forward_kwargs", "dx_wrap_upstream_kwargs")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_TAGS")
 
 _PARITY_KWARGS = {
@@ -34,6 +34,39 @@ def wrapper_optional_forward_tests(name):
                 "empty forward warns and marks the empty case expected",
                 dx_optional_forward_warning("go_*", "//go:bin_upstream", ["GoArchive"], ["GoArchive"]),
                 "go_*: upstream //go:bin_upstream omits optional provider(s) GoArchive (forwarded 0 of 1); empty forward is expected when upstream omits the surface",
+            ),
+        ],
+    )
+
+def wrapper_forward_spec_tests(name):
+    starlark_test(
+        name = name,
+        mode = "unit",
+        checks = [
+            expect_equal(
+                "default spec builds every kind",
+                [dx_forward_spec_error(dx_forward_spec(), kind) for kind in ["library", "executable", "test"]],
+                ["", "", ""],
+            ),
+            expect_equal(
+                "library rejects coverage providers",
+                dx_forward_spec_error(dx_forward_spec(coverage_providers = len), "library"),
+                "dx_forward_spec: coverage_providers does not apply to library rules",
+            ),
+            expect_equal(
+                "test rejects instrumented srcs",
+                dx_forward_spec_error(dx_forward_spec(instrument_srcs = True), "test"),
+                "dx_forward_spec: instrument_srcs does not apply to test rules",
+            ),
+            expect_equal(
+                "unknown runtime names the accepted values",
+                dx_forward_spec_error(dx_forward_spec(runtime = "lazy"), "library"),
+                "dx wrapper: unknown runtime 'lazy': want \"mandatory\" or \"besteffort\"",
+            ),
+            expect_equal(
+                "executable rejects extra providers",
+                dx_forward_spec_error(dx_forward_spec(extra_providers = len), "executable"),
+                "dx_forward_spec: extra_providers does not apply to executable rules",
             ),
         ],
     )

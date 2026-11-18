@@ -321,18 +321,95 @@ def dx_language_spec(what, quality_specs, allow_files, quality_tools = None, too
     """Returns the struct of facts shared by every forward rule of one language."""
     return struct(what = what, quality_specs = quality_specs, allow_files = allow_files, quality_tools = quality_tools, toolchains = toolchains, validate = validate)
 
+def dx_forward_spec(
+        *,
+        provides = DX_EXEC_PROVIDES,
+        required_providers = [],
+        upstream_providers = None,
+        optional_providers = [],
+        quiet_providers = [],
+        extra_providers = None,
+        extra_attrs = None,
+        extra_quality_attrs = None,
+        runtime = None,
+        instrument_srcs = False,
+        upstream_cfg = None,
+        upstream_aspects = None,
+        toolchains = [],
+        validate = None,
+        coverage_runfiles = None,
+        coverage_providers = None,
+        cfg = None,
+        sibling_files = None,
+        launcher = None):
+    """Returns the per-rule facts of one forward rule, shared by dx_library_forward_rule and dx_executable_forward_rule."""
+    return struct(
+        provides = provides,
+        required_providers = required_providers,
+        upstream_providers = upstream_providers,
+        optional_providers = optional_providers,
+        quiet_providers = quiet_providers,
+        extra_providers = extra_providers,
+        extra_attrs = extra_attrs,
+        extra_quality_attrs = extra_quality_attrs,
+        runtime = runtime,
+        instrument_srcs = instrument_srcs,
+        upstream_cfg = upstream_cfg,
+        upstream_aspects = upstream_aspects,
+        toolchains = toolchains,
+        validate = validate,
+        coverage_runfiles = coverage_runfiles,
+        coverage_providers = coverage_providers,
+        cfg = cfg,
+        sibling_files = sibling_files,
+        launcher = launcher,
+    )
+
+_DX_LIBRARY_ONLY_FIELDS = ["extra_providers", "instrument_srcs"]
+_DX_EXECUTABLE_ONLY_FIELDS = ["optional_providers", "coverage_runfiles", "coverage_providers", "cfg", "sibling_files", "launcher"]
+
+def dx_forward_spec_error(spec, kind):
+    """Returns why spec cannot build a forward rule of kind ("library", "executable" or "test"), or "" when it can."""
+    if spec.runtime not in [None, "mandatory", "besteffort"]:
+        return "dx wrapper: unknown runtime '" + spec.runtime + "': want \"mandatory\" or \"besteffort\""
+    rejected = _DX_EXECUTABLE_ONLY_FIELDS if kind == "library" else _DX_LIBRARY_ONLY_FIELDS
+    for field in rejected:
+        if getattr(spec, field) not in [None, [], False]:
+            return "dx_forward_spec: " + field + " does not apply to " + kind + " rules"
+    return ""
+
 def _dx_validate(language, validate, ctx):
     if language.validate:
         language.validate(ctx)
     if validate:
         validate(ctx)
 
-def dx_library_forward_rule(language, provides, required_providers, upstream_providers, extra_attrs = None, runtime = "mandatory", extra_quality_attrs = None, quiet_providers = [], upstream_cfg = None, instrument_srcs = False, extra_providers = None, toolchains = [], validate = None, upstream_aspects = None):
-    """Creates the public forwarding rule for one library wrapper."""
+def _dx_forward_rule_attrs(language, spec):
+    attrs = dx_forward_attrs(
+        allow_files = language.allow_files,
+        upstream_providers = spec.upstream_providers,
+        extra_attrs = spec.extra_attrs,
+        upstream_cfg = spec.upstream_cfg,
+        upstream_aspects = spec.upstream_aspects,
+    )
+    attrs.update(_dx_tool_attrs(language.quality_tools))
+    return attrs
+
+def dx_library_forward_rule(language, spec):
+    """Creates the public forwarding rule for one library wrapper from a dx_forward_spec."""
+    error = dx_forward_spec_error(spec, "library")
+    if error:
+        fail(error)
     what = language.what
     quality_specs = language.quality_specs
-    allow_files = language.allow_files
     quality_tools = language.quality_tools
+    runtime = spec.runtime or "mandatory"
+    validate = spec.validate
+    required_providers = spec.required_providers
+    quiet_providers = spec.quiet_providers
+    extra_quality_attrs = spec.extra_quality_attrs
+    instrument_srcs = spec.instrument_srcs
+    extra_providers = spec.extra_providers
 
     def _impl(ctx):
         _dx_validate(language, validate, ctx)
@@ -347,20 +424,12 @@ def dx_library_forward_rule(language, provides, required_providers, upstream_pro
             (extra_providers(ctx, upstream) if extra_providers else [])
         )
 
-    attrs = dx_forward_attrs(
-        allow_files = allow_files,
-        upstream_providers = upstream_providers,
-        extra_attrs = extra_attrs,
-        upstream_cfg = upstream_cfg,
-        upstream_aspects = upstream_aspects,
-    )
-    attrs.update(_dx_tool_attrs(quality_tools))
     return rule(
         implementation = _impl,
         doc = "Forwards one " + what + " target with dx quality sources.",
-        provides = provides,
-        attrs = attrs,
-        toolchains = language.toolchains + toolchains,
+        provides = spec.provides,
+        attrs = _dx_forward_rule_attrs(language, spec),
+        toolchains = language.toolchains + spec.toolchains,
     )
 
 def _dx_coverage_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs, coverage):
@@ -425,16 +494,31 @@ def _dx_launcher_environment(ctx, providers, binary):
     env["DX_COVERAGE_TEST_BINARY"] = binary.short_path
     return out + [RunEnvironmentInfo(environment = env, inherited_environment = inherited)]
 
-def dx_executable_forward_rule(language, kind, provides = DX_EXEC_PROVIDES, required_providers = [], upstream_providers = None, extra_attrs = None, optional_providers = [], runtime = "besteffort", extra_quality_attrs = None, coverage_runfiles = None, toolchains = [], quiet_providers = [], upstream_cfg = None, upstream_aspects = None, coverage_providers = None, validate = None, cfg = None, sibling_files = None, launcher = None):
-    """Creates the executable or test forwarding rule for one wrapper.
+def dx_executable_forward_rule(language, kind, spec):
+    """Creates the executable or test forwarding rule for one wrapper from a dx_forward_spec.
 
-    launcher(ctx) returns None or the DefaultInfo of an executable that runs in place of the binary.
+    spec.launcher(ctx) returns None or the DefaultInfo of an executable that runs in place of the binary.
     It finds the binary through the DX_TEST_BINARY runfiles key; DX_COVERAGE_TEST_BINARY names it for the coverage collector.
     """
+    if kind != "executable" and kind != "test":
+        fail("dx_executable_forward_rule: unknown kind '" + kind + "': want \"executable\" or \"test\"")
+    error = dx_forward_spec_error(spec, kind)
+    if error:
+        fail(error)
     what = language.what
     quality_specs = language.quality_specs
-    allow_files = language.allow_files
     quality_tools = language.quality_tools
+    runtime = spec.runtime or "besteffort"
+    validate = spec.validate
+    required_providers = spec.required_providers
+    optional_providers = spec.optional_providers
+    quiet_providers = spec.quiet_providers
+    extra_quality_attrs = spec.extra_quality_attrs
+    coverage_runfiles = spec.coverage_runfiles
+    coverage_providers = spec.coverage_providers
+    sibling_files = spec.sibling_files
+    cfg = spec.cfg
+    launcher = spec.launcher
 
     def _impl(ctx):
         _dx_validate(language, validate, ctx)
@@ -467,20 +551,12 @@ def dx_executable_forward_rule(language, kind, provides = DX_EXEC_PROVIDES, requ
             providers = _dx_launcher_environment(ctx, providers, binary)
         return _dx_with_run_environment(ctx, providers)
 
-    attrs = dx_forward_attrs(
-        allow_files = allow_files,
-        upstream_providers = upstream_providers,
-        extra_attrs = extra_attrs,
-        upstream_cfg = upstream_cfg,
-        upstream_aspects = upstream_aspects,
-    )
-    attrs.update(_dx_tool_attrs(quality_tools))
-    if kind == "test" or kind == "executable":
-        attrs.update(dx_forward_data_attr())
-        attrs.update(dx_run_env_attrs())
+    attrs = _dx_forward_rule_attrs(language, spec)
+    attrs.update(dx_forward_data_attr())
+    attrs.update(dx_run_env_attrs())
     if cfg != None:
         attrs["_allowlist_function_transition"] = attr.label(default = Label("@bazel_tools//tools/allowlists/function_transition_allowlist"))
-    toolchains = language.toolchains + toolchains
+    toolchains = language.toolchains + spec.toolchains
     if sibling_files != None:
         toolchains = toolchains + [COREUTILS_TOOLCHAIN_TYPE]
     if kind == "executable":
@@ -489,20 +565,17 @@ def dx_executable_forward_rule(language, kind, provides = DX_EXEC_PROVIDES, requ
             doc = "Forwards one " + what + " executable with dx quality sources.",
             executable = True,
             cfg = cfg,
-            provides = provides,
+            provides = spec.provides,
             attrs = attrs,
             toolchains = toolchains,
         )
-    elif kind == "test":
-        return rule(
-            implementation = _impl,
-            test = True,
-            provides = provides,
-            attrs = attrs,
-            toolchains = toolchains,
-        )
-    else:
-        fail("dx_executable_forward_rule: unknown kind '" + kind + "': want \"executable\" or \"test\"")
+    return rule(
+        implementation = _impl,
+        test = True,
+        provides = spec.provides,
+        attrs = attrs,
+        toolchains = toolchains,
+    )
 
 def dx_append_flags(kwargs, key, flags):
     """Returns a copy of kwargs with flags appended to the list or select() at key."""

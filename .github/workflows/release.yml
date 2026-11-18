@@ -163,7 +163,9 @@ jobs:
               files="$files $asset"
             done
           done
-          files="$files dx-haskell-sha256sums.txt"
+          test -s out/dx-weeder-LICENSE || { echo "want a non-empty out/dx-weeder-LICENSE" >&2; exit 1; }
+          printf '%s  %s\n' "$(sha256sum out/dx-weeder-LICENSE | cut -d' ' -f1)" dx-weeder-LICENSE >> out/dx-haskell-sha256sums.txt
+          files="$files dx-weeder-LICENSE dx-haskell-sha256sums.txt"
           : > out/dx-tool-sha256sums.txt
           for tool in deadnix-1.3.1 selene-0.32.0; do
             for host in linux-x86_64 linux-arm64 macos-arm64 windows-x86_64; do
@@ -194,7 +196,7 @@ jobs:
           (cd out && sha256sum -c dx-gazelle-sha256sums.txt)
           test "$(wc -l < out/dx-jar-sha256sums.txt)" -eq 6 || { echo "want 6 jar manifest lines, got $(wc -l < out/dx-jar-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-jar-sha256sums.txt)
-          test "$(wc -l < out/dx-haskell-sha256sums.txt)" -eq 6 || { echo "want 6 haskell manifest lines, got $(wc -l < out/dx-haskell-sha256sums.txt)" >&2; exit 1; }
+          test "$(wc -l < out/dx-haskell-sha256sums.txt)" -eq 7 || { echo "want 7 haskell manifest lines, got $(wc -l < out/dx-haskell-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-haskell-sha256sums.txt)
           test "$(wc -l < out/dx-tool-sha256sums.txt)" -eq 22 || { echo "want 22 tool manifest lines, got $(wc -l < out/dx-tool-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-tool-sha256sums.txt)

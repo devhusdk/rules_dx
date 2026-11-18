@@ -84,6 +84,7 @@ fn haskell_manifest() -> String {
         .iter()
         .flat_map(|tool| assets(tool))
         .map(|asset| format!("{}  {asset}\n", hash(4)))
+        .chain([format!("{}  dx-weeder-LICENSE\n", hash(5))])
         .collect::<Vec<String>>()
         .concat()
 }
@@ -277,6 +278,14 @@ fn refuses_an_asset_the_registry_does_not_know() {
             .unwrap_err();
     assert!(
         error.contains("\"dx-tool-deadnix-linux-x86_64\" is not in cli/prebuilt/tools.bzl"),
+        "{error}"
+    );
+    let dx = format!("{}{}  dx-weed-LICENSE\n", manifest(), hash(3));
+    let error =
+        fill_pins::fill_from_manifests("v1.2.3", &manifests(&dx, &gazelle_manifest()), PINS, REPO)
+            .unwrap_err();
+    assert!(
+        error.contains("\"dx-weed-LICENSE\" is not in cli/prebuilt/tools.bzl"),
         "{error}"
     );
 }

@@ -21,6 +21,7 @@ pub const REGISTRY: &str = include_str!(env!("DX_PREBUILT_REGISTRY"));
 
 /// Files a release publishes beside a registry asset and lists in the same
 /// manifest: the launcher archives, the Windows symbols and their SBOMs.
+/// A `<tool>-LICENSE` file is also a companion of every `<tool>-<platform>` asset.
 const COMPANION_SUFFIXES: [&str; 3] = [".tar.gz", ".zip", "-pdb.zip"];
 
 /// One release asset the registry expects a manifest line for.
@@ -155,6 +156,13 @@ pub fn fill_with_registry(
 }
 
 fn companion_of(asset: &str, known: &BTreeMap<&str, &Entry>) -> bool {
+    if let Some(tool) = asset.strip_suffix("-LICENSE") {
+        return known.keys().any(|known| {
+            known
+                .strip_prefix(tool)
+                .is_some_and(|platform| platform.starts_with('-'))
+        });
+    }
     let base = asset.strip_suffix(".spdx.json").unwrap_or(asset);
     COMPANION_SUFFIXES.iter().any(|suffix| {
         base.strip_suffix(suffix)

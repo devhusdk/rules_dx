@@ -66,7 +66,7 @@ Run it from the tag: the workflow only attests the files when it runs on the tag
 - the `dx` archives, listed in `dx-sha256sums.txt`
 - the `dx-gazelle-<os>-<cpu>` binaries, listed in `dx-gazelle-sha256sums.txt`
 - the `dx-<tool>-any.jar` JVM tools (avro_union, javac_check, javadoc_extract, jmh_generate, kotlinc_check, scalac_check), listed in `dx-jar-sha256sums.txt`
-- the `dx-<tool>-<os>-<cpu>` Haskell tools (hpc_lcov, weeder) for linux arm64, macOS arm64 and Windows x86_64, listed in `dx-haskell-sha256sums.txt`
+- the `dx-<tool>-<os>-<cpu>` Haskell tools (hpc_lcov, weeder) for linux arm64, macOS arm64 and Windows x86_64, with `dx-weeder-LICENSE`, listed in `dx-haskell-sha256sums.txt`
 - the `dx-tool-<tool>-<version>-<host>` quality and coverage tools with their licences, the deadnix source crate, the kcov source archive and the `dx-python-tools-<host>.tar.gz` bundles, listed in `dx-tool-sha256sums.txt`
 
 The source archive's `cli/prebuilt/pins.bzl` has `PINS` filled in from the release manifests, one sha256 per tool and platform in `cli/prebuilt/tools.bzl`, so consumers download the prebuilt `dx`, gazelle, JVM tool jars and Haskell tools. On `main`, `PINS` stays empty. The workflow also unpacks the Linux archive and runs `dx --version`, and uploads a `release-ledger` artifact that records the release.

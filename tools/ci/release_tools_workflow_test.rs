@@ -144,7 +144,11 @@ fn haskell_job_builds_every_haskell_asset() {
     assert!(tools.contains("//haskell/private/coverage:hpc_lcov_source dx-hpc-lcov-$HOST"));
     assert!(tools.contains("//haskell/private/tools/weeder/bin:source dx-weeder-$HOST"));
     assert!(release.contains("for tool in dx-hpc-lcov dx-weeder; do"));
-    assert!(release.contains("test \"$(wc -l < out/dx-haskell-sha256sums.txt)\" -eq 6"));
+    assert!(release.contains("test \"$(wc -l < out/dx-haskell-sha256sums.txt)\" -eq 7"));
+    assert!(release.contains("dx-weeder-LICENSE >> out/dx-haskell-sha256sums.txt"));
+    assert!(release.contains("files=\"$files dx-weeder-LICENSE dx-haskell-sha256sums.txt\""));
+    assert!(tools.contains("{ echo \"weeder archive sha256 differs from haskell/private/tools/weeder/cabal.lock.json\" >&2; exit 1; }"));
+    assert!(tools.contains("\"weeder-$weeder_version/LICENSE\" > \"$out/dx-weeder-LICENSE\""));
     assert!(release.contains("sha256sum -c dx-haskell-sha256sums.txt"));
     assert!(release.contains("--manifest \"$PWD/out/dx-haskell-sha256sums.txt\""));
 }

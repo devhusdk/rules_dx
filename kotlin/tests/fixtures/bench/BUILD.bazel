@@ -61,7 +61,9 @@ jmh_inner_attr_test(
     inner = [
         "_bin",
         "_bin_upstream",
-        "_jmh_processor",
+        "_jmh_gen",
+        "_jmh_lib",
+        "_jmh_resources",
         "_jmh_runner",
         "_jmh_runner_src",
     ],

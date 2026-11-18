@@ -159,6 +159,8 @@ pub enum CollectError {
     #[error("unreported artifact {path:?}: claimed by no entry")]
     UnreportedArtifact { path: String },
     #[error("{0}")]
+    Bep(#[from] dx_bep::BepError),
+    #[error("{0}")]
     Fingerprint(#[from] dx_fingerprint::FingerprintError),
 }
 
@@ -203,10 +205,10 @@ pub fn decode_shards(outputs: &[TargetOutput]) -> Result<Vec<CodegenRecord>, Col
     Ok(records)
 }
 
-fn generated_artifact_paths(outputs: &[TargetOutput]) -> Vec<String> {
-    let mut paths = dx_bep::non_shard_artifact_paths(outputs, SHARD_SUFFIX);
+fn generated_artifact_paths(outputs: &[TargetOutput]) -> Result<Vec<String>, CollectError> {
+    let mut paths = dx_bep::non_shard_artifact_paths(outputs, SHARD_SUFFIX)?;
     paths.retain(|path| !path.ends_with(SOURCES_SUFFIX));
-    paths
+    Ok(paths)
 }
 
 /// The workspace-relative sources and BUILD files the shards were derived from, sorted and unique.
@@ -442,7 +444,7 @@ fn plan_projection(
     outputs: &[TargetOutput],
 ) -> Result<Vec<ProjectionEntry>, CollectError> {
     let bound = bound_entries(records);
-    let generated_paths = generated_artifact_paths(outputs);
+    let generated_paths = generated_artifact_paths(outputs)?;
     let resolved = bind_artifacts(&bound, &generated_paths)?;
     let mut projection: Vec<ProjectionEntry> = bound
         .iter()

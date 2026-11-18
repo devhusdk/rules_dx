@@ -14,7 +14,8 @@ fn split_label(label: &str) -> Option<(&str, &str)> {
     (!name.is_empty() && !name.contains('/')).then_some((package, name))
 }
 
-/// Unions `<url> <digest>` lists keyed by URL with lowercase digests, dropping `file://` entries; one URL with two digests is an error.
+/// Unions `<url> <digest>` lists keyed by URL with lowercase digests, dropping `file://` entries and
+/// `id-` entries whose digest is left without an https URL; one URL with two digests is an error.
 fn union_lists(lists: &[(String, String)]) -> Result<String, String> {
     let mut merged: BTreeMap<&str, String> = BTreeMap::new();
     for (origin, text) in lists {
@@ -33,6 +34,12 @@ fn union_lists(lists: &[(String, String)]) -> Result<String, String> {
             }
         }
     }
+    let fetchable: std::collections::BTreeSet<String> = merged
+        .iter()
+        .filter(|(url, _)| url.starts_with("https://"))
+        .map(|(_, sha)| sha.clone())
+        .collect();
+    merged.retain(|url, sha| !url.starts_with("id-") || fetchable.contains(sha));
     let mut text = String::new();
     for (url, sha) in &merged {
         text.push_str(url);
@@ -190,6 +197,16 @@ mod tests {
     fn union_drops_file_urls() {
         let merged = union_lists(&[list("file:///tmp/x/tool a\nhttps://a y\n")]).unwrap();
         assert_eq!(merged, "https://a y\n");
+    }
+
+    #[test]
+    fn union_drops_ids_of_file_only_digests() {
+        let merged = union_lists(&[
+            list("file:///tmp/x/tool a\nid-1 a\n"),
+            list("https://b y\nid-2 Y\n"),
+        ])
+        .unwrap();
+        assert_eq!(merged, "https://b y\nid-2 y\n");
     }
 
     #[test]

@@ -27,3 +27,8 @@ QT_BUNDLE_COMPATIBLE_WITH = select(
     {_cell_setting(cell): [] for cell in _BUNDLE_CELLS} |
     {"//conditions:default": [_INCOMPATIBLE, _UNSUPPORTED]},
 )
+
+QT_CONSUMER_COMPATIBLE_WITH = select(
+    {_cell_setting(cell): [] for cell in _CONSUMER_CELLS} |
+    {"//conditions:default": [_INCOMPATIBLE, _UNSUPPORTED]},
+)

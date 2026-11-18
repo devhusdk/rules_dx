@@ -111,7 +111,10 @@ def _external_toolchain_asan_test(toolchain):
     return analysistest.make(
         _gcc_asan_env_impl,
         attrs = {"expect": attr.string()},
-        config_settings = {"//command_line_option:extra_toolchains": [toolchain]},
+        config_settings = {
+            "//command_line_option:collect_code_coverage": False,
+            "//command_line_option:extra_toolchains": [toolchain],
+        },
     )
 
 _asan_env_external_gcc_test = _external_toolchain_asan_test(str(Label("//cc/tests/fixtures/external_toolchain:gcc_toolchain")))

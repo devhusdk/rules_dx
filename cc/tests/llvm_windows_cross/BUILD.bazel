@@ -1,5 +1,4 @@
-load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
-load("//cc/private/toolchain:select.bzl", "cc_toolchain_binary")
+load("//cc/private/toolchain:select.bzl", "cc_toolchain_binary", "cc_toolchain_files")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 
@@ -18,11 +17,12 @@ _LINUX_X86_64 = [
 ]
 
 [
-    platform_transition_filegroup(
+    cc_toolchain_files(
         name = lang,
         srcs = ["//%s/tests/conformance:hello" % lang],
+        compiler = "llvm",
+        platforms = ["//tools/platforms:windows_x86_64"],
         target_compatible_with = _LINUX_X86_64,
-        target_platform = "//tools/platforms:windows_x86_64",
     )
     for lang in _LANGS
 ]

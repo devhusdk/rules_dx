@@ -187,7 +187,7 @@ def with_jars(build, jars):
     return "\n".join(loads + [build.rstrip("\n")] + lines + [""])
 
 def plan_native_tools(version, pins, url_template, overrides):
-    """Returns {tool: plan_assets of tool} for every native exec tool of the registry."""
+    """Returns {tool: plan_assets of tool} for every native tool of the registry."""
     return {
         tool: plan_assets(tool, version, pins, url_template, overrides.get(tool, {}), exe = tool, repo_prefix = "dx_{}_prebuilt_".format(tool))
         for tool in NATIVE_TOOLS
@@ -196,9 +196,9 @@ def plan_native_tools(version, pins, url_template, overrides):
 _NATIVE_BINARY_LOAD = 'load("@bazel_skylib//rules:native_binary.bzl", "native_binary")'
 
 def with_native_tools(build, native_tools):
-    """Returns the hub BUILD text build plus one target per native exec tool.
+    """Returns the hub BUILD text build plus one target per native tool.
 
-    A tool selects its download on the exec platform and builds from source on
+    A tool selects its download on the platform it runs on and builds from source on
     any platform with no download.
     """
     lines = []

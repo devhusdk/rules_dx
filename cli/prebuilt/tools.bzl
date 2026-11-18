@@ -35,6 +35,20 @@ def _exec_native(tool):
         main_class = "",
     )
 
+# Haskell tools: windows_arm64 runs the x86_64 build under emulation.
+_HASKELL = ["linux_arm64", "macos_arm64", "windows_x86_64"]
+
+def _haskell(tool, role, source):
+    return struct(
+        asset = "dx-" + tool.replace("_", "-") + "-{os}-{cpu}",
+        role = role,
+        platforms = _HASKELL,
+        fallbacks = {"windows_arm64": "windows_x86_64"},
+        source = source,
+        member = "",
+        main_class = "",
+    )
+
 def _jar(tool, source, main_class):
     return struct(
         asset = "dx-" + tool.replace("_", "-") + "-any.jar",
@@ -120,10 +134,12 @@ TOOLS = {
     "jmh_generate": _jar("jmh_generate", "@rules_dx//java/private/jmh:jmh_generate", "dx.bench.JmhGenerate"),
     "kotlinc_check": _jar("kotlinc_check", "@rules_dx//java/private/quality/tools/kotlinc_check", "dx.quality.kotlinc.Main"),
     "scalac_check": _jar("scalac_check", "@rules_dx//java/private/quality/tools/scalac_check", "dx.quality.scalac.Main"),
+    "hpc_lcov": _haskell("hpc_lcov", "target", "@rules_dx//haskell/private/coverage:hpc_lcov_source"),
+    "weeder": _haskell("weeder", "exec", "@rules_dx//haskell/private/tools/weeder/bin:source"),
 }
 
-# The build tools released as one native binary per exec platform.
-NATIVE_TOOLS = ["capnp", "flatc", "progenitor", "thrift", "topiary"]
+# The tools released as one native binary per platform.
+NATIVE_TOOLS = ["capnp", "flatc", "hpc_lcov", "progenitor", "thrift", "topiary", "weeder"]
 
 # The tools released as one platform-independent jar each.
 JAR_TOOLS = sorted([tool for tool, entry in TOOLS.items() if entry.main_class])

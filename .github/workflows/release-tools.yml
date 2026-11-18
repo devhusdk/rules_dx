@@ -246,3 +246,86 @@ jobs:
           name: release-tool-jars
           path: ${{ runner.temp }}/jars-out/*
           if-no-files-found: error
+
+  haskell:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: linux-arm64
+            runner: ubuntu-24.04-arm
+          - host: macos-arm64
+            runner: macos-15
+          - host: windows-x86_64
+            runner: windows-latest
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bazel
+      - name: Build the Haskell tools
+        env:
+          HOST: ${{ matrix.host }}
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/haskell-out"
+          rm -rf "$out"
+          mkdir -p "$out"
+          flags=()
+          case "$HOST" in
+            linux-arm64) flags=(--platforms=//tools/platforms:linux_arm64_musl --features=fully_static_link) ;;
+            windows-*) flags=(--//haskell/private/toolchain:ghc_mingw=True) ;;
+          esac
+          tools=(
+            "//haskell/private/coverage:hpc_lcov_source dx-hpc-lcov-$HOST"
+            "//haskell/private/tools/weeder/bin:source dx-weeder-$HOST"
+          )
+          targets=()
+          for tool in "${tools[@]}"; do
+            targets+=("${tool%% *}")
+          done
+          bazel build "${flags[@]}" "${targets[@]}"
+          root="$(bazel info "${flags[@]}" execution_root)"
+          for tool in "${tools[@]}"; do
+            built="$(bazel cquery "${flags[@]}" --output=files "${tool%% *}" | grep -v '\.sh$' | head -n 1)"
+            cp "$root/$built" "$out/${tool#* }"
+            chmod +x "$out/${tool#* }"
+            case "$HOST" in
+              linux-*)
+                if readelf -l "$out/${tool#* }" | grep -q INTERP; then
+                  echo "${tool#* } is dynamically linked" >&2
+                  exit 1
+                fi
+                ;;
+              macos-*)
+                codesign --verify "$out/${tool#* }" 2>/dev/null || codesign --force -s - "$out/${tool#* }"
+                ;;
+            esac
+          done
+          check="$RUNNER_TEMP/weeder-check"
+          case "$HOST" in windows-*) check="$check.exe" ;; esac
+          cp "$out/dx-weeder-$HOST" "$check"
+          "$check" --version
+          if test "$HOST" = "linux-arm64"; then
+            weeder="$(jq -c '.packages[] | select(.name == "weeder") | {version, archive: .archives[0]}' haskell/private/tools/weeder/cabal.lock.json)"
+            weeder_version="$(jq -r .version <<<"$weeder")"
+            download="$(mktemp -d)"
+            curl --fail --silent --show-error --location -o "$download/weeder.tar.gz" "$(jq -r '.archive.urls[0]' <<<"$weeder")"
+            test "$(sha256sum "$download/weeder.tar.gz" | cut -d' ' -f1)" = "$(jq -r .archive.sha256 <<<"$weeder")" || { echo "weeder archive sha256 differs from haskell/private/tools/weeder/cabal.lock.json" >&2; exit 1; }
+            tar -xzOf "$download/weeder.tar.gz" "weeder-$weeder_version/LICENSE" > "$out/dx-weeder-LICENSE"
+            test -s "$out/dx-weeder-LICENSE"
+            rm -rf "$download"
+          fi
+          ls -l "$out"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-tool-haskell-${{ matrix.host }}
+          path: ${{ runner.temp }}/haskell-out/*
+          if-no-files-found: error

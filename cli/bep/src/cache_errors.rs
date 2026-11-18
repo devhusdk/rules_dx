@@ -17,8 +17,7 @@ pub fn stream_remote_cache_error(path: &Path) -> std::io::Result<bool> {
 /// Reports whether the progress output of a build event stream holds a remote cache error line.
 pub fn has_remote_cache_error(reader: impl BufRead) -> bool {
     let mut text = String::new();
-    for line in reader.lines() {
-        let Ok(line) = line else { break };
+    for line in crate::readable_lines(reader) {
         if !line.contains("\"progress\"") {
             continue;
         }
@@ -111,5 +110,12 @@ mod tests {
     fn missing_file_is_not_found() {
         let error = stream_remote_cache_error(Path::new("/nonexistent/bep.json")).unwrap_err();
         assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
+    }
+
+    #[test]
+    fn a_non_utf8_line_does_not_hide_a_later_cache_error() {
+        let mut bytes = b"\xff\xfe\n".to_vec();
+        bytes.extend_from_slice(stream("ERROR: remote cache down\n").as_bytes());
+        assert!(has_remote_cache_error(bytes.as_slice()));
     }
 }

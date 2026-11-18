@@ -177,51 +177,86 @@ impl<R: BufRead> Iterator for EventLines<R> {
     }
 }
 
+/// Stream lines, skipping a line that is not UTF-8 and stopping at any other read error.
+pub(crate) fn readable_lines(reader: impl BufRead) -> impl Iterator<Item = String> {
+    reader
+        .lines()
+        .map_while(|line| match line {
+            Err(error) if error.kind() != std::io::ErrorKind::InvalidData => None,
+            other => Some(other.ok()),
+        })
+        .flatten()
+}
+
+/// Feeds each parsed event of the stream at `path` to `visit` until it returns true.
+fn visit_events(
+    path: &Path,
+    mut visit: impl FnMut(&serde_json::Value) -> bool,
+) -> std::io::Result<()> {
+    let reader = std::io::BufReader::new(std::fs::File::open(path)?);
+    for line in reader.lines() {
+        let line = match line {
+            Ok(line) => line,
+            Err(error) if error.kind() == std::io::ErrorKind::InvalidData => continue,
+            Err(error) => return Err(error),
+        };
+        let Ok(event) = serde_json::from_str::<serde_json::Value>(&line) else {
+            continue;
+        };
+        if visit(&event) {
+            break;
+        }
+    }
+    Ok(())
+}
+
 /// Reports whether the stream at `path` holds a real `started` event; a synthetic aborted one does not count.
 ///
 /// A missing file is an `io::ErrorKind::NotFound` error. Unparseable lines are skipped.
 pub fn stream_started(path: &Path) -> std::io::Result<bool> {
-    let reader = std::io::BufReader::new(std::fs::File::open(path)?);
-    for line in reader.lines() {
-        let Ok(line) = line else { continue };
-        let Ok(event) = serde_json::from_str::<serde_json::Value>(&line) else {
-            continue;
-        };
-        if event
+    let mut started = false;
+    visit_events(path, |event| {
+        started = event
             .pointer("/id/started")
             .is_some_and(serde_json::Value::is_object)
             && event
                 .get("started")
-                .is_some_and(serde_json::Value::is_object)
-        {
-            return Ok(true);
-        }
-    }
-    Ok(false)
+                .is_some_and(serde_json::Value::is_object);
+        started
+    })?;
+    Ok(started)
 }
 
 /// The `buildToolVersion` of the real `started` event in the stream at `path`, if it names one.
 ///
 /// A missing file is an `io::ErrorKind::NotFound` error. Unparseable lines are skipped.
 pub fn stream_build_tool_version(path: &Path) -> std::io::Result<Option<String>> {
-    let reader = std::io::BufReader::new(std::fs::File::open(path)?);
-    for line in reader.lines() {
-        let Ok(line) = line else { continue };
-        let Ok(event) = serde_json::from_str::<serde_json::Value>(&line) else {
-            continue;
-        };
+    let mut found = None;
+    visit_events(path, |event| {
         if event
             .pointer("/id/started")
             .is_some_and(serde_json::Value::is_object)
-            && let Some(version) = event
+        {
+            found = event
                 .pointer("/started/buildToolVersion")
                 .and_then(serde_json::Value::as_str)
                 .filter(|version| !version.is_empty())
-        {
-            return Ok(Some(version.to_owned()));
+                .map(str::to_owned);
         }
-    }
-    Ok(None)
+        found.is_some()
+    })?;
+    Ok(found)
+}
+
+/// Whether `value` is a relative path with no `..`, root, or drive part.
+pub(crate) fn is_plain_relative(value: &str) -> bool {
+    !value.is_empty()
+        && Path::new(value).components().all(|part| {
+            matches!(
+                part,
+                std::path::Component::Normal(_) | std::path::Component::CurDir
+            )
+        })
 }
 
 pub(crate) fn file_uri_to_path(uri: &str) -> Result<PathBuf, BepError> {
@@ -421,6 +456,17 @@ pub(crate) fn testlog_path_under(
             "label does not address a testlogs directory",
         )
     })?;
+    if !package.split('/').all(is_path_segment) && !package.is_empty()
+        || !is_plain_relative(target)
+        || repo.is_some_and(|repo| !is_path_segment(repo))
+    {
+        return Err(missing_test_output(
+            label,
+            name,
+            identity,
+            "label does not name a path under the testlogs directory",
+        ));
+    }
     let mut path = root;
     if let (Some(repo), false) = (repo, root_names_repo) {
         path.push("external");
@@ -1124,5 +1170,43 @@ mod tests {
                 &["bazel-testlogs", "cli/bep", "dx_bep_test", "coverage.dat"]
             )
         );
+    }
+
+    #[test]
+    fn stream_readers_report_a_read_error_instead_of_spinning() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        if let Ok(started) = stream_started(dir.path()) {
+            assert!(!started, "a directory holds no started event");
+        }
+        if let Ok(version) = stream_build_tool_version(dir.path()) {
+            assert_eq!(version, None);
+        }
+    }
+
+    #[test]
+    fn stream_readers_skip_a_non_utf8_line() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("bep.json");
+        let mut bytes = b"\xff\xfe\n".to_vec();
+        bytes.extend_from_slice(
+            b"{\"id\":{\"started\":{}},\"started\":{\"buildToolVersion\":\"9.0.0\"}}\n",
+        );
+        std::fs::write(&path, bytes).expect("write");
+        assert!(stream_started(&path).expect("read"));
+        assert_eq!(
+            stream_build_tool_version(&path).expect("read").as_deref(),
+            Some("9.0.0")
+        );
+    }
+
+    #[test]
+    fn testlog_path_rejects_a_label_package_that_leaves_the_root() {
+        let locations = OutputLocations::new(Path::new("/ws"));
+        for label in ["//a/../..:t", "//../x:t", "//a/./b:t", "//a:../t"] {
+            assert!(
+                testlog_path(&locations, None, label, "test.xml", IDENTITY).is_err(),
+                "{label}"
+            );
+        }
     }
 }

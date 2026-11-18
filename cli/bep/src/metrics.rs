@@ -18,8 +18,7 @@ const REMOTE_RUNNER: &str = "remote cache hit";
 /// Returns the last `buildMetrics` action summary, or `None` when absent.
 pub fn collect_action_summary(reader: impl BufRead) -> Option<ActionSummary> {
     let mut found = None;
-    for line in reader.lines() {
-        let Ok(line) = line else { break };
+    for line in crate::readable_lines(reader) {
         if !line.contains("\"buildMetrics\"") {
             continue;
         }
@@ -39,8 +38,7 @@ pub fn collect_action_summary(reader: impl BufRead) -> Option<ActionSummary> {
 /// Returns the last `buildMetrics` system network bytes received, or `None` when Bazel reported none.
 pub fn collect_bytes_received(reader: impl BufRead) -> Option<u64> {
     let mut found = None;
-    for line in reader.lines() {
-        let Ok(line) = line else { break };
+    for line in crate::readable_lines(reader) {
         if !line.contains("\"bytesRecv\"") {
             continue;
         }
@@ -78,8 +76,7 @@ pub struct BuildTotals {
 /// event, or `None` when the stream has none.
 pub fn collect_build_totals(reader: impl BufRead) -> Option<BuildTotals> {
     let mut found = None;
-    for line in reader.lines() {
-        let Ok(line) = line else { break };
+    for line in crate::readable_lines(reader) {
         if !line.contains("\"buildMetrics\"") {
             continue;
         }
@@ -321,5 +318,23 @@ mod tests {
         let cut = r#"{"buildMetrics":{"timingMetrics"#;
         let input = format!("{cut}\n{metricless}");
         assert_eq!(collect_build_totals(input.as_bytes()), None);
+    }
+
+    fn after_non_utf8(line: &str) -> Vec<u8> {
+        let mut bytes = b"\xff\xfe\n".to_vec();
+        bytes.extend_from_slice(line.as_bytes());
+        bytes
+    }
+
+    #[test]
+    fn a_non_utf8_line_does_not_hide_later_metrics() {
+        assert!(collect_action_summary(after_non_utf8(FULL).as_slice()).is_some());
+        assert!(collect_build_totals(after_non_utf8(FULL).as_slice()).is_some());
+        let recv =
+            r#"{"buildMetrics":{"networkMetrics":{"systemNetworkStats":{"bytesRecv":"7"}}}}"#;
+        assert_eq!(
+            collect_bytes_received(after_non_utf8(recv).as_slice()),
+            Some(7)
+        );
     }
 }

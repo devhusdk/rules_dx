@@ -1,5 +1,9 @@
 # Scope defaults
 
+Use this page to see which targets a dx command runs on when you name none, and how to narrow it.
+
+A scope tells a command what to work on. It is a Bazel label such as `//cli:dx`, a pattern such as `//cli/...` for every target under `cli/`, a file or directory, or one of the `--here` and `--affected` flags. A target is one buildable unit, such as a library, a binary or a test.
+
 ```sh
 dx lint --here
 dx build //cli/...
@@ -35,7 +39,7 @@ Targets that do not fit the target platform are skipped by `build`, `test`, `cov
 
 Changes are the diff from the merge-base with the base branch, plus staged, unstaged, and untracked files. The base branch is `--base <ref>` when given, else `base` under `[affected]` in [dx.toml](config.md), else the default branch (`origin/HEAD`, else `origin/main`, `main`, `origin/master`, `master`). A rename counts both paths. `--since <ref>` replaces the merge-base with that ref, for example `dx test --affected --since HEAD~1` for the last commit only. `--since` without `--affected` is a usage error, and a ref that names no commit exits `2`. In a subdirectory workspace, changes outside it are ignored.
 
-Each changed file maps to its owning targets, then to their reverse dependencies in `//...`. Targets tagged `manual` are left out.
+Each changed file maps to its owning targets, then to their reverse dependencies in `//...`: the targets that depend on them. Targets tagged `manual` are left out.
 
 - `test` and `coverage` keep only test targets.
 - `security` and `license` keep only targets a dependency set owns. `security` still runs the secrets scan when any file changed.

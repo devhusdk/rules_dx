@@ -1,6 +1,8 @@
 # `dx sync`
 
-Selects the managed tools for `.dx/local/bin`, the env values, and the declared generated source in one Bazel build, and refreshes the editor files. It upgrades nothing. It always writes; run `dx status` to see drift first.
+Use `dx sync` to put the managed tools, env values and generated source in place, and to refresh your editor files.
+
+dx selects them all in one Bazel build: tools land in `.dx/local/bin`, generated source under `.dx/local/setups/current/generated`. It upgrades nothing. It always writes, so run `dx status` first to see drift.
 
 ```sh
 dx sync
@@ -8,20 +10,34 @@ dx sync //proto:api
 dx sync --output json
 ```
 
+## Usage
+
 ```text
 dx sync [<label>] [-- bazel-options...]
 ```
 
+## Flags
+
 | Flag | What it does |
 | --- | --- |
 | `-o, --output text\|json` | Choose the output format. |
-| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--build-slots-wait`, `--bazel-startup-option` | Global flags. |
+| `--workspace <dir>` | Use this workspace directory. |
+| `-q, --quiet` | Hide summaries. |
+| `-v, --verbose` | Show more logs. |
+| `--color auto\|always\|never` | Set color output. |
+| `--build-slots <auto\|n\|off>` | Set build slots: `auto`, a count, or `off`. |
+| `--build-slots-wait <duration>` | Give up waiting for a build slot after this long. `0` fails at once. |
+| `--bazel-startup-option <token>` | Pass one Bazel startup option. Repeatable. |
 
-`--apply`, `--fail-on` and `--report` are usage errors.
+`--apply`, `--fail-on` and `--report` are usage errors. `dx sync` writes no reports.
 
-Scopes: none selects the whole repository. One exact `//` or `@` label selects that label and every codegen shard that depends on it. A pattern, relative label, path, empty value, or second label is a usage error.
+## Scopes
 
-Run `dx sync` after you edit a `.capnp`, `.fbs`, or OpenAPI spec that a codegen rule reads. Selected outputs link under `.dx/local/setups/current/generated`. A second run with nothing changed reports the setup is already selected and writes nothing. Managed state lives under `.dx/local/`. After a new selection commits, `dx sync` prunes the setups it replaced, except generations a lease or a running process still holds through its working directory, executable, open files or mapped libraries. Processes dx may not read, such as another user's, are skipped. If one of your own processes cannot be read, nothing is pruned. Where it cannot observe processes at all, as on macOS and Windows, it keeps the current and the previous setup and prunes the rest. A prune failure prints one warning and does not change the exit code.
+With no scope, `dx sync` selects the whole repository. One exact `//` or `@` label, such as `//proto:api`, selects that target and every codegen shard that depends on it. A label names one Bazel target; a pattern such as `//proto/...` names many. A pattern, relative label, path, empty value, or second label is a usage error.
+
+## What it does
+
+Run `dx sync` after you edit a `.capnp`, `.fbs`, or OpenAPI spec that a codegen rule reads. A second run with nothing changed reports the setup is already selected and writes nothing. Managed state lives under `.dx/local/`. After a new selection commits, `dx sync` prunes the setups it replaced, except generations a lease or a running process still holds through its working directory, executable, open files or mapped libraries. Processes dx may not read, such as another user's, are skipped. If one of your own processes cannot be read, nothing is pruned. Where it cannot observe processes at all, as on macOS and Windows, it keeps the current and the previous setup and prunes the rest. A prune failure prints one warning and does not change the exit code.
 
 `dx sync` records what it saw in `.dx/local/sync.fingerprint`. `dx build`, `dx test`, `dx coverage`, `dx run` and `dx check` read it and run the sync again when a generated file it links to was rebuilt; see [build, test, and coverage](build-test-coverage.md#keeping-dxlocal-in-step). `dx sync` itself always runs.
 

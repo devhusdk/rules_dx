@@ -1,6 +1,6 @@
 # `dx status`
 
-Reports workspace health. Reads only; it downloads, installs and repairs nothing.
+Use `dx status` to see whether your workspace is healthy and what dx would fix. It only reads: it downloads, installs and repairs nothing.
 
 ```sh
 tools/dx status
@@ -9,18 +9,30 @@ tools/dx status --capabilities
 tools/dx --version
 ```
 
+## Usage
+
 ```text
 dx status [--capabilities] [--files] [--output text|json]
 ```
+
+## Flags
 
 | Flag | What it does |
 | --- | --- |
 | `--capabilities` | Adds one capability record per command and one for `workspace:tools`. |
 | `--files` | Adds one record per file `dx init` writes: its path, what dx owns (`whole`, `extends`, `keys`, `block`, `lines`, `pin` or `once`) and its state. |
-| `--output text\|json` | Sets the output format. |
-| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--build-slots-wait`, `--bazel-startup-option` | Global flags. |
+| `-o, --output text\|json` | Choose the output format. |
+| `--workspace <dir>` | Use this workspace directory. |
+| `-q, --quiet` | Hide summaries. |
+| `-v, --verbose` | Show more logs. |
+| `--color auto\|always\|never` | Set color output. |
+| `--build-slots <auto\|n\|off>` | Set build slots: `auto`, a count, or `off`. |
+| `--build-slots-wait <duration>` | Give up waiting for a build slot after this long. `0` fails at once. |
+| `--bazel-startup-option <token>` | Pass one Bazel startup option. Repeatable. |
 
-Scopes: none.
+## Scopes
+
+None. A scope is a usage error.
 
 ## Checks
 
@@ -43,7 +55,7 @@ Scopes: none.
 | `dx.toml` | `warn` when `dx.toml` does not parse or its tool configs cannot be bound. |
 | `workspace` | `warn` when dx cannot list the workspace root. |
 
-`ok` passes. `warn` does not fail. `error` fails; the hint is the fix.
+`ok` passes. `warn` does not fail. `error` fails, and its hint is the fix.
 
 ## Output
 
@@ -81,7 +93,9 @@ dx: status_check_failed: failed checks: module, tools (see hint)
 
 `dx --version` prints the binary version and exits `0`.
 
-## Exit Codes
+`dx status` writes no reports.
+
+## Exit codes
 
 | Code | Meaning |
 | --- | --- |

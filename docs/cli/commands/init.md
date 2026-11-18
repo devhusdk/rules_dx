@@ -1,71 +1,106 @@
 # `dx init`
 
-Empty directory, with `dx` installed as in the [tutorial](../../tutorial.md#install):
+Use `dx init` to start a new rules_dx workspace, or to add dx to a tree you already have.
+
+In an empty directory, with `dx` installed as in the [tutorial](../../tutorial.md#install):
 
 ```sh
 dx init --apply
 tools/dx test //...
 ```
 
-Existing tree:
+In an existing tree, check first, then write:
 
 ```sh
 dx init
 dx init --apply
 dx init --apply my-app
+dx init --apply --agents claude --ci github
+dx init --apply --accept-license visual-studio-build-tools
 ```
 
-```text
-tools/dx init
-```
+Once the launcher exists, run `tools/dx init` to see drift.
 
-## `dx init`
+## Usage
 
 ```text
 dx init [--apply] [--agents <list>] [--ci <provider>] [--no-generate] [--accept-license <id>] [dir]
 ```
 
-Starts a new workspace or adopts `dx` into an existing tree. Checks by
-default; `--apply` scaffolds. Takes an optional directory, relative to the
-workspace and defaulting to the current one. `--apply` creates the directory
-when it is missing. A directory is fresh when it is missing or holds only `.git`,
-`README*`, `LICENSE*`, `.gitignore`, `.gitattributes`, `.editorconfig` or
-`.github/` or `.gitlab-ci.yml`: init then also writes a `MODULE.bazel` that depends on `rules_dx`
-and a `.bazelversion`. A tree with other files keeps its own `MODULE.bazel`.
-If such a tree has no `MODULE.bazel`, `--apply` names the entry that made it an
-existing tree, for example `dx: src/ exists, treating this as an existing repo`.
-Nothing language-specific is chosen up front; languages are wired when their
-sources appear.
+`dx init` checks by default and writes nothing. `--apply` writes the files.
 
-### Flags
+## Flags
 
 | Flag | What it does |
 | --- | --- |
-| `--apply` | Scaffold instead of only checking. |
-| `--agents <list>` | Agent tools whose files init adds: `claude`, `codex`, `gemini`, `copilot`. |
-| `--ci <provider>` | CI provider whose workflow init writes: `github`, `gitlab`, `none`. |
+| `--apply` | Write the files instead of only checking. |
+| `--agents <list>` | Add the files of these agent tools, as a comma list: `claude`, `codex`, `gemini`, `copilot`. |
+| `--ci <provider>` | Write the CI files of this provider: `github`, `gitlab` or `none`. |
 | `--no-generate` | With `--apply`, stop after the writes and skip `dx generate`. |
-| `--accept-license <id>` | With `--apply`, accept a license id in `MODULE.bazel`. Repeatable. |
+| `--accept-license <id>` | With `--apply`, accept this license id in `MODULE.bazel`. Repeatable. |
 | `-o, --output text\|json` | Choose the output format. |
-| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--build-slots-wait`, `--bazel-startup-option` | Global flags. |
+| `--workspace <dir>` | Use this workspace directory. |
+| `-q, --quiet` | Hide summaries. |
+| `-v, --verbose` | Show more logs. |
+| `--color auto\|always\|never` | Set color output. |
+| `--build-slots <auto\|n\|off>` | Set build slots: `auto`, a count, or `off`. |
+| `--build-slots-wait <duration>` | Give up waiting for a build slot after this long. `0` fails at once. |
+| `--bazel-startup-option <token>` | Pass one Bazel startup option. Repeatable. |
 
-The module name is the directory name, lowercased, with every run of other
-characters folded to `_`, or `my_project` for the current directory. An
-absolute path, a `..` segment, or a name with no `[a-z0-9]` character fails
-before any file is written.
+## Scopes
 
-It writes every path in the [fixed file set](#fixed-file-set). Re-running
-`dx init --apply` is safe: it keeps your edits outside the rows owned by `dx`.
+One optional directory, relative to the workspace. It defaults to the current directory. `--apply` creates it when it is missing. Bazel labels and patterns are not scopes. A second directory is a usage error.
 
-`--accept-license <id>` appends `dx_licenses.accept(ids = [...])` to `MODULE.bazel` with the given ids that no `dx_licenses.accept` tag lists yet, after a `dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")` line when no name binds the extension. The ids are the `setup.licenses` ids of the `lang.json` manifests: `android-sdk-license`, `apple-xcode-license`, `cuda-eula`, `visual-studio-build-tools` and `windows-sdk-buildtools`. An unknown id, or the flag without `--apply`, is a usage error. When a language found in the tree needs an id on the host platform that is neither given nor in `MODULE.bazel`, `--apply` writes nothing and fails with `init_failed`, for example `dx: init_failed: dx init: cc needs license visual-studio-build-tools; accept it with --accept-license visual-studio-build-tools`.
+The module name is the directory name, lowercased, with every run of other characters folded to `_`. For the current directory it is `my_project`. An absolute path, a `..` segment, or a name with no `[a-z0-9]` character fails before any file is written.
 
-Init writes no `dx.toml`, no root tool config such as `ruff.toml` or `biome.json`, and no `security.toml` or `license.toml`. Those files are yours. To pick the strict tier, write `dx.toml` with a top-level `tier = "strict"` (see the [config reference](config.md)). Init then writes the [`.dx` tree](generate.md#the-dx-tree) from `dx.toml`, or from the defaults when there is none, for the languages found.
+## New and existing trees
 
-`--ci` picks the CI files. `github` writes the three `.github/workflows` files, `gitlab` writes one `.gitlab-ci.yml` that includes the GitLab template at the pinned rules_dx commit, and `none` writes no CI file. Without it init keeps the provider of an existing `.gitlab-ci.yml` or `.github/workflows/ci.yml`, then picks `gitlab` when the `origin` remote URL names GitLab, else `github`.
+A directory is fresh when it is missing or holds only `.git`, `README*`, `LICENSE*`, `.gitignore`, `.gitattributes`, `.editorconfig`, `.github/` or `.gitlab-ci.yml`. In a fresh directory, init also writes a `MODULE.bazel` that depends on `rules_dx` and a `.bazelversion`. `MODULE.bazel` is the file where a Bazel module declares its name and dependencies.
 
-With the GitHub files, `dx init --apply` ends with `next:` lines for the settings they need: require the `dx-ci (aggregate)` check, set the `DX_REMOTE_CACHE` variable and the `BUILDBUDDY_API_KEY` secret, let Actions create and approve pull requests, and set the `DX_UPDATE_APP_ID` and `DX_UPDATE_APP_PRIVATE_KEY` secrets. The lines are fixed text; init makes no network or `gh` calls.
+A tree with other files keeps its own `MODULE.bazel`. If it has none, `--apply` names the entry that made it an existing tree, for example `dx: src/ exists, treating this as an existing repo`.
 
-Init writes agent tool files only for the agents you name with `--agents=claude,codex,gemini,copilot` (a comma list). Without it, init writes the `AGENTS.md` block and no tool file. Run `dx init --apply --agents <tool>` later to add a tool's files to an existing repository; running it again changes nothing. Each agent gets the `dx worktree` hooks:
+You choose no language up front. dx wires each language when its sources appear.
+
+Init writes every path in the [fixed file set](#fixed-file-set). You can rerun `dx init --apply` at any time. It keeps your edits outside the parts dx owns.
+
+When the writes succeed, `--apply` runs `dx generate --apply` over the directory. That writes every `BUILD.bazel` file and every missing lockfile. A `BUILD.bazel` file declares the Bazel targets of one directory. The output and exit code then follow `dx generate`. It does not run when a write fails, or with `--no-generate`.
+
+Init writes no `dx.toml`, no root tool config such as `ruff.toml` or `biome.json`, and no `security.toml` or `license.toml`. Those files are yours. To pick the strict tier, write `dx.toml` with a top-level `tier = "strict"`; see the [config reference](config.md). Init then writes the [`.dx` tree](generate.md#the-dx-tree) from `dx.toml`, or from the defaults when there is none, for the languages it finds.
+
+## Licenses
+
+`--accept-license <id>` appends `dx_licenses.accept(ids = [...])` to `MODULE.bazel` with each given id that no `dx_licenses.accept` tag lists yet. When no name binds the extension, it first adds `dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")`.
+
+The ids are `android-sdk-license`, `apple-xcode-license`, `cuda-eula`, `visual-studio-build-tools` and `windows-sdk-buildtools`. An unknown id, or the flag without `--apply`, is a usage error.
+
+When a language in the tree needs a license id on this host that is neither given nor in `MODULE.bazel`, `--apply` writes nothing and fails:
+
+```text
+dx: init_failed: dx init: cc needs license visual-studio-build-tools; accept it with --accept-license visual-studio-build-tools
+```
+
+## CI files
+
+`--ci github` writes the three `.github/workflows` files. `--ci gitlab` writes one `.gitlab-ci.yml` that includes the GitLab template at the pinned rules_dx commit. `--ci none` writes no CI file.
+
+Without `--ci`, init keeps the provider of an existing `.gitlab-ci.yml` or `.github/workflows/ci.yml`. Otherwise it picks `gitlab` when the `origin` remote URL names GitLab, and `github` in every other case.
+
+With the GitHub files, `dx init --apply` ends with `next:` lines for the settings they need:
+
+- require the `dx-ci (aggregate)` check;
+- set the `DX_REMOTE_CACHE` variable and the `BUILDBUDDY_API_KEY` secret;
+- let Actions create and approve pull requests;
+- set the `DX_UPDATE_APP_ID` and `DX_UPDATE_APP_PRIVATE_KEY` secrets.
+
+The lines are fixed text. Init makes no network or `gh` calls.
+
+The CI caller pins the `rules_dx` reusable workflow at a reviewed commit.
+
+## Agent files
+
+Init writes agent tool files only for the agents you name with `--agents`. Without it, init writes the `AGENTS.md` block and no tool file. To add a tool's files later, run `dx init --apply --agents <tool>`. Running it again changes nothing.
+
+Each agent gets the `dx worktree` hooks:
 
 | Agent | Hooks file | Hooks |
 | --- | --- | --- |
@@ -75,67 +110,78 @@ Init writes agent tool files only for the agents you name with `--agents=claude,
 | Gemini CLI (`gemini`) | `.gemini/settings.json` | `guard`, in a trusted folder |
 | GitHub Copilot (`copilot`) | `.github/copilot-instructions.md`, and `.github/hooks/dx.json` | `guard` |
 
-See [Hooks](worktree.md#hooks). The hooks run `tools/dx`, which also runs in a Git Bash or MSYS2 shell on Windows. It also writes a marked block to `AGENTS.md`,
-creating the file when it is missing (see below). With `--agents=claude` it writes `CLAUDE.md` with an
-`@AGENTS.md` import when the import is missing.
-The new `.claude/settings.json` also carries a `permissions.allow` list for the
-read-only commands `tools/dx check *`, `test *`, `build *`,
-and `status *`. If a hooks file
-already exists, the missing hook and allow entries are added in place and your
-other entries stay.
+See [Hooks](worktree.md#hooks). The hooks run `tools/dx`. On Windows, that also works in a Git Bash or MSYS2 shell.
 
-The CI caller pins the
-`rules_dx` reusable workflow at a reviewed commit. The `.gitignore` lists `target/`, `/bazel-*`, `node_modules/`,
-`__pycache__/`, `*.pyc`, `.gradle/`, `/build/`, `/.dx/bazelrc/`,
-`/.dx/local/docs/`, `/.dx/local/results.json`, `/.dx/local/timings/`, `/.dx/local/fuzz/`, `/.dx/local/advisory/`, `/.dx/local/bench/`, `/.dx/local/` and
-`/.vscode/.rules_rust_analyzer/` (rules_rust's rust-analyzer discover writes its
-warnings log under `.vscode/.rules_rust_analyzer/`). The `.bazelignore` lists each `.dx` scratch directory (`.dx/local`, `.dx/bazelrc`) and leaves `.dx/config` visible to Bazel. When a `.bazelignore` already exists it is left alone, and
-`dx init --apply` prints `dx: .bazelignore lacks .dx/local; add the dx lines so Bazel skips dx state`
-to stderr if it lists neither `.dx` nor `.dx/local`. The editor settings point at the managed
-interpreter and tools with host-native names. For Rust they point
-rust-analyzer at the `rules_rust` discover and flycheck launchers that `dx sync` copies to
-`.dx/local/ide/rust_analyzer/`. Discover and flycheck use separate Bazel output bases under `.dx/local/ide/`, and the file
-watcher and search exclude `bazel-*` and `.dx/local/ide/`. They configure language servers, not debuggers. See
-[Supported Surface](README.md#supported-surface).
-Flags: `--apply`, `--agents <list>`, `--ci github|gitlab|none`, `--no-generate`, `--accept-license <id>`.
-Scopes: optional single directory, created by `--apply` when missing.
+Init also writes a marked block to `AGENTS.md` and creates the file when it is missing; see [Agent commands block](#agent-commands-block). With `--agents claude`, it writes `CLAUDE.md` with an `@AGENTS.md` import when the import is missing.
 
-Output: text only. Check mode looks for every file init writes.
-It also flags a missing preset import. It flags a dx-written launcher that differs from the current launcher text
-and an empty or non-semver `.dx/pins`. It flags an `AGENTS.md` without the current dx block, a hooks file that lacks dx hooks, and a
-`CLAUDE.md` without the `@AGENTS.md` import. It looks at the tool files only when they exist or `--agents` names their agent, so a deleted tool file is not drift.
-A missing `.dx/pins`, `.gitignore`, `.bazelignore`, `MODULE.bazel`, `tools/dx`, `tools/dx.cmd`, or a missing file of an agent named with `--agents` is missing drift.
-Any other planned file that is gone, such as `AGENTS.md`, `.vscode/settings.json` or `.github/workflows/ci.yml`, is absent.
-When nothing is missing, stale, absent or invalid and the pin is valid, it prints
-`init current: <module>` to stdout. When only absent paths remain, it prints
-``init absent: <paths> (run `dx init --apply` to recreate)`` to stderr and exits `0`. JSON output reports absent paths as an `init_absent` notice.
-Otherwise it prints
-`dx: init_failed: init drift: missing <paths>; stale <paths>; absent <paths>; <path> lacks hooks: <hooks>; CLAUDE.md lacks @AGENTS.md; invalid .dx/pins ("<pin>")`
-to stderr (only the parts that apply), followed by the `dx init --apply` command to run
-(`dx init <dir> --apply` when a directory was given). Apply adds the missing hooks to an existing hooks file. An invalid pin is not fixed by apply: write the module version to
-`.dx/pins`, which the message names.
-Apply checks every destination before the first write. A path whose parent is
-a file, such as a `.vscode` file, an unreadable hooks file, or an `AGENTS.md`
-with a begin marker and no end marker fails with `init_failed` and writes
-nothing. Apply then writes every file and prints afterwards. It prints `wrote <path>` to stdout for each file it creates or refreshes,
-including `wrote AGENTS.md` when the block changes, and `wrote CLAUDE.md` when the import is added. For each scaffold or launcher file
-that already exists and is kept, it prints `dx: <path> (absent-only, left untouched)` to
-stderr. `--quiet` hides the stdout lines. The stderr lines still print. When a
-write fails, apply still lists the files it already wrote, then the
-`init_failed` error. Closing stdout early does not stop the writes.
-When the writes succeed, `--apply` then runs `dx generate --apply` over the directory, which writes every `BUILD.bazel` and every missing lockfile. Its output and exit code follow `dx generate`. It does not run when a write fails or with `--no-generate`.
+A new `.claude/settings.json` also carries a `permissions.allow` list for the read-only commands `tools/dx check *`, `test *`, `build *` and `status *`. When a hooks file already exists, the missing hook and allow entries are added in place, and your other entries stay.
 
-Output: `--output text|json`. JSON covers the check only; see Init plan below.
+## Ignore files and editor settings
 
-### Exit codes
+The `.gitignore` lists `target/`, `/bazel-*`, `node_modules/`, `__pycache__/`, `*.pyc`, `.gradle/`, `/build/`, `/.dx/bazelrc/`, `/.dx/local/docs/`, `/.dx/local/results.json`, `/.dx/local/timings/`, `/.dx/local/fuzz/`, `/.dx/local/advisory/`, `/.dx/local/bench/`, `/.dx/local/` and `/.vscode/.rules_rust_analyzer/`. rules_rust's rust-analyzer discovery writes its warnings log under `.vscode/.rules_rust_analyzer/`.
 
-| Exit code | Meaning |
+The `.bazelignore` lists each `.dx` scratch directory, `.dx/local` and `.dx/bazelrc`, and leaves `.dx/config` visible to Bazel. An existing `.bazelignore` is left alone. If it lists neither `.dx` nor `.dx/local`, `dx init --apply` prints this to stderr:
+
+```text
+dx: .bazelignore lacks .dx/local; add the dx lines so Bazel skips dx state
+```
+
+The editor settings point at the managed interpreter and tools, with host-native names. For Rust, they point rust-analyzer at the `rules_rust` discover and flycheck launchers that `dx sync` copies to `.dx/local/ide/rust_analyzer/`. Discover and flycheck each use their own Bazel output base under `.dx/local/ide/`. An output base is the directory where Bazel keeps its build outputs. The file watcher and search exclude `bazel-*` and `.dx/local/ide/`. The settings configure language servers, not debuggers. See [Supported Surface](README.md#supported-surface).
+
+## Output
+
+Without `--apply`, init checks every file it would write. It flags:
+
+- a missing preset import;
+- a dx-written launcher that differs from the current launcher text;
+- an empty or non-semver `.dx/pins`;
+- an `AGENTS.md` without the current dx block;
+- a hooks file that lacks dx hooks;
+- a `CLAUDE.md` without the `@AGENTS.md` import.
+
+It looks at the agent tool files only when they exist or `--agents` names their agent, so a deleted tool file is not drift.
+
+A missing `.dx/pins`, `.gitignore`, `.bazelignore`, `MODULE.bazel`, `tools/dx` or `tools/dx.cmd`, or a missing file of an agent named with `--agents`, is missing drift. Any other planned file that is gone, such as `AGENTS.md`, `.vscode/settings.json` or `.github/workflows/ci.yml`, is absent.
+
+When nothing is missing, stale, absent or invalid and the pin is valid, the check prints `init current: <module>` to stdout.
+
+When only absent paths remain, it prints this to stderr and exits `0`:
+
+```text
+init absent: <paths> (run `dx init --apply` to recreate)
+```
+
+Otherwise it prints the parts that apply of this line to stderr, then the `dx init --apply` command to run, or `dx init <dir> --apply` when you gave a directory:
+
+```text
+dx: init_failed: init drift: missing <paths>; stale <paths>; absent <paths>; <path> lacks hooks: <hooks>; CLAUDE.md lacks @AGENTS.md; invalid .dx/pins ("<pin>")
+```
+
+`--apply` adds the missing hooks to an existing hooks file. It does not fix an invalid pin: write the module version to `.dx/pins`, which the message names.
+
+`--apply` checks every destination before the first write. These fail with `init_failed` and write nothing: a path whose parent is a file, such as a `.vscode` file; an unreadable hooks file; an `AGENTS.md` with a begin marker and no end marker.
+
+`--apply` then writes every file. It prints `wrote <path>` to stdout for each file it creates or refreshes, including `wrote AGENTS.md` when the block changes and `wrote CLAUDE.md` when the import is added. For each scaffold or launcher file that already exists and is kept, it prints this to stderr:
+
+```text
+dx: <path> (absent-only, left untouched)
+```
+
+`--quiet` hides the stdout lines. The stderr lines still print. When a write fails, `--apply` still lists the files it already wrote, then the `init_failed` error. Closing stdout early does not stop the writes.
+
+`--output json` covers the check only. It reports absent paths as an `init_absent` notice and the plan as `init_plan` events; see [Init plan](#init-plan). `--apply` refuses `--output json` and prints text.
+
+`dx init` writes no reports.
+
+## Exit codes
+
+| Code | Meaning |
 | --- | --- |
-| `0` | Check passed (absent paths may be named on stderr) or apply succeeded. |
-| `1` | Check found drift, apply failed on content dx refuses, or a needed license id is not accepted. |
-| `2` | Usage error, including extra positionals, an unknown flag, or an invalid directory. |
-| `3` | Apply could not read, write or start something. |
-| `141` | Apply wrote every file but stdout closed early. |
+| `0` | The check passed, perhaps naming absent paths on stderr, or `--apply` succeeded. |
+| `1` | The check found drift, `--apply` failed on content dx refuses, or a needed license id is not accepted. |
+| `2` | Usage error, including an extra positional, an unknown flag, or an invalid directory. |
+| `3` | `--apply` could not read, write or start something. |
+| `141` | `--apply` wrote every file but stdout closed early. |
 
 ## Fixed file set
 
@@ -165,9 +211,9 @@ A file that dx creates and whose format has comments starts with a one-line `dx:
 | `.gitignore` | lines | Written when missing. An existing file gets each line of the list above that no line covers appended. |
 | `.bazelignore` | lines | Written when missing. |
 | `.envrc` | once | Written when missing. Never rewritten. Holds `PATH_add .dx/local/bin` and `watch_file .dx/local/current`; it never runs dx. When the file exists, `dx init --apply` prints those two lines to add to it. |
-| `.vscode/extensions.json` | lines | Written when missing. Recommended extension ids that are missing are added, and the lint and format extensions of tools that are no longer selected are removed; other ids stay in order. |
+| `.vscode/extensions.json` | lines | Written when missing. Recommended extension ids that are missing are added, and the lint and format extensions of deselected tools are removed; other ids stay in order. |
 | `.dx/BUILD.bazel` | whole | Generated from `dx.toml` (see the [config reference](config.md#dxtoml)): the workspace policy for the families found in the tree, and a `<tool>_config` target for each root tool config. The correctness layer selects it with `--@rules_dx//config:workspace=//.dx:policy`. A flag in your root `.bazelrc` after the imports wins. |
-| `.dx/config/` | whole | Generated from `dx.toml`: a `base.<ext>` for each tool of a family found in the tree, on the tier `dx.toml` picks. A file under `.dx` that dx no longer generates is removed. |
+| `.dx/config/` | whole | Generated from `dx.toml`: a `base.<ext>` for each tool of a family found in the tree, on the tier `dx.toml` picks. dx removes the files under `.dx` that it does not generate. |
 | `BUILD.bazel` | once | Written when the root has neither `BUILD` nor `BUILD.bazel`. When the root has tool configs such as `ruff.toml`, dx keeps a marked `# dx:begin exports` block in it and leaves the rest alone. |
 | `.devcontainer/devcontainer.json` | pin | Written when missing. Only the `image` and the bazel feature version are updated, and only while they still name the image and feature dx wrote. Another image or feature is kept. |
 | `.editorconfig`, `.gitattributes` | once | Written when missing. Never rewritten. `.editorconfig` sets LF line endings, a final newline, UTF-8, and indent sizes per language. `.gitattributes` sets `* text=auto eol=lf` and CRLF for `*.bat`, `*.cmd` and `*.ps1`. |
@@ -190,9 +236,10 @@ Check reports a missing essential path or a stale path as drift, and exits `1`. 
 
 ## Init plan
 
-When the root has a `MODULE.bazel`, `dx init` (the check) also prints a read-only plan of
-what adopting rules_dx would change, found from the declared files. It runs no Bazel
-and writes nothing. Sections:
+When the root has a `MODULE.bazel`, the check also prints a read-only plan of
+what adding rules_dx would change, read from the declared files. It runs no Bazel
+and writes nothing. A toolchain is the set of tools Bazel picks to build one language
+for one platform. Sections:
 
 - `override conflicts`: a `*_override` you own on a rules_dx dependency. Advisory.
 - `toolchain conflicts`: toolchains you register that compete with registrations the snippet
@@ -200,11 +247,9 @@ and writes nothing. Sections:
   none. A Rust toolchain (your `rust.toolchain` tag, or a registered repo from your own
   `rules_rust` extension) is hard. A `toolchains_llvm` / `cc_configure` registration is
   advisory, like `python.toolchain`: yours wins and nothing needs to change.
-  Bazel prefers root-module registrations in listed order (first wins) and
-  `--extra_toolchains` beats all of them, see
-  <https://bazel.build/extending/toolchains>. A `python.toolchain` of yours is advisory:
-  rules_dx registers Python only as a dependency module, so yours always wins. Registrations
-  of repos dx cannot link to an ecosystem are never flagged.
+  Bazel prefers root-module registrations in listed order, first wins, and
+  `--extra_toolchains` beats all of them. Registrations of repos dx cannot link to an
+  ecosystem are never flagged.
 - `bazelrc conflicts`: a line in the root `.bazelrc`, or a file it imports through
   `%workspace%/`, that exactly repeats a flag line the dx preset layers own. Advisory; dx
   does not import the layers while the root file repeats them, so drop the line.
@@ -214,21 +259,15 @@ and writes nothing. Sections:
   `advisory: WORKSPACE is not read by Bazel 9; move its repos to MODULE.bazel (WORKSPACE:1)`
   to stderr, and `--apply` adds it to its notes.
 
-| Exit code | Meaning |
-| --- | --- |
-| `0` | no hard findings (advisory findings are printed) |
-| `1` | a hard toolchain conflict, or other init drift |
-| `2` | usage error |
-
 Each finding names the file and line, including `include()`d `.MODULE.bazel` files. Hard
-findings add an `init plan: N hard conflicts (...)` clause to `init drift` and exit 1;
-advisory findings never change the exit code.
+findings add an `init plan: N hard conflicts (...)` clause to `init drift` and exit `1`.
+Advisory findings are printed and never change the exit code.
 
 With `--output=json`, the plan is one `init_plan` event per finding instead of text, with
 `kind` (`override_conflict`, `toolchain_conflict`, `bazelrc_conflict`, `workspace_ignored`),
 `subject`, `before`, `after`, `path`, `line` (left out when unknown), `hint`, and `strength`
 (`hard` or `advisory`). Plan notes, such as a `MODULE.bazel` that could not be compared, are `notice` events
-with code `init_plan_partial`. `--apply` refuses `--output=json`. The agent default of `json` does not apply to `--apply`, which prints text.
+with code `init_plan_partial`.
 
 ## Agent commands block
 
@@ -251,10 +290,8 @@ with code `init_plan_partial`. `--apply` refuses `--output=json`. The agent defa
 An existing file gets the block appended. A block that is out of date is
 replaced. Text outside the markers is never touched, and CRLF files keep CRLF.
 A begin marker without an end marker is an error and the file is left as is.
-`dx status` reports the `agents` check as `warn` when the block is missing or
-out of date, `CLAUDE.md` does not import `AGENTS.md`, or a hook is missing from
-`.claude/settings.json`, or from `.codex/hooks.json` or `.gemini/settings.json`
-when they exist.
+`dx status` reports a missing or out-of-date block, a missing `@AGENTS.md`
+import, and a missing hook in its `init` check.
 
 ## Launcher
 
@@ -308,7 +345,6 @@ Run from another checkout of the same git repo (a `dx worktree` slot or a
 `git worktree`), the launcher first runs that checkout's own `tools/dx`, so that
 checkout's `.dx/pins` pin applies. `worktree hook` commands never hand off.
 Separate clones, other repos, and machines without `git` are not handed off.
-Existing launchers gain this on their next upgrade.
 
 When `.dx/pins` is missing or has an invalid version, the launcher exits `1`
 and prints:

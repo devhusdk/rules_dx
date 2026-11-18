@@ -1,7 +1,9 @@
 # `dx worktree`
 
-Gives each AI agent session its own warm checkout. A slot keeps its Bazel
-server, output base and caches between branches.
+Use `dx worktree` to give each AI agent session its own warm checkout, called a slot.
+A slot keeps its Bazel server, its output base and its caches between branches. The
+Bazel server is the background process that keeps build state in memory. The output
+base is the directory where Bazel keeps build outputs.
 
 ```sh
 tools/dx worktree add feature-x
@@ -11,6 +13,8 @@ tools/dx worktree release
 tools/dx worktree list --disk
 tools/dx worktree prune --apply
 ```
+
+## Usage
 
 ```text
 dx worktree add <branch> [--create <ref>] [--force] [--path-only]
@@ -24,6 +28,8 @@ dx worktree hook create|remove|stop|guard
 A bare `dx worktree` runs `list`. Slots live in `<cache>/dx/worktrees/<repo>/<n>`.
 `<cache>` is `$XDG_CACHE_HOME`, else `$HOME/.cache`, else `%LOCALAPPDATA%`.
 
+## Flags
+
 | Flag | What it does |
 | --- | --- |
 | `--create <ref>` | Start a new branch from `<ref>`. `add` only. |
@@ -32,16 +38,20 @@ A bare `dx worktree` runs `list`. Slots live in `<cache>/dx/worktrees/<repo>/<n>
 | `--disk` | Measure disk use per slot and mark surplus slots `prunable`. `list` only, slow. |
 | `--apply` | Delete what `prune` lists. `prune` only. |
 | `--bases` | List every free slot's output base. `prune` only. |
-| `-o`, `--output text\|json` | Output format. |
-| `--workspace <dir>` | Run in another workspace. |
-| `-q`, `--quiet` | Hide summaries. |
-| `-v`, `--verbose` | Show more logs. |
-| `--color auto\|always\|never` | Color output. |
-| `--build-slots auto\|<n>\|off` | Build slots for this run. |
+| `-o, --output text\|json` | Choose the output format. |
+| `--workspace <dir>` | Use this workspace directory. |
+| `-q, --quiet` | Hide summaries. |
+| `-v, --verbose` | Show more logs. |
+| `--color auto\|always\|never` | Set color output. |
+| `--build-slots <auto\|n\|off>` | Set build slots: `auto`, a count, or `off`. |
 | `--build-slots-wait <duration>` | Give up waiting for a build slot after this long. `0` fails at once. |
-| `--bazel-startup-option <token>` | Bazel startup option. Repeatable. |
+| `--bazel-startup-option <token>` | Pass one Bazel startup option. Repeatable. |
 
-A flag on the wrong subcommand exits `2`. Scopes: none. Reports: none.
+A flag on the wrong subcommand exits `2`.
+
+## Scopes
+
+None. `dx worktree` takes a subcommand and its arguments. It writes no reports.
 
 ## Subcommands
 

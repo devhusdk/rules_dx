@@ -49,7 +49,16 @@ class ReportTest(unittest.TestCase):
             "/repos/o/r/compare/v2...abc": {"status": "behind"},
             "/repos/o/r/issues/2": {"state": "closed", "pull_request": {}},
             "/repos/o/r/pulls/2": {"merged": False},
+            "/repos/o/r/issues/2/events?per_page=100": [{"event": "closed", "commit_id": None}],
             "/repos/o/r/issues/3": {"state": "open", "pull_request": {}},
+            # Closed unmerged by the commit that landed it, as Copybara does.
+            "/repos/o/r/issues/5": {"state": "closed", "pull_request": {}},
+            "/repos/o/r/pulls/5": {"merged": False},
+            "/repos/o/r/issues/5/events?per_page=100": [
+                {"event": "labeled", "commit_id": None, "created_at": "2026-02-01T00:00:00Z"},
+                {"event": "closed", "commit_id": "c0de", "created_at": "2026-02-02T00:00:00Z"},
+            ],
+            "/repos/o/r/compare/v2...c0de": {"status": "behind"},
             # Merged, but only on a tag-only repository whose tags predate it.
             "/repos/t/r/issues/4": {"state": "closed", "pull_request": {}},
             "/repos/t/r/pulls/4": {"merged": True, "merge_commit_sha": "def", "merged_at": "2026-02-01T00:00:00Z"},
@@ -61,12 +70,14 @@ class ReportTest(unittest.TestCase):
             root = os.path.join(tmp, "patches")
             _write(root, "m/released.patch", "Upstream: o/r#1\n--- a/x\n")
             _write(root, "m/closed.patch", "Upstream: o/r#2\n--- a/x\n")
+            _write(root, "m/landed.patch", "Upstream: o/r#5\n--- a/x\n")
             _write(root, "m/open.patch", "Upstream: o/r#3, t/r#4\n--- a/x\n")
             _write(root, "m/local.patch", "Upstream: none (rules_dx only)\n--- a/x\n")
             _write(root, "m/fixed.patch", "Upstream: fixed upstream in v0.9.0\n--- a/x\n")
             _write(root, "m/missing.patch", "--- a/x\n")
             text = upstream.report(api, root)
         self.assertIn("`patches/m/released.patch`: [o/r#1](https://github.com/o/r/pull/1) is in v2", text)
+        self.assertIn("`patches/m/landed.patch`: [o/r#5](https://github.com/o/r/pull/5) is in v2", text)
         self.assertIn("`patches/m/fixed.patch`: fixed in v0.9.0", text)
         self.assertNotIn("Unreadable", text)
         self.assertIn("## Upstream ref closed without a merge", text)

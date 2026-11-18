@@ -177,7 +177,7 @@ def hermetic_qualification(
         crate_root = "//tools/testing/hermetic:harness_qualification_test.rs",
         cache = name,
         cache_locks = "//tools/testing/nested_cache:%s_locks" % name,
-        data = [":" + name + "_manifest", "//:module_srcs", "//patches/rules_py:patches"] + select({
+        data = [":" + name + "_manifest", "//:lang_json", "//:module_srcs", "//patches/rules_py:patches"] + select({
             "@platforms//os:windows": [],
             "//conditions:default": ["//core/coreutils:applets"],
         }),

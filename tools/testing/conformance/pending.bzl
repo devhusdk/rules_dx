@@ -50,17 +50,8 @@ haskell format_error_test *
 haskell format_test *
 haskell lint_error_test *
 haskell lint_test *
-helm build_test *
-helm coverage_test *
-helm cross_test *
-helm fail_test *
 helm format_error_test *
 helm format_test *
-helm lint_error_test *
-helm lint_test *
-helm lock_test *
-helm pass_test *
-helm runfiles_test *
 julia format_error_test *
 julia format_test *
 julia lint_error_test *

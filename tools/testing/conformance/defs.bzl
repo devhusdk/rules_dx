@@ -39,6 +39,7 @@ _QUALITY_CONFIGS = {
     "flatbuffers": "shared",
     "flutter": "tool_overrides",
     "fsharp": "shared",
+    "helm": "shared",
     "julia": "tool_overrides",
     "lua": "tool_overrides",
     "make": "shared",

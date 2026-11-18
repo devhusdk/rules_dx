@@ -1,16 +1,19 @@
-load("@rules_cc//cc:defs.bzl", upstream_cc_library = "cc_library")
-load("@rules_rust//rust:defs.bzl", upstream_rust_binary = "rust_binary", upstream_rust_library = "rust_library")
+load("@bazel_lib//lib:write_source_files.bzl", "write_source_files")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@bazel_skylib//rules:native_binary.bzl", "native_test")
+load("@rules_cc//cc:defs.bzl", upstream_cc_library = "cc_library")
+load("@rules_rust//rust:defs.bzl", upstream_rust_binary = "rust_binary", upstream_rust_library = "rust_library")
 load("//cc:defs.bzl", dx_cc_library = "cc_library")
-load("//java:defs.bzl", "java_library")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//core/quality:native_config.bzl", "biome_config", "buildifier_config", "eslint_config", "pmd_config", "ruff_config", "rustfmt_config", "scalafix_config", "scalafmt_config", "vale_config")
-load("//core/quality:policy.bzl", "quality_family", "workspace_policy")
+load("//core/quality:policy.bzl", "quality_family")
+load("//core/quality:suite_membership.bzl", "suite_membership_test")
+load("//java:defs.bzl", "java_library")
 load("//javascript/private/quality:defs.bzl", "js_tool_binary")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
+load(":config_subject.bzl", "config_subject")
 load(":foreign_hint.bzl", "foreign_hint")
 load(":js_node_fixture.bzl", "ambiguous_nodes", "windows_failure_test")
 load(":real_aspect_subject.bzl", "real_aspect_subject", "real_docs_shard_files", "real_docs_subject", "real_family_probe_subject", "real_shard_probe_subject")
@@ -20,9 +23,7 @@ load(":real_results.bzl", "check_args")
 load(":real_typecheck_subject.bzl", "real_typecheck_subject")
 load(":real_typecheck_tests.bzl", "real_typecheck_fixture_tests")
 load(":rmeta_typecheck_tests.bzl", "clippy_rmeta_inputs_test", "crate_no_pipelining_test", "pipelined_rmeta_paths_test", "rmeta_typecheck_test")
-load(":config_subject.bzl", "config_subject")
 load(":runner_matrix_cases.bzl", "runner_matrix_cases")
-load("//core/quality:suite_membership.bzl", "suite_membership_test")
 load(":test_configs_test.bzl", "test_configs_test")
 load(
     ":tool_override_tests.bzl",
@@ -80,11 +81,11 @@ exports_files(
         "yamllint_profile/strict/yamllint.yaml",
     ],
     visibility = [
+        "//core/modules:__pkg__",
+        "//core/modules/tests:__pkg__",
         "//core/quality:__pkg__",
         "//core/quality:__subpackages__",
         "//tools/ci:__pkg__",
-        "//core/modules:__pkg__",
-        "//core/modules/tests:__pkg__",
     ],
 )
 
@@ -94,7 +95,10 @@ exports_files(
         src = "//core/quality/tiers/vale:%s.ini" % profile,
         out = "vale_profile/%s/.vale.ini" % profile,
     )
-    for profile in ["standard", "strict"]
+    for profile in [
+        "standard",
+        "strict",
+    ]
 ]
 
 [
@@ -104,7 +108,10 @@ exports_files(
         outs = ["sqlfluff_profile/%s/.sqlfluff" % profile],
         cmd = "cp $< $@",
     )
-    for profile in ["standard", "strict"]
+    for profile in [
+        "standard",
+        "strict",
+    ]
 ]
 
 vale_config(
@@ -150,13 +157,13 @@ ruff_config(
 )
 
 ruff_config(
-    name = "ruff_cfg_generated_no_optin",
+    name = "ruff_cfg_generated_no_option",
     src = ":generated_ruff_toml",
     tags = ["manual"],
 )
 
 ruff_config(
-    name = "ruff_cfg_generated_data_no_optin",
+    name = "ruff_cfg_generated_data_no_option",
     src = "ruff.toml",
     data = [":generated_ruff_extra"],
     tags = ["manual"],
@@ -427,14 +434,20 @@ real_source_target(
     name = "fixture_real_cc",
     c_srcs = ["real_clean.c"],
     cpp_srcs = ["real_clean_cpp.cc"],
-    tags = ["no-lint", "no-typecheck"],
+    tags = [
+        "no-lint",
+        "no-typecheck",
+    ],
 )
 
 real_source_target(
     name = "fixture_real_cc_hinted",
     c_srcs = ["real_clean.c"],
     cpp_srcs = ["real_clean_cpp.cc"],
-    tags = ["no-lint", "no-typecheck"],
+    tags = [
+        "no-lint",
+        "no-typecheck",
+    ],
 )
 
 real_source_target(
@@ -478,15 +491,15 @@ real_source_target(
 )
 
 real_source_target(
-    name = "fixture_real_python_generated_no_optin",
-    aspect_hints = [":ruff_cfg_generated_no_optin"],
+    name = "fixture_real_python_generated_no_option",
+    aspect_hints = [":ruff_cfg_generated_no_option"],
     python_srcs = ["real_clean.py"],
     tags = ["manual"],
 )
 
 real_source_target(
-    name = "fixture_real_python_generated_data_no_optin",
-    aspect_hints = [":ruff_cfg_generated_data_no_optin"],
+    name = "fixture_real_python_generated_data_no_option",
+    aspect_hints = [":ruff_cfg_generated_data_no_option"],
     python_srcs = ["real_clean.py"],
     tags = ["manual"],
 )
@@ -739,24 +752,24 @@ real_aspect_subject(
 
 real_aspect_subject(
     tags = ["manual"],
-    target = ":fixture_real_python_generated_no_optin",
+    target = ":fixture_real_python_generated_no_option",
 )
 
 failure_test(
-    name = "fixture_real_python_generated_no_optin_test",
+    name = "fixture_real_python_generated_no_option_test",
     expected_failure_substring = "must be a checked-in source file",
-    target = ":fixture_real_python_generated_no_optin_subject",
+    target = ":fixture_real_python_generated_no_option_subject",
 )
 
 real_aspect_subject(
     tags = ["manual"],
-    target = ":fixture_real_python_generated_data_no_optin",
+    target = ":fixture_real_python_generated_data_no_option",
 )
 
 failure_test(
-    name = "fixture_real_python_generated_data_no_optin_test",
+    name = "fixture_real_python_generated_data_no_option_test",
     expected_failure_substring = "data must be checked-in source files",
-    target = ":fixture_real_python_generated_data_no_optin_subject",
+    target = ":fixture_real_python_generated_data_no_option_subject",
 )
 
 real_aspect_subject(
@@ -1327,120 +1340,120 @@ qml_subject(
 
 erlang_subject(
     name = "erlang_subject",
-    tags = ["manual"],
     testonly = True,
+    tags = ["manual"],
     target = "//erlang/tests/runtime:erlang_app",
 )
 
 erlang_lint_subject(
     name = "erlang_lint_subject",
-    tags = ["manual"],
     testonly = True,
+    tags = ["manual"],
     target = "//erlang/tests/runtime:erlang_app",
 )
 
 erlang_typecheck_subject(
     name = "erlang_typecheck_subject",
-    tags = ["manual"],
     testonly = True,
+    tags = ["manual"],
     target = "//erlang/tests/runtime:erlang_app",
 )
 
 erlang_typecheck_subject(
     name = "elixir_typecheck_subject",
-    tags = ["manual"],
     testonly = True,
+    tags = ["manual"],
     target = "//elixir/tests/runtime:erlang_app",
 )
 
 php_lint_subject(
     name = "php_lint_subject",
-    tags = ["manual"],
     testonly = True,
+    tags = ["manual"],
     target = "//php/tests/fixtures/hello:greeter",
 )
 
 lua_typecheck_subject(
     name = "lua_typecheck_subject",
-    tags = ["manual"],
     testonly = True,
+    tags = ["manual"],
     target = "//lua/tests/runtime:lib",
 )
 
 ruby_typecheck_subject(
     name = "ruby_typecheck_subject",
-    tags = ["manual"],
     testonly = True,
+    tags = ["manual"],
     target = "//ruby/tests/fixtures/hello:hello_lib",
 )
 
 php_typecheck_subject(
     name = "php_typecheck_subject",
-    tags = ["manual"],
     testonly = True,
+    tags = ["manual"],
     target = "//php/tests/fixtures/hello:greeter",
 )
 
 elixir_subject(
     name = "elixir_subject",
-    tags = ["manual"],
     testonly = True,
+    tags = ["manual"],
     target = "//elixir/tests/runtime:erlang_app",
 )
 
 elixir_lint_subject(
     name = "elixir_lint_subject",
-    tags = ["manual"],
     testonly = True,
+    tags = ["manual"],
     target = "//elixir/tests/runtime:erlang_app",
 )
 
 perl_subject(
     name = "perl_subject",
-    tags = ["manual"],
     testonly = True,
+    tags = ["manual"],
     target = "//perl/tests/runtime:dx_probe",
 )
 
 perl_lint_subject(
     name = "perl_lint_subject",
-    tags = ["manual"],
     testonly = True,
+    tags = ["manual"],
     target = "//perl/tests/runtime:dx_probe",
 )
 
 zig_subject(
     name = "zig_subject",
-    tags = ["manual"],
     testonly = True,
+    tags = ["manual"],
     target = "//zig/tests/fixtures/hello:greet",
 )
 
 zig_lint_subject(
     name = "zig_lint_subject",
-    tags = ["manual"],
     testonly = True,
+    tags = ["manual"],
     target = "//zig/tests/fixtures/hello:greet",
 )
 
 dart_subject(
     name = "dart_subject",
-    tags = ["manual"],
     testonly = True,
+    tags = ["manual"],
     target = "//dart/tests/runtime:greet",
 )
 
 julia_subject(
     name = "julia_subject",
-    tags = ["manual"],
     testonly = True,
+    tags = ["manual"],
     target = "//julia/tests/fixtures/hello:Greet",
 )
 
 julia_typecheck_subject(
     name = "julia_typecheck_subject",
-    tags = ["manual"],
     testonly = True,
+    tags = ["manual"],
     target = "//julia/tests/fixtures/hello:Greet",
 )
 
@@ -1527,7 +1540,10 @@ native_test(
     name = "real_result_check_spaces_test",
     size = "small",
     src = "//core/quality:real_result_check",
-    args = ["$(rootpath real_result_check_spaces.txt)"] + check_args(["undeclared identifier 'x'"], ["file not found"]),
+    args = ["$(rootpath real_result_check_spaces.txt)"] + check_args(
+        ["undeclared identifier 'x'"],
+        ["file not found"],
+    ),
     data = ["real_result_check_spaces.txt"],
 )
 
@@ -1804,8 +1820,8 @@ test_suite(
         ":fixture_real_javascript_bad_config_test",
         ":fixture_real_markdown_sibling_only_test",
         ":fixture_real_python_dup_config_test",
-        ":fixture_real_python_generated_data_no_optin_test",
-        ":fixture_real_python_generated_no_optin_test",
+        ":fixture_real_python_generated_data_no_option_test",
+        ":fixture_real_python_generated_no_option_test",
         ":fixture_real_python_malformed_config_test",
         ":fixture_real_rst_no_converter_test",
         ":fixture_upstream_rust_clippy_rmeta_inputs_test",
@@ -1820,8 +1836,8 @@ test_suite(
         ":real_typecheck_presence",
         ":scalafmt_errors_test",
         ":scalafmt_errors_test_upstream",
-        ":upstream_cc_no_context_test",
         ":upstream_android_ownership_presence",
+        ":upstream_cc_no_context_test",
         ":upstream_ownership_presence",
     ],
 )
@@ -1852,4 +1868,10 @@ filegroup(
         "BUILD.bazel",
     ]),
     visibility = ["//:__subpackages__"],
+)
+
+write_source_files(
+    name = "update_all_languages",
+    files = {"all_languages.bzl": "//core/modules:generated/all_languages.bzl"},
+    visibility = ["//core/modules:__pkg__"],
 )

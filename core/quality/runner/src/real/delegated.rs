@@ -302,7 +302,7 @@ fn jvm_inputs(tool_id: &str, tool: &RealTool) -> Result<JvmInputs, RunnerError> 
             .iter()
             .find(|path| path.to_string_lossy().ends_with(suffix))
     };
-    let (Some(map), Some(jdeps)) = (find(".unused_deps.json"), find(".jdeps")) else {
+    let (Some(map), Some(jdeps)) = (find(".unused_deps.jsonl"), find(".jdeps")) else {
         return Ok(None);
     };
     let read = |path: &PathBuf| {
@@ -331,14 +331,14 @@ fn scalac_inputs(tool_id: &str, tool: &RealTool) -> Result<ScalacInputs, RunnerE
     let Some(map) = tool
         .upstream_diagnostics
         .iter()
-        .find(|path| path.to_string_lossy().ends_with(".unused_deps.json"))
+        .find(|path| path.to_string_lossy().ends_with(".unused_deps.jsonl"))
     else {
         return Ok(None);
     };
     let Some(log) = tool
         .upstream_diagnostics
         .iter()
-        .find(|path| !path.to_string_lossy().ends_with(".unused_deps.json"))
+        .find(|path| !path.to_string_lossy().ends_with(".unused_deps.jsonl"))
     else {
         return Ok(None);
     };
@@ -618,7 +618,7 @@ impl RealBackend {
         };
         let is_extra = |path: &&PathBuf| {
             let name = path.to_string_lossy();
-            name.ends_with(".unused_deps.json") || name.ends_with(".jdeps")
+            name.ends_with(".unused_deps.jsonl") || name.ends_with(".jdeps")
         };
         let logs: Vec<&PathBuf> = tool
             .upstream_diagnostics

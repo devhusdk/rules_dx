@@ -6,7 +6,7 @@ core/quality/testdata/upstream_ownership.bzl aspect-to-list 1
 cuda/tests/defs.bzl aspect-to-list 1
 flatbuffers/private/codegen.bzl aspect-to-list 1
 go/private/go_analysis.bzl aspect-to-list 1
-java/private/quality/jvm_check.bzl aspect-to-list 10
+java/private/quality/jvm_check.bzl aspect-to-list 6
 thrift/private/codegen.bzl aspect-to-list 2
 tools/docs/cc/aspect.bzl aspect-to-list 1
 tools/docs/components/aspect.bzl aspect-to-list 1

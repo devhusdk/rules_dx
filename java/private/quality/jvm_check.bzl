@@ -91,30 +91,38 @@ def _indirect_jars(target, direct):
             indirect.append({"jar": jar.path, "label": str(jar.owner).removesuffix("_upstream")})
     return indirect
 
+def _known_line(jar):
+    return json.encode({"known": jar.path})
+
+def _classpath_line(jar):
+    if not jar.owner:
+        return None
+    return json.encode({"jar": jar.path, "label": str(jar.owner)})
+
 def _unused_deps_map(target, ctx, attrs, implicit = []):
-    """Writes the direct dependencies with their compile jars and the transitive ones the rule does not list."""
+    """Writes the direct dependencies with their compile jars, the known jars and the transitive classpath."""
     deps = []
-    direct = {}
     for dep in getattr(attrs, "deps", []):
         if JavaInfo not in dep:
             continue
         jars = [j.path for j in dep[JavaInfo].compile_jars.to_list()]
-        for jar in jars:
-            direct[jar] = True
         if jars:
             deps.append({"label": str(dep.label), "jars": jars})
+    known = [android_sdk_jars(target)] + implicit
     toolchain = ctx.toolchains[_KT_TOOLCHAIN_TYPE]
     if toolchain:
-        for jar in toolchain.jvm_stdlibs.transitive_compile_time_jars.to_list():
-            direct[jar.path] = True
-    for jar in android_sdk_jars(target).to_list():
-        direct[jar.path] = True
-    for path in implicit:
-        direct[path] = True
-    indirect = _indirect_jars(target, direct)
+        known.append(toolchain.jvm_stdlibs.transitive_compile_time_jars)
     name = target.label.name.removesuffix("_upstream")
-    out = ctx.actions.declare_file("dx_jvm_deps/%s.unused_deps.json" % target.label.name)
-    ctx.actions.write(out, json.encode({"package": target.label.package, "target": name, "deps": deps, "indirect": indirect}))
+    header = {"package": target.label.package, "target": name, "label": str(target.label), "deps": deps}
+
+    # Args expand the depsets only when the file is written, so analysis never flattens the classpath.
+    content = ctx.actions.args()
+    content.set_param_file_format("multiline")
+    content.add(json.encode(header))
+    content.add_all(depset(transitive = known), map_each = _known_line)
+    content.add_all(target[JavaInfo].transitive_compile_time_jars, map_each = _classpath_line)
+    out = ctx.actions.declare_file("dx_jvm_deps/%s.unused_deps.jsonl" % target.label.name)
+    ctx.actions.write(out, content)
     return out
 
 def _unused_deps_files(target, ctx, attrs):
@@ -132,7 +140,7 @@ def _analyzer(target, ctx, attrs, implicit):
     plugin = ctx.attr._dependency_analyzer
     if JavaInfo not in plugin:
         return None
-    direct = [d for d in getattr(attrs, "deps", []) if JavaInfo in d and d[JavaInfo].compile_jars.to_list()]
+    direct = [d for d in getattr(attrs, "deps", []) if JavaInfo in d and d[JavaInfo].compile_jars]
     direct_jars = []
     direct_targets = []
     for dep in direct:
@@ -144,10 +152,7 @@ def _analyzer(target, ctx, attrs, implicit):
     if not direct and not indirect:
         return None
     info = plugin[JavaInfo]
-    jars = []
-    for jar in info.runtime_output_jars + info.transitive_runtime_jars.to_list():
-        if jar not in jars:
-            jars.append(jar)
+    jars = depset(info.runtime_output_jars, transitive = [info.transitive_runtime_jars], order = "preorder")
     ignored = [str(t.label) for t in getattr(attrs, "exports", []) + getattr(attrs, "unused_dependency_checker_ignored_targets", [])]
     prefix = "-P:dependency-analyzer:"
     options = [
@@ -328,7 +333,7 @@ def _scalac_check(target, ctx, attrs):
 
     implicit = [j.path for j in jars.library.to_list()]
     analyzer = None if jars.scala3 else _analyzer(target, ctx, attrs, implicit)
-    analyzer_jars = []
+    analyzer_jars = depset()
     if analyzer:
         options = options + analyzer.options
         analyzer_jars = analyzer.jars
@@ -350,13 +355,13 @@ def _scalac_check(target, ctx, attrs):
         progress_message = "scalac check %{label}",
         executable = ctx.attr._scalac_check.files_to_run,
         arguments = [args],
-        inputs = depset(sources + srcjars + analyzer_jars, transitive = [classpath, jars.compiler, plugin_jars]),
+        inputs = depset(sources + srcjars, transitive = [classpath, jars.compiler, plugin_jars, analyzer_jars]),
         outputs = [log],
         execution_requirements = _WORKER,
         resource_set = dx_heavy_resources,
         toolchain = None,
     )
-    unused_deps = [_unused_deps_map(target, ctx, attrs, implicit)] if analyzer and "dx-keep" not in attrs.tags else []
+    unused_deps = [_unused_deps_map(target, ctx, attrs, [jars.library])] if analyzer and "dx-keep" not in attrs.tags else []
     return [JvmCheckInfo(log = log, tool = "scalac", unused_deps = unused_deps)]
 
 def _jvm_check_impl(target, ctx):

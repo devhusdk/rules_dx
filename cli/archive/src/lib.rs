@@ -1,6 +1,7 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
-//! Safe extraction of tar.gz and zip archives into a fresh directory.
+//! Safe extraction of tar.gz and zip archives into a fresh directory, plus read-only zip
+//! member reads ([`read_zip_member`]) and listings ([`zip_names`]).
 
 use std::collections::HashSet;
 use std::fs::File;
@@ -406,6 +407,22 @@ pub fn read_zip_member(archive: &Path, name: &str, max_bytes: u64) -> io::Result
         )));
     }
     Ok(Some(bytes))
+}
+
+/// Lists the central-directory names of a zip in index order, unmodified.
+///
+/// Directory names keep their trailing `/`; a name that is not UTF-8 is an error.
+pub fn zip_names(source: impl Read + Seek) -> io::Result<Vec<String>> {
+    let mut zip = zip::ZipArchive::new(source).map_err(|e| invalid(format!("zip: {e}")))?;
+    (0..zip.len())
+        .map(|index| {
+            let entry = zip
+                .by_index_raw(index)
+                .map_err(|e| invalid(format!("zip: {e}")))?;
+            let name = entry.name().map_err(|e| invalid(format!("zip: {e}")))?;
+            Ok(name.into_owned())
+        })
+        .collect()
 }
 
 fn read_head(file: &mut impl Read, head: &mut [u8]) -> io::Result<usize> {

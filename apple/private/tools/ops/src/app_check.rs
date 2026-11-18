@@ -3,7 +3,7 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-use crate::util::{Failure, Outcome, reject, usage};
+use crate::util::{Failure, Outcome, reject, unzip, usage};
 use crate::xcode::{CODESIGN, PLUTIL, Tools, components};
 
 pub const PREFIX: &str = "apple_macos_app";
@@ -239,12 +239,6 @@ fn system_path(path: &str) -> bool {
         || path.starts_with("/System/Library/")
 }
 
-fn unpack(archive: &Path, tree: &Path) -> Result<(), String> {
-    let file = std::fs::File::open(archive).map_err(|error| error.to_string())?;
-    let mut zip = zip::ZipArchive::new(file).map_err(|error| error.to_string())?;
-    zip.extract(tree).map_err(|error| error.to_string())
-}
-
 fn verify(tools: &Tools<'_>, args: &[String], scratch: &Path) -> Result<(), Failure> {
     let [
         identity,
@@ -272,7 +266,8 @@ fn verify(tools: &Tools<'_>, args: &[String], scratch: &Path) -> Result<(), Fail
     std::fs::create_dir_all(&tree)
         .map_err(|error| usage(format!("cannot create {}: {error}", tree.display())))?;
     let archive_path = Path::new(archive);
-    unpack(archive_path, &tree).map_err(|error| {
+    unzip(archive_path, &tree).map_err(|error| {
+        let error = error.to_string();
         let last = error.lines().last().unwrap_or_default();
         reject(format!(
             "{} does not unpack: {last}",

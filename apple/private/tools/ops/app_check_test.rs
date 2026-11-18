@@ -458,6 +458,23 @@ fn a_non_adhoc_signature_fails() {
 }
 
 #[test]
+fn an_escaping_symlink_fails_without_publishing() {
+    let mut bundle = Bundle::new();
+    bundle.link("Resources/escape", "../../../../outside");
+    let checked = check(&bundle);
+    let message = checked.outcome.as_ref().unwrap_err();
+    assert!(
+        message.starts_with("Ledger_bundle.zip does not unpack: "),
+        "{message}"
+    );
+    assert!(!checked.identity.exists());
+    let left: Vec<_> = std::fs::read_dir(checked.root.path().join("out"))
+        .unwrap()
+        .collect();
+    assert!(left.is_empty(), "left {left:?}");
+}
+
+#[test]
 fn a_bad_archive_fails_without_publishing() {
     let root = scratch("macos-app-zip").unwrap();
     std::fs::create_dir_all(root.path().join("out")).unwrap();

@@ -244,6 +244,44 @@ fn install_unpacks_the_ipa_and_installs_its_app_bundle() {
 }
 
 #[test]
+fn install_refuses_an_ipa_with_an_escaping_symlink() {
+    let root = scratch("simctl-escape").unwrap();
+    let ipa = root.path().join("Ledger.ipa");
+    let mut writer = zip::ZipWriter::new(std::fs::File::create(&ipa).unwrap());
+    let options = zip::write::SimpleFileOptions::default();
+    writer
+        .start_file("Payload/Ledger.app/Info.plist", options)
+        .unwrap();
+    writer.write_all(b"plist").unwrap();
+    writer
+        .add_symlink("Payload/Ledger.app/escape", "../../../outside", options)
+        .unwrap();
+    writer.finish().unwrap();
+    let tmp = root.path().join("tmp");
+    std::fs::create_dir_all(&tmp).unwrap();
+    let tmp = tmp.to_string_lossy().into_owned();
+    let ipa = ipa.to_string_lossy().into_owned();
+    let fake = simulator();
+    let failure = run(
+        &tools(&fake),
+        &args(&["install", &ipa]),
+        &env(&[("DX_SIMCTL_DEVICE", "iPhone 16"), ("TMPDIR", &tmp)]),
+    )
+    .unwrap_err();
+    assert!(
+        failure.message.contains("does not unpack"),
+        "{}",
+        failure.message
+    );
+    assert!(
+        !fake
+            .log()
+            .iter()
+            .any(|line| line.starts_with("simctl install"))
+    );
+}
+
+#[test]
 fn install_rejects_a_missing_or_foreign_app() {
     let root = scratch("simctl-bad").unwrap();
     write(root.path(), "notes.txt", "x").unwrap();

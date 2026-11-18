@@ -33,12 +33,12 @@ rust_library(
         "//flutter/tests/fixtures/flutter_app:__pkg__",
     ],
     deps = [
+        "//cli/archive:dx_archive",
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "@crates//:libc",
         "@crates//:serde_json",
         "@crates//:tempfile",
-        "@crates//:zip",
     ],
 )
 
@@ -100,7 +100,6 @@ rust_test(
     deps = [
         ":ops",
         "//cli/test_scratch:dx_test_scratch",
-        "@crates//:zip",
     ],
 )
 
@@ -132,7 +131,6 @@ rust_test(
     deps = [
         ":ops",
         "//cli/test_scratch:dx_test_scratch",
-        "@crates//:zip",
     ],
 )
 
@@ -148,7 +146,6 @@ rust_test(
     deps = [
         ":ops",
         "//cli/test_scratch:dx_test_scratch",
-        "@crates//:zip",
     ],
 )
 
@@ -164,7 +161,6 @@ rust_test(
     deps = [
         ":ops",
         "//cli/test_scratch:dx_test_scratch",
-        "@crates//:zip",
     ],
 )
 
@@ -193,11 +189,7 @@ rust_test(
         "swift_test.rs",
     ],
     crate_root = "swift_test.rs",
-    deps = [
-        ":ops",
-        "//cli/test_scratch:dx_test_scratch",
-        "@crates//:zip",
-    ],
+    deps = [":ops"],
 )
 
 # keep
@@ -209,11 +201,7 @@ rust_test(
         "test_sim_test.rs",
     ],
     crate_root = "test_sim_test.rs",
-    deps = [
-        ":ops",
-        "//cli/test_scratch:dx_test_scratch",
-        "@crates//:zip",
-    ],
+    deps = [":ops"],
 )
 
 # keep
@@ -228,7 +216,6 @@ rust_test(
     deps = [
         ":ops",
         "//cli/test_scratch:dx_test_scratch",
-        "@crates//:zip",
     ],
 )
 

@@ -38,11 +38,12 @@ fn loads(platform: &str, minos: &str) -> String {
 }
 
 /// The archive contents: path to file text.
-struct Tree(BTreeMap<String, String>);
+/// Files by path, then symlinks as (path, target).
+struct Tree(BTreeMap<String, String>, Vec<(String, String)>);
 
 impl Tree {
     fn new() -> Tree {
-        let mut tree = Tree(BTreeMap::new());
+        let mut tree = Tree(BTreeMap::new(), Vec::new());
         tree.set(INDEX, ROOT_PLIST);
         tree.library(DEVICE, "iPhoneOS", &[("arm64", "2")]);
         tree.library(
@@ -55,6 +56,10 @@ impl Tree {
 
     fn set(&mut self, path: &str, text: &str) {
         self.0.insert(path.to_owned(), text.to_owned());
+    }
+
+    fn link(&mut self, path: &str, target: &str) {
+        self.1.push((path.to_owned(), target.to_owned()));
     }
 
     fn remove(&mut self, path: &str) {
@@ -99,6 +104,11 @@ impl Tree {
         for (name, text) in &self.0 {
             writer.start_file(name.as_str(), options).unwrap();
             writer.write_all(text.as_bytes()).unwrap();
+        }
+        for (name, target) in &self.1 {
+            writer
+                .add_symlink(name.as_str(), target.as_str(), options)
+                .unwrap();
         }
         writer.finish().unwrap();
     }
@@ -505,6 +515,23 @@ fn a_broken_archive_fails() {
     let left: Vec<_> = std::fs::read_dir(&out_dir).unwrap().collect();
     assert!(left.is_empty(), "left {left:?}");
     assert!(fake.log().is_empty());
+}
+
+#[test]
+fn an_escaping_symlink_fails_without_publishing() {
+    let mut tree = Tree::new();
+    tree.link("Share.xcframework/escape", "../../outside");
+    let checked = check(&tree);
+    let message = checked.outcome.as_ref().unwrap_err();
+    assert!(
+        message.starts_with("Share_bundle.xcframework.zip does not unpack: "),
+        "{message}"
+    );
+    assert!(!checked.report.exists());
+    let left: Vec<_> = std::fs::read_dir(checked.root.path().join("out"))
+        .unwrap()
+        .collect();
+    assert!(left.is_empty(), "left {left:?}");
 }
 
 #[test]

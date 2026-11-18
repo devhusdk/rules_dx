@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use crate::util::{
-    Env, Failure, Outcome, exit_code, has_extension, missing, reject, scratch, usage,
+    Env, Failure, Outcome, exit_code, has_extension, missing, reject, scratch, unzip, usage,
 };
 use crate::xcode::{Tools, XCRUN};
 
@@ -87,10 +87,7 @@ fn install(tools: &Tools<'_>, env: Env<'_>, udid: &str, app: &str) -> Outcome {
         return Err(usage(format!("{app} is neither an .ipa nor an .app")));
     }
     let work = scratch(env, "simctl")?;
-    let file = std::fs::File::open(app_path)
-        .map_err(|error| reject(format!("cannot read {app}: {error}")))?;
-    zip::ZipArchive::new(file)
-        .and_then(|mut archive| archive.extract(work.path()))
+    unzip(app_path, work.path())
         .map_err(|error| reject(format!("{app} does not unpack: {error}")))?;
     let mut bundles: Vec<_> = std::fs::read_dir(work.path().join("Payload"))
         .map(|entries| {

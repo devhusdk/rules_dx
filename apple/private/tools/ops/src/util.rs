@@ -1,5 +1,6 @@
 //! What the operations share: failures, scratch directories and the process runner.
 
+use std::io;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
@@ -129,6 +130,22 @@ pub fn scratch(env: Env<'_>, name: &str) -> Result<tempfile::TempDir, Failure> {
                 "cannot create a scratch directory in {root}: {error}"
             ))
         })
+}
+
+/// Caps for unpacking an app, framework or IPA; sized above the largest shipped macOS apps.
+pub const BUNDLE_LIMITS: dx_archive::Limits = dx_archive::Limits {
+    max_entries: 262_144,
+    max_entry_bytes: 4 << 30,
+    max_total_bytes: 16 << 30,
+};
+
+/// Unpacks the zip `archive` into the new or empty directory `dest`.
+///
+/// # Errors
+///
+/// Returns the error of a member that is unsafe, over [`BUNDLE_LIMITS`] or unreadable.
+pub fn unzip(archive: &Path, dest: &Path) -> io::Result<()> {
+    dx_archive::extract(archive, dx_archive::Format::Zip, dest, BUNDLE_LIMITS).map(drop)
 }
 
 /// Whether `name` ends in `.ext`, ignoring ASCII case.

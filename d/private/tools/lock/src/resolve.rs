@@ -5,7 +5,6 @@ use dx_lock::{Archive, Error, HttpFetch, Lock, Package, Resolution, Resolver, Sc
 use serde_json::{Value, json};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
-use std::io::Read;
 
 /// The registry API and archive host.
 pub const BASE: &str = "https://code.dlang.org";
@@ -488,30 +487,30 @@ fn read_members(bytes: &[u8], manifest: &str) -> Result<Members, String> {
         names: BTreeSet::new(),
         files: BTreeMap::new(),
     };
-    let mut archive =
-        zip::ZipArchive::new(std::io::Cursor::new(bytes)).map_err(|error| error.to_string())?;
-    for index in 0..archive.len() {
-        let mut entry = archive.by_index(index).map_err(|error| error.to_string())?;
-        if !entry.is_file() || entry.is_symlink() {
-            continue;
-        }
-        let name = entry
-            .name()
-            .map_err(|error| error.to_string())?
-            .into_owned();
-        let name = name.trim_start_matches("./").to_owned();
-        let base = name.rsplit('/').next().unwrap_or(&name);
-        let depth = name.matches('/').count();
-        if depth <= 1 && base == manifest {
-            let mut body = Vec::new();
-            (&mut entry)
-                .take(MEMBER_LIMIT)
-                .read_to_end(&mut body)
-                .map_err(|error| format!("{name}: {error}"))?;
-            members.files.insert(name.clone(), body);
-        }
-        members.names.insert(name);
-    }
+    let limits = dx_archive::Limits {
+        max_entries: 1 << 16,
+        max_entry_bytes: MEMBER_LIMIT,
+        max_total_bytes: 64 << 20,
+    };
+    dx_archive::visit(
+        std::io::Cursor::new(bytes),
+        dx_archive::Format::Zip,
+        limits,
+        |name, kind, body| {
+            if kind != dx_archive::EntryKind::File {
+                return Ok(());
+            }
+            let base = name.rsplit('/').next().unwrap_or(name);
+            if name.matches('/').count() <= 1 && base == manifest {
+                let mut bytes = Vec::new();
+                body.read_to_end(&mut bytes)?;
+                members.files.insert(name.to_owned(), bytes);
+            }
+            members.names.insert(name.to_owned());
+            Ok(())
+        },
+    )
+    .map_err(|error| error.to_string())?;
     Ok(members)
 }
 

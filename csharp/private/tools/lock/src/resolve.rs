@@ -219,11 +219,8 @@ pub fn archive_url(name: &str, version: &str) -> String {
 /// # Errors
 /// Fails when the bytes are not a zip archive.
 pub fn assemblies(bytes: &[u8]) -> Result<Vec<String>, Error> {
-    let archive =
-        zip::ZipArchive::new(Cursor::new(bytes)).map_err(|error| Error::new(error.to_string()))?;
     let mut names = Vec::new();
-    for path in archive.file_names() {
-        let path = path.map_err(|error| Error::new(error.to_string()))?;
+    for path in members(bytes, |_| false)?.keys() {
         let Some(file) = path
             .strip_prefix("lib/")
             .and_then(|rest| rest.rsplit('/').next())
@@ -290,57 +287,32 @@ pub struct Tool {
 /// # Errors
 /// Fails when the bytes are not a zip archive or a tool settings file is unreadable.
 pub fn tools(bytes: &[u8]) -> Result<BTreeMap<String, Vec<Tool>>, Error> {
-    let mut archive =
-        zip::ZipArchive::new(Cursor::new(bytes)).map_err(|error| Error::new(error.to_string()))?;
-    let mut read = |path: &str| -> Result<String, Error> {
-        let mut file = archive
-            .by_name(path)
-            .map_err(|error| Error::new(format!("{path}: {error}")))?;
-        let mut text = String::new();
-        std::io::Read::read_to_string(&mut file, &mut text)
-            .map_err(|error| Error::new(format!("{path}: {error}")))?;
-        Ok(text)
-    };
-    let names: Vec<String> = zip::ZipArchive::new(Cursor::new(bytes))
-        .map_err(|error| Error::new(error.to_string()))?
-        .file_names()
-        .map(|name| {
-            name.map(std::borrow::Cow::into_owned)
-                .map_err(|error| Error::new(error.to_string()))
-        })
-        .collect::<Result<_, _>>()?;
-    let Some(nuspec) = names
+    let files = members(bytes, |name| {
+        is_nuspec(name) || tool_settings(name).is_some()
+    })?;
+    let Some(nuspec) = files
         .iter()
-        .find(|name| !name.contains('/') && name.to_ascii_lowercase().ends_with(".nuspec"))
+        .find_map(|(name, text)| text.as_ref().filter(|_| is_nuspec(name)))
     else {
         return Ok(BTreeMap::new());
     };
-    let is_tool = elements(&read(nuspec)?, "packageType")
-        .iter()
-        .any(|attributes| {
-            attributes
-                .get("name")
-                .is_some_and(|name| name == "DotnetTool")
-        });
+    let is_tool = elements(nuspec, "packageType").iter().any(|attributes| {
+        attributes
+            .get("name")
+            .is_some_and(|name| name == "DotnetTool")
+    });
     let mut found = BTreeMap::new();
     if !is_tool {
         return Ok(found);
     }
-    for name in &names {
-        let mut parts = name.split('/');
-        let (Some("tools"), Some(tfm), Some(_), Some("DotnetToolSettings.xml"), None) = (
-            parts.next(),
-            parts.next(),
-            parts.next(),
-            parts.next(),
-            parts.next(),
-        ) else {
+    for (name, text) in &files {
+        let (Some(tfm), Some(text)) = (tool_settings(name), text) else {
             continue;
         };
         if tfm == "any" {
             continue;
         }
-        let commands = elements(&read(name)?, "Command")
+        let commands = elements(text, "Command")
             .into_iter()
             .map(|attributes| {
                 let field = |key: &str| {
@@ -359,6 +331,63 @@ pub fn tools(bytes: &[u8]) -> Result<BTreeMap<String, Vec<Tool>>, Error> {
         found.insert(tfm.to_owned(), commands);
     }
     Ok(found)
+}
+
+/// The most bytes read from one package archive member.
+const MEMBER_LIMIT: u64 = 8 << 20;
+
+/// The member names of a package archive, with the text of those `read` selects.
+fn members(
+    bytes: &[u8],
+    read: impl Fn(&str) -> bool,
+) -> Result<BTreeMap<String, Option<String>>, Error> {
+    let limits = dx_archive::Limits {
+        max_entries: 1 << 16,
+        max_entry_bytes: MEMBER_LIMIT,
+        max_total_bytes: 64 << 20,
+    };
+    let mut found = BTreeMap::new();
+    dx_archive::visit(
+        Cursor::new(bytes),
+        dx_archive::Format::Zip,
+        limits,
+        |name, kind, body| {
+            if kind != dx_archive::EntryKind::File {
+                return Ok(());
+            }
+            let text = if read(name) {
+                let mut text = String::new();
+                body.read_to_string(&mut text)
+                    .map_err(|error| std::io::Error::other(format!("{name}: {error}")))?;
+                Some(text)
+            } else {
+                None
+            };
+            found.insert(name.to_owned(), text);
+            Ok(())
+        },
+    )
+    .map_err(|error| Error::new(error.to_string()))?;
+    Ok(found)
+}
+
+fn is_nuspec(name: &str) -> bool {
+    !name.contains('/') && name.to_ascii_lowercase().ends_with(".nuspec")
+}
+
+/// The target framework of a `tools/<tfm>/<rid>/DotnetToolSettings.xml` member.
+fn tool_settings(name: &str) -> Option<&str> {
+    let mut parts = name.split('/');
+    match (
+        parts.next(),
+        parts.next(),
+        parts.next(),
+        parts.next(),
+        parts.next(),
+    ) {
+        (Some("tools"), Some(tfm), Some(_), Some("DotnetToolSettings.xml"), None) => Some(tfm),
+        _ => None,
+    }
 }
 
 /// The `sha512-<base64>` digest of `bytes`.

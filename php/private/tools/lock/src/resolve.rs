@@ -493,13 +493,14 @@ impl<'a> Php<'a> {
             .download
             .bytes(url)
             .map_err(|error| Error::new(format!("{name}: {url}: {error}")))?;
-        let archive = zip::ZipArchive::new(Cursor::new(&bytes))
+        let names = dx_archive::zip_names(Cursor::new(&bytes))
             .map_err(|error| Error::new(format!("{name}: {url}: {error}")))?;
-        let names = archive
-            .file_names()
-            .map(|member| member.map(std::borrow::Cow::into_owned))
-            .collect::<Result<Vec<String>, _>>()
-            .map_err(|error| Error::new(format!("{name}: {url}: {error}")))?;
+        if let Some(reason) = names
+            .iter()
+            .find_map(|member| dx_archive::member_name_error(member.trim_end_matches('/')))
+        {
+            return Err(Error::new(format!("{name}: {url}: {reason}")));
+        }
         let tops: BTreeSet<&str> = names
             .iter()
             .filter_map(|member| member.split_once('/').map(|(top, _)| top))

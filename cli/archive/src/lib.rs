@@ -1,8 +1,8 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
-//! Safe extraction of tar.gz and zip archives into a fresh directory, plus read-only zip
-//! member reads ([`read_zip_member`]) and listings ([`zip_names`]), and deterministic writers
-//! ([`TarWriter`], [`ZipWriter`]).
+//! Safe extraction of tar, tar.gz and zip archives into a fresh directory, plus read-only
+//! member visits ([`visit`], [`visit_tar`]), zip member reads ([`read_zip_member`]) and
+//! listings ([`zip_names`]), and deterministic writers ([`TarWriter`], [`ZipWriter`]).
 
 use std::collections::HashSet;
 use std::fs::File;
@@ -15,6 +15,7 @@ pub use write::{TarWriter, ZipWriter, fits_ustar, gzip};
 /// The archive container, named by suffix and confirmed by magic bytes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Format {
+    Tar,
     TarGz,
     Zip,
 }
@@ -29,6 +30,8 @@ impl Format {
     pub fn from_name(name: &str) -> Option<Format> {
         if name.ends_with(".tar.gz") {
             Some(Format::TarGz)
+        } else if name.ends_with(".tar") {
+            Some(Format::Tar)
         } else if std::path::Path::new(name)
             .extension()
             .is_some_and(|ext| ext.eq_ignore_ascii_case("zip"))
@@ -43,6 +46,7 @@ impl Format {
     #[must_use]
     pub fn suffix(self) -> &'static str {
         match self {
+            Format::Tar => ".tar",
             Format::TarGz => ".tar.gz",
             Format::Zip => ".zip",
         }
@@ -50,6 +54,7 @@ impl Format {
 
     fn magic_matches(self, head: &[u8]) -> bool {
         match self {
+            Format::Tar => true,
             Format::TarGz => head.starts_with(GZIP_MAGIC),
             Format::Zip => head.starts_with(ZIP_MAGIC) || head.starts_with(ZIP_EMPTY_MAGIC),
         }
@@ -372,15 +377,7 @@ fn unpack(
     dest: &Path,
     limits: Limits,
 ) -> io::Result<Vec<Member>> {
-    let mut head = [0u8; 4];
-    let read = read_head(&mut source, &mut head)?;
-    if !format.magic_matches(head.get(..read).unwrap_or_default()) {
-        return Err(invalid(format!(
-            "{label} does not look like a {} archive",
-            format.suffix()
-        )));
-    }
-    source.rewind()?;
+    check_magic(&mut source, label, format)?;
     prepare_dest(dest)?;
     let mut run = Extraction {
         dest,
@@ -392,10 +389,204 @@ fn unpack(
         members: Vec::new(),
     };
     match format {
-        Format::TarGz => extract_tar(source, &mut run)?,
+        Format::Tar => extract_tar(source, &mut run)?,
+        Format::TarGz => extract_tar(flate2::read::GzDecoder::new(source), &mut run)?,
         Format::Zip => extract_zip(source, &mut run)?,
     }
     Ok(run.members)
+}
+
+/// Confirms the magic bytes of `source` and rewinds it.
+fn check_magic(source: &mut (impl Read + Seek), label: &str, format: Format) -> io::Result<()> {
+    let mut head = [0u8; 4];
+    let read = read_head(source, &mut head)?;
+    if !format.magic_matches(head.get(..read).unwrap_or_default()) {
+        return Err(invalid(format!(
+            "{label} does not look like a {} archive",
+            format.suffix()
+        )));
+    }
+    source.rewind()?;
+    Ok(())
+}
+
+/// What an archive entry holds, as [`visit`] reports it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EntryKind {
+    File,
+    Dir,
+    Symlink,
+    Other,
+}
+
+/// Calls `f` with the name, kind and body of every entry of an archive, in archive order, without extracting.
+///
+/// Names pass [`member_name_error`], directory names lose their trailing `/`, and repeated names are allowed.
+/// Tar pax global headers are skipped. `limits` caps the entries and the body bytes `f` reads; a body read
+/// past a cap fails.
+pub fn visit(
+    mut source: impl Read + Seek,
+    format: Format,
+    limits: Limits,
+    f: impl FnMut(&str, EntryKind, &mut dyn Read) -> io::Result<()>,
+) -> io::Result<()> {
+    check_magic(&mut source, "the archive", format)?;
+    let mut run = Visit {
+        limits,
+        entries: 0,
+        total: 0,
+        f,
+    };
+    match format {
+        Format::Tar => visit_tar_entries(source, &mut run),
+        Format::TarGz => visit_tar_entries(flate2::read::GzDecoder::new(source), &mut run),
+        Format::Zip => visit_zip_entries(source, &mut run),
+    }
+}
+
+/// Visits a plain tar stream like [`visit`]; for streams that cannot seek or that the caller decompressed.
+pub fn visit_tar(
+    source: impl Read,
+    limits: Limits,
+    f: impl FnMut(&str, EntryKind, &mut dyn Read) -> io::Result<()>,
+) -> io::Result<()> {
+    let mut run = Visit {
+        limits,
+        entries: 0,
+        total: 0,
+        f,
+    };
+    visit_tar_entries(source, &mut run)
+}
+
+/// Decompresses a gzip stream of at most `max_bytes` bytes.
+pub fn gunzip(source: impl Read, max_bytes: u64) -> io::Result<Vec<u8>> {
+    let mut bytes = Vec::new();
+    flate2::read::GzDecoder::new(source)
+        .take(max_bytes.saturating_add(1))
+        .read_to_end(&mut bytes)?;
+    if bytes.len() as u64 > max_bytes {
+        return Err(invalid(format!("gzip stream exceeds {max_bytes} bytes")));
+    }
+    Ok(bytes)
+}
+
+struct Visit<F> {
+    limits: Limits,
+    entries: usize,
+    total: u64,
+    f: F,
+}
+
+impl<F: FnMut(&str, EntryKind, &mut dyn Read) -> io::Result<()>> Visit<F> {
+    fn entry(&mut self, name: String, kind: EntryKind, body: &mut dyn Read) -> io::Result<()> {
+        if self.entries >= self.limits.max_entries {
+            return Err(invalid(format!(
+                "archive has more than {} entries",
+                self.limits.max_entries
+            )));
+        }
+        self.entries += 1;
+        let name = match (kind, name.strip_suffix('/')) {
+            (EntryKind::Dir, Some(dir)) => dir.to_owned(),
+            _ => name,
+        };
+        if let Some(reason) = member_name_error(&name) {
+            return Err(invalid(reason));
+        }
+        let mut capped = Capped {
+            inner: body,
+            left: self
+                .limits
+                .max_entry_bytes
+                .min(self.limits.max_total_bytes.saturating_sub(self.total)),
+            read: 0,
+            name: &name,
+        };
+        (self.f)(&name, kind, &mut capped)?;
+        self.total += capped.read;
+        Ok(())
+    }
+}
+
+/// A member body that fails once a read would pass `left` bytes.
+struct Capped<'a> {
+    inner: &'a mut dyn Read,
+    left: u64,
+    read: u64,
+    name: &'a str,
+}
+
+impl Read for Capped<'_> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let want = usize::try_from(self.left.saturating_add(1))
+            .unwrap_or(usize::MAX)
+            .min(buf.len());
+        let n = self.inner.read(buf.get_mut(..want).unwrap_or_default())?;
+        let n64 = n as u64;
+        if n64 > self.left {
+            return Err(invalid(format!(
+                "archive member {:?} exceeds the read size cap",
+                self.name
+            )));
+        }
+        self.left -= n64;
+        self.read += n64;
+        Ok(n)
+    }
+}
+
+fn visit_tar_entries<F: FnMut(&str, EntryKind, &mut dyn Read) -> io::Result<()>>(
+    source: impl Read,
+    run: &mut Visit<F>,
+) -> io::Result<()> {
+    let mut tar = tar::Archive::new(source);
+    for entry in tar.entries()? {
+        let mut entry = entry?;
+        let entry_type = entry.header().entry_type();
+        if entry_type.is_pax_global_extensions() {
+            continue;
+        }
+        let name = utf8(entry.path_bytes().into_owned(), "member name")?;
+        let kind = if entry_type.is_file() {
+            EntryKind::File
+        } else if entry_type.is_dir() {
+            EntryKind::Dir
+        } else if entry_type.is_symlink() {
+            EntryKind::Symlink
+        } else {
+            EntryKind::Other
+        };
+        run.entry(name, kind, &mut entry)?;
+    }
+    Ok(())
+}
+
+fn visit_zip_entries<F: FnMut(&str, EntryKind, &mut dyn Read) -> io::Result<()>>(
+    source: impl Read + Seek,
+    run: &mut Visit<F>,
+) -> io::Result<()> {
+    let mut zip = zip::ZipArchive::new(source).map_err(|e| invalid(format!("zip: {e}")))?;
+    for index in 0..zip.len() {
+        let mut entry = zip
+            .by_index(index)
+            .map_err(|e| invalid(format!("zip: {e}")))?;
+        let name = entry
+            .name()
+            .map_err(|e| invalid(format!("zip: {e}")))?
+            .into_owned();
+        let kind = if entry.is_symlink() {
+            EntryKind::Symlink
+        } else if entry.is_dir() {
+            EntryKind::Dir
+        } else if entry.is_file() {
+            EntryKind::File
+        } else {
+            EntryKind::Other
+        };
+        run.entry(name, kind, &mut entry)?;
+    }
+    Ok(())
 }
 
 /// Reads one named member of a zip without extracting the rest; `None` when it is absent.
@@ -453,7 +644,7 @@ fn utf8(bytes: Vec<u8>, what: &str) -> io::Result<String> {
 }
 
 fn extract_tar(source: impl Read, run: &mut Extraction<'_>) -> io::Result<()> {
-    let mut tar = tar::Archive::new(flate2::read::GzDecoder::new(source));
+    let mut tar = tar::Archive::new(source);
     for entry in tar.entries()? {
         let mut entry = entry?;
         let entry_type = entry.header().entry_type();

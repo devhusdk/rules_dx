@@ -328,71 +328,64 @@ struct Members {
 }
 
 impl Members {
-    fn add(&mut self, name: &str, wanted: &[String], body: &mut dyn Read) -> Result<(), String> {
-        let name = name.trim_start_matches("./").to_owned();
-        let is_wanted = wanted.iter().any(|file| {
-            name == *file || name.split_once('/').is_some_and(|(_, rest)| rest == file)
-        });
-        if is_wanted {
-            let mut bytes = Vec::new();
-            body.take(MEMBER_LIMIT)
-                .read_to_end(&mut bytes)
-                .map_err(|error| format!("{name}: {error}"))?;
-            self.files.insert(name.clone(), bytes);
+    /// The `dx_archive::visit` callback that records one entry.
+    fn add(
+        &mut self,
+        wanted: &[String],
+    ) -> impl FnMut(&str, dx_archive::EntryKind, &mut dyn Read) -> std::io::Result<()> {
+        |name, kind, body| {
+            if kind != dx_archive::EntryKind::File {
+                return Ok(());
+            }
+            let is_wanted = wanted.iter().any(|file| {
+                name == file || name.split_once('/').is_some_and(|(_, rest)| rest == file)
+            });
+            if is_wanted {
+                let mut bytes = Vec::new();
+                body.read_to_end(&mut bytes)?;
+                self.files.insert(name.to_owned(), bytes);
+            }
+            self.names.insert(name.to_owned());
+            Ok(())
         }
-        self.names.insert(name);
-        Ok(())
     }
 }
 
-fn tar_members(source: impl Read, wanted: &[String], members: &mut Members) -> Result<(), String> {
-    let mut archive = tar::Archive::new(source);
-    for entry in archive.entries().map_err(|error| error.to_string())? {
-        let mut entry = entry.map_err(|error| error.to_string())?;
-        if !entry.header().entry_type().is_file() {
-            continue;
-        }
-        let name = String::from_utf8(entry.path_bytes().into_owned())
-            .map_err(|_| "a member name is not UTF-8".to_owned())?;
-        members.add(&name, wanted, &mut entry)?;
-    }
-    Ok(())
-}
+const LIMITS: dx_archive::Limits = dx_archive::Limits {
+    max_entries: 1 << 16,
+    max_entry_bytes: MEMBER_LIMIT,
+    max_total_bytes: 64 << 20,
+};
 
 fn read_members(bytes: &[u8], kind: Kind, wanted: &[String]) -> Result<Members, String> {
     let mut members = Members {
         names: BTreeSet::new(),
         files: BTreeMap::new(),
     };
+    let cursor = std::io::Cursor::new(bytes);
     match kind {
-        Kind::TarGz => tar_members(flate2::read::GzDecoder::new(bytes), wanted, &mut members)?,
+        Kind::TarGz => dx_archive::visit(
+            cursor,
+            dx_archive::Format::TarGz,
+            LIMITS,
+            members.add(wanted),
+        ),
+        Kind::Zip => {
+            dx_archive::visit(cursor, dx_archive::Format::Zip, LIMITS, members.add(wanted))
+        }
         Kind::TarXz => {
             let mut tar = Vec::new();
             lzma_rs::xz_decompress(&mut std::io::Cursor::new(bytes), &mut tar)
                 .map_err(|error| error.to_string())?;
-            tar_members(tar.as_slice(), wanted, &mut members)?;
+            dx_archive::visit_tar(tar.as_slice(), LIMITS, members.add(wanted))
         }
         Kind::TarZst => {
             let decoder = ruzstd::decoding::StreamingDecoder::new(bytes)
                 .map_err(|error| error.to_string())?;
-            tar_members(decoder, wanted, &mut members)?;
-        }
-        Kind::Zip => {
-            let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes))
-                .map_err(|error| error.to_string())?;
-            for index in 0..archive.len() {
-                let mut entry = archive.by_index(index).map_err(|error| error.to_string())?;
-                if !entry.is_file() || entry.is_symlink() {
-                    continue;
-                }
-                let name = entry
-                    .name()
-                    .map_err(|error| error.to_string())?
-                    .into_owned();
-                members.add(&name, wanted, &mut entry)?;
-            }
+            dx_archive::visit_tar(decoder, LIMITS, members.add(wanted))
         }
     }
+    .map_err(|error| error.to_string())?;
     Ok(members)
 }
 

@@ -1,6 +1,6 @@
 //! Tests the cabal lock step against a plan and a Hackage index fixture.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
 use cabal_lock::{
@@ -271,4 +271,20 @@ fn an_extra_dep_of_another_cabal_sha256_fails() {
     check_stack_pins(&plan, &pinned(&dx_digest::sha256_hex(SPLITMIX))).expect("same sha256");
     let error = check_stack_pins(&plan, &pinned(&"2".repeat(64))).expect_err("mismatch");
     assert!(error.to_string().contains("splitmix-0.1.1"), "{error}");
+}
+
+#[test]
+fn an_index_with_an_unsafe_member_is_refused() {
+    let mut builder = tar::Builder::new(Vec::new());
+    let mut header = tar::Header::new_gnu();
+    let name = b"../random/1.2.1/random.cabal";
+    header.as_mut_bytes()[..name.len()].copy_from_slice(name);
+    header.set_size(RANDOM_0.len() as u64);
+    header.set_mode(0o644);
+    header.set_cksum();
+    builder.append(&header, RANDOM_0).expect("append");
+    let index = builder.into_inner().expect("tar");
+    let wanted = BTreeSet::from([("random".to_owned(), "1.2.1".to_owned())]);
+    let error = revisions(index.as_slice(), &wanted).expect_err("dot dot");
+    assert!(error.to_string().contains("'..'"), "{error}");
 }

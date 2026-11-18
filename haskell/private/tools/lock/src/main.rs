@@ -15,7 +15,6 @@ use std::process::ExitCode;
 
 use cabal_lock::Cabal;
 use serde_json as _;
-use tar as _;
 
 fn runfile(runfiles: &runfiles::Runfiles, variable: &str) -> Option<PathBuf> {
     let path = std::env::var(variable).ok()?;

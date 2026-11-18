@@ -3,7 +3,9 @@
 use std::cell::RefCell;
 
 use dx_lock::{Args, Error, Fetch, Outcome, run};
-use nuget_lock::{Download, Nuget, Tool, lock_groups, manifest_frameworks, normalize_version, tools};
+use nuget_lock::{
+    Download, Nuget, Tool, assemblies, lock_groups, manifest_frameworks, normalize_version, tools,
+};
 
 const ALPHA: &str =
     "https://api.nuget.org/v3-flatcontainer/alpha.core/1.2.0/alpha.core.1.2.0.nupkg";
@@ -235,4 +237,17 @@ fn library_packages_have_no_commands() {
         ("tools/net10.0/any/DotnetToolSettings.xml", "<Commands />"),
     ]);
     assert!(tools(&bytes).expect("tools").is_empty());
+}
+
+#[test]
+fn unsafe_package_members_are_refused() {
+    let bytes = archive(&[("../Tool.nuspec", "<package />")]);
+    let error = tools(&bytes).expect_err("dot dot");
+    assert!(error.to_string().contains("'..'"), "{error}");
+    let error = assemblies(&bytes).expect_err("dot dot");
+    assert!(error.to_string().contains("'..'"), "{error}");
+    let oversized = "x".repeat(9 << 20);
+    let bytes = archive(&[("Tool.nuspec", oversized.as_str())]);
+    let error = tools(&bytes).expect_err("oversized");
+    assert!(error.to_string().contains("size cap"), "{error}");
 }

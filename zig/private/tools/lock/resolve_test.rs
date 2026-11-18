@@ -181,3 +181,40 @@ fn a_plain_http_url_fails() {
         "{error}"
     );
 }
+
+struct UnsafeArchive;
+
+impl Download for UnsafeArchive {
+    fn bytes(&self, url: &str) -> Result<Vec<u8>, Error> {
+        if url != BASE {
+            return Archives(RefCell::default()).bytes(url);
+        }
+        let failed = |error: zip::result::ZipError| Error::new(error.to_string());
+        let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        writer
+            .start_file("../build.zig.zon", zip::write::SimpleFileOptions::default())
+            .map_err(failed)?;
+        std::io::Write::write_all(&mut writer, b".{}")
+            .map_err(|error| Error::new(error.to_string()))?;
+        Ok(writer.finish().map_err(failed)?.into_inner())
+    }
+}
+
+#[test]
+fn an_archive_with_an_unsafe_member_is_refused() {
+    let dir = set(MANIFEST);
+    let hub = dx_families::hub("zig").expect("zig is registered");
+    let spec = Zig::spec(hub);
+    let error = run(
+        &spec,
+        &Args {
+            dir: dir.path().to_owned(),
+            check: false,
+            upgrade: Vec::new(),
+        },
+        &Zig::new(&spec, &UnsafeArchive),
+        &NoFetch,
+    )
+    .expect_err("dot dot");
+    assert!(error.to_string().contains("'..'"), "{error}");
+}

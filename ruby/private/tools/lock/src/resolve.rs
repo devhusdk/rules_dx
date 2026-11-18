@@ -4,7 +4,6 @@
 use dx_lock::{Archive, Error, HttpFetch, Lock, Package, Resolution, Resolver, Scratch, Spec};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
-use std::io::Read;
 
 /// The gem host.
 pub const BASE: &str = "https://rubygems.org";
@@ -472,37 +471,43 @@ fn parse_info(name: &str, text: &str) -> Result<Vec<Indexed>, Error> {
     Ok(versions)
 }
 
+/// The most bytes read from one gem member.
+const MEMBER_LIMIT: u64 = 64 << 20;
+
+const GEM_LIMITS: dx_archive::Limits = dx_archive::Limits {
+    max_entries: 1 << 16,
+    max_entry_bytes: MEMBER_LIMIT,
+    max_total_bytes: 256 << 20,
+};
+
 /// The import roots under the require paths of a gem file.
 fn gem_provides(name: &str, bytes: &[u8]) -> Result<BTreeSet<String>, String> {
     let mut metadata = None;
     let mut data = None;
-    let mut outer = tar::Archive::new(bytes);
-    for entry in outer.entries().map_err(|error| error.to_string())? {
-        let mut entry = entry.map_err(|error| error.to_string())?;
-        let path = entry
-            .path()
-            .map_err(|error| error.to_string())?
-            .to_string_lossy()
-            .into_owned();
-        let mut raw = Vec::new();
-        match path.as_str() {
-            "metadata.gz" | "data.tar.gz" => {
-                entry
-                    .read_to_end(&mut raw)
-                    .map_err(|error| error.to_string())?;
+    dx_archive::visit(
+        std::io::Cursor::new(bytes),
+        dx_archive::Format::Tar,
+        GEM_LIMITS,
+        |path, _, body| {
+            match path {
+                "metadata.gz" => {
+                    let text = dx_archive::gunzip(body, MEMBER_LIMIT)
+                        .map_err(|error| std::io::Error::other(format!("metadata.gz: {error}")))?;
+                    let text = String::from_utf8(text)
+                        .map_err(|error| std::io::Error::other(format!("metadata.gz: {error}")))?;
+                    metadata = Some(text);
+                }
+                "data.tar.gz" => {
+                    let mut raw = Vec::new();
+                    body.read_to_end(&mut raw)?;
+                    data = Some(raw);
+                }
+                _ => {}
             }
-            _ => continue,
-        }
-        if path == "metadata.gz" {
-            let mut text = String::new();
-            flate2::read::GzDecoder::new(raw.as_slice())
-                .read_to_string(&mut text)
-                .map_err(|error| format!("metadata.gz: {error}"))?;
-            metadata = Some(text);
-        } else {
-            data = Some(raw);
-        }
-    }
+            Ok(())
+        },
+    )
+    .map_err(|error| error.to_string())?;
     let metadata = metadata.ok_or("has no metadata.gz")?;
     let data = data.ok_or("has no data.tar.gz")?;
     let mut require_paths = Vec::new();
@@ -525,23 +530,20 @@ fn gem_provides(name: &str, bytes: &[u8]) -> Result<BTreeSet<String>, String> {
         require_paths.push("lib".to_owned());
     }
     let mut relative = Vec::new();
-    let mut inner = tar::Archive::new(flate2::read::GzDecoder::new(data.as_slice()));
-    for entry in inner
-        .entries()
-        .map_err(|error| format!("data.tar.gz: {error}"))?
-    {
-        let entry = entry.map_err(|error| format!("data.tar.gz: {error}"))?;
-        let path = entry
-            .path()
-            .map_err(|error| format!("data.tar.gz: {error}"))?
-            .to_string_lossy()
-            .into_owned();
-        for dir in &require_paths {
-            if let Some(rest) = path.strip_prefix(&format!("{dir}/")) {
-                relative.push(rest.to_owned());
+    dx_archive::visit(
+        std::io::Cursor::new(data),
+        dx_archive::Format::TarGz,
+        GEM_LIMITS,
+        |path, _, _| {
+            for dir in &require_paths {
+                if let Some(rest) = path.strip_prefix(&format!("{dir}/")) {
+                    relative.push(rest.to_owned());
+                }
             }
-        }
-    }
+            Ok(())
+        },
+    )
+    .map_err(|error| format!("data.tar.gz: {error}"))?;
     let files: BTreeSet<&str> = relative
         .iter()
         .filter_map(|rest| rest.strip_suffix(".rb"))

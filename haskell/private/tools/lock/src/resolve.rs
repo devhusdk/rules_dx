@@ -52,21 +52,25 @@ pub fn revisions(
         .collect();
     let mut seen: BTreeMap<String, u64> = BTreeMap::new();
     let mut found = Revisions::new();
-    let mut archive = tar::Archive::new(index);
-    for entry in archive.entries().map_err(fail)? {
-        let mut entry = entry.map_err(fail)?;
-        let path = entry.path().map_err(fail)?.to_string_lossy().into_owned();
-        let Some((name, version)) = paths.get(&path) else {
-            continue;
+    let limits = dx_archive::Limits {
+        max_entries: 1 << 24,
+        max_entry_bytes: 8 << 20,
+        max_total_bytes: 1 << 30,
+    };
+    dx_archive::visit_tar(index, limits, |path, _, body| {
+        let Some((name, version)) = paths.get(path) else {
+            return Ok(());
         };
         let mut bytes = Vec::new();
-        entry.read_to_end(&mut bytes).map_err(fail)?;
-        let ordinal = seen.entry(path).or_insert(0);
+        body.read_to_end(&mut bytes)?;
+        let ordinal = seen.entry(path.to_owned()).or_insert(0);
         found
             .entry((name.clone(), version.clone(), dx_digest::sha256_hex(&bytes)))
             .or_insert(*ordinal);
         *ordinal += 1;
-    }
+        Ok(())
+    })
+    .map_err(fail)?;
     Ok(found)
 }
 

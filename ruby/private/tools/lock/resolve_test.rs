@@ -326,3 +326,27 @@ fn a_gemfile_ruby_line_the_pinned_ruby_misses_fails() {
         set("source \"https://rubygems.org\"\nruby \">= 3.0\"\ngem \"rainbow\", \"~> 3.0\"\n");
     assert_eq!(lock(dir.path(), &Index::new(), false), Ok(Outcome::Written));
 }
+
+#[test]
+fn a_gem_with_an_unsafe_member_is_refused() {
+    let mut header = tar::Header::new_gnu();
+    let name = b"../lib/modern.rb";
+    header.as_mut_bytes()[..name.len()].copy_from_slice(name);
+    header.set_size(0);
+    header.set_mode(0o644);
+    header.set_cksum();
+    let mut builder = tar::Builder::new(Vec::new());
+    builder.append(&header, b"".as_slice()).expect("tar entry");
+    let data = gz(&builder.into_inner().expect("tar"));
+    let metadata =
+        gz(b"--- !ruby/object:Gem::Specification\nname: modern\nrequire_paths:\n- lib\n");
+    let mut index = Index::new();
+    for (name, bytes) in &mut index.gems {
+        if name == "modern-1.0.0" {
+            *bytes = tar(&[("metadata.gz", &metadata), ("data.tar.gz", &data)]);
+        }
+    }
+    let dir = set("source \"https://rubygems.org\"\ngem \"modern\"\n");
+    let error = lock(dir.path(), &index, false).expect_err("dot dot");
+    assert!(error.to_string().contains("'..'"), "{error}");
+}

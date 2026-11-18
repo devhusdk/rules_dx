@@ -541,6 +541,11 @@ fn zip_names_lists_the_central_directory_in_order() {
 
 fn written(format: Format, build: impl FnOnce(&mut dyn FnMut(&str, &[u8], u32))) -> Vec<u8> {
     match format {
+        Format::Tar => {
+            let mut writer = TarWriter::new();
+            build(&mut |name, data, mode| writer.add_file(name, data, mode).expect("add"));
+            writer.finish_tar().expect("finish")
+        }
         Format::TarGz => {
             let mut writer = TarWriter::new();
             build(&mut |name, data, mode| writer.add_file(name, data, mode).expect("add"));
@@ -727,4 +732,106 @@ fn ustar_boundaries() {
     for name in ["", "a\0b", &"n".repeat(101), &"n".repeat(300)] {
         assert!(writer.add_file(name, b"", 0o644).is_err(), "{name:?}");
     }
+}
+
+fn plain_tar(members: &[(&str, &[u8], u32)]) -> Vec<u8> {
+    let mut builder = tar::Builder::new(Vec::new());
+    for (name, data, mode) in members {
+        let mut header = tar::Header::new_ustar();
+        header.as_mut_bytes()[..name.len()].copy_from_slice(name.as_bytes());
+        header.set_size(data.len() as u64);
+        header.set_mode(*mode);
+        header.set_entry_type(tar::EntryType::Regular);
+        header.set_cksum();
+        builder.append(&header, *data).expect("append");
+    }
+    builder.into_inner().expect("tar")
+}
+
+fn visit_all(format: Format, bytes: &[u8], limits: Limits) -> io::Result<Vec<(String, Vec<u8>)>> {
+    let mut seen = Vec::new();
+    visit(
+        io::Cursor::new(bytes),
+        format,
+        limits,
+        |name, kind, body| {
+            assert_eq!(kind, EntryKind::File);
+            let mut data = Vec::new();
+            body.read_to_end(&mut data)?;
+            seen.push((name.to_owned(), data));
+            Ok(())
+        },
+    )?;
+    Ok(seen)
+}
+
+#[test]
+fn visit_reads_every_format_and_keeps_repeated_names() {
+    let dir = scratch();
+    let members: &[RawMember<'_>] = &[("a/x", b"one", 0o644), ("a/x", b"two", 0o644)];
+    let tar = plain_tar(members);
+    let expected = vec![
+        ("a/x".to_owned(), b"one".to_vec()),
+        ("a/x".to_owned(), b"two".to_vec()),
+    ];
+    assert_eq!(
+        visit_all(Format::Tar, &tar, Limits::default()).expect("tar"),
+        expected
+    );
+    let mut streamed = Vec::new();
+    visit_tar(tar.as_slice(), Limits::default(), |name, _, _| {
+        streamed.push(name.to_owned());
+        Ok(())
+    })
+    .expect("stream");
+    assert_eq!(streamed, ["a/x", "a/x"]);
+    let gz = dir.path().join("a.tar.gz");
+    tar_gz(&gz, members);
+    let gz = std::fs::read(&gz).expect("read");
+    assert_eq!(
+        visit_all(Format::TarGz, &gz, Limits::default()).expect("gz"),
+        expected
+    );
+    let zip = dir.path().join("a.zip");
+    zip_file(&zip, &[("a/x", b"one", 0o644)]);
+    let zip = std::fs::read(&zip).expect("read");
+    assert_eq!(
+        visit_all(Format::Zip, &zip, Limits::default()).expect("zip"),
+        [("a/x".to_owned(), b"one".to_vec())]
+    );
+    assert_eq!(Format::from_name("01-index.tar"), Some(Format::Tar));
+}
+
+#[test]
+fn visit_refuses_unsafe_names_and_oversized_bodies() {
+    let tar = plain_tar(&[("../x", b"x", 0o644)]);
+    let error = visit_all(Format::Tar, &tar, Limits::default()).expect_err("dot dot");
+    assert!(error.to_string().contains("'..'"), "{error}");
+    let tar = plain_tar(&[("x", b"12345", 0o644)]);
+    let limits = Limits {
+        max_entry_bytes: 4,
+        ..Limits::default()
+    };
+    let error = visit_all(Format::Tar, &tar, limits).expect_err("oversized");
+    assert!(error.to_string().contains("size cap"), "{error}");
+    let tar = plain_tar(&[("x", b"12", 0o644), ("y", b"34", 0o644)]);
+    let limits = Limits {
+        max_total_bytes: 3,
+        ..Limits::default()
+    };
+    assert!(visit_all(Format::Tar, &tar, limits).is_err());
+    let limits = Limits {
+        max_entries: 1,
+        ..Limits::default()
+    };
+    assert!(visit_all(Format::Tar, &tar, limits).is_err());
+}
+
+#[test]
+fn gunzip_caps_the_output() {
+    let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+    encoder.write_all(b"12345").expect("gz");
+    let gz = encoder.finish().expect("gz");
+    assert_eq!(gunzip(gz.as_slice(), 5).expect("fits"), b"12345");
+    assert!(gunzip(gz.as_slice(), 4).is_err());
 }

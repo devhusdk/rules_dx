@@ -10,12 +10,11 @@ rust_library(
     crate_name = "ruby_lock",
     crate_root = "src/resolve.rs",
     deps = [
+        "//cli/archive:dx_archive",
         "//cli/digest:dx_digest",
         "//cli/families:dx_families",
         "//cli/lock:dx_lock",
-        "@crates//:flate2",
         "@crates//:serde_json",
-        "@crates//:tar",
     ],
 )
 

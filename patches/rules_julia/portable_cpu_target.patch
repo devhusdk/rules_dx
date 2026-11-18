@@ -1,3 +1,4 @@
+Upstream: periareon/rules_julia#48
 diff -ruN a/julia/private/precompile.jl b/julia/private/precompile.jl
 --- a/julia/private/precompile.jl
 +++ b/julia/private/precompile.jl

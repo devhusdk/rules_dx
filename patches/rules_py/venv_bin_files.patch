@@ -1,3 +1,4 @@
+Upstream: aspect-build/rules_py#1670
 diff -ru a/py/private/interpreter/runtime.bzl b/py/private/interpreter/runtime.bzl
 --- a/py/private/interpreter/runtime.bzl
 +++ b/py/private/interpreter/runtime.bzl

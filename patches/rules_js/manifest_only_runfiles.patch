@@ -1,3 +1,4 @@
+Upstream: none (not yet sent upstream)
 --- a/js/private/bash.bzl
 +++ b/js/private/bash.bzl
 @@ -56,18 +56,32 @@

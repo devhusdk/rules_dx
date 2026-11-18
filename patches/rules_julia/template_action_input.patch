@@ -1,3 +1,4 @@
+Upstream: periareon/rules_julia#44
 diff -ruN a/julia/private/julia_common.bzl b/julia/private/julia_common.bzl
 --- a/julia/private/julia_common.bzl	2026-11-09 15:12:22.821045394 +0100
 +++ b/julia/private/julia_common.bzl	2026-11-09 15:12:22.830896307 +0100

@@ -1,3 +1,4 @@
+Upstream: bazelverse/rules_erlang#12
 diff --git a/private/erlang_xrl_yrl.bzl b/private/erlang_xrl_yrl.bzl
 --- a/private/erlang_xrl_yrl.bzl
 +++ b/private/erlang_xrl_yrl.bzl

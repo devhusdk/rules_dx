@@ -1,3 +1,4 @@
+Upstream: none (rules_dx only: uses @rules_dx//dotnet/private:target_runtime)
 diff --git a/dotnet/private/rules/common/attrs.bzl b/dotnet/private/rules/common/attrs.bzl
 --- a/dotnet/private/rules/common/attrs.bzl
 +++ b/dotnet/private/rules/common/attrs.bzl

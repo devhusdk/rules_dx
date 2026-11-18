@@ -1,3 +1,4 @@
+Upstream: none (rules_dx only: extracts RubyInstaller with the rules_dx 7-Zip)
 diff --git a/ruby/private/download.bzl b/ruby/private/download.bzl
 --- a/ruby/private/download.bzl
 +++ b/ruby/private/download.bzl

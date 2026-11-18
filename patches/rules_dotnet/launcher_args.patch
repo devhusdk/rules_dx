@@ -1,3 +1,4 @@
+Upstream: none (not yet sent upstream)
 diff -ruN a/dotnet/private/launcher.bat.tpl b/dotnet/private/launcher.bat.tpl
 --- a/dotnet/private/launcher.bat.tpl
 +++ b/dotnet/private/launcher.bat.tpl

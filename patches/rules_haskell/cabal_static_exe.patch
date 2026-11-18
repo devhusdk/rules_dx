@@ -1,3 +1,4 @@
+Upstream: none (not yet sent upstream)
 --- a/haskell/cabal.bzl
 +++ b/haskell/cabal.bzl
 @@ -209,7 +209,7 @@

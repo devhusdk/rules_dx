@@ -1,3 +1,4 @@
+Upstream: none (rules_dx only: the dx_rules_flutter_pub copy needs @rules_flutter labels)
 --- a/flutter/android.bzl
 +++ b/flutter/android.bzl
 @@ -54,11 +54,11 @@

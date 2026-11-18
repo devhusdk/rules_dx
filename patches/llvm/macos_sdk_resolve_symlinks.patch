@@ -1,3 +1,4 @@
+Upstream: hermeticbuild/hermetic-llvm#932
 diff -ruN a/http_pkg_archive.bzl b/http_pkg_archive.bzl
 --- a/http_pkg_archive.bzl
 +++ b/http_pkg_archive.bzl

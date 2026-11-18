@@ -1,3 +1,4 @@
+Upstream: bazelbuild/rules_rust#4380
 diff --git a/rust/private/rustc.bzl b/rust/private/rustc.bzl
 --- a/rust/private/rustc.bzl
 +++ b/rust/private/rustc.bzl

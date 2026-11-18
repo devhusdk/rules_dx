@@ -5,7 +5,6 @@ extension-label core/quality/artifacts/extension.bzl
 extension-label third_party/dotnet/extension.bzl
 extension-name python/extensions.bzl
 fixture-hello android/tests/conformance/BUILD.bazel
-fixture-hello ansible/tests/conformance/BUILD.bazel
 fixture-hello appimage/tests/conformance/BUILD.bazel
 fixture-hello apple/tests/conformance/BUILD.bazel
 fixture-hello asciidoc/tests/conformance/BUILD.bazel

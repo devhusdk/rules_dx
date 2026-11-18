@@ -12,17 +12,9 @@ android lint_test *
 android lock_test *
 android pass_test *
 android runfiles_test *
-ansible build_test *
-ansible coverage_test *
-ansible cross_test *
-ansible fail_test *
 ansible format_error_test *
 ansible format_test *
-ansible lint_error_test *
-ansible lint_test *
 ansible lock_test *
-ansible pass_test *
-ansible runfiles_test *
 apple build_test *
 apple coverage_test *
 apple cross_test *

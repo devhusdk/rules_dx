@@ -1,0 +1,55 @@
+load("//ansible:defs.bzl", "ansible_library")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+ansible_library(
+    name = "conformance",
+    srcs = ["clean.yml"],
+    playbooks = ["clean.yml"],
+)
+
+ansible_library(
+    name = "lint_dirty",
+    srcs = ["lint_dirty.yml"],
+    playbooks = ["lint_dirty.yml"],
+    tags = ["manual"],
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":conformance",
+    covered_source = "",
+    expected = "",
+    failing_case = "",
+    failing_test = ":conformance",
+    lang = "ansible",
+    not_applicable = {
+        "build_test": "ansible has no binary rule",
+        "coverage_test": "ansible has no test rule",
+        "cross_test": "ansible has no binary rule",
+        "fail_test": "ansible has no test rule",
+        "pass_test": "ansible has no test rule",
+        "runfiles_test": "ansible has no binary rule",
+    },
+    passing_test = ":conformance",
+    quality = {
+        "clean": ":conformance",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 5,
+        "lint_rule": "name[missing]",
+        "lint_source": "lint_dirty.yml",
+    },
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

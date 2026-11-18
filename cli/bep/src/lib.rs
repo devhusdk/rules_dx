@@ -3,6 +3,7 @@
 pub mod cache_errors;
 pub mod failures;
 pub mod ledger;
+pub mod log_tail;
 pub mod metrics;
 pub mod outputs;
 pub mod test_outputs;
@@ -12,6 +13,7 @@ pub use failures::{
     BuildFailure, BuildFailures, FailedTargetKind, FailureStage, StderrRef, collect_build_failures,
 };
 pub use ledger::{EventGap, EventLedger};
+pub use log_tail::log_tail;
 pub use metrics::{
     ActionSummary, BuildTotals, MnemonicTime, collect_action_summary, collect_build_totals,
     collect_bytes_received,

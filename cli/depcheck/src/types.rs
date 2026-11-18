@@ -16,6 +16,8 @@ pub enum DepcheckError {
     ManifestRegex(#[source] regex::Error),
     #[error("unreadable manifest: {0}")]
     ManifestParse(String),
+    #[error("unreadable manifest: {0}")]
+    ManifestVersion(#[source] dx_semver::VersionError),
     #[error("unreadable lock: {0}")]
     LockIo(#[source] std::io::Error),
     #[error("unreadable lock: {0}")]

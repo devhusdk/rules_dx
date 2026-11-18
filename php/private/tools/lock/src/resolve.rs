@@ -42,7 +42,10 @@ impl Download for Packagist {
     }
 }
 
-type Version = [u64; 4];
+use dx_semver::Version;
+
+/// The numeric parts of a constraint bound; wildcards and missing parts are zero.
+type Bound = [u64; 4];
 
 /// Whether a requirement names the platform rather than a package.
 #[must_use]
@@ -55,21 +58,12 @@ pub fn is_platform(name: &str) -> bool {
         .any(|prefix| name.starts_with(prefix))
 }
 
-/// The parts of a stable release version, `None` for branches and pre-releases.
+/// A stable release version, `None` for branches and pre-releases.
 #[must_use]
 pub fn parse_version(text: &str) -> Option<Version> {
-    let text = text.strip_prefix('v').unwrap_or(text);
-    let mut out = [0; 4];
-    let mut count = 0;
-    for part in text.split('.') {
-        let slot = out.get_mut(count)?;
-        if part.is_empty() || !part.bytes().all(|b| b.is_ascii_digit()) {
-            return None;
-        }
-        *slot = part.parse().ok()?;
-        count += 1;
-    }
-    (count > 0).then_some(out)
+    Version::parse(text)
+        .ok()
+        .filter(|version| !version.is_prerelease())
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -84,7 +78,14 @@ enum Op {
 
 type Comparator = (Op, Version);
 
-fn partial(text: &str) -> Result<(Version, usize), String> {
+fn comparator(op: Op, bound: Bound) -> Result<Comparator, String> {
+    let text = bound.map(|part| part.to_string()).join(".");
+    Version::parse(&text)
+        .map(|version| (op, version))
+        .map_err(|error| error.to_string())
+}
+
+fn partial(text: &str) -> Result<(Bound, usize), String> {
     let text = text.strip_prefix('v').unwrap_or(text);
     let mut out = [0; 4];
     let mut count = 0;
@@ -106,7 +107,7 @@ fn partial(text: &str) -> Result<(Version, usize), String> {
     Ok((out, count))
 }
 
-fn bump(version: Version, index: usize) -> Result<Version, String> {
+fn bump(version: Bound, index: usize) -> Result<Bound, String> {
     let next = version
         .get(index)
         .ok_or_else(|| format!("version part {index} is out of range"))?
@@ -143,7 +144,7 @@ fn atom(text: &str) -> Result<Vec<Comparator>, String> {
         ("=", Op::Eq),
     ] {
         if let Some(rest) = text.strip_prefix(prefix) {
-            return Ok(vec![(op, partial(rest.trim())?.0)]);
+            return Ok(vec![comparator(op, partial(rest.trim())?.0)?]);
         }
     }
     if let Some(rest) = text.strip_prefix('^') {
@@ -151,20 +152,26 @@ fn atom(text: &str) -> Result<Vec<Comparator>, String> {
         let at = (0..count)
             .find(|&at| low.get(at).is_some_and(|&part| part != 0))
             .unwrap_or_else(|| count.saturating_sub(1));
-        return Ok(vec![(Op::Ge, low), (Op::Lt, bump(low, at)?)]);
+        return Ok(vec![
+            comparator(Op::Ge, low)?,
+            comparator(Op::Lt, bump(low, at)?)?,
+        ]);
     }
     if let Some(rest) = text.strip_prefix('~') {
         let (low, count) = partial(rest)?;
         return Ok(vec![
-            (Op::Ge, low),
-            (Op::Lt, bump(low, count.saturating_sub(2))?),
+            comparator(Op::Ge, low)?,
+            comparator(Op::Lt, bump(low, count.saturating_sub(2))?)?,
         ]);
     }
     let (low, count) = partial(text)?;
     if text.contains(['*', 'x', 'X']) {
-        return Ok(vec![(Op::Ge, low), (Op::Lt, bump(low, count - 1)?)]);
+        return Ok(vec![
+            comparator(Op::Ge, low)?,
+            comparator(Op::Lt, bump(low, count - 1)?)?,
+        ]);
     }
-    Ok(vec![(Op::Eq, low)])
+    Ok(vec![comparator(Op::Eq, low)?])
 }
 
 fn conjunction(text: &str) -> Result<Vec<Comparator>, String> {
@@ -178,11 +185,11 @@ fn conjunction(text: &str) -> Result<Vec<Comparator>, String> {
         match rest {
             [low, "-", high, tail @ ..] => {
                 let (high, count) = partial(high)?;
-                out.push((Op::Ge, partial(low)?.0));
+                out.push(comparator(Op::Ge, partial(low)?.0)?);
                 out.push(if count < 3 {
-                    (Op::Lt, bump(high, count - 1)?)
+                    comparator(Op::Lt, bump(high, count - 1)?)?
                 } else {
-                    (Op::Le, high)
+                    comparator(Op::Le, high)?
                 });
                 rest = tail;
             }
@@ -216,15 +223,15 @@ impl Constraint {
 
     /// Whether `version` satisfies the constraint.
     #[must_use]
-    pub fn allows(&self, version: Version) -> bool {
+    pub fn allows(&self, version: &Version) -> bool {
         self.0.iter().any(|all| {
             all.iter().all(|(op, bound)| match op {
-                Op::Ge => version >= *bound,
-                Op::Gt => version > *bound,
-                Op::Le => version <= *bound,
-                Op::Lt => version < *bound,
-                Op::Eq => version == *bound,
-                Op::Ne => version != *bound,
+                Op::Ge => version >= bound,
+                Op::Gt => version > bound,
+                Op::Le => version <= bound,
+                Op::Lt => version < bound,
+                Op::Eq => version == bound,
+                Op::Ne => version != bound,
             })
         })
     }
@@ -434,7 +441,7 @@ impl<'a> Php<'a> {
             for (name, constraints) in &wanted {
                 self.versions(name, &mut cache)?;
                 let allowed =
-                    |version: &Version| constraints.iter().all(|(_, c)| c.allows(*version));
+                    |version: &Version| constraints.iter().all(|(_, c)| c.allows(version));
                 let releases = cache
                     .get(name)
                     .ok_or_else(|| Error::new(format!("{name}: has no fetched releases")))?;
@@ -458,7 +465,7 @@ impl<'a> Php<'a> {
                     name.clone(),
                     Chosen {
                         entry: entry.clone(),
-                        version: *version,
+                        version: version.clone(),
                     },
                 );
             }

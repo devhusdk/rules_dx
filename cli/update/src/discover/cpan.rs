@@ -2,7 +2,7 @@
 
 use dx_error::DxError;
 
-use super::{Fetch, Findings, Latest, compare_declared, numeric_cmp, unquote};
+use super::{Fetch, Findings, Latest, compare_declared, semver_cmp, unquote};
 use std::cmp::Ordering;
 
 pub const DEFAULT_BASE: &str = "https://fastapi.metacpan.org";
@@ -70,7 +70,7 @@ fn newest(body: &str) -> Result<(String, Option<String>, bool), DxError> {
 /// Orders CPAN versions: `v1.2.3` and `1.2.3` are dotted, `1.23` is decimal with three
 /// digits per segment, so `1.9` is newer than `1.10`.
 fn version_cmp(a: &str, b: &str) -> Ordering {
-    numeric_cmp(&dotted(a), &dotted(b))
+    semver_cmp(&dotted(a), &dotted(b))
 }
 
 fn dotted(version: &str) -> String {
@@ -125,6 +125,12 @@ mod tests {
         assert_eq!(version_cmp("v1.0.36", "v1.0.35"), Ordering::Greater);
         assert_eq!(version_cmp("0.5", "0.500"), Ordering::Equal);
         assert_eq!(version_cmp("20260826", "20260825"), Ordering::Greater);
+    }
+
+    #[test]
+    fn a_trial_release_sorts_below_its_release() {
+        assert_eq!(version_cmp("v1.2", "v1.2.0"), Ordering::Equal);
+        assert_eq!(version_cmp("v1.2.3-TRIAL", "v1.2.3"), Ordering::Less);
     }
 
     #[test]

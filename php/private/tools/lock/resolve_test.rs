@@ -160,3 +160,20 @@ fn an_archive_with_an_unsafe_member_is_refused() {
     .expect_err("dot dot");
     assert!(error.to_string().contains("'..'"), "{error}");
 }
+
+#[test]
+fn a_short_version_equals_its_padded_form_and_prereleases_are_not_releases() {
+    use php_lock::{Constraint, parse_version};
+    let release = |text: &str| parse_version(text).unwrap_or_else(|| panic!("{text}"));
+    assert_eq!(release("1.2"), release("1.2.0"));
+    assert_eq!(release("v1.2.3.0"), release("1.2.3"));
+    assert!(release("1.2.3.4.5") > release("1.2.3.4"));
+    assert!(parse_version("1.2.3-RC1").is_none());
+    assert!(parse_version("dev-main").is_none());
+    let caret = Constraint::parse("^1.2").expect("constraint");
+    assert!(caret.allows(&release("1.2.0")));
+    assert!(caret.allows(&release("1.9.9.9.9")));
+    assert!(!caret.allows(&release("2.0")));
+    let pinned = Constraint::parse("1.2.3").expect("constraint");
+    assert!(pinned.allows(&release("1.2.3.0")));
+}

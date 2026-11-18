@@ -5,6 +5,7 @@ load("//tools/visibility:visibility.bzl", "VIS_CLI")
 
 package(default_visibility = VIS_CLI + [
     "//deploy:__subpackages__",
+    "//php/private/tools/lock:__pkg__",
     "//terraform/private/tools/lock:__pkg__",
 ])
 

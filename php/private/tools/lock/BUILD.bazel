@@ -21,6 +21,7 @@ rust_library(
         "//cli/digest:dx_digest",
         "//cli/families:dx_families",
         "//cli/lock:dx_lock",
+        "//cli/semver:dx_semver",
         "@crates//:serde_json",
     ],
 )
@@ -78,6 +79,7 @@ rust_test(
         ":php_lock_lib",
         "//cli/families:dx_families",
         "//cli/lock:dx_lock",
+        "//cli/semver:dx_semver",
         "//tools/testing:dx_testing",
     ],
 )

@@ -237,26 +237,12 @@ pub(crate) fn unquote(text: &str) -> Option<&str> {
         .map(|(inside, _)| inside)
 }
 
-/// Compares dotted numeric versions; a missing segment counts as 0.
-pub(crate) fn numeric_cmp(a: &str, b: &str) -> std::cmp::Ordering {
-    let segments = |text: &str| -> Vec<u64> {
-        text.split('.')
-            .map(|part| {
-                let digits: String = part.chars().take_while(char::is_ascii_digit).collect();
-                digits.parse().unwrap_or(0)
-            })
-            .collect()
-    };
-    let (a, b) = (segments(a), segments(b));
-    (0..a.len().max(b.len()))
-        .map(|i| {
-            a.get(i)
-                .copied()
-                .unwrap_or(0)
-                .cmp(&b.get(i).copied().unwrap_or(0))
-        })
-        .find(|order| order.is_ne())
-        .unwrap_or(std::cmp::Ordering::Equal)
+/// Orders versions by `dx_semver` precedence; text that is not a version sorts below one.
+pub(crate) fn semver_cmp(a: &str, b: &str) -> std::cmp::Ordering {
+    match (dx_semver::Version::parse(a), dx_semver::Version::parse(b)) {
+        (Ok(left), Ok(right)) => left.cmp(&right),
+        (left, right) => left.is_ok().cmp(&right.is_ok()).then_with(|| a.cmp(b)),
+    }
 }
 
 /// Compares versions where a suffix such as `-rc.1` or `.rc1` sorts below the bare release.
@@ -273,7 +259,7 @@ pub(crate) fn release_cmp(a: &str, b: &str) -> std::cmp::Ordering {
     };
     let (core_a, suffix_a) = split(a);
     let (core_b, suffix_b) = split(b);
-    numeric_cmp(&core_a, &core_b).then_with(|| match (suffix_a.is_empty(), suffix_b.is_empty()) {
+    semver_cmp(&core_a, &core_b).then_with(|| match (suffix_a.is_empty(), suffix_b.is_empty()) {
         (true, true) => std::cmp::Ordering::Equal,
         (true, false) => std::cmp::Ordering::Greater,
         (false, true) => std::cmp::Ordering::Less,
@@ -319,7 +305,7 @@ fn suffix_runs(suffix: &str) -> Vec<SuffixRun> {
 #[cfg(test)]
 mod tests {
     use super::Findings;
-    use super::{Latest, Registry, compare_declared, github_repo, numeric_cmp, release_cmp};
+    use super::{Latest, Registry, compare_declared, github_repo, release_cmp, semver_cmp};
     use dx_error::DxError;
     use std::cmp::Ordering;
 
@@ -367,10 +353,18 @@ mod tests {
     }
 
     #[test]
-    fn numeric_cmp_pads_missing_segments_with_zero() {
-        assert_eq!(numeric_cmp("1.0", "1.0.0"), Ordering::Equal);
-        assert_eq!(numeric_cmp("1.10", "1.9"), Ordering::Greater);
-        assert_eq!(numeric_cmp("1.2", "1.2.1"), Ordering::Less);
+    fn semver_cmp_pads_missing_segments_with_zero() {
+        assert_eq!(semver_cmp("1.0", "1.0.0"), Ordering::Equal);
+        assert_eq!(semver_cmp("1.10", "1.9"), Ordering::Greater);
+        assert_eq!(semver_cmp("1.2", "1.2.1"), Ordering::Less);
+    }
+
+    #[test]
+    fn semver_cmp_sorts_a_prerelease_below_its_release_and_text_below_versions() {
+        assert_eq!(semver_cmp("1.2.3-rc1", "1.2.3"), Ordering::Less);
+        assert_eq!(semver_cmp("1.2.3rc1", "1.2.3-rc1"), Ordering::Equal);
+        assert_eq!(semver_cmp("1.2.3-rc1", "1.2.2"), Ordering::Greater);
+        assert_eq!(semver_cmp("latest", "0.0.1"), Ordering::Less);
     }
 
     #[test]

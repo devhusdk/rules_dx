@@ -3,7 +3,7 @@
 use dx_error::DxError;
 
 use super::{
-    Fetch, Findings, Latest, compare_declared, github_repo, numeric_cmp, release_cmp, unquote,
+    Fetch, Findings, Latest, compare_declared, github_repo, release_cmp, semver_cmp, unquote,
 };
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
@@ -70,7 +70,7 @@ fn declaration(line: &str) -> Option<(String, String)> {
         };
         let literal = requirement.trim_start_matches(['>', '<', '=', '~', ' ']);
         if literal.starts_with(|c: char| c.is_ascii_digit())
-            && best.is_none_or(|b| numeric_cmp(literal, b) == Ordering::Greater)
+            && best.is_none_or(|b| semver_cmp(literal, b) == Ordering::Greater)
         {
             best = Some(literal);
         }
@@ -186,6 +186,23 @@ mod tests {
             .collect();
         assert_eq!(names, ["nokogiri", "rails"]);
         assert!(!found.errors.iter().any(|e| e.package == "rake"));
+    }
+
+    #[test]
+    fn the_highest_literal_pads_short_versions_and_ranks_prereleases_below_releases() {
+        let current = |line: &str| declaration(line).map(|(_, version)| version);
+        assert_eq!(
+            current(r#"gem "foo", ">= 1.2", "< 1.2.0""#).as_deref(),
+            Some("1.2")
+        );
+        assert_eq!(
+            current(r#"gem "foo", ">= 1.2.3-rc1", "< 1.2.3""#).as_deref(),
+            Some("1.2.3")
+        );
+        assert_eq!(
+            current(r#"gem "foo", "< 1.2.3", ">= 1.2.3-rc1""#).as_deref(),
+            Some("1.2.3")
+        );
     }
 
     #[test]

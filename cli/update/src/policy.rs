@@ -29,14 +29,10 @@ fn numbers(version: &str) -> Option<(u64, u64)> {
     let tail = version.get(start..)?;
     let end = tail
         .find(|c: char| !c.is_ascii_digit() && c != '.')
-        .map_or(version.len(), |i| start + i);
-    let mut parts = version
-        .get(start..end)?
-        .split('.')
-        .map(|part| part.parse::<u64>().ok());
-    let major = parts.next()??;
-    let minor = parts.next().unwrap_or(Some(0))?;
-    Some((major, minor))
+        .unwrap_or(tail.len());
+    let dotted = tail.get(..end)?.trim_end_matches('.');
+    let version = dx_semver::Version::parse(dotted).ok()?;
+    Some((version.major(), version.minor()))
 }
 
 /// Sizes the move from `current` to `latest`. Zero-major versions treat a minor bump as major.
@@ -155,6 +151,9 @@ mod tests {
         assert_eq!(level("v1.2.3", "v1.3.0"), Level::Minor);
         assert_eq!(level("latest", "1.0.0"), Level::Major);
         assert_eq!(level("1.0.0", ""), Level::Major);
+        assert_eq!(level("1.2", "1.2.0"), Level::Patch);
+        assert_eq!(level("1.3.0-rc1", "1.3.0"), Level::Patch);
+        assert_eq!(level("1.2.0", "1.3.0-rc1"), Level::Minor);
     }
 
     #[test]

@@ -1966,6 +1966,13 @@ register_toolchains("@dx_ocaml_toolchains//:all")
 fortran = use_extension("//fortran:extensions.bzl", "fortran")
 use_repo(fortran, "dx_fortran_flang_rt")
 
+fpm = use_extension("//fortran:extensions.bzl", "fpm", dev_dependency = True)
+fpm.lock(
+    name = "fpm_fortran.tests.fixtures.fpm_deps",
+    lock = "//fortran/tests/fixtures/fpm_deps:fpm.lock.json",
+)
+use_repo(fpm, "fpm_fortran.tests.fixtures.fpm_deps")
+
 register_toolchains("@dx_fortran_toolchains//:all")
 
 zig = use_extension("@rules_zig//zig:extensions.bzl", "zig")

@@ -32,6 +32,12 @@ fortran_binary(
 )
 
 fortran_binary(
+    name = "lock_hello",
+    srcs = ["lock_main.f90"],
+    deps = ["@fpm_fortran.tests.fixtures.fpm_deps//test-drive"],
+)
+
+fortran_binary(
     name = "runfiles_hello",
     srcs = ["runfiles_main.f90"],
     data = ["data.txt"],
@@ -63,6 +69,15 @@ dx_conformance_suite(
     failing_pattern = "{case}",
     failing_test = ":fail_subject_test",
     lang = "fortran",
+    lock = {
+        "binary": ":lock_hello",
+        "ecosystem": "fortran",
+        "expected": "hello lock",
+        "lockfile": "//fortran/tests/fixtures/fpm_deps:fpm.lock.json",
+        "manifest": "//fortran/tests/fixtures/fpm_deps:fpm.toml",
+        "package": "test-drive",
+        "stale": "fpm.stale.lock.json",
+    },
     passing_test = ":pass_subject_test",
     quality = {
         "clean": ":greet",

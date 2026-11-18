@@ -228,9 +228,12 @@ fn missing_library_fails_in_the_loader() {
 #[test]
 fn truncated_and_corrupted_packages_fail() {
     let source = built(".AppImage");
-    let runtime_len = std::fs::metadata(env_file("DX_APPIMAGE_RUNTIME"))
-        .expect("runtime metadata")
-        .len() as usize;
+    let runtime_len = usize::try_from(
+        std::fs::metadata(env_file("DX_APPIMAGE_RUNTIME"))
+            .expect("runtime metadata")
+            .len(),
+    )
+    .expect("runtime fits in memory");
     let bytes = std::fs::read(&source).expect("image");
 
     let (_truncated_scratch, truncated) = relocate(&source, "truncated");

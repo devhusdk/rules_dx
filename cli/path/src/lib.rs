@@ -1,7 +1,6 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 //! Path facts and spellings shared across the tool.
-//! (measurement only: widens pr-check affected tests; reverted before merge)
 
 pub mod bazel_package;
 pub mod host;

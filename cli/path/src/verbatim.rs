@@ -75,7 +75,12 @@ pub fn without_verbatim_in(text: &str) -> String {
 #[must_use]
 pub fn verbatim(absolute: &Path) -> PathBuf {
     let bytes = absolute.as_os_str().as_encoded_bytes();
-    if bytes.starts_with(VERBATIM.as_bytes()) || bytes.starts_with(br"\\.\") {
+    if !is_absolute_spelling(bytes)
+        || bytes.starts_with(VERBATIM.as_bytes())
+        || bytes.starts_with(b"//?/")
+        || bytes.starts_with(br"\\.\")
+        || bytes.starts_with(b"//./")
+    {
         return absolute.to_path_buf();
     }
     if let Some(share) = absolute.to_str().and_then(|text| text.strip_prefix(r"\\")) {
@@ -87,6 +92,12 @@ pub fn verbatim(absolute: &Path) -> PathBuf {
     let mut out = OsString::from(VERBATIM);
     out.push(absolute.as_os_str());
     out.into()
+}
+
+/// Whether the bytes start with a drive root or two separators, on any host.
+fn is_absolute_spelling(bytes: &[u8]) -> bool {
+    matches!(bytes, [letter, b':', b'\\' | b'/', ..] if letter.is_ascii_alphabetic())
+        || matches!(bytes, [b'\\' | b'/', b'\\' | b'/', ..])
 }
 
 #[cfg(test)]
@@ -172,5 +183,19 @@ mod tests {
             verbatim(Path::new(r"\\.\pipe\x")),
             PathBuf::from(r"\\.\pipe\x")
         );
+    }
+
+    #[test]
+    fn verbatim_leaves_relative_and_forward_slash_verbatim_paths_alone() {
+        for text in [
+            "a/b.py",
+            r"a\b.py",
+            "",
+            "//?/C:/tmp/a.py",
+            "//?/UNC/srv/share/a.py",
+            "//./pipe/x",
+        ] {
+            assert_eq!(verbatim(Path::new(text)), PathBuf::from(text), "{text}");
+        }
     }
 }

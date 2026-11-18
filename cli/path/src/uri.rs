@@ -61,6 +61,15 @@ pub fn uri_to_path(uri: &str) -> Result<PathBuf, UriError> {
             uri: uri.to_owned(),
         });
     }
+    let escaped_separator = parsed.path().split('/').any(|part| {
+        let upper = part.to_ascii_uppercase();
+        upper.contains("%2F") || upper.contains("%5C") || upper.contains("%00")
+    });
+    if escaped_separator {
+        return Err(UriError::NotLocalPath {
+            uri: uri.to_owned(),
+        });
+    }
     parsed.to_file_path().map_err(|()| UriError::NotLocalPath {
         uri: uri.to_owned(),
     })
@@ -333,5 +342,29 @@ mod tests {
                 "name: {name:?}"
             );
         }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn uri_to_path_refuses_an_escaped_separator_or_nul() {
+        for uri in ["file:///tmp/a%2Fb", "file:///tmp/a%00b"] {
+            assert_eq!(
+                uri_to_path(uri).expect_err(uri),
+                UriError::NotLocalPath {
+                    uri: uri.to_owned()
+                },
+                "{uri}"
+            );
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn uri_round_trips_a_path_that_is_not_text() {
+        use std::os::unix::ffi::OsStrExt;
+        let path = Path::new(std::ffi::OsStr::from_bytes(b"/tmp/\xff.pb"));
+        let spelled = uri(path).expect("absolute");
+        assert_eq!(spelled, "file:///tmp/%FF.pb");
+        assert_eq!(uri_to_path(&spelled).expect("local"), path);
     }
 }

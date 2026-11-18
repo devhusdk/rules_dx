@@ -8,10 +8,14 @@ use std::path::{Path, PathBuf};
 ///
 /// Directories win over names: an earlier directory holding any of the names
 /// beats a later directory holding an earlier name, which is how a shell
-/// resolves a command. Directories named like a tool never match.
+/// resolves a command. Directories named like a tool never match, and an empty
+/// entry never searches the working directory.
 #[must_use]
 pub fn find_in<S: AsRef<Path>>(path: &OsStr, names: &[S]) -> Option<PathBuf> {
     std::env::split_paths(path).find_map(|dir| {
+        if dir.as_os_str().is_empty() {
+            return None;
+        }
         names
             .iter()
             .map(|name| dir.join(name))
@@ -93,5 +97,14 @@ mod tests {
         std::fs::write(dir.path().join("tool"), b"x").unwrap();
         assert_eq!(find_in(OsStr::new(""), &["tool"]), None);
         assert_eq!(find_in(dir.path().as_os_str(), &[] as &[&str]), None);
+    }
+
+    #[test]
+    fn an_empty_path_entry_does_not_search_the_working_directory() {
+        let here = tempfile::NamedTempFile::new_in(".").unwrap();
+        let name = here.path().file_name().unwrap().to_owned();
+        for path in ["", ":", "::"] {
+            assert_eq!(find_in(OsStr::new(path), &[&name]), None, "{path:?}");
+        }
     }
 }

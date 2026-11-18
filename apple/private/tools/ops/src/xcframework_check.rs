@@ -127,7 +127,7 @@ fn write(path: &Path, result: std::io::Result<()>) -> Result<(), Failure> {
     result.map_err(|error| usage(format!("cannot write {}: {error}", path.display())))
 }
 
-fn verify(tools: &Tools<'_>, args: &[String], work: &Path, tmp: &Path) -> Result<(), Failure> {
+fn verify(tools: &Tools<'_>, args: &[String], work: &Path) -> Result<(), Failure> {
     let [
         report,
         out,
@@ -324,9 +324,11 @@ fn verify(tools: &Tools<'_>, args: &[String], work: &Path, tmp: &Path) -> Result
     }
 
     drop(std::fs::remove_dir_all(work));
-    write(tmp, std::fs::write(tmp, text))?;
     write(Path::new(out), std::fs::copy(archive_path, out).map(|_| ()))?;
-    write(Path::new(report), std::fs::rename(tmp, report))
+    write(
+        Path::new(report),
+        dx_atomic_fs::write_scratch(Path::new(report), text.as_bytes()),
+    )
 }
 
 /// Checks the `XCFramework` archive `args` name, publishes it and writes the slice report on success.
@@ -339,12 +341,10 @@ fn verify(tools: &Tools<'_>, args: &[String], work: &Path, tmp: &Path) -> Result
 pub fn run(tools: &Tools<'_>, args: &[String]) -> Outcome {
     let report = args.first().map_or("", String::as_str);
     let work = PathBuf::from(format!("{report}.unpacked"));
-    let tmp = PathBuf::from(format!("{report}.tmp"));
     drop(std::fs::remove_dir_all(&work));
-    let result = verify(tools, args, &work, &tmp);
+    let result = verify(tools, args, &work);
     drop(std::fs::remove_dir_all(&work));
     if result.is_err() {
-        drop(std::fs::remove_file(&tmp));
         if let Some(out) = args.get(1) {
             drop(std::fs::remove_file(out));
         }

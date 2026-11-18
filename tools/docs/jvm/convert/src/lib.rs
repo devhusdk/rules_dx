@@ -13,7 +13,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::fs;
-use std::path::Path;
 
 use documentation_ir::escape_segment;
 use documentation_ir::json::{field, string};
@@ -95,15 +94,7 @@ pub fn run(options: &Options) -> Result<(), String> {
         deps.push(shard);
     }
     let shard = convert(&json, &options.language, &options.package, &manifest, &deps)?;
-    let bytes = documentation_ir::encode_shard(&shard)
-        .map_err(|error| format!("cannot encode IR: {error:?}"))?;
-    let out = Path::new(&options.out);
-    let temp = out.with_extension("tmp");
-    fs::write(&temp, bytes).map_err(|error| format!("cannot write {}: {error}", temp.display()))?;
-    fs::rename(&temp, out).map_err(|error| {
-        drop(fs::remove_file(&temp));
-        format!("cannot write {}: {error}", options.out)
-    })
+    documentation_ir::tool::write_shard(&options.out, &shard)
 }
 
 fn optional<'a>(object: &'a Map<String, Value>, key: &str) -> Option<&'a Value> {

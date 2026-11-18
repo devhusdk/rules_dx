@@ -245,7 +245,7 @@ fn unpack(archive: &Path, tree: &Path) -> Result<(), String> {
     zip.extract(tree).map_err(|error| error.to_string())
 }
 
-fn verify(tools: &Tools<'_>, args: &[String], scratch: &Path, tmp: &Path) -> Result<(), Failure> {
+fn verify(tools: &Tools<'_>, args: &[String], scratch: &Path) -> Result<(), Failure> {
     let [
         identity,
         out,
@@ -389,9 +389,11 @@ fn verify(tools: &Tools<'_>, args: &[String], scratch: &Path, tmp: &Path) -> Res
     let write = |path: &Path, from: Result<(), std::io::Error>| {
         from.map_err(|error| usage(format!("cannot write {}: {error}", path.display())))
     };
-    write(tmp, std::fs::write(tmp, text))?;
     write(Path::new(out), std::fs::copy(archive_path, out).map(|_| ()))?;
-    write(Path::new(identity), std::fs::rename(tmp, identity))
+    write(
+        Path::new(identity),
+        dx_atomic_fs::write_scratch(Path::new(identity), text.as_bytes()),
+    )
 }
 
 /// Checks the app archive `args` name, publishes the zip and writes the identity on success.
@@ -404,12 +406,10 @@ fn verify(tools: &Tools<'_>, args: &[String], scratch: &Path, tmp: &Path) -> Res
 pub fn run(tools: &Tools<'_>, args: &[String]) -> Outcome {
     let identity = args.first().map_or("", String::as_str);
     let scratch = PathBuf::from(format!("{identity}.scratch"));
-    let tmp = PathBuf::from(format!("{identity}.tmp"));
     drop(std::fs::remove_dir_all(&scratch));
-    let result = verify(tools, args, &scratch, &tmp);
+    let result = verify(tools, args, &scratch);
     drop(std::fs::remove_dir_all(&scratch));
     if result.is_err() {
-        drop(std::fs::remove_file(&tmp));
         if let Some(out) = args.get(1) {
             drop(std::fs::remove_file(out));
         }

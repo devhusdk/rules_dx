@@ -230,8 +230,12 @@ rust_test(
     crate_name = "artifact_writes_test",
     crate_root = "artifact_writes_test.rs",
     data = [
+        "//appimage/private/tools/packer:src/lib.rs",
+        "//apple/private/tools/ops:src/app_check.rs",
+        "//apple/private/tools/ops:src/xcframework_check.rs",
         "//cli/shard_writer:src/lib.rs",
         "//core/quality/runner:src/entry.rs",
+        "//tools/docs/ir/ir:src/tool.rs",
     ],
     deps = all_crate_deps(
         package_name = "tools/ci_tests",

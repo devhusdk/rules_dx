@@ -9,6 +9,7 @@ exports_files([
     "stage0_runtime_features.patch",
     "macos_sdk_resolve_symlinks.patch",
     "msvc_fuzzer.patch",
+    "msvc_coverage.patch",
 ])
 
 real_source_target(

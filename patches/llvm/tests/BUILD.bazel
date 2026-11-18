@@ -32,6 +32,15 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
+rust_test(
+    name = "msvc_coverage_test",
+    size = "small",
+    srcs = ["msvc_coverage_test.rs"],
+    data = ["//patches/llvm:msvc_coverage.patch"],
+    env = {"DX_MSVC_COVERAGE_PATCH": "$(rootpath //patches/llvm:msvc_coverage.patch)"},
+    deps = ["//tools/testing:dx_testing"],
+)
+
 fuzzer_build(
     name = "msvc_fuzzer_runtimes",
     target_compatible_with = ["@platforms//os:windows"],

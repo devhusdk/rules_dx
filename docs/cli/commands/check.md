@@ -15,7 +15,7 @@ dx check --output json --report sarif=out.sarif //pkg/...
 ## Usage
 
 ```text
-dx check [--here] [--affected [--since <ref>]] [--no-retry] [--apply] [--diff] [--unsafe] [--include-edits] [--max-findings <n>] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
+dx check [--here] [--affected [--since <ref>|--base <ref>]] [--no-retry] [--apply] [--diff] [--unsafe] [--include-edits] [--max-findings <n>] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
 ```
 
 Args after `--` go to Bazel.
@@ -30,6 +30,7 @@ Args after `--` go to Bazel.
 | `--here` | Use the current directory tree: `//path/...`, or `//...` at the workspace root. |
 | `--affected` | Use only the targets your git changes reach, then run their tests as a last phase. |
 | `--since <ref>` | With `--affected`: compare against this git ref instead of the merge-base with the default branch. Without `--affected`, exits `2`. |
+| `--base <ref>` | With `--affected`: take the merge-base with this branch instead of the default branch. Not with `--since`. |
 | `--fail-on info\|warning\|error` | Fail on findings of this severity or worse. Applies to `format`, `lint` and `typecheck`. |
 | `--include-edits` | Add full edits to JSON change records. Needs `--output json`. |
 | `--max-findings <n>` | Print at most `n` findings per tool in JSON output. Default `50`. `0` means no limit. Needs `--output json`. |
@@ -49,8 +50,9 @@ Args after `--` go to Bazel.
 A scope picks what to check. Pass a label such as `//pkg:target` (one Bazel target), a pattern such as `//pkg/...` (every target in `pkg` and below), or a workspace file or directory. With no scope, dx checks `//...`, every target in the workspace.
 
 - `--here` uses the current directory tree.
-- `--affected` uses the targets changed since the merge-base with the default branch, or since `--since <ref>`, plus the targets that depend on them.
-- `--here` and `--affected` do not combine with scopes or with each other.
+- `--affected` uses the targets changed since the merge-base with the default branch (or with `--base <ref>`), or since `--since <ref>`, plus the targets that depend on them.
+- `--here` does not combine with scopes or `--affected`.
+- `--affected` with scopes keeps only the affected targets inside them.
 - With nothing affected, dx prints `no affected targets`, runs no phase, and exits `0`. With `--diff`, that line goes to stderr and stdout stays empty.
 
 Read [Scope defaults](scope-defaults.md) for details.

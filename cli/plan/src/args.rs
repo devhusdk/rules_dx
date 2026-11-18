@@ -74,6 +74,9 @@ pub enum ArgsError {
     /// A base ref was given without affected selection.
     #[error("option \"--since\" requires \"--affected\"")]
     SinceNeedsAffected,
+    /// A base branch was given without affected selection.
+    #[error("option \"--base\" requires \"--affected\"")]
+    BaseNeedsAffected,
     /// Affected selection was asked for alongside the here tree.
     #[error("option \"--affected\" cannot be combined with \"--here\"")]
     AffectedWithHere,

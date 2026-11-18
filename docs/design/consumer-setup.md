@@ -43,7 +43,7 @@ cargo.annotation(
         "TARGET_CC": "$(DX_BS_TARGET_CC)",
         "TARGET_CXX": "$(DX_BS_TARGET_CXX)",
     },
-    build_script_toolchains = ["@rules_dx//rust/private:build_script_cc_env"],
+    build_script_toolchains = ["@rules_dx//rust:build_script_cc_env"],
     crate = "*",
 )
 ```

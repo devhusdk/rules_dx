@@ -1,5 +1,5 @@
 {
-  "checksum": "36568d3abc4fd2b2a2de053f77c9c5a29c8fdd15c968debf0e605e078d2991b5",
+  "checksum": "dcedeacc40377c6d113b841cdec917a45fd395c8fdedde53ca23efec9ad61746",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -563,7 +563,7 @@
           }
         ],
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -692,7 +692,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -1174,7 +1174,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -1451,7 +1451,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -1617,7 +1617,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -2338,7 +2338,7 @@
           }
         ],
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ],
         "tools": {
           "common": [],
@@ -4898,7 +4898,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -4951,7 +4951,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -5044,7 +5044,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -5112,7 +5112,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -5176,7 +5176,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -5518,7 +5518,7 @@
           }
         ],
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -10585,7 +10585,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -11890,7 +11890,7 @@
           }
         ],
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -12011,7 +12011,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -12154,7 +12154,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -12730,7 +12730,7 @@
           }
         ],
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -13171,7 +13171,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -13555,7 +13555,7 @@
           }
         ],
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -13773,7 +13773,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -13889,7 +13889,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -14373,7 +14373,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -14751,7 +14751,7 @@
           }
         ],
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -14852,7 +14852,7 @@
           }
         ],
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -15277,7 +15277,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -15850,7 +15850,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -15915,7 +15915,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -16027,7 +16027,7 @@
         ],
         "links": "z",
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ],
         "tools": {
           "common": [],
@@ -16137,7 +16137,7 @@
         ],
         "links": "cplusplus",
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -16482,7 +16482,7 @@
           }
         ],
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -17169,7 +17169,7 @@
           }
         ],
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -17786,7 +17786,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -18091,7 +18091,7 @@
           }
         ],
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -18333,7 +18333,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -19220,7 +19220,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -20395,7 +20395,7 @@
         },
         "links": "prettyplease02",
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -20494,7 +20494,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -20756,7 +20756,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -21435,7 +21435,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -21557,7 +21557,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -21993,7 +21993,7 @@
         },
         "links": "rayon-core",
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -22091,7 +22091,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -22757,7 +22757,7 @@
         ],
         "links": "ring_core_0_17_14_",
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ],
         "tools": {
           "common": [],
@@ -23189,7 +23189,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -23353,7 +23353,7 @@
           }
         ],
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -23726,7 +23726,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -24309,7 +24309,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -24604,7 +24604,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -24708,7 +24708,7 @@
           }
         ],
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -24792,7 +24792,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -24952,7 +24952,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -26370,7 +26370,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -27070,7 +27070,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -27781,7 +27781,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -27841,7 +27841,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -29318,7 +29318,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -29515,7 +29515,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -30234,7 +30234,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -30632,7 +30632,7 @@
           }
         ],
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -30850,7 +30850,7 @@
         },
         "links": "wasm_bindgen",
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -31620,7 +31620,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -31674,7 +31674,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -31728,7 +31728,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -31782,7 +31782,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -31836,7 +31836,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -31890,7 +31890,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -31944,7 +31944,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -31998,7 +31998,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -32088,7 +32088,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -32493,7 +32493,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {
@@ -33093,7 +33093,7 @@
           "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
         },
         "toolchains": [
-          "@@rules_dx+//rust/private:build_script_cc_env"
+          "@@rules_dx+//rust:build_script_cc_env"
         ]
       },
       "common_attrs": {

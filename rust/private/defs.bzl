@@ -31,7 +31,7 @@ _LIBSTDCXX = Label("//rust/private:libstdcxx")
 _LIBSTDCXX_READY = Label("//rust/private:libstdcxx_ready")
 _INCOMPATIBLE = Label("@platforms//:incompatible")
 _UNWIND = Label("//rust/private:unwind")
-_BUILD_SCRIPT_CC_ENV = Label("//rust/private:build_script_cc_env")
+_BUILD_SCRIPT_CC_ENV = Label("//rust:build_script_cc_env")
 _NO_COVERAGE_FEATURES = ["-coverage", "-gcc_coverage_map_format", "-llvm_coverage_map_format"]
 _MSVC = Label("//rust/private:msvc")
 MSVC_LINK_FLAGS = ["-Clink-arg=kernel32.lib", "-Clink-arg=ntdll.lib", "-Clink-arg=/ignore:4099"]

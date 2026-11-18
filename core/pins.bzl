@@ -68,25 +68,47 @@ def lock_problems(lock):
     packages = lock.get("packages")
     if type(packages) != "list":
         return problems + ["has no packages list"]
+    problems.extend(_closure_problems(packages, ""))
     for group, closure in lock.get("groups", {}).items():
         if type(closure) != "list":
             problems.append("group %s has no packages list" % group)
             continue
-        packages = packages + closure
+        problems.extend(_closure_problems(closure, "group %s " % group))
+    return problems
+
+def _closure_problems(packages, where):
+    """Returns the problems of one package list of a lock; deps resolve inside the list and each name appears once in it."""
+    problems = []
+    counts = {}
     for package in packages:
-        name = package.get("name", "")
-        if not name:
-            problems.append("has a package without a name")
+        if type(package) == "dict" and type(package.get("name")) == "string" and package["name"]:
+            counts[package["name"]] = counts.get(package["name"], 0) + 1
+    reported = {}
+    for package in packages:
+        if type(package) != "dict":
+            problems.append("%shas a package that is not a JSON object" % where)
             continue
+        name = package.get("name", "")
+        if type(name) != "string" or not name:
+            problems.append("%shas a package without a name" % where)
+            continue
+        if counts[name] > 1 and name not in reported:
+            reported[name] = True
+            problems.append("%spackage %s appears %d times" % (where, name, counts[name]))
         if not package.get("version"):
-            problems.append("package %s has no version" % name)
+            problems.append("%spackage %s has no version" % (where, name))
+        for dep in package.get("deps", []):
+            if dep not in counts:
+                problems.append("%spackage %s depends on %s, which is not in the lock" % (where, name, dep))
         for archive in package.get("archives", []):
             digest = archive.get("sha256", "")
             if len(digest) != 64 or any([char not in _HEX for char in digest.elems()]):
-                problems.append("package %s has an archive without a 64 hex character sha256" % name)
+                problems.append("%spackage %s has an archive without a 64 hex character sha256" % (where, name))
             urls = archive.get("urls", [])
             if not urls or any([not url.startswith("https://") for url in urls]):
-                problems.append("package %s has an archive without https urls" % name)
+                problems.append("%spackage %s has an archive without https urls" % (where, name))
+            if type(archive.get("strip_prefix", "")) != "string":
+                problems.append("%spackage %s has an archive whose strip_prefix is not a string" % (where, name))
     return problems
 
 def _lock_repo_impl(rctx):

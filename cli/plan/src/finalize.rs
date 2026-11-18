@@ -488,7 +488,13 @@ mod tests {
     fn apply_within_writes_only_writable_paths() {
         let path = "rust/tests/fixtures/hello/BUILD.bazel";
         for (writable, contents, outcome, failure, after) in [
-            (path, &b"abc\n"[..], WriteOutcome::Applied, "", &b"xyz\n"[..]),
+            (
+                path,
+                &b"abc\n"[..],
+                WriteOutcome::Applied,
+                "",
+                &b"xyz\n"[..],
+            ),
             ("rust/tests", b"abc\n", WriteOutcome::Applied, "", b"xyz\n"),
             (
                 "rust/tests/fixtures/hello/lib.rs",

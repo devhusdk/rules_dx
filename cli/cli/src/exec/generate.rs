@@ -625,7 +625,11 @@ fn launch_generate(
     *kind = PhaseKind::Tool;
     let mode = if apply { "default" } else { "check" };
     if request.common.output == OutputMode::Json {
-        let requested = if request.applies() { "default" } else { "check" };
+        let requested = if request.applies() {
+            "default"
+        } else {
+            "check"
+        };
         emit_built(env.out, command_started("generate", requested))?;
     } else if request.chatty() {
         check_stdout_write(writeln!(env.out, "{}", plan.summary))?;

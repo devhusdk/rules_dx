@@ -189,8 +189,12 @@ impl Probe {
                 return status;
             }
             if Instant::now() >= deadline {
-                self.child.kill().ok();
-                self.child.wait().ok();
+                if let Err(e) = self.child.kill() {
+                    eprintln!("kill dx: {e}");
+                }
+                if let Err(e) = self.child.wait() {
+                    eprintln!("wait dx: {e}");
+                }
                 panic!(
                     "dx did not exit\nlog:\n{}\nstdout:\n{}\nstderr:\n{}",
                     self.log(),
@@ -231,7 +235,9 @@ impl Drop for Probe {
                     libc::SIGKILL,
                 );
             }
-            self.child.wait().ok();
+            if let Err(e) = self.child.wait() {
+                eprintln!("wait dx: {e}");
+            }
         }
     }
 }

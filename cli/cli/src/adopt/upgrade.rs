@@ -6,7 +6,9 @@ use dx_error::{DxError, ErrorKind};
 use dx_exec_core::common::{
     check_stdout_write, emit_built, emit_event, emit_started, report_dx_error,
 };
-use dx_output::{FinishedCounts, StatusEvent, command_finished, command_started, status_event};
+use dx_output::{
+    FinishedCounts, StatusEvent, command_finished, command_started, status_event, write_stderr,
+};
 use dx_plan::args::Invocation;
 use dx_plan::resolve::QueryRunner;
 use dx_process::Runner;
@@ -71,6 +73,7 @@ const REFRESH: &str = "bazel mod deps --lockfile_mode=update";
 
 /// Finds the version in the old text of the `rules_dx` `bazel_dep` file.
 fn current_version(text: &str) -> String {
+    // An unparsable file has no version to report; the caller shows `?`.
     dx_module_bazel::ModuleFile::parse(text)
         .ok()
         .and_then(|file| {
@@ -91,7 +94,16 @@ fn write_module(
     edit: &dx_adopt::ModuleEdit,
 ) -> Result<(), DxError> {
     let lock = workspace.join(LOCKFILE);
-    let lock_before = std::fs::read(&lock).ok();
+    let lock_before = match std::fs::read(&lock) {
+        Ok(bytes) => Some(bytes),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Err(error) => {
+            return Err(DxError::new(
+                ErrorKind::Infra,
+                format!("cannot read {LOCKFILE}: {error}"),
+            ));
+        }
+    };
     dx_adopt::write_module_edit(workspace, edit).map_err(|error| from_adopt("", &error))?;
     let mode = if lock_before.is_some() {
         "update"
@@ -115,16 +127,23 @@ fn write_module(
         ),
         Err(error) => (ErrorKind::Infra, error.to_string()),
     };
-    std::fs::write(workspace.join(&edit.path), &edit.old).ok();
-    if let Some(lock_bytes) = lock_before {
-        std::fs::write(&lock, lock_bytes).ok();
+    let mut failed = Vec::new();
+    if let Err(error) = std::fs::write(workspace.join(&edit.path), &edit.old) {
+        failed.push(format!("restoring {} failed: {error}", edit.path));
     }
+    if let Some(lock_bytes) = lock_before
+        && let Err(error) = std::fs::write(&lock, lock_bytes)
+    {
+        failed.push(format!("restoring {LOCKFILE} failed: {error}"));
+    }
+    let outcome = if failed.is_empty() {
+        format!("{} restored", edit.path)
+    } else {
+        failed.join("; ")
+    };
     Err(DxError::new(
         kind,
-        format!(
-            "refreshing {LOCKFILE} failed ({detail}); {} restored",
-            edit.path
-        ),
+        format!("refreshing {LOCKFILE} failed ({detail}); {outcome}"),
     ))
 }
 
@@ -528,12 +547,13 @@ fn finish_upgrade(
             .map_or_else(|exit| exit, |()| 0);
     }
     if let Some(message) = &ide_warning {
-        writeln!(
+        write_stderr(
             err,
-            "dx: {}: {message}",
-            dx_exec_core::notice_codes::CODE_IDE_REFRESH_FAILED
-        )
-        .ok();
+            format_args!(
+                "dx: {}: {message}\n",
+                dx_exec_core::notice_codes::CODE_IDE_REFRESH_FAILED
+            ),
+        );
     }
     let line = if rerun {
         format!("pinned {to} (upgrade current)")
@@ -552,13 +572,13 @@ fn finish_upgrade(
 fn warn_swaps(workspace: &Path, swaps: Vec<dx_adopt::ToolSwap>, err: &mut dyn Write) {
     let tracked = (!swaps.is_empty()).then(|| tracked_texts(workspace));
     for swap in swaps {
-        writeln!(err, "{}", swap.warning()).ok();
+        write_stderr(err, format_args!("{}\n", swap.warning()));
         let files = tracked
             .iter()
             .flatten()
             .map(|(path, text)| (path.as_str(), text.as_str()));
         for line in dx_adopt::suppression_lines(&swap.gone, files) {
-            writeln!(err, "{line}").ok();
+            write_stderr(err, format_args!("{line}\n"));
         }
     }
 }
@@ -592,14 +612,19 @@ fn dx_snapshot(workspace: &Path) -> BTreeMap<String, Vec<u8>> {
 }
 
 fn git(workspace: &Path, args: &[&str], input: Option<&[u8]>) -> Option<Vec<u8>> {
-    dx_process::capture::run_captured_with_input(
+    match dx_process::capture::run_captured_with_input(
         dx_process::capture::git(workspace).args(args),
         input,
         dx_process::capture::DEFAULT_TIMEOUT,
     )
     .and_then(dx_process::capture::Captured::into_success)
-    .ok()
-    .map(|output| output.stdout)
+    {
+        Ok(output) => Some(output.stdout),
+        Err(error) => {
+            tracing::info!(?args, %error, "git failed");
+            None
+        }
+    }
 }
 
 /// The old base an override copy was taken from: the pre-upgrade base when its blob sha
@@ -620,6 +645,7 @@ fn old_base(workspace: &Path, base: &str, before: Option<&Vec<u8>>, sha: &str) -
         }
         None => return None,
     };
+    // A base that is not UTF-8 cannot be merged as text; the caller reports it as missing.
     String::from_utf8(bytes).ok()
 }
 
@@ -661,7 +687,7 @@ fn merge_overrides(
         }
         let Some(ancestor) = old_base(workspace, &base, before.get(&base), sha) else {
             let note = dx_adopt::override_missing_base_message(root, sha, config.id);
-            writeln!(err, "{note}").ok();
+            write_stderr(err, format_args!("{note}\n"));
             continue;
         };
         let merged = dx_adopt::merge_override(&text, &ancestor, &new_base, sha, &new_sha);
@@ -670,13 +696,19 @@ fn merge_overrides(
             dx_merge::merge3::Merge3::Conflicts { text, .. } => (text, true),
         };
         if let Err(error) = std::fs::write(workspace.join(root), merged) {
-            writeln!(err, "{root}: cannot write the merge: {error}").ok();
+            write_stderr(
+                err,
+                format_args!("{root}: cannot write the merge: {error}\n"),
+            );
             conflicts += 1;
             continue;
         }
         wrote.push(root.to_owned());
         if conflict {
-            writeln!(err, "{}", dx_adopt::override_conflict_message(root)).ok();
+            write_stderr(
+                err,
+                format_args!("{}\n", dx_adopt::override_conflict_message(root)),
+            );
             conflicts += 1;
         }
     }
@@ -690,6 +722,7 @@ fn tracked_texts(workspace: &Path) -> Vec<(String, String)> {
     };
     listing
         .split(|byte| *byte == 0)
+        // Non-UTF-8 paths and unreadable or binary files hold no suppression text to scan.
         .filter_map(|path| {
             let path = String::from_utf8(path.to_vec()).ok()?;
             let text = std::fs::read_to_string(workspace.join(&path)).ok()?;
@@ -1289,6 +1322,46 @@ mod tests {
         assert!(err.contains("bazel_dep"), "{err}");
         assert_eq!(snapshot(&root), before);
         assert!(runner.calls.borrow().is_empty());
+    }
+
+    #[test]
+    fn an_unreadable_lockfile_is_refused_before_the_edit() {
+        let (_scratch, root) = pinned("dx-adopt-upgrade-lock-dir-", OLD);
+        std::fs::write(root.join("MODULE.bazel"), dep(OLD)).expect("module");
+        std::fs::remove_file(root.join("MODULE.bazel.lock")).expect("lock");
+        std::fs::create_dir(root.join("MODULE.bazel.lock")).expect("lock dir");
+        let runner = Recorder::default();
+        let (code, _out, err) = run_with(&upgrade(&["--apply"]), &root, &runner);
+        assert_eq!(code, 3, "{err}");
+        assert!(err.contains("cannot read MODULE.bazel.lock"), "{err}");
+        assert_eq!(module_text(&root), dep(OLD));
+        assert!(runner.calls.borrow().is_empty());
+    }
+
+    /// Fails the refresh after turning `MODULE.bazel` into a directory, so the restore fails.
+    struct BlockRestore;
+
+    impl Runner for BlockRestore {
+        fn run(
+            &self,
+            _argv: &[String],
+            cwd: &Path,
+            _env: &[(&str, &str)],
+        ) -> std::io::Result<dx_process::ChildStatus> {
+            std::fs::remove_file(cwd.join("MODULE.bazel"))?;
+            std::fs::create_dir(cwd.join("MODULE.bazel"))?;
+            Ok(dx_process::ChildStatus::exited(1))
+        }
+    }
+
+    #[test]
+    fn a_failed_restore_is_reported_not_claimed() {
+        let (_scratch, root) = pinned("dx-adopt-upgrade-restore-fails-", OLD);
+        std::fs::write(root.join("MODULE.bazel"), dep(OLD)).expect("module");
+        let (code, _out, err) = run_with(&upgrade(&["--apply"]), &root, &BlockRestore);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("restoring MODULE.bazel failed"), "{err}");
+        assert!(!err.contains("restored"), "{err}");
     }
 
     #[test]

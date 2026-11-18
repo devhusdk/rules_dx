@@ -52,6 +52,7 @@ impl Entry {
 pub(super) fn root_names(workspace: &Path) -> BTreeSet<String> {
     std::fs::read_dir(workspace)
         .map(|entries| {
+            // An entry that vanished or cannot be read mid-listing is not a root file.
             entries
                 .filter_map(|entry| Some(entry.ok()?.file_name().to_string_lossy().into_owned()))
                 .collect()

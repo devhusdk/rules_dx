@@ -71,6 +71,12 @@ common:macos --macos_minimum_os=14.0
 # On macOS, build host tools for macOS 14.0 too.
 common:macos --host_macos_minimum_os=14.0
 
+# On macOS, give Cargo build scripts the same macOS 14.0 deployment target so cc-rs matches the toolchain.
+common:macos --action_env=MACOSX_DEPLOYMENT_TARGET=14.0
+
+# On macOS, give host-tool Cargo build scripts the same macOS 14.0 deployment target.
+common:macos --host_action_env=MACOSX_DEPLOYMENT_TARGET=14.0
+
 # Run Java targets on the downloaded JDK 21, not a host JDK.
 build --java_runtime_version=remotejdk_21
 

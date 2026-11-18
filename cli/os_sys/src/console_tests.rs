@@ -19,7 +19,7 @@ fn an_undefined_ctrl_event_has_no_mapping() {
 #[cfg(windows)]
 mod windows {
     use crate::console::{
-        CtrlEvent, CtrlHandler, add_handler, process_ids, restore_ctrl_c, trampoline,
+        CtrlEvent, CtrlHandler, add_handler, ignore_ctrl_c, process_ids, restore_ctrl_c, trampoline,
     };
 
     struct PassOn;
@@ -56,5 +56,10 @@ mod windows {
     fn the_console_list_names_this_process_when_it_has_a_console() {
         let ids = process_ids();
         assert!(ids.is_empty() || ids.contains(&std::process::id()));
+    }
+
+    #[test]
+    fn ctrl_c_can_be_ignored() {
+        ignore_ctrl_c().expect("ignore Ctrl-C");
     }
 }

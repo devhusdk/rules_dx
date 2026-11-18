@@ -564,91 +564,31 @@ mod signal {
 }
 
 #[cfg(windows)]
-#[expect(
-    unsafe_code,
-    reason = "process handle APIs have no safe std equivalent"
-)]
 mod signal {
-    use std::ffi::c_void;
+    use dx_os_sys::win32;
+    use std::os::windows::io::AsHandle;
 
     pub const SIGTERM: i32 = 15;
     pub const SIGKILL: i32 = 9;
 
-    type Handle = *mut c_void;
-
-    const SYNCHRONIZE: u32 = 0x0010_0000;
-    const PROCESS_TERMINATE: u32 = 0x0001;
-    const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
-    const PROCESS_SUSPEND_RESUME: u32 = 0x0800;
-    const WAIT_TIMEOUT: u32 = 0x0000_0102;
-
-    #[link(name = "ntdll", kind = "raw-dylib")]
-    unsafe extern "system" {
-        fn NtSuspendProcess(process: Handle) -> i32;
-        fn NtResumeProcess(process: Handle) -> i32;
-    }
-
-    unsafe extern "system" {
-        fn OpenProcess(access: u32, inherit: i32, process_id: u32) -> Handle;
-        fn WaitForSingleObject(handle: Handle, millis: u32) -> u32;
-        fn TerminateProcess(process: Handle, exit_code: u32) -> i32;
-        fn CloseHandle(handle: Handle) -> i32;
-    }
-
     /// Terminates `pid`; Windows has no graceful signal for a console-less server, so both kill.
     pub fn send(pid: u32, _sig: i32) -> bool {
-        // SAFETY: OpenProcess takes plain integers and returns null on failure.
-        let handle = unsafe { OpenProcess(PROCESS_TERMINATE, 0, pid) };
-        if handle.is_null() {
-            return false;
-        }
-        // SAFETY: handle is a live non-null process handle owned here.
-        let done = unsafe { TerminateProcess(handle, 1) } != 0;
-        // SAFETY: handle is closed exactly once.
-        unsafe {
-            CloseHandle(handle);
-        }
-        done
+        win32::terminate(pid, 1).is_ok()
     }
 
     /// A process is alive while its handle is unsignaled; an exit code of 259 cannot fool this.
     pub fn alive(pid: u32) -> bool {
-        // SAFETY: OpenProcess takes plain integers and returns null on failure.
-        let handle =
-            unsafe { OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
-        if handle.is_null() {
-            return false;
-        }
-        // SAFETY: handle is a live non-null process handle owned here.
-        let waited = unsafe { WaitForSingleObject(handle, 0) };
-        // SAFETY: handle is closed exactly once.
-        unsafe {
-            CloseHandle(handle);
-        }
-        waited == WAIT_TIMEOUT
-    }
-
-    fn with_handle(pid: u32, act: unsafe extern "system" fn(Handle) -> i32) -> bool {
-        // SAFETY: OpenProcess takes plain integers and returns null on failure.
-        let handle = unsafe { OpenProcess(PROCESS_SUSPEND_RESUME, 0, pid) };
-        if handle.is_null() {
-            return false;
-        }
-        // SAFETY: act is NtSuspendProcess or NtResumeProcess on a live handle owned here.
-        let status = unsafe { act(handle) };
-        // SAFETY: handle is closed exactly once.
-        unsafe {
-            CloseHandle(handle);
-        }
-        status >= 0
+        win32::open(pid, win32::Access::Wait)
+            .and_then(|process| win32::is_running(process.as_handle()))
+            .unwrap_or(false)
     }
 
     pub fn suspend(pid: u32) -> bool {
-        with_handle(pid, NtSuspendProcess)
+        win32::suspend(pid).is_ok()
     }
 
     pub fn resume(pid: u32) -> bool {
-        with_handle(pid, NtResumeProcess)
+        win32::resume(pid).is_ok()
     }
 }
 

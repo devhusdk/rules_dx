@@ -23,6 +23,7 @@ rust_binary(
     crate_name = "process_probe",
     crate_root = "src/main.rs",
     deps = [
+        "//cli/os_sys:dx_os_sys",
         "//cli/output:dx_output",
         "//cli/path:dx_path",
     ],

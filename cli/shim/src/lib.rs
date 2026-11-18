@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 #![deny(clippy::indexing_slicing, clippy::panic, clippy::string_slice)]
 
 pub mod fetch;

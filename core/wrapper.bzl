@@ -50,7 +50,15 @@ def dx_private_dep_rule(dep, providers, doc):
     """Creates a rule whose targets forward the providers of dep, reached through a private attribute."""
 
     def _impl(ctx):
-        return dx_forwarded_quiet(ctx.attr._dep, providers)
+        upstream = ctx.attr._dep
+
+        # Bazel rejects a DefaultInfo whose executable another rule created, so an
+        # executable dep is forwarded as its files and runfiles.
+        return [
+            DefaultInfo(files = upstream[DefaultInfo].files, runfiles = upstream[DefaultInfo].default_runfiles) if p == DefaultInfo else upstream[p]
+            for p in providers
+            if p in upstream
+        ]
 
     return rule(
         implementation = _impl,

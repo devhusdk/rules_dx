@@ -2,7 +2,7 @@
 
 load("//core:repo.bzl", "hub_repo")
 load(":packages.bzl", "declare_packages")
-load(":pins.bzl", "ALL_CELLS")
+load(":pins.bzl", "ALL_CELLS", "CROSS_CELLS")
 load(":repos.bzl", "HUB_NAME", "cell_repository_name", "ghc_repo", "hub_files")
 
 def _haskell_impl(mctx):
@@ -12,7 +12,16 @@ def _haskell_impl(mctx):
             cell = cell,
             python = Label(ALL_CELLS[cell].python),
         )
-    hub_repo(name = HUB_NAME, files = hub_files())
+    for name, cross in sorted(CROSS_CELLS.items()):
+        ghc_repo(
+            name = cell_repository_name(name),
+            cell = cross.host,
+            target = cross.target,
+            cc_target = cross.cc_target,
+            llvm_backend = cross.llvm_backend,
+            python = Label(ALL_CELLS[cross.host].python),
+        )
+    hub_repo(name = HUB_NAME, files = hub_files(host_os = mctx.os.name, host_arch = mctx.os.arch))
     return mctx.extension_metadata(reproducible = True)
 
 haskell = module_extension(

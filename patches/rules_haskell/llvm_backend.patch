@@ -1,0 +1,62 @@
+Upstream: none (not yet sent upstream)
+--- a/haskell/toolchain.bzl
++++ b/haskell/toolchain.bzl
+@@ -78,6 +78,19 @@ def _run_ghc(
+     # XXX: We should also tether Bazel's CC toolchain to GHC's, so that we can properly mix Bazel-compiled
+     # C libraries with Haskell targets.
+     args.add_all(ghc_cc_program_args(hs, cc.tools.cc.executable.path, cc.tools.ld))
++    if hs.toolchain.llvm != None:
++        # The LLVM backend assembles llc's output with the C compiler, so it gets the
++        # same target and sysroot flags as the C compiler. GHC names an older supported
++        # LLVM range than the llc it is given and would print that notice per module.
++        args.add_all([
++            "-fllvm",
++            "-Wno-unsupported-llvm-version",
++            "-pgmlc=" + hs.toolchain.llvm.llc.executable.path,
++            "-pgmlo=" + hs.toolchain.llvm.opt.executable.path,
++            "-pgmlas=" + cc.tools.cc.executable.path,
++        ])
++        args.add_all(cc.compiler_flags, format_each = "-optlas%s")
++        tools = tools + [hs.toolchain.llvm.llc, hs.toolchain.llvm.opt]
+ 
+     compile_flags_file = hs.actions.declare_file("compile_flags_%s_%s_%s" % (hs.name, extra_name, mnemonic))
+     extra_args_file = hs.actions.declare_file("extra_args_%s_%s_%s" % (hs.name, extra_name, mnemonic))
+@@ -407,6 +420,13 @@ def _haskell_toolchain_impl(ctx):
+         for lib in ctx.attr.libraries
+     }
+ 
++    if bool(ctx.attr.llc) != bool(ctx.attr.opt):
++        fail("`llc` and `opt` are set together")
++    llvm = struct(
++        llc = ctx.attr.llc[DefaultInfo].files_to_run,
++        opt = ctx.attr.opt[DefaultInfo].files_to_run,
++    ) if ctx.attr.llc else None
++
+     cc_wrapper_info = ctx.attr._cc_wrapper[DefaultInfo]
+     cc_wrapper_files_to_run = cc_wrapper_info.files_to_run
+ 
+@@ -457,6 +477,7 @@ def _haskell_toolchain_impl(ctx):
+             new_libraries = _haskell_toolchain_libraries(ctx, libraries),
+             is_darwin = ctx.attr.is_darwin,
+             is_windows = ctx.attr.is_windows,
++            llvm = llvm,
+             static_runtime = ctx.attr.static_runtime,
+             fully_static_link = ctx.attr.fully_static_link,
+             version = ctx.attr.version,
+@@ -502,6 +523,16 @@ common_attrs = {
+     ),
+     "static_runtime": attr.bool(),
+     "fully_static_link": attr.bool(),
++    "llc": attr.label(
++        cfg = "exec",
++        executable = True,
++        doc = "LLVM static compiler; with `opt`, GHC compiles through its LLVM backend.",
++    ),
++    "opt": attr.label(
++        cfg = "exec",
++        executable = True,
++        doc = "LLVM optimiser; with `llc`, GHC compiles through its LLVM backend.",
++    ),
+     "locale": attr.string(
+         default = "C.UTF-8",
+         doc = "Locale that will be set during compiler invocations.",

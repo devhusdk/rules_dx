@@ -69,6 +69,7 @@ dx_conformance_suite(
         "package": "split",
         "stale": "cabal.project.stale.freeze",
     },
+    not_applicable = {"cross_test:windows_x86_64": "haskell supports no other windows platform"},
     passing_test = ":pass_subject_test",
     runfiles = {
         "binary": ":hello",

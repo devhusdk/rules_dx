@@ -76,9 +76,13 @@ single_version_override(
     version = "0.8.27",
 )
 
-# dev only: //patches/llvm/tests:libunwind_copy_test reads the patched libunwind.a
-_llvm_runtimes = use_extension("@llvm//extensions:llvm.bzl", "llvm", dev_dependency = True)
-use_repo(_llvm_runtimes, "llvm-project")
+# llvm-project sources: haskell's LLVM backend builds llc and opt from them, and
+# //patches/llvm/tests:libunwind_copy_test reads the patched libunwind.a
+llvm_project = use_extension("@llvm//extensions:llvm.bzl", "llvm")
+
+# The macOS to linux arm64 haskell cross cell runs llc for AArch64.
+llvm_project.configure(targets = ["AArch64"])
+use_repo(llvm_project, "llvm-project")
 
 # dev only: qualifies a real foreign CMake build; cmake_library stays quality-only
 bazel_dep(name = "rules_foreign_cc", version = "0.17.0", dev_dependency = True)
@@ -1110,6 +1114,7 @@ dx_pins.archive(
         "//patches/rules_haskell:cabal_binary_dep_data.patch",
         "//patches/rules_haskell:cabal_static_exe.patch",
         "//patches/rules_haskell:ghc_xcode_env.patch",
+        "//patches/rules_haskell:llvm_backend.patch",
     ],
     pins = "//haskell:pins.json",
 )

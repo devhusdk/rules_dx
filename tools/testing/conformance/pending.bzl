@@ -90,7 +90,6 @@ erlang cross_test windows_x86_64
 flutter runfiles_test *
 fortran cross_test *
 fortran lock_test *
-haskell cross_test *
 haskell format_error_test *
 haskell format_test *
 haskell lint_error_test *

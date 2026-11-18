@@ -2,13 +2,17 @@
 
 load("//core:deb_closure.bzl", "deb_closure")
 load("//core:toolchain.bzl", "toolchain_target")
-load(":pins.bzl", "ALL_CELLS", "ALPINE_MIRROR", "CELLS", "GHC_VERSION", "MUSL_CELLS", "qualified_cells", "runtime_urls")
+load(":pins.bzl", "ALL_CELLS", "ALPINE_MIRROR", "CELLS", "CROSS_CELLS", "GHC_VERSION", "MUSL_CELLS", "qualified_cells", "runtime_urls")
 
 HUB_NAME = "dx_haskell_toolchains"
 
 LIBRARIES_PACKAGE = "lib"
 
 CLOSURE_DIR = "dx_closure"
+
+HOST_CLOSURE_DIR = "dx_host_closure"
+
+TARGET_DIR = "_target"
 
 LIBDIR = "lib"
 
@@ -17,6 +21,15 @@ VERSION_FILE = "DX_GHC_VERSION"
 def ghc_library_dir(cell):
     """Returns the bindist library directory of one cell."""
     return LIBDIR + "/" + ALL_CELLS[cell].ghc_libdir_triple + "-ghc-" + GHC_VERSION
+
+def ghc_library_dir_name(cell):
+    """Returns the base name of one cell's bindist library directory."""
+    return ALL_CELLS[cell].ghc_libdir_triple + "-ghc-" + GHC_VERSION
+
+def cross_libdir_moves(host_entries, target_entries, host):
+    """Returns the host lib entries a cross cell drops and the target lib entries it takes."""
+    keep = ghc_library_dir_name(host)
+    return [entry for entry in host_entries if entry != keep], [entry for entry in target_entries if entry != keep]
 
 def cell_matches_host(cell, os_name, arch):
     """Returns whether the cell's binaries run on the host."""
@@ -189,7 +202,7 @@ haskell_toolchain(
     docdir_path = "doc",
     fully_static_link = False,
     libdir = [":lib"],
-    libraries = toolchain_libraries,
+    libraries = toolchain_libraries,{llvm}
     locale = "{locale}",
     static_runtime = {static_runtime},
     tools = [":bin"],
@@ -203,7 +216,7 @@ filegroup(
 
 filegroup(
     name = "lib",
-    srcs = glob(["{libdir}/**", "{closure}/**"]),
+    srcs = glob(["{libdir}/**", "{closure}/**"{host_closure}]),
 )
 
 filegroup(
@@ -284,12 +297,25 @@ _OS_LIBRARY = """haskell_toolchain_library(
 )
 """
 
+LLVM_TOOLS = {
+    "llc": Label("@llvm-project//llvm:llc"),
+    "opt": Label("@llvm-project//llvm:opt"),
+}
+
+def llvm_toolchain_attrs(llvm_backend):
+    """Returns the haskell_toolchain attributes that make GHC compile through llc and opt."""
+    if not llvm_backend:
+        return ""
+    return "".join(["\n    {} = \"{}\",".format(name, tool) for name, tool in sorted(LLVM_TOOLS.items())])
+
 def cell_repository_name(cell):
     """Returns the repository name one qualified cell is acquired into."""
     return _CELL_PREFIX + cell
 
-def ghc_settings(source):
-    """Returns the bindist's lib/settings text with every host program replaced."""
+CC_TARGET_FLAGS = ["C compiler flags", "C++ compiler flags"]
+
+def ghc_settings(source, cc_target = ""):
+    """Returns the bindist's lib/settings text with every host program replaced; a cc_target sets the C and C++ compiler target."""
     lines = []
     seen = []
     for line in source.split("\n"):
@@ -303,7 +329,8 @@ def ghc_settings(source):
             if (key in BUNDLED_FLAGS and MINGW_ROOT in source) or (key in BUNDLED_TOOLS and (MINGW_ROOT in source or "\"$tooldir/" in stripped)):
                 lines.append(line)
                 continue
-            line = line[:line.index("(")] + "(" + repr(key) + ", " + repr(SETTINGS[key]) + ")"
+            value = "--target=" + cc_target if cc_target and key in CC_TARGET_FLAGS else SETTINGS[key]
+            line = line[:line.index("(")] + "(" + repr(key) + ", " + repr(value) + ")"
         lines.append(line)
     missing = [key for key in SETTINGS if key not in seen]
     if missing:
@@ -437,35 +464,63 @@ def _musl_wrappers(rctx, cell_name):
         rctx.rename(entry, str(entry) + MUSL_SUFFIX)
         rctx.file(entry, musl_wrapper(cell_name, entry.basename), executable = True)
 
+def _cross_libdir(rctx, target):
+    rctx.download_and_extract(
+        url = target.ghc.urls,
+        sha256 = target.ghc.sha256,
+        stripPrefix = target.ghc.strip_prefix,
+        output = TARGET_DIR,
+    )
+    dropped, taken = cross_libdir_moves(
+        [entry.basename for entry in rctx.path(LIBDIR).readdir()],
+        [entry.basename for entry in rctx.path(TARGET_DIR + "/" + LIBDIR).readdir()],
+        rctx.attr.cell,
+    )
+    for name in dropped:
+        rctx.delete(LIBDIR + "/" + name)
+    for name in taken:
+        rctx.rename(TARGET_DIR + "/" + LIBDIR + "/" + name, LIBDIR + "/" + name)
+    rctx.delete(TARGET_DIR)
+
+def _runtime_closure(rctx, cell_name, closure):
+    packages = ALL_CELLS[cell_name].runtime
+    deb_closure(rctx, runtime_urls, packages, closure)
+    rctx.symlink(closure + "/lib/libgmp.so.10", closure + "/lib/libgmp.so")
+    for package in packages:
+        for soname in package.libraries:
+            rctx.symlink(closure + "/lib/" + soname, ghc_library_dir(cell_name) + "/" + soname)
+
 def _ghc_repo_impl(rctx):
-    cell = ALL_CELLS[rctx.attr.cell]
+    host = ALL_CELLS[rctx.attr.cell]
+    target_name = rctx.attr.target or rctx.attr.cell
+    cell = ALL_CELLS[target_name]
     if not cell_matches_host(rctx.attr.cell, rctx.os.name, rctx.os.arch):
         rctx.file("REPO.bazel", "")
         rctx.file("BUILD.bazel", _UNAVAILABLE_BUILD)
         return rctx.repo_metadata(reproducible = True)
     rctx.download_and_extract(
-        url = cell.ghc.urls,
-        sha256 = cell.ghc.sha256,
-        stripPrefix = cell.ghc.strip_prefix,
+        url = host.ghc.urls,
+        sha256 = host.ghc.sha256,
+        stripPrefix = host.ghc.strip_prefix,
     )
     rctx.download_and_extract(
-        url = cell.cabal.urls,
-        sha256 = cell.cabal.sha256,
+        url = host.cabal.urls,
+        sha256 = host.cabal.sha256,
         output = "cabal",
     )
     for path in GHC_DROPPED_PATHS:
         rctx.delete(path)
+    if rctx.attr.target:
+        _cross_libdir(rctx, cell)
+        if host.runtime:
+            _runtime_closure(rctx, rctx.attr.cell, HOST_CLOSURE_DIR)
     apks = getattr(cell, "apks", [])
     if apks:
         _apk_closure(rctx, cell)
         _musl_wrappers(rctx, rctx.attr.cell)
     if cell.runtime:
-        deb_closure(rctx, runtime_urls, cell.runtime, CLOSURE_DIR)
-        rctx.symlink(CLOSURE_DIR + "/lib/libgmp.so.10", CLOSURE_DIR + "/lib/libgmp.so")
-        for package in cell.runtime:
-            for soname in package.libraries:
-                rctx.symlink(CLOSURE_DIR + "/lib/" + soname, ghc_library_dir(rctx.attr.cell) + "/" + soname)
-    rctx.file(LIBDIR + "/settings", ghc_settings(rctx.read(LIBDIR + "/settings")), executable = False)
+        _runtime_closure(rctx, target_name, CLOSURE_DIR)
+    rctx.file(LIBDIR + "/settings", ghc_settings(rctx.read(LIBDIR + "/settings"), rctx.attr.cc_target), executable = False)
     if cell.runtime or apks:
         _gmp_registration(rctx)
     gmp_license = getattr(cell, "gmp_license", None)
@@ -475,7 +530,7 @@ def _ghc_repo_impl(rctx):
             output = CLOSURE_DIR + "/licenses/" + gmp_license.name,
             sha256 = gmp_license.sha256,
         )
-    if cell.exe_suffix == ".exe":
+    if host.exe_suffix == ".exe":
         _drop_import_libs(rctx)
     for entry in rctx.path(LIBDIR + "/package.conf.d").readdir():
         if entry.basename.endswith(".conf"):
@@ -485,8 +540,8 @@ def _ghc_repo_impl(rctx):
                 stripped = closure_library_dirs(stripped, CLOSURE_DIR)
             if stripped != conf:
                 rctx.file(entry, stripped, executable = False)
-    _execute(rctx, ["bin/ghc-pkg" + cell.exe_suffix, "recache", "--global"])
-    version = _execute(rctx, ["bin/ghc" + cell.exe_suffix, "--numeric-version"]).stdout.strip()
+    _execute(rctx, ["bin/ghc-pkg" + host.exe_suffix, "recache", "--global"])
+    version = _execute(rctx, ["bin/ghc" + host.exe_suffix, "--numeric-version"]).stdout.strip()
     if version != GHC_VERSION:
         fail("GHC bindist reports {}, not {}".format(version, GHC_VERSION))
     python = rctx.path(rctx.attr.python)
@@ -503,14 +558,16 @@ def _ghc_repo_impl(rctx):
         cc = _MINGW_CC_BUILD if mingw_cc else "",
         cc_loads = _MINGW_CC_LOADS if mingw_cc else "",
         closure = CLOSURE_DIR,
-        exe_suffix = cell.exe_suffix,
+        exe_suffix = host.exe_suffix,
+        host_closure = ", \"{}/**\"".format(HOST_CLOSURE_DIR) if rctx.attr.target and host.runtime else "",
         gmp = (_GMP_IMPORT if cell.runtime or apks else _GMP_EMPTY).format(
             closure = CLOSURE_DIR,
             static = "\n    static_library = \"{}/lib/libgmp.a\",".format(CLOSURE_DIR) if apks else "",
         ),
         libdir = LIBDIR,
         libraries = result["file_content"],
-        locale = cell.locale,
+        llvm = llvm_toolchain_attrs(rctx.attr.llvm_backend),
+        locale = host.locale,
         static_runtime = cell.exe_suffix == ".exe",
         version = GHC_VERSION,
         version_file = VERSION_FILE,
@@ -519,15 +576,27 @@ def _ghc_repo_impl(rctx):
 
 ghc_repo = repository_rule(
     implementation = _ghc_repo_impl,
-    doc = "Acquires one relocatable GHC bindist plus its native runtime closure.",
+    doc = "Acquires one relocatable GHC bindist plus its native runtime closure; with `target`, the host bindist's executables over the target bindist's libraries.",
     attrs = {
         "cell": attr.string(mandatory = True, doc = "Qualified host cell."),
+        "target": attr.string(doc = "Qualified target cell of a cross toolchain."),
+        "cc_target": attr.string(doc = "C compiler target triple of a cross toolchain."),
+        "llvm_backend": attr.bool(doc = "Whether GHC compiles through llc and opt instead of its native code generator."),
         "_pkgdb_to_bzl": attr.label(default = Label("@rules_haskell//haskell:private/pkgdb_to_bzl.py")),
         "python": attr.label(mandatory = True, doc = "Host interpreter for the package database conversion."),
     },
 )
 
-def hub_files(cells = CELLS, musl_cells = MUSL_CELLS):
+def alias_repository(cell, host_os = None, host_arch = None):
+    """Returns the repository the hub aliases of one target cell select: the cross cell when only that one runs on the host."""
+    if host_os == None or cell_matches_host(cell, host_os, host_arch):
+        return cell_repository_name(cell)
+    for name, cross in sorted(CROSS_CELLS.items()):
+        if cross.target == cell and cell_matches_host(cross.host, host_os, host_arch):
+            return cell_repository_name(name)
+    return cell_repository_name(cell)
+
+def hub_files(cells = CELLS, musl_cells = MUSL_CELLS, host_os = None, host_arch = None):
     """Returns the hub files: the toolchains and cc toolchains at the root, the runtime closure aliases under lib."""
     toolchains = []
     content = []
@@ -547,7 +616,7 @@ def hub_files(cells = CELLS, musl_cells = MUSL_CELLS):
             cell,
             repr(target),
         ))
-        arms.append("        \":{}_platform\": \"@{}//:{{name}}\",".format(cell, cell_repository_name(cell)))
+        arms.append("        \":{}_platform\": \"@{}//:{{name}}\",".format(cell, alias_repository(cell, host_os, host_arch)))
     for name in ["cabal", "ghc_exe", "ghc_files", "gmp", "licenses"]:
         content.append(_HUB_ALIAS.format(name = name, arms = "\n".join(arms).replace("{name}", name)))
     for name in COMMON_LIBRARIES:
@@ -555,6 +624,15 @@ def hub_files(cells = CELLS, musl_cells = MUSL_CELLS):
     for name in os_libraries():
         compatible = [cell for cell in qualified_cells(musl_cells) if name in musl_cells[cell].os_libraries] + [cell for cell in qualified_cells(cells) if name in cells[cell].os_libraries]
         content.append(_OS_LIBRARY.format(name = name, arms = "".join(["        \":{}_platform\": [],\n".format(cell) for cell in compatible]), incompatible = str(Label("@platforms//:incompatible"))))
+    for name, cross in sorted(CROSS_CELLS.items()):
+        toolchains.append(toolchain_target(
+            name = name,
+            exec_compatible_with = cells[cross.host].exec_compatible_with,
+            target_compatible_with = cells[cross.target].exec_compatible_with,
+            target_settings = [_TOOLCHAINS_ON],
+            toolchain = "@{}//:toolchain-impl".format(cell_repository_name(name)),
+            toolchain_type = str(Label("@rules_haskell//haskell:toolchain")),
+        ))
     cc_toolchains = [
         toolchain_target(
             name = "cc_" + cell,

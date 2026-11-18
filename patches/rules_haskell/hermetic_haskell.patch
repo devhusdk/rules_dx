@@ -299,13 +299,12 @@ index 0fa4fd9..28cd3d1 100644
              solibs = " ".join(["\"" + lib.path + "\"" for lib in cc_dynamic_libs]),
              out = linker_flags_file.path,
          ),
-@@ -131,15 +129,16 @@ def link_binary(
+@@ -131,15 +129,15 @@ def link_binary(
  
      args = hs.actions.args()
      args.add_all(cc.linker_flags, format_each = "-optl%s")
-+    if hs.toolchain.is_darwin:
-+        # GHC compiles a C stub while linking and needs the SDK sysroot.
-+        args.add_all(cc.compiler_flags, format_each = "-optc%s")
++    # GHC compiles a C stub while linking and needs the toolchain's sysroot and headers.
++    args.add_all(cc.compiler_flags, format_each = "-optc%s")
      if with_profiling:
          args.add("-prof")
  

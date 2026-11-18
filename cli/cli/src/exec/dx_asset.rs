@@ -7,8 +7,8 @@ use std::path::{Path, PathBuf};
 use dx_output::{NoticeEvent, OutputMode, notice_event};
 use dx_shim::protocol;
 
-use super::common::emit_built;
-use super::notice_codes::{CODE_DX_CACHED, CODE_DX_NOT_CACHED};
+use dx_exec_core::common::emit_built;
+use dx_exec_core::notice_codes::{CODE_DX_CACHED, CODE_DX_NOT_CACHED};
 
 /// Where the launcher's binary stands after `dx fetch`.
 #[derive(Debug, PartialEq, Eq)]

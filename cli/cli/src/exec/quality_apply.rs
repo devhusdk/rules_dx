@@ -1,8 +1,8 @@
-use super::common::{
+use dx_apply::FileSystem;
+use dx_exec_core::common::{
     FileChange, REASON_INCOMPLETE_COLLECTION, REASON_INVALID_EDITS, REASON_STALE_SOURCE,
     REASON_UNREADABLE_SOURCE, REASON_WRITE_FAILED, SourceRead, apply_to_bytes, read_verified,
 };
-use dx_apply::FileSystem;
 use dx_output::{DiagnosticEvent, Threshold, meets_threshold};
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -172,14 +172,14 @@ pub(crate) fn project_status(
 
 #[cfg(test)]
 mod tests {
-    use super::super::common::{
-        FileChange, REASON_INCOMPLETE_COLLECTION, REASON_INVALID_EDITS, REASON_STALE_SOURCE,
-        REASON_WRITE_FAILED,
-    };
     use super::super::test_support::{FailingWrites, temp_dir};
     use super::apply_collected_changes;
     use dx_apply::RealFileSystem;
     use dx_digest::blake3 as digest;
+    use dx_exec_core::common::{
+        FileChange, REASON_INCOMPLETE_COLLECTION, REASON_INVALID_EDITS, REASON_STALE_SOURCE,
+        REASON_WRITE_FAILED,
+    };
 
     fn write_workspace(name: &str, files: &[(&str, &[u8])]) -> tempfile::TempDir {
         let workspace = temp_dir(name);

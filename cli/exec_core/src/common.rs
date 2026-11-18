@@ -15,13 +15,13 @@ use std::fmt::Write as _;
 use std::io::{self, BufReader, Write};
 use std::path::Path;
 
-pub(crate) use super::failure::{
+pub use crate::failure::{
     CODE_ANALYSIS_FAILED, CODE_APPLICATION_FAILED, CODE_BAZEL_FAILED, CODE_DISK_FULL,
     CODE_INVALID_ARGUMENTS, CODE_SERVER_CRASHED, CODE_SERVER_OUT_OF_MEMORY, CODE_TESTS_FAILED,
     Cause, Failure, emit_failure_events, report_failure,
 };
 
-pub(crate) fn stdout_output_code(error: &dx_output::OutputError) -> i32 {
+pub fn stdout_output_code(error: &dx_output::OutputError) -> i32 {
     if error.is_broken_pipe() {
         broken_pipe_code()
     } else {
@@ -37,7 +37,7 @@ pub fn emit_event(out: &mut dyn Write, event: &serde_json::Value) -> Result<(), 
 }
 
 /// Writes one built event, or ends the stream with `invalid_result` when it failed to build.
-pub(crate) fn emit_built(
+pub fn emit_built(
     out: &mut dyn Write,
     built: Result<serde_json::Value, dx_output::OutputError>,
 ) -> Result<(), i32> {
@@ -58,13 +58,13 @@ pub(crate) fn emit_built(
 }
 
 /// Drops every stdout write after the first failure, so no later record lands.
-pub(crate) struct LatchedOut<'a> {
+pub struct LatchedOut<'a> {
     inner: &'a mut dyn Write,
     failed: Option<(io::ErrorKind, String)>,
 }
 
 impl<'a> LatchedOut<'a> {
-    pub(crate) fn new(inner: &'a mut dyn Write) -> Self {
+    pub fn new(inner: &'a mut dyn Write) -> Self {
         LatchedOut {
             inner,
             failed: None,
@@ -72,7 +72,7 @@ impl<'a> LatchedOut<'a> {
     }
 
     /// The run's exit code, or the stdout failure code once a write failed.
-    pub(crate) fn exit_code(&mut self, code: i32) -> i32 {
+    pub fn exit_code(&mut self, code: i32) -> i32 {
         self.flush().ok();
         match &self.failed {
             Some((kind, message)) => stdout_io_code(&io::Error::new(*kind, message.clone())),
@@ -115,7 +115,7 @@ impl Write for LatchedOut<'_> {
     }
 }
 
-pub(crate) fn kept_child(err: &mut dyn Write, child: i32, delivery: i32) -> i32 {
+pub fn kept_child(err: &mut dyn Write, child: i32, delivery: i32) -> i32 {
     if child == 0 {
         return delivery;
     }
@@ -127,14 +127,14 @@ pub(crate) fn kept_child(err: &mut dyn Write, child: i32, delivery: i32) -> i32 
     child
 }
 
-pub(crate) fn check_stdout_write(result: io::Result<()>) -> Result<(), i32> {
+pub fn check_stdout_write(result: io::Result<()>) -> Result<(), i32> {
     result.map_err(|error| stdout_io_code(&error))
 }
 
 const OFFLINE_MARKER: &str = " (offline, cache-only)";
 
 /// Marks one summary line as cache-only when the invocation ran offline.
-pub(crate) fn offline_summary(summary: String, offline: bool) -> String {
+pub fn offline_summary(summary: String, offline: bool) -> String {
     if offline {
         format!("{summary}{OFFLINE_MARKER}")
     } else {
@@ -145,7 +145,7 @@ pub(crate) fn offline_summary(summary: String, offline: bool) -> String {
 const FROZEN_MARKER: &str = " (frozen, no resolution changes)";
 
 /// Marks one summary line as resolution-locked when the invocation runs frozen.
-pub(crate) fn frozen_summary(summary: String, frozen: bool) -> String {
+pub fn frozen_summary(summary: String, frozen: bool) -> String {
     if frozen {
         format!("{summary}{FROZEN_MARKER}")
     } else {
@@ -160,22 +160,22 @@ pub fn flush_out(out: &mut dyn Write) -> Result<(), i32> {
     out.flush().map_err(|error| stdout_io_code(&error))
 }
 
-pub(crate) fn emit_started(invocation: &Invocation, out: &mut dyn Write) -> Result<(), i32> {
+pub fn emit_started(invocation: &Invocation, out: &mut dyn Write) -> Result<(), i32> {
     emit_built(out, command_started(invocation.command.name(), "default"))
 }
 
 /// Writes the `error` event for a Bazel run that exited nonzero, keeping its native status.
-pub(crate) fn bazel_failure_code(bazel_code: i32) -> &'static str {
+pub fn bazel_failure_code(bazel_code: i32) -> &'static str {
     if bazel_code == BAZEL_OUT_OF_MEMORY {
         CODE_SERVER_OUT_OF_MEMORY
     } else if bazel_code == crate::bazel_restart::RESTART_EXIT {
         CODE_SERVER_CRASHED
     } else {
-        super::bazel_hint::refine(CODE_BAZEL_FAILED)
+        crate::bazel_hint::refine(CODE_BAZEL_FAILED)
     }
 }
 
-pub(crate) fn emit_bazel_exit(
+pub fn emit_bazel_exit(
     out: &mut dyn Write,
     code: &str,
     message: &str,
@@ -193,7 +193,7 @@ pub const REASON_CONFLICTING_DIGESTS: &str = "conflicting_digests";
 pub const REASON_CONFLICTING_CANDIDATES: &str = "conflicting_candidates";
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-pub(crate) enum ExecError {
+pub enum ExecError {
     #[error("generated logical path is empty")]
     EmptyLogicalPath,
     #[error("generated logical path {path:?} is absolute")]
@@ -206,43 +206,43 @@ pub(crate) enum ExecError {
     BadEnvKey { key: String },
 }
 
-pub(crate) use super::notice_codes::*;
+pub use crate::notice_codes::*;
 
-pub(crate) const CODE_LAUNCH_FAILED: &str = "launch_failed";
-pub(crate) const CODE_BAZEL_SIGNALLED: &str = "bazel_signalled";
+pub const CODE_LAUNCH_FAILED: &str = "launch_failed";
+pub const CODE_BAZEL_SIGNALLED: &str = "bazel_signalled";
 /// Fires before a Bazel run at `dx_worktree::disk::DISK_FULL_BYTES` (1 GiB). Worktree
 /// reclaim uses the looser `dx_worktree::disk::is_low` rule instead, so the two are
 /// distinct signals.
-pub(crate) const CODE_DISK_LOW: &str = "disk_low";
-pub(crate) const CODE_SCOPE_EXCLUDED: &str = "scope_excluded";
-pub(crate) const CODE_UNREADABLE_BEP: &str = "unreadable_bep";
-pub(crate) const CODE_INVALID_BEP: &str = "invalid_bep";
-pub(crate) const CODE_DIFF_FAILED: &str = "diff_failed";
-pub(crate) const CODE_REPORT_FAILED: &str = "report_failed";
-pub(crate) const CODE_COLLECTION_FAILED: &str = "collection_failed";
-pub(crate) const CODE_VERIFICATION_FAILED: &str = "verification_failed";
-pub(crate) const CODE_NOT_CONVERGED: &str = "not_converged";
-pub(crate) const CODE_COVERAGE_BELOW_MINIMUM: &str = "coverage_below_minimum";
-pub(crate) const CODE_NO_COVERAGE_COLLECTOR: &str = "no_coverage_collector";
-pub(crate) const CODE_COVERAGE_SOURCES_INCOMPLETE: &str = "coverage_sources_incomplete";
-pub(crate) const CODE_COVERAGE_SOURCES: &str = "coverage_sources";
-pub(crate) const CODE_CHANGED_LINE_BELOW_MINIMUM: &str = "changed_line_coverage_below_minimum";
-pub(crate) const CODE_CHANGED_LINE_INCOMPLETE: &str = "changed_line_coverage_incomplete";
-pub(crate) const CODE_CHANGED_LINE_UNAVAILABLE: &str = "changed_line_coverage_unavailable";
-pub(crate) const CODE_CLEAN_FAILED: &str = "clean_failed";
-pub(crate) const CODE_CLEAN_REMOVED: &str = "clean_removed";
-pub(crate) const CODE_INVALID_RESULT: &str = "invalid_result";
-pub(crate) const CODE_GENERATION_FAILED: &str = "generation_failed";
-pub(crate) const CODE_MANAGED_COMMIT_FAILED: &str = "managed_commit_failed";
-pub(crate) const CODE_MANAGED_NO_CAPABILITY: &str = "no_capability";
-pub(crate) const CODE_AUDIT_FAILED: &str = "audit_failed";
-pub(crate) const CODE_UPDATE_FAILED: &str = "update_failed";
-pub(crate) const CODE_UPDATE_WIDEN_FAILED: &str = "update_widen_failed";
-pub(crate) const CODE_OFFLINE_REQUIRED: &str = "offline_required";
-pub(crate) const CODE_FROZEN_LOCKED: &str = "frozen_locked";
-pub(crate) const CODE_DEPLOY_NEEDS_HUMAN: &str = "deploy_needs_human";
+pub const CODE_DISK_LOW: &str = "disk_low";
+pub const CODE_SCOPE_EXCLUDED: &str = "scope_excluded";
+pub const CODE_UNREADABLE_BEP: &str = "unreadable_bep";
+pub const CODE_INVALID_BEP: &str = "invalid_bep";
+pub const CODE_DIFF_FAILED: &str = "diff_failed";
+pub const CODE_REPORT_FAILED: &str = "report_failed";
+pub const CODE_COLLECTION_FAILED: &str = "collection_failed";
+pub const CODE_VERIFICATION_FAILED: &str = "verification_failed";
+pub const CODE_NOT_CONVERGED: &str = "not_converged";
+pub const CODE_COVERAGE_BELOW_MINIMUM: &str = "coverage_below_minimum";
+pub const CODE_NO_COVERAGE_COLLECTOR: &str = "no_coverage_collector";
+pub const CODE_COVERAGE_SOURCES_INCOMPLETE: &str = "coverage_sources_incomplete";
+pub const CODE_COVERAGE_SOURCES: &str = "coverage_sources";
+pub const CODE_CHANGED_LINE_BELOW_MINIMUM: &str = "changed_line_coverage_below_minimum";
+pub const CODE_CHANGED_LINE_INCOMPLETE: &str = "changed_line_coverage_incomplete";
+pub const CODE_CHANGED_LINE_UNAVAILABLE: &str = "changed_line_coverage_unavailable";
+pub const CODE_CLEAN_FAILED: &str = "clean_failed";
+pub const CODE_CLEAN_REMOVED: &str = "clean_removed";
+pub const CODE_INVALID_RESULT: &str = "invalid_result";
+pub const CODE_GENERATION_FAILED: &str = "generation_failed";
+pub const CODE_MANAGED_COMMIT_FAILED: &str = "managed_commit_failed";
+pub const CODE_MANAGED_NO_CAPABILITY: &str = "no_capability";
+pub const CODE_AUDIT_FAILED: &str = "audit_failed";
+pub const CODE_UPDATE_FAILED: &str = "update_failed";
+pub const CODE_UPDATE_WIDEN_FAILED: &str = "update_widen_failed";
+pub const CODE_OFFLINE_REQUIRED: &str = "offline_required";
+pub const CODE_FROZEN_LOCKED: &str = "frozen_locked";
+pub const CODE_DEPLOY_NEEDS_HUMAN: &str = "deploy_needs_human";
 /// Runs `git` in `workspace` and returns its stdout; a launch error or a non-zero exit is an error.
-pub(super) fn git_output(
+pub fn git_output(
     runner: &dyn QueryRunner,
     workspace: &Path,
     what: &str,
@@ -262,12 +262,11 @@ pub(super) fn git_output(
     Ok(result.stdout)
 }
 
-#[cfg(test)]
-pub(crate) const CODE_BACKEND_UNAVAILABLE: &str = "backend_unavailable";
+pub const CODE_BACKEND_UNAVAILABLE: &str = "backend_unavailable";
 
 /// How one umbrella phase ended.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum PhaseKind {
+pub enum PhaseKind {
     Clean,
     Findings,
     NonConvergence,
@@ -285,21 +284,21 @@ pub(crate) enum PhaseKind {
 }
 
 /// Bazel exit codes shared by every Bazel-backed phase.
-pub(crate) const BAZEL_BUILD_FAILED: i32 = 1;
-pub(crate) const BAZEL_USAGE: i32 = 2;
-pub(crate) const BAZEL_TESTS_FAILED: i32 = 3;
-pub(crate) const BAZEL_NO_TESTS: i32 = 4;
-pub(crate) const BAZEL_INTERRUPTED: i32 = 8;
-pub(crate) const BAZEL_OUT_OF_MEMORY: i32 = 33;
+pub const BAZEL_BUILD_FAILED: i32 = 1;
+pub const BAZEL_USAGE: i32 = 2;
+pub const BAZEL_TESTS_FAILED: i32 = 3;
+pub const BAZEL_NO_TESTS: i32 = 4;
+pub const BAZEL_INTERRUPTED: i32 = 8;
+pub const BAZEL_OUT_OF_MEMORY: i32 = 33;
 
 /// Reports whether Bazel's server ran out of memory or died; a fresh server will not help later phases.
-pub(crate) fn server_died(code: i32) -> bool {
+pub fn server_died(code: i32) -> bool {
     code == BAZEL_OUT_OF_MEMORY || code == crate::bazel_restart::RESTART_EXIT
 }
 
 impl PhaseKind {
     /// Classifies a Bazel exit code; `findings` is the phase's own verdict that the code means findings.
-    pub(crate) fn from_bazel_exit(code: i32, findings: bool) -> PhaseKind {
+    pub fn from_bazel_exit(code: i32, findings: bool) -> PhaseKind {
         match code {
             0 => PhaseKind::Clean,
             _ if server_died(code) => PhaseKind::Host,
@@ -312,7 +311,7 @@ impl PhaseKind {
     }
 
     /// Reports whether later phases still run after a phase of this kind.
-    pub(crate) fn continues(self, apply: bool) -> bool {
+    pub fn continues(self, apply: bool) -> bool {
         match self {
             PhaseKind::Selection
             | PhaseKind::Host
@@ -329,7 +328,7 @@ impl PhaseKind {
     }
 
     /// Names why the run stopped after a phase of this kind.
-    pub(crate) fn stop_reason(self) -> &'static str {
+    pub fn stop_reason(self) -> &'static str {
         match self {
             PhaseKind::Clean | PhaseKind::Findings => "finished",
             PhaseKind::NonConvergence => "did not converge",
@@ -347,25 +346,25 @@ impl PhaseKind {
 
 /// What one umbrella phase changed or refused in the workspace.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub(crate) struct PhaseEffects {
-    pub(crate) changes: u64,
-    pub(crate) applied: u64,
-    pub(crate) not_applied: u64,
+pub struct PhaseEffects {
+    pub changes: u64,
+    pub applied: u64,
+    pub not_applied: u64,
 }
 
 impl PhaseEffects {
     /// Reports whether the phase changed or refused anything.
-    pub(crate) fn touched(&self) -> bool {
+    pub fn touched(&self) -> bool {
         self.changes > 0 || self.not_applied > 0
     }
 }
 
 /// How one umbrella phase ended and what it changed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct PhaseRun {
-    pub(crate) code: i32,
-    pub(crate) kind: PhaseKind,
-    pub(crate) effects: PhaseEffects,
+pub struct PhaseRun {
+    pub code: i32,
+    pub kind: PhaseKind,
+    pub effects: PhaseEffects,
 }
 
 pub struct Env<'a> {
@@ -403,7 +402,7 @@ impl ActionTally {
 }
 
 /// Reads the action counts of one build event file and records them in `tally`.
-pub(crate) fn read_actions(bep: &Path, tally: &ActionTally) -> Option<ActionCounts> {
+pub fn read_actions(bep: &Path, tally: &ActionTally) -> Option<ActionCounts> {
     let file = std::fs::File::open(bep).ok()?;
     let summary = dx_bep::collect_action_summary(BufReader::new(file))?;
     let counts = ActionCounts {
@@ -446,7 +445,7 @@ fn actions_line(counts: &ActionCounts) -> String {
     )
 }
 
-pub(crate) struct FsArtifacts;
+pub struct FsArtifacts;
 
 impl ArtifactReader for FsArtifacts {
     fn read_artifact(&self, path: &Path) -> io::Result<Vec<u8>> {
@@ -457,7 +456,7 @@ impl ArtifactReader for FsArtifacts {
 const UNREADABLE_BEP_PREFIX: &str = "failed to read build events: ";
 
 /// The stable code for a [`collect_targets`] error.
-pub(crate) fn bep_error_code(error: &dx_error::DxError) -> &'static str {
+pub fn bep_error_code(error: &dx_error::DxError) -> &'static str {
     if error.message().starts_with(UNREADABLE_BEP_PREFIX) {
         CODE_UNREADABLE_BEP
     } else {
@@ -466,7 +465,7 @@ pub(crate) fn bep_error_code(error: &dx_error::DxError) -> &'static str {
 }
 
 /// Reads one build event file and returns the target outputs of one output group.
-pub(crate) fn collect_targets(
+pub fn collect_targets(
     bep: &Path,
     group: &str,
     workspace: &Path,
@@ -481,7 +480,7 @@ pub(crate) fn collect_targets(
 }
 
 /// Reads one build event file and returns one output group's outputs with the stream's gaps.
-pub(crate) fn collect_output_account(
+pub fn collect_output_account(
     bep: &Path,
     group: &str,
     workspace: &Path,
@@ -490,7 +489,7 @@ pub(crate) fn collect_output_account(
 }
 
 /// Like [`collect_output_account`], leaving out the targets and gaps of the `foreign` aspects.
-pub(crate) fn collect_own_account(
+pub fn collect_own_account(
     bep: &Path,
     group: &str,
     workspace: &Path,
@@ -506,19 +505,19 @@ pub(crate) fn collect_own_account(
 }
 
 #[derive(Clone)]
-pub(crate) struct FileChange {
-    pub(crate) path: String,
-    pub(crate) original_digest: [u8; 32],
-    pub(crate) edits: Vec<(u64, u64, String)>,
+pub struct FileChange {
+    pub path: String,
+    pub original_digest: [u8; 32],
+    pub edits: Vec<(u64, u64, String)>,
 }
 
-pub(crate) enum SourceRead {
+pub enum SourceRead {
     Bytes(Vec<u8>),
     Unreadable,
     Stale,
 }
 
-pub(crate) fn read_verified(workspace: &Path, path: &str, expected: &[u8; 32]) -> SourceRead {
+pub fn read_verified(workspace: &Path, path: &str, expected: &[u8; 32]) -> SourceRead {
     match std::fs::read(workspace.join(path)) {
         Err(_) => SourceRead::Unreadable,
         Ok(bytes) => {
@@ -532,17 +531,13 @@ pub(crate) fn read_verified(workspace: &Path, path: &str, expected: &[u8; 32]) -
 }
 
 /// Sets one field of a JSON object; other values are left as they are.
-pub(crate) fn set_field(
-    value: &mut serde_json::Value,
-    key: &str,
-    field: impl Into<serde_json::Value>,
-) {
+pub fn set_field(value: &mut serde_json::Value, key: &str, field: impl Into<serde_json::Value>) {
     if let Some(map) = value.as_object_mut() {
         map.insert(key.to_owned(), field.into());
     }
 }
 
-pub(crate) fn apply_to_bytes(original: &[u8], edits: &[(u64, u64, String)]) -> Option<Vec<u8>> {
+pub fn apply_to_bytes(original: &[u8], edits: &[(u64, u64, String)]) -> Option<Vec<u8>> {
     let text = std::str::from_utf8(original).ok()?;
     let mut candidate = Vec::with_capacity(original.len());
     let mut cursor = 0usize;
@@ -586,7 +581,7 @@ fn severity_word(severity: Severity, color: bool) -> String {
 }
 
 /// The closing stderr line of a text-mode lint, typecheck or format run.
-pub(crate) fn findings_summary(diagnostics: &[DiagnosticEvent], targets: usize) -> String {
+pub fn findings_summary(diagnostics: &[DiagnosticEvent], targets: usize) -> String {
     let count = |severity: Severity| {
         diagnostics
             .iter()
@@ -617,7 +612,7 @@ pub(crate) fn findings_summary(diagnostics: &[DiagnosticEvent], targets: usize) 
     line
 }
 
-pub(crate) fn text_finding(record: &FindingRecord) -> String {
+pub fn text_finding(record: &FindingRecord) -> String {
     text_finding_colored(record, dx_output::color_enabled())
 }
 
@@ -676,7 +671,7 @@ fn text_finding_colored(record: &FindingRecord, color: bool) -> String {
 }
 
 /// Reports one failure found before the command executes.
-pub(crate) fn pre_exec(
+pub fn pre_exec(
     output: OutputMode,
     out: &mut dyn Write,
     err: &mut dyn Write,
@@ -691,7 +686,7 @@ pub(crate) fn pre_exec(
 }
 
 /// Reports a [`dx_error::DxError`] refusal without usage text, exiting with the code its kind maps to.
-pub(crate) fn refusal_dx_error(
+pub fn refusal_dx_error(
     output: OutputMode,
     out: &mut dyn Write,
     err: &mut dyn Write,
@@ -706,12 +701,7 @@ pub(crate) fn refusal_dx_error(
 }
 
 /// Reports a refusal that is not an argument error, without usage text.
-pub(crate) fn refusal(
-    output: OutputMode,
-    out: &mut dyn Write,
-    err: &mut dyn Write,
-    message: &str,
-) -> i32 {
+pub fn refusal(output: OutputMode, out: &mut dyn Write, err: &mut dyn Write, message: &str) -> i32 {
     report_failure(
         output,
         out,
@@ -721,7 +711,7 @@ pub(crate) fn refusal(
 }
 
 /// Reports a scope that did not resolve; a failed query never becomes an empty selection.
-pub(crate) fn resolve_failed(
+pub fn resolve_failed(
     output: OutputMode,
     out: &mut dyn Write,
     err: &mut dyn Write,
@@ -731,7 +721,7 @@ pub(crate) fn resolve_failed(
 }
 
 /// The `error` event for a Bazel run or application that exited nonzero, keeping its status.
-pub(crate) fn bazel_exit_event(
+pub fn bazel_exit_event(
     code: &str,
     message: &str,
     status: i32,
@@ -751,7 +741,7 @@ pub(crate) fn bazel_exit_event(
 }
 
 /// Reports one failed report as a `dx: report_failed:` line and, in JSON mode, an error event.
-pub(crate) fn report_failed(
+pub fn report_failed(
     out: &mut dyn Write,
     err: &mut dyn Write,
     output: OutputMode,
@@ -761,7 +751,7 @@ pub(crate) fn report_failed(
 }
 
 /// Like `report_failed`, with a next step that fits the cause instead of the default.
-pub(crate) fn report_failed_with_next(
+pub fn report_failed_with_next(
     out: &mut dyn Write,
     err: &mut dyn Write,
     output: OutputMode,
@@ -769,7 +759,7 @@ pub(crate) fn report_failed_with_next(
     next: Option<&str>,
 ) -> Result<(), i32> {
     writeln!(err, "dx: {CODE_REPORT_FAILED}: {detail}").ok();
-    let default = super::guidance::next_action(CODE_REPORT_FAILED);
+    let default = crate::guidance::next_action(CODE_REPORT_FAILED);
     if let Some(next) = next.or(default) {
         writeln!(err, "{next}").ok();
     }
@@ -789,7 +779,7 @@ pub(crate) fn report_failed_with_next(
 }
 
 /// Writes one report document to its resolved destination and reports whether it landed.
-pub(crate) fn write_report_file(
+pub fn write_report_file(
     workspace: &Path,
     destination: &str,
     document: &str,
@@ -824,7 +814,7 @@ pub(crate) fn write_report_file(
 }
 
 /// Writes one report document to its planned destination and reports whether it landed.
-pub(crate) fn write_report_document(
+pub fn write_report_document(
     out: &mut dyn Write,
     workspace: &Path,
     destination: &Destination,
@@ -844,9 +834,9 @@ pub(crate) fn write_report_document(
 
 /// Names the resolved report destination and why its write failed.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ReportWriteError {
-    pub(crate) destination: String,
-    pub(crate) reason: String,
+pub struct ReportWriteError {
+    pub destination: String,
+    pub reason: String,
 }
 
 impl std::fmt::Display for ReportWriteError {
@@ -855,7 +845,7 @@ impl std::fmt::Display for ReportWriteError {
     }
 }
 
-pub(crate) fn operational_output(
+pub fn operational_output(
     output: OutputMode,
     out: &mut dyn Write,
     err: &mut dyn Write,
@@ -870,7 +860,7 @@ pub(crate) fn operational_output(
     )
 }
 
-pub(crate) fn operational(
+pub fn operational(
     invocation: &Invocation,
     out: &mut dyn Write,
     err: &mut dyn Write,
@@ -881,7 +871,7 @@ pub(crate) fn operational(
 }
 
 /// Reports a [`dx_error::DxError`] under `code`, exiting with the code its kind maps to.
-pub(crate) fn report_dx_error(
+pub fn report_dx_error(
     output: OutputMode,
     out: &mut dyn Write,
     err: &mut dyn Write,
@@ -910,7 +900,7 @@ pub fn emit_startup_outcome(
 }
 
 /// Runs one Bazel argv and maps a spawn failure and a signalled Bazel to operational exits.
-pub(crate) fn run_bazel_output(
+pub fn run_bazel_output(
     output: OutputMode,
     out: &mut dyn Write,
     err: &mut dyn Write,
@@ -925,7 +915,7 @@ pub(crate) fn run_bazel_output(
 }
 
 /// Runs one Bazel argv that stops early once `withdraw` holds; `Ok(None)` means withdrawn.
-pub(crate) fn run_bazel_withdrawable(
+pub fn run_bazel_withdrawable(
     invocation: &Invocation,
     out: &mut dyn Write,
     err: &mut dyn Write,
@@ -948,7 +938,7 @@ pub(crate) fn run_bazel_withdrawable(
 
 /// Notes on stderr, and with a JSON notice, each named target a `dx.toml` exclude covers.
 /// Named targets still run: the command line beats the config.
-pub(crate) fn warn_scope_excluded(
+pub fn warn_scope_excluded(
     output: OutputMode,
     out: &mut dyn Write,
     err: &mut dyn Write,
@@ -1067,7 +1057,7 @@ fn bazel_exit(
 }
 
 /// Runs one Bazel argv and maps a spawn failure and a signalled Bazel to operational exits.
-pub(crate) fn run_bazel(
+pub fn run_bazel(
     invocation: &Invocation,
     out: &mut dyn Write,
     err: &mut dyn Write,
@@ -1081,11 +1071,11 @@ pub(crate) fn run_bazel(
 
 /// How one `bazel run` app went out.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct AppExit {
+pub struct AppExit {
     /// The app's exit code, or 128 plus the signal that ended it.
-    pub(crate) code: i32,
+    pub code: i32,
     /// The signal that ended the app, when it died by one.
-    pub(crate) signal: Option<i32>,
+    pub signal: Option<i32>,
 }
 
 fn app_exit(
@@ -1108,7 +1098,7 @@ fn app_exit(
 }
 
 /// Writes the text line for an app that died by `signo`.
-pub(crate) fn app_signalled_line(err: &mut dyn Write, label: &str, signo: i32) {
+pub fn app_signalled_line(err: &mut dyn Write, label: &str, signo: i32) {
     writeln!(
         err,
         "dx: application_failed: bazel run {label} terminated by signal {signo}"
@@ -1117,12 +1107,12 @@ pub(crate) fn app_signalled_line(err: &mut dyn Write, label: &str, signo: i32) {
 }
 
 /// Writes the text line for an app that exited with `code`.
-pub(crate) fn app_exited_line(err: &mut dyn Write, label: &str, code: i32) {
+pub fn app_exited_line(err: &mut dyn Write, label: &str, code: i32) {
     writeln!(err, "dx: {label} exited {code}").ok();
 }
 
 /// Launches one `bazel run` app; its exit is the app's, and a signalled app exits 128 plus the signal.
-pub(crate) fn run_bazel_app(
+pub fn run_bazel_app(
     invocation: &Invocation,
     out: &mut dyn Write,
     err: &mut dyn Write,
@@ -1138,7 +1128,7 @@ pub(crate) fn run_bazel_app(
 }
 
 /// Launches one `bazel run` app that stops early once `withdraw` holds; `Ok(None)` means withdrawn.
-pub(crate) fn run_bazel_app_withdrawable(
+pub fn run_bazel_app_withdrawable(
     invocation: &Invocation,
     out: &mut dyn Write,
     err: &mut dyn Write,
@@ -1156,7 +1146,7 @@ pub(crate) fn run_bazel_app_withdrawable(
     }
 }
 
-pub(crate) fn change_event_for(change: &FileChange) -> ChangeEvent {
+pub fn change_event_for(change: &FileChange) -> ChangeEvent {
     let mut edits = Vec::with_capacity(change.edits.len());
     for (start, end, replacement) in &change.edits {
         edits.push(dx_output::Edit {

@@ -339,7 +339,7 @@ sync_copy() {
 }
 # Bazel exits 33 (out of memory) or 37 (internal error) when its server crashes. A build or an inputs lookup is safe
 # to run again, so try once more after a short wait. Keep the codes and wait in sync with RESTART_EXIT and
-# backoff in cli/cli/src/bazel_restart.rs, and with tools/dx.cmd.
+# backoff in cli/exec_core/src/bazel_restart.rs, and with tools/dx.cmd.
 retry_crash() {
   "$@" && return 0 || ec=$?
   case $ec in 33 | 37) ;; *) return "$ec" ;; esac

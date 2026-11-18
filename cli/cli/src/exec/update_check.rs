@@ -42,7 +42,7 @@ fn update_ignores_a_stray_dx_toml() {
 
 #[test]
 fn backend_error_codes_match_the_shared_constants() {
-    use crate::exec::common::{
+    use dx_exec_core::common::{
         CODE_BACKEND_UNAVAILABLE, CODE_FROZEN_LOCKED, CODE_OFFLINE_REQUIRED,
     };
     use dx_update::backend::BackendError;

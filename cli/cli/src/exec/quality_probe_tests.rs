@@ -106,7 +106,7 @@ fn probe_keeps_json_stdout_to_the_build_events() {
 #[test]
 fn interrupted_probe_cancels_the_phase_without_a_build() {
     let mut harness = clean_harness("probe-interrupted");
-    harness.probe_code = Some(super::super::common::BAZEL_INTERRUPTED);
+    harness.probe_code = Some(dx_exec_core::common::BAZEL_INTERRUPTED);
     let parsed =
         dx_plan::args::parse(&dx_testing::cli::strings(&["lint", "--output=text"])).expect("parse");
     let inv = dx_plan::args::apply_here(&parsed, &harness.workspace, &harness.cwd).expect("here");

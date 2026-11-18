@@ -1,9 +1,9 @@
-use super::common::{
+use super::{update_add_missing, update_outdated, update_prune, update_unused};
+use dx_exec_core::common::{
     CODE_UPDATE_FAILED, CODE_UPDATE_SET_BLOCKED, CODE_UPDATE_SET_CURRENT, CODE_UPDATE_SET_PINNED,
     CODE_UPDATE_SET_SUCCESS, Env, check_stdout_write, emit_built, emit_event, pre_exec,
     report_dx_error,
 };
-use super::{update_add_missing, update_outdated, update_prune, update_unused};
 use dx_output::{
     FinishedCounts, NoticeEvent, OutputMode, command_finished, error_event, notice_event,
     with_correlation,

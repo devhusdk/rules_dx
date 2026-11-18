@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use crate::exec::common::check_stdout_write;
+use dx_exec_core::common::check_stdout_write;
 use dx_plan::args::Invocation;
 
 use super::pre_exec;

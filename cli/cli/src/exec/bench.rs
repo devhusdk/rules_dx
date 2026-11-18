@@ -1,10 +1,10 @@
-use super::common::{
+use dx_bep::{TestResultRecord, collect_test_events};
+use dx_error::DxError;
+use dx_exec_core::common::{
     CODE_INVALID_BEP, CODE_REPORT_FAILED, CODE_UNREADABLE_BEP, Env, check_stdout_write, kept_child,
     operational, pre_exec, report_dx_error, resolve_failed, run_bazel,
 };
-use super::failure::CODE_NO_TESTS;
-use dx_bep::{TestResultRecord, collect_test_events};
-use dx_error::DxError;
+use dx_exec_core::failure::CODE_NO_TESTS;
 use dx_output::OutputMode;
 use dx_plan::args::Invocation;
 use dx_plan::plan::{WorkflowVerb, bep_path, plan_workflow};

@@ -1,4 +1,4 @@
-use super::common::{
+use dx_exec_core::common::{
     AppExit, CODE_DEPLOY_NEEDS_HUMAN, Env, Failure, app_signalled_line, pre_exec, report_failure,
     resolve_failed, run_bazel, run_bazel_app,
 };

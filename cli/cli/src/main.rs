@@ -8,9 +8,9 @@
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
-use dx_cli::bazel_restart::{RestartingQueryRunner, RestartingRunner};
-use dx_cli::exec::common::flush_out;
 use dx_cli::{ActionTally, Env, execute, print_actions, print_cache_retries};
+use dx_exec_core::bazel_restart::{RestartingQueryRunner, RestartingRunner};
+use dx_exec_core::common::flush_out;
 use dx_output::OutputMode;
 use dx_plan::args::{is_discovery_exempt, json_output_intent, parse_with_ci};
 use dx_plan::plan::{create_run_temp_dir, remove_on_stop};
@@ -147,7 +147,7 @@ fn startup_failure(stderr_text: &str, code: &str, message: &str, exit: i32, json
     }
     let stdout = io::stdout();
     let mut out = stdout.lock();
-    if let Err(io_exit) = dx_cli::exec::common::emit_startup_outcome(&mut out, code, message, exit)
+    if let Err(io_exit) = dx_exec_core::common::emit_startup_outcome(&mut out, code, message, exit)
     {
         return io_exit;
     }

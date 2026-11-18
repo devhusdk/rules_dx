@@ -1,10 +1,10 @@
 //! The write, refresh and report tail shared by the dependency verbs (`dx update`).
 
-use super::common::{
+use dx_error::DxError;
+use dx_exec_core::common::{
     CODE_FROZEN_LOCKED, CODE_OFFLINE_REQUIRED, CODE_UPDATE_FAILED, CODE_UPDATE_SET_SUCCESS,
     check_stdout_write, emit_built, emit_event, operational, pre_exec,
 };
-use dx_error::DxError;
 use dx_output::{
     FinishedCounts, NoticeEvent, OutputMode, command_finished, error_event, notice_event,
 };
@@ -950,8 +950,8 @@ fn manifest_need(
 
 #[cfg(test)]
 mod tests {
-    use super::super::common::{CODE_INVALID_RESULT, CODE_UPDATE_WIDEN_FAILED};
     use super::*;
+    use dx_exec_core::common::{CODE_INVALID_RESULT, CODE_UPDATE_WIDEN_FAILED};
     use std::io;
 
     const VERB: EditVerb = EditVerb {

@@ -8,7 +8,7 @@ use dx_adopt::AdoptError;
 use dx_output::OutputMode;
 
 use crate::exec::Env;
-use crate::exec::common::{check_stdout_write, report_dx_error};
+use dx_exec_core::common::{check_stdout_write, report_dx_error};
 use dx_plan::args::{Command, Invocation};
 use dx_plan::resolve::QueryRunner;
 

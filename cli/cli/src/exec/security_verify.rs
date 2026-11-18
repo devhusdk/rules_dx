@@ -2,14 +2,14 @@
 //! bundle with the pinned cosign and, when `gh` is installed, against its
 //! GitHub attestation.
 
-use super::common::{
-    CODE_AUDIT_FAILED, CODE_INVALID_ARGUMENTS, Env, check_stdout_write, emit_built, emit_event,
-    report_dx_error,
-};
-use super::notice_codes::CODE_SECURITY_VERIFIED;
 use super::pinned_tool::{PinnedTool, PinnedToolError, QueryBazel, resolve_pinned};
 use base64::Engine as _;
 use dx_error::DxError;
+use dx_exec_core::common::{
+    CODE_AUDIT_FAILED, CODE_INVALID_ARGUMENTS, Env, check_stdout_write, emit_built, emit_event,
+    report_dx_error,
+};
+use dx_exec_core::notice_codes::CODE_SECURITY_VERIFIED;
 use dx_output::{FinishedCounts, NoticeEvent, OutputMode, command_finished, notice_event};
 use dx_plan::args::Invocation;
 use std::path::{Path, PathBuf};

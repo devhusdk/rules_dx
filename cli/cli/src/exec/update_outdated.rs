@@ -1187,24 +1187,33 @@ impl Fetch for DirFetch {
     }
 }
 
-struct HttpFetch(ureq::Agent, Option<String>);
+/// Registry lookups through the shared dx HTTP client, with an optional GitHub token.
+struct HttpFetch(Result<dx_http::Client, dx_http::Error>, Option<String>);
 
 const MANIFEST_ACCEPT: &str = "application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json";
 
-fn agent(https_only: bool) -> ureq::Agent {
-    let tls = ureq::tls::TlsConfig::builder()
-        .root_certs(ureq::tls::RootCerts::PlatformVerifier)
-        .build();
-    ureq::Agent::config_builder()
-        .https_only(https_only)
-        .http_status_as_error(false)
-        .tls_config(tls)
-        .proxy(ureq::Proxy::try_from_env())
-        .user_agent(concat!("rules_dx/", env!("CARGO_PKG_VERSION")))
-        .timeout_connect(Some(Duration::from_secs(30)))
-        .timeout_global(Some(Duration::from_secs(60)))
-        .build()
-        .into()
+/// The largest archive `dx update` hashes; it streams, so this bounds time, not memory.
+const ARCHIVE_LIMIT: u64 = 2 * 1024 * 1024 * 1024;
+/// The largest registry document `dx update` reads into memory.
+const DOCUMENT_LIMIT: u64 = 10 * 1024 * 1024;
+
+fn http_settings(https_only: bool) -> dx_http::Settings {
+    dx_http::Settings {
+        https_only,
+        user_agent: concat!("rules_dx/", env!("CARGO_PKG_VERSION")).to_owned(),
+        ..dx_http::Settings::default()
+    }
+}
+
+/// A status the registry sent is a failure; anything that kept dx from an answer is infra.
+fn http_error(error: dx_http::Error) -> DxError {
+    match error {
+        dx_http::Error::Status { code, .. } => DxError::failure(format!("HTTP {code}")),
+        dx_http::Error::Config(message) => DxError::failure(message),
+        other @ (dx_http::Error::Transport { .. }
+        | dx_http::Error::TooLarge { .. }
+        | dx_http::Error::Write { .. }) => DxError::infra(other.to_string()),
+    }
 }
 
 impl HttpFetch {
@@ -1212,47 +1221,35 @@ impl HttpFetch {
         let token = ["GH_TOKEN", "GITHUB_TOKEN"]
             .iter()
             .find_map(|name| std::env::var(name).ok().filter(|value| !value.is_empty()));
-        HttpFetch(agent(true), token)
+        HttpFetch(dx_http::Client::new(http_settings(true)), token)
+    }
+
+    fn client(&self) -> Result<&dx_http::Client, DxError> {
+        self.0.as_ref().map_err(|error| http_error(error.clone()))
     }
 }
 
 impl Fetch for HttpFetch {
     fn download_sha256(&self, url: &str) -> Result<String, DxError> {
-        let mut response = self
-            .0
-            .get(url)
-            .call()
-            .map_err(|e| DxError::infra(e.to_string()))?;
-        if response.status().as_u16() != 200 {
-            return Err(DxError::failure(format!(
-                "HTTP {} for {url}",
-                response.status().as_u16()
-            )));
-        }
-        let bytes = response
-            .body_mut()
-            .with_config()
-            .limit(2 * 1024 * 1024 * 1024)
-            .read_to_vec()
-            .map_err(|e| DxError::infra(e.to_string()))?;
-        Ok(dx_digest::sha256_hex(&bytes))
+        self.client()?
+            .sha256(url, &[], ARCHIVE_LIMIT)
+            .map_err(|error| match error {
+                dx_http::Error::Status { code, url } => {
+                    DxError::failure(format!("HTTP {code} for {url}"))
+                }
+                other @ (dx_http::Error::Config(_)
+                | dx_http::Error::Transport { .. }
+                | dx_http::Error::TooLarge { .. }
+                | dx_http::Error::Write { .. }) => http_error(other),
+            })
     }
 
     fn digest(&self, url: &str) -> Result<String, DxError> {
-        let response = self
-            .0
-            .head(url)
-            .header("Accept", MANIFEST_ACCEPT)
-            .call()
-            .map_err(|e| DxError::infra(e.to_string()))?;
-        if !response.status().is_success() {
-            return Err(DxError::failure(format!(
-                "HTTP {}",
-                response.status().as_u16()
-            )));
-        }
-        response
-            .headers()
+        let headers = self
+            .client()?
+            .head(url, &[("Accept", MANIFEST_ACCEPT)])
+            .map_err(http_error)?;
+        headers
             .get("docker-content-digest")
             .and_then(|value| value.to_str().ok())
             .map(str::to_owned)
@@ -1260,23 +1257,17 @@ impl Fetch for HttpFetch {
     }
 
     fn get(&self, url: &str) -> Result<String, DxError> {
-        let mut request = self.0.get(url);
-        if let Some((name, value)) = github_auth(url, self.1.as_deref()) {
-            request = request
-                .header(name, value)
-                .header("Accept", "application/vnd.github+json");
-        }
-        let mut response = request.call().map_err(|e| DxError::infra(e.to_string()))?;
-        if response.status().as_u16() != 200 {
-            return Err(DxError::failure(format!(
-                "HTTP {}",
-                response.status().as_u16()
-            )));
-        }
-        response
-            .body_mut()
-            .read_to_string()
-            .map_err(|e| DxError::infra(e.to_string()))
+        let auth = github_auth(url, self.1.as_deref());
+        let headers: Vec<(&str, &str)> = match &auth {
+            Some((name, value)) => vec![
+                (*name, value.as_str()),
+                ("Accept", "application/vnd.github+json"),
+            ],
+            None => Vec::new(),
+        };
+        self.client()?
+            .text(url, &headers, DOCUMENT_LIMIT)
+            .map_err(http_error)
     }
 }
 
@@ -1362,12 +1353,22 @@ mod tests {
         assert_eq!(started["mode"], "default");
     }
 
+    /// A fetcher for loopback URLs that ignores the host's proxy settings. It tries once,
+    /// since each test server answers one request; dx_http's own tests cover retries.
+    fn plain_fetch() -> HttpFetch {
+        let settings = dx_http::Settings {
+            attempts: 1,
+            ..http_settings(false)
+        };
+        HttpFetch(dx_http::Client::with_env(settings, |_| None), None)
+    }
+
     const NOT_FOUND: &str =
         "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
 
     #[test]
     fn http_fetch_reports_404_as_http_404() {
-        let fetch = HttpFetch(agent(false), None);
+        let fetch = plain_fetch();
         assert_eq!(
             fetch.get(&serve_once(NOT_FOUND)),
             Err(DxError::failure("HTTP 404"))
@@ -1383,10 +1384,7 @@ mod tests {
         let url = serve_once(
             "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
         );
-        assert_eq!(
-            HttpFetch(agent(false), None).get(&url),
-            Err(DxError::failure("HTTP 500"))
-        );
+        assert_eq!(plain_fetch().get(&url), Err(DxError::failure("HTTP 500")));
     }
 
     #[test]
@@ -1394,10 +1392,7 @@ mod tests {
         let url = serve_once(
             "HTTP/1.1 200 OK\r\nDocker-Content-Digest: sha256:abc\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
         );
-        assert_eq!(
-            HttpFetch(agent(false), None).digest(&url),
-            Ok("sha256:abc".to_owned())
-        );
+        assert_eq!(plain_fetch().digest(&url), Ok("sha256:abc".to_owned()));
     }
 
     #[test]

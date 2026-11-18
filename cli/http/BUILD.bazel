@@ -1,0 +1,77 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//tools/visibility:visibility.bzl", "VIS_CLI")
+
+package(default_visibility = VIS_CLI)
+
+exports_files([
+    "src/lib.rs",
+    "src/lib_tests.rs",
+    "src/proxy.rs",
+])
+
+rust_library(
+    name = "dx_http",
+    srcs = [
+        "src/lib.rs",
+        "src/proxy.rs",
+    ],
+    aliases = aliases(
+        package_name = "cli/dx_http",
+        normal = True,
+    ),
+    crate_name = "dx_http",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "cli/dx_http",
+        normal = True,
+    ) + ["//cli/digest:dx_digest"],
+)
+
+rust_test(
+    name = "dx_http_test",
+    size = "small",
+    srcs = [
+        "src/lib.rs",
+        "src/lib_tests.rs",
+        "src/proxy.rs",
+    ],
+    aliases = aliases(
+        package_name = "cli/dx_http",
+        normal = True,
+        normal_dev = True,
+    ),
+    compile_data = ["testdata/ca.pem"],
+    coverage_lib = ":dx_http",
+    crate_name = "dx_http",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "cli/dx_http",
+        normal = True,
+        normal_dev = True,
+    ) + ["//cli/digest:dx_digest"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)
+
+exports_files(
+    ["Cargo.toml"],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

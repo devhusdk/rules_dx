@@ -1,5 +1,5 @@
 {
-  "checksum": "24514a0b6c17f9b0030e10ddbe6964b16eb4497bc4b288906ebd4f604ce7ecf9",
+  "checksum": "8ec5baf6bfdbe4060db3daebab2e3d6daf62b0967c35be7f9d3d893775bdc176",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -8089,10 +8089,6 @@
           {
             "id": "tracing 0.1.44",
             "target": "tracing"
-          },
-          {
-            "id": "ureq 3.5.0",
-            "target": "ureq"
           }
         ],
         "deps_dev": [
@@ -8820,6 +8816,47 @@
       ],
       "version": "0.0.0"
     },
+    "dx_http 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "rustls 0.23.46",
+            "target": "rustls"
+          },
+          {
+            "id": "thiserror 2.0.20",
+            "target": "thiserror"
+          },
+          {
+            "id": "ureq 3.5.0",
+            "target": "ureq"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "dx_http",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "dx_http",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_http",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "dx_ide 0.0.0": {
       "common_attrs": {
         "deps": [
@@ -8948,10 +8985,6 @@
           {
             "id": "tempfile 3.27.0",
             "target": "tempfile"
-          },
-          {
-            "id": "ureq 3.5.0",
-            "target": "ureq"
           }
         ],
         "deps_dev": [
@@ -9549,10 +9582,6 @@
             {
               "id": "semver 1.0.27",
               "target": "semver"
-            },
-            {
-              "id": "ureq 3.5.0",
-              "target": "ureq"
             }
           ],
           "selects": {
@@ -29775,15 +29804,11 @@
     "ureq 3.5.0": {
       "common_attrs": {
         "crate_features": [
-          "_ring",
           "_rustls",
           "_tls",
-          "default",
           "gzip",
           "platform-verifier",
-          "rustls",
-          "rustls-no-provider",
-          "rustls-webpki-roots"
+          "rustls-no-provider"
         ],
         "deps": [
           {
@@ -29821,10 +29846,6 @@
           {
             "id": "utf8-zero 0.8.1",
             "target": "utf8_zero"
-          },
-          {
-            "id": "webpki-roots 1.0.11",
-            "target": "webpki_roots"
           }
         ],
         "edition": "2024"
@@ -30999,41 +31020,6 @@
         {
           "Library": {
             "crate_name": "webpki_root_certs",
-            "crate_root": "src/lib.rs"
-          }
-        }
-      ],
-      "version": "1.0.11"
-    },
-    "webpki-roots 1.0.11": {
-      "common_attrs": {
-        "deps": [
-          {
-            "alias": "pki_types",
-            "id": "rustls-pki-types 1.15.1",
-            "target": "rustls_pki_types"
-          }
-        ],
-        "edition": "2021"
-      },
-      "library_target_name": "webpki_roots",
-      "license": "CDLA-Permissive-2.0",
-      "license_file": "LICENSE",
-      "license_ids": [
-        "CDLA-Permissive-2.0"
-      ],
-      "name": "webpki-roots",
-      "package_url": "https://github.com/rustls/webpki-roots",
-      "repository": {
-        "Http": {
-          "sha256": "f5f280bbb2b287bc8e7de7e3852945a0ff50d1bbcb5ed42b6c7a568c546df171",
-          "url": "https://static.crates.io/crates/webpki-roots/1.0.11/download"
-        }
-      },
-      "targets": [
-        {
-          "Library": {
-            "crate_name": "webpki_roots",
             "crate_root": "src/lib.rs"
           }
         }
@@ -33284,6 +33270,7 @@
     "dx_floor 0.0.0": "tools/testing/dx_floor",
     "dx_generate 0.0.0": "cli/dx_generate",
     "dx_gomod 0.0.0": "cli/dx_gomod",
+    "dx_http 0.0.0": "cli/dx_http",
     "dx_ide 0.0.0": "cli/dx_ide",
     "dx_install_tools 0.0.0": "deploy/private/dx_install_tools",
     "dx_js_launcher 0.0.0": "javascript/private/quality/dx_js_launcher",

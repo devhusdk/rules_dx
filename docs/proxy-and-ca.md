@@ -21,7 +21,8 @@ Then import the CA into a Java trust store for Bazel, and install it in the OS t
 | Bazel | `HTTPS_PROXY`, `NO_PROXY` | Java trust store |
 | `tools/dx` | curl or wget settings | curl or wget settings |
 | `tools/dx.cmd` | PowerShell and Windows settings | Windows certificate store |
-| `dx` shim | `HTTPS_PROXY`, `NO_PROXY` | OS trust store |
+| `dx` shim | `HTTPS_PROXY`, `NO_PROXY` | OS trust store, or `SSL_CERT_FILE` |
+| `dx update` and lock tools | `HTTPS_PROXY`, `NO_PROXY` | OS trust store, or `SSL_CERT_FILE` |
 | Deploy uploads | `HTTPS_PROXY`, `NO_PROXY` | OS trust store |
 
 ## Bazel
@@ -71,7 +72,20 @@ When the download fails, `tools/dx.cmd` runs your command through Bazel instead.
 
 ## The dx shim
 
-The shim reads `HTTPS_PROXY` and `NO_PROXY`, and checks certificates with the OS trust store. Install the company CA in the OS store. You need no other setting.
+The shim sends `https://` downloads through the proxy in `HTTPS_PROXY`. When that is unset, it uses `ALL_PROXY`, then `HTTP_PROXY`. Hosts in `NO_PROXY` go direct, and an entry covers the host and its subdomains. `http://` downloads, such as a local mirror, always go direct.
+
+The shim checks certificates with the OS trust store. Install the company CA there, and you need no other setting.
+
+To use a PEM bundle instead of the OS store, set `SSL_CERT_FILE`. The bundle replaces the OS store, so it must hold the public CAs as well as the company CA.
+
+```sh
+cat /etc/ssl/certs/ca-certificates.crt /etc/ssl/company-ca.pem > ~/.config/dx-ca.pem
+export SSL_CERT_FILE=~/.config/dx-ca.pem
+```
+
+## dx update and lock tools
+
+`dx update` and the lock tools that fetch from registries read the same settings as the shim.
 
 ## Deploy uploads
 

@@ -497,10 +497,33 @@ jobs:
           set -euo pipefail
           src="rules_dx-${RELEASE_TAG#v}.tar.gz"
           mkdir -p verify
-          gh release download "$RELEASE_TAG" --pattern "$src" --pattern "$src.sha256" --pattern 'dx-*' --dir verify
+          gh release download "$RELEASE_TAG" --pattern "$src" --pattern "$src.sha256" --pattern "$src.intoto.jsonl" --pattern 'dx-*' --dir verify
           (cd verify && sha256sum -c "$src.sha256" && sha256sum -c dx-sha256sums.txt && sha256sum -c dx-gazelle-sha256sums.txt && sha256sum -c dx-jar-sha256sums.txt && sha256sum -c dx-tool-sha256sums.txt)
           tar -xzf verify/dx-linux-x86_64.tar.gz -C verify dx
           verify/dx --version
+      - name: Verify the published assets with dx security --verify
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          src="rules_dx-${RELEASE_TAG#v}.tar.gz"
+          bazel build //deploy/private/release:cosign --noshow_progress
+          check() {
+            file=$1 bundle=$2
+            verify/dx security --verify "verify/$file" --repo "$GITHUB_REPOSITORY" --bundle "verify/$bundle"
+            mkdir -p tampered
+            cp "verify/$file" "tampered/$file"
+            printf '\xff' | dd of="tampered/$file" bs=1 seek=0 conv=notrunc status=none
+            if verify/dx security --verify "tampered/$file" --repo "$GITHUB_REPOSITORY" --bundle "verify/$bundle"; then
+              echo "::error::dx security --verify accepted tampered/$file"
+              exit 1
+            fi
+          }
+          check dx-linux-x86_64.tar.gz dx-sha256sums.txt.sigstore.json
+          check "$src" "$src.intoto.jsonl"
+          echo "- \`dx security --verify\`: \`dx-linux-x86_64.tar.gz\` and \`$src\` verified; a one-byte change to each was rejected" >> "$GITHUB_STEP_SUMMARY"
 
   pins:
     needs: assets

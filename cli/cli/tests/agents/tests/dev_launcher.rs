@@ -308,6 +308,7 @@ fn policy_flags(policy: &RcPolicy) -> Vec<String> {
 mod sh {
     use super::*;
     use dx_test_scratch::{TempDir, scratch};
+    use dx_testing::shell_script;
     use std::path::Path;
     use std::process::Command;
 
@@ -431,8 +432,7 @@ mod sh {
 
         /// Writes an executable script into the stub dir, first on the launcher PATH.
         fn fake(&self, name: &str, body: &str) {
-            let path = self.base.join("stub").join(name);
-            dx_testing::executable_script(&path, &format!("#!/bin/sh\n{body}\n"));
+            shell_script(&self.base.join("stub").join(name), &format!("{body}\n"));
         }
 
         fn command(&self) -> Command {
@@ -1368,7 +1368,7 @@ mod sh {
         let repo = source_repo("dx-launcher-execroot-nested-");
         let decoy = repo.base.join("decoy");
         checkout(&decoy);
-        dx_testing::executable_script(&decoy.join("tools/dx"), "#!/bin/sh\necho decoy \"$@\"\n");
+        shell_script(&decoy.join("tools/dx"), "echo decoy \"$@\"\n");
         let marker = decoy.display().to_string();
         let outer = execroot(&repo.base, "outer", &repo.root(), Some(&marker));
         let inner = execroot(&outer.join("_tmp"), "ob", &repo.root(), Some(""));
@@ -1699,11 +1699,7 @@ mod sh {
     #[test]
     fn the_fetched_bazelisk_downloads_bazel_from_github_unless_told_otherwise() {
         let repo = bazelisk_host("dx-launcher-bazelisk-base-", true);
-        std::fs::write(
-            repo.base.join("payload"),
-            "#!/bin/sh\necho \"$BAZELISK_BASE_URL\"\n",
-        )
-        .expect("payload");
+        shell_script(&repo.base.join("payload"), "echo \"$BAZELISK_BASE_URL\"\n");
         let (code, out, err) = repo.run_in(&repo.root(), &["status"]);
         assert_eq!(
             (code, out.as_str()),

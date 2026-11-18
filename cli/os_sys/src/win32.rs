@@ -2,10 +2,13 @@
 
 #![expect(unsafe_code, reason = "these Win32 process calls have no safe std API")]
 
+use std::ffi::OsString;
 use std::io;
+use std::os::windows::ffi::OsStringExt;
 use std::os::windows::io::{
     AsHandle, AsRawHandle, BorrowedHandle, HandleOrInvalid, HandleOrNull, OwnedHandle,
 };
+use std::path::PathBuf;
 use std::time::Duration;
 use windows_sys::Win32::Foundation::{
     FILETIME, HANDLE, HANDLE_FLAG_INHERIT, INVALID_HANDLE_VALUE, NTSTATUS, SetHandleInformation,
@@ -19,7 +22,9 @@ use windows_sys::Win32::System::Diagnostics::ToolHelp::{
     TH32CS_SNAPTHREAD, THREADENTRY32, Thread32First, Thread32Next,
 };
 use windows_sys::Win32::System::ProcessStatus::{K32GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS};
-use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
+use windows_sys::Win32::System::SystemInformation::{
+    GetSystemDirectoryW, GetSystemWindowsDirectoryW, GlobalMemoryStatusEx, MEMORYSTATUSEX,
+};
 use windows_sys::Win32::System::Threading::{
     GetExitCodeProcess, GetProcessTimes, INFINITE, OpenProcess, OpenThread, PROCESS_DUP_HANDLE,
     PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SUSPEND_RESUME, PROCESS_SYNCHRONIZE,
@@ -300,4 +305,32 @@ pub fn total_physical_memory() -> io::Result<u64> {
         return Err(io::Error::last_os_error()); // LCOV_EXCL_LINE - reason: Win32 call fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
     Ok(status.ullTotalPhys)
+}
+
+/// The system directory (`System32`) and the Windows directory, as Windows reports them.
+pub fn system_dirs() -> io::Result<[PathBuf; 2]> {
+    Ok([
+        // SAFETY: wide_dir passes a writable buffer of the length it names.
+        wide_dir(|buffer, len| unsafe { GetSystemDirectoryW(buffer, len) })?,
+        // SAFETY: as above.
+        wide_dir(|buffer, len| unsafe { GetSystemWindowsDirectoryW(buffer, len) })?,
+    ])
+}
+
+/// The directory `get` writes into a buffer; `get` returns 0 on failure, the length it
+/// wrote, or the length it needs when the buffer is too short.
+fn wide_dir(get: impl Fn(*mut u16, u32) -> u32) -> io::Result<PathBuf> {
+    let mut buffer = vec![0u16; 260];
+    loop {
+        let len = u32::try_from(buffer.len()).map_err(io::Error::other)?;
+        let written = usize::try_from(get(buffer.as_mut_ptr(), len)).map_err(io::Error::other)?;
+        if written == 0 {
+            return Err(io::Error::last_os_error()); // LCOV_EXCL_LINE - reason: Win32 call fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        }
+        if written < buffer.len() {
+            buffer.truncate(written);
+            return Ok(PathBuf::from(OsString::from_wide(&buffer)));
+        }
+        buffer.resize(written, 0); // LCOV_EXCL_LINE - reason: the Windows directories fit in MAX_PATH, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+    }
 }

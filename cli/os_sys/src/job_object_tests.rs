@@ -1,12 +1,12 @@
 use crate::job_object::{JobObject, Limit};
 use crate::win32::{CREATE_SUSPENDED, resume_threads};
+use crate::win32_tests::child;
 use std::os::windows::io::AsHandle;
 use std::os::windows::process::CommandExt;
-use std::process::{Child, Command};
+use std::process::Child;
 
 fn suspended_child() -> Child {
-    Command::new("cmd")
-        .args(["/C", "ping -n 30 127.0.0.1 >NUL"])
+    child(None)
         .creation_flags(CREATE_SUSPENDED)
         .spawn()
         .expect("spawn")
@@ -54,7 +54,7 @@ fn a_member_that_cannot_be_opened_is_an_error() {
 #[test]
 fn an_exited_process_cannot_be_assigned() {
     let job = JobObject::new(Limit::KillOnClose).expect("job");
-    let mut child = Command::new("cmd").args(["/C", "exit 0"]).spawn().expect("spawn");
+    let mut child = child(Some(0)).spawn().expect("spawn");
     child.wait().expect("wait");
     assert!(job.assign(child.as_handle()).is_err());
 }

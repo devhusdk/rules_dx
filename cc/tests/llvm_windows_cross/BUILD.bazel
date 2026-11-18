@@ -56,12 +56,6 @@ cc_toolchain_binary(
     for lang in _LANGS + ["rust_opt"]
 ]
 
-filegroup(
-    name = "binaries",
-    srcs = [":" + lang for lang in _LANGS + ["rust_opt"]],
-    target_compatible_with = _LINUX_X86_64,
-)
-
 real_source_target(
     name = "corpus_starlark",
     testonly = True,

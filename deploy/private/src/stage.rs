@@ -202,7 +202,7 @@ pub(crate) fn package_relative_paths(
 }
 
 /// Creates a fresh owner-only directory in the temp dir; the caller removes it.
-pub(crate) fn tempfile_stage_dir(prefix: &str) -> io::Result<std::path::PathBuf> {
+pub fn tempfile_stage_dir(prefix: &str) -> io::Result<std::path::PathBuf> {
     let mut builder = tempfile::Builder::new();
     builder.prefix(prefix);
     // tempfile creates directories with the umask default unless given a mode.

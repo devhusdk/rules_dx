@@ -2145,7 +2145,6 @@ struct SignedPush {
 /// 0600 file in a 0700 dir and records where it was; `sign_exit` is the exit of `cosign sign`.
 #[cfg(unix)]
 fn oci_signed_push(scratch: &std::path::Path, sign_exit: u8) -> SignedPush {
-    use std::os::unix::fs::PermissionsExt as _;
     let (image, _) = oci_save(
         scratch,
         "image.tar.gz",
@@ -2155,10 +2154,10 @@ fn oci_signed_push(scratch: &std::path::Path, sign_exit: u8) -> SignedPush {
     let log = scratch.join("cosign.log");
     let seen = scratch.join("docker_config.seen");
     let cosign = scratch.join("cosign");
-    std::fs::write(
+    dx_testing::shell_script(
         &cosign,
-        format!(
-            "#!/bin/sh\nif [ \"$1\" = version ]; then echo 'GitVersion:    v0.0.1'; exit 0; fi\n\
+        &format!(
+            "if [ \"$1\" = version ]; then echo 'GitVersion:    v0.0.1'; exit 0; fi\n\
              test -n \"$(find \"$DOCKER_CONFIG/config.json\" -perm 600)\" || exit 3\n\
              test -n \"$(find \"$DOCKER_CONFIG\" -maxdepth 0 -perm 700)\" || exit 4\n\
              echo \"$DOCKER_CONFIG\" > '{}'\necho \"$*\" >> '{}'\n\
@@ -2166,9 +2165,7 @@ fn oci_signed_push(scratch: &std::path::Path, sign_exit: u8) -> SignedPush {
             seen.display(),
             log.display()
         ),
-    )
-    .expect("stub");
-    std::fs::set_permissions(&cosign, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+    );
     let sha256 = dx_digest::sha256_file_hex(&cosign).expect("hash");
     let sbom = scratch.join("s.spdx.json");
     std::fs::write(&sbom, "{}").expect("sbom");
@@ -2341,10 +2338,10 @@ fn oci_live_push_signature_and_attestation_verify_with_pinned_cosign() {
     // The fixture key signs offline: no signing config fetch, no transparency log upload.
     let offline = dir.join("cosign-offline");
     let script = format!(
-        "#!/bin/sh\ncase \"$1\" in sign|attest) exec '{0}' \"$@\" --use-signing-config=false --tlog-upload=false ;; esac\nexec '{0}' \"$@\"\n",
+        "case \"$1\" in sign|attest) exec '{0}' \"$@\" --use-signing-config=false --tlog-upload=false ;; esac\nexec '{0}' \"$@\"\n",
         cosign.display()
     );
-    with_env(&[], || dx_testing::executable_script(&offline, &script));
+    with_env(&[], || dx_testing::shell_script(&offline, &script));
     let sha256 = dx_digest::sha256_file_hex(&offline).expect("hash");
     let version_text = run_cosign(&cosign, &["version"], &home).expect("version");
     let version = crate::signing::cosign_git_version(&version_text)

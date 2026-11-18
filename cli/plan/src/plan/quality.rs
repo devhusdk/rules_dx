@@ -742,12 +742,12 @@ mod tests {
     #[test]
     fn probe_argv_differs_from_build_argv_only_in_aspects_group_and_event_file() {
         let user = strings(&["--config=ci", "--jobs=4"]);
-        let startup = strings(&["--output_base=/tmp/ob"]);
+        let startup = strings(&["--output_base=out/ob"]);
         for command in [Command::Lint, Command::Format, Command::Typecheck] {
             let scope = resolved(&["//pkg:lib"]);
             let build =
-                plan_build(command, &scope, &user, "/tmp/bep.json", &startup).expect("build");
-            let probe = plan_probe(command, &scope, &user, "/tmp/probe.json", &startup, None)
+                plan_build(command, &scope, &user, "out/bep.json", &startup).expect("build");
+            let probe = plan_probe(command, &scope, &user, "out/probe.json", &startup, None)
                 .expect("probe")
                 .expect("quality commands carry a probe");
             assert_eq!(build.argv.len(), probe.argv.len());
@@ -773,24 +773,17 @@ mod tests {
                         &"--output_groups=dx_shards".to_owned()
                     ),
                     (
-                        &"--build_event_json_file=/tmp/bep.json".to_owned(),
-                        &"--build_event_json_file=/tmp/probe.json".to_owned()
+                        &"--build_event_json_file=out/bep.json".to_owned(),
+                        &"--build_event_json_file=out/probe.json".to_owned()
                     ),
                 ],
                 "{command:?}"
             );
         }
         assert!(
-            plan_probe(
-                Command::Build,
-                &resolved(&[]),
-                &[],
-                "/tmp/p.json",
-                &[],
-                None
-            )
-            .expect("plan")
-            .is_none()
+            plan_probe(Command::Build, &resolved(&[]), &[], "out/p.json", &[], None)
+                .expect("plan")
+                .is_none()
         );
     }
 
@@ -802,7 +795,7 @@ mod tests {
             Command::Lint,
             &scope,
             &[],
-            "/tmp/p.json",
+            "out/p.json",
             &[],
             Some(Consumer {
                 extensions: &extensions,
@@ -829,7 +822,7 @@ mod tests {
             Command::Lint,
             &scope,
             &[],
-            "/tmp/p.json",
+            "out/p.json",
             &[],
             Some(Consumer {
                 extensions: &extensions,
@@ -883,7 +876,7 @@ mod tests {
                 .expect("aspects")
                 .to_owned()
         };
-        let probe = plan_shared_probe(&commands, &resolved(&[]), &[], "/tmp/probe.json", &[], None)
+        let probe = plan_shared_probe(&commands, &resolved(&[]), &[], "out/probe.json", &[], None)
             .expect("probe")
             .expect("quality commands carry a probe");
         let probed = aspects_of(&probe.argv);
@@ -897,7 +890,7 @@ mod tests {
             &commands,
             &resolved(&[]),
             &[],
-            "/tmp/bep.json",
+            "out/bep.json",
             &[],
             Selection {
                 shards: Some(&rust),
@@ -922,10 +915,10 @@ mod tests {
     fn quality_builds_keep_the_build_configuration() {
         let user = strings(&["--config=ci"]);
         for command in [Command::Lint, Command::Format, Command::Typecheck] {
-            let build = plan_build(command, &resolved(&[]), &user, "/tmp/bep.json", &[])
+            let build = plan_build(command, &resolved(&[]), &user, "out/bep.json", &[])
                 .expect("build")
                 .argv;
-            let probe = plan_probe(command, &resolved(&[]), &user, "/tmp/probe.json", &[], None)
+            let probe = plan_probe(command, &resolved(&[]), &user, "out/probe.json", &[], None)
                 .expect("probe")
                 .expect("quality commands carry a probe")
                 .argv;
@@ -947,7 +940,7 @@ mod tests {
             Command::Lint,
             &resolved(&[]),
             &[],
-            "/tmp/bep.json",
+            "out/bep.json",
             &[],
             Selection {
                 shards: Some(&rust),
@@ -974,7 +967,7 @@ mod tests {
             &commands,
             &resolved(&["//pkg:lib"]),
             &user,
-            "/tmp/bep.json",
+            "out/bep.json",
             &[],
             selection,
         )
@@ -988,7 +981,7 @@ mod tests {
             Command::Lint,
             &resolved(&["//pkg:lib"]),
             &user,
-            "/tmp/bep.json",
+            "out/bep.json",
             &[],
             selection,
         )
@@ -1042,7 +1035,7 @@ mod tests {
                     command,
                     &resolved(&["//pkg:lib"]),
                     &user,
-                    "/tmp/bep.json",
+                    "out/bep.json",
                     &[],
                     Selection {
                         unsafe_fixes,
@@ -1059,7 +1052,7 @@ mod tests {
                     command,
                     &resolved(&["//pkg:lib"]),
                     &user,
-                    "/tmp/bep.json",
+                    "out/bep.json",
                     &[]
                 )
                 .expect("plan")
@@ -1079,7 +1072,7 @@ mod tests {
     #[test]
     fn protected_flags_find_keep_going_by_value() {
         let entry = spec(Command::Lint);
-        let required = required_options(&entry, &[], "/tmp/bep.json");
+        let required = required_options(&entry, &[], "out/bep.json");
         let flags = protected_flags(&required).expect("flags");
         let keep_going = flags
             .iter()
@@ -1091,7 +1084,7 @@ mod tests {
     #[test]
     fn protected_flags_reject_miswired_required_and_settings() {
         let entry = spec(Command::Lint);
-        let mut required = required_options(&entry, &[], "/tmp/bep.json");
+        let mut required = required_options(&entry, &[], "out/bep.json");
         required.retain(|option| option.as_str() != KEEP_GOING_FLAG);
         let err = protected_flags(&required).expect_err("missing keep_going");
         assert!(
@@ -1111,7 +1104,7 @@ mod tests {
             Command::Lint,
             &resolved(&[]),
             &strings(&["--jobs=4"]),
-            "/tmp/bep.json",
+            "out/bep.json",
             &[],
         )
         .expect("plan");
@@ -1142,7 +1135,7 @@ mod tests {
             argv[11..],
             [
                 "--keep_going",
-                "--build_event_json_file=/tmp/bep.json",
+                "--build_event_json_file=out/bep.json",
                 "--build_event_json_file_path_conversion=false",
                 "//...",
             ]
@@ -1156,7 +1149,7 @@ mod tests {
             Command::Format,
             &resolved(&["//a:x"]),
             &strings(&["--noskip_incompatible_explicit_targets"]),
-            "/tmp/bep.json",
+            "out/bep.json",
             &[],
         )
         .expect("plan");
@@ -1176,8 +1169,7 @@ mod tests {
     #[test]
     fn quality_plans_share_the_bazel_settings() {
         for command in [Command::Lint, Command::Typecheck, Command::Format] {
-            let plan =
-                plan_build(command, &resolved(&[]), &[], "/tmp/bep.json", &[]).expect("plan");
+            let plan = plan_build(command, &resolved(&[]), &[], "out/bep.json", &[]).expect("plan");
             for setting in BAZEL_SETTINGS {
                 assert_eq!(
                     plan.argv.iter().filter(|arg| *arg == setting).count(),
@@ -1194,7 +1186,7 @@ mod tests {
             Command::Lint,
             &resolved(&["//a:one", "//b/..."]),
             &[],
-            "/tmp/bep.json",
+            "out/bep.json",
             &[],
         )
         .expect("plan");
@@ -1211,7 +1203,7 @@ mod tests {
             excluded: Vec::new(),
             kept: Vec::new(),
         };
-        let plan = plan_build(Command::Lint, &scope, &[], "/tmp/bep.json", &[]).expect("plan");
+        let plan = plan_build(Command::Lint, &scope, &[], "out/bep.json", &[]).expect("plan");
         let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
         assert_eq!(argv[argv.len() - 2..], ["//a:a", "//b:b"]);
         assert_eq!(plan.summary, "Running lint analysis for //a:a //b:b");
@@ -1236,22 +1228,16 @@ mod tests {
         assert_eq!(first.targets, second.targets);
         assert_eq!(first.targets, strings(&["//pkg:extra", "//pkg:lib"]));
         let first_plan =
-            plan_build(Command::Lint, &first, &[], "/tmp/bep.json", &[]).expect("forward plan");
+            plan_build(Command::Lint, &first, &[], "out/bep.json", &[]).expect("forward plan");
         let second_plan =
-            plan_build(Command::Lint, &second, &[], "/tmp/bep.json", &[]).expect("reversed plan");
+            plan_build(Command::Lint, &second, &[], "out/bep.json", &[]).expect("reversed plan");
         assert_eq!(first_plan.argv, second_plan.argv);
     }
 
     #[test]
     fn typecheck_plan_carries_typecheck_aspect_and_format_summary() {
-        let plan = plan_build(
-            Command::Typecheck,
-            &resolved(&[]),
-            &[],
-            "/tmp/bep.json",
-            &[],
-        )
-        .expect("plan");
+        let plan =
+            plan_build(Command::Typecheck, &resolved(&[]), &[], "out/bep.json", &[]).expect("plan");
         assert!(
             plan.argv.iter().any(|arg| arg
                 .contains("@rules_dx//core/quality:families/core.bzl%real_typecheck_aspect")
@@ -1285,7 +1271,7 @@ mod tests {
         );
         assert_eq!(plan.summary, "Running typecheck analysis for //...");
         let plan =
-            plan_build(Command::Format, &resolved(&[]), &[], "/tmp/bep.json", &[]).expect("plan");
+            plan_build(Command::Format, &resolved(&[]), &[], "out/bep.json", &[]).expect("plan");
         assert_eq!(plan.summary, "Running format analysis for //...");
     }
 
@@ -1295,7 +1281,7 @@ mod tests {
             Command::Lint,
             &resolved(&[]),
             &strings(&["--keep_going"]),
-            "/tmp/bep.json",
+            "out/bep.json",
             &[],
         )
         .expect("plan");
@@ -1309,7 +1295,7 @@ mod tests {
             Command::Lint,
             &resolved(&[]),
             &strings(&[selection]),
-            "/tmp/bep.json",
+            "out/bep.json",
             &[],
         )
         .expect("plan");
@@ -1322,7 +1308,7 @@ mod tests {
 
     #[test]
     fn docs_plan_adds_the_site_group_and_protects_output_groups() {
-        let plan = plan_docs(&resolved(&[]), &[], "/tmp/bep.json", &[], None).expect("plan");
+        let plan = plan_docs(&resolved(&[]), &[], "out/bep.json", &[], None).expect("plan");
         let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
         assert!(
             argv.iter().any(|arg| arg.starts_with(
@@ -1339,7 +1325,7 @@ mod tests {
             "{argv:?}"
         );
         assert!(
-            argv.contains(&"--build_event_json_file=/tmp/bep.json"),
+            argv.contains(&"--build_event_json_file=out/bep.json"),
             "{argv:?}"
         );
         assert_eq!(argv[argv.len() - 2], "//...");
@@ -1347,7 +1333,7 @@ mod tests {
         let err = plan_docs(
             &resolved(&[]),
             &strings(&["--output_groups=other"]),
-            "/tmp/bep.json",
+            "out/bep.json",
             &[],
             None,
         )
@@ -1361,7 +1347,7 @@ mod tests {
             "--aspects=//other.bzl%aspect",
             "--output_groups=other",
             "--nokeep_going",
-            "--build_event_json_file=/tmp/other.json",
+            "--build_event_json_file=out/other.json",
             "--build_event_json_file_path_conversion",
             "--build_event_json_file_path_conversion=true",
             "--remote_download_minimal",
@@ -1375,7 +1361,7 @@ mod tests {
                 Command::Lint,
                 &resolved(&[]),
                 &strings(&[conflicting]),
-                "/tmp/bep.json",
+                "out/bep.json",
                 &[],
             )
             .expect_err("conflict must fail");
@@ -1394,7 +1380,7 @@ mod tests {
                 Command::Typecheck,
                 &resolved(&[]),
                 &strings(&[conflicting]),
-                "/tmp/bep.json",
+                "out/bep.json",
                 &[],
             )
             .expect_err("conflict must fail");
@@ -1411,7 +1397,7 @@ mod tests {
             Command::Lint,
             &resolved(&[]),
             &strings(&["--config=x"]),
-            "/tmp/bep.json",
+            "out/bep.json",
             &[],
         )
         .expect("plan");
@@ -1425,7 +1411,7 @@ mod tests {
         for flag in [
             crate::plan::DOWNLOAD_TOPLEVEL_FLAG,
             KEEP_GOING_FLAG,
-            "--build_event_json_file=/tmp/bep.json",
+            "--build_event_json_file=out/bep.json",
             "--build_event_json_file_path_conversion=false",
         ] {
             assert!(position(flag) > config, "{flag}: {plan:?}");
@@ -1452,7 +1438,7 @@ mod tests {
                 let mut user = strings(&["--config=x"]);
                 user.extend(strings(&options));
                 let plan =
-                    plan_build(command, &resolved(&[]), &user, "/tmp/bep.json", &[]).expect("plan");
+                    plan_build(command, &resolved(&[]), &user, "out/bep.json", &[]).expect("plan");
                 let last = plan
                     .argv
                     .iter()
@@ -1479,7 +1465,7 @@ mod tests {
                 Command::Lint,
                 &resolved(&[]),
                 &strings(&[option]),
-                "/tmp/bep.json",
+                "out/bep.json",
                 &[],
             )
             .expect("local paths keep the build event file readable");
@@ -1499,7 +1485,7 @@ mod tests {
             Command::Lint,
             &resolved(&[]),
             &strings(&["--home_rc"]),
-            "/tmp/bep.json",
+            "out/bep.json",
             &[],
         )
         .expect_err("startup option must fail");

@@ -749,7 +749,7 @@ mod tests {
     fn copy_scratch_replaces_a_read_only_dest_and_keeps_the_exec_bit() {
         let scratch = dx_test_scratch::scratch("dx-atomic-fs-copy-scratch-").unwrap();
         let src = scratch.path().join("tool");
-        std::fs::write(&src, b"#!/bin/sh\n").expect("write src");
+        std::fs::write(&src, b"tool\n").expect("write src");
         chmod(&src, 0o555);
         let out = scratch.path().join("out");
         std::fs::create_dir_all(&out).expect("mkdir out");
@@ -757,7 +757,7 @@ mod tests {
         std::fs::write(&dest, b"old\n").expect("write dest");
         chmod(&dest, 0o444);
         copy_scratch(&src, &dest).expect("replace read-only dest");
-        assert_eq!(std::fs::read(&dest).expect("read dest"), b"#!/bin/sh\n");
+        assert_eq!(std::fs::read(&dest).expect("read dest"), b"tool\n");
         assert_eq!(mode_of(&dest), 0o755);
         assert_eq!(names_in(&out), vec!["tool".to_owned()]);
         scratch.close().expect("cleanup");

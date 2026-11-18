@@ -19,12 +19,6 @@ pub fn find_in<S: AsRef<Path>>(path: &OsStr, names: &[S]) -> Option<PathBuf> {
     })
 }
 
-/// [`find_in`] over this process's `PATH`; `None` when `PATH` is unset.
-#[must_use]
-pub fn find<S: AsRef<Path>>(names: &[S]) -> Option<PathBuf> {
-    find_in(&std::env::var_os("PATH")?, names)
-}
-
 /// The first file on `path` that the host runs as `command`: the bare name,
 /// and on Windows also `command.exe` and the other executable suffixes.
 #[must_use]

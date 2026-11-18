@@ -37,8 +37,8 @@ fn code_text(page: &str) -> Vec<String> {
     out
 }
 
-/// Commands the dx shim answers itself; they never reach the CLI grammar.
-const SHIM_COMMANDS: [&str; 1] = ["shim"];
+/// The command the dx shim answers itself; it never reaches the CLI grammar.
+const LAUNCHER_COMMAND: &str = "dx shim";
 
 /// Shell words that end one command.
 const COMMAND_ENDS: [&str; 7] = ["|", "||", "&&", ";", ">", ">>", "2>&1"];
@@ -96,7 +96,7 @@ fn unknown_invocations(surface: &[HelpSurface], files: &BTreeMap<String, String>
                     Some((first, _)) if first.starts_with('-') => ("", words.as_slice()),
                     _ => continue,
                 };
-                if SHIM_COMMANDS.contains(&command) {
+                if LAUNCHER_COMMAND.strip_prefix("dx ") == Some(command) {
                     continue;
                 }
                 let flags = if command.is_empty() {

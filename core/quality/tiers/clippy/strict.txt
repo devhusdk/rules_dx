@@ -19,6 +19,14 @@
 -Dclippy::undocumented_unsafe_blocks
 -Dclippy::allow_attributes_without_reason
 -Dclippy::allow_attributes
+-Dclippy::match_wildcard_for_single_variants
+-Dclippy::let_underscore_future
+-Dclippy::unchecked_time_subtraction
+-Dclippy::large_futures
+-Dclippy::try_err
+-Dclippy::infinite_loop
+-Dclippy::cast_possible_truncation
+-Dclippy::cast_possible_wrap
 -Dunsafe_code
 -Dunsafe_op_in_unsafe_fn
 -Dunused_must_use

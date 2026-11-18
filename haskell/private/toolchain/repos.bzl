@@ -202,7 +202,7 @@ haskell_toolchain(
     docdir_path = "doc",
     fully_static_link = False,
     libdir = [":lib"],
-    libraries = toolchain_libraries,
+    libraries = toolchain_libraries,{llvm}
     locale = "{locale}",
     static_runtime = {static_runtime},
     tools = [":bin"],
@@ -296,6 +296,17 @@ _OS_LIBRARY = """haskell_toolchain_library(
     }}),
 )
 """
+
+LLVM_TOOLS = {
+    "llc": Label("@llvm-project//llvm:llc"),
+    "opt": Label("@llvm-project//llvm:opt"),
+}
+
+def llvm_toolchain_attrs(llvm_backend):
+    """Returns the haskell_toolchain attributes that make GHC compile through llc and opt."""
+    if not llvm_backend:
+        return ""
+    return "".join(["\n    {} = \"{}\",".format(name, tool) for name, tool in sorted(LLVM_TOOLS.items())])
 
 def cell_repository_name(cell):
     """Returns the repository name one qualified cell is acquired into."""
@@ -555,6 +566,7 @@ def _ghc_repo_impl(rctx):
         ),
         libdir = LIBDIR,
         libraries = result["file_content"],
+        llvm = llvm_toolchain_attrs(rctx.attr.llvm_backend),
         locale = host.locale,
         static_runtime = cell.exe_suffix == ".exe",
         version = GHC_VERSION,
@@ -569,6 +581,7 @@ ghc_repo = repository_rule(
         "cell": attr.string(mandatory = True, doc = "Qualified host cell."),
         "target": attr.string(doc = "Qualified target cell of a cross toolchain."),
         "cc_target": attr.string(doc = "C compiler target triple of a cross toolchain."),
+        "llvm_backend": attr.bool(doc = "Whether GHC compiles through llc and opt instead of its native code generator."),
         "_pkgdb_to_bzl": attr.label(default = Label("@rules_haskell//haskell:private/pkgdb_to_bzl.py")),
         "python": attr.label(mandatory = True, doc = "Host interpreter for the package database conversion."),
     },

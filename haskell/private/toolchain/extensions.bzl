@@ -18,6 +18,7 @@ def _haskell_impl(mctx):
             cell = cross.host,
             target = cross.target,
             cc_target = cross.cc_target,
+            llvm_backend = cross.llvm_backend,
             python = Label(ALL_CELLS[cross.host].python),
         )
     hub_repo(name = HUB_NAME, files = hub_files(host_os = mctx.os.name, host_arch = mctx.os.arch))

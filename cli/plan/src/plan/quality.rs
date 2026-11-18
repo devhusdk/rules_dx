@@ -211,7 +211,7 @@ pub fn command_aspects(command: Command, consumer: Option<Consumer<'_>>) -> Vec<
     }
 }
 
-/// Plans one build that runs the aspects of every command in `commands` and no shard probe.
+/// Plans one build that runs the aspects of every command in `commands` that `selection` keeps.
 ///
 /// Each command's outputs keep their own aspect in the build events, so a reader can split
 /// them back per command.
@@ -227,15 +227,14 @@ pub fn plan_shared_build(
     startup_options: &[String],
     selection: Selection<'_>,
 ) -> Result<BuildPlan, DxError> {
-    let mut aspects: Vec<&'static str> = Vec::new();
-    for aspect in commands
-        .iter()
-        .flat_map(|command| command_aspects(*command, selection.consumer))
-    {
-        if !aspects.contains(&aspect) {
-            aspects.push(aspect);
-        }
-    }
+    let aspects = select_aspects(
+        union(
+            commands
+                .iter()
+                .flat_map(|command| command_aspects(*command, selection.consumer)),
+        ),
+        selection.shards,
+    );
     selected_plan(
         Command::Check,
         &aspects,
@@ -243,11 +242,19 @@ pub fn plan_shared_build(
         bazel_options,
         bep_path,
         startup_options,
-        Selection {
-            shards: None,
-            ..selection
-        },
+        selection,
     )
+}
+
+/// The labels in first-seen order without repeats.
+fn union(labels: impl Iterator<Item = &'static str>) -> Vec<&'static str> {
+    let mut seen: Vec<&'static str> = Vec::new();
+    for label in labels {
+        if !seen.contains(&label) {
+            seen.push(label);
+        }
+    }
+    seen
 }
 
 fn selected_plan(
@@ -318,13 +325,41 @@ pub fn plan_probe(
     startup_options: &[String],
     consumer: Option<Consumer<'_>>,
 ) -> Result<Option<BuildPlan>, DxError> {
-    let probes = match consumer {
-        Some(consumer) => probes_for(command, consumer),
-        None => spec(command).probes.to_vec(),
-    };
+    plan_shared_probe(
+        &[command],
+        resolved,
+        bazel_options,
+        bep_path,
+        startup_options,
+        consumer,
+    )
+}
+
+/// Plans one shard probe over the probes of every command in `commands`, for the build
+/// `plan_shared_build` plans over the same commands.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
+pub fn plan_shared_probe(
+    commands: &[Command],
+    resolved: &ResolvedScope,
+    bazel_options: &[String],
+    bep_path: &str,
+    startup_options: &[String],
+    consumer: Option<Consumer<'_>>,
+) -> Result<Option<BuildPlan>, DxError> {
+    let probes = union(commands.iter().flat_map(|command| match consumer {
+        Some(consumer) => probes_for(*command, consumer),
+        None => spec(*command).probes.to_vec(),
+    }));
     if probes.is_empty() {
         return Ok(None);
     }
+    let command = match commands {
+        [only] => *only,
+        _ => Command::Check,
+    };
     shaped_plan(
         command,
         resolved,
@@ -836,6 +871,50 @@ mod tests {
         assert_eq!(
             select_aspects(format.aspects.to_vec(), Some(&BTreeSet::new())),
             vec!["core/quality:families/core.bzl%real_format_aspect"]
+        );
+    }
+
+    #[test]
+    fn shared_probe_and_build_cover_every_command_and_keep_the_probed_shards() {
+        let commands = [Command::Format, Command::Lint, Command::Typecheck];
+        let aspects_of = |argv: &[String]| -> String {
+            argv.iter()
+                .find_map(|arg| arg.strip_prefix("--aspects="))
+                .expect("aspects")
+                .to_owned()
+        };
+        let probe = plan_shared_probe(&commands, &resolved(&[]), &[], "/tmp/probe.json", &[], None)
+            .expect("probe")
+            .expect("quality commands carry a probe");
+        let probed = aspects_of(&probe.argv);
+        for command in commands {
+            for label in spec(command).probes {
+                assert_eq!(probed.matches(label).count(), 1, "{label} in {probed}");
+            }
+        }
+        let rust: BTreeSet<String> = ["real_rust_lint".to_owned()].into();
+        let build = plan_shared_build(
+            &commands,
+            &resolved(&[]),
+            &[],
+            "/tmp/bep.json",
+            &[],
+            Selection {
+                shards: Some(&rust),
+                ..Selection::default()
+            },
+        )
+        .expect("build");
+        let passed = aspects_of(&build.argv);
+        let names: Vec<&str> = passed.split(',').map(shard_name).collect();
+        assert_eq!(
+            names,
+            [
+                "real_format",
+                "real_lint",
+                "real_rust_lint",
+                "real_typecheck"
+            ]
         );
     }
 

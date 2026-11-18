@@ -5,6 +5,7 @@
 //! Bazel's exit code only when a failure there may be its own, so a lint failure leaves format
 //! clean.
 
+use super::quality::{probe_shards, probe_stop_exit};
 use dx_bep::aspect_key;
 use dx_exec_core::common::{
     BAZEL_INTERRUPTED, Env, PhaseKind, collect_output_account, read_actions, run_bazel_output,
@@ -143,8 +144,9 @@ fn same_build(a: &QualityRequest, b: &QualityRequest) -> bool {
 }
 
 impl SharedBuild {
-    /// Runs one build over the aspects of `commands` with the scope and settings of `request`,
-    /// which must be the first of them. `Ok(None)` means it could not be planned.
+    /// Runs one shard probe and then one build over the aspects of `commands` the probe keeps, with
+    /// the scope and settings of `request`, which must be the first of them. `Ok(None)` means it
+    /// could not be planned.
     fn run(
         commands: &[Command],
         request: &QualityRequest,
@@ -159,8 +161,25 @@ impl SharedBuild {
         let Some(bep_text) = bep.to_str() else {
             return Ok(None);
         };
+        let mut probe_counts = None;
+        let shards = match probe_shards(
+            commands,
+            request,
+            resolved,
+            env.workspace,
+            env.runner,
+            env.temp_dir,
+            env.pid,
+            env.nonce,
+            env.actions,
+            &mut probe_counts,
+            consumer,
+        ) {
+            Ok(shards) => shards,
+            Err(stop) => return Err(probe_stop_exit(&stop, request, env, kind)),
+        };
         let selection = Selection {
-            shards: None,
+            shards: shards.as_ref(),
             consumer,
             unsafe_fixes: request.unsafe_fixes,
             online: request.online,
@@ -191,7 +210,10 @@ impl SharedBuild {
                 return Err(exit);
             }
         };
-        let actions = read_actions(&bep, env.actions);
+        let actions = match (probe_counts, read_actions(&bep, env.actions)) {
+            (Some(probe), Some(build)) => Some(probe + build),
+            (probe, build) => probe.or(build),
+        };
         let failing = failing_aspects(&bep, code, env);
         let members = commands
             .iter()

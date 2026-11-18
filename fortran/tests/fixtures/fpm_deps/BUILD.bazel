@@ -1,0 +1,10 @@
+exports_files(
+    [
+        "fpm.lock.json",
+        "fpm.toml",
+    ],
+    visibility = [
+        "//:__pkg__",
+        "//fortran/tests/conformance:__pkg__",
+    ],
+)

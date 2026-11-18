@@ -1,3 +1,4 @@
+use dx_os_sys::process::{Presence, SIGINT, SIGKILL, SIGTERM, probe, signal};
 use std::fs;
 use std::os::unix::process::{CommandExt, ExitStatusExt};
 use std::path::{Path, PathBuf};
@@ -171,14 +172,11 @@ impl Probe {
         });
     }
 
-    #[expect(unsafe_code, reason = "kill has no safe std API")]
     fn signal(&mut self, signo: i32, group: bool) {
         self.signalled = Some(Instant::now());
         let pid = i32::try_from(self.child.id()).expect("pid fits i32");
         let target = if group { -pid } else { pid };
-        // SAFETY: kill(2) takes plain integers and touches no memory.
-        let delivered = unsafe { libc::kill(target, signo) };
-        assert_eq!(delivered, 0, "signal delivered");
+        signal(target, signo).expect("signal delivered");
     }
 
     fn exit(&mut self) -> ExitStatus {
@@ -211,7 +209,7 @@ impl Probe {
     }
 
     fn stop(&mut self) -> ExitStatus {
-        self.signal(libc::SIGINT, false);
+        self.signal(SIGINT, false);
         self.exit()
     }
 }
@@ -219,22 +217,18 @@ impl Probe {
 /// dx ends an interrupted watch with code 130 or by re-raising SIGINT, depending on timing.
 fn assert_interrupted(status: ExitStatus) {
     assert!(
-        status.code() == Some(130) || status.signal() == Some(libc::SIGINT),
+        status.code() == Some(130) || status.signal() == Some(SIGINT),
         "not interrupted: {status:?}"
     );
 }
 
 impl Drop for Probe {
-    #[expect(unsafe_code, reason = "kill has no safe std API")]
     fn drop(&mut self) {
         if let Ok(None) = self.child.try_wait() {
-            // SAFETY: kill(2) takes plain integers and touches no memory.
-            unsafe {
-                libc::kill(
-                    -(i32::try_from(self.child.id()).expect("pid fits i32")),
-                    libc::SIGKILL,
-                );
-            }
+            drop(signal(
+                -(i32::try_from(self.child.id()).expect("pid fits i32")),
+                SIGKILL,
+            ));
             if let Err(e) = self.child.wait() {
                 eprintln!("wait dx: {e}");
             }
@@ -242,11 +236,8 @@ impl Drop for Probe {
     }
 }
 
-#[expect(unsafe_code, reason = "kill has no safe std API")]
 fn alive(pid: i32) -> bool {
-    // SAFETY: kill(2) takes plain integers and touches no memory.
-    let exists = unsafe { libc::kill(pid, 0) } == 0;
-    exists && !zombie(pid)
+    probe(pid) == Presence::Reachable && !zombie(pid)
 }
 
 #[cfg(target_os = "linux")]
@@ -441,7 +432,7 @@ fn idle_terminate_stops_the_watch() {
     probe.until("the watching line", |probe| {
         probe.count("end ") >= 1 && probe.stdout().contains("watching (Ctrl-C")
     });
-    probe.signal(libc::SIGTERM, false);
+    probe.signal(SIGTERM, false);
     assert_eq!(probe.exit().code(), Some(143));
     assert_eq!(probe.count("start "), 1);
 }
@@ -464,10 +455,10 @@ fn ctrl_c_during_a_command_stops_it_its_descendants_and_the_watch() {
             .and_then(|pid| pid.trim().parse().ok())
             .expect("descendant pid");
         assert!(alive(descendant));
-        probe.signal(libc::SIGINT, group);
+        probe.signal(SIGINT, group);
         let status = probe.exit();
         assert!(
-            status.code() == Some(130) || status.signal() == Some(libc::SIGINT),
+            status.code() == Some(130) || status.signal() == Some(SIGINT),
             "group={group}: {status:?} {}\n{}",
             probe.exit_time(),
             probe.stderr()
@@ -604,7 +595,7 @@ fn watch_run_stops_the_running_app_tree_before_each_relaunch() {
     assert!(stdout.contains("iteration=3"), "{stdout}");
     let status = probe.stop();
     assert!(
-        status.code() == Some(130) || status.signal() == Some(libc::SIGINT),
+        status.code() == Some(130) || status.signal() == Some(SIGINT),
         "{status:?}\n{}",
         probe.stderr()
     );

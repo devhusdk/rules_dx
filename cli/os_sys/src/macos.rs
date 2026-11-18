@@ -5,6 +5,8 @@
     reason = "sysctl and proc_listallpids have no safe std or rustix API"
 )]
 
+use std::ffi::CStr;
+
 /// Size of `struct kinfo_proc` on 64-bit macOS.
 const KINFO_PROC_SIZE: usize = 648;
 
@@ -91,20 +93,31 @@ pub fn procargs(pid: i32) -> Option<Vec<u8>> {
     Some(buffer)
 }
 
-/// Physical memory reported by `hw.memsize`.
-#[must_use]
-pub fn memsize() -> Option<u64> {
-    let mut value: u64 = 0;
-    let mut size = std::mem::size_of::<u64>();
-    // SAFETY: the name is NUL-terminated and `value` is writable for `size` bytes.
-    let status = unsafe {
+/// Reads the fixed-size `sysctl` value called `name`; `None` unless exactly `N` bytes come back.
+fn sysctl_named<const N: usize>(name: &CStr) -> Option<[u8; N]> {
+    let mut value = [0u8; N];
+    let mut len = N;
+    // SAFETY: `name` is NUL-terminated, `value` is writable for `len` bytes and no new value is set.
+    let rc = unsafe {
         libc::sysctlbyname(
-            c"hw.memsize".as_ptr(),
-            (&raw mut value).cast(),
-            &raw mut size,
+            name.as_ptr(),
+            value.as_mut_ptr().cast(),
+            &raw mut len,
             std::ptr::null_mut(),
             0,
         )
     };
-    (status == 0).then_some(value)
+    (rc == 0 && len == N).then_some(value)
+}
+
+/// The `int` `sysctl` value called `name`, such as `kern.memorystatus_vm_pressure_level`.
+#[must_use]
+pub fn sysctl_i32(name: &CStr) -> Option<i32> {
+    sysctl_named(name).map(i32::from_ne_bytes)
+}
+
+/// Physical memory reported by `hw.memsize`.
+#[must_use]
+pub fn memsize() -> Option<u64> {
+    sysctl_named(c"hw.memsize").map(u64::from_ne_bytes)
 }

@@ -1,5 +1,5 @@
 {
-  "checksum": "aea5547593a08e4c7dd15c00d737289e190135dc910d251f9cb3aeec202fd4a2",
+  "checksum": "21a92e8fc3dd8357f78a5dc8509c7ce1d7ed496c1c4b7248207dd37612f804fd",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -9288,10 +9288,6 @@
           {
             "id": "clap_mangen 0.2.33",
             "target": "clap_mangen"
-          },
-          {
-            "id": "libc 0.2.189",
-            "target": "libc"
           },
           {
             "id": "line-index 0.1.2",

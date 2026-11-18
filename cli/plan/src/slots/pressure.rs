@@ -67,22 +67,8 @@ fn host_high(_low_available: u64) -> Option<bool> {
 
 /// The kernel's memory pressure level, from `kern.memorystatus_vm_pressure_level`.
 #[cfg(target_os = "macos")]
-#[expect(unsafe_code, reason = "sysctlbyname is libc FFI")]
 fn macos_level() -> Option<i32> {
-    let name = b"kern.memorystatus_vm_pressure_level\0";
-    let mut level: libc::c_int = 0;
-    let mut len = std::mem::size_of::<libc::c_int>();
-    // SAFETY: `name` is NUL-terminated and `level`/`len` are live, sized locals; no value is set.
-    let rc = unsafe {
-        libc::sysctlbyname(
-            name.as_ptr().cast::<libc::c_char>(),
-            (&mut level as *mut libc::c_int).cast::<libc::c_void>(),
-            &mut len,
-            std::ptr::null_mut(),
-            0,
-        )
-    };
-    (rc == 0 && len == std::mem::size_of::<libc::c_int>()).then_some(level)
+    dx_os_sys::macos::sysctl_i32(c"kern.memorystatus_vm_pressure_level")
 }
 
 /// Judges a macOS pressure level: 1 is normal, 2 is warn, 4 is critical. Other values have no signal.

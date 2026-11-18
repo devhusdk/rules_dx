@@ -2065,7 +2065,6 @@ dependencies = [
  "clap_lex",
  "clap_mangen",
  "insta",
- "libc",
  "line-index",
  "quick-junit",
  "quick-xml",

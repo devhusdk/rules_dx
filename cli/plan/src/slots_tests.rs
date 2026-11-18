@@ -458,8 +458,7 @@ fn share_splits_the_host_over_held_slots() {
 #[cfg(unix)]
 #[test]
 fn a_child_forked_while_a_slot_is_held_keeps_it_until_exec() {
-    use std::io::Read;
-    use std::os::fd::AsRawFd;
+    use std::io::{Read, Write};
     use std::os::unix::net::UnixStream;
     use std::os::unix::process::CommandExt;
     let scratch = dx_test_scratch::scratch("dx-slots-fork-").unwrap();
@@ -467,20 +466,15 @@ fn a_child_forked_while_a_slot_is_held_keeps_it_until_exec() {
     std::fs::create_dir_all(&dir).expect("dir");
     let slot = try_take(&dir, 1, "held").expect("try").expect("free");
     let (mut reader, writer) = UnixStream::pair().expect("pair");
-    let fd = writer.as_raw_fd();
+    let hook = writer.try_clone().expect("clone");
     let spawner = std::thread::spawn(move || {
         let mut cmd = Process::new("/bin/sh");
         cmd.args(["-c", "exit 0"]);
-        // SAFETY: the hook only calls write and nanosleep, both async-signal-safe.
+        // SAFETY: the hook only writes to a socket and sleeps, both async-signal-safe.
         unsafe {
             cmd.pre_exec(move || {
-                let byte = 1u8;
-                libc::write(fd, (&raw const byte).cast(), 1);
-                let nap = libc::timespec {
-                    tv_sec: 0,
-                    tv_nsec: 150_000_000,
-                };
-                libc::nanosleep(&raw const nap, std::ptr::null_mut());
+                (&hook).write_all(&[1])?;
+                std::thread::sleep(std::time::Duration::from_millis(150));
                 Ok(())
             });
         }
@@ -2921,7 +2915,6 @@ fn ping_argv_carries_startup_options_before_the_info_verb() {
     );
 }
 
-#[expect(unsafe_code, reason = "kill has no safe std API")]
 #[cfg(unix)]
 #[test]
 fn a_real_ping_child_is_reaped_on_stop() {
@@ -2941,6 +2934,8 @@ fn a_real_ping_child_is_reaped_on_stop() {
     assert!(!warmth.finished(&mut child));
     let pid = i32::try_from(child.id()).expect("pid");
     warmth.stop(child);
-    // SAFETY: kill with signal 0 only checks that the process exists.
-    assert_ne!(unsafe { libc::kill(pid, 0) }, 0);
+    assert_ne!(
+        dx_os_sys::process::probe(pid),
+        dx_os_sys::process::Presence::Reachable
+    );
 }

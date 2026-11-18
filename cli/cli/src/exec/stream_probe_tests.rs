@@ -1084,7 +1084,7 @@ fn hang_up_waits_for_every_reader_copy() {
         .recv_timeout(Duration::from_secs(30))
         .expect("hang_up returns once the child is gone");
     waiter.join().expect("waiter");
-    assert!(reader_gone(&writer, 0));
+    assert!(reader_gone(&writer, Duration::ZERO));
 }
 
 #[test]

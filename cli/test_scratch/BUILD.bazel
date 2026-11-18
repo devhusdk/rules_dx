@@ -20,6 +20,7 @@ rust_library(
         package_name = "cli/dx_test_scratch",
         normal = True,
     ) + [
+        "//cli/os_sys:dx_os_sys",
         "//cli/process:dx_process",
     ],
 )
@@ -40,6 +41,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        "//cli/os_sys:dx_os_sys",
         "//cli/process:dx_process",
     ],
 )

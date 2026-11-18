@@ -307,14 +307,18 @@ mod tests {
             .join(ENVIRONMENTS_DIR_NAME)
             .join(id.as_str());
         set_mode(&dir.join("artifacts"), 0o555);
-        let message = stage_env_generation(&workspace, &id, &[env_entry("k", "v", &second)])
-            .expect_err("cannot replace")
-            .to_string();
-        assert!(message.contains("cannot replace"), "{message}");
-        let message = stage_env_generation(&workspace, &id, &[env_entry("fresh", "v", &second)])
-            .expect_err("cannot link")
-            .to_string();
-        assert!(message.contains("cannot link"), "{message}");
+        let replaced = stage_env_generation(&workspace, &id, &[env_entry("k", "v", &second)]);
+        let linked = stage_env_generation(&workspace, &id, &[env_entry("fresh", "v", &second)]);
         set_mode(&dir.join("artifacts"), 0o755);
+        // Root may change a read-only directory, so for root both stages land.
+        if dx_test_scratch::running_as_root() {
+            replaced.expect("root replaces");
+            linked.expect("root links");
+            return;
+        }
+        let message = replaced.expect_err("cannot replace").to_string();
+        assert!(message.contains("cannot replace"), "{message}");
+        let message = linked.expect_err("cannot link").to_string();
+        assert!(message.contains("cannot link"), "{message}");
     }
 }

@@ -496,16 +496,13 @@ mod tests {
             .join(GENERATED_DIR_NAME)
             .join(id.as_str());
         set_mode(&dir, 0o555);
-        let message = stage_codegen_generation(
+        let replaced = stage_codegen_generation(
             &workspace,
             &workspace,
             &id,
             &[codegen_entry("a.txt", &second)],
-        )
-        .expect_err("cannot replace")
-        .to_string();
-        assert!(message.contains("cannot replace"), "{message}");
-        let message = stage_codegen_generation(
+        );
+        let linked = stage_codegen_generation(
             &workspace,
             &workspace,
             &id,
@@ -513,10 +510,17 @@ mod tests {
                 codegen_entry("a.txt", &first),
                 codegen_entry("fresh.txt", &second),
             ],
-        )
-        .expect_err("cannot link")
-        .to_string();
-        assert!(message.contains("cannot link"), "{message}");
+        );
         set_mode(&dir, 0o755);
+        // Root may change a read-only directory, so for root both stages land.
+        if dx_test_scratch::running_as_root() {
+            replaced.expect("root replaces");
+            linked.expect("root links");
+            return;
+        }
+        let message = replaced.expect_err("cannot replace").to_string();
+        assert!(message.contains("cannot replace"), "{message}");
+        let message = linked.expect_err("cannot link").to_string();
+        assert!(message.contains("cannot link"), "{message}");
     }
 }

@@ -251,11 +251,17 @@ mod tests {
         std::fs::set_permissions(root, std::fs::Permissions::from_mode(0o555)).expect("chmod");
         let result = write_module_edit(root, &edit);
         std::fs::set_permissions(root, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        let text = std::fs::read_to_string(root.join("MODULE.bazel")).expect("read");
+        // Root may write into a read-only directory, so for root the edit lands.
+        if dx_test_scratch::running_as_root() {
+            result.expect("root writes through the mode");
+            assert_eq!(text, edit.new);
+            return;
+        }
         assert!(
             result.is_err(),
             "write into a read-only directory must fail"
         );
-        let text = std::fs::read_to_string(root.join("MODULE.bazel")).expect("read");
         assert_eq!(text, DEP);
     }
 }

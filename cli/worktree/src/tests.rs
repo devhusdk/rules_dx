@@ -1570,6 +1570,12 @@ fn reuse_skips_a_free_slot_it_cannot_clean() {
     let path = free_slot_with_read_only_ignored_tree(&fixture, &pool, &host, &me);
     host.stick(&path.join(".cache"));
     let second = ops::add(&pool, &host, &me, &create("feature/b")).expect("next slot");
+    // Root's `git clean` deletes the read-only tree, so root reuses the slot.
+    if dx_test_scratch::running_as_root() {
+        assert_eq!(second.path, path);
+        assert!(!path.join(".cache").exists(), "read-only tree cleaned");
+        return;
+    }
     assert_ne!(second.path, path);
     let skipped: Vec<&ops::Warning> = second
         .warnings

@@ -76,12 +76,13 @@ fn scratch_file(name: &str) -> std::path::PathBuf {
 
 #[cfg(unix)]
 #[test]
-fn the_user_id_owns_a_new_file() {
+fn the_user_ids_own_a_new_file() {
     use std::os::unix::fs::MetadataExt;
     let file = scratch_file("owned");
     let owner = std::fs::metadata(&file).expect("metadata").uid();
     std::fs::remove_file(&file).expect("remove");
     assert_eq!(process::user_id(), owner);
+    assert_eq!(process::effective_user_id(), owner);
 }
 
 #[cfg(target_os = "linux")]

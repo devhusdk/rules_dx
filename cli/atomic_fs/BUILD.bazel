@@ -4,6 +4,7 @@ load("//rust:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI_DEPLOY_ENV_GENERATION_QUALITY")
 
 package(default_visibility = VIS_CLI_DEPLOY_ENV_GENERATION_QUALITY + [
+    "//android/private/packaging/ops:__pkg__",
     "//appimage/private/tools/packer:__pkg__",
     "//apple/private/tools/ops:__pkg__",
     "//tools/docs/ir/ir:__pkg__",

@@ -111,7 +111,7 @@ fn scratch(out: &Path) -> Result<tempfile::TempDir, Failure> {
 }
 
 fn publish(from: &Path, to: &Path) -> Result<(), Failure> {
-    std::fs::rename(from, to)
+    dx_atomic_fs::copy_atomic(from, to)
         .map_err(|error| reject(format!("cannot write {}: {error}", to.display())))?;
     println!("{PREFIX}: wrote {}", to.display());
     Ok(())

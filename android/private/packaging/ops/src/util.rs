@@ -39,8 +39,6 @@ pub fn missing(message: impl Into<String>) -> Failure {
 
 /// A new directory next to `base`, named after it; removed when the operation ends.
 ///
-/// It sits on the same file system as `base`, so files built in it can be renamed into place.
-///
 /// # Errors
 ///
 /// Returns an error when the directory cannot be made.

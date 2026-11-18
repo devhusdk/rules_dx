@@ -230,6 +230,7 @@ rust_test(
     crate_name = "artifact_writes_test",
     crate_root = "artifact_writes_test.rs",
     data = [
+        "//android/private/packaging/ops:src/sign.rs",
         "//appimage/private/tools/packer:src/lib.rs",
         "//apple/private/tools/ops:src/app_check.rs",
         "//apple/private/tools/ops:src/xcframework_check.rs",

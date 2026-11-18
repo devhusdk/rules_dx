@@ -81,10 +81,10 @@ rust_test(
     crate_root = "app_check_test.rs",
     deps = [
         ":ops",
+        "//cli/archive:dx_archive_testing",
         "//cli/digest:dx_digest",
         "//cli/test_scratch:dx_test_scratch",
         "@crates//:serde_json",
-        "@crates//:zip",
     ],
 )
 
@@ -114,8 +114,9 @@ rust_test(
     crate_root = "export_test.rs",
     deps = [
         ":ops",
+        "//cli/archive:dx_archive",
+        "//cli/archive:dx_archive_testing",
         "//cli/test_scratch:dx_test_scratch",
-        "@crates//:zip",
     ],
 )
 
@@ -175,8 +176,9 @@ rust_test(
     crate_root = "simctl_test.rs",
     deps = [
         ":ops",
+        "//cli/archive:dx_archive",
+        "//cli/archive:dx_archive_testing",
         "//cli/test_scratch:dx_test_scratch",
-        "@crates//:zip",
     ],
 )
 
@@ -246,7 +248,7 @@ rust_test(
     crate_root = "xcframework_check_test.rs",
     deps = [
         ":ops",
+        "//cli/archive:dx_archive_testing",
         "//cli/test_scratch:dx_test_scratch",
-        "@crates//:zip",
     ],
 )

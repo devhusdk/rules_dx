@@ -66,14 +66,24 @@ fn lock(dir: &std::path::Path, remote: &Remote) -> Result<Outcome, Error> {
     let spec = Php::spec(hub);
     run(
         &spec,
-        &Args { dir: dir.to_owned(), check: false, upgrade: Vec::new() },
+        &Args {
+            dir: dir.to_owned(),
+            check: false,
+            upgrade: Vec::new(),
+        },
         &Php::new(&spec, remote),
         &NoFetch,
     )
 }
 
 fn archives(remote: &Remote) -> Vec<String> {
-    remote.0.borrow().iter().filter(|url| url.contains("/zipball/")).cloned().collect()
+    remote
+        .0
+        .borrow()
+        .iter()
+        .filter(|url| url.contains("/zipball/"))
+        .cloned()
+        .collect()
 }
 
 #[test]
@@ -100,7 +110,11 @@ fn a_manifest_writes_the_golden_lock_and_state() {
 fn an_unchanged_package_is_not_downloaded_again() {
     let dir = set(MANIFEST);
     lock(dir.path(), &Remote(RefCell::default())).expect("first lock");
-    std::fs::write(dir.path().join("composer.json"), MANIFEST.replace("    ", "  ")).expect("edit");
+    std::fs::write(
+        dir.path().join("composer.json"),
+        MANIFEST.replace("    ", "  "),
+    )
+    .expect("edit");
     let remote = Remote(RefCell::default());
     assert_eq!(lock(dir.path(), &remote), Ok(Outcome::Written));
     assert_eq!(archives(&remote), Vec::<String>::new());
@@ -126,16 +140,10 @@ impl Download for UnsafeArchive {
     fn bytes(&self, url: &str) -> Result<Vec<u8>, Error> {
         match url {
             FACTORY_ZIP | MESSAGE_ZIP => {
-                let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
-                writer
-                    .start_file("../composer.json", zip::write::SimpleFileOptions::default())
-                    .map_err(|error| Error::new(error.to_string()))?;
-                std::io::Write::write_all(&mut writer, b"{}")
-                    .map_err(|error| Error::new(error.to_string()))?;
-                Ok(writer
-                    .finish()
-                    .map_err(|error| Error::new(error.to_string()))?
-                    .into_inner())
+                let failed = |error: std::io::Error| Error::new(error.to_string());
+                let mut writer = dx_archive_testing::RawZip::new();
+                writer.add_file("../composer.json", b"{}").map_err(failed)?;
+                writer.finish().map_err(failed)
             }
             other => Remote(RefCell::default()).bytes(other),
         }

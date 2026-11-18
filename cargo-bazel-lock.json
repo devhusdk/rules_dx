@@ -1,5 +1,5 @@
 {
-  "checksum": "a7a3b6ff37505c4b0733c6037f56778b618e83c4189003d5982208c55ec675dc",
+  "checksum": "8ce03485eb04c5bc92b16b1e6a7331cbb0c6688811d9ee22b269f938c6c8a34a",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -2905,16 +2905,6 @@
           {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
-          }
-        ],
-        "deps_dev": [
-          {
-            "id": "flate2 1.1.10",
-            "target": "flate2"
-          },
-          {
-            "id": "tar 0.4.46",
-            "target": "tar"
           }
         ],
         "edition": "2024"
@@ -7523,10 +7513,6 @@
           {
             "id": "tempfile 3.27.0",
             "target": "tempfile"
-          },
-          {
-            "id": "zip 9.1.2",
-            "target": "zip"
           }
         ],
         "edition": "2024"
@@ -7915,16 +7901,8 @@
         ],
         "deps_dev": [
           {
-            "id": "flate2 1.1.10",
-            "target": "flate2"
-          },
-          {
             "id": "jsonschema 0.60.2",
             "target": "jsonschema"
-          },
-          {
-            "id": "tar 0.4.46",
-            "target": "tar"
           },
           {
             "id": "tempfile 3.27.0",
@@ -11380,14 +11358,6 @@
           }
         ],
         "deps_dev": [
-          {
-            "id": "flate2 1.1.10",
-            "target": "flate2"
-          },
-          {
-            "id": "tar 0.4.46",
-            "target": "tar"
-          },
           {
             "id": "tempfile 3.27.0",
             "target": "tempfile"
@@ -17684,10 +17654,6 @@
           {
             "id": "tempfile 3.27.0",
             "target": "tempfile"
-          },
-          {
-            "id": "zip 9.1.2",
-            "target": "zip"
           }
         ],
         "edition": "2024"
@@ -19869,10 +19835,6 @@
           {
             "id": "tempfile 3.27.0",
             "target": "tempfile"
-          },
-          {
-            "id": "zip 9.1.2",
-            "target": "zip"
           }
         ],
         "edition": "2024"
@@ -27077,14 +27039,6 @@
         ],
         "deps_dev": [
           {
-            "id": "flate2 1.1.10",
-            "target": "flate2"
-          },
-          {
-            "id": "tar 0.4.46",
-            "target": "tar"
-          },
-          {
             "id": "tempfile 3.27.0",
             "target": "tempfile"
           }
@@ -32995,10 +32949,6 @@
           {
             "id": "tempfile 3.27.0",
             "target": "tempfile"
-          },
-          {
-            "id": "zip 9.1.2",
-            "target": "zip"
           }
         ],
         "edition": "2024"

@@ -86,11 +86,11 @@ rust_test(
         normal_dev = True,
     ) + [
         ":nuget_lock_lib",
+        "//cli/archive:dx_archive_testing",
         "//cli/families:dx_families",
         "//cli/lock:dx_lock",
         "//tools/testing:dx_testing",
         "@crates//:tempfile",
-        "@crates//:zip",
     ],
 )
 

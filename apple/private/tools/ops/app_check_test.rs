@@ -2,7 +2,6 @@
 
 mod fake;
 
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use dx_apple_ops::app_check::{parse_loads, run};
@@ -94,20 +93,15 @@ impl Bundle {
     }
 
     fn write(&self, path: &Path) {
-        let mut writer = zip::ZipWriter::new(std::fs::File::create(path).unwrap());
-        let options = zip::write::SimpleFileOptions::default()
-            .compression_method(zip::CompressionMethod::Stored);
+        let mut writer = dx_archive_testing::RawZip::new();
         for (name, entry) in &self.0 {
             let full = format!("Ledger.app/Contents/{name}");
             match entry {
-                Entry::File(bytes) => {
-                    writer.start_file(full, options).unwrap();
-                    writer.write_all(bytes).unwrap();
-                }
-                Entry::Link(target) => writer.add_symlink(full, target, options).unwrap(),
+                Entry::File(bytes) => writer.add_file(&full, bytes).unwrap(),
+                Entry::Link(target) => writer.add_symlink(&full, target).unwrap(),
             }
         }
-        writer.finish().unwrap();
+        std::fs::write(path, writer.finish().unwrap()).unwrap();
     }
 }
 

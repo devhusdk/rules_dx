@@ -190,14 +190,12 @@ impl Download for UnsafeArchive {
         if url != BASE {
             return Archives(RefCell::default()).bytes(url);
         }
-        let failed = |error: zip::result::ZipError| Error::new(error.to_string());
-        let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        let failed = |error: std::io::Error| Error::new(error.to_string());
+        let mut writer = dx_archive_testing::RawZip::new();
         writer
-            .start_file("../build.zig.zon", zip::write::SimpleFileOptions::default())
+            .add_file("../build.zig.zon", b".{}")
             .map_err(failed)?;
-        std::io::Write::write_all(&mut writer, b".{}")
-            .map_err(|error| Error::new(error.to_string()))?;
-        Ok(writer.finish().map_err(failed)?.into_inner())
+        writer.finish().map_err(failed)
     }
 }
 

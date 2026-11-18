@@ -25,10 +25,13 @@ fn bundle(app: &str, scratch: &Path) -> PathBuf {
     if Path::new(app).extension().is_some_and(|end| end == "app") {
         return PathBuf::from(app);
     }
-    let file = std::fs::File::open(app).unwrap_or_else(|error| panic!("open {app}: {error}"));
-    zip::ZipArchive::new(file)
-        .and_then(|mut archive| archive.extract(scratch))
-        .unwrap_or_else(|error| panic!("unpack {app}: {error}"));
+    dx_archive::extract(
+        Path::new(app),
+        dx_archive::Format::Zip,
+        scratch,
+        dx_archive::Limits::default(),
+    )
+    .unwrap_or_else(|error| panic!("unpack {app}: {error}"));
     std::fs::read_dir(scratch.join("Payload"))
         .unwrap_or_else(|error| panic!("{app} has no Payload: {error}"))
         .filter_map(Result::ok)

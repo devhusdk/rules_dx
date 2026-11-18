@@ -60,7 +60,7 @@ rust_test(
         "@platforms//cpu:arm64",
         "@platforms//os:macos",
     ],
-    deps = ["@crates//:zip"],
+    deps = ["//cli/archive:dx_archive"],
 )
 
 rust_test(
@@ -88,7 +88,7 @@ rust_test(
     }),
     deps = [
         "//apple/private/tools/ops",
-        "@crates//:zip",
+        "//cli/archive:dx_archive",
     ],
 )
 

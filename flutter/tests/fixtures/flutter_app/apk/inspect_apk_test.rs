@@ -1,7 +1,5 @@
 //! Checks the files and the manifest of the signed Flutter fixture APK.
 
-use std::io::Read;
-
 fn env(name: &str) -> String {
     std::env::var(name).unwrap_or_else(|_| panic!("{name} is not set"))
 }
@@ -15,17 +13,10 @@ fn signed_apk() -> String {
         .to_owned()
 }
 
-fn archive() -> zip::ZipArchive<std::fs::File> {
+fn names() -> Vec<String> {
     let path = signed_apk();
     let file = std::fs::File::open(&path).unwrap_or_else(|error| panic!("open {path}: {error}"));
-    zip::ZipArchive::new(file).unwrap_or_else(|error| panic!("read {path}: {error}"))
-}
-
-fn names() -> Vec<String> {
-    archive()
-        .file_names()
-        .map(|name| name.expect("entry name").into_owned())
-        .collect()
+    dx_archive::zip_names(file).unwrap_or_else(|error| panic!("read {path}: {error}"))
 }
 
 fn contains(haystack: &[u8], needle: &str) -> bool {
@@ -61,12 +52,11 @@ fn apk_carries_only_the_requested_abi() {
 
 #[test]
 fn manifest_names_the_package_and_the_activity() {
-    let mut manifest = Vec::new();
-    archive()
-        .by_name("AndroidManifest.xml")
-        .expect("AndroidManifest.xml")
-        .read_to_end(&mut manifest)
-        .expect("read AndroidManifest.xml");
+    let path = signed_apk();
+    let mut manifest =
+        dx_archive::read_zip_member(std::path::Path::new(&path), "AndroidManifest.xml", 1 << 20)
+            .unwrap_or_else(|error| panic!("read {path}: {error}"))
+            .expect("AndroidManifest.xml");
     manifest.retain(|byte| *byte != 0);
     for want in [env("DX_APK_APP_ID"), env("DX_APK_ACTIVITY")] {
         assert!(contains(&manifest, &want), "manifest misses {want}");

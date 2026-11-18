@@ -40,12 +40,12 @@ rust_test(
     tags = ["block-network"],
     deps = [
         ":ruby_lock_lib",
+        "//cli/archive:dx_archive",
+        "//cli/archive:dx_archive_testing",
         "//cli/digest:dx_digest",
         "//cli/families:dx_families",
         "//cli/lock:dx_lock",
-        "@crates//:flate2",
         "@crates//:serde_json",
-        "@crates//:tar",
         "@crates//:tempfile",
     ],
 )

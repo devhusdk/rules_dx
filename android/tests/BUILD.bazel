@@ -33,7 +33,7 @@ rust_test(
     crate_root = "ops_test.rs",
     deps = [
         "//android/private/packaging/ops",
-        "@crates//:zip",
+        "//cli/archive:dx_archive_testing",
     ],
 )
 

@@ -19,7 +19,7 @@ load("//rust:defs.bzl", "rust_test")
             "@platforms//cpu:x86_64",
             "@platforms//os:linux",
         ],
-        deps = ["@crates//:zip"],
+        deps = ["//cli/archive:dx_archive"],
     )
     for name, apk, abi in [
         ("inspect_apk_test", "//flutter/tests/fixtures/flutter_app/android:apk", "x86_64"),

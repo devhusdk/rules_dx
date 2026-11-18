@@ -27,9 +27,16 @@ impl Download for Archives {
     fn bytes(&self, url: &str) -> Result<Vec<u8>, Error> {
         self.0.borrow_mut().push(url.to_owned());
         if url == TAG {
-            return Ok(format!("{{\"object\": {{\"type\": \"commit\", \"sha\": \"{REVISION}\"}}}}").into_bytes());
+            return Ok(format!(
+                "{{\"object\": {{\"type\": \"commit\", \"sha\": \"{REVISION}\"}}}}"
+            )
+            .into_bytes());
         }
-        let name = if url.contains("/multi/") { "ARCHIVE_MULTI" } else { "ARCHIVE" };
+        let name = if url.contains("/multi/") {
+            "ARCHIVE_MULTI"
+        } else {
+            "ARCHIVE"
+        };
         std::fs::read(dx_testing::env_file(name)).map_err(|error| Error::new(error.to_string()))
     }
 }
@@ -56,7 +63,11 @@ fn set_named(identity: &str, location: &str) -> tempfile::TempDir {
     let hub = dx_families::hub("swiftpm").expect("swiftpm is registered");
     let dir = tempfile::tempdir().expect("set directory");
     std::fs::write(dir.path().join(&hub.manifest), MANIFEST).expect("manifest");
-    std::fs::write(dir.path().join(hub.state.as_deref().expect("state")), state(identity, location)).expect("state");
+    std::fs::write(
+        dir.path().join(hub.state.as_deref().expect("state")),
+        state(identity, location),
+    )
+    .expect("state");
     dir
 }
 
@@ -70,7 +81,16 @@ fn lock(dir: &std::path::Path, archives: &Archives) -> Result<Outcome, Error> {
     let spec = Swift::spec(hub);
     let swift = swift();
     let resolver = Swift::new(swift, &spec, archives);
-    run(&spec, &Args { dir: dir.to_owned(), check: false, upgrade: Vec::new() }, &resolver, &NoFetch)
+    run(
+        &spec,
+        &Args {
+            dir: dir.to_owned(),
+            check: false,
+            upgrade: Vec::new(),
+        },
+        &resolver,
+        &NoFetch,
+    )
 }
 
 #[test]
@@ -80,12 +100,18 @@ fn a_pinned_package_writes_the_golden_lock() {
     assert_eq!(lock(dir.path(), &archives), Ok(Outcome::Written));
     assert_eq!(
         archives.0.borrow().as_slice(),
-        [format!("https://github.com/example/mini/archive/{REVISION}.tar.gz")]
+        [format!(
+            "https://github.com/example/mini/archive/{REVISION}.tar.gz"
+        )]
     );
     let hub = dx_families::hub("swiftpm").expect("swiftpm is registered");
     let actual = dir.path().join(hub.lock.as_deref().expect("lock"));
-    dx_testing::snapshot_diff(&dx_testing::env_file("GOLDEN"), &actual, Some("swift/private/tools/lock/testdata/golden.lock.json"))
-        .expect("the lock matches the golden");
+    dx_testing::snapshot_diff(
+        &dx_testing::env_file("GOLDEN"),
+        &actual,
+        Some("swift/private/tools/lock/testdata/golden.lock.json"),
+    )
+    .expect("the lock matches the golden");
 }
 
 fn bare(manifest: &str) -> tempfile::TempDir {
@@ -102,34 +128,58 @@ fn a_manifest_with_no_state_file_writes_the_golden_state_and_lock() {
     assert_eq!(lock(dir.path(), &archives), Ok(Outcome::Written));
     assert_eq!(
         archives.0.borrow().as_slice(),
-        [TAG.to_owned(), format!("https://github.com/example/mini/archive/{REVISION}.tar.gz")]
+        [
+            TAG.to_owned(),
+            format!("https://github.com/example/mini/archive/{REVISION}.tar.gz")
+        ]
     );
     let hub = dx_families::hub("swiftpm").expect("swiftpm is registered");
-    let state = std::fs::read_to_string(dir.path().join(hub.state.as_deref().expect("state"))).expect("state");
-    assert_eq!(state, self::state("mini", "https://github.com/example/mini"));
+    let state = std::fs::read_to_string(dir.path().join(hub.state.as_deref().expect("state")))
+        .expect("state");
+    assert_eq!(
+        state,
+        self::state("mini", "https://github.com/example/mini")
+    );
     let actual = dir.path().join(hub.lock.as_deref().expect("lock"));
-    dx_testing::snapshot_diff(&dx_testing::env_file("GOLDEN"), &actual, Some("swift/private/tools/lock/testdata/golden.lock.json"))
-        .expect("the lock matches the golden");
+    dx_testing::snapshot_diff(
+        &dx_testing::env_file("GOLDEN"),
+        &actual,
+        Some("swift/private/tools/lock/testdata/golden.lock.json"),
+    )
+    .expect("the lock matches the golden");
 }
 
 #[test]
 fn a_range_requirement_fails_with_its_manifest_line() {
     let dir = bare(&MANIFEST.replace("exact: \"1.0.0\"", "from: \"1.0.0\""));
     let error = lock(dir.path(), &Archives(RefCell::default())).expect_err("refused");
-    assert!(error.to_string().contains("Package.swift:7: https://github.com/example/mini is not an exact"), "{error}");
+    assert!(
+        error
+            .to_string()
+            .contains("Package.swift:7: https://github.com/example/mini is not an exact"),
+        "{error}"
+    );
 }
 
 #[test]
 fn a_dependency_outside_github_fails_with_its_manifest_line() {
     let dir = bare(&MANIFEST.replace("github.com", "gitlab.com"));
     let error = lock(dir.path(), &Archives(RefCell::default())).expect_err("refused");
-    assert!(error.to_string().contains("Package.swift:7: https://gitlab.com/example/mini is not on github.com"), "{error}");
+    assert!(
+        error
+            .to_string()
+            .contains("Package.swift:7: https://gitlab.com/example/mini is not on github.com"),
+        "{error}"
+    );
 }
 
 #[test]
 fn an_unchanged_pin_is_kept_without_a_download() {
     let dir = set("https://github.com/example/mini");
-    assert_eq!(lock(dir.path(), &Archives(RefCell::default())), Ok(Outcome::Written));
+    assert_eq!(
+        lock(dir.path(), &Archives(RefCell::default())),
+        Ok(Outcome::Written)
+    );
     let hub = dx_families::hub("swiftpm").expect("swiftpm is registered");
     std::fs::write(dir.path().join(&hub.manifest), format!("{MANIFEST}\n")).expect("manifest");
     let archives = Archives(RefCell::default());
@@ -141,21 +191,24 @@ fn an_unchanged_pin_is_kept_without_a_download() {
 fn a_pin_outside_github_fails() {
     let dir = set("https://gitlab.com/example/mini");
     let error = lock(dir.path(), &Archives(RefCell::default())).expect_err("refused");
-    assert!(error.to_string().contains("only github.com is supported"), "{error}");
+    assert!(
+        error.to_string().contains("only github.com is supported"),
+        "{error}"
+    );
 }
 
 #[test]
 fn a_package_with_dependencies_fails() {
     let manifest = MANIFEST.replace("name: \"app\"", "name: \"mini\"");
-    let mut builder = tar::Builder::new(Vec::new());
-    let mut header = tar::Header::new_gnu();
-    header.set_size(manifest.len() as u64);
-    header.set_mode(0o644);
-    header.set_cksum();
-    builder.append_data(&mut header, format!("mini-{REVISION}/Package.swift"), manifest.as_bytes()).expect("entry");
-    let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
-    std::io::Write::write_all(&mut encoder, &builder.into_inner().expect("tar")).expect("gzip");
-    let bytes = encoder.finish().expect("gzip");
+    let mut writer = dx_archive::TarWriter::new();
+    writer
+        .add_file(
+            &format!("mini-{REVISION}/Package.swift"),
+            manifest.as_bytes(),
+            0o644,
+        )
+        .expect("entry");
+    let bytes = writer.finish().expect("tar.gz");
     struct Fixed(Vec<u8>);
     impl Download for Fixed {
         fn bytes(&self, _url: &str) -> Result<Vec<u8>, Error> {
@@ -167,12 +220,28 @@ fn a_package_with_dependencies_fails() {
     let spec = Swift::spec(hub);
     let download = Fixed(bytes);
     let resolver = Swift::new(swift(), &spec, &download);
-    let error = run(&spec, &Args { dir: dir.path().to_owned(), check: false, upgrade: Vec::new() }, &resolver, &NoFetch).expect_err("refused");
-    assert!(error.to_string().contains("declares dependencies"), "{error}");
+    let error = run(
+        &spec,
+        &Args {
+            dir: dir.path().to_owned(),
+            check: false,
+            upgrade: Vec::new(),
+        },
+        &resolver,
+        &NoFetch,
+    )
+    .expect_err("refused");
+    assert!(
+        error.to_string().contains("declares dependencies"),
+        "{error}"
+    );
 }
 
 fn described(products: &str, targets: &str) -> serde_json::Value {
-    serde_json::from_str(&format!("{{\"products\": {products}, \"targets\": {targets}}}")).expect("json")
+    serde_json::from_str(&format!(
+        "{{\"products\": {products}, \"targets\": {targets}}}"
+    ))
+    .expect("json")
 }
 
 #[test]
@@ -182,7 +251,8 @@ fn a_product_with_a_c_target_and_two_targets_is_kept() {
         r#"[{"name": "Swifty", "module_type": "SwiftTarget", "type": "library", "target_dependencies": ["Native"]},
             {"name": "Native", "module_type": "ClangTarget", "type": "library", "target_dependencies": []}]"#,
     );
-    let (products, targets) = swift_lock::library_targets(&value, &Default::default()).expect("targets");
+    let (products, targets) =
+        swift_lock::library_targets(&value, &Default::default()).expect("targets");
     assert_eq!(products["Both"], ["Swifty", "Native"]);
     assert_eq!(targets.keys().collect::<Vec<_>>(), ["Native", "Swifty"]);
 }
@@ -196,7 +266,8 @@ fn a_product_depending_on_a_macro_target_is_skipped() {
             {"name": "Fine", "module_type": "SwiftTarget", "type": "library", "target_dependencies": []},
             {"name": "Macros", "module_type": "SwiftTarget", "type": "macro", "target_dependencies": []}]"#,
     );
-    let (products, targets) = swift_lock::library_targets(&value, &Default::default()).expect("targets");
+    let (products, targets) =
+        swift_lock::library_targets(&value, &Default::default()).expect("targets");
     assert_eq!(products.keys().collect::<Vec<_>>(), ["Ok"]);
     assert_eq!(targets.keys().collect::<Vec<_>>(), ["Fine"]);
 }

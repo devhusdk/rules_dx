@@ -2,7 +2,6 @@
 
 mod fake;
 
-use std::io::Write;
 use std::path::PathBuf;
 
 use dx_apple_ops::simctl::{device, run};
@@ -210,15 +209,11 @@ fn install_passes_an_app_bundle_through() {
 fn install_unpacks_the_ipa_and_installs_its_app_bundle() {
     let root = scratch("simctl-ipa").unwrap();
     let ipa = root.path().join("Ledger.ipa");
-    let mut writer = zip::ZipWriter::new(std::fs::File::create(&ipa).unwrap());
+    let mut writer = dx_archive::ZipWriter::new();
     writer
-        .start_file(
-            "Payload/Ledger.app/Info.plist",
-            zip::write::SimpleFileOptions::default(),
-        )
+        .add_file("Payload/Ledger.app/Info.plist", b"plist", 0o644)
         .unwrap();
-    writer.write_all(b"plist").unwrap();
-    writer.finish().unwrap();
+    std::fs::write(&ipa, writer.finish().unwrap()).unwrap();
     let tmp = root.path().join("tmp");
     std::fs::create_dir_all(&tmp).unwrap();
     let tmp = tmp.to_string_lossy().into_owned();
@@ -247,16 +242,14 @@ fn install_unpacks_the_ipa_and_installs_its_app_bundle() {
 fn install_refuses_an_ipa_with_an_escaping_symlink() {
     let root = scratch("simctl-escape").unwrap();
     let ipa = root.path().join("Ledger.ipa");
-    let mut writer = zip::ZipWriter::new(std::fs::File::create(&ipa).unwrap());
-    let options = zip::write::SimpleFileOptions::default();
+    let mut writer = dx_archive_testing::RawZip::new();
     writer
-        .start_file("Payload/Ledger.app/Info.plist", options)
+        .add_file("Payload/Ledger.app/Info.plist", b"plist")
         .unwrap();
-    writer.write_all(b"plist").unwrap();
     writer
-        .add_symlink("Payload/Ledger.app/escape", "../../../outside", options)
+        .add_symlink("Payload/Ledger.app/escape", "../../../outside")
         .unwrap();
-    writer.finish().unwrap();
+    std::fs::write(&ipa, writer.finish().unwrap()).unwrap();
     let tmp = root.path().join("tmp");
     std::fs::create_dir_all(&tmp).unwrap();
     let tmp = tmp.to_string_lossy().into_owned();

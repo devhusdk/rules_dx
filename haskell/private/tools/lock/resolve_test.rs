@@ -14,22 +14,16 @@ const RANDOM_0: &[u8] = b"name: random\nversion: 1.2.1\n";
 const RANDOM_1: &[u8] = b"name: random\nversion: 1.2.1\nx-revision: 1\n";
 
 fn index() -> Vec<u8> {
-    let mut builder = tar::Builder::new(Vec::new());
+    let mut writer = dx_archive_testing::RawTar::new();
     for (path, bytes) in [
         ("splitmix/0.1.1/splitmix.cabal", SPLITMIX),
         ("random/1.2.1/random.cabal", RANDOM_0),
         ("other/1.0/other.cabal", SPLITMIX),
         ("random/1.2.1/random.cabal", RANDOM_1),
     ] {
-        let mut header = tar::Header::new_gnu();
-        header.set_size(bytes.len() as u64);
-        header.set_mode(0o644);
-        header.set_cksum();
-        builder
-            .append_data(&mut header, path, bytes)
-            .expect("append");
+        writer.add_file(path, bytes).expect("append");
     }
-    builder.into_inner().expect("tar")
+    writer.finish().expect("tar")
 }
 
 fn plan() -> serde_json::Value {
@@ -80,21 +74,11 @@ fn download(url: &str) -> Result<Vec<u8>, Error> {
         .next()
         .and_then(|name| name.strip_suffix(".tar.gz"))
         .expect("name");
-    let mut header = tar::Header::new_gnu();
-    header.set_size(url.len() as u64);
-    header.set_mode(0o644);
-    header.set_cksum();
-    let mut builder = tar::Builder::new(flate2::write::GzEncoder::new(
-        Vec::new(),
-        flate2::Compression::default(),
-    ));
-    builder
-        .append_data(&mut header, format!("{name}/{name}.cabal"), url.as_bytes())
+    let mut writer = dx_archive::TarWriter::new();
+    writer
+        .add_file(&format!("{name}/{name}.cabal"), url.as_bytes(), 0o644)
         .expect("append");
-    Ok(builder
-        .into_inner()
-        .and_then(flate2::write::GzEncoder::finish)
-        .expect("tar.gz"))
+    Ok(writer.finish().expect("tar.gz"))
 }
 
 fn scratch(name: &str) -> PathBuf {
@@ -275,15 +259,11 @@ fn an_extra_dep_of_another_cabal_sha256_fails() {
 
 #[test]
 fn an_index_with_an_unsafe_member_is_refused() {
-    let mut builder = tar::Builder::new(Vec::new());
-    let mut header = tar::Header::new_gnu();
-    let name = b"../random/1.2.1/random.cabal";
-    header.as_mut_bytes()[..name.len()].copy_from_slice(name);
-    header.set_size(RANDOM_0.len() as u64);
-    header.set_mode(0o644);
-    header.set_cksum();
-    builder.append(&header, RANDOM_0).expect("append");
-    let index = builder.into_inner().expect("tar");
+    let mut writer = dx_archive_testing::RawTar::new();
+    writer
+        .add_file("../random/1.2.1/random.cabal", RANDOM_0)
+        .expect("append");
+    let index = writer.finish().expect("tar");
     let wanted = BTreeSet::from([("random".to_owned(), "1.2.1".to_owned())]);
     let error = revisions(index.as_slice(), &wanted).expect_err("dot dot");
     assert!(error.to_string().contains("'..'"), "{error}");

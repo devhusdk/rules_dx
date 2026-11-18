@@ -100,7 +100,21 @@ struct ParsedPattern<'a> {
     kind: PatternKind,
 }
 
+/// A package path is `/`-separated names with no empty, `.` or `..` segment.
+fn is_clean_package(package: &str) -> bool {
+    package.is_empty()
+        || package
+            .split('/')
+            .all(|part| !matches!(part, "" | "." | ".."))
+}
+
 fn parse_pattern(text: &str) -> Option<ParsedPattern<'_>> {
+    if text
+        .chars()
+        .any(|c| c.is_whitespace() || c.is_control() || c == '\\')
+    {
+        return None;
+    }
     let label = Label::parse(text)?;
     if label.relative {
         return None;
@@ -118,6 +132,9 @@ fn parse_pattern(text: &str) -> Option<ParsedPattern<'_>> {
             .strip_suffix("...")
             .unwrap_or(package)
             .trim_end_matches('/');
+        if !is_clean_package(package) {
+            return None;
+        }
         return Some(ParsedPattern {
             repo,
             package,
@@ -125,7 +142,7 @@ fn parse_pattern(text: &str) -> Option<ParsedPattern<'_>> {
             kind: PatternKind::Recursive,
         });
     }
-    if package.contains("...") || package.starts_with('/') || package.ends_with('/') {
+    if package.contains("...") || !is_clean_package(package) {
         return None;
     }
     let kind = if all {

@@ -902,17 +902,13 @@ jobs:
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           allowlist=tools/ci/archive_crates_allowlist.txt
-          crates='filter("//(zip|tar)-[0-9][^:]*:(zip|tar)-[0-9]", @crates//...) + filter("//:(zip|tar)$", @crates//:all)'
-          found="$(bazel query --noshow_progress --output=label "$@" "$crates")"
-          if [ "$(printf '%s\n' "$found" | grep -c .)" -lt 4 ]; then
-            echo "::error::The zip and tar crate query found only: ${found}"
+          crates='crates//((zip|tar)-[0-9][^:]*)?:(zip|tar)(-[0-9][^,]*)?(,|\]|$)'
+          bazel query --noshow_progress --output=label "$@" "attr(deps, \"$crates\", //...)" > "$RUNNER_TEMP/archive-all"
+          if ! grep -qx '//cli/archive:dx_archive_upstream' "$RUNNER_TEMP/archive-all"; then
+            echo "::error::The zip and tar dependents query did not find //cli/archive:dx_archive_upstream"
             exit 1
           fi
-          rc=0
-          bazel query --keep_going --noshow_progress --output=label "$@" "filter(\"^//\", rdeps(//..., $crates, 1)) except //cli/archive/..." > "$RUNNER_TEMP/archive-dependents" || rc=$?
-          if [ "$rc" -ne 0 ] && [ "$rc" -ne 3 ]; then
-            exit "$rc"
-          fi
+          grep -v '^//cli/archive[:/]' "$RUNNER_TEMP/archive-all" > "$RUNNER_TEMP/archive-dependents" || true
           LC_ALL=C sort -u -o "$RUNNER_TEMP/archive-dependents" "$RUNNER_TEMP/archive-dependents"
           LC_ALL=C sort -u "$allowlist" > "$RUNNER_TEMP/archive-allowlist"
           new="$(LC_ALL=C comm -23 "$RUNNER_TEMP/archive-dependents" "$RUNNER_TEMP/archive-allowlist")"

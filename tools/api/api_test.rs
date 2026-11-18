@@ -1,5 +1,6 @@
-//! Fails when the public API differs from the snapshot checked in under `api/`.
+//! Fails when the public API differs from the snapshot checked in under `api/` or the page generated from it.
 
+mod page;
 mod snapshot;
 
 #[test]
@@ -21,6 +22,12 @@ fn checked_in_snapshot_matches_the_code() {
         if checked_in != *text {
             stale.push(format!("api/{name}"));
         }
+    }
+    let surface = page::render(&files["cli.json"], &files["schemas.txt"]).expect("page renders");
+    let path = dx_testing::rlocation(&dx_testing::env_text("DX_SURFACE_PAGE"))
+        .unwrap_or_else(|error| panic!("{}: {error}", page::PATH));
+    if dx_testing::read_text(&path) != surface {
+        stale.push(page::PATH.to_owned());
     }
     assert!(
         stale.is_empty(),

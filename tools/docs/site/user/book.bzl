@@ -118,6 +118,7 @@ USER_BOOK = [
     mdbook_section("Support"),
     mdbook_page("Licenses", "docs/licenses.md", "//docs:licenses.md"),
     mdbook_page("Support Matrix", "docs/support-matrix.md", "//docs:support-matrix.md"),
+    mdbook_page("Supported Surface", "docs/supported-surface.md", "//docs:supported-surface.md"),
     mdbook_page("Standard Tiers", "docs/tiers-standard.md", "//docs:tiers-standard.md"),
     mdbook_page("Strict Tiers", "docs/tiers-strict.md", "//docs:tiers-strict.md"),
     mdbook_section("Examples"),

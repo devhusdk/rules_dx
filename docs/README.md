@@ -40,6 +40,7 @@ Read these in order:
 - [GitHub CI](github-ci.md)
 - [Licenses](licenses.md)
 - [Support matrix](support-matrix.md)
+- [Supported surface](supported-surface.md)
 - [Standard tiers](tiers-standard.md)
 - [Strict tiers](tiers-strict.md)
 - [Command reference](cli/commands/README.md)

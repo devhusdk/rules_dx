@@ -1,5 +1,6 @@
-//! `bazel run //tools/api:update` rewrites the API snapshot under `api/`.
+//! `bazel run //tools/api:update` rewrites the API snapshot under `api/` and the page generated from it.
 
+mod page;
 mod snapshot;
 
 use std::path::PathBuf;
@@ -7,8 +8,11 @@ use std::path::PathBuf;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let root = std::env::var("BUILD_WORKSPACE_DIRECTORY")
         .map_err(|_| "run with `bazel run //tools/api:update`")?;
-    let dir = PathBuf::from(root).join("api");
+    let root = PathBuf::from(root);
+    let dir = root.join("api");
     let files = snapshot::render()?;
+    let snapshot_file = |name: &str| files.get(name).ok_or(format!("the snapshot has no {name}"));
+    let surface = page::render(snapshot_file("cli.json")?, snapshot_file("schemas.txt")?)?;
     let schemas = dir.join("schemas.txt");
     // A missing file is the first run; any other read error is real.
     let checked_in = match std::fs::read_to_string(&schemas) {
@@ -24,5 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let path = dir.join(name);
         std::fs::write(&path, text).map_err(|error| format!("{}: {error}", path.display()))?;
     }
+    let path = root.join(page::PATH);
+    std::fs::write(&path, surface).map_err(|error| format!("{}: {error}", path.display()))?;
     Ok(())
 }

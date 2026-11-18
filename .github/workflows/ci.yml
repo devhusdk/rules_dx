@@ -26,6 +26,7 @@ jobs:
     name: dogfood (self-call reusable consumer workflow)
     # Dogfoods the reusable file end to end on the working tree.
     needs: [workflow-check, preflight]
+    if: ${{ !cancelled() && needs.workflow-check.result == 'success' }}
     uses: ./.github/workflows/reusable-consumer.yml
     with:
       platforms: '["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64", "windows_arm64"]'

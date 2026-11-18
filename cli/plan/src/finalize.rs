@@ -8,6 +8,8 @@ use std::path::Path;
 pub const FAILURE_WRITE_MISMATCH: &str = "write_mismatch";
 pub const FAILURE_MISSING_FILE: &str = "missing_file";
 pub const FAILURE_UNREADABLE_FILE: &str = "unreadable_file";
+pub const FAILURE_OUTSIDE_SCOPE: &str = "outside_scope";
+pub const FAILURE_WRITE_FAILED: &str = "write_failed";
 
 pub struct FinalizeInput<'a> {
     pub intended_json: &'a [u8],
@@ -393,6 +395,53 @@ pub fn finalize(input: &FinalizeInput<'_>) -> Result<Finalized, FinalizeError> {
     Ok(Finalized { manifest, gazelle })
 }
 
+/// Writes the changes of a check-mode `manifest` that fall inside `writable` and
+/// records it as a default-mode result. Every other file is not applied, and so is
+/// one whose bytes on disk moved since the check.
+pub fn apply_within(manifest: &mut GenerationManifest, workspace: &Path, writable: &[String]) {
+    for file in &mut manifest.files {
+        let (outcome, failure_code) = if crate::resolve::path_in_filter(&file.path, writable) {
+            write_checked(workspace, file)
+        } else {
+            (WriteOutcome::NotApplied, FAILURE_OUTSIDE_SCOPE)
+        };
+        file.outcome = outcome as i32;
+        failure_code.clone_into(&mut file.failure_code);
+    }
+    manifest.mode = Mode::Default as i32;
+}
+
+fn write_checked(workspace: &Path, file: &FileResult) -> (WriteOutcome, &'static str) {
+    let Ok(candidate) = generation_result::candidate(file) else {
+        return (WriteOutcome::NotApplied, FAILURE_WRITE_MISMATCH);
+    };
+    let target = workspace.join(&file.path);
+    let current = match std::fs::read(&target) {
+        Ok(bytes) => Some(bytes),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => None,
+        Err(_) => return (WriteOutcome::NotApplied, FAILURE_UNREADABLE_FILE),
+    };
+    let unchanged = match (&file.change, &current) {
+        (Some(file_result::Change::CreateContent(_)), None) => true,
+        (Some(file_result::Change::Modification(modification)), Some(bytes)) => {
+            *bytes == modification.original_content
+        }
+        _ => false,
+    };
+    if !unchanged {
+        return (WriteOutcome::NotApplied, FAILURE_WRITE_MISMATCH);
+    }
+    let written = match target.parent() {
+        Some(parent) => std::fs::create_dir_all(parent),
+        None => Ok(()),
+    }
+    .and_then(|()| dx_atomic_fs::write_atomic(&target, &candidate));
+    match written {
+        Ok(()) => (WriteOutcome::Applied, ""),
+        Err(_) => (WriteOutcome::NotApplied, FAILURE_WRITE_FAILED),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -421,6 +470,51 @@ mod tests {
         std::fs::create_dir_all(target.parent().unwrap()).unwrap();
         std::fs::write(&target, contents).unwrap();
         dir
+    }
+
+    fn checked(dir: &Path) -> GenerationManifest {
+        finalize(&FinalizeInput {
+            intended_json: &payload("check", true),
+            workspace: dir,
+            check: true,
+            bazel_code: 0,
+            patch_written: false,
+        })
+        .unwrap()
+        .manifest
+    }
+
+    #[test]
+    fn apply_within_writes_only_writable_paths() {
+        let path = "rust/tests/fixtures/hello/BUILD.bazel";
+        for (writable, contents, outcome, failure, after) in [
+            (path, &b"abc\n"[..], WriteOutcome::Applied, "", &b"xyz\n"[..]),
+            ("rust/tests", b"abc\n", WriteOutcome::Applied, "", b"xyz\n"),
+            (
+                "rust/tests/fixtures/hello/lib.rs",
+                b"abc\n",
+                WriteOutcome::NotApplied,
+                FAILURE_OUTSIDE_SCOPE,
+                b"abc\n",
+            ),
+            (
+                path,
+                b"moved\n",
+                WriteOutcome::NotApplied,
+                FAILURE_WRITE_MISMATCH,
+                b"moved\n",
+            ),
+        ] {
+            let dir = workspace_with(b"abc\n");
+            let mut manifest = checked(dir.path());
+            std::fs::write(dir.path().join(path), contents).unwrap();
+            apply_within(&mut manifest, dir.path(), &[writable.to_owned()]);
+            assert_eq!(manifest.mode, Mode::Default as i32, "{writable}");
+            let file = &manifest.files[0];
+            assert_eq!(file.outcome, outcome as i32, "{writable}");
+            assert_eq!(file.failure_code, failure, "{writable}");
+            assert_eq!(std::fs::read(dir.path().join(path)).unwrap(), after);
+        }
     }
 
     #[test]

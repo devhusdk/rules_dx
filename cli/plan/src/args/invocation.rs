@@ -94,6 +94,8 @@ pub struct GenerateRequest {
     pub bazel_startup_options: Vec<String>,
     pub workspace: Option<String>,
     pub common: CommonOptions,
+    /// See [`AffectedHandoff::writable`].
+    pub writable: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -276,6 +278,7 @@ impl UmbrellaRequest {
             bazel_startup_options: self.bazel_startup_options.clone(),
             workspace: self.workspace.clone(),
             common: self.common_with(reports),
+            writable: self.writable.clone(),
         }
     }
 }
@@ -574,6 +577,7 @@ impl Invocation {
             bazel_startup_options: self.bazel_startup_options.clone(),
             workspace: self.workspace.clone(),
             common: self.common_options(),
+            writable: self.writable(),
         })
     }
 

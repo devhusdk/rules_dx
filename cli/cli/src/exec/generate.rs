@@ -8,7 +8,7 @@ use dx_output::{
     FinishedCounts, OutputMode, change_value, command_finished, command_started, notice_value,
 };
 use dx_plan::args::{GenerateRequest, Invocation};
-use dx_plan::finalize::{FinalizeError, FinalizeInput, GazelleStatus, finalize};
+use dx_plan::finalize::{FinalizeError, FinalizeInput, GazelleStatus, apply_within, finalize};
 use dx_plan::generate::{ProjectedManifest, project, refused_lines, render_diff, text_lines};
 use dx_plan::plan::{
     GENERATE_ENV_INTENDED, GENERATE_ENV_MODE, GENERATE_ENV_SCOPE, generate_scope_json,
@@ -583,6 +583,12 @@ fn run_generate_request(
     code
 }
 
+/// Gazelle writes the workspace itself only when every path is writable; otherwise it
+/// runs as a check and [`apply_within`] writes the writable part of its result.
+fn gazelle_writes(request: &GenerateRequest) -> bool {
+    request.applies() && request.writable.is_none()
+}
+
 struct Generated {
     bazel_code: i32,
     projected: ProjectedManifest,
@@ -595,7 +601,7 @@ fn launch_generate(
     kind: &mut PhaseKind,
     resolved: &ResolvedScope,
 ) -> Result<Generated, i32> {
-    let apply = request.applies();
+    let apply = gazelle_writes(request);
     let patch = patch_path(env.temp_dir, env.pid, env.nonce);
     let patch_arg = (!apply).then(|| patch.display().to_string());
     std::fs::remove_file(&patch).ok();
@@ -619,7 +625,8 @@ fn launch_generate(
     *kind = PhaseKind::Tool;
     let mode = if apply { "default" } else { "check" };
     if request.common.output == OutputMode::Json {
-        emit_built(env.out, command_started("generate", mode))?;
+        let requested = if request.applies() { "default" } else { "check" };
+        emit_built(env.out, command_started("generate", requested))?;
     } else if request.chatty() {
         check_stdout_write(writeln!(env.out, "{}", plan.summary))?;
     }
@@ -661,7 +668,7 @@ fn read_generated(
     bazel_code: i32,
     patch_written: bool,
 ) -> Result<Generated, i32> {
-    let apply = request.applies();
+    let apply = gazelle_writes(request);
     let Some(witness) = std::fs::read(intended).ok() else {
         if bazel_code != 0 {
             *kind = PhaseKind::from_bazel_exit(bazel_code, false);
@@ -687,6 +694,12 @@ fn read_generated(
         check: !apply,
         bazel_code,
         patch_written,
+    })
+    .map(|mut finalized| {
+        if let (true, Some(writable)) = (request.applies(), &request.writable) {
+            apply_within(&mut finalized.manifest, env.workspace, writable);
+        }
+        finalized
     })
     .and_then(|finalized| {
         project(&finalized.manifest)

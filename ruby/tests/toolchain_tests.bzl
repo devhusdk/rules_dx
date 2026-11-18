@@ -82,7 +82,7 @@ def ruby_crlf_tests(name, size):
         file_blocks = {
             "@rules_ruby//ruby/private/binary:binary.cmd.tpl": [
                 'if "%COVERAGE%" == "1" (\r\n  call :rlocation {coverage_helper} _coverage_helper_path\r\n',
-                "\r\n{bundler_command} {ruby_binary_name} {binary} {args} %*\r\n",
+                "\r\n{bundler_command} {ruby_binary_name} !binary! {args} %*\r\n",
             ],
         },
     )

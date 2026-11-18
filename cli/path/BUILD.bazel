@@ -17,6 +17,7 @@ exports_files([
     "src/spelling.rs",
     "src/state.rs",
     "src/uri.rs",
+    "src/verbatim.rs",
     "src/workspace.rs",
 ])
 
@@ -34,6 +35,7 @@ rust_library(
         "src/spelling.rs",
         "src/state.rs",
         "src/uri.rs",
+        "src/verbatim.rs",
         "src/workspace.rs",
     ],
     aliases = aliases(
@@ -45,6 +47,7 @@ rust_library(
     visibility = VIS_CLI_PLATFORM + [
         "//cli/launcher:__pkg__",
         "//javascript/private/quality/launcher:__pkg__",
+        "//php/private/coverage:__pkg__",
         "//php/private/tools/launcher:__pkg__",
         "//rego:__subpackages__",
         "//thrift/tests:__pkg__",

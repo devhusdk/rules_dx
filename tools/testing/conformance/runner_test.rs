@@ -572,11 +572,9 @@ fn manifest_file(runfiles: &str, tmp: &std::path::Path) -> std::path::PathBuf {
 }
 
 fn manifest_target(path: &std::path::Path) -> String {
-    let text = path.to_string_lossy();
-    let text = match text.strip_prefix(r"\\?\UNC\") {
-        Some(rest) => format!(r"\\{rest}"),
-        None => text.strip_prefix(r"\\?\").unwrap_or(&text).to_owned(),
-    };
+    let text = dx_testing::without_verbatim(path)
+        .to_string_lossy()
+        .into_owned();
     if cfg!(windows) {
         text.replace('\\', "/")
     } else {
@@ -593,6 +591,7 @@ fn manifest_target_drops_verbatim_prefix() {
         assert_eq!(target(r"\\?\UNC\host\share\x"), "//host/share/x");
     } else {
         assert_eq!(target(r"\\?\D:/x"), "D:/x");
+        assert_eq!(target(r"\\?\UNC\host\share/x"), r"\\host\share/x");
     }
 }
 

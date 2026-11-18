@@ -12,12 +12,14 @@ pub mod runfiles;
 pub mod spelling;
 pub mod state;
 pub mod uri;
+pub mod verbatim;
 pub mod workspace;
 
 pub use runfiles::{Resolver, manifest_beside, manifest_for};
 pub use spelling::spell;
 pub use spelling::{Spelling, manifest, msys, native, posix, posix_str};
-pub use uri::{UriError, uri, uri_to_path, without_verbatim};
+pub use uri::{UriError, uri, uri_to_path};
+pub use verbatim::{verbatim, without_verbatim, without_verbatim_in, without_verbatim_str};
 pub use workspace::{WorkspaceRelativePath, resolve_in_workspace, resolve_target_in_workspace};
 
 /// Why one serialized path is not a workspace-relative path.

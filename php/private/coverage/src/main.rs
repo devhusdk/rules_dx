@@ -103,28 +103,22 @@ fn marker(tree: &Path) -> String {
     format!("/{name}/")
 }
 
-/// Drops the `\\?\` prefix from a canonical Windows drive path.
-fn plain(path: PathBuf) -> PathBuf {
-    let stripped = path
-        .to_string_lossy()
-        .strip_prefix(r"\\?\")
-        .filter(|rest| rest.as_bytes().get(1) == Some(&b':'))
-        .map(PathBuf::from);
-    stripped.unwrap_or(path)
-}
-
 /// The directory the files of `tree` resolve into, also when the runfiles link each file on its own.
 fn real_tree(tree: &Path) -> Result<PathBuf, String> {
     let autoload = tree.join("vendor").join("autoload.php");
     let resolved = autoload
         .canonicalize()
         .map_err(|err| format!("{}: {err}", autoload.display()))?;
-    let tree = resolved
+    tree_above(&resolved)
+}
+
+/// The tree two levels above a resolved `vendor/autoload.php`, spelled without a verbatim prefix.
+fn tree_above(autoload: &Path) -> Result<PathBuf, String> {
+    autoload
         .parent()
         .and_then(Path::parent)
-        .map(Path::to_path_buf)
-        .ok_or_else(|| format!("{}: no tree above it", resolved.display()))?;
-    Ok(plain(tree))
+        .map(dx_path::without_verbatim)
+        .ok_or_else(|| format!("{}: no tree above it", autoload.display()))
 }
 
 fn run(request: &Request) -> Result<i32, String> {
@@ -187,16 +181,14 @@ mod tests {
     }
 
     #[test]
-    fn a_verbatim_drive_path_loses_its_prefix() {
-        assert_eq!(
-            plain(PathBuf::from(r"\\?\C:\o\t.php")),
-            PathBuf::from(r"C:\o\t.php")
-        );
-        assert_eq!(
-            plain(PathBuf::from(r"\\?\UNC\h\s")),
-            PathBuf::from(r"\\?\UNC\h\s")
-        );
-        assert_eq!(plain(PathBuf::from("/o/t.php")), PathBuf::from("/o/t.php"));
+    fn a_verbatim_tree_loses_its_prefix() {
+        let above = |tree: &str| {
+            tree_above(&Path::new(tree).join("vendor").join("autoload.php")).expect("tree")
+        };
+        assert_eq!(above(r"\\?\C:\o\t.php"), PathBuf::from(r"C:\o\t.php"));
+        assert_eq!(above(r"\\?\UNC\h\s\t.php"), PathBuf::from(r"\\h\s\t.php"));
+        assert_eq!(above("/o/t.php"), PathBuf::from("/o/t.php"));
+        assert!(tree_above(Path::new("autoload.php")).is_err());
     }
 
     #[test]

@@ -6,11 +6,12 @@ use starlark_syntax::syntax::ast::{AstExpr, AstLiteral, AstStmt, ExprP};
 use starlark_syntax::syntax::{AstModule, Dialect};
 
 /// The guard sources, which hold the patterns they detect.
-const GUARDS: [&str; 4] = [
+const GUARDS: [&str; 5] = [
     "tools/ci/guard_scan.rs",
     "tools/ci/host_env_test.rs",
     "tools/ci/host_program_test.rs",
     "tools/ci/sandbox_escape_test.rs",
+    "tools/ci/verbatim_prefix_test.rs",
 ];
 
 /// Endings of Starlark file names.

@@ -23,17 +23,43 @@ pub(crate) fn holds(dir: &Path, manifest: &str) -> bool {
     })
 }
 
-pub(crate) fn collect_sources(root: &Path, nested: Option<&str>) -> Vec<PathBuf> {
+/// Entries of `dir`. A directory that is gone lists as empty; any other read error fails.
+pub(crate) fn list_dir(dir: &Path) -> Result<Vec<std::fs::DirEntry>, DepcheckError> {
+    let unreadable = |source| DepcheckError::SourcesIo {
+        path: dir.to_path_buf(),
+        source,
+    };
+    let entries = match std::fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => return Err(unreadable(error)),
+    };
+    entries.map(|entry| entry.map_err(unreadable)).collect()
+}
+
+/// Bytes of the source at `path`, or `None` when it vanished after the walk listed it.
+pub(crate) fn read_source(path: &Path) -> Result<Option<Vec<u8>>, DepcheckError> {
+    match std::fs::read(path) {
+        Ok(bytes) => Ok(Some(bytes)),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(source) => Err(DepcheckError::SourcesIo {
+            path: path.to_path_buf(),
+            source,
+        }),
+    }
+}
+
+pub(crate) fn collect_sources(
+    root: &Path,
+    nested: Option<&str>,
+) -> Result<Vec<PathBuf>, DepcheckError> {
     let mut out = Vec::new();
     let mut stack = vec![root.to_path_buf()];
     while let Some(dir) = stack.pop() {
-        let Ok(entries) = std::fs::read_dir(&dir) else {
-            continue;
-        };
-        let mut children: Vec<PathBuf> = Vec::new();
-        for entry in entries.flatten() {
-            children.push(entry.path());
-        }
+        let mut children: Vec<PathBuf> = list_dir(&dir)?
+            .into_iter()
+            .map(|entry| entry.path())
+            .collect();
         children.sort();
         for child in children.into_iter().rev() {
             let name = child
@@ -58,7 +84,7 @@ pub(crate) fn collect_sources(root: &Path, nested: Option<&str>) -> Vec<PathBuf>
         }
     }
     out.sort();
-    out
+    Ok(out)
 }
 
 /// Source text with invalid UTF-8 replaced and a leading byte order mark dropped.
@@ -565,7 +591,7 @@ pub(crate) fn find_first_imports(
     let skips = skip_names();
     let suffixes = source_suffixes();
     let mut texts: Vec<(String, String)> = Vec::new();
-    for file in collect_sources(root, Some(nested)) {
+    for file in collect_sources(root, Some(nested))? {
         let Some(fname) = file.file_name().map(|n| n.to_string_lossy().into_owned()) else {
             continue;
         };
@@ -573,7 +599,7 @@ pub(crate) fn find_first_imports(
         if skips.contains(fname) || !suffixes.iter().any(|s| fname.ends_with(s)) {
             continue;
         }
-        let Ok(bytes) = std::fs::read(&file) else {
+        let Some(bytes) = read_source(&file)? else {
             continue;
         };
         let rel = file.strip_prefix(root).unwrap_or(&file);
@@ -625,7 +651,7 @@ pub fn find_usages(
         .iter()
         .map(|k| (k.clone(), crate::Usage::default()))
         .collect();
-    let files = collect_sources(sources_root, None);
+    let files = collect_sources(sources_root, None)?;
     let skips = skip_names();
     let suffixes = source_suffixes();
     let cfg_test =
@@ -643,7 +669,7 @@ pub fn find_usages(
         if !has_suffix {
             continue;
         }
-        let Ok(text) = std::fs::read(&file) else {
+        let Some(text) = read_source(&file)? else {
             continue;
         };
         let text = source_text(&text);

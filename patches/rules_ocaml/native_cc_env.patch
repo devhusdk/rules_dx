@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: none (rules_dx only: reads cc_link_env_vars/cc_files from the rules_dx toolchain)
 diff -ru a/build/_rules/ocaml_binary/impl_binary.bzl b/build/_rules/ocaml_binary/impl_binary.bzl
 --- a/build/_rules/ocaml_binary/impl_binary.bzl
 +++ b/build/_rules/ocaml_binary/impl_binary.bzl

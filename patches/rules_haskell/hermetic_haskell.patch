@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: none (rules_dx only: hermetic toolchain wiring)
 diff --git a/haskell/BUILD.bazel b/haskell/BUILD.bazel
 index a5fab3d..b2a113a 100644
 --- a/haskell/BUILD.bazel

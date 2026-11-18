@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: bazelverse/rules_erlang#21
 diff --git a/private/eunit.bzl b/private/eunit.bzl
 --- a/private/eunit.bzl
 +++ b/private/eunit.bzl

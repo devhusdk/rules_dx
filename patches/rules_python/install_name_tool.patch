@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: bazel-contrib/rules_python#4528
 --- a/python/private/python_repository.bzl
 +++ b/python/private/python_repository.bzl
 @@ -215,12 +215,13 @@

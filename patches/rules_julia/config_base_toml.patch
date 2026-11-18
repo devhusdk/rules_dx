@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: none (rules_dx only: avoids loading the TOML stdlib at startup)
 diff -ruN a/julia/private/rules_julia_common.jl b/julia/private/rules_julia_common.jl
 --- a/julia/private/rules_julia_common.jl
 +++ b/julia/private/rules_julia_common.jl

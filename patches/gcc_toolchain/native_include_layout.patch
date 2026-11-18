@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: f0rmiga/gcc-toolchain#260
 --- a/toolchain/defs.bzl
 +++ b/toolchain/defs.bzl
 @@ -109,7 +109,7 @@

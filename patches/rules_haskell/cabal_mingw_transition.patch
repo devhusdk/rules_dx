@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: none (rules_dx only: loads @rules_dx transition)
 diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
 --- a/haskell/cabal.bzl
 +++ b/haskell/cabal.bzl

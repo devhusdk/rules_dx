@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: none (rules_dx only: LLVM backend tied to hermetic LLVM)
 --- a/haskell/toolchain.bzl
 +++ b/haskell/toolchain.bzl
 @@ -78,6 +78,19 @@ def _run_ghc(

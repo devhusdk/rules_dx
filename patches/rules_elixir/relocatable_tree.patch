@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: none (rules_dx only: depends on the rules_dx 04_otp_tree rules_erlang patch)
 diff --git a/private/elixir_build.bzl b/private/elixir_build.bzl
 --- a/private/elixir_build.bzl
 +++ b/private/elixir_build.bzl

@@ -5,10 +5,12 @@ diff, which every patch tool skips:
 
     Upstream: bazelbuild/rules_rust#4390
     Upstream: none (rules_dx only: gates the toolchains behind //config:toolchains_on)
+    Upstream: fixed upstream in v0.9.0
 
 A header may name several refs separated by commas. A ref is a pull request or
 an issue. The report lists refs whose pull request is merged and contained in a
-release tag, refs that were closed without a merge, and patches with no header.
+release tag, patches marked fixed in a release, refs that were closed without a
+merge, and patches with no header.
 """
 
 import json
@@ -20,6 +22,7 @@ import urllib.request
 
 _HEADER = re.compile(r"^Upstream:\s*(.+?)\s*$")
 _REF = re.compile(r"^([\w.-]+/[\w.-]+)#(\d+)$")
+_FIXED = re.compile(r"^fixed upstream in (\S+)$")
 _DIFF_START = ("--- ", "diff ")
 
 # The newest releases (or tags, for repositories without releases) checked for
@@ -138,6 +141,10 @@ def report(api, root):
             value = header(handle.read())
         if value is None:
             missing.append("- `%s`" % name)
+            continue
+        fixed = _FIXED.match(value)
+        if fixed:
+            released.append("- `%s`: fixed in %s" % (name, fixed.group(1)))
             continue
         try:
             found = refs(value)

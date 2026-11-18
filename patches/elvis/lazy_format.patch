@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: inaka/elvis#617
 diff --git a/src/elvis.erl b/src/elvis.erl
 --- a/src/elvis.erl
 +++ b/src/elvis.erl

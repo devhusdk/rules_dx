@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: none (rules_dx only: works around our lock-enabled elfutils build; real fix belongs in elfutils, which takes patches by mailing list only)
 --- a/src/parsers/elf-parser.cc
 +++ b/src/parsers/elf-parser.cc
 @@ -176,6 +176,16 @@

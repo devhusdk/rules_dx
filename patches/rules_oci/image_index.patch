@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: bazel-contrib/rules_oci#917
 --- a/oci/private/image_index.bzl
 +++ b/oci/private/image_index.bzl
 @@ -1,5 +1,7 @@

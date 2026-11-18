@@ -234,7 +234,7 @@ mod interrupt {
         )]
         fn handle(event: CtrlEvent) -> bool {
             if let Some(path) = PATH.lock().ok().and_then(|p| p.clone()) {
-                let _: std::io::Result<()> = std::fs::remove_file(path);
+                dx_atomic_fs::discard_file(path);
             }
             std::process::exit(match event {
                 CtrlEvent::C => 130,

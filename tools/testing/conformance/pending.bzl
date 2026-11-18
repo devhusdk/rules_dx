@@ -37,10 +37,6 @@ asciidoc lint_test *
 asciidoc lock_test *
 asciidoc pass_test *
 asciidoc runfiles_test *
-astro format_error_test *
-astro format_test *
-astro lint_error_test *
-astro lint_test *
 cuda coverage_test *
 cuda cross_test *
 cuda lint_error_test *
@@ -77,10 +73,6 @@ julia format_error_test *
 julia format_test *
 julia lint_error_test *
 julia lint_test *
-mdx format_error_test *
-mdx format_test *
-mdx lint_error_test *
-mdx lint_test *
 msix build_test *
 msix coverage_test *
 msix cross_test *
@@ -123,13 +115,5 @@ rst runfiles_test *
 ruby runfiles_test *
 scala lint_error_test *
 scala lint_test *
-svelte format_error_test *
-svelte format_test *
-svelte lint_error_test *
-svelte lint_test *
-vue format_error_test *
-vue format_test *
-vue lint_error_test *
-vue lint_test *
 zig coverage_test windows_x86_64
 """

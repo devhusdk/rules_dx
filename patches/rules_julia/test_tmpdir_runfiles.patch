@@ -1,0 +1,16 @@
+Upstream: none (not yet sent upstream)
+--- a/julia/private/entrypoint.jl
++++ b/julia/private/entrypoint.jl
+@@ -145,7 +145,11 @@
+             # Create a temporary runfiles directory
+             # Use TEST_TMPDIR if available (Bazel will clean it up), otherwise tempdir()
+             temp_base = get(ENV, "TEST_TMPDIR", tempdir())
+-            runfiles_dir = mktempdir(temp_base; prefix = "runfiles_")
++            runfiles_dir = mktempdir(
++                temp_base;
++                prefix = "runfiles_",
++                cleanup = !haskey(ENV, "TEST_TMPDIR"),
++            )
+ 
+             @debug "Creating runfiles directory from manifest: $(runfiles_dir)"
+ 

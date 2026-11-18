@@ -24,6 +24,7 @@ pub enum Tool {
     SizeChecker,
     CloudflareVerify,
     NpmPacker,
+    CapnpcRustDx,
 }
 
 /// The tool `dx` was started as, judged by the file stem of argv[0] so `.exe` does not matter.
@@ -54,6 +55,7 @@ pub fn subcommand_for(arg1: &OsStr) -> Option<Tool> {
         "size_checker" => Some(Tool::SizeChecker),
         "cloudflare_verify" => Some(Tool::CloudflareVerify),
         "npm_packer" => Some(Tool::NpmPacker),
+        "capnpc_rust_dx" => Some(Tool::CapnpcRustDx),
         _ => None,
     }
 }
@@ -127,6 +129,7 @@ mod tests {
             ("size_checker", Tool::SizeChecker),
             ("cloudflare_verify", Tool::CloudflareVerify),
             ("npm_packer", Tool::NpmPacker),
+            ("capnpc_rust_dx", Tool::CapnpcRustDx),
         ] {
             assert_eq!(subcommand_for(OsStr::new(name)), Some(tool), "{name}");
         }
@@ -142,6 +145,7 @@ mod tests {
             "oapi_codegen",
             "archiver",
             "hasher",
+            "capnpc_rust_dx",
         ] {
             assert_eq!(tool_for(OsStr::new(name)), None, "{name}");
         }

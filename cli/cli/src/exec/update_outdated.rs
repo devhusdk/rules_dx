@@ -1473,7 +1473,7 @@ mod tests {
             fetch.get("https://index.crates.io/3/o/none"),
             Err(DxError::failure("HTTP 404"))
         );
-        drop(std::fs::remove_dir_all(dir));
+        dx_atomic_fs::discard_dir(dir);
     }
 
     #[test]
@@ -1486,7 +1486,7 @@ mod tests {
             fetch.get("https://registry.npmjs.org/@scope/pkg"),
             Ok("{}".into())
         );
-        drop(std::fs::remove_dir_all(dir));
+        dx_atomic_fs::discard_dir(dir);
     }
 
     #[test]
@@ -1504,7 +1504,7 @@ mod tests {
     #[test]
     fn download_sha256_reads_the_file_a_dir_fetch_serves() {
         let dir = std::env::temp_dir().join(format!("dx-pins-dl-{}", std::process::id()));
-        drop(std::fs::remove_dir_all(&dir));
+        dx_atomic_fs::discard_dir(&dir);
         std::fs::create_dir_all(dir.join("host/p")).unwrap();
         std::fs::write(dir.join("host/p/f.tgz"), b"abc").unwrap();
         let fetch = DirFetch(dir.clone());
@@ -1513,7 +1513,7 @@ mod tests {
             "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
         );
         assert!(fetch.download_sha256("https://host/p/none.tgz").is_err());
-        drop(std::fs::remove_dir_all(dir));
+        dx_atomic_fs::discard_dir(dir);
     }
 
     #[test]
@@ -1608,7 +1608,7 @@ mod tests {
         assert!(builtins.selects_all_containers() && rest.is_empty());
         let fetch = DirFetch(root.join("mirror"));
         let collected = collect(&root, &[], &builtins, false, &fetch);
-        drop(std::fs::remove_dir_all(&root));
+        dx_atomic_fs::discard_dir(&root);
         let candidate = &collected.found.candidates[0];
         assert_eq!(candidate.set, "containers");
         assert_eq!(candidate.package, "distroless_static");
@@ -1640,7 +1640,7 @@ mod tests {
         assert!(builtins.bcr_newest && rest.is_empty());
         let collected = collect(&root, &[], &builtins, false, &DirFetch(root.join("mirror")));
         let written = std::fs::read_to_string(root.join(BCR_NEWEST_FILE));
-        drop(std::fs::remove_dir_all(&root));
+        dx_atomic_fs::discard_dir(&root);
         assert!(
             collected.found.errors.is_empty(),
             "{:?}",
@@ -1679,7 +1679,7 @@ mod tests {
             fetch.get("https://api.github.com/repos/o/r/releases/latest"),
             Ok("{}".into())
         );
-        drop(std::fs::remove_dir_all(dir));
+        dx_atomic_fs::discard_dir(dir);
     }
 
     #[test]

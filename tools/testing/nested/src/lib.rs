@@ -470,7 +470,7 @@ fn clean_old_shims(dir: &Path, dst: &Path) {
     for entry in entries.filter_map(Result::ok) {
         if entry.file_name().to_string_lossy().starts_with(&name) {
             make_file_writable(&entry.path());
-            drop(std::fs::remove_file(entry.path()));
+            dx_atomic_fs::discard_file(entry.path());
         }
     }
 }
@@ -484,7 +484,9 @@ fn make_file_writable(path: &Path) {
                 reason = "the file must be writable"
             )]
             permissions.set_readonly(false);
-            drop(std::fs::set_permissions(path, permissions));
+            if let Err(error) = std::fs::set_permissions(path, permissions) {
+                eprintln!("cannot make {} writable: {error}", path.display());
+            }
         }
     }
 }
@@ -1644,7 +1646,7 @@ impl Case {
     #[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
     pub fn use_lock(&self, stem: &str) {
         if recording() {
-            drop(std::fs::remove_file(self.root.join("MODULE.bazel.lock")));
+            dx_atomic_fs::discard_file(self.root.join("MODULE.bazel.lock"));
             let mut roots = RECORDED.lock().unwrap_or_else(PoisonError::into_inner);
             let entry = (stem.to_owned(), self.root.clone());
             if !roots.contains(&entry) {
@@ -1742,7 +1744,7 @@ impl Case {
         self.shutdown_server();
         let tmpdir = PathBuf::from(std::env::var_os("TEST_TMPDIR").expect("TEST_TMPDIR"));
         let log = tmpdir.join(log);
-        drop(std::fs::remove_file(&log));
+        dx_atomic_fs::discard_file(&log);
         let flag = format!("--experimental_workspace_rules_log_file={}", log.display());
         let mut full = args.to_vec();
         full.push(&flag);
@@ -2170,7 +2172,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("dx-nested-config-{}", std::process::id()));
         write_rules_dx_config(&dir);
         let build = std::fs::read_to_string(dir.join("config/BUILD.bazel")).unwrap_or_default();
-        drop(std::fs::remove_dir_all(&dir));
+        dx_atomic_fs::discard_dir(&dir);
         for (name, _) in RULES_DX_FLAGS {
             assert!(build.contains(&format!("name = \"{name}\"")), "{build}");
         }

@@ -1151,7 +1151,10 @@ impl Drop for AclGroup {
 fn timeline(out: &Path, line: &str) {
     use std::io::Write;
     let logs = out.join("logs");
-    drop(std::fs::create_dir_all(&logs));
+    if let Err(err) = std::fs::create_dir_all(&logs) {
+        eprintln!("cannot create {}: {err}", logs.display());
+        return;
+    }
     if let Ok(mut file) = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
@@ -1174,8 +1177,14 @@ pub fn copy_latest_profile(output_base: &Path, dest: &Path) {
         })
         .filter_map(|entry| Some((entry.metadata().ok()?.modified().ok()?, entry.path())))
         .max_by_key(|(modified, _)| *modified);
-    if let Some((_, path)) = newest {
-        drop(std::fs::copy(path, dest));
+    if let Some((_, path)) = newest
+        && let Err(err) = std::fs::copy(&path, dest)
+    {
+        eprintln!(
+            "cannot copy {} to {}: {err}",
+            path.display(),
+            dest.display()
+        );
     }
 }
 
@@ -1304,7 +1313,9 @@ impl Session {
             return Vec::new();
         }
         let temp = self.root.join("tmp");
-        drop(std::fs::create_dir_all(&temp));
+        if let Err(err) = std::fs::create_dir_all(&temp) {
+            eprintln!("cannot create {}: {err}", temp.display());
+        }
         let mut env = vec![
             ("HOME".to_owned(), home.to_string_lossy().into_owned()),
             (
@@ -1677,8 +1688,10 @@ pub fn copy_test_logs(testlogs: &Path, dest: &Path) -> String {
             continue;
         };
         let target = dest.join(rel);
-        if let Some(parent) = target.parent() {
-            drop(std::fs::create_dir_all(parent));
+        if let Some(parent) = target.parent()
+            && let Err(err) = std::fs::create_dir_all(parent)
+        {
+            eprintln!("cannot create {}: {err}", parent.display());
         }
         drop(std::fs::write(&target, &content));
         let content = String::from_utf8_lossy(&content);

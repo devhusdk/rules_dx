@@ -9,7 +9,9 @@ package(default_visibility = VIS_CLI_DEPLOY_ENV_GENERATION_QUALITY + [
     "//tools/docs/ir/ir:__pkg__",
     "//tools/docs/support_matrix:__pkg__",
     "//tools/docs/tiers:__pkg__",
+    "//tools/testing:__pkg__",
     "//tools/testing/hermetic:__pkg__",
+    "//tools/testing/nested:__pkg__",
 ])
 
 exports_files([

@@ -2041,7 +2041,7 @@ fn cabal_edit_moves_the_upper_bound_of_a_range() {
 }
 
 #[test]
-fn cabal_edit_reads_short_and_prerelease_versions_for_the_upper_bound() {
+fn cabal_edit_reads_short_versions_for_the_upper_bound() {
     let source = "library\n  build-depends: base >=4.18 && <4.21\n";
     let upper = |version: &str| {
         cabal_request("base", version)
@@ -2050,7 +2050,7 @@ fn cabal_edit_reads_short_and_prerelease_versions_for_the_upper_bound() {
             .expect("range")
     };
     assert_eq!(upper("4.22"), upper("4.22.0"));
-    assert_eq!(upper("4.22.0-rc1"), upper("4.22.0"));
+    assert_eq!(upper("4.22.0.0"), upper("4.22.0"));
     assert_eq!(upper("5"), "library\n  build-depends: base >=4.18 && <6\n");
 }
 

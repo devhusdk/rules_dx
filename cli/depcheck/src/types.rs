@@ -94,6 +94,7 @@ impl From<DepcheckError> for dx_error::DxError {
             | DepcheckError::ManifestJson(_)
             | DepcheckError::ManifestRegex(_)
             | DepcheckError::ManifestParse(_)
+            | DepcheckError::ManifestVersion(_)
             | DepcheckError::LockToml(_)
             | DepcheckError::LockJson(_)
             | DepcheckError::LockRegex(_)

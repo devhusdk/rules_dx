@@ -10,7 +10,6 @@ fixture-hello ansible/tests/conformance/BUILD.bazel
 fixture-hello appimage/tests/conformance/BUILD.bazel
 fixture-hello apple/tests/conformance/BUILD.bazel
 fixture-hello asciidoc/tests/conformance/BUILD.bazel
-fixture-hello capnproto/tests/conformance/BUILD.bazel
 fixture-hello cloudformation/tests/conformance/BUILD.bazel
 fixture-hello dockerfile/tests/conformance/BUILD.bazel
 fixture-hello flatbuffers/tests/conformance/BUILD.bazel
@@ -20,15 +19,11 @@ fixture-hello kubernetes/tests/conformance/BUILD.bazel
 fixture-hello msix/tests/conformance/BUILD.bazel
 fixture-hello qt/tests/conformance/BUILD.bazel
 fixture-hello rst/tests/conformance/BUILD.bazel
-fixture-hello thrift/tests/conformance/BUILD.bazel
 fixture-name api_spec/tests/refs
 fixture-name api_spec/tests/shared
 fixture-name astro/tests/app
 fixture-name astro/tests/app_config
 fixture-name astro/tests/typecheck
-fixture-name capnproto/tests/api
-fixture-name capnproto/tests/base
-fixture-name capnproto/tests/dup
 fixture-name cc/tests/gcc_cross
 fixture-name cc/tests/gcc_linux_arm64
 fixture-name cc/tests/gcc_linux_x86_64
@@ -91,8 +86,6 @@ fixture-name svelte/tests/app
 fixture-name svelte/tests/app_errors
 fixture-name svelte/tests/typecheck
 fixture-name swift/tests/cross
-fixture-name thrift/tests/api
-fixture-name thrift/tests/base
 fixture-name typescript/tests/tags
 fixture-name typescript/tests/typecheck_profiles
 fixture-name vue/tests/app

@@ -7,7 +7,7 @@ package(default_visibility = ["//thrift/tests:__subpackages__"])
 thrift_library(
     name = "api",
     srcs = ["shape.thrift"],
-    deps = ["//thrift/tests/base"],
+    deps = ["//thrift/tests/fixtures/base"],
 )
 
 real_source_target(

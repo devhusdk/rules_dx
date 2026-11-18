@@ -8,39 +8,27 @@ toolchain for you, so you install nothing per language.
 ## Quickstart
 
 You need Bazelisk, the launcher that downloads the right Bazel version, on
-your `PATH` as `bazel`. In an empty directory, create two files.
+your `PATH` as `bazel`. Download `dx-<os>-<cpu>` for your platform
+(`.exe` on Windows) from the
+[latest release](https://github.com/devhusdk/rules_dx/releases/latest) and
+put it on your `PATH` as `dx`.
 
-`.bazelversion` picks the Bazel version:
-
-```text
-9.3.1
-```
-
-`MODULE.bazel` makes the directory a Bazel module that depends on
-`rules_dx`:
-
-```starlark
-bazel_dep(name = "rules_dx", version = "<release>")
-```
-
-On Windows, also accept the [Visual Studio Build Tools license](https://visualstudio.microsoft.com/license-terms/) in `MODULE.bazel`:
-
-```starlark
-dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
-dx_licenses.accept(ids = ["visual-studio-build-tools"])
-```
-
-Then set the project up and run its tests:
+In an empty directory, set the project up and run its tests:
 
 ```sh
-bazel run @rules_dx//:dx -- init --apply
+dx init --apply
 tools/dx test //...
 ```
 
-`bazel run @rules_dx//:dx` builds the `dx` program from the `rules_dx`
-module and runs it. `dx init --apply` writes the `tools/dx` launcher, CI
-and editor files. `//...` means every target in the project. From now on,
-run `dx` through the launcher:
+On Windows, set it up with the [Visual Studio Build Tools license](https://visualstudio.microsoft.com/license-terms/) accepted instead:
+
+```sh
+dx init --apply --accept-license visual-studio-build-tools
+```
+
+`dx init --apply` writes `MODULE.bazel`, which depends on `rules_dx`,
+`.bazelversion`, the `tools/dx` launcher, CI and editor files. `//...` means
+every target in the project. From now on, run `dx` through the launcher:
 
 ```sh
 tools/dx --help

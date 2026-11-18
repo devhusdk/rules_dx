@@ -3,6 +3,8 @@
 load("//deploy/private:image_providers.bzl", "OciImageQualityInfo")
 load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
 
+visibility(["//core/..."])
+
 TOOLS = {
     "container_structure_test": {
         "attr": attr.label(default = "//config:tool_container_structure_test", allow_single_file = True, cfg = "exec"),

@@ -6,6 +6,9 @@ load(
     "native_config_error",
 )
 
+# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
+visibility("public")
+
 DxNativeConfigInfo = _DxNativeConfigInfo
 
 def native_config_impl(ctx):

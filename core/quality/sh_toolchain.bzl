@@ -1,5 +1,7 @@
 """Shell toolchain backed by a pinned executable."""
 
+visibility("private")
+
 def _dx_sh_toolchain_impl(ctx):
     return [platform_common.ToolchainInfo(
         path = ctx.file.executable.path,

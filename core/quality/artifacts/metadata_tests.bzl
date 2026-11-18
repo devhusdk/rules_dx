@@ -6,6 +6,8 @@ load(":hub.bzl", "artifact_metadata_errors")
 load(":ocaml_duniverse.bzl", "PACKAGES", "PATCHES", "REPO")
 load(":repos.bzl", "DX_TOOL_HUB", "DX_TOOL_REPOS")
 
+visibility("private")
+
 TOOL_ARTIFACTS = [a for t in DATA["dx_quality_tools"].values() for a in t.values()]
 
 def _source(source):

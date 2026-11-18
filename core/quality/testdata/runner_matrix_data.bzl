@@ -2,6 +2,8 @@
 
 load(":runner_matrix_tests.bzl", "matrix_case")
 
+visibility("private")
+
 DATA_CASES = [
     matrix_case(
         name = "matrix_starlark_lint_pass",

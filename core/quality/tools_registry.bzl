@@ -1,5 +1,7 @@
 """Generated from //tools/quality:family_tools.bzl by //core/quality:tools_registry; refresh with bazel run //core/quality:tools_registry."""
 
+visibility("private")
+
 FAMILY_TOOL_ROWS = json.decode(r"""{
   "ansible": [
     {

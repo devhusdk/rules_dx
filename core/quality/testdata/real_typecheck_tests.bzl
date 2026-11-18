@@ -2,6 +2,8 @@
 
 load("//core:defs.bzl", "starlark_test")
 
+visibility("private")
+
 EXPECTED_TYPECHECK_OBSERVATIONS = """subject //core/quality/testdata:fixture_real_python_no_typecheck_subject
 field dx_count=0
 field dx_results=(none)

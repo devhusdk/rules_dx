@@ -4,6 +4,8 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//core/quality/testdata:all_languages.bzl", "real_format_aspect", "real_lint_aspect")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
+visibility("private")
+
 def _corpus_coverage_impl(ctx):
     env = analysistest.begin(ctx)
     target = analysistest.target_under_test(env)

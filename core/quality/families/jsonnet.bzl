@@ -3,6 +3,8 @@
 load("//core/quality:family_hooks.bzl", "default_files_hook")
 load("//core/quality:real_core.bzl", "real_config", "real_make_aspect")
 
+visibility(["//core/..."])
+
 TOOLS = {
     "jsonnetfmt": {
         "attr": attr.label(default = "@dx_tools//:jsonnetfmt", allow_single_file = True, cfg = "exec"),

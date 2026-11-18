@@ -2,6 +2,8 @@
 
 load(":runner_matrix_tests.bzl", "matrix_case")
 
+visibility("private")
+
 JVM_CASES = [
     matrix_case(
         name = "matrix_java_format_pass",

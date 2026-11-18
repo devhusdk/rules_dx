@@ -2,6 +2,8 @@
 
 load(":policy.bzl", "CAPABILITIES")
 
+visibility("private")
+
 def capability_selection(tools_by_capability, capability):
     """Returns the policy-ordered tool-ID selection for one capability."""
     if capability not in CAPABILITIES:

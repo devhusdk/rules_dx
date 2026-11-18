@@ -6,6 +6,9 @@ load("//core:defs.bzl", "DxSubjectInfo", "expect_equal", "starlark_test")
 load("//core:wrapper.bzl", "DX_UPSTREAM_TAG", "dx_binary_forward_kwargs", "dx_forwarded_test_kwargs", "dx_merge_run_environment", "dx_symlink_executable_name")
 load("//core/quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "QualitySourcesInfo")
 
+# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
+visibility("public")
+
 def dx_file_class_checks(classes):
     """Builds known-class checks for each file class."""
     checks = []

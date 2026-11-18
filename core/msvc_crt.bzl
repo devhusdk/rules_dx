@@ -2,6 +2,9 @@
 
 load("//core:wrapper.bzl", "dx_upstream")
 
+# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
+visibility("public")
+
 DxMsvcCrtInfo = provider(
     doc = "How a target and its deps pick the MSVC CRT.",
     fields = {

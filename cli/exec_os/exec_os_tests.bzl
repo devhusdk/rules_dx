@@ -3,6 +3,8 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load(":defs.bzl", "ExecOsInfo")
 
+visibility("private")
+
 def _windows_impl(ctx):
     env = analysistest.begin(ctx)
     asserts.true(env, analysistest.target_under_test(env)[ExecOsInfo].windows)

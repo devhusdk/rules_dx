@@ -3,6 +3,8 @@
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
 load("//core/quality:elixirc.bzl", "elixirc_command")
 
+visibility("private")
+
 def _command(env = {}):
     return elixirc_command(
         env_program = "bazel-out/coreutils_bin/env",

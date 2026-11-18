@@ -1,4 +1,4 @@
-//! Offline self-tests of the nested Bazel harness: the pinned binary runs without bazelisk, a locked consumer resolves `rules_dx` extensions from its repository cache sets, and nested servers stop with their test binary, and a restarted server refetches no repository rule unless its declared environment changed, which the probe proves the guard catches.
+//! Offline self-tests of the nested Bazel harness: the pinned binary runs without bazelisk, a locked consumer resolves `rules_dx` extensions from its repository cache sets, and nested servers stop with their test binary, and a restarted server refetches no repository rule unless its declared environment changed, which the probe proves the guard catches, and a consumer cannot load an internal `.bzl`.
 
 use std::time::{Duration, Instant};
 
@@ -298,6 +298,20 @@ probe = repository_rule(implementation = _impl, environ = ["DX_REFETCH_PROBE"])
         "a changed repo env did not refetch the probe: {changed:?}"
     );
     case.assert_no_refetch(&second);
+}
+
+#[test]
+fn a_consumer_that_loads_an_internal_bzl_fails() {
+    if nested::recording() {
+        return;
+    }
+    let (case, _) = locked_consumer("internal_load");
+    // `taxonomy.bzl` declares `visibility("private")`; tools/ci:bzl_visibility_test keeps every internal file declared.
+    case.write(
+        "BUILD.bazel",
+        "load(\"@rules_dx//core/quality:taxonomy.bzl\", \"OTHER_FAMILIES\")\n\nfilegroup(name = \"all\", tags = [str(len(OTHER_FAMILIES))])\n",
+    );
+    case.build_fails_with("//:all", &["is not visible for loading"]);
 }
 
 #[test]

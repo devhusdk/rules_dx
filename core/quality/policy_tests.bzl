@@ -5,6 +5,8 @@ load(":applicability.bzl", "capability_selection", "effective_classes", "selecte
 load(":policy.bzl", "merge_configs", "merge_policy")
 load("//core/quality/private:generated_policy.bzl", "generated_families_error")
 
+visibility("private")
+
 _FIXTURE_ADAPTERS = {
     "fmt-a": ["rust"],
     "lint-a": ["rust", "python"],

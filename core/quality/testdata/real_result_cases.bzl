@@ -2,6 +2,8 @@
 
 load(":real_results.bzl", "real_result_test")
 
+visibility(["//core/..."])
+
 _MACOS_ONLY = ["@platforms//os:macos"]
 
 def _gcc_case(tool, capability, name, target, contains, absent, config = "cc_syntax"):

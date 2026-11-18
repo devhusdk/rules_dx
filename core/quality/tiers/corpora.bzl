@@ -1,5 +1,7 @@
 """Tier files each formatter owns, as paths under core/quality/tiers/."""
 
+visibility(["//core/..."])
+
 TIER_JAVASCRIPT = [
     "eslint/frameworks.mjs",
     "eslint/frameworks/astro.mjs",

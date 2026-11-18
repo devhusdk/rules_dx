@@ -6,6 +6,8 @@ load("//core:resources.bzl", "dx_heavy_resources")
 load("//core/quality:roslyn.bzl", "tfm_sort_key")
 load("//core/quality:sources.bzl", "forwarded_upstream", "single_target")
 
+visibility(["//core/...", "//dotnet/..."])
+
 _TOOLCHAIN = "@rules_dotnet//dotnet:toolchain_type"
 
 _FSHARP_KINDS = ["fsharp_library", "fsharp_binary", "fsharp_test"]

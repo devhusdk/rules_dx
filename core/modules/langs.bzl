@@ -1,5 +1,7 @@
 """Generated from every <lang>/lang.json by //core/modules:lang_json_test; refresh with UPDATE_EXPECT=1."""
 
+visibility(["//core/...", "//ruby/...", "//tools/..."])
+
 LANGS = json.decode("""{
   "android": {
     "ecosystems": [],

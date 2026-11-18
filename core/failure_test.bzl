@@ -3,6 +3,9 @@
 load("@bazel_skylib//lib:dicts.bzl", "dicts")
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 
+# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
+visibility("public")
+
 def _starlark_failure_impl(ctx):
     env = analysistest.begin(ctx)
     asserts.expect_failure(env, ctx.attr.expected_failure_substring)

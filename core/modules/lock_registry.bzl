@@ -1,5 +1,7 @@
 """Generated from every <lang>/lang.json setup.hubs entry with a lock."""
 
+visibility(["//core/...", "//deploy/...", "//julia/...", "//python/...", "//tools/..."])
+
 LOCK_REGISTRY = {
     "ansible": {
         "hub": "ansible_collections",

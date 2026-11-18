@@ -2,6 +2,8 @@
 
 load(":tool_defs.bzl", "is_canonical_token")
 
+visibility("private")
+
 # JET and JuliaFormatter stay opt-in.
 CURATED_DEFAULTS = {
     "astro": {

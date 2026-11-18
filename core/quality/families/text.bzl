@@ -2,6 +2,8 @@
 
 load("//core/quality:real_core.bzl", "real_config", "real_make_aspect")
 
+visibility(["//core/..."])
+
 TOOLS = {
     "keep_sorted": {
         "attr": attr.label(default = "@dx_tools//:keep_sorted", allow_single_file = True, cfg = "exec"),

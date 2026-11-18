@@ -3,6 +3,8 @@
 load("//core/quality:pipeline.bzl", "drop_pipeline_tool")
 load("//core/quality:real_core.bzl", "real_context")
 
+visibility(["//bicep/...", "//cc/...", "//core/...", "//dart/...", "//dotnet/...", "//erlang/...", "//go/...", "//haskell/...", "//java/...", "//javascript/...", "//julia/...", "//kubernetes/...", "//lua/...", "//ocaml/...", "//ruby/...", "//rust/...", "//terraform/..."])
+
 def stage(files, inputs, rel, f):
     """Stages f at rel for the tool and lists it as an action input."""
     files.append((rel, f))

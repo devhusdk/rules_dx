@@ -2,6 +2,9 @@
 
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 
+# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
+visibility("public")
+
 def dx_runner_attr_test(name, runner, expected):
     """Compares attributes of `runner`, declared earlier in this package, with `expected`."""
     rule = native.existing_rule(runner)

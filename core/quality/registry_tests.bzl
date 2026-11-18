@@ -6,6 +6,8 @@ load("//core/modules:langs.bzl", "LANGS")
 load(":taxonomy.bzl", "CLASS_TO_FAMILY", "FAMILY_OWNERS", "LANG_JSON_FAMILIES", "OTHER_FAMILIES", "TAXONOMY", "TAXONOMY_CLASSES", "taxonomy_schema_error")
 load(":registry.bzl", "is_curated_family", "is_registry_class", "is_registry_tool", "registry_classes", "registry_curated_families", "registry_families", "registry_schema_error", "registry_tools")
 
+visibility("private")
+
 _A = {"ty": {"typecheck": ["python"]}}
 _C = {"python": "python", "yaml": "yaml"}
 

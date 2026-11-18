@@ -16,6 +16,8 @@ load(
 )
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
+visibility("private")
+
 def _label_text(label):
     return strip_canonical(str(label))
 

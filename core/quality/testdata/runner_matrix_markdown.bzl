@@ -2,6 +2,8 @@
 
 load(":runner_matrix_tests.bzl", "matrix_case")
 
+visibility("private")
+
 _VALE_STYLE_FILES = [
     "Cliches.yml",
     "E-Prime.yml",

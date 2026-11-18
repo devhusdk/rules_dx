@@ -2,6 +2,8 @@
 
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 
+visibility("private")
+
 _CANONICAL_PREFIX = "@@"  # buildifier: disable=canonical-repository
 
 EXPECTED_OBSERVATIONS = """subject //config:settings_under_test

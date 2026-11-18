@@ -9,6 +9,8 @@ load("//core/quality:support.bzl", "SUPPORT_PLATFORMS")
 load("//core/quality/private:native_config_impl.bzl", "native_config_scratch_rel", "staged_config_rel", "tier_base_dirs")
 load("//rust/private/toolchain:bindings.bzl", "rust_toolchain_runtime_files", "rust_toolchain_toolchains", "rust_toolchain_tools")
 
+visibility(["//core/..."])
+
 def _single_file(target):
     files = target[DefaultInfo].files.to_list()
     if len(files) != 1:

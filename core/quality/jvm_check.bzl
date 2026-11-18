@@ -9,6 +9,8 @@ load("@rules_scala//scala:providers.bzl", "DepsInfo", "ScalaInfo")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//core/quality:sources.bzl", "single_target")
 
+visibility(["//java/..."])
+
 _KT_TOOLCHAIN_TYPE = "@rules_kotlin//kotlin/internal:kt_toolchain_type"
 _SCALA_TOOLCHAIN_TYPE = "@rules_scala//scala:toolchain_type"
 _ANDROID_SDK_TOOLCHAIN_TYPE = "@rules_android//toolchains/android_sdk:toolchain_type"

@@ -2,6 +2,9 @@
 
 load("//core/quality:real_core.bzl", "real_config", "real_make_aspect")
 
+# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
+visibility("public")
+
 TOOLS = {
     "tinymist": {
         "attr": attr.label(default = "@dx_tools//:tinymist", allow_single_file = True, cfg = "exec"),

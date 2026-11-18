@@ -8,6 +8,8 @@ load("//core/quality/artifacts:platforms.bzl", "artifact_platform_key", "platfor
 load("//core/quality/artifacts:ocaml_duniverse.bzl", DUNIVERSE_PACKAGES = "PACKAGES", DUNIVERSE_PATCHES = "PATCHES", DUNIVERSE_REPO = "REPO")
 load("//ocaml/private/quality:repos.bzl", "dx_ocaml_duniverse")
 
+visibility("private")
+
 _LOCK = Label("//core/quality/artifacts:lock.json")
 _PINS = Label("//core/quality/artifacts:pins.json")
 

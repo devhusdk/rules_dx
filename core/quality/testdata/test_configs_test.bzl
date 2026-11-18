@@ -9,6 +9,8 @@ load(":real_result_cases.bzl", "REAL_RESULT_CASES")
 load(":test_configs.bzl", "MAX_TEST_CONFIGS", "TEST_CONFIGS", "TEST_CONFIG_SETTINGS")
 load(":tool_override_tests.bzl", "TOOL_OVERRIDE_CONFIGS")
 
+visibility("private")
+
 def _table_impl(ctx):
     env = unittest.begin(ctx)
     names = sorted(TEST_CONFIGS.keys())

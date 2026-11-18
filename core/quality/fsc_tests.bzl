@@ -3,6 +3,8 @@
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":fsc.bzl", "fsc_warnon_args")
 
+visibility("private")
+
 def fsc_unit_tests(name):
     """Declares the fsc unit tests."""
     starlark_test(

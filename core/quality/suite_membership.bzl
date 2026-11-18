@@ -3,6 +3,8 @@
 load("@bazel_skylib//rules:native_binary.bzl", "native_test")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 
+visibility(["//core/..."])
+
 def _label(rule):
     return "//%s:%s" % (native.package_name(), rule)
 

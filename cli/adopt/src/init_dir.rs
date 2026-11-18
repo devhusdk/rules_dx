@@ -80,7 +80,7 @@ pub fn validate_init_dir(dir: &str) -> Result<String, AdoptError> {
     Ok(dir.to_owned())
 }
 
-/// The module name for `dir`: its last segment folded to `[a-z0-9._-]`, or
+/// The module name for `dir`: its last segment folded to `[a-z0-9._-]` from its first letter, or
 /// [`DEFAULT_INIT_MODULE`] for the current directory.
 #[must_use]
 pub fn init_dir_module(dir: &str) -> String {
@@ -98,7 +98,10 @@ pub fn init_dir_module(dir: &str) -> String {
             gap = false;
         }
     }
-    folded.trim_matches(['-', '_', '.']).to_owned()
+    folded
+        .trim_start_matches(|c: char| !c.is_ascii_lowercase())
+        .trim_end_matches(['-', '_', '.'])
+        .to_owned()
 }
 
 /// Whether `root` is missing or holds nothing but `.git`, repository files and the files a
@@ -249,6 +252,13 @@ mod tests {
         assert_eq!(init_dir_module("teams/My App"), "my_app");
         assert_eq!(init_dir_module("_hidden_"), "hidden");
         assert_eq!(init_dir_module("+++"), "");
+    }
+
+    #[test]
+    fn module_name_starts_with_a_letter() {
+        assert_eq!(init_dir_module("2024-app"), "app");
+        assert_eq!(init_dir_module("teams/1st.try"), "st.try");
+        assert_eq!(init_dir_module("123"), "");
     }
 
     #[test]

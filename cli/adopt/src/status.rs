@@ -484,7 +484,7 @@ fn exec_tools_check(root: &Path) -> StatusCheck {
     let mut mode: Option<&str> = None;
     for line in text.lines() {
         let mut words = line.split_whitespace();
-        let (Some(scope), Some(flag)) = (words.next(), words.next()) else {
+        let Some(scope) = words.next() else {
             continue;
         };
         if !matches!(
@@ -493,8 +493,12 @@ fn exec_tools_check(root: &Path) -> StatusCheck {
         ) {
             continue;
         }
-        if let Some(value) = flag.strip_prefix("--host_compilation_mode=") {
-            mode = Some(value);
+        while let Some(flag) = words.next() {
+            if let Some(value) = flag.strip_prefix("--host_compilation_mode=") {
+                mode = Some(value);
+            } else if flag == "--host_compilation_mode" {
+                mode = words.next();
+            }
         }
     }
     match mode {
@@ -1036,6 +1040,25 @@ node.toolchain(node_version = pinned)
         );
         std::fs::write(dir.join(".bazelrc"), format!("# {import}\n")).expect("rc");
         assert_eq!(super::exec_tools_check(&dir).status, "warn", "{dir_rel}");
+    }
+
+    #[test]
+    fn exec_tools_check_reads_every_flag_on_a_line() {
+        let scratch = dx_test_scratch::scratch("dx-status-exec-flags-").unwrap();
+        let dir = scratch.path().to_path_buf();
+        for rc in [
+            "build --config=ci --host_compilation_mode=fastbuild\n",
+            "build --host_compilation_mode fastbuild\n",
+        ] {
+            std::fs::write(dir.join(".bazelrc"), rc).expect("rc");
+            assert_eq!(super::exec_tools_check(&dir).status, "ok", "{rc:?}");
+        }
+        std::fs::write(
+            dir.join(".bazelrc"),
+            "build --host_compilation_mode=fastbuild --host_compilation_mode=opt\n",
+        )
+        .expect("rc");
+        assert_eq!(super::exec_tools_check(&dir).status, "warn");
     }
 
     #[test]

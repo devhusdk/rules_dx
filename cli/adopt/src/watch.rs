@@ -120,13 +120,38 @@ pub fn mountinfo_needs_polling(mountinfo: &str, root: &Path) -> bool {
         .lines()
         .filter_map(|line| {
             let (before, after) = line.split_once(" - ")?;
-            let mount_point = Path::new(before.split(' ').nth(4)?);
+            let mount_point = unescape_mount_point(before.split(' ').nth(4)?);
             let fs_type = after.split(' ').next()?;
-            root.starts_with(mount_point)
-                .then_some((mount_point.as_os_str().len(), fs_type))
+            root.starts_with(&mount_point)
+                .then_some((mount_point.len(), fs_type))
         })
         .max_by_key(|(depth, _)| *depth)
         .is_some_and(|(_, fs_type)| POLLED_FILESYSTEMS.contains(&fs_type))
+}
+
+/// A mountinfo mount point with its `\NNN` octal escapes (space, tab, newline, `\`) decoded.
+fn unescape_mount_point(field: &str) -> String {
+    let mut out = String::with_capacity(field.len());
+    let mut rest = field;
+    while let Some((head, tail)) = rest.split_once('\\') {
+        out.push_str(head);
+        let code = tail
+            .get(..3)
+            .filter(|digits| digits.bytes().all(|b| matches!(b, b'0'..=b'7')))
+            .and_then(|digits| u8::from_str_radix(digits, 8).ok());
+        match (code, tail.get(3..)) {
+            (Some(byte), Some(after)) => {
+                out.push(char::from(byte));
+                rest = after;
+            }
+            _ => {
+                out.push('\\');
+                rest = tail;
+            }
+        }
+    }
+    out.push_str(rest);
+    out
 }
 
 /// Whether the session should poll instead of using the platform watcher.
@@ -753,6 +778,22 @@ mod tests {
         assert!(!needs("/home/me/ws"));
         assert!(!needs("/mnt/c/native/ws"));
         assert!(!needs("/mnt/cc/ws"));
+    }
+
+    #[test]
+    fn mountinfo_unescapes_mount_points() {
+        let mountinfo = "\
+20 1 8:1 / / rw - ext4 /dev/sda1 rw
+32 20 0:28 / /mnt/my\\040share rw - nfs4 srv:/x rw
+";
+        assert!(mountinfo_needs_polling(
+            mountinfo,
+            Path::new("/mnt/my share/ws")
+        ));
+        assert!(!mountinfo_needs_polling(
+            mountinfo,
+            Path::new("/mnt/my\\040share/ws")
+        ));
     }
 
     #[test]

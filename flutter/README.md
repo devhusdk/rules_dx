@@ -15,16 +15,9 @@ Run the Flutter tests from a rules_dx checkout:
 tools/dx test //flutter/...
 ```
 
-## Apps
+## Dependencies
 
-- `flutter_web_app` builds the web bundle.
-- `flutter_android_app` wraps the upstream rule and uses `android_binary`, so
-  no Gradle runs. Set `android_abi` to `arm64` (default) or `x64`. It needs
-  the managed `androidsdk` override from rules_dx.
-- `flutter_ios_app` and every target it generates build only on a macOS host.
-  On other hosts Bazel skips them as incompatible.
-
-## Setup
+### Setup
 
 rules_dx depends on rules_flutter and registers its toolchains. You need no
 host Flutter, Dart or Android SDK.
@@ -47,3 +40,14 @@ bazel run @rules_flutter//flutter:pub -- get --directory <dir>
 ## API docs
 
 `dart_doc_shard` in `@rules_dx//tools/docs/dart:defs.bzl` runs the pinned `dart doc` over a `flutter_library`. `dx docs` runs it on every Flutter library with a `lib/` source. `dart doc` is not available on `windows_arm64`, where rules_flutter ships no SDK.
+
+## Packaging
+
+### Apps
+
+- `flutter_web_app` builds the web bundle.
+- `flutter_android_app` wraps the upstream rule and uses `android_binary`, so
+  no Gradle runs. Set `android_abi` to `arm64` (default) or `x64`. It needs
+  the managed `androidsdk` override from rules_dx.
+- `flutter_ios_app` and every target it generates build only on a macOS host.
+  On other hosts Bazel skips them as incompatible.

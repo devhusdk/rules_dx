@@ -431,7 +431,7 @@ use_repo(ansible, "dx_ansible_test_collections")
 terraform = use_extension("//terraform:extensions.bzl", "terraform", dev_dependency = True)
 terraform.lock(
     name = "dx_terraform_providers",
-    lock = "//terraform/tests/lock:terraform.lock.json",
+    lock = "//terraform/tests/fixtures/lock:terraform.lock.json",
 )
 use_repo(terraform, "dx_terraform_providers")
 
@@ -642,7 +642,10 @@ use_repo(
     "prebuilt_protoc.win64",
 )
 
-register_toolchains("//tools/platforms/protoc:all")
+dx_protoc = use_extension("//tools/platforms/protoc:extensions.bzl", "protoc")
+use_repo(dx_protoc, "dx_protoc_toolchains")
+
+register_toolchains("@dx_protoc_toolchains//:all")
 
 register_toolchains("@dx_powershell_toolchains//:all")
 
@@ -754,7 +757,7 @@ dx_pins.data(
 )
 dx_pins.data(
     name = "dx_playwright",
-    pins = "//typescript/private/playwright:pins.json",
+    pins = "//typescript:pins.json",
 )
 dx_pins.data(
     name = "dx_julia",
@@ -1227,6 +1230,22 @@ dx_pins.archive(
     pins = "//fortran:pins.json",
 )
 dx_pins.archive(
+    name = "rules_julia",
+    patches = [
+        "//patches/rules_julia:config_base_toml.patch",
+        "//patches/rules_julia:in_process_resolve_test.patch",
+        "//patches/rules_julia:locate_installed_package.patch",
+        "//patches/rules_julia:package_annotation_version.patch",
+        "//patches/rules_julia:package_name.patch",
+        "//patches/rules_julia:portable_cpu_target.patch",
+        "//patches/rules_julia:template_action_input.patch",
+        "//patches/rules_julia:exec_toolchain.patch",
+        "//patches/rules_julia:inline_runfiles_sh.patch",
+        "//patches/rules_julia:test_tmpdir_runfiles.patch",
+    ],
+    pins = "//julia:pins.json",
+)
+dx_pins.archive(
     name = "rules_ocaml",
     dropped = [
         ".bazelignore",
@@ -1537,6 +1556,7 @@ use_repo(
     "rules_erlang",
     "rules_fortran",
     "rules_haskell",
+    "rules_julia",
     "rules_ocaml",
     "rules_powershell",
     "rules_ruby",
@@ -1771,12 +1791,9 @@ pub_tools.from_lock(
 )
 use_repo(pub_tools, "dart_apitool_deps", "dx_dart_bench_deps")
 
-# needed: @rules_julia (rules_julia extension) loads @toml.bzl
+# needed: @rules_julia (dx_pins archive) loads @toml.bzl
 # floor: equals tested
 bazel_dep(name = "toml.bzl", version = "0.5.0")
-
-rules_julia = use_extension("//julia/private/toolchain:extensions.bzl", "rules_julia")
-use_repo(rules_julia, "rules_julia")
 
 julia_toolchain = use_extension("//julia:extensions.bzl", "julia_toolchain")
 use_repo(julia_toolchain, "julia_toolchains")
@@ -1864,7 +1881,7 @@ use_repo(julia_pkg, "dx_julia_coverage", "dx_julia_docs", "dx_julia_format", "dx
 # floor: equals tested
 bazel_dep(name = "rules_perl", version = "2.1.0")
 
-perl_pod = use_extension("//perl/private:pod.bzl", "pod")
+perl_pod = use_extension("//perl:extensions.bzl", "perl_pod")
 use_repo(perl_pod, "dx_perl_pod")
 
 perl_tools_cpan = use_extension("//perl:extensions.bzl", "cpan")
@@ -2305,7 +2322,6 @@ dx_python = use_extension("//python:extensions.bzl", "python")
 use_repo(dx_python, "dx_python_toolchains")
 
 register_toolchains(
-    "//python/private/windows_toolchains:all",
     "@dx_python_toolchains//:all",
     "@python_interpreters//:all",
 )
@@ -2446,7 +2462,7 @@ use_repo(
 
 register_toolchains("@rust_toolchains//:all")
 
-dx_rust_toolchains = use_extension("//rust/private/toolchain:hub.bzl", "dx_rust_toolchains")
+dx_rust_toolchains = use_extension("//rust:extensions.bzl", "rust_toolchains")
 use_repo(dx_rust_toolchains, "dx_rust_toolchains")
 
 register_toolchains("@dx_rust_toolchains//:all")

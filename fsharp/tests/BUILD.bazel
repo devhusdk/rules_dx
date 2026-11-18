@@ -114,5 +114,8 @@ test_suite(
     tests = [
         "//fsharp/tests/fixtures/adopt_fsharp/greet:greet_test",
         "//fsharp/tests/fixtures/adopt_fsharp/solo:pure_test",
+        "//fsharp/tests/fixtures/nuget:docs_fsharp_group_test",
+        "//fsharp/tests/fixtures/nuget:fsharplint_group_test",
+        "//fsharp/tests/fixtures/nuget:main_group_test",
     ],
 )

@@ -15,7 +15,7 @@ python_library(
         "//conditions:default": [],
     }),  # keep
     imports = ["."],
-    visibility = ["//visibility:public"],
+    visibility = ["//:__subpackages__"],
 )
 
 real_source_target(

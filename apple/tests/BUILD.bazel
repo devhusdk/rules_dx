@@ -1420,3 +1420,9 @@ failure_test(
     expected_failure_substring = "//apple/tests:files' is not a macOS application",
     target = ":notarize_files_meta",
 )
+
+test_suite(
+    name = "fixture_tests",
+    testonly = True,
+    tests = ["//apple/tests/fixtures/macos_ledger:ledger_test"],
+)

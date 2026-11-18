@@ -13,11 +13,6 @@ Run the Helm tests from a rules_dx checkout:
 tools/dx test //helm/...
 ```
 
-## Charts
-
-`helm_library` owns one chart: the package that holds `Chart.yaml`. Every file
-in `srcs` lives in that package. Put vendored subchart archives in `subcharts`.
-
 ## Quality
 
 `dx format` formats a chart with two pinned tools.
@@ -28,3 +23,10 @@ in `srcs` lives in that package. Put vendored subchart archives in `subcharts`.
 
 A file goes to exactly one of the two. The prettier wrapper skips templates and `*.tpl`, and helmfmt
 is never given anything else.
+
+## Packaging
+
+### Charts
+
+`helm_library` owns one chart: the package that holds `Chart.yaml`. Every file
+in `srcs` lives in that package. Put vendored subchart archives in `subcharts`.

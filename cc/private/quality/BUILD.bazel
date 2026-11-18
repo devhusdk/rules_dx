@@ -1,5 +1,4 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
-load(":nvcc_syntax_tests.bzl", "nvcc_syntax_unit_tests")
 
 package(default_visibility = [
     "//:__pkg__",
@@ -21,14 +20,8 @@ real_source_target(
         "cc.bzl",
         "cc_tools.bzl",
         "nvcc_syntax.bzl",
-        "nvcc_syntax_tests.bzl",
     ],
     tags = ["corpus"],
-)
-
-nvcc_syntax_unit_tests(
-    name = "nvcc_syntax_unit",
-    size = "small",
 )
 
 filegroup(

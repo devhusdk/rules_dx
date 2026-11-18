@@ -67,7 +67,14 @@ Build and test everything. `//...` means every target in the repository:
 tools/dx test //...
 ```
 
-## Writing targets
+## Dependencies
+
+Add the package to the root `package.json`, then run `dx generate --apply`. dx
+writes a missing `pnpm-lock.yaml`. An import of a package listed
+in the root `package.json` resolves to `//:node_modules/<package>`. Imports
+that match `paths` in the nearest `tsconfig.json` resolve to local targets.
+
+### Writing targets
 
 `typescript_binary` compiles `srcs` and runs the compiled `main`, which
 defaults to the only source. `main` must be a `.ts`, `.mts` or `.cts` file
@@ -79,13 +86,6 @@ fails.
 `runner = "node"` with a `main` to run the file with Node instead.
 
 On Windows, Jest coverage uses the v8 provider.
-
-## Dependencies
-
-Add the package to the root `package.json`, then run `dx generate --apply`. dx
-writes a missing `pnpm-lock.yaml`. An import of a package listed
-in the root `package.json` resolves to `//:node_modules/<package>`. Imports
-that match `paths` in the nearest `tsconfig.json` resolve to local targets.
 
 ## Quality
 

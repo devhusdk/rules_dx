@@ -15,18 +15,6 @@ Run the Python tests from a rules_dx checkout:
 tools/dx test //python/...
 ```
 
-## Writing targets
-
-`python_test` runs pytest by default. Set `runner = "plain"` to run a `main`
-script instead. `dx generate` sets `runner = "plain"` for a test file that
-imports `unittest`, not `pytest`, and defines no bare `test` functions. Every
-other test gets `@pypi//pytest`, so pytest must be in your project
-dependencies.
-
-`python_bench` is a `python_test` for `dx bench`. List `pytest-benchmark` in
-your project dependencies and `@pypi//pytest_benchmark` in `deps`. Each
-benchmark becomes one row, in seconds.
-
 ## Dependencies
 
 Add the package to `pyproject.toml`, then run `dx generate --apply`. dx writes a missing `uv.lock` and the `pypi` hub in `MODULE.bazel`:
@@ -45,6 +33,18 @@ use_repo(uv, "pypi")
 An import whose top-level module matches a package in `uv.lock` resolves to
 `@pypi//<name>`. To use another hub name, add
 `# gazelle:dx_external python <path> <repo>` to a `BUILD` file.
+
+### Writing targets
+
+`python_test` runs pytest by default. Set `runner = "plain"` to run a `main`
+script instead. `dx generate` sets `runner = "plain"` for a test file that
+imports `unittest`, not `pytest`, and defines no bare `test` functions. Every
+other test gets `@pypi//pytest`, so pytest must be in your project
+dependencies.
+
+`python_bench` is a `python_test` for `dx bench`. List `pytest-benchmark` in
+your project dependencies and `@pypi//pytest_benchmark` in `deps`. Each
+benchmark becomes one row, in seconds.
 
 ## Quality
 

@@ -4,11 +4,10 @@ package(default_visibility = ["//:__subpackages__"])
 
 rust_binary(
     name = "shard_runner",
+    testonly = True,
     srcs = ["src/main.rs"],
     crate_name = "shard_runner",
     crate_root = "src/main.rs",
-    testonly = True,
-    visibility = ["//visibility:public"],
     deps = ["@rules_rust//rust/runfiles"],
 )
 

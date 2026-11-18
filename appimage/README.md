@@ -15,10 +15,6 @@ Run the AppImage tests from a rules_dx checkout:
 tools/dx test //appimage/...
 ```
 
-## Platforms
-
-Any other target platform fails analysis with `target platform is unsupported`.
-
 ## Packaging
 
 The tools are pinned and fetched by Bazel. You need no FUSE or distro
@@ -139,3 +135,7 @@ app that is built, relocated and run without FUSE in its tests.
 | mksquashfs | GPL-2.0-or-later |
 
 Versions are in `pins.json`.
+
+## Platforms
+
+Any other target platform fails analysis with `target platform is unsupported`.

@@ -27,4 +27,7 @@ def _pod_impl(mctx):
     )
     return mctx.extension_metadata(reproducible = True)
 
-pod = module_extension(implementation = _pod_impl)
+pod = module_extension(
+    implementation = _pod_impl,
+    doc = "Creates dx_perl_pod with the Pod modules of the pinned Perl release.",
+)

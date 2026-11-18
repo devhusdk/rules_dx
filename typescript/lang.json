@@ -26,7 +26,7 @@
     "windows_x86_64"
   ],
   "pins": [
-    "private/playwright/pins.json"
+    "pins.json"
   ],
   "entry_points": [
     "typescript_library",

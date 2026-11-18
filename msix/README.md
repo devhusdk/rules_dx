@@ -15,16 +15,6 @@ Run the MSIX tests from a rules_dx checkout:
 tools/dx test //msix/...
 ```
 
-## Platforms
-
-MSIX packages build for `windows_x86_64` and `windows_arm64` targets, on a
-Windows x64 or arm64 host. `msix_package` and `msix_sign` add
-`@platforms//os:windows` to `target_compatible_with`, so `bazel build //...`
-skips them on Linux and macOS. A Windows target with another CPU fails
-analysis with `target platform is unsupported`. A build with no Windows
-execution platform fails analysis with
-`packaging needs a windows_x86_64 or windows_arm64 execution platform`.
-
 ## Packaging
 
 ### Use
@@ -208,6 +198,16 @@ The version is in `pins.json`.
 
 The package has `makeappx.exe` and `signtool.exe` for x64 and arm64 hosts.
 Its SHA-256 is pinned in `msix/private/pins.bzl`.
+
+## Platforms
+
+MSIX packages build for `windows_x86_64` and `windows_arm64` targets, on a
+Windows x64 or arm64 host. `msix_package` and `msix_sign` add
+`@platforms//os:windows` to `target_compatible_with`, so `bazel build //...`
+skips them on Linux and macOS. A Windows target with another CPU fails
+analysis with `target platform is unsupported`. A build with no Windows
+execution platform fails analysis with
+`packaging needs a windows_x86_64 or windows_arm64 execution platform`.
 
 ## License
 

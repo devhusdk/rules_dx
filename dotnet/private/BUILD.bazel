@@ -90,5 +90,8 @@ alias(
         ":windows_arm64": "@dx_dotnet_arm64-pc-windows-msvc//:runtime",
         ":windows_x86_64": "@dx_dotnet_x86_64-pc-windows-msvc//:runtime",
     }),
-    visibility = ["//visibility:public"],
+    visibility = [
+        "//:__subpackages__",
+        "@rules_dotnet//dotnet/private/rules:__subpackages__",
+    ],
 )

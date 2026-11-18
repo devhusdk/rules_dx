@@ -15,16 +15,6 @@ Run the Apple tests from a rules_dx checkout:
 tools/dx test //apple/...
 ```
 
-## License
-
-Accept the Xcode and Apple SDKs Agreement once in your root `MODULE.bazel`.
-Without it every Apple rule fails analysis and names the license id.
-
-```python
-dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
-dx_licenses.accept(ids = ["apple-xcode-license"])
-```
-
 ## Packaging
 
 ### iOS libraries
@@ -634,3 +624,13 @@ Both launchers exit with:
 
 rules_dx registers the Xcode C/C++ toolchain; a consumer adds no
 `register_toolchains` line and no Apple-specific tag.
+
+## License
+
+Accept the Xcode and Apple SDKs Agreement once in your root `MODULE.bazel`.
+Without it every Apple rule fails analysis and names the license id.
+
+```python
+dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
+dx_licenses.accept(ids = ["apple-xcode-license"])
+```

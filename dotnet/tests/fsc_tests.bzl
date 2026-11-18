@@ -1,7 +1,7 @@
 """Unit tests for the warnings the fsc typecheck turns on."""
 
 load("//core:defs.bzl", "expect_equal", "starlark_test")
-load(":fsc.bzl", "fsc_warnon_args")
+load("//dotnet/private/quality:fsc.bzl", "fsc_warnon_args")
 
 visibility("private")
 

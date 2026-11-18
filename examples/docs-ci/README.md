@@ -1,15 +1,17 @@
-# Docs CI Example
+# Docs CI example
+
+This example helps you check and publish an mdBook docs site on GitHub Actions.
+
+Copy the caller workflow into your repository:
 
 ```sh
 cp caller.yml .github/workflows/docs.yml
 ```
 
-rules_dx is not released yet. Install starts with the first BCR release.
-
-Pin `rules_dx` in `MODULE.bazel`:
+Then add `rules_dx` to `MODULE.bazel`, the file at the root of your repository that lists the Bazel modules you depend on:
 
 ```python
-bazel_dep(name = "rules_dx", version = "0.0.0")
+bazel_dep(name = "rules_dx", version = "<release>")
 ```
 
-Inputs, pin and repository settings: [GitHub CI](../../docs/github-ci.md).
+[GitHub CI](../../docs/github-ci.md) lists the workflow inputs and the repository settings it needs.

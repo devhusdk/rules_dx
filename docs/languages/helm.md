@@ -44,6 +44,11 @@ Build and test everything. `//...` means every target in the repository:
 tools/dx test //...
 ```
 
+## Charts
+
+`helm_library` owns one chart: the package that holds `Chart.yaml`. Every file
+in `srcs` lives in that package. Put vendored subchart archives in `subcharts`.
+
 ## Quality
 
 `dx format` formats a chart with two pinned tools.

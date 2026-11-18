@@ -1,37 +1,30 @@
 # Swift
 
-Build Swift for Linux with `rules_swift` 4.3.0 and a pinned Swift 6.4.2
-toolchain. Nothing needs to be installed. `dx` registers the toolchain for
-Linux x86_64 and aarch64 hosts.
+This directory helps you build, run and test Swift code with rules_dx.
 
-```python
-load("@rules_dx//swift:defs.bzl", "swift_binary", "swift_library")
+Load its rules in a `BUILD.bazel` file, the file that declares what Bazel
+builds, from `@rules_dx//swift:defs.bzl`.
+`extensions.bzl` holds the module extension: the part you call from
+`MODULE.bazel` to set up toolchains and dependencies.
+The tests live in `tests/`. The [Swift page](../docs/languages/swift.md) shows
+setup, every rule and the tools dx runs.
 
-swift_library(
-    name = "greet",
-    srcs = ["greet.swift"],
-    module_name = "Greet",
-)
-
-swift_binary(
-    name = "hello",
-    srcs = ["main.swift"],
-    deps = [":greet"],
-)
-```
-
-`swift_library`, `swift_binary` and `swift_test` build for Linux on their own.
-You need no `--platforms` or `--extra_execution_platforms` flags. To build for another
-platform, pass `platforms = ["//your:platform"]` to the wrapper; it takes one label, and
-empty uses the current target platform.
-On a Linux host the Swift tools run on the host cpu and build for `aarch64` and `x86_64` Linux
-platforms alike.
-Binaries and tests link the Swift runtime statically and need only the system C library.
+Run the Swift tests from a rules_dx checkout:
 
 ```sh
-dx build //app:hello
-dx test //app:tests
+tools/dx test //swift/...
 ```
+
+## Writing targets
+
+`swift_library`, `swift_binary` and `swift_test` build for Linux on their own.
+You need no `--platforms` or `--extra_execution_platforms` flags. To build for
+another platform, pass `platforms = ["//your:platform"]` to the wrapper. It
+takes one label; empty uses the current target platform.
+
+On a Linux host the Swift tools run on the host CPU and build for `aarch64`
+and `x86_64` Linux alike. Binaries and tests link the Swift runtime
+statically and need only the system C library.
 
 ## Quality
 

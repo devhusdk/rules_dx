@@ -1,8 +1,17 @@
 # F#
 
-Build and test F# with a pinned .NET SDK 10.0.403. Nothing is installed on the
-host and nothing is fetched until a target needs it. `rules_dx` registers
-the toolchain.
+This directory helps you build, run and test F# code with rules_dx.
+
+Load its rules in a `BUILD.bazel` file, the file that declares what Bazel
+builds, from `@rules_dx//fsharp:defs.bzl`.
+The tests live in `tests/`. The [F# page](../docs/languages/fsharp.md) shows
+setup, every rule and the tools dx runs.
+
+Run the F# tests from a rules_dx checkout:
+
+```sh
+tools/dx test //fsharp/...
+```
 
 ## Dependencies
 

@@ -1,8 +1,19 @@
 # C#
 
-Build and test C# with a pinned .NET SDK 10.0.403. Nothing is installed on the
-host and nothing is fetched until a target needs it. `rules_dx` registers
-the toolchain.
+This directory helps you build, run and test C# code with rules_dx.
+
+Load its rules in a `BUILD.bazel` file, the file that declares what Bazel
+builds, from `@rules_dx//csharp:defs.bzl`.
+`extensions.bzl` holds the module extension: the part you call from
+`MODULE.bazel` to set up toolchains and dependencies.
+The tests live in `tests/`. The [C# page](../docs/languages/csharp.md) shows
+setup, every rule and the tools dx runs.
+
+Run the C# tests from a rules_dx checkout:
+
+```sh
+tools/dx test //csharp/...
+```
 
 ## Dependencies
 

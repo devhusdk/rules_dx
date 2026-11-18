@@ -1,7 +1,19 @@
 # Julia
 
-Build, run and test Julia with the pinned `rules_julia` 0.8.0 and Julia 1.12.5.
-Nothing needs to be installed.
+This directory helps you build, run and test Julia code with rules_dx.
+
+Load its rules in a `BUILD.bazel` file, the file that declares what Bazel
+builds, from `@rules_dx//julia:defs.bzl`.
+`extensions.bzl` holds the module extension: the part you call from
+`MODULE.bazel` to set up toolchains and dependencies.
+The tests live in `tests/`. The [Julia page](../docs/languages/julia.md) shows
+setup, every rule and the tools dx runs.
+
+Run the Julia tests from a rules_dx checkout:
+
+```sh
+tools/dx test //julia/...
+```
 
 ## Dependencies
 

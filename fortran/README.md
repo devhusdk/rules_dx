@@ -1,11 +1,19 @@
 # Fortran
 
-Build, run and test Fortran with a pinned static Flang 21.1.8. The Fortran
-runtime, flang-rt 21.1.8, is built from source with the same C++ toolchain as
-the rest of the build, and binaries and tests link through `cc_binary` and
-`cc_test`. Nothing is installed on the host and nothing is fetched until a
-target needs it. rules_dx registers the toolchain, so there is no setup in
-`MODULE.bazel`.
+This directory helps you build, run and test Fortran code with rules_dx.
+
+Load its rules in a `BUILD.bazel` file, the file that declares what Bazel
+builds, from `@rules_dx//fortran:defs.bzl`.
+`extensions.bzl` holds the module extension: the part you call from
+`MODULE.bazel` to set up toolchains and dependencies.
+The tests live in `tests/`. The [Fortran page](../docs/languages/fortran.md) shows
+setup, every rule and the tools dx runs.
+
+Run the Fortran tests from a rules_dx checkout:
+
+```sh
+tools/dx test //fortran/...
+```
 
 ## Dependencies
 
@@ -58,6 +66,10 @@ fortran_doc_shard(
 ```
 
 ## Toolchain
+
+The Fortran runtime, flang-rt, is built from source with the same C++
+toolchain as the rest of the build. Binaries and tests link through
+`cc_binary` and `cc_test`.
 
 ### C interop
 

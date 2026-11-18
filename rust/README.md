@@ -1,14 +1,27 @@
 # Rust
 
-`defs.bzl` wraps the `rules_rust` rules. One `rust_binary` builds native,
-browser, and WASI outputs. The target platform picks the output.
+This directory helps you build, run and test Rust code with rules_dx.
 
-```starlark
-load(
-    "@rules_dx//rust:defs.bzl",
-    "rust_binary",
-    "rust_test",
-)
+Load its rules in a `BUILD.bazel` file, the file that declares what Bazel
+builds, from `@rules_dx//rust:defs.bzl`.
+`extensions.bzl` holds the module extension: the part you call from
+`MODULE.bazel` to set up toolchains and dependencies.
+The tests live in `tests/`. The [Rust page](../docs/languages/rust.md) shows
+setup, every rule and the tools dx runs.
+
+Run the Rust tests from a rules_dx checkout:
+
+```sh
+tools/dx test //rust/...
+```
+
+## WebAssembly
+
+One `rust_binary` builds native, browser and WASI outputs. The `wasm`
+attribute picks the output:
+
+```python
+load("@rules_dx//rust:defs.bzl", "rust_binary", "rust_test")
 
 rust_binary(
     name = "tool",

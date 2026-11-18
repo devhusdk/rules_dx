@@ -147,6 +147,9 @@ When the status is not `pass`, the first stderr line is
 
 ## Toolchain
 
+nvcc uses the hermetic clang as its host compiler. The build needs no CUDA
+install and no GPU.
+
 ### Setup
 
 The CUDA rules load from `@rules_dx//cuda:defs.bzl`. rules_dx declares the

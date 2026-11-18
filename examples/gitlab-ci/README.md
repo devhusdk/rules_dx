@@ -1,6 +1,14 @@
 # GitLab CI example
 
-`dx init --ci gitlab --apply` writes a `.gitlab-ci.yml` that includes the rules_dx template
+This example helps you run rules_dx checks, builds and tests on GitLab CI.
+
+Write the setup into your repository:
+
+```sh
+dx init --ci gitlab --apply
+```
+
+It writes a `.gitlab-ci.yml` that includes the rules_dx template
 `ci/gitlab/dx.gitlab-ci.yml` at a pinned commit. To update, change the commit in the
 `include:` URL. The template runs four jobs on Linux runners: `check`,
 `build`, `test` and `coverage`, plus `fuzz` and `bench` when their inputs are
@@ -64,12 +72,10 @@ To run the same steps on another CI provider:
 
 ## Consumer setup
 
-rules_dx is not released yet. Install starts with the first BCR release.
-
 Declare the module in `MODULE.bazel`:
 
 ```python
-bazel_dep(name = "rules_dx", version = "0.0.0")
+bazel_dep(name = "rules_dx", version = "<release>")
 ```
 
 Commit `MODULE.bazel.lock` and `.bazelversion`. The cache key reads both.

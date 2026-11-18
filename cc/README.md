@@ -1,30 +1,25 @@
 # C and C++
 
-`defs.bzl` wraps `cc_library`, `cc_binary`, `cc_test` and `cc_objc_library`.
+This directory helps you build, run and test C and C++ code with rules_dx.
 
-```starlark
-load("@rules_dx//cc:defs.bzl", "cc_binary", "cc_library", "cc_test", "cc_objc_library")
+Load its rules in a `BUILD.bazel` file, the file that declares what Bazel
+builds, from `@rules_dx//cc:defs.bzl`.
+`extensions.bzl` holds the module extension: the part you call from
+`MODULE.bazel` to set up toolchains and dependencies.
+The tests live in `tests/`. The [C and C++ page](../docs/languages/cc.md) shows
+setup, every rule and the tools dx runs.
 
-cc_library(
-    name = "greet",
-    srcs = ["greet.cc"],
-    hdrs = ["greet.h"],
-)
+Run the C and C++ tests from a rules_dx checkout:
 
-cc_binary(
-    name = "hello",
-    srcs = ["main.cc"],
-    deps = [":greet"],
-)
-
-cc_test(
-    name = "greet_test",
-    srcs = ["greet_test.cc"],
-    deps = [":greet"],
-)
+```sh
+tools/dx test //cc/...
 ```
 
-`cc_objc_library` is the upstream rule under your name, with no forwarder. rules_apple resources and frameworks, and rules_swift `module_name`, behave exactly as upstream. Quality ownership of `srcs`, `non_arc_srcs` and `hdrs` comes from the target's paths.
+## Objective-C
+
+`cc_objc_library` is the upstream rule under your name. rules_apple resources
+and frameworks, and rules_swift `module_name`, behave exactly as upstream.
+dx assigns `srcs`, `non_arc_srcs` and `hdrs` to quality checks by their paths.
 
 ## Dependencies
 

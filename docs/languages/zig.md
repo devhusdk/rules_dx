@@ -51,6 +51,14 @@ Build and test everything. `//...` means every target in the repository:
 tools/dx test //...
 ```
 
+## Writing targets
+
+- `main` is the module root. `srcs` lists the other `.zig` files.
+- `zig_library` imports by its target name. Set `import_name` to change it.
+- A `cc_library` in `deps` is imported as `@import("c")`.
+- `extra_srcs` carries files read with `@embedFile`.
+- Other attributes pass through to `rules_zig`.
+
 ## Dependencies
 
 ### Packages

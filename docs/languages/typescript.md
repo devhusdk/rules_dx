@@ -67,6 +67,19 @@ Build and test everything. `//...` means every target in the repository:
 tools/dx test //...
 ```
 
+## Writing targets
+
+`typescript_binary` compiles `srcs` and runs the compiled `main`, which
+defaults to the only source. `main` must be a `.ts`, `.mts` or `.cts` file
+listed in `srcs`. It also takes `deps`, `data`, `args`, `env`, `tsconfig`,
+`transpiler` and `declaration`. `entry_point` comes from `main`; setting it
+fails.
+
+`typescript_test` runs `jest` by default and needs `node_modules`. Set
+`runner = "node"` with a `main` to run the file with Node instead.
+
+On Windows, Jest coverage uses the v8 provider.
+
 ## Dependencies
 
 Add the package to the root `package.json`, then run `dx generate --apply`. dx

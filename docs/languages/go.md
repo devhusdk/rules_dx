@@ -24,6 +24,10 @@ For a Go project, `MODULE.bazel` then looks like this:
 module(name = "my_project")
 
 bazel_dep(name = "rules_dx", version = "<release>")
+go = use_extension("@rules_dx//go:extensions.bzl", "go")
+go.from_file(
+    go_mod = "//:go.mod",
+)
 ```
 
 A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small Go package from [`go/tests/consumer`](https://github.com/devhusdk/rules_dx/blob/main/go/tests/consumer/BUILD.bazel):
@@ -34,6 +38,7 @@ load("@rules_dx//go:defs.bzl", "go_library", "go_test")
 go_library(
     name = "my_project",
     srcs = ["greet.go"],
+    importpath = "example.com/my_project",
     visibility = ["//visibility:public"],
 )
 
@@ -52,6 +57,9 @@ tools/dx test //...
 ```
 
 ## Dependencies
+
+`go_library` requires `importpath`. `dx generate` fills it in as the `go.mod`
+module path plus the directory.
 
 Add the module to `go.mod` and wire it in `MODULE.bazel`:
 

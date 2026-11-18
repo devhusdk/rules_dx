@@ -80,6 +80,10 @@ fortitude reads free-form source only.
 
 ## Toolchain
 
+The Fortran runtime, flang-rt, is built from source with the same C++
+toolchain as the rest of the build. Binaries and tests link through
+`cc_binary` and `cc_test`.
+
 ### C interop
 
 A `fortran_library` gives C and C++ rules a `CcInfo`, and it can depend on a

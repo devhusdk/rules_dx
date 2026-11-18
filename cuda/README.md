@@ -1,10 +1,19 @@
 # CUDA
 
-dx CUDA targets compile `.cu` sources with the pinned nvcc 13.4 from the
-NVIDIA redistributables. nvcc's host compiler is the main `@llvm` clang, run
-with `--allow-unsupported-compiler` because the pinned nvcc lists an older
-clang. Under the gcc toolchain the flag is off. The build needs no CUDA
-install and no GPU.
+This directory helps you build and test CUDA code with rules_dx.
+
+Load its rules in a `BUILD.bazel` file, the file that declares what Bazel
+builds, from `@rules_dx//cuda:defs.bzl`.
+`extensions.bzl` holds the module extension: the part you call from
+`MODULE.bazel` to set up toolchains and dependencies.
+The tests live in `tests/`. The [CUDA page](../docs/languages/cuda.md) shows
+setup, every rule and the tools dx runs.
+
+Run the CUDA tests from a rules_dx checkout:
+
+```sh
+tools/dx test //cuda/...
+```
 
 ## Dependencies
 
@@ -105,6 +114,9 @@ When the status is not `pass`, the first stderr line is
 `<status>: <reason>`.
 
 ## Toolchain
+
+nvcc uses the hermetic clang as its host compiler. The build needs no CUDA
+install and no GPU.
 
 ### Setup
 

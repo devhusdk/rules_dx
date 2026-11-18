@@ -45,6 +45,30 @@ Build and test everything. `//...` means every target in the repository:
 tools/dx test //...
 ```
 
+## Setup
+
+Adding `rules_dx` is all you need: every Qt module (`qtbase`,
+`qtdeclarative`, `qttools`) is declared, and Bazel fetches nothing until a
+target needs it. `qttools` carries only `lrelease`. To download from a
+mirror, call `configure` in your root module:
+
+```python
+qt = use_extension("@rules_dx//qt:extensions.bzl", "qt")
+qt.configure(
+    mirror = "https://mirror.example/qtsdkrepository",
+)
+```
+
+`configure` takes:
+
+- `version`: must be the pinned Qt version. Other versions fail.
+- `mirror`: an https mirror of `download.qt.io/online/qtsdkrepository`.
+- `runtime_mirror`: an https mirror of `vault.almalinux.org`, with its
+  `9.6/` and `10.1/` `BaseOS/` and `AppStream/` trees.
+
+`configure` is optional, works only in the root module, and is called at
+most once.
+
 ## Quality
 
 `dx format` runs `@dx_qt//:qmlformat` when a `qml` family selects
@@ -98,7 +122,7 @@ os and cpu of the target platform. `min_runtime` defaults to the minimum runtime
 of the targeted cell:
 `glibc-2.34` on `linux_x86_64`, `glibc-2.39` on `linux_arm64` and `macos-14.4`
 on `macos_arm64`. `runtime` gains the OS runtime of the targeted cell. `qt_bundle` is skipped on
-cells without a needs table, such as the Windows cells for now. On macOS, any
+cells without a needs table, such as the Windows cells. On macOS, any
 non-empty `display` ships the `cocoa` platform plugin.
 
 - `binary`: the `qt_cc_binary`.
@@ -439,5 +463,5 @@ Qt builds and tests on:
 
 See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/support-matrix.md).
 
-`qt_cc_binary`, `qt_cc_test` and `qt_bundle` take `platforms`. On a host build they build for the Qt platform of the host, with `--//cc:compiler=msvc` on Windows. Other Qt targets on Windows need `--//cc:compiler=msvc`; without it they are incompatible and skipped. A real display and GPU rendering are not supported. Other platforms fail analysis and list the qualified cells. Fetching needs a
+`qt_cc_binary`, `qt_cc_test` and `qt_bundle` take `platforms`. On a host build they build for the Qt platform of the host, with `--//cc:compiler=msvc` on Windows. Other Qt targets on Windows need `--//cc:compiler=msvc`; without it they are incompatible and skipped. A real display and GPU rendering are not supported. Other platforms fail analysis and list the supported cells. Fetching needs a
 Linux x86_64 or Linux arm64 host.

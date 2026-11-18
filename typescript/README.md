@@ -1,38 +1,31 @@
 # TypeScript
 
-Build and test TypeScript with `tsc` type checking.
+This directory helps you build, run and test TypeScript code with rules_dx.
 
-```python
-load("@rules_dx//typescript:defs.bzl", "typescript_binary", "typescript_library", "typescript_test")
+Load its rules in a `BUILD.bazel` file, the file that declares what Bazel
+builds, from `@rules_dx//typescript:defs.bzl`.
+`extensions.bzl` holds the module extension: the part you call from
+`MODULE.bazel` to set up toolchains and dependencies.
+The tests live in `tests/`. The [TypeScript page](../docs/languages/typescript.md) shows
+setup, every rule and the tools dx runs.
 
-typescript_library(
-    name = "greet",
-    srcs = ["greet.ts"],
-)
+Run the TypeScript tests from a rules_dx checkout:
 
-typescript_test(
-    name = "greet_test",
-    srcs = ["greet.test.ts"],
-    deps = [":greet"],
-    node_modules = "//:node_modules",
-)
+```sh
+tools/dx test //typescript/...
 ```
 
-`typescript_binary` compiles `srcs` and runs the compiled `main`, which defaults to the only
-source. `main` must be a `.ts`, `.mts` or `.cts` file listed in `srcs`. It also takes `deps`,
-`data`, `args`, `env`, `tsconfig`, `transpiler` and `declaration`. `entry_point` is derived from
-`main` and is rejected.
+## Writing targets
 
-```python
-typescript_binary(
-    name = "cli",
-    srcs = ["cli.ts"],
-    deps = [":greet"],
-)
-```
+`typescript_binary` compiles `srcs` and runs the compiled `main`, which
+defaults to the only source. `main` must be a `.ts`, `.mts` or `.cts` file
+listed in `srcs`. It also takes `deps`, `data`, `args`, `env`, `tsconfig`,
+`transpiler` and `declaration`. `entry_point` comes from `main`; setting it
+fails.
 
-`typescript_test` runs `jest` by default and needs `node_modules`. Set `runner = "node"` with an
-`main` to run the file with Node instead.
+`typescript_test` runs `jest` by default and needs `node_modules`. Set
+`runner = "node"` with a `main` to run the file with Node instead.
+
 On Windows, Jest coverage uses the v8 provider.
 
 ## Dependencies

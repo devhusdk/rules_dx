@@ -1,44 +1,47 @@
 # Flutter
 
-Pinned versions:
+This directory helps you build, run and test Flutter code with rules_dx.
 
-- rules_flutter 0.0.8
-- Flutter 3.47.9
+Load its rules in a `BUILD.bazel` file, the file that declares what Bazel
+builds, from `@rules_dx//flutter:defs.bzl`.
+`extensions.bzl` holds the module extension: the part you call from
+`MODULE.bazel` to set up toolchains and dependencies.
+The tests live in `tests/`. The [Flutter page](../docs/languages/flutter.md) shows
+setup, every rule and the tools dx runs.
 
-The fixture in `flutter/tests/runtime` builds a Flutter web app and runs one widget test. It needs no host Flutter, Dart, or Android SDK. It runs on Linux only.
-
-The app in `flutter/tests/fixtures/flutter_app` has a generated tips file, localized strings, a font, a web bundle with a browser test, and builds that fail on purpose. Linux hosts only.
-
-Build the fixture as an Android APK on Linux:
+Run the Flutter tests from a rules_dx checkout:
 
 ```sh
-bazel build //flutter/tests/fixtures/flutter_app/android:apk
+tools/dx test //flutter/...
 ```
 
-`flutter_android_app` wraps the upstream rule and uses `android_binary`, so no Gradle runs. Set `android_abi` to `arm64` (default) or `x64`. Device and emulator runs are not covered yet. Consumers need the managed `androidsdk` override from rules_dx.
+## Apps
 
-`flutter_ios_app` and every target it generates build only on a macOS host; on other hosts they are incompatible and skipped.
+- `flutter_web_app` builds the web bundle.
+- `flutter_android_app` wraps the upstream rule and uses `android_binary`, so
+  no Gradle runs. Set `android_abi` to `arm64` (default) or `x64`. It needs
+  the managed `androidsdk` override from rules_dx.
+- `flutter_ios_app` and every target it generates build only on a macOS host.
+  On other hosts Bazel skips them as incompatible.
 
-Consumers load the rules from `@rules_dx//flutter:defs.bzl`. rules_dx depends on rules_flutter and registers its toolchains.
+## Setup
+
+rules_dx depends on rules_flutter and registers its toolchains. You need no
+host Flutter, Dart or Android SDK.
 
 Start a project:
 
 ```sh
-dx init demo-app
+dx init --apply demo-app
 ```
 
-Then add `rules_flutter` with a `flutter.pub` hub to `MODULE.bazel`, add a `pubspec.lock`, and declare `flutter_library` and `flutter_test` targets.
+Then add `rules_flutter` with a `flutter.pub` hub to `MODULE.bazel`, add a
+`pubspec.lock`, and declare `flutter_library` and `flutter_test` targets.
 
-`flutter_web_app` builds the web bundle.
-
-```sh
-tools/dx test //flutter/tests/runtime/...
-```
-
-Regenerate the lock file:
+Regenerate `pubspec.lock` for a package directory:
 
 ```sh
-bazel run @rules_flutter//flutter:pub -- get --directory flutter/tests/runtime
+bazel run @rules_flutter//flutter:pub -- get --directory <dir>
 ```
 
 ## API docs

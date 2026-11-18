@@ -415,7 +415,7 @@ mod sh {
         let stub = base.join("stub/bazel");
         dx_testing::executable_script(
             &stub,
-            "#!/bin/sh\n[ -z \"${STUB_ARGS:-}\" ] || { printf '%s\\t' \"$@\"; echo; } >> \"$STUB_ARGS\"\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      if [ -n \"${STUB_BUILD_HOLD:-}\" ]; then\n        : > \"$STUB_BUILD_HOLD.started\"\n        tries=0\n        while [ ! -e \"$STUB_BUILD_HOLD\" ]; do\n          tries=$((tries + 1))\n          if [ \"$tries\" -gt 600 ]; then echo 'stub bazel: hold timeout' >&2; exit 3; fi\n          sleep 0.05\n        done\n      fi\n      if [ -n \"${STUB_BARRIER:-}\" ]; then\n        : > \"$STUB_BARRIER/$$\"\n        tries=0\n        while [ \"$(ls \"$STUB_BARRIER\" | wc -l)\" -lt \"$STUB_BARRIER_N\" ]; do\n          tries=$((tries + 1))\n          if [ \"$tries\" -gt 600 ]; then echo 'stub bazel: barrier timeout' >&2; exit 3; fi\n          sleep 0.05\n        done\n      else\n        sleep 0.1\n      fi\n      mkdir -p bazel-bin/cli/cli\n      exe=\n      case \"$(uname -s)\" in MINGW*|MSYS*|CYGWIN*) exe=.exe;; esac\n      if [ -f \"$STUB_KEEP\" ] && [ -x \"bazel-bin/cli/cli/dx$exe\" ]; then exit 0; fi\n      src=\"$STUB_PAYLOAD\"\n      [ -f payload ] && src=payload\n      cp \"$src\" \"bazel-bin/cli/cli/dx.$$\"\n      chmod +x \"bazel-bin/cli/cli/dx.$$\"\n      mv \"bazel-bin/cli/cli/dx.$$\" \"bazel-bin/cli/cli/dx$exe\"\n      exit 0\n      ;;\n    query)\n      [ ! -f \"$STUB_QUERY_FAIL\" ] || { echo 'Server shut down explicitly' >&2; exit 37; }\n      case \"$*\" in *'deps(//:dx)'*) echo //:BUILD.bazel;; esac\n      echo //cli/cli:BUILD.bazel\n      sleep 0.1\n      echo @rules_rust//rust:defs.bzl\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
+            "#!/bin/sh\n[ -z \"${STUB_ARGS:-}\" ] || { printf '%s\\t' \"$@\"; echo; } >> \"$STUB_ARGS\"\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      if [ -n \"${STUB_BUILD_HOLD:-}\" ]; then\n        : > \"$STUB_BUILD_HOLD.started\"\n        tries=0\n        while [ ! -e \"$STUB_BUILD_HOLD\" ]; do\n          tries=$((tries + 1))\n          if [ \"$tries\" -gt 600 ]; then echo 'stub bazel: hold timeout' >&2; exit 3; fi\n          sleep 0.05\n        done\n      fi\n      if [ -n \"${STUB_BARRIER:-}\" ]; then\n        : > \"$STUB_BARRIER/$$\"\n        tries=0\n        while [ \"$(ls \"$STUB_BARRIER\" | wc -l)\" -lt \"$STUB_BARRIER_N\" ]; do\n          tries=$((tries + 1))\n          if [ \"$tries\" -gt 600 ]; then echo 'stub bazel: barrier timeout' >&2; exit 3; fi\n          sleep 0.05\n        done\n      else\n        sleep 0.1\n      fi\n      mkdir -p bazel-bin/cli/cli\n      exe=\n      case \"$(uname -s)\" in MINGW*|MSYS*|CYGWIN*) exe=.exe;; esac\n      if [ -f \"$STUB_KEEP\" ] && [ -x \"bazel-bin/cli/cli/dx$exe\" ]; then exit 0; fi\n      src=\"$STUB_PAYLOAD\"\n      [ -f payload ] && src=payload\n      cp \"$src\" \"bazel-bin/cli/cli/dx.$$\"\n      chmod +x \"bazel-bin/cli/cli/dx.$$\"\n      mv \"bazel-bin/cli/cli/dx.$$\" \"bazel-bin/cli/cli/dx$exe\"\n      exit 0\n      ;;\n    cquery)\n      [ ! -f \"$STUB_CQUERY_FAIL\" ] || { echo 'Server shut down explicitly' >&2; exit 37; }\n      case \"$*\" in *'deps(//:dx)'*) echo '\"//:dx\"';; esac\n      exit 0\n      ;;\n    query)\n      [ ! -f \"$STUB_QUERY_FAIL\" ] || { echo 'Server shut down explicitly' >&2; exit 37; }\n      for q in \"$@\"; do\n        case \"$q\" in --query_file=*) while IFS= read -r l; do [ \"$l\" != '\"//:dx\"' ] || echo //:BUILD.bazel; done < \"${q#--query_file=}\";; esac\n      done\n      echo //cli/cli:BUILD.bazel\n      sleep 0.1\n      echo @rules_rust//rust:defs.bzl\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
         );
         SourceRepo {
             base,
@@ -458,6 +458,7 @@ mod sh {
                 .env("STUB_LOG", base.join("calls"))
                 .env("STUB_PAYLOAD", base.join("payload"))
                 .env("STUB_QUERY_FAIL", base.join("query-fails"))
+                .env("STUB_CQUERY_FAIL", base.join("cquery-fails"))
                 .env("STUB_KEEP", base.join("keep-dx"))
                 .env("DX_RESTART_WAIT", "0.1");
             cmd
@@ -560,7 +561,7 @@ mod sh {
             let stub = self.base.join("stub/bazel");
             dx_testing::executable_script(
                 &stub,
-                "#!/bin/sh\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      if [ \"${CARGO_BAZEL_REPIN-}\" != 1 ]; then rm -f bazel-bin/cli/cli/dx; exit 1; fi\n      echo repin >> \"$STUB_LOG\"\n      mkdir -p bazel-bin/cli/cli\n      cp \"$STUB_PAYLOAD\" bazel-bin/cli/cli/dx.$$\n      chmod +x bazel-bin/cli/cli/dx.$$\n      mv bazel-bin/cli/cli/dx.$$ bazel-bin/cli/cli/dx\n      exit 0\n      ;;\n    query)\n      echo //cli/cli:BUILD.bazel\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
+                "#!/bin/sh\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      if [ \"${CARGO_BAZEL_REPIN-}\" != 1 ]; then rm -f bazel-bin/cli/cli/dx; exit 1; fi\n      echo repin >> \"$STUB_LOG\"\n      mkdir -p bazel-bin/cli/cli\n      cp \"$STUB_PAYLOAD\" bazel-bin/cli/cli/dx.$$\n      chmod +x bazel-bin/cli/cli/dx.$$\n      mv bazel-bin/cli/cli/dx.$$ bazel-bin/cli/cli/dx\n      exit 0\n      ;;\n    cquery)\n      exit 0\n      ;;\n    query)\n      echo //cli/cli:BUILD.bazel\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
             );
             std::fs::write(
                 self.base.join("payload"),
@@ -1012,7 +1013,7 @@ mod sh {
         let repo = source_repo("dx-launcher-dead-pid-");
         let dir = state(&repo.root());
         std::fs::create_dir_all(&dir).expect("state dir");
-        let dead = ["dx", "built", "inputs", "query"].map(|p| format!("{p}.999999"));
+        let dead = ["dx", "built", "inputs", "query", "deps"].map(|p| format!("{p}.999999"));
         for name in &dead {
             std::fs::write(dir.join(name), "").expect("dead temp");
         }
@@ -1129,7 +1130,7 @@ mod sh {
                         .collect()
                 })
                 .collect();
-            assert_eq!(calls.len(), 2, "{name}: {logged}");
+            assert_eq!(calls.len(), 3, "{name}: {logged}");
             assert_eq!(calls[0], want, "{name}");
             let bounded = calls[0]
                 .iter()
@@ -1137,12 +1138,14 @@ mod sh {
             if !host_sets {
                 assert_eq!(bounded, expected.is_some() && !rc.rc_gc, "{name}");
             }
-            assert_eq!(calls[1][..startup.len()], startup[..], "{name}");
-            assert_eq!(calls[1][startup.len()], "query", "{name}");
-            assert!(
-                !calls[1].iter().any(|arg| arg.contains("disk_cache")),
-                "{name}: {logged}"
-            );
+            for (call, verb) in calls[1..].iter().zip(["cquery", "query"]) {
+                assert_eq!(call[..startup.len()], startup[..], "{name}");
+                assert_eq!(call[startup.len()], verb, "{name}");
+                assert!(
+                    !call.iter().any(|arg| arg.contains("disk_cache")),
+                    "{name}: {logged}"
+                );
+            }
         }
     }
 
@@ -1473,6 +1476,54 @@ mod sh {
         );
         repo.run_ok();
         assert_eq!(repo.builds(), 5, "the stamp did not move, so it is stale");
+    }
+
+    /// The cquery that lists the host deps is the first half of the inputs
+    /// query, so its crash must take the same retry and fallback path.
+    #[test]
+    fn source_launcher_runs_the_fresh_dx_when_the_deps_cquery_fails() {
+        let repo = source_repo("dx-launcher-cquery-fails-");
+        let flag = repo.base.join("cquery-fails");
+        std::fs::write(&flag, "").expect("flag");
+        let args = repo.base.join("args");
+        let mut cmd = repo.command();
+        cmd.env("STUB_ARGS", &args);
+        let out = spawn(&mut cmd).wait_with_output().expect("launcher runs");
+        let err = String::from_utf8_lossy(&out.stderr);
+        assert_eq!(
+            (out.status.code(), String::from_utf8_lossy(&out.stdout)),
+            (Some(0), "ran status\n".into()),
+            "{err}"
+        );
+        assert!(
+            err.contains(&format!("{CRASH_NOTICE} 37); trying //:dx again\n")),
+            "{err}"
+        );
+        assert!(
+            err.contains(
+                "dx: bazel query for the inputs of //:dx failed; running the fresh dx anyway\n"
+            ),
+            "{err}"
+        );
+        let logged = std::fs::read_to_string(&args).expect("stub args");
+        let verbs: Vec<&str> = logged
+            .lines()
+            .filter_map(|line| {
+                line.split('\t')
+                    .find(|arg| ["build", "cquery", "query"].contains(arg))
+            })
+            .collect();
+        assert_eq!(
+            verbs,
+            ["build", "cquery", "cquery"],
+            "a crashed cquery is retried once and never reaches the query: {logged}"
+        );
+        assert_eq!(repo.builds(), 1);
+        assert_eq!(repo.state_files(), vec!["CACHEDIR.TAG", "dx"]);
+        std::fs::remove_file(&flag).expect("clear flag");
+        repo.run_ok();
+        assert_eq!(repo.builds(), 2, "the failed cquery left dx stale");
+        assert_eq!(repo.inputs(), "//:BUILD.bazel\n//cli/cli:BUILD.bazel\n");
     }
 
     #[test]
@@ -1946,7 +1997,8 @@ mod cmd {
             )
             .expect("backdate");
         };
-        let stale = ["dx.exe", "built", "inputs", "query", "dc"].map(|p| format!("{p}.{guid}"));
+        let stale =
+            ["dx.exe", "built", "inputs", "query", "deps", "dc"].map(|p| format!("{p}.{guid}"));
         for name in &stale {
             age(name, 25);
         }
@@ -2437,6 +2489,10 @@ mod cmd {
                 .lines()
                 .find(|line| line.starts_with("query ") || line.contains(" query "))
                 .expect("query argv");
+            let cquery = logged
+                .lines()
+                .find(|line| line.starts_with("cquery ") || line.contains(" cquery "))
+                .expect("cquery argv");
             let want = if flags.is_empty() {
                 "build --curses=no ".to_owned()
             } else {
@@ -2445,6 +2501,7 @@ mod cmd {
             assert!(build.contains(&want), "{name}: want {want}: {logged}");
             let bounded = build.contains("--experimental_disk_cache_gc_max_size=");
             assert_eq!(bounded, expected.is_some() && !rc.rc_gc, "{name}: {logged}");
+            assert!(!cquery.contains("disk_cache"), "{name}: {logged}");
             assert!(!query.contains("disk_cache"), "{name}: {logged}");
         }
     }

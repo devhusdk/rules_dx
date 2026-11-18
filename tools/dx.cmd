@@ -4,7 +4,7 @@ set "BIN=%~dp0..\bazel-bin\cli\cli\dx.exe"
 set "DX_ROOT=%~dp0.."
 set "DX_STATE=%~dp0..\.dx\local\launcher"
 set "DX_COPY="
-set "DX_SYNC=$c=[IO.Path]::Combine($env:DX_STATE, 'dx.exe'); function M { try { $x=[IO.FileInfo]::new($c); $y=[IO.FileInfo]::new($env:BIN); return ($x.Exists -and $y.Exists -and $x.Length -eq $y.Length -and $x.LastWriteTimeUtc -eq $y.LastWriteTimeUtc) } catch { return $false } }; function O { try { foreach ($f in [IO.Directory]::GetFiles($env:DX_STATE, 'dx.exe.old.*')) { try { [IO.File]::Delete($f) } catch { } } } catch { } }; O; $k=[datetime]::UtcNow.AddHours(-24); try { foreach ($f in [IO.Directory]::GetFiles($env:DX_STATE)) { if ([IO.Path]::GetFileName($f) -match '^(dx\.exe|built|inputs|query|dc)\.[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$' -and [IO.File]::GetLastWriteTimeUtc($f) -lt $k) { try { [IO.File]::Delete($f) } catch { } } } } catch { }; if (M) { exit 0 }; if (-not [IO.File]::Exists($env:BIN)) { exit 2 }; $g=[guid]::NewGuid().ToString(); $n=$c + '.' + $g; try { [IO.File]::Copy($env:BIN, $n); if (-not (M)) { if ([IO.File]::Exists($c)) { [IO.File]::Move($c, $c + '.old.' + $g) }; [IO.File]::Move($n, $c) } } catch { }; try { [IO.File]::Delete($n) } catch { }; O; if (M) { exit 0 }; exit 2"
+set "DX_SYNC=$c=[IO.Path]::Combine($env:DX_STATE, 'dx.exe'); function M { try { $x=[IO.FileInfo]::new($c); $y=[IO.FileInfo]::new($env:BIN); return ($x.Exists -and $y.Exists -and $x.Length -eq $y.Length -and $x.LastWriteTimeUtc -eq $y.LastWriteTimeUtc) } catch { return $false } }; function O { try { foreach ($f in [IO.Directory]::GetFiles($env:DX_STATE, 'dx.exe.old.*')) { try { [IO.File]::Delete($f) } catch { } } } catch { } }; O; $k=[datetime]::UtcNow.AddHours(-24); try { foreach ($f in [IO.Directory]::GetFiles($env:DX_STATE)) { if ([IO.Path]::GetFileName($f) -match '^(dx\.exe|built|inputs|query|deps|dc)\.[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$' -and [IO.File]::GetLastWriteTimeUtc($f) -lt $k) { try { [IO.File]::Delete($f) } catch { } } } } catch { }; if (M) { exit 0 }; if (-not [IO.File]::Exists($env:BIN)) { exit 2 }; $g=[guid]::NewGuid().ToString(); $n=$c + '.' + $g; try { [IO.File]::Copy($env:BIN, $n); if (-not (M)) { if ([IO.File]::Exists($c)) { [IO.File]::Move($c, $c + '.old.' + $g) }; [IO.File]::Move($n, $c) } } catch { }; try { [IO.File]::Delete($n) } catch { }; O; if (M) { exit 0 }; exit 2"
 if /i "%~1"=="worktree" if /i "%~2"=="hook" if exist "%DX_STATE%\dx.exe" set "BIN=%DX_STATE%\dx.exe"
 if /i "%~1"=="worktree" if /i "%~2"=="hook" if exist "%BIN%" goto run
 for %%P in ("%DX_ROOT%") do set "DX_SELF=%%~fP"
@@ -116,8 +116,15 @@ if not "%DX_FAIL%"=="0" (
 call powershell -NoProfile -NonInteractive -Command "%DX_SYNC%"
 if "%errorlevel%"=="0" set "DX_COPY=1"
 :dxqueryrun
-call bazel %DX_RC% query --noshow_progress --ui_event_filters=-info "kind('source file', deps(//:dx)) + buildfiles(deps(//:dx))" > "%DX_STATE%\query.%DX_TAG%"
+REM A plain query follows every select() branch and fetches repos only other platforms use. Keep in sync with tools/dx.
+> "%DX_STATE%\deps.%DX_TAG%" echo let s = set(//:dx
+call bazel %DX_RC% cquery --noshow_progress --ui_event_filters=-info --output=starlark "--starlark:expr=repr('//' + target.label.package + ':' + target.label.name) if target.label.repo_name == '' else ''" "deps(//:dx)" >> "%DX_STATE%\deps.%DX_TAG%"
 set "DX_EC=%errorlevel%"
+if not "%DX_EC%"=="0" goto dxqchk
+>> "%DX_STATE%\deps.%DX_TAG%" echo ^) in kind^('source file', $s^) + buildfiles^($s^)
+call bazel %DX_RC% query --noshow_progress --ui_event_filters=-info,-warning "--query_file=%DX_STATE%\deps.%DX_TAG%" > "%DX_STATE%\query.%DX_TAG%"
+set "DX_EC=%errorlevel%"
+:dxqchk
 if not defined DX_QRETRY if "%DX_EC%"=="33" goto dxqcrash
 if not defined DX_QRETRY if "%DX_EC%"=="37" goto dxqcrash
 goto dxqdone

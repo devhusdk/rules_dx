@@ -1,5 +1,5 @@
 {
-  "checksum": "d9565d91c34aa870c4695d6c8c12be1ef2cd9820ec8d9b64e1348d2b722fd95b",
+  "checksum": "e296d4f1b1cfc1d2108bd6b12fa3f4e8363913aff0d115a9af74340c04dc22fd",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -9887,10 +9887,6 @@
     "dx_worktree 0.0.0": {
       "common_attrs": {
         "deps": [
-          {
-            "id": "libc 0.2.189",
-            "target": "libc"
-          },
           {
             "id": "serde 1.0.229",
             "target": "serde"

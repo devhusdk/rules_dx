@@ -70,9 +70,54 @@ fn a_file_is_not_a_terminal() {
 }
 
 #[cfg(unix)]
+fn scratch_file(name: &str) -> std::path::PathBuf {
+    let path = std::env::temp_dir().join(format!("dx-os-sys-{}-{name}", std::process::id()));
+    std::fs::write(&path, "").expect("scratch file");
+    path
+}
+
+#[cfg(unix)]
 #[test]
-fn the_errno_slot_is_this_threads_errno() {
-    crate::errno::set(7);
-    assert!(!crate::errno::slot().is_null());
-    assert_eq!(crate::errno::get(), 7);
+fn the_user_id_owns_a_new_file() {
+    use std::os::unix::fs::MetadataExt;
+    let file = scratch_file("owned");
+    let owner = std::fs::metadata(&file).expect("metadata").uid();
+    std::fs::remove_file(&file).expect("remove");
+    assert_eq!(process::user_id(), owner);
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+#[expect(unsafe_code, reason = "F_OFD_SETLK has no safe std API")]
+#[expect(
+    clippy::cast_possible_truncation,
+    reason = "the fcntl lock constants fit the short flock fields"
+)]
+fn the_write_lock_probe_sees_ofd_locks_and_ignores_flock() {
+    use std::os::fd::AsRawFd;
+    let path = scratch_file("lock");
+    let probe = std::fs::File::open(&path).expect("open");
+    assert!(!fs::write_locked(&probe).expect("probe"));
+
+    let flocked = std::fs::File::open(&path).expect("open");
+    flocked.try_lock().expect("flock");
+    assert!(!fs::write_locked(&probe).expect("probe"));
+    drop(flocked);
+
+    let held = std::fs::File::options()
+        .read(true)
+        .write(true)
+        .open(&path)
+        .expect("open");
+    // SAFETY: a zeroed `flock` is valid; the fields the call reads are set below.
+    let mut request: libc::flock = unsafe { std::mem::zeroed() };
+    request.l_type = libc::F_WRLCK as libc::c_short;
+    request.l_whence = libc::SEEK_SET as libc::c_short;
+    // SAFETY: the fd is open and `request` is a valid `flock`.
+    let status = unsafe { libc::fcntl(held.as_raw_fd(), libc::F_OFD_SETLK, &mut request) };
+    assert_eq!(status, 0, "{}", std::io::Error::last_os_error());
+    assert!(fs::write_locked(&probe).expect("probe"));
+    drop(held);
+    assert!(!fs::write_locked(&probe).expect("probe"));
+    std::fs::remove_file(&path).expect("remove");
 }

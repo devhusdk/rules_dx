@@ -1,6 +1,7 @@
 //! File system space.
 
 use std::io;
+use std::os::fd::{AsFd, AsRawFd};
 use std::path::Path;
 
 /// Bytes on the file system holding `dir`.
@@ -25,4 +26,30 @@ pub fn space(dir: &Path) -> io::Result<Space> {
             .checked_mul(stat.f_frsize)
             .ok_or_else(overflow)?,
     })
+}
+
+/// Whether another process holds a write-conflicting fcntl lock on `file`; tests without taking it.
+///
+/// Sees OFD and POSIX record locks, not `flock` locks on Linux.
+#[expect(
+    unsafe_code,
+    reason = "rustix fcntl_getlk debug-asserts a non-negative l_pid, and Linux reports -1 for OFD locks"
+)]
+#[expect(
+    clippy::cast_possible_truncation,
+    reason = "the fcntl lock constants fit the short flock fields"
+)]
+pub fn write_locked(file: impl AsFd) -> io::Result<bool> {
+    // SAFETY: a zeroed `flock` is a valid value; every field the call reads is set below.
+    let mut lock: libc::flock = unsafe { std::mem::zeroed() };
+    lock.l_type = libc::F_WRLCK as libc::c_short;
+    lock.l_whence = libc::SEEK_SET as libc::c_short;
+    lock.l_start = 0;
+    lock.l_len = 0;
+    // SAFETY: the fd is borrowed open for the call and `lock` is a valid, exclusively borrowed `flock`.
+    let status = unsafe { libc::fcntl(file.as_fd().as_raw_fd(), libc::F_GETLK, &raw mut lock) };
+    if status != 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(lock.l_type != libc::F_UNLCK as libc::c_short)
 }

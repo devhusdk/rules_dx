@@ -187,7 +187,7 @@ rust_binary(
         "@crates//:tracing",
     ] + select({
         "@platforms//os:windows": [],
-        "//conditions:default": ["@crates//:libc"],
+        "//conditions:default": ["//cli/os_sys:dx_os_sys"],
     }),
 )
 

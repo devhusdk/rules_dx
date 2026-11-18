@@ -15,9 +15,7 @@ serde-sarif = "0.8"
 tempfile = "3"
 thiserror = "2"
 tracing = "0.1"
-# Pinned to the same spec as dx/process: the `dx` binary shim references
-# libc paths in its signal-forwarding prelude, and crate_universe already
-# carries libc 0.2.189 for the workspace lockfile.
+# Used only by tests.
 libc = "0.2"
 
 [lib]

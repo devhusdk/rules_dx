@@ -423,31 +423,6 @@ pub(crate) fn shutdown_argv(
     Some(argv)
 }
 
-/// Whether another process holds a write-conflicting fcntl lock on `file`; tests without taking it.
-///
-/// Bazel locks the output base with fcntl (OFD, else POSIX), which `flock` probes do not see on Linux.
-#[cfg(unix)]
-#[expect(unsafe_code, reason = "fcntl F_GETLK has no safe std API")]
-#[expect(
-    clippy::cast_possible_truncation,
-    reason = "the fcntl lock constants fit the short flock fields"
-)]
-pub(crate) fn lock_busy(file: &std::fs::File) -> Option<bool> {
-    use std::os::fd::AsRawFd;
-    // SAFETY: a zeroed `flock` is a valid value; every field the call reads is set below.
-    let mut lock: libc::flock = unsafe { std::mem::zeroed() };
-    lock.l_type = libc::F_WRLCK as libc::c_short;
-    lock.l_whence = libc::SEEK_SET as libc::c_short;
-    lock.l_start = 0;
-    lock.l_len = 0;
-    // SAFETY: the fd is open for the call and `lock` is a valid, exclusively borrowed `flock`.
-    let status = unsafe { libc::fcntl(file.as_raw_fd(), libc::F_GETLK, &mut lock) };
-    if status != 0 {
-        return None;
-    }
-    Some(lock.l_type != libc::F_UNLCK as libc::c_short)
-}
-
 /// Whether the output base's lock file is free; `None` when it is missing or owned by another user.
 #[cfg(unix)]
 fn output_base_idle(base: &Path) -> Option<bool> {
@@ -457,7 +432,7 @@ fn output_base_idle(base: &Path) -> Option<bool> {
     if !meta.is_file() || Some(meta.uid()) != current_uid() {
         return None;
     }
-    lock_busy(&file).map(|busy| !busy)
+    dx_os_sys::fs::write_locked(&file).ok().map(|busy| !busy)
 }
 
 #[cfg(not(unix))]
@@ -781,10 +756,8 @@ impl Host for SystemHost {
 }
 
 #[cfg(unix)]
-#[expect(unsafe_code, reason = "getuid has no safe std API")]
 fn current_uid() -> Option<u32> {
-    // SAFETY: getuid has no preconditions.
-    Some(unsafe { libc::getuid() })
+    Some(dx_os_sys::process::user_id())
 }
 
 #[cfg(test)]
@@ -1171,13 +1144,7 @@ mod tests {
 
     #[cfg(target_os = "linux")]
     #[test]
-    #[expect(unsafe_code, reason = "F_OFD_SETLK has no safe std API")]
-    #[expect(
-        clippy::cast_possible_truncation,
-        reason = "the fcntl lock constants fit the short flock fields"
-    )]
-    fn the_idle_probe_sees_fcntl_locks_and_ignores_flock() {
-        use std::os::fd::AsRawFd;
+    fn the_idle_probe_ignores_flock() {
         let scratch = dx_test_scratch::scratch("dx-wt-idle-").unwrap();
         let base = scratch.path().join("base");
         std::fs::create_dir_all(&base).expect("base");
@@ -1189,21 +1156,6 @@ mod tests {
         flocked.try_lock().expect("flock");
         assert_eq!(output_base_idle(&base), Some(true));
         drop(flocked);
-
-        let held = std::fs::File::options()
-            .read(true)
-            .write(true)
-            .open(&lock)
-            .expect("open");
-        // SAFETY: a zeroed `flock` is valid; the fields the call reads are set below.
-        let mut request: libc::flock = unsafe { std::mem::zeroed() };
-        request.l_type = libc::F_WRLCK as libc::c_short;
-        request.l_whence = libc::SEEK_SET as libc::c_short;
-        // SAFETY: the fd is open and `request` is a valid `flock`.
-        let status = unsafe { libc::fcntl(held.as_raw_fd(), libc::F_OFD_SETLK, &mut request) };
-        assert_eq!(status, 0, "{}", std::io::Error::last_os_error());
-        assert_eq!(output_base_idle(&base), Some(false));
-        drop(held);
         assert_eq!(output_base_idle(&base), Some(true));
     }
 

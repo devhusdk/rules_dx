@@ -2,6 +2,8 @@
 
 #![expect(unsafe_code, reason = "signal masks have no safe std or rustix API")]
 
+use std::io;
+
 /// Blocks signals in the calling thread until dropped.
 pub struct Blocked {
     previous: libc::sigset_t,
@@ -57,6 +59,50 @@ pub fn pending(signals: &[i32]) -> impl Iterator<Item = i32> {
         .iter()
         .copied()
         .filter(move |&signo| member(&set, signo))
+}
+
+// LCOV_EXCL_START - reason: replaces the test process's own stop handlers, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+/// Installs `handler` for SIGINT, SIGTERM and SIGHUP with `SA_RESTART`; an inherited ignored SIGHUP stays ignored.
+///
+/// # Safety
+///
+/// `handler` must call only async-signal-safe functions.
+pub unsafe fn handle_stops(handler: extern "C" fn(i32)) -> io::Result<()> {
+    // SAFETY: sigaction is plain C data for which all-zero is valid.
+    let mut action: libc::sigaction = unsafe { std::mem::zeroed() };
+    action.sa_sigaction = handler as *const () as libc::sighandler_t;
+    action.sa_flags = libc::SA_RESTART;
+    action.sa_mask = empty_set();
+    for signo in crate::STOP_SIGNALS {
+        // SAFETY: sigaction is plain C data for which all-zero is valid.
+        let mut inherited: libc::sigaction = unsafe { std::mem::zeroed() };
+        // SAFETY: action and inherited are valid sigaction values; the caller vouches for the handler.
+        check(unsafe { libc::sigaction(signo, &raw const action, &raw mut inherited) })?;
+        if signo == libc::SIGHUP && inherited.sa_sigaction == libc::SIG_IGN {
+            // SAFETY: inherited was filled by sigaction and a null old-action pointer is permitted.
+            check(unsafe { libc::sigaction(signo, &raw const inherited, std::ptr::null_mut()) })?;
+        }
+    }
+    Ok(())
+}
+// LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+
+/// Restores the default disposition of `signo` and raises it in the calling process.
+pub fn raise_default(signo: i32) -> io::Result<()> {
+    // SAFETY: SIG_DFL installs no handler code.
+    if unsafe { libc::signal(signo, libc::SIG_DFL) } == libc::SIG_ERR {
+        return Err(io::Error::last_os_error());
+    }
+    // SAFETY: raise takes a plain signal number.
+    check(unsafe { libc::raise(signo) })
+}
+
+fn check(status: libc::c_int) -> io::Result<()> {
+    if status == 0 {
+        Ok(())
+    } else {
+        Err(io::Error::last_os_error())
+    }
 }
 
 pub(crate) fn empty_set() -> libc::sigset_t {

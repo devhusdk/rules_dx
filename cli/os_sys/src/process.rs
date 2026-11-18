@@ -92,6 +92,12 @@ pub fn group_of(target: i32) -> io::Result<i32> {
     id_result(unsafe { libc::getpgid(target) })
 }
 
+/// The real user id of the calling process.
+#[must_use]
+pub fn user_id() -> u32 {
+    rustix::process::getuid().as_raw()
+}
+
 /// Moves `target` into the group `group`, like `setpgid(2)`.
 pub fn set_group(target: i32, group: i32) -> io::Result<()> {
     rustix::process::setpgid(Some(pid(target)?), Some(pid(group)?))?;

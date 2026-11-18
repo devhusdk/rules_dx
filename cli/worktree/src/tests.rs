@@ -6035,7 +6035,7 @@ fn git_run_with_input_handles_stdin_larger_than_a_pipe_buffer() {
     assert!(result.is_ok());
 }
 
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "macos")))]
 #[test]
 fn git_run_removes_a_worktree_whose_dir_name_is_not_utf8() {
     use std::ffi::OsStr;

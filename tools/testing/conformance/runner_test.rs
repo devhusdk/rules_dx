@@ -85,14 +85,10 @@ fn subject_matches_mode() {
     let native = subject_env
         .iter()
         .any(|(name, _)| name == "CC_CODE_COVERAGE_SCRIPT");
-    let source_root = if native {
-        runfiles.clone()
-    } else {
-        std::path::Path::new(&runfiles)
-            .join("_main")
-            .to_string_lossy()
-            .into_owned()
-    };
+    let source_root = std::path::Path::new(&runfiles)
+        .join("_main")
+        .to_string_lossy()
+        .into_owned();
     if collecting {
         envs.push(("ROOT", source_root.as_str()));
     }
@@ -141,8 +137,19 @@ fn subject_matches_mode() {
                     .find(|(name, _)| name == "CC_CODE_COVERAGE_SCRIPT")
                     .map(|(_, value)| value.clone())
                     .unwrap_or_default();
-                let collected = dx_testing::run(std::path::Path::new(&script), &[], &envs)
-                    .expect("collector must execute");
+                let collector_envs: Vec<(&str, &str)> = envs
+                    .iter()
+                    .map(|&(name, value)| {
+                        if name == "ROOT" {
+                            (name, runfiles.as_str())
+                        } else {
+                            (name, value)
+                        }
+                    })
+                    .collect();
+                let collected =
+                    dx_testing::run(std::path::Path::new(&script), &[], &collector_envs)
+                        .expect("collector must execute");
                 assert!(
                     collected.status.success(),
                     "collector failed:\n{}",

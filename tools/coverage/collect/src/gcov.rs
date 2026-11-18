@@ -30,7 +30,8 @@ pub fn object_key(path: &str) -> Option<String> {
     )
 }
 
-/// Maps each manifest `.gcno` to its key.
+/// Maps each manifest `.gcno` to its key: the `bazel-out/` key of an exec path, or the
+/// extensionless runfiles path of a runfiles path.
 pub fn gcno_by_key(manifest: &str) -> BTreeMap<String, String> {
     manifest
         .lines()
@@ -40,8 +41,23 @@ pub fn gcno_by_key(manifest: &str) -> BTreeMap<String, String> {
                 .extension()
                 .is_some_and(|ext| ext.eq_ignore_ascii_case("gcno"))
         })
-        .filter_map(|line| Some((object_key(line)?, line.to_string())))
+        .filter_map(|line| {
+            let key = object_key(line)
+                .or_else(|| line.rsplit_once('.').map(|(stem, _)| stem.to_string()))?;
+            Some((key, line.to_string()))
+        })
         .collect()
+}
+
+/// The runfiles form of a `bazel-out/<config>/bin/` key, for manifests that list runfiles paths.
+pub fn runfiles_key(key: &str, workspace: &str) -> Option<String> {
+    let rest = key.strip_prefix("bazel-out/")?;
+    let (_, rest) = rest.split_once('/')?;
+    let rest = rest.strip_prefix("bin/")?;
+    Some(match rest.strip_prefix("external/") {
+        Some(external) => external.to_string(),
+        None => format!("{workspace}/{rest}"),
+    })
 }
 
 pub fn gcov_args(object_dir: &Path, gcda: &Path) -> Vec<String> {
@@ -170,6 +186,21 @@ mod tests {
             Some("bazel-out/k8/bin/a.pic")
         );
         assert_eq!(object_key("elsewhere/a.gcda"), None);
+    }
+
+    #[test]
+    fn runfiles_keys_drop_the_configuration() {
+        assert_eq!(
+            runfiles_key("bazel-out/k8-ST-1/bin/cc/_objs/t/a.pic", "_main").as_deref(),
+            Some("_main/cc/_objs/t/a.pic")
+        );
+        assert_eq!(
+            runfiles_key("bazel-out/k8/bin/external/+dep/_objs/t/a", "_main").as_deref(),
+            Some("+dep/_objs/t/a")
+        );
+        assert_eq!(runfiles_key("bazel-out/k8/testlogs/a", "_main"), None);
+        let map = gcno_by_key("_main/cc/_objs/t/a.pic.gcno\n");
+        assert_eq!(map["_main/cc/_objs/t/a.pic"], "_main/cc/_objs/t/a.pic.gcno");
     }
 
     #[test]

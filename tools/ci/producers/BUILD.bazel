@@ -15,6 +15,7 @@ rust_binary(
         "src/lock_merge.rs",
         "src/main.rs",
         "src/pr_check.rs",
+        "src/pr_links.rs",
         "src/release_cell.rs",
         "src/review_paths.rs",
         "src/table.rs",

@@ -1,0 +1,47 @@
+name: pr-links
+
+# A pull request body links the issues it works on: a `Closes #N` or `Part of #N` line,
+# or a `No issue: <reason>` line. It also runs on edits, so fixing the body turns it green.
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-links-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-links:
+    name: pr-links
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: read
+    env:
+      BAZEL_CONFIG: ${{ secrets.BUILDBUDDY_API_KEY != '' && '--config=ci' || '' }}
+      BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bazel
+        with:
+          cache-save: false
+      - name: Check the issue links in the body and commits
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          commits="$RUNNER_TEMP/pr-links/commits.txt"
+          mkdir -p "${commits%/*}"
+          gh api "repos/$GH_REPO/pulls/$PR/commits" --paginate --jq '.[].commit.message' > "$commits"
+          # shellcheck disable=SC2086
+          bazel build --noshow_progress $BAZEL_CONFIG $BB_ARGS //tools/ci/producers:producers_bin
+          # shellcheck disable=SC2086
+          "$(bazel info $BAZEL_CONFIG $BB_ARGS bazel-bin)/tools/ci/producers/producers_bin" --pr-links "$commits"

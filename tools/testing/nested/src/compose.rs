@@ -320,7 +320,7 @@ pub fn write_rules_py_patches(workspace: &Path, rules_dx: &Path) -> Result<(), S
 }
 
 /// The modules whose root MODULE.bazel `single_version_override` the consumer repeats.
-pub const ROOT_PATCHED_MODULES: [&str; 2] = ["protobuf", "rules_python"];
+pub const ROOT_PATCHED_MODULES: [&str; 1] = ["rules_python"];
 
 /// The `single_version_override` of `module` in `root_module` when it applies `//patches/` files.
 #[must_use]
@@ -495,26 +495,6 @@ mod tests {
     }
 
     #[test]
-    fn root_patch_overrides_copy_their_patches() {
-        let dir = tempfile::tempdir().unwrap();
-        let source = dir.path().join("src");
-        let workspace = dir.path().join("ws");
-        std::fs::create_dir_all(source.join("patches/protobuf")).unwrap();
-        std::fs::write(source.join("patches/protobuf/fix.patch"), "diff").unwrap();
-        let block = "single_version_override(\n    module_name = \"protobuf\",\n    patches = [\"//patches/protobuf:fix.patch\"],\n)\n";
-        std::fs::write(source.join("MODULE.bazel"), block).unwrap();
-        assert_eq!(
-            write_root_patch_overrides(&workspace, &source).unwrap(),
-            block
-        );
-        assert_eq!(
-            std::fs::read_to_string(workspace.join("patches/protobuf/fix.patch")).unwrap(),
-            "diff"
-        );
-        assert!(workspace.join("patches/protobuf/BUILD.bazel").is_file());
-    }
-
-    #[test]
     fn root_patch_overrides_carry_the_rules_python_patches() {
         let dir = tempfile::tempdir().unwrap();
         let source = dir.path().join("src");
@@ -531,9 +511,12 @@ mod tests {
             write_root_patch_overrides(&workspace, &source).unwrap(),
             block
         );
-        assert!(workspace
-            .join("patches/rules_python/install_name_tool.patch")
-            .is_file());
+        assert_eq!(
+            std::fs::read_to_string(workspace.join("patches/rules_python/install_name_tool.patch"))
+                .unwrap(),
+            "diff"
+        );
+        assert!(workspace.join("patches/rules_python/BUILD.bazel").is_file());
     }
 
     #[test]

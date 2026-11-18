@@ -32,6 +32,16 @@ java_test(
 
 # keep
 java_test(
+    name = "worker_test",
+    size = "small",
+    srcs = ["WorkerTest.java"],
+    main_class = "dx.quality.worker.WorkerTest",
+    use_testrunner = False,
+    deps = ["//java/private/quality/tools/worker"],
+)
+
+# keep
+java_test(
     name = "kotlinc_check_test",
     size = "small",
     srcs = ["KotlincCheckTest.java"],

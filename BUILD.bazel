@@ -71,6 +71,7 @@ load("//javascript:defs.bzl", "js_library")
 # gazelle:exclude avro/private/tools/avro_union
 # gazelle:exclude java/private/quality/tools/kotlinc_check
 # gazelle:exclude java/private/quality/tools/scalac_check
+# gazelle:exclude java/private/quality/tools/worker
 # gazelle:exclude javascript/private/quality/bin
 # gazelle:exclude tools/docs/powershell/fixture
 # gazelle:exclude tools/docs/go/fixture

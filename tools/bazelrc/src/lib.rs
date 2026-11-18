@@ -160,6 +160,11 @@ const JVM_FLAGS: [Flag; 3] = [
     ),
 ];
 
+const WORKER_FLAGS: [Flag; 1] = [(
+    "build --worker_sandboxing",
+    "Run persistent workers, such as the JVM checks, in a sandbox like other local actions.",
+)];
+
 const CI_CORRECTNESS_FLAGS: [Flag; 3] = [
     (
         "common:ci --lockfile_mode=error",
@@ -347,6 +352,7 @@ impl Layer {
                 &RUNFILES_FLAGS,
                 &WINDOWS_FLAGS,
                 &JVM_FLAGS,
+                &WORKER_FLAGS,
                 &TELEMETRY_FLAGS,
                 &DIAGNOSTICS_FLAGS,
                 &CI_CORRECTNESS_FLAGS,
@@ -818,6 +824,7 @@ mod tests {
                 "build --java_runtime_version=remotejdk_21",
                 "build --tool_java_runtime_version=remotejdk_21",
                 "build --tool_java_language_version=17",
+                "build --worker_sandboxing",
                 "common --repo_env=DO_NOT_TRACK=1",
                 "build --@rules_dx//config:clippy_output_diagnostics=true",
                 "build --@rules_dx//config:rustc_output_diagnostics=true",

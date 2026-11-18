@@ -1,0 +1,21 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//java:defs.bzl", "java_library")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
+
+package(default_visibility = VIS_TOOLS_PUBLIC)
+
+# The one-shot and persistent worker entry point the JVM check drivers share.
+java_library(
+    name = "worker",
+    srcs = [
+        "src/dx/quality/worker/CompilerLoader.java",
+        "src/dx/quality/worker/Json.java",
+        "src/dx/quality/worker/Worker.java",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -24,7 +24,7 @@ impl Scratch {
             builder.permissions(std::fs::Permissions::from_mode(0o700));
         }
         let scratch = Scratch(builder.tempdir()?.keep());
-        std::fs::create_dir(scratch.0.join("out"))?;
+        std::fs::create_dir_all(scratch.0.join("out"))?;
         Ok(scratch)
     }
 }

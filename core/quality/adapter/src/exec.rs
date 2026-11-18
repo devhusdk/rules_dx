@@ -726,7 +726,7 @@ mod tests {
             .tempdir_in(std::env::temp_dir())
             .expect("linked base");
         let real = base.path().join("real");
-        std::fs::create_dir(&real).expect("real parent");
+        std::fs::create_dir_all(&real).expect("real parent");
         let link = base.path().join("link");
         std::os::unix::fs::symlink(&real, &link).expect("parent link");
         let scratch = Scratch::create(&link).expect("scratch");
@@ -775,7 +775,7 @@ mod tests {
         let scratch = Scratch::create(&std::env::temp_dir()).expect("scratch");
         let root = scratch.root().to_owned();
         let locked = root.join("locked");
-        std::fs::create_dir(&locked).expect("locked dir");
+        std::fs::create_dir_all(&locked).expect("locked dir");
         std::fs::write(locked.join("file"), b"x").expect("file");
         std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o500)).expect("chmod");
         scratch.close().expect("close clears read-only entries");

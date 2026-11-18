@@ -153,7 +153,7 @@ fn a_missing_or_non_file_slot_keeps_the_open_error() {
     let missing = slot_path(scratch.path(), 0);
     assert!(lock_slot(&missing, true).is_ok());
     let dir = slot_path(scratch.path(), 1);
-    std::fs::create_dir(&dir).expect("dir");
+    std::fs::create_dir_all(&dir).expect("dir");
     assert!(lock_slot(&dir, false).is_err());
 }
 

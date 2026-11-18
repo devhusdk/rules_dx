@@ -28,6 +28,11 @@
 -Dclippy::infinite_loop
 -Dclippy::cast_possible_truncation
 -Dclippy::cast_possible_wrap
+-Dclippy::mem_forget
+-Dclippy::rc_mutex
+-Dclippy::multiple_unsafe_ops_per_block
+-Dclippy::string_add
+-Dclippy::create_dir
 -Dunsafe_code
 -Dunsafe_op_in_unsafe_fn
 -Dunused_must_use

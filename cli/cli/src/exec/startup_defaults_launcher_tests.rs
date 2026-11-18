@@ -7,7 +7,7 @@ use dx_adopt::defaults::DX_OUTPUT_ENV;
 fn the_dx_process_reads_verbose_and_rejects_flag_values() {
     let scratch = dx_test_scratch::scratch("dx-defaults-process-").unwrap();
     let root = scratch.path().to_path_buf();
-    std::fs::create_dir(root.join(".dx")).expect("dx");
+    std::fs::create_dir_all(root.join(".dx")).expect("dx");
     std::fs::write(root.join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
     std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");
     let run = |words: &[&str]| {
@@ -96,7 +96,7 @@ fn assert_startup_outcome(out: &str, code: &str, exit: i32) {
 fn sample_workspace(name: &str) -> dx_test_scratch::TempDir {
     let scratch = dx_test_scratch::scratch(name).unwrap();
     std::fs::write(scratch.path().join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
-    std::fs::create_dir(scratch.path().join(".dx")).expect("dx");
+    std::fs::create_dir_all(scratch.path().join(".dx")).expect("dx");
     std::fs::write(scratch.path().join(".dx/pins"), "0.0.0\n").expect("pin");
     scratch
 }

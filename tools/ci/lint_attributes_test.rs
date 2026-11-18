@@ -8,17 +8,22 @@ use std::path::Path;
 use yaml_serde as _;
 
 /// The lints of core/quality/tiers/clippy/strict.txt that no source may allow.
-const LINTS: [&str; 21] = [
+const LINTS: [&str; 26] = [
     "clippy::allow_attributes",
     "clippy::allow_attributes_without_reason",
+    "clippy::create_dir",
     "clippy::exit",
     "clippy::expect_used",
     "clippy::fallible_impl_from",
     "clippy::get_unwrap",
     "clippy::indexing_slicing",
     "clippy::let_underscore_must_use",
+    "clippy::mem_forget",
+    "clippy::multiple_unsafe_ops_per_block",
     "clippy::panic",
     "clippy::panic_in_result_fn",
+    "clippy::rc_mutex",
+    "clippy::string_add",
     "clippy::string_slice",
     "clippy::todo",
     "clippy::undocumented_unsafe_blocks",

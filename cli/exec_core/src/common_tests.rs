@@ -1025,7 +1025,7 @@ fn write_report_file_refuses_a_parent_that_is_not_a_directory() {
     assert!(err.reason.contains("parent directory"), "{err}");
     assert!(err.reason.contains("does not exist"), "{err}");
     assert!(!dir.path().join("nested").exists());
-    std::fs::create_dir(dir.path().join("nested")).expect("mkdir");
+    std::fs::create_dir_all(dir.path().join("nested")).expect("mkdir");
     write_report_file(dir.path(), "nested/out.sarif", "{}\n").expect("write");
     assert_eq!(
         std::fs::read_to_string(dir.path().join("nested/out.sarif")).expect("report"),
@@ -1039,7 +1039,7 @@ fn write_report_file_refuses_a_parent_that_is_not_a_directory() {
 fn write_report_file_keeps_stale_content_on_failure() {
     let dir = tempfile::tempdir().expect("tempdir");
     std::fs::write(dir.path().join("out.sarif"), "stale\n").expect("stale");
-    std::fs::create_dir(dir.path().join("blocked")).expect("mkdir");
+    std::fs::create_dir_all(dir.path().join("blocked")).expect("mkdir");
     let err = write_report_file(dir.path(), "blocked", "{}\n").expect_err("directory");
     assert!(err.reason.contains("destination is a directory"), "{err}");
     assert_eq!(

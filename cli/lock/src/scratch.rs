@@ -35,9 +35,9 @@ impl Scratch {
             .tempdir()
             .map_err(failed)?;
         let set = root.path().join("set");
-        std::fs::create_dir(&set).map_err(failed)?;
+        std::fs::create_dir_all(&set).map_err(failed)?;
         for (dir, _) in DIRS {
-            std::fs::create_dir(root.path().join(dir)).map_err(failed)?;
+            std::fs::create_dir_all(root.path().join(dir)).map_err(failed)?;
         }
         Ok(Self { root, set })
     }

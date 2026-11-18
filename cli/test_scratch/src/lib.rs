@@ -319,7 +319,7 @@ mod tests {
     fn remove_directory_link_keeps_the_target() {
         let dir = scratch("dx-test-scratch-link-").unwrap();
         let target = dir.path().join("target");
-        std::fs::create_dir(&target).expect("target");
+        std::fs::create_dir_all(&target).expect("target");
         std::fs::write(target.join("marker"), "marker").expect("marker");
         let link = dir.path().join("link");
         directory_link(&target, &link).expect("directory link");
@@ -337,7 +337,7 @@ mod tests {
         let dir = scratch("dx-isolate-git-").unwrap();
         let sandbox = dir.path().canonicalize().expect("canonical");
         let repo = sandbox.join("repo");
-        std::fs::create_dir(&repo).expect("repo dir");
+        std::fs::create_dir_all(&repo).expect("repo dir");
         let mut probe = Command::new("git");
         probe
             .arg("-C")

@@ -872,7 +872,7 @@ mod tests {
     fn a_process_working_below_a_directory_is_found() {
         let dir = tempfile::tempdir().expect("dir");
         let sub = dir.path().join("sub");
-        std::fs::create_dir(&sub).expect("sub");
+        std::fs::create_dir_all(&sub).expect("sub");
         assert!(!process_in(dir.path()));
         let mut child = std::process::Command::new("sleep")
             .arg("30")

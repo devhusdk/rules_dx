@@ -152,7 +152,7 @@ mod tests {
     fn an_unwritable_output_names_the_path() {
         let dir = tempfile::tempdir().expect("scratch");
         let blocked = dir.path().join("blocked");
-        std::fs::create_dir(&blocked).expect("a directory blocks the write");
+        std::fs::create_dir_all(&blocked).expect("a directory blocks the write");
         let argv = args(&[
             "--producer=//gen:alpha",
             "--language=rust",

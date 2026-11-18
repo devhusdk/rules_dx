@@ -314,26 +314,41 @@ mod sh {
     }
 
     fn backdate(path: &Path, ago: std::time::Duration) {
+        set_mtime(path, ago_from_now(ago));
+    }
+
+    fn ago_from_now(ago: std::time::Duration) -> std::time::SystemTime {
+        std::time::SystemTime::now()
+            .checked_sub(ago)
+            .expect("clock past epoch")
+    }
+
+    fn set_mtime(path: &Path, when: std::time::SystemTime) {
         let file = std::fs::File::options()
             .write(true)
             .open(path)
             .expect("open");
-        let when = std::time::SystemTime::now()
-            .checked_sub(ago)
-            .expect("clock past epoch");
         file.set_modified(when).expect("backdate");
     }
 
+    /// Gives every file under `dir` the same mtime. One instant for the whole tree matters: the
+    /// launcher compares its inputs with `-nt` against `.dx/local/launcher/built`, which lives in
+    /// the tree too, so a per-file `now - ago` would leave whichever file read_dir visits after
+    /// `built` a few microseconds newer and trigger a rebuild, depending on the directory order.
     fn backdate_tree(dir: &Path, ago: std::time::Duration) {
+        set_tree_mtime(dir, ago_from_now(ago));
+    }
+
+    fn set_tree_mtime(dir: &Path, when: std::time::SystemTime) {
         for entry in std::fs::read_dir(dir).expect("read_dir") {
             let path = entry.expect("entry").path();
             let kind = std::fs::symlink_metadata(&path)
                 .expect("metadata")
                 .file_type();
             if kind.is_dir() {
-                backdate_tree(&path, ago);
+                set_tree_mtime(&path, when);
             } else if kind.is_file() {
-                backdate(&path, ago);
+                set_mtime(&path, when);
             }
         }
     }
@@ -1808,7 +1823,7 @@ mod cmd {
         fn repin_gated(&self) {
             std::fs::write(
                 self.base.join("stub/bazel.cmd"),
-                "@echo off\r\nif \"%1\"==\"query\" echo //cli/cli:BUILD.bazel\r\nif not \"%1\"==\"build\" exit /b 0\r\necho build>>\"%STUB_LOG%\"\r\nif not \"%CARGO_BAZEL_REPIN%\"==\"1\" exit /b 1\r\necho repin>>\"%STUB_LOG%\"\r\nif not exist bazel-bin\\cli\\cli mkdir bazel-bin\\cli\\cli\r\ncopy /y \"%SystemRoot%\\System32\\hostname.exe\" bazel-bin\\cli\\cli\\dx.exe >nul\r\nexit /b 0\r\n",
+                "@echo off\r\nset \"OP=%3\"\r\nif \"%1\"==\"build\" set \"OP=build\"\r\nif \"%1\"==\"query\" set \"OP=query\"\r\nif \"%OP%\"==\"query\" echo //cli/cli:BUILD.bazel\r\nif not \"%OP%\"==\"build\" exit /b 0\r\necho build>>\"%STUB_LOG%\"\r\nif not \"%CARGO_BAZEL_REPIN%\"==\"1\" exit /b 1\r\necho repin>>\"%STUB_LOG%\"\r\nif not exist bazel-bin\\cli\\cli mkdir bazel-bin\\cli\\cli\r\ncopy /y \"%SystemRoot%\\System32\\hostname.exe\" bazel-bin\\cli\\cli\\dx.exe >nul\r\nexit /b 0\r\n",
             )
             .expect("gated bazel stub");
         }
@@ -1928,7 +1943,6 @@ mod cmd {
         let main = ob.join("execroot/_main");
         let bin = main.join("bazel-out/x64_windows-fastbuild/bin/cli");
         std::fs::create_dir_all(&bin).expect("bin");
-        std::fs::create_dir_all(main.join(".dx/bazelrc")).expect("bazelrc");
         std::fs::create_dir_all(main.join("tools")).expect("tools");
         std::fs::create_dir_all(main.join("cli/cli")).expect("cli");
         std::fs::copy(slot.join("MODULE.bazel"), main.join("MODULE.bazel")).expect("module");
@@ -2230,9 +2244,20 @@ mod cmd {
         let (code, out) = repo.run(&[]);
         assert_eq!(code, Some(0), "{out}");
         touch_preset(&root);
+        // The stub dx is hostname.exe, which exits non-zero on any argument; what matters
+        // is that the launcher ran it with the same result, not that it succeeded.
+        let rejects = |args: &[&str]| {
+            Command::new(system_exe("hostname.exe"))
+                .args(args)
+                .output()
+                .expect("hostname runs")
+                .status
+                .code()
+        };
         for sub in ["add", "release"] {
-            let (code, out) = repo.run(&["worktree", sub, "x"]);
-            assert_eq!(code, Some(0), "{out}");
+            let args = ["worktree", sub, "x"];
+            let (code, out) = repo.run(&args);
+            assert_eq!(code, rejects(&args), "{out}");
             assert!(!out.contains("dx: building"), "{out}");
             assert_eq!(
                 repo.builds(),
@@ -2241,7 +2266,7 @@ mod cmd {
             );
         }
         let (code, out) = repo.run(&["status"]);
-        assert_eq!(code, Some(0), "{out}");
+        assert_eq!(code, rejects(&["status"]), "{out}");
         assert_eq!(repo.builds(), 2, "a plain run still rebuilds");
     }
 
@@ -2371,10 +2396,15 @@ mod cmd {
                 })
                 .collect();
             let logged = std::fs::read_to_string(&args).expect("bazel argv");
+            // The stub logs `%*` verbatim, and an empty %DX_DC% leaves two spaces after
+            // `build`; cmd splits argv on runs of spaces, so compare words, not raw text.
             let build = logged
                 .lines()
                 .find(|line| line.starts_with("build ") || line.contains(" build "))
-                .expect("build argv");
+                .expect("build argv")
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ");
             let query = logged
                 .lines()
                 .find(|line| line.starts_with("query ") || line.contains(" query "))
@@ -2474,10 +2504,15 @@ mod cmd {
                 })
                 .collect();
             let logged = std::fs::read_to_string(&args).expect("bazel argv");
+            // The stub logs `%*` verbatim, and an empty %DX_DC% leaves two spaces after
+            // `build`; cmd splits argv on runs of spaces, so compare words, not raw text.
             let build = logged
                 .lines()
                 .find(|line| line.starts_with("build ") || line.contains(" build "))
-                .expect("build argv");
+                .expect("build argv")
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ");
             let want = if flags.is_empty() {
                 "build --curses=no ".to_owned()
             } else {
@@ -2552,7 +2587,10 @@ mod cmd {
             "{out}"
         );
         assert_eq!(repo.builds(), 2);
-        assert_eq!(repo.state_files(), vec!["built", "dx.exe", "inputs"]);
+        assert_eq!(
+            repo.state_files(),
+            vec!["CACHEDIR.TAG", "built", "dx.exe", "inputs"]
+        );
     }
 
     #[test]
@@ -2646,11 +2684,11 @@ mod cmd {
             "{out}"
         );
         assert_eq!(repo.builds(), 1);
-        assert_eq!(repo.state_files(), vec!["dx.exe"]);
+        assert_eq!(repo.state_files(), vec!["CACHEDIR.TAG", "dx.exe"]);
         let (code, out) = repo.run(&[]);
         assert_eq!(code, Some(0), "{out}");
         assert_eq!(repo.builds(), 2, "still stale, so it rebuilds");
-        assert_eq!(repo.state_files(), vec!["dx.exe"]);
+        assert_eq!(repo.state_files(), vec!["CACHEDIR.TAG", "dx.exe"]);
         std::fs::remove_file(&flag).expect("clear flag");
         let (code, out) = repo.run(&[]);
         assert_eq!(code, Some(0), "{out}");

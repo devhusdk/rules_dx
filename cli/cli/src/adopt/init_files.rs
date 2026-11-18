@@ -1073,7 +1073,8 @@ mod tests {
     fn old_dx_keys_in_vscode_settings_are_stale() {
         let scratch = dx_test_scratch::scratch("dx-init-owned-vscode-").unwrap();
         let root = scratch.path();
-        std::fs::write(root.join("main.c"), "int main(void) { return 0; }\n").expect("c file");
+        // Rust, not C: cc needs a licence on Windows hosts.
+        std::fs::write(root.join("main.rs"), "fn main() {}\n").expect("source");
         let (code, _out, err) = run(
             &invocation(&["init", "--apply", "--agents=claude,codex,gemini,copilot"]),
             root,
@@ -1081,8 +1082,13 @@ mod tests {
         assert_eq!(code, 0, "{err}");
         let path = root.join(".vscode/settings.json");
         let text = std::fs::read_to_string(&path).expect("read");
-        let (key, _) = text.split_once(':').expect("key");
-        std::fs::write(&path, format!("{key}: 1,\n\"x\": 1}}\n")).expect("write");
+        // Keep one flat dx key with an old value and drop the rest. A nested key such as
+        // evenBetterToml.schema.associations would not do: a non-object there is refused,
+        // not stale.
+        let key = "rust-analyzer.check.overrideCommand";
+        assert!(text.contains(key), "{text}");
+        let old = serde_json::json!({key: 1, "x": 1});
+        std::fs::write(&path, format!("{old}\n")).expect("write");
         assert!(
             drift_of(root)
                 .stale

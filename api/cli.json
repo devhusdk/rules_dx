@@ -37,6 +37,12 @@
         {
           "aliases": [],
           "defaults": [],
+          "name": "--base",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
           "name": "--bazel-startup-option",
           "values": []
         },
@@ -190,6 +196,12 @@
         {
           "aliases": [],
           "defaults": [],
+          "name": "--base",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
           "name": "--bazel-startup-option",
           "values": []
         },
@@ -320,6 +332,12 @@
           "aliases": [],
           "defaults": [],
           "name": "--apply",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--base",
           "values": []
         },
         {
@@ -472,6 +490,12 @@
         {
           "aliases": [],
           "defaults": [],
+          "name": "--base",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
           "name": "--bazel-startup-option",
           "values": []
         },
@@ -602,6 +626,12 @@
           "aliases": [],
           "defaults": [],
           "name": "--apply",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--base",
           "values": []
         },
         {
@@ -825,6 +855,12 @@
         {
           "aliases": [],
           "defaults": [],
+          "name": "--base",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
           "name": "--bazel-startup-option",
           "values": []
         },
@@ -950,6 +986,12 @@
         {
           "aliases": [],
           "defaults": [],
+          "name": "--base",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
           "name": "--bazel-startup-option",
           "values": []
         },
@@ -1070,6 +1112,12 @@
           "aliases": [],
           "defaults": [],
           "name": "--affected",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--base",
           "values": []
         },
         {
@@ -1394,6 +1442,12 @@
         {
           "aliases": [],
           "defaults": [],
+          "name": "--base",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
           "name": "--bazel-startup-option",
           "values": []
         },
@@ -1479,6 +1533,12 @@
           "aliases": [],
           "defaults": [],
           "name": "--apply",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--base",
           "values": []
         },
         {
@@ -2222,6 +2282,12 @@
         {
           "aliases": [],
           "defaults": [],
+          "name": "--base",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
           "name": "--bazel-startup-option",
           "values": []
         },
@@ -2792,6 +2858,12 @@
           "aliases": [],
           "defaults": [],
           "name": "--affected",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--base",
           "values": []
         },
         {

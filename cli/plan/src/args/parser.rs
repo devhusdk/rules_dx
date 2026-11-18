@@ -39,6 +39,7 @@ fn affected_narrows_by_scope(command: Command) -> bool {
             | Command::Typecheck
             | Command::Format
             | Command::Check
+            | Command::Fetch
     )
 }
 

@@ -1328,6 +1328,7 @@ command_args! {
         here: HereFlag,
         affected: AffectedFlag,
         since: SinceFlag,
+        base: BaseFlag,
     };
 }
 

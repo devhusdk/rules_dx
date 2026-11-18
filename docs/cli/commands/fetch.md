@@ -17,7 +17,7 @@ After Bazel succeeds, `dx fetch` also puts the prebuilt dx binary that `tools/dx
 ## Usage
 
 ```text
-dx fetch [--vendor[=DIR]] [--here] [--affected [--since <ref>]] [--debug|--release] [scope ...] [-- bazel-options ...]
+dx fetch [--vendor[=DIR]] [--here] [--affected [--since <ref>|--base <ref>]] [--debug|--release] [scope ...] [-- bazel-options ...]
 ```
 
 ## Flags
@@ -28,6 +28,7 @@ dx fetch [--vendor[=DIR]] [--here] [--affected [--since <ref>]] [--debug|--relea
 | `--here` | Use the current directory tree. |
 | `--affected` | Use the targets your git changes reach. |
 | `--since <ref>` | With `--affected`: diff from this ref instead of the merge-base. Without `--affected`, exit `2`. |
+| `--base <ref>` | With `--affected`: take the merge-base with this branch instead of the default branch. Not with `--since`. |
 | `--debug` | Fetch for the `dx_build_debug` build mode. |
 | `--release` | Fetch for the `dx_build_release` build mode. No flag uses `dx_build_dev`. |
 | `-o, --output text\|json` | Choose the output format. |
@@ -41,7 +42,7 @@ To build from a vendor directory, add `common --vendor_dir=vendor_src` to `.baze
 
 No scope means `//...`. Pass labels, patterns, files, or directories. A file fetches for its owning targets.
 
-`--here` and `--affected` do not combine with scopes or each other. See [Scope defaults](scope-defaults.md).
+`--here` does not combine with scopes or `--affected`. With scopes, `--affected` keeps only the affected targets inside them. See [Scope defaults](scope-defaults.md).
 
 Args after `--` go to Bazel. Bazel startup options after `--` exit `2`.
 

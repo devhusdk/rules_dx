@@ -183,9 +183,18 @@ fn affected_step() -> serde_json::Value {
         .expect("affected tests step")
 }
 
+/// Returns the `plan` step of the `affected-plan` job.
+fn plan_step() -> serde_json::Value {
+    steps(WORKFLOW, "affected-plan")
+        .unwrap()
+        .into_iter()
+        .find(|s| s["name"].as_str() == Some("plan"))
+        .expect("plan step")
+}
+
 #[test]
 fn jobs_stay_inside_the_time_budget() {
-    for name in ["analysis", "affected"] {
+    for name in ["analysis", "affected-plan", "affected"] {
         let minutes = job(WORKFLOW, name).unwrap()["timeout-minutes"]
             .as_u64()
             .expect("timeout-minutes");
@@ -199,8 +208,11 @@ fn jobs_stay_inside_the_time_budget() {
     // Checkout and Bazel setup run before the step.
     assert!(step_minutes + 3 <= job_minutes, "step timeout {step_minutes}");
     assert_eq!(step["shell"].as_str(), Some("bash"));
+    let plan = plan_step();
+    let plan_run = plan["run"].as_str().expect("run");
+    assert!(plan_run.contains("BUILDBUDDY_API_KEY"), "fork skip missing");
+    assert!(plan_run.contains("echo \"shards=[]\""), "fork skip must run no shard");
     let run = step["run"].as_str().expect("run");
-    assert!(run.contains("BUILDBUDDY_API_KEY"), "fork skip missing");
     assert!(run.contains("pipefail"), "pipefail missing");
     assert!(!run.contains("|grpc"), "retry must not match test output");
     // One deadline bounds the run and its retry, ending before the step timeout
@@ -216,6 +228,66 @@ fn jobs_stay_inside_the_time_budget() {
     assert_eq!(run.matches("timeout \"$left\"").count(), 1, "{run}");
     assert!(run.contains("\"$status\" -eq 124"), "{run}");
     assert!(run.contains("::error::"), "an overrun must name itself");
+}
+
+#[test]
+fn affected_tests_build_dx_with_the_remote_cache() {
+    // tools/dx builds //:dx without the remote cache; on a fresh runner that ate
+    // more than six minutes of the budget before the first test.
+    for (step, call) in [
+        (plan_step(), "\"$dx\" test --affected --since 'HEAD^1' --output=json"),
+        (affected_step(), "timeout \"$left\" \"$dx\" test \"${targets[@]}\""),
+    ] {
+        let run = step["run"].as_str().expect("run").to_owned();
+        let build = run
+            .find("bazel build --noshow_progress \"$@\" //:dx")
+            .expect("cached //:dx build");
+        let config = run.find("set -- $BAZEL_CONFIG").expect("cache config");
+        assert!(config < build, "{run}");
+        assert!(run.contains(call), "{run}");
+        let launcher = run
+            .lines()
+            .map(str::trim)
+            .find(|line| !line.starts_with('#') && line.contains("tools/dx "));
+        assert_eq!(launcher, None, "{run}");
+    }
+}
+
+#[test]
+fn shards_come_from_the_plan() {
+    // A large change reaches thousands of tests, more than one runner tests inside
+    // the job timeout (#13238 ran out after 2,586), so the plan splits them.
+    let plan = plan_step();
+    let plan_run = plan["run"].as_str().expect("run");
+    let per: u64 = plan_run
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("per="))
+        .expect("per")
+        .parse()
+        .expect("per labels");
+    assert!((1..=300).contains(&per), "per {per}");
+    // A widened plan is //..., which the query would otherwise expand to every
+    // target, 25,758 of them, instead of the tests `bazel test //...` runs.
+    assert!(plan_run.contains("let t = tests(set("), "{plan_run}");
+    assert!(plan_run.contains("(manual|"), "{plan_run}");
+    assert!(plan_run.contains("range(0; length; $per)"), "{plan_run}");
+    assert!(plan_run.contains("echo \"labels=$slices\""), "{plan_run}");
+    let affected = job(WORKFLOW, "affected").unwrap();
+    assert_eq!(
+        affected["strategy"]["matrix"]["shard"].as_str(),
+        Some("${{ fromJSON(needs.affected-plan.outputs.shards) }}")
+    );
+    assert_eq!(
+        affected["if"].as_str(),
+        Some("${{ needs.affected-plan.outputs.shards != '[]' }}")
+    );
+    let step = affected_step();
+    assert_eq!(
+        step["env"]["LABELS"].as_str(),
+        Some("${{ fromJSON(needs.affected-plan.outputs.labels)[matrix.shard] }}")
+    );
+    let run = step["run"].as_str().expect("run");
+    assert!(run.contains("read -r -a targets <<< \"$LABELS\""), "{run}");
 }
 
 #[test]
@@ -247,8 +319,10 @@ fn affected_tests_do_not_wait_on_the_sets() {
         "affected tests belong in their own job"
     );
     let affected = job(WORKFLOW, "affected").unwrap();
-    assert!(affected.get("needs").is_none(), "affected must not need analysis");
-    let condition = affected["if"].as_str().expect("if");
+    assert_eq!(affected["needs"].as_str(), Some("affected-plan"));
+    let plan = job(WORKFLOW, "affected-plan").unwrap();
+    assert!(plan.get("needs").is_none(), "the plan must not need analysis");
+    let condition = plan["if"].as_str().expect("if");
     assert!(
         condition.contains("github.event_name == 'pull_request'"),
         "{condition}"

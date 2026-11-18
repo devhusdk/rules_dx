@@ -586,7 +586,7 @@ osx.libraries(names = ["libffi"])
 use_repo(osx, "macos_sdk")
 
 # Gated on the Haskell-only flag, so it must come before the general C toolchains.
-register_toolchains("@dx_haskell_toolchains//:linux_arm64_musl")
+register_toolchains("@dx_haskell_toolchains//:dx_haskell_toolchains__linux_arm64_musl")
 
 register_toolchains("@dx_haskell_toolchains//:all")
 
@@ -1987,7 +1987,7 @@ composer.lock(
 use_repo(composer, php_fixture_vendor = "composer_php.tests.fixtures.composer")
 
 haskell = use_extension("//haskell:extensions.bzl", "haskell")
-use_repo(haskell, "dx_ghc_windows_x86_64", "dx_haskell_toolchains")
+use_repo(haskell, "dx_haskell_toolchains", "dx_haskell_toolchains__windows_x86_64")
 
 cabal = use_extension("//haskell:extensions.bzl", "cabal")
 cabal.lock(

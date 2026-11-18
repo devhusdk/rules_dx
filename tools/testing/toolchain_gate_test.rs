@@ -30,7 +30,7 @@ const GATED: &[&str] = &[
     "@dx_cc_toolchains//:all",
     "@dx_dotnet_toolchains//:all",
     "@dx_haskell_toolchains//:all",
-    "@dx_haskell_toolchains//:linux_arm64_musl",
+    "@dx_haskell_toolchains//:dx_haskell_toolchains__linux_arm64_musl",
     "@dx_python_toolchains//:all",
     "@dx_ruby_toolchains//:all",
     "@dx_rust_toolchains//:all",

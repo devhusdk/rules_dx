@@ -3,6 +3,7 @@
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//core/modules:versions.bzl", "RUSTFMT_VERSION")
 load("//rust/private/toolchain:bindings.bzl", "RUSTFMT_TOOLCHAIN_TYPE", "RUST_TOOLCHAIN_TYPE")
+load("//rust/private/toolchain:hub.bzl", "target_triples")
 
 _AT = "@"
 
@@ -36,6 +37,11 @@ def toolchain_identity_tests(name, size = "small"):
                 "rustfmt binds to the registered rustfmt toolchain type",
                 RUSTFMT_TOOLCHAIN_TYPE,
                 "@rules_rust//rust/rustfmt:toolchain_type",
+            ),
+            expect_equal(
+                "the rules_dx hub covers the Rust platforms and the Android tuples",
+                target_triples(["windows_x86_64", "linux_x86_64"]),
+                ["aarch64-linux-android", "x86_64-linux-android", "x86_64-pc-windows-msvc", "x86_64-unknown-linux-gnu"],
             ),
         ],
     )

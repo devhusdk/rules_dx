@@ -5,7 +5,7 @@ load("@rules_dx//core/tests:thin_compare.bzl", "thin_compare_rust_tests", "thin_
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust:defs.bzl", "rust_binary", "rust_bench", "rust_library", "rust_proc_macro", "rust_shared_library", "rust_static_library", "rust_test")
 load("@rules_dx//rust/private:probe.bzl", "dx_wrapper_cc_subject", "dx_wrapper_subject")
-load("@rules_dx//rust/tests:defs_tests.bzl", "rust_default_crate_name_tests", "rust_lints_forward_tests", "rust_native_coverage_tests", "rust_wrapper_conformance_tests")
+load("@rules_dx//rust/tests:defs_tests.bzl", "rust_default_crate_name_tests", "rust_lints_forward_tests", "rust_native_coverage_tests", "rust_shard_runner_tests", "rust_wrapper_conformance_tests")
 
 package(
     default_testonly = True,
@@ -305,6 +305,20 @@ rust_binary(
 rust_test(
     name = "default-name-test",
     srcs = ["src/default_test.rs"],
+)
+
+# keep
+rust_test(
+    name = "sharded_test",
+    size = "small",
+    srcs = ["src/sharded_test.rs"],
+    shard_count = 3,
+)
+
+rust_shard_runner_tests(
+    name = "shard_runner_test",
+    sharded = ":sharded_test",
+    unsharded = ":default-name-test",
 )
 
 # keep

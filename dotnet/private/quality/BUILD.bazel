@@ -1,4 +1,5 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
+load(":fsc_tests.bzl", "fsc_unit_tests")
 
 package(default_visibility = [
     "//:__pkg__",
@@ -12,6 +13,8 @@ package(default_visibility = [
 exports_files([
     "dotnet.bzl",
     "dotnet_tools.bzl",
+    "fsc.bzl",
+    "roslyn.bzl",
 ])
 
 real_source_target(
@@ -20,8 +23,16 @@ real_source_target(
         "BUILD.bazel",
         "dotnet.bzl",
         "dotnet_tools.bzl",
+        "fsc.bzl",
+        "fsc_tests.bzl",
+        "roslyn.bzl",
     ],
     tags = ["corpus"],
+)
+
+fsc_unit_tests(
+    name = "fsc_unit",
+    size = "small",
 )
 
 filegroup(

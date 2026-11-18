@@ -60,6 +60,19 @@
     "classes": [
       "rust"
     ],
+    "defaults": {
+      "audit": [],
+      "format": [
+        "rustfmt"
+      ],
+      "lint": [
+        "clippy",
+        "typos"
+      ],
+      "typecheck": [
+        "rustc"
+      ]
+    },
     "file_extensions": [
       ".rs"
     ],

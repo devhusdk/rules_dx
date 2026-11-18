@@ -279,6 +279,18 @@ LANGS = json.decode("""{
       "classes": [
         "astro"
       ],
+      "defaults": {
+        "audit": [],
+        "format": [
+          "prettier"
+        ],
+        "lint": [
+          "typos"
+        ],
+        "typecheck": [
+          "tsc"
+        ]
+      },
       "file_extensions": [
         ".astro"
       ]
@@ -377,6 +389,17 @@ LANGS = json.decode("""{
       "classes": [
         "bicep"
       ],
+      "defaults": {
+        "audit": [],
+        "format": [
+          "bicep"
+        ],
+        "lint": [
+          "bicep",
+          "typos"
+        ],
+        "typecheck": []
+      },
       "file_extensions": [
         ".bicep",
         ".bicepparam"
@@ -516,6 +539,17 @@ LANGS = json.decode("""{
         "c",
         "cpp"
       ],
+      "defaults": {
+        "audit": [],
+        "format": [
+          "clang_format"
+        ],
+        "lint": [
+          "clang_tidy",
+          "typos"
+        ],
+        "typecheck": []
+      },
       "file_extensions": [
         ".c",
         ".cc",
@@ -590,6 +624,15 @@ LANGS = json.decode("""{
       "classes": [
         "cloudformation"
       ],
+      "defaults": {
+        "audit": [],
+        "format": [],
+        "lint": [
+          "cfn_lint",
+          "typos"
+        ],
+        "typecheck": []
+      },
       "file_extensions": [
         ".yaml",
         ".yml",
@@ -815,6 +858,14 @@ LANGS = json.decode("""{
       "classes": [
         "d"
       ],
+      "defaults": {
+        "audit": [],
+        "format": [],
+        "lint": [
+          "typos"
+        ],
+        "typecheck": []
+      },
       "file_extensions": [
         ".d"
       ],
@@ -908,6 +959,19 @@ LANGS = json.decode("""{
       "classes": [
         "dart"
       ],
+      "defaults": {
+        "audit": [],
+        "format": [
+          "dart"
+        ],
+        "lint": [
+          "dart",
+          "typos"
+        ],
+        "typecheck": [
+          "dart"
+        ]
+      },
       "file_extensions": [
         ".dart"
       ],
@@ -974,6 +1038,15 @@ LANGS = json.decode("""{
       "classes": [
         "dockerfile"
       ],
+      "defaults": {
+        "audit": [],
+        "format": [],
+        "lint": [
+          "hadolint",
+          "typos"
+        ],
+        "typecheck": []
+      },
       "file_extensions": [
         ".containerfile",
         ".dockerfile"
@@ -1368,6 +1441,17 @@ LANGS = json.decode("""{
       "classes": [
         "fortran"
       ],
+      "defaults": {
+        "audit": [],
+        "format": [
+          "ffmt"
+        ],
+        "lint": [
+          "fortitude",
+          "typos"
+        ],
+        "typecheck": []
+      },
       "file_extensions": [
         ".f",
         ".f03",
@@ -1501,6 +1585,21 @@ LANGS = json.decode("""{
       "classes": [
         "go"
       ],
+      "defaults": {
+        "audit": [],
+        "format": [
+          "gofumpt"
+        ],
+        "lint": [
+          "errcheck",
+          "govet",
+          "staticcheck",
+          "typos"
+        ],
+        "typecheck": [
+          "gotype"
+        ]
+      },
       "file_extensions": [
         ".go"
       ],
@@ -1594,6 +1693,14 @@ LANGS = json.decode("""{
       "classes": [
         "haskell"
       ],
+      "defaults": {
+        "audit": [],
+        "format": [],
+        "lint": [
+          "typos"
+        ],
+        "typecheck": []
+      },
       "file_extensions": [
         ".hs"
       ],
@@ -1717,6 +1824,20 @@ LANGS = json.decode("""{
       "classes": [
         "java"
       ],
+      "defaults": {
+        "audit": [],
+        "format": [
+          "google_java_format"
+        ],
+        "lint": [
+          "pmd",
+          "spotbugs",
+          "typos"
+        ],
+        "typecheck": [
+          "javac"
+        ]
+      },
       "file_extensions": [
         ".java"
       ],
@@ -1817,6 +1938,17 @@ LANGS = json.decode("""{
         "javascript",
         "jsx"
       ],
+      "defaults": {
+        "audit": [],
+        "format": [
+          "biome"
+        ],
+        "lint": [
+          "biome",
+          "typos"
+        ],
+        "typecheck": []
+      },
       "file_extensions": [
         ".cjs",
         ".js",
@@ -1922,6 +2054,15 @@ LANGS = json.decode("""{
       "classes": [
         "julia"
       ],
+      "defaults": {
+        "audit": [],
+        "format": [],
+        "lint": [
+          "julialint",
+          "typos"
+        ],
+        "typecheck": []
+      },
       "file_extensions": [
         ".jl"
       ],
@@ -2002,6 +2143,19 @@ LANGS = json.decode("""{
       "classes": [
         "kotlin"
       ],
+      "defaults": {
+        "audit": [],
+        "format": [
+          "ktfmt"
+        ],
+        "lint": [
+          "detekt",
+          "typos"
+        ],
+        "typecheck": [
+          "kotlinc"
+        ]
+      },
       "file_extensions": [
         ".kt",
         ".kts"
@@ -2046,6 +2200,15 @@ LANGS = json.decode("""{
       "classes": [
         "kubernetes"
       ],
+      "defaults": {
+        "audit": [],
+        "format": [],
+        "lint": [
+          "kubeconform",
+          "typos"
+        ],
+        "typecheck": []
+      },
       "file_extensions": [
         ".json",
         ".yaml",
@@ -2246,6 +2409,19 @@ LANGS = json.decode("""{
       "classes": [
         "mdx"
       ],
+      "defaults": {
+        "audit": [],
+        "format": [
+          "remark"
+        ],
+        "lint": [
+          "lychee",
+          "typos"
+        ],
+        "typecheck": [
+          "tsc"
+        ]
+      },
       "file_extensions": [
         ".mdx"
       ]
@@ -2349,6 +2525,16 @@ LANGS = json.decode("""{
       "classes": [
         "ocaml"
       ],
+      "defaults": {
+        "audit": [],
+        "format": [
+          "topiary"
+        ],
+        "lint": [
+          "typos"
+        ],
+        "typecheck": []
+      },
       "file_extensions": [
         ".ml",
         ".mli"
@@ -2621,6 +2807,14 @@ LANGS = json.decode("""{
       "classes": [
         "powershell"
       ],
+      "defaults": {
+        "audit": [],
+        "format": [],
+        "lint": [
+          "typos"
+        ],
+        "typecheck": []
+      },
       "file_extensions": [
         ".ps1",
         ".psd1",
@@ -2714,6 +2908,19 @@ LANGS = json.decode("""{
         "python",
         "python_stub"
       ],
+      "defaults": {
+        "audit": [],
+        "format": [
+          "ruff"
+        ],
+        "lint": [
+          "ruff",
+          "typos"
+        ],
+        "typecheck": [
+          "ty"
+        ]
+      },
       "file_extensions": [
         ".py",
         ".pyi"
@@ -3027,6 +3234,19 @@ LANGS = json.decode("""{
       "classes": [
         "rust"
       ],
+      "defaults": {
+        "audit": [],
+        "format": [
+          "rustfmt"
+        ],
+        "lint": [
+          "clippy",
+          "typos"
+        ],
+        "typecheck": [
+          "rustc"
+        ]
+      },
       "file_extensions": [
         ".rs"
       ],
@@ -3113,6 +3333,18 @@ LANGS = json.decode("""{
       "classes": [
         "scala"
       ],
+      "defaults": {
+        "audit": [],
+        "format": [
+          "scalafmt"
+        ],
+        "lint": [
+          "typos"
+        ],
+        "typecheck": [
+          "scalac"
+        ]
+      },
       "file_extensions": [
         ".sc",
         ".scala"
@@ -3209,6 +3441,18 @@ LANGS = json.decode("""{
       "classes": [
         "svelte"
       ],
+      "defaults": {
+        "audit": [],
+        "format": [
+          "prettier"
+        ],
+        "lint": [
+          "typos"
+        ],
+        "typecheck": [
+          "tsc"
+        ]
+      },
       "file_extensions": [
         ".svelte"
       ]
@@ -3275,6 +3519,14 @@ LANGS = json.decode("""{
       "classes": [
         "swift"
       ],
+      "defaults": {
+        "audit": [],
+        "format": [],
+        "lint": [
+          "typos"
+        ],
+        "typecheck": []
+      },
       "file_extensions": [
         ".swift"
       ],
@@ -3484,6 +3736,19 @@ LANGS = json.decode("""{
         "tsx",
         "typescript"
       ],
+      "defaults": {
+        "audit": [],
+        "format": [
+          "biome"
+        ],
+        "lint": [
+          "biome",
+          "typos"
+        ],
+        "typecheck": [
+          "tsc"
+        ]
+      },
       "file_extensions": [
         ".cts",
         ".mts",
@@ -3537,6 +3802,18 @@ LANGS = json.decode("""{
       "classes": [
         "vue"
       ],
+      "defaults": {
+        "audit": [],
+        "format": [
+          "prettier"
+        ],
+        "lint": [
+          "typos"
+        ],
+        "typecheck": [
+          "tsc"
+        ]
+      },
       "file_extensions": [
         ".vue"
       ]
@@ -3598,6 +3875,17 @@ LANGS = json.decode("""{
       "classes": [
         "zig"
       ],
+      "defaults": {
+        "audit": [],
+        "format": [
+          "zig_fmt"
+        ],
+        "lint": [
+          "typos",
+          "zig_ast_check"
+        ],
+        "typecheck": []
+      },
       "file_extensions": [
         ".zig"
       ],

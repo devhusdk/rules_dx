@@ -131,6 +131,22 @@ alias(
     visibility = ["//visibility:public"],
 )
 """),
+        expect_equal("cells sharing one repository", pins_hub("t", ["linux_x86_64", "macos_arm64"], "//t:type", repository = "shared"), """toolchain(
+    name = "t__linux_x86_64",
+    exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+    toolchain = "@shared//:toolchain",
+    toolchain_type = "//t:type",
+    visibility = ["//visibility:public"],
+)
+
+toolchain(
+    name = "t__macos_arm64",
+    exec_compatible_with = ["@platforms//os:macos", "@platforms//cpu:aarch64"],
+    toolchain = "@shared//:toolchain",
+    toolchain_type = "//t:type",
+    visibility = ["//visibility:public"],
+)
+"""),
     ] + hub_checks(full + "\n" + minimal, "//t:type", 2, forbidden = ["@other"])
 
 def toolchain_tests(name, size = "small"):

@@ -69,6 +69,17 @@
       "javascript",
       "jsx"
     ],
+    "defaults": {
+      "audit": [],
+      "format": [
+        "biome"
+      ],
+      "lint": [
+        "biome",
+        "typos"
+      ],
+      "typecheck": []
+    },
     "file_extensions": [
       ".cjs",
       ".js",

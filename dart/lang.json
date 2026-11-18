@@ -59,6 +59,19 @@
     "classes": [
       "dart"
     ],
+    "defaults": {
+      "audit": [],
+      "format": [
+        "dart"
+      ],
+      "lint": [
+        "dart",
+        "typos"
+      ],
+      "typecheck": [
+        "dart"
+      ]
+    },
     "file_extensions": [
       ".dart"
     ],

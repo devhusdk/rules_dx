@@ -27,6 +27,15 @@
     "classes": [
       "cloudformation"
     ],
+    "defaults": {
+      "audit": [],
+      "format": [],
+      "lint": [
+        "cfn_lint",
+        "typos"
+      ],
+      "typecheck": []
+    },
     "file_extensions": [
       ".yaml",
       ".yml",

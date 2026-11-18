@@ -26,6 +26,15 @@
     "classes": [
       "dockerfile"
     ],
+    "defaults": {
+      "audit": [],
+      "format": [],
+      "lint": [
+        "hadolint",
+        "typos"
+      ],
+      "typecheck": []
+    },
     "file_extensions": [
       ".containerfile",
       ".dockerfile"

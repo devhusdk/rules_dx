@@ -10,9 +10,10 @@ _NVCC = "external/cuda/bin/nvcc"
 def _rewrite(argv, src = "a.cu"):
     return nvcc_syntax_argv(argv, src)
 
-def nvcc_syntax_unit_tests(name):
+def nvcc_syntax_unit_tests(name, size):
     starlark_test(
         name = name,
+        size = size,
         mode = "unit",
         checks = [
             expect_equal(

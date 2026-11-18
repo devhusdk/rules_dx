@@ -54,6 +54,14 @@
     "classes": [
       "d"
     ],
+    "defaults": {
+      "audit": [],
+      "format": [],
+      "lint": [
+        "typos"
+      ],
+      "typecheck": []
+    },
     "file_extensions": [
       ".d"
     ],

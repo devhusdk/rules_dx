@@ -88,7 +88,7 @@ core/fuzz.bzl no-size 1
 core/fuzz_bench_tests.bzl no-size 1
 core/modules/BUILD.bazel no-size 3
 core/modules/versions_tests.bzl no-size 1
-core/quality/BUILD.bazel no-size 33
+core/quality/BUILD.bazel no-size 30
 core/quality/artifacts/BUILD.bazel no-size 4
 core/quality/artifacts/acquire_test/BUILD.bazel no-size 1
 core/quality/artifacts/metadata_tests.bzl no-size 1
@@ -101,9 +101,7 @@ core/quality/curated_defaults_tests.bzl no-size 1
 core/quality/dart_context_tests.bzl no-size 1
 core/quality/execution_requirements_tests.bzl no-size 1
 core/quality/fixtures_tests.bzl no-size 1
-core/quality/fsc_tests.bzl no-size 1
 core/quality/native_config_tests.bzl no-size 1
-core/quality/nvcc_syntax_tests.bzl no-size 1
 core/quality/overlap_tests.bzl no-size 1
 core/quality/parity_tests.bzl no-size 1
 core/quality/pipeline_tests.bzl no-size 1

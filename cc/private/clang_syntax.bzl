@@ -8,7 +8,7 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//cc/private/toolchain:bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_toolchain_identity", "cc_toolchain_info")
 load("//core/quality/private:native_config_impl.bzl", "DxNativeConfigInfo", "bound_config_targets")
-load("//core/quality:nvcc_syntax.bzl", "nvcc_syntax_select", "nvcc_syntax_source")
+load("//cc/private/quality:nvcc_syntax.bzl", "nvcc_syntax_select", "nvcc_syntax_source")
 load("//core/quality:policy.bzl", "QualityPolicyInfo")
 load("//core/quality:sources.bzl", "UPSTREAM_CC_CLASS_EXTENSIONS", "forwarded_upstream")
 

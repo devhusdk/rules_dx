@@ -57,6 +57,14 @@
     "classes": [
       "swift"
     ],
+    "defaults": {
+      "audit": [],
+      "format": [],
+      "lint": [
+        "typos"
+      ],
+      "typecheck": []
+    },
     "file_extensions": [
       ".swift"
     ],

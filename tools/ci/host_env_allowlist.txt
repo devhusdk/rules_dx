@@ -27,6 +27,7 @@ apple/tests/fixtures/swift_app/BUILD.bazel sh-rule 1
 apple/tests/fixtures/swift_app/check_ipa.sh shebang 1
 apple/tests/path_test.rs host-path 3
 cc/private/bench_run.sh shebang 1
+cc/private/quality/nvcc_syntax_tests.bzl host-path 2
 cc/private/toolchain/msvc/toolchain.bzl host-path 1
 cc/private/tools/context/src/lib_tests.rs host-path 19
 cc/tests/clang_syntax_tests.bzl host-path 3
@@ -93,8 +94,6 @@ core/node_test.bzl env-inherit 1
 core/quality/adapter/src/exec.rs host-path 9
 core/quality/compile_check_exec.sh shebang 1
 core/quality/consumer_policy_tests.bzl shebang 1
-core/quality/elixirc.bzl host-path 1
-core/quality/nvcc_syntax_tests.bzl host-path 2
 core/quality/runner/src/entry.rs host-path 2
 core/quality/runner/src/lib_determinism.rs host-path 3
 core/quality/runner/src/real.rs host-path 4
@@ -185,6 +184,7 @@ dotnet/private/quality/tools/fsharplint/BUILD.bazel sh-rule 1
 dotnet/private/quality/tools/fsharplint/fsharplint.sh shebang 1
 elixir/private/tools/launcher.bzl home 2
 elixir/tests/fixtures/elixir_app/catalog/BUILD.bazel genrule 1
+erlang/private/quality/elixirc.bzl host-path 1
 fortran/private/flang_rt.BUILD.bazel genrule 1
 fortran/tests/BUILD.bazel env-inherit 2
 fortran/tests/BUILD.bazel home 1

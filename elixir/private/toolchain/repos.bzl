@@ -1,8 +1,7 @@
 """Hermetic Elixir acquisition and toolchain registration."""
 
 load("//elixir/private:hex.bzl", "hex_extract")
-load("//erlang/private/toolchain:pins.bzl", "CELLS")
-load("//core:toolchain.bzl", "toolchain_target")
+load("//core:toolchain.bzl", "pins_hub")
 load(":pins.bzl", "CREDO_PACKAGES", "DIALYZER_PLT_ELIXIR", "ELIXIR_APPLICATIONS", "ELIXIR_SHA256", "ELIXIR_URLS", "ELIXIR_VERSION")
 
 HUB_NAME = "dx_elixir_toolchains"
@@ -50,7 +49,7 @@ dx_elixir(
 )
 
 elixir_toolchain(
-    name = "elixir",
+    name = "toolchain",
     elixir = ":elixir_tree",
 )
 {dialyzer_beams}"""
@@ -157,9 +156,4 @@ dist_repo = repository_rule(
 
 def hub_build(cells):
     """Returns the hub BUILD file that registers Elixir on the given OTP cells."""
-    return "\n".join([toolchain_target(
-        name = cell,
-        exec_compatible_with = CELLS[cell].exec_compatible_with,
-        toolchain = "@{}//:elixir".format(DIST_NAME),
-        toolchain_type = str(Label("@rules_elixir//:toolchain_type")),
-    ) for cell in cells])
+    return pins_hub(HUB_NAME, cells, str(Label("@rules_elixir//:toolchain_type")), repository = DIST_NAME)

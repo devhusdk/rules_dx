@@ -62,6 +62,16 @@
     "classes": [
       "ocaml"
     ],
+    "defaults": {
+      "audit": [],
+      "format": [
+        "topiary"
+      ],
+      "lint": [
+        "typos"
+      ],
+      "typecheck": []
+    },
     "file_extensions": [
       ".ml",
       ".mli"

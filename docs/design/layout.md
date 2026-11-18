@@ -96,7 +96,6 @@ examples/   tested examples
 - A shard that serves several languages lives with the language that owns its runtime: `js` in `javascript/`, `jvm` in `java/`, `beam` in `erlang/`, `dotnet` in `dotnet/`, `cc` in `cc/`.
 - A tool has all its rows in one `_tools.bzl` table. Moving a tool binary never moves its rows.
 - A `<name>_tools.bzl` file is data and loads only core data files `//core/quality:tool_defs.bzl` and `//core/quality:taxonomy.bzl`.
-- `core/quality/tools.bzl` loads every `_tools.bzl` file; no other core file loads from a language directory.
 - A tier package `core/quality/tiers/<tool>/` loads only core `.bzl` files.
 - A tool shipped as a prebuilt binary or bundle has no runtime owner. Its package stays in `core/quality/tools/`.
 

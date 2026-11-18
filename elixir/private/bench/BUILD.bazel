@@ -3,7 +3,7 @@ load("//elixir/private:defs.bzl", "ELIXIR_COMPATIBLE_WITH", "elixir_app")
 
 # gazelle:dx_external hex elixir/private/bench/hex.lock.json dx_benchee
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//:__subpackages__"])
 
 exports_files(["hex.lock.json"])
 

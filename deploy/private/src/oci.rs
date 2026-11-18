@@ -68,7 +68,12 @@ pub fn oci_build_layout(
     let layout = outdir.join(base.to_owned() + "-oci-layout");
     let staging = outdir.join(base.to_owned() + "-oci-layout.tmp");
     let prev = outdir.join(base.to_owned() + "-oci-layout.prev");
-    dx_atomic_fs::commit::recover_tree_swap(&layout, &prev).map_err(io::Error::other)?;
+    let swap = dx_atomic_fs::commit::TreeSwap {
+        current: layout.clone(),
+        retired: prev.clone(),
+        stage: staging.clone(),
+    };
+    dx_atomic_fs::commit::recover_tree_swap(&swap).map_err(io::Error::other)?;
     for stale in [&staging, &prev] {
         if stale.exists() {
             std::fs::remove_dir_all(stale)?;
@@ -77,13 +82,12 @@ pub fn oci_build_layout(
     let reference = format!("{registry}/{repository}:{tag}");
     let staged = oci_stage_layout(image_tar_src, &staging, &reference, os, architecture)
         .and_then(|()| {
-            dx_atomic_fs::commit::swap_tree(&layout, &prev, &staging).map_err(io::Error::other)
+            dx_atomic_fs::commit::publish_tree_swap(&swap).map_err(io::Error::other)
         });
     if let Err(error) = staged {
         dx_atomic_fs::discard_dir(&staging);
         return Err(error);
     }
-    dx_atomic_fs::discard_dir(&prev);
     Ok(layout)
 }
 

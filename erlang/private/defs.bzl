@@ -16,7 +16,7 @@ load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "target_is_windows", "w
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
 load("//core:native_coverage.bzl", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage")
 load("//core:platform.bzl", "platforms_transition")
-load("//core:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_forward_data_attr", "dx_language_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_setdefaults", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap", "dx_wrap_test")
+load("//core:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_forward_data_attr", "dx_language_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_private_dep_rule", "dx_quality_sources", "dx_setdefaults", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//erlang/private:beam.bzl", "beam_info")
 load("//erlang/private:providers.bzl", "BeamInfo", "ErlangNifInfo", "OtpToolInfo")
@@ -538,12 +538,24 @@ def erlang_ct_suite_test(name, *, suite_name = "", visibility = None, **kwargs):
         **dx_test_forward_kwargs(kwargs)
     )
 
+_erlang_bench_lib = dx_private_dep_rule(
+    Label("//erlang/private/bench:erlang_app"),
+    [_ErlangAppInfo, BeamInfo, ErlangNifInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo, OutputGroupInfo],
+    "Provides the dx_bench app erlang_bench loads.",
+)
+
 def erlang_bench(name, *, suite_name = "", tags = None, runtime_deps = None, **kwargs):
     """ct_suite run by dx bench: dx_bench:run in the suite runs erlperf and writes dx-bench.json."""
+    _erlang_bench_lib(
+        name = name + "_dx_bench",
+        testonly = True,
+        tags = dx_upstream_tags(tags),
+        visibility = ["//visibility:private"],
+    )
     erlang_ct_suite_test(
         name = name,
         suite_name = suite_name,
         tags = merge_tags(tags, "dx-bench"),
-        runtime_deps = (runtime_deps or []) + [Label("//erlang/private/bench:erlang_app")],
+        runtime_deps = (runtime_deps or []) + [":" + name + "_dx_bench"],
         **with_default_size(kwargs)
     )

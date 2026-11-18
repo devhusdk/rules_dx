@@ -1,6 +1,7 @@
 """Conformance suite: one language's build, test, coverage, lint, format and lock checks over a fixture."""
 
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
+load("//core:rlocation.bzl", "runfiles_path")
 load("//core/modules:langs.bzl", "LANGS")
 load("//core/quality:families/core.bzl", "real_format_aspect", "real_lint_aspect")
 load("//core/quality/testdata:config_subject.bzl", "config_results", "config_subject_rule")
@@ -147,9 +148,12 @@ def _subject_impl(ctx):
     env_file = ctx.actions.declare_file(ctx.label.name + ".env")
     ctx.actions.write(env_file, "".join(["%s=%s\n" % (k, environment[k]) for k in sorted(environment)]))
     instrumented = subject[InstrumentedFilesInfo].instrumented_files.to_list() if InstrumentedFilesInfo in subject else []
-    manifest = ctx.actions.declare_file(ctx.label.name + ".coverage_manifest")
-    ctx.actions.write(manifest, "".join([f.path + "\n" for f in instrumented]))
     metadata = subject[InstrumentedFilesInfo].metadata_files if InstrumentedFilesInfo in subject else depset()
+    manifest = ctx.actions.declare_file(ctx.label.name + ".coverage_manifest")
+    ctx.actions.write(manifest, "".join(
+        [f.path + "\n" for f in instrumented] +
+        [runfiles_path(ctx.workspace_name, f.short_path) + "\n" for f in metadata.to_list()],
+    ))
     return [DefaultInfo(
         files = depset([executable, env_file, manifest]),
         runfiles = subject[DefaultInfo].default_runfiles.merge(ctx.runfiles(files = [env_file, manifest], transitive_files = metadata)),

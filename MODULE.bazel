@@ -18,6 +18,7 @@ single_version_override(
         "//patches/rules_rust:cargo_toml_env_vars_flag.patch",
         "//patches/rules_rust:exec_scope_universal.patch",
         "//patches/rules_rust:cargo_build_script_no_coverage.patch",
+        "//patches/rules_rust:cargo_build_script_apple_deployment_target.patch",
         "//patches/rules_rust:windows_exec_foreign_target_cc_linker.patch",
         "//patches/rules_rust:crate_universe_module_labels.patch",
     ],
@@ -2410,13 +2411,11 @@ rust.toolchain(
     extra_target_triples = [
         "aarch64-apple-ios",
         "aarch64-apple-ios-sim",
-        "aarch64-linux-android",
         "aarch64-pc-windows-msvc",
         "aarch64-unknown-linux-gnu",
         "wasm32-unknown-unknown",
         "wasm32-wasip1",
         "x86_64-apple-ios",
-        "x86_64-linux-android",
         "x86_64-pc-windows-msvc",
         "x86_64-unknown-linux-gnu",
     ],
@@ -2431,6 +2430,11 @@ use_repo(
 )
 
 register_toolchains("@rust_toolchains//:all")
+
+dx_rust_toolchains = use_extension("//rust/private/toolchain:hub.bzl", "dx_rust_toolchains")
+use_repo(dx_rust_toolchains, "dx_rust_toolchains")
+
+register_toolchains("@dx_rust_toolchains//:all")
 
 wasm_bindgen = use_extension("@rules_rust_wasm_bindgen//:extensions.bzl", "rust_ext")
 use_repo(

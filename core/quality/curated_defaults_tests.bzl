@@ -1,7 +1,7 @@
 """Unit tests for the curated defaults."""
 
 load("//core:defs.bzl", "expect_equal", "starlark_test")
-load(":curated_defaults.bzl", "CURATED_DEFAULTS", "curated_schema_error")
+load(":curated_defaults.bzl", "CURATED_DEFAULTS", "LANG_JSON_DEFAULTS", "OTHER_DEFAULTS", "curated_schema_error")
 
 visibility("private")
 
@@ -14,6 +14,16 @@ def curated_defaults_unit_tests(name):
                 "curated manifest schema validates",
                 curated_schema_error(),
                 "",
+            ),
+            expect_equal(
+                "lang.json curated rows and the other rows do not overlap",
+                [family for family in LANG_JSON_DEFAULTS if family in OTHER_DEFAULTS],
+                [],
+            ),
+            expect_equal(
+                "curated defaults hold every lang.json and other row",
+                len(CURATED_DEFAULTS),
+                len(LANG_JSON_DEFAULTS) + len(OTHER_DEFAULTS),
             ),
             expect_equal(
                 "python curated defaults are Ruff + Ty",

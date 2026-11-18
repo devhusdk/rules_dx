@@ -204,23 +204,27 @@ fn fetch_trivy_pin(pin: &AdvisoryPin, cache: &Path, offline: bool) -> Result<(),
     if installed(cache) {
         return Ok(());
     }
-    let id = std::process::id();
-    let archive = parent.join(format!("trivy.part{id}.tar.gz"));
-    let partial = parent.join(format!("trivy.part{id}"));
-    let result = install_trivy_pin(pin, local.as_deref(), &archive, &partial, cache);
+    let archive = parent.join("trivy.part.tar.gz");
+    let swap = dx_atomic_fs::commit::TreeSwap {
+        current: cache.to_path_buf(),
+        retired: parent.join("trivy.prev"),
+        stage: parent.join("trivy.part"),
+    };
+    let result = install_trivy_pin(pin, local.as_deref(), &archive, &swap);
     dx_atomic_fs::discard_file(&archive);
-    dx_atomic_fs::discard_dir(&partial);
+    dx_atomic_fs::discard_dir(&swap.stage);
+    dx_atomic_fs::discard_dir(&swap.retired);
     result
 }
 
-/// Downloads the pinned archive, checks its sha256, unpacks it into `partial` and moves that to `cache`.
+/// Downloads the pinned archive, checks its sha256, unpacks it into the stage and swaps that in.
 fn install_trivy_pin(
     pin: &AdvisoryPin,
     local: Option<&Path>,
     archive: &Path,
-    partial: &Path,
-    cache: &Path,
+    swap: &dx_atomic_fs::commit::TreeSwap,
 ) -> Result<(), DxError> {
+    let partial = swap.stage.as_path();
     let bytes = if let Some(path) = local {
         std::fs::read(path)
             .map_err(|error| DxError::infra(format!("{}: {error}", path.display())))?
@@ -248,13 +252,18 @@ fn install_trivy_pin(
     dx_atomic_fs::discard_dir(partial);
     dx_archive::extract_bytes(&bytes, dx_archive::Format::TarGz, partial, TRIVY_LIMITS)
         .map_err(|error| DxError::failure(format!("unpacking the trivy archive: {error}")))?;
-    match std::fs::remove_dir_all(cache) {
+    match std::fs::remove_dir_all(&swap.retired) {
         Ok(()) => {}
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-        Err(error) => return Err(DxError::infra(format!("{}: {error}", cache.display()))),
+        Err(error) => {
+            return Err(DxError::infra(format!(
+                "{}: {error}",
+                swap.retired.display()
+            )));
+        }
     }
-    std::fs::rename(partial, cache)
-        .map_err(|error| DxError::infra(format!("{}: {error}", cache.display())))
+    dx_atomic_fs::commit::publish_tree_swap(swap)
+        .map_err(|error| DxError::infra(format!("{}: {error}", swap.current.display())))
 }
 
 #[cfg(test)]

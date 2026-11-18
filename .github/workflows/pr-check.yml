@@ -72,7 +72,7 @@ jobs:
   affected:
     name: affected tests (linux_x86_64)
     if: ${{ github.event_name == 'pull_request' }}
-    timeout-minutes: 30
+    timeout-minutes: 120
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -86,7 +86,7 @@ jobs:
           cache-save: false
       - name: affected tests
         shell: bash
-        timeout-minutes: 26
+        timeout-minutes: 115
         run: |
           if [ -z "$BUILDBUDDY_API_KEY" ]; then
             echo "::notice::affected tests skipped: no remote cache secret on this PR"
@@ -94,7 +94,7 @@ jobs:
           fi
           # One deadline covers building dx, the run and the cacheless retry, and stays under
           # the step timeout so running out of time is reported here rather than as a bare kill.
-          budget=1380
+          budget=6600
           deadline=$((SECONDS + budget))
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS

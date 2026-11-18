@@ -1,4 +1,3 @@
-use std::fmt::Write as _;
 #[test]
 fn log_tail_keeps_last_forty_lines() {
     let text: String = (1..=50)
@@ -3587,7 +3586,7 @@ fn failing_case_past_the_case_limit_is_still_reported() {
     let harness = Harness::new("test-late-failure");
     let mut xml = String::from("<testsuites><testsuite name=\"s\">");
     for index in 0..1500 {
-        write!(xml, "<testcase name=\"case{index}\"/>").ok();
+        xml.push_str(&format!("<testcase name=\"case{index}\"/>"));
     }
     xml.push_str("<testcase name=\"late\"><failure message=\"late boom\"/></testcase>");
     xml.push_str("</testsuite></testsuites>");
@@ -3722,13 +3721,11 @@ fn case_detail_is_bounded_and_says_so() {
     let harness = Harness::new("test-case-bounds");
     let long = "é".repeat(3000);
     let mut xml = String::from("<testsuites><testsuite name=\"s\">");
-    write!(
-        xml,
+    xml.push_str(&format!(
         "<testcase name=\"long\"><failure message=\"{long}\"/></testcase>"
-    )
-    .ok();
+    ));
     for index in 0..1000 {
-        write!(xml, "<testcase name=\"case{index}\"/>").ok();
+        xml.push_str(&format!("<testcase name=\"case{index}\"/>"));
     }
     xml.push_str("</testsuite></testsuites>");
     let uri = write_bep_artifact(&harness, "many.xml", xml.as_bytes());
@@ -4432,6 +4429,36 @@ fn coverage_threshold_returns_the_stdout_code_when_stdout_breaks() {
         ),
         Err(dx_process::broken_pipe_code())
     );
+}
+
+#[test]
+fn a_text_report_announcement_returns_the_stdout_code_when_stdout_breaks() {
+    let dir = temp_dir("report-sink-broken");
+    let mut err = Vec::new();
+    let mut sink = super::ReportSink {
+        out: &mut BrokenPipe,
+        err: &mut err,
+        output: dx_output::OutputMode::Text { quiet: false },
+        workspace: dir.path(),
+        stdout_report: false,
+    };
+    let got = sink.write(
+        "junit",
+        &dx_plan::reports::Destination::File("junit.xml".to_owned()),
+        "<testsuites/>",
+        true,
+    );
+    assert_eq!(got, Err(dx_process::broken_pipe_code()));
+    assert!(dir.path().join("junit.xml").is_file());
+}
+
+#[test]
+fn results_document_fails_on_an_outcome_without_a_target() {
+    let outcome = dx_output::TestOutcome {
+        outcome: "passed".to_owned(),
+        ..dx_output::TestOutcome::default()
+    };
+    assert!(super::results_document(&[outcome], true, 0, "run").is_err());
 }
 
 #[test]

@@ -172,7 +172,7 @@ fn gather(
     } else {
         Sources::default()
     };
-    std::fs::remove_file(bep).ok();
+    super::remove_scratch(bep);
     let (events, stream_problem) = match read {
         Ok(read) => read,
         Err(error) => {
@@ -353,9 +353,12 @@ fn finish(
     };
     let no_tests = bazel_code == BAZEL_NO_TESTS && reported.is_empty();
     if no_tests {
-        writeln!(err, "dx: {CODE_NO_TESTS}: no test targets match the scope").ok();
+        dx_output::write_stderr(
+            err,
+            format_args!("dx: {CODE_NO_TESTS}: no test targets match the scope\n"),
+        );
         if let Some(next) = dx_exec_core::guidance::next_action(CODE_NO_TESTS) {
-            writeln!(err, "{next}").ok();
+            dx_output::write_stderr(err, format_args!("{next}\n"));
         }
     }
     if invocation.output == OutputMode::Json {
@@ -420,7 +423,13 @@ fn write_results_reports(
 ) -> Result<bool, i32> {
     let mut landed_all = true;
     if !results_reports.is_empty() {
-        let document = results_document(reported, complete, bazel_code, run_id);
+        let document = match results_document(reported, complete, bazel_code, run_id) {
+            Ok(document) => document,
+            Err(error) => {
+                sink.failed(&format!("cannot build the results report: {error}"), None)?;
+                return Ok(false);
+            }
+        };
         for planned in results_reports {
             landed_all &= sink.write("results", &planned.destination, &document, complete)?;
         }
@@ -648,7 +657,7 @@ pub(super) fn no_tests_in_workspace(
             }
         }
         OutputMode::Text { .. } => {
-            writeln!(err, "dx: {message}").ok();
+            dx_output::write_stderr(err, format_args!("dx: {message}\n"));
         }
         OutputMode::Diff => {}
     }

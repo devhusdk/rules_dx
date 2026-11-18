@@ -6,7 +6,7 @@ use super::{
     output_locations, render_junit, report_event, report_failed_with_next, test_outcome_event,
     write_report_document,
 };
-use std::fmt::Write as _;
+use dx_exec_core::common::check_stdout_write;
 
 /// Prints each outcome in the run's output mode and counts the ones that were not superseded.
 pub(super) fn emit_outcomes(
@@ -56,12 +56,13 @@ pub(super) fn emit_outcomes(
                     .attempt
                     .map(|attempt| format!(" (attempt {attempt})"))
                     .unwrap_or_default();
-                writeln!(
+                dx_output::write_stderr(
                     err,
-                    "dx: flaky success (passed after retry): {}{attempt}",
-                    outcome.target
-                )
-                .ok();
+                    format_args!(
+                        "dx: flaky success (passed after retry): {}{attempt}\n",
+                        outcome.target
+                    ),
+                );
             }
             if !outcome.superseded && is_failed(&outcome.outcome) {
                 write_failed_line(err, outcome);
@@ -94,13 +95,13 @@ pub(super) fn write_failed_line(err: &mut dyn Write, outcome: &TestOutcome) {
                 .join(", "),
         );
         if failing.len() > TEXT_CASE_LIMIT {
-            write!(line, " and {} more", failing.len() - TEXT_CASE_LIMIT).ok();
+            line.push_str(&format!(" and {} more", failing.len() - TEXT_CASE_LIMIT));
         }
     }
     if let Some(log) = &outcome.log_path {
-        write!(line, " (log: {log})").ok();
+        line.push_str(&format!(" (log: {log})"));
     }
-    writeln!(err, "{line}").ok();
+    dx_output::write_stderr(err, format_args!("{line}\n"));
 }
 
 /// Writes reports to their destinations and announces each one in the run's output mode.
@@ -131,12 +132,11 @@ impl ReportSink<'_> {
                 report_event(name, destination.display(), complete),
             )?;
         } else if matches!(self.output, OutputMode::Text { .. }) && !self.stdout_report {
-            writeln!(
+            check_stdout_write(writeln!(
                 self.out,
                 "Wrote {name} report to {}.",
                 destination.display()
-            )
-            .ok();
+            ))?;
         }
         Ok(true)
     }
@@ -205,7 +205,7 @@ pub(super) fn announce_incomplete(
             dx_output::error_event("incomplete_results", detail, None, None, None),
         )?;
     } else {
-        writeln!(err, "dx: incomplete_results: {detail}").ok();
+        dx_output::write_stderr(err, format_args!("dx: incomplete_results: {detail}\n"));
     }
     Ok(())
 }
@@ -259,7 +259,7 @@ pub(super) fn coverage_threshold(
             )?;
         }
     } else {
-        writeln!(err, "dx: {summary}").ok();
+        dx_output::write_stderr(err, format_args!("dx: {summary}\n"));
     }
     Ok(threshold_ok)
 }
@@ -283,13 +283,12 @@ pub(super) fn coverage_summary(
     if show_total {
         if eligible > 0 {
             let percent = 100.0 * covered as f64 / eligible as f64;
-            writeln!(
+            dx_output::write_stderr(
                 err,
-                "dx: coverage {percent:.1}% ({covered}/{eligible} lines)"
-            )
-            .ok();
+                format_args!("dx: coverage {percent:.1}% ({covered}/{eligible} lines)\n"),
+            );
         } else {
-            writeln!(err, "dx: coverage (0/0 lines)").ok();
+            dx_output::write_stderr(err, format_args!("dx: coverage (0/0 lines)\n"));
         }
     }
     let mut worst: Vec<(&String, u64, u64)> = account
@@ -307,10 +306,13 @@ pub(super) fn coverage_summary(
     if worst.is_empty() {
         return;
     }
-    writeln!(err, "dx: least covered files:").ok();
+    dx_output::write_stderr(err, format_args!("dx: least covered files:\n"));
     for (path, covered, eligible) in worst.into_iter().take(WORST_FILES) {
         let percent = 100.0 * covered as f64 / eligible as f64;
-        writeln!(err, "  {percent:5.1}%  {covered}/{eligible}  {path}").ok();
+        dx_output::write_stderr(
+            err,
+            format_args!("  {percent:5.1}%  {covered}/{eligible}  {path}\n"),
+        );
     }
 }
 
@@ -360,6 +362,7 @@ pub(super) fn sources_report(sources: &Sources, account: &CellAccount) -> String
         "orphans": account.orphans,
         "errors": errors,
     });
+    // a serde_json::Value always serializes
     serde_json::to_string_pretty(&document).unwrap_or_default() + "\n"
 }
 
@@ -397,10 +400,10 @@ pub(super) fn coverage_sources(
                 emit_built(out, notice_event(&notice(code, message.clone())))?;
             }
             OutputMode::Text { .. } if code == CODE_COVERAGE_SOURCES => {
-                writeln!(err, "dx: {message}").ok();
+                dx_output::write_stderr(err, format_args!("dx: {message}\n"));
             }
             OutputMode::Text { .. } => {
-                writeln!(err, "dx: {code}: {message}").ok();
+                dx_output::write_stderr(err, format_args!("dx: {code}: {message}\n"));
             }
             OutputMode::Diff => {}
         }

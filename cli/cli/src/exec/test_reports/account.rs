@@ -4,7 +4,6 @@ use super::{
     ReportError, TestCase, TestEvents, TestOutcome, TestResultFile, TestResultRecord, WorkflowVerb,
     Write, emit_built, notice_event, parse_test_xml, test_result_record,
 };
-use std::fmt::Write as _;
 
 /// Returns one exec path spelled without the build directory, so a report reads the same on every host.
 pub(super) fn stable_exec_path(exec_path: &Path) -> String {
@@ -273,6 +272,7 @@ pub(super) fn attach_log(
     }
     if let Some(log) = result.files.iter().find(|file| file.name == "test.log") {
         outcome.log_path = Some(log.exec_path.to_string_lossy().into_owned());
+        // An unreadable test log leaves the outcome without a log tail.
         outcome.log_tail = reader
             .read_artifact(&log.exec_path)
             .ok()
@@ -350,6 +350,7 @@ pub(super) fn text_location(text: &str) -> Option<(String, u64)> {
         .find_map(|token| {
             let mut parts = token.split(':');
             let path = parts.next()?;
+            // A token without a numeric line is not a source location.
             let line: u64 = parts.next()?.parse().ok()?;
             let relative = !path.starts_with('/') && !path.starts_with('\\');
             let named = path
@@ -519,7 +520,7 @@ pub(super) fn filtered_notice(
         labels.join(", ")
     );
     if more > 0 {
-        write!(message, " and {more} more").ok();
+        message.push_str(&format!(" and {more} more"));
     }
     match output {
         OutputMode::Json => {
@@ -529,7 +530,7 @@ pub(super) fn filtered_notice(
             )?;
         }
         OutputMode::Text { .. } => {
-            writeln!(err, "dx: tests_filtered: {message}").ok();
+            dx_output::write_stderr(err, format_args!("dx: tests_filtered: {message}\n"));
         }
         OutputMode::Diff => {}
     }
@@ -542,11 +543,11 @@ pub(super) fn results_document(
     complete: bool,
     bazel_code: i32,
     run_id: &str,
-) -> String {
-    let results: Vec<serde_json::Value> = reported
+) -> Result<String, dx_output::OutputError> {
+    let results = reported
         .iter()
-        .filter_map(|outcome| test_result_record(outcome).ok())
-        .collect();
+        .map(test_result_record)
+        .collect::<Result<Vec<_>, _>>()?;
     let document = serde_json::json!({
         "record_version": 1,
         "run_id": run_id,
@@ -554,7 +555,8 @@ pub(super) fn results_document(
         "complete": complete,
         "results": results,
     });
-    serde_json::to_string_pretty(&document).unwrap_or_default()
+    // a serde_json::Value always serializes
+    Ok(serde_json::to_string_pretty(&document).unwrap_or_default())
 }
 
 /// `testSummary` overall statuses keyed by target and configuration.

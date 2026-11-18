@@ -105,6 +105,7 @@ pub(crate) fn group_skipped(
             "allpaths({}, @rules_dx{constraint})",
             dx_plan::resolve::set_expression(labels)
         );
+        // A query that cannot be built or run leaves the skipped targets unknown.
         let argv = selection
             .selection_argv("cquery", &["--output=label".to_owned()], &expr)
             .ok()?;
@@ -201,7 +202,7 @@ pub(crate) fn skipped_notice(
                 emit_built(out, notice_event(&notice))?;
             }
             OutputMode::Text { .. } => {
-                writeln!(err, "dx: {message}").ok();
+                dx_output::write_stderr(err, format_args!("dx: {message}\n"));
             }
             OutputMode::Diff => {}
         }

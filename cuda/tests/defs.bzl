@@ -1,9 +1,9 @@
 """Test helpers for the dx CUDA family."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//cuda/private:defs.bzl", "cuda_gpu_env")
 load("//cuda/private/toolchain:check.bzl", "in_component")
-load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
 _COMPILER = "@rules_cuda//cuda:compiler"
 

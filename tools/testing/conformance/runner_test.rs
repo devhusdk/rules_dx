@@ -727,7 +727,11 @@ fn stage(
         }
     }
     if let (true, Ok(tree)) = (mirror, std::env::var("RUNFILES_DIR")) {
-        for suffix in [".runfiles", "_upstream.runfiles"] {
+        for suffix in [
+            ".runfiles",
+            "_upstream.runfiles",
+            "_upstream_upstream.runfiles",
+        ] {
             let mirror = with_suffix(&staged, suffix);
             std::fs::create_dir_all(&mirror).expect("runfiles mirror must be creatable");
             for entry in std::fs::read_dir(&tree)

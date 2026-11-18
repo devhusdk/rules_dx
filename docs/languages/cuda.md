@@ -260,7 +260,7 @@ CUDA builds and tests on:
 
 See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/support-matrix.md).
 
-On Windows, nvcc compiles with `cl.exe` from the hermetic Visual Studio Build Tools, so you don't set `--//cc:compiler`. The rest of the build, including the link, keeps your compiler. Accept both licenses in the root `MODULE.bazel`: `dx_licenses.accept(ids = ["cuda-eula", "visual-studio-build-tools"])`.
+On Windows, nvcc compiles with `cl.exe` from the hermetic Visual Studio Build Tools, so you don't set `--//cc:compiler`. `cuda_binary` and `cuda_test` build and link everything in them with `cl.exe`. Link a `cuda_library` into a `cuda_binary` or `cuda_test`: on Windows a `cc_binary` or `cc_test` only takes one under `--//cc:compiler=msvc`. Accept both licenses in the root `MODULE.bazel`: `dx_licenses.accept(ids = ["cuda-eula", "visual-studio-build-tools"])`.
 
 ## API docs
 

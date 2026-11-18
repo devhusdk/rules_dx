@@ -30,18 +30,9 @@ config_setting(
 )
 
 config_setting(
-    name = "windows_llvm",
+    name = "windows_msvc",
     constraint_values = ["@platforms//os:windows"],
-    flag_values = {"//cc:compiler": "llvm"},
-)
-
-config_setting(
-    name = "windows_llvm_msvcstl",
-    constraint_values = [
-        "@llvm//constraints/cxxstdlib:msvcstl",
-        "@platforms//os:windows",
-    ],
-    flag_values = {"//cc:compiler": "llvm"},
+    flag_values = {"//cc:compiler": "msvc"},
 )
 
 write_file(

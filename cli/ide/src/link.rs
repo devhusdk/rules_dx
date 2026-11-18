@@ -1,41 +1,20 @@
 use std::io;
 use std::path::Path;
 
-use dx_atomic_fs::{PointerKind, create_pointer};
+use dx_atomic_fs::{PointerKind, replace_pointer};
 
 /// Points `dir/name` at `target`, replacing any earlier link in one rename.
 pub fn link(dir: &Path, name: &str, target: &Path) -> io::Result<()> {
-    std::fs::create_dir_all(dir)?;
     let kind = if target.is_dir() {
         PointerKind::Directory
     } else {
         PointerKind::File
     };
-    place(dir, name, target, kind)?;
+    replace_pointer(target, &dir.join(name), kind)?;
     if cfg!(windows) && kind == PointerKind::File {
-        place(dir, &format!("{name}.exe"), target, kind)?;
+        replace_pointer(target, &dir.join(format!("{name}.exe")), kind)?;
     }
     Ok(())
-}
-
-fn place(dir: &Path, name: &str, target: &Path, kind: PointerKind) -> io::Result<()> {
-    let temp = dir.join(format!(".{name}.{}.tmp", std::process::id()));
-    drop(remove(&temp));
-    create_pointer(target, &temp, kind)?;
-    let final_path = dir.join(name);
-    if cfg!(windows) {
-        drop(remove(&final_path));
-    }
-    std::fs::rename(&temp, &final_path).inspect_err(|_| {
-        drop(remove(&temp));
-    })
-}
-
-fn remove(path: &Path) -> io::Result<()> {
-    match std::fs::remove_file(path) {
-        Err(_) if path.is_dir() => std::fs::remove_dir(path),
-        other => other,
-    }
 }
 
 #[cfg(unix)]

@@ -4,16 +4,18 @@ use dx_testing::read_runfiles;
 const SCRATCH: &str = "dx_atomic_fs::write_scratch(";
 const SHARD: &str = "documentation_ir::tool::write_shard(";
 const SYNCED: &str = "dx_atomic_fs::write_atomic(";
+const COPY_SCRATCH: &str = "dx_atomic_fs::copy_scratch(";
 const IN_PLACE: &str = "fs::write(";
 const HAND_RENAME: &str = "fs::rename(";
 
 /// Sources that write a whole file, with the dx_atomic_fs call each must commit it through.
-const WRITERS: [(&str, &str); 9] = [
+const WRITERS: [(&str, &str); 10] = [
     ("appimage/private/tools/packer/src/lib.rs", SCRATCH),
     ("apple/private/tools/ops/src/app_check.rs", SCRATCH),
     ("apple/private/tools/ops/src/xcframework_check.rs", SCRATCH),
     ("cli/shard_writer/src/lib.rs", SCRATCH),
     ("core/quality/runner/src/entry.rs", SCRATCH),
+    ("core/quality/runner/src/real/staging.rs", COPY_SCRATCH),
     ("tools/docs/ir/ir/src/tool.rs", SCRATCH),
     ("tools/docs/rust/extract/src/lib.rs", SHARD),
     ("tools/docs/support_matrix/src/main.rs", SYNCED),
@@ -25,7 +27,14 @@ const WRITERS: [(&str, &str); 9] = [
 const STAGED_WRITERS: [(&str, &str); 3] = [
     ("cli/shim/src/fetch.rs", "dx_atomic_fs::StagedFile::create("),
     ("deploy/private/src/oci.rs", "dx_atomic_fs::StagedFile::create("),
-    ("deploy/private/src/oci.rs", "dx_atomic_fs::commit::swap_tree("),
+    ("deploy/private/src/oci.rs", "dx_atomic_fs::commit::publish_tree_swap("),
+];
+
+/// Sources that replace a link or a tree through dx_atomic_fs instead of renaming by hand.
+const NO_HAND_RENAME: [&str; 3] = [
+    "cli/audit/src/image_scan.rs",
+    "cli/env/src/lib.rs",
+    "cli/ide/src/link.rs",
 ];
 
 /// Returns a writer's production half: everything above its test module.
@@ -70,6 +79,16 @@ fn every_staged_writer_commits_without_its_own_rename() {
         assert!(
             !text.contains(HAND_RENAME),
             "{writer} renames its own temporary file instead of using {commit}"
+        );
+    }
+}
+
+#[test]
+fn link_and_tree_swaps_go_through_dx_atomic_fs() {
+    for source in NO_HAND_RENAME {
+        assert!(
+            !production(source).contains(HAND_RENAME),
+            "{source} renames by hand instead of using dx_atomic_fs replace_pointer or publish_tree_swap"
         );
     }
 }

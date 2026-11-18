@@ -584,7 +584,7 @@ pub(super) fn place_qmllint_settings(
         if target == config || placed.contains(&target) {
             continue;
         }
-        dx_atomic_fs::copy_atomic(config, &target)
+        dx_atomic_fs::copy_scratch(config, &target)
             .map_err(|err| execution(tool_id, format!("place settings for {workspace}: {err}")))?;
         placed.push(target);
     }

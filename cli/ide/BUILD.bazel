@@ -89,6 +89,11 @@ exports_files(
     visibility = ["//core/quality:__pkg__"],
 )
 
+exports_files(
+    ["src/link.rs"],
+    visibility = ["//tools/ci:__pkg__"],
+)
+
 filegroup(
     name = "module_srcs",
     srcs = glob(["**"]),

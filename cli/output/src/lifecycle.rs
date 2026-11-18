@@ -875,7 +875,7 @@ fn case_value(case: &TestCase, message_limit: usize) -> Value {
     map.insert("name".to_owned(), Value::String(case.name.clone()));
     map.insert("outcome".to_owned(), Value::String(case.outcome.clone()));
     opt_str(&mut map, "file", &case.file);
-    opt_u64(&mut map, "line", case.line);
+    opt_u64(&mut map, "line", case.line.filter(|line| *line > 0));
     if let Some(message) = &case.message {
         map.insert(
             "message".to_owned(),
@@ -1885,6 +1885,26 @@ mod tests {
         );
         let bare = operation_event("run", "execute", None).expect("bare");
         assert!(bare.get("correlation").is_none());
+    }
+
+    #[test]
+    fn a_case_with_line_zero_leaves_the_line_out() {
+        let outcome = TestOutcome {
+            target: "//a:t".to_owned(),
+            outcome: "failed".to_owned(),
+            evidence_complete: true,
+            cases: vec![TestCase {
+                name: "t".to_owned(),
+                outcome: "failed".to_owned(),
+                line: Some(0),
+                ..TestCase::default()
+            }],
+            ..TestOutcome::default()
+        };
+        let event = test_outcome_event(&outcome).expect("event");
+        assert!(event["failing_cases"][0].get("line").is_none());
+        let record = test_result_record(&outcome).expect("record");
+        assert!(record["cases"][0].get("line").is_none());
     }
 
     #[test]

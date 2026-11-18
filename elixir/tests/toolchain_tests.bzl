@@ -3,6 +3,7 @@
 load("//elixir/private/tools:launcher.bzl", "MIX_FORMAT_ENV", "elixir_descriptor")
 load("//erlang/private/toolchain:pins.bzl", "CELLS", "OTP_VERSION")
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "starlark_test")
+load("//core:toolchain.bzl", "cell_repo")
 load("//elixir/private/toolchain:pins.bzl", "CREDO_PACKAGES", "ELIXIR_CELLS", "ELIXIR_OTP_MAJOR")
 load("//elixir/private/toolchain:repos.bzl", "CREDO_REWRITES", "DROPPED_PATHS", "credo_build", "credo_rewrites", "elixir_bat", "elixir_script", "hub_build")
 
@@ -112,7 +113,9 @@ def _checks():
         expect_equal("elixir runs only on qualified cells", ELIXIR_CELLS, ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64", "windows_arm64"]),
         expect_equal("the hub registers each Elixir cell", hub.count("toolchain("), len(ELIXIR_CELLS)),
         expect_false("the hub leaves the target platform open", "target_compatible_with" in hub),
-        expect_equal("the hub skips other OTP cells", [cell for cell in CELLS if cell not in ELIXIR_CELLS and '"' + cell + '"' in hub], []),
+        expect_equal("the hub skips other OTP cells", [cell for cell in CELLS if cell not in ELIXIR_CELLS and cell_repo("dx_elixir_toolchains", cell) in hub], []),
+        expect_contains("every cell uses the one Elixir distribution", hub, 'toolchain = "@dx_elixir//:toolchain",'),
+        expect_false("the hub names no per-cell repository", "@dx_elixir_toolchains__" in hub),
         expect_false("the hub names no rules_elixir target", "@rules_elixir" in hub),
         expect_contains("the hub names the rules_elixir type", hub, "//:toolchain_type"),
         expect_false("launcher keeps no bare options", "-ebin $ELIXIR_ERL_OPTIONS" in script),

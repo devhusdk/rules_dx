@@ -64,6 +64,7 @@ USER_BOOK = [
         "docs/cli/commands/clean.md",
         "//docs:cli/commands/clean.md",
     ),
+    mdbook_page("Fetch", "docs/cli/commands/fetch.md", "//docs:cli/commands/fetch.md"),
     mdbook_page(
         "Generate",
         "docs/cli/commands/generate.md",

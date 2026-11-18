@@ -134,7 +134,8 @@ fn plain_words(command: Command) -> Vec<String> {
         | Command::Docs
         | Command::Worktree
         | Command::Fuzz
-        | Command::Config => {}
+        | Command::Config
+        | Command::Fetch => {}
     }
     words
 }

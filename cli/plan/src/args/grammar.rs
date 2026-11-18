@@ -150,6 +150,7 @@ pub(crate) struct Flags {
     pub(crate) host: Option<String>,
     pub(crate) open: bool,
     pub(crate) offline: bool,
+    pub(crate) vendor: Option<String>,
     pub(crate) frozen: bool,
     pub(crate) outdated: bool,
     pub(crate) prune: bool,
@@ -605,6 +606,30 @@ flag_group! {
     OfflineFlag, {
         #[arg(long, overrides_with = "offline")]
         offline: bool,
+    }
+}
+
+flag_group! {
+    /// Never download; use only what dx fetch already fetched.
+    BazelOfflineFlag, {
+        #[arg(long, overrides_with = "offline")]
+        offline: bool,
+    }
+}
+
+flag_group! {
+    /// Run bazel vendor into DIR (default vendor_src) instead of bazel fetch.
+    VendorFlag, {
+        #[arg(
+            long,
+            value_name = "DIR",
+            num_args = 0..=1,
+            require_equals = true,
+            default_missing_value = "vendor_src",
+            overrides_with = "vendor",
+            value_parser = non_empty
+        )]
+        vendor: Option<String>,
     }
 }
 
@@ -1137,6 +1162,7 @@ command_args! {
     /// The flags `dx build` accepts.
     Build => 6, BazelTail, {
         output: OutputFlag,
+        offline: BazelOfflineFlag,
         own: BuildModeArgs,
         timings: TimingsFlag,
         no_retry: NoRetryFlag,
@@ -1149,6 +1175,7 @@ command_args! {
     /// The flags `dx test` accepts.
     Test => 7, BazelTail, {
         output: OutputFlag,
+        offline: BazelOfflineFlag,
         own: BuildModeArgs,
         timings: TimingsFlag,
         no_retry: NoRetryFlag,
@@ -1293,6 +1320,16 @@ command_args! {
     Fuzz => 23, NoPassthroughTail, { output: OutputFlag, own: FuzzArgs, here: HereFlag, };
     /// The flags `dx config` accepts.
     Config => 24, NoPassthroughTail, { output: OutputFlag, };
+    /// The flags `dx fetch` accepts.
+    Fetch => 25, BazelTail, {
+        output: OutputFlag,
+        vendor: VendorFlag,
+        own: BuildModeArgs,
+        here: HereFlag,
+        affected: AffectedFlag,
+        since: SinceFlag,
+        base: BaseFlag,
+    };
 }
 
 #[derive(Parser)]

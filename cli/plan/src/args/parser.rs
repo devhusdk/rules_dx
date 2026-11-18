@@ -12,6 +12,10 @@ use dx_worktree::HookKind;
 /// The build setting `--breaking-against` sets. The runner replaces the ref with a base image path.
 pub const BREAKING_AGAINST_OPTION: &str = "--//config:buf_breaking_against";
 
+/// What `dx build --offline` and `dx test --offline` ask of Bazel. Not `--nofetch`, which
+/// also refuses to extract repositories that `dx fetch` left in the repository cache.
+pub const OFFLINE_OPTION: &str = "--repository_disable_download";
+
 fn decode_scope(value: &OsStr) -> Result<String, ArgsError> {
     match value.to_str() {
         Some(text) => Ok(text.to_owned()),
@@ -35,6 +39,7 @@ fn affected_narrows_by_scope(command: Command) -> bool {
             | Command::Typecheck
             | Command::Format
             | Command::Check
+            | Command::Fetch
     )
 }
 
@@ -382,6 +387,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         host,
         open,
         offline,
+        vendor,
         frozen,
         outdated,
         prune,
@@ -518,6 +524,11 @@ fn parse_inner<S: AsRef<OsStr>>(
     };
     if let Some(reference) = breaking_against {
         bazel_options.insert(0, format!("{BREAKING_AGAINST_OPTION}={reference}"));
+    }
+    // A Bazel option rather than a dx-only flag, so the queries that resolve scopes and the
+    // follow-up sync carry it too.
+    if offline && matches!(command, Command::Build | Command::Test) {
+        bazel_options.insert(0, OFFLINE_OPTION.to_owned());
     }
     if command.is_managed()
         && let Err(error) = dx_setup::resolve_scope(&targets)
@@ -748,7 +759,8 @@ fn parse_inner<S: AsRef<OsStr>>(
             | Command::Watch
             | Command::Docs
             | Command::Worktree
-            | Command::Fuzz => {}
+            | Command::Fuzz
+            | Command::Fetch => {}
         }
     }
     if output_from_flag && !output_supported(command, &output_name) {
@@ -813,6 +825,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         host,
         open,
         offline,
+        vendor,
         frozen,
         outdated,
         prune,

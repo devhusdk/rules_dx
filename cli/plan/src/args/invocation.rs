@@ -328,6 +328,8 @@ pub struct Invocation {
     pub open: bool,
     /// The network policy: no rules_dx-controlled network acquisition when set.
     pub offline: bool,
+    /// `dx fetch --vendor`: the directory `bazel vendor` writes to.
+    pub vendor: Option<String>,
     /// The resolution policy: no manifest or lock resolution changes when set.
     pub frozen: bool,
     /// `dx update --outdated`: list packages whose newest stable version is out of range.
@@ -816,6 +818,7 @@ mod tests {
             host: None,
             open: false,
             offline: false,
+            vendor: None,
             frozen: false,
             outdated: false,
             prune: false,

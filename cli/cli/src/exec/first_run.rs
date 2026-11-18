@@ -130,6 +130,7 @@ pub fn first_run_notice(
             | Command::Format
             | Command::Typecheck
             | Command::Generate
+            | Command::Fetch
     );
     if !bazel_backed || !invocation.chatty() || !workspace.join("MODULE.bazel").is_file() {
         return None;

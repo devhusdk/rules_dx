@@ -25,6 +25,8 @@ pub(crate) const CODE_AUDIT_SECURITY_CLEAN: &str = "audit_security_clean";
 pub(crate) const CODE_AUDIT_LICENSE_CLEAN: &str = "audit_license_clean";
 pub(crate) const CODE_AUDIT_ACCEPTED: &str = "audit_accepted";
 pub(crate) const CODE_SECURITY_VERIFIED: &str = "security_verified";
+pub(crate) const CODE_DX_CACHED: &str = "dx_cached";
+pub(crate) const CODE_DX_NOT_CACHED: &str = "dx_not_cached";
 
 /// The info notice code for an audit family that came back clean.
 pub(crate) fn audit_clean_code(family: dx_audit::AuditFamily) -> &'static str {

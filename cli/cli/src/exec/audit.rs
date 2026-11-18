@@ -1729,7 +1729,8 @@ fn audit_family_of(command: Command) -> Option<dx_audit::AuditFamily> {
         | Command::Docs
         | Command::Worktree
         | Command::Fuzz
-        | Command::Config => None,
+        | Command::Config
+        | Command::Fetch => None,
     }
 }
 

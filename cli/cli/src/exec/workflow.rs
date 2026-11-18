@@ -90,6 +90,10 @@ fn execute_checked(
             &dx_process::unsupported_command(invocation.command.name()).to_string(),
         );
     };
+    let verb = match (verb, &invocation.vendor) {
+        (WorkflowVerb::Fetch, Some(_)) => WorkflowVerb::Vendor,
+        (verb, _) => verb,
+    };
     let bep = bep_path(temp_dir, pid, nonce);
     let Some(bep_text) = bep.to_str().map(ToString::to_string) else {
         return operational(
@@ -196,7 +200,10 @@ fn launch_plan(
         std::fs::remove_file(bep).ok();
         return kept_child(err, bazel_code, exit);
     }
-    if verb == WorkflowVerb::Build {
+    if matches!(
+        verb,
+        WorkflowVerb::Build | WorkflowVerb::Fetch | WorkflowVerb::Vendor
+    ) {
         let tail = BuildTail {
             workspace,
             query_runner,
@@ -239,7 +246,7 @@ fn plan_report_set(
     workspace: &std::path::Path,
 ) -> Result<ReportSet, String> {
     let results_default = invocation.output == OutputMode::Json
-        && invocation.command != Command::Build
+        && !matches!(invocation.command, Command::Build | Command::Fetch)
         && !invocation
             .reports
             .iter()
@@ -311,10 +318,18 @@ fn plan_for(
     } else {
         Some(invocation.build_mode())
     };
+    let mut bazel_options = bazel_options.to_vec();
+    if let Some(dir) = invocation
+        .vendor
+        .as_deref()
+        .filter(|_| verb == WorkflowVerb::Vendor)
+    {
+        bazel_options.push(format!("--vendor_dir={dir}"));
+    }
     plan_workflow(
         verb,
         resolved,
-        bazel_options,
+        &bazel_options,
         Some(bep_text),
         build_mode,
         &invocation.bazel_startup_options,
@@ -394,7 +409,8 @@ fn selection_context(invocation: &Invocation) -> Option<SelectionContext> {
         | Command::Docs
         | Command::Worktree
         | Command::Fuzz
-        | Command::Config => None,
+        | Command::Config
+        | Command::Fetch => None,
     }
 }
 
@@ -407,7 +423,7 @@ fn resolve_scope(
     err: &mut dyn Write,
 ) -> Result<dx_plan::resolve::ResolvedScope, i32> {
     let resolved = match (invocation.command, selection) {
-        (Command::Build, _) => resolve(
+        (Command::Build | Command::Fetch, _) => resolve(
             &invocation.targets,
             workspace,
             query_runner,
@@ -488,6 +504,17 @@ fn finish_build(
         std::fs::remove_file(bep).ok();
         return kept_child(err, bazel_code, exit);
     }
+    let cached = if bazel_code == 0 && invocation.command == Command::Fetch {
+        match super::dx_asset::cache_running_dx(workspace, invocation.output, out, err) {
+            Ok(cached) => cached,
+            Err(exit) => {
+                std::fs::remove_file(bep).ok();
+                return exit;
+            }
+        }
+    } else {
+        true
+    };
     let groups = group_skipped(&read_skipped(bep), invocation, workspace, query_runner);
     if let Err(exit) = skipped_notice(invocation.output, out, err, &groups) {
         std::fs::remove_file(bep).ok();
@@ -507,7 +534,7 @@ fn finish_build(
         Ok(landed) => landed,
         Err(exit) => return kept_child(err, bazel_code, exit),
     };
-    let code = if bazel_code == 0 && !reports_ok {
+    let code = if bazel_code == 0 && !(reports_ok && cached) {
         1
     } else {
         bazel_code

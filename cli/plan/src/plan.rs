@@ -107,8 +107,15 @@ fn layer_sets_diagnostics() -> bool {
     LAYER_SETS_DIAGNOSTICS.get().copied().unwrap_or(false)
 }
 
+/// `dx fetch` and `dx fetch --vendor` analyze their targets like a build, so they carry the
+/// shared settings to fetch what that build needs. Other `fetch` calls, such as
+/// `bazel fetch --repo`, analyze nothing and keep the plain head.
+fn takes_settings(bazel_command: &str) -> bool {
+    dx_process::takes_shared_settings(bazel_command) || matches!(bazel_command, "fetch" | "vendor")
+}
+
 fn settings_in(repo: &str, bazel_command: &str, layered: bool) -> Vec<String> {
-    if dx_process::takes_shared_settings(bazel_command) && !layered {
+    if takes_settings(bazel_command) && !layered {
         head_settings(repo)
     } else {
         Vec::new()
@@ -176,7 +183,7 @@ fn bazel_argv_in(
     startup_options: &[String],
     layered: bool,
 ) -> Result<Vec<String>, DxError> {
-    let settings = if dx_process::takes_shared_settings(bazel_command) {
+    let settings = if takes_settings(bazel_command) {
         head_settings(repo)
     } else {
         Vec::new()
@@ -385,7 +392,9 @@ mod tests {
             assert_eq!(settings_for("rules_dx", verb), BAZEL_SETTINGS, "{verb}");
         }
         assert_eq!(settings_for("my_dx", "query"), [] as [String; 0]);
-        assert_eq!(settings_for("my_dx", "fetch"), [] as [String; 0]);
+        assert_eq!(settings_for("my_dx", "mod"), [] as [String; 0]);
+        assert_eq!(settings_for("rules_dx", "fetch"), BAZEL_SETTINGS);
+        assert_eq!(settings_for("rules_dx", "vendor"), BAZEL_SETTINGS);
     }
 
     #[test]

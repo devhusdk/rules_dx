@@ -242,6 +242,23 @@ fn assert_registry_consumer(candidate: &Candidate, archive: &Path, built_integri
     }
     ok(&check, "dx check");
 
+    stage("dx fetch");
+    ok(&dx(&case, "fetch", &["//..."]), "dx fetch");
+    stage("dx test --offline");
+    // `--offline` alone only refuses downloads; blocking every URL as well proves the test
+    // run needs nothing `dx fetch` did not already put in the repository cache.
+    let blocked = case.root().join("block_all_downloads.cfg");
+    write(&blocked, b"block *\n");
+    let downloader = format!("--downloader_config={}", blocked.display());
+    ok(
+        &dx(
+            &case,
+            "test",
+            &["--offline", "//...", "--", downloader.as_str()],
+        ),
+        "dx test --offline",
+    );
+
     #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
     {
         assert_gcc_consumer(&case);

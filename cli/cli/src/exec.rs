@@ -19,6 +19,7 @@ mod dep_edit;
 mod deploy;
 mod docs;
 mod docs_index;
+mod dx_asset;
 mod failure;
 mod failure_reports;
 pub mod first_run;
@@ -360,9 +361,12 @@ fn dispatch_inner(invocation: &Invocation, env: Env<'_>) -> i32 {
         Command::Watch => crate::adopt::watch::execute_watch(invocation, env),
         Command::Check => umbrella::execute_umbrella(invocation, env),
         Command::Bench => bench::execute_bench(invocation, env),
-        Command::Build | Command::Test | Command::Coverage | Command::Run | Command::Deploy => {
-            workflow::execute_workflow(invocation, env)
-        }
+        Command::Build
+        | Command::Test
+        | Command::Coverage
+        | Command::Run
+        | Command::Deploy
+        | Command::Fetch => workflow::execute_workflow(invocation, env),
         Command::Generate => generate::execute_generate(invocation, env),
         Command::Clean => clean::execute_clean(invocation, env),
         Command::Sync => managed::execute_managed(invocation, env),
@@ -426,7 +430,7 @@ mod tests {
         assert_ne!(code, 141);
     }
 
-    const QUIET_ROWS: [(Command, &[&str]); 12] = [
+    const QUIET_ROWS: [(Command, &[&str]); 13] = [
         (Command::Generate, &["generate"]),
         (Command::Docs, &["docs"]),
         (Command::Sync, &["sync"]),
@@ -448,6 +452,7 @@ mod tests {
         (Command::Typecheck, &["typecheck"]),
         (Command::Format, &["format"]),
         (Command::Check, &["check"]),
+        (Command::Fetch, &["fetch"]),
     ];
 
     const NO_BAZEL_BUILD: [Command; 11] = [
@@ -481,9 +486,12 @@ mod tests {
         run.argv
             .into_iter()
             .filter(|argv| {
-                argv.iter()
-                    .take_while(|arg| *arg != "--")
-                    .any(|arg| matches!(arg.as_str(), "build" | "run" | "test" | "coverage"))
+                argv.iter().take_while(|arg| *arg != "--").any(|arg| {
+                    matches!(
+                        arg.as_str(),
+                        "build" | "run" | "test" | "coverage" | "fetch"
+                    )
+                })
             })
             .collect()
     }

@@ -181,9 +181,11 @@ pub(super) fn render_report(
                 Ok(combined)
             }
         }
-        WorkflowVerb::Build | WorkflowVerb::Bench | WorkflowVerb::Run => {
-            Err(dx_error::DxError::failure(detail))
-        } // LCOV_EXCL_LINE - reason: defensive arm, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+        WorkflowVerb::Build
+        | WorkflowVerb::Bench
+        | WorkflowVerb::Run
+        | WorkflowVerb::Fetch
+        | WorkflowVerb::Vendor => Err(dx_error::DxError::failure(detail)), // LCOV_EXCL_LINE - reason: defensive arm, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
     }
 }
 

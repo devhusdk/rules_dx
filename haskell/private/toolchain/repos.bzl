@@ -610,7 +610,7 @@ def hub_files(cells = CELLS, musl_cells = MUSL_CELLS, host_os = None, host_arch 
             target_compatible_with = target,
             target_settings = [_TOOLCHAINS_ON],
             toolchain = "@{}//:toolchain-impl".format(cell_repository_name(cell)),
-            toolchain_type = str(Label("@rules_haskell//haskell:toolchain")),
+            toolchain_type = str(Label("//haskell/private/toolchain:toolchain_type")),
         ))
         content.append("config_setting(\n    name = \"{}_platform\",\n    constraint_values = {},\n)\n".format(
             cell,
@@ -631,7 +631,7 @@ def hub_files(cells = CELLS, musl_cells = MUSL_CELLS, host_os = None, host_arch 
             target_compatible_with = cells[cross.target].exec_compatible_with,
             target_settings = [_TOOLCHAINS_ON],
             toolchain = "@{}//:toolchain-impl".format(cell_repository_name(name)),
-            toolchain_type = str(Label("@rules_haskell//haskell:toolchain")),
+            toolchain_type = str(Label("//haskell/private/toolchain:toolchain_type")),
         ))
     cc_toolchains = [
         toolchain_target(

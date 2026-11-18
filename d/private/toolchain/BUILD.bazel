@@ -12,6 +12,8 @@ exports_files([
     "extensions.bzl",
 ])
 
+toolchain_type(name = "toolchain_type")
+
 unsupported_value("unsupported")
 
 cell_settings(
@@ -40,10 +42,8 @@ cc_library(
 
 filegroup(
     name = "module_srcs",
-    srcs = glob([
-        "*.bzl",
+    srcs = glob(["*.bzl"]) + [
         "BUILD.bazel",
-    ]) + [
         "msvc_iso_stdio.c",
     ],
     visibility = ["//:__subpackages__"],

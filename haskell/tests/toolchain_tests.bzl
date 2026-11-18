@@ -123,7 +123,7 @@ def _checks():
     darwin_rts = drop_host_sdk_dirs(_DARWIN_RTS_CONF)
     settings = ghc_settings(_SETTINGS)
     windows_settings = ghc_settings(_SETTINGS.replace("\"Merge objects command\", \"/usr/bin/ld.gold\"", "\"Merge objects command\", \"\"").replace("\"ar command\", \"/usr/bin/ar\"", "\"ar command\", \"$topdir/../mingw//bin/llvm-ar.exe\"").replace("\"windres command\", \"/bin/false\"", "\"windres command\", \"$topdir/../mingw//bin/llvm-windres.exe\"").replace("\"C compiler link flags\", \"--target=x86_64-linux-gnu -fuse-ld=gold\"", "\"C compiler link flags\", \"-fuse-ld=lld --rtlib=compiler-rt -D_UCRT\""))
-    checks = hub_checks(hub_files()["BUILD.bazel"], str(Label("@rules_haskell//haskell:toolchain")), 9, ["@rules_haskell"]) + [
+    checks = hub_checks(hub_files()["BUILD.bazel"], str(Label("//haskell/private/toolchain:toolchain_type")), 9, ["@rules_haskell"]) + [
         expect_equal("cells", sorted(CELLS.keys()), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]),
         expect_equal("qualified cells", qualified_cells(), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]),
         expect_equal("windows is unblocked", CELLS["windows_x86_64"].blocker, ""),

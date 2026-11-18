@@ -11,7 +11,7 @@ def _checks():
     linux = OCAML_CELLS["linux_x86_64"]
     ocaml = [p for p in linux.packages if p.name == "ocaml"][0]
     macos = {p.name: p for p in OCAML_CELLS["macos_arm64"].packages}
-    return hub_checks(hub_build(), "//toolchain/type:std", 2 * len([e for c in OCAML_CELLS.values() for e in c.emitters]), ["@rules_ocaml"]) + [
+    return hub_checks(hub_build(), "//ocaml/private/toolchain/type:std", 2 * len([e for c in OCAML_CELLS.values() for e in c.emitters]), ["@rules_ocaml"]) + [
         expect_equal("linux emitters", linux.emitters, ["sys", "vm"]),
         expect_equal("cell repositories are named after the hub", dist_repository_name("linux_x86_64"), "dx_ocaml_toolchains__linux_x86_64"),
         expect_contains("the profile toolchain shares the emitter constraints", hub_build(), "toolchain = \"@dx_ocaml_toolchains__linux_x86_64//:sys_profile\","),

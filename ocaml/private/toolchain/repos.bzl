@@ -172,11 +172,11 @@ def hub_build():
         pins_hub(
             HUB_NAME,
             OCAML_CELLS.keys(),
-            str(Label("@rules_ocaml//toolchain/type:std")),
+            str(Label("//ocaml/private/toolchain/type:std")),
             "both",
             aliases,
             variants = EMITTERS,
-            companion_types = {"profile": str(Label("@rules_ocaml//toolchain/type:profile"))},
+            companion_types = {"profile": str(Label("//ocaml/private/toolchain/type:profile"))},
             alias_defaults = {alias: ":none" for alias in EMPTY_DEFAULT_ALIASES},
         ),
         _NONE,

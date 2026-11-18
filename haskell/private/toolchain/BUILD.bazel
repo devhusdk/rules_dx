@@ -13,6 +13,8 @@ exports_files([
     "transition.bzl",
 ])
 
+toolchain_type(name = "toolchain_type")
+
 unsupported_value("unsupported")
 
 cell_settings(

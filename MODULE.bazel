@@ -704,7 +704,7 @@ dx_pins.pin(
         "flang",
     ],
     pins = "//fortran:pins.json",
-    toolchain_type = "@rules_fortran//fortran:toolchain_type",
+    toolchain_type = "//fortran/private/toolchain:toolchain_type",
 )
 dx_pins.pin(
     name = "dx_php",
@@ -1032,6 +1032,7 @@ dx_pins.archive(
     patches = [
         "//patches/rules_d:pic_link.patch",
         "//patches/rules_d:disabled_features.patch",
+        "//patches/rules_d:toolchain_type_alias.patch",
     ],
     pins = "//d:pins.json",
 )
@@ -1117,6 +1118,7 @@ dx_pins.archive(
         "//patches/rules_haskell:cabal_static_exe.patch",
         "//patches/rules_haskell:ghc_xcode_env.patch",
         "//patches/rules_haskell:llvm_backend.patch",
+        "//patches/rules_haskell:toolchain_type_alias.patch",
     ],
     pins = "//haskell:pins.json",
 )
@@ -1136,6 +1138,7 @@ dx_pins.archive(
         "//patches/rules_elixir:warnings_as_errors.patch",
         "//patches/rules_elixir:relocatable_tree.patch",
         "//patches/rules_elixir:windows_ex_unit_test.patch",
+        "//patches/rules_elixir:toolchain_type_alias.patch",
     ],
     pins = "//elixir:pins.json",
 )
@@ -1158,6 +1161,7 @@ dx_pins.archive(
         "//patches/rules_erlang:05_windows_eunit_cover.patch",
         "//patches/rules_erlang:06_coverage_enabled.patch",
         "//patches/rules_erlang:07_windows_ct_cover.patch",
+        "//patches/rules_erlang:toolchain_type_alias.patch",
     ],
     pins = "//erlang:pins.json",
 )
@@ -1210,7 +1214,10 @@ dx_pins.archive(
         "examples",
         "test",
     ],
-    patches = ["//patches/rules_fortran:module_map_key.patch"],
+    patches = [
+        "//patches/rules_fortran:module_map_key.patch",
+        "//patches/rules_fortran:toolchain_type_alias.patch",
+    ],
     pins = "//fortran:pins.json",
 )
 dx_pins.archive(
@@ -1230,6 +1237,7 @@ dx_pins.archive(
         "//patches/rules_ocaml:native_cc_env.patch",
         "//patches/rules_ocaml:platform_alias.patch",
         "//patches/rules_ocaml:static_cc_deps.patch",
+        "//patches/rules_ocaml:toolchain_type_alias.patch",
     ],
     pins = "//ocaml:pins.json",
 )
@@ -1941,8 +1949,8 @@ zig_hub.lock(
 use_repo(zig_hub, "zig_zig.tests.fixtures.zig_deps")
 
 register_toolchains(
-    "//core/quality:busybox_sh_linux_x86_64",
-    "//core/quality:busybox_sh_windows_x86_64",
+    "//core/quality/sh:busybox_sh_linux_x86_64",
+    "//core/quality/sh:busybox_sh_windows_x86_64",
 )
 
 # floor: equals tested

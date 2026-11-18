@@ -1,0 +1,14 @@
+Upstream: none (rules_dx only: aliases the toolchain type to rules_dx)
+--- a/tools/BUILD.bazel
++++ b/tools/BUILD.bazel
+@@ -1,8 +1,9 @@
+ load("//tools:erlang_headers.bzl", "erlang_headers")
+ load("//tools:erlang_vars.bzl", "erlang_vars")
+ 
+-toolchain_type(
++alias(
+     name = "toolchain_type",
++    actual = "@rules_dx//erlang/private/toolchain:exec_toolchain_type",
+     visibility = ["//visibility:public"],
+ )
+ 

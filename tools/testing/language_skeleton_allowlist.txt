@@ -182,6 +182,7 @@ private-visibility d/private/toolchain/BUILD.bazel
 private-visibility dart/private/BUILD.bazel
 private-visibility dart/private/tools/BUILD.bazel
 private-visibility dotnet/private/fuzz/BUILD.bazel
+private-visibility elixir/private/toolchain/BUILD.bazel
 private-visibility elixir/private/tools/BUILD.bazel
 private-visibility erlang/private/BUILD.bazel
 private-visibility erlang/private/toolchain/BUILD.bazel
@@ -206,6 +207,7 @@ private-visibility ocaml/private/quality/BUILD.bazel
 private-visibility ocaml/private/toolchain/BUILD.bazel
 private-visibility ocaml/private/toolchain/platform/emitter/BUILD.bazel
 private-visibility ocaml/private/toolchain/platform/executor/BUILD.bazel
+private-visibility ocaml/private/toolchain/type/BUILD.bazel
 private-visibility perl/private/BUILD.bazel
 private-visibility perl/private/tools/BUILD.bazel
 private-visibility php/private/toolchain/BUILD.bazel
@@ -226,7 +228,7 @@ private-visibility swift/private/tools/BUILD.bazel
 private-visibility typescript/private/playwright/BUILD.bazel
 private-visibility zig/private/BUILD.bazel
 private-visibility zig/private/tools/BUILD.bazel
-register-label core/quality
+register-label core/quality/sh
 register-label java/private/toolchain
 register-label kotlin/private/toolchain
 register-label scala/private/toolchain

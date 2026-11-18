@@ -10,6 +10,8 @@ exports_files([
     "toolchain.bzl",
 ])
 
+toolchain_type(name = "toolchain_type")
+
 [
     config_setting(
         name = "cell_" + cell,
@@ -32,9 +34,6 @@ real_source_target(
 
 filegroup(
     name = "module_srcs",
-    srcs = glob([
-        "*.bzl",
-        "BUILD.bazel",
-    ]),
+    srcs = glob(["*.bzl"]) + ["BUILD.bazel"],
     visibility = ["//:__subpackages__"],
 )

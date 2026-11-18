@@ -681,8 +681,9 @@ mod tests {
         let module = std::fs::read_to_string(root.join("MODULE.bazel")).expect("module");
         assert!(
             module.contains(&format!(
-                "{}\ndx_licenses.accept(ids = [\"cuda-eula\"])\n",
-                dx_adopt::licenses::LICENSE_EXTENSION_LINE
+                "{}\ndx_licenses.accept(ids = [\"cuda-eula\"], terms_sha256 = {{\"cuda-eula\": \"{}\"}})\n",
+                dx_adopt::licenses::LICENSE_EXTENSION_LINE,
+                dx_adopt::licenses::terms_sha256("cuda-eula").expect("cuda-eula terms")
             )),
             "{module}"
         );

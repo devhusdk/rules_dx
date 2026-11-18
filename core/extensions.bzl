@@ -2,7 +2,7 @@
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load("//cli/prebuilt:extension.bzl", _dx_prebuilt = "dx_prebuilt")
-load(":license.bzl", "LICENSE_IDS", "unknown_ids")
+load(":license.bzl", "LICENSE_IDS", "accepted_terms", "terms_errors", "unknown_ids")
 load(":repo.bzl", "ARCHIVE_TYPES", "hub_repo", "pinned_archive")
 load(":root_only.bzl", "warn_dropped_tags")
 load(":toolchain.bzl", "cell_archive_rule", "cell_repo", "host_archive_rule", "pins_hub")
@@ -172,6 +172,7 @@ dx_source_archives = module_extension(
 
 def _dx_licenses_impl(mctx):
     ids = []
+    tags = []
     warn_dropped_tags("dx_licenses", mctx.modules, ["accept"])
     for mod in mctx.modules:
         if not mod.is_root:
@@ -181,7 +182,11 @@ def _dx_licenses_impl(mctx):
             if unknown:
                 fail("dx_licenses: unknown license id " + ", ".join(unknown) + "; the ids are " + ", ".join(LICENSE_IDS))
             ids.extend([name for name in tag.ids if name not in ids])
-    hub_repo(name = "dx_licenses", files = {"BUILD.bazel": "", "accepted.json": json.encode(sorted(ids))})
+            tags.append(tag)
+    errors = terms_errors(tags)
+    if errors:
+        fail("\n".join(errors))
+    hub_repo(name = "dx_licenses", files = {"BUILD.bazel": "", "accepted.json": json.encode(accepted_terms(ids))})
     return mctx.extension_metadata(reproducible = True)
 
 dx_licenses = module_extension(
@@ -190,7 +195,10 @@ dx_licenses = module_extension(
     tag_classes = {
         "accept": tag_class(
             doc = "Accepts the listed license ids.",
-            attrs = {"ids": attr.string_list(mandatory = True, doc = "License ids: " + ", ".join(LICENSE_IDS) + ".")},
+            attrs = {
+                "ids": attr.string_list(mandatory = True, doc = "License ids: " + ", ".join(LICENSE_IDS) + "."),
+                "terms_sha256": attr.string_dict(doc = "The terms hash each id was accepted at, as `dx init --accept-license` writes it. A hash that no longer matches the license's current terms fails with the tag to re-accept."),
+            },
         ),
     },
 )

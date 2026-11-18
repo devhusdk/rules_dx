@@ -9,6 +9,30 @@ use std::path::Path;
 pub const LICENSE_EXTENSION_LINE: &str =
     "dx_licenses = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_licenses\")";
 
+/// `core/license.bzl`, the one source of each license's terms hash.
+const LICENSE_BZL: &str = include_str!("../../../core/license.bzl");
+
+/// The `terms_sha256` that `core/license.bzl` pins for `id`: the `NAME = "<id>"` constant,
+/// then the `NAME: struct(url = ..., terms_sha256 = "<hash>")` entry of `LICENSES`.
+#[must_use]
+pub fn terms_sha256(id: &str) -> Option<&'static str> {
+    let quoted_id = format!(" = \"{id}\"");
+    let constant = LICENSE_BZL
+        .lines()
+        .find_map(|line| line.strip_suffix(quoted_id.as_str()))?;
+    let entry = format!("{constant}: struct(");
+    let line = LICENSE_BZL
+        .lines()
+        .find_map(|line| line.trim_start().strip_prefix(entry.as_str()))?;
+    let (_, rest) = line.split_once("terms_sha256 = \"")?;
+    rest.split_once('"').map(|(hash, _)| hash)
+}
+
+/// Whether `word` is a sha256 hex digest, the value side of a `terms_sha256` entry.
+fn is_sha256(word: &str) -> bool {
+    word.len() == 64 && word.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
 /// A license id the workspace needs and the language that needs it.
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct NeededLicense {
@@ -123,7 +147,11 @@ pub fn accepted_license_ids(module: &str) -> BTreeSet<String> {
                 .next_back()
                 .is_none_or(|ch| !(ch.is_alphanumeric() || ch == '_' || ch == '.'));
             if boundary {
-                ids.extend(quoted(call_body(after)));
+                ids.extend(
+                    quoted(call_body(after))
+                        .into_iter()
+                        .filter(|word| !is_sha256(word)),
+                );
             }
             rest = after;
         }
@@ -132,7 +160,8 @@ pub fn accepted_license_ids(module: &str) -> BTreeSet<String> {
 }
 
 /// The lines that accept `ids` in `module`: the `use_extension` line when no name binds the
-/// extension, then one `accept` tag. Empty when `ids` is empty.
+/// extension, then one `accept` tag that pins the current terms hash of each id, so a later
+/// change of the terms asks for a new acceptance. Empty when `ids` is empty.
 pub fn render_license_accept(module: &str, ids: &BTreeSet<String>) -> String {
     if ids.is_empty() {
         return String::new();
@@ -151,7 +180,21 @@ pub fn render_license_accept(module: &str, ids: &BTreeSet<String>) -> String {
         "dx_licenses".to_owned()
     };
     let list: Vec<String> = ids.iter().map(|id| format!("\"{id}\"")).collect();
-    writeln!(lines, "{name}.accept(ids = [{}])", list.join(", ")).ok();
+    let pins: Vec<String> = ids
+        .iter()
+        .filter_map(|id| terms_sha256(id).map(|hash| format!("\"{id}\": \"{hash}\"")))
+        .collect();
+    if pins.is_empty() {
+        writeln!(lines, "{name}.accept(ids = [{}])", list.join(", ")).ok();
+    } else {
+        writeln!(
+            lines,
+            "{name}.accept(ids = [{}], terms_sha256 = {{{}}})",
+            list.join(", "),
+            pins.join(", ")
+        )
+        .ok();
+    }
     lines
 }
 
@@ -173,10 +216,30 @@ mod tests {
     }
 
     #[test]
+    fn every_known_id_has_a_terms_hash() {
+        for id in known_license_ids() {
+            assert!(terms_sha256(&id).is_some_and(is_sha256), "{id}");
+        }
+        assert_eq!(terms_sha256("nope"), None);
+    }
+
+    #[test]
+    fn accepted_ids_skip_the_terms_hashes() {
+        let hash = "a".repeat(64);
+        let module = format!(
+            "{LICENSE_EXTENSION_LINE}\ndx_licenses.accept(ids = [\"cuda-eula\"], terms_sha256 = {{\"cuda-eula\": \"{hash}\"}})\n"
+        );
+        assert_eq!(accepted_license_ids(&module), set(&["cuda-eula"]));
+    }
+
+    #[test]
     fn render_adds_the_extension_only_when_unbound() {
         assert_eq!(
             render_license_accept("module(name = \"m\")\n", &set(&["cuda-eula"])),
-            format!("{LICENSE_EXTENSION_LINE}\ndx_licenses.accept(ids = [\"cuda-eula\"])\n")
+            format!(
+                "{LICENSE_EXTENSION_LINE}\ndx_licenses.accept(ids = [\"cuda-eula\"], terms_sha256 = {{\"cuda-eula\": \"{}\"}})\n",
+                terms_sha256("cuda-eula").expect("cuda-eula terms")
+            )
         );
         assert_eq!(
             render_license_accept(

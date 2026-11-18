@@ -37,7 +37,6 @@ d format_error_test *
 d format_test *
 d lint_error_test *
 d lint_test *
-d lock_test *
 elixir cross_test windows_x86_64
 erlang cross_test windows_x86_64
 flutter runfiles_test *

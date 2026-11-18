@@ -1,0 +1,58 @@
+load("//asciidoc:defs.bzl", "asciidoc_library")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+asciidoc_library(
+    name = "conformance",
+    srcs = ["clean.adoc"],
+    aspect_hints = ["//core/quality:corpus_vale_config"],
+)
+
+asciidoc_library(
+    name = "lint_dirty",
+    srcs = ["lint_dirty.adoc"],
+    aspect_hints = ["//core/quality:corpus_vale_config"],
+    tags = ["manual"],
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":conformance",
+    covered_source = "",
+    expected = "",
+    failing_case = "",
+    failing_test = ":conformance",
+    lang = "asciidoc",
+    not_applicable = {
+        "build_test": "asciidoc has no binary rule",
+        "coverage_test": "asciidoc has no test rule",
+        "cross_test": "asciidoc has no binary rule",
+        "fail_test": "asciidoc has no test rule",
+        "format_error_test": "no maintained AsciiDoc formatter exists",
+        "format_test": "no maintained AsciiDoc formatter exists",
+        "lock_test": "asciidoc has no package manager",
+        "pass_test": "asciidoc has no test rule",
+        "runfiles_test": "asciidoc has no binary rule",
+    },
+    passing_test = ":conformance",
+    quality = {
+        "clean": ":conformance",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 3,
+        "lint_rule": "Dx.Markers",
+        "lint_source": "lint_dirty.adoc",
+    },
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

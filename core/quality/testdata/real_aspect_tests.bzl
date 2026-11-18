@@ -66,7 +66,7 @@ aspect_field subject_label=//core/quality/testdata:fixture_real_java_hinted_subj
 aspect_field transitive_count=0
 subject //core/quality/testdata:fixture_real_javascript_subject
 field dx_count=3
-field dx_results=fixture_real_javascript-real-format.pb,fixture_real_javascript-real-lint-text.pb,fixture_real_javascript-real-lint.pb
+field dx_results=fixture_real_javascript-real-format-biome.pb,fixture_real_javascript-real-lint-biome.pb,fixture_real_javascript-real-lint-text.pb
 field has_quality_sources=True
 field label=//core/quality/testdata:fixture_real_javascript
 aspect_field aspect_seen=True
@@ -86,7 +86,7 @@ aspect_field subject_label=//core/quality/testdata:fixture_real_json5_subject
 aspect_field transitive_count=0
 subject //core/quality/testdata:fixture_real_json_subject
 field dx_count=2
-field dx_results=fixture_real_json-real-format.pb,fixture_real_json-real-lint.pb
+field dx_results=fixture_real_json-real-format-biome.pb,fixture_real_json-real-lint-biome.pb
 field has_quality_sources=True
 field label=//core/quality/testdata:fixture_real_json
 aspect_field aspect_seen=True
@@ -96,7 +96,7 @@ aspect_field subject_label=//core/quality/testdata:fixture_real_json_subject
 aspect_field transitive_count=0
 subject //core/quality/testdata:fixture_real_jsonc_subject
 field dx_count=2
-field dx_results=fixture_real_jsonc-real-format.pb,fixture_real_jsonc-real-lint.pb
+field dx_results=fixture_real_jsonc-real-format-biome.pb,fixture_real_jsonc-real-lint-biome.pb
 field has_quality_sources=True
 field label=//core/quality/testdata:fixture_real_jsonc
 aspect_field aspect_seen=True
@@ -106,7 +106,7 @@ aspect_field subject_label=//core/quality/testdata:fixture_real_jsonc_subject
 aspect_field transitive_count=0
 subject //core/quality/testdata:fixture_real_jsx_subject
 field dx_count=3
-field dx_results=fixture_real_jsx-real-format.pb,fixture_real_jsx-real-lint-text.pb,fixture_real_jsx-real-lint.pb
+field dx_results=fixture_real_jsx-real-format-biome.pb,fixture_real_jsx-real-lint-biome.pb,fixture_real_jsx-real-lint-text.pb
 field has_quality_sources=True
 field label=//core/quality/testdata:fixture_real_jsx
 aspect_field aspect_seen=True
@@ -306,7 +306,7 @@ aspect_field subject_label=//core/quality/testdata:fixture_real_toml_subject
 aspect_field transitive_count=0
 subject //core/quality/testdata:fixture_real_tsx_subject
 field dx_count=3
-field dx_results=fixture_real_tsx-real-format.pb,fixture_real_tsx-real-lint-text.pb,fixture_real_tsx-real-lint.pb
+field dx_results=fixture_real_tsx-real-format-biome.pb,fixture_real_tsx-real-lint-biome.pb,fixture_real_tsx-real-lint-text.pb
 field has_quality_sources=True
 field label=//core/quality/testdata:fixture_real_tsx
 aspect_field aspect_seen=True
@@ -316,7 +316,7 @@ aspect_field subject_label=//core/quality/testdata:fixture_real_tsx_subject
 aspect_field transitive_count=0
 subject //core/quality/testdata:fixture_real_typescript_subject
 field dx_count=3
-field dx_results=fixture_real_typescript-real-format.pb,fixture_real_typescript-real-lint-text.pb,fixture_real_typescript-real-lint.pb
+field dx_results=fixture_real_typescript-real-format-biome.pb,fixture_real_typescript-real-lint-biome.pb,fixture_real_typescript-real-lint-text.pb
 field has_quality_sources=True
 field label=//core/quality/testdata:fixture_real_typescript
 aspect_field aspect_seen=True

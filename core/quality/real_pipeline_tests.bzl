@@ -9,7 +9,8 @@ load("//sql/private:providers.bzl", "sql_dialect_error")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY", "real_supported_classes")
 load(":pipeline.bzl", "authorize_classes", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_stages", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load(":policy.bzl", "family_section_error")
-load(":real_core.bzl", "real_merged_output_groups")
+load(":families/core.bzl", _CORE_SHARD_SPECS = "SHARD_SPECS", _CORE_TOOLS = "TOOLS")
+load(":real_core.bzl", "real_config", "real_merged_output_groups")
 load(":unavailable_tool.bzl", "DxUnavailableToolInfo")
 
 visibility("private")
@@ -103,11 +104,20 @@ def _merged_groups(groups):
     merged = real_merged_output_groups([{k: depset(v) for k, v in group.items()} for group in groups])
     return {k: v.to_list() for k, v in merged.items()}
 
+def _always_on_tool_attrs(names):
+    shards = real_config(_CORE_TOOLS, _CORE_SHARD_SPECS).shards
+    return sorted([attr for shard in ["real_format", "real_lint", "real_typecheck"] for attr in shards[shard]["attrs"] if attr in names])
+
 def real_pipeline_unit_tests(name):
     starlark_test(
         name = name,
         mode = "unit",
         checks = [
+            expect_equal(
+                "the core shards every scoped check attaches carry no biome, typos or vale attr",
+                _always_on_tool_attrs(["_biome", "_typos", "_vale"]),
+                [],
+            ),
             expect_equal(
                 "merged output groups keep the results and skip notes of every target",
                 [

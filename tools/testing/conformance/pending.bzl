@@ -34,7 +34,9 @@ cuda coverage_test *
 cuda cross_test *
 cuda lint_error_test *
 cuda lint_test *
-d cross_test *
+d cross_test macos_arm64
+d cross_test windows_arm64
+d cross_test windows_x86_64
 d format_error_test *
 d format_test *
 d lint_error_test *

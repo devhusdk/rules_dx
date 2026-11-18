@@ -1041,17 +1041,13 @@ mod tests {
             &srcs,
         )
         .expect("pack");
-        let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(
-            std::fs::File::open(&tgz).expect("open"),
-        ));
-        let mut modes = std::collections::BTreeMap::new();
-        for entry in archive.entries().expect("entries") {
-            let entry = entry.expect("entry");
-            let name = String::from_utf8_lossy(&entry.path_bytes()).into_owned();
-            modes.insert(name, entry.header().mode().expect("mode"));
-        }
-        assert_eq!(modes["package/bin/cli.js"], 0o755);
-        assert_eq!(modes["package/dist/index.js"], 0o644);
+        let modes: std::collections::BTreeMap<String, Option<u32>> =
+            tar_gz_members(&std::fs::read(&tgz).expect("open"))
+                .into_iter()
+                .map(|(name, mode, _)| (name, mode))
+                .collect();
+        assert_eq!(modes["package/bin/cli.js"], Some(0o755));
+        assert_eq!(modes["package/dist/index.js"], Some(0o644));
     }
 
     #[test]

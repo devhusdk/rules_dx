@@ -2,7 +2,7 @@
 //!
 //! Members are written exactly as given, without name, link-target or duplicate checks.
 
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 
 /// Builds a ustar image whose header name bytes are copied verbatim.
 pub struct RawTar {
@@ -58,6 +58,11 @@ impl RawTar {
         self.append(name, tar::EntryType::Regular, None, data)
     }
 
+    /// Adds a directory named `name` verbatim.
+    pub fn add_dir(&mut self, name: &str) -> io::Result<()> {
+        self.append(name, tar::EntryType::Directory, None, &[])
+    }
+
     /// Adds a symlink with `target` verbatim.
     pub fn add_symlink(&mut self, name: &str, target: &str) -> io::Result<()> {
         self.append(name, tar::EntryType::Symlink, Some(target), &[])
@@ -94,8 +99,31 @@ impl RawZip {
 
     /// Adds a stored regular file.
     pub fn add_file(&mut self, name: &str, data: &[u8]) -> io::Result<()> {
+        self.add_file_with(name, data, stored())
+    }
+
+    /// Adds a stored regular file made on Unix with permission bits `mode`.
+    pub fn add_unix_file(&mut self, name: &str, data: &[u8], mode: u32) -> io::Result<()> {
+        self.add_file_with(
+            name,
+            data,
+            stored().unix_permissions(mode).system(zip::System::Unix),
+        )
+    }
+
+    /// Adds a stored regular file made on DOS, so it carries no unix mode.
+    pub fn add_dos_file(&mut self, name: &str, data: &[u8]) -> io::Result<()> {
+        self.add_file_with(name, data, stored().system(zip::System::Dos))
+    }
+
+    fn add_file_with(
+        &mut self,
+        name: &str,
+        data: &[u8],
+        options: zip::write::SimpleFileOptions,
+    ) -> io::Result<()> {
         self.writer
-            .start_file(name, stored())
+            .start_file(name, options)
             .map_err(io::Error::other)?;
         self.writer.write_all(data)
     }
@@ -118,4 +146,39 @@ impl RawZip {
     pub fn finish(self) -> io::Result<Vec<u8>> {
         Ok(self.writer.finish().map_err(io::Error::other)?.into_inner())
     }
+}
+
+/// One zip central-directory entry with the header fields fixtures assert on.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ZipEntry {
+    pub name: String,
+    pub deflated: bool,
+    pub made_on_unix: bool,
+    /// `(year, month, day)` of the DOS timestamp.
+    pub date: (u16, u8, u8),
+    pub unix_mode: Option<u32>,
+    pub data: Vec<u8>,
+}
+
+/// Reads every entry of a zip image in index order.
+pub fn zip_entries(image: &[u8]) -> io::Result<Vec<ZipEntry>> {
+    let mut zip = zip::ZipArchive::new(io::Cursor::new(image)).map_err(io::Error::other)?;
+    (0..zip.len())
+        .map(|index| {
+            let mut entry = zip.by_index(index).map_err(io::Error::other)?;
+            let date = entry
+                .last_modified()
+                .map_or((0, 0, 0), |t| (t.year(), t.month(), t.day()));
+            let mut data = Vec::new();
+            entry.read_to_end(&mut data)?;
+            Ok(ZipEntry {
+                name: entry.name().map_err(io::Error::other)?.into_owned(),
+                deflated: entry.compression() == zip::CompressionMethod::Deflated,
+                made_on_unix: entry.system() == zip::System::Unix,
+                date,
+                unix_mode: entry.unix_mode().map(|mode| mode & 0o7777),
+                data,
+            })
+        })
+        .collect()
 }

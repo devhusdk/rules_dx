@@ -6,15 +6,27 @@ use std::path::Path;
 
 /// Gzips a one-member tar whose name is written raw, so unsafe names like `../x` survive.
 pub(crate) fn raw_tar_gz(name: &str, body: &[u8]) -> Vec<u8> {
-    let mut raw = tar::Header::new_gnu();
-    raw.set_entry_type(tar::EntryType::Regular);
-    raw.set_size(body.len() as u64);
-    raw.set_mode(0o644);
-    raw.as_gnu_mut().expect("gnu").name[..name.len()].copy_from_slice(name.as_bytes());
-    raw.set_cksum();
-    let mut builder = tar::Builder::new(Vec::new());
-    builder.append(&raw, body).expect("append");
-    dx_archive::gzip(&builder.into_inner().expect("tar")).expect("gz")
+    let mut tar = dx_archive_testing::RawTar::new();
+    tar.add_file(name, body).expect("append");
+    dx_archive::gzip(&tar.finish().expect("tar")).expect("gz")
+}
+
+/// Lists the name, permission bits and body of every member of a plain tar image.
+pub(crate) fn tar_members(tar: &[u8]) -> Vec<(String, Option<u32>, Vec<u8>)> {
+    let mut members = Vec::new();
+    dx_archive::visit_tar_entries(tar, dx_archive::Limits::default(), |entry, body| {
+        let mut data = Vec::new();
+        body.read_to_end(&mut data)?;
+        members.push((entry.name.to_owned(), entry.mode, data));
+        Ok(())
+    })
+    .expect("read tar");
+    members
+}
+
+/// Like [`tar_members`] for a tar.gz image.
+pub(crate) fn tar_gz_members(gz: &[u8]) -> Vec<(String, Option<u32>, Vec<u8>)> {
+    tar_members(&dx_archive::gunzip(gz, 1 << 30).expect("gunzip"))
 }
 
 static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
@@ -121,16 +133,13 @@ pub(crate) fn write_crate_file(root: &Path, rel: &str, body: &str) -> std::path:
 }
 
 pub(crate) fn write_nupkg(path: &Path, entries: &[(&str, &str)]) {
-    use std::io::Write as _;
-    let file = std::fs::File::create(path).expect("create nupkg");
-    let mut writer = zip::ZipWriter::new(file);
+    let mut writer = dx_archive::ZipWriter::new();
     for (name, body) in entries {
         writer
-            .start_file(*name, zip::write::SimpleFileOptions::default())
-            .expect("start entry");
-        writer.write_all(body.as_bytes()).expect("write entry");
+            .add_file(name, body.as_bytes(), 0o644)
+            .expect("write entry");
     }
-    writer.finish().expect("finish nupkg");
+    std::fs::write(path, writer.finish().expect("finish nupkg")).expect("write nupkg");
 }
 
 pub(crate) fn nuspec(id: &str, version: &str) -> String {

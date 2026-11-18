@@ -18,6 +18,7 @@ rust_binary(
         normal = True,
     ) + [
         ":dx_symbols",
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "//cli/process:dx_process",
     ],

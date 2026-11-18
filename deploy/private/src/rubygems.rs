@@ -340,7 +340,7 @@ pub fn rubygems_main(
             ))
         }
     });
-    drop(std::fs::remove_dir_all(&staging));
+    dx_atomic_fs::discard_dir(&staging);
     match result {
         Ok(message) => {
             println!("{message}");

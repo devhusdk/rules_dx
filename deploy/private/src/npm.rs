@@ -227,7 +227,7 @@ pub fn npm_write_npmrc(host: &str, token: &str) -> io::Result<std::path::PathBuf
     match write_secure_file(&dir, ".npmrc", &npm_npmrc_line(host, token)) {
         Ok(path) => Ok(path),
         Err(error) => {
-            drop(std::fs::remove_dir_all(&dir));
+            dx_atomic_fs::discard_dir(&dir);
             Err(error)
         }
     }
@@ -422,7 +422,7 @@ pub fn npm_run_publish(npm: &Path, host: &str, token: &str, args: &[std::ffi::Os
             .arg(&npmrc),
     );
     if let Some(dir) = npmrc.parent() {
-        drop(std::fs::remove_dir_all(dir));
+        dx_atomic_fs::discard_dir(dir);
     }
     match output {
         Ok(out) => {
@@ -573,7 +573,7 @@ fn npm_api_check(
 ) -> Result<(String, Outcome), String> {
     let work = tempfile_stage_dir("npm-api-").map_err(|error| format!("npm_deploy: {error}"))?;
     let result = npm_api_diff(staged_tgz, name, check, &work);
-    drop(std::fs::remove_dir_all(&work));
+    dx_atomic_fs::discard_dir(&work);
     result
 }
 

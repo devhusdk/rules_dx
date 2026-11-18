@@ -1,5 +1,5 @@
 {
-  "checksum": "aaf362738850b9f88ac75afe6084ae881d58b38d95d60a1825f72f5754dbdef3",
+  "checksum": "07e433e7c0c18a9d896111909306f7850549a4db1c740004b096a8b83de0b73c",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -7808,6 +7808,10 @@
           {
             "id": "thiserror 2.0.20",
             "target": "thiserror"
+          },
+          {
+            "id": "tracing 0.1.44",
+            "target": "tracing"
           }
         ],
         "edition": "2024"

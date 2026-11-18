@@ -1700,6 +1700,7 @@ version = "0.0.0"
 dependencies = [
  "tempfile",
  "thiserror 2.0.20",
+ "tracing",
 ]
 
 [[package]]

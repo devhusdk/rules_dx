@@ -488,7 +488,7 @@ fn pages_deploy_with(
         }
     };
     let code = pages_deploy_staged(launch, &files, wrangler, env, &work, intent, out, err);
-    drop(std::fs::remove_dir_all(&work));
+    dx_atomic_fs::discard_dir(&work);
     code
 }
 

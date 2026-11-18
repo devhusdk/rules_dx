@@ -116,6 +116,8 @@ jobs:
             echo "::error::dx printed no affected plan (exit $planned)"
             exit 1
           fi
+          # Show why the set is the size it is: the changed files, and any that widened it.
+          jq -c 'select(.event == "command_started") | .affected | {base, changed_files, widened}' "$plan"
           labels="$RUNNER_TEMP/affected/labels"
           jq -r 'select(.event == "command_started") | .affected.targets[]' "$plan" > "$labels"
           if [ ! -s "$labels" ]; then
@@ -123,14 +125,15 @@ jobs:
             echo "shards=[]" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # Drop the tests other workflows own, so no shard is left with only tests Bazel
-          # would filter out. $t is a query variable, not a shell one.
+          # A widened plan is a pattern such as //..., so keep only the tests it names and drop
+          # the ones `bazel test` would skip: manual tests and those other workflows own.
+          # $t is a query variable, not a shell one.
           query="$RUNNER_TEMP/affected/query"
           # shellcheck disable=SC2016
           {
-            printf 'let t = set('
+            printf 'let t = tests(set('
             tr '\n' ' ' < "$labels"
-            printf '%s\n' ') in $t except attr(tags, "(\[|, )(resources:nested_bazel:1|starter-consumer|network-consumer)(,|\])", $t)'
+            printf '%s\n' ')) in $t except attr(tags, "(\[|, )(manual|resources:nested_bazel:1|starter-consumer|network-consumer)(,|\])", $t)'
           } > "$query"
           # A change to a shared library can reach most of the repository (2,544 tests for
           # cli/path), far more than one runner tests in 30 minutes, so the tests run as

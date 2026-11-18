@@ -266,6 +266,10 @@ fn shards_come_from_the_plan() {
         .parse()
         .expect("per labels");
     assert!((1..=300).contains(&per), "per {per}");
+    // A widened plan is //..., which the query would otherwise expand to every
+    // target, 25,758 of them, instead of the tests `bazel test //...` runs.
+    assert!(plan_run.contains("let t = tests(set("), "{plan_run}");
+    assert!(plan_run.contains("(manual|"), "{plan_run}");
     assert!(plan_run.contains("range(0; length; $per)"), "{plan_run}");
     assert!(plan_run.contains("echo \"labels=$slices\""), "{plan_run}");
     let affected = job(WORKFLOW, "affected").unwrap();

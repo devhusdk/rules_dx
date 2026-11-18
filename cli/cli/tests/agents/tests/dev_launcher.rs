@@ -38,6 +38,34 @@ fn dev_launchers_keep_their_structure() {
     }
     assert_eq!(depth, 0, "unbalanced blocks in tools/dx.cmd");
     assert!(fail_reads >= 1, "the repin retry reads the exit code");
+    // Without USERPROFILE, LOCALAPPDATA and PSModulePath (a Bazel test env), the first
+    // cmdlet from an auto-loaded module rescans every module on each PowerShell spawn.
+    for cmdlet in cmdlets(&cmd) {
+        assert!(
+            cmdlet == "ForEach-Object" || cmdlet == "Where-Object",
+            "tools/dx.cmd calls {cmdlet}; use .NET or a Core cmdlet"
+        );
+    }
+}
+
+/// Every `Verb-Noun` word in `text`: two `[A-Z][A-Za-z]+` words joined by `-`.
+fn cmdlets(text: &str) -> Vec<String> {
+    let cmdlet_part = |w: &str| {
+        let mut c = w.chars();
+        c.next().is_some_and(|f| f.is_ascii_uppercase())
+            && w.len() > 1
+            && w.chars().all(|c| c.is_ascii_alphabetic())
+    };
+    let mut found = Vec::new();
+    for token in text.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '-')) {
+        let parts: Vec<&str> = token.split('-').collect();
+        for pair in parts.windows(2) {
+            if cmdlet_part(pair[0]) && cmdlet_part(pair[1]) {
+                found.push(format!("{}-{}", pair[0], pair[1]));
+            }
+        }
+    }
+    found
 }
 
 use dx_process::RcPolicy;

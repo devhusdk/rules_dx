@@ -1,4 +1,9 @@
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::string_slice
+)]
 
 //! The lock step of a dx class ecosystem and the only writer of `<ecosystem>.lock.json`.
 
@@ -481,15 +486,15 @@ pub fn main(spec: &Spec, resolver: &dyn Resolver) -> ExitCode {
     });
     match outcome {
         Ok((Outcome::Stale, args)) => {
-            eprintln!(
+            dx_error::stdio::eprint_line(format_args!(
                 "{} is stale; run `dx generate --apply`",
                 args.dir.join(spec.lock_name()).display()
-            );
+            ));
             ExitCode::from(1)
         }
         Ok(_) => ExitCode::SUCCESS,
         Err(error) => {
-            eprintln!("{}: {error}", spec.lock_name());
+            dx_error::stdio::eprint_line(format_args!("{}: {error}", spec.lock_name()));
             ExitCode::from(2)
         }
     }

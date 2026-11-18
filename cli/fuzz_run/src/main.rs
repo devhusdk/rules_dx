@@ -1,6 +1,11 @@
 //! Runs one fuzz binary for `dx fuzz` and collects the crash files it leaves.
 
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::string_slice
+)]
 
 mod run;
 #[cfg(test)]

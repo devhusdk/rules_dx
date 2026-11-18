@@ -359,10 +359,10 @@ impl WatchSession {
         // Symlinks such as `bazel-out` point at trees that never trigger a rerun.
         let mut notify_config = notify::Config::default().with_follow_symlinks(false);
         if poll {
-            eprintln!(
+            dx_error::stdio::eprint_line(format_args!(
                 "watching by polling every {}s",
                 WATCH_POLL_INTERVAL.as_secs()
-            );
+            ));
             notify_config = notify_config.with_poll_interval(WATCH_POLL_INTERVAL);
         }
         let config = notify_debouncer_mini::Config::default()

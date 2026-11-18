@@ -515,7 +515,10 @@ fn report_unreadable(path: &Path, error: &std::io::Error) {
     static REPORTED: Mutex<BTreeSet<PathBuf>> = Mutex::new(BTreeSet::new());
     let mut reported = REPORTED.lock().unwrap_or_else(PoisonError::into_inner);
     if reported.insert(path.to_path_buf()) {
-        eprintln!("dx: cannot read rc file {}: {error}", path.display());
+        dx_error::stdio::eprint_line(format_args!(
+            "dx: cannot read rc file {}: {error}",
+            path.display()
+        ));
     }
 }
 

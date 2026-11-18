@@ -49,7 +49,6 @@ astro format_error_test *
 astro format_test *
 astro lint_error_test *
 astro lint_test *
-cc coverage_test windows_x86_64
 cuda coverage_test *
 cuda cross_test *
 cuda lint_error_test *

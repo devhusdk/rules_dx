@@ -311,7 +311,9 @@ fn open_pull_request(
         })?;
         Ok(format!("opened {}", created.trim()))
     })();
-    git(&["checkout", "-f", &base]).ok();
+    if let Err(error) = git(&["checkout", "-f", &base]) {
+        tracing::warn!(%error, %base, "cannot check out the base branch after the advisory pull request");
+    }
     built
 }
 

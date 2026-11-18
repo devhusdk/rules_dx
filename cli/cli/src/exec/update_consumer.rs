@@ -562,6 +562,7 @@ impl CheckGuard {
             files: paths
                 .into_iter()
                 .map(|rel| {
+                    // A path that does not resolve inside the workspace is never restored.
                     let resolved =
                         dx_path::workspace::resolve_target_in_workspace(workspace, rel).ok();
                     let before = resolved.as_ref().and_then(|path| std::fs::read(path).ok());
@@ -585,11 +586,14 @@ impl CheckGuard {
                 let link = workspace.join(&rel);
                 if std::fs::symlink_metadata(&link)
                     .is_ok_and(|metadata| metadata.file_type().is_symlink())
+                    && let Err(error) = std::fs::remove_file(&link)
                 {
-                    std::fs::remove_file(&link).ok();
+                    tracing::warn!(%error, path = %link.display(), "cannot remove the escaping link");
                 }
-                if let Some(bytes) = &before {
-                    dx_atomic_fs::write_atomic(&stored, bytes).ok();
+                if let Some(bytes) = &before
+                    && let Err(error) = dx_atomic_fs::write_atomic(&stored, bytes)
+                {
+                    tracing::warn!(%error, path = %stored.display(), "cannot restore the checked file");
                 }
                 wrote.push(rel);
                 continue;
@@ -597,11 +601,12 @@ impl CheckGuard {
             if std::fs::read(&stored).ok() == before {
                 continue;
             }
-            match &before {
+            if let Err(error) = match &before {
                 Some(bytes) => dx_atomic_fs::write_atomic(&stored, bytes),
                 None => std::fs::remove_file(&stored),
+            } {
+                tracing::warn!(%error, path = %stored.display(), "cannot restore the checked file");
             }
-            .ok();
             wrote.push(rel);
         }
         (!wrote.is_empty()).then_some(wrote)

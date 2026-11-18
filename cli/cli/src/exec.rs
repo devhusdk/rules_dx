@@ -71,14 +71,23 @@ mod test_reports;
 pub(crate) mod test_support;
 #[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod umbrella;
+#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod update;
+#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod update_add_missing;
+#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod update_advisory;
+#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 pub(crate) mod update_outdated;
+#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod update_pr;
+#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod update_prune;
+#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod update_unused;
+#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod update_version;
+#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod update_version_add;
 #[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod workflow;

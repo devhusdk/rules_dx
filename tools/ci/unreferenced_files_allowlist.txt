@@ -6,7 +6,6 @@ cc/tests/fixtures/clang_tidy/BUILD.bazel orphan-target 1
 cc/tests/fixtures/cpp_app/BUILD.bazel orphan-target 1
 cc/tests/fixtures/deployment_floors/BUILD.bazel orphan-target 4
 cc/tests/fixtures/strict_generation/BUILD.bazel orphan-target 2
-cli/cli/tests/fixtures/help_goldens/BUILD.bazel orphan-target 5
 core/env/tests/fixtures/env_codegen/BUILD.bazel orphan-target 1
 core/quality/artifacts/acquire_test/repos.bzl unloaded-bzl 1
 core/quality/testdata/helm/BUILD.bazel orphan-target 1

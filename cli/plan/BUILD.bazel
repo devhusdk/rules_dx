@@ -207,7 +207,6 @@ rust_test(
     crate_root = "src/lib.rs",
     data = [
         "//:MODULE.bazel",
-        "//cli/cli/tests/fixtures/help_goldens:goldens",
         "//core/modules:versions.bzl",
         "//core/quality:BUILD.bazel",
         "//core/quality:adapters.bzl",

@@ -198,6 +198,7 @@ fn collect_gcov(ctx: &Context, gcov: &str) -> Result<String, String> {
         Err(_) => String::new(),
     };
     let notes = gcov::gcno_by_key(&manifest);
+    let workspace = env::var("TEST_WORKSPACE").unwrap_or_default();
     let mut gcdas = Vec::new();
     gcov::gcda_files(&ctx.coverage_dir, &mut gcdas);
     let tool = ctx.tool(gcov);
@@ -206,7 +207,10 @@ fn collect_gcov(ctx: &Context, gcov: &str) -> Result<String, String> {
         let Some(key) = gcov::object_key(&gcda.to_string_lossy()) else {
             continue;
         };
-        let Some(note) = notes.get(&key).and_then(|n| ctx.object(n)) else {
+        let note = notes.get(&key).or_else(|| {
+            gcov::runfiles_key(&key, &workspace).and_then(|runfiles| notes.get(&runfiles))
+        });
+        let Some(note) = note.and_then(|n| ctx.object(n)) else {
             debug_log!("No .gcno for {}", gcda.display());
             continue;
         };

@@ -527,6 +527,7 @@ DOC_TOOLS = {
 }
 
 NOT_LANGUAGES = [
+    "api",
     "containers",
     "bcr_test_module",
     "ci",

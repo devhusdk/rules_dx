@@ -176,7 +176,6 @@ private-visibility cc/private/toolchain/BUILD.bazel
 private-visibility cc/private/toolchain/gcc_features/BUILD.bazel
 private-visibility cuda/private/gpu/BUILD.bazel
 private-visibility cuda/private/toolchain/BUILD.bazel
-private-visibility d/private/BUILD.bazel
 private-visibility d/private/toolchain/BUILD.bazel
 private-visibility dart/private/BUILD.bazel
 private-visibility dart/private/tools/BUILD.bazel
@@ -187,7 +186,6 @@ private-visibility erlang/private/BUILD.bazel
 private-visibility erlang/private/toolchain/BUILD.bazel
 private-visibility erlang/private/tools/BUILD.bazel
 private-visibility flutter/private/BUILD.bazel
-private-visibility fortran/private/BUILD.bazel
 private-visibility fortran/private/toolchain/BUILD.bazel
 private-visibility haskell/private/toolchain/BUILD.bazel
 private-visibility javascript/private/BUILD.bazel
@@ -225,7 +223,6 @@ private-visibility swift/private/platforms/BUILD.bazel
 private-visibility swift/private/toolchain/BUILD.bazel
 private-visibility swift/private/tools/BUILD.bazel
 private-visibility typescript/private/playwright/BUILD.bazel
-private-visibility zig/private/BUILD.bazel
 private-visibility zig/private/tools/BUILD.bazel
 register-label core/quality/sh
 register-label java/private/toolchain

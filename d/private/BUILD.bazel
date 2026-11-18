@@ -17,12 +17,6 @@ exports_files([
     "rules_d.BUILD.bazel",
 ])
 
-config_setting(
-    name = "coverage",
-    values = {"collect_code_coverage": "true"},
-    visibility = ["//visibility:public"],
-)
-
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [

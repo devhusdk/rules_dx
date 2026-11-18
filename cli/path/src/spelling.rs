@@ -59,6 +59,7 @@ pub fn msys(path: &Path) -> String {
     let mut chars = text.chars();
     if let (Some(letter), Some(':')) = (chars.next(), chars.next())
         && letter.is_ascii_alphabetic()
+        && chars.as_str().starts_with('/')
     {
         let drive = letter.to_ascii_lowercase();
         return format!("/{drive}{}", chars.as_str());
@@ -126,5 +127,12 @@ mod tests {
                 spell_of(text, Spelling::Posix)
             );
         }
+    }
+
+    #[test]
+    fn msys_keeps_a_drive_relative_path_relative() {
+        assert_eq!(spell_of(r"C:notes\a.md", Spelling::Msys), "C:notes/a.md");
+        assert_eq!(spell_of("C:", Spelling::Msys), "C:");
+        assert_eq!(spell_of("C:/", Spelling::Msys), "/c/");
     }
 }

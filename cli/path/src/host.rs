@@ -32,7 +32,12 @@ pub fn executable_suffix(name: &str) -> Option<&'static str> {
 /// Reports whether one name is a device Windows reserves.
 #[must_use]
 pub fn is_reserved_device(name: &str) -> bool {
-    let stem = name.split('.').next().unwrap_or(name).to_ascii_lowercase();
+    let stem = name
+        .split('.')
+        .next()
+        .unwrap_or(name)
+        .trim_end_matches(' ')
+        .to_ascii_lowercase();
     RESERVED_STEMS.contains(&stem.as_str())
 }
 
@@ -62,5 +67,14 @@ mod tests {
     fn the_filename_follows_the_named_platform() {
         assert_eq!(host_filename_for("python", true), "python.exe");
         assert_eq!(host_filename_for("python", false), "python");
+    }
+
+    #[test]
+    fn a_reserved_stem_with_trailing_spaces_or_dots_is_rejected() {
+        for name in ["nul ", "NUL  .txt", "com1 ", "aux. ", "con.", "lpt9 .log"] {
+            assert!(is_reserved_device(name), "{name:?}");
+        }
+        assert!(!is_reserved_device(" nul"));
+        assert!(!is_reserved_device(""));
     }
 }

@@ -54,13 +54,13 @@ impl Resolver {
             return Resolver::new(Runfiles::builder().directory(tree), tree.clone(), true);
         }
         if let Some(manifest) = manifest_beside(binary) {
-            let text = std::fs::read_to_string(&manifest)?;
+            let text = read_manifest(&manifest)?;
             return Resolver::new(Runfiles::builder().manifest(text), manifest, false);
         }
         if let Some(tree) = tree {
             let manifest = tree.join("MANIFEST");
             if manifest.is_file() {
-                let text = std::fs::read_to_string(&manifest)?;
+                let text = read_manifest(&manifest)?;
                 return Resolver::new(Runfiles::builder().manifest(text), manifest, false);
             }
             return Resolver::new(Runfiles::builder().directory(&tree), tree, true);
@@ -75,12 +75,12 @@ impl Resolver {
             }
             let manifest = with_suffix(ancestor, "_manifest");
             if manifest.is_file() {
-                let text = std::fs::read_to_string(&manifest)?;
+                let text = read_manifest(&manifest)?;
                 return Resolver::new(Runfiles::builder().manifest(text), manifest, false);
             }
             let manifest = ancestor.join("MANIFEST");
             if manifest.is_file() {
-                let text = std::fs::read_to_string(&manifest)?;
+                let text = read_manifest(&manifest)?;
                 return Resolver::new(Runfiles::builder().manifest(text), manifest, false);
             }
             if ancestor.is_dir() {
@@ -156,6 +156,9 @@ impl Resolver {
                 format!("{key} is not in {}", self.source.display()),
             )
         };
+        if !is_plain_key(key) {
+            return Err(not_found());
+        }
         let path = self
             .inner
             .rlocation_from(key, source_repo)
@@ -176,6 +179,19 @@ impl Resolver {
             directory,
         })
     }
+}
+
+/// Reads one manifest as text, naming it in any error.
+fn read_manifest(manifest: &Path) -> io::Result<String> {
+    std::fs::read_to_string(manifest)
+        .map_err(|error| io::Error::new(error.kind(), format!("{}: {error}", manifest.display())))
+}
+
+/// Whether a key is absolute or a relative path with no `.` or `..` component.
+fn is_plain_key(key: &str) -> bool {
+    !key.is_empty()
+        && (crate::is_absolute(key)
+            || !key.contains('\\') && key.split('/').all(|part| !matches!(part, "." | "..")))
 }
 
 /// Returns the first `.runfiles` directory on one path, when there is one.
@@ -788,5 +804,46 @@ mod tests {
         }
         std::fs::write(&path, body).expect("write");
         path
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_manifest_that_is_not_text_names_itself_in_the_error() {
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-binary-manifest-").unwrap();
+        let dir = scratch.path().to_path_buf();
+        let binary = write(&dir, "tool", "binary\n");
+        std::fs::write(dir.join("tool.runfiles_manifest"), b"_main/a \xff\n").unwrap();
+        let error = Resolver::for_binary(&binary).expect_err("not text");
+        assert!(
+            error.to_string().contains("tool.runfiles_manifest"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn a_manifest_with_crlf_lines_resolves() {
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-crlf-").unwrap();
+        let dir = scratch.path().to_path_buf();
+        let binary = write(&dir, "tool", "binary\n");
+        write(
+            &dir,
+            "tool.runfiles_manifest",
+            "_main/a out/a\r\n_main/b out/b\r\n",
+        );
+        let resolver = Resolver::for_binary(&binary).expect("resolver");
+        assert_eq!(found(&resolver, "_main/a"), PathBuf::from("out/a"));
+        assert_eq!(found(&resolver, "_main/b"), PathBuf::from("out/b"));
+    }
+
+    #[test]
+    fn a_tree_lookup_never_leaves_the_tree() {
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-escape-").unwrap();
+        let dir = scratch.path().to_path_buf();
+        write(&dir, "secret.txt", "x");
+        write(&dir, "tree/_main/a.txt", "x");
+        let resolver = Resolver::for_tree(&dir.join("tree")).expect("resolver");
+        for key in ["../secret.txt", "_main/../../secret.txt", "", "/secret.txt"] {
+            assert!(resolver.lookup(key).is_err(), "{key:?}");
+        }
     }
 }

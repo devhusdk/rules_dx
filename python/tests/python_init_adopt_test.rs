@@ -14,7 +14,7 @@ fn read(path: &Path) -> String {
 
 #[test]
 fn init_adopts_an_existing_python_tree() {
-    let scratch = dx_test_scratch::scratch("python-service-adopt");
+    let scratch = dx_test_scratch::scratch("python-service-adopt").unwrap();
     let dir = scratch.path();
     write(
         &dir.join("pyproject.toml"),

@@ -650,7 +650,7 @@ mod tests {
 
     impl Harness {
         fn new(name: &str) -> Self {
-            let scratch = dx_test_scratch::scratch(name);
+            let scratch = dx_test_scratch::scratch(name).unwrap();
             let root = scratch.path().to_path_buf();
             let temp_dir = root.join(".tmp");
             std::fs::create_dir_all(&temp_dir).expect("temp dir");
@@ -957,9 +957,9 @@ mod tests {
 
     #[test]
     fn watch_iteration_writing_its_report_does_not_queue_another() {
-        let scratch = dx_test_scratch::scratch("dx-watch-report-");
+        let scratch = dx_test_scratch::scratch("dx-watch-report-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        let temp_scratch = dx_test_scratch::scratch("dx-watch-report-tmp-");
+        let temp_scratch = dx_test_scratch::scratch("dx-watch-report-tmp-").unwrap();
         let temp_dir = temp_scratch.path().to_path_buf();
         std::fs::create_dir_all(workspace.join("src")).expect("src dir");
         let query = NullQuery;
@@ -1027,9 +1027,9 @@ mod tests {
             }
         }
 
-        let scratch = dx_test_scratch::scratch("dx-watch-during-run-");
+        let scratch = dx_test_scratch::scratch("dx-watch-during-run-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        let temp_scratch = dx_test_scratch::scratch("dx-watch-during-run-tmp-");
+        let temp_scratch = dx_test_scratch::scratch("dx-watch-during-run-tmp-").unwrap();
         let temp_dir = temp_scratch.path().to_path_buf();
         let query = NullQuery;
         let runner = WritingRunner {
@@ -1534,7 +1534,7 @@ mod tests {
         runner: &AppRunner,
         wait: impl FnMut(&dx_adopt::watch::WatchSession, Duration) -> Result<Vec<PathBuf>, AdoptError>,
     ) -> (i32, String, String) {
-        let scratch = dx_test_scratch::scratch("dx-watch-run-");
+        let scratch = dx_test_scratch::scratch("dx-watch-run-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let temp_dir = workspace.join(".tmp");
         std::fs::create_dir_all(&temp_dir).expect("temp dir");
@@ -1794,7 +1794,7 @@ mod tests {
 
     #[test]
     fn watch_holds_a_slot_per_iteration_and_none_while_idle() {
-        let scratch = dx_test_scratch::scratch("dx-watch-slot-idle-");
+        let scratch = dx_test_scratch::scratch("dx-watch-slot-idle-").unwrap();
         let dir = scratch.path().join("slots");
         let idle_checks = std::cell::Cell::new(0);
         let (code, busy, err) = slot_watch(
@@ -1824,7 +1824,7 @@ mod tests {
 
     #[test]
     fn each_watch_iteration_reclaims() {
-        let scratch = dx_test_scratch::scratch("dx-watch-slot-reclaim-");
+        let scratch = dx_test_scratch::scratch("dx-watch-slot-reclaim-").unwrap();
         let dir = scratch.path().join("slots");
         let calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let counter = std::sync::Arc::clone(&calls);
@@ -1852,7 +1852,7 @@ mod tests {
 
     #[test]
     fn watch_iteration_waits_for_a_taken_slot() {
-        let scratch = dx_test_scratch::scratch("dx-watch-slot-wait-");
+        let scratch = dx_test_scratch::scratch("dx-watch-slot-wait-").unwrap();
         let dir = scratch.path().join("slots");
         let held = dx_plan::slots::acquire(&dir, 1, "tree-a", &mut |_| {}).expect("hold");
         let releaser = std::thread::spawn(move || {
@@ -1876,7 +1876,7 @@ mod tests {
 
     #[test]
     fn watch_stops_with_slots_busy_when_the_wait_limit_runs_out() {
-        let scratch = dx_test_scratch::scratch("dx-watch-slot-busy-");
+        let scratch = dx_test_scratch::scratch("dx-watch-slot-busy-").unwrap();
         let dir = scratch.path().join("slots");
         let _held = dx_plan::slots::acquire(&dir, 1, "tree-a", &mut |_| {}).expect("hold");
         let gate = dx_plan::slots::Gate::new(dir.clone(), 1, "watch-tree".to_owned(), false)

@@ -78,7 +78,7 @@ fn crowbar_runs_five_hundred_cases_from_one_seed() {
 
 #[test]
 fn crowbar_repro_reads_the_seed_file() {
-    let scratch = dx_test_scratch::scratch("dx-crowbar-seed-");
+    let scratch = dx_test_scratch::scratch("dx-crowbar-seed-").unwrap();
     let file = scratch.path().join("seed");
     std::fs::write(&file, "123").expect("write");
     let args = repro_args(Engine::Crowbar, "", &file);

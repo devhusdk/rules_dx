@@ -32,7 +32,7 @@ fn overload<'a>(shard: &'a DocIr, name: &str, signature: &str) -> &'a Symbol {
 
 #[test]
 fn the_fixture_shard_maps_every_shape() {
-    let shard = shard("DX_FIXTURE_FSHARP_SHARD");
+    let shard = shard("DX_FIXTURE_FSHARP_SHARD").unwrap();
     validate_shard(&shard).expect("validate_shard passes");
     assert_eq!(shard.language, "fsharp");
     assert_eq!(shard.package, "Dx.Fixture.FsLedger");
@@ -69,7 +69,7 @@ fn the_fixture_shard_maps_every_shape() {
 
 #[test]
 fn signatures_docs_and_sources_come_from_the_compile() {
-    let shard = shard("DX_FIXTURE_FSHARP_SHARD");
+    let shard = shard("DX_FIXTURE_FSHARP_SHARD").unwrap();
     let deposit = overload(
         &shard,
         "Account.Deposit",
@@ -100,15 +100,17 @@ fn signatures_docs_and_sources_come_from_the_compile() {
 
 #[test]
 fn undocumented_members_are_marked_incomplete() {
-    let shard = shard("DX_FIXTURE_FSHARP_SHARD");
+    let shard = shard("DX_FIXTURE_FSHARP_SHARD").unwrap();
     let undocumented = symbol(&shard, "Amounts.undocumented");
     assert!(
         extension(undocumented, "fsharp.incomplete")
+            .unwrap()
             .expect("extension")
             .contains("summary")
     );
     assert!(
         extension(undocumented, "fsharp.config")
+            .unwrap()
             .expect("extension")
             .starts_with("assembly=")
     );
@@ -116,12 +118,13 @@ fn undocumented_members_are_marked_incomplete() {
 
 #[test]
 fn the_defines_select_the_members() {
-    let base = shard("DX_FIXTURE_FSHARP_SHARD");
-    let extra = shard("DX_FIXTURE_FSHARP_EXTRA_SHARD");
+    let base = shard("DX_FIXTURE_FSHARP_SHARD").unwrap();
+    let extra = shard("DX_FIXTURE_FSHARP_EXTRA_SHARD").unwrap();
     assert_eq!(symbols(&base, "Amounts.extra"), [] as [&Symbol; 0]);
     let found = symbol(&extra, "Amounts.extra");
     assert!(
         extension(found, "fsharp.config")
+            .unwrap()
             .expect("extension")
             .contains("defines=DX_EXTRA")
     );

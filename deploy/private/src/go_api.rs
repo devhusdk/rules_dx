@@ -335,7 +335,7 @@ mod tests {
             &["commit", "-q", "-m", "x"],
             &["tag", "v1.2.0"],
         ] {
-            dx_test_scratch::git(&repo, &repo, args);
+            dx_test_scratch::git(&repo, &repo, args).unwrap();
         }
         repo
     }

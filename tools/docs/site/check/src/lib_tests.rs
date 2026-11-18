@@ -147,7 +147,7 @@ fn the_required_arguments_are_checked_in_order() {
 
 #[test]
 fn a_shard_without_symbols_names_no_symbols() {
-    let guard = dx_test_scratch::scratch("empty-ids");
+    let guard = dx_test_scratch::scratch("empty-ids").unwrap();
     let dir = guard.path();
     write(dir, "book.toml", "title = \"demo\"\n");
     write(dir, "api.md", "# API\n");
@@ -158,7 +158,7 @@ fn a_shard_without_symbols_names_no_symbols() {
 
 #[test]
 fn a_shard_that_does_not_decode_is_refused() {
-    let guard = dx_test_scratch::scratch("bad-shard");
+    let guard = dx_test_scratch::scratch("bad-shard").unwrap();
     let dir = guard.path();
     write(dir, "book.toml", "title = \"demo\"\n");
     write(dir, "api.md", "# API\n");
@@ -169,7 +169,7 @@ fn a_shard_that_does_not_decode_is_refused() {
 }
 
 fn anchor_site(name: &str, guide_links: &str) -> String {
-    let guard = dx_test_scratch::scratch(name);
+    let guard = dx_test_scratch::scratch(name).unwrap();
     let dir = guard.path();
     write(dir, "book.toml", "title = \"demo\"\n");
     write(
@@ -225,7 +225,7 @@ fn a_percent_encoded_anchor_resolves() {
 
 #[test]
 fn a_site_with_nothing_linked_holds_together() {
-    let guard = dx_test_scratch::scratch("plain");
+    let guard = dx_test_scratch::scratch("plain").unwrap();
     let dir = guard.path();
     write(dir, "book.toml", "title = \"demo\"\n");
     write(
@@ -252,7 +252,7 @@ fn a_missing_book_file_is_reported_as_a_missing_title() {
 }
 
 fn records_site(name: &str, records: &str) -> String {
-    let guard = dx_test_scratch::scratch(name);
+    let guard = dx_test_scratch::scratch(name).unwrap();
     let dir = guard.path();
     write(dir, "book.toml", "title = \"demo\"\n");
     write(

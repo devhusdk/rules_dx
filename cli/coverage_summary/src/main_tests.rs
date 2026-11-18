@@ -29,7 +29,7 @@ fn cli(temp: &Path, invocation_id: &str) -> Cli {
 
 #[test]
 fn the_comment_is_written_and_appended_to_the_step_summary() {
-    let scratch = dx_test_scratch::scratch("coverage-summary");
+    let scratch = dx_test_scratch::scratch("coverage-summary").unwrap();
     let temp = scratch.path();
     fs::create_dir_all(temp.join("dx-reports/coverage")).expect("reports dir");
     fs::create_dir_all(temp.join("dx-reports/test")).expect("profile dir");
@@ -62,7 +62,7 @@ fn the_comment_is_written_and_appended_to_the_step_summary() {
 
 #[test]
 fn an_empty_runner_temp_renders_unknown_and_not_configured() {
-    let scratch = dx_test_scratch::scratch("coverage-summary-empty");
+    let scratch = dx_test_scratch::scratch("coverage-summary-empty").unwrap();
     let cli = cli(scratch.path(), "");
     let body = render(&inputs(&cli));
     assert!(body.contains("Gate exit: unknown "), "{body}");

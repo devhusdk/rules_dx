@@ -156,7 +156,7 @@ struct Fixture {
 
 impl Fixture {
     fn generate(name: &str) -> Self {
-        let scratch = dx_test_scratch::scratch(name);
+        let scratch = dx_test_scratch::scratch(name).unwrap();
         let root = scratch.path().to_path_buf();
         copy_tree(&fixture_dir(), &root);
         let run = gazelle(&root);
@@ -333,7 +333,7 @@ fn each_removed_mapping_fails_as_unresolved() {
                 .split_whitespace()
                 .nth(1)
                 .expect("resolve names an import");
-            let scratch = dx_test_scratch::scratch(&format!("unresolved-{checked}"));
+            let scratch = dx_test_scratch::scratch(&format!("unresolved-{checked}")).unwrap();
             let root = scratch.path().to_path_buf();
             copy_tree(&fixture_dir(), &root);
             let kept: Vec<&str> = lines

@@ -103,7 +103,7 @@ impl Outcome {
 
 impl Consumer {
     fn new() -> Self {
-        let scratch = dx_test_scratch::scratch("dx-error-boundary-");
+        let scratch = dx_test_scratch::scratch("dx-error-boundary-").unwrap();
         let base = scratch.path().to_path_buf();
         let workspace = base.join("ws");
         for dir in [

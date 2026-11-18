@@ -174,7 +174,7 @@ fn tool(cmd: &dx_apple_ops::util::Cmd, codesign: &str) -> Output {
 }
 
 fn check_with(bundle: &Bundle, want: &Want, arch: &str) -> Checked {
-    let root = scratch("macos-app-check");
+    let root = scratch("macos-app-check").unwrap();
     let out_dir = root.path().join("out");
     std::fs::create_dir_all(&out_dir).unwrap();
     let archive = root.path().join("Ledger_bundle.zip");
@@ -459,7 +459,7 @@ fn a_non_adhoc_signature_fails() {
 
 #[test]
 fn a_bad_archive_fails_without_publishing() {
-    let root = scratch("macos-app-zip");
+    let root = scratch("macos-app-zip").unwrap();
     std::fs::create_dir_all(root.path().join("out")).unwrap();
     let archive = root.path().join("Ledger_bundle.zip");
     std::fs::write(&archive, "not a zip").unwrap();

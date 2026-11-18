@@ -182,7 +182,7 @@ mod tests {
 
     #[test]
     fn run_reports_the_code_and_what_reached_each_stream() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-run-streams-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-run-streams-").unwrap();
         let (code, out, err) = run(
             &invocation(&["init", "--apply", "--ci=none"]),
             scratch.path(),
@@ -192,7 +192,7 @@ mod tests {
         assert_eq!(err.lines().count(), 1, "{err}");
         assert!(err.contains("next: run `tools/dx sync`"), "{err}");
 
-        let scratch = dx_test_scratch::scratch("dx-adopt-run-refused-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-run-refused-").unwrap();
         let (code, out, err) = run(&invocation(&["init", "../escape"]), scratch.path());
         assert_eq!(code, pre_exec_code());
         assert!(out.is_empty(), "{out}");

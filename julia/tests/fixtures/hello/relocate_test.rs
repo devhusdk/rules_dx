@@ -46,7 +46,7 @@ fn relocate(to: &Path) {
 #[test]
 fn standalone_binary_runs_after_runfiles_are_copied() {
     let rel = std::env::var("DX_HELLO_BIN").expect("DX_HELLO_BIN is set");
-    let root_guard = dx_test_scratch::scratch("relocate");
+    let root_guard = dx_test_scratch::scratch("relocate").unwrap();
     let root = root_guard.path();
     let runfiles = root.join("runfiles");
     relocate(&runfiles);

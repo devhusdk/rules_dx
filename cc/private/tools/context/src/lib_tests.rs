@@ -73,7 +73,7 @@ fn configured_compile_action_keeps_its_own_argv_and_inputs() {
 
 #[test]
 fn response_file_arguments_are_expanded_in_place() {
-    let scratch = dx_test_scratch::scratch("configured");
+    let scratch = dx_test_scratch::scratch("configured").unwrap();
     let root = scratch.path();
     fs::write(
         root.join("compile.params"),
@@ -105,7 +105,7 @@ fn response_file_arguments_are_expanded_in_place() {
 
 #[test]
 fn an_unreadable_response_file_fails_closed() {
-    let scratch = dx_test_scratch::scratch("response_expand");
+    let scratch = dx_test_scratch::scratch("response_expand").unwrap();
     let root = scratch.path();
     let text = graph_json(
         &["/usr/bin/gcc", "@absent.params", "-c", "pkg/probe.cc"],
@@ -133,7 +133,7 @@ fn tokenize_response_rejects_an_unterminated_quote() {
 
 #[test]
 fn database_entries_resolve_against_the_execroot() {
-    let scratch = dx_test_scratch::scratch("response_absent");
+    let scratch = dx_test_scratch::scratch("response_absent").unwrap();
     let root = scratch.path();
     let text = graph_json(
         &["/usr/bin/gcc", "-c", "pkg/probe.cc", "-o", "out.o"],
@@ -166,7 +166,7 @@ fn a_wrapper_target_owns_its_upstream_action() {
 
 #[test]
 fn a_label_without_a_compile_action_fails_closed() {
-    let scratch = dx_test_scratch::scratch("database");
+    let scratch = dx_test_scratch::scratch("database").unwrap();
     let root = scratch.path();
     let text = graph_json(
         &["/usr/bin/gcc", "-c", "pkg/probe.cc"],
@@ -189,7 +189,7 @@ fn a_label_without_a_compile_action_fails_closed() {
 
 #[test]
 fn two_configurations_of_one_source_fail_closed() {
-    let scratch = dx_test_scratch::scratch("no_action");
+    let scratch = dx_test_scratch::scratch("no_action").unwrap();
     let root = scratch.path();
     let first = graph_json(
         &["/usr/bin/gcc", "-DDX=1", "-c", "pkg/probe.cc"],
@@ -226,7 +226,7 @@ fn two_configurations_of_one_source_fail_closed() {
 
 #[test]
 fn a_missing_required_source_fails_closed() {
-    let scratch = dx_test_scratch::scratch("conflict");
+    let scratch = dx_test_scratch::scratch("conflict").unwrap();
     let root = scratch.path();
     let text = graph_json(
         &["/usr/bin/gcc", "-c", "pkg/probe.cc"],
@@ -254,7 +254,7 @@ fn a_missing_required_source_fails_closed() {
 
 #[test]
 fn a_relative_execroot_fails_closed() {
-    let scratch = dx_test_scratch::scratch("missing_source");
+    let scratch = dx_test_scratch::scratch("missing_source").unwrap();
     let root = scratch.path();
     let text = graph_json(
         &["/usr/bin/gcc", "-c", "pkg/probe.cc"],
@@ -277,7 +277,7 @@ fn a_relative_execroot_fails_closed() {
 
 #[test]
 fn a_compile_action_without_a_source_flag_fails_closed() {
-    let scratch = dx_test_scratch::scratch("relative_execroot");
+    let scratch = dx_test_scratch::scratch("relative_execroot").unwrap();
     let root = scratch.path();
     let text = graph_json(&["/usr/bin/gcc", "-c"], "probe.cc", "//pkg:probe");
     let graph = AqueryGraph::parse(&text).expect("record decodes");
@@ -295,7 +295,7 @@ fn a_compile_action_without_a_source_flag_fails_closed() {
 
 #[test]
 fn policy_validation_fails_closed() {
-    let scratch = dx_test_scratch::scratch("no_source_flag");
+    let scratch = dx_test_scratch::scratch("no_source_flag").unwrap();
     let root = scratch.path();
     let wrong = root.join("clang-tidy.yaml");
     fs::write(&wrong, "Checks: '-*'\n").expect("policy");
@@ -323,7 +323,7 @@ fn policy_validation_fails_closed() {
 
 #[test]
 fn a_bundle_carries_the_database_and_the_bound_policy() {
-    let scratch = dx_test_scratch::scratch("bundle");
+    let scratch = dx_test_scratch::scratch("bundle").unwrap();
     let root = scratch.path();
     let bundle = root.join("bundle");
     let entries = vec![Entry {
@@ -407,7 +407,7 @@ fn rsp_graph(root: &Path, rsp: &str, configuration: &str) -> AqueryGraph {
 
 #[test]
 fn an_unknown_driver_keeps_argv_and_response_files_as_recorded() {
-    let scratch = dx_test_scratch::scratch("unknown");
+    let scratch = dx_test_scratch::scratch("unknown").unwrap();
     let root = scratch.path();
     let graph = rsp_graph(&root, "-DX=1", "k8-fastbuild");
     for identities in [vec![identity("k8-fastbuild", Driver::Unknown)], vec![]] {
@@ -433,7 +433,7 @@ fn with_env(graph: &mut AqueryGraph, include: &str, external: &str) {
 
 #[test]
 fn an_msvc_identity_keeps_every_argument_and_adds_the_env_context() {
-    let scratch = dx_test_scratch::scratch("msvc");
+    let scratch = dx_test_scratch::scratch("msvc").unwrap();
     let root = scratch.path();
     let mut graph = rsp_graph(&root, "/DX=1 \"a b\"", "k8-fastbuild");
     with_env(&mut graph, "C:\\sdk\\inc;C:\\crt", "C:\\ext");
@@ -460,7 +460,7 @@ fn an_msvc_identity_keeps_every_argument_and_adds_the_env_context() {
 
 #[test]
 fn an_msvc_action_keeps_its_own_target_flag() {
-    let scratch = dx_test_scratch::scratch("msvc_target");
+    let scratch = dx_test_scratch::scratch("msvc_target").unwrap();
     let root = scratch.path();
     let mut graph = rsp_graph(&root, "--target=aarch64-windows-msvc", "k8-fastbuild");
     with_env(&mut graph, "inc", "");
@@ -474,7 +474,7 @@ fn an_msvc_action_keeps_its_own_target_flag() {
 
 #[test]
 fn an_msvc_action_without_include_fails_closed() {
-    let scratch = dx_test_scratch::scratch("msvc_missing");
+    let scratch = dx_test_scratch::scratch("msvc_missing").unwrap();
     let root = scratch.path();
     let graph = rsp_graph(&root, "/DX=1", "k8-fastbuild");
     let error = graph
@@ -485,7 +485,7 @@ fn an_msvc_action_without_include_fails_closed() {
 
 #[test]
 fn an_msvc_action_with_argv_imsvc_needs_no_env() {
-    let scratch = dx_test_scratch::scratch("msvc_argv");
+    let scratch = dx_test_scratch::scratch("msvc_argv").unwrap();
     let root = scratch.path();
     let graph = rsp_graph(
         &root,
@@ -511,7 +511,7 @@ fn an_msvc_action_with_argv_imsvc_needs_no_env() {
 
 #[test]
 fn the_version_probe_resolves_argv0_and_skips_the_flag_for_cl() {
-    let scratch = dx_test_scratch::scratch("probe");
+    let scratch = dx_test_scratch::scratch("probe").unwrap();
     let root = scratch.path();
     let exec = root.join("exec");
     let base = root.join("base");
@@ -529,7 +529,7 @@ fn the_version_probe_resolves_argv0_and_skips_the_flag_for_cl() {
 
 #[test]
 fn each_configuration_gets_its_own_identity() {
-    let scratch = dx_test_scratch::scratch("configs");
+    let scratch = dx_test_scratch::scratch("configs").unwrap();
     let root = scratch.path();
     let mut graph = rsp_graph(&root, "-DX=1", "arm64-opt");
     with_env(&mut graph, "inc", "");
@@ -543,7 +543,7 @@ fn each_configuration_gets_its_own_identity() {
 
 #[test]
 fn target_and_exec_actions_each_get_their_identity_and_expand() {
-    let scratch = dx_test_scratch::scratch("exec");
+    let scratch = dx_test_scratch::scratch("exec").unwrap();
     let root = scratch.path();
     fs::write(root.join("x.rsp"), "-DX=1").expect("rsp");
     let action = |target: u32, out: u32, config: u32, source: &str| {
@@ -571,7 +571,7 @@ fn target_and_exec_actions_each_get_their_identity_and_expand() {
 
 #[test]
 fn the_clang_tidy_projection_fails_without_a_known_driver() {
-    let scratch = dx_test_scratch::scratch("projection");
+    let scratch = dx_test_scratch::scratch("projection").unwrap();
     let root = scratch.path();
     let graph = rsp_graph(&root, "-DX=1", "k8-fastbuild");
     let known = graph.compile_commands(&root, &[gnu()]).expect("commands");
@@ -592,7 +592,7 @@ fn the_clang_tidy_projection_fails_without_a_known_driver() {
 
 #[test]
 fn identity_files_are_read_and_checked() {
-    let scratch = dx_test_scratch::scratch("identity-files");
+    let scratch = dx_test_scratch::scratch("identity-files").unwrap();
     let root = scratch.path();
     let write = |name: &str, text: &str| {
         let path = root.join(name);
@@ -621,7 +621,7 @@ fn identity_files_are_read_and_checked() {
 
 #[test]
 fn response_files_decode_boms_and_nest() {
-    let scratch = dx_test_scratch::scratch("encodings");
+    let scratch = dx_test_scratch::scratch("encodings").unwrap();
     let root = scratch.path();
     let mut utf16 = vec![0xFF, 0xFE];
     for unit in "/DA=1 @inner.rsp".encode_utf16() {
@@ -637,7 +637,7 @@ fn response_files_decode_boms_and_nest() {
 
 #[test]
 fn a_self_including_response_file_fails() {
-    let scratch = dx_test_scratch::scratch("cycle");
+    let scratch = dx_test_scratch::scratch("cycle").unwrap();
     let root = scratch.path();
     fs::write(root.join("a.rsp"), "@a.rsp").expect("a");
     let error = expand_response_files(&strings(&["gcc", "@a.rsp"]), &root, Quoting::Gnu)
@@ -652,7 +652,7 @@ fn a_self_including_response_file_fails() {
 
 #[test]
 fn an_invalid_utf8_response_file_fails() {
-    let scratch = dx_test_scratch::scratch("badutf8");
+    let scratch = dx_test_scratch::scratch("badutf8").unwrap();
     let root = scratch.path();
     fs::write(root.join("a.rsp"), b"\xFF\xFF\xFF").expect("a");
     let error =
@@ -815,7 +815,7 @@ fn retain_owned_drops_compile_actions_of_other_targets() {
 
 #[test]
 fn qualify_reads_an_unlisted_param_file_from_the_execroot() {
-    let scratch = dx_test_scratch::scratch("qualify-param");
+    let scratch = dx_test_scratch::scratch("qualify-param").unwrap();
     let root = scratch.path();
     fs::write(
         root.join("probe.obj.params"),

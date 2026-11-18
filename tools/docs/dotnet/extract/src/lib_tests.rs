@@ -271,7 +271,7 @@ fn parse_reads_flags_and_requires_a_known_language() {
 
 #[test]
 fn run_writes_nothing_on_error() {
-    let scratch = dx_test_scratch::scratch("dotnet_extract");
+    let scratch = dx_test_scratch::scratch("dotnet_extract").unwrap();
     let dir = scratch.path();
     let api_path = dir.join("api.json");
     let srcs = dir.join("srcs.tsv");

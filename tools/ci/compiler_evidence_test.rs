@@ -31,28 +31,30 @@ fn evidence(root: &Path, command: &mut Command) -> std::process::Output {
 
 #[test]
 fn evidence_mode_appends_a_line_per_compiler_row_from_its_environment() {
-    let dir = scratch("compiler_evidence");
+    let dir = scratch("compiler_evidence").unwrap();
     let root = dir.path();
     let facts = json!({"rows": [
         {"name": "cc_a", "section": "compilers",
          "identity": {"compiler": "gcc", "version": "1.2.3", "probe": ""}},
         {"name": "other", "section": "languages", "identity": {}},
     ]});
-    write(root, "facts.json", &facts.to_string());
+    write(root, "facts.json", &facts.to_string()).unwrap();
     write(
         root,
         "row_labels.json",
         &json!({"cc_a": ["//p:a1"], "other": ["//p:o"]}).to_string(),
-    );
-    write(root, "consumer_labels.json", "{}");
+    )
+    .unwrap();
+    write(root, "consumer_labels.json", "{}").unwrap();
     write(
         root,
         "logs/p/a1/test.xml",
         "<testsuites><testcase/></testsuites>",
-    );
-    write(root, "bin/p/a1", "not a binary");
-    write(root, "MODULE.bazel.lock", "lock\n");
-    write(root, "out.jsonl", "{\"row\":\"kept\"}\n");
+    )
+    .unwrap();
+    write(root, "bin/p/a1", "not a binary").unwrap();
+    write(root, "MODULE.bazel.lock", "lock\n").unwrap();
+    write(root, "out.jsonl", "{\"row\":\"kept\"}\n").unwrap();
     let done = evidence(
         root,
         producers_bin()
@@ -92,10 +94,10 @@ fn evidence_mode_appends_a_line_per_compiler_row_from_its_environment() {
 
 #[test]
 fn evidence_mode_fails_without_the_bazel_version() {
-    let dir = scratch("compiler_evidence");
-    write(dir.path(), "facts.json", "{\"rows\": []}");
-    write(dir.path(), "row_labels.json", "{}");
-    write(dir.path(), "consumer_labels.json", "{}");
+    let dir = scratch("compiler_evidence").unwrap();
+    write(dir.path(), "facts.json", "{\"rows\": []}").unwrap();
+    write(dir.path(), "row_labels.json", "{}").unwrap();
+    write(dir.path(), "consumer_labels.json", "{}").unwrap();
     let done = evidence(dir.path(), &mut producers_bin());
     assert!(!done.status.success(), "{done:?}");
     assert!(
@@ -121,8 +123,8 @@ fn the_action_sets_the_bazel_version_and_calls_producers_bin() {
 
 #[test]
 fn producers_bin_lists_nothing_for_a_non_elf_file() {
-    let dir = scratch("compiler_evidence");
-    write(dir.path(), "text", "plain");
+    let dir = scratch("compiler_evidence").unwrap();
+    write(dir.path(), "text", "plain").unwrap();
     let output = producers_bin()
         .arg(dir.path().join("text"))
         .output()

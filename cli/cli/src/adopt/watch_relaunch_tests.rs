@@ -22,7 +22,7 @@ impl Watch {
     }
 
     fn start_with(tree: Option<&str>) -> Self {
-        let scratch = dx_test_scratch::scratch("dx-watch-relaunch-");
+        let scratch = dx_test_scratch::scratch("dx-watch-relaunch-").unwrap();
         let base = scratch.path().to_path_buf();
         let workspace = base.join("ws");
         let bin = base.join("bin");

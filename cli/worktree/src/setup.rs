@@ -333,7 +333,7 @@ mod tests {
 
     #[test]
     fn refresh_creates_nothing_and_merges_into_an_existing_file() {
-        let dir = scratch("dx-worktree-setup-refresh-");
+        let dir = scratch("dx-worktree-setup-refresh-").unwrap();
         let path = HOOK_FILES[0].path;
         std::fs::create_dir_all(dir.path().join(path).parent().expect("parent")).expect("dir");
         std::fs::write(dir.path().join(path), "{}").expect("write");
@@ -355,7 +355,7 @@ mod tests {
 
     #[test]
     fn a_fresh_repository_gets_every_hooks_file() {
-        let dir = scratch("dx-worktree-setup-fresh-");
+        let dir = scratch("dx-worktree-setup-fresh-").unwrap();
         let outcome = apply(dir.path(), &ALL).expect("apply");
         assert_eq!(
             outcome.wrote,
@@ -378,7 +378,7 @@ mod tests {
 
     #[test]
     fn apply_creates_only_the_paths_it_is_given_and_reports_only_existing_files() {
-        let dir = scratch("dx-worktree-setup-create-");
+        let dir = scratch("dx-worktree-setup-create-").unwrap();
         let outcome = apply(dir.path(), &[CODEX.path]).expect("apply");
         assert_eq!(outcome.wrote, vec![CODEX.path.to_owned()]);
         assert!(!dir.path().join(CLAUDE.path).exists());
@@ -390,7 +390,7 @@ mod tests {
 
     #[test]
     fn inspect_writes_nothing_and_fails_on_a_directory() {
-        let dir = scratch("dx-worktree-setup-inspect-");
+        let dir = scratch("dx-worktree-setup-inspect-").unwrap();
         let outcome = inspect(dir.path(), &ALL).expect("inspect");
         assert_eq!(outcome.wrote.len(), HOOK_FILES.len());
         assert!(!dir.path().join(".claude").exists());
@@ -402,7 +402,7 @@ mod tests {
 
     #[test]
     fn missing_entries_are_added_in_place_and_user_bytes_stay() {
-        let dir = scratch("dx-worktree-setup-merge-");
+        let dir = scratch("dx-worktree-setup-merge-").unwrap();
         std::fs::create_dir_all(dir.path().join(".claude")).expect("dir");
         std::fs::write(dir.path().join(CLAUDE.path), USER_SETTINGS).expect("settings");
         let outcome = apply(dir.path(), &ALL).expect("apply");
@@ -422,7 +422,7 @@ mod tests {
 
     #[test]
     fn inspect_leaves_an_existing_file_and_reports_what_is_missing() {
-        let dir = scratch("dx-worktree-setup-report-");
+        let dir = scratch("dx-worktree-setup-report-").unwrap();
         std::fs::create_dir_all(dir.path().join(".claude")).expect("dir");
         std::fs::write(dir.path().join(CLAUDE.path), USER_SETTINGS).expect("settings");
         let outcome = inspect(dir.path(), &ALL).expect("inspect");
@@ -439,7 +439,7 @@ mod tests {
 
     #[test]
     fn a_second_apply_writes_zero_bytes_to_a_merged_file() {
-        let dir = scratch("dx-worktree-setup-merge-twice-");
+        let dir = scratch("dx-worktree-setup-merge-twice-").unwrap();
         std::fs::create_dir_all(dir.path().join(".claude")).expect("dir");
         std::fs::write(dir.path().join(CLAUDE.path), USER_SETTINGS).expect("settings");
         apply(dir.path(), &ALL).expect("first");
@@ -454,7 +454,7 @@ mod tests {
 
     #[test]
     fn an_existing_gemini_settings_file_gains_only_its_guard() {
-        let dir = scratch("dx-worktree-setup-gemini-");
+        let dir = scratch("dx-worktree-setup-gemini-").unwrap();
         std::fs::create_dir_all(dir.path().join(".gemini")).expect("dir");
         let own = "{\"general\": {\"vimMode\": true}}\n";
         std::fs::write(dir.path().join(GEMINI.path), own).expect("settings");
@@ -468,7 +468,7 @@ mod tests {
 
     #[test]
     fn the_copilot_file_is_flat_and_merges_into_a_users_hooks() {
-        let dir = scratch("dx-worktree-setup-copilot-");
+        let dir = scratch("dx-worktree-setup-copilot-").unwrap();
         let fresh = settings_text(&COPILOT);
         let parsed = parse(&fresh);
         assert_eq!(parsed["version"], 1);
@@ -495,7 +495,7 @@ mod tests {
 
     #[test]
     fn an_unparsable_file_is_left_alone_and_reported() {
-        let dir = scratch("dx-worktree-setup-broken-");
+        let dir = scratch("dx-worktree-setup-broken-").unwrap();
         std::fs::create_dir_all(dir.path().join(".gemini")).expect("dir");
         std::fs::write(dir.path().join(GEMINI.path), "{ nope").expect("settings");
         let outcome = apply(dir.path(), &ALL).expect("apply");
@@ -508,7 +508,7 @@ mod tests {
 
     #[test]
     fn no_file_is_reported_when_absent() {
-        let dir = scratch("dx-worktree-setup-absent-");
+        let dir = scratch("dx-worktree-setup-absent-").unwrap();
         assert_eq!(
             workspace_missing(dir.path()),
             [] as [(&str, std::vec::Vec<std::string::String>); 0]
@@ -517,7 +517,7 @@ mod tests {
 
     #[test]
     fn a_second_apply_changes_nothing() {
-        let dir = scratch("dx-worktree-setup-twice-");
+        let dir = scratch("dx-worktree-setup-twice-").unwrap();
         apply(dir.path(), &ALL).expect("first");
         let outcome = apply(dir.path(), &ALL).expect("second");
         assert!(
@@ -529,7 +529,7 @@ mod tests {
 
     #[test]
     fn a_fresh_repository_gets_every_allow_rule() {
-        let dir = scratch("dx-worktree-setup-allow-");
+        let dir = scratch("dx-worktree-setup-allow-").unwrap();
         apply(dir.path(), &ALL).expect("apply");
         let settings = std::fs::read_to_string(dir.path().join(SETTINGS)).expect("settings");
         assert_eq!(missing_allow(&settings), [] as [String; 0]);
@@ -557,7 +557,7 @@ mod tests {
 
     #[test]
     fn an_existing_allow_list_gains_the_deploy_ask_rules() {
-        let dir = scratch("dx-worktree-setup-ask-");
+        let dir = scratch("dx-worktree-setup-ask-").unwrap();
         std::fs::create_dir_all(dir.path().join(".claude")).expect("dir");
         let fresh = settings_text(&CLAUDE);
         let mut parsed = parse(&fresh);

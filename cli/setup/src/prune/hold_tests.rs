@@ -10,7 +10,7 @@ const WAIT: Duration = Duration::from_secs(10);
 const SENTINEL: &str = "sentinel";
 
 fn workspace(prefix: &str) -> (dx_test_scratch::TempDir, PathBuf) {
-    let scratch = dx_test_scratch::scratch(prefix);
+    let scratch = dx_test_scratch::scratch(prefix).unwrap();
     let workspace = workspace_of(scratch.path());
     fs::create_dir_all(&workspace).expect("create workspace");
     (scratch, workspace)

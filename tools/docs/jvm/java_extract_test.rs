@@ -12,7 +12,7 @@ const CIRCLE: &str = "tools/docs/jvm/fixture/java/dx/fixture/shapes/Circle.java"
 
 #[test]
 fn the_shapes_shard_maps_every_public_symbol() {
-    let shard = shard("DX_SHAPES_SHARD");
+    let shard = shard("DX_SHAPES_SHARD").unwrap();
     validate_shard(&shard).expect("validate_shard passes");
     assert_eq!(shard.language, "java");
     assert_eq!(shard.package, "shapes");
@@ -36,7 +36,7 @@ fn the_shapes_shard_maps_every_public_symbol() {
         } else {
             format!("{SHAPES}{suffix}")
         };
-        assert_eq!(symbol(&shard, &id).kind, kind as i32, "{id}");
+        assert_eq!(symbol(&shard, &id).unwrap().kind, kind as i32, "{id}");
     }
     assert_eq!(shard.symbols.len(), 13, "{:?}", ids(&shard));
     for hidden in ["hidden", "secret", "Internal", "inside"] {
@@ -50,8 +50,8 @@ fn the_shapes_shard_maps_every_public_symbol() {
 
 #[test]
 fn signatures_docs_overloads_and_sources_come_from_javadoc() {
-    let shard = shard("DX_SHAPES_SHARD");
-    let circle = symbol(&shard, "java:shapes:dx.fixture.shapes.Circle");
+    let shard = shard("DX_SHAPES_SHARD").unwrap();
+    let circle = symbol(&shard, "java:shapes:dx.fixture.shapes.Circle").unwrap();
     assert_eq!(
         circle.signature_text,
         "public class Circle implements Shape"
@@ -87,16 +87,17 @@ fn signatures_docs_overloads_and_sources_come_from_javadoc() {
         (source.file.as_str(), source.line, source.generated),
         (
             CIRCLE,
-            line_of("DX_CIRCLE_JAVA", "public class Circle"),
+            line_of("DX_CIRCLE_JAVA", "public class Circle").unwrap(),
             false
         )
     );
 
-    let one = symbol(&shard, &format!("{SHAPES}Circle.scale~28double~29"));
+    let one = symbol(&shard, &format!("{SHAPES}Circle.scale~28double~29")).unwrap();
     let two = symbol(
         &shard,
         &format!("{SHAPES}Circle.scale~28double~2Cdouble~29"),
-    );
+    )
+    .unwrap();
     assert_eq!(one.signature_text, "public Circle scale(double factor)");
     assert_eq!(
         two.signature_text,
@@ -129,29 +130,29 @@ fn signatures_docs_overloads_and_sources_come_from_javadoc() {
     );
     assert_eq!(
         two.source.as_ref().expect("a source").line,
-        line_of("DX_CIRCLE_JAVA", "public Circle scale(double horizontal")
+        line_of("DX_CIRCLE_JAVA", "public Circle scale(double horizontal").unwrap()
     );
 
-    let pi = symbol(&shard, &format!("{SHAPES}Circle.MAX_RADIUS"));
+    let pi = symbol(&shard, &format!("{SHAPES}Circle.MAX_RADIUS")).unwrap();
     assert_eq!(
         pi.signature_text,
         "public static final double MAX_RADIUS = 100.0"
     );
-    let ctor = symbol(&shard, &format!("{SHAPES}Circle.Circle~28double~29"));
+    let ctor = symbol(&shard, &format!("{SHAPES}Circle.Circle~28double~29")).unwrap();
     assert_eq!(ctor.signature_text, "public Circle(double radius)");
-    let nested = symbol(&shard, &format!("{SHAPES}Circle.Size"));
+    let nested = symbol(&shard, &format!("{SHAPES}Circle.Size")).unwrap();
     assert_eq!(
         nested.relations.as_ref().expect("relations").member_of,
         vec![format!("{SHAPES}Circle")]
     );
-    let package = symbol(&shard, "java:shapes:dx.fixture.shapes");
+    let package = symbol(&shard, "java:shapes:dx.fixture.shapes").unwrap();
     assert_eq!(package.doc_markdown, "Plane figures with an area.");
 }
 
 #[test]
 fn an_undocumented_override_inherits_the_documentation_of_its_declaration() {
-    let shard = shard("DX_SHAPES_SHARD");
-    let area = symbol(&shard, &format!("{SHAPES}Circle.area~28~29"));
+    let shard = shard("DX_SHAPES_SHARD").unwrap();
+    let area = symbol(&shard, &format!("{SHAPES}Circle.area~28~29")).unwrap();
     assert_eq!(area.doc_markdown, "Returns the area of this shape.");
     let returns = area.returns.as_ref().expect("returns");
     assert_eq!(returns.doc, "the area in square units");
@@ -159,10 +160,10 @@ fn an_undocumented_override_inherits_the_documentation_of_its_declaration() {
 
 #[test]
 fn a_dependent_library_links_into_its_dependency() {
-    let paint = shard("DX_PAINT_SHARD");
+    let paint = shard("DX_PAINT_SHARD").unwrap();
     validate_shard(&paint).expect("validate_shard passes");
     assert_eq!(paint.package, "paint");
-    let square = symbol(&paint, "java:paint:dx.fixture.paint.Square");
+    let square = symbol(&paint, "java:paint:dx.fixture.paint.Square").unwrap();
     assert_eq!(
         square.signature_text,
         "public final class Square implements Shape"
@@ -179,9 +180,9 @@ fn a_dependent_library_links_into_its_dependency() {
 
 #[test]
 fn without_the_dependency_shard_links_degrade_to_code() {
-    let paint = shard("DX_PAINT_NODEP_SHARD");
+    let paint = shard("DX_PAINT_NODEP_SHARD").unwrap();
     validate_shard(&paint).expect("validate_shard passes");
-    let square = symbol(&paint, "java:paint:dx.fixture.paint.Square");
+    let square = symbol(&paint, "java:paint:dx.fixture.paint.Square").unwrap();
     assert!(
         square
             .relations
@@ -202,7 +203,7 @@ struct Driver {
 
 impl Driver {
     fn new(name: &str) -> Driver {
-        let scratch = dx_test_scratch::scratch(name);
+        let scratch = dx_test_scratch::scratch(name).unwrap();
         let dir = scratch.path().to_path_buf();
         let root = dx_testing::env_file("DX_CIRCLE_JAVA")
             .ancestors()
@@ -239,7 +240,7 @@ impl Driver {
     }
 
     fn source(&self, name: &str, text: &str) -> PathBuf {
-        dx_test_scratch::write(&self.dir, name, text);
+        dx_test_scratch::write(&self.dir, name, text).unwrap();
         self.dir.join(name)
     }
 

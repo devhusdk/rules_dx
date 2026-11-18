@@ -30,7 +30,7 @@ impl std::ops::DerefMut for ProfiledBrowser {
 }
 
 fn browser_at(base: &str) -> ProfiledBrowser {
-    let profile = dx_test_scratch::scratch("firefox-profile");
+    let profile = dx_test_scratch::scratch("firefox-profile").unwrap();
     let browser = Browser::start(&firefox_binary(), profile.path())
         .unwrap_or_else(|error| panic!("start Firefox for the {base} base: {error}"));
     ProfiledBrowser {

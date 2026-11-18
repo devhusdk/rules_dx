@@ -12,7 +12,9 @@ fn subject_matches_mode() {
         return;
     }
     if ["lint", "lint_error", "format", "format_error"].contains(&mode.as_str()) {
-        conformance_quality::check(&mode, &key, &text);
+        if let Err(error) = conformance_quality::check(&mode, &key, &text) {
+            panic!("{error}");
+        }
         return;
     }
     let mut subject = None;

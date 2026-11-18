@@ -104,7 +104,7 @@ mod tests {
 
     #[test]
     fn init_ci_gitlab_writes_a_gitlab_pipeline_and_no_github_workflow() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-gitlab-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-gitlab-").unwrap();
         let root = scratch.path();
         let (code, _out, err) = crate::adopt::test_support::run(
             &invocation(&["init", "--apply", "--ci", "gitlab"]),
@@ -121,7 +121,7 @@ mod tests {
 
     #[test]
     fn launcher_is_written_when_absent_or_stale() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-launcher-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-launcher-").unwrap();
         let root = scratch.path();
         let (code, out, _err) = init(root);
         assert_eq!(code, 0);
@@ -161,7 +161,7 @@ mod tests {
 
     #[test]
     fn a_non_semver_pin_is_an_init_failure() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-launcher-semver-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-launcher-semver-").unwrap();
         let root = scratch.path();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/pins"), "1\"; x\n").expect("pin");
@@ -174,7 +174,7 @@ mod tests {
 
     #[test]
     fn a_file_parent_fails_preflight_without_writing() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-launcher-fail-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-launcher-fail-").unwrap();
         let root = scratch.path();
         std::fs::write(root.join("tools"), "file").expect("blocker");
         let error = init_files::preflight(root, "demo/", &plan(root)).expect_err("blocked");
@@ -193,7 +193,7 @@ mod tests {
 
     #[test]
     fn drift_names_the_missing_import_and_apply_clears_it() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-wiring-preset-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-wiring-preset-").unwrap();
         let root = scratch.path();
         let drift = crate::adopt::test_support::drift_of(root);
         assert!(drift.missing.contains(&"tools/dx".to_owned()), "{drift:?}");
@@ -220,7 +220,7 @@ mod tests {
 
     #[test]
     fn a_prefix_reaches_every_report_line() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-wiring-prefix-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-wiring-prefix-").unwrap();
         let root = scratch.path();
         let words = [
             "init",
@@ -247,7 +247,7 @@ mod tests {
 
     #[test]
     fn failures_use_the_given_code() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-wiring-code-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-wiring-code-").unwrap();
         let root = scratch.path();
         std::fs::write(root.join("AGENTS.md"), "# Mine\n\n<!-- dx:begin -->\n").expect("seed");
         assert!(init_files::preflight(root, "demo/", &plan(root)).is_err());
@@ -322,7 +322,7 @@ mod tests {
 
     #[test]
     fn drift_names_each_wiring_gap() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-wiring-drift-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-wiring-drift-").unwrap();
         let root = scratch.path();
         let fresh = crate::adopt::test_support::drift_of(root);
         assert!(fresh.missing.contains(&"tools/dx".to_owned()), "{fresh:?}");

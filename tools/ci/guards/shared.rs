@@ -521,7 +521,7 @@ mod tests {
 
     #[test]
     fn the_tree_reads_back_what_render_wrote() {
-        let guard = dx_test_scratch::scratch("settle");
+        let guard = dx_test_scratch::scratch("settle").unwrap();
         let scratch = guard.path();
         let found = counts(&[("a", "alias", 1)]);
         let file = scratch.join("list.txt");

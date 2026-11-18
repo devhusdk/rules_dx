@@ -75,7 +75,7 @@ fn fresh_locks() -> Vec<(String, Value)> {
 
 /// Runs `producers_bin --lock-merge` and returns the merged lock, or None when it fails.
 fn merge(locks: &[(String, Value)]) -> Option<Value> {
-    let dir = dx_test_scratch::scratch("lock-merge");
+    let dir = dx_test_scratch::scratch("lock-merge").unwrap();
     let inputs = dir.path().join("locks");
     let borrowed: Vec<(&str, Value)> = locks
         .iter()

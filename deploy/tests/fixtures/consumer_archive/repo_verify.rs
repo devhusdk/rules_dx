@@ -46,7 +46,7 @@ fn verify(env: &str, name: &str) {
             tarball.display()
         );
     }
-    let scratch_dir = dx_test_scratch::scratch(name);
+    let scratch_dir = dx_test_scratch::scratch(name).unwrap();
     let scratch = scratch_dir.path();
     tar(&[
         "-xzf",

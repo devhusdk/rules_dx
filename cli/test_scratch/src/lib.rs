@@ -46,24 +46,31 @@ fn scratch_base(lookup: impl Fn(&str) -> Option<std::ffi::OsString>) -> std::pat
 /// Creates a temp dir under `$TEST_TMPDIR` (or the system temp dir) that is
 /// removed when the returned guard drops. Keep the guard bound for as long as
 /// anything, including child processes, uses paths inside it.
-#[must_use]
-pub fn scratch(prefix: &str) -> TempDir {
+///
+/// # Errors
+///
+/// Fails when the directory cannot be created.
+pub fn scratch(prefix: &str) -> Result<TempDir, String> {
     let bounded = bounded_prefix(prefix);
     let base = scratch_base(|key| std::env::var_os(key));
     tempfile::Builder::new()
         .prefix(&bounded)
         .tempdir_in(&base)
-        .unwrap_or_else(|err| panic!("test scratch creates {prefix:?}: {err}"))
+        .map_err(|err| format!("test scratch creates {prefix:?}: {err}"))
 }
 
 /// Writes `text` to `root/rel`, creating missing parent directories.
-pub fn write(root: &Path, rel: &str, text: &str) {
+///
+/// # Errors
+///
+/// Fails when a parent directory or the file cannot be written.
+pub fn write(root: &Path, rel: &str, text: &str) -> Result<(), String> {
     let full = root.join(rel);
     if let Some(parent) = full.parent() {
         std::fs::create_dir_all(parent)
-            .unwrap_or_else(|err| panic!("test scratch creates {parent:?}: {err}"));
+            .map_err(|err| format!("test scratch creates {parent:?}: {err}"))?;
     }
-    std::fs::write(&full, text).unwrap_or_else(|err| panic!("test scratch writes {full:?}: {err}"));
+    std::fs::write(&full, text).map_err(|err| format!("test scratch writes {full:?}: {err}"))
 }
 
 /// Makes a git command hermetic: it ignores system and user config, and cannot
@@ -146,8 +153,12 @@ fn output_within(
 }
 
 /// Runs git in `root` with a fixed test identity, signing off, and the isolation of `isolate_git`
-/// rooted at `sandbox`. Panics with the args and stderr on failure. Returns trimmed stdout.
-pub fn git(root: &Path, sandbox: &Path, args: &[&str]) -> String {
+/// rooted at `sandbox`. Returns trimmed stdout.
+///
+/// # Errors
+///
+/// Fails with the args and stderr when git does not start, times out or fails.
+pub fn git(root: &Path, sandbox: &Path, args: &[&str]) -> Result<String, String> {
     let mut cmd = Command::new("git");
     cmd.arg("-C").arg(root);
     isolate_git(&mut cmd, sandbox);
@@ -163,13 +174,14 @@ pub fn git(root: &Path, sandbox: &Path, args: &[&str]) -> String {
     ])
     .args(args);
     let output = output_within(&mut cmd, GIT_DEADLINE)
-        .unwrap_or_else(|err| panic!("git {args:?} in {root:?}: {err}"));
-    assert!(
-        output.status.success(),
-        "git {args:?} failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    String::from_utf8_lossy(&output.stdout).trim().to_owned()
+        .map_err(|err| format!("git {args:?} in {root:?}: {err}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "git {args:?} failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_owned())
 }
 
 /// Removes a directory link without following it into its target.
@@ -181,19 +193,24 @@ pub fn remove_directory_link(path: &Path) -> std::io::Result<()> {
     removed
 }
 
-/// Retries `probe` every 25ms until it returns `Some`, or panics once
-/// `deadline` has passed.
+/// Retries `probe` every 25ms until it returns `Some`.
+///
+/// # Errors
+///
+/// Fails once `deadline` has passed.
 pub fn eventually<T>(
     what: &str,
     deadline: std::time::Duration,
     mut probe: impl FnMut() -> Option<T>,
-) -> T {
+) -> Result<T, String> {
     let start = std::time::Instant::now();
     loop {
         if let Some(value) = probe() {
-            return value;
+            return Ok(value);
         }
-        assert!(start.elapsed() < deadline, "timed out waiting for {what}");
+        if start.elapsed() >= deadline {
+            return Err(format!("timed out waiting for {what}"));
+        }
         std::thread::sleep(std::time::Duration::from_millis(25));
     }
 }
@@ -214,25 +231,27 @@ mod tests {
 
     #[test]
     fn git_reads_only_sandbox_config() {
-        let sandbox = scratch("git-helper");
+        let sandbox = scratch("git-helper").unwrap();
         let root = sandbox.path().join("repo");
         std::fs::create_dir_all(&root).expect("dir");
-        git(&root, sandbox.path(), &["init", "-q"]);
+        git(&root, sandbox.path(), &["init", "-q"]).unwrap();
         assert!(root.join(".git").is_dir());
         git(
             &root,
             sandbox.path(),
             &["commit", "-q", "--allow-empty", "-m", "x"],
-        );
+        )
+        .unwrap();
         assert_eq!(
-            git(&root, sandbox.path(), &["log", "-1", "--format=%an <%ae>"]),
+            git(&root, sandbox.path(), &["log", "-1", "--format=%an <%ae>"]).unwrap(),
             "dx <dx@example.com>"
         );
         let origins = git(
             &root,
             sandbox.path(),
             &["config", "--list", "--show-origin"],
-        );
+        )
+        .unwrap();
         let sandbox_text = sandbox.path().to_string_lossy().into_owned();
         for line in origins.lines() {
             assert!(
@@ -265,24 +284,24 @@ mod tests {
 
     #[test]
     fn write_creates_nested_parents() {
-        let dir = scratch("dx-test-scratch-write-");
-        write(dir.path(), "a/b/c.txt", "hello");
+        let dir = scratch("dx-test-scratch-write-").unwrap();
+        write(dir.path(), "a/b/c.txt", "hello").unwrap();
         let text = std::fs::read_to_string(dir.path().join("a/b/c.txt")).expect("read back");
         assert_eq!(text, "hello");
     }
 
     #[test]
     fn write_overwrites_existing_file() {
-        let dir = scratch("dx-test-scratch-write-");
-        write(dir.path(), "file.txt", "first");
-        write(dir.path(), "file.txt", "second");
+        let dir = scratch("dx-test-scratch-write-").unwrap();
+        write(dir.path(), "file.txt", "first").unwrap();
+        write(dir.path(), "file.txt", "second").unwrap();
         let text = std::fs::read_to_string(dir.path().join("file.txt")).expect("read back");
         assert_eq!(text, "second");
     }
 
     #[test]
     fn scratch_uses_prefix_and_exists() {
-        let dir = scratch("dx-test-scratch-");
+        let dir = scratch("dx-test-scratch-").unwrap();
         assert!(dir.path().is_dir(), "scratch exists: {:?}", dir.path());
         let name = dir.path().file_name().expect("tempdir has a name");
         assert!(
@@ -304,7 +323,7 @@ mod tests {
         let Some(base) = std::env::var_os("TEST_TMPDIR").filter(|dir| !dir.is_empty()) else {
             return;
         };
-        let dir = scratch("dx-test-scratch-base-");
+        let dir = scratch("dx-test-scratch-base-").unwrap();
         assert!(
             dir.path().starts_with(&base),
             "{:?} under {base:?}",
@@ -314,15 +333,15 @@ mod tests {
 
     #[test]
     fn scratches_are_unique() {
-        let first = scratch("dx-test-scratch-");
-        let second = scratch("dx-test-scratch-");
+        let first = scratch("dx-test-scratch-").unwrap();
+        let second = scratch("dx-test-scratch-").unwrap();
         assert_ne!(first.path(), second.path(), "unique dirs");
     }
 
     #[test]
     fn scratch_cleans_on_drop() {
         let path = {
-            let dir = scratch("dx-test-scratch-");
+            let dir = scratch("dx-test-scratch-").unwrap();
             let path = dir.path().to_path_buf();
             assert!(path.is_dir(), "exists before drop");
             path
@@ -332,7 +351,7 @@ mod tests {
 
     #[test]
     fn remove_directory_link_keeps_the_target() {
-        let dir = scratch("dx-test-scratch-link-");
+        let dir = scratch("dx-test-scratch-link-").unwrap();
         let target = dir.path().join("target");
         std::fs::create_dir(&target).expect("target");
         std::fs::write(target.join("marker"), "marker").expect("marker");
@@ -349,7 +368,7 @@ mod tests {
 
     #[test]
     fn isolate_git_ignores_ambient_repos_and_config() {
-        let dir = scratch("dx-isolate-git-");
+        let dir = scratch("dx-isolate-git-").unwrap();
         let sandbox = dir.path().canonicalize().expect("canonical");
         let repo = sandbox.join("repo");
         std::fs::create_dir(&repo).expect("repo dir");
@@ -379,7 +398,8 @@ mod tests {
         let got = eventually("x", std::time::Duration::from_secs(5), || {
             calls += 1;
             Some(7)
-        });
+        })
+        .unwrap();
         assert_eq!((got, calls), (7, 1));
     }
 
@@ -389,13 +409,16 @@ mod tests {
         let got = eventually("x", std::time::Duration::from_secs(5), || {
             calls += 1;
             (calls == 3).then_some(calls)
-        });
+        })
+        .unwrap();
         assert_eq!(got, 3);
     }
 
     #[test]
-    #[should_panic(expected = "timed out waiting for a thing")]
-    fn eventually_panics_after_the_deadline() {
-        eventually::<()>("a thing", std::time::Duration::from_millis(50), || None);
+    fn eventually_fails_after_the_deadline() {
+        assert_eq!(
+            eventually::<()>("a thing", std::time::Duration::from_millis(50), || None),
+            Err("timed out waiting for a thing".to_owned())
+        );
     }
 }

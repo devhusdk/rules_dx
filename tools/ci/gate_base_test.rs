@@ -5,9 +5,9 @@ const ZEROS: &str = "0000000000000000000000000000000000000000";
 
 fn commit(repo: &Path, name: &str) -> String {
     std::fs::write(repo.join(name), name).expect("write file");
-    dx_test_scratch::git(repo, repo, &["add", name]);
-    dx_test_scratch::git(repo, repo, &["commit", "-q", "-m", name]);
-    dx_test_scratch::git(repo, repo, &["rev-parse", "HEAD"])
+    dx_test_scratch::git(repo, repo, &["add", name]).unwrap();
+    dx_test_scratch::git(repo, repo, &["commit", "-q", "-m", name]).unwrap();
+    dx_test_scratch::git(repo, repo, &["rev-parse", "HEAD"]).unwrap()
 }
 
 struct Repo {
@@ -19,15 +19,15 @@ struct Repo {
 }
 
 fn repo(name: &str) -> Repo {
-    let path = dx_test_scratch::scratch(name).path().join("repo");
+    let path = dx_test_scratch::scratch(name).unwrap().path().join("repo");
     std::fs::create_dir_all(&path).expect("repo directory");
-    dx_test_scratch::git(&path, &path, &["init", "-q", "-b", "main"]);
+    dx_test_scratch::git(&path, &path, &["init", "-q", "-b", "main"]).unwrap();
     let a = commit(&path, "a");
     let b = commit(&path, "b");
     let c = commit(&path, "c");
-    dx_test_scratch::git(&path, &path, &["checkout", "-q", "-b", "other", &a]);
+    dx_test_scratch::git(&path, &path, &["checkout", "-q", "-b", "other", &a]).unwrap();
     let x = commit(&path, "x");
-    dx_test_scratch::git(&path, &path, &["checkout", "-q", "main"]);
+    dx_test_scratch::git(&path, &path, &["checkout", "-q", "main"]).unwrap();
     Repo { path, a, b, c, x }
 }
 
@@ -64,12 +64,13 @@ fn pull_request_uses_the_first_parent() {
         &r.path,
         &r.path,
         &["merge", "-q", "--no-ff", "-m", "m", "other"],
-    );
+    )
+    .unwrap();
     let (done, base) = run(&r, "pull_request", "", "");
     assert!(done.status.success(), "{}", stderr(&done));
     assert_eq!(base, r.c);
     assert_eq!(
-        dx_test_scratch::git(&r.path, &r.path, &["rev-parse", "refs/remotes/origin/main"]),
+        dx_test_scratch::git(&r.path, &r.path, &["rev-parse", "refs/remotes/origin/main"]).unwrap(),
         r.c
     );
 }

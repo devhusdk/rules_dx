@@ -28,7 +28,7 @@ fn command(cwd: &Path) -> Command {
     #[cfg(test)]
     {
         static SANDBOX: std::sync::OnceLock<dx_test_scratch::TempDir> = std::sync::OnceLock::new();
-        let sandbox = SANDBOX.get_or_init(|| dx_test_scratch::scratch("worktree-git"));
+        let sandbox = SANDBOX.get_or_init(|| dx_test_scratch::scratch("worktree-git").unwrap());
         let mut command = base(cwd);
         dx_test_scratch::isolate_git(&mut command, sandbox.path());
         command

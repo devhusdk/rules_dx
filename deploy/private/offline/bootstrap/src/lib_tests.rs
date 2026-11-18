@@ -133,7 +133,7 @@ fn a_bundle_dir_that_is_absent_is_refused() {
 
 #[test]
 fn a_bundle_without_the_two_bundle_dirs_is_refused() {
-    let root = dx_test_scratch::scratch("dx-bootstrap-shape-");
+    let root = dx_test_scratch::scratch("dx-bootstrap-shape-").unwrap();
     let options = Options {
         bundle: Some(root.path().to_string_lossy().into_owned()),
         install_dir: root.path().join("bin").to_string_lossy().into_owned(),
@@ -158,7 +158,7 @@ fn a_bundle_without_the_two_bundle_dirs_is_refused() {
 
 #[test]
 fn an_unsupported_host_is_refused() {
-    let root = dx_test_scratch::scratch("dx-bootstrap-host-");
+    let root = dx_test_scratch::scratch("dx-bootstrap-host-").unwrap();
     std::fs::create_dir(root.path().join("bazelisk")).expect("bazelisk dir");
     std::fs::create_dir(root.path().join("advisory")).expect("advisory dir");
     let options = Options {
@@ -210,7 +210,7 @@ fn pin_advisory(advisory: &Path) {
 }
 
 fn bundle_with_launcher(name: &str, bytes: &[u8]) -> (dx_test_scratch::TempDir, Options) {
-    let root = dx_test_scratch::scratch(name);
+    let root = dx_test_scratch::scratch(name).unwrap();
     let options = stage_bundle(root.path(), bytes);
     (root, options)
 }
@@ -368,7 +368,7 @@ fn the_default_install_dir_is_under_home_then_userprofile() {
 
 #[test]
 fn the_identity_url_is_a_file_uri_of_the_bundle() {
-    let scratch = dx_test_scratch::scratch("dx-bootstrap-url-");
+    let scratch = dx_test_scratch::scratch("dx-bootstrap-url-").unwrap();
     let root = scratch.path().join("dx bootstrap url");
     std::fs::create_dir(&root).expect("bundle dir");
     let mut options = stage_bundle(&root, b"launcher");
@@ -564,7 +564,7 @@ fn failing_write(_target: &Path, _body: &str) -> Result<(), String> {
 
 #[test]
 fn an_interrupted_replace_never_pairs_a_new_snapshot_with_an_old_identity() {
-    let root = dx_test_scratch::scratch("dx-bootstrap-publish-");
+    let root = dx_test_scratch::scratch("dx-bootstrap-publish-").unwrap();
     let populated = root.path().join("populated");
     std::fs::create_dir_all(&populated).expect("populated");
     std::fs::write(populated.join("cargo.json"), "old").expect("old snapshot");

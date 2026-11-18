@@ -158,7 +158,7 @@ mod tests {
     #[test]
     fn empty_workspace_collects_nothing() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-prune-test-empty-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-empty-").unwrap();
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -189,7 +189,7 @@ mod tests {
     #[test]
     fn malformed_current_fails_closed() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-prune-test-bad-current-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-bad-current-").unwrap();
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -224,7 +224,7 @@ mod tests {
     #[test]
     fn apply_removes_prune_set_and_preserves_current() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-prune-test-apply-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-apply-").unwrap();
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -272,7 +272,7 @@ mod tests {
     #[test]
     fn apply_skips_entries_that_became_current() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-prune-test-race-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-race-").unwrap();
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -299,7 +299,7 @@ mod tests {
     #[test]
     fn apply_skips_generations_referenced_by_live_current() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-prune-test-race-gen-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-race-gen-").unwrap();
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -370,7 +370,7 @@ mod tests {
         }
         let _fork = dx_testing::spawning();
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-prune-test-lease-race-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-lease-race-").unwrap();
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -425,7 +425,7 @@ mod tests {
     #[test]
     fn busy_lock_fails_after_deadline() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-prune-test-busy-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-busy-").unwrap();
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -461,7 +461,7 @@ mod tests {
     #[test]
     fn workspace_missing_fails() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-prune-test-ws-missing-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-ws-missing-").unwrap();
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };

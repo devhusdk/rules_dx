@@ -42,26 +42,18 @@ fn bazel_dep_name(code: &str) -> Option<String> {
     let rest = code.strip_prefix("bazel_dep(")?;
     let at = rest.find("name")?;
     let after = rest
-        .get(at + "name".len()..)
-        .expect("string slice within bounds")
+        .get(at + "name".len()..)?
         .trim_start()
         .strip_prefix('=')?;
     let after = after.trim_start().strip_prefix('"')?;
-    Some(
-        after
-            .get(..after.find('"')?)
-            .expect("string slice within bounds")
-            .to_owned(),
-    )
+    Some(after.get(..after.find('"')?)?.to_owned())
 }
 
 fn uses_dx_extension(code: &str) -> bool {
     let Some(at) = code.find("use_extension(") else {
         return code.contains("use_repo(dx") || code.starts_with("dx.") || code.starts_with("dx_");
     };
-    let rest = code
-        .get(at + "use_extension(".len()..)
-        .expect("string slice within bounds");
+    let rest = code.get(at + "use_extension(".len()..).unwrap_or("");
     let label = rest.split('"').nth(1).unwrap_or("");
     label.contains("rules_dx")
         || label.contains("//dx")

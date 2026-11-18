@@ -184,15 +184,6 @@ def subject_compatible_with():
         "//conditions:default": ["@platforms//:incompatible"],
     })
 
-def _platform_constraints(platform):
-    return {
-        "linux_arm64": ["@platforms//os:linux", "@platforms//cpu:arm64"],
-        "linux_x86_64": ["@platforms//os:linux", "@platforms//cpu:x86_64"],
-        "macos_arm64": ["@platforms//os:macos", "@platforms//cpu:arm64"],
-        "windows_arm64": ["@platforms//os:windows", "@platforms//cpu:arm64"],
-        "windows_x86_64": ["@platforms//os:windows", "@platforms//cpu:x86_64"],
-    }[platform]
-
 def _pending():
     result = {}
     for line in PENDING.splitlines():
@@ -251,7 +242,6 @@ def _entries(lang, labels, not_applicable):
     pending = _pending().get(lang, {})
     for test in TESTS:
         skipped = _skipped(lang, test, not_applicable)
-        # empty platforms lists one `*` row
         for platform in LANGS[lang]["platforms"] or ["*"]:
             reason = ""
             if "" in skipped:

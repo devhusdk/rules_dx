@@ -31,10 +31,7 @@ struct Flags {
 }
 
 fn extension_of(name: &str) -> &str {
-    match name.rfind('.') {
-        Some(idx) => name.get(idx + 1..).expect("string slice within bounds"),
-        None => name,
-    }
+    name.rsplit_once('.').map_or(name, |(_, ext)| ext)
 }
 
 fn mode_for(ext: &str) -> Mode {
@@ -110,13 +107,11 @@ fn relpath(cwd: &Path, file: &str) -> String {
     };
     let cwd_parts: Vec<Component<'_>> = cwd.components().collect();
     let abs_parts: Vec<Component<'_>> = abs.components().collect();
-    let mut common = 0;
-    while common < cwd_parts.len()
-        && common < abs_parts.len()
-        && cwd_parts[common] == abs_parts[common]
-    {
-        common += 1;
-    }
+    let common = cwd_parts
+        .iter()
+        .zip(&abs_parts)
+        .take_while(|(left, right)| left == right)
+        .count();
     if common == 0 {
         return file.to_owned();
     }
@@ -124,7 +119,7 @@ fn relpath(cwd: &Path, file: &str) -> String {
     for _ in common..cwd_parts.len() {
         rel.push("..");
     }
-    for part in &abs_parts[common..] {
+    for part in abs_parts.iter().skip(common) {
         rel.push(part);
     }
     if rel.as_os_str().is_empty() {
@@ -173,12 +168,12 @@ const FIXED: &[u8] = b"fixed";
 /// The 1-based line and column of the dirty marker, the way RuboCop reports an offense.
 fn marker_position(bytes: &[u8]) -> Option<(u64, u64)> {
     let at = bytes.windows(MARKER.len()).position(|win| win == MARKER)?;
-    let before = &bytes[..at];
+    let (before, _) = bytes.split_at_checked(at)?;
     let line = 1 + before.iter().filter(|byte| **byte == b'\n').count() as u64;
     let column = match before.iter().rposition(|byte| *byte == b'\n') {
-        Some(newline) => String::from_utf8_lossy(&before[newline + 1..])
-            .chars()
-            .count() as u64,
+        Some(newline) => before.get(newline + 1..).map_or(0, |tail| {
+            String::from_utf8_lossy(tail).chars().count() as u64
+        }),
         None => before.len() as u64,
     };
     Some((line, column + 1))
@@ -237,14 +232,14 @@ fn emit_offenses(files: &[String]) -> i32 {
 
 fn fixed_bytes(bytes: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(bytes.len());
-    let mut idx = 0;
-    while idx < bytes.len() {
-        if bytes[idx..].starts_with(MARKER) {
+    let mut rest = bytes;
+    while let Some((first, tail)) = rest.split_first() {
+        if let Some(after) = rest.strip_prefix(MARKER) {
             out.extend_from_slice(FIXED);
-            idx += MARKER.len();
+            rest = after;
         } else {
-            out.push(bytes[idx]);
-            idx += 1;
+            out.push(*first);
+            rest = tail;
         }
     }
     out
@@ -287,10 +282,10 @@ pub fn run(argv: &[String]) -> i32 {
         Err(_) => return 2,
     };
     let (flags, files) = parse(argv);
-    if files.is_empty() {
+    let Some(first) = files.first() else {
         return 0;
-    }
-    let ext = extension_of(&files[0]);
+    };
+    let ext = extension_of(first);
     if wants_fix(ext, &flags) {
         for file in &files {
             if is_dirty(file) {

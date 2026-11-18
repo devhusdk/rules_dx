@@ -390,10 +390,10 @@ mod tests {
 
     #[test]
     fn recursive_label_without_build_files_is_no_targets() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-notargets-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-notargets-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "empty/sub/file.txt", "x");
-        write(&workspace, "pkg/deep/BUILD.bazel", "");
+        write(&workspace, "empty/sub/file.txt", "x").unwrap();
+        write(&workspace, "pkg/deep/BUILD.bazel", "").unwrap();
         let query = NeverQuery;
         let err = resolve(&strings(&["//empty/..."]), &workspace, &query, &[]).unwrap_err();
         assert!(matches!(err, ResolveError::NoTargets { .. }), "{err:?}");
@@ -405,11 +405,11 @@ mod tests {
 
     #[test]
     fn no_targets_suggests_similar_packages() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-suggest-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-suggest-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "cli/worktree/BUILD.bazel", "");
-        write(&workspace, "cli/plan/BUILD.bazel", "");
-        write(&workspace, "cli/notes/file.txt", "x");
+        write(&workspace, "cli/worktree/BUILD.bazel", "").unwrap();
+        write(&workspace, "cli/plan/BUILD.bazel", "").unwrap();
+        write(&workspace, "cli/notes/file.txt", "x").unwrap();
         let query = NeverQuery;
         let err = resolve(&strings(&["//cli/worktre/..."]), &workspace, &query, &[]).unwrap_err();
         assert!(
@@ -423,7 +423,7 @@ mod tests {
     #[test]
     fn empty_scope_selects_repository() {
         let query = NeverQuery;
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-empty-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-empty-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let got = resolve(&[], &workspace, &query, &[]).expect("resolve");
         assert_eq!(got.scope, Scope::Repository);
@@ -433,9 +433,9 @@ mod tests {
     #[test]
     fn label_only_scopes_pass_through_in_order() {
         let query = NeverQuery;
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-labels-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-labels-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "b/BUILD.bazel", "");
+        write(&workspace, "b/BUILD.bazel", "").unwrap();
         let input = strings(&["//b/...", "//a:one", "@repo//c/..."]);
         let err = resolve(&input, &workspace, &query, &[]).expect_err("external must fail");
         assert_eq!(
@@ -453,7 +453,7 @@ mod tests {
     #[test]
     fn relative_labels_fail_with_guidance() {
         let query = NeverQuery;
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-relative-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-relative-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let err = resolve(&strings(&[":corpus"]), &workspace, &query, &[]).expect_err("relative");
         assert_eq!(
@@ -467,10 +467,10 @@ mod tests {
 
     #[test]
     fn file_resolves_through_one_rule_graph_query() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-file-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-file-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
             graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
             graph_rule("//pkg:extra", &["//pkg:a.py"], &[]),
@@ -510,10 +510,10 @@ mod tests {
 
     #[test]
     fn file_argv_quotes_spaces_and_special_characters() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-quoting-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-quoting-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/my file.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/my file.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[graph_rule(
             "//pkg:lib",
             &["//pkg:my file.py"],
@@ -532,11 +532,11 @@ mod tests {
 
     #[test]
     fn multiple_files_share_one_rule_graph_query() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-batch-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-batch-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
-        write(&workspace, "pkg/b.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
+        write(&workspace, "pkg/b.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
             graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
             graph_rule("//pkg:extra", &["//pkg:b.py"], &[]),
@@ -554,11 +554,11 @@ mod tests {
 
     #[test]
     fn empty_batch_mapping_names_every_file() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-batch-empty-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-batch-empty-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
-        write(&workspace, "pkg/b.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
+        write(&workspace, "pkg/b.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![FakeQuery::ok("\n")]);
         let err = resolve(&strings(&["pkg/a.py", "pkg/b.py"]), &workspace, &query, &[])
             .expect_err("orphans");
@@ -574,12 +574,12 @@ mod tests {
 
     #[test]
     fn mixed_owned_and_orphan_files_report_every_orphan() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-batch-partial-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-batch-partial-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/owned.py", "x = 1\n");
-        write(&workspace, "pkg/orphan.py", "x = 1\n");
-        write(&workspace, "pkg/my orphan.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/owned.py", "x = 1\n").unwrap();
+        write(&workspace, "pkg/orphan.py", "x = 1\n").unwrap();
+        write(&workspace, "pkg/my orphan.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
             graph_rule("//pkg:lib", &["//pkg:owned.py", "//other:dep"], &[]),
             graph_rule("//other:dep", &["//other:x.py"], &[]),
@@ -605,11 +605,11 @@ mod tests {
 
     #[test]
     fn overlapping_owners_cover_every_file() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-batch-overlap-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-batch-overlap-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
-        write(&workspace, "pkg/b.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
+        write(&workspace, "pkg/b.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
             graph_rule("//pkg:lib", &["//pkg:a.py", "//pkg:b.py"], &[]),
             graph_rule("//pkg:extra", &["//pkg:a.py"], &[]),
@@ -622,10 +622,10 @@ mod tests {
 
     #[test]
     fn duplicate_orphan_scopes_are_listed_once() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-batch-dup-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-batch-dup-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![FakeQuery::ok("\n")]);
         let err = resolve(&strings(&["pkg/a.py", "pkg/a.py"]), &workspace, &query, &[])
             .expect_err("orphans");
@@ -641,10 +641,10 @@ mod tests {
 
     #[test]
     fn mixed_labels_and_orphan_files_fail_without_partial_selection() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-mixed-orphan-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-mixed-orphan-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/orphan.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/orphan.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![FakeQuery::ok("\n")]);
         let err = resolve(
             &strings(&["//z:z", "pkg/orphan.py"]),
@@ -665,11 +665,11 @@ mod tests {
 
     #[test]
     fn file_after_a_packaged_file_without_package_fails_before_query() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-batch-no-package-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-batch-no-package-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
-        write(&workspace, "docs/guide.md", "# guide\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
+        write(&workspace, "docs/guide.md", "# guide\n").unwrap();
         let query = NeverQuery;
         let err = resolve(
             &strings(&["pkg/a.py", "docs/guide.md"]),
@@ -688,10 +688,10 @@ mod tests {
 
     #[test]
     fn root_file_maps_to_root_package_label() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-root-file-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-root-file-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "BUILD.bazel", "");
-        write(&workspace, "top.py", "x = 1\n");
+        write(&workspace, "BUILD.bazel", "").unwrap();
+        write(&workspace, "top.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
             graph_rule("//:lib", &["//:top.py"], &[]),
             graph_rule("//pkg:lib", &["//pkg:top.py"], &[]),
@@ -702,14 +702,15 @@ mod tests {
 
     #[test]
     fn build_file_text_is_never_consulted() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-build-text-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-build-text-").unwrap();
         let workspace = scratch.path().to_path_buf();
         write(
             &workspace,
             "pkg/BUILD.bazel",
             "# owner: //decoy:not_real\nmy_files = glob([\"*.py\"])\n",
-        );
-        write(&workspace, "pkg/a.py", "x = 1\n");
+        )
+        .unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
             graph_rule("//pkg:real", &["//pkg:a.py"], &[]),
             graph_rule("//decoy:not_real", &["//decoy:a.py"], &[]),
@@ -720,10 +721,10 @@ mod tests {
 
     #[test]
     fn directory_becomes_recursive_pattern_without_query_or_listing() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-dir-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-dir-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "src/nested/deep.py", "x = 1\n");
-        write(&workspace, "src/top.py", "x = 1\n");
+        write(&workspace, "src/nested/deep.py", "x = 1\n").unwrap();
+        write(&workspace, "src/top.py", "x = 1\n").unwrap();
         let query = NeverQuery;
         let got = resolve(&strings(&["src"]), &workspace, &query, &[]).expect("resolve");
         assert_eq!(got.targets, strings(&["//src/..."]));
@@ -732,7 +733,7 @@ mod tests {
 
     #[test]
     fn workspace_root_directory_maps_to_repository_pattern() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-root-dir-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-root-dir-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = NeverQuery;
         for root in [".", "./"] {
@@ -743,10 +744,10 @@ mod tests {
 
     #[test]
     fn mixed_labels_and_paths_merge_sorted_and_deduplicated() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-mixed-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-mixed-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[graph_rule(
             "//pkg:lib",
             &["//pkg:a.py"],
@@ -764,7 +765,7 @@ mod tests {
     #[test]
     fn missing_and_escaping_paths_fail() {
         let query = NeverQuery;
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-missing-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-missing-").unwrap();
         let workspace = scratch.path().to_path_buf();
         assert_eq!(
             resolve(&strings(&["nope.py"]), &workspace, &query, &[]).expect_err("missing"),
@@ -809,10 +810,10 @@ mod tests {
         }
         #[cfg(not(unix))]
         {
-            let scratch = dx_test_scratch::scratch("dx-resolve-test-special-");
+            let scratch = dx_test_scratch::scratch("dx-resolve-test-special-").unwrap();
             let workspace = scratch.path().to_path_buf();
-            write(&workspace, "pkg/BUILD.bazel", "");
-            write(&workspace, "pkg/regular.py", "x = 1\n");
+            write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+            write(&workspace, "pkg/regular.py", "x = 1\n").unwrap();
             let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[graph_rule(
                 "//pkg:lib",
                 &["//pkg:regular.py"],
@@ -830,7 +831,7 @@ mod tests {
 
     #[test]
     fn control_characters_in_names_fail_before_query() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-control-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-control-").unwrap();
         let workspace = scratch.path().to_path_buf();
         assert_eq!(
             std::fs::read_dir(&workspace)
@@ -864,11 +865,11 @@ mod tests {
 
     #[test]
     fn unicode_and_space_names_still_resolve() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-unicode-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-unicode-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/naïve file.py", "x = 1\n");
-        write(&workspace, "src/ünïcode dir/nested.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/naïve file.py", "x = 1\n").unwrap();
+        write(&workspace, "src/ünïcode dir/nested.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[graph_rule(
             "//pkg:lib",
             &["//pkg:naïve file.py"],
@@ -889,10 +890,10 @@ mod tests {
 
     #[test]
     fn ownerless_files_suggest_explicit_labels() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-no-owner-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-no-owner-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/orphan.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/orphan.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![FakeQuery::ok("\n")]);
         let err =
             resolve(&strings(&["pkg/orphan.py"]), &workspace, &query, &[]).expect_err("orphan");
@@ -908,13 +909,13 @@ mod tests {
 
     #[test]
     fn file_labels_use_the_nearest_enclosing_package() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-pkg-labels-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-pkg-labels-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
-        write(&workspace, "pkg/src/deep/b.py", "x = 1\n");
-        write(&workspace, "BUILD.bazel", "");
-        write(&workspace, "top.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
+        write(&workspace, "pkg/src/deep/b.py", "x = 1\n").unwrap();
+        write(&workspace, "BUILD.bazel", "").unwrap();
+        write(&workspace, "top.py", "x = 1\n").unwrap();
         assert_eq!(
             file_label(&workspace, "pkg/a.py", "pkg/a.py").expect("label"),
             "//pkg:a.py"
@@ -935,14 +936,14 @@ mod tests {
 
     #[test]
     fn bare_build_marker_and_nearest_package_win() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-pkg-markers-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-pkg-markers-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "legacy/BUILD", "");
-        write(&workspace, "legacy/a.py", "x = 1\n");
-        write(&workspace, "outer/BUILD.bazel", "");
-        write(&workspace, "outer/inner/BUILD.bazel", "");
-        write(&workspace, "outer/inner/a.py", "x = 1\n");
-        write(&workspace, "outer/loose.py", "x = 1\n");
+        write(&workspace, "legacy/BUILD", "").unwrap();
+        write(&workspace, "legacy/a.py", "x = 1\n").unwrap();
+        write(&workspace, "outer/BUILD.bazel", "").unwrap();
+        write(&workspace, "outer/inner/BUILD.bazel", "").unwrap();
+        write(&workspace, "outer/inner/a.py", "x = 1\n").unwrap();
+        write(&workspace, "outer/loose.py", "x = 1\n").unwrap();
         assert_eq!(
             file_label(&workspace, "legacy/a.py", "legacy/a.py").expect("label"),
             "//legacy:a.py"
@@ -959,10 +960,10 @@ mod tests {
 
     #[test]
     fn files_without_any_enclosing_package_fail() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-no-package-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-no-package-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "docs/guide.md", "# guide\n");
-        write(&workspace, "other/BUILD.bazel", "");
+        write(&workspace, "docs/guide.md", "# guide\n").unwrap();
+        write(&workspace, "other/BUILD.bazel", "").unwrap();
         let err = resolve(&strings(&["docs/guide.md"]), &workspace, &NeverQuery, &[])
             .expect_err("no package");
         assert_eq!(
@@ -976,9 +977,9 @@ mod tests {
 
     #[test]
     fn path_filter_needs_every_scope_to_be_a_path() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-path-filter-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-path-filter-").unwrap();
         let workspace = scratch.path();
-        write(workspace, "src/a.py", "x\n");
+        write(workspace, "src/a.py", "x\n").unwrap();
         let filter = path_filter(&strings(&["./src/a.py", "src"]), workspace).expect("paths");
         assert_eq!(filter, strings(&["src/a.py", "src"]));
         assert!(path_filter(&strings(&["src/a.py", "//src:lib"]), workspace).is_none());
@@ -991,9 +992,9 @@ mod tests {
 
     #[test]
     fn symlinks_are_neither_file_nor_dir() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-symlink-kind-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-symlink-kind-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "target.txt", "x\n");
+        write(&workspace, "target.txt", "x\n").unwrap();
         #[cfg(windows)]
         std::os::windows::fs::symlink_file(workspace.join("target.txt"), workspace.join("link"))
             .expect("link");

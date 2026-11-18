@@ -77,7 +77,7 @@ fn the_control_port_is_a_bound_loopback_port() {
 
 #[test]
 fn the_acquired_firefox_layout_names_the_browser_binary() {
-    let scratch = dx_test_scratch::scratch("dx-browser-tests");
+    let scratch = dx_test_scratch::scratch("dx-browser-tests").unwrap();
     let root = scratch.path().to_path_buf();
     assert_eq!(firefox_executable(&root), "");
     let browser = root.join("extracted/firefox/firefox");
@@ -94,7 +94,7 @@ fn a_missing_browser_tree_is_reported_as_empty() {
 
 #[test]
 fn a_browser_that_exits_at_launch_fails_fast_with_its_log() {
-    let scratch_tmp = dx_test_scratch::scratch("browser-exits");
+    let scratch_tmp = dx_test_scratch::scratch("browser-exits").unwrap();
     let scratch = scratch_tmp.path().to_path_buf();
     let firefox = script(
         &scratch,
@@ -122,7 +122,7 @@ fn a_browser_that_exits_at_launch_fails_fast_with_its_log() {
 
 #[test]
 fn a_browser_missing_system_libraries_names_each_one_once() {
-    let scratch_tmp = dx_test_scratch::scratch("browser-libraries");
+    let scratch_tmp = dx_test_scratch::scratch("browser-libraries").unwrap();
     let scratch = scratch_tmp.path().to_path_buf();
     let firefox = script(
         &scratch,
@@ -149,7 +149,7 @@ fn a_browser_missing_system_libraries_names_each_one_once() {
 
 #[test]
 fn a_log_without_a_loader_error_names_no_library() {
-    let scratch_tmp = dx_test_scratch::scratch("browser-no-loader");
+    let scratch_tmp = dx_test_scratch::scratch("browser-no-loader").unwrap();
     let log = scratch_tmp.path().join("browser.log");
     std::fs::write(&log, "Segmentation fault\nexit\n").expect("a browser log");
     assert_eq!(missing_libraries(&log), "");
@@ -157,7 +157,7 @@ fn a_log_without_a_loader_error_names_no_library() {
 
 #[test]
 fn a_browser_that_never_opens_its_port_reports_the_timeout() {
-    let scratch_tmp = dx_test_scratch::scratch("browser-silent");
+    let scratch_tmp = dx_test_scratch::scratch("browser-silent").unwrap();
     let scratch = scratch_tmp.path().to_path_buf();
     let log = scratch.join("browser.log");
     std::fs::write(&log, "still starting\n").expect("a browser log");

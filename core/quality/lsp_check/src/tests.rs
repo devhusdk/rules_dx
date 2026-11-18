@@ -103,7 +103,7 @@ fn fake_server(
 }
 
 fn temp_file(name: &str, text: &str) -> (dx_test_scratch::TempDir, PathBuf) {
-    let scratch = dx_test_scratch::scratch(&format!("lsp_check_{name}"));
+    let scratch = dx_test_scratch::scratch(&format!("lsp_check_{name}")).unwrap();
     let path = scratch.path().join("a b.pkl");
     std::fs::write(&path, text).unwrap();
     (scratch, path)

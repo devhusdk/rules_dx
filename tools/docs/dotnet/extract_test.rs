@@ -32,7 +32,7 @@ fn overload<'a>(shard: &'a DocIr, name: &str, signature: &str) -> &'a Symbol {
 
 #[test]
 fn the_fixture_shard_maps_every_shape() {
-    let shard = shard("DX_FIXTURE_SHARD");
+    let shard = shard("DX_FIXTURE_SHARD").unwrap();
     validate_shard(&shard).expect("validate_shard passes");
     assert_eq!(shard.language, "csharp");
     assert_eq!(shard.package, "Dx.Fixture.Ledger");
@@ -67,7 +67,7 @@ fn the_fixture_shard_maps_every_shape() {
 
 #[test]
 fn signatures_docs_and_sources_come_from_the_compile() {
-    let shard = shard("DX_FIXTURE_SHARD");
+    let shard = shard("DX_FIXTURE_SHARD").unwrap();
     let deposit = overload(
         &shard,
         "Account.Deposit",
@@ -103,8 +103,8 @@ fn signatures_docs_and_sources_come_from_the_compile() {
 
 #[test]
 fn the_defines_select_the_members() {
-    let base = shard("DX_FIXTURE_SHARD");
-    let extra = shard("DX_FIXTURE_EXTRA_SHARD");
+    let base = shard("DX_FIXTURE_SHARD").unwrap();
+    let extra = shard("DX_FIXTURE_EXTRA_SHARD").unwrap();
     assert_eq!(symbols(&base, "Account.Freeze"), [] as [&Symbol; 0]);
     assert_eq!(symbols(&extra, "Account.Freeze").len(), 1);
     assert_ne!(

@@ -62,7 +62,7 @@ impl Bundle {
 }
 
 fn scratch() -> dx_test_scratch::TempDir {
-    dx_test_scratch::scratch("dx-bootstrap")
+    dx_test_scratch::scratch("dx-bootstrap").unwrap()
 }
 
 fn read(path: &Path) -> String {

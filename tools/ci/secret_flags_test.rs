@@ -38,7 +38,7 @@ fn ci_files() -> Vec<String> {
 }
 
 fn parse(path: &str) -> Value {
-    ci_workflow::document(path)
+    ci_workflow::document(path).unwrap()
 }
 
 fn named_step(path: &str, name: &str) -> Value {
@@ -67,6 +67,7 @@ fn is_upload(step: &Value) -> bool {
 fn no_remote_header_carries_a_secret() {
     for path in ci_files() {
         for line in ci_workflow::strings(&path)
+            .unwrap()
             .iter()
             .flat_map(|text| text.lines())
         {
@@ -162,7 +163,7 @@ fn helper_action_runs_the_script_on_node() {
 
 #[test]
 fn ci_writes_the_same_helper_local_builds_use() {
-    let dir = dx_test_scratch::scratch("helper-action-content");
+    let dir = dx_test_scratch::scratch("helper-action-content").unwrap();
     let (code, output, written) = run_helper_node(dir.path(), &[("BUILDBUDDY_API_KEY", "k3y")]);
     assert_eq!(code, 0, "{output}");
     let helper = helper_path(&written);
@@ -400,7 +401,7 @@ fn scan_finds_every_cache_secret() {
         ("path missing", &[key, header], None, 0, None),
     ];
     for (name, env, content, status, expected) in cases {
-        let dir = dx_test_scratch::scratch("secret-scan");
+        let dir = dx_test_scratch::scratch("secret-scan").unwrap();
         let upload = dir.path().join("upload");
         if let Some(content) = content {
             std::fs::create_dir(&upload).expect("create upload dir");
@@ -427,7 +428,7 @@ fn scan_follows_symlinks() {
         ("dangling link", "../missing", Some("failed")),
     ];
     for (name, target, expected) in cases {
-        let dir = dx_test_scratch::scratch("secret-scan-link");
+        let dir = dx_test_scratch::scratch("secret-scan-link").unwrap();
         let upload = dir.path().join("upload");
         std::fs::create_dir(&upload).expect("create upload dir");
         std::fs::write(dir.path().join("outside.txt"), "has k3y").expect("write outside");
@@ -538,7 +539,7 @@ fn helper_action_writes_a_working_helper() {
         ("nothing set", &[], 0, None),
     ];
     for (name, env, status, args) in cases {
-        let dir = dx_test_scratch::scratch("helper-action-node");
+        let dir = dx_test_scratch::scratch("helper-action-node").unwrap();
         let (code, output, written) = run_helper_node(dir.path(), env);
         assert_eq!(code, *status, "{name}: {output}");
         assert_no_secret_printed(name, &output);

@@ -145,7 +145,10 @@ fn indirect_consumer(name: &str) -> Case {
     );
     case.write(
         "MODULE.bazel",
-        &format!("{module}{}", nested::compose::rules_flutter_override()),
+        &format!(
+            "{module}{}",
+            nested::compose::rules_flutter_override().unwrap_or_else(|error| panic!("{error}"))
+        ),
     );
     let rules = resolve_runfiles("MODULE.bazel");
     let rules = std::path::absolute(&rules).unwrap_or_else(|error| panic!("{rules:?}: {error}"));
@@ -386,7 +389,7 @@ fn nested_servers_stop_when_their_test_binary_exits() {
     let rel = std::env::var("DX_NESTED_PROBE")
         .unwrap_or_else(|_| panic!("DX_NESTED_PROBE must name the probe"));
     let version = read_runfiles(".bazelversion");
-    let probe_tmp = dx_test_scratch::scratch("probe");
+    let probe_tmp = dx_test_scratch::scratch("probe").unwrap();
     let probe = run(
         &resolve_runfiles(&rel),
         &[],

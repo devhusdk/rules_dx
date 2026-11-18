@@ -74,7 +74,7 @@ mod tests {
     const LAYER: &str = ".dx/bazelrc/correctness.bazelrc";
 
     fn workspace(module: bool) -> dx_test_scratch::TempDir {
-        let scratch = dx_test_scratch::scratch("dx-preset-sync-");
+        let scratch = dx_test_scratch::scratch("dx-preset-sync-").unwrap();
         let root = scratch.path();
         if module {
             std::fs::write(root.join("MODULE.bazel"), "").expect("module");
@@ -129,7 +129,7 @@ mod tests {
         assert_eq!(run("build", root), "");
         let policy = || std::fs::read_to_string(root.join(".dx/BUILD.bazel")).expect("policy");
         assert!(!policy().contains("\"python\""), "{}", policy());
-        dx_test_scratch::write(root, "pkg/a.py", "");
+        dx_test_scratch::write(root, "pkg/a.py", "").unwrap();
         assert_eq!(run("generate", root), "");
         assert!(policy().contains("\"python\""), "{}", policy());
     }

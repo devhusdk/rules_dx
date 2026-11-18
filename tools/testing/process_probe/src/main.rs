@@ -5,7 +5,7 @@
 use std::collections::BTreeMap;
 use std::env;
 use std::io::{self, Read, Write};
-use std::process::{Command, Stdio};
+use std::process::{Command, ExitCode, Stdio};
 use std::time::Duration;
 
 /// The usage text every run of the probe documents.
@@ -404,11 +404,8 @@ fn hold_alive_lock(path: &str) -> io::Result<std::fs::File> {
     Ok(file)
 }
 
-fn start_descendant(plan: &Plan) -> i32 {
-    match run_descendant(plan) {
-        Ok(code) => code,
-        Err(message) => fail(EXIT_OUTPUT, &message),
-    }
+fn start_descendant(plan: &Plan) -> Result<i32, Failure> {
+    run_descendant(plan).map_err(|message| fail(EXIT_OUTPUT, &message))
 }
 
 #[cfg(unix)]
@@ -574,14 +571,21 @@ fn sleep_until_gate(plan: &Plan) {
     }
 }
 
-fn fail(code: i32, message: &str) -> ! {
-    let mut err = io::stderr();
-    drop(writeln!(err, "process_probe: {message}"));
-    std::process::exit(code);
+/// An exit code with the message the probe prints before it exits.
+struct Failure {
+    code: i32,
+    message: String,
 }
 
-fn report_output_error(error: &io::Error) -> ! {
-    fail(EXIT_OUTPUT, &format!("cannot write the report: {error}"));
+fn fail(code: i32, message: &str) -> Failure {
+    Failure {
+        code,
+        message: message.to_owned(),
+    }
+}
+
+fn report_output_error(error: &io::Error) -> Failure {
+    fail(EXIT_OUTPUT, &format!("cannot write the report: {error}"))
 }
 
 /// The working directory without a Windows verbatim prefix.
@@ -590,7 +594,7 @@ fn plain_cwd() -> io::Result<String> {
     Ok(cwd.to_string_lossy().into_owned())
 }
 
-fn run_shim(log: &std::ffi::OsStr) -> ! {
+fn run_shim(log: &std::ffi::OsStr) -> Result<i32, Failure> {
     let mut record = String::new();
     let written = plain_cwd().and_then(|cwd| {
         record.push_str(&cwd);
@@ -605,15 +609,21 @@ fn run_shim(log: &std::ffi::OsStr) -> ! {
         out.flush()
     });
     if let Err(error) = written {
-        fail(EXIT_OUTPUT, &format!("cannot record the shim run: {error}"));
+        return Err(fail(
+            EXIT_OUTPUT,
+            &format!("cannot record the shim run: {error}"),
+        ));
     }
     let code = env_value_or_empty(SHIM_EXIT);
     if code.is_empty() {
-        std::process::exit(0);
+        return Ok(0);
     }
     match count::<i32>(&code, SHIM_EXIT) {
-        Ok(code) if (0..=255).contains(&code) => std::process::exit(code),
-        _ => fail(EXIT_USAGE, &format!("{SHIM_EXIT} needs 0-255, got {code}")),
+        Ok(code) if (0..=255).contains(&code) => Ok(code),
+        _ => Err(fail(
+            EXIT_USAGE,
+            &format!("{SHIM_EXIT} needs 0-255, got {code}"),
+        )),
     }
 }
 
@@ -623,17 +633,14 @@ fn env_value_or_empty(name: &str) -> String {
         .unwrap_or_default()
 }
 
-fn run_fake_bazel(dir: &std::path::Path) -> ! {
+fn run_fake_bazel(dir: &std::path::Path) -> Result<i32, Failure> {
     let args: Vec<String> = env::args().skip(1).collect();
     let verb = args.iter().find(|arg| *arg == "build" || *arg == "run");
     let Some(verb) = verb else {
-        std::process::exit(0);
+        return Ok(0);
     };
-    let launched = fake_bazel_launch(dir, verb == "run", &args.join(" "));
-    match launched {
-        Ok(code) => std::process::exit(code),
-        Err(message) => fail(EXIT_OUTPUT, &message),
-    }
+    fake_bazel_launch(dir, verb == "run", &args.join(" "))
+        .map_err(|message| fail(EXIT_OUTPUT, &message))
 }
 
 fn fake_bazel_launch(dir: &std::path::Path, app: bool, args: &str) -> Result<i32, String> {
@@ -681,10 +688,10 @@ fn fake_bazel_launch(dir: &std::path::Path, app: bool, args: &str) -> Result<i32
     Ok(status.code().unwrap_or(EXIT_USAGE))
 }
 
-fn check_environment(plan: &Plan) {
+fn check_environment(plan: &Plan) -> Result<(), Failure> {
     for name in &plan.forbidden {
         if env::var_os(name).is_some() {
-            fail(EXIT_ENV_SET, &format!("{name} is set"));
+            return Err(fail(EXIT_ENV_SET, &format!("{name} is set")));
         }
     }
     for (name, expected) in &plan.required {
@@ -695,35 +702,36 @@ fn check_environment(plan: &Plan) {
         };
         if !holds {
             let wanted = expected.clone().unwrap_or_else(|| "<any>".to_owned());
-            fail(
+            return Err(fail(
                 EXIT_ENV_MISSING,
                 &format!("{name} must hold {wanted}, holds {}", env_value(name)),
-            );
+            ));
         }
     }
+    Ok(())
 }
 
-fn apply_signal_flags(plan: &Plan) {
+fn apply_signal_flags(plan: &Plan) -> Result<(), Failure> {
     #[cfg(unix)]
     if plan.require_foreground && !holds_terminal() {
-        fail(
+        return Err(fail(
             EXIT_BACKGROUND,
             "this probe's group does not hold the terminal",
-        );
+        ));
     }
     #[cfg(not(unix))]
     if plan.require_foreground {
-        fail(EXIT_USAGE, "--require-foreground needs unix");
+        return Err(fail(EXIT_USAGE, "--require-foreground needs unix"));
     }
     #[cfg(unix)]
     if let Some(path) = &plan.count_sigint
         && let Err(error) = start_counting_sigint(path)
     {
-        fail(EXIT_OUTPUT, &format!("cannot count SIGINT: {error}"));
+        return Err(fail(EXIT_OUTPUT, &format!("cannot count SIGINT: {error}")));
     }
     #[cfg(not(unix))]
     if plan.count_sigint.is_some() {
-        fail(EXIT_USAGE, "--count-sigint needs unix");
+        return Err(fail(EXIT_USAGE, "--count-sigint needs unix"));
     }
     #[cfg(unix)]
     if let Some(signo) = plan.raise_signal {
@@ -731,21 +739,31 @@ fn apply_signal_flags(plan: &Plan) {
     }
     #[cfg(not(unix))]
     if plan.raise_signal.is_some() {
-        fail(EXIT_USAGE, "--raise-signal needs unix");
+        return Err(fail(EXIT_USAGE, "--raise-signal needs unix"));
     }
+    Ok(())
 }
 
-fn main() {
+fn main() -> ExitCode {
+    let code = run().unwrap_or_else(|failure| {
+        let mut err = io::stderr();
+        drop(writeln!(err, "process_probe: {}", failure.message));
+        failure.code
+    });
+    u8::try_from(code).map_or(ExitCode::FAILURE, ExitCode::from)
+}
+
+fn run() -> Result<i32, Failure> {
     if let Some(dir) = env::var_os(BAZEL_DIR).filter(|dir| !dir.is_empty()) {
-        run_fake_bazel(std::path::Path::new(&dir));
+        return run_fake_bazel(std::path::Path::new(&dir));
     }
     if let Some(log) = env::var_os(SHIM_LOG).filter(|log| !log.is_empty()) {
-        run_shim(&log);
+        return run_shim(&log);
     }
     let args: Vec<String> = env::args().skip(1).collect();
     if args.iter().any(|arg| arg == "--help" || arg == "-h") {
         print!("{USAGE}");
-        return;
+        return Ok(0);
     }
     let plan = match parse(&args) {
         Ok(plan) => plan,
@@ -753,33 +771,35 @@ fn main() {
             let mut err = io::stderr();
             drop(writeln!(err, "process_probe: {message}"));
             drop(err.write_all(USAGE.as_bytes()));
-            std::process::exit(EXIT_USAGE);
+            return Ok(EXIT_USAGE);
         }
     };
     #[cfg(windows)]
     {
         if let Some(pid) = plan.ctrl_c_console {
-            match console::send_ctrl_c(pid) {
-                Ok(()) => std::process::exit(0),
-                Err(message) => fail(EXIT_OUTPUT, &message),
-            }
+            return console::send_ctrl_c(pid)
+                .map(|()| 0)
+                .map_err(|message| fail(EXIT_OUTPUT, &message));
         }
         if plan.ignore_console_ctrl {
-            if let Err(message) = console::ignore_ctrl() {
-                fail(EXIT_OUTPUT, &message);
-            }
+            console::ignore_ctrl().map_err(|message| fail(EXIT_OUTPUT, &message))?;
         }
     }
     #[cfg(not(windows))]
     if plan.ctrl_c_console.is_some() || plan.ignore_console_ctrl {
-        fail(EXIT_USAGE, "the console Ctrl-C flags need windows");
+        return Err(fail(EXIT_USAGE, "the console Ctrl-C flags need windows"));
     }
-    check_environment(&plan);
+    check_environment(&plan)?;
     let _alive = match plan.alive_lock.as_deref().map(hold_alive_lock) {
-        Some(Err(error)) => fail(EXIT_OUTPUT, &format!("cannot hold the alive lock: {error}")),
+        Some(Err(error)) => {
+            return Err(fail(
+                EXIT_OUTPUT,
+                &format!("cannot hold the alive lock: {error}"),
+            ));
+        }
         held => held,
     };
-    apply_signal_flags(&plan);
+    apply_signal_flags(&plan)?;
     let stdout = io::stdout();
     let stderr = io::stderr();
     let mut out = stdout.lock();
@@ -790,31 +810,34 @@ fn main() {
         .and_then(|()| write_report(&plan, &mut out))
         .and_then(|()| out.flush())
     {
-        report_output_error(&error);
+        return Err(report_output_error(&error));
     }
     if let Err(error) = err
         .write_all(&plan.stderr_text)
         .and_then(|()| write_zeros(&mut err, plan.stderr_bytes))
         .and_then(|()| err.flush())
     {
-        report_output_error(&error);
+        return Err(report_output_error(&error));
     }
     drop(out);
     drop(err);
     let mut exit_code = plan.exit_code;
     if plan.detached_descendant {
-        exit_code = start_descendant(&plan);
+        exit_code = start_descendant(&plan)?;
     }
     if !plan.sleep.is_zero() {
         sleep_until_gate(&plan);
     }
     if plan.spawn_descendant && !plan.detached_descendant {
-        exit_code = start_descendant(&plan);
+        exit_code = start_descendant(&plan)?;
     }
     if let Some(marker) = &plan.marker
         && let Err(error) = std::fs::write(marker, b"finished\n")
     {
-        fail(EXIT_OUTPUT, &format!("cannot write the marker: {error}"));
+        return Err(fail(
+            EXIT_OUTPUT,
+            &format!("cannot write the marker: {error}"),
+        ));
     }
-    std::process::exit(exit_code);
+    Ok(exit_code)
 }

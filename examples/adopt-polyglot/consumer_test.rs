@@ -98,7 +98,7 @@ fn snapshot(root: &Path) -> BTreeMap<String, Vec<u8>> {
 fn dx(case: &Case, args: &[&str]) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = case.root().to_string_lossy().into_owned();
-    let scratch = dx_test_scratch::scratch("adopt-polyglot-home");
+    let scratch = dx_test_scratch::scratch("adopt-polyglot-home").unwrap();
     let home = scratch.path().to_string_lossy().into_owned();
     let applets = dx_testing::env_files("DX_COREUTILS");
     let path = applets[0]
@@ -117,7 +117,7 @@ fn dx(case: &Case, args: &[&str]) -> Run {
 
 #[test]
 fn the_polyglot_example_adopts_and_tests_green() {
-    let source = rules_dx_source();
+    let source = rules_dx_source().unwrap_or_else(|error| panic!("{error}"));
     let case = nested::case("adopt_polyglot");
     let root = case.root().to_path_buf();
     let example = resolve_runfiles("examples/adopt-polyglot/Cargo.toml");
@@ -133,7 +133,7 @@ fn the_polyglot_example_adopts_and_tests_green() {
             "module(name = \"adopt_polyglot\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n{}{}{}",
             rules_dx_override(&source),
             rules_py_override(),
-            rules_flutter_override(),
+            rules_flutter_override().unwrap_or_else(|error| panic!("{error}")),
         ),
     );
     write_rules_py_patches(&root, &source).unwrap_or_else(|error| panic!("{error}"));

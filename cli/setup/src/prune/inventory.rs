@@ -206,7 +206,7 @@ mod tests {
     #[test]
     fn inventory_validates_records_and_flags_unmanaged() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-prune-test-inventory-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-inventory-").unwrap();
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };

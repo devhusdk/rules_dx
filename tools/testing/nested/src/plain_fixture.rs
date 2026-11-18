@@ -67,18 +67,15 @@ fn collect(dir: &Path, prefix: &str, found: &mut Vec<String>) {
 
 /// Measures the footprint of the module the case's nested Bazel resolved.
 ///
-/// Panics when a Bazel command fails or the measurement cannot be read.
+/// # Errors
 ///
-/// # Panics
-///
-/// Panics when the operation fails.
-#[must_use]
-pub fn measure_case(case: &Case) -> footprint::Footprint {
-    let graph = run_ok(case, &["mod", "graph", "--output=json"], "mod graph");
-    let info = run_ok(case, &["info", "output_base"], "info output_base");
+/// Returns `Err` when a Bazel command fails or the measurement cannot be read.
+pub fn measure_case(case: &Case) -> Result<footprint::Footprint, String> {
+    let graph = run_ok(case, &["mod", "graph", "--output=json"], "mod graph")?;
+    let info = run_ok(case, &["info", "output_base"], "info output_base")?;
     let external = std::path::PathBuf::from(info.stdout.trim()).join("external");
     let lock = dx_testing::read_text(&case.root().join("MODULE.bazel.lock"));
-    footprint::measure(&graph.stdout, &lock, &external).unwrap_or_else(|error| panic!("{error}"))
+    footprint::measure(&graph.stdout, &lock, &external)
 }
 
 /// Returns `Ok` when every C++ toolchain selected in `resolution` comes from a `local_config_cc` repository.
@@ -111,12 +108,12 @@ fn selected_repo(line: &str) -> Option<&str> {
     label.trim_start_matches('@').split("//").next()
 }
 
-/// Asserts that `target` in the case resolves its C++ toolchain to `local_config_cc`.
+/// Checks that `target` in the case resolves its C++ toolchain to `local_config_cc`.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics when the cquery fails or another C++ toolchain is selected.
-pub fn assert_own_cc(case: &Case, target: &str) {
+/// Returns `Err` when the cquery fails or another C++ toolchain is selected.
+pub fn assert_own_cc(case: &Case, target: &str) -> Result<(), String> {
     let run = run_ok(
         case,
         &[
@@ -127,16 +124,17 @@ pub fn assert_own_cc(case: &Case, target: &str) {
             target,
         ],
         "cquery toolchain resolution",
-    );
-    if let Err(error) = check_own_cc(&run.combined()) {
-        panic!("{target}: {error}");
-    }
+    )?;
+    check_own_cc(&run.combined()).map_err(|error| format!("{target}: {error}"))
 }
 
-fn run_ok(case: &Case, args: &[&str], what: &str) -> dx_testing::Run {
+fn run_ok(case: &Case, args: &[&str], what: &str) -> Result<dx_testing::Run, String> {
     let run = case.bazel(args);
-    assert_eq!(run.status.code(), Some(0), "{what}: {}", run.combined());
-    run
+    if run.status.code() == Some(0) {
+        Ok(run)
+    } else {
+        Err(format!("{what}: {}", run.combined()))
+    }
 }
 
 #[cfg(test)]

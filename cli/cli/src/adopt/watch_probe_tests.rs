@@ -63,7 +63,7 @@ impl Probe {
     }
 
     fn start(name: &str, words: &[&str], fake: &[(&str, &str)]) -> Self {
-        let scratch = dx_test_scratch::scratch(name);
+        let scratch = dx_test_scratch::scratch(name).unwrap();
         let base = scratch.path().to_path_buf();
         let workspace = base.join("ws");
         let bin = base.join("bin");

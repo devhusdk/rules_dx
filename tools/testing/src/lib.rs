@@ -199,6 +199,8 @@ pub fn run_command(
 /// # Panics
 ///
 /// Panics when the operation fails.
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn copy_tree(from: &Path, to: &Path) {
     std::fs::create_dir_all(to).unwrap_or_else(|error| panic!("create {}: {error}", to.display()));
     for entry in
@@ -224,12 +226,16 @@ pub fn copy_tree(from: &Path, to: &Path) {
 }
 
 #[cfg(unix)]
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 fn symlink(destination: &Path, link: &Path, source: &Path) {
     std::os::unix::fs::symlink(destination, link)
         .unwrap_or_else(|error| panic!("link {}: {error}", source.display()));
 }
 
 #[cfg(windows)]
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 fn symlink(destination: &Path, link: &Path, source: &Path) {
     let result = if source.is_dir() {
         std::os::windows::fs::symlink_dir(destination, link)
@@ -277,6 +283,8 @@ pub fn write_json(path: &Path, value: &serde_json::Value) -> Result<(), String> 
 /// # Panics
 ///
 /// Panics when the operation fails.
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn write(path: &Path, text: &str) {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)
@@ -291,6 +299,8 @@ pub fn write(path: &Path, text: &str) {
 ///
 /// Panics when the operation fails.
 #[must_use]
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn read(path: &Path) -> String {
     std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {}: {error}", path.display()))
 }
@@ -403,6 +413,8 @@ pub fn rlocation(key: &str) -> std::io::Result<PathBuf> {
 ///
 /// Panics when the operation fails.
 #[must_use]
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn resolve_runfiles(rel: &str) -> PathBuf {
     find_runfile(rel).unwrap_or_else(|error| panic!("runfile {rel}: {error}"))
 }
@@ -419,6 +431,8 @@ pub fn env_file(var: &str) -> PathBuf {
 ///
 /// Panics when the operation fails.
 #[must_use]
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn env_text(var: &str) -> String {
     std::env::var(var).unwrap_or_else(|_| panic!("{var} is set"))
 }
@@ -443,6 +457,8 @@ pub fn path_text(path: &Path) -> String {
 ///
 /// Panics when the operation fails.
 #[must_use]
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn scratch_dir(name: &str) -> PathBuf {
     let dir = PathBuf::from(env_text("TEST_TMPDIR")).join(name);
     std::fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("create {}: {e}", dir.display()));
@@ -455,6 +471,8 @@ pub fn scratch_dir(name: &str) -> PathBuf {
 ///
 /// Panics when the operation fails.
 #[must_use]
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn classpath(vars: &[&str]) -> String {
     let joined = std::env::join_paths(vars.iter().map(|var| env_file(var)))
         .unwrap_or_else(|e| panic!("classpath entries join: {e}"));
@@ -467,6 +485,8 @@ pub fn classpath(vars: &[&str]) -> String {
 ///
 /// Panics when the operation fails.
 #[must_use]
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn read_runfile(rel: &str) -> Vec<u8> {
     let resolved = resolve_runfiles(rel);
     std::fs::read(&resolved).unwrap_or_else(|e| panic!("read {}: {e}", resolved.display()))
@@ -496,22 +516,21 @@ fn find_runfile(rel: &str) -> std::io::Result<PathBuf> {
 
 /// Names the `rules_dx` checkout behind the `//:MODULE.bazel` runfile of the calling test.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics when the operation fails.
-#[must_use]
-pub fn rules_dx_source() -> PathBuf {
-    let module = find_runfile("MODULE.bazel").unwrap_or_else(|error| {
-        panic!(
+/// Returns `Err` when the runfile is missing or has no checkout above it.
+pub fn rules_dx_source() -> Result<PathBuf, String> {
+    let module = find_runfile("MODULE.bazel").map_err(|error| {
+        format!(
             "runfile MODULE.bazel: {error}; add //:module_srcs or an area module_srcs to the test's data"
         )
-    });
-    let real = std::fs::canonicalize(&module)
-        .unwrap_or_else(|error| panic!("{}: {error}", module.display()));
-    dx_path::without_verbatim(
-        real.parent()
-            .unwrap_or_else(|| panic!("no checkout above {}", real.display())),
-    )
+    })?;
+    let real =
+        std::fs::canonicalize(&module).map_err(|error| format!("{}: {error}", module.display()))?;
+    let checkout = real
+        .parent()
+        .ok_or_else(|| format!("no checkout above {}", real.display()))?;
+    Ok(dx_path::without_verbatim(checkout))
 }
 
 /// Writes the `@dx_test_tags_sources` snapshot named by `DX_SOURCES_JSON`, `DX_FILES_JSON` and, when set, `DX_RUST_JSON` and `DX_PROSE_JSON` into a scratch tree and names its root.
@@ -519,10 +538,14 @@ pub fn rules_dx_source() -> PathBuf {
 /// # Panics
 ///
 /// Panics when the operation fails.
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn source_snapshot() -> PathBuf {
     static ROOT: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
     ROOT.get_or_init(|| {
-        let root = dx_test_scratch::scratch("source-snapshot").keep();
+        let root = dx_test_scratch::scratch("source-snapshot")
+            .unwrap_or_else(|error| panic!("{error}"))
+            .keep();
         for variable in [
             "DX_SOURCES_JSON",
             "DX_FILES_JSON",
@@ -553,6 +576,8 @@ pub fn source_snapshot() -> PathBuf {
 ///
 /// Panics when the operation fails.
 #[must_use]
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn source_paths() -> Vec<String> {
     let key = env_text("DX_PATHS_JSON");
     let path = rlocation(key.trim()).unwrap_or_else(|error| panic!("DX_PATHS_JSON: {error}"));
@@ -564,6 +589,8 @@ pub fn source_paths() -> Vec<String> {
 /// # Panics
 ///
 /// Panics when the operation fails.
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn write_text(path: &Path, text: &str) {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)
@@ -578,6 +605,8 @@ pub fn write_text(path: &Path, text: &str) {
 ///
 /// Panics when the operation fails.
 #[must_use]
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn read_text(path: &Path) -> String {
     std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {}: {error}", path.display()))
 }
@@ -608,6 +637,8 @@ pub fn process_probe() -> PathBuf {
 ///
 /// Panics when the operation fails.
 #[must_use]
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn alive_lock_held(lock: &Path) -> bool {
     let file = std::fs::OpenOptions::new()
         .read(true)
@@ -649,6 +680,11 @@ pub fn holding() -> std::sync::RwLockReadGuard<'static, ()> {
 ///
 /// Panics when the operation fails.
 #[cfg(unix)]
+#[track_caller]
+#[expect(
+    clippy::expect_used,
+    reason = "test helper: a failed setup fails the test"
+)]
 pub fn executable_script(path: &Path, body: &str) {
     use std::io::Write;
     let mut child = std::process::Command::new("/bin/sh")
@@ -678,6 +714,11 @@ pub fn executable_script(path: &Path, body: &str) {
 ///
 /// Panics when the operation fails.
 #[must_use]
+#[track_caller]
+#[expect(
+    clippy::expect_used,
+    reason = "test helper: a failed setup fails the test"
+)]
 pub fn fake_generate_bazel_path(dir: &Path, tool: &Path) -> String {
     std::fs::create_dir_all(dir).expect("fake bazel dir");
     for name in ["bazel", "uv", "python"] {
@@ -753,6 +794,8 @@ pub fn assert_still_held(lock: &Path) {
 /// # Panics
 ///
 /// Panics when the operation fails.
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn runfiles_root() -> PathBuf {
     let root =
         std::env::var("TEST_SRCDIR").unwrap_or_else(|_| panic!("TEST_SRCDIR is set under Bazel"));
@@ -767,6 +810,8 @@ pub fn runfiles_root() -> PathBuf {
 /// # Panics
 ///
 /// Panics when the operation fails.
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn read_runfiles(rel: &str) -> String {
     let path = resolve_runfiles(rel);
     std::fs::read_to_string(&path).unwrap_or_else(|error| panic!("read {rel}: {error}"))
@@ -777,6 +822,8 @@ pub fn read_runfiles(rel: &str) -> String {
 /// # Panics
 ///
 /// Panics when the operation fails.
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn starlark_const(text: &str, name: &str, file: &str) -> String {
     let prefix = format!("{name} = \"");
     text.lines()
@@ -793,6 +840,8 @@ pub fn starlark_const(text: &str, name: &str, file: &str) -> String {
 ///
 /// Panics when the operation fails.
 #[must_use]
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn workflow_files() -> Vec<String> {
     let list = std::env::var("DX_WORKFLOWS").unwrap_or_else(|_| {
         panic!(
@@ -1107,7 +1156,7 @@ mod tests {
 
     #[test]
     fn rules_dx_source_holds_the_module_and_its_bazel_version() {
-        let source = rules_dx_source();
+        let source = rules_dx_source().unwrap();
         assert!(source.join("MODULE.bazel").is_file(), "{source:?}");
         assert!(source.join(".bazelversion").is_file(), "{source:?}");
     }
@@ -1448,8 +1497,8 @@ mod tests {
 
     #[test]
     fn scratch_json_and_run_helpers() {
-        let first_scratch = dx_test_scratch::scratch("dx-helper-");
-        let second_scratch = dx_test_scratch::scratch("dx-helper-");
+        let first_scratch = dx_test_scratch::scratch("dx-helper-").unwrap();
+        let second_scratch = dx_test_scratch::scratch("dx-helper-").unwrap();
         let first = first_scratch.path();
         assert_ne!(first, second_scratch.path());
         let path = first.join("doc.json");

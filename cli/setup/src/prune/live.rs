@@ -325,7 +325,7 @@ mod tests {
     #[test]
     fn scan_missing_proc_root_reports_unavailable_not_idle() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-prune-test-scan-missing-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-scan-missing-").unwrap();
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -343,7 +343,7 @@ mod tests {
     #[test]
     fn scan_file_proc_root_reports_unavailable() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-prune-test-scan-file-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-scan-file-").unwrap();
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -363,7 +363,7 @@ mod tests {
     #[test]
     fn scan_ignores_non_numeric_entries() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-prune-test-scan-nonnumeric-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-scan-nonnumeric-").unwrap();
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -391,7 +391,7 @@ mod tests {
     #[test]
     fn scan_reports_cwd_and_fd_targets_under_managed_roots() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-prune-test-scan-live-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-scan-live-").unwrap();
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -440,7 +440,7 @@ mod tests {
     #[test]
     fn scan_trims_deleted_suffix_and_ignores_unmanaged_paths() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-prune-test-scan-edge-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-scan-edge-").unwrap();
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -487,7 +487,7 @@ mod tests {
     #[test]
     fn scan_dedupes_and_sorts_across_processes() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-prune-test-scan-dedupe-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-scan-dedupe-").unwrap();
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -536,7 +536,7 @@ mod tests {
     #[test]
     fn with_scan_matches_plain_inventory_without_live_processes() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-prune-test-with-scan-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-with-scan-").unwrap();
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -555,7 +555,7 @@ mod tests {
     #[test]
     fn unknown_observation_preserves_unobserved_state_by_default() {
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-prune-test-unknown-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-unknown-").unwrap();
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -585,7 +585,7 @@ mod tests {
 
     #[test]
     fn scan_unreadable_cwd_reports_unknown_with_partial_hexes() {
-        let scratch = dx_test_scratch::scratch("dx-prune-test-scan-unreadable-cwd-");
+        let scratch = dx_test_scratch::scratch("dx-prune-test-scan-unreadable-cwd-").unwrap();
         let root = scratch.path().to_path_buf();
         let dx_dir = dx_path::state::local_dir(&workspace_of(&root));
         let proc_root = root.join("proc");
@@ -606,7 +606,7 @@ mod tests {
 
     #[test]
     fn scan_unreadable_fd_dir_reports_unknown() {
-        let scratch = dx_test_scratch::scratch("dx-prune-test-scan-unreadable-fd-");
+        let scratch = dx_test_scratch::scratch("dx-prune-test-scan-unreadable-fd-").unwrap();
         let root = scratch.path().to_path_buf();
         let dx_dir = dx_path::state::local_dir(&workspace_of(&root));
         let proc_root = root.join("proc");
@@ -622,7 +622,7 @@ mod tests {
 
     #[test]
     fn scan_skips_processes_that_are_gone() {
-        let scratch = dx_test_scratch::scratch("dx-prune-test-scan-gone-");
+        let scratch = dx_test_scratch::scratch("dx-prune-test-scan-gone-").unwrap();
         let root = scratch.path().to_path_buf();
         let dx_dir = dx_path::state::local_dir(&workspace_of(&root));
         let proc_root = root.join("proc");
@@ -637,7 +637,7 @@ mod tests {
 
     #[test]
     fn unreadable_process_keeps_observed_state() {
-        let scratch = dx_test_scratch::scratch("dx-prune-test-unreadable-prune-");
+        let scratch = dx_test_scratch::scratch("dx-prune-test-unreadable-prune-").unwrap();
         std::fs::create_dir_all(scratch.path().join("ws")).expect("create workspace");
         let root = scratch.path().to_path_buf();
         let (workspace, stale_hex, _) = two_record_workspace(&root);
@@ -665,7 +665,7 @@ mod tests {
     #[cfg(target_os = "linux")]
     #[test]
     fn real_proc_is_observable() {
-        let scratch = dx_test_scratch::scratch("dx-prune-test-real-proc-");
+        let scratch = dx_test_scratch::scratch("dx-prune-test-real-proc-").unwrap();
         let dx_dir = dx_path::state::local_dir(&workspace_of(scratch.path()));
         match scan_live_observation(Path::new("/proc"), &dx_dir) {
             LiveObservation::Known(_) => {}
@@ -677,7 +677,7 @@ mod tests {
 
     #[test]
     fn unavailable_observation_keeps_only_current_and_previous() {
-        let scratch = dx_test_scratch::scratch("dx-prune-test-unknown-previous-");
+        let scratch = dx_test_scratch::scratch("dx-prune-test-unknown-previous-").unwrap();
         std::fs::create_dir_all(scratch.path().join("ws")).expect("create workspace");
         let root = scratch.path().to_path_buf();
         let (workspace, older_hex, _) = two_record_workspace(&root);
@@ -699,7 +699,7 @@ mod tests {
     fn leased_generations_are_active_without_a_proc_sighting() {
         let _fork = dx_testing::holding();
         let scratch = {
-            let __scratch = dx_test_scratch::scratch("dx-prune-test-leased-");
+            let __scratch = dx_test_scratch::scratch("dx-prune-test-leased-").unwrap();
             std::fs::create_dir_all(__scratch.path().join("ws")).expect("create workspace");
             __scratch
         };
@@ -808,7 +808,7 @@ mod tests {
     #[test]
     fn denied_foreign_process_does_not_block_pruning() {
         for code in [EACCES, EPERM] {
-            let scratch = dx_test_scratch::scratch("dx-prune-test-scan-denied-");
+            let scratch = dx_test_scratch::scratch("dx-prune-test-scan-denied-").unwrap();
             let (workspace, stale_hex, _) = two_record_workspace(&staged_root(&scratch));
             let dx_dir = dx_path::state::local_dir(&workspace);
             let mut proc = FakeProc::default();
@@ -825,7 +825,7 @@ mod tests {
 
     #[test]
     fn unreadable_same_user_process_keeps_everything_despite_previous() {
-        let scratch = dx_test_scratch::scratch("dx-prune-test-scan-einval-");
+        let scratch = dx_test_scratch::scratch("dx-prune-test-scan-einval-").unwrap();
         let (workspace, older_hex, _) = two_record_workspace(&staged_root(&scratch));
         let previous = setup_pair('5', '6');
         crate::commit_pair(&workspace, &previous).expect("commit previous");
@@ -852,7 +852,7 @@ mod tests {
 
     #[test]
     fn denied_fd_keeps_the_cwd_already_read() {
-        let scratch = dx_test_scratch::scratch("dx-prune-test-scan-denied-fd-");
+        let scratch = dx_test_scratch::scratch("dx-prune-test-scan-denied-fd-").unwrap();
         let (workspace, stale_hex, _) = two_record_workspace(&staged_root(&scratch));
         let dx_dir = dx_path::state::local_dir(&workspace);
         let mut proc = FakeProc::default();
@@ -869,7 +869,7 @@ mod tests {
 
     #[test]
     fn exe_and_mapped_files_keep_their_generations() {
-        let scratch = dx_test_scratch::scratch("dx-prune-test-scan-exe-maps-");
+        let scratch = dx_test_scratch::scratch("dx-prune-test-scan-exe-maps-").unwrap();
         let (workspace, _, _) = two_record_workspace(&staged_root(&scratch));
         let dx_dir = dx_path::state::local_dir(&workspace);
         let old_env = digest('3');
@@ -923,7 +923,7 @@ mod tests {
 
     #[test]
     fn unreadable_maps_reports_unknown_with_partial_hexes() {
-        let scratch = dx_test_scratch::scratch("dx-prune-test-scan-maps-eio-");
+        let scratch = dx_test_scratch::scratch("dx-prune-test-scan-maps-eio-").unwrap();
         let dx_dir = dx_path::state::local_dir(&workspace_of(scratch.path()));
         let hex = digest('7');
         let mut proc = FakeProc::default();

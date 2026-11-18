@@ -25,7 +25,7 @@ fn run(dir: &Path, fixture: &str) -> (Output, PathBuf) {
 
 #[test]
 fn clean_file_gives_an_empty_report() {
-    let scratch = dx_test_scratch::scratch("julia-jet");
+    let scratch = dx_test_scratch::scratch("julia-jet").unwrap();
     let (out, report) = run(scratch.path(), "clean.jl");
     assert_eq!(
         out.status.code(),
@@ -38,7 +38,7 @@ fn clean_file_gives_an_empty_report() {
 
 #[test]
 fn undefined_global_is_reported_at_its_line() {
-    let scratch = dx_test_scratch::scratch("julia-jet");
+    let scratch = dx_test_scratch::scratch("julia-jet").unwrap();
     let (out, report) = run(scratch.path(), "buggy.jl");
     assert_eq!(
         out.status.code(),

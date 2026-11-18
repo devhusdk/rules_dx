@@ -24,10 +24,13 @@ fn names(inputs: &Value, path: &str) -> Vec<String> {
 
 #[test]
 fn gitlab_takes_the_github_inputs_under_the_same_names() {
-    let github: Vec<String> = names(&document(GITHUB)["on"]["workflow_call"]["inputs"], GITHUB)
-        .into_iter()
-        .filter(|name| !GITHUB_ONLY.contains(&name.as_str()))
-        .collect();
+    let github: Vec<String> = names(
+        &document(GITHUB).unwrap()["on"]["workflow_call"]["inputs"],
+        GITHUB,
+    )
+    .into_iter()
+    .filter(|name| !GITHUB_ONLY.contains(&name.as_str()))
+    .collect();
     let text = read_runfiles(GITLAB);
     let (header, _) = text
         .split_once("\n---\n")
@@ -40,7 +43,10 @@ fn gitlab_takes_the_github_inputs_under_the_same_names() {
 
 #[test]
 fn every_github_only_input_still_exists() {
-    let github = names(&document(GITHUB)["on"]["workflow_call"]["inputs"], GITHUB);
+    let github = names(
+        &document(GITHUB).unwrap()["on"]["workflow_call"]["inputs"],
+        GITHUB,
+    );
     for name in GITHUB_ONLY {
         assert!(
             github.iter().any(|seen| seen == name),

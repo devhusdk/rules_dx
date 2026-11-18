@@ -520,10 +520,10 @@ mod tests {
             "name: x\n",
         )
         .expect("write");
-        dx_test_scratch::git(&repo, &repo, &["init", "-q"]);
-        dx_test_scratch::git(&repo, &repo, &["add", "."]);
-        dx_test_scratch::git(&repo, &repo, &["commit", "-q", "-m", "x"]);
-        dx_test_scratch::git(&repo, &repo, &["tag", "v1.0.0"]);
+        dx_test_scratch::git(&repo, &repo, &["init", "-q"]).unwrap();
+        dx_test_scratch::git(&repo, &repo, &["add", "."]).unwrap();
+        dx_test_scratch::git(&repo, &repo, &["commit", "-q", "-m", "x"]).unwrap();
+        dx_test_scratch::git(&repo, &repo, &["tag", "v1.0.0"]).unwrap();
         let dest = root.join("dest");
         assert_eq!(
             export_git_dir(

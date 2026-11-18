@@ -1,21 +1,42 @@
+use std::process::ExitCode;
+
 use dx_nested as nested;
 
-fn server_pid(case: &nested::Case, version: &str) -> String {
+fn server_pid(case: &nested::Case, version: &str) -> Result<String, String> {
     std::fs::write(case.join(".bazelversion"), version)
-        .unwrap_or_else(|error| panic!("write .bazelversion: {error}"));
+        .map_err(|error| format!("write .bazelversion: {error}"))?;
     std::fs::write(case.join("MODULE.bazel"), "module(name = \"probe\")\n")
-        .unwrap_or_else(|error| panic!("write MODULE.bazel: {error}"));
+        .map_err(|error| format!("write MODULE.bazel: {error}"))?;
     let info = case.bazel(&["info", "server_pid"]);
-    assert!(info.status.success(), "{}", info.combined());
-    assert_eq!(case.servers().len(), 1, "one server per test binary");
-    info.stdout.trim().to_owned()
+    if !info.status.success() {
+        return Err(info.combined());
+    }
+    if case.servers().len() != 1 {
+        return Err("one server per test binary".to_owned());
+    }
+    Ok(info.stdout.trim().to_owned())
 }
 
-fn main() {
+fn run() -> Result<String, String> {
     let version = std::env::var("DX_PROBE_BAZEL_VERSION")
-        .unwrap_or_else(|_| panic!("DX_PROBE_BAZEL_VERSION must name the Bazel version"));
-    let first = server_pid(&nested::case("probe"), &version);
-    let second = server_pid(&nested::case("probe"), &version);
-    assert_eq!(first, second, "cases must share one server");
-    println!("server_pid={second}");
+        .map_err(|_| "DX_PROBE_BAZEL_VERSION must name the Bazel version".to_owned())?;
+    let first = server_pid(&nested::case("probe"), &version)?;
+    let second = server_pid(&nested::case("probe"), &version)?;
+    if first != second {
+        return Err(format!("cases must share one server: {first} != {second}"));
+    }
+    Ok(second)
+}
+
+fn main() -> ExitCode {
+    match run() {
+        Ok(pid) => {
+            println!("server_pid={pid}");
+            ExitCode::SUCCESS
+        }
+        Err(error) => {
+            eprintln!("nested_bazel_probe: {error}");
+            ExitCode::FAILURE
+        }
+    }
 }

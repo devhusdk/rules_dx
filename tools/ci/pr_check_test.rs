@@ -42,7 +42,7 @@ fn labels(text: &str) -> Vec<String> {
 #[test]
 fn script_covers_the_ci_preflight_labels() {
     let script = constant(&read_runfiles(SCRIPT), "PREFLIGHT_TARGETS");
-    let preflight = job(CI, "preflight");
+    let preflight = job(CI, "preflight").unwrap();
     let matrix = preflight["strategy"]["matrix"]["include"]
         .as_array()
         .expect("preflight matrix");
@@ -51,7 +51,7 @@ fn script_covers_the_ci_preflight_labels() {
         .find(|cell| cell["platform"] == "linux_x86_64")
         .expect("linux_x86_64 cell");
     let mut wanted = labels(linux["quality"].as_str().expect("quality labels"));
-    for step in steps(CI, "preflight") {
+    for step in steps(CI, "preflight").unwrap() {
         let run = step["run"].as_str().unwrap_or_default();
         if run.contains("bazel build --noshow_progress")
             || run.contains("bazel test --noshow_progress")
@@ -97,7 +97,7 @@ fn windows_arm64_set_or_blocklist_covers_ci_preflight() {
     let body = &constant(&script, "WINDOWS_ARM64_TARGETS");
     let blocked = &constant(&script, "WINDOWS_ARM64_BLOCKED");
     let mut wanted = Vec::new();
-    for step in steps(CI, "preflight") {
+    for step in steps(CI, "preflight").unwrap() {
         let run = step["run"].as_str().unwrap_or_default();
         if run.contains("bazel build --noshow_progress")
             || run.contains("bazel test --noshow_progress")
@@ -105,7 +105,7 @@ fn windows_arm64_set_or_blocklist_covers_ci_preflight() {
             wanted.extend(labels(run));
         }
     }
-    let matrix = job(CI, "preflight")["strategy"]["matrix"]["include"]
+    let matrix = job(CI, "preflight").unwrap()["strategy"]["matrix"]["include"]
         .as_array()
         .expect("preflight matrix")
         .clone();
@@ -128,6 +128,7 @@ fn windows_arm64_set_or_blocklist_covers_ci_preflight() {
 #[test]
 fn workflow_runs_every_set_in_its_own_step() {
     let names: Vec<String> = steps(WORKFLOW, "analysis")
+        .unwrap()
         .iter()
         .filter(|step| step["run"].is_string())
         .filter(|step| step["name"].as_str() != Some("affected tests"))
@@ -135,7 +136,7 @@ fn workflow_runs_every_set_in_its_own_step() {
         .map(|step| step["name"].as_str().unwrap_or_default().to_owned())
         .collect();
     assert_eq!(names, SETS);
-    for step in steps(WORKFLOW, "analysis") {
+    for step in steps(WORKFLOW, "analysis").unwrap() {
         if let Some(run) = step["run"].as_str() {
             let name = step["name"].as_str().unwrap_or_default();
             if name == "affected tests" || name == TOOL_STEP {
@@ -159,7 +160,7 @@ fn workflow_runs_every_set_in_its_own_step() {
 
 #[test]
 fn workflow_builds_the_tool_before_the_sets() {
-    let steps = steps(WORKFLOW, "analysis");
+    let steps = steps(WORKFLOW, "analysis").unwrap();
     let position = |name: &str| {
         steps
             .iter()
@@ -176,6 +177,7 @@ fn workflow_builds_the_tool_before_the_sets() {
 /// Returns the `affected tests` step of the `affected` job.
 fn affected_step() -> serde_json::Value {
     steps(WORKFLOW, "affected")
+        .unwrap()
         .into_iter()
         .find(|s| s["name"].as_str() == Some("affected tests"))
         .expect("affected tests step")
@@ -184,12 +186,12 @@ fn affected_step() -> serde_json::Value {
 #[test]
 fn jobs_stay_inside_the_time_budget() {
     for name in ["analysis", "affected"] {
-        let minutes = job(WORKFLOW, name)["timeout-minutes"]
+        let minutes = job(WORKFLOW, name).unwrap()["timeout-minutes"]
             .as_u64()
             .expect("timeout-minutes");
         assert!(minutes <= 30, "{name} timeout-minutes is {minutes}");
     }
-    let job_minutes = job(WORKFLOW, "affected")["timeout-minutes"]
+    let job_minutes = job(WORKFLOW, "affected").unwrap()["timeout-minutes"]
         .as_u64()
         .expect("timeout-minutes");
     let step = affected_step();
@@ -237,14 +239,14 @@ fn cacheless_retry_drops_the_remote_downloader() {
 #[test]
 fn affected_tests_do_not_wait_on_the_sets() {
     // A failing or slow set must neither skip the affected tests nor eat their time.
-    let analysis = steps(WORKFLOW, "analysis");
+    let analysis = steps(WORKFLOW, "analysis").unwrap();
     assert!(
         analysis
             .iter()
             .all(|s| s["name"].as_str() != Some("affected tests")),
         "affected tests belong in their own job"
     );
-    let affected = job(WORKFLOW, "affected");
+    let affected = job(WORKFLOW, "affected").unwrap();
     assert!(affected.get("needs").is_none(), "affected must not need analysis");
     let condition = affected["if"].as_str().expect("if");
     assert!(
@@ -256,7 +258,7 @@ fn affected_tests_do_not_wait_on_the_sets() {
 
 #[test]
 fn workflow_runs_on_pull_requests() {
-    let on = triggers(WORKFLOW);
+    let on = triggers(WORKFLOW).unwrap();
     assert!(
         on.get("pull_request").is_some(),
         "{WORKFLOW} needs a pull_request trigger"
@@ -271,7 +273,7 @@ fn workflow_runs_on_pull_requests() {
 fn consumer_queries_skip_the_private_upstream_copies() {
     for path in [CI, SCRIPT] {
         let text = if path == CI {
-            strings(CI).join("\n")
+            strings(CI).unwrap().join("\n")
         } else {
             read_runfiles(path)
         };

@@ -18,7 +18,7 @@ runtime=default
 
 #[test]
 fn consumer_release_runs_relocated() {
-    let scratch = dx_test_scratch::scratch("consumer-release");
+    let scratch = dx_test_scratch::scratch("consumer-release").unwrap();
     let dir = scratch.path();
     let source = dx_testing::env_file("DX_SHARED_CONSUMER_RELEASE");
     let bin = dir.join(source.file_name().expect("binary file name"));

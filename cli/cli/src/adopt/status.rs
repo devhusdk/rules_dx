@@ -569,7 +569,7 @@ mod tests {
 
     #[test]
     fn owned_list_covers_launcher_preset_and_override_paths() {
-        let scratch = dx_test_scratch::scratch("dx-status-owned-");
+        let scratch = dx_test_scratch::scratch("dx-status-owned-").unwrap();
         let owned: Vec<String> = crate::adopt::init_files::plan(
             scratch.path(),
             "my_project",
@@ -598,7 +598,7 @@ mod tests {
 
     #[test]
     fn status_inside_a_leased_slot_shows_the_lease_and_its_holder() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-status-lease-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-lease-").unwrap();
         let pool = scratch.path().join("pool");
         let slot = pool.join("3");
         std::fs::create_dir_all(&slot).expect("slot");
@@ -639,7 +639,7 @@ mod tests {
 
     #[test]
     fn slots_check_names_unusable_slot_files_and_creates_nothing() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-status-slots-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-slots-").unwrap();
         let dir = scratch.path();
         assert!(slots_check(dir).is_none());
         std::fs::write(dir.join("slot-0.lock"), "").expect("file");
@@ -655,7 +655,7 @@ mod tests {
 
     #[test]
     fn status_flags_a_missing_or_stale_agents_block_and_accepts_a_current_one() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-status-agents-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-agents-").unwrap();
         let root = scratch.path();
         let check = init_check(root);
         assert_eq!(
@@ -719,7 +719,7 @@ mod tests {
     #[test]
     fn status_reports_pin_and_checks() {
         let inv = invocation(&["status"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-status-status-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-status-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");
@@ -732,7 +732,7 @@ mod tests {
     #[test]
     fn status_fails_on_a_stale_launcher() {
         let inv = invocation(&["status"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-status-launcher-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-launcher-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");
@@ -760,7 +760,7 @@ mod tests {
     #[test]
     fn status_json_streams_envelope() {
         let inv = invocation(&["status", "--output=json"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-status-json-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-json-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");
@@ -795,7 +795,7 @@ mod tests {
     }
 
     fn status_with(files: &[(&str, &str)], words: &[&str]) -> String {
-        let scratch = dx_test_scratch::scratch("dx-adopt-status-tier-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-tier-").unwrap();
         let root = scratch.path().to_path_buf();
         write_module(&root);
         for (name, text) in files {
@@ -941,7 +941,7 @@ mod tests {
     #[test]
     fn status_other_version_pin_warns() {
         for words in [vec!["status"], vec!["status", "--output=json"]] {
-            let scratch = dx_test_scratch::scratch("dx-adopt-status-mismatch-");
+            let scratch = dx_test_scratch::scratch("dx-adopt-status-mismatch-").unwrap();
             let root = scratch.path().to_path_buf();
             std::fs::create_dir_all(root.join(".dx")).expect("dx");
             std::fs::write(root.join(".dx/pins"), "9.9.9\n").expect("pin");
@@ -953,7 +953,7 @@ mod tests {
     #[test]
     fn status_missing_pin_warns() {
         for words in [vec!["status"], vec!["status", "--output=json"]] {
-            let scratch = dx_test_scratch::scratch("dx-adopt-status-missing-");
+            let scratch = dx_test_scratch::scratch("dx-adopt-status-missing-").unwrap();
             let root = scratch.path().to_path_buf();
             write_module(&root);
             assert_pin_warns(&words, &root);
@@ -962,7 +962,7 @@ mod tests {
 
     #[test]
     fn status_empty_pin_warns() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-status-empty-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-empty-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/pins"), "\n").expect("empty pin");
@@ -973,7 +973,7 @@ mod tests {
     #[test]
     fn status_text_lists_every_command_and_workspace_tools() {
         let inv = invocation(&["status", "--capabilities"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-status-cap-text-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-cap-text-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");
@@ -1005,7 +1005,7 @@ mod tests {
 
     #[test]
     fn status_files_lists_every_planned_file_and_flags_a_stale_dx_key() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-status-files-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-files-").unwrap();
         let root = scratch.path().to_path_buf();
         let (code, _out, err) = run(&invocation(&["init", "--apply"]), &root);
         assert_eq!(code, 0, "{err}");
@@ -1047,7 +1047,7 @@ mod tests {
 
     #[test]
     fn status_default_output_omits_file_records() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-status-nofiles-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-nofiles-").unwrap();
         let root = scratch.path().to_path_buf();
         let (code, _out, err) = run(&invocation(&["init", "--apply"]), &root);
         assert_eq!(code, 0, "{err}");
@@ -1057,7 +1057,7 @@ mod tests {
 
     #[test]
     fn status_default_output_omits_capability_records() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-status-compact-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-compact-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");
@@ -1080,7 +1080,7 @@ mod tests {
     #[test]
     fn status_json_verbose_emits_no_capability_records() {
         let inv = invocation(&["status", "--output=json", "--verbose"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-status-verbose-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-verbose-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");
@@ -1095,7 +1095,7 @@ mod tests {
     #[test]
     fn status_json_streams_capability_records() {
         let inv = invocation(&["status", "--output=json", "--capabilities"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-status-cap-json-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-cap-json-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");
@@ -1134,7 +1134,7 @@ mod tests {
     #[test]
     fn status_reports_actionable_health_checks() {
         let inv = invocation(&["status", "--output=json"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-status-health-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-health-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");
@@ -1177,7 +1177,7 @@ mod tests {
     fn health_findings_report_check_failed() {
         for words in [vec!["status"], vec!["status", "--output=json"]] {
             let inv = invocation(&words);
-            let scratch = dx_test_scratch::scratch("dx-adopt-status-bare-");
+            let scratch = dx_test_scratch::scratch("dx-adopt-status-bare-").unwrap();
             let root = scratch.path().to_path_buf();
             std::fs::create_dir_all(root.join(".dx")).expect("dx");
             std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");
@@ -1192,7 +1192,7 @@ mod tests {
     #[test]
     fn a_pin_mismatch_does_not_mask_other_findings() {
         let inv = invocation(&["status"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-status-both-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-both-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/pins"), "9.9.9\n").expect("pin");
@@ -1205,7 +1205,7 @@ mod tests {
     #[test]
     fn a_missing_managed_tool_fails_status() {
         let inv = invocation(&["status", "--output=json", "--capabilities"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-status-tool-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-tool-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx/local/setups")).expect("setups");
         std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");
@@ -1233,7 +1233,7 @@ mod tests {
     #[test]
     fn status_reports_capabilities_alongside_a_pin_warning() {
         let inv = invocation(&["status", "--output=json", "--capabilities"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-status-cap-fail-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-cap-fail-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/pins"), "9.9.9\n").expect("pin");
@@ -1262,7 +1262,7 @@ mod tests {
     fn status_broken_pipe_returns_141() {
         for words in [vec!["status"], vec!["status", "--output=json"]] {
             let inv = invocation(&words);
-            let scratch = dx_test_scratch::scratch("dx-adopt-status-broken-");
+            let scratch = dx_test_scratch::scratch("dx-adopt-status-broken-").unwrap();
             let root = scratch.path().to_path_buf();
             std::fs::create_dir_all(root.join(".dx")).expect("dx");
             std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");

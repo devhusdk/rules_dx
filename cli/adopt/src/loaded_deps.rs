@@ -138,7 +138,7 @@ mod tests {
         "module(name = \"app\")\n\nbazel_dep(name = \"rules_dx\", version = \"1.0.0\")\n";
 
     fn plan(files: &[(&str, &str)]) -> LockHubs {
-        let dir = dx_test_scratch::scratch("loaded-deps");
+        let dir = dx_test_scratch::scratch("loaded-deps").unwrap();
         for (rel, text) in files {
             let path = dir.path().join(rel);
             std::fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");

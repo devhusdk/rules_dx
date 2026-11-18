@@ -5,7 +5,7 @@ use dx_adopt::defaults::DX_OUTPUT_ENV;
 
 #[test]
 fn the_dx_process_reads_verbose_and_rejects_flag_values() {
-    let scratch = dx_test_scratch::scratch("dx-defaults-process-");
+    let scratch = dx_test_scratch::scratch("dx-defaults-process-").unwrap();
     let root = scratch.path().to_path_buf();
     std::fs::create_dir(root.join(".dx")).expect("dx");
     std::fs::write(root.join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
@@ -94,7 +94,7 @@ fn assert_startup_outcome(out: &str, code: &str, exit: i32) {
 }
 
 fn sample_workspace(name: &str) -> dx_test_scratch::TempDir {
-    let scratch = dx_test_scratch::scratch(name);
+    let scratch = dx_test_scratch::scratch(name).unwrap();
     std::fs::write(scratch.path().join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
     std::fs::create_dir(scratch.path().join(".dx")).expect("dx");
     std::fs::write(scratch.path().join(".dx/pins"), "0.0.0\n").expect("pin");
@@ -103,7 +103,7 @@ fn sample_workspace(name: &str) -> dx_test_scratch::TempDir {
 
 #[test]
 fn startup_argument_failures_report_structured_json() {
-    let scratch = dx_test_scratch::scratch("dx-startup-json-usage-");
+    let scratch = dx_test_scratch::scratch("dx-startup-json-usage-").unwrap();
     std::fs::write(scratch.path().join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
     let root = scratch.path();
     let (code, out, err) = run_dx(root, &["lint", ":oops", "--output=json"], &[]);
@@ -171,7 +171,7 @@ fn startup_workspace_failures_report_structured_json() {
 
 #[test]
 fn bazel_run_start_selects_the_workspace_root() {
-    let a = dx_test_scratch::scratch("dx-startup-bwd-a-");
+    let a = dx_test_scratch::scratch("dx-startup-bwd-a-").unwrap();
     let b = sample_workspace("dx-startup-bwd-b-");
     let b_dir = b.path().to_string_lossy().into_owned();
     let (code, _, err) = run_dx(
@@ -189,8 +189,8 @@ fn bazel_run_start_selects_the_workspace_root() {
 #[test]
 fn bazel_run_here_uses_the_working_directory() {
     let ws = sample_workspace("dx-startup-bwd-here-ws-");
-    let runfiles = dx_test_scratch::scratch("dx-startup-bwd-here-runfiles-");
-    let outside = dx_test_scratch::scratch("dx-startup-bwd-here-outside-");
+    let runfiles = dx_test_scratch::scratch("dx-startup-bwd-here-runfiles-").unwrap();
+    let outside = dx_test_scratch::scratch("dx-startup-bwd-here-outside-").unwrap();
     let ws_dir = ws.path().to_string_lossy().into_owned();
     let outside_dir = outside.path().to_string_lossy().into_owned();
     let canonical_outside = outside.path().canonicalize().expect("canonical outside");
@@ -239,9 +239,9 @@ fn bazel_run_here_uses_the_working_directory() {
 
 #[test]
 fn bazel_run_relative_workspace_uses_the_working_directory() {
-    let a = dx_test_scratch::scratch("dx-startup-bwd-rel-a-");
+    let a = dx_test_scratch::scratch("dx-startup-bwd-rel-a-").unwrap();
     let b = sample_workspace("dx-startup-bwd-rel-b-");
-    let runfiles = dx_test_scratch::scratch("dx-startup-bwd-rel-runfiles-");
+    let runfiles = dx_test_scratch::scratch("dx-startup-bwd-rel-runfiles-").unwrap();
     let a_dir = a.path().to_string_lossy().into_owned();
     let b_parent = b
         .path()
@@ -270,7 +270,7 @@ fn bazel_run_relative_workspace_uses_the_working_directory() {
 
 #[test]
 fn init_and_completion_run_without_a_workspace() {
-    let scratch = dx_test_scratch::scratch("dx-startup-outside-");
+    let scratch = dx_test_scratch::scratch("dx-startup-outside-").unwrap();
     let root = scratch.path();
     let start = root.to_string_lossy();
     let tools = root.join("fake-bin");
@@ -342,7 +342,7 @@ fn log_level_flag_exits_two_before_running() {
 
 #[test]
 fn rust_log_does_not_change_dx_diagnostics() {
-    let scratch = dx_test_scratch::scratch("dx-rust-log-");
+    let scratch = dx_test_scratch::scratch("dx-rust-log-").unwrap();
     let root = scratch.path();
     let marker = "dx invocation parsed";
     for filter in ["trace", "info", "dx=trace", "off", "not a filter [", ""] {
@@ -371,7 +371,7 @@ fn rust_log_does_not_change_dx_diagnostics() {
 
 #[test]
 fn no_color_controls_auto_color_and_explicit_modes_win() {
-    let scratch = dx_test_scratch::scratch("dx-no-color-");
+    let scratch = dx_test_scratch::scratch("dx-no-color-").unwrap();
     let root = scratch.path();
     let verbose = ["completion", "bash", "--verbose"];
     let escape = '\u{1b}';
@@ -424,9 +424,9 @@ fn worktree_release_relative_path_uses_the_working_directory() {
         dx_process::capture::DEFAULT_TIMEOUT,
     )
     .expect("git init the workspace");
-    let runfiles = dx_test_scratch::scratch("dx-startup-wt-release-runfiles-");
-    let outside = dx_test_scratch::scratch("dx-startup-wt-release-outside-");
-    let cache = dx_test_scratch::scratch("dx-startup-wt-release-cache-");
+    let runfiles = dx_test_scratch::scratch("dx-startup-wt-release-runfiles-").unwrap();
+    let outside = dx_test_scratch::scratch("dx-startup-wt-release-outside-").unwrap();
+    let cache = dx_test_scratch::scratch("dx-startup-wt-release-cache-").unwrap();
     std::fs::create_dir_all(outside.path().join("slots/4")).expect("outside slot");
     let ws_dir = ws.path().to_string_lossy().into_owned();
     let outside_dir = outside.path().to_string_lossy().into_owned();

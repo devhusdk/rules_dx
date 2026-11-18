@@ -156,7 +156,7 @@ mod tests {
 
     impl Host {
         fn new() -> Host {
-            let scratch = dx_test_scratch::scratch("dx-first-run-");
+            let scratch = dx_test_scratch::scratch("dx-first-run-").unwrap();
             let home = scratch.path().join("home");
             let workspace = scratch.path().join("ws");
             std::fs::create_dir_all(&home).expect("home");

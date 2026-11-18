@@ -78,7 +78,7 @@ fn assert_code(output: &Output, code: i32) {
 
 #[test]
 fn dx_runs_in_the_workspace_with_the_outer_output_base() {
-    let scratch_tmp = dx_test_scratch::scratch("repin-cwd");
+    let scratch_tmp = dx_test_scratch::scratch("repin-cwd").unwrap();
     let scratch = scratch_tmp.path().to_path_buf();
     let setup = setup(&scratch);
     let output_base = scratch.join("ob");
@@ -113,7 +113,7 @@ fn dx_runs_in_the_workspace_with_the_outer_output_base() {
 
 #[test]
 fn no_execroot_adds_no_startup_option() {
-    let scratch_tmp = dx_test_scratch::scratch("repin-noexec");
+    let scratch_tmp = dx_test_scratch::scratch("repin-noexec").unwrap();
     let setup = setup(scratch_tmp.path());
     let output = wrapper(&setup, &["--extra"]).output().expect("runs");
     assert_code(&output, 7);
@@ -122,7 +122,7 @@ fn no_execroot_adds_no_startup_option() {
 
 #[test]
 fn user_output_base_is_not_overridden() {
-    let scratch_tmp = dx_test_scratch::scratch("repin-user-ob");
+    let scratch_tmp = dx_test_scratch::scratch("repin-user-ob").unwrap();
     let scratch = scratch_tmp.path().to_path_buf();
     let setup = setup(&scratch);
     let execroot = scratch.join("ob").join("execroot").join("_main");
@@ -139,7 +139,7 @@ fn user_output_base_is_not_overridden() {
 
 #[test]
 fn unset_build_workspace_directory_fails_without_running_dx() {
-    let scratch_tmp = dx_test_scratch::scratch("repin-unset");
+    let scratch_tmp = dx_test_scratch::scratch("repin-unset").unwrap();
     let setup = setup(scratch_tmp.path());
     let output = wrapper(&setup, &[])
         .env_remove("BUILD_WORKSPACE_DIRECTORY")
@@ -156,7 +156,7 @@ fn unset_build_workspace_directory_fails_without_running_dx() {
 
 #[test]
 fn unresolved_dx_fails_without_running_it() {
-    let scratch_tmp = dx_test_scratch::scratch("repin-nodx");
+    let scratch_tmp = dx_test_scratch::scratch("repin-nodx").unwrap();
     let setup = setup(scratch_tmp.path());
     for value in [None, Some("_main/missing/dx")] {
         let mut command = wrapper(&setup, &[]);

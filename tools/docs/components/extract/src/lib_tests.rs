@@ -213,7 +213,7 @@ fn parse_reads_every_flag() {
 
 #[test]
 fn run_writes_nothing_on_failure() {
-    let scratch = dx_test_scratch::scratch("component_extract");
+    let scratch = dx_test_scratch::scratch("component_extract").unwrap();
     let dir = scratch.path();
     let meta = dir.join("meta.json");
     let out = dir.join("out.pb");

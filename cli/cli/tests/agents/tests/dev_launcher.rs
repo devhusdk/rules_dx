@@ -362,7 +362,7 @@ mod sh {
     }
 
     fn source_repo_in(name: &str, dir: &str) -> SourceRepo {
-        let guard = scratch(name);
+        let guard = scratch(name).unwrap();
         let base = guard.path().to_path_buf();
         let root = base.join(dir);
         checkout(&root);
@@ -1737,7 +1737,7 @@ mod cmd {
     }
 
     fn source_repo(name: &str) -> SourceRepo {
-        let guard = scratch(name);
+        let guard = scratch(name).unwrap();
         let base = guard.path().to_path_buf();
         checkout(&base.join("repo"));
         std::fs::create_dir_all(base.join("stub")).expect("stub dir");

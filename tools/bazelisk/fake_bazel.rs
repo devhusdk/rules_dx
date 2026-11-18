@@ -5,6 +5,13 @@ fn main() {
     for arg in std::env::args().skip(1) {
         println!("arg={arg}");
     }
-    let code = std::env::var("FAKE_BAZEL_EXIT").map_or(0, |code| code.parse().unwrap());
+    let code = match std::env::var("FAKE_BAZEL_EXIT").map(|code| code.parse()) {
+        Err(_) => 0,
+        Ok(Ok(code)) => code,
+        Ok(Err(error)) => {
+            eprintln!("fake_bazel: FAKE_BAZEL_EXIT is not an exit code: {error}");
+            2
+        }
+    };
     std::process::exit(code);
 }

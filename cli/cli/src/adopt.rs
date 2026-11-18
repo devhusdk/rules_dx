@@ -175,7 +175,7 @@ mod tests {
 
     #[test]
     fn status_missing_pin_json_truncation_never_reports_success() {
-        let scratch = dx_test_scratch::scratch("status-missing-pipe-");
+        let scratch = dx_test_scratch::scratch("status-missing-pipe-").unwrap();
         std::fs::write(
             scratch.path().join("MODULE.bazel"),
             "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n",
@@ -207,7 +207,7 @@ mod tests {
 
     #[test]
     fn status_drift_reports_propagate_broken_pipe() {
-        let scratch = dx_test_scratch::scratch("adoption-live-pipe-");
+        let scratch = dx_test_scratch::scratch("adoption-live-pipe-").unwrap();
         dx_adopt::write_version_pin(scratch.path(), "9.9.9").expect("drifted pin");
         std::fs::write(
             scratch.path().join("MODULE.bazel"),
@@ -270,7 +270,7 @@ mod tests {
 
     fn truncation_fails_at_each_document_boundary(cases: &[&[&str]]) {
         for &words in cases {
-            let scratch = dx_test_scratch::scratch("adoption-pipe-");
+            let scratch = dx_test_scratch::scratch("adoption-pipe-").unwrap();
             dx_adopt::write_version_pin(scratch.path(), "0.0.0").expect("pin");
             let inv = invocation(words);
             let run = |out: &mut dyn Write| {
@@ -308,14 +308,14 @@ mod tests {
     #[test]
     fn quiet_suppresses_summaries_but_not_results() {
         let inv = invocation(&["init", "--quiet", "demo"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-cmd-quiet-init-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-cmd-quiet-init-").unwrap();
         let root = scratch.path().to_path_buf();
         let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 1);
         assert!(out.is_empty(), "{out:?}");
 
         let inv = invocation(&["status", "--quiet"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-cmd-quiet-status-");
+        let scratch = dx_test_scratch::scratch("dx-adopt-cmd-quiet-status-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");

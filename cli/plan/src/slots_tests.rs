@@ -167,7 +167,7 @@ fn free(dir: &Path, index: usize) -> bool {
 
 #[test]
 fn a_slot_without_a_holder_file_still_counts_as_held() {
-    let scratch = dx_test_scratch::scratch("dx-slots-no-holder-");
+    let scratch = dx_test_scratch::scratch("dx-slots-no-holder-").unwrap();
     let dir = scratch.path().join("slots");
     let slot = try_take(&dir, 2, "busy").expect("try").expect("slot");
     std::fs::remove_file(holder_path(&dir, slot.index)).expect("remove holder");
@@ -176,7 +176,7 @@ fn a_slot_without_a_holder_file_still_counts_as_held() {
 
 #[test]
 fn a_local_gate_never_takes_an_extra() {
-    let scratch = dx_test_scratch::scratch("dx-slots-local-extra-");
+    let scratch = dx_test_scratch::scratch("dx-slots-local-extra-").unwrap();
     let dir = scratch.path().join("slots");
     let fill = try_take(&dir, 1, "fill").expect("try").expect("fill");
     let gate = remote_gate(&dir, false, Some(false));
@@ -190,7 +190,7 @@ fn a_local_gate_never_takes_an_extra() {
 
 #[test]
 fn a_remote_gate_takes_a_base_slot_then_an_extra_when_calm() {
-    let scratch = dx_test_scratch::scratch("dx-slots-remote-extra-");
+    let scratch = dx_test_scratch::scratch("dx-slots-remote-extra-").unwrap();
     let dir = scratch.path().join("slots");
     let gate = remote_gate(&dir, true, Some(false));
     let (base, base_err, _) = take_gate(&gate);
@@ -203,7 +203,7 @@ fn a_remote_gate_takes_a_base_slot_then_an_extra_when_calm() {
 #[test]
 fn a_remote_gate_waits_under_pressure_or_without_a_signal() {
     for high in [Some(true), None] {
-        let scratch = dx_test_scratch::scratch("dx-slots-remote-pressure-");
+        let scratch = dx_test_scratch::scratch("dx-slots-remote-pressure-").unwrap();
         let dir = scratch.path().join("slots");
         let fill = try_take(&dir, 1, "fill").expect("try").expect("fill");
         let gate = remote_gate(&dir, true, high);
@@ -224,7 +224,7 @@ fn a_remote_gate_waits_under_pressure_or_without_a_signal() {
 
 #[test]
 fn a_remote_waiter_does_not_jump_the_line_through_a_free_extra() {
-    let scratch = dx_test_scratch::scratch("dx-slots-remote-line-");
+    let scratch = dx_test_scratch::scratch("dx-slots-remote-line-").unwrap();
     let dir = scratch.path().join("slots");
     let fill = try_take(&dir, 1, "fill").expect("try").expect("fill");
     let queued = enqueue(&dir, "").expect("queued");
@@ -246,7 +246,7 @@ fn a_remote_waiter_does_not_jump_the_line_through_a_free_extra() {
 
 #[test]
 fn held_extras_under_pressure_add_no_paused_suffix() {
-    let scratch = dx_test_scratch::scratch("dx-slots-remote-full-");
+    let scratch = dx_test_scratch::scratch("dx-slots-remote-full-").unwrap();
     let dir = scratch.path().join("slots");
     let fill = try_take(&dir, 1, "fill").expect("try").expect("fill");
     let extras: Vec<Slot> = (1..3)
@@ -306,7 +306,7 @@ fn base_gate(dir: &Path, high: Arc<dyn Pressure>) -> Gate {
 
 #[test]
 fn a_free_base_slot_waits_under_pressure_while_another_is_held() {
-    let scratch = dx_test_scratch::scratch("dx-slots-base-pressure-");
+    let scratch = dx_test_scratch::scratch("dx-slots-base-pressure-").unwrap();
     let dir = scratch.path().join("slots");
     let fill = try_take(&dir, 2, "fill").expect("try").expect("fill");
     let switch = Arc::new(Switch(std::sync::atomic::AtomicBool::new(true)));
@@ -330,7 +330,7 @@ fn a_free_base_slot_waits_under_pressure_while_another_is_held() {
 
 #[test]
 fn the_pause_ends_after_the_cap_even_under_pressure() {
-    let scratch = dx_test_scratch::scratch("dx-slots-base-cap-");
+    let scratch = dx_test_scratch::scratch("dx-slots-base-cap-").unwrap();
     let dir = scratch.path().join("slots");
     let fill = try_take(&dir, 2, "fill").expect("try").expect("fill");
     let (clock, offset) = fake_clock();
@@ -347,7 +347,7 @@ fn the_pause_ends_after_the_cap_even_under_pressure() {
 
 #[test]
 fn nothing_pauses_when_no_other_slot_is_held_or_there_is_no_signal() {
-    let scratch = dx_test_scratch::scratch("dx-slots-base-free-");
+    let scratch = dx_test_scratch::scratch("dx-slots-base-free-").unwrap();
     let dir = scratch.path().join("slots");
     let gate = base_gate(&dir, Arc::new(Fixed(Some(true))));
     let (slot, err, _) = take_gate(&gate);
@@ -359,7 +359,7 @@ fn nothing_pauses_when_no_other_slot_is_held_or_there_is_no_signal() {
 
 #[test]
 fn a_normal_wait_reports_the_held_reason() {
-    let scratch = dx_test_scratch::scratch("dx-slots-base-held-");
+    let scratch = dx_test_scratch::scratch("dx-slots-base-held-").unwrap();
     let dir = scratch.path().join("slots");
     let fill = try_take(&dir, 1, "fill").expect("try").expect("fill");
     let gate = Gate::new(dir.clone(), 1, "gate".to_owned(), true)
@@ -373,7 +373,7 @@ fn a_normal_wait_reports_the_held_reason() {
 
 #[test]
 fn a_local_rules_dx_gate_counts_a_held_extra_but_not_the_reserve() {
-    let scratch = dx_test_scratch::scratch("dx-slots-local-counted-");
+    let scratch = dx_test_scratch::scratch("dx-slots-local-counted-").unwrap();
     let dir = scratch.path().join("slots");
     let layout = Gate::new(dir.clone(), 4, "r".to_owned(), false)
         .reserving(6)
@@ -396,7 +396,7 @@ fn a_local_rules_dx_gate_counts_a_held_extra_but_not_the_reserve() {
 
 #[test]
 fn extra_grants_are_spaced_out() {
-    let scratch = dx_test_scratch::scratch("dx-slots-remote-spacing-");
+    let scratch = dx_test_scratch::scratch("dx-slots-remote-spacing-").unwrap();
     let dir = scratch.path().join("slots");
     let fill = try_take(&dir, 1, "fill").expect("try").expect("fill");
     std::fs::write(extra_mark(&dir), "earlier").expect("mark");
@@ -422,7 +422,7 @@ fn extra_grants_are_spaced_out() {
 #[test]
 fn a_held_extra_counts_toward_the_share() {
     alone("a_held_extra_counts_toward_the_share", || {
-        let scratch = dx_test_scratch::scratch("dx-slots-remote-share-");
+        let scratch = dx_test_scratch::scratch("dx-slots-remote-share-").unwrap();
         let dir = scratch.path().join("slots");
         let gate = remote_gate(&dir, true, Some(false)).sharing(12, 12 << 30, 0);
         let (base, _, _) = take_gate(&gate);
@@ -462,7 +462,7 @@ fn a_child_forked_while_a_slot_is_held_keeps_it_until_exec() {
     use std::os::fd::AsRawFd;
     use std::os::unix::net::UnixStream;
     use std::os::unix::process::CommandExt;
-    let scratch = dx_test_scratch::scratch("dx-slots-fork-");
+    let scratch = dx_test_scratch::scratch("dx-slots-fork-").unwrap();
     let dir = scratch.path().join("slots");
     std::fs::create_dir_all(&dir).expect("dir");
     let slot = try_take(&dir, 1, "held").expect("try").expect("free");
@@ -501,7 +501,7 @@ fn a_child_forked_while_a_slot_is_held_keeps_it_until_exec() {
 
 #[test]
 fn held_counts_locked_slots_and_the_caller() {
-    let scratch = dx_test_scratch::scratch("dx-slots-held-");
+    let scratch = dx_test_scratch::scratch("dx-slots-held-").unwrap();
     let dir = scratch.path().join("slots");
     std::fs::create_dir_all(&dir).expect("dir");
     assert_eq!(held(&dir, 0..3, 0), 1);
@@ -525,7 +525,7 @@ fn a_taken_slot_sets_the_share_until_it_drops() {
 }
 
 fn take_sets_the_share() {
-    let scratch = dx_test_scratch::scratch("dx-slots-take-share-");
+    let scratch = dx_test_scratch::scratch("dx-slots-take-share-").unwrap();
     let dir = scratch.path().join("slots");
     let gate = Gate::new(dir.clone(), 2, "me".to_owned(), false).sharing(600, 9 << 30, 1 << 30);
     let other = try_take(&dir, 2, "other").expect("try").expect("other");
@@ -548,7 +548,7 @@ fn take_sets_the_share() {
 #[test]
 fn share_shrinks_when_another_slot_is_taken() {
     alone("share_shrinks_when_another_slot_is_taken", || {
-        let scratch = dx_test_scratch::scratch("dx-slots-live-share-");
+        let scratch = dx_test_scratch::scratch("dx-slots-live-share-").unwrap();
         let dir = scratch.path().join("slots");
         let gate = Gate::new(dir.clone(), 2, "me".to_owned(), false).sharing(12, 12 << 30, 0);
         let (slot, _, _) = take_gate(&gate);
@@ -567,7 +567,7 @@ fn share_shrinks_when_another_slot_is_taken() {
 fn slot_runner_exports_the_current_share() {
     use dx_process::Runner as _;
     alone("slot_runner_exports_the_current_share", || {
-        let scratch = dx_test_scratch::scratch("dx-slots-live-env-");
+        let scratch = dx_test_scratch::scratch("dx-slots-live-env-").unwrap();
         let dir = scratch.path().join("slots");
         let gate = Gate::new(dir.clone(), 2, "me".to_owned(), false).sharing(12, 12 << 30, 0);
         let (slot, _, _) = take_gate(&gate);
@@ -622,7 +622,7 @@ fn nested_reuses_the_share() {
 }
 
 fn rules_dx_layout(prefix: &str) -> tempfile::TempDir {
-    let scratch = dx_test_scratch::scratch(prefix);
+    let scratch = dx_test_scratch::scratch(prefix).unwrap();
     std::fs::create_dir_all(scratch.path().join("cli/cli")).expect("dirs");
     std::fs::write(scratch.path().join("cli/cli/BUILD.bazel"), "").expect("build");
     std::fs::write(
@@ -637,7 +637,7 @@ fn rules_dx_layout(prefix: &str) -> tempfile::TempDir {
 fn consumer_workspaces_reserve_nothing() {
     let none = |_: &str| None;
     assert_eq!(nested_reserve(Path::new("/ws"), &none), 0);
-    let scratch = dx_test_scratch::scratch("dx-slots-consumer-");
+    let scratch = dx_test_scratch::scratch("dx-slots-consumer-").unwrap();
     std::fs::create_dir_all(scratch.path().join("cli/cli")).expect("dirs");
     std::fs::write(scratch.path().join("cli/cli/BUILD.bazel"), "").expect("build");
     std::fs::write(
@@ -715,7 +715,7 @@ fn auto_gate_reserve_is_the_shared_reserve_range() {
 
 #[test]
 fn a_consumer_gate_leaves_the_held_reserve_alone() {
-    let scratch = dx_test_scratch::scratch("dx-slots-reserve-held-");
+    let scratch = dx_test_scratch::scratch("dx-slots-reserve-held-").unwrap();
     let dir = scratch.path().join("dx").join("slots");
     let memory = 16_u64 << 30;
     let reserve = dx_process::slot_pool::reserve_range(memory, DEFAULT_NESTED_BAZEL_SLOTS);
@@ -777,7 +777,7 @@ fn memory_text_parses() {
 
 #[test]
 fn extras_follow_the_cgroup_limit() {
-    let scratch = dx_test_scratch::scratch("dx-cgroup-extras-");
+    let scratch = dx_test_scratch::scratch("dx-cgroup-extras-").unwrap();
     let root = scratch.path();
     std::fs::create_dir_all(root.join("a")).expect("dirs");
     std::fs::write(root.join("a/memory.max"), format!("{}\n", 6u64 << 30)).expect("write");
@@ -797,14 +797,14 @@ fn cgroup_limit_reads_v1_and_v2() {
         std::fs::create_dir_all(path.parent().unwrap()).expect("dirs");
         std::fs::write(path, text).expect("write");
     };
-    let scratch = dx_test_scratch::scratch("dx-cgroup-v2-");
+    let scratch = dx_test_scratch::scratch("dx-cgroup-v2-").unwrap();
     let root = scratch.path();
     put(root, "a/memory.max", "1000\n");
     std::fs::create_dir_all(root.join("a/b")).expect("dirs");
     assert_eq!(cgroup_limit_in("0::/a/b\n", root), Some(1000));
     assert_eq!(cgroup_limit_in("", root), None);
 
-    let scratch = dx_test_scratch::scratch("dx-cgroup-v1-");
+    let scratch = dx_test_scratch::scratch("dx-cgroup-v1-").unwrap();
     let root = scratch.path();
     put(root, "memory/memory.limit_in_bytes", "2000\n");
     assert_eq!(cgroup_limit_in("4:memory:/docker/x\n", root), Some(2000));
@@ -819,7 +819,7 @@ fn cgroup_limit_reads_v1_and_v2() {
     put(root, "memory/p/memory.limit_in_bytes", "700\n");
     assert_eq!(cgroup_limit_in("4:memory:/p/c\n", root), Some(700));
 
-    let scratch = dx_test_scratch::scratch("dx-cgroup-v1-unlimited-");
+    let scratch = dx_test_scratch::scratch("dx-cgroup-v1-unlimited-").unwrap();
     let root = scratch.path();
     put(
         root,
@@ -889,7 +889,7 @@ impl dx_process::Runner for EnvRecorder {
 #[test]
 fn slot_runner_forwards_the_pinned_tool_state() {
     use dx_process::Runner as _;
-    let scratch = dx_test_scratch::scratch("dx-slots-pinned-");
+    let scratch = dx_test_scratch::scratch("dx-slots-pinned-").unwrap();
     let dir = scratch.path().join("slots");
     let slot = try_take(&dir, 1, "pinned").expect("try").expect("free");
     let inner = EnvRecorder::default();
@@ -903,7 +903,7 @@ fn slot_runner_forwards_the_pinned_tool_state() {
 #[test]
 fn slot_runner_marks_children_while_the_slot_is_held() {
     use dx_process::Runner as _;
-    let scratch = dx_test_scratch::scratch("dx-slots-env-");
+    let scratch = dx_test_scratch::scratch("dx-slots-env-").unwrap();
     let dir = scratch.path().join("slots");
     let slot = try_take(&dir, 1, "env").expect("try").expect("free");
     let inner = EnvRecorder::default();
@@ -967,7 +967,7 @@ fn only_bazel_commands_take_slots() {
 #[test]
 fn slot_runner_passes_the_share_to_children() {
     use dx_process::Runner as _;
-    let scratch = dx_test_scratch::scratch("dx-slots-share-env-");
+    let scratch = dx_test_scratch::scratch("dx-slots-share-env-").unwrap();
     let dir = scratch.path().join("slots");
     let mut slot = try_take(&dir, 1, "env").expect("try").expect("free");
     slot.sizing = Some(Arc::new(ShareSizing {
@@ -998,7 +998,7 @@ fn slot_runner_passes_the_share_to_children() {
 
 #[test]
 fn a_gate_ignores_slot_env_set_after_it_was_built() {
-    let scratch = dx_test_scratch::scratch("dx-slots-gate-env-");
+    let scratch = dx_test_scratch::scratch("dx-slots-gate-env-").unwrap();
     let cache = scratch.path().to_string_lossy().into_owned();
     let nested = std::cell::Cell::new(false);
     let get = |name: &str| match name {
@@ -1050,7 +1050,7 @@ const RECLAIMED: &str =
 #[test]
 fn take_runs_the_reclaimer_once_and_reports_it() {
     for json in [true, false] {
-        let scratch = dx_test_scratch::scratch("dx-slots-reclaim-");
+        let scratch = dx_test_scratch::scratch("dx-slots-reclaim-").unwrap();
         let (calls, reclaim) = counting(Some(RECLAIMED));
         let gate =
             Gate::new(scratch.path().join("slots"), 1, "me".to_owned(), json).reclaiming(reclaim);
@@ -1076,7 +1076,7 @@ fn take_runs_the_reclaimer_once_and_reports_it() {
 
 #[test]
 fn hold_for_a_command_without_a_build_slot_never_reclaims() {
-    let scratch = dx_test_scratch::scratch("dx-slots-no-reclaim-");
+    let scratch = dx_test_scratch::scratch("dx-slots-no-reclaim-").unwrap();
     let (calls, reclaim) = counting(Some(RECLAIMED));
     let gate =
         Gate::new(scratch.path().join("slots"), 1, "me".to_owned(), true).reclaiming(reclaim);
@@ -1107,7 +1107,7 @@ fn hold_for_a_command_without_a_build_slot_never_reclaims() {
 
 #[test]
 fn a_quiet_reclaim_prints_nothing() {
-    let scratch = dx_test_scratch::scratch("dx-slots-quiet-reclaim-");
+    let scratch = dx_test_scratch::scratch("dx-slots-quiet-reclaim-").unwrap();
     let (calls, reclaim) = counting(None);
     let gate =
         Gate::new(scratch.path().join("slots"), 1, "me".to_owned(), true).reclaiming(reclaim);
@@ -1119,7 +1119,7 @@ fn a_quiet_reclaim_prints_nothing() {
 
 #[test]
 fn take_reclaims_when_slots_are_disabled() {
-    let scratch = dx_test_scratch::scratch("dx-slots-disabled-reclaim-");
+    let scratch = dx_test_scratch::scratch("dx-slots-disabled-reclaim-").unwrap();
     let blocker = scratch.path().join("slots");
     std::fs::write(&blocker, b"").expect("blocker");
     let (calls, reclaim) = counting(Some(RECLAIMED));
@@ -1139,7 +1139,7 @@ fn take_reclaims_when_slots_are_disabled() {
 
 #[test]
 fn a_nested_take_without_a_gate_never_reclaims() {
-    let scratch = dx_test_scratch::scratch("dx-slots-nested-reclaim-");
+    let scratch = dx_test_scratch::scratch("dx-slots-nested-reclaim-").unwrap();
     let (calls, reclaim) = counting(Some(RECLAIMED));
     let gate =
         Gate::new(scratch.path().join("slots"), 1, "me".to_owned(), false).reclaiming(reclaim);
@@ -1153,7 +1153,7 @@ fn a_nested_take_without_a_gate_never_reclaims() {
 
 #[test]
 fn take_without_a_gate_takes_nothing() {
-    let scratch = dx_test_scratch::scratch("dx-slots-no-gate-");
+    let scratch = dx_test_scratch::scratch("dx-slots-no-gate-").unwrap();
     let dir = scratch.path().join("slots");
     let gate = Gate::new(dir.clone(), 1, "me".to_owned(), false);
     with_gate(Some(gate), || {
@@ -1179,7 +1179,7 @@ fn take_without_a_gate_takes_nothing() {
 
 #[test]
 fn a_phase_takes_nothing_until_needed() {
-    let scratch = dx_test_scratch::scratch("dx-slots-phase-lazy-");
+    let scratch = dx_test_scratch::scratch("dx-slots-phase-lazy-").unwrap();
     let dir = scratch.path().join("slots");
     let gate = Gate::new(dir.clone(), 1, "me".to_owned(), false);
     with_gate(Some(gate), || {
@@ -1193,7 +1193,7 @@ fn a_phase_takes_nothing_until_needed() {
 
 #[test]
 fn a_phase_takes_once() {
-    let scratch = dx_test_scratch::scratch("dx-slots-phase-once-");
+    let scratch = dx_test_scratch::scratch("dx-slots-phase-once-").unwrap();
     let dir = scratch.path().join("slots");
     let gate = Gate::new(dir, 1, "me".to_owned(), false);
     with_gate(Some(gate), || {
@@ -1216,7 +1216,7 @@ fn a_phase_without_a_gate_holds_nothing() {
 
 #[test]
 fn a_released_phase_frees_its_slot() {
-    let scratch = dx_test_scratch::scratch("dx-slots-phase-release-");
+    let scratch = dx_test_scratch::scratch("dx-slots-phase-release-").unwrap();
     let dir = scratch.path().join("slots");
     let gate = Gate::new(dir.clone(), 1, "me".to_owned(), false);
     with_gate(Some(gate), || {
@@ -1231,7 +1231,7 @@ fn a_released_phase_frees_its_slot() {
 
 #[test]
 fn share_report_counts_held_slots_read_only() {
-    let scratch = dx_test_scratch::scratch("dx-slots-report-");
+    let scratch = dx_test_scratch::scratch("dx-slots-report-").unwrap();
     let cache = scratch.path().display().to_string();
     let get = move |name: &str| (name == "XDG_CACHE_HOME").then(|| cache.clone());
     let dir = slots_dir(&get).expect("dir");
@@ -1255,7 +1255,7 @@ fn share_report_counts_held_slots_read_only() {
 
 #[test]
 fn held_count_includes_extra_slots() {
-    let scratch = dx_test_scratch::scratch("dx-slots-extra-");
+    let scratch = dx_test_scratch::scratch("dx-slots-extra-").unwrap();
     let size = Sizing {
         count: 2,
         pool: 3,
@@ -1288,7 +1288,7 @@ fn cache_dir_follows_the_environment() {
 
 #[test]
 fn a_second_taker_waits_until_the_first_drops() {
-    let scratch = dx_test_scratch::scratch("dx-slots-wait-");
+    let scratch = dx_test_scratch::scratch("dx-slots-wait-").unwrap();
     let dir = scratch.path().join("slots");
     let first = acquire(&dir, 1, "tree-a", &mut |_| {}).expect("first");
     assert_eq!(first.index, 0);
@@ -1318,7 +1318,7 @@ fn a_second_taker_waits_until_the_first_drops() {
 
 #[test]
 fn waiters_get_slots_in_arrival_order() {
-    let scratch = dx_test_scratch::scratch("dx-slots-order-");
+    let scratch = dx_test_scratch::scratch("dx-slots-order-").unwrap();
     let dir = scratch.path().join("slots");
     let held = try_take(&dir, 1, "first").expect("try").expect("free");
     let order = Arc::new(Mutex::new(Vec::new()));
@@ -1361,7 +1361,7 @@ fn waiters_get_slots_in_arrival_order() {
 
 #[test]
 fn a_newcomer_queues_behind_a_waiter() {
-    let scratch = dx_test_scratch::scratch("dx-slots-newcomer-");
+    let scratch = dx_test_scratch::scratch("dx-slots-newcomer-").unwrap();
     let dir = scratch.path().join("slots");
     let queued = enqueue(&dir, "").expect("queued");
     let (sender, receiver) = std::sync::mpsc::channel();
@@ -1385,7 +1385,7 @@ fn a_newcomer_queues_behind_a_waiter() {
 
 #[test]
 fn an_unlocked_ticket_does_not_block_and_is_swept() {
-    let scratch = dx_test_scratch::scratch("dx-slots-swept-");
+    let scratch = dx_test_scratch::scratch("dx-slots-swept-").unwrap();
     let dir = scratch.path().join("slots");
     std::fs::create_dir_all(queue_dir(&dir)).expect("queue");
     let dead = queue_dir(&dir).join(format!("ticket-{:020}.lock", 7));
@@ -1399,7 +1399,7 @@ fn an_unlocked_ticket_does_not_block_and_is_swept() {
 
 #[test]
 fn a_leaving_ticket_never_deletes_the_next_waiters_want() {
-    let scratch = dx_test_scratch::scratch("dx-slots-leave-");
+    let scratch = dx_test_scratch::scratch("dx-slots-leave-").unwrap();
     let dir = scratch.path().join("slots");
     let mut first = enqueue(&dir, "").expect("first");
     let first_number = first.number;
@@ -1417,7 +1417,7 @@ fn a_leaving_ticket_never_deletes_the_next_waiters_want() {
 
 #[test]
 fn a_dropped_ticket_leaves_no_file() {
-    let scratch = dx_test_scratch::scratch("dx-slots-drop-");
+    let scratch = dx_test_scratch::scratch("dx-slots-drop-").unwrap();
     let dir = scratch.path().join("slots");
     drop(enqueue(&dir, "").expect("ticket"));
     assert_eq!(tickets(&dir), [] as [(u64, PathBuf); 0]);
@@ -1425,7 +1425,7 @@ fn a_dropped_ticket_leaves_no_file() {
 
 #[test]
 fn a_stale_ticket_does_not_block() {
-    let scratch = dx_test_scratch::scratch("dx-slots-stale-");
+    let scratch = dx_test_scratch::scratch("dx-slots-stale-").unwrap();
     let dir = scratch.path().join("slots");
     let stale = enqueue(&dir, "").expect("stale");
     let earlier = SystemTime::now() - Duration::from_secs(60);
@@ -1442,7 +1442,7 @@ fn a_stale_ticket_does_not_block() {
 
 #[test]
 fn a_broken_queue_still_gates() {
-    let scratch = dx_test_scratch::scratch("dx-slots-no-queue-");
+    let scratch = dx_test_scratch::scratch("dx-slots-no-queue-").unwrap();
     let dir = scratch.path().join("slots");
     std::fs::create_dir_all(&dir).expect("slots");
     std::fs::write(queue_dir(&dir), b"").expect("blocker");
@@ -1467,7 +1467,7 @@ fn a_broken_queue_still_gates() {
 
 #[test]
 fn a_freed_slot_clears_its_holder() {
-    let scratch = dx_test_scratch::scratch("dx-slots-holder-");
+    let scratch = dx_test_scratch::scratch("dx-slots-holder-").unwrap();
     let dir = scratch.path().join("slots");
     let a = try_take(&dir, 3, "a").expect("try").expect("a");
     let b = try_take(&dir, 3, "b").expect("try").expect("b");
@@ -1482,7 +1482,7 @@ fn a_freed_slot_clears_its_holder() {
 
 #[test]
 fn a_free_slot_is_taken_without_waiting() {
-    let scratch = dx_test_scratch::scratch("dx-slots-free-");
+    let scratch = dx_test_scratch::scratch("dx-slots-free-").unwrap();
     let dir = scratch.path().join("slots");
     let first = acquire(&dir, 2, "a", &mut |_| {}).expect("first");
     let second = acquire(&dir, 2, "b", &mut |_| panic!("must not wait")).expect("second");
@@ -1578,7 +1578,7 @@ fn take_gate(gate: &Gate) -> (Slot, String, String) {
 
 #[test]
 fn a_rules_dx_run_keeps_consumers_off_the_reserve() {
-    let scratch = dx_test_scratch::scratch("dx-slots-reserve-");
+    let scratch = dx_test_scratch::scratch("dx-slots-reserve-").unwrap();
     let dir = scratch.path().join("slots");
     let gate = Gate::new(dir.clone(), 1, "r".to_owned(), false).reserving(2);
     let (slot, err, _) = take_gate(&gate);
@@ -1649,10 +1649,10 @@ fn count_sizing_keeps_the_reserve_width_above_n() {
 
 #[test]
 fn the_default_setting_is_auto_only_inside_a_worktree_slot() {
-    let plain = dx_test_scratch::scratch("dx-slots-setting-");
+    let plain = dx_test_scratch::scratch("dx-slots-setting-").unwrap();
     assert_eq!(effective_setting(None, plain.path()), BuildSlots::Off);
     assert_eq!(effective_setting(Some(count(2)), plain.path()), count(2));
-    let pool = dx_test_scratch::scratch("dx-slots-setting-pool-");
+    let pool = dx_test_scratch::scratch("dx-slots-setting-pool-").unwrap();
     let slot = pool.path().join("pool/1");
     std::fs::create_dir_all(&slot).expect("slot");
     std::fs::create_dir_all(pool.path().join("pool/.dx")).expect("meta");
@@ -1688,7 +1688,7 @@ fn the_default_setting_is_auto_only_inside_a_worktree_slot() {
 
 #[test]
 fn off_and_nested_runs_build_no_gate() {
-    let scratch = dx_test_scratch::scratch("dx-slots-off-");
+    let scratch = dx_test_scratch::scratch("dx-slots-off-").unwrap();
     let cache = scratch.path().to_string_lossy().into_owned();
     let get = |name: &str| (name == "XDG_CACHE_HOME").then(|| cache.clone());
     assert!(Gate::from_env(Path::new("/ws"), &get, false, &[], BuildSlots::Off).is_none());
@@ -1709,7 +1709,7 @@ fn off_and_nested_runs_build_no_gate() {
 
 #[test]
 fn a_count_gate_waits_on_the_take_past_n() {
-    let scratch = dx_test_scratch::scratch("dx-slots-count-wait-");
+    let scratch = dx_test_scratch::scratch("dx-slots-count-wait-").unwrap();
     let dir = scratch.path().join("slots");
     let size = sizing(count(2), 64 << 30, 0).expect("sizing");
     let gate = Gate::new(dir.clone(), size.count, "fill".to_owned(), false)
@@ -1732,7 +1732,7 @@ fn a_count_gate_waits_on_the_take_past_n() {
 
 #[test]
 fn rules_dx_runs_share_the_reserve() {
-    let scratch = dx_test_scratch::scratch("dx-slots-share-");
+    let scratch = dx_test_scratch::scratch("dx-slots-share-").unwrap();
     let dir = scratch.path().join("slots");
     let gate = Gate::new(dir.clone(), 2, "r".to_owned(), false).reserving(3);
     let (first, first_err, _) = take_gate(&gate);
@@ -1744,7 +1744,7 @@ fn rules_dx_runs_share_the_reserve() {
 
 #[test]
 fn a_rules_dx_run_waits_for_a_consumer_on_the_reserve() {
-    let scratch = dx_test_scratch::scratch("dx-slots-reserve-wait-");
+    let scratch = dx_test_scratch::scratch("dx-slots-reserve-wait-").unwrap();
     let dir = scratch.path().join("slots");
     let fill = try_take(&dir, 2, "fill").expect("try").expect("fill");
     let consumer = try_take(&dir, 2, "consumer")
@@ -1783,7 +1783,7 @@ fn a_want_round_trips_and_garbage_wants_everything() {
     ] {
         assert_eq!(Want::parse(garbage), None, "{garbage}");
     }
-    let scratch = dx_test_scratch::scratch("dx-slots-want-garbage-");
+    let scratch = dx_test_scratch::scratch("dx-slots-want-garbage-").unwrap();
     assert_eq!(
         Want::read(&scratch.path().join("missing.want")),
         Want::everything()
@@ -1792,7 +1792,7 @@ fn a_want_round_trips_and_garbage_wants_everything() {
 
 #[test]
 fn a_dropped_ticket_removes_its_want_and_the_sweep_removes_orphans() {
-    let scratch = dx_test_scratch::scratch("dx-slots-want-drop-");
+    let scratch = dx_test_scratch::scratch("dx-slots-want-drop-").unwrap();
     let dir = scratch.path().join("slots");
     std::fs::create_dir_all(queue_dir(&dir)).expect("queue");
     let want = Want::of(
@@ -1816,7 +1816,7 @@ fn a_dropped_ticket_removes_its_want_and_the_sweep_removes_orphans() {
 
 #[test]
 fn a_waiters_label_is_kept_from_its_sidecar_and_swept_with_the_ticket() {
-    let scratch = dx_test_scratch::scratch("dx-slots-label-");
+    let scratch = dx_test_scratch::scratch("dx-slots-label-").unwrap();
     let dir = scratch.path().join("slots");
     std::fs::create_dir_all(queue_dir(&dir)).expect("queue");
     let ticket = enqueue(&dir, "/ws/waiter").expect("ticket");
@@ -1835,7 +1835,7 @@ fn a_waiters_label_is_kept_from_its_sidecar_and_swept_with_the_ticket() {
 
 #[test]
 fn a_future_mtime_is_not_recent_and_not_a_live_waiter() {
-    let scratch = dx_test_scratch::scratch("dx-slots-future-");
+    let scratch = dx_test_scratch::scratch("dx-slots-future-").unwrap();
     let dir = scratch.path().join("slots");
     std::fs::create_dir_all(&dir).expect("dir");
     let future = SystemTime::now() + Duration::from_secs(3600);
@@ -1856,7 +1856,7 @@ fn a_future_mtime_is_not_recent_and_not_a_live_waiter() {
 
 #[test]
 fn an_unwritable_queue_dir_warns_and_the_run_still_gets_a_slot() {
-    let scratch = dx_test_scratch::scratch("dx-slots-queue-warn-");
+    let scratch = dx_test_scratch::scratch("dx-slots-queue-warn-").unwrap();
     let dir = scratch.path().join("slots");
     std::fs::create_dir_all(&dir).expect("dir");
     std::fs::write(queue_dir(&dir), "not a directory").expect("block queue");
@@ -1882,7 +1882,7 @@ fn an_unwritable_queue_dir_warns_and_the_run_still_gets_a_slot() {
 
 #[test]
 fn an_unwritable_queue_warns_once_through_the_gate() {
-    let scratch = dx_test_scratch::scratch("dx-slots-queue-gate-");
+    let scratch = dx_test_scratch::scratch("dx-slots-queue-gate-").unwrap();
     let dir = scratch.path().join("slots");
     std::fs::create_dir_all(&dir).expect("dir");
     std::fs::write(queue_dir(&dir), "").expect("blocker");
@@ -1901,7 +1901,7 @@ fn an_unwritable_queue_warns_once_through_the_gate() {
 
 #[test]
 fn a_consumer_passes_a_rules_dx_head_blocked_on_its_reserve() {
-    let scratch = dx_test_scratch::scratch("dx-slots-pass-head-");
+    let scratch = dx_test_scratch::scratch("dx-slots-pass-head-").unwrap();
     let dir = scratch.path().join("slots");
     let fill = try_take(&dir, 2, "fill").expect("try").expect("fill");
     let consumer = try_take(&dir, 2, "consumer")
@@ -1942,7 +1942,7 @@ fn a_consumer_passes_a_rules_dx_head_blocked_on_its_reserve() {
 
 #[test]
 fn a_queued_consumer_does_not_take_the_reserve_behind_a_rules_dx_run() {
-    let scratch = dx_test_scratch::scratch("dx-slots-reserve-line-");
+    let scratch = dx_test_scratch::scratch("dx-slots-reserve-line-").unwrap();
     let dir = scratch.path().join("slots");
     let fill = try_take(&dir, 2, "fill").expect("try").expect("fill");
     let consumer = try_take(&dir, 2, "consumer")
@@ -2001,7 +2001,7 @@ fn a_queued_consumer_does_not_take_the_reserve_behind_a_rules_dx_run() {
 
 #[test]
 fn an_unopenable_slot_file_is_skipped() {
-    let scratch = dx_test_scratch::scratch("dx-slots-skip-");
+    let scratch = dx_test_scratch::scratch("dx-slots-skip-").unwrap();
     let dir = scratch.path().join("slots");
     std::fs::create_dir_all(slot_path(&dir, 0)).expect("blocker");
     let slot = acquire(&dir, 2, "a", &mut |_| panic!("must not wait")).expect("slot");
@@ -2012,7 +2012,7 @@ fn an_unopenable_slot_file_is_skipped() {
 #[test]
 fn read_only_slot_file_still_counts() {
     use std::os::unix::fs::PermissionsExt;
-    let scratch = dx_test_scratch::scratch("dx-slots-readonly-");
+    let scratch = dx_test_scratch::scratch("dx-slots-readonly-").unwrap();
     let dir = scratch.path().join("slots");
     std::fs::create_dir_all(&dir).expect("dir");
     let path = slot_path(&dir, 0);
@@ -2029,7 +2029,7 @@ fn read_only_slot_file_still_counts() {
 #[test]
 fn a_read_only_reserve_slot_still_reserves() {
     use std::os::unix::fs::PermissionsExt;
-    let scratch = dx_test_scratch::scratch("dx-slots-readonly-reserve-");
+    let scratch = dx_test_scratch::scratch("dx-slots-readonly-reserve-").unwrap();
     let dir = scratch.path().join("slots");
     std::fs::create_dir_all(&dir).expect("dir");
     let path = slot_path(&dir, 1);
@@ -2046,7 +2046,7 @@ fn a_read_only_reserve_slot_still_reserves() {
 #[test]
 fn a_skipped_slot_warns_once() {
     for json in [true, false] {
-        let scratch = dx_test_scratch::scratch("dx-slots-warn-");
+        let scratch = dx_test_scratch::scratch("dx-slots-warn-").unwrap();
         let dir = scratch.path().join("slots");
         std::fs::create_dir_all(slot_path(&dir, 0)).expect("blocker");
         let gate = Gate::new(dir, 2, "a".to_owned(), json);
@@ -2075,7 +2075,7 @@ fn a_skipped_slot_warns_once() {
 
 #[test]
 fn no_openable_slot_file_is_an_error() {
-    let scratch = dx_test_scratch::scratch("dx-slots-none-");
+    let scratch = dx_test_scratch::scratch("dx-slots-none-").unwrap();
     let dir = scratch.path().join("slots");
     std::fs::create_dir_all(slot_path(&dir, 0)).expect("blocker");
     assert!(try_take(&dir, 1, "a").is_err());
@@ -2083,7 +2083,7 @@ fn no_openable_slot_file_is_an_error() {
 
 #[test]
 fn a_bad_slot_and_busy_slots_still_wait() {
-    let scratch = dx_test_scratch::scratch("dx-slots-partial-");
+    let scratch = dx_test_scratch::scratch("dx-slots-partial-").unwrap();
     let dir = scratch.path().join("slots");
     std::fs::create_dir_all(slot_path(&dir, 0)).expect("blocker");
     let _held = acquire(&dir, 2, "a", &mut |_| {}).expect("held");
@@ -2092,7 +2092,7 @@ fn a_bad_slot_and_busy_slots_still_wait() {
 
 #[test]
 fn a_crashed_holder_frees_its_slot() {
-    let scratch = dx_test_scratch::scratch("dx-slots-crash-");
+    let scratch = dx_test_scratch::scratch("dx-slots-crash-").unwrap();
     let dir = scratch.path().join("slots");
     let mut child = spawn_holder(&dir);
     assert!(try_take(&dir, 1, "me").expect("try").is_none());
@@ -2104,7 +2104,7 @@ fn a_crashed_holder_frees_its_slot() {
 
 #[test]
 fn a_nested_call_takes_no_slot() {
-    let scratch = dx_test_scratch::scratch("dx-slots-nested-");
+    let scratch = dx_test_scratch::scratch("dx-slots-nested-").unwrap();
     let cache = scratch.path().to_string_lossy().into_owned();
     let nested = |name: &str| match name {
         "XDG_CACHE_HOME" => Some(cache.clone()),
@@ -2127,7 +2127,7 @@ fn a_nested_call_takes_no_slot() {
 
 #[test]
 fn a_dx_call_inside_a_bazel_test_takes_no_slot_when_all_are_full() {
-    let scratch = dx_test_scratch::scratch("dx-slots-bazel-test-");
+    let scratch = dx_test_scratch::scratch("dx-slots-bazel-test-").unwrap();
     let cache = scratch.path().to_string_lossy().into_owned();
     let dir = scratch.path().join("dx").join("slots");
     let count = slot_count(available_memory().expect("memory"), 0);
@@ -2162,7 +2162,7 @@ fn busy(count: usize) -> String {
 
 #[test]
 fn waiting_prints_one_line_and_one_json_notice() {
-    let scratch = dx_test_scratch::scratch("dx-slots-notice-");
+    let scratch = dx_test_scratch::scratch("dx-slots-notice-").unwrap();
     let cache = scratch.path().to_string_lossy().into_owned();
     let dir = scratch.path().join("dx").join("slots");
     let count = slot_count(available_memory().expect("memory"), 0);
@@ -2197,7 +2197,7 @@ fn waiting_prints_one_line_and_one_json_notice() {
 
 #[test]
 fn unopenable_slots_print_one_disabled_line_and_one_json_notice() {
-    let scratch = dx_test_scratch::scratch("dx-slots-disabled-");
+    let scratch = dx_test_scratch::scratch("dx-slots-disabled-").unwrap();
     let cache = scratch.path().to_string_lossy().into_owned();
     std::fs::create_dir_all(scratch.path().join("dx")).expect("dx dir");
     std::fs::write(scratch.path().join("dx").join("slots"), b"").expect("blocker");
@@ -2231,7 +2231,7 @@ fn unopenable_slots_print_one_disabled_line_and_one_json_notice() {
 
 #[test]
 fn update_holds_no_process_slot() {
-    let scratch = dx_test_scratch::scratch("dx-slots-update-");
+    let scratch = dx_test_scratch::scratch("dx-slots-update-").unwrap();
     let cache = scratch.path().to_string_lossy().into_owned();
     let dir = scratch.path().join("dx").join("slots");
     let count = slot_count(available_memory().expect("memory"), 0);
@@ -2257,7 +2257,7 @@ fn update_holds_no_process_slot() {
 
 #[test]
 fn a_waiter_polls_while_it_waits_and_stops_once_it_takes_the_slot() {
-    let scratch = dx_test_scratch::scratch("dx-slots-poll-");
+    let scratch = dx_test_scratch::scratch("dx-slots-poll-").unwrap();
     let dir = scratch.path().join("slots");
     let first = acquire(&dir, 1, "tree-a", &mut |_| {}).expect("first");
     let polls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
@@ -2350,7 +2350,7 @@ fn busy_gate(dir: &Path, wait: Duration) -> (Gate, Slot) {
 
 #[test]
 fn a_zero_wait_fails_at_once_naming_the_holder() {
-    let scratch = dx_test_scratch::scratch("dx-slots-busy-");
+    let scratch = dx_test_scratch::scratch("dx-slots-busy-").unwrap();
     let dir = scratch.path().join("slots");
     let (gate, _holder) = busy_gate(&dir, Duration::ZERO);
     let (mut err, mut events) = (Vec::new(), Vec::new());
@@ -2363,7 +2363,7 @@ fn a_zero_wait_fails_at_once_naming_the_holder() {
 
 #[test]
 fn a_wait_gives_up_once_the_clock_passes_the_limit() {
-    let scratch = dx_test_scratch::scratch("dx-slots-deadline-");
+    let scratch = dx_test_scratch::scratch("dx-slots-deadline-").unwrap();
     let dir = scratch.path().join("slots");
     let (gate, _holder) = busy_gate(&dir, Duration::from_secs(3));
     let (mut err, mut events) = (Vec::new(), Vec::new());
@@ -2380,7 +2380,7 @@ fn a_wait_gives_up_once_the_clock_passes_the_limit() {
 
 #[test]
 fn a_free_slot_is_taken_even_with_a_zero_wait() {
-    let scratch = dx_test_scratch::scratch("dx-slots-free-");
+    let scratch = dx_test_scratch::scratch("dx-slots-free-").unwrap();
     let dir = scratch.path().join("slots");
     let gate = Gate::new(dir, 1, "/w/me".to_owned(), false).waiting_at_most(Some(Duration::ZERO));
     assert_eq!(take_gate(&gate).0.index, 0);
@@ -2388,7 +2388,7 @@ fn a_free_slot_is_taken_even_with_a_zero_wait() {
 
 #[test]
 fn a_wait_reaps_once_keeping_holders_waiters_and_itself() {
-    let scratch = dx_test_scratch::scratch("dx-slots-reap-");
+    let scratch = dx_test_scratch::scratch("dx-slots-reap-").unwrap();
     let dir = scratch.path().join("slots");
     let holder = take_gate(&Gate::new(dir.clone(), 1, "/w/holder".to_owned(), false)).0;
     let queued = enqueue(&dir, "/w/waiter").expect("queued");
@@ -2423,7 +2423,7 @@ fn a_wait_reaps_once_keeping_holders_waiters_and_itself() {
 
 #[test]
 fn a_wait_that_stops_nothing_keeps_the_plain_line_and_reports_zero() {
-    let scratch = dx_test_scratch::scratch("dx-slots-reap-none-");
+    let scratch = dx_test_scratch::scratch("dx-slots-reap-none-").unwrap();
     let dir = scratch.path().join("slots");
     let (gate, calls) = recording(Gate::new(dir.clone(), 1, "/w/me".to_owned(), true), 0);
     let (err, events) = wait_behind_holder(&dir, gate);
@@ -2434,7 +2434,7 @@ fn a_wait_that_stops_nothing_keeps_the_plain_line_and_reports_zero() {
 
 #[test]
 fn a_gate_without_a_reaper_reports_no_reaped_servers() {
-    let scratch = dx_test_scratch::scratch("dx-slots-no-reaper-");
+    let scratch = dx_test_scratch::scratch("dx-slots-no-reaper-").unwrap();
     let dir = scratch.path().join("slots");
     let gate = Gate::new(dir.clone(), 1, "/w/me".to_owned(), true);
     let (err, events) = wait_behind_holder(&dir, gate);
@@ -2444,7 +2444,7 @@ fn a_gate_without_a_reaper_reports_no_reaped_servers() {
 
 #[test]
 fn another_reaping_waiter_skips_the_reap() {
-    let scratch = dx_test_scratch::scratch("dx-slots-reap-busy-");
+    let scratch = dx_test_scratch::scratch("dx-slots-reap-busy-").unwrap();
     let dir = scratch.path().join("slots");
     std::fs::create_dir_all(&dir).expect("dir");
     let busy = dx_atomic_fs::lease::try_lock_file(&dir.join("reap.lock"), true)
@@ -2460,7 +2460,7 @@ fn another_reaping_waiter_skips_the_reap() {
 
 #[test]
 fn a_free_slot_never_reaps() {
-    let scratch = dx_test_scratch::scratch("dx-slots-reap-free-");
+    let scratch = dx_test_scratch::scratch("dx-slots-reap-free-").unwrap();
     let (gate, calls) = recording(
         Gate::new(scratch.path().join("slots"), 1, "/w/me".to_owned(), true),
         1,
@@ -2472,7 +2472,7 @@ fn a_free_slot_never_reaps() {
 
 #[test]
 fn a_remote_gate_reaps_one_remote_slot() {
-    let scratch = dx_test_scratch::scratch("dx-slots-reap-remote-");
+    let scratch = dx_test_scratch::scratch("dx-slots-reap-remote-").unwrap();
     let dir = scratch.path().join("slots");
     let (gate, calls) = recording(
         Gate::new(dir.clone(), 1, "/w/me".to_owned(), false).extra(0, true),
@@ -2491,7 +2491,7 @@ fn reaped_suffix_counts_servers() {
 
 #[test]
 fn a_free_slot_never_polls() {
-    let scratch = dx_test_scratch::scratch("dx-slots-nopoll-");
+    let scratch = dx_test_scratch::scratch("dx-slots-nopoll-").unwrap();
     let dir = scratch.path().join("slots");
     let mut polls = 0;
     let slot = acquire_with(
@@ -2829,7 +2829,7 @@ impl Warm for ReleasingWarm {
 
 #[test]
 fn a_waiting_take_keeps_its_server_warm_until_it_gets_a_slot() {
-    let scratch = dx_test_scratch::scratch("dx-slots-keepwarm-");
+    let scratch = dx_test_scratch::scratch("dx-slots-keepwarm-").unwrap();
     let dir = scratch.path().to_path_buf();
     let (holder, _, _) = take_gate(&Gate::new(dir.clone(), 1, "/w/holder".to_owned(), false));
     let log = std::rc::Rc::new(RefCell::new(FakeLog::default()));
@@ -2853,7 +2853,7 @@ fn a_waiting_take_keeps_its_server_warm_until_it_gets_a_slot() {
 
 #[test]
 fn a_free_slot_never_looks_for_a_server() {
-    let scratch = dx_test_scratch::scratch("dx-slots-nowarm-");
+    let scratch = dx_test_scratch::scratch("dx-slots-nowarm-").unwrap();
     let gate = Gate::new(scratch.path().to_path_buf(), 1, "/w/a".to_owned(), false);
     let log = std::rc::Rc::new(RefCell::new(FakeLog::default()));
     let warm = FakeWarm {
@@ -2868,7 +2868,7 @@ fn a_free_slot_never_looks_for_a_server() {
 
 #[test]
 fn from_args_builds_warmth_from_argv_and_rc_roots() {
-    let scratch = dx_test_scratch::scratch("dx-slots-warmth-");
+    let scratch = dx_test_scratch::scratch("dx-slots-warmth-").unwrap();
     let root = scratch.path().to_path_buf();
     let workspace = root.join("ws");
     std::fs::create_dir_all(&workspace).expect("workspace");
@@ -2925,7 +2925,7 @@ fn ping_argv_carries_startup_options_before_the_info_verb() {
 #[cfg(unix)]
 #[test]
 fn a_real_ping_child_is_reaped_on_stop() {
-    let scratch = dx_test_scratch::scratch("dx-plan-ping-");
+    let scratch = dx_test_scratch::scratch("dx-plan-ping-").unwrap();
     let warmth = Warmth {
         workspace: scratch.path().to_path_buf(),
         startup_options: Vec::new(),

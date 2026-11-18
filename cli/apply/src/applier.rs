@@ -308,7 +308,7 @@ mod tests {
 
     #[test]
     fn real_filesystem_reads_writes_and_reports_errors() {
-        let scratch = dx_test_scratch::scratch("dx-apply-fs-");
+        let scratch = dx_test_scratch::scratch("dx-apply-fs-").unwrap();
         let dir = scratch.path().to_path_buf();
         let fs = RealFileSystem;
         let nested = dir.join("sub").join("a.txt");

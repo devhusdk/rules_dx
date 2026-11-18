@@ -52,7 +52,7 @@ mod tests {
     #[test]
     #[cfg(unix)]
     fn link_replaces_the_old_target() {
-        let scratch = dx_test_scratch::scratch("dx-ide-link-");
+        let scratch = dx_test_scratch::scratch("dx-ide-link-").unwrap();
         let first = scratch.path().join("first");
         let second = scratch.path().join("second");
         std::fs::create_dir_all(&first).expect("first");

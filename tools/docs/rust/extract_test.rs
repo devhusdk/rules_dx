@@ -22,7 +22,7 @@ fn fixture_srcs() -> String {
 }
 
 fn scratch(name: &str, json: &str, srcs: &str) -> dx_test_scratch::TempDir {
-    let dir = dx_test_scratch::scratch(name);
+    let dir = dx_test_scratch::scratch(name).unwrap();
     std::fs::write(dir.path().join("crate.json"), json).expect("write JSON");
     std::fs::write(dir.path().join("srcs.tsv"), srcs).expect("write srcs");
     dir

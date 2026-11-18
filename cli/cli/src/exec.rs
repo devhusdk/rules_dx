@@ -312,7 +312,11 @@ fn init_then_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
     if code != 0 {
         return code;
     }
-    match dx_generate::sync(&root, dx_generate::Mode::Full, &mut dx_adopt::detected_families) {
+    match dx_generate::sync(
+        &root,
+        dx_generate::Mode::Full,
+        &mut dx_adopt::detected_families,
+    ) {
         Ok(_) => 0,
         Err(error) => {
             writeln!(err, "dx: .dx not synced after generate: {error}").ok();
@@ -615,7 +619,7 @@ mod tests {
         unclaimed: bool,
         gone: bool,
     ) -> tempfile::TempDir {
-        let scratch = dx_test_scratch::scratch("dx-exec-lease-");
+        let scratch = dx_test_scratch::scratch("dx-exec-lease-").unwrap();
         let slot = scratch.path().join("pool").join("1");
         std::fs::create_dir_all(&slot).expect("slot");
         std::fs::create_dir_all(scratch.path().join("pool").join(".dx")).expect("meta");

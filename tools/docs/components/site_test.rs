@@ -4,7 +4,7 @@ use dx_testing as _;
 use shard_test_support::shard;
 
 fn fixture() -> documentation_ir::proto::DocIr {
-    shard("DX_FIXTURE_SHARD")
+    shard("DX_FIXTURE_SHARD").unwrap()
 }
 
 #[test]
@@ -54,7 +54,8 @@ fn components_render_with_member_groups_and_search_records() {
 
 #[test]
 fn svelte_components_render_with_member_groups_and_search_records() {
-    let rendered = dx_site_aggregate::render(&[shard("DX_SVELTE_SHARD")], "").expect("render");
+    let rendered =
+        dx_site_aggregate::render(&[shard("DX_SVELTE_SHARD").unwrap()], "").expect("render");
     let page = &rendered.pages["svelte/ui/Card.md"];
     assert!(page.starts_with("# `Card.svelte`"), "{page}");
     for group in ["Props: ", "Slots: "] {
@@ -74,7 +75,8 @@ fn svelte_components_render_with_member_groups_and_search_records() {
 
 #[test]
 fn astro_components_render_with_member_groups_and_search_records() {
-    let rendered = dx_site_aggregate::render(&[shard("DX_ASTRO_SHARD")], "").expect("render");
+    let rendered =
+        dx_site_aggregate::render(&[shard("DX_ASTRO_SHARD").unwrap()], "").expect("render");
     let page = &rendered.pages["astro/ui/Hero.md"];
     assert!(page.starts_with("# `Hero.astro`"), "{page}");
     for group in ["Props: ", "Slots: "] {
@@ -94,7 +96,8 @@ fn astro_components_render_with_member_groups_and_search_records() {
 
 #[test]
 fn mdx_components_render() {
-    let rendered = dx_site_aggregate::render(&[shard("DX_MDX_SHARD")], "").expect("render");
+    let rendered =
+        dx_site_aggregate::render(&[shard("DX_MDX_SHARD").unwrap()], "").expect("render");
     let page = &rendered.pages["mdx/ui/Intro.md"];
     assert!(page.starts_with("# `Intro.mdx`"), "{page}");
     assert!(

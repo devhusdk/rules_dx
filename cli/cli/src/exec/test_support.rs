@@ -28,7 +28,7 @@ pub(crate) use dx_testing::cli::{
 };
 
 pub(crate) fn temp_dir(prefix: &str) -> tempfile::TempDir {
-    dx_test_scratch::scratch(&format!("dx-exec-test-{prefix}-"))
+    dx_test_scratch::scratch(&format!("dx-exec-test-{prefix}-")).unwrap()
 }
 
 /// A real file system whose atomic writes fail for the listed paths, so tests

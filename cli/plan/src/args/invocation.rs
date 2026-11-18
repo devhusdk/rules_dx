@@ -1085,7 +1085,7 @@ mod tests {
             .is_err()
         );
 
-        let scratch = dx_test_scratch::scratch("dx-here-bazel-run-");
+        let scratch = dx_test_scratch::scratch("dx-here-bazel-run-").unwrap();
         let ws = scratch.path().join("ws");
         std::fs::create_dir_all(ws.join("cli/cli")).expect("dirs");
         let runfiles = scratch.path().join("runfiles");

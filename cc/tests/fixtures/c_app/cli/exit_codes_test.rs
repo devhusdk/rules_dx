@@ -22,7 +22,7 @@ fn stderr(run: &Output) -> String {
 
 #[test]
 fn unknown_command_exits_2() {
-    let scratch = dx_test_scratch::scratch("c-app-exit");
+    let scratch = dx_test_scratch::scratch("c-app-exit").unwrap();
     let run = stock(&["sell"], scratch.path(), None);
     assert_eq!(run.status.code(), Some(2));
     assert!(stderr(&run).starts_with("usage:"));
@@ -30,7 +30,7 @@ fn unknown_command_exits_2() {
 
 #[test]
 fn unknown_item_exits_4() {
-    let scratch = dx_test_scratch::scratch("c-app-exit");
+    let scratch = dx_test_scratch::scratch("c-app-exit").unwrap();
     let run = stock(&["get", "rivet"], scratch.path(), None);
     assert_eq!(run.status.code(), Some(4));
     assert_eq!(stderr(&run), "stock: no item rivet\n");
@@ -38,7 +38,7 @@ fn unknown_item_exits_4() {
 
 #[test]
 fn missing_stock_file_exits_3() {
-    let scratch = dx_test_scratch::scratch("c-app-exit");
+    let scratch = dx_test_scratch::scratch("c-app-exit").unwrap();
     let run = stock(&["--file", "absent.json", "list"], scratch.path(), None);
     assert_eq!(run.status.code(), Some(3));
     assert_eq!(stderr(&run), "stock: cannot read stock file\n");
@@ -46,7 +46,7 @@ fn missing_stock_file_exits_3() {
 
 #[test]
 fn malformed_stock_file_exits_3() {
-    let scratch = dx_test_scratch::scratch("c-app-exit");
+    let scratch = dx_test_scratch::scratch("c-app-exit").unwrap();
     let bad = dx_testing::env_file("STOCK_WRONG_TYPE");
     let run = stock(
         &["--file", bad.to_str().expect("utf-8 path"), "list"],
@@ -59,7 +59,7 @@ fn malformed_stock_file_exits_3() {
 
 #[test]
 fn packaged_stock_is_found_from_any_directory() {
-    let scratch = dx_test_scratch::scratch("c-app-exit");
+    let scratch = dx_test_scratch::scratch("c-app-exit").unwrap();
     let run = stock(&["total"], scratch.path(), None);
     assert_eq!(run.status.code(), Some(0), "{}", stderr(&run));
     assert_eq!(text(&run.stdout), "total 6600\n");
@@ -67,7 +67,7 @@ fn packaged_stock_is_found_from_any_directory() {
 
 #[test]
 fn relative_file_resolves_against_the_invoking_directory() {
-    let scratch = dx_test_scratch::scratch("c-app-exit");
+    let scratch = dx_test_scratch::scratch("c-app-exit").unwrap();
     let json = dx_testing::env_file("STOCK_JSON");
     let dir = json.parent().expect("parent").to_path_buf();
     let run = stock(

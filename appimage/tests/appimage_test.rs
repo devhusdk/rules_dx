@@ -31,7 +31,7 @@ fn spawn_guard() -> std::sync::MutexGuard<'static, ()> {
 fn relocate(source: &Path, dir: &str) -> (impl Drop + use<>, PathBuf) {
     use std::os::unix::fs::PermissionsExt;
     let _guard = spawn_guard();
-    let scratch_guard = dx_test_scratch::scratch("appimage");
+    let scratch_guard = dx_test_scratch::scratch("appimage").unwrap();
     let scratch = scratch_guard.path();
     let moved = scratch.join(dir);
     std::fs::create_dir_all(&moved).expect("create directory");

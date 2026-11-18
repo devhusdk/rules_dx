@@ -27,7 +27,7 @@ fn text(bytes: &[u8]) -> String {
 
 #[test]
 fn clean_file_passes() {
-    let scratch = dx_test_scratch::scratch("julia-format");
+    let scratch = dx_test_scratch::scratch("julia-format").unwrap();
     let file = source(scratch.path(), "clean", CLEAN);
     let out = run("--check", &[&file]);
     assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
@@ -36,7 +36,7 @@ fn clean_file_passes() {
 
 #[test]
 fn dirty_file_is_listed_then_fixed() {
-    let scratch = dx_test_scratch::scratch("julia-format");
+    let scratch = dx_test_scratch::scratch("julia-format").unwrap();
     let file = source(scratch.path(), "dirty", DIRTY);
     let out = run("--check", &[&file]);
     assert_eq!(out.status.code(), Some(1));
@@ -50,7 +50,7 @@ fn dirty_file_is_listed_then_fixed() {
 
 #[test]
 fn syntax_error_reports_position_and_is_never_written() {
-    let scratch = dx_test_scratch::scratch("julia-format");
+    let scratch = dx_test_scratch::scratch("julia-format").unwrap();
     let file = source(scratch.path(), "broken", BROKEN);
     for mode in ["--check", "--apply"] {
         let out = run(mode, &[&file]);

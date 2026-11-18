@@ -33,7 +33,7 @@ fn env_path(name: &str) -> PathBuf {
 }
 
 fn stage(name: &str) -> Env {
-    let root = dx_test_scratch::scratch(name);
+    let root = dx_test_scratch::scratch(name).unwrap();
     let tree = root.path().join("execroot");
     std::fs::create_dir_all(&tree).expect("execroot");
     let tidy = root.path().join("clang-tidy");

@@ -174,7 +174,7 @@ mod tests {
 
     #[test]
     fn unselected_environment_is_unknown() {
-        let scratch = dx_test_scratch::scratch("dx-status-tools-none-");
+        let scratch = dx_test_scratch::scratch("dx-status-tools-none-").unwrap();
         let check = managed_tools_check(scratch.path());
         assert_eq!(check.status, "warn");
         assert!(check.detail.starts_with("unknown:"), "{}", check.detail);
@@ -183,7 +183,7 @@ mod tests {
 
     #[test]
     fn selected_tools_are_available() {
-        let scratch = dx_test_scratch::scratch("dx-status-tools-ok-");
+        let scratch = dx_test_scratch::scratch("dx-status-tools-ok-").unwrap();
         let root = scratch.path();
         let env = select(root);
         install(&env, root, "tool");
@@ -206,7 +206,7 @@ mod tests {
 
     #[test]
     fn missing_and_corrupt_tools_fail() {
-        let scratch = dx_test_scratch::scratch("dx-status-tools-bad-");
+        let scratch = dx_test_scratch::scratch("dx-status-tools-bad-").unwrap();
         let root = scratch.path();
         let env = select(root);
         let artifact = install(&env, root, "gone");
@@ -252,7 +252,7 @@ mod tests {
 
     #[test]
     fn foreign_selection_fails_without_absolute_paths() {
-        let scratch = dx_test_scratch::scratch("dx-status-tools-foreign-");
+        let scratch = dx_test_scratch::scratch("dx-status-tools-foreign-").unwrap();
         let root = scratch.path();
         std::fs::create_dir_all(root.join(".dx/local/setups/current")).expect("foreign dir");
         let check = managed_tools_check(root);

@@ -321,7 +321,7 @@ fn quoted_file_names_skip_bzl_comments_and_labels() {
 
 #[test]
 fn module_srcs_carry_every_non_starlark_file_a_private_package_references() {
-    let root = dx_testing::rules_dx_source();
+    let root = dx_testing::rules_dx_source().unwrap();
     let mut packages = Vec::new();
     private_packages(&root, &root, false, &mut packages);
     assert!(

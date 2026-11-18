@@ -5,7 +5,7 @@ use std::sync::OnceLock;
 const FIXTURES: [&str; 3] = ["buggy.jl", "clean.jl", "unicode.jl"];
 
 fn lint_all() -> String {
-    let scratch = dx_test_scratch::scratch("julia-lint");
+    let scratch = dx_test_scratch::scratch("julia-lint").unwrap();
     let dir = scratch.path();
     let files: Vec<_> = FIXTURES
         .iter()

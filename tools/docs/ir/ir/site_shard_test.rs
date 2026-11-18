@@ -36,7 +36,7 @@ fn the_fixture_shard_names_every_public_item_once() {
 #[test]
 fn symbols_carry_signatures_docs_and_repo_sources() {
     let shard = decoded(SHARD);
-    let add = symbol(&shard, "rust:docs_fixture:add");
+    let add = symbol(&shard, "rust:docs_fixture:add").unwrap();
     assert_eq!(add.kind, SymbolKind::Function as i32);
     assert_eq!(
         add.signature_text,
@@ -48,7 +48,7 @@ fn symbols_carry_signatures_docs_and_repo_sources() {
         (source.file.as_str(), source.line, source.generated),
         ("tools/docs/rust/fixture/src/lib.rs", 8, false)
     );
-    let area = symbol(&shard, "rust:docs_fixture:shapes.Circle.area");
+    let area = symbol(&shard, "rust:docs_fixture:shapes.Circle.area").unwrap();
     assert_eq!(area.kind, SymbolKind::Method as i32);
     assert_eq!(area.signature_text, "pub fn area(&self) -> f64");
     assert_eq!(
@@ -60,7 +60,7 @@ fn symbols_carry_signatures_docs_and_repo_sources() {
 #[test]
 fn a_crate_root_reexport_is_an_alias_of_the_canonical_symbol() {
     let shard = decoded(SHARD);
-    let circle = symbol(&shard, "rust:docs_fixture:shapes.Circle");
+    let circle = symbol(&shard, "rust:docs_fixture:shapes.Circle").unwrap();
     assert_eq!(
         circle.relations.as_ref().map(|r| r.reexported_as.clone()),
         Some(vec!["rust:docs_fixture:Circle".to_string()])
@@ -70,7 +70,7 @@ fn a_crate_root_reexport_is_an_alias_of_the_canonical_symbol() {
 #[test]
 fn build_script_output_is_marked_generated() {
     let shard = decoded(SHARD);
-    let generated = symbol(&shard, "rust:docs_fixture:GENERATED_VERSION");
+    let generated = symbol(&shard, "rust:docs_fixture:GENERATED_VERSION").unwrap();
     let source = generated
         .source
         .as_ref()
@@ -102,7 +102,7 @@ fn the_crate_features_select_the_documented_items() {
 #[test]
 fn a_changed_signature_reaches_the_shard() {
     let changed = decoded(CHANGED);
-    let add = symbol(&changed, "rust:docs_fixture:add");
+    let add = symbol(&changed, "rust:docs_fixture:add").unwrap();
     assert_eq!(
         add.signature_text,
         "pub fn add(left: u64, right: u64, carry: u32) -> u64"

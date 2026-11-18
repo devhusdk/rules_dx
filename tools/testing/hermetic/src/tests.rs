@@ -1790,7 +1790,7 @@ fn macos_profile_denies_network_except_loopback() {
 fn macos_profile_hides_planned_paths_even_with_network_allowed() {
     let isolation = Isolation {
         sdk_dirs: vec![PathBuf::from("/nonexistent/sdk")],
-        home_dirs: vec![PathBuf::from("/nonexistent/h\"ome")],
+        home_dirs: vec![PathBuf::from("/nonexistent/ho\"me")],
         home_files: vec![PathBuf::from("/nonexistent/.netrc")],
         tools: vec![PathBuf::from("/nonexistent/bin/cc")],
         ..Isolation::default()
@@ -1798,7 +1798,7 @@ fn macos_profile_hides_planned_paths_even_with_network_allowed() {
     let profile = isolation.macos_profile(Net::Allowed);
     assert!(!profile.contains("deny network"));
     assert!(profile.contains("(deny file-read* (subpath \"/nonexistent/sdk\"))"));
-    assert!(profile.contains("(deny file-read* (subpath \"/nonexistent/h\\\"ome\"))"));
+    assert!(profile.contains("(deny file-read* (subpath \"/nonexistent/ho\\\"me\"))"));
     assert!(profile.contains("(deny file-read* (literal \"/nonexistent/.netrc\"))"));
     assert!(profile.contains("(deny process-exec (literal \"/nonexistent/bin/cc\"))"));
 }
@@ -1990,7 +1990,7 @@ fn copy_test_logs_keeps_layout_and_returns_heads() {
 
 #[test]
 fn windows_tool_dirs_lists_python_node_jdk_and_llvm() {
-    let scratch = dx_test_scratch::scratch("dx-hermetic-win");
+    let scratch = dx_test_scratch::scratch("dx-hermetic-win").unwrap();
     let root = scratch.path().to_path_buf();
     let pf = root.join("pf");
     let local = root.join("local");
@@ -2021,7 +2021,7 @@ fn windows_tool_dirs_lists_python_node_jdk_and_llvm() {
 
 #[test]
 fn canonical_paths_have_no_verbatim_prefix() {
-    let scratch = dx_test_scratch::scratch("dx-hermetic-canonical");
+    let scratch = dx_test_scratch::scratch("dx-hermetic-canonical").unwrap();
     let dir = scratch.path().to_path_buf();
     let real = canonical(&dir).unwrap();
     assert_eq!(dx_path::without_verbatim(&real), real);

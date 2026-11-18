@@ -156,11 +156,11 @@ mod tests {
 
     #[test]
     fn generate_scope_maps_new_files_and_dirs_without_a_query() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-generate-scope-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-generate-scope-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "svc/new.py", "x = 1\n");
-        write(&workspace, "top.py", "x = 1\n");
-        write(&workspace, "fresh/deep/a.txt", "x");
+        write(&workspace, "svc/new.py", "x = 1\n").unwrap();
+        write(&workspace, "top.py", "x = 1\n").unwrap();
+        write(&workspace, "fresh/deep/a.txt", "x").unwrap();
         let got = resolve_for_generate(&strings(&["svc/new.py"]), &workspace).expect("file");
         assert_eq!(got.targets, strings(&["//svc/..."]));
         let got = resolve_for_generate(&strings(&["top.py"]), &workspace).expect("root file");
@@ -174,15 +174,15 @@ mod tests {
 
     #[test]
     fn test_scope_maps_files_to_tests_and_keeps_patterns() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
             graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
             graph_rule_of_kind("//pkg:unit", "py_test", &["//pkg:lib"], &[]),
         ]))]);
-        write(&workspace, "other/BUILD.bazel", "");
+        write(&workspace, "other/BUILD.bazel", "").unwrap();
         let got = resolve_for_test_with_selection(
             &strings(&["pkg/a.py", "//other/..."]),
             &workspace,
@@ -205,11 +205,11 @@ mod tests {
 
     #[test]
     fn test_scope_with_orphan_file_reports_no_owner() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-orphan-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-orphan-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
-        write(&workspace, "pkg/orphan.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
+        write(&workspace, "pkg/orphan.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[graph_rule(
             "//pkg:lib",
             &["//pkg:a.py"],
@@ -284,10 +284,10 @@ mod tests {
 
     #[test]
     fn file_scopes_never_query_rdeps_over_the_workspace() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-no-rdeps-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-no-rdeps-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
         for selection in selections() {
             let query = Routed {
                 expressions: RefCell::new(Vec::new()),
@@ -307,10 +307,10 @@ mod tests {
 
     #[test]
     fn an_unloadable_external_repo_does_not_fail_a_file_scope() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-external-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-external-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
         for selection in selections() {
             let query = Routed {
                 expressions: RefCell::new(Vec::new()),
@@ -330,11 +330,11 @@ mod tests {
 
     #[test]
     fn file_scopes_resolve_owners_without_loading_external_repos() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-file-scope-external-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-file-scope-external-").unwrap();
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "pkg/BUILD.bazel", "");
-        write(&workspace, "pkg/a.py", "x = 1\n");
-        write(&workspace, "pkg/b.py", "x = 1\n");
+        write(&workspace, "pkg/BUILD.bazel", "").unwrap();
+        write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
+        write(&workspace, "pkg/b.py", "x = 1\n").unwrap();
         let query = Routed {
             expressions: RefCell::new(Vec::new()),
         };
@@ -350,10 +350,10 @@ mod tests {
 
     #[test]
     fn test_scope_without_files_matches_plain_resolve() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-labels-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-labels-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = NeverQuery;
-        write(&workspace, "b/BUILD.bazel", "");
+        write(&workspace, "b/BUILD.bazel", "").unwrap();
         let got = resolve_for_test_with_selection(
             &strings(&["//a:one", "//b/..."]),
             &workspace,
@@ -368,7 +368,7 @@ mod tests {
 
     #[test]
     fn test_scope_dir_only_resolves_without_query() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-dir-");
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-dir-").unwrap();
         let workspace = scratch.path().to_path_buf();
         std::fs::create_dir_all(workspace.join("app")).expect("dir");
         let query = NeverQuery;

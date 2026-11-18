@@ -67,7 +67,7 @@ fn archive_case() {
 
 fn homebrew_case() {
     let prog = env_file("DX_HOMEBREW_PROG");
-    let outdir_dir = dx_test_scratch::scratch("homebrew-out");
+    let outdir_dir = dx_test_scratch::scratch("homebrew-out").unwrap();
     let outdir = outdir_dir.path();
     let run = run_deploy(
         &prog,
@@ -353,7 +353,7 @@ fn resources_case() {
 }
 
 fn helm_case() {
-    let outdir_dir = dx_test_scratch::scratch("helm-demo");
+    let outdir_dir = dx_test_scratch::scratch("helm-demo").unwrap();
     let outdir = outdir_dir.path();
     let run = run_deploy(
         &env_file("DX_HELM_PROG"),
@@ -372,7 +372,7 @@ fn helm_case() {
 }
 
 fn rubygems_case() {
-    let outdir_dir = dx_test_scratch::scratch("rubygems-demo");
+    let outdir_dir = dx_test_scratch::scratch("rubygems-demo").unwrap();
     let outdir = outdir_dir.path();
     let run = run_deploy(
         &env_file("DX_RUBYGEMS_PROG"),
@@ -389,7 +389,7 @@ fn rubygems_case() {
 }
 
 fn demo_case() {
-    let outdir_dir = dx_test_scratch::scratch("demo-dry-run");
+    let outdir_dir = dx_test_scratch::scratch("demo-dry-run").unwrap();
     let outdir = outdir_dir.path();
     let want = std::env::var("DX_DEMO_WANT").expect("DX_DEMO_WANT must name the output line");
     let run = run_deploy(
@@ -405,7 +405,7 @@ fn demo_case() {
 }
 
 fn oci_stage(prog: &Path, config_var: &str, name: &str) -> (dx_test_scratch::TempDir, PathBuf) {
-    let outdir = dx_test_scratch::scratch(name);
+    let outdir = dx_test_scratch::scratch(name).unwrap();
     let run = run_deploy(
         prog,
         config_var,
@@ -523,7 +523,7 @@ fn stage(
     target_name: &str,
 ) -> (dx_test_scratch::TempDir, PathBuf) {
     let prog = env_file(var);
-    let outdir = dx_test_scratch::scratch("pypi-out");
+    let outdir = dx_test_scratch::scratch("pypi-out").unwrap();
     let run = run_deploy(
         &prog,
         config_var,
@@ -564,8 +564,8 @@ fn kept_env(command: &mut std::process::Command) {
 fn install_output(url: &str, spelling: &str) -> (std::process::Output, dx_test_scratch::TempDir) {
     let uv = env_file("DX_PYPI_UV");
     let python = env_file("DX_PYPI_PYTHON");
-    let cache = dx_test_scratch::scratch("pypi-uv-cache");
-    let target = dx_test_scratch::scratch("pypi-target");
+    let cache = dx_test_scratch::scratch("pypi-uv-cache").unwrap();
+    let target = dx_test_scratch::scratch("pypi-target").unwrap();
     let mut command = std::process::Command::new(&uv);
     kept_env(&mut command);
     command
@@ -686,7 +686,7 @@ fn pypi_case() {
     );
 
     let prog = env_file("DX_PYPI_MISMATCH_PROG");
-    let outdir_dir = dx_test_scratch::scratch("pypi-mismatch");
+    let outdir_dir = dx_test_scratch::scratch("pypi-mismatch").unwrap();
     let outdir = outdir_dir.path();
     let run = run_deploy(
         &prog,
@@ -761,7 +761,7 @@ fn no_compilers(command: &mut std::process::Command) -> Option<dx_test_scratch::
     if cfg!(windows) {
         return None;
     }
-    let empty = dx_test_scratch::scratch("pypi-empty-path");
+    let empty = dx_test_scratch::scratch("pypi-empty-path").unwrap();
     command.env("PATH", empty.path());
     Some(empty)
 }
@@ -855,7 +855,7 @@ fn pypi_native_case() {
         }
     }
 
-    let cwd_dir = dx_test_scratch::scratch("pypi-native-cwd");
+    let cwd_dir = dx_test_scratch::scratch("pypi-native-cwd").unwrap();
     let cwd = cwd_dir.path();
     let output = import_from(target, cwd);
     assert!(
@@ -886,7 +886,7 @@ fn pypi_native_case() {
     let digest = dx_testing::sha256_file(&house.join(&wheel)).expect("hash wheel");
     println!("python {version} wheel {wheel} sha256 {digest}");
 
-    let outdir_dir = dx_test_scratch::scratch("pypi-wrongabi");
+    let outdir_dir = dx_test_scratch::scratch("pypi-wrongabi").unwrap();
     let outdir = outdir_dir.path();
     let run = run_deploy(
         &env_file("DX_NATIVE_WRONGABI_PROG"),
@@ -933,7 +933,7 @@ fn archiver_imports(
     check: &str,
     provides: &[&str],
 ) -> std::process::Output {
-    let out_dir = dx_test_scratch::scratch("pypi-imports");
+    let out_dir = dx_test_scratch::scratch("pypi-imports").unwrap();
     let out = out_dir.path().join("ok");
     let mut command = std::process::Command::new(env_file("DX_ARCHIVER"));
     command.arg("--imports").arg(out).args(["--check", check]);
@@ -1020,7 +1020,7 @@ fn pypi_native_msvc_case() {
         "{stderr}"
     );
 
-    let cwd_dir = dx_test_scratch::scratch("pypi-native-msvc-cwd");
+    let cwd_dir = dx_test_scratch::scratch("pypi-native-msvc-cwd").unwrap();
     let cwd = cwd_dir.path();
     let output = import_from(target, cwd);
     assert!(

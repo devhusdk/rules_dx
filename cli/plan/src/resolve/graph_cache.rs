@@ -134,11 +134,11 @@ mod tests {
     }
 
     fn workspace() -> tempfile::TempDir {
-        let scratch = dx_test_scratch::scratch("dx-resolve-graph-cache-");
-        write(scratch.path(), "MODULE.bazel", "module(name = \"w\")\n");
-        write(scratch.path(), "pkg/BUILD.bazel", "");
-        write(scratch.path(), "pkg/defs.bzl", "");
-        write(scratch.path(), "pkg/a.py", "x = 1\n");
+        let scratch = dx_test_scratch::scratch("dx-resolve-graph-cache-").unwrap();
+        write(scratch.path(), "MODULE.bazel", "module(name = \"w\")\n").unwrap();
+        write(scratch.path(), "pkg/BUILD.bazel", "").unwrap();
+        write(scratch.path(), "pkg/defs.bzl", "").unwrap();
+        write(scratch.path(), "pkg/a.py", "x = 1\n").unwrap();
         scratch
     }
 
@@ -168,7 +168,7 @@ mod tests {
         assert_eq!(warm.code, Some(0));
         assert_eq!(fake.calls().len(), 1);
 
-        write(root, "pkg/a.py", "x = 2\n");
+        write(root, "pkg/a.py", "x = 2\n").unwrap();
         PersistentGraphQuery::new(&fake)
             .run_query(&argv, root)
             .unwrap();
@@ -179,7 +179,7 @@ mod tests {
             ("pkg/defs.bzl", "# edit\n"),
         ] {
             let before = fake.calls().len();
-            write(root, rel, text);
+            write(root, rel, text).unwrap();
             let got = PersistentGraphQuery::new(&fake)
                 .run_query(&argv, root)
                 .unwrap();

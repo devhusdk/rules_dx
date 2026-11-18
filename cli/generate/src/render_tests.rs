@@ -587,7 +587,7 @@ fn rendered_bazel_files_pass_buildifier() {
         ),
     ];
     cases[1].root_build = None;
-    let scratch = dx_test_scratch::scratch("dx_generate_");
+    let scratch = dx_test_scratch::scratch("dx_generate_").unwrap();
     let dir = scratch.path();
     for (index, case) in cases.iter().enumerate() {
         for (path, bytes) in rendered(case) {

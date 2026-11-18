@@ -48,7 +48,7 @@ fn help_exits_zero_on_stdout() {
 #[test]
 fn env_bootstrap() {
     let bin = env_file("DX_ENV_BIN");
-    let scratch = dx_test_scratch::scratch("env-bootstrap-");
+    let scratch = dx_test_scratch::scratch("env-bootstrap-").unwrap();
     let root = scratch.path().join("work space");
     std::fs::create_dir_all(&root).expect("work space");
 
@@ -214,7 +214,7 @@ fn env_bootstrap() {
 #[test]
 fn relative_workspace_resolves_against_build_working_directory() {
     let bin = env_file("DX_ENV_BIN");
-    let scratch = dx_test_scratch::scratch("env-relative-");
+    let scratch = dx_test_scratch::scratch("env-relative-").unwrap();
     let base = scratch.path().join("base");
     std::fs::create_dir_all(base.join("ws")).expect("ws");
     let base_dir = base.to_string_lossy().into_owned();

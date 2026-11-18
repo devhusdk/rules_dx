@@ -21,6 +21,7 @@ fn run(args: &[&str], env: &[(&str, &str)], preopens: &[(&str, &str)]) -> Output
         &env,
         &preopens,
     )
+    .expect("the WASI runtime runs")
 }
 
 fn expect(output: &Output, code: i32, lines: [&str; 6]) {

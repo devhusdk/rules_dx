@@ -76,7 +76,7 @@ fn snapshot(root: &Path) -> BTreeMap<PathBuf, Vec<u8>> {
 }
 
 fn setup(name: &str) -> (TempDir, PathBuf, PathBuf) {
-    let guard = scratch(name);
+    let guard = scratch(name).unwrap();
     let base = guard.path().to_path_buf();
     let home = base.join("home");
     let root = base.join("app");

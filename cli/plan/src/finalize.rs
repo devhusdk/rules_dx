@@ -416,7 +416,7 @@ mod tests {
     }
 
     fn workspace_with(contents: &[u8]) -> dx_test_scratch::TempDir {
-        let dir = dx_test_scratch::scratch("dx-finalize-test-");
+        let dir = dx_test_scratch::scratch("dx-finalize-test-").unwrap();
         let target = dir.path().join("rust/tests/fixtures/hello/BUILD.bazel");
         std::fs::create_dir_all(target.parent().unwrap()).unwrap();
         std::fs::write(&target, contents).unwrap();
@@ -477,7 +477,7 @@ mod tests {
         assert_eq!(mismatched.outcome, WriteOutcome::NotApplied as i32);
         assert_eq!(mismatched.failure_code, FAILURE_WRITE_MISMATCH);
 
-        let missing_dir = dx_test_scratch::scratch("dx-finalize-test-");
+        let missing_dir = dx_test_scratch::scratch("dx-finalize-test-").unwrap();
         let missing = run(missing_dir.path());
         assert_eq!(missing.outcome, WriteOutcome::NotApplied as i32);
         assert_eq!(missing.failure_code, FAILURE_MISSING_FILE);
@@ -498,7 +498,7 @@ mod tests {
 
     #[test]
     fn check_mode_reads_no_files_and_marks_unspecified() {
-        let dir = dx_test_scratch::scratch("dx-finalize-test-");
+        let dir = dx_test_scratch::scratch("dx-finalize-test-").unwrap();
         let manifest = finalize(&FinalizeInput {
             intended_json: &payload("check", true),
             workspace: dir.path(),
@@ -517,7 +517,7 @@ mod tests {
 
     #[test]
     fn check_mode_complete_witness_finalizes_after_failed_run() {
-        let dir = dx_test_scratch::scratch("dx-finalize-test-");
+        let dir = dx_test_scratch::scratch("dx-finalize-test-").unwrap();
         let manifest = finalize(&FinalizeInput {
             intended_json: &payload("check", true),
             workspace: dir.path(),
@@ -537,7 +537,7 @@ mod tests {
 
     #[test]
     fn check_mode_rejects_incomplete_scope() {
-        let dir = dx_test_scratch::scratch("dx-finalize-test-");
+        let dir = dx_test_scratch::scratch("dx-finalize-test-").unwrap();
         let err = finalize(&FinalizeInput {
             intended_json: &payload("check", false),
             workspace: dir.path(),
@@ -579,7 +579,7 @@ mod tests {
 
     #[test]
     fn rejects_garbage_schema_mode_and_shape() {
-        let dir = dx_test_scratch::scratch("dx-finalize-test-");
+        let dir = dx_test_scratch::scratch("dx-finalize-test-").unwrap();
         let run = |json: &[u8], check: bool, completed: bool| {
             finalize(&FinalizeInput {
                 intended_json: json,
@@ -666,7 +666,7 @@ mod tests {
 
     #[test]
     fn rejects_unsafe_paths_before_filesystem_access() {
-        let dir = dx_test_scratch::scratch("dx-finalize-test-");
+        let dir = dx_test_scratch::scratch("dx-finalize-test-").unwrap();
         std::fs::create_dir_all(dir.path().join("etc")).unwrap();
         std::fs::write(dir.path().join("etc/passwd"), b"xyz\n").unwrap();
         for path in [
@@ -722,7 +722,7 @@ mod tests {
             r#""files":[{"path":"a","scope_index":7,"create_content":"eA=="}],"#,
             r#""ignored_imports":[]}"#,
         );
-        let dir = dx_test_scratch::scratch("dx-finalize-test-");
+        let dir = dx_test_scratch::scratch("dx-finalize-test-").unwrap();
         let err = finalize(&FinalizeInput {
             intended_json: json.as_bytes(),
             workspace: dir.path(),
@@ -738,7 +738,7 @@ mod tests {
 
     #[test]
     fn error_display_and_incomplete_results_complete() {
-        let dir = dx_test_scratch::scratch("dx-finalize-test-");
+        let dir = dx_test_scratch::scratch("dx-finalize-test-").unwrap();
         let err = finalize(&FinalizeInput {
             intended_json: &payload("check", false),
             workspace: dir.path(),
@@ -790,7 +790,7 @@ mod tests {
             r#""scopes":[{"value":"//rust/...","results_complete":true}],"#,
             r#""files":[],"ignored_imports":[]}"#,
         );
-        let dir = dx_test_scratch::scratch("dx-finalize-test-");
+        let dir = dx_test_scratch::scratch("dx-finalize-test-").unwrap();
         let manifest = finalize(&FinalizeInput {
             intended_json: json.as_bytes(),
             workspace: dir.path(),
@@ -839,7 +839,7 @@ mod tests {
 
     #[test]
     fn result_is_required_and_must_match_files() {
-        let dir = dx_test_scratch::scratch("dx-finalize-test-");
+        let dir = dx_test_scratch::scratch("dx-finalize-test-").unwrap();
         let run = |json: &[u8]| {
             finalize(&FinalizeInput {
                 intended_json: json,
@@ -927,7 +927,7 @@ mod tests {
             .join(workspace)
             .join("gazelle/common/testdata/intended_manifest.json");
         let json = std::fs::read(&path).unwrap_or_else(|err| panic!("{}: {err}", path.display()));
-        let dir = dx_test_scratch::scratch("dx-finalize-test-");
+        let dir = dx_test_scratch::scratch("dx-finalize-test-").unwrap();
         let finalized = finalize(&FinalizeInput {
             intended_json: &json,
             workspace: dir.path(),
@@ -1000,7 +1000,7 @@ mod tests {
     }
 
     fn run_failed(json: &[u8], check: bool, bazel_code: i32) -> Result<Finalized, FinalizeError> {
-        let dir = dx_test_scratch::scratch("dx-finalize-test-");
+        let dir = dx_test_scratch::scratch("dx-finalize-test-").unwrap();
         finalize(&FinalizeInput {
             intended_json: json,
             workspace: dir.path(),

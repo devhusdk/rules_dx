@@ -1021,17 +1021,17 @@ mod tests {
 
     #[test]
     fn extension_files_name_direct_extensions_and_repo_rules() {
-        let scratch = dx_test_scratch::scratch("dx-ext-direct-");
+        let scratch = dx_test_scratch::scratch("dx-ext-direct-").unwrap();
         let root = scratch.path();
         write(
             root,
             "MODULE.bazel",
             "module(name = \"demo\")\nx = use_extension(\"//tools/ext:x.bzl\", \"x\")\nr = use_repo_rule(repo_rule_bzl_file = \"@@//tools:repo.bzl\", repo_rule_name = \"r\")\ny = use_extension(\":root.bzl\", \"y\")\n",
-        );
-        write(root, "tools/ext/x.bzl", "X = 1\n");
-        write(root, "tools/repo.bzl", "R = 1\n");
-        write(root, "root.bzl", "Y = 1\n");
-        write(root, "other.bzl", "O = 1\n");
+        ).unwrap();
+        write(root, "tools/ext/x.bzl", "X = 1\n").unwrap();
+        write(root, "tools/repo.bzl", "R = 1\n").unwrap();
+        write(root, "root.bzl", "Y = 1\n").unwrap();
+        write(root, "other.bzl", "O = 1\n").unwrap();
         assert_eq!(
             impact(
                 root,
@@ -1049,27 +1049,28 @@ mod tests {
 
     #[test]
     fn extension_files_follow_helper_loads() {
-        let scratch = dx_test_scratch::scratch("dx-ext-helper-");
+        let scratch = dx_test_scratch::scratch("dx-ext-helper-").unwrap();
         let root = scratch.path();
         write(
             root,
             "MODULE.bazel",
             "module(name = \"demo\", repo_name = \"own\")\nx = use_extension(\"//tools:ext.bzl\", \"x\")\n",
-        );
+        ).unwrap();
         write(
             root,
             "tools/ext.bzl",
             "load(\":helper.bzl\", \"h\")\nload(\"@demo//lib:shared.bzl\", \"s\")\nload(\"@own//lib:own.bzl\", \"o\")\nload(\"@bazel_tools//tools/build_defs/repo:http.bzl\", \"http_archive\")\n",
-        );
+        ).unwrap();
         write(
             root,
             "tools/helper.bzl",
             "load(\"//lib:deep.bzl\", \"d\")\n",
-        );
-        write(root, "lib/shared.bzl", "S = 1\n");
-        write(root, "lib/own.bzl", "O = 1\n");
-        write(root, "lib/deep.bzl", "D = 1\n");
-        write(root, "lib/unused.bzl", "U = 1\n");
+        )
+        .unwrap();
+        write(root, "lib/shared.bzl", "S = 1\n").unwrap();
+        write(root, "lib/own.bzl", "O = 1\n").unwrap();
+        write(root, "lib/deep.bzl", "D = 1\n").unwrap();
+        write(root, "lib/unused.bzl", "U = 1\n").unwrap();
         assert_eq!(
             impact(
                 root,
@@ -1094,19 +1095,21 @@ mod tests {
 
     #[test]
     fn extension_files_read_included_module_files() {
-        let scratch = dx_test_scratch::scratch("dx-ext-include-");
+        let scratch = dx_test_scratch::scratch("dx-ext-include-").unwrap();
         let root = scratch.path();
         write(
             root,
             "MODULE.bazel",
             "module(name = \"demo\")\ninclude(\"//deps:go.MODULE.bazel\")\n",
-        );
+        )
+        .unwrap();
         write(
             root,
             "deps/go.MODULE.bazel",
             "go = use_extension(\"//deps:go.bzl\", \"go\")\n",
-        );
-        write(root, "deps/go.bzl", "G = 1\n");
+        )
+        .unwrap();
+        write(root, "deps/go.bzl", "G = 1\n").unwrap();
         assert_eq!(
             impact(root, &["deps/go.bzl"], &[]),
             [global("deps/go.bzl", "module extension input")]
@@ -1115,9 +1118,9 @@ mod tests {
 
     #[test]
     fn extension_files_skip_external_extensions_and_missing_module() {
-        let scratch = dx_test_scratch::scratch("dx-ext-external-");
+        let scratch = dx_test_scratch::scratch("dx-ext-external-").unwrap();
         let root = scratch.path();
-        write(root, "rust/extensions.bzl", "R = 1\n");
+        write(root, "rust/extensions.bzl", "R = 1\n").unwrap();
         assert_eq!(
             impact(root, &["rust/extensions.bzl"], &[]),
             [packages("rust/extensions.bzl", &[])]
@@ -1126,7 +1129,7 @@ mod tests {
             root,
             "MODULE.bazel",
             "module(name = \"demo\")\nrust = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\n",
-        );
+        ).unwrap();
         assert_eq!(
             impact(root, &["rust/extensions.bzl"], &[]),
             [packages("rust/extensions.bzl", &[])]
@@ -1135,18 +1138,19 @@ mod tests {
 
     #[test]
     fn extension_files_fail_on_parse_errors() {
-        let scratch = dx_test_scratch::scratch("dx-ext-error-");
+        let scratch = dx_test_scratch::scratch("dx-ext-error-").unwrap();
         let root = scratch.path();
         write(
             root,
             "MODULE.bazel",
             "module(name = \"demo\")\nx = use_extension(\"//tools:ext.bzl\", \"x\")\n",
-        );
-        write(root, "tools/ext.bzl", "load(\":a.bzl\"\n");
+        )
+        .unwrap();
+        write(root, "tools/ext.bzl", "load(\":a.bzl\"\n").unwrap();
         let changed = ["tools/a.bzl".to_owned()];
         let error = bzl_impact(root, &changed, &[]).expect_err("parse error");
         assert!(error.message().starts_with("tools/ext.bzl: "), "{error}");
-        write(root, "MODULE.bazel", "module(name = \n");
+        write(root, "MODULE.bazel", "module(name = \n").unwrap();
         let error = bzl_impact(root, &changed, &[]).expect_err("module parse error");
         assert!(error.message().starts_with("MODULE.bazel: "), "{error}");
     }
@@ -1160,7 +1164,7 @@ mod tests {
 
     #[test]
     fn module_inputs_collect_tag_repo_rule_override_and_include_labels() {
-        let scratch = dx_test_scratch::scratch("dx-module-inputs-");
+        let scratch = dx_test_scratch::scratch("dx-module-inputs-").unwrap();
         let root = scratch.path();
         let npm_lock = lock_of("npm").expect("hub");
         let npm_manifest = manifest_of("npm").expect("hub");
@@ -1183,14 +1187,14 @@ mod tests {
                 "include(\"//deps:go.MODULE.bazel\")\n",
             ]
             .concat(),
-        );
+        ).unwrap();
         write(
             root,
             "deps/go.MODULE.bazel",
             &format!(
                 "go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \":{go_manifest}\")\n"
             ),
-        );
+        ).unwrap();
         let mut expected = vec![
             "deps/go.MODULE.bazel".to_owned(),
             format!("deps/{go_manifest}"),
@@ -1236,7 +1240,7 @@ mod tests {
 
     #[test]
     fn module_inputs_are_incomplete_for_computed_values_or_missing_module() {
-        let scratch = dx_test_scratch::scratch("dx-module-inputs-computed-");
+        let scratch = dx_test_scratch::scratch("dx-module-inputs-computed-").unwrap();
         let root = scratch.path();
         assert_eq!(input_paths(root), (Vec::new(), false));
         let split = format!(
@@ -1254,29 +1258,30 @@ mod tests {
                 &format!(
                     "module(name = \"demo\")\nnpm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\n{tag}\n"
                 ),
-            );
+            ).unwrap();
             assert_eq!(input_paths(root), (Vec::new(), false), "{tag}");
         }
         write(
             root,
             "MODULE.bazel",
             "module(name = \"demo\")\nbazel_dep(name = \"x\", version = VERSION)\nother.tag(lock = \"//:x.lock\")\n",
-        );
+        ).unwrap();
         assert_eq!(input_paths(root), (Vec::new(), true));
     }
 
     #[test]
     fn module_inputs_fail_on_parse_errors_and_missing_includes() {
-        let scratch = dx_test_scratch::scratch("dx-module-inputs-error-");
+        let scratch = dx_test_scratch::scratch("dx-module-inputs-error-").unwrap();
         let root = scratch.path();
-        write(root, "MODULE.bazel", "module(name = \n");
+        write(root, "MODULE.bazel", "module(name = \n").unwrap();
         let error = module_inputs(root).expect_err("parse error");
         assert!(error.message().starts_with("MODULE.bazel: "), "{error}");
         write(
             root,
             "MODULE.bazel",
             "include(\"//deps:gone.MODULE.bazel\")\n",
-        );
+        )
+        .unwrap();
         let error = module_inputs(root).expect_err("missing include");
         assert_eq!(
             error.message(),
@@ -1287,15 +1292,15 @@ mod tests {
 
     #[test]
     fn load_graph_selects_direct_and_transitive_loaders() {
-        let scratch = dx_test_scratch::scratch("dx-load-transitive-");
+        let scratch = dx_test_scratch::scratch("dx-load-transitive-").unwrap();
         let root = scratch.path();
-        write(root, "MODULE.bazel", "module(name = \"demo\")\n");
-        write(root, "tools/BUILD.bazel", "");
-        write(root, "tools/a.bzl", "load(\":b.bzl\", \"b\")\n");
-        write(root, "tools/b.bzl", "B = 1\n");
-        write(root, "app/BUILD.bazel", "load(\"//tools:a.bzl\", \"a\")\n");
-        write(root, "lib/BUILD", "load(\"//tools:b.bzl\", \"b\")\n");
-        write(root, "BUILD.bazel", "load(\"//tools:a.bzl\", \"a\")\n");
+        write(root, "MODULE.bazel", "module(name = \"demo\")\n").unwrap();
+        write(root, "tools/BUILD.bazel", "").unwrap();
+        write(root, "tools/a.bzl", "load(\":b.bzl\", \"b\")\n").unwrap();
+        write(root, "tools/b.bzl", "B = 1\n").unwrap();
+        write(root, "app/BUILD.bazel", "load(\"//tools:a.bzl\", \"a\")\n").unwrap();
+        write(root, "lib/BUILD", "load(\"//tools:b.bzl\", \"b\")\n").unwrap();
+        write(root, "BUILD.bazel", "load(\"//tools:a.bzl\", \"a\")\n").unwrap();
         assert_eq!(
             impact(root, &["tools/a.bzl", "tools/b.bzl"], &[]),
             [
@@ -1307,14 +1312,14 @@ mod tests {
 
     #[test]
     fn load_graph_selects_loaders_of_scl_files() {
-        let scratch = dx_test_scratch::scratch("dx-load-scl-");
+        let scratch = dx_test_scratch::scratch("dx-load-scl-").unwrap();
         let root = scratch.path();
-        write(root, "MODULE.bazel", "module(name = \"demo\")\n");
-        write(root, "tools/BUILD.bazel", "");
-        write(root, "tools/a.bzl", "load(\":x.scl\", \"x\")\n");
-        write(root, "tools/x.scl", "X = 1\n");
-        write(root, "app/BUILD.bazel", "load(\"//tools:a.bzl\", \"a\")\n");
-        write(root, "lib/BUILD", "load(\"//tools:x.scl\", \"x\")\n");
+        write(root, "MODULE.bazel", "module(name = \"demo\")\n").unwrap();
+        write(root, "tools/BUILD.bazel", "").unwrap();
+        write(root, "tools/a.bzl", "load(\":x.scl\", \"x\")\n").unwrap();
+        write(root, "tools/x.scl", "X = 1\n").unwrap();
+        write(root, "app/BUILD.bazel", "load(\"//tools:a.bzl\", \"a\")\n").unwrap();
+        write(root, "lib/BUILD", "load(\"//tools:x.scl\", \"x\")\n").unwrap();
         assert_eq!(
             impact(root, &["tools/x.scl"], &[]),
             [packages("tools/x.scl", &["//app:all", "//lib:all"])]
@@ -1323,18 +1328,19 @@ mod tests {
 
     #[test]
     fn relative_loads_in_a_bzl_resolve_against_its_label_package() {
-        let scratch = dx_test_scratch::scratch("dx-load-relative-");
+        let scratch = dx_test_scratch::scratch("dx-load-relative-").unwrap();
         let root = scratch.path();
-        write(root, "MODULE.bazel", "module(name = \"demo\")\n");
-        write(root, "tools/BUILD.bazel", "");
-        write(root, "tools/sub/a.bzl", "load(\":helper.bzl\", \"h\")\n");
-        write(root, "tools/helper.bzl", "H = 1\n");
-        write(root, "tools/sub/helper.bzl", "H = 2\n");
+        write(root, "MODULE.bazel", "module(name = \"demo\")\n").unwrap();
+        write(root, "tools/BUILD.bazel", "").unwrap();
+        write(root, "tools/sub/a.bzl", "load(\":helper.bzl\", \"h\")\n").unwrap();
+        write(root, "tools/helper.bzl", "H = 1\n").unwrap();
+        write(root, "tools/sub/helper.bzl", "H = 2\n").unwrap();
         write(
             root,
             "app/BUILD.bazel",
             "load(\"//tools:sub/a.bzl\", \"a\")\n",
-        );
+        )
+        .unwrap();
         assert_eq!(
             impact(root, &["tools/helper.bzl", "tools/sub/helper.bzl"], &[]),
             [
@@ -1346,23 +1352,25 @@ mod tests {
 
     #[test]
     fn walk_skips_ignored_dirs_and_symlinks() {
-        let scratch = dx_test_scratch::scratch("dx-load-skip-");
+        let scratch = dx_test_scratch::scratch("dx-load-skip-").unwrap();
         let root = scratch.path();
-        write(root, "MODULE.bazel", "module(name = \"demo\")\n");
-        write(root, ".bazelignore", "# comment\n./node_modules/\n");
-        write(root, "defs.bzl", "D = 1\n");
+        write(root, "MODULE.bazel", "module(name = \"demo\")\n").unwrap();
+        write(root, ".bazelignore", "# comment\n./node_modules/\n").unwrap();
+        write(root, "defs.bzl", "D = 1\n").unwrap();
         write(
             root,
             "node_modules/x/BUILD.bazel",
             "load(\"//:defs.bzl\", \"d\")\n",
-        );
-        write(root, "real/BUILD.bazel", "load(\"//:defs.bzl\", \"d\")\n");
-        write(root, "nested/MODULE.bazel", "module(name = \"nested\")\n");
+        )
+        .unwrap();
+        write(root, "real/BUILD.bazel", "load(\"//:defs.bzl\", \"d\")\n").unwrap();
+        write(root, "nested/MODULE.bazel", "module(name = \"nested\")\n").unwrap();
         write(
             root,
             "nested/BUILD.bazel",
             "load(\"@demo//:defs.bzl\", \"d\")\n",
-        );
+        )
+        .unwrap();
         #[cfg(unix)]
         std::os::unix::fs::symlink(root.join("real"), root.join("bazel-out")).expect("symlink");
         assert_eq!(
@@ -1373,23 +1381,25 @@ mod tests {
 
     #[test]
     fn aspects_from_bazelrc_and_caller_widen() {
-        let scratch = dx_test_scratch::scratch("dx-load-aspects-");
+        let scratch = dx_test_scratch::scratch("dx-load-aspects-").unwrap();
         let root = scratch.path();
-        write(root, "MODULE.bazel", "module(name = \"demo\")\n");
+        write(root, "MODULE.bazel", "module(name = \"demo\")\n").unwrap();
         write(
             root,
             ".bazelrc",
             "import %workspace%/tools/preset.bazelrc\ntry-import %workspace%/missing.bazelrc\n",
-        );
+        )
+        .unwrap();
         write(
             root,
             "tools/preset.bazelrc",
             "build --aspects=//rc:aspect.bzl%rc_aspect,@rules_x//:x.bzl%x # lint\n",
-        );
-        write(root, "rc/aspect.bzl", "load(\":rc_helper.bzl\", \"h\")\n");
-        write(root, "rc/rc_helper.bzl", "H = 1\n");
-        write(root, "core/quality/aspects.bzl", "A = 1\n");
-        write(root, "plain.bzl", "P = 1\n");
+        )
+        .unwrap();
+        write(root, "rc/aspect.bzl", "load(\":rc_helper.bzl\", \"h\")\n").unwrap();
+        write(root, "rc/rc_helper.bzl", "H = 1\n").unwrap();
+        write(root, "core/quality/aspects.bzl", "A = 1\n").unwrap();
+        write(root, "plain.bzl", "P = 1\n").unwrap();
         assert_eq!(
             impact(
                 root,
@@ -1406,24 +1416,25 @@ mod tests {
 
     #[test]
     fn toolchain_packages_from_module_widen() {
-        let scratch = dx_test_scratch::scratch("dx-load-toolchains-");
+        let scratch = dx_test_scratch::scratch("dx-load-toolchains-").unwrap();
         let root = scratch.path();
         write(
             root,
             "MODULE.bazel",
             "module(name = \"demo\")\nregister_toolchains(\n    \"//tc:all\",\n    dev_dependency = True,\n)\nregister_execution_platforms(\":plat\")\n",
-        );
-        write(root, "tc/BUILD.bazel", "load(\"//rules:tc.bzl\", \"t\")\n");
-        write(root, "rules/tc.bzl", "load(\":helper.bzl\", \"h\")\n");
-        write(root, "rules/helper.bzl", "H = 1\n");
-        write(root, "BUILD.bazel", "load(\"//rules:plat.bzl\", \"p\")\n");
-        write(root, "rules/plat.bzl", "P = 1\n");
+        ).unwrap();
+        write(root, "tc/BUILD.bazel", "load(\"//rules:tc.bzl\", \"t\")\n").unwrap();
+        write(root, "rules/tc.bzl", "load(\":helper.bzl\", \"h\")\n").unwrap();
+        write(root, "rules/helper.bzl", "H = 1\n").unwrap();
+        write(root, "BUILD.bazel", "load(\"//rules:plat.bzl\", \"p\")\n").unwrap();
+        write(root, "rules/plat.bzl", "P = 1\n").unwrap();
         write(
             root,
             "app/BUILD.bazel",
             "load(\"//rules:app.bzl\", \"a\")\n",
-        );
-        write(root, "rules/app.bzl", "A = 1\n");
+        )
+        .unwrap();
+        write(root, "rules/app.bzl", "A = 1\n").unwrap();
         assert_eq!(
             impact(
                 root,
@@ -1446,37 +1457,41 @@ mod tests {
 
     #[test]
     fn toolchain_implementation_bzl_widens() {
-        let scratch = dx_test_scratch::scratch("dx-load-toolchain-impl-");
+        let scratch = dx_test_scratch::scratch("dx-load-toolchain-impl-").unwrap();
         let root = scratch.path();
         write(
             root,
             "MODULE.bazel",
             "module(name = \"demo\")\nregister_toolchains(\"//tc:all\")\n",
-        );
+        )
+        .unwrap();
         write(
             root,
             "tc/BUILD.bazel",
             "toolchain(\n    name = \"a\",\n    toolchain = \"@hub//:a\",\n    toolchain_type = \"//m:type\",\n)\ntoolchain(\n    name = \"b\",\n    toolchain = \"//impl:b\",\n)\n",
-        );
-        write(root, "impl/BUILD.bazel", "load(\"//impl:b.bzl\", \"b\")\n");
-        write(root, "impl/b.bzl", "B = 1\n");
+        ).unwrap();
+        write(root, "impl/BUILD.bazel", "load(\"//impl:b.bzl\", \"b\")\n").unwrap();
+        write(root, "impl/b.bzl", "B = 1\n").unwrap();
         write(
             root,
             "m/repos.bzl",
             "HUB = \"hub\"\nTEXT = str(Label(\":tool.bzl\"))\n",
-        );
-        write(root, "m/tool.bzl", "T = 1\n");
+        )
+        .unwrap();
+        write(root, "m/tool.bzl", "T = 1\n").unwrap();
         write(
             root,
             "m/BUILD.bazel",
             "load(\":repos.bzl\", \"HUB\")\nload(\":tool.bzl\", \"T\")\n",
-        );
-        write(root, "m/other.bzl", "O = 1\n");
+        )
+        .unwrap();
+        write(root, "m/other.bzl", "O = 1\n").unwrap();
         write(
             root,
             "m/user/BUILD.bazel",
             "load(\"//m:other.bzl\", \"O\")\n",
-        );
+        )
+        .unwrap();
         assert_eq!(
             impact(root, &["impl/b.bzl", "m/tool.bzl", "m/other.bzl"], &[]),
             [
@@ -1489,31 +1504,34 @@ mod tests {
 
     #[test]
     fn toolchain_patterns_from_includes_and_recursive_patterns() {
-        let scratch = dx_test_scratch::scratch("dx-load-toolchain-include-");
+        let scratch = dx_test_scratch::scratch("dx-load-toolchain-include-").unwrap();
         let root = scratch.path();
         write(
             root,
             "MODULE.bazel",
             "module(name = \"demo\")\ninclude(\"//deps:tc.MODULE.bazel\")\n",
-        );
+        )
+        .unwrap();
         write(
             root,
             "deps/tc.MODULE.bazel",
             "register_toolchains(\"//tcs/...\", \"@other//:all\", \"-//tcs/skip:all\")\n",
-        );
-        write(root, ".bazelignore", "tcs/ignored\n");
-        write(root, "tcs/a/BUILD.bazel", "load(\"//lib:a.bzl\", \"a\")\n");
-        write(root, "tcs/a/b/BUILD", "load(\"//lib:b.bzl\", \"b\")\n");
+        )
+        .unwrap();
+        write(root, ".bazelignore", "tcs/ignored\n").unwrap();
+        write(root, "tcs/a/BUILD.bazel", "load(\"//lib:a.bzl\", \"a\")\n").unwrap();
+        write(root, "tcs/a/b/BUILD", "load(\"//lib:b.bzl\", \"b\")\n").unwrap();
         write(
             root,
             "tcs/ignored/BUILD.bazel",
             "load(\"//lib:ignored.bzl\", \"i\")\n",
-        );
-        write(root, "tcsx/BUILD.bazel", "load(\"//lib:x.bzl\", \"x\")\n");
-        write(root, "lib/a.bzl", "A = 1\n");
-        write(root, "lib/b.bzl", "B = 1\n");
-        write(root, "lib/ignored.bzl", "I = 1\n");
-        write(root, "lib/x.bzl", "X = 1\n");
+        )
+        .unwrap();
+        write(root, "tcsx/BUILD.bazel", "load(\"//lib:x.bzl\", \"x\")\n").unwrap();
+        write(root, "lib/a.bzl", "A = 1\n").unwrap();
+        write(root, "lib/b.bzl", "B = 1\n").unwrap();
+        write(root, "lib/ignored.bzl", "I = 1\n").unwrap();
+        write(root, "lib/x.bzl", "X = 1\n").unwrap();
         assert_eq!(
             impact(
                 root,
@@ -1531,35 +1549,38 @@ mod tests {
 
     #[test]
     fn toolchains_from_bazelrc_widen() {
-        let scratch = dx_test_scratch::scratch("dx-load-toolchain-rc-");
+        let scratch = dx_test_scratch::scratch("dx-load-toolchain-rc-").unwrap();
         let root = scratch.path();
-        write(root, "MODULE.bazel", "module(name = \"demo\")\n");
+        write(root, "MODULE.bazel", "module(name = \"demo\")\n").unwrap();
         write(
             root,
             ".bazelrc",
             "import %workspace%/tools/preset.bazelrc\n",
-        );
+        )
+        .unwrap();
         write(
             root,
             "tools/preset.bazelrc",
             "common:windows --extra_execution_platforms=//plat:win,@platforms//host\nbuild --extra_toolchains //tc:x\nbuild --host_platform=//host # host\n",
-        );
+        ).unwrap();
         write(
             root,
             "plat/BUILD.bazel",
             "load(\"//lib:plat.bzl\", \"p\")\n",
-        );
-        write(root, "tc/BUILD.bazel", "load(\"//lib:tc.bzl\", \"t\")\n");
+        )
+        .unwrap();
+        write(root, "tc/BUILD.bazel", "load(\"//lib:tc.bzl\", \"t\")\n").unwrap();
         write(
             root,
             "host/BUILD.bazel",
             "load(\"//lib:host.bzl\", \"h\")\n",
-        );
-        write(root, "app/BUILD.bazel", "load(\"//lib:app.bzl\", \"a\")\n");
-        write(root, "lib/plat.bzl", "P = 1\n");
-        write(root, "lib/tc.bzl", "T = 1\n");
-        write(root, "lib/host.bzl", "H = 1\n");
-        write(root, "lib/app.bzl", "A = 1\n");
+        )
+        .unwrap();
+        write(root, "app/BUILD.bazel", "load(\"//lib:app.bzl\", \"a\")\n").unwrap();
+        write(root, "lib/plat.bzl", "P = 1\n").unwrap();
+        write(root, "lib/tc.bzl", "T = 1\n").unwrap();
+        write(root, "lib/host.bzl", "H = 1\n").unwrap();
+        write(root, "lib/app.bzl", "A = 1\n").unwrap();
         assert_eq!(
             impact(
                 root,
@@ -1577,7 +1598,7 @@ mod tests {
 
     #[test]
     fn computed_toolchain_pattern_fails() {
-        let scratch = dx_test_scratch::scratch("dx-load-toolchain-computed-");
+        let scratch = dx_test_scratch::scratch("dx-load-toolchain-computed-").unwrap();
         let root = scratch.path();
         let changed = ["defs.bzl".to_owned()];
         for call in [
@@ -1589,7 +1610,8 @@ mod tests {
                 root,
                 "MODULE.bazel",
                 &format!("module(name = \"demo\")\n{call}\n"),
-            );
+            )
+            .unwrap();
             let error = bzl_impact(root, &changed, &[]).expect_err("computed pattern");
             let name = call.split('(').next().unwrap_or_default();
             assert!(
@@ -1603,14 +1625,15 @@ mod tests {
 
     #[test]
     fn deleted_bzl_still_matches_its_loaders() {
-        let scratch = dx_test_scratch::scratch("dx-load-deleted-");
+        let scratch = dx_test_scratch::scratch("dx-load-deleted-").unwrap();
         let root = scratch.path();
-        write(root, "MODULE.bazel", "module(name = \"demo\")\n");
+        write(root, "MODULE.bazel", "module(name = \"demo\")\n").unwrap();
         write(
             root,
             "app/BUILD.bazel",
             "load(\"//tools:gone.bzl\", \"g\")\n",
-        );
+        )
+        .unwrap();
         assert_eq!(
             impact(root, &["tools/gone.bzl"], &[]),
             [packages("tools/gone.bzl", &["//app:all"])]
@@ -1619,12 +1642,14 @@ mod tests {
             root,
             "MODULE.bazel",
             "module(name = \"demo\")\nregister_toolchains(\"//tc:all\")\n",
-        );
+        )
+        .unwrap();
         write(
             root,
             "tc/BUILD.bazel",
             "load(\"//tools:tc_gone.bzl\", \"t\")\n",
-        );
+        )
+        .unwrap();
         assert_eq!(
             impact(root, &["tools/gone.bzl", "tools/tc_gone.bzl"], &[]),
             [
@@ -1636,10 +1661,10 @@ mod tests {
 
     #[test]
     fn build_parse_errors_fail() {
-        let scratch = dx_test_scratch::scratch("dx-load-build-error-");
+        let scratch = dx_test_scratch::scratch("dx-load-build-error-").unwrap();
         let root = scratch.path();
-        write(root, "MODULE.bazel", "module(name = \"demo\")\n");
-        write(root, "app/BUILD.bazel", "load(\"//:defs.bzl\"\n");
+        write(root, "MODULE.bazel", "module(name = \"demo\")\n").unwrap();
+        write(root, "app/BUILD.bazel", "load(\"//:defs.bzl\"\n").unwrap();
         let error = bzl_impact(root, &["defs.bzl".to_owned()], &[]).expect_err("parse error");
         assert!(error.message().starts_with("app/BUILD.bazel: "), "{error}");
     }
@@ -1662,26 +1687,29 @@ mod tests {
 
     #[test]
     fn repo_impact_selects_direct_and_transitive_loaders() {
-        let scratch = dx_test_scratch::scratch("dx-repo-loaders-");
+        let scratch = dx_test_scratch::scratch("dx-repo-loaders-").unwrap();
         let root = scratch.path();
-        write(root, "MODULE.bazel", "module(name = \"demo\")\n");
-        write(root, "a/BUILD.bazel", "load(\"@leaf//:defs.bzl\", \"x\")\n");
-        write(root, "b/BUILD.bazel", "load(\"//lib:wrap.bzl\", \"w\")\n");
+        write(root, "MODULE.bazel", "module(name = \"demo\")\n").unwrap();
+        write(root, "a/BUILD.bazel", "load(\"@leaf//:defs.bzl\", \"x\")\n").unwrap();
+        write(root, "b/BUILD.bazel", "load(\"//lib:wrap.bzl\", \"w\")\n").unwrap();
         write(
             root,
             "lib/wrap.bzl",
             "load(\"@@leaf+//:defs.bzl\", \"x\")\n",
-        );
+        )
+        .unwrap();
         write(
             root,
             "c/BUILD.bazel",
             "load(\"@leaf_extra//:defs.bzl\", \"x\")\n",
-        );
+        )
+        .unwrap();
         write(
             root,
             "d/BUILD.bazel",
             "load(\"@@leaf+_x+y//:defs.bzl\", \"x\")\n",
-        );
+        )
+        .unwrap();
         assert_eq!(
             repo_effects(root, &["leaf", "leaf+", "unused"], &[]),
             [
@@ -1694,21 +1722,22 @@ mod tests {
 
     #[test]
     fn repo_impact_widens_for_extension_aspect_toolchain_and_bazelrc() {
-        let scratch = dx_test_scratch::scratch("dx-repo-global-");
+        let scratch = dx_test_scratch::scratch("dx-repo-global-").unwrap();
         let root = scratch.path();
         write(
             root,
             "MODULE.bazel",
             "module(name = \"demo\")\nx = use_extension(\"//tools:ext.bzl\", \"x\")\nregister_toolchains(\"//tc:all\")\n",
-        );
-        write(root, "tools/ext.bzl", "load(\"@ext//:defs.bzl\", \"e\")\n");
-        write(root, "tc/BUILD.bazel", "load(\"@tc//:defs.bzl\", \"t\")\n");
-        write(root, "asp/aspect.bzl", "load(\"@asp//:defs.bzl\", \"a\")\n");
+        ).unwrap();
+        write(root, "tools/ext.bzl", "load(\"@ext//:defs.bzl\", \"e\")\n").unwrap();
+        write(root, "tc/BUILD.bazel", "load(\"@tc//:defs.bzl\", \"t\")\n").unwrap();
+        write(root, "asp/aspect.bzl", "load(\"@asp//:defs.bzl\", \"a\")\n").unwrap();
         write(
             root,
             ".bazelrc",
             "build --platforms=@plat//:p\nbuild:ci --@flag//:f=1\n",
-        );
+        )
+        .unwrap();
         assert_eq!(
             repo_effects(
                 root,

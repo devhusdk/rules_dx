@@ -497,7 +497,7 @@ mod tests {
             &["commit", "-q", "-m", "x"],
             &["tag", "v1.2.0"],
         ] {
-            dx_test_scratch::git(&repo, &repo, args);
+            dx_test_scratch::git(&repo, &repo, args).unwrap();
         }
         let wheel =
             zip_archive(&[("demo-1.3.0.dist-info/RECORD", &b""[..], 0o644)]).expect("wheel");

@@ -129,7 +129,7 @@ mod tests {
 
     #[test]
     fn creates_the_layout() {
-        let scratch = dx_test_scratch::scratch("new_language_ok");
+        let scratch = dx_test_scratch::scratch("new_language_ok").unwrap();
         let root = scratch.path();
         let written = scaffold(&root, "mylang", "MyLang").expect("scaffold");
         for path in [
@@ -153,7 +153,7 @@ mod tests {
 
     #[test]
     fn rejects_bad_and_existing_names() {
-        let scratch = dx_test_scratch::scratch("new_language_bad");
+        let scratch = dx_test_scratch::scratch("new_language_bad").unwrap();
         let root = scratch.path();
         assert!(scaffold(&root, "Bad-Name", "x").is_err());
         fs::create_dir_all(root.join("taken")).expect("taken");

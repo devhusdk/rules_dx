@@ -71,7 +71,7 @@ fn fake_runfiles(dir: &Path) -> PathBuf {
 
 #[test]
 fn stages_from_a_manifest_only_runfiles() {
-    let scratch = dx_test_scratch::scratch("rego_launcher_stage");
+    let scratch = dx_test_scratch::scratch("rego_launcher_stage").unwrap();
     let dir = scratch.path().to_path_buf();
     let exe = fake_runfiles(&dir);
     let resolver = resolver_for(&exe).unwrap();
@@ -91,7 +91,7 @@ fn stages_from_a_manifest_only_runfiles() {
 
 #[test]
 fn names_the_missing_opa() {
-    let scratch = dx_test_scratch::scratch("rego_launcher_noopa");
+    let scratch = dx_test_scratch::scratch("rego_launcher_noopa").unwrap();
     let dir = scratch.path().to_path_buf();
     let exe = fake_runfiles(&dir);
     std::fs::write(dir.join("desc"), GOOD).unwrap();

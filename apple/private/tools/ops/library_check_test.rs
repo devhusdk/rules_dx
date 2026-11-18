@@ -58,7 +58,7 @@ fn check(
             other => panic!("unexpected {other:?}"),
         }
     });
-    let root = scratch("library-check");
+    let root = scratch("library-check").unwrap();
     let report = root.path().join("cell.txt");
     let text = report.to_string_lossy().into_owned();
     let mut argv = vec![kind, text.as_str()];

@@ -35,13 +35,13 @@ fn area_module_srcs_carry_the_sources_nested_consumers_read() {
 
 #[test]
 fn rules_dx_source_names_the_checkout() {
-    let source = dx_testing::rules_dx_source();
+    let source = dx_testing::rules_dx_source().unwrap();
     assert!(source.join("MODULE.bazel").is_file(), "{source:?}");
 }
 
 #[path = "module_srcs_closure.rs"]
 mod closure;
-use closure::{loads, missing_from_runfiles, resolve, Bzl};
+use closure::{Bzl, loads, missing_from_runfiles, resolve};
 
 #[test]
 fn load_parser_follows_multi_line_and_repository_forms() {

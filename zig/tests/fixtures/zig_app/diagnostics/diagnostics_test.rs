@@ -1,5 +1,5 @@
 fn zig(args: &[&str]) -> dx_testing::Run {
-    let scratch = dx_test_scratch::scratch("zig-diagnostics");
+    let scratch = dx_test_scratch::scratch("zig-diagnostics").unwrap();
     let tmp = scratch.path();
     let local = tmp.join("zig-local-cache");
     let global = tmp.join("zig-global-cache");

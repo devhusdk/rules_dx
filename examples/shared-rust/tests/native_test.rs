@@ -27,7 +27,7 @@ fn serial() -> MutexGuard<'static, ()> {
 
 fn relocated() -> (dx_test_scratch::TempDir, PathBuf) {
     let rel = std::env::var("DX_TASKS").expect("DX_TASKS names the native binary");
-    let scratch = dx_test_scratch::scratch("tasks-native");
+    let scratch = dx_test_scratch::scratch("tasks-native").unwrap();
     let dir = scratch.path();
     let source = dx_testing::resolve_runfiles(&rel);
     let bin = dir.join(source.file_name().expect("binary file name"));

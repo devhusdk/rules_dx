@@ -29,10 +29,7 @@ rust_binary(
     srcs = ["src/main.rs"],
     crate_name = "consumer_hub_fixture_bin",
     crate_root = "src/main.rs",
-    deps = crate_deps(
-        ["greeting"],
-        package_name = "rust/tests/fixtures/consumer_hub",
-    ) + [":consumer_hub_lib"],
+    deps = [":consumer_hub_lib"],
 )
 
 rust_test(

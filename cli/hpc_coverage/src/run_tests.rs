@@ -3,7 +3,7 @@ use std::ffi::OsString;
 
 #[test]
 fn finds_the_first_tix_file_and_the_mix_directories() {
-    let scratch = dx_test_scratch::scratch("hpc_coverage_data_");
+    let scratch = dx_test_scratch::scratch("hpc_coverage_data_").unwrap();
     let dir = scratch.path().to_path_buf();
     std::fs::create_dir_all(dir.join("mix/b-pkg")).unwrap();
     std::fs::create_dir_all(dir.join("mix/a-pkg")).unwrap();
@@ -26,7 +26,7 @@ fn finds_the_first_tix_file_and_the_mix_directories() {
 
 #[test]
 fn a_run_without_a_tix_file_has_no_data() {
-    let scratch = dx_test_scratch::scratch("hpc_coverage_empty_");
+    let scratch = dx_test_scratch::scratch("hpc_coverage_empty_").unwrap();
     let dir = scratch.path().to_path_buf();
     std::fs::create_dir_all(dir.join("mix/a-pkg")).unwrap();
     assert_eq!(hpc_data(&dir), None);
@@ -42,7 +42,7 @@ fn a_run_needs_the_test_and_the_converter() {
 
 #[test]
 fn a_missing_test_program_is_an_error_that_names_it() {
-    let scratch = dx_test_scratch::scratch("hpc_coverage_missing_");
+    let scratch = dx_test_scratch::scratch("hpc_coverage_missing_").unwrap();
     let dir = scratch.path().to_path_buf();
     let test = dir.join("no_such_test").into_os_string();
     let error = run(&[test, "lcov".into()], &|_| None).unwrap_err();

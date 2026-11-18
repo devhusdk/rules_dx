@@ -390,7 +390,7 @@ fn an_id_collision_fails_validation() {
 
 #[test]
 fn run_writes_no_shard_on_failure() {
-    let scratch = dx_test_scratch::scratch("ruby-extract");
+    let scratch = dx_test_scratch::scratch("ruby-extract").unwrap();
     let dir = scratch.path();
     let json = dir.join("in.json");
     let out = dir.join("out.ir.pb");

@@ -17,9 +17,9 @@ struct Setup {
 }
 
 fn setup(prefix: &str) -> Setup {
-    let root = scratch(prefix);
-    write(root.path(), "dist/Ledger.app/Contents/Info.plist", "plist");
-    write(root.path(), "tmp/keep", "");
+    let root = scratch(prefix).unwrap();
+    write(root.path(), "dist/Ledger.app/Contents/Info.plist", "plist").unwrap();
+    write(root.path(), "tmp/keep", "").unwrap();
     Setup {
         tmp: root.path().join("tmp").to_string_lossy().into_owned(),
         root,
@@ -101,7 +101,7 @@ fn an_accepted_submission_is_stapled_and_assessed() {
 #[test]
 fn key_credentials_are_passed_to_notarytool() {
     let set = setup("notarize-key");
-    write(set.root.path(), "AuthKey.p8", "key");
+    write(set.root.path(), "AuthKey.p8", "key").unwrap();
     let fake = notary("Accepted", DETAILS, "");
     let outcome = call(
         &set,

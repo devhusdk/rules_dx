@@ -618,7 +618,7 @@ mod tests {
 
     #[test]
     fn ide_check_reads_state_json() {
-        let scratch = dx_test_scratch::scratch("dx-status-ide-");
+        let scratch = dx_test_scratch::scratch("dx-status-ide-").unwrap();
         let root = scratch.path();
         assert!(super::ide_check(root).is_none());
         std::fs::create_dir_all(root.join(".dx/local/ide")).expect("dir");
@@ -645,7 +645,7 @@ mod tests {
 
     #[test]
     fn status_renders_text() {
-        let scratch = dx_test_scratch::scratch("dx-status-render-");
+        let scratch = dx_test_scratch::scratch("dx-status-render-").unwrap();
         let dir = scratch.path();
         std::fs::write(
             dir.join("MODULE.bazel"),
@@ -667,7 +667,7 @@ mod tests {
 
     #[test]
     fn language_toolchains_are_reported_per_family() {
-        let scratch = dx_test_scratch::scratch("dx-status-languages-");
+        let scratch = dx_test_scratch::scratch("dx-status-languages-").unwrap();
         let dir = scratch.path();
         std::fs::write(
             dir.join("MODULE.bazel"),
@@ -704,7 +704,7 @@ node.toolchain(node_version = pinned)
 
     #[test]
     fn toolchain_check_reads_the_workspace_module() {
-        let scratch = dx_test_scratch::scratch("dx-status-toolchain-");
+        let scratch = dx_test_scratch::scratch("dx-status-toolchain-").unwrap();
         let dir = scratch.path();
         let run = |module: &str| {
             std::fs::write(dir.join("MODULE.bazel"), module).expect("module");
@@ -767,7 +767,7 @@ node.toolchain(node_version = pinned)
 
     #[test]
     fn bazel_check_reads_the_pin_and_launcher() {
-        let scratch = dx_test_scratch::scratch("dx-status-bazel-");
+        let scratch = dx_test_scratch::scratch("dx-status-bazel-").unwrap();
         let dir = scratch.path().to_path_buf();
         let bin = dir.join("bin");
         std::fs::create_dir_all(&bin).expect("bin");
@@ -840,7 +840,7 @@ node.toolchain(node_version = pinned)
 
     #[test]
     fn module_check_never_hints_the_pin_file_for_a_non_semver_module_version() {
-        let scratch = dx_test_scratch::scratch("dx-status-modhint-");
+        let scratch = dx_test_scratch::scratch("dx-status-modhint-").unwrap();
         let dir = scratch.path().to_path_buf();
         std::fs::create_dir_all(&dir).expect("dir");
         std::fs::write(
@@ -855,7 +855,7 @@ node.toolchain(node_version = pinned)
 
     #[test]
     fn module_check_detects_missing_and_mismatched_module() {
-        let scratch = dx_test_scratch::scratch("dx-status-module-");
+        let scratch = dx_test_scratch::scratch("dx-status-module-").unwrap();
         let dir = scratch.path().to_path_buf();
         std::fs::create_dir_all(&dir).expect("dir");
         let missing = super::module_check(&dir);
@@ -903,7 +903,7 @@ node.toolchain(node_version = pinned)
 
     #[test]
     fn module_check_reads_an_included_declaration() {
-        let scratch = dx_test_scratch::scratch("dx-status-module-include-");
+        let scratch = dx_test_scratch::scratch("dx-status-module-include-").unwrap();
         let dir = scratch.path().to_path_buf();
         std::fs::write(
             dir.join("MODULE.bazel"),
@@ -921,7 +921,7 @@ node.toolchain(node_version = pinned)
 
     #[test]
     fn module_check_reports_a_broken_module_file() {
-        let scratch = dx_test_scratch::scratch("dx-status-module-broken-");
+        let scratch = dx_test_scratch::scratch("dx-status-module-broken-").unwrap();
         let dir = scratch.path().to_path_buf();
         std::fs::write(dir.join("MODULE.bazel"), "bazel_dep(name = \"rules_dx\"\n")
             .expect("module");
@@ -937,7 +937,7 @@ node.toolchain(node_version = pinned)
 
     #[test]
     fn module_check_reports_a_missing_include() {
-        let scratch = dx_test_scratch::scratch("dx-status-module-missing-include-");
+        let scratch = dx_test_scratch::scratch("dx-status-module-missing-include-").unwrap();
         let dir = scratch.path().to_path_buf();
         std::fs::write(
             dir.join("MODULE.bazel"),
@@ -955,7 +955,7 @@ node.toolchain(node_version = pinned)
 
     #[test]
     fn observed_checks_take_the_observed_tools_check() {
-        let scratch = dx_test_scratch::scratch("dx-status-observed-");
+        let scratch = dx_test_scratch::scratch("dx-status-observed-").unwrap();
         let dir = scratch.path().to_path_buf();
         std::fs::create_dir_all(&dir).expect("dir");
         let tools = StatusCheck {
@@ -985,7 +985,7 @@ node.toolchain(node_version = pinned)
 
     #[test]
     fn exec_tools_check_reads_the_host_compilation_mode() {
-        let scratch = dx_test_scratch::scratch("dx-status-exec-");
+        let scratch = dx_test_scratch::scratch("dx-status-exec-").unwrap();
         let dir = scratch.path().to_path_buf();
         std::fs::create_dir_all(&dir).expect("dir");
         let missing = super::exec_tools_check(&dir);
@@ -1034,7 +1034,7 @@ node.toolchain(node_version = pinned)
 
     #[test]
     fn init_plan_check_reports_hard_conflicts_only() {
-        let scratch = dx_test_scratch::scratch("dx-status-init-plan-");
+        let scratch = dx_test_scratch::scratch("dx-status-init-plan-").unwrap();
         let dir = scratch.path();
         let run = |module: Option<&str>| {
             let path = dir.join("MODULE.bazel");

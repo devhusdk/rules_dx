@@ -64,19 +64,19 @@ use_repo(maven, "maven")
 
 /// Copies the pinned consumer Maven lock into the nested workspace at `root` under its own name.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics when the operation fails.
-pub fn stage_consumer_maven_lock(root: &Path) {
+/// Returns `Err` when the lock is not declared or names no file.
+pub fn stage_consumer_maven_lock(root: &Path) -> Result<(), String> {
     let key = std::env::var(CONSUMER_MAVEN_LOCK_ENV)
-        .unwrap_or_else(|_| panic!("{CONSUMER_MAVEN_LOCK_ENV} is not set; add CONSUMER_MAVEN_ENV"));
-    let lock =
-        dx_testing::rlocation(&key).unwrap_or_else(|error| panic!("rlocation {key}: {error}"));
+        .map_err(|_| format!("{CONSUMER_MAVEN_LOCK_ENV} is not set; add CONSUMER_MAVEN_ENV"))?;
+    let lock = dx_testing::rlocation(&key).map_err(|error| format!("rlocation {key}: {error}"))?;
     let name = lock
         .file_name()
-        .unwrap_or_else(|| panic!("{key} names no file"));
+        .ok_or_else(|| format!("{key} names no file"))?;
     let text = dx_testing::read(&lock);
     dx_testing::write(&root.join(name), &text);
+    Ok(())
 }
 pub const STARTUP: &[&str] = &["--nohome_rc", "--nosystem_rc"];
 
@@ -1343,6 +1343,8 @@ fn output_within(command: &mut Command, limit: Duration) -> Result<std::process:
     })
 }
 
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 fn capture(mut command: Command, what: &str, offline: bool) -> Run {
     let limit = call_deadline(std::env::var("TEST_TIMEOUT").ok().as_deref());
     let output =
@@ -1512,6 +1514,8 @@ pub const HARNESS_QUERY: &[&str] = &[
 ///
 /// Panics when the operation fails.
 #[must_use]
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn harness_consumer(name: &str) -> Case {
     let module = dx_testing::resolve_runfiles("MODULE.bazel");
     let module = std::path::absolute(&module)
@@ -1595,6 +1599,8 @@ pub fn seed_lock_json(lock: &str) -> Result<String, String> {
 ///
 /// Panics when the operation fails.
 /// The consumer must pin the `.bazelversion` of the same checkout, or Bazel ignores the lock.
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn seed_rules_dx_lock(root: &Path, rules: &Path) {
     let source = rules.join("MODULE.bazel.lock");
     let lock = std::fs::read_to_string(&source).unwrap_or_else(|error| {
@@ -1615,6 +1621,8 @@ pub fn seed_rules_dx_lock(root: &Path, rules: &Path) {
 /// # Panics
 ///
 /// Panics when the operation fails.
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn write_rules_dx_config(root: &Path) {
     let dir = root.join("config");
     std::fs::create_dir_all(&dir)
@@ -1647,6 +1655,8 @@ pub struct Case {
 ///
 /// Panics when the operation fails.
 #[must_use]
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn case(name: &str) -> Case {
     let held = HELD.with(|held| held.borrow().upgrade());
     let lease = held.unwrap_or_else(|| {
@@ -1682,6 +1692,8 @@ pub fn case(name: &str) -> Case {
 /// # Panics
 ///
 /// Panics when the operation fails.
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn bazel_in(root: &Path, args: &[&str]) -> Run {
     let (home, offline) = HOME
         .lock()
@@ -1701,6 +1713,8 @@ impl Case {
     /// # Panics
     ///
     /// Panics when the operation fails.
+    #[track_caller]
+    #[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
     pub fn use_lock(&self, stem: &str) {
         if recording() {
             drop(std::fs::remove_file(self.root.join("MODULE.bazel.lock")));
@@ -1726,10 +1740,17 @@ impl Case {
     }
 
     /// Seeds this workspace's `MODULE.bazel.lock` with the extension facts of the `rules_dx` checkout.
-    pub fn seed_rules_dx_lock(&self) {
-        seed_rules_dx_lock(&self.root, &dx_testing::rules_dx_source());
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the `rules_dx` checkout cannot be found.
+    pub fn seed_rules_dx_lock(&self) -> Result<(), String> {
+        seed_rules_dx_lock(&self.root, &dx_testing::rules_dx_source()?);
+        Ok(())
     }
 
+    #[track_caller]
+    #[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
     fn server(&self) -> Ref<'_, Server> {
         Ref::map(self.lease.borrow(), |guard| match guard.as_ref() {
             Some(server) => server,
@@ -1763,6 +1784,8 @@ impl Case {
     /// # Panics
     ///
     /// Panics when the operation fails.
+    #[track_caller]
+    #[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
     pub fn shutdown_server(&self) {
         let mut guard = self.lease.borrow_mut();
         let server = guard
@@ -1783,6 +1806,11 @@ impl Case {
     ///
     /// Panics when the operation fails.
     #[must_use]
+    #[track_caller]
+    #[expect(
+        clippy::expect_used,
+        reason = "test helper: a failed setup fails the test"
+    )]
     pub fn refetched_after_restart(&self, args: &[&str], log: &str) -> Vec<String> {
         self.shutdown_server();
         let tmpdir = PathBuf::from(std::env::var_os("TEST_TMPDIR").expect("TEST_TMPDIR"));
@@ -1822,6 +1850,8 @@ impl Case {
     ///
     /// Panics when the operation fails.
     #[must_use]
+    #[track_caller]
+    #[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
     pub fn command(&self, bin: &Path, envs: &[(&str, &str)]) -> Command {
         self.server()
             .command(bin, envs)
@@ -1850,6 +1880,8 @@ impl Case {
     ///
     /// Panics when the operation fails.
     #[must_use]
+    #[track_caller]
+    #[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
     pub fn command_with_shim(&self, bin: &Path, envs: &[(&str, &str)], shim_dir: &Path) -> Command {
         self.server()
             .command_with_front(bin, envs, &[shim_dir])
@@ -1895,9 +1927,16 @@ impl Case {
     /// Starts a case whose workspace depends on this `rules_dx` checkout, with `extra_module` appended.
     ///
     /// The workspace imports the preset layers from `.dx/bazelrc`, the way `dx init` lays them out.
-    #[must_use]
-    pub fn consumer(name: &str, extra_module: &str) -> Case {
-        Case::consumer_at(name, &dx_testing::rules_dx_source(), extra_module)
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the `rules_dx` checkout cannot be found.
+    pub fn consumer(name: &str, extra_module: &str) -> Result<Case, String> {
+        Ok(Case::consumer_at(
+            name,
+            &dx_testing::rules_dx_source()?,
+            extra_module,
+        ))
     }
 
     /// Like `consumer`, with `rules_dx` read from `rules`.
@@ -1972,6 +2011,8 @@ fn files_under(root: &Path) -> Vec<(PathBuf, Vec<u8>)> {
     files
 }
 
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 fn collect_files(dir: &Path, root: &Path, files: &mut Vec<(PathBuf, Vec<u8>)>) {
     let mut entries: Vec<_> = std::fs::read_dir(dir)
         .unwrap_or_else(|error| panic!("list {}: {error}", dir.display()))

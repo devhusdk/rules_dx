@@ -8,12 +8,12 @@ use shard_test_support::shard;
 const PREFIX: &str = "avro:shop:";
 
 fn symbol<'a>(shard: &'a DocIr, name: &str) -> &'a Symbol {
-    shard_test_support::symbol(shard, &format!("{PREFIX}{name}"))
+    shard_test_support::symbol(shard, &format!("{PREFIX}{name}")).unwrap()
 }
 
 #[test]
 fn the_fixture_shard_documents_the_avsc_and_the_avdl() {
-    let shard = shard("DX_FIXTURE_SHARD");
+    let shard = shard("DX_FIXTURE_SHARD").unwrap();
     validate_shard(&shard).expect("validate_shard passes");
     assert_eq!(shard.language, "avro");
     assert_eq!(shard.package, "shop");

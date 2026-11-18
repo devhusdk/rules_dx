@@ -14,7 +14,7 @@ fn inside(isolation: &Isolation, net: Net, script: &str) -> hermetic::Outcome {
 #[test]
 fn isolation_denies_network_masks_tools_and_config_and_keeps_the_real_user() {
     use std::os::unix::fs::PermissionsExt;
-    let scratch = dx_test_scratch::scratch("isolation-probe");
+    let scratch = dx_test_scratch::scratch("isolation-probe").unwrap();
     let root = scratch.path().join("isolation probe");
     std::fs::create_dir_all(&root).expect("scratch root");
     let shim = root.join("ambient-tool");

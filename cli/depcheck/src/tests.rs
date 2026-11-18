@@ -3548,3 +3548,35 @@ fn a_starred_manifest_matches_any_stem() {
     std::fs::write(dir.path().join("app.opam"), "").expect("manifest");
     assert!(crate::usage::holds(dir.path(), "*.opam"));
 }
+
+#[test]
+fn a_source_with_a_byte_order_mark_counts_its_first_import() {
+    let dir = tempfile::tempdir().expect("scratch");
+    write_file(&dir.path().join("app.py"), "\u{feff}import requests\n");
+    let usages = find_usages(Language::Python, dir.path(), &["requests".to_owned()]).expect("scan");
+    assert!(usages["requests"].src);
+}
+
+#[cfg(unix)]
+#[test]
+fn a_source_whose_name_is_not_utf8_is_scanned() {
+    use std::os::unix::ffi::OsStrExt;
+    let dir = tempfile::tempdir().expect("scratch");
+    let name = std::ffi::OsStr::from_bytes(b"caf\xe9.rs");
+    std::fs::write(dir.path().join(name), "use serde::Serialize;\n").expect("write");
+    let usages = find_usages(Language::Rust, dir.path(), &["serde".to_owned()]).expect("scan");
+    assert!(usages["serde"].src);
+}
+
+#[cfg(unix)]
+#[test]
+fn a_symlink_back_to_an_ancestor_is_not_walked() {
+    let dir = tempfile::tempdir().expect("scratch");
+    write_file(&dir.path().join("src/lib.rs"), "fn main() {}\n");
+    std::os::unix::fs::symlink(dir.path(), dir.path().join("src/loop")).expect("link");
+    let files = crate::usage::collect_sources(dir.path(), None);
+    assert_eq!(files, vec![dir.path().join("src/lib.rs")]);
+    write_file(&dir.path().join("main.go"), "package main\n");
+    let found = crate::missing::go_files(dir.path());
+    assert_eq!(found, vec![dir.path().join("main.go")]);
+}

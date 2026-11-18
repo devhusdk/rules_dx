@@ -23,7 +23,7 @@ pub(crate) fn holds(dir: &Path, manifest: &str) -> bool {
     })
 }
 
-fn collect_sources(root: &Path, nested: Option<&str>) -> Vec<PathBuf> {
+pub(crate) fn collect_sources(root: &Path, nested: Option<&str>) -> Vec<PathBuf> {
     let mut out = Vec::new();
     let mut stack = vec![root.to_path_buf()];
     while let Some(dir) = stack.pop() {
@@ -36,8 +36,16 @@ fn collect_sources(root: &Path, nested: Option<&str>) -> Vec<PathBuf> {
         }
         children.sort();
         for child in children.into_iter().rev() {
-            let name = child.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            let name = child
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            let name = name.as_str();
+            let linked = child.symlink_metadata().is_ok_and(|m| m.is_symlink());
             if child.is_dir() {
+                if linked {
+                    continue;
+                }
                 if !matches!(name, ".git" | "node_modules" | "target" | ".dart_tool")
                     && !name.starts_with("bazel-")
                     && !nested.is_some_and(|file| holds(&child, file))
@@ -51,6 +59,12 @@ fn collect_sources(root: &Path, nested: Option<&str>) -> Vec<PathBuf> {
     }
     out.sort();
     out
+}
+
+/// Source text with invalid UTF-8 replaced and a leading byte order mark dropped.
+fn source_text(bytes: &[u8]) -> String {
+    let text = String::from_utf8_lossy(bytes);
+    text.strip_prefix('\u{feff}').unwrap_or(&text).to_owned()
 }
 
 #[must_use]
@@ -552,9 +566,10 @@ pub(crate) fn find_first_imports(
     let suffixes = source_suffixes();
     let mut texts: Vec<(String, String)> = Vec::new();
     for file in collect_sources(root, Some(nested)) {
-        let Some(fname) = file.file_name().and_then(|n| n.to_str()) else {
+        let Some(fname) = file.file_name().map(|n| n.to_string_lossy().into_owned()) else {
             continue;
         };
+        let fname = fname.as_str();
         if skips.contains(fname) || !suffixes.iter().any(|s| fname.ends_with(s)) {
             continue;
         }
@@ -562,10 +577,7 @@ pub(crate) fn find_first_imports(
             continue;
         };
         let rel = file.strip_prefix(root).unwrap_or(&file);
-        texts.push((
-            dx_path::posix(rel),
-            String::from_utf8_lossy(&bytes).into_owned(),
-        ));
+        texts.push((dx_path::posix(rel), source_text(&bytes)));
     }
     let mut out = BTreeMap::new();
     for name in names {
@@ -620,9 +632,10 @@ pub fn find_usages(
         regex::Regex::new(r"(?m)^\s*#!\[cfg\(test\)\]").map_err(DepcheckError::SourcesRegex)?;
     let mut texts: Vec<(FileKind, String)> = Vec::new();
     for file in files {
-        let Some(fname) = file.file_name().and_then(|n| n.to_str()) else {
+        let Some(fname) = file.file_name().map(|n| n.to_string_lossy().into_owned()) else {
             continue;
         };
+        let fname = fname.as_str();
         if skips.contains(fname) {
             continue;
         }
@@ -633,7 +646,7 @@ pub fn find_usages(
         let Ok(text) = std::fs::read(&file) else {
             continue;
         };
-        let text = String::from_utf8_lossy(&text).into_owned();
+        let text = source_text(&text);
         let rel = file.strip_prefix(sources_root).unwrap_or(&file);
         let kind = if fname == "build.rs" {
             FileKind::Build

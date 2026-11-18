@@ -10,6 +10,8 @@ file elixir/tests/fixtures/elixir_app/cli/BUILD.bazel
 file elixir/tests/fixtures/elixir_app/cli/lib/stockctl.ex
 file elixir/tests/fixtures/elixir_app/cli/test/stockctl_test.exs
 file elixir/tests/fixtures/elixir_app/cli/test/test_helper.exs
+file elixir/tests/fixtures/elixir_app/hex.lock.json
+file elixir/tests/fixtures/elixir_app/mix.exs
 file elixir/tests/fixtures/elixir_app/mix.lock
 file elixir/tests/fixtures/elixir_app/stock/BUILD.bazel
 file elixir/tests/fixtures/elixir_app/stock/lib/stock/application.ex

@@ -39,9 +39,17 @@ def toolchain_identity_tests(name, size = "small"):
                 "@rules_rust//rust/rustfmt:toolchain_type",
             ),
             expect_equal(
-                "the rules_dx hub covers the Rust platforms and the Android tuples",
+                "the rules_dx hub covers the Rust platforms, the Android tuples and the iOS environments",
                 target_triples(["windows_x86_64", "linux_x86_64"]),
-                ["aarch64-linux-android", "x86_64-linux-android", "x86_64-pc-windows-msvc", "x86_64-unknown-linux-gnu"],
+                [
+                    "aarch64-apple-ios",
+                    "aarch64-apple-ios-sim",
+                    "aarch64-linux-android",
+                    "x86_64-apple-ios",
+                    "x86_64-linux-android",
+                    "x86_64-pc-windows-msvc",
+                    "x86_64-unknown-linux-gnu",
+                ],
             ),
         ],
     )

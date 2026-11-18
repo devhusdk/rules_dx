@@ -1,4 +1,5 @@
-//! The Apple consumer fixture builds its iOS simulator app and its macOS app with no flag.
+//! The Apple consumer fixture builds its iOS simulator app, its iOS Rust library and its macOS app with
+//! no flag and no `rust.toolchain`.
 
 use std::collections::BTreeMap;
 
@@ -103,6 +104,7 @@ fn one_macro_call_builds_each_app_with_no_flag() {
         "--color=no",
         "--curses=no",
         "//phone:phone_app",
+        "//phone:share",
         "//desk:desk_app",
     ]);
     if !built.status.success() {

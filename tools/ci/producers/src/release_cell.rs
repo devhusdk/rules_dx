@@ -1,4 +1,4 @@
-//! Builds the dx release archive, the pure-Go dx gazelle and the native launcher twice and qualifies them as one release cell.
+//! Builds the dx release archive, the pure-Go dx gazelle, the native launcher and the native build tools twice and qualifies them as one release cell.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -13,6 +13,12 @@ const PURE: &str = "--@rules_go//go/config:pure";
 const RELEASE: &str = "//deploy/private/release";
 const GAZELLE: &str = "@dx_gazelle//:gazelle";
 const LAUNCHER: &str = "//cli/launcher:exec_launcher";
+/// The native build tools a cell ships, by registry name in `cli/prebuilt/tools.bzl`.
+const NATIVE_TOOLS: [(&str, &str); 3] = [
+    ("capnp", "@dx_capnproto//src/capnp:capnp_tool"),
+    ("flatc", "@dx_flatbuffers//:flatc"),
+    ("thrift", "@dx_thrift//:thrift_compiler"),
+];
 const QUERY_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 const TOOL_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 
@@ -204,6 +210,7 @@ fn rebuild_cell(
     };
     let no_cache = ["--disk_cache=", "--remote_cache="];
     let mut rebuilt_targets = vec![format!("{RELEASE}:dx_host_cell"), LAUNCHER.to_owned()];
+    rebuilt_targets.extend(NATIVE_TOOLS.iter().map(|(_, label)| (*label).to_owned()));
     if symbols.is_some() {
         rebuilt_targets.push(pdb.to_owned());
     }
@@ -223,6 +230,12 @@ fn rebuild_cell(
     )?;
     if !same_bytes(&out.join(launcher_asset), &rebuilt_launcher)? {
         return Err(format!("{launcher_asset} differs between two builds"));
+    }
+    for (tool, label) in NATIVE_TOOLS {
+        let asset = tool_asset_name(tool, &env.cell);
+        if !same_bytes(&out.join(&asset), &rebuild.file(&rebuild_root, &[], label)?)? {
+            return Err(format!("{asset} differs between two builds"));
+        }
     }
     let mut qualify_symbols = Vec::new();
     if let Some(symbols) = symbols {
@@ -254,17 +267,16 @@ fn rebuild_cell(
 fn build_cell(env: &Env, out: &Path) -> Result<(), String> {
     let main = Bazel { base: None };
     let symbols = symbols_name(&env.cell);
-    main.build(
-        &[],
-        &[
-            "//cli/cli:dx",
-            LAUNCHER,
-            &format!("{RELEASE}:release_cell"),
-            &format!("{RELEASE}:release_matrix"),
-            &format!("{RELEASE}:dx_host_cell"),
-            &format!("{RELEASE}:dx_host_cell_sbom"),
-        ],
-    )?;
+    let release_targets = [
+        format!("{RELEASE}:release_cell"),
+        format!("{RELEASE}:release_matrix"),
+        format!("{RELEASE}:dx_host_cell"),
+        format!("{RELEASE}:dx_host_cell_sbom"),
+    ];
+    let mut targets = vec!["//cli/cli:dx", LAUNCHER];
+    targets.extend(NATIVE_TOOLS.iter().map(|(_, label)| *label));
+    targets.extend(release_targets.iter().map(String::as_str));
+    main.build(&[], &targets)?;
     let pdb = format!("{RELEASE}:dx_host_cell_pdb");
     let pdb_sbom = format!("{RELEASE}:dx_host_cell_pdb_sbom");
     if symbols.is_some() {
@@ -285,6 +297,12 @@ fn build_cell(env: &Env, out: &Path) -> Result<(), String> {
         &main.file(&root, &[], LAUNCHER)?,
         &out.join(&launcher_asset),
     )?;
+    for (tool, label) in NATIVE_TOOLS {
+        copy(
+            &main.file(&root, &[], label)?,
+            &out.join(tool_asset_name(tool, &env.cell)),
+        )?;
+    }
     let dx = main.file(&root, &[], "//cli/cli:dx")?;
     if is_macos(&env.cell) && !codesign(&["--verify", "--strict"], &dx)? {
         return Err(format!(

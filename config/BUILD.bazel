@@ -223,19 +223,19 @@ label_flag(
 
 label_flag(
     name = "tool_capnp",
-    build_setting_default = "@dx_capnproto//src/capnp:capnp_tool",
+    build_setting_default = "@dx_prebuilt//:capnp",
     scope = "universal",
 )
 
 label_flag(
     name = "tool_flatc",
-    build_setting_default = "@dx_flatbuffers//:flatc",
+    build_setting_default = "@dx_prebuilt//:flatc",
     scope = "universal",
 )
 
 label_flag(
     name = "tool_thrift",
-    build_setting_default = "@dx_thrift//:thrift_compiler",
+    build_setting_default = "@dx_prebuilt//:thrift",
     scope = "universal",
 )
 

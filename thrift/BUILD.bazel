@@ -6,7 +6,7 @@ exports_files([
 
 alias(
     name = "thrift_compiler",
-    actual = "@dx_thrift//:thrift_compiler",
+    actual = "@dx_prebuilt//:thrift",
     visibility = ["//visibility:public"],
 )
 

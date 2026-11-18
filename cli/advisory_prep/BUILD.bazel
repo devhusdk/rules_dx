@@ -37,6 +37,7 @@ rust_test(
     # keep
     deps = [
         "//cli/adopt:dx_adopt",
+        "//cli/archive:dx_archive",
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/audit:dx_audit",
         "//cli/digest:dx_digest",
@@ -47,7 +48,6 @@ rust_test(
         "@crates//:flate2",
         "@crates//:serde",
         "@crates//:serde_json",
-        "@crates//:tar",
         "@crates//:tempfile",
         "@crates//:thiserror",
     ],
@@ -82,6 +82,7 @@ rust_library(
     # keep
     deps = [
         "//cli/adopt:dx_adopt",
+        "//cli/archive:dx_archive",
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/audit:dx_audit",
         "//cli/digest:dx_digest",
@@ -91,7 +92,6 @@ rust_library(
         "@crates//:flate2",
         "@crates//:serde",
         "@crates//:serde_json",
-        "@crates//:tar",
         "@crates//:tempfile",
         "@crates//:thiserror",
     ],

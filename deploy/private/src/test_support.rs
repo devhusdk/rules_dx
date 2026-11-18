@@ -1,6 +1,6 @@
 //! Shared test fixtures: the env lock, scratch dirs and child-process env tests.
 
-use crate::{gzip_compress, tar_archive};
+use crate::tar_archive;
 use std::fmt::Write as _;
 use std::path::Path;
 
@@ -146,7 +146,7 @@ pub(crate) fn oci_test_layer(gzip: bool) -> Vec<u8> {
     let tar =
         tar_archive([("hello", b"hello world\n".as_slice(), 0o644)].into_iter()).expect("tar");
     if gzip {
-        gzip_compress(&tar).expect("gzip")
+        dx_archive::gzip(&tar).expect("gzip")
     } else {
         tar
     }

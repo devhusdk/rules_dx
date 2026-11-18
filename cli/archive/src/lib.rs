@@ -1,12 +1,16 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 //! Safe extraction of tar.gz and zip archives into a fresh directory, plus read-only zip
-//! member reads ([`read_zip_member`]) and listings ([`zip_names`]).
+//! member reads ([`read_zip_member`]) and listings ([`zip_names`]), and deterministic writers
+//! ([`TarWriter`], [`ZipWriter`]).
 
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{self, Read, Seek, Write};
 use std::path::Path;
+
+mod write;
+pub use write::{TarWriter, ZipWriter, fits_ustar, gzip};
 
 /// The archive container, named by suffix and confirmed by magic bytes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -80,6 +84,10 @@ pub struct Member {
 
 fn invalid(message: String) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, message)
+}
+
+fn invalid_input(message: String) -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidInput, message)
 }
 
 /// Returns why an archive member name is unsafe to extract, if it is.

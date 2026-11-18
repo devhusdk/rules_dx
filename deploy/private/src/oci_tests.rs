@@ -77,7 +77,11 @@ fn oci_layout_builds_index() {
 fn oci_tar(path: &Path, files: &[(&str, &[u8])], links: &[(&str, &str)]) {
     let mut builder = tar::Builder::new(Vec::new());
     for (name, body) in files {
-        let header = ustar_header(name, body.len() as u64, 0o644).expect("header");
+        let mut header = tar::Header::new_ustar();
+        header.set_path(name).expect("path");
+        header.set_size(body.len() as u64);
+        header.set_mode(0o644);
+        header.set_cksum();
         builder.append(&header, *body).expect("append");
     }
     for (name, target) in links {
@@ -110,7 +114,7 @@ fn oci_save(
     let id = archive_image(&refs, platform, &["/app/hello"], &archive).expect("archive image");
     if name.ends_with(".gz") {
         let tar = std::fs::read(&archive).expect("read archive");
-        std::fs::write(&archive, gzip_compress(&tar).expect("gzip")).expect("write gz");
+        std::fs::write(&archive, dx_archive::gzip(&tar).expect("gzip")).expect("write gz");
     }
     (archive, id)
 }
@@ -232,7 +236,10 @@ fn oci_declared_image_id_rejects_unsupported_archives() {
     assert!(oci_declared_image_id(&archive, "linux/amd64").is_err());
     let layer = {
         let mut builder = tar::Builder::new(Vec::new());
-        let mut header = ustar_header("etc/os-release", 2, 0o644).expect("header");
+        let mut header = tar::Header::new_ustar();
+        header.set_path("etc/os-release").expect("path");
+        header.set_size(2);
+        header.set_mode(0o644);
         header.set_cksum();
         builder.append(&header, &b"x\n"[..]).expect("append");
         builder.into_inner().expect("tar")
@@ -397,7 +404,7 @@ fn oci_index_tar(
     oci_tar(path, &files, links);
     if path.to_string_lossy().ends_with(".gz") {
         let tar = std::fs::read(path).expect("read archive");
-        std::fs::write(path, gzip_compress(&tar).expect("gzip")).expect("write gz");
+        std::fs::write(path, dx_archive::gzip(&tar).expect("gzip")).expect("write gz");
     }
     fixture
 }
@@ -1173,7 +1180,7 @@ fn oci_layout_rejects_malformed_gzip_layers() {
         std::slice::from_ref(&tar),
         "linux/amd64",
     );
-    let outer = gzip_compress(&std::fs::read(&valid).expect("read valid")).expect("gzip");
+    let outer = dx_archive::gzip(&std::fs::read(&valid).expect("read valid")).expect("gzip");
     let mut flipped = outer.clone();
     let mid = flipped.len() / 2;
     flipped[mid] ^= 0xff;
@@ -1555,7 +1562,7 @@ fn oci_layout_keeps_every_docker_save_layer_and_the_config() {
         tar_archive([("etc/demo.conf", b"demo=1\n".as_slice(), 0o644)].into_iter()).expect("tar");
     let gz_tar =
         tar_archive([("app/hello", b"hello\n".as_slice(), 0o755)].into_iter()).expect("tar");
-    let gz = gzip_compress(&gz_tar).expect("gzip");
+    let gz = dx_archive::gzip(&gz_tar).expect("gzip");
     let config = oci_config("amd64", &[&plain, &gz_tar]);
     let config_hex = dx_digest::sha256_hex(&config);
     let plain_hex = dx_digest::sha256_hex(&plain);

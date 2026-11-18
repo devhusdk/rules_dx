@@ -117,27 +117,20 @@ pub fn pack_cache(cache: &Path, dest: &Path) -> Result<Vec<u8>, PrepError> {
     let mut files = Vec::new();
     collect(cache, Path::new(""), &mut files).map_err(|error| fail(error.to_string()))?;
     files.sort();
-    let encoder = flate2::GzBuilder::new()
-        .mtime(0)
-        .write(Vec::new(), flate2::Compression::new(6));
-    let mut builder = tar::Builder::new(encoder);
+    let mut writer = dx_archive::TarWriter::new();
     for relative in &files {
         let data = std::fs::read(cache.join(relative)).map_err(|error| fail(error.to_string()))?;
-        let mut header = tar::Header::new_gnu();
-        header.set_size(data.len() as u64);
-        header.set_mode(0o644);
-        header.set_uid(0);
-        header.set_gid(0);
-        header.set_mtime(0);
-        header.set_entry_type(tar::EntryType::Regular);
-        builder
-            .append_data(&mut header, relative, data.as_slice())
+        let name = relative
+            .iter()
+            .map(|part| part.to_str())
+            .collect::<Option<Vec<_>>>()
+            .ok_or_else(|| fail(format!("{} is not UTF-8", relative.display())))?
+            .join("/");
+        writer
+            .add_file(&name, &data, 0o644)
             .map_err(|error| fail(error.to_string()))?;
     }
-    let bytes = builder
-        .into_inner()
-        .and_then(flate2::write::GzEncoder::finish)
-        .map_err(|error| fail(error.to_string()))?;
+    let bytes = writer.finish().map_err(|error| fail(error.to_string()))?;
     std::fs::write(dest, &bytes).map_err(|error| fail(error.to_string()))?;
     Ok(bytes)
 }

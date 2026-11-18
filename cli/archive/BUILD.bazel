@@ -22,7 +22,10 @@ exports_files([
 
 rust_library(
     name = "dx_archive",
-    srcs = ["src/lib.rs"],
+    srcs = [
+        "src/lib.rs",
+        "src/write.rs",
+    ],
     aliases = aliases(
         package_name = "cli/dx_archive",
         normal = True,
@@ -41,6 +44,7 @@ rust_test(
     srcs = [
         "src/lib.rs",
         "src/tests.rs",
+        "src/write.rs",
     ],
     aliases = aliases(
         package_name = "cli/dx_archive",
@@ -54,7 +58,7 @@ rust_test(
         package_name = "cli/dx_archive",
         normal = True,
         normal_dev = True,
-    ),
+    ) + ["//cli/digest:dx_digest"],
 )
 
 exports_files(

@@ -70,7 +70,7 @@ pub fn npm_create_pack(
             .iter()
             .map(|(member, (data, mode))| (member.as_str(), data.as_slice(), *mode)),
     )?;
-    let gz = gzip_compress(&tar)?;
+    let gz = dx_archive::gzip(&tar)?;
     if let Some(parent) = tgz_out.parent()
         && !parent.as_os_str().is_empty()
     {
@@ -949,7 +949,7 @@ mod tests {
             .expect("decode");
         tar[100] ^= 1;
         let bad = scratch.path().join("bad.tgz");
-        std::fs::write(&bad, gzip_compress(&tar).expect("gz")).expect("write bad");
+        std::fs::write(&bad, dx_archive::gzip(&tar).expect("gz")).expect("write bad");
         assert!(npm_tar_members(&bad).is_err());
     }
 

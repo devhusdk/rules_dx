@@ -5,67 +5,20 @@ use crate::stage::*;
 use std::io::{self, BufRead, Read, Write};
 use std::path::Path;
 
+#[cfg(test)]
 pub(crate) const RECORDSIZE: usize = 20 * 512;
-
-const MTIME: u64 = 0;
-
-const UID: u64 = 0;
-
-const GID: u64 = 0;
 
 const USTAR_LIMIT: &str = "must be at most 100 bytes, or split at a '/' into a prefix of at most 155 bytes and a name of at most 100 bytes, with no NUL";
 
-/// Returns whether a path fits the ustar name and prefix fields.
-fn fits_ustar(name: &str) -> bool {
-    name.len() <= 100
-        || name
-            .match_indices('/')
-            .any(|(at, _)| at <= 155 && name.len() - at - 1 <= 100)
-}
-
-/// Returns one ustar header whose numeric fields use the python tarfile encoding.
-pub(crate) fn ustar_header(name: &str, size: u64, mode: u32) -> io::Result<tar::Header> {
-    if name.is_empty() || name.contains('\0') || !fits_ustar(name) {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            format!("tar member name {name:?} {USTAR_LIMIT}"),
-        ));
-    }
-    let mut header = tar::Header::new_ustar();
-    header.set_entry_type(tar::EntryType::Regular);
-    header.set_mode(mode & 0o7777);
-    header.set_uid(UID);
-    header.set_gid(GID);
-    header.set_size(size);
-    header.set_mtime(MTIME);
-    header.set_path(name)?;
-    header.set_cksum();
-    let field = format!("{:06o}\0 ", header.cksum()?);
-    header.as_old_mut().cksum.copy_from_slice(field.as_bytes());
-    Ok(header)
-}
-
-/// Returns one ustar image padded to a whole record.
+/// Returns one deterministic ustar image padded to a whole record.
 pub(crate) fn tar_archive<'a>(
     members: impl Iterator<Item = (&'a str, &'a [u8], u32)>,
 ) -> io::Result<Vec<u8>> {
-    let mut builder = tar::Builder::new(Vec::new());
+    let mut writer = dx_archive::TarWriter::new();
     for (name, data, mode) in members {
-        let header = ustar_header(name, data.len() as u64, mode)?;
-        builder.append(&header, data)?;
+        writer.add_file(name, data, mode)?;
     }
-    let mut image = builder.into_inner()?;
-    image.resize(image.len().div_ceil(RECORDSIZE) * RECORDSIZE, 0);
-    Ok(image)
-}
-
-pub(crate) fn gzip_compress(tar: &[u8]) -> io::Result<Vec<u8>> {
-    let mut encoder = flate2::GzBuilder::new()
-        .mtime(0)
-        .operating_system(255)
-        .write(Vec::new(), flate2::Compression::best());
-    encoder.write_all(tar)?;
-    encoder.finish()
+    writer.finish_tar()
 }
 
 pub(crate) fn basename(path: &Path) -> io::Result<String> {
@@ -89,7 +42,7 @@ fn name_error(name: &str, allow_equals: bool) -> Option<String> {
     if name.is_empty() {
         return Some("archive member name must not be empty".to_owned());
     }
-    if name.contains('\0') || !fits_ustar(name) {
+    if name.contains('\0') || !dx_archive::fits_ustar(name) {
         return Some(format!("archive member name {name:?} {USTAR_LIMIT}"));
     }
     if name.starts_with('/') {
@@ -206,29 +159,19 @@ pub fn archive_tree(members: &[(&str, &[u8], u32)], dst: &Path) -> io::Result<()
     let image = if dst.extension().is_some_and(|ext| ext == "zip") {
         zip_archive(&ordered)?
     } else {
-        gzip_compress(&tar_archive(ordered.into_iter())?)?
+        dx_archive::gzip(&tar_archive(ordered.into_iter())?)?
     };
     std::fs::write(dst, image)?;
     Ok(())
 }
 
-/// Returns one zip image with a fixed DOS time, unix modes on every host and a fixed Deflate level.
+/// Returns one deterministic zip image.
 pub(crate) fn zip_archive(members: &[(&str, &[u8], u32)]) -> io::Result<Vec<u8>> {
-    let mut writer = zip::ZipWriter::new(io::Cursor::new(Vec::new()));
+    let mut writer = dx_archive::ZipWriter::new();
     for (name, data, mode) in members {
-        let options = zip::write::SimpleFileOptions::default()
-            .compression_method(zip::CompressionMethod::Deflated)
-            .compression_level(Some(9))
-            .last_modified_time(zip::DateTime::default())
-            .unix_permissions(mode & 0o7777)
-            .system(zip::System::Unix)
-            .large_file(false);
-        writer
-            .start_file(*name, options)
-            .map_err(io::Error::other)?;
-        writer.write_all(data)?;
+        writer.add_file(name, data, *mode)?;
     }
-    Ok(writer.finish().map_err(io::Error::other)?.into_inner())
+    writer.finish()
 }
 
 fn listing_error(message: String) -> io::Error {
@@ -427,7 +370,7 @@ pub fn archive_file(src: &Path, dst: &Path) -> io::Result<()> {
 pub fn archive_bytes(data: &[u8], name: &str, executable: bool) -> io::Result<Vec<u8>> {
     let mode = if executable { 0o755 } else { 0o644 };
     let tar = tar_archive([(name, data, mode)].into_iter())?;
-    gzip_compress(&tar)
+    dx_archive::gzip(&tar)
 }
 
 /// Writes one deterministic docker-save archive and returns its config digest.
@@ -702,76 +645,17 @@ mod tests {
     use super::*;
     use crate::test_support::*;
 
-    #[test]
-    fn octal_fields_match_python_tarfile() {
-        let header = ustar_header("hello", 12, 0o755).expect("header");
-        let bytes = header.as_bytes();
-        assert_eq!(&bytes[100..108], b"0000755\0");
-        assert_eq!(&bytes[108..116], b"0000000\0");
-        assert_eq!(&bytes[116..124], b"0000000\0");
-        assert_eq!(&bytes[124..136], b"00000000014\0");
-        assert_eq!(&bytes[136..148], b"00000000000\0");
-        assert_eq!(&bytes[148..156], b"006771\0 ");
-    }
-
-    #[test]
-    fn header_bytes_match_python_ustar() {
-        let header = ustar_header("hello", 12, 0o755).expect("header");
-        let bytes = header.as_bytes();
-        assert_eq!(&bytes[0..6], b"hello\0");
-        assert!(bytes[6..100].iter().all(|byte| *byte == 0));
-        assert_eq!(&bytes[100..108], b"0000755\0");
-        assert_eq!(&bytes[108..116], b"0000000\0");
-        assert_eq!(&bytes[116..124], b"0000000\0");
-        assert_eq!(&bytes[124..136], b"00000000014\0");
-        assert_eq!(&bytes[136..148], b"00000000000\0");
-        assert_eq!(&bytes[148..156], b"006771\0 ");
-        assert_eq!(bytes[156], b'0');
-        assert!(bytes[157..257].iter().all(|byte| *byte == 0));
-        assert_eq!(&bytes[257..265], b"ustar\x0000");
-        assert!(bytes[265..512].iter().all(|byte| *byte == 0));
-        let plain = ustar_header("hello", 12, 0o644).expect("plain header");
-        let plain_bytes = plain.as_bytes();
-        assert_eq!(&plain_bytes[100..108], b"0000644\0");
-        assert_ne!(&plain_bytes[148..156], &bytes[148..156]);
-    }
-
-    #[test]
-    fn header_rejects_bad_names() {
-        assert!(ustar_header("", 0, 0o644).is_err());
-        assert!(ustar_header(&"n".repeat(101), 0, 0o644).is_err());
-        assert!(ustar_header(&"n".repeat(300), 0, 0o644).is_err());
-        assert!(ustar_header("a\0b", 0, 0o644).is_err());
-        assert!(ustar_header("../escape", 0, 0o644).is_err());
-        assert!(ustar_header("/absolute", 0, 0o644).is_err());
-    }
-
-    #[test]
-    fn tar_image_pads_to_recordsize() {
-        let tiny = tar_archive([("f", b"hi".as_slice(), 0o644)].into_iter()).expect("tiny");
-        assert_eq!(tiny.len(), RECORDSIZE);
-        assert_eq!(&tiny[0..1], b"f");
-        assert_eq!(&tiny[512..514], b"hi");
-        assert!(tiny[514..].iter().all(|byte| *byte == 0));
-        let big_data = vec![b'x'; 10240];
-        let big = tar_archive([("f", big_data.as_slice(), 0o644)].into_iter()).expect("big");
-        assert_eq!(big.len(), 2 * RECORDSIZE);
-    }
-
-    #[test]
-    fn gzip_header_matches_python_gzip() {
-        use std::io::Read as _;
-        let tar =
-            tar_archive([("hello", b"hello world\n".as_slice(), 0o755)].into_iter()).expect("tar");
-        let gz = gzip_compress(&tar).expect("gz");
-        assert_eq!(
-            &gz[0..10],
-            &[0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff]
-        );
-        let mut gunzip = flate2::read::GzDecoder::new(&gz[..]);
-        let mut plain = Vec::new();
-        gunzip.read_to_end(&mut plain).expect("decode");
-        assert_eq!(plain, tar);
+    fn duplicate_tar(name: &str) -> Vec<u8> {
+        let mut builder = tar::Builder::new(Vec::new());
+        for body in [&b"1"[..], &b"2"[..]] {
+            let mut header = tar::Header::new_ustar();
+            header.set_path(name).expect("path");
+            header.set_size(1);
+            header.set_mode(0o644);
+            header.set_cksum();
+            builder.append(&header, body).expect("append");
+        }
+        builder.into_inner().expect("tar")
     }
 
     #[test]
@@ -991,15 +875,6 @@ mod tests {
     fn ustar_boundaries() {
         let tail = "n".repeat(100);
         let prefix = "p".repeat(155);
-        assert!(fits_ustar(&"n".repeat(100)));
-        assert!(!fits_ustar(&"n".repeat(101)));
-        assert!(fits_ustar(&format!("{prefix}/{tail}")));
-        assert!(!fits_ustar(&format!("{prefix}p/{tail}")));
-        assert!(!fits_ustar(&format!("{prefix}/{tail}n")));
-        assert!(!fits_ustar(&"n".repeat(300)));
-        let wide = "\u{e9}".repeat(60);
-        assert!(!fits_ustar(&wide));
-        assert!(fits_ustar(&format!("{wide}/x")));
         assert!(member_name_error(&format!("{prefix}/{tail}")).is_none());
         assert!(member_name_error(&format!("{prefix}/{tail}n")).is_some());
     }
@@ -1336,15 +1211,14 @@ mod tests {
         let linked = scratch.path().join("link.tar.gz");
         std::fs::write(
             &linked,
-            gzip_compress(&builder.into_inner().expect("tar")).expect("gz"),
+            dx_archive::gzip(&builder.into_inner().expect("tar")).expect("gz"),
         )
         .expect("write");
         let error = archive_listing(&linked).expect_err("symlink");
         assert!(error.to_string().contains("not a regular file"), "{error}");
-        let dup = tar_archive([("p/x", &b"1"[..], 0o644), ("p/x", &b"2"[..], 0o644)].into_iter())
-            .expect("tar");
+        let dup = duplicate_tar("p/x");
         let duplicated = scratch.path().join("dup.tar.gz");
-        std::fs::write(&duplicated, gzip_compress(&dup).expect("gz")).expect("write");
+        std::fs::write(&duplicated, dx_archive::gzip(&dup).expect("gz")).expect("write");
         let error = archive_listing(&duplicated).expect_err("duplicate");
         assert!(error.to_string().contains("duplicate member"), "{error}");
         let whole = scratch.path().join("whole.tar.gz");
@@ -1512,15 +1386,14 @@ mod tests {
         let linked = scratch.path().join("link.tar.gz");
         std::fs::write(
             &linked,
-            gzip_compress(&builder.into_inner().expect("tar")).expect("gz"),
+            dx_archive::gzip(&builder.into_inner().expect("tar")).expect("gz"),
         )
         .expect("write");
         let error = archive_extract(&linked, &scratch.path().join("tar.out")).expect_err("link");
         assert!(error.to_string().contains("not a regular file"), "{error}");
-        let dup = tar_archive([("x", &b"1"[..], 0o644), ("x", &b"2"[..], 0o644)].into_iter())
-            .expect("tar");
+        let dup = duplicate_tar("x");
         let duplicated = scratch.path().join("dup.tar.gz");
-        std::fs::write(&duplicated, gzip_compress(&dup).expect("gz")).expect("write");
+        std::fs::write(&duplicated, dx_archive::gzip(&dup).expect("gz")).expect("write");
         let error = archive_extract(&duplicated, &scratch.path().join("dup.out")).expect_err("dup");
         assert!(error.to_string().contains("duplicate member"), "{error}");
         let mut raw = tar::Header::new_gnu();
@@ -1534,7 +1407,7 @@ mod tests {
         let escaping = scratch.path().join("escape.tar.gz");
         std::fs::write(
             &escaping,
-            gzip_compress(&builder.into_inner().expect("tar")).expect("gz"),
+            dx_archive::gzip(&builder.into_inner().expect("tar")).expect("gz"),
         )
         .expect("write");
         let error =

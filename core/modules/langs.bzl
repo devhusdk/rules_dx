@@ -1,4 +1,4 @@
-"""Generated from every <lang>/lang.json by //core/modules:lang_json_test; refresh with UPDATE_EXPECT=1."""
+"""Generated from every <lang>/lang.json by //core/modules:lang_projections; refresh with `bazel run //core/modules:update_lang_projections`."""
 
 visibility(["//core/...", "//ruby/...", "//tools/..."])
 

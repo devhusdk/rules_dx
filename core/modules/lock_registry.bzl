@@ -1,4 +1,4 @@
-"""Generated from every <lang>/lang.json setup.hubs entry with a lock."""
+"""Generated from every <lang>/lang.json by //core/modules:lang_projections; refresh with `bazel run //core/modules:update_lang_projections`."""
 
 visibility(["//core/...", "//deploy/...", "//elixir/...", "//julia/...", "//python/...", "//tools/..."])
 

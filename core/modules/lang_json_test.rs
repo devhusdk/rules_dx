@@ -423,34 +423,6 @@ fn every_tools_bzl_is_loaded_by_quality_tools() {
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
 
-#[test]
-fn langs_bzl_is_generated_from_every_lang_json() {
-    let root = dx_testing::rules_dx_source().unwrap();
-    let mut langs = serde_json::Map::new();
-    for dir in language_dirs(&root) {
-        let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
-        let mut manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
-        manifest.as_object_mut().expect("object").remove("$schema");
-        let name = manifest["name"].as_str().expect("name").to_owned();
-        langs.insert(name, manifest);
-    }
-    let body = serde_json::to_string_pretty(&Value::Object(langs)).expect("serializes");
-    assert!(
-        !body.contains('\\') && !body.contains("\"\"\""),
-        "langs.bzl cannot embed escapes"
-    );
-    let text = format!(
-        "\"\"\"Generated from every <lang>/lang.json by //core/modules:lang_json_test; refresh with UPDATE_EXPECT=1.\"\"\"\n\nvisibility([\"//core/...\", \"//ruby/...\", \"//tools/...\"])\n\nLANGS = json.decode(\"\"\"{body}\"\"\")\n"
-    );
-    let scratch_guard = dx_test_scratch::scratch("langs_bzl").unwrap();
-    let scratch = scratch_guard.path();
-    let actual = scratch.join("langs.bzl");
-    dx_testing::write_text(&actual, &text);
-    let expected = dx_testing::resolve_runfiles("core/modules/langs.bzl");
-    dx_testing::snapshot_diff(&expected, &actual, Some("core/modules/langs.bzl"))
-        .expect("core/modules/langs.bzl is generated from every lang.json");
-}
-
 fn lang_aspects(manifest: &Value) -> Vec<(String, String)> {
     let mut found = Vec::new();
     for (section, label_key) in [
@@ -601,80 +573,6 @@ fn aspect_registration_is_generated_from_every_lang_json() {
         Some("core/quality/testdata/all_languages.bzl"),
     )
     .expect("all_languages.bzl aspect registration is generated from every lang.json");
-}
-
-fn lock_registry_entries() -> Vec<Value> {
-    let root = dx_testing::rules_dx_source().unwrap();
-    let mut entries = std::collections::BTreeMap::new();
-    for dir in language_dirs(&root) {
-        let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
-        let manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
-        for hub in manifest["setup"]["hubs"].as_array().into_iter().flatten() {
-            if hub["lock"].is_null() {
-                continue;
-            }
-            let ecosystem = hub["ecosystem"].as_str().expect("ecosystem").to_owned();
-            entries.insert(
-                ecosystem.clone(),
-                serde_json::json!({
-                    "ecosystem": ecosystem,
-                    "manifest": hub["manifest"],
-                    "lock": hub["lock"],
-                    "hub": hub["hub"],
-                    "imports": hub["imports"],
-                    "state": hub["state"],
-                }),
-            );
-        }
-    }
-    entries.into_values().collect()
-}
-
-#[test]
-fn gazelle_lock_registry_is_generated_from_every_lang_json() {
-    let mut entries = lock_registry_entries();
-    for entry in &mut entries {
-        entry.as_object_mut().expect("object").remove("state");
-    }
-    let text = serde_json::to_string_pretty(&entries).expect("serializes") + "\n";
-    let scratch_guard = dx_test_scratch::scratch("gazelle_lock_registry").unwrap();
-    let scratch = scratch_guard.path();
-    let actual = scratch.join("lock_registry.json");
-    dx_testing::write_text(&actual, &text);
-    let expected = dx_testing::resolve_runfiles("gazelle/common/lock_registry.json");
-    dx_testing::snapshot_diff(
-        &expected,
-        &actual,
-        Some("gazelle/common/lock_registry.json"),
-    )
-    .expect("gazelle/common/lock_registry.json is generated from every lang.json");
-}
-
-#[test]
-fn starlark_lock_registry_is_generated_from_every_lang_json() {
-    let mut text = String::from(
-        "\"\"\"Generated from every <lang>/lang.json setup.hubs entry with a lock.\"\"\"\n\nvisibility([\"//core/...\", \"//deploy/...\", \"//elixir/...\", \"//julia/...\", \"//python/...\", \"//tools/...\"])\n\nLOCK_REGISTRY = {\n",
-    );
-    for entry in lock_registry_entries() {
-        writeln!(text, "    {}: {{", entry["ecosystem"]).expect("write to String");
-        for key in ["hub", "imports", "lock", "manifest", "state"] {
-            let value = if entry[key].is_null() {
-                "None".to_owned()
-            } else {
-                entry[key].to_string()
-            };
-            writeln!(text, "        \"{key}\": {value},").expect("write to String");
-        }
-        text.push_str("    },\n");
-    }
-    text.push_str("}\n");
-    let scratch_guard = dx_test_scratch::scratch("starlark_lock_registry").unwrap();
-    let scratch = scratch_guard.path();
-    let actual = scratch.join("lock_registry.bzl");
-    dx_testing::write_text(&actual, &text);
-    let expected = dx_testing::resolve_runfiles("core/modules/lock_registry.bzl");
-    dx_testing::snapshot_diff(&expected, &actual, Some("core/modules/lock_registry.bzl"))
-        .expect("core/modules/lock_registry.bzl is generated from every lang.json");
 }
 
 fn exported_names(defs: &str) -> BTreeSet<String> {

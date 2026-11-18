@@ -27,13 +27,18 @@ fn write(ctx: &Ctx<'_>) -> Result<(), DxError> {
                 .is_some_and(|name| name == "gopackagesdriver" || name == "gopackagesdriver.exe")
         })
         .ok_or_else(|| DxError::failure("the Go packages driver was not built"))?;
-    let script = script(&ctx.workspace.to_string_lossy(), &driver.to_string_lossy());
+    let script = script(utf8(ctx.workspace)?, utf8(driver)?);
     std::fs::create_dir_all(ctx.dir)
         .map_err(|e| DxError::infra(format!("creating {}: {e}", ctx.dir.display())))?;
     let path = ctx.dir.join(WRAPPER);
     dx_atomic_fs::write_atomic(&path, script.as_bytes())
         .map_err(|e| DxError::infra(format!("writing {WRAPPER}: {e}")))?;
     make_executable(&path).map_err(|e| DxError::infra(format!("making {WRAPPER} executable: {e}")))
+}
+
+fn utf8(path: &std::path::Path) -> Result<&str, DxError> {
+    path.to_str()
+        .ok_or_else(|| DxError::failure(format!("{} is not valid UTF-8", path.display())))
 }
 
 #[cfg(not(windows))]

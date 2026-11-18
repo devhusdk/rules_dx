@@ -33,7 +33,7 @@ real_jvm_docs_aspect = aspect(
     attrs = {
         "_java_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/jvm/javadoc:javadoc_extract"),
+            default = Label("@dx_prebuilt//:javadoc_extract"),
             executable = True,
         ),
         "_jvm_convert": attr.label(

@@ -64,7 +64,7 @@ avro_cc_library = rule(
     attrs = {
         "deps": attr.label_list(providers = [AvroInfo], doc = "avro_library targets to generate C++ for."),
         "namespace": attr.string(doc = "C++ namespace passed to avrogencpp."),
-        "_avro_union": attr.label(default = Label("//avro/private/tools/avro_union"), executable = True, cfg = "exec"),
+        "_avro_union": attr.label(default = Label("@dx_prebuilt//:avro_union"), executable = True, cfg = "exec"),
         "_avrogencpp": attr.label(default = Label("@dx_avro_cpp//:avrogencpp"), executable = True, cfg = "exec"),
         "_runtime": attr.label(default = Label("@dx_avro_cpp//:avro_cpp"), providers = [CcInfo]),
     } | CODEGEN_LIBRARY_ATTRS,
@@ -109,7 +109,7 @@ avro_java_library = rule(
     doc = "Java classes for the schemas of avro_library deps and their imports, compiled once.",
     attrs = {
         "deps": attr.label_list(providers = [AvroInfo], doc = "avro_library targets to generate Java for."),
-        "_avro_union": attr.label(default = Label("//avro/private/tools/avro_union"), executable = True, cfg = "exec"),
+        "_avro_union": attr.label(default = Label("@dx_prebuilt//:avro_union"), executable = True, cfg = "exec"),
         "_avro_tools": attr.label(default = Label("//config:tool_avro"), executable = True, cfg = "exec"),
         "_runtime": attr.label(default = Label("//java/private/quality/tools:avro_tools_import"), providers = [JavaInfo]),
         "_zipper": attr.label(default = Label("@bazel_tools//tools/zip:zipper"), executable = True, cfg = "exec"),

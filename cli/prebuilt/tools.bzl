@@ -24,6 +24,17 @@ RELEASE_CPU = {
 
 _NATIVE = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]
 
+def _jar(tool, source, main_class):
+    return struct(
+        asset = "dx-" + tool.replace("_", "-") + "-any.jar",
+        role = "exec",
+        platforms = ["any"],
+        fallbacks = {},
+        source = source,
+        member = "",
+        main_class = main_class,
+    )
+
 # Each tool:
 #   asset: the release asset name; {os} and {cpu} are filled from the platform key.
 #   role: "exec" when the tool runs during the build (the hub selects on the exec
@@ -33,6 +44,7 @@ _NATIVE = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windo
 #     download, such as windows_arm64 running x86_64 under emulation.
 #   source: the label that builds the tool when there is no usable pin.
 #   member: the file to run inside an archive asset; "" for a bare binary.
+#   main_class: the entry point of a jar asset; "" for a native binary.
 TOOLS = {
     "dx": struct(
         asset = "dx-{os}-{cpu}",
@@ -41,6 +53,7 @@ TOOLS = {
         fallbacks = {"windows_arm64": "windows_x86_64"},
         source = "@rules_dx//cli/cli:dx",
         member = "",
+        main_class = "",
     ),
     "gazelle": struct(
         asset = "dx-gazelle-{os}-{cpu}",
@@ -50,6 +63,7 @@ TOOLS = {
         # The gazelle hub builds its own gazelle_binary from the registered languages.
         source = "@dx_gazelle//:gazelle_source",
         member = "",
+        main_class = "",
     ),
     # Android and iOS targets have no asset and build the launcher from source.
     "launcher": struct(
@@ -59,8 +73,18 @@ TOOLS = {
         fallbacks = {},
         source = "@rules_dx//cli/launcher:exec_launcher",
         member = "",
+        main_class = "",
     ),
+    "avro_union": _jar("avro_union", "@rules_dx//avro/private/tools/avro_union", "dx.avro.tools.AvroUnion"),
+    "javac_check": _jar("javac_check", "@rules_dx//java/private/quality/tools/javac_check", "dx.quality.javac.Main"),
+    "javadoc_extract": _jar("javadoc_extract", "@rules_dx//tools/docs/jvm/javadoc:javadoc_extract", "dx.docs.javadoc.Main"),
+    "jmh_generate": _jar("jmh_generate", "@rules_dx//java/private/jmh:jmh_generate", "dx.bench.JmhGenerate"),
+    "kotlinc_check": _jar("kotlinc_check", "@rules_dx//java/private/quality/tools/kotlinc_check", "dx.quality.kotlinc.Main"),
+    "scalac_check": _jar("scalac_check", "@rules_dx//java/private/quality/tools/scalac_check", "dx.quality.scalac.Main"),
 }
+
+# The tools released as one platform-independent jar each.
+JAR_TOOLS = sorted([tool for tool, entry in TOOLS.items() if entry.main_class])
 
 def split_key(key):
     """Returns (os, cpu) in release spelling for a platform key such as "linux_x86_64"."""

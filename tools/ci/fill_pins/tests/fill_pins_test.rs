@@ -47,6 +47,15 @@ fn manifest() -> String {
     lines.concat()
 }
 
+fn jar_manifest() -> String {
+    registry()
+        .into_iter()
+        .filter(|e| e.key == "any")
+        .map(|e| format!("{}  {}\n", hash(3), e.asset))
+        .collect::<Vec<String>>()
+        .concat()
+}
+
 fn gazelle_manifest() -> String {
     assets("gazelle")
         .iter()
@@ -60,6 +69,7 @@ fn manifests(dx: &str, gazelle: &str) -> Vec<(String, String)> {
     vec![
         (fill_pins::MANIFEST.to_owned(), dx.to_owned()),
         (fill_pins::GAZELLE_MANIFEST.to_owned(), gazelle.to_owned()),
+        (fill_pins::JAR_MANIFEST.to_owned(), jar_manifest()),
     ]
 }
 
@@ -71,6 +81,7 @@ fn release_dir(text: &str, bundle: bool) -> TempDir {
         gazelle_manifest(),
     )
     .unwrap();
+    std::fs::write(dir.path().join(fill_pins::JAR_MANIFEST), jar_manifest()).unwrap();
     if bundle {
         std::fs::write(dir.path().join(fill_pins::BUNDLE), "{}").unwrap();
     }
@@ -111,7 +122,7 @@ fn the_registry_names_every_dx_release_asset() {
 fn writes_one_pin_per_tool_and_platform_and_keeps_the_head() {
     let out = filled();
     let head = PINS.strip_suffix("PINS = {}\n").unwrap();
-    let mut pins = String::from("PINS = {\n    \"dx\": {\n");
+    let mut by_tool = std::collections::BTreeMap::new();
     for (n, key) in [
         "linux_arm64",
         "linux_x86_64",
@@ -125,26 +136,32 @@ fn writes_one_pin_per_tool_and_platform_and_keeps_the_head() {
         let asset = format!("dx-{}", key.replacen('_', "-", 1));
         let index = assets("dx").iter().position(|a| *a == asset).unwrap();
         assert_eq!(index, n);
-        pins.push_str(&format!("        \"{key}\": \"{}\",\n", hash(n + 1)));
+        by_tool
+            .entry("dx".to_owned())
+            .or_insert_with(Vec::new)
+            .push((key.to_string(), hash(n + 1)));
+        by_tool
+            .entry("gazelle".to_owned())
+            .or_insert_with(Vec::new)
+            .push((key.to_string(), hash(n + 11)));
+        by_tool
+            .entry("launcher".to_owned())
+            .or_insert_with(Vec::new)
+            .push((key.to_string(), hash(n + 16)));
     }
-    pins.push_str("    },\n    \"gazelle\": {\n");
-    for (n, key) in [
-        "linux_arm64",
-        "linux_x86_64",
-        "macos_arm64",
-        "windows_arm64",
-        "windows_x86_64",
-    ]
-    .iter()
-    .enumerate()
-    {
-        pins.push_str(&format!("        \"{key}\": \"{}\",\n", hash(n + 11)));
+    for entry in registry().into_iter().filter(|e| e.key == "any") {
+        by_tool.insert(entry.tool, vec![("any".to_owned(), hash(3))]);
     }
-    pins.push_str("    },\n    \"launcher\": {\n");
-    for (n, key) in ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"].iter().enumerate() {
-        pins.push_str(&format!("        \"{key}\": \"{}\",\n", hash(n + 16)));
+    assert!(by_tool.contains_key("javac_check"));
+    let mut pins = String::from("PINS = {\n");
+    for (tool, by_key) in by_tool {
+        pins.push_str(&format!("    \"{tool}\": {{\n"));
+        for (key, hash) in by_key {
+            pins.push_str(&format!("        \"{key}\": \"{hash}\",\n"));
+        }
+        pins.push_str("    },\n");
     }
-    pins.push_str("    },\n}\n");
+    pins.push_str("}\n");
     assert_eq!(out, format!("{head}{pins}"));
 }
 

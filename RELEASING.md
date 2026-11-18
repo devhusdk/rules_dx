@@ -63,9 +63,10 @@ Run it from the tag: the workflow only attests the files when it runs on the tag
 - the source archive `rules_dx-0.1.0.tar.gz`, its `.sha256`, its attestation `rules_dx-0.1.0.tar.gz.intoto.jsonl`, and `source.json`
 - the `dx` archives, listed in `dx-sha256sums.txt`
 - the `dx-gazelle-<os>-<cpu>` binaries, listed in `dx-gazelle-sha256sums.txt`
+- the `dx-<tool>-any.jar` JVM tools (avro_union, javac_check, javadoc_extract, jmh_generate, kotlinc_check, scalac_check), listed in `dx-jar-sha256sums.txt`
 - the `dx-tool-<tool>-<version>-<host>` quality and coverage tools with their licences, the deadnix source crate, the kcov source archive and the `dx-python-tools-<host>.tar.gz` bundles, listed in `dx-tool-sha256sums.txt`
 
-The source archive's `cli/prebuilt/pins.bzl` has `PINS` filled in from the release manifests, one sha256 per tool and platform in `cli/prebuilt/tools.bzl`, so consumers download the prebuilt `dx` and gazelle. On `main`, `PINS` stays empty. The workflow also unpacks the Linux archive and runs `dx --version`, and uploads a `release-ledger` artifact that records the release.
+The source archive's `cli/prebuilt/pins.bzl` has `PINS` filled in from the release manifests, one sha256 per tool and platform in `cli/prebuilt/tools.bzl`, so consumers download the prebuilt `dx`, gazelle and JVM tool jars. On `main`, `PINS` stays empty. The workflow also unpacks the Linux archive and runs `dx --version`, and uploads a `release-ledger` artifact that records the release.
 
 It fails when:
 

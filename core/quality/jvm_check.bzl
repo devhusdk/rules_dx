@@ -421,12 +421,12 @@ jvm_check_aspect = aspect(
     ],
     attrs = {
         "_kotlinc_check": attr.label(
-            default = "//java/private/quality/tools/kotlinc_check:kotlinc_check",
+            default = "@dx_prebuilt//:kotlinc_check",
             executable = True,
             cfg = "exec",
         ),
         "_scalac_check": attr.label(
-            default = "//java/private/quality/tools/scalac_check:scalac_check",
+            default = "@dx_prebuilt//:scalac_check",
             executable = True,
             cfg = "exec",
         ),
@@ -435,7 +435,7 @@ jvm_check_aspect = aspect(
             cfg = "exec",
         ),
         "_javac_check": attr.label(
-            default = "//java/private/quality/tools/javac_check:javac_check",
+            default = "@dx_prebuilt//:javac_check",
             executable = True,
             cfg = "exec",
         ),

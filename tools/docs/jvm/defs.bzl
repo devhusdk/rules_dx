@@ -93,7 +93,7 @@ def _jvm_shard_rule(language, adapter, mnemonic, extensions, toolchains = []):
 
 docs_java_shard = _jvm_shard_rule(
     language = "java",
-    adapter = "//tools/docs/jvm/javadoc:javadoc_extract",
+    adapter = "@dx_prebuilt//:javadoc_extract",
     mnemonic = "DxDocsJavadoc",
     extensions = ["java"],
 )

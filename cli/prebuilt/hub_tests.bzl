@@ -1,9 +1,9 @@
 """Tests for the @dx_prebuilt plan, pins and hub BUILD text."""
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(":hub.bzl", "LAUNCHER_SOURCE", "SOURCE_LABEL", "SOURCE_TOOLS", "alias_build", "consumer_build", "plan_assets", "plan_root", "valid_sha256")
+load(":hub.bzl", "LAUNCHER_SOURCE", "SOURCE_LABEL", "SOURCE_TOOLS", "alias_build", "consumer_build", "plan_assets", "plan_jars", "plan_root", "valid_sha256", "with_jars")
 load(":pins.bzl", "DX_VERSION", "PINS", "SCHEMA", "URL_TEMPLATE")
-load(":tools.bzl", "TOOLS", "asset_name", "registry_lines")
+load(":tools.bzl", "JAR_TOOLS", "TOOLS", "asset_name", "registry_lines")
 
 visibility("private")
 
@@ -52,7 +52,22 @@ def _checks():
     launcher_build = consumer_build(unpinned, launchers)
     both_build = consumer_build(pinned, launchers)
     launcher_root = plan_root([_mod("app", True, assets = [_tag(), _tag(name = "launcher")])], tools = ["dx", "launcher"])
+    source_jars = with_jars(alias_build(SOURCE_LABEL), plan_jars("1.2.3", {}, URL_TEMPLATE))
+    pinned_jars = plan_jars("1.2.3", {"javac_check": {"any": _HASH}}, URL_TEMPLATE)
+    pinned_jars_build = with_jars(pinned_build, pinned_jars)
+    javac = [j for j in pinned_jars if j.tool == "javac_check"][0]
     return [
+        expect_equal("the jar tools", JAR_TOOLS, ["avro_union", "javac_check", "javadoc_extract", "jmh_generate", "kotlinc_check", "scalac_check"]),
+        expect_equal("a jar is one any asset", [asset_name(t, k) for t in JAR_TOOLS for k in TOOLS[t].platforms], ["dx-avro-union-any.jar", "dx-javac-check-any.jar", "dx-javadoc-extract-any.jar", "dx-jmh-generate-any.jar", "dx-kotlinc-check-any.jar", "dx-scalac-check-any.jar"]),
+        expect_contains("the registry lists the jars for fill_pins", registry_lines(), "javac_check any dx-javac-check-any.jar"),
+        expect_equal("a pinned jar downloads its release", javac.url, "https://github.com/devhusdk/rules_dx/releases/download/v1.2.3/dx-javac-check-any.jar"),
+        expect_equal("unpinned jars download nothing", [j.repo for j in pinned_jars if j.tool != "javac_check"], [""] * 5),
+        expect_contains("an unpinned jar tool builds from source", source_jars, 'name = "scalac_check",\n    actual = "@rules_dx//java/private/quality/tools/scalac_check",'),
+        expect_false("a source hub loads no java rules", "rules_java" in source_jars),
+        expect_true("a pinned jar hub loads the java rules first", pinned_jars_build.startswith('load("@rules_java//java:defs.bzl", "java_binary", "java_import")\n')),
+        expect_contains("a pinned jar is imported", pinned_jars_build, 'name = "javac_check_jar",\n    jars = ["@dx_prebuilt_javac_check//file:dx-javac-check-any.jar"],'),
+        expect_contains("a pinned jar runs its main class", pinned_jars_build, 'name = "javac_check",\n    main_class = "dx.quality.javac.Main",'),
+        expect_false("a pinned jar never names its source", TOOLS["javac_check"].source in pinned_jars_build),
         expect_equal("pins.bzl is schema 1", SCHEMA, 1),
         expect_equal("pins name only registry tools and platforms", [(t, k) for t, by_key in PINS.items() for k in by_key if t not in TOOLS or k not in TOOLS[t].platforms], []),
         expect_equal("pins are empty or a sha256", [(t, k) for t, by_key in PINS.items() for k, v in by_key.items() if not valid_sha256(v)], []),

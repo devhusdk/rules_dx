@@ -21,6 +21,15 @@ const PYTHON_HOSTS: [&str; 5] = [
     "windows-arm64",
 ];
 
+const JARS: [&str; 6] = [
+    "dx-avro-union-any.jar",
+    "dx-javac-check-any.jar",
+    "dx-javadoc-extract-any.jar",
+    "dx-jmh-generate-any.jar",
+    "dx-kotlinc-check-any.jar",
+    "dx-scalac-check-any.jar",
+];
+
 const ASSETS: [&str; 9] = [
     "dx-tool-nixfmt-1.5.0-LICENSE",
     "dx-tool-nixfmt-1.5.0-linux-arm64",
@@ -83,6 +92,23 @@ fn python_tools_job_builds_every_bundle_host() {
 }
 
 #[test]
+fn jars_job_builds_every_jar_asset() {
+    let workflow = document(TOOLS).unwrap();
+    assert_eq!(workflow["jobs"]["jars"]["runs-on"], "ubuntu-latest");
+    assert_eq!(workflow["jobs"]["jars"]["permissions"]["contents"], "read");
+    let tools = read_runfiles(TOOLS);
+    let release = read_runfiles(RELEASE);
+    assert!(tools.contains("name: release-tool-jars"));
+    for jar in JARS {
+        assert!(tools.contains(jar), "{TOOLS} must build {jar}");
+        assert!(release.contains(jar), "{RELEASE} must list {jar}");
+    }
+    assert!(release.contains("test \"$(wc -l < out/dx-jar-sha256sums.txt)\" -eq 6"));
+    assert!(release.contains("sha256sum -c dx-jar-sha256sums.txt"));
+    assert!(release.contains("--manifest \"$PWD/out/dx-jar-sha256sums.txt\""));
+}
+
+#[test]
 fn release_calls_the_tools_workflow_before_the_source_job() {
     let workflow = document(RELEASE).unwrap();
     assert_eq!(
@@ -99,7 +125,7 @@ fn release_writes_and_checks_the_tool_manifest() {
     assert!(text.contains("pattern: release-tool-*"));
     assert!(text.contains("test \"$(wc -l < out/dx-tool-sha256sums.txt)\" -eq 22"));
     assert!(text.contains("sha256sum -c dx-tool-sha256sums.txt"));
-    assert!(text.contains("out/dx-tool-sha256sums.txt; (cd out && sha256sum dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-tool-sha256sums.txt)"));
+    assert!(text.contains("out/dx-tool-sha256sums.txt; (cd out && sha256sum dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-jar-sha256sums.txt dx-tool-sha256sums.txt)"));
     for asset in ASSETS {
         assert!(text.contains(asset), "{RELEASE} must name {asset}");
     }

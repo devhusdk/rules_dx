@@ -1,5 +1,4 @@
 # gazelle:exclude bench
-load("//core/quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "lua_library")
 
 package(default_visibility = [
@@ -9,6 +8,7 @@ package(default_visibility = [
 ])
 
 exports_files([
+    "BUILD.bazel",
     "defs.bzl",
     "ldoc.BUILD.bazel",
     "luacov.BUILD.bazel",
@@ -26,23 +26,6 @@ lua_library(
     strip_import_prefix = "/lua/private/bench",
     tags = ["manual"],
     visibility = ["//visibility:public"],
-)
-
-real_source_target(
-    name = "corpus_starlark",
-    starlark_srcs = [
-        "BUILD.bazel",
-        "defs.bzl",
-        "lua.bzl",
-        "providers.bzl",
-        "luals.BUILD.bazel",
-        "ldoc.BUILD.bazel",
-        "luacov.BUILD.bazel",
-        "luacov_reporter_lcov.BUILD.bazel",
-        "luafilesystem.BUILD.bazel",
-        "penlight.BUILD.bazel",
-    ],
-    tags = ["corpus"],
 )
 
 filegroup(

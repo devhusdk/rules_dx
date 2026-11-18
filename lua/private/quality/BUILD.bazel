@@ -27,11 +27,36 @@ exports_files(
 )
 
 real_source_target(
+    name = "corpus_markdown",
+    markdown_srcs = ["//lua:README.md"],
+    tags = ["corpus"],
+)
+
+real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
         "lua.bzl",
         "lua_tools.bzl",
+        "//lua:BUILD.bazel",
+        "//lua:defs.bzl",
+        "//lua:extensions.bzl",
+        "//lua/private:BUILD.bazel",
+        "//lua/private:defs.bzl",
+        "//lua/private:ldoc.BUILD.bazel",
+        "//lua/private:lua.bzl",
+        "//lua/private:luacov.BUILD.bazel",
+        "//lua/private:luacov_reporter_lcov.BUILD.bazel",
+        "//lua/private:luafilesystem.BUILD.bazel",
+        "//lua/private:luals.BUILD.bazel",
+        "//lua/private:penlight.BUILD.bazel",
+        "//lua/private:providers.bzl",
+        "//lua/private/lock:BUILD.bazel",
+        "//lua/private/lock:hub.bzl",
+        "//lua/private/runtime:BUILD.bazel",
+        "//lua/private/toolchain:BUILD.bazel",
+        "//lua/private/toolchain:extensions.bzl",
+        "//lua/private/toolchain:toolchain.bzl",
     ],
     tags = ["corpus"],
 )

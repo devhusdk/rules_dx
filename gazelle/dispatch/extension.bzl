@@ -27,7 +27,7 @@ _from_source = tag_class(
 )
 
 def _dx_gazelle_impl(module_ctx):
-    plan = plan_root(module_ctx.modules, "dx_gazelle", "gazelle")
+    plan = plan_root(module_ctx.modules, "dx_gazelle", ["gazelle"])
     if plan.error:
         fail(plan.error)
     labels = [tag.library for mod in module_ctx.modules for tag in mod.tags.language]
@@ -36,7 +36,7 @@ def _dx_gazelle_impl(module_ctx):
         DX_VERSION,
         PINS,
         URL_TEMPLATE,
-        plan.overrides,
+        plan.overrides.get("gazelle", {}),
         exe = "gazelle",
         repo_prefix = "dx_gazelle_",
     )

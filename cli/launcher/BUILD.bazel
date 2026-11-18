@@ -50,13 +50,5 @@ exports_files(
     [
         "src/main.rs",
     ],
-    visibility = [
-        "//core/quality:__pkg__",
-        "//php/private/tools/launcher:__pkg__",
-    ],
-)
-
-exports_files(
-    ["src/launch.rs"],
-    visibility = ["//php/private/tools/launcher:__pkg__"],
+    visibility = ["//core/quality:__pkg__"],
 )

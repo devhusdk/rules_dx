@@ -48,7 +48,6 @@ rust_library(
         "//cli/launcher:__pkg__",
         "//javascript/private/quality/launcher:__pkg__",
         "//php/private/coverage:__pkg__",
-        "//php/private/tools/launcher:__pkg__",
         "//rego:__subpackages__",
         "//thrift/tests:__pkg__",
     ],

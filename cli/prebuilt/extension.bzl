@@ -19,7 +19,7 @@ ASSET_ATTRS = {
 }
 
 _asset = tag_class(
-    doc = "Adds or replaces dx for one os and cpu; honoured only in the root module.",
+    doc = "Adds or replaces dx or the launcher for one os and cpu; honoured only in the root module.",
     attrs = ASSET_ATTRS,
 )
 
@@ -38,21 +38,30 @@ def declare_downloads(assets):
             )
 
 _from_source = tag_class(
-    doc = "Builds dx from source instead; honoured only in the root module.",
+    doc = "Builds dx and the launcher from source instead; honoured only in the root module.",
     attrs = {},
 )
 
 def _dx_prebuilt_impl(module_ctx):
-    plan = plan_root(module_ctx.modules)
+    plan = plan_root(module_ctx.modules, tools = ["dx", "launcher"])
     if plan.error:
         fail(plan.error)
     rules_dx_is_root = any([m.name == "rules_dx" and m.is_root for m in module_ctx.modules])
     if plan.source:
         hub_repo(name = "dx_prebuilt", files = {"BUILD.bazel": alias_build(SOURCE_LABEL)})
     else:
-        assets = plan_assets("dx", DX_VERSION, PINS, URL_TEMPLATE, plan.overrides)
-        declare_downloads(assets)
-        hub_repo(name = "dx_prebuilt", files = {"BUILD.bazel": consumer_build(assets)})
+        assets = plan_assets("dx", DX_VERSION, PINS, URL_TEMPLATE, plan.overrides.get("dx", {}))
+        launcher_assets = plan_assets(
+            "launcher",
+            DX_VERSION,
+            PINS,
+            URL_TEMPLATE,
+            plan.overrides.get("launcher", {}),
+            exe = "dx-launcher",
+            repo_prefix = "dx_launcher_prebuilt_",
+        )
+        declare_downloads(assets + launcher_assets)
+        hub_repo(name = "dx_prebuilt", files = {"BUILD.bazel": consumer_build(assets, launcher_assets)})
     return module_ctx.extension_metadata(
         reproducible = True,
         root_module_direct_deps = ["dx_prebuilt"] if rules_dx_is_root else [],
@@ -60,7 +69,7 @@ def _dx_prebuilt_impl(module_ctx):
     )
 
 dx_prebuilt = module_extension(
-    doc = "Creates @dx_prebuilt, the dx binary behind @rules_dx//:dx.",
+    doc = "Creates @dx_prebuilt, the dx binary behind @rules_dx//:dx and the native launcher.",
     implementation = _dx_prebuilt_impl,
     tag_classes = {
         "asset": _asset,

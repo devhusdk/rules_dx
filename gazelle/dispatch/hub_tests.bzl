@@ -42,7 +42,7 @@ def _checks():
     full = prebuilt_build(all_pinned, [python])
     partial = prebuilt_build(_plan(some), [python])
     windows = [a for a in all_pinned if a.os == "windows" and a.cpu == "x86_64"][0]
-    badsha = plan_root([_mod("app", True, assets = [struct(cpu = "x86_64", name = "gazelle", os = "linux", sha256 = "abc", url = "file:///g")])], "dx_gazelle", "gazelle")
+    badsha = plan_root([_mod("app", True, assets = [struct(cpu = "x86_64", name = "gazelle", os = "linux", sha256 = "abc", url = "file:///g")])], "dx_gazelle", ["gazelle"])
     return [
         expect_equal("a python-only input renders python and dispatch", _names(hub_languages([python])), ["python", "dispatch"]),
         expect_equal("duplicates collapse", _names(hub_languages([python, python, astro, python])), ["astro", "python", "dispatch"]),

@@ -27,7 +27,7 @@ fn assets(tool: &str) -> Vec<String> {
 }
 
 /// The dx manifest as release.yml writes it: each binary plus its launcher archive,
-/// Windows symbols and SBOMs.
+/// Windows symbols and SBOMs, and the native launcher assets.
 fn manifest() -> String {
     let mut lines = Vec::new();
     for (n, asset) in assets("dx").iter().enumerate() {
@@ -40,6 +40,9 @@ fn manifest() -> String {
         lines.push(format!("{}  {archive}\n", hash(n + 6)));
         lines.push(format!("{}  {archive}.spdx.json\n", hash(n + 6)));
         lines.push(format!("{}  {asset}\n", hash(n + 1)));
+    }
+    for (n, asset) in assets("launcher").iter().enumerate() {
+        lines.push(format!("{}  {asset}\n", hash(n + 16)));
     }
     lines.concat()
 }
@@ -101,6 +104,7 @@ fn the_registry_names_every_dx_release_asset() {
     want.sort();
     assert_eq!(assets("dx"), want);
     assert_eq!(assets("gazelle").len(), want.len());
+    assert_eq!(assets("launcher").len(), want.len());
 }
 
 #[test]
@@ -135,6 +139,10 @@ fn writes_one_pin_per_tool_and_platform_and_keeps_the_head() {
     .enumerate()
     {
         pins.push_str(&format!("        \"{key}\": \"{}\",\n", hash(n + 11)));
+    }
+    pins.push_str("    },\n    \"launcher\": {\n");
+    for (n, key) in ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"].iter().enumerate() {
+        pins.push_str(&format!("        \"{key}\": \"{}\",\n", hash(n + 16)));
     }
     pins.push_str("    },\n}\n");
     assert_eq!(out, format!("{head}{pins}"));

@@ -67,7 +67,6 @@ msix lock_test *
 msix pass_test *
 msix runfiles_test *
 ocaml cross_test macos_arm64
-php runfiles_test *
 powershell runfiles_test *
 python runfiles_test *
 qt build_test *

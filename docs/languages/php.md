@@ -66,6 +66,24 @@ The class map lists only classes from the target and its `deps`. A class
 from a library that is not in `deps` fails with `Class "..." not found`.
 PSR-4 layout is not required.
 
+### Runfiles
+
+Runfiles are the files Bazel places beside a program when it runs, such as
+its `data`. Put `@rules_dx//php:runfiles` in `deps` and look a file up by its
+runfiles path:
+
+```php
+use Bazel\Runfiles\Runfiles;
+
+$path = Runfiles::create()->rlocation('_main/app/data.txt');
+```
+
+`rlocation` works with a runfiles directory and with a manifest only
+(`RUNFILES_MANIFEST_ONLY=1`). It returns `null` when the manifest does not
+list the path. An apparent repository name, like `my_dep/file.txt`, maps
+through the repo mapping. `envVars()` returns the environment a child Bazel
+program needs to find the same runfiles.
+
 ### Composer packages
 
 Packages come from `composer.lock.json`, which `bazel run @rules_dx//php/private/tools/lock -- --dir <dir>`

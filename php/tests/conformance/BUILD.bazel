@@ -42,6 +42,13 @@ php_binary(
     deps = ["@php_fixture_vendor//psr/http-factory"],  # keep
 )
 
+php_binary(
+    name = "runfiles_hello",
+    data = ["data.txt"],
+    main = "bin/runfiles_main.php",
+    deps = ["//php:runfiles"],
+)
+
 php_test(
     name = "pass_subject_test",
     size = "small",
@@ -90,6 +97,11 @@ dx_conformance_suite(
         "lint_line": 11,
         "lint_rule": "phpcs/Generic.PHP.LowerCaseConstant.Found",
         "lint_source": "src/Conformance/LintDirty.php",
+    },
+    runfiles = {
+        "binary": ":runfiles_hello",
+        "data": "data.txt",
+        "expected": "hello runfiles",
     },
 )
 

@@ -11,13 +11,21 @@ import (
 
 	"github.com/devhusdk/rules_dx/gazelle/common"
 
+	"github.com/bazel-contrib/bazel-gazelle/v2/label"
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
+	"github.com/bazelbuild/bazel-gazelle/repo"
 	"github.com/bazelbuild/bazel-gazelle/resolve"
 )
 
 const languageName = "php"
+
+// runfilesClass is the class the rules_dx PHP runfiles library declares; it
+// resolves to runfilesLabel in every repo, since no local rule indexes it.
+const runfilesClass = `Bazel\Runfiles\Runfiles`
+
+var runfilesLabel = label.New("rules_dx", "php", "runfiles")
 
 var phpKinds = map[string]rule.KindInfo{
 	LibraryKind: common.LibraryKindInfo(),
@@ -58,6 +66,23 @@ func NewLanguage() language.Language {
 		},
 	})
 	return l
+}
+
+// Resolve resolves like every single-rule language, with the runfiles class
+// mapped to the rules_dx runfiles library ahead of the Composer packages.
+func (l *phpLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.RemoteCache, r *rule.Rule, raw interface{}, from label.Label) {
+	spec := l.ResolveSpecFor(c, r, from)
+	external := spec.External
+	spec.External = func(name string) ([]label.Label, string) {
+		if name == runfilesClass {
+			return []label.Label{runfilesLabel}, ""
+		}
+		if external == nil {
+			return nil, ""
+		}
+		return external(name)
+	}
+	common.ResolveSingle(c, ix, r, raw, from, spec)
 }
 
 func (l *phpLang) Before(ctx context.Context) {
@@ -287,7 +312,8 @@ func handwrittenSources(args language.GenerateArgs) map[string]bool {
 }
 
 // ownsStale reports whether generation could have produced r: it is the
-// library, or it lists srcs and none of them exist in the directory.
+// library, or it lists srcs and none of them exist in the directory. A rule
+// with a label in srcs is hand-written, since generation lists only files.
 func ownsStale(args language.GenerateArgs, libName string) func(*rule.Rule) bool {
 	return func(r *rule.Rule) bool {
 		if r.Name() == libName {
@@ -297,6 +323,9 @@ func ownsStale(args language.GenerateArgs, libName string) func(*rule.Rule) bool
 			return false
 		}
 		for _, src := range r.AttrStrings("srcs") {
+			if strings.ContainsAny(src, ":@") {
+				return false
+			}
 			if _, err := os.Stat(filepath.Join(args.Dir, filepath.FromSlash(src))); err == nil {
 				return false
 			}

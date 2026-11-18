@@ -4,6 +4,15 @@ use std::process::Output;
 
 const IDENTITY: &str = "https://github.com/dx-test/release.yml@refs/heads/main";
 const ISSUER: &str = "https://token.actions.githubusercontent.com";
+const UNREACHABLE_SIGNING_CONFIG: &str = r#"{
+  "mediaType": "application/vnd.dev.sigstore.signingconfig.v0.2+json",
+  "caUrls": [{"url": "http://127.0.0.1:1", "majorApiVersion": 1, "validFor": {"start": "2024-01-01T00:00:00Z"}, "operator": "test"}],
+  "rekorTlogUrls": [{"url": "http://127.0.0.1:1", "majorApiVersion": 1, "validFor": {"start": "2024-01-01T00:00:00Z"}, "operator": "test"}],
+  "rekorTlogConfig": {"selector": "ANY"},
+  "tsaConfig": {}
+}"#;
+// cosign reads only the subject of this unsigned JWT before it asks Fulcio for a certificate.
+const UNSIGNED_IDENTITY_TOKEN: &str = "eyJhbGciOiJub25lIn0.eyJzdWIiOiJ4IiwiaXNzIjoiaHR0cHM6Ly9pc3N1ZXIuZXhhbXBsZSIsImF1ZCI6InNpZ3N0b3JlIn0.sig";
 
 fn cosign() -> String {
     dx_testing::path_text(&env_file("DX_COSIGN_BIN"))
@@ -117,6 +126,10 @@ fn sign_blob_argv_parses_with_pinned_cosign() {
     let scratch = dx_test_scratch::scratch("cosign_sign").unwrap();
     let scratch = scratch.path();
     let bundle = scratch.join("out.bundle");
+    let signing_config = scratch.join("signing_config.json");
+    std::fs::write(&signing_config, UNREACHABLE_SIGNING_CONFIG).expect("write signing config");
+    let token = scratch.join("identity_token");
+    std::fs::write(&token, UNSIGNED_IDENTITY_TOKEN).expect("write identity token");
     let mut argv = dx_release_tools::signing_sign_argv(
         &cosign(),
         fixture("artifact.bin").to_str().expect("utf8"),
@@ -125,16 +138,14 @@ fn sign_blob_argv_parses_with_pinned_cosign() {
     argv.splice(
         2..2,
         [
-            "--identity-token=not-a-token",
-            "--fulcio-url=http://127.0.0.1:1",
-            "--rekor-url=http://127.0.0.1:1",
-        ]
-        .map(str::to_owned),
+            format!("--identity-token={}", token.display()),
+            format!("--signing-config={}", signing_config.display()),
+        ],
     );
     let output = run(&argv);
     assert!(!output.status.success());
     assert!(
-        stderr(&output).contains("getting key from Fulcio"),
+        stderr(&output).contains("http://127.0.0.1:1/api/v2/signingCert"),
         "{}",
         stderr(&output)
     );

@@ -1,7 +1,5 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
-#[path = "archive.rs"]
-pub mod archive;
 #[path = "trivy.rs"]
 pub mod trivy;
 #[path = "yanked.rs"]
@@ -281,13 +279,46 @@ fn prepare_family(
         prepare_cpan(options)?
     } else {
         let archive = read_archive(options, family, url)?;
-        let entries = archive::json_entries(&archive).map_err(|error| PrepError::Archive {
-            family: family.to_owned(),
-            detail: error.to_string(),
-        })?;
+        let entries =
+            json_entries(&archive, SNAPSHOT_LIMITS).map_err(|error| PrepError::Archive {
+                family: family.to_owned(),
+                detail: error.to_string(),
+            })?;
         convert_entries(family, url, &options.retrieved_at, &entries)?
     };
     publish(options, family, prepared)
+}
+
+/// Caps for one OSV snapshot zip.
+const SNAPSHOT_LIMITS: dx_archive::Limits = dx_archive::Limits {
+    max_entries: 1 << 21,
+    max_entry_bytes: 64 << 20,
+    max_total_bytes: 4 << 30,
+};
+
+/// The name and body of every `.json` file member of a snapshot zip, in archive order.
+fn json_entries(
+    archive: &[u8],
+    limits: dx_archive::Limits,
+) -> std::io::Result<Vec<(String, Vec<u8>)>> {
+    let mut out = Vec::new();
+    dx_archive::visit(
+        std::io::Cursor::new(archive),
+        dx_archive::Format::Zip,
+        limits,
+        |name, kind, body| {
+            let is_json = std::path::Path::new(name)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("json"));
+            if kind == dx_archive::EntryKind::File && is_json {
+                let mut bytes = Vec::new();
+                body.read_to_end(&mut bytes)?;
+                out.push((name.to_owned(), bytes));
+            }
+            Ok(())
+        },
+    )?;
+    Ok(out)
 }
 
 fn publish(

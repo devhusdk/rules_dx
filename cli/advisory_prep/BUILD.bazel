@@ -7,7 +7,6 @@ package(default_visibility = VIS_PUBLIC)
 
 exports_files([
     "Cargo.toml",
-    "src/archive.rs",
     "src/lib.rs",
     "src/lib_tests.rs",
     "src/trivy.rs",
@@ -19,7 +18,6 @@ rust_test(
     name = "dx_advisory_prep_test",
     size = "small",
     srcs = [
-        "src/archive.rs",
         "src/lib.rs",
         "src/lib_tests.rs",
         "src/trivy.rs",
@@ -44,8 +42,6 @@ rust_test(
         "//cli/ecosystems:dx_ecosystems",
         "//cli/families:dx_families",
         "//cli/update:dx_update",
-        "@crates//:crc32fast",
-        "@crates//:flate2",
         "@crates//:serde",
         "@crates//:serde_json",
         "@crates//:tempfile",
@@ -68,7 +64,6 @@ real_source_target(
 rust_library(
     name = "dx_advisory_prep",
     srcs = [
-        "src/archive.rs",
         "src/lib.rs",
         "src/trivy.rs",
         "src/yanked.rs",
@@ -88,8 +83,6 @@ rust_library(
         "//cli/digest:dx_digest",
         "//cli/ecosystems:dx_ecosystems",
         "//cli/update:dx_update",
-        "@crates//:crc32fast",
-        "@crates//:flate2",
         "@crates//:serde",
         "@crates//:serde_json",
         "@crates//:tempfile",

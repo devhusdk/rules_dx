@@ -58,7 +58,7 @@ pub fn rules_py_override() -> String {
 }
 
 /// The patches of `//patches/rules_rust` that `rules_rust_override` names, without `.patch`.
-pub const RULES_RUST_PATCHES: [&str; 10] = [
+pub const RULES_RUST_PATCHES: [&str; 11] = [
     "clippy_metadata_inputs",
     "pipelined_rmeta_path",
     "msvc_pdb_output",
@@ -67,6 +67,7 @@ pub const RULES_RUST_PATCHES: [&str; 10] = [
     "cargo_toml_env_vars_flag",
     "exec_scope_universal",
     "cargo_build_script_no_coverage",
+    "cargo_build_script_apple_deployment_target",
     "windows_exec_foreign_target_cc_linker",
     "crate_universe_module_labels",
 ];

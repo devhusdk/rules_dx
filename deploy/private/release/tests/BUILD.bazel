@@ -56,6 +56,7 @@ nested_bazel_test(
         "//patches/rules_py:py_cc_toolchain_platform.patch",
         "//patches/rules_py:venv_bin_files.patch",
         "//patches/rules_py:win32_x86_32.patch",
+        "//patches/rules_rust:cargo_build_script_apple_deployment_target.patch",
         "//patches/rules_rust:cargo_build_script_no_coverage.patch",
         "//patches/rules_rust:cargo_toml_env_vars_flag.patch",
         "//patches/rules_rust:clippy_metadata_inputs.patch",

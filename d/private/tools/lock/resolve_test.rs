@@ -102,3 +102,43 @@ fn an_unsatisfiable_range_fails() {
     let error = lock(dir.path(), &Registry(RefCell::default())).expect_err("refused");
     assert!(error.to_string().contains("no version of silly satisfies >=3.0.0"), "{error}");
 }
+
+struct OversizedManifest;
+
+impl Download for OversizedManifest {
+    fn bytes(&self, url: &str) -> Result<Vec<u8>, Error> {
+        if url != SILLY {
+            return Registry(RefCell::default()).bytes(url);
+        }
+        let failed = |error: zip::result::ZipError| Error::new(error.to_string());
+        let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        writer
+            .start_file(
+                "silly-1.1.1/dub.json",
+                zip::write::SimpleFileOptions::default(),
+            )
+            .map_err(failed)?;
+        std::io::Write::write_all(&mut writer, &vec![b' '; 9 << 20])
+            .map_err(|error| Error::new(error.to_string()))?;
+        Ok(writer.finish().map_err(failed)?.into_inner())
+    }
+}
+
+#[test]
+fn an_oversized_archive_member_is_refused() {
+    let dir = set(MANIFEST);
+    let hub = dx_families::hub("dub").expect("dub is registered");
+    let spec = Dub::spec(hub);
+    let error = run(
+        &spec,
+        &Args {
+            dir: dir.path().to_owned(),
+            check: false,
+            upgrade: Vec::new(),
+        },
+        &Dub::new(&spec, &OversizedManifest),
+        &NoFetch,
+    )
+    .expect_err("oversized");
+    assert!(error.to_string().contains("size cap"), "{error}");
+}

@@ -1,5 +1,5 @@
 {
-  "checksum": "811d302f5ec5c73b7745e0e4c134b87c6bd6fdc5d308df199758156a7809db2a",
+  "checksum": "aea5547593a08e4c7dd15c00d737289e190135dc910d251f9cb3aeec202fd4a2",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -2905,16 +2905,16 @@
           {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
-          },
-          {
-            "id": "tar 0.4.46",
-            "target": "tar"
           }
         ],
         "deps_dev": [
           {
             "id": "flate2 1.1.10",
             "target": "flate2"
+          },
+          {
+            "id": "tar 0.4.46",
+            "target": "tar"
           }
         ],
         "edition": "2024"
@@ -7517,16 +7517,16 @@
           {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
-          },
-          {
-            "id": "zip 9.1.2",
-            "target": "zip"
           }
         ],
         "deps_dev": [
           {
             "id": "tempfile 3.27.0",
             "target": "tempfile"
+          },
+          {
+            "id": "zip 9.1.2",
+            "target": "zip"
           }
         ],
         "edition": "2024"
@@ -11381,6 +11381,12 @@
       "common_attrs": {
         "deps": [
           {
+            "id": "toml 1.1.6+spec-1.1.0",
+            "target": "toml"
+          }
+        ],
+        "deps_dev": [
+          {
             "id": "flate2 1.1.10",
             "target": "flate2"
           },
@@ -11388,12 +11394,6 @@
             "id": "tar 0.4.46",
             "target": "tar"
           },
-          {
-            "id": "toml 1.1.6+spec-1.1.0",
-            "target": "toml"
-          }
-        ],
-        "deps_dev": [
           {
             "id": "tempfile 3.27.0",
             "target": "tempfile"
@@ -17684,16 +17684,16 @@
           {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
-          },
-          {
-            "id": "zip 9.1.2",
-            "target": "zip"
           }
         ],
         "deps_dev": [
           {
             "id": "tempfile 3.27.0",
             "target": "tempfile"
+          },
+          {
+            "id": "zip 9.1.2",
+            "target": "zip"
           }
         ],
         "edition": "2024"
@@ -19869,16 +19869,16 @@
           {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
-          },
-          {
-            "id": "zip 9.1.2",
-            "target": "zip"
           }
         ],
         "deps_dev": [
           {
             "id": "tempfile 3.27.0",
             "target": "tempfile"
+          },
+          {
+            "id": "zip 9.1.2",
+            "target": "zip"
           }
         ],
         "edition": "2024"
@@ -32981,10 +32981,6 @@
       "common_attrs": {
         "deps": [
           {
-            "id": "flate2 1.1.10",
-            "target": "flate2"
-          },
-          {
             "id": "lzma-rs 0.3.0",
             "target": "lzma_rs"
           },
@@ -32995,20 +32991,16 @@
           {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
-          },
-          {
-            "id": "tar 0.4.46",
-            "target": "tar"
-          },
-          {
-            "id": "zip 9.1.2",
-            "target": "zip"
           }
         ],
         "deps_dev": [
           {
             "id": "tempfile 3.27.0",
             "target": "tempfile"
+          },
+          {
+            "id": "zip 9.1.2",
+            "target": "zip"
           }
         ],
         "edition": "2024"

@@ -3,7 +3,6 @@
 
 use dx_lock::{Archive, Error, HttpFetch, Lock, Package, Resolution, Resolver, Scratch, Spec};
 use std::collections::{BTreeMap, VecDeque};
-use std::io::Read;
 
 /// Downloads archives.
 pub trait Download {
@@ -123,34 +122,37 @@ const MEMBER_LIMIT: u64 = 8 << 20;
 /// # Errors
 /// Fails when the archive is unreadable, has no single top directory, or has no `manifest`.
 pub fn read_archive(bytes: &[u8], manifest_name: &str) -> Result<(String, String), Error> {
-    let failed = |error: std::io::Error| Error::new(error.to_string());
-    let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(bytes));
+    let limits = dx_archive::Limits {
+        max_entries: 1 << 16,
+        max_entry_bytes: MEMBER_LIMIT,
+        max_total_bytes: 64 << 20,
+    };
     let mut top: Option<String> = None;
     let mut manifest = None;
-    for entry in archive.entries().map_err(failed)? {
-        let mut entry = entry.map_err(failed)?;
-        let path = entry.path().map_err(failed)?.to_string_lossy().into_owned();
-        if path == "pax_global_header" {
-            continue;
-        }
-        let first = path.split('/').next().unwrap_or_default().to_owned();
-        match &top {
-            Some(seen) if *seen != first => {
-                return Err(Error::new("the archive has more than one top directory"));
+    dx_archive::visit(
+        std::io::Cursor::new(bytes),
+        dx_archive::Format::TarGz,
+        limits,
+        |path, _, body| {
+            let first = path.split('/').next().unwrap_or_default();
+            match &top {
+                Some(seen) if seen != first => {
+                    return Err(std::io::Error::other(
+                        "the archive has more than one top directory",
+                    ));
+                }
+                Some(_) => {}
+                None => top = Some(first.to_owned()),
             }
-            Some(_) => {}
-            None => top = Some(first.clone()),
-        }
-        if path.trim_end_matches('/') == format!("{first}/{manifest_name}") {
-            let mut text = String::new();
-            entry
-                .by_ref()
-                .take(MEMBER_LIMIT)
-                .read_to_string(&mut text)
-                .map_err(failed)?;
-            manifest = Some(text);
-        }
-    }
+            if path == format!("{first}/{manifest_name}") {
+                let mut text = String::new();
+                body.read_to_string(&mut text)?;
+                manifest = Some(text);
+            }
+            Ok(())
+        },
+    )
+    .map_err(|error| Error::new(error.to_string()))?;
     let top = top.ok_or_else(|| Error::new("the archive is empty"))?;
     let manifest =
         manifest.ok_or_else(|| Error::new(format!("the archive has no {manifest_name}")))?;

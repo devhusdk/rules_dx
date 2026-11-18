@@ -17,6 +17,7 @@ rust_library(
         package_name = "zig/private/tools/zig_lock",
         normal = True,
     ) + [
+        "//cli/archive:dx_archive",
         "//cli/digest:dx_digest",
         "//cli/families:dx_families",
         "//cli/lock:dx_lock",

@@ -119,3 +119,44 @@ fn a_dev_minimum_stability_is_refused() {
     let error = lock(dir.path(), &Remote(RefCell::default())).expect_err("unsupported");
     assert!(error.to_string().contains("minimum-stability"), "{error}");
 }
+
+struct UnsafeArchive;
+
+impl Download for UnsafeArchive {
+    fn bytes(&self, url: &str) -> Result<Vec<u8>, Error> {
+        match url {
+            FACTORY_ZIP | MESSAGE_ZIP => {
+                let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+                writer
+                    .start_file("../composer.json", zip::write::SimpleFileOptions::default())
+                    .map_err(|error| Error::new(error.to_string()))?;
+                std::io::Write::write_all(&mut writer, b"{}")
+                    .map_err(|error| Error::new(error.to_string()))?;
+                Ok(writer
+                    .finish()
+                    .map_err(|error| Error::new(error.to_string()))?
+                    .into_inner())
+            }
+            other => Remote(RefCell::default()).bytes(other),
+        }
+    }
+}
+
+#[test]
+fn an_archive_with_an_unsafe_member_is_refused() {
+    let dir = set(MANIFEST);
+    let hub = dx_families::hub("composer").expect("composer is registered");
+    let spec = Php::spec(hub);
+    let error = run(
+        &spec,
+        &Args {
+            dir: dir.path().to_owned(),
+            check: false,
+            upgrade: Vec::new(),
+        },
+        &Php::new(&spec, &UnsafeArchive),
+        &NoFetch,
+    )
+    .expect_err("dot dot");
+    assert!(error.to_string().contains("'..'"), "{error}");
+}

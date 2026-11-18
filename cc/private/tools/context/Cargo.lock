@@ -6979,11 +6979,9 @@ dependencies = [
 name = "zig_lock"
 version = "0.0.0"
 dependencies = [
- "flate2",
  "lzma-rs",
  "ruzstd 0.9.1",
  "serde_json",
- "tar",
  "tempfile",
  "zip",
 ]

@@ -3,7 +3,7 @@
 use std::cell::RefCell;
 
 use dx_lock::{Args, Error, Fetch, Outcome, run};
-use fpm_lock::{Download, Fpm};
+use fpm_lock::{Download, Fpm, read_archive};
 
 const STDLIB: &str = "https://github.com/fortran-lang/stdlib/archive/v0.7.0.tar.gz";
 const FSPARSE: &str = "https://github.com/jalvesz/FSPARSE/archive/v1.2.0.tar.gz";
@@ -140,4 +140,32 @@ fn a_non_github_source_fails() {
         error.to_string().contains("only https://github.com/<owner>/<repo> git URLs are"),
         "{error}"
     );
+}
+
+fn tar_gz(name: &str, data: &[u8]) -> Vec<u8> {
+    let mut builder = tar::Builder::new(flate2::write::GzEncoder::new(
+        Vec::new(),
+        flate2::Compression::fast(),
+    ));
+    let mut header = tar::Header::new_ustar();
+    header.as_mut_bytes()[..name.len()].copy_from_slice(name.as_bytes());
+    header.set_size(data.len() as u64);
+    header.set_mode(0o644);
+    header.set_entry_type(tar::EntryType::Regular);
+    header.set_cksum();
+    builder.append(&header, data).expect("append");
+    builder
+        .into_inner()
+        .and_then(flate2::write::GzEncoder::finish)
+        .expect("tar.gz")
+}
+
+#[test]
+fn unsafe_or_oversized_archive_members_are_refused() {
+    let error =
+        read_archive(&tar_gz("../fpm.toml", b"name = \"x\"\n"), "fpm.toml").expect_err("dot dot");
+    assert!(error.to_string().contains("'..'"), "{error}");
+    let error = read_archive(&tar_gz("top/fpm.toml", &vec![b'#'; 9 << 20]), "fpm.toml")
+        .expect_err("oversized");
+    assert!(error.to_string().contains("size cap"), "{error}");
 }

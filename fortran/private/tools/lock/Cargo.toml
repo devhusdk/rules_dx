@@ -17,12 +17,12 @@ name = "resolve_test"
 path = "resolve_test.rs"
 
 [dependencies]
-flate2 = { version = "1", default-features = false, features = ["zlib"] }
-tar = "0.4"
 toml = { version = "1", default-features = false, features = [
   "parse",
   "serde",
 ] }
 
 [dev-dependencies]
+flate2 = { version = "1", default-features = false, features = ["zlib"] }
 tempfile = "3"
+tar = "0.4"

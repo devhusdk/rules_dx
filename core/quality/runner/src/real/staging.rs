@@ -593,6 +593,11 @@ pub(super) fn place_qmllint_settings(
 
 /// Extracts the `META-INF/semanticdb/` members of one jar into a new directory, which scalafix reads on every platform.
 fn extract_semanticdb(jar: &Path, into: &Path) -> Result<(), String> {
+    match std::fs::remove_dir_all(into) {
+        Ok(()) => {}
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
+        Err(err) => return Err(format!("clearing {}: {err}", into.display())),
+    }
     dx_archive::extract_matching(
         jar,
         dx_archive::Format::Zip,
@@ -606,7 +611,7 @@ fn extract_semanticdb(jar: &Path, into: &Path) -> Result<(), String> {
 
 #[cfg(test)]
 mod semanticdb_tests {
-    use super::extract_semanticdb;
+    use super::{RealBackend, RealTool, extract_semanticdb};
 
     fn jar(dir: &std::path::Path, members: &[&str]) -> std::path::PathBuf {
         let path = dir.join("owned.jar");
@@ -639,6 +644,37 @@ mod semanticdb_tests {
                 .is_file()
         );
         assert!(!into.join("META-INF/LICENSE").exists());
+    }
+
+    #[test]
+    fn scalafix_classpath_is_repeatable_on_one_scratch() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let scratch = quality_adapter::exec::Scratch::create(dir.path()).expect("scratch");
+        let rel = "dx-scalafix/owned/a.jar";
+        let source = jar(dir.path(), &["META-INF/semanticdb/src/A.scala.semanticdb"]);
+        let target = scratch.root().join(rel);
+        std::fs::create_dir_all(target.parent().expect("parent")).expect("mkdir");
+        std::fs::copy(&source, &target).expect("copy");
+        let tool = RealTool {
+            binary: std::path::PathBuf::new(),
+            extra_env: Vec::new(),
+            config_rel: None,
+            edition: None,
+            dialect: None,
+            args: Vec::new(),
+            tool_files: vec![(rel.to_owned(), Vec::new())],
+            upstream_diagnostics: Vec::new(),
+            search_paths: Vec::new(),
+            path_tools: Vec::new(),
+        };
+        let first = RealBackend::scalafix_classpath("scalafix", &tool, &scratch).expect("first");
+        let second = RealBackend::scalafix_classpath("scalafix", &tool, &scratch).expect("second");
+        assert_eq!(first, second);
+        assert!(
+            first[0]
+                .join("META-INF/semanticdb/src/A.scala.semanticdb")
+                .is_file()
+        );
     }
 
     #[test]

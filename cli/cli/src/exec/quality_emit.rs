@@ -177,26 +177,29 @@ pub(crate) fn emit_findings(
         emit_text_findings(&inputs, out, err)?
     } else {
         for (path, reason) in not_applied {
-            writeln!(err, "Not applied: {path} ({reason})").ok();
+            dx_output::write_stderr(err, format_args!("Not applied: {path} ({reason})\n"));
         }
         check_stdout_write(out.write_all(patch.as_bytes()))?;
         EmitCounts::default()
     };
     for conflict in conflicts {
-        writeln!(
+        dx_output::write_stderr(
             err,
-            "Conflict: {} ({}; producers: {})",
-            conflict.path,
-            conflict.reason,
-            conflict.producers.join(", ")
-        )
-        .ok();
+            format_args!(
+                "Conflict: {} ({}; producers: {})\n",
+                conflict.path,
+                conflict.reason,
+                conflict.producers.join(", ")
+            ),
+        );
     }
     if !conflicts.is_empty() {
-        writeln!(
+        dx_output::write_stderr(
             err,
-            "next: resolve the Conflict files listed above by hand or fix one producer, then run the command again."
-        ).ok();
+            format_args!(
+                "next: resolve the Conflict files listed above by hand or fix one producer, then run the command again.\n"
+            ),
+        );
     }
     Ok(counts)
 }
@@ -345,7 +348,7 @@ fn emit_text_findings(
         }
     }
     for (path, reason) in not_applied {
-        writeln!(err, "Not applied: {path} ({reason})").ok();
+        dx_output::write_stderr(err, format_args!("Not applied: {path} ({reason})\n"));
     }
     Ok(EmitCounts {
         applied_count,

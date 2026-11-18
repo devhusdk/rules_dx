@@ -183,7 +183,7 @@ pub(super) fn guard_build_output(
             if output != OutputMode::Json
                 && let Some(note) = report.committed_skipped
             {
-                writeln!(err, "dx: build-output check: {note}").ok();
+                dx_output::write_stderr(err, format_args!("dx: build-output check: {note}\n"));
             }
             None
         }
@@ -248,7 +248,7 @@ pub(super) fn probe_shards(
         Ok(status) if status.code == Some(0) => Ok(read_probe_shards(&bep, workspace)),
         _ => Ok(None),
     };
-    std::fs::remove_file(&bep).ok();
+    super::remove_scratch(&bep);
     shards
 }
 
@@ -325,7 +325,7 @@ struct BepRead {
 impl BepRead {
     fn discard(&self) {
         if self.owned {
-            std::fs::remove_file(&self.path).ok();
+            super::remove_scratch(&self.path);
         }
     }
 }
@@ -453,7 +453,10 @@ fn run_quality_request(
     let Settled { status, failed, .. } = &settled;
     let (diagnostics, finding_counts) = tally_findings(status, emit_counts.findings_omitted);
     if matches!(request.common.output, OutputMode::Text { .. }) && collected.complete && !failed {
-        writeln!(env.err, "{}", findings_summary(status, resolved.kept.len())).ok();
+        dx_output::write_stderr(
+            env.err,
+            format_args!("{}\n", findings_summary(status, resolved.kept.len())),
+        );
     }
     if let Err(exit) = report_incomplete(request, &mut env, &collected, bazel_code) {
         return exit;
@@ -510,7 +513,7 @@ fn run_quality_build(
     ) {
         Ok(code) => code,
         Err(exit) => {
-            std::fs::remove_file(bep).ok();
+            super::remove_scratch(bep);
             *kind = PhaseKind::Host;
             return Err(exit);
         }
@@ -525,7 +528,7 @@ fn run_quality_build(
         match report_build_failures(bep, request.common.output, env.out, env.err) {
             Ok(reported) => (reported.compile_only, reported.build_stage),
             Err(exit) => {
-                std::fs::remove_file(bep).ok();
+                super::remove_scratch(bep);
                 return Err(exit);
             }
         }
@@ -794,7 +797,7 @@ fn collect_run(
                 return Err(exit);
             }
         } else {
-            writeln!(err, "dx: note: {note}").ok();
+            dx_output::write_stderr(err, format_args!("dx: note: {note}\n"));
         }
     }
     let link_requests = if request.online {
@@ -884,13 +887,13 @@ fn report_bazel_failure(
     if request.common.output == OutputMode::Json {
         emit_built(out, bazel_exit_event(code, &detail, bazel_code, "execute"))?;
     } else {
-        writeln!(err, "dx: {code}: {detail}").ok();
+        dx_output::write_stderr(err, format_args!("dx: {code}: {detail}\n"));
         match recorded().filter(|hint| hint.code == code) {
             Some(hint) => {
-                writeln!(err, "{}", hint.next).ok();
+                dx_output::write_stderr(err, format_args!("{}\n", hint.next));
             }
             None => {
-                writeln!(err, "{}", rerun_hint(request, fix)).ok();
+                dx_output::write_stderr(err, format_args!("{}\n", rerun_hint(request, fix)));
             }
         }
     }
@@ -1042,7 +1045,10 @@ fn emit_results(
 
     if !apply && !collected.changes.is_empty() {
         if matches!(request.common.output, OutputMode::Text { .. }) {
-            writeln!(err, "{}", apply_hint(request, collected.changes.len())).ok();
+            dx_output::write_stderr(
+                err,
+                format_args!("{}\n", apply_hint(request, collected.changes.len())),
+            );
         } else if request.common.output == OutputMode::Json {
             let notice = NoticeEvent {
                 related_command: Some(request.command.name().to_owned()),
@@ -1060,7 +1066,7 @@ fn emit_results(
             .any(|(_, reason)| *reason != REASON_INCOMPLETE_COLLECTION)
     {
         let action = "resolve the Not applied files listed above";
-        writeln!(err, "{}", rerun_hint(request, action)).ok();
+        dx_output::write_stderr(err, format_args!("{}\n", rerun_hint(request, action)));
     }
     let reports_ok = write_standard_reports(
         StandardReports {
@@ -1117,13 +1123,14 @@ fn report_incomplete(
                 dx_output::error_event(CODE_NOT_CONVERGED, &detail, None, None, None),
             )?;
         } else {
-            writeln!(err, "dx: {CODE_NOT_CONVERGED}: {detail}").ok();
-            writeln!(
+            dx_output::write_stderr(err, format_args!("dx: {CODE_NOT_CONVERGED}: {detail}\n"));
+            dx_output::write_stderr(
                 err,
-                "{}",
-                rerun_hint(request, "fix the conflicting tool configuration")
-            )
-            .ok();
+                format_args!(
+                    "{}\n",
+                    rerun_hint(request, "fix the conflicting tool configuration")
+                ),
+            );
         }
     }
     if let Some(detail) = collected.problem_detail() {
@@ -1133,10 +1140,10 @@ fn report_incomplete(
                 dx_output::error_event("incomplete_results", &detail, None, None, None),
             )?;
         } else {
-            writeln!(err, "dx: incomplete_results: {detail}").ok();
+            dx_output::write_stderr(err, format_args!("dx: incomplete_results: {detail}\n"));
             if bazel_code == 0 {
                 let action = "make sure every target reports results";
-                writeln!(err, "{}", rerun_hint(request, action)).ok();
+                dx_output::write_stderr(err, format_args!("{}\n", rerun_hint(request, action)));
             }
         }
     }

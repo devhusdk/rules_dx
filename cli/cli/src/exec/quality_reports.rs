@@ -75,8 +75,13 @@ fn load_snapshots(
     }
     let mut snapshots = Snapshots::new();
     for (snapshot, path) in needed {
-        let text = snapshot_bytes(workspace, collected, sources, snapshot, path)
-            .and_then(|bytes| String::from_utf8(bytes).map_err(|_| missing(path)));
+        let text =
+            snapshot_bytes(workspace, collected, sources, snapshot, path).and_then(|bytes| {
+                String::from_utf8(bytes).map_err(|error| {
+                    tracing::info!(%error, path, "snapshot is not UTF-8");
+                    missing(path)
+                })
+            });
         match text {
             Ok(text) => {
                 snapshots.insert((snapshot, path.to_owned()), text);
@@ -209,13 +214,14 @@ pub(crate) fn write_standard_reports(
                         planned.destination.display()
                     ))?;
                 } else if *output == OutputMode::Diff {
-                    writeln!(
+                    dx_output::write_stderr(
                         err,
-                        "Wrote {} report to {}.",
-                        planned.format.name(),
-                        planned.destination.display()
-                    )
-                    .ok();
+                        format_args!(
+                            "Wrote {} report to {}.\n",
+                            planned.format.name(),
+                            planned.destination.display()
+                        ),
+                    );
                 }
             }
             Err(error) => {

@@ -1,10 +1,8 @@
-load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("//core:cells.bzl", "cell_settings", "cells_compatible_with")
 load("//core/modules:cuda.bzl", "CUDA_CELLS", "cuda_qualified_cells")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":check.bzl", "cuda_toolkit_check")
-load(":settings.bzl", "CUDA_CELL_SETTINGS")
 load(":static_runtime.bzl", "cuda_windows_static_runtime")
 
 package(default_visibility = ["//visibility:public"])
@@ -13,18 +11,6 @@ cell_settings(
     name = "cell",
     cells = CUDA_CELLS,
 )
-
-[
-    selects.config_setting_group(
-        name = "cell_%s_msvc" % cell,
-        match_all = [
-            ":cell_" + cell,
-            "//cc/private/toolchain:msvc_selected",
-        ],
-    )
-    for cell in CUDA_CELLS
-    if cell.startswith("windows_")
-]
 
 exports_files([
     "check.bzl",
@@ -66,7 +52,6 @@ cuda_toolkit_check(
         CUDA_CELLS,
         "//cuda/private/toolchain",
         cuda_qualified_cells(),
-        settings = CUDA_CELL_SETTINGS,
     ),
 )
 

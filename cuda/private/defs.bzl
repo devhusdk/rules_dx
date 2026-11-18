@@ -50,6 +50,7 @@ _cuda_library_forward = dx_library_forward_rule(
                 mandatory = True,
                 cfg = cuda_host_transition,
             ),
+            "host_compiler": attr.string(doc = "The //cc:compiler nvcc compiles with; empty keeps the current one."),
             "_toolkit_check": attr.label(default = Label("//cuda/private/toolchain:toolkit_check"), cfg = cuda_host_transition),
         },
         runtime = "besteffort",
@@ -57,6 +58,12 @@ _cuda_library_forward = dx_library_forward_rule(
         upstream_cfg = cuda_host_transition,
     ),
 )
+
+# nvcc on Windows only drives cl.exe.
+_HOST_COMPILER = select({
+    Label("@platforms//os:windows"): "msvc",
+    "//conditions:default": "",
+})
 
 # Outside cuda_host_transition the upstream library needs the dynamic CUDA runtime.
 _UPSTREAM_ONLY_UNDER_TRANSITION = select({
@@ -133,6 +140,7 @@ def cuda_library(name, srcs, cuda_archs, hdrs = None, visibility = None, tags = 
         name = name,
         upstream = name + "_upstream",
         check = name + "_cuda_check",
+        host_compiler = _HOST_COMPILER,
         srcs = srcs,
         hdrs = hdrs or [],
         target_compatible_with = compatible,
@@ -174,6 +182,7 @@ def cuda_objects(name, srcs, cuda_archs, hdrs = None, deps = None, visibility = 
         name = name,
         upstream = name + "_upstream",
         check = name + "_cuda_check",
+        host_compiler = _HOST_COMPILER,
         srcs = srcs,
         hdrs = hdrs or [],
         target_compatible_with = compatible,

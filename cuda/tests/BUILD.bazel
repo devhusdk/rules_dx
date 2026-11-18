@@ -107,10 +107,6 @@ dx_hello_output_test(
 
 device_link_hermetic_test(
     name = "rdc_device_link_hermetic_test",
-    host_compiler = select({
-        "//cc/private/toolchain:msvc_selected": "msvc_runtime",
-        "//conditions:default": "llvm",
-    }),
     target_compatible_with = CUDA_COMPATIBLE_WITH,
     target_under_test = "//cuda/tests/fixtures/rdc:axpy",
 )
@@ -123,7 +119,7 @@ device_link_hermetic_test(
 
 gcc_device_link_hermetic_test(
     name = "gcc_rdc_device_link_hermetic_test",
-    target_compatible_with = CUDA_COMPATIBLE_WITH,
+    target_compatible_with = CUDA_COMPATIBLE_WITH + ["@platforms//os:linux"],
     target_under_test = "//cuda/tests/fixtures/rdc:axpy",
 )
 
@@ -293,17 +289,13 @@ dx_hello_output_test(
 
 hermetic_toolchain_test(
     name = "hermetic_toolchain_test",
-    host_compiler = select({
-        "//cc/private/toolchain:msvc_selected": "msvc_runtime",
-        "//conditions:default": "llvm",
-    }),
     target_compatible_with = CUDA_COMPATIBLE_WITH,
     target_under_test = "//cuda/tests/fixtures/saxpy",
 )
 
 gcc_hermetic_toolchain_test(
     name = "gcc_hermetic_toolchain_test",
-    target_compatible_with = CUDA_COMPATIBLE_WITH,
+    target_compatible_with = CUDA_COMPATIBLE_WITH + ["@platforms//os:linux"],
     target_under_test = "//cuda/tests/fixtures/saxpy",
 )
 
@@ -509,15 +501,18 @@ dx_wrapper_contract_tests(
     extra_checks = [
         expect_equal(
             "nvcc compile adds llvm coverage maps under coverage",
-            cuda_host_settings(dict(zip(
-                CC_COVERAGE_INPUTS,
-                [
-                    [],
-                    True,
-                    "",
-                    "",
-                ],
-            )))["//command_line_option:features"],
+            cuda_host_settings(
+                dict(zip(
+                    CC_COVERAGE_INPUTS,
+                    [
+                        [],
+                        True,
+                        "",
+                        "",
+                    ],
+                )),
+                "",
+            )["//command_line_option:features"],
             [
                 "llvm_coverage_map_format",
                 "-gcc_coverage_map_format",
@@ -525,16 +520,51 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "nvcc compile keeps features without coverage",
-            cuda_host_settings(dict(zip(
-                CC_COVERAGE_INPUTS,
-                [
-                    ["a"],
-                    False,
-                    "",
-                    "",
-                ],
-            )))["//command_line_option:features"],
+            cuda_host_settings(
+                dict(zip(
+                    CC_COVERAGE_INPUTS,
+                    [
+                        ["a"],
+                        False,
+                        "",
+                        "",
+                    ],
+                )),
+                "",
+            )["//command_line_option:features"],
             ["a"],
+        ),
+        expect_equal(
+            "nvcc compile keeps the current compiler without a host compiler",
+            cuda_host_settings(
+                dict(zip(
+                    CC_COVERAGE_INPUTS,
+                    [
+                        [],
+                        False,
+                        "",
+                        "gcc",
+                    ],
+                )),
+                "",
+            )[str(Label("//cc:compiler"))],
+            "gcc",
+        ),
+        expect_equal(
+            "nvcc compile switches to the host compiler",
+            cuda_host_settings(
+                dict(zip(
+                    CC_COVERAGE_INPUTS,
+                    [
+                        [],
+                        False,
+                        "",
+                        "llvm",
+                    ],
+                )),
+                "msvc",
+            )[str(Label("//cc:compiler"))],
+            "msvc",
         ),
         expect_equal(
             "device and host sources split",

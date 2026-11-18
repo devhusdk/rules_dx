@@ -15,10 +15,10 @@ fn with_platform(manifest: &hermetic::Manifest, args: &[String]) -> Vec<String> 
     argv
 }
 
-/// The `PATH` of the nested Bazel: the coreutils applets, or none on Windows.
-fn applets_path() -> Option<String> {
+/// The environment of the nested Bazel off Windows: the coreutils applets as `PATH` and `BAZEL_SH`.
+fn nested_env() -> Vec<(&'static str, String)> {
     if cfg!(windows) {
-        return None;
+        return Vec::new();
     }
     let applets = dx_testing::env_files("DX_COREUTILS");
     let dir = applets
@@ -26,16 +26,40 @@ fn applets_path() -> Option<String> {
         .and_then(|file| file.parent())
         .expect("DX_COREUTILS names the applets");
     let dir = std::path::absolute(dir).expect("applet directory");
-    Some(dir.to_string_lossy().into_owned())
+    let (key, bash) = hermetic::UNIX_BAZEL_SH
+        .split_once('=')
+        .expect("UNIX_BAZEL_SH is KEY=VALUE");
+    vec![
+        ("PATH", dir.to_string_lossy().into_owned()),
+        (key, bash.to_owned()),
+    ]
 }
 
 fn bazel(case: &dx_nested::Case, manifest: &hermetic::Manifest, args: &[String]) -> Run {
     let argv = with_platform(manifest, args);
     let argv: Vec<&str> = argv.iter().map(String::as_str).collect();
-    match applets_path() {
-        Some(path) => case.bazel_with(&argv, &[("PATH", path.as_str())]),
-        None => case.bazel(&argv),
+    let env = nested_env();
+    let env: Vec<(&str, &str)> = env
+        .iter()
+        .map(|(key, value)| (*key, value.as_str()))
+        .collect();
+    case.bazel_with(&argv, &env)
+}
+
+/// Adds the `.bazelrc` startup line of `docs/cli/commands/windows.md` on Windows.
+fn enable_windows_symlinks(case: &dx_nested::Case) {
+    if !cfg!(windows) {
+        return;
     }
+    use std::io::Write;
+    let path = case.root().join(".bazelrc");
+    let mut rc = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+        .unwrap_or_else(|error| panic!("cannot open {}: {error}", path.display()));
+    rc.write_all(b"\nstartup --windows_enable_symlinks\n")
+        .unwrap_or_else(|error| panic!("cannot write {}: {error}", path.display()));
 }
 
 #[test]
@@ -50,6 +74,7 @@ fn consumer_builds_tests_and_covers_offline() {
     let case = dx_nested::case(&set);
     hermetic::materialize(&manifest, case.root(), &source, "cc")
         .unwrap_or_else(|error| panic!("{error}"));
+    enable_windows_symlinks(&case);
     case.use_lock(&set);
 
     let mut targets = manifest.patterns.clone();

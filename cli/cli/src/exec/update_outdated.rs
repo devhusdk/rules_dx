@@ -218,12 +218,13 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
         return code;
     }
     for error in &found.errors {
-        writeln!(
+        dx_output::write_stderr(
             err,
-            "dx: {CODE_UPDATE_OUTDATED_LOOKUP}: {}:{} ({})",
-            error.set, error.package, error.reason
-        )
-        .ok();
+            format_args!(
+                "dx: {CODE_UPDATE_OUTDATED_LOOKUP}: {}:{} ({})\n",
+                error.set, error.package, error.reason
+            ),
+        );
     }
     exit
 }
@@ -1173,7 +1174,7 @@ impl Fetch for DirFetch {
         let rest = url.split_once("://").map_or(url, |(_, rest)| rest);
         std::fs::read(self.0.join(rest))
             .map(|bytes| dx_digest::sha256_hex(&bytes))
-            .map_err(|_| DxError::failure("HTTP 404"))
+            .map_err(|error| fixture_error(url, &error))
     }
 
     fn digest(&self, url: &str) -> Result<String, DxError> {
@@ -1183,7 +1184,16 @@ impl Fetch for DirFetch {
     fn get(&self, url: &str) -> Result<String, DxError> {
         let rest = url.split_once("://").map_or(url, |(_, rest)| rest);
         let path: &Path = &self.0.join(rest);
-        std::fs::read_to_string(path).map_err(|_| DxError::failure("HTTP 404"))
+        std::fs::read_to_string(path).map_err(|error| fixture_error(url, &error))
+    }
+}
+
+/// A missing fixture file answers like a registry 404.
+fn fixture_error(url: &str, error: &std::io::Error) -> DxError {
+    if error.kind() == std::io::ErrorKind::NotFound {
+        DxError::failure("HTTP 404")
+    } else {
+        DxError::from_io(format!("cannot read the registry fixture for {url}"), error)
     }
 }
 

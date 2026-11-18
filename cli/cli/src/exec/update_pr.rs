@@ -206,12 +206,13 @@ fn report_outcomes(
     let failed = outcomes.iter().any(|outcome| outcome.result.is_err());
     let exit = i32::from(failed || !errors.is_empty());
     for error in errors {
-        writeln!(
+        dx_output::write_stderr(
             err,
-            "dx: {CODE_UPDATE_PR_LOOKUP}: {}:{} ({})",
-            error.set, error.package, error.reason
-        )
-        .ok();
+            format_args!(
+                "dx: {CODE_UPDATE_PR_LOOKUP}: {}:{} ({})\n",
+                error.set, error.package, error.reason
+            ),
+        );
     }
     if let Err(code) = emit(out, outcomes, json, exit) {
         return code;
@@ -495,8 +496,11 @@ fn publish(
             open.push((0, group.branch.clone()));
         }
         if result.is_err() {
-            git(&["reset", "--hard", &sha]).ok();
-            git(&["clean", "-fd"]).ok();
+            for args in [&["reset", "--hard", &sha][..], &["clean", "-fd"][..]] {
+                if let Err(error) = git(args) {
+                    tracing::warn!(%error, ?args, "cannot reset the worktree after a failed group");
+                }
+            }
         }
         outcomes.push(Outcome {
             branch: group.branch.clone(),
@@ -632,7 +636,9 @@ fn refresh_tracking(git: &dyn Fn(&[&str]) -> Result<String, DxError>, branch: &s
     ]);
     if fetched.is_err() {
         // The remote branch is gone; a stale tracking ref would fail the lease.
-        git(&["update-ref", "-d", &tracking]).ok();
+        if let Err(error) = git(&["update-ref", "-d", &tracking]) {
+            tracing::info!(%error, %tracking, "cannot delete the stale tracking ref");
+        }
     }
 }
 
@@ -701,7 +707,9 @@ fn publish_one(
         if merge {
             note = enable_auto_merge(&gh, &number);
         } else {
-            gh(&["pr", "merge", &number, "--disable-auto"]).ok();
+            if let Err(error) = gh(&["pr", "merge", &number, "--disable-auto"]) {
+                tracing::info!(%error, %number, "cannot disable auto-merge");
+            }
         }
         return Ok(format!("updated #{number}{note}"));
     }

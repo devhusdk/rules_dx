@@ -667,6 +667,14 @@ impl Planner<'_> {
                 ));
                 continue;
             }
+            // Folder names map to hubs many-to-one: `web/app` and `web_app` both give `npm_web_app`.
+            if hubs.contains(&hub) {
+                self.notes.push(format!(
+                    "npm hub \"{hub}\" is planned for another lock; {} in {dir} not wired",
+                    lock_of("npm")?
+                ));
+                continue;
+            }
             tags.push(tag(
                 "npm_translate_lock",
                 vec![("name", string(&hub)), ("pnpm_lock", string(&lock))],
@@ -1598,6 +1606,31 @@ mod tests {
             "{text}"
         );
         assert!(!text.contains("node_modules"), "{text}");
+    }
+
+    #[test]
+    fn npm_folders_that_share_a_hub_name_plan_one_hub_and_note_the_other() {
+        let manifest = "{\"dependencies\": {\"left-pad\": \"1.3.0\"}}";
+        let hubs = plan(&[
+            (t("web/app/{npm:lock}"), ""),
+            (t("web/app/{npm:manifest}"), manifest),
+            (t("web_app/{npm:lock}"), ""),
+            (t("web_app/{npm:manifest}"), manifest),
+        ]);
+        let text = new_text(&hubs);
+        assert_eq!(text.matches("name = \"npm_web_app\"").count(), 1, "{text}");
+        assert!(
+            text.contains(t("pnpm_lock = \"//web/app:{npm:lock}\"")),
+            "{text}"
+        );
+        assert!(text.contains("use_repo(npm, \"npm_web_app\")"), "{text}");
+        ModuleFile::parse(text).expect("re-parses");
+        assert_eq!(hubs.notes.len(), 1, "{:?}", hubs.notes);
+        assert!(
+            hubs.notes[0].contains("\"npm_web_app\"") && hubs.notes[0].contains("web_app"),
+            "{:?}",
+            hubs.notes
+        );
     }
 
     #[test]

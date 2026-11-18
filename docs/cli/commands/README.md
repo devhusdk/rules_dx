@@ -403,9 +403,7 @@ Packaging and deploy:
 
 - `@rules_dx//android:defs.bzl`: APKs, App Bundles and adb.
 - `@rules_dx//appimage:defs.bzl`: AppImage bundles.
-- `@rules_dx//apple/private/ios:device.bzl`: signed iOS IPA export.
-- `@rules_dx//apple/private/provisioning:defs.bzl`: Apple provisioning.
-- `@rules_dx//apple/private/signing:defs.bzl`: macOS app signing and notarization.
+- `@rules_dx//apple:defs.bzl`: signed iOS IPA export, macOS app signing and notarization, and the iOS simulator.
 - `@rules_dx//deploy:defs.bzl`: deploy rules, release archives and offline bundles.
 - `@rules_dx//msix:defs.bzl`: MSIX packages.
 
@@ -413,7 +411,7 @@ Module extensions, for `use_extension` in `MODULE.bazel`:
 
 - `@rules_dx//core:extensions.bzl`: `dx_pins`, `dx_licenses` and `dx_prebuilt`.
 - `@rules_dx//android:extensions.bzl`: Android SDK and NDK toolchain.
-- `@rules_dx//apple/private/ios:simulator.bzl`: iOS simulator.
+- `@rules_dx//apple:extensions.bzl`: the Xcode license gate for Apple rules.
 - `@rules_dx//cuda:extensions.bzl`: CUDA toolchain.
 - `@rules_dx//elixir:extensions.bzl`: Hex packages for Elixir.
 - `@rules_dx//msix:extensions.bzl`: MSIX tools.

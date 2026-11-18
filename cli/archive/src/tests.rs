@@ -835,3 +835,55 @@ fn gunzip_caps_the_output() {
     assert_eq!(gunzip(gz.as_slice(), 5).expect("fits"), b"12345");
     assert!(gunzip(gz.as_slice(), 4).is_err());
 }
+
+fn visit_modes(format: Format, bytes: &[u8]) -> io::Result<Vec<(String, EntryKind, Option<u32>)>> {
+    let mut seen = Vec::new();
+    visit_entries(
+        io::Cursor::new(bytes),
+        format,
+        Limits::default(),
+        |entry, _| {
+            seen.push((entry.name.to_owned(), entry.kind, entry.mode));
+            Ok(())
+        },
+    )?;
+    Ok(seen)
+}
+
+#[test]
+fn visit_entries_reports_modes() {
+    for format in [Format::Tar, Format::TarGz, Format::Zip] {
+        let bytes = written(format, |add| {
+            add("bin/run", b"#!", 0o755);
+            add("doc.txt", b"text", 0o644);
+        });
+        assert_eq!(
+            visit_modes(format, &bytes).expect("visit"),
+            [
+                ("bin/run".to_owned(), EntryKind::File, Some(0o755)),
+                ("doc.txt".to_owned(), EntryKind::File, Some(0o644)),
+            ],
+            "{format:?}"
+        );
+    }
+    let mut writer = zip::ZipWriter::new(io::Cursor::new(Vec::new()));
+    writer
+        .start_file(
+            "x",
+            zip::write::SimpleFileOptions::default().system(zip::System::Dos),
+        )
+        .expect("start");
+    let dos = writer.finish().expect("finish").into_inner();
+    assert_eq!(
+        visit_modes(Format::Zip, &dos).expect("visit"),
+        [("x".to_owned(), EntryKind::File, None)]
+    );
+}
+
+#[test]
+fn visit_entries_refuses_a_cut_gzip_trailer() {
+    let whole = written(Format::TarGz, |add| add("x", &[7u8; 4096], 0o644));
+    assert!(visit_modes(Format::TarGz, &whole).is_ok());
+    let cut = whole.get(..whole.len() - 4).expect("cut");
+    assert!(visit_modes(Format::TarGz, cut).is_err());
+}

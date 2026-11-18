@@ -1,5 +1,5 @@
 {
-  "checksum": "3ab32833a239b6578cb69042fc28729ddd081bae64de329ecaf33dde734a16c4",
+  "checksum": "aaf362738850b9f88ac75afe6084ae881d58b38d95d60a1825f72f5754dbdef3",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -8344,7 +8344,9 @@
           {
             "id": "tempfile 3.27.0",
             "target": "tempfile"
-          },
+          }
+        ],
+        "deps_dev": [
           {
             "id": "zip 9.1.2",
             "target": "zip"

@@ -150,24 +150,13 @@ fn nuget_identity_slot<'a>(
 
 /// Reads the package id and normalized version embedded in one nupkg.
 pub fn nuget_read_identity(nupkg: &Path) -> Result<(String, String), String> {
-    use std::io::Read;
     let file = std::fs::File::open(nupkg)
         .map_err(|error| format!("cannot open {}: {error}", nupkg.display()))?;
-    let mut archive = zip::ZipArchive::new(file)
-        .map_err(|error| format!("{} is not a valid nupkg archive: {error}", nupkg.display()))?;
-    let mut names = Vec::new();
-    for index in 0..archive.len() {
-        let entry = archive
-            .by_index_raw(index)
-            .map_err(|error| format!("{} has an unreadable entry: {error}", nupkg.display()))?;
-        let name = entry
-            .name()
-            .map_err(|error| format!("{} has an unreadable entry name: {error}", nupkg.display()))?
-            .into_owned();
-        if !name.contains('/') && name.to_ascii_lowercase().ends_with(".nuspec") {
-            names.push(name);
-        }
-    }
+    let names: Vec<String> = dx_archive::zip_names(file)
+        .map_err(|error| format!("{} is not a valid nupkg archive: {error}", nupkg.display()))?
+        .into_iter()
+        .filter(|name| !name.contains('/') && name.to_ascii_lowercase().ends_with(".nuspec"))
+        .collect();
     let name = match names.as_slice() {
         [] => return Err(format!("{} has no root .nuspec", nupkg.display())),
         [one] => one.clone(),
@@ -179,13 +168,10 @@ pub fn nuget_read_identity(nupkg: &Path) -> Result<(String, String), String> {
             ));
         }
     };
-    let mut xml = String::new();
-    archive
-        .by_name(&name)
+    let xml = dx_archive::read_zip_member(nupkg, &name, 1 << 20)
         .map_err(|error| format!("cannot read {name}: {error}"))?
-        .take(1 << 20)
-        .read_to_string(&mut xml)
-        .map_err(|error| format!("cannot read {name}: {error}"))?;
+        .ok_or_else(|| format!("cannot read {name}: missing from {}", nupkg.display()))?;
+    let xml = String::from_utf8(xml).map_err(|error| format!("cannot read {name}: {error}"))?;
     let (id, version) = nuget_parse_nuspec(&xml).map_err(|error| format!("{name}: {error}"))?;
     if id.len() > 100
         || id.starts_with(['.', '-', '_'])

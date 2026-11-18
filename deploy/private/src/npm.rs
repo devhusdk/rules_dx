@@ -203,12 +203,16 @@ pub fn npm_publish_args(
 /// Lists one gzip tar member table.
 pub fn npm_tar_members(tgz_path: &Path) -> io::Result<Vec<String>> {
     let file = std::fs::File::open(tgz_path)?;
-    let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(file));
     let mut members = Vec::new();
-    for entry in archive.entries()? {
-        let entry = entry?;
-        members.push(String::from_utf8_lossy(&entry.path_bytes()).into_owned());
-    }
+    dx_archive::visit(
+        file,
+        dx_archive::Format::TarGz,
+        crate::archive::LISTING_LIMITS,
+        |name, _, _| {
+            members.push(name.to_owned());
+            Ok(())
+        },
+    )?;
     Ok(members)
 }
 
@@ -921,6 +925,15 @@ mod tests {
                 "tarball": "npm_demo.tgz",
             })
         );
+    }
+
+    #[test]
+    fn npm_tar_members_refuses_a_dot_dot_member() {
+        let scratch = scratch_dir();
+        let tgz = scratch.path().join("escape.tgz");
+        std::fs::write(&tgz, raw_tar_gz("../package.json", b"{}")).expect("write");
+        let error = npm_tar_members(&tgz).expect_err("dot dot");
+        assert!(error.to_string().contains("'..'"), "{error}");
     }
 
     #[test]

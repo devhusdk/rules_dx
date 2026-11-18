@@ -49,25 +49,28 @@ pub fn hackage_read_identity(sdist: &Path) -> Result<(String, String), String> {
     let want = format!("{stem}/{package}.cabal");
     let open = std::fs::File::open(sdist)
         .map_err(|error| format!("cannot open {}: {error}", sdist.display()))?;
-    let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(open));
-    let entries = archive
-        .entries()
-        .map_err(|error| format!("{file_name} is not a valid sdist: {error}"))?;
-    for entry in entries {
-        let entry = entry.map_err(|error| format!("{file_name} is not a valid sdist: {error}"))?;
-        let path = entry
-            .path()
-            .map_err(|error| format!("{file_name} has an unreadable entry name: {error}"))?
-            .to_string_lossy()
-            .replace('\\', "/");
-        if path != want {
-            continue;
-        }
-        let mut text = String::new();
-        entry
-            .take(1 << 20)
-            .read_to_string(&mut text)
-            .map_err(|error| format!("cannot read {want}: {error}"))?;
+    let mut text = None;
+    dx_archive::visit(
+        open,
+        dx_archive::Format::TarGz,
+        crate::archive::LISTING_LIMITS,
+        |path, _, body| {
+            if text.is_some() || path != want {
+                return Ok(());
+            }
+            let mut read = String::new();
+            text = Some(
+                body.take(1 << 20)
+                    .read_to_string(&mut read)
+                    .map(|_| read)
+                    .map_err(|error| format!("cannot read {want}: {error}")),
+            );
+            Ok(())
+        },
+    )
+    .map_err(|error| format!("{file_name} is not a valid sdist: {error}"))?;
+    if let Some(text) = text {
+        let text = text?;
         let name = cabal_field(&text, "name").unwrap_or_default();
         let declared = cabal_field(&text, "version").unwrap_or_default();
         if name != package || declared != version {
@@ -334,6 +337,16 @@ mod tests {
         let path = dir.join(file_name);
         std::fs::write(&path, encoder.finish().expect("finish gzip")).expect("write sdist");
         path
+    }
+
+    #[test]
+    fn refuses_an_sdist_with_a_dot_dot_member() {
+        let dir = scratch_dir();
+        let sdist = dir.path().join("demo-1.2.0.tar.gz");
+        std::fs::write(&sdist, raw_tar_gz("../demo.cabal", CABAL.as_bytes())).expect("write");
+        let error = hackage_read_identity(&sdist).expect_err("dot dot");
+        assert!(error.contains("is not a valid sdist"), "{error}");
+        assert!(error.contains("'..'"), "{error}");
     }
 
     const CABAL: &str =

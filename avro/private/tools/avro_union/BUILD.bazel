@@ -1,7 +1,10 @@
 load("//java:defs.bzl", "java_binary")
 load("//core/quality:fixtures.bzl", "real_source_target")
 
-package(default_visibility = ["//avro:__subpackages__"])
+package(default_visibility = [
+    "//avro:__subpackages__",
+    "@dx_prebuilt//:__pkg__",
+])
 
 java_binary(
     name = "avro_union",

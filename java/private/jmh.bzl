@@ -5,7 +5,7 @@ load("//core:fuzz_bench.bzl", "DEFAULT_SIZE", "merge_tags", "split_test_kwargs")
 load("//core:wrapper.bzl", "dx_upstream_tags")
 
 _JMH = [Label("@dx_jmh_core//jar"), Label("@dx_jmh_jopt_simple//jar"), Label("@dx_jmh_commons_math3//jar")]
-_GENERATOR = Label("//java/private/jmh:jmh_generate")
+_GENERATOR = Label("@dx_prebuilt//:jmh_generate")
 _RUNNER_SRC = Label("//java/private/jmh:JmhRunner.java")
 _PROCESSOR = [Label("@dx_jmh_generator_annprocess//jar")] + _JMH
 _TEST_KWARGS = ("size", "timeout", "args", "env", "flaky", "jvm_flags", "data", "visibility")

@@ -8,6 +8,10 @@ java_binary(
     name = "jmh_generate",
     srcs = ["JmhGenerate.java"],
     main_class = "dx.bench.JmhGenerate",
+    visibility = [
+        "//:__subpackages__",
+        "@dx_prebuilt//:__pkg__",
+    ],
     deps = [
         "@dx_jmh_asm//jar",
         "@dx_jmh_commons_math3//jar",

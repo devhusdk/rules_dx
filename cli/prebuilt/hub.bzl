@@ -1,6 +1,6 @@
 """Plans the @dx_prebuilt repos and renders the hub BUILD file."""
 
-load(":tools.bzl", "RELEASE_CPU", "RELEASE_OS", "TOOLS", "asset_name", "split_key")
+load(":tools.bzl", "JAR_TOOLS", "RELEASE_CPU", "RELEASE_OS", "TOOLS", "asset_name", "split_key")
 
 visibility(["//cli/...", "//gazelle/..."])
 
@@ -120,6 +120,55 @@ def plan_assets(tool, version, pins, url_template, overrides, exe = "dx", repo_p
                 url = fallback.url,
             )
     return [planned[key] for key in sorted(planned.keys())]
+
+def plan_jars(version, pins, url_template):
+    """Returns one struct per jar tool, sorted by tool: its source and, when pinned, a verified download."""
+    planned = []
+    for tool in JAR_TOOLS:
+        asset = asset_name(tool, "any")
+        sha256 = pins.get(tool, {}).get("any", "")
+        planned.append(struct(
+            asset = asset,
+            main_class = TOOLS[tool].main_class,
+            repo = "dx_prebuilt_" + tool if sha256 else "",
+            sha256 = sha256,
+            source = TOOLS[tool].source,
+            tool = tool,
+            url = url_template.format(version = version, asset = asset) if sha256 else "",
+        ))
+    return planned
+
+def with_jars(build, jars):
+    """Returns the hub BUILD text build plus one target per jar tool: the pinned jar on the JVM, else its source."""
+    loads = []
+    lines = []
+    for jar in jars:
+        if not jar.repo:
+            lines += [
+                "",
+                "alias(",
+                '    name = "{}",'.format(jar.tool),
+                '    actual = "{}",'.format(jar.source),
+                '    visibility = ["//visibility:public"],',
+                ")",
+            ]
+            continue
+        loads = ['load("@rules_java//java:defs.bzl", "java_binary", "java_import")']
+        lines += [
+            "",
+            "java_import(",
+            '    name = "{}_jar",'.format(jar.tool),
+            '    jars = ["@{}//file:{}"],'.format(jar.repo, jar.asset),
+            ")",
+            "",
+            "java_binary(",
+            '    name = "{}",'.format(jar.tool),
+            '    main_class = "{}",'.format(jar.main_class),
+            '    visibility = ["//visibility:public"],',
+            '    runtime_deps = [":{}_jar"],'.format(jar.tool),
+            ")",
+        ]
+    return "\n".join(loads + [build.rstrip("\n")] + lines + [""])
 
 def alias_build(actual):
     """Returns the hub BUILD text that points dx at one label and the tools and launcher at their sources."""

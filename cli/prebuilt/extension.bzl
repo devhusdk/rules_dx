@@ -1,8 +1,8 @@
-"""Creates @dx_prebuilt: the source dx when rules_dx is root, a pinned release binary otherwise."""
+"""Creates @dx_prebuilt: the source dx and jars when rules_dx is root, pinned release assets otherwise."""
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 load("//core:repo.bzl", "hub_repo")
-load(":hub.bzl", "SOURCE_LABEL", "alias_build", "consumer_build", "plan_assets", "plan_root")
+load(":hub.bzl", "SOURCE_LABEL", "alias_build", "consumer_build", "plan_assets", "plan_jars", "plan_root", "with_jars")
 load(":pins.bzl", "DX_VERSION", "PINS", "URL_TEMPLATE")
 
 # Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
@@ -22,6 +22,16 @@ _asset = tag_class(
     doc = "Adds or replaces dx or the launcher for one os and cpu; honoured only in the root module.",
     attrs = ASSET_ATTRS,
 )
+
+def _declare_jars(jars):
+    for jar in jars:
+        if jar.repo:
+            http_file(
+                name = jar.repo,
+                downloaded_file_path = jar.asset,
+                sha256 = jar.sha256,
+                urls = [jar.url],
+            )
 
 def declare_downloads(assets):
     """Declares one http_file per pinned download; platforms sharing a fallback share it."""
@@ -48,7 +58,8 @@ def _dx_prebuilt_impl(module_ctx):
         fail(plan.error)
     rules_dx_is_root = any([m.name == "rules_dx" and m.is_root for m in module_ctx.modules])
     if plan.source:
-        hub_repo(name = "dx_prebuilt", files = {"BUILD.bazel": alias_build(SOURCE_LABEL)})
+        jars = plan_jars(DX_VERSION, {}, URL_TEMPLATE)
+        hub_repo(name = "dx_prebuilt", files = {"BUILD.bazel": with_jars(alias_build(SOURCE_LABEL), jars)})
     else:
         assets = plan_assets("dx", DX_VERSION, PINS, URL_TEMPLATE, plan.overrides.get("dx", {}))
         launcher_assets = plan_assets(
@@ -60,8 +71,10 @@ def _dx_prebuilt_impl(module_ctx):
             exe = "dx-launcher",
             repo_prefix = "dx_launcher_prebuilt_",
         )
+        jars = plan_jars(DX_VERSION, PINS, URL_TEMPLATE)
         declare_downloads(assets + launcher_assets)
-        hub_repo(name = "dx_prebuilt", files = {"BUILD.bazel": consumer_build(assets, launcher_assets)})
+        _declare_jars(jars)
+        hub_repo(name = "dx_prebuilt", files = {"BUILD.bazel": with_jars(consumer_build(assets, launcher_assets), jars)})
     return module_ctx.extension_metadata(
         reproducible = True,
         root_module_direct_deps = ["dx_prebuilt"] if rules_dx_is_root else [],

@@ -1,0 +1,56 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//dockerfile:defs.bzl", "dockerfile_library")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+dockerfile_library(
+    name = "conformance",
+    srcs = ["clean.Dockerfile"],
+)
+
+dockerfile_library(
+    name = "lint_dirty",
+    srcs = ["lint_dirty.Dockerfile"],
+    tags = ["manual"],
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":conformance",
+    covered_source = "",
+    expected = "",
+    failing_case = "",
+    failing_test = ":conformance",
+    lang = "dockerfile",
+    not_applicable = {
+        "build_test": "dockerfile has no binary rule",
+        "coverage_test": "dockerfile has no test rule",
+        "cross_test": "dockerfile has no binary rule",
+        "fail_test": "dockerfile has no test rule",
+        "format_error_test": "dockerfile has no formatter",
+        "format_test": "dockerfile has no formatter",
+        "lock_test": "dockerfile has no package manager",
+        "pass_test": "dockerfile has no test rule",
+        "runfiles_test": "dockerfile has no binary rule",
+    },
+    passing_test = ":conformance",
+    quality = {
+        "clean": ":conformance",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 2,
+        "lint_rule": "DL4006",
+        "lint_source": "lint_dirty.Dockerfile",
+    },
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

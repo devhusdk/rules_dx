@@ -1,0 +1,64 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//kubernetes:defs.bzl", "kubernetes_library", "kubernetes_schemas")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+kubernetes_schemas(
+    name = "schemas",
+    kubernetes_version = "1.31.0",
+    schemas = ["//core/quality/testdata/kubernetes_schemas:configmap-v1.json"],
+)
+
+kubernetes_library(
+    name = "conformance",
+    srcs = ["clean.yaml"],
+    aspect_hints = [":schemas"],
+)
+
+kubernetes_library(
+    name = "lint_dirty",
+    srcs = ["lint_dirty.yaml"],
+    aspect_hints = [":schemas"],
+    tags = ["manual"],
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":conformance",
+    covered_source = "",
+    expected = "",
+    failing_case = "",
+    failing_test = ":conformance",
+    lang = "kubernetes",
+    not_applicable = {
+        "build_test": "kubernetes has no binary rule",
+        "coverage_test": "kubernetes has no test rule",
+        "cross_test": "kubernetes has no binary rule",
+        "fail_test": "kubernetes has no test rule",
+        "format_error_test": "the kubernetes format family formats helm charts only",
+        "format_test": "the kubernetes format family formats helm charts only",
+        "lock_test": "kubernetes has no package manager",
+        "pass_test": "kubernetes has no test rule",
+        "runfiles_test": "kubernetes has no binary rule",
+    },
+    passing_test = ":conformance",
+    quality = {
+        "clean": ":conformance",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 6,
+        "lint_rule": "invalid",
+        "lint_source": "lint_dirty.yaml",
+    },
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

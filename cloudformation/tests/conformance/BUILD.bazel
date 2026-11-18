@@ -1,0 +1,56 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//cloudformation:defs.bzl", "cloudformation_library")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+cloudformation_library(
+    name = "conformance",
+    srcs = ["clean.yaml"],
+)
+
+cloudformation_library(
+    name = "lint_dirty",
+    srcs = ["lint_dirty.yaml"],
+    tags = ["manual"],
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":conformance",
+    covered_source = "",
+    expected = "",
+    failing_case = "",
+    failing_test = ":conformance",
+    lang = "cloudformation",
+    not_applicable = {
+        "build_test": "cloudformation has no binary rule",
+        "coverage_test": "cloudformation has no test rule",
+        "cross_test": "cloudformation has no binary rule",
+        "fail_test": "cloudformation has no test rule",
+        "format_error_test": "cloudformation has no formatter",
+        "format_test": "cloudformation has no formatter",
+        "lock_test": "cloudformation has no package manager",
+        "pass_test": "cloudformation has no test rule",
+        "runfiles_test": "cloudformation has no binary rule",
+    },
+    passing_test = ":conformance",
+    quality = {
+        "clean": ":conformance",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 6,
+        "lint_rule": "E3002",
+        "lint_source": "lint_dirty.yaml",
+    },
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

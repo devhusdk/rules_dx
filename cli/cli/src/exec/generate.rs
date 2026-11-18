@@ -111,7 +111,70 @@ fn wire_module(request: &GenerateRequest, env: &mut Env<'_>) -> Wiring {
     if seeded_cargo {
         fill_cargo_lock(request, env, &mut wiring);
     }
+    lock_sets(request, env, &mut wiring, &unlocked);
     wiring
+}
+
+/// Runs the pinned resolver of every set with a dx class lock: a check compares the lock with
+/// its inputs, `--apply` writes a stale lock. A root manifest seeded above is skipped.
+fn lock_sets(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wiring, unlocked: &[&str]) {
+    let sets = match dx_adopt::resolver_sets(env.workspace) {
+        Ok(sets) => sets,
+        Err(error) => {
+            wiring.failed(env.err, format!("lock sets not read: {error}"));
+            return;
+        }
+    };
+    let apply = request.applies();
+    let head = request.bazel_head();
+    let run_env = dx_update::backend::resolver_env(env.workspace, &head);
+    let run_env: Vec<(&str, &str)> = run_env
+        .iter()
+        .map(|(name, value)| (name.as_str(), value.as_str()))
+        .collect();
+    for set in sets {
+        if set.dir == "." && unlocked.contains(&set.manifest) {
+            continue;
+        }
+        let path = env.workspace.join(&set.dir);
+        let Some(dir) = path.to_str() else {
+            wiring.failed(
+                env.err,
+                format!("lock of {} not checked: non-UTF-8 path", set.name),
+            );
+            continue;
+        };
+        let mut argv = dx_update::backend::resolver_run_argv(&head, set.resolver, dir);
+        if !apply {
+            argv.push("--check".to_owned());
+        }
+        match env.runner.run(&argv, env.workspace, &run_env) {
+            Ok(status) if status.code == Some(0) => {}
+            Ok(status) if !apply && status.code == Some(1) => wiring.pending(
+                env.err,
+                format!("lock of {} is stale; run dx generate --apply", set.name),
+            ),
+            Ok(status) => wiring.failed(
+                env.err,
+                format!(
+                    "lock of {} not {}: {} exited {}",
+                    set.name,
+                    if apply { "written" } else { "checked" },
+                    set.resolver,
+                    status
+                        .code
+                        .map_or_else(|| "by signal".to_owned(), |code| code.to_string())
+                ),
+            ),
+            Err(error) => wiring.failed(
+                env.err,
+                format!(
+                    "lock of {} not checked: {}: {error}",
+                    set.name, set.resolver
+                ),
+            ),
+        }
+    }
 }
 
 /// Writes the `pnpm-workspace.yaml` with `allowBuilds` that `rules_js` requires beside each wired pnpm lock.
@@ -415,9 +478,9 @@ impl Wiring {
         self.notices.push(notice);
     }
 
-    /// A check with edits left to make, or an apply that could not make one, is not clean.
+    /// A step that failed, or a check with edits left to make, is not clean.
     fn dirty(&self, apply: bool) -> bool {
-        if apply { self.failed } else { self.pending }
+        self.failed || (!apply && self.pending)
     }
 }
 
@@ -953,6 +1016,99 @@ mod tests {
             )),
             "{err}"
         );
+    }
+
+    /// A workspace with one composer set in `php` whose manifest is there.
+    fn composer_set(name: &str) -> (Harness, &'static dx_families::Hub) {
+        let mut harness = Harness::new(name);
+        let hub = dx_families::hub("composer").expect("setup.hubs entry composer");
+        harness.write_source(
+            "MODULE.bazel",
+            &format!(
+                "{e} = use_extension(\"{x}\", \"{e}\")\n{e}.{tag}(name = \"web\", lock = \"//php:{lock}\")\n",
+                e = hub.ecosystem,
+                x = hub.extension,
+                tag = hub.tag.as_deref().expect("tag"),
+                lock = hub.lock.as_deref().expect("lock"),
+            ),
+        );
+        harness.write_source(&format!("php/{}", hub.manifest), "{}");
+        harness.write_source("BUILD.bazel", "");
+        harness.intended = Some(intended_witness("check", true, "", ""));
+        harness.generate_code = Some(0);
+        (harness, hub)
+    }
+
+    fn resolver_runs(harness: &Harness, resolver: &str) -> Vec<Vec<String>> {
+        harness
+            .build_argv
+            .borrow()
+            .iter()
+            .filter(|argv| argv.iter().any(|arg| arg == resolver))
+            .cloned()
+            .collect()
+    }
+
+    #[test]
+    fn check_compares_a_current_lock_and_fetches_nothing() {
+        let (harness, hub) = composer_set("check-lock-current");
+        let (code, out, err) = harness.run(&["check"]);
+        let resolver = hub.resolver.as_deref().expect("resolver");
+        let runs = resolver_runs(&harness, resolver);
+        assert_eq!(runs.len(), 1, "{runs:?}\n{out}{err}");
+        let dir = harness.workspace.join("php");
+        assert!(
+            runs[0].ends_with(&[
+                "--".to_owned(),
+                "--dir".to_owned(),
+                dir.to_string_lossy().into_owned(),
+                "--check".to_owned()
+            ]),
+            "{runs:?}"
+        );
+        assert!(!err.contains("lock of web"), "{err}");
+        assert!(
+            !harness
+                .build_argv
+                .borrow()
+                .iter()
+                .any(|argv| argv.iter().any(|arg| arg == "fetch")),
+            "{code}"
+        );
+    }
+
+    #[test]
+    fn check_fails_on_a_stale_lock_and_names_the_set() {
+        let (mut harness, hub) = composer_set("check-lock-stale");
+        harness.app_code = Some(1);
+        let (code, out, err) = harness.run(&["check"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains("dx: lock of web is stale; run dx generate --apply"),
+            "{err}"
+        );
+        let resolver = hub.resolver.as_deref().expect("resolver");
+        assert_eq!(resolver_runs(&harness, resolver).len(), 1);
+    }
+
+    #[test]
+    fn generate_apply_runs_the_resolver_without_check() {
+        let (mut harness, hub) = composer_set("generate-lock-apply");
+        harness.intended = Some(intended_witness("default", true, "", ""));
+        let (_, out, err) = harness.run(&["generate", "--apply"]);
+        let runs = resolver_runs(&harness, hub.resolver.as_deref().expect("resolver"));
+        assert_eq!(runs.len(), 1, "{out}{err}");
+        assert!(!runs[0].iter().any(|arg| arg == "--check"), "{runs:?}");
+    }
+
+    #[test]
+    fn a_resolver_that_breaks_fails_the_check() {
+        let (mut harness, _) = composer_set("generate-lock-broken");
+        harness.app_code = Some(2);
+        let (code, out, err) = harness.run(&["generate"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("lock of web not checked:"), "{err}");
+        assert!(err.contains("exited 2"), "{err}");
     }
 
     #[test]

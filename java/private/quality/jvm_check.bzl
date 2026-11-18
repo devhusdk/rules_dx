@@ -83,14 +83,6 @@ def javac_options(tokens):
     """Drops the toolchain flags that plain javac cannot take."""
     return [t for t in tokens if not any([t.startswith(p) for p in _JAVABUILDER_ONLY_PREFIXES])]
 
-def _indirect_jars(target, direct):
-    """The transitive compile jars that are not in the `direct` path set, with their owner labels."""
-    indirect = []
-    for jar in target[JavaInfo].transitive_compile_time_jars.to_list():
-        if jar.path not in direct and jar.owner and jar.owner != target.label:
-            indirect.append({"jar": jar.path, "label": str(jar.owner).removesuffix("_upstream")})
-    return indirect
-
 def _known_line(jar):
     return json.encode({"known": jar.path})
 
@@ -133,23 +125,41 @@ def _unused_deps_files(target, ctx, attrs):
     return [_unused_deps_map(target, ctx, attrs), jdeps[0]]
 
 def _plugin_param(values):
-    return ";".join([v.replace(";", "\\;") for v in values])
+    return ";".join([_plugin_escape(v) for v in values])
 
-def _analyzer(target, ctx, attrs, implicit):
-    """The rules_scala dependency analyzer jars and options for a scala target, or None."""
+def _plugin_escape(value):
+    return value.replace(";", "\\;")
+
+def _analyzer_jar(jar):
+    return _plugin_escape(jar.path) if jar.owner else None
+
+def _analyzer_label(jar):
+    return _plugin_escape(str(jar.owner).removesuffix("_upstream")) if jar.owner else None
+
+def _add_joined_option(args, name, listed, jars, map_each):
+    """Adds one analyzer list option whose items are `listed` followed by `jars` mapped through `map_each`."""
+    prefix = "scalacopt=-P:dependency-analyzer:%s:" % name
+    head = (_plugin_param(listed) + ";").replace("%", "%%") if listed else ""
+    args.add_joined(jars, join_with = ";", map_each = map_each, format_joined = prefix + head + "%s", omit_if_empty = False)
+
+def _analyzer(target, ctx, attrs, library):
+    """The rules_scala dependency analyzer jars and options for a scala target, or None.
+
+    The scala library jars are direct deps that are never reported unused. The indirect set holds the
+    whole transitive classpath of the deps, direct jars included.
+    """
     plugin = ctx.attr._dependency_analyzer
     if JavaInfo not in plugin:
         return None
-    direct = [d for d in getattr(attrs, "deps", []) if JavaInfo in d and d[JavaInfo].compile_jars]
+    deps = [d for d in getattr(attrs, "deps", []) if JavaInfo in d]
     direct_jars = []
     direct_targets = []
-    for dep in direct:
+    for dep in deps:
         for jar in dep[JavaInfo].compile_jars.to_list():
             direct_jars.append(jar.path)
             direct_targets.append(str(dep.label))
-    known = {path: True for path in direct_jars + implicit}
-    indirect = _indirect_jars(target, known)
-    if not direct and not indirect:
+    indirect = depset(transitive = [d[JavaInfo].transitive_compile_time_jars for d in deps])
+    if not direct_jars and not indirect:
         return None
     info = plugin[JavaInfo]
     jars = depset(info.runtime_output_jars, transitive = [info.transitive_runtime_jars], order = "preorder")
@@ -161,17 +171,23 @@ def _analyzer(target, ctx, attrs, implicit):
         prefix + "dependency-tracking-method:ast",
         prefix + "current-target:" + str(target.label),
     ]
-    for name, values in (
-        ("direct-jars", direct_jars),
-        ("direct-targets", direct_targets),
-        ("indirect-jars", [i["jar"] for i in indirect]),
-        ("indirect-targets", [i["label"] for i in indirect]),
-    ):
-        if values:
-            options.append(prefix + name + ":" + _plugin_param(values))
-    if ignored:
-        options.append(prefix + "unused-deps-ignored-targets:" + _plugin_param(ignored))
-    return struct(jars = jars, options = options)
+    return struct(
+        jars = jars,
+        options = options,
+        direct_jars = direct_jars,
+        direct_targets = direct_targets,
+        ignored = ignored,
+        library = library,
+        indirect = indirect,
+    )
+
+def _add_analyzer_options(args, analyzer):
+    args.add_all(analyzer.options, format_each = "scalacopt=%s")
+    _add_joined_option(args, "direct-jars", analyzer.direct_jars, analyzer.library, _analyzer_jar)
+    _add_joined_option(args, "direct-targets", analyzer.direct_targets, analyzer.library, _analyzer_label)
+    _add_joined_option(args, "indirect-jars", [], analyzer.indirect, _analyzer_jar)
+    _add_joined_option(args, "indirect-targets", [], analyzer.indirect, _analyzer_label)
+    _add_joined_option(args, "unused-deps-ignored-targets", analyzer.ignored, analyzer.library, _analyzer_label)
 
 def _depset(value):
     return value if type(value) == "depset" else depset(value)
@@ -331,12 +347,8 @@ def _scalac_check(target, ctx, attrs):
     plugin_targets = list(toolchain.plugins) + list(getattr(attrs, "plugins", []))
     plugin_jars = depset(transitive = _scala_plugin_jars(plugin_targets))
 
-    implicit = [j.path for j in jars.library.to_list()]
-    analyzer = None if jars.scala3 else _analyzer(target, ctx, attrs, implicit)
-    analyzer_jars = depset()
-    if analyzer:
-        options = options + analyzer.options
-        analyzer_jars = analyzer.jars
+    analyzer = None if jars.scala3 else _analyzer(target, ctx, attrs, jars.library)
+    analyzer_jars = analyzer.jars if analyzer else depset()
 
     log = ctx.actions.declare_file("dx_scalac/%s.json" % target.label.name)
     args = ctx.actions.args()
@@ -350,6 +362,8 @@ def _scalac_check(target, ctx, attrs):
     args.add_all(plugin_jars, format_each = "plugin=%s")
     args.add_all(analyzer_jars, format_each = "analyzer=%s")
     args.add_all(options, format_each = "scalacopt=%s")
+    if analyzer:
+        _add_analyzer_options(args, analyzer)
     ctx.actions.run(
         mnemonic = "ScalacCheck",
         progress_message = "scalac check %{label}",

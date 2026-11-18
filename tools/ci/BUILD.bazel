@@ -1612,6 +1612,7 @@ rust_test(
     crate_root = "zero_compat_test.rs",
     data = [
         "zero_compat_allowlist.txt",
+        "//api:deprecations.txt",
         "@dx_test_tags_sources//:all_paths.json",
         "@dx_test_tags_sources//:all_rust.json",
         "@dx_test_tags_sources//:files.json",
@@ -1620,6 +1621,7 @@ rust_test(
     ],
     env = {
         "DX_ALLOWLIST": "$(rlocationpath zero_compat_allowlist.txt)",
+        "DX_DEPRECATIONS": "$(rlocationpath //api:deprecations.txt)",
         "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
         "DX_PATHS_JSON": "$(rlocationpath @dx_test_tags_sources//:all_paths.json)",
         "DX_PROSE_JSON": "$(rlocationpath @dx_test_tags_sources//:prose.json)",

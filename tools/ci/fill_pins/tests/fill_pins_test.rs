@@ -79,11 +79,21 @@ fn gazelle_manifest() -> String {
         .concat()
 }
 
+fn haskell_manifest() -> String {
+    ["hpc_lcov", "weeder"]
+        .iter()
+        .flat_map(|tool| assets(tool))
+        .map(|asset| format!("{}  {asset}\n", hash(4)))
+        .collect::<Vec<String>>()
+        .concat()
+}
+
 fn manifests(dx: &str, gazelle: &str) -> Vec<(String, String)> {
     vec![
         (fill_pins::MANIFEST.to_owned(), dx.to_owned()),
         (fill_pins::GAZELLE_MANIFEST.to_owned(), gazelle.to_owned()),
         (fill_pins::JAR_MANIFEST.to_owned(), jar_manifest()),
+        (fill_pins::HASKELL_MANIFEST.to_owned(), haskell_manifest()),
     ]
 }
 
@@ -96,6 +106,11 @@ fn release_dir(text: &str, bundle: bool) -> TempDir {
     )
     .unwrap();
     std::fs::write(dir.path().join(fill_pins::JAR_MANIFEST), jar_manifest()).unwrap();
+    std::fs::write(
+        dir.path().join(fill_pins::HASKELL_MANIFEST),
+        haskell_manifest(),
+    )
+    .unwrap();
     if bundle {
         std::fs::write(dir.path().join(fill_pins::BUNDLE), "{}").unwrap();
     }
@@ -185,6 +200,15 @@ fn writes_one_pin_per_tool_and_platform_and_keeps_the_head() {
         by_tool.insert(tool.to_owned(), keys);
     }
     assert!(by_tool.contains_key("javac_check"));
+    for entry in registry()
+        .into_iter()
+        .filter(|e| e.tool == "hpc_lcov" || e.tool == "weeder")
+    {
+        by_tool
+            .entry(entry.tool)
+            .or_insert_with(Vec::new)
+            .push((entry.key, hash(4)));
+    }
     let mut pins = String::from("PINS = {\n");
     for (tool, by_key) in by_tool {
         pins.push_str(&format!("    \"{tool}\": {{\n"));

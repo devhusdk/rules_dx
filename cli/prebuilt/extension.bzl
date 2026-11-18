@@ -1,4 +1,4 @@
-"""Creates @dx_prebuilt: the source dx and jars when rules_dx is root, pinned release assets otherwise."""
+"""Creates @dx_prebuilt: the source dx, jars and Haskell tools when rules_dx is root, pinned release assets otherwise."""
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 load("//core:repo.bzl", "hub_repo")

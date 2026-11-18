@@ -21,11 +21,11 @@ def _coverage_impl(ctx):
         asserts.true(env, len(lines) >= 5, descriptor)
         asserts.true(env, lines[0].startswith("program=") and lines[0].removesuffix(".exe").endswith("cli/hpc_coverage/hpc_coverage"), descriptor)
         asserts.true(env, lines[1].startswith("path=") and "greeter_test_upstream" in lines[1] and not lines[1].endswith(".sh"), descriptor)
-        asserts.true(env, lines[2].startswith("path=") and lines[2].removesuffix(".exe").endswith("haskell/private/coverage/hpc_lcov"), descriptor)
+        asserts.true(env, lines[2].startswith("path=") and lines[2].removesuffix(".exe").endswith("haskell/private/coverage/hpc_lcov_source"), descriptor)
         asserts.true(env, all([line.startswith("path=") and line.endswith(".mix") for line in lines[3:-1]]), descriptor)
         asserts.equals(env, "arg=--", lines[-1], descriptor)
         runfiles = [f.short_path.removesuffix(".exe") for f in target[DefaultInfo].default_runfiles.files.to_list()]
-        asserts.true(env, "haskell/private/coverage/hpc_lcov" in runfiles, str(runfiles))
+        asserts.true(env, "haskell/private/coverage/hpc_lcov_source" in runfiles, str(runfiles))
         asserts.true(env, "cli/hpc_coverage/hpc_coverage" in runfiles, str(runfiles))
         asserts.true(env, target.label.package + "/" + target.label.name + ".launch" in runfiles, str(runfiles))
     else:

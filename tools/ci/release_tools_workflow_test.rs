@@ -122,6 +122,34 @@ fn jars_job_builds_every_jar_asset() {
 }
 
 #[test]
+fn haskell_job_builds_every_haskell_asset() {
+    let workflow = document(TOOLS).unwrap();
+    assert_eq!(workflow["jobs"]["haskell"]["permissions"]["contents"], "read");
+    let tools = read_runfiles(TOOLS);
+    let release = read_runfiles(RELEASE);
+    assert!(tools.contains("name: release-tool-haskell-${{ matrix.host }}"));
+    let include = workflow["jobs"]["haskell"]["strategy"]["matrix"]["include"]
+        .as_array()
+        .expect("matrix include");
+    let found: Vec<(&str, &str)> = include
+        .iter()
+        .map(|entry| {
+            (
+                entry["host"].as_str().expect("host"),
+                entry["runner"].as_str().expect("runner"),
+            )
+        })
+        .collect();
+    assert_eq!(found, HOSTS[1..]);
+    assert!(tools.contains("//haskell/private/coverage:hpc_lcov_source dx-hpc-lcov-$HOST"));
+    assert!(tools.contains("//haskell/private/tools/weeder/bin:source dx-weeder-$HOST"));
+    assert!(release.contains("for tool in dx-hpc-lcov dx-weeder; do"));
+    assert!(release.contains("test \"$(wc -l < out/dx-haskell-sha256sums.txt)\" -eq 6"));
+    assert!(release.contains("sha256sum -c dx-haskell-sha256sums.txt"));
+    assert!(release.contains("--manifest \"$PWD/out/dx-haskell-sha256sums.txt\""));
+}
+
+#[test]
 fn release_calls_the_tools_workflow_before_the_source_job() {
     let workflow = document(RELEASE).unwrap();
     assert_eq!(
@@ -140,7 +168,7 @@ fn release_writes_and_checks_the_tool_manifest() {
     assert!(text.contains("pattern: release-tool-*"));
     assert!(text.contains("test \"$(wc -l < out/dx-tool-sha256sums.txt)\" -eq 22"));
     assert!(text.contains("sha256sum -c dx-tool-sha256sums.txt"));
-    assert!(text.contains("out/dx-tool-sha256sums.txt; (cd out && sha256sum dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-jar-sha256sums.txt dx-tool-sha256sums.txt)"));
+    assert!(text.contains("out/dx-tool-sha256sums.txt; (cd out && sha256sum dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-jar-sha256sums.txt dx-haskell-sha256sums.txt dx-tool-sha256sums.txt)"));
     for asset in ASSETS {
         assert!(text.contains(asset), "{RELEASE} must name {asset}");
     }

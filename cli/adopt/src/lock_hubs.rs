@@ -27,7 +27,7 @@ const BUILD_SCRIPT_CC_ENV: [&str; 9] = [
     "TARGET_CXX",
 ];
 
-const BUILD_SCRIPT_CC_ENV_TOOLCHAIN: &str = "@rules_dx//rust/private:build_script_cc_env";
+const BUILD_SCRIPT_CC_ENV_TOOLCHAIN: &str = "@rules_dx//rust:build_script_cc_env";
 
 /// The planned `MODULE.bazel` edit, if any, and what the planner could not do.
 #[derive(Debug, Default, Eq, PartialEq)]
@@ -880,7 +880,7 @@ mod tests {
             "{text}"
         );
         assert!(
-            text.contains("        \"TARGET_CXX\": \"$(DX_BS_TARGET_CXX)\",\n    },\n    build_script_toolchains = [\"@rules_dx//rust/private:build_script_cc_env\"],\n    crate = \"*\",\n)\nuse_repo(cargo, \"crates\")\n"),
+            text.contains("        \"TARGET_CXX\": \"$(DX_BS_TARGET_CXX)\",\n    },\n    build_script_toolchains = [\"@rules_dx//rust:build_script_cc_env\"],\n    crate = \"*\",\n)\nuse_repo(cargo, \"crates\")\n"),
             "{text}"
         );
         assert_eq!(hubs.notes.len(), 2, "{:?}", hubs.notes);

@@ -2523,7 +2523,7 @@ crate.annotation(
         "TARGET_CC": "$(DX_BS_TARGET_CC)",
         "TARGET_CXX": "$(DX_BS_TARGET_CXX)",
     },
-    build_script_toolchains = ["//rust/private:build_script_cc_env"],
+    build_script_toolchains = ["//rust:build_script_cc_env"],
     crate = "*",
 )
 crate.annotation(

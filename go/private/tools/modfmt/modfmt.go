@@ -1,20 +1,18 @@
-// Command modfmt formats Go module files.
-package main
+// Package modfmt formats Go module files.
+package modfmt
 
 import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 
 	"golang.org/x/mod/modfile"
 )
 
-func main() {
-	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
-}
-
-func run(args []string, stdout, stderr interface{ Write([]byte) (int, error) }) int {
+// Main formats the go.mod files named in args and returns the exit code.
+func Main(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("modfmt", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	check := fs.Bool("c", false, "exit 1 when a file is not formatted")

@@ -1,13 +1,13 @@
-load("//go:defs.bzl", "go_binary", "go_library", "go_test")
+load("//go:defs.bzl", "go_library", "go_test")
 
 go_library(
-    name = "dx_staticcheck_lib",
+    name = "staticcheck",
     srcs = [
         "checks.go",
-        "main.go",
+        "staticcheck.go",
     ],
-    importpath = "rules_dx/go/private/tools/analysis/cmd/dx_staticcheck",
-    visibility = ["//visibility:private"],
+    importpath = "rules_dx/go/private/tools/analysis/staticcheck",
+    visibility = ["//go/private/tools/analysis/dx_go:__pkg__"],
     deps = [
         "//go/private/tools/analysis/unit",
         "@co_honnef_go_tools//analysis/lint",
@@ -21,17 +21,12 @@ go_library(
     ],
 )
 
-go_binary(
-    name = "dx_staticcheck",
-    embed = [":dx_staticcheck_lib"],
-    visibility = ["//:__subpackages__"],
-)
-
 go_test(
-    name = "dx_staticcheck_test",
+    name = "staticcheck_test",
+    size = "small",
     srcs = ["checks_test.go"],
     data = ["//core/quality/tiers/staticcheck:standard.conf"],
-    embed = [":dx_staticcheck_lib"],
+    embed = [":staticcheck"],
     env = {"STANDARD_CONF": "$(rootpath //core/quality/tiers/staticcheck:standard.conf)"},
     deps = ["@org_golang_x_tools//go/analysis"],
 )

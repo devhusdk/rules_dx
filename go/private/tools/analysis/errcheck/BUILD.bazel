@@ -1,0 +1,21 @@
+load("//go:defs.bzl", "go_library", "go_test")
+
+go_library(
+    name = "errcheck",
+    srcs = ["errcheck.go"],
+    importpath = "rules_dx/go/private/tools/analysis/errcheck",
+    visibility = ["//go/private/tools/analysis/dx_go:__pkg__"],
+    deps = [
+        "//go/private/tools/analysis/unit",
+        "@com_github_kisielk_errcheck//errcheck",
+        "@org_golang_x_tools//go/analysis",
+    ],
+)
+
+go_test(
+    name = "errcheck_test",
+    size = "small",
+    srcs = ["errcheck_test.go"],
+    embed = [":errcheck"],
+    deps = ["@com_github_kisielk_errcheck//errcheck"],
+)

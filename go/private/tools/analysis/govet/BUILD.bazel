@@ -1,10 +1,10 @@
-load("//go:defs.bzl", "go_binary", "go_library", "go_test")
+load("//go:defs.bzl", "go_library", "go_test")
 
 go_library(
-    name = "dx_govet_lib",
-    srcs = ["main.go"],
-    importpath = "rules_dx/go/private/tools/analysis/cmd/dx_govet",
-    visibility = ["//visibility:private"],
+    name = "govet",
+    srcs = ["govet.go"],
+    importpath = "rules_dx/go/private/tools/analysis/govet",
+    visibility = ["//go/private/tools/analysis/dx_go:__pkg__"],
     deps = [
         "//go/private/tools/analysis/unit",
         "@org_golang_x_tools//go/analysis",
@@ -49,16 +49,11 @@ go_library(
     ],
 )
 
-go_binary(
-    name = "dx_govet",
-    embed = [":dx_govet_lib"],
-    visibility = ["//:__subpackages__"],
-)
-
 go_test(
-    name = "dx_govet_test",
-    srcs = ["main_test.go"],
-    embed = [":dx_govet_lib"],
+    name = "govet_test",
+    size = "small",
+    srcs = ["govet_test.go"],
+    embed = [":govet"],
     deps = [
         "//go/private/tools/analysis/unit",
         "@org_golang_x_tools//go/analysis",

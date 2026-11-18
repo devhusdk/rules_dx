@@ -183,7 +183,7 @@ mod tests {
         );
         let outcome = apply_plan(&workspace, &plan).expect("apply empty");
         assert_eq!(outcome, PruneOutcome::default());
-        drop(fs::remove_dir_all(&root));
+        dx_atomic_fs::discard_dir(&root);
     }
 
     #[test]
@@ -218,7 +218,7 @@ mod tests {
             apply_plan(&workspace, &plan),
             Err(PruneError::CurrentInvalid { .. })
         ));
-        drop(fs::remove_dir_all(&root));
+        dx_atomic_fs::discard_dir(&root);
     }
 
     #[test]
@@ -266,7 +266,7 @@ mod tests {
         );
         let again = apply_plan(&workspace, &plan).expect("re-apply");
         assert_eq!(again, PruneOutcome::default());
-        drop(fs::remove_dir_all(&root));
+        dx_atomic_fs::discard_dir(&root);
     }
 
     #[test]
@@ -293,7 +293,7 @@ mod tests {
             crate::read_current_pair(&workspace).expect("read"),
             Some(first)
         );
-        drop(fs::remove_dir_all(&root));
+        dx_atomic_fs::discard_dir(&root);
     }
 
     #[test]
@@ -333,7 +333,7 @@ mod tests {
                 .join(digest('1'))
                 .is_dir()
         );
-        drop(fs::remove_dir_all(&root));
+        dx_atomic_fs::discard_dir(&root);
     }
 
     fn wait_for(path: &Path, what: &str) {
@@ -419,7 +419,7 @@ mod tests {
         assert_eq!(outcome.removed_generations.len(), 1);
         assert_eq!(outcome.removed_generations[0].hex, stale_gen);
         assert!(!stale_dir.exists(), "the released generation prunes");
-        drop(fs::remove_dir_all(&root));
+        dx_atomic_fs::discard_dir(&root);
     }
 
     #[test]
@@ -455,7 +455,7 @@ mod tests {
             "{text}"
         );
         drop(_held);
-        drop(fs::remove_dir_all(&root));
+        dx_atomic_fs::discard_dir(&root);
     }
 
     #[test]
@@ -484,7 +484,7 @@ mod tests {
             apply_plan(&missing, &plan),
             Err(PruneError::WorkspaceRoot { .. })
         ));
-        drop(fs::remove_dir_all(&root));
+        dx_atomic_fs::discard_dir(&root);
     }
 
     #[test]

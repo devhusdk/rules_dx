@@ -410,6 +410,7 @@ rust_test(
         "//deploy/private/pins:apidiff",
         "//deploy/private/pins:cargo_semver_checks",
         "//deploy/private/pins:japicmp",
+        "//deploy/private/release:cosign",
         "@rules_java//toolchains:current_java_runtime",
         "@rules_rust//cargo:current_cargo_toolchain",
         "@rules_rust//rust/toolchain:current_rust_stdlib_files",
@@ -419,6 +420,7 @@ rust_test(
     env = {
         "APIDIFF_BIN": "$(rlocationpath //deploy/private/pins:apidiff)",
         "CARGO_SEMVER_CHECKS": "$(rlocationpaths //deploy/private/pins:cargo_semver_checks)",
+        "DX_COSIGN_BIN": "$(rootpath //deploy/private/release:cosign)",
         "DX_TEST_CARGO": "$(rlocationpath @rules_rust//cargo:current_cargo_toolchain)",
         "DX_TEST_GO": "$(rlocationpath :go_binary)",
         "DX_TEST_RUSTC": "$(rlocationpath @rules_rust//rust/toolchain:current_rustc_files)",

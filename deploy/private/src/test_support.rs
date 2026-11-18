@@ -242,6 +242,11 @@ struct FakeState {
     blobs: Vec<String>,
     uploads: usize,
     requests: Vec<FakeRequest>,
+    /// Pushed blobs and manifests by digest, with the manifest media type.
+    content: std::collections::HashMap<String, (Vec<u8>, Option<String>)>,
+    tags: std::collections::HashMap<String, String>,
+    /// Bytes `PATCH`ed into each open upload.
+    pending: std::collections::HashMap<String, Vec<u8>>,
 }
 
 /// A loopback OCI registry with a second listener that acts as another host.
@@ -264,13 +269,19 @@ impl FakeRegistry {
             other_origin: other_origin.clone(),
             uploads: 0,
             requests: Vec::new(),
+            content: std::collections::HashMap::new(),
+            tags: std::collections::HashMap::new(),
+            pending: std::collections::HashMap::new(),
         }));
         for listener in [main, other] {
             let state = state.clone();
             std::thread::spawn(move || {
+                // One thread per connection: cosign probes https and http at once, and the
+                // stalled TLS handshake must not hold up the plain request.
                 for stream in listener.incoming() {
                     let Ok(stream) = stream else { return };
-                    fake_serve(stream, &state);
+                    let state = state.clone();
+                    std::thread::spawn(move || fake_serve(stream, &state));
                 }
             });
         }
@@ -391,10 +402,14 @@ fn fake_serve(mut stream: std::net::TcpStream, state: &std::sync::Mutex<FakeStat
     });
     let (status, extra, reply) = fake_route(
         &mut state,
-        &method,
-        &path,
-        get("authorization"),
-        &body_digest,
+        &FakeCall {
+            method: &method,
+            path: &path,
+            authorization: get("authorization"),
+            content_type: get("content-type"),
+            body: &body,
+            body_digest: &body_digest,
+        },
     );
     drop(state);
     let mut text = format!(
@@ -405,17 +420,42 @@ fn fake_serve(mut stream: std::net::TcpStream, state: &std::sync::Mutex<FakeStat
         write!(text, "{key}: {value}\r\n").ok();
     }
     text.push_str("\r\n");
-    text.push_str(&reply);
-    drop(stream.write_all(text.as_bytes()));
+    let mut bytes = text.into_bytes();
+    if method != "HEAD" {
+        bytes.extend_from_slice(&reply);
+    }
+    drop(stream.write_all(&bytes));
 }
 
-fn fake_route(
-    state: &mut FakeState,
-    method: &str,
-    path: &str,
+/// One request as the fake registry routes it.
+struct FakeCall<'a> {
+    method: &'a str,
+    path: &'a str,
     authorization: Option<String>,
-    body_digest: &str,
-) -> (u16, Vec<(String, String)>, String) {
+    content_type: Option<String>,
+    body: &'a [u8],
+    body_digest: &'a str,
+}
+
+/// Replies with stored content and its digest, or 404 when nothing is stored under `digest`.
+fn fake_stored(state: &FakeState, digest: &str) -> (u16, Vec<(String, String)>, Vec<u8>) {
+    let Some((bytes, media_type)) = state.content.get(digest) else {
+        return (404, Vec::new(), Vec::new());
+    };
+    let mut headers = vec![("Docker-Content-Digest".to_owned(), digest.to_owned())];
+    if let Some(media_type) = media_type {
+        headers.push(("Content-Type".to_owned(), media_type.clone()));
+    }
+    (200, headers, bytes.clone())
+}
+
+fn fake_route(state: &mut FakeState, call: &FakeCall<'_>) -> (u16, Vec<(String, String)>, Vec<u8>) {
+    let FakeCall {
+        method,
+        path,
+        ref authorization,
+        ..
+    } = *call;
     let none = Vec::new;
     if let Some((_, _, status)) = state
         .config
@@ -423,14 +463,18 @@ fn fake_route(
         .iter()
         .find(|(m, p, _)| m == method && path.contains(p.as_str()))
     {
-        return (*status, none(), String::new());
+        return (*status, none(), Vec::new());
     }
     let basic = crate::http::basic_auth(&state.config.user, &state.config.secret);
     if path.starts_with("/token") {
         if authorization.as_deref() != Some(basic.as_str()) {
-            return (401, none(), String::new());
+            return (401, none(), Vec::new());
         }
-        return (200, none(), format!("{{\"token\":\"{FAKE_TOKEN}\"}}"));
+        return (
+            200,
+            none(),
+            format!("{{\"token\":\"{FAKE_TOKEN}\"}}").into_bytes(),
+        );
     }
     let authorized = match state.config.challenge {
         FakeChallenge::None => true,
@@ -449,18 +493,34 @@ fn fake_route(
         return (
             401,
             vec![("WWW-Authenticate".to_owned(), challenge)],
-            String::new(),
+            Vec::new(),
         );
     }
     if path == "/v2/" {
-        return (200, none(), String::new());
+        return (200, none(), Vec::new());
     }
     let Some(rest) = path
         .strip_prefix("/v2/demo/app/")
         .or(upload_on_other.then_some(path))
     else {
-        return (404, none(), String::new());
+        return (404, none(), Vec::new());
     };
+    if let Some(reference) = rest.strip_prefix("manifests/")
+        && (method == "GET" || method == "HEAD")
+    {
+        let digest = state
+            .tags
+            .get(reference)
+            .cloned()
+            .unwrap_or_else(|| reference.to_owned());
+        return fake_stored(state, &digest);
+    }
+    if let Some(digest) = rest.strip_prefix("blobs/")
+        && state.content.contains_key(digest)
+        && (method == "GET" || method == "HEAD")
+    {
+        return fake_stored(state, digest);
+    }
     if method == "HEAD" {
         let digest = rest.trim_start_matches("blobs/");
         let status = if state.blobs.iter().any(|b| b == digest) {
@@ -468,9 +528,16 @@ fn fake_route(
         } else {
             404
         };
-        return (status, none(), String::new());
+        return (status, none(), Vec::new());
     }
-    if method == "POST" && rest == "blobs/uploads/" {
+    let upload_id = rest
+        .trim_start_matches("blobs/uploads/")
+        .trim_start_matches("/upload/")
+        .split('?')
+        .next()
+        .unwrap_or_default()
+        .to_owned();
+    if method == "POST" && rest.split('?').next() == Some("blobs/uploads/") {
         state.uploads += 1;
         let id = format!("u{}", state.uploads);
         let location = match state.config.location {
@@ -479,20 +546,50 @@ fn fake_route(
             FakeLocation::Absolute => format!("{}/v2/demo/app/blobs/uploads/{id}", state.origin),
             FakeLocation::OtherHost => format!("{}/upload/{id}?sig=signed", state.other_origin),
         };
-        return (202, vec![("Location".to_owned(), location)], String::new());
+        return (202, vec![("Location".to_owned(), location)], Vec::new());
+    }
+    if method == "PATCH" && rest.starts_with("blobs/uploads/") {
+        let pending = state.pending.entry(upload_id).or_default();
+        pending.extend_from_slice(call.body);
+        let range = format!("0-{}", pending.len().saturating_sub(1));
+        let location = path.split('?').next().unwrap_or(path).to_owned();
+        return (
+            202,
+            vec![
+                ("Location".to_owned(), location),
+                ("Range".to_owned(), range),
+            ],
+            Vec::new(),
+        );
     }
     if method == "PUT" && (rest.starts_with("blobs/uploads/") || upload_on_other) {
         let want = path
             .split_once("digest=")
             .map(|(_, d)| d.replace("%3A", ":"))
+            .map(|d| d.split('&').next().unwrap_or_default().to_owned())
             .unwrap_or_default();
-        if want != body_digest {
-            return (400, none(), String::new());
+        let mut blob = state.pending.remove(&upload_id).unwrap_or_default();
+        blob.extend_from_slice(call.body);
+        if want != format!("sha256:{}", dx_digest::sha256_hex(&blob)) {
+            return (400, none(), Vec::new());
         }
+        state.content.insert(want.clone(), (blob, None));
         state.blobs.push(want);
-        return (201, none(), String::new());
+        return (201, none(), Vec::new());
     }
-    if method == "PUT" && rest.starts_with("manifests/") {
+    if let Some(reference) = rest.strip_prefix("manifests/")
+        && method == "PUT"
+    {
+        let body_digest = call.body_digest;
+        state.content.insert(
+            body_digest.to_owned(),
+            (call.body.to_vec(), call.content_type.clone()),
+        );
+        if !reference.starts_with("sha256:") {
+            state
+                .tags
+                .insert(reference.to_owned(), body_digest.to_owned());
+        }
         let header = match state.config.digest_header {
             FakeDigestHeader::Correct => {
                 vec![("Docker-Content-Digest".to_owned(), body_digest.to_owned())]
@@ -503,9 +600,9 @@ fn fake_route(
             )],
             FakeDigestHeader::Missing => none(),
         };
-        return (201, header, String::new());
+        return (201, header, Vec::new());
     }
-    (404, none(), String::new())
+    (404, none(), Vec::new())
 }
 
 #[cfg(test)]

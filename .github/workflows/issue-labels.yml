@@ -50,7 +50,7 @@ jobs:
         run: |
           set -euo pipefail
           {
-            echo bug enhancement needs-host tracking needs-review dogfood P0 P1 P2 P3 | tr ' ' '\n'
+            echo api bug enhancement needs-host tracking needs-review dogfood P0 P1 P2 P3 | tr ' ' '\n'
             for f in .github/ISSUE_TEMPLATE/*.md; do
               awk '/^---$/ { n++; next } n == 1 && /^labels:/ { sub(/^labels:/, ""); print; f = 1; next } n == 1 && f && /^[[:space:]]*-/ { sub(/^[[:space:]]*-/, ""); print; next } n == 1 { f = 0 }' "$f" |
                 tr ',' '\n' | tr -d "[]\"' " | sed '/^$/d'

@@ -4,12 +4,14 @@ load(":validate.bzl", "NAME_CHARS", "only_chars")
 
 _VALID_TAG_CHARS = NAME_CHARS
 
-def github_notes_error(notes, notes_file = None):
-    """Validates the notes value: commits or none, with an optional notes_file."""
+def github_notes_error(notes, notes_file = None, notes_diff = []):
+    """Validates the notes value: commits or none, with an optional notes_file or notes_diff."""
     if notes not in ["commits", "none"]:
         return "github_deploy: invalid notes '" + str(notes) + "': want 'commits' or 'none'; use notes_file for a file"
     if notes_file and notes != "none":
         return "github_deploy: notes_file needs notes = 'none'"
+    if notes_diff and notes != "commits":
+        return "github_deploy: notes_diff needs notes = 'commits'"
     return ""
 
 def github_tag_error(tag):

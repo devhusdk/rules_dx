@@ -30,6 +30,9 @@ pub struct GithubConfig {
     pub notes: String,
     #[serde(default)]
     pub notes_rloc: String,
+    /// Workspace paths whose diff since the previous tag ends the commit notes.
+    #[serde(default)]
+    pub notes_diff: Vec<String>,
     /// `off`, `warn` or `fail`.
     pub api_compat: String,
     /// `registry` or `git`.
@@ -438,7 +441,11 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
             &github.deploy_name,
             &github.tag,
             &crate::github::ReleaseBody {
-                notes: &crate::github::Notes::from_config(&github.notes, &github.notes_rloc),
+                notes: &crate::github::Notes::from_config(
+                    &github.notes,
+                    &github.notes_rloc,
+                    &github.notes_diff,
+                ),
                 attestations: &github.attestations,
             },
             &crate::github::GoApi {
@@ -789,6 +796,7 @@ mod tests {
                 asset_rlocs: vec!["_main/a".to_owned(), "x;y".to_owned()],
                 notes: String::new(),
                 notes_rloc: String::new(),
+                notes_diff: Vec::new(),
                 api_compat: "off".to_owned(),
                 api_baseline: "registry".to_owned(),
                 apidiff_rloc: String::new(),
@@ -1130,6 +1138,7 @@ mod tests {
                 asset_rlocs: vec!["a".to_owned()],
                 notes: String::new(),
                 notes_rloc: String::new(),
+                notes_diff: Vec::new(),
                 api_compat: "off".to_owned(),
                 api_baseline: "registry".to_owned(),
                 apidiff_rloc: String::new(),

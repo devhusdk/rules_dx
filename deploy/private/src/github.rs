@@ -16,17 +16,18 @@ use std::path::Path;
 pub enum Notes {
     /// No body.
     None,
-    /// The grouped conventional-commit list since the previous tag.
-    Commits,
+    /// The grouped conventional-commit list since the previous tag, then the diff of these
+    /// workspace paths since that tag.
+    Commits(Vec<String>),
     /// A markdown file from the runfiles.
     File(String),
 }
 
 impl Notes {
-    /// Reads the `notes` and `notes_rloc` config fields.
-    pub fn from_config(mode: &str, rloc: &str) -> Notes {
+    /// Reads the `notes`, `notes_rloc` and `notes_diff` config fields.
+    pub fn from_config(mode: &str, rloc: &str, diff: &[String]) -> Notes {
         match mode {
-            "commits" => Notes::Commits,
+            "commits" => Notes::Commits(diff.to_vec()),
             "file" => Notes::File(rloc.to_owned()),
             _ => Notes::None,
         }
@@ -161,9 +162,11 @@ pub(crate) fn resolve_tag(
         .ok_or_else(|| "tag = \"current\" but no tag points at HEAD".to_owned())
 }
 
-/// Renders the grouped commit list between the tag before `tag` and `tag`.
+/// Renders the grouped commit list between the tag before `tag` and `tag`, then the diff of
+/// `diff_paths` over the same range.
 pub(crate) fn commit_notes(
     tag: &str,
+    diff_paths: &[String],
     workspace: Option<&std::ffi::OsString>,
 ) -> Result<String, String> {
     let previous = git_output(
@@ -180,16 +183,55 @@ pub(crate) fn commit_notes(
     .ok()
     .map(|out| out.trim().to_owned())
     .filter(|out| !out.is_empty());
-    let range = match previous {
+    let range = match &previous {
         Some(previous) => format!("{previous}..{tag}"),
         None => tag.to_owned(),
     };
     let log = git_output(workspace, &["log", "--format=%H%x00%s%x00%b%x1e", &range])?;
     let commits = dx_update::conventional::parse(&log);
-    Ok(dx_update::conventional::notes(
-        &commits,
-        dx_update::conventional::DEFAULT_GROUPS,
-    ))
+    let mut notes =
+        dx_update::conventional::notes(&commits, dx_update::conventional::DEFAULT_GROUPS);
+    if !diff_paths.is_empty() {
+        // The first release has no previous tag, so it diffs against the empty tree: the
+        // section then holds the full content. Hashing empty stdin gives the empty tree for
+        // either object format.
+        let base = match previous.as_deref() {
+            Some(previous) => previous.to_owned(),
+            None => git_output(workspace, &["hash-object", "-t", "tree", "--stdin"])?
+                .trim()
+                .to_owned(),
+        };
+        let mut args = vec!["diff", base.as_str(), tag, "--"];
+        args.extend(diff_paths.iter().map(String::as_str));
+        let diff = git_output(workspace, &args)?;
+        notes.push_str(&diff_section(diff_paths, previous.as_deref(), &diff));
+    }
+    Ok(notes)
+}
+
+/// Renders the release-notes section for the diff of `paths` since `previous`.
+fn diff_section(paths: &[String], previous: Option<&str>, diff: &str) -> String {
+    let names = paths
+        .iter()
+        .map(|path| format!("`{path}`"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let mut section = format!("\n## Changes in {names}\n\n");
+    if diff.trim().is_empty() {
+        let since = previous.unwrap_or("the start");
+        section.push_str(&format!("No changes since {since}.\n"));
+        return section;
+    }
+    match previous {
+        Some(previous) => section.push_str(&format!("Diff since {previous}:\n\n")),
+        None => section.push_str("First release: the full content.\n\n"),
+    }
+    // A fence longer than any backtick run in the diff keeps the block closed.
+    let longest = diff.split(|c| c != '`').map(str::len).max().unwrap_or(0);
+    let fence = "`".repeat(longest.max(2) + 1);
+    section.push_str(&format!("{fence}diff\n{}", diff.trim_end()));
+    section.push_str(&format!("\n{fence}\n"));
+    section
 }
 
 /// Returns the asset names, rejecting two assets that share one.
@@ -474,9 +516,9 @@ pub fn github_main_checked(
     };
     let notes_text: Result<Option<String>, String> = match notes {
         Notes::None => Ok(None),
-        Notes::Commits => resolved
+        Notes::Commits(diff) => resolved
             .clone()
-            .and_then(|tag| commit_notes(&tag, workspace.as_ref()))
+            .and_then(|tag| commit_notes(&tag, diff, workspace.as_ref()))
             .map(Some),
         Notes::File(rloc) => match run.resolve(rloc) {
             Some(path) => std::fs::read_to_string(&path)
@@ -1051,6 +1093,7 @@ case "$1" in
   tag) echo v1.1.0 ;;
   describe) case "$*" in *--match*) echo v1.0.0 ;; *) echo mirror-php-8.5.12 ;; esac ;;
   log) case "$*" in *v1.0.0..*) ;; *) exit 0 ;; esac; printf 'aaaaaaa1\0feat(cli): add init\0\036bbbbbbb2\0fix: stop crash\0\036ccccccc3\0fix: second\0\036' ;;
+  diff) case "$*" in "diff v1.0.0 v1.1.0 -- api/") printf -- '--- a/api/cli.json\n+++ b/api/cli.json\n-old\n+new\n' ;; *) exit 1 ;; esac ;;
 esac
 "#;
         dx_testing::executable_script(&git, script);
@@ -1067,7 +1110,7 @@ esac
         fake_git(&bin);
         let (tag, notes) = with_env(&[("PATH", Some(bin.to_string_lossy().as_ref()))], || {
             let tag = resolve_tag("current", None).expect("tag");
-            (tag.clone(), commit_notes(&tag, None).expect("notes"))
+            (tag.clone(), commit_notes(&tag, &[], None).expect("notes"))
         });
         assert_eq!(tag, "v1.1.0");
         assert!(
@@ -1079,6 +1122,55 @@ esac
             "{notes}"
         );
         assert_eq!(resolve_tag("v2", None), Ok("v2".to_owned()));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn commit_notes_end_with_the_diff_since_the_previous_tag() {
+        if env_test_in_child("github::tests::commit_notes_end_with_the_diff_since_the_previous_tag")
+        {
+            return;
+        }
+        let scratch = scratch_dir();
+        let bin = scratch.path().join("bin");
+        fake_git(&bin);
+        let notes = with_env(&[("PATH", Some(bin.to_string_lossy().as_ref()))], || {
+            commit_notes("v1.1.0", &["api/".to_owned()], None).expect("notes")
+        });
+        assert!(notes.contains("## Fixes"), "{notes}");
+        assert!(
+            notes.ends_with(
+                "\n## Changes in `api/`\n\nDiff since v1.0.0:\n\n```diff\n--- a/api/cli.json\n+++ b/api/cli.json\n-old\n+new\n```\n"
+            ),
+            "{notes}"
+        );
+    }
+
+    #[test]
+    fn diff_section_shows_the_full_content_on_the_first_release() {
+        let paths = ["api/".to_owned()];
+        assert_eq!(
+            diff_section(&paths, None, "+++ b/api/cli.json\n+{}\n"),
+            "\n## Changes in `api/`\n\nFirst release: the full content.\n\n```diff\n+++ b/api/cli.json\n+{}\n```\n"
+        );
+    }
+
+    #[test]
+    fn diff_section_says_when_nothing_changed() {
+        let paths = ["api/".to_owned(), "docs/".to_owned()];
+        assert_eq!(
+            diff_section(&paths, Some("v1.0.0"), "\n"),
+            "\n## Changes in `api/`, `docs/`\n\nNo changes since v1.0.0.\n"
+        );
+    }
+
+    #[test]
+    fn diff_section_fence_outgrows_backticks_in_the_diff() {
+        let section = diff_section(&["api/".to_owned()], Some("v1"), "+```\n+````x\n");
+        assert!(
+            section.ends_with("`````diff\n+```\n+````x\n`````\n"),
+            "{section}"
+        );
     }
 
     #[cfg(unix)]
@@ -1099,7 +1191,7 @@ esac
                 ("DX_DEPLOY_LIVE", None),
                 ("GITHUB_PUBLISH_APPROVED", None),
             ],
-            || github_main_with_notes(&[], "demo", "current", &Notes::Commits, &argv),
+            || github_main_with_notes(&[], "demo", "current", &Notes::Commits(Vec::new()), &argv),
         );
         assert_eq!(code, 0);
         let staging = outdir.join("demo-release");

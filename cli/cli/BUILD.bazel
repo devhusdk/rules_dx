@@ -211,6 +211,7 @@ rust_msvc_opt_pdb_tests(
 github_deploy(
     name = "github_draft",
     artifacts = [],
+    notes_diff = ["api/"],
 )
 
 rust_binary(

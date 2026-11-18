@@ -30,7 +30,7 @@ use dx_output::{
 use dx_plan::args::{BREAKING_AGAINST_OPTION, Command, Invocation, QualityRequest};
 use dx_plan::plan::{
     BuildPlan, Consumer, SHARD_OUTPUT_GROUP, SKIP_OUTPUT_GROUP, Selection, bep_path,
-    plan_build_with, plan_probe,
+    plan_build_with, plan_shared_probe,
 };
 use dx_plan::reports::{Destination, PlannedReport, plan_reports};
 use dx_plan::resolve::{ResolvedScope, path_filter, resolve};
@@ -192,7 +192,7 @@ pub(super) fn guard_build_output(
 
 /// Why a shard probe ended the phase instead of falling back to every shard.
 #[derive(Debug, PartialEq, Eq)]
-enum ProbeStop {
+pub(super) enum ProbeStop {
     /// Bazel died by a signal.
     Signalled,
     /// dx recorded a stop signal or Bazel exited as interrupted.
@@ -212,7 +212,8 @@ enum ProbeStop {
     clippy::too_many_arguments,
     reason = "each argument is a distinct input"
 )]
-fn probe_shards(
+pub(super) fn probe_shards(
+    commands: &[Command],
     request: &QualityRequest,
     resolved: &dx_plan::resolve::ResolvedScope,
     workspace: &Path,
@@ -228,8 +229,8 @@ fn probe_shards(
     let Some(bep_text) = bep.to_str() else {
         return Ok(None);
     };
-    let Ok(Some(plan)) = plan_probe(
-        request.command,
+    let Ok(Some(plan)) = plan_shared_probe(
+        commands,
         resolved,
         &request.bazel_options,
         bep_text,
@@ -685,6 +686,7 @@ fn plan_quality_build(
     // The probe runs after the start event, so a run whose stdout already failed starts no Bazel.
     let mut probe_counts = None;
     match probe_shards(
+        &[request.command],
         request,
         resolved,
         workspace,
@@ -714,28 +716,32 @@ fn plan_quality_build(
             }
         }
         Ok(None) => {}
-        Err(ProbeStop::Signalled) => {
-            *kind = PhaseKind::Host;
-            return Err(operational_output(
-                request.common.output,
-                env.out,
-                env.err,
-                CODE_BAZEL_SIGNALLED,
-                "Bazel terminated by signal",
-            ));
-        }
-        Err(ProbeStop::Interrupted) => {
-            *kind = PhaseKind::Cancelled;
-            return Err(operational_output(
-                request.common.output,
-                env.out,
-                env.err,
-                CODE_BAZEL_FAILED,
-                "the shard probe was interrupted",
-            ));
-        }
+        Err(stop) => return Err(probe_stop_exit(&stop, request, env, kind)),
     }
     Ok((build, probe_counts))
+}
+
+/// Reports a probe that ended the phase and returns the phase's exit.
+pub(super) fn probe_stop_exit(
+    stop: &ProbeStop,
+    request: &QualityRequest,
+    env: &mut Env<'_>,
+    kind: &mut PhaseKind,
+) -> i32 {
+    let (next, code, message) = match stop {
+        ProbeStop::Signalled => (
+            PhaseKind::Host,
+            CODE_BAZEL_SIGNALLED,
+            "Bazel terminated by signal",
+        ),
+        ProbeStop::Interrupted => (
+            PhaseKind::Cancelled,
+            CODE_BAZEL_FAILED,
+            "the shard probe was interrupted",
+        ),
+    };
+    *kind = next;
+    operational_output(request.common.output, env.out, env.err, code, message)
 }
 
 fn collect_run(

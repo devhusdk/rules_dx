@@ -56,13 +56,14 @@ fn workspace(files: &BTreeMap<String, String>) -> PathBuf {
     root
 }
 
-/// The license ids the `dx_licenses.accept` tags of the checked-in `MODULE.bazel` list.
+/// The license ids the `dx_licenses.accept` tags of the checked-in `MODULE.bazel` list. The
+/// list ends at its `]`, before any `terms_sha256` pins.
 fn accepted_ids(files: &BTreeMap<String, String>) -> Vec<String> {
     let module = files.get(STORED_MODULE).map_or("", String::as_str);
     module
         .split(".accept(ids = [")
         .skip(1)
-        .filter_map(|tail| tail.split_once("])").map(|(ids, _)| ids))
+        .filter_map(|tail| tail.split_once(']').map(|(ids, _)| ids))
         .flat_map(|ids| ids.split('"').skip(1).step_by(2))
         .map(str::to_owned)
         .collect()

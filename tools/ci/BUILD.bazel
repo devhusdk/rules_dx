@@ -1093,12 +1093,14 @@ rust_test(
     crate_name = "lint_attributes_test",
     crate_root = "lint_attributes_test.rs",
     data = [
+        "lint_expect_allowlist.txt",
         "//core/quality/tiers/clippy:strict.txt",
         "@dx_test_tags_sources//:code.json",
         "@dx_test_tags_sources//:files.json",
         "@dx_test_tags_sources//:sources.json",
     ],
     env = {
+        "ALLOWLIST": "$(rlocationpath lint_expect_allowlist.txt)",
         "DX_CODE_JSON": "$(rlocationpath @dx_test_tags_sources//:code.json)",
         "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
         "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",

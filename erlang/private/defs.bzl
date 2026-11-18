@@ -16,7 +16,7 @@ load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "target_is_windows", "w
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
 load("//core:native_coverage.bzl", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage")
 load("//core:platform.bzl", "platforms_transition")
-load("//core:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_forward_data_attr", "dx_language_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_private_dep_rule", "dx_quality_sources", "dx_setdefaults", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap", "dx_wrap_test")
+load("//core:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_forward_data_attr", "dx_forward_spec", "dx_language_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_private_dep_rule", "dx_quality_sources", "dx_setdefaults", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//erlang/private:beam.bzl", "beam_info")
 load("//erlang/private:providers.bzl", "BeamInfo", "ErlangNifInfo", "OtpToolInfo")
@@ -59,23 +59,27 @@ _ERLANG = dx_language_spec(what = "erlang_*", quality_specs = _SPECS, allow_file
 
 _erlang_app_forward = dx_library_forward_rule(
     _ERLANG,
-    extra_providers = _beam_info,
-    provides = [_ErlangAppInfo, BeamInfo, ErlangNifInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
-    extra_attrs = {"nifs": attr.label_list(
-        doc = "erlang_nif targets this app loads from its priv directory.",
-        providers = [ErlangNifInfo],
-    )},
-    required_providers = [(_ErlangAppInfo, "ErlangAppInfo")],
-    upstream_providers = [[_ErlangAppInfo]],
-    runtime = "besteffort",
+    dx_forward_spec(
+        extra_providers = _beam_info,
+        provides = [_ErlangAppInfo, BeamInfo, ErlangNifInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
+        extra_attrs = {"nifs": attr.label_list(
+            doc = "erlang_nif targets this app loads from its priv directory.",
+            providers = [ErlangNifInfo],
+        )},
+        required_providers = [(_ErlangAppInfo, "ErlangAppInfo")],
+        upstream_providers = [[_ErlangAppInfo]],
+        runtime = "besteffort",
+    ),
 )
 
 _erlang_bytecode_forward = dx_library_forward_rule(
     _ERLANG,
-    provides = [DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
-    required_providers = [],
-    upstream_providers = None,
-    runtime = "besteffort",
+    dx_forward_spec(
+        provides = [DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
+        required_providers = [],
+        upstream_providers = None,
+        runtime = "besteffort",
+    ),
 )
 
 def otp_launch_descriptor(root, tool, archive_key = None, windows = False, version_key = None):
@@ -220,13 +224,15 @@ def _erlang_test_coverage(ctx, upstream):
 
 _erlang_forward_test = dx_executable_forward_rule(
     _ERLANG,
-    kind = "test",
-    toolchains = dx_native_coverage_toolchains(),
-    extra_attrs = dx_lcov_merger_attr() | dx_native_coverage_attrs() | {"apps": attr.label_list(
-        doc = "Erlang app targets whose sources feed test coverage.",
-        providers = [_ErlangAppInfo],
-    )},
-    coverage_providers = _erlang_test_coverage,
+    "test",
+    dx_forward_spec(
+        toolchains = dx_native_coverage_toolchains(),
+        extra_attrs = dx_lcov_merger_attr() | dx_native_coverage_attrs() | {"apps": attr.label_list(
+            doc = "Erlang app targets whose sources feed test coverage.",
+            providers = [_ErlangAppInfo],
+        )},
+        coverage_providers = _erlang_test_coverage,
+    ),
 )
 
 def ct_suite_source(suite_name):

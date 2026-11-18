@@ -6,7 +6,7 @@ load("//dart/private:dart_config.bzl", _dart_config = "dart_config")
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
 load("//core:platform_support.bzl", "compatible_with")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_private_dep_rule", "dx_upstream_tags", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_private_dep_rule", "dx_upstream_tags", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//dart/private:platforms.bzl", DART_SUPPORT = "PLATFORM_SUPPORT")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
@@ -24,35 +24,43 @@ _DART = dx_language_spec(what = "dart_*", quality_specs = DART_SOURCE_SPECS, all
 
 _dart_library_forward = dx_library_forward_rule(
     _DART,
-    provides = [DartInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo],
-    required_providers = [(DartInfo, "DartInfo")],
-    upstream_providers = [[DartInfo]],
-    runtime = "besteffort",
+    dx_forward_spec(
+        provides = [DartInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo],
+        required_providers = [(DartInfo, "DartInfo")],
+        upstream_providers = [[DartInfo]],
+        runtime = "besteffort",
+    ),
 )
 
 _dart_binary_forward = dx_executable_forward_rule(
     _DART,
-    kind = "executable",
-    provides = DX_EXEC_PROVIDES + [DartAnalyzableInfo, DartCompileInfo, QualityToolsInfo],
-    required_providers = [(DartAnalyzableInfo, "DartAnalyzableInfo"), (DartCompileInfo, "DartCompileInfo")],
-    upstream_providers = [[DartAnalyzableInfo, DartCompileInfo]],
+    "executable",
+    dx_forward_spec(
+        provides = DX_EXEC_PROVIDES + [DartAnalyzableInfo, DartCompileInfo, QualityToolsInfo],
+        required_providers = [(DartAnalyzableInfo, "DartAnalyzableInfo"), (DartCompileInfo, "DartCompileInfo")],
+        upstream_providers = [[DartAnalyzableInfo, DartCompileInfo]],
+    ),
 )
 
 _dart_web_forward = dx_library_forward_rule(
     _DART,
-    provides = [DartAnalyzableInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo],
-    required_providers = [(DartAnalyzableInfo, "DartAnalyzableInfo")],
-    upstream_providers = [[DartAnalyzableInfo]],
-    runtime = "besteffort",
+    dx_forward_spec(
+        provides = [DartAnalyzableInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo],
+        required_providers = [(DartAnalyzableInfo, "DartAnalyzableInfo")],
+        upstream_providers = [[DartAnalyzableInfo]],
+        runtime = "besteffort",
+    ),
 )
 
 _dart_forward_test = dx_executable_forward_rule(
     _DART,
-    kind = "test",
-    provides = DX_EXEC_PROVIDES + [DartAnalyzableInfo, QualityToolsInfo],
-    required_providers = [(DartAnalyzableInfo, "DartAnalyzableInfo")],
-    upstream_providers = [[DartAnalyzableInfo]],
-    extra_attrs = dx_lcov_merger_attr(),
+    "test",
+    dx_forward_spec(
+        provides = DX_EXEC_PROVIDES + [DartAnalyzableInfo, QualityToolsInfo],
+        required_providers = [(DartAnalyzableInfo, "DartAnalyzableInfo")],
+        upstream_providers = [[DartAnalyzableInfo]],
+        extra_attrs = dx_lcov_merger_attr(),
+    ),
 )
 
 # Re-exported unchanged: BUILD files need it to generate Dart sources.

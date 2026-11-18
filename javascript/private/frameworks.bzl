@@ -7,7 +7,7 @@ load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load(":defs.bzl", "javascript_forward_test", "javascript_test_rejection")
 load("//core:entry.bzl", "dx_entry_quality_srcs")
 load("//core:node_test.bzl", "node_jest_upstream_attrs", "node_test_wrap_args")
-load("//core:wrapper.bzl", "dx_language_spec", "dx_library_forward_rule", "dx_wrap", "dx_wrap_test")
+load("//core:wrapper.bzl", "dx_forward_spec", "dx_language_spec", "dx_library_forward_rule", "dx_wrap", "dx_wrap_test")
 load("//cli/web_server:server.bzl", "JavascriptWebAppInfo")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
@@ -17,9 +17,11 @@ def dx_framework_forward_rule(language, ext):
     """Creates the forwarding rule for one JS-framework wrapper."""
     return dx_library_forward_rule(
         dx_language_spec(what = language + "_*", quality_specs = [(language, language)], allow_files = [ext]),
-        provides = [_JsInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
-        required_providers = [(_JsInfo, "JsInfo")],
-        upstream_providers = [[_JsInfo]],
+        dx_forward_spec(
+            provides = [_JsInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
+            required_providers = [(_JsInfo, "JsInfo")],
+            upstream_providers = [[_JsInfo]],
+        ),
     )
 
 def dx_framework_library(name, srcs, upstream_rule, forward_rule, visibility = None, **kwargs):

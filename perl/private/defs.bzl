@@ -4,7 +4,7 @@ load("@rules_perl//perl:defs.bzl", _PerlInfo = "PerlInfo", _perl_binary = "perl_
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
 load("//core:platform_support.bzl", "compatible_with")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//perl/private:platforms.bzl", PERL_SUPPORT = "PLATFORM_SUPPORT")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
@@ -27,17 +27,21 @@ _PERL = dx_language_spec(what = "perl_*", quality_specs = PERL_SOURCE_SPECS, all
 
 _perl_library_forward = dx_library_forward_rule(
     _PERL,
-    provides = [_PerlInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo],
-    required_providers = [(_PerlInfo, "PerlInfo")],
-    upstream_providers = [[_PerlInfo]],
-    runtime = "besteffort",
-    instrument_srcs = True,
+    dx_forward_spec(
+        provides = [_PerlInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo],
+        required_providers = [(_PerlInfo, "PerlInfo")],
+        upstream_providers = [[_PerlInfo]],
+        runtime = "besteffort",
+        instrument_srcs = True,
+    ),
 )
 
 _perl_binary_forward = dx_executable_forward_rule(
     _PERL,
-    kind = "executable",
-    provides = _PERL_EXEC_PROVIDES,
+    "executable",
+    dx_forward_spec(
+        provides = _PERL_EXEC_PROVIDES,
+    ),
 )
 
 def _perl_test_coverage(ctx, upstream):
@@ -67,14 +71,16 @@ def _perl_test_coverage(ctx, upstream):
 
 _perl_forward_test = dx_executable_forward_rule(
     _PERL,
-    kind = "test",
-    provides = _PERL_EXEC_PROVIDES,
-    extra_attrs = dx_lcov_merger_attr() | {
-        "deps": attr.label_list(doc = "Perl libraries the target depends on.", providers = [_PerlInfo]),
-        "_perl_coverage": attr.label(default = Label("//perl/private/coverage:collector")),
-        "_perl_windows": attr.label(default = Label("@platforms//os:windows"), providers = [platform_common.ConstraintValueInfo]),
-    },
-    coverage_providers = _perl_test_coverage,
+    "test",
+    dx_forward_spec(
+        provides = _PERL_EXEC_PROVIDES,
+        extra_attrs = dx_lcov_merger_attr() | {
+            "deps": attr.label_list(doc = "Perl libraries the target depends on.", providers = [_PerlInfo]),
+            "_perl_coverage": attr.label(default = Label("//perl/private/coverage:collector")),
+            "_perl_windows": attr.label(default = Label("@platforms//os:windows"), providers = [platform_common.ConstraintValueInfo]),
+        },
+        coverage_providers = _perl_test_coverage,
+    ),
 )
 
 PERL_DEFERRED_SKIP_TAGS = ["no-typecheck"]

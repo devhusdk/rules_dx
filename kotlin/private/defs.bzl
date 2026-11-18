@@ -5,7 +5,7 @@ load("@rules_kotlin//kotlin:core.bzl", "kt_javac_options")
 load("@rules_kotlin//kotlin:jvm.bzl", _kt_jvm_binary = "kt_jvm_binary", _kt_jvm_library = "kt_jvm_library", _kt_jvm_test = "kt_jvm_test")
 load("@rules_kotlin//kotlin/internal:defs.bzl", "KtJvmInfo")
 load("@rules_kotlin//kotlin/internal:opts.bzl", "KotlincOptions")
-load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_warnings_as_errors", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_warnings_as_errors", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//java/private:defs.bzl", "java_jmh_test")
 load("//java/private:coverage.bzl", "DX_JVM_TEST_RUNNER", "dx_jvm_test_coverage")
@@ -38,31 +38,37 @@ _KOTLIN = dx_language_spec(what = "kotlin_*", quality_specs = _DX_KOTLIN_SOURCE_
 
 _kotlin_library_forward = dx_library_forward_rule(
     _KOTLIN,
-    provides = _DX_KOTLIN_LIBRARY_PROVIDES,
-    required_providers = [(JavaInfo, "JavaInfo"), (KtJvmInfo, "KtJvmInfo")],
-    upstream_providers = [[JavaInfo]],
+    dx_forward_spec(
+        provides = _DX_KOTLIN_LIBRARY_PROVIDES,
+        required_providers = [(JavaInfo, "JavaInfo"), (KtJvmInfo, "KtJvmInfo")],
+        upstream_providers = [[JavaInfo]],
+    ),
 )
 
 _kotlin_binary_forward = dx_executable_forward_rule(
     _KOTLIN,
-    kind = "executable",
-    upstream_providers = [[JavaInfo]],
-    optional_providers = [JavaInfo],
-    coverage_runfiles = _kotlin_coverage_runfiles,
-    toolchains = [_KT_TOOLCHAIN_TYPE],
+    "executable",
+    dx_forward_spec(
+        upstream_providers = [[JavaInfo]],
+        optional_providers = [JavaInfo],
+        coverage_runfiles = _kotlin_coverage_runfiles,
+        toolchains = [_KT_TOOLCHAIN_TYPE],
+    ),
 )
 
 _kotlin_forward_test = dx_executable_forward_rule(
     _KOTLIN,
-    kind = "test",
-    upstream_providers = [[JavaInfo]],
-    extra_attrs = dict(
-        dx_lcov_merger_attr(),
-        main_class = attr.string(default = DX_JVM_TEST_RUNNER),
+    "test",
+    dx_forward_spec(
+        upstream_providers = [[JavaInfo]],
+        extra_attrs = dict(
+            dx_lcov_merger_attr(),
+            main_class = attr.string(default = DX_JVM_TEST_RUNNER),
+        ),
+        optional_providers = [JavaInfo],
+        coverage_providers = dx_jvm_test_coverage,
+        runtime = "mandatory",
     ),
-    optional_providers = [JavaInfo],
-    coverage_providers = dx_jvm_test_coverage,
-    runtime = "mandatory",
 )
 
 def _kotlin_warnings_as_errors_opts_impl(ctx):

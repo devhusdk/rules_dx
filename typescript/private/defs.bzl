@@ -9,7 +9,7 @@ load("//javascript:defs.bzl", "javascript_binary")
 load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
 load("//core:node_test.bzl", "node_jest_upstream_attrs", "node_test_forward_rule", "node_test_runner_rejection", "node_test_wrap_args")
-load("//core:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_language_spec", "dx_library_forward_rule", "dx_upstream_tags", "dx_without_warnings_attr", "dx_wrap_test")
+load("//core:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_library_forward_rule", "dx_upstream_tags", "dx_without_warnings_attr", "dx_wrap_test")
 load("//core/quality:pipeline.bzl", "upstream_tags")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//typescript/private/playwright:closure.bzl", "CLOSURE_DIR")
@@ -49,9 +49,11 @@ _TYPESCRIPT = dx_language_spec(what = "typescript_*", quality_specs = _DX_TS_SOU
 
 _typescript_library_forward = dx_library_forward_rule(
     _TYPESCRIPT,
-    provides = _DX_TS_LIBRARY_PROVIDES,
-    required_providers = [(_JsInfo, "JsInfo"), (_TsConfigInfo, "TsConfigInfo")],
-    upstream_providers = [[_JsInfo]],
+    dx_forward_spec(
+        provides = _DX_TS_LIBRARY_PROVIDES,
+        required_providers = [(_JsInfo, "JsInfo"), (_TsConfigInfo, "TsConfigInfo")],
+        upstream_providers = [[_JsInfo]],
+    ),
 )
 
 _DX_TS_DECLARATION_SUFFIXES = [".d.ts", ".d.mts", ".d.cts"]
@@ -301,8 +303,10 @@ def typescript_proto_library(name, proto, deps = None, visibility = None, **kwar
 
 _typescript_binary_forward = dx_executable_forward_rule(
     _TYPESCRIPT,
-    kind = "executable",
-    upstream_providers = [[DefaultInfo]],
+    "executable",
+    dx_forward_spec(
+        upstream_providers = [[DefaultInfo]],
+    ),
 )
 
 _TS_ENTRY_EXTS = {".ts": ".js", ".mts": ".mjs", ".cts": ".cjs"}

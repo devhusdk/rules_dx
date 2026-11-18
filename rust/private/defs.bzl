@@ -13,7 +13,7 @@ load("//core:native_coverage.bzl", "dx_native_coverage_attrs", "dx_native_covera
 load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//core:platform.bzl", "platforms_transition")
 load("//core:resources.bzl", "dx_test_resource_tags")
-load("//core:wrapper.bzl", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forwarded_test_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_run_env_attrs", "dx_run_environment", "dx_symlink_default_info", "dx_symlink_executable", "dx_upstream", "dx_upstream_tags", "dx_warnings_flags", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_forward_kwargs", "dx_wrap_test", "dx_wrap_upstream_kwargs")
+load("//core:wrapper.bzl", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forward_spec", "dx_forwarded_test_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_run_env_attrs", "dx_run_environment", "dx_symlink_default_info", "dx_symlink_executable", "dx_upstream", "dx_upstream_tags", "dx_warnings_flags", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_forward_kwargs", "dx_wrap_test", "dx_wrap_upstream_kwargs")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "RUST")
 load(":build_script_cc_env.bzl", "BUILD_SCRIPT_CC_ENV")
 load(":edition.bzl", "RUST_EDITION")
@@ -142,15 +142,17 @@ _RUST = dx_language_spec(what = "rust_*", quality_specs = _DX_RUST_SOURCE_SPECS,
 
 _rust_forward = dx_library_forward_rule(
     _RUST,
-    provides = _DX_FORWARD_PROVIDES,
-    required_providers = _DX_RUST_CRATE_PROVIDERS,
-    upstream_providers = [
-        [_rust_common.crate_info],
-        [_rust_common.test_crate_info],
-    ],
-    extra_attrs = RUST_LIBSTDCXX_ATTRS,
-    quiet_providers = [LintsInfo],
-    upstream_cfg = _cpp_runtime_transition,
+    dx_forward_spec(
+        provides = _DX_FORWARD_PROVIDES,
+        required_providers = _DX_RUST_CRATE_PROVIDERS,
+        upstream_providers = [
+            [_rust_common.crate_info],
+            [_rust_common.test_crate_info],
+        ],
+        extra_attrs = RUST_LIBSTDCXX_ATTRS,
+        quiet_providers = [LintsInfo],
+        upstream_cfg = _cpp_runtime_transition,
+    ),
 )
 
 _DX_CC_FORWARD_PROVIDES = [
@@ -164,13 +166,15 @@ _DX_CC_FORWARD_PROVIDES = [
 
 _rust_forward_cc = dx_library_forward_rule(
     _RUST,
-    provides = _DX_CC_FORWARD_PROVIDES,
-    required_providers = [(_rust_common.test_crate_info, "TestCrateInfo"), (_rust_common.dep_info, "DepInfo"), (CcInfo, "CcInfo")],
-    upstream_providers = [[_rust_common.test_crate_info]],
-    extra_attrs = RUST_LIBSTDCXX_ATTRS,
-    upstream_cfg = _cpp_runtime_transition,
-    upstream_aspects = [dx_msvc_crt_aspect],
-    validate = dx_msvc_crt_validate,
+    dx_forward_spec(
+        provides = _DX_CC_FORWARD_PROVIDES,
+        required_providers = [(_rust_common.test_crate_info, "TestCrateInfo"), (_rust_common.dep_info, "DepInfo"), (CcInfo, "CcInfo")],
+        upstream_providers = [[_rust_common.test_crate_info]],
+        extra_attrs = RUST_LIBSTDCXX_ATTRS,
+        upstream_cfg = _cpp_runtime_transition,
+        upstream_aspects = [dx_msvc_crt_aspect],
+        validate = dx_msvc_crt_validate,
+    ),
 )
 
 _RUNTIME_DLLS_ATTR = {
@@ -190,19 +194,21 @@ def _runtime_dlls(ctx):
 
 _rust_forward_binary = dx_executable_forward_rule(
     _RUST,
-    kind = "executable",
-    provides = _DX_FORWARD_PROVIDES,
-    required_providers = _DX_RUST_CRATE_PROVIDERS,
-    upstream_providers = [
-        [_rust_common.crate_info],
-        [_rust_common.test_crate_info],
-    ],
-    extra_attrs = RUST_LIBSTDCXX_ATTRS | _RUNTIME_DLLS_ATTR | {"wasm": attr.string(doc = "Wasm target, or empty.")},
-    upstream_cfg = rust_binary_transition,
-    upstream_aspects = [dx_msvc_crt_aspect],
-    validate = dx_msvc_crt_validate,
-    runtime = "mandatory",
-    sibling_files = _runtime_dlls,
+    "executable",
+    dx_forward_spec(
+        provides = _DX_FORWARD_PROVIDES,
+        required_providers = _DX_RUST_CRATE_PROVIDERS,
+        upstream_providers = [
+            [_rust_common.crate_info],
+            [_rust_common.test_crate_info],
+        ],
+        extra_attrs = RUST_LIBSTDCXX_ATTRS | _RUNTIME_DLLS_ATTR | {"wasm": attr.string(doc = "Wasm target, or empty.")},
+        upstream_cfg = rust_binary_transition,
+        upstream_aspects = [dx_msvc_crt_aspect],
+        validate = dx_msvc_crt_validate,
+        runtime = "mandatory",
+        sibling_files = _runtime_dlls,
+    ),
 )
 
 def _shard_launcher(ctx):
@@ -210,36 +216,38 @@ def _shard_launcher(ctx):
 
 _rust_forward_test = dx_executable_forward_rule(
     _RUST,
-    kind = "test",
-    provides = _DX_FORWARD_PROVIDES,
-    required_providers = _DX_RUST_CRATE_PROVIDERS,
-    upstream_providers = [
-        [_rust_common.crate_info],
-        [_rust_common.test_crate_info],
-    ],
-    extra_attrs = dx_lcov_merger_attr() | RUST_LIBSTDCXX_ATTRS | _RUNTIME_DLLS_ATTR | dx_native_coverage_attrs() | {
-        "crate": attr.label(
-            doc = "The crate under test, so format checks reach its files.",
-            providers = [[_rust_common.crate_info], [_rust_common.test_crate_info]],
-        ),
-        "coverage_lib": attr.label(
-            doc = "The library whose sources the test compiles itself, so coverage counts them as production code.",
-        ),
-        "sharded": attr.bool(doc = "Runs the binary through the shard runner, which honours the Bazel test sharding protocol."),
-        "_shard_runner": attr.label(
-            default = Label("//rust/private/tools/shard_runner"),
-            executable = True,
-            cfg = "target",
-        ),
-    },
-    upstream_cfg = _cpp_runtime_transition,
-    upstream_aspects = [dx_data_coverage_aspect, dx_msvc_crt_aspect],
-    validate = dx_msvc_crt_validate,
-    coverage_providers = dx_native_test_coverage,
-    toolchains = dx_native_coverage_toolchains(),
-    runtime = "mandatory",
-    sibling_files = _runtime_dlls,
-    launcher = _shard_launcher,
+    "test",
+    dx_forward_spec(
+        provides = _DX_FORWARD_PROVIDES,
+        required_providers = _DX_RUST_CRATE_PROVIDERS,
+        upstream_providers = [
+            [_rust_common.crate_info],
+            [_rust_common.test_crate_info],
+        ],
+        extra_attrs = dx_lcov_merger_attr() | RUST_LIBSTDCXX_ATTRS | _RUNTIME_DLLS_ATTR | dx_native_coverage_attrs() | {
+            "crate": attr.label(
+                doc = "The crate under test, so format checks reach its files.",
+                providers = [[_rust_common.crate_info], [_rust_common.test_crate_info]],
+            ),
+            "coverage_lib": attr.label(
+                doc = "The library whose sources the test compiles itself, so coverage counts them as production code.",
+            ),
+            "sharded": attr.bool(doc = "Runs the binary through the shard runner, which honours the Bazel test sharding protocol."),
+            "_shard_runner": attr.label(
+                default = Label("//rust/private/tools/shard_runner"),
+                executable = True,
+                cfg = "target",
+            ),
+        },
+        upstream_cfg = _cpp_runtime_transition,
+        upstream_aspects = [dx_data_coverage_aspect, dx_msvc_crt_aspect],
+        validate = dx_msvc_crt_validate,
+        coverage_providers = dx_native_test_coverage,
+        toolchains = dx_native_coverage_toolchains(),
+        runtime = "mandatory",
+        sibling_files = _runtime_dlls,
+        launcher = _shard_launcher,
+    ),
 )
 
 def rust_build_script(name, build_script_env = None, toolchains = None, use_cc_toolchain = None, **kwargs):

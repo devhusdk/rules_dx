@@ -6,7 +6,10 @@ load(":clippy_tests.bzl", "clippy_config_test")
 # Outside the root package, whose loading fetches every npm link repo.
 package(default_visibility = ["//:__subpackages__"])
 
-exports_files(["clippy.toml"])
+exports_files([
+    "clippy.toml",
+    "downloader.cfg",
+])
 
 real_source_target(
     name = "corpus_toml",

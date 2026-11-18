@@ -30,7 +30,8 @@ pub use rc::{
     DISK_CACHE_GC_MAX_AGE, DISK_CACHE_GC_MAX_SIZE, LocalShare, PRESET_LOCAL_RESOURCES, RcColor,
     RcPolicy, ShareToken, StartupPaths, VerbMask, build_verb_options, clear_share,
     clear_share_source, configure, configure_real, configure_real_in, current, default_disk_cache,
-    repository_caches, set_share, set_share_source, share, startup_output_paths, user_cache_dir,
+    downloader_config, repository_caches, set_share, set_share_source, share, startup_output_paths,
+    user_cache_dir,
 };
 pub use runner::{BinaryRunner, Holding};
 pub use stderr_tail::last_bazel_stderr;

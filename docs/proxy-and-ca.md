@@ -87,6 +87,8 @@ export SSL_CERT_FILE=~/.config/dx-ca.pem
 
 `dx update` and the lock tools that fetch from registries read the same settings as the shim.
 
+Lock tools also follow the downloader config that `bazel run` uses. They fetch through its rewrites and honour its `allow` and `block` lines. The lock still records the upstream URLs.
+
 ## Deploy uploads
 
 Deploy uploads read the same settings as the shim.

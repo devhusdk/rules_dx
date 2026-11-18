@@ -14,7 +14,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use globset::{Glob, GlobSetBuilder};
 
-pub use http::HttpFetch;
+pub use http::{DOWNLOADER_CONFIG_ENV, HttpFetch};
 pub use model::{Archive, Lock, PLATFORMS, Package, Resolution, SCHEMA, is_sha256};
 pub use scratch::Scratch;
 

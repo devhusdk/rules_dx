@@ -642,6 +642,32 @@ pub fn repository_caches(
     candidates
 }
 
+/// The `--downloader_config` Bazel would use for `bazel run` with `options`, resolved against
+/// the workspace. The last one set wins; an empty value means none.
+pub fn downloader_config(
+    env_get: &dyn Fn(&str) -> Option<String>,
+    workspace: &Path,
+    read_file: &dyn Fn(&Path) -> Option<String>,
+    read_user_rc: bool,
+    startup_options: &[String],
+    options: &[String],
+) -> Option<PathBuf> {
+    let lines = sections::load_rc(env_get, workspace, read_file, read_user_rc, startup_options);
+    let effective = sections::effective_options(&lines, "run", options);
+    let mut last = None;
+    for (index, token) in effective.iter().enumerate() {
+        let next = effective.get(index + 1).map(String::as_str);
+        if let Some(value) = flag_value(token, next, "--downloader_config")
+            .or_else(|| flag_value(token, next, "--experimental_downloader_config"))
+        {
+            last = Some(value);
+        }
+    }
+    last.map(unquote)
+        .filter(|value| !value.is_empty())
+        .map(|value| import_path(value, workspace))
+}
+
 /// Expands a leading `~` to the home directory and `%workspace%` to the workspace.
 fn expand_path(value: &str, env_get: &dyn Fn(&str) -> Option<String>, workspace: &Path) -> PathBuf {
     let expanded = match (value.strip_prefix('~'), home_dir(env_get)) {

@@ -105,7 +105,7 @@ fn fetch_message(request: &Request<'_>, error: dx_http::Error) -> String {
         dx_http::Error::TooLarge { url, limit } => {
             download_failed_message(&url, &format!("larger than {limit} bytes"))
         }
-        dx_http::Error::Write { message, .. } => message,
+        dx_http::Error::Write { message, .. } | dx_http::Error::Blocked(message) => message,
         dx_http::Error::Config(message) => format!("{message}{NEXT_STEP}"),
     }
 }
@@ -123,6 +123,7 @@ fn download(
                 format!("cannot write {}: {message}", path.display())
             }
             other @ (dx_http::Error::Config(_)
+            | dx_http::Error::Blocked(_)
             | dx_http::Error::Status { .. }
             | dx_http::Error::Transport { .. }
             | dx_http::Error::TooLarge { .. }) => fetch_message(request, other),

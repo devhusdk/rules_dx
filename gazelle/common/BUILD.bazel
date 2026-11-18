@@ -1,3 +1,4 @@
+load("@bazel_lib//lib:write_source_files.bzl", "write_source_files")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 
@@ -11,8 +12,9 @@ exports_files(
     visibility = ["//cli/plan:__pkg__"],
 )
 
-exports_files(
-    ["lock_registry.json"],
+write_source_files(
+    name = "update_lock_registry",
+    files = {"lock_registry.json": "//core/modules:generated/lock_registry.json"},
     visibility = ["//core/modules:__pkg__"],
 )
 

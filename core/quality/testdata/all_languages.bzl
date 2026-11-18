@@ -1,4 +1,4 @@
-"""Target-scoped real capability aspects over real adapters."""
+"""Target-scoped real capability aspects over real adapters; refresh the GENERATED blocks with `bazel run //core/modules:update_lang_projections`."""
 
 # BEGIN GENERATED LANG ASPECT LOADS
 load("//ansible/private/quality:ansible.bzl", _real_ansible_lint_aspect = "real_ansible_lint_aspect", _real_ansible_lint_probe_aspect = "real_ansible_lint_probe_aspect")

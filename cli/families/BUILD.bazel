@@ -1,3 +1,4 @@
+load("@bazel_lib//lib:write_source_files.bzl", "write_source_files")
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_library", "rust_test")
@@ -98,4 +99,10 @@ filegroup(
     name = "module_srcs",
     srcs = glob(["**"]),
     visibility = ["//:__subpackages__"],
+)
+
+write_source_files(
+    name = "update_languages",
+    files = {"languages.json": "//core/modules:generated/families_languages.json"},
+    visibility = ["//core/modules:__pkg__"],
 )

@@ -21,7 +21,7 @@ The `build_test` through `lock_test` columns are conformance tests: shared tests
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Astro | none | `npm` | n/a | n/a | n/a: astro has no binary rule | all | all | all | n/a: astro has no binary rule | n/a: astro has no binary rule |
 | Avro | none | none: schemas only, no packages | n/a | n/a | n/a: avro has no binary rule | n/a: avro has no test rule | n/a: avro has no test rule | n/a: avro has no test rule | n/a: avro has no binary rule | n/a: avro has no package manager |
-| C and C++ | none | none for `vcpkg.json`: there is no vcpkg set | `cc_bench` | `cc_fuzz_test` | all | all | all | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_arm64`; pending on `windows_x86_64` | all | n/a: cc has no package manager |
+| C and C++ | none | none for `vcpkg.json`: there is no vcpkg set | `cc_bench` | `cc_fuzz_test` | all | all | all | all | all | n/a: cc has no package manager |
 | C# | none | `nuget` | `csharp_bench` | `csharp_fuzz_test` | all | all | all | all | all | all |
 | CUDA | `macos_arm64`: NVIDIA ships no CUDA toolkit for macOS | none: the CUDA toolkit is a pinned download | n/a | n/a | `linux_arm64`, `linux_x86_64`, `windows_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `windows_arm64`, `windows_x86_64` | `linux_arm64`, `linux_x86_64`, `windows_arm64`, `windows_x86_64` | pending | pending | n/a: cuda has no package manager |
 | D | none | `dub` (pinned, no advisories) | `d_bench` | `d_fuzz_test` | all | all | all | all | pending | pending |

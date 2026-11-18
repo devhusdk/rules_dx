@@ -145,6 +145,17 @@ const WINDOWS_FLAGS: [Flag; 8] = [
     ),
 ];
 
+const MACOS_FLAGS: [Flag; 2] = [
+    (
+        "common:macos --macos_minimum_os=14.0",
+        "On macOS, target macOS 14.0 so Xcode, LLVM and rustc agree on a deployment target that does not depend on the host's Xcode.",
+    ),
+    (
+        "common:macos --host_macos_minimum_os=14.0",
+        "On macOS, build host tools for macOS 14.0 too.",
+    ),
+];
+
 const JVM_FLAGS: [Flag; 3] = [
     (
         "build --java_runtime_version=remotejdk_21",
@@ -351,6 +362,7 @@ impl Layer {
                 &COVERAGE_FLAGS,
                 &RUNFILES_FLAGS,
                 &WINDOWS_FLAGS,
+                &MACOS_FLAGS,
                 &JVM_FLAGS,
                 &WORKER_FLAGS,
                 &TELEMETRY_FLAGS,
@@ -821,6 +833,8 @@ mod tests {
                 "build:windows --features=-coverage",
                 "build:windows --features=-gcc_coverage_map_format",
                 "build:windows --per_file_copt=.*compiler-rt/lib/profile/.*@-D__MINGW_EXTENSION=",
+                "common:macos --macos_minimum_os=14.0",
+                "common:macos --host_macos_minimum_os=14.0",
                 "build --java_runtime_version=remotejdk_21",
                 "build --tool_java_runtime_version=remotejdk_21",
                 "build --tool_java_language_version=17",
@@ -936,8 +950,8 @@ mod tests {
                 total += 1;
             }
         }
-        assert_eq!(total, 62);
-        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 62);
+        assert_eq!(total, 64);
+        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 64);
         let options = |layer: Layer| -> BTreeSet<String> {
             layer
                 .flags()
@@ -1029,7 +1043,7 @@ mod tests {
         let flags = rendered_flag_lines(&render_all(DEFAULT_REPO));
         assert!(flags.contains("build:dx_build_dev --compilation_mode=fastbuild"));
         assert!(flags.contains("build --host_compilation_mode=fastbuild"));
-        assert_eq!(flags.len(), 62);
+        assert_eq!(flags.len(), 64);
         assert!(!flags.iter().any(|line| line.starts_with('#')));
         assert!(!flags.iter().any(String::is_empty));
     }

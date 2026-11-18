@@ -1,16 +1,18 @@
 """The lua extension: the dx_lua_toolchains hub that registers the Lua toolchain."""
 
-load("//core:toolchain.bzl", "toolchain_target")
 load(":toolchain.bzl", "LUA_TOOLCHAIN_TYPE")
 
 def lua_hub():
     """Returns the BUILD file of the dx_lua_toolchains hub."""
-    return toolchain_target(
-        name = "lua",
-        toolchain = str(Label(":lua")),
-        toolchain_type = str(LUA_TOOLCHAIN_TYPE),
-        visibility = ["//visibility:public"],
-    )
+    return "\n".join([
+        "toolchain(",
+        "    name = \"lua\",",
+        "    toolchain = %s," % repr(str(Label(":lua"))),
+        "    toolchain_type = %s," % repr(str(LUA_TOOLCHAIN_TYPE)),
+        "    visibility = [\"//visibility:public\"],",
+        ")",
+        "",
+    ])
 
 def _hub_impl(rctx):
     rctx.file("BUILD.bazel", rctx.attr.build)

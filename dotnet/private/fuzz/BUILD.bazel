@@ -15,7 +15,7 @@ rust_binary(
     srcs = ["instrument/main.rs"],
     crate_name = "instrument",
     crate_root = "instrument/main.rs",
-    visibility = ["//visibility:public"],
+    visibility = ["//:__subpackages__"],
 )
 
 cc_binary(
@@ -40,7 +40,7 @@ dx_fuzz_binary(
     testonly = True,
     binary = ":libfuzzer_dotnet_bin",
     target_compatible_with = _SUPPORTED,
-    visibility = ["//visibility:public"],
+    visibility = ["//:__subpackages__"],
 )
 
 real_source_target(

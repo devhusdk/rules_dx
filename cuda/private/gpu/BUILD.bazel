@@ -4,7 +4,7 @@ load("//cc:defs.bzl", "cc_library")
 load("//cuda/private:defs.bzl", "CUDA_COMPATIBLE_WITH", "cuda_library")
 load("//cuda/private/toolchain:check.bzl", "cuda_gpu_device")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//:__subpackages__"])
 
 cc_library(
     name = "gpu_facts",

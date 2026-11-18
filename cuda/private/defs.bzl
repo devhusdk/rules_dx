@@ -9,7 +9,7 @@ load("//cuda/private/toolchain:check.bzl", "cuda_check", "cuda_gpu_check")
 load("//cuda/private/toolchain:settings.bzl", "PLATFORM_SUPPORT")
 load("//cuda/private/toolchain:transition.bzl", "cuda_host_transition")
 load("//core:platform_support.bzl", "compatible_with")
-load("//core:wrapper.bzl", "dx_forward_spec", "dx_language_spec", "dx_library_forward_rule", "dx_upstream_tags")
+load("//core:wrapper.bzl", "dx_forward_spec", "dx_language_spec", "dx_library_forward_rule", "dx_private_dep_rule", "dx_upstream_tags")
 load("//core/modules:cuda.bzl", "CUDA_VERSION")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
@@ -233,6 +233,12 @@ def cuda_gpu_env(min_compute_capability, min_driver):
         "DX_GPU_RUNTIME": CUDA_VERSION,
     }
 
+_cuda_gpu_main = dx_private_dep_rule(
+    Label("//cuda/private/gpu:gpu_main"),
+    [CcInfo, CudaInfo, DefaultInfo, InstrumentedFilesInfo, OutputGroupInfo],
+    "Provides the GPU test entry point cuda_test links.",
+)
+
 def cuda_test(name, *, srcs, cuda_archs, deps = None, hdrs = None, visibility = None, tags = None, target_compatible_with = None, rdc = False, min_compute_capability = None, min_driver = None, env = None, data = None, cuda_copts = None, **kwargs):
     """Compiles .cu sources into a cc_test; min_compute_capability."""
     if (min_compute_capability == None) != (min_driver == None):
@@ -256,6 +262,13 @@ def cuda_test(name, *, srcs, cuda_archs, deps = None, hdrs = None, visibility = 
         testonly = True,
         visibility = ["//visibility:private"],
     )
+    _cuda_gpu_main(
+        name = name + "_gpu_main",
+        testonly = True,
+        tags = dx_upstream_tags(tags),
+        target_compatible_with = compatible,
+        visibility = ["//visibility:private"],
+    )
     user_tags = list(tags or [])
     kwargs["testonly"] = True
     kwargs["env"] = dict(env or {}) | cuda_gpu_env(min_compute_capability, min_driver)
@@ -265,7 +278,7 @@ def cuda_test(name, *, srcs, cuda_archs, deps = None, hdrs = None, visibility = 
         name,
         srcs,
         cuda_archs,
-        list(deps or []) + [Label("//cuda/private/gpu:gpu_main")],
+        list(deps or []) + [":" + name + "_gpu_main"],
         hdrs,
         visibility,
         user_tags + [tag for tag in _GPU_TAGS if tag not in user_tags],

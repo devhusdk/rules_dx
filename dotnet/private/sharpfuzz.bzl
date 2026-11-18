@@ -2,6 +2,7 @@
 
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyCompileInfo", "DotnetAssemblyRuntimeInfo")
 load("//core:fuzz.bzl", "dx_fuzz_target")
+load("//core:wrapper.bzl", "dx_private_dep_rule")
 
 SHARPFUZZ = [
     Label("@nuget//sharpfuzz"),
@@ -108,6 +109,12 @@ dx_sharpfuzz_instrument = rule(
     doc = "Re-exports `lib` with its first-party assemblies instrumented by SharpFuzz.",
 )
 
+_libfuzzer_dotnet = dx_private_dep_rule(
+    Label("//dotnet/private/fuzz:libfuzzer_dotnet"),
+    [DefaultInfo],
+    "Provides the libfuzzer-dotnet driver a SharpFuzz harness runs under.",
+)
+
 def sharpfuzz_fuzz(name, binary, srcs, deps, visibility, tags, kwargs):
     """Declares the instrumented deps, the harness `<name>` and the `<name>_run` runner."""
     instrumented = []
@@ -123,11 +130,18 @@ def sharpfuzz_fuzz(name, binary, srcs, deps, visibility, tags, kwargs):
         instrumented.append(":" + wrapped)
     kwargs = dict(kwargs)
     kwargs["target_compatible_with"] = kwargs.get("target_compatible_with", _SUPPORTED)
+    _libfuzzer_dotnet(
+        name = name + "_libfuzzer_dotnet",
+        tags = ["manual"],
+        target_compatible_with = kwargs["target_compatible_with"],
+        testonly = True,
+        visibility = ["//visibility:private"],
+    )
     dx_fuzz_target(
         name,
         binary,
         engine = "dotnet",
-        fuzz = Label("//dotnet/private/fuzz:libfuzzer_dotnet"),
+        fuzz = ":" + name + "_libfuzzer_dotnet",
         harness = ":" + name,
         srcs = srcs,
         deps = instrumented + SHARPFUZZ,

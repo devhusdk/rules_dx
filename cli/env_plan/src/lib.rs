@@ -1,6 +1,6 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::Path;
 
 use dx_bep::TargetOutput;
@@ -161,13 +161,23 @@ fn bind_artifacts<'p>(
     bound: &Bound<'_>,
     backing_paths: &'p [String],
 ) -> Result<Vec<&'p str>, CollectError> {
+    let mut by_suffix: HashMap<&str, Vec<&str>> = HashMap::new();
+    for path in backing_paths {
+        let mut rest = path.as_str();
+        loop {
+            by_suffix.entry(rest).or_default().push(path.as_str());
+            match rest.split_once('/') {
+                Some((_, tail)) => rest = tail,
+                None => break,
+            }
+        }
+    }
     let mut resolved: Vec<&str> = Vec::with_capacity(bound.len());
     for (record, entry) in bound {
-        let matches: Vec<&String> = backing_paths
-            .iter()
-            .filter(|path| dx_bep::suffix_matches(path, &entry.exec_path))
-            .collect();
-        match matches.as_slice() {
+        let matches = by_suffix
+            .get(entry.exec_path.as_str())
+            .map_or(&[][..], Vec::as_slice);
+        match matches {
             [] => {
                 return Err(CollectError::MissingArtifact {
                     producer: record.producer.clone(),
@@ -175,22 +185,21 @@ fn bind_artifacts<'p>(
                     exec_path: entry.exec_path.clone(),
                 });
             }
-            [only] => resolved.push(only.as_str()),
+            [only] => resolved.push(only),
             _ => {
                 return Err(CollectError::AmbiguousArtifact {
                     exec_path: entry.exec_path.clone(),
-                    artifacts: matches.into_iter().cloned().collect(),
+                    artifacts: matches.iter().map(|path| (*path).to_owned()).collect(),
                 });
             }
         }
     }
-    for path in backing_paths {
-        if !bound
-            .iter()
-            .any(|(_, entry)| dx_bep::suffix_matches(path, &entry.exec_path))
-        {
-            return Err(CollectError::UnreportedArtifact { path: path.clone() });
-        }
+    let claimed: HashSet<&str> = resolved.iter().copied().collect();
+    if let Some(path) = backing_paths
+        .iter()
+        .find(|path| !claimed.contains(path.as_str()))
+    {
+        return Err(CollectError::UnreportedArtifact { path: path.clone() });
     }
     Ok(resolved)
 }

@@ -61,7 +61,11 @@ pub fn parse_error(error: &clap::Error, args: &[String]) -> String {
         }
         message
     } else if kind == clap::error::ErrorKind::InvalidValue {
-        format!("missing value for {}", missing_value_flag(error))
+        let flag = missing_value_flag(error);
+        match rejected_value(error) {
+            Some(value) => format!("invalid value {value:?} for {flag}"),
+            None => format!("missing value for {flag}"),
+        }
     } else {
         first_line(error)
     }
@@ -195,6 +199,30 @@ mod tests {
         assert_eq!(
             unknown_token(&error(&["--nope=x"]), &["--nope=x".to_owned()]),
             "--nope=x"
+        );
+    }
+
+    #[test]
+    fn a_rejected_value_is_named_not_called_missing() {
+        let command = clap::Command::new("tool").arg(
+            clap::Arg::new("output")
+                .long("output")
+                .value_parser(["text", "json"]),
+        );
+        let rejected = command
+            .clone()
+            .try_get_matches_from(["tool", "--output", "xml"])
+            .expect_err("xml is not a mode");
+        assert_eq!(
+            parse_error(&rejected, &["--output".to_owned(), "xml".to_owned()]),
+            "invalid value \"xml\" for --output"
+        );
+        let missing = command
+            .try_get_matches_from(["tool", "--output"])
+            .expect_err("value required");
+        assert_eq!(
+            parse_error(&missing, &["--output".to_owned()]),
+            "missing value for --output"
         );
     }
 }

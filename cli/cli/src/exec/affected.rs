@@ -635,11 +635,14 @@ fn scope_handoff(next: &mut Invocation, plan: &AffectedPlan, workspace: &Path) {
 const BUILD_FILE_NAMES: [&str; 2] = ["BUILD.bazel", "BUILD"];
 
 /// The changed files plus the BUILD file of each one's package, the nearest directory
-/// above it that has one. A fixer may write only these, however far the affected
-/// targets reach.
-fn writable_paths(workspace: &Path, changed_files: &[String]) -> Vec<String> {
+/// above it that has one. A directory stands for everything under it. A fixer may
+/// write only these, however far the affected targets reach.
+pub(crate) fn writable_paths(workspace: &Path, changed_files: &[String]) -> Vec<String> {
     let mut paths = changed_files.to_vec();
     for file in changed_files {
+        if workspace.join(file).is_dir() {
+            continue;
+        }
         let mut dir = Path::new(file).parent();
         while let Some(path) = dir {
             let build = BUILD_FILE_NAMES

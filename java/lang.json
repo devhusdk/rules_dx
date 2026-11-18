@@ -57,6 +57,20 @@
     "classes": [
       "java"
     ],
+    "defaults": {
+      "audit": [],
+      "format": [
+        "google_java_format"
+      ],
+      "lint": [
+        "pmd",
+        "spotbugs",
+        "typos"
+      ],
+      "typecheck": [
+        "javac"
+      ]
+    },
     "file_extensions": [
       ".java"
     ],

@@ -39,6 +39,19 @@
     "classes": [
       "kotlin"
     ],
+    "defaults": {
+      "audit": [],
+      "format": [
+        "ktfmt"
+      ],
+      "lint": [
+        "detekt",
+        "typos"
+      ],
+      "typecheck": [
+        "kotlinc"
+      ]
+    },
     "file_extensions": [
       ".kt",
       ".kts"

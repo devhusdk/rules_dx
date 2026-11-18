@@ -48,6 +48,17 @@
       "c",
       "cpp"
     ],
+    "defaults": {
+      "audit": [],
+      "format": [
+        "clang_format"
+      ],
+      "lint": [
+        "clang_tidy",
+        "typos"
+      ],
+      "typecheck": []
+    },
     "file_extensions": [
       ".c",
       ".cc",

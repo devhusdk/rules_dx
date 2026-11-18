@@ -33,6 +33,18 @@
     "classes": [
       "svelte"
     ],
+    "defaults": {
+      "audit": [],
+      "format": [
+        "prettier"
+      ],
+      "lint": [
+        "typos"
+      ],
+      "typecheck": [
+        "tsc"
+      ]
+    },
     "file_extensions": [
       ".svelte"
     ]

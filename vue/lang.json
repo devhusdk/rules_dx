@@ -33,6 +33,18 @@
     "classes": [
       "vue"
     ],
+    "defaults": {
+      "audit": [],
+      "format": [
+        "prettier"
+      ],
+      "lint": [
+        "typos"
+      ],
+      "typecheck": [
+        "tsc"
+      ]
+    },
     "file_extensions": [
       ".vue"
     ]

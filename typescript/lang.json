@@ -44,6 +44,19 @@
       "tsx",
       "typescript"
     ],
+    "defaults": {
+      "audit": [],
+      "format": [
+        "biome"
+      ],
+      "lint": [
+        "biome",
+        "typos"
+      ],
+      "typecheck": [
+        "tsc"
+      ]
+    },
     "file_extensions": [
       ".cts",
       ".mts",

@@ -28,6 +28,15 @@
     "classes": [
       "kubernetes"
     ],
+    "defaults": {
+      "audit": [],
+      "format": [],
+      "lint": [
+        "kubeconform",
+        "typos"
+      ],
+      "typecheck": []
+    },
     "file_extensions": [
       ".json",
       ".yaml",

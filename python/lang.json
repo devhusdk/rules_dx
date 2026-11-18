@@ -61,6 +61,19 @@
       "python",
       "python_stub"
     ],
+    "defaults": {
+      "audit": [],
+      "format": [
+        "ruff"
+      ],
+      "lint": [
+        "ruff",
+        "typos"
+      ],
+      "typecheck": [
+        "ty"
+      ]
+    },
     "file_extensions": [
       ".py",
       ".pyi"

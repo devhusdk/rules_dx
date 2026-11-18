@@ -1,35 +1,11 @@
 """Curated quality defaults."""
 
+load("//core/modules:langs.bzl", "LANGS")
 load(":tool_defs.bzl", "is_canonical_token")
 
 visibility("private")
 
-# JET and JuliaFormatter stay opt-in.
-CURATED_DEFAULTS = {
-    "astro": {
-        "audit": [],
-        "format": ["prettier"],
-        "lint": ["typos"],
-        "typecheck": ["tsc"],
-    },
-    "bicep": {
-        "audit": [],
-        "format": ["bicep"],
-        "lint": ["bicep", "typos"],
-        "typecheck": [],
-    },
-    "cc": {
-        "audit": [],
-        "format": ["clang_format"],
-        "lint": ["clang_tidy", "typos"],
-        "typecheck": [],
-    },
-    "cloudformation": {
-        "audit": [],
-        "format": [],
-        "lint": ["cfn_lint", "typos"],
-        "typecheck": [],
-    },
+OTHER_DEFAULTS = {
     "core": {
         "audit": [],
         "format": ["yamlfmt"],
@@ -41,36 +17,6 @@ CURATED_DEFAULTS = {
         "format": ["clang_format"],
         "lint": ["typos"],
         "typecheck": [],
-    },
-    "d": {
-        "audit": [],
-        "format": [],
-        "lint": ["typos"],
-        "typecheck": [],
-    },
-    "dart": {
-        "audit": [],
-        "format": ["dart"],
-        "lint": ["dart", "typos"],
-        "typecheck": ["dart"],
-    },
-    "dockerfile": {
-        "audit": [],
-        "format": [],
-        "lint": ["hadolint", "typos"],
-        "typecheck": [],
-    },
-    "fortran": {
-        "audit": [],
-        "format": ["ffmt"],
-        "lint": ["fortitude", "typos"],
-        "typecheck": [],
-    },
-    "go": {
-        "audit": [],
-        "format": ["gofumpt"],
-        "lint": ["errcheck", "govet", "staticcheck", "typos"],
-        "typecheck": ["gotype"],
     },
     "go_module": {
         "audit": [],
@@ -84,28 +30,10 @@ CURATED_DEFAULTS = {
         "lint": ["typos"],
         "typecheck": [],
     },
-    "haskell": {
-        "audit": [],
-        "format": [],
-        "lint": ["typos"],
-        "typecheck": [],
-    },
     "html": {
         "audit": [],
         "format": ["prettier"],
         "lint": ["typos"],
-        "typecheck": [],
-    },
-    "java": {
-        "audit": [],
-        "format": ["google_java_format"],
-        "lint": ["pmd", "spotbugs", "typos"],
-        "typecheck": ["javac"],
-    },
-    "javascript": {
-        "audit": [],
-        "format": ["biome"],
-        "lint": ["biome", "typos"],
         "typecheck": [],
     },
     "json": {
@@ -114,28 +42,10 @@ CURATED_DEFAULTS = {
         "lint": ["biome"],
         "typecheck": [],
     },
-    "julia": {
-        "audit": [],
-        "format": [],
-        "lint": ["julialint", "typos"],
-        "typecheck": [],
-    },
-    "kotlin": {
-        "audit": [],
-        "format": ["ktfmt"],
-        "lint": ["detekt", "typos"],
-        "typecheck": ["kotlinc"],
-    },
     "helm": {
         "audit": [],
         "format": [],
         "lint": ["helm", "typos"],
-        "typecheck": [],
-    },
-    "kubernetes": {
-        "audit": [],
-        "format": [],
-        "lint": ["kubeconform", "typos"],
         "typecheck": [],
     },
     "markdown": {
@@ -144,22 +54,10 @@ CURATED_DEFAULTS = {
         "lint": ["lychee", "markdown_check", "typos"],
         "typecheck": [],
     },
-    "mdx": {
-        "audit": [],
-        "format": ["remark"],
-        "lint": ["lychee", "typos"],
-        "typecheck": ["tsc"],
-    },
     "nix": {
         "audit": [],
         "format": [],
         "lint": ["deadnix", "typos"],
-        "typecheck": [],
-    },
-    "ocaml": {
-        "audit": [],
-        "format": ["topiary"],
-        "lint": ["typos"],
         "typecheck": [],
     },
     "oci_image": {
@@ -167,30 +65,6 @@ CURATED_DEFAULTS = {
         "format": [],
         "lint": ["trivy_image_config"],
         "typecheck": ["container_structure_test"],
-    },
-    "powershell": {
-        "audit": [],
-        "format": [],
-        "lint": ["typos"],
-        "typecheck": [],
-    },
-    "python": {
-        "audit": [],
-        "format": ["ruff"],
-        "lint": ["ruff", "typos"],
-        "typecheck": ["ty"],
-    },
-    "rust": {
-        "audit": [],
-        "format": ["rustfmt"],
-        "lint": ["clippy", "typos"],
-        "typecheck": ["rustc"],
-    },
-    "scala": {
-        "audit": [],
-        "format": ["scalafmt"],
-        "lint": ["typos"],
-        "typecheck": ["scalac"],
     },
     "shell": {
         "audit": [],
@@ -202,18 +76,6 @@ CURATED_DEFAULTS = {
         "audit": [],
         "format": ["buildifier"],
         "lint": ["buildifier", "typos"],
-        "typecheck": [],
-    },
-    "svelte": {
-        "audit": [],
-        "format": ["prettier"],
-        "lint": ["typos"],
-        "typecheck": ["tsc"],
-    },
-    "swift": {
-        "audit": [],
-        "format": [],
-        "lint": ["typos"],
         "typecheck": [],
     },
     "text": {
@@ -228,31 +90,23 @@ CURATED_DEFAULTS = {
         "lint": ["taplo", "typos"],
         "typecheck": [],
     },
-    "typescript": {
-        "audit": [],
-        "format": ["biome"],
-        "lint": ["biome", "typos"],
-        "typecheck": ["tsc"],
-    },
-    "vue": {
-        "audit": [],
-        "format": ["prettier"],
-        "lint": ["typos"],
-        "typecheck": ["tsc"],
-    },
     "yaml": {
         "audit": [],
         "format": ["yamlfmt"],
         "lint": ["yamllint"],
         "typecheck": [],
     },
-    "zig": {
-        "audit": [],
-        "format": ["zig_fmt"],
-        "lint": ["typos", "zig_ast_check"],
-        "typecheck": [],
-    },
 }
+
+LANG_JSON_DEFAULTS = {
+    row["quality"].get("family", lang): row["quality"]["defaults"]
+    for lang, row in LANGS.items()
+    if "defaults" in row.get("quality", {})
+}
+
+_ROWS = OTHER_DEFAULTS | LANG_JSON_DEFAULTS
+
+CURATED_DEFAULTS = {family: _ROWS[family] for family in sorted(_ROWS.keys())}
 
 # Tools several families select; they always use the root profile.
 CROSS_FAMILY_TOOLS = [

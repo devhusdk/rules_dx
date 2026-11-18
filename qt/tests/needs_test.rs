@@ -11,8 +11,12 @@ fn elf_needed(path: &Path) -> BTreeSet<String> {
     let u16_at =
         |at: usize| u16::from_le_bytes(bytes[at..at + 2].try_into().expect("u16")) as usize;
     let u32_at = |at: usize| u32::from_le_bytes(bytes[at..at + 4].try_into().expect("u32"));
-    let u64_at =
-        |at: usize| u64::from_le_bytes(bytes[at..at + 8].try_into().expect("u64")) as usize;
+    let u64_at = |at: usize| {
+        usize::try_from(u64::from_le_bytes(
+            bytes[at..at + 8].try_into().expect("u64"),
+        ))
+        .expect("offset fits in usize")
+    };
     let (table, size, count) = (u64_at(0x20), u16_at(0x36), u16_at(0x38));
     let headers: Vec<usize> = (0..count).map(|index| table + index * size).collect();
     let loads: Vec<(usize, usize, usize)> = headers

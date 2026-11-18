@@ -116,7 +116,7 @@ fn assert_sarif_lands(
             .unwrap_or_else(|err| panic!("{rule} did not place ({context}): {err}: {stdout}"));
         let line_start = text
             .split_inclusive('\n')
-            .take(found.finding.start.line as usize - 1)
+            .take(usize::try_from(found.finding.start.line).expect("line fits in usize") - 1)
             .map(str::len)
             .sum::<usize>();
         let want = line_start

@@ -789,6 +789,11 @@ impl PythonScript {
 mod tests {
     use super::*;
 
+    /// Turns a 1-based line or column from `locate` into a `usize` index base.
+    fn idx(n: u64) -> usize {
+        usize::try_from(n).expect("position fits in usize")
+    }
+
     fn nb(cells: &str, meta: &str) -> String {
         format!(
             "{{\n \"cells\": [{cells}],\n \"metadata\": {meta},\n \"nbformat\": 4,\n \"nbformat_minor\": 5\n}}\n"
@@ -814,7 +819,7 @@ mod tests {
         assert_eq!(preflight(&text).unwrap().cells, 2);
         let found = locate(&text, 2, 2, 3).unwrap();
         let line_text: Vec<&str> = text.lines().collect();
-        assert!(line_text[found.0 as usize - 1].contains("x = 1"));
+        assert!(line_text[idx(found.0) - 1].contains("x = 1"));
         assert_eq!(locate(&text, 1, 1, 1), None);
         assert_eq!(locate(&text, 3, 1, 1), None);
         assert_eq!(locate(&text, 0, 1, 1), None);
@@ -825,9 +830,9 @@ mod tests {
     fn single_string_source_with_newline_escapes() {
         let text = nb(&code("\"a = 1\\nb = 2\\n\""), "{}");
         let (line, col) = locate(&text, 1, 2, 1).unwrap();
-        let raw = text.lines().nth(line as usize - 1).unwrap();
+        let raw = text.lines().nth(idx(line) - 1).unwrap();
         assert!(
-            raw.get(col as usize - 1..)
+            raw.get(idx(col) - 1..)
                 .expect("string slice within bounds")
                 .starts_with("b = 2\\n\"}")
         );
@@ -838,8 +843,8 @@ mod tests {
         let text = nb(&code("[\"s = \\\"é\\\" + \\u00e9 + x\"]"), "{}");
         // s = "é" + é + x  ->  `x` is the 15th scalar.
         let (line, col) = locate(&text, 1, 1, 15).unwrap();
-        let raw = text.lines().nth(line as usize - 1).unwrap();
-        let tail: String = raw.chars().skip(col as usize - 1).collect();
+        let raw = text.lines().nth(idx(line) - 1).unwrap();
+        let tail: String = raw.chars().skip(idx(col) - 1).collect();
         assert!(tail.starts_with("x\"]}"));
     }
 
@@ -847,8 +852,8 @@ mod tests {
     fn surrogate_pair_decodes_to_one_scalar() {
         let text = nb(&code("[\"a = \\ud83d\\ude00; b\"]"), "{}");
         let (line, col) = locate(&text, 1, 1, 8).unwrap();
-        let raw = text.lines().nth(line as usize - 1).unwrap();
-        let tail: String = raw.chars().skip(col as usize - 1).collect();
+        let raw = text.lines().nth(idx(line) - 1).unwrap();
+        let tail: String = raw.chars().skip(idx(col) - 1).collect();
         assert!(tail.starts_with("b\"]}"));
     }
 
@@ -864,9 +869,9 @@ mod tests {
     fn empty_source_array_locates_inside_the_brackets() {
         let text = nb(&code("[]"), "{}");
         let (line, col) = locate(&text, 1, 1, 1).unwrap();
-        let raw = text.lines().nth(line as usize - 1).unwrap();
+        let raw = text.lines().nth(idx(line) - 1).unwrap();
         assert_eq!(
-            raw.get(col as usize - 1..col as usize)
+            raw.get(idx(col) - 1..idx(col))
                 .expect("string slice within bounds"),
             "]"
         );

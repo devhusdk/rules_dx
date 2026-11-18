@@ -126,9 +126,21 @@ def d_test(name, *, srcs = None, visibility = None, **kwargs):
 
 def d_fuzz_test(name, *, srcs = None, visibility = None, tags = None, dopts = None, linkopts = None, **kwargs):
     """A libFuzzer binary with AddressSanitizer plus a `<name>_run` runner for `dx fuzz`."""
-    flags = ["-fsanitize=fuzzer,address"]
+
+    # The sanitizer runtimes exist only under the fuzz transition, and lld-link ignores
+    # -fsanitize=, so Windows and builds outside the transition link a plain driver that
+    # feeds the target its input files and `-runs=N` inputs instead (as cc_fuzz_test does).
+    flags = select({
+        Label("@llvm//config:fuzzer_enabled"): ["-fsanitize=fuzzer,address"],
+        "//conditions:default": [],
+    })
+    driver = select({
+        Label("@llvm//config:fuzzer_enabled"): [],
+        "//conditions:default": [Label("//d/private/fuzz:fuzz_driver")],
+    })
     kwargs["target_compatible_with"] = (kwargs.get("target_compatible_with") or []) + D_COMPATIBLE_WITH
-    dx_fuzz_test(name, d_binary, {"srcs": srcs, "dopts": flags + (dopts or []), "linkopts": flags + (linkopts or [])}, tags = tags, visibility = visibility, **kwargs)
+    deps = (kwargs.pop("deps", None) or []) + driver
+    dx_fuzz_test(name, d_binary, {"srcs": srcs, "deps": deps, "dopts": flags + (dopts or []), "linkopts": flags + (linkopts or [])}, tags = tags, visibility = visibility, **kwargs)
 
 def d_bench(name, *, srcs = None, visibility = None, tags = None, **kwargs):
     """A d_binary run by `dx bench`; it writes dx-bench.json to TEST_UNDECLARED_OUTPUTS_DIR."""

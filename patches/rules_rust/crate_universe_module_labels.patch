@@ -1,4 +1,4 @@
-Upstream: none (rules_dx only: rewrites root-module labels in the generated hub)
+Upstream: bazelbuild/rules_rust#4436
 --- a/crate_universe/extensions.bzl
 +++ b/crate_universe/extensions.bzl
 @@ -533,6 +533,14 @@

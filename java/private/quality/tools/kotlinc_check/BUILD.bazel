@@ -21,13 +21,17 @@ filegroup(
 java_library(
     name = "kotlinc_check_lib",
     srcs = ["src/dx/quality/kotlinc/KotlincCheck.java"],
+    deps = ["//java/private/quality/tools/worker"],
 )
 
 java_binary(
     name = "kotlinc_check",
     srcs = ["src/dx/quality/kotlinc/Main.java"],
     main_class = "dx.quality.kotlinc.Main",
-    deps = [":kotlinc_check_lib"],
+    deps = [
+        ":kotlinc_check_lib",
+        "//java/private/quality/tools/worker",
+    ],
 )
 
 real_source_target(

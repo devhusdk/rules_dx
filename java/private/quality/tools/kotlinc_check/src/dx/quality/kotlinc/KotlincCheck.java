@@ -1,5 +1,6 @@
 package dx.quality.kotlinc;
 
+import dx.quality.worker.CompilerLoader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -7,8 +8,6 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
@@ -194,13 +193,10 @@ public final class KotlincCheck {
   private static int run(
       List<String> compilerJars, List<String> args, List<Entry> entries, Map<String, String> names)
       throws IOException {
-    URL[] urls = new URL[compilerJars.size()];
-    for (int i = 0; i < urls.length; i++) {
-      urls[i] = new File(compilerJars.get(i)).toURI().toURL();
-    }
     Thread thread = Thread.currentThread();
     ClassLoader previous = thread.getContextClassLoader();
-    try (URLClassLoader loader = new URLClassLoader(urls, ClassLoader.getPlatformClassLoader())) {
+    ClassLoader loader = CompilerLoader.get(compilerJars);
+    try {
       thread.setContextClassLoader(loader);
       System.setProperty("idea.io.use.nio2", "true");
       System.setProperty("java.awt.headless", "true");

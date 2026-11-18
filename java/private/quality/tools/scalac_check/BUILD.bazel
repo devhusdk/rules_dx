@@ -20,13 +20,17 @@ java_library(
         "src/dx/quality/scalac/Scala3Frontend.java",
         "src/dx/quality/scalac/ScalacCheck.java",
     ],
+    deps = ["//java/private/quality/tools/worker"],
 )
 
 java_binary(
     name = "scalac_check",
     srcs = ["src/dx/quality/scalac/Main.java"],
     main_class = "dx.quality.scalac.Main",
-    deps = [":scalac_check_lib"],
+    deps = [
+        ":scalac_check_lib",
+        "//java/private/quality/tools/worker",
+    ],
 )
 
 real_source_target(

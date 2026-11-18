@@ -1,12 +1,11 @@
 package dx.quality.scalac;
 
+import dx.quality.worker.CompilerLoader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -224,13 +223,10 @@ public final class ScalacCheck {
       List<Entry> entries,
       Map<String, String> names)
       throws IOException {
-    URL[] urls = new URL[compilerJars.size()];
-    for (int i = 0; i < urls.length; i++) {
-      urls[i] = new File(compilerJars.get(i)).toURI().toURL();
-    }
     Thread thread = Thread.currentThread();
     ClassLoader previous = thread.getContextClassLoader();
-    try (URLClassLoader loader = new URLClassLoader(urls, ClassLoader.getPlatformClassLoader())) {
+    ClassLoader loader = CompilerLoader.get(compilerJars);
+    try {
       thread.setContextClassLoader(loader);
       if (Scala3Frontend.present(loader)) {
         Scala3Frontend.compile(loader, args, inputs, entries, names);

@@ -156,7 +156,7 @@ struct Call {
 
 /// Every call of `name` (also as `native.name`) with the arguments that are a single string literal.
 fn calls(segments: &[Segment], name: &str) -> Vec<Call> {
-    let mut found = Vec::new();
+    let mut found: Vec<Call> = Vec::new();
     let mut depth = 0_i32;
     let mut open: Option<i32> = None;
     // The code of the current argument so far, before any string in it.

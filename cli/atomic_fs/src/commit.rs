@@ -701,7 +701,9 @@ mod tests {
         std::fs::create_dir_all(&swap.current).expect("bin dir");
         std::fs::write(swap.current.join("old"), "old").expect("old");
         let reason = install_reason(publish_tree_swap(&swap).unwrap_err());
-        assert!(reason.contains("cannot publish staged tree") && !reason.contains("cannot restore"));
+        assert!(
+            reason.contains("cannot publish staged tree") && !reason.contains("cannot restore")
+        );
         assert!(swap.current.join("old").exists());
         assert!(!swap.retired.exists());
         scratch.close().expect("cleanup");

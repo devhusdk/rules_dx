@@ -762,7 +762,13 @@ mod tests {
     fn pointer_siblings(dir: &Path) -> Vec<String> {
         let mut names: Vec<String> = std::fs::read_dir(dir)
             .expect("list")
-            .map(|entry| entry.expect("entry").file_name().to_string_lossy().into_owned())
+            .map(|entry| {
+                entry
+                    .expect("entry")
+                    .file_name()
+                    .to_string_lossy()
+                    .into_owned()
+            })
             .collect();
         names.sort();
         names
@@ -793,8 +799,7 @@ mod tests {
         assert_eq!(std::fs::read_link(&file_link).expect("file link"), second);
         let dir_link = links.join("dir");
         replace_pointer(&first_dir, &dir_link, PointerKind::Directory).expect("dir link");
-        replace_pointer(&second_dir, &dir_link, PointerKind::Directory)
-            .expect("replace dir link");
+        replace_pointer(&second_dir, &dir_link, PointerKind::Directory).expect("replace dir link");
         assert_eq!(std::fs::read_link(&dir_link).expect("dir link"), second_dir);
         assert!(first_dir.is_dir(), "the old target survives");
         assert_eq!(pointer_siblings(&links), ["dir", "file"]);
@@ -820,7 +825,10 @@ mod tests {
         remove_managed(&probe).expect("drop probe");
         replace_pointer(&target, &pointer, PointerKind::Directory)
             .expect_err("a non-empty directory is not replaced");
-        assert_eq!(std::fs::read(pointer.join("keep")).expect("kept"), b"keep\n");
+        assert_eq!(
+            std::fs::read(pointer.join("keep")).expect("kept"),
+            b"keep\n"
+        );
         assert_eq!(pointer_siblings(&links), ["dir"]);
         scratch.close().expect("cleanup");
     }

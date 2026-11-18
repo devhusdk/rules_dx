@@ -16,13 +16,13 @@
 use dx_os_sys::job_object::{JobObject, Limit};
 use dx_os_sys::{nt, win32};
 use std::ffi::c_void;
-use std::os::windows::io::{AsHandle, BorrowedHandle};
+use std::os::windows::io::{AsHandle, AsRawHandle, BorrowedHandle, FromRawHandle, OwnedHandle};
 use std::ptr::{null, null_mut};
 use std::time::{Duration, Instant};
 
 use windows_sys::Win32::Foundation::{
-    CloseHandle, DUPLICATE_SAME_ACCESS, DuplicateHandle, ERROR_INVALID_PARAMETER, ERROR_MORE_DATA,
-    ERROR_NOT_ALL_ASSIGNED, GetLastError, HANDLE, LUID, LocalFree, WAIT_TIMEOUT,
+    DUPLICATE_SAME_ACCESS, DuplicateHandle, ERROR_INVALID_PARAMETER, ERROR_MORE_DATA,
+    ERROR_NOT_ALL_ASSIGNED, GetLastError, HANDLE, LUID,
 };
 use windows_sys::Win32::NetworkManagement::NetManagement::{
     LOCALGROUP_INFO_0, LOCALGROUP_MEMBERS_INFO_3, MAX_PREFERRED_LENGTH, NetApiBufferFree,
@@ -51,14 +51,9 @@ use windows_sys::Win32::Security::{
     GetAce, GetSecurityDescriptorLength, INHERITED_ACE, LUID_AND_ATTRIBUTES, LookupAccountNameW,
     LookupPrivilegeValueW, SE_PRIVILEGE_ENABLED, TOKEN_ADJUST_PRIVILEGES, TOKEN_PRIVILEGES,
 };
-use windows_sys::Win32::System::Console::{
-    GetStdHandle, STD_ERROR_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE,
-};
 use windows_sys::Win32::System::Threading::{
-    CreateMutexW, CreateProcessWithLogonW, GetCurrentProcess, GetExitCodeProcess,
-    LOGON_WITH_PROFILE, OpenProcess, OpenProcessToken, PROCESS_DUP_HANDLE, PROCESS_INFORMATION,
-    ReleaseMutex, ResumeThread, STARTUPINFOW,
-    WaitForSingleObject,
+    CreateProcessWithLogonW, GetCurrentProcess, LOGON_WITH_PROFILE, PROCESS_INFORMATION,
+    STARTUPINFOW,
 };
 use windows_sys::Win32::UI::Shell::DeleteProfileW;
 use windows_sys::core::GUID;
@@ -68,9 +63,10 @@ use crate::args::{
     stale_groups, user_name,
 };
 use crate::sys::{
-    CREATE_SUSPENDED, CREATE_UNICODE_ENVIRONMENT, DENY_ACCESS, GRANT_ACCESS, INFINITE,
-    REVOKE_ACCESS, STARTF_USESTDHANDLES, check, path_lock_name, set_access,
-    trustee_entry, user_defaults, wide, with_acl_lock, write_acl, write_acl_here,
+    CREATE_SUSPENDED, CREATE_UNICODE_ENVIRONMENT, DENY_ACCESS, GRANT_ACCESS, LocalMem, NamedLock,
+    REVOKE_ACCESS, STARTF_USESTDHANDLES, check, path_lock_name, process_token, set_access,
+    start_in_job, std_handles, trustee_entry, user_defaults, wait_exit, wide, wide_text,
+    with_acl_lock, write_acl, write_acl_here,
 };
 
 const RPC_C_AUTHN_DEFAULT: u32 = 0xFFFF_FFFF;
@@ -106,6 +102,50 @@ unsafe extern "system" {
     fn CloseServiceHandle(handle: HANDLE) -> i32;
 }
 
+/// An open service manager or service handle, closed on drop.
+struct ServiceHandle(HANDLE);
+
+impl ServiceHandle {
+    fn new(raw: HANDLE, what: &str) -> Result<Self, String> {
+        if raw.is_null() {
+            return Err(format!(
+                "cannot open {what}: {}",
+                std::io::Error::last_os_error()
+            ));
+        }
+        Ok(Self(raw))
+    }
+}
+
+impl Drop for ServiceHandle {
+    fn drop(&mut self) {
+        // SAFETY: the handle is open and closed only here.
+        unsafe { CloseServiceHandle(self.0) };
+    }
+}
+
+/// An open filtering engine session. Closing it removes the session's dynamic filters.
+struct Engine(HANDLE);
+
+impl Drop for Engine {
+    fn drop(&mut self) {
+        // SAFETY: the engine handle is open and closed only here.
+        unsafe { FwpmEngineClose0(self.0) };
+    }
+}
+
+/// A buffer the NetApi calls allocated, freed on drop.
+struct NetBuffer(*mut u8);
+
+impl Drop for NetBuffer {
+    fn drop(&mut self) {
+        if !self.0.is_null() {
+            // SAFETY: the buffer came from a NetApi call and is freed only here.
+            unsafe { NetApiBufferFree(self.0 as *const c_void) };
+        }
+    }
+}
+
 /// Everything a run creates. Dropping it undoes whatever exists, in a fixed order.
 struct Session {
     user: Vec<u16>,
@@ -114,8 +154,8 @@ struct Session {
     sid_text: String,
     job: Option<JobObject>,
     acl_paths: Vec<String>,
-    engine: HANDLE,
-    dns_port: HANDLE,
+    engine: Option<Engine>,
+    dns_port: Option<OwnedHandle>,
     dns_pid: u32,
 }
 
@@ -133,10 +173,10 @@ impl Drop for Session {
         for path in &self.acl_paths {
             let _ = remove_access(path, self.sid());
         }
-        if !self.dns_port.is_null() {
-            let _ = set_port_access(self.dns_port, self.sid(), REVOKE_ACCESS);
-            // SAFETY: dns_port is the duplicated handle this session owns, closed once here.
-            unsafe { CloseHandle(self.dns_port) };
+        if let Some(port) = self.dns_port.take()
+            && let Err(err) = set_port_access(port.as_handle(), self.sid(), REVOKE_ACCESS)
+        {
+            eprintln!("appcontainer_run: {err}");
         }
         if self.created {
             if !self.sid_text.is_empty() {
@@ -145,10 +185,7 @@ impl Drop for Session {
             // SAFETY: user is a NUL-terminated wide name and null selects the local server.
             unsafe { NetUserDel(null(), self.user.as_ptr()) };
         }
-        if !self.engine.is_null() {
-            // SAFETY: engine is the open filtering engine handle, closed once here.
-            unsafe { FwpmEngineClose0(self.engine) };
-        }
+        self.engine = None;
     }
 }
 
@@ -288,25 +325,21 @@ fn account_sid(name: &[u16]) -> Result<Vec<u8>, String> {
 
 fn look_up_sid(session: &mut Session) -> Result<(), String> {
     session.sid = account_sid(&session.user)?;
-    let mut text: *mut u16 = null_mut();
-    // SAFETY: session.sid() is a valid SID and text is a valid out-pointer.
-    if unsafe { ConvertSidToStringSidW(session.sid(), &mut text) } == 0 {
-        return Err("cannot print the account SID".to_owned());
+    let mut text = LocalMem::<u16>::null();
+    // SAFETY: session.sid() is a valid SID and text.out() is a valid out-pointer.
+    if unsafe { ConvertSidToStringSidW(session.sid(), text.out()) } == 0 {
+        return Err(format!(
+            "cannot print the account SID: {}",
+            std::io::Error::last_os_error()
+        ));
     }
-    // SAFETY: text is a NUL-terminated string from ConvertSidToStringSidW, freed once.
-    unsafe {
-        let mut len = 0;
-        while *text.add(len) != 0 {
-            len += 1;
-        }
-        session.sid_text = String::from_utf16_lossy(std::slice::from_raw_parts(text, len));
-        LocalFree(text as _);
-    }
+    // SAFETY: text is the NUL-terminated string ConvertSidToStringSidW returned.
+    session.sid_text = unsafe { wide_text(text.get()) };
     Ok(())
 }
 
 fn add_filter(
-    engine: HANDLE,
+    engine: &Engine,
     layer: GUID,
     action: u32,
     weight: u8,
@@ -327,7 +360,7 @@ fn add_filter(
     let mut id = 0u64;
     check(
         // SAFETY: engine is open and filter, whose pointers outlive the call, is initialised.
-        unsafe { FwpmFilterAdd0(engine, &filter, null_mut(), &mut id) },
+        unsafe { FwpmFilterAdd0(engine.0, &filter, null_mut(), &mut id) },
         "adding a network filter",
     )
 }
@@ -339,28 +372,22 @@ fn block_network(session: &mut Session) -> Result<(), String> {
     let mut label = wide("dx hermetic");
     wfp.displayData.name = label.as_mut_ptr();
     wfp.flags = FWPM_SESSION_FLAG_DYNAMIC;
+    let mut raw: HANDLE = null_mut();
     check(
-        // SAFETY: wfp and session.engine are valid and label outlives the call.
-        unsafe {
-            FwpmEngineOpen0(
-                null(),
-                RPC_C_AUTHN_DEFAULT,
-                null(),
-                &wfp,
-                &mut session.engine,
-            )
-        },
+        // SAFETY: wfp is valid, label outlives the call and raw is a valid out-pointer.
+        unsafe { FwpmEngineOpen0(null(), RPC_C_AUTHN_DEFAULT, null(), &wfp, &mut raw) },
         "opening the filtering engine",
     )?;
+    let engine = session.engine.insert(Engine(raw));
 
     let sddl = wide(&format!("O:LSD:(A;;CC;;;{})", session.sid_text));
-    let mut descriptor: *mut c_void = null_mut();
-    // SAFETY: sddl is NUL-terminated and descriptor is a valid out-pointer.
+    let mut descriptor = LocalMem::<c_void>::null();
+    // SAFETY: sddl is NUL-terminated and descriptor.out() is a valid out-pointer.
     if unsafe {
         ConvertStringSecurityDescriptorToSecurityDescriptorW(
             sddl.as_ptr(),
             SDDL_REVISION_1,
-            &mut descriptor,
+            descriptor.out(),
             null_mut(),
         )
     } == 0
@@ -369,8 +396,8 @@ fn block_network(session: &mut Session) -> Result<(), String> {
     }
     let mut blob = FWP_BYTE_BLOB {
         // SAFETY: descriptor was just returned by the conversion above.
-        size: unsafe { GetSecurityDescriptorLength(descriptor) },
-        data: descriptor as *mut u8,
+        size: unsafe { GetSecurityDescriptorLength(descriptor.get()) },
+        data: descriptor.get() as *mut u8,
     };
     let blob_ptr: *mut FWP_BYTE_BLOB = &mut blob;
     let for_user = || {
@@ -416,7 +443,7 @@ fn block_network(session: &mut Session) -> Result<(), String> {
     ] {
         result = result.and_then(|()| {
             add_filter(
-                session.engine,
+                engine,
                 layer,
                 FWP_ACTION_BLOCK,
                 DNS_BLOCK_WEIGHT,
@@ -433,7 +460,7 @@ fn block_network(session: &mut Session) -> Result<(), String> {
         result = result
             .and_then(|()| {
                 add_filter(
-                    session.engine,
+                    engine,
                     layer,
                     FWP_ACTION_BLOCK,
                     BLOCK_WEIGHT,
@@ -442,7 +469,7 @@ fn block_network(session: &mut Session) -> Result<(), String> {
             })
             .and_then(|()| {
                 add_filter(
-                    session.engine,
+                    engine,
                     layer,
                     FWP_ACTION_PERMIT,
                     PERMIT_WEIGHT,
@@ -450,8 +477,6 @@ fn block_network(session: &mut Session) -> Result<(), String> {
                 )
             });
     }
-    // SAFETY: descriptor was allocated by the conversion above and is freed once.
-    unsafe { LocalFree(descriptor as _) };
     result
 }
 
@@ -471,18 +496,20 @@ fn enable_debug_privilege() -> Result<(), String> {
             Attributes: SE_PRIVILEGE_ENABLED,
         }],
     };
-    let mut token: HANDLE = null_mut();
-    // SAFETY: token is a valid out-pointer and GetCurrentProcess returns a pseudo handle.
-    if unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES, &mut token) } == 0 {
-        return Err("cannot open the process token".to_owned());
-    }
+    let token = process_token(TOKEN_ADJUST_PRIVILEGES)?;
     // SAFETY: token is open and privileges outlives the call; the previous-state pointers are null.
-    let enabled = unsafe {
-        AdjustTokenPrivileges(token, 0, &privileges, 0, null_mut(), null_mut()) != 0
-            && GetLastError() != ERROR_NOT_ALL_ASSIGNED
+    let adjusted = unsafe {
+        AdjustTokenPrivileges(
+            token.as_raw_handle(),
+            0,
+            &privileges,
+            0,
+            null_mut(),
+            null_mut(),
+        )
     };
-    // SAFETY: token is open and closed once.
-    unsafe { CloseHandle(token) };
+    // SAFETY: GetLastError has no preconditions.
+    let enabled = adjusted != 0 && unsafe { GetLastError() } != ERROR_NOT_ALL_ASSIGNED;
     if enabled {
         Ok(())
     } else {
@@ -492,32 +519,24 @@ fn enable_debug_privilege() -> Result<(), String> {
 
 fn dns_client_pid() -> Result<u32, String> {
     // SAFETY: null machine and database name are allowed; a null result is checked.
-    let manager = unsafe { OpenSCManagerW(null(), null(), SC_MANAGER_CONNECT) };
-    if manager.is_null() {
-        return Err("cannot open the service manager".to_owned());
-    }
-    // SAFETY: manager is open and the wide name outlives the call; a null result is checked.
-    let service = unsafe { OpenServiceW(manager, wide("Dnscache").as_ptr(), SERVICE_QUERY_STATUS) };
+    let raw = unsafe { OpenSCManagerW(null(), null(), SC_MANAGER_CONNECT) };
+    let manager = ServiceHandle::new(raw, "the service manager")?;
+    let name = wide("Dnscache");
+    // SAFETY: manager is open and name outlives the call; a null result is checked.
+    let raw = unsafe { OpenServiceW(manager.0, name.as_ptr(), SERVICE_QUERY_STATUS) };
+    let service = ServiceHandle::new(raw, "the Dnscache service")?;
     let mut status = [0u32; 9];
     let mut needed = 0u32;
-    let ok = !service.is_null()
-        // SAFETY: service is non-null and status is a buffer of the size passed.
-        && unsafe {
-            QueryServiceStatusEx(
-                service,
-                SC_STATUS_PROCESS_INFO,
-                status.as_mut_ptr() as *mut u8,
-                std::mem::size_of_val(&status) as u32,
-                &mut needed,
-            )
-        } != 0;
-    // SAFETY: service and manager are open handles, each closed once.
-    unsafe {
-        if !service.is_null() {
-            CloseServiceHandle(service);
-        }
-        CloseServiceHandle(manager);
-    }
+    // SAFETY: service is open and status is a buffer of the size passed.
+    let ok = unsafe {
+        QueryServiceStatusEx(
+            service.0,
+            SC_STATUS_PROCESS_INFO,
+            status.as_mut_ptr() as *mut u8,
+            std::mem::size_of_val(&status) as u32,
+            &mut needed,
+        )
+    } != 0;
     match status.get(7) {
         Some(&pid) if ok && pid != 0 => Ok(pid),
         _ => Err("cannot find the process of the Dnscache service".to_owned()),
@@ -525,29 +544,25 @@ fn dns_client_pid() -> Result<u32, String> {
 }
 
 /// Duplicates the Dnscache process's handle to its `\RPC Control\DNSResolver` ALPC port.
-fn find_dns_port() -> Result<HANDLE, String> {
+fn find_dns_port() -> Result<OwnedHandle, String> {
     let pid = dns_client_pid()?;
     let entries =
         nt::system_handles().map_err(|err| format!("cannot list the system handles: {err}"))?;
-    // SAFETY: OpenProcess takes plain integers and a null result is checked.
-    let process = unsafe { OpenProcess(PROCESS_DUP_HANDLE, 0, pid) };
-    if process.is_null() {
-        return Err(format!(
-            "cannot open the Dnscache process {pid}: {}",
-            std::io::Error::last_os_error()
-        ));
-    }
+    let process = win32::open(pid, win32::Access::Duplicate)
+        .map_err(|err| format!("cannot open the Dnscache process {pid}: {err}"))?;
+    // SAFETY: GetCurrentProcess takes no arguments and returns a pseudo handle.
+    let current = unsafe { GetCurrentProcess() };
     let mut seen = Vec::new();
-    let mut found: HANDLE = null_mut();
     for entry in entries.iter().filter(|entry| entry.pid == pid as usize) {
-        let mut copy: HANDLE = null_mut();
-        // SAFETY: process and the source handle are valid and copy is a valid out-pointer.
+        let mut raw: HANDLE = null_mut();
+        // SAFETY: process has PROCESS_DUP_HANDLE access, the source handle is a value in it
+        // and raw is a valid out-pointer.
         let duplicated = unsafe {
             DuplicateHandle(
-                process,
+                process.as_raw_handle(),
                 entry.handle as HANDLE,
-                GetCurrentProcess(),
-                &mut copy,
+                current,
+                &mut raw,
                 0,
                 0,
                 DUPLICATE_SAME_ACCESS,
@@ -556,48 +571,33 @@ fn find_dns_port() -> Result<HANDLE, String> {
         if duplicated == 0 {
             continue;
         }
+        // SAFETY: DuplicateHandle succeeded, so raw is a new handle owned by the caller.
+        let copy = unsafe { OwnedHandle::from_raw_handle(raw) };
         // Only ALPC ports are named here: a name query on some pipes never returns.
-        // SAFETY: copy is the handle duplicated above and stays open until it is closed below.
-        let borrowed = unsafe { BorrowedHandle::borrow_raw(copy) };
-        if nt::object_type_name(borrowed).ok().as_deref() == Some("ALPC Port") {
-            let name = nt::object_name(borrowed).unwrap_or_default();
+        if nt::object_type_name(copy.as_handle()).ok().as_deref() == Some("ALPC Port") {
+            let name = nt::object_name(copy.as_handle()).unwrap_or_default();
             if name.to_ascii_lowercase().ends_with("\\dnsresolver") {
-                found = copy;
-                break;
+                return Ok(copy);
             }
             seen.push(name);
         }
-        // SAFETY: copy is a handle duplicated above and closed once.
-        unsafe { CloseHandle(copy) };
     }
-    // SAFETY: process is open and closed once.
-    unsafe { CloseHandle(process) };
-    if found.is_null() {
-        return Err(format!(
-            "no DNSResolver ALPC port in the Dnscache process {pid}; its ports: {seen:?}"
-        ));
-    }
-    Ok(found)
+    Err(format!(
+        "no DNSResolver ALPC port in the Dnscache process {pid}; its ports: {seen:?}"
+    ))
 }
 
 /// Adds (or removes) the account's entries on an ALPC port, under a machine-wide lock so
 /// concurrent runs do not lose each other's entries.
-fn set_port_access(port: HANDLE, sid: *mut c_void, mode: i32) -> Result<(), String> {
-    // SAFETY: the wide name outlives the call and a null mutex is handled below.
-    let lock = unsafe { CreateMutexW(null(), 0, wide(DNS_PORT_LOCK).as_ptr()) };
-    if lock.is_null() {
-        return Err(format!(
-            "cannot create the DNSResolver ACL lock: {}",
-            std::io::Error::last_os_error()
-        ));
-    }
-    // SAFETY: lock is the valid mutex handle created above.
-    unsafe { WaitForSingleObject(lock, INFINITE) };
+fn set_port_access(port: BorrowedHandle<'_>, sid: *mut c_void, mode: i32) -> Result<(), String> {
+    let _lock = NamedLock::acquire(DNS_PORT_LOCK)?;
+    let port = port.as_raw_handle();
     let mut old: *mut ACL = null_mut();
-    let mut descriptor: *mut c_void = null_mut();
-    let mut merged: *mut ACL = null_mut();
+    let mut descriptor = LocalMem::<c_void>::null();
+    let mut merged = LocalMem::<ACL>::null();
     let entry = trustee_entry(sid, PORT_ALL_ACCESS, mode);
-    let result = check(
+
+    check(
         // SAFETY: port is an open handle; old and descriptor are valid out-pointers.
         unsafe {
             GetSecurityInfo(
@@ -608,7 +608,7 @@ fn set_port_access(port: HANDLE, sid: *mut c_void, mode: i32) -> Result<(), Stri
                 null_mut(),
                 &mut old,
                 null_mut(),
-                &mut descriptor,
+                descriptor.out(),
             )
         },
         "reading the ACL of the DNSResolver port",
@@ -624,7 +624,7 @@ fn set_port_access(port: HANDLE, sid: *mut c_void, mode: i32) -> Result<(), Stri
     .and_then(|()| {
         check(
             // SAFETY: entry is valid, old is non-null and merged is a valid out-pointer.
-            unsafe { SetEntriesInAclW(1, &entry, old, &mut merged) },
+            unsafe { SetEntriesInAclW(1, &entry, old, merged.out()) },
             "building the ACL of the DNSResolver port",
         )
     })
@@ -638,21 +638,13 @@ fn set_port_access(port: HANDLE, sid: *mut c_void, mode: i32) -> Result<(), Stri
                     DACL_SECURITY_INFORMATION,
                     null_mut(),
                     null_mut(),
-                    merged,
+                    merged.get(),
                     null(),
                 )
             },
             "setting the ACL of the DNSResolver port (the duplicated handle needs WRITE_DAC)",
         )
-    });
-    // SAFETY: merged and descriptor are freed once; lock is owned, released and closed once.
-    unsafe {
-        LocalFree(merged as _);
-        LocalFree(descriptor as _);
-        ReleaseMutex(lock);
-        CloseHandle(lock);
-    }
-    result
+    })
 }
 
 /// Dnscache resolves under its own account, which the network filters do not cover, so the
@@ -662,11 +654,8 @@ fn deny_dns_client(session: &mut Session) -> Result<(), String> {
     enable_debug_privilege()?;
     let pid = dns_client_pid()?;
     let port = find_dns_port()?;
-    // SAFETY: port is the open handle from find_dns_port, closed once on this failure path.
-    set_port_access(port, session.sid(), DENY_ACCESS).inspect_err(|_| unsafe {
-        CloseHandle(port);
-    })?;
-    session.dns_port = port;
+    set_port_access(port.as_handle(), session.sid(), DENY_ACCESS)?;
+    session.dns_port = Some(port);
     session.dns_pid = pid;
     Ok(())
 }
@@ -686,12 +675,7 @@ fn spawn(config: &Config, session: &Session, password: &str) -> Result<i32, Stri
     let mut startup: STARTUPINFOW = unsafe { std::mem::zeroed() };
     startup.cb = std::mem::size_of::<STARTUPINFOW>() as u32;
     startup.dwFlags = STARTF_USESTDHANDLES;
-    // SAFETY: GetStdHandle takes plain constants and has no preconditions.
-    unsafe {
-        startup.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
-        startup.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
-        startup.hStdError = GetStdHandle(STD_ERROR_HANDLE);
-    }
+    [startup.hStdInput, startup.hStdOutput, startup.hStdError] = std_handles();
     let parent: Vec<(String, String)> = std::env::vars_os()
         .map(|(name, value)| {
             (
@@ -705,6 +689,8 @@ fn spawn(config: &Config, session: &Session, password: &str) -> Result<i32, Stri
     let cwd = wide(&cwd.to_string_lossy());
     check_dns_client(session)?;
     let mut line = wide(&logon_command_line(&config.command)?);
+    let domain = wide(".");
+    let password = wide(password);
     // SAFETY: PROCESS_INFORMATION is plain C data for which all-zero is valid.
     let mut info: PROCESS_INFORMATION = unsafe { std::mem::zeroed() };
     let mut attempts = 0;
@@ -713,8 +699,8 @@ fn spawn(config: &Config, session: &Session, password: &str) -> Result<i32, Stri
         let created = unsafe {
             CreateProcessWithLogonW(
                 session.user.as_ptr(),
-                wide(".").as_ptr(),
-                wide(password).as_ptr(),
+                domain.as_ptr(),
+                password.as_ptr(),
                 LOGON_WITH_PROFILE,
                 null(),
                 line.as_mut_ptr(),
@@ -745,38 +731,20 @@ fn spawn(config: &Config, session: &Session, password: &str) -> Result<i32, Stri
         .job
         .as_ref()
         .ok_or_else(|| "the run has no job object".to_owned())?;
-    // SAFETY: info.hProcess is the live handle from CreateProcessWithLogonW, closed only below.
-    let process = unsafe { BorrowedHandle::borrow_raw(info.hProcess) };
-    if let Err(err) = job.assign(process) {
-        // SAFETY: info.hThread is the live handle from CreateProcessWithLogonW, closed once.
-        unsafe { CloseHandle(info.hThread) };
-        // SAFETY: info.hProcess is the live handle from CreateProcessWithLogonW, closed once.
-        unsafe { CloseHandle(info.hProcess) };
-        return Err(format!("cannot put the command in the job object: {err}"));
-    }
-    let mut code = 1u32;
-    // SAFETY: info holds the live handles from CreateProcessWithLogonW; hThread is closed once.
-    unsafe {
-        ResumeThread(info.hThread);
-        CloseHandle(info.hThread);
-    }
-    let mut outcome = Ok(());
-    // SAFETY: info.hProcess is a live process handle.
-    while unsafe { WaitForSingleObject(info.hProcess, 1000) } == WAIT_TIMEOUT {
-        if let Err(err) = check_dns_client(session) {
-            let _ = job.terminate(1);
-            outcome = Err(err);
+    let process = start_in_job(&info, job)?;
+    loop {
+        let exited = win32::wait(process.as_handle(), Some(Duration::from_secs(1)))
+            .map_err(|err| format!("cannot wait for the command: {err}"))?;
+        if exited {
             break;
         }
+        if let Err(err) = check_dns_client(session) {
+            let _ = job.terminate(1);
+            wait_exit(process.as_handle())?;
+            return Err(err);
+        }
     }
-    // SAFETY: info.hProcess is live, code is a valid out-pointer and the handle is closed once.
-    unsafe {
-        WaitForSingleObject(info.hProcess, INFINITE);
-        GetExitCodeProcess(info.hProcess, &mut code);
-        CloseHandle(info.hProcess);
-    }
-    outcome?;
-    Ok(code as i32)
+    wait_exit(process.as_handle())
 }
 
 pub fn run(config: &Config) -> Result<i32, String> {
@@ -787,8 +755,8 @@ pub fn run(config: &Config) -> Result<i32, String> {
         sid_text: String::new(),
         job: None,
         acl_paths: Vec::new(),
-        engine: null_mut(),
-        dns_port: null_mut(),
+        engine: None,
+        dns_port: None,
         dns_pid: 0,
     };
     let password = random_password()?;
@@ -1055,7 +1023,8 @@ fn in_waves<'a>(
         .into_iter()
         .zip(done)
         .map(|((path, mode), outcome)| {
-            let (millis, result) = outcome.expect("every path is in a wave");
+            let (millis, result) =
+                outcome.unwrap_or_else(|| (0, Err(format!("{path} was in no ACL wave"))));
             (path, mode, millis, result)
         })
         .collect()
@@ -1100,51 +1069,36 @@ fn local_groups() -> Result<Vec<String>, String> {
     let mut names = Vec::new();
     let mut resume: usize = 0;
     loop {
-        let mut buffer: *mut u8 = null_mut();
+        let mut buffer = NetBuffer(null_mut());
         let (mut read, mut total) = (0u32, 0u32);
         // SAFETY: buffer, read, total and resume are valid out-pointers.
         let code = unsafe {
             NetLocalGroupEnum(
                 null(),
                 0,
-                &mut buffer,
+                &mut buffer.0,
                 MAX_PREFERRED_LENGTH,
                 &mut read,
                 &mut total,
                 &mut resume,
             )
         };
-        if !buffer.is_null() {
-            if code == 0 || code == ERROR_MORE_DATA {
-                // SAFETY: buffer holds read LOCALGROUP_INFO_0 entries written by NetLocalGroupEnum.
-                let entries = unsafe {
-                    std::slice::from_raw_parts(buffer as *const LOCALGROUP_INFO_0, read as usize)
-                };
-                for entry in entries {
-                    // SAFETY: each lgrpi0_name is a NUL-terminated string inside the enum buffer.
-                    let name = unsafe { wide_text(entry.lgrpi0_name) };
-                    names.push(name);
-                }
+        if !buffer.0.is_null() && (code == 0 || code == ERROR_MORE_DATA) {
+            // SAFETY: buffer holds read LOCALGROUP_INFO_0 entries written by NetLocalGroupEnum.
+            let entries = unsafe {
+                std::slice::from_raw_parts(buffer.0 as *const LOCALGROUP_INFO_0, read as usize)
+            };
+            for entry in entries {
+                // SAFETY: each lgrpi0_name is a NUL-terminated string inside the enum buffer.
+                let name = unsafe { wide_text(entry.lgrpi0_name) };
+                names.push(name);
             }
-            // SAFETY: buffer was allocated by NetLocalGroupEnum and is freed once.
-            unsafe { NetApiBufferFree(buffer as *const c_void) };
         }
         if code != ERROR_MORE_DATA {
             check(code, "listing the local groups")?;
             return Ok(names);
         }
     }
-}
-
-/// Reads a NUL-terminated UTF-16 string.
-unsafe fn wide_text(text: *const u16) -> String {
-    let mut len = 0;
-    // SAFETY: the caller guarantees text is NUL-terminated, so len stays in bounds.
-    while unsafe { *text.add(len) } != 0 {
-        len += 1;
-    }
-    // SAFETY: text is valid for len u16 values, as counted above.
-    String::from_utf16_lossy(unsafe { std::slice::from_raw_parts(text, len) })
 }
 
 /// Whether `pid` may still run. Only a pid Windows does not know counts as gone, so a process
@@ -1156,10 +1110,10 @@ fn process_alive(pid: u32) -> bool {
     }
 }
 
-/// Reads the DACL of one path. The ACL points into the descriptor, which the caller frees.
-fn read_acl(path: &str) -> Result<(*mut ACL, *mut c_void), String> {
+/// Reads the DACL of one path. The ACL points into the descriptor.
+fn read_acl(path: &str) -> Result<(*mut ACL, LocalMem<c_void>), String> {
     let mut acl: *mut ACL = null_mut();
-    let mut descriptor: *mut c_void = null_mut();
+    let mut descriptor = LocalMem::null();
     check(
         // SAFETY: wide(path) outlives the call and acl and descriptor are valid out-pointers.
         unsafe {
@@ -1171,7 +1125,7 @@ fn read_acl(path: &str) -> Result<(*mut ACL, *mut c_void), String> {
                 null_mut(),
                 &mut acl,
                 null_mut(),
-                &mut descriptor,
+                descriptor.out(),
             )
         },
         &format!("reading the ACL of {path}"),
@@ -1209,13 +1163,10 @@ fn own_entries(acl: *mut ACL, sid: *const c_void) -> Vec<(u32, u8)> {
 }
 
 fn has_explicit_deny(path: &str, sid: &[u8]) -> Result<bool, String> {
-    let (acl, descriptor) = read_acl(path)?;
-    let denied = own_entries(acl, sid.as_ptr() as *const c_void)
+    let (acl, _descriptor) = read_acl(path)?;
+    Ok(own_entries(acl, sid.as_ptr() as *const c_void)
         .iter()
-        .any(|(_, kind)| *kind == ACCESS_DENIED_ACE_TYPE);
-    // SAFETY: descriptor was allocated by read_acl and is freed once.
-    unsafe { LocalFree(descriptor as _) };
-    Ok(denied)
+        .any(|(_, kind)| *kind == ACCESS_DENIED_ACE_TYPE))
 }
 
 /// Deletes every explicit allow and deny entry for `sid` on one path, under the path's lock.
@@ -1238,16 +1189,14 @@ fn remove_entries(path: &str, sid: *mut c_void, tree: bool) -> Result<(), String
             removed = true;
         }
     }
-    let result = if !removed {
+
+    if !removed {
         Ok(())
     } else if tree {
-        write_acl(path, descriptor, acl, &|below| {
+        write_acl(path, descriptor.get(), acl, &|below| {
             remove_entries(below, sid, false)
         })
     } else {
-        write_acl_here(path, descriptor, acl)
-    };
-    // SAFETY: descriptor was allocated by read_acl and is freed once.
-    unsafe { LocalFree(descriptor as _) };
-    result
+        write_acl_here(path, descriptor.get(), acl)
+    }
 }

@@ -4,25 +4,26 @@
 
 use std::io;
 use std::os::windows::io::{
-    AsRawHandle, BorrowedHandle, HandleOrInvalid, HandleOrNull, OwnedHandle,
+    AsHandle, AsRawHandle, BorrowedHandle, HandleOrInvalid, HandleOrNull, OwnedHandle,
 };
-use windows_sys::Win32::Foundation::{FILETIME, WAIT_FAILED, WAIT_TIMEOUT};
+use std::time::Duration;
 use windows_sys::Win32::Foundation::{
-    HANDLE, HANDLE_FLAG_INHERIT, INVALID_HANDLE_VALUE, NTSTATUS, SetHandleInformation,
+    FILETIME, HANDLE, HANDLE_FLAG_INHERIT, INVALID_HANDLE_VALUE, NTSTATUS, SetHandleInformation,
+    WAIT_ABANDONED, WAIT_FAILED, WAIT_OBJECT_0, WAIT_TIMEOUT,
 };
 use windows_sys::Win32::System::Console::{
     GetStdHandle, STD_ERROR_HANDLE, STD_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE,
 };
 use windows_sys::Win32::System::Diagnostics::ToolHelp::{
-    CreateToolhelp32Snapshot, PROCESSENTRY32W, Process32FirstW, Process32NextW,
-    TH32CS_SNAPPROCESS, TH32CS_SNAPTHREAD, THREADENTRY32, Thread32First, Thread32Next,
+    CreateToolhelp32Snapshot, PROCESSENTRY32W, Process32FirstW, Process32NextW, TH32CS_SNAPPROCESS,
+    TH32CS_SNAPTHREAD, THREADENTRY32, Thread32First, Thread32Next,
 };
 use windows_sys::Win32::System::ProcessStatus::{K32GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS};
 use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
 use windows_sys::Win32::System::Threading::{
-    GetProcessTimes, OpenProcess, OpenThread, PROCESS_QUERY_LIMITED_INFORMATION,
-    PROCESS_SUSPEND_RESUME, PROCESS_SYNCHRONIZE, PROCESS_TERMINATE, ResumeThread,
-    THREAD_SUSPEND_RESUME, TerminateProcess, WaitForSingleObject,
+    GetExitCodeProcess, GetProcessTimes, INFINITE, OpenProcess, OpenThread, PROCESS_DUP_HANDLE,
+    PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SUSPEND_RESUME, PROCESS_SYNCHRONIZE,
+    PROCESS_TERMINATE, ResumeThread, THREAD_SUSPEND_RESUME, TerminateProcess, WaitForSingleObject,
 };
 
 // windows-sys does not bind these undocumented ntdll exports.
@@ -44,6 +45,8 @@ pub enum Access {
     Terminate,
     /// Query, suspend and resume.
     SuspendResume,
+    /// Query and duplicate the process's handles.
+    Duplicate,
 }
 
 impl Access {
@@ -53,6 +56,7 @@ impl Access {
             Access::Wait => PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_SYNCHRONIZE,
             Access::Terminate => PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE,
             Access::SuspendResume => PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_SUSPEND_RESUME,
+            Access::Duplicate => PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_DUP_HANDLE,
         }
     }
 }
@@ -77,12 +81,29 @@ pub fn open(pid: u32, access: Access) -> io::Result<OwnedHandle> {
 
 /// Whether the process has not exited. The handle needs [`Access::Wait`].
 pub fn is_running(process: BorrowedHandle<'_>) -> io::Result<bool> {
-    // SAFETY: process is a live handle and a zero timeout never blocks.
-    let waited = unsafe { WaitForSingleObject(process.as_raw_handle(), 0) };
+    wait(process, Some(Duration::ZERO)).map(|signaled| !signaled)
+}
+
+/// Waits until `object` is signaled or `timeout` passes, and returns whether it was signaled.
+/// `None` waits forever. A mutex abandoned by its owner counts as signaled and is now owned
+/// by the caller.
+pub fn wait(object: BorrowedHandle<'_>, timeout: Option<Duration>) -> io::Result<bool> {
+    let millis = match timeout {
+        None => INFINITE,
+        // INFINITE would wait forever, so the longest finite wait stops just short of it.
+        Some(timeout) => u32::try_from(timeout.as_millis())
+            .unwrap_or(u32::MAX)
+            .min(INFINITE - 1),
+    };
+    // SAFETY: object is a live handle.
+    let waited = unsafe { WaitForSingleObject(object.as_raw_handle(), millis) };
     match waited {
-        WAIT_TIMEOUT => Ok(true),
+        WAIT_OBJECT_0 | WAIT_ABANDONED => Ok(true),
+        WAIT_TIMEOUT => Ok(false),
         WAIT_FAILED => Err(io::Error::last_os_error()),
-        _ => Ok(false),
+        other => Err(io::Error::other(format!(
+            "unexpected wait result {other:#x}"
+        ))),
     }
 }
 
@@ -139,6 +160,27 @@ pub fn disinherit_std_handles() -> io::Result<()> {
         if ok == 0 {
             return Err(io::Error::last_os_error());
         }
+    }
+    Ok(())
+}
+
+/// The exit code of a process, or `STILL_ACTIVE` (259) while it runs.
+pub fn exit_code(process: BorrowedHandle<'_>) -> io::Result<u32> {
+    let mut code = 0u32;
+    // SAFETY: process is a live handle and code is writable.
+    let ok = unsafe { GetExitCodeProcess(process.as_raw_handle(), &mut code) };
+    if ok == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(code)
+}
+
+/// Resumes one suspended thread. The handle needs `THREAD_SUSPEND_RESUME` access.
+pub fn resume_thread(thread: BorrowedHandle<'_>) -> io::Result<()> {
+    // SAFETY: thread is a live handle.
+    let previous = unsafe { ResumeThread(thread.as_raw_handle()) };
+    if previous == u32::MAX {
+        return Err(io::Error::last_os_error());
     }
     Ok(())
 }
@@ -231,11 +273,7 @@ pub fn resume_threads(pid: u32) -> io::Result<()> {
     while more {
         if entry.th32OwnerProcessID == pid {
             let thread = open_thread(entry.th32ThreadID)?;
-            // SAFETY: thread is a live handle with THREAD_SUSPEND_RESUME access.
-            let previous = unsafe { ResumeThread(thread.as_raw_handle()) };
-            if previous == u32::MAX {
-                return Err(io::Error::last_os_error()); // LCOV_EXCL_LINE - reason: Win32 call fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-            }
+            resume_thread(thread.as_handle())?;
             resumed += 1;
         }
         // SAFETY: as above.

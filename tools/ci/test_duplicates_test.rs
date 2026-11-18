@@ -1,13 +1,12 @@
 //! No BUILD file holds two test calls with the same callee and the same arguments apart from `name`, `tags` and `flaky`.
 
-#[expect(dead_code, reason = "the test uses a subset of the shared module")]
-mod test_calls;
-
 use std::collections::BTreeMap;
 
+use dx_guard::snapshot::read_input;
+use dx_guard::starlark::{callee_name, parse, string};
+use dx_guard::test_calls::{Callees, is_test, test_callees};
 use starlark_syntax::syntax::AstModule;
 use starlark_syntax::syntax::ast::{ArgumentP, AstArgument, AstExpr, AstStmt, ExprP, StmtP};
-use test_calls::{Callees, callee_name, is_test, parse, read_input, string, test_callees};
 use yaml_serde as _;
 
 /// The rule that groups tests.
@@ -101,7 +100,7 @@ impl Walker<'_> {
             return;
         };
         let callee_text = callee_name(callee);
-        self.scan.callees.call(self.def.as_deref(), &callee_text);
+        self.scan.callees.call(self.def.as_deref(), callee_text);
         let name = args.args.iter().find_map(|arg| match &arg.node {
             ArgumentP::Named(key, value) if key.node == "name" => string(value),
             ArgumentP::Positional(_)
@@ -111,7 +110,7 @@ impl Walker<'_> {
         });
         if let (Some(name), None) = (name, &self.def) {
             self.scan.calls.push(Call {
-                callee: callee_text,
+                callee: callee_text.to_owned(),
                 name: name.to_owned(),
                 line: self.ast.file_span(expr.span).resolve_span().begin.line + 1,
                 key: key(&args.args),

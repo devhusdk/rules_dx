@@ -1,12 +1,9 @@
 //! No Rust source allows a strict tier lint, every `#[expect(...)]` gives a reason, panic-family expects stay in tools/testing or `tools/ci/lint_expect_allowlist.txt`, the repo-wide clippy flags carry the strict tier, and no source discards a result where those lints cannot see it.
 
-#[expect(
-    dead_code,
-    reason = "the guard reads only the snapshot and the Rust lexer"
-)]
-mod guard_scan;
-
-use guard_scan::{Token, rust_tokens, snapshot};
+use dx_guard::lexer::{Token, rust_tokens};
+use dx_guard::snapshot::snapshot;
+use serde_json as _;
+use starlark_syntax as _;
 use std::path::Path;
 use yaml_serde as _;
 

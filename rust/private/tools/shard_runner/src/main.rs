@@ -3,6 +3,10 @@
 //! The binary comes from the `DX_TEST_BINARY` runfiles key. Its tests are listed with
 //! `--list --format terse`; the shard keeps the tests whose index `i` satisfies
 //! `i % TEST_TOTAL_SHARDS == TEST_SHARD_INDEX` and runs them with `--exact`.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 use std::env;
 use std::ffi::OsString;

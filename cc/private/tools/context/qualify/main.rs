@@ -1,6 +1,10 @@
 //! Host-run qualifier: checks exported compile commands against Bazel's own action argv.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 use std::path::PathBuf;
 use std::process::{Command, ExitCode};

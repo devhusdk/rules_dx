@@ -1,4 +1,8 @@
 //! Taps Add item in the Flutter fixture app on the declared emulator.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use std::process::{Command, Output};
 use std::thread::sleep;

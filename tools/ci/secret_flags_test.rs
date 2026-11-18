@@ -1,4 +1,8 @@
 //! Keeps the remote cache key out of command lines, rc files and uploads.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use std::path::Path;
 use std::process::Command;

@@ -1,4 +1,8 @@
 //! Tests for reading a generated launcher's own runfiles.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use std::path::{Path, PathBuf};
 

@@ -1,4 +1,8 @@
 //! Checks the Java fixture shards and the Javadoc adapter's and converter's failure handling.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use std::path::{Path, PathBuf};
 use std::process::Command;

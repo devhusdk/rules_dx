@@ -1,5 +1,9 @@
 //! Builds the given patterns twice in fresh output bases and fails when the exec logs differ.
 //! `diff <first> <second> [--top N]` instead names why the slowest spawns of the second log missed the cache.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 use dx_testing::exec_log;
 use std::path::{Path, PathBuf};

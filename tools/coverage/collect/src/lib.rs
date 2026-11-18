@@ -1,6 +1,10 @@
 //! Collects LLVM coverage for tests with one llvm-profdata and llvm-cov pair.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 pub mod apple;
 mod collect;

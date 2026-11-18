@@ -1,6 +1,10 @@
 //! A deterministic child process for tests that must not need a host shell.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 use std::collections::BTreeMap;
 use std::env;

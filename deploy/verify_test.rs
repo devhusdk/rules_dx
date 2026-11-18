@@ -1,3 +1,7 @@
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 use dx_testing::env_file;
 use dx_testing::http::{Reply, RequestLog, requests, serve as serve_with};
 use std::path::{Path, PathBuf};

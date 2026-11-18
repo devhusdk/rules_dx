@@ -1,4 +1,11 @@
 #![deny(clippy::indexing_slicing, clippy::panic, clippy::string_slice)]
+#![cfg_attr(
+    test,
+    expect(
+        clippy::disallowed_methods,
+        reason = "tests run local programs under the Bazel test timeout"
+    )
+)]
 
 pub mod commit;
 pub mod lease;

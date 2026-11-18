@@ -3,6 +3,10 @@
 //! would push paths past `MAX_PATH`, so the archiver always runs from the execroot itself.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 use std::env;
 use std::io;

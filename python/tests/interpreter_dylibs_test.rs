@@ -1,4 +1,8 @@
 //! Every Mach-O image of the macOS Python interpreter loads only system libraries and dylibs in the runfiles.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use std::collections::BTreeSet;
 use std::io::Read;

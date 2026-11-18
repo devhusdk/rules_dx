@@ -1,3 +1,7 @@
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 fn run_red(runner_var: &str, manifest_var: &str) -> String {
     let manifest = std::env::var(manifest_var).expect("red runner manifest must be set");
     let out = std::process::Command::new(dx_testing::env_file(runner_var))

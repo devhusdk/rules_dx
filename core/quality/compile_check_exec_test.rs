@@ -1,4 +1,8 @@
 //! compile_check_exec.sh runs under busybox sh with this binary as the step it replays.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use dx_testing::{env_file, path_text, scratch_dir};
 use std::path::{Path, PathBuf};

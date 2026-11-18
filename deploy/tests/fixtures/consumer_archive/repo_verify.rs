@@ -1,3 +1,7 @@
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 use std::path::{Path, PathBuf};
 
 const BANNER: &str = "dx-external-archive-marker\nbanner-external-v1\n";

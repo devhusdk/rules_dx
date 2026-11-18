@@ -1,6 +1,10 @@
 //! Assembles one mdBook source tree and runs the pinned mdBook build.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 use std::collections::BTreeSet;
 use std::fs;

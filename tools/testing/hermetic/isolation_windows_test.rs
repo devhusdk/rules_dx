@@ -1,6 +1,10 @@
 //! Probes the Windows user backend: network denial, loopback, explicit file denies and the MSVC
 //! denies. Like the Linux and macOS masks, the user backend hides only what `denies` lists.
 #![cfg(windows)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use std::path::{Path, PathBuf};
 use std::sync::{RwLock, RwLockReadGuard};

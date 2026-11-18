@@ -90,7 +90,7 @@ as the `_config`, `_pack` and archive targets.
 
 ## maven_deploy
 
-Publishes one jar and its pom to a Maven repository.
+Use `maven_deploy` to publish one jar and its pom to Maven Central.
 
 ```starlark
 load("@rules_dx//deploy:defs.bzl", "maven_deploy")
@@ -106,51 +106,49 @@ maven_deploy(
 - `jar`, `pom`: required. The files to upload.
 - `group`: required. The Maven group id.
 - `artifact`: defaults to `name`.
-- `sources`, `javadoc`: optional single `.jar` targets staged as
-  `<artifact>-<version>-sources.jar` and `-javadoc.jar`, each with md5, sha1,
-  sha256, sha512 and (when signing) `.asc`. Central requires both, so a live
-  upload refuses before any network call when either is missing. Local staging
-  works without them and prints `sources: yes|no` and `javadoc: yes|no`. A jar
-  that holds only a README is accepted by Central as a placeholder.
+- `sources`, `javadoc`: optional. One `.jar` each, staged as
+  `<artifact>-<version>-sources.jar` and `-javadoc.jar`. Central needs both,
+  so a live upload refuses before any network call when one is missing. A
+  dry run works without them and prints `sources: yes|no` and
+  `javadoc: yes|no`. Central accepts a jar that holds only a README.
 - `version`: empty by default, which publishes the version in the pom. When
-  set, it must equal the pom's `<version>`.
+  you set it, it must equal the pom's `<version>`.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
+- `api_compat`, `api_baseline`: see [Public API compatibility](#public-api-compatibility).
 
-Default run stages a local file repository under `<artifact>-repo/`. No
-credentials needed. It writes, next to the jar and the pom:
-
-- `.md5`, `.sha1`, `.sha256` and `.sha512` files with bare lowercase hex.
-- `.asc` detached signatures when `MAVEN_GPG_KEY` is set.
-- `maven-metadata.xml` one level up.
-
-Output ends with `signed: yes` or `signed: no`.
-
-A default run checks the pom against `group`, `artifact` and `version` and
-the Central fields, and stages the repository. It does not contact Central.
-Rerunning a published version: the Portal rejects the second upload in its
-validation, after the deployment id is printed. Nothing is checked locally.
-
-Signing env:
-
-- `MAVEN_GPG_KEY`: an ASCII-armored OpenPGP secret key. Ed25519 is
-  recommended. A signing subkey is used when the key has one.
-- `MAVEN_GPG_PASSPHRASE`: unlocks `MAVEN_GPG_KEY`.
-
-The pom must match `group`, `artifact` and `version` (`groupId` may come
-from `parent`). `packaging` must be absent or `jar`. It must also have
+The pom must match `group`, `artifact` and `version`. `groupId` may come
+from `parent`. `packaging` must be absent or `jar`. The pom also needs
 `name`, `description`, `url`, `licenses/license/name`,
 `developers/developer`, `scm/url`, `scm/connection` and
 `scm/developerConnection`. The error names every missing field.
 
-Live upload goes to the Central Portal Publisher API:
-`https://central.sonatype.com/api/v1/publisher/`
+Check it first. This needs no credentials and does not contact Central:
 
-Setup:
+```sh
+dx deploy //pkg:maven_demo
+```
+
+The dry run checks the pom and stages a local Maven repository under
+`<artifact>-repo/`. Next to the jar and the pom it writes:
+
+- `.md5`, `.sha1`, `.sha256` and `.sha512` files with bare lowercase hex.
+- `.asc` signatures when `MAVEN_GPG_KEY` is set.
+- `maven-metadata.xml` one level up.
+
+The output ends with `signed: yes` or `signed: no`.
+
+To sign, set these in your shell:
+
+- `MAVEN_GPG_KEY`: an ASCII-armored OpenPGP secret key. Ed25519 is
+  recommended. dx uses the signing subkey when the key has one.
+- `MAVEN_GPG_PASSPHRASE`: unlocks `MAVEN_GPG_KEY`.
+
+Before you publish, you need:
 
 - A Central Portal account with a verified namespace.
 - A Portal user token for `MAVEN_USERNAME` and `MAVEN_PASSWORD`.
 
-Run:
+Publish:
 
 ```sh
 MAVEN_PUBLISH_APPROVED=1 \
@@ -159,28 +157,30 @@ MAVEN_GPG_KEY=... MAVEN_GPG_PASSPHRASE=... \
 dx deploy --apply //pkg:maven_demo
 ```
 
-Live upload builds the same signed file repository as a default run, zips
-it without `maven-metadata.xml`, and uploads it with
-`publishingType=USER_MANAGED`. Output names the deployment id. The
+This builds the same signed repository, zips it without
+`maven-metadata.xml`, and uploads it to the Central Portal Publisher API at
+`https://central.sonatype.com/api/v1/publisher/` with
+`publishingType=USER_MANAGED`. The output names the deployment id. The
 deployment stays a draft until you validate and publish it in the Central
-Portal. The Portal rejects unsigned bundles.
+Portal. The Portal rejects unsigned bundles. It also rejects a version that
+is already published, after the deployment id is printed.
 
-Refusals, all exit 1:
+A live run refuses, with exit code 1, when:
 
-- Version `0.0.0` in a live run.
-- A `-SNAPSHOT` version in a live run.
-- Missing `MAVEN_USERNAME` or `MAVEN_PASSWORD`.
-- Missing `MAVEN_PUBLISH_APPROVED=1`.
-- No `MAVEN_GPG_KEY` without `MAVEN_ALLOW_UNSIGNED=1`.
-- `MAVEN_GPG_PASSPHRASE` set without `MAVEN_GPG_KEY`.
-- A `MAVEN_GPG_KEY` that is not an armored secret key, or a
-  `MAVEN_GPG_PASSPHRASE` that does not unlock it.
-- Credentials the Portal rejects (HTTP 401 or 403).
-- A pom that is missing Central fields or does not match the coordinates.
+- The version is `0.0.0` or ends in `-SNAPSHOT`.
+- `MAVEN_USERNAME` or `MAVEN_PASSWORD` is missing.
+- `MAVEN_PUBLISH_APPROVED=1` is missing.
+- `MAVEN_GPG_KEY` is missing and `MAVEN_ALLOW_UNSIGNED=1` is not set.
+- `MAVEN_GPG_PASSPHRASE` is set without `MAVEN_GPG_KEY`.
+- `MAVEN_GPG_KEY` is not an armored secret key, or `MAVEN_GPG_PASSPHRASE`
+  does not unlock it.
+- The Portal rejects the credentials (HTTP 401 or 403).
+- The pom is missing Central fields or does not match the coordinates.
 
 ## npm_deploy
 
-Packs files into an npm tarball and a local feed.
+Use `npm_deploy` to pack files into an npm tarball and publish it to an npm
+registry.
 
 ```starlark
 load("@rules_dx//deploy:defs.bzl", "npm_deploy")
@@ -193,7 +193,7 @@ npm_deploy(
 ```
 
 - `package`: the npm package name, `name` or `@scope/name`. Defaults to `name`.
-- `srcs`: files to pack, including `package.json`. Defaults to `[]`.
+- `srcs`: files to pack. They must include `package.json`. Defaults to `[]`.
 - `dist_tag`: the dist-tag. Defaults to `latest`.
 - `registry_url`: defaults to `https://registry.npmjs.org`.
 - `access`: `public` or `restricted`. Defaults to `public`. `restricted`
@@ -202,34 +202,39 @@ npm_deploy(
   and `none` for `restricted`. `required` needs `access = "public"` and
   `registry.npmjs.org`.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
+- `api_compat`, `api_baseline`: see [Public API compatibility](#public-api-compatibility).
 
-Default run stages the tarball and feed locally. No credentials needed. It
-checks that the files include `package.json`. It does not run `npm` or contact the
-registry.
+Check it first. This needs no credentials:
 
-Rerunning a published version: `npm publish` fails and the run exits 1. Nothing
-is checked before the call.
+```sh
+dx deploy //pkg:npm_demo
+```
 
-Setup:
+The dry run stages the tarball and a local feed. It does not run `npm` or
+contact the registry.
+
+Before you publish, you need:
 
 - `npm` on `PATH`.
 - An `NPM_API_TOKEN` from the registry.
-- `provenance = "required"` needs a CI OIDC identity
+- For `provenance = "required"`, a CI OIDC identity
   (`ACTIONS_ID_TOKEN_REQUEST_URL` or `SIGSTORE_ID_TOKEN`).
 
-Run:
+Publish:
 
 ```sh
 NPM_PUBLISH_APPROVED=1 NPM_API_TOKEN=... \
 dx deploy --apply //pkg:npm_demo
 ```
 
-`NPM_PUBLISH_DRY_RUN` is refused.
+If the version is already published, `npm publish` fails and the run exits 1.
+`NPM_PUBLISH_DRY_RUN` is refused. Use `dx deploy` without `--apply` instead.
 
 ## cloudflare_pages_deploy
 
-Publishes a static bundle directory to an existing Cloudflare Pages project
-with a pinned Wrangler that Bazel builds.
+Use `cloudflare_pages_deploy` to publish a static site to an existing
+Cloudflare Pages project. It uses a pinned Wrangler, the Cloudflare CLI, that
+Bazel builds for you.
 
 ```starlark
 load("@rules_dx//deploy:defs.bzl", "cloudflare_pages_deploy")
@@ -246,24 +251,30 @@ cloudflare_pages_deploy(
 
 - `site`: one directory, such as a `javascript_web_bundle`. It needs an
   `index.html` at its root.
-- `wrangler`: optional. Defaults to the pinned Wrangler in rules_dx, with its
-  Node runtime. Set it to your own executable target to override. Ambient
-  `npx` is never used.
-- `branch`: required. A branch equal to `production_branch` deploys to
-  production. Any other branch is a preview. Set `production_branch` to the
-  production branch configured on the Pages project.
-- The project must already exist. Project creation, DNS, Workers and Pages
-  Functions are not handled. `_worker.js`, `functions/` and `_routes.json`
-  in the site fail the check.
+- `account_id`: required. 32 lowercase hex characters.
+- `project`: required. The Pages project name. The project must already
+  exist.
+- `branch`: required. When it equals `production_branch`, the deploy goes to
+  production. Any other branch is a preview.
+- `production_branch`: required. Set it to the production branch configured
+  on the Pages project.
+- `wrangler`: optional. Defaults to the pinned Wrangler in rules_dx with its
+  own Node runtime. Set it to your own executable target to override. dx
+  never uses `npx` from your machine.
+- `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
-Check without uploading:
+The rule does not create projects or set up DNS, Workers or Pages Functions.
+A site that contains `_worker.js`, `functions/` or `_routes.json` fails the
+check.
+
+Check it first. This needs no token and uploads nothing:
 
 ```sh
 dx deploy //pkg:site_deploy
 ```
 
-This builds the target and validates the site files, the account, the project
-and the branch. Nothing is uploaded and no token is needed. It prints:
+The dry run builds the site and checks the files, the account, the project
+and the branch. It prints:
 
 ```text
 cloudflare_pages_deploy: checked my-site (branch feature/x, preview, build_mode: release); nothing uploaded
@@ -283,12 +294,9 @@ CLOUDFLARE_API_TOKEN=... \
 dx deploy --apply //pkg:site_deploy
 ```
 
-`dx deploy --apply` without `CLOUDFLARE_PUBLISH_APPROVED=1` is refused.
-The token needs the Cloudflare Pages edit permission. It is read only on a
-live run. It is never written into the build. Wrangler runs without prompts,
-telemetry or project discovery.
-
-Output on success:
+The token needs the Cloudflare Pages edit permission. dx reads it only on a
+live run and never writes it into the build. Wrangler runs without prompts,
+telemetry or project discovery. On success it prints:
 
 ```text
 cloudflare_pages_deploy: deployed my-site (branch feature/x, preview, build_mode: release)
@@ -301,15 +309,18 @@ cloudflare_pages_deploy: deployed my-site (branch feature/x, preview, build_mode
   url: https://<hash>.my-site.pages.dev
 ```
 
-Exit codes: `0` published or checked, `1` any failure or refusal. A
-Wrangler failure exits with Wrangler's own code and prints its redacted
-output. Arguments and `--dry-run` are refused.
-If `CLOUDFLARE_ACCOUNT_ID` is set, it must equal `account_id`.
+The run is refused when `CLOUDFLARE_PUBLISH_APPROVED=1` is missing, when
+you pass arguments or `--dry-run`, or when `CLOUDFLARE_ACCOUNT_ID` is set to
+a value other than `account_id`.
+
+Exit codes: `0` published or checked, `1` any failure or refusal. When
+Wrangler fails, the run exits with Wrangler's own code and prints its output
+with the token removed.
 
 ## archive_deploy
 
-Packages one executable as a tarball plus a sha256 file. No credentials and
-no live mode.
+Use `archive_deploy` to package one executable as a tarball plus a sha256
+file. It needs no credentials.
 
 ```starlark
 load("@rules_dx//deploy:defs.bzl", "archive_deploy")
@@ -320,33 +331,42 @@ archive_deploy(
 )
 ```
 
-- `app`: required. One executable target. It is the only tarball member.
+- `app`: required. One executable target. It is the only file in the
+  tarball.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
-- `size_budget`: optional, such as `25MB`. A decimal `B`, `KB`, `MB` or `GB`
-  amount. Building fails when the tarball is larger, and prints both sizes
-  in bytes. Empty means no budget.
 
-For an app built with GCC on Linux, `@rules_dx//cc:gcc_linux_glibc`
-is a reviewed `os_supplied` runtime that records the pinned glibc floor.
+Build the files only:
 
-Outputs: `<name>_archive` builds `<name>.tar.gz` and `<name>_checksum`
-builds `<name>.tar.gz.sha256`.
+```sh
+bazel build //pkg:tasks_deploy_archive //pkg:tasks_deploy_checksum
+```
+
+`<name>_archive` builds `<name>.tar.gz` and `<name>_checksum` builds
+`<name>.tar.gz.sha256`.
+
+Copy both into the workspace root, or into one directory you name:
 
 ```sh
 dx deploy --apply //pkg:tasks_deploy
 dx deploy --apply //pkg:tasks_deploy -- /tmp/out
 ```
 
-The run checks the tarball against its checksum and copies both into the
-workspace root, or into the one directory argument. More than one argument
-is refused. Exit codes: `0` released, `1` any failure or refusal.
+The run checks the tarball against its checksum before it copies. More than
+one directory argument is refused. Exit codes: `0` released, `1` any failure
+or refusal.
+
+For an app built with GCC on Linux, `@rules_dx//cc:gcc_linux_glibc` is an
+`os_supplied` runtime that records the pinned glibc floor. The
+[`consumer_archive`](#consumer_archive) section explains runtimes.
 
 Example: [shared-rust](../examples/shared-rust/README.md#deploy).
 
 ## consumer_archive
 
-Packages one app with its runtime files, resources, a `NOTICE` and an
-`IDENTITY.txt` as a tar.gz or zip plus a sha256 file. It builds files only and has no deploy run.
+Use `consumer_archive` to ship an app to end users as one tar.gz or zip. The
+archive holds the app, the files it needs at run time, resources, a `NOTICE`
+and an `IDENTITY.txt`, plus a sha256 file. It only builds files. There is no
+deploy run.
 
 ```starlark
 load("@rules_dx//deploy:defs.bzl", "consumer_archive")
@@ -361,30 +381,44 @@ consumer_archive(
 )
 ```
 
+Build it:
+
+```sh
+bazel build //pkg:ledger_release //pkg:ledger_release_checksum
+```
+
+`<name>` builds `<name>.<format>` and `<name>_checksum` builds
+`<name>.<format>.sha256`. The app has mode 0755 and every other file mode
+0644, in both formats.
+
 - `app`: required. One executable target, stored at the archive root.
-- `platform`: Bazel platform whose os and cpu go into `IDENTITY.txt`. The os
-  is `linux`, `macos` or `windows` and the cpu `x86_64` or `aarch64`. Defaults
-  to the current target platform, so it cannot disagree with
-  `target_compatible_with`. The app and runtime are not rebuilt for it.
 - `min_runtime`: required. A non-empty requirement such as `glibc-2.34`.
+- `notice`: required. Exactly one file, stored as `NOTICE`.
+- `license_file`: optional. Exactly one file, stored as `LICENSE`.
+- `platform`: a Bazel platform, the label that names an OS and CPU. Its os
+  and cpu go into `IDENTITY.txt`. The os is `linux`, `macos` or `windows` and
+  the cpu `x86_64` or `aarch64`. Defaults to the platform you build for, so
+  it cannot disagree with `target_compatible_with`. The app and runtime are
+  not rebuilt for it.
 - `linkage`: `static` or `dynamic`. Defaults to `dynamic`.
 - `runtime`: files the app needs at run time. Each lands at the archive root
-  under its basename, mode 0644. Native libraries (`.dll`, `.dylib`, `.so` or
-  `.so.<n>`) must come through a `dx_native_runtime` target; a plain file with
-  such a name fails the archive. Defaults to `[]`.
+  under its own file name, mode 0644. Native libraries (`.dll`, `.dylib`,
+  `.so` or `.so.<n>`) must come through a `dx_native_runtime` target. A
+  plain file with such a name fails the build. Defaults to `[]`.
 - `format`: `tar.gz` or `zip`. Defaults to `tar.gz`.
 - `resources`: targets whose files land under `resources/`. Each file must
   sit under a directory named after its target. Defaults to `[]`.
-- `notice`: required. Exactly one file, stored as `NOTICE`.
-- `tags`: Bazel tags for every generated target.
-- `target_compatible_with`: platform constraints for every generated target,
-  so an archive for another OS or CPU is skipped instead of built.
+- `check_imports`: defaults to `True`. See below.
+- `tags`: Bazel tags for every target the macro makes.
+- `target_compatible_with`: platform constraints. An archive for another OS
+  or CPU is skipped instead of built.
 
-`IDENTITY.txt` lists `name`, `arch`, `os`, `linkage` and `min_runtime`,
-then one sorted `runtime: <name> <version> <redistribution>` line per
+`IDENTITY.txt` lists `name`, `arch`, `os`, `linkage` and `min_runtime`.
+Then it has one sorted `runtime: <name> <version> <redistribution>` line per
 `dx_native_runtime` target in `runtime`.
-A `runtime` entry may be a `dx_native_runtime` target, which records where a
-library comes from and whether it may ship:
+
+A `dx_native_runtime` target records where a library comes from and whether
+it may ship:
 
 ```starlark
 load("@rules_dx//deploy:defs.bzl", "dx_native_runtime")
@@ -401,8 +435,8 @@ dx_native_runtime(
 
 - `redistribution`: required. `app_local` ships `srcs` at the archive root
   and `notice` as `notices/<name>`. `os_supplied` ships nothing and needs
-  empty `srcs`. `build_only` fails the archive, because compiler and SDK
-  inputs cannot ship.
+  empty `srcs`. `build_only` fails the build, because compiler and SDK
+  files cannot ship.
 - `version` and `source`: required and non-empty.
 - `notice`: required for `app_local`. The `notice` output group carries it,
   so a `filegroup(output_group = "notice")` can feed a wheel's
@@ -411,24 +445,21 @@ dx_native_runtime(
   runtime, such as `libGL.so.1`. A trailing `*` matches any name with that
   prefix.
 
-`consumer_archive` checks the import closure of the app and of each shipped
-runtime file as a validation action (`archiver --imports`). Every imported
-library (ELF `DT_NEEDED`, Mach-O load command, PE import) must be a shipped
-member's basename, a system import for that format (the `SYSTEM_IMPORTS` list
-in `deploy/private/src/imports.rs`, also used by release cells), or listed in an
-`os_supplied` runtime's `provides`. Otherwise the build fails with
-`<member>: not shipped and not a system import: [...]`. Files that are not
-binary images are skipped. Set `check_imports = False` to opt out.
+The build also checks which libraries the app and each shipped runtime file
+load. Each one (ELF `DT_NEEDED`, Mach-O load command, PE import) must be
+shipped in the archive, be a system library for that format, or be listed in
+an `os_supplied` runtime's `provides`. The system libraries are the
+`SYSTEM_IMPORTS` list in `deploy/private/src/imports.rs`. Otherwise the
+build fails with `<member>: not shipped and not a system import: [...]`.
+Files that are not binaries are skipped. Set `check_imports = False` to turn
+the check off.
 
-`//cc:gcc_linux_libstdcxx` is an `app_local` runtime with the
-pinned GCC's `libstdc++.so.6` and `libgcc_s.so.1` and the GCC Runtime Library
-Exception notice. Build the app with `extra_features = ["dynamic_libstdcxx"]`
-on `cc_toolchain_binary`, which adds `-Wl,-rpath,$ORIGIN`, and list it in
-`runtime` next to `gcc_linux_glibc`.
-
-Outputs: `<name>` builds `<name>.<format>` and `<name>_checksum`
-builds `<name>.<format>.sha256`. The app is stored with mode 0755 and every
-other member with mode 0644, in both formats.
+To ship the pinned GCC's `libstdc++.so.6` and `libgcc_s.so.1`, use
+`@rules_dx//cc:gcc_linux_libstdcxx`. It is an `app_local` runtime with the
+GCC Runtime Library Exception notice. Build the app with
+`extra_features = ["dynamic_libstdcxx"]` on `cc_toolchain_binary`, which
+adds `-Wl,-rpath,$ORIGIN`. List it in `runtime` next to
+`@rules_dx//cc:gcc_linux_glibc`.
 
 Examples: [Qt packaging](../qt/README.md#packaging) and
 [qt-rust](../qt/tests/fixtures/qt_rust/app/BUILD.bazel).

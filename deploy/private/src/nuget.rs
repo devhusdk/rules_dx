@@ -442,7 +442,7 @@ fn nuget_api_check(
         Err(error) => Some(error),
     };
     if let Some(reason) = skipped {
-        drop(std::fs::remove_dir_all(&work));
+        dx_atomic_fs::discard_dir(&work);
         return Ok(Outcome::Skipped(reason));
     }
     let home = work.join("home");
@@ -471,7 +471,7 @@ fn nuget_api_check(
             )
             .map_err(|error| error.to_string())
         });
-    drop(std::fs::remove_dir_all(&work));
+    dx_atomic_fs::discard_dir(&work);
     let output = output.map_err(|error| format!("nuget_deploy: ApiCompat: {error}"))?;
     let text = format!(
         "{}\n{}",

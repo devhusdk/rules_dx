@@ -442,7 +442,7 @@ fn pypi_upload(
         (registry_url, token, signer),
         &version,
     );
-    drop(std::fs::remove_dir_all(stage));
+    dx_atomic_fs::discard_dir(stage);
     code
 }
 
@@ -673,7 +673,7 @@ fn pypi_api_check(
         }
         Err(outcome) => Ok(outcome),
     };
-    drop(std::fs::remove_dir_all(&work));
+    dx_atomic_fs::discard_dir(&work);
     outcome
 }
 

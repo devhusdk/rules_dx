@@ -312,7 +312,7 @@ fn pub_api_check(
             &work,
         )
     });
-    drop(std::fs::remove_dir_all(&work));
+    dx_atomic_fs::discard_dir(&work);
     result
 }
 
@@ -578,7 +578,7 @@ pub fn pub_main_checked(
         secrets,
         &api_check,
     );
-    drop(std::fs::remove_dir_all(&staging));
+    dx_atomic_fs::discard_dir(&staging);
     let version = match result {
         Ok(version) => version,
         Err(message) => {
@@ -643,7 +643,7 @@ fn pub_run_checked(
         registry_url,
         secrets.get("PUB_API_TOKEN"),
     );
-    drop(std::fs::remove_dir_all(&cache));
+    dx_atomic_fs::discard_dir(&cache);
     published.map(|()| version)
 }
 

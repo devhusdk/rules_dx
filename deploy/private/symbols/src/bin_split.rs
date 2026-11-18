@@ -105,7 +105,7 @@ fn main() {
     if let Err(e) = result {
         if let Ok(a) = parse(&args) {
             for p in [&a.stripped, &a.debug, &a.manifest] {
-                drop(std::fs::remove_file(p));
+                dx_atomic_fs::discard_file(p);
             }
         }
         eprintln!("split: {e}");

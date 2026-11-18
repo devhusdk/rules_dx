@@ -213,7 +213,7 @@ pub(crate) fn go_api_check(
             &["worktree", "remove", "--force", &tree.to_string_lossy()],
         ));
     }
-    drop(std::fs::remove_dir_all(&work));
+    dx_atomic_fs::discard_dir(&work);
     checked.map(|()| outcomes)
 }
 

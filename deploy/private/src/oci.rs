@@ -80,10 +80,10 @@ pub fn oci_build_layout(
             dx_atomic_fs::commit::swap_tree(&layout, &prev, &staging).map_err(io::Error::other)
         });
     if let Err(error) = staged {
-        drop(std::fs::remove_dir_all(&staging));
+        dx_atomic_fs::discard_dir(&staging);
         return Err(error);
     }
-    drop(std::fs::remove_dir_all(&prev));
+    dx_atomic_fs::discard_dir(&prev);
     Ok(layout)
 }
 

@@ -66,6 +66,26 @@ pub fn is_staging_sibling(target: &Path, candidate: &Path) -> bool {
         && name.ends_with(STAGING_SUFFIX)
 }
 
+/// Removes a scratch file. A missing file counts as removed; any other error is logged with the path.
+pub fn discard_file(path: impl AsRef<Path>) {
+    let path = path.as_ref();
+    log_discard_error(path, std::fs::remove_file(path));
+}
+
+/// Removes a scratch directory tree. A missing tree counts as removed; any other error is logged with the path.
+pub fn discard_dir(path: impl AsRef<Path>) {
+    let path = path.as_ref();
+    log_discard_error(path, std::fs::remove_dir_all(path));
+}
+
+fn log_discard_error(path: &Path, result: io::Result<()>) {
+    if let Err(error) = result
+        && error.kind() != io::ErrorKind::NotFound
+    {
+        tracing::info!(path = %path.display(), %error, "cannot remove scratch path");
+    }
+}
+
 const STALE_STAGING_AGE: Duration = Duration::from_hours(1);
 
 /// Removes staging files next to target that an interrupted write left behind.
@@ -91,7 +111,7 @@ pub fn remove_stale_staging(target: &Path) {
             .ok()
             .and_then(|modified| modified.elapsed().ok());
         if age.is_some_and(|age| age >= STALE_STAGING_AGE) {
-            drop(std::fs::remove_file(&path));
+            discard_file(&path);
         }
     }
 }
@@ -318,6 +338,22 @@ mod tests {
                     .into_owned()
             })
             .collect()
+    }
+
+    #[test]
+    fn discard_removes_present_and_accepts_missing_paths() {
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-").unwrap();
+        let file = scratch.path().join("a.bin");
+        let dir = scratch.path().join("tree");
+        std::fs::write(&file, b"x").expect("seed file");
+        std::fs::create_dir_all(dir.join("nested")).expect("seed dir");
+        std::fs::write(dir.join("nested").join("b.bin"), b"y").expect("seed nested");
+        discard_file(&file);
+        discard_dir(&dir);
+        assert!(!file.exists());
+        assert!(!dir.exists());
+        discard_file(&file);
+        discard_dir(&dir);
     }
 
     #[test]

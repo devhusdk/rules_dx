@@ -677,7 +677,7 @@ fn maven_api_check(
         Ok(false) => Ok(Outcome::Skipped(format!("{url} not found"))),
         Err(error) => Ok(Outcome::Skipped(error)),
     };
-    drop(std::fs::remove_dir_all(&staging));
+    dx_atomic_fs::discard_dir(&staging);
     outcome
 }
 
@@ -863,7 +863,7 @@ pub fn maven_main(spec: &MavenLaunch<'_>, argv: &[String]) -> i32 {
             live.signer.as_ref(),
         )
         .and_then(|house| maven_bundle_zip(&house));
-        drop(std::fs::remove_dir_all(&workdir));
+        dx_atomic_fs::discard_dir(&workdir);
         let bundle = match bundle {
             Ok(bundle) => bundle,
             Err(error) => {
@@ -1630,7 +1630,7 @@ pub(crate) mod tests {
         ] {
             assert!(logged.contains(flag), "{logged}");
         }
-        drop(std::fs::remove_dir_all(&scratch));
+        dx_atomic_fs::discard_dir(&scratch);
     }
 
     #[test]

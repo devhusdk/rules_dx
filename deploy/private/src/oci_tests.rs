@@ -2315,3 +2315,155 @@ fn oci_live_push_removes_the_login_when_signing_fails() {
     );
     assert_login_cleaned_up(&push);
 }
+
+/// Runs the pinned cosign with `args` and returns its combined output on failure.
+#[cfg(unix)]
+fn run_cosign(cosign: &Path, args: &[&str], home: &Path) -> Result<String, String> {
+    let out = std::process::Command::new(cosign)
+        .args(args)
+        .env("COSIGN_PASSWORD", "")
+        .env("DOCKER_CONFIG", home)
+        .env("HOME", home)
+        .output()
+        .expect("spawn cosign");
+    let text =
+        String::from_utf8_lossy(&out.stdout).into_owned() + &String::from_utf8_lossy(&out.stderr);
+    if out.status.success() {
+        Ok(text)
+    } else {
+        Err(format!("cosign {}: {text}", args.join(" ")))
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn oci_live_push_signature_and_attestation_verify_with_pinned_cosign() {
+    let scratch = scratch_dir();
+    let dir = scratch.path();
+    let cosign = dx_testing::env_file("DX_COSIGN_BIN");
+    let home = dir.join("home");
+    std::fs::create_dir_all(&home).expect("home");
+    let prefix = dir.join("k");
+    run_cosign(
+        &cosign,
+        &[
+            "generate-key-pair",
+            "--output-key-prefix",
+            prefix.to_str().expect("utf8"),
+        ],
+        &home,
+    )
+    .expect("generate-key-pair");
+    let key = std::fs::read_to_string(dir.join("k.key")).expect("key");
+    let public = dir.join("k.pub");
+    // The fixture key signs offline: no signing config fetch, no transparency log upload.
+    let offline = dir.join("cosign-offline");
+    let script = format!(
+        "#!/bin/sh\ncase \"$1\" in sign|attest) exec '{0}' \"$@\" --use-signing-config=false --tlog-upload=false ;; esac\nexec '{0}' \"$@\"\n",
+        cosign.display()
+    );
+    with_env(&[], || dx_testing::executable_script(&offline, &script));
+    let sha256 = dx_digest::sha256_file_hex(&offline).expect("hash");
+    let version_text = run_cosign(&cosign, &["version"], &home).expect("version");
+    let version = crate::signing::cosign_git_version(&version_text)
+        .expect("GitVersion")
+        .to_owned();
+    let (image, _) = oci_save(dir, "image.tar.gz", &[oci_test_layer(true)], "linux/amd64");
+    let sbom = dir.join("s.spdx.json");
+    std::fs::write(
+        &sbom,
+        r#"{"spdxVersion":"SPDX-2.3","dataLicense":"CC0-1.0","SPDXID":"SPDXRef-DOCUMENT","name":"demo","documentNamespace":"https://example.invalid/demo","creationInfo":{"created":"2026-01-01T00:00:00Z","creators":["Tool: dx"]},"packages":[]}"#,
+    )
+    .expect("sbom");
+    let fake = FakeRegistry::start(FakeConfig::default());
+    let host = fake.origin.trim_start_matches("http://").to_owned();
+    let target = registry::RegistryRef {
+        endpoint: registry::Endpoint::for_test(&fake.origin),
+        name: "demo/app".to_owned(),
+    };
+    let live = dir.join("live");
+    std::fs::create_dir_all(&live).expect("outdir");
+    let offline_path = offline.to_string_lossy().into_owned();
+    let home_text = home.to_string_lossy().into_owned();
+    let code = with_env(
+        &[
+            ("COSIGN_KEY", Some(key.as_str())),
+            ("COSIGN_PASSWORD", Some("")),
+            ("HOME", Some(home_text.as_str())),
+        ],
+        || {
+            oci_live_push_to(
+                &crate::http::test_client(),
+                &target,
+                &image,
+                &live,
+                &OciPush {
+                    registry: &host,
+                    repository: "demo/app",
+                    tag: "1.2.3",
+                    platform: "linux/amd64",
+                    creds: registry::Credentials {
+                        user: "me",
+                        secret: FAKE_SECRET,
+                    },
+                    sign: Some(OciSign {
+                        pin: CosignPin {
+                            path: &offline_path,
+                            version: &version,
+                            sha256: &sha256,
+                        },
+                        identity: &SignIdentity::Key,
+                        sbom: Some(&sbom),
+                    }),
+                },
+            )
+        },
+    );
+    assert_eq!(code, 0);
+    let digest = fake
+        .requests()
+        .into_iter()
+        .find(|request| request.method == "PUT" && request.path.contains("/manifests/1.2.3"))
+        .expect("tag push")
+        .body_digest;
+    let reference = format!("{host}/demo/app@{digest}");
+    let public = public.to_str().expect("utf8");
+    let verify = [
+        "verify",
+        "--key",
+        public,
+        "--insecure-ignore-tlog=true",
+        &reference,
+    ];
+    run_cosign(&cosign, &verify, &home).expect("cosign verify");
+    let attestation = [
+        "verify-attestation",
+        "--type",
+        "spdxjson",
+        "--key",
+        public,
+        "--insecure-ignore-tlog=true",
+        &reference,
+    ];
+    run_cosign(&cosign, &attestation, &home).expect("cosign verify-attestation");
+    let other = dir.join("other");
+    run_cosign(
+        &cosign,
+        &[
+            "generate-key-pair",
+            "--output-key-prefix",
+            other.to_str().expect("utf8"),
+        ],
+        &home,
+    )
+    .expect("generate-key-pair");
+    let wrong = dir.join("other.pub");
+    let wrong = [
+        "verify",
+        "--key",
+        wrong.to_str().expect("utf8"),
+        "--insecure-ignore-tlog=true",
+        &reference,
+    ];
+    assert!(run_cosign(&cosign, &wrong, &home).is_err());
+}

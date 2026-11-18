@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 
 pub use managed::{
     EntryKind, LinkPolicy, Mechanism, PointerKind, classify, create_pointer, materialize_file,
-    materialize_file_with, remove_managed,
+    materialize_file_with, remove_managed, replace_pointer,
 };
 
 fn staging_for(path: &Path) -> io::Result<tempfile::NamedTempFile> {
@@ -245,6 +245,12 @@ pub(crate) fn persist_copy(
 pub fn copy_atomic(src: &Path, dest: &Path) -> io::Result<()> {
     let source = File::open(src)?;
     persist_copy(source, staging_for(dest)?, dest, Durability::Synced)
+}
+
+/// Copies src to dest like [`copy_atomic`] without syncing, for files a crash may lose.
+pub fn copy_scratch(src: &Path, dest: &Path) -> io::Result<()> {
+    let source = File::open(src)?;
+    persist_copy(source, staging_for(dest)?, dest, Durability::Unsynced)
 }
 
 /// A file written in place beside `dest` and renamed over it on [`StagedFile::commit`].
@@ -735,6 +741,25 @@ mod tests {
         copy_atomic(&src, &dest).expect("replace read-only dest");
         assert_eq!(std::fs::read(&dest).expect("read dest"), b"new\n");
         assert_eq!(mode_of(&dest), 0o644);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn copy_scratch_replaces_a_read_only_dest_and_keeps_the_exec_bit() {
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-copy-scratch-").unwrap();
+        let src = scratch.path().join("tool");
+        std::fs::write(&src, b"#!/bin/sh\n").expect("write src");
+        chmod(&src, 0o555);
+        let out = scratch.path().join("out");
+        std::fs::create_dir_all(&out).expect("mkdir out");
+        let dest = out.join("tool");
+        std::fs::write(&dest, b"old\n").expect("write dest");
+        chmod(&dest, 0o444);
+        copy_scratch(&src, &dest).expect("replace read-only dest");
+        assert_eq!(std::fs::read(&dest).expect("read dest"), b"#!/bin/sh\n");
+        assert_eq!(mode_of(&dest), 0o755);
+        assert_eq!(names_in(&out), vec!["tool".to_owned()]);
         scratch.close().expect("cleanup");
     }
 

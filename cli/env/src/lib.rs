@@ -5,6 +5,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use dx_atomic_fs::commit::{TreeSwap, publish_tree_swap, recover_tree_swap};
 use marker_proto::dx::env::v1::{EnvIdentity, EnvMarker, ToolEntry};
 use prost::Message;
 use serde::Deserialize;
@@ -76,11 +77,11 @@ impl From<dx_atomic_fs::commit::CommitError> for Error {
     fn from(error: dx_atomic_fs::commit::CommitError) -> Self {
         use dx_atomic_fs::commit::CommitError;
         match error {
+            CommitError::Install { reason } => Error::Install { reason },
             CommitError::Foreign { path, reason } => Error::Unmanaged {
                 path,
                 detail: reason,
             },
-            CommitError::Install { reason } => Error::Install { reason },
         }
     }
 }
@@ -315,7 +316,12 @@ pub fn refresh(
     let bin_dir = dx_dir.join(BIN_DIR_NAME);
     let prev_dir = dx_dir.join(PREV_DIR_NAME);
     let stage_dir = dx_dir.join(STAGE_DIR_NAME);
-    dx_atomic_fs::commit::recover_tree_swap(&bin_dir, &prev_dir)?;
+    let swap = TreeSwap {
+        current: bin_dir.clone(),
+        retired: prev_dir.clone(),
+        stage: stage_dir.clone(),
+    };
+    recover_tree_swap(&swap)?;
     if prev_dir.exists() {
         fs::remove_dir_all(&prev_dir).map_err(|e| Error::Install {
             reason: format!("cannot clear stale {}: {e}", prev_dir.display()),
@@ -329,8 +335,7 @@ pub fn refresh(
     }
     let fresh = current.is_none();
     stage_tree(&stage_dir, &staged, &candidate)?;
-    dx_atomic_fs::commit::swap_tree(&bin_dir, &prev_dir, &stage_dir)?;
-    drop(fs::remove_dir_all(&prev_dir));
+    publish_tree_swap(&swap)?;
     if fresh {
         Ok(RefreshOutcome::InstalledFresh)
     } else {

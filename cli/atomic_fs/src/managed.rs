@@ -168,6 +168,25 @@ pub fn create_pointer(target: &Path, pointer: &Path, kind: PointerKind) -> io::R
     }
 }
 
+/// Points `pointer` at `target` by renaming a freshly made sibling link over it.
+pub fn replace_pointer(target: &Path, pointer: &Path, kind: PointerKind) -> io::Result<()> {
+    let parent = pointer
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    std::fs::create_dir_all(crate::long_path(parent)?)?;
+    let ((), stage) = tempfile::Builder::new()
+        .prefix(&crate::staging_prefix(pointer))
+        .suffix(crate::STAGING_SUFFIX)
+        .make_in(crate::long_path(parent)?, |path| {
+            create_pointer(target, path, kind)
+        })?
+        .keep()?;
+    std::fs::rename(&stage, pointer).inspect_err(|_| {
+        drop(remove_managed(&stage));
+    })
+}
+
 fn unlink_entry(path: &Path) -> io::Result<()> {
     #[cfg(windows)]
     {
@@ -737,6 +756,80 @@ mod tests {
         create_pointer(&other, &link, PointerKind::Directory)
             .expect_err("an existing link is not overwritten");
         assert_eq!(std::fs::read_link(&link).expect("link intact"), target);
+        scratch.close().expect("cleanup");
+    }
+
+    fn pointer_siblings(dir: &Path) -> Vec<String> {
+        let mut names: Vec<String> = std::fs::read_dir(dir)
+            .expect("list")
+            .map(|entry| {
+                entry
+                    .expect("entry")
+                    .file_name()
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect();
+        names.sort();
+        names
+    }
+
+    #[test]
+    fn replace_pointer_swaps_file_and_directory_links() {
+        let scratch = scratch("dx-fs-replace-pointer-").unwrap();
+        let targets = scratch.path().join("targets");
+        std::fs::create_dir(&targets).expect("targets");
+        let first = targets.join("first.txt");
+        let second = targets.join("second.txt");
+        std::fs::write(&first, b"first\n").expect("first");
+        std::fs::write(&second, b"second\n").expect("second");
+        let first_dir = targets.join("first");
+        let second_dir = targets.join("second");
+        std::fs::create_dir(&first_dir).expect("first dir");
+        std::fs::create_dir(&second_dir).expect("second dir");
+        let links = scratch.path().join("links");
+        let file_link = links.join("file");
+        if skip_without_link_privileges(&replace_pointer(&first, &file_link, PointerKind::File)) {
+            // LCOV_EXCL_START - reason: hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+            scratch.close().expect("cleanup");
+            return;
+            // LCOV_EXCL_STOP - reason: end hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        }
+        replace_pointer(&second, &file_link, PointerKind::File).expect("replace file link");
+        assert_eq!(std::fs::read_link(&file_link).expect("file link"), second);
+        let dir_link = links.join("dir");
+        replace_pointer(&first_dir, &dir_link, PointerKind::Directory).expect("dir link");
+        replace_pointer(&second_dir, &dir_link, PointerKind::Directory).expect("replace dir link");
+        assert_eq!(std::fs::read_link(&dir_link).expect("dir link"), second_dir);
+        assert!(first_dir.is_dir(), "the old target survives");
+        assert_eq!(pointer_siblings(&links), ["dir", "file"]);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn replace_pointer_keeps_a_real_directory_and_drops_the_stage() {
+        let scratch = scratch("dx-fs-replace-pointer-dir-").unwrap();
+        let target = scratch.path().join("target");
+        std::fs::create_dir(&target).expect("target");
+        let links = scratch.path().join("links");
+        let pointer = links.join("dir");
+        std::fs::create_dir_all(&pointer).expect("real dir");
+        std::fs::write(pointer.join("keep"), b"keep\n").expect("keep");
+        let probe = links.join("probe");
+        if skip_without_link_privileges(&create_pointer(&target, &probe, PointerKind::Directory)) {
+            // LCOV_EXCL_START - reason: hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+            scratch.close().expect("cleanup");
+            return;
+            // LCOV_EXCL_STOP - reason: end hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        }
+        remove_managed(&probe).expect("drop probe");
+        replace_pointer(&target, &pointer, PointerKind::Directory)
+            .expect_err("a non-empty directory is not replaced");
+        assert_eq!(
+            std::fs::read(pointer.join("keep")).expect("kept"),
+            b"keep\n"
+        );
+        assert_eq!(pointer_siblings(&links), ["dir"]);
         scratch.close().expect("cleanup");
     }
 }

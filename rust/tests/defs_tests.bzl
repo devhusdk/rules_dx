@@ -471,3 +471,34 @@ def rust_msvc_opt_pdb_tests(name, target, expected):
         target_compatible_with = ["@platforms//os:windows"],
         target_under_test = target,
     )
+
+def _shard_runner_impl(ctx):
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    info = target[DefaultInfo]
+    run_env = target[RunEnvironmentInfo].environment
+    if ctx.attr.sharded:
+        executable = info.files_to_run.executable
+        asserts.true(env, executable.dirname.endswith(".launcher"), "executable " + executable.path)
+        binary = [f for f in info.files.to_list() if f != executable]
+        asserts.equals(env, 1, len(binary))
+        asserts.true(env, run_env.get("DX_TEST_BINARY", "").endswith("/" + binary[0].short_path), "DX_TEST_BINARY=" + run_env.get("DX_TEST_BINARY", ""))
+        asserts.equals(env, binary[0].short_path, run_env.get("DX_COVERAGE_TEST_BINARY"))
+        runfiles = [f.short_path for f in info.default_runfiles.files.to_list()]
+        asserts.true(env, binary[0].short_path in runfiles, "binary not in runfiles")
+        asserts.true(env, [p for p in runfiles if p.removesuffix(".exe").endswith("/shard_runner")] != [], "shard runner not in runfiles")
+    else:
+        asserts.false(env, "DX_TEST_BINARY" in run_env, "unsharded test sets DX_TEST_BINARY")
+        asserts.false(env, info.files_to_run.executable.dirname.endswith(".launcher"), "unsharded test uses a launcher")
+    return analysistest.end(env)
+
+_shard_runner_test = analysistest.make(
+    _shard_runner_impl,
+    attrs = {"sharded": attr.bool(mandatory = True)},
+)
+
+def rust_shard_runner_tests(name, sharded, unsharded):
+    """Asserts a sharded rust_test runs through the shard runner and an unsharded one does not."""
+    _shard_runner_test(name = name + "_sharded", size = "small", target_under_test = sharded, sharded = True)
+    _shard_runner_test(name = name + "_unsharded", size = "small", target_under_test = unsharded, sharded = False)
+    native.test_suite(name = name, tests = [name + "_sharded", name + "_unsharded"])

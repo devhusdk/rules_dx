@@ -38,7 +38,10 @@ impl Context {
     }
 
     fn test_binary(&self) -> Result<PathBuf, String> {
-        let binary = required("TEST_BINARY")?;
+        let binary = match env::var("DX_COVERAGE_TEST_BINARY") {
+            Ok(binary) => binary,
+            Err(_) => required("TEST_BINARY")?,
+        };
         Ok(if let Some(ref rd) = self.runfiles_dir {
             let in_runfiles = rd.join(required("TEST_WORKSPACE")?).join(&binary);
             if in_runfiles.exists() {

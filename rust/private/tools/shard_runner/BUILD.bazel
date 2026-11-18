@@ -1,0 +1,19 @@
+load("//rust:defs.bzl", "rust_binary", "rust_test")
+
+package(default_visibility = ["//:__subpackages__"])
+
+rust_binary(
+    name = "shard_runner",
+    srcs = ["src/main.rs"],
+    crate_name = "shard_runner",
+    crate_root = "src/main.rs",
+    testonly = True,
+    visibility = ["//visibility:public"],
+    deps = ["@rules_rust//rust/runfiles"],
+)
+
+rust_test(
+    name = "shard_runner_test",
+    size = "small",
+    crate = ":shard_runner",
+)

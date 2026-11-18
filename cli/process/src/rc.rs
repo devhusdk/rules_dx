@@ -553,10 +553,7 @@ pub fn default_disk_cache(cache: &Path) -> PathBuf {
 
 /// The home directory Bazel expands `~` and finds the user rc in.
 fn home_dir(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
-    let non_empty = |name: &str| env_get(name).filter(|value| !value.is_empty());
-    non_empty("HOME")
-        .or_else(|| non_empty("USERPROFILE"))
-        .map(PathBuf::from)
+    crate::home_with(env_get).map(PathBuf::from)
 }
 
 /// The system rc file: under `ProgramData` on Windows, else `/etc`.

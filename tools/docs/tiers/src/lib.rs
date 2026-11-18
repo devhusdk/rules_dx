@@ -3,8 +3,9 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::BTreeMap;
+use std::fmt;
 
-use dx_diff::{FilePatch, PatchKind, render_patch};
+use dx_diff::{DiffError, FilePatch, PatchKind, render_patch};
 
 pub const UPDATE_COMMAND: &str = "bazel run //docs:update_tiers";
 
@@ -17,17 +18,46 @@ pub struct Tier {
     pub strict_path: String,
 }
 
+/// Why the tier manifest or a tier page is bad.
+#[derive(Debug)]
+pub enum TiersError {
+    ManifestLine { line: String },
+    MissingFile { path: String },
+    Patch { tool: String, source: DiffError },
+}
+
+impl fmt::Display for TiersError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ManifestLine { line } => write!(f, "manifest line needs 5 fields: {line:?}"),
+            Self::MissingFile { path } => write!(f, "missing tier file {path}"),
+            Self::Patch { tool, source } => write!(f, "{tool}: {source}"),
+        }
+    }
+}
+
+impl std::error::Error for TiersError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Patch { source, .. } => Some(source),
+            Self::ManifestLine { .. } | Self::MissingFile { .. } => None,
+        }
+    }
+}
+
 /// Reads one tab separated line per tool: tool, source, native file, standard path, strict path.
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn parse_manifest(text: &str) -> Result<Vec<Tier>, String> {
+/// Returns [`TiersError::ManifestLine`] for a line without exactly 5 fields.
+pub fn parse_manifest(text: &str) -> Result<Vec<Tier>, TiersError> {
     let mut tiers = Vec::new();
     for line in text.lines().filter(|line| !line.is_empty()) {
         let fields: Vec<&str> = line.split('\t').collect();
         let [tool, source, native, standard_path, strict_path] = fields[..] else {
-            return Err(format!("manifest line needs 5 fields: {line:?}"));
+            return Err(TiersError::ManifestLine {
+                line: line.to_owned(),
+            });
         };
         tiers.push(Tier {
             tool: tool.to_owned(),
@@ -100,8 +130,11 @@ fn intro(title: &str, purpose: &str, tier: &str, reference: &str) -> String {
 
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn standard_page(tiers: &[Tier], files: &BTreeMap<String, String>) -> Result<String, String> {
+/// Returns [`TiersError::MissingFile`] when a standard tier file is not in `files`.
+pub fn standard_page(
+    tiers: &[Tier],
+    files: &BTreeMap<String, String>,
+) -> Result<String, TiersError> {
     let mut out = intro(
         "Standard tiers",
         "This page shows the config each lint and format tool runs with when you use the standard tier, the default.",
@@ -118,8 +151,9 @@ pub fn standard_page(tiers: &[Tier], files: &BTreeMap<String, String>) -> Result
 
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn strict_page(tiers: &[Tier], files: &BTreeMap<String, String>) -> Result<String, String> {
+/// Returns [`TiersError::MissingFile`] when a tier file is not in `files`, and
+/// [`TiersError::Patch`] when the diff cannot be rendered.
+pub fn strict_page(tiers: &[Tier], files: &BTreeMap<String, String>) -> Result<String, TiersError> {
     let mut out = intro(
         "Strict tiers",
         "This page shows what each lint and format tool checks on top of the standard tier when you switch to the strict tier.",
@@ -140,17 +174,22 @@ pub fn strict_page(tiers: &[Tier], files: &BTreeMap<String, String>) -> Result<S
             original: standard,
             candidate: strict,
         }])
-        .map_err(|error| format!("{}: {error}", tier.tool))?;
+        .map_err(|source| TiersError::Patch {
+            tool: tier.tool.clone(),
+            source,
+        })?;
         block(&mut out, "diff", &patch);
     }
     Ok(trim(out))
 }
 
-fn read<'a>(files: &'a BTreeMap<String, String>, path: &str) -> Result<&'a str, String> {
+fn read<'a>(files: &'a BTreeMap<String, String>, path: &str) -> Result<&'a str, TiersError> {
     files
         .get(path)
         .map(String::as_str)
-        .ok_or_else(|| format!("missing tier file {path}"))
+        .ok_or_else(|| TiersError::MissingFile {
+            path: path.to_owned(),
+        })
 }
 
 fn trim(mut page: String) -> String {
@@ -187,7 +226,9 @@ mod tests {
         let tiers = parse_manifest(text).expect("manifest");
         assert_eq!(tiers[0].tool, "a");
         assert_eq!(tiers[1].tool, "b");
-        assert!(parse_manifest("a\tb\n").is_err());
+        let error = parse_manifest("a\tb\n").expect_err("short line");
+        assert!(matches!(&error, TiersError::ManifestLine { line } if line == "a\tb"));
+        assert_eq!(error.to_string(), "manifest line needs 5 fields: \"a\\tb\"");
     }
 
     #[test]
@@ -217,6 +258,7 @@ mod tests {
     #[test]
     fn missing_file_is_an_error() {
         let error = standard_page(&[tier()], &BTreeMap::new()).expect_err("missing");
-        assert!(error.contains("demo/standard.json"));
+        assert!(matches!(&error, TiersError::MissingFile { path } if path == "demo/standard.json"));
+        assert_eq!(error.to_string(), "missing tier file demo/standard.json");
     }
 }

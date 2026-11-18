@@ -3,8 +3,184 @@
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
+pub mod cli;
+
+use dx_atomic_fs::path_io::{self, PathIoError};
 use object::{Architecture, Object};
+use std::fmt;
 use std::path::{Path, PathBuf};
+
+/// Why a binary and its debug info cannot be read or do not belong together.
+#[derive(Debug)]
+pub enum SymbolsError {
+    WrongFormat {
+        what: &'static str,
+        format: &'static str,
+    },
+    Unreadable {
+        what: &'static str,
+        format: &'static str,
+        source: object::Error,
+    },
+    Corrupt {
+        what: &'static str,
+        source: object::Error,
+    },
+    BadHeader {
+        what: &'static str,
+    },
+    Truncated {
+        what: &'static str,
+    },
+    NoBuildId {
+        what: &'static str,
+    },
+    NoUuid {
+        what: &'static str,
+    },
+    NoCodeView,
+    BuildIdMismatch {
+        binary: String,
+        debug: String,
+    },
+    UuidMismatch {
+        binary: String,
+        dsym: String,
+    },
+    ArchMismatch {
+        binary: String,
+        other: &'static str,
+        debug: String,
+    },
+    GuidMismatch {
+        binary: String,
+        pdb: String,
+    },
+    AgeMismatch {
+        binary: u32,
+        pdb: u32,
+    },
+    MachineMismatch {
+        binary: u16,
+        pdb: u16,
+    },
+    PdbCorrupt,
+    NoInfoStream,
+    NoDbiStream,
+    NoPdbName,
+    DsymUnreadable {
+        bundle: PathBuf,
+        source: PathIoError,
+    },
+    DwarfCount {
+        bundle: PathBuf,
+        found: usize,
+    },
+    DwarfOutsideBundle {
+        dwarf: PathBuf,
+        bundle: PathBuf,
+    },
+    Io(PathIoError),
+}
+
+fn article(format: &str) -> &'static str {
+    if format.starts_with('E') { "an" } else { "a" }
+}
+
+impl fmt::Display for SymbolsError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::WrongFormat { what, format } => {
+                write!(f, "{what} is not {} {format} file", article(format))
+            }
+            Self::Unreadable {
+                what,
+                format,
+                source,
+            } => write!(f, "{what} is not a readable {format} file: {source}"),
+            Self::Corrupt { what, source } => write!(f, "{what} is corrupt: {source}"),
+            Self::BadHeader { what } => write!(f, "{what} is corrupt"),
+            Self::Truncated { what } => write!(f, "{what} is truncated"),
+            Self::NoBuildId { what } => write!(f, "{what} has no build-id"),
+            Self::NoUuid { what } => write!(f, "{what} has no LC_UUID"),
+            Self::NoCodeView => f.write_str("binary has no CodeView record"),
+            Self::BuildIdMismatch { binary, debug } => {
+                write!(f, "build-id mismatch: binary {binary} debug file {debug}")
+            }
+            Self::UuidMismatch { binary, dsym } => {
+                write!(
+                    f,
+                    "uuid mismatch: binary {binary} dSYM {dsym} (stale dSYM?)"
+                )
+            }
+            Self::ArchMismatch {
+                binary,
+                other,
+                debug,
+            } => write!(f, "arch mismatch: binary {binary} {other} {debug}"),
+            Self::GuidMismatch { binary, pdb } => write!(
+                f,
+                "guid mismatch: binary {binary} pdb {pdb} (stale or wrong PDB?)"
+            ),
+            Self::AgeMismatch { binary, pdb } => {
+                write!(f, "age mismatch: binary {binary} pdb {pdb} (stale PDB?)")
+            }
+            Self::MachineMismatch { binary, pdb } => write!(
+                f,
+                "arch mismatch: binary machine {binary:#x} pdb machine {pdb:#x}"
+            ),
+            Self::PdbCorrupt => f.write_str("pdb is truncated or corrupt"),
+            Self::NoInfoStream => f.write_str("pdb has no info stream"),
+            Self::NoDbiStream => f.write_str("pdb has no DBI stream"),
+            Self::NoPdbName => f.write_str("pdb has no file name"),
+            Self::DsymUnreadable { bundle, source } => {
+                write!(f, "{}: cannot read dSYM: {source}", bundle.display())
+            }
+            Self::DwarfCount { bundle, found } => write!(
+                f,
+                "{}: want one DWARF file, found {found}",
+                bundle.display()
+            ),
+            Self::DwarfOutsideBundle { dwarf, bundle } => {
+                write!(f, "{} is not inside {}", dwarf.display(), bundle.display())
+            }
+            Self::Io(error) => error.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for SymbolsError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Unreadable { source, .. } | Self::Corrupt { source, .. } => Some(source),
+            Self::DsymUnreadable { source, .. } | Self::Io(source) => Some(source),
+            Self::WrongFormat { .. }
+            | Self::BadHeader { .. }
+            | Self::Truncated { .. }
+            | Self::NoBuildId { .. }
+            | Self::NoUuid { .. }
+            | Self::NoCodeView
+            | Self::BuildIdMismatch { .. }
+            | Self::UuidMismatch { .. }
+            | Self::ArchMismatch { .. }
+            | Self::GuidMismatch { .. }
+            | Self::AgeMismatch { .. }
+            | Self::MachineMismatch { .. }
+            | Self::PdbCorrupt
+            | Self::NoInfoStream
+            | Self::NoDbiStream
+            | Self::NoPdbName
+            | Self::DwarfCount { .. }
+            | Self::DwarfOutsideBundle { .. } => None,
+        }
+    }
+}
+
+impl From<PathIoError> for SymbolsError {
+    fn from(error: PathIoError) -> Self {
+        Self::Io(error)
+    }
+}
 
 /// The build-id and architecture shared by a binary and its debug file.
 #[derive(Debug, PartialEq, Eq)]
@@ -19,26 +195,30 @@ struct Elf {
     machine: u16,
 }
 
-fn read(bytes: &[u8], what: &str) -> Result<Elf, String> {
-    let file = object::File::parse(bytes).map_err(|e| {
-        if bytes.starts_with(b"\x7fELF") {
-            format!("{what} is corrupt: {e}")
-        } else {
-            format!("{what} is not an ELF file")
+fn read(bytes: &[u8], what: &'static str) -> Result<Elf, SymbolsError> {
+    let not_elf = SymbolsError::WrongFormat {
+        what,
+        format: "ELF",
+    };
+    let file = match object::File::parse(bytes) {
+        Ok(file) => file,
+        Err(source) if bytes.starts_with(b"\x7fELF") => {
+            return Err(SymbolsError::Corrupt { what, source });
         }
-    })?;
+        Err(_) => return Err(not_elf),
+    };
     if file.format() != object::BinaryFormat::Elf {
-        return Err(format!("{what} is not an ELF file"));
+        return Err(not_elf);
     }
     let build_id = file
         .build_id()
-        .map_err(|e| format!("{what} is corrupt: {e}"))?
-        .ok_or_else(|| format!("{what} has no build-id"))?
+        .map_err(|source| SymbolsError::Corrupt { what, source })?
+        .ok_or(SymbolsError::NoBuildId { what })?
         .to_vec();
     let raw: [u8; 2] = bytes
         .get(18..20)
         .and_then(|s| s.try_into().ok())
-        .ok_or_else(|| format!("{what} is corrupt"))?;
+        .ok_or(SymbolsError::BadHeader { what })?;
     let machine = if file.is_little_endian() {
         u16::from_le_bytes(raw)
     } else {
@@ -56,21 +236,21 @@ fn read(bytes: &[u8], what: &str) -> Result<Elf, String> {
 /// # Errors
 ///
 /// Returns an error when the files cannot be parsed or their build ids or architectures differ.
-pub fn check_pair(binary: &[u8], debug: &[u8]) -> Result<Pair, String> {
+pub fn check_pair(binary: &[u8], debug: &[u8]) -> Result<Pair, SymbolsError> {
     let bin = read(binary, "binary")?;
     let dbg = read(debug, "debug file")?;
     if bin.build_id != dbg.build_id {
-        return Err(format!(
-            "build-id mismatch: binary {} debug file {}",
-            hex::encode(&bin.build_id),
-            hex::encode(&dbg.build_id)
-        ));
+        return Err(SymbolsError::BuildIdMismatch {
+            binary: hex::encode(&bin.build_id),
+            debug: hex::encode(&dbg.build_id),
+        });
     }
     if bin.machine != dbg.machine || bin.arch != dbg.arch {
-        return Err(format!(
-            "arch mismatch: binary {:?} debug file {:?}",
-            bin.arch, dbg.arch
-        ));
+        return Err(SymbolsError::ArchMismatch {
+            binary: format!("{:?}", bin.arch),
+            other: "debug file",
+            debug: format!("{:?}", dbg.arch),
+        });
     }
     Ok(Pair {
         build_id: hex::encode(&bin.build_id),
@@ -85,16 +265,20 @@ pub struct DsymPair {
     pub arch: String,
 }
 
-fn macho_uuid(bytes: &[u8], what: &str) -> Result<([u8; 16], String), String> {
-    let file = object::File::parse(bytes)
-        .map_err(|e| format!("{what} is not a readable Mach-O file: {e}"))?;
+fn macho_uuid(bytes: &[u8], what: &'static str) -> Result<([u8; 16], String), SymbolsError> {
+    let format = "Mach-O";
+    let file = object::File::parse(bytes).map_err(|source| SymbolsError::Unreadable {
+        what,
+        format,
+        source,
+    })?;
     if file.format() != object::BinaryFormat::MachO {
-        return Err(format!("{what} is not a Mach-O file"));
+        return Err(SymbolsError::WrongFormat { what, format });
     }
     let uuid = file
         .mach_uuid()
-        .map_err(|e| format!("{what} is corrupt: {e}"))?
-        .ok_or_else(|| format!("{what} has no LC_UUID"))?;
+        .map_err(|source| SymbolsError::Corrupt { what, source })?
+        .ok_or(SymbolsError::NoUuid { what })?;
     Ok((uuid, format!("{:?}", file.architecture()).to_lowercase()))
 }
 
@@ -103,18 +287,21 @@ fn macho_uuid(bytes: &[u8], what: &str) -> Result<([u8; 16], String), String> {
 /// # Errors
 ///
 /// Returns an error when either file is not a Mach-O file or the UUIDs or architectures differ.
-pub fn check_dsym(binary: &[u8], dwarf: &[u8]) -> Result<DsymPair, String> {
+pub fn check_dsym(binary: &[u8], dwarf: &[u8]) -> Result<DsymPair, SymbolsError> {
     let (bin_uuid, bin_arch) = macho_uuid(binary, "binary")?;
     let (dsym_uuid, dsym_arch) = macho_uuid(dwarf, "dSYM")?;
     if bin_uuid != dsym_uuid {
-        return Err(format!(
-            "uuid mismatch: binary {} dSYM {} (stale dSYM?)",
-            hex::encode(bin_uuid),
-            hex::encode(dsym_uuid)
-        ));
+        return Err(SymbolsError::UuidMismatch {
+            binary: hex::encode(bin_uuid),
+            dsym: hex::encode(dsym_uuid),
+        });
     }
     if bin_arch != dsym_arch {
-        return Err(format!("arch mismatch: binary {bin_arch} dSYM {dsym_arch}"));
+        return Err(SymbolsError::ArchMismatch {
+            binary: bin_arch,
+            other: "dSYM",
+            debug: dsym_arch,
+        });
     }
     Ok(DsymPair {
         uuid: hex::encode(bin_uuid),
@@ -127,22 +314,19 @@ pub fn check_dsym(binary: &[u8], dwarf: &[u8]) -> Result<DsymPair, String> {
 /// # Errors
 ///
 /// Returns an error when the bundle has no DWARF file or more than one.
-pub fn dwarf_file(bundle: &Path) -> Result<PathBuf, String> {
+pub fn dwarf_file(bundle: &Path) -> Result<PathBuf, SymbolsError> {
     let dir = bundle.join("Contents/Resources/DWARF");
-    let entries = std::fs::read_dir(&dir)
-        .map_err(|e| format!("{}: cannot read dSYM: {e}", bundle.display()))?;
-    let mut files = Vec::new();
-    for entry in entries {
-        files.push(entry.map_err(|e| e.to_string())?.path());
+    let files = path_io::read_dir(&dir).map_err(|source| SymbolsError::DsymUnreadable {
+        bundle: bundle.to_path_buf(),
+        source,
+    })?;
+    match <[PathBuf; 1]>::try_from(files) {
+        Ok([file]) => Ok(file),
+        Err(files) => Err(SymbolsError::DwarfCount {
+            bundle: bundle.to_path_buf(),
+            found: files.len(),
+        }),
     }
-    if files.len() != 1 {
-        return Err(format!(
-            "{}: want one DWARF file, found {}",
-            bundle.display(),
-            files.len()
-        ));
-    }
-    Ok(files.remove(0))
 }
 
 /// The manifest for a binary and its dSYM bundle: UUID, arch, binary digest and the dsymutil version.
@@ -154,12 +338,17 @@ pub fn dsym_manifest(
     binary: &Path,
     bundle: &Path,
     tool: &str,
-) -> Result<serde_json::Value, String> {
-    let bin = std::fs::read(binary).map_err(|e| format!("{}: {e}", binary.display()))?;
+) -> Result<serde_json::Value, SymbolsError> {
+    let bin = path_io::read(binary)?;
     let dwarf = dwarf_file(bundle)?;
-    let dbg = std::fs::read(&dwarf).map_err(|e| format!("{}: {e}", dwarf.display()))?;
+    let dbg = path_io::read(&dwarf)?;
     let pair = check_dsym(&bin, &dbg)?;
-    let rel = dwarf.strip_prefix(bundle).map_err(|e| e.to_string())?;
+    let rel = dwarf
+        .strip_prefix(bundle)
+        .map_err(|_| SymbolsError::DwarfOutsideBundle {
+            dwarf: dwarf.clone(),
+            bundle: bundle.to_path_buf(),
+        })?;
     Ok(serde_json::json!({
         "uuid": pair.uuid,
         "arch": pair.arch,
@@ -208,21 +397,29 @@ fn u32_at(b: &[u8], at: usize) -> Option<u32> {
 /// # Errors
 ///
 /// Returns an error when the bytes are not a PE file with a `CodeView` record.
-pub fn pe_codeview(bytes: &[u8]) -> Result<PeId, String> {
-    let file =
-        object::File::parse(bytes).map_err(|e| format!("binary is not a readable PE file: {e}"))?;
+pub fn pe_codeview(bytes: &[u8]) -> Result<PeId, SymbolsError> {
+    let (what, format) = ("binary", "PE");
+    let file = object::File::parse(bytes).map_err(|source| SymbolsError::Unreadable {
+        what,
+        format,
+        source,
+    })?;
     if file.format() != object::BinaryFormat::Pe {
-        return Err("binary is not a PE file".to_string());
+        return Err(SymbolsError::WrongFormat { what, format });
     }
     let cv = file
         .pdb_info()
-        .map_err(|e| format!("binary is corrupt: {e}"))?
-        .ok_or("binary has no CodeView record")?;
-    let nt = u32_at(bytes, 0x3c).ok_or("binary is truncated")? as usize;
-    let machine = u16_at(bytes, nt + 4).ok_or("binary is truncated")?;
-    let linker = bytes.get(nt + 26..nt + 28).ok_or("binary is truncated")?;
-    let [major, minor] = linker else {
-        return Err("binary is truncated".into());
+        .map_err(|source| SymbolsError::Corrupt { what, source })?
+        .ok_or(SymbolsError::NoCodeView)?;
+    let truncated = SymbolsError::Truncated { what };
+    let Some(nt) = u32_at(bytes, 0x3c) else {
+        return Err(truncated);
+    };
+    let nt = nt as usize;
+    let (Some(machine), Some(&[major, minor])) =
+        (u16_at(bytes, nt + 4), bytes.get(nt + 26..nt + 28))
+    else {
+        return Err(truncated);
     };
     Ok(PeId {
         guid: cv.guid(),
@@ -235,11 +432,14 @@ pub fn pe_codeview(bytes: &[u8]) -> Result<PeId, String> {
 
 const MSF_MAGIC: &[u8] = b"Microsoft C/C++ MSF 7.00\r\n\x1aDS\0\0\0";
 
-fn msf_streams(bytes: &[u8]) -> Result<Vec<Vec<u8>>, String> {
+fn msf_streams(bytes: &[u8]) -> Result<Vec<Vec<u8>>, SymbolsError> {
     if !bytes.starts_with(MSF_MAGIC) {
-        return Err("pdb is not a PDB file".to_string());
+        return Err(SymbolsError::WrongFormat {
+            what: "pdb",
+            format: "PDB",
+        });
     }
-    let corrupt = || "pdb is truncated or corrupt".to_string();
+    let corrupt = || SymbolsError::PdbCorrupt;
     let field = |at: usize| u32_at(bytes, at).ok_or_else(corrupt);
     let block = field(32)? as usize;
     let dir_bytes = field(44)? as usize;
@@ -247,7 +447,7 @@ fn msf_streams(bytes: &[u8]) -> Result<Vec<Vec<u8>>, String> {
     if block == 0 || !block.is_power_of_two() || !bytes.len().is_multiple_of(block) {
         return Err(corrupt());
     }
-    let read_blocks = |list: &[u32], len: usize| -> Result<Vec<u8>, String> {
+    let read_blocks = |list: &[u32], len: usize| -> Result<Vec<u8>, SymbolsError> {
         let mut out = Vec::with_capacity(len);
         for &n in list {
             let start = (n as usize).checked_mul(block).ok_or_else(corrupt)?;
@@ -256,7 +456,7 @@ fn msf_streams(bytes: &[u8]) -> Result<Vec<Vec<u8>>, String> {
         out.truncate(len);
         Ok(out)
     };
-    let numbers = |data: &[u8], count: usize| -> Result<Vec<u32>, String> {
+    let numbers = |data: &[u8], count: usize| -> Result<Vec<u32>, SymbolsError> {
         (0..count)
             .map(|i| u32_at(data, i * 4).ok_or_else(corrupt))
             .collect()
@@ -286,19 +486,19 @@ fn msf_streams(bytes: &[u8]) -> Result<Vec<Vec<u8>>, String> {
 /// # Errors
 ///
 /// Returns an error when the bytes are not a valid MSF file.
-pub fn pdb_identity(bytes: &[u8]) -> Result<PdbId, String> {
+pub fn pdb_identity(bytes: &[u8]) -> Result<PdbId, SymbolsError> {
     let streams = msf_streams(bytes)?;
     let info = streams.get(1).filter(|s| s.len() >= 28);
-    let info = info.ok_or("pdb has no info stream")?;
+    let info = info.ok_or(SymbolsError::NoInfoStream)?;
     let dbi = streams.get(3).filter(|s| s.len() >= 64);
-    let dbi = dbi.ok_or("pdb has no DBI stream")?;
+    let dbi = dbi.ok_or(SymbolsError::NoDbiStream)?;
     Ok(PdbId {
         guid: info
             .get(12..28)
             .and_then(|s| s.try_into().ok())
-            .ok_or("pdb has no info stream")?,
-        age: u32_at(dbi, 8).ok_or("pdb has no DBI stream")?,
-        machine: u16_at(dbi, 58).ok_or("pdb has no DBI stream")?,
+            .ok_or(SymbolsError::NoInfoStream)?,
+        age: u32_at(dbi, 8).ok_or(SymbolsError::NoDbiStream)?,
+        machine: u16_at(dbi, 58).ok_or(SymbolsError::NoDbiStream)?,
     })
 }
 
@@ -307,25 +507,24 @@ pub fn pdb_identity(bytes: &[u8]) -> Result<PdbId, String> {
 /// # Errors
 ///
 /// Returns an error when the GUIDs, ages or machines differ.
-pub fn compare_pdb(pe: &PeId, pdb: &PdbId) -> Result<PdbPair, String> {
+pub fn compare_pdb(pe: &PeId, pdb: &PdbId) -> Result<PdbPair, SymbolsError> {
     if pe.guid != pdb.guid {
-        return Err(format!(
-            "guid mismatch: binary {} pdb {} (stale or wrong PDB?)",
-            hex::encode(pe.guid),
-            hex::encode(pdb.guid)
-        ));
+        return Err(SymbolsError::GuidMismatch {
+            binary: hex::encode(pe.guid),
+            pdb: hex::encode(pdb.guid),
+        });
     }
     if pe.age != pdb.age {
-        return Err(format!(
-            "age mismatch: binary {} pdb {} (stale PDB?)",
-            pe.age, pdb.age
-        ));
+        return Err(SymbolsError::AgeMismatch {
+            binary: pe.age,
+            pdb: pdb.age,
+        });
     }
     if pe.machine != pdb.machine {
-        return Err(format!(
-            "arch mismatch: binary machine {:#x} pdb machine {:#x}",
-            pe.machine, pdb.machine
-        ));
+        return Err(SymbolsError::MachineMismatch {
+            binary: pe.machine,
+            pdb: pdb.machine,
+        });
     }
     let arch = match pe.machine {
         0x8664 => "x86_64".to_string(),
@@ -345,7 +544,7 @@ pub fn compare_pdb(pe: &PeId, pdb: &PdbId) -> Result<PdbPair, String> {
 /// # Errors
 ///
 /// Returns an error when either file cannot be parsed or the pair does not match.
-pub fn check_pdb(binary: &[u8], pdb: &[u8]) -> Result<PdbPair, String> {
+pub fn check_pdb(binary: &[u8], pdb: &[u8]) -> Result<PdbPair, SymbolsError> {
     compare_pdb(&pe_codeview(binary)?, &pdb_identity(pdb)?)
 }
 
@@ -354,12 +553,12 @@ pub fn check_pdb(binary: &[u8], pdb: &[u8]) -> Result<PdbPair, String> {
 /// # Errors
 ///
 /// Returns an error when a file cannot be read or the pair does not match.
-pub fn pdb_manifest(binary: &Path, pdb: &Path) -> Result<serde_json::Value, String> {
-    let bin = std::fs::read(binary).map_err(|e| format!("{}: {e}", binary.display()))?;
-    let dbg = std::fs::read(pdb).map_err(|e| format!("{}: {e}", pdb.display()))?;
+pub fn pdb_manifest(binary: &Path, pdb: &Path) -> Result<serde_json::Value, SymbolsError> {
+    let bin = path_io::read(binary)?;
+    let dbg = path_io::read(pdb)?;
     let pe = pe_codeview(&bin)?;
     let pair = compare_pdb(&pe, &pdb_identity(&dbg)?)?;
-    let name = pdb.file_name().ok_or("pdb has no file name")?;
+    let name = pdb.file_name().ok_or(SymbolsError::NoPdbName)?;
     Ok(serde_json::json!({
         "guid": pair.guid,
         "age": pair.age,

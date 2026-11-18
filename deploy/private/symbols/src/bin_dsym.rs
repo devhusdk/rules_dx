@@ -2,55 +2,14 @@
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::path::Path;
 
-struct Args {
-    dsymutil: PathBuf,
-    input: PathBuf,
-    bundle: PathBuf,
-    manifest: PathBuf,
-}
-
-fn parse(args: &[String]) -> Result<Args, String> {
-    let names = ["--dsymutil", "--in", "--bundle", "--manifest"];
-    let mut found: [Option<PathBuf>; 4] = Default::default();
-    let mut it = args.iter();
-    while let Some(flag) = it.next() {
-        let slot = names
-            .iter()
-            .position(|n| n == flag)
-            .ok_or_else(|| format!("unknown flag {flag}"))?;
-        let value = it.next().ok_or_else(|| format!("{flag} needs a value"))?;
-        *found
-            .get_mut(slot)
-            .ok_or_else(|| format!("unknown flag {flag}"))? = Some(PathBuf::from(value));
-    }
-    let mut take = |i: usize| {
-        found
-            .get_mut(i)
-            .and_then(Option::take)
-            .ok_or_else(|| format!("{} is required", names.get(i).copied().unwrap_or_default()))
-    };
-    Ok(Args {
-        dsymutil: take(0)?,
-        input: take(1)?,
-        bundle: take(2)?,
-        manifest: take(3)?,
-    })
-}
+use dx_symbols::cli::{CliError, parse_flags, run_tool, write_manifest};
 
 const TOOL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
 
-fn version(dsymutil: &Path) -> Result<String, String> {
-    let mut command = Command::new(dsymutil);
-    command.arg("--version");
-    let out = dx_process::capture::run_captured(&mut command, TOOL_TIMEOUT)
-        .map_err(|e| format!("cannot run {}: {e}", dsymutil.display()))?;
-    if !out.success() {
-        return Err(format!("{} --version failed", dsymutil.display()));
-    }
-    let text = out.stdout_text();
+fn version(dsymutil: &Path) -> Result<String, CliError> {
+    let text = run_tool(dsymutil, &["--version".as_ref()], TOOL_TIMEOUT)?.stdout_text();
     Ok(text
         .lines()
         .find(|l| l.contains("version"))
@@ -59,17 +18,19 @@ fn version(dsymutil: &Path) -> Result<String, String> {
         .to_string())
 }
 
-fn write(a: &Args) -> Result<(), String> {
-    let tool = version(&a.dsymutil)?;
-    let manifest = dx_symbols::dsym_manifest(&a.input, &a.bundle, &tool)?;
-    let text = serde_json::to_string_pretty(&manifest).map_err(|e| e.to_string())?;
-    std::fs::write(&a.manifest, text + "\n").map_err(|e| e.to_string())
+fn run(args: &[String]) -> Result<(), CliError> {
+    let [dsymutil, input, bundle, manifest] =
+        parse_flags(args, ["--dsymutil", "--in", "--bundle", "--manifest"])?;
+    let tool = version(&dsymutil)?;
+    write_manifest(
+        &manifest,
+        &dx_symbols::dsym_manifest(&input, &bundle, &tool)?,
+    )
 }
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let result = parse(&args).and_then(|a| write(&a));
-    if let Err(e) = result {
+    if let Err(e) = run(&args) {
         eprintln!("dsym: {e}");
         std::process::exit(1);
     }

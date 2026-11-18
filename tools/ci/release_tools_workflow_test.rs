@@ -65,17 +65,30 @@ fn workflow_is_reusable_and_read_only() {
     let workflow = document(TOOLS).unwrap();
     assert!(read_runfiles(TOOLS).contains("\n  workflow_call:\n"));
     assert_eq!(workflow["permissions"]["contents"], "read");
-    assert_eq!(workflow["permissions"].as_object().expect("permissions").len(), 1);
+    assert_eq!(
+        workflow["permissions"]
+            .as_object()
+            .expect("permissions")
+            .len(),
+        1
+    );
     assert_eq!(workflow["jobs"]["tools"]["permissions"]["contents"], "read");
-    assert_eq!(workflow["jobs"]["python-tools"]["permissions"]["contents"], "read");
+    assert_eq!(
+        workflow["jobs"]["python-tools"]["permissions"]["contents"],
+        "read"
+    );
 }
 
 #[test]
 fn each_host_uploads_its_artifact() {
     let text = read_runfiles(TOOLS);
     assert!(text.contains("name: release-tool-${{ matrix.host }}"));
-    assert!(text.contains("//rust/private/quality/tools:deadnix //rust/private/quality/tools:selene"));
-    assert!(text.contains("bazel test //tools/coverage/kcov:smoke_test //tools/coverage/kcov:static_smoke_test"));
+    assert!(
+        text.contains("//rust/private/quality/tools:deadnix //rust/private/quality/tools:selene")
+    );
+    assert!(text.contains(
+        "bazel test //tools/coverage/kcov:smoke_test //tools/coverage/kcov:static_smoke_test"
+    ));
     assert!(text.contains("bazel build //tools/coverage/kcov:kcov_static"));
     assert!(text.contains("kcov archive sha256 differs from pins.json"));
 }
@@ -115,7 +128,9 @@ fn release_calls_the_tools_workflow_before_the_source_job() {
         workflow["jobs"]["tools"]["uses"],
         "./.github/workflows/release-tools.yml"
     );
-    let needs = workflow["jobs"]["source"]["needs"].as_array().expect("needs");
+    let needs = workflow["jobs"]["source"]["needs"]
+        .as_array()
+        .expect("needs");
     assert!(needs.iter().any(|need| need == "tools"));
 }
 
@@ -129,9 +144,28 @@ fn release_writes_and_checks_the_tool_manifest() {
     for asset in ASSETS {
         assert!(text.contains(asset), "{RELEASE} must name {asset}");
     }
-    assert!(text.contains(&format!("for host in {}; do\n            tool_asset=\"dx-python-tools-$host.tar.gz\"", PYTHON_HOSTS.join(" "))));
+    assert!(text.contains(&format!(
+        "for host in {}; do\n            tool_asset=\"dx-python-tools-$host.tar.gz\"",
+        PYTHON_HOSTS.join(" ")
+    )));
     assert!(text.contains(" dx-tool-* dx-python-tools-*; do"));
     for tool in ["deadnix-1.3.1", "selene-0.32.0"] {
         assert!(text.contains(tool), "{RELEASE} must name {tool}");
     }
+}
+
+#[test]
+fn macos_tools_ship_signed() {
+    let text = read_runfiles(TOOLS);
+    assert!(text.contains(
+        "codesign --verify --strict \"$file\" || codesign --sign - \"$file\"\n              codesign --verify --strict \"$file\""
+    ));
+}
+
+#[test]
+fn release_verifies_every_manifest_against_the_bundle() {
+    let text = read_runfiles(RELEASE);
+    assert!(text.contains(
+        "for manifest in dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-jar-sha256sums.txt dx-tool-sha256sums.txt; do\n            gh attestation verify \"out/$manifest\" \\\n              --bundle out/dx-sha256sums.txt.sigstore.json"
+    ));
 }

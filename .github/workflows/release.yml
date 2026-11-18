@@ -426,6 +426,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          for manifest in dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-jar-sha256sums.txt dx-tool-sha256sums.txt; do
+            gh attestation verify "out/$manifest" \
+              --bundle out/dx-sha256sums.txt.sigstore.json \
+              --repo "$GITHUB_REPOSITORY" \
+              --cert-identity "https://github.com/$GITHUB_REPOSITORY/.github/workflows/release.yml@refs/tags/$RELEASE_TAG" \
+              --cert-oidc-issuer https://token.actions.githubusercontent.com \
+              --source-ref "refs/tags/$RELEASE_TAG" \
+              --deny-self-hosted-runners
+          done
           for archive in dx-linux-x86_64.tar.gz dx-linux-arm64.tar.gz dx-macos-arm64.tar.gz dx-windows-x86_64.zip dx-windows-arm64.zip dx-windows-x86_64-pdb.zip dx-windows-arm64-pdb.zip; do
             for file in "$archive" "$archive.spdx.json"; do
             gh attestation verify "out/$file" \

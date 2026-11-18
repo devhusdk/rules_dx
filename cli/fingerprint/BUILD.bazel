@@ -20,6 +20,7 @@ rust_library(
     # keep
     deps = [
         "//cli/digest:dx_digest",
+        "//cli/path:dx_path",
         "@crates//:serde",
         "@crates//:serde_json",
         "@crates//:thiserror",
@@ -39,10 +40,7 @@ rust_test(
         package_name = "cli/dx_fingerprint",
         normal = True,
         normal_dev = True,
-    ) + [
-        "//cli/digest:dx_digest",
-        "//cli/path:dx_path",
-    ],
+    ) + ["//cli/digest:dx_digest"],
 )
 
 real_source_target(

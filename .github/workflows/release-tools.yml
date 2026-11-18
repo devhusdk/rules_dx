@@ -75,6 +75,14 @@ jobs:
             built="$root/$(bazel cquery "${flags[@]}" --output=files "//rust/private/quality/tools:$tool")"
             cp "$built" "$out/dx-tool-$tool-$version-$host$ext"
           done
+          if test "$host" = "macos-arm64"; then
+            for tool in "deadnix-$deadnix_version" "selene-$selene_version"; do
+              file="$out/dx-tool-$tool-$host"
+              chmod u+w "$file"
+              codesign --verify --strict "$file" || codesign --sign - "$file"
+              codesign --verify --strict "$file"
+            done
+          fi
           if test "$host" = "linux-arm64"; then
             bazel build --platforms=//tools/platforms:linux_arm64_musl --features=fully_static_link @haskell_nixfmt_hackage//:nixfmt-exe-nixfmt
             built="$root/$(bazel cquery --platforms=//tools/platforms:linux_arm64_musl --features=fully_static_link --output=files @haskell_nixfmt_hackage//:nixfmt-exe-nixfmt)"

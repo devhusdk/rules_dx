@@ -81,6 +81,16 @@ def github_unit_tests(name):
                 "github_deploy: notes_file needs notes = 'none'",
             ),
             expect_equal(
+                "github_notes_error accepts commits with a notes_diff",
+                github_notes_error("commits", None, ["api/"]),
+                "",
+            ),
+            expect_equal(
+                "github_notes_error rejects none with a notes_diff",
+                github_notes_error("none", None, ["api/"]),
+                "github_deploy: notes_diff needs notes = 'commits'",
+            ),
+            expect_equal(
                 "github_asset_collision_error accepts unique asset names",
                 github_asset_collision_error([
                     ("//linux:app", "app-linux.tar.gz"),

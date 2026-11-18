@@ -568,7 +568,7 @@ github_deploy(
 
 - `artifacts`: files to attach. An empty list creates a draft with release notes only. Asset names must be unique.
 - `release_tag`: defaults to `v0.0.0-dryrun`. `tag_from_head = True` uses the tag that points at HEAD instead.
-- `notes`: `commits` (default) or `none`. `notes_file` is a markdown file used as the release body; it needs `notes = "none"`.
+- `notes`: `commits` (default) or `none`. `notes_file` is a markdown file used as the release body; it needs `notes = "none"`. `notes_diff` lists workspace paths, such as `["api/"]`; with `notes = "commits"` the body ends with their `git diff` since the previous tag, or their full content on the first release.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 - `api_compat`, `api_baseline`: see [Public API compatibility](#public-api-compatibility). `go_modules` lists
   the workspace-relative module directories to check; empty means the `go.mod` at the root.

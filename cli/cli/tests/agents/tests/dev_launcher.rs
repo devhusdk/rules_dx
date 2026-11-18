@@ -415,7 +415,7 @@ mod sh {
         let stub = base.join("stub/bazel");
         dx_testing::executable_script(
             &stub,
-            "#!/bin/sh\n[ -z \"${STUB_ARGS:-}\" ] || { printf '%s\\t' \"$@\"; echo; } >> \"$STUB_ARGS\"\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      if [ -n \"${STUB_BUILD_HOLD:-}\" ]; then\n        : > \"$STUB_BUILD_HOLD.started\"\n        tries=0\n        while [ ! -e \"$STUB_BUILD_HOLD\" ]; do\n          tries=$((tries + 1))\n          if [ \"$tries\" -gt 600 ]; then echo 'stub bazel: hold timeout' >&2; exit 3; fi\n          sleep 0.05\n        done\n      fi\n      if [ -n \"${STUB_BARRIER:-}\" ]; then\n        : > \"$STUB_BARRIER/$$\"\n        tries=0\n        while [ \"$(ls \"$STUB_BARRIER\" | wc -l)\" -lt \"$STUB_BARRIER_N\" ]; do\n          tries=$((tries + 1))\n          if [ \"$tries\" -gt 600 ]; then echo 'stub bazel: barrier timeout' >&2; exit 3; fi\n          sleep 0.05\n        done\n      else\n        sleep 0.1\n      fi\n      mkdir -p bazel-bin/cli/cli\n      exe=\n      case \"$(uname -s)\" in MINGW*|MSYS*|CYGWIN*) exe=.exe;; esac\n      if [ -f \"$STUB_KEEP\" ] && [ -x \"bazel-bin/cli/cli/dx$exe\" ]; then exit 0; fi\n      src=\"$STUB_PAYLOAD\"\n      [ -f payload ] && src=payload\n      cp \"$src\" \"bazel-bin/cli/cli/dx.$$\"\n      chmod +x \"bazel-bin/cli/cli/dx.$$\"\n      mv \"bazel-bin/cli/cli/dx.$$\" \"bazel-bin/cli/cli/dx$exe\"\n      exit 0\n      ;;\n    query)\n      [ ! -f \"$STUB_QUERY_FAIL\" ] || { echo 'Server shut down explicitly' >&2; exit 37; }\n      case \"$*\" in *'deps(//:dx)'*) echo //:BUILD.bazel;; esac\n      echo //cli/cli:BUILD.bazel\n      sleep 0.1\n      echo @rules_rust//rust:defs.bzl\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
+            "#!/bin/sh\n[ -z \"${STUB_ARGS:-}\" ] || { printf '%s\\t' \"$@\"; echo; } >> \"$STUB_ARGS\"\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      if [ -n \"${STUB_BUILD_HOLD:-}\" ]; then\n        : > \"$STUB_BUILD_HOLD.started\"\n        tries=0\n        while [ ! -e \"$STUB_BUILD_HOLD\" ]; do\n          tries=$((tries + 1))\n          if [ \"$tries\" -gt 600 ]; then echo 'stub bazel: hold timeout' >&2; exit 3; fi\n          sleep 0.05\n        done\n      fi\n      if [ -n \"${STUB_BARRIER:-}\" ]; then\n        : > \"$STUB_BARRIER/$$\"\n        tries=0\n        while [ \"$(ls \"$STUB_BARRIER\" | wc -l)\" -lt \"$STUB_BARRIER_N\" ]; do\n          tries=$((tries + 1))\n          if [ \"$tries\" -gt 600 ]; then echo 'stub bazel: barrier timeout' >&2; exit 3; fi\n          sleep 0.05\n        done\n      else\n        sleep 0.1\n      fi\n      mkdir -p bazel-bin/cli/cli\n      exe=\n      case \"$(uname -s)\" in MINGW*|MSYS*|CYGWIN*) exe=.exe;; esac\n      if [ -f \"$STUB_KEEP\" ] && [ -x \"bazel-bin/cli/cli/dx$exe\" ]; then exit 0; fi\n      src=\"$STUB_PAYLOAD\"\n      [ -f payload ] && src=payload\n      cp \"$src\" \"bazel-bin/cli/cli/dx.$$\"\n      chmod +x \"bazel-bin/cli/cli/dx.$$\"\n      mv \"bazel-bin/cli/cli/dx.$$\" \"bazel-bin/cli/cli/dx$exe\"\n      exit 0\n      ;;\n    cquery)\n      case \"$*\" in *'deps(//:dx)'*) echo '\"//:dx\"';; esac\n      exit 0\n      ;;\n    query)\n      [ ! -f \"$STUB_QUERY_FAIL\" ] || { echo 'Server shut down explicitly' >&2; exit 37; }\n      for q in \"$@\"; do\n        case \"$q\" in --query_file=*) while IFS= read -r l; do [ \"$l\" != '\"//:dx\"' ] || echo //:BUILD.bazel; done < \"${q#--query_file=}\";; esac\n      done\n      echo //cli/cli:BUILD.bazel\n      sleep 0.1\n      echo @rules_rust//rust:defs.bzl\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
         );
         SourceRepo {
             base,
@@ -560,7 +560,7 @@ mod sh {
             let stub = self.base.join("stub/bazel");
             dx_testing::executable_script(
                 &stub,
-                "#!/bin/sh\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      if [ \"${CARGO_BAZEL_REPIN-}\" != 1 ]; then rm -f bazel-bin/cli/cli/dx; exit 1; fi\n      echo repin >> \"$STUB_LOG\"\n      mkdir -p bazel-bin/cli/cli\n      cp \"$STUB_PAYLOAD\" bazel-bin/cli/cli/dx.$$\n      chmod +x bazel-bin/cli/cli/dx.$$\n      mv bazel-bin/cli/cli/dx.$$ bazel-bin/cli/cli/dx\n      exit 0\n      ;;\n    query)\n      echo //cli/cli:BUILD.bazel\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
+                "#!/bin/sh\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      if [ \"${CARGO_BAZEL_REPIN-}\" != 1 ]; then rm -f bazel-bin/cli/cli/dx; exit 1; fi\n      echo repin >> \"$STUB_LOG\"\n      mkdir -p bazel-bin/cli/cli\n      cp \"$STUB_PAYLOAD\" bazel-bin/cli/cli/dx.$$\n      chmod +x bazel-bin/cli/cli/dx.$$\n      mv bazel-bin/cli/cli/dx.$$ bazel-bin/cli/cli/dx\n      exit 0\n      ;;\n    cquery)\n      exit 0\n      ;;\n    query)\n      echo //cli/cli:BUILD.bazel\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
             );
             std::fs::write(
                 self.base.join("payload"),
@@ -1012,7 +1012,7 @@ mod sh {
         let repo = source_repo("dx-launcher-dead-pid-");
         let dir = state(&repo.root());
         std::fs::create_dir_all(&dir).expect("state dir");
-        let dead = ["dx", "built", "inputs", "query"].map(|p| format!("{p}.999999"));
+        let dead = ["dx", "built", "inputs", "query", "deps"].map(|p| format!("{p}.999999"));
         for name in &dead {
             std::fs::write(dir.join(name), "").expect("dead temp");
         }
@@ -1129,7 +1129,7 @@ mod sh {
                         .collect()
                 })
                 .collect();
-            assert_eq!(calls.len(), 2, "{name}: {logged}");
+            assert_eq!(calls.len(), 3, "{name}: {logged}");
             assert_eq!(calls[0], want, "{name}");
             let bounded = calls[0]
                 .iter()
@@ -1137,12 +1137,14 @@ mod sh {
             if !host_sets {
                 assert_eq!(bounded, expected.is_some() && !rc.rc_gc, "{name}");
             }
-            assert_eq!(calls[1][..startup.len()], startup[..], "{name}");
-            assert_eq!(calls[1][startup.len()], "query", "{name}");
-            assert!(
-                !calls[1].iter().any(|arg| arg.contains("disk_cache")),
-                "{name}: {logged}"
-            );
+            for (call, verb) in calls[1..].iter().zip(["cquery", "query"]) {
+                assert_eq!(call[..startup.len()], startup[..], "{name}");
+                assert_eq!(call[startup.len()], verb, "{name}");
+                assert!(
+                    !call.iter().any(|arg| arg.contains("disk_cache")),
+                    "{name}: {logged}"
+                );
+            }
         }
     }
 
@@ -1946,7 +1948,8 @@ mod cmd {
             )
             .expect("backdate");
         };
-        let stale = ["dx.exe", "built", "inputs", "query", "dc"].map(|p| format!("{p}.{guid}"));
+        let stale =
+            ["dx.exe", "built", "inputs", "query", "deps", "dc"].map(|p| format!("{p}.{guid}"));
         for name in &stale {
             age(name, 25);
         }

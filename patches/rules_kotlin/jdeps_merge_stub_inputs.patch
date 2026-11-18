@@ -1,0 +1,13 @@
+Upstream: none (not yet sent upstream)
+
+--- a/kotlin/internal/jvm/compile.bzl
++++ b/kotlin/internal/jvm/compile.bzl
+@@ -1228,7 +1228,7 @@
+                 deps = compile_deps.deps,
+                 associate_jars = compile_deps.associate_jars,
+                 outputs = {"output": output_jdeps},
+-                classpath_jars = compile_deps.compile_jars,
++                classpath_jars = depset(transitive = [compile_deps.compile_jars] + [stub.compile_jars for stub in kt_stubs_for_java]),
+             )
+         else:
+             ctx.actions.symlink(

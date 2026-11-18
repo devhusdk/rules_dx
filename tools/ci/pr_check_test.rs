@@ -6,7 +6,7 @@ const WORKFLOW: &str = ".github/workflows/pr-check.yml";
 const SCRIPT: &str = "tools/ci/producers/src/pr_check.rs";
 const TOOL: &str = "\"$RUNNER_TEMP/pr-check/producers_bin\"";
 const TOOL_STEP: &str = "pr-check tool";
-const SETS: [&str; 7] = [
+const SETS: [&str; 8] = [
     "workflow",
     "preflight",
     "preflight-windows-arm64",
@@ -14,6 +14,7 @@ const SETS: [&str; 7] = [
     "hermetic",
     "docs",
     "cli",
+    "kotlin-bench",
 ];
 
 /// Returns the text of `pub const NAME` in the source, up to the end of its statement.

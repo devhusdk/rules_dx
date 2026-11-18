@@ -109,6 +109,8 @@ Without user namespaces, Bazel uses `processwrapper-sandbox` instead of `linux-s
 
 Without a key, the remote cache returns no hits, so leave `--config=bb` and `--config=ci` off. With a read-only key in `BUILDBUDDY_API_KEY` and `remote.buildbuddy.io` reachable, add `-- --config=bb-ro`.
 
+With `--config=bb-ro`, Bazel also downloads archives through `remote.buildbuddy.io`.
+
 ## Add a language
 
 ```sh

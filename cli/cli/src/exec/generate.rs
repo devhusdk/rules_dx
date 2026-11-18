@@ -233,13 +233,13 @@ fn wire_avro_cpp(workspace: &Path, apply: bool, err: &mut dyn Write, wiring: &mu
 
 fn lock_for(manifest: &str) -> &'static str {
     if manifest == manifest_of(Ecosystem::Cargo) {
-        lock_of(Ecosystem::Cargo)
+        Ecosystem::Cargo.lockfile()
     } else if manifest == manifest_of(Ecosystem::Npm) {
-        lock_of(Ecosystem::Npm)
+        Ecosystem::Npm.lockfile()
     } else if let Some(lock) = resolver_hub(manifest).and_then(|hub| hub.lock.as_deref()) {
         lock
     } else {
-        lock_of(Ecosystem::Uv)
+        Ecosystem::Uv.lockfile()
     }
 }
 
@@ -285,10 +285,6 @@ fn manifest_of(ecosystem: Ecosystem) -> &'static str {
     ecosystem.manifest_name()
 }
 
-fn lock_of(ecosystem: Ecosystem) -> &'static str {
-    ecosystem.lockfiles().first().map_or("", String::as_str)
-}
-
 fn has_root_build(workspace: &Path) -> bool {
     workspace.join("BUILD").exists() || workspace.join("BUILD.bazel").exists()
 }
@@ -303,13 +299,13 @@ fn seed_uv_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wirin
         false,
     );
     let argv =
-        match dx_update::backend::uv_lock_argv(lock_of(Ecosystem::Uv), ".", &closure, false, false)
+        match dx_update::backend::uv_lock_argv(Ecosystem::Uv.lockfile(), ".", &closure, false, false)
         {
             Ok(argv) => argv,
             Err(error) => {
                 wiring.failed(
                     env.err,
-                    format!("{} not created: {error}", lock_of(Ecosystem::Uv)),
+                    format!("{} not created: {error}", Ecosystem::Uv.lockfile()),
                 );
                 return;
             }
@@ -323,7 +319,7 @@ fn seed_uv_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wirin
         env.workspace,
         env.err,
         wiring,
-        lock_of(Ecosystem::Uv),
+        Ecosystem::Uv.lockfile(),
         "uv lock",
         env.runner.run_hermetic(&argv, env.workspace, &pairs),
     );
@@ -344,7 +340,7 @@ fn seed_pnpm_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wir
     let Some(dir) = env.workspace.to_str() else {
         wiring.failed(
             env.err,
-            format!("{} not created: non-UTF-8 path", lock_of(Ecosystem::Npm)),
+            format!("{} not created: non-UTF-8 path", Ecosystem::Npm.lockfile()),
         );
         return;
     };
@@ -355,7 +351,7 @@ fn seed_pnpm_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wir
         env.workspace,
         env.err,
         wiring,
-        lock_of(Ecosystem::Npm),
+        Ecosystem::Npm.lockfile(),
         "pnpm install",
         env.runner.run(&argv, env.workspace, &[]),
     );
@@ -374,7 +370,7 @@ fn fill_cargo_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wi
         env.workspace,
         env.err,
         wiring,
-        lock_of(Ecosystem::Cargo),
+        Ecosystem::Cargo.lockfile(),
         "bazel fetch",
         env.runner.run(&argv, env.workspace, &pairs),
     );
@@ -908,7 +904,7 @@ mod tests {
     fn lock_workspace(name: &str, mode: &str) -> Harness {
         let mut harness = Harness::new(name);
         harness.write_source("MODULE.bazel", "module(name = \"app\")\n");
-        harness.write_source(lock_of(Ecosystem::Npm), "");
+        harness.write_source(Ecosystem::Npm.lockfile(), "");
         harness.write_source(
             manifest_of(Ecosystem::Npm),
             "{\"dependencies\":{\"left-pad\":\"1.3.0\"}}",
@@ -924,7 +920,7 @@ mod tests {
         assert_eq!(code, 0, "{out}{err}");
         let module = std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
         assert!(
-            module.contains(&format!("pnpm_lock = \"//:{}\"", lock_of(Ecosystem::Npm))),
+            module.contains(&format!("pnpm_lock = \"//:{}\"", Ecosystem::Npm.lockfile())),
             "{module}"
         );
         let settings = std::fs::read_to_string(harness.workspace.join("pnpm-workspace.yaml"))
@@ -969,7 +965,7 @@ mod tests {
         assert!(
             module.contains(&format!(
                 "cargo_lockfile = \"//:{}\"",
-                lock_of(Ecosystem::Cargo)
+                Ecosystem::Cargo.lockfile()
             )),
             "{module}"
         );
@@ -986,7 +982,7 @@ mod tests {
         assert!(
             err.contains(&format!(
                 "dx: {} is still empty after bazel fetch; run dx generate --apply again",
-                lock_of(Ecosystem::Cargo)
+                Ecosystem::Cargo.lockfile()
             )),
             "{err}"
         );
@@ -1119,16 +1115,16 @@ mod tests {
         assert!(
             err.contains(&format!(
                 "dx: would create {}; run dx generate --apply",
-                lock_of(Ecosystem::Cargo)
+                Ecosystem::Cargo.lockfile()
             )),
             "{err}"
         );
-        assert!(!harness.workspace.join(lock_of(Ecosystem::Cargo)).exists());
+        assert!(!harness.workspace.join(Ecosystem::Cargo.lockfile()).exists());
         let (code, out, _) = harness.run(&["generate", "--output=json"]);
         assert_eq!(code, 1, "{out}");
         assert!(out.contains("\"code\":\"wiring_pending\""), "{out}");
         assert!(
-            out.contains(&format!("would create {}", lock_of(Ecosystem::Cargo))),
+            out.contains(&format!("would create {}", Ecosystem::Cargo.lockfile())),
             "{out}"
         );
         let repo = format!("--repo=@{}", cargo_hub());
@@ -1146,16 +1142,16 @@ mod tests {
         let mut harness = Harness::new("generate-seed-full");
         harness.write_source("MODULE.bazel", "module(name = \"app\")\n");
         harness.write_source(manifest_of(Ecosystem::Cargo), "[package]\nname = \"app\"\n");
-        harness.write_source(lock_of(Ecosystem::Cargo), "version = 4\n");
+        harness.write_source(Ecosystem::Cargo.lockfile(), "version = 4\n");
         harness.intended = Some(intended_witness("default", true, "", ""));
         let (code, out, err) = harness.run(&["generate", "--apply"]);
         assert_eq!(code, 0, "{out}{err}");
         assert!(err.contains("run dx init --apply"), "{err}");
         assert!(
-            !err.contains(&format!("{} not written", lock_of(Ecosystem::Cargo))),
+            !err.contains(&format!("{} not written", Ecosystem::Cargo.lockfile())),
             "{err}"
         );
-        let lock = std::fs::read_to_string(harness.workspace.join(lock_of(Ecosystem::Cargo)))
+        let lock = std::fs::read_to_string(harness.workspace.join(Ecosystem::Cargo.lockfile()))
             .expect("read");
         assert_eq!(lock, "version = 4\n");
     }
@@ -1169,10 +1165,10 @@ mod tests {
         let (code, out, err) = harness.run(&["generate", "--apply"]);
         assert_eq!(code, 1, "{out}{err}");
         assert!(
-            err.contains(&format!("dx: {} not created:", lock_of(Ecosystem::Uv))),
+            err.contains(&format!("dx: {} not created:", Ecosystem::Uv.lockfile())),
             "{err}"
         );
-        assert!(!harness.workspace.join(lock_of(Ecosystem::Uv)).exists());
+        assert!(!harness.workspace.join(Ecosystem::Uv.lockfile()).exists());
     }
 
     #[test]

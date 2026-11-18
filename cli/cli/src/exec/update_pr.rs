@@ -1,4 +1,4 @@
-use super::common::{Env, check_stdout_write, emit_built, pre_exec, report_dx_error};
+use dx_exec_core::common::{Env, check_stdout_write, emit_built, pre_exec, report_dx_error};
 use super::update_outdated::{
     Builtins, Collected, collect, registry_fetch, registry_for, split_builtin,
 };

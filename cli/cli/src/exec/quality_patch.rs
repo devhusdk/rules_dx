@@ -1,4 +1,4 @@
-use super::common::{FileChange, SourceRead, apply_to_bytes};
+use dx_exec_core::common::{FileChange, SourceRead, apply_to_bytes};
 use dx_diff::{FilePatch, PatchKind, render_patch};
 use std::collections::BTreeMap;
 
@@ -64,7 +64,7 @@ pub(crate) fn render_diff_patch(
 
 #[cfg(test)]
 mod tests {
-    use super::super::common::{FileChange, SourceRead};
+    use dx_exec_core::common::{FileChange, SourceRead};
     use super::{PatchError, render_diff_patch};
     use std::collections::BTreeMap;
 

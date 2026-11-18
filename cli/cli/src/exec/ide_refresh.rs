@@ -7,8 +7,8 @@ use dx_error::DxError;
 use dx_output::{NoticeEvent, OutputMode, notice_event};
 use dx_plan::resolve::QueryRunner;
 
-use super::common::{emit_built, flush_out};
-use super::notice_codes::CODE_IDE_REFRESH_FAILED;
+use dx_exec_core::common::{emit_built, flush_out};
+use dx_exec_core::notice_codes::CODE_IDE_REFRESH_FAILED;
 
 struct BazelBuild<'a> {
     query_runner: &'a dyn QueryRunner,

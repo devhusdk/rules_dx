@@ -1,4 +1,4 @@
-use super::common::{CODE_BUILD_EVENTS_INCOMPLETE, emit_built};
+use dx_exec_core::common::{CODE_BUILD_EVENTS_INCOMPLETE, emit_built};
 use super::compiler_stderr;
 use super::rustc_stderr::{self, ActionDiagnostic};
 use super::skipped_targets::language_in_message;

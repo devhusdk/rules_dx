@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::Path;
 
-use crate::exec::common::{
+use dx_exec_core::common::{
     check_stdout_write, emit_built, emit_event, emit_started, report_dx_error,
 };
 use dx_error::{DxError, ErrorKind};
@@ -531,7 +531,7 @@ fn finish_upgrade(
         writeln!(
             err,
             "dx: {}: {message}",
-            crate::exec::notice_codes::CODE_IDE_REFRESH_FAILED
+            dx_exec_core::notice_codes::CODE_IDE_REFRESH_FAILED
         )
         .ok();
     }

@@ -1,4 +1,4 @@
-use super::common::{
+use dx_exec_core::common::{
     FileChange, REASON_INCOMPLETE_COLLECTION, REASON_INVALID_EDITS, REASON_STALE_SOURCE,
     REASON_UNREADABLE_SOURCE, REASON_WRITE_FAILED, SourceRead, apply_to_bytes, read_verified,
 };
@@ -172,7 +172,7 @@ pub(crate) fn project_status(
 
 #[cfg(test)]
 mod tests {
-    use super::super::common::{
+    use dx_exec_core::common::{
         FileChange, REASON_INCOMPLETE_COLLECTION, REASON_INVALID_EDITS, REASON_STALE_SOURCE,
         REASON_WRITE_FAILED,
     };

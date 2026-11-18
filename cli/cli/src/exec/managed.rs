@@ -1,4 +1,4 @@
-use super::common::{
+use dx_exec_core::common::{
     CODE_MANAGED_COMMIT_FAILED, CODE_MANAGED_NO_CAPABILITY, CODE_UNREADABLE_BEP, Env,
     bazel_exit_event, bazel_failure_code, check_stdout_write, emit_built, emit_event, kept_child,
     operational, pre_exec, read_actions, report_dx_error, resolve_failed, run_bazel,

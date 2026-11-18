@@ -1,4 +1,4 @@
-use super::super::common::{PhaseKind, PhaseRun};
+use dx_exec_core::common::{PhaseKind, PhaseRun};
 use super::super::quality::execute_quality_phase;
 use super::super::test_support::*;
 use super::SharedChecks;

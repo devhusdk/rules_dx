@@ -1,4 +1,4 @@
-use super::super::common::CODE_FROZEN_LOCKED;
+use dx_exec_core::common::CODE_FROZEN_LOCKED;
 use super::super::test_support::*;
 use super::*;
 

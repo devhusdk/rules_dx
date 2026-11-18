@@ -2,8 +2,8 @@ use std::ffi::OsString;
 use std::fmt::Write as _;
 use std::io::Write;
 
-use crate::exec::common::{check_stdout_write, emit_built, emit_event, refusal, report_dx_error};
-use crate::exec::notice_codes::{CODE_INIT_ABSENT, CODE_INIT_PLAN_PARTIAL};
+use dx_exec_core::common::{check_stdout_write, emit_built, emit_event, refusal, report_dx_error};
+use dx_exec_core::notice_codes::{CODE_INIT_ABSENT, CODE_INIT_PLAN_PARTIAL};
 use dx_output::{
     FinishedCounts, NoticeEvent, OutputMode, PlanFindingEvent, command_finished, command_started,
     init_plan_event, notice_event,

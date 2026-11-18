@@ -1,0 +1,89 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//tools/visibility:visibility.bzl", "VIS_CLI")
+
+package(default_visibility = VIS_CLI)
+
+rust_library(
+    name = "dx_exec_core",
+    srcs = [
+        "src/bazel_hint.rs",
+        "src/bazel_restart.rs",
+        "src/common.rs",
+        "src/failure.rs",
+        "src/guidance.rs",
+        "src/lib.rs",
+        "src/notice_codes.rs",
+    ],
+    aliases = {},  # keep
+    crate_name = "dx_exec_core",
+    crate_root = "src/lib.rs",
+    # keep
+    deps = [
+        "//cli/apply:dx_apply",
+        "//cli/audit:dx_audit",
+        "//cli/bep:dx_bep",
+        "//cli/digest:dx_digest",
+        "//cli/error:dx_error",
+        "//cli/output:dx_output",
+        "//cli/plan:dx_plan",
+        "//cli/process:dx_process",
+        "//cli/worktree:dx_worktree",
+        "@crates//:serde_json",
+        "@crates//:thiserror",
+    ],
+)
+
+rust_test(
+    name = "dx_exec_core_test",
+    size = "small",
+    srcs = [
+        "src/bazel_hint.rs",
+        "src/bazel_restart.rs",
+        "src/common.rs",
+        "src/common_tests.rs",
+        "src/failure.rs",
+        "src/guidance.rs",
+        "src/lib.rs",
+        "src/notice_codes.rs",
+    ],
+    aliases = {},  # keep
+    coverage_lib = ":dx_exec_core",
+    crate_name = "dx_exec_core",
+    crate_root = "src/lib.rs",
+    # keep
+    deps = [
+        "//cli/apply:dx_apply",
+        "//cli/audit:dx_audit",
+        "//cli/bep:dx_bep",
+        "//cli/digest:dx_digest",
+        "//cli/error:dx_error",
+        "//cli/output:dx_output",
+        "//cli/plan:dx_plan",
+        "//cli/process:dx_process",
+        "//cli/worktree:dx_worktree",
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:tempfile",
+        "@crates//:thiserror",
+    ],
+)
+
+# Read by the dx_cli source guards, which scan every production CLI file.
+filegroup(
+    name = "rust_srcs",
+    srcs = glob(["src/**/*.rs"]),
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//tools/ci:__pkg__"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

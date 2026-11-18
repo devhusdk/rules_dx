@@ -5,7 +5,7 @@
 //! Bazel's exit code only when a failure there may be its own, so a lint failure leaves format
 //! clean.
 
-use super::common::{
+use dx_exec_core::common::{
     BAZEL_INTERRUPTED, Env, PhaseKind, collect_output_account, read_actions, run_bazel_output,
     server_died,
 };

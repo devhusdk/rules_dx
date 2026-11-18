@@ -11,7 +11,7 @@ use dx_output::{
 };
 use dx_plan::args::Invocation;
 
-use crate::exec::common::{check_stdout_write, emit_built, report_dx_error};
+use dx_exec_core::common::{check_stdout_write, emit_built, report_dx_error};
 
 const CODE_CONFIG_FAILED: &str = "config_failed";
 const TIER_BASE: &str = "tier base";

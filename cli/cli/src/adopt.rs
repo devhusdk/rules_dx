@@ -18,7 +18,7 @@ use std::io::Write;
 use dx_output::OutputMode;
 use dx_plan::args::{Command, Invocation};
 
-pub(crate) use crate::exec::common::{operational, pre_exec};
+pub(crate) use dx_exec_core::common::{operational, pre_exec};
 
 pub struct AdoptEnv<'a> {
     pub workspace: &'a std::path::Path,

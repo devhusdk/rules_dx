@@ -1,8 +1,8 @@
-use super::bazel_hint::{recorded, refine};
+use dx_exec_core::bazel_hint::{recorded, refine};
 use super::breaking_base;
 use super::build_failures::report_build_failures;
 use super::check_build::{SharedChecks, SharedRead};
-use super::common::{
+use dx_exec_core::common::{
     ActionTally, BAZEL_INTERRUPTED, CODE_ANALYSIS_FAILED, CODE_BAZEL_FAILED, CODE_BAZEL_SIGNALLED,
     CODE_DIFF_FAILED, CODE_INVALID_ARGUMENTS, CODE_NOT_CONVERGED, CODE_UNREADABLE_BEP, Env,
     Failure, FileChange, LatchedOut, PhaseEffects, PhaseKind, PhaseRun,
@@ -11,9 +11,9 @@ use super::common::{
     findings_summary, operational_output, pre_exec, read_actions, report_dx_error, report_failure,
     resolve_failed, run_bazel_output, server_died, warn_scope_excluded,
 };
-use super::guidance::{apply_hint, rerun_hint};
+use dx_exec_core::guidance::{apply_hint, rerun_hint};
 use super::link_check;
-use super::notice_codes::{CODE_CHANGES_PROPOSED, CODE_TOOL_SKIPPED};
+use dx_exec_core::notice_codes::{CODE_CHANGES_PROPOSED, CODE_TOOL_SKIPPED};
 use super::pinned_tool::QueryBazel;
 use super::quality_apply::{apply_collected_changes, project_status, terminal_on_disk};
 use super::quality_emit::{EmitCounts, EmitInputs, emit_findings};

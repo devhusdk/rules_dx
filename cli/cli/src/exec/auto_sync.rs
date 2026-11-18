@@ -6,8 +6,8 @@ use std::io::Write;
 use dx_output::OutputMode;
 use dx_plan::args::{Command, Invocation};
 
-use super::common::{ActionTally, Env};
-use super::notice_codes::CODE_SYNC_FAILED;
+use dx_exec_core::common::{ActionTally, Env};
+use dx_exec_core::notice_codes::CODE_SYNC_FAILED;
 use super::sync_fingerprint::{self, Check, Record};
 
 /// Runs after `invocation` exited 0; never changes its exit code.

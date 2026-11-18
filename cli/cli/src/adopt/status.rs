@@ -2,7 +2,7 @@ use std::io::Write;
 
 use clap::ValueEnum;
 
-use crate::exec::common::{check_stdout_write, emit_built, emit_event};
+use dx_exec_core::common::{check_stdout_write, emit_built, emit_event};
 use dx_output::{
     CapabilityEvent, ConfigFileEvent, FamilyToolsEvent, FinishedCounts, OutputMode, OwnedFileEvent,
     StatusEvent, TierEvent, capability_event, command_finished, command_started, config_file_event,
@@ -528,7 +528,7 @@ pub(crate) fn execute_status(
         match owned_files(workspace) {
             Ok(files) => files,
             Err(error) => {
-                return crate::exec::common::report_dx_error(
+                return dx_exec_core::common::report_dx_error(
                     invocation.output,
                     out,
                     err,

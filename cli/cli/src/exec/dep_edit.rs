@@ -1,6 +1,6 @@
 //! The write, refresh and report tail shared by the dependency verbs (`dx update`).
 
-use super::common::{
+use dx_exec_core::common::{
     CODE_FROZEN_LOCKED, CODE_OFFLINE_REQUIRED, CODE_UPDATE_FAILED, CODE_UPDATE_SET_SUCCESS,
     check_stdout_write, emit_built, emit_event, operational, pre_exec,
 };
@@ -950,7 +950,7 @@ fn manifest_need(
 
 #[cfg(test)]
 mod tests {
-    use super::super::common::{CODE_INVALID_RESULT, CODE_UPDATE_WIDEN_FAILED};
+    use dx_exec_core::common::{CODE_INVALID_RESULT, CODE_UPDATE_WIDEN_FAILED};
     use super::*;
     use std::io;
 

@@ -1,4 +1,4 @@
-use super::common::{
+use dx_exec_core::common::{
     FileChange, REASON_CONFLICTING_CANDIDATES, REASON_CONFLICTING_DIGESTS, SourceRead,
     apply_to_bytes, read_verified,
 };

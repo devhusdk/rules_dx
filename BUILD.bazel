@@ -475,6 +475,7 @@ filegroup(
         "//cli/env:module_srcs",
         "//cli/env_plan:module_srcs",
         "//cli/error:module_srcs",
+        "//cli/exec_core:module_srcs",
         "//cli/exec_os:module_srcs",
         "//cli/families:module_srcs",
         "//cli/fingerprint:module_srcs",

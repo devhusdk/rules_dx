@@ -6,7 +6,7 @@ use std::path::Path;
 use dx_output::{DiagnosticEvent, Severity};
 use dx_plan::resolve::QueryRunner;
 
-use super::common::git_output;
+use dx_exec_core::common::git_output;
 
 const TOOL: &str = "dx";
 const DRIFT_RULE: &str = "dx/generated-drift";

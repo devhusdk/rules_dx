@@ -898,7 +898,7 @@ fn report_failed_with_next_replaces_the_default_next_step() {
             &mut err,
             OutputMode::Text { quiet: false },
             "boom",
-            Some(super::super::guidance::EVIDENCE_GAP_NEXT),
+            Some(crate::guidance::EVIDENCE_GAP_NEXT),
         ),
         Ok(())
     );

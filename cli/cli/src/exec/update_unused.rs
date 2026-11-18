@@ -1,4 +1,4 @@
-use super::common::{check_stdout_write, emit_built};
+use dx_exec_core::common::{check_stdout_write, emit_built};
 use dx_adopt::dependency_sets::{
     Ecosystem, HexBackend, ResolvedSet, ResolvedTarget, Selection, cargo_fetch_repository,
     hex_backend,

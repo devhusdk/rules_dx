@@ -1,4 +1,4 @@
-use super::common::{ExecError, collect_targets};
+use dx_exec_core::common::{ExecError, collect_targets};
 use super::managed_staging::{ensure_generation_dir, symlink_leaf};
 use dx_atomic_fs::lease::SharedLease;
 use std::collections::BTreeMap;

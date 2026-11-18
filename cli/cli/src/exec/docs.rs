@@ -1,4 +1,4 @@
-use super::common::{
+use dx_exec_core::common::{
     Env, bazel_exit_event, bazel_failure_code, bep_error_code, check_stdout_write,
     collect_output_account, emit_built, emit_event, kept_child, operational, pre_exec,
     report_dx_error, resolve_failed, run_bazel,

@@ -7,7 +7,7 @@ use dx_plan::plan::OUTPUT_GROUP;
 use dx_plan::resolve::path_in_filter;
 use quality_result::{build_deps, decode_validated, proto};
 
-use super::common::{FileChange, apply_to_bytes, collect_own_account};
+use dx_exec_core::common::{FileChange, apply_to_bytes, collect_own_account};
 use super::quality_reconcile::{Conflict, Producer, reconcile};
 
 #[derive(Default)]

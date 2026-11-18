@@ -1,6 +1,6 @@
 //! The commit a coverage run measured and the tracked sources no Bazel rule uses.
 
-use super::common::git_output;
+use dx_exec_core::common::git_output;
 use dx_plan::resolve::{MemoizedGraphQuery, QueryRunner, RuleGraph};
 use std::collections::HashMap;
 use std::path::Path;

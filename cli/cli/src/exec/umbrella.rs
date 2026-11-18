@@ -1,11 +1,11 @@
 use super::check_build::SharedChecks;
-use super::common::{
+use dx_exec_core::common::{
     ActionTally, BAZEL_TESTS_FAILED, CODE_COLLECTION_FAILED, CODE_COMMIT_NOT_CONVENTIONAL,
     CODE_UMBRELLA_PHASE_FINDINGS, CODE_UMBRELLA_PHASE_SKIPPED, CODE_VERIFICATION_FAILED, Env,
     LatchedOut, PhaseEffects, PhaseKind, PhaseRun, check_stdout_write, emit_built, emit_event,
     pre_exec, report_failed, write_report_file,
 };
-use super::failure::CODE_INVALID_SCOPE;
+use dx_exec_core::failure::CODE_INVALID_SCOPE;
 use super::generate::execute_generate_phase;
 use super::generate::execute_generate_request;
 use super::quality::execute_quality_request;

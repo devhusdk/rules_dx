@@ -1,4 +1,4 @@
-use super::common::{
+use dx_exec_core::common::{
     CODE_DIFF_FAILED, CODE_GENERATION_FAILED, CODE_INVALID_RESULT, Env, PhaseEffects, PhaseKind,
     PhaseRun, bazel_failure_code, check_stdout_write, emit_bazel_exit, emit_built, emit_event,
     kept_child, operational_output, pre_exec, resolve_failed, run_bazel_output,

@@ -7,8 +7,8 @@ use dx_error::DxError;
 use dx_output::{NoticeEvent, OutputMode, notice_event};
 use dx_setup::prune::{apply_plan, collect_inventory_with_scan_from};
 
-use super::common::{emit_built, flush_out};
-use super::notice_codes::CODE_PRUNE_FAILED;
+use dx_exec_core::common::{emit_built, flush_out};
+use dx_exec_core::notice_codes::CODE_PRUNE_FAILED;
 
 fn prune(workspace: &Path, proc_root: &Path, previous: Option<&str>) -> Result<(), DxError> {
     let inventory = collect_inventory_with_scan_from(workspace, proc_root, previous)

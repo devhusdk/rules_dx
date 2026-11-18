@@ -6,7 +6,7 @@ use dx_output::{
     Resolution, Snapshot, Span, change_value, finding_value, notice_event, refusal_value,
 };
 
-use super::common::{
+use dx_exec_core::common::{
     FileChange, REASON_INCOMPLETE_COLLECTION, change_event_for, check_stdout_write, emit_built,
     emit_event, text_finding,
 };

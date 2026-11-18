@@ -1,5 +1,5 @@
 use super::affected::{PlanError, named_base};
-use super::common::{
+use dx_exec_core::common::{
     CODE_CHANGED_LINE_BELOW_MINIMUM, CODE_CHANGED_LINE_INCOMPLETE, CODE_CHANGED_LINE_UNAVAILABLE,
     emit_built, git_output,
 };

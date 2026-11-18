@@ -1,6 +1,6 @@
 use dx_plan::args::{HintScope, QualityRequest};
 
-pub(crate) use dx_plan::plan::shell_quote as quote;
+pub use dx_plan::plan::shell_quote as quote;
 
 /// Returns the options a suggested command can echo as-is, in their original
 /// order, and whether any were left out.
@@ -33,7 +33,7 @@ fn echoed(options: &[String]) -> (Vec<String>, bool) {
     (words, changed)
 }
 
-pub(crate) fn command_line(request: &QualityRequest, apply: bool) -> String {
+pub fn command_line(request: &QualityRequest, apply: bool) -> String {
     let command = match &request.origin {
         Some(origin) => origin.command,
         None => request.command,
@@ -70,11 +70,11 @@ pub(crate) fn command_line(request: &QualityRequest, apply: bool) -> String {
     words.join(" ")
 }
 
-pub(crate) fn omitted_options(request: &QualityRequest) -> bool {
+pub fn omitted_options(request: &QualityRequest) -> bool {
     echoed(&request.bazel_options).1 || echoed(&request.bazel_startup_options).1
 }
 
-pub(crate) fn apply_hint(request: &QualityRequest, files: usize) -> String {
+pub fn apply_hint(request: &QualityRequest, files: usize) -> String {
     let mut line = format!(
         "{files} file(s) need changes. Apply them with: {}",
         command_line(request, true)
@@ -85,7 +85,7 @@ pub(crate) fn apply_hint(request: &QualityRequest, files: usize) -> String {
     line
 }
 
-pub(crate) fn rerun_hint(request: &QualityRequest, action: &str) -> String {
+pub fn rerun_hint(request: &QualityRequest, action: &str) -> String {
     let mut line = format!("next: {action}, then run: {}", command_line(request, false));
     if omitted_options(request) {
         line.push_str(" (add your credential options again)");
@@ -93,7 +93,7 @@ pub(crate) fn rerun_hint(request: &QualityRequest, action: &str) -> String {
     line
 }
 
-pub(crate) fn next_action(code: &str) -> Option<&'static str> {
+pub fn next_action(code: &str) -> Option<&'static str> {
     Some(match code {
         "bazel_failed" => "next: fix the Bazel error above and run the command again.",
         "analysis_failed" => "next: fix the Bazel analysis error above and run the command again.",
@@ -134,14 +134,14 @@ pub(crate) fn next_action(code: &str) -> Option<&'static str> {
 }
 
 /// The next step when a report cannot render because the run left no coverage evidence.
-pub(crate) const EVIDENCE_GAP_NEXT: &str =
+pub const EVIDENCE_GAP_NEXT: &str =
     "next: fix the test or coverage problem reported above and run the command again.";
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use dx_plan::args::Command;
-    pub(crate) fn request() -> QualityRequest {
+    pub fn request() -> QualityRequest {
         request_of(&[
             "lint",
             "--workspace",
@@ -153,7 +153,7 @@ mod tests {
         ])
     }
 
-    pub(crate) fn request_of(words: &[&str]) -> QualityRequest {
+    pub fn request_of(words: &[&str]) -> QualityRequest {
         dx_plan::args::parse(&dx_testing::cli::strings(words))
             .expect("parse")
             .quality_request()

@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use crate::exec::common::{check_stdout_write, report_dx_error};
+use dx_exec_core::common::{check_stdout_write, report_dx_error};
 use dx_adopt::Applied;
 use dx_plan::args::Invocation;
 

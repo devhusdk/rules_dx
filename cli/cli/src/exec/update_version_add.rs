@@ -1,4 +1,4 @@
-use super::common::{CODE_ADD_DECLARED, CODE_UPDATE_WIDEN_FAILED, operational, report_dx_error};
+use dx_exec_core::common::{CODE_ADD_DECLARED, CODE_UPDATE_WIDEN_FAILED, operational, report_dx_error};
 use super::dep_edit;
 use dx_error::DxError;
 use dx_plan::args::Invocation;

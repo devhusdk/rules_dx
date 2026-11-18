@@ -3,7 +3,7 @@
 //! requests in `dx_link_requests`, and this module runs the lychee stage of each
 //! with the exec paths made absolute.
 
-use super::common::set_field;
+use dx_exec_core::common::set_field;
 use dx_tool_resolve::Bazel;
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
@@ -55,7 +55,7 @@ pub(crate) fn read_requests(
     foreign: &BTreeSet<String>,
     workspace: &Path,
 ) -> Vec<(String, Vec<u8>)> {
-    let Ok(account) = super::common::collect_own_account(
+    let Ok(account) = dx_exec_core::common::collect_own_account(
         bep,
         dx_plan::plan::LINK_REQUEST_OUTPUT_GROUP,
         workspace,

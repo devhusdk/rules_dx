@@ -3,7 +3,7 @@ use std::fmt::Write as _;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use super::common::{
+use dx_exec_core::common::{
     Env, Failure, check_stdout_write, emit_built, emit_event, report_failure, set_field,
 };
 use dx_output::{

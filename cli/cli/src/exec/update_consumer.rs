@@ -1,4 +1,4 @@
-use super::super::common::{
+use dx_exec_core::common::{
     Env, check_stdout_write, emit_built, frozen_summary, offline_summary, pre_exec,
 };
 use super::super::pinned_tool::{PinnedTool, PinnedToolError, QueryBazel, resolve_pinned};

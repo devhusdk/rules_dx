@@ -63,8 +63,8 @@ erlang_erlc_opts(
 erlang_bytecode(
     name = "test_modules",
     testonly = True,
-    srcs = ["test/dx_cpp_nif_tests.erl"],
-    outs = ["test/dx_cpp_nif_tests.beam"],
+    srcs = ["test/dx_cpp_a_tests.erl"],
+    outs = ["test/dx_cpp_a_tests.beam"],
     erlc_opts = ":test_erlc_opts",
     deps = [":test_erlang_app"],
 )

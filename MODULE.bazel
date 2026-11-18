@@ -1171,6 +1171,7 @@ dx_pins.archive(
         "//patches/rules_erlang:05_windows_eunit_cover.patch",
         "//patches/rules_erlang:06_coverage_enabled.patch",
         "//patches/rules_erlang:07_windows_ct_cover.patch",
+        "//patches/rules_erlang:08_nif_profile_per_library.patch",
         "//patches/rules_erlang:toolchain_type_alias.patch",
     ],
     pins = "//erlang:pins.json",

@@ -1,4 +1,4 @@
--module(dx_cpp_nif_tests).
+-module(dx_cpp_a_tests).
 
 -include_lib("eunit/include/eunit.hrl").
 

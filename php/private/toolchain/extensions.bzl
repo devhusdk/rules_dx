@@ -1,8 +1,7 @@
 """Module extension for php/private/toolchain."""
 
-load("//core:repo.bzl", "hub_repo")
 load(":cells.bzl", "PHP_CELLS")
-load(":repos.bzl", "HEADERS_BUILD", "HUB_NAME", "COVERAGE_PREFIX", "SOURCES_BUILD", "VERSION_FILE", "hub_build", "phar_build", "php_archive", "php_coverage_runtime", "runtime_build", "runtime_repository_name")
+load(":repos.bzl", "HEADERS_BUILD", "HUB_NAME", "COVERAGE_PREFIX", "SOURCES_BUILD", "VERSION_FILE", "hub_build", "phar_build", "php_archive", "php_coverage_runtime", "php_hub", "runtime_build", "runtime_repository_name")
 
 
 _PHP_INCLUDES = ["include/php", "include/php/main", "include/php/Zend", "include/php/TSRM", "include/php/ext"]
@@ -59,7 +58,7 @@ def _php_impl(mctx):
         sha256 = pcov["sha256"],
         urls = pcov["urls"],
     )
-    hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build(PHP_CELLS.keys())})
+    php_hub(name = HUB_NAME, files = {"BUILD.bazel": hub_build(PHP_CELLS.keys())})
     for name, file, pin in [
         ("dx_composer", "composer.phar", tools["composer"]),
         ("dx_phpunit", "phpunit.phar", tools["phpunit"]),

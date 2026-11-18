@@ -1,6 +1,5 @@
 """Core PHP rules: php_library, php_binary and php_test on the pinned PHP, Composer and PHPUnit."""
 
-load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//php/private/toolchain:php.bzl", "EXEC_TOOLCHAIN_TYPE", "TOOLCHAIN_TYPE")
 load(":providers.bzl", "PhpInfo")
 
@@ -17,6 +16,15 @@ def external_path(short_path):
     if short_path.startswith("../"):
         return "external/" + short_path[3:]
     return short_path
+
+def _no_coverage_transition_impl(_settings, _attr):
+    return {"//command_line_option:collect_code_coverage": False}
+
+no_coverage_transition = transition(
+    implementation = _no_coverage_transition_impl,
+    inputs = [],
+    outputs = ["//command_line_option:collect_code_coverage"],
+)
 
 NATIVE_LAUNCHER_ATTRS = {
     "_exec_launcher": attr.label(default = Label("@dx_prebuilt//:launcher"), executable = True, cfg = no_coverage_transition, doc = "The native launcher."),

@@ -112,10 +112,14 @@ pub fn canonical_identity_bytes(tools: &[ToolPlan]) -> Vec<u8> {
     let identity = EnvIdentity {
         tools: sorted
             .iter()
-            .map(|tool| ToolEntry {
-                bin_name: tool.bin_name.clone(),
-                owner: tool.owner.clone(),
-                host_names: tool.host_names.clone(),
+            .map(|tool| {
+                let mut host_names = tool.host_names.clone();
+                host_names.sort();
+                ToolEntry {
+                    bin_name: tool.bin_name.clone(),
+                    owner: tool.owner.clone(),
+                    host_names,
+                }
             })
             .collect(),
     };
@@ -239,6 +243,12 @@ fn validate_logical_name(bin_name: &str, name: &str) -> Result<(), Error> {
     }
     if name.contains('/') || name.contains('\\') {
         return Err(bad("must not contain '/' or '\\'"));
+    }
+    if name.chars().any(|c| c.is_control() || c == ':') {
+        return Err(bad("must not contain control characters or ':'"));
+    }
+    if name.ends_with('.') || name.ends_with(' ') {
+        return Err(bad("must not end with '.' or a space"));
     }
     let lower = name.to_lowercase();
     if lower == MARKER_FILE_NAME {
@@ -444,6 +454,10 @@ fn verify_installed(bin_dir: &Path, staged: &[(String, PathBuf)]) -> Result<bool
     Ok(true)
 }
 
+fn present(path: &Path) -> bool {
+    fs::symlink_metadata(path).is_ok()
+}
+
 fn unmanaged(bin_dir: &Path, detail: &str) -> Error {
     Error::Unmanaged {
         path: bin_dir.to_path_buf(),
@@ -458,7 +472,7 @@ fn stage_tree(
     staged: &[(String, PathBuf)],
     identity: &[u8; 32],
 ) -> Result<(), Error> {
-    if stage_dir.exists() {
+    if present(stage_dir) {
         fs::remove_dir_all(stage_dir).map_err(|e| Error::Install {
             reason: format!("cannot clear stale staging {}: {e}", stage_dir.display()),
         })?;

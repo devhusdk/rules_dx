@@ -31,5 +31,5 @@ dx_licenses.accept(ids = ["android-sdk-license"])
 android = use_extension("@rules_dx//android:extensions.bzl", "android")
 use_repo(android, "dx_android_sdk", "dx_androidsdk")
 
-android_sdk_repository = use_extension("@rules_dx//android:extensions.bzl", "android_sdk_repository_extension")
+android_sdk_repository = use_extension("@rules_dx//android:extensions.bzl", "android_sdk_repository")
 override_repo(android_sdk_repository, androidsdk = "dx_androidsdk")

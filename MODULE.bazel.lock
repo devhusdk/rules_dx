@@ -7384,12 +7384,10 @@
     },
     "//dotnet:extensions.bzl%dotnet": {
       "general": {
-        "bzlTransitiveDigest": "ALjTm7D7YOF7+x38MvHjxixugtNPdYYblvBSbia7aVM=",
+        "bzlTransitiveDigest": "/7j2iZRdafBScYjeZEq4j4mCc4aNHKHuEcnTZctUGI4=",
         "usagesDigest": "GoWWpS5sxyPXf+HMaQVutFbg//hDtlHMpcDpfcKjF+k=",
         "recordedInputs": [
-          "REPO_MAPPING:,rules_dotnet +dx_pins+rules_dotnet",
-          "REPO_MAPPING:+dx_pins+rules_dotnet,bazel_skylib bazel_skylib+",
-          "REPO_MAPPING:+dx_pins+rules_dotnet,bazel_tools bazel_tools"
+          "REPO_MAPPING:,rules_dotnet +dx_pins+rules_dotnet"
         ],
         "generatedRepoSpecs": {
           "dx_dotnet_x86_64-apple-darwin": {

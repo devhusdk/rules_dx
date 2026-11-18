@@ -290,9 +290,13 @@ impl<'a> Swift<'a> {
         let root = scratch.tmp().join(identity);
         std::fs::create_dir_all(&root).map_err(|error| failed(error.to_string()))?;
         let source = root.join("source");
-        tar::Archive::new(flate2::read::GzDecoder::new(bytes.as_slice()))
-            .unpack(&source)
-            .map_err(|error| failed(error.to_string()))?;
+        dx_archive::extract_bytes(
+            &bytes,
+            dx_archive::Format::TarGz,
+            &source,
+            dx_archive::Limits::default(),
+        )
+        .map_err(|error| failed(error.to_string()))?;
         let package = source.join(&pin.strip_prefix);
         let dumped = self
             .package_json(scratch, &package, "dump-package", &[])

@@ -90,6 +90,7 @@ rust_library(
     ],
     # keep
     deps = [
+        "//cli/archive:dx_archive",
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "//cli/dx_config",
@@ -101,7 +102,6 @@ rust_library(
         "//cli/process:dx_process",
         "@crates//:cargo-lock",
         "@crates//:chrono",
-        "@crates//:flate2",
         "@crates//:mvn_version",
         "@crates//:nodejs-semver",
         "@crates//:osv",
@@ -113,7 +113,6 @@ rust_library(
         "@crates//:serde-sarif",
         "@crates//:serde_json",
         "@crates//:spdx",
-        "@crates//:tar",
         "@crates//:thiserror",
         "@crates//:toml",
         "@crates//:url",
@@ -206,6 +205,7 @@ rust_test(
     ],
     # keep
     deps = [
+        "//cli/archive:dx_archive",
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "//cli/dx_config",

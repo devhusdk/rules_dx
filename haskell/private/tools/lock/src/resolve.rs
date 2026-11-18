@@ -135,9 +135,13 @@ pub fn remote_packages(project: &str) -> Vec<String> {
 
 fn unpack(bytes: &[u8], dir: &Path) -> Result<PathBuf, Error> {
     let fail = |error: std::io::Error| Error::new(format!("{}: {error}", dir.display()));
-    tar::Archive::new(flate2::read::GzDecoder::new(bytes))
-        .unpack(dir)
-        .map_err(fail)?;
+    dx_archive::extract_bytes(
+        bytes,
+        dx_archive::Format::TarGz,
+        dir,
+        dx_archive::Limits::default(),
+    )
+    .map_err(fail)?;
     let mut tops = Vec::new();
     for entry in std::fs::read_dir(dir).map_err(fail)? {
         tops.push(entry.map_err(fail)?.path());

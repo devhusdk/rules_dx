@@ -14,7 +14,6 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use cabal_lock::Cabal;
-use flate2 as _;
 use serde_json as _;
 use tar as _;
 

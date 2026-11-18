@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//core:defs.bzl", "expect_equal", "starlark_test")
-load("//terraform:extensions.bzl", "PLATFORM_TARGETS", "TARGETS", "hub_build", "hub_providers", "provider_repos")
+load("//terraform/private:extensions.bzl", "PLATFORM_TARGETS", "TARGETS", "hub_build", "hub_providers", "provider_repos")
 load("//terraform/private:providers.bzl", "TerraformModuleInfo", "provider_mirror_root")
 
 _SHA = "a" * 64

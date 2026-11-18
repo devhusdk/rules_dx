@@ -62,6 +62,13 @@ dart_test(
     ],
 )
 
+dart_binary(
+    name = "runfiles_hello",
+    data = ["data.txt"],
+    main = "runfiles_main.dart",
+    deps = ["//dart:runfiles"],
+)
+
 dx_conformance_suite(
     name = "",
     size = "small",
@@ -91,6 +98,11 @@ dx_conformance_suite(
         "lint_line": 2,
         "lint_rule": "unused_local_variable",
         "lint_source": "lib/lint_dirty.dart",
+    },
+    runfiles = {
+        "binary": ":runfiles_hello",
+        "data": "data.txt",
+        "expected": "hello runfiles",
     },
 )
 

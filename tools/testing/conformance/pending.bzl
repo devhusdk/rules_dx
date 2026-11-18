@@ -59,7 +59,6 @@ d format_test *
 d lint_error_test *
 d lint_test *
 d lock_test *
-dart runfiles_test *
 dotnet cross_test *
 dotnet lock_test *
 dotnet runfiles_test *
@@ -91,7 +90,6 @@ kotlin format_error_test *
 kotlin format_test *
 kotlin lint_error_test *
 kotlin lint_test *
-lua runfiles_test *
 mdx format_error_test *
 mdx format_test *
 mdx lint_error_test *
@@ -110,7 +108,6 @@ msix runfiles_test *
 ocaml cross_test macos_arm64
 ocaml lint_error_test *
 ocaml lint_test *
-perl runfiles_test *
 php runfiles_test *
 powershell runfiles_test *
 python runfiles_test *

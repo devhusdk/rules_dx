@@ -30,6 +30,33 @@ fn ensure(url: &str, dest: &Path) -> Result<PathBuf, String> {
     .map_err(|e| e.to_string())
 }
 
+fn ensure_pinned(url: &str, dest: &Path, body: &[u8]) -> Result<PathBuf, String> {
+    fetch::ensure(&Request {
+        version: VERSION,
+        asset: ASSET,
+        url,
+        dest,
+        checksum: &ChecksumSource::Pinned(support::sha256_hex(body)),
+    })
+    .map_err(|e| e.to_string())
+}
+
+fn seed(dest: &Path, body: &[u8], stamp: Option<&[u8]>) {
+    std::fs::create_dir_all(dest.parent().expect("dir")).expect("mkdir");
+    std::fs::write(dest, body).expect("seed");
+    if let Some(stamped) = stamp {
+        std::fs::write(
+            fetch::stamp_path(dest),
+            format!("{}\n", support::sha256_hex(stamped)),
+        )
+        .expect("stamp");
+    }
+}
+
+fn stamp(dest: &Path) -> String {
+    std::fs::read_to_string(fetch::stamp_path(dest)).expect("stamp")
+}
+
 fn dest(cache: &tempfile::TempDir) -> PathBuf {
     cache.path().join("bin").join(VERSION).join(ASSET)
 }
@@ -205,6 +232,64 @@ fn cached_binary_needs_no_network() {
 }
 
 #[test]
+fn cached_binary_with_other_pinned_hash_is_refetched() {
+    let server = Server::start();
+    server.release(VERSION, ASSET, b"new", b"new");
+    let cache = tempfile::tempdir().expect("tempdir");
+    let dest = dest(&cache);
+    seed(&dest, b"old", Some(b"old"));
+    let url = server.url(VERSION, ASSET);
+    assert_eq!(ensure_pinned(&url, &dest, b"new").expect("refetched"), dest);
+    assert_eq!(std::fs::read(&dest).expect("read"), b"new");
+    assert_eq!(stamp(&dest), format!("{}\n", support::sha256_hex(b"new")));
+}
+
+#[test]
+fn cached_binary_without_stamp_is_verified_once() {
+    let cache = tempfile::tempdir().expect("tempdir");
+    let dest = dest(&cache);
+    seed(&dest, b"cached", None);
+    let url = format!("{}/v{VERSION}/{ASSET}", support::dead_base());
+    assert_eq!(ensure_pinned(&url, &dest, b"cached").expect("hashed"), dest);
+    assert_eq!(
+        stamp(&dest),
+        format!("{}\n", support::sha256_hex(b"cached"))
+    );
+    assert_eq!(
+        ensure_pinned(&url, &dest, b"cached").expect("stamped"),
+        dest
+    );
+}
+
+#[test]
+fn cached_binary_without_stamp_that_differs_is_refetched() {
+    let server = Server::start();
+    server.release(VERSION, ASSET, b"new", b"new");
+    let cache = tempfile::tempdir().expect("tempdir");
+    let dest = dest(&cache);
+    seed(&dest, b"corrupt", None);
+    ensure_pinned(&server.url(VERSION, ASSET), &dest, b"new").expect("refetched");
+    assert_eq!(std::fs::read(&dest).expect("read"), b"new");
+}
+
+#[test]
+fn stale_cached_binary_fails_closed_when_the_download_fails() {
+    let cache = tempfile::tempdir().expect("tempdir");
+    let dest = dest(&cache);
+    seed(&dest, b"old", Some(b"old"));
+    let url = format!("{}/v{VERSION}/{ASSET}", support::dead_base());
+    let err = ensure_pinned(&url, &dest, b"new").expect_err("old binary must not run");
+    assert!(
+        err.starts_with(&format!("dx: download failed: {url}: ")),
+        "{err}"
+    );
+    assert!(!fetch::cached(
+        &dest,
+        Some(&ChecksumSource::Pinned(support::sha256_hex(b"new")))
+    ));
+}
+
+#[test]
 fn concurrent_installs_leave_one_file() {
     let server = Server::start();
     let body = vec![7u8; 4 * 1024 * 1024];
@@ -223,7 +308,17 @@ fn concurrent_installs_leave_one_file() {
     assert_eq!(std::fs::read(&dest).expect("read"), body);
     let dir = dest.parent().expect("dir");
     assert_eq!(leftovers(dir), [] as [String; 0]);
-    assert_eq!(std::fs::read_dir(dir).expect("dir").count(), 1);
+    assert_eq!(names(dir), [ASSET.to_owned(), format!("{ASSET}.sha256")]);
+}
+
+fn names(dir: &Path) -> Vec<String> {
+    let mut names: Vec<String> = std::fs::read_dir(dir)
+        .expect("dir")
+        .flatten()
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .collect();
+    names.sort();
+    names
 }
 
 #[cfg(unix)]

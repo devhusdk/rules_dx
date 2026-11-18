@@ -64,7 +64,7 @@ pub fn resolve_on(
 }
 
 pub fn fetch(env_get: protocol::EnvGet, resolved: &Resolved) -> Result<PathBuf, ShimError> {
-    if resolved.bin.is_file() {
+    if fetch::cached(&resolved.bin, resolved.checksum.as_ref()) {
         return Ok(resolved.bin.clone());
     }
     let Some(checksum) = &resolved.checksum else {
@@ -73,7 +73,7 @@ pub fn fetch(env_get: protocol::EnvGet, resolved: &Resolved) -> Result<PathBuf, 
     let base = protocol::release_base(env_get)?;
     let asset = protocol::asset_name(resolved.platform);
     let url = protocol::release_url(&base, &resolved.version, &asset);
-    fetch::ensure(&fetch::Request {
+    fetch::install(&fetch::Request {
         version: &resolved.version,
         asset: &asset,
         url: &url,

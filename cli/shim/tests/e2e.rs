@@ -378,7 +378,33 @@ fn concurrent_first_runs_share_one_download() {
     }
     let dir = fixture.cache.path().join("bin").join(VERSION);
     assert_eq!(support::leftovers(&dir), [] as [String; 0]);
-    assert_eq!(std::fs::read_dir(&dir).expect("dir").count(), 1);
+    let (_, file) = support::host_asset();
+    let mut names: Vec<String> = std::fs::read_dir(&dir)
+        .expect("dir")
+        .flatten()
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .collect();
+    names.sort();
+    assert_eq!(names, [file.clone(), format!("{file}.sha256")]);
+}
+
+#[test]
+fn cached_binary_with_other_pinned_hash_never_runs() {
+    let fixture = Fixture::new();
+    let (_, file) = support::host_asset();
+    let dir = fixture.cache.path().join("bin").join(VERSION);
+    std::fs::create_dir_all(&dir).expect("mkdir");
+    let bin = dir.join(&file);
+    std::fs::write(&bin, b"old").expect("seed");
+    std::fs::write(
+        dx_shim::fetch::stamp_path(&bin),
+        support::sha256_hex(b"old"),
+    )
+    .expect("stamp");
+    let output = fixture.run(&["hi"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert_eq!(stdout(&output), "shim=1\narg=[hi]\n");
+    assert_eq!(std::fs::read(&bin).expect("read"), fake_dx());
 }
 
 #[test]

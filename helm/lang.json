@@ -23,5 +23,24 @@
   "pins": [],
   "entry_points": [
     "helm_library"
-  ]
+  ],
+  "quality": {
+    "bzl": "kubernetes/private/quality:kubernetes.bzl",
+    "classes": [
+      "helm"
+    ],
+    "defaults": {
+      "audit": [],
+      "format": [],
+      "lint": [
+        "helm",
+        "typos"
+      ],
+      "typecheck": []
+    },
+    "file_extensions": [],
+    "file_names": [
+      "Chart.yaml"
+    ]
+  }
 }

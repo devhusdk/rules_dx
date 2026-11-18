@@ -8,7 +8,6 @@ use std::path::Path;
 const OTHER_FAMILIES: &[(&str, &[&str])] = &[
     ("core", &[".yaml", ".yml"]),
     ("graphql", &[".gql", ".graphql"]),
-    ("helm", &["Chart.yaml"]),
     ("html", &[".htm", ".html"]),
     ("json", &[".json"]),
     ("markdown", &[".md"]),

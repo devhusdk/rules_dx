@@ -980,6 +980,28 @@
       }
     },
     {
+      "name": "helm",
+      "quality": {
+        "bzl": "kubernetes/private/quality:kubernetes.bzl",
+        "classes": [
+          "helm"
+        ],
+        "defaults": {
+          "audit": [],
+          "format": [],
+          "lint": [
+            "helm",
+            "typos"
+          ],
+          "typecheck": []
+        },
+        "file_extensions": [],
+        "file_names": [
+          "Chart.yaml"
+        ]
+      }
+    },
+    {
       "docs": {
         "aspects": [
           "real_jvm_docs_aspect"

@@ -1,6 +1,5 @@
 # gazelle:ignore
 load("@rules_dx//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
-load("@rules_dx//dotnet/private/fuzz:labels.bzl", "LIBFUZZER_DOTNET")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//dotnet/private:sharpfuzz_check.bzl", "dx_sharpfuzz_transitive_test")
@@ -105,7 +104,7 @@ dx_runner_attr_test(
     name = "parse_fuzz_run_attrs",
     expected = {"args": [
         "dotnet",
-        "$(rootpath %s)" % LIBFUZZER_DOTNET,
+        "$(rootpath :parse_fuzz_libfuzzer_dotnet)",
         "$(rootpath :parse_fuzz)",
     ]},
     runner = "parse_fuzz_run",

@@ -93,7 +93,7 @@ fn run(args: &[OsString]) -> Result<(), DxError> {
         let sources: Vec<&str> = list.lines().filter(|line| !line.is_empty()).collect();
         lcov = keep_sources(&lcov, &sources);
     }
-    fs::write(&args.output, lcov)
+    dx_atomic_fs::write_atomic(&args.output, lcov.as_bytes())
         .map_err(|e| DxError::infra(format!("cannot write {}: {e}", args.output.display())))
 }
 
@@ -229,6 +229,35 @@ mod tests {
     }
 
     #[test]
+    fn replaces_an_existing_output_whole() {
+        let dir = env::temp_dir().join(format!("to_lcov_replace_{}", std::process::id()));
+        fs::create_dir_all(&dir).expect("temp dir");
+        let input = dir.join("clover.xml");
+        let output = dir.join("coverage.dat");
+        fs::write(
+            &input,
+            "<coverage><project><file name=\"/w/a.php\"><line num=\"1\" type=\"stmt\" count=\"1\"/></file></project></coverage>",
+        )
+        .expect("write input");
+        fs::write(&output, "SF:stale.php\n".repeat(64)).expect("seed output");
+        let args = [
+            OsString::from("--from"),
+            OsString::from("clover"),
+            input.into_os_string(),
+            output.clone().into_os_string(),
+        ];
+        run(&args).expect("converts");
+        let lcov = fs::read_to_string(&output).expect("read output");
+        assert_eq!(lcov, "SF:/w/a.php\nDA:1,1\nLF:1\nLH:1\nend_of_record\n");
+        let leftovers: Vec<_> = fs::read_dir(&dir)
+            .expect("list dir")
+            .flatten()
+            .filter(|entry| entry.file_name().to_string_lossy().ends_with(".tmp"))
+            .collect();
+        assert!(leftovers.is_empty(), "{leftovers:?}");
+    }
+
+    #[test]
     fn reports_unreadable_input_sources_and_unwritable_output() {
         let dir = env::temp_dir().join(format!("to_lcov_err_{}", std::process::id()));
         fs::create_dir_all(&dir).expect("temp dir");
@@ -239,7 +268,8 @@ mod tests {
         ).expect("write input");
         let missing = dir.join("missing").display().to_string();
         let input = input.display().to_string();
-        let output = dir.join("no_dir").join("out").display().to_string();
+        // write_atomic creates missing parents, so a file in the parent's place is what fails.
+        let output = dir.join("clover.xml").join("out").display().to_string();
 
         let read = run(&strings(&["--from", "clover", &missing, &output]));
         assert!(

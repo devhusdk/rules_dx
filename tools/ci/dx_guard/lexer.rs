@@ -136,7 +136,12 @@ impl Lexer {
         {
             self.at += 1;
         }
-        let word: String = self.chars[start..self.at].iter().collect();
+        let word: String = self
+            .chars
+            .get(start..self.at)
+            .unwrap_or_default()
+            .iter()
+            .collect();
         let prefix = matches!(word.as_str(), "b" | "c" | "r" | "br" | "cr");
         let mut hashes = 0;
         while word.ends_with('r') && self.peek(hashes) == Some('#') {

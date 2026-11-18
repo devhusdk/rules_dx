@@ -1,12 +1,13 @@
 //! No action leaves the sandbox, reaches the network or shares /tmp outside `tools/ci/sandbox_escape_allowlist.txt`, the allowlist holds no spare entry, and no test file calls `env::temp_dir`.
 
-use std::path::Path;
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::Path;
 
 use dx_guard::allowlist::{self, Counts, hit};
 use dx_guard::lexer::{Token, rust_tokens};
 use dx_guard::snapshot::snapshot;
 use dx_guard::starlark::{callee_name, exprs, is_starlark, parse, string};
+use serde_json as _;
 use starlark_syntax::syntax::ast::{ArgumentP, AssignTargetP, AstExpr, AstStmt, ExprP, StmtP};
 use yaml_serde as _;
 
@@ -185,9 +186,7 @@ impl Scan {
             ExprP::Call(callee, args) => {
                 for arg in &args.args {
                     match &arg.node {
-                        ArgumentP::Named(key, value)
-                            if key.node == "execution_requirements" =>
-                        {
+                        ArgumentP::Named(key, value) if key.node == "execution_requirements" => {
                             self.requirement(path, local_keys(value));
                         }
                         ArgumentP::Named(key, value) if key.node == "tags" => {
@@ -286,7 +285,10 @@ impl Scan {
     fn file(&mut self, path: &str, source: &str) {
         if is_starlark(path) {
             self.starlark(path, source);
-        } else if Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("rs")) {
+        } else if Path::new(path)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("rs"))
+        {
             self.rust(path, source);
         } else {
             self.lines(path, source);

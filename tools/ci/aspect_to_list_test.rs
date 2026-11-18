@@ -6,15 +6,12 @@
 //! implementation into helpers defined in the same file; helpers loaded from other files are
 //! not followed.
 
-#[expect(
-    dead_code,
-    reason = "the guard reads only Starlark, not the Rust lexer"
-)]
 use std::collections::{BTreeMap, BTreeSet};
 
 use dx_guard::allowlist::{self, Counts, hit};
 use dx_guard::snapshot::snapshot;
 use dx_guard::starlark::{callee_name, exprs, is_starlark, parse};
+use serde_json as _;
 use starlark_syntax::syntax::ast::{ArgumentP, AstExpr, AstStmt, ExprP, StmtP};
 use yaml_serde as _;
 
@@ -65,9 +62,12 @@ fn count_file(path: &str, source: &str, counts: &mut Counts) {
             let body = exprs(&def.body);
             let callees = body
                 .iter()
-                .filter_map(|expr| match &expr.node {
-                    ExprP::Call(callee, _) => Some(callee_name(callee).to_owned()),
-                    _ => None,
+                .filter_map(|expr| {
+                    if let ExprP::Call(callee, _) = &expr.node {
+                        Some(callee_name(callee).to_owned())
+                    } else {
+                        None
+                    }
                 })
                 .collect();
             let flattens = body.iter().filter(|expr| is_to_list(expr)).count();

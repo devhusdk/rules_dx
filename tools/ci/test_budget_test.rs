@@ -2,11 +2,11 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use starlark_syntax::syntax::ast::{ArgumentP, AssignTargetP, AstExpr, AstStmt, ExprP, StmtP};
 use dx_guard::allowlist::{self, Counts, differences};
 use dx_guard::snapshot::read_input;
 use dx_guard::starlark::{callee_name, is_true, parse, string};
 use dx_guard::test_calls::{Callees, is_test, test_callees};
+use starlark_syntax::syntax::ast::{ArgumentP, AssignTargetP, AstExpr, AstStmt, ExprP, StmtP};
 use yaml_serde as _;
 
 /// The kind of an allowlist line that lets a nested test take more than `NESTED_SECONDS` cold.

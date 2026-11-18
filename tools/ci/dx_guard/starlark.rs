@@ -12,7 +12,14 @@ pub fn is_starlark(path: &str) -> bool {
     name == "BUILD" || STARLARK.iter().any(|end| name.ends_with(end))
 }
 
+/// Whether `path` names a BUILD, MODULE.bazel or .bzl file.
+pub fn is_bazel_file(path: &str) -> bool {
+    let name = path.rsplit('/').next().unwrap_or(path);
+    ["BUILD", "BUILD.bazel", "MODULE.bazel"].contains(&name) || name.ends_with(".bzl")
+}
+
 /// Parses one BUILD or .bzl file.
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn parse(path: &str, source: &str) -> AstModule {
     AstModule::parse(path, source.to_owned(), &Dialect::Extended)
         .unwrap_or_else(|error| panic!("{path}: does not parse: {}", error.without_diagnostic()))

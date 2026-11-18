@@ -2,11 +2,11 @@
 
 use std::collections::BTreeMap;
 
-use starlark_syntax::syntax::AstModule;
-use starlark_syntax::syntax::ast::{ArgumentP, AstArgument, AstExpr, AstStmt, ExprP, StmtP};
 use dx_guard::snapshot::read_input;
 use dx_guard::starlark::{callee_name, parse, string};
 use dx_guard::test_calls::{Callees, is_test, test_callees};
+use starlark_syntax::syntax::AstModule;
+use starlark_syntax::syntax::ast::{ArgumentP, AstArgument, AstExpr, AstStmt, ExprP, StmtP};
 use yaml_serde as _;
 
 /// The rule that groups tests.
@@ -110,7 +110,7 @@ impl Walker<'_> {
         });
         if let (Some(name), None) = (name, &self.def) {
             self.scan.calls.push(Call {
-                callee: callee_text,
+                callee: callee_text.to_owned(),
                 name: name.to_owned(),
                 line: self.ast.file_span(expr.span).resolve_span().begin.line + 1,
                 key: key(&args.args),

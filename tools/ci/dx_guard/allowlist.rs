@@ -17,6 +17,23 @@ pub fn hit(counts: &mut Counts, path: &str, kind: &str) {
         .or_default() += 1;
 }
 
+/// Adds `count` occurrences of `kind` in `path`; zero adds no line.
+pub fn add(counts: &mut Counts, path: &str, kind: &str, count: usize) {
+    if count > 0 {
+        *counts
+            .entry((path.to_owned(), kind.to_owned()))
+            .or_default() += count;
+    }
+}
+
+/// The allowlist lines for `counts`.
+pub fn render(counts: &Counts) -> String {
+    counts
+        .iter()
+        .map(|((path, kind), count)| format!("{path} {kind} {count}\n"))
+        .collect()
+}
+
 /// The counts of an allowlist whose kinds are among `kinds`, and the lines that break the format.
 pub fn parse(text: &str, kinds: &[&str]) -> (Counts, Vec<String>) {
     let mut counts = Counts::new();
@@ -28,8 +45,12 @@ pub fn parse(text: &str, kinds: &[&str]) -> (Counts, Vec<String>) {
             problems.push(format!("malformed line: {line:?}"));
             continue;
         };
-        let count = count.parse::<usize>().unwrap_or(0);
-        if count == 0 || !kinds.contains(kind) {
+        let count = count
+            .parse::<usize>()
+            .ok()
+            .filter(|parsed| parsed.to_string() == *count)
+            .unwrap_or(0);
+        if path.is_empty() || count == 0 || !kinds.contains(kind) {
             problems.push(format!("malformed line: {line:?}"));
             continue;
         }
@@ -81,6 +102,7 @@ pub fn check(found: &Counts, text: &str, kinds: &[&str], fix: &str) -> Vec<Strin
 }
 
 /// Fails when `found` and the allowlist named by `ALLOWLIST` disagree.
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn verify(found: &Counts, kinds: &[&str]) {
     let key = std::env::var("ALLOWLIST").unwrap_or_else(|_| panic!("ALLOWLIST is set by the test"));
     let problems = check(found, &read_input("ALLOWLIST"), kinds, REMOVE);

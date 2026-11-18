@@ -1011,6 +1011,7 @@ rust_library(
         "dx_guard/allowlist.rs",
         "dx_guard/lexer.rs",
         "dx_guard/lib.rs",
+        "dx_guard/masked.rs",
         "dx_guard/snapshot.rs",
         "dx_guard/starlark.rs",
         "dx_guard/test_calls.rs",
@@ -1053,7 +1054,6 @@ rust_test(
         normal_dev = True,
     ) + [
         ":dx_guard",
-        "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:starlark_syntax",
     ],
@@ -1088,7 +1088,6 @@ rust_test(
         normal_dev = True,
     ) + [
         ":dx_guard",
-        "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:starlark_syntax",
     ],
@@ -1156,7 +1155,6 @@ rust_test(
         normal_dev = True,
     ) + [
         ":dx_guard",
-        "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:starlark_syntax",
     ],
@@ -1191,7 +1189,6 @@ rust_test(
         normal_dev = True,
     ) + [
         ":dx_guard",
-        "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:starlark_syntax",
     ],
@@ -1258,7 +1255,6 @@ rust_test(
         normal_dev = True,
     ) + [
         ":dx_guard",
-        "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:starlark_syntax",
     ],
@@ -1293,7 +1289,6 @@ rust_test(
         normal_dev = True,
     ) + [
         ":dx_guard",
-        "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:starlark_syntax",
     ],
@@ -1322,7 +1317,6 @@ rust_test(
         normal_dev = True,
     ) + [
         ":dx_guard",
-        "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:starlark_syntax",
     ],
@@ -1353,7 +1347,6 @@ rust_test(
         normal_dev = True,
     ) + [
         ":dx_guard",
-        "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:starlark_syntax",
     ],
@@ -1404,7 +1397,6 @@ rust_test(
     name = "pin_locations_test",
     size = "small",
     srcs = [
-        "guard_rules/scan.rs",
         "pin_locations_test.rs",
     ],
     aliases = aliases(
@@ -1429,7 +1421,10 @@ rust_test(
         package_name = "tools/ci_tests",
         normal = True,
         normal_dev = True,
-    ) + ["//tools/testing:dx_testing"],
+    ) + [
+        ":dx_guard",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rust_test(
@@ -1437,7 +1432,6 @@ rust_test(
     size = "small",
     srcs = [
         "bzl_visibility_test.rs",
-        "guard_rules/scan.rs",
     ],
     aliases = aliases(
         package_name = "tools/ci_tests",
@@ -1458,14 +1452,16 @@ rust_test(
         package_name = "tools/ci_tests",
         normal = True,
         normal_dev = True,
-    ) + ["//tools/testing:dx_testing"],
+    ) + [
+        ":dx_guard",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rust_test(
     name = "rule_set_loads_test",
     size = "small",
     srcs = [
-        "guard_rules/scan.rs",
         "rule_set_loads_test.rs",
     ],
     aliases = aliases(
@@ -1490,14 +1486,17 @@ rust_test(
         package_name = "tools/ci_tests",
         normal = True,
         normal_dev = True,
-    ) + ["//tools/testing:dx_testing"],
+    ) + [
+        ":dx_guard",
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+    ],
 )
 
 rust_test(
     name = "repo_rule_refetch_test",
     size = "small",
     srcs = [
-        "guard_rules/scan.rs",
         "repo_rule_refetch_test.rs",
     ],
     aliases = aliases(
@@ -1521,6 +1520,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        ":dx_guard",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],

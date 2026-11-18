@@ -2,6 +2,8 @@
 
 use dx_guard::lexer::{Token, rust_tokens};
 use dx_guard::snapshot::snapshot;
+use serde_json as _;
+use starlark_syntax as _;
 use std::path::Path;
 use yaml_serde as _;
 

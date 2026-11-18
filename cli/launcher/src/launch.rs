@@ -324,7 +324,10 @@ pub fn plan(
 ) -> io::Result<Plan> {
     let mut program = locate(resolver, &descriptor.program)?;
     if descriptor.real_program {
-        program = program.canonicalize()?;
+        // On Windows canonicalize answers `\\?\D:\...`; hand the child the plain spelling so its
+        // application directory, where the loader probes for side-by-side assemblies and DLLs,
+        // reads like any other path. std adds the prefix back itself when a path is too long.
+        program = dx_path::without_verbatim(&program.canonicalize()?);
     }
     let mut args: Vec<OsString> = Vec::new();
     for item in &descriptor.items {

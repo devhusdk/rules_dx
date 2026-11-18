@@ -56,3 +56,10 @@ fn attribute_skips_earlier_attributes_and_stops_at_bad_quoting() {
     assert_eq!(super::attribute("a=\"1\" b=2", "b"), None);
     assert_eq!(super::attribute("a=\"1\"", "c"), None);
 }
+
+#[test]
+fn decodes_numeric_character_references_in_filenames() {
+    let xml = r#"<coverage><project><file name="/w/caf&#233;.php"><line num="1" type="stmt" count="1"/></file></project></coverage>"#;
+    let lcov = clover_to_lcov(xml).expect("converts");
+    assert!(lcov.starts_with("SF:/w/café.php\n"), "{lcov}");
+}

@@ -10,6 +10,21 @@ pub struct FileHits {
     pub branch_data: bool,
 }
 
+impl FileHits {
+    /// Folds `other` in: the higher hit count wins per line, branch records union.
+    pub fn merge(&mut self, other: FileHits) {
+        for (line, count) in other.lines {
+            let cell = self.lines.entry(line).or_insert(0);
+            *cell = (*cell).max(count);
+        }
+        for (id, taken) in other.branches {
+            let cell = self.branches.entry(id).or_insert(None);
+            *cell = union_taken(*cell, taken);
+        }
+        self.branch_data = self.branch_data || other.branch_data;
+    }
+}
+
 fn union_taken(held: Option<u64>, next: Option<u64>) -> Option<u64> {
     match (held, next) {
         (Some(current), Some(seen)) => Some(current.max(seen)),
@@ -180,18 +195,7 @@ pub fn merge_lcov_reports(documents: &[String]) -> Result<BTreeMap<String, FileH
     for document in documents {
         let parsed = parse_lcov(document)?;
         for (path, hits) in parsed {
-            let slot = merged.entry(path).or_default();
-            for (line, count) in hits.lines {
-                let cell = slot.lines.entry(line).or_insert(0);
-                if count > *cell {
-                    *cell = count;
-                }
-            }
-            for (id, taken) in hits.branches {
-                let cell = slot.branches.entry(id).or_insert(None);
-                *cell = union_taken(*cell, taken);
-            }
-            slot.branch_data = slot.branch_data || hits.branch_data;
+            merged.entry(path).or_default().merge(hits);
         }
     }
     Ok(merged)

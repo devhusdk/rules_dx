@@ -321,3 +321,25 @@ fn unparsable_report_is_an_error() {
     assert_eq!(got.errors.len(), 1);
     assert!(got.errors[0].starts_with("invalid coverage report: "));
 }
+
+#[test]
+fn huge_hunk_start_saturates_instead_of_overflowing() {
+    let diff = "+++ b/a.rs\n@@ -1,0 +4294967295,2 @@\n+x\n+y\n";
+    assert!(parse_added_lines(diff)["a.rs"].contains(&u32::MAX));
+}
+
+#[test]
+fn merges_hits_of_report_paths_that_share_one_key() {
+    let report = [format!(
+        "{}{}",
+        lcov("./src/a.py", &[(1, 1)]),
+        lcov("src/a.py", &[(2, 0)])
+    )];
+    let result = gate(
+        OWNS_A,
+        &report,
+        &added(&[("src/a.py", &[1, 2])]),
+        &[("src/a.py", "")],
+    );
+    assert_eq!((result.covered_lines, result.eligible_lines), (1, 2));
+}

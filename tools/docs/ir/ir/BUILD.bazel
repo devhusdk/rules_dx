@@ -27,6 +27,7 @@ rust_library(
         package_name = "tools/docs/ir/documentation_ir",
         normal = True,
     ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/path:dx_path",
         "//tools/docs/ir/proto:doc_ir_proto_rs",
     ],
@@ -93,6 +94,7 @@ exports_files(
     [
         "Cargo.toml",
         "src/lib.rs",
+        "src/tool.rs",
     ],
     visibility = VIS_TOOLS,
 )

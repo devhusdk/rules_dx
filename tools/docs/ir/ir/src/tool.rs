@@ -128,7 +128,8 @@ impl Flags {
 pub fn write_shard(out: &str, shard: &DocIr) -> Result<(), String> {
     let bytes =
         crate::encode_shard(shard).map_err(|error| format!("cannot encode IR: {error:?}"))?;
-    std::fs::write(out, bytes).map_err(|error| format!("cannot write {out}: {error}"))
+    dx_atomic_fs::write_scratch(std::path::Path::new(out), &bytes)
+        .map_err(|error| format!("cannot write {out}: {error}"))
 }
 
 #[cfg(test)]
@@ -242,13 +243,14 @@ mod tests {
 
     #[test]
     fn write_shard_reports_unwritable_path() {
-        let detail = write_shard("/nonexistent-dir/shard.bin", &DocIr::default())
-            .err()
-            .unwrap_or_default();
-        assert!(
-            detail.starts_with("cannot encode IR")
-                || detail.starts_with("cannot write /nonexistent-dir/shard.bin"),
-            "{detail}"
-        );
+        let exe = std::env::current_exe().unwrap_or_default();
+        let out = exe.join("shard.bin").display().to_string();
+        let shard = DocIr {
+            language: "rust".to_owned(),
+            package: "pkg".to_owned(),
+            ..DocIr::default()
+        };
+        let detail = write_shard(&out, &shard).err().unwrap_or_default();
+        assert!(detail.starts_with("cannot write "), "{detail}");
     }
 }

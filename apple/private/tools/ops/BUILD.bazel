@@ -33,6 +33,7 @@ rust_library(
         "//flutter/tests/fixtures/flutter_app:__pkg__",
     ],
     deps = [
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "@crates//:libc",
         "@crates//:serde_json",
@@ -239,8 +240,10 @@ real_source_target(
 
 exports_files(
     [
+        "src/app_check.rs",
         "src/lib.rs",
         "src/main.rs",
+        "src/xcframework_check.rs",
     ],
     visibility = ["//:__subpackages__"],
 )

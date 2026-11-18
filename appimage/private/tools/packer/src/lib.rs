@@ -323,9 +323,8 @@ fn pack_in(request: &Request, work: &Path) -> Result<(), String> {
         "files": Value::Object(digests),
     });
     let text = serde_json::to_string_pretty(&identity).map_err(|e| e.to_string())?;
-    let temporary = PathBuf::from(format!("{}.tmp", request.identity.display()));
-    fs::write(&temporary, text + "\n").map_err(|e| format!("write identity: {e}"))?;
-    fs::rename(&temporary, &request.identity).map_err(|e| format!("write identity: {e}"))
+    dx_atomic_fs::write_scratch(&request.identity, (text + "\n").as_bytes())
+        .map_err(|e| format!("write identity: {e}"))
 }
 
 fn check_desktop(desktop: &Path, name: &str) -> Result<(), String> {
@@ -579,6 +578,12 @@ mod tests {
         assert!(files.contains_key("usr/share/app/sub/data.txt"));
         assert!(files.contains_key("app.svg"));
         assert!(!request.image.with_extension("AppImage.work").exists());
+        let leftovers: Vec<_> = fs::read_dir(fixture.dir.path())
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name())
+            .filter(|name| name.to_string_lossy().ends_with(".tmp"))
+            .collect();
+        assert!(leftovers.is_empty(), "{leftovers:?}");
     }
 
     #[test]
@@ -668,7 +673,7 @@ mod tests {
         fails(&request, "create");
 
         let mut request = fixture.request();
-        request.identity = fixture.path("missing/identity.json");
+        request.identity = fixture.path("blocker/identity.json");
         fails(&request, "write identity");
 
         let mut request = fixture.request();

@@ -2,7 +2,7 @@
 
 use dx_nested::compose::{
     llvm_override, rules_dx_override, rules_flutter_override, rules_py_override,
-    rules_rust_override, windows_support_override,
+    rules_rust_override, windows_support_override, write_root_patch_override,
 };
 use dx_nested::{self as nested, Case, footprint, plain_fixture};
 use dx_release_tools::presubmit;
@@ -205,6 +205,21 @@ fn copy_rules_py_patches(source: &std::path::Path, case: &Case) {
     }
 }
 
+/// Repeats the root `apple_support` (without `toolchains_gate.patch`) and `rules_swift` overrides
+/// and copies their patches into `root`.
+pub(crate) fn apple_overrides(source: &std::path::Path, root: &std::path::Path) -> String {
+    [
+        ("apple_support", &["toolchains_gate.patch"][..]),
+        ("rules_swift", &[][..]),
+    ]
+    .into_iter()
+    .map(|(module, skip)| {
+        write_root_patch_override(root, source, module, skip)
+            .unwrap_or_else(|error| panic!("{error}"))
+    })
+    .collect()
+}
+
 fn copy_patches(source: &std::path::Path, case: &Case, package: &str) {
     let dir = source.join("patches").join(package);
     let entries =
@@ -256,6 +271,7 @@ fn the_readme_quickstart_runs_as_written() {
             text.push_str(&rules_rust_override());
             text.push_str(&llvm_override());
             text.push_str(&windows_support_override());
+            text.push_str(&apple_overrides(&source, case.root()));
             text.push_str(&rules_dx_override(&source));
         }
         write_text(&case.root().join(name), &text);
@@ -405,7 +421,8 @@ fn bcr_test_module_runs_its_presubmit_targets() {
             + &rules_flutter_override().unwrap_or_else(|error| panic!("{error}"))
             + &rules_rust_override()
             + &llvm_override()
-            + &windows_support_override()),
+            + &windows_support_override()
+            + &apple_overrides(&source, case.root())),
     );
     case.use_lock("release_bcr");
 

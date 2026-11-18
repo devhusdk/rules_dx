@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-run=./cli/fuzz_run/fuzz_run
+run=./cli/runtime/dx_runtime
 bin="$1"
 
 out="$TEST_TMPDIR/out"

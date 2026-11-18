@@ -5,7 +5,8 @@ mod opa;
 #[cfg(test)]
 mod opa_tests;
 
-fn main() -> std::process::ExitCode {
+/// Runs the `rego_test` named by the process environment.
+pub fn main() -> std::process::ExitCode {
     match opa::run_from_env() {
         Ok(code) => std::process::ExitCode::from(code),
         Err(error) => {

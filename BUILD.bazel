@@ -502,6 +502,7 @@ filegroup(
         "//cli/process:module_srcs",
         "//cli/release_tree:module_srcs",
         "//cli/roots:module_srcs",
+        "//cli/runtime:module_srcs",
         "//cli/sbom:module_srcs",
         "//cli/sbom/schema:module_srcs",
         "//cli/semver:module_srcs",

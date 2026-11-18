@@ -103,6 +103,7 @@ rust_library(
         "//cli/gomod:dx_gomod",
         "//cli/module_bazel:dx_module_bazel",
         "//cli/process:dx_process",
+        "//cli/semver:dx_semver",
         "@crates//:serde_json",
     ],
 )
@@ -208,6 +209,7 @@ rust_test(
         "//cli/gomod:dx_gomod",
         "//cli/module_bazel:dx_module_bazel",
         "//cli/process:dx_process",
+        "//cli/semver:dx_semver",
         "//cli/test_scratch:dx_test_scratch",
         "@crates//:serde_json",
     ],

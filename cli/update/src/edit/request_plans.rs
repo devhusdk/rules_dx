@@ -806,11 +806,11 @@ fn single_bound(bound: &str, new: &str) -> Option<String> {
 }
 
 fn next_major(version: &str) -> Option<String> {
-    let mut parts = version.split('.').map(|part| part.parse::<u64>().ok());
-    let first = parts.next()??;
-    Some(match parts.next() {
-        Some(second) => format!("{first}.{}", second? + 1),
-        None => format!("{}", first + 1),
+    let version = dx_semver::Version::parse(version).ok()?;
+    Some(if version.parts() == 1 {
+        format!("{}", version.major() + 1)
+    } else {
+        format!("{}.{}", version.major(), version.minor() + 1)
     })
 }
 

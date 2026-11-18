@@ -2,7 +2,7 @@
 
 use dx_error::DxError;
 
-use super::{Fetch, Findings, Latest, compare_declared, numeric_cmp};
+use super::{Fetch, Findings, Latest, compare_declared, semver_cmp};
 use std::collections::BTreeSet;
 
 pub const DEFAULT_BASE: &str = "https://hackage.haskell.org";
@@ -33,7 +33,7 @@ pub fn outdated(
         .iter()
         .flat_map(|text| frozen(text))
         .filter(|(name, _)| declared.contains(name));
-    compare_declared(set, pinned, only, numeric_cmp, |name| {
+    compare_declared(set, pinned, only, semver_cmp, |name| {
         let url = format!("{base}/package/{name}/preferred");
         let latest = fetch.get(&url).and_then(|body| newest(&body))?;
         Ok(Some(Latest {
@@ -78,7 +78,7 @@ fn newest(body: &str) -> Result<String, DxError> {
         .into_iter()
         .flatten()
         .filter_map(|version| version.as_str())
-        .max_by(|a, b| numeric_cmp(a, b))
+        .max_by(|a, b| semver_cmp(a, b))
         .map(str::to_owned)
         .ok_or_else(|| DxError::failure("no preferred version"))
 }
@@ -229,6 +229,14 @@ mod tests {
             .collect();
         assert_eq!(listed, [("safe", "0.3.21", "0.3.22")]);
         assert_eq!(found.errors, [] as [crate::discover::LookupError; 0]);
+    }
+
+    #[test]
+    fn newest_pads_short_versions_and_ranks_a_prerelease_below_its_release() {
+        let pick = |body: &str| newest(body).unwrap_or_else(|error| panic!("{error}"));
+        assert_eq!(pick(r#"{"normal-version":["1.2.0","1.2"]}"#), "1.2");
+        assert_eq!(pick(r#"{"normal-version":["1.2","1.2.0"]}"#), "1.2.0");
+        assert_eq!(pick(r#"{"normal-version":["1.3.0","1.3.0-rc1"]}"#), "1.3.0");
     }
 
     #[test]

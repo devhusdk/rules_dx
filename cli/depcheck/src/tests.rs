@@ -3214,6 +3214,27 @@ fn swift_manifest_reads_products_specs_and_skips_paths() {
 }
 
 #[test]
+fn swift_manifest_bumps_short_and_prerelease_versions_and_rejects_bad_parts() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let manifest = dir.path().join("Package.swift");
+    write_file(
+        &manifest,
+        "let package = Package(\n    dependencies: [\n        .package(url: \"https://github.com/a/short\", from: \"1.2\"),\n        .package(url: \"https://github.com/a/padded\", from: \"1.2.0\"),\n        .package(url: \"https://github.com/a/minor\", .upToNextMinor(from: \"1.2\")),\n        .package(url: \"https://github.com/a/pre\", .upToNextMinor(from: \"1.3.0-beta.1\")),\n    ]\n)\n",
+    );
+    let deps = parse_swift_manifest(&manifest).expect("parse");
+    assert_eq!(deps["short"].spec, ">= 1.2, < 2.0.0");
+    assert_eq!(deps["padded"].spec, ">= 1.2.0, < 2.0.0");
+    assert_eq!(deps["minor"].spec, ">= 1.2, < 1.3.0");
+    assert_eq!(deps["pre"].spec, ">= 1.3.0-beta.1, < 1.4.0");
+    write_file(
+        &manifest,
+        "let package = Package(dependencies: [.package(url: \"https://github.com/a/bad\", from: \"1.x\")])\n",
+    );
+    let error = parse_swift_manifest(&manifest).expect_err("1.x is not a version");
+    assert!(error.to_string().contains("wildcard"), "{error}");
+}
+
+#[test]
 fn swift_lock_reads_every_resolved_format() {
     let dir = tempfile::tempdir().expect("scratch");
     let v1 = dir.path().join("v1.resolved");

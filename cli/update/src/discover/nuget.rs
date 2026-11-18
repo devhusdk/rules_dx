@@ -2,7 +2,7 @@
 
 use dx_error::DxError;
 
-use super::{Fetch, Findings, Latest, compare_declared, numeric_cmp, release_cmp};
+use super::{Fetch, Findings, Latest, compare_declared, release_cmp, semver_cmp};
 use crate::edit::request::plans::paket_tokens;
 use std::cmp::Ordering;
 
@@ -50,7 +50,7 @@ fn declaration(line: &str) -> Option<(String, String)> {
         }
         let literal = token.trim_start_matches(['>', '<', '=', '~', '@']);
         if literal.starts_with(|c: char| c.is_ascii_digit())
-            && best.is_none_or(|b| numeric_cmp(literal, b) == Ordering::Greater)
+            && best.is_none_or(|b| semver_cmp(literal, b) == Ordering::Greater)
         {
             best = Some(literal);
         }
@@ -136,6 +136,20 @@ mod tests {
                 repo: None,
                 tags: None,
             }]
+        );
+    }
+
+    #[test]
+    fn the_highest_literal_pads_short_versions_and_ranks_prereleases_below_releases() {
+        let current = |line: &str| declaration(line).map(|(_, version)| version);
+        assert_eq!(current("nuget Foo >= 1.2 < 1.2.0").as_deref(), Some("1.2"));
+        assert_eq!(
+            current("nuget Foo >= 1.2.3-rc1 < 1.2.3").as_deref(),
+            Some("1.2.3")
+        );
+        assert_eq!(
+            current("nuget Foo >= 1.2.3 < 1.2.3-rc1").as_deref(),
+            Some("1.2.3")
         );
     }
 

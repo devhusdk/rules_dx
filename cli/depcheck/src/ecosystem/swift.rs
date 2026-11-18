@@ -68,15 +68,13 @@ fn strip_comments(text: &str) -> String {
         .join("\n")
 }
 
-fn bump(version: &str, minor: bool) -> String {
-    let mut parts = version.split('.').map(|p| p.parse::<u64>().unwrap_or(0));
-    let major = parts.next().unwrap_or(0);
-    let next_minor = parts.next().unwrap_or(0);
-    if minor {
-        format!("{major}.{}.0", next_minor + 1)
+fn bump(version: &str, minor: bool) -> Result<String, DepcheckError> {
+    let version = dx_semver::Version::parse(version).map_err(DepcheckError::ManifestVersion)?;
+    Ok(if minor {
+        format!("{}.{}.0", version.major(), version.minor() + 1)
     } else {
-        format!("{}.0.0", major + 1)
-    }
+        format!("{}.0.0", version.major() + 1)
+    })
 }
 
 /// Requirement of one `.package(url:, ...)` call, in the `>= a, < b` grammar.
@@ -87,13 +85,13 @@ fn package_spec(args: &str) -> Result<String, DepcheckError> {
         Ok(re.captures(args).map(|caps| caps[1].to_owned()))
     };
     if let Some(version) = pick(format!(r"\.upToNextMinor\(\s*from:\s*{quoted}"))? {
-        return Ok(format!(">= {version}, < {}", bump(&version, true)));
+        return Ok(format!(">= {version}, < {}", bump(&version, true)?));
     }
     if let Some(version) = pick(format!(r"\.upToNextMajor\(\s*from:\s*{quoted}"))? {
-        return Ok(format!(">= {version}, < {}", bump(&version, false)));
+        return Ok(format!(">= {version}, < {}", bump(&version, false)?));
     }
     if let Some(version) = pick(format!(r"\bfrom:\s*{quoted}"))? {
-        return Ok(format!(">= {version}, < {}", bump(&version, false)));
+        return Ok(format!(">= {version}, < {}", bump(&version, false)?));
     }
     if let Some(version) =
         pick(format!(r"\bexact:\s*{quoted}"))?.or(pick(format!(r"\.exact\(\s*{quoted}"))?)

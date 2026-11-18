@@ -16,6 +16,8 @@ pub enum DepcheckError {
     ManifestRegex(#[source] regex::Error),
     #[error("unreadable manifest: {0}")]
     ManifestParse(String),
+    #[error("unreadable manifest: {0}")]
+    ManifestVersion(#[source] dx_semver::VersionError),
     #[error("unreadable lock: {0}")]
     LockIo(#[source] std::io::Error),
     #[error("unreadable lock: {0}")]
@@ -92,6 +94,7 @@ impl From<DepcheckError> for dx_error::DxError {
             | DepcheckError::ManifestJson(_)
             | DepcheckError::ManifestRegex(_)
             | DepcheckError::ManifestParse(_)
+            | DepcheckError::ManifestVersion(_)
             | DepcheckError::LockToml(_)
             | DepcheckError::LockJson(_)
             | DepcheckError::LockRegex(_)

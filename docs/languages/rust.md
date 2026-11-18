@@ -201,10 +201,10 @@ Minimal wrapper over rust_binary. runtime_dlls are symlinked next to the executa
 ### `rust_test`
 
 ```python
-rust_test(name, *, srcs = None, crate = None, edition = RUST_EDITION, visibility = None, wasm = None, preopens = None, runtime = None, coverage_lib = None, runtime_dlls = None, **kwargs)
+rust_test(name, *, srcs = None, crate = None, edition = RUST_EDITION, visibility = None, wasm = None, preopens = None, runtime = None, coverage_lib = None, runtime_dlls = None, test_groups = None, **kwargs)
 ```
 
-Minimal wrapper over rust_test. runtime_dlls are symlinked next to the executable. edition defaults to 2024.
+Minimal wrapper over rust_test. runtime_dlls are symlinked next to the executable. edition defaults to 2024. test_groups maps a suffix to libtest filters: the crate compiles once, each group runs as name_suffix with its filters, name_rest runs every test no filter matches, and the test_suite name covers them all.
 
 ### `rust_bench`
 

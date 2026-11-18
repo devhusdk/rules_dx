@@ -1,3 +1,4 @@
+Upstream: hermeticbuild/hermetic-llvm#912
 diff -ruN a/3rd_party/llvm-project/x.x/libunwind/libunwind.BUILD.bazel b/3rd_party/llvm-project/x.x/libunwind/libunwind.BUILD.bazel
 --- a/3rd_party/llvm-project/x.x/libunwind/libunwind.BUILD.bazel
 +++ b/3rd_party/llvm-project/x.x/libunwind/libunwind.BUILD.bazel

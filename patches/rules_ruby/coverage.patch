@@ -1,3 +1,4 @@
+Upstream: bazel-contrib/rules_ruby#440
 diff -ruN a/ruby/private/binary/binary.cmd.tpl b/ruby/private/binary/binary.cmd.tpl
 --- a/ruby/private/binary/binary.cmd.tpl
 +++ b/ruby/private/binary/binary.cmd.tpl

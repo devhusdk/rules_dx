@@ -1,3 +1,4 @@
+Upstream: bazel-contrib/rules_cuda#530
 --- a/cuda/private/toolchain_configs/nvcc_msvc.bzl
 +++ b/cuda/private/toolchain_configs/nvcc_msvc.bzl
 @@ -80,7 +80,7 @@

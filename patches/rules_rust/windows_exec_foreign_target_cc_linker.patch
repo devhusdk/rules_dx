@@ -1,3 +1,4 @@
+Upstream: none (not yet sent upstream)
 diff --git a/rust/private/repository_utils.bzl b/rust/private/repository_utils.bzl
 --- a/rust/private/repository_utils.bzl
 +++ b/rust/private/repository_utils.bzl

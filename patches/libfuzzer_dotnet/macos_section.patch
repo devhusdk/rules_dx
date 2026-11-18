@@ -1,3 +1,4 @@
+Upstream: none (not yet sent upstream)
 --- a/libfuzzer-dotnet.cc
 +++ b/libfuzzer-dotnet.cc
 @@ -21,7 +21,13 @@

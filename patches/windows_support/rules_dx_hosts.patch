@@ -1,3 +1,4 @@
+Upstream: none (rules_dx only: turns host_tools on by default under rules_dx)
 diff --git a/windows/private/extensions/msvc_runtime.bzl b/windows/private/extensions/msvc_runtime.bzl
 --- a/windows/private/extensions/msvc_runtime.bzl
 +++ b/windows/private/extensions/msvc_runtime.bzl

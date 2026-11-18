@@ -1,3 +1,4 @@
+Upstream: bazel-contrib/rules_dotnet#556
 diff -ruN a/dotnet/private/rules/common/attrs.bzl b/dotnet/private/rules/common/attrs.bzl
 --- a/dotnet/private/rules/common/attrs.bzl
 +++ b/dotnet/private/rules/common/attrs.bzl

@@ -1,3 +1,4 @@
+Upstream: aspect-build/rules_py#1677
 --- a/MODULE.bazel
 +++ b/MODULE.bazel
 @@ -73,6 +73,7 @@

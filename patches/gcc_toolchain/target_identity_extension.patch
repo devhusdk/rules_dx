@@ -1,3 +1,4 @@
+Upstream: f0rmiga/gcc-toolchain#257
 --- a/toolchain/module_extensions.bzl
 +++ b/toolchain/module_extensions.bzl
 @@ -25,6 +25,7 @@

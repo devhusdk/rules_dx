@@ -1,3 +1,4 @@
+Upstream: hermeticbuild/windows_support#21
 diff --git a/windows/private/extensions/msvc_runtime.BUILD.bazel b/windows/private/extensions/msvc_runtime.BUILD.bazel
 --- a/windows/private/extensions/msvc_runtime.BUILD.bazel
 +++ b/windows/private/extensions/msvc_runtime.BUILD.bazel

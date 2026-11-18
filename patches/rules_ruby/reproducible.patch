@@ -1,3 +1,4 @@
+Upstream: bazel-contrib/rules_ruby#435
 diff --git a/ruby/private/bundle_install.bzl b/ruby/private/bundle_install.bzl
 index 121b0740..ea8e1c73 100644
 --- a/ruby/private/bundle_install.bzl

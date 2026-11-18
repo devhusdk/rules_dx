@@ -1,3 +1,4 @@
+Upstream: none (not yet sent upstream)
 --- a/cargo/private/cargo_build_script.bzl
 +++ b/cargo/private/cargo_build_script.bzl
 @@ -506,7 +506,7 @@

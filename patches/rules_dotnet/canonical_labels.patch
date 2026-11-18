@@ -1,3 +1,4 @@
+Upstream: bazel-contrib/rules_dotnet#596
 diff -ruN a/dotnet/private/rules/nuget/nuget_archive.bzl b/dotnet/private/rules/nuget/nuget_archive.bzl
 --- a/dotnet/private/rules/nuget/nuget_archive.bzl
 +++ b/dotnet/private/rules/nuget/nuget_archive.bzl

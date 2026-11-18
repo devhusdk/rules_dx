@@ -1,3 +1,4 @@
+Upstream: none (not yet sent upstream)
 --- a/src/parsers/elf-parser.cc
 +++ b/src/parsers/elf-parser.cc
 @@ -176,6 +176,16 @@

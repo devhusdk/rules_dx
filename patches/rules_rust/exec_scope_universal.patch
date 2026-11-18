@@ -1,3 +1,4 @@
+Upstream: bazelbuild/rules_rust#4422
 diff --git a/rust/settings/settings.bzl b/rust/settings/settings.bzl
 --- a/rust/settings/settings.bzl
 +++ b/rust/settings/settings.bzl

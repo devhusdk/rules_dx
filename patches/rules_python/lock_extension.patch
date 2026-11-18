@@ -1,3 +1,4 @@
+Upstream: none (rules_dx only: locks the python extension per platform)
 --- a/python/private/python.bzl
 +++ b/python/private/python.bzl
 @@ -464,7 +464,7 @@

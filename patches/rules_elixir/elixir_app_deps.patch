@@ -1,3 +1,4 @@
+Upstream: bazelverse/rules_elixir#2
 diff --git a/elixir_app.bzl b/elixir_app.bzl
 --- a/elixir_app.bzl
 +++ b/elixir_app.bzl

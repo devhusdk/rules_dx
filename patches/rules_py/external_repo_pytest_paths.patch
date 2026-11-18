@@ -1,3 +1,4 @@
+Upstream: aspect-build/rules_py#1679
 --- a/py/private/pytest_main.py
 +++ b/py/private/pytest_main.py
 @@ -40,7 +40,14 @@

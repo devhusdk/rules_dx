@@ -1,3 +1,4 @@
+Upstream: none (not yet sent upstream)
 diff --git a/crate_universe/extensions.bzl b/crate_universe/extensions.bzl
 index 29208c4..596240c 100644
 --- a/crate_universe/extensions.bzl

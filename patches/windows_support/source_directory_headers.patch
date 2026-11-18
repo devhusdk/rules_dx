@@ -1,3 +1,4 @@
+Upstream: hermeticbuild/windows_support#23
 diff --git a/windows/BUILD.bazel b/windows/BUILD.bazel
 --- a/windows/BUILD.bazel
 +++ b/windows/BUILD.bazel

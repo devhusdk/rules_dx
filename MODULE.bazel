@@ -1563,18 +1563,17 @@ register_toolchains("@dx_ruby_toolchains//:all")
 bazel_dep(name = "rules_zig", version = "0.17.0")
 
 # floor: equals tested
-bazel_dep(name = "rules_swift", version = "4.2.2")
+bazel_dep(name = "rules_swift", version = "4.3.0")
 single_version_override(
     module_name = "rules_swift",
     patch_strip = 1,
     patches = [
-        "//patches/rules_swift:clang_cl_no_split_cold_code.patch",
         "//patches/rules_swift:windows_absolute_sdk.patch",
         "//patches/rules_swift:windows_swift_testing.patch",
         "//patches/rules_swift:windows_unknown_vendor.patch",
         "//patches/rules_swift:xcode_select_absolute_path.patch",
     ],
-    version = "4.2.2",
+    version = "4.3.0",
 )
 
 # floor: equals tested

@@ -1,3 +1,4 @@
+Upstream: periareon/rules_julia#47
 --- a/julia/pkg/private/pkg.bzl
 +++ b/julia/pkg/private/pkg.bzl
 @@ -482,7 +482,7 @@

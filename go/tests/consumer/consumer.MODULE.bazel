@@ -2,3 +2,7 @@
 module(name = "my_project")
 
 bazel_dep(name = "rules_dx", version = "0.0.0")
+go = use_extension("@rules_dx//go:extensions.bzl", "go")
+go.from_file(
+    go_mod = "//:go.mod",
+)

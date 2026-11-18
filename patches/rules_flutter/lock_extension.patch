@@ -1,3 +1,4 @@
+Upstream: none (rules_dx only: marks the extension not reproducible so the lockfile pins it per host)
 --- a/flutter/extensions.bzl
 +++ b/flutter/extensions.bzl
 @@ -262,7 +262,7 @@

@@ -1,3 +1,4 @@
+Upstream: none (not yet sent upstream)
 diff --git a/crosstool/osx_cc_configure.bzl b/crosstool/osx_cc_configure.bzl
 --- a/crosstool/osx_cc_configure.bzl
 +++ b/crosstool/osx_cc_configure.bzl

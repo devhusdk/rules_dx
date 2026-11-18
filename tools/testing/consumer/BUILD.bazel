@@ -32,7 +32,7 @@ rust_test(
 )
 
 # size: large, nested Bazel consumer build and test from an empty output base. Fails when the
-# repositories a fresh Go-only consumer fetches differ from cold_start/go.txt (#13210).
+# repositories a fresh Go-only consumer fetches differ from cold_start/go.txt.
 nested_bazel_test(
     name = "go_cold_start_test",
     size = "large",

@@ -256,7 +256,7 @@ fn affected_tests_build_dx_with_the_remote_cache() {
 #[test]
 fn shards_come_from_the_plan() {
     // A large change reaches thousands of tests, more than one runner tests inside
-    // the job timeout (#13238 ran out after 2,586), so the plan splits them.
+    // the job timeout, so the plan splits them.
     let plan = plan_step();
     let plan_run = plan["run"].as_str().expect("run");
     let per: u64 = plan_run

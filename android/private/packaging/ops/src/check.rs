@@ -1,9 +1,10 @@
 //! Checks that a package is an unsigned APK or a valid App Bundle.
 
+use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::util::{Captured, Outcome, capture, reject, scratch_beside, usage, zip_names};
+use crate::util::{Captured, Outcome, capture, reject, scratch_beside, usage};
 
 pub const PREFIX: &str = "dx-android-check";
 
@@ -65,20 +66,22 @@ pub fn base_library(name: &str, abi: &str) -> bool {
         })
 }
 
-/// Whether every entry of the zip file reads back with its recorded checksum.
+/// Caps for reading an APK or App Bundle.
+const PACKAGE_LIMITS: dx_archive::Limits = dx_archive::Limits {
+    max_entries: 1 << 20,
+    max_entry_bytes: 4 << 30,
+    max_total_bytes: 16 << 30,
+};
+
+/// Whether every entry of the zip file has a safe name and reads back with its recorded checksum.
 #[must_use]
 pub fn entries_intact(package: &Path) -> bool {
-    let Ok(file) = std::fs::File::open(package) else {
-        return false;
-    };
-    let Ok(mut archive) = zip::ZipArchive::new(file) else {
-        return false;
-    };
-    (0..archive.len()).all(|index| {
-        archive
-            .by_index(index)
-            .is_ok_and(|mut entry| std::io::copy(&mut entry, &mut std::io::sink()).is_ok())
-    })
+    std::fs::File::open(package)
+        .is_ok_and(|file| dx_archive::check_zip(file, PACKAGE_LIMITS).is_ok())
+}
+
+fn zip_names(bytes: &[u8]) -> Option<Vec<String>> {
+    dx_archive::zip_names(Cursor::new(bytes)).ok()
 }
 
 fn scratch() -> Result<tempfile::TempDir, crate::util::Failure> {

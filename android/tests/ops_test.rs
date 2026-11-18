@@ -1,65 +1,10 @@
 //! Tests the Android packaging operations.
 
-use dx_android_ops::util::{Captured, zip_names};
+use dx_android_ops::util::Captured;
 use dx_android_ops::{adb, apk_set, check, sign};
 
 fn strings(values: &[&str]) -> Vec<String> {
     values.iter().map(|value| (*value).to_owned()).collect()
-}
-
-fn zip(names: &[&str]) -> Vec<u8> {
-    let mut local = Vec::new();
-    let mut central = Vec::new();
-    for name in names {
-        let offset = u32::try_from(local.len()).unwrap();
-        let len = u16::try_from(name.len()).unwrap().to_le_bytes();
-        local.extend(b"PK\x03\x04");
-        local.extend([0u8; 22]);
-        local.extend(len);
-        local.extend([0u8; 2]);
-        local.extend(name.as_bytes());
-        central.extend(b"PK\x01\x02");
-        central.extend([0u8; 24]);
-        central.extend(len);
-        central.extend([0u8; 12]);
-        central.extend(offset.to_le_bytes());
-        central.extend(name.as_bytes());
-    }
-    let count = u16::try_from(names.len()).unwrap().to_le_bytes();
-    let start = u32::try_from(local.len()).unwrap();
-    let size = u32::try_from(central.len()).unwrap();
-    let mut bytes = local;
-    bytes.extend(central);
-    bytes.extend(b"PK\x05\x06");
-    bytes.extend([0u8; 4]);
-    bytes.extend(count);
-    bytes.extend(count);
-    bytes.extend(size.to_le_bytes());
-    bytes.extend(start.to_le_bytes());
-    bytes.extend([0u8; 2]);
-    bytes
-}
-
-#[test]
-fn zip_names_lists_the_central_directory() {
-    let bytes = zip(&["AndroidManifest.xml", "base/lib/x86_64/libapp.so"]);
-    assert_eq!(
-        zip_names(&bytes),
-        Some(strings(&[
-            "AndroidManifest.xml",
-            "base/lib/x86_64/libapp.so"
-        ]))
-    );
-    assert_eq!(zip_names(&zip(&[])), Some(Vec::new()));
-}
-
-#[test]
-fn zip_names_rejects_bytes_that_are_no_zip() {
-    assert_eq!(zip_names(b"not a zip"), None);
-    assert_eq!(zip_names(&[0u8; 64]), None);
-    let mut cut = zip(&["a"]);
-    cut.drain(0..8);
-    assert_eq!(zip_names(&cut), None);
 }
 
 #[test]
@@ -212,6 +157,18 @@ fn check_reads_every_entry_back() {
     std::fs::write(&bad, bytes).unwrap();
     assert!(!check::entries_intact(&bad));
     assert!(!check::entries_intact(&dir.join("missing.zip")));
+}
+
+#[test]
+fn check_refuses_a_dot_dot_member() {
+    let dir = std::path::PathBuf::from(std::env::var("TEST_TMPDIR").unwrap());
+    let package = dir.join("up.zip");
+    let mut writer = dx_archive_testing::RawZip::new();
+    writer
+        .add_file("../AndroidManifest.xml", b"manifest bytes")
+        .unwrap();
+    std::fs::write(&package, writer.finish().unwrap()).unwrap();
+    assert!(!check::entries_intact(&package));
 }
 
 #[test]

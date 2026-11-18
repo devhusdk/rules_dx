@@ -1,0 +1,19 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+toolchain_type(name = "std")
+
+toolchain_type(name = "profile")
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = ["BUILD.bazel"],
+    visibility = ["//:__subpackages__"],
+)

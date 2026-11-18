@@ -1,0 +1,13 @@
+Upstream: none (rules_dx only: aliases the toolchain type to rules_dx)
+--- a/BUILD.bazel
++++ b/BUILD.bazel
+@@ -9,7 +9,8 @@
+     visibility = ["//visibility:public"],
+ )
+ 
+-toolchain_type(
++alias(
+     name = "toolchain_type",
++    actual = "@rules_dx//elixir/private/toolchain:toolchain_type",
+     visibility = ["//visibility:public"],
+ )

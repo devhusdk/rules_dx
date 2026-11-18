@@ -299,7 +299,7 @@ COMPILE_CHECK_TOOLS = sorted({spec.tool: True for spec in _SPECS.values()}.keys(
 def _forwarded(info):
     return [info, OutputGroupInfo(compile_check = depset(info.diagnostics + info.statuses))]
 
-_SH_TOOLCHAIN_TYPE = "//core/quality:compile_check_sh_toolchain_type"
+_SH_TOOLCHAIN_TYPE = "//core/quality/sh:compile_check_sh_toolchain_type"
 
 def _compile_check_impl(target, ctx):
     if target.label.repo_name != "":

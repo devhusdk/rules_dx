@@ -156,4 +156,4 @@ dist_repo = repository_rule(
 
 def hub_build(cells):
     """Returns the hub BUILD file that registers Elixir on the given OTP cells."""
-    return pins_hub(HUB_NAME, cells, str(Label("@rules_elixir//:toolchain_type")), repository = DIST_NAME)
+    return pins_hub(HUB_NAME, cells, str(Label("//elixir/private/toolchain:toolchain_type")), repository = DIST_NAME)

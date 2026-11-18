@@ -182,4 +182,4 @@ ldc_repo = repository_rule(
 
 def hub_build():
     """Returns the hub BUILD file: one D toolchain per qualified cell."""
-    return pins_hub(HUB_NAME, LDC_CELLS.keys(), str(Label("@rules_d//d:toolchain_type")), "both", os_constraints = {"windows": [MSVC_ABI]})
+    return pins_hub(HUB_NAME, LDC_CELLS.keys(), str(Label("//d/private/toolchain:toolchain_type")), "both", os_constraints = {"windows": [MSVC_ABI]})

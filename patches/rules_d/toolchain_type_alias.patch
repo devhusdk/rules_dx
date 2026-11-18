@@ -1,0 +1,14 @@
+Upstream: none (rules_dx only: aliases the toolchain type to rules_dx)
+--- a/d/BUILD.bazel
++++ b/d/BUILD.bazel
+@@ -5,8 +5,9 @@
+ # This is the target rule authors should put in their "toolchains"
+ # attribute in order to get a runtime for the correct platform.
+ # See https://docs.bazel.build/versions/main/toolchains.html#writing-rules-that-use-toolchains
+-toolchain_type(
++alias(
+     name = "toolchain_type",
++    actual = "@rules_dx//d/private/toolchain:toolchain_type",
+     visibility = ["//visibility:public"],
+ )
+ 

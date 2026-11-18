@@ -10,7 +10,7 @@ load("//fortran/private/toolchain:toolchain.bzl", "toolchain_fields")
 
 def _checks():
     fields = toolchain_fields("flang", "ar", depset(), "rt")
-    hub = pins_hub(HUB_NAME, FORTRAN_CELLS.keys(), "@rules_fortran//fortran:toolchain_type", "both", ["compiler_files", "flang"])
+    hub = pins_hub(HUB_NAME, FORTRAN_CELLS.keys(), "//fortran/private/toolchain:toolchain_type", "both", ["compiler_files", "flang"])
     return [
         expect_contains("fpm packages link their locked dependencies", fpm_build_file({"deps": ["stdlib"], "name": "app"}), '["//stdlib"]'),
         expect_contains("hub aliases the exec flang", hub, 'name = "flang"'),
@@ -23,7 +23,7 @@ def _checks():
         expect_equal("the runtime is the flang-rt CcInfo", fields["runtime_ccinfo"], "rt"),
         expect_equal("no prebuilt runtime libraries", fields["runtime_libraries"], []),
         expect_equal("toolchain fields match the upstream provider", sorted(fields.keys()), sorted(dir(FortranToolchainInfo(**fields)))),
-    ] + hub_checks(hub, "//fortran:toolchain_type", len(FORTRAN_CELLS))
+    ] + hub_checks(hub, "//fortran/private/toolchain:toolchain_type", len(FORTRAN_CELLS))
 
 def fortran_metadata_tests(name, size):
     """Declares the Fortran toolchain metadata test."""

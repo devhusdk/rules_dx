@@ -1,0 +1,16 @@
+Upstream: none (rules_dx only: aliases the toolchain type to rules_dx)
+--- a/fortran/BUILD.bazel
++++ b/fortran/BUILD.bazel
+@@ -4,8 +4,10 @@
+ 
+ package(default_visibility = ["//visibility:public"])
+ 
+-# Toolchain type for Fortran compilation
+-toolchain_type(name = "toolchain_type")
++alias(
++    name = "toolchain_type",
++    actual = "@rules_dx//fortran/private/toolchain:toolchain_type",
++)
+ 
+ # Public API
+ bzl_library(

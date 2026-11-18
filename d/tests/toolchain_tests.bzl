@@ -13,7 +13,7 @@ def _checks():
     windows_build = ldc_build(LDC_CELLS["windows_x86_64"])
     arm64_build = ldc_build(LDC_CELLS["windows_arm64"])
     hub = hub_build()
-    return hub_checks(hub, "//d:toolchain_type", len(LDC_CELLS), ["@rules_d//"]) + [
+    return hub_checks(hub, "//d/private/toolchain:toolchain_type", len(LDC_CELLS), ["@rules_d//"]) + [
         expect_true("hub constraints are the cell constraints", all([repr(cell.exec_compatible_with) in hub for cell in LDC_CELLS.values()])),
         expect_equal("rules_d version", RULES_D_VERSION, "0.12.1"),
         expect_equal("ldc version", LDC_VERSION, "1.43.0"),

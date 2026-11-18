@@ -1,0 +1,15 @@
+Upstream: none (rules_dx only: aliases the toolchain type to rules_dx)
+--- a/haskell/BUILD.bazel
++++ b/haskell/BUILD.bazel
+@@ -118,9 +118,9 @@
+     visibility = ["//visibility:public"],
+ )
+ 
+-# toolchains must have a valid toolchain_type from bazel 0.21
+-toolchain_type(
++alias(
+     name = "toolchain",
++    actual = "@rules_dx//haskell/private/toolchain:toolchain_type",
+     visibility = ["//visibility:public"],
+ )
+ 

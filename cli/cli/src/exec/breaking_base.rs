@@ -3,8 +3,8 @@
 //! injected as `@dx_buf_base`; its label replaces the ref in the
 //! `--breaking-against` build setting.
 
-use super::pinned_tool::{PinnedTool, PinnedToolError, QueryBazel, resolve_pinned};
 use dx_error::DxError;
+use dx_exec_reports::pinned_tool::{PinnedTool, PinnedToolError, QueryBazel, resolve_pinned};
 use dx_plan::args::BREAKING_AGAINST_OPTION;
 use dx_plan::resolve::{QueryRunner, merge_base};
 use std::path::{Path, PathBuf};

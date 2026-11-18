@@ -2,7 +2,6 @@ use super::breaking_base;
 use super::build_failures::report_build_failures;
 use super::check_build::{SharedChecks, SharedRead};
 use super::link_check;
-use super::pinned_tool::QueryBazel;
 use super::quality_apply::{apply_collected_changes, project_status, terminal_on_disk};
 use super::quality_emit::{EmitCounts, EmitInputs, emit_findings};
 use super::quality_patch::render_diff_patch;
@@ -23,6 +22,7 @@ use dx_exec_core::common::{
 };
 use dx_exec_core::guidance::{apply_hint, rerun_hint};
 use dx_exec_core::notice_codes::{CODE_CHANGES_PROPOSED, CODE_TOOL_SKIPPED};
+use dx_exec_reports::pinned_tool::QueryBazel;
 use dx_output::{
     ActionCounts, DiagnosticEvent, FindingCounts, FinishedCounts, NoticeEvent, OutputMode,
     Severity, command_finished, meets_threshold, notice_event, quality_started,

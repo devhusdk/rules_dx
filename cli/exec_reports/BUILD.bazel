@@ -1,0 +1,96 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//tools/visibility:visibility.bzl", "VIS_CLI")
+
+package(default_visibility = VIS_CLI)
+
+rust_library(
+    name = "dx_exec_reports",
+    srcs = [
+        "src/compiler_stderr.rs",
+        "src/lib.rs",
+        "src/pinned_tool.rs",
+        "src/rustc_stderr.rs",
+        "src/skipped_targets.rs",
+    ],
+    aliases = {},  # keep
+    compile_data = ["src/unsupported.json"],
+    crate_name = "dx_exec_reports",
+    crate_root = "src/lib.rs",
+    # keep
+    deps = [
+        "//cli/bep:dx_bep",
+        "//cli/exec_core:dx_exec_core",
+        "//cli/output:dx_output",
+        "//cli/path:dx_path",
+        "//cli/plan:dx_plan",
+        "//cli/process:dx_process",
+        "//cli/tool_resolve:dx_tool_resolve",
+        "@crates//:serde",
+        "@crates//:serde_json",
+    ],
+)
+
+rust_test(
+    name = "dx_exec_reports_test",
+    size = "small",
+    srcs = [
+        "src/compiler_stderr.rs",
+        "src/lib.rs",
+        "src/pinned_tool.rs",
+        "src/rustc_stderr.rs",
+        "src/skipped_targets.rs",
+    ],
+    aliases = {},  # keep
+    compile_data = ["src/unsupported.json"],
+    coverage_lib = ":dx_exec_reports",
+    crate_name = "dx_exec_reports",
+    crate_root = "src/lib.rs",
+    # keep
+    deps = [
+        "//cli/bep:dx_bep",
+        "//cli/exec_core:dx_exec_core",
+        "//cli/output:dx_output",
+        "//cli/path:dx_path",
+        "//cli/plan:dx_plan",
+        "//cli/process:dx_process",
+        "//cli/test_scratch:dx_test_scratch",
+        "//cli/tool_resolve:dx_tool_resolve",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:tempfile",
+    ],
+)
+
+# Read by the dx_cli source guards, which scan every production CLI file.
+filegroup(
+    name = "rust_srcs",
+    srcs = glob(["src/**/*.rs"]),
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)
+
+exports_files(
+    [
+        "Cargo.toml",
+        "src/unsupported.json",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//tools/ci:__pkg__"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

@@ -1,4 +1,3 @@
-use super::pinned_tool::QueryBazel;
 use dx_audit::secrets::CONFIG_FILE_NAME;
 use dx_error::DxError;
 use dx_exec_core::common::{
@@ -7,6 +6,7 @@ use dx_exec_core::common::{
     frozen_summary, offline_summary, pre_exec, report_dx_error, report_failed, text_finding,
     write_report_document,
 };
+use dx_exec_reports::pinned_tool::QueryBazel;
 use dx_output::{
     DiagnosticEvent, FindingRecord, FinishedCounts, NoticeEvent, OutputMode, PackageRef, Severity,
     Threshold, command_finished, command_started, diagnostic_event, error_event, notice_event,
@@ -824,8 +824,8 @@ fn gitleaks_path(
     bazel: &dyn dx_tool_resolve::Bazel,
     offline: bool,
 ) -> Result<PathBuf, DxError> {
-    use super::pinned_tool::{PinnedTool, PinnedToolError, resolve_pinned};
     use dx_audit::secrets::{RESOLVE_COMMAND, TOOL_ENV_VAR, TOOL_LABEL};
+    use dx_exec_reports::pinned_tool::{PinnedTool, PinnedToolError, resolve_pinned};
     let tool = PinnedTool {
         var: TOOL_ENV_VAR,
         label: TOOL_LABEL,

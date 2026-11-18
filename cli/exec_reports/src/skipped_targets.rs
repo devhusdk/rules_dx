@@ -12,19 +12,19 @@ const UNSUPPORTED_JSON: &str = include_str!("unsupported.json");
 
 /// The skipped targets that share one unsupported language, or the rest when `language` is `None`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct SkipGroup {
+pub struct SkipGroup {
     pub count: usize,
     pub language: Option<SkipLanguage>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct SkipLanguage {
+pub struct SkipLanguage {
     pub title: String,
     pub reason: String,
 }
 
 /// The labels the event file records as skipped, and how many skipped events it holds.
-pub(crate) fn read_skipped(bep: &Path) -> Vec<EventGap> {
+pub fn read_skipped(bep: &Path) -> Vec<EventGap> {
     let Ok(file) = std::fs::File::open(bep) else {
         return Vec::new();
     };
@@ -77,7 +77,7 @@ fn known_languages(json: &str) -> Vec<(String, String, String)> {
 }
 
 /// The language named by an explicit-request error, from the unsupported constraint in its dependency chain.
-pub(crate) fn language_in_message(message: &str) -> Option<SkipLanguage> {
+pub fn language_in_message(message: &str) -> Option<SkipLanguage> {
     if !message.contains("explicitly requested") {
         return None;
     }
@@ -89,7 +89,7 @@ pub(crate) fn language_in_message(message: &str) -> Option<SkipLanguage> {
 
 /// Groups the skipped targets by the language whose unsupported constraint they depend on.
 /// One cquery per language that `unsupported.json` lists; a failed query leaves its targets ungrouped.
-pub(crate) fn group_skipped(
+pub fn group_skipped(
     skipped: &[EventGap],
     invocation: &Invocation,
     workspace: &Path,
@@ -167,7 +167,7 @@ fn group_with(
 }
 
 /// Tells the user how many targets were skipped and why. The exit code is not affected.
-pub(crate) fn skipped_notice(
+pub fn skipped_notice(
     output: OutputMode,
     out: &mut dyn Write,
     err: &mut dyn Write,

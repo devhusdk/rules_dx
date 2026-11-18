@@ -40,10 +40,11 @@ fn raw_current_dir_reads(source: &str) -> Vec<String> {
 #[test]
 fn raw_current_dir_reads_stay_out_of_cli_production_code() {
     let mut sources = Vec::new();
-    // dx_exec_core holds the shared verb plumbing, so it is production CLI code too.
+    // dx_exec_core and dx_exec_reports hold shared verb code, so they are production CLI code too.
     for (dir, sentinel) in [
         ("cli/cli/src", "exec/run.rs"),
         ("cli/exec_core/src", "common.rs"),
+        ("cli/exec_reports/src", "pinned_tool.rs"),
     ] {
         let before = sources.len();
         rust_sources(&workspace_root().join(dir), &mut sources);

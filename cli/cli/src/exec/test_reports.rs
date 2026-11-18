@@ -1,7 +1,6 @@
 use super::build_failures::report_build_failures;
 use super::coverage_candidate::{Candidate, Unavailable, candidate, tracked_orphans};
 use super::failure_reports::write_failure_reports;
-use super::skipped_targets::{group_skipped, skipped_notice};
 use dx_bep::{
     ArtifactReader, OutputLocations, TestEvents, TestResultFile, TestResultRecord,
     collect_test_events,
@@ -14,6 +13,7 @@ use dx_exec_core::common::{
     report_dx_error, report_failed_with_next, write_report_document,
 };
 use dx_exec_core::failure::CODE_NO_TESTS;
+use dx_exec_reports::skipped_targets::{group_skipped, skipped_notice};
 use dx_lcov::{CellAccount, SOURCES_OUTPUT_GROUP, SourceManifest, parse_source_manifest};
 use dx_output::{
     ActionCounts, FinishedCounts, NoticeEvent, OutputMode, TestCase, TestCounts, TestOutcome,

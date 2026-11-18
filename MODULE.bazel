@@ -2668,6 +2668,7 @@ crate.from_cargo(
         "//cli/bep:Cargo.toml",
         "//cli/cli:Cargo.toml",
         "//cli/exec_core:Cargo.toml",
+        "//cli/exec_reports:Cargo.toml",
         "//cli/diff:Cargo.toml",
         "//cli/digest:Cargo.toml",
         "//cli/http:Cargo.toml",

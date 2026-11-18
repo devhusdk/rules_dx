@@ -9,7 +9,6 @@ mod build_failures;
 mod changed_coverage;
 mod check_build;
 mod clean;
-mod compiler_stderr;
 mod coverage_candidate;
 #[cfg(test)]
 mod current_dir_guard_tests;
@@ -35,7 +34,6 @@ mod managed_codegen;
 mod managed_env;
 mod managed_prepare;
 mod managed_staging;
-mod pinned_tool;
 pub mod preset_sync;
 mod profile_report;
 #[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
@@ -55,10 +53,8 @@ mod quality_security;
 #[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod results;
 mod run;
-mod rustc_stderr;
 mod security_verify;
 #[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
-mod skipped_targets;
 mod staged;
 #[cfg(test)]
 mod startup_defaults_launcher_tests;

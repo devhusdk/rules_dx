@@ -1,12 +1,17 @@
+use std::collections::BTreeSet;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use dx_digest::sha256_hex;
 
 use super::envelope::Envelope;
-use super::validators::{ValidationError, validate};
+use super::validators::{ValidationError, validate, validate_path};
 
 pub trait FileSystem {
+    /// Maps one validated workspace-relative path to the file to touch.
+    fn resolve(&self, root: &Path, relative: &str) -> io::Result<PathBuf> {
+        Ok(root.join(relative))
+    }
     fn read(&self, path: &Path) -> io::Result<Option<Vec<u8>>>;
     fn write_atomic(&self, path: &Path, content: &[u8]) -> io::Result<()>;
 }
@@ -14,6 +19,10 @@ pub trait FileSystem {
 pub struct RealFileSystem;
 
 impl FileSystem for RealFileSystem {
+    fn resolve(&self, root: &Path, relative: &str) -> io::Result<PathBuf> {
+        dx_path::resolve_target_in_workspace(root, relative)
+    }
+
     fn read(&self, path: &Path) -> io::Result<Option<Vec<u8>>> {
         match std::fs::read(path) {
             Ok(bytes) => Ok(Some(bytes)),
@@ -81,6 +90,8 @@ pub enum ApplyError {
         path: String,
         cause: ValidationError,
     },
+    #[error("envelope repeats path: {path}")]
+    DuplicatePath { path: String },
     #[error("I/O failed for {path}: {message}")]
     Io { path: String, message: String },
     #[error("hook failed for {path}: {message}")]
@@ -93,17 +104,30 @@ pub fn apply_envelope(
     fs: &dyn FileSystem,
     hooks: &dyn HookRunner,
 ) -> Result<ApplyReport, ApplyError> {
-    let mut applied = Vec::with_capacity(envelope.operations.len());
+    let mut seen = BTreeSet::new();
+    let mut checked = Vec::with_capacity(envelope.operations.len());
     for op in &envelope.operations {
-        let path = workspace_root.join(&op.path);
-        let existing = fs.read(&path).map_err(|err| ApplyError::Io {
-            path: op.path.clone(),
-            message: err.to_string(),
-        })?;
-        validate(op, existing.as_deref()).map_err(|cause| ApplyError::Validation {
+        if !seen.insert(op.path.as_str()) {
+            return Err(ApplyError::DuplicatePath {
+                path: op.path.clone(),
+            });
+        }
+        let invalid = |cause| ApplyError::Validation {
             path: op.path.clone(),
             cause,
-        })?;
+        };
+        validate_path(&op.path).map_err(invalid)?;
+        let io_error = |err: io::Error| ApplyError::Io {
+            path: op.path.clone(),
+            message: err.to_string(),
+        };
+        let path = fs.resolve(workspace_root, &op.path).map_err(io_error)?;
+        let existing = fs.read(&path).map_err(io_error)?;
+        validate(op, existing.as_deref()).map_err(invalid)?;
+        checked.push((op, path));
+    }
+    let mut applied = Vec::with_capacity(checked.len());
+    for (op, path) in checked {
         fs.write_atomic(&path, op.content.as_bytes())
             .map_err(|err| ApplyError::Io {
                 path: op.path.clone(),
@@ -397,5 +421,110 @@ mod tests {
         let report = apply_envelope(&create_envelope(), &root(), &fs, &NoHooks).expect("apply");
         assert_eq!(report.applied.len(), 1);
         assert_eq!(report.applied[0].path, "new.txt");
+    }
+
+    #[test]
+    fn path_is_validated_before_any_read() {
+        let fs = FlakyFs {
+            fail_read: true,
+            fail_write: false,
+        };
+        for path in ["../secret.txt", "/etc/shadow"] {
+            let envelope = Envelope {
+                version: ENVELOPE_VERSION,
+                operations: vec![FileOperation {
+                    path: path.to_owned(),
+                    original_sha256: None,
+                    content: "x\n".to_owned(),
+                }],
+            };
+            let err = apply_envelope(&envelope, &root(), &fs, &NoHooks).expect_err("bad path");
+            assert!(
+                matches!(
+                    err,
+                    ApplyError::Validation {
+                        cause: ValidationError::EscapesWorkspace | ValidationError::AbsolutePath,
+                        ..
+                    }
+                ),
+                "path: {path:?}, err: {err:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn later_validation_failure_writes_nothing() {
+        let fs = FakeFs::new();
+        fs.files()
+            .insert(root().join("a.txt"), b"changed\n".to_vec());
+        let envelope = Envelope {
+            version: ENVELOPE_VERSION,
+            operations: vec![
+                FileOperation {
+                    path: "first.txt".to_owned(),
+                    original_sha256: None,
+                    content: "1\n".to_owned(),
+                },
+                update("new\n"),
+            ],
+        };
+        apply_envelope(&envelope, &root(), &fs, &NoHooks).expect_err("stale digest");
+        assert_eq!(fs.files().get(&root().join("first.txt")), None);
+    }
+
+    #[test]
+    fn duplicate_paths_are_rejected() {
+        let fs = FakeFs::new();
+        let envelope = Envelope {
+            version: ENVELOPE_VERSION,
+            operations: vec![
+                FileOperation {
+                    path: "a.txt".to_owned(),
+                    original_sha256: None,
+                    content: "1\n".to_owned(),
+                },
+                FileOperation {
+                    path: "a.txt".to_owned(),
+                    original_sha256: Some(sha256_hex(b"1\n")),
+                    content: "2\n".to_owned(),
+                },
+            ],
+        };
+        assert_eq!(
+            apply_envelope(&envelope, &root(), &fs, &NoHooks).expect_err("duplicate path"),
+            ApplyError::DuplicatePath {
+                path: "a.txt".to_owned()
+            }
+        );
+        assert_eq!(fs.files().get(&root().join("a.txt")), None);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn real_filesystem_refuses_symlink_escape() {
+        let scratch = dx_test_scratch::scratch("dx-apply-link-").unwrap();
+        let workspace = scratch.path().join("ws");
+        let outside = scratch.path().join("outside");
+        std::fs::create_dir_all(&workspace).expect("workspace");
+        std::fs::create_dir_all(&outside).expect("outside");
+        std::os::unix::fs::symlink(&outside, workspace.join("link")).expect("symlink");
+        let envelope = Envelope {
+            version: ENVELOPE_VERSION,
+            operations: vec![FileOperation {
+                path: "link/a.txt".to_owned(),
+                original_sha256: None,
+                content: "x\n".to_owned(),
+            }],
+        };
+        assert_eq!(
+            apply_envelope(&envelope, &workspace, &RealFileSystem, &NoHooks)
+                .expect_err("symlink escape"),
+            ApplyError::Io {
+                path: "link/a.txt".to_owned(),
+                message: dx_path::workspace::LEAVES_WORKSPACE.to_owned(),
+            }
+        );
+        assert!(!outside.join("a.txt").exists());
+        scratch.close().expect("cleanup");
     }
 }

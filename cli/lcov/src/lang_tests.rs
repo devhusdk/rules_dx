@@ -102,3 +102,28 @@ fn every_covered_language_is_scanned_with_its_own_comment_marker() {
         assert!(find_ignores(path, &source).unwrap().singles.is_empty());
     }
 }
+
+#[test]
+fn extension_match_ignores_case() {
+    for path in ["Main.PY", "Lib.RS", "app.Ts", "src/Main.Java"] {
+        assert!(is_covered_language(path), "{path}");
+    }
+    for path in ["types.D.TS", "types.d.MTS", "Notes.TXT", "RS"] {
+        assert!(!is_covered_language(path), "{path}");
+    }
+    let marker = marker("_LINE");
+    let rust = format!("let x = 1; // {marker} - reason: fixture, issue: 1055.\n");
+    assert!(
+        find_ignores("Lib.RS", &rust)
+            .unwrap()
+            .singles
+            .contains_key(&1)
+    );
+    let python = format!("x = 1  # {marker} - reason: fixture, issue: 1055.\n");
+    assert!(
+        find_ignores("Main.PY", &python)
+            .unwrap()
+            .singles
+            .contains_key(&1)
+    );
+}

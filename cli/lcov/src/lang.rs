@@ -55,17 +55,25 @@ pub(crate) const COVERED_LANGUAGES: &[(&str, LineComment)] = &[
 /// Declaration stubs carry no executable lines, so the gate never counts them.
 const DECLARATION_SUFFIXES: &[&str] = &[".d.ts", ".d.mts", ".d.cts"];
 
+/// True when path ends with suffix, ignoring ASCII case, since case-insensitive filesystems keep `Main.PY`.
+pub(crate) fn has_suffix(path: &str, suffix: &str) -> bool {
+    path.len()
+        .checked_sub(suffix.len())
+        .and_then(|start| path.as_bytes().get(start..))
+        .is_some_and(|tail| tail.eq_ignore_ascii_case(suffix.as_bytes()))
+}
+
 /// The comment syntax a covered language uses, or None when the gate does not count it.
 pub(crate) fn line_comment_syntax(path: &str) -> Option<LineComment> {
     if DECLARATION_SUFFIXES
         .iter()
-        .any(|suffix| path.ends_with(suffix))
+        .any(|suffix| has_suffix(path, suffix))
     {
         return None;
     }
     COVERED_LANGUAGES
         .iter()
-        .find(|(extension, _)| path.ends_with(extension))
+        .find(|(extension, _)| has_suffix(path, extension))
         .map(|(_, syntax)| *syntax)
 }
 

@@ -1,7 +1,7 @@
 use regex::Regex;
 use std::sync::LazyLock;
 
-use crate::lang::{LineComment, line_comment_syntax};
+use crate::lang::{LineComment, has_suffix, line_comment_syntax};
 
 fn slash_scan() -> Option<&'static Regex> {
     static SCAN: LazyLock<Option<Regex>> =
@@ -77,11 +77,7 @@ fn paren_comment(line: &str) -> Option<&str> {
 
 pub(crate) fn comment_text(path: &str, line: &str) -> String {
     match line_comment_syntax(path) {
-        Some(LineComment::SlashSlash)
-            if std::path::Path::new(path)
-                .extension()
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("rs")) =>
-        {
+        Some(LineComment::SlashSlash) if has_suffix(path, ".rs") => {
             rust_comment(line).unwrap_or_default().to_string()
         }
         Some(LineComment::SlashSlash) => slash_comment(line).unwrap_or_default().to_string(),

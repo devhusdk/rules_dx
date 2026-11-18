@@ -5,6 +5,7 @@
 //! `producers_bin --blocker-refs OWNER/REPO` prints the references of a "Blocked on:" line on stdin.
 //! `producers_bin --review-paths [PREFIX_FILE]` prints the stdin paths that start with a listed prefix.
 //! `producers_bin --upgrade-e2e [--from VERSION] [--to VERSION] [--resolve-only]` upgrades a throwaway consumer between `rules_dx` versions and back.
+//! `producers_bin --pr-links [COMMIT_MESSAGES_FILE]` fails when the pull request body in `GITHUB_EVENT_PATH` misses an issue link.
 //! `producers_bin --pr-check SET [BAZEL_FLAGS...]` runs the analysis-only pull request checks of SET, or of every set for `all`.
 //! `producers_bin --release-cell OUT` builds and qualifies the release cell named by CELL and the workflow environment.
 //! `producers_bin --table EVIDENCE_DIR OUT PLATFORM...` merges the evidence under a directory into OUT and prints the table.
@@ -16,6 +17,7 @@ mod evidence;
 mod evidence_inputs;
 mod lock_merge;
 mod pr_check;
+mod pr_links;
 mod release_cell;
 mod review_paths;
 mod table;
@@ -31,6 +33,7 @@ fn main() -> Result<(), String> {
         Some(("--evidence-inputs", rest)) => return evidence_inputs::check(rest),
         Some(("--table", rest)) => return table::print(rest),
         Some(("--lock-merge", rest)) => return lock_merge::merge(rest),
+        Some(("--pr-links", rest)) => return pr_links::check(rest),
         _ => {}
     }
     if let Some(("--blocker-refs", rest)) =

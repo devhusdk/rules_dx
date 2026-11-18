@@ -15,10 +15,27 @@ fn with_platform(manifest: &hermetic::Manifest, args: &[String]) -> Vec<String> 
     argv
 }
 
+/// The `PATH` of the nested Bazel: the coreutils applets, or none on Windows.
+fn applets_path() -> Option<String> {
+    if cfg!(windows) {
+        return None;
+    }
+    let applets = dx_testing::env_files("DX_COREUTILS");
+    let dir = applets
+        .first()
+        .and_then(|file| file.parent())
+        .expect("DX_COREUTILS names the applets");
+    let dir = std::path::absolute(dir).expect("applet directory");
+    Some(dir.to_string_lossy().into_owned())
+}
+
 fn bazel(case: &dx_nested::Case, manifest: &hermetic::Manifest, args: &[String]) -> Run {
     let argv = with_platform(manifest, args);
     let argv: Vec<&str> = argv.iter().map(String::as_str).collect();
-    case.bazel(&argv)
+    match applets_path() {
+        Some(path) => case.bazel_with(&argv, &[("PATH", path.as_str())]),
+        None => case.bazel(&argv),
+    }
 }
 
 #[test]

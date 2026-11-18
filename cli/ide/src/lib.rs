@@ -208,17 +208,26 @@ fn walk(dir: &Path, ignored: &[PathBuf], found: &mut Vec<String>) {
             if !skip {
                 walk(&path, ignored, found);
             }
-        } else if let Some(ext) = path.extension().and_then(|e| e.to_str())
-            && !found.iter().any(|f| f == ext)
-        {
-            found.push(ext.to_owned());
+        } else if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+            let ext = ext.to_ascii_lowercase();
+            if !found.contains(&ext) {
+                found.push(ext);
+            }
         }
     }
 }
 
 fn inputs_digest(workspace: &Path, active: &[&Plugin]) -> String {
     let mut bytes = Vec::new();
-    for file in [".dx/pins", "MODULE.bazel", "MODULE.bazel.lock"] {
+    let python_lock = python::lock_name();
+    let python_active = active
+        .iter()
+        .any(|plugin| plugin.name == python::PLUGIN.name);
+    let mut files = vec![".dx/pins", "MODULE.bazel", "MODULE.bazel.lock"];
+    if python_active && !python_lock.is_empty() {
+        files.push(python_lock);
+    }
+    for file in files {
         bytes.extend_from_slice(file.as_bytes());
         bytes.push(0);
         bytes.extend(std::fs::read(workspace.join(file)).unwrap_or_default());
@@ -690,6 +699,88 @@ mod tests {
         assert!(!dir.join("gopackagesdriver").exists());
         assert_eq!(missing_outputs(&root), Vec::<String>::new());
         assert!(!refresh(&root, &runner).expect("second").ran);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn upper_case_extensions_count() {
+        let scratch = dx_test_scratch::scratch("dx-ide-case-").unwrap();
+        let root = scratch.path();
+        std::fs::write(root.join("App.TS"), "").expect("ts");
+        let runner = fake(root);
+        assert!(refresh(root, &runner).expect("refresh").ran);
+        assert_eq!(runner.calls.get(), 1);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn go_refuses_a_driver_path_that_is_not_utf8() {
+        use std::os::unix::ffi::OsStrExt;
+        let scratch = dx_test_scratch::scratch("dx-ide-go-bytes-").unwrap();
+        let root = scratch.path();
+        std::fs::write(root.join("main.go"), "").expect("go");
+        let mut runner = fake(root);
+        runner.lib = root
+            .join(std::ffi::OsStr::from_bytes(b"st\xffore"))
+            .join("gopackagesdriver");
+        let report = refresh(root, &runner).expect("refresh");
+        assert_eq!(report.failed.len(), 1, "{report:?}");
+        assert!(!root.join(".dx/local/ide/go/gopackagesdriver").exists());
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn python_keeps_package_names_that_are_not_utf8() {
+        use std::os::unix::ffi::OsStrExt;
+        let scratch = dx_test_scratch::scratch("dx-ide-py-bytes-").unwrap();
+        let root = scratch.path();
+        std::fs::write(root.join("main.py"), "").expect("py");
+        std::fs::write(
+            root.join(python::lock_name()),
+            "[[package]]\nname = \"requests\"\nsource = { registry = \"x\" }\n",
+        )
+        .expect("lock");
+        let site = root.join("store/requests.install/lib/python3.12/site-packages");
+        std::fs::create_dir_all(&site).expect("site");
+        let odd = std::ffi::OsStr::from_bytes(b"m\xffod.py");
+        std::fs::write(site.join(odd), "").expect("module");
+        let interpreter = root.join("store").join("python3");
+        std::fs::write(&interpreter, "").expect("interpreter");
+        let runner = Fake {
+            calls: Cell::new(0),
+            lib: interpreter,
+            aquery: String::new(),
+            groups: vec![root.join("store/requests.install")],
+        };
+        let report = refresh(root, &runner).expect("refresh");
+        assert_eq!(report.failed, []);
+        let linked = root.join(".dx/local/ide/python/site-packages");
+        assert!(linked.join(odd).exists());
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn a_changed_python_lock_runs_the_refresh_again() {
+        let scratch = dx_test_scratch::scratch("dx-ide-py-lock-").unwrap();
+        let root = scratch.path();
+        std::fs::write(root.join("main.py"), "").expect("py");
+        std::fs::write(root.join(python::lock_name()), "version = 1\n").expect("lock");
+        let interpreter = root.join("store").join("python3");
+        std::fs::create_dir_all(root.join("store")).expect("store");
+        std::fs::write(&interpreter, "").expect("interpreter");
+        let runner = Fake {
+            calls: Cell::new(0),
+            lib: interpreter,
+            aquery: String::new(),
+            groups: Vec::new(),
+        };
+        assert!(refresh(root, &runner).expect("first").ran);
+        assert!(!refresh(root, &runner).expect("second").ran);
+        std::fs::write(root.join(python::lock_name()), "version = 2\n").expect("lock");
+        assert!(refresh(root, &runner).expect("third").ran);
         scratch.close().expect("cleanup");
     }
 

@@ -30,7 +30,7 @@ _PRIVATE_ATTRS = {
         cfg = "exec",
     ),
     "_capnpc_rust_dx": attr.label(
-        default = Label("//capnproto/private/tools/capnpc_rust_dx"),
+        default = Label("@dx_prebuilt//:dx"),
         executable = True,
         cfg = "exec",
     ),
@@ -292,6 +292,7 @@ def _rust_srcs_impl(ctx):
     pkg = ctx.label.package
     out_dir = ctx.bin_dir.path + "/" + (pkg + "/" if pkg else "") + out_subdir
     args = ctx.actions.args()
+    args.add("capnpc_rust_dx")
     args.add("--capnp", ctx.executable._capnp)
     args.add("--root", stage.root)
     args.add("--out", out_dir)

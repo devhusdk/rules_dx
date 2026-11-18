@@ -194,6 +194,7 @@ fn run_as_tool() -> Option<i32> {
         Tool::Capture => capture::run_process(args),
         Tool::ApiSpecPreflight => api_spec_codegen::preflight::run_process(&lossy(args)),
         Tool::OapiCodegen => api_spec_codegen::oapi_codegen::run_process(&lossy(args)),
+        Tool::CapnpcRustDx => capnpc_rust_dx::run_process(&lossy(args)),
         Tool::Archiver => dx_deploy_tools::entry::archiver(&named("archiver", args)),
         Tool::Hasher => dx_deploy_tools::entry::hasher(&named("hasher", args)),
         Tool::SizeChecker => dx_deploy_tools::entry::size_checker(&named("size_checker", args)),

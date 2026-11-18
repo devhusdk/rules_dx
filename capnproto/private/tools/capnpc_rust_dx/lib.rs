@@ -240,12 +240,15 @@ fn run(args: &Args) -> Result<(), String> {
         .map_err(|e| format!("cannot write lib.rs: {e}"))
 }
 
-fn main() {
-    let raw: Vec<String> = std::env::args().skip(1).collect();
-    let result = parse_args(&raw).and_then(|args| run(&args));
-    if let Err(message) = result {
-        eprintln!("capnpc_rust_dx: {message}");
-        std::process::exit(1);
+/// Runs the driver with the arguments after its name and returns the exit code.
+#[must_use]
+pub fn run_process(raw: &[String]) -> i32 {
+    match parse_args(raw).and_then(|args| run(&args)) {
+        Ok(()) => 0,
+        Err(message) => {
+            eprintln!("capnpc_rust_dx: {message}");
+            1
+        }
     }
 }
 

@@ -7,7 +7,7 @@ use dx_output::{
     BuildFailureEvent, FailureDiagnostic, FailureRelated, NoticeEvent, OutputMode,
     build_failure_event, notice_event,
 };
-use std::fmt::Write as _;
+use std::fmt;
 use std::io::{BufReader, Read, Write};
 use std::path::Path;
 
@@ -23,8 +23,10 @@ struct Diagnostics {
 }
 
 fn read_stderr(path: &Path) -> Option<Vec<u8>> {
+    // A missing or unreadable stderr file leaves the failure without an excerpt.
     let file = std::fs::File::open(path).ok()?;
     let mut bytes = Vec::new();
+    // A read cut short also leaves the failure without an excerpt.
     file.take(STDERR_LIMIT + 1).read_to_end(&mut bytes).ok()?;
     if bytes.len() as u64 > STDERR_LIMIT {
         return None;
@@ -223,72 +225,76 @@ fn add_skip_reason(event: &mut BuildFailureEvent) {
         return;
     };
     if let Some(message) = &mut event.message {
-        write!(
-            message,
+        message.push_str(&format!(
             "\n{} is not supported on this platform: {} (docs/support-matrix.md)",
             language.title, language.reason
-        )
-        .ok();
+        ));
     }
 }
 
-fn describe(event: &BuildFailureEvent) -> String {
-    let unknown = "unknown";
-    let mut listed = vec![event.target.as_deref().unwrap_or(unknown)];
-    listed.extend(event.targets.iter().map(String::as_str));
-    let mut text = format!(
-        "dx: build failure: {} ({}/{}",
-        listed.join(", "),
-        event.stage,
-        event.category
-    );
-    if let Some(mnemonic) = &event.mnemonic {
-        write!(text, ", {mnemonic}").ok();
-    }
-    text.push(')');
-    if event.count > 1 {
-        write!(text, " x{}", event.count).ok();
-    }
-    if let Some(message) = &event.message {
-        write!(text, ": {message}").ok();
-    }
-    for diagnostic in &event.diagnostics {
-        write!(text, "\n  {}", diagnostic.severity).ok();
-        if let Some(code) = &diagnostic.code {
-            write!(text, "[{code}]").ok();
+struct Described<'a>(&'a BuildFailureEvent);
+
+impl fmt::Display for Described<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let event = self.0;
+        let unknown = "unknown";
+        let mut listed = vec![event.target.as_deref().unwrap_or(unknown)];
+        listed.extend(event.targets.iter().map(String::as_str));
+        write!(
+            f,
+            "dx: build failure: {} ({}/{}",
+            listed.join(", "),
+            event.stage,
+            event.category
+        )?;
+        if let Some(mnemonic) = &event.mnemonic {
+            write!(f, ", {mnemonic}")?;
         }
-        write!(text, ": {}", diagnostic.message).ok();
-        if let Some(path) = &diagnostic.path {
-            write!(text, " ({path}").ok();
-            if let Some(line) = diagnostic.line {
-                write!(text, ":{line}").ok();
-                if let Some(column) = diagnostic.column {
-                    write!(text, ":{column}").ok();
-                }
+        f.write_str(")")?;
+        if event.count > 1 {
+            write!(f, " x{}", event.count)?;
+        }
+        if let Some(message) = &event.message {
+            write!(f, ": {message}")?;
+        }
+        for diagnostic in &event.diagnostics {
+            write!(f, "\n  {}", diagnostic.severity)?;
+            if let Some(code) = &diagnostic.code {
+                write!(f, "[{code}]")?;
             }
-            text.push(')');
-        }
-        for related in &diagnostic.related {
-            write!(text, "\n    {}: {}", related.role, related.message).ok();
-            if let Some(path) = &related.path {
-                write!(text, " ({path}").ok();
-                if let Some(line) = related.line {
-                    write!(text, ":{line}").ok();
-                    if let Some(column) = related.column {
-                        write!(text, ":{column}").ok();
+            write!(f, ": {}", diagnostic.message)?;
+            if let Some(path) = &diagnostic.path {
+                write!(f, " ({path}")?;
+                if let Some(line) = diagnostic.line {
+                    write!(f, ":{line}")?;
+                    if let Some(column) = diagnostic.column {
+                        write!(f, ":{column}")?;
                     }
                 }
-                text.push(')');
+                f.write_str(")")?;
             }
-            if let Some(replacement) = &related.replacement {
-                write!(text, " suggests `{replacement}`").ok();
-                if let Some(applicability) = &related.applicability {
-                    write!(text, " [{applicability}]").ok();
+            for related in &diagnostic.related {
+                write!(f, "\n    {}: {}", related.role, related.message)?;
+                if let Some(path) = &related.path {
+                    write!(f, " ({path}")?;
+                    if let Some(line) = related.line {
+                        write!(f, ":{line}")?;
+                        if let Some(column) = related.column {
+                            write!(f, ":{column}")?;
+                        }
+                    }
+                    f.write_str(")")?;
+                }
+                if let Some(replacement) = &related.replacement {
+                    write!(f, " suggests `{replacement}`")?;
+                    if let Some(applicability) = &related.applicability {
+                        write!(f, " [{applicability}]")?;
+                    }
                 }
             }
         }
+        Ok(())
     }
-    text
 }
 
 fn unavailable(
@@ -303,7 +309,7 @@ fn unavailable(
             emit_built(out, notice_event(&notice))
         }
         OutputMode::Text { .. } => {
-            writeln!(err, "dx: build_events_incomplete: {detail}").ok();
+            dx_output::write_stderr(err, format_args!("dx: build_events_incomplete: {detail}\n"));
             Ok(())
         }
         OutputMode::Diff => Ok(()),
@@ -350,7 +356,7 @@ pub(crate) fn report_build_failures(
                 emit_built(out, build_failure_event(event))?;
             }
             OutputMode::Text { .. } => {
-                writeln!(err, "{}", describe(event)).ok();
+                dx_output::write_stderr(err, format_args!("{}\n", Described(event)));
             }
             OutputMode::Diff => {}
         }

@@ -1,6 +1,6 @@
 use super::build_failures::to_event;
 use dx_bep::{BuildFailure, StderrRef, collect_build_failures};
-use dx_exec_core::common::{emit_built, report_failed, write_report_document};
+use dx_exec_core::common::{check_stdout_write, emit_built, report_failed, write_report_document};
 use dx_output::{OutputMode, build_failure_event, report_event};
 use dx_plan::args::Invocation;
 use dx_plan::reports::PlannedReport;
@@ -146,6 +146,7 @@ fn document(bep: &Path, bazel_code: i32) -> (String, bool) {
         root.insert("problem".to_owned(), Value::String(problem));
     }
     root.insert("failures".to_owned(), Value::Array(records));
+    // a serde_json::Value always serializes
     let text = serde_json::to_string_pretty(&Value::Object(root)).unwrap_or_default();
     (text, complete)
 }
@@ -184,12 +185,11 @@ pub(crate) fn write_failure_reports(
         } else if matches!(invocation.output, OutputMode::Text { .. })
             && planned.destination != dx_plan::reports::Destination::Stdout
         {
-            writeln!(
+            check_stdout_write(writeln!(
                 out,
                 "Wrote failures report to {}.",
                 planned.destination.display()
-            )
-            .ok();
+            ))?;
         }
     }
     Ok(all_ok)
@@ -481,6 +481,36 @@ mod tests {
             let runner = harness.runner();
             let code = harness.run_streams(&inv, &runner, &mut BrokenPipe, &mut Vec::new());
             assert_eq!(code, 5, "{words:?}");
+        }
+    }
+
+    #[test]
+    fn a_broken_stdout_fails_the_announcement_only_when_bazel_passed() {
+        use super::super::delivery_sink::{Fault, Sink};
+        for (bazel_code, expected) in [(0, dx_process::broken_pipe_code()), (5, 5)] {
+            let lines = if bazel_code == 0 {
+                Vec::new()
+            } else {
+                vec![action("//c:bin", "CppLink", None)]
+            };
+            let harness = with_bep("fr-broken-announce", bazel_code, lines);
+            let runner = harness.runner();
+            let mut before = Sink::new(Fault::None, 0);
+            harness.run_streams(
+                &invocation(&["build"]),
+                &runner,
+                &mut before,
+                &mut Vec::new(),
+            );
+            let inv = invocation(&["build", "--report=failures=f.json"]);
+            let mut out = Sink::new(
+                Fault::WriteFails(std::io::ErrorKind::BrokenPipe),
+                before.writes() + 1,
+            );
+            let code = harness.run_streams(&inv, &runner, &mut out, &mut Vec::new());
+            assert_eq!(out.text(), before.text(), "bazel exit {bazel_code}");
+            assert_eq!(code, expected, "bazel exit {bazel_code}");
+            assert!(harness.workspace.join("f.json").is_file());
         }
     }
 }

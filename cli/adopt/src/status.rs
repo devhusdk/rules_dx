@@ -1056,7 +1056,7 @@ node.toolchain(node_version = pinned)
             match module {
                 Some(m) => std::fs::write(&path, m).expect("module"),
                 None => {
-                    drop(std::fs::remove_file(&path));
+                    dx_atomic_fs::discard_file(&path);
                 }
             }
             init_plan_check(dir)

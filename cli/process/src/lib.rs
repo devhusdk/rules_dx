@@ -1005,7 +1005,10 @@ pub fn make_writable(path: &Path) {
         )]
         permissions.set_readonly(false);
     }
-    drop(std::fs::set_permissions(path, permissions));
+    // A directory we cannot chmod is still walked: its children may be ours, and remove_tree reports what stays.
+    if std::fs::set_permissions(path, permissions).is_err() && !metadata.is_dir() {
+        return;
+    }
     if metadata.is_dir() {
         for entry in std::fs::read_dir(path).into_iter().flatten().flatten() {
             make_writable(&entry.path());
@@ -1018,7 +1021,7 @@ pub fn make_writable(path: &Path) {
 pub fn remove_tree(path: &Path) -> bool {
     if std::fs::remove_dir_all(path).is_err() {
         make_writable(path);
-        drop(std::fs::remove_dir_all(path));
+        dx_atomic_fs::discard_dir(path);
     }
     !path.exists()
 }

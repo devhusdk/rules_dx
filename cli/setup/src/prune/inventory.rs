@@ -254,6 +254,6 @@ mod tests {
                 .iter()
                 .any(|generation| generation.hex == "latest" || generation.hex == "not-hex")
         );
-        drop(fs::remove_dir_all(&root));
+        dx_atomic_fs::discard_dir(&root);
     }
 }

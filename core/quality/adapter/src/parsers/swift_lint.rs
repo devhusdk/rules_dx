@@ -1,7 +1,7 @@
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 
-use super::{FileFinding, ParseError, as_text, code_name, finding};
+use super::{FileFinding, ParseError, as_text, code_name, finding, located};
 
 const TOOL: &str = "swift_lint";
 
@@ -45,18 +45,9 @@ fn shape(detail: String) -> ParseError {
 
 fn diagnostic(line: &str, files: &[&str]) -> Result<FileFinding, ParseError> {
     let bad = |detail: &str| shape(format!("{detail}: {line}"));
-    let (file, rest) = files
-        .iter()
-        .copied()
-        .find_map(|file| {
-            line.strip_prefix(file)?
-                .strip_prefix(':')
-                .map(|rest| (file, rest))
-        })
-        .ok_or_else(|| ParseError::UnknownFile {
-            tool: TOOL,
-            path: line.split(':').next().unwrap_or(line).to_owned(),
-        })?;
+    // swift-format on Windows prints `C:/...` for a file the runner passed as `C:\...`, so match
+    // the checked file with the shared reader, which knows both spellings and the drive colon.
+    let (file, rest) = located(TOOL, line, files)?;
     let mut parts = rest.splitn(3, ':');
     let (Some(row), Some(col), Some(tail)) = (parts.next(), parts.next(), parts.next()) else {
         return Err(bad("line outside swift-format's grammar"));
@@ -144,5 +135,24 @@ mod tests {
         let warn = b"/s/a.swift:1:1: warning: [Spacing] add 1 space\n";
         assert!(parse_swift_lint(b"", warn, Some(1), &FILES).is_err());
         assert!(parse_swift_lint(b"", &[0xff], Some(1), &FILES).is_err());
+    }
+
+    #[test]
+    fn swift_lint_names_an_unchecked_drive_path_in_full() {
+        let line = b"C:/s/c.swift:1:1: error: [Spacing] add 1 space\n";
+        let err = parse_swift_lint(b"", line, Some(1), &["C:/s/a.swift"]).expect_err("unchecked");
+        assert!(
+            matches!(&err, ParseError::UnknownFile { path, .. } if path == "C:/s/c.swift"),
+            "{err:?}"
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn swift_lint_accepts_forward_slashes_for_a_backslashed_file_on_windows() {
+        let line = b"C:/s/a.swift:2:27: error: [DoNotUseSemicolons] remove ';'\n";
+        let found = parse_swift_lint(b"", line, Some(1), &["C:\\s\\a.swift"]).expect("parsed");
+        assert_eq!(found[0].file, "C:\\s\\a.swift");
+        assert_eq!(found[0].finding.start.column, 27);
     }
 }

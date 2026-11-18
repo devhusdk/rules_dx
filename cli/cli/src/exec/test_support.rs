@@ -36,9 +36,13 @@ pub(crate) struct FailingWrites {
 }
 
 impl FailingWrites {
+    /// Canonicalizes each path, since writes go to the resolved file.
     pub(crate) fn new(failing: &[PathBuf]) -> Self {
         Self {
-            failing: failing.to_vec(),
+            failing: failing
+                .iter()
+                .map(|path| std::fs::canonicalize(path).unwrap_or_else(|_| path.clone()))
+                .collect(),
         }
     }
 }

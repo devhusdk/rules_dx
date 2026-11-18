@@ -3,6 +3,7 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::process::ExitCode;
+use tempfile as _;
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();

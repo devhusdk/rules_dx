@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::util::{Captured, Outcome, Scratch, capture, reject, usage, zip_names};
+use crate::util::{Captured, Outcome, capture, reject, scratch_beside, usage, zip_names};
 
 pub const PREFIX: &str = "dx-android-check";
 
@@ -81,12 +81,12 @@ pub fn entries_intact(package: &Path) -> bool {
     })
 }
 
-fn scratch() -> Result<Scratch, crate::util::Failure> {
+fn scratch() -> Result<tempfile::TempDir, crate::util::Failure> {
     let root = ["TEST_TMPDIR", "TMPDIR"]
         .iter()
         .find_map(|name| std::env::var_os(name).filter(|value| !value.is_empty()))
         .ok_or_else(|| usage("TEST_TMPDIR or TMPDIR names the scratch directory"))?;
-    Scratch::beside(&PathBuf::from(root).join("check"))
+    scratch_beside(&PathBuf::from(root).join("check"))
         .map_err(|error| usage(format!("cannot create a scratch directory: {error}")))
 }
 

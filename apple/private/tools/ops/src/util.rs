@@ -1,6 +1,6 @@
 //! What the operations share: failures, scratch directories and the process runner.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Command, Stdio};
 
 /// Why an operation stopped, with its exit code.
@@ -114,31 +114,21 @@ impl Runner for System {
     }
 }
 
-/// A directory below `TMPDIR`, removed when the operation ends.
-pub struct Scratch(PathBuf);
-
-impl Scratch {
-    /// # Errors
-    ///
-    /// Returns an error when the operation fails.
-    pub fn new(env: Env<'_>, name: &str) -> Result<Scratch, Failure> {
-        let root = env("TMPDIR").ok_or_else(|| usage("TMPDIR names the scratch directory"))?;
-        let path = Path::new(&root).join(format!("dx-{name}.{}", std::process::id()));
-        std::fs::create_dir_all(&path)
-            .map_err(|error| usage(format!("cannot create {}: {error}", path.display())))?;
-        Ok(Scratch(path))
-    }
-
-    #[must_use]
-    pub fn path(&self) -> &Path {
-        &self.0
-    }
-}
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        drop(std::fs::remove_dir_all(&self.0));
-    }
+/// A new directory below `TMPDIR`, removed when the operation ends.
+///
+/// # Errors
+///
+/// Returns a usage failure when `TMPDIR` is unset or the directory cannot be made.
+pub fn scratch(env: Env<'_>, name: &str) -> Result<tempfile::TempDir, Failure> {
+    let root = env("TMPDIR").ok_or_else(|| usage("TMPDIR names the scratch directory"))?;
+    tempfile::Builder::new()
+        .prefix(&format!("dx-{name}."))
+        .tempdir_in(&root)
+        .map_err(|error| {
+            usage(format!(
+                "cannot create a scratch directory in {root}: {error}"
+            ))
+        })
 }
 
 /// Whether `name` ends in `.ext`, ignoring ASCII case.

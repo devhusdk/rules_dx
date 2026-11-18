@@ -26,6 +26,10 @@ fn backend_error_message_starts_with_code() {
         },
         BackendError::OfflineRequired { set: set.clone() },
         BackendError::FrozenLocked { set: set.clone() },
+        BackendError::NoCacheDir {
+            set: set.clone(),
+            tool: "opam",
+        },
         BackendError::BackendUnavailable {
             set,
             tool: "uv",
@@ -64,6 +68,13 @@ fn backend_error_maps_to_a_dx_error_kind() {
                 path: "p".to_owned(),
             },
             ErrorKind::Failure,
+        ),
+        (
+            BackendError::NoCacheDir {
+                set: set(),
+                tool: "opam",
+            },
+            ErrorKind::Infra,
         ),
         (
             BackendError::BackendUnavailable {
@@ -496,6 +507,10 @@ fn composer_check_validates_the_lock() {
         ]
     );
     assert_eq!(env[0].0, "COMPOSER_HOME");
+    let cache = dx_process::rc::user_cache_dir(&|var| std::env::var(var).ok()).expect("cache");
+    for (name, value) in &env {
+        assert!(Path::new(value).starts_with(&cache), "{name}={value}");
+    }
 }
 
 #[test]

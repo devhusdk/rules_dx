@@ -28,7 +28,7 @@ pub(super) fn plan(
     }
     Ok(BackendPlan::Run {
         argv: pub_argv(workspace, set, head, &command)?,
-        env: pub_env(),
+        env: pub_env(set)?,
     })
 }
 
@@ -48,7 +48,7 @@ pub(super) fn check(
             }
             Ok(CheckPlan::Run {
                 argv: pub_argv(workspace, set, head, &command)?,
-                env: pub_env(),
+                env: pub_env(set)?,
             })
         }
         Selection::Packages(_) => Err(BackendError::Unsupported {

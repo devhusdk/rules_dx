@@ -30,7 +30,8 @@ fn main() -> ExitCode {
 
 fn run() -> Result<String, String> {
     if let Some(dir) = std::env::var_os("BUILD_WORKING_DIRECTORY") {
-        std::env::set_current_dir(&dir).map_err(|e| format!("cannot enter {}: {e}", dir.display()))?;
+        std::env::set_current_dir(&dir)
+            .map_err(|e| format!("cannot enter {}: {e}", dir.display()))?;
     }
     let mut args = std::env::args().skip(1);
     let tag = args.next().ok_or(USAGE)?;
@@ -64,7 +65,6 @@ fn run() -> Result<String, String> {
     if !manifests.is_empty() && (check || dir.is_some()) {
         return Err("--manifest cannot be combined with --check or --dir".to_owned());
     }
-    let scratch = std::env::temp_dir().join(format!("dx-fill-pins-{}", std::process::id()));
     let text =
         std::fs::read_to_string(&pins).map_err(|e| format!("read {}: {e}", pins.display()))?;
     if !manifests.is_empty() {
@@ -76,16 +76,20 @@ fn run() -> Result<String, String> {
         std::fs::write(&pins, out).map_err(|e| format!("write {}: {e}", pins.display()))?;
         return Ok(format!("wrote {}", pins.display()));
     }
-    let dir = dir.unwrap_or_else(|| scratch.clone());
+    let scratch = tempfile::Builder::new()
+        .prefix("dx-fill-pins-")
+        .tempdir()
+        .map_err(|e| format!("create scratch dir: {e}"))?;
+    let dir = dir.unwrap_or_else(|| scratch.path().to_path_buf());
     let fetch = |dir: &Path| {
-        if dir == scratch {
+        if dir == scratch.path() {
             download(&tag, &repo, dir)
         } else {
             Ok(())
         }
     };
     let verify = |manifest: &Path, bundle: &Path| verify(&tag, &repo, manifest, bundle);
-    let message = if check {
+    if check {
         fill_pins::check(&tag, &dir, &text, &repo, filled, || fetch(&dir), verify)
             .map(|()| format!("{} matches {tag}", pins.display()))
     } else {
@@ -94,9 +98,7 @@ fn run() -> Result<String, String> {
             std::fs::write(&pins, out).map_err(|e| format!("write {}: {e}", pins.display()))?;
             Ok(format!("wrote {}", pins.display()))
         })
-    };
-    drop(std::fs::remove_dir_all(&scratch));
-    message
+    }
 }
 
 fn download(tag: &str, repo: &str, dir: &Path) -> Result<(), String> {

@@ -1,5 +1,5 @@
 {
-  "checksum": "0b122d715ef6c1f2133c82b1b3a899e309a1e637e874a58f7247b9c62565a590",
+  "checksum": "de1d81a173750f8a060798c8b9ef0ea125e54415be0136065f8f231e94d6a17c",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -3544,7 +3544,7 @@
     },
     "ci_fill_pins 0.0.0": {
       "common_attrs": {
-        "deps_dev": [
+        "deps": [
           {
             "id": "tempfile 3.27.0",
             "target": "tempfile"
@@ -25719,6 +25719,12 @@
     },
     "site_build 0.0.0": {
       "common_attrs": {
+        "deps": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
         "edition": "2024"
       },
       "library_target_name": "dx_site_build",

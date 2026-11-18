@@ -204,15 +204,6 @@ fn from_user(arg: &str) -> PathBuf {
     base.join(path)
 }
 
-fn make_work_dir() -> std::io::Result<PathBuf> {
-    let nanos = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |elapsed| elapsed.as_nanos());
-    let dir = std::env::temp_dir().join(format!("dx-fuzz-{}-{nanos}", std::process::id()));
-    fs::create_dir_all(&dir)?;
-    Ok(dir)
-}
-
 fn exit_code(status: std::process::ExitStatus) -> i32 {
     #[cfg(unix)]
     {
@@ -259,10 +250,12 @@ fn run(args: &[String]) -> Result<i32, Failure> {
     };
     let options = parse_options(rest).map_err(|message| (2, message))?;
 
-    let work = make_work_dir().map_err(|error| (1, format!("fuzz runner: temp dir: {error}")))?;
-    let result = execute(engine, &bin, &target, &options, &work);
-    drop(fs::remove_dir_all(&work));
-    result
+    // Removed when `work` drops, after the engine exits.
+    let work = tempfile::Builder::new()
+        .prefix("dx-fuzz-")
+        .tempdir()
+        .map_err(|error| (1, format!("fuzz runner: temp dir: {error}")))?;
+    execute(engine, &bin, &target, &options, work.path())
 }
 
 fn execute(

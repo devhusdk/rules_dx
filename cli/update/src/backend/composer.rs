@@ -55,7 +55,7 @@ pub(super) fn check(
                 "@rules_dx//php/private/tools:composer",
                 &["validate", "--check-lock", "--no-check-publish"],
             )?,
-            env: composer_env(),
+            env: composer_env(set)?,
         }),
         Selection::Packages(_) => Err(BackendError::Unsupported {
             set: set.name.clone(),

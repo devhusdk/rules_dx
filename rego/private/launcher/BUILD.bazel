@@ -14,6 +14,7 @@ rust_library(
     srcs = [
         "src/lib.rs",
         "src/opa.rs",
+        "src/opa_tests.rs",
     ],
     visibility = ["//cli/runtime:__pkg__"],
     deps = [
@@ -25,7 +26,6 @@ rust_library(
 rust_test(
     name = "dx_opa_test_test",
     size = "small",
-    srcs = ["src/opa_tests.rs"],
     crate = ":dx_opa_test",
     deps = ["//cli/test_scratch:dx_test_scratch"],
 )

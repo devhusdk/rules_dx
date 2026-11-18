@@ -8,6 +8,7 @@ rust_library(
     srcs = [
         "src/lib.rs",
         "src/run.rs",
+        "src/run_tests.rs",
     ],
     deps = [
         "//cli/error:dx_error",
@@ -19,7 +20,6 @@ rust_library(
 rust_test(
     name = "dx_fuzz_run_test",
     size = "small",
-    srcs = ["src/run_tests.rs"],
     crate = ":dx_fuzz_run",
     deps = ["//cli/test_scratch:dx_test_scratch"],
 )

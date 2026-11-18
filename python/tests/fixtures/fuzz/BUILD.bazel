@@ -27,7 +27,7 @@ sh_test(
     ],
     data = [
         ":parse_fuzz",
-        "//cli/fuzz_run",
+        "//cli/runtime:dx_runtime",
     ],
     target_compatible_with = [
         "@platforms//cpu:x86_64",

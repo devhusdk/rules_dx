@@ -10,6 +10,7 @@ fn run(name: &str, filter: Option<&str>) -> (i32, String) {
     let mut command = Command::new(exe);
     command.env("TEST_TMPDIR", scratch.path());
     command.env("DX_REGO_TEST_MANIFEST", key);
+    command.env("DX_RUNTIME_TOOL", "opa_test");
     command.env_remove("TESTBRIDGE_TEST_ONLY");
     if let Some(filter) = filter {
         command.env("TESTBRIDGE_TEST_ONLY", filter);

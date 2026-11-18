@@ -1,0 +1,13 @@
+[package]
+license = "Apache-2.0"
+name = "dx_semver"
+version = "0.0.0"
+edition = "2024"
+
+[lib]
+name = "dx_semver"
+path = "src/lib.rs"
+
+[dependencies]
+semver = "1"
+thiserror = "2"

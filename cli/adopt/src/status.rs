@@ -98,17 +98,14 @@ fn on_path(names: &[&str], path: Option<std::ffi::OsString>) -> Option<String> {
     Some(found.file_name()?.to_string_lossy().into_owned())
 }
 
-fn parse_version(text: &str) -> Option<Vec<u64>> {
-    text.trim()
-        .split('.')
-        .map(|part| part.parse().ok())
-        .collect()
-}
-
 /// Returns the warning when `pin` is a version older than the Bazel the preset targets.
+/// A pin that is not a version, such as `latest` or `8.x`, gets no warning.
 pub(crate) fn old_pin_note(pin: &str) -> Option<String> {
     let preset = dx_preset::PRESET_BAZEL_VERSION;
-    let (pinned, target) = (parse_version(pin)?, parse_version(preset)?);
+    let (pinned, target) = (
+        dx_semver::Version::parse(pin).ok()?,
+        dx_semver::Version::parse(preset).ok()?,
+    );
     (pinned < target).then(|| {
         format!(
             "bazel {} is older than {preset}, which the dx preset targets; raise .bazelversion",
@@ -615,6 +612,24 @@ mod tests {
     use crate::{LauncherPins, RELEASE_ASSETS};
 
     use super::{init_plan_check, pin_check, render_status_text, toolchain_check};
+
+    #[test]
+    fn old_pin_note_reads_bazel_versions_leniently() {
+        let preset = dx_preset::PRESET_BAZEL_VERSION;
+        assert_eq!(super::old_pin_note(preset), None);
+        assert_eq!(super::old_pin_note(&format!("{preset}\n")), None);
+        if let Some(short) = preset.strip_suffix(".0") {
+            assert_eq!(super::old_pin_note(short), None, "{short}");
+        }
+        let rc = format!("{preset}rc1");
+        let note = super::old_pin_note(&rc).unwrap_or_default();
+        assert!(note.contains("older than"), "{rc}: {note}");
+        assert!(super::old_pin_note("0.29").is_some());
+        assert_eq!(super::old_pin_note("999.0"), None);
+        for pin in ["latest", "8.x", "fork/8.4.0"] {
+            assert_eq!(super::old_pin_note(pin), None, "{pin}");
+        }
+    }
 
     #[test]
     fn ide_check_reads_state_json() {

@@ -5,6 +5,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 
 use dx_lock::{Archive, Error, HttpFetch, Lock, Package, Resolution, Resolver, Scratch, Spec};
+use dx_semver::Version;
 
 /// The only registry host the resolver reads.
 pub const HOST: &str = "registry.terraform.io";
@@ -272,33 +273,18 @@ fn entries(block: &[Token]) -> Result<Vec<Requirement>, Error> {
     Ok(out)
 }
 
-/// A release version: its numeric parts.
-fn version_parts(text: &str) -> Option<Vec<u64>> {
-    text.trim()
-        .trim_start_matches('v')
-        .split('.')
-        .map(|part| part.parse().ok())
-        .collect()
-}
-
-fn compare(left: &[u64], right: &[u64]) -> std::cmp::Ordering {
-    let width = left.len().max(right.len());
-    let pad = |parts: &[u64]| {
-        let mut padded = parts.to_vec();
-        padded.resize(width, 0);
-        padded
-    };
-    pad(left).cmp(&pad(right))
-}
-
 /// Whether the release `version` satisfies every comma separated clause of `constraint`.
+/// Prereleases satisfy nothing, so the resolver only picks releases.
 ///
 /// # Errors
 /// Fails on a clause the resolver does not read.
 pub fn satisfies(version: &str, constraint: &str) -> Result<bool, Error> {
-    let Some(have) = version_parts(version) else {
+    let Ok(have) = Version::parse(version) else {
         return Ok(false);
     };
+    if have.is_prerelease() {
+        return Ok(false);
+    }
     for clause in constraint
         .split(',')
         .map(str::trim)
@@ -308,27 +294,20 @@ pub fn satisfies(version: &str, constraint: &str) -> Result<bool, Error> {
             .iter()
             .find_map(|operator| clause.strip_prefix(operator).map(|rest| (*operator, rest)))
             .unwrap_or(("=", clause));
-        let Some(want) = version_parts(number) else {
-            return Err(Error::new(format!(
-                "version constraint {clause:?} is not understood"
-            )));
-        };
-        let order = compare(&have, &want);
+        let want = Version::parse(number).map_err(|error| {
+            Error::new(format!(
+                "version constraint {clause:?} is not understood: {error}"
+            ))
+        })?;
         let holds = match operator {
-            "=" => order.is_eq(),
-            "!=" => order.is_ne(),
-            ">" => order.is_gt(),
-            ">=" => order.is_ge(),
-            "<" => order.is_lt(),
-            "<=" => order.is_le(),
-            _ => {
-                let keep = want.len().saturating_sub(1).max(1);
-                let mut ceiling: Vec<u64> = want.iter().take(keep).copied().collect();
-                if let Some(last) = ceiling.last_mut() {
-                    *last += 1;
-                }
-                order.is_ge() && compare(&have, &ceiling).is_lt()
-            }
+            "=" => have == want,
+            "!=" => have != want,
+            ">" => have > want,
+            ">=" => have >= want,
+            "<" => have < want,
+            "<=" => have <= want,
+            // `~> 3.2.1` lets only the last written part rise: at least 3.2.1, still 3.2.
+            _ => have >= want && have.same_prefix(&want, want.parts().saturating_sub(1).max(1)),
         };
         if !holds {
             return Ok(false);
@@ -386,14 +365,14 @@ impl<'a> Terraform<'a> {
     ) -> Result<(String, Vec<(String, String)>), Error> {
         let url = format!("{}/versions", Self::api(source));
         let listing = json(&self.registry.get(&url)?, &url)?;
-        let mut best: Option<(Vec<u64>, String, Vec<(String, String)>)> = None;
+        let mut best: Option<(Version, String, Vec<(String, String)>)> = None;
         for entry in listing
             .get("versions")
             .and_then(serde_json::Value::as_array)
             .map_or(&[][..], Vec::as_slice)
         {
             let version = text(entry, "version", &url)?;
-            let Some(parts) = version_parts(version) else {
+            let Ok(parsed) = Version::parse(version) else {
                 continue;
             };
             if !satisfies(version, constraint)? {
@@ -413,12 +392,8 @@ impl<'a> Terraform<'a> {
                         .then(|| (os.to_owned(), arch.to_owned()))
                 })
                 .collect();
-            if !platforms.is_empty()
-                && best
-                    .as_ref()
-                    .is_none_or(|(have, _, _)| compare(&parts, have).is_gt())
-            {
-                best = Some((parts, version.to_owned(), platforms));
+            if !platforms.is_empty() && best.as_ref().is_none_or(|(have, _, _)| parsed > *have) {
+                best = Some((parsed, version.to_owned(), platforms));
             }
         }
         best.map(|(_, version, platforms)| (version, platforms))

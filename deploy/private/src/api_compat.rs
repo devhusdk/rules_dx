@@ -1,5 +1,7 @@
 //! Public API compatibility rule shared by the registry adapters.
 
+use dx_semver::Version;
+
 /// What `api_compat` does with a breaking report.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ApiCompatMode {
@@ -29,26 +31,15 @@ pub enum Bump {
     Patch,
 }
 
-/// Returns the numeric `major.minor.patch` of a version; build and pre-release parts are ignored.
-#[must_use]
-pub fn parse_version(version: &str) -> Option<[u64; 3]> {
-    let core = version.split(['-', '+']).next()?;
-    let mut parts = core.split('.');
-    let mut out = [0u64; 3];
-    for slot in &mut out {
-        *slot = parts.next()?.parse().ok()?;
-    }
-    parts.next().is_none().then_some(out)
-}
-
-/// Returns the bump from `previous` to `next`; None when either is not a plain version.
+/// Returns the bump from `previous` to `next`; None when either is not a version.
 /// Below 1.0.0 a minor change counts as major, as cargo treats it.
 #[must_use]
 pub fn required_bump(previous: &str, next: &str) -> Option<Bump> {
-    let (old, new) = (parse_version(previous)?, parse_version(next)?);
-    let bump = if old[0] != new[0] || (old[0] == 0 && old[1] != new[1]) {
+    let old = Version::parse(previous).ok()?;
+    let new = Version::parse(next).ok()?;
+    let bump = if old.major() != new.major() || (old.major() == 0 && old.minor() != new.minor()) {
         Bump::Major
-    } else if old[1] != new[1] {
+    } else if old.minor() != new.minor() {
         Bump::Minor
     } else {
         Bump::Patch
@@ -97,14 +88,13 @@ pub fn highest_below<'a>(
     versions: impl IntoIterator<Item = &'a str>,
     next: &str,
 ) -> Option<String> {
-    let next = parse_version(next.trim_start_matches('v'))?;
+    let next = Version::parse(next).ok()?;
     versions
         .into_iter()
         .map(str::trim)
-        .filter(|version| !version.contains('-'))
         .filter_map(|version| {
-            let parsed = parse_version(version)?;
-            (parsed < next).then(|| (parsed, version.to_owned()))
+            let parsed = Version::parse(version).ok()?;
+            (!parsed.is_prerelease() && parsed < next).then(|| (parsed, version.to_owned()))
         })
         .max()
         .map(|(_, version)| version)
@@ -357,6 +347,8 @@ mod tests {
         assert_eq!(required_bump("0.3.1", "0.4.0"), Some(Bump::Major));
         assert_eq!(required_bump("0.3.1", "0.3.2"), Some(Bump::Patch));
         assert_eq!(required_bump("1.2.0", "x"), None);
+        assert_eq!(required_bump("1.2", "1.2.1"), Some(Bump::Patch));
+        assert_eq!(required_bump("1.2.0-rc.1", "1.2.0"), Some(Bump::Patch));
     }
 
     #[test]
@@ -416,6 +408,15 @@ mod tests {
         assert_eq!(highest_below(versions, "v2.1.0").as_deref(), Some("2.0.0"));
         assert_eq!(highest_below(versions, "0.9.0"), None);
         assert_eq!(highest_below(versions, "next"), None);
+        let short = ["1.4", "1.5.0rc1", "1.5.0"];
+        assert_eq!(highest_below(short, "1.5.0").as_deref(), Some("1.4"));
+        assert_eq!(highest_below(short, "1.5.1").as_deref(), Some("1.5.0"));
+        // A PEP 440 post-release sorts above its release, so it must not read as a prerelease.
+        assert_eq!(highest_below(["1.4.0", "1.5.0"], "1.5.0.post1"), None);
+        assert_eq!(
+            highest_below(["1.4.0", "1.5.0.post1", "1.5.0"], "1.6.0").as_deref(),
+            Some("1.5.0")
+        );
     }
 
     fn compared(previous: &str, changes: &[&str]) -> Outcome {

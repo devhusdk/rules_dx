@@ -1,5 +1,5 @@
 {
-  "checksum": "58971d8c1415f1b607ce93a59c33db792406e5d19e7f52c88de07f8e692706fc",
+  "checksum": "72a8d599761a69cebe57a3c782206794e2a8abebb12534997b537fe59cafe9fa",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -9527,6 +9527,37 @@
         {
           "Library": {
             "crate_name": "dx_sbom_schema",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "dx_semver 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "semver 1.0.27",
+            "target": "semver"
+          },
+          {
+            "id": "thiserror 2.0.20",
+            "target": "thiserror"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "dx_semver",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "dx_semver",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_semver",
             "crate_root": "src/lib.rs"
           }
         }
@@ -33373,6 +33404,7 @@
     "dx_roots 0.0.0": "cli/dx_roots",
     "dx_sbom 0.0.0": "cli/dx_sbom",
     "dx_sbom_schema 0.0.0": "cli/sbom/dx_sbom_schema",
+    "dx_semver 0.0.0": "cli/dx_semver",
     "dx_setup 0.0.0": "cli/dx_setup",
     "dx_shard_writer 0.0.0": "cli/dx_shard_writer",
     "dx_shim 0.0.0": "cli/dx_shim",

@@ -19,6 +19,7 @@ rust_library(
     ) + [
         "//cli/families:dx_families",
         "//cli/lock:dx_lock",
+        "//cli/semver:dx_semver",
     ],
 )
 

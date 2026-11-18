@@ -503,6 +503,7 @@ filegroup(
         "//cli/roots:module_srcs",
         "//cli/sbom:module_srcs",
         "//cli/sbom/schema:module_srcs",
+        "//cli/semver:module_srcs",
         "//cli/setup:module_srcs",
         "//cli/shard_writer:module_srcs",
         "//cli/shim:module_srcs",

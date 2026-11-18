@@ -1196,6 +1196,37 @@ fn versions_equal_pads_trailing_zeros() {
     assert!(!versions_equal("4.0.0", "4.1"));
     assert!(!versions_equal("1.0.0-alpha", "1.0.0"));
     assert!(versions_equal("1.0.0+build", "1.0.0+build"));
+    assert!(!versions_equal("1.0.0+cpu", "1.0.0+cu118"));
+    assert!(versions_equal("7.0.8.1", "7.0.8.1.0"));
+}
+
+#[test]
+fn non_semver_grammar_reads_four_parts_and_release_flavors() {
+    assert!(satisfies_non_semver("~> 7.0.8", "7.0.8.1"));
+    assert!(!satisfies_non_semver("~> 7.0.8", "7.1.0"));
+    assert!(satisfies_non_semver(">= 1.2.3.4", "1.2.3.5"));
+    assert!(!satisfies_non_semver(">= 1.2.3.4", "1.2.3"));
+    assert!(satisfies_non_semver(">= 5.6", "5.6.15.Final"));
+    assert!(!satisfies_non_semver(">= 8.4", "8.4.0rc1"));
+    assert!(!satisfies_non_semver(">= 1.0.0-beta", "1.0.0-alpha"));
+    assert!(satisfies_non_semver(">= 1.0.0-alpha", "1.0.0-beta"));
+}
+
+#[test]
+fn non_semver_grammar_reads_suffixes_semver_rejects() {
+    // A `-` between numbers is a revision part, not a prerelease.
+    assert!(!satisfies_non_semver(">= 1.2.3-1", "1.2.3"));
+    // Homebrew revisions and Java update suffixes compare as their release.
+    assert!(satisfies_non_semver("~> 1.2", "1.9.0_1"));
+    assert!(satisfies_non_semver(">= 1.0", "1.2.3_beta"));
+    // A wildcard part bounds at the parts before it.
+    assert!(satisfies_non_semver(">= 1.x", "1.5.0"));
+    assert!(satisfies_non_semver("< 2.*", "1.5.0"));
+    // Exact pins with such suffixes still have to match exactly.
+    assert!(!satisfies_non_semver("1.8.0_292", "1.9.0"));
+    assert!(satisfies_non_semver("1.8.0_292", "1.8.0_292"));
+    assert!(!satisfies_non_semver("2.0.0_1", "2.5.0"));
+    assert!(!satisfies_non_semver("1.0.0-rc.01", "1.5.0"));
 }
 
 #[test]

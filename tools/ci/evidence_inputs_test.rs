@@ -259,9 +259,36 @@ fn the_workflow_validates_with_producers_bin_after_setting_up_bazel() {
     let run = steps[validate]["run"].as_str().unwrap_or_default();
     assert!(
         run.contains(
-            "bazel run --noshow_progress //tools/ci/producers:producers_bin -- --evidence-inputs"
+            r#"bazel run --noshow_progress "${cache[@]}" //tools/ci/producers:producers_bin -- --evidence-inputs"#
         ),
         "{run}"
     );
     assert_eq!(validate, setup + 1);
+}
+
+#[test]
+// A cold producers_bin build takes minutes; the release cell still builds before the cache is on.
+fn the_workflow_validates_with_the_remote_cache_when_it_has_one() {
+    let steps = ci_workflow::steps(WORKFLOW, "evidence").unwrap();
+    let validate = steps
+        .iter()
+        .position(|step| step["id"].as_str() == Some("inputs"))
+        .expect("evidence.yml validates its inputs");
+    let run = steps[validate]["run"].as_str().unwrap_or_default();
+    assert!(
+        run.contains(r#"[ -z "${BB_ARGS:-}" ] || read -ra cache <<< "--config=ci $BB_ARGS""#),
+        "{run}"
+    );
+    let release_cell = steps
+        .iter()
+        .position(|step| step["name"].as_str() == Some("Build and qualify the release cell"))
+        .expect("evidence.yml builds the release cell");
+    let cache = steps
+        .iter()
+        .position(|step| step["name"].as_str() == Some("Use the BuildBuddy remote cache"))
+        .expect("evidence.yml turns on the remote cache");
+    assert!(
+        validate < release_cell && release_cell < cache,
+        "the release cell must build before user.bazelrc turns on the remote cache"
+    );
 }

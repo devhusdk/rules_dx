@@ -138,7 +138,11 @@ jobs:
           DX_FLAGS: ${{ inputs.flags }}
           DX_RELOCATE: ${{ inputs.relocate }}
         run: |
-          bazel run --noshow_progress //tools/ci/producers:producers_bin -- --evidence-inputs
+          # A cold producers_bin build takes minutes, so this command reads the remote cache. The release
+          # cell step must build uncached, so user.bazelrc turns the cache on only after it.
+          cache=()
+          [ -z "${BB_ARGS:-}" ] || read -ra cache <<< "--config=ci $BB_ARGS"
+          bazel run --noshow_progress "${cache[@]}" //tools/ci/producers:producers_bin -- --evidence-inputs
       - name: Build and qualify the release cell
         if: ${{ inputs.release_cell }}
         env:

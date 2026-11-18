@@ -51,16 +51,39 @@ csharp_test(
     deps = [":greet"],
 )
 
+csharp_binary(
+    name = "runfiles_hello",
+    srcs = ["RunfilesMain.cs"],
+    data = ["data.txt"],
+    deps = ["@rules_dotnet//tools/runfiles"],
+)
+
+csharp_binary(
+    name = "lock_hello",
+    srcs = ["LockMain.cs"],
+    deps = ["@nuget//google.protobuf"],
+)
+
 dx_conformance_suite(
     name = "",
     size = "small",
     binary = ":hello",
     covered_source = "Greet.cs",
+    cross_runfile = "dotnet",
     expected = "hello world",
     failing_case = "failing_case",
     failing_pattern = "{case}",
     failing_test = ":fail_subject_test",
     lang = "dotnet",
+    lock = {
+        "binary": ":lock_hello",
+        "ecosystem": "csharp",
+        "expected": "hello lock",
+        "lockfile": "//third_party/dotnet:paket.lock",
+        "manifest": "paket.dependencies",
+        "package": "Google.Protobuf",
+        "stale": "paket.stale.lock",
+    },
     passing_test = ":pass_subject_test",
     quality = {
         "clean": ":greet",
@@ -70,6 +93,11 @@ dx_conformance_suite(
         "lint_line": 5,
         "lint_rule": "CA1822",
         "lint_source": "quality/LintDirty.cs",
+    },
+    runfiles = {
+        "binary": ":runfiles_hello",
+        "data": "data.txt",
+        "expected": "hello runfiles",
     },
 )
 

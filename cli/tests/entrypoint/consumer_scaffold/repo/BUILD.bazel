@@ -26,7 +26,7 @@ mkdir -p "$$fortree/src"
 echo "keep" > "$$fortree/src/keep.txt"
 echo 'module(name = "mine")' > "$$fortree/MODULE.bazel"
 echo "keep" > "$$checktree/README.md"
-"$$public" init --apply myproj --workspace "$$foreign" > "$(location init_dir_apply.txt)" 2>&1
+"$$public" init --apply --no-generate myproj --workspace "$$foreign" > "$(location init_dir_apply.txt)" 2>&1
 echo "exit=0" >> "$(location init_dir_apply.txt)"
 grep -q "wrote myproj/.dx/pins" "$(location init_dir_apply.txt)"
 test -f "$$foreign/myproj/MODULE.bazel"
@@ -34,10 +34,10 @@ test -f "$$foreign/myproj/.bazelversion"
 test -f "$$foreign/myproj/.dx/pins"
 grep -q 'name = "myproj"' "$$foreign/myproj/MODULE.bazel"
 cp "$$foreign/myproj/MODULE.bazel" "$$root/module.orig"
-"$$public" init --apply myproj --workspace "$$foreign" > "$(location init_dir_reapply.txt)" 2>&1
+"$$public" init --apply --no-generate myproj --workspace "$$foreign" > "$(location init_dir_reapply.txt)" 2>&1
 echo "exit=0" >> "$(location init_dir_reapply.txt)"
 cmp "$$root/module.orig" "$$foreign/myproj/MODULE.bazel"
-"$$public" init --apply --workspace "$$fortree" > "$(location init_apply.txt)" 2>&1
+"$$public" init --apply --no-generate --workspace "$$fortree" > "$(location init_apply.txt)" 2>&1
 echo "exit=0" >> "$(location init_apply.txt)"
 grep -q "wrote .dx/pins" "$(location init_apply.txt)"
 test -f "$$fortree/.dx/pins"

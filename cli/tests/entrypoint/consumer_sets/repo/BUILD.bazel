@@ -44,6 +44,7 @@ genrule(
         "sets_ok/license.toml",
         "sets_ok/apps/ml/ocaml_app.opam",
         "sets_ok/apps/ml/ocaml_app.opam.locked",
+        "sets_ok/apps/ml/opam.lock.json",
         "sets_bad/MODULE.bazel",
         "sets_bad/.dx/pins",
         "sets_nolock/MODULE.bazel",
@@ -82,7 +83,7 @@ composer.lock(name = "vendor", lock = "//apps/php:composer.lock.json")
 luarocks = use_extension("@rules_dx//lua:extensions.bzl", "luarocks")
 luarocks.lock(name = "rocks", lock = "//apps/lua:luarocks.lock.json")
 opam = use_extension("@rules_dx//ocaml:extensions.bzl", "opam")
-opam.lock(name = "ocaml_app", lock = "//apps/ml:ocaml_app.opam.locked")
+opam.lock(name = "ocaml_app", lock = "//apps/ml:opam.lock.json")
 EOF
 echo "requires 'Text::CSV', '== 2.06';" > "$(location sets_ok/perl/cpanfile)"
 cat > "$(location sets_ok/perl/cpanfile.snapshot)" <<'EOF'
@@ -120,6 +121,7 @@ depends: [
   "astring" {= "0.8.5"}
 ]
 ' > "$(location sets_ok/apps/ml/ocaml_app.opam.locked)"
+echo '{"schema": 1, "ecosystem": "opam", "inputs": {"ocaml_app.opam": "00", "ocaml_app.opam.locked": "00"}, "packages": [{"name": "astring", "version": "0.8.5"}]}' > "$(location sets_ok/apps/ml/opam.lock.json)"
 cp "$(location sets_ok/apps/ml/ocaml_app.opam)" "$$orig/consumer_sets_opam.orig"
 cat > "$(location sets_ok/apps/rs/Cargo.toml)" <<'EOF'
 [package]

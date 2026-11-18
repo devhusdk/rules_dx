@@ -1,13 +1,12 @@
 """Creates @dx_gazelle: a pinned release gazelle, or one gazelle_binary of the registered languages plus dispatch."""
 
-load("//cli/prebuilt:extension.bzl", "ASSET_ATTRS", "declare_downloads")
-load("//cli/prebuilt:hub.bzl", "plan_assets", "plan_root")
-load("//cli/prebuilt:pins.bzl", "DX_VERSION", "PINS", "URL_TEMPLATE")
 load("//core:repo.bzl", "hub_repo")
-load(":hub.bzl", "builds_from_source", "prebuilt_build", "render_hub_build")
+load(":extension.bzl", "ASSET_ATTRS", "declare_downloads")
+load(":gazelle_hub.bzl", "builds_from_source", "prebuilt_build", "render_hub_build")
+load(":hub.bzl", "plan_assets", "plan_root")
+load(":pins.bzl", "DX_VERSION", "PINS", "URL_TEMPLATE")
 
-# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
-visibility("public")
+visibility(["//core"])
 
 _language = tag_class(
     doc = "Adds a Gazelle language package to the dx gazelle binary. A module other than rules_dx that adds one makes gazelle build from source.",

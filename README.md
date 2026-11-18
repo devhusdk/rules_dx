@@ -126,7 +126,7 @@ fetches no Go SDK. It builds from source instead when:
 The root module can override it:
 
 ```starlark
-dx_gazelle = use_extension("@rules_dx//gazelle/dispatch:extension.bzl", "dx_gazelle")
+dx_gazelle = use_extension("@rules_dx//core:extensions.bzl", "dx_gazelle")
 dx_gazelle.asset(name = "gazelle", os = "linux", cpu = "x86_64", url = "https://...", sha256 = "...")
 ```
 

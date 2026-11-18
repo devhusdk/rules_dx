@@ -67,7 +67,8 @@ cc/tests/toolchain_tests.bzl no-size 9
 cli/cli/BUILD.bazel no-size 2
 cli/env/BUILD.bazel no-size 2
 cli/exec_os/BUILD.bazel no-size 1
-cli/prebuilt/BUILD.bazel no-size 2
+cli/prebuilt/BUILD.bazel no-size 3
+cli/prebuilt/gazelle_hub_tests.bzl no-size 1
 cli/prebuilt/hub_tests.bzl no-size 1
 cli/process/BUILD.bazel no-size 1
 cli/roots/BUILD.bazel no-size 1
@@ -280,8 +281,7 @@ gazelle/common/treesitter/BUILD.bazel no-size 1
 gazelle/csharp/BUILD.bazel no-size 2
 gazelle/d/BUILD.bazel no-size 3
 gazelle/dart/BUILD.bazel no-size 2
-gazelle/dispatch/BUILD.bazel no-size 3
-gazelle/dispatch/hub_tests.bzl no-size 1
+gazelle/dispatch/BUILD.bazel no-size 2
 gazelle/dotnetplatform/BUILD.bazel no-size 1
 gazelle/elixir/BUILD.bazel no-size 2
 gazelle/erlang/BUILD.bazel no-size 2

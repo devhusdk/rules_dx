@@ -1225,3 +1225,61 @@ fn report_dx_error_exits_by_kind_and_keeps_the_code() {
         assert!(text.contains(error.message()), "{text}");
     }
 }
+
+struct GitStub {
+    code: Option<i32>,
+    stderr: &'static [u8],
+}
+
+impl QueryRunner for GitStub {
+    fn run_query(
+        &self,
+        _argv: &[String],
+        _cwd: &Path,
+    ) -> io::Result<dx_plan::resolve::QueryResult> {
+        Ok(dx_plan::resolve::QueryResult {
+            code: self.code,
+            stdout: Vec::new(),
+            stderr: self.stderr.to_vec(),
+        })
+    }
+}
+
+fn git_failure(code: Option<i32>, stderr: &'static [u8]) -> String {
+    let runner = GitStub { code, stderr };
+    git_output(&runner, Path::new("."), "diff", &["diff"])
+        .expect_err("git failed")
+        .message()
+        .to_owned()
+}
+
+#[test]
+fn a_git_failure_names_the_fatal_line_not_a_leading_warning() {
+    let message = git_failure(
+        Some(128),
+        b"warning: LF will be replaced by CRLF in a.txt.\r\nfatal: bad revision 'x'\r\n",
+    );
+    assert!(message.contains("fatal: bad revision 'x'"), "{message}");
+    assert!(!message.contains("warning:"), "{message}");
+}
+
+#[test]
+fn a_git_failure_without_output_keeps_its_exit_status() {
+    assert_eq!(
+        git_failure(Some(128), b""),
+        "git diff failed: no Git diagnostic (exit 128)"
+    );
+    assert_eq!(
+        git_failure(None, b""),
+        "git diff failed: no Git diagnostic (ended by a signal)"
+    );
+}
+
+#[test]
+fn a_git_failure_with_a_line_keeps_its_exit_status() {
+    let message = git_failure(Some(1), b"error: pathspec 'x' did not match\n");
+    assert_eq!(
+        message,
+        "git diff failed: error: pathspec 'x' did not match (exit 1)"
+    );
+}

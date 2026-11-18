@@ -256,12 +256,29 @@ pub fn git_output(
         .run_query(&git_argv, workspace)
         .map_err(|error| dx_error::DxError::infra(format!("git {what} failed: {error}")))?;
     if result.code != Some(0) {
-        let detail = dx_output::first_diagnostic_line(&result.stderr, 200, "no Git diagnostic");
+        let detail = git_failure_detail(&result.stderr);
+        let status = match result.code {
+            Some(code) => format!("exit {code}"),
+            None => "ended by a signal".to_owned(),
+        };
         return Err(dx_error::DxError::failure(format!(
-            "git {what} failed: {detail}"
+            "git {what} failed: {detail} ({status})"
         )));
     }
     Ok(result.stdout)
+}
+
+/// The `fatal:` or `error:` line of Git's stderr, else its first line; warnings come first and say little.
+fn git_failure_detail(stderr: &[u8]) -> String {
+    let text = String::from_utf8_lossy(stderr);
+    let cause = text
+        .lines()
+        .map(str::trim)
+        .find(|line| line.starts_with("fatal:") || line.starts_with("error:"));
+    match cause {
+        Some(line) => dx_output::first_diagnostic_line(line.as_bytes(), 200, "no Git diagnostic"),
+        None => dx_output::first_diagnostic_line(stderr, 200, "no Git diagnostic"),
+    }
 }
 
 pub const CODE_BACKEND_UNAVAILABLE: &str = "backend_unavailable";

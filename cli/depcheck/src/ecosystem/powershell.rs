@@ -94,23 +94,10 @@ pub fn parse_powershell_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo
 /// Reads the lock: the name and version of each package under the lowercase name, as the
 /// manifest keys are.
 pub fn parse_powershell_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
-    let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
-    let json: serde_json::Value = serde_json::from_str(&text).map_err(|error| {
-        DepcheckError::LockIo(std::io::Error::new(std::io::ErrorKind::InvalidData, error))
-    })?;
-    let mut modules = BTreeMap::new();
-    for package in json
-        .get("packages")
-        .and_then(serde_json::Value::as_array)
+    Ok(super::lock_packages(path)?
         .into_iter()
-        .flatten()
-    {
-        if let (Some(name), Some(version)) = (package["name"].as_str(), package["version"].as_str())
-        {
-            modules.insert(name.to_lowercase(), version.to_owned());
-        }
-    }
-    Ok(modules)
+        .filter_map(|(name, version)| Some((name.to_lowercase(), version?)))
+        .collect())
 }
 
 fn strip_comments(text: &str) -> String {

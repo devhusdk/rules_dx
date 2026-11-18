@@ -52,7 +52,7 @@ The `build_test` through `lock_test` columns are conformance tests: shared tests
 | Swift | none | `swiftpm` | `swift_bench` | `swift_fuzz_test` | all | all | all | all | `linux_arm64`, `linux_x86_64`; n/a: swift cross-compiles to linux only from a linux host | all |
 | TypeScript | none | `npm` | `typescript_bench` | `typescript_fuzz_test` | all | all | all | all | all | all |
 | Vue | none | `npm` | n/a | n/a | n/a: vue has no binary rule | all | all | all | n/a: vue has no binary rule | n/a: vue has no binary rule |
-| Zig | none | `zig_deps` (`build.zig.zon` `.dependencies`, pinned by sha256) | `zig_bench` | n/a | all | all | all | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_arm64`; pending on `windows_x86_64` | all | pending |
+| Zig | none | `zig_deps` (`build.zig.zon` `.dependencies`, pinned by sha256) | `zig_bench` | n/a | all | all | all | `linux_arm64`, `linux_x86_64`, `macos_arm64`, `windows_arm64`; pending on `windows_x86_64` | all | all |
 
 ## Targets
 

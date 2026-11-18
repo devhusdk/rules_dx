@@ -743,7 +743,7 @@ fn lock_name(eco: Language) -> &'static str {
         Language::Cc => "cc_lock.json",
         Language::Ruby => "Gemfile.lock",
         Language::Perl => "cpanfile.snapshot",
-        Language::Zig => "build.zig.zon.lock",
+        Language::Zig => "zig.lock.json",
         Language::Julia => "Manifest.toml",
         Language::Dart => "pubspec.lock",
         Language::Php => "composer.lock",
@@ -2694,7 +2694,7 @@ fn zig_manifest_reads_hashes_lazy_and_skips_paths() {
 fn zig_fixture_reports_unused_and_missing() {
     let base = testdata_root().join("zig/mixed");
     let manifest = base.join("build.zig.zon");
-    let lock = base.join("build.zig.zon.lock");
+    let lock = base.join("zig.lock.json");
     assert_eq!(consistency(Language::Zig, "mixed"), 0);
     let unused = find_unused(Language::Zig, &manifest, &base, &[]).expect("unused");
     let names: Vec<&str> = unused.iter().map(|dep| dep.name.as_str()).collect();
@@ -2711,12 +2711,12 @@ fn zig_fixture_reports_unused_and_missing() {
 fn zig_consistency_flags_stale_hash() {
     let dir = tempfile::tempdir().expect("scratch");
     let zon = dir.path().join("build.zig.zon");
-    let lock = dir.path().join("build.zig.zon.lock");
+    let lock = dir.path().join("zig.lock.json");
     write_file(
         &zon,
         ".{ .dependencies = .{ .a = .{ .url = \"u\", .hash = \"new\" } } }\n",
     );
-    write_file(&lock, "a old\n");
+    write_file(&lock, r#"{"packages": [{"name": "a", "version": "old"}]}"#);
     let mut out = String::new();
     let mut err = String::new();
     let code = exit_code(cmd_consistency(

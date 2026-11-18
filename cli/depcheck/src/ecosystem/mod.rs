@@ -49,6 +49,26 @@ pub(crate) fn push_version(pkgs: &mut crate::LockVersions, name: String, ver: St
     }
 }
 
+/// Reads a rules_dx JSON lock: the `name` and `version` of each entry of `packages`.
+pub(crate) fn lock_packages(path: &Path) -> Result<Vec<(String, Option<String>)>, DepcheckError> {
+    let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
+    let data: serde_json::Value = serde_json::from_str(&text).map_err(DepcheckError::LockJson)?;
+    Ok(data
+        .get("packages")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|package| {
+            let name = package.get("name")?.as_str()?.to_owned();
+            let version = package
+                .get("version")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned);
+            Some((name, version))
+        })
+        .collect())
+}
+
 /// Lowercase-only package key (Go, JVM, .NET, JS/TS, Ruby, Rust).
 #[must_use]
 pub fn normalize_lower(name: &str) -> String {

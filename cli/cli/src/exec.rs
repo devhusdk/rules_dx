@@ -312,7 +312,11 @@ fn init_then_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
     if code != 0 {
         return code;
     }
-    match dx_generate::sync(&root, dx_generate::Mode::Full, &mut dx_adopt::detected_families) {
+    match dx_generate::sync(
+        &root,
+        dx_generate::Mode::Full,
+        &mut dx_adopt::detected_families,
+    ) {
         Ok(_) => 0,
         Err(error) => {
             writeln!(err, "dx: .dx not synced after generate: {error}").ok();

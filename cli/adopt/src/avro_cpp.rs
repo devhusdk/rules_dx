@@ -350,7 +350,8 @@ mod tests {
             dir.path(),
             "third_party/rules_dx/avro-cpp/iterator.patch",
             "old\n",
-        ).unwrap();
+        )
+        .unwrap();
         let plan = plan_avro_cpp(dir.path()).expect("plan");
         assert_eq!(
             paths(&plan),

@@ -990,7 +990,8 @@ mod tests {
             dir.path(),
             manifest_of("go").expect("hub"),
             "module example.com/app\n",
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(plan_lock_hubs(dir.path()).expect("plan").edit, None);
     }
 
@@ -1327,7 +1328,8 @@ mod tests {
             dir.path(),
             t("{npm:manifest}"),
             "{\"dependencies\": {\"left-pad\": \"1.3.0\"}}",
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(
             plan_lock_hubs(dir.path()).expect("plan"),
             LockHubs::default()
@@ -1347,7 +1349,8 @@ mod tests {
             dir.path(),
             t("{npm:manifest}"),
             "{\"dependencies\": {\"left-pad\": \"1.3.0\"}}",
-        ).unwrap();
+        )
+        .unwrap();
         let first = plan_lock_hubs(dir.path()).expect("plan");
         write(dir.path(), MODULE_FILE, new_text(&first)).unwrap();
         assert_eq!(
@@ -1368,7 +1371,8 @@ mod tests {
             dir.path(),
             t("web/{npm:manifest}"),
             "{\"dependencies\": {\"left-pad\": \"1.3.0\"}}",
-        ).unwrap();
+        )
+        .unwrap();
         let first = plan_lock_hubs(dir.path()).expect("plan");
         let text = new_text(&first);
         assert!(text.contains("dx_npm = use_extension("), "{text}");

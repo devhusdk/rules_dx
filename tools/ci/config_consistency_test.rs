@@ -712,7 +712,8 @@ fn coverage_floors(text: &str) -> Vec<String> {
 /// Returns the coverage floor ci.yml passes to the required check.
 fn required_coverage_floor() -> String {
     const CI: &str = ".github/workflows/ci.yml";
-    let floors: Vec<String> = ci_workflow::jobs(CI).unwrap()
+    let floors: Vec<String> = ci_workflow::jobs(CI)
+        .unwrap()
         .into_iter()
         .filter_map(|(_, job)| job["with"]["min_coverage"].as_str().map(str::to_owned))
         .collect();

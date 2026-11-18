@@ -775,7 +775,8 @@ mod tests {
             dir.path(),
             dir.path(),
             &["init", "-q", "--bare", "-b", "main", "origin.git"],
-        ).unwrap();
+        )
+        .unwrap();
         dx_test_scratch::git(&work, &work, &["init", "-q", "-b", "main"]).unwrap();
         std::fs::write(work.join(lock_of(Ecosystem::Cargo)), "a\n").expect("write");
         dx_test_scratch::git(&work, &work, &["add", "-A"]).unwrap();
@@ -784,7 +785,8 @@ mod tests {
             &work,
             &work,
             &["remote", "add", "origin", origin.to_str().expect("utf8")],
-        ).unwrap();
+        )
+        .unwrap();
         dx_test_scratch::git(&work, &work, &["push", "-q", "origin", "main"]).unwrap();
         if let Some(message) = hook {
             let path = origin.join("hooks/pre-receive");
@@ -919,10 +921,13 @@ mod tests {
             &fx.origin,
             &fx.origin,
             &["rev-parse", "--verify", "dx-update/cargo"],
-        ).unwrap();
+        )
+        .unwrap();
         assert!(!pushed.trim().is_empty(), "expected non-empty");
         assert_eq!(
-            dx_test_scratch::git(&fx.work, &fx.work, &["rev-parse", "--abbrev-ref", "HEAD"]).unwrap().trim(),
+            dx_test_scratch::git(&fx.work, &fx.work, &["rev-parse", "--abbrev-ref", "HEAD"])
+                .unwrap()
+                .trim(),
             "main"
         );
     }
@@ -1182,14 +1187,19 @@ mod tests {
         let argv = std::fs::read_to_string(&fx.argv).unwrap_or_default();
         assert!(!argv.contains("pr create") && !argv.contains("pr edit"));
         let remote =
-            dx_test_scratch::git(&fx.origin, &fx.origin, &["branch", "--list", "dx-update/*"]).unwrap();
+            dx_test_scratch::git(&fx.origin, &fx.origin, &["branch", "--list", "dx-update/*"])
+                .unwrap();
         assert!(remote.trim().is_empty(), "{:?}", remote.trim());
         assert_eq!(
-            dx_test_scratch::git(&fx.work, &fx.work, &["status", "--porcelain"]).unwrap().trim(),
+            dx_test_scratch::git(&fx.work, &fx.work, &["status", "--porcelain"])
+                .unwrap()
+                .trim(),
             ""
         );
         assert_eq!(
-            dx_test_scratch::git(&fx.work, &fx.work, &["rev-parse", "--abbrev-ref", "HEAD"]).unwrap().trim(),
+            dx_test_scratch::git(&fx.work, &fx.work, &["rev-parse", "--abbrev-ref", "HEAD"])
+                .unwrap()
+                .trim(),
             "main"
         );
     }
@@ -1285,13 +1295,15 @@ mod tests {
             &fx.work,
             &fx.work,
             &["commit", "-q", "--allow-empty", "-m", "moved"],
-        ).unwrap();
+        )
+        .unwrap();
         dx_test_scratch::git(&fx.work, &fx.work, &["push", "-q", "origin", "main"]).unwrap();
         let second = publish_once(&mut step);
         assert_eq!(second[0].result, Ok("updated #7".into()));
         let main = dx_test_scratch::git(&fx.work, &fx.work, &["rev-parse", "main"]).unwrap();
         let parent =
-            dx_test_scratch::git(&fx.origin, &fx.origin, &["rev-parse", "dx-update/cargo^"]).unwrap();
+            dx_test_scratch::git(&fx.origin, &fx.origin, &["rev-parse", "dx-update/cargo^"])
+                .unwrap();
         assert_eq!(parent.trim(), main.trim());
         let argv = std::fs::read_to_string(&fx.argv).expect("argv");
         assert_eq!(argv.matches("pr edit").count(), 2);
@@ -1312,7 +1324,8 @@ mod tests {
             &fx.origin,
             &fx.origin,
             &["rev-parse", "--verify", "dx-update/cargo"],
-        ).unwrap();
+        )
+        .unwrap();
         assert!(!pushed.trim().is_empty(), "expected non-empty");
     }
 
@@ -1381,12 +1394,14 @@ mod tests {
             &harness.temp,
             &harness.temp,
             &["init", "-q", "--bare", "-b", "main", "origin.git"],
-        ).unwrap();
+        )
+        .unwrap();
         dx_test_scratch::git(
             root,
             root,
             &["remote", "add", "origin", origin.to_str().expect("utf8")],
-        ).unwrap();
+        )
+        .unwrap();
         dx_test_scratch::git(root, root, &["push", "-q", "origin", "main"]).unwrap();
         let mut words = vec!["update".to_owned(), "--pr".to_owned()];
         if json {
@@ -1472,12 +1487,14 @@ mod tests {
             &harness.temp,
             &harness.temp,
             &["init", "-q", "--bare", "-b", "main", "origin.git"],
-        ).unwrap();
+        )
+        .unwrap();
         dx_test_scratch::git(
             root,
             root,
             &["remote", "add", "origin", origin.to_str().expect("utf8")],
-        ).unwrap();
+        )
+        .unwrap();
         dx_test_scratch::git(root, root, &["push", "-q", "origin", "main"]).unwrap();
         let words = ["update".to_owned(), "--pr".to_owned()];
         let inv = dx_plan::args::parse(&words).expect("parse");
@@ -1633,7 +1650,9 @@ mod tests {
         let remote = dx_test_scratch::git(&fx.origin, &fx.origin, &["branch", "--list"]).unwrap();
         assert!(!remote.contains("github-actions"));
         assert_eq!(
-            dx_test_scratch::git(&fx.work, &fx.work, &["rev-parse", "--abbrev-ref", "HEAD"]).unwrap().trim(),
+            dx_test_scratch::git(&fx.work, &fx.work, &["rev-parse", "--abbrev-ref", "HEAD"])
+                .unwrap()
+                .trim(),
             "main"
         );
         let mut out = Vec::new();

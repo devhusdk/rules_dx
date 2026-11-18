@@ -1807,7 +1807,10 @@ impl Case {
     /// Panics when the operation fails.
     #[must_use]
     #[track_caller]
-    #[expect(clippy::expect_used, reason = "test helper: a failed setup fails the test")]
+    #[expect(
+        clippy::expect_used,
+        reason = "test helper: a failed setup fails the test"
+    )]
     pub fn refetched_after_restart(&self, args: &[&str], log: &str) -> Vec<String> {
         self.shutdown_server();
         let tmpdir = PathBuf::from(std::env::var_os("TEST_TMPDIR").expect("TEST_TMPDIR"));

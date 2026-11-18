@@ -29,7 +29,8 @@ fn list_holds_the_review_prefixes() {
 
 #[test]
 fn every_workflow_prefix_names_a_parsed_workflow() {
-    let workflows: Vec<String> = ci_workflow::all().unwrap()
+    let workflows: Vec<String> = ci_workflow::all()
+        .unwrap()
         .into_iter()
         .map(|(path, _)| path)
         .collect();

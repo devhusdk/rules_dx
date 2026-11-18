@@ -56,7 +56,8 @@ fn a_function_carries_its_signature_docs_and_source() {
     let two = symbol(
         &shard,
         &format!("{SHAPES}Circle.scale~28Double~2CDouble~29"),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(one.signature_text, "def scale(factor: Double): Circle");
     assert_eq!(one.doc_markdown, "Scales the radius by one factor.");
     assert_eq!(one.params.len(), 1);

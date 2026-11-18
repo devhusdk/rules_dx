@@ -88,7 +88,8 @@ impl Fixture {
                 dir.path(),
                 dir.path(),
                 &["init", "-q", "--bare", remote.to_str().expect("utf8")],
-            ).unwrap();
+            )
+            .unwrap();
         }
         Self {
             dir,
@@ -113,12 +114,14 @@ impl Fixture {
                 &self.repo,
                 &self.repo,
                 &["ls-remote", self.canonical.to_str().expect("utf8")],
-            ).unwrap(),
+            )
+            .unwrap(),
             dx_test_scratch::git(
                 &self.repo,
                 &self.repo,
                 &["ls-remote", self.foreign.to_str().expect("utf8")],
-            ).unwrap(),
+            )
+            .unwrap(),
         )
     }
 
@@ -140,7 +143,8 @@ impl Fixture {
                 remote.to_str().expect("utf8"),
                 &format!("refs/tags/{TAG}"),
             ],
-        ).unwrap();
+        )
+        .unwrap();
     }
 
     fn advance(&self) -> String {
@@ -227,7 +231,8 @@ fn archive_members_equal_the_commit_tree() {
         &fixture.repo,
         &fixture.repo,
         &["ls-tree", "-r", "--name-only", &fixture.head],
-    ).unwrap();
+    )
+    .unwrap();
     let mut want: Vec<String> = tree
         .lines()
         .map(|path| format!("rules_dx-{VERSION}/{path}"))
@@ -268,7 +273,8 @@ fn archive_applies_checkout_attributes_only_where_they_change_bytes() {
         &fixture.repo,
         &fixture.repo,
         &["commit", "-q", "-m", "attrs"],
-    ).unwrap();
+    )
+    .unwrap();
     let head = dx_test_scratch::git(&fixture.repo, &fixture.repo, &["rev-parse", "HEAD"]).unwrap();
     let candidate = Candidate::new(VERSION, &head).expect("candidate");
     let archive = fixture.path("attrs.tar.gz");
@@ -278,7 +284,8 @@ fn archive_applies_checkout_attributes_only_where_they_change_bytes() {
         dx_deploy_tools::archive_read_member(&archive, &format!("rules_dx-{VERSION}/{name}"))
             .expect(name)
     };
-    let blob = dx_test_scratch::git(&fixture.repo, &fixture.repo, &["rev-parse", "HEAD:v.id"]).unwrap();
+    let blob =
+        dx_test_scratch::git(&fixture.repo, &fixture.repo, &["rev-parse", "HEAD:v.id"]).unwrap();
     assert_eq!(
         member("v.id"),
         format!("$Id: {} $\n", blob.trim()).into_bytes()
@@ -387,7 +394,8 @@ fn pins_need_a_pins_file_in_the_commit() {
         &fixture.repo,
         &fixture.repo,
         &["commit", "-q", "-m", "no pins"],
-    ).unwrap();
+    )
+    .unwrap();
     let head = dx_test_scratch::git(&fixture.repo, &fixture.repo, &["rev-parse", "HEAD"]).unwrap();
     let candidate = Candidate::new(VERSION, &head).expect("candidate");
     let dst = fixture.path("none.tar.gz");
@@ -544,7 +552,8 @@ fn archive_rejects_symlinks() {
         &fixture.repo,
         &fixture.repo,
         &["commit", "-q", "-m", "link"],
-    ).unwrap();
+    )
+    .unwrap();
     let head = dx_test_scratch::git(&fixture.repo, &fixture.repo, &["rev-parse", "HEAD"]).unwrap();
     let candidate = Candidate::new(VERSION, &head).expect("candidate");
     let error = build_source_archive(
@@ -657,7 +666,8 @@ fn tag_annotated_is_peeled_through_ls_remote() {
         &fixture.repo,
         &fixture.repo,
         &["tag", "-a", "-m", "candidate", TAG],
-    ).unwrap();
+    )
+    .unwrap();
     fixture.push_tag(&fixture.canonical);
     let before = fixture.refs();
     let object = dx_test_scratch::git(&fixture.repo, &fixture.repo, &["rev-parse", TAG]).unwrap();
@@ -688,7 +698,8 @@ fn tag_moved_to_another_commit_points_elsewhere() {
         &fixture.repo,
         &fixture.repo,
         &["tag", "-a", "-m", "old", TAG],
-    ).unwrap();
+    )
+    .unwrap();
     fixture.push_tag(&fixture.canonical);
     let newer = fixture.advance();
     let before = fixture.refs();

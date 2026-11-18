@@ -1065,7 +1065,8 @@ mod tests {
             root,
             "tools/helper.bzl",
             "load(\"//lib:deep.bzl\", \"d\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         write(root, "lib/shared.bzl", "S = 1\n").unwrap();
         write(root, "lib/own.bzl", "O = 1\n").unwrap();
         write(root, "lib/deep.bzl", "D = 1\n").unwrap();
@@ -1100,12 +1101,14 @@ mod tests {
             root,
             "MODULE.bazel",
             "module(name = \"demo\")\ninclude(\"//deps:go.MODULE.bazel\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         write(
             root,
             "deps/go.MODULE.bazel",
             "go = use_extension(\"//deps:go.bzl\", \"go\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         write(root, "deps/go.bzl", "G = 1\n").unwrap();
         assert_eq!(
             impact(root, &["deps/go.bzl"], &[]),
@@ -1141,7 +1144,8 @@ mod tests {
             root,
             "MODULE.bazel",
             "module(name = \"demo\")\nx = use_extension(\"//tools:ext.bzl\", \"x\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         write(root, "tools/ext.bzl", "load(\":a.bzl\"\n").unwrap();
         let changed = ["tools/a.bzl".to_owned()];
         let error = bzl_impact(root, &changed, &[]).expect_err("parse error");
@@ -1276,7 +1280,8 @@ mod tests {
             root,
             "MODULE.bazel",
             "include(\"//deps:gone.MODULE.bazel\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         let error = module_inputs(root).expect_err("missing include");
         assert_eq!(
             error.message(),
@@ -1334,7 +1339,8 @@ mod tests {
             root,
             "app/BUILD.bazel",
             "load(\"//tools:sub/a.bzl\", \"a\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(
             impact(root, &["tools/helper.bzl", "tools/sub/helper.bzl"], &[]),
             [
@@ -1355,14 +1361,16 @@ mod tests {
             root,
             "node_modules/x/BUILD.bazel",
             "load(\"//:defs.bzl\", \"d\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         write(root, "real/BUILD.bazel", "load(\"//:defs.bzl\", \"d\")\n").unwrap();
         write(root, "nested/MODULE.bazel", "module(name = \"nested\")\n").unwrap();
         write(
             root,
             "nested/BUILD.bazel",
             "load(\"@demo//:defs.bzl\", \"d\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         #[cfg(unix)]
         std::os::unix::fs::symlink(root.join("real"), root.join("bazel-out")).expect("symlink");
         assert_eq!(
@@ -1380,12 +1388,14 @@ mod tests {
             root,
             ".bazelrc",
             "import %workspace%/tools/preset.bazelrc\ntry-import %workspace%/missing.bazelrc\n",
-        ).unwrap();
+        )
+        .unwrap();
         write(
             root,
             "tools/preset.bazelrc",
             "build --aspects=//rc:aspect.bzl%rc_aspect,@rules_x//:x.bzl%x # lint\n",
-        ).unwrap();
+        )
+        .unwrap();
         write(root, "rc/aspect.bzl", "load(\":rc_helper.bzl\", \"h\")\n").unwrap();
         write(root, "rc/rc_helper.bzl", "H = 1\n").unwrap();
         write(root, "core/quality/aspects.bzl", "A = 1\n").unwrap();
@@ -1422,7 +1432,8 @@ mod tests {
             root,
             "app/BUILD.bazel",
             "load(\"//rules:app.bzl\", \"a\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         write(root, "rules/app.bzl", "A = 1\n").unwrap();
         assert_eq!(
             impact(
@@ -1452,7 +1463,8 @@ mod tests {
             root,
             "MODULE.bazel",
             "module(name = \"demo\")\nregister_toolchains(\"//tc:all\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         write(
             root,
             "tc/BUILD.bazel",
@@ -1464,19 +1476,22 @@ mod tests {
             root,
             "m/repos.bzl",
             "HUB = \"hub\"\nTEXT = str(Label(\":tool.bzl\"))\n",
-        ).unwrap();
+        )
+        .unwrap();
         write(root, "m/tool.bzl", "T = 1\n").unwrap();
         write(
             root,
             "m/BUILD.bazel",
             "load(\":repos.bzl\", \"HUB\")\nload(\":tool.bzl\", \"T\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         write(root, "m/other.bzl", "O = 1\n").unwrap();
         write(
             root,
             "m/user/BUILD.bazel",
             "load(\"//m:other.bzl\", \"O\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(
             impact(root, &["impl/b.bzl", "m/tool.bzl", "m/other.bzl"], &[]),
             [
@@ -1495,12 +1510,14 @@ mod tests {
             root,
             "MODULE.bazel",
             "module(name = \"demo\")\ninclude(\"//deps:tc.MODULE.bazel\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         write(
             root,
             "deps/tc.MODULE.bazel",
             "register_toolchains(\"//tcs/...\", \"@other//:all\", \"-//tcs/skip:all\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         write(root, ".bazelignore", "tcs/ignored\n").unwrap();
         write(root, "tcs/a/BUILD.bazel", "load(\"//lib:a.bzl\", \"a\")\n").unwrap();
         write(root, "tcs/a/b/BUILD", "load(\"//lib:b.bzl\", \"b\")\n").unwrap();
@@ -1508,7 +1525,8 @@ mod tests {
             root,
             "tcs/ignored/BUILD.bazel",
             "load(\"//lib:ignored.bzl\", \"i\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         write(root, "tcsx/BUILD.bazel", "load(\"//lib:x.bzl\", \"x\")\n").unwrap();
         write(root, "lib/a.bzl", "A = 1\n").unwrap();
         write(root, "lib/b.bzl", "B = 1\n").unwrap();
@@ -1538,7 +1556,8 @@ mod tests {
             root,
             ".bazelrc",
             "import %workspace%/tools/preset.bazelrc\n",
-        ).unwrap();
+        )
+        .unwrap();
         write(
             root,
             "tools/preset.bazelrc",
@@ -1548,13 +1567,15 @@ mod tests {
             root,
             "plat/BUILD.bazel",
             "load(\"//lib:plat.bzl\", \"p\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         write(root, "tc/BUILD.bazel", "load(\"//lib:tc.bzl\", \"t\")\n").unwrap();
         write(
             root,
             "host/BUILD.bazel",
             "load(\"//lib:host.bzl\", \"h\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         write(root, "app/BUILD.bazel", "load(\"//lib:app.bzl\", \"a\")\n").unwrap();
         write(root, "lib/plat.bzl", "P = 1\n").unwrap();
         write(root, "lib/tc.bzl", "T = 1\n").unwrap();
@@ -1589,7 +1610,8 @@ mod tests {
                 root,
                 "MODULE.bazel",
                 &format!("module(name = \"demo\")\n{call}\n"),
-            ).unwrap();
+            )
+            .unwrap();
             let error = bzl_impact(root, &changed, &[]).expect_err("computed pattern");
             let name = call.split('(').next().unwrap_or_default();
             assert!(
@@ -1610,7 +1632,8 @@ mod tests {
             root,
             "app/BUILD.bazel",
             "load(\"//tools:gone.bzl\", \"g\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(
             impact(root, &["tools/gone.bzl"], &[]),
             [packages("tools/gone.bzl", &["//app:all"])]
@@ -1619,12 +1642,14 @@ mod tests {
             root,
             "MODULE.bazel",
             "module(name = \"demo\")\nregister_toolchains(\"//tc:all\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         write(
             root,
             "tc/BUILD.bazel",
             "load(\"//tools:tc_gone.bzl\", \"t\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(
             impact(root, &["tools/gone.bzl", "tools/tc_gone.bzl"], &[]),
             [
@@ -1671,17 +1696,20 @@ mod tests {
             root,
             "lib/wrap.bzl",
             "load(\"@@leaf+//:defs.bzl\", \"x\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         write(
             root,
             "c/BUILD.bazel",
             "load(\"@leaf_extra//:defs.bzl\", \"x\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         write(
             root,
             "d/BUILD.bazel",
             "load(\"@@leaf+_x+y//:defs.bzl\", \"x\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(
             repo_effects(root, &["leaf", "leaf+", "unused"], &[]),
             [
@@ -1708,7 +1736,8 @@ mod tests {
             root,
             ".bazelrc",
             "build --platforms=@plat//:p\nbuild:ci --@flag//:f=1\n",
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(
             repo_effects(
                 root,

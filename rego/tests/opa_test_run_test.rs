@@ -5,7 +5,8 @@ use std::process::Command;
 fn run(name: &str, filter: Option<&str>) -> (i32, String) {
     let exe = std::env::var(format!("{name}_EXE")).expect("executable path");
     let key = std::env::var(format!("{name}_MANIFEST")).expect("manifest key");
-    let scratch = dx_test_scratch::scratch(&format!("opa_run_{name}_{}", filter.unwrap_or("all"))).unwrap();
+    let scratch =
+        dx_test_scratch::scratch(&format!("opa_run_{name}_{}", filter.unwrap_or("all"))).unwrap();
     let mut command = Command::new(exe);
     command.env("TEST_TMPDIR", scratch.path());
     command.env("DX_REGO_TEST_MANIFEST", key);

@@ -1685,7 +1685,8 @@ mod tests {
             &workspace,
             ".dx/bazelrc/correctness.bazelrc",
             "import \"%workspace%/.dx/bazelrc/nested.bazelrc\"\nimport %workspace%/.bazelrc\n",
-        ).unwrap();
+        )
+        .unwrap();
         write(&workspace, ".dx/bazelrc/nested.bazelrc", "build --x\n").unwrap();
         for changed in [
             ".dx/bazelrc/correctness.bazelrc",
@@ -1802,7 +1803,8 @@ mod tests {
             workspace,
             "deps/go.MODULE.bazel",
             "bazel_dep(name = \"rules_go\", version = \"0.50.0\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         for changed in ["py/requirements_linux.txt", "deps/go.MODULE.bazel"] {
             write(workspace, changed, "x\n").unwrap();
             widens_as_workspace_input(workspace, changed);
@@ -1842,7 +1844,8 @@ mod tests {
             workspace,
             &format!("a/{}", manifest_of(Ecosystem::Cargo)),
             "[package]\n",
-        ).unwrap();
+        )
+        .unwrap();
         write(workspace, "b/package-lock.json", "{}\n").unwrap();
         for (changed, owner) in [
             (format!("a/{}", manifest_of(Ecosystem::Cargo)), "//a:lib"),
@@ -1882,7 +1885,8 @@ mod tests {
             workspace,
             &format!("web/{}", lock_of(Ecosystem::Npm)),
             "x\n",
-        ).unwrap();
+        )
+        .unwrap();
         widens_as_workspace_input(workspace, &format!("web/{}", lock_of(Ecosystem::Npm)));
         write(
             workspace,
@@ -1915,7 +1919,8 @@ mod tests {
             workspace,
             "MODULE.bazel",
             "include(\"//deps:rust.MODULE.bazel\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         write(workspace, "deps/BUILD.bazel", "").unwrap();
         write(workspace, "deps/rust.MODULE.bazel", &crate_module()).unwrap();
         let (hubs, _) = module_inputs_of(workspace);
@@ -2069,12 +2074,14 @@ mod tests {
             workspace,
             ".bazelrc",
             &format!("common --repository_cache={}/cache\n", workspace.display()),
-        ).unwrap();
+        )
+        .unwrap();
         write(
             workspace,
             "d/BUILD.bazel",
             &format!("load(\"@{leaf}//:defs.bzl\", \"x\")\n"),
-        ).unwrap();
+        )
+        .unwrap();
         write(workspace, "e/BUILD.bazel", "").unwrap();
         let leaf_old = cache_put(
             workspace,
@@ -2124,7 +2131,8 @@ mod tests {
             workspace,
             "MODULE.bazel.lock",
             &lock(hashes, &update.lock_extra),
-        ).unwrap();
+        )
+        .unwrap();
         EditWorkspace {
             scratch,
             base_module: module("1.0"),
@@ -2272,7 +2280,8 @@ mod tests {
             fixture.scratch.path(),
             "MODULE.bazel.lock",
             &fixture.base_lock,
-        ).unwrap();
+        )
+        .unwrap();
         let query = FakeQuery::new(vec![FakeQuery::ok(&fixture.base_module)]);
         let selection = resolve_affected(
             &[change("MODULE.bazel", dx_adopt::ChangeKind::Modified)],
@@ -2437,7 +2446,8 @@ mod tests {
                 ),
             ]
             .concat(),
-        ).unwrap();
+        )
+        .unwrap();
         write(workspace, "BUILD.bazel", "").unwrap();
         let lock = |lodash: &str| {
             format!(
@@ -2848,7 +2858,8 @@ mod tests {
             workspace,
             "app/BUILD.bazel",
             "load(\"//tools:defs.bzl\", \"x\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         write(workspace, "app/main.py", "x = 1\n").unwrap();
         scratch
     }
@@ -2928,7 +2939,8 @@ mod tests {
             workspace,
             "app/BUILD.bazel",
             "load(\"//tools:x.scl\", \"X\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         let query = FakeQuery::new(Vec::new());
         let selection = bzl_resolve(
             workspace,
@@ -2983,7 +2995,8 @@ mod tests {
             workspace,
             "MODULE.bazel",
             "module(name = \"demo\")\nx = use_extension(\"//tools:defs.bzl\", \"x\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         let query = FakeQuery::new(vec![graph(&[])]);
         let selection = bzl_resolve(
             workspace,
@@ -3006,7 +3019,8 @@ mod tests {
             workspace,
             "MODULE.bazel",
             "module(name = \"demo\")\nx = use_extension(\"//tools:ext.bzl\", \"x\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         write(workspace, "tools/ext.bzl", "load(\":defs.bzl\", \"x\")\n").unwrap();
         let query = FakeQuery::new(vec![graph(&[])]);
         let selection = bzl_resolve(
@@ -3030,7 +3044,8 @@ mod tests {
             workspace,
             "core/quality/aspects.bzl",
             "load(\"//tools:defs.bzl\", \"x\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         let query = FakeQuery::new(vec![graph(&[])]);
         let selection = bzl_resolve(
             workspace,
@@ -3053,12 +3068,14 @@ mod tests {
             workspace,
             "MODULE.bazel",
             "module(name = \"demo\")\nregister_toolchains(\"//tools/tc:all\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         write(
             workspace,
             "tools/tc/BUILD.bazel",
             "load(\"//tools:defs.bzl\", \"x\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         let query = FakeQuery::new(vec![graph(&[])]);
         let selection = bzl_resolve(
             workspace,
@@ -3165,7 +3182,8 @@ mod tests {
             workspace,
             "lib/BUILD.bazel",
             "load(\"//tools:defs.bzl\", \"x\")\nload(\"//tools:more.bzl\", \"y\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         let query = FakeQuery::new(vec![graph(&[("//app:bin", &["//app:main.py"])])]);
         let selection = bzl_resolve(
             workspace,
@@ -3506,7 +3524,8 @@ mod tests {
             &workspace,
             "MODULE.bazel",
             "local_path_override(module_name = \"x\", path = \"third_party/x\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         let changes =
             local_override_changes(Path::new("/hermetic/git"), &workspace, &NeverQuery, "base")
                 .expect("no overrides");
@@ -3550,7 +3569,8 @@ mod tests {
             &workspace,
             "MODULE.bazel",
             "local_path_override(module_name = \"lib\", path = \"..\\\\lib\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         let query = FakeQuery::new(vec![
             FakeQuery::raw(b"sub/\n".to_vec()),
             FakeQuery::raw(b"lib/x.rs\0".to_vec()),
@@ -3572,7 +3592,8 @@ mod tests {
             &workspace,
             "MODULE.bazel",
             "local_path_override(module_name = \"lib\", path = \"../lib\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         let query = FakeQuery::new(vec![
             FakeQuery::raw(b"sub/\n".to_vec()),
             FakeQuery::raw(b"lib/x.rs\0".to_vec()),
@@ -3591,7 +3612,8 @@ mod tests {
             &workspace,
             "MODULE.bazel",
             "local_path_override(module_name = \"up\", path = \"../../a\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         let query = FakeQuery::new(vec![
             FakeQuery::raw(b"a/b/\n".to_vec()),
             FakeQuery::raw(b"a/x.rs\0".to_vec()),
@@ -3610,7 +3632,8 @@ mod tests {
             &workspace,
             "MODULE.bazel",
             "local_path_override(module_name = \"lib\", path = \"../lib\")\n",
-        ).unwrap();
+        )
+        .unwrap();
         let query = FakeQuery::new(vec![FakeQuery::raw(b"\n".to_vec())]);
         let changes =
             local_override_changes(Path::new("/hermetic/git"), &workspace, &query, "base")

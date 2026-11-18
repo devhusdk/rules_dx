@@ -114,7 +114,8 @@ mod tests {
         }
         assert_eq!(parsed[0], parsed[1]);
         assert_eq!(parsed[0], parsed[2]);
-        let workspace = dx_test_scratch::scratch("dx-resolve-test-query-order-").unwrap()
+        let workspace = dx_test_scratch::scratch("dx-resolve-test-query-order-")
+            .unwrap()
             .path()
             .to_path_buf();
         let mut argvs = Vec::new();

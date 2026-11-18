@@ -89,7 +89,8 @@ fn removing_a_tool_deletes_its_base() {
         dir.path(),
         "dx.toml",
         "schema_version = 1\n[families.python]\ndisabled = true\n",
-    ).unwrap();
+    )
+    .unwrap();
     let mut count = 0;
     let report = run(dir.path(), Mode::Fast, &mut count);
     assert_eq!(count, 1);
@@ -108,7 +109,8 @@ fn editing_dx_toml_rerenders() {
         dir.path(),
         "dx.toml",
         "schema_version = 1\ntier = \"strict\"\n",
-    ).unwrap();
+    )
+    .unwrap();
     let mut count = 0;
     let report = run(dir.path(), Mode::Fast, &mut count);
     assert_eq!(count, 1);
@@ -141,14 +143,16 @@ fn an_override_copy_rebinds_hlint() {
         dir.path(),
         "dx.toml",
         "schema_version = 1\n[families.haskell]\nlint = [\"hlint\"]\n",
-    ).unwrap();
+    )
+    .unwrap();
     haskell(dir.path(), &mut 0);
     assert!(!read(dir.path(), ".dx/BUILD.bazel").contains("hlint_config("));
     write(
         dir.path(),
         ".hlint.yaml",
         "# dx: override of base abc\n- warn: {name: x}\n",
-    ).unwrap();
+    )
+    .unwrap();
     let mut count = 0;
     haskell(dir.path(), &mut count);
     assert_eq!(count, 1);
@@ -197,19 +201,22 @@ fn a_referenced_dx_file_dx_does_not_render_is_kept_with_a_warning() {
         root,
         ".dx/config/eslint/extra.mjs",
         "import \"./frameworks.mjs\";\n",
-    ).unwrap();
+    )
+    .unwrap();
     write(root, ".dx/config/eslint/frameworks.mjs", "x").unwrap();
     write(root, ".dx/config/eslint/standard.mjs", "x").unwrap();
     write(
         root,
         "eslint.config.mjs",
         "export { default } from \"./.dx/config/eslint/extra.mjs\";\n",
-    ).unwrap();
+    )
+    .unwrap();
     write(
         root,
         "tsconfig.json",
         "{ \"extends\": \"./.dx/config/tsconfig/base.json\" }\n",
-    ).unwrap();
+    )
+    .unwrap();
     let report = run(root, Mode::Fast, &mut 0);
     assert_eq!(
         report.warnings,
@@ -268,7 +275,8 @@ fn a_new_file_under_the_vale_styles_rerenders() {
         dir.path(),
         "dx.toml",
         "schema_version = 1\n[families.markdown]\nlint = [\"vale\"]\n",
-    ).unwrap();
+    )
+    .unwrap();
     write(dir.path(), ".vale.ini", "StylesPath = styles\n").unwrap();
     write(dir.path(), "styles/a.yml", "x").unwrap();
     markdown(dir.path(), &mut 0);
@@ -311,7 +319,8 @@ fn removing_a_user_export_rerenders() {
         dir.path(),
         "BUILD.bazel",
         "exports_files([\"ruff.toml\"])\n",
-    ).unwrap();
+    )
+    .unwrap();
     let report = run(dir.path(), Mode::Fast, &mut 0);
     assert!(
         !report.written.iter().any(|path| path == "BUILD.bazel"),

@@ -78,7 +78,8 @@ fn check_uses(value: &str, workflow: &str) -> Result<String, String> {
 }
 
 fn pinned_commit(caller: &str, workflow: &str) -> String {
-    let line = ci_workflow::jobs(caller).unwrap()
+    let line = ci_workflow::jobs(caller)
+        .unwrap()
         .into_iter()
         .find_map(|(_, job)| job["uses"].as_str().map(str::to_owned))
         .unwrap_or_else(|| panic!("{caller} has no job with uses:"));

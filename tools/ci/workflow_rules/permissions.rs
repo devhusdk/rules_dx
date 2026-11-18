@@ -126,7 +126,8 @@ fn every_workflow_sets_top_level_permissions() {
 
 #[test]
 fn every_write_scope_has_a_step_that_uses_it() {
-    let problems: Vec<String> = ci_workflow::all().unwrap()
+    let problems: Vec<String> = ci_workflow::all()
+        .unwrap()
         .iter()
         .flat_map(|(name, workflow)| unused_write_scopes(name, workflow))
         .collect();
@@ -258,7 +259,8 @@ fn calling_jobs_grant_every_scope_the_called_workflow_requests() {
 
 #[test]
 fn gate_job_checks_evidence_statuses_with_read_only_statuses_scope() {
-    let (_, ci) = ci_workflow::all().unwrap()
+    let (_, ci) = ci_workflow::all()
+        .unwrap()
         .into_iter()
         .find(|(name, _)| name.ends_with("/ci.yml"))
         .expect("ci.yml");

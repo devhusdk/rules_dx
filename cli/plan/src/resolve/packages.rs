@@ -143,7 +143,8 @@ mod tests {
             &workspace,
             "pkg/BUILD.bazel",
             "this is not valid starlark ((((",
-        ).unwrap();
+        )
+        .unwrap();
         write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
         let mut cache = PackageCache::default();
         assert_eq!(

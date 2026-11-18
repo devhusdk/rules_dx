@@ -204,7 +204,8 @@ build: ["dune" "build"]
                 dir.path(),
                 &format!("packages/{package}/opam"),
                 "opam-version: \"2.0\"\n",
-            ).unwrap();
+            )
+            .unwrap();
         }
         dir
     }

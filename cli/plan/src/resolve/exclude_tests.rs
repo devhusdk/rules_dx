@@ -129,13 +129,15 @@ fn load_reads_dx_toml_and_rejects_a_bad_pattern() {
         root,
         "dx.toml",
         "schema_version = 1\n[scope]\nexclude = [\"//third_party/...\"]\n",
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(load(root).expect("load"), strings(&["//third_party/..."]));
     write(
         root,
         "dx.toml",
         "schema_version = 1\n[scope]\nexclude = [\"third_party\"]\n",
-    ).unwrap();
+    )
+    .unwrap();
     let err = load(root).expect_err("bad pattern");
     assert!(
         matches!(&err, ResolveError::Config { message } if message.contains("third_party")),
@@ -152,7 +154,8 @@ fn resolve_applies_dx_toml_excludes_for_every_entry_point() {
         root,
         "dx.toml",
         "schema_version = 1\n[scope]\nexclude = [\"//third_party/...\"]\n",
-    ).unwrap();
+    )
+    .unwrap();
     let query = super::super::NeverQuery;
     let whole = super::super::resolve(&[], root, &query, &[]).expect("resolve");
     assert_eq!(whole.targets, strings(&["//..."]));

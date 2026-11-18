@@ -83,7 +83,8 @@ fn the_binary_runs_bazel_without_a_shell() {
         &bin,
         "bazel",
         "#!/bin/sh\nfor arg in \"$@\"; do printf '%s\\n' \"$arg\"; done > \"$DX_ARGV_LOG\"\n",
-    ).unwrap();
+    )
+    .unwrap();
     std::fs::set_permissions(bin.join("bazel"), std::fs::Permissions::from_mode(0o755)).unwrap();
     let log = scratch.path().join("argv.log");
     let path = format!(

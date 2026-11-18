@@ -201,7 +201,8 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
             "--initial-branch=main",
             origin.to_str().expect("utf8"),
         ],
-    ).unwrap();
+    )
+    .unwrap();
     dx_test_scratch::git(&root, &root, &["init", "--quiet", "--initial-branch=main"]).unwrap();
     write(
         &root.join("MODULE.bazel"),
@@ -215,7 +216,8 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
         &root,
         &root,
         &["remote", "add", "origin", origin.to_str().expect("utf8")],
-    ).unwrap();
+    )
+    .unwrap();
     dx_test_scratch::git(&root, &root, &["push", "--quiet", "-u", "origin", "main"]).unwrap();
 
     let launcher = root.join("tools/dx");
@@ -416,7 +418,8 @@ fn hook_repo(name: &str) -> (TempDir, PathBuf, Env) {
             "--initial-branch=main",
             origin.to_str().expect("utf8"),
         ],
-    ).unwrap();
+    )
+    .unwrap();
     dx_test_scratch::git(&root, &root, &["init", "--quiet", "--initial-branch=main"]).unwrap();
     write(&root.join("MODULE.bazel"), "module(name = \"consumer\")\n");
     dx_test_scratch::git(&root, &root, &["add", "."]).unwrap();
@@ -425,7 +428,8 @@ fn hook_repo(name: &str) -> (TempDir, PathBuf, Env) {
         &root,
         &root,
         &["remote", "add", "origin", origin.to_str().expect("utf8")],
-    ).unwrap();
+    )
+    .unwrap();
     dx_test_scratch::git(&root, &root, &["push", "--quiet", "-u", "origin", "main"]).unwrap();
     (guard, root, env)
 }

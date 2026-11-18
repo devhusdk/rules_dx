@@ -20,7 +20,8 @@ const JOB: &str = "checks";
 const UNREPORTED: &[&str] = &["security-audit"];
 
 fn uploads(name: &str) -> Vec<(usize, Value)> {
-    steps(WORKFLOW, name).unwrap()
+    steps(WORKFLOW, name)
+        .unwrap()
         .into_iter()
         .enumerate()
         .filter(|(_, step)| {
@@ -47,7 +48,8 @@ fn upload_of(id: &str) -> (usize, Value) {
 
 #[test]
 fn the_run_step_writes_every_report_under_its_check_directory() {
-    let run = steps(WORKFLOW, JOB).unwrap()
+    let run = steps(WORKFLOW, JOB)
+        .unwrap()
         .iter()
         .filter_map(|step| step["run"].as_str())
         .find(|run| run.contains("@rules_dx//:dx -- \"${args[@]}\""))

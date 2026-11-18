@@ -1041,7 +1041,8 @@ mod tests {
             root,
             root,
             &["commit", "--quiet", "--allow-empty", "-m", subject],
-        ).unwrap();
+        )
+        .unwrap();
         dir
     }
 
@@ -1341,7 +1342,8 @@ mod tests {
             root,
             "dx.toml",
             "schema_version = 1\n[scope]\nexclude = [\"//a/...\"]\n",
-        ).unwrap();
+        )
+        .unwrap();
         write(root, "a/BUILD.bazel", "").unwrap();
         write(root, "a/a.txt", "a\n").unwrap();
         dx_test_scratch::git(root, root, &["add", "."]).unwrap();
@@ -1541,7 +1543,8 @@ mod tests {
             dir.path(),
             dir.path(),
             &["init", "--quiet", "--initial-branch=dev"],
-        ).unwrap();
+        )
+        .unwrap();
         write(dir.path(), "x", "x").unwrap();
         dx_test_scratch::git(dir.path(), dir.path(), &["add", "."]).unwrap();
         dx_test_scratch::git(dir.path(), dir.path(), &["commit", "--quiet", "-m", "x"]).unwrap();
@@ -1560,7 +1563,8 @@ mod tests {
             root,
             root,
             &["update-ref", "refs/remotes/origin/main", "HEAD"],
-        ).unwrap();
+        )
+        .unwrap();
         dx_test_scratch::git(
             root,
             root,
@@ -1569,7 +1573,8 @@ mod tests {
                 "refs/remotes/origin/HEAD",
                 "refs/remotes/origin/master",
             ],
-        ).unwrap();
+        )
+        .unwrap();
         let runner = GitRunner::new(&[]);
         let Ok((branch, _)) = named_base(root, &runner, None) else {
             panic!("expected a base");
@@ -1584,7 +1589,8 @@ mod tests {
             dir.path(),
             dir.path(),
             &["init", "--quiet", "--initial-branch=dev"],
-        ).unwrap();
+        )
+        .unwrap();
         write(dir.path(), "x", "x").unwrap();
         dx_test_scratch::git(dir.path(), dir.path(), &["add", "."]).unwrap();
         dx_test_scratch::git(dir.path(), dir.path(), &["commit", "--quiet", "-m", "x"]).unwrap();
@@ -1602,7 +1608,8 @@ mod tests {
             dir.path(),
             dir.path(),
             &["init", "--quiet", "--initial-branch=dev"],
-        ).unwrap();
+        )
+        .unwrap();
         write(dir.path(), "x", "x").unwrap();
         dx_test_scratch::git(dir.path(), dir.path(), &["add", "."]).unwrap();
         dx_test_scratch::git(dir.path(), dir.path(), &["commit", "--quiet", "-m", "x"]).unwrap();

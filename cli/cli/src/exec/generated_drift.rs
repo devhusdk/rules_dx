@@ -132,7 +132,8 @@ mod tests {
             root,
             root,
             &["add", ".dx", "MODULE.bazel", "dx.toml", "pkg"],
-        ).unwrap();
+        )
+        .unwrap();
         dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "base"]).unwrap();
         scratch
     }

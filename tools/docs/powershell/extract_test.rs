@@ -132,7 +132,10 @@ fn a_function_without_help_is_marked_incomplete() {
     );
     assert_eq!(remove.doc_markdown, "");
     assert_eq!(remove.returns, None);
-    assert_eq!(extension(remove, "powershell.incomplete").unwrap(), Some("help"));
+    assert_eq!(
+        extension(remove, "powershell.incomplete").unwrap(),
+        Some("help")
+    );
 }
 
 #[test]
@@ -204,11 +207,14 @@ fn the_tally_shard_uses_literal_exports_and_its_own_config() {
         "Add-Tally [[-Name] <string>] [[-Count] <int>]"
     );
     assert_eq!(add.examples, ["Add-Tally -Name votes -Count 2"]);
-    let tally_config = extension(add, "powershell.config").unwrap().expect("tally config");
+    let tally_config = extension(add, "powershell.config")
+        .unwrap()
+        .expect("tally config");
     assert_config(tally_config, "", "");
     let shard = ledger();
-    let ledger_config =
-        extension(symbol(&shard, "Add-LedgerEntry"), "powershell.config").unwrap().expect("ledger config");
+    let ledger_config = extension(symbol(&shard, "Add-LedgerEntry"), "powershell.config")
+        .unwrap()
+        .expect("ledger config");
     assert_config(ledger_config, &format!("{LEDGER_DIR}/Ledger.psd1"), "1.4.0");
     assert_ne!(tally_config, ledger_config);
 }

@@ -776,7 +776,8 @@ fn settings_workspace(
     pyproject: &str,
     config: Option<&str>,
 ) -> dx_test_scratch::TempDir {
-    let scratch = dx_test_scratch::scratch(&format!("dx-dependency-sets-settings-{name}-")).unwrap();
+    let scratch =
+        dx_test_scratch::scratch(&format!("dx-dependency-sets-settings-{name}-")).unwrap();
     let workspace = scratch.path().to_path_buf();
     std::fs::create_dir_all(workspace.join("apps/frontend")).expect("mkdir");
     std::fs::write(workspace.join("apps/frontend/pyproject.toml"), pyproject).expect("pyproject");

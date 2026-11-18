@@ -64,7 +64,8 @@ fn pull_request_uses_the_first_parent() {
         &r.path,
         &r.path,
         &["merge", "-q", "--no-ff", "-m", "m", "other"],
-    ).unwrap();
+    )
+    .unwrap();
     let (done, base) = run(&r, "pull_request", "", "");
     assert!(done.status.success(), "{}", stderr(&done));
     assert_eq!(base, r.c);

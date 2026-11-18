@@ -10,8 +10,8 @@ use documentation_ir::proto::{DocIr, Symbol};
 /// Fails when the shard cannot be read or decoded.
 pub fn shard(var: &str) -> Result<DocIr, String> {
     let path = dx_testing::env_file(var);
-    let bytes =
-        std::fs::read(&path).map_err(|error| format!("read the shard {}: {error}", path.display()))?;
+    let bytes = std::fs::read(&path)
+        .map_err(|error| format!("read the shard {}: {error}", path.display()))?;
     decode_shard(&bytes).map_err(|error| format!("decode the shard {}: {error:?}", path.display()))
 }
 

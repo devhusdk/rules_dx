@@ -215,7 +215,8 @@ fn rejects_bad_relocate() {
 #[test]
 fn the_workflow_runner_map_matches_platforms() {
     let document = ci_workflow::document(WORKFLOW).unwrap();
-    let runs_on = ci_workflow::text_at(&document["jobs"]["evidence"]["runs-on"], "evidence runs-on").unwrap();
+    let runs_on =
+        ci_workflow::text_at(&document["jobs"]["evidence"]["runs-on"], "evidence runs-on").unwrap();
     let map = runs_on
         .strip_prefix("${{ fromJSON('")
         .and_then(|rest| rest.split_once("')"))
@@ -257,7 +258,9 @@ fn the_workflow_validates_with_producers_bin_after_setting_up_bazel() {
         .expect("evidence.yml validates its inputs");
     let run = steps[validate]["run"].as_str().unwrap_or_default();
     assert!(
-        run.contains("bazel run --noshow_progress //tools/ci/producers:producers_bin -- --evidence-inputs"),
+        run.contains(
+            "bazel run --noshow_progress //tools/ci/producers:producers_bin -- --evidence-inputs"
+        ),
         "{run}"
     );
     assert_eq!(validate, setup + 1);

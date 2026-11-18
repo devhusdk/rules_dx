@@ -1917,7 +1917,8 @@ fn a_stop_seen_after_registering_sends_one_sigint() {
         }
         dx_test_scratch::eventually("sigint log", Duration::from_secs(10), || {
             log.exists().then_some(())
-        }).unwrap();
+        })
+        .unwrap();
         Some(2)
     };
     assert_eq!(

@@ -198,7 +198,8 @@ fn undocumented_and_untyped_members_are_marked_incomplete() {
         extension(
             symbol(&shard, "Geometry.Circle.diameter"),
             "ruby.incomplete"
-        ).unwrap(),
+        )
+        .unwrap(),
         Some("doc;return_type")
     );
     assert_eq!(

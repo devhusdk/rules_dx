@@ -170,7 +170,8 @@ fn runs_from_the_descriptor_in_the_runfiles() {
         ("wrapped", "wrapped_upstream.launch"),
     ] {
         let scratch =
-            dx_test_scratch::scratch(&format!("exec_launcher_runfiles_descriptor_{name}_")).unwrap();
+            dx_test_scratch::scratch(&format!("exec_launcher_runfiles_descriptor_{name}_"))
+                .unwrap();
         let dir = scratch.path().join("bazel-out/cfg/bin/pkg");
         let main = dir.join(format!("{name}.runfiles/_main"));
         std::fs::create_dir_all(main.join("pkg")).unwrap();

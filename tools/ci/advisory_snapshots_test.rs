@@ -18,7 +18,8 @@ const PREP_TARGET: &str = "@rules_dx//dx/advisory_prep";
 
 /// Returns the `uses` action of every step that names one.
 fn actions(name: &str) -> Vec<String> {
-    steps(WORKFLOW, name).unwrap()
+    steps(WORKFLOW, name)
+        .unwrap()
         .iter()
         .filter_map(|step| step["uses"].as_str().map(str::to_owned))
         .collect()
@@ -103,7 +104,9 @@ fn the_preparation_runs_the_pinned_native_command_once() {
         );
     }
     assert!(
-        !scripts(WORKFLOW, PREP).unwrap().contains("osv-vulnerabilities"),
+        !scripts(WORKFLOW, PREP)
+            .unwrap()
+            .contains("osv-vulnerabilities"),
         "{WORKFLOW} job {PREP} names no advisory database URL: {}",
         scripts(WORKFLOW, PREP).unwrap()
     );
@@ -190,7 +193,9 @@ fn every_audit_cell_restores_that_artifact_instead_of_downloading() {
         "{WORKFLOW} job {AUDIT} must still audit every scope: {script}"
     );
     assert!(
-        !scripts(WORKFLOW, AUDIT).unwrap().contains("osv-vulnerabilities"),
+        !scripts(WORKFLOW, AUDIT)
+            .unwrap()
+            .contains("osv-vulnerabilities"),
         "{WORKFLOW} job {AUDIT} names no advisory database URL: {}",
         scripts(WORKFLOW, AUDIT).unwrap()
     );

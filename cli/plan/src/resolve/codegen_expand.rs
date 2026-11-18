@@ -147,7 +147,8 @@ mod tests {
 
     #[test]
     fn a_capnp_java_library_graph_expands_to_the_library_plus_the_schema() {
-        let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-capnp-java-").unwrap();
+        let scratch =
+            dx_test_scratch::scratch("dx-resolve-test-codegen-expand-capnp-java-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
             graph_rule_of_kind(

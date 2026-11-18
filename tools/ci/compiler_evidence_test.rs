@@ -43,13 +43,15 @@ fn evidence_mode_appends_a_line_per_compiler_row_from_its_environment() {
         root,
         "row_labels.json",
         &json!({"cc_a": ["//p:a1"], "other": ["//p:o"]}).to_string(),
-    ).unwrap();
+    )
+    .unwrap();
     write(root, "consumer_labels.json", "{}").unwrap();
     write(
         root,
         "logs/p/a1/test.xml",
         "<testsuites><testcase/></testsuites>",
-    ).unwrap();
+    )
+    .unwrap();
     write(root, "bin/p/a1", "not a binary").unwrap();
     write(root, "MODULE.bazel.lock", "lock\n").unwrap();
     write(root, "out.jsonl", "{\"row\":\"kept\"}\n").unwrap();

@@ -71,7 +71,9 @@ fn kinds_signatures_and_docs_match_the_sources() {
         "A small status badge."
     );
     assert_eq!(
-        symbol(&shard, "vue:ui:Button.prop_label").unwrap().doc_markdown,
+        symbol(&shard, "vue:ui:Button.prop_label")
+            .unwrap()
+            .doc_markdown,
         "Text shown inside the button."
     );
 }
@@ -110,11 +112,18 @@ fn the_configuration_variation_is_observable() {
     let ids = |s: &DocIr| s.symbols.iter().map(|x| x.id.clone()).collect::<Vec<_>>();
     assert_eq!(ids(&strict), ids(&loose));
     assert_eq!(
-        symbol(&loose, "vue:ui:Button.prop_size").unwrap().signature_text,
+        symbol(&loose, "vue:ui:Button.prop_size")
+            .unwrap()
+            .signature_text,
         "size?: number = 12"
     );
     let config = |s: &DocIr| {
-        String::from_utf8(symbol(s, "vue:ui:Button").unwrap().extensions[0].value.clone()).expect("utf8")
+        String::from_utf8(
+            symbol(s, "vue:ui:Button").unwrap().extensions[0]
+                .value
+                .clone(),
+        )
+        .expect("utf8")
     };
     assert!(
         config(&strict).starts_with("tsconfig=tsconfig.json;"),
@@ -201,7 +210,9 @@ fn the_svelte_shard_has_exact_symbols_signatures_docs_and_lines() {
     assert_eq!(sig("svelte:ui:Card.prop_title"), "title: string");
     assert_eq!(sig("svelte:ui:Card.prop_rows"), "rows?: number = 3");
     assert_eq!(
-        symbol(&shard, "svelte:ui:Card.prop_title").unwrap().doc_markdown,
+        symbol(&shard, "svelte:ui:Card.prop_title")
+            .unwrap()
+            .doc_markdown,
         "Heading of the card."
     );
     assert_eq!(
@@ -253,7 +264,9 @@ fn the_astro_shard_has_exact_symbols_signatures_docs_and_lines() {
     assert_eq!(sig("astro:ui:Hero.prop_title"), "title: string");
     assert_eq!(sig("astro:ui:Hero.prop_links"), "links?: number = 3");
     assert_eq!(
-        symbol(&shard, "astro:ui:Hero.prop_title").unwrap().doc_markdown,
+        symbol(&shard, "astro:ui:Hero.prop_title")
+            .unwrap()
+            .doc_markdown,
         "Heading of the hero."
     );
     assert_eq!(
@@ -307,7 +320,9 @@ fn the_mdx_shard_has_exact_symbols_signatures_docs_and_lines() {
         "greet: (name: string) => string"
     );
     assert_eq!(
-        symbol(&shard, "mdx:ui:Intro.exposed_greet").unwrap().doc_markdown,
+        symbol(&shard, "mdx:ui:Intro.exposed_greet")
+            .unwrap()
+            .doc_markdown,
         "Greets someone.\n\n**@param** name Who to greet.\n\n**@returns**"
     );
     for (id, needle) in [

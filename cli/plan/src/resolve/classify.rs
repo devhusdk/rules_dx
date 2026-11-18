@@ -708,7 +708,8 @@ mod tests {
             &workspace,
             "pkg/BUILD.bazel",
             "# owner: //decoy:not_real\nmy_files = glob([\"*.py\"])\n",
-        ).unwrap();
+        )
+        .unwrap();
         write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
             graph_rule("//pkg:real", &["//pkg:a.py"], &[]),

@@ -55,7 +55,8 @@ fn no_audit_step_parses_tool_paths_with_host_utilities() {
             "{WORKFLOW} job {AUDIT} must resolve tools without {absent}: {all}"
         );
     }
-    let tool_steps = steps(WORKFLOW, AUDIT).unwrap()
+    let tool_steps = steps(WORKFLOW, AUDIT)
+        .unwrap()
         .iter()
         .filter(|step| step["name"] != "Configure the remote cache credential helper")
         .filter_map(|step| step["run"].as_str().map(str::to_owned))

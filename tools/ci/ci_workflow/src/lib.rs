@@ -14,7 +14,8 @@ static NULL: Value = Value::Null;
 ///
 /// Fails when `text` is not valid YAML.
 pub fn parse(name: &str, text: &str) -> Result<Value, String> {
-    yaml_serde::from_str(text).map_err(|error| format!("{name} is not valid workflow YAML: {error}"))
+    yaml_serde::from_str(text)
+        .map_err(|error| format!("{name} is not valid workflow YAML: {error}"))
 }
 
 /// Returns the parsed workflow at `path`, which must be valid Actions YAML.

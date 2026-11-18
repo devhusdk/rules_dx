@@ -96,7 +96,8 @@ fn signatures_docs_overloads_and_sources_come_from_javadoc() {
     let two = symbol(
         &shard,
         &format!("{SHAPES}Circle.scale~28double~2Cdouble~29"),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(one.signature_text, "public Circle scale(double factor)");
     assert_eq!(
         two.signature_text,

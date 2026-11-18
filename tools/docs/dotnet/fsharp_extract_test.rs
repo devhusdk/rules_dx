@@ -103,12 +103,14 @@ fn undocumented_members_are_marked_incomplete() {
     let shard = shard("DX_FIXTURE_FSHARP_SHARD").unwrap();
     let undocumented = symbol(&shard, "Amounts.undocumented");
     assert!(
-        extension(undocumented, "fsharp.incomplete").unwrap()
+        extension(undocumented, "fsharp.incomplete")
+            .unwrap()
             .expect("extension")
             .contains("summary")
     );
     assert!(
-        extension(undocumented, "fsharp.config").unwrap()
+        extension(undocumented, "fsharp.config")
+            .unwrap()
             .expect("extension")
             .starts_with("assembly=")
     );
@@ -121,7 +123,8 @@ fn the_defines_select_the_members() {
     assert_eq!(symbols(&base, "Amounts.extra"), [] as [&Symbol; 0]);
     let found = symbol(&extra, "Amounts.extra");
     assert!(
-        extension(found, "fsharp.config").unwrap()
+        extension(found, "fsharp.config")
+            .unwrap()
             .expect("extension")
             .contains("defines=DX_EXTRA")
     );

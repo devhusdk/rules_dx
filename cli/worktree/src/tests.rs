@@ -351,7 +351,8 @@ impl Fixture {
             &origin,
             &origin,
             &["init", "--bare", "--quiet", "--initial-branch=main"],
-        ).unwrap();
+        )
+        .unwrap();
         std::fs::create_dir_all(&main).expect("main dir");
         dx_test_scratch::git(&main, &main, &["init", "--quiet", "--initial-branch=main"]).unwrap();
         std::fs::write(main.join("a.txt"), "one\n").expect("write");
@@ -362,7 +363,8 @@ impl Fixture {
             &main,
             &main,
             &["remote", "add", "origin", &origin.to_string_lossy()],
-        ).unwrap();
+        )
+        .unwrap();
         dx_test_scratch::git(&main, &main, &["push", "--quiet", "-u", "origin", "main"]).unwrap();
         dx_test_scratch::git(&main, &main, &["remote", "set-head", "origin", "main"]).unwrap();
         Fixture {
@@ -381,7 +383,8 @@ impl Fixture {
             &outer,
             &outer,
             &["init", "--quiet", "--initial-branch=main"],
-        ).unwrap();
+        )
+        .unwrap();
         dx_test_scratch::git(
             &outer,
             &outer,
@@ -394,7 +397,8 @@ impl Fixture {
                 &root.join("origin.git").to_string_lossy(),
                 "mod",
             ],
-        ).unwrap();
+        )
+        .unwrap();
         dx_test_scratch::git(&outer, &outer, &["commit", "--quiet", "-m", "add mod"]).unwrap();
         let main = std::fs::canonicalize(outer.join("mod")).expect("canonical mod");
         dx_test_scratch::git(&main, &main, &["checkout", "--quiet", "main"]).unwrap();
@@ -416,7 +420,8 @@ impl Fixture {
                 &root.join("origin.git").to_string_lossy(),
                 &sep.to_string_lossy(),
             ],
-        ).unwrap();
+        )
+        .unwrap();
         let main = std::fs::canonicalize(&sep).expect("canonical sep");
         dx_test_scratch::git(&main, &main, &["remote", "set-head", "origin", "main"]).unwrap();
         Fixture { main, ..fixture }
@@ -447,7 +452,8 @@ impl Fixture {
                 &root.join("origin.git").to_string_lossy(),
                 &clone.to_string_lossy(),
             ],
-        ).unwrap();
+        )
+        .unwrap();
         clone
     }
 }
@@ -570,7 +576,8 @@ fn same_named_repositories_opening_together_get_separate_pools() {
                 &root,
                 &root,
                 &["clone", "--quiet", &origin, &main.to_string_lossy()],
-            ).unwrap();
+            )
+            .unwrap();
             std::fs::canonicalize(main).expect("canonical")
         })
         .collect();
@@ -645,7 +652,8 @@ fn open_refuses_a_linked_worktree_of_a_bare_repository() {
             &linked.to_string_lossy(),
             "main",
         ],
-    ).unwrap();
+    )
+    .unwrap();
     let refused = Pool::open(&linked, &fixture.cache).expect_err("bare linked");
     assert_eq!(refused.code, "bare_repository");
     assert!(
@@ -693,7 +701,8 @@ fn add_warns_when_origin_cannot_be_fetched() {
         &fixture.main,
         &fixture.main,
         &["remote", "set-url", "origin", &missing.to_string_lossy()],
-    ).unwrap();
+    )
+    .unwrap();
     let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
     assert_eq!(added.warnings.len(), 1, "{:?}", added.warnings);
     assert_eq!(added.warnings[0].code, "fetch_failed");
@@ -811,7 +820,8 @@ fn re_adding_a_held_branch_does_not_fetch_origin() {
         &fixture.main,
         &fixture.main,
         &["remote", "set-url", "origin", &missing.to_string_lossy()],
-    ).unwrap();
+    )
+    .unwrap();
     let again = ops::add(&pool, &host, &who("s1", 10), &existing("feature/a")).expect("re-add");
     assert!(again.reused);
     assert_eq!(again.path, first.path);
@@ -834,7 +844,8 @@ fn release_frees_the_slot_and_the_next_add_reuses_it_without_leftovers() {
         &first.path,
         &first.path,
         &["push", "--quiet", "-u", "origin", "feature/a"],
-    ).unwrap();
+    )
+    .unwrap();
     let released = ops::release(&pool, &host, &me, &first.path, true).expect("release");
     assert_eq!(released.slot, Some(1));
     assert_eq!(
@@ -869,7 +880,8 @@ fn release_frees_a_slot_whose_lease_record_is_missing() {
         &added.path,
         &added.path,
         &["push", "--quiet", "-u", "origin", "feature/a"],
-    ).unwrap();
+    )
+    .unwrap();
     pool.remove(added.slot);
     let released = ops::release(&pool, &host, &me, &added.path, false).expect("release");
     assert_eq!(released.slot, Some(added.slot));
@@ -1015,7 +1027,8 @@ fn release_of_a_record_less_slot_keeps_the_holder_check() {
         &added.path,
         &added.path,
         &["commit", "--quiet", "-m", "local"],
-    ).unwrap();
+    )
+    .unwrap();
     // The holder is unknown and the work is unpushed, so nobody releases it without --force.
     let err = ops::release(&pool, &host, &other, &added.path, false).expect_err("refused");
     assert_eq!(err.code, "slot_leased");
@@ -1054,14 +1067,16 @@ fn release_refuses_commits_that_are_on_no_remote_unless_forced() {
         &added.path,
         &added.path,
         &["commit", "--quiet", "-m", "local"],
-    ).unwrap();
+    )
+    .unwrap();
     let refused = ops::release(&pool, &host, &me, &added.path, false).expect_err("unpushed");
     assert_eq!(refused.code, "unpushed_commits");
     dx_test_scratch::git(
         &added.path,
         &added.path,
         &["push", "--quiet", "-u", "origin", "feature/a"],
-    ).unwrap();
+    )
+    .unwrap();
     ops::release(&pool, &host, &me, &added.path, false).expect("pushed work releases");
 }
 
@@ -1125,7 +1140,8 @@ fn another_live_agent_in_the_same_session_cannot_release_or_reuse_the_slot_witho
         &added.path,
         &added.path,
         &["push", "--quiet", "-u", "origin", "feature/a"],
-    ).unwrap();
+    )
+    .unwrap();
     let mine = ops::add(&pool, &host, &first, &existing("feature/a")).expect("mine");
     assert!(mine.reused);
     let refused = ops::release(&pool, &host, &second, &added.path, false).expect_err("not yours");
@@ -1183,7 +1199,8 @@ fn a_gone_holder_does_not_let_another_session_release_before_it_is_reclaimable()
         &added.path,
         &added.path,
         &["checkout", "--quiet", "--", "a.txt"],
-    ).unwrap();
+    )
+    .unwrap();
     ops::release(&pool, &host, &who("s2", 20), &added.path, false).expect("reclaimable");
 }
 
@@ -1212,7 +1229,8 @@ fn a_failed_switch_still_deletes_the_stale_slots_it_took_the_records_of() {
         &fixture.main,
         &fixture.main,
         &["worktree", "list", "--porcelain"],
-    ).unwrap();
+    )
+    .unwrap();
     let entry = listing
         .split("\n\n")
         .find(|block| block.contains(&second.path.to_string_lossy().into_owned()))
@@ -1298,7 +1316,8 @@ fn add_keeps_a_free_slot_with_an_ignored_file() {
             &slot.path,
             &slot.path,
             &["rev-parse", "--path-format=absolute", "--git-common-dir"],
-        ).unwrap();
+        )
+        .unwrap();
         let exclude = Path::new(common.trim()).join("info");
         std::fs::create_dir_all(&exclude).expect("info");
         std::fs::write(exclude.join("exclude"), "ignored.txt\n").expect("exclude");
@@ -1317,7 +1336,8 @@ fn add_keeps_a_free_slot_with_an_untracked_file() {
 fn add_keeps_a_free_slot_in_the_middle_of_a_rebase() {
     assert_refused(|_, slot| {
         let dir =
-            dx_test_scratch::git(&slot.path, &slot.path, &["rev-parse", "--absolute-git-dir"]).unwrap();
+            dx_test_scratch::git(&slot.path, &slot.path, &["rev-parse", "--absolute-git-dir"])
+                .unwrap();
         std::fs::create_dir_all(Path::new(dir.trim()).join("rebase-merge")).expect("state");
     });
 }
@@ -1435,7 +1455,8 @@ fn a_failed_add_on_a_fresh_slot_rolls_the_slot_back() {
         &fixture.main,
         &fixture.main,
         &["worktree", "list", "--porcelain"],
-    ).unwrap();
+    )
+    .unwrap();
     assert!(!listing.contains(&pool.slot_path(1).to_string_lossy().into_owned()));
     std::fs::remove_file(heads.join("x.lock")).expect("unlock");
     let added = ops::add(&pool, &host, &me, &create("feature/x")).expect("retry");
@@ -1649,7 +1670,8 @@ fn default_base_skips_an_origin_head_whose_target_is_gone() {
             "refs/remotes/origin/HEAD",
             "refs/remotes/origin/master",
         ],
-    ).unwrap();
+    )
+    .unwrap();
     let base = super::git::default_base(&fixture.main).expect("falls back to main");
     assert_eq!(base, "origin/main");
 }
@@ -1665,12 +1687,14 @@ fn default_base_refuses_when_origin_head_and_the_candidates_are_gone() {
             "refs/remotes/origin/HEAD",
             "refs/remotes/origin/master",
         ],
-    ).unwrap();
+    )
+    .unwrap();
     dx_test_scratch::git(
         &fixture.main,
         &fixture.main,
         &["update-ref", "-d", "refs/remotes/origin/main"],
-    ).unwrap();
+    )
+    .unwrap();
     let refused = super::git::default_base(&fixture.main).expect_err("no default branch");
     assert_eq!(refused.code, "no_default_branch");
 }
@@ -1695,7 +1719,8 @@ fn a_dead_holder_with_a_clean_pushed_tree_is_reclaimed_after_the_quiet_period() 
         &first.path,
         &first.path,
         &["push", "--quiet", "-u", "origin", "feature/a"],
-    ).unwrap();
+    )
+    .unwrap();
     let listing = ops::list(&pool, &host, false).expect("list");
     assert_eq!(slot_one(&listing).state, State::Reclaimable);
     assert_eq!(slot_one(&listing).reason, None);
@@ -1737,7 +1762,8 @@ fn a_slot_with_a_process_working_in_it_is_not_reclaimed() {
         &first.path,
         &first.path,
         &["push", "--quiet", "-u", "origin", "feature/a"],
-    ).unwrap();
+    )
+    .unwrap();
     host.occupy(&first.path.join("cli"));
     let listing = ops::list(&pool, &host, false).expect("list");
     assert_eq!(slot_one(&listing).state, State::Held);
@@ -1761,7 +1787,8 @@ fn a_process_in_a_slot_with_a_gone_holder_blocks_a_release_by_another_session() 
         &first.path,
         &first.path,
         &["push", "--quiet", "-u", "origin", "feature/a"],
-    ).unwrap();
+    )
+    .unwrap();
     host.occupy(&first.path);
     let other = who("s2", 20);
     let refused = ops::release(&pool, &host, &other, &first.path, false).expect_err("pinned");
@@ -1817,7 +1844,8 @@ fn a_slot_with_a_running_dx_command_is_not_reclaimed_or_released() {
         &first.path,
         &first.path,
         &["push", "--quiet", "-u", "origin", "feature/a"],
-    ).unwrap();
+    )
+    .unwrap();
     let running = run_dx_in(&pool, 1);
     let listing = ops::list(&pool, &host, false).expect("list");
     assert_eq!(slot_one(&listing).state, State::Held);
@@ -1883,7 +1911,8 @@ fn a_dead_holder_with_a_dirty_tree_keeps_its_slot() {
         &first.path,
         &first.path,
         &["push", "--quiet", "-u", "origin", "feature/a"],
-    ).unwrap();
+    )
+    .unwrap();
     std::fs::write(first.path.join("a.txt"), "dirty\n").expect("dirty");
     let listing = ops::list(&pool, &host, false).expect("list");
     assert_eq!(slot_one(&listing).state, State::Held);
@@ -1917,7 +1946,8 @@ fn a_dead_holder_with_unpushed_commits_keeps_its_slot() {
         &first.path,
         &first.path,
         &["commit", "--quiet", "-m", "work"],
-    ).unwrap();
+    )
+    .unwrap();
     let listing = ops::list(&pool, &host, false).expect("list");
     assert_eq!(slot_one(&listing).state, State::Held);
     assert!(
@@ -1945,7 +1975,8 @@ fn a_dead_holder_with_unpushed_commits_and_a_dirty_tree_reports_the_dirty_tree()
         &first.path,
         &first.path,
         &["commit", "--quiet", "-m", "work"],
-    ).unwrap();
+    )
+    .unwrap();
     std::fs::write(first.path.join("a.txt"), "dirty\n").expect("dirty");
     let listing = ops::list(&pool, &host, false).expect("list");
     assert_eq!(slot_one(&listing).state, State::Held);
@@ -2028,7 +2059,8 @@ fn a_slot_removed_with_git_worktree_remove_is_forgotten_and_its_number_reused() 
             "--force",
             &first.path.to_string_lossy(),
         ],
-    ).unwrap();
+    )
+    .unwrap();
     let listing = ops::list(&pool, &host, false).expect("list");
     assert!(listing.rows.iter().all(|row| row.slot.is_none()));
     let second = ops::add(&pool, &host, &me, &create("feature/b")).expect("add b");
@@ -2056,7 +2088,8 @@ fn hand_made_checkouts_are_listed_as_external() {
             "by-hand",
             &hand.to_string_lossy(),
         ],
-    ).unwrap();
+    )
+    .unwrap();
     let listing = ops::list(&pool, &host, false).expect("list");
     let row = listing
         .rows
@@ -3357,12 +3390,14 @@ fn new_branches_start_from_the_default_branch_of_origin() {
         &origin_clone,
         &origin_clone,
         &["commit", "--quiet", "-m", "newer"],
-    ).unwrap();
+    )
+    .unwrap();
     dx_test_scratch::git(
         &origin_clone,
         &origin_clone,
         &["push", "--quiet", "origin", "main"],
-    ).unwrap();
+    )
+    .unwrap();
     let added = ops::add(
         &pool,
         &host,
@@ -3391,12 +3426,14 @@ fn worktreeinclude_files_are_copied_into_the_slot() {
         &fixture.main,
         &fixture.main,
         &["commit", "--quiet", "-m", "include"],
-    ).unwrap();
+    )
+    .unwrap();
     dx_test_scratch::git(
         &fixture.main,
         &fixture.main,
         &["push", "--quiet", "origin", "main"],
-    ).unwrap();
+    )
+    .unwrap();
     std::fs::write(fixture.main.join(".env"), "SECRET=1\n").expect("env");
     let pool = fixture.pool();
     let host = FakeHost::new();
@@ -4032,7 +4069,8 @@ mod hooks {
             &added.path,
             &added.path,
             &["push", "--quiet", "-u", "origin", "feature/a"],
-        ).unwrap();
+        )
+        .unwrap();
         let held = ops::add(&pool, &host, &second, &existing("feature/a")).expect_err("live");
         assert_eq!(held.code, "branch_held");
         let stop = serde_json::json!({"agent_id": "a2"});
@@ -4212,7 +4250,8 @@ mod hooks {
             &fixture.main,
             &fixture.main,
             &["remote", "set-url", "origin", &missing.to_string_lossy()],
-        ).unwrap();
+        )
+        .unwrap();
         let input = serde_json::json!({"name": "agent one", "cwd": fixture.main});
         let created = hook::create(&pool, &host, &who("s1", 10), &input).expect("create");
         assert_eq!(created.warnings.len(), 1, "{:?}", created.warnings);
@@ -4225,7 +4264,8 @@ mod hooks {
             created.warnings
         );
         assert_eq!(
-            dx_test_scratch::git(&created.path, &created.path, &["branch", "--show-current"]).unwrap(),
+            dx_test_scratch::git(&created.path, &created.path, &["branch", "--show-current"])
+                .unwrap(),
             "worktree-agent-one"
         );
     }
@@ -4353,7 +4393,8 @@ mod hooks {
             &clone,
             &clone,
             &["checkout", "--quiet", "-b", "worktree-agent-two"],
-        ).unwrap();
+        )
+        .unwrap();
         std::fs::write(clone.join("agent.txt"), "a\n").expect("write");
         dx_test_scratch::git(&clone, &clone, &["add", "."]).unwrap();
         dx_test_scratch::git(&clone, &clone, &["commit", "--quiet", "-m", "agent work"]).unwrap();
@@ -4361,7 +4402,8 @@ mod hooks {
             &clone,
             &clone,
             &["push", "--quiet", "origin", "worktree-agent-two"],
-        ).unwrap();
+        )
+        .unwrap();
         let pushed = dx_test_scratch::git(&clone, &clone, &["rev-parse", "HEAD"]).unwrap();
         let pool = fixture.pool();
         let host = FakeHost::new();
@@ -4371,7 +4413,8 @@ mod hooks {
             .expect("create")
             .path;
         let base =
-            dx_test_scratch::git(&fixture.main, &fixture.main, &["rev-parse", "origin/main"]).unwrap();
+            dx_test_scratch::git(&fixture.main, &fixture.main, &["rev-parse", "origin/main"])
+                .unwrap();
         assert_ne!(base, pushed);
         assert_eq!(
             dx_test_scratch::git(&path, &path, &["rev-parse", "HEAD"]).unwrap(),
@@ -4390,7 +4433,8 @@ mod hooks {
                     "--format=%(upstream)",
                     "refs/heads/worktree-agent-two-2"
                 ]
-            ).unwrap(),
+            )
+            .unwrap(),
             ""
         );
         let removal = serde_json::json!({"worktree_path": path});
@@ -4476,11 +4520,10 @@ mod hooks {
             for result in results {
                 let added = result.expect("create");
                 slots.push(added.slot);
-                branches.push(dx_test_scratch::git(
-                    &added.path,
-                    &added.path,
-                    &["branch", "--show-current"],
-                ).unwrap());
+                branches.push(
+                    dx_test_scratch::git(&added.path, &added.path, &["branch", "--show-current"])
+                        .unwrap(),
+                );
             }
             slots.sort_unstable();
             slots.dedup();
@@ -4499,7 +4542,8 @@ mod hooks {
             &fixture.main,
             &fixture.main,
             &["fetch", "--quiet", "origin"],
-        ).unwrap();
+        )
+        .unwrap();
         dx_test_scratch::git(
             &clone,
             &clone,
@@ -4510,7 +4554,8 @@ mod hooks {
                 "--delete",
                 "worktree-agent-two",
             ],
-        ).unwrap();
+        )
+        .unwrap();
         let pool = fixture.pool();
         let host = FakeHost::new();
         let input = serde_json::json!({"name": "agent two", "cwd": fixture.main});
@@ -4529,7 +4574,8 @@ mod hooks {
                 "--verify",
                 "refs/remotes/origin/worktree-agent-two",
             ],
-        ).unwrap();
+        )
+        .unwrap();
     }
 
     #[test]
@@ -4540,20 +4586,23 @@ mod hooks {
             &fixture.main,
             &fixture.main,
             &["fetch", "--quiet", "origin"],
-        ).unwrap();
+        )
+        .unwrap();
         let missing = fixture.main.parent().expect("root").join("missing.git");
         dx_test_scratch::git(
             &fixture.main,
             &fixture.main,
             &["remote", "set-url", "origin", &missing.to_string_lossy()],
-        ).unwrap();
+        )
+        .unwrap();
         let pool = fixture.pool();
         let host = FakeHost::new();
         let input = serde_json::json!({"name": "agent two", "cwd": fixture.main});
         let created = hook::create(&pool, &host, &who("s1", 10), &input).expect("create");
         assert_eq!(created.warnings[0].code, "fetch_failed");
         assert_eq!(
-            dx_test_scratch::git(&created.path, &created.path, &["branch", "--show-current"]).unwrap(),
+            dx_test_scratch::git(&created.path, &created.path, &["branch", "--show-current"])
+                .unwrap(),
             "worktree-agent-two-2"
         );
     }
@@ -4569,7 +4618,8 @@ mod hooks {
             &fixture.main,
             &fixture.main,
             &["fetch", "--quiet", "origin"],
-        ).unwrap();
+        )
+        .unwrap();
     }
 
     #[test]
@@ -4611,7 +4661,8 @@ mod hooks {
             &path,
             &path,
             &["push", "--quiet", "origin", "worktree-agent-one"],
-        ).unwrap();
+        )
+        .unwrap();
         let work = dx_test_scratch::git(&path, &path, &["rev-parse", "HEAD"]).unwrap();
         let removal = serde_json::json!({"worktree_path": path});
         hook::remove(&pool, &host, &me, &removal).expect("remove");
@@ -4647,7 +4698,8 @@ mod hooks {
             &clone,
             &clone,
             &["checkout", "--quiet", "-b", "worktree-agent-one"],
-        ).unwrap();
+        )
+        .unwrap();
         std::fs::write(clone.join("agent.txt"), "a\n").expect("write");
         dx_test_scratch::git(&clone, &clone, &["add", "."]).unwrap();
         dx_test_scratch::git(&clone, &clone, &["commit", "--quiet", "-m", "agent work"]).unwrap();
@@ -4655,7 +4707,8 @@ mod hooks {
             &clone,
             &clone,
             &["push", "--quiet", "origin", "worktree-agent-one"],
-        ).unwrap();
+        )
+        .unwrap();
         let again = hook::create(&pool, &host, &me, &input)
             .expect("create again")
             .path;
@@ -4842,7 +4895,8 @@ fn hand_checkout(fixture: &Fixture, name: &str) -> PathBuf {
             name,
             &hand.to_string_lossy(),
         ],
-    ).unwrap();
+    )
+    .unwrap();
     hand
 }
 
@@ -4859,17 +4913,16 @@ fn detached_checkout(fixture: &Fixture, name: &str, rev: &str) -> PathBuf {
             &hand.to_string_lossy(),
             rev,
         ],
-    ).unwrap();
+    )
+    .unwrap();
     hand
 }
 
 /// Sets the times of the files git updates for `checkout` to `secs`.
 fn age_checkout(checkout: &Path, secs: u64) {
-    let admin = PathBuf::from(dx_test_scratch::git(
-        checkout,
-        checkout,
-        &["rev-parse", "--absolute-git-dir"],
-    ).unwrap());
+    let admin = PathBuf::from(
+        dx_test_scratch::git(checkout, checkout, &["rev-parse", "--absolute-git-dir"]).unwrap(),
+    );
     for name in ["HEAD", "index", "logs/HEAD"] {
         let file = admin.join(name);
         if file.exists() {
@@ -4895,7 +4948,8 @@ fn release_removes_a_clean_pushed_external_worktree() {
         &hand,
         &hand,
         &["push", "--quiet", "-u", "origin", "by-hand"],
-    ).unwrap();
+    )
+    .unwrap();
     host.serve(74, &hand);
     let released =
         ops::release(&pool, &host, &who("s1", 10), &hand, false).expect("release external");
@@ -4906,7 +4960,8 @@ fn release_removes_a_clean_pushed_external_worktree() {
     assert_eq!(host.shutdown_count(), 1);
     assert_eq!(host.servers(), [] as [crate::host::Server; 0]);
     assert!(
-        !dx_test_scratch::git(&fixture.main, &fixture.main, &["worktree", "list"]).unwrap()
+        !dx_test_scratch::git(&fixture.main, &fixture.main, &["worktree", "list"])
+            .unwrap()
             .contains("by-hand")
     );
     assert!(
@@ -4914,7 +4969,8 @@ fn release_removes_a_clean_pushed_external_worktree() {
             &fixture.main,
             &fixture.main,
             &["branch", "--list", "by-hand"]
-        ).unwrap()
+        )
+        .unwrap()
         .contains("by-hand")
     );
 }
@@ -4929,7 +4985,8 @@ fn release_reports_busy_when_an_external_worktree_cannot_be_deleted() {
         &hand,
         &hand,
         &["push", "--quiet", "-u", "origin", "by-hand"],
-    ).unwrap();
+    )
+    .unwrap();
     host.stick(&hand);
     let refused = ops::release(&pool, &host, &who("s1", 10), &hand, false).expect_err("busy");
     assert_eq!(refused.code, "busy");
@@ -4947,7 +5004,8 @@ fn release_refuses_a_dirty_or_unpushed_external_worktree_until_forced() {
         &hand,
         &hand,
         &["push", "--quiet", "-u", "origin", "by-hand"],
-    ).unwrap();
+    )
+    .unwrap();
     std::fs::write(hand.join("wip.txt"), "x").expect("wip");
     let dirty = ops::release(&pool, &host, &me, &hand, false).expect_err("dirty");
     assert_eq!(dirty.code, "dirty_slot");
@@ -4974,7 +5032,8 @@ fn release_rechecks_an_external_worktree_after_taking_the_lock() {
         &hand,
         &hand,
         &["push", "--quiet", "-u", "origin", "by-hand"],
-    ).unwrap();
+    )
+    .unwrap();
     *host.edit_on_scan.lock().expect("edit") = Some(hand.join("late.txt"));
     let dirty = ops::release(&pool, &host, &who("s1", 10), &hand, false).expect_err("dirty");
     assert_eq!(dirty.code, "dirty_slot");
@@ -5042,7 +5101,8 @@ fn refusals_name_the_next_step() {
         &fixture.main,
         &fixture.main,
         &["remote", "remove", "origin"],
-    ).unwrap();
+    )
+    .unwrap();
     let no_default = ops::add(&pool, &host, &me, &existing("feature/fresh")).expect_err("no base");
     assert_eq!(no_default.code, "no_default_branch");
     assert!(
@@ -5064,27 +5124,32 @@ fn prune_removes_clean_external_worktrees_on_merged_branches_only() {
         &merged,
         &merged,
         &["commit", "--quiet", "-m", "merged work"],
-    ).unwrap();
+    )
+    .unwrap();
     dx_test_scratch::git(
         &merged,
         &merged,
         &["push", "--quiet", "-u", "origin", "merged"],
-    ).unwrap();
+    )
+    .unwrap();
     dx_test_scratch::git(
         &fixture.main,
         &fixture.main,
         &["fetch", "--quiet", "origin"],
-    ).unwrap();
+    )
+    .unwrap();
     dx_test_scratch::git(
         &fixture.main,
         &fixture.main,
         &["merge", "--quiet", "--ff-only", "origin/merged"],
-    ).unwrap();
+    )
+    .unwrap();
     dx_test_scratch::git(
         &fixture.main,
         &fixture.main,
         &["push", "--quiet", "origin", "HEAD"],
-    ).unwrap();
+    )
+    .unwrap();
     let fresh = hand_checkout(&fixture, "fresh");
     let locked = hand_checkout(&fixture, "locked-merged");
     let serving = hand_checkout(&fixture, "serving-merged");
@@ -5095,7 +5160,8 @@ fn prune_removes_clean_external_worktrees_on_merged_branches_only() {
         &fixture.main,
         &fixture.main,
         &["worktree", "lock", &locked.to_string_lossy()],
-    ).unwrap();
+    )
+    .unwrap();
     host.servers.lock().expect("servers").push(Server {
         pid: 7,
         rss_bytes: 1,
@@ -5171,12 +5237,14 @@ fn prune_removes_external_worktrees_whose_upstream_branch_was_deleted() {
         &fixture.main,
         &fixture.main,
         &["push", "--quiet", "origin", "--delete", "topic"],
-    ).unwrap();
+    )
+    .unwrap();
     dx_test_scratch::git(
         &fixture.main,
         &fixture.main,
         &["fetch", "--quiet", "--prune", "origin"],
-    ).unwrap();
+    )
+    .unwrap();
     let plan = ops::prune_plan(&pool, &host, ops::Trigger::LowDisk).expect("plan");
     assert_eq!(plan.externals.len(), 1);
     assert_eq!(plan.externals[0].path, hand);
@@ -5198,7 +5266,8 @@ fn tracking_checkout(fixture: &Fixture, name: &str, upstream: &str) -> PathBuf {
             &hand.to_string_lossy(),
             upstream,
         ],
-    ).unwrap();
+    )
+    .unwrap();
     hand
 }
 
@@ -5213,7 +5282,8 @@ fn prune_keeps_unpushed_branch_created_from_the_default_branch() {
             &fixture.main,
             &fixture.main,
             &["for-each-ref", "--format=%(upstream)", "refs/heads/fresh"]
-        ).unwrap(),
+        )
+        .unwrap(),
         "refs/remotes/origin/main"
     );
     let plan = ops::prune_plan(&pool, &host, ops::Trigger::LowDisk).expect("plan");
@@ -5242,7 +5312,8 @@ fn prune_lists_detached_external_worktrees_as_removable_or_kept() {
         &side,
         &side,
         &["push", "--quiet", "origin", "HEAD:refs/heads/side"],
-    ).unwrap();
+    )
+    .unwrap();
     let dirty = detached_checkout(&fixture, "dirty", "origin/main");
     std::fs::write(dirty.join("wip.txt"), "x").expect("wip");
     let roots = fixture.cache.join("bazel-root");
@@ -5297,12 +5368,14 @@ fn upstream_deleted_checkout(fixture: &Fixture) -> PathBuf {
         &fixture.main,
         &fixture.main,
         &["push", "--quiet", "origin", "--delete", "topic"],
-    ).unwrap();
+    )
+    .unwrap();
     dx_test_scratch::git(
         &fixture.main,
         &fixture.main,
         &["fetch", "--quiet", "--prune", "origin"],
-    ).unwrap();
+    )
+    .unwrap();
     hand
 }
 
@@ -5860,7 +5933,8 @@ fn prune_apply_keeps_a_slot_whose_shutdown_was_interrupted() {
         &fixture.main,
         &fixture.main,
         &["worktree", "list", "--porcelain"],
-    ).unwrap();
+    )
+    .unwrap();
     assert!(listed.contains(&paths[0].to_string_lossy().into_owned()));
 }
 
@@ -5886,7 +5960,8 @@ fn release_keeps_the_lease_when_the_shutdown_was_interrupted() {
         &fixture.main,
         &fixture.main,
         &["worktree", "list", "--porcelain"],
-    ).unwrap();
+    )
+    .unwrap();
     assert!(!listed.contains("dx: free"));
 }
 

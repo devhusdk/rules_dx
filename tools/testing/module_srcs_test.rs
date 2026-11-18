@@ -41,7 +41,7 @@ fn rules_dx_source_names_the_checkout() {
 
 #[path = "module_srcs_closure.rs"]
 mod closure;
-use closure::{loads, missing_from_runfiles, resolve, Bzl};
+use closure::{Bzl, loads, missing_from_runfiles, resolve};
 
 #[test]
 fn load_parser_follows_multi_line_and_repository_forms() {

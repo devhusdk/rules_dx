@@ -525,8 +525,8 @@ pub fn rules_dx_source() -> Result<PathBuf, String> {
             "runfile MODULE.bazel: {error}; add //:module_srcs or an area module_srcs to the test's data"
         )
     })?;
-    let real = std::fs::canonicalize(&module)
-        .map_err(|error| format!("{}: {error}", module.display()))?;
+    let real =
+        std::fs::canonicalize(&module).map_err(|error| format!("{}: {error}", module.display()))?;
     let checkout = real
         .parent()
         .ok_or_else(|| format!("no checkout above {}", real.display()))?;

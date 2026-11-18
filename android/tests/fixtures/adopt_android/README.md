@@ -49,7 +49,7 @@ APK's ABIs. Remove any `rules_android` override you added earlier; rules_dx
 now needs no `rules_android` patch.
 
 ```python
-android_ndk_toolchain_repo = use_repo_rule("@rules_dx//android:extensions.bzl", "android_ndk_toolchain_repo")
+android_ndk_toolchain_repo = use_repo_rule("@rules_dx//android:repositories.bzl", "android_ndk_toolchain_repo")
 
 android_ndk_toolchain_repo(
     name = "android_ndk_toolchain",

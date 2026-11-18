@@ -1,9 +1,9 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_library", "rust_test")
-load("//tools/visibility:visibility.bzl", "VIS_CLI")
+load("//tools/visibility:visibility.bzl", "VIS_CLI_DEPLOY_QUALITY")
 
-package(default_visibility = VIS_CLI)
+package(default_visibility = VIS_CLI_DEPLOY_QUALITY)
 
 exports_files([
     "src/lib.rs",
@@ -26,7 +26,10 @@ rust_library(
     deps = all_crate_deps(
         package_name = "cli/dx_http",
         normal = True,
-    ) + ["//cli/digest:dx_digest"],
+    ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/digest:dx_digest",
+    ],
 )
 
 rust_test(
@@ -50,7 +53,10 @@ rust_test(
         package_name = "cli/dx_http",
         normal = True,
         normal_dev = True,
-    ) + ["//cli/digest:dx_digest"],
+    ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/digest:dx_digest",
+    ],
 )
 
 real_source_target(

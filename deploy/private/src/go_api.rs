@@ -1,6 +1,6 @@
 //! Go module API compatibility check for github_deploy, using apidiff.
 
-use crate::api_compat::{Baseline, Outcome, fetch, highest_below, previous_git_tag};
+use crate::api_compat::{Baseline, Outcome, fetch, fetch_to, highest_below, previous_git_tag};
 use crate::archive::archive_extract;
 use crate::run::{PUBLISH_CHILD_ENV_KEEP, exit_text, run_publish, scrubbed_command};
 use crate::stage::tempfile_stage_dir;
@@ -259,11 +259,10 @@ fn go_proxy_baseline(
         return Ok(None);
     };
     let url = format!("{base}/{previous}.zip");
-    let Some(zip) = fetch(&url, 512 << 20)? else {
-        return Err(format!("{url} not found"));
-    };
     let archive = dir.with_extension("zip");
-    std::fs::write(&archive, zip).map_err(|error| format!("{}: {error}", archive.display()))?;
+    if !fetch_to(&url, &archive, 512 << 20)? {
+        return Err(format!("{url} not found"));
+    }
     archive_extract(&archive, dir).map_err(|error| format!("{url}: {error}"))?;
     Ok(Some((
         previous.clone(),

@@ -1641,7 +1641,7 @@ fn fake_live_push(fake: &FakeRegistry, image: &Path, outdir: &Path, platform: &s
         name: "demo/app".to_owned(),
     };
     oci_live_push_to(
-        &crate::http::upload_agent_with_proxy(None),
+        &crate::http::test_client(),
         &target,
         image,
         outdir,
@@ -2094,7 +2094,7 @@ fn oci_signed_push(scratch: &std::path::Path, sign_exit: u8) -> SignedPush {
     std::fs::create_dir_all(&outdir).expect("outdir");
     let cosign_path = cosign.to_string_lossy().into_owned();
     let code = oci_live_push_to(
-        &crate::http::upload_agent_with_proxy(None),
+        &crate::http::test_client(),
         &target,
         &image,
         &outdir,

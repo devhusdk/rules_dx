@@ -77,13 +77,12 @@ pub fn cpan_check_identity(
 
 /// Uploads the dist to the PAUSE endpoint at `url` with HTTP basic auth.
 fn cpan_live_upload(
-    agent: &ureq::Agent,
+    client: &dx_http::Client,
     url: &str,
     dist: &Path,
     user: &str,
     token: &str,
 ) -> Result<(), String> {
-    use std::io::Read as _;
     let file_name = dist
         .file_name()
         .and_then(|name| name.to_str())
@@ -106,18 +105,25 @@ fn cpan_live_upload(
         file_name,
         &bytes,
     );
-    let mut response = agent
-        .post(url)
-        .header("Authorization", &crate::http::basic_auth(user, token))
-        .header("Content-Type", &content_type)
-        .send(&body[..])
+    let authorization = crate::http::basic_auth(user, token);
+    let response = client
+        .send(
+            dx_http::Method::Post,
+            url,
+            &[
+                ("Authorization", authorization.as_str()),
+                ("Content-Type", content_type.as_str()),
+            ],
+            dx_http::Body::Bytes(&body),
+            2048,
+        )
         .map_err(|error| {
             format!(
                 "cpan_deploy: upload to {url} failed: {}",
                 pages_redact(&error.to_string(), token)
             )
         })?;
-    let status = response.status().as_u16();
+    let status = response.status;
     if (200..300).contains(&status) {
         return Ok(());
     }
@@ -126,17 +132,9 @@ fn cpan_live_upload(
             "cpan_deploy: PAUSE rejected CPAN_API_USER and CPAN_API_TOKEN (HTTP {status})"
         ));
     }
-    let mut text = Vec::new();
-    drop(
-        response
-            .body_mut()
-            .as_reader()
-            .take(2048)
-            .read_to_end(&mut text),
-    );
     Err(format!(
         "cpan_deploy: upload to {url} failed with HTTP {status}: {}",
-        pages_redact(&String::from_utf8_lossy(&text), token).trim()
+        pages_redact(&response.text(), token).trim()
     ))
 }
 
@@ -180,8 +178,15 @@ pub fn cpan_main(
                 return 1;
             }
         };
+        let client = match crate::http::client() {
+            Ok(client) => client,
+            Err(error) => {
+                eprintln!("cpan_deploy: {error}");
+                return 1;
+            }
+        };
         return match cpan_live_upload(
-            &crate::http::publish_agent(),
+            &client,
             PAUSE_UPLOAD_URL,
             &dist,
             secrets.get("CPAN_API_USER"),
@@ -375,7 +380,7 @@ mod tests {
 
     fn upload_to(url: &str, dist: &Path) -> Result<(), String> {
         cpan_live_upload(
-            &crate::http::publish_agent_with_proxy(None),
+            &crate::http::test_client(),
             url,
             dist,
             FAKE_PAUSE_USER,

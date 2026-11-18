@@ -8,8 +8,8 @@ use pgp::crypto::hash::HashAlgorithm;
 use pgp::types::Password;
 
 use crate::api_compat::{
-    ApiCompatMode, Baseline, Outcome, changes_or_failure, conclude, fetch, previous_git_tag,
-    previous_release, workspace_dir,
+    ApiCompatMode, Baseline, Outcome, changes_or_failure, conclude, fetch, fetch_to,
+    previous_git_tag, previous_release, workspace_dir,
 };
 use crate::http;
 use crate::run::{
@@ -530,39 +530,36 @@ pub const MAVEN_BAD_CREDENTIALS: &str = "maven_deploy: the Central Portal reject
 
 /// Uploads one bundle zip to the Publisher API as a USER_MANAGED deployment and returns its id.
 pub fn maven_upload_bundle(
-    agent: &ureq::Agent,
+    client: &dx_http::Client,
     base_url: &str,
     bearer: &str,
     name: &str,
     zip: &[u8],
 ) -> Result<String, String> {
-    use std::io::Read as _;
     let url = format!(
         "{base_url}upload?publishingType=USER_MANAGED&name={}",
         http::query_escape(name)
     );
     let (content_type, body) = http::multipart_single_file("bundle", "bundle.zip", zip);
-    let mut response = agent
-        .post(&url)
-        .header("Authorization", bearer)
-        .header("Content-Type", &content_type)
-        .send(&body[..])
+    let response = client
+        .send(
+            dx_http::Method::Post,
+            &url,
+            &[
+                ("Authorization", bearer),
+                ("Content-Type", content_type.as_str()),
+            ],
+            dx_http::Body::Bytes(&body),
+            2048,
+        )
         .map_err(|error| format!("maven_deploy: upload to {url} failed: {error}"))?;
-    let status = response.status().as_u16();
-    let mut text = Vec::new();
-    let read = response
-        .body_mut()
-        .as_reader()
-        .take(2048)
-        .read_to_end(&mut text);
-    let text = String::from_utf8_lossy(&text).trim().to_owned();
+    let status = response.status;
+    let text = response.text().trim().to_owned();
     match status {
-        201 => match read {
-            Ok(_) if !text.is_empty() => Ok(text),
-            _ => Err(format!(
-                "maven_deploy: upload to {url} returned 201 without a deployment id"
-            )),
-        },
+        201 if !text.is_empty() => Ok(text),
+        201 => Err(format!(
+            "maven_deploy: upload to {url} returned 201 without a deployment id"
+        )),
         401 | 403 => Err(MAVEN_BAD_CREDENTIALS.to_owned()),
         _ => Err(format!(
             "maven_deploy: upload to {url} failed with HTTP {status}: {text}"
@@ -672,44 +669,39 @@ fn maven_api_check(
         return Ok(Outcome::FirstRelease);
     };
     let url = format!("{dir}/{previous}/{artifact}-{previous}.jar");
-    let old_jar = match fetch(&url, 512 << 20) {
-        Ok(Some(body)) => body,
-        Ok(None) => return Ok(Outcome::Skipped(format!("{url} not found"))),
-        Err(error) => return Ok(Outcome::Skipped(error)),
+    let staging =
+        tempfile_stage_dir("maven-api-").map_err(|error| format!("maven_deploy: {error}"))?;
+    let baseline_jar = staging.join("baseline.jar");
+    let outcome = match fetch_to(&url, &baseline_jar, 512 << 20) {
+        Ok(true) => maven_api_compare((java, japicmp), &previous, jar, &baseline_jar),
+        Ok(false) => Ok(Outcome::Skipped(format!("{url} not found"))),
+        Err(error) => Ok(Outcome::Skipped(error)),
     };
-    maven_api_compare((java, japicmp), &previous, jar, &old_jar)
+    drop(std::fs::remove_dir_all(&staging));
+    outcome
 }
 
-/// Runs japicmp on the baseline jar bytes and the new jar.
+/// Runs japicmp on the baseline jar and the new jar.
 fn maven_api_compare(
     (java, japicmp): (&Path, &Path),
     previous: &str,
     jar: &Path,
-    baseline: &[u8],
+    baseline_jar: &Path,
 ) -> Result<Outcome, String> {
-    let staging =
-        tempfile_stage_dir("maven-api-").map_err(|error| format!("maven_deploy: {error}"))?;
-    let baseline_jar = staging.join("baseline.jar");
-    let ran = std::fs::write(&baseline_jar, baseline)
-        .map_err(|error| format!("maven_deploy: {error}"))
-        .and_then(|()| {
-            let mut cmd = scrubbed_command(java, &[PUBLISH_CHILD_ENV_KEEP], &[]);
-            cmd.arg("-jar")
-                .arg(japicmp)
-                .arg("--old")
-                .arg(&baseline_jar)
-                .arg("--new")
-                .arg(jar)
-                .args([
-                    "--only-incompatible",
-                    "--error-on-binary-incompatibility",
-                    "--error-on-source-incompatibility",
-                    "--ignore-missing-classes",
-                ]);
-            run_publish(&mut cmd).map_err(|error| format!("maven_deploy: {error}"))
-        });
-    drop(std::fs::remove_dir_all(&staging));
-    let output = ran?;
+    let mut cmd = scrubbed_command(java, &[PUBLISH_CHILD_ENV_KEEP], &[]);
+    cmd.arg("-jar")
+        .arg(japicmp)
+        .arg("--old")
+        .arg(baseline_jar)
+        .arg("--new")
+        .arg(jar)
+        .args([
+            "--only-incompatible",
+            "--error-on-binary-incompatibility",
+            "--error-on-source-incompatibility",
+            "--ignore-missing-classes",
+        ]);
+    let output = run_publish(&mut cmd).map_err(|error| format!("maven_deploy: {error}"))?;
     let text = format!(
         "{}\n{}",
         String::from_utf8_lossy(&output.stdout),
@@ -886,13 +878,15 @@ pub fn maven_main(spec: &MavenLaunch<'_>, argv: &[String]) -> i32 {
             println!("maven_deploy: Central Portal validation rejects unsigned bundles");
         }
         let name = format!("{group}:{artifact}:{version}");
-        match maven_upload_bundle(
-            &http::publish_agent(),
-            MAVEN_PUBLISHER_URL,
-            &http::bearer_basic(&live.username, &live.password),
-            &name,
-            &bundle,
-        ) {
+        match http::client().and_then(|client| {
+            maven_upload_bundle(
+                &client,
+                MAVEN_PUBLISHER_URL,
+                &http::bearer_basic(&live.username, &live.password),
+                &name,
+                &bundle,
+            )
+        }) {
             Ok(id) => {
                 println!(
                     "maven_deploy: uploaded {name} to {MAVEN_PUBLISHER_URL} as deployment {id}"
@@ -1451,8 +1445,8 @@ pub(crate) mod tests {
         Stub { url, request }
     }
 
-    fn test_agent() -> ureq::Agent {
-        http::publish_agent_with_proxy(None)
+    fn test_client() -> dx_http::Client {
+        http::test_client()
     }
 
     #[test]
@@ -1460,7 +1454,7 @@ pub(crate) mod tests {
         let stub = stub_server("201 Created", "deployment-1234\n".to_owned());
         let zip = b"PK\x03\x04 bundle bytes".to_vec();
         let id = maven_upload_bundle(
-            &test_agent(),
+            &test_client(),
             &stub.url,
             &http::bearer_basic("user", "pass"),
             "com.example:demo:1.0.0",
@@ -1496,7 +1490,7 @@ pub(crate) mod tests {
         for status in ["401 Unauthorized", "403 Forbidden"] {
             let stub = stub_server(status, "denied".to_owned());
             let bearer = http::bearer_basic("user", "s3cret-pass");
-            let error = maven_upload_bundle(&test_agent(), &stub.url, &bearer, "g:a:1", b"zip")
+            let error = maven_upload_bundle(&test_client(), &stub.url, &bearer, "g:a:1", b"zip")
                 .expect_err("refused");
             assert_eq!(error, MAVEN_BAD_CREDENTIALS);
             assert!(
@@ -1510,7 +1504,7 @@ pub(crate) mod tests {
     fn maven_upload_reports_unexpected_status_with_body_excerpt() {
         let body = "x".repeat(5000);
         let stub = stub_server("400 Bad Request", body);
-        let error = maven_upload_bundle(&test_agent(), &stub.url, "Bearer t", "g:a:1", b"zip")
+        let error = maven_upload_bundle(&test_client(), &stub.url, "Bearer t", "g:a:1", b"zip")
             .expect_err("rejected");
         let prefix = format!(
             "maven_deploy: upload to {}upload?publishingType=USER_MANAGED&name=g%3Aa%3A1 failed with HTTP 400: ",
@@ -1525,7 +1519,7 @@ pub(crate) mod tests {
         let addr = listener.local_addr().expect("addr");
         drop(listener);
         let url = format!("http://{addr}/api/v1/publisher/");
-        let error = maven_upload_bundle(&test_agent(), &url, "Bearer t", "g:a:1", b"zip")
+        let error = maven_upload_bundle(&test_client(), &url, "Bearer t", "g:a:1", b"zip")
             .expect_err("unreachable");
         assert!(
             error.starts_with(&format!("maven_deploy: upload to {url}upload?")),
@@ -1617,7 +1611,9 @@ pub(crate) mod tests {
         );
         let japicmp = scratch.join("japicmp.jar");
         let jar = scratch.join("new.jar");
-        let outcome = maven_api_compare((&java, &japicmp), "1.2.0", &jar, b"old").expect("ran");
+        let old_jar = scratch.join("old.jar");
+        std::fs::write(&old_jar, b"old").expect("old jar");
+        let outcome = maven_api_compare((&java, &japicmp), "1.2.0", &jar, &old_jar).expect("ran");
         assert_eq!(
             outcome,
             Outcome::Compared {
@@ -1656,7 +1652,7 @@ pub(crate) mod tests {
             .expect("the runtime lists bin/java");
         let java = resolve_runfile(java).expect("java");
         let japicmp = resolve("JAPICMP_JAR");
-        let old_jar = std::fs::read(resolve("MAVEN_API_OLD_JAR")).expect("old jar");
+        let old_jar = resolve("MAVEN_API_OLD_JAR");
         let new_jar = resolve("MAVEN_API_NEW_JAR");
         let outcome =
             maven_api_compare((&java, &japicmp), "1.2.0", &new_jar, &old_jar).expect("ran");

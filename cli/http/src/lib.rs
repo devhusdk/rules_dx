@@ -10,13 +10,14 @@ mod lib_tests;
 
 use std::fs::File;
 use std::io::{self, Read as _, Seek as _};
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
 use dx_digest::Sha256Writer;
 use ureq::RequestBuilder;
 use ureq::tls::{PemItem, RootCerts, TlsConfig, TlsProvider};
-use ureq::typestate::WithoutBody;
+use ureq::typestate::WithBody;
 
 use proxy::Proxies;
 
@@ -45,6 +46,8 @@ pub struct Settings {
     pub first_backoff: Duration,
     /// Longest wait between two tries.
     pub max_backoff: Duration,
+    /// Follow 3xx answers. When false, [`Client::send`] returns the 3xx response itself.
+    pub follow_redirects: bool,
 }
 
 impl Default for Settings {
@@ -57,6 +60,7 @@ impl Default for Settings {
             attempts: 3,
             first_backoff: Duration::from_millis(500),
             max_backoff: Duration::from_secs(8),
+            follow_redirects: true,
         }
     }
 }
@@ -127,6 +131,7 @@ impl Client {
             .timeout_connect(Some(settings.connect_timeout))
             .timeout_per_read(Some(settings.idle_timeout))
             .timeout_per_write(Some(settings.idle_timeout))
+            .max_redirects(if settings.follow_redirects { 10 } else { 0 })
             .build()
             .into();
         Ok(Self {
@@ -142,7 +147,7 @@ impl Client {
     /// Fails on a status outside 2xx or when every try fails.
     pub fn head(&self, url: &str, headers: &[(&str, &str)]) -> Result<HeaderMap, Error> {
         self.retrying(|| {
-            self.send(Method::Head, url, headers)
+            self.call(Method::Head, url, headers)
                 .map(|response| response.headers().clone())
         })
     }
@@ -198,6 +203,93 @@ impl Client {
         Ok(sink.hash.finish_hex())
     }
 
+    /// Streams `url` into a staging file beside `dest` and renames it over `dest` once
+    /// the whole body has arrived. Returns the hex sha256. On failure `dest` is untouched
+    /// and no staging file is left behind.
+    ///
+    /// # Errors
+    /// Fails like [`Client::download_into`], and when `dest` cannot be staged or replaced.
+    pub fn download_to(
+        &self,
+        url: &str,
+        headers: &[(&str, &str)],
+        dest: &Path,
+        limit: u64,
+    ) -> Result<String, Error> {
+        let store_failed = |error: io::Error| Error::Write {
+            url: url.to_owned(),
+            message: format!("{}: {error}", dest.display()),
+        };
+        dx_atomic_fs::remove_stale_staging(dest);
+        let mut staged = dx_atomic_fs::StagedFile::create(dest).map_err(store_failed)?;
+        let sha = self.download_into(url, headers, staged.file_mut(), limit)?;
+        staged.commit().map_err(store_failed)?;
+        Ok(sha)
+    }
+
+    /// Sends one request and returns the answer whatever its status, keeping at most the
+    /// first `keep` bytes of the response body.
+    ///
+    /// GET and HEAD send no body and are retried on transport errors and on 408, 429 and
+    /// 5xx answers; when the tries run out the last answer is returned. POST and PUT are
+    /// sent once, so a publish never repeats.
+    ///
+    /// # Errors
+    /// Fails when no answer arrives, or when a proxy variable is unusable.
+    pub fn send(
+        &self,
+        method: Method,
+        url: &str,
+        headers: &[(&str, &str)],
+        body: Body<'_>,
+        keep: u64,
+    ) -> Result<Response, Error> {
+        if matches!(method, Method::Post | Method::Put) {
+            return self
+                .exchange(method, url, headers, body, keep)
+                .map_err(Failure::into_error);
+        }
+        let mut tries = 1;
+        let mut backoff = self.settings.first_backoff;
+        loop {
+            let last = tries >= self.settings.attempts;
+            match self.exchange(method, url, headers, Body::Empty, keep) {
+                Ok(response) if last || !retryable(response.status) => return Ok(response),
+                Err(Failure::Final(error)) => return Err(error),
+                Err(Failure::Transient(error)) if last => return Err(error),
+                Ok(_) | Err(Failure::Transient(_)) => {}
+            }
+            std::thread::sleep(backoff);
+            backoff = backoff.saturating_mul(2).min(self.settings.max_backoff);
+            tries += 1;
+        }
+    }
+
+    fn exchange(
+        &self,
+        method: Method,
+        url: &str,
+        headers: &[(&str, &str)],
+        body: Body<'_>,
+        keep: u64,
+    ) -> Result<Response, Failure> {
+        let response = self.request(method, url, headers, body)?;
+        let status = response.status().as_u16();
+        let headers = response.headers().clone();
+        let mut body = Vec::new();
+        response
+            .into_body()
+            .into_reader()
+            .take(keep)
+            .read_to_end(&mut body)
+            .map_err(|error| classify(url, ureq::Error::from(error)))?;
+        Ok(Response {
+            status,
+            headers,
+            body,
+        })
+    }
+
     fn stream(
         &self,
         url: &str,
@@ -213,7 +305,7 @@ impl Client {
         };
         self.retrying(|| {
             sink.restart().map_err(|error| store_failed(&error))?;
-            let response = self.send(Method::Get, url, headers)?;
+            let response = self.call(Method::Get, url, headers)?;
             let mut reader = response
                 .into_body()
                 .into_with_config()
@@ -236,18 +328,30 @@ impl Client {
         })
     }
 
-    fn send(
+    fn request(
+        &self,
+        method: Method,
+        url: &str,
+        headers: &[(&str, &str)],
+        body: Body<'_>,
+    ) -> Result<ureq::http::Response<ureq::Body>, Failure> {
+        let proxy = self.proxies.for_url(url).map_err(Failure::Final)?;
+        match method {
+            Method::Get => prepare(self.agent.get(url), headers, proxy).call(),
+            Method::Head => prepare(self.agent.head(url), headers, proxy).call(),
+            Method::Post => body.send(prepare(self.agent.post(url), headers, proxy)),
+            Method::Put => body.send(prepare(self.agent.put(url), headers, proxy)),
+        }
+        .map_err(|error| classify(url, error))
+    }
+
+    fn call(
         &self,
         method: Method,
         url: &str,
         headers: &[(&str, &str)],
     ) -> Result<ureq::http::Response<ureq::Body>, Failure> {
-        let proxy = self.proxies.for_url(url).map_err(Failure::Final)?;
-        let response = match method {
-            Method::Get => prepare(self.agent.get(url), headers, proxy).call(),
-            Method::Head => prepare(self.agent.head(url), headers, proxy).call(),
-        }
-        .map_err(|error| classify(url, error))?;
+        let response = self.request(method, url, headers, Body::Empty)?;
         let status = response.status();
         if status.is_success() {
             return Ok(response);
@@ -257,9 +361,10 @@ impl Client {
             code: status.as_u16(),
         };
         // Only answers that say "try again" are retried; any other 4xx stays a 4xx.
-        Err(match status.as_u16() {
-            408 | 429 | 500 | 502 | 503 | 504 => Failure::Transient(error),
-            _ => Failure::Final(error),
+        Err(if retryable(status.as_u16()) {
+            Failure::Transient(error)
+        } else {
+            Failure::Final(error)
         })
     }
 
@@ -283,10 +388,63 @@ impl Client {
     }
 }
 
-#[derive(Clone, Copy)]
-enum Method {
+/// The HTTP methods [`Client::send`] speaks.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Method {
     Get,
     Head,
+    Post,
+    Put,
+}
+
+/// What a POST or PUT carries.
+#[derive(Debug)]
+pub enum Body<'a> {
+    Empty,
+    Bytes(&'a [u8]),
+    /// Streamed from the file's current position; set `Content-Length` to avoid chunking.
+    File(File),
+}
+
+impl Body<'_> {
+    fn send(
+        self,
+        request: RequestBuilder<WithBody>,
+    ) -> Result<ureq::http::Response<ureq::Body>, ureq::Error> {
+        match self {
+            Body::Empty => request.send_empty(),
+            Body::Bytes(bytes) => request.send(bytes),
+            Body::File(file) => request.send(file),
+        }
+    }
+}
+
+/// One answer from [`Client::send`], whatever its status.
+#[derive(Debug)]
+pub struct Response {
+    pub status: u16,
+    pub headers: HeaderMap,
+    /// The body, cut to the `keep` bytes the caller asked for.
+    pub body: Vec<u8>,
+}
+
+impl Response {
+    /// The first value of header `name`, when it is valid text.
+    #[must_use]
+    pub fn header(&self, name: &str) -> Option<&str> {
+        self.headers.get(name).and_then(|value| value.to_str().ok())
+    }
+
+    /// The body as text, with invalid UTF-8 replaced.
+    #[must_use]
+    pub fn text(&self) -> std::borrow::Cow<'_, str> {
+        String::from_utf8_lossy(&self.body)
+    }
+}
+
+/// Whether an answer says "try again"; any other 4xx stays a 4xx.
+fn retryable(status: u16) -> bool {
+    matches!(status, 408 | 429 | 500 | 502 | 503 | 504)
 }
 
 /// One try's failure: a transient one is worth another try, a final one is not.
@@ -295,11 +453,19 @@ enum Failure {
     Final(Error),
 }
 
-fn prepare(
-    mut request: RequestBuilder<WithoutBody>,
+impl Failure {
+    fn into_error(self) -> Error {
+        match self {
+            Failure::Transient(error) | Failure::Final(error) => error,
+        }
+    }
+}
+
+fn prepare<B>(
+    mut request: RequestBuilder<B>,
     headers: &[(&str, &str)],
     proxy: Option<ureq::Proxy>,
-) -> RequestBuilder<WithoutBody> {
+) -> RequestBuilder<B> {
     for (name, value) in headers {
         request = request.header(*name, *value);
     }

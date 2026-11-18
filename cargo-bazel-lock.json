@@ -1,5 +1,5 @@
 {
-  "checksum": "72a8d599761a69cebe57a3c782206794e2a8abebb12534997b537fe59cafe9fa",
+  "checksum": "d9565d91c34aa870c4695d6c8c12be1ef2cd9820ec8d9b64e1348d2b722fd95b",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -8334,10 +8334,6 @@
             "target": "rand"
           },
           {
-            "id": "rustls 0.23.46",
-            "target": "rustls"
-          },
-          {
             "id": "ruzstd 0.9.1",
             "target": "ruzstd"
           },
@@ -8360,10 +8356,6 @@
           {
             "id": "tempfile 3.27.0",
             "target": "tempfile"
-          },
-          {
-            "id": "ureq 3.5.0",
-            "target": "ureq"
           },
           {
             "id": "zip 9.1.2",

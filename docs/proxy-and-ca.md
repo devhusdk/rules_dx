@@ -12,7 +12,7 @@ export NO_PROXY=localhost,127.0.0.1
 export CURL_CA_BUNDLE=/etc/ssl/company-ca.pem
 ```
 
-Then import the CA into a Java trust store for Bazel, and install it in the OS trust store for the `dx` shim and deploy uploads. The sections below show each step.
+Then import the CA into a Java trust store for Bazel, and install it in the OS trust store, or name it in `SSL_CERT_FILE`, for the `dx` shim and deploy uploads. The sections below show each step.
 
 ## Which setting each download reads
 
@@ -23,7 +23,7 @@ Then import the CA into a Java trust store for Bazel, and install it in the OS t
 | `tools/dx.cmd` | PowerShell and Windows settings | Windows certificate store |
 | `dx` shim | `HTTPS_PROXY`, `NO_PROXY` | OS trust store, or `SSL_CERT_FILE` |
 | `dx update` and lock tools | `HTTPS_PROXY`, `NO_PROXY` | OS trust store, or `SSL_CERT_FILE` |
-| Deploy uploads | `HTTPS_PROXY`, `NO_PROXY` | OS trust store |
+| Deploy uploads | `HTTPS_PROXY`, `NO_PROXY` | OS trust store, or `SSL_CERT_FILE` |
 
 ## Bazel
 
@@ -89,4 +89,4 @@ export SSL_CERT_FILE=~/.config/dx-ca.pem
 
 ## Deploy uploads
 
-Deploy uploads read `HTTPS_PROXY` and `NO_PROXY`, and check certificates with the OS trust store.
+Deploy uploads read the same settings as the shim.

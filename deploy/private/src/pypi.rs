@@ -1,7 +1,7 @@
 //! PyPI publisher: wheelhouse staging and the twine upload.
 
 use crate::api_compat::{
-    ApiCompatMode, Baseline, Outcome, changes_or_failure, conclude, fetch, highest_below,
+    ApiCompatMode, Baseline, Outcome, changes_or_failure, conclude, fetch, fetch_to, highest_below,
     previous_git_tag, workspace_dir,
 };
 use crate::archive::*;
@@ -600,13 +600,13 @@ fn pypi_registry_baseline(
             "{project} {previous} has no wheel"
         )));
     };
-    let old_wheel = match fetch(&wheel_url, 512 << 20) {
-        Ok(Some(bytes)) => bytes,
-        Ok(None) => return Err(Outcome::Skipped(format!("{wheel_url} not found"))),
+    match fetch_to(&wheel_url, &work.join("old.zip"), 512 << 20) {
+        Ok(true) => {}
+        Ok(false) => return Err(Outcome::Skipped(format!("{wheel_url} not found"))),
         Err(error) => return Err(Outcome::Skipped(error)),
-    };
-    let extracted = std::fs::write(work.join("old.zip"), old_wheel)
-        .and_then(|()| std::fs::copy(wheel, work.join("new.zip")).map(drop))
+    }
+    let extracted = std::fs::copy(wheel, work.join("new.zip"))
+        .map(drop)
         .and_then(|()| archive_extract(&work.join("old.zip"), &work.join("old")).map(drop))
         .and_then(|()| archive_extract(&work.join("new.zip"), &work.join("new")).map(drop));
     if let Err(error) = extracted {

@@ -257,3 +257,54 @@ fn cfg_selected_dependencies_keep_both_windows_architectures() {
         }
     }
 }
+
+/// The workspace crates whose normal or dev dependencies include crate `name`.
+fn workspace_dependents(name: &str) -> BTreeSet<String> {
+    let lock = lock();
+    let prefix = format!("{name} ");
+    let names_crate = |dep: &Value| dep["id"].as_str().is_some_and(|id| id.starts_with(&prefix));
+    let mut dependents = BTreeSet::new();
+    for member in lock["workspace_members"].as_object().into_iter().flatten() {
+        let attrs = &lock["crates"][member.0]["common_attrs"];
+        // A dependency list is a plain array, or `common` plus per-platform `selects`.
+        let lists = |deps: &Value| -> Vec<Value> {
+            if deps.is_array() {
+                return vec![deps.clone()];
+            }
+            std::iter::once(deps["common"].clone())
+                .chain(
+                    deps["selects"]
+                        .as_object()
+                        .into_iter()
+                        .flatten()
+                        .map(|(_, list)| list.clone()),
+                )
+                .collect()
+        };
+        let uses = ["deps", "deps_dev"].iter().any(|kind| {
+            lists(&attrs[*kind])
+                .iter()
+                .any(|list| list.as_array().into_iter().flatten().any(names_crate))
+        });
+        if uses {
+            dependents.insert(member.0.split(' ').next().unwrap_or_default().to_owned());
+        }
+    }
+    dependents
+}
+
+#[test]
+fn only_the_shared_client_crate_builds_on_ureq() {
+    assert_eq!(
+        workspace_dependents("ureq"),
+        BTreeSet::from(["dx_http".to_owned()])
+    );
+}
+
+#[test]
+fn only_the_generated_api_client_tests_build_on_reqwest() {
+    assert_eq!(
+        workspace_dependents("reqwest"),
+        BTreeSet::from(["api_spec_tests".to_owned()])
+    );
+}

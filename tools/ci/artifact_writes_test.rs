@@ -5,11 +5,13 @@ const SCRATCH: &str = "dx_atomic_fs::write_scratch(";
 const SHARD: &str = "documentation_ir::tool::write_shard(";
 const SYNCED: &str = "dx_atomic_fs::write_atomic(";
 const COPY_SCRATCH: &str = "dx_atomic_fs::copy_scratch(";
+const COPY_SYNCED: &str = "dx_atomic_fs::copy_atomic(";
 const IN_PLACE: &str = "fs::write(";
 const HAND_RENAME: &str = "fs::rename(";
 
 /// Sources that write a whole file, with the dx_atomic_fs call each must commit it through.
-const WRITERS: [(&str, &str); 10] = [
+const WRITERS: [(&str, &str); 11] = [
+    ("android/private/packaging/ops/src/sign.rs", COPY_SYNCED),
     ("appimage/private/tools/packer/src/lib.rs", SCRATCH),
     ("apple/private/tools/ops/src/app_check.rs", SCRATCH),
     ("apple/private/tools/ops/src/xcframework_check.rs", SCRATCH),
@@ -26,8 +28,14 @@ const WRITERS: [(&str, &str); 10] = [
 /// they must use in place of their own rename.
 const STAGED_WRITERS: [(&str, &str); 3] = [
     ("cli/shim/src/fetch.rs", "dx_atomic_fs::StagedFile::create("),
-    ("deploy/private/src/oci.rs", "dx_atomic_fs::StagedFile::create("),
-    ("deploy/private/src/oci.rs", "dx_atomic_fs::commit::publish_tree_swap("),
+    (
+        "deploy/private/src/oci.rs",
+        "dx_atomic_fs::StagedFile::create(",
+    ),
+    (
+        "deploy/private/src/oci.rs",
+        "dx_atomic_fs::commit::publish_tree_swap(",
+    ),
 ];
 
 /// Sources that replace a link or a tree through dx_atomic_fs instead of renaming by hand.

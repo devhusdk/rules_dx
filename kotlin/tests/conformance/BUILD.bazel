@@ -1,6 +1,7 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//kotlin:defs.bzl", "kotlin_binary", "kotlin_library", "kotlin_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+load("//tools/testing/conformance:quality.bzl", "java_format_subject", "java_lint_subject")
 
 package(
     default_testonly = True,
@@ -11,6 +12,18 @@ kotlin_library(
     name = "conformance",
     testonly = True,
     srcs = ["Greet.kt"],
+)
+
+kotlin_library(
+    name = "lint_dirty",
+    srcs = ["LintDirty.kt"],
+    tags = ["manual"],
+)
+
+kotlin_library(
+    name = "format_dirty",
+    srcs = ["FormatDirty.kt"],
+    tags = ["manual"],
 )
 
 kotlin_binary(
@@ -74,6 +87,17 @@ dx_conformance_suite(
         "stale": "maven_install.stale.json",
     },
     passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "FormatDirty.kt",
+        "format_subject": java_format_subject,
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 3,
+        "lint_rule": "UnusedImports",
+        "lint_source": "LintDirty.kt",
+        "lint_subject": java_lint_subject,
+    },
     runfiles = {
         "binary": ":runfiles_hello",
         "data": "data.txt",

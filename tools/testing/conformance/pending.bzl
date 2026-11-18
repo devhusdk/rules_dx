@@ -78,10 +78,6 @@ julia format_error_test *
 julia format_test *
 julia lint_error_test *
 julia lint_test *
-kotlin format_error_test *
-kotlin format_test *
-kotlin lint_error_test *
-kotlin lint_test *
 mdx format_error_test *
 mdx format_test *
 mdx lint_error_test *

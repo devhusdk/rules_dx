@@ -30,6 +30,8 @@ pub enum DiffError {
     EmptyCreate { path: String },
     #[error("no change for {path:?}: candidate is identical to original")]
     NoopPatch { path: String },
+    #[error("invalid path {path:?}: {reason}")]
+    InvalidPath { path: String, reason: &'static str },
 }
 
 const CONTEXT: usize = 3;
@@ -40,21 +42,27 @@ fn check_path(path: &str) -> Result<(), DiffError> {
             path: path.to_owned(),
         });
     }
+    if let Some(reason) = dx_path::reject_reason(path) {
+        return Err(DiffError::InvalidPath {
+            path: path.to_owned(),
+            reason,
+        });
+    }
     Ok(())
 }
 
 pub fn render_patch(files: &[FilePatch<'_>]) -> Result<String, DiffError> {
     let mut ordered: Vec<&FilePatch<'_>> = files.iter().collect();
     ordered.sort_by(|a, b| a.path.as_bytes().cmp(b.path.as_bytes()));
-    let mut seen: Vec<&str> = Vec::with_capacity(ordered.len());
+    let mut previous: Option<&str> = None;
     for file in &ordered {
         check_path(file.path)?;
-        if seen.contains(&file.path) {
+        if previous == Some(file.path) {
             return Err(DiffError::DuplicatePath {
                 path: (*file.path).to_owned(),
             });
         }
-        seen.push(file.path);
+        previous = Some(file.path);
         match file.kind {
             PatchKind::Create if !file.original.is_empty() => {
                 return Err(DiffError::CreateWithOriginal {
@@ -332,6 +340,92 @@ mod tests {
             got,
             "--- a/a.txt\n+++ b/a.txt\n@@ -1,4 +1,4 @@\n a\n-b\n+B\n c\n d\n\\ No newline at end of file\n"
         );
+    }
+
+    #[test]
+    fn paths_outside_the_workspace_fail() {
+        for bad in [
+            "",
+            "/etc/passwd",
+            "C:/x",
+            "C:x",
+            "a\\b",
+            "a/../b",
+            "../b",
+            "./a",
+            "a/./b",
+            "a//b",
+            "a/",
+            "a\0b",
+            "a\u{7f}b",
+        ] {
+            let err = render_patch(&[modify(bad, "x\n", "y\n")]).expect_err(bad);
+            assert!(
+                matches!(&err, DiffError::InvalidPath { path, .. } if path == bad),
+                "{bad:?}: {err:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn invalid_path_message_names_the_reason() {
+        let err = render_patch(&[modify("../x", "a\n", "b\n")]).expect_err("must fail");
+        assert_eq!(
+            err.to_string(),
+            "invalid path \"../x\": path must have no '..' component"
+        );
+    }
+
+    #[test]
+    fn invalid_create_path_fails() {
+        let patch = FilePatch {
+            path: "/abs",
+            kind: PatchKind::Create,
+            original: "",
+            candidate: "x\n",
+        };
+        assert!(matches!(
+            render_patch(&[patch]),
+            Err(DiffError::InvalidPath { .. })
+        ));
+    }
+
+    #[test]
+    fn many_distinct_paths_render_quickly() {
+        let paths: Vec<String> = (0..100_000).map(|i| format!("d/f{i}.txt")).collect();
+        let files: Vec<FilePatch<'_>> = paths.iter().map(|p| modify(p, "a\n", "b\n")).collect();
+        let start = std::time::Instant::now();
+        let got = render_patch(&files).expect("patch");
+        assert_eq!(got.matches("@@ ").count(), 100_000);
+        assert!(start.elapsed() < std::time::Duration::from_secs(20));
+    }
+
+    #[test]
+    fn duplicate_is_found_among_many_paths() {
+        let paths: Vec<String> = (0..1000).map(|i| format!("f{i}.txt")).collect();
+        let mut files: Vec<FilePatch<'_>> = paths.iter().map(|p| modify(p, "a\n", "b\n")).collect();
+        files.push(modify("f500.txt", "a\n", "c\n"));
+        assert_eq!(
+            render_patch(&files).expect_err("must fail"),
+            DiffError::DuplicatePath {
+                path: "f500.txt".to_owned()
+            }
+        );
+    }
+
+    #[test]
+    fn crlf_lines_keep_their_carriage_return() {
+        let got = render_patch(&[modify("a.txt", "a\r\nb\r\n", "a\r\nB\r\n")]).expect("patch");
+        assert_eq!(
+            got,
+            "--- a/a.txt\n+++ b/a.txt\n@@ -1,2 +1,2 @@\n a\r\n-b\r\n+B\r\n"
+        );
+    }
+
+    #[test]
+    fn line_ending_only_change_is_a_change() {
+        let got = render_patch(&[modify("a.txt", "a\n", "a\r\n")]).expect("patch");
+        assert_eq!(got, "--- a/a.txt\n+++ b/a.txt\n@@ -1,1 +1,1 @@\n-a\n+a\r\n");
     }
 
     #[test]

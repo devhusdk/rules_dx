@@ -30,6 +30,12 @@ pub enum DepcheckError {
     LockParse(String),
     #[error("unreadable sources: {0}")]
     SourcesRegex(#[source] regex::Error),
+    #[error("unreadable sources: {}: {source}", path.display())]
+    SourcesIo {
+        path: std::path::PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
     #[error("jvm dep entry without group/artifact")]
     JvmEntry,
     #[error("cc dep entry without name")]
@@ -90,6 +96,7 @@ impl From<DepcheckError> for dx_error::DxError {
             DepcheckError::ManifestIo(ref source) | DepcheckError::LockIo(ref source) => {
                 Self::from_io(error.to_string(), source)
             }
+            DepcheckError::SourcesIo { .. } => Self::infra(error.to_string()),
             DepcheckError::ManifestToml(_)
             | DepcheckError::ManifestJson(_)
             | DepcheckError::ManifestRegex(_)

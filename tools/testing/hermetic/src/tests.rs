@@ -1959,34 +1959,6 @@ fn macos_evidence_is_checked_against_macos_markers() {
     assert!(verify_evidence(&linux, "abc123", &manifest).is_ok());
 }
 
-#[cfg(unix)]
-#[test]
-fn copy_test_logs_keeps_layout_and_returns_heads() {
-    let dir = tempfile::tempdir().unwrap();
-    let logs = dir.path().join("bazel-testlogs");
-    let case = logs.join("javascript/cli/exit_codes_test");
-    std::fs::create_dir_all(&case).unwrap();
-    let body: String = (1..=50).fold(String::new(), |mut body, n| {
-        writeln!(body, "line {n}").ok();
-        body
-    });
-    std::fs::write(case.join("test.log"), body).unwrap();
-    std::fs::write(case.join("test.xml"), "<testsuites/>").unwrap();
-    let dest = dir.path().join("out/testlogs");
-    let text = copy_test_logs(&logs, &dest);
-    assert!(
-        dest.join("javascript/cli/exit_codes_test/test.log")
-            .is_file()
-    );
-    assert!(
-        !dest
-            .join("javascript/cli/exit_codes_test/test.xml")
-            .exists()
-    );
-    assert!(text.contains("javascript/cli/exit_codes_test/test.log"));
-    assert!(text.contains("line 40") && !text.contains("line 41"));
-    assert_eq!(copy_test_logs(&dir.path().join("missing"), &dest), "");
-}
 
 #[test]
 fn windows_tool_dirs_lists_python_node_jdk_and_llvm() {

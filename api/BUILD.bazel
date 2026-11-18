@@ -8,6 +8,12 @@ filegroup(
     visibility = ["//tools/api:__pkg__"],
 )
 
+# Written by hand when a name is deprecated; //tools/ci:zero_compat_test checks it against the code.
+exports_files(
+    ["deprecations.txt"],
+    visibility = ["//tools/ci:__pkg__"],
+)
+
 filegroup(
     name = "module_srcs",
     srcs = glob(["**"]),

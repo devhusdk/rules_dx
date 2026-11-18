@@ -1,5 +1,5 @@
 {
-  "checksum": "21a92e8fc3dd8357f78a5dc8509c7ce1d7ed496c1c4b7248207dd37612f804fd",
+  "checksum": "3ab32833a239b6578cb69042fc28729ddd081bae64de329ecaf33dde734a16c4",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -7686,14 +7686,6 @@
     "dx_advisory_prep 0.0.0": {
       "common_attrs": {
         "deps": [
-          {
-            "id": "crc32fast 1.5.2",
-            "target": "crc32fast"
-          },
-          {
-            "id": "flate2 1.1.10",
-            "target": "flate2"
-          },
           {
             "id": "serde 1.0.229",
             "target": "serde"
@@ -33197,7 +33189,6 @@
     "clap_lex 1.1.1",
     "clap_mangen 0.2.33",
     "console 0.16.6",
-    "crc32fast 1.5.2",
     "cxx 1.0.205",
     "cxx-gen 0.7.205",
     "cxx-qt 0.10.0",

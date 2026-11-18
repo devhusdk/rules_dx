@@ -1669,8 +1669,6 @@ dependencies = [
 name = "dx_advisory_prep"
 version = "0.0.0"
 dependencies = [
- "crc32fast",
- "flate2",
  "serde",
  "serde_json",
  "tempfile",

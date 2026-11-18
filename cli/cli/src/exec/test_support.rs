@@ -23,7 +23,9 @@ use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 pub(crate) use crate::test_support::parsed as invocation;
-pub(crate) use dx_testing::cli::{event, event_kinds, events_of_kind, graph_rule, json_events};
+pub(crate) use dx_testing::cli::{
+    event, event_kinds, events_of_kind, graph_rule, graph_rule_of_kind, json_events,
+};
 
 pub(crate) fn temp_dir(prefix: &str) -> tempfile::TempDir {
     dx_test_scratch::scratch(&format!("dx-exec-test-{prefix}-"))

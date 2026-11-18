@@ -473,7 +473,7 @@ fn is_ignored(rel: &str, ignores: &[String]) -> bool {
 
 /// Walks the workspace like Bazel would: honours `.bazelignore`, skips `skip` directory names
 /// and never follows symlinks. `visit(name, rel, dir)` returns true to stop early.
-fn walk_workspace(
+pub fn walk_workspace(
     workspace: &Path,
     skip: &[&str],
     mut visit: impl FnMut(&str, &str, &str) -> bool,

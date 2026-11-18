@@ -498,7 +498,7 @@ mod tests {
                 "query",
                 "--keep_going",
                 "--output=streamed_jsonproto",
-                "--proto:output_rule_attrs=tags",
+                "--proto:output_rule_attrs=tags,size",
                 "--noproto:default_values",
                 "--noproto:locations",
                 "--noproto:instantiation_stack",

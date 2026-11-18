@@ -137,7 +137,7 @@ fn expand_for_test(
     }
     let graph = RuleGraph::load(workspace, runner, startup_options)?;
     let file_owners = owners_in_graph(&classified.files, &graph)?;
-    let tests = tests_for_owners(&file_owners, &graph, workspace, runner, selection)?;
+    let tests = tests_for_owners(&file_owners, &graph, selection)?;
     let mut targets = classified.labels;
     targets.extend(classified.patterns);
     targets.extend(tests);
@@ -151,7 +151,7 @@ mod tests {
     use super::*;
     use crate::resolve::{FakeQuery, NeverQuery, QueryResult};
     use dx_test_scratch::write;
-    use dx_testing::cli::{graph_rule, graph_stdout, strings};
+    use dx_testing::cli::{graph_rule, graph_rule_of_kind, graph_stdout, strings};
     use std::cell::RefCell;
 
     #[test]
@@ -178,13 +178,10 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
-        let query = FakeQuery::new(vec![
-            FakeQuery::ok(&graph_stdout(&[
-                graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
-                graph_rule("//pkg:unit", &["//pkg:lib"], &[]),
-            ])),
-            FakeQuery::ok("//pkg:unit\n"),
-        ]);
+        let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
+            graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
+            graph_rule_of_kind("//pkg:unit", "py_test", &["//pkg:lib"], &[]),
+        ]))]);
         write(&workspace, "other/BUILD.bazel", "");
         let got = resolve_for_test_with_selection(
             &strings(&["pkg/a.py", "//other/..."]),
@@ -199,7 +196,11 @@ mod tests {
             strings(&["//other/...", "//pkg:unit"]),
             "owners are replaced by mapped tests"
         );
-        assert_eq!(query.calls().len(), 2, "one graph query plus one mapping");
+        assert_eq!(
+            query.calls().len(),
+            1,
+            "the graph query maps files to tests"
+        );
     }
 
     #[test]
@@ -254,17 +255,17 @@ mod tests {
                         0,
                         graph_stdout(&[
                             graph_rule("//pkg:lib", &["//pkg:a.py", "//pkg:b.py"], &[]),
-                            graph_rule("//pkg:unit", &["//pkg:lib"], &[]),
-                            graph_rule("//pkg:e2e", &["//pkg:lib", "@@android+sdk//:core"], &[]),
+                            graph_rule_of_kind("//pkg:unit", "py_test", &["//pkg:lib"], &[]),
+                            graph_rule_of_kind(
+                                "//pkg:e2e",
+                                "sh_test",
+                                &["//pkg:lib", "@@android+sdk//:core"],
+                                &[],
+                            ),
                         ]),
                     )
-                } else if expression.starts_with("tests(") {
-                    (0, "//pkg:e2e\n//pkg:unit\n".to_owned())
                 } else {
-                    (
-                        0,
-                        "//pkg:lib (abc)\n//pkg:e2e (abc)\n//pkg:unit (abc)\n".to_owned(),
-                    )
+                    (2, String::new())
                 };
             Ok(QueryResult {
                 code: Some(code),
@@ -300,13 +301,7 @@ mod tests {
             )
             .expect("resolve");
             let expressions = query.expressions.borrow();
-            assert_eq!(expressions[0], "kind('rule', //...)");
-            for expression in &expressions[1..] {
-                assert!(!expression.contains("rdeps(//"), "{expression}");
-                assert!(!expression.contains("//..."), "{expression}");
-            }
-            let expected = if selection.configured() { 3 } else { 2 };
-            assert_eq!(expressions.len(), expected, "{expressions:?}");
+            assert_eq!(*expressions, ["kind('rule', //...)"]);
         }
     }
 

@@ -54,7 +54,7 @@ pub fn parse_zig_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Depc
     Ok(deps)
 }
 
-/// Reads a `zig.lock.json`: each package's `version` is the manifest `.hash` it was locked from.
+/// Reads the lock of a zig hub: each package's `version` is the manifest `.hash` it was locked from.
 pub fn parse_zig_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     Ok(super::lock_packages(path)?
         .into_iter()

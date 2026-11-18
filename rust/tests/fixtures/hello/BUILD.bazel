@@ -317,6 +317,7 @@ rust_test(
 
 rust_shard_runner_tests(
     name = "shard_runner_test",
+    size = "small",
     sharded = ":sharded_test",
     unsharded = ":default-name-test",
 )

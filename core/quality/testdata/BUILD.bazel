@@ -353,6 +353,7 @@ upstream_ownership_tests(
 
 upstream_android_ownership_tests(
     name = "upstream_android_ownership_presence",
+    size = "small",
     subjects = [
         ":upstream_java_android_subject",
         ":upstream_kotlin_android_subject",

@@ -1,4 +1,4 @@
-"""Fetches the terms of every licence in core/license.bzl and checks each against its pinned sha256.
+"""Fetches the terms of every licence in core/licenses/pins.json and checks each against its pinned sha256.
 
 Run by the scheduled terms-check workflow, never in presubmit: vendor pages change on
 their own schedule, and a change is a reason to ask users to re-accept, not a red PR.
@@ -8,18 +8,17 @@ markup are dropped and whitespace is collapsed, because pages such as
 developer.android.com embed a fresh nonce and shuffled feature flags in every
 response. Other content types (PDF, RTF) are hashed as served.
 
-Usage: python3 -I terms_check.py <path to core/license.bzl>
+Usage: python3 -I terms_check.py <path to core/licenses/pins.json>
 Prints one line per licence and exits 1 when any hash differs or a fetch fails.
 """
 
 import hashlib
 import html
+import json
 import re
 import sys
 import urllib.request
 
-_ENTRY = re.compile(r'(\w+): struct\(\s*url = "([^"]+)",\s*terms_sha256 = "([0-9a-f]{64})",?\s*\)')
-_ID = re.compile(r'^(\w+) = "([a-z0-9-]+)"$', re.MULTILINE)
 _DROP = re.compile(r"<(script|style|noscript)\b.*?</\1\s*>", re.DOTALL | re.IGNORECASE)
 _TAG = re.compile(r"<[^>]*>")
 _SPACE = re.compile(r"\s+")
@@ -44,14 +43,13 @@ def terms_sha256(url):
 
 
 def pins(source):
-    """Returns (id, url, sha256) for each licence entry in core/license.bzl."""
-    ids = dict(_ID.findall(source))
-    return [(ids.get(const, const), url, sha) for const, url, sha in _ENTRY.findall(source)]
+    """Returns (id, url, sha256) for each licence entry in core/licenses/pins.json."""
+    return [(name, entry["url"], entry["terms_sha256"]) for name, entry in sorted(json.loads(source).items())]
 
 
 def main(argv):
     if len(argv) != 2:
-        print("usage: terms_check.py <core/license.bzl>", file=sys.stderr)
+        print("usage: terms_check.py <core/licenses/pins.json>", file=sys.stderr)
         return 2
     with open(argv[1], encoding="utf-8") as source:
         entries = pins(source.read())

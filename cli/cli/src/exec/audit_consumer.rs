@@ -699,7 +699,10 @@ source = { registry = "https://pypi.org/simple" }
     }
 
     fn pinned_module() -> String {
-        "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.lock(name = \"gems\", lock = \"//apps/rb:ruby.lock.json\")\n".to_owned()
+        let lock = dx_adopt::lock_hubs::lock_of("ruby").expect("ruby lock");
+        format!(
+            "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.lock(name = \"gems\", lock = \"//apps/rb:{lock}\")\n"
+        )
     }
 
     const GEMFILE_LOCK: &str = "GEM\n  remote: https://rubygems.org/\n  specs:\n    rack (2.2.0)\n\nPLATFORMS\n  ruby\n\nDEPENDENCIES\n  rack\n";
@@ -727,7 +730,7 @@ source = { registry = "https://pypi.org/simple" }
             GEMFILE_LOCK,
         );
         harness.write_source(
-            "apps/rb/ruby.lock.json",
+            &format!("apps/rb/{}", dx_adopt::lock_hubs::lock_of("ruby").expect("ruby lock")),
             "{\"ecosystem\": \"ruby\", \"packages\": []}\n",
         );
         harness

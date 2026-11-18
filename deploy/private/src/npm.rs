@@ -931,7 +931,7 @@ mod tests {
     fn npm_tar_members_refuses_a_dot_dot_member() {
         let scratch = scratch_dir();
         let tgz = scratch.path().join("escape.tgz");
-        std::fs::write(&tgz, raw_tar_gz("../package.json", b"{}")).expect("write");
+        std::fs::write(&tgz, raw_tar_gz(&format!("../{}", manifest_name()), b"{}")).expect("write");
         let error = npm_tar_members(&tgz).expect_err("dot dot");
         assert!(error.to_string().contains("'..'"), "{error}");
     }

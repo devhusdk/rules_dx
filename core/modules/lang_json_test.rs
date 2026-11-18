@@ -653,7 +653,7 @@ fn gazelle_lock_registry_is_generated_from_every_lang_json() {
 #[test]
 fn starlark_lock_registry_is_generated_from_every_lang_json() {
     let mut text = String::from(
-        "\"\"\"Generated from every <lang>/lang.json setup.hubs entry with a lock.\"\"\"\n\nvisibility([\"//core/...\", \"//deploy/...\", \"//julia/...\", \"//python/...\", \"//tools/...\"])\n\nLOCK_REGISTRY = {\n",
+        "\"\"\"Generated from every <lang>/lang.json setup.hubs entry with a lock.\"\"\"\n\nvisibility([\"//core/...\", \"//deploy/...\", \"//elixir/...\", \"//julia/...\", \"//python/...\", \"//tools/...\"])\n\nLOCK_REGISTRY = {\n",
     );
     for entry in lock_registry_entries() {
         writeln!(text, "    {}: {{", entry["ecosystem"]).expect("write to String");

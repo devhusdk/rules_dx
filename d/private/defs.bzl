@@ -130,7 +130,7 @@ def d_test(name, *, srcs = None, visibility = None, **kwargs):
     kwargs = _cover(_string_srcs(name, kwargs))
     dx_wrap_test(name, _d_test, _d_forward_test, srcs, visibility = visibility, quality_srcs = quality_srcs, extra_forward_kwargs = {"deps": kwargs.get("deps", [])}, coverage_collector = D_COVERAGE_COLLECTOR, **kwargs)
 
-_d_fuzz_driver = dx_private_dep_rule(
+_d_fuzzer_driver = dx_private_dep_rule(
     Label("//d/private/fuzz:fuzz_driver"),
     [_DInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
     "Provides the driver d_fuzz_test links when libFuzzer is not linked.",
@@ -146,7 +146,7 @@ def d_fuzz_test(name, *, srcs = None, visibility = None, tags = None, dopts = No
         Label("@llvm//config:fuzzer_enabled"): ["-fsanitize=fuzzer,address"],
         "//conditions:default": [],
     })
-    _d_fuzz_driver(
+    _d_fuzzer_driver(
         name = name + "_fuzz_driver",
         testonly = True,
         tags = dx_upstream_tags(tags),

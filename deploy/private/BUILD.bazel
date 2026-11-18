@@ -1019,7 +1019,10 @@ github_deploy(
     ],
 )
 
-github_attestation_tests(name = "github_attestation")
+github_attestation_tests(
+    name = "github_attestation",
+    size = "small",
+)
 
 deploy_analysis_test(
     name = "github_analysis",
@@ -1699,7 +1702,10 @@ cloudflare_program_closure_tests(name = "cloudflare_program_closure")
 
 pypi_unit_tests(name = "pypi_unit")
 
-pypi_attestations_tool_tests(name = "pypi_attestations_tool")
+pypi_attestations_tool_tests(
+    name = "pypi_attestations_tool",
+    size = "small",
+)
 
 deploy_analysis_test(
     name = "pypi_analysis",

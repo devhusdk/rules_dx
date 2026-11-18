@@ -29,14 +29,15 @@ def _fetch(rctx, tool, pin, build):
             required = [binary],
         )
     else:
-        args = dict(url = pin["urls"], sha256 = pin["sha256"], type = pin.get("type", ""), stripPrefix = pin.get("strip_prefix", ""))
-        if not pin.get("ghcr_scope") or not rctx.download_and_extract(allow_fail = True, **args).success:
+        archive_type = pin.get("type", "")
+        strip_prefix = pin.get("strip_prefix", "")
+        if not pin.get("ghcr_scope") or not rctx.download_and_extract(url = pin["urls"], sha256 = pin["sha256"], type = archive_type, stripPrefix = strip_prefix, allow_fail = True).success:
             headers = {}
             if pin.get("ghcr_scope"):
                 rctx.download(url = "https://ghcr.io/token?service=ghcr.io&scope=" + pin["ghcr_scope"], output = "token.json")
                 headers["Authorization"] = ["Bearer " + json.decode(rctx.read("token.json"))["token"]]
                 rctx.delete("token.json")
-            rctx.download_and_extract(headers = headers, **args)
+            rctx.download_and_extract(url = pin["urls"], sha256 = pin["sha256"], type = archive_type, stripPrefix = strip_prefix, headers = headers)
         if not rctx.path(binary).exists:
             fail("{} archive {} has no {}".format(tool, pin["urls"][0], binary))
         if pin.get("executable"):
@@ -119,16 +120,7 @@ def cell_repo(name, cell):
     return name + "__" + cell
 
 def pins_hub(name, cells, toolchain_type, compatible_with = "exec", exec_aliases = [], os_constraints = {}, exec_toolchain_type = None, variants = {}, companion_types = {}, alias_defaults = {}, repository = None, target = "toolchain", target_settings = None, cell_constraints = {}):
-    """Returns the hub BUILD file of a pin: one toolchain() per cell and an alias per exec_aliases target selecting the exec cell.
-
-    os_constraints maps an OS to constraints every cell of that OS adds after its OS and CPU.
-    exec_toolchain_type adds a second toolchain() per cell, named <cell repo>_exec, of that type on the cell's exec platform.
-    variants maps a variant to a struct of extra exec_compatible_with and target_compatible_with; each cell then has one toolchain(), named <cell repo>_<variant>, per variant, pointing at the cell's :<variant> target.
-    companion_types maps a suffix to a toolchain type; every toolchain() gets a companion of that type, named <toolchain>_<suffix>, pointing at <target>_<suffix>.
-    exec_aliases is a list of targets or a dict of alias to label in the cell repository; alias_defaults maps an alias to its label on platforms without a cell.
-    repository names the one repository every cell points at in place of its own cell repository.
-    target names the toolchain target in the cell repository; target_settings gates every toolchain().
-    cell_constraints maps a cell whose name is not <os>_<cpu> to a struct of its exec_compatible_with and target_compatible_with."""
+    """Returns the hub BUILD file of a pin: one toolchain() per cell and an alias per exec_aliases target selecting the exec cell."""
     constraints = {
         cell: [_OS_CONSTRAINTS[cell.partition("_")[0]], _CPU_CONSTRAINTS[cell.partition("_")[2]]] + os_constraints.get(cell.partition("_")[0], [])
         for cell in cells

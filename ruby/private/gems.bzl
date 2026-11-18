@@ -1,4 +1,4 @@
-"""The Ruby gem hub: one Bundler tree built from a `ruby.lock.json`."""
+"""The Ruby gem hub: one Bundler tree built from the dx lock of one gem set."""
 
 load("@dx_pins_data//:pins.bzl", "DATA")
 load("//core:pins.bzl", "lock_problems")

@@ -26,10 +26,11 @@ def _checks():
         ),
     ]
 
-def root_only_tests(name):
+def root_only_tests(name, size):
     """Declares the root-only extension warning test."""
     starlark_test(
         name = name,
+        size = size,
         mode = "load",
         checks = _checks(),
     )

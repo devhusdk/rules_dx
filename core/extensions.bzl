@@ -3,7 +3,7 @@
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load("//cli/prebuilt:extension.bzl", _dx_prebuilt = "dx_prebuilt")
 load("//cli/prebuilt:gazelle.bzl", _dx_gazelle = "dx_gazelle")
-load(":license.bzl", "LICENSE_IDS", "accepted_terms", "terms_errors", "unknown_ids")
+load(":license.bzl", "LICENSE_IDS", "TERMS_LABEL", "accepted_terms", "terms_errors", "unknown_ids")
 load(":repo.bzl", "ARCHIVE_TYPES", "hub_repo", "pinned_archive")
 load(":root_only.bzl", "warn_dropped_tags")
 load(":toolchain.bzl", "cell_archive_rule", "cell_repo", "host_archive_rule", "pins_hub")
@@ -184,10 +184,11 @@ def _dx_licenses_impl(mctx):
                 fail("dx_licenses: unknown license id " + ", ".join(unknown) + "; the ids are " + ", ".join(LICENSE_IDS))
             ids.extend([name for name in tag.ids if name not in ids])
             tags.append(tag)
-    errors = terms_errors(tags)
+    terms = json.decode(mctx.read(Label(TERMS_LABEL)))
+    errors = terms_errors(terms, tags)
     if errors:
         fail("\n".join(errors))
-    hub_repo(name = "dx_licenses", files = {"BUILD.bazel": "", "accepted.json": json.encode(accepted_terms(ids))})
+    hub_repo(name = "dx_licenses", files = {"BUILD.bazel": "", "accepted.json": json.encode(accepted_terms(terms, ids))})
     return mctx.extension_metadata(reproducible = True)
 
 dx_licenses = module_extension(

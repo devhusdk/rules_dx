@@ -131,10 +131,11 @@ def upstream_ownership_tests(name, subjects):
         expected_observations = UPSTREAM_OWNERSHIP_OBSERVATIONS,
     )
 
-def upstream_android_ownership_tests(name, subjects):
+def upstream_android_ownership_tests(name, subjects, size):
     """Instantiates the upstream ownership probe test for Android library subjects."""
     starlark_test(
         name = name,
+        size = size,
         mode = "analysis",
         subjects = subjects,
         expected_observations = UPSTREAM_ANDROID_OWNERSHIP_OBSERVATIONS,

@@ -176,7 +176,7 @@ def elixir_test(name, *, srcs = None, visibility = None, **kwargs):
     apps = {"apps": kwargs["deps"]} if kwargs.get("deps") else None
     dx_wrap_test(name, _ex_unit_test, _ex_unit_forward_test, helper_first(srcs), visibility = visibility, upstream_kwargs = upstream, extra_forward_kwargs = apps, **kwargs)
 
-_elixir_bench_lib = dx_private_dep_rule(
+_elixir_benchmark_lib = dx_private_dep_rule(
     Label("//elixir/private/bench:dx_bench"),
     [_ErlangAppInfo, BeamInfo, ErlangNifInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo, OutputGroupInfo],
     "Provides the dx_bench app elixir_bench links.",
@@ -184,7 +184,7 @@ _elixir_bench_lib = dx_private_dep_rule(
 
 def elixir_bench(name, *, srcs, tags = None, deps = None, **kwargs):
     """elixir_test run by dx bench: DxBench.run in srcs runs Benchee and writes dx-bench.json."""
-    _elixir_bench_lib(
+    _elixir_benchmark_lib(
         name = name + "_dx_bench",
         testonly = True,
         tags = dx_upstream_tags(tags),

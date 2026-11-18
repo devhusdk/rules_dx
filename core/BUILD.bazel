@@ -29,6 +29,7 @@ exports_files([
     "host.bzl",
     "jammy_runtime.bzl",
     "license.bzl",
+    "licenses/pins.json",
     "msvc_crt.bzl",
     "no_coverage.bzl",
     "node_test.bzl",

@@ -1395,10 +1395,17 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
 
     #[test]
     fn gem_hubs_and_changed_gems() {
-        let module = "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.lock(name = \"gems\", lock = \"//third_party/ruby:ruby.lock.json\")\n";
-        let hubs = gem_hubs(module).expect("hubs");
+        let ruby = dx_families::hub("ruby").expect("ruby hub");
+        let module = format!(
+            "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.lock(name = \"gems\", lock = \"//third_party/ruby:{}\")\n",
+            ruby.lock.as_deref().expect("ruby lock")
+        );
+        let hubs = gem_hubs(&module).expect("hubs");
         assert_eq!(
-            classify("third_party/ruby/Gemfile.lock", &hubs),
+            classify(
+                &format!("third_party/ruby/{}", ruby.state.as_deref().expect("ruby state")),
+                &hubs
+            ),
             LockKind::Ruby(vec!["gems".to_owned()])
         );
         assert_eq!(

@@ -544,7 +544,7 @@ def erlang_ct_suite_test(name, *, suite_name = "", visibility = None, **kwargs):
         **dx_test_forward_kwargs(kwargs)
     )
 
-_erlang_bench_lib = dx_private_dep_rule(
+_erlang_benchmark_lib = dx_private_dep_rule(
     Label("//erlang/private/bench:erlang_app"),
     [_ErlangAppInfo, BeamInfo, ErlangNifInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo, OutputGroupInfo],
     "Provides the dx_bench app erlang_bench loads.",
@@ -552,7 +552,7 @@ _erlang_bench_lib = dx_private_dep_rule(
 
 def erlang_bench(name, *, suite_name = "", tags = None, runtime_deps = None, **kwargs):
     """ct_suite run by dx bench: dx_bench:run in the suite runs erlperf and writes dx-bench.json."""
-    _erlang_bench_lib(
+    _erlang_benchmark_lib(
         name = name + "_dx_bench",
         testonly = True,
         tags = dx_upstream_tags(tags),

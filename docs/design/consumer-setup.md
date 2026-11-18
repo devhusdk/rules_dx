@@ -76,7 +76,7 @@ cargo.annotation(
 ## Licenses
 
 - A license is the only setup a user must decide.
-- One extension accepts licenses: `dx_licenses` in `core/extensions.bzl`, with the tag `accept(ids = [...], terms_sha256 = {...})`. `terms_sha256` is optional; an id it pins at a hash that differs from the terms in `core/license.bzl` fails with the tag to re-accept. Only root-module tags count.
+- One extension accepts licenses: `dx_licenses` in `core/extensions.bzl`, with the tag `accept(ids = [...], terms_sha256 = {...})`. `terms_sha256` is optional; an id it pins at a hash that differs from the terms in `core/licenses/pins.json` fails with the tag to re-accept. Only root-module tags count.
 - No other extension, rule attribute or environment variable accepts a license.
 - The manifest `setup.licenses` lists the ids a language needs and the platforms that need them.
 - `dx init --accept-license <id>` writes the tag.

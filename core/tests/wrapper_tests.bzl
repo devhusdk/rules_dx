@@ -38,9 +38,10 @@ def wrapper_optional_forward_tests(name):
         ],
     )
 
-def wrapper_forward_spec_tests(name):
+def wrapper_forward_spec_tests(name, size):
     starlark_test(
         name = name,
+        size = size,
         mode = "unit",
         checks = [
             expect_equal(

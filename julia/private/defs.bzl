@@ -87,7 +87,7 @@ def julia_standalone_binary(name, **kwargs):
     kwargs = dx_language_kwargs(kwargs, compatible_with = JULIA_COMPATIBLE_WITH)
     _julia_standalone_binary(name = name, **kwargs)
 
-_julia_bench_lib = dx_private_dep_rule(
+_julia_benchmark_lib = dx_private_dep_rule(
     Label("//julia/private/bench:DxBench"),
     [_JuliaInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo, OutputGroupInfo],
     "Provides the DxBench library julia_bench links.",
@@ -95,7 +95,7 @@ _julia_bench_lib = dx_private_dep_rule(
 
 def julia_bench(name, *, srcs = None, main = None, deps = None, tags = None, **kwargs):
     """A julia_test run by dx bench: main calls DxBench.run_benchmarks(["name" => fn, ...]), which times each function with BenchmarkTools and writes dx-bench.json."""
-    _julia_bench_lib(
+    _julia_benchmark_lib(
         name = name + "_dx_bench",
         testonly = True,
         tags = dx_upstream_tags(tags),

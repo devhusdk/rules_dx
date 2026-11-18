@@ -1,8 +1,8 @@
 """The PHP toolchain rule."""
 
-TOOLCHAIN_TYPE = Label("//php/private/toolchain:toolchain_type")
+TOOLCHAIN_TYPE = Label("//php:toolchain_type")
 
-EXEC_TOOLCHAIN_TYPE = Label("//php/private/toolchain:exec_toolchain_type")
+EXEC_TOOLCHAIN_TYPE = Label("//php:exec_toolchain_type")
 
 def _php_toolchain_impl(ctx):
     interpreter = ctx.file.interpreter

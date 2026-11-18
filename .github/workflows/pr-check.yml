@@ -65,10 +65,28 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           "$RUNNER_TEMP/pr-check/producers_bin" --pr-check cli $BAZEL_CONFIG $BB_ARGS
+
+  # Affected tests get their own runner. As the last step of `analysis` they had
+  # only what the sets before them left of its 30 minutes (about 8), and a change
+  # that widens to whole packages ran out of time with no failing test.
+  affected:
+    name: affected tests (linux_x86_64)
+    if: ${{ github.event_name == 'pull_request' }}
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: ./.github/actions/setup-bazel
+        with:
+          cache-save: false
       - name: affected tests
-        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
         shell: bash
-        timeout-minutes: 18
+        timeout-minutes: 26
         run: |
           if [ -z "$BUILDBUDDY_API_KEY" ]; then
             echo "::notice::affected tests skipped: no remote cache secret on this PR"
@@ -77,12 +95,26 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS --test_tag_filters=-resources:nested_bazel:1,-starter-consumer,-network-consumer
           log="${RUNNER_TEMP:-/tmp}/affected-tests.log"
+          # One deadline covers the run and the cacheless retry, and stays under the
+          # step timeout so running out of time is reported here rather than as a bare kill.
+          budget=1380
+          deadline=$((SECONDS + budget))
+          affected() {
+            local left=$((deadline - SECONDS))
+            if [ "$left" -lt 60 ]; then
+              return 124
+            fi
+            timeout "$left" tools/dx test --affected --since 'HEAD^1' -- "$@"
+          }
           set -o pipefail
           status=0
-          timeout 480 tools/dx test --affected --since 'HEAD^1' -- "$@" 2>&1 | tee "$log" || status=$?
-          if [ "$status" -ne 0 ] && grep -qE '^(WARNING|ERROR): .*[Rr]emote([ _][Cc]ache| [Ee]xecution)' "$log"; then
+          affected "$@" 2>&1 | tee "$log" || status=$?
+          if [ "$status" -ne 0 ] && [ "$status" -ne 124 ] && grep -qE '^(WARNING|ERROR): .*[Rr]emote([ _][Cc]ache| [Ee]xecution)' "$log"; then
             echo "::warning::remote cache failed; retrying without it"
-            timeout 480 tools/dx test --affected --since 'HEAD^1' -- "$@" --remote_cache= --experimental_remote_downloader= --noremote_accept_cached
-          else
-            exit "$status"
+            status=0
+            affected "$@" --remote_cache= --experimental_remote_downloader= --noremote_accept_cached || status=$?
           fi
+          if [ "$status" -eq 124 ]; then
+            echo "::error::affected tests did not finish inside their ${budget}s budget. $(grep -m1 '^dx: affected:' "$log" | cut -c1-200)"
+          fi
+          exit "$status"

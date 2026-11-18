@@ -285,13 +285,19 @@ fn the_readme_quickstart_runs_as_written() {
     let python = load_budget("DX_PYTHON_CONSUMER_BUDGET");
     let mut failures = Vec::new();
     let mut within_budget = |name: &str, budget: &serde_json::Value, stage: &str| {
-        crate::stage("quickstart_consumer_test", &format!("measure {name} {stage}"));
+        crate::stage(
+            "quickstart_consumer_test",
+            &format!("measure {name} {stage}"),
+        );
         let measured = plain_fixture::measure_case(&case);
         eprintln!("footprint {name} {stage}: {}", measured.to_json());
         if cfg!(target_os = "linux")
             && let Err(error) = footprint::check_budget(&measured, &budget[stage])
         {
-            failures.push(format!("{name} {stage}:\n{error}\nrepos: {}", external_repos(&case)));
+            failures.push(format!(
+                "{name} {stage}:\n{error}\nrepos: {}",
+                external_repos(&case)
+            ));
         }
     };
     within_budget("core", &core, "after_test");

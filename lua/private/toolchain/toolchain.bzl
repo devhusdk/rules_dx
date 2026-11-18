@@ -1,6 +1,6 @@
 """The Lua toolchain: one launcher for the target and luac for the exec platform."""
 
-LUA_TOOLCHAIN_TYPE = Label("//lua/private/toolchain:toolchain_type")
+LUA_TOOLCHAIN_TYPE = Label("//lua:toolchain_type")
 
 def _lua_toolchain_impl(ctx):
     return [platform_common.ToolchainInfo(

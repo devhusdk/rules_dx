@@ -8,9 +8,9 @@ HUB_NAME = "dx_php_toolchains"
 
 VERSION_FILE = "DX_PHP_VERSION"
 
-TOOLCHAIN_TYPE = str(Label("//php/private/toolchain:toolchain_type"))
+TOOLCHAIN_TYPE = str(Label("//php:toolchain_type"))
 
-EXEC_TOOLCHAIN_TYPE = str(Label("//php/private/toolchain:exec_toolchain_type"))
+EXEC_TOOLCHAIN_TYPE = str(Label("//php:exec_toolchain_type"))
 
 _RUNTIME_BUILD = """load("{php_bzl}", "php_toolchain")
 

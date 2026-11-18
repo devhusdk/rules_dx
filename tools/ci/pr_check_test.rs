@@ -173,36 +173,52 @@ fn workflow_builds_the_tool_before_the_sets() {
     assert!(SETS.iter().all(|set| tool < position(set)));
 }
 
+/// Returns the `affected tests` step of the `affected` job.
+fn affected_step() -> serde_json::Value {
+    steps(WORKFLOW, "affected")
+        .into_iter()
+        .find(|s| s["name"].as_str() == Some("affected tests"))
+        .expect("affected tests step")
+}
+
 #[test]
-fn job_stays_inside_the_time_budget() {
-    let analysis = job(WORKFLOW, "analysis");
-    let minutes = analysis["timeout-minutes"]
+fn jobs_stay_inside_the_time_budget() {
+    for name in ["analysis", "affected"] {
+        let minutes = job(WORKFLOW, name)["timeout-minutes"]
+            .as_u64()
+            .expect("timeout-minutes");
+        assert!(minutes <= 30, "{name} timeout-minutes is {minutes}");
+    }
+    let job_minutes = job(WORKFLOW, "affected")["timeout-minutes"]
         .as_u64()
         .expect("timeout-minutes");
-    assert!(minutes <= 30, "timeout-minutes is {minutes}");
-    let steps = analysis["steps"].as_array().expect("steps");
-    let step = steps
-        .iter()
-        .find(|s| s["name"].as_str() == Some("affected tests"))
-        .expect("affected tests step");
+    let step = affected_step();
     let step_minutes = step["timeout-minutes"].as_u64().expect("step timeout");
-    assert!(step_minutes + 10 <= minutes, "step timeout {step_minutes}");
+    // Checkout and Bazel setup run before the step.
+    assert!(step_minutes + 3 <= job_minutes, "step timeout {step_minutes}");
     assert_eq!(step["shell"].as_str(), Some("bash"));
     let run = step["run"].as_str().expect("run");
     assert!(run.contains("BUILDBUDDY_API_KEY"), "fork skip missing");
     assert!(run.contains("pipefail"), "pipefail missing");
-    assert_eq!(run.matches("timeout 480").count(), 2);
     assert!(!run.contains("|grpc"), "retry must not match test output");
+    // One deadline bounds the run and its retry, ending before the step timeout
+    // so an overrun is reported instead of the runner killing the step.
+    let budget: u64 = run
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("budget="))
+        .expect("budget")
+        .parse()
+        .expect("budget seconds");
+    assert!(budget + 120 <= step_minutes * 60, "budget {budget}s");
+    assert!(run.contains("deadline=$((SECONDS + budget))"), "{run}");
+    assert_eq!(run.matches("timeout \"$left\"").count(), 1, "{run}");
+    assert!(run.contains("\"$status\" -eq 124"), "{run}");
+    assert!(run.contains("::error::"), "an overrun must name itself");
 }
 
 #[test]
 fn cacheless_retry_drops_the_remote_downloader() {
-    let analysis = job(WORKFLOW, "analysis");
-    let steps = analysis["steps"].as_array().expect("steps");
-    let step = steps
-        .iter()
-        .find(|s| s["name"].as_str() == Some("affected tests"))
-        .expect("affected tests step");
+    let step = affected_step();
     let run = step["run"].as_str().expect("run");
     let retries: Vec<&str> = run
         .lines()
@@ -219,15 +235,18 @@ fn cacheless_retry_drops_the_remote_downloader() {
 }
 
 #[test]
-fn affected_tests_run_after_an_earlier_step_fails() {
-    let analysis = job(WORKFLOW, "analysis");
-    let steps = analysis["steps"].as_array().expect("steps");
-    let step = steps
-        .iter()
-        .find(|s| s["name"].as_str() == Some("affected tests"))
-        .expect("affected tests step");
-    let condition = step["if"].as_str().expect("if");
-    assert!(condition.contains("!cancelled()"), "{condition}");
+fn affected_tests_do_not_wait_on_the_sets() {
+    // A failing or slow set must neither skip the affected tests nor eat their time.
+    let analysis = steps(WORKFLOW, "analysis");
+    assert!(
+        analysis
+            .iter()
+            .all(|s| s["name"].as_str() != Some("affected tests")),
+        "affected tests belong in their own job"
+    );
+    let affected = job(WORKFLOW, "affected");
+    assert!(affected.get("needs").is_none(), "affected must not need analysis");
+    let condition = affected["if"].as_str().expect("if");
     assert!(
         condition.contains("github.event_name == 'pull_request'"),
         "{condition}"

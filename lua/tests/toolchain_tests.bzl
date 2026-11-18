@@ -9,7 +9,7 @@ load("//lua/private/toolchain:extensions.bzl", "lua_hub")
 def _checks():
     pins = PINS["dx_luals"]
     hub = lua_hub()
-    return hub_checks(hub, "//lua/private/toolchain:toolchain_type", 1) + [
+    return hub_checks(hub, "//lua:toolchain_type", 1) + [
         expect_true("hub names the lua toolchain", "//lua/private/toolchain:lua\"" in hub),
         expect_true("digests are sha256", all([len(c["sha256"]) == 64 for c in pins["cells"].values()])),
         expect_true("urls name the version", all([pins["version"] in c["urls"][0] for c in pins["cells"].values()])),

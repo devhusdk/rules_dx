@@ -8,6 +8,12 @@ exports_files([
     "pins.json",
 ])
 
+# Public so users can register their own Lua toolchain against it.
+toolchain_type(
+    name = "toolchain_type",
+    visibility = ["//visibility:public"],
+)
+
 real_source_target(
     name = "corpus_markdown",
     markdown_srcs = ["README.md"],

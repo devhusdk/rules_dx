@@ -6,6 +6,8 @@ load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_main_candidates")
 load("//dart/private:defs.bzl", "DART_SOURCE_SPECS")
 load("//dart/private:platforms.bzl", "DART_PLATFORMS")
 
+exports_files(["padded_archive.pubspec.lock"])
+
 # nested@1.0.0 has bytes after its gzip stream, which only the pinned bsdtar extracts.
 build_test(
     name = "padded_pub_archive_test",

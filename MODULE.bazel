@@ -1745,7 +1745,7 @@ flutter_pub.from_lock(
 )
 flutter_pub.from_lock(
     name = "dx_flutter_padded_archive",
-    lock = "//flutter/tests/runtime:padded_archive.pubspec.lock",
+    lock = "//flutter/tests/runtime/padded_archive:pubspec.lock",
 )
 use_repo(flutter_pub, "dx_flutter_app_deps", "dx_flutter_deps", "dx_flutter_padded_archive")
 
@@ -1774,7 +1774,7 @@ pub.from_lock(
 )
 pub.from_lock(
     name = "dx_dart_padded_archive",
-    lock = "//flutter/tests/runtime:padded_archive.pubspec.lock",
+    lock = "//dart/tests:padded_archive.pubspec.lock",
     resolve = {"flutter": "@dx_flutter_deps//:flutter"},
 )
 use_repo(pub, "dx_dart_deps", "dx_dart_padded_archive")

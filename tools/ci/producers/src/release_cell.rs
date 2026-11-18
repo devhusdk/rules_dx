@@ -7,6 +7,7 @@ use std::time::Duration;
 use dx_process::capture::run_checked;
 
 const BAZEL: &str = "bazel";
+const CODESIGN: &str = "codesign";
 const CONFIG: &str = "--config=dx_build_release";
 const PURE: &str = "--@rules_go//go/config:pure";
 const RELEASE: &str = "//deploy/private/release";
@@ -116,14 +117,7 @@ fn release_copy(cell: &str, from: &Path, to: &Path) -> Result<(), String> {
     if !is_macos(cell) || codesign(&["--verify", "--strict"], to)? {
         return Ok(());
     }
-    let writable = Command::new("chmod")
-        .arg("u+w")
-        .arg(to)
-        .status()
-        .map_err(|error| format!("spawn chmod: {error}"))?;
-    if !writable.success() {
-        return Err(format!("chmod u+w {} failed: {writable}", to.display()));
-    }
+    make_writable(to)?;
     if !codesign(&["--sign", "-"], to)? || !codesign(&["--verify", "--strict"], to)? {
         return Err(format!("ad-hoc signing {} failed", to.display()));
     }
@@ -134,14 +128,30 @@ fn is_macos(cell: &str) -> bool {
     cell.starts_with("dx-macos-")
 }
 
+#[cfg(unix)]
+fn make_writable(path: &Path) -> Result<(), String> {
+    use std::os::unix::fs::PermissionsExt;
+    let mode = std::fs::metadata(path)
+        .map_err(|error| format!("stat {}: {error}", path.display()))?
+        .permissions()
+        .mode();
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode | 0o200))
+        .map_err(|error| format!("chmod u+w {}: {error}", path.display()))
+}
+
+#[cfg(not(unix))]
+fn make_writable(_path: &Path) -> Result<(), String> {
+    Err("ad-hoc signing runs only on a macOS cell".to_owned())
+}
+
 /// Runs `codesign` with `args` on `path` and returns whether it succeeded.
 fn codesign(args: &[&str], path: &Path) -> Result<bool, String> {
-    Command::new("codesign")
+    Command::new(CODESIGN)
         .args(args)
         .arg(path)
         .status()
         .map(|status| status.success())
-        .map_err(|error| format!("spawn codesign: {error}"))
+        .map_err(|error| format!("spawn {CODESIGN}: {error}"))
 }
 
 fn checksum_line(file: &Path, name: &str) -> Result<String, String> {

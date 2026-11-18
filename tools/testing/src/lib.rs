@@ -734,7 +734,7 @@ pub fn fake_generate_bazel_path(dir: &Path, tool: &Path) -> String {
     std::fs::create_dir_all(dir).expect("fake bazel dir");
     for name in ["bazel", "uv", "python"] {
         let target = dir.join(format!("{name}{}", std::env::consts::EXE_SUFFIX));
-        drop(std::fs::remove_file(&target));
+        dx_atomic_fs::discard_file(&target);
         #[cfg(unix)]
         std::os::unix::fs::symlink(tool, &target).expect("link fake generate tool");
         #[cfg(not(unix))]
@@ -1026,7 +1026,8 @@ pub fn snapshot_diff(
         {
             let dest = root.join(rel);
             if let Some(parent) = dest.parent() {
-                drop(std::fs::create_dir_all(parent));
+                std::fs::create_dir_all(parent)
+                    .map_err(|err| format!("cannot create {}: {err}", parent.display()))?;
             }
             std::fs::copy(actual, &dest)
                 .map_err(|err| format!("cannot refresh {}: {err}", dest.display()))?;

@@ -264,7 +264,7 @@ pub fn probe_symlink(dir: &Path) -> io::Result<()> {
         Err(e) => return Err(e),
     }
     symlink_entry(&PathBuf::from("symlink.target"), &link)?;
-    drop(fs::remove_file(&link));
+    dx_atomic_fs::discard_file(&link);
     Ok(())
 }
 
@@ -330,7 +330,7 @@ pub fn refresh(
     let current = read_current_identity(&bin_dir)?;
     let candidate = identity_digest(&canonical_identity_bytes(&tools));
     if current == Some(candidate) && verify_installed(&bin_dir, &staged)? {
-        clean_stage(&stage_dir);
+        dx_atomic_fs::discard_dir(&stage_dir);
         return Ok(RefreshOutcome::AlreadyCurrent);
     }
     let fresh = current.is_none();
@@ -479,12 +479,6 @@ fn stage_tree(
         })?;
     }
     Ok(())
-}
-
-fn clean_stage(stage_dir: &Path) {
-    if stage_dir.exists() {
-        drop(fs::remove_dir_all(stage_dir));
-    }
 }
 
 #[cfg(test)]

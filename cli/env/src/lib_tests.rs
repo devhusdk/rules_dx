@@ -37,7 +37,7 @@ fn write_staged(root: &Path, tools: &[(&str, &str, &[&str])]) -> (PathBuf, PathB
         #[cfg(not(unix))]
         fs::write(&real, script).expect("write target");
         for host in *hosts {
-            drop(fs::remove_file(staged_bin.join(host)));
+            dx_atomic_fs::discard_file(staged_bin.join(host));
             test_symlink(&real, &staged_bin.join(host)).expect("stage link");
         }
         let host_list = hosts
@@ -153,7 +153,7 @@ fn parse_staged_ok() {
         vec!["alpha".to_string(), "a".to_string()]
     );
     assert_eq!(plans[1].owner, "//env:tool_beta".to_string());
-    drop(fs::remove_dir_all(&root));
+    dx_atomic_fs::discard_dir(&root);
 }
 
 #[test]
@@ -389,7 +389,7 @@ fn workspace_missing() {
         refresh(&opts, &probe_symlink),
         Err(Error::WorkspaceRoot { .. })
     ));
-    drop(fs::remove_dir_all(&root));
+    dx_atomic_fs::discard_dir(&root);
 }
 
 #[test]
@@ -408,7 +408,7 @@ fn staged_inputs_fail_before_workspace_mutation() {
         Err(Error::Staged { .. })
     ));
     assert!(!root.join("ws").join(".dx").exists());
-    drop(fs::remove_dir_all(&root));
+    dx_atomic_fs::discard_dir(&root);
 }
 
 #[test]
@@ -430,7 +430,7 @@ fn staged_rejects_non_link_and_dangling() {
         Err(Error::Staged { .. })
     ));
     assert!(parse_staged(&text, false).is_ok());
-    drop(fs::remove_dir_all(&root));
+    dx_atomic_fs::discard_dir(&root);
 }
 
 #[test]
@@ -462,7 +462,7 @@ fn fresh_install_noop_and_replacement() {
             .join("bin.prev")
             .exists()
     );
-    drop(fs::remove_dir_all(&root));
+    dx_atomic_fs::discard_dir(&root);
 }
 
 #[cfg(windows)]
@@ -500,7 +500,7 @@ fn workspace_path_with_spaces_installs() {
         .expect("run installed tool");
     assert!(output.status.success());
     assert_eq!(refresh_ok(&opts), RefreshOutcome::AlreadyCurrent);
-    drop(fs::remove_dir_all(&root));
+    dx_atomic_fs::discard_dir(&root);
 }
 
 fn installed_fixture(prefix: &str) -> (dx_test_scratch::TempDir, PathBuf, RefreshOptions) {
@@ -613,7 +613,7 @@ fn already_current_cleans_stale_staging() {
     fs::write(stage_dir.join("junk"), "junk").expect("junk");
     assert_eq!(refresh_ok(&opts), RefreshOutcome::AlreadyCurrent);
     assert!(!stage_dir.exists());
-    drop(fs::remove_dir_all(&root));
+    dx_atomic_fs::discard_dir(&root);
 }
 
 #[test]
@@ -663,7 +663,7 @@ fn unmanaged_states_refuse_without_mutation() {
         refresh(&opts, &probe_symlink),
         Err(Error::Unmanaged { .. })
     ));
-    drop(fs::remove_dir_all(&root));
+    dx_atomic_fs::discard_dir(&root);
 }
 
 #[cfg(unix)]
@@ -685,7 +685,7 @@ fn stale_prev_undeletable_reports_install() {
         error,
         Error::Install { reason } if reason.contains("cannot clear stale")
     ));
-    drop(fs::remove_dir_all(&root));
+    dx_atomic_fs::discard_dir(&root);
 }
 
 #[cfg(unix)]
@@ -704,7 +704,7 @@ fn stale_stage_undeletable_reports_install() {
         error,
         Error::Install { reason } if reason.contains("cannot clear stale staging")
     ));
-    drop(fs::remove_dir_all(&root));
+    dx_atomic_fs::discard_dir(&root);
 }
 
 #[cfg(windows)]
@@ -780,7 +780,7 @@ fn duplicate_host_name_reports_install() {
         error,
         Error::Install { reason } if reason.contains("cannot stage host name 'dup'")
     ));
-    drop(fs::remove_dir_all(&root));
+    dx_atomic_fs::discard_dir(&root);
 }
 
 #[test]
@@ -801,7 +801,7 @@ fn marker_named_host_leaves_its_target_intact() {
         Error::Install { reason } if reason.contains(&format!("cannot stage host name '{MARKER_FILE_NAME}'"))
     ));
     assert_eq!(fs::read(&target).expect("target survived"), script);
-    drop(fs::remove_dir_all(&root));
+    dx_atomic_fs::discard_dir(&root);
 }
 
 #[test]
@@ -818,7 +818,7 @@ fn crash_between_renames_restores_then_replaces() {
     assert_eq!(refresh_ok(&opts), RefreshOutcome::InstalledReplacement);
     assert!(dx.join("bin").join("new").exists());
     assert!(!dx.join("bin").join("old").exists());
-    drop(fs::remove_dir_all(&root));
+    dx_atomic_fs::discard_dir(&root);
 }
 
 #[test]
@@ -832,7 +832,7 @@ fn stale_prev_is_cleared() {
     fs::create_dir_all(&prev).expect("stale prev");
     assert_eq!(refresh_ok(&opts), RefreshOutcome::AlreadyCurrent);
     assert!(!prev.exists());
-    drop(fs::remove_dir_all(&root));
+    dx_atomic_fs::discard_dir(&root);
 }
 
 #[test]
@@ -864,7 +864,7 @@ fn busy_lock_fails_after_deadline() {
             .exists()
     );
     drop(_held);
-    drop(fs::remove_dir_all(&root));
+    dx_atomic_fs::discard_dir(&root);
 }
 
 #[test]
@@ -881,7 +881,7 @@ fn lock_open_failure_aborts() {
         refresh(&opts, &probe_symlink),
         Err(Error::LockFailed { .. })
     ));
-    drop(fs::remove_dir_all(&root));
+    dx_atomic_fs::discard_dir(&root);
 }
 
 #[test]
@@ -896,7 +896,7 @@ fn dx_creation_failure_aborts() {
         refresh(&opts, &probe_symlink),
         Err(Error::Install { .. })
     ));
-    drop(fs::remove_dir_all(&root));
+    dx_atomic_fs::discard_dir(&root);
 }
 
 #[test]
@@ -940,7 +940,7 @@ fn probe_failure_reports_before_mutation() {
         Duration::from_millis(1),
     )
     .expect("lock released after probe failure");
-    drop(fs::remove_dir_all(&root));
+    dx_atomic_fs::discard_dir(&root);
 }
 
 #[test]
@@ -954,7 +954,7 @@ fn unreadable_installed_tree_reports_unmanaged() {
         Error::Unmanaged { path, detail }
             if path == bin && detail.contains("cannot inspect installed tree")
     ));
-    drop(fs::remove_dir_all(&root));
+    dx_atomic_fs::discard_dir(&root);
 }
 
 #[test]
@@ -971,7 +971,7 @@ fn uncreatable_staging_reports_install() {
         error,
         Error::Install { reason } if reason.contains("cannot create staging")
     ));
-    drop(fs::remove_dir_all(&root));
+    dx_atomic_fs::discard_dir(&root);
 }
 
 #[test]
@@ -980,7 +980,7 @@ fn default_probe_accepts_writable_dir() {
     let root = scratch.path().to_path_buf();
     probe_symlink(&root).expect("probe succeeds");
     assert!(!root.join("symlink.probe").exists());
-    drop(fs::remove_dir_all(&root));
+    dx_atomic_fs::discard_dir(&root);
 }
 
 #[test]
@@ -997,7 +997,7 @@ fn default_probe_replaces_stale_probe() {
     probe_symlink(&link_dir).expect("probe replaces dangling link");
     assert!(fs::symlink_metadata(file_dir.join("symlink.probe")).is_err());
     assert!(fs::symlink_metadata(link_dir.join("symlink.probe")).is_err());
-    drop(fs::remove_dir_all(&root));
+    dx_atomic_fs::discard_dir(&root);
 }
 
 #[test]
@@ -1011,7 +1011,7 @@ fn refresh_succeeds_with_stale_probe() {
     fs::write(dx.join("symlink.probe"), "stale").expect("stale probe");
     assert_eq!(refresh_ok(&opts), RefreshOutcome::InstalledFresh);
     assert!(fs::symlink_metadata(dx.join("symlink.probe")).is_err());
-    drop(fs::remove_dir_all(&root));
+    dx_atomic_fs::discard_dir(&root);
 }
 
 #[test]
@@ -1030,7 +1030,7 @@ fn probe_fails_when_the_stale_probe_cannot_be_removed() {
     let stuck = root.join("symlink.probe");
     fs::create_dir_all(stuck.join("inner")).expect("non-empty probe dir");
     assert!(probe_symlink(&root).is_err());
-    drop(fs::remove_dir_all(&root));
+    dx_atomic_fs::discard_dir(&root);
 }
 
 #[test]
@@ -1043,5 +1043,5 @@ fn verify_installed_reports_an_unlistable_tree() {
         error.to_string().contains("cannot list installed tree"),
         "{error}"
     );
-    drop(fs::remove_dir_all(&root));
+    dx_atomic_fs::discard_dir(&root);
 }

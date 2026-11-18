@@ -19,11 +19,8 @@ pub fn disk_paths(workspace: &Path, argv: &[String]) -> Vec<PathBuf> {
         }
     }
     paths.push(std::env::temp_dir());
-    if let Some(home) = std::env::var_os("HOME")
-        .or_else(|| std::env::var_os("USERPROFILE"))
-        .filter(|value| !value.is_empty())
-    {
-        paths.push(PathBuf::from(home));
+    if let Some(home) = dx_process::home_dir() {
+        paths.push(home);
     }
     let mut seen: Vec<std::ffi::OsString> = Vec::new();
     paths.retain(|path| {

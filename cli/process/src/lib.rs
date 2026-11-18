@@ -100,10 +100,22 @@ fn legacy_marker(fs: &dyn Fs, dir: &Path) -> bool {
     fs.is_file(&dir.join("WORKSPACE")) || fs.is_file(&dir.join("WORKSPACE.bazel"))
 }
 
+/// The user's home directory: a non-empty `HOME`, else a non-empty `USERPROFILE`.
+#[must_use]
+pub fn home_dir() -> Option<PathBuf> {
+    home_with(|name| std::env::var_os(name)).map(PathBuf::from)
+}
+
+// An empty HOME (`env -i HOME=`, some CI containers) counts as unset; joining onto "" would
+// turn `~/x` into a relative path.
+pub(crate) fn home_with<T: AsRef<OsStr>>(env_get: impl Fn(&str) -> Option<T>) -> Option<T> {
+    let non_empty = |name: &str| env_get(name).filter(|value| !value.as_ref().is_empty());
+    non_empty("HOME").or_else(|| non_empty("USERPROFILE"))
+}
+
 #[must_use]
 pub fn expand_tilde(path: &Path) -> PathBuf {
-    let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE"));
-    expand_tilde_with(path, home)
+    expand_tilde_with(path, home_dir().map(PathBuf::into_os_string))
 }
 
 fn expand_tilde_with(path: &Path, home: Option<OsString>) -> PathBuf {

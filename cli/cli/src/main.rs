@@ -37,7 +37,9 @@ fn install_forwarding() {
 
 #[cfg(windows)]
 fn install_forwarding() {
-    lifecycle::install_console_stop();
+    if let Err(err) = lifecycle::install_console_stop() {
+        eprintln!("dx: warning: cannot install the Ctrl-C handler: {err}");
+    }
 }
 
 #[cfg(not(any(unix, windows)))]

@@ -1,4 +1,6 @@
+use dx_os_sys::job_object::{JobObject, Limit};
 use std::ffi::c_void;
+use std::os::windows::io::BorrowedHandle;
 use std::os::windows::ffi::OsStrExt;
 use std::ptr::{null, null_mut};
 
@@ -20,10 +22,6 @@ use windows_sys::Win32::System::Console::{
     GetStdHandle, STD_ERROR_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE,
 };
 use windows_sys::Win32::System::Environment::{CreateEnvironmentBlock, DestroyEnvironmentBlock};
-use windows_sys::Win32::System::JobObjects::{
-    AssignProcessToJobObject, CreateJobObjectW, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
-    SetInformationJobObject,
-};
 use windows_sys::Win32::System::Threading::{
     CreateMutexW, CreateProcessW, DeleteProcThreadAttributeList, GetCurrentProcess,
     GetExitCodeProcess, InitializeProcThreadAttributeList, OpenProcessToken, PROCESS_INFORMATION,
@@ -40,8 +38,6 @@ const EXTENDED_STARTUPINFO_PRESENT: u32 = 0x0008_0000;
 pub(crate) const CREATE_SUSPENDED: u32 = 0x4;
 pub(crate) const CREATE_UNICODE_ENVIRONMENT: u32 = 0x400;
 pub(crate) const STARTF_USESTDHANDLES: u32 = 0x100;
-const JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE: u32 = 0x2000;
-const JOB_OBJECT_EXTENDED_LIMIT_INFORMATION_CLASS: i32 = 9;
 pub(crate) const INFINITE: u32 = 0xFFFF_FFFF;
 const FILE_ALL_ACCESS: u32 = 0x001F_01FF;
 // FILE_GENERIC_READ | FILE_TRAVERSE: list a directory and pass through it.
@@ -512,31 +508,7 @@ fn set_mount_manager(sid: *mut c_void, mode: i32) -> Result<(), String> {
     result
 }
 
-pub(crate) fn kill_on_close_job() -> Result<HANDLE, String> {
-    // SAFETY: CreateJobObjectW accepts null attributes and name; a null result is checked.
-    let job = unsafe { CreateJobObjectW(null(), null()) };
-    if job.is_null() {
-        return Err("cannot create the job object".to_owned());
-    }
-    // SAFETY: the extended limit structure is plain C data for which all-zero is valid.
-    let mut info: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = unsafe { std::mem::zeroed() };
-    info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-    // SAFETY: job is valid and info is an extended limit structure of the size passed.
-    let ok = unsafe {
-        SetInformationJobObject(
-            job,
-            JOB_OBJECT_EXTENDED_LIMIT_INFORMATION_CLASS,
-            &info as *const _ as *const c_void,
-            std::mem::size_of_val(&info) as u32,
-        )
-    };
-    if ok == 0 {
-        return Err("cannot configure the job object".to_owned());
-    }
-    Ok(job)
-}
-
-fn spawn(config: &Config, sid: *mut c_void, job: HANDLE) -> Result<i32, String> {
+fn spawn(config: &Config, sid: *mut c_void, job: &JobObject) -> Result<i32, String> {
     let mut capabilities: Vec<SID_AND_ATTRIBUTES> = Vec::new();
     if config.net {
         for text in NET_CAPABILITIES {
@@ -640,9 +612,14 @@ fn spawn(config: &Config, sid: *mut c_void, job: HANDLE) -> Result<i32, String> 
             filled.join(", ")
         ));
     }
-    // SAFETY: job and info.hProcess are valid handles.
-    if unsafe { AssignProcessToJobObject(job, info.hProcess) } == 0 {
-        return Err("cannot put the command in the job object".to_owned());
+    // SAFETY: info.hProcess is the live handle from CreateProcessW, closed only below.
+    let process = unsafe { BorrowedHandle::borrow_raw(info.hProcess) };
+    if let Err(err) = job.assign(process) {
+        // SAFETY: info.hThread is the live handle from CreateProcessW, closed once.
+        unsafe { CloseHandle(info.hThread) };
+        // SAFETY: info.hProcess is the live handle from CreateProcessW, closed once.
+        unsafe { CloseHandle(info.hProcess) };
+        return Err(format!("cannot put the command in the job object: {err}"));
     }
     // SAFETY: info holds the live handles from CreateProcess; hThread is closed once.
     unsafe {
@@ -688,12 +665,9 @@ pub fn run(config: &Config) -> Result<i32, String> {
         }
     }
     if outcome.is_ok() {
-        outcome = kill_on_close_job().and_then(|job| {
-            let code = spawn(config, sid, job);
-            // SAFETY: job is the valid handle from kill_on_close_job, closed once here.
-            unsafe { CloseHandle(job) };
-            code
-        });
+        outcome = JobObject::new(Limit::KillOnClose)
+            .map_err(|err| format!("cannot create the job object: {err}"))
+            .and_then(|job| spawn(config, sid, &job));
     }
     for path in granted {
         let _ = set_access(path, sid, REVOKE_ACCESS);

@@ -90,37 +90,8 @@ pub fn available_memory() -> Option<u64> {
 
 /// Physical memory reported by `GlobalMemoryStatusEx`.
 #[cfg(windows)]
-#[expect(unsafe_code, reason = "GlobalMemoryStatusEx is Win32 FFI")]
 pub fn available_memory() -> Option<u64> {
-    #[repr(C)]
-    struct MemoryStatus {
-        length: u32,
-        load: u32,
-        total_phys: u64,
-        avail_phys: u64,
-        total_page: u64,
-        avail_page: u64,
-        total_virtual: u64,
-        avail_virtual: u64,
-        avail_extended: u64,
-    }
-    unsafe extern "system" {
-        fn GlobalMemoryStatusEx(status: *mut MemoryStatus) -> i32;
-    }
-    let mut status = MemoryStatus {
-        length: std::mem::size_of::<MemoryStatus>() as u32,
-        load: 0,
-        total_phys: 0,
-        avail_phys: 0,
-        total_page: 0,
-        avail_page: 0,
-        total_virtual: 0,
-        avail_virtual: 0,
-        avail_extended: 0,
-    };
-    // SAFETY: `status` is writable and its length field is set.
-    let ok = unsafe { GlobalMemoryStatusEx(&mut status) };
-    (ok != 0).then_some(status.total_phys)
+    dx_os_sys::win32::total_physical_memory().ok()
 }
 
 #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]

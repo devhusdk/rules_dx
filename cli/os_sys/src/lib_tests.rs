@@ -47,7 +47,6 @@ fn set_inheritable_clears_close_on_exec() {
     );
 }
 
-#[cfg(unix)]
 #[test]
 fn the_space_of_the_temp_dir_is_known() {
     let space = fs::space(&std::env::temp_dir()).expect("statvfs");
@@ -55,10 +54,9 @@ fn the_space_of_the_temp_dir_is_known() {
     assert!(space.free <= space.total);
 }
 
-#[cfg(unix)]
 #[test]
 fn the_space_of_a_missing_dir_is_an_error() {
-    assert!(fs::space(std::path::Path::new("/no/such/dx/dir")).is_err());
+    assert!(fs::space(&std::env::temp_dir().join("no/such/dx/dir")).is_err());
 }
 
 #[cfg(unix)]

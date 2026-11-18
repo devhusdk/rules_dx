@@ -1,5 +1,6 @@
 //! Synchronous child lifecycle shared below domain adapters.
 
+use dx_os_sys::console::CtrlEvent;
 use std::ffi::OsString;
 use std::io;
 use std::io::IsTerminal;
@@ -478,10 +479,10 @@ pub use backend::install_console_stop;
 
 /// Maps a Windows console control event to the signal it acts as: Ctrl-C and Ctrl-Break are SIGINT.
 #[must_use]
-pub fn console_stop_signal(ctrl_type: u32) -> Option<i32> {
-    match ctrl_type {
-        0 | 1 => Some(2),
-        _ => None,
+pub fn console_stop_signal(event: CtrlEvent) -> Option<i32> {
+    match event {
+        CtrlEvent::C | CtrlEvent::Break => Some(2),
+        CtrlEvent::Close | CtrlEvent::Logoff | CtrlEvent::Shutdown => None,
     }
 }
 
@@ -893,17 +894,13 @@ mod terminal;
 mod unix_backend;
 
 #[cfg(windows)]
-#[expect(
-    unsafe_code,
-    reason = "job objects, console handlers and thread snapshots are Win32 FFI"
-)]
 #[path = "lifecycle_windows.rs"]
 mod windows_backend;
 
 #[cfg(test)]
 pub(crate) mod test_exports {
     #[cfg(windows)]
-    pub(crate) use super::windows_backend::console_stop;
+    pub(crate) use super::windows_backend::RecordStop;
 }
 
 mod backend {

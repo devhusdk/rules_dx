@@ -19,7 +19,9 @@ rust_library(
     deps = all_crate_deps(
         package_name = "cli/dx_test_scratch",
         normal = True,
-    ),
+    ) + [
+        "//cli/process:dx_process",
+    ],
 )
 
 rust_test(
@@ -37,7 +39,9 @@ rust_test(
         package_name = "cli/dx_test_scratch",
         normal = True,
         normal_dev = True,
-    ),
+    ) + [
+        "//cli/process:dx_process",
+    ],
 )
 
 real_source_target(

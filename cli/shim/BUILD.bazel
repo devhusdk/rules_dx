@@ -26,6 +26,7 @@ rust_library(
         "//cli/digest:dx_digest",
         "//cli/error:dx_error",
         "//cli/http:dx_http",
+        "//cli/process:dx_process",
     ],
 )
 
@@ -71,6 +72,7 @@ rust_test(
         "//cli/digest:dx_digest",
         "//cli/error:dx_error",
         "//cli/http:dx_http",
+        "//cli/process:dx_process",
     ],
 )
 

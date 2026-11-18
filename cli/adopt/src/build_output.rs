@@ -117,24 +117,13 @@ fn output_dir(root: &Path, path: &str) -> Result<Option<String>, AdoptError> {
     Ok(None)
 }
 
-fn allowed(root: &Path) -> Vec<String> {
-    let Ok(text) = std::fs::read_to_string(root.join("dx.toml")) else {
-        return Vec::new();
-    };
-    let Ok(table) = text.parse::<toml::Table>() else {
-        return Vec::new();
-    };
-    table
-        .get("large_files")
-        .and_then(|section| section.get("allow"))
-        .and_then(toml::Value::as_array)
-        .map(|entries| {
-            entries
-                .iter()
-                .filter_map(|entry| entry.as_str().map(ToOwned::to_owned))
-                .collect()
-        })
-        .unwrap_or_default()
+fn allowed(root: &Path) -> Result<Vec<String>, AdoptError> {
+    let config = dx_config::load(root).map_err(|error| AdoptError::DxConfig {
+        detail: error.to_string(),
+    })?;
+    Ok(config
+        .map(|config| config.large_files.allow)
+        .unwrap_or_default())
 }
 
 fn is_lock_file(path: &str) -> Result<bool, AdoptError> {
@@ -169,7 +158,7 @@ fn classify_kinds(
     root: &Path,
     paths: &[(String, bool)],
 ) -> Result<Vec<(BuildOutputFinding, bool)>, AdoptError> {
-    let allow = allowed(root);
+    let allow = allowed(root)?;
     let mut findings = Vec::new();
     let mut seen_dirs = BTreeSet::new();
     for (path, added) in paths {
@@ -546,6 +535,14 @@ mod tests {
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].path, "big.bin");
         assert!(findings[0].reason.contains("dx.toml"));
+    }
+
+    #[test]
+    fn broken_dx_toml_is_an_error() {
+        let root = temp();
+        std::fs::write(root.join("dx.toml"), "schema_version = 1\n[large_files\n").expect("toml");
+        let error = classify(&root, &[("big.bin".to_owned(), true)]).expect_err("broken");
+        assert!(error.to_string().starts_with("dx.toml: "), "{error}");
     }
 
     fn git(root: &Path, args: &[&str]) {

@@ -384,18 +384,14 @@ impl EditorTools {
         self.selected.as_ref().is_none_or(|ids| ids.contains(tool))
     }
 
-    /// Reads the tier from `dx.toml` and the ruff config from the root of `root`.
-    #[must_use]
-    pub fn detect(root: &Path) -> Self {
-        let strict = std::fs::read_to_string(root.join("dx.toml"))
-            .ok()
-            .and_then(|text| text.parse::<toml::Table>().ok())
-            .and_then(|table| {
-                table
-                    .get("tier")
-                    .and_then(|tier| tier.as_str().map(str::to_owned))
-            })
-            .is_some_and(|tier| tier == "strict");
+    /// Reads the tier and tool selection from `dx.toml` and the ruff config from the root of `root`.
+    pub fn detect(root: &Path) -> Result<Self, AdoptError> {
+        let config = dx_config::load(root).map_err(|error| AdoptError::DxConfig {
+            detail: error.to_string(),
+        })?;
+        let strict = config
+            .as_ref()
+            .is_some_and(|config| config.tier == Some(dx_config::Tier::Strict));
         let root_file = |names: &[&str]| {
             names
                 .iter()
@@ -403,12 +399,15 @@ impl EditorTools {
                 .map(|name| (*name).to_owned())
                 .unwrap_or_default()
         };
-        let config = dx_config::load(root).ok().flatten();
         let selected =
             dx_generate::selected_configs(config.as_ref(), &crate::detected_families(root))
-                .ok()
-                .map(|tools| tools.iter().map(|tool| tool.id.to_owned()).collect());
-        Self {
+                .map_err(|error| AdoptError::DxConfig {
+                    detail: error.to_string(),
+                })?
+                .iter()
+                .map(|tool| tool.id.to_owned())
+                .collect();
+        Ok(Self {
             strict,
             ruff_config: root_file(&["ruff.toml", ".ruff.toml"]),
             eslint_config: root_file(&[
@@ -424,8 +423,8 @@ impl EditorTools {
                 "stylelint.config.cjs",
             ]),
             biome_config: root_file(&["biome.json", "biome.jsonc"]),
-            selected,
-        }
+            selected: Some(selected),
+        })
     }
 }
 
@@ -774,7 +773,7 @@ pub fn plan_init_files_at(
         (
             detect_default_branch(root),
             crate::families::file_extensions(root),
-            EditorTools::detect(root),
+            EditorTools::detect(root)?,
         )
     } else {
         (
@@ -1886,10 +1885,20 @@ mod tests {
     }
 
     #[test]
+    fn broken_dx_toml_is_an_error() {
+        let root = dx_test_scratch::scratch("broken-dx-toml").unwrap();
+        std::fs::write(root.path().join("dx.toml"), "tier = [").expect("write");
+        let error = EditorTools::detect(root.path()).expect_err("broken");
+        assert!(error.to_string().starts_with("dx.toml: "), "{error}");
+        let error = super::plan_init_files_at(root.path(), "demo", None).expect_err("broken");
+        assert!(error.to_string().starts_with("dx.toml: "), "{error}");
+    }
+
+    #[test]
     fn ruff_configuration_follows_the_root_file() {
         let root = dx_test_scratch::scratch("ruff-config").unwrap();
         std::fs::write(root.path().join("app.py"), "").expect("write");
-        let none = EditorTools::detect(root.path());
+        let none = EditorTools::detect(root.path()).expect("detect");
         assert_eq!(none.ruff_config, "");
         let py: std::collections::BTreeSet<String> = [".py".to_owned()].into();
         let settings: serde_json::Value =
@@ -1899,7 +1908,7 @@ mod tests {
             "${workspaceFolder}/.dx/config/ruff/base.toml"
         );
         std::fs::write(root.path().join("ruff.toml"), "").expect("write");
-        let tools = EditorTools::detect(root.path());
+        let tools = EditorTools::detect(root.path()).expect("detect");
         assert_eq!(tools.ruff_config, "ruff.toml");
         let settings: serde_json::Value =
             serde_json::from_str(&render_editor_settings(&py, &tools)).expect("json");

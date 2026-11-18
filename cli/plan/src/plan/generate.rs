@@ -24,55 +24,133 @@ pub struct GenerateScopeElement {
     pub dirs: Vec<String>,
 }
 
-/// Maps one scope label to the Gazelle directory it traverses ("" is repo-wide).
+/// One directory Gazelle visits, and whether it visits the packages below it too.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct Traversal {
+    /// Workspace-relative; `""` is the root package.
+    dir: String,
+    recursive: bool,
+}
+
+impl Traversal {
+    fn repo_wide() -> Self {
+        Traversal {
+            dir: String::new(),
+            recursive: true,
+        }
+    }
+
+    fn is_repo_wide(&self) -> bool {
+        self.recursive && self.dir.is_empty()
+    }
+
+    /// Whether `self` visits every package `other` visits.
+    fn covers(&self, other: &Traversal) -> bool {
+        if self.dir == other.dir {
+            return self.recursive || !other.recursive;
+        }
+        self.recursive && (self.dir.is_empty() || other.dir.starts_with(&format!("{}/", self.dir)))
+    }
+
+    fn pattern(&self) -> String {
+        match (self.recursive, self.dir.is_empty()) {
+            (true, true) => "//...".to_owned(),
+            (true, false) => format!("//{}/...", self.dir),
+            (false, _) => format!("//{}:all", self.dir),
+        }
+    }
+}
+
+/// Maps one scope label to what Gazelle traverses.
 ///
+/// `//pkg/...` is the `pkg` tree; any other label in the main repository is its
+/// package alone, so `//pkg:x` and `//:x` never reach the packages below.
 /// `@//` and `@@//` name the main repository and are read as `//`. Any other
 /// `@repo//` label falls back to repo-wide: Gazelle cannot walk an external
 /// repository, and `dx generate` refuses such labels at parse time, so only
 /// the `--affected` umbrella path reaches this fallback, where widening is
-/// the safe direction. `//:x` stays repo-wide because Gazelle directory
-/// arguments are recursive.
-fn generate_traversal_dir(target: &str) -> String {
+/// the safe direction.
+fn generate_traversal(target: &str) -> Traversal {
     let Some(label) = Label::parse(target) else {
-        return String::new();
+        return Traversal::repo_wide();
     };
     match label.repo {
         Repo::Local | Repo::Apparent("") | Repo::Canonical("") if !label.relative => {}
-        Repo::Local | Repo::Apparent(_) | Repo::Canonical(_) => return String::new(),
+        Repo::Local | Repo::Apparent(_) | Repo::Canonical(_) => return Traversal::repo_wide(),
     }
     // `//...` and `//pkg/...` keep the wildcard in the package; the name (`all`,
     // `*`, `all-targets` or a target) never narrows the directory further.
     if label.package == "..." {
-        return String::new();
+        return Traversal::repo_wide();
     }
-    label
-        .package
-        .strip_suffix("/...")
-        .unwrap_or(label.package)
-        .to_owned()
+    match label.package.strip_suffix("/...") {
+        Some(dir) => Traversal {
+            dir: dir.to_owned(),
+            recursive: true,
+        },
+        None => Traversal {
+            dir: label.package.to_owned(),
+            recursive: false,
+        },
+    }
 }
 
-/// Collapses target labels into sorted, non-overlapping Gazelle package patterns.
-pub fn generate_package_scope(targets: &[String]) -> Vec<String> {
-    let mut dirs: Vec<String> = targets
-        .iter()
-        .map(|target| generate_traversal_dir(target))
-        .collect();
-    if dirs.iter().any(String::is_empty) {
-        return vec!["//...".to_owned()];
+fn generate_traversal_dir(target: &str) -> String {
+    generate_traversal(target).dir
+}
+
+/// Sorted traversals with every one another already visits left out.
+fn collapse(mut traversals: Vec<Traversal>) -> Vec<Traversal> {
+    if traversals.iter().any(Traversal::is_repo_wide) {
+        return vec![Traversal::repo_wide()];
     }
-    dirs.sort();
-    dirs.dedup();
-    let mut kept: Vec<String> = Vec::new();
-    for dir in dirs {
-        let nested = kept
+    traversals.sort();
+    traversals.dedup();
+    let kept: Vec<Traversal> = traversals
+        .iter()
+        .filter(|walk| {
+            !traversals
+                .iter()
+                .any(|other| other != *walk && other.covers(walk))
+        })
+        .cloned()
+        .collect();
+    kept
+}
+
+/// Collapses target labels into sorted, non-overlapping Gazelle package
+/// patterns: `//pkg/...` for a tree, `//pkg:all` for one package.
+pub fn generate_package_scope(targets: &[String]) -> Vec<String> {
+    collapse(
+        targets
             .iter()
-            .any(|parent| dir.starts_with(&format!("{parent}/")));
-        if !nested {
-            kept.push(dir);
+            .map(|target| generate_traversal(target))
+            .collect(),
+    )
+    .iter()
+    .map(Traversal::pattern)
+    .collect()
+}
+
+/// The part of the generate `patterns` that lies inside `scope`, as package patterns:
+/// `//...` within a `//svc:bin` scope is `//svc:all`, never the whole repository.
+pub fn generate_package_scope_within(patterns: &[String], scope: &[String]) -> Vec<String> {
+    let scope: Vec<Traversal> = scope
+        .iter()
+        .map(|entry| generate_traversal(entry))
+        .collect();
+    let mut kept = Vec::new();
+    for pattern in patterns {
+        let walk = generate_traversal(pattern);
+        for entry in &scope {
+            if entry.covers(&walk) {
+                kept.push(walk.clone());
+            } else if walk.covers(entry) {
+                kept.push(entry.clone());
+            }
         }
     }
-    kept.into_iter().map(|dir| format!("//{dir}/...")).collect()
+    collapse(kept).iter().map(Traversal::pattern).collect()
 }
 
 #[must_use]
@@ -98,15 +176,22 @@ pub fn generate_scope_json(resolved: &ResolvedScope) -> String {
     serde_json::Value::Array(items).to_string()
 }
 
+fn generate_traversals(resolved: &ResolvedScope) -> Vec<Traversal> {
+    let (_, labels) = workflow_scope_labels(resolved);
+    collapse(
+        labels
+            .iter()
+            .map(|target| generate_traversal(target))
+            .collect(),
+    )
+}
+
 #[must_use]
 pub fn generate_traversal_dirs(resolved: &ResolvedScope) -> Vec<String> {
-    let mut dirs: Vec<String> = generate_scope_elements(resolved)
+    generate_traversals(resolved)
         .into_iter()
-        .flat_map(|element| element.dirs)
-        .collect();
-    dirs.sort();
-    dirs.dedup();
-    dirs
+        .map(|walk| walk.dir)
+        .collect()
 }
 
 /// Workspace-relative directories under `[scope] exclude`, as Gazelle `-exclude` values.
@@ -143,22 +228,33 @@ pub fn plan_generate(
         &[generate_target(check)],
         startup_options,
     )?;
-    let dirs = generate_traversal_dirs(resolved);
-    let root_only = dirs.len() == 1 && dirs.first().is_some_and(String::is_empty);
+    let walks = generate_traversals(resolved);
+    let root_only = walks.iter().any(Traversal::is_repo_wide);
     let patch = patch.filter(|_| check);
     let excludes = if root_only {
         generate_exclude_dirs(resolved)
     } else {
         Vec::new()
     };
-    if patch.is_some() || !excludes.is_empty() || (!dirs.is_empty() && !root_only) {
+    if patch.is_some() || !excludes.is_empty() || (!walks.is_empty() && !root_only) {
         argv.push("--".to_owned());
         if let Some(patch) = patch {
             argv.push(format!("-patch={patch}"));
         }
         argv.extend(excludes.iter().map(|dir| format!("-exclude={dir}")));
         if !root_only {
-            argv.extend(dirs);
+            // Gazelle has one recursion switch for every directory it is given, so a
+            // scope that names any tree visits the packages below a lone package too.
+            if !walks.iter().any(|walk| walk.recursive) {
+                argv.push("-r=false".to_owned());
+            }
+            argv.extend(walks.into_iter().map(|walk| {
+                if walk.dir.is_empty() {
+                    ".".to_owned()
+                } else {
+                    walk.dir
+                }
+            }));
         }
     }
     let (scope, _) = workflow_scope_labels(resolved);
@@ -223,7 +319,10 @@ mod tests {
             ..resolved(&["//a:one"])
         };
         let plan = plan_generate(&scoped, &[], false, &[], None).expect("plan");
-        assert_eq!(plan.argv[plan.argv.len() - 2..], strings(&["--", "a"]));
+        assert_eq!(
+            plan.argv[plan.argv.len() - 3..],
+            strings(&["--", "-r=false", "a"])
+        );
     }
 
     #[test]
@@ -262,8 +361,13 @@ mod tests {
         let scoped = plan_generate(&resolved(&["//a:one"]), &[], true, &[], Some("/t/x.patch"))
             .expect("plan");
         assert_eq!(
-            scoped.argv[scoped.argv.len() - 3..],
-            ["--".to_owned(), patch, "a".to_owned()]
+            scoped.argv[scoped.argv.len() - 4..],
+            [
+                "--".to_owned(),
+                patch,
+                "-r=false".to_owned(),
+                "a".to_owned()
+            ]
         );
         let apply =
             plan_generate(&resolved(&[]), &[], false, &[], Some("/t/x.patch")).expect("plan");
@@ -292,6 +396,7 @@ mod tests {
     fn generate_plan_forwards_scoped_traversal_dirs() {
         let plan =
             plan_generate(&resolved(&["//b/...", "//a:one"]), &[], false, &[], None).expect("plan");
+        // A tree in the scope keeps Gazelle recursive for every directory.
         assert_eq!(
             plan.argv,
             strings(&[
@@ -311,13 +416,34 @@ mod tests {
     }
 
     #[test]
-    fn generate_plan_root_package_label_stays_repo_wide() {
+    fn generate_plan_root_package_label_visits_only_the_root_package() {
         let plan = plan_generate(&resolved(&["//:foo"]), &[], false, &[], None).expect("plan");
+        assert_eq!(
+            plan.argv[plan.argv.len() - 3..],
+            strings(&["--", "-r=false", "."])
+        );
+        assert_eq!(plan.summary, "Running generate for //:foo");
+        let plan = plan_generate(&resolved(&["//..."]), &[], false, &[], None).expect("plan");
         assert!(
             !plan.argv.contains(&"--".to_owned()),
             "root traversal needs no positional arguments: {plan:?}"
         );
-        assert_eq!(plan.summary, "Running generate for //:foo");
+    }
+
+    #[test]
+    fn generate_plan_for_packages_leaves_their_subpackages_alone() {
+        let plan = plan_generate(
+            &resolved(&["//cli/cli/src/exec:all", "//:all", "//cli/cli/src/exec:x"]),
+            &[],
+            false,
+            &[],
+            None,
+        )
+        .expect("plan");
+        assert_eq!(
+            plan.argv[plan.argv.len() - 4..],
+            strings(&["--", "-r=false", ".", "cli/cli/src/exec"])
+        );
     }
 
     #[test]
@@ -366,23 +492,27 @@ mod tests {
             strings(&["cli/cli", "docs"])
         );
         let plan = plan_generate(&resolved, &[], false, &[], None).expect("plan");
-        let tail: Vec<&str> = plan.argv.iter().rev().take(3).map(String::as_str).collect();
-        assert_eq!(tail, ["docs", "cli/cli", "--"]);
+        let tail: Vec<&str> = plan.argv.iter().rev().take(4).map(String::as_str).collect();
+        assert_eq!(tail, ["docs", "cli/cli", "-r=false", "--"]);
     }
 
     #[test]
     fn generate_package_scope_collapses_labels_to_packages() {
         assert_eq!(
             generate_package_scope(&strings(&["//a:x", "//a:y", "//b/c:z"])),
-            strings(&["//a/...", "//b/c/..."])
+            strings(&["//a:all", "//b/c:all"])
         );
         assert_eq!(
-            generate_package_scope(&strings(&["//a/...", "//a/b:x"])),
+            generate_package_scope(&strings(&["//a/...", "//a/b:x", "//a:y"])),
             strings(&["//a/..."])
         );
         assert_eq!(
-            generate_package_scope(&strings(&["//ab:x", "//a:y"])),
-            strings(&["//a/...", "//ab/..."])
+            generate_package_scope(&strings(&["//a:x", "//a/b:y", "//a/...:all"])),
+            strings(&["//a/..."])
+        );
+        assert_eq!(
+            generate_package_scope(&strings(&["//ab:x", "//a:y", "//a/b:z"])),
+            strings(&["//a:all", "//a/b:all", "//ab:all"])
         );
         assert_eq!(
             generate_package_scope(&strings(&["//a:x", "//..."])),
@@ -390,7 +520,7 @@ mod tests {
         );
         assert_eq!(
             generate_package_scope(&strings(&["//:root", "//b:y"])),
-            strings(&["//..."])
+            strings(&["//:all", "//b:all"])
         );
         assert_eq!(
             generate_package_scope(&strings(&["@ext//p:t", "//b:y"])),
@@ -426,6 +556,29 @@ mod tests {
                 element: "//a:one".to_owned(),
                 dirs: vec!["a".to_owned()],
             }]
+        );
+    }
+
+    #[test]
+    fn generate_package_scope_within_keeps_the_overlap() {
+        let within = |patterns: &[&str], scope: &[&str]| {
+            generate_package_scope_within(&strings(patterns), &strings(scope))
+        };
+        assert_eq!(
+            within(&["//..."], &["//svc:bin", "//web/..."]),
+            strings(&["//svc:all", "//web/..."])
+        );
+        assert_eq!(
+            within(&["//svc/...", "//web:all"], &["//svc/api:lib"]),
+            strings(&["//svc/api:all"])
+        );
+        assert_eq!(
+            within(&["//svc:all", "//svc/api:all"], &["//svc/..."]),
+            strings(&["//svc:all", "//svc/api:all"])
+        );
+        assert_eq!(
+            within(&["//svc:all"], &["//svc/api/...", "//web:all"]),
+            [] as [String; 0]
         );
     }
 

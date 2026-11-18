@@ -48,7 +48,7 @@ dx format [flags] [scope...] [-- bazel-options ...]
 
 ## Scopes
 
-No scope means `//...`, every target in the workspace. A Bazel target is one buildable unit, such as a library or a test. Pass Bazel labels such as `//cli:dx` or patterns such as `//cli/...`, or workspace-relative files and dirs. `--here` cannot be combined with explicit scopes or with `--affected`. `--affected` with scopes keeps only the affected targets inside them. When every scope is a file or directory, findings and fixes are limited to those paths; the rest of the owning target is checked but neither reported nor rewritten. A label or pattern among the scopes reports its whole target. Targets that do not fit the target platform are skipped, even when named. See [Scope defaults](scope-defaults.md).
+No scope means `//...`, every target in the workspace. A Bazel target is one buildable unit, such as a library or a test. Pass Bazel labels such as `//cli:dx` or patterns such as `//cli/...`, or workspace-relative files and dirs. `--here` cannot be combined with explicit scopes or with `--affected`. `--affected` with scopes keeps only the affected targets inside them. When every scope is a file or directory, findings and fixes are limited to those paths; the rest of the owning target is checked but neither reported nor rewritten. A label or pattern among the scopes reports its whole target. With `--affected`, `--apply` writes only the changed files and the `BUILD` file of each one's package. A fix to any other file is refused as `outside_scope`. Targets that do not fit the target platform are skipped, even when named. See [Scope defaults](scope-defaults.md).
 
 ## Bazel options
 
@@ -74,7 +74,7 @@ When files need changes, text prints `N file(s) need changes. Apply them with: d
 
 `--diff` prints the patch on stdout. `Not applied:` and `Conflict:` lines go to stderr.
 
-JSON prints one `change` per file with `path`, `kind`, `edit_count` and `effect` (`proposed`, `applied` or `refused`). A refused change has a `reason`: `stale_source`, `unreadable_source`, `invalid_edits`, `write_failed`, `incomplete_collection`, `conflicting_digests` or `conflicting_candidates`. A check with proposed changes adds an info `notice` with code `changes_proposed`; its `message` is the `--apply` command. A tool that was skipped on this host adds a warning `notice` with code `tool_skipped`; its `message` names the tool and the reason, as the text-mode `dx: note:` line does. Findings from several targets print once with a `count` and every target in `origins`.
+JSON prints one `change` per file with `path`, `kind`, `edit_count` and `effect` (`proposed`, `applied` or `refused`). A refused change has a `reason`: `stale_source`, `unreadable_source`, `invalid_edits`, `write_failed`, `incomplete_collection`, `conflicting_digests`, `conflicting_candidates` or `outside_scope`. A check with proposed changes adds an info `notice` with code `changes_proposed`; its `message` is the `--apply` command. A tool that was skipped on this host adds a warning `notice` with code `tool_skipped`; its `message` names the tool and the reason, as the text-mode `dx: note:` line does. Findings from several targets print once with a `count` and every target in `origins`.
 
 A stdout SARIF report (`--report sarif=-`) works only with text output and moves findings to stderr. Relative destinations anchor at the workspace root. Colliding destinations and missing parent dirs exit `2`.
 

@@ -13,6 +13,9 @@ pub struct AffectedHandoff {
     pub generate: Vec<String>,
     /// Rules that own the changed files, the scope of the format phase.
     pub format: Vec<String>,
+    /// The only paths `--apply` may write: the changed files and their packages' BUILD files.
+    /// `None` leaves writes to the scope.
+    pub writable: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -79,6 +82,8 @@ pub struct QualityRequest {
     pub unsafe_fixes: bool,
     /// `--online`: lychee also checks external links, on the host after the build.
     pub online: bool,
+    /// See [`AffectedHandoff::writable`].
+    pub writable: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -109,6 +114,8 @@ pub struct UmbrellaRequest {
     pub unsafe_fixes: bool,
     /// `dx check --affected`: the merge base whose later commit subjects are linted.
     pub commits_base: Option<String>,
+    /// See [`AffectedHandoff::writable`].
+    pub writable: Option<Vec<String>>,
 }
 
 impl CommonOptions {
@@ -253,6 +260,7 @@ impl UmbrellaRequest {
             origin: Some(self.origin()),
             unsafe_fixes: self.unsafe_fixes,
             online: false,
+            writable: self.writable.clone(),
         })
     }
 
@@ -545,6 +553,7 @@ impl Invocation {
             origin: None,
             unsafe_fixes: self.unsafe_fixes,
             online: self.online,
+            writable: self.writable(),
         })
     }
 
@@ -631,7 +640,14 @@ impl Invocation {
             common: self.common_options(),
             fail_on: self.fail_on,
             unsafe_fixes: self.unsafe_fixes,
+            writable: self.writable(),
         })
+    }
+
+    fn writable(&self) -> Option<Vec<String>> {
+        self.affected_handoff
+            .as_ref()
+            .and_then(|handoff| handoff.writable.clone())
     }
 }
 
@@ -869,6 +885,36 @@ mod tests {
         assert!(apply.applies());
         assert_eq!(OperationMode::Check.name(), "check");
         assert_eq!(OperationMode::Apply.name(), "apply");
+    }
+
+    #[test]
+    fn affected_phases_write_only_the_handed_off_paths() {
+        let mut check = invocation_for(Command::Check, &["//a:x"]);
+        let writable = vec!["a/BUILD.bazel".to_owned(), "a/x.rs".to_owned()];
+        check.affected_handoff = Some(AffectedHandoff {
+            writable: Some(writable.clone()),
+            ..AffectedHandoff::default()
+        });
+        let request = check.umbrella_request().expect("umbrella");
+        for phase in [Command::Format, Command::Lint, Command::Typecheck] {
+            assert_eq!(
+                request
+                    .phase_quality_request(phase, Vec::new())
+                    .expect("phase")
+                    .writable,
+                Some(writable.clone())
+            );
+        }
+        let plain = invocation_for(Command::Check, &["//a:x"]);
+        assert_eq!(
+            plain
+                .umbrella_request()
+                .expect("umbrella")
+                .phase_quality_request(Command::Lint, Vec::new())
+                .expect("phase")
+                .writable,
+            None
+        );
     }
 
     #[test]

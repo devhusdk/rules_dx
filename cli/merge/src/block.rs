@@ -39,7 +39,7 @@ pub fn merge(text: &str, begin: &str, end: &str, block: &str) -> Result<String, 
         });
     }
     let eol = eol(text);
-    let block = block.replace('\n', eol);
+    let block = block.replace("\r\n", "\n").replace('\n', eol);
     Ok(if let Some((start, stop)) = span(text, begin, end) {
         format!(
             "{}{}{}",
@@ -104,5 +104,13 @@ mod tests {
         let out = merge(old, B, E, BLOCK).unwrap();
         assert!(out.starts_with("\u{feff}  odd \t\n"));
         assert!(out.ends_with("\n\n\ttail"));
+    }
+
+    #[test]
+    fn a_crlf_block_stays_single_crlf() {
+        let old = "top\r\n<!-- b -->\r\nold\r\n<!-- e -->\r\n";
+        let block = "<!-- b -->\r\nbody\r\n<!-- e -->\r\n";
+        let out = merge(old, B, E, block).unwrap();
+        assert_eq!(out, "top\r\n<!-- b -->\r\nbody\r\n<!-- e -->\r\n");
     }
 }

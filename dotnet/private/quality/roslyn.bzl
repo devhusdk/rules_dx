@@ -92,9 +92,8 @@ def _roslyn_impl(target, ctx):
     tfm = attrs._target_framework[BuildSettingInfo].value
     csc = toolchain.csharp_compiler.files_to_run.executable
     runtime = toolchain.runtime.files_to_run.executable
-    wrapper = ctx.rule.executable._compiler_wrapper_sh
-    if ctx.target_platform_has_constraint(attrs._windows_constraint[platform_common.ConstraintValueInfo]):
-        wrapper = ctx.rule.executable._compiler_wrapper_bat
+    worker = [f for f in ctx.attr._worker[DefaultInfo].default_runfiles.files.to_list() if f.basename in ("roslyn_worker.dll", "roslyn_worker.runtimeconfig.json")]
+    worker_dll = [f for f in worker if f.extension == "dll"][0]
 
     assembly_name = getattr(attrs, "out", "") or target.label.name
     exports = getattr(attrs, "exports", [])
@@ -134,9 +133,9 @@ def _roslyn_impl(target, ctx):
     trimmer = [f for f in ctx.files._reference_trimmer if f.basename == "ReferenceTrimmer.Analyzer.dll"]
 
     args = ctx.actions.args()
+    args.add("--status", status)
     args.add("/nologo")
     args.add("/nostdlib+")
-    args.add("/utf8output")
     args.add("/deterministic+")
     args.add("/target:library" if ctx.rule.kind == "csharp_library" else "/target:exe")
     args.add("/unsafe+" if attrs.allow_unsafe_blocks else "/unsafe-")
@@ -173,7 +172,7 @@ def _roslyn_impl(target, ctx):
     args.use_param_file("@%s", use_always = True)
 
     inputs = depset(
-        direct = ctx.rule.files.srcs + ctx.rule.files.additionalfiles + ctx.rule.files.analyzer_configs + framework_files + [wrapper, runtime, csc, declared, assembly_info] + trimmer,
+        direct = ctx.rule.files.srcs + ctx.rule.files.additionalfiles + ctx.rule.files.analyzer_configs + framework_files + [runtime, csc, declared, assembly_info] + trimmer + worker,
         transitive = [
             config_closure,
             refs,
@@ -187,11 +186,15 @@ def _roslyn_impl(target, ctx):
     ctx.actions.run(
         mnemonic = "CSharpRoslyn",
         progress_message = "Roslyn analyzers %{label}",
-        executable = ctx.executable._capture,
-        arguments = ["capture", "--status", status.path, "--", wrapper.path, runtime.path, csc.path, args],
+        executable = runtime,
+        arguments = [worker_dll.path, csc.path, args],
         inputs = inputs,
         outputs = [sarif, status, out_tree],
         env = {"DOTNET_CLI_HOME": runtime.dirname},
+        execution_requirements = {
+            "requires-worker-protocol": "json",
+            "supports-workers": "1",
+        },
         resource_set = dx_heavy_resources,
         toolchain = _TOOLCHAIN,
     )
@@ -202,11 +205,10 @@ roslyn_aspect = aspect(
     doc = "Compiles a C# target with the SDK analyzers and records the SARIF log.",
     attr_aspects = ["upstream", "dx_tfm_variants"],
     attrs = {
-        "_capture": attr.label(
-            default = "@dx_prebuilt//:dx",
-            executable = True,
+        "_worker": attr.label(
+            default = "//dotnet/private/quality/tools/roslyn_worker:roslyn_worker_pinned",
             cfg = "exec",
-            doc = "Runs one program with its streams and exit code written to files.",
+            doc = "Hosts csc.dll in-process, one-shot or as a persistent worker.",
         ),
         "_reference_trimmer": attr.label(
             default = "@nuget.referencetrimmer//referencetrimmer:files",

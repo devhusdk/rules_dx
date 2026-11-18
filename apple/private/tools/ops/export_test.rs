@@ -2,7 +2,6 @@
 
 mod fake;
 
-use std::io::Write;
 use std::path::Path;
 
 use dx_apple_ops::export::run;
@@ -34,8 +33,7 @@ fn setup(prefix: &str, with_extension: bool) -> Setup {
     write(root.path(), "out/keep", "").unwrap();
     write(root.path(), "tmp/keep", "").unwrap();
     let ipa = root.path().join("Ledger.ipa");
-    let mut writer = zip::ZipWriter::new(std::fs::File::create(&ipa).unwrap());
-    let options = zip::write::SimpleFileOptions::default();
+    let mut writer = dx_archive::ZipWriter::new();
     let mut entries = vec![
         ("Payload/Ledger.app/Info.plist", "plist"),
         ("Payload/Ledger.app/Ledger", "binary"),
@@ -48,10 +46,9 @@ fn setup(prefix: &str, with_extension: bool) -> Setup {
         entries.push(("Payload/Ledger.app/PlugIns/Share.appex/Info.plist", "x"));
     }
     for (name, text) in entries {
-        writer.start_file(name, options).unwrap();
-        writer.write_all(text.as_bytes()).unwrap();
+        writer.add_file(name, text.as_bytes(), 0o644).unwrap();
     }
-    writer.finish().unwrap();
+    std::fs::write(&ipa, writer.finish().unwrap()).unwrap();
     Setup {
         tmp: root.path().join("tmp").to_string_lossy().into_owned(),
         ipa: ipa.to_string_lossy().into_owned(),
@@ -125,15 +122,14 @@ fn devices(expires: &'static str, identifier: &'static str, extra_entitlement: b
             DITTO => {
                 let payload = Path::new(&arg(4)).to_path_buf();
                 let target = Path::new(&arg(5)).to_path_buf();
-                let mut writer = zip::ZipWriter::new(std::fs::File::create(&target).unwrap());
-                let options = zip::write::SimpleFileOptions::default();
+                let mut writer = dx_archive::ZipWriter::new();
                 for name in ["Info.plist", "Ledger", "embedded.mobileprovision"] {
                     assert!(payload.join("Ledger.app").join(name).exists());
                     writer
-                        .start_file(format!("Payload/Ledger.app/{name}"), options)
+                        .add_file(&format!("Payload/Ledger.app/{name}"), b"", 0o644)
                         .unwrap();
                 }
-                writer.finish().unwrap();
+                std::fs::write(&target, writer.finish().unwrap()).unwrap();
                 ok("")
             }
             XCRUN if arg(0) == "lipo" => ok("arm64\n"),
@@ -247,16 +243,14 @@ fn app_extensions_are_refused() {
 #[test]
 fn an_ipa_with_an_escaping_symlink_is_refused() {
     let set = setup("export-escape", false);
-    let mut writer = zip::ZipWriter::new(std::fs::File::create(&set.ipa).unwrap());
-    let options = zip::write::SimpleFileOptions::default();
+    let mut writer = dx_archive_testing::RawZip::new();
     writer
-        .start_file("Payload/Ledger.app/Info.plist", options)
+        .add_file("Payload/Ledger.app/Info.plist", b"plist")
         .unwrap();
-    writer.write_all(b"plist").unwrap();
     writer
-        .add_symlink("Payload/Ledger.app/escape", "../../../outside", options)
+        .add_symlink("Payload/Ledger.app/escape", "../../../outside")
         .unwrap();
-    writer.finish().unwrap();
+    std::fs::write(&set.ipa, writer.finish().unwrap()).unwrap();
     let fake = devices(
         "2027-01-01T00:00:00Z",
         "TEAM123456.com.example.ledger",

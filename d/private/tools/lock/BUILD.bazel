@@ -74,6 +74,7 @@ rust_test(
         normal_dev = True,
     ) + [
         ":dub_lock_lib",
+        "//cli/archive:dx_archive",
         "//cli/families:dx_families",
         "//cli/lock:dx_lock",
         "//tools/testing:dx_testing",

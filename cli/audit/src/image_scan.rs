@@ -324,18 +324,15 @@ mod tests {
     fn pinned_workspace(name: &str, tamper: bool) -> (PathBuf, PathBuf) {
         let dir = std::env::temp_dir().join(format!("dx-image-scan-{name}-{}", std::process::id()));
         drop(std::fs::remove_dir_all(&dir));
-        let src = dir.join("src");
-        std::fs::create_dir_all(src.join("db")).expect("cache dir");
-        std::fs::write(src.join("db").join("metadata.json"), "{}").expect("metadata");
+        std::fs::create_dir_all(&dir).expect("dir");
+        let mut writer = dx_archive::TarWriter::new();
+        writer.add_dir("db", 0o755).expect("cache dir");
+        writer
+            .add_file("db/metadata.json", b"{}", 0o644)
+            .expect("metadata");
+        let bytes = writer.finish().expect("pack");
         let archive = dir.join("trivy.tar.gz");
-        let file = std::fs::File::create(&archive).expect("archive");
-        let mut builder = tar::Builder::new(flate2::write::GzEncoder::new(
-            file,
-            flate2::Compression::default(),
-        ));
-        builder.append_dir_all("db", src.join("db")).expect("pack");
-        builder.into_inner().expect("tar").finish().expect("gz");
-        let bytes = std::fs::read(&archive).expect("read");
+        std::fs::write(&archive, &bytes).expect("archive");
         let sha = if tamper {
             "0".repeat(64)
         } else {

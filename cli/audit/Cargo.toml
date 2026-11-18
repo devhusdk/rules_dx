@@ -30,9 +30,7 @@ yaml_serde = "0.10"
 yarn-lock-parser = "0.14"
 
 [dev-dependencies]
-flate2 = { version = "1", default-features = false, features = ["zlib"] }
 jsonschema = { version = "0.60", default-features = false }
-tar = "0.4"
 tempfile = "3"
 
 [lib]

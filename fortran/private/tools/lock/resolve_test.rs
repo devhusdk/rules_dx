@@ -137,27 +137,17 @@ fn a_non_github_source_fails() {
     let dir = set(&MANIFEST.replace("https://github.com/jalvesz", "https://gitlab.com/jalvesz"));
     let error = lock(dir.path(), &Archives(RefCell::default())).expect_err("refused");
     assert!(
-        error.to_string().contains("only https://github.com/<owner>/<repo> git URLs are"),
+        error
+            .to_string()
+            .contains("only https://github.com/<owner>/<repo> git URLs are"),
         "{error}"
     );
 }
 
 fn tar_gz(name: &str, data: &[u8]) -> Vec<u8> {
-    let mut builder = tar::Builder::new(flate2::write::GzEncoder::new(
-        Vec::new(),
-        flate2::Compression::fast(),
-    ));
-    let mut header = tar::Header::new_ustar();
-    header.as_mut_bytes()[..name.len()].copy_from_slice(name.as_bytes());
-    header.set_size(data.len() as u64);
-    header.set_mode(0o644);
-    header.set_entry_type(tar::EntryType::Regular);
-    header.set_cksum();
-    builder.append(&header, data).expect("append");
-    builder
-        .into_inner()
-        .and_then(flate2::write::GzEncoder::finish)
-        .expect("tar.gz")
+    let mut writer = dx_archive_testing::RawTar::new();
+    writer.add_file(name, data).expect("append");
+    dx_archive::gzip(&writer.finish().expect("tar")).expect("tar.gz")
 }
 
 #[test]

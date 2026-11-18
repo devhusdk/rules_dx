@@ -38,6 +38,22 @@ rust_library(
     ),
 )
 
+rust_library(
+    name = "dx_archive_testing",
+    testonly = True,
+    srcs = ["src/testing.rs"],
+    aliases = aliases(
+        package_name = "cli/dx_archive",
+        normal = True,
+    ),
+    crate_name = "dx_archive_testing",
+    crate_root = "src/testing.rs",
+    deps = all_crate_deps(
+        package_name = "cli/dx_archive",
+        normal = True,
+    ),
+)
+
 rust_test(
     name = "dx_archive_test",
     size = "small",

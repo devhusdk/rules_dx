@@ -1,7 +1,6 @@
 //! The ruby lock step writes the lock and `Gemfile.lock` from index fixtures with an empty `PATH` and no network.
 
 use std::cell::RefCell;
-use std::io::Write;
 
 use dx_lock::{Args, Error, Fetch, Lock, Outcome, run};
 use ruby_lock::{Download, Ruby};
@@ -15,23 +14,15 @@ const MODERN_INFO: &str = "---\n1.0.0 |checksum:MODERN,ruby:>= 2.7&< 9.0\n2.0.0 
 const NATIVE_INFO: &str = "---\n1.0.0-x86_64-linux |checksum:00\n1.0.0-arm64-darwin |checksum:00\n";
 
 fn tar(files: &[(&str, &[u8])]) -> Vec<u8> {
-    let mut builder = tar::Builder::new(Vec::new());
+    let mut writer = dx_archive::TarWriter::new();
     for (path, bytes) in files {
-        let mut header = tar::Header::new_gnu();
-        header.set_size(bytes.len() as u64);
-        header.set_mode(0o644);
-        header.set_mtime(0);
-        builder
-            .append_data(&mut header, path, *bytes)
-            .expect("tar entry");
+        writer.add_file(path, bytes, 0o644).expect("tar entry");
     }
-    builder.into_inner().expect("tar")
+    writer.finish_tar().expect("tar")
 }
 
 fn gz(bytes: &[u8]) -> Vec<u8> {
-    let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
-    encoder.write_all(bytes).expect("gzip");
-    encoder.finish().expect("gzip")
+    dx_archive::gzip(bytes).expect("gzip")
 }
 
 fn gem(require_path: &str, files: &[&str]) -> Vec<u8> {
@@ -329,15 +320,9 @@ fn a_gemfile_ruby_line_the_pinned_ruby_misses_fails() {
 
 #[test]
 fn a_gem_with_an_unsafe_member_is_refused() {
-    let mut header = tar::Header::new_gnu();
-    let name = b"../lib/modern.rb";
-    header.as_mut_bytes()[..name.len()].copy_from_slice(name);
-    header.set_size(0);
-    header.set_mode(0o644);
-    header.set_cksum();
-    let mut builder = tar::Builder::new(Vec::new());
-    builder.append(&header, b"".as_slice()).expect("tar entry");
-    let data = gz(&builder.into_inner().expect("tar"));
+    let mut writer = dx_archive_testing::RawTar::new();
+    writer.add_file("../lib/modern.rb", b"").expect("tar entry");
+    let data = gz(&writer.finish().expect("tar"));
     let metadata =
         gz(b"--- !ruby/object:Gem::Specification\nname: modern\nrequire_paths:\n- lib\n");
     let mut index = Index::new();

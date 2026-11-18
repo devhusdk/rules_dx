@@ -3,7 +3,6 @@
 mod fake;
 
 use std::collections::BTreeMap;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use dx_apple_ops::util::{Cmd, Output};
@@ -98,19 +97,14 @@ impl Tree {
     }
 
     fn write(&self, path: &Path) {
-        let mut writer = zip::ZipWriter::new(std::fs::File::create(path).unwrap());
-        let options = zip::write::SimpleFileOptions::default()
-            .compression_method(zip::CompressionMethod::Stored);
+        let mut writer = dx_archive_testing::RawZip::new();
         for (name, text) in &self.0 {
-            writer.start_file(name.as_str(), options).unwrap();
-            writer.write_all(text.as_bytes()).unwrap();
+            writer.add_file(name, text.as_bytes()).unwrap();
         }
         for (name, target) in &self.1 {
-            writer
-                .add_symlink(name.as_str(), target.as_str(), options)
-                .unwrap();
+            writer.add_symlink(name, target).unwrap();
         }
-        writer.finish().unwrap();
+        std::fs::write(path, writer.finish().unwrap()).unwrap();
     }
 }
 

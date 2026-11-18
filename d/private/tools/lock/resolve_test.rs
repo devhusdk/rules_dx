@@ -22,8 +22,10 @@ impl Download for Registry {
             "https://code.dlang.org/api/packages/base/versions" => {
                 Ok(br#"["0.1.0", "0.2.0", "0.2.3", "0.3.0"]"#.to_vec())
             }
-            SILLY => std::fs::read(dx_testing::env_file("SILLY")).map_err(|error| Error::new(error.to_string())),
-            BASE => std::fs::read(dx_testing::env_file("BASE")).map_err(|error| Error::new(error.to_string())),
+            SILLY => std::fs::read(dx_testing::env_file("SILLY"))
+                .map_err(|error| Error::new(error.to_string())),
+            BASE => std::fs::read(dx_testing::env_file("BASE"))
+                .map_err(|error| Error::new(error.to_string())),
             other => Err(Error::new(format!("unexpected download of {other}"))),
         }
     }
@@ -82,7 +84,10 @@ fn registry_fixtures_write_the_golden_lock() {
 #[test]
 fn unchanged_packages_are_kept_without_a_download() {
     let dir = set(MANIFEST);
-    assert_eq!(lock(dir.path(), &Registry(RefCell::default())), Ok(Outcome::Written));
+    assert_eq!(
+        lock(dir.path(), &Registry(RefCell::default())),
+        Ok(Outcome::Written)
+    );
     std::fs::write(dir.path().join("dub.json"), format!("{MANIFEST}\n")).expect("manifest");
     let registry = Registry(RefCell::default());
     assert_eq!(lock(dir.path(), &registry), Ok(Outcome::Written));
@@ -93,14 +98,22 @@ fn unchanged_packages_are_kept_without_a_download() {
 fn a_path_dependency_fails() {
     let dir = set("{\"dependencies\": {\"local\": {\"path\": \"../local\"}}}");
     let error = lock(dir.path(), &Registry(RefCell::default())).expect_err("refused");
-    assert!(error.to_string().contains("selected by path or repository"), "{error}");
+    assert!(
+        error.to_string().contains("selected by path or repository"),
+        "{error}"
+    );
 }
 
 #[test]
 fn an_unsatisfiable_range_fails() {
     let dir = set("{\"dependencies\": {\"silly\": \">=3.0.0\"}}");
     let error = lock(dir.path(), &Registry(RefCell::default())).expect_err("refused");
-    assert!(error.to_string().contains("no version of silly satisfies >=3.0.0"), "{error}");
+    assert!(
+        error
+            .to_string()
+            .contains("no version of silly satisfies >=3.0.0"),
+        "{error}"
+    );
 }
 
 struct OversizedManifest;
@@ -110,17 +123,12 @@ impl Download for OversizedManifest {
         if url != SILLY {
             return Registry(RefCell::default()).bytes(url);
         }
-        let failed = |error: zip::result::ZipError| Error::new(error.to_string());
-        let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        let failed = |error: std::io::Error| Error::new(error.to_string());
+        let mut writer = dx_archive::ZipWriter::new();
         writer
-            .start_file(
-                "silly-1.1.1/dub.json",
-                zip::write::SimpleFileOptions::default(),
-            )
+            .add_file("silly-1.1.1/dub.json", &vec![b' '; 9 << 20], 0o644)
             .map_err(failed)?;
-        std::io::Write::write_all(&mut writer, &vec![b' '; 9 << 20])
-            .map_err(|error| Error::new(error.to_string()))?;
-        Ok(writer.finish().map_err(failed)?.into_inner())
+        writer.finish().map_err(failed)
     }
 }
 

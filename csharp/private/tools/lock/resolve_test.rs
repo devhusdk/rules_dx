@@ -190,18 +190,11 @@ fn a_group_without_a_framework_fails() {
 }
 
 fn archive(files: &[(&str, &str)]) -> Vec<u8> {
-    let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    let mut writer = dx_archive_testing::RawZip::new();
     for (name, text) in files {
-        writer
-            .start_file(
-                *name,
-                zip::write::SimpleFileOptions::default()
-                    .compression_method(zip::CompressionMethod::Stored),
-            )
-            .expect("entry");
-        std::io::Write::write_all(&mut writer, text.as_bytes()).expect("write");
+        writer.add_file(name, text.as_bytes()).expect("entry");
     }
-    writer.finish().expect("archive").into_inner()
+    writer.finish().expect("archive")
 }
 
 #[test]

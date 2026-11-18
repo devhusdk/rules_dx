@@ -3,6 +3,11 @@ load("//haskell:defs.bzl", "haskell_binary", "haskell_library", "haskell_test")
 load("//haskell/private:defs.bzl", "HASKELL_COMPATIBLE_WITH")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 
+# The dirty fixtures stay in their own manual targets; gazelle would merge them
+# into the clean library.
+# gazelle:exclude FormatDirty.hs
+# gazelle:exclude LintDirty.hs
+
 package(
     default_testonly = True,
     default_visibility = ["//:__subpackages__"],
@@ -14,6 +19,24 @@ haskell_library(
     srcs = ["Greet.hs"],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
     deps = ["@dx_haskell_toolchains//lib:base"],  # keep
+)
+
+# keep
+haskell_library(
+    name = "lint_dirty",
+    srcs = ["LintDirty.hs"],
+    tags = ["manual"],
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+    deps = ["@dx_haskell_toolchains//lib:base"],
+)
+
+# keep
+haskell_library(
+    name = "format_dirty",
+    srcs = ["FormatDirty.hs"],
+    tags = ["manual"],
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+    deps = ["@dx_haskell_toolchains//lib:base"],
 )
 
 haskell_binary(
@@ -71,6 +94,15 @@ dx_conformance_suite(
     },
     not_applicable = {"cross_test:windows_x86_64": "haskell supports no other windows platform"},
     passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":hello",
+        "format_dirty": ":format_dirty",
+        "format_source": "FormatDirty.hs",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 4,
+        "lint_rule": "unused",
+        "lint_source": "LintDirty.hs",
+    },
     runfiles = {
         "binary": ":hello",
         "data": "data.txt",

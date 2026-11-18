@@ -41,10 +41,18 @@ elixir cross_test windows_x86_64
 erlang cross_test windows_x86_64
 flutter runfiles_test *
 fortran cross_test *
-haskell format_error_test *
-haskell format_test *
-haskell lint_error_test *
-haskell lint_test *
+haskell format_error_test linux_arm64
+haskell format_error_test macos_arm64
+haskell format_error_test windows_x86_64
+haskell format_test linux_arm64
+haskell format_test macos_arm64
+haskell format_test windows_x86_64
+haskell lint_error_test linux_arm64
+haskell lint_error_test macos_arm64
+haskell lint_error_test windows_x86_64
+haskell lint_test linux_arm64
+haskell lint_test macos_arm64
+haskell lint_test windows_x86_64
 helm format_error_test *
 helm format_test *
 msix build_test *
@@ -59,8 +67,6 @@ msix lock_test *
 msix pass_test *
 msix runfiles_test *
 ocaml cross_test macos_arm64
-ocaml lint_error_test *
-ocaml lint_test *
 php runfiles_test *
 powershell runfiles_test *
 python runfiles_test *
@@ -75,7 +81,5 @@ qt lint_test *
 qt lock_test *
 qt pass_test *
 qt runfiles_test *
-scala lint_error_test *
-scala lint_test *
 zig coverage_test windows_x86_64
 """

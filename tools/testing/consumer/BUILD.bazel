@@ -1,5 +1,6 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
+load("//tools/testing/hermetic:defs.bzl", "nested_bazel_test")
 load(":fixtures.bzl", "CONSUMER_FIXTURES", "consumer_fixture_tests")
 
 consumer_fixture_tests(
@@ -27,6 +28,32 @@ rust_test(
     deps = [
         "//tools/testing:dx_testing",
         "@crates//:starlark_syntax",
+    ],
+)
+
+# size: large, nested Bazel consumer build and test from an empty output base. Fails when the
+# repositories a fresh Go-only consumer fetches differ from cold_start/go.txt (#13210).
+nested_bazel_test(
+    name = "go_cold_start_test",
+    size = "large",
+    timeout = "long",
+    srcs = ["cold_start_test.rs"],
+    crate_name = "cold_start_test",
+    crate_root = "cold_start_test.rs",
+    data = [
+        "cold_start/go.txt",
+        "//:module_srcs",
+        "@dx_test_tags_sources//:consumer.json",
+    ],
+    env = {
+        "DX_COLD_START_LANG": "go",
+        "DX_COLD_START_LIST": "$(rlocationpath cold_start/go.txt)",
+        "DX_CONSUMER_JSON": "$(rlocationpath @dx_test_tags_sources//:consumer.json)",
+    },
+    network = True,
+    deps = [
+        "//tools/testing:dx_testing",
+        "//tools/testing/nested:dx_nested",
     ],
 )
 

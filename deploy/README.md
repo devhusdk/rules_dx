@@ -1,24 +1,94 @@
-# dx_deployment
+# Deploy rules
 
-`dx deploy <label>` builds the target and runs its dry run: it stages,
-validates and prints what would be published, and contacts no registry.
-`dx deploy --apply <label>` publishes. Each launcher still needs its own
-`<X>_APPROVED=1` and credentials, which dx never sets: a human sets them in
-the shell, CI sets them in `reusable-release.yml`. In an agent session
-`--apply` is refused unless `CI=true`. A plain `bazel run` of a launcher
+Use these rules to publish what you build to a package registry, a container
+registry, a GitHub release or a local archive.
+
+## Quick start
+
+A deploy rule wraps a target you already build. A target is one thing Bazel
+builds. A label names it: `//app:tasks` is the target `tasks` in the `app`
+directory. Add the rule to `app/BUILD.bazel`, the file that declares `tasks`:
+
+```starlark
+load("@rules_dx//deploy:defs.bzl", "archive_deploy")
+
+archive_deploy(
+    name = "tasks_deploy",
+    app = ":tasks",
+)
+```
+
+Check what it would publish. Nothing leaves your machine:
+
+```sh
+dx deploy //app:tasks_deploy
+```
+
+Publish it:
+
+```sh
+dx deploy --apply //app:tasks_deploy
+```
+
+Registry rules also need credentials and an `<X>_APPROVED=1` variable in your
+shell. Each rule's section names them. The [`dx deploy`](../docs/cli/commands/deploy.md)
+page lists every flag.
+
+## Rules
+
+| Publishes to | Rule |
+| --- | --- |
+| Maven | [`maven_deploy`](#maven_deploy) |
+| npm | [`npm_deploy`](#npm_deploy) |
+| Cloudflare Pages | [`cloudflare_pages_deploy`](#cloudflare_pages_deploy) |
+| Local archive | [`archive_deploy`](#archive_deploy), [`consumer_archive`](#consumer_archive) |
+| crates.io | [`crates_deploy`](#crates_deploy) |
+| Hex | [`hex_deploy`](#hex_deploy) |
+| RubyGems | [`rubygems_deploy`](#rubygems_deploy) |
+| GitHub releases | [`github_deploy`](#github_deploy) |
+| Homebrew tap | [`homebrew_tap_deploy`](#homebrew_tap_deploy) |
+| Linux packages | [`linux_package_deploy`](#linux_package_deploy) |
+| pub.dev | [`pub_deploy`](#pub_deploy) |
+| NuGet | [`nuget_deploy`](#nuget_deploy) |
+| CPAN | [`cpan_deploy`](#cpan_deploy) |
+| Conan | [`conan_deploy`](#conan_deploy) |
+| Hackage | [`hackage_deploy`](#hackage_deploy) |
+| LuaRocks | [`luarocks_deploy`](#luarocks_deploy) |
+| Container registry | [`oci_image_from_binary`](#oci_image_from_binary), [`oci_deploy`](#oci_deploy) |
+| Octopus Deploy | [`octopus_deploy`](#octopus_deploy) |
+| PyPI | [`pypi_deploy`](#pypi_deploy) |
+| Helm chart repository | [`helm_chart_deploy`](#helm_chart_deploy) |
+| opam | [`opam_deploy`](#opam_deploy) |
+| Packagist | [`packagist_deploy`](#packagist_deploy) |
+
+Debug symbols: [`dx_split_debug_info`](#dx_split_debug_info),
+[`dx_dsym`](#dx_dsym) and [`dx_pdb`](#dx_pdb).
+
+## Dry run and publish
+
+`dx deploy <label>` builds the target and runs a dry run. The dry run
+stages, checks and prints what it would publish. It contacts no registry.
+
+`dx deploy --apply <label>` publishes. Each rule still needs its own
+`<X>_APPROVED=1` variable and credentials. dx never sets them: you set them in
+your shell, and CI sets them in `reusable-release.yml`. In an agent session
+`--apply` is refused unless `CI=true`. A plain `bazel run` of a deploy target
 publishes only with `DX_DEPLOY_LIVE=1`.
 
-`size_budget` is optional, such as `25MB` (decimal `B`, `KB`, `MB` or `GB`).
-Every `*_deploy` macro that publishes files takes it and sets `artifacts` to
-the files it publishes. Building the deployment fails when they together are
-larger, and prints both sizes in bytes. Empty means no budget.
+## Attributes every rule takes
+
+`size_budget` is optional, such as `25MB`. Use a decimal `B`, `KB`, `MB` or
+`GB` amount. Every `*_deploy` macro that publishes files takes it. The build
+fails when those files together are larger, and prints both sizes in bytes.
+Empty means no budget.
 
 Every `*_deploy` macro ends with the same four attributes: `tags`,
-`visibility`, `testonly` and `target_compatible_with`. Each is forwarded to the
-`dx_deployment` and to every helper target the macro generates, such as the
-`_config`, `_pack` and archive targets.
+`visibility`, `testonly` and `target_compatible_with`. Each one is passed on
+to the `dx_deployment` target and to every helper target the macro makes, such
+as the `_config`, `_pack` and archive targets.
 
-# maven_deploy
+
+## maven_deploy
 
 Publishes one jar and its pom to a Maven repository.
 
@@ -108,7 +178,7 @@ Refusals, all exit 1:
 - Credentials the Portal rejects (HTTP 401 or 403).
 - A pom that is missing Central fields or does not match the coordinates.
 
-# npm_deploy
+## npm_deploy
 
 Packs files into an npm tarball and a local feed.
 
@@ -156,7 +226,7 @@ dx deploy --apply //pkg:npm_demo
 
 `NPM_PUBLISH_DRY_RUN` is refused.
 
-# cloudflare_pages_deploy
+## cloudflare_pages_deploy
 
 Publishes a static bundle directory to an existing Cloudflare Pages project
 with a pinned Wrangler that Bazel builds.
@@ -236,7 +306,7 @@ Wrangler failure exits with Wrangler's own code and prints its redacted
 output. Arguments and `--dry-run` are refused.
 If `CLOUDFLARE_ACCOUNT_ID` is set, it must equal `account_id`.
 
-# archive_deploy
+## archive_deploy
 
 Packages one executable as a tarball plus a sha256 file. No credentials and
 no live mode.
@@ -273,7 +343,7 @@ is refused. Exit codes: `0` released, `1` any failure or refusal.
 
 Example: [shared-rust](../examples/shared-rust/README.md#deploy).
 
-# consumer_archive
+## consumer_archive
 
 Packages one app with its runtime files, resources, a `NOTICE` and an
 `IDENTITY.txt` as a tar.gz or zip plus a sha256 file. It builds files only and has no deploy run.
@@ -363,7 +433,7 @@ other member with mode 0644, in both formats.
 Examples: [Qt packaging](../qt/README.md#packaging) and
 [qt-rust](../qt/tests/fixtures/qt_rust/app/BUILD.bazel).
 
-# crates_deploy
+## crates_deploy
 
 Stages crate sources as a local vendor tree and publishes them to crates.io.
 
@@ -400,7 +470,7 @@ when `cargo` is on `PATH`. Without `cargo` it prints a skip line. It never
 uploads. Rerunning a published version: `cargo publish` fails with the
 registry's message and the run exits 1.
 
-# hex_deploy
+## hex_deploy
 
 Stages an Elixir or Erlang package and publishes it to Hex.
 
@@ -438,7 +508,7 @@ A live run refuses version `0.0.0`. It runs `mix hex.publish --yes`
 `HEX_API_TOKEN` as the credential. `ERL_LIBS`, `ERL_ROOTDIR`, `HEX_HOME` and
 `MIX_HOME` pass through, so point them at the pinned OTP.
 
-# rubygems_deploy
+## rubygems_deploy
 
 Builds a gem from its sources and pushes it to rubygems.org.
 
@@ -480,7 +550,7 @@ dx deploy --apply //pkg:rubygems_demo
 refuses a `0.0.0` gemspec version. Rerunning a pushed version: rubygems.org refuses
 it, the run prints the last `gem` output lines and exits 1.
 
-# github_deploy
+## github_deploy
 
 Stages pinned files for a draft GitHub Release and creates the draft.
 
@@ -528,7 +598,7 @@ GITHUB_PUBLISH_APPROVED=1 dx deploy --apply //pkg:github_demo
 This runs `gh release create <tag> <assets> --draft --verify-tag`, so the
 tag must already exist on GitHub. A live run refuses `v0.0.0-dryrun`.
 
-# homebrew_tap_deploy
+## homebrew_tap_deploy
 
 Renders a Homebrew formula from a `github_deploy` release and pushes it to a tap repository.
 
@@ -564,7 +634,7 @@ dx deploy --apply //pkg:tool_tap
 
 This commits `Formula/<formula>.rb` to the tap's default branch through the contents API. The token needs write access to the tap. A live run refuses placeholder tags such as `v0.0.0-dryrun`.
 
-# linux_package_deploy
+## linux_package_deploy
 
 Builds `.deb`, `.rpm` and `.apk` packages from one binary with a pinned
 `nfpm` and attaches them to a draft GitHub Release through `github_deploy`.
@@ -599,7 +669,7 @@ packages like `github_deploy`, and the live run (`GITHUB_PUBLISH_APPROVED=1 dx d
 --apply`) attaches them to the draft release. `nfpm` runs on
 Linux x86_64, Linux arm64, macOS arm64 and Windows x86_64 hosts.
 
-# pub_deploy
+## pub_deploy
 
 Stages a Dart or Flutter package and publishes it to pub.dev.
 
@@ -639,7 +709,7 @@ A live run refuses version `0.0.0`, repeats the dry run, then runs
 `pub publish --force`. The token reaches `dart pub token add --env-var` and
 lands only in a temporary `PUB_CACHE` that is removed afterwards.
 
-# nuget_deploy
+## nuget_deploy
 
 Stages one nupkg as a local folder feed and pushes it to a NuGet source.
 
@@ -677,7 +747,7 @@ A default run checks the nuspec id and version against `package` and
 skipped, the run prints `nuget_deploy: skipped <id> <version>: already on
 <source>` and exits 0.
 
-# cpan_deploy
+## cpan_deploy
 
 Stages one distribution tarball locally and uploads it to PAUSE.
 
@@ -708,7 +778,7 @@ This posts the tarball to `https://pause.perl.org/pause/authenquery?ACTION=add_u
 basic auth from the PAUSE user and password. No perl is needed. A live run
 refuses version `0.0.0`.
 
-# conan_deploy
+## conan_deploy
 
 Stages one Conan recipe locally, then creates and uploads it to a remote.
 
@@ -741,7 +811,7 @@ A live run uses a private `CONAN_HOME`, runs `conan profile detect`, `conan
 remote add`, `conan create` and `conan upload --confirm`. The credentials reach
 only the `conan upload` step, through the environment. A live run refuses version `0.0.0`.
 
-# hackage_deploy
+## hackage_deploy
 
 Stages one cabal sdist locally and uploads it to Hackage.
 
@@ -775,7 +845,7 @@ This runs `cabal upload --publish <sdist>` with `CABAL_CONFIG` naming a mode
 ignores your own cabal config. The token must not contain whitespace or control
 characters. A live run refuses version `0.0.0`.
 
-# luarocks_deploy
+## luarocks_deploy
 
 Stages one rockspec locally and uploads it to LuaRocks.
 
@@ -812,7 +882,7 @@ config. The upload ignores your own LuaRocks config. The key must not contain
 whitespace, control characters, `"` or `\`. A live run refuses upstream version
 `0.0.0`.
 
-# Base images
+## Base images
 
 `rules_oci` and `rules_pkg` with distroless base images pinned by digest.
 
@@ -832,7 +902,7 @@ bazel build @distroless_static
 
 The first build fetches the layers. Later builds use the Bazel cache and need no network.
 
-# oci_image_from_binary
+## oci_image_from_binary
 
 Builds an OCI image from one binary, with no Dockerfile.
 
@@ -881,7 +951,7 @@ Rust and cc toolchains.
 
 The `oci_deploy` dry run prints the image size in bytes.
 
-# oci_deploy
+## oci_deploy
 
 Stages one image as a local OCI layout and pushes it to a registry.
 
@@ -945,7 +1015,7 @@ uncompressed.
 
 A live run refuses tags `0.0.0` and `0.0.0-dryrun`.
 
-# octopus_deploy
+## octopus_deploy
 
 Stages one package for Octopus Deploy and pushes it to an Octopus server.
 
@@ -996,7 +1066,7 @@ env, never the command line. A live run refuses the placeholder versions `0.0.0`
 and `0.0.0-dryrun`, the default `registry_url`, and an `OCTOPUS_URL` that is not
 an https URL or that holds a user or password.
 
-# pypi_deploy
+## pypi_deploy
 
 Stages one wheel and an optional sdist as a local PEP 503 index. A live run
 uploads them to PyPI with `twine`.
@@ -1094,7 +1164,7 @@ Exit codes:
 - `1`: invalid file names or mismatched sdist, a refused live run, or a
   failed `twine` upload.
 
-# helm_chart_deploy
+## helm_chart_deploy
 
 Packages a `helm_library` with the pinned `helm` and pushes it to an OCI registry.
 
@@ -1129,7 +1199,7 @@ Exit codes:
 - `1`: a version mismatch, a lint or package failure, a refused live run, or a
   failed push.
 
-# dx_split_debug_info
+## dx_split_debug_info
 
 Splits the debug info out of a Linux `cc_binary`.
 
@@ -1163,7 +1233,7 @@ llvm-symbolizer --obj=app_split.debug 0x401136
 The build fails if the stripped binary and the debug file differ in build-id
 or arch.
 
-# dx_dsym
+## dx_dsym
 
 Pairs the dSYM of a macOS `cc_binary` with that binary.
 
@@ -1196,7 +1266,7 @@ Look up an address in the bundle with `llvm-symbolizer`:
 llvm-symbolizer --obj=app_dsym.dSYM/Contents/Resources/DWARF/app 0x100003f40
 ```
 
-# dx_pdb
+## dx_pdb
 
 Pairs the PDB of a Windows `cc_binary` with that binary.
 
@@ -1228,7 +1298,7 @@ Look up an address (a relative virtual address) with `llvm-symbolizer`:
 llvm-symbolizer --obj=app.exe --pdb=app.pdb --relative-address 0x1000
 ```
 
-# opam_deploy
+## opam_deploy
 
 Opens a pull request to `ocaml/opam-repository` that adds one package version.
 
@@ -1258,7 +1328,7 @@ commits the file on a branch named `<package>.<version>` (characters outside
 `master`. A rerun updates the file on that branch and reports the already open
 pull request.
 
-# packagist_deploy
+## packagist_deploy
 
 Asks Packagist to update a package after its git tag is pushed.
 
@@ -1283,7 +1353,7 @@ Live run needs `PACKAGIST_USERNAME`, `PACKAGIST_API_TOKEN` and
 `PACKAGIST_PUBLISH_APPROVED=1`, and posts to
 `https://packagist.org/api/update-package`.
 
-# Registries released by tag
+## Registries released by tag
 
 Go, Julia, Swift and dub have no deploy rule. The release is a git tag.
 `github_deploy` with `release_tag` set to the tag adds a GitHub release.
@@ -1300,7 +1370,7 @@ PHP, opam and CPAN have a deploy rule:
 - opam: run `opam_deploy`.
 - CPAN: run `cpan_deploy`.
 
-# Public API compatibility
+## Public API compatibility
 
 `crates_deploy`, `maven_deploy`, `npm_deploy`, `pypi_deploy`, `nuget_deploy`,
 `pub_deploy` and `github_deploy` check the public API the same way. Every run compares the version being
@@ -1326,7 +1396,7 @@ prints why and is skipped. The tools are pinned and come with the rule.
 | `pub_deploy` | dart_apitool | the server's `api/packages/<name>` versions | the package directory at the tag |
 | `github_deploy` (Go) | apidiff | proxy.golang.org | `go_modules` at the tag |
 
-# Common behavior
+## Common behavior
 
 Except for `cloudflare_pages_deploy`, a default run writes into the
 workspace root, or into the directory given as the first argument. A live

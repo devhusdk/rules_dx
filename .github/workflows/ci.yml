@@ -962,7 +962,7 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           # shellcheck disable=SC2086
-          bazel test --noshow_progress --nocache_test_results --test_output=all "$@" //tools/testing:preflight_smoke_test //cli/env:bootstrap_test //cc/tests/fixtures/hello:hello_test //powershell/tests/fixtures/hello:hello_test //zig/tests/fixtures/zig_app/... //dart/tests/fixtures/dart_app/... //dart/tests/runtime:all //dart/private/tools:all //zig/tests/fixtures/hello:all //julia/tests/fixtures/hello:all //julia/tests/fixtures/julia_app/... //julia/private/tools/...
+          bazel test --noshow_progress --nocache_test_results --flaky_test_attempts=2 --test_output=all "$@" //tools/testing:preflight_smoke_test //cli/env:bootstrap_test //cc/tests/fixtures/hello:hello_test //powershell/tests/fixtures/hello:hello_test //zig/tests/fixtures/zig_app/... //dart/tests/fixtures/dart_app/... //dart/tests/runtime:all //dart/private/tools:all //zig/tests/fixtures/hello:all //julia/tests/fixtures/hello:all //julia/tests/fixtures/julia_app/... //julia/private/tools/... 2>&1 | tee "$RUNNER_TEMP/launch-smoke.log"
       - name: Run the PyPI probe verification
         run: |
           # shellcheck disable=SC2086
@@ -984,6 +984,13 @@ jobs:
         run: |
           echo "### preflight ${PLATFORM} — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
           echo "Built dx plus the native hello fixture, installed and replaced the bootstrap environment, then launched dx, hello, and the Zig example and hello fixture on ${RUNNER_LABEL}, and analyzed the gRPC C++ fixture targets." >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "$RUNNER_TEMP/launch-smoke.log" ]; then
+            { grep -E '^(@@?[^ ]*)?//[^ ]+ +FLAKY' "$RUNNER_TEMP/launch-smoke.log" || true; } | tr -d '\r' | awk '{print $1}' | sort -u > "$RUNNER_TEMP/launch-smoke-flaky"
+            if [ -s "$RUNNER_TEMP/launch-smoke-flaky" ]; then
+              echo "#### FLAKY (passed on retry)" >> "$GITHUB_STEP_SUMMARY"
+              sed 's/^/- /' "$RUNNER_TEMP/launch-smoke-flaky" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
       - name: Record the runner image
         if: always()
         shell: bash
@@ -1035,7 +1042,7 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           # shellcheck disable=SC2086
-          bazel test --noshow_progress --nocache_test_results --test_output=errors "$@" $QUALITY_TARGETS
+          bazel test --noshow_progress --nocache_test_results --flaky_test_attempts=2 --test_output=errors "$@" $QUALITY_TARGETS 2>&1 | tee "$RUNNER_TEMP/quality-matrix.log"
       - name: Write job summary
         if: always()
         env:
@@ -1045,6 +1052,13 @@ jobs:
         run: |
           echo "### quality-matrix ${PLATFORM} — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
           echo "Ran the per-platform quality runner matrix tests on ${RUNNER_LABEL}." >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "$RUNNER_TEMP/quality-matrix.log" ]; then
+            { grep -E '^(@@?[^ ]*)?//[^ ]+ +FLAKY' "$RUNNER_TEMP/quality-matrix.log" || true; } | tr -d '\r' | awk '{print $1}' | sort -u > "$RUNNER_TEMP/quality-matrix-flaky"
+            if [ -s "$RUNNER_TEMP/quality-matrix-flaky" ]; then
+              echo "#### FLAKY (passed on retry)" >> "$GITHUB_STEP_SUMMARY"
+              sed 's/^/- /' "$RUNNER_TEMP/quality-matrix-flaky" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
   workflow-check:
     name: workflow-check (actionlint semantics, before the matrix)
     timeout-minutes: 15

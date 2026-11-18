@@ -3,7 +3,7 @@
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
-use crate::util::{Failure, Outcome, reject, usage};
+use crate::util::{Failure, Outcome, reject, unzip, usage};
 use crate::xcode::{PLUTIL, Tools, components};
 
 pub const PREFIX: &str = "apple_ios_xcframework";
@@ -45,12 +45,6 @@ pub fn parse_slice(loads: &str) -> Slice {
     found.platforms.sort();
     found.platforms.dedup();
     found
-}
-
-fn unpack(archive: &Path, tree: &Path) -> Result<(), String> {
-    let file = std::fs::File::open(archive).map_err(|error| error.to_string())?;
-    let mut zip = zip::ZipArchive::new(file).map_err(|error| error.to_string())?;
-    zip.extract(tree).map_err(|error| error.to_string())
 }
 
 struct Check<'a> {
@@ -153,7 +147,7 @@ fn verify(tools: &Tools<'_>, args: &[String], work: &Path) -> Result<(), Failure
     );
     if let Err(error) = std::fs::create_dir_all(work)
         .map_err(|error| error.to_string())
-        .and_then(|()| unpack(archive_path, work))
+        .and_then(|()| unzip(archive_path, work).map_err(|error| error.to_string()))
     {
         return Err(reject(format!("{archive_name} does not unpack: {error}")));
     }

@@ -7,7 +7,7 @@ use crate::signing::{
     Flags, Keychain, absolute, base64_decode, caller, codesign, detail, entries, fingerprint, keys,
     output_path, private_files, read_identity, text, value,
 };
-use crate::util::{Env, Outcome, missing, reject, scratch, usage};
+use crate::util::{Env, Outcome, missing, reject, scratch, unzip, usage};
 use crate::xcode::{CODESIGN, DITTO, PLUTIL, SECURITY, Tools};
 
 pub const PREFIX: &str = "dx-apple-export";
@@ -16,13 +16,11 @@ const HELP: &str = "usage: bazel run <export> -- --certificate <identity.p12> --
 
 /// The sorted file names of an IPA, without directories and signatures.
 pub fn listing(ipa: &Path) -> Option<BTreeSet<String>> {
-    let archive = zip::ZipArchive::new(std::fs::File::open(ipa).ok()?).ok()?;
+    let names = dx_archive::zip_names(std::fs::File::open(ipa).ok()?).ok()?;
     Some(
-        archive
-            .file_names()
-            .filter_map(Result::ok)
+        names
+            .into_iter()
             .filter(|name| !name.ends_with('/') && !name.contains("/_CodeSignature/"))
-            .map(std::borrow::Cow::into_owned)
             .collect(),
     )
 }
@@ -148,13 +146,8 @@ pub fn run(tools: &Tools<'_>, args: &[String], env: Env<'_>) -> Outcome {
     let work = scratch(env, "export")?;
     let work_dir = work.path();
     let unpacked = work_dir.join("unpacked");
-    let unzipped = std::fs::File::open(&ipa)
-        .ok()
-        .and_then(|file| zip::ZipArchive::new(file).ok())
-        .and_then(|mut archive| archive.extract(&unpacked).ok());
-    if unzipped.is_none() {
-        return Err(usage(format!("cannot unpack {}", ipa.display())));
-    }
+    unzip(&ipa, &unpacked)
+        .map_err(|error| usage(format!("cannot unpack {}: {error}", ipa.display())))?;
     let bundles: Vec<PathBuf> = entries(&unpacked.join("Payload"))
         .into_iter()
         .filter(|path| path.extension().is_some_and(|end| end == "app") && path.is_dir())

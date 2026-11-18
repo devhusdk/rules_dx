@@ -520,3 +520,21 @@ fn destination_must_be_new_or_empty() {
     std::fs::create_dir(&empty).expect("empty");
     extract(&archive, Format::TarGz, &empty, Limits::default()).expect("empty dir works");
 }
+
+#[test]
+fn zip_names_lists_the_central_directory_in_order() {
+    let dir = scratch();
+    let archive = dir.path().join("dx.zip");
+    zip_entries(
+        &archive,
+        &[
+            ZipEntry::Dir("pkg/"),
+            ZipEntry::File("pkg/a.txt", b"a", 0o644),
+            ZipEntry::Link("pkg/link", "a.txt"),
+        ],
+    );
+    let names = zip_names(File::open(&archive).expect("open")).expect("names");
+    assert_eq!(names, ["pkg/", "pkg/a.txt", "pkg/link"]);
+    let error = zip_names(io::Cursor::new(b"not a zip")).expect_err("not a zip");
+    assert!(error.to_string().starts_with("zip: "), "{error}");
+}

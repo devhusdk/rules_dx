@@ -245,6 +245,34 @@ fn app_extensions_are_refused() {
 }
 
 #[test]
+fn an_ipa_with_an_escaping_symlink_is_refused() {
+    let set = setup("export-escape", false);
+    let mut writer = zip::ZipWriter::new(std::fs::File::create(&set.ipa).unwrap());
+    let options = zip::write::SimpleFileOptions::default();
+    writer
+        .start_file("Payload/Ledger.app/Info.plist", options)
+        .unwrap();
+    writer.write_all(b"plist").unwrap();
+    writer
+        .add_symlink("Payload/Ledger.app/escape", "../../../outside", options)
+        .unwrap();
+    writer.finish().unwrap();
+    let fake = devices(
+        "2027-01-01T00:00:00Z",
+        "TEAM123456.com.example.ledger",
+        false,
+    );
+    let failure = call(&set, &fake, &[]).unwrap_err();
+    assert_eq!(failure.code, 2);
+    assert!(
+        failure.message.starts_with("cannot unpack"),
+        "{}",
+        failure.message
+    );
+    assert!(!Path::new(&set.out).exists());
+}
+
+#[test]
 fn flags_and_outputs_are_checked() {
     let set = setup("export-flags", false);
     let fake = devices(

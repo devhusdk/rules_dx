@@ -79,3 +79,30 @@ fn decodes_numeric_character_references_in_filenames() {
     assert!(lcov.contains("SF:/w/café 😀.py\n"), "{lcov}");
     assert!(lcov.contains("SF:/w/&lt;.py\n"), "{lcov}");
 }
+
+#[test]
+fn keeps_a_greater_than_sign_inside_a_quoted_attribute() {
+    let xml = r#"<coverage><classes><class name="a" filename='/w/a>b.py'><lines><line number="1" hits="1"/></lines></class></classes></coverage>"#;
+    let lcov = cobertura_to_lcov(xml).expect("converts");
+    assert_eq!(lcov, "SF:/w/a>b.py\nDA:1,1\nLF:1\nLH:1\nend_of_record\n");
+}
+
+#[test]
+fn skips_tags_inside_comments() {
+    let xml = r#"<coverage><!-- a > b <line number="9" hits="1"/> --><classes><class filename="/w/a.py"><lines><line number="1" hits="1"/></lines></class></classes></coverage>"#;
+    let lcov = cobertura_to_lcov(xml).expect("converts");
+    assert_eq!(lcov, "SF:/w/a.py\nDA:1,1\nLF:1\nLH:1\nend_of_record\n");
+}
+
+#[test]
+fn skips_tags_inside_cdata() {
+    let xml = r#"<coverage><classes><class filename="/w/a.py"><![CDATA[ > <class filename="/w/ghost.py"> ]]><lines><line number="1" hits="1"/></lines></class></classes></coverage>"#;
+    let lcov = cobertura_to_lcov(xml).expect("converts");
+    assert_eq!(lcov, "SF:/w/a.py\nDA:1,1\nLF:1\nLH:1\nend_of_record\n");
+}
+
+#[test]
+fn rejects_an_unterminated_cdata_section() {
+    let xml = r#"<coverage><classes><class filename="/w/a.py"><lines><line number="1" hits="1"/></lines></class></classes><![CDATA[ a > b"#;
+    assert!(cobertura_to_lcov(xml).is_err());
+}

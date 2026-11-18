@@ -1,35 +1,30 @@
 # Python
 
-Build, test, format, lint and typecheck Python with `rules_python`.
+This directory helps you build, run and test Python code with rules_dx.
 
-```python
-load("@rules_dx//python:defs.bzl", "python_binary", "python_library", "python_test")
+Load its rules in a `BUILD.bazel` file, the file that declares what Bazel
+builds, from `@rules_dx//python:defs.bzl`.
+`extensions.bzl` holds the module extension: the part you call from
+`MODULE.bazel` to set up toolchains and dependencies.
+The tests live in `tests/`. The [Python page](../docs/languages/python.md) shows
+setup, every rule and the tools dx runs.
 
-python_library(
-    name = "greet",
-    srcs = ["greet.py"],
-)
+Run the Python tests from a rules_dx checkout:
 
-python_binary(
-    name = "hello",
-    srcs = ["main.py"],
-    deps = [":greet"],
-)
-
-python_test(
-    name = "greet_test",
-    srcs = ["greet_test.py"],
-    deps = [":greet"],
-)
+```sh
+tools/dx test //python/...
 ```
 
-`python_test` runs pytest by default. Set `runner = "plain"` to run a `main`
-script instead. Gazelle sets `runner = "plain"` for a test file that imports
-`unittest`, not `pytest`, and defines no bare `test` functions. Every other
-test gets `@pypi//pytest`, so pytest must be in the project dependencies.
+## Writing targets
 
-`python_bench` is a `python_test` for `dx bench`. List `pytest-benchmark`
-in the project dependencies and `@pypi//pytest_benchmark` in `deps`. Each
+`python_test` runs pytest by default. Set `runner = "plain"` to run a `main`
+script instead. `dx generate` sets `runner = "plain"` for a test file that
+imports `unittest`, not `pytest`, and defines no bare `test` functions. Every
+other test gets `@pypi//pytest`, so pytest must be in your project
+dependencies.
+
+`python_bench` is a `python_test` for `dx bench`. List `pytest-benchmark` in
+your project dependencies and `@pypi//pytest_benchmark` in `deps`. Each
 benchmark becomes one row, in seconds.
 
 ## Dependencies

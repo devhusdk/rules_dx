@@ -1,5 +1,7 @@
 # Shared Rust task board
 
+This example shows you how one Rust code base ships to many platforms with rules_dx.
+
 One Rust task board runs as a native CLI, a browser app, a WASI module,
 an Android NativeActivity, a macOS CLI, an iOS simulator app, and an
 iOS XCFramework. Every output loads the same board and asset files,
@@ -37,11 +39,8 @@ bazel run //examples/shared-rust:serve
 bazel test //examples/shared-rust:wasi_test
 ```
 
-For Android, install the NDK and set `ANDROID_HOME`, then use
-`//examples/shared-rust:install`, `:start`, and `:log` against an emulator.
-The emulator run (`evidence.yml` with `android=true`, run 42102949707) used
-Ubuntu 26.04.1, emulator 37.2.13, platform-tools 37.0.1 and the Android 14
-(API 34) Google APIs x86_64 system image, and checked the full lifecycle log.
+For Android, start an emulator as `emulator-5554` on a Linux x86_64 host, then
+run `//examples/shared-rust:install`, `:start` and `:log`.
 For Apple, `//apple/tests/fixtures/shared_core:core_build_test` builds
 the same core into a macOS CLI and an XCFramework.
 
@@ -55,5 +54,4 @@ dx deploy --apply //examples/shared-rust:tasks_deploy
 `tasks_deploy` is an `archive_deploy` of `tasks`. `--apply` checks the
 tarball against its checksum and copies it into the workspace root.
 
-Qualification checks, the independent consumer, and the APK inspections are
-in [rust/tests/fixtures/shared_rust_checks](../../rust/tests/fixtures/shared_rust_checks/README.md).
+More checks, an independent consumer and the APK inspections are in [rust/tests/fixtures/shared_rust_checks](../../rust/tests/fixtures/shared_rust_checks/README.md).

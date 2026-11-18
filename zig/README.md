@@ -1,35 +1,27 @@
 # Zig
 
-Build, run, test and format Zig with the pinned `rules_zig` 0.17.0 and Zig
-0.17.0 toolchain. Nothing needs to be installed.
+This directory helps you build, run and test Zig code with rules_dx.
 
-```python
-load("@rules_dx//zig:defs.bzl", "zig_binary", "zig_library", "zig_test")
+Load its rules in a `BUILD.bazel` file, the file that declares what Bazel
+builds, from `@rules_dx//zig:defs.bzl`.
+`extensions.bzl` holds the module extension: the part you call from
+`MODULE.bazel` to set up toolchains and dependencies.
+The tests live in `tests/`. The [Zig page](../docs/languages/zig.md) shows
+setup, every rule and the tools dx runs.
 
-zig_library(
-    name = "greet",
-    main = "greet.zig",
-)
+Run the Zig tests from a rules_dx checkout:
 
-zig_binary(
-    name = "hello",
-    main = "main.zig",
-    deps = [":greet"],
-)
-
-zig_test(
-    name = "greet_test",
-    main = "greet.zig",
-)
+```sh
+tools/dx test //zig/...
 ```
+
+## Writing targets
 
 - `main` is the module root. `srcs` lists the other `.zig` files.
 - `zig_library` imports by its target name. Set `import_name` to change it.
 - A `cc_library` in `deps` is imported as `@import("c")`.
 - `extra_srcs` carries files read with `@embedFile`.
 - Other attributes pass through to `rules_zig`.
-
-Start a project with `dx init --apply demo` and add sources.
 
 ## Dependencies
 

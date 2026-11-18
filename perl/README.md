@@ -1,10 +1,19 @@
 # Perl
 
-Build, run and test Perl with the relocatable Perl 5.44 that
-[rules_perl](https://github.com/bazel-contrib/rules_perl) pins. Nothing is
-installed on the host and nothing is fetched until a target needs it.
-rules_perl registers the toolchains, so there is no toolchain setup in
-`MODULE.bazel`.
+This directory helps you build, run and test Perl code with rules_dx.
+
+Load its rules in a `BUILD.bazel` file, the file that declares what Bazel
+builds, from `@rules_dx//perl:defs.bzl`.
+`extensions.bzl` holds the module extension: the part you call from
+`MODULE.bazel` to set up toolchains and dependencies.
+The tests live in `tests/`. The [Perl page](../docs/languages/perl.md) shows
+setup, every rule and the tools dx runs.
+
+Run the Perl tests from a rules_dx checkout:
+
+```sh
+tools/dx test //perl/...
+```
 
 ## Dependencies
 

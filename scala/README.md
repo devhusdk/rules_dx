@@ -1,30 +1,22 @@
 # Scala
 
-Build, run and test Scala with `rules_scala`. Warnings fail the build unless a target turns that off.
+This directory helps you build, run and test Scala code with rules_dx.
 
-```python
-load("@rules_dx//scala:defs.bzl", "scala_binary", "scala_library", "scala_test")
+Load its rules in a `BUILD.bazel` file, the file that declares what Bazel
+builds, from `@rules_dx//scala:defs.bzl`.
+The tests live in `tests/`. The [Scala page](../docs/languages/scala.md) shows
+setup, every rule and the tools dx runs.
 
-scala_library(
-    name = "greet",
-    srcs = ["Greet.scala"],
-)
+Run the Scala tests from a rules_dx checkout:
 
-scala_binary(
-    name = "hello",
-    srcs = ["Hello.scala"],
-    main_class = "demo.Hello",
-    deps = [":greet"],
-)
-
-scala_test(
-    name = "GreetTest",
-    srcs = ["GreetTest.scala"],
-    deps = [":greet"],
-)
+```sh
+tools/dx test //scala/...
 ```
 
-Other attributes pass through to `rules_scala`.
+## Writing targets
+
+Warnings fail the build unless a target turns that off. Other attributes pass
+through to `rules_scala`.
 
 ## Dependencies
 

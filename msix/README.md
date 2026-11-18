@@ -1,14 +1,28 @@
 # MSIX
 
-Package a Windows target binary as an MSIX. No Windows SDK or Visual Studio
-install is needed.
+This directory helps you package a Windows binary as an MSIX with rules_dx.
 
-Cells: `windows_x86_64` and `windows_arm64` targets. Packaging runs on a
+Load its rules in a `BUILD.bazel` file, the file that declares what Bazel
+builds, from `@rules_dx//msix:defs.bzl`.
+`extensions.bzl` holds the module extension: the part you call from
+`MODULE.bazel` to set up toolchains and dependencies.
+The tests live in `tests/`. The [MSIX page](../docs/languages/msix.md) shows
+setup, every rule and the tools dx runs.
+
+Run the MSIX tests from a rules_dx checkout:
+
+```sh
+tools/dx test //msix/...
+```
+
+## Platforms
+
+MSIX packages build for `windows_x86_64` and `windows_arm64` targets, on a
 Windows x64 or arm64 host. `msix_package` and `msix_sign` add
-`@platforms//os:windows` to `target_compatible_with`; `bazel build //...`
+`@platforms//os:windows` to `target_compatible_with`, so `bazel build //...`
 skips them on Linux and macOS. A Windows target with another CPU fails
-analysis with `target platform is unsupported`. A build with no
-Windows execution platform fails analysis with
+analysis with `target platform is unsupported`. A build with no Windows
+execution platform fails analysis with
 `packaging needs a windows_x86_64 or windows_arm64 execution platform`.
 
 ## Packaging
@@ -181,6 +195,8 @@ Add-AppxPackage -Path C:\out\app.msix
 Otherwise `Add-AppxPackage` fails with `0x800B0109` and installs nothing.
 
 ## Toolchain
+
+You need no Windows SDK or Visual Studio install.
 
 ### Pins
 

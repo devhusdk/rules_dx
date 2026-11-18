@@ -1,7 +1,23 @@
 # Android
 
-Acquire pinned Android SDK packages on an opt-in basis. Disabled setups
-fetch no Android payload.
+This directory helps you fetch a pinned Android SDK and build Android apps with rules_dx.
+
+Load its rules in a `BUILD.bazel` file, the file that declares what Bazel
+builds, from `@rules_dx//android:defs.bzl`.
+`extensions.bzl` holds the module extension: the part you call from
+`MODULE.bazel` to set up toolchains and dependencies.
+The tests live in `tests/`. The [Android page](../docs/languages/android.md) shows
+setup, every rule and the tools dx runs.
+
+Run the Android tests from a rules_dx checkout:
+
+```sh
+tools/dx test //android/...
+```
+
+## Setup
+
+Turn the SDK on in your root `MODULE.bazel` and accept its license there:
 
 ```python
 android = use_extension("@rules_dx//android:extensions.bzl", "android")
@@ -22,41 +38,37 @@ use_repo(
 )
 ```
 
-What is fetched, each only when a build needs it:
+Bazel fetches each package only when a build needs it:
 
-- NDK r27 (`dx_android_ndk_linux_x86_64`)
-- build-tools 35.0.0 (`dx_android_build_tools_linux_x86_64`)
+- the NDK (`dx_android_ndk_linux_x86_64`)
+- build-tools (`dx_android_build_tools_linux_x86_64`)
 - `platforms;android-<api_level>` for `api_level` 31 to 34, default 34
   (`dx_android_platform`; the name does not depend on the level)
-- opt-in through `extra_packages`: `platform-tools` r37.0.1
-  (`dx_android_platform_tools_linux_x86_64`) and `emulator` 16428233
+- through `extra_packages`: `platform-tools`
+  (`dx_android_platform_tools_linux_x86_64`) and `emulator`
   (`dx_android_emulator_linux_x86_64`, about 350 MB). The emulator ships
   no system image.
 
 Any other `extra_packages` entry, a repeated entry, or an `api_level`
-other than 31 to 34 fails with an error naming the allowed values.
+outside 31 to 34 fails with an error that names the allowed values.
 
 The `dx_android_sdk` hub exposes `ndk`, `zipalign`, `apksigner_jar`,
 `bundletool_jar`, `android_jar`, `adb` and `emulator`. Targets for packages
-that were not requested are empty. Without a `configure` tag the defaults apply. Pass `mirror` to override the download host.
+you did not request are empty. Without a `configure` tag the defaults apply.
+Pass `mirror` to download from another host.
 
-Only your root `MODULE.bazel` decides the setup. When it has a
-`configure` tag, that tag is used as written and `configure` tags from
-dependencies (rules_dx sends one asking for `platform-tools`) are
-ignored, so list every package you want. When it has none, the defaults
-apply plus the `extra_packages` your dependencies ask for. Two
-`configure` tags in the root module fail with "configure the Android
-SDK once".
-
-The qualified host is Linux
-x86_64 with NDK r27 targeting API 31.
+Only your root `MODULE.bazel` decides the setup. When it has a `configure`
+tag, that tag is used as written and `configure` tags from dependencies are
+ignored, so list every package you want. When it has none, the defaults apply
+plus the `extra_packages` your dependencies ask for. Two `configure` tags in
+the root module fail with "configure the Android SDK once".
 
 ## Packaging
 
 ### Application packaging
 
 `android_rust_apk` from `@rules_dx//android:defs.bzl` builds one installable
-APK from static native deps through the qualified upstream backend (`rules_android` 0.8.1):
+APK from static native deps through the upstream `rules_android` backend:
 
 ```python
 load("@rules_dx//android:defs.bzl", "android_rust_apk")
@@ -202,7 +214,7 @@ missing bundletool, bad arguments, or an APK given `--abi` or
 The check runs the pinned bundletool 1.15.5 on the rules_java JDK. The jar is
 downloaded with a checksum through the `android` extension.
 
-Build and check the fixture bundles on a qualified host:
+Build and check the fixture bundles on a Linux x86_64 host:
 
 ```sh
 bazel build //android/tests/fixtures/rust_apk:app_apk_aab_file \
@@ -254,7 +266,7 @@ A missing bundle or spec exits 2. An `aab` without one `.aab` or a
 a development install only because it uses the public debug keystore.
 Get a spec from a device with `bundletool get-device-spec`.
 
-On a qualified host with `emulator-5554` running,
+On a Linux x86_64 host with `emulator-5554` running,
 `tools/dx run $pkg:install_set $pkg:start` installs the fixture set and
 starts it; `device_run.sh` checks its logcat.
 
@@ -297,7 +309,7 @@ invalid bundle exits 1 without writing a bundle.
 Run `bazel test //android/tests/fixtures/rust_apk:sign_aab_test` to
 sign a generated test bundle with a disposable key and verify it.
 
-### Qualified SDK for packaging builds
+### SDK for packaging builds
 
 To start a new app, run `dx init --apply <dir>` and add the sources and
 targets above.
@@ -388,9 +400,9 @@ resources, native ABI placement, DEX, and signing come from the
 upstream rules plus the installed SDK.
 App Bundles come from the upstream `android_application` rule.
 
-APK assembly and device install/launch need a qualified SDK host (see
-above). The emulator run is qualified on a hosted x86_64 Linux runner;
-the `arm64-v8a` library is packaged but not executed there. Selection, negative, and adapter coverage runs everywhere:
+APK assembly and device install and launch need the Linux x86_64 SDK host
+above. The emulator runs x86_64 code; the `arm64-v8a` library is packaged but
+not run there. Selection, negative and adapter tests run everywhere:
 
 ```sh
 bazel test //android/...
@@ -400,7 +412,7 @@ bazel test //android/...
 
 ### Native platforms
 
-`@rules_dx//android` names the two qualified tuples: `device`
+`@rules_dx//android` names the two supported tuples: `device`
 (`aarch64-linux-android`) and `emulator` (`x86_64-linux-android`) at API
 floor 31. Build one mixed Rust and C library for both tuples with
 `android_native_library` from `@rules_dx//android:defs.bzl`:

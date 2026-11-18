@@ -40,6 +40,16 @@ Build and test everything. `//...` means every target in the repository:
 tools/dx test //...
 ```
 
+## License
+
+Accept the Xcode and Apple SDKs Agreement once in your root `MODULE.bazel`.
+Without it every Apple rule fails analysis and names the license id.
+
+```python
+dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
+dx_licenses.accept(ids = ["apple-xcode-license"])
+```
+
 ## Packaging
 
 ### iOS libraries

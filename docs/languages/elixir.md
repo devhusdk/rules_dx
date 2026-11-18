@@ -87,8 +87,6 @@ Depend on `@hex//jason`. An entry that is not from `hexpm` (`:git`, `:path`) fai
 
 ### Adopt a Mix project
 
-rules_dx is not released yet. Install starts with the first BCR release.
-
 1. Add `bazel_dep(name = "rules_dx", version = "...")` to `MODULE.bazel`.
 2. Run `bazel run @rules_dx//:dx -- generate --apply`. A module resolves to the `mix.lock` package named after it (`Jason` is `jason`, `Phoenix.LiveView` is `phoenix_live_view`).
 3. Run `bazel test //...`.

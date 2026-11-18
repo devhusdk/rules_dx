@@ -1,14 +1,28 @@
 # AppImage
 
-Package a target binary as a Linux AppImage. The tools are pinned and fetched
-by Bazel. No FUSE or distro packages are needed to build or run. The build
-step is a pinned Rust binary run with an empty `PATH`. It uses no tool from
-`/bin` or `/usr/bin`.
+This directory helps you package a Linux binary as an AppImage with rules_dx.
 
-Cells: `linux_x86_64` and `linux_arm64`. Any other target fails analysis with
-`target platform is unsupported`.
+Load its rules in a `BUILD.bazel` file, the file that declares what Bazel
+builds, from `@rules_dx//appimage:defs.bzl`.
+`extensions.bzl` holds the module extension: the part you call from
+`MODULE.bazel` to set up toolchains and dependencies.
+The tests live in `tests/`. The [AppImage page](../docs/languages/appimage.md) shows
+setup, every rule and the tools dx runs.
+
+Run the AppImage tests from a rules_dx checkout:
+
+```sh
+tools/dx test //appimage/...
+```
+
+## Platforms
+
+Any other target platform fails analysis with `target platform is unsupported`.
 
 ## Packaging
+
+The tools are pinned and fetched by Bazel. You need no FUSE or distro
+packages to build or run an AppImage.
 
 ### Use
 
@@ -109,8 +123,6 @@ Linux host.
 
 ```sh
 bazel test //appimage/... //appimage/tests/fixtures/appimage_app/...
-# Consumer qualification (manual; needs network and a native bazelisk):
-bazel test //tools/testing/hermetic:appimage
 ```
 
 The [appimage_app fixture](tests/fixtures/appimage_app/README.md) is a two-package

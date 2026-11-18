@@ -52,6 +52,12 @@ Build and test everything. `//...` means every target in the repository:
 tools/dx test //...
 ```
 
+## Objective-C
+
+`cc_objc_library` is the upstream rule under your name. rules_apple resources
+and frameworks, and rules_swift `module_name`, behave exactly as upstream.
+dx assigns `srcs`, `non_arc_srcs` and `hdrs` to quality checks by their paths.
+
 ## Dependencies
 
 ### CMake dependencies

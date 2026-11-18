@@ -1,8 +1,19 @@
 # Haskell
 
-Build, run and test Haskell with a pinned GHC 9.10.3. Nothing is installed on
-the host and nothing is fetched until a target needs it. rules_dx registers
-the toolchain, so there is no setup in `MODULE.bazel`.
+This directory helps you build, run and test Haskell code with rules_dx.
+
+Load its rules in a `BUILD.bazel` file, the file that declares what Bazel
+builds, from `@rules_dx//haskell:defs.bzl`.
+`extensions.bzl` holds the module extension: the part you call from
+`MODULE.bazel` to set up toolchains and dependencies.
+The tests live in `tests/`. The [Haskell page](../docs/languages/haskell.md) shows
+setup, every rule and the tools dx runs.
+
+Run the Haskell tests from a rules_dx checkout:
+
+```sh
+tools/dx test //haskell/...
+```
 
 ## Dependencies
 

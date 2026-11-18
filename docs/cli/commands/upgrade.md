@@ -1,6 +1,8 @@
 # `dx upgrade`
 
-Moves `rules_dx` and the pin in `.dx/pins` to a version, newer or older. Checks by default; `--apply` writes.
+Use `dx upgrade` to move your workspace to another rules_dx version, newer or older. It checks by default; `--apply` writes.
+
+It moves the `rules_dx` dependency in `MODULE.bazel` and the pin in `.dx/pins`, then refreshes the existing launchers and the `AGENTS.md` block.
 
 ```sh
 tools/dx upgrade
@@ -10,22 +12,34 @@ tools/dx upgrade --to 1.2.0 --apply
 tools/dx upgrade --to 2.0.0 --apply --output json
 ```
 
+## Usage
+
 ```text
 dx upgrade [--apply] [--to <version>]
 ```
 
+## Flags
+
 | Flag | What it does |
 | --- | --- |
 | `--to <version>` | Version to pin. Defaults to the newest stable `rules_dx` in the Bazel registry. |
-| `--apply` | Writes the changes instead of showing them. |
-| `--output text\|json` | Sets the output format. |
-| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--build-slots-wait`, `--bazel-startup-option` | Global flags. |
+| `--apply` | Write the changes instead of showing them. |
+| `-o, --output text\|json` | Choose the output format. |
+| `--workspace <dir>` | Use this workspace directory. |
+| `-q, --quiet` | Hide summaries. |
+| `-v, --verbose` | Show more logs. |
+| `--color auto\|always\|never` | Set color output. |
+| `--build-slots <auto\|n\|off>` | Set build slots: `auto`, a count, or `off`. |
+| `--build-slots-wait <duration>` | Give up waiting for a build slot after this long. `0` fails at once. |
+| `--bazel-startup-option <token>` | Pass one Bazel startup option. Repeatable. |
 
-Scopes: none. Positional scopes are rejected.
+## Scopes
+
+None. A scope is a usage error.
 
 Without `--to`, `dx upgrade` reads `modules/rules_dx/metadata.json` from the registry and uses its newest stable version, so the check prints `pin <old> can move to <new>` with the `--apply` command. If the registry cannot be reached it fails with `upgrade needs --to <version>`.
 
-## What `--apply` Writes
+## What `--apply` writes
 
 1. The `rules_dx` `bazel_dep` version in the root `MODULE.bazel`. It must be one line, `bazel_dep(name = "rules_dx", version = "...")`. A dep in an `include()`d file or spread over several lines is refused and nothing is written.
 2. `MODULE.bazel.lock`, through `bazel mod deps --lockfile_mode=update`. Skipped when absent.
@@ -90,9 +104,11 @@ A failure after the pin lands keeps the pin:
 dx: upgrade_failed: pinned <to> but <step> not refreshed: <error>; recovery: rerun `dx upgrade --to <to> --apply` (idempotent)
 ```
 
+`dx upgrade` writes no reports.
+
 JSON streams `command_started`, one `status` event named `pin` (severity `info`, hint `dx status`), then `command_finished`. A refusal emits `upgrade_failed` instead of `pin`. A pending upgrade emits `upgrade_pending`.
 
-## Exit Codes
+## Exit codes
 
 | Code | Meaning |
 | --- | --- |

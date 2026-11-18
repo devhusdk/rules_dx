@@ -2,21 +2,79 @@
 
 use std::collections::BTreeMap;
 
+use dx_module_bazel::{ModuleFile, Value as Arg};
 use dx_plan::args::{help_environment, help_surface};
 use serde_json::{Value, json};
 
 /// The files under `api/` this crate writes, in the order `update` writes them.
-pub const FILES: [&str; 2] = ["cli.json", "schemas.txt"];
+pub const FILES: [&str; 3] = ["cli.json", "labels.txt", "schemas.txt"];
+
+/// The rules in `config/BUILD.bazel` whose targets are public flags.
+const FLAG_RULES: [&str; 5] = [
+    "alias",
+    "bool_flag",
+    "label_flag",
+    "string_flag",
+    "string_list_flag",
+];
 
 const EVENTS_SCHEMA: &str = include_str!("../../cli/output/schema/events.schema.json");
 const CONFIG_SCHEMA: &str = include_str!("../../cli/dx_config/schema/dx.schema.json");
+const CONFIG_BUILD: &str = include_str!("../../config/BUILD.bazel");
 
 /// Every file under `api/`, by name, as `update` writes it.
-pub fn render() -> Result<BTreeMap<&'static str, String>, serde_json::Error> {
+pub fn render() -> Result<BTreeMap<&'static str, String>, Box<dyn std::error::Error>> {
     Ok(BTreeMap::from([
         (FILES[0], cli_json()?),
-        (FILES[1], schemas_txt()),
+        (FILES[1], labels_txt(CONFIG_BUILD)?),
+        (FILES[2], schemas_txt()),
     ]))
+}
+
+/// One line per flag in `config/BUILD.bazel`: its label, rule, default (or alias target) and allowed values.
+fn labels_txt(build: &str) -> Result<String, dx_module_bazel::ModuleError> {
+    let file = ModuleFile::parse_build(build)?;
+    let mut rows: Vec<String> = file
+        .calls()
+        .iter()
+        .filter(|call| FLAG_RULES.contains(&call.name.as_str()))
+        .filter_map(|call| {
+            let name = call.str("name")?;
+            let default = call
+                .arg("build_setting_default")
+                .or_else(|| call.arg("actual"))
+                .map_or_else(String::new, literal);
+            let mut row = format!("//config:{name} {} {default}", call.name);
+            if let Some(values) = call.arg("values") {
+                row.push(' ');
+                row.push_str(&literal(values));
+            }
+            Some(row)
+        })
+        .collect();
+    rows.sort();
+    Ok(rows.into_iter().map(|row| row + "\n").collect())
+}
+
+/// An argument as written in the BUILD file.
+fn literal(value: &Arg) -> String {
+    match value {
+        Arg::Str(text) => format!("{:?}", text.value),
+        Arg::Ident(name) => name.clone(),
+        Arg::List(items) => format!(
+            "[{}]",
+            items.iter().map(literal).collect::<Vec<_>>().join(", ")
+        ),
+        Arg::Dict(entries) => format!(
+            "{{{}}}",
+            entries
+                .iter()
+                .map(|(key, value)| format!("{}: {}", literal(key), literal(value)))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        Arg::Computed { line } => format!("<computed at line {line}>"),
+    }
 }
 
 /// Each `dx` command and subcommand with its flags and positionals, their accepted values and defaults, and exit
@@ -132,7 +190,30 @@ pub fn unbumped_schemas(checked_in: &str, current: &str) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{FILES, render, unbumped_schemas};
+    use super::{FILES, labels_txt, render, unbumped_schemas};
+
+    #[test]
+    fn labels_list_each_flag_with_its_default_and_values() {
+        let build = r#"
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag", "string_flag")
+
+bool_flag(name = "strict", build_setting_default = True)
+
+string_flag(name = "tier", build_setting_default = "standard", values = ["standard", "strict"])
+
+alias(name = "clippy_flag", actual = "@rules_rust//rust/settings:clippy_flag")
+
+filegroup(name = "not_a_flag")
+"#;
+        assert_eq!(
+            labels_txt(build).expect("BUILD parses"),
+            concat!(
+                "//config:clippy_flag alias \"@rules_rust//rust/settings:clippy_flag\"\n",
+                "//config:strict bool_flag True\n",
+                "//config:tier string_flag \"standard\" [\"standard\", \"strict\"]\n",
+            )
+        );
+    }
 
     #[test]
     fn a_schema_change_needs_a_version_bump() {
@@ -184,5 +265,12 @@ mod tests {
             "{cli}"
         );
         assert!(files["schemas.txt"].starts_with("events.schema.json "));
+        assert!(
+            files["labels.txt"]
+                .lines()
+                .any(|line| line.starts_with("//config:workspace label_flag ")),
+            "{}",
+            files["labels.txt"]
+        );
     }
 }

@@ -5,6 +5,7 @@ filegroup(
     name = "snapshot",
     srcs = [
         "cli.json",
+        "labels.txt",
         "schemas.txt",
     ],
     visibility = ["//tools/api:__pkg__"],

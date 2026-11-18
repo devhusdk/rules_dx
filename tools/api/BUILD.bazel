@@ -7,14 +7,16 @@ package(default_visibility = VIS_TOOLS)
 _DEPS = [
     "//cli/digest:dx_digest",
     "//cli/dx_config",
+    "//cli/module_bazel:dx_module_bazel",
     "//cli/output:dx_output",
     "//cli/plan:dx_plan",
     "@crates//:serde_json",
 ]
 
-_SCHEMAS = [
+_SNAPSHOT_SRCS = [
     "//cli/dx_config:schema/dx.schema.json",
     "//cli/output:schema/events.schema.json",
+    "//config:BUILD.bazel",
 ]
 
 # Rewrites api/ from the code. Run it when api_test says the public API changed.
@@ -24,7 +26,7 @@ rust_binary(
         "snapshot.rs",
         "update.rs",
     ],
-    compile_data = _SCHEMAS,
+    compile_data = _SNAPSHOT_SRCS,
     crate_name = "update",
     crate_root = "update.rs",
     deps = _DEPS,
@@ -37,7 +39,7 @@ rust_test(
         "api_test.rs",
         "snapshot.rs",
     ],
-    compile_data = _SCHEMAS,
+    compile_data = _SNAPSHOT_SRCS,
     crate_name = "api_test",
     crate_root = "api_test.rs",
     data = ["//api:snapshot"],

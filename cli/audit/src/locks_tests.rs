@@ -1615,3 +1615,26 @@ fn package_lock_unsupported_lockfile_versions_name_the_supported_one() {
         assert!(error.message().contains("lockfileVersion 3"), "{error}");
     }
 }
+
+#[test]
+fn repeated_entries_collapse_and_same_name_versions_sort() {
+    let key = |packages: Vec<LockedPackage>| {
+        packages
+            .into_iter()
+            .map(|package| (package.name, package.version))
+            .collect::<Vec<_>>()
+    };
+    let twice = r#"{"packages":[{"name":"a/one","version":"1.0.0"}],"packages-dev":[{"name":"a/one","version":"v1.0.0"}]}"#;
+    assert_eq!(
+        key(parse_composer_lock(twice).expect("composer")),
+        [("a/one".to_owned(), "1.0.0".to_owned())]
+    );
+    let rows = r#"{"packages":[{"name":"p","version":"2.0"},{"name":"p","version":"1.0"},{"name":"p","version":"1.0"}]}"#;
+    let want = [
+        ("p".to_owned(), "1.0".to_owned()),
+        ("p".to_owned(), "2.0".to_owned()),
+    ];
+    assert_eq!(key(parse_fpm_lock(rows).expect("fpm")), want);
+    assert_eq!(key(parse_psgallery_lock(rows).expect("psgallery")), want);
+    assert_eq!(key(parse_luarocks_lock(rows).expect("luarocks")), want);
+}

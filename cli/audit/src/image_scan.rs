@@ -34,15 +34,28 @@ pub struct ImageFinding {
     pub severity: String,
 }
 
+/// Reads a JSON list where `null` counts as empty.
+fn null_as_empty<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Ok(Option::<Vec<T>>::deserialize(deserializer)?.unwrap_or_default())
+}
+
 #[derive(Deserialize)]
 struct Report {
-    #[serde(rename = "Results", default)]
+    #[serde(rename = "Results", default, deserialize_with = "null_as_empty")]
     results: Vec<ReportResult>,
 }
 
 #[derive(Deserialize)]
 struct ReportResult {
-    #[serde(rename = "Vulnerabilities", default)]
+    #[serde(
+        rename = "Vulnerabilities",
+        default,
+        deserialize_with = "null_as_empty"
+    )]
     vulnerabilities: Vec<ReportVulnerability>,
 }
 
@@ -154,13 +167,13 @@ pub fn trivy_cache(
     today: &str,
     offline: bool,
 ) -> Result<Option<PathBuf>, DxError> {
-    if let Some(cache) = std::env::var_os("DX_TRIVY_CACHE") {
-        return Ok(Some(PathBuf::from(cache)));
+    if let Some(cache) = cache_override(std::env::var_os("DX_TRIVY_CACHE")) {
+        return Ok(Some(cache));
     }
     let Some(root) = workspace else {
         return Ok(None);
     };
-    let pins = std::fs::read_to_string(root.join(".dx/pins")).unwrap_or_default();
+    let pins = read_pins(root)?;
     let Some(pin) = crate::advisory::find_pin(&pins, TRIVY_FAMILY) else {
         return Ok(None);
     };
@@ -178,6 +191,22 @@ pub fn trivy_cache(
     }
     fetch_trivy_pin(&pin, &cache, offline)?;
     Ok(Some(cache))
+}
+
+fn cache_override(value: Option<OsString>) -> Option<PathBuf> {
+    value
+        .filter(|value| !value.to_string_lossy().trim().is_empty())
+        .map(PathBuf::from)
+}
+
+/// The text of `.dx/pins`, empty when the file does not exist.
+fn read_pins(root: &Path) -> Result<String, DxError> {
+    let path = root.join(".dx/pins");
+    match std::fs::read_to_string(&path) {
+        Ok(text) => Ok(text),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(String::new()),
+        Err(error) => Err(DxError::failure(format!("{}: {error}", path.display()))),
+    }
 }
 
 fn installed(cache: &Path) -> bool {
@@ -476,5 +505,38 @@ mod tests {
         std::fs::create_dir_all(&dir).expect("dir");
         assert_eq!(trivy_cache(Some(&dir), "2026-11-06", false), Ok(None));
         std::fs::remove_dir_all(&dir).expect("cleanup");
+    }
+
+    #[test]
+    fn report_with_null_lists_has_no_findings() {
+        for json in [
+            r#"{"Results":null}"#,
+            r#"{"Results":[{"Vulnerabilities":null}]}"#,
+            "{}",
+        ] {
+            assert_eq!(parse_report(json).expect(json), []);
+        }
+    }
+
+    #[test]
+    fn unreadable_pins_are_an_error_and_a_missing_file_is_not() {
+        let dir = std::env::temp_dir().join(format!("dx-trivy-pins-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join(".dx")).expect("dir");
+        assert_eq!(
+            read_pins(&dir).expect("missing pins are empty"),
+            String::new()
+        );
+        std::fs::write(dir.join(".dx/pins"), [0xff, 0xfe]).expect("pins");
+        let error = read_pins(&dir).expect_err("non-UTF-8 pins fail");
+        std::fs::remove_dir_all(&dir).expect("cleanup");
+        assert!(error.to_string().contains(".dx/pins"), "{error}");
+    }
+
+    #[test]
+    fn blank_cache_variable_is_unset() {
+        assert_eq!(cache_override(None), None);
+        assert_eq!(cache_override(Some("  ".into())), None);
+        assert_eq!(cache_override(Some("".into())), None);
+        assert_eq!(cache_override(Some("/c".into())), Some(PathBuf::from("/c")));
     }
 }

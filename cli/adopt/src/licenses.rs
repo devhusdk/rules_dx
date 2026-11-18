@@ -70,13 +70,34 @@ pub fn needed_licenses(root: &Path, platform: &str) -> BTreeSet<NeededLicense> {
         .collect()
 }
 
+/// A scan over Starlark string literals: `"` or `'` opens one, the same quote closes it, and a
+/// backslash escapes the next character, so `'it"s'` and `"it's"` each read as one string.
+#[derive(Clone, Copy, Default)]
+struct Strings {
+    open: Option<char>,
+    escaped: bool,
+}
+
+impl Strings {
+    /// Reads `ch` and tells whether it is code, outside every string and its quotes.
+    fn code(&mut self, ch: char) -> bool {
+        match self.open {
+            Some(_) if self.escaped => self.escaped = false,
+            Some(_) if ch == '\\' => self.escaped = true,
+            Some(quote) if ch == quote => self.open = None,
+            Some(_) => {}
+            None if ch == '"' || ch == '\'' => self.open = Some(ch),
+            None => return true,
+        }
+        false
+    }
+}
+
 fn strip_comment(line: &str) -> &str {
-    let mut quoted = false;
+    let mut strings = Strings::default();
     for (index, ch) in line.char_indices() {
-        match ch {
-            '"' => quoted = !quoted,
-            '#' if !quoted => return line.get(..index).unwrap_or(line),
-            _ => {}
+        if strings.code(ch) && ch == '#' {
+            return line.get(..index).unwrap_or(line);
         }
     }
     line
@@ -100,12 +121,28 @@ fn call_body(text: &str) -> &str {
     text
 }
 
+/// The string literals in `text`, single- or double-quoted, each escape kept as the bare escaped
+/// character.
 fn quoted(text: &str) -> Vec<String> {
-    text.split('"')
-        .skip(1)
-        .step_by(2)
-        .map(str::to_owned)
-        .collect()
+    let mut found = Vec::new();
+    let mut strings = Strings::default();
+    let mut current: Option<String> = None;
+    for ch in text.chars() {
+        let was_open = strings.open.is_some();
+        let escaping = strings.escaped;
+        strings.code(ch);
+        match (was_open, strings.open.is_some()) {
+            (false, true) => current = Some(String::new()),
+            (true, false) => found.extend(current.take()),
+            (true, true) if escaping || ch != '\\' => {
+                if let Some(value) = current.as_mut() {
+                    value.push(ch);
+                }
+            }
+            _ => {}
+        }
+    }
+    found
 }
 
 /// The names bound to the `dx_licenses` extension by `use_extension`.
@@ -208,6 +245,25 @@ mod tests {
             accepted_license_ids(module),
             set(&["android-sdk-license", "cuda-eula"])
         );
+    }
+
+    #[test]
+    fn single_quoted_strings_bind_and_accept() {
+        let module = "lic = use_extension('@rules_dx//core:extensions.bzl', 'dx_licenses')\nlic.accept(ids = ['cuda-eula'])  # it's \"gpu\"\n# lic.accept(ids = ['android-sdk-license'])\n";
+        assert_eq!(accepted_license_ids(module), set(&["cuda-eula"]));
+        assert_eq!(
+            render_license_accept(module, &set(&["a"])),
+            "lic.accept(ids = [\"a\"])\n"
+        );
+    }
+
+    #[test]
+    fn quoted_reads_escapes_and_the_other_quote() {
+        assert_eq!(
+            quoted(r#"'a"b', "c'd", 'e\'f', "g\\""#),
+            ["a\"b", "c'd", "e'f", "g\\"]
+        );
+        assert_eq!(strip_comment(r#"x = 'a#b' # c"#), "x = 'a#b' ");
     }
 
     #[test]

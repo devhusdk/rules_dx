@@ -1,9 +1,6 @@
-lua/BUILD.bazel foreign-load 1
-lua/private/BUILD.bazel foreign-load 1
 lua/private/defs.bzl foreign-load 2
-lua/private/lock/BUILD.bazel foreign-load 1
 lua/private/lock/hub.bzl foreign-load 1
 lua/private/lua.bzl foreign-load 1
-lua/private/runtime/BUILD.bazel foreign-load 2
-lua/private/toolchain/BUILD.bazel foreign-load 2
+lua/private/runtime/BUILD.bazel foreign-load 1
+lua/private/toolchain/BUILD.bazel foreign-load 1
 lua/private/toolchain/extensions.bzl foreign-load 1

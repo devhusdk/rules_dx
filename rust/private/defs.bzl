@@ -1,19 +1,19 @@
 """Minimal Rust wrappers."""
 
 load("@bazel_skylib//rules:native_binary.bzl", "native_test")
-load("@rules_rust//cargo:defs.bzl", _cargo_build_script = "cargo_build_script")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+load("@rules_rust//cargo:defs.bzl", _cargo_build_script = "cargo_build_script")
 load("@rules_rust//rust:defs.bzl", _rust_binary = "rust_binary", _rust_common = "rust_common", _rust_library = "rust_library", _rust_proc_macro = "rust_proc_macro", _rust_shared_library = "rust_shared_library", _rust_static_library = "rust_static_library", _rust_test = "rust_test")
 load("@rules_rust//rust/private:providers.bzl", "LintsInfo")
 load("@rules_rust_wasm_bindgen//:defs.bzl", "RustWasmBindgenInfo", _rust_wasm_bindgen = "rust_wasm_bindgen", _rust_wasm_bindgen_test = "rust_wasm_bindgen_test")
 load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
+load("//core:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "dx_msvc_crt_aspect", "dx_msvc_crt_validate", "msvc_crt_static_flag", "msvc_crt_static_settings")
+load("//core:native_coverage.bzl", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage")
+load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//core:platform.bzl", "platforms_transition")
-load("//core:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "dx_msvc_crt_aspect", "dx_msvc_crt_validate", "msvc_crt_static_settings", "msvc_crt_static_flag")
 load("//core:resources.bzl", "dx_test_resource_tags")
 load("//core:wrapper.bzl", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forwarded_test_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_run_env_attrs", "dx_run_environment", "dx_symlink_default_info", "dx_symlink_executable", "dx_upstream", "dx_upstream_tags", "dx_warnings_flags", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_forward_kwargs", "dx_wrap_test", "dx_wrap_upstream_kwargs")
-load("//core:no_coverage.bzl", "no_coverage_transition")
-load("//core:native_coverage.bzl", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "RUST")
 load(":build_script_cc_env.bzl", "BUILD_SCRIPT_CC_ENV")
 load(":edition.bzl", "RUST_EDITION")
@@ -341,6 +341,32 @@ def _rust_browser_binary(name, srcs, crate_name, edition, visibility, **kwargs):
         **dx_wrap_forward_kwargs(kwargs)
     )
 
+def rust_test_group_args(test_groups):
+    """Returns the (suffix, args) forwarders of test_groups: one per group, then "rest" skipping every filter."""
+    groups = []
+    skips = []
+    for suffix, filters in test_groups.items():
+        groups.append((suffix, list(filters)))
+        for item in filters:
+            skips.extend(["--skip", item])
+    groups.append(("rest", skips))
+    return groups
+
+def _rust_test_groups_error(test_groups, wasm, kwargs):
+    if wasm != None:
+        return "test_groups does not support wasm"
+    for key in ("args", "shard_count"):
+        if kwargs.get(key) != None:
+            return "test_groups cannot be combined with " + key
+    if "manual" in (kwargs.get("tags") or []):
+        return "test_groups cannot be combined with the manual tag"
+    for suffix, filters in test_groups.items():
+        if suffix == "rest":
+            return "test_groups cannot name a group \"rest\""
+        if not filters:
+            return "test_groups[%s] needs at least one filter" % repr(suffix)
+    return None
+
 def rust_test(
         name,
         *,
@@ -353,8 +379,13 @@ def rust_test(
         runtime = None,
         coverage_lib = None,
         runtime_dlls = None,
+        test_groups = None,
         **kwargs):
-    """Minimal wrapper over rust_test. runtime_dlls are symlinked next to the executable. edition defaults to 2024."""
+    """Minimal wrapper over rust_test. runtime_dlls are symlinked next to the executable. edition defaults to 2024. test_groups maps a suffix to libtest filters: the crate compiles once, each group runs as name_suffix with its filters, name_rest runs every test no filter matches, and the test_suite name covers them all."""
+    if test_groups != None:
+        error = _rust_test_groups_error(test_groups, wasm, kwargs)
+        if error != None:
+            fail("rust_test: " + error)
     if wasm not in (None, "wasi", "browser"):
         fail("rust_test: wasm must be \"wasi\" or \"browser\", got " + repr(wasm))
     if wasm != "wasi" and (preopens != None or runtime != None):
@@ -398,7 +429,7 @@ def rust_test(
         forward_kwargs["coverage_lib"] = coverage_lib
     if runtime_dlls != None:
         forward_kwargs["runtime_dlls"] = runtime_dlls
-    dx_wrap_test(name, _rust_test, _rust_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, extra_forward_kwargs = forward_kwargs, upstream_env = True, **kwargs)
+    dx_wrap_test(name, _rust_test, _rust_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, extra_forward_kwargs = forward_kwargs, upstream_env = True, groups = rust_test_group_args(test_groups) if test_groups != None else None, **kwargs)
 
 def _rust_bench_report_impl(ctx):
     report = ctx.attr._report[DefaultInfo]

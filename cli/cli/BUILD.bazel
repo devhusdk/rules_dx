@@ -409,6 +409,45 @@ rust_test(
         "DX_TEST_LYCHEE": "$(rootpath @dx_tools//:lychee)",
         "RUST_TEST_THREADS": "16",
     },
+    tags = ["resources:cpu:4"],
+    test_groups = {
+        "adopt": [
+            "adopt::",
+        ],
+        "exec_a": [
+            "exec::a",
+        ],
+        "exec_b_g": [
+            "exec::b",
+            "exec::c",
+            "exec::d",
+            "exec::e",
+            "exec::f",
+            "exec::g",
+        ],
+        "exec_h_q": [
+            "exec::h",
+            "exec::i",
+            "exec::j",
+            "exec::k",
+            "exec::l",
+            "exec::m",
+            "exec::n",
+            "exec::o",
+            "exec::p",
+            "exec::q",
+        ],
+        "exec_r_s": [
+            "exec::r",
+            "exec::s",
+        ],
+        "exec_t": [
+            "exec::t",
+        ],
+        "exec_update": [
+            "exec::update",
+        ],
+    },
     # keep
     deps = [
         "//cli/adopt:dx_adopt",

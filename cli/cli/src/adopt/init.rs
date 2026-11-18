@@ -930,7 +930,8 @@ mod tests {
         let (code, _out, err) = run(&invocation(&["init"]), &root);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("init_failed"), "{err}");
-        assert!(err.contains(".dx/pins"), "{err}");
+        let pins = std::path::Path::new(".dx").join("pins");
+        assert!(err.contains(&pins.display().to_string()), "{err}");
     }
 
     #[test]

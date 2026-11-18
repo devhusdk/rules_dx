@@ -22,6 +22,17 @@ SOURCE_TOOLS = {
     "quality_runner": "@rules_dx//core/quality/runner:quality_runner",
 }
 
+_GO_PACKAGE = "@rules_dx//go/private/tools/analysis/dx_go:"
+
+# The names the dx_go multicall runs as, each with its source build.
+GO_TOOLS = {tool: _GO_PACKAGE + tool for tool in [
+    "dx_errcheck",
+    "dx_gotype",
+    "dx_govet",
+    "dx_modfmt",
+    "dx_staticcheck",
+]}
+
 PYTHON_TOOLS = {
     "ansible_lint_tool": "@rules_dx//core/quality/tools/python:ansible_lint_tool",
     "cfn_lint": "@rules_dx//core/quality/tools/python:cfn_lint",
@@ -173,7 +184,7 @@ def with_jars(build, jars):
 def alias_build(actual):
     """Returns the hub BUILD text that points dx at one label and the tools and launcher at their sources."""
     lines = []
-    for name, label in [("dx", actual), ("launcher", LAUNCHER_SOURCE)] + sorted(SOURCE_TOOLS.items()):
+    for name, label in [("dx", actual), ("launcher", LAUNCHER_SOURCE)] + sorted(SOURCE_TOOLS.items()) + sorted(GO_TOOLS.items()):
         lines += [
             "alias(",
             '    name = "{}",'.format(name),
@@ -214,13 +225,13 @@ def _select(entries, default):
     lines.append("    })")
     return "\n".join(lines)
 
-def consumer_build(assets, launcher_assets = []):
-    """Returns the hub BUILD text that selects a prebuilt dx and launcher by os and cpu.
+def consumer_build(assets, launcher_assets = [], go_assets = []):
+    """Returns the hub BUILD text that selects a prebuilt dx, launcher and Go lint tools by os and cpu.
 
-    The launcher selects on the platform of the configuration that depends on it;
-    a platform with no launcher download builds it from source.
+    The launcher and Go tools select on the platform of the configuration that
+    depends on them; a platform with no download builds them from source.
     """
-    if not [a for a in assets + launcher_assets if a.repo]:
+    if not [a for a in assets + launcher_assets + go_assets if a.repo]:
         return alias_build(SOURCE_LABEL)
     python_tools = _python_tool_aliases()
     lines = [
@@ -247,7 +258,15 @@ def consumer_build(assets, launcher_assets = []):
             "    actual = " + _select([(":" + a.key, ":{}_{}".format(tool, a.key) if a.repo else label) for a in assets], ":unsupported") + ",",
             ")",
         ]
-    platforms = {a.key: a for a in launcher_assets}
+    for tool, label in sorted(GO_TOOLS.items()):
+        lines += [
+            "",
+            "alias(",
+            '    name = "{}",'.format(tool),
+            "    actual = " + _select([(":" + a.key, ":{}_{}".format(tool, a.key)) for a in go_assets if a.repo], label) + ",",
+            ")",
+        ]
+    platforms = {a.key: a for a in launcher_assets + go_assets}
     platforms.update({a.key: a for a in assets})
     for key, a in sorted(platforms.items()):
         lines += [
@@ -270,6 +289,17 @@ def consumer_build(assets, launcher_assets = []):
                 '    out = "{}/{}",'.format(a.key, a.exe),
                 ")",
             ]
+    for a in go_assets:
+        if a.repo:
+            for tool in sorted(GO_TOOLS.keys()):
+                lines += [
+                    "",
+                    "native_binary(",
+                    '    name = "{}_{}",'.format(tool, a.key),
+                    '    src = "@{}//file:{}",'.format(a.repo, a.exe),
+                    '    out = "{}/{}{}",'.format(a.key, tool, ".exe" if a.os == "windows" else ""),
+                    ")",
+                ]
     for a in assets:
         if a.repo:
             lines += [

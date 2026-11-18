@@ -38,7 +38,10 @@ go_test(
             "@platforms//os:windows": tool + ".exe",
             "//conditions:default": tool,
         }),
-        visibility = ["//:__subpackages__"],
+        visibility = [
+            "//:__subpackages__",
+            "@dx_prebuilt//:__pkg__",
+        ],
     )
     for tool in [
         "dx_errcheck",

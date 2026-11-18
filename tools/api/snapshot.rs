@@ -22,13 +22,67 @@ const EVENTS_SCHEMA: &str = include_str!("../../cli/output/schema/events.schema.
 const CONFIG_SCHEMA: &str = include_str!("../../cli/dx_config/schema/dx.schema.json");
 const CONFIG_BUILD: &str = include_str!("../../config/BUILD.bazel");
 
-/// Every file under `api/`, by name, as `update` writes it.
-pub fn render() -> Result<BTreeMap<&'static str, String>, Box<dyn std::error::Error>> {
+/// The rules in a language's `BUILD.bazel` whose public targets are part of the API.
+const LANG_RULES: [&str; 2] = ["platform", "toolchain_type"];
+
+const PUBLIC: &str = "//visibility:public";
+
+/// Every file under `api/`, by name, as `update` writes it. `lang_builds` holds each language package and the text
+/// of its `BUILD.bazel`.
+pub fn render(
+    lang_builds: &[(String, String)],
+) -> Result<BTreeMap<&'static str, String>, Box<dyn std::error::Error>> {
+    let mut labels = labels_txt(CONFIG_BUILD)?;
+    labels.push_str(&lang_labels_txt(lang_builds)?);
     Ok(BTreeMap::from([
         (FILES[0], cli_json()?),
-        (FILES[1], labels_txt(CONFIG_BUILD)?),
+        (FILES[1], labels),
         (FILES[2], schemas_txt()),
     ]))
+}
+
+/// The `$(rootpaths)` of every language `BUILD.bazel`, from `DX_API_LANG_BUILDS`.
+pub fn lang_build_paths() -> Result<Vec<String>, std::env::VarError> {
+    Ok(std::env::var("DX_API_LANG_BUILDS")?
+        .split_whitespace()
+        .map(str::to_owned)
+        .collect())
+}
+
+/// The package of a `<package>/BUILD.bazel` root path.
+pub fn package_of(path: &str) -> Result<String, String> {
+    path.strip_suffix("/BUILD.bazel")
+        .map(str::to_owned)
+        .ok_or_else(|| format!("{path} is not a package BUILD.bazel"))
+}
+
+/// One line per public platform and toolchain type in each language package: its label and rule.
+fn lang_labels_txt(lang_builds: &[(String, String)]) -> Result<String, Box<dyn std::error::Error>> {
+    let mut rows = Vec::new();
+    for (package, build) in lang_builds {
+        let file = ModuleFile::parse_build(build)
+            .map_err(|error| format!("{package}/BUILD.bazel: {error}"))?;
+        let calls = file.calls();
+        let default_public = calls
+            .iter()
+            .filter(|call| call.name == "package")
+            .any(|call| call.arg("default_visibility").is_some_and(lists_public));
+        rows.extend(
+            calls
+                .iter()
+                .filter(|call| LANG_RULES.contains(&call.name.as_str()))
+                .filter(|call| call.arg("visibility").map_or(default_public, lists_public))
+                .filter_map(|call| {
+                    Some(format!("//{package}:{} {}", call.str("name")?, call.name))
+                }),
+        );
+    }
+    rows.sort();
+    Ok(rows.into_iter().map(|row| row + "\n").collect())
+}
+
+fn lists_public(visibility: &Arg) -> bool {
+    matches!(visibility, Arg::List(items) if items.iter().any(|item| matches!(item, Arg::Str(text) if text.value == PUBLIC)))
 }
 
 /// One line per flag in `config/BUILD.bazel`: its label, rule, default (or alias target) and allowed values.
@@ -190,7 +244,7 @@ pub fn unbumped_schemas(checked_in: &str, current: &str) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{FILES, labels_txt, render, unbumped_schemas};
+    use super::{FILES, labels_txt, lang_labels_txt, render, unbumped_schemas};
 
     #[test]
     fn labels_list_each_flag_with_its_default_and_values() {
@@ -216,6 +270,40 @@ filegroup(name = "not_a_flag")
     }
 
     #[test]
+    fn labels_list_public_platforms_and_toolchain_types() {
+        let open = r#"
+package(default_visibility = ["//visibility:public"])
+
+toolchain_type(name = "toolchain_type")
+
+platform(name = "windows_arm64", constraint_values = ["@platforms//os:windows"])
+
+filegroup(name = "not_api")
+"#;
+        let closed = r#"
+package(default_visibility = ["//:__subpackages__"])
+
+toolchain_type(name = "toolchain_type", visibility = ["//visibility:public"])
+
+toolchain_type(name = "internal_toolchain_type")
+
+platform(name = "hidden", visibility = ["//visibility:private"])
+"#;
+        let builds = [
+            ("open".to_owned(), open.to_owned()),
+            ("closed".to_owned(), closed.to_owned()),
+        ];
+        assert_eq!(
+            lang_labels_txt(&builds).expect("BUILD files parse"),
+            concat!(
+                "//closed:toolchain_type toolchain_type\n",
+                "//open:toolchain_type toolchain_type\n",
+                "//open:windows_arm64 platform\n",
+            )
+        );
+    }
+
+    #[test]
     fn a_schema_change_needs_a_version_bump() {
         let before = "events.schema.json 4.0 sha256:aa\ndx.schema.json 1.0 sha256:bb\n";
         assert!(unbumped_schemas(before, before).is_empty());
@@ -230,7 +318,8 @@ filegroup(name = "not_a_flag")
 
     #[test]
     fn the_snapshot_covers_every_file_and_flag_detail() {
-        let files = render().expect("snapshot renders");
+        let msix = "package(default_visibility = [\"//visibility:public\"])\ntoolchain_type(name = \"toolchain_type\")\n";
+        let files = render(&[("msix".to_owned(), msix.to_owned())]).expect("snapshot renders");
         assert_eq!(files.keys().copied().collect::<Vec<_>>(), {
             let mut names = FILES.to_vec();
             names.sort_unstable();
@@ -269,6 +358,11 @@ filegroup(name = "not_a_flag")
             files["labels.txt"]
                 .lines()
                 .any(|line| line.starts_with("//config:workspace label_flag ")),
+            "{}",
+            files["labels.txt"]
+        );
+        assert!(
+            files["labels.txt"].ends_with("//msix:toolchain_type toolchain_type\n"),
             "{}",
             files["labels.txt"]
         );

@@ -57,3 +57,22 @@
 //config:toolchains bool_flag False
 //config:warnings_as_errors bool_flag True
 //config:workspace label_flag ":default_workspace_policy"
+//android:android_device platform
+//android:android_emulator platform
+//android:arm64-v8a platform
+//android:x86_64 platform
+//apple:macos_arm64 platform
+//apple:macos_x86_64 platform
+//erlang:toolchain_type toolchain_type
+//lua:toolchain_type toolchain_type
+//msix:toolchain_type toolchain_type
+//msix:windows_arm64 platform
+//msix:windows_x86_32 platform
+//msix:windows_x86_64 platform
+//php:exec_toolchain_type toolchain_type
+//php:toolchain_type toolchain_type
+//qt:linux_arm64 platform
+//qt:linux_x86_64 platform
+//qt:macos_arm64 platform
+//qt:windows_arm64 platform
+//qt:windows_x86_64 platform

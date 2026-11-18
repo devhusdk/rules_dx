@@ -10,7 +10,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map_err(|_| "run with `bazel run //tools/api:update`")?;
     let root = PathBuf::from(root);
     let dir = root.join("api");
-    let files = snapshot::render()?;
+    let mut lang_builds = Vec::new();
+    for path in snapshot::lang_build_paths()? {
+        let file = root.join(&path);
+        let text = std::fs::read_to_string(&file)
+            .map_err(|error| format!("{}: {error}", file.display()))?;
+        lang_builds.push((snapshot::package_of(&path)?, text));
+    }
+    let files = snapshot::render(&lang_builds)?;
     let snapshot_file = |name: &str| files.get(name).ok_or(format!("the snapshot has no {name}"));
     let surface = page::render(snapshot_file("cli.json")?, snapshot_file("schemas.txt")?)?;
     let schemas = dir.join("schemas.txt");

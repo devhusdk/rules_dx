@@ -26,6 +26,7 @@ _QUALITY_CONFIG = "default"
 _QUALITY_CONFIGS = {
     "ansible": "shared",
     "api_spec": "shared",
+    "asciidoc": "shared",
     "avro": "shared",
     "bicep": "shared",
     "capnproto": "shared",
@@ -45,6 +46,7 @@ _QUALITY_CONFIGS = {
     "php": "tool_overrides",
     "powershell": "tool_overrides",
     "rego": "shared",
+    "rst": "shared",
     "ruby": "tool_overrides",
     "sql": "shared",
     "swift": "tool_overrides",
@@ -57,7 +59,14 @@ _core_format_subject = config_subject_rule([real_format_aspect], [OutputGroupInf
 _core_lint_subject = config_subject_rule([real_lint_aspect], [OutputGroupInfo])
 
 _CORE_QUALITY_SUBJECTS = {
+    "asciidoc": {
+        "lint": _core_lint_subject,
+    },
     "javascript": {
+        "format": _core_format_subject,
+        "lint": _core_lint_subject,
+    },
+    "rst": {
         "format": _core_format_subject,
         "lint": _core_lint_subject,
     },

@@ -1756,8 +1756,8 @@ bazel_dep(name = "toml.bzl", version = "0.5.0")
 rules_julia = use_extension("//julia/private/toolchain:extensions.bzl", "rules_julia")
 use_repo(rules_julia, "rules_julia")
 
-julia = use_extension("//julia:extensions.bzl", "toolchain")
-use_repo(julia, "julia_toolchains")
+julia_toolchain = use_extension("//julia:extensions.bzl", "julia_toolchain")
+use_repo(julia_toolchain, "julia_toolchains")
 
 register_toolchains("@julia_toolchains//:all")
 
@@ -2222,7 +2222,7 @@ dx_dev_hub.link(
 )
 use_repo(dx_dev_hub, "dx_npm_link")
 
-dx_prebuilt = use_extension("//cli/prebuilt:extension.bzl", "dx_prebuilt")
+dx_prebuilt = use_extension("//core:extensions.bzl", "dx_prebuilt")
 use_repo(dx_prebuilt, "dx_prebuilt")
 
 dx_gazelle = use_extension("//gazelle/dispatch:extension.bzl", "dx_gazelle")

@@ -138,10 +138,12 @@ pub fn orphan_candidates(tracked: &[String], ignored_prefixes: &[String]) -> Vec
         .filter(|path| *path != dx_path::state::DX_DIR && !path.starts_with(".dx/"))
         .filter(|path| {
             !ignored_prefixes.iter().any(|prefix| {
-                *path == prefix
-                    || path
-                        .strip_prefix(prefix.as_str())
-                        .is_some_and(|rest| rest.starts_with('/'))
+                let prefix = prefix.trim_start_matches("./").trim_end_matches('/');
+                !prefix.is_empty()
+                    && (path.as_str() == prefix
+                        || path
+                            .strip_prefix(prefix)
+                            .is_some_and(|rest| rest.starts_with('/')))
             })
         })
         .cloned()
@@ -419,15 +421,15 @@ pub fn account(
             BTreeMap::new()
         }
     };
-    let mut reported = BTreeMap::new();
-    for (path, hits) in &report {
-        let key = source_key(path);
+    let mut reported: BTreeMap<String, FileHits> = BTreeMap::new();
+    for (path, hits) in report {
+        let key = source_key(&path);
         if !owned.contains_key(&key) {
             result.errors.push(format!(
                 "coverage report path not owned by any target: {path}"
             ));
         }
-        reported.insert(key, hits);
+        reported.entry(key).or_default().merge(hits);
     }
     for (key, (path, test)) in &owned {
         let disposition = if *test || is_declaration_stub(path) {

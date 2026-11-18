@@ -26,8 +26,22 @@ fn git_failure(what: &str, detail: &str) -> dx_error::DxError {
     dx_error::DxError::infra(format!("git {what} failed: {detail}"))
 }
 
-fn first_diagnostic(bytes: &[u8]) -> String {
-    dx_output::first_diagnostic_line(bytes, 200, "no Git diagnostic")
+/// What a failed Git run said and how it ended; a leading `warning:` line names no cause, so the `fatal:` or `error:` line wins.
+#[must_use]
+pub fn git_exit_detail(stderr: &[u8], code: Option<i32>) -> String {
+    let text = String::from_utf8_lossy(stderr);
+    let cause = text
+        .lines()
+        .map(str::trim)
+        .find(|line| line.starts_with("fatal:") || line.starts_with("error:"));
+    let line = match cause {
+        Some(line) => dx_output::first_diagnostic_line(line.as_bytes(), 200, "no Git diagnostic"),
+        None => dx_output::first_diagnostic_line(stderr, 200, "no Git diagnostic"),
+    };
+    match code {
+        Some(code) => format!("{line} (exit {code})"),
+        None => format!("{line} (ended by a signal)"),
+    }
 }
 
 fn git_dir_of(workspace: &Path) -> Option<std::path::PathBuf> {
@@ -86,7 +100,10 @@ pub fn diff_name_status(
         if shallow_clone(workspace) {
             return Err(dx_error::DxError::failure(shallow_error()));
         }
-        return Err(git_failure("diff", &first_diagnostic(&result.stderr)));
+        return Err(git_failure(
+            "diff",
+            &git_exit_detail(&result.stderr, result.code),
+        ));
     }
     dx_adopt::parse_name_status_nul(&result.stdout)
 }
@@ -114,7 +131,10 @@ pub fn merge_base(
         if shallow_clone(workspace) {
             return Err(dx_error::DxError::failure(shallow_error()));
         }
-        return Err(git_failure("merge-base", &first_diagnostic(&result.stderr)));
+        return Err(git_failure(
+            "merge-base",
+            &git_exit_detail(&result.stderr, result.code),
+        ));
     }
     let text = std::str::from_utf8(&result.stdout)
         .map_err(|_| git_failure("merge-base", "output is not UTF-8"))?;
@@ -201,7 +221,10 @@ pub fn collect_working_tree(
         .run_query(&argv, workspace)
         .map_err(|error| git_failure("ls-files", &error.to_string()))?;
     if result.code != Some(0) {
-        return Err(git_failure("ls-files", &first_diagnostic(&result.stderr)));
+        return Err(git_failure(
+            "ls-files",
+            &git_exit_detail(&result.stderr, result.code),
+        ));
     }
     let untracked = parse_untracked(&result.stdout)?;
     let mut changes = staged;
@@ -249,7 +272,10 @@ fn run_git_lines(
         .run_query(&command_line, workspace)
         .map_err(|error| git_failure(what, &error.to_string()))?;
     if result.code != Some(0) {
-        return Err(git_failure(what, &first_diagnostic(&result.stderr)));
+        return Err(git_failure(
+            what,
+            &git_exit_detail(&result.stderr, result.code),
+        ));
     }
     let text = std::str::from_utf8(&result.stdout).map_err(|_| {
         dx_error::DxError::failure(
@@ -580,7 +606,10 @@ pub(crate) fn show_at_base(
         if stderr.contains("does not exist") || stderr.contains("exists on disk, but not in") {
             return Ok(None);
         }
-        return Err(git_failure("show", &first_diagnostic(&result.stderr)));
+        return Err(git_failure(
+            "show",
+            &git_exit_detail(&result.stderr, result.code),
+        ));
     }
     String::from_utf8(result.stdout)
         .map(Some)
@@ -2669,7 +2698,7 @@ mod tests {
         assert_eq!(
             selection.widened[0].reason,
             format!(
-                "cannot read {}: git show failed: fatal: bad object base",
+                "cannot read {}: git show failed: fatal: bad object base (exit 2)",
                 Ecosystem::Cargo.lockfile()
             )
         );
@@ -2709,7 +2738,10 @@ mod tests {
         let query = FakeQuery::new(vec![
             FakeQuery::ok(&cargo_lock("1.0.1")),
             graph(&[
-                ("//:vendor", &[&format!("//:{}", Ecosystem::Cargo.lockfile())]),
+                (
+                    "//:vendor",
+                    &[&format!("//:{}", Ecosystem::Cargo.lockfile())],
+                ),
                 ("//a:lib", &["@@rules_rust++crate+crates//:serde"]),
                 ("//b:lib", &["//b:b.rs"]),
             ]),
@@ -3651,6 +3683,49 @@ mod tests {
         .expect_err("plain failure");
         assert!(err.message().contains("git diff failed"), "{err}");
         assert!(err.message().contains("bad revision"), "{err}");
+    }
+
+    fn git_failure_message(code: Option<i32>, stderr: &str) -> String {
+        let scratch = dx_test_scratch::scratch("dx-changed-git-exit-").unwrap();
+        let query = FakeQuery::new(vec![QueryResult {
+            code,
+            stdout: Vec::new(),
+            stderr: stderr.as_bytes().to_vec(),
+        }]);
+        merge_base(
+            Path::new("/hermetic/git"),
+            scratch.path(),
+            &query,
+            "origin/main",
+            "HEAD",
+        )
+        .expect_err("git failed")
+        .message()
+        .to_owned()
+    }
+
+    #[test]
+    fn a_git_failure_names_the_fatal_line_not_a_leading_warning() {
+        let message = git_failure_message(
+            Some(128),
+            "warning: LF will be replaced by CRLF in a.txt.\r\nfatal: bad revision 'x'\r\n",
+        );
+        assert_eq!(
+            message,
+            "git merge-base failed: fatal: bad revision 'x' (exit 128)"
+        );
+    }
+
+    #[test]
+    fn a_git_failure_without_output_keeps_its_exit_status() {
+        assert_eq!(
+            git_failure_message(Some(128), ""),
+            "git merge-base failed: no Git diagnostic (exit 128)"
+        );
+        assert_eq!(
+            git_failure_message(None, ""),
+            "git merge-base failed: no Git diagnostic (ended by a signal)"
+        );
     }
 
     #[test]

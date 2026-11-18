@@ -21,7 +21,7 @@ rust_library(
     deps = all_crate_deps(
         package_name = "cli/dx_diff",
         normal = True,
-    ),
+    ) + ["//cli/path:dx_path"],
 )
 
 rust_test(

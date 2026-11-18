@@ -118,7 +118,7 @@ fn link_entries(site: &Path, target: &Path) -> Result<(), DxError> {
         if target.join(&name).symlink_metadata().is_ok() {
             continue;
         }
-        link(target, &name.to_string_lossy(), &entry.path())
+        link(target, &name, &entry.path())
             .map_err(|error| DxError::from_io(error.to_string(), &error))?;
     }
     Ok(())

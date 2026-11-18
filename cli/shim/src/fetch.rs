@@ -81,7 +81,10 @@ fn file_matches(path: &Path, want: &str) -> bool {
 fn write_stamp(dest: &Path, sha256: &str) {
     let stamp = stamp_path(dest);
     if let Err(err) = dx_atomic_fs::write_atomic(&stamp, format!("{sha256}\n").as_bytes()) {
-        eprintln!("dx: warning: cannot write {}: {err}", stamp.display());
+        dx_error::stdio::eprint_line(format_args!(
+            "dx: warning: cannot write {}: {err}",
+            stamp.display()
+        ));
     }
 }
 
@@ -234,7 +237,7 @@ mod interrupt {
         )]
         fn handle(event: CtrlEvent) -> bool {
             if let Some(path) = PATH.lock().ok().and_then(|p| p.clone()) {
-                let _: std::io::Result<()> = std::fs::remove_file(path);
+                dx_atomic_fs::discard_file(path);
             }
             std::process::exit(match event {
                 CtrlEvent::C => 130,

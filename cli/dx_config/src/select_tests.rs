@@ -160,3 +160,11 @@ fn mixed_edits_and_unknown_skips_are_rejected() {
         SelectionProblem::UnknownTool { .. }
     ));
 }
+
+#[test]
+fn a_full_list_names_each_tool_once() {
+    let config =
+        parse("schema_version = 1\n[families.rust]\nlint = [\"clippy\", \"clippy\"]\n").unwrap();
+    let selection = effective(Some(&config)).unwrap();
+    assert_eq!(selection.families["rust"].lint, ["clippy"]);
+}

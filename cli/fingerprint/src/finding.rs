@@ -19,6 +19,9 @@ pub fn line_context_digest(file_bytes: &[u8], start_byte: u64) -> Option<[u8; 32
         return None;
     }
     let start: usize = start_byte.try_into().ok()?;
+    if start >= file_bytes.len() {
+        return None;
+    }
     let (head, tail) = file_bytes.split_at_checked(start)?;
     let line_start = head
         .iter()
@@ -62,15 +65,24 @@ fn key_of(
     message: &str,
     context: &[u8; 32],
 ) -> String {
-    let mut key = format!(
-        "{tool}\0{rule}\0{path}\0{message}\0{}",
-        dx_digest::to_hex(context)
-    );
+    let path = dx_path::spelling::posix_str(path);
+    let path = path.strip_prefix("./").unwrap_or(&path);
+    let context = dx_digest::to_hex(context);
+    let mut key = String::new();
+    for field in [tool, rule, path, message, context.as_str()] {
+        push_field(&mut key, field);
+    }
     if !target.is_empty() {
-        key.push('\0');
-        key.push_str(target);
+        push_field(&mut key, target);
     }
     key
+}
+
+fn push_field(key: &mut String, field: &str) {
+    key.push_str(&field.len().to_string());
+    key.push(':');
+    key.push_str(field);
+    key.push('\0');
 }
 
 #[cfg(test)]
@@ -128,5 +140,35 @@ mod tests {
         let unix = line_context_digest(b"a\r\nb", 0).expect("crlf");
         let plain = line_context_digest(b"a\nb", 0).expect("lf");
         assert_eq!(unix, plain);
+    }
+
+    #[test]
+    fn path_spelling_does_not_change_the_fingerprint() {
+        let posix = finding("t", "r", "src/a.rs", "m", b"x");
+        let windows = finding("t", "r", "src\\a.rs", "m", b"x");
+        let dotted = finding("t", "r", "./src/a.rs", "m", b"x");
+        assert_eq!(finding_fingerprint(&posix), finding_fingerprint(&windows));
+        assert_eq!(finding_fingerprint(&posix), finding_fingerprint(&dotted));
+    }
+
+    #[test]
+    fn fields_cannot_bleed_into_each_other() {
+        let left = finding("t", "r\0p", "x", "m", b"x");
+        let right = finding("t", "r", "p\0x", "m", b"x");
+        assert_ne!(finding_fingerprint(&left), finding_fingerprint(&right));
+        let mut with_target = finding("t", "r", "p", "m", b"x");
+        with_target.target = "u".to_owned();
+        let mut in_message = finding("t", "r", "p", "m", b"x");
+        in_message.message = format!("m\0{}\0u", dx_digest::to_hex(&dx_digest::blake3(b"x")));
+        assert_ne!(
+            finding_fingerprint(&with_target),
+            finding_fingerprint(&in_message)
+        );
+    }
+
+    #[test]
+    fn offset_at_end_of_file_has_no_line() {
+        assert!(line_context_digest(b"a\n", 2).is_none());
+        assert!(line_context_digest(b"a", 1).is_none());
     }
 }

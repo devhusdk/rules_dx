@@ -466,7 +466,7 @@ fn qualify_passes_a_synthetic_cell_and_round_trips_the_record() {
             record.binary.needed,
             ["libc.so.6", "libextra.so.1", "libm.so.6"]
         );
-        let text = record.render();
+        let text = record.render().expect("render");
         assert!(text.is_ascii());
         let back: CellRecord = serde_json::from_str(&text).expect("parse");
         assert_eq!(back, record);
@@ -822,7 +822,7 @@ pub(crate) fn release() -> Release {
             dir.path()
                 .join("records")
                 .join(format!("{}.json", cell.name)),
-            record.render(),
+            record.render().expect("render"),
         )
         .expect("record");
         std::fs::copy(

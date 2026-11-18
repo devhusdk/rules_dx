@@ -1,3 +1,4 @@
+use crate::locks::sort_unique;
 use crate::vuln::LockedPackage;
 use dx_error::DxError;
 
@@ -28,6 +29,6 @@ pub fn parse_fpm_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
         }
         out.push(LockedPackage::new(FPM_SET, name, version));
     }
-    out.sort_by(|a, b| a.name.cmp(&b.name));
+    sort_unique(&mut out);
     Ok(out)
 }

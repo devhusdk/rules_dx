@@ -134,8 +134,14 @@ pub fn parse_psgallery_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
         }
         out.push(LockedPackage::new("powershell", name, version));
     }
-    out.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
+    sort_unique(&mut out);
     Ok(out)
+}
+
+/// Orders packages by name then version and drops repeats.
+pub(crate) fn sort_unique(out: &mut Vec<LockedPackage>) {
+    out.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
+    out.dedup_by(|b, a| a.name == b.name && a.version == b.version);
 }
 
 /// Number of leading whitespace bytes of `line`.

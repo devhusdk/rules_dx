@@ -1,5 +1,6 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -23,35 +24,42 @@ fn usage_error(message: &str) -> DxError {
 #[derive(Parser)]
 #[command(disable_help_flag = true)]
 struct Cli {
-    #[arg(long, allow_hyphen_values = true, overrides_with = "workspace")]
-    workspace: Option<String>,
-    #[arg(long, allow_hyphen_values = true, overrides_with = "staged_bin")]
-    staged_bin: Option<String>,
-    #[arg(long, allow_hyphen_values = true, overrides_with = "metadata")]
-    metadata: Option<String>,
-    #[arg(long, allow_hyphen_values = true, overrides_with = "lock_timeout_ms")]
-    lock_timeout_ms: Option<String>,
+    #[arg(long, allow_hyphen_values = true, overrides_with = "workspace", value_parser = clap::value_parser!(OsString))]
+    workspace: Option<OsString>,
+    #[arg(long, allow_hyphen_values = true, overrides_with = "staged_bin", value_parser = clap::value_parser!(OsString))]
+    staged_bin: Option<OsString>,
+    #[arg(long, allow_hyphen_values = true, overrides_with = "metadata", value_parser = clap::value_parser!(OsString))]
+    metadata: Option<OsString>,
+    #[arg(long, allow_hyphen_values = true, overrides_with = "lock_timeout_ms", value_parser = clap::value_parser!(OsString))]
+    lock_timeout_ms: Option<OsString>,
     #[arg(long = "help", short = 'h', action = clap::ArgAction::SetTrue)]
     help: bool,
 }
 
-fn parse_args(args: &[String]) -> Result<Cli, DxError> {
-    Cli::try_parse_from(std::iter::once("env").chain(args.iter().map(|arg| arg as &str)))
-        .map_err(|error| DxError::usage(dx_output::parse_error(&error, args)))
+fn parse_args(args: &[OsString]) -> Result<Cli, DxError> {
+    Cli::try_parse_from(std::iter::once(OsString::from("env")).chain(args.iter().cloned())).map_err(
+        |error| {
+            let shown: Vec<String> = args
+                .iter()
+                .map(|arg| arg.to_string_lossy().into_owned())
+                .collect();
+            DxError::usage(dx_output::parse_error(&error, &shown))
+        },
+    )
 }
 
 #[derive(Debug)]
 enum Plan {
     Help,
     Install {
-        workspace: Option<String>,
-        staged_bin: Option<String>,
-        metadata: Option<String>,
+        workspace: Option<OsString>,
+        staged_bin: Option<OsString>,
+        metadata: Option<OsString>,
         lock_timeout: Duration,
     },
 }
 
-fn plan(args: &[String]) -> Result<Plan, DxError> {
+fn plan(args: &[OsString]) -> Result<Plan, DxError> {
     let cli = parse_args(args)?;
     if cli.help {
         return Ok(Plan::Help);
@@ -63,9 +71,9 @@ fn plan(args: &[String]) -> Result<Plan, DxError> {
     }
     let lock_timeout = match cli.lock_timeout_ms {
         None => dx_env::LOCK_TIMEOUT,
-        Some(millis) => match millis.parse::<u64>() {
-            Ok(millis) => Duration::from_millis(millis),
-            Err(_) => {
+        Some(millis) => match millis.to_str().and_then(|text| text.parse::<u64>().ok()) {
+            Some(millis) => Duration::from_millis(millis),
+            None => {
                 return Err(DxError::usage(
                     "--lock-timeout-ms must be a non-negative integer",
                 ));
@@ -104,10 +112,7 @@ fn help(out: &mut impl std::io::Write) -> Result<(), DxError> {
 
 // LCOV_EXCL_START - reason: thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 fn run() -> Result<(), DxError> {
-    let args: Vec<String> = std::env::args_os()
-        .skip(1)
-        .map(|arg| arg.to_string_lossy().into_owned())
-        .collect();
+    let args: Vec<OsString> = std::env::args_os().skip(1).collect();
     let (workspace, staged_bin, metadata, lock_timeout) = match plan(&args) {
         Ok(Plan::Help) => return help(&mut std::io::stdout().lock()),
         Ok(Plan::Install {
@@ -196,16 +201,17 @@ fn main() -> std::process::ExitCode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::ffi::OsStr;
 
     struct Installed {
-        workspace: Option<String>,
-        staged_bin: Option<String>,
-        metadata: Option<String>,
+        workspace: Option<OsString>,
+        staged_bin: Option<OsString>,
+        metadata: Option<OsString>,
         lock_timeout: Duration,
     }
 
     fn plan_of(args: &[&str]) -> Result<Plan, DxError> {
-        let args: Vec<String> = args.iter().map(|arg| (*arg).to_owned()).collect();
+        let args: Vec<OsString> = args.iter().map(OsString::from).collect();
         plan(&args)
     }
 
@@ -254,7 +260,7 @@ mod tests {
             installed(&["--workspace", "/tmp/work space"])
                 .workspace
                 .as_deref(),
-            Some("/tmp/work space")
+            Some(OsStr::new("/tmp/work space"))
         );
     }
 
@@ -289,11 +295,23 @@ mod tests {
         }
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn non_utf8_paths_are_carried_through_unchanged() {
+        use std::os::unix::ffi::OsStringExt;
+        let raw = OsString::from_vec(b"/tmp/caf\xe9".to_vec());
+        let args = [OsString::from("--workspace"), raw.clone()];
+        match plan(&args).expect("plan accepts non-UTF-8") {
+            Plan::Install { workspace, .. } => assert_eq!(workspace, Some(raw)),
+            Plan::Help => panic!("expected an install plan"), // LCOV_EXCL_LINE - reason: test failure arm, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        }
+    }
+
     #[test]
     fn staged_bin_and_metadata_are_carried_through() {
         let got = installed(&["--staged-bin", "bin", "--metadata", "meta"]);
-        assert_eq!(got.staged_bin.as_deref(), Some("bin"));
-        assert_eq!(got.metadata.as_deref(), Some("meta"));
+        assert_eq!(got.staged_bin.as_deref(), Some(OsStr::new("bin")));
+        assert_eq!(got.metadata.as_deref(), Some(OsStr::new("meta")));
     }
 
     #[test]
@@ -348,7 +366,7 @@ mod tests {
     fn hyphen_values_are_kept_verbatim() {
         assert_eq!(
             installed(&["--workspace", "-weird"]).workspace.as_deref(),
-            Some("-weird")
+            Some(OsStr::new("-weird"))
         );
     }
 
@@ -358,7 +376,7 @@ mod tests {
             installed(&["--workspace", "first", "--workspace", "second"])
                 .workspace
                 .as_deref(),
-            Some("second")
+            Some(OsStr::new("second"))
         );
     }
 

@@ -62,7 +62,7 @@ load("//zig/private/quality:zig.bzl", _real_zig_format_aspect = "real_zig_format
 
 load("//core/quality:compile_check.bzl", "COMPILE_CHECK_TOOLS", "compile_check_hook")
 load("//cc/private/quality:cc.bzl", _CC_HOOKS = "HOOKS", _CC_RECOGNIZER = "RECOGNIZER", _CC_SHARD_SPECS = "SHARD_SPECS", _CC_TOOLS = "TOOLS")
-load("//core/quality:families/core.bzl", _real_format_aspect = "real_format_aspect", _real_lint_aspect = "real_lint_aspect", _real_typecheck_aspect = "real_typecheck_aspect", _CORE_HOOKS = "HOOKS", _CORE_SHARD_SPECS = "SHARD_SPECS", _CORE_TOOLS = "TOOLS")
+load("//core/quality:families/core.bzl", _real_biome_format_aspect = "real_biome_format_aspect", _real_biome_lint_aspect = "real_biome_lint_aspect", _real_format_aspect = "real_format_aspect", _real_lint_aspect = "real_lint_aspect", _real_typecheck_aspect = "real_typecheck_aspect", _real_vale_lint_aspect = "real_vale_lint_aspect", _CORE_HOOKS = "HOOKS", _CORE_SHARD_SPECS = "SHARD_SPECS", _CORE_TOOLS = "TOOLS")
 load("//ansible/private/quality:ansible.bzl", _ANSIBLE_SHARD_SPECS = "SHARD_SPECS", _ANSIBLE_TOOLS = "TOOLS")
 load("//cloudformation/private/quality:cloudformation.bzl", _CLOUDFORMATION_SHARD_SPECS = "SHARD_SPECS", _CLOUDFORMATION_TOOLS = "TOOLS")
 load("//cmake/private/quality:cmake.bzl", _CMAKE_SHARD_SPECS = "SHARD_SPECS", _CMAKE_TOOLS = "TOOLS")
@@ -631,6 +631,12 @@ real_format_aspect = _real_format_aspect
 
 real_typecheck_aspect = _real_typecheck_aspect
 
+real_biome_format_aspect = _real_biome_format_aspect
+
+real_biome_lint_aspect = _real_biome_lint_aspect
+
+real_vale_lint_aspect = _real_vale_lint_aspect
+
 real_html_template_format_aspect = _real_html_template_format_aspect
 
 real_html_template_lint_aspect = _real_html_template_lint_aspect
@@ -818,6 +824,9 @@ _LANG_SHARD_ASPECTS = {
 # END GENERATED LANG SHARD ASPECTS
 
 _SHARD_ASPECTS = _LANG_SHARD_ASPECTS | {
+    "real_biome_format": _real_biome_format_aspect,
+    "real_biome_lint": _real_biome_lint_aspect,
+    "real_vale_lint": _real_vale_lint_aspect,
     "real_format": _real_format_aspect,
     "real_lint": _real_lint_aspect,
     "real_typecheck": _real_typecheck_aspect,

@@ -1045,3 +1045,44 @@ fn verify_installed_reports_an_unlistable_tree() {
     );
     dx_atomic_fs::discard_dir(&root);
 }
+
+#[test]
+fn identity_ignores_host_name_order() {
+    let mut forward = plan("dx", "o");
+    forward.host_names = vec!["dx".to_string(), "d".to_string()];
+    let mut reverse = forward.clone();
+    reverse.host_names.reverse();
+    assert_eq!(identity_hex(&[forward]), identity_hex(&[reverse]));
+}
+
+#[test]
+fn logical_names_with_control_or_stream_characters_are_rejected() {
+    for bad in ["a\u{0}b", "a\nb", "a\tb", "a:b", "a.", "a ", "a\u{7f}"] {
+        let text = tools_json(&serde_json::json!([
+            {"bin_name": "dx", "owner": "o", "aliases": [bad], "host_names": ["dx", bad]},
+        ]));
+        assert!(
+            matches!(parse_staged(&text, false), Err(Error::InvalidTool { .. })),
+            "accepted {bad:?}"
+        );
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn dangling_symlink_at_stage_is_replaced() {
+    {
+        let scratch = dx_test_scratch::scratch("dx-env-dangling-").expect("scratch");
+        let root = scratch.path();
+        let (staged_bin, metadata, _) = write_staged(root, &[("alpha", "o", &["alpha"])]);
+        let options = options(root, staged_bin, metadata);
+        let dx_dir = dx_path::state::local_dir(&options.workspace_root);
+        fs::create_dir_all(&dx_dir).expect("dx dir");
+        test_symlink(Path::new("nowhere"), &dx_dir.join(STAGE_DIR_NAME)).expect("dangling link");
+        assert_eq!(
+            refresh(&options, &probe_symlink),
+            Ok(RefreshOutcome::InstalledFresh)
+        );
+        scratch.close().expect("cleanup");
+    }
+}

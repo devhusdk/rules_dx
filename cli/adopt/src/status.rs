@@ -234,24 +234,23 @@ fn module_check(root: &Path) -> StatusCheck {
     }
 }
 
-fn toolchain_check(root: &Path) -> StatusCheck {
-    let hint = "bazel build //...";
-    let Ok(text) = std::fs::read_to_string(root.join("MODULE.bazel")) else {
-        return check(
-            "toolchain",
-            "warn",
-            "unknown: no MODULE.bazel in the workspace".to_owned(),
-            hint,
-        );
+/// MODULE.bazel and every file it includes, or the reason they do not load.
+fn load_modules(root: &Path) -> Result<Vec<ModuleFile>, String> {
+    let text = std::fs::read_to_string(root.join("MODULE.bazel"))
+        .map_err(|_| "no MODULE.bazel in the workspace".to_owned())?;
+    let read_include = |label: &str| -> Result<String, String> {
+        let rel = dx_module_bazel::include_rel("", label)?;
+        std::fs::read_to_string(root.join(rel))
+            .map_err(|e| format!("cannot read included {label}: {e}"))
     };
-    let Ok(module) = ModuleFile::parse(&text) else {
-        return check(
-            "toolchain",
-            "warn",
-            "unknown: MODULE.bazel does not parse".to_owned(),
-            hint,
-        );
-    };
+    dx_module_bazel::load_with_includes(&text, &read_include).map_err(|error| match error {
+        dx_module_bazel::LoadError::Read(detail) => detail,
+        dx_module_bazel::LoadError::Parse(_) => "MODULE.bazel does not parse".to_owned(),
+    })
+}
+
+/// Whether one file binds the rules_rust `rust` extension, and the versions its tags declare.
+fn rust_toolchain_versions(module: &ModuleFile) -> (bool, Vec<&str>) {
     let binding =
         module
             .calls_named("use_extension")
@@ -266,12 +265,32 @@ fn toolchain_check(root: &Path) -> StatusCheck {
                 _ => None,
             });
     let tag = binding.map(|binding| format!("{binding}.toolchain"));
-    let versions: Vec<&str> = tag
+    let versions = module
+        .calls()
         .iter()
-        .flat_map(|tag| module.calls_named(tag))
+        .filter(|call| tag.as_deref() == Some(call.name.as_str()))
         .flat_map(|call| call.str_list("versions"))
         .collect();
-    if versions.is_empty() && tag.is_none() && module.bazel_dep_version("rules_rust").is_err() {
+    (tag.is_some(), versions)
+}
+
+fn toolchain_check(root: &Path) -> StatusCheck {
+    let hint = "bazel build //...";
+    let modules = match load_modules(root) {
+        Ok(modules) => modules,
+        Err(detail) => return check("toolchain", "warn", format!("unknown: {detail}"), hint),
+    };
+    let mut uses_extension = false;
+    let mut versions: Vec<&str> = Vec::new();
+    for module in &modules {
+        let (bound, declared) = rust_toolchain_versions(module);
+        uses_extension |= bound;
+        versions.extend(declared);
+    }
+    let dep_version = modules
+        .iter()
+        .find_map(|module| module.bazel_dep_version("rules_rust").ok());
+    if versions.is_empty() && !uses_extension && dep_version.is_none() {
         return check(
             "toolchain",
             "ok",
@@ -287,11 +306,11 @@ fn toolchain_check(root: &Path) -> StatusCheck {
             hint,
         );
     }
-    let overridden = module.calls().iter().any(|call| {
+    let overridden = modules.iter().flat_map(ModuleFile::calls).any(|call| {
         call.name.ends_with("_override") && call.str("module_name") == Some("rules_rust")
     });
-    let rules_rust = match module.bazel_dep_version("rules_rust") {
-        Ok(version) if !overridden => version.value.clone(),
+    let rules_rust = match dep_version {
+        Some(version) if !overridden => version.value.clone(),
         _ => return check(
             "toolchain",
             "warn",
@@ -375,31 +394,30 @@ const LANGUAGE_TOOLCHAINS: &[LanguageToolchain] = &[
 ];
 
 fn language_toolchain_checks(root: &Path) -> Vec<StatusCheck> {
-    let Ok(text) = std::fs::read_to_string(root.join("MODULE.bazel")) else {
-        return Vec::new();
-    };
-    let Ok(module) = ModuleFile::parse(&text) else {
+    let Ok(modules) = load_modules(root) else {
         return Vec::new();
     };
     let hint = "bazel build //...";
     let mut checks = Vec::new();
     for row in LANGUAGE_TOOLCHAINS {
-        let mut bindings = Vec::new();
-        for (bzl, name) in module.extensions() {
-            if name == row.extension && bzl.ends_with(row.bzl_suffix) {
-                bindings.extend(
-                    module
-                        .extension_bindings(bzl, name)
-                        .into_iter()
-                        .map(|(binding, _)| binding),
-                );
-            }
-        }
-        if bindings.is_empty() {
-            continue;
-        }
+        let mut used = false;
         let mut versions: Vec<String> = Vec::new();
-        if let Some(attribute) = row.attribute {
+        for module in &modules {
+            let mut bindings = Vec::new();
+            for (bzl, name) in module.extensions() {
+                if name == row.extension && bzl.ends_with(row.bzl_suffix) {
+                    bindings.extend(
+                        module
+                            .extension_bindings(bzl, name)
+                            .into_iter()
+                            .map(|(binding, _)| binding),
+                    );
+                }
+            }
+            used |= !bindings.is_empty();
+            let Some(attribute) = row.attribute else {
+                continue;
+            };
             for binding in &bindings {
                 let tag = format!("{binding}.{}", row.tag);
                 for call in module.calls_named(&tag) {
@@ -410,6 +428,9 @@ fn language_toolchain_checks(root: &Path) -> Vec<StatusCheck> {
                     }
                 }
             }
+        }
+        if !used {
+            continue;
         }
         let name = format!("toolchain.{}", row.language);
         if versions.is_empty() {
@@ -484,7 +505,7 @@ fn exec_tools_check(root: &Path) -> StatusCheck {
     let mut mode: Option<&str> = None;
     for line in text.lines() {
         let mut words = line.split_whitespace();
-        let (Some(scope), Some(flag)) = (words.next(), words.next()) else {
+        let Some(scope) = words.next() else {
             continue;
         };
         if !matches!(
@@ -493,8 +514,12 @@ fn exec_tools_check(root: &Path) -> StatusCheck {
         ) {
             continue;
         }
-        if let Some(value) = flag.strip_prefix("--host_compilation_mode=") {
-            mode = Some(value);
+        while let Some(flag) = words.next() {
+            if let Some(value) = flag.strip_prefix("--host_compilation_mode=") {
+                mode = Some(value);
+            } else if flag == "--host_compilation_mode" {
+                mode = words.next();
+            }
         }
     }
     match mode {
@@ -781,6 +806,55 @@ node.toolchain(node_version = pinned)
     }
 
     #[test]
+    fn toolchain_checks_follow_includes() {
+        let scratch = dx_test_scratch::scratch("dx-status-includes-").unwrap();
+        let dir = scratch.path();
+        let setup = crate::preflight::full_consumer_setup();
+        let (head, rest) = setup
+            .split_once("rust = use_extension")
+            .expect("rust extension");
+        let (rust_body, tail) = rest
+            .split_once("\nregister_toolchains")
+            .expect("register_toolchains");
+        let rust = format!("rust = use_extension{rust_body}");
+        std::fs::write(dir.join("rust.MODULE.bazel"), &rust).expect("rust include");
+        std::fs::create_dir_all(dir.join("bazel")).expect("dir");
+        std::fs::write(
+            dir.join("bazel/python.MODULE.bazel"),
+            "python = use_extension(\"@rules_python//python/extensions:python.bzl\", \"python\")\n\
+             python.toolchain(python_version = \"3.12\")\n",
+        )
+        .expect("python include");
+        let root = format!(
+            "{head}register_toolchains{tail}include(\"//:rust.MODULE.bazel\")\ninclude(\"//bazel:python.MODULE.bazel\")\n"
+        );
+        std::fs::write(dir.join("MODULE.bazel"), &root).expect("module");
+        let rust_check = toolchain_check(dir);
+        assert_eq!(rust_check.status, "ok", "{}", rust_check.detail);
+        let checks = super::language_toolchain_checks(dir);
+        let python = checks
+            .iter()
+            .find(|c| c.name == "toolchain.python")
+            .map(|c| (c.status.as_str(), c.detail.as_str()));
+        assert_eq!(
+            python,
+            Some(("ok", "declared: python 3.12 in MODULE.bazel"))
+        );
+        std::fs::remove_file(dir.join("rust.MODULE.bazel")).expect("remove include");
+        let unread = toolchain_check(dir);
+        assert_eq!(unread.status, "warn");
+        assert!(
+            unread
+                .detail
+                .contains("cannot read included //:rust.MODULE.bazel"),
+            "{}",
+            unread.detail
+        );
+        assert!(super::language_toolchain_checks(dir).is_empty());
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
     fn bazel_check_reads_the_pin_and_launcher() {
         let scratch = dx_test_scratch::scratch("dx-status-bazel-").unwrap();
         let dir = scratch.path().to_path_buf();
@@ -1036,6 +1110,25 @@ node.toolchain(node_version = pinned)
         );
         std::fs::write(dir.join(".bazelrc"), format!("# {import}\n")).expect("rc");
         assert_eq!(super::exec_tools_check(&dir).status, "warn", "{dir_rel}");
+    }
+
+    #[test]
+    fn exec_tools_check_reads_every_flag_on_a_line() {
+        let scratch = dx_test_scratch::scratch("dx-status-exec-flags-").unwrap();
+        let dir = scratch.path().to_path_buf();
+        for rc in [
+            "build --config=ci --host_compilation_mode=fastbuild\n",
+            "build --host_compilation_mode fastbuild\n",
+        ] {
+            std::fs::write(dir.join(".bazelrc"), rc).expect("rc");
+            assert_eq!(super::exec_tools_check(&dir).status, "ok", "{rc:?}");
+        }
+        std::fs::write(
+            dir.join(".bazelrc"),
+            "build --host_compilation_mode=fastbuild --host_compilation_mode=opt\n",
+        )
+        .expect("rc");
+        assert_eq!(super::exec_tools_check(&dir).status, "warn");
     }
 
     #[test]

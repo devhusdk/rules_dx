@@ -13,17 +13,17 @@ pub struct MissingDep {
     pub line: usize,
 }
 
-fn go_files(root: &Path) -> Vec<PathBuf> {
+pub(crate) fn go_files(root: &Path) -> Result<Vec<PathBuf>, DepcheckError> {
     let mut out = Vec::new();
     let mut stack = vec![root.to_path_buf()];
     while let Some(dir) = stack.pop() {
-        let Ok(entries) = std::fs::read_dir(&dir) else {
-            continue;
-        };
-        for entry in entries.flatten() {
+        for entry in crate::usage::list_dir(&dir)? {
             let path = entry.path();
             let name = entry.file_name().to_string_lossy().into_owned();
             if path.is_dir() {
+                if path.symlink_metadata().is_ok_and(|m| m.is_symlink()) {
+                    continue;
+                }
                 let skipped = matches!(
                     name.as_str(),
                     ".git" | "node_modules" | "vendor" | "testdata"
@@ -42,7 +42,7 @@ fn go_files(root: &Path) -> Vec<PathBuf> {
         }
     }
     out.sort();
-    out
+    Ok(out)
 }
 
 fn covers(module: &str, import: &str) -> bool {
@@ -86,8 +86,8 @@ pub fn find_missing_go(
     let text = std::fs::read_to_string(manifest).map_err(DepcheckError::ManifestIo)?;
     let file = dx_gomod::parse_mod(&text).map_err(DepcheckError::ManifestParse)?;
     let mut found: BTreeMap<String, MissingDep> = BTreeMap::new();
-    for path in go_files(sources) {
-        let Ok(bytes) = std::fs::read(&path) else {
+    for path in go_files(sources)? {
+        let Some(bytes) = crate::usage::read_source(&path)? else {
             continue;
         };
         let rel = path

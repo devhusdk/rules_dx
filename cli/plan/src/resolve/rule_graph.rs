@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::Path;
 
 use dx_path::label::{Label, Repo};
@@ -11,7 +11,7 @@ const EXPRESSION: &str = "kind('rule', //...)";
 /// The workspace rule graph as Bazel reports it, without loading any external repo.
 #[derive(Debug)]
 pub struct RuleGraph {
-    inputs: HashMap<String, Vec<String>>,
+    inputs: BTreeMap<String, Vec<String>>,
     users: HashMap<String, Vec<String>>,
     manual: HashSet<String>,
     release: HashSet<String>,
@@ -156,7 +156,7 @@ impl RuleGraph {
         })?;
         let mut outputs: Vec<(String, Vec<String>)> = Vec::new();
         let mut graph = RuleGraph {
-            inputs: HashMap::new(),
+            inputs: BTreeMap::new(),
             users: HashMap::new(),
             manual: HashSet::new(),
             release: HashSet::new(),

@@ -10,7 +10,20 @@ package(
 
 vue_library(
     name = "conformance",
-    srcs = ["Hello.vue"],
+    srcs = ["HelloWorld.vue"],
+    aspect_hints = ["//core/quality/testdata:eslint_cfg_vue"],
+)
+
+vue_library(
+    name = "lint_dirty",
+    srcs = ["LintDirty.vue"],
+    aspect_hints = ["//core/quality/testdata:eslint_cfg_vue"],
+)
+
+vue_library(
+    name = "format_dirty",
+    srcs = ["FormatDirty.vue"],
+    aspect_hints = ["//core/quality/testdata:eslint_cfg_vue"],
 )
 
 vue_test(
@@ -18,7 +31,7 @@ vue_test(
     size = "small",
     srcs = ["pass.test.js"],
     data = [
-        ":Hello.vue",
+        ":HelloWorld.vue",
         ":helper.js",
     ],
     node_modules = "//:node_modules",
@@ -31,7 +44,7 @@ vue_test(
     size = "small",
     srcs = ["fail.test.js"],
     data = [
-        ":Hello.vue",
+        ":HelloWorld.vue",
         ":helper.js",
     ],
     node_modules = "//:node_modules",
@@ -45,7 +58,7 @@ dx_conformance_suite(
     covered_source = "helper.js",
     expected = "",
     failing_case = "failing case",
-    failing_pattern = "Hello.vue › {case}",
+    failing_pattern = "HelloWorld.vue › {case}",
     failing_test = ":fail_subject_test",
     lang = "vue",
     not_applicable = {
@@ -55,5 +68,14 @@ dx_conformance_suite(
         "runfiles_test": "vue has no binary rule",
     },
     passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "FormatDirty.vue",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 3,
+        "lint_rule": "vue/no-unused-vars",
+        "lint_source": "LintDirty.vue",
+    },
     size = "small",
 )

@@ -966,5 +966,8 @@ fn sources_sidecars_merge_sorted_and_stay_out_of_the_generated_artifacts() {
         decode_sources(&outputs),
         ["api/BUILD.bazel", "api/a.proto", "api/b.proto"]
     );
-    assert_eq!(generated_artifact_paths(&outputs), [] as [String; 0]);
+    assert_eq!(
+        generated_artifact_paths(&outputs).unwrap(),
+        [] as [String; 0]
+    );
 }

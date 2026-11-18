@@ -264,13 +264,32 @@ impl CiProvider {
             dx_process::capture::git(root).args(["remote", "get-url", "origin"]),
             dx_process::capture::DEFAULT_TIMEOUT,
         )
-        .is_ok_and(|out| out.stdout_text().contains("gitlab"));
+        .is_ok_and(|out| remote_is_gitlab(out.stdout_text().trim()));
         if gitlab_remote {
             Self::Gitlab
         } else {
             Self::Github
         }
     }
+}
+
+/// Whether a git remote URL, in URL or scp form, points at a GitLab host.
+fn remote_is_gitlab(url: &str) -> bool {
+    let (after_scheme, scp) = match url.split_once("://") {
+        Some((_, rest)) => (rest, false),
+        None => (url, true),
+    };
+    let authority = if scp {
+        match after_scheme.split_once(':') {
+            Some((authority, _)) if !authority.contains('/') => authority,
+            _ => return false,
+        }
+    } else {
+        after_scheme.split('/').next().unwrap_or_default()
+    };
+    let host = authority.rsplit('@').next().unwrap_or_default();
+    let host = host.split(':').next().unwrap_or_default();
+    host.to_ascii_lowercase().contains("gitlab")
 }
 
 pub const DEFAULT_BRANCH_FALLBACK: &str = "main";
@@ -365,18 +384,14 @@ impl EditorTools {
         self.selected.as_ref().is_none_or(|ids| ids.contains(tool))
     }
 
-    /// Reads the tier from `dx.toml` and the ruff config from the root of `root`.
-    #[must_use]
-    pub fn detect(root: &Path) -> Self {
-        let strict = std::fs::read_to_string(root.join("dx.toml"))
-            .ok()
-            .and_then(|text| text.parse::<toml::Table>().ok())
-            .and_then(|table| {
-                table
-                    .get("tier")
-                    .and_then(|tier| tier.as_str().map(str::to_owned))
-            })
-            .is_some_and(|tier| tier == "strict");
+    /// Reads the tier and tool selection from `dx.toml` and the ruff config from the root of `root`.
+    pub fn detect(root: &Path) -> Result<Self, AdoptError> {
+        let config = dx_config::load(root).map_err(|error| AdoptError::DxConfig {
+            detail: error.to_string(),
+        })?;
+        let strict = config
+            .as_ref()
+            .is_some_and(|config| config.tier == Some(dx_config::Tier::Strict));
         let root_file = |names: &[&str]| {
             names
                 .iter()
@@ -384,12 +399,15 @@ impl EditorTools {
                 .map(|name| (*name).to_owned())
                 .unwrap_or_default()
         };
-        let config = dx_config::load(root).ok().flatten();
         let selected =
             dx_generate::selected_configs(config.as_ref(), &crate::detected_families(root))
-                .ok()
-                .map(|tools| tools.iter().map(|tool| tool.id.to_owned()).collect());
-        Self {
+                .map_err(|error| AdoptError::DxConfig {
+                    detail: error.to_string(),
+                })?
+                .iter()
+                .map(|tool| tool.id.to_owned())
+                .collect();
+        Ok(Self {
             strict,
             ruff_config: root_file(&["ruff.toml", ".ruff.toml"]),
             eslint_config: root_file(&[
@@ -405,8 +423,8 @@ impl EditorTools {
                 "stylelint.config.cjs",
             ]),
             biome_config: root_file(&["biome.json", "biome.jsonc"]),
-            selected,
-        }
+            selected: Some(selected),
+        })
     }
 }
 
@@ -630,7 +648,7 @@ fn merge_owned(kind: FileKind, existing: &str, generated: &str) -> Result<String
                     other.as_str().map(str::to_lowercase) == id.as_str().map(str::to_lowercase)
                 });
                 if !skipped {
-                    text = dx_merge::jsonc::append_missing(&text, &["recommendations"], &id)?;
+                    text = dx_merge::jsonc::append_missing(&text, &["recommendations"], id)?;
                 }
             }
             let stale: Vec<serde_json::Value> = TOOL_EDITOR_EXTENSIONS
@@ -755,7 +773,7 @@ pub fn plan_init_files_at(
         (
             detect_default_branch(root),
             crate::families::file_extensions(root),
-            EditorTools::detect(root),
+            EditorTools::detect(root)?,
         )
     } else {
         (
@@ -960,8 +978,10 @@ pub fn owned_file_drift(root: &Path, file: &ScaffoldFile) -> Result<bool, DxErro
     if file.kind == FileKind::WriteOnce {
         return Ok(false);
     }
-    let Ok(existing) = std::fs::read_to_string(root.join(&file.path)) else {
-        return Ok(false);
+    let existing = match std::fs::read_to_string(root.join(&file.path)) {
+        Ok(existing) => existing,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(error) => return Err(DxError::failure(format!("{}: {error}", file.path))),
     };
     match merge_owned(file.kind, &existing, &file.content) {
         Ok(merged) => Ok(merged != existing),
@@ -1150,6 +1170,45 @@ mod tests {
         assert_eq!(super::CiProvider::detect(root), super::CiProvider::Github);
         std::fs::write(root.join(".gitlab-ci.yml"), "").expect("gitlab");
         assert_eq!(super::CiProvider::detect(root), super::CiProvider::Gitlab);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn only_a_gitlab_host_means_gitlab() {
+        for url in [
+            "https://gitlab.com/acme/app.git",
+            "git@gitlab.example.com:acme/app.git",
+            "ssh://git@gitlab.internal:2222/acme/app.git",
+        ] {
+            assert!(super::remote_is_gitlab(url), "{url}");
+        }
+        for url in [
+            "git@github.com:acme/gitlab-sync.git",
+            "https://github.com/gitlab/app.git",
+            "/srv/gitlab/app.git",
+            "",
+        ] {
+            assert!(!super::remote_is_gitlab(url), "{url}");
+        }
+    }
+
+    #[test]
+    fn owned_file_drift_reports_an_unreadable_file() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-drift-").unwrap();
+        let root = scratch.path();
+        let file = super::ScaffoldFile {
+            path: ".vscode/settings.json".to_owned(),
+            content: "{}\n".to_owned(),
+            kind: FileKind::VscodeKeys,
+        };
+        assert_eq!(super::owned_file_drift(root, &file), Ok(false));
+        std::fs::create_dir_all(root.join(".vscode")).expect("dir");
+        std::fs::write(root.join(&file.path), b"\xff\xfe").expect("bytes");
+        let error = super::owned_file_drift(root, &file).expect_err("not UTF-8");
+        assert!(
+            error.message().contains(".vscode/settings.json"),
+            "{error:?}"
+        );
         scratch.close().expect("cleanup");
     }
 
@@ -1826,10 +1885,20 @@ mod tests {
     }
 
     #[test]
+    fn broken_dx_toml_is_an_error() {
+        let root = dx_test_scratch::scratch("broken-dx-toml").unwrap();
+        std::fs::write(root.path().join("dx.toml"), "tier = [").expect("write");
+        let error = EditorTools::detect(root.path()).expect_err("broken");
+        assert!(error.to_string().starts_with("dx.toml: "), "{error}");
+        let error = super::plan_init_files_at(root.path(), "demo", None).expect_err("broken");
+        assert!(error.to_string().starts_with("dx.toml: "), "{error}");
+    }
+
+    #[test]
     fn ruff_configuration_follows_the_root_file() {
         let root = dx_test_scratch::scratch("ruff-config").unwrap();
         std::fs::write(root.path().join("app.py"), "").expect("write");
-        let none = EditorTools::detect(root.path());
+        let none = EditorTools::detect(root.path()).expect("detect");
         assert_eq!(none.ruff_config, "");
         let py: std::collections::BTreeSet<String> = [".py".to_owned()].into();
         let settings: serde_json::Value =
@@ -1839,7 +1908,7 @@ mod tests {
             "${workspaceFolder}/.dx/config/ruff/base.toml"
         );
         std::fs::write(root.path().join("ruff.toml"), "").expect("write");
-        let tools = EditorTools::detect(root.path());
+        let tools = EditorTools::detect(root.path()).expect("detect");
         assert_eq!(tools.ruff_config, "ruff.toml");
         let settings: serde_json::Value =
             serde_json::from_str(&render_editor_settings(&py, &tools)).expect("json");

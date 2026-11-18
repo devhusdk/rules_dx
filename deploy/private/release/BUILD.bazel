@@ -191,12 +191,10 @@ rust_test(
     data = [
         "//.bcr:templates",
     ],
-    deps = all_crate_deps(
-        package_name = "deploy/private/dx_release_tools",
-        normal = True,
-    ) + [
+    deps = [
         ":dx_release_tools",
         "//tools/testing:dx_testing",
+        "@crates//:serde_json",
     ],
 )
 

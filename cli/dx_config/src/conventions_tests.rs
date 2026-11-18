@@ -113,8 +113,19 @@ fn bad_patterns_are_rejected() {
         "@",
         "@r:a",
         "//a/...:x",
+        "//../...",
+        "//a/../b/...",
+        "//a/./b:c",
+        "//a//b",
+        "//a//b/...",
+        "//a\\b:c",
+        "//a b:c",
+        "//a:b\r",
+        "//a:b\n",
+        "//a:\u{0}",
     ] {
-        assert!(!is_valid_pattern(bad), "{bad}");
+        assert!(!is_valid_pattern(bad), "{bad:?}");
+        assert_eq!(recursive_dir(bad), None, "{bad:?}");
     }
     for good in [
         "//...",

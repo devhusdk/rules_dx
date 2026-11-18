@@ -20,6 +20,7 @@ pub enum Problem {
     NotList(&'static str),
     DogfoodList(serde_json::Error),
     PreflightEntry(&'static str),
+    QualityEntry,
     NoLane { platform: String },
     LaneSuite { platform: String, suite: String },
     LaneDuplicate { platform: String, label: String },
@@ -43,12 +44,13 @@ impl fmt::Display for Problem {
                 write!(f, "dogfood platforms are not a JSON list: {source}")
             }
             Self::PreflightEntry(lacks) => write!(f, "a preflight entry lacks {lacks}"),
-            Self::NoLane { platform } => write!(f, "no preflight lane for {platform}"),
+            Self::QualityEntry => f.write_str("a quality-matrix entry lacks platform"),
+            Self::NoLane { platform } => write!(f, "no quality-matrix lane for {platform}"),
             Self::LaneSuite { platform, suite } => {
-                write!(f, "the {platform} preflight lane must run {suite}")
+                write!(f, "the {platform} quality-matrix lane must run {suite}")
             }
             Self::LaneDuplicate { platform, label } => {
-                write!(f, "the {platform} preflight lane lists {label} twice")
+                write!(f, "the {platform} quality-matrix lane lists {label} twice")
             }
             Self::NoJobs => f.write_str("declares no jobs"),
             Self::NoRunsOn { job } => write!(f, "job {job} has no string runs-on"),
@@ -90,6 +92,7 @@ impl std::error::Error for WorkflowError {
             Problem::NotString(_)
             | Problem::NotList(_)
             | Problem::PreflightEntry(_)
+            | Problem::QualityEntry
             | Problem::NoLane { .. }
             | Problem::LaneSuite { .. }
             | Problem::LaneDuplicate { .. }
@@ -174,19 +177,22 @@ pub fn runner_platforms(path: &str, text: &str) -> Result<BTreeMap<String, Strin
     Ok(runners)
 }
 
-/// Returns the `quality` labels of each platform's `preflight` lane in `ci.yml`.
+/// Returns the `quality` labels of each platform's `quality-matrix` lane in `ci.yml`.
 ///
 /// # Errors
 ///
 /// Returns a [`WorkflowError`] naming the workflow and the problem in it.
-pub fn preflight_quality(
+pub fn quality_matrix_lanes(
     path: &str,
     text: &str,
 ) -> Result<BTreeMap<String, Vec<String>>, WorkflowError> {
     let document = document(path, text)?;
     let Some(include) = field(
         field(
-            field(field(field(&document, "jobs"), "preflight"), "strategy"),
+            field(
+                field(field(&document, "jobs"), "quality-matrix"),
+                "strategy",
+            ),
             "matrix",
         ),
         "include",
@@ -194,13 +200,13 @@ pub fn preflight_quality(
     .as_array() else {
         return Err(error(
             path,
-            Problem::NotList("jobs.preflight.strategy.matrix.include"),
+            Problem::NotList("jobs.quality-matrix.strategy.matrix.include"),
         ));
     };
     let mut lanes = BTreeMap::new();
     for entry in include {
         let Some(platform) = field(entry, "platform").as_str() else {
-            return Err(error(path, Problem::PreflightEntry("platform")));
+            return Err(error(path, Problem::QualityEntry));
         };
         let labels = field(entry, "quality")
             .as_str()
@@ -213,7 +219,7 @@ pub fn preflight_quality(
     Ok(lanes)
 }
 
-/// Checks that each non-default platform's preflight lane runs its own evidence suite
+/// Checks that each non-default platform's quality-matrix lane runs its own evidence suite
 /// `//core/quality/testdata:runner_matrix_<platform>` and lists no label twice.
 ///
 /// # Errors
@@ -458,21 +464,21 @@ jobs:
 
     fn lane_ci(quality: &str) -> String {
         format!(
-            "jobs:\n  preflight:\n    strategy:\n      matrix:\n        include:\n          - platform: macos_arm64\n            runner: macos-15\n            quality: \"{quality}\"\n"
+            "jobs:\n  quality-matrix:\n    strategy:\n      matrix:\n        include:\n          - platform: macos_arm64\n            runner: macos-15\n            quality: \"{quality}\"\n"
         )
     }
 
     #[test]
     fn accepts_a_lane_running_its_suite() {
         let ci = lane_ci("//core/quality/testdata:runner_matrix_macos_arm64 //x:y");
-        let lanes = preflight_quality("ci.yml", &ci).expect("lanes");
+        let lanes = quality_matrix_lanes("ci.yml", &ci).expect("lanes");
         check_evidence_lanes("ci.yml", &lanes, &["linux_x86_64", "macos_arm64"]).expect("ok");
     }
 
     #[test]
     fn rejects_a_lane_without_its_suite() {
         let ci = lane_ci("//x:y");
-        let lanes = preflight_quality("ci.yml", &ci).expect("lanes");
+        let lanes = quality_matrix_lanes("ci.yml", &ci).expect("lanes");
         let error = check_evidence_lanes("ci.yml", &lanes, &["macos_arm64"]).expect_err("suite");
         assert!(
             error.to_string().contains("runner_matrix_macos_arm64"),
@@ -488,7 +494,7 @@ jobs:
     #[test]
     fn rejects_a_duplicate_lane_label() {
         let ci = lane_ci("//core/quality/testdata:runner_matrix_macos_arm64 //x:y //x:y");
-        let lanes = preflight_quality("ci.yml", &ci).expect("lanes");
+        let lanes = quality_matrix_lanes("ci.yml", &ci).expect("lanes");
         let error = check_evidence_lanes("ci.yml", &lanes, &["macos_arm64"]).expect_err("dup");
         assert!(error.to_string().contains("twice"), "{error}");
     }

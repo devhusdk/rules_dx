@@ -256,7 +256,7 @@ pub fn git_output(
         .run_query(&git_argv, workspace)
         .map_err(|error| dx_error::DxError::infra(format!("git {what} failed: {error}")))?;
     if result.code != Some(0) {
-        let detail = dx_output::first_diagnostic_line(&result.stderr, 200, "no Git diagnostic");
+        let detail = dx_plan::resolve::git_exit_detail(&result.stderr, result.code);
         return Err(dx_error::DxError::failure(format!(
             "git {what} failed: {detail}"
         )));

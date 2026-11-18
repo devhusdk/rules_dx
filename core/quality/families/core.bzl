@@ -18,7 +18,7 @@ TOOLS = {
         "attr": attr.label(default = "@dx_tools//:biome", allow_single_file = True, cfg = "exec"),
         "kind": "file",
         "resources": "light",
-        "shard": "core",
+        "shard": "biome",
     },
     "buildifier": {
         "attr": attr.label(default = "@dx_tools//:buildifier", allow_single_file = True, cfg = "exec"),
@@ -63,7 +63,7 @@ TOOLS = {
         "attr": attr.label(default = "@dx_tools//:vale", allow_single_file = True, cfg = "exec"),
         "kind": "file",
         "resources": "light",
-        "shard": "core",
+        "shard": "vale",
     },
     "zizmor": {
         "attr": attr.label(default = "@dx_tools//:zizmor", allow_single_file = True, cfg = "exec"),
@@ -78,6 +78,16 @@ _ACTIONLINT_ATTRS = {
 }
 
 SHARD_SPECS = {
+    "real_biome_format": {
+        "capability": "format",
+        "doc": "Biome real format aspect.",
+        "shard": "biome",
+    },
+    "real_biome_lint": {
+        "capability": "lint",
+        "doc": "Biome real lint aspect.",
+        "shard": "biome",
+    },
     "real_format": {
         "capability": "format",
         "doc": "Registers the exact-input real format pipeline action in dx_results.",
@@ -99,6 +109,11 @@ SHARD_SPECS = {
         "shard": "core",
         "shared_attrs": True,
         "suffix": "",
+    },
+    "real_vale_lint": {
+        "capability": "lint",
+        "doc": "Vale real lint aspect.",
+        "shard": "vale",
     },
 }
 
@@ -158,3 +173,9 @@ real_lint_aspect = real_make_aspect(_CFG, "real_lint")
 real_format_aspect = real_make_aspect(_CFG, "real_format")
 
 real_typecheck_aspect = real_make_aspect(_CFG, "real_typecheck")
+
+real_biome_format_aspect = real_make_aspect(_CFG, "real_biome_format")
+
+real_biome_lint_aspect = real_make_aspect(_CFG, "real_biome_lint")
+
+real_vale_lint_aspect = real_make_aspect(_CFG, "real_vale_lint")

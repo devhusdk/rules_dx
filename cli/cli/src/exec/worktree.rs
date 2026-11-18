@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::ffi::OsStr;
 use std::fmt::Write as _;
 use std::io::Write;
@@ -133,6 +134,7 @@ pub(crate) fn execute_worktree(invocation: &Invocation, env: Env<'_>) -> i32 {
         );
         return fail(invocation, out, err, &error);
     }
+    let invocation = &*path_only_output(invocation);
     if let ["hook", word] = words.as_slice()
         && let Some(kind) = HookKind::from_word(word)
     {
@@ -178,6 +180,17 @@ fn misplaced_flag(invocation: &Invocation, sub: &str) -> Option<&'static str> {
         return Some("--path-only");
     }
     None
+}
+
+/// Under `--path-only`, any output mode becomes quiet text: stdout holds only
+/// the slot path.
+fn path_only_output(invocation: &Invocation) -> Cow<'_, Invocation> {
+    if !invocation.path_only || quiet_text(invocation) {
+        return Cow::Borrowed(invocation);
+    }
+    let mut quiet = invocation.clone();
+    quiet.output = OutputMode::Text { quiet: true };
+    Cow::Owned(quiet)
 }
 
 enum Failed {
@@ -1102,6 +1115,23 @@ mod tests {
         add_output(&mut out, &mut err, &invocation, "x", &reused).expect("output");
         assert_eq!(String::from_utf8(out).expect("utf8"), "/cache/slots/3\n");
         assert_eq!(String::from_utf8(err).expect("utf8"), "");
+    }
+
+    #[test]
+    fn add_path_only_under_json_prints_only_the_path() {
+        let json = parsed(&["worktree", "add", "x", "--path-only", "--output=json"]);
+        let invocation = path_only_output(&json);
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        start(&mut out, &invocation, "default").expect("start");
+        add_output(&mut out, &mut err, &invocation, "x", &added()).expect("output");
+        assert_eq!(finish(&mut out, &invocation, 0), 0);
+        assert_eq!(String::from_utf8(out).expect("utf8"), "/cache/slots/3\n");
+        assert_eq!(
+            String::from_utf8(err).expect("utf8"),
+            "dx worktree: cannot fetch origin, using local refs: offline\n\
+             dx worktree: started x from origin/main\n"
+        );
     }
 
     #[test]

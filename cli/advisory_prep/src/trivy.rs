@@ -62,7 +62,9 @@ pub fn prepare_with(
 ) -> Result<TrivyPrepared, PrepError> {
     let cache = out.join(CACHE_DIR);
     let meta_path = out.join(META_FILE);
-    if let Ok(text) = std::fs::read_to_string(&meta_path)
+    let metadata_path = cache.join("db").join("metadata.json");
+    if metadata_path.is_file()
+        && let Ok(text) = std::fs::read_to_string(&meta_path)
         && let Ok(sidecar) = serde_json::from_str::<Sidecar>(&text)
         && sidecar.retrieved_at == retrieved_at
     {
@@ -76,7 +78,6 @@ pub fn prepare_with(
     for args in download_args(&cache) {
         run(&args)?;
     }
-    let metadata_path = cache.join("db").join("metadata.json");
     let metadata = std::fs::read_to_string(&metadata_path).map_err(|error| PrepError::Fetch {
         program: "trivy".to_owned(),
         detail: format!("{}: {error}", metadata_path.display()),
@@ -115,11 +116,14 @@ pub fn pack_cache(cache: &Path, dest: &Path) -> Result<Vec<u8>, PrepError> {
         std::fs::create_dir_all(parent).map_err(|error| fail(error.to_string()))?;
     }
     let mut files = Vec::new();
-    collect(cache, Path::new(""), &mut files).map_err(|error| fail(error.to_string()))?;
+    collect(cache, Path::new(""), &mut files)
+        .map_err(|error| fail(format!("{}: {error}", cache.display())))?;
     files.sort();
     let mut writer = dx_archive::TarWriter::new();
     for relative in &files {
-        let data = std::fs::read(cache.join(relative)).map_err(|error| fail(error.to_string()))?;
+        let source = cache.join(relative);
+        let data = std::fs::read(&source)
+            .map_err(|error| fail(format!("{}: {error}", source.display())))?;
         let name = relative
             .iter()
             .map(|part| part.to_str())

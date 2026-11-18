@@ -186,6 +186,22 @@ fn generate_traversals(resolved: &ResolvedScope) -> Vec<Traversal> {
     )
 }
 
+/// Whether the generate walk of `resolved` visits the package in `dir`; `.` is the root.
+#[must_use]
+pub fn generate_scope_visits(resolved: &ResolvedScope, dir: &str) -> bool {
+    let package = Traversal {
+        dir: if dir == "." {
+            String::new()
+        } else {
+            dir.to_owned()
+        },
+        recursive: false,
+    };
+    generate_traversals(resolved)
+        .iter()
+        .any(|walk| walk.covers(&package))
+}
+
 #[must_use]
 pub fn generate_traversal_dirs(resolved: &ResolvedScope) -> Vec<String> {
     generate_traversals(resolved)
@@ -444,6 +460,21 @@ mod tests {
             plan.argv[plan.argv.len() - 4..],
             strings(&["--", "-r=false", ".", "cli/cli/src/exec"])
         );
+    }
+
+    #[test]
+    fn generate_scope_visits_only_the_packages_the_walk_reaches() {
+        let whole = resolved(&[]);
+        assert!(generate_scope_visits(&whole, "."));
+        assert!(generate_scope_visits(&whole, "php/app"));
+        let scoped = resolved(&["//a:one", "//b/..."]);
+        assert!(generate_scope_visits(&scoped, "a"));
+        assert!(!generate_scope_visits(&scoped, "a/sub"));
+        assert!(generate_scope_visits(&scoped, "b"));
+        assert!(generate_scope_visits(&scoped, "b/sub"));
+        assert!(!generate_scope_visits(&scoped, "bc"));
+        assert!(!generate_scope_visits(&scoped, "."));
+        assert!(generate_scope_visits(&resolved(&["//:all"]), "."));
     }
 
     #[test]

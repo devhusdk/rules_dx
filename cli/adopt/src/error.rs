@@ -50,6 +50,8 @@ pub enum AdoptError {
     Generate { detail: String },
     #[error("invalid invocation defaults: {detail}")]
     InvalidDefaults { detail: String },
+    #[error("dx.toml: {detail}")]
+    DxConfig { detail: String },
 }
 
 #[cfg(test)]

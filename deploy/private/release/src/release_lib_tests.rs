@@ -21,7 +21,7 @@ fn lock_entries_read_each_ecosystem() {
 fn lock_entries_render_as_package_urls() {
     let go = "module m\n\ngo 1.22\n\nrequire github.com/x/y v1.2.3\n";
     let entries = lock_entries("go", go).expect("go");
-    let text = render_spdx_with_crates("a", "00", "a", "s", &entries);
+    let text = render_spdx_with_crates("a", "00", "a", "s", &entries).expect("render");
     assert!(text.contains("pkg:golang/github.com/x/y@v1.2.3"), "{text}");
 }
 
@@ -47,7 +47,7 @@ fn basename_rejects_missing_name() {
 #[test]
 fn spdx_bytes_match_python_golden() {
     let digest = "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447";
-    let text = render_spdx("artifact.bin", digest, "dx", "rules_dx");
+    let text = render_spdx("artifact.bin", digest, "dx", "rules_dx").expect("render");
     assert!(text.ends_with('\n'));
     assert!(!text.ends_with("\r\n"));
     let value: serde_json::Value = serde_json::from_str(&text).expect("valid JSON");
@@ -84,7 +84,8 @@ fn spdx_lists_inventory_crates() {
     let digest = "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447";
     let manifest = "zed|cargo|2.0.0|MIT||\nalpha|cargo|1.0.0|MIT OR Apache-2.0||\n";
     let crates = parse_notice_manifest(manifest).expect("manifest");
-    let text = render_spdx_with_crates("artifact.bin", digest, "dx", "rules_dx", &crates);
+    let text =
+        render_spdx_with_crates("artifact.bin", digest, "dx", "rules_dx", &crates).expect("render");
     let value: serde_json::Value = serde_json::from_str(&text).expect("json");
     let packages = value["packages"].as_array().expect("packages");
     let ids: Vec<&str> = packages
@@ -135,7 +136,8 @@ fn spdx_lists_runtimes_with_file_hashes() {
             }],
         ),
     ];
-    let text = render_spdx_full("artifact.bin", digest, "dx", "rules_dx", &[], &records);
+    let text =
+        render_spdx_full("artifact.bin", digest, "dx", "rules_dx", &[], &records).expect("render");
     let value: serde_json::Value = serde_json::from_str(&text).expect("json");
     let packages = value["packages"].as_array().expect("packages");
     assert_eq!(packages.len(), 3);
@@ -158,22 +160,23 @@ fn spdx_lists_runtimes_with_file_hashes() {
     assert_eq!(rels[3]["relationshipType"], "CONTAINS");
     assert_eq!(dx_sbom_schema::spdx_errors(&text), Vec::<String>::new());
     assert_eq!(
-        render_spdx_full("artifact.bin", digest, "dx", "rules_dx", &[], &[]),
-        render_spdx("artifact.bin", digest, "dx", "rules_dx")
+        render_spdx_full("artifact.bin", digest, "dx", "rules_dx", &[], &[]).expect("render"),
+        render_spdx("artifact.bin", digest, "dx", "rules_dx").expect("render")
     );
 }
 
 #[test]
 fn release_spdx_passes_spdx_2_3_schema() {
     let digest = "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447";
-    let text = render_spdx("artifact.bin", digest, "dx", "rules_dx");
+    let text = render_spdx("artifact.bin", digest, "dx", "rules_dx").expect("render");
     assert_eq!(dx_sbom_schema::spdx_errors(&text), Vec::<String>::new());
 }
 
 #[test]
 fn provenance_bytes_match_python_golden() {
     let digest = "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447";
-    let text = render_provenance("artifact.bin", digest, PROVENANCE_BUILDER_RELEASE);
+    let text =
+        render_provenance("artifact.bin", digest, PROVENANCE_BUILDER_RELEASE).expect("render");
     assert!(text.ends_with('\n'));
     let value: serde_json::Value = serde_json::from_str(&text).expect("valid JSON");
     assert_eq!(
@@ -205,7 +208,7 @@ fn provenance_bytes_match_python_golden() {
 
 #[test]
 fn bcr_bytes_match_python_golden() {
-    let text = render_bcr_source("rules_dx", "1.2.3");
+    let text = render_bcr_source("rules_dx", "1.2.3").expect("render");
     assert_eq!(
         text,
         "{\n  \"integrity\": \"<integrity-filled-at-release>\",\n  \"strip_prefix\": \"rules_dx-1.2.3\",\n  \"url\": \"https://github.com/devhusdk/rules_dx/releases/download/v1.2.3/rules_dx-1.2.3.tar.gz\"\n}\n"
@@ -215,16 +218,24 @@ fn bcr_bytes_match_python_golden() {
 #[test]
 fn render_escapes_non_ascii_like_python() {
     let digest = "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447";
-    let text = render_spdx("artifact.bin", digest, "dx", "caf\u{e9}");
+    let text = render_spdx("artifact.bin", digest, "dx", "caf\u{e9}").expect("render");
     assert!(text.contains("caf\\u00e9"));
     assert!(!text.contains("caf\u{e9}"));
-    let astral = render_bcr_source("rules_dx\u{1F600}", "1.2.3");
+    let astral = render_bcr_source("rules_dx\u{1F600}", "1.2.3").expect("render");
     assert!(astral.contains("\\ud83d\\ude00"));
     assert_eq!(dx_fingerprint::ensure_ascii("caf\u{e9}"), "caf\\u00e9");
     let value = serde_json::json!({"name": "caf\u{e9}"});
     let central = dx_fingerprint::to_json_ascii_pretty(&value).expect("central pretty");
     assert!(central.contains("caf\\u00e9"));
-    assert_eq!(render_pretty(&value), central);
+    assert_eq!(render_pretty(&value).expect("render"), central);
+}
+
+#[test]
+fn render_pretty_reports_serialize_errors() {
+    let value = std::collections::BTreeMap::from([((1_u8, 2_u8), "pair")]);
+    let error = render_pretty(&value).expect_err("tuple keys are not JSON object keys");
+    assert!(error.starts_with("cannot render JSON: "), "{error}");
+    assert!(error.contains("key must be a string"), "{error}");
 }
 
 #[test]
@@ -237,20 +248,20 @@ fn write_helpers_round_trip_digests() {
     let spdx_text = std::fs::read_to_string(&spdx_out).expect("read spdx");
     assert_eq!(
         spdx_text,
-        render_spdx("artifact.bin", &digest, "dx", "rules_dx")
+        render_spdx("artifact.bin", &digest, "dx", "rules_dx").expect("render")
     );
     let prov_out = scratch.path().join("out.prov.json");
     write_provenance(&src, &prov_out, PROVENANCE_BUILDER_RELEASE).expect("write prov");
     let prov_text = std::fs::read_to_string(&prov_out).expect("read prov");
     assert_eq!(
         prov_text,
-        render_provenance("artifact.bin", &digest, PROVENANCE_BUILDER_RELEASE)
+        render_provenance("artifact.bin", &digest, PROVENANCE_BUILDER_RELEASE).expect("render")
     );
     let bcr_out = scratch.path().join("out.source.json");
     write_bcr_source(&bcr_out, "rules_dx", "1.2.3").expect("write bcr");
     assert_eq!(
         std::fs::read_to_string(&bcr_out).expect("read bcr"),
-        render_bcr_source("rules_dx", "1.2.3")
+        render_bcr_source("rules_dx", "1.2.3").expect("render")
     );
     assert!(write_spdx(&scratch.path().join("missing"), &spdx_out, "dx", "s").is_err());
     assert!(write_provenance(&scratch.path().join("missing"), &prov_out, "b").is_err());
@@ -736,7 +747,8 @@ fn sbom_verify_reads_provenance_fields_not_text() {
     let spdx = scratch.path().join("artifact.spdx.json");
     write_spdx(&artifact, &spdx, "dx", "rules_dx").expect("spdx");
     let prov = scratch.path().join("artifact.prov.json");
-    let base = render_provenance("artifact.bin", &digest, PROVENANCE_BUILDER_RELEASE);
+    let base =
+        render_provenance("artifact.bin", &digest, PROVENANCE_BUILDER_RELEASE).expect("render");
     let value: serde_json::Value = serde_json::from_str(&base).expect("json");
     let with = |edit: &dyn Fn(&mut serde_json::Value)| {
         let mut copy = value.clone();
@@ -853,7 +865,7 @@ fn sbom_verify_rejects_forged_builder() {
     let spdx = scratch.path().join("artifact.spdx.json");
     write_spdx(&artifact, &spdx, "dx", "rules_dx").expect("spdx");
     let prov = scratch.path().join("forged.prov.json");
-    let forged = render_provenance("artifact.bin", &digest, FORGED_BUILDER_ID);
+    let forged = render_provenance("artifact.bin", &digest, FORGED_BUILDER_ID).expect("render");
     std::fs::write(&prov, forged.as_bytes()).expect("write forged");
     assert!(sbom_verify_files(&artifact, &spdx, &prov, PROVENANCE_BUILDER_RELEASE).is_err());
 }
@@ -1041,7 +1053,7 @@ fn sbom_verify_rejects_broken_bindings() {
     let spdx_bad = scratch.path().join("bad.spdx.json");
     std::fs::write(
         &spdx_bad,
-        render_spdx("artifact.bin", &zeros, "dx", "rules_dx"),
+        render_spdx("artifact.bin", &zeros, "dx", "rules_dx").expect("render"),
     )
     .expect("spdx bad");
     let err = sbom_verify_files(&artifact, &spdx_bad, &prov_ok, PROVENANCE_BUILDER_RELEASE)
@@ -1165,7 +1177,8 @@ fn notice_text_suffix_match_is_component_wise() {
     assert_eq!(found("a/LICENSE"), vec!["x/a/LICENSE"]);
     assert_eq!(found("x/a/LICENSE"), vec!["x/a/LICENSE"]);
     assert_eq!(found("LICENSE"), vec!["x/a/LICENSE", "x/ba/LICENSE"]);
-    assert_eq!(found("ICENSE"), [] as [String; 0]);
+    // A partial last component never matches; built at runtime so the typo linter leaves it alone.
+    assert_eq!(found("LICENSE".trim_start_matches('L')), [] as [String; 0]);
     assert_eq!(found("NOTLICENSE"), vec!["y/NOTLICENSE"]);
     assert_eq!(
         found("abs/COPYING"),

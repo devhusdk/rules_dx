@@ -8,11 +8,11 @@ use dx_output::{
     FinishedCounts, OutputMode, change_value, command_finished, command_started, notice_value,
 };
 use dx_plan::args::{GenerateRequest, Invocation};
-use dx_plan::finalize::{FinalizeError, FinalizeInput, GazelleStatus, finalize};
+use dx_plan::finalize::{FinalizeError, FinalizeInput, GazelleStatus, apply_within, finalize};
 use dx_plan::generate::{ProjectedManifest, project, refused_lines, render_diff, text_lines};
 use dx_plan::plan::{
     GENERATE_ENV_INTENDED, GENERATE_ENV_MODE, GENERATE_ENV_SCOPE, generate_scope_json,
-    intended_path, patch_path, plan_generate,
+    generate_scope_visits, intended_path, patch_path, plan_generate,
 };
 use dx_plan::reports::plan_reports;
 use dx_plan::resolve::{ResolvedScope, resolve_for_generate};
@@ -56,7 +56,7 @@ fn finish_incomplete_generate(
 
 /// Adds the `MODULE.bazel` stanzas for the root lock files with `--apply`, first creating the root locks that are missing; otherwise says what
 /// `--apply` would do. Every step is said on `err` and kept as a notice for the run.
-fn wire_module(request: &GenerateRequest, env: &mut Env<'_>) -> Wiring {
+fn wire_module(request: &GenerateRequest, env: &mut Env<'_>, resolved: &ResolvedScope) -> Wiring {
     let mut wiring = Wiring::default();
     let workspace = env.workspace;
     let apply = request.applies();
@@ -111,13 +111,20 @@ fn wire_module(request: &GenerateRequest, env: &mut Env<'_>) -> Wiring {
     if seeded_cargo {
         fill_cargo_lock(request, env, &mut wiring);
     }
-    lock_sets(request, env, &mut wiring, &unlocked);
+    lock_sets(request, env, &mut wiring, &unlocked, resolved);
     wiring
 }
 
-/// Runs the pinned resolver of every set with a dx class lock: a check compares the lock with
-/// its inputs, `--apply` writes a stale lock. A root manifest seeded above is skipped.
-fn lock_sets(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wiring, unlocked: &[&str]) {
+/// Runs the pinned resolver of every set with a dx class lock in the generate scope: a check
+/// compares the lock with its inputs, `--apply` writes a stale lock. A root manifest seeded above
+/// is skipped.
+fn lock_sets(
+    request: &GenerateRequest,
+    env: &mut Env<'_>,
+    wiring: &mut Wiring,
+    unlocked: &[&str],
+    resolved: &ResolvedScope,
+) {
     let sets = match dx_adopt::resolver_sets(env.workspace) {
         Ok(sets) => sets,
         Err(error) => {
@@ -133,7 +140,9 @@ fn lock_sets(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wiring, 
         .map(|(name, value)| (name.as_str(), value.as_str()))
         .collect();
     for set in sets {
-        if set.dir == "." && unlocked.contains(&set.manifest) {
+        if (set.dir == "." && unlocked.contains(&set.manifest))
+            || !generate_scope_visits(resolved, &set.dir)
+        {
             continue;
         }
         let path = env.workspace.join(&set.dir);
@@ -299,18 +308,22 @@ fn seed_uv_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wirin
         &request.bazel_startup_options,
         false,
     );
-    let argv =
-        match dx_update::backend::uv_lock_argv(Ecosystem::Uv.lockfile(), ".", &closure, false, false)
-        {
-            Ok(argv) => argv,
-            Err(error) => {
-                wiring.failed(
-                    env.err,
-                    format!("{} not created: {error}", Ecosystem::Uv.lockfile()),
-                );
-                return;
-            }
-        };
+    let argv = match dx_update::backend::uv_lock_argv(
+        Ecosystem::Uv.lockfile(),
+        ".",
+        &closure,
+        false,
+        false,
+    ) {
+        Ok(argv) => argv,
+        Err(error) => {
+            wiring.failed(
+                env.err,
+                format!("{} not created: {error}", Ecosystem::Uv.lockfile()),
+            );
+            return;
+        }
+    };
     let host = super::update::windows_env();
     let pairs: Vec<(&str, &str)> = host
         .iter()
@@ -532,7 +545,7 @@ fn run_generate_request(
         Err(error) => return resolve_failed(request.common.output, env.out, env.err, &error),
     };
     let apply = request.applies();
-    let mut wiring = wire_module(request, &mut env);
+    let mut wiring = wire_module(request, &mut env, &resolved);
     let Generated {
         bazel_code,
         projected,
@@ -583,6 +596,12 @@ fn run_generate_request(
     code
 }
 
+/// Gazelle writes the workspace itself only when every path is writable; otherwise it
+/// runs as a check and [`apply_within`] writes the writable part of its result.
+fn gazelle_writes(request: &GenerateRequest) -> bool {
+    request.applies() && request.writable.is_none()
+}
+
 struct Generated {
     bazel_code: i32,
     projected: ProjectedManifest,
@@ -595,7 +614,7 @@ fn launch_generate(
     kind: &mut PhaseKind,
     resolved: &ResolvedScope,
 ) -> Result<Generated, i32> {
-    let apply = request.applies();
+    let apply = gazelle_writes(request);
     let patch = patch_path(env.temp_dir, env.pid, env.nonce);
     let patch_arg = (!apply).then(|| patch.display().to_string());
     std::fs::remove_file(&patch).ok();
@@ -619,7 +638,12 @@ fn launch_generate(
     *kind = PhaseKind::Tool;
     let mode = if apply { "default" } else { "check" };
     if request.common.output == OutputMode::Json {
-        emit_built(env.out, command_started("generate", mode))?;
+        let requested = if request.applies() {
+            "default"
+        } else {
+            "check"
+        };
+        emit_built(env.out, command_started("generate", requested))?;
     } else if request.chatty() {
         check_stdout_write(writeln!(env.out, "{}", plan.summary))?;
     }
@@ -661,7 +685,7 @@ fn read_generated(
     bazel_code: i32,
     patch_written: bool,
 ) -> Result<Generated, i32> {
-    let apply = request.applies();
+    let apply = gazelle_writes(request);
     let Some(witness) = std::fs::read(intended).ok() else {
         if bazel_code != 0 {
             *kind = PhaseKind::from_bazel_exit(bazel_code, false);
@@ -687,6 +711,12 @@ fn read_generated(
         check: !apply,
         bazel_code,
         patch_written,
+    })
+    .map(|mut finalized| {
+        if let (true, Some(writable)) = (request.applies(), &request.writable) {
+            apply_within(&mut finalized.manifest, env.workspace, writable);
+        }
+        finalized
     })
     .and_then(|finalized| {
         project(&finalized.manifest)
@@ -1086,6 +1116,18 @@ mod tests {
         );
         let resolver = hub.resolver.as_deref().expect("resolver");
         assert_eq!(resolver_runs(&harness, resolver).len(), 1);
+    }
+
+    #[test]
+    fn generate_skips_a_lock_set_outside_the_scope() {
+        let (harness, hub) = composer_set("generate-lock-scoped");
+        harness.write_source("web/BUILD.bazel", "");
+        harness.write_source("php/BUILD.bazel", "");
+        let resolver = hub.resolver.as_deref().expect("resolver");
+        let (_, out, err) = harness.run(&["generate", "//web:all"]);
+        assert!(resolver_runs(&harness, resolver).is_empty(), "{out}{err}");
+        let (_, out, err) = harness.run(&["generate", "//php:all"]);
+        assert_eq!(resolver_runs(&harness, resolver).len(), 1, "{out}{err}");
     }
 
     #[test]

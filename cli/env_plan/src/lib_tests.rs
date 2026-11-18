@@ -697,5 +697,48 @@ fn projection_rejects_bad_indexes() {
 #[test]
 fn renamed_repo_qualifies_labels() {
     assert_eq!(repository_target("dx"), "@dx//dx:env");
-    assert_eq!(aspect_label("dx"), "@dx//core/env/private:plan.bzl%dx_env_plan_aspect");
+    assert_eq!(
+        aspect_label("dx"),
+        "@dx//core/env/private:plan.bzl%dx_env_plan_aspect"
+    );
+}
+
+#[test]
+fn collect_plan_binds_many_artifacts_in_linear_time() {
+    const COUNT: usize = 30_000;
+    let entries: Vec<(String, String, String)> = (0..COUNT)
+        .map(|index| {
+            (
+                format!("key{index:06}"),
+                "v".to_owned(),
+                format!("lib/dep{index:06}.so"),
+            )
+        })
+        .collect();
+    let shard = shard_bytes(
+        "//env:big",
+        "rust",
+        entries
+            .iter()
+            .map(|(key, value, exec)| (key.as_str(), value.as_str(), exec.as_str()))
+            .collect(),
+    );
+    let mut files: Vec<(String, Vec<u8>)> = vec![("out/big.dxenv.pb".to_owned(), shard)];
+    files.extend(
+        entries
+            .iter()
+            .map(|(_, _, exec)| (format!("bazel-out/k8/bin/{exec}"), Vec::new())),
+    );
+    let outputs = vec![output(
+        "//env:big",
+        files.iter().map(|(p, b)| (p.as_str(), b.clone())).collect(),
+    )];
+    let started = std::time::Instant::now();
+    let plan = collect_plan(&outputs).expect("plan");
+    assert_eq!(plan.projection.len(), COUNT);
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(5),
+        "took {:?}",
+        started.elapsed()
+    );
 }

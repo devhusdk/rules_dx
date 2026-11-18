@@ -1791,14 +1791,9 @@ fn find_usages_walks_odd_files() {
         "fn main() { codegen::run(); }\n",
     );
     write_file(&dir.path().join("lib.rb"), "require 'rspec'\n");
-    let locked = dir.path().join("locked.rs");
-    write_file(&locked, "fn read() {}\n");
     #[cfg(unix)]
     {
         use std::os::unix::ffi::OsStrExt;
-        use std::os::unix::fs::PermissionsExt;
-        let mode = std::fs::Permissions::from_mode(0o000);
-        std::fs::set_permissions(&locked, mode).expect("chmod");
         let odd = dir.path().join(std::ffi::OsStr::from_bytes(b"bad\xff"));
         // Filesystems that reject non-UTF-8 names leave the case without the odd file.
         if let Err(error) = std::fs::write(&odd, "fn odd() {}\n") {
@@ -3547,4 +3542,120 @@ fn a_starred_manifest_matches_any_stem() {
     assert!(!crate::usage::holds(dir.path(), "*.opam"));
     std::fs::write(dir.path().join("app.opam"), "").expect("manifest");
     assert!(crate::usage::holds(dir.path(), "*.opam"));
+}
+
+#[test]
+fn a_source_with_a_byte_order_mark_counts_its_first_import() {
+    let dir = tempfile::tempdir().expect("scratch");
+    write_file(&dir.path().join("app.py"), "\u{feff}import requests\n");
+    let usages = find_usages(Language::Python, dir.path(), &["requests".to_owned()]).expect("scan");
+    assert!(usages["requests"].src);
+}
+
+#[cfg(unix)]
+#[test]
+fn a_source_whose_name_is_not_utf8_is_scanned() {
+    use std::os::unix::ffi::OsStrExt;
+    let dir = tempfile::tempdir().expect("scratch");
+    let name = std::ffi::OsStr::from_bytes(b"caf\xe9.rs");
+    std::fs::write(dir.path().join(name), "use serde::Serialize;\n").expect("write");
+    let usages = find_usages(Language::Rust, dir.path(), &["serde".to_owned()]).expect("scan");
+    assert!(usages["serde"].src);
+}
+
+#[cfg(unix)]
+#[test]
+fn a_symlink_back_to_an_ancestor_is_not_walked() {
+    let dir = tempfile::tempdir().expect("scratch");
+    write_file(&dir.path().join("src/lib.rs"), "fn main() {}\n");
+    std::os::unix::fs::symlink(dir.path(), dir.path().join("src/loop")).expect("link");
+    let files = crate::usage::collect_sources(dir.path(), None).expect("walk");
+    assert_eq!(files, vec![dir.path().join("src/lib.rs")]);
+    write_file(&dir.path().join("main.go"), "package main\n");
+    let found = crate::missing::go_files(dir.path()).expect("walk");
+    assert_eq!(found, vec![dir.path().join("main.go")]);
+}
+
+/// Takes every permission off `path`. Returns false when it stays readable, as it does for root.
+#[cfg(unix)]
+fn lock_down(path: &Path) -> bool {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o000)).expect("chmod");
+    let readable = if path.is_dir() {
+        std::fs::read_dir(path).is_ok()
+    } else {
+        std::fs::read(path).is_ok()
+    };
+    if readable {
+        eprintln!("{} stays readable for this user; skipping", path.display());
+    }
+    !readable
+}
+
+#[cfg(unix)]
+fn unlock(path: &Path) {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+}
+
+#[cfg(unix)]
+fn assert_unreadable_sources(error: DepcheckError, path: &Path) {
+    assert!(
+        matches!(&error, DepcheckError::SourcesIo { path: at, .. } if at == path),
+        "{error:?}"
+    );
+    let message = error.to_string();
+    assert!(message.contains(&path.display().to_string()), "{message}");
+    assert_eq!(DxError::from(error).kind(), ErrorKind::Infra);
+}
+
+#[cfg(unix)]
+#[test]
+fn an_unreadable_source_fails_the_usage_scan() {
+    let dir = tempfile::tempdir().expect("scratch");
+    write_file(&dir.path().join("lib.rs"), "fn main() {}\n");
+    let locked = dir.path().join("locked.rs");
+    write_file(&locked, "use anyhow::Result;\n");
+    if !lock_down(&locked) {
+        return;
+    }
+    let dep = ["anyhow".to_owned()];
+    let usages = find_usages(Language::Rust, dir.path(), &dep);
+    let first = crate::usage::find_first_imports(Language::Rust, dir.path(), "Cargo.toml", &dep);
+    unlock(&locked);
+    assert_unreadable_sources(usages.expect_err("unreadable source"), &locked);
+    assert_unreadable_sources(first.expect_err("unreadable source"), &locked);
+}
+
+#[cfg(unix)]
+#[test]
+fn an_unreadable_source_directory_fails_the_usage_scan() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let locked = dir.path().join("src");
+    write_file(&locked.join("lib.rs"), "use anyhow::Result;\n");
+    write_file(&locked.join("main.go"), "package main\n");
+    if !lock_down(&locked) {
+        return;
+    }
+    let usages = find_usages(Language::Rust, dir.path(), &["anyhow".to_owned()]);
+    let go = crate::missing::go_files(dir.path());
+    unlock(&locked);
+    assert_unreadable_sources(usages.expect_err("unreadable directory"), &locked);
+    assert_unreadable_sources(go.expect_err("unreadable directory"), &locked);
+}
+
+#[cfg(unix)]
+#[test]
+fn an_unreadable_go_source_fails_the_missing_scan() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let manifest = dir.path().join("go.mod");
+    write_file(&manifest, "module example.com/app\n\ngo 1.22\n");
+    let locked = dir.path().join("main.go");
+    write_file(&locked, "package main\nimport \"github.com/c/d\"\n");
+    if !lock_down(&locked) {
+        return;
+    }
+    let found = crate::missing::find_missing_go(&manifest, dir.path(), &[]);
+    unlock(&locked);
+    assert_unreadable_sources(found.expect_err("unreadable source"), &locked);
 }

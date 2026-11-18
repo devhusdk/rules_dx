@@ -1,7 +1,7 @@
-"""Tests for the coverage subject settings."""
+"""Tests for the coverage subject settings and quality configs."""
 
 load("//core:defs.bzl", "expect_equal", "starlark_test")
-load(":defs.bzl", "WINDOWS_GCC_COVERAGE_OFF", "coverage_subject_settings")
+load(":defs.bzl", "WINDOWS_GCC_COVERAGE_OFF", "coverage_subject_settings", "quality_config")
 
 _FEATURES = "//command_line_option:features"
 
@@ -16,6 +16,11 @@ def _checks():
         expect_equal("filter passes through", windows["//command_line_option:instrumentation_filter"], "^//x[/:]"),
         expect_equal("subject flag set", windows[str(Label("//tools/testing/conformance:subject"))], True),
         expect_equal("coverage on", windows["//command_line_option:collect_code_coverage"], True),
+        expect_equal("string config covers lint", quality_config("haskell", "lint"), "shared"),
+        expect_equal("string config covers format", quality_config("haskell", "format"), "shared"),
+        expect_equal("per-kind config sets lint", quality_config("scala", "lint"), "shared"),
+        expect_equal("per-kind config defaults format", quality_config("scala", "format"), "default"),
+        expect_equal("unlisted language uses default", quality_config("go", "lint"), "default"),
     ]
 
 def conformance_defs_tests(name, size):

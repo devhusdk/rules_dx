@@ -3,7 +3,7 @@
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("//core:rlocation.bzl", "runfiles_path")
 load("//core/modules:langs.bzl", "LANGS")
-load("//core/quality:families/core.bzl", "real_format_aspect", "real_lint_aspect")
+load("//core/quality:families/core.bzl", "real_biome_format_aspect", "real_biome_lint_aspect", "real_format_aspect", "real_lint_aspect", "real_vale_lint_aspect")
 load("//core/quality/testdata:config_subject.bzl", "config_results", "config_subject_rule")
 load("//rust:defs.bzl", "rust_test")
 load(":pending.bzl", "PENDING")
@@ -27,6 +27,7 @@ _QUALITY_CONFIGS = {
     "ansible": "shared",
     "api_spec": "shared",
     "asciidoc": "shared",
+    "astro": "shared",
     "avro": "shared",
     "bicep": "shared",
     "capnproto": "shared",
@@ -39,41 +40,64 @@ _QUALITY_CONFIGS = {
     "flatbuffers": "shared",
     "flutter": "tool_overrides",
     "fsharp": "shared",
+    "haskell": "shared",
+    "helm": "shared",
     "julia": "tool_overrides",
     "lua": "tool_overrides",
     "make": "shared",
+    "ocaml": {"lint": "shared"},
     "perl": "tool_overrides",
     "php": "tool_overrides",
     "powershell": "tool_overrides",
     "rego": "shared",
     "rst": "shared",
     "ruby": "tool_overrides",
+    "scala": {"lint": "shared"},
     "sql": "shared",
+    "svelte": "shared",
     "swift": "tool_overrides",
     "terraform": "shared",
     "thrift": "shared",
+    "vue": "shared",
 }
 
-_core_format_subject = config_subject_rule([real_format_aspect], [OutputGroupInfo])
+def quality_config(lang, kind):
+    """Returns the test configuration of one language's lint or format tests."""
+    config = _QUALITY_CONFIGS.get(lang, _QUALITY_CONFIG)
+    if type(config) == "dict":
+        return config.get(kind, _QUALITY_CONFIG)
+    return config
 
-_core_lint_subject = config_subject_rule([real_lint_aspect], [OutputGroupInfo])
+_core_format_subject = config_subject_rule([real_format_aspect, real_biome_format_aspect], [OutputGroupInfo])
+
+_core_lint_subject = config_subject_rule([real_lint_aspect, real_biome_lint_aspect, real_vale_lint_aspect], [OutputGroupInfo])
+
+# Framework and MDX sources go through the JavaScript aspects; mdx links are linted by the core aspect.
+_JS_QUALITY_SUBJECTS = QUALITY_SUBJECTS["javascript"]
 
 _CORE_QUALITY_SUBJECTS = {
     "asciidoc": {
         "lint": _core_lint_subject,
     },
+    "astro": _JS_QUALITY_SUBJECTS,
     "javascript": {
         "format": _core_format_subject,
+        "lint": _core_lint_subject,
+    },
+    "mdx": {
+        "format": _JS_QUALITY_SUBJECTS["format"],
         "lint": _core_lint_subject,
     },
     "rst": {
         "format": _core_format_subject,
         "lint": _core_lint_subject,
     },
+    "svelte": _JS_QUALITY_SUBJECTS,
     "typescript": {
         "format": _core_format_subject,
         "lint": _core_lint_subject,
     },
+    "vue": _JS_QUALITY_SUBJECTS,
 }
 
 _CONFORMANCE_QUALITY = Label("//tools/testing/conformance:conformance_quality")
@@ -401,7 +425,7 @@ def _quality_tests(prefix, lang, quality, not_applicable, size, kwargs):
             subject_rule = quality.get(kind + "_subject") or (_CORE_QUALITY_SUBJECTS[lang] if lang in _CORE_QUALITY_SUBJECTS else QUALITY_SUBJECTS[lang])[kind]
             subject_rule(
                 name = prefix + test + "_subject",
-                config = _QUALITY_CONFIGS.get(lang, _QUALITY_CONFIG),
+                config = quality_config(lang, kind),
                 target = fixture,
                 testonly = True,
                 target_compatible_with = _compatible_with(lang, test, not_applicable),
@@ -409,7 +433,7 @@ def _quality_tests(prefix, lang, quality, not_applicable, size, kwargs):
             )
             config_results(
                 name = prefix + test + "_results",
-                config = _QUALITY_CONFIGS.get(lang, _QUALITY_CONFIG),
+                config = quality_config(lang, kind),
                 subject = ":" + prefix + test + "_subject",
                 testonly = True,
                 target_compatible_with = _compatible_with(lang, test, not_applicable),

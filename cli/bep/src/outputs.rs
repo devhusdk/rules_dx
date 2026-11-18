@@ -6,7 +6,8 @@ use serde_json::Value;
 
 use super::{
     ArtifactReader, BepError, CollectedArtifact, CollectorConfig, EventGap, EventLedger,
-    EventLines, TargetOutput, file_uri_to_path, is_bytestream_uri, local_path_for_bep_file,
+    EventLines, TargetOutput, file_uri_to_path, is_bytestream_uri, is_path_segment,
+    is_plain_relative, local_path_for_bep_file,
 };
 
 struct RawFile {
@@ -287,7 +288,7 @@ fn read_account(
             }
         }
         let mut collected = Vec::with_capacity(seen.len());
-        for (uri, (_, name, path_prefix)) in &seen {
+        for (uri, (line, name, path_prefix)) in &seen {
             let path = if is_bytestream_uri(uri) {
                 let Some(ws) = workspace else {
                     return Err(BepError::UnsupportedUri { uri: uri.clone() });
@@ -295,6 +296,16 @@ fn read_account(
                 let Some(file_name) = name else {
                     return Err(BepError::UnsupportedUri { uri: uri.clone() });
                 };
+                if !is_plain_relative(file_name)
+                    || !path_prefix.iter().all(|part| is_path_segment(part))
+                {
+                    return Err(BepError::MalformedEvent {
+                        line: *line,
+                        reason: format!(
+                            "bytestream file {file_name:?} does not stay under the workspace"
+                        ),
+                    });
+                }
                 local_path_for_bep_file(ws, path_prefix, file_name)
             } else {
                 file_uri_to_path(uri)?
@@ -1274,5 +1285,39 @@ mod tests {
             .expect("collect")
             .targets;
         assert_eq!(got[0].artifacts[0].bytes, vec![5]);
+    }
+
+    #[test]
+    fn bytestream_names_and_prefixes_stay_under_the_workspace() {
+        let dir = tempfile::TempDir::new().expect("scratch");
+        let artifacts = FakeArtifacts {
+            files: HashMap::new(),
+        };
+        let abs = if cfg!(windows) { r"C:\\x.pb" } else { "/x.pb" };
+        for (name, prefix) in [
+            (abs, r#"["bin"]"#),
+            ("../x.pb", r#"["bin"]"#),
+            ("a/../../x.pb", r#"["bin"]"#),
+            ("x.pb", r#"[".."]"#),
+            ("x.pb", r#"["/etc"]"#),
+        ] {
+            let name = name.replace('\\', "\\\\");
+            let file = format!(
+                r#"{{"name": "{name}", "uri": "bytestream://r/blobs/a/1", "pathPrefix": {prefix}}}"#
+            );
+            let stream = [
+                format!(
+                    r#"{{"id": {{"namedSetOfFiles": {{"id": "1"}}}}, "namedSetOfFiles": {{"files": [{file}]}}}}"#
+                ),
+                completed("//q:a", true, &group_ref("dx_results", &["1"])),
+            ]
+            .join("\n");
+            let result =
+                collect_account(Cursor::new(stream), &config(), &artifacts, Some(dir.path()));
+            assert!(
+                matches!(result, Err(BepError::MalformedEvent { .. })),
+                "{name} {prefix}: {result:?}"
+            );
+        }
     }
 }

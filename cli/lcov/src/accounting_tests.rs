@@ -748,3 +748,28 @@ fn ignore_on_an_instrumented_line_is_clean() {
         [] as [String; 0]
     );
 }
+
+#[test]
+fn merges_hits_of_report_paths_that_share_one_key() {
+    let report = [format!(
+        "{}{}",
+        lcov("./src/a.py", &[(1, 1)]),
+        lcov("src/a.py", &[(2, 0)])
+    )];
+    let cell = account(
+        &[manifest("v1 cell linux\nprod source src/a.py\n")],
+        &report,
+        &blank_sources(),
+    );
+    assert_eq!((cell.covered_lines, cell.eligible_lines), (1, 2));
+}
+
+#[test]
+fn orphan_candidates_accept_ignored_prefixes_with_slashes() {
+    let tracked = strings(&["vendor/x.rs", "vendored/x.rs", "a.rs"]);
+    let ignored = strings(&["vendor/", "./third_party//", "/", ""]);
+    assert_eq!(
+        orphan_candidates(&tracked, &ignored),
+        strings(&["a.rs", "vendored/x.rs"])
+    );
+}

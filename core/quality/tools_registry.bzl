@@ -860,6 +860,22 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
           "state": "supported",
           "tool": "clang_tidy",
           "transport": "batched"
+        },
+        {
+          "capability": "lint",
+          "classes": [
+            "cuda"
+          ],
+          "context": "target_coupled",
+          "family": "cuda",
+          "fix": "check_only",
+          "platforms": [
+            "linux_arm64",
+            "linux_x86_64"
+          ],
+          "state": "supported",
+          "tool": "clang_tidy",
+          "transport": "batched"
         }
       ]
     },
@@ -6447,7 +6463,7 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
         "suppression_extensions": [],
         "suppressions": [],
         "tier_active": true,
-        "tier_base": false,
+        "tier_base": true,
         "tier_dir": "",
         "tier_source": "dx"
       },

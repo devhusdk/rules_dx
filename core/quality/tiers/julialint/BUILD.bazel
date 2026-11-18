@@ -1,4 +1,5 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//core/quality:native_config.bzl", "julialint_config")
 
 exports_files(
     glob(
@@ -14,6 +15,18 @@ filegroup(
         ["**"],
         exclude = ["BUILD.bazel"],
     ),
+    visibility = ["//visibility:public"],
+)
+
+julialint_config(
+    name = "standard",
+    src = "standard.toml",
+    visibility = ["//visibility:public"],
+)
+
+julialint_config(
+    name = "strict",
+    src = "strict.toml",
     visibility = ["//visibility:public"],
 )
 

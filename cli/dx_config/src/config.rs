@@ -131,7 +131,12 @@ pub fn load(workspace: &Path) -> Result<Option<DxConfig>, LoadProblem> {
     let path = workspace.join("dx.toml");
     let text = match std::fs::read_to_string(&path) {
         Ok(text) => text,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error)
+            if error.kind() == std::io::ErrorKind::NotFound
+                && std::fs::symlink_metadata(&path).is_err() =>
+        {
+            return Ok(None);
+        }
         Err(error) => {
             return Err(LoadProblem::Read {
                 path: path.display().to_string(),

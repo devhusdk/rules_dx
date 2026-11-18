@@ -3,7 +3,7 @@
 load("@rules_dx//erlang:defs.bzl", "erlang_app", "erlang_bytecode", "erlang_ct_suite_test", "erlang_erlc_opts", "erlang_eunit_test", "erlang_test_app")
 load("@rules_dx//erlang/private:defs.bzl", "DEFAULT_TEST_ERLC_OPTS")
 load("@rules_dx//erlang/private/toolchain:pins.bzl", "OTP_VERSION")
-load("@rules_dx//erlang/tests:defs_tests.bzl", "erlang_beam_info_test", "erlang_coverage_env_test")
+load("@rules_dx//erlang/tests:defs_tests.bzl", "erlang_beam_info_test")
 load("@rules_dx//tools/testing/conformance:defs.bzl", "dx_coverage_test")
 
 exports_files(
@@ -75,12 +75,11 @@ dx_coverage_test(
     subject = "//erlang/tests/fixtures/erlang_app/checksum:eunit",
 )
 
-erlang_coverage_env_test(
-    name = "nif_cpp_coverage_env_test",
-    apps_dirs = "erlang/tests",
-    native = True,
-    source = "erlang/tests/nif_cpp/src/dx_cpp_a.erl",
-    target = "//erlang/tests/nif_cpp:eunit",
+dx_coverage_test(
+    name = "nif_cpp_coverage_test",
+    covered_source = "dx_cpp_a_nif.cc",
+    instrumented_packages = ["erlang/tests/nif_cpp"],
+    subject = "//erlang/tests/nif_cpp:eunit",
 )
 
 exports_files(

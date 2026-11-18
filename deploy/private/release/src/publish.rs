@@ -157,10 +157,8 @@ pub fn publish_dry_run_check(inputs: &PublishDryRunInputs) -> Result<PublishDryR
     .map_err(|error| format!("publish dry-run: NOTICE validation failed: {error}"))?;
     check_dry_run_logs(inputs)?;
     let sbom_digest = sbom_subject_digest(&inputs.spdx)?;
-    let report = render_dry_run_report(inputs, &verification, &sbom_digest);
-    if report.is_empty() {
-        return Err("publish dry-run: rendered report is empty".to_owned());
-    }
+    let report = render_dry_run_report(inputs, &verification, &sbom_digest)
+        .map_err(|error| format!("publish dry-run: {error}"))?;
     Ok(PublishDryRunOutcome {
         report,
         sbom_digest,
@@ -228,7 +226,7 @@ fn render_dry_run_report(
     inputs: &PublishDryRunInputs,
     verification: &cell::Verification,
     sbom_digest: &str,
-) -> String {
+) -> Result<String, String> {
     let artifacts: Vec<serde_json::Value> = verification
         .cells
         .iter()
@@ -398,10 +396,12 @@ mod tests {
         let matrix = write_text(dir, "release_matrix.json", &matrix_json(&release.matrix));
         let sbom_artifact = write_bytes(dir, "demo.tar.gz", b"demo artifact\n");
         let digest = dx_digest::sha256_file_hex(&sbom_artifact).expect("digest demo");
-        let spdx_text = crate::render_spdx("demo.tar.gz", &digest, "dx", "rules_dx");
+        let spdx_text =
+            crate::render_spdx("demo.tar.gz", &digest, "dx", "rules_dx").expect("render");
         let spdx = write_text(dir, "sbom_demo.spdx.json", &spdx_text);
         let prov_text =
-            crate::render_provenance("demo.tar.gz", &digest, crate::PROVENANCE_BUILDER_RELEASE);
+            crate::render_provenance("demo.tar.gz", &digest, crate::PROVENANCE_BUILDER_RELEASE)
+                .expect("render");
         let provenance = write_text(dir, "sbom_demo.provenance.json", &prov_text);
         let (notice_manifest, notice_texts) = notice_fixture(dir);
         let joined = crate::join_notice_entries(
@@ -671,7 +671,7 @@ mod tests {
         let release = release();
         let mut inputs = valid_inputs(dir.path(), &release);
         let zeros = "0".repeat(64);
-        let bad = crate::render_spdx("demo.tar.gz", &zeros, "dx", "rules_dx");
+        let bad = crate::render_spdx("demo.tar.gz", &zeros, "dx", "rules_dx").expect("render");
         inputs.spdx = write_text(dir.path(), "bad.spdx.json", &bad);
         let error = publish_dry_run_check(&inputs).expect_err("mismatched SBOM must fail");
         assert!(error.contains("SBOM validation failed"), "got {error}");
@@ -694,7 +694,8 @@ mod tests {
         let mut inputs = valid_inputs(dir.path(), &release);
         let digest = dx_digest::sha256_file_hex(&inputs.sbom_artifact).expect("digest");
         let forged =
-            crate::render_provenance("demo.tar.gz", &digest, "https://example.test/builder");
+            crate::render_provenance("demo.tar.gz", &digest, "https://example.test/builder")
+                .expect("render");
         inputs.provenance = write_text(dir.path(), "forged.prov.json", &forged);
         let error = publish_dry_run_check(&inputs).expect_err("forged builder must fail");
         assert!(error.contains("SBOM validation failed"), "got {error}");

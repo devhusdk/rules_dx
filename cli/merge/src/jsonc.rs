@@ -1,7 +1,7 @@
 //! Key and array edits of JSONC text that keep comments, trailing commas and untouched bytes.
 
 use jsonc_parser::ParseOptions;
-use jsonc_parser::cst::{CstInputValue, CstObject, CstRootNode};
+use jsonc_parser::cst::{CstInputValue, CstObject, CstObjectProp, CstRootNode};
 use serde_json::Value;
 
 use crate::Error;
@@ -14,7 +14,7 @@ pub fn set_keys(text: &str, edits: &[(&[&str], Value)]) -> Result<String, Error>
         for (path, value) in edits {
             let (last, parents) = path.split_last().ok_or_else(empty_path)?;
             let object = walk(root.clone(), parents)?;
-            match object.get(last) {
+            match last_prop(&object, last) {
                 Some(prop) => {
                     if prop.value().and_then(|node| node.to_serde_value()).as_ref() != Some(value) {
                         prop.set_value(input(value));
@@ -31,15 +31,18 @@ pub fn set_keys(text: &str, edits: &[(&[&str], Value)]) -> Result<String, Error>
 
 /// The text without the keys at each path; paths that are not there are left alone.
 pub fn remove_keys(text: &str, paths: &[&[&str]]) -> Result<String, Error> {
+    if text.strip_prefix(BOM).unwrap_or(text).trim().is_empty() {
+        return Ok(text.to_owned());
+    }
     edit(text, |root| {
         for path in paths {
             let Some((last, parents)) = path.split_last() else {
                 continue;
             };
-            if let Some(prop) =
-                walk_existing(root.clone(), parents).and_then(|object| object.get(last))
-            {
-                prop.remove();
+            if let Some(object) = walk_existing(root.clone(), parents) {
+                for prop in named_props(&object, last) {
+                    prop.remove();
+                }
             }
         }
         Ok(())
@@ -51,7 +54,7 @@ pub fn append_missing(text: &str, path: &[&str], value: &Value) -> Result<String
     edit(text, |root| {
         let (last, parents) = path.split_last().ok_or_else(empty_path)?;
         let object = walk(root.clone(), parents)?;
-        let array = match object.get(last) {
+        let array = match last_prop(&object, last) {
             None => object.array_value_or_set(last),
             Some(prop) => prop
                 .value()
@@ -76,7 +79,7 @@ pub fn remove_array_values(text: &str, path: &[&str], values: &[Value]) -> Resul
             return Ok(());
         };
         let array = walk_existing(root.clone(), parents)
-            .and_then(|object| object.get(last))
+            .and_then(|object| last_prop(&object, last))
             .and_then(|prop| prop.value())
             .and_then(|node| node.as_array());
         for node in array.into_iter().flat_map(|array| array.elements()) {
@@ -123,9 +126,19 @@ pub fn rename_key(
     })
 }
 
+fn named_props(object: &CstObject, name: &str) -> Vec<CstObjectProp> {
+    let mut props = object.properties();
+    props.retain(|prop| prop.decoded_name().as_deref() == Some(name));
+    props
+}
+
+fn last_prop(object: &CstObject, name: &str) -> Option<CstObjectProp> {
+    named_props(object, name).pop()
+}
+
 fn walk_existing(mut object: CstObject, parents: &[&str]) -> Option<CstObject> {
     for name in parents {
-        object = object.get(name)?.value()?.as_object()?;
+        object = last_prop(&object, name)?.value()?.as_object()?;
     }
     Some(object)
 }
@@ -161,16 +174,19 @@ fn edit(text: &str, apply: impl FnOnce(&CstObject) -> Result<(), Error>) -> Resu
     }
     let root = CstRootNode::parse(body, &ParseOptions::default())
         .map_err(|error| Error::Jsonc(error.to_string()))?;
-    let object = root
-        .object_value()
-        .ok_or_else(|| Error::WrongType("(root)".to_owned()))?;
+    let object = if root.value().is_none() {
+        root.object_value_or_set()
+    } else {
+        root.object_value()
+            .ok_or_else(|| Error::WrongType("(root)".to_owned()))?
+    };
     apply(&object)?;
     Ok(format!("{bom}{root}"))
 }
 
 fn walk(mut object: CstObject, parents: &[&str]) -> Result<CstObject, Error> {
     for name in parents {
-        object = match object.get(name) {
+        object = match last_prop(&object, name) {
             None => object.object_value_or_set(name),
             Some(prop) => prop
                 .value()
@@ -297,5 +313,29 @@ mod tests {
     fn a_non_object_on_the_path_is_an_error() {
         assert!(set_keys("{\"a\": 1}", &[(&["a", "b"], json!(1))]).is_err());
         assert!(set_keys("{", &[(&["a"], json!(1))]).is_err());
+    }
+
+    #[test]
+    fn the_last_duplicate_key_is_the_one_that_is_set() {
+        let out = set_keys("{\"a\": 1, \"a\": 2}", &[(&["a"], json!(3))]).unwrap();
+        assert_eq!(parse(&out).unwrap(), json!({"a": 3}));
+    }
+
+    #[test]
+    fn every_duplicate_key_is_removed() {
+        let out = remove_keys("{\"a\": 1, \"b\": 0, \"a\": 2}", &[&["a"]]).unwrap();
+        assert_eq!(parse(&out).unwrap(), json!({"b": 0}));
+    }
+
+    #[test]
+    fn a_comment_only_file_gets_the_object() {
+        let out = set_keys("// mine\n", &[(&["a"], json!(1))]).unwrap();
+        assert!(out.starts_with("// mine"), "{out}");
+        assert_eq!(parse(&out).unwrap(), json!({"a": 1}));
+    }
+
+    #[test]
+    fn removing_from_an_empty_file_leaves_it_alone() {
+        assert_eq!(remove_keys("", &[&["a"]]).unwrap(), "");
     }
 }

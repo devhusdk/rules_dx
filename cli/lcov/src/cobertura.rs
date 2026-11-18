@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
 use crate::LcovError;
-use crate::clover::attribute;
+use crate::xml::{attribute, tags};
 
 /// Converts a Cobertura XML report (kcov, coverage.py) to LCOV text.
 ///
@@ -14,25 +14,24 @@ pub fn cobertura_to_lcov(xml: &str) -> Result<String, LcovError> {
     let mut current: Option<String> = None;
     let mut in_methods = false;
     let mut source: Option<String> = None;
-    let mut rest = xml;
-    while let Some((_, after)) = rest.split_once('<') {
-        let (tag, tail) = after
-            .split_once('>')
-            .ok_or_else(|| cobertura_error("unterminated tag"))?;
-        let tag = tag.trim_end_matches('/');
-        rest = tail;
-        let (name, attrs) = tag.split_once(char::is_whitespace).unwrap_or((tag, ""));
-        match name {
+    for tag in tags(xml) {
+        let tag = tag.map_err(|end| cobertura_error(&format!("unterminated {}", end.0)))?;
+        let attrs = tag.attrs;
+        match tag.name {
             "source" if source.is_none() => {
-                let text = rest.split('<').next().unwrap_or(rest);
-                source = Some(text.trim().trim_end_matches('/').to_owned());
+                let text = tag.tail.split('<').next().unwrap_or(tag.tail);
+                source = Some(text.trim().trim_end_matches(['/', '\\']).to_owned());
             }
             "class" => {
                 let path = attribute(attrs, "filename")
                     .filter(|path| !path.is_empty())
                     .ok_or_else(|| cobertura_error("class element without a filename"))?;
                 let path = match &source {
-                    Some(dir) if !path.starts_with('/') && !dir.is_empty() => {
+                    Some(dir)
+                        if !dx_path::is_absolute(&path)
+                            && !path.starts_with('\\')
+                            && !dir.is_empty() =>
+                    {
                         format!("{dir}/{path}")
                     }
                     _ => path,

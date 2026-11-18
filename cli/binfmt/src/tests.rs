@@ -759,3 +759,53 @@ fn producers_are_empty_for_a_pe_without_a_dans_marker() {
 fn u32_of(value: usize) -> u32 {
     u32::try_from(value).expect("fits u32")
 }
+
+#[test]
+fn elf_abi_comes_from_the_interpreter_name_not_its_directory() {
+    let image = inspect(&elf(
+        elf::EM_X86_64,
+        Some("/opt/musl-cross/lib/ld-linux-x86-64.so.2"),
+        &[],
+    ))
+    .unwrap();
+    assert_eq!(image[0].abi, Abi::Gnu);
+}
+
+#[test]
+fn macho_reads_version_min_for_every_apple_platform() {
+    for (cmd, name) in [
+        (macho::LC_VERSION_MIN_IPHONEOS, "ios"),
+        (macho::LC_VERSION_MIN_TVOS, "tvos"),
+        (macho::LC_VERSION_MIN_WATCHOS, "watchos"),
+    ] {
+        let mut image = macho(macho::CPU_TYPE_ARM64, macho::PLATFORM_MACOS, 0, &[]);
+        let mut commands = Vec::new();
+        commands.extend_from_slice(&cmd.to_le_bytes());
+        commands.extend_from_slice(&16u32.to_le_bytes());
+        commands.extend_from_slice(&0x000c_0000u32.to_le_bytes());
+        commands.extend_from_slice(&0u32.to_le_bytes());
+        image.truncate(32);
+        image.extend_from_slice(&commands);
+        put(&mut image, 20, &16u32.to_le_bytes());
+        let images = inspect(&image).unwrap();
+        assert_eq!(images[0].abi.name(), format!("{name} 12.0"));
+    }
+}
+
+#[test]
+fn producers_drop_repeated_comment_strings() {
+    let image = elf_comment(Some(
+        b"\0GCC: (GNU) 14.2.0\0GCC: (GNU) 14.2.0\0Linker: LLD 19\0GCC: (GNU) 14.2.0\0",
+    ));
+    assert_eq!(producers(&image), ["GCC: (GNU) 14.2.0", "Linker: LLD 19"]);
+}
+
+#[test]
+fn machines_names_a_macho_object_without_a_build_version() {
+    let mut image = macho(macho::CPU_TYPE_ARM64, macho::PLATFORM_MACOS, 0, &[]);
+    image.truncate(32);
+    put(&mut image, 16, &0u32.to_le_bytes());
+    put(&mut image, 20, &0u32.to_le_bytes());
+    assert_eq!(machines(&image).unwrap(), ["aarch64"]);
+    assert_eq!(machines(&archive(&[("a.o", image)])).unwrap(), ["aarch64"]);
+}

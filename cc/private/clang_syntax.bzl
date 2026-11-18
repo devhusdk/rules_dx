@@ -5,12 +5,12 @@ load("@apple_support//xcode:providers.bzl", "XcodeVersionInfo")
 load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load("//core:resources.bzl", "dx_heavy_resources")
-load("//cc/private/toolchain:bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_toolchain_identity", "cc_toolchain_info")
-load("//core/quality/private:native_config_impl.bzl", "DxNativeConfigInfo", "bound_config_targets")
 load("//cc/private/quality:nvcc_syntax.bzl", "nvcc_syntax_select", "nvcc_syntax_source")
+load("//cc/private/toolchain:bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_toolchain_identity", "cc_toolchain_info")
+load("//core:resources.bzl", "dx_heavy_resources")
 load("//core/quality:policy.bzl", "QualityPolicyInfo")
 load("//core/quality:sources.bzl", "UPSTREAM_CC_CLASS_EXTENSIONS", "forwarded_upstream")
+load("//core/quality/private:native_config_impl.bzl", "DxNativeConfigInfo", "bound_config_targets")
 
 ClangSyntaxInfo = provider(
     doc = "Syntax-only replays of the compile actions of one C/C++/Objective-C target.",
@@ -32,6 +32,11 @@ _SOURCE_EXTENSIONS = sorted([e for exts in UPSTREAM_CC_CLASS_EXTENSIONS.values()
 _MNEMONICS = ["CppCompile", "ObjcCompile", "CudaCompile"]
 _CUDA_VALUE_FLAGS = ["-I", "-isystem", "-iquote", "-D", "-U", "-include"]
 _CUDA_PASS_THROUGH = ["-Xcompiler", "--compiler-options", "-Xcudafe"]
+
+# Host compiler flags that set the header search and target; a hermetic host toolchain needs them to find its libc and libc++ headers.
+_CUDA_HOST_VALUE_FLAGS = ["-I", "-isystem", "-iquote", "-D", "-U", "-target"]
+_CUDA_HOST_FLAGS = ["-nostdinc", "-nostdinc++", "-nostdlibinc"]
+_CUDA_HOST_PREFIXES = ("-I", "-D", "-U", "-isystem", "-std=", "-iquote", "--sysroot=", "-resource-dir=", "--target=")
 
 # Flags that produce build outputs and are not wanted for a syntax-only run.
 _DROP = ["-MD", "-MMD", "-MG", "-MP", "-fcolor-diagnostics", "-fdiagnostics-color"]
@@ -194,17 +199,24 @@ def clang_tidy_argv(tidy, argv, src, identity, config = "", env = {}):
         flags.append(arg)
     return struct(argv = [tidy] + _config_flag(config) + [src, "--"] + flags, error = "")
 
-def cuda_tidy_argv(tidy, argv, src, config = ""):
+def cuda_tidy_argv(tidy, argv, src, config = "", extra_includes = []):
     """Projects an nvcc compile command line into a clang-tidy command line (`-x cuda`)."""
     if len(argv) == 0 or argv[0].replace("\\", "/").rpartition("/")[2] not in ["nvcc", "nvcc.exe"]:
         return struct(argv = [], error = "only nvcc compile commands can be projected into clang-tidy")
     if src == "" or src not in argv:
         return struct(argv = [], error = "the source " + src + " is not on the compile command line")
     root = argv[0].replace("\\", "/").rpartition("/")[0].rpartition("/")[0]
-    flags = ["-x", "cuda", "--cuda-host-only", "-nocudalib", "-Wno-unknown-cuda-version"]
+
+    # nvcc redacts __DATE__ and friends with -D; clang warns on that redefinition, nvcc does not.
+    flags = ["-x", "cuda", "--cuda-host-only", "-nocudalib", "-Wno-unknown-cuda-version", "-Wno-builtin-macro-redefined"]
+    for include in extra_includes:
+        flags += ["-isystem", include]
     if root != "":
         flags.append("--cuda-path=" + root)
     i = 1
+
+    # A separated host flag value arrives in the next -Xcompiler part, often in a later -Xcompiler argument.
+    host_value = False
     for _ in range(len(argv)):
         if i >= len(argv):
             break
@@ -215,9 +227,15 @@ def cuda_tidy_argv(tidy, argv, src, config = ""):
             i += 1
         elif arg in ["-Xcompiler", "--compiler-options"] and i < len(argv):
             for part in argv[i].split(","):
-                if part.startswith("/"):
+                if host_value:
+                    flags.append(part)
+                    host_value = False
+                elif part.startswith("/"):
                     return struct(argv = [], error = "clang-tidy does not support nvcc with an MSVC host compiler (flag %s)" % part)
-                if part.startswith(("-I", "-D", "-U", "-isystem", "-std=", "-iquote")):
+                elif part in _CUDA_HOST_VALUE_FLAGS:
+                    flags.append(part)
+                    host_value = True
+                elif part in _CUDA_HOST_FLAGS or part.startswith(_CUDA_HOST_PREFIXES):
                     flags.append(part)
             i += 1
         elif arg in _CUDA_PASS_THROUGH and i < len(argv):
@@ -302,6 +320,12 @@ def _clang_syntax_impl(target, ctx):
     toolchain_env = _toolchain_compile_env(ctx) if identity.driver == "msvc" else {}
     cuda_indices = [i for i in range(len(actions)) if actions[i].mnemonic == "CudaCompile"]
     cuda_keep = [cuda_indices[j] for j in nvcc_syntax_select([actions[i].argv or [] for i in cuda_indices])]
+    cuda_headers = depset()
+    cuda_includes = []
+    if cuda_keep and CcInfo in ctx.attr._cuda_tidy_headers:
+        cuda_context = ctx.attr._cuda_tidy_headers[CcInfo].compilation_context
+        cuda_headers = cuda_context.headers
+        cuda_includes = cuda_context.system_includes.to_list() + cuda_context.includes.to_list()
     for i in range(len(actions)):
         action = actions[i]
         argv = action.argv
@@ -311,13 +335,13 @@ def _clang_syntax_impl(target, ctx):
             if i not in cuda_keep or tidy_error:
                 continue
             src = nvcc_syntax_source(list(argv))
-            tidy_argv = cuda_tidy_argv(tidy.path, list(argv), src, tidy_config)
+            tidy_argv = cuda_tidy_argv(tidy.path, list(argv), src, tidy_config, cuda_includes)
             tidy_log = ctx.actions.declare_file("dx_clang_tidy/%s_%d.log" % (target.label.name, i))
             if tidy_argv.error != "":
                 _failing_tidy(ctx, tidy_log, src, tidy_argv.error)
                 tidy_diagnostics.append(tidy_log)
                 continue
-            tidy_action_inputs = depset([tidy], transitive = [action.inputs, headers, tidy_closure])
+            tidy_action_inputs = depset([tidy], transitive = [action.inputs, headers, cuda_headers, tidy_closure])
             tidy_inputs.append(tidy_action_inputs)
             ctx.actions.run(
                 mnemonic = "ClangTidy",
@@ -404,6 +428,7 @@ clang_syntax_aspect = aspect(
             providers = [QualityPolicyInfo],
         ),
         "_clang_tidy": attr.label(default = "@llvm//tools:clang-tidy", allow_single_file = True, cfg = "exec"),
+        "_cuda_tidy_headers": attr.label(default = "//cuda:clang_tidy_headers"),
         "_capture": attr.label(default = "@dx_prebuilt//:dx", executable = True, cfg = "exec"),
     },
 )

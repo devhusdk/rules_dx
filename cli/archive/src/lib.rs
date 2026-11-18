@@ -30,14 +30,12 @@ impl Format {
     /// Names the format from a file name suffix.
     #[must_use]
     pub fn from_name(name: &str) -> Option<Format> {
+        let name = name.to_ascii_lowercase();
         if name.ends_with(".tar.gz") {
             Some(Format::TarGz)
         } else if name.ends_with(".tar") {
             Some(Format::Tar)
-        } else if std::path::Path::new(name)
-            .extension()
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("zip"))
-        {
+        } else if name.ends_with(".zip") {
             Some(Format::Zip)
         } else {
             None
@@ -95,6 +93,10 @@ fn invalid(message: String) -> io::Error {
 
 fn invalid_input(message: String) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidInput, message)
+}
+
+fn context(what: impl std::fmt::Display) -> impl FnOnce(io::Error) -> io::Error {
+    move |e| io::Error::new(e.kind(), format!("{what}: {e}"))
 }
 
 /// Returns why an archive member name is unsafe to extract, if it is.
@@ -239,13 +241,15 @@ impl Extraction<'_> {
         let path = self.dest.join(&name);
         match kind {
             Kind::File { mode } => self.write_file(name, &path, mode, body),
-            Kind::Dir => std::fs::create_dir_all(&path),
+            Kind::Dir => {
+                std::fs::create_dir_all(&path).map_err(context(format!("create {name:?}")))
+            }
             Kind::Symlink { target } => {
                 if let Some(reason) = link_target_error(&name, &target) {
                     return Err(invalid(reason));
                 }
-                create_parent(&path)?;
-                symlink(&target, &path)?;
+                create_parent(&path).map_err(context(format!("create {name:?}")))?;
+                symlink(&target, &path).map_err(context(format!("create {name:?}")))?;
                 self.links.insert(key);
                 Ok(())
             }
@@ -270,25 +274,28 @@ impl Extraction<'_> {
         mode: Option<u32>,
         body: &mut dyn Read,
     ) -> io::Result<()> {
-        create_parent(path)?;
+        let what = format!("write {name:?}");
+        create_parent(path).map_err(context(&what))?;
         let mut out = std::fs::OpenOptions::new()
             .write(true)
             .create_new(true)
-            .open(path)?;
+            .open(path)
+            .map_err(context(&what))?;
         let cap = self
             .limits
             .max_entry_bytes
-            .min(self.limits.max_total_bytes - self.total);
-        let written = io::copy(&mut body.take(cap + 1), &mut out)?;
+            .min(self.limits.max_total_bytes.saturating_sub(self.total));
+        let written =
+            io::copy(&mut body.take(cap.saturating_add(1)), &mut out).map_err(context(&what))?;
         if written > cap {
             return Err(invalid(format!(
                 "archive member {name:?} exceeds the extraction size cap"
             )));
         }
-        out.flush()?;
+        out.flush().map_err(context(&what))?;
         self.total += written;
         let executable = mode.is_some_and(|mode| mode & 0o111 != 0);
-        set_mode(&out, executable)?;
+        set_mode(&out, executable).map_err(context(&what))?;
         self.members.push(Member {
             name,
             size: written,
@@ -375,7 +382,7 @@ pub fn extract_matching(
     limits: Limits,
     keep: impl Fn(&str) -> bool,
 ) -> io::Result<Vec<Member>> {
-    let file = File::open(archive)?;
+    let file = File::open(archive).map_err(context(archive.display()))?;
     unpack(
         file,
         &archive.display().to_string(),
@@ -425,7 +432,14 @@ fn unpack(
     };
     match format {
         Format::Tar => extract_tar(source, &mut run)?,
-        Format::TarGz => extract_tar(flate2::read::GzDecoder::new(source), &mut run)?,
+        Format::TarGz => {
+            let mut gz = flate2::read::GzDecoder::new(source);
+            extract_tar(&mut gz, &mut run)?;
+            io::copy(
+                &mut gz.by_ref().take(limits.max_total_bytes),
+                &mut io::sink(),
+            )?;
+        }
         Format::Zip => extract_zip(source, &mut run)?,
     }
     Ok(run.members)
@@ -668,7 +682,7 @@ fn walk_tar<F: FnMut(&Entry, &mut dyn Read) -> io::Result<()>>(
                 entry.link_name_bytes().unwrap_or_default().into_owned(),
                 "link target",
             )?),
-            _ => None,
+            EntryKind::File | EntryKind::Dir | EntryKind::Other => None,
         };
         run.entry(name, kind, mode, link_target.as_deref(), &mut entry)?;
     }
@@ -708,7 +722,7 @@ fn walk_zip<F: FnMut(&Entry, &mut dyn Read) -> io::Result<()>>(
 
 /// Reads one named member of a zip without extracting the rest; `None` when it is absent.
 pub fn read_zip_member(archive: &Path, name: &str, max_bytes: u64) -> io::Result<Option<Vec<u8>>> {
-    let file = File::open(archive)?;
+    let file = File::open(archive).map_err(context(archive.display()))?;
     let mut zip = zip::ZipArchive::new(file).map_err(|e| invalid(format!("zip: {e}")))?;
     let entry = match zip.by_name(name) {
         Ok(entry) => entry,
@@ -716,7 +730,9 @@ pub fn read_zip_member(archive: &Path, name: &str, max_bytes: u64) -> io::Result
         Err(e) => return Err(invalid(format!("zip: {e}"))),
     };
     let mut bytes = Vec::new();
-    entry.take(max_bytes + 1).read_to_end(&mut bytes)?;
+    entry
+        .take(max_bytes.saturating_add(1))
+        .read_to_end(&mut bytes)?;
     if bytes.len() as u64 > max_bytes {
         return Err(invalid(format!(
             "archive member {name:?} exceeds {max_bytes} bytes"

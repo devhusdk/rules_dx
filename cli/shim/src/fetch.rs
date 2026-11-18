@@ -36,10 +36,61 @@ pub struct Request<'a> {
 }
 
 pub fn ensure(request: &Request<'_>) -> Result<PathBuf, ShimError> {
-    if request.dest.is_file() {
+    if cached(request.dest, Some(request.checksum)) {
         return Ok(request.dest.to_path_buf());
     }
     install(request)
+}
+
+/// Whether `dest` can run as is: it exists and, for a pinned hash, its stamp holds that hash.
+/// A binary without a stamp is hashed once and stamped when it matches.
+#[must_use]
+pub fn cached(dest: &Path, checksum: Option<&ChecksumSource>) -> bool {
+    if !dest.is_file() {
+        return false;
+    }
+    let Some(ChecksumSource::Pinned(hash)) = checksum else {
+        return true;
+    };
+    let Some(want) = parse_hash(hash) else {
+        return false;
+    };
+    if let Ok(stamped) = std::fs::read_to_string(stamp_path(dest)) {
+        return dx_digest::verify(&want, stamped.trim());
+    }
+    if file_matches(dest, &want) {
+        write_stamp(dest, &want);
+        return true;
+    }
+    false
+}
+
+/// The file beside a cached binary that records the sha256 it was verified against.
+#[must_use]
+pub fn stamp_path(dest: &Path) -> PathBuf {
+    let mut name = dest.as_os_str().to_owned();
+    name.push(".sha256");
+    PathBuf::from(name)
+}
+
+fn file_matches(path: &Path, want: &str) -> bool {
+    dx_digest::sha256_file_hex(path).is_ok_and(|got| dx_digest::verify(want, &got))
+}
+
+/// A missing stamp only costs one hash on the next run, so a failed write is a warning.
+fn write_stamp(dest: &Path, sha256: &str) {
+    let stamp = stamp_path(dest);
+    if let Err(err) = dx_atomic_fs::write_atomic(&stamp, format!("{sha256}\n").as_bytes()) {
+        eprintln!("dx: warning: cannot write {}: {err}", stamp.display());
+    }
+}
+
+/// Drops the old stamp before the binary changes, so it never vouches for the new one.
+fn remove_stamp(dest: &Path) -> std::io::Result<()> {
+    match std::fs::remove_file(stamp_path(dest)) {
+        Err(err) if err.kind() != std::io::ErrorKind::NotFound => Err(err),
+        Ok(()) | Err(_) => Ok(()),
+    }
 }
 
 pub fn install(request: &Request<'_>) -> Result<PathBuf, ShimError> {
@@ -79,7 +130,9 @@ pub fn install(request: &Request<'_>) -> Result<PathBuf, ShimError> {
             .set_permissions(std::fs::Permissions::from_mode(0o755))
             .map_err(|e| not_writable(&e))?;
     }
-    part.persist(dest).map_err(|e| not_writable(&e))?;
+    remove_stamp(dest).map_err(|e| not_writable(&e))?;
+    part.persist(dest, &want).map_err(|e| not_writable(&e))?;
+    write_stamp(dest, &want);
     Ok(dest.to_path_buf())
 }
 
@@ -240,12 +293,13 @@ impl PartFile {
         })
     }
 
-    fn persist(self, dest: &Path) -> std::io::Result<()> {
+    /// A failed rename is fine only when a racing install already put the same binary there.
+    fn persist(self, dest: &Path, want: &str) -> std::io::Result<()> {
         let Self { staged, _watch } = self;
         drop(_watch);
         match staged.commit() {
             Ok(()) => Ok(()),
-            Err(_) if dest.is_file() => Ok(()),
+            Err(_) if file_matches(dest, want) => Ok(()),
             Err(e) => Err(e),
         }
     }

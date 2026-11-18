@@ -2,6 +2,12 @@ name: release-cells
 
 on:
   workflow_call:
+    inputs:
+      windows_accept_licenses:
+        description: "Comma-separated licence ids the Windows cells' consumers accept at dx init. The one place the release names a licence."
+        type: string
+        required: false
+        default: "visual-studio-build-tools"
     outputs:
       version:
         description: "The version printed by the built dx (release_cell version)."
@@ -13,6 +19,12 @@ on:
         description: "The workflow ref every record carries (job.workflow_ref of this file)."
         value: ${{ jobs.verify.outputs.workflow_ref }}
   workflow_dispatch:
+    inputs:
+      windows_accept_licenses:
+        description: "Comma-separated licence ids the Windows cells' consumers accept at dx init."
+        type: string
+        required: false
+        default: "visual-studio-build-tools"
 
 permissions:
   contents: read
@@ -56,6 +68,8 @@ jobs:
           RUN_ID: ${{ github.run_id }}
           JOB: ${{ github.job }}
           SHA: ${{ github.sha }}
+          # Each cell accepts only the licences its platform needs: today only Windows (MSVC).
+          ACCEPT_LICENSES: ${{ runner.os == 'Windows' && inputs.windows_accept_licenses || '' }}
         run: |
           bazel build --noshow_progress //tools/ci/producers:producers_bin
           "$(bazel info bazel-bin)/tools/ci/producers/producers_bin" --release-cell "$RUNNER_TEMP/cell-out"

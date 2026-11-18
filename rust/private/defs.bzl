@@ -351,32 +351,6 @@ def _rust_browser_binary(name, srcs, crate_name, edition, visibility, **kwargs):
         **dx_wrap_forward_kwargs(kwargs)
     )
 
-def rust_test_group_args(test_groups):
-    """Returns the (suffix, args) forwarders of test_groups: one per group, then "rest" skipping every filter."""
-    groups = []
-    skips = []
-    for suffix, filters in test_groups.items():
-        groups.append((suffix, list(filters)))
-        for item in filters:
-            skips.extend(["--skip", item])
-    groups.append(("rest", skips))
-    return groups
-
-def _rust_test_groups_error(test_groups, wasm, kwargs):
-    if wasm != None:
-        return "test_groups does not support wasm"
-    for key in ("args", "shard_count"):
-        if kwargs.get(key) != None:
-            return "test_groups cannot be combined with " + key
-    if "manual" in (kwargs.get("tags") or []):
-        return "test_groups cannot be combined with the manual tag"
-    for suffix, filters in test_groups.items():
-        if suffix == "rest":
-            return "test_groups cannot name a group \"rest\""
-        if not filters:
-            return "test_groups[%s] needs at least one filter" % repr(suffix)
-    return None
-
 def rust_test(
         name,
         *,
@@ -389,13 +363,8 @@ def rust_test(
         runtime = None,
         coverage_lib = None,
         runtime_dlls = None,
-        test_groups = None,
         **kwargs):
-    """Minimal wrapper over rust_test. runtime_dlls are symlinked next to the executable. edition defaults to 2024. With shard_count above 1, a shard runner splits the libtest tests over the shards. test_groups maps a suffix to libtest filters: the crate compiles once, each group runs as name_suffix with its filters, name_rest runs every test no filter matches, and the test_suite name covers them all."""
-    if test_groups != None:
-        error = _rust_test_groups_error(test_groups, wasm, kwargs)
-        if error != None:
-            fail("rust_test: " + error)
+    """Minimal wrapper over rust_test. runtime_dlls are symlinked next to the executable. edition defaults to 2024. With shard_count above 1, a shard runner splits the libtest tests over the shards."""
     if wasm not in (None, "wasi", "browser"):
         fail("rust_test: wasm must be \"wasi\" or \"browser\", got " + repr(wasm))
     if wasm != "wasi" and (preopens != None or runtime != None):
@@ -442,7 +411,7 @@ def rust_test(
     shard_count = kwargs.get("shard_count")
     if type(shard_count) == "int" and shard_count > 1:
         forward_kwargs["sharded"] = True
-    dx_wrap_test(name, _rust_test, _rust_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, extra_forward_kwargs = forward_kwargs, upstream_env = True, groups = rust_test_group_args(test_groups) if test_groups != None else None, **kwargs)
+    dx_wrap_test(name, _rust_test, _rust_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, extra_forward_kwargs = forward_kwargs, upstream_env = True, **kwargs)
 
 def _rust_bench_report_impl(ctx):
     report = ctx.attr._report[DefaultInfo]

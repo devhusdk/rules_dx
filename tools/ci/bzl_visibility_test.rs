@@ -106,28 +106,30 @@ fn fixture(files: &[(&str, &str)]) -> Vec<(String, String)> {
 
 #[test]
 fn an_internal_file_without_a_declaration_is_named() {
-    let (checked, missing) = undeclared(&fixture(&[
+    let files = fixture(&[
         ("core/x.bzl", "\"\"\"Doc.\"\"\"\n\nX = 1\n"),
         ("core/y.bzl", "load(\":x.bzl\", \"X\")\n\nvisibility(\"private\")\n"),
         ("core/z.bzl", "visibility([\"//core/...\", \"//rust/...\"])\n"),
-    ]));
+    ]);
+    let (checked, missing) = undeclared(&files);
     assert_eq!(checked, 3);
     assert_eq!(missing, ["core/x.bzl"]);
 }
 
 #[test]
 fn a_commented_or_nested_call_does_not_count() {
-    let (_, missing) = undeclared(&fixture(&[
+    let files = fixture(&[
         ("core/a.bzl", "# visibility(\"private\")\n"),
         ("core/b.bzl", "def f():\n    visibility(\"private\")\n"),
         ("core/c.bzl", "X = \"\"\"\nvisibility(\"private\")\n\"\"\"\n"),
-    ]));
+    ]);
+    let (_, missing) = undeclared(&files);
     assert_eq!(missing, ["core/a.bzl", "core/b.bzl", "core/c.bzl"]);
 }
 
 #[test]
 fn public_names_layout_dirs_and_fixture_workspaces_are_not_checked() {
-    let (checked, _) = undeclared(&fixture(&[
+    let files = fixture(&[
         ("rust/defs.bzl", ""),
         ("rust/extensions.bzl", ""),
         ("rust/private/rustc.bzl", ""),
@@ -139,6 +141,7 @@ fn public_names_layout_dirs_and_fixture_workspaces_are_not_checked() {
         ("cc/fixture/consumer.MODULE.bazel", ""),
         ("cc/fixture/sub/x.bzl", ""),
         ("core/BUILD.bazel", ""),
-    ]));
+    ]);
+    let (checked, _) = undeclared(&files);
     assert_eq!(checked, 0);
 }

@@ -201,10 +201,36 @@ fn cache_root_precedence() {
     ];
     for (pairs, windows, want) in cases {
         assert_eq!(
-            cache_root(&env(pairs), windows),
+            cache_root(&env(pairs), windows).expect("root"),
             want.map(PathBuf::from),
             "{pairs:?} windows={windows}"
         );
+    }
+}
+
+#[test]
+fn relative_xdg_cache_home_is_ignored() {
+    for xdg in ["rel", ".cache", "./x"] {
+        assert_eq!(
+            cache_root(&env(&[("XDG_CACHE_HOME", xdg), ("HOME", "/h")]), false).expect("root"),
+            Some(PathBuf::from("/h/.cache/dx")),
+            "{xdg}"
+        );
+        assert_eq!(
+            cache_root(&env(&[("XDG_CACHE_HOME", xdg)]), false).expect("root"),
+            None,
+            "{xdg}"
+        );
+    }
+}
+
+#[test]
+fn relative_dx_cache_dir_is_rejected_or_absolutized() {
+    for dir in ["rel", ".cache/dx", "./x"] {
+        let err = cache_root(&env(&[("DX_CACHE_DIR", dir), ("HOME", "/h")]), false).expect_err(dir);
+        assert_eq!(err.code, EXIT_USAGE);
+        assert!(err.message.contains("DX_CACHE_DIR"), "{}", err.message);
+        assert!(err.message.contains(dir), "{}", err.message);
     }
 }
 
@@ -292,13 +318,17 @@ mod non_utf8 {
 
     #[test]
     fn cache_dir_is_used_as_is() {
-        let root = cache_root(&env_of("DX_CACHE_DIR"), false).expect("root");
+        let root = cache_root(&env_of("DX_CACHE_DIR"), false)
+            .expect("root")
+            .expect("set");
         assert_eq!(root, PathBuf::from(bad()));
     }
 
     #[test]
     fn home_is_not_reported_unset() {
-        let root = cache_root(&env_of("HOME"), false).expect("root");
+        let root = cache_root(&env_of("HOME"), false)
+            .expect("root")
+            .expect("set");
         assert_eq!(root, PathBuf::from(bad()).join(".cache").join("dx"));
     }
 

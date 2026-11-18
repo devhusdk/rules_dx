@@ -316,6 +316,34 @@ fn user_cache_dir_prefers_xdg_then_home_then_localappdata() {
 }
 
 #[test]
+fn user_cache_dir_ignores_relative_xdg() {
+    let env = |pairs: &'static [(&'static str, &'static str)]| {
+        move |name: &str| {
+            pairs
+                .iter()
+                .find(|(key, _)| *key == name)
+                .map(|(_, value)| (*value).to_owned())
+        }
+    };
+    let relative: [&'static [(&'static str, &'static str)]; 3] = [
+        &[("XDG_CACHE_HOME", "rel"), ("HOME", "/h")],
+        &[("XDG_CACHE_HOME", ".cache"), ("HOME", "/h")],
+        &[("XDG_CACHE_HOME", "./x"), ("HOME", "/h")],
+    ];
+    for pairs in relative {
+        assert_eq!(
+            user_cache_dir(&env(pairs)),
+            Some(PathBuf::from("/h").join(".cache")),
+            "{pairs:?}"
+        );
+    }
+    assert_eq!(
+        user_cache_dir(&env(&[("XDG_CACHE_HOME", "rel"), ("LOCALAPPDATA", "C:/L")])),
+        Some(PathBuf::from("C:/L"))
+    );
+}
+
+#[test]
 fn no_cache_dir_means_no_disk_cache() {
     let policy = RcPolicy::from_env(&|_| None, Path::new("/ws"), &|_| None);
     assert!(policy.read_user_rc);

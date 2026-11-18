@@ -226,16 +226,27 @@ pub fn cache_file_name(platform: Platform) -> String {
     let exe = if platform.os == "windows" { ".exe" } else { "" };
     format!("{}{exe}", asset_name(platform))
 }
-pub fn cache_root(env_get: EnvGet, windows: bool) -> Option<PathBuf> {
+/// The dx cache root; a relative `DX_CACHE_DIR` is an error and a relative `XDG_CACHE_HOME` is skipped.
+pub fn cache_root(env_get: EnvGet, windows: bool) -> Result<Option<PathBuf>, ShimError> {
     let non_empty = |name: &str| env_get(name).filter(|value| !value.is_empty());
     if let Some(dir) = non_empty("DX_CACHE_DIR") {
-        return Some(PathBuf::from(dir));
+        let dir = PathBuf::from(dir);
+        // has_root, not is_absolute: Windows calls a rooted `\cache` relative, but it does not follow the cwd.
+        if !dir.has_root() {
+            return Err(ShimError::usage(format!(
+                "DX_CACHE_DIR must be an absolute path, got '{}'",
+                dir.display()
+            )));
+        }
+        return Ok(Some(dir));
     }
-    if let Some(xdg) = non_empty("XDG_CACHE_HOME") {
-        return Some(PathBuf::from(xdg).join("dx"));
+    if let Some(xdg) = non_empty("XDG_CACHE_HOME").map(PathBuf::from)
+        && xdg.has_root()
+    {
+        return Ok(Some(xdg.join("dx")));
     }
     let home = if windows { "USERPROFILE" } else { "HOME" };
-    non_empty(home).map(|home| PathBuf::from(home).join(".cache").join("dx"))
+    Ok(non_empty(home).map(|home| PathBuf::from(home).join(".cache").join("dx")))
 }
 #[must_use]
 pub fn bin_dir(root: &Path, version: &str) -> PathBuf {

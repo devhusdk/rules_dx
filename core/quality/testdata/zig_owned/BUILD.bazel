@@ -1,19 +1,9 @@
-load("//zig:defs.bzl", "zig_binary", "zig_library")
+load("//zig:defs.bzl", "zig_binary")
 
 package(default_visibility = [
     "//core/quality:__pkg__",
     "//core/quality/testdata:__pkg__",
 ])
-
-zig_library(
-    name = "clean",
-    main = "clean.zig",
-)
-
-zig_library(
-    name = "dirty",
-    main = "dirty.zig",
-)
 
 zig_binary(
     name = "clean_bin",

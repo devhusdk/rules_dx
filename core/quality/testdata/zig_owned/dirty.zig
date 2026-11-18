@@ -1,3 +1,0 @@
-pub fn add(a: i32) i32 {
-    return a + undeclared_name;
-}

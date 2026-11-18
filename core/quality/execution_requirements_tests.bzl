@@ -125,6 +125,16 @@ def execution_requirements_unit_tests(name):
                 [dx_is_remote_qualified("taplo", "format"), dx_is_remote_qualified("taplo", "lint")],
                 [True, False],
             ),
+            expect_equal(
+                "the single-tool format stages run remotely",
+                [dx_stage_execution_requirements([tool], "format") for tool in ["buildifier", "gersemi", "jsonnetfmt", "stylua", "typstyle", "yamlfmt"]],
+                [{}, {}, {}, {}, {}, {}],
+            ),
+            expect_equal(
+                "the starlark lint stage runs remotely",
+                dx_stage_execution_requirements(["buildifier"], "lint"),
+                {},
+            ),
         ] + [
             expect_equal(
                 record["tool"] + " " + record["capability"] + " remote record validates",

@@ -54,8 +54,14 @@ fn the_comment_is_written_and_appended_to_the_step_summary() {
     );
     assert!(body.contains("— PASS\n"), "{body}");
     assert!(body.contains("coverage_sources: m\n"), "{body}");
-    assert!(body.contains("test: 100% cache hits (remote 100%, disk 0%)"), "{body}");
-    assert!(body.contains("Changed-line gate exit: not configured\n"), "{body}");
+    assert!(
+        body.contains("test: 100% cache hits (remote 100%, disk 0%)"),
+        "{body}"
+    );
+    assert!(
+        body.contains("Changed-line gate exit: not configured\n"),
+        "{body}"
+    );
     let summary = fs::read_to_string(temp.join("summary.md")).expect("summary");
     assert_eq!(summary, format!("before\n{body}"));
 }
@@ -73,4 +79,23 @@ fn an_empty_runner_temp_renders_unknown_and_not_configured() {
 #[test]
 fn every_required_flag_is_required() {
     assert!(Cli::try_parse_from(["coverage_summary", "--platform", "x"]).is_err());
+}
+
+#[test]
+fn a_non_utf8_input_is_read_lossily_not_dropped() {
+    let scratch = dx_test_scratch::scratch("coverage-summary-lossy").unwrap();
+    let temp = scratch.path();
+    fs::write(temp.join("dx_coverage.rc"), b"0\n\xff").expect("rc");
+    let body = render(&inputs(&cli(temp, "")));
+    assert!(!body.contains("Gate exit: unknown"), "{body}");
+}
+
+#[test]
+fn a_write_failure_names_the_path() {
+    let scratch = dx_test_scratch::scratch("coverage-summary-fail").unwrap();
+    let temp = scratch.path();
+    let mut args = cli(temp, "");
+    args.runner_temp = temp.join("missing");
+    let err = write(&args).expect_err("fails").to_string();
+    assert!(err.contains("coverage_comment.md"), "{err}");
 }

@@ -21,10 +21,15 @@ pub(crate) fn ok(run: &Run, what: &str) {
     assert_eq!(run.status.code(), Some(0), "{what}: {}", run.combined());
 }
 
-/// The fenced files under `## Quickstart`, each named by a preceding "`name`:" line.
+/// The fenced files under `## Quickstart`. A file's name is the code span that
+/// opens the paragraph before its fence ("`MODULE.bazel` makes the directory
+/// ..."); a span with a space in it is a command, not a file name, and fences
+/// after any other paragraph are commands or optional blocks.
 fn quickstart_files(readme: &str) -> Vec<(String, String)> {
     let mut files = Vec::new();
     let mut in_section = false;
+    let mut in_paragraph = false;
+    let mut paragraph_start: Option<&str> = None;
     let mut name: Option<String> = None;
     let mut body: Option<String> = None;
     for line in readme.lines() {
@@ -35,20 +40,31 @@ fn quickstart_files(readme: &str) -> Vec<(String, String)> {
                 } else {
                     body = None;
                 }
+                paragraph_start = None;
             } else {
                 text.push_str(line);
                 text.push('\n');
             }
         } else if line.starts_with("## ") {
             in_section = line == "## Quickstart";
-        } else if in_section && line.starts_with("```") {
+            paragraph_start = None;
+            in_paragraph = false;
+        } else if !in_section {
+            continue;
+        } else if line.starts_with("```") {
+            name = paragraph_start
+                .and_then(|start| start.strip_prefix('`'))
+                .and_then(|rest| rest.split_once('`'))
+                .map(|(name, _)| name)
+                .filter(|name| !name.contains(char::is_whitespace))
+                .map(str::to_owned);
             body = Some(String::new());
-        } else if in_section && line.starts_with('`') && line.ends_with("`:") {
-            name = Some(
-                line.get(1..line.len() - 2)
-                    .expect("string slice within bounds")
-                    .to_owned(),
-            );
+            in_paragraph = false;
+        } else if line.trim().is_empty() {
+            in_paragraph = false;
+        } else if !in_paragraph {
+            paragraph_start = Some(line);
+            in_paragraph = true;
         }
     }
     files

@@ -65,6 +65,7 @@ fn the_outer_gate_requires_every_declared_dependency() {
         "msvc-cross-run-arm64",
         "network",
         "preflight",
+        "quality-matrix",
         "starter-consumer",
         "workflow-check"
     ]);

@@ -1745,7 +1745,7 @@ fn a_tree_that_ends_in_the_graceful_wait_is_not_killed() {
 #[cfg(windows)]
 #[test]
 fn windows_has_no_terminal_job_and_no_signals() {
-    install_console_stop();
+    install_console_stop().expect("install the console handler");
     assert!(backend::TerminalJob::start().is_none());
     let job = backend::TerminalJob;
     assert_eq!(job.pgid(), 0);
@@ -1803,9 +1803,10 @@ fn a_stop_probe_ends_a_prepared_command_before_its_deadline() {
 
 #[test]
 fn console_ctrl_c_and_break_act_as_sigint() {
-    assert_eq!(console_stop_signal(0), Some(2));
-    assert_eq!(console_stop_signal(1), Some(2));
-    for other in [2, 5, 6] {
+    use dx_os_sys::console::CtrlEvent;
+    assert_eq!(console_stop_signal(CtrlEvent::C), Some(2));
+    assert_eq!(console_stop_signal(CtrlEvent::Break), Some(2));
+    for other in [CtrlEvent::Close, CtrlEvent::Logoff, CtrlEvent::Shutdown] {
         assert_eq!(console_stop_signal(other), None);
     }
 }

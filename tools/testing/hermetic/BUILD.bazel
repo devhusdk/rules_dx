@@ -198,6 +198,7 @@ rust_binary(
         normal = True,
     ) + [
         ":hermetic",
+        "//cli/os_sys:dx_os_sys",
         "//cli/path:dx_path",
     ],
 )

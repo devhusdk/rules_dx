@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use dx_error::DxError;
@@ -14,10 +15,6 @@ pub mod lifecycle;
 #[cfg(unix)]
 pub mod procs;
 #[cfg(windows)]
-#[expect(
-    unsafe_code,
-    reason = "the process table and command lines are read through Win32 and ntdll FFI"
-)]
 #[path = "procs_windows.rs"]
 pub mod procs;
 #[cfg(test)]
@@ -885,41 +882,12 @@ pub fn disk_space(path: &Path) -> Option<DiskSpace> {
     dir_disk_space(dir)
 }
 
-#[cfg(unix)]
 fn dir_disk_space(dir: &Path) -> Option<DiskSpace> {
     let space = dx_os_sys::fs::space(dir).ok()?;
     (space.total != 0).then_some(DiskSpace {
         free: space.free,
         total: space.total,
     })
-}
-
-#[cfg(not(unix))]
-#[expect(unsafe_code, reason = "GetDiskFreeSpaceExW is Win32 FFI")]
-fn dir_disk_space(dir: &Path) -> Option<DiskSpace> {
-    use std::os::windows::ffi::OsStrExt;
-
-    unsafe extern "system" {
-        fn GetDiskFreeSpaceExW(
-            directory: *const u16,
-            free_to_caller: *mut u64,
-            total: *mut u64,
-            total_free: *mut u64,
-        ) -> i32;
-    }
-
-    let mut wide: Vec<u16> = dir.as_os_str().encode_wide().collect();
-    if !matches!(wide.last(), Some(&c) if c == u16::from(b'\\') || c == u16::from(b'/')) {
-        wide.push(u16::from(b'\\'));
-    }
-    wide.push(0);
-    let (mut free, mut total, mut total_free) = (0u64, 0u64, 0u64);
-    // SAFETY: `wide` is NUL-terminated and the three outputs are writable u64s.
-    let ok = unsafe { GetDiskFreeSpaceExW(wide.as_ptr(), &mut free, &mut total, &mut total_free) };
-    if ok == 0 || total == 0 {
-        return None;
-    }
-    Some(DiskSpace { free, total })
 }
 
 /// What one pinned-tool variable holds, read once.

@@ -230,38 +230,42 @@ mod interrupt {
 
 #[cfg(windows)]
 mod interrupt {
+    use dx_os_sys::console::{CtrlEvent, CtrlHandler, add_handler};
     use std::path::{Path, PathBuf};
     use std::sync::{Mutex, Once};
 
     static PATH: Mutex<Option<PathBuf>> = Mutex::new(None);
 
-    #[expect(
-        clippy::exit,
-        reason = "a console control handler ends the process with the signal exit code"
-    )]
-    #[expect(
-        unsafe_code,
-        reason = "a console control handler is an unsafe extern fn"
-    )]
-    unsafe extern "system" fn on_ctrl(ctrl_type: u32) -> i32 {
-        if let Some(path) = PATH.lock().ok().and_then(|p| p.clone()) {
-            let _ = std::fs::remove_file(path);
+    /// Removes the part file being downloaded and exits with the signal exit code.
+    struct RemovePart;
+
+    impl CtrlHandler for RemovePart {
+        #[expect(
+            clippy::exit,
+            reason = "a console control handler ends the process with the signal exit code"
+        )]
+        fn handle(event: CtrlEvent) -> bool {
+            if let Some(path) = PATH.lock().ok().and_then(|p| p.clone()) {
+                let _ = std::fs::remove_file(path);
+            }
+            std::process::exit(match event {
+                CtrlEvent::C => 130,
+                CtrlEvent::Break | CtrlEvent::Close | CtrlEvent::Logoff | CtrlEvent::Shutdown => {
+                    143
+                }
+            })
         }
-        std::process::exit(128 + if ctrl_type == 0 { 2 } else { 15 })
     }
 
-    #[expect(
-        unsafe_code,
-        reason = "registering a console control handler calls a Win32 API"
-    )]
     pub fn watch(path: &Path) {
         static INSTALL: Once = Once::new();
         if let Ok(mut current) = PATH.lock() {
             *current = Some(path.to_path_buf());
         }
-        // SAFETY: `on_ctrl` is a static handler with the required ABI.
-        INSTALL.call_once(|| unsafe {
-            windows_sys::Win32::System::Console::SetConsoleCtrlHandler(Some(on_ctrl), 1);
+        INSTALL.call_once(|| {
+            if let Err(err) = add_handler::<RemovePart>() {
+                eprintln!("dx: warning: cannot install the Ctrl-C handler: {err}");
+            }
         });
     }
 

@@ -2031,6 +2031,7 @@ dependencies = [
  "errno",
  "libc",
  "rustix",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2151,7 +2152,6 @@ version = "0.0.0"
 dependencies = [
  "semver",
  "tempfile",
- "windows-sys 0.61.2",
 ]
 
 [[package]]

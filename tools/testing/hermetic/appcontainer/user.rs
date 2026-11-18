@@ -13,7 +13,10 @@
 //!
 //! Inside an AppContainer the Mount Manager refuses `GetFinalPathNameByHandleW` with a DOS
 //! volume name, which Bazel's client needs. A normal user token passes.
+use dx_os_sys::job_object::{JobObject, Limit};
+use dx_os_sys::{nt, win32};
 use std::ffi::c_void;
+use std::os::windows::io::{AsHandle, BorrowedHandle};
 use std::ptr::{null, null_mut};
 use std::time::{Duration, Instant};
 
@@ -51,14 +54,10 @@ use windows_sys::Win32::Security::{
 use windows_sys::Win32::System::Console::{
     GetStdHandle, STD_ERROR_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE,
 };
-use windows_sys::Win32::System::JobObjects::{
-    AssignProcessToJobObject, JOBOBJECT_BASIC_ACCOUNTING_INFORMATION,
-    JobObjectBasicAccountingInformation, QueryInformationJobObject, TerminateJobObject,
-};
 use windows_sys::Win32::System::Threading::{
     CreateMutexW, CreateProcessWithLogonW, GetCurrentProcess, GetExitCodeProcess,
     LOGON_WITH_PROFILE, OpenProcess, OpenProcessToken, PROCESS_DUP_HANDLE, PROCESS_INFORMATION,
-    PROCESS_QUERY_LIMITED_INFORMATION, ReleaseMutex, ResumeThread, STARTUPINFOW,
+    ReleaseMutex, ResumeThread, STARTUPINFOW,
     WaitForSingleObject,
 };
 use windows_sys::Win32::UI::Shell::DeleteProfileW;
@@ -70,7 +69,7 @@ use crate::args::{
 };
 use crate::sys::{
     CREATE_SUSPENDED, CREATE_UNICODE_ENVIRONMENT, DENY_ACCESS, GRANT_ACCESS, INFINITE,
-    REVOKE_ACCESS, STARTF_USESTDHANDLES, check, kill_on_close_job, path_lock_name, set_access,
+    REVOKE_ACCESS, STARTF_USESTDHANDLES, check, path_lock_name, set_access,
     trustee_entry, user_defaults, wide, with_acl_lock, write_acl, write_acl_here,
 };
 
@@ -84,10 +83,6 @@ const PERMIT_WEIGHT: u8 = 10;
 const DNS_BLOCK_WEIGHT: u8 = 15;
 const DNS_PORT: u16 = 53;
 const PORT_ALL_ACCESS: u32 = 0x001F_0001;
-const SYSTEM_EXTENDED_HANDLE_INFORMATION: u32 = 64;
-const OBJECT_NAME_INFORMATION: u32 = 1;
-const OBJECT_TYPE_INFORMATION: u32 = 2;
-const STATUS_INFO_LENGTH_MISMATCH: i32 = 0xC000_0004_u32 as i32;
 const SC_MANAGER_CONNECT: u32 = 1;
 const SERVICE_QUERY_STATUS: u32 = 4;
 const SC_STATUS_PROCESS_INFO: i32 = 0;
@@ -95,33 +90,6 @@ const DNS_PORT_LOCK: &str = "Global\\dx_hermetic_dnsresolver_acl";
 const HOST_DENIES_LOCK: &str = "Global\\dx-hermetic-host-denies";
 const ACCESS_ALLOWED_ACE_TYPE: u8 = 0;
 const ACCESS_DENIED_ACE_TYPE: u8 = 1;
-
-#[repr(C)]
-struct HandleEntry {
-    object: *mut c_void,
-    pid: usize,
-    handle: usize,
-    access: u32,
-    backtrace: u16,
-    type_index: u16,
-    attributes: u32,
-    reserved: u32,
-}
-
-#[repr(C)]
-struct UnicodeString {
-    length: u16,
-    capacity: u16,
-    buffer: *const u16,
-}
-
-#[link(name = "ntdll", kind = "raw-dylib")]
-// SAFETY: the declarations match the ntdll signatures of these functions.
-unsafe extern "system" {
-    fn NtQuerySystemInformation(class: u32, info: *mut c_void, len: u32, out: *mut u32) -> i32;
-    fn NtQueryObject(handle: HANDLE, class: u32, info: *mut c_void, len: u32, out: *mut u32)
-    -> i32;
-}
 
 #[link(name = "advapi32", kind = "raw-dylib")]
 // SAFETY: the declarations match the advapi32 signatures of these functions.
@@ -144,7 +112,7 @@ struct Session {
     created: bool,
     sid: Vec<u8>,
     sid_text: String,
-    job: HANDLE,
+    job: Option<JobObject>,
     acl_paths: Vec<String>,
     engine: HANDLE,
     dns_port: HANDLE,
@@ -159,8 +127,8 @@ impl Session {
 
 impl Drop for Session {
     fn drop(&mut self) {
-        if !self.job.is_null() {
-            end_job(self.job);
+        if let Some(job) = self.job.take() {
+            end_job(&job);
         }
         for path in &self.acl_paths {
             let _ = remove_access(path, self.sid());
@@ -185,29 +153,15 @@ impl Drop for Session {
 }
 
 /// Kills what is left in the job and waits until it is empty, so the profile is no longer in use.
-fn end_job(job: HANDLE) {
-    // SAFETY: the accounting structure is plain C data for which all-zero is valid.
-    let mut info: JOBOBJECT_BASIC_ACCOUNTING_INFORMATION = unsafe { std::mem::zeroed() };
-    // SAFETY: job is a valid job handle.
-    unsafe { TerminateJobObject(job, 1) };
+fn end_job(job: &JobObject) {
+    let _ = job.terminate(1);
     for _ in 0..100 {
-        // SAFETY: job is valid and info is the accounting structure of the size passed.
-        let ok = unsafe {
-            QueryInformationJobObject(
-                job,
-                JobObjectBasicAccountingInformation,
-                &mut info as *mut _ as *mut c_void,
-                std::mem::size_of_val(&info) as u32,
-                null_mut(),
-            )
-        };
-        if ok == 0 || info.ActiveProcesses == 0 {
+        if job.active_processes().is_ok_and(|active| active > 0) {
+            std::thread::sleep(Duration::from_millis(100));
+        } else {
             break;
         }
-        std::thread::sleep(Duration::from_millis(100));
     }
-    // SAFETY: job is owned here and closed once.
-    unsafe { CloseHandle(job) };
 }
 
 /// Deletes the account's profile. The profile service unloads it a little after the last
@@ -570,68 +524,11 @@ fn dns_client_pid() -> Result<u32, String> {
     }
 }
 
-fn handle_entries() -> Result<Vec<HandleEntry>, String> {
-    let mut buffer = vec![0u64; 1 << 17];
-    loop {
-        let len = (buffer.len() * 8) as u32;
-        // SAFETY: buffer is valid for len bytes and the query accepts a null return length.
-        let status = unsafe {
-            NtQuerySystemInformation(
-                SYSTEM_EXTENDED_HANDLE_INFORMATION,
-                buffer.as_mut_ptr() as *mut c_void,
-                len,
-                null_mut(),
-            )
-        };
-        if status == STATUS_INFO_LENGTH_MISMATCH {
-            buffer.resize(buffer.len() * 2, 0);
-            continue;
-        }
-        if status < 0 {
-            return Err(format!(
-                "cannot list the system handles (NTSTATUS {status:#x})"
-            ));
-        }
-        let count = buffer.first().copied().unwrap_or(0) as usize;
-        // SAFETY: the query filled buffer, so the entries start two words in.
-        let first = unsafe { buffer.as_ptr().add(2) } as *const HandleEntry;
-        return Ok((0..count)
-            // SAFETY: at is below count, so the read stays inside the entries the query wrote.
-            .map(|at| unsafe { std::ptr::read(first.add(at)) })
-            .collect());
-    }
-}
-
-/// The UNICODE_STRING that NtQueryObject puts at the start of both the name and the type.
-fn object_text(handle: HANDLE, class: u32) -> Option<String> {
-    let mut buffer = vec![0u64; 512];
-    // SAFETY: buffer is valid for the byte length passed and handle is an open handle.
-    let status = unsafe {
-        NtQueryObject(
-            handle,
-            class,
-            buffer.as_mut_ptr() as *mut c_void,
-            (buffer.len() * 8) as u32,
-            null_mut(),
-        )
-    };
-    if status < 0 {
-        return None;
-    }
-    // SAFETY: the query wrote a UNICODE_STRING at the start of buffer, which is 8-byte aligned.
-    let text = unsafe { &*(buffer.as_ptr() as *const UnicodeString) };
-    if text.buffer.is_null() {
-        return Some(String::new());
-    }
-    // SAFETY: text.buffer points into buffer and holds length / 2 u16 values.
-    let chars = unsafe { std::slice::from_raw_parts(text.buffer, text.length as usize / 2) };
-    Some(String::from_utf16_lossy(chars))
-}
-
 /// Duplicates the Dnscache process's handle to its `\RPC Control\DNSResolver` ALPC port.
 fn find_dns_port() -> Result<HANDLE, String> {
     let pid = dns_client_pid()?;
-    let entries = handle_entries()?;
+    let entries =
+        nt::system_handles().map_err(|err| format!("cannot list the system handles: {err}"))?;
     // SAFETY: OpenProcess takes plain integers and a null result is checked.
     let process = unsafe { OpenProcess(PROCESS_DUP_HANDLE, 0, pid) };
     if process.is_null() {
@@ -660,8 +557,10 @@ fn find_dns_port() -> Result<HANDLE, String> {
             continue;
         }
         // Only ALPC ports are named here: a name query on some pipes never returns.
-        if object_text(copy, OBJECT_TYPE_INFORMATION).as_deref() == Some("ALPC Port") {
-            let name = object_text(copy, OBJECT_NAME_INFORMATION).unwrap_or_default();
+        // SAFETY: copy is the handle duplicated above and stays open until it is closed below.
+        let borrowed = unsafe { BorrowedHandle::borrow_raw(copy) };
+        if nt::object_type_name(borrowed).ok().as_deref() == Some("ALPC Port") {
+            let name = nt::object_name(borrowed).unwrap_or_default();
             if name.to_ascii_lowercase().ends_with("\\dnsresolver") {
                 found = copy;
                 break;
@@ -842,13 +741,18 @@ fn spawn(config: &Config, session: &Session, password: &str) -> Result<i32, Stri
             std::io::Error::last_os_error()
         ));
     }
-    // SAFETY: session.job and info.hProcess are valid handles.
-    if unsafe { AssignProcessToJobObject(session.job, info.hProcess) } == 0 {
+    let job = session
+        .job
+        .as_ref()
+        .ok_or_else(|| "the run has no job object".to_owned())?;
+    // SAFETY: info.hProcess is the live handle from CreateProcessWithLogonW, closed only below.
+    let process = unsafe { BorrowedHandle::borrow_raw(info.hProcess) };
+    if let Err(err) = job.assign(process) {
         // SAFETY: info.hThread is the live handle from CreateProcessWithLogonW, closed once.
         unsafe { CloseHandle(info.hThread) };
         // SAFETY: info.hProcess is the live handle from CreateProcessWithLogonW, closed once.
         unsafe { CloseHandle(info.hProcess) };
-        return Err("cannot put the command in the job object".to_owned());
+        return Err(format!("cannot put the command in the job object: {err}"));
     }
     let mut code = 1u32;
     // SAFETY: info holds the live handles from CreateProcessWithLogonW; hThread is closed once.
@@ -860,8 +764,7 @@ fn spawn(config: &Config, session: &Session, password: &str) -> Result<i32, Stri
     // SAFETY: info.hProcess is a live process handle.
     while unsafe { WaitForSingleObject(info.hProcess, 1000) } == WAIT_TIMEOUT {
         if let Err(err) = check_dns_client(session) {
-            // SAFETY: session.job is a valid job handle.
-            unsafe { TerminateJobObject(session.job, 1) };
+            let _ = job.terminate(1);
             outcome = Err(err);
             break;
         }
@@ -882,7 +785,7 @@ pub fn run(config: &Config) -> Result<i32, String> {
         created: false,
         sid: Vec::new(),
         sid_text: String::new(),
-        job: null_mut(),
+        job: None,
         acl_paths: Vec::new(),
         engine: null_mut(),
         dns_port: null_mut(),
@@ -910,7 +813,10 @@ pub fn run(config: &Config) -> Result<i32, String> {
             session.acl_paths.push(path.clone());
         }
     }
-    session.job = kill_on_close_job()?;
+    session.job = Some(
+        JobObject::new(Limit::KillOnClose)
+            .map_err(|err| format!("cannot create the job object: {err}"))?,
+    );
     spawn(config, &session, &password)
 }
 
@@ -1246,17 +1152,10 @@ unsafe fn wide_text(text: *const u16) -> String {
 /// Whether `pid` may still run. Only a pid Windows does not know counts as gone, so a process
 /// we may not open is treated as alive.
 fn process_alive(pid: u32) -> bool {
-    // SAFETY: OpenProcess takes plain integers and a null result is checked.
-    let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
-    if process.is_null() {
-        // SAFETY: GetLastError has no preconditions.
-        return unsafe { GetLastError() } != ERROR_INVALID_PARAMETER;
+    match win32::open(pid, win32::Access::Wait) {
+        Ok(process) => win32::is_running(process.as_handle()).unwrap_or(true),
+        Err(err) => err.raw_os_error() != Some(ERROR_INVALID_PARAMETER as i32),
     }
-    // SAFETY: process is the open handle from OpenProcess.
-    let running = unsafe { WaitForSingleObject(process, 0) } == WAIT_TIMEOUT;
-    // SAFETY: process is open and closed once.
-    unsafe { CloseHandle(process) };
-    running
 }
 
 /// Reads the DACL of one path. The ACL points into the descriptor, which the caller frees.

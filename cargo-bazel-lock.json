@@ -1,5 +1,5 @@
 {
-  "checksum": "e296d4f1b1cfc1d2108bd6b12fa3f4e8363913aff0d115a9af74340c04dc22fd",
+  "checksum": "e21463c6ee39b83ed17509f213f0c351a1b43b8dd0a2555485270e3142258426",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -9152,6 +9152,12 @@
                 "id": "rustix 1.1.4",
                 "target": "rustix"
               }
+            ],
+            "cfg(windows)": [
+              {
+                "id": "windows-sys 0.61.2",
+                "target": "windows_sys"
+              }
             ]
           }
         },
@@ -9636,22 +9642,12 @@
     },
     "dx_shim 0.0.0": {
       "common_attrs": {
-        "deps": {
-          "common": [
-            {
-              "id": "semver 1.0.27",
-              "target": "semver"
-            }
-          ],
-          "selects": {
-            "cfg(windows)": [
-              {
-                "id": "windows-sys 0.61.2",
-                "target": "windows_sys"
-              }
-            ]
+        "deps": [
+          {
+            "id": "semver 1.0.27",
+            "target": "semver"
           }
-        },
+        ],
         "deps_dev": [
           {
             "id": "tempfile 3.27.0",
@@ -31516,6 +31512,8 @@
           "Wdk_Storage_FileSystem",
           "Wdk_System",
           "Wdk_System_IO",
+          "Wdk_System_SystemInformation",
+          "Wdk_System_Threading",
           "Win32",
           "Win32_Foundation",
           "Win32_NetworkManagement",
@@ -31533,10 +31531,13 @@
           "Win32_Storage_FileSystem",
           "Win32_System",
           "Win32_System_Console",
+          "Win32_System_Diagnostics",
+          "Win32_System_Diagnostics_ToolHelp",
           "Win32_System_Environment",
           "Win32_System_IO",
           "Win32_System_JobObjects",
           "Win32_System_Pipes",
+          "Win32_System_ProcessStatus",
           "Win32_System_Rpc",
           "Win32_System_SystemInformation",
           "Win32_System_SystemServices",

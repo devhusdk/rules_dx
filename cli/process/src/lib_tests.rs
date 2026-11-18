@@ -983,14 +983,12 @@ fn pinned_var_classifies_values() {
 fn a_recorded_stop_signal_is_reported_with_its_exit_code() {
     assert_eq!(interrupted(), None);
     #[cfg(windows)]
-    #[expect(unsafe_code, reason = "console_stop is an unsafe extern handler")]
     {
-        use crate::lifecycle::test_exports::console_stop;
-        // SAFETY: console_stop only records the stop.
-        assert_eq!(unsafe { console_stop(2) }, 0);
+        use crate::lifecycle::test_exports::RecordStop;
+        use dx_os_sys::console::{CtrlEvent, CtrlHandler};
+        assert!(!RecordStop::handle(CtrlEvent::Close));
         assert_eq!(interrupted(), None);
-        // SAFETY: console_stop only records the stop.
-        assert_eq!(unsafe { console_stop(0) }, 1);
+        assert!(RecordStop::handle(CtrlEvent::C));
         assert_eq!(interrupted(), Some(2));
     }
     record_interrupt(2);

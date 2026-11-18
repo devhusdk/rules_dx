@@ -31,6 +31,7 @@ rust_binary(
         normal = True,
     ) + [
         "//cli/binfmt:dx_binfmt",
+        "//cli/process:dx_process",
         "//tools/ci/evidence_inputs",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",

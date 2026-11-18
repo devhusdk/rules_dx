@@ -43,15 +43,11 @@ fn string_list(value: Option<&toml::Value>) -> Vec<String> {
 
 /// Names the manifest itself marks as intentionally unused: cargo-machete `ignored` for Cargo and
 /// deptry `DEP002` for pyproject.
-fn native_ignores(eco: Language, manifest: &Path) -> BTreeSet<String> {
-    let Ok(text) = std::fs::read_to_string(manifest) else {
-        return BTreeSet::new();
-    };
-    let Ok(data) = toml::from_str::<toml::Value>(&text) else {
-        return BTreeSet::new();
-    };
+fn native_ignores(eco: Language, text: &str) -> Result<BTreeSet<String>, DepcheckError> {
+    let parse = || toml::from_str::<toml::Value>(text).map_err(DepcheckError::ManifestToml);
     let names = match eco {
         Language::Rust => {
+            let data = parse()?;
             let mut names = string_list(
                 data.get("package")
                     .and_then(|v| v.get("metadata"))
@@ -67,7 +63,8 @@ fn native_ignores(eco: Language, manifest: &Path) -> BTreeSet<String> {
             names
         }
         Language::Python => string_list(
-            data.get("tool")
+            parse()?
+                .get("tool")
                 .and_then(|v| v.get("deptry"))
                 .and_then(|v| v.get("per_rule_ignores"))
                 .and_then(|v| v.get("DEP002")),
@@ -97,10 +94,14 @@ fn native_ignores(eco: Language, manifest: &Path) -> BTreeSet<String> {
         | Language::Lua
         | Language::Ocaml => Vec::new(),
     };
-    names
+    Ok(names
         .iter()
         .map(|name| normalize_dep_key(eco, name))
-        .collect()
+        .collect())
+}
+
+fn manifest_text(manifest: &Path) -> Result<String, DepcheckError> {
+    std::fs::read_to_string(manifest).map_err(DepcheckError::ManifestIo)
 }
 
 /// Declared dependencies of `manifest` without JS peers and natively ignored entries.
@@ -109,8 +110,8 @@ pub fn declared(eco: Language, manifest: &Path) -> Result<Vec<DeclaredDep>, Depc
     if matches!(eco, Language::Js | Language::Ts) {
         deps.retain(|_, v| !v.peer);
     }
-    let text = std::fs::read_to_string(manifest).unwrap_or_default();
-    let ignored = native_ignores(eco, manifest);
+    let text = manifest_text(manifest)?;
+    let ignored = native_ignores(eco, &text)?;
     let mut out = Vec::new();
     for (key, info) in &deps {
         if ignored.contains(key) {
@@ -146,10 +147,10 @@ pub fn find_unused(
         .iter()
         .map(|name| normalize_dep_key(eco, name))
         .collect();
-    used.extend(native_ignores(eco, manifest));
+    let text = manifest_text(manifest)?;
+    used.extend(native_ignores(eco, &text)?);
     let names: Vec<String> = deps.keys().cloned().collect();
     let usages = crate::usage::find_usages(eco, sources, &names)?;
-    let text = std::fs::read_to_string(manifest).unwrap_or_default();
     let mut out = Vec::new();
     for (key, info) in &deps {
         let usage = usages.get(key).copied().unwrap_or_default();

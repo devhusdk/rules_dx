@@ -2,6 +2,9 @@
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::Duration;
+
+use dx_process::capture::run_checked;
 
 const BAZEL: &str = "bazel";
 const CONFIG: &str = "--config=dx_build_release";
@@ -9,6 +12,8 @@ const PURE: &str = "--@rules_go//go/config:pure";
 const RELEASE: &str = "//deploy/private/release";
 const GAZELLE: &str = "@dx_gazelle//:gazelle";
 const LAUNCHER: &str = "//cli/launcher:exec_launcher";
+const QUERY_TIMEOUT: Duration = Duration::from_secs(30 * 60);
+const TOOL_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 
 struct Env {
     cell: String,
@@ -75,18 +80,7 @@ impl Bazel {
     }
 
     fn output(&self, args: &[&str]) -> Result<String, String> {
-        let out = self
-            .command(args)
-            .output()
-            .map_err(|error| format!("spawn bazel: {error}"))?;
-        if !out.status.success() {
-            return Err(format!(
-                "bazel {} failed: {}",
-                args.join(" "),
-                String::from_utf8_lossy(&out.stderr)
-            ));
-        }
-        Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+        run_output(&mut self.command(args), QUERY_TIMEOUT)
     }
 
     fn build(&self, flags: &[&str], targets: &[&str]) -> Result<(), String> {
@@ -239,7 +233,10 @@ fn build_cell(env: &Env, out: &Path) -> Result<(), String> {
     let tool = main.file(&root, &[], &format!("{RELEASE}:release_cell"))?;
     let matrix = main.file(&root, &[], &format!("{RELEASE}:release_matrix"))?;
     let built = main.file(&root, &[], &format!("{RELEASE}:dx_host_cell"))?;
-    let version = run_output(Command::new(&tool).args(["version", "--exe"]).arg(&dx))?;
+    let version = run_output(
+        Command::new(&tool).args(["version", "--exe"]).arg(&dx),
+        TOOL_TIMEOUT,
+    )?;
     let archive_name = name_of(&built)?;
     let archive = out.join(&archive_name);
     copy(&built, &archive)?;
@@ -313,17 +310,9 @@ fn build_cell(env: &Env, out: &Path) -> Result<(), String> {
     }
 }
 
-fn run_output(command: &mut Command) -> Result<String, String> {
-    let out = command
-        .output()
-        .map_err(|error| format!("spawn release_cell: {error}"))?;
-    if !out.status.success() {
-        return Err(format!(
-            "release_cell failed: {}",
-            String::from_utf8_lossy(&out.stderr)
-        ));
-    }
-    Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+fn run_output(command: &mut Command, timeout: Duration) -> Result<String, String> {
+    let out = run_checked(command, timeout).map_err(|error| error.to_string())?;
+    Ok(out.stdout_text().trim().to_string())
 }
 
 /// Builds and qualifies the release cell named by the environment into the directory `OUT`.

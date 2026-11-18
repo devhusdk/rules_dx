@@ -236,7 +236,7 @@ fn read_prefix(reader: &mut impl Read, buf: &mut [u8]) -> io::Result<usize> {
 }
 
 /// Opens one archive as a tar stream, unwrapping gzip by its magic bytes.
-fn oci_open_archive(image: &Path) -> io::Result<tar::Archive<Box<dyn Read>>> {
+fn oci_open_archive(image: &Path) -> io::Result<Box<dyn Read>> {
     use std::io::Seek as _;
     let opened =
         |error: io::Error| io::Error::new(error.kind(), format!("{}: {error}", image.display()));
@@ -255,7 +255,38 @@ fn oci_open_archive(image: &Path) -> io::Result<tar::Archive<Box<dyn Read>>> {
         }
         OciCompression::None => Box::new(file),
     };
-    Ok(tar::Archive::new(reader))
+    Ok(reader)
+}
+
+/// Layers are streamed, not buffered, so only the entry count is capped.
+const OCI_ARCHIVE_LIMITS: dx_archive::Limits = dx_archive::Limits {
+    max_entries: 1 << 20,
+    max_entry_bytes: u64::MAX,
+    max_total_bytes: u64::MAX,
+};
+
+/// Visits every entry of an image archive through `dx_archive`, which refuses unsafe member names.
+///
+/// Errors from `f` come back unchanged; only errors from reading the archive are reported as malformed.
+fn oci_visit_archive(
+    image: &Path,
+    mut f: impl FnMut(&dx_archive::Entry, &mut dyn Read) -> io::Result<()>,
+) -> io::Result<()> {
+    let mut failed = None;
+    let walked = dx_archive::visit_tar_entries(
+        oci_open_archive(image)?,
+        OCI_ARCHIVE_LIMITS,
+        |entry, body| {
+            f(entry, body).map_err(|error| {
+                failed = Some(error);
+                io::Error::other("image archive visit stopped")
+            })
+        },
+    );
+    match (failed, walked) {
+        (Some(error), _) => Err(error),
+        (None, walked) => walked.map_err(oci_malformed),
+    }
 }
 
 /// One image input: a tar archive or an OCI layout directory.
@@ -320,23 +351,12 @@ fn oci_each_member(
 ) -> io::Result<()> {
     match source {
         OciSource::Archive(image) => {
-            for entry in oci_open_archive(image)?.entries().map_err(oci_malformed)? {
-                let mut entry = entry.map_err(oci_malformed)?;
-                if !entry.header().entry_type().is_file() {
-                    continue;
+            oci_visit_archive(image, |entry, body| {
+                if entry.kind == dx_archive::EntryKind::File && names.contains(&entry.name) {
+                    visit(entry.name, body)?;
                 }
-                let raw = entry
-                    .path()
-                    .map_err(oci_malformed)?
-                    .to_string_lossy()
-                    .into_owned();
-                let Some(name) = oci_member_path("", &raw) else {
-                    continue;
-                };
-                if names.contains(&name.as_str()) {
-                    visit(&name, &mut entry)?;
-                }
-            }
+                Ok(())
+            })?;
         }
         OciSource::Dir(root) => {
             let mut seen = std::collections::HashSet::new();
@@ -538,39 +558,29 @@ fn oci_scan(source: OciSource<'_>) -> io::Result<OciScan> {
             return Ok(scan);
         }
     };
-    for entry in oci_open_archive(image)?.entries().map_err(oci_malformed)? {
-        let mut entry = entry.map_err(oci_malformed)?;
-        let raw = entry
-            .path()
-            .map_err(oci_malformed)?
-            .to_string_lossy()
-            .into_owned();
-        let Some(name) = oci_member_path("", &raw) else {
-            continue;
-        };
-        let kind = entry.header().entry_type();
-        if kind.is_symlink() || kind.is_hard_link() {
-            let target = entry
-                .link_name()
-                .map_err(oci_malformed)?
-                .map(|target| target.to_string_lossy().into_owned())
-                .unwrap_or_default();
-            let link = if kind.is_symlink() {
-                OciLink::Symbolic(target)
-            } else {
-                OciLink::Hard(target)
-            };
-            scan.links.insert(name, link);
-        } else if kind.is_file() && (name == "manifest.json" || name == "index.json") {
-            let mut body = Vec::new();
-            entry.read_to_end(&mut body).map_err(oci_malformed)?;
-            if name == "manifest.json" {
-                scan.manifest_json = Some(body);
-            } else {
-                scan.index_json = Some(body);
+    oci_visit_archive(image, |entry, body| {
+        let name = entry.name;
+        let target = entry.link_target.unwrap_or_default().to_owned();
+        match entry.kind {
+            dx_archive::EntryKind::Symlink => {
+                scan.links.insert(name.to_owned(), OciLink::Symbolic(target));
             }
+            dx_archive::EntryKind::HardLink => {
+                scan.links.insert(name.to_owned(), OciLink::Hard(target));
+            }
+            dx_archive::EntryKind::File if name == "manifest.json" || name == "index.json" => {
+                let mut bytes = Vec::new();
+                body.read_to_end(&mut bytes).map_err(oci_malformed)?;
+                if name == "manifest.json" {
+                    scan.manifest_json = Some(bytes);
+                } else {
+                    scan.index_json = Some(bytes);
+                }
+            }
+            _ => {}
         }
-    }
+        Ok(())
+    })?;
     Ok(scan)
 }
 

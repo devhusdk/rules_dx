@@ -809,6 +809,65 @@ fn oci_archive_image_id_reads_oci_layout_archives() {
     }
 }
 
+/// Writes member names verbatim, the way `tar -C layout .` stores them.
+fn oci_raw_tar(path: &Path, dirs: &[&str], files: &[(String, Vec<u8>)]) {
+    let mut builder = tar::Builder::new(Vec::new());
+    let entries = dirs
+        .iter()
+        .map(|dir| (*dir, tar::EntryType::Directory, &[][..]))
+        .chain(
+            files
+                .iter()
+                .map(|(name, body)| (name.as_str(), tar::EntryType::Regular, body.as_slice())),
+        );
+    for (name, kind, body) in entries {
+        let mut header = tar::Header::new_ustar();
+        header.as_mut_bytes()[..name.len()].copy_from_slice(name.as_bytes());
+        header.set_entry_type(kind);
+        header.set_size(body.len() as u64);
+        header.set_mode(0o644);
+        header.set_cksum();
+        builder.append(&header, body).expect("append");
+    }
+    std::fs::write(path, builder.into_inner().expect("tar")).expect("write archive");
+}
+
+#[test]
+fn oci_archive_image_id_reads_dot_slash_layout_archives() {
+    let scratch = scratch_dir();
+    let layers = [oci_test_layer(false), oci_test_layer(true)];
+    let fixture = oci_index_fixture(&layers, "amd64", true);
+    let files: Vec<(String, Vec<u8>)> = fixture
+        .members
+        .iter()
+        .map(|(name, body)| (format!("./{name}"), body.clone()))
+        .collect();
+    let archive = scratch.path().join("dot.tar");
+    oci_raw_tar(&archive, &["./", "./blobs/", "./blobs/sha256/"], &files);
+    assert_eq!(
+        oci_declared_image_id(&archive, "linux/amd64").expect("dot"),
+        oci_digest(&fixture.config)
+    );
+}
+
+#[test]
+fn oci_archive_image_id_refuses_escaping_members() {
+    let scratch = scratch_dir();
+    let layers = [oci_test_layer(false)];
+    let fixture = oci_index_fixture(&layers, "amd64", false);
+    for name in ["../evil", "./../evil", "blobs/../../evil"] {
+        let mut files = fixture.members.clone();
+        files.push((name.to_owned(), b"x".to_vec()));
+        let archive = scratch.path().join("escape.tar");
+        oci_raw_tar(&archive, &[], &files);
+        let message = oci_declared_image_id(&archive, "linux/amd64").expect_err(name);
+        assert!(
+            message.contains("malformed image archive: ") && message.contains("'..'"),
+            "{name}: {message}"
+        );
+    }
+}
+
 #[test]
 fn oci_archive_image_id_rejects_unsupported_oci_layout_archives() {
     let scratch = scratch_dir();

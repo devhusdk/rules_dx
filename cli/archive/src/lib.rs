@@ -1,7 +1,8 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 //! Safe extraction of tar, tar.gz and zip archives into a fresh directory, plus read-only
-//! member visits with name, kind and mode ([`visit_entries`], [`visit`], [`visit_tar`]), zip
+//! member visits with name, kind and mode ([`visit_entries`], [`visit`], [`visit_tar`],
+//! [`visit_tar_entries`]), zip
 //! member reads ([`read_zip_member`]) and listings ([`zip_names`]), and deterministic writers
 //! ([`TarWriter`], [`TarStream`], [`ZipWriter`]).
 
@@ -417,19 +418,22 @@ pub enum EntryKind {
     File,
     Dir,
     Symlink,
+    HardLink,
     Other,
 }
 
 /// One archive entry as [`visit_entries`] reports it.
 ///
 /// `mode` holds the permission bits (`& 0o7777`); it is `None` for a zip entry not made on Unix and
-/// for a tar header whose mode field is not a number.
+/// for a tar header whose mode field is not a number. `link_target` is the raw, unchecked target of a tar
+/// symlink or hard link; it is `None` for every other entry and for zip entries.
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Entry<'a> {
     pub name: &'a str,
     pub kind: EntryKind,
     pub mode: Option<u32>,
+    pub link_target: Option<&'a str>,
 }
 
 /// Calls `f` with the name, kind and body of every entry of an archive, in archive order, without extracting.
@@ -448,7 +452,8 @@ pub fn visit(
 
 /// Calls `f` with every [`Entry`] of an archive and its body, in archive order, without extracting.
 ///
-/// Names pass [`member_name_error`], directory names lose their trailing `/`, and repeated names are allowed.
+/// Names lose a leading `./`, a bare `.` directory is skipped, directory names lose their trailing `/`, the
+/// result passes [`member_name_error`], and repeated names are allowed.
 /// Tar pax global headers are skipped. `limits` caps the entries and the body bytes `f` reads; a body read
 /// past a cap fails. A tar.gz is read to its gzip trailer, so a cut or corrupt trailer fails.
 pub fn visit_entries(
@@ -465,17 +470,17 @@ pub fn visit_entries(
         f,
     };
     match format {
-        Format::Tar => visit_tar_entries(source, &mut run),
+        Format::Tar => walk_tar(source, &mut run),
         Format::TarGz => {
             let mut gz = flate2::read::GzDecoder::new(source);
-            visit_tar_entries(&mut gz, &mut run)?;
+            walk_tar(&mut gz, &mut run)?;
             io::copy(
                 &mut gz.by_ref().take(limits.max_total_bytes),
                 &mut io::sink(),
             )?;
             Ok(())
         }
-        Format::Zip => visit_zip_entries(source, &mut run),
+        Format::Zip => walk_zip(source, &mut run),
     }
 }
 
@@ -485,13 +490,24 @@ pub fn visit_tar(
     limits: Limits,
     mut f: impl FnMut(&str, EntryKind, &mut dyn Read) -> io::Result<()>,
 ) -> io::Result<()> {
+    visit_tar_entries(source, limits, |entry, body| {
+        f(entry.name, entry.kind, body)
+    })
+}
+
+/// Visits a plain tar stream like [`visit_entries`]; for streams that cannot seek or that the caller decompressed.
+pub fn visit_tar_entries(
+    source: impl Read,
+    limits: Limits,
+    f: impl FnMut(&Entry, &mut dyn Read) -> io::Result<()>,
+) -> io::Result<()> {
     let mut run = Visit {
         limits,
         entries: 0,
         total: 0,
-        f: |entry: &Entry, body: &mut dyn Read| f(entry.name, entry.kind, body),
+        f,
     };
-    visit_tar_entries(source, &mut run)
+    walk_tar(source, &mut run)
 }
 
 /// Decompresses a gzip stream of at most `max_bytes` bytes.
@@ -519,6 +535,7 @@ impl<F: FnMut(&Entry, &mut dyn Read) -> io::Result<()>> Visit<F> {
         name: String,
         kind: EntryKind,
         mode: Option<u32>,
+        link_target: Option<&str>,
         body: &mut dyn Read,
     ) -> io::Result<()> {
         if self.entries >= self.limits.max_entries {
@@ -528,10 +545,16 @@ impl<F: FnMut(&Entry, &mut dyn Read) -> io::Result<()>> Visit<F> {
             )));
         }
         self.entries += 1;
+        // `tar -C dir .` names every member `./…` and adds a `./` entry for the root itself.
+        let name = name.strip_prefix("./").unwrap_or(&name);
         let name = match (kind, name.strip_suffix('/')) {
-            (EntryKind::Dir, Some(dir)) => dir.to_owned(),
+            (EntryKind::Dir, Some(dir)) => dir,
             _ => name,
         };
+        if kind == EntryKind::Dir && (name.is_empty() || name == ".") {
+            return Ok(());
+        }
+        let name = name.to_owned();
         if let Some(reason) = member_name_error(&name) {
             return Err(invalid(reason));
         }
@@ -548,6 +571,7 @@ impl<F: FnMut(&Entry, &mut dyn Read) -> io::Result<()>> Visit<F> {
             name: &name,
             kind,
             mode,
+            link_target,
         };
         (self.f)(&entry, &mut capped)?;
         self.total += capped.read;
@@ -582,7 +606,7 @@ impl Read for Capped<'_> {
     }
 }
 
-fn visit_tar_entries<F: FnMut(&Entry, &mut dyn Read) -> io::Result<()>>(
+fn walk_tar<F: FnMut(&Entry, &mut dyn Read) -> io::Result<()>>(
     source: impl Read,
     run: &mut Visit<F>,
 ) -> io::Result<()> {
@@ -600,16 +624,25 @@ fn visit_tar_entries<F: FnMut(&Entry, &mut dyn Read) -> io::Result<()>>(
             EntryKind::Dir
         } else if entry_type.is_symlink() {
             EntryKind::Symlink
+        } else if entry_type.is_hard_link() {
+            EntryKind::HardLink
         } else {
             EntryKind::Other
         };
         let mode = entry.header().mode().ok().map(|mode| mode & 0o7777);
-        run.entry(name, kind, mode, &mut entry)?;
+        let link_target = match kind {
+            EntryKind::Symlink | EntryKind::HardLink => Some(utf8(
+                entry.link_name_bytes().unwrap_or_default().into_owned(),
+                "link target",
+            )?),
+            _ => None,
+        };
+        run.entry(name, kind, mode, link_target.as_deref(), &mut entry)?;
     }
     Ok(())
 }
 
-fn visit_zip_entries<F: FnMut(&Entry, &mut dyn Read) -> io::Result<()>>(
+fn walk_zip<F: FnMut(&Entry, &mut dyn Read) -> io::Result<()>>(
     source: impl Read + Seek,
     run: &mut Visit<F>,
 ) -> io::Result<()> {
@@ -635,7 +668,7 @@ fn visit_zip_entries<F: FnMut(&Entry, &mut dyn Read) -> io::Result<()>>(
             .unix_mode()
             .filter(|_| entry.system() == zip::System::Unix)
             .map(|mode| mode & 0o7777);
-        run.entry(name, kind, mode, &mut entry)?;
+        run.entry(name, kind, mode, None, &mut entry)?;
     }
     Ok(())
 }

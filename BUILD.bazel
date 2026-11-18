@@ -811,6 +811,7 @@ filegroup(
         "//patches/rules_julia:module_srcs",
         "//patches/rules_ocaml:module_srcs",
         "//patches/rules_oci:module_srcs",
+        "//patches/rules_powershell:module_srcs",
         "//patches/rules_python:module_srcs",
         "//patches/rules_ruby:module_srcs",
         "//patches/rules_scala:module_srcs",

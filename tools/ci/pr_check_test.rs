@@ -43,10 +43,10 @@ fn labels(text: &str) -> Vec<String> {
 #[test]
 fn script_covers_the_ci_preflight_labels() {
     let script = constant(&read_runfiles(SCRIPT), "PREFLIGHT_TARGETS");
-    let preflight = job(CI, "preflight").unwrap();
-    let matrix = preflight["strategy"]["matrix"]["include"]
+    let quality = job(CI, "quality-matrix").unwrap();
+    let matrix = quality["strategy"]["matrix"]["include"]
         .as_array()
-        .expect("preflight matrix");
+        .expect("quality-matrix matrix");
     let linux = matrix
         .iter()
         .find(|cell| cell["platform"] == "linux_x86_64")
@@ -106,9 +106,9 @@ fn windows_arm64_set_or_blocklist_covers_ci_preflight() {
             wanted.extend(labels(run));
         }
     }
-    let matrix = job(CI, "preflight").unwrap()["strategy"]["matrix"]["include"]
+    let matrix = job(CI, "quality-matrix").unwrap()["strategy"]["matrix"]["include"]
         .as_array()
-        .expect("preflight matrix")
+        .expect("quality-matrix matrix")
         .clone();
     let cell = matrix
         .iter()

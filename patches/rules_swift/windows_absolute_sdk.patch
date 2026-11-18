@@ -1,7 +1,8 @@
+Upstream: none (not yet sent upstream)
 diff --git a/swift/toolchains/swift_toolchain.bzl b/swift/toolchains/swift_toolchain.bzl
 --- a/swift/toolchains/swift_toolchain.bzl
 +++ b/swift/toolchains/swift_toolchain.bzl
-@@ -260,7 +260,9 @@ def _all_action_configs(os, arch, target_triple, sdkroot, xctest_version, additi
+@@ -262,7 +262,9 @@ def _all_action_configs(os, arch, target_triple, sdkroot, xctest_version, additi
                      SWIFT_ACTION_PRECOMPILE_C_MODULE,
                      SWIFT_ACTION_SYMBOL_GRAPH_EXTRACT,
                  ],
@@ -15,7 +16,7 @@ diff --git a/swift/toolchains/swift_toolchain.bzl b/swift/toolchains/swift_toolc
 diff --git a/tools/worker/swift_runner.cc b/tools/worker/swift_runner.cc
 --- a/tools/worker/swift_runner.cc
 +++ b/tools/worker/swift_runner.cc
-@@ -684,6 +684,13 @@ bool SwiftRunner::ProcessArgument(
+@@ -694,6 +694,13 @@ bool SwiftRunner::ProcessArgument(
        consumer(std::filesystem::absolute(resource_dir).string());
        return true;
      }

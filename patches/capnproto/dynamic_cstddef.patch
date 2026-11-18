@@ -1,3 +1,4 @@
+Upstream: none (not yet sent upstream)
 --- a/src/capnp/dynamic.h
 +++ b/src/capnp/dynamic.h
 @@ -32,6 +32,7 @@

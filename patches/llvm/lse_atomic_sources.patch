@@ -1,3 +1,4 @@
+Upstream: hermeticbuild/hermetic-llvm#922
 diff --git a/3rd_party/llvm-project/x.x/compiler-rt/BUILD.bazel b/3rd_party/llvm-project/x.x/compiler-rt/BUILD.bazel
 index 454cd22..c9ad737 100644
 --- a/3rd_party/llvm-project/x.x/compiler-rt/BUILD.bazel

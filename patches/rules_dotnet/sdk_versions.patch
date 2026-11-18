@@ -1,3 +1,4 @@
+Upstream: bazel-contrib/rules_dotnet#588
 diff -ruN a/dotnet/private/sdk/versions.bzl b/dotnet/private/sdk/versions.bzl
 --- a/dotnet/private/sdk/versions.bzl
 +++ b/dotnet/private/sdk/versions.bzl

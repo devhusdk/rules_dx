@@ -1,3 +1,4 @@
+Upstream: none (not yet sent upstream)
 diff --git a/private/eunit.bzl b/private/eunit.bzl
 --- a/private/eunit.bzl
 +++ b/private/eunit.bzl

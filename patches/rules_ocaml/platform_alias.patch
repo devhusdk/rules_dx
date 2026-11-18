@@ -1,3 +1,4 @@
+Upstream: none (not yet sent upstream)
 diff -ruN a/platform/emitter/BUILD.bazel b/platform/emitter/BUILD.bazel
 --- a/platform/emitter/BUILD.bazel
 +++ b/platform/emitter/BUILD.bazel

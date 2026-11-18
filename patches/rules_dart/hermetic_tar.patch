@@ -1,3 +1,4 @@
+Upstream: none (not yet sent upstream)
 diff --git a/dart/pub/pub_lock_package.bzl b/dart/pub/pub_lock_package.bzl
 index 786f739..6dae409 100644
 --- a/dart/pub/pub_lock_package.bzl

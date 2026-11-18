@@ -1,3 +1,4 @@
+Upstream: bazel-contrib/rules_python#4427
 diff --git a/python/private/cc/py_extension_macro.bzl b/python/private/cc/py_extension_macro.bzl
 --- a/python/private/cc/py_extension_macro.bzl
 +++ b/python/private/cc/py_extension_macro.bzl

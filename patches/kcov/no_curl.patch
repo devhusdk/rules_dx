@@ -1,3 +1,4 @@
+Upstream: none (rules_dx only: drops the libcurl dependency)
 --- a/src/utils.cc
 +++ b/src/utils.cc
 @@ -21,7 +21,6 @@

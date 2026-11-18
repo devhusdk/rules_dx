@@ -1,3 +1,4 @@
+Upstream: none (rules_dx only: gates toolchains behind //config:toolchains_on)
 diff --git a/ruby/private/toolchain/repository_proxy.bzl b/ruby/private/toolchain/repository_proxy.bzl
 --- a/ruby/private/toolchain/repository_proxy.bzl
 +++ b/ruby/private/toolchain/repository_proxy.bzl

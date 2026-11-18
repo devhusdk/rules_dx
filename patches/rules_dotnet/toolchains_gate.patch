@@ -1,3 +1,4 @@
+Upstream: none (rules_dx only: gates toolchains behind //config:toolchains_on)
 diff --git a/dotnet/private/toolchains_repo.bzl b/dotnet/private/toolchains_repo.bzl
 --- a/dotnet/private/toolchains_repo.bzl
 +++ b/dotnet/private/toolchains_repo.bzl

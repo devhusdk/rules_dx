@@ -18,6 +18,22 @@ py_unittest_test(
     ],
 )
 
+# Lists patches whose upstream fix is in a release. Run by
+# .github/workflows/patch-upstream.yml, which files the result as an issue.
+py_binary(
+    name = "upstream",
+    srcs = ["upstream.py"],
+    main = "upstream.py",
+)
+
+py_unittest_test(
+    name = "upstream_unit_test",
+    srcs = [
+        "upstream.py",
+        "upstream_test.py",
+    ],
+)
+
 genrule(
     name = "readme_generated",
     srcs = [

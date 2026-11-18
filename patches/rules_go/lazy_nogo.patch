@@ -1,3 +1,4 @@
+Upstream: bazel-contrib/rules_go#4788
 diff --git a/go/private/BUILD.bazel b/go/private/BUILD.bazel
 index 0c9a4b0..cc5a1e8 100755
 --- a/go/private/BUILD.bazel

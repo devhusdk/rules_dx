@@ -1,3 +1,4 @@
+Upstream: none (not yet sent upstream)
 --- a/oci/private/image.sh
 +++ b/oci/private/image.sh
 @@ -44,7 +44,7 @@

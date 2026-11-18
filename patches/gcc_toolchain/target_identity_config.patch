@@ -1,3 +1,4 @@
+Upstream: f0rmiga/gcc-toolchain#257
 --- a/toolchain/cc_toolchain_config.bzl
 +++ b/toolchain/cc_toolchain_config.bzl
 @@ -587,7 +587,7 @@

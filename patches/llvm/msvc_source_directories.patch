@@ -1,3 +1,4 @@
+Upstream: hermeticbuild/hermetic-llvm#920
 diff --git a/runtimes/msvc/BUILD.bazel b/runtimes/msvc/BUILD.bazel
 index dac32eb..e5a4c7f 100644
 --- a/runtimes/msvc/BUILD.bazel

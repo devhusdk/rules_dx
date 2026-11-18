@@ -1,3 +1,4 @@
+Upstream: none (not yet sent upstream)
 diff --git a/haskell/BUILD.bazel b/haskell/BUILD.bazel
 --- a/haskell/BUILD.bazel
 +++ b/haskell/BUILD.bazel

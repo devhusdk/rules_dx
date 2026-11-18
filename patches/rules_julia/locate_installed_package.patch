@@ -1,3 +1,4 @@
+Upstream: none (not yet sent upstream)
 diff -ruN a/julia/pkg/private/pkg_resolve.jl b/julia/pkg/private/pkg_resolve.jl
 --- a/julia/pkg/private/pkg_resolve.jl
 +++ b/julia/pkg/private/pkg_resolve.jl

@@ -111,7 +111,7 @@ Add the package to the manifest (`Cargo.toml`, `pyproject.toml` or `package.json
 dx generate --apply
 ```
 
-dx also keeps each `<ecosystem>.lock.json` lock in step with its manifest. For each dependency set in `MODULE.bazel` with such a lock, dx runs the set's pinned lock step. Without `--apply` it only compares; a stale lock prints `dx: lock of <set> is stale; run dx generate --apply` and exits `1`. With `--apply` it writes the stale lock. A lock that matches its inputs needs no download.
+dx also keeps each `<ecosystem>.lock.json` lock in step with its manifest. For each dependency set in `MODULE.bazel` with such a lock in a package the scope reaches, dx runs the set's pinned lock step. Without `--apply` it only compares; a stale lock prints `dx: lock of <set> is stale; run dx generate --apply` and exits `1`. With `--apply` it writes the stale lock. A lock that matches its inputs needs no download.
 
 [`dx update`](audit-update.md) also adds a missing dependency. With `--apply`, dx writes a missing `Cargo.lock`, `uv.lock` or `pnpm-lock.yaml` with its pinned tool. Without `--apply`, it prints `dx: would create <lock>; run dx generate --apply` and exits `1`.
 

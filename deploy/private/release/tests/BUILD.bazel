@@ -67,6 +67,10 @@ nested_bazel_test(
         "//patches/rules_rust:pipelined_rmeta_path.patch",
         "//patches/rules_rust:static_archive_link_arg.patch",
         "//patches/rules_rust:windows_exec_foreign_target_cc_linker.patch",
+        "//patches/rules_swift:windows_absolute_sdk.patch",
+        "//patches/rules_swift:windows_swift_testing.patch",
+        "//patches/rules_swift:windows_unknown_vendor.patch",
+        "//patches/rules_swift:xcode_select_absolute_path.patch",
         "//swift/tests:consumer_srcs",
     ],
     env = {

@@ -5,8 +5,8 @@ use std::path::{Path, PathBuf};
 
 use dx_nested::compose::{
     llvm_override, rules_flutter_override, rules_py_override, rules_rust_override,
-    windows_support_override, write_llvm_patches, write_rules_py_patches, write_rules_rust_patches,
-    write_windows_support_patches,
+    windows_support_override, write_llvm_patches, write_root_patch_override,
+    write_rules_py_patches, write_rules_rust_patches, write_windows_support_patches,
 };
 use dx_nested::{self as nested, Case};
 use dx_release_tools::candidate::{
@@ -114,6 +114,7 @@ fn consumer(candidate: &Candidate, archive: &Path, registry: &Path) -> Case {
     );
     rc.extend_from_slice(crate::quickstart_consumer_test::WINDOWS_SYMLINKS.as_bytes());
     write(&root.join(".bazelrc"), &rc);
+    let source = rules_dx_source().unwrap_or_else(|error| panic!("{error}"));
     let module = format!(
         "module(name = \"candidate_consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"{}\", repo_name = \"my_dx\")\n\ndx_licenses = use_extension(\"@my_dx//core:extensions.bzl\", \"dx_licenses\")\ndx_licenses.accept(ids = [\"visual-studio-build-tools\"])\n{}{}{}{}{}",
         candidate.version(),
@@ -122,9 +123,9 @@ fn consumer(candidate: &Candidate, archive: &Path, registry: &Path) -> Case {
         rules_rust_override(),
         llvm_override(),
         windows_support_override(),
-    );
+    ) + &write_root_patch_override(&root, &source, "rules_swift", &[])
+        .unwrap_or_else(|error| panic!("{error}"));
     assert!(!module.contains("module_name = \"rules_dx\""), "{module}");
-    let source = rules_dx_source().unwrap_or_else(|error| panic!("{error}"));
     write_rules_py_patches(&root, &source).unwrap_or_else(|error| panic!("{error}"));
     write_rules_rust_patches(&root, &source).unwrap_or_else(|error| panic!("{error}"));
     write_llvm_patches(&root, &source).unwrap_or_else(|error| panic!("{error}"));
@@ -232,8 +233,12 @@ fn assert_registry_consumer(candidate: &Candidate, archive: &Path, built_integri
     if check.status.code() != Some(0) {
         use std::io::Write;
         let diff = dx(&case, "generate", &["--diff", "//...", "--", policy]);
-        writeln!(std::io::stderr(), "dx generate --diff:\n{}", diff.combined())
-            .expect("stderr is writable");
+        writeln!(
+            std::io::stderr(),
+            "dx generate --diff:\n{}",
+            diff.combined()
+        )
+        .expect("stderr is writable");
     }
     ok(&check, "dx check");
 

@@ -120,7 +120,7 @@ erlc_aspect = aspect(
     attr_aspects = ["upstream", "beam"],
     attrs = {
         "_escript": attr.label(default = "//erlang/private/tools:escript_bin", cfg = "exec", executable = True),
-        "_replay": attr.label(default = "//core/quality:erlc_replay.escript", allow_single_file = True),
+        "_replay": attr.label(default = "//erlang/private/quality:erlc_replay.escript", allow_single_file = True),
     },
     toolchains = [config_common.toolchain_type(_TOOLCHAIN, mandatory = False)],
 )

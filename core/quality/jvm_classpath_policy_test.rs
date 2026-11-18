@@ -2,7 +2,7 @@
 //! `_jvm_aux_jars`, which keeps compile-only (neverlink) jars. A tool that reads
 //! `transitive_runtime_jars` directly silently loses them.
 //!
-//! Scans `core/quality/*.bzl` and `core/quality/families/*.bzl` (the data globs); JVM aspect
+//! Scans `core/quality/*.bzl`, `core/quality/families/*.bzl` and `java/private/quality` (the data); JVM aspect
 //! code moved into another subpackage must extend the globs.
 
 use std::path::Path;

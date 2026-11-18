@@ -5,10 +5,11 @@ load(":fsc.bzl", "fsc_warnon_args")
 
 visibility("private")
 
-def fsc_unit_tests(name):
+def fsc_unit_tests(name, size):
     """Declares the fsc unit tests."""
     starlark_test(
         name = name,
+        size = size,
         mode = "unit",
         checks = [
             expect_equal(

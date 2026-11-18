@@ -4,7 +4,7 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//core/quality:sources.bzl", "forwarded_upstream")
 
-visibility(["//cc/...", "//core/..."])
+visibility(["//cc/..."])
 
 NvccSyntaxInfo = provider(
     doc = "Front-end-only replays of the CudaCompile actions of one CUDA target.",

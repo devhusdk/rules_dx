@@ -15,16 +15,6 @@ const ALLOWED_REPOS: &[&str] = &[
     "rules_dx",
 ];
 
-/// Language helpers that sit in `core/quality/` and are not roots; this list only shrinks.
-const LANGUAGE_HELPERS: &[&str] = &[
-    "elixirc",
-    "erlc",
-    "fsc",
-    "jvm_check",
-    "nvcc_syntax",
-    "roslyn",
-];
-
 /// Directories outside `core/quality/` whose `.bzl` files are roots.
 const CORE_DIRS: &[&str] = &["core", "core/codegen", "core/modules"];
 
@@ -191,12 +181,7 @@ fn roots(source: &Path) -> Vec<String> {
     roots.extend(
         bzl_files(&source.join("core/quality"), "core/quality")
             .into_iter()
-            .filter(|path| {
-                let stem = path
-                    .trim_start_matches("core/quality/")
-                    .trim_end_matches(".bzl");
-                !stem.ends_with("_tests") && !LANGUAGE_HELPERS.contains(&stem)
-            }),
+            .filter(|path| !path.ends_with("_tests.bzl")),
     );
     roots.extend(
         tool_packages(source)
@@ -247,17 +232,6 @@ fn core_loads_only_allowed_external_repos() {
         offenders.is_empty(),
         "core loads reach a language rule set; move the load behind a language aspect file:\n{offenders:#?}"
     );
-}
-
-#[test]
-fn language_helpers_exist() {
-    let source = dx_testing::source_snapshot();
-    for helper in LANGUAGE_HELPERS {
-        assert!(
-            source.join(format!("core/quality/{helper}.bzl")).is_file(),
-            "core/quality/{helper}.bzl is gone; drop it from LANGUAGE_HELPERS"
-        );
-    }
 }
 
 #[test]

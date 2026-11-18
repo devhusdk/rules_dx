@@ -8,7 +8,7 @@ load("@rules_erlang//tools:erlang_toolchain.bzl", "TREE_ERLANG_HOME")
 load("//core:resources.bzl", "dx_medium_resources")
 load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE", "applet_file_name", "coreutils")
 
-visibility(["//core/...", "//erlang/..."])
+visibility(["//erlang/..."])
 
 _TOOLCHAIN = Label("@rules_elixir//:toolchain_type")
 

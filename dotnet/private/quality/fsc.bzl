@@ -3,10 +3,10 @@
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_dotnet//dotnet/private:common.bzl", "collect_compile_info", "framework_preprocessor_symbols", "is_core_framework", "is_standard_framework")
 load("//core:resources.bzl", "dx_heavy_resources")
-load("//core/quality:roslyn.bzl", "tfm_sort_key")
+load("//dotnet/private/quality:roslyn.bzl", "tfm_sort_key")
 load("//core/quality:sources.bzl", "forwarded_upstream", "single_target")
 
-visibility(["//core/...", "//dotnet/..."])
+visibility(["//dotnet/..."])
 
 _TOOLCHAIN = "@rules_dotnet//dotnet:toolchain_type"
 

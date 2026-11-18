@@ -3,7 +3,7 @@
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//cc/private:clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
 load("//core/quality:family_hooks.bzl", "stage")
-load("//core/quality:nvcc_syntax.bzl", "NvccSyntaxInfo", "nvcc_syntax_aspect")
+load("//cc/private/quality:nvcc_syntax.bzl", "NvccSyntaxInfo", "nvcc_syntax_aspect")
 load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 
 _QML_CONTEXT_EXTENSIONS = ["qml", "qmltypes", "js", "mjs"]

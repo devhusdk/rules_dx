@@ -4,7 +4,7 @@ load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
 load("//core/quality:family_hooks.bzl", "default_files_hook", "stage", "without")
-load("//core/quality:jvm_check.bzl", "JvmCheckInfo", "android_sdk_jars", "jvm_android_sdk_aspect", "jvm_check_aspect")
+load("//java/private/quality:jvm_check.bzl", "JvmCheckInfo", "android_sdk_jars", "jvm_android_sdk_aspect", "jvm_check_aspect")
 load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 load("//java/private/quality/tools:jar_lsp_tool.bzl", "PklLspToolInfo")
 

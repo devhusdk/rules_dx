@@ -5,7 +5,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use super::managed::{PointerKind, create_pointer, remove_managed};
+use super::managed::{EntryKind, PointerKind, classify, create_pointer, remove_managed};
 
 /// Lock file inside a managed root that serializes generation commits.
 pub const COMMIT_LOCK_FILE_NAME: &str = dx_path::state::COMMIT_LOCK;
@@ -138,7 +138,10 @@ fn write_holder(root: &ManagedRoot) {
 fn read_holder(root: &ManagedRoot) -> Option<String> {
     let mut bytes = std::fs::read(root.dir().join(COMMIT_HOLDER_FILE_NAME)).ok()?;
     bytes.truncate(200);
-    let text = String::from_utf8(bytes).ok()?;
+    let text = match std::str::from_utf8(&bytes) {
+        Ok(text) => text,
+        Err(error) => std::str::from_utf8(bytes.get(..error.valid_up_to())?).ok()?,
+    };
     let line = text.lines().next()?.trim();
     (!line.is_empty()).then(|| line.to_string())
 }
@@ -186,11 +189,14 @@ pub fn publish_pointer_swap(swap: &PointerSwap) -> Result<(), CommitError> {
     create_pointer(&swap.target, &swap.stage, swap.kind).map_err(|e| CommitError::Install {
         reason: format!("cannot stage {}: {e}", swap.stage.display()),
     })?;
-    std::fs::rename(&swap.stage, &swap.current).map_err(|e| CommitError::Install {
-        reason: format!(
-            "cannot publish {}: {e}; the prior pointer is preserved",
-            swap.current.display()
-        ),
+    std::fs::rename(&swap.stage, &swap.current).map_err(|e| {
+        drop(remove_managed(&swap.stage));
+        CommitError::Install {
+            reason: format!(
+                "cannot publish {}: {e}; the prior pointer is preserved",
+                swap.current.display()
+            ),
+        }
     })
 }
 
@@ -204,7 +210,8 @@ pub struct TreeSwap {
 
 /// Puts `retired` back at `current` when a crash fell between the two renames.
 pub fn recover_tree_swap(swap: &TreeSwap) -> Result<(), CommitError> {
-    if !swap.retired.exists() || swap.current.exists() {
+    let present = |path: &Path| classify(path).is_ok_and(|kind| kind != EntryKind::Missing);
+    if !present(&swap.retired) || present(&swap.current) {
         return Ok(());
     }
     std::fs::rename(&swap.retired, &swap.current).map_err(|e| CommitError::Install {
@@ -223,7 +230,7 @@ fn publish_tree_swap_with(
     swap: &TreeSwap,
     rename: &dyn Fn(&Path, &Path) -> io::Result<()>,
 ) -> Result<(), CommitError> {
-    let retired = swap.current.exists();
+    let retired = classify(&swap.current).is_ok_and(|kind| kind != EntryKind::Missing);
     if retired {
         rename(&swap.current, &swap.retired).map_err(|e| CommitError::Install {
             reason: format!("cannot retire current tree: {e}"),
@@ -738,6 +745,51 @@ mod tests {
         assert!(swap.retired.join("old").exists());
         recover_tree_swap(&swap).expect("recover");
         assert!(swap.current.join("old").exists());
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn busy_keeps_a_holder_label_cut_inside_a_character() {
+        let scratch = dx_test_scratch::scratch("dx-commit-holder-cut-").unwrap();
+        let root = root_at(&dx_path::state::local_dir(scratch.path()));
+        root.ensure_dir().expect("root");
+        let _held = acquire_commit_lock(&root, Duration::from_secs(10)).expect("hold");
+        let label = format!("{}\u{e9}tail", "a".repeat(199));
+        std::fs::write(root.dir().join(COMMIT_HOLDER_FILE_NAME), label).expect("holder");
+        let busy = acquire_commit_lock(&root, Duration::ZERO).expect_err("busy");
+        match busy {
+            LockError::Busy { holder, .. } => assert_eq!(holder, Some("a".repeat(199))),
+            other @ LockError::LockFailed { .. } => panic!("expected busy: {other:?}"), // LCOV_EXCL_LINE - reason: test failure arm, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        }
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn failed_publish_removes_its_staged_pointer() {
+        let scratch = dx_test_scratch::scratch("dx-commit-publish-stage-left-").unwrap();
+        let dir = scratch.path().join("setups");
+        let swap = swap_in(&dir, "record-b");
+        std::fs::create_dir_all(swap.current.join("kept")).expect("blocking directory");
+        publish_pointer_swap(&swap).expect_err("rename must fail");
+        assert!(
+            std::fs::symlink_metadata(&swap.stage).is_err(),
+            "stage left behind"
+        );
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn tree_swap_replaces_a_dangling_link_at_current() {
+        let scratch = dx_test_scratch::scratch("dx-tree-swap-dangling-").unwrap();
+        let swap = tree_swap_in(scratch.path());
+        std::os::unix::fs::symlink(scratch.path().join("gone"), &swap.current).expect("link");
+        std::fs::create_dir_all(&swap.stage).expect("stage");
+        std::fs::write(swap.stage.join("new"), "new").expect("new");
+        publish_tree_swap(&swap).expect("publish over a dangling link");
+        assert!(swap.current.join("new").exists());
+        assert!(std::fs::symlink_metadata(&swap.retired).is_err());
         scratch.close().expect("cleanup");
     }
 }

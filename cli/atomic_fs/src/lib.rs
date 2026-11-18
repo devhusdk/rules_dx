@@ -231,6 +231,15 @@ fn sync_parent(_path: &Path) -> io::Result<()> {
     Ok(())
 }
 
+pub(crate) fn open_source(src: &Path) -> io::Result<File> {
+    File::open(src).map_err(|error| {
+        io::Error::new(
+            error.kind(),
+            format!("cannot open {}: {error}", src.display()),
+        )
+    })
+}
+
 pub(crate) fn persist_copy(
     mut source: File,
     mut staging: tempfile::NamedTempFile,
@@ -252,13 +261,13 @@ pub(crate) fn persist_copy(
 
 /// Copies src to dest through a temp file, staged 0644 or 0755 when src is executable.
 pub fn copy_atomic(src: &Path, dest: &Path) -> io::Result<()> {
-    let source = File::open(src)?;
+    let source = open_source(src)?;
     persist_copy(source, staging_for(dest)?, dest, Durability::Synced)
 }
 
 /// Copies src to dest like [`copy_atomic`] without syncing, for files a crash may lose.
 pub fn copy_scratch(src: &Path, dest: &Path) -> io::Result<()> {
-    let source = File::open(src)?;
+    let source = open_source(src)?;
     persist_copy(source, staging_for(dest)?, dest, Durability::Unsynced)
 }
 
@@ -881,6 +890,21 @@ mod tests {
         std::thread::sleep(Duration::from_millis(500));
         drop(held);
         waiter.join().expect("waiter thread");
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn copy_errors_name_the_missing_source() {
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-copy-missing-").unwrap();
+        let missing = scratch.path().join("no-such-source.bin");
+        let dest = scratch.path().join("dest.bin");
+        for error in [
+            copy_atomic(&missing, &dest).expect_err("missing source"),
+            copy_scratch(&missing, &dest).expect_err("missing source"),
+        ] {
+            assert_eq!(error.kind(), io::ErrorKind::NotFound);
+            assert!(error.to_string().contains("no-such-source.bin"), "{error}");
+        }
         scratch.close().expect("cleanup");
     }
 }

@@ -10,7 +10,7 @@ capnproto_library(
         "kind.capnp",
         "shape.capnp",
     ],
-    deps = ["//capnproto/tests/base"],
+    deps = ["//capnproto/tests/fixtures/base"],
 )
 
 real_source_target(

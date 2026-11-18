@@ -6,7 +6,7 @@ $Cxx.namespace("dx::api");
 $Java.package("dx.api");
 $Java.outerClassname("ShapeSchema");
 
-using Common = import "/capnproto/tests/base/common.capnp";
+using Common = import "/capnproto/tests/fixtures/base/common.capnp";
 using Kinds = import "kind.capnp";
 
 struct Shape {

@@ -17,8 +17,8 @@ thrift_library_tests(name = "thrift_library_tests")
 thrift_cc_library(
     name = "shapes_cc",
     deps = [
-        "//thrift/tests/api",
-        "//thrift/tests/base",
+        "//thrift/tests/fixtures/api",
+        "//thrift/tests/fixtures/base",
     ],
 )
 
@@ -41,9 +41,9 @@ codegen_shard_argv_test(
         "--language",
         "cpp",
         "--entry",
-        "gen/thrift/tests/api/api.srcjar|gen||thrift/tests/api/_thrift_cc/api.srcjar",
+        "gen/thrift/tests/fixtures/api/api.srcjar|gen||thrift/tests/fixtures/api/_thrift_cc/api.srcjar",
         "--entry",
-        "gen/thrift/tests/base/base.srcjar|gen||thrift/tests/base/_thrift_cc/base.srcjar",
+        "gen/thrift/tests/fixtures/base/base.srcjar|gen||thrift/tests/fixtures/base/_thrift_cc/base.srcjar",
         "--output",
     ],
     output = "thrift/tests/shapes_cc.dxcodegen.pb",
@@ -53,8 +53,8 @@ codegen_shard_argv_test(
 thrift_java_library(
     name = "shapes_java",
     deps = [
-        "//thrift/tests/api",
-        "//thrift/tests/base",
+        "//thrift/tests/fixtures/api",
+        "//thrift/tests/fixtures/base",
     ],
 )
 
@@ -76,9 +76,9 @@ codegen_shard_argv_test(
         "--language",
         "java",
         "--entry",
-        "gen/thrift/tests/api/api.srcjar|gen||thrift/tests/api/_thrift_java/api.srcjar",
+        "gen/thrift/tests/fixtures/api/api.srcjar|gen||thrift/tests/fixtures/api/_thrift_java/api.srcjar",
         "--entry",
-        "gen/thrift/tests/base/base.srcjar|gen||thrift/tests/base/_thrift_java/base.srcjar",
+        "gen/thrift/tests/fixtures/base/base.srcjar|gen||thrift/tests/fixtures/base/_thrift_java/base.srcjar",
         "--output",
     ],
     output = "thrift/tests/shapes_java.dxcodegen.pb",
@@ -87,7 +87,7 @@ codegen_shard_argv_test(
 
 thrift_rust_library(
     name = "shapes_rs",
-    library = "//thrift/tests/api",
+    library = "//thrift/tests/fixtures/api",
 )
 
 codegen_shard_argv_test(

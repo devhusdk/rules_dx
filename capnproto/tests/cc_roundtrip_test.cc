@@ -4,9 +4,9 @@
 #include <cstdlib>
 #include <iostream>
 
-#include "capnproto/tests/api/kind.capnp.h"
-#include "capnproto/tests/api/shape.capnp.h"
-#include "capnproto/tests/base/common.capnp.h"
+#include "capnproto/tests/fixtures/api/kind.capnp.h"
+#include "capnproto/tests/fixtures/api/shape.capnp.h"
+#include "capnproto/tests/fixtures/base/common.capnp.h"
 
 int main() {
   capnp::MallocMessageBuilder builder;

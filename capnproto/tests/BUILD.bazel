@@ -17,8 +17,8 @@ capnp_library_tests(name = "capnp_library_tests")
 capnproto_cc_library(
     name = "shapes_cc",
     deps = [
-        "//capnproto/tests/api",
-        "//capnproto/tests/base",
+        "//capnproto/tests/fixtures/api",
+        "//capnproto/tests/fixtures/base",
     ],
 )
 
@@ -36,8 +36,8 @@ cc_test(
 capnproto_cc_library(
     name = "shapes_cc_again",
     deps = [
-        "//capnproto/tests/api",
-        "//capnproto/tests/base",
+        "//capnproto/tests/fixtures/api",
+        "//capnproto/tests/fixtures/base",
     ],
 )
 
@@ -62,17 +62,17 @@ codegen_shard_argv_test(
         "--language",
         "cpp",
         "--entry",
-        "gen/capnproto/tests/api/kind.capnp.h|gen||capnproto/tests/api/_capnp_cc/capnproto/tests/api/kind.capnp.h",
+        "gen/capnproto/tests/fixtures/api/kind.capnp.h|gen||capnproto/tests/fixtures/api/_capnp_cc/capnproto/tests/fixtures/api/kind.capnp.h",
         "--entry",
-        "gen/capnproto/tests/api/shape.capnp.h|gen||capnproto/tests/api/_capnp_cc/capnproto/tests/api/shape.capnp.h",
+        "gen/capnproto/tests/fixtures/api/shape.capnp.h|gen||capnproto/tests/fixtures/api/_capnp_cc/capnproto/tests/fixtures/api/shape.capnp.h",
         "--entry",
-        "gen/capnproto/tests/api/kind.capnp.c++|gen||capnproto/tests/api/_capnp_cc/capnproto/tests/api/kind.capnp.c++",
+        "gen/capnproto/tests/fixtures/api/kind.capnp.c++|gen||capnproto/tests/fixtures/api/_capnp_cc/capnproto/tests/fixtures/api/kind.capnp.c++",
         "--entry",
-        "gen/capnproto/tests/api/shape.capnp.c++|gen||capnproto/tests/api/_capnp_cc/capnproto/tests/api/shape.capnp.c++",
+        "gen/capnproto/tests/fixtures/api/shape.capnp.c++|gen||capnproto/tests/fixtures/api/_capnp_cc/capnproto/tests/fixtures/api/shape.capnp.c++",
         "--entry",
-        "gen/capnproto/tests/base/common.capnp.h|gen||capnproto/tests/base/_capnp_cc/capnproto/tests/base/common.capnp.h",
+        "gen/capnproto/tests/fixtures/base/common.capnp.h|gen||capnproto/tests/fixtures/base/_capnp_cc/capnproto/tests/fixtures/base/common.capnp.h",
         "--entry",
-        "gen/capnproto/tests/base/common.capnp.c++|gen||capnproto/tests/base/_capnp_cc/capnproto/tests/base/common.capnp.c++",
+        "gen/capnproto/tests/fixtures/base/common.capnp.c++|gen||capnproto/tests/fixtures/base/_capnp_cc/capnproto/tests/fixtures/base/common.capnp.c++",
         "--output",
     ],
     output = "capnproto/tests/shapes_cc.dxcodegen.pb",
@@ -82,12 +82,12 @@ codegen_shard_argv_test(
 # api_rs mirrors the api -> base dependency and refers to base_rs types by path.
 capnproto_rust_library(
     name = "base_rs",
-    library = "//capnproto/tests/base",
+    library = "//capnproto/tests/fixtures/base",
 )
 
 capnproto_rust_library(
     name = "api_rs",
-    library = "//capnproto/tests/api",
+    library = "//capnproto/tests/fixtures/api",
     deps = [":base_rs"],
 )
 
@@ -99,7 +99,7 @@ codegen_shard_argv_test(
         "--language",
         "rust",
         "--entry",
-        "gen/capnproto/tests/base/common_capnp.rs|gen||capnproto/tests/base_rs_generated_capnp_rs/capnproto/tests/base/common_capnp.rs",
+        "gen/capnproto/tests/fixtures/base/common_capnp.rs|gen||capnproto/tests/base_rs_generated_capnp_rs/capnproto/tests/fixtures/base/common_capnp.rs",
         "--output",
     ],
     output = "capnproto/tests/base_rs_generated.dxcodegen.pb",
@@ -114,9 +114,9 @@ codegen_shard_argv_test(
         "--language",
         "rust",
         "--entry",
-        "gen/capnproto/tests/api/kind_capnp.rs|gen||capnproto/tests/api_rs_generated_capnp_rs/capnproto/tests/api/kind_capnp.rs",
+        "gen/capnproto/tests/fixtures/api/kind_capnp.rs|gen||capnproto/tests/api_rs_generated_capnp_rs/capnproto/tests/fixtures/api/kind_capnp.rs",
         "--entry",
-        "gen/capnproto/tests/api/shape_capnp.rs|gen||capnproto/tests/api_rs_generated_capnp_rs/capnproto/tests/api/shape_capnp.rs",
+        "gen/capnproto/tests/fixtures/api/shape_capnp.rs|gen||capnproto/tests/api_rs_generated_capnp_rs/capnproto/tests/fixtures/api/shape_capnp.rs",
         "--output",
     ],
     output = "capnproto/tests/api_rs_generated.dxcodegen.pb",
@@ -127,8 +127,8 @@ codegen_shard_argv_test(
 capnproto_java_library(
     name = "shapes_java",
     deps = [
-        "//capnproto/tests/api",
-        "//capnproto/tests/base",
+        "//capnproto/tests/fixtures/api",
+        "//capnproto/tests/fixtures/base",
     ],
 )
 
@@ -150,9 +150,9 @@ codegen_shard_argv_test(
         "--language",
         "java",
         "--entry",
-        "gen/capnproto/tests/api/api.srcjar|gen||capnproto/tests/api/_capnp_java/api.srcjar",
+        "gen/capnproto/tests/fixtures/api/api.srcjar|gen||capnproto/tests/fixtures/api/_capnp_java/api.srcjar",
         "--entry",
-        "gen/capnproto/tests/base/base.srcjar|gen||capnproto/tests/base/_capnp_java/base.srcjar",
+        "gen/capnproto/tests/fixtures/base/base.srcjar|gen||capnproto/tests/fixtures/base/_capnp_java/base.srcjar",
         "--output",
     ],
     output = "capnproto/tests/shapes_java.dxcodegen.pb",
@@ -164,7 +164,7 @@ codegen_shard_argv_test(
 # A rust crate whose library depends on base, but whose deps omit base_rs.
 capnproto_rust_library(
     name = "api_rs_nodep",
-    library = "//capnproto/tests/api",
+    library = "//capnproto/tests/fixtures/api",
     tags = ["manual"],
 )
 
@@ -177,7 +177,7 @@ failure_test(
 failure_test(
     name = "rust_duplicate_module_test",
     expected_failure_substring = "generate module common_capnp",
-    target = "//capnproto/tests/dup:dup_rs_generated",
+    target = "//capnproto/tests/fixtures/dup:dup_rs_generated",
 )
 
 capnp_undeclared_rust_test(

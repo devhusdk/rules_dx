@@ -1,7 +1,7 @@
 namespace cpp dx.api
 namespace java dx.api
 
-include "thrift/tests/base/common.thrift"
+include "thrift/tests/fixtures/base/common.thrift"
 
 struct Shape {
   1: string name,

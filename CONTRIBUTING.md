@@ -101,7 +101,7 @@ Use these steps when you or an agent start from a fresh Linux checkout, such as 
 
    When `bazel` is not on `PATH`, `tools/dx` downloads the Bazelisk pinned in `tools/bazelisk/pin.env` from GitHub, checks its sha256 and keeps it in `~/.cache/dx/bazelisk`. That Bazelisk fetches Bazel from GitHub releases too, unless you set `BAZELISK_BASE_URL`. The first build takes about 7 minutes on 4 CPUs, up to 6 GB of memory and about 15 GB of disk.
 
-   The build needs `bcr.bazel.build`, the Bazel module registry. If the network blocks it, the first build stops with a line that names the host; allow it in the container's network settings.
+   The first run needs these hosts: `github.com` and `release-assets.githubusercontent.com` for the Bazelisk and Bazel downloads, and `bcr.bazel.build`, the Bazel module registry. If the network blocks one, `tools/dx` stops with a line that names the host; allow it in the container's network settings.
 
    GitHub source archives also come from `mirror.bazel.build` and `bcr.cloudflaremirrors.com`. `tools/workspace/downloader.cfg` tries those first, so a proxy that blocks `github.com/<owner>/<repo>/archive/` or `codeload.github.com` needs no other step.
 

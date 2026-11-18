@@ -118,14 +118,20 @@ bazelisk_pin() {
   [ -n "$bz_v" ] && [ -n "$bz_sum" ] && [ -n "$bz_cache" ] || return 1
   bz_dir=$bz_cache/dx/bazelisk/$bz_v
 }
+bazelisk_blocked() {
+  rm -f "$bz_tmp"
+  die "cannot download Bazelisk from $bz_host; allow it in the network settings or put bazel on PATH"
+}
 download_bazelisk() {
   bz_url=https://github.com/bazelbuild/bazelisk/releases/download/v$bz_v/bazelisk-$bz_arch
   echo "dx: bazel is not on PATH; fetching Bazelisk $bz_v to $bz_dir" >&2
   mkdir -p "$bz_dir" || return 1
+  bz_host=${bz_url#https://}
+  bz_host=${bz_host%%/*}
   if command -v curl >/dev/null 2>&1; then
-    curl -fsSL --proto '=https' --tlsv1.2 --retry 3 -o "$bz_tmp" "$bz_url" || return 1
+    curl -fsSL --proto '=https' --tlsv1.2 --retry 3 -o "$bz_tmp" "$bz_url" || bazelisk_blocked
   elif command -v wget >/dev/null 2>&1; then
-    wget -q --https-only -O "$bz_tmp" "$bz_url" || return 1
+    wget -q --https-only -O "$bz_tmp" "$bz_url" || bazelisk_blocked
   else
     echo "dx: neither curl nor wget is on PATH" >&2
     return 1
@@ -141,19 +147,33 @@ if ! command -v bazel >/dev/null 2>&1 && bazelisk_pin; then
   bz_tmp=$bz_dir/bazel.$$
   if [ -x "$bz_dir/bazel" ] || download_bazelisk; then
     PATH=$bz_dir:$PATH
+    case $bz_arch in linux-amd64) bz_bazel_arch=linux-x86_64 ;; *) bz_bazel_arch=$bz_arch ;; esac
     # Some container proxies block releases.bazel.build; GitHub serves the same Bazel releases.
     BAZELISK_BASE_URL=${BAZELISK_BASE_URL:-https://github.com/bazelbuild/bazel/releases/download}
     export PATH BAZELISK_BASE_URL
   fi
   rm -f "$bz_tmp"
 fi
-# False only when curl or wget runs and cannot fetch $1.
+# False only when curl or wget runs and cannot fetch $1. Redirects are followed: GitHub serves release files from
+# another host.
 reachable() {
   if command -v curl >/dev/null 2>&1; then
-    curl -fsS --max-time 10 -o /dev/null "$1" 2>/dev/null
+    curl -fsSL --max-time 10 -o /dev/null "$1" 2>/dev/null
   elif command -v wget >/dev/null 2>&1; then
     wget -q -T 10 -O /dev/null "$1"
   fi
+}
+# False only when the launcher put Bazelisk on PATH and the pinned Bazel's checksum cannot be fetched from
+# BAZELISK_BASE_URL. Sets bz_base_host.
+bazel_reachable() {
+  [ -n "${bz_bazel_arch:-}" ] || return 0
+  bz_ver=${USE_BAZEL_VERSION:-}
+  if [ -z "$bz_ver" ] && [ -r "$root/.bazelversion" ]; then IFS= read -r bz_ver <"$root/.bazelversion" || :; fi
+  bz_ver=${bz_ver%"$(printf '\r')"}
+  [ -n "$bz_ver" ] || return 0
+  bz_base_host=${BAZELISK_BASE_URL#*://}
+  bz_base_host=${bz_base_host%%/*}
+  reachable "$BAZELISK_BASE_URL/$bz_ver/bazel-$bz_ver-$bz_bazel_arch.sha256"
 }
 # True when an input of the last built dx is newer than that build. With arguments, only inputs under those path
 # prefixes count.
@@ -439,7 +459,10 @@ if stale; then
       echo "dx: //cli/cli:dx does not build; running the previous dx" >&2
       exec "$state/dx$exe" "$@"
     fi
-    # A proxy that blocks the module registry fails the first build; name the host, not only Bazel's fetch error.
+    # A proxy that blocks Bazel's download or the module registry fails the first build; name the host, not only
+    # the fetch error.
+    bazel_reachable ||
+      die "cannot download Bazel from $bz_base_host for Bazelisk; allow it in the network settings or set BAZELISK_BASE_URL"
     reachable https://bcr.bazel.build/bazel_registry.json ||
       die "cannot reach bcr.bazel.build, the Bazel module registry; allow it in the network settings"
     die "bazel build //cli/cli:dx failed"

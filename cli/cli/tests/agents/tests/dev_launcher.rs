@@ -520,9 +520,13 @@ mod sh {
         }
 
         fn break_build(&self) {
-            let stub = self.base.join("stub/bazel");
+            self.break_build_at(&self.base.join("stub/bazel"));
+        }
+
+        /// Writes a bazel at `stub` whose builds fail.
+        fn break_build_at(&self, stub: &Path) {
             dx_testing::executable_script(
-                &stub,
+                stub,
                 "#!/bin/sh\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      rm -f bazel-bin/cli/cli/dx\n      exit 1\n      ;;\n  esac\ndone\nexit 2\n",
             );
         }
@@ -1735,6 +1739,66 @@ mod sh {
             (Some(0), "https://mirror.example\n"),
             "{err}"
         );
+    }
+
+    #[test]
+    fn a_blocked_bazelisk_download_names_its_host() {
+        let repo = bazelisk_host("dx-launcher-blocked-bazelisk-", true);
+        repo.fake("curl", "exit 22");
+        let (code, _, err) = repo.run_in(&repo.root(), &["status"]);
+        assert_eq!(code, Some(1), "{err}");
+        assert!(
+            err.contains("dx: cannot download Bazelisk from github.com; allow it in the network settings or put bazel on PATH\n"),
+            "{err}"
+        );
+        assert!(!err.contains("dx: bazel is not on PATH\n"), "{err}");
+        assert_eq!(repo.builds(), 0);
+        let dir = repo.base.join("home/.cache/dx/bazelisk/9.9.9");
+        assert_eq!(std::fs::read_dir(&dir).expect("bazelisk dir").count(), 0);
+    }
+
+    #[test]
+    fn a_failed_first_build_names_a_blocked_bazel_download_host() {
+        let repo = bazelisk_host("dx-launcher-blocked-bazel-", true);
+        std::fs::write(repo.root().join(".bazelversion"), "9.3.1\n").expect("bazelversion");
+        let dir = repo.base.join("home/.cache/dx/bazelisk/9.9.9");
+        std::fs::create_dir_all(&dir).expect("bazelisk dir");
+        repo.break_build_at(&dir.join("bazel"));
+        let probes = repo.base.join("probes");
+        repo.fake(
+            "curl",
+            &format!(
+                "for a in \"$@\"; do u=$a; done\necho \"$u\" >> '{}'\nexit 22",
+                probes.display()
+            ),
+        );
+        let (code, _, err) = repo.run_in(&repo.root(), &["status"]);
+        assert_eq!(code, Some(1), "{err}");
+        assert!(
+            err.contains("dx: cannot download Bazel from github.com for Bazelisk; allow it in the network settings or set BAZELISK_BASE_URL\n"),
+            "{err}"
+        );
+        assert_eq!(
+            std::fs::read_to_string(&probes).expect("probe log"),
+            "https://github.com/bazelbuild/bazel/releases/download/9.3.1/bazel-9.3.1-linux-x86_64.sha256\n"
+        );
+        let out = spawn(
+            repo.command_in(&repo.root(), &["status"])
+                .env("BAZELISK_BASE_URL", "https://mirror.example/bazel"),
+        )
+        .wait_with_output()
+        .expect("launcher runs");
+        let err = String::from_utf8_lossy(&out.stderr);
+        assert_eq!(out.status.code(), Some(1), "{err}");
+        assert!(
+            err.contains("cannot download Bazel from mirror.example for Bazelisk"),
+            "{err}"
+        );
+        repo.fake("curl", "exit 0");
+        let (code, _, err) = repo.run_in(&repo.root(), &["status"]);
+        assert_eq!(code, Some(1), "{err}");
+        assert!(err.contains("bazel build //cli/cli:dx failed"), "{err}");
+        assert!(!err.contains("cannot download"), "{err}");
     }
 
     #[test]

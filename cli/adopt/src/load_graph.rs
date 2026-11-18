@@ -296,6 +296,8 @@ struct BazelrcRoots {
     aspects: Vec<String>,
     toolchains: Vec<String>,
     repos: BTreeSet<String>,
+    /// Absolute labels given as flag values, such as a `label_flag` setting.
+    flag_labels: Vec<String>,
 }
 
 /// Whether `name` is the repository `repo`, or one it owns when `repo` is canonical.
@@ -320,6 +322,7 @@ fn bazelrc_roots(workspace: &Path) -> Result<BazelrcRoots, DxError> {
         aspects: Vec::new(),
         toolchains: Vec::new(),
         repos: BTreeSet::new(),
+        flag_labels: Vec::new(),
     };
     while let Some(rel) = pending.pop() {
         if !seen.insert(rel.clone()) {
@@ -360,6 +363,13 @@ fn bazelrc_roots(workspace: &Path) -> Result<BazelrcRoots, DxError> {
                         None => continue,
                     },
                 };
+                roots.flag_labels.extend(
+                    value
+                        .split(',')
+                        .map(|item| item.trim_matches(|c| c == '"' || c == '\''))
+                        .filter(|item| item.starts_with("//") || item.starts_with('@'))
+                        .map(str::to_owned),
+                );
                 let list = match flag {
                     "aspects" => &mut roots.aspects,
                     "extra_toolchains"
@@ -634,6 +644,7 @@ struct ImpactGraph<'a> {
     graph: LoadGraph<'a>,
     aspects: Vec<String>,
     bazelrc_repos: BTreeSet<String>,
+    bazelrc_flag_labels: Vec<String>,
     extension_inputs: BTreeSet<String>,
     aspect_inputs: BTreeSet<String>,
     toolchain_inputs: BTreeSet<String>,
@@ -701,6 +712,7 @@ fn impact_graph<'a>(
         graph,
         aspects,
         bazelrc_repos: bazelrc.repos,
+        bazelrc_flag_labels: bazelrc.flag_labels,
         extension_inputs,
         aspect_inputs,
         toolchain_inputs,
@@ -877,6 +889,53 @@ pub fn bzl_impact(
         impact.insert(path.clone(), effect);
     }
     Ok(impact)
+}
+
+/// Main-repository targets that dx's aspects or the workspace bazelrc files name without a
+/// rule edge in the query graph: the absolute labels in the aspects' `.bzl` closure, such as
+/// implicit attribute defaults, and the labels given as flag values.
+///
+/// # Errors
+///
+/// Returns an error when a `.bzl` file or bazelrc file cannot be read.
+pub fn implicit_dependencies(
+    workspace: &Path,
+    aspect_labels: &[String],
+) -> Result<BTreeSet<String>, DxError> {
+    let graph = impact_graph(workspace, aspect_labels)?;
+    let names = &graph.graph.names;
+    let mut labels: BTreeSet<String> = graph
+        .bazelrc_flag_labels
+        .iter()
+        .filter_map(|label| main_repo_label(label, names))
+        .collect();
+    for rel in &graph.aspect_inputs {
+        let Some(text) = read(workspace, rel)? else {
+            continue;
+        };
+        labels.extend(
+            string_literals(&text)
+                .into_iter()
+                .filter(|literal| literal.starts_with("//") || literal.starts_with('@'))
+                .filter(|literal| !is_starlark_file(literal))
+                .filter_map(|literal| main_repo_label(literal, names)),
+        );
+    }
+    Ok(labels)
+}
+
+/// Whether `label` names a `.bzl` or `.scl` file, which `bzl_impact` covers.
+fn is_starlark_file(label: &str) -> bool {
+    label.ends_with(".bzl") || label.ends_with(".scl")
+}
+
+/// `label` as the `//package:name` form the query graph uses, when it names the main repository.
+fn main_repo_label(label: &str, names: &[String]) -> Option<String> {
+    let parsed = Label::parse(label)?;
+    if parsed.relative || parsed.repo_name().is_some_and(|repo| !main_repo(repo, names)) {
+        return None;
+    }
+    Some(format!("//{}:{}", parsed.package, parsed.name))
 }
 
 /// The packages that load from each external repository, or why it affects the whole workspace.

@@ -435,6 +435,11 @@ impl RuleGraph {
         })
     }
 
+    /// Rules the seeds reach, the seeds included.
+    pub(crate) fn reached_rules(&self, seeds: &[String]) -> Vec<String> {
+        self.keep(self.reach(seeds), |_| true)
+    }
+
     /// Graph labels that stand for the label, with apparent repos resolved.
     fn seeds_for(&self, label: &str) -> Vec<String> {
         if let Some(rest) = label

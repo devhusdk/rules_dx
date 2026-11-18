@@ -1154,3 +1154,108 @@ fn check_zip_refuses_a_dot_dot_member() {
         check_zip(File::open(&archive).expect("open"), Limits::default()).expect_err("refused");
     assert!(error.to_string().contains("'..'"), "{error}");
 }
+
+#[test]
+fn format_names_ignore_case_and_accept_bare_suffixes() {
+    for (name, format) in [
+        ("A.TAR.GZ", Format::TarGz),
+        ("a.Tar", Format::Tar),
+        (".zip", Format::Zip),
+        ("A.ZIP", Format::Zip),
+        (".tar", Format::Tar),
+    ] {
+        assert_eq!(Format::from_name(name), Some(format), "{name}");
+    }
+    assert_eq!(Format::from_name("zip"), None);
+}
+
+#[test]
+fn unlimited_caps_do_not_overflow() {
+    let dir = scratch();
+    let archive = dir.path().join("a.tar.gz");
+    tar_gz(&archive, &[("a", b"data", 0o644)]);
+    let unlimited = Limits {
+        max_entries: usize::MAX,
+        max_entry_bytes: u64::MAX,
+        max_total_bytes: u64::MAX,
+    };
+    let members =
+        extract(&archive, Format::TarGz, &dir.path().join("out"), unlimited).expect("extract");
+    assert_eq!(members.len(), 1);
+    let zip = dir.path().join("a.zip");
+    zip_file(&zip, &[("a", b"data", 0o644)]);
+    let bytes = read_zip_member(&zip, "a", u64::MAX).expect("read");
+    assert_eq!(bytes.as_deref(), Some(&b"data"[..]));
+}
+
+#[test]
+fn extract_refuses_a_corrupt_gzip_trailer() {
+    let dir = scratch();
+    let mut whole = written(Format::TarGz, |add| add("x", &[7u8; 4096], 0o644));
+    let crc = whole.len() - 8;
+    *whole.get_mut(crc).expect("crc byte") ^= 0xff;
+    let error = extract_bytes(
+        &whole,
+        Format::TarGz,
+        &dir.path().join("out"),
+        Limits::default(),
+    )
+    .expect_err("corrupt trailer");
+    assert!(error.to_string().contains("checksum"), "{error}");
+}
+
+#[test]
+fn ustar_writers_refuse_sizes_the_header_cannot_hold() {
+    let mut sink = Vec::new();
+    let mut stream = TarStream::new(&mut sink);
+    let error = stream
+        .add_file_from("big", 1 << 33, &mut io::empty(), 0o644)
+        .expect_err("too big");
+    assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+    assert!(error.to_string().contains("ustar"), "{error}");
+    drop(stream);
+    assert!(sink.is_empty());
+}
+
+#[test]
+fn tar_writer_names_a_directory_that_does_not_fit() {
+    let mut writer = TarWriter::new();
+    let error = writer
+        .add_dir(&"d".repeat(100), 0o755)
+        .expect_err("too long with the slash");
+    assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+    assert!(error.to_string().contains("tar member name"), "{error}");
+}
+
+#[test]
+fn extract_errors_name_the_member_and_archive() {
+    let dir = scratch();
+    let archive = dir.path().join("clash.zip");
+    zip_entries(
+        &archive,
+        &[
+            ZipEntry::File("a", b"x", 0o644),
+            ZipEntry::File("a/b", b"y", 0o644),
+        ],
+    );
+    let error = extract(
+        &archive,
+        Format::Zip,
+        &dir.path().join("out"),
+        Limits::default(),
+    )
+    .expect_err("file below a file");
+    assert!(error.to_string().contains("a/b"), "{error}");
+    let missing = dir.path().join("missing.zip");
+    let error = extract(
+        &missing,
+        Format::Zip,
+        &dir.path().join("o2"),
+        Limits::default(),
+    )
+    .expect_err("missing");
+    assert_eq!(error.kind(), io::ErrorKind::NotFound);
+    assert!(error.to_string().contains("missing.zip"), "{error}");
+    let error = read_zip_member(&missing, "a", 10).expect_err("missing");
+    assert!(error.to_string().contains("missing.zip"), "{error}");
+}

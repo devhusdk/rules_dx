@@ -13,7 +13,7 @@ pub struct MissingDep {
     pub line: usize,
 }
 
-fn go_files(root: &Path) -> Vec<PathBuf> {
+pub(crate) fn go_files(root: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
     let mut stack = vec![root.to_path_buf()];
     while let Some(dir) = stack.pop() {
@@ -24,6 +24,9 @@ fn go_files(root: &Path) -> Vec<PathBuf> {
             let path = entry.path();
             let name = entry.file_name().to_string_lossy().into_owned();
             if path.is_dir() {
+                if path.symlink_metadata().is_ok_and(|m| m.is_symlink()) {
+                    continue;
+                }
                 let skipped = matches!(
                     name.as_str(),
                     ".git" | "node_modules" | "vendor" | "testdata"

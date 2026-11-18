@@ -12,6 +12,7 @@ rust_binary(
     crate_name = "fuzz_run",
     crate_root = "src/main.rs",
     deps = [
+        "//cli/error:dx_error",
         "@crates//:tempfile",
         "@rules_rust//rust/runfiles",
     ],
@@ -28,6 +29,7 @@ rust_test(
     crate_name = "fuzz_run",
     crate_root = "src/main.rs",
     deps = [
+        "//cli/error:dx_error",
         "//cli/test_scratch:dx_test_scratch",
         "@crates//:tempfile",
         "@rules_rust//rust/runfiles",

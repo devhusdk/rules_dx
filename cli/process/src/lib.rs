@@ -1,5 +1,10 @@
 #![forbid(unsafe_code)]
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::string_slice
+)]
 
 use dx_error::DxError;
 use std::ffi::{OsStr, OsString};

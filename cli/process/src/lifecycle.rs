@@ -669,10 +669,10 @@ pub(crate) fn run_streamed_in(
     if let Some(lease) = lease.as_ref()
         && let Err(error) = lease.record_unwritten(child.id().cast_signed())
     {
-        eprintln!(
+        dx_error::stdio::eprint_line(format_args!(
             "dx: cannot record process group lease {}: {error}",
             lease.path().display()
-        );
+        ));
     }
     let target = backend::stream_target(&child, group);
     let mut forwarding = Forwarding::register(target);

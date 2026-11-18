@@ -167,10 +167,10 @@ pub fn trivy_cache(
     if let Some(age) = pin.age_days(today)
         && age > PIN_MAX_AGE_DAYS
     {
-        eprintln!(
+        dx_error::stdio::eprint_line(format_args!(
             "image scan: advisory_pin_old: the trivy pin is from {} ({age} days old, over {PIN_MAX_AGE_DAYS}); refresh the advisory lines in .dx/pins",
             pin.date
-        );
+        ));
     }
     let cache = root.join(pin.trivy_cache_rel());
     if installed(&cache) {

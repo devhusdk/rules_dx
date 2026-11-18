@@ -438,7 +438,7 @@ pub fn run(exe: &Path, user_args: &[OsString]) -> io::Result<i32> {
     };
     let descriptor = parse(&text)?;
     if let Some(message) = &descriptor.fail {
-        eprintln!("{message}");
+        dx_error::stdio::eprint_line(format_args!("{message}"));
         return Ok(2);
     }
     let resolver = resolver?;

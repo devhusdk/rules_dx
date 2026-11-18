@@ -1,4 +1,10 @@
-#![deny(clippy::indexing_slicing, clippy::panic, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::string_slice
+)]
 
 #[cfg(test)]
 macro_rules! key_names {

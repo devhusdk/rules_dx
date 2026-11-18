@@ -205,7 +205,9 @@ mod interrupt {
 
     pub fn watch(path: &Path) {
         if let Err(err) = unlink_on_stop(path) {
-            eprintln!("dx: warning: cannot install the interrupt handler: {err}");
+            dx_error::stdio::eprint_line(format_args!(
+                "dx: warning: cannot install the interrupt handler: {err}"
+            ));
         }
     }
 
@@ -250,7 +252,9 @@ mod interrupt {
         }
         INSTALL.call_once(|| {
             if let Err(err) = add_handler::<RemovePart>() {
-                eprintln!("dx: warning: cannot install the Ctrl-C handler: {err}");
+                dx_error::stdio::eprint_line(format_args!(
+                    "dx: warning: cannot install the Ctrl-C handler: {err}"
+                ));
             }
         });
     }

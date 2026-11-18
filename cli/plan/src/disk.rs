@@ -11,9 +11,15 @@ pub const BAZEL_LOCAL_ENVIRONMENT_EXIT: i32 = 36;
 #[must_use]
 pub fn disk_paths(workspace: &Path, argv: &[String]) -> Vec<PathBuf> {
     let mut paths = vec![workspace.to_path_buf()];
-    for arg in argv {
-        for flag in ["--output_base=", "--output_user_root="] {
-            if let Some(value) = arg.strip_prefix(flag) {
+    let mut args = argv.iter();
+    while let Some(arg) = args.next() {
+        for flag in ["--output_base", "--output_user_root"] {
+            let value = match arg.strip_prefix(flag) {
+                Some("") => args.next().map(String::as_str),
+                Some(rest) => rest.strip_prefix('='),
+                None => None,
+            };
+            if let Some(value) = value.filter(|value| !value.is_empty()) {
                 paths.push(PathBuf::from(value));
             }
         }
@@ -99,6 +105,20 @@ mod tests {
         assert!(paths.contains(&PathBuf::from("/ob")), "{paths:?}");
         #[cfg(unix)]
         assert!(paths.contains(&std::env::temp_dir()), "{paths:?}");
+    }
+
+    #[test]
+    fn disk_paths_read_a_separate_value_and_skip_an_empty_one() {
+        let paths = disk_paths(
+            Path::new("/ws"),
+            &[
+                "--output_base".to_owned(),
+                "/ob".to_owned(),
+                "--output_user_root=".to_owned(),
+            ],
+        );
+        assert!(paths.contains(&PathBuf::from("/ob")), "{paths:?}");
+        assert!(!paths.contains(&PathBuf::new()), "{paths:?}");
     }
 
     #[cfg(windows)]

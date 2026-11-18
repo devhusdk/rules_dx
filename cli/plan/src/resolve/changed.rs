@@ -282,8 +282,13 @@ fn run_git_lines(
             "git path is not UTF-8: rename the file to a UTF-8 name".to_owned(),
         )
     })?;
+    let delimiter = if args.iter().any(|arg| arg == "-z") {
+        '\0'
+    } else {
+        '\n'
+    };
     Ok(text
-        .split(['\0', '\n'])
+        .split(delimiter)
         .filter(|field| !field.is_empty())
         .map(str::to_owned)
         .collect())
@@ -3771,6 +3776,27 @@ mod tests {
         assert!(calls[1].0.contains(&"base-sha".to_owned()), "{calls:?}");
         assert!(calls[1].0.ends_with(&[":(top)lib".to_owned()]), "{calls:?}");
         assert!(calls[2].0.contains(&"--full-name".to_owned()), "{calls:?}");
+    }
+
+    #[test]
+    fn override_changes_keep_a_newline_inside_a_file_name() {
+        let scratch = dx_test_scratch::scratch("dx-changed-override-newline-").unwrap();
+        let workspace = scratch.path().to_path_buf();
+        write(
+            &workspace,
+            "MODULE.bazel",
+            "local_path_override(module_name = \"lib\", path = \"../lib\")\n",
+        )
+        .unwrap();
+        let query = FakeQuery::new(vec![
+            FakeQuery::raw(b"sub/\n".to_vec()),
+            FakeQuery::raw(b"lib/a\nb.rs\0".to_vec()),
+            FakeQuery::raw(Vec::new()),
+        ]);
+        let changes =
+            local_override_changes(Path::new("/hermetic/git"), &workspace, &query, "base-sha")
+                .expect("override changes");
+        assert_eq!(changes, strings(&["../lib/a\nb.rs"]));
     }
 
     #[test]

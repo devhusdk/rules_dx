@@ -191,6 +191,7 @@ pub const REASON_WRITE_FAILED: &str = "write_failed";
 pub const REASON_INCOMPLETE_COLLECTION: &str = "incomplete_collection";
 pub const REASON_CONFLICTING_DIGESTS: &str = "conflicting_digests";
 pub const REASON_CONFLICTING_CANDIDATES: &str = "conflicting_candidates";
+pub const REASON_OUTSIDE_SCOPE: &str = "outside_scope";
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ExecError {

@@ -1636,7 +1636,7 @@ fn bazel_env_changes_reach_only_bazel_and_yield_to_the_caller() {
             ),
         ]
     );
-    let mut git = Command::new("git");
+    let mut git = Command::new("./git");
     apply_env_changes(&mut git, &changes);
     assert_eq!(envs(&git), []);
 }

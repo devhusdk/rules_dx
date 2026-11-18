@@ -69,7 +69,7 @@ pub fn without_verbatim_in(text: &str) -> String {
     }
 }
 
-/// Returns one absolute path with a verbatim prefix, so Windows reads it past the legacy length limit.
+/// Returns one absolute path with a verbatim prefix, so Windows reads it past the 260-character path limit.
 ///
 /// A share gets `\\?\UNC\`. A path already verbatim, a device path, and a share that is not text stay as they are.
 #[must_use]

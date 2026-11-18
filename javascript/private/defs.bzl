@@ -8,7 +8,7 @@ load("//core:entry.bzl", "dx_entry_quality_srcs")
 load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
 load("//core:node_test.bzl", "node_jest_upstream_attrs", "node_test_forward_rule", "node_test_runner_rejection", "node_test_wrap_args")
-load("//core:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_language_spec", "dx_library_forward_rule", "dx_wrap", "dx_wrap_test")
+load("//core:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_library_forward_rule", "dx_wrap", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
 visibility(["//..."])
@@ -32,15 +32,19 @@ _JAVASCRIPT = dx_language_spec(what = "javascript_*", quality_specs = _DX_JS_LIB
 
 _javascript_library_forward = dx_library_forward_rule(
     _JAVASCRIPT,
-    provides = _DX_JS_LIBRARY_PROVIDES,
-    required_providers = [(_JsInfo, "JsInfo")],
-    upstream_providers = [[_JsInfo]],
+    dx_forward_spec(
+        provides = _DX_JS_LIBRARY_PROVIDES,
+        required_providers = [(_JsInfo, "JsInfo")],
+        upstream_providers = [[_JsInfo]],
+    ),
 )
 
 _javascript_binary_forward = dx_executable_forward_rule(
     _JAVASCRIPT,
-    kind = "executable",
-    upstream_providers = [[DefaultInfo]],
+    "executable",
+    dx_forward_spec(
+        upstream_providers = [[DefaultInfo]],
+    ),
 )
 
 def _javascript_wrap_library(name, srcs, visibility = None, **kwargs):

@@ -667,7 +667,7 @@ mod tests {
         assert!(parse_module_dependency("bazel_dep(name = \"rules_dx\"", &no_includes).is_err());
         let root =
             std::env::temp_dir().join(format!("dx-adopt-moduledep-{}-missing", std::process::id()));
-        drop(std::fs::remove_dir_all(&root));
+        dx_atomic_fs::discard_dir(&root);
         std::fs::create_dir_all(&root).expect("dir");
         assert!(matches!(
             read_module_dependency(&root),
@@ -678,7 +678,7 @@ mod tests {
             read_module_dependency(&root),
             Err(AdoptError::ReadModuleFile { .. })
         ));
-        drop(std::fs::remove_dir_all(&root));
+        dx_atomic_fs::discard_dir(&root);
     }
 
     #[test]

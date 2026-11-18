@@ -1,7 +1,11 @@
 //! Finds the `deps` of a Java or Kotlin rule whose jars the compiler never read.
 //!
-//! The aspect writes the direct dependencies with their compile jars next to the compiler's jdeps
-//! file. A dependency is unused when none of its jars is named as used in the jdeps file.
+//! The aspect writes a JSON Lines map next to the compiler's jdeps file. The first line holds the
+//! target and its direct dependencies with their compile jars. Each later line is either a jar the
+//! target may use without listing it (`{"known": path}`) or one jar of its transitive compile
+//! classpath with the label that owns it (`{"jar": path, "label": owner}`). A dependency is unused
+//! when none of its jars is named as used in the jdeps file. A transitive jar is indirect when it
+//! is neither a direct jar nor a known jar and the target itself does not own it.
 
 use std::collections::BTreeSet;
 
@@ -12,16 +16,33 @@ use super::rust_unused_deps::UnusedDependency;
 
 pub const RULE_ID: &str = "unused_deps";
 
+/// Suffix the aspect adds to the label of the wrapped target in an upstream wrapper.
+const UPSTREAM_SUFFIX: &str = "_upstream";
+
 #[derive(Debug, Deserialize)]
+struct Header {
+    package: String,
+    target: String,
+    label: String,
+    deps: Vec<Dep>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum Entry {
+    Known { known: String },
+    Classpath { jar: String, label: String },
+}
+
+#[derive(Debug)]
 struct DepsMap {
     package: String,
     target: String,
     deps: Vec<Dep>,
-    #[serde(default)]
     indirect: Vec<Indirect>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug)]
 struct Indirect {
     jar: String,
     label: String,
@@ -31,6 +52,56 @@ struct Indirect {
 struct Dep {
     label: String,
     jars: Vec<String>,
+}
+
+/// Reads the JSON Lines map the aspect writes and works out its indirect jars.
+fn read_map(tool: &'static str, bytes: &[u8]) -> Result<DepsMap, ParseError> {
+    let json = |err: serde_json::Error| ParseError::Json {
+        tool,
+        detail: err.to_string(),
+    };
+    let mut lines = bytes
+        .split(|byte| *byte == b'\n')
+        .filter(|line| !line.iter().all(u8::is_ascii_whitespace));
+    let Some(first) = lines.next() else {
+        return Err(ParseError::Shape {
+            tool,
+            detail: "empty dependency map".to_owned(),
+        });
+    };
+    let header: Header = serde_json::from_slice(first).map_err(json)?;
+    let mut known: BTreeSet<String> = header
+        .deps
+        .iter()
+        .flat_map(|dep| dep.jars.iter().cloned())
+        .collect();
+    let mut classpath = Vec::new();
+    for line in lines {
+        match serde_json::from_slice(line).map_err(json)? {
+            Entry::Known { known: jar } => {
+                known.insert(jar);
+            }
+            Entry::Classpath { jar, label } => classpath.push(Indirect { jar, label }),
+        }
+    }
+    let indirect = classpath
+        .into_iter()
+        .filter(|item| !known.contains(&item.jar) && item.label != header.label)
+        .map(|item| Indirect {
+            label: item
+                .label
+                .strip_suffix(UPSTREAM_SUFFIX)
+                .unwrap_or(&item.label)
+                .to_owned(),
+            jar: item.jar,
+        })
+        .collect();
+    Ok(DepsMap {
+        package: header.package,
+        target: header.target,
+        deps: header.deps,
+        indirect,
+    })
 }
 
 /// Names every dependency in `map` that none of the used jars of `jdeps` belongs to.
@@ -43,10 +114,7 @@ pub fn parse_unused_dependencies(
     map: &[u8],
     jdeps: &[u8],
 ) -> Result<Vec<UnusedDependency>, ParseError> {
-    let map: DepsMap = serde_json::from_slice(map).map_err(|err| ParseError::Json {
-        tool,
-        detail: err.to_string(),
-    })?;
+    let map = read_map(tool, map)?;
     let used = used_jars(jdeps).map_err(|detail| ParseError::Shape { tool, detail })?;
     Ok(map
         .deps
@@ -92,10 +160,7 @@ pub fn parse_missing_dependencies(
     map: &[u8],
     jdeps: &[u8],
 ) -> Result<Vec<MissingDependency>, ParseError> {
-    let map: DepsMap = serde_json::from_slice(map).map_err(|err| ParseError::Json {
-        tool,
-        detail: err.to_string(),
-    })?;
+    let map = read_map(tool, map)?;
     let used = used_jars(jdeps).map_err(|detail| ParseError::Shape { tool, detail })?;
     let mut labels = BTreeSet::new();
     for item in map.indirect.iter().filter(|item| used.contains(&item.jar)) {
@@ -141,7 +206,7 @@ pub fn parse_scalac_unused_dependencies(
         tool,
         detail: err.to_string(),
     };
-    let map: DepsMap = serde_json::from_slice(map).map_err(json)?;
+    let map = read_map(tool, map)?;
     let log: ScalacLog = serde_json::from_slice(log).map_err(json)?;
     let bare = |label: &str| label.trim_start_matches('@').to_owned();
     let mut found = Vec::new();
@@ -190,7 +255,7 @@ pub fn parse_scalac_missing_dependencies(
         tool,
         detail: err.to_string(),
     };
-    let map: DepsMap = serde_json::from_slice(map).map_err(json)?;
+    let map = read_map(tool, map)?;
     let log: ScalacLog = serde_json::from_slice(log).map_err(json)?;
     let bare = |label: &str| {
         let label = label.trim_start_matches('@');
@@ -308,10 +373,7 @@ mod tests {
         out
     }
 
-    const MAP: &str = r#"{"package":"p","target":"lib","deps":[
-        {"label":"//a:used","jars":["a.jar"]},
-        {"label":"//b:idle","jars":["b.jar"]},
-        {"label":"//c:empty","jars":[]}]}"#;
+    const MAP: &str = r#"{"package":"p","target":"lib","label":"//p:lib","deps":[{"label":"//a:used","jars":["a.jar"]},{"label":"//b:idle","jars":["b.jar"]},{"label":"//c:empty","jars":[]}]}"#;
 
     #[test]
     fn names_the_dependency_whose_jar_is_not_used() {
@@ -345,14 +407,20 @@ mod tests {
     fn a_truncated_jdeps_file_is_an_error() {
         assert!(parse_unused_dependencies("javac", MAP.as_bytes(), &[0x0a, 0x09, 0x01]).is_err());
         assert!(parse_unused_dependencies("javac", b"{", &[]).is_err());
+        assert!(parse_unused_dependencies("javac", b"", &[]).is_err());
+        let bad_line = format!("{MAP}\n{{\"other\":1}}");
+        assert!(parse_unused_dependencies("javac", bad_line.as_bytes(), &[]).is_err());
     }
 
-    const INDIRECT_MAP: &str = r#"{"package":"p","target":"lib","deps":[
-        {"label":"//a:direct","jars":["a.jar"]}],
-        "indirect":[
-        {"jar":"u.jar","label":"//u:used"},
-        {"jar":"u2.jar","label":"//u:used"},
-        {"jar":"i.jar","label":"//i:idle"}]}"#;
+    const INDIRECT_MAP: &str = r#"{"package":"p","target":"lib","label":"//p:lib_upstream","deps":[{"label":"//a:direct","jars":["a.jar"]}]}
+{"jar":"a.jar","label":"//a:direct"}
+{"jar":"u.jar","label":"//u:used"}
+{"jar":"u2.jar","label":"//u:used_upstream"}
+{"jar":"i.jar","label":"//i:idle"}
+{"jar":"own.jar","label":"//p:lib_upstream"}
+{"known":"std.jar"}
+{"jar":"std.jar","label":"//t:stdlib"}
+"#;
 
     #[test]
     fn used_indirect_jar_is_missing_once_per_label() {
@@ -364,6 +432,14 @@ mod tests {
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].label, "//u:used");
         assert_eq!(found[0].target, "lib");
+    }
+
+    #[test]
+    fn jar_of_the_target_or_a_known_jar_is_not_missing() {
+        let mut jdeps = dependency("own.jar", 0);
+        jdeps.extend(dependency("std.jar", 0));
+        let found = parse_missing_dependencies("javac", INDIRECT_MAP.as_bytes(), &jdeps).unwrap();
+        assert!(found.is_empty(), "{found:?}");
     }
 
     #[test]
@@ -405,7 +481,8 @@ mod tests {
 
     #[test]
     fn scalac_missing_warning_names_the_indirect_label() {
-        let map = r#"{"package":"p","target":"lib","deps":[],"indirect":[{"jar":"t.jar","label":"@@//b:transitive"}]}"#;
+        let map = r#"{"package":"p","target":"lib","label":"//p:lib","deps":[]}
+{"jar":"t.jar","label":"@@//b:transitive"}"#;
         let log = scalac_log(&[
             (
                 "scalac.missing.dep",

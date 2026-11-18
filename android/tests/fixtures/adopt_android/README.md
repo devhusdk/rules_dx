@@ -21,13 +21,12 @@ The APK targets are `manual` and need the Android SDK.
 
 ```sh
 export ANDROID_HOME=$HOME/Android/Sdk ANDROID_NDK_REVISION=27.2.12479018
-NDK=--extra_toolchains=@android_ndk_toolchain//:all
-bazel test $NDK --test_env=ANDROID_HOME \
+bazel test --test_env=ANDROID_HOME \
   //android/tests/fixtures/adopt_android/app:check_apk_test \
   //android/tests/fixtures/adopt_android/app:inspect_apk_test
-bazel run $NDK //android/tests/fixtures/adopt_android/app:install
-bazel run $NDK //android/tests/fixtures/adopt_android/app:start
-bazel run $NDK //android/tests/fixtures/adopt_android/app:log
+bazel run //android/tests/fixtures/adopt_android/app:install
+bazel run //android/tests/fixtures/adopt_android/app:start
+bazel run //android/tests/fixtures/adopt_android/app:log
 ```
 
 `check_apk_test` checks the unsigned APK. `inspect_apk_test` checks the badging,

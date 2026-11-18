@@ -7,7 +7,7 @@ use dx_exec_core::common::{
     ActionTally, BAZEL_TESTS_FAILED, CODE_COLLECTION_FAILED, CODE_COMMIT_NOT_CONVENTIONAL,
     CODE_UMBRELLA_PHASE_FINDINGS, CODE_UMBRELLA_PHASE_SKIPPED, CODE_VERIFICATION_FAILED, Env,
     LatchedOut, PhaseEffects, PhaseKind, PhaseRun, check_stdout_write, emit_built, emit_event,
-    pre_exec, report_failed, write_report_file,
+    kept_child, pre_exec, report_failed, write_report_file,
 };
 use dx_exec_core::failure::CODE_INVALID_SCOPE;
 use dx_output::{
@@ -22,7 +22,6 @@ use dx_plan::resolve::{MemoizedGraphQuery, QueryRunner};
 use dx_process::{Runner, interrupted};
 use serde_json::{Value, json};
 use serde_sarif::sarif::Sarif;
-use std::fmt::Write as _;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -85,12 +84,17 @@ fn capture_reason(capture: &PhaseCapture) -> Option<&'static str> {
 
 /// Parses one phase capture with the shared SARIF model.
 fn parse_capture(bytes: &[u8]) -> Result<Value, CaptureState> {
-    let document: Value = serde_json::from_slice(bytes).map_err(|_| CaptureState::Malformed)?;
+    let document: Value = serde_json::from_slice(bytes).map_err(malformed)?;
     if !matches!(document.get("runs"), Some(Value::Array(_))) {
         return Err(CaptureState::Malformed);
     }
-    serde_json::from_slice::<Sarif>(bytes).map_err(|_| CaptureState::Malformed)?;
+    serde_json::from_slice::<Sarif>(bytes).map_err(malformed)?;
     Ok(document)
+}
+
+fn malformed(error: serde_json::Error) -> CaptureState {
+    tracing::info!(%error, "sarif capture is malformed");
+    CaptureState::Malformed
 }
 
 /// The typed outcome and the artifacts of every planned umbrella phase.
@@ -155,7 +159,10 @@ impl PhaseCollector {
             };
             capture.state = match std::fs::read(&capture.path) {
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => CaptureState::Absent,
-                Err(_) => CaptureState::Unreadable,
+                Err(error) => {
+                    tracing::info!(%error, path = %capture.path.display(), "cannot read sarif capture");
+                    CaptureState::Unreadable
+                }
                 Ok(bytes) => match parse_capture(&bytes) {
                     Ok(document) => CaptureState::Collected(document),
                     Err(state) => state,
@@ -301,7 +308,7 @@ impl PhaseCollector {
     fn cleanup(&self) {
         for phase in &self.phases {
             if let Some(capture) = &phase.capture {
-                std::fs::remove_file(&capture.path).ok();
+                super::remove_scratch(&capture.path);
             }
         }
     }
@@ -336,6 +343,7 @@ fn explain_selection_stop(
     streams: (&mut Vec<u8>, &mut Vec<u8>),
 ) {
     let (phase_out, phase_err) = streams;
+    // A line that is not a JSON event has no event name.
     let name_of = |line: &[u8]| {
         serde_json::from_slice::<Value>(line)
             .ok()
@@ -362,7 +370,10 @@ fn explain_selection_stop(
         if !phase_err.is_empty() {
             return;
         }
-        writeln!(phase_err, "dx: {CODE_INVALID_SCOPE}: {message}").ok();
+        dx_output::write_stderr(
+            phase_err,
+            format_args!("dx: {CODE_INVALID_SCOPE}: {message}\n"),
+        );
         return;
     }
     let Ok(event) = error_event(CODE_INVALID_SCOPE, &message, None, None, Some(phase)) else {
@@ -430,7 +441,10 @@ fn forward_phase(
         }
         let nested = nest(
             std::str::from_utf8(line)
-                .map_err(|_| dx_output::OutputError::NotAnEvent)
+                .map_err(|error| {
+                    tracing::info!(%error, "phase stdout line is not UTF-8");
+                    dx_output::OutputError::NotAnEvent
+                })
                 .and_then(read_event),
         );
         let Ok(event) = nested else {
@@ -450,7 +464,10 @@ fn forward_phase(
     }
     if !readable {
         let message = format!("{phase} wrote an unreadable event");
-        writeln!(err, "dx: {CODE_COLLECTION_FAILED}: {message}").ok();
+        dx_output::write_stderr(
+            err,
+            format_args!("dx: {CODE_COLLECTION_FAILED}: {message}\n"),
+        );
         emit_built(
             out,
             error_event(CODE_COLLECTION_FAILED, &message, None, None, Some(phase))
@@ -722,7 +739,10 @@ fn verify_fix(
         } else {
             outcome.readable = false;
             let message = format!("{verify_phase} events could not be forwarded");
-            writeln!(outcome.err, "dx: {CODE_COLLECTION_FAILED}: {message}").ok();
+            dx_output::write_stderr(
+                &mut outcome.err,
+                format_args!("dx: {CODE_COLLECTION_FAILED}: {message}\n"),
+            );
             if let Err(exit) = announce_collection_failure(
                 &mut outcome.out,
                 request.common.output,
@@ -761,13 +781,14 @@ fn deliver_verification(
     if let Some(failed) = verification.failed_phase {
         announce_verification_failure(out, err, output, command, failed, &verification.skipped)?;
     } else if partial {
-        writeln!(
+        dx_output::write_stderr(
             err,
-            "dx: verification passed after apply for {}; not re-checked, failed during apply: {}",
-            verification.verified.join(", "),
-            verification.apply_failed.join(", ")
-        )
-        .ok();
+            format_args!(
+                "dx: verification passed after apply for {}; not re-checked, failed during apply: {}\n",
+                verification.verified.join(", "),
+                verification.apply_failed.join(", ")
+            ),
+        );
     }
     Ok(())
 }
@@ -781,11 +802,18 @@ fn announce_verification_failure(
     phase: &str,
     skipped: &[&str],
 ) -> Result<(), i32> {
-    let mut message = format!("{phase} failed verification after apply");
-    if !skipped.is_empty() {
-        write!(message, "; verification skipped for {}", skipped.join(", ")).ok();
-    }
-    writeln!(err, "dx: {CODE_VERIFICATION_FAILED}: {message}").ok();
+    let message = if skipped.is_empty() {
+        format!("{phase} failed verification after apply")
+    } else {
+        format!(
+            "{phase} failed verification after apply; verification skipped for {}",
+            skipped.join(", ")
+        )
+    };
+    dx_output::write_stderr(
+        err,
+        format_args!("dx: {CODE_VERIFICATION_FAILED}: {message}\n"),
+    );
     if output != OutputMode::Json {
         return Ok(());
     }
@@ -1119,7 +1147,7 @@ fn execute_phase(
                 effects: PhaseEffects::default(),
             },
             Err(message) => {
-                writeln!(phase_env.err, "dx: {message}").ok();
+                dx_output::write_stderr(phase_env.err, format_args!("dx: {message}\n"));
                 PhaseRun {
                     code: 2,
                     kind: PhaseKind::Selection,
@@ -1282,7 +1310,10 @@ fn write_phase_reports(
         .into_iter()
         .map(|(phase, reason)| {
             let message = format!("{phase} {reason}");
-            writeln!(err, "dx: {CODE_COLLECTION_FAILED}: {message}").ok();
+            dx_output::write_stderr(
+                err,
+                format_args!("dx: {CODE_COLLECTION_FAILED}: {message}\n"),
+            );
             (phase, message)
         })
         .collect();
@@ -1334,7 +1365,10 @@ fn write_phase_reports(
     if !matches!(request.common.output, OutputMode::Json)
         && (run.stop_code.is_some() || run.failed_code.is_some())
     {
-        writeln!(err, "dx: phases: {}", run.collector.summary()).ok();
+        dx_output::write_stderr(
+            err,
+            format_args!("dx: phases: {}\n", run.collector.summary()),
+        );
     }
     complete
 }
@@ -1394,7 +1428,9 @@ fn finish_umbrella(
                 ..FinishedCounts::default()
             },
         );
-        write_event(out, &finished).ok();
+        if let Err(exit) = emit_event(out, &finished) {
+            return kept_child(err, code, exit);
+        }
     }
     code
 }
@@ -1439,11 +1475,10 @@ pub(super) fn lint_commits(
     let range = format!("{base}..HEAD");
     let args = [&dx_update::conventional::LOG_ARGS[..], &[range.as_str()]].concat();
     let Some(log) = git(workspace, &args) else {
-        writeln!(
+        dx_output::write_stderr(
             err,
-            "dx: warning: commits: cannot read the commits in {range}"
-        )
-        .ok();
+            format_args!("dx: warning: commits: cannot read the commits in {range}\n"),
+        );
         return Ok(false);
     };
     let bad = dx_update::conventional::lint(&log);
@@ -1458,7 +1493,7 @@ pub(super) fn lint_commits(
             };
             emit_built(out, correlated(notice_event(&notice), command, "commits"))?;
         } else {
-            writeln!(err, "dx: warning: commits: {message}").ok();
+            dx_output::write_stderr(err, format_args!("dx: warning: commits: {message}\n"));
         }
     }
     Ok(!bad.is_empty())
@@ -1467,9 +1502,13 @@ pub(super) fn lint_commits(
 fn git(workspace: &Path, args: &[&str]) -> Option<String> {
     let mut command = dx_process::capture::git(workspace);
     command.args(args);
-    dx_process::capture::run_checked(&mut command, dx_process::capture::DEFAULT_TIMEOUT)
-        .ok()
-        .map(|output| output.stdout_text())
+    match dx_process::capture::run_checked(&mut command, dx_process::capture::DEFAULT_TIMEOUT) {
+        Ok(output) => Some(output.stdout_text()),
+        Err(error) => {
+            tracing::info!(%error, ?args, "git failed");
+            None
+        }
+    }
 }
 
 #[cfg(test)]

@@ -169,6 +169,18 @@ pub fn eventually<T>(
     }
 }
 
+/// Whether the test runs as root, as in cloud containers. Root ignores file
+/// mode bits, so a test that relies on a mode to block access asserts what root
+/// sees instead.
+#[must_use]
+pub fn running_as_root() -> bool {
+    #[cfg(unix)]
+    let root = dx_os_sys::process::effective_user_id() == 0;
+    #[cfg(not(unix))]
+    let root = false;
+    root
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -366,6 +378,17 @@ mod tests {
         })
         .unwrap();
         assert_eq!(got, 3);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn running_as_root_matches_reading_a_mode_000_file() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let dir = scratch("dx-test-scratch-root-").unwrap();
+        let locked = dir.path().join("locked");
+        std::fs::write(&locked, "x").unwrap();
+        std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o000)).unwrap();
+        assert_eq!(running_as_root(), std::fs::read(&locked).is_ok());
     }
 
     #[test]

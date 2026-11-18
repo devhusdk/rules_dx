@@ -100,6 +100,12 @@ pub fn user_id() -> u32 {
     rustix::process::getuid().as_raw()
 }
 
+/// The effective user id of the calling process; 0 means root, which ignores file mode bits.
+#[must_use]
+pub fn effective_user_id() -> u32 {
+    rustix::process::geteuid().as_raw()
+}
+
 /// Moves `target` into the group `group`, like `setpgid(2)`.
 pub fn set_group(target: i32, group: i32) -> io::Result<()> {
     rustix::process::setpgid(Some(pid(target)?), Some(pid(group)?))?;

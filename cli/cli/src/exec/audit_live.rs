@@ -1035,7 +1035,11 @@ pub(super) fn audit_live_pinned_snapshot_is_fetched_into_the_cache_on_a_miss() {
 #[test]
 pub(super) fn audit_live_changed_pin_sha_fails_with_a_mismatch() {
     let (code, out, err) = run_with(
-        &["security", "--output=json", "//cc/private/tools/context:hello"],
+        &[
+            "security",
+            "--output=json",
+            "//cc/private/tools/context:hello",
+        ],
         &AuditRunner::clean(),
         &|harness| {
             write_cargo_pin_from_file(harness, "[]", false);
@@ -1068,7 +1072,11 @@ pub(super) fn audit_live_offline_never_fetches_an_uncached_pin() {
 #[test]
 pub(super) fn audit_live_missing_advisory_json_error_code_is_advisory_refresh_failed() {
     let (code, out, err) = run_with(
-        &["security", "--output=json", "//cc/private/tools/context:hello"],
+        &[
+            "security",
+            "--output=json",
+            "//cc/private/tools/context:hello",
+        ],
         &AuditRunner::clean(),
         &|harness| {
             write_cargo_lock(harness);

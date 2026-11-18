@@ -56,7 +56,7 @@ dx generate [--apply] [--here] [--affected] [--diff] [scope ...] [-- bazel-optio
 | `--apply` | Write the updated `BUILD` files. Without it, stale files fail the run. |
 | `--diff` | Print one unified patch per stale file, or per file `--apply` wrote or refused. Cannot be combined with `--output json`. |
 | `--here` | Use the current directory tree. |
-| `--affected` | Use the directories of files changed since the merge base with the default branch. Cannot be combined with scopes or `--here`. |
+| `--affected` | Use the directories of files changed since the merge base with the default branch, without the packages below them. Cannot be combined with scopes or `--here`. |
 | `-o, --output text\|json` | Choose the output format. Default `text`. |
 | `--workspace <dir>` | Run in this workspace. |
 | `-q, --quiet` | Hide summaries. |
@@ -72,9 +72,9 @@ Arguments after `--` go to Bazel unchanged.
 
 A scope says which directories to generate. It is one of:
 
-- a label in your own repository, such as `//pkg:lib`. A label names one target: the package directory `pkg`, then the target name `lib`. Labels of other repositories, such as `@dep//pkg:lib`, are usage errors.
+- a label in your own repository, such as `//pkg:lib`. A label names one target: the package directory `pkg`, then the target name `lib`. It generates that package alone. Labels of other repositories, such as `@dep//pkg:lib`, are usage errors.
 - a pattern, such as `//pkg/...` for everything under `pkg/`.
-- a workspace-relative file or directory. It maps to its own directory, so a new file or a directory with no `BUILD` file works.
+- a workspace-relative file or directory. A file maps to its own directory alone, a directory to the tree under it. A new file or a directory with no `BUILD` file works.
 
 With no scope, `dx generate` covers the whole repository (`//...`). `--here` uses the current directory tree instead (`//<dir>/...`, or `//...` at the root).
 

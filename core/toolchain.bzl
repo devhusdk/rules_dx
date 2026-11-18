@@ -4,7 +4,7 @@ load(":defs.bzl", "expect_equal", "expect_true")
 load(":host.bzl", "host_cell")
 load(":repo.bzl", "gem_extract")
 
-visibility(["//cc/...", "//core/...", "//d/...", "//elixir/...", "//erlang/...", "//fortran/...", "//haskell/...", "//lua/...", "//msix/...", "//ocaml/...", "//php/...", "//powershell/...", "//swift/..."])
+visibility(["//cc/...", "//core/...", "//d/...", "//elixir/...", "//erlang/...", "//fortran/...", "//haskell/...", "//lua/...", "//msix/...", "//ocaml/...", "//powershell/...", "//swift/..."])
 
 _HOST_CELLS = [
     "linux_arm64",
@@ -118,7 +118,7 @@ def cell_repo(name, cell):
     """Returns the name of the repository holding one cell of a pin."""
     return name + "__" + cell
 
-def pins_hub(name, cells, toolchain_type, compatible_with = "exec", exec_aliases = [], os_constraints = {}, exec_toolchain_type = None, variants = {}, companion_types = {}, alias_defaults = {}, repository = None):
+def pins_hub(name, cells, toolchain_type, compatible_with = "exec", exec_aliases = [], os_constraints = {}, exec_toolchain_type = None, variants = {}, companion_types = {}, alias_defaults = {}, repository = None, target = "toolchain", target_settings = None, cell_constraints = {}):
     """Returns the hub BUILD file of a pin: one toolchain() per cell and an alias per exec_aliases target selecting the exec cell.
 
     os_constraints maps an OS to constraints every cell of that OS adds after its OS and CPU.
@@ -126,34 +126,40 @@ def pins_hub(name, cells, toolchain_type, compatible_with = "exec", exec_aliases
     variants maps a variant to a struct of extra exec_compatible_with and target_compatible_with; each cell then has one toolchain(), named <cell repo>_<variant>, per variant, pointing at the cell's :<variant> target.
     companion_types maps a suffix to a toolchain type; every toolchain() gets a companion of that type, named <toolchain>_<suffix>, pointing at <target>_<suffix>.
     exec_aliases is a list of targets or a dict of alias to label in the cell repository; alias_defaults maps an alias to its label on platforms without a cell.
-    repository names the one repository every cell points at in place of its own cell repository."""
+    repository names the one repository every cell points at in place of its own cell repository.
+    target names the toolchain target in the cell repository; target_settings gates every toolchain().
+    cell_constraints maps a cell whose name is not <os>_<cpu> to a struct of its exec_compatible_with and target_compatible_with."""
     constraints = {
         cell: [_OS_CONSTRAINTS[cell.partition("_")[0]], _CPU_CONSTRAINTS[cell.partition("_")[2]]] + os_constraints.get(cell.partition("_")[0], [])
         for cell in cells
-    }
+        if cell not in cell_constraints
+    } | {cell: cell_constraints[cell].exec_compatible_with for cell in cells if cell in cell_constraints}
+    target_constraints = constraints | {cell: cell_constraints[cell].target_compatible_with for cell in cells if cell in cell_constraints}
     sides = ["exec", "target"] if compatible_with == "both" else [compatible_with]
     parts = []
     for cell in sorted(cells):
         repo = repository or cell_repo(name, cell)
         for variant in sorted(variants) or [""]:
             compatible = {
-                side + "_compatible_with": constraints[cell] + (getattr(variants[variant], side + "_compatible_with") if variant else [])
+                side + "_compatible_with": (constraints if side == "exec" else target_constraints)[cell] + (getattr(variants[variant], side + "_compatible_with") if variant else [])
                 for side in sides
             }
             toolchain = cell_repo(name, cell) + ("_" + variant if variant else "")
-            target = variant or "toolchain"
+            cell_target = variant or target
             parts.append(toolchain_target(
                 name = toolchain,
-                toolchain = "@{}//:{}".format(repo, target),
+                toolchain = "@{}//:{}".format(repo, cell_target),
                 toolchain_type = toolchain_type,
+                target_settings = target_settings,
                 visibility = ["//visibility:public"],
                 **compatible
             ))
             parts.extend([
                 toolchain_target(
                     name = toolchain + "_" + suffix,
-                    toolchain = "@{}//:{}_{}".format(repo, target, suffix),
+                    toolchain = "@{}//:{}_{}".format(repo, cell_target, suffix),
                     toolchain_type = companion_types[suffix],
+                    target_settings = target_settings,
                     visibility = ["//visibility:public"],
                     **compatible
                 )
@@ -164,8 +170,9 @@ def pins_hub(name, cells, toolchain_type, compatible_with = "exec", exec_aliases
             toolchain_target(
                 name = cell_repo(name, cell) + "_exec",
                 exec_compatible_with = constraints[cell],
-                toolchain = "@{}//:toolchain".format(repository or cell_repo(name, cell)),
+                toolchain = "@{}//:{}".format(repository or cell_repo(name, cell), target),
                 toolchain_type = exec_toolchain_type,
+                target_settings = target_settings,
                 visibility = ["//visibility:public"],
             )
             for cell in sorted(cells)

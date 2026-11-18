@@ -11,7 +11,7 @@ load("@rules_swift//swift:swift_test.bzl", _swift_test = "swift_test")
 load("@bazel_skylib//rules:native_binary.bzl", "native_test")
 load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_language_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_warnings_flags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_warnings_flags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core:msvc_crt.bzl", "dx_msvc_crt_reset_transition")
 load("//core:platform.bzl", "platforms_transition")
 load("//core:native_coverage.bzl", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage")
@@ -75,24 +75,28 @@ _SWIFT = dx_language_spec(what = "swift_*", quality_specs = _SPECS, allow_files 
 
 _swift_library_forward = dx_library_forward_rule(
     _SWIFT,
-    provides = [SwiftInfo, CcInfo, DefaultInfo, QualitySourcesInfo, QualityToolsInfo, SwiftDocsInfo],
-    extra_providers = _swift_docs_providers,
-    upstream_aspects = [swift_symbol_graph_aspect],
-    required_providers = [(SwiftInfo, "SwiftInfo"), (CcInfo, "CcInfo")],
-    upstream_providers = [[SwiftInfo]],
-    extra_attrs = SWIFT_PLATFORM_ATTRS,
-    runtime = "besteffort",
-    upstream_cfg = swift_platforms_transition,
+    dx_forward_spec(
+        provides = [SwiftInfo, CcInfo, DefaultInfo, QualitySourcesInfo, QualityToolsInfo, SwiftDocsInfo],
+        extra_providers = _swift_docs_providers,
+        upstream_aspects = [swift_symbol_graph_aspect],
+        required_providers = [(SwiftInfo, "SwiftInfo"), (CcInfo, "CcInfo")],
+        upstream_providers = [[SwiftInfo]],
+        extra_attrs = SWIFT_PLATFORM_ATTRS,
+        runtime = "besteffort",
+        upstream_cfg = swift_platforms_transition,
+    ),
 )
 
 _swift_binary_forward = dx_executable_forward_rule(
     _SWIFT,
-    kind = "executable",
-    provides = _EXEC_PROVIDES,
-    extra_attrs = SWIFT_PLATFORM_ATTRS | _RUNTIME_DLLS_ATTR,
-    upstream_cfg = swift_platforms_transition,
-    cfg = dx_msvc_crt_reset_transition,
-    sibling_files = _swift_runtime_dlls,
+    "executable",
+    dx_forward_spec(
+        provides = _EXEC_PROVIDES,
+        extra_attrs = SWIFT_PLATFORM_ATTRS | _RUNTIME_DLLS_ATTR,
+        upstream_cfg = swift_platforms_transition,
+        cfg = dx_msvc_crt_reset_transition,
+        sibling_files = _swift_runtime_dlls,
+    ),
 )
 
 def _swift_test_coverage(ctx, upstream):
@@ -113,17 +117,19 @@ def _swift_tool_attr(label):
 
 _swift_forward_test = dx_executable_forward_rule(
     _SWIFT,
-    kind = "test",
-    provides = _EXEC_PROVIDES,
-    extra_attrs = SWIFT_PLATFORM_ATTRS | _RUNTIME_DLLS_ATTR | dx_lcov_merger_attr() | dx_native_coverage_attrs() | {
-        "_swift_llvm_cov": _swift_tool_attr("//swift/private/tools:llvm_cov"),
-        "_swift_llvm_profdata": _swift_tool_attr("//swift/private/tools:llvm_profdata"),
-    },
-    upstream_cfg = swift_platforms_transition,
-    coverage_providers = _swift_test_coverage,
-    toolchains = dx_native_coverage_toolchains(),
-    cfg = dx_msvc_crt_reset_transition,
-    sibling_files = _swift_runtime_dlls,
+    "test",
+    dx_forward_spec(
+        provides = _EXEC_PROVIDES,
+        extra_attrs = SWIFT_PLATFORM_ATTRS | _RUNTIME_DLLS_ATTR | dx_lcov_merger_attr() | dx_native_coverage_attrs() | {
+            "_swift_llvm_cov": _swift_tool_attr("//swift/private/tools:llvm_cov"),
+            "_swift_llvm_profdata": _swift_tool_attr("//swift/private/tools:llvm_profdata"),
+        },
+        upstream_cfg = swift_platforms_transition,
+        coverage_providers = _swift_test_coverage,
+        toolchains = dx_native_coverage_toolchains(),
+        cfg = dx_msvc_crt_reset_transition,
+        sibling_files = _swift_runtime_dlls,
+    ),
 )
 
 def swift_kwargs(kwargs):

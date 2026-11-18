@@ -67,32 +67,40 @@ fn matching_pair_reports_id_and_arch() {
 
 #[test]
 fn rejects_non_elf() {
-    let err = check_pair(b"hello world", &elf(X86, Some(&[1]))).unwrap_err();
+    let err = check_pair(b"hello world", &elf(X86, Some(&[1])))
+        .unwrap_err()
+        .to_string();
     assert!(err.contains("not an ELF"), "{err}");
 }
 
 #[test]
 fn rejects_truncated_file() {
     let good = elf(X86, Some(&[1, 2]));
-    let err = check_pair(&good, &good[..70]).unwrap_err();
+    let err = check_pair(&good, &good[..70]).unwrap_err().to_string();
     assert!(err.contains("corrupt"), "{err}");
 }
 
 #[test]
 fn rejects_missing_build_id() {
-    let err = check_pair(&elf(X86, None), &elf(X86, Some(&[1]))).unwrap_err();
+    let err = check_pair(&elf(X86, None), &elf(X86, Some(&[1])))
+        .unwrap_err()
+        .to_string();
     assert!(err.contains("no build-id"), "{err}");
 }
 
 #[test]
 fn rejects_build_id_mismatch() {
-    let err = check_pair(&elf(X86, Some(&[1])), &elf(X86, Some(&[2]))).unwrap_err();
+    let err = check_pair(&elf(X86, Some(&[1])), &elf(X86, Some(&[2])))
+        .unwrap_err()
+        .to_string();
     assert!(err.contains("build-id mismatch"), "{err}");
 }
 
 #[test]
 fn rejects_arch_mismatch() {
-    let err = check_pair(&elf(X86, Some(&[1])), &elf(ARM, Some(&[1]))).unwrap_err();
+    let err = check_pair(&elf(X86, Some(&[1])), &elf(ARM, Some(&[1])))
+        .unwrap_err()
+        .to_string();
     assert!(err.contains("arch mismatch"), "{err}");
 }
 
@@ -136,23 +144,31 @@ fn dsym_with_same_uuid_and_arch_pairs() {
 #[test]
 fn stale_dsym_with_other_uuid_is_rejected() {
     let bin = macho(ARM64, MH_EXECUTE, Some([1; 16]));
-    let err = check_dsym(&bin, &macho(ARM64, MH_DSYM, Some([2; 16]))).unwrap_err();
+    let err = check_dsym(&bin, &macho(ARM64, MH_DSYM, Some([2; 16])))
+        .unwrap_err()
+        .to_string();
     assert!(err.contains("uuid mismatch"), "{err}");
 }
 
 #[test]
 fn dsym_for_other_arch_is_rejected() {
     let bin = macho(ARM64, MH_EXECUTE, Some([3; 16]));
-    let err = check_dsym(&bin, &macho(X86_64, MH_DSYM, Some([3; 16]))).unwrap_err();
+    let err = check_dsym(&bin, &macho(X86_64, MH_DSYM, Some([3; 16])))
+        .unwrap_err()
+        .to_string();
     assert!(err.contains("arch mismatch"), "{err}");
 }
 
 #[test]
 fn dsym_check_rejects_missing_uuid_and_non_macho() {
     let bin = macho(ARM64, MH_EXECUTE, Some([4; 16]));
-    let err = check_dsym(&bin, &macho(ARM64, MH_DSYM, None)).unwrap_err();
+    let err = check_dsym(&bin, &macho(ARM64, MH_DSYM, None))
+        .unwrap_err()
+        .to_string();
     assert!(err.contains("has no LC_UUID"), "{err}");
-    let err = check_dsym(&bin, &elf(X86, Some(&[1]))).unwrap_err();
+    let err = check_dsym(&bin, &elf(X86, Some(&[1])))
+        .unwrap_err()
+        .to_string();
     assert!(err.contains("dSYM is not a"), "{err}");
 }
 
@@ -160,15 +176,29 @@ fn dsym_check_rejects_missing_uuid_and_non_macho() {
 fn dwarf_file_needs_exactly_one_file_in_the_bundle() {
     let scratch = dx_test_scratch::scratch("dsym-dwarf-one").unwrap();
     let bundle = scratch.path().to_path_buf();
-    let err = dwarf_file(&bundle).unwrap_err();
+    let err = dwarf_file(&bundle).unwrap_err().to_string();
     assert!(err.contains("cannot read dSYM"), "{err}");
     let dir = bundle.join("Contents/Resources/DWARF");
     std::fs::create_dir_all(&dir).unwrap();
-    assert!(dwarf_file(&bundle).unwrap_err().contains("found 0"));
+    assert!(
+        dwarf_file(&bundle)
+            .unwrap_err()
+            .to_string()
+            .contains("found 0")
+    );
+    assert!(matches!(
+        dwarf_file(&bundle),
+        Err(SymbolsError::DwarfCount { found: 0, .. })
+    ));
     std::fs::write(dir.join("app"), b"x").unwrap();
     assert_eq!(dwarf_file(&bundle).unwrap(), dir.join("app"));
     std::fs::write(dir.join("other"), b"y").unwrap();
-    assert!(dwarf_file(&bundle).unwrap_err().contains("found 2"));
+    assert!(
+        dwarf_file(&bundle)
+            .unwrap_err()
+            .to_string()
+            .contains("found 2")
+    );
 }
 
 #[test]
@@ -269,21 +299,27 @@ fn matching_pdb_pairs() {
 #[test]
 fn pdb_guid_mismatch_is_rejected() {
     let id = pdb_identity(&msf(Some((&[9; 16], 3)), Some((3, AMD64)))).unwrap();
-    let err = compare_pdb(&pe_id(GUID, 3, AMD64), &id).unwrap_err();
+    let err = compare_pdb(&pe_id(GUID, 3, AMD64), &id)
+        .unwrap_err()
+        .to_string();
     assert!(err.contains("guid mismatch"), "{err}");
 }
 
 #[test]
 fn stale_pdb_age_is_rejected() {
     let id = pdb_identity(&msf(Some((&GUID, 3)), Some((2, AMD64)))).unwrap();
-    let err = compare_pdb(&pe_id(GUID, 3, AMD64), &id).unwrap_err();
+    let err = compare_pdb(&pe_id(GUID, 3, AMD64), &id)
+        .unwrap_err()
+        .to_string();
     assert!(err.contains("age mismatch"), "{err}");
 }
 
 #[test]
 fn pdb_machine_mismatch_is_rejected() {
     let id = pdb_identity(&msf(Some((&GUID, 3)), Some((3, 0xaa64)))).unwrap();
-    let err = compare_pdb(&pe_id(GUID, 3, AMD64), &id).unwrap_err();
+    let err = compare_pdb(&pe_id(GUID, 3, AMD64), &id)
+        .unwrap_err()
+        .to_string();
     assert!(err.contains("arch mismatch"), "{err}");
 }
 
@@ -291,24 +327,26 @@ fn pdb_machine_mismatch_is_rejected() {
 fn truncated_pdb_is_rejected() {
     let mut bytes = msf(Some((&GUID, 3)), Some((3, AMD64)));
     bytes.truncate(bytes.len() - 512);
-    let err = pdb_identity(&bytes).unwrap_err();
+    let err = pdb_identity(&bytes).unwrap_err().to_string();
     assert!(err.contains("truncated or corrupt"), "{err}");
 }
 
 #[test]
 fn pdb_with_bad_magic_is_rejected() {
-    let err = pdb_identity(b"hello world").unwrap_err();
+    let err = pdb_identity(b"hello world").unwrap_err().to_string();
     assert!(err.contains("not a PDB"), "{err}");
 }
 
 #[test]
 fn pdb_without_dbi_stream_is_rejected() {
-    let err = pdb_identity(&msf(Some((&GUID, 3)), None)).unwrap_err();
+    let err = pdb_identity(&msf(Some((&GUID, 3)), None))
+        .unwrap_err()
+        .to_string();
     assert!(err.contains("no DBI stream"), "{err}");
 }
 
 #[test]
 fn pe_codeview_rejects_elf() {
-    let err = pe_codeview(&elf(X86, Some(&[1]))).unwrap_err();
+    let err = pe_codeview(&elf(X86, Some(&[1]))).unwrap_err().to_string();
     assert!(err.contains("not a PE file"), "{err}");
 }

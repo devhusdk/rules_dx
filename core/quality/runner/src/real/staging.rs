@@ -339,14 +339,14 @@ impl RealBackend {
                 .map(|(rel, _)| scratch.root().join(rel))
         };
         let semanticdb = scratch.root().join("dx-scalafix").join("semanticdb");
-        std::fs::create_dir_all(&semanticdb)
-            .map_err(|err| execution(tool_id, format!("semanticdb dir: {err}")))?;
-        for jar in jars("dx-scalafix/owned/") {
-            extract_semanticdb(&jar, &semanticdb).map_err(|err| {
+        let mut classpath = Vec::new();
+        for (index, jar) in jars("dx-scalafix/owned/").enumerate() {
+            let into = semanticdb.join(index.to_string());
+            extract_semanticdb(&jar, &into).map_err(|err| {
                 execution(tool_id, format!("semanticdb from {}: {err}", jar.display()))
             })?;
+            classpath.push(into);
         }
-        let mut classpath = vec![semanticdb];
         classpath.extend(jars("dx-scalafix/owned/"));
         classpath.extend(jars("dx-scalafix/aux/"));
         Ok(classpath)
@@ -591,26 +591,97 @@ pub(super) fn place_qmllint_settings(
     Ok(())
 }
 
-/// Copies the semanticdb entries of one jar into a directory, which scalafix reads on every platform.
+/// Extracts the `META-INF/semanticdb/` members of one jar into a new directory, which scalafix reads on every platform.
 fn extract_semanticdb(jar: &Path, into: &Path) -> Result<(), String> {
-    let file = std::fs::File::open(jar).map_err(|err| err.to_string())?;
-    let mut archive = zip::ZipArchive::new(file).map_err(|err| err.to_string())?;
-    for index in 0..archive.len() {
-        let mut entry = archive.by_index(index).map_err(|err| err.to_string())?;
-        let Some(name) = entry.enclosed_name() else {
-            continue;
-        };
-        if !entry.is_file() || !name.starts_with("META-INF/semanticdb") {
-            continue;
-        }
-        let target = into.join(name);
-        if let Some(parent) = target.parent() {
-            std::fs::create_dir_all(parent).map_err(|err| err.to_string())?;
-        }
-        let mut out = std::fs::File::create(&target).map_err(|err| err.to_string())?;
-        std::io::copy(&mut entry, &mut out).map_err(|err| err.to_string())?;
+    match std::fs::remove_dir_all(into) {
+        Ok(()) => {}
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
+        Err(err) => return Err(format!("clearing {}: {err}", into.display())),
     }
-    Ok(())
+    dx_archive::extract_matching(
+        jar,
+        dx_archive::Format::Zip,
+        into,
+        dx_archive::Limits::default(),
+        |name| name.starts_with("META-INF/semanticdb/"),
+    )
+    .map(drop)
+    .map_err(|err| err.to_string())
+}
+
+#[cfg(test)]
+mod semanticdb_tests {
+    use super::{RealBackend, RealTool, extract_semanticdb};
+
+    fn jar(dir: &std::path::Path, members: &[&str]) -> std::path::PathBuf {
+        let path = dir.join("owned.jar");
+        let mut writer = dx_archive_testing::RawZip::new();
+        for name in members {
+            writer.add_file(name, name.as_bytes()).expect("add");
+        }
+        std::fs::write(&path, writer.finish().expect("finish")).expect("jar");
+        path
+    }
+
+    #[test]
+    fn only_semanticdb_members_are_extracted_from_a_fat_jar() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let jar = jar(
+            dir.path(),
+            &[
+                "META-INF/LICENSE",
+                "META-INF/license/NOTICE",
+                "META-INF/semanticdb/src/A.scala.semanticdb",
+            ],
+        );
+        let into = dir.path().join("out");
+        extract_semanticdb(&jar, &into).expect("extract");
+        assert!(
+            into.join("META-INF/semanticdb/src/A.scala.semanticdb")
+                .is_file()
+        );
+        assert!(!into.join("META-INF/LICENSE").exists());
+    }
+
+    #[test]
+    fn scalafix_classpath_is_repeatable_on_one_scratch() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let scratch = quality_adapter::exec::Scratch::create(dir.path()).expect("scratch");
+        let rel = "dx-scalafix/owned/a.jar";
+        let source = jar(dir.path(), &["META-INF/semanticdb/src/A.scala.semanticdb"]);
+        let target = scratch.root().join(rel);
+        std::fs::create_dir_all(target.parent().expect("parent")).expect("mkdir");
+        std::fs::copy(&source, &target).expect("copy");
+        let tool = RealTool {
+            binary: std::path::PathBuf::new(),
+            extra_env: Vec::new(),
+            config_rel: None,
+            edition: None,
+            dialect: None,
+            args: Vec::new(),
+            tool_files: vec![(rel.to_owned(), Vec::new())],
+            upstream_diagnostics: Vec::new(),
+            search_paths: Vec::new(),
+            path_tools: Vec::new(),
+        };
+        let first = RealBackend::scalafix_classpath("scalafix", &tool, &scratch).expect("first");
+        let second = RealBackend::scalafix_classpath("scalafix", &tool, &scratch).expect("second");
+        assert_eq!(first, second);
+        assert!(
+            first[0]
+                .join("META-INF/semanticdb/src/A.scala.semanticdb")
+                .is_file()
+        );
+    }
+
+    #[test]
+    fn a_dot_dot_member_is_refused() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let jar = jar(dir.path(), &["META-INF/semanticdb/../../../escape"]);
+        let err = extract_semanticdb(&jar, &dir.path().join("out")).expect_err("refused");
+        assert!(err.contains("'..'"), "{err}");
+        assert!(!dir.path().join("escape").exists());
+    }
 }
 
 #[cfg(test)]

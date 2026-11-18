@@ -293,19 +293,12 @@ mod tests {
 
     #[test]
     #[cfg(unix)]
-    fn classify_reports_an_unreadable_path() {
-        use std::os::unix::fs::PermissionsExt as _;
-        let scratch = scratch("dx-fs-classify-unreadable-").unwrap();
-        let locked = scratch.path().join("locked");
-        std::fs::create_dir(&locked).expect("locked dir");
-        let child = locked.join("child.txt");
-        std::fs::write(&child, b"x\n").expect("child");
-        std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o000))
-            .expect("chmod 000");
-        let err = classify(&child).expect_err("an untraversable parent fails");
-        assert_eq!(err.kind(), io::ErrorKind::PermissionDenied);
-        std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o755))
-            .expect("chmod back");
+    fn classify_reports_a_path_under_a_file() {
+        let scratch = scratch("dx-fs-classify-under-file-").unwrap();
+        let file = scratch.path().join("file.txt");
+        std::fs::write(&file, b"x\n").expect("file");
+        let err = classify(&file.join("child.txt")).expect_err("a file has no children");
+        assert_eq!(err.kind(), io::ErrorKind::NotADirectory);
         scratch.close().expect("cleanup");
     }
 
@@ -639,13 +632,23 @@ mod tests {
             std::fs::set_permissions(&parent, std::fs::Permissions::from_mode(0o555))
                 .expect("chmod 555");
         }
-        let err = materialize_file(&source, &parent.join("out.toml"), LinkPolicy::LinkOrCopy)
-            .expect_err("a read-only parent is not forced");
-        assert_eq!(err.kind(), io::ErrorKind::PermissionDenied);
+        let result = materialize_file(&source, &parent.join("out.toml"), LinkPolicy::LinkOrCopy);
         {
             use std::os::unix::fs::PermissionsExt as _;
+            let mode = std::fs::metadata(&parent)
+                .expect("parent")
+                .permissions()
+                .mode();
+            assert_eq!(mode & 0o777, 0o555, "the parent mode is not forced");
             std::fs::set_permissions(&parent, std::fs::Permissions::from_mode(0o755))
                 .expect("chmod back");
+        }
+        // Root may write into a read-only directory, so for root the file lands.
+        if dx_test_scratch::running_as_root() {
+            result.expect("root writes through the mode");
+        } else {
+            let err = result.expect_err("a read-only parent is not forced");
+            assert_eq!(err.kind(), io::ErrorKind::PermissionDenied);
         }
         scratch.close().expect("cleanup");
     }

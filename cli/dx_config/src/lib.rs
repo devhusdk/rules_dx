@@ -10,7 +10,8 @@ pub mod schema;
 pub mod select;
 
 pub use config::{
-    AffectedConfig, CheckConfig, CommitsPolicy, DxConfig, FamilyConfig, LargeFiles, LoadProblem, Scope, Tier, load,
+    AffectedConfig, CheckConfig, CommitsPolicy, DxConfig, FamilyConfig, LargeFiles, LoadProblem,
+    Scope, Tier, load,
 };
 pub use curated_defaults_gen::CROSS_FAMILY_TOOLS;
 pub use select::{FamilySelection, Selection, SelectionProblem, effective};

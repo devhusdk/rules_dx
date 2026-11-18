@@ -2,9 +2,9 @@
 
 //! Safe extraction of tar, tar.gz and zip archives into a fresh directory, plus read-only
 //! member visits with name, kind and mode ([`visit_entries`], [`visit`], [`visit_tar`],
-//! [`visit_tar_entries`]), zip
-//! member reads ([`read_zip_member`]) and listings ([`zip_names`]), and deterministic writers
-//! ([`TarWriter`], [`TarStream`], [`ZipWriter`]).
+//! [`visit_tar_entries`]), zip member reads ([`read_zip_member`]), listings ([`zip_names`]),
+//! integrity checks ([`check_zip`]), and deterministic writers ([`TarWriter`], [`TarStream`],
+//! [`ZipWriter`]).
 
 use std::collections::HashSet;
 use std::fs::File;
@@ -199,6 +199,7 @@ enum Kind {
 
 struct Extraction<'a> {
     dest: &'a Path,
+    keep: &'a dyn Fn(&str) -> bool,
     limits: Limits,
     entries: usize,
     seen: HashSet<String>,
@@ -209,6 +210,9 @@ struct Extraction<'a> {
 
 impl Extraction<'_> {
     fn add(&mut self, name: String, kind: Kind, body: &mut dyn Read) -> io::Result<()> {
+        if !(self.keep)(&name) {
+            return Ok(());
+        }
         if self.entries >= self.limits.max_entries {
             return Err(invalid(format!(
                 "archive has more than {} entries",
@@ -358,8 +362,28 @@ pub fn extract(
     dest: &Path,
     limits: Limits,
 ) -> io::Result<Vec<Member>> {
+    extract_matching(archive, format, dest, limits, |_| true)
+}
+
+/// Extracts only the members whose archive name satisfies `keep`, like [`extract`].
+///
+/// `keep` sees the raw member name, with the trailing `/` of a directory; caps count kept members only.
+pub fn extract_matching(
+    archive: &Path,
+    format: Format,
+    dest: &Path,
+    limits: Limits,
+    keep: impl Fn(&str) -> bool,
+) -> io::Result<Vec<Member>> {
     let file = File::open(archive)?;
-    unpack(file, &archive.display().to_string(), format, dest, limits)
+    unpack(
+        file,
+        &archive.display().to_string(),
+        format,
+        dest,
+        limits,
+        &keep,
+    )
 }
 
 /// Extracts an archive held in memory, like [`extract`].
@@ -369,7 +393,14 @@ pub fn extract_bytes(
     dest: &Path,
     limits: Limits,
 ) -> io::Result<Vec<Member>> {
-    unpack(io::Cursor::new(bytes), "the archive", format, dest, limits)
+    unpack(
+        io::Cursor::new(bytes),
+        "the archive",
+        format,
+        dest,
+        limits,
+        &|_| true,
+    )
 }
 
 fn unpack(
@@ -378,11 +409,13 @@ fn unpack(
     format: Format,
     dest: &Path,
     limits: Limits,
+    keep: &dyn Fn(&str) -> bool,
 ) -> io::Result<Vec<Member>> {
     check_magic(&mut source, label, format)?;
     prepare_dest(dest)?;
     let mut run = Extraction {
         dest,
+        keep,
         limits,
         entries: 0,
         seen: HashSet::new(),
@@ -706,6 +739,15 @@ pub fn zip_names(source: impl Read + Seek) -> io::Result<Vec<String>> {
             Ok(name.into_owned())
         })
         .collect()
+}
+
+/// Reads every member of a zip through its checksum via [`visit`] without writing anything.
+///
+/// Fails on an unsafe member name, a CRC mismatch, or a member or archive over the caps.
+pub fn check_zip(source: impl Read + Seek, limits: Limits) -> io::Result<()> {
+    visit(source, Format::Zip, limits, |_, _, body| {
+        io::copy(body, &mut io::sink()).map(drop)
+    })
 }
 
 fn read_head(file: &mut impl Read, head: &mut [u8]) -> io::Result<usize> {

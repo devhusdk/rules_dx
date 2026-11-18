@@ -7,7 +7,7 @@ load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
 load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//core:rlocation.bzl", "rlocation_path")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load(":kwargs.bzl", "d_kwargs", _D_CELLS = "D_CELLS", _D_COMPATIBLE_WITH = "D_COMPATIBLE_WITH")
 
@@ -26,17 +26,21 @@ _D = dx_language_spec(what = "d_*", quality_specs = _SPECS, allow_files = _EXTS)
 
 _d_library_forward = dx_library_forward_rule(
     _D,
-    provides = [_DInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
-    required_providers = [(_DInfo, "DInfo")],
-    upstream_providers = [[_DInfo]],
-    runtime = "besteffort",
-    instrument_srcs = True,
+    dx_forward_spec(
+        provides = [_DInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
+        required_providers = [(_DInfo, "DInfo")],
+        upstream_providers = [[_DInfo]],
+        runtime = "besteffort",
+        instrument_srcs = True,
+    ),
 )
 
 _d_binary_forward = dx_executable_forward_rule(
     _D,
-    kind = "executable",
-    provides = _D_EXEC_PROVIDES,
+    "executable",
+    dx_forward_spec(
+        provides = _D_EXEC_PROVIDES,
+    ),
 )
 
 def _d_test_coverage(ctx, upstream):
@@ -64,17 +68,19 @@ def _d_test_coverage(ctx, upstream):
 
 _d_forward_test = dx_executable_forward_rule(
     _D,
-    kind = "test",
-    provides = _D_EXEC_PROVIDES,
-    extra_attrs = dx_lcov_merger_attr() | {
-        "deps": attr.label_list(doc = "Dependencies of the wrapped test, whose sources count for coverage."),
-        "_d_coverage_launcher": attr.label(
-            default = Label("//d/private/tools/coverage:d_coverage_launcher"),
-            executable = True,
-            cfg = no_coverage_transition,
-        ),
-    },
-    coverage_providers = _d_test_coverage,
+    "test",
+    dx_forward_spec(
+        provides = _D_EXEC_PROVIDES,
+        extra_attrs = dx_lcov_merger_attr() | {
+            "deps": attr.label_list(doc = "Dependencies of the wrapped test, whose sources count for coverage."),
+            "_d_coverage_launcher": attr.label(
+                default = Label("//d/private/tools/coverage:d_coverage_launcher"),
+                executable = True,
+                cfg = no_coverage_transition,
+            ),
+        },
+        coverage_providers = _d_test_coverage,
+    ),
 )
 
 def d_quality_srcs(srcs, string_srcs = None):

@@ -337,7 +337,7 @@ mod tests {
                 panic!("a missing proc root is unavailable, never idle: {other:?}")
             }
         }
-        drop(fs::remove_dir_all(&root));
+        dx_atomic_fs::discard_dir(&root);
     }
 
     #[test]
@@ -357,7 +357,7 @@ mod tests {
                 panic!("a file proc root is unavailable, never idle: {other:?}")
             }
         }
-        drop(fs::remove_dir_all(&root));
+        dx_atomic_fs::discard_dir(&root);
     }
 
     #[test]
@@ -385,7 +385,7 @@ mod tests {
                 panic!("a listed proc root is known: {other:?}")
             }
         }
-        drop(fs::remove_dir_all(&root));
+        dx_atomic_fs::discard_dir(&root);
     }
 
     #[test]
@@ -434,7 +434,7 @@ mod tests {
                 },
             ]
         );
-        drop(fs::remove_dir_all(&root));
+        dx_atomic_fs::discard_dir(&root);
     }
 
     #[test]
@@ -481,7 +481,7 @@ mod tests {
                 hex: env_hex,
             }]
         );
-        drop(fs::remove_dir_all(&root));
+        dx_atomic_fs::discard_dir(&root);
     }
 
     #[test]
@@ -530,7 +530,7 @@ mod tests {
                 },
             ]
         );
-        drop(fs::remove_dir_all(&root));
+        dx_atomic_fs::discard_dir(&root);
     }
 
     #[test]
@@ -549,7 +549,7 @@ mod tests {
         let plain = collect_inventory(&workspace, &[], &[]).expect("plain collect");
         assert_eq!(scanned.plan(), plain.plan());
         assert_eq!(scanned.plan().prune_setup_records, vec![stale_hex]);
-        drop(fs::remove_dir_all(&root));
+        dx_atomic_fs::discard_dir(&root);
     }
 
     #[test]
@@ -574,7 +574,7 @@ mod tests {
         );
         assert_eq!(plan.preserved_unobserved_setup_records, vec![stale_hex]);
         assert_eq!(plan.preserved_unobserved_generations.len(), 2);
-        drop(fs::remove_dir_all(&root));
+        dx_atomic_fs::discard_dir(&root);
     }
 
     fn stage_unreadable_cwd(proc_root: &Path, pid: &str) {
@@ -738,7 +738,7 @@ mod tests {
                 .any(|generation| generation.hex == stale_env),
             "releasing the lease makes the generation prunable again"
         );
-        drop(fs::remove_dir_all(&root));
+        dx_atomic_fs::discard_dir(&root);
     }
 
     const EPERM: i32 = 1;

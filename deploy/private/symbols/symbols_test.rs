@@ -149,7 +149,9 @@ fn check_pair_rejects_bad_pairs() {
     let stripped = read(&stripped);
     let debug = read(&debug);
     let other = read(&symbols("DX_OTHER_SYMBOLS", ".debug"));
-    let err = dx_symbols::check_pair(&stripped, &other).unwrap_err();
+    let err = dx_symbols::check_pair(&stripped, &other)
+        .unwrap_err()
+        .to_string();
     assert!(err.contains("build-id mismatch"), "{err}");
     assert!(dx_symbols::check_pair(&stripped, &debug[..64]).is_err());
     let mut patched = debug.clone();

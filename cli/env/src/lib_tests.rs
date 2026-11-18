@@ -669,8 +669,7 @@ fn unmanaged_states_refuse_without_mutation() {
 #[cfg(unix)]
 #[test]
 fn stale_prev_undeletable_reports_install() {
-    use std::os::unix::fs::PermissionsExt;
-    let scratch = dx_test_scratch::scratch("dx-env-test-stale-prev-perms-").unwrap();
+    let scratch = dx_test_scratch::scratch("dx-env-test-stale-prev-file-").unwrap();
     let root = scratch.path().to_path_buf();
     let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &["a"])]);
     let opts = options(&root, staged_bin, metadata);
@@ -679,36 +678,32 @@ fn stale_prev_undeletable_reports_install() {
         Ok(RefreshOutcome::InstalledFresh)
     ));
     let dx = dx_path::state::local_dir(&root.join("ws"));
-    fs::create_dir_all(dx.join(PREV_DIR_NAME)).expect("stale prev");
-    fs::set_permissions(&dx, fs::Permissions::from_mode(0o555)).expect("read-only dx");
+    // A file where the tree belongs cannot be cleared as a tree, even by root.
+    fs::write(dx.join(PREV_DIR_NAME), b"").expect("stale prev");
     let error = refresh(&opts, &|_: &Path| Ok(())).unwrap_err();
     assert!(matches!(
         error,
         Error::Install { reason } if reason.contains("cannot clear stale")
     ));
-    fs::set_permissions(&dx, fs::Permissions::from_mode(0o755)).expect("writable dx");
     drop(fs::remove_dir_all(&root));
 }
 
 #[cfg(unix)]
 #[test]
 fn stale_stage_undeletable_reports_install() {
-    use std::os::unix::fs::PermissionsExt;
-    let scratch = dx_test_scratch::scratch("dx-env-test-stale-stage-perms-").unwrap();
+    let scratch = dx_test_scratch::scratch("dx-env-test-stale-stage-file-").unwrap();
     let root = scratch.path().to_path_buf();
     let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &["a"])]);
     let opts = options(&root, staged_bin, metadata);
     let dx = dx_path::state::local_dir(&root.join("ws"));
     fs::create_dir_all(&dx).expect("dx dir");
-    fs::write(dx.join(dx_atomic_fs::commit::COMMIT_LOCK_FILE_NAME), b"").expect("lock file");
-    fs::create_dir_all(dx.join(STAGE_DIR_NAME)).expect("stale stage");
-    fs::set_permissions(&dx, fs::Permissions::from_mode(0o555)).expect("read-only dx");
+    // A file where the tree belongs cannot be cleared as a tree, even by root.
+    fs::write(dx.join(STAGE_DIR_NAME), b"").expect("stale stage");
     let error = refresh(&opts, &|_: &Path| Ok(())).unwrap_err();
     assert!(matches!(
         error,
         Error::Install { reason } if reason.contains("cannot clear stale staging")
     ));
-    fs::set_permissions(&dx, fs::Permissions::from_mode(0o755)).expect("writable dx");
     drop(fs::remove_dir_all(&root));
 }
 

@@ -49,14 +49,16 @@ fn set_inheritable_clears_close_on_exec() {
 
 #[test]
 fn the_space_of_the_temp_dir_is_known() {
-    let space = fs::space(&std::env::temp_dir()).expect("statvfs");
+    let dir = dx_test_scratch::scratch("dx-os-sys-space-").expect("scratch");
+    let space = fs::space(dir.path()).expect("statvfs");
     assert!(space.total > 0);
     assert!(space.free <= space.total);
 }
 
 #[test]
 fn the_space_of_a_missing_dir_is_an_error() {
-    assert!(fs::space(&std::env::temp_dir().join("no/such/dx/dir")).is_err());
+    let dir = dx_test_scratch::scratch("dx-os-sys-missing-").expect("scratch");
+    assert!(fs::space(&dir.path().join("no/such/dx/dir")).is_err());
 }
 
 #[cfg(unix)]
@@ -68,20 +70,22 @@ fn a_file_is_not_a_terminal() {
 }
 
 #[cfg(unix)]
-fn scratch_file(name: &str) -> std::path::PathBuf {
-    let path = std::env::temp_dir().join(format!("dx-os-sys-{}-{name}", std::process::id()));
+fn scratch_file(dir: &std::path::Path, name: &str) -> std::path::PathBuf {
+    let path = dir.join(name);
     std::fs::write(&path, "").expect("scratch file");
     path
 }
 
 #[cfg(unix)]
 #[test]
-fn the_user_id_owns_a_new_file() {
+fn the_user_ids_own_a_new_file() {
     use std::os::unix::fs::MetadataExt;
-    let file = scratch_file("owned");
+    let dir = dx_test_scratch::scratch("dx-os-sys-owned-").expect("scratch");
+    let file = scratch_file(dir.path(), "owned");
     let owner = std::fs::metadata(&file).expect("metadata").uid();
     std::fs::remove_file(&file).expect("remove");
     assert_eq!(process::user_id(), owner);
+    assert_eq!(process::effective_user_id(), owner);
 }
 
 #[cfg(target_os = "linux")]
@@ -93,7 +97,8 @@ fn the_user_id_owns_a_new_file() {
 )]
 fn the_write_lock_probe_sees_ofd_locks_and_ignores_flock() {
     use std::os::fd::AsRawFd;
-    let path = scratch_file("lock");
+    let dir = dx_test_scratch::scratch("dx-os-sys-lock-").expect("scratch");
+    let path = scratch_file(dir.path(), "lock");
     let probe = std::fs::File::open(&path).expect("open");
     assert!(!fs::write_locked(&probe).expect("probe"));
 

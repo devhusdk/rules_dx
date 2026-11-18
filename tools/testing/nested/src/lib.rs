@@ -1075,21 +1075,13 @@ fn apply_env_at(home: &Path, command: &mut Command, envs: &[(&str, &str)], front
     let mut dirs: Vec<PathBuf> = front.iter().map(|dir| dir.to_path_buf()).collect();
     dirs.push(home.join("bin"));
     dirs.extend(std::env::split_paths(&path));
-    if cfg!(windows) {
-        let root = std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".to_owned());
-        dirs.extend(windows_system_dirs(&root));
+    #[cfg(windows)]
+    if let Ok(system) = dx_os_sys::win32::system_dirs() {
+        dirs.extend(system);
     }
     if let Ok(joined) = std::env::join_paths(dirs) {
         command.env("PATH", joined);
     }
-}
-
-/// The Windows system directories every nested command gets on `PATH`, after the given entries.
-fn windows_system_dirs(root: &str) -> Vec<PathBuf> {
-    vec![
-        PathBuf::from(format!(r"{root}\System32")),
-        PathBuf::from(root),
-    ]
 }
 
 /// The `bazel` every nested command runs: `bin/bazel` in the slot, `bin/bazel.exe` on Windows.
@@ -2574,14 +2566,6 @@ mod tests {
         let want_home = format!("HOME={}", server.home().join("home").display());
         assert!(lines.contains(&want_path.as_str()), "{}", run.stdout);
         assert!(lines.contains(&want_home.as_str()), "{}", run.stdout);
-    }
-
-    #[test]
-    fn windows_system_dirs_are_system32_then_the_root() {
-        assert_eq!(
-            windows_system_dirs(r"D:\Win"),
-            vec![PathBuf::from(r"D:\Win\System32"), PathBuf::from(r"D:\Win")]
-        );
     }
 
     #[test]

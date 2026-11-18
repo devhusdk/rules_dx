@@ -1,0 +1,4 @@
+//android/private/packaging/ops:ops_upstream
+//core/quality/runner:matrix_harness_test_upstream
+//core/quality/runner:quality_runner_lib_upstream
+//core/quality/runner:quality_runner_test_upstream

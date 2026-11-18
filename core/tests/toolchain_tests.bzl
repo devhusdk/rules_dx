@@ -147,6 +147,24 @@ toolchain(
     visibility = ["//visibility:public"],
 )
 """),
+        expect_equal("gated cell with its own constraints", pins_hub(
+            "t",
+            ["linux_arm64_to_linux_x86_64"],
+            "//t:type",
+            "both",
+            target = "impl",
+            target_settings = ["//t:on"],
+            cell_constraints = {"linux_arm64_to_linux_x86_64": struct(exec_compatible_with = ["//c:arm64"], target_compatible_with = ["//c:x86_64"])},
+        ), """toolchain(
+    name = "t__linux_arm64_to_linux_x86_64",
+    exec_compatible_with = ["//c:arm64"],
+    target_compatible_with = ["//c:x86_64"],
+    target_settings = ["//t:on"],
+    toolchain = "@t__linux_arm64_to_linux_x86_64//:impl",
+    toolchain_type = "//t:type",
+    visibility = ["//visibility:public"],
+)
+"""),
     ] + hub_checks(full + "\n" + minimal, "//t:type", 2, forbidden = ["@other"])
 
 def toolchain_tests(name, size = "small"):

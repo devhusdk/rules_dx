@@ -1,5 +1,6 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust:defs.bzl", "rust_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -17,17 +18,21 @@ filegroup(
     }),
 )
 
-genrule(
-    name = "nixfmt_static",
-    srcs = [":nixfmt"],
-    outs = ["nixfmt_static.readelf.txt"],
-    cmd = "$(execpath @llvm//tools:llvm-readelf) -l $(execpath :nixfmt) > $@ && ! grep -q INTERP $@",
+rust_test(
+    name = "static_test",
+    size = "small",
+    srcs = ["static_test.rs"],
+    data = [":nixfmt"],
+    env = {"NIXFMT": "$(rlocationpath :nixfmt)"},
     target_compatible_with = [
         "@llvm//constraints/libc:musl",
         "@platforms//cpu:arm64",
         "@platforms//os:linux",
     ],
-    tools = ["@llvm//tools:llvm-readelf"],
+    deps = [
+        "//cli/binfmt:dx_binfmt",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 build_test(

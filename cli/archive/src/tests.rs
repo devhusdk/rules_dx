@@ -45,7 +45,7 @@ fn zip_file(path: &Path, members: &[(&str, &[u8], u32)]) {
 }
 
 const MEMBERS: &[(&str, &[u8], u32)] = &[
-    ("dx", b"#!/bin/sh\necho dx\n", 0o755),
+    ("dx", b"dx executable data", 0o755),
     ("NOTICE", b"notice", 0o644),
     ("lib/x.dll", b"dll", 0o644),
 ];
@@ -176,10 +176,10 @@ fn duplicates_are_refused_case_insensitively() {
 fn absolute_names_are_refused_in_both_formats() {
     let dir = scratch();
     let tar = dir.path().join("abs.tar.gz");
-    tar_gz(&tar, &[("/tmp/dx-archive-abs", b"x", 0o644)]);
+    tar_gz(&tar, &[("/dx-archive-abs", b"x", 0o644)]);
     assert!(expect_refused(Format::TarGz, &tar).contains("must be relative"));
     let zip = dir.path().join("abs.zip");
-    zip_file(&zip, &[("/tmp/dx-archive-abs", b"x", 0o644)]);
+    zip_file(&zip, &[("/dx-archive-abs", b"x", 0o644)]);
     assert!(expect_refused(Format::Zip, &zip).contains("must be relative"));
 }
 
@@ -278,8 +278,7 @@ fn directories_and_inner_symlinks_are_extracted_in_both_formats() {
                 "pkg/lib/tool",
                 tar::EntryType::Regular,
                 "",
-                b"#!/bin/sh
-",
+                b"tool body\n",
                 0o755,
             ),
             (
@@ -299,12 +298,7 @@ fn directories_and_inner_symlinks_are_extracted_in_both_formats() {
         &[
             ZipEntry::Dir("pkg/"),
             ZipEntry::Dir("pkg/bin/"),
-            ZipEntry::File(
-                "pkg/lib/tool",
-                b"#!/bin/sh
-",
-                0o755,
-            ),
+            ZipEntry::File("pkg/lib/tool", b"tool body\n", 0o755),
             ZipEntry::Link("pkg/bin/tool", "../lib/tool"),
             ZipEntry::Link("pkg/current", "."),
             ZipEntry::Dir("pkg/empty/"),
@@ -334,17 +328,12 @@ fn directories_and_inner_symlinks_are_extracted_in_both_formats() {
                     .is_symlink(),
                 "{format:?}"
             );
-            assert_eq!(
-                std::fs::read(&link).expect("read"),
-                b"#!/bin/sh
-"
-            );
+            assert_eq!(std::fs::read(&link).expect("read"), b"tool body\n");
             let mode = std::fs::metadata(&link).expect("meta").permissions().mode();
             assert_eq!(mode & 0o777, 0o755, "{format:?}");
             assert_eq!(
                 std::fs::read(dest.join("pkg/current/lib/tool")).expect("read"),
-                b"#!/bin/sh
-"
+                b"tool body\n"
             );
         }
     }
@@ -905,7 +894,7 @@ fn tar_stream_matches_tar_writer() {
     let block = vec![7u8; 512];
     let large = vec![9u8; 3 * 20 * 512 + 1];
     let members: Vec<RawMember<'_>> = vec![
-        ("bin/tool", b"#!/bin/sh\necho hi\n", 0o755),
+        ("bin/tool", b"tool body\n", 0o755),
         ("empty", b"", 0o644),
         ("block", &block, 0o600),
         ("large", &large, 0o644),
@@ -1061,4 +1050,107 @@ fn visit_reports_link_targets() {
             ),
         ]
     );
+}
+
+#[test]
+fn extract_matching_writes_only_the_kept_members() {
+    let dir = scratch();
+    let archive = dir.path().join("fat.zip");
+    zip_file(
+        &archive,
+        &[
+            ("META-INF/LICENSE", b"l", 0o644),
+            ("META-INF/license/x.txt", b"x", 0o644),
+            ("META-INF/semanticdb/a/A.scala.semanticdb", b"a", 0o644),
+        ],
+    );
+    let dest = dir.path().join("out");
+    let keep = |name: &str| name.starts_with("META-INF/semanticdb/");
+    let members =
+        extract_matching(&archive, Format::Zip, &dest, Limits::default(), keep).expect("extract");
+    let names: Vec<&str> = members.iter().map(|m| m.name.as_str()).collect();
+    assert_eq!(names, ["META-INF/semanticdb/a/A.scala.semanticdb"]);
+    assert!(!dest.join("META-INF/LICENSE").exists());
+    let count_cap = Limits {
+        max_entries: 1,
+        ..Limits::default()
+    };
+    extract_matching(
+        &archive,
+        Format::Zip,
+        &dir.path().join("o2"),
+        count_cap,
+        keep,
+    )
+    .expect("caps count kept members only");
+}
+
+#[test]
+fn extract_matching_refuses_a_kept_dot_dot_member() {
+    let dir = scratch();
+    let archive = dir.path().join("up.zip");
+    zip_file(&archive, &[("keep/../../escape", b"x", 0o644)]);
+    let error = extract_matching(
+        &archive,
+        Format::Zip,
+        &dir.path().join("out"),
+        Limits::default(),
+        |name| name.starts_with("keep/"),
+    )
+    .expect_err("refused");
+    assert!(error.to_string().contains("'..'"), "{error}");
+    assert!(!dir.path().join("escape").exists());
+}
+
+#[test]
+fn check_zip_reads_every_member_under_the_caps() {
+    let dir = scratch();
+    let archive = dir.path().join("ok.zip");
+    zip_entries(
+        &archive,
+        &[
+            ZipEntry::Dir("pkg/"),
+            ZipEntry::File("pkg/a.txt", &[7u8; 64], 0o644),
+        ],
+    );
+    let open = || File::open(&archive).expect("open");
+    check_zip(open(), Limits::default()).expect("intact");
+    let entry_cap = Limits {
+        max_entry_bytes: 10,
+        ..Limits::default()
+    };
+    let error = check_zip(open(), entry_cap).expect_err("capped");
+    assert!(error.to_string().contains("size cap"), "{error}");
+    let count_cap = Limits {
+        max_entries: 1,
+        ..Limits::default()
+    };
+    let error = check_zip(open(), count_cap).expect_err("capped");
+    assert!(error.to_string().contains("more than 1 entries"), "{error}");
+}
+
+#[test]
+fn check_zip_fails_on_a_crc_mismatch() {
+    let mut writer = zip::ZipWriter::new(io::Cursor::new(Vec::new()));
+    let stored =
+        zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+    writer.start_file("a.txt", stored).expect("start");
+    writer.write_all(b"payload bytes").expect("write");
+    let mut bytes = writer.finish().expect("finish").into_inner();
+    let at = bytes
+        .windows(7)
+        .position(|window| window == b"payload")
+        .expect("payload");
+    bytes[at] ^= 0xff;
+    check_zip(io::Cursor::new(bytes), Limits::default()).expect_err("corrupt");
+}
+
+#[test]
+fn check_zip_refuses_a_dot_dot_member() {
+    let dir = scratch();
+    let archive = dir.path().join("up.zip");
+    zip_file(&archive, &[("../escape", b"x", 0o644)]);
+    let error =
+        check_zip(File::open(&archive).expect("open"), Limits::default()).expect_err("refused");
+    assert!(error.to_string().contains("'..'"), "{error}");
 }

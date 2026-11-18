@@ -17,9 +17,9 @@ rust_library(
     crate_name = "dx_android_ops",
     crate_root = "src/lib.rs",
     deps = [
+        "//cli/archive:dx_archive",
         "//cli/atomic_fs:dx_atomic_fs",
         "@crates//:tempfile",
-        "@crates//:zip",
     ],
 )
 

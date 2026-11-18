@@ -112,8 +112,8 @@ pub(crate) fn classify_scopes(
 }
 
 /// Maps generate scopes to labels without asking Bazel: generate creates the
-/// BUILD files, so a file or directory is taken as its own package directory
-/// and `//dir/...` need not hold a BUILD file yet.
+/// BUILD files, so a directory is taken as the package tree `//dir/...` and a
+/// file as its own package `//dir:all`, neither of which needs a BUILD file yet.
 pub(crate) fn classify_generate_scopes(
     scopes: &[String],
     workspace: &Path,
@@ -143,7 +143,7 @@ pub(crate) fn classify_generate_scopes(
                 .parent()
                 .map(|parent| parent.to_string_lossy().into_owned())
                 .unwrap_or_default();
-            targets.push(dir_pattern(&dir));
+            targets.push(format!("//{dir}:all"));
         } else {
             return Err(ResolveError::NotFileOrDir { scope: raw.clone() });
         }

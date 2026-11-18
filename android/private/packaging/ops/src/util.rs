@@ -149,36 +149,3 @@ pub fn apks_in(dir: &Path) -> Vec<PathBuf> {
     found.sort();
     found
 }
-
-/// The entry names in the central directory of one zip file.
-#[must_use]
-pub fn zip_names(bytes: &[u8]) -> Option<Vec<String>> {
-    let word = |at: usize, len: usize| -> Option<usize> {
-        let field = bytes.get(at..at.checked_add(len)?)?;
-        Some(
-            field
-                .iter()
-                .rev()
-                .fold(0usize, |value, byte| (value << 8) | usize::from(*byte)),
-        )
-    };
-    let end = (0..=bytes.len().checked_sub(22)?)
-        .rev()
-        .take(65_536)
-        .find(|&at| bytes.get(at..at + 4) == Some(b"PK\x05\x06"))?;
-    let count = word(end + 10, 2)?;
-    let mut at = word(end + 16, 4)?;
-    let mut names = Vec::with_capacity(count);
-    for _ in 0..count {
-        if bytes.get(at..at.checked_add(4)?) != Some(b"PK\x01\x02") {
-            return None;
-        }
-        let name = word(at + 28, 2)?;
-        let extra = word(at + 30, 2)?;
-        let comment = word(at + 32, 2)?;
-        let text = bytes.get(at + 46..(at + 46).checked_add(name)?)?;
-        names.push(String::from_utf8_lossy(text).into_owned());
-        at = at + 46 + name + extra + comment;
-    }
-    Some(names)
-}

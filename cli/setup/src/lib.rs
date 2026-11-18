@@ -354,7 +354,7 @@ fn ensure_setup_record(setups_dir: &Path, pair: &SetupPair) -> Result<PathBuf, C
     if let Err(error) = created(ENVIRONMENT_LINK_NAME, &expected_environment_target(pair))
         .and_then(|()| created(GENERATED_LINK_NAME, &expected_generated_target(pair)))
     {
-        drop(fs::remove_dir_all(&record));
+        dx_atomic_fs::discard_dir(&record);
         return Err(error);
     }
     Ok(record)

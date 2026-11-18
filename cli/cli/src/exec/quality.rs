@@ -918,8 +918,14 @@ fn settle_changes(
         .changes
         .sort_by(|a, b| a.path.as_bytes().cmp(b.path.as_bytes()));
 
-    let applied_outcome =
-        apply_collected_changes(fs, workspace, apply, collected.complete, &collected.changes);
+    let applied_outcome = apply_collected_changes(
+        fs,
+        workspace,
+        apply,
+        collected.complete,
+        request.writable.as_deref(),
+        &collected.changes,
+    );
     let sources = applied_outcome.sources;
     let mut applied = applied_outcome.applied;
     let mut not_applied = applied_outcome.not_applied;

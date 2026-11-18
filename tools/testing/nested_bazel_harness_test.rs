@@ -1,4 +1,4 @@
-//! Offline self-tests of the nested Bazel harness: the pinned binary runs without bazelisk, a locked consumer resolves `rules_dx` extensions from its repository cache sets, and nested servers stop with their test binary, and a restarted server refetches no repository rule unless its declared environment changed, which the probe proves the guard catches, and a consumer cannot load an internal `.bzl`.
+//! Offline self-tests of the nested Bazel harness: the pinned binary runs without bazelisk, a locked consumer resolves `rules_dx` extensions from its repository cache sets, and nested servers stop with their test binary, and a restarted server refetches no repository rule unless its declared environment changed, which the probe proves the guard catches, a consumer cannot load an internal `.bzl`, and a root-only extension warns about the tags a dependency sets.
 
 use std::time::{Duration, Instant};
 
@@ -312,6 +312,42 @@ fn a_consumer_that_loads_an_internal_bzl_fails() {
         "load(\"@rules_dx//core/quality:taxonomy.bzl\", \"OTHER_FAMILIES\")\n\nfilegroup(name = \"all\", tags = [str(len(OTHER_FAMILIES))])\n",
     );
     case.build_fails_with("//:all", &["is not visible for loading"]);
+}
+
+#[test]
+fn a_root_only_tag_in_a_dependency_warns_and_is_ignored() {
+    let case = nested::harness_consumer("root_only");
+    let module = dx_testing::read_text(&case.root().join("MODULE.bazel"));
+    case.write(
+        "MODULE.bazel",
+        &format!(
+            "{module}bazel_dep(name = \"mid\", version = \"0.0.0\")\nlocal_path_override(module_name = \"mid\", path = \"mid\")\n"
+        ),
+    );
+    // The version is not pinned, so the run fails if the extension reads the tag.
+    case.write(
+        "mid/MODULE.bazel",
+        &format!(
+            "module(name = \"mid\", version = \"0.0.0\")\n{DEP}python = use_extension(\"@rules_dx//python:extensions.bzl\", \"python\")\npython.toolchain(python_version = \"0.0\")\n"
+        ),
+    );
+    case.write("mid/BUILD.bazel", "");
+    case.use_lock("harness");
+    // The hub repo comes from the python extension alone, so the query runs no other extension.
+    let run = case.bazel(&[
+        "query",
+        "--color=no",
+        "--curses=no",
+        "@@rules_dx++python+dx_python_toolchains//:all",
+    ]);
+    assert!(run.status.success(), "{}", run.combined());
+    let warning = "WARNING: python: module 'mid' sets python.toolchain(...), which is ignored because only the root module's toolchain tags count";
+    assert_eq!(
+        run.combined().matches(warning).count(),
+        1,
+        "{}",
+        run.combined()
+    );
 }
 
 #[test]

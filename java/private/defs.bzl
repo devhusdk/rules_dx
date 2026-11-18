@@ -5,7 +5,7 @@ load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("//java/private:coverage.bzl", "DX_JVM_TEST_RUNNER", "dx_jvm_test_coverage")
 load("//java/private:jazzer.bzl", "jazzer_fuzz", "jazzer_target_class")
 load("//java/private:jmh.bzl", "jmh_bench")
-load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load(":kwargs.bzl", "java_entry_class", "java_entry_error", "java_entry_kwargs", "java_javacopts_with_warnings_as_errors", "java_test_main_class")
 
@@ -24,29 +24,35 @@ _JAVA = dx_language_spec(what = "java_*", quality_specs = _DX_JAVA_SOURCE_SPECS,
 
 _java_library_forward = dx_library_forward_rule(
     _JAVA,
-    provides = _DX_JAVA_LIBRARY_PROVIDES,
-    required_providers = [(JavaInfo, "JavaInfo")],
-    upstream_providers = [[JavaInfo]],
+    dx_forward_spec(
+        provides = _DX_JAVA_LIBRARY_PROVIDES,
+        required_providers = [(JavaInfo, "JavaInfo")],
+        upstream_providers = [[JavaInfo]],
+    ),
 )
 
 _java_binary_forward = dx_executable_forward_rule(
     _JAVA,
-    kind = "executable",
-    upstream_providers = [[JavaInfo]],
-    optional_providers = [JavaInfo],
+    "executable",
+    dx_forward_spec(
+        upstream_providers = [[JavaInfo]],
+        optional_providers = [JavaInfo],
+    ),
 )
 
 _java_forward_test = dx_executable_forward_rule(
     _JAVA,
-    kind = "test",
-    upstream_providers = [[JavaInfo]],
-    extra_attrs = dict(
-        dx_lcov_merger_attr(),
-        main_class = attr.string(default = DX_JVM_TEST_RUNNER),
+    "test",
+    dx_forward_spec(
+        upstream_providers = [[JavaInfo]],
+        extra_attrs = dict(
+            dx_lcov_merger_attr(),
+            main_class = attr.string(default = DX_JVM_TEST_RUNNER),
+        ),
+        optional_providers = [JavaInfo],
+        coverage_providers = dx_jvm_test_coverage,
+        runtime = "mandatory",
     ),
-    optional_providers = [JavaInfo],
-    coverage_providers = dx_jvm_test_coverage,
-    runtime = "mandatory",
 )
 
 def _java_entry_kwargs_or_fail(name, srcs, kwargs, attr):

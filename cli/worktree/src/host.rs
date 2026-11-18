@@ -583,7 +583,10 @@ fn process_in(_dir: &Path) -> bool {
 }
 
 fn find_bazel() -> Option<PathBuf> {
-    dx_path::lookup::find(&["bazel", "bazelisk", "bazel.exe", "bazelisk.exe"])
+    dx_path::lookup::find_in(
+        &std::env::var_os("PATH")?,
+        &["bazel", "bazelisk", "bazel.exe", "bazelisk.exe"],
+    )
 }
 
 impl Host for SystemHost {

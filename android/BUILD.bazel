@@ -12,6 +12,11 @@ exports_files([
     "pins.json",
 ])
 
+alias(
+    name = "llvm_readelf",
+    actual = "@android_ndk_toolchain//:llvm_readelf",
+)
+
 int_setting(
     name = "api_level",
     build_setting_default = 0,

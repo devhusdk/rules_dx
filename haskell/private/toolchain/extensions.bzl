@@ -1,20 +1,21 @@
 """The haskell module extension."""
 
 load("//core:repo.bzl", "hub_repo")
+load("//core:toolchain.bzl", "cell_repo")
 load(":packages.bzl", "declare_packages")
 load(":pins.bzl", "ALL_CELLS", "CROSS_CELLS")
-load(":repos.bzl", "HUB_NAME", "cell_repository_name", "ghc_repo", "hub_files")
+load(":repos.bzl", "HUB_NAME", "ghc_repo", "hub_files")
 
 def _haskell_impl(mctx):
     for cell in sorted(ALL_CELLS):
         ghc_repo(
-            name = cell_repository_name(cell),
+            name = cell_repo(HUB_NAME, cell),
             cell = cell,
             python = Label(ALL_CELLS[cell].python),
         )
     for name, cross in sorted(CROSS_CELLS.items()):
         ghc_repo(
-            name = cell_repository_name(name),
+            name = cell_repo(HUB_NAME, name),
             cell = cross.host,
             target = cross.target,
             cc_target = cross.cc_target,

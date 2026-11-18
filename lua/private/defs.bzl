@@ -2,7 +2,7 @@
 
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//core:fuzz_bench.bzl", "merge_tags")
-load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_language_spec", "dx_lcov_merger_attr", "dx_quality_sources", "dx_upstream", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_lcov_merger_attr", "dx_quality_sources", "dx_upstream", "dx_wrap_binary", "dx_wrap_test")
 load(
     "//lua/private:lua.bzl",
     "LUA_EXECUTABLE_ATTRS",
@@ -61,17 +61,21 @@ _LUA = dx_language_spec(what = "lua_*", quality_specs = LUA_SOURCE_SPECS, allow_
 
 _lua_binary_forward = dx_executable_forward_rule(
     _LUA,
-    kind = "executable",
-    coverage_runfiles = _entry_runfiles,
-    runtime = "mandatory",
+    "executable",
+    dx_forward_spec(
+        coverage_runfiles = _entry_runfiles,
+        runtime = "mandatory",
+    ),
 )
 
 _lua_forward_test = dx_executable_forward_rule(
     _LUA,
-    kind = "test",
-    coverage_runfiles = _entry_runfiles,
-    extra_attrs = dx_lcov_merger_attr(),
-    runtime = "mandatory",
+    "test",
+    dx_forward_spec(
+        coverage_runfiles = _entry_runfiles,
+        extra_attrs = dx_lcov_merger_attr(),
+        runtime = "mandatory",
+    ),
 )
 
 def lua_library(name, srcs = None, visibility = None, **kwargs):

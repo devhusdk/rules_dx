@@ -3,6 +3,7 @@
 pub mod commit;
 pub mod lease;
 pub mod managed;
+pub mod path_io;
 
 use std::fs::File;
 use std::io;
@@ -76,6 +77,14 @@ pub fn discard_file(path: impl AsRef<Path>) {
 pub fn discard_dir(path: impl AsRef<Path>) {
     let path = path.as_ref();
     log_discard_error(path, std::fs::remove_dir_all(path));
+}
+
+/// Writes a file that readers treat as a hint, such as a holder label; an error is logged with the path.
+pub fn write_hint(path: impl AsRef<Path>, content: impl AsRef<[u8]>) {
+    let path = path.as_ref();
+    if let Err(error) = std::fs::write(path, content) {
+        tracing::info!(path = %path.display(), %error, "cannot write hint file");
+    }
 }
 
 fn log_discard_error(path: &Path, result: io::Result<()>) {
@@ -360,6 +369,17 @@ mod tests {
         assert!(!dir.exists());
         discard_file(&file);
         discard_dir(&dir);
+    }
+
+    #[test]
+    fn write_hint_writes_and_tolerates_a_missing_parent() {
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-").unwrap();
+        let file = scratch.path().join("holder");
+        write_hint(&file, "label");
+        assert_eq!(std::fs::read_to_string(&file).expect("read hint"), "label");
+        let orphan = scratch.path().join("missing").join("holder");
+        write_hint(&orphan, "label");
+        assert!(!orphan.exists());
     }
 
     #[test]
@@ -749,7 +769,7 @@ mod tests {
     fn copy_scratch_replaces_a_read_only_dest_and_keeps_the_exec_bit() {
         let scratch = dx_test_scratch::scratch("dx-atomic-fs-copy-scratch-").unwrap();
         let src = scratch.path().join("tool");
-        std::fs::write(&src, b"#!/bin/sh\n").expect("write src");
+        std::fs::write(&src, b"tool\n").expect("write src");
         chmod(&src, 0o555);
         let out = scratch.path().join("out");
         std::fs::create_dir_all(&out).expect("mkdir out");
@@ -757,7 +777,7 @@ mod tests {
         std::fs::write(&dest, b"old\n").expect("write dest");
         chmod(&dest, 0o444);
         copy_scratch(&src, &dest).expect("replace read-only dest");
-        assert_eq!(std::fs::read(&dest).expect("read dest"), b"#!/bin/sh\n");
+        assert_eq!(std::fs::read(&dest).expect("read dest"), b"tool\n");
         assert_eq!(mode_of(&dest), 0o755);
         assert_eq!(names_in(&out), vec!["tool".to_owned()]);
         scratch.close().expect("cleanup");

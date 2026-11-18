@@ -28,7 +28,7 @@ load("//cc/private:defs.bzl", "CC_COVERAGE_INPUTS", "cc_coverage_settings")
 load("//core:entry.bzl", "dx_infer_main", "dx_main_candidates")
 load("//core:fuzz.bzl", "dx_fuzz_runner")
 load("//core:fuzz_bench.bzl", "merge_tags", "split_test_kwargs", "with_default_size")
-load("//core:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_attrs", "dx_forward_data_attr", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_run_env_attrs", "dx_run_environment", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream", "dx_warnings_as_errors", "dx_wrap_forward_kwargs")
+load("//core:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_attrs", "dx_forward_data_attr", "dx_forward_spec", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_run_env_attrs", "dx_run_environment", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream", "dx_warnings_as_errors", "dx_wrap_forward_kwargs")
 load("//core:native_coverage.bzl", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage")
 load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
@@ -120,15 +120,17 @@ _OCAML_LANGUAGE = dx_language_spec(what = "ocaml_*", quality_specs = _OCAML, all
 def _library_forward_rule(provider, name, extra_providers = None, extra_attrs = None):
     return dx_library_forward_rule(
         _OCAML_LANGUAGE,
-        extra_attrs = extra_attrs,
-        extra_providers = extra_providers,
-        provides = [provider, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo] + ([OCamlCmtInfo] if extra_providers else []),
-        required_providers = [(provider, name), (_OCamlDepsProvider, "OCamlDepsProvider")],
-        upstream_providers = [[provider]],
-        runtime = "besteffort",
-        instrument_srcs = True,
-        quiet_providers = [p for p in _FORWARDED if p != provider],
-        upstream_cfg = _toolchain,
+        dx_forward_spec(
+            extra_attrs = extra_attrs,
+            extra_providers = extra_providers,
+            provides = [provider, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo] + ([OCamlCmtInfo] if extra_providers else []),
+            required_providers = [(provider, name), (_OCamlDepsProvider, "OCamlDepsProvider")],
+            upstream_providers = [[provider]],
+            runtime = "besteffort",
+            instrument_srcs = True,
+            quiet_providers = [p for p in _FORWARDED if p != provider],
+            upstream_cfg = _toolchain,
+        ),
     )
 
 _module_forward = _library_forward_rule(_OCamlModuleProvider, "OCamlModuleProvider", _cmt_providers, {"instrument_coverage": attr.bool(doc = "Whether to instrument the module for coverage.", default = True)})

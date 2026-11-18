@@ -1052,23 +1052,16 @@ fn write_report_file_keeps_stale_content_on_failure() {
 #[cfg(unix)]
 fn write_report_file_reports_unwritable_destinations() {
     let dir = tempfile::tempdir().expect("tempdir");
-    let locked = dir.path().join("locked");
-    std::fs::create_dir(&locked).expect("mkdir");
-    let mut permissions = std::fs::metadata(&locked).expect("metadata").permissions();
-    permissions.set_readonly(true);
-    std::fs::set_permissions(&locked, permissions).expect("readonly");
-    let result = write_report_file(dir.path(), "locked/out.sarif", "{}\n");
-    let mut permissions = std::fs::metadata(&locked).expect("metadata").permissions();
-    #[expect(
-        clippy::permissions_set_readonly_false,
-        reason = "the test restores write access"
-    )]
-    permissions.set_readonly(false);
-    std::fs::set_permissions(&locked, permissions).expect("writable");
-    let err = result.expect_err("unwritable");
-    assert!(err.destination.contains("locked"), "{err}");
+    // A name longer than NAME_MAX fails the final rename even for root, which ignores mode bits.
+    let name = format!("{}.sarif", "x".repeat(300));
+    let err = write_report_file(dir.path(), &name, "{}\n").expect_err("unwritable");
+    assert!(err.destination.ends_with(&name), "{err}");
     assert!(!err.reason.is_empty(), "{err}");
-    assert!(!locked.join("out.sarif").exists());
+    assert_eq!(
+        std::fs::read_dir(dir.path()).expect("list").count(),
+        0,
+        "no report or staging file is left"
+    );
 }
 
 #[test]

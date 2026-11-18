@@ -1,6 +1,8 @@
 """Unit and analysis tests for the PyPI publisher."""
 
+load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/quality:unavailable_tool.bzl", "DxUnavailableToolInfo")
 load(":validate_pypi.bzl", "PYPI_DEFAULT_REGISTRY_URL", "pypi_name_error", "pypi_registry_url_error", "pypi_wheel_error")
 
 def pypi_unit_tests(name):
@@ -59,4 +61,41 @@ def pypi_unit_tests(name):
                 "filename ending in .whl",
             ),
         ],
+    )
+
+def _attestations_unavailable_impl(ctx):
+    env = analysistest.begin(ctx)
+    asserts.true(env, DxUnavailableToolInfo in analysistest.target_under_test(env), "want DxUnavailableToolInfo on windows_arm64")
+    return analysistest.end(env)
+
+def _attestations_available_impl(ctx):
+    env = analysistest.begin(ctx)
+    asserts.false(env, DxUnavailableToolInfo in analysistest.target_under_test(env), "want the pinned pypi-attestations on linux_x86_64")
+    return analysistest.end(env)
+
+_attestations_windows_arm64_test = analysistest.make(
+    _attestations_unavailable_impl,
+    config_settings = {"//command_line_option:platforms": str(Label("//tools/platforms:windows_arm64"))},
+)
+
+_attestations_linux_x86_64_test = analysistest.make(
+    _attestations_available_impl,
+    config_settings = {"//command_line_option:platforms": str(Label("//tools/platforms:linux_x86_64"))},
+)
+
+def pypi_attestations_tool_tests(name):
+    """Checks the pypi-attestations alias picks the stub only on windows_arm64."""
+    _attestations_windows_arm64_test(
+        name = name + "_windows_arm64",
+        size = "small",
+        target_under_test = "//core/quality/tools/python:pypi_attestations_tool",
+    )
+    _attestations_linux_x86_64_test(
+        name = name + "_linux_x86_64",
+        size = "small",
+        target_under_test = "//core/quality/tools/python:pypi_attestations_tool",
+    )
+    native.test_suite(
+        name = name,
+        tests = [name + "_windows_arm64", name + "_linux_x86_64"],
     )

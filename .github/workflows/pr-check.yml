@@ -65,6 +65,10 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           "$RUNNER_TEMP/pr-check/producers_bin" --pr-check cli $BAZEL_CONFIG $BB_ARGS
+      - name: kotlin-bench
+        run: |
+          # shellcheck disable=SC2086
+          "$RUNNER_TEMP/pr-check/producers_bin" --pr-check kotlin-bench $BAZEL_CONFIG $BB_ARGS
 
   # Affected tests get their own runner. As the last step of `analysis` they had
   # only what the sets before them left of its 30 minutes (about 8), and a change

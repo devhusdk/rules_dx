@@ -29,7 +29,7 @@ load(":thin_compare.bzl", "thin_demo_executable_forward", "thin_demo_library_for
 load(":toolchain_tests.bzl", "toolchain_tests")
 load(":warnings_tests.bzl", "warnings_tests")
 load(":wrapper_forward_fixture.bzl", "wrapper_forward_fixtures", "wrapper_forward_tests")
-load(":wrapper_tests.bzl", "wrapper_kwarg_hooks_tests", "wrapper_optional_forward_tests", "wrapper_resource_tags_tests", "wrapper_shape_kwargs_tests", "wrapper_symlink_naming_tests")
+load(":wrapper_tests.bzl", "wrapper_forward_spec_tests", "wrapper_kwarg_hooks_tests", "wrapper_optional_forward_tests", "wrapper_resource_tags_tests", "wrapper_shape_kwargs_tests", "wrapper_symlink_naming_tests")
 
 platform(
     name = "fuzz_windows_platform",
@@ -174,6 +174,8 @@ starlark_test(
     mode = "execution",
 )
 
+wrapper_forward_spec_tests(name = "wrapper_forward_spec")
+
 wrapper_kwarg_hooks_tests(name = "wrapper_kwarg_hooks")
 
 wrapper_optional_forward_tests(name = "wrapper_optional_forward")
@@ -271,6 +273,7 @@ test_suite(
         ":wrapper_forward_contract_forward",
         ":wrapper_forward_contract_golden_pin",
         ":wrapper_forward_contract_lossy",
+        ":wrapper_forward_spec",
         ":wrapper_forward_test",
         ":wrapper_kwarg_hooks",
         ":wrapper_optional_forward",

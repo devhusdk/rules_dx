@@ -4,7 +4,7 @@ use std::process::Command;
 
 const BAZEL: &str = "bazel";
 
-pub const SETS: [&str; 7] = [
+pub const SETS: [&str; 8] = [
     "workflow",
     "preflight",
     "preflight-windows-arm64",
@@ -12,6 +12,7 @@ pub const SETS: [&str; 7] = [
     "hermetic",
     "docs",
     "cli",
+    "kotlin-bench",
 ];
 
 pub const WORKFLOW_TARGETS: &str = "//tools/ci:actionlint_test //tools/ci:workflow_expressions_test
@@ -43,6 +44,8 @@ pub const WINDOWS_ARM64_TARGETS: &str = "//cc/tests/fixtures/hello:hello //cc/te
 /// Preflight labels left out of `WINDOWS_ARM64_TARGETS`.
 /// `runner_matrix_windows_arm64` has no erlang toolchain for `windows_arm64` (`//erlang/private/tools:dialyzer_bin`).
 pub const WINDOWS_ARM64_BLOCKED: &str = "//core/quality/testdata:runner_matrix_windows_arm64";
+
+pub const KOTLIN_BENCH_TARGETS: &str = "//kotlin/tests/fixtures/bench:all";
 
 pub const WINDOWS_ARM64_PLATFORM: &str = "--platforms=@llvm//platforms:windows_aarch64";
 
@@ -149,6 +152,10 @@ pub fn plan(set: &str, flags: &[String]) -> Result<Vec<Step>, String> {
         "cli" => vec![Step::Run(
             BAZEL,
             words(&["test"], flags, "//cli/cli:dx_cli_test"),
+        )],
+        "kotlin-bench" => vec![Step::Run(
+            BAZEL,
+            words(&["build"], flags, KOTLIN_BENCH_TARGETS),
         )],
         other => {
             return Err(format!(
@@ -264,6 +271,20 @@ mod tests {
         ] {
             assert!(args.contains(&want.to_owned()), "{want}");
         }
+    }
+
+    #[test]
+    fn kotlin_bench_builds_the_bench_fixtures() {
+        let steps = plan("kotlin-bench", &flags()).unwrap();
+        assert_eq!(
+            steps,
+            [Step::Run(
+                "bazel",
+                ["build", "--config=ci", "//kotlin/tests/fixtures/bench:all"]
+                    .map(str::to_owned)
+                    .to_vec()
+            )]
+        );
     }
 
     #[test]

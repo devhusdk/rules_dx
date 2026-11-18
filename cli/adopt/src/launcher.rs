@@ -223,8 +223,7 @@ fn pins_from_bzl(text: &str, version: &str) -> Result<LauncherPins, AdoptError> 
             let Some((key, hash)) = line.split_once(':') else {
                 return Err(pins_error(format!("bad pins.bzl line {line:?}")));
             };
-            let (Some(key), Some(hash)) = (quoted(key), quoted(hash.trim_end_matches(',')))
-            else {
+            let (Some(key), Some(hash)) = (quoted(key), quoted(hash.trim_end_matches(','))) else {
                 return Err(pins_error(format!("bad pins.bzl line {line:?}")));
             };
             let asset = format!("dx-{}", key.replacen('_', "-", 1));
@@ -459,7 +458,7 @@ while read -r ver sum asset || [ -n "$ver" ]; do
   fi
 done < "$pins"
 [ -n "$want" ] || via_bazel "no pinned binary for $os-$arch at $VERSION" "$@"
-# Same rules as the shim's DX_RELEASE_BASE_URL (cli/shim/src/protocol.rs).
+# Same rules as the dx shim's DX_RELEASE_BASE_URL (cli/shim/src/protocol.rs).
 base=${DX_RELEASE_BASE_URL:-https://github.com/devhusdk/rules_dx/releases/download}
 case $base in
   https://?*) ;;
@@ -577,7 +576,7 @@ for /f "usebackq tokens=1,2,3" %%A in ("%~dp0..\%DX_PINS%") do if "%%A"=="%VERSI
 if not defined WANT goto bazel
 set "DX_BASE=https://github.com/devhusdk/rules_dx/releases/download"
 if not defined DX_RELEASE_BASE_URL goto dxbase
-rem The shim's DX_RELEASE_BASE_URL rules, plus plain URL characters only, so
+rem The dx shim's DX_RELEASE_BASE_URL rules, plus plain URL characters only, so
 rem the value is safe to expand below. `set` prints it without expanding it.
 set DX_RELEASE_BASE_URL | findstr /r /x /c:"DX_RELEASE_BASE_URL=https://[0-9a-zA-Z._~:/+=,;@-][0-9a-zA-Z._~:/+=,;@-]*" /c:"DX_RELEASE_BASE_URL=http://127\.0\.0\.1" /c:"DX_RELEASE_BASE_URL=http://127\.0\.0\.1[:/][0-9a-zA-Z._~:/+=,;-]*" /c:"DX_RELEASE_BASE_URL=http://localhost" /c:"DX_RELEASE_BASE_URL=http://localhost[:/][0-9a-zA-Z._~:/+=,;-]*" /c:"DX_RELEASE_BASE_URL=http://\[::1\]" /c:"DX_RELEASE_BASE_URL=http://\[::1\][:/][0-9a-zA-Z._~:/+=,;-]*" >nul
 if errorlevel 1 goto badbase
@@ -818,6 +817,35 @@ mod tests {
     use super::*;
     use crate::write_version_pins;
 
+    /// Small tests get 60s in all; one stuck launcher must fail its test well before that.
+    const RUN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+
+    /// Runs `cmd` and returns its exit code, stdout and untrimmed stderr.
+    ///
+    /// A script written just before the run can still be open for writing in
+    /// another test's forked child, so `ExecutableFileBusy` is retried.
+    fn run_captured(cmd: &mut std::process::Command) -> (Option<i32>, String, String) {
+        let mut tries = 0;
+        loop {
+            match dx_process::capture::run_captured(cmd, RUN_TIMEOUT) {
+                Err(dx_process::capture::RunError::Spawn { source, .. })
+                    if source.kind() == std::io::ErrorKind::ExecutableFileBusy && tries < 50 =>
+                {
+                    tries += 1;
+                    std::thread::sleep(std::time::Duration::from_millis(20));
+                }
+                other => {
+                    let run = other.expect("launcher runs");
+                    return (
+                        run.code,
+                        run.stdout_text(),
+                        String::from_utf8_lossy(&run.stderr).into_owned(),
+                    );
+                }
+            }
+        }
+    }
+
     fn pinned(sha: &str) -> LauncherPins {
         LauncherPins {
             sha256: std::array::from_fn(|_| sha.to_owned()),
@@ -834,16 +862,12 @@ mod tests {
         let dir = dx_test_scratch::scratch("launcher-shellcheck").unwrap();
         let script = dir.path().join("dx");
         std::fs::write(&script, sh()).expect("write launcher");
-        let run = std::process::Command::new(shellcheck)
-            .args(["--norc", "--shell=sh", "--severity=style"])
-            .arg(&script)
-            .output()
-            .expect("shellcheck runs");
-        assert!(
-            run.status.success(),
-            "{}",
-            String::from_utf8_lossy(&run.stdout)
+        let (code, out, err) = run_captured(
+            std::process::Command::new(shellcheck)
+                .args(["--norc", "--shell=sh", "--severity=style"])
+                .arg(&script),
         );
+        assert_eq!(code, Some(0), "{out}{err}");
     }
 
     fn cmd() -> String {
@@ -931,13 +955,13 @@ mod tests {
         assert!(line.contains("-ProxyUseDefaultCredentials"), "{line}");
         // Windows PowerShell 5.1 renders a progress bar that slows the download
         // many times over, and may not offer TLS 1.2 by default.
-        let flags = line.find("Invoke-WebRequest").expect("download call");
+        let (flags, _) = line.split_once("Invoke-WebRequest").expect("download call");
         for flag in [
             "$ErrorActionPreference='Stop'",
             "$ProgressPreference='SilentlyContinue'",
             "[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12",
         ] {
-            assert!(line[..flags].contains(flag), "{flag}: {line}");
+            assert!(flags.contains(flag), "{flag}: {line}");
         }
     }
 
@@ -1136,7 +1160,13 @@ mod tests {
                     let key = asset.trim_start_matches("dx-").replacen('-', "_", 1);
                     format!("        \"{key}\": \"{hash}\",\n")
                 })
-                .map(|row| if tool == "dx" { row } else { row.replace(hash, &"b".repeat(64)) })
+                .map(|row| {
+                    if tool == "dx" {
+                        row
+                    } else {
+                        row.replace(hash, &"b".repeat(64))
+                    }
+                })
                 .collect()
         };
         format!(
@@ -1186,7 +1216,7 @@ mod tests {
     }
 
     #[test]
-    fn launchers_share_the_shim_cache_root() {
+    fn launchers_share_the_dx_shim_cache_root() {
         let sh = sh();
         let dx = sh.find("cache=\"$DX_CACHE_DIR\"").expect("DX_CACHE_DIR");
         let xdg = sh
@@ -1356,21 +1386,6 @@ mod tests {
 
         const PAYLOAD: &str = "#!/bin/sh\necho ran \"$@\"\n";
 
-        fn spawn(cmd: &mut Command) -> std::process::Child {
-            cmd.stdout(std::process::Stdio::piped())
-                .stderr(std::process::Stdio::piped());
-            let mut tries = 0;
-            loop {
-                match cmd.spawn() {
-                    Err(e) if e.kind() == std::io::ErrorKind::ExecutableFileBusy && tries < 50 => {
-                        tries += 1;
-                        std::thread::sleep(std::time::Duration::from_millis(20));
-                    }
-                    other => return other.expect("launcher starts"),
-                }
-            }
-        }
-
         fn sha_of(path: &Path) -> String {
             dx_digest::sha256_hex(&std::fs::read(path).expect("reads"))
         }
@@ -1415,7 +1430,7 @@ mod tests {
                 .expect("module");
                 let curl = dir.path().join("stub/curl");
                 let body = if curl_ok {
-                    "#!/bin/sh\necho call >> \"$STUB_LOG\"\nwhile [ $# -gt 0 ]; do\n  if [ \"$1\" = -o ]; then out=\"$2\"; fi\n  url=\"$1\"\n  shift\ndone\ncase \"$url\" in\n  *.sha256) cp \"$STUB_SIDECAR\" \"$out\" ;;\n  *) cp \"$STUB_PAYLOAD\" \"$out\" ;;\nesac\n"
+                    "#!/bin/sh\necho call >> \"$STUB_LOG\"\nwhile [ $# -gt 0 ]; do\n  if [ \"$1\" = -o ]; then out=\"$2\"; fi\n  url=\"$1\"\n  shift\ndone\necho \"$url\" >> \"$STUB_LOG.url\"\ncase \"$url\" in\n  *.sha256) cp \"$STUB_SIDECAR\" \"$out\" ;;\n  *) cp \"$STUB_PAYLOAD\" \"$out\" ;;\nesac\n"
                 } else {
                     "#!/bin/sh\necho call >> \"$STUB_LOG\"\nexit 6\n"
                 };
@@ -1474,7 +1489,7 @@ mod tests {
                 args: &[&str],
             ) -> (Option<i32>, String, String) {
                 let base = &self.base;
-                let out = spawn(
+                run_captured(
                     Command::new(base.join("repo/tools/dx"))
                         .current_dir(cwd)
                         .args(args)
@@ -1489,13 +1504,6 @@ mod tests {
                         .env("STUB_PAYLOAD", base.join("payload"))
                         .env("STUB_SIDECAR", base.join("sidecar"))
                         .envs(envs.iter().copied()),
-                )
-                .wait_with_output()
-                .expect("launcher runs");
-                (
-                    out.status.code(),
-                    String::from_utf8_lossy(&out.stdout).into_owned(),
-                    String::from_utf8_lossy(&out.stderr).into_owned(),
                 )
             }
 
@@ -1822,14 +1830,7 @@ mod tests {
         #[test]
         fn a_mirror_base_url_replaces_github() {
             let fx = Fixture::new("dx-launcher-mirror-", true, None);
-            let urls = fx.base.join("urls");
-            fx.stub(
-                "curl",
-                &format!(
-                    "#!/bin/sh\nwhile [ $# -gt 0 ]; do\n  if [ \"$1\" = -o ]; then out=\"$2\"; fi\n  url=\"$1\"\n  shift\ndone\necho \"$url\" >> '{}'\ncp \"$STUB_PAYLOAD\" \"$out\"\n",
-                    urls.display()
-                ),
-            );
+            let urls = fx.base.join("calls.url");
             let mirror = [("DX_RELEASE_BASE_URL", "https://mirror.example/dx//")];
             let (code, out, err) = fx.run_env(&fx.base, &mirror, &["status"]);
             assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
@@ -1841,7 +1842,7 @@ mod tests {
         }
 
         #[test]
-        fn a_base_url_the_shim_would_refuse_fails_before_downloading() {
+        fn a_base_url_the_dx_shim_would_refuse_fails_before_downloading() {
             for (i, base) in [
                 "http://mirror.example/dx",
                 "http://localhost@mirror.example/dx",
@@ -1865,14 +1866,22 @@ mod tests {
                 assert_eq!(fx.downloads(), 0, "{base}");
                 assert_eq!(fx.bazel_calls(), [] as [String; 0], "{base}");
             }
-            for (i, base) in ["http://127.0.0.1:8080/dx", "http://[::1]", "http://localhost/"]
-                .into_iter()
-                .enumerate()
+            for (i, base) in [
+                "http://127.0.0.1:8080/dx",
+                "http://[::1]",
+                "http://localhost/",
+            ]
+            .into_iter()
+            .enumerate()
             {
                 let fx = Fixture::new(&format!("dx-launcher-localbase{i}-"), true, None);
                 let env = [("DX_RELEASE_BASE_URL", base)];
                 let (code, out, err) = fx.run_env(&fx.base, &env, &["status"]);
-                assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{base}: {err}");
+                assert_eq!(
+                    (code, out.as_str()),
+                    (Some(0), "ran status\n"),
+                    "{base}: {err}"
+                );
             }
         }
 
@@ -2107,17 +2116,14 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
         }
 
         fn sha_of(path: &Path) -> String {
-            let out = Command::new("certutil")
-                .arg("-hashfile")
-                .arg(path)
-                .arg("SHA256")
-                .output()
-                .expect("certutil");
-            String::from_utf8_lossy(&out.stdout)
-                .lines()
-                .nth(1)
-                .expect("digest line")
-                .replace(' ', "")
+            let (code, out, err) = run_captured(
+                Command::new("certutil")
+                    .arg("-hashfile")
+                    .arg(path)
+                    .arg("SHA256"),
+            );
+            assert_eq!(code, Some(0), "{out}{err}");
+            out.lines().nth(1).expect("digest line").replace(' ', "")
         }
 
         struct Fixture {
@@ -2216,7 +2222,7 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
             }
 
             fn run(&self, args: &[&str]) -> (Option<i32>, String, String) {
-                output(self.command(args).output().expect("launcher runs"))
+                run_captured(&mut self.command(args))
             }
 
             fn part_names(&self) -> Vec<String> {
@@ -2246,14 +2252,6 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
                     })
                     .unwrap_or_default()
             }
-        }
-
-        fn output(out: std::process::Output) -> (Option<i32>, String, String) {
-            (
-                out.status.code(),
-                String::from_utf8_lossy(&out.stdout).into_owned(),
-                String::from_utf8_lossy(&out.stderr).into_owned(),
-            )
         }
 
         #[test]
@@ -2327,20 +2325,22 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
         #[test]
         fn concurrent_first_runs_use_distinct_part_files_and_all_succeed() {
             let fx = Fixture::new("dx-launcher-cmd-race-", true, None);
-            let children: Vec<_> = (0..4)
+            let commands: Vec<_> = (0..4)
                 .map(|_| {
-                    fx.command(&["/c", "echo", "ran"])
-                        .env("STUB_WAIT", "4")
-                        .stdout(std::process::Stdio::piped())
-                        .stderr(std::process::Stdio::piped())
-                        .spawn()
-                        .expect("launcher starts")
+                    let mut cmd = fx.command(&["/c", "echo", "ran"]);
+                    cmd.env("STUB_WAIT", "4");
+                    cmd
                 })
                 .collect();
-            let outputs: Vec<_> = children
-                .into_iter()
-                .map(|child| output(child.wait_with_output().expect("launcher exits")))
-                .collect();
+            let outputs: Vec<_> = std::thread::scope(|scope| {
+                let runs: Vec<_> = commands
+                    .into_iter()
+                    .map(|mut cmd| scope.spawn(move || run_captured(&mut cmd)))
+                    .collect();
+                runs.into_iter()
+                    .map(|run| run.join().expect("launcher thread"))
+                    .collect()
+            });
             assert!(fx.bazel_log().is_empty(), "{}", fx.bazel_log());
             for (code, out, err) in outputs {
                 assert_eq!(code, Some(0), "{out}{err}");
@@ -2362,11 +2362,7 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
         fn no_guid_runs_through_bazel_and_caches_nothing() {
             let fx = Fixture::new("dx-launcher-cmd-noguid-", true, None);
             let mut cmd = fx.command(&["check"]);
-            let (code, out, err) = output(
-                cmd.env("STUB_NO_GUID", "1")
-                    .output()
-                    .expect("launcher runs"),
-            );
+            let (code, out, err) = run_captured(cmd.env("STUB_NO_GUID", "1"));
             assert_eq!(code, Some(0), "{out}{err}");
             assert!(err.is_empty(), "{err}");
             assert_eq!(fx.downloads(), 0);
@@ -2455,12 +2451,10 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
         #[test]
         fn a_mirror_base_url_replaces_github() {
             let fx = Fixture::new("dx-launcher-cmd-mirror-", true, None);
-            let out = fx
-                .command(&["/c", "echo", "ran"])
-                .env("DX_RELEASE_BASE_URL", "https://mirror.example/dx//")
-                .output()
-                .expect("launcher runs");
-            let (code, out, err) = output(out);
+            let (code, out, err) = run_captured(
+                fx.command(&["/c", "echo", "ran"])
+                    .env("DX_RELEASE_BASE_URL", "https://mirror.example/dx//"),
+            );
             assert_eq!(code, Some(0), "{out}{err}");
             assert!(out.contains("ran"), "{out}{err}");
             let urls = std::fs::read_to_string(fx.base.join("calls.url")).expect("urls");
@@ -2471,7 +2465,7 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
         }
 
         #[test]
-        fn a_base_url_the_shim_would_refuse_fails_before_downloading() {
+        fn a_base_url_the_dx_shim_would_refuse_fails_before_downloading() {
             for (i, base) in [
                 "http://mirror.example/dx",
                 "http://localhost@mirror.example/dx",
@@ -2483,14 +2477,15 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
             .enumerate()
             {
                 let fx = Fixture::new(&format!("dx-launcher-cmd-badbase{i}-"), true, None);
-                let out = fx
-                    .command(&["/c", "echo", "ran"])
-                    .env("DX_RELEASE_BASE_URL", base)
-                    .output()
-                    .expect("launcher runs");
-                let (code, out, err) = output(out);
+                let (code, out, err) = run_captured(
+                    fx.command(&["/c", "echo", "ran"])
+                        .env("DX_RELEASE_BASE_URL", base),
+                );
                 assert_eq!(code, Some(1), "{base}: {out}{err}");
-                assert!(err.contains("DX_RELEASE_BASE_URL must use https://"), "{err}");
+                assert!(
+                    err.contains("DX_RELEASE_BASE_URL must use https://"),
+                    "{err}"
+                );
                 assert_eq!(fx.downloads(), 0, "{base}");
                 assert!(fx.bazel_log().is_empty(), "{}", fx.bazel_log());
             }

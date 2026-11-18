@@ -1,6 +1,6 @@
 """Hermetic PHP, Composer and PHPUnit acquisition and toolchain registration."""
 
-load("//core:toolchain.bzl", "cell_repo", "pins_hub")
+load(":cells.bzl", "PHP_CELLS")
 
 VC_REDIST_VERSION = "14.50.35710"
 
@@ -75,11 +75,31 @@ def runtime_build(version, interpreter = "php", pcov = False, coverage = ""):
 
 def runtime_repository_name(cell):
     """Returns the repository name one cell's runtime is acquired into."""
-    return cell_repo(HUB_NAME, cell)
+    return HUB_NAME + "__" + cell
+
+_HUB_TOOLCHAIN = """toolchain(
+    name = {name},
+    {constraint} = {constraints},
+    toolchain = {toolchain},
+    toolchain_type = {toolchain_type},
+    visibility = ["//visibility:public"],
+)
+"""
 
 def hub_build(cells):
     """Returns the hub BUILD file: a runtime and an exec toolchain per cell."""
-    return pins_hub(HUB_NAME, cells, TOOLCHAIN_TYPE, "target", exec_toolchain_type = EXEC_TOOLCHAIN_TYPE)
+    parts = []
+    for side, suffix, toolchain_type in [("target", "", TOOLCHAIN_TYPE), ("exec", "_exec", EXEC_TOOLCHAIN_TYPE)]:
+        for cell in sorted(cells):
+            repo = runtime_repository_name(cell)
+            parts.append(_HUB_TOOLCHAIN.format(
+                name = repr(repo + suffix),
+                constraint = side + "_compatible_with",
+                constraints = repr(list(PHP_CELLS[cell].exec_compatible_with)),
+                toolchain = repr("@{}//:toolchain".format(repo)),
+                toolchain_type = repr(toolchain_type),
+            ))
+    return "\n".join(parts)
 
 SOURCES_BUILD = """package(default_visibility = ["//visibility:public"])
 
@@ -119,6 +139,20 @@ php_coverage_runtime = repository_rule(
         "pcov": attr.string_list(mandatory = True, doc = "The PCOV zip: its sha256 and then its URLs."),
         "php": attr.string_list(mandatory = True, doc = "The PHP zip: its sha256 and then its URLs."),
         "_msvc_runtime": attr.label(default = "@dx_msvc_runtime//:BUILD.bazel", doc = "The hermetic MSVC redistributable."),
+    },
+)
+
+def _hub_impl(rctx):
+    rctx.file("REPO.bazel", "")
+    for path, content in rctx.attr.files.items():
+        rctx.file(path, content)
+    return rctx.repo_metadata(reproducible = True)
+
+php_hub = repository_rule(
+    implementation = _hub_impl,
+    doc = "Writes rendered files into a repository that downloads nothing.",
+    attrs = {
+        "files": attr.string_dict(doc = "Repository path to file content."),
     },
 )
 

@@ -2,111 +2,66 @@
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::path::PathBuf;
 
-struct Args {
-    objcopy: PathBuf,
-    input: PathBuf,
-    stripped: PathBuf,
-    debug: PathBuf,
-    manifest: PathBuf,
-}
+use dx_atomic_fs::path_io;
+use dx_symbols::cli::{CliError, parse_flags, run_tool, write_manifest};
 
-fn parse(args: &[String]) -> Result<Args, String> {
-    let mut found: [Option<PathBuf>; 5] = Default::default();
-    let names = ["--objcopy", "--in", "--stripped", "--debug", "--manifest"];
-    let mut it = args.iter();
-    while let Some(flag) = it.next() {
-        let slot = names
-            .iter()
-            .position(|n| n == flag)
-            .ok_or_else(|| format!("unknown flag {flag}"))?;
-        let value = it.next().ok_or_else(|| format!("{flag} needs a value"))?;
-        *found
-            .get_mut(slot)
-            .ok_or_else(|| format!("unknown flag {flag}"))? = Some(PathBuf::from(value));
-    }
-    let mut take = |i: usize| {
-        found
-            .get_mut(i)
-            .and_then(Option::take)
-            .ok_or_else(|| format!("{} is required", names.get(i).copied().unwrap_or_default()))
-    };
-    Ok(Args {
-        objcopy: take(0)?,
-        input: take(1)?,
-        stripped: take(2)?,
-        debug: take(3)?,
-        manifest: take(4)?,
-    })
-}
-
+const FLAGS: [&str; 5] = ["--objcopy", "--in", "--stripped", "--debug", "--manifest"];
 const TOOL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(600);
 
-fn run(objcopy: &Path, args: &[&std::ffi::OsStr]) -> Result<String, String> {
-    let mut command = Command::new(objcopy);
-    command.args(args);
-    let out = dx_process::capture::run_captured(&mut command, TOOL_TIMEOUT)
-        .map_err(|e| format!("cannot run {}: {e}", objcopy.display()))?;
-    if !out.success() {
-        return Err(format!(
-            "{} failed: {}",
-            objcopy.display(),
-            out.stderr_text()
-        ));
+fn split([objcopy, input, stripped, debug, manifest]: &[PathBuf; 5]) -> Result<(), CliError> {
+    if !input.is_file() {
+        return Err(CliError::NoInput(input.clone()));
     }
-    Ok(out.stdout_text())
-}
-
-fn split(a: &Args) -> Result<(), String> {
-    if !a.input.is_file() {
-        return Err(format!("{}: no such file", a.input.display()));
-    }
-    run(
-        &a.objcopy,
-        &[
-            "--only-keep-debug".as_ref(),
-            a.input.as_ref(),
-            a.debug.as_ref(),
-        ],
+    run_tool(
+        objcopy,
+        &["--only-keep-debug".as_ref(), input.as_ref(), debug.as_ref()],
+        TOOL_TIMEOUT,
     )?;
     let link = format!(
         "--add-gnu-debuglink={}",
-        a.debug.to_str().ok_or("debug path is not UTF-8")?
+        debug
+            .to_str()
+            .ok_or_else(|| CliError::NotUtf8(debug.clone()))?
     );
-    run(
-        &a.objcopy,
+    run_tool(
+        objcopy,
         &[
             "--strip-all".as_ref(),
             link.as_ref(),
-            a.input.as_ref(),
-            a.stripped.as_ref(),
+            input.as_ref(),
+            stripped.as_ref(),
         ],
+        TOOL_TIMEOUT,
     )?;
-    let stripped = std::fs::read(&a.stripped).map_err(|e| e.to_string())?;
-    let debug = std::fs::read(&a.debug).map_err(|e| e.to_string())?;
-    let pair = dx_symbols::check_pair(&stripped, &debug)?;
-    let version = run(&a.objcopy, &["--version".as_ref()])?;
-    let manifest = serde_json::json!({
+    let stripped_bytes = path_io::read(stripped)?;
+    let debug_bytes = path_io::read(debug)?;
+    let pair = dx_symbols::check_pair(&stripped_bytes, &debug_bytes)?;
+    let version = run_tool(objcopy, &["--version".as_ref()], TOOL_TIMEOUT)?.stdout_text();
+    let json = serde_json::json!({
         "build_id": pair.build_id,
         "arch": pair.arch,
-        "sha256": dx_digest::sha256_hex(&stripped),
-        "debug_file": a.debug.file_name().and_then(|n| n.to_str()),
+        "sha256": dx_digest::sha256_hex(&stripped_bytes),
+        "debug_file": debug.file_name().and_then(|n| n.to_str()),
         "objcopy": version.lines().next().unwrap_or(""),
     });
-    let text = serde_json::to_string_pretty(&manifest).map_err(|e| e.to_string())?;
-    std::fs::write(&a.manifest, text + "\n").map_err(|e| e.to_string())
+    write_manifest(manifest, &json)
 }
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let result = parse(&args).and_then(|a| split(&a));
-    if let Err(e) = result {
-        if let Ok(a) = parse(&args) {
-            for p in [&a.stripped, &a.debug, &a.manifest] {
-                dx_atomic_fs::discard_file(p);
-            }
+    let paths = match parse_flags(&args, FLAGS) {
+        Ok(paths) => paths,
+        Err(e) => {
+            eprintln!("split: {e}");
+            std::process::exit(1);
+        }
+    };
+    if let Err(e) = split(&paths) {
+        let [_, _, stripped, debug, manifest] = &paths;
+        for p in [stripped, debug, manifest] {
+            dx_atomic_fs::discard_file(p);
         }
         eprintln!("split: {e}");
         std::process::exit(1);

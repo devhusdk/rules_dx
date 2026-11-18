@@ -560,26 +560,15 @@ fn unwritable_report_destination_fails_with_cause() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![], vec![]),
     );
-    let locked = harness.workspace.join("locked");
-    std::fs::create_dir(&locked).expect("mkdir");
-    let mut permissions = std::fs::metadata(&locked).expect("metadata").permissions();
-    permissions.set_readonly(true);
-    std::fs::set_permissions(&locked, permissions).expect("readonly");
-    let (code, _, err) = harness.run(&["lint", "--output=text", "--report=sarif=locked/out.sarif"]);
-    let mut permissions = std::fs::metadata(&locked).expect("metadata").permissions();
-    #[expect(
-        clippy::permissions_set_readonly_false,
-        reason = "the test restores write access"
-    )]
-    permissions.set_readonly(false);
-    std::fs::set_permissions(&locked, permissions).expect("writable");
+    // A name longer than NAME_MAX fails the write even for root, which ignores mode bits.
+    let name = format!("{}.sarif", "x".repeat(300));
+    let (code, _, err) = harness.run(&["lint", "--output=text", &format!("--report=sarif={name}")]);
     assert_eq!(code, 1, "{err}");
     assert!(
         err.contains("dx: report_failed: failed to write sarif report to "),
         "{err}"
     );
-    assert!(err.contains("locked"), "{err}");
-    assert!(!locked.join("out.sarif").exists());
+    assert!(err.contains(&name), "{err}");
 }
 
 #[test]
@@ -605,13 +594,18 @@ fn failed_report_write_keeps_stale_report_bytes() {
     )]
     permissions.set_readonly(false);
     std::fs::set_permissions(&reports, permissions).expect("writable");
+    let report =
+        std::fs::read_to_string(harness.workspace.join("reports/out.sarif")).expect("report");
+    // Root may replace a file in a read-only directory, so for root the write lands.
+    if dx_test_scratch::running_as_root() {
+        assert_eq!(code, 0, "{err}");
+        assert_ne!(report, "stale\n");
+        return;
+    }
     assert_eq!(code, 1, "{err}");
     assert!(
         err.contains("dx: report_failed: failed to write sarif report to "),
         "{err}"
     );
-    assert_eq!(
-        std::fs::read_to_string(harness.workspace.join("reports/out.sarif")).expect("stale kept"),
-        "stale\n"
-    );
+    assert_eq!(report, "stale\n");
 }

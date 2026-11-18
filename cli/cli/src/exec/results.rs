@@ -1370,6 +1370,7 @@ mod tests {
             &harness.workspace,
             true,
             true,
+            None,
             &collected.changes,
         );
         assert_eq!(outcome.applied.get("p/BUILD.bazel"), Some(&false));

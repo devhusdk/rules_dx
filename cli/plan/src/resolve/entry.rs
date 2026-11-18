@@ -162,9 +162,9 @@ mod tests {
         write(&workspace, "top.py", "x = 1\n").unwrap();
         write(&workspace, "fresh/deep/a.txt", "x").unwrap();
         let got = resolve_for_generate(&strings(&["svc/new.py"]), &workspace).expect("file");
-        assert_eq!(got.targets, strings(&["//svc/..."]));
+        assert_eq!(got.targets, strings(&["//svc:all"]));
         let got = resolve_for_generate(&strings(&["top.py"]), &workspace).expect("root file");
-        assert_eq!(got.targets, strings(&["//..."]));
+        assert_eq!(got.targets, strings(&["//:all"]));
         let got = resolve_for_generate(&strings(&["fresh", "//other/..."]), &workspace)
             .expect("dir and label");
         assert_eq!(got.targets, strings(&["//fresh/...", "//other/..."]));

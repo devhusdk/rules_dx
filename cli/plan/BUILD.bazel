@@ -1,7 +1,7 @@
 load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//core/quality:dx_config_gen.bzl", "plan_registry_gen")
-load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_bench", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI", "VIS_QUALITY_CLI")
 
 package(default_visibility = VIS_CLI)
@@ -263,6 +263,18 @@ rust_test(
         "@crates//:serde_json",
         "@crates//:tempfile",
         "@crates//:thiserror",
+    ],
+)
+
+rust_bench(
+    name = "affected_bench",
+    srcs = ["benches/affected_bench.rs"],
+    crate_root = "benches/affected_bench.rs",
+    deps = [
+        ":dx_plan",
+        "//cli/adopt:dx_adopt",
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
     ],
 )
 

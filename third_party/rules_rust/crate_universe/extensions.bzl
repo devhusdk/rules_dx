@@ -23,10 +23,7 @@ load(
 )
 load(
     "@rules_rust//crate_universe/private:generate_utils.bzl",
-    "CARGO_BAZEL_GENERATOR_SHA256",
-    "CARGO_BAZEL_GENERATOR_URL",
     "CRATES_REPOSITORY_ENVIRON",
-    "GENERATOR_ENV_VARS",
     "determine_repin",
     "execute_generator",
     generate_render_config = "render_config",
@@ -36,8 +33,9 @@ load(
     "splice_workspace_manifest",
     generate_splicing_config = "splicing_config",
 )
-load("@rules_rust//crate_universe/private:urls.bzl", "CARGO_BAZEL_SHA256S", "CARGO_BAZEL_URLS")
+load("@rules_rust//crate_universe/private:urls.bzl", "CARGO_BAZEL_URLS")
 load(":build_script_features.bzl", "build_scripts_without_coverage")
+load(":generator.bzl", "HOST_ABI", "generator_basename")
 load(":local_crate_mirror.bzl", "local_crate_mirror")
 load("@rules_rust//rust/platform:triple.bzl", "get_host_triple")
 load("@rules_rust//rust/platform:triple_mappings.bzl", "system_to_binary_ext")
@@ -483,57 +481,22 @@ def _package_to_json(p):
         if v or k == "default_features"
     })
 
-def _get_generator(module_ctx, host_triple):
-    """Query Network Resources to local a `cargo-bazel` binary.
-
-    Based off get_generator in crates_universe/private/generate_utils.bzl
+def _get_generator(module_ctx):
+    """Returns the path of the host `cargo-bazel` binary, which lives outside the extension's working directory.
 
     Args:
         module_ctx (module_ctx): The rules context object
-        host_triple (struct): A triple struct that represents the host.
 
     Returns:
-        tuple(path, dict) The path to a 'cargo-bazel' binary. The pairing (dict)
-            may be `None` if there is not need to update the attribute
+        path: The path to a 'cargo-bazel' binary.
     """
-    use_environ = False
-    for var in GENERATOR_ENV_VARS:
-        if var in module_ctx.os.environ:
-            use_environ = True
-
-    if use_environ:
-        generator_sha256 = module_ctx.os.environ.get(CARGO_BAZEL_GENERATOR_SHA256)
-        generator_url = module_ctx.os.environ.get(CARGO_BAZEL_GENERATOR_URL)
-    elif len(CARGO_BAZEL_URLS) == 0:
+    if len(CARGO_BAZEL_URLS) == 0:
         # For Bazel 7 and below, `module_ctx.path` will also watch files so to avoid
         # volatility in lock files caused by referencing host specific files, direct
         # references are avoided.
         return module_ctx.path(Label("@cargo_bazel_bootstrap//:BUILD.bazel")).dirname.get_child("cargo-bazel")
 
-    else:
-        generator_sha256 = CARGO_BAZEL_SHA256S.get(host_triple.str)
-        generator_url = CARGO_BAZEL_URLS.get(host_triple.str)
-
-    if not generator_url:
-        fail((
-            "No generator URL was found either in the `CARGO_BAZEL_GENERATOR_URL` " +
-            "environment variable or for the `{}` triple in the `generator_urls` attribute"
-        ).format(host_triple.str))
-
-    output = module_ctx.path("cargo-bazel.exe" if "win" in module_ctx.os.name else "cargo-bazel")
-
-    # Download the file into place
-    download_kwargs = {
-        "executable": True,
-        "output": output,
-        "url": generator_url,
-    }
-
-    if generator_sha256:
-        download_kwargs.update({"sha256": generator_sha256})
-
-    module_ctx.download(**download_kwargs)
-    return output
+    return module_ctx.path(Label("@dx_cargo_bazel//:BUILD.bazel")).dirname.get_child(generator_basename(module_ctx.os.name))
 
 def _trust_lockfile(module_ctx, cfg, is_root):
     """Whether to render from `cfg.lockfile` without its digest check, so cargo and rustc are not fetched.
@@ -679,11 +642,8 @@ def _filter_dict(dict):
 
 def _crate_impl(module_ctx):
     reproducible = True
-    host_triple = get_host_triple(module_ctx, abi = {
-        "aarch64-unknown-linux": "musl",
-        "x86_64-unknown-linux": "musl",
-    })
-    generator = _get_generator(module_ctx, host_triple)
+    host_triple = get_host_triple(module_ctx, abi = HOST_ABI)
+    generator = _get_generator(module_ctx)
 
     all_repos = []
 

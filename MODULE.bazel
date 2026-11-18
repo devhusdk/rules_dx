@@ -2517,6 +2517,9 @@ use_repo(
 rust_host_tools = use_extension("@rules_rust//rust:extensions.bzl", "rust_host_tools")
 use_repo(rust_host_tools, "rust_host_tools")
 
+cargo_bazel = use_extension("//third_party/rules_rust/crate_universe:generator.bzl", "cargo_bazel")
+use_repo(cargo_bazel, "dx_cargo_bazel")
+
 crate = use_extension("//third_party/rules_rust/crate_universe:extensions.bzl", "crate")
 crate.annotation(
     build_script_env = {

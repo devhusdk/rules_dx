@@ -187,11 +187,79 @@ pub fn plan_build_with(
     startup_options: &[String],
     selection: Selection<'_>,
 ) -> Result<BuildPlan, DxError> {
-    let aspects = match selection.consumer {
+    let aspects = select_aspects(
+        command_aspects(command, selection.consumer),
+        selection.shards,
+    );
+    selected_plan(
+        command,
+        &aspects,
+        resolved,
+        bazel_options,
+        bep_path,
+        startup_options,
+        selection,
+    )
+}
+
+/// The registry aspects `command` passes for `consumer`, or all of them without one.
+#[must_use]
+pub fn command_aspects(command: Command, consumer: Option<Consumer<'_>>) -> Vec<&'static str> {
+    match consumer {
         Some(consumer) => aspects_for(command, consumer),
         None => spec(command).aspects.to_vec(),
-    };
-    let aspects = joined_labels(select_aspects(aspects, selection.shards));
+    }
+}
+
+/// Plans one build that runs the aspects of every command in `commands` and no shard probe.
+///
+/// Each command's outputs keep their own aspect in the build events, so a reader can split
+/// them back per command.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
+pub fn plan_shared_build(
+    commands: &[Command],
+    resolved: &ResolvedScope,
+    bazel_options: &[String],
+    bep_path: &str,
+    startup_options: &[String],
+    selection: Selection<'_>,
+) -> Result<BuildPlan, DxError> {
+    let mut aspects: Vec<&'static str> = Vec::new();
+    for aspect in commands
+        .iter()
+        .flat_map(|command| command_aspects(*command, selection.consumer))
+    {
+        if !aspects.contains(&aspect) {
+            aspects.push(aspect);
+        }
+    }
+    selected_plan(
+        Command::Check,
+        &aspects,
+        resolved,
+        bazel_options,
+        bep_path,
+        startup_options,
+        Selection {
+            shards: None,
+            ..selection
+        },
+    )
+}
+
+fn selected_plan(
+    command: Command,
+    aspects: &[&str],
+    resolved: &ResolvedScope,
+    bazel_options: &[String],
+    bep_path: &str,
+    startup_options: &[String],
+    selection: Selection<'_>,
+) -> Result<BuildPlan, DxError> {
+    let aspects = joined_labels(aspects.iter().copied());
     let mut groups = format!("{OUTPUT_GROUP},{SKIP_OUTPUT_GROUP}");
     if selection.online {
         groups.push(',');
@@ -813,6 +881,53 @@ mod tests {
         assert!(plan.argv.contains(
             &"--aspects=@rules_dx//core/quality:families/core.bzl%real_lint_aspect,@rules_dx//rust/private/quality:rust.bzl%real_rust_lint_aspect".to_owned()
         ));
+    }
+
+    #[test]
+    fn shared_build_runs_every_command_aspect_with_the_same_flags() {
+        let user = strings(&["--config=ci"]);
+        let commands = [Command::Format, Command::Lint, Command::Typecheck];
+        let selection = Selection {
+            unsafe_fixes: true,
+            ..Selection::default()
+        };
+        let shared = plan_shared_build(
+            &commands,
+            &resolved(&["//pkg:lib"]),
+            &user,
+            "/tmp/bep.json",
+            &[],
+            selection,
+        )
+        .expect("shared plan")
+        .argv;
+        let union: Vec<&str> = commands
+            .iter()
+            .flat_map(|command| spec(*command).aspects.iter().copied())
+            .collect();
+        let lint = plan_build_with(
+            Command::Lint,
+            &resolved(&["//pkg:lib"]),
+            &user,
+            "/tmp/bep.json",
+            &[],
+            selection,
+        )
+        .expect("lint plan")
+        .argv;
+        let aspects_of = |argv: &[String]| {
+            argv.iter()
+                .position(|arg| arg.starts_with("--aspects="))
+                .expect("aspects")
+        };
+        let at = aspects_of(&shared);
+        assert_eq!(shared[at], format!("--aspects={}", joined_labels(union)));
+        let mut rest = shared.clone();
+        rest.remove(at);
+        let mut lint_rest = lint.clone();
+        lint_rest.remove(aspects_of(&lint));
+        assert_eq!(rest, lint_rest);
+        assert!(!shared.iter().any(|arg| arg.contains("dx_shards")));
     }
 
     #[test]

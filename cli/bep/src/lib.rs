@@ -23,6 +23,7 @@ pub use test_outputs::{
 };
 
 use dx_path::label::{Label, Repo};
+use std::collections::BTreeSet;
 use std::io::BufRead;
 use std::path::{Path, PathBuf};
 
@@ -33,6 +34,7 @@ pub trait ArtifactReader {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CollectorConfig {
     output_group: String,
+    foreign_aspects: BTreeSet<String>,
 }
 
 impl CollectorConfig {
@@ -42,6 +44,7 @@ impl CollectorConfig {
         }
         Ok(CollectorConfig {
             output_group: output_group.to_owned(),
+            foreign_aspects: BTreeSet::new(),
         })
     }
 
@@ -49,6 +52,29 @@ impl CollectorConfig {
     pub fn output_group(&self) -> &str {
         &self.output_group
     }
+
+    /// Leaves out the outputs and gaps of these aspects, each named without its repository
+    /// (`pkg:file.bzl%name`), so one build can serve several readers.
+    #[must_use]
+    pub fn without_aspects(mut self, foreign: BTreeSet<String>) -> Self {
+        self.foreign_aspects = foreign;
+        self
+    }
+
+    /// Whether `aspect`, as a build event names it, is one the reader leaves out.
+    #[must_use]
+    pub fn is_foreign(&self, aspect: Option<&str>) -> bool {
+        aspect.is_some_and(|aspect| self.foreign_aspects.contains(aspect_key(aspect)))
+    }
+}
+
+/// An aspect name without its repository or parameters: Bazel spells the repository as the main
+/// repo (`//pkg:f.bzl%a`), an apparent name or a canonical one (`@@rules_dx+//pkg:f.bzl%a`), and
+/// appends the aspect's parameter values (`%a[unsafe_fixes="false"]`).
+#[must_use]
+pub fn aspect_key(aspect: &str) -> &str {
+    let named = aspect.split_once("//").map_or(aspect, |(_, rest)| rest);
+    named.split_once('[').map_or(named, |(name, _)| name)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

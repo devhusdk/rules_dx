@@ -223,7 +223,9 @@ impl Consumer {
         (path.display().to_string(), witness.to_string())
     }
 
-    fn run_hung_up_after_findings(&self, args: &[&str], env: &[(&str, &str)]) -> Outcome {
+    /// Runs `args` until stdout carries `marker` and Bazel waits at the gate, then closes stdout
+    /// and opens the gate.
+    fn run_hung_up_after(&self, args: &[&str], env: &[(&str, &str)], marker: &str) -> Outcome {
         let started = self.base.join("bazel.log.started");
         let (reader, writer) = std::io::pipe().expect("pipe");
         let probe = writer.try_clone().expect("probe writer");
@@ -249,9 +251,9 @@ impl Consumer {
         loop {
             let mut line = String::new();
             let read = reader.read_line(&mut line).expect("read stdout");
-            assert!(read > 0, "stdout ended before any finding:\n{seen}");
+            assert!(read > 0, "stdout ended before {marker}:\n{seen}");
             seen.push_str(&line);
-            if line.contains("\"event\":\"diagnostic\"") {
+            if line.contains(marker) {
                 break;
             }
         }
@@ -763,8 +765,11 @@ fn check_cancellation_stops_before_any_later_phase() {
     }
 }
 
+// Without `--apply`, format, lint and typecheck read one shared build, so the last Bazel launch
+// a check-mode run can be cancelled in after generate is that build. The umbrella forwards a
+// phase's events once the phase ends, so the cancelled format phase leaves none.
 #[test]
-fn check_cancellation_after_findings_stops_before_any_later_phase() {
+fn check_cancellation_during_the_shared_build_stops_before_any_later_phase() {
     let consumer = Consumer::new();
     let (result, witness) = consumer.stage_findings();
     for signo in [libc::SIGINT, libc::SIGTERM] {
@@ -774,53 +779,48 @@ fn check_cancellation_after_findings_stops_before_any_later_phase() {
                 ("FAKE_BUILD", "findings"),
                 ("FAKE_RESULT", result.as_str()),
                 ("FAKE_WITNESS", witness.as_str()),
-                ("FAKE_GATE_AT", "2"),
+                ("FAKE_GATE_AT", "1"),
             ],
             signo,
         );
         let context = outcome.context();
         assert_eq!(outcome.status.signal(), Some(signo), "{context}");
         assert!(
-            outcome.out.contains("\"correlation\":\"check/format\""),
-            "{context}"
-        );
-        assert!(
             outcome.out.contains("\"correlation\":\"check/generate\""),
             "{context}"
         );
+        assert!(!outcome.out.contains("check/lint"), "{context}");
         assert!(!outcome.out.contains("check/typecheck"), "{context}");
         let builds = outcome
             .bazel
             .iter()
             .filter(|line| line.contains(" build "))
             .count();
-        assert_eq!(builds, 2, "{context}");
+        assert_eq!(builds, 1, "{context}");
     }
 }
 
 #[test]
-fn check_with_a_stdout_closed_after_findings_ends_with_the_broken_pipe_exit() {
+fn check_with_a_stdout_closed_during_the_shared_build_ends_with_the_broken_pipe_exit() {
     let consumer = Consumer::new();
     let (result, witness) = consumer.stage_findings();
-    let outcome = consumer.run_hung_up_after_findings(
+    let outcome = consumer.run_hung_up_after(
         &["check", "//...", "--output=json"],
         &[
             ("FAKE_BUILD", "findings"),
             ("FAKE_RESULT", result.as_str()),
             ("FAKE_WITNESS", witness.as_str()),
-            ("FAKE_GATE_AT", "2"),
+            ("FAKE_GATE_AT", "1"),
         ],
+        "\"correlation\":\"check/generate\",\"event\":\"phase_finished\"",
     );
     let context = outcome.context();
     assert_eq!(outcome.status.code(), Some(141), "{context}");
-    assert!(
-        outcome.out.contains("\"correlation\":\"check/format\""),
-        "{context}"
-    );
+    assert!(!outcome.out.contains("check/format"), "{context}");
     let builds = outcome
         .bazel
         .iter()
         .filter(|line| line.contains(" build "))
         .count();
-    assert_eq!(builds, 2, "{context}");
+    assert_eq!(builds, 1, "{context}");
 }

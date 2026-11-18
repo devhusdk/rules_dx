@@ -178,6 +178,9 @@ fn read_account(
                 .and_then(|target| target.get("aspect"))
                 .and_then(Value::as_str)
                 .map(str::to_owned);
+            if config.is_foreign(aspect.as_deref()) {
+                continue;
+            }
             let configuration = target_id
                 .and_then(|target| target.get("configuration"))
                 .and_then(Value::as_object)
@@ -330,7 +333,11 @@ fn read_account(
         targets: outputs,
         no_work,
         ended: ledger.ended(),
-        gaps: ledger.gaps(&["targetConfigured", "targetCompleted"]),
+        gaps: ledger
+            .gaps(&["targetConfigured", "targetCompleted"])
+            .into_iter()
+            .filter(|gap| !config.is_foreign(gap.aspect.as_deref()))
+            .collect(),
         problem: None,
     };
     Ok((account, lines.tail))
@@ -418,6 +425,48 @@ mod tests {
             path.push(part);
         }
         path
+    }
+
+    #[test]
+    fn foreign_aspects_drop_their_outputs_and_gaps_but_keep_the_rest() {
+        let aspect_event = |aspect: &str, success: bool| {
+            format!(
+                r#"{{"id": {{"targetCompleted": {{"label": "//a:x", "aspect": "{aspect}"}}}}, "completed": {{"success": {success}, "outputGroup": []}}}}"#
+            )
+        };
+        let stream = [
+            aspect_event(r#"@@rules_dx+//q:f.bzl%real_lint_aspect[unsafe_fixes=\"false\"]"#, false),
+            aspect_event("@@rules_dx+//q:f.bzl%real_format_aspect", false),
+            completed("//a:x", true, ""),
+            r#"{"id": {"targetCompleted": {"label": "//a:y", "aspect": "//q:f.bzl%real_lint_aspect"}}, "aborted": {"reason": "ANALYSIS_FAILURE"}}"#.to_owned(),
+            r#"{"id": {"buildFinished": {}}, "lastMessage": true}"#.to_owned(),
+        ]
+        .join("\n");
+        let artifacts = FakeArtifacts {
+            files: HashMap::new(),
+        };
+        let foreign = ["q:f.bzl%real_lint_aspect".to_owned()].into();
+        let account = collect_account(
+            Cursor::new(stream.clone()),
+            &config().without_aspects(foreign),
+            &artifacts,
+            None,
+        )
+        .expect("account");
+        let aspects: Vec<Option<&str>> = account
+            .targets
+            .iter()
+            .chain(&account.no_work)
+            .map(|target| target.aspect.as_deref())
+            .collect();
+        assert_eq!(
+            aspects,
+            vec![Some("@@rules_dx+//q:f.bzl%real_format_aspect"), None]
+        );
+        assert!(account.gaps.is_empty(), "{:?}", account.gaps);
+        let all = collect_account(Cursor::new(stream), &config(), &artifacts, None).expect("all");
+        assert_eq!(all.targets.len(), 2);
+        assert_eq!(all.gaps.len(), 1);
     }
 
     #[test]

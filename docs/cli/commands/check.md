@@ -58,6 +58,7 @@ Read [Scope defaults](scope-defaults.md) for details.
 ## Phases
 
 - Every phase runs, even after an earlier phase reports findings. The run still exits nonzero.
+- Without `--apply`, `format`, `lint` and `typecheck` share one Bazel build. Each phase still reports only its own findings and exit code.
 - The run stops when the scope is bad, `generate` fails, Bazel cannot run, or you cancel.
 - With `--apply`, the run also stops when a phase fails to compile. The remaining phases are skipped.
 - With `--apply`, dx runs `generate` again after `typecheck` when a phase wrote a file.

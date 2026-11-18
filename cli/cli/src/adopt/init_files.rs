@@ -1073,7 +1073,8 @@ mod tests {
     fn old_dx_keys_in_vscode_settings_are_stale() {
         let scratch = dx_test_scratch::scratch("dx-init-owned-vscode-").unwrap();
         let root = scratch.path();
-        std::fs::write(root.join("main.c"), "int main(void) { return 0; }\n").expect("c file");
+        // Rust, not C: cc needs a licence on Windows hosts.
+        std::fs::write(root.join("main.rs"), "fn main() {}\n").expect("source");
         let (code, _out, err) = run(
             &invocation(&["init", "--apply", "--agents=claude,codex,gemini,copilot"]),
             root,

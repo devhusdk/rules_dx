@@ -1241,13 +1241,14 @@ mod tests {
         let (code, _out, err) = run(&invocation(&["init", "--apply", "demo"]), &root);
         assert_eq!(code, 0, "{err}");
         let module = root.join("demo/MODULE.bazel");
-        let source = root.join("demo/hello.c");
+        // Not a C file: on Windows cc needs a licence, and this test is about edits surviving.
+        let source = root.join("demo/notes.txt");
         let edited_module = format!(
             "{}# edited\n",
             std::fs::read_to_string(&module).expect("module")
         );
         std::fs::write(&module, &edited_module).expect("edit module");
-        std::fs::write(&source, "/* edited */\n").expect("source");
+        std::fs::write(&source, "edited\n").expect("source");
         let (code, _out, err) = run(&invocation(&["init", "--apply", "demo"]), &root);
         assert_eq!(code, 0, "{err}");
         assert_eq!(
@@ -1256,7 +1257,7 @@ mod tests {
         );
         assert_eq!(
             std::fs::read_to_string(&source).expect("source"),
-            "/* edited */\n"
+            "edited\n"
         );
     }
 

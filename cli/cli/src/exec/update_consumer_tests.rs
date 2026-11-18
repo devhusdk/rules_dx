@@ -873,7 +873,8 @@ fn resolver_tail(argv: &[String]) -> Vec<String> {
         .unwrap_or_else(|| panic!("no ruby resolver in {argv:?}"));
     argv[at + 1..]
         .iter()
-        .filter(|arg| !arg.starts_with('/'))
+        // The scratch dirs are host paths: `D:/...` on Windows, not `/...`.
+        .filter(|arg| !std::path::Path::new(arg).is_absolute())
         .cloned()
         .collect()
 }

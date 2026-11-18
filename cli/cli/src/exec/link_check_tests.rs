@@ -55,19 +55,30 @@ fn prepare_keeps_only_the_lychee_stage_and_goes_online() {
 
 #[test]
 fn prepare_makes_every_exec_path_absolute() {
+    // Joined with the host separator, so Windows sees `/exec\README.md`.
+    let under = |root: &str, rel: &str| Path::new(root).join(rel).to_string_lossy().into_owned();
     let bytes = prepare(&request(), &roots(), "/scratch").unwrap().unwrap();
     let doc: Value = serde_json::from_slice(&bytes).unwrap();
     let tool = &doc["tools"]["lychee"];
-    assert_eq!(doc["sources"][0]["exec"], "/exec/README.md");
-    assert_eq!(doc["siblings"][0]["exec"], "/exec/bazel-out/k8/bin/a.md");
-    assert_eq!(doc["resolves"][0]["exec"], "/out/external/dep+/b.md");
-    assert_eq!(tool["binary"], "/out/external/lychee+/lychee");
+    assert_eq!(doc["sources"][0]["exec"], under("/exec", "README.md"));
+    assert_eq!(
+        doc["siblings"][0]["exec"],
+        under("/exec", "bazel-out/k8/bin/a.md")
+    );
+    assert_eq!(
+        doc["resolves"][0]["exec"],
+        under("/out", "external/dep+/b.md")
+    );
+    assert_eq!(tool["binary"], under("/out", "external/lychee+/lychee"));
     assert_eq!(
         tool["files"][0]["exec"],
-        "/exec/bazel-out/k8/bin/lychee.toml"
+        under("/exec", "bazel-out/k8/bin/lychee.toml")
     );
-    assert_eq!(tool["upstream"][0], "/exec/bazel-out/k8/bin/up.bin");
-    assert_eq!(tool["search_paths"][0], "/out/external/site");
+    assert_eq!(
+        tool["upstream"][0],
+        under("/exec", "bazel-out/k8/bin/up.bin")
+    );
+    assert_eq!(tool["search_paths"][0], under("/out", "external/site"));
     assert_eq!(tool["config"], "lychee.toml");
 }
 

@@ -818,7 +818,7 @@ mod tests {
     #[test]
     fn profile_passes_the_trace_flag_and_reports_json_and_text() {
         let harness = Harness::new("build-profile");
-        let dir = harness.workspace.join(".dx/local").join("timings");
+        let dir = harness.workspace.join(".dx").join("local").join("timings");
         std::fs::create_dir_all(&dir).expect("dir");
         let id = dx_plan::plan::run_id(std::process::id(), 0, &harness.temp);
         let trace = dir.join(format!("{id}.json.gz"));
@@ -864,7 +864,7 @@ mod tests {
     #[test]
     fn profile_reports_json_and_text_from_the_trace() {
         let harness = Harness::new("build-profile-report");
-        let dir = harness.workspace.join(".dx/local").join("timings");
+        let dir = harness.workspace.join(".dx").join("local").join("timings");
         std::fs::create_dir_all(&dir).expect("dir");
         let trace = dir.join("1.json.gz");
         let json =

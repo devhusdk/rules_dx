@@ -785,44 +785,6 @@ fn digest_of<'a>(value: &'a serde_json::Value, what: &str) -> std::io::Result<&'
         .ok_or_else(|| invalid(format!("{what} has no digest")))
 }
 
-fn ustar_header(name: &str, size: u64) -> std::io::Result<[u8; 512]> {
-    if name.len() > 100 {
-        return Err(invalid(format!("member name too long: {name}")));
-    }
-    let mut header = [0u8; 512];
-    header
-        .get_mut(..name.len())
-        .ok_or_else(|| invalid(format!("member name too long: {name}")))?
-        .copy_from_slice(name.as_bytes());
-    header[100..108].copy_from_slice(b"0000644\0");
-    header[108..116].copy_from_slice(b"0000000\0");
-    header[116..124].copy_from_slice(b"0000000\0");
-    header[124..136].copy_from_slice(format!("{size:011o}\0").as_bytes());
-    header[136..148].copy_from_slice(b"00000000000\0");
-    header[148..156].copy_from_slice(b"        ");
-    header[156] = b'0';
-    header[257..263].copy_from_slice(b"ustar\0");
-    header[263..265].copy_from_slice(b"00");
-    let sum: u32 = header.iter().map(|byte| u32::from(*byte)).sum();
-    header[148..156].copy_from_slice(format!("{sum:06o}\0 ").as_bytes());
-    Ok(header)
-}
-
-fn append_member(
-    out: &mut impl std::io::Write,
-    name: &str,
-    size: u64,
-    body: &mut impl std::io::Read,
-) -> std::io::Result<()> {
-    out.write_all(&ustar_header(name, size)?)?;
-    let copied = std::io::copy(body, out)?;
-    if copied != size {
-        return Err(invalid(format!("{name} changed while archiving")));
-    }
-    let pad = (512 - size % 512) % 512;
-    out.write_all(&vec![0u8; pad as usize])
-}
-
 /// Writes the first image of an OCI layout as the docker archive the tar driver reads: a
 /// `manifest.json` naming the config and layer blobs, followed by those blobs. An index is
 /// followed to its first manifest.
@@ -871,19 +833,20 @@ fn layout_to_docker_archive(layout: &Path, archive: &Path) -> std::io::Result<()
             .collect::<std::io::Result<Vec<_>>>()?,
     }])
     .to_string();
-    let mut out = std::io::BufWriter::new(std::fs::File::create(archive)?);
-    append_member(
-        &mut out,
+    let mut out =
+        dx_archive::TarStream::new(std::io::BufWriter::new(std::fs::File::create(archive)?));
+    out.add_file_from(
         "manifest.json",
         listing.len() as u64,
         &mut listing.as_bytes(),
+        0o644,
     )?;
     for (name, path) in &members {
         let size = std::fs::metadata(path)?.len();
-        append_member(&mut out, name, size, &mut std::fs::File::open(path)?)?;
+        out.add_file_from(name, size, &mut std::fs::File::open(path)?, 0o644)?;
     }
-    std::io::Write::write_all(&mut out, &[0u8; 1024])?;
-    std::io::Write::flush(&mut out)
+    out.finish()?;
+    Ok(())
 }
 
 const OCI_LAYOUT_DIR_REL: &str = "dx-oci-layout";

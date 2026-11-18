@@ -881,9 +881,63 @@ fn visit_entries_reports_modes() {
 }
 
 #[test]
+fn tar_stream_matches_tar_writer() {
+    let long = pinned_long_name();
+    let block = vec![7u8; 512];
+    let large = vec![9u8; 3 * 20 * 512 + 1];
+    let members: Vec<RawMember<'_>> = vec![
+        ("bin/tool", b"#!/bin/sh\necho hi\n", 0o755),
+        ("empty", b"", 0o644),
+        ("block", &block, 0o600),
+        ("large", &large, 0o644),
+        (&long, b"x", 0o644),
+    ];
+    let mut writer = TarWriter::new();
+    let mut stream = TarStream::new(Vec::new());
+    for (name, data, mode) in &members {
+        writer.add_file(name, data, *mode).expect("add");
+        stream
+            .add_file_from(name, data.len() as u64, &mut &data[..], *mode)
+            .expect("stream");
+    }
+    let streamed = stream.finish().expect("finish");
+    assert_eq!(streamed, writer.finish_tar().expect("finish_tar"));
+    assert_eq!(
+        TarStream::new(Vec::new()).finish().expect("empty"),
+        TarWriter::new().finish_tar().expect("empty")
+    );
+}
+
+#[test]
 fn visit_entries_refuses_a_cut_gzip_trailer() {
     let whole = written(Format::TarGz, |add| add("x", &[7u8; 4096], 0o644));
     assert!(visit_modes(Format::TarGz, &whole).is_ok());
     let cut = whole.get(..whole.len() - 4).expect("cut");
     assert!(visit_modes(Format::TarGz, cut).is_err());
+}
+
+#[test]
+fn tar_stream_refuses_a_reader_of_the_wrong_size() {
+    for (size, data) in [(5u64, &b"abc"[..]), (2, &b"abc"[..])] {
+        let mut stream = TarStream::new(Vec::new());
+        let error = stream
+            .add_file_from("a.txt", size, &mut &data[..], 0o644)
+            .expect_err("wrong size");
+        assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+        assert!(error.to_string().contains("exactly"), "{error}");
+    }
+}
+
+#[test]
+fn tar_stream_checks_member_names() {
+    let mut stream = TarStream::new(Vec::new());
+    stream
+        .add_file_from("a.txt", 0, &mut io::empty(), 0o644)
+        .expect("first");
+    for name in ["a.txt", "../evil", "/abs", &"n".repeat(101)] {
+        let error = stream
+            .add_file_from(name, 0, &mut io::empty(), 0o644)
+            .expect_err(name);
+        assert_eq!(error.kind(), io::ErrorKind::InvalidInput, "{name}");
+    }
 }

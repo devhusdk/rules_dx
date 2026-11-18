@@ -1,0 +1,48 @@
+Upstream: none (not yet sent upstream)
+diff --git a/src/capnp/BUILD.bazel b/src/capnp/BUILD.bazel
+--- a/src/capnp/BUILD.bazel
++++ b/src/capnp/BUILD.bazel
+@@ -1,5 +1,5 @@
+ load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
+-load("@capnp-cpp//src/capnp:cc_capnp_library.bzl", "cc_capnp_library")
++load("//src/capnp:cc_capnp_library.bzl", "cc_capnp_library")
+ 
+ cc_library(
+     name = "capnp",
+diff --git a/src/capnp/cc_capnp_library.bzl b/src/capnp/cc_capnp_library.bzl
+--- a/src/capnp/cc_capnp_library.bzl
++++ b/src/capnp/cc_capnp_library.bzl
+@@ -73,10 +73,10 @@
+         "data": attr.label_list(allow_files = True),
+         "outs": attr.output_list(),
+         "src_prefix": attr.string(),
+-        "_capnpc": attr.label(executable = True, allow_single_file = True, cfg = "exec", default = "@capnp-cpp//src/capnp:capnp_tool"),
+-        "_capnpc_cxx": attr.label(executable = True, allow_single_file = True, cfg = "exec", default = "@capnp-cpp//src/capnp:capnpc-c++"),
+-        "_capnpc_capnp": attr.label(executable = True, allow_single_file = True, cfg = "exec", default = "@capnp-cpp//src/capnp:capnpc-capnp"),
+-        "_capnp_system": attr.label(default = "@capnp-cpp//src/capnp:capnp_system_library"),
++        "_capnpc": attr.label(executable = True, allow_single_file = True, cfg = "exec", default = "//src/capnp:capnp_tool"),
++        "_capnpc_cxx": attr.label(executable = True, allow_single_file = True, cfg = "exec", default = "//src/capnp:capnpc-c++"),
++        "_capnpc_capnp": attr.label(executable = True, allow_single_file = True, cfg = "exec", default = "//src/capnp:capnpc-capnp"),
++        "_capnp_system": attr.label(default = "//src/capnp:capnp_system_library"),
+     },
+     output_to_genfiles = True,
+     implementation = _capnp_gen_impl,
+@@ -122,7 +122,7 @@
+         name = name,
+         srcs = srcs_cpp,
+         hdrs = hdrs,
+-        deps = deps + ["@capnp-cpp//src/capnp:capnp_runtime"],
++        deps = deps + ["//src/capnp:capnp_runtime"],
+         visibility = visibility,
+         target_compatible_with = target_compatible_with,
+         **kwargs
+diff --git a/src/capnp/compat/BUILD.bazel b/src/capnp/compat/BUILD.bazel
+--- a/src/capnp/compat/BUILD.bazel
++++ b/src/capnp/compat/BUILD.bazel
+@@ -1,5 +1,5 @@
+ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+-load("@capnp-cpp//src/capnp:cc_capnp_library.bzl", "cc_capnp_library")
++load("//src/capnp:cc_capnp_library.bzl", "cc_capnp_library")
+ 
+ exports_files([
+     "json.capnp",

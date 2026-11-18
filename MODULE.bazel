@@ -3094,53 +3094,50 @@ _fixture_repo(
     path = "rust/tests/fixtures/shared_rust_checks/repo",
 )
 
-dx_source_archives = use_extension("//core:extensions.bzl", "dx_source_archives")
-dx_source_archives.archive(
+dx_pins.archive(
     name = "dx_flatbuffers",
     pins = "//flatbuffers:pins.json",
 )
-dx_source_archives.archive(
+dx_pins.archive(
     name = "dx_flatbuffers_rust",
-    build_file = "//flatbuffers/private:rust_runtime.BUILD.bazel",
+    build = "//flatbuffers/private:rust_runtime.BUILD.bazel",
     pins = "//flatbuffers:pins.json",
 )
-dx_source_archives.archive(
+dx_pins.archive(
     name = "dx_flatbuffers_java",
-    build_file = "//flatbuffers/private:java_runtime.BUILD.bazel",
+    build = "//flatbuffers/private:java_runtime.BUILD.bazel",
     pins = "//flatbuffers:pins.json",
 )
-dx_source_archives.archive(
+dx_pins.archive(
     name = "dx_flatbuffers_bitflags",
-    archive_type = "tar.gz",
-    build_file = "//flatbuffers/private:bitflags.BUILD.bazel",
+    build = "//flatbuffers/private:bitflags.BUILD.bazel",
     pins = "//flatbuffers:pins.json",
 )
-dx_source_archives.archive(
+dx_pins.archive(
     name = "dx_capnproto",
-    patch_args = ["-p1"],
-    patch_cmds = [
-        "sed -i.bak 's#@capnp-cpp//#//#g' src/capnp/BUILD.bazel src/capnp/cc_capnp_library.bzl src/capnp/compat/BUILD.bazel",
+    patches = [
+        "//patches/capnproto:dynamic_cstddef.patch",
+        "//patches/capnproto:repo_relative_labels.patch",
     ],
-    patches = ["//patches/capnproto:dynamic_cstddef.patch"],
     pins = "//capnproto:pins.json",
 )
-dx_source_archives.archive(
+dx_pins.archive(
     name = "dx_capnproto_rust",
-    build_file = "//capnproto/private:rust.BUILD.bazel",
+    build = "//capnproto/private:rust.BUILD.bazel",
     pins = "//capnproto:pins.json",
 )
-dx_source_archives.archive(
+dx_pins.archive(
     name = "dx_capnproto_java",
-    build_file = "//capnproto/private:java.BUILD.bazel",
+    build = "//capnproto/private:java.BUILD.bazel",
     pins = "//capnproto:pins.json",
 )
-dx_source_archives.archive(
+dx_pins.archive(
     name = "dx_thrift",
-    build_file = "//thrift/private:compiler.BUILD.bazel",
+    build = "//thrift/private:compiler.BUILD.bazel",
     pins = "//thrift:pins.json",
 )
 use_repo(
-    dx_source_archives,
+    dx_pins,
     "dx_capnproto",
     "dx_capnproto_java",
     "dx_capnproto_rust",

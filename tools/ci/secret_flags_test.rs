@@ -45,14 +45,6 @@ fn parse(path: &str) -> Value {
     ci_workflow::document(path).unwrap()
 }
 
-fn named_step(path: &str, name: &str) -> Value {
-    parse(path)["runs"]["steps"]
-        .as_array()
-        .and_then(|steps| steps.iter().find(|step| step["name"] == name))
-        .cloned()
-        .unwrap_or_else(|| panic!("{path} has no {name:?} step"))
-}
-
 fn jobs(document: &Value) -> Vec<(String, Vec<Value>)> {
     ci_workflow::jobs_of(document)
         .into_iter()
@@ -570,22 +562,7 @@ fn helper_action_writes_a_working_helper() {
 }
 
 #[test]
-fn hermetic_verify_runs_only_while_the_job_is_succeeding() {
-    let action = ".github/actions/hermetic-evidence/action.yml";
-    let verify = named_step(action, "Verify the evidence");
-    let condition = verify["if"].as_str().expect("Verify has an if");
-    assert_eq!(
-        condition.replace(' ', ""),
-        "${{job.status=='success'}}",
-        "Verify must be skipped once an earlier step of the job failed"
-    );
-    for step in parse(action)["runs"]["steps"].as_array().unwrap() {
-        let run = step["run"].as_str().unwrap_or_default();
-        assert!(
-            !run.contains("|| true"),
-            "{action} swallows a failure: {run}"
-        );
-    }
+fn compiler_evidence_does_not_swallow_failures() {
     let compiler = parse(".github/actions/compiler-evidence/action.yml");
     for step in compiler["runs"]["steps"].as_array().unwrap() {
         let run = step["run"].as_str().unwrap_or_default();

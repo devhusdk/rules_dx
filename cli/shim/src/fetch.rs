@@ -81,7 +81,10 @@ fn file_matches(path: &Path, want: &str) -> bool {
 fn write_stamp(dest: &Path, sha256: &str) {
     let stamp = stamp_path(dest);
     if let Err(err) = dx_atomic_fs::write_atomic(&stamp, format!("{sha256}\n").as_bytes()) {
-        eprintln!("dx: warning: cannot write {}: {err}", stamp.display());
+        dx_error::stdio::eprint_line(format_args!(
+            "dx: warning: cannot write {}: {err}",
+            stamp.display()
+        ));
     }
 }
 

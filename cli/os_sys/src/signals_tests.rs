@@ -38,7 +38,8 @@ fn unlink_on_stop_child() {
     };
     unlink_on_stop(Path::new("first")).expect("watch the first path");
     unlink_on_stop(Path::new(&path)).expect("watch");
-    crate::process::signal(std::process::id() as i32, libc::SIGTERM).expect("signal self");
+    let pid = i32::try_from(std::process::id()).expect("pid fits pid_t");
+    crate::process::signal(pid, libc::SIGTERM).expect("signal self");
     std::thread::sleep(std::time::Duration::from_secs(30));
 }
 

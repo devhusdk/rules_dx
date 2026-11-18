@@ -347,7 +347,7 @@ fn luarocks_locks_become_luarocks_sets() {
     assert!(check_backend_settings(Path::new("."), &ResolvedSet::of(set)).is_ok());
     assert_eq!(Ecosystem::parse("luarocks"), Some(Ecosystem::LuaRocks));
     assert_eq!(Ecosystem::LuaRocks.advisory_family(), None);
-    assert_eq!(Ecosystem::LuaRocks.supported_update(), "pinned");
+    assert_eq!(Ecosystem::LuaRocks.supported_update(), "update");
     assert!(validate_package(Ecosystem::LuaRocks, "lua-cjson").is_ok());
 }
 
@@ -1238,7 +1238,7 @@ fn ruby_and_powershell_sets_load_as_ecosystems() {
         Ecosystem::PowerShell.manifest_name(),
         "PSGallery.requirements.psd1"
     );
-    assert_eq!(Ecosystem::PowerShell.supported_check(), "pinned");
+    assert_eq!(Ecosystem::PowerShell.supported_check(), "check");
     assert_eq!(Ecosystem::PowerShell.supported_update(), "update");
     assert_eq!(Ecosystem::Uv.supported_operations(), "check, update, audit");
     assert_eq!(

@@ -2,29 +2,23 @@ use dx_adopt::dependency_sets::{self, Ecosystem, ResolvedSet, Selection};
 use dx_error::DxError;
 use std::path::Path;
 
-mod ansible;
 mod bazel;
 mod cabal;
 mod cargo;
 mod composer;
 mod cpan;
-mod dub;
-mod fpm;
 mod go;
 mod hex;
 mod julia;
-mod luarocks;
 mod maven;
 mod npm;
-mod nuget;
 mod opam;
 mod pinned;
-mod powershell;
 mod pub_dev;
+mod resolver;
 mod ruby;
 mod swiftpm;
 mod uv;
-mod zig;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BackendPlan {
@@ -765,7 +759,6 @@ fn plan_backend(
         "bazel" => bazel::plan(workspace, set, request, offline, frozen, head, closure),
         "cargo" => cargo::plan(workspace, set, request, offline, frozen, head, closure),
         "maven" => maven::plan(workspace, set, request, offline, frozen, head, closure),
-        "nuget" => nuget::plan(workspace, set, request, offline, frozen, head, closure),
         "go" => go::plan(workspace, set, request, offline, frozen, head, closure),
         "cpan" => cpan::plan(workspace, set, request, offline, frozen, head, closure),
         "pub_dev" => pub_dev::plan(workspace, set, request, offline, frozen, head, closure),
@@ -776,12 +769,7 @@ fn plan_backend(
         "swiftpm" => swiftpm::plan(workspace, set, request, offline, frozen, head, closure),
         "cabal" => cabal::plan(workspace, set, request, offline, frozen, head, closure),
         "ruby" => ruby::plan(workspace, set, request, offline, frozen, head, closure),
-        "luarocks" => luarocks::plan(workspace, set, request, offline, frozen, head, closure),
-        "ansible" => ansible::plan(workspace, set, request, offline, frozen, head, closure),
-        "fpm" => fpm::plan(workspace, set, request, offline, frozen, head),
-        "dub" => dub::plan(workspace, set, request, offline, frozen, head),
-        "powershell" => powershell::plan(workspace, set, request, offline, frozen, head),
-        "zig" => zig::plan(workspace, set, request, offline, frozen, head),
+        "resolver" => resolver::plan(workspace, set, request, offline, frozen, head),
         _ => pinned::plan(set, request),
     }
 }
@@ -824,6 +812,7 @@ fn check_backend(
         "swiftpm" => swiftpm::check(workspace, set, request, offline, head, closure),
         "cabal" => cabal::check(workspace, set, request, offline, head, closure),
         "ruby" => ruby::check(workspace, set, request, offline, head, closure),
+        "resolver" => resolver::check(workspace, set, request, offline, head),
         _ => pinned::check(set, request),
     }
 }

@@ -391,8 +391,9 @@ No selector selects every set. Unknown names and unowned paths exit `2` and list
 
 A check validates the selected sets and writes nothing. It takes no [build slot](README.md#build-slots). `--apply` refreshes the locks.
 
-- `--apply` runs Bazel for `cargo`, `maven`, `npm` and `nuget` sets.
+- `--apply` runs Bazel for `cargo`, `maven` and `npm` sets.
 - `uv`, `ruby`, `cabal` and `cpan` sets run their lock tool in check mode: current, or failed when stale.
+- `ansible`, `dub`, `fpm`, `luarocks`, `nuget`, `powershell` and `zig` sets run the resolver their `setup.hubs` entry names: a check passes `--check` and fails the set when the lock is stale; `--apply` rewrites the lock. `--offline` fails with `offline_required`, and a `set:package` selector is refused.
 - `go` sets compare a freshly generated `go.sum` with the committed one.
 - `bicep` sets report `pinned` and change nothing.
 - Sets dx cannot check report `unsupported` and fail the run. Refresh them with `dx update --apply <set>`. A bare `dx update` exits `1` when any set is unsupported.
@@ -843,7 +844,7 @@ cpan.lock(
 
 ### luarocks
 
-- A luarocks set is pinned. `dx security` lists the rocks of `luarocks.lock.json` and reports the set as uncovered.
+- `dx security` lists the rocks of `luarocks.lock.json` and reports the set as uncovered.
 - `dx update` runs `bazel run @rules_dx//lua/private/tools/lock -- --dir <set directory>`, which resolves the `dependencies` of the `*.rockspec` from luarocks.org and rewrites `luarocks.lock.json`.
 
 ### dub

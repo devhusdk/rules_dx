@@ -354,7 +354,7 @@ fn run_descendant(plan: &Plan) -> Result<i32, String> {
     }
     if plan.descendant_own_group {
         command.stdout(Stdio::null()).stderr(Stdio::null());
-        own_group(&mut command);
+        own_group(&mut command)?;
     }
     if let Some(lock) = &plan.descendant_alive_lock {
         let mut child = command
@@ -409,82 +409,27 @@ fn start_descendant(plan: &Plan) -> Result<i32, Failure> {
 }
 
 #[cfg(unix)]
-fn own_group(command: &mut Command) {
+fn own_group(command: &mut Command) -> Result<(), String> {
     use std::os::unix::process::CommandExt;
     command.process_group(0);
+    Ok(())
 }
 
 #[cfg(windows)]
-#[expect(unsafe_code, reason = "handle inheritance has no safe std API")]
-fn own_group(command: &mut Command) {
+fn own_group(command: &mut Command) -> Result<(), String> {
     use std::os::windows::process::CommandExt;
     const DETACHED_PROCESS: u32 = 0x8;
     const CREATE_NEW_PROCESS_GROUP: u32 = 0x200;
-    const HANDLE_FLAG_INHERIT: u32 = 0x1;
-    const STD_HANDLES: [u32; 3] = [0xFFFF_FFF6, 0xFFFF_FFF5, 0xFFFF_FFF4];
-    // SAFETY: the declarations match the kernel32 signatures of these functions.
-    unsafe extern "system" {
-        fn GetStdHandle(which: u32) -> *mut std::ffi::c_void;
-        fn SetHandleInformation(handle: *mut std::ffi::c_void, mask: u32, flags: u32) -> i32;
-    }
-    for which in STD_HANDLES {
-        // SAFETY: GetStdHandle takes a constant; the handle is checked before SetHandleInformation.
-        unsafe {
-            let handle = GetStdHandle(which);
-            if !handle.is_null() && handle as isize != -1 {
-                SetHandleInformation(handle, HANDLE_FLAG_INHERIT, 0);
-            }
-        }
-    }
+    dx_os_sys::win32::disinherit_std_handles().map_err(|error| {
+        format!("cannot keep the standard handles from the descendant: {error}")
+    })?;
     command.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP);
+    Ok(())
 }
 
 #[cfg(not(any(unix, windows)))]
-fn own_group(_command: &mut Command) {}
-
-#[cfg(windows)]
-#[expect(unsafe_code, reason = "console APIs have no safe std equivalent")]
-mod console {
-    use std::ffi::c_void;
-
-    const CTRL_C_EVENT: u32 = 0;
-
-    // SAFETY: the declarations match the kernel32 signatures of these functions.
-    unsafe extern "system" {
-        fn FreeConsole() -> i32;
-        fn AttachConsole(pid: u32) -> i32;
-        fn SetConsoleCtrlHandler(handler: *const c_void, add: i32) -> i32;
-        fn GenerateConsoleCtrlEvent(event: u32, group: u32) -> i32;
-    }
-
-    extern "system" fn handled(_event: u32) -> i32 {
-        1
-    }
-
-    pub fn ignore_ctrl() -> Result<(), String> {
-        // SAFETY: handled is a static handler with the HANDLER_ROUTINE signature.
-        if unsafe { SetConsoleCtrlHandler(handled as *const c_void, 1) } == 0 {
-            return Err("cannot install the console handler".to_owned());
-        }
-        Ok(())
-    }
-
-    pub fn send_ctrl_c(pid: u32) -> Result<(), String> {
-        // SAFETY: the calls take only plain integers or null, and run in the short-lived helper.
-        unsafe {
-            FreeConsole();
-            if AttachConsole(pid) == 0 {
-                return Err(format!("cannot attach to the console of {pid}"));
-            }
-            if SetConsoleCtrlHandler(std::ptr::null(), 1) == 0 {
-                return Err("cannot ignore Ctrl-C in the helper".to_owned());
-            }
-            if GenerateConsoleCtrlEvent(CTRL_C_EVENT, 0) == 0 {
-                return Err(format!("cannot send Ctrl-C to the console of {pid}"));
-            }
-        }
-        Ok(())
-    }
+fn own_group(_command: &mut Command) -> Result<(), String> {
+    Ok(())
 }
 
 #[cfg(unix)]
@@ -780,12 +725,17 @@ fn run() -> Result<i32, Failure> {
     #[cfg(windows)]
     {
         if let Some(pid) = plan.ctrl_c_console {
-            return console::send_ctrl_c(pid)
+            return dx_os_sys::console::send_ctrl_c(pid)
                 .map(|()| 0)
-                .map_err(|message| fail(EXIT_OUTPUT, &message));
+                .map_err(|error| fail(EXIT_OUTPUT, &error.to_string()));
         }
         if plan.ignore_console_ctrl {
-            console::ignore_ctrl().map_err(|message| fail(EXIT_OUTPUT, &message))?;
+            dx_os_sys::console::ignore_ctrl_c().map_err(|error| {
+                fail(
+                    EXIT_OUTPUT,
+                    &format!("cannot ignore console Ctrl-C: {error}"),
+                )
+            })?;
         }
     }
     #[cfg(not(windows))]

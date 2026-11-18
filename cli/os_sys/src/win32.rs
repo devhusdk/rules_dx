@@ -7,6 +7,12 @@ use std::os::windows::io::{
     AsRawHandle, BorrowedHandle, HandleOrInvalid, HandleOrNull, OwnedHandle,
 };
 use windows_sys::Win32::Foundation::{FILETIME, WAIT_FAILED, WAIT_TIMEOUT};
+use windows_sys::Win32::Foundation::{
+    HANDLE, HANDLE_FLAG_INHERIT, INVALID_HANDLE_VALUE, NTSTATUS, SetHandleInformation,
+};
+use windows_sys::Win32::System::Console::{
+    GetStdHandle, STD_ERROR_HANDLE, STD_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE,
+};
 use windows_sys::Win32::System::Diagnostics::ToolHelp::{
     CreateToolhelp32Snapshot, PROCESSENTRY32W, Process32FirstW, Process32NextW,
     TH32CS_SNAPPROCESS, TH32CS_SNAPTHREAD, THREADENTRY32, Thread32First, Thread32Next,
@@ -15,9 +21,16 @@ use windows_sys::Win32::System::ProcessStatus::{K32GetProcessMemoryInfo, PROCESS
 use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
 use windows_sys::Win32::System::Threading::{
     GetProcessTimes, OpenProcess, OpenThread, PROCESS_QUERY_LIMITED_INFORMATION,
-    PROCESS_SYNCHRONIZE, PROCESS_TERMINATE, ResumeThread, THREAD_SUSPEND_RESUME,
-    WaitForSingleObject,
+    PROCESS_SUSPEND_RESUME, PROCESS_SYNCHRONIZE, PROCESS_TERMINATE, ResumeThread,
+    THREAD_SUSPEND_RESUME, TerminateProcess, WaitForSingleObject,
 };
+
+// windows-sys does not bind these undocumented ntdll exports.
+#[link(name = "ntdll", kind = "raw-dylib")]
+unsafe extern "system" {
+    fn NtSuspendProcess(process: HANDLE) -> NTSTATUS;
+    fn NtResumeProcess(process: HANDLE) -> NTSTATUS;
+}
 
 pub use windows_sys::Win32::System::Threading::{CREATE_BREAKAWAY_FROM_JOB, CREATE_SUSPENDED};
 
@@ -29,6 +42,8 @@ pub enum Access {
     Wait,
     /// Query and terminate.
     Terminate,
+    /// Query, suspend and resume.
+    SuspendResume,
 }
 
 impl Access {
@@ -37,6 +52,7 @@ impl Access {
             Access::Query => PROCESS_QUERY_LIMITED_INFORMATION,
             Access::Wait => PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_SYNCHRONIZE,
             Access::Terminate => PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE,
+            Access::SuspendResume => PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_SUSPEND_RESUME,
         }
     }
 }
@@ -68,6 +84,63 @@ pub fn is_running(process: BorrowedHandle<'_>) -> io::Result<bool> {
         WAIT_FAILED => Err(io::Error::last_os_error()),
         _ => Ok(false),
     }
+}
+
+/// Ends process `pid` with `exit_code`.
+pub fn terminate(pid: u32, exit_code: u32) -> io::Result<()> {
+    let process = open(pid, Access::Terminate)?;
+    // SAFETY: process is a live handle with PROCESS_TERMINATE access.
+    let ok = unsafe { TerminateProcess(process.as_raw_handle(), exit_code) };
+    if ok == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(())
+}
+
+fn nt_status(what: &str, pid: u32, status: NTSTATUS) -> io::Result<()> {
+    if status < 0 {
+        return Err(io::Error::other(format!(
+            "{what} of process {pid} failed with NTSTATUS {status:#x}"
+        )));
+    }
+    Ok(())
+}
+
+/// Freezes every thread of process `pid` until [`resume`].
+pub fn suspend(pid: u32) -> io::Result<()> {
+    let process = open(pid, Access::SuspendResume)?;
+    // SAFETY: process is a live handle with PROCESS_SUSPEND_RESUME access.
+    let status = unsafe { NtSuspendProcess(process.as_raw_handle()) };
+    nt_status("NtSuspendProcess", pid, status)
+}
+
+/// Undoes one [`suspend`] of process `pid`.
+pub fn resume(pid: u32) -> io::Result<()> {
+    let process = open(pid, Access::SuspendResume)?;
+    // SAFETY: process is a live handle with PROCESS_SUSPEND_RESUME access.
+    let status = unsafe { NtResumeProcess(process.as_raw_handle()) };
+    nt_status("NtResumeProcess", pid, status)
+}
+
+/// Stops children from inheriting this process's standard handles; a missing handle is skipped.
+pub fn disinherit_std_handles() -> io::Result<()> {
+    let which: [STD_HANDLE; 3] = [STD_INPUT_HANDLE, STD_OUTPUT_HANDLE, STD_ERROR_HANDLE];
+    for std_handle in which {
+        // SAFETY: GetStdHandle takes a plain constant.
+        let handle = unsafe { GetStdHandle(std_handle) };
+        if handle == INVALID_HANDLE_VALUE {
+            return Err(io::Error::last_os_error());
+        }
+        if handle.is_null() {
+            continue;
+        }
+        // SAFETY: handle is this process's standard handle, which stays open for the call.
+        let ok = unsafe { SetHandleInformation(handle, HANDLE_FLAG_INHERIT, 0) };
+        if ok == 0 {
+            return Err(io::Error::last_os_error());
+        }
+    }
+    Ok(())
 }
 
 /// The process's creation time in 100 ns ticks since 1601.

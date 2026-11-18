@@ -2,7 +2,13 @@
 
 #![expect(unsafe_code, reason = "signal masks have no safe std or rustix API")]
 
+use std::ffi::{CString, c_char};
 use std::io;
+use std::os::unix::ffi::OsStrExt;
+use std::path::Path;
+use std::sync::atomic::{AtomicPtr, Ordering};
+
+static UNLINK_ON_STOP: AtomicPtr<c_char> = AtomicPtr::new(std::ptr::null_mut());
 
 /// Blocks signals in the calling thread until dropped.
 pub struct Blocked {
@@ -95,6 +101,43 @@ pub fn raise_default(signo: i32) -> io::Result<()> {
     }
     // SAFETY: raise takes a plain signal number.
     check(unsafe { libc::raise(signo) })
+}
+
+extern "C" fn unlink_and_exit(signo: i32) {
+    let path = UNLINK_ON_STOP.load(Ordering::SeqCst);
+    if !path.is_null() {
+        // SAFETY: path is a leaked NUL-terminated CString and unlink is async-signal-safe.
+        unsafe { libc::unlink(path) };
+    }
+    // SAFETY: _exit is async-signal-safe.
+    unsafe { libc::_exit(128 + signo) }
+}
+
+/// On SIGINT or SIGTERM, removes `path` and exits with 128 plus the signal number.
+/// A later call replaces the path; [`keep_on_stop`] clears it.
+pub fn unlink_on_stop(path: &Path) -> io::Result<()> {
+    let path = CString::new(path.as_os_str().as_bytes()).map_err(|_| {
+        io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("{} contains a NUL byte", path.display()),
+        )
+    })?;
+    // Any earlier path is leaked: the handler may be reading it right now.
+    UNLINK_ON_STOP.store(path.into_raw(), Ordering::SeqCst);
+    // SAFETY: sigaction is plain C data for which all-zero is valid.
+    let mut action: libc::sigaction = unsafe { std::mem::zeroed() };
+    action.sa_sigaction = unlink_and_exit as *const () as libc::sighandler_t;
+    action.sa_mask = empty_set();
+    for signo in [libc::SIGINT, libc::SIGTERM] {
+        // SAFETY: action is a valid sigaction whose handler calls only unlink and _exit.
+        check(unsafe { libc::sigaction(signo, &raw const action, std::ptr::null_mut()) })?;
+    }
+    Ok(())
+}
+
+/// Stops [`unlink_on_stop`] from removing its path; the signals still exit the process.
+pub fn keep_on_stop() {
+    UNLINK_ON_STOP.store(std::ptr::null_mut(), Ordering::SeqCst);
 }
 
 fn check(status: libc::c_int) -> io::Result<()> {

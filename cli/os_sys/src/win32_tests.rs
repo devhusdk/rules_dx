@@ -1,6 +1,6 @@
 use crate::win32::{
-    Access, creation_time, is_running, open, processes, resume_threads, total_physical_memory,
-    working_set_bytes,
+    Access, creation_time, disinherit_std_handles, is_running, open, processes, resume,
+    resume_threads, suspend, terminate, total_physical_memory, working_set_bytes,
 };
 use std::os::windows::io::AsHandle;
 
@@ -74,4 +74,36 @@ fn a_pid_without_threads_is_not_found() {
 #[test]
 fn the_machine_has_physical_memory() {
     assert!(total_physical_memory().expect("memory") > 0);
+}
+
+#[test]
+fn a_suspended_child_resumes_and_terminates_with_the_given_code() {
+    let mut child = std::process::Command::new("cmd")
+        .args(["/C", "ping -n 30 127.0.0.1 >NUL"])
+        .stdin(std::process::Stdio::null())
+        .spawn()
+        .expect("spawn");
+    suspend(child.id()).expect("suspend");
+    resume(child.id()).expect("resume");
+    terminate(child.id(), 7).expect("terminate");
+    assert_eq!(child.wait().expect("wait").code(), Some(7));
+}
+
+#[test]
+fn an_exited_child_cannot_be_suspended_resumed_or_terminated() {
+    let mut child = std::process::Command::new("cmd")
+        .args(["/C", "exit 0"])
+        .spawn()
+        .expect("spawn");
+    let pid = child.id();
+    child.wait().expect("wait");
+    drop(child);
+    assert!(suspend(pid).is_err());
+    assert!(resume(pid).is_err());
+    assert!(terminate(pid, 1).is_err());
+}
+
+#[test]
+fn std_handles_can_be_made_uninheritable() {
+    disinherit_std_handles().expect("disinherit");
 }

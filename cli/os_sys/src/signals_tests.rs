@@ -28,3 +28,44 @@ fn background_tty_writes_block_sigttou_in_this_thread() {
 fn raising_an_ignored_by_default_signal_returns() {
     raise_default(libc::SIGURG).expect("raise");
 }
+
+const UNLINK_CHILD: &str = "DX_OS_SYS_UNLINK_ON_STOP_CHILD";
+
+#[test]
+fn unlink_on_stop_child() {
+    let Some(path) = std::env::var_os(UNLINK_CHILD) else {
+        return;
+    };
+    unlink_on_stop(Path::new("first")).expect("watch the first path");
+    unlink_on_stop(Path::new(&path)).expect("watch");
+    crate::process::signal(std::process::id() as i32, libc::SIGTERM).expect("signal self");
+    std::thread::sleep(std::time::Duration::from_secs(30));
+}
+
+#[test]
+fn sigterm_removes_the_watched_path_and_exits_143() {
+    let dir = std::env::var_os("TEST_TMPDIR").map_or_else(std::env::temp_dir, Into::into);
+    let part = dir.join(format!("unlink-on-stop-{}.part", std::process::id()));
+    std::fs::write(&part, b"partial").expect("write");
+    let status = std::process::Command::new(std::env::current_exe().expect("exe"))
+        .args(["--exact", "signals::signals_tests::unlink_on_stop_child"])
+        .env(UNLINK_CHILD, &part)
+        .status()
+        .expect("run the child");
+    assert_eq!(status.code(), Some(143));
+    assert!(!part.exists());
+}
+
+#[test]
+fn a_path_with_a_nul_byte_is_refused() {
+    use std::os::unix::ffi::OsStrExt;
+    let path = Path::new(std::ffi::OsStr::from_bytes(b"a\0b"));
+    let error = unlink_on_stop(path).expect_err("NUL");
+    assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+}
+
+#[test]
+fn keep_on_stop_clears_the_path() {
+    keep_on_stop();
+    assert!(UNLINK_ON_STOP.load(Ordering::SeqCst).is_null());
+}

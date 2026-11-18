@@ -30,16 +30,21 @@ impl CtrlEvent {
     }
 }
 
-#[cfg(windows)]
-pub use windows::{CtrlHandler, add_handler, process_ids, restore_ctrl_c};
 #[cfg(all(test, windows))]
 pub(crate) use windows::trampoline;
+#[cfg(windows)]
+pub use windows::{
+    CtrlHandler, add_handler, ignore_ctrl_c, process_ids, restore_ctrl_c, send_ctrl_c,
+};
 
 #[cfg(windows)]
 mod windows {
     use super::CtrlEvent;
     use std::io;
-    use windows_sys::Win32::System::Console::{GetConsoleProcessList, SetConsoleCtrlHandler};
+    use windows_sys::Win32::System::Console::{
+        AttachConsole, CTRL_C_EVENT, FreeConsole, GenerateConsoleCtrlEvent, GetConsoleProcessList,
+        SetConsoleCtrlHandler,
+    };
     use windows_sys::core::BOOL;
 
     const LIST_ATTEMPTS: usize = 8;
@@ -70,6 +75,49 @@ mod windows {
         let restored = unsafe { SetConsoleCtrlHandler(None, 0) };
         if restored == 0 {
             return Err(io::Error::last_os_error()); // LCOV_EXCL_LINE - reason: Win32 call fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
+        }
+        Ok(())
+    }
+
+    struct SwallowCtrlC;
+
+    impl CtrlHandler for SwallowCtrlC {
+        fn handle(event: CtrlEvent) -> bool {
+            event == CtrlEvent::C
+        }
+    }
+
+    /// Keeps this process alive through Ctrl-C; other console events pass on.
+    pub fn ignore_ctrl_c() -> io::Result<()> {
+        add_handler::<SwallowCtrlC>()
+    }
+
+    /// Sends Ctrl-C to every process on the console of process `pid`.
+    ///
+    /// Moves this process onto that console and ignores Ctrl-C itself, so call it only from a
+    /// short-lived helper process.
+    pub fn send_ctrl_c(pid: u32) -> io::Result<()> {
+        // SAFETY: FreeConsole takes no arguments; it fails only when there is no console to leave.
+        unsafe { FreeConsole() };
+        // SAFETY: AttachConsole takes a plain process id.
+        if unsafe { AttachConsole(pid) } == 0 {
+            let error = io::Error::last_os_error();
+            return Err(io::Error::new(
+                error.kind(),
+                format!("cannot attach to the console of process {pid}: {error}"),
+            ));
+        }
+        // SAFETY: a null handler with add = 1 only sets this process's ignore-Ctrl-C flag.
+        if unsafe { SetConsoleCtrlHandler(None, 1) } == 0 {
+            return Err(io::Error::last_os_error());
+        }
+        // SAFETY: GenerateConsoleCtrlEvent takes plain integers; group 0 is the whole console.
+        if unsafe { GenerateConsoleCtrlEvent(CTRL_C_EVENT, 0) } == 0 {
+            let error = io::Error::last_os_error();
+            return Err(io::Error::new(
+                error.kind(),
+                format!("cannot send Ctrl-C to the console of process {pid}: {error}"),
+            ));
         }
         Ok(())
     }

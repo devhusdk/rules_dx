@@ -25,14 +25,18 @@ pub fn cobertura_to_lcov(xml: &str) -> Result<String, LcovError> {
         match name {
             "source" if source.is_none() => {
                 let text = rest.split('<').next().unwrap_or(rest);
-                source = Some(text.trim().trim_end_matches('/').to_owned());
+                source = Some(text.trim().trim_end_matches(['/', '\\']).to_owned());
             }
             "class" => {
                 let path = attribute(attrs, "filename")
                     .filter(|path| !path.is_empty())
                     .ok_or_else(|| cobertura_error("class element without a filename"))?;
                 let path = match &source {
-                    Some(dir) if !path.starts_with('/') && !dir.is_empty() => {
+                    Some(dir)
+                        if !dx_path::is_absolute(&path)
+                            && !path.starts_with('\\')
+                            && !dir.is_empty() =>
+                    {
                         format!("{dir}/{path}")
                     }
                     _ => path,

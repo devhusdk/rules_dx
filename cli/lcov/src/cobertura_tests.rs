@@ -55,3 +55,27 @@ fn joins_relative_filenames_to_the_source() {
     let lcov = cobertura_to_lcov(report).expect("converts");
     assert_eq!(lcov, "SF:/w/src/a.zig\nDA:2,3\nLF:1\nLH:1\nend_of_record\n");
 }
+
+#[test]
+fn keeps_windows_absolute_filenames_out_of_the_source_join() {
+    let xml = r#"<coverage><sources><source>/w</source></sources><classes>
+<class filename="C:\x\a.py"><lines><line number="1" hits="1"/></lines></class>
+<class filename="D:/y/b.py"><lines><line number="1" hits="1"/></lines></class>
+<class filename="\\srv\s\c.py"><lines><line number="1" hits="1"/></lines></class>
+</classes></coverage>"#;
+    let lcov = cobertura_to_lcov(xml).expect("converts");
+    assert!(lcov.contains("SF:C:\\x\\a.py\n"), "{lcov}");
+    assert!(lcov.contains("SF:D:/y/b.py\n"), "{lcov}");
+    assert!(lcov.contains("SF:\\\\srv\\s\\c.py\n"), "{lcov}");
+}
+
+#[test]
+fn decodes_numeric_character_references_in_filenames() {
+    let xml = r#"<coverage><classes>
+<class filename="/w/caf&#233;&#x20;&#x1F600;.py"><lines><line number="1" hits="1"/></lines></class>
+<class filename="/w/&amp;lt;.py"><lines><line number="1" hits="1"/></lines></class>
+</classes></coverage>"#;
+    let lcov = cobertura_to_lcov(xml).expect("converts");
+    assert!(lcov.contains("SF:/w/café 😀.py\n"), "{lcov}");
+    assert!(lcov.contains("SF:/w/&lt;.py\n"), "{lcov}");
+}

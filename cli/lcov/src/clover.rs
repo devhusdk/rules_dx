@@ -85,11 +85,41 @@ pub(crate) fn attribute(attrs: &str, key: &str) -> Option<String> {
 }
 
 fn unescape(text: &str) -> String {
-    text.replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", "\"")
-        .replace("&apos;", "'")
-        .replace("&amp;", "&")
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some((head, tail)) = rest.split_once('&') {
+        out.push_str(head);
+        let decoded = tail
+            .split_once(';')
+            .and_then(|(name, after)| entity(name).map(|ch| (ch, after)));
+        if let Some((ch, after)) = decoded {
+            out.push(ch);
+            rest = after;
+        } else {
+            out.push('&');
+            rest = tail;
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+fn entity(name: &str) -> Option<char> {
+    match name {
+        "lt" => Some('<'),
+        "gt" => Some('>'),
+        "quot" => Some('"'),
+        "apos" => Some('\''),
+        "amp" => Some('&'),
+        _ => {
+            let digits = name.strip_prefix('#')?;
+            let code = match digits.strip_prefix(['x', 'X']) {
+                Some(hex) => u32::from_str_radix(hex, 16).ok()?,
+                None => digits.parse().ok()?,
+            };
+            char::from_u32(code)
+        }
+    }
 }
 
 #[cfg(test)]

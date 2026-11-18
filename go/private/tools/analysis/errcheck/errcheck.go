@@ -1,10 +1,9 @@
-package main
+package errcheck
 
 import (
 	"flag"
 	"fmt"
-	"os"
-
+	"io"
 	"rules_dx/go/private/tools/analysis/unit"
 
 	"github.com/kisielk/errcheck/errcheck"
@@ -38,7 +37,8 @@ func configure(extra []string) error {
 	return errcheck.Analyzer.Flags.Set("exclude", *exclude)
 }
 
-func main() {
+// Main runs errcheck as a unitchecker over args and returns the exit code.
+func Main(args []string, stdout, stderr io.Writer) int {
 	opts := unit.Options{Configure: configure}
-	os.Exit(unit.Run("errcheck", []*analysis.Analyzer{errcheck.Analyzer}, opts, os.Args[1:], os.Stdout, os.Stderr))
+	return unit.Run("errcheck", []*analysis.Analyzer{errcheck.Analyzer}, opts, args, stdout, stderr)
 }

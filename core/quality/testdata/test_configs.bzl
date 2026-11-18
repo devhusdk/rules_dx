@@ -42,7 +42,7 @@ _TOOL_DEFAULTS = {
     "//config:tool_dialyzer": "//erlang/private/tools:dialyzer",
     "//config:tool_elvis": "//erlang/private/tools:elvis",
     "//config:tool_erlfmt": "//erlang/private/tools:erlfmt",
-    "//config:tool_govet": "//go/private/tools/analysis/cmd/dx_govet",
+    "//config:tool_govet": "//go/private/tools/analysis/dx_go:dx_govet",
     "//config:tool_jet": "//julia/private/tools/jet:jet",
     "//config:tool_julia_format": "//config:no_julia_format",
     "//config:tool_luals": "//lua/private/tools:luals",
@@ -61,7 +61,7 @@ _TOOL_DEFAULTS = {
 
 _TOOL_OVERRIDES = dict(_TOOL_DEFAULTS, **{
     "//config:tool_dart": "//dart/private/tools:dart",
-    "//config:tool_govet": "//go/private/tools/analysis/cmd/dx_errcheck",
+    "//config:tool_govet": "//go/private/tools/analysis/dx_go:dx_errcheck",
     "//config:tool_julia_format": "//julia/private/tools:julia_format",
     "//config:tool_perlcritic": "//perl/private/tools:perlcritic",
     "//config:tool_perltidy": "//perl/private/tools:perltidy",

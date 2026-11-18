@@ -1,21 +1,16 @@
-load("//go:defs.bzl", "go_binary", "go_library", "go_test")
+load("//go:defs.bzl", "go_library", "go_test")
 
 go_library(
-    name = "modfmt_lib",
-    srcs = ["main.go"],
+    name = "modfmt",
+    srcs = ["modfmt.go"],
     importpath = "rules_dx/go/private/tools/modfmt",
-    visibility = ["//visibility:private"],
+    visibility = ["//go/private/tools/analysis/dx_go:__pkg__"],
     deps = ["@org_golang_x_mod//modfile"],
-)
-
-go_binary(
-    name = "dx_modfmt",
-    embed = [":modfmt_lib"],
-    visibility = ["//:__subpackages__"],
 )
 
 go_test(
     name = "modfmt_test",
-    srcs = ["main_test.go"],
-    embed = [":modfmt_lib"],
+    size = "small",
+    srcs = ["modfmt_test.go"],
+    embed = [":modfmt"],
 )

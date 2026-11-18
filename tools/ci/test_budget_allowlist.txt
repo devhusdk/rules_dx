@@ -315,12 +315,8 @@ gazelle/thrift/BUILD.bazel no-size 2
 gazelle/typescript/BUILD.bazel no-size 2
 gazelle/vue/BUILD.bazel no-size 2
 gazelle/zig/BUILD.bazel no-size 2
-go/private/tools/analysis/cmd/dx_errcheck/BUILD.bazel no-size 1
-go/private/tools/analysis/cmd/dx_govet/BUILD.bazel no-size 1
-go/private/tools/analysis/cmd/dx_staticcheck/BUILD.bazel no-size 1
 go/private/tools/analysis/gotype/BUILD.bazel no-size 1
 go/private/tools/analysis/unit/BUILD.bazel no-size 1
-go/private/tools/modfmt/BUILD.bazel no-size 1
 go/tests/BUILD.bazel no-size 2
 go/tests/cgo_tests.bzl no-size 1
 go/tests/fixtures/adopt_go/greet/BUILD.bazel no-size 1

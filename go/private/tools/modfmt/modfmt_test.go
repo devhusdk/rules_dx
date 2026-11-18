@@ -1,4 +1,4 @@
-package main
+package modfmt
 
 import (
 	"bytes"
@@ -8,8 +8,10 @@ import (
 	"testing"
 )
 
-const dirty = "module   example.com/a\ngo 1.22\n"
-const clean = "module example.com/a\n\ngo 1.22\n"
+const (
+	dirty = "module   example.com/a\ngo 1.22\n"
+	clean = "module example.com/a\n\ngo 1.22\n"
+)
 
 func write(t *testing.T, body string) string {
 	t.Helper()
@@ -23,7 +25,7 @@ func write(t *testing.T, body string) string {
 func TestCheckListsDirtyFileAndKeepsBytes(t *testing.T) {
 	path := write(t, dirty)
 	var out, errOut bytes.Buffer
-	if code := run([]string{"-c", "-l", path}, &out, &errOut); code != 1 {
+	if code := Main([]string{"-c", "-l", path}, &out, &errOut); code != 1 {
 		t.Fatalf("code %d", code)
 	}
 	if strings.TrimSpace(out.String()) != path {
@@ -37,14 +39,14 @@ func TestCheckListsDirtyFileAndKeepsBytes(t *testing.T) {
 func TestWriteFormatsThenCheckIsClean(t *testing.T) {
 	path := write(t, dirty)
 	var out, errOut bytes.Buffer
-	if code := run([]string{"-w", path}, &out, &errOut); code != 0 {
+	if code := Main([]string{"-w", path}, &out, &errOut); code != 0 {
 		t.Fatalf("code %d", code)
 	}
 	if got, _ := os.ReadFile(path); string(got) != clean {
 		t.Fatalf("got %q", got)
 	}
 	out.Reset()
-	if code := run([]string{"-c", "-l", path}, &out, &errOut); code != 0 || out.Len() != 0 {
+	if code := Main([]string{"-c", "-l", path}, &out, &errOut); code != 0 || out.Len() != 0 {
 		t.Fatalf("code %d out %q", code, out.String())
 	}
 }
@@ -52,7 +54,7 @@ func TestWriteFormatsThenCheckIsClean(t *testing.T) {
 func TestMalformedIsAnError(t *testing.T) {
 	path := write(t, "module (\n")
 	var out, errOut bytes.Buffer
-	if code := run([]string{"-c", "-l", path}, &out, &errOut); code != 2 {
+	if code := Main([]string{"-c", "-l", path}, &out, &errOut); code != 2 {
 		t.Fatalf("code %d", code)
 	}
 	if errOut.Len() == 0 {

@@ -1,9 +1,10 @@
-package main
+package govet
 
 import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"rules_dx/go/private/tools/analysis/unit"
@@ -221,11 +222,12 @@ func excluded(res []*regexp.Regexp, posn string) bool {
 	return false
 }
 
-func main() {
+// Main runs go vet's analyzers as a unitchecker over args and returns the exit code.
+func Main(args []string, stdout, stderr io.Writer) int {
 	opts := unit.Options{
 		Configure: configure,
 		Filter:    filter,
 		Select:    func([]string) []*analysis.Analyzer { return active },
 	}
-	os.Exit(unit.Run("govet", defaults, opts, os.Args[1:], os.Stdout, os.Stderr))
+	return unit.Run("govet", defaults, opts, args, stdout, stderr)
 }

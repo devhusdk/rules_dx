@@ -439,6 +439,7 @@ func analyze(cfg *Config, p pass, extra []string, dir string) (map[string]json.R
 	}
 	var errBuf bytes.Buffer
 	cmd := exec.Command(exe, "-json", cfgPath)
+	cmd.Args[0] = os.Args[0]
 	cmd.Env = append(os.Environ(), ChildEnv+"="+string(payload))
 	cmd.Stderr = &errBuf
 	if err := cmd.Run(); err != nil {

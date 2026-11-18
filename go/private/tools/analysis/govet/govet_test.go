@@ -1,14 +1,14 @@
-package main
+package govet
 
 import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"rules_dx/go/private/tools/analysis/unit"
 	"strings"
 	"testing"
 
 	"golang.org/x/tools/go/analysis"
-	"rules_dx/go/private/tools/analysis/unit"
 )
 
 func has(list []*analysis.Analyzer, name string) bool {

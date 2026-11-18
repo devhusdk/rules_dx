@@ -1,0 +1,50 @@
+load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
+load("//go:defs.bzl", "go_binary", "go_library", "go_test")
+
+go_library(
+    name = "dx_go_lib",
+    srcs = ["main.go"],
+    importpath = "rules_dx/go/private/tools/analysis/dx_go",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//go/private/tools/analysis/errcheck",
+        "//go/private/tools/analysis/gotype",
+        "//go/private/tools/analysis/govet",
+        "//go/private/tools/analysis/staticcheck",
+        "//go/private/tools/modfmt",
+    ],
+)
+
+go_binary(
+    name = "dx_go",
+    embed = [":dx_go_lib"],
+    visibility = ["//:__subpackages__"],
+)
+
+go_test(
+    name = "dx_go_test",
+    size = "small",
+    srcs = ["main_test.go"],
+    embed = [":dx_go_lib"],
+    deps = ["//go/private/tools/analysis/unit"],
+)
+
+# dx_go picks the tool from the name it runs as.
+[
+    native_binary(
+        name = tool,
+        src = ":dx_go",
+        out = select({
+            "@platforms//os:windows": tool + ".exe",
+            "//conditions:default": tool,
+        }),
+        visibility = ["//:__subpackages__"],
+    )
+    for tool in [
+        "dx_errcheck",
+        "dx_gotype",
+        "dx_govet",
+        "dx_modfmt",
+        "dx_staticcheck",
+    ]
+]

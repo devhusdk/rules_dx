@@ -981,7 +981,7 @@ FILE_FAMILY_CASES = [
         name = "matrix_go_module_format_pass",
         capability = "format",
         tool = "modfmt",
-        binary = "//go/private/tools/modfmt:dx_modfmt",
+        binary = "//go/private/tools/analysis/dx_go:dx_modfmt",
         source_class = "go_module",
         generated = {
             "matrix/modfmt_clean.mod": "module example.com/sample\n\ngo 1.24\n",
@@ -991,7 +991,7 @@ FILE_FAMILY_CASES = [
         name = "matrix_go_module_format_fail",
         capability = "format",
         tool = "modfmt",
-        binary = "//go/private/tools/modfmt:dx_modfmt",
+        binary = "//go/private/tools/analysis/dx_go:dx_modfmt",
         source_class = "go_module",
         generated = {
             "matrix/modfmt_dirty.mod": "module   example.com/sample\n\ngo   1.24\n",

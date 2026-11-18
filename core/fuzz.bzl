@@ -94,14 +94,17 @@ def _dx_fuzz_run_impl(ctx):
     runfiles = ctx.runfiles(files = [executable] + ctx.files.data).merge(ctx.attr.runner[0][DefaultInfo].default_runfiles)
     for data in ctx.attr.data:
         runfiles = runfiles.merge(data[DefaultInfo].default_runfiles)
-    return [DefaultInfo(executable = executable, runfiles = runfiles)]
+    return [
+        DefaultInfo(executable = executable, runfiles = runfiles),
+        RunEnvironmentInfo({"DX_RUNTIME_TOOL": "fuzz_run"}),
+    ]
 
 _dx_fuzz_run = rule(
     implementation = _dx_fuzz_run_impl,
     doc = "The runner executable that `dx fuzz` calls for one fuzz binary.",
     attrs = {
         "data": attr.label_list(doc = "Files the runner needs at run time.", allow_files = True),
-        "runner": attr.label(doc = "The fuzz_run binary.", default = Label("//cli/fuzz_run:fuzz_run"), executable = True, cfg = no_coverage_transition),
+        "runner": attr.label(doc = "The dx-runtime binary.", default = Label("//cli/runtime:dx_runtime"), executable = True, cfg = no_coverage_transition),
     },
     executable = True,
 )

@@ -74,7 +74,7 @@ def _rego_test_impl(ctx):
     runfiles = runfiles.merge(ctx.attr._launcher[0][DefaultInfo].default_runfiles)
     return [
         DefaultInfo(executable = executable, runfiles = runfiles),
-        RunEnvironmentInfo({"DX_REGO_TEST_MANIFEST": rlocation_path(ctx, manifest)}),
+        RunEnvironmentInfo({"DX_REGO_TEST_MANIFEST": rlocation_path(ctx, manifest), "DX_RUNTIME_TOOL": "opa_test"}),
         OutputGroupInfo(rego_test_manifest = depset([manifest])),
         RegoInfo(transitive_srcs = transitive_srcs, transitive_data = transitive_data),
         dx_quality_sources(ctx.files.srcs, [("rego", ["rego"])], str(ctx.label)),
@@ -85,7 +85,7 @@ _REGO_TEST_ATTRS = {
     "data": attr.label_list(allow_files = [".json", ".yaml", ".yml"], doc = "Data files loaded with the Rego files."),
     "deps": attr.label_list(providers = [RegoInfo], doc = "Rego libraries the tests import."),
     "_opa": attr.label(default = "//config:tool_opa", allow_single_file = True, cfg = "target"),
-    "_launcher": attr.label(default = "//rego/private/launcher:opa_test_launcher", executable = True, cfg = no_coverage_transition),
+    "_launcher": attr.label(default = "//cli/runtime:dx_runtime", executable = True, cfg = no_coverage_transition),
     "_windows_os": attr.label(default = "@platforms//os:windows"),
 }
 

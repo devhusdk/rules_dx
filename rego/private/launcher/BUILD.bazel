@@ -1,22 +1,22 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_binary", "rust_test")
+load("//rust:defs.bzl", "rust_library", "rust_test")
 
 package(default_visibility = ["//rego:__subpackages__"])
 
 exports_files([
-    "src/main.rs",
+    "src/lib.rs",
     "src/opa.rs",
     "src/opa_tests.rs",
 ])
 
-rust_binary(
-    name = "opa_test_launcher",
+rust_library(
+    name = "dx_opa_test",
     srcs = [
-        "src/main.rs",
+        "src/lib.rs",
         "src/opa.rs",
+        "src/opa_tests.rs",
     ],
-    crate_name = "launcher",
-    crate_root = "src/main.rs",
+    visibility = ["//cli/runtime:__pkg__"],
     deps = [
         "//cli/path:dx_path",
         "@crates//:tempfile",
@@ -24,20 +24,10 @@ rust_binary(
 )
 
 rust_test(
-    name = "opa_test_launcher_test",
+    name = "dx_opa_test_test",
     size = "small",
-    srcs = [
-        "src/main.rs",
-        "src/opa.rs",
-        "src/opa_tests.rs",
-    ],
-    crate_name = "launcher",
-    crate_root = "src/main.rs",
-    deps = [
-        "//cli/path:dx_path",
-        "//cli/test_scratch:dx_test_scratch",
-        "@crates//:tempfile",
-    ],
+    crate = ":dx_opa_test",
+    deps = ["//cli/test_scratch:dx_test_scratch"],
 )
 
 real_source_target(

@@ -1,16 +1,15 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_binary", "rust_test")
+load("//rust:defs.bzl", "rust_library", "rust_test")
 
 package(default_visibility = ["//visibility:public"])
 
-rust_binary(
-    name = "fuzz_run",
+rust_library(
+    name = "dx_fuzz_run",
     srcs = [
-        "src/main.rs",
+        "src/lib.rs",
         "src/run.rs",
+        "src/run_tests.rs",
     ],
-    crate_name = "fuzz_run",
-    crate_root = "src/main.rs",
     deps = [
         "//cli/error:dx_error",
         "@crates//:tempfile",
@@ -19,21 +18,10 @@ rust_binary(
 )
 
 rust_test(
-    name = "fuzz_run_test",
+    name = "dx_fuzz_run_test",
     size = "small",
-    srcs = [
-        "src/main.rs",
-        "src/run.rs",
-        "src/run_tests.rs",
-    ],
-    crate_name = "fuzz_run",
-    crate_root = "src/main.rs",
-    deps = [
-        "//cli/error:dx_error",
-        "//cli/test_scratch:dx_test_scratch",
-        "@crates//:tempfile",
-        "@rules_rust//rust/runfiles",
-    ],
+    crate = ":dx_fuzz_run",
+    deps = ["//cli/test_scratch:dx_test_scratch"],
 )
 
 real_source_target(
@@ -50,7 +38,7 @@ filegroup(
 
 exports_files(
     [
-        "src/main.rs",
+        "src/lib.rs",
     ],
     visibility = ["//core/quality:__pkg__"],
 )

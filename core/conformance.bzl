@@ -1,6 +1,5 @@
 """Shared wrapper conformance checks for language rules."""
 
-load("@bazel_skylib//lib:unittest.bzl", "analysistest")
 load("//core:canonical.bzl", "strip_canonical")
 load("//core:defs.bzl", "DxSubjectInfo", "expect_equal", "starlark_test")
 load("//core:wrapper.bzl", "DX_UPSTREAM_TAG", "dx_binary_forward_kwargs", "dx_forwarded_test_kwargs", "dx_merge_run_environment", "dx_symlink_executable_name")
@@ -259,22 +258,4 @@ def dx_wrapper_contract_tests(name, file_classes = None, extra_checks = None, in
         subjects = [":" + name + "_" + kind for kind in kinds],
         expected_observations = dx_wrapper_forward_observations(native.package_name(), name, kinds, known_gaps),
         **kwargs
-    )
-
-def coverage_env_tests(impl, attrs = {}, features = []):
-    """Returns struct(on, off): two analysis test rules sharing `impl`."""
-    on_settings = {"//command_line_option:collect_code_coverage": True}
-    if features:
-        on_settings["//command_line_option:features"] = features
-    return struct(
-        on = analysistest.make(
-            impl,
-            attrs = dict(attrs, coverage = attr.bool(default = True)),
-            config_settings = on_settings,
-        ),
-        off = analysistest.make(
-            impl,
-            attrs = dict(attrs, coverage = attr.bool(default = False)),
-            config_settings = {"//command_line_option:collect_code_coverage": False},
-        ),
     )

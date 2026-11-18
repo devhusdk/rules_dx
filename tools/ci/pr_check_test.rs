@@ -217,6 +217,23 @@ fn jobs_stay_inside_the_time_budget() {
 }
 
 #[test]
+fn affected_tests_build_dx_with_the_remote_cache() {
+    // tools/dx builds //:dx without the remote cache; on a fresh runner that ate
+    // more than six minutes of the budget before the first test.
+    let run = affected_step()["run"]
+        .as_str()
+        .expect("run")
+        .to_owned();
+    let build = run
+        .find("bazel build --noshow_progress \"$@\" //:dx")
+        .expect("cached //:dx build");
+    let config = run.find("set -- $BAZEL_CONFIG").expect("cache config");
+    assert!(config < build, "{run}");
+    assert!(run.contains("timeout \"$left\" \"$dx\" test --affected"), "{run}");
+    assert!(!run.contains("tools/dx "), "{run}");
+}
+
+#[test]
 fn cacheless_retry_drops_the_remote_downloader() {
     let step = affected_step();
     let run = step["run"].as_str().expect("run");

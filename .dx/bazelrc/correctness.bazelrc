@@ -74,6 +74,9 @@ build --tool_java_runtime_version=remotejdk_21
 # Compile Java build tools at language level 17.
 build --tool_java_language_version=17
 
+# Run persistent workers, such as the JVM checks, in a sandbox like other local actions.
+build --worker_sandboxing
+
 # Opt out of aspect_tools_telemetry usage reports.
 common --repo_env=DO_NOT_TRACK=1
 

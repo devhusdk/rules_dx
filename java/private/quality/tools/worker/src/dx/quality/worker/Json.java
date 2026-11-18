@@ -35,19 +35,18 @@ final class Json {
     StringBuilder out = new StringBuilder(text.length() + 2).append('"');
     for (int i = 0; i < text.length(); i++) {
       char c = text.charAt(i);
-      switch (c) {
-        case '"' -> out.append("\\\"");
-        case '\\' -> out.append("\\\\");
-        case '\n' -> out.append("\\n");
-        case '\r' -> out.append("\\r");
-        case '\t' -> out.append("\\t");
-        default -> {
-          if (c < 0x20) {
-            out.append(String.format("\\u%04x", (int) c));
-          } else {
-            out.append(c);
-          }
-        }
+      if (c == '"' || c == '\\') {
+        out.append('\\').append(c);
+      } else if (c == '\n') {
+        out.append("\\n");
+      } else if (c == '\r') {
+        out.append("\\r");
+      } else if (c == '\t') {
+        out.append("\\t");
+      } else if (c < 0x20) {
+        out.append(String.format("\\u%04x", (int) c));
+      } else {
+        out.append(c);
       }
     }
     return out.append('"').toString();
@@ -159,40 +158,50 @@ final class Json {
     StringBuilder out = new StringBuilder();
     while (true) {
       int c = next();
-      switch (c) {
-        case -1 -> throw new IOException("bad JSON: unterminated string");
-        case '"' -> {
-          return out.toString();
-        }
-        case '\\' -> {
-          int e = next();
-          switch (e) {
-            case '"', '\\', '/' -> out.append((char) e);
-            case 'b' -> out.append('\b');
-            case 'f' -> out.append('\f');
-            case 'n' -> out.append('\n');
-            case 'r' -> out.append('\r');
-            case 't' -> out.append('\t');
-            case 'u' -> {
-              char[] hex = new char[4];
-              for (int i = 0; i < 4; i++) {
-                int h = next();
-                if (h == -1) {
-                  throw new IOException("bad JSON: unterminated escape");
-                }
-                hex[i] = (char) h;
-              }
-              try {
-                out.append((char) Integer.parseInt(new String(hex), 16));
-              } catch (NumberFormatException err) {
-                throw new IOException("bad JSON: bad escape \\u" + new String(hex), err);
-              }
-            }
-            default -> throw new IOException("bad JSON: bad escape " + describe(e));
-          }
-        }
-        default -> out.append((char) c);
+      if (c == -1) {
+        throw new IOException("bad JSON: unterminated string");
       }
+      if (c == '"') {
+        return out.toString();
+      }
+      if (c != '\\') {
+        out.append((char) c);
+        continue;
+      }
+      int e = next();
+      if (e == '"' || e == '\\' || e == '/') {
+        out.append((char) e);
+      } else if (e == 'b') {
+        out.append('\b');
+      } else if (e == 'f') {
+        out.append('\f');
+      } else if (e == 'n') {
+        out.append('\n');
+      } else if (e == 'r') {
+        out.append('\r');
+      } else if (e == 't') {
+        out.append('\t');
+      } else if (e == 'u') {
+        out.append(hex());
+      } else {
+        throw new IOException("bad JSON: bad escape " + describe(e));
+      }
+    }
+  }
+
+  private char hex() throws IOException {
+    char[] digits = new char[4];
+    for (int i = 0; i < 4; i++) {
+      int h = next();
+      if (h == -1) {
+        throw new IOException("bad JSON: unterminated escape");
+      }
+      digits[i] = (char) h;
+    }
+    try {
+      return (char) Integer.parseInt(new String(digits), 16);
+    } catch (NumberFormatException err) {
+      throw new IOException("bad JSON: bad escape \\u" + new String(digits), err);
     }
   }
 

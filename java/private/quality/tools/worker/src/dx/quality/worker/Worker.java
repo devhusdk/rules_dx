@@ -71,16 +71,20 @@ public final class Worker {
       if (message == null) {
         return;
       }
-      if (!(message instanceof Map<?, ?> request)) {
+      if (!(message instanceof Map<?, ?>)) {
         throw new IOException("work request is not a JSON object");
       }
+      Map<?, ?> request = (Map<?, ?>) message;
       List<String> lines = new ArrayList<>();
-      if (request.get("arguments") instanceof List<?> arguments) {
-        for (Object argument : arguments) {
+      Object arguments = request.get("arguments");
+      if (arguments instanceof List<?>) {
+        for (Object argument : (List<?>) arguments) {
           lines.add(String.valueOf(argument));
         }
       }
-      long id = request.get("requestId") instanceof Number n ? n.longValue() : 0;
+      // JSON omits a zero requestId, as singleplex requests always have.
+      Object requestId = request.get("requestId");
+      long id = requestId instanceof Number ? ((Number) requestId).longValue() : 0;
       ByteArrayOutputStream captured = new ByteArrayOutputStream();
       PrintStream capture = new PrintStream(captured, true, StandardCharsets.UTF_8);
       int exit = 0;

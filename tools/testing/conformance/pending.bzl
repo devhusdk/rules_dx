@@ -48,10 +48,6 @@ haskell lint_error_test *
 haskell lint_test *
 helm format_error_test *
 helm format_test *
-julia format_error_test *
-julia format_test *
-julia lint_error_test *
-julia lint_test *
 msix build_test *
 msix coverage_test *
 msix cross_test *

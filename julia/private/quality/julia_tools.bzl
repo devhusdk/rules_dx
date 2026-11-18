@@ -28,7 +28,7 @@ TOOLS = [
     tool(
         id = "julialint",
         adapters = {"lint": ["julia"]},
-        config = config(suffixes = [".toml"], tier_active = True, tier_base = False),
+        config = config(suffixes = [".toml"], tier_active = True),
         support = [
             row(
                 capability = "lint",

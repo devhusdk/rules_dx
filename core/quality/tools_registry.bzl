@@ -6447,7 +6447,7 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
         "suppression_extensions": [],
         "suppressions": [],
         "tier_active": true,
-        "tier_base": false,
+        "tier_base": true,
         "tier_dir": "",
         "tier_source": "dx"
       },

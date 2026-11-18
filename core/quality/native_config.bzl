@@ -145,6 +145,7 @@ cfn_lint_config = _make_native_config_rule("cfn_lint")
 
 hadolint_config = _make_native_config_rule("hadolint")
 hlint_config = _make_native_config_rule("hlint")
+julialint_config = _make_native_config_rule("julialint")
 regal_config = _make_native_config_rule("regal")
 checkmake_config = _make_native_config_rule("checkmake")
 gersemi_config = _make_native_config_rule("gersemi")

@@ -941,3 +941,95 @@ fn tar_stream_checks_member_names() {
         assert_eq!(error.kind(), io::ErrorKind::InvalidInput, "{name}");
     }
 }
+
+/// A ustar stream whose names and link targets go into the header verbatim, so `./` prefixes survive.
+fn raw_tar(entries: &[(&str, tar::EntryType, &str, &[u8])]) -> Vec<u8> {
+    let mut builder = tar::Builder::new(Vec::new());
+    for (name, kind, link, data) in entries {
+        let mut header = tar::Header::new_ustar();
+        header.as_mut_bytes()[..name.len()].copy_from_slice(name.as_bytes());
+        header.set_entry_type(*kind);
+        header.set_size(data.len() as u64);
+        header.set_mode(0o644);
+        header.as_mut_bytes()[157..157 + link.len()].copy_from_slice(link.as_bytes());
+        header.set_cksum();
+        builder.append(&header, *data).expect("append");
+    }
+    builder.into_inner().expect("tar")
+}
+
+type Seen = (String, EntryKind, Option<String>, Vec<u8>);
+
+fn visit_tar_all(bytes: &[u8]) -> io::Result<Vec<Seen>> {
+    let mut seen = Vec::new();
+    visit_tar_entries(bytes, Limits::default(), |entry, body| {
+        let mut data = Vec::new();
+        body.read_to_end(&mut data)?;
+        seen.push((
+            entry.name.to_owned(),
+            entry.kind,
+            entry.link_target.map(str::to_owned),
+            data,
+        ));
+        Ok(())
+    })?;
+    Ok(seen)
+}
+
+#[test]
+fn visit_strips_dot_slash_and_skips_the_root_dir() {
+    let tar = raw_tar(&[
+        ("./", tar::EntryType::Directory, "", b""),
+        (".", tar::EntryType::Directory, "", b""),
+        ("./blobs/", tar::EntryType::Directory, "", b""),
+        ("./index.json", tar::EntryType::Regular, "", b"{}"),
+    ]);
+    assert_eq!(
+        visit_tar_all(&tar).expect("visit"),
+        [
+            ("blobs".to_owned(), EntryKind::Dir, None, Vec::new()),
+            ("index.json".to_owned(), EntryKind::File, None, b"{}".to_vec()),
+        ]
+    );
+    let dir = scratch();
+    let gz = dir.path().join("a.tar.gz");
+    write_gz(&gz, &tar);
+    let gz = std::fs::read(&gz).expect("read");
+    let mut names = Vec::new();
+    visit(io::Cursor::new(gz), Format::TarGz, Limits::default(), |name, _, _| {
+        names.push(name.to_owned());
+        Ok(())
+    })
+    .expect("gz");
+    assert_eq!(names, ["blobs", "index.json"]);
+    let escaping = raw_tar(&[("./../x", tar::EntryType::Regular, "", b"x")]);
+    let error = visit_tar_all(&escaping).expect_err("escaping name");
+    assert!(error.to_string().contains("'..'"), "{error}");
+}
+
+#[test]
+fn visit_reports_link_targets() {
+    let tar = raw_tar(&[
+        ("a/file", tar::EntryType::Regular, "", b"x"),
+        ("a/soft", tar::EntryType::Symlink, "../b/c", b""),
+        ("./hard", tar::EntryType::Link, "./a/file", b""),
+    ]);
+    assert_eq!(
+        visit_tar_all(&tar).expect("visit"),
+        [
+            ("a/file".to_owned(), EntryKind::File, None, b"x".to_vec()),
+            (
+                "a/soft".to_owned(),
+                EntryKind::Symlink,
+                Some("../b/c".to_owned()),
+                Vec::new()
+            ),
+            (
+                "hard".to_owned(),
+                EntryKind::HardLink,
+                Some("./a/file".to_owned()),
+                Vec::new()
+            ),
+        ]
+    );
+}

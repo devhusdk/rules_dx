@@ -1,5 +1,5 @@
 {
-  "checksum": "f7d23a701d5de3f37b193be38557b6d476923c05756880e705f50a08214ea219",
+  "checksum": "a7a3b6ff37505c4b0733c6037f56778b618e83c4189003d5982208c55ec675dc",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -8338,15 +8338,15 @@
             "target": "sha1"
           },
           {
-            "id": "tar 0.4.46",
-            "target": "tar"
-          },
-          {
             "id": "tempfile 3.27.0",
             "target": "tempfile"
           }
         ],
         "deps_dev": [
+          {
+            "id": "tar 0.4.46",
+            "target": "tar"
+          },
           {
             "id": "zip 9.1.2",
             "target": "zip"

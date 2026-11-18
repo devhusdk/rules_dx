@@ -128,7 +128,8 @@ fn write_module(
         Err(error) => (ErrorKind::Infra, error.to_string()),
     };
     let mut failed = Vec::new();
-    if let Err(error) = dx_atomic_fs::write_atomic(&workspace.join(&edit.path), &edit.old) {
+    if let Err(error) = dx_atomic_fs::write_atomic(&workspace.join(&edit.path), edit.old.as_bytes())
+    {
         failed.push(format!("restoring {} failed: {error}", edit.path));
     }
     if let Some(lock_bytes) = lock_before

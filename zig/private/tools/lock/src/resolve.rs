@@ -357,6 +357,32 @@ const LIMITS: dx_archive::Limits = dx_archive::Limits {
     max_total_bytes: 64 << 20,
 };
 
+const XZ_TAR_LIMIT: u64 = 2 * LIMITS.max_total_bytes;
+
+/// The decompressed tar of an xz archive, refusing writes past `XZ_TAR_LIMIT`.
+struct CappedTar {
+    bytes: Vec<u8>,
+    exceeded: bool,
+}
+
+impl std::io::Write for CappedTar {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        let total = u64::try_from(self.bytes.len() + buf.len()).unwrap_or(u64::MAX);
+        if total > XZ_TAR_LIMIT {
+            self.exceeded = true;
+            return Err(std::io::Error::other(format!(
+                "xz stream exceeds {XZ_TAR_LIMIT} bytes"
+            )));
+        }
+        self.bytes.extend_from_slice(buf);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
 fn read_members(bytes: &[u8], kind: Kind, wanted: &[String]) -> Result<Members, String> {
     let mut members = Members {
         names: BTreeSet::new(),
@@ -374,10 +400,20 @@ fn read_members(bytes: &[u8], kind: Kind, wanted: &[String]) -> Result<Members, 
             dx_archive::visit(cursor, dx_archive::Format::Zip, LIMITS, members.add(wanted))
         }
         Kind::TarXz => {
-            let mut tar = Vec::new();
-            lzma_rs::xz_decompress(&mut std::io::Cursor::new(bytes), &mut tar)
-                .map_err(|error| error.to_string())?;
-            dx_archive::visit_tar(tar.as_slice(), LIMITS, members.add(wanted))
+            let mut tar = CappedTar {
+                bytes: Vec::new(),
+                exceeded: false,
+            };
+            lzma_rs::xz_decompress(&mut std::io::Cursor::new(bytes), &mut tar).map_err(
+                |error| {
+                    if tar.exceeded {
+                        format!("xz stream exceeds {XZ_TAR_LIMIT} bytes")
+                    } else {
+                        error.to_string()
+                    }
+                },
+            )?;
+            dx_archive::visit_tar(tar.bytes.as_slice(), LIMITS, members.add(wanted))
         }
         Kind::TarZst => {
             let decoder = ruzstd::decoding::StreamingDecoder::new(bytes)

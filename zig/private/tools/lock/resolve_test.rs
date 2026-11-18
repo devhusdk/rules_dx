@@ -34,6 +34,7 @@ impl Download for Archives {
             MINI => "MINI",
             "https://example.com/mini-1.tar.xz" => "MINI_XZ",
             "https://example.com/mini-1.tar.zst" => "MINI_ZST",
+            "https://example.com/bomb-1.tar.xz" => "BOMB_XZ",
             BASE => "BASE",
             other => return Err(Error::new(format!("unexpected download of {other}"))),
         };
@@ -217,4 +218,16 @@ fn an_archive_with_an_unsafe_member_is_refused() {
     )
     .expect_err("dot dot");
     assert!(error.to_string().contains("'..'"), "{error}");
+}
+
+#[test]
+fn an_xz_bomb_is_refused() {
+    let dir = set(&MANIFEST.replace("mini-1.tar.gz", "bomb-1.tar.xz"));
+    let error = lock(dir.path(), &Archives(RefCell::default())).expect_err("bomb");
+    assert!(
+        error
+            .to_string()
+            .contains("xz stream exceeds 134217728 bytes"),
+        "{error}"
+    );
 }

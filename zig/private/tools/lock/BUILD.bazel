@@ -58,6 +58,7 @@ rust_test(
     crate_root = "resolve_test.rs",
     data = [
         "testdata/base.zip",
+        "testdata/bomb.tar.xz",
         "testdata/golden.lock.json",
         "testdata/mini.tar.gz",
         "testdata/mini.tar.xz",
@@ -65,6 +66,7 @@ rust_test(
     ],
     env = {
         "BASE": "$(rootpath testdata/base.zip)",
+        "BOMB_XZ": "$(rootpath testdata/bomb.tar.xz)",
         "GOLDEN": "$(rootpath testdata/golden.lock.json)",
         "MINI": "$(rootpath testdata/mini.tar.gz)",
         "MINI_XZ": "$(rootpath testdata/mini.tar.xz)",

@@ -196,6 +196,24 @@ eslint_config(
 )
 
 eslint_config(
+    name = "eslint_cfg_astro",
+    src = "eslint_cfg/eslint.astro.mjs",
+    visibility = ["//astro/tests/conformance:__pkg__"],
+)
+
+eslint_config(
+    name = "eslint_cfg_svelte",
+    src = "eslint_cfg/eslint.svelte.mjs",
+    visibility = ["//svelte/tests/conformance:__pkg__"],
+)
+
+eslint_config(
+    name = "eslint_cfg_vue",
+    src = "eslint_cfg/eslint.vue.mjs",
+    visibility = ["//vue/tests/conformance:__pkg__"],
+)
+
+eslint_config(
     name = "eslint_cfg_bad",
     src = "ruff.toml",
     tags = ["manual"],

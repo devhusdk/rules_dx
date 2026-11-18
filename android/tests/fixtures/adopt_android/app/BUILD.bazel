@@ -1,9 +1,9 @@
 # gazelle:ignore
 # gazelle:exclude src
 
-load("@rules_dx//java:defs.bzl", "java_library", "java_test")
-load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//android:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_check", "android_rust_apk")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//java:defs.bzl", "java_library", "java_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 package(default_visibility = [
@@ -77,7 +77,7 @@ sh_test(
         "org.example.adoptandroid",
         "adopt_apk_bin",
         "arm64-v8a,x86_64",
-        "$(location @android_ndk_toolchain//:llvm_readelf)",
+        "$(location @rules_dx//android:llvm_readelf)",
         "33",
         "'Adopt Android'",
         "$(location src/main/assets/greeting.txt)",
@@ -87,10 +87,10 @@ sh_test(
     data = [
         "src/main/assets/greeting.txt",
         ":adopt_apk_file",
-        "@android_ndk_toolchain//:llvm_readelf",
         "@dx_android_sdk//:aapt",
         "@dx_android_sdk//:apksigner_jar",
         "@dx_android_sdk//:dexdump",
+        "@rules_dx//android:llvm_readelf",
         "@rules_java//toolchains:current_java_runtime",
     ],
     env = {

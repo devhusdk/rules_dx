@@ -80,7 +80,6 @@ qt lint_test *
 qt lock_test *
 qt pass_test *
 qt runfiles_test *
-ruby runfiles_test *
 scala lint_error_test *
 scala lint_test *
 zig coverage_test windows_x86_64

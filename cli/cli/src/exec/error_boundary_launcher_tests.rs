@@ -1,9 +1,5 @@
-#![expect(
-    unsafe_code,
-    reason = "pipe and process-group tests call libc directly"
-)]
-
-use super::super::test_support::{Harness, hang_up};
+use super::super::test_support::{Harness, closed_pipe, hang_up};
+use dx_os_sys::process::{SIGINT, SIGKILL, SIGTERM};
 use quality_result::proto::FileSnapshot;
 use std::fs;
 use std::io::{BufRead, BufReader};
@@ -177,13 +173,7 @@ impl Consumer {
     }
 
     fn run_closed_stdout(&self, args: &[&str], env: &[(&str, &str)]) -> Outcome {
-        let mut fds = [0; 2];
-        // SAFETY: fds holds two ints, as pipe requires.
-        assert_eq!(unsafe { libc::pipe(fds.as_mut_ptr()) }, 0, "pipe");
-        // SAFETY: fds[0] is the read end just created and is closed once.
-        unsafe { libc::close(fds[0]) };
-        // SAFETY: fds[1] is the write end just created and owned by nothing else.
-        let stdout = unsafe { <Stdio as std::os::fd::FromRawFd>::from_raw_fd(fds[1]) };
+        let stdout = Stdio::from(closed_pipe());
         let output = self
             .command(args, env, true)
             .stdout(stdout)
@@ -242,8 +232,7 @@ impl Consumer {
         std::thread::spawn(move || {
             std::thread::sleep(Duration::from_secs(90));
             if !watchdog.load(Ordering::SeqCst) {
-                // SAFETY: kill takes plain integers and has no memory preconditions.
-                unsafe { libc::kill(-pgid, libc::SIGKILL) };
+                drop(dx_os_sys::process::signal(-pgid, SIGKILL));
             }
         });
         let mut reader = BufReader::new(reader);
@@ -266,8 +255,7 @@ impl Consumer {
         fs::write(self.base.join("bazel.log.gate"), "").expect("gate");
         let output = child.wait_with_output().expect("dx stops");
         done.store(true, Ordering::SeqCst);
-        // SAFETY: kill takes plain integers and has no memory preconditions.
-        unsafe { libc::kill(-pgid, libc::SIGKILL) };
+        drop(dx_os_sys::process::signal(-pgid, SIGKILL));
         Outcome {
             status: output.status,
             out: seen,
@@ -292,11 +280,9 @@ impl Consumer {
             std::thread::sleep(Duration::from_millis(20));
         }
         let pgid = i32::try_from(child.id()).expect("pid fits i32");
-        // SAFETY: kill takes plain integers and has no memory preconditions.
-        assert_eq!(unsafe { libc::kill(-pgid, signo) }, 0, "signal delivered");
+        dx_os_sys::process::signal(-pgid, signo).expect("signal delivered");
         let output = child.wait_with_output().expect("dx stops");
-        // SAFETY: kill takes plain integers and has no memory preconditions.
-        unsafe { libc::kill(-pgid, libc::SIGKILL) };
+        drop(dx_os_sys::process::signal(-pgid, SIGKILL));
         Outcome {
             status: output.status,
             out: String::from_utf8(output.stdout).expect("stdout"),
@@ -599,7 +585,7 @@ fn a_report_that_cannot_be_written_fails_after_the_build() {
 #[test]
 fn cancellation_ends_without_a_failure_event() {
     let consumer = Consumer::new();
-    for signo in [libc::SIGINT, libc::SIGTERM] {
+    for signo in [SIGINT, SIGTERM] {
         let outcome = consumer.run_cancelled(
             &["build", "src/main.rs", "--output=json"],
             &[("FAKE_QUERY", "sleep")],
@@ -626,7 +612,7 @@ fn a_stopped_test_run_claims_no_results() {
     let consumer = Consumer::new();
     let results = consumer.workspace().join(".dx/local/results.json");
     fs::create_dir_all(results.parent().expect("parent")).expect("dx dir");
-    for signo in [libc::SIGINT, libc::SIGTERM] {
+    for signo in [SIGINT, SIGTERM] {
         fs::create_dir_all(results.parent().expect("dir")).expect("dir");
         fs::write(&results, "stale").expect("stale results");
         let outcome = consumer.run_cancelled(
@@ -752,7 +738,7 @@ fn check_keeps_every_phase_finding_when_the_report_cannot_be_written() {
 #[test]
 fn check_cancellation_stops_before_any_later_phase() {
     let consumer = Consumer::new();
-    for signo in [libc::SIGINT, libc::SIGTERM] {
+    for signo in [SIGINT, SIGTERM] {
         let outcome = consumer.run_cancelled(
             &["check", "//...", "--output=json"],
             &[("FAKE_BUILD", "sleep")],
@@ -777,7 +763,7 @@ fn check_cancellation_stops_before_any_later_phase() {
 fn check_cancellation_during_the_shared_build_stops_before_any_later_phase() {
     let consumer = Consumer::new();
     let (result, witness) = consumer.stage_findings();
-    for signo in [libc::SIGINT, libc::SIGTERM] {
+    for signo in [SIGINT, SIGTERM] {
         let outcome = consumer.run_cancelled(
             &["check", "//...", "--output=json"],
             &[

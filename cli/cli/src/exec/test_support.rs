@@ -14,8 +14,6 @@ use quality_result::proto::{Capability, Convergence, FileSnapshot, QualityResult
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeSet, HashMap};
 use std::io::{self};
-#[cfg(unix)]
-use std::os::fd::AsRawFd;
 use std::path::Path;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -1378,16 +1376,8 @@ pub(crate) fn failed_action(
 #[cfg(unix)]
 /// Reports whether the pipe behind `writer` has no reader left in any process.
 #[cfg(unix)]
-#[expect(unsafe_code, reason = "poll has no safe std API")]
-pub(crate) fn reader_gone(writer: &io::PipeWriter, timeout_ms: i32) -> bool {
-    let mut fd = libc::pollfd {
-        fd: writer.as_raw_fd(),
-        events: libc::POLLOUT,
-        revents: 0,
-    };
-    // SAFETY: `fd` is a live pollfd and the count is 1.
-    let ready = unsafe { libc::poll(&raw mut fd, 1, timeout_ms) };
-    ready > 0 && fd.revents & (libc::POLLERR | libc::POLLHUP) != 0
+pub(crate) fn reader_gone(writer: &io::PipeWriter, wait: Duration) -> bool {
+    dx_os_sys::fd::wait_readable(writer, wait).expect("poll")
 }
 
 /// Drops `reader` and waits until no process holds a copy of the read end.
@@ -1395,7 +1385,7 @@ pub(crate) fn reader_gone(writer: &io::PipeWriter, timeout_ms: i32) -> bool {
 pub(crate) fn hang_up(reader: io::PipeReader, writer: &io::PipeWriter) {
     drop(reader);
     let deadline = Instant::now() + Duration::from_secs(30);
-    while !reader_gone(writer, 1000) {
+    while !reader_gone(writer, Duration::from_secs(1)) {
         assert!(Instant::now() < deadline, "pipe reader still held");
     }
 }

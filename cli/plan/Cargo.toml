@@ -15,7 +15,6 @@ clap_lex = "1"
 clap_complete = { version = "4", features = ["unstable-dynamic"] }
 # Renders the man page from the clap grammar for the `dx_man` binary.
 clap_mangen = "0.2"
-libc = "0.2"
 line-index = "0.1"
 quick-junit = "0.8"
 quick-xml = "0.41"

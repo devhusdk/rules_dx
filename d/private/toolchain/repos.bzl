@@ -22,15 +22,7 @@ ADDON_DIR = "_dx_addon"
 
 def ldc_required_paths(cell):
     """Returns the paths one LDC cell's archive must provide."""
-    return [cell.ldc, cell.compiler, "etc/ldc2.conf", cell.druntime, cell.phobos] + ([cell.fuzzer_runtime] if cell.fuzzer_runtime else [])
-
-FUZZER_RUNTIME = """cc_import(
-    name = "fuzzer_runtime",
-    alwayslink = True,
-    static_library = "{fuzzer_runtime}",
-)
-
-"""
+    return [cell.ldc, cell.compiler, "etc/ldc2.conf", cell.druntime, cell.phobos]
 
 DMD_FILEGROUP = """filegroup(
     name = "dmd",
@@ -83,7 +75,7 @@ cc_import(
     static_library = "{phobos}",
 )
 
-{fuzzer_runtime}{dmd}
+{dmd}
 
 filegroup(
     name = "dub",
@@ -172,7 +164,6 @@ def ldc_build(cell):
         data_globs = "".join(['        "' + glob + '",\n' for glob in cell.data_globs]),
         druntime = cell.druntime,
         dub = cell.dub,
-        fuzzer_runtime = FUZZER_RUNTIME.format(fuzzer_runtime = cell.fuzzer_runtime) if cell.fuzzer_runtime else "",
         ldc = cell.ldc,
         linkopts = repr(cell.linkopts),
         phobos = cell.phobos,

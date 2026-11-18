@@ -21,10 +21,6 @@ _WINDOWS_ADDON = struct(
     urls = _ARCHIVES["ldc_windows_addon"]["urls"],
 )
 
-# fuzzer_runtime is the libFuzzer archive LDC ships for a cell whose linker cannot take
-# -fsanitize=fuzzer. On Linux and macOS the clang driver links libFuzzer itself; lld-link
-# on Windows ignores that flag, so d_fuzz_test links this archive whole instead.
-
 def _cell(cell):
     return _PINS["cells"][cell]
 
@@ -37,7 +33,6 @@ LDC_CELLS = {
         data_globs = [],
         druntime = "lib/libdruntime-ldc.a",
         dub = "bin/dub",
-        fuzzer_runtime = None,
         exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
         ldc = "bin/ldc2",
         linkopts = ["-ldl", "-lm", "-lpthread", "-lrt"],
@@ -57,7 +52,6 @@ LDC_CELLS = {
         data_globs = [],
         druntime = "lib/libdruntime-ldc.a",
         dub = "bin/dub",
-        fuzzer_runtime = None,
         exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],
         ldc = "bin/ldc2",
         linkopts = ["-ldl", "-lm", "-lpthread", "-lrt"],
@@ -77,7 +71,6 @@ LDC_CELLS = {
         data_globs = [],
         druntime = "lib/libdruntime-ldc.a",
         dub = "bin/dub",
-        fuzzer_runtime = None,
         exec_compatible_with = ["@platforms//os:macos", "@platforms//cpu:aarch64"],
         ldc = "bin/ldc2",
         linkopts = ["-ldl", "-lm", "-lpthread"],
@@ -97,7 +90,6 @@ LDC_CELLS = {
         data_globs = ["bin/*.dll", "lib-windows-arm64/*.dll"],
         druntime = "lib-windows-arm64/druntime-ldc.lib",
         dub = "bin/dub.exe",
-        fuzzer_runtime = None,
         exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:aarch64", MSVC_ABI],
         ldc = "bin/ldc2.exe",
         linkopts = _WINDOWS_LINKOPTS,
@@ -117,7 +109,6 @@ LDC_CELLS = {
         data_globs = ["bin/*.dll"],
         druntime = "lib/druntime-ldc.lib",
         dub = "bin/dub.exe",
-        fuzzer_runtime = "lib/ldc_rt.fuzzer.lib",
         exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64", MSVC_ABI],
         ldc = "bin/ldc2.exe",
         linkopts = _WINDOWS_LINKOPTS,

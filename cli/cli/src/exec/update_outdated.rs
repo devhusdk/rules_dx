@@ -229,10 +229,6 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
     exit
 }
 
-fn first_lock(ecosystem: Ecosystem) -> &'static str {
-    ecosystem.lockfiles().first().map_or("", String::as_str)
-}
-
 const BAZEL_TIMEOUT: Duration = Duration::from_mins(30);
 
 /// Finds the pinned opam-repository snapshot checkout through the pinned opam wrapper.
@@ -584,7 +580,7 @@ fn collect_cabal(acc: &mut Acc, cx: &Ctx<'_>) {
         .set
         .locks
         .iter()
-        .filter(|lock| lock.ends_with(first_lock(Ecosystem::Cabal)))
+        .filter(|lock| lock.ends_with(Ecosystem::Cabal.lockfile()))
         .cloned()
         .collect();
     if freezes.is_empty() {
@@ -683,7 +679,7 @@ fn collect_julia(acc: &mut Acc, cx: &Ctx<'_>) {
         .set
         .locks
         .iter()
-        .filter(|lock| lock.ends_with(first_lock(Ecosystem::Julia)))
+        .filter(|lock| lock.ends_with(Ecosystem::Julia.lockfile()))
         .cloned()
         .collect();
     merge(
@@ -1295,7 +1291,7 @@ fn stack_lock_errors(set: &str, locks: &[String]) -> Vec<dx_update::discover::Lo
             package: lock.clone(),
             reason: format!(
                 "dx does not run stack; pin the {lock} versions in the project file and run the cabal lock step to write {}",
-                first_lock(Ecosystem::Cabal)
+                Ecosystem::Cabal.lockfile()
             ),
         })
         .collect()
@@ -1352,7 +1348,7 @@ mod tests {
     fn stack_lock_without_freeze_is_refused() {
         let locks = vec![
             "app/stack.yaml.lock".to_owned(),
-            first_lock(Ecosystem::Cabal).to_owned(),
+            Ecosystem::Cabal.lockfile().to_owned(),
         ];
         let errors = stack_lock_errors("hackage", &locks);
         assert_eq!(errors.len(), 1);

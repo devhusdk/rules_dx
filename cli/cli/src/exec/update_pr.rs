@@ -750,10 +750,6 @@ mod tests {
         ecosystem.manifest_name()
     }
 
-    fn lock_of(ecosystem: Ecosystem) -> &'static str {
-        ecosystem.lockfiles()[0].as_str()
-    }
-
     struct Fixture {
         _dir: tempfile::TempDir,
         work: PathBuf,
@@ -786,7 +782,7 @@ mod tests {
         )
         .unwrap();
         dx_test_scratch::git(&work, &work, &["init", "-q", "-b", "main"]).unwrap();
-        std::fs::write(work.join(lock_of(Ecosystem::Cargo)), "a\n").expect("write");
+        std::fs::write(work.join(Ecosystem::Cargo.lockfile()), "a\n").expect("write");
         dx_test_scratch::git(&work, &work, &["add", "-A"]).unwrap();
         dx_test_scratch::git(&work, &work, &["commit", "-q", "-m", "init"]).unwrap();
         dx_test_scratch::git(
@@ -886,7 +882,7 @@ mod tests {
                 return Err(DxError::failure(format!("{} failed", words[0])));
             }
             if words.contains(&"--apply".to_owned()) && words.len() >= 3 {
-                std::fs::write(work.join(lock_of(Ecosystem::Cargo)), "a\nb\n")
+                std::fs::write(work.join(Ecosystem::Cargo.lockfile()), "a\nb\n")
                     .map_err(|e| DxError::from_io(e.to_string(), &e))?;
             }
             Ok(())
@@ -897,7 +893,7 @@ mod tests {
         move |words: &[String]| {
             if words.len() == 4 && words[3] == "--apply" {
                 std::fs::write(
-                    work.join(lock_of(Ecosystem::Cargo)),
+                    work.join(Ecosystem::Cargo.lockfile()),
                     format!("a\n{}\n", words[2]),
                 )
                 .map_err(|e| DxError::from_io(e.to_string(), &e))?;
@@ -916,7 +912,7 @@ mod tests {
             &plans(),
             &scope(),
             &rules(),
-            &[lock_of(Ecosystem::Cargo).to_owned()],
+            &[Ecosystem::Cargo.lockfile().to_owned()],
             &mut step,
         )
         .expect("publish");
@@ -924,7 +920,7 @@ mod tests {
         let argv = std::fs::read_to_string(&fx.argv).expect("argv");
         assert!(argv.contains("pr create --base main --head dx-update/cargo"));
         assert!(argv.contains("cargo:serde 1.0.0 -> 2.0.0"));
-        assert!(argv.contains(&format!("| {} | 1 | 0 |", lock_of(Ecosystem::Cargo))));
+        assert!(argv.contains(&format!("| {} | 1 | 0 |", Ecosystem::Cargo.lockfile())));
         let pushed = dx_test_scratch::git(
             &fx.origin,
             &fx.origin,
@@ -1144,7 +1140,7 @@ mod tests {
         let mut step = move |words: &[String]| {
             let applying = words.contains(&"--apply".to_owned()) && words.len() >= 3;
             if applying && words[1].starts_with("github-actions") {
-                std::fs::write(work.join(lock_of(Ecosystem::Cargo)), "a\nb\n")
+                std::fs::write(work.join(Ecosystem::Cargo.lockfile()), "a\nb\n")
                     .map_err(|e| DxError::from_io(e.to_string(), &e))?;
             }
             Ok(())
@@ -1215,7 +1211,7 @@ mod tests {
     #[test]
     fn a_dirty_tree_is_refused() {
         let fx = fixture("[]");
-        std::fs::write(fx.work.join(lock_of(Ecosystem::Cargo)), "dirty\n").expect("write");
+        std::fs::write(fx.work.join(Ecosystem::Cargo.lockfile()), "dirty\n").expect("write");
         let mut step = editing(fx.work.clone(), None);
         let got = publish(
             &fx.work,
@@ -1377,7 +1373,7 @@ mod tests {
             root.join("MODULE.bazel"),
             format!(
                 "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = \"crates\", cargo_lockfile = \"//:{}\", lockfile = \"//:cargo-bazel-lock.json\", manifests = [\"//:{}\"])\nuse_repo(crate, \"crates\")\n",
-                lock_of(Ecosystem::Cargo),
+                Ecosystem::Cargo.lockfile(),
                 manifest_of(Ecosystem::Cargo)
             ),
         )
@@ -1387,7 +1383,7 @@ mod tests {
             "[dependencies]\nserde = \"1\"\n",
         )
         .expect("manifest");
-        std::fs::write(root.join(lock_of(Ecosystem::Cargo)), "a\n").expect("lock");
+        std::fs::write(root.join(Ecosystem::Cargo.lockfile()), "a\n").expect("lock");
         let registry = harness.temp.join("registry");
         let dir = registry.join("index.crates.io/se/rd");
         std::fs::create_dir_all(&dir).expect("mkdir");
@@ -1571,7 +1567,7 @@ mod tests {
     #[test]
     fn run_plans_ruby_sets() {
         let gemfile = manifest_of(Ecosystem::Ruby);
-        let gemfile_lock = lock_of(Ecosystem::Ruby);
+        let gemfile_lock = Ecosystem::Ruby.lockfile();
         let hub_lock = dx_adopt::lock_hubs::lock_of("ruby").expect("ruby lock");
         let module = format!(
             "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.lock(name = \"gems\", lock = \"//:{hub_lock}\")\n"

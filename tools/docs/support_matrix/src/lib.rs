@@ -147,7 +147,7 @@ impl From<WorkflowError> for SupportMatrixError {
 pub const MATRIX_PATH: &str = "docs/support-matrix.md";
 
 /// The skip reasons dx reads at run time, relative to the workspace root.
-pub const UNSUPPORTED_PATH: &str = "cli/cli/src/exec/unsupported.json";
+pub const UNSUPPORTED_PATH: &str = "cli/exec_reports/src/unsupported.json";
 
 /// The command that refreshes the page.
 pub const UPDATE_COMMAND: &str = "bazel run //tools/docs/support_matrix:update";

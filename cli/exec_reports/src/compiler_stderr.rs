@@ -1,8 +1,8 @@
-use super::rustc_stderr::ActionDiagnostic;
+use crate::rustc_stderr::ActionDiagnostic;
 
 /// Reads `path:line:col: severity: message` (gcc, clang, javac, kotlinc, swiftc),
 /// Go's `path:line:col: message` and `path(line,col): error CODE: message` (tsc, csc).
-pub(super) fn parse(stderr: &[u8]) -> Vec<ActionDiagnostic> {
+pub fn parse(stderr: &[u8]) -> Vec<ActionDiagnostic> {
     String::from_utf8_lossy(stderr)
         .lines()
         .filter_map(|line| colon_form(line).or_else(|| paren_form(line)))

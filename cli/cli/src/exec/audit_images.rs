@@ -1,13 +1,13 @@
 //! The images section of `dx security`: every `oci_deploy` image in scope is
 //! built and scanned with the pinned trivy, one row per image.
 
-use super::super::pinned_tool::{PinnedTool, PinnedToolError, QueryBazel, resolve_pinned};
 use super::audit_accept::VulnCandidate;
 use dx_audit::exception::{RiskException, SecurityPolicy};
 use dx_audit::image_scan::{
     IMAGE_SET, ImageFinding, covers, parse_report, severity_list, trivy_args,
 };
 use dx_error::DxError;
+use dx_exec_reports::pinned_tool::{PinnedTool, PinnedToolError, QueryBazel, resolve_pinned};
 use dx_output::{DiagnosticEvent, Severity, Threshold};
 use dx_tool_resolve::Bazel;
 use std::path::Path;

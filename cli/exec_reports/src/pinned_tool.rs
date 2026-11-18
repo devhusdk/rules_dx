@@ -6,10 +6,10 @@ use dx_plan::resolve::QueryRunner;
 use std::path::{Path, PathBuf};
 
 /// Runs the cquery and info calls tool resolution needs through dx's own Bazel launcher.
-pub(crate) struct QueryBazel<'a> {
-    pub(crate) query_runner: &'a dyn QueryRunner,
-    pub(crate) workspace: &'a Path,
-    pub(crate) startup: &'a [String],
+pub struct QueryBazel<'a> {
+    pub query_runner: &'a dyn QueryRunner,
+    pub workspace: &'a Path,
+    pub startup: &'a [String],
 }
 
 impl dx_tool_resolve::Bazel for QueryBazel<'_> {
@@ -84,14 +84,14 @@ impl QueryBazel<'_> {
 }
 
 /// One pinned tool: the variable that overrides it and the Bazel label that pins it.
-pub(crate) struct PinnedTool<'a> {
-    pub(crate) var: &'a str,
-    pub(crate) label: &'a str,
+pub struct PinnedTool<'a> {
+    pub var: &'a str,
+    pub label: &'a str,
 }
 
 /// Why a pinned tool could not be resolved.
 #[derive(Debug, Eq, PartialEq)]
-pub(crate) enum PinnedToolError {
+pub enum PinnedToolError {
     /// The variable is set but not to an absolute path.
     Invalid,
     /// The variable is unset and Bazel could not resolve the label.
@@ -100,7 +100,7 @@ pub(crate) enum PinnedToolError {
 
 /// Resolves `tool` from its variable, else through Bazel. Under `offline` the
 /// resolution cquery disables repository downloads but still uses cached repos.
-pub(crate) fn resolve_pinned(
+pub fn resolve_pinned(
     runner: &dyn dx_process::Runner,
     bazel: &dyn dx_tool_resolve::Bazel,
     tool: &PinnedTool<'_>,
@@ -157,7 +157,7 @@ mod tests {
 
     /// An output base holding the file the fake cquery names.
     fn base() -> (tempfile::TempDir, String) {
-        let dir = super::super::test_support::temp_dir("pinned-tool");
+        let dir = dx_test_scratch::scratch("dx-exec-test-pinned-tool-").unwrap();
         for rel in ["external/tool/bin", "bazel-out/k8-fastbuild/bin/tool"] {
             let file = dir.path().join(rel);
             std::fs::create_dir_all(file.parent().expect("parent")).expect("dir");

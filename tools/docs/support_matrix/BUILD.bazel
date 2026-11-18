@@ -25,7 +25,7 @@ filegroup(
         "row_labels.json",
         ":facts",
         "//.github:workflows/ci.yml",
-        "//cli/cli:src/exec/unsupported.json",
+        "//cli/exec_reports:src/unsupported.json",
     ] + glob(["row_tests/*.json"]) + support_matrix_inputs(),
 )
 

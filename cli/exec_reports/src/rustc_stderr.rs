@@ -1,25 +1,25 @@
 use serde::Deserialize;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct ActionDiagnostic {
-    pub(super) severity: &'static str,
-    pub(super) code: Option<String>,
-    pub(super) message: String,
-    pub(super) file: Option<String>,
-    pub(super) line: Option<u64>,
-    pub(super) column: Option<u64>,
-    pub(super) related: Vec<ActionRelated>,
+pub struct ActionDiagnostic {
+    pub severity: &'static str,
+    pub code: Option<String>,
+    pub message: String,
+    pub file: Option<String>,
+    pub line: Option<u64>,
+    pub column: Option<u64>,
+    pub related: Vec<ActionRelated>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct ActionRelated {
-    pub(super) role: &'static str,
-    pub(super) message: String,
-    pub(super) file: Option<String>,
-    pub(super) line: Option<u64>,
-    pub(super) column: Option<u64>,
-    pub(super) replacement: Option<String>,
-    pub(super) applicability: Option<String>,
+pub struct ActionRelated {
+    pub role: &'static str,
+    pub message: String,
+    pub file: Option<String>,
+    pub line: Option<u64>,
+    pub column: Option<u64>,
+    pub replacement: Option<String>,
+    pub applicability: Option<String>,
 }
 
 const MAX_RELATED: usize = 32;
@@ -141,7 +141,7 @@ fn collect_related(diagnostic: &Message) -> Vec<ActionRelated> {
     out
 }
 
-pub(super) fn parse(stderr: &[u8]) -> Vec<ActionDiagnostic> {
+pub fn parse(stderr: &[u8]) -> Vec<ActionDiagnostic> {
     let text = String::from_utf8_lossy(stderr);
     let mut found = Vec::new();
     let mut saw_json = false;

@@ -8,6 +8,7 @@
 - `api-label.yml`: on pull requests and label changes, fails when the pull request changes a file under `api/` (a rename out of it counts) and has no `api` label. Runs on `ubuntu-slim`.
 - `pr-links.yml`: on pull requests, including body edits, runs `producers_bin --pr-links` on the body and commit messages. It fails when the body has no `Closes #N`, `Part of #N` or `No issue: <reason>` line, or when the body or a commit names an issue with a work phrase ("fixes", "part of", "slice", "draft for", "implements", "fixed by this PR") that no `Closes` or `Part of` line links. Replay a body locally with `GITHUB_EVENT_PATH=event.json bazel-bin/tools/ci/producers/producers_bin --pr-links [COMMITS_FILE]`.
 - `ci.yml`: this repository's own `ci` gate. A failed Windows preflight build uploads `rmeta-diagnostics-<platform>` (#4850).
+- When the `gate` check or the `evidence.yml` test task fails, `producers_bin --test-log-tails` prints the last 80 lines of each failing test's `test.log` in its own `::group::` in the job log, for the first 20 failing tests.
 - `ci.yml` job `determinism` builds `//appimage/...` and `//cli/archive/...` twice in fresh output bases with no cache and compares the execution logs against `tools/ci/determinism_allowlist.txt`.
 - `issue-labels.yml`: daily warning for open issues older than one day, except pinned ones, that have no P0 to P3 label. Writes a job summary. Runs on `ubuntu-slim`.
   A second job warns about labels named in `CONTRIBUTING.md` or issue template front matter that do not exist in the repository (#6643).

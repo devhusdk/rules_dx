@@ -9,6 +9,7 @@
 //! `producers_bin --pr-check SET [BAZEL_FLAGS...]` runs the analysis-only pull request checks of SET, or of every set for `all`.
 //! `producers_bin --release-cell OUT` builds and qualifies the release cell named by CELL and the workflow environment.
 //! `producers_bin --table EVIDENCE_DIR OUT PLATFORM...` merges the evidence under a directory into OUT and prints the table.
+//! `producers_bin --test-log-tails (--bep FILE | --dx FILE)...` prints the test.log tail of each failing test as a job log group.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
@@ -21,6 +22,7 @@ mod pr_links;
 mod release_cell;
 mod review_paths;
 mod table;
+mod test_log_tails;
 mod upgrade_e2e;
 
 use dx_binfmt::producers;
@@ -34,6 +36,7 @@ fn main() -> Result<(), String> {
         Some(("--table", rest)) => return table::print(rest),
         Some(("--lock-merge", rest)) => return lock_merge::merge(rest),
         Some(("--pr-links", rest)) => return pr_links::check(rest),
+        Some(("--test-log-tails", rest)) => return test_log_tails::print(rest),
         _ => {}
     }
     if let Some(("--blocker-refs", rest)) =
@@ -46,8 +49,7 @@ fn main() -> Result<(), String> {
     {
         return upgrade_e2e::e2e(rest);
     }
-    if let Some(("--pr-check", rest)) =
-        args.split_first().map(|(mode, rest)| (mode.as_str(), rest))
+    if let Some(("--pr-check", rest)) = args.split_first().map(|(mode, rest)| (mode.as_str(), rest))
     {
         return pr_check::check(rest);
     }

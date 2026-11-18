@@ -108,7 +108,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel test --noshow_progress --test_timeout=300 //.devcontainer:devcontainer_parity_test "$@"
+          bazel test --noshow_progress --test_output=errors --test_timeout=300 //.devcontainer:devcontainer_parity_test "$@"
       - name: Validate devcontainer definition shape
         run: |
           post_create="$(jq -er '.postCreateCommand' .devcontainer/devcontainer.json)"
@@ -1013,7 +1013,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel test --noshow_progress --test_timeout=300 //tools/ci:actionlint_test //tools/ci:workflow_expressions_test //tools/docs/rule_names:rule_names_test "$@"
+          bazel test --noshow_progress --test_output=errors --test_timeout=300 //tools/ci:actionlint_test //tools/ci:workflow_expressions_test //tools/docs/rule_names:rule_names_test "$@"
       - name: Fail when bazel mod tidy would change MODULE.bazel
         run: |
           # shellcheck disable=SC2086

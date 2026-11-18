@@ -1,7 +1,6 @@
 """The dx_deployment rule that dx deploy runs."""
 
 load("//core:defs.bzl", "DxSubjectInfo", "display_label")
-load("//core:wrapper.bzl", "dx_symlink_executable")
 load(":sbom.bzl", "DxSbomFileInfo")
 load(":config.bzl", "DxDeployConfigInfo", "DxRegistryArtifactsInfo")
 load("//core:rlocation.bzl", "rlocation_path")
@@ -28,7 +27,8 @@ def _dx_deployment_impl(ctx):
     if exe == None:
         fail("dx_deployment " + str(ctx.label) + ": deploy target " +
              str(ctx.attr.deploy.label) + " has no executable")
-    link = dx_symlink_executable(ctx, exe)
+    link = ctx.actions.declare_file(ctx.label.name + "/" + exe.basename)
+    ctx.actions.symlink(output = link, target_file = exe, is_executable = True)
     runfiles = ctx.runfiles(files = [link]).merge(deploy_default.default_runfiles)
     budget_error = size_budget_error(ctx.attr.size_budget)
     if budget_error:

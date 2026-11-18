@@ -190,6 +190,7 @@ fn run_as_tool() -> Option<i32> {
         Tool::CollectNative => collect_native::run_process(lossy(args)),
         Tool::EnvShardWriter => env_shard::writer::run_process(&lossy(args)),
         Tool::CodegenShardWriter => codegen_shard::writer::run_process(&lossy(args)),
+        Tool::DeployTool => dx_deploy_tools::deploy_tool_main(&named("deploy_tool", args)),
         Tool::ReleaseTree => release_tree::run_process(&lossy(args)),
         Tool::Capture => capture::run_process(args),
         Tool::ApiSpecPreflight => api_spec_codegen::preflight::run_process(&lossy(args)),

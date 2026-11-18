@@ -15,6 +15,7 @@ LAUNCHER_SOURCE = TOOLS["launcher"].source
 SOURCE_TOOLS = {
     "codegen_shard_writer": "@rules_dx//cli/codegen_shard:codegen_shard_writer",
     "collect_native": "@rules_dx//tools/coverage/collect:collect_native",
+    "deploy_tool": "@rules_dx//deploy/private:deploy_tool",
     "env_shard_writer": "@rules_dx//core/env/private/tools/env_shard:env_shard_writer",
     "lsp_check": "@rules_dx//core/quality/lsp_check:lsp_check",
     "quality_markdown": "@rules_dx//core/quality/markdown:quality_markdown",

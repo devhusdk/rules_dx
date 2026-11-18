@@ -135,7 +135,7 @@ def _fsc_impl(target, ctx):
         mnemonic = "FSharpFsc",
         progress_message = "fsc diagnostics %{label}",
         executable = ctx.executable._capture,
-        arguments = ["--stdout", log.path, "--stderr", log.path, "--status", status.path, "--", wrapper.path, runtime.path, fsc.path, args],
+        arguments = ["capture", "--stdout", log.path, "--stderr", log.path, "--status", status.path, "--", wrapper.path, runtime.path, fsc.path, args],
         inputs = inputs,
         outputs = [log, status, out_tree],
         env = {"DOTNET_CLI_HOME": runtime.dirname},
@@ -150,7 +150,7 @@ fsc_aspect = aspect(
     attr_aspects = ["upstream", "dx_tfm_variants"],
     attrs = {
         "_capture": attr.label(
-            default = "//core/quality/capture",
+            default = "@dx_prebuilt//:dx",
             executable = True,
             cfg = "exec",
             doc = "Runs one program with its streams and exit code written to files.",

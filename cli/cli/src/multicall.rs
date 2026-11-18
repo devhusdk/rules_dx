@@ -1,6 +1,7 @@
 //! `dx` runs a bundled tool when started under that tool's name, so the prebuilt hub can ship one
 //! binary and expose it as `quality_runner`, `quality_markdown`, `quality_notebook`, `lsp_check`,
-//! `collect_native`, `env_shard_writer` and `codegen_shard_writer`.
+//! `collect_native`, `env_shard_writer` and `codegen_shard_writer`. Rule helpers that need no alias
+//! run as `dx <tool> [ARG]...`, so a host without symlinks keeps one copy of dx.
 
 use std::ffi::OsStr;
 use std::path::Path;
@@ -14,6 +15,8 @@ pub enum Tool {
     CollectNative,
     EnvShardWriter,
     CodegenShardWriter,
+    Capture,
+    ReleaseTree,
 }
 
 /// The tool `dx` was started as, judged by the file stem of argv[0] so `.exe` does not matter.
@@ -27,6 +30,16 @@ pub fn tool_for(argv0: &OsStr) -> Option<Tool> {
         "collect_native" => Some(Tool::CollectNative),
         "env_shard_writer" => Some(Tool::EnvShardWriter),
         "codegen_shard_writer" => Some(Tool::CodegenShardWriter),
+        _ => None,
+    }
+}
+
+/// The helper named by dx's first argument.
+#[must_use]
+pub fn subcommand_for(arg1: &OsStr) -> Option<Tool> {
+    match arg1.to_str()? {
+        "capture" => Some(Tool::Capture),
+        "release_tree" => Some(Tool::ReleaseTree),
         _ => None,
     }
 }
@@ -85,6 +98,25 @@ mod tests {
             "quality",
         ] {
             assert_eq!(tool_for(OsStr::new(name)), None, "{name}");
+        }
+    }
+
+    #[test]
+    fn subcommands_pick_their_tool() {
+        assert_eq!(subcommand_for(OsStr::new("capture")), Some(Tool::Capture));
+        assert_eq!(
+            subcommand_for(OsStr::new("release_tree")),
+            Some(Tool::ReleaseTree)
+        );
+    }
+
+    #[test]
+    fn subcommands_have_no_alias_and_aliases_are_not_subcommands() {
+        for name in ["capture", "release_tree", "capture.exe"] {
+            assert_eq!(tool_for(OsStr::new(name)), None, "{name}");
+        }
+        for name in ["quality_runner", "capture.exe", "test", "check", "", "--help"] {
+            assert_eq!(subcommand_for(OsStr::new(name)), None, "{name}");
         }
     }
 }

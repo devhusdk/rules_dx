@@ -57,7 +57,7 @@ def _nif_lint_results_impl(ctx):
         outputs = [out],
         executable = ctx.executable._capture,
         tools = [ctx.executable._printer],
-        arguments = ["--stdout", out.path, "--", ctx.executable._printer.path, results[0].path],
+        arguments = ["capture", "--stdout", out.path, "--", ctx.executable._printer.path, results[0].path],
         mnemonic = "NifLintResult",
     )
     return [DefaultInfo(files = depset([out]))]
@@ -67,7 +67,7 @@ _nif_lint_results = rule(
     doc = "Renders the C lint result of one target as text.",
     attrs = {
         "target": attr.label(doc = "Target to lint.", aspects = [real_cc_lint_aspect], mandatory = True),
-        "_capture": attr.label(default = "//core/quality/capture", executable = True, cfg = "exec"),
+        "_capture": attr.label(default = "@dx_prebuilt//:dx", executable = True, cfg = "exec"),
         "_printer": attr.label(default = "//core/quality/result:print_result", executable = True, cfg = "exec"),
     },
 )

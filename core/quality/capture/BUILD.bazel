@@ -9,15 +9,7 @@ rust_library(
     srcs = ["src/lib.rs"],
     crate_name = "capture",
     crate_root = "src/lib.rs",
-)
-
-rust_binary(
-    name = "capture",
-    srcs = ["src/main.rs"],
-    crate_name = "capture",
-    crate_root = "src/main.rs",
-    visibility = ["//visibility:public"],
-    deps = [":capture_lib"],
+    visibility = ["//cli/cli:__pkg__"],
 )
 
 # keep
@@ -53,9 +45,6 @@ real_source_target(
 )
 
 exports_files(
-    [
-        "src/lib.rs",
-        "src/main.rs",
-    ],
+    ["src/lib.rs"],
     visibility = ["//core/quality:__pkg__"],
 )

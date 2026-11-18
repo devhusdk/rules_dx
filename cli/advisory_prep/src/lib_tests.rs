@@ -1,122 +1,17 @@
-use std::io::Write as _;
-
 use super::*;
-use crate::archive::ArchiveError;
 use dx_audit::advisory::{advisory_source, identity_matches_bytes, parse_identity};
 use dx_audit::vuln::parse_snapshot;
 use tempfile::TempDir;
 
-const STORED: u16 = 0;
-const DEFLATED: u16 = 8;
-const EOCD_FIXED: usize = 22;
-const CENTRAL_FIXED: usize = 46;
-
-struct Fixture {
-    name: String,
-    body: Vec<u8>,
-    method: u16,
-}
-
-impl Fixture {
-    fn stored(name: &str, body: &str) -> Self {
-        Fixture {
-            name: name.to_owned(),
-            body: body.as_bytes().to_vec(),
-            method: STORED,
-        }
+/// Builds a zip that holds every `(name, body)` entry in order.
+fn archive(entries: &[(&str, &str)]) -> Vec<u8> {
+    let mut writer = dx_archive::ZipWriter::new();
+    for (name, body) in entries {
+        writer
+            .add_file(name, body.as_bytes(), 0o644)
+            .expect("adds the entry");
     }
-
-    fn deflated(name: &str, body: &str) -> Self {
-        Fixture {
-            name: name.to_owned(),
-            body: body.as_bytes().to_vec(),
-            method: DEFLATED,
-        }
-    }
-}
-
-fn deflated_bytes(body: &[u8]) -> Vec<u8> {
-    let mut encoder =
-        flate2::write::DeflateEncoder::new(Vec::new(), flate2::Compression::default());
-    encoder.write_all(body).expect("deflates");
-    encoder.finish().expect("finishes")
-}
-
-fn le16(value: u16) -> Vec<u8> {
-    value.to_le_bytes().to_vec()
-}
-
-fn le32(value: u32) -> Vec<u8> {
-    value.to_le_bytes().to_vec()
-}
-
-fn small(value: usize) -> u32 {
-    u32::try_from(value).expect("small fixture")
-}
-
-/// Builds the smallest zip archive that holds every fixture entry.
-fn archive(fixtures: &[Fixture]) -> Vec<u8> {
-    let mut out: Vec<u8> = Vec::new();
-    let mut directory: Vec<u8> = Vec::new();
-    for fixture in fixtures {
-        let data = if fixture.method == DEFLATED {
-            deflated_bytes(&fixture.body)
-        } else {
-            fixture.body.clone()
-        };
-        let crc = crc32fast::hash(&fixture.body);
-        let name = fixture.name.as_bytes();
-        let offset = small(out.len());
-        out.extend(b"PK\x03\x04");
-        out.extend(le16(20));
-        out.extend(le16(0));
-        out.extend(le16(fixture.method));
-        out.extend(le16(0));
-        out.extend(le16(0));
-        out.extend(le32(crc));
-        out.extend(le32(small(data.len())));
-        out.extend(le32(small(fixture.body.len())));
-        out.extend(le16(u16::try_from(name.len()).expect("short name")));
-        out.extend(le16(0));
-        out.extend(name);
-        out.extend(&data);
-        directory.extend(b"PK\x01\x02");
-        directory.extend(le16(20));
-        directory.extend(le16(20));
-        directory.extend(le16(0));
-        directory.extend(le16(fixture.method));
-        directory.extend(le16(0));
-        directory.extend(le16(0));
-        directory.extend(le32(crc));
-        directory.extend(le32(small(data.len())));
-        directory.extend(le32(small(fixture.body.len())));
-        directory.extend(le16(u16::try_from(name.len()).expect("short name")));
-        directory.extend(le16(0));
-        directory.extend(le16(0));
-        directory.extend(le16(0));
-        directory.extend(le16(0));
-        directory.extend(le32(0));
-        directory.extend(le32(offset));
-        directory.extend(name);
-    }
-    let count = u16::try_from(fixtures.len()).expect("few entries");
-    let size = small(directory.len());
-    let offset = small(out.len());
-    out.extend(&directory);
-    out.extend(b"PK\x05\x06");
-    out.extend(le16(0));
-    out.extend(le16(0));
-    out.extend(le16(count));
-    out.extend(le16(count));
-    out.extend(le32(size));
-    out.extend(le32(offset));
-    out.extend(le16(0));
-    out
-}
-
-/// Where the single-entry central directory of one fixture archive starts.
-fn central_at(archive: &[u8], name_len: usize) -> usize {
-    archive.len() - EOCD_FIXED - CENTRAL_FIXED - name_len
+    writer.finish().expect("finishes the zip")
 }
 
 fn advisory(id: &str, name: &str) -> String {
@@ -157,13 +52,15 @@ fn with_archive(workspace: &TempDir, options: PrepareOptions, body: &[u8]) -> Pr
 }
 
 #[test]
-fn both_stored_and_deflated_json_entries_are_read() {
+fn json_file_entries_are_read_in_archive_order() {
+    let b = advisory("GHSA-b", "bbb");
+    let a = advisory("GHSA-a", "aaa");
     let bytes = archive(&[
-        Fixture::stored("all/2/GHSA-b.json", &advisory("GHSA-b", "bbb")),
-        Fixture::deflated("all/1/GHSA-a.json", &advisory("GHSA-a", "aaa")),
-        Fixture::stored("all/README.txt", "not an advisory"),
+        ("all/2/GHSA-b.json", &b),
+        ("all/1/GHSA-a.json", &a),
+        ("all/README.txt", "not an advisory"),
     ]);
-    let entries = archive::json_entries(&bytes).expect("reads");
+    let entries = json_entries(&bytes, SNAPSHOT_LIMITS).expect("reads");
     assert_eq!(entries.len(), 2, "the README is not an advisory");
     assert_eq!(entries[0].0, "all/2/GHSA-b.json", "archive order");
     assert_eq!(entries[1].0, "all/1/GHSA-a.json", "archive order");
@@ -173,107 +70,16 @@ fn both_stored_and_deflated_json_entries_are_read() {
     );
 }
 
-/// Rewrites a fixture archive to use a zip64 end record, optionally overriding its count or offset.
-fn zip64(mut bytes: Vec<u8>, count: Option<u64>, record: Option<u64>) -> Vec<u8> {
-    let eocd = bytes.len() - EOCD_FIXED;
-    let real_count = u64::from(u16::from_le_bytes([bytes[eocd + 10], bytes[eocd + 11]]));
-    let size = u32::from_le_bytes(bytes[eocd + 12..eocd + 16].try_into().expect("size"));
-    let offset = u32::from_le_bytes(bytes[eocd + 16..eocd + 20].try_into().expect("offset"));
-    bytes.truncate(eocd);
-    let real_record = u64::try_from(bytes.len()).expect("small fixture");
-    let count = count.unwrap_or(real_count);
-    bytes.extend(b"PK\x06\x06");
-    bytes.extend(44u64.to_le_bytes());
-    bytes.extend(le16(45));
-    bytes.extend(le16(45));
-    bytes.extend(le32(0));
-    bytes.extend(le32(0));
-    bytes.extend(count.to_le_bytes());
-    bytes.extend(count.to_le_bytes());
-    bytes.extend(u64::from(size).to_le_bytes());
-    bytes.extend(u64::from(offset).to_le_bytes());
-    bytes.extend(b"PK\x06\x07");
-    bytes.extend(le32(0));
-    bytes.extend(record.unwrap_or(real_record).to_le_bytes());
-    bytes.extend(le32(1));
-    bytes.extend(b"PK\x05\x06");
-    bytes.extend(le16(0));
-    bytes.extend(le16(0));
-    bytes.extend(le16(u16::MAX));
-    bytes.extend(le16(u16::MAX));
-    bytes.extend(le32(size));
-    bytes.extend(le32(offset));
-    bytes.extend(le16(0));
-    bytes
-}
-
-fn two_advisories() -> Vec<u8> {
-    archive(&[
-        Fixture::stored("all/1/GHSA-a.json", &advisory("GHSA-a", "aaa")),
-        Fixture::stored("all/2/GHSA-b.json", &advisory("GHSA-b", "bbb")),
-    ])
-}
-
-#[test]
-fn a_zip64_end_record_supplies_the_entry_count() {
-    let bytes = zip64(two_advisories(), None, None);
-    let entries = archive::json_entries(&bytes).expect("reads");
-    assert_eq!(entries.len(), 2);
-}
-
-#[test]
-fn a_zip64_entry_count_larger_than_the_directory_is_refused() {
-    let plain = two_advisories();
-    let eocd = plain.len() - EOCD_FIXED;
-    let size = u64::from(u32::from_le_bytes(
-        plain[eocd + 12..eocd + 16].try_into().expect("size"),
-    ));
-    let fits = size / CENTRAL_FIXED as u64;
-    for count in [u64::MAX, fits + 1] {
-        match archive::json_entries(&zip64(plain.clone(), Some(count), None)) {
-            Err(ArchiveError::BadCentralDirectory { detail }) => {
-                assert!(detail.contains("entries cannot fit"), "{count}: {detail}");
-            }
-            other => panic!("{count}: {other:?}"),
-        }
-    }
-}
-
-#[test]
-fn central_entries_that_do_not_end_at_the_directory_end_are_refused() {
-    let mut bytes = two_advisories();
-    let eocd = bytes.len() - EOCD_FIXED;
-    bytes[eocd + 10..eocd + 12].copy_from_slice(&1u16.to_le_bytes());
-    match archive::json_entries(&bytes) {
-        Err(ArchiveError::BadCentralDirectory { detail }) => {
-            assert!(detail.contains("entries end at"), "{detail}");
-        }
-        other => panic!("{other:?}"),
-    }
-}
-
-#[test]
-fn a_zip64_record_offset_past_the_end_of_memory_is_refused() {
-    let bytes = zip64(two_advisories(), None, Some(u64::MAX - 1));
-    match archive::json_entries(&bytes) {
-        Err(ArchiveError::BadCentralDirectory { detail }) => {
-            assert!(detail.contains("no zip64 end record"), "{detail}");
-        }
-        other => panic!("{other:?}"),
-    }
-}
-
 #[test]
 fn an_archive_that_is_not_a_zip_is_refused() {
-    let truncated = archive(&[Fixture::stored("all/1.json", "{}")]);
+    let truncated = archive(&[("all/1.json", "{}")]);
     for bytes in [
         Vec::new(),
         b"not a zip at all".to_vec(),
-        truncated[..EOCD_FIXED / 2].to_vec(),
+        truncated[..truncated.len() / 2].to_vec(),
     ] {
-        assert_eq!(
-            archive::json_entries(&bytes),
-            Err(ArchiveError::NotAnArchive),
+        assert!(
+            json_entries(&bytes, SNAPSHOT_LIMITS).is_err(),
             "{:?}",
             String::from_utf8_lossy(&bytes)
         );
@@ -281,81 +87,50 @@ fn an_archive_that_is_not_a_zip_is_refused() {
 }
 
 #[test]
-fn a_tampered_payload_is_caught_by_its_crc() {
-    let bytes = archive(&[Fixture::stored("all/1.json", &advisory("GHSA-a", "aaa"))]);
-    let data_at = 30 + "all/1.json".len();
-    let mut tampered = bytes;
-    tampered[data_at] = b'!';
-    match archive::json_entries(&tampered) {
-        Err(ArchiveError::BadEntry { name, detail }) => {
-            assert_eq!(name, "all/1.json");
-            assert!(detail.contains("crc32"), "{detail}");
-        }
-        other => panic!("{other:?}"),
-    }
+fn a_tampered_payload_is_refused() {
+    let mut bytes = archive(&[("all/1.json", &advisory("GHSA-a", "aaa"))]);
+    let name_len = usize::from(u16::from_le_bytes([bytes[26], bytes[27]]));
+    let extra_len = usize::from(u16::from_le_bytes([bytes[28], bytes[29]]));
+    bytes[30 + name_len + extra_len] ^= 0xff;
+    assert!(json_entries(&bytes, SNAPSHOT_LIMITS).is_err());
 }
 
 #[test]
-fn a_tampered_deflate_stream_is_refused() {
-    let bytes = archive(&[Fixture::deflated("all/1.json", &advisory("GHSA-a", "aaa"))]);
-    let data_at = 30 + "all/1.json".len();
-    let mut tampered = bytes;
-    tampered[data_at + 3] ^= 0xff;
-    match archive::json_entries(&tampered) {
-        Err(ArchiveError::BadEntry { name, detail }) => {
-            assert_eq!(name, "all/1.json");
-            assert!(
-                detail.contains("crc32") || detail.contains("deflate"),
-                "{detail}"
-            );
+fn a_member_that_climbs_out_is_refused() {
+    let bytes = archive(&[("zz/GHSA-a.json", &advisory("GHSA-a", "aaa"))]);
+    let (from, to) = (b"zz/GHSA-a.json", b"../GHSA-a.json");
+    let mut tampered = bytes.clone();
+    let mut replaced = 0;
+    for at in 0..=bytes.len() - from.len() {
+        if &bytes[at..at + from.len()] == from {
+            tampered[at..at + to.len()].copy_from_slice(to);
+            replaced += 1;
         }
-        other => panic!("{other:?}"),
     }
+    assert_eq!(replaced, 2, "local and central names");
+    let error = json_entries(&tampered, SNAPSHOT_LIMITS).expect_err("refused");
+    assert!(error.to_string().contains("'..'"), "{error}");
 }
 
 #[test]
-fn an_unsupported_compression_method_is_named() {
-    let bytes = archive(&[Fixture::stored("all/1.json", "{}")]);
-    let directory = central_at(&bytes, "all/1.json".len());
-    let mut tampered = bytes;
-    tampered[8] = 0x0b;
-    tampered[directory + 10] = 0x0b;
-    match archive::json_entries(&tampered) {
-        Err(ArchiveError::UnsupportedMethod { name, method }) => {
-            assert_eq!(name, "all/1.json");
-            assert_eq!(method, 11);
-        }
-        other => panic!("{other:?}"),
-    }
+fn an_oversized_member_is_refused() {
+    let bytes = archive(&[("all/1.json", &advisory("GHSA-a", "aaa"))]);
+    let limits = dx_archive::Limits {
+        max_entry_bytes: 8,
+        ..SNAPSHOT_LIMITS
+    };
+    let error = json_entries(&bytes, limits).expect_err("refused");
+    assert!(error.to_string().contains("read size cap"), "{error}");
 }
 
 #[test]
-fn an_entry_pointing_outside_the_archive_is_refused() {
-    let bytes = archive(&[Fixture::stored("all/1.json", "{}")]);
-    let directory = central_at(&bytes, "all/1.json".len());
-    let mut tampered = bytes;
-    tampered[directory + 42..directory + 46].copy_from_slice(&9_000u32.to_le_bytes());
-    match archive::json_entries(&tampered) {
-        Err(ArchiveError::BadEntry { name, detail }) => {
-            assert_eq!(name, "all/1.json");
-            assert!(detail.contains("local file header"), "{detail}");
-        }
-        other => panic!("{other:?}"),
-    }
-}
-
-#[test]
-fn a_central_directory_that_does_not_end_at_the_record_is_refused() {
-    let bytes = archive(&[Fixture::stored("all/1.json", "{}")]);
-    let mut tampered = bytes;
-    let eocd = tampered.len() - EOCD_FIXED;
-    tampered[eocd + 16..eocd + 20].copy_from_slice(&8u32.to_le_bytes());
-    match archive::json_entries(&tampered) {
-        Err(ArchiveError::BadCentralDirectory { detail }) => {
-            assert!(detail.contains("directory covers"), "{detail}");
-        }
-        other => panic!("{other:?}"),
-    }
+fn too_many_entries_are_refused() {
+    let bytes = archive(&[("all/1.json", "{}"), ("all/2.json", "{}")]);
+    let limits = dx_archive::Limits {
+        max_entries: 1,
+        ..SNAPSHOT_LIMITS
+    };
+    assert!(json_entries(&bytes, limits).is_err());
 }
 
 #[test]
@@ -365,8 +140,8 @@ fn the_preparation_writes_one_snapshot_and_sidecar_per_needed_ecosystem() {
         &workspace,
         options(&workspace),
         &archive(&[
-            Fixture::deflated("all/1/GHSA-a.json", &advisory("GHSA-a", "aaa")),
-            Fixture::stored("all/2/GHSA-b.json", &advisory("GHSA-b", "bbb")),
+            ("all/1/GHSA-a.json", &advisory("GHSA-a", "aaa")),
+            ("all/2/GHSA-b.json", &advisory("GHSA-b", "bbb")),
         ]),
     );
     let prepared = prepare(&options).expect("prepares");
@@ -403,10 +178,7 @@ fn pinning_copies_each_snapshot_and_prints_its_pin_line() {
     let options = with_archive(
         &workspace,
         options(&workspace),
-        &archive(&[Fixture::deflated(
-            "all/1/GHSA-a.json",
-            &advisory("GHSA-a", "aaa"),
-        )]),
+        &archive(&[("all/1/GHSA-a.json", &advisory("GHSA-a", "aaa"))]),
     );
     let prepared = prepare(&options).expect("prepares");
     let dir = workspace.path().join("pin");
@@ -520,10 +292,7 @@ fn one_required_ecosystem_is_never_classified_as_empty() {
     let options = with_archive(
         &workspace,
         options(&workspace),
-        &archive(&[Fixture::stored(
-            "all/1/GHSA-a.json",
-            &advisory("GHSA-a", "aaa"),
-        )]),
+        &archive(&[("all/1/GHSA-a.json", &advisory("GHSA-a", "aaa"))]),
     );
     let summary = Summary::of(&prepare(&options).expect("prepares"));
     assert_eq!(summary.status, "prepared");
@@ -669,13 +438,10 @@ fn file_url(path: &Path) -> String {
 #[cfg(unix)]
 fn two_archives() -> (Vec<u8>, Vec<u8>) {
     (
-        archive(&[Fixture::stored(
-            "all/1/GHSA-a.json",
-            &advisory("GHSA-a", "aaa"),
-        )]),
+        archive(&[("all/1/GHSA-a.json", &advisory("GHSA-a", "aaa"))]),
         archive(&[
-            Fixture::stored("all/1/GHSA-a.json", &advisory("GHSA-a", "aaa")),
-            Fixture::stored("all/2/GHSA-b.json", &advisory("GHSA-b", "bbb")),
+            ("all/1/GHSA-a.json", &advisory("GHSA-a", "aaa")),
+            ("all/2/GHSA-b.json", &advisory("GHSA-b", "bbb")),
         ]),
     )
 }
@@ -785,10 +551,7 @@ fn a_cpan_set_is_prepared_from_the_cpansa_output() {
     let archive = with_archive(
         &workspace,
         options,
-        &archive(&[Fixture::stored(
-            "all/1/GHSA-a.json",
-            &advisory("GHSA-a", "aaa"),
-        )]),
+        &archive(&[("all/1/GHSA-a.json", &advisory("GHSA-a", "aaa"))]),
     );
     let prepared = prepare(&archive).expect("prepares");
     let cpan = prepared

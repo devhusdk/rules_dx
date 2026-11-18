@@ -27,6 +27,7 @@ pub(super) struct Sources {
 /// Reads the coverage source manifests from the run's build events.
 pub(super) fn collect_sources(bep: &Path, workspace: &Path) -> Sources {
     let mut sources = Sources {
+        // An unreadable build event stream leaves the collector unnamed.
         collector: dx_bep::stream_build_tool_version(bep)
             .ok()
             .flatten()
@@ -115,11 +116,12 @@ pub(super) fn collect_test_xml(
             match parse_cases(result, &bytes) {
                 Ok(cases) => {
                     if std::str::from_utf8(&bytes).is_err() {
-                        writeln!(
+                        dx_output::write_stderr(
                             err,
-                            "dx: warning: {where_} has invalid UTF-8; replaced invalid bytes"
-                        )
-                        .ok();
+                            format_args!(
+                                "dx: warning: {where_} has invalid UTF-8; replaced invalid bytes\n"
+                            ),
+                        );
                     }
                     outcome.artifacts_collected += 1;
                     tally_cases(&mut outcome, &cases, &mut cases_seen);
@@ -323,7 +325,7 @@ pub(super) fn announce_no_collector(
                     notice_event(&NoticeEvent::info(CODE_NO_COVERAGE_COLLECTOR, message)),
                 )?;
             } else {
-                writeln!(err, "dx: {message}").ok();
+                dx_output::write_stderr(err, format_args!("dx: {message}\n"));
             }
         }
         return Ok(true);
@@ -336,7 +338,10 @@ pub(super) fn announce_no_collector(
                 dx_output::error_event(CODE_NO_COVERAGE_COLLECTOR, &message, None, None, None),
             )?;
         } else {
-            writeln!(err, "dx: {CODE_NO_COVERAGE_COLLECTOR}: {message}").ok();
+            dx_output::write_stderr(
+                err,
+                format_args!("dx: {CODE_NO_COVERAGE_COLLECTOR}: {message}\n"),
+            );
         }
     }
     Ok(tests.is_empty())

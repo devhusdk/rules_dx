@@ -25,7 +25,7 @@ module(name = "my_project")
 
 bazel_dep(name = "rules_dx", version = "<release>")
 dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
-dx_licenses.accept(ids = ["cuda-eula"])
+dx_licenses.accept(ids = ["cuda-eula"], terms_sha256 = {"cuda-eula": "d6de69eacd5644f0f84d2289a54d07d29017377d37ab28d0227b3df3509b1a60"})
 ```
 
 A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small CUDA package from [`cuda/tests/consumer`](https://github.com/devhusdk/rules_dx/blob/main/cuda/tests/consumer/BUILD.bazel):

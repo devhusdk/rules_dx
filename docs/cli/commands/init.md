@@ -69,7 +69,9 @@ Init writes no `dx.toml`, no root tool config such as `ruff.toml` or `biome.json
 
 ## Licenses
 
-`--accept-license <id>` appends `dx_licenses.accept(ids = [...])` to `MODULE.bazel` with each given id that no `dx_licenses.accept` tag lists yet. When no name binds the extension, it first adds `dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")`.
+`--accept-license <id>` appends `dx_licenses.accept(ids = [...], terms_sha256 = {...})` to `MODULE.bazel` with each given id that no `dx_licenses.accept` tag lists yet. When no name binds the extension, it first adds `dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")`.
+
+`terms_sha256` records the hash of each license's terms as `core/license.bzl` pins them today. When the vendor changes the terms and rules_dx updates the pin, the build fails with `dx_licenses: terms of <id> changed: <url>; re-accept with <tag>` until you read the new terms and replace the tag. A tag with `ids` alone stays valid.
 
 The ids are `android-sdk-license`, `apple-xcode-license`, `cuda-eula`, `visual-studio-build-tools` and `windows-sdk-buildtools`. An unknown id, or the flag without `--apply`, is a usage error.
 

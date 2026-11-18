@@ -138,7 +138,7 @@ fn hex_run(program: &Path, args: &[&str], dir: &Path, key: &str) -> Result<(), S
     );
     cmd.args(args).current_dir(dir);
     let output = run_publish(&mut cmd);
-    drop(std::fs::remove_dir_all(&home));
+    dx_atomic_fs::discard_dir(&home);
     let output = output.map_err(|error| format!("hex_deploy: {error}"))?;
     if output.success() {
         return Ok(());
@@ -213,7 +213,7 @@ pub fn hex_main(
     }
     let house = run.outdir().join(format!("{package_name}-hex"));
     let package_dir = house.join("package");
-    drop(std::fs::remove_dir_all(&house));
+    dx_atomic_fs::discard_dir(&house);
     let staged = std::fs::create_dir_all(&package_dir)
         .map_err(|error| format!("hex_deploy: {error}"))
         .and_then(|()| hex_stage_checked(&files, &package_dir, tool, version));
@@ -278,7 +278,7 @@ fn hex_publish(files: &[PathBuf], package_name: &str, version: &str, tool: &str)
         )
         .map(|()| version)
     });
-    drop(std::fs::remove_dir_all(&staging));
+    dx_atomic_fs::discard_dir(&staging);
     match published {
         Ok(version) => {
             println!("hex_deploy: published {package_name} {version}");

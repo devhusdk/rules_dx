@@ -4,6 +4,19 @@ use crate::tar_archive;
 use std::fmt::Write as _;
 use std::path::Path;
 
+/// Gzips a one-member tar whose name is written raw, so unsafe names like `../x` survive.
+pub(crate) fn raw_tar_gz(name: &str, body: &[u8]) -> Vec<u8> {
+    let mut raw = tar::Header::new_gnu();
+    raw.set_entry_type(tar::EntryType::Regular);
+    raw.set_size(body.len() as u64);
+    raw.set_mode(0o644);
+    raw.as_gnu_mut().expect("gnu").name[..name.len()].copy_from_slice(name.as_bytes());
+    raw.set_cksum();
+    let mut builder = tar::Builder::new(Vec::new());
+    builder.append(&raw, body).expect("append");
+    dx_archive::gzip(&builder.into_inner().expect("tar")).expect("gz")
+}
+
 static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 /// Serves the files `files(origin)` lists by path on a loopback port; anything else is 404.

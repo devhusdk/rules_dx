@@ -239,7 +239,7 @@ impl PrivateConfigDir {
 
 impl Drop for PrivateConfigDir {
     fn drop(&mut self) {
-        drop(std::fs::remove_dir_all(&self.path));
+        dx_atomic_fs::discard_dir(&self.path);
     }
 }
 

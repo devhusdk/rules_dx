@@ -36,6 +36,8 @@ _CELL_PREFIX = "dx_qt_"
 
 _EXTRACT = "_extract"
 
+_SEVEN_ZIP = "_dx_7zip"
+
 _HEX = "0123456789abcdef"
 
 _TOKEN = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-"
@@ -890,7 +892,7 @@ def _qt_cell_repo_impl(ctx):
     base = len(MODULES[module].requires) == 0
     entry = cells[ctx.attr.cell]
     layout = entry.layout
-    extractor = seven_zip_fetch(ctx, _EXTRACT + "/7zip")
+    extractor = seven_zip_fetch(ctx, _SEVEN_ZIP)
     for key in (_archive_keys(entry) if base else []) + [module]:
         url = url_for(ctx.attr.cell, key, ctx.attr.mirror, cells)
         archive = _EXTRACT + "/" + entry.archives[key].archive

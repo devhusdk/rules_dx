@@ -76,7 +76,8 @@ fn leftover_events(harness: &Harness) -> Vec<String> {
         .expect("temp")
         .filter_map(|entry| entry.ok())
         .map(|entry| entry.file_name().to_string_lossy().into_owned())
-        .filter(|name| name.starts_with("dx-bep-"))
+        // `<bep>.shards<n>.json` are the shard files the fake probe writes as Bazel outputs.
+        .filter(|name| name.starts_with("dx-bep-") && !name.contains(".json.shards"))
         .collect()
 }
 
@@ -138,25 +139,47 @@ fn a_lint_failure_in_the_shared_build_leaves_format_and_typecheck_clean() {
 }
 
 #[test]
-fn check_runs_generate_and_one_quality_build_without_a_probe() {
+fn check_runs_generate_one_shard_probe_and_one_quality_build_over_the_probed_shards() {
     let mut harness = umbrella_clean("shared-two-builds");
     harness.probe_shards = Some(vec!["real_rust_lint".to_owned()]);
     let (code, out, err) = harness.run(&["check", "--output=json"]);
     assert_eq!(code, 0, "{out}{err}");
-    assert!(harness.probe_argv.borrow().is_empty());
+    let aspects_of = |argv: &[String]| -> Vec<String> {
+        argv.iter()
+            .find_map(|arg| arg.strip_prefix("--aspects="))
+            .expect("aspects")
+            .split(',')
+            .map(|passed| dx_bep::aspect_key(passed).to_owned())
+            .collect()
+    };
+    let commands = [Command::Format, Command::Lint, Command::Typecheck];
+    let probes = harness.probe_argv.borrow();
+    assert_eq!(probes.len(), 1, "{probes:?}");
+    let probed = aspects_of(&probes[0]);
+    for command in commands {
+        for probe in dx_plan::plan::spec(command).probes {
+            assert!(
+                probed.iter().any(|passed| passed == probe),
+                "{probe} missing from {probed:?}"
+            );
+        }
+    }
     let builds = harness.build_argv.borrow();
     assert_eq!(builds.len(), 2, "{builds:?}");
-    let aspects = builds[1]
-        .iter()
-        .find_map(|arg| arg.strip_prefix("--aspects="))
-        .expect("aspects");
-    for command in [Command::Format, Command::Lint, Command::Typecheck] {
-        for aspect in dx_plan::plan::spec(command).aspects {
-            assert!(
-                aspects
-                    .split(',')
-                    .any(|passed| dx_bep::aspect_key(passed) == *aspect),
-                "{aspect} missing from {aspects}"
+    let passed = aspects_of(&builds[1]);
+    let shards = std::collections::BTreeSet::from(["real_rust_lint".to_owned()]);
+    for command in commands {
+        let all = dx_plan::plan::spec(command).aspects.to_vec();
+        let kept = dx_plan::plan::quality::select_aspects(all.clone(), Some(&shards));
+        assert!(
+            kept.len() < all.len(),
+            "the probe drops shards of {command:?}"
+        );
+        for aspect in all {
+            assert_eq!(
+                passed.iter().any(|name| name == aspect),
+                kept.contains(&aspect),
+                "{aspect} in {passed:?}"
             );
         }
     }

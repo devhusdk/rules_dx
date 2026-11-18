@@ -20,6 +20,14 @@ const WRITERS: [(&str, &str); 9] = [
     ("tools/testing/hermetic/appcontainer/user.rs", SYNCED),
 ];
 
+/// Sources that stage a file or tree and publish it with a dx_atomic_fs commit, which
+/// they must use in place of their own rename.
+const STAGED_WRITERS: [(&str, &str); 3] = [
+    ("cli/shim/src/fetch.rs", "dx_atomic_fs::StagedFile::create("),
+    ("deploy/private/src/oci.rs", "dx_atomic_fs::StagedFile::create("),
+    ("deploy/private/src/oci.rs", "dx_atomic_fs::commit::swap_tree("),
+];
+
 /// Returns a writer's production half: everything above its test module.
 fn production(writer: &str) -> String {
     let text = read_runfiles(writer);
@@ -43,6 +51,21 @@ fn every_artifact_writer_commits_its_output_atomically() {
         assert!(
             !text.contains(IN_PLACE),
             "{writer} writes its output in place, so a failed run truncates a good artifact"
+        );
+        assert!(
+            !text.contains(HAND_RENAME),
+            "{writer} renames its own temporary file instead of using {commit}"
+        );
+    }
+}
+
+#[test]
+fn every_staged_writer_commits_without_its_own_rename() {
+    for (writer, commit) in STAGED_WRITERS {
+        let text = production(writer);
+        assert!(
+            text.contains(commit),
+            "{writer} does not publish its staged output with {commit}"
         );
         assert!(
             !text.contains(HAND_RENAME),

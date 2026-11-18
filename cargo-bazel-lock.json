@@ -1,5 +1,5 @@
 {
-  "checksum": "8b786358075a6cbb4f8cde49b296c32785e84e71c26ffb014c9e9485e94a115b",
+  "checksum": "f7d23a701d5de3f37b193be38557b6d476923c05756880e705f50a08214ea219",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -7687,14 +7687,6 @@
       "common_attrs": {
         "deps": [
           {
-            "id": "crc32fast 1.5.2",
-            "target": "crc32fast"
-          },
-          {
-            "id": "flate2 1.1.10",
-            "target": "flate2"
-          },
-          {
             "id": "serde 1.0.229",
             "target": "serde"
           },
@@ -7816,6 +7808,10 @@
           {
             "id": "thiserror 2.0.20",
             "target": "thiserror"
+          },
+          {
+            "id": "tracing 0.1.44",
+            "target": "tracing"
           }
         ],
         "edition": "2024"
@@ -8348,7 +8344,9 @@
           {
             "id": "tempfile 3.27.0",
             "target": "tempfile"
-          },
+          }
+        ],
+        "deps_dev": [
           {
             "id": "zip 9.1.2",
             "target": "zip"
@@ -8803,6 +8801,10 @@
     "dx_http 0.0.0": {
       "common_attrs": {
         "deps": [
+          {
+            "id": "regex 1.13.1",
+            "target": "regex"
+          },
           {
             "id": "rustls 0.23.46",
             "target": "rustls"
@@ -33197,7 +33199,6 @@
     "clap_lex 1.1.1",
     "clap_mangen 0.2.33",
     "console 0.16.6",
-    "crc32fast 1.5.2",
     "cxx 1.0.205",
     "cxx-gen 0.7.205",
     "cxx-qt 0.10.0",

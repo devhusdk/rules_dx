@@ -5,6 +5,39 @@ use crate::test_support::*;
 type LayoutFiles<'a> = Vec<(&'a str, &'a [u8])>;
 
 #[test]
+fn oci_layout_rebuild_replaces_and_recovers_an_interrupted_swap() {
+    let scratch = scratch_dir();
+    let (image, _) = oci_save(
+        scratch.path(),
+        "oci_demo.tar",
+        &[oci_test_layer(false)],
+        "linux/amd64",
+    );
+    let outdir = scratch.path().join("out");
+    std::fs::create_dir_all(&outdir).expect("outdir");
+    let build = || {
+        oci_build_layout(
+            &image,
+            &outdir,
+            "registry.example.invalid",
+            "demo/app",
+            "1.2.3",
+            "linux/amd64",
+        )
+        .expect("layout")
+    };
+    let layout = build();
+    std::fs::write(layout.join("stale"), "old").expect("stale marker");
+    let prev = outdir.join("app-oci-layout.prev");
+    std::fs::rename(&layout, &prev).expect("simulate crash between renames");
+    assert_eq!(build(), layout);
+    assert!(layout.join("index.json").is_file());
+    assert!(!layout.join("stale").exists());
+    assert!(!prev.exists());
+    assert!(!outdir.join("app-oci-layout.tmp").exists());
+}
+
+#[test]
 fn oci_layout_builds_index() {
     let scratch = scratch_dir();
     let (image, _) = oci_save(
@@ -27,6 +60,12 @@ fn oci_layout_builds_index() {
     assert!(layout.join("oci-layout").is_file());
     assert!(layout.join("blobs").join("sha256").is_dir());
     assert!(!outdir.join("app-oci-layout.tmp").exists());
+    assert!(!outdir.join("app-oci-layout.prev").exists());
+    for blob in std::fs::read_dir(layout.join("blobs").join("sha256")).expect("blobs") {
+        let name = blob.expect("blob").file_name();
+        let name = name.to_string_lossy();
+        assert!(dx_digest::is_hex_any_case(&name, dx_digest::DIGEST_LEN), "{name}");
+    }
     let index = std::fs::read_to_string(layout.join("index.json")).expect("index");
     assert!(!index.contains('\n'), "index is compact");
     let parsed: serde_json::Value = serde_json::from_str(&index).expect("index parses");

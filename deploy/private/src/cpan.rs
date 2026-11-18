@@ -36,20 +36,19 @@ pub fn cpan_read_identity(dist: &Path) -> Result<(String, String), String> {
     let wants = [format!("{stem}/META.json"), format!("{stem}/META.yml")];
     let open = std::fs::File::open(dist)
         .map_err(|error| format!("cannot open {}: {error}", dist.display()))?;
-    let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(open));
-    let entries = archive
-        .entries()
-        .map_err(|error| format!("{file_name} is not a valid dist: {error}"))?;
-    for entry in entries {
-        let entry = entry.map_err(|error| format!("{file_name} is not a valid dist: {error}"))?;
-        let path = entry
-            .path()
-            .map_err(|error| format!("{file_name} has an unreadable entry name: {error}"))?
-            .to_string_lossy()
-            .replace('\\', "/");
-        if wants.contains(&path) {
-            return Ok((name.to_owned(), version.to_owned()));
-        }
+    let mut found = false;
+    dx_archive::visit(
+        open,
+        dx_archive::Format::TarGz,
+        crate::archive::LISTING_LIMITS,
+        |path, _, _| {
+            found |= wants.iter().any(|want| want == path);
+            Ok(())
+        },
+    )
+    .map_err(|error| format!("{file_name} is not a valid dist: {error}"))?;
+    if found {
+        return Ok((name.to_owned(), version.to_owned()));
     }
     Err(format!("{file_name} has no {} or {}", wants[0], wants[1]))
 }
@@ -245,6 +244,16 @@ mod tests {
         let path = dir.join(file_name);
         std::fs::write(&path, encoder.finish().expect("finish gzip")).expect("write dist");
         path
+    }
+
+    #[test]
+    fn refuses_a_dist_with_a_dot_dot_member() {
+        let dir = scratch_dir();
+        let dist = dir.path().join("Demo-Dist-1.2.0.tar.gz");
+        std::fs::write(&dist, raw_tar_gz("../META.json", b"{}")).expect("write dist");
+        let error = cpan_read_identity(&dist).expect_err("dot dot");
+        assert!(error.contains("is not a valid dist"), "{error}");
+        assert!(error.contains("'..'"), "{error}");
     }
 
     #[test]

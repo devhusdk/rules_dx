@@ -579,8 +579,8 @@ pub fn write_release_source(
     let staged = out_dir.join(format!(".{name}.staging"));
     let staged_json = out_dir.join(".source.json.staging");
     let result = stage_release_source(repo, candidate, &name, &staged, &staged_json, pins);
-    drop(std::fs::remove_file(&staged));
-    drop(std::fs::remove_file(&staged_json));
+    dx_atomic_fs::discard_file(&staged);
+    dx_atomic_fs::discard_file(&staged_json);
     let (built, outputs) = result?;
     for (file, bytes) in &outputs {
         conflicting_output_error(&out_dir.join(file), bytes)?;

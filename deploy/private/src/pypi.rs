@@ -58,26 +58,15 @@ const BUILD_ONLY_SUFFIXES: &[&str] = &[".h", ".a", ".lib", ".obj", ".o", ".pdb"]
 
 /// Reads the RECORD of one wheel and rejects native code in a none-any wheel and build-only files.
 fn pypi_check_wheel_contents(wheel: &Path) -> Result<(), String> {
-    use std::io::Read;
     let name = basename(wheel).map_err(|error| error.to_string())?;
     let file = std::fs::File::open(wheel)
         .map_err(|error| format!("pypi_deploy: cannot open wheel {name}: {error}"))?;
-    let mut archive = zip::ZipArchive::new(file)
-        .map_err(|error| format!("pypi_deploy: wheel {name} is not a zip file: {error}"))?;
-    let record_name = (0..archive.len())
-        .filter_map(|index| {
-            let name = archive.name_for_index(index)?.ok()?;
-            Some(name.into_owned())
-        })
+    let record_name = dx_archive::zip_names(file)
+        .map_err(|error| format!("pypi_deploy: wheel {name} is not a zip file: {error}"))?
+        .into_iter()
         .find(|entry| entry.ends_with(".dist-info/RECORD") && entry.matches('/').count() == 1)
         .ok_or_else(|| format!("pypi_deploy: wheel {name} has no .dist-info/RECORD"))?;
-    let mut record = String::new();
-    archive
-        .by_name(&record_name)
-        .and_then(|mut entry| entry.read_to_string(&mut record).map_err(Into::into))
-        .map_err(|error| {
-            format!("pypi_deploy: cannot read {record_name} in wheel {name}: {error}")
-        })?;
+    let record = read_wheel_text(wheel, &name, &record_name)?;
     let none_any = name.ends_with("-none-any.whl");
     let tags = FilenameTags::parse(&name);
     let mut has_native = false;
@@ -107,16 +96,21 @@ fn pypi_check_wheel_contents(wheel: &Path) -> Result<(), String> {
         && (has_native || !tags.platforms.iter().all(|platform| platform == "any"))
     {
         let wheel_name = record_name.replace("RECORD", "WHEEL");
-        let mut metadata = String::new();
-        archive
-            .by_name(&wheel_name)
-            .and_then(|mut entry| entry.read_to_string(&mut metadata).map_err(Into::into))
-            .map_err(|error| {
-                format!("pypi_deploy: cannot read {wheel_name} in wheel {name}: {error}")
-            })?;
+        let metadata = read_wheel_text(wheel, &name, &wheel_name)?;
         tags.check_metadata(&name, &metadata)?;
     }
     Ok(())
+}
+
+/// Reads one UTF-8 member of a wheel.
+fn read_wheel_text(wheel: &Path, name: &str, member: &str) -> Result<String, String> {
+    let error = |error: &dyn std::fmt::Display| {
+        format!("pypi_deploy: cannot read {member} in wheel {name}: {error}")
+    };
+    let bytes = dx_archive::read_zip_member(wheel, member, 64 << 20)
+        .map_err(|e| error(&e))?
+        .ok_or_else(|| error(&"no such member"))?;
+    String::from_utf8(bytes).map_err(|e| error(&e))
 }
 
 /// The python, abi and platform tags from a wheel filename, with dotted forms expanded.
@@ -448,7 +442,7 @@ fn pypi_upload(
         (registry_url, token, signer),
         &version,
     );
-    drop(std::fs::remove_dir_all(stage));
+    dx_atomic_fs::discard_dir(stage);
     code
 }
 
@@ -679,7 +673,7 @@ fn pypi_api_check(
         }
         Err(outcome) => Ok(outcome),
     };
-    drop(std::fs::remove_dir_all(&work));
+    dx_atomic_fs::discard_dir(&work);
     outcome
 }
 

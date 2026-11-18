@@ -13,6 +13,8 @@ _EXTRA_TOOLCHAINS = "//command_line_option:extra_toolchains"
 
 _MODE = "//command_line_option:compilation_mode"
 
+_COVERAGE = "//command_line_option:collect_code_coverage"
+
 _LLVM_SANITIZERS = {
     "asan": str(Label("@llvm//config:asan")),
     "ubsan": str(Label("@llvm//config:ubsan")),
@@ -93,6 +95,7 @@ def _files_transition_impl(settings, attr, _platforms):
     features = _features(settings[_FEATURES], getattr(attr, "extra_features", []))
     return {
         _COMPILER: attr.compiler,
+        _COVERAGE: False,
         _FEATURES: features,
         _MODE: getattr(attr, "compilation_mode", "") or settings[_MODE],
     }
@@ -100,7 +103,7 @@ def _files_transition_impl(settings, attr, _platforms):
 _files_transition = platforms_transition(
     _files_transition_impl,
     inputs = [_FEATURES, _MODE],
-    outputs = [_COMPILER, _FEATURES, _MODE],
+    outputs = [_COMPILER, _COVERAGE, _FEATURES, _MODE],
 )
 
 def _files_impl(ctx):
@@ -135,7 +138,6 @@ cc_toolchain_binary = rule(
     executable = True,
 )
 
-_COVERAGE = "//command_line_option:collect_code_coverage"
 _FILTER = "//command_line_option:instrumentation_filter"
 
 def _gcov_transition_impl(_settings, attr):

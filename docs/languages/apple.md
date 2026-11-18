@@ -25,7 +25,7 @@ module(name = "my_project")
 
 bazel_dep(name = "rules_dx", version = "<release>")
 dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
-dx_licenses.accept(ids = ["apple-xcode-license"])
+dx_licenses.accept(ids = ["apple-xcode-license"], terms_sha256 = {"apple-xcode-license": "5e6bd16bcba3dd591bde1c57f7c6f19f08a194c84cdc54485c4660f90e2a26ec"})
 ```
 
 A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small Apple package from [`apple/tests/consumer`](https://github.com/devhusdk/rules_dx/blob/main/apple/tests/consumer/BUILD.bazel):

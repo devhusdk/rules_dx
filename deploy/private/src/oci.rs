@@ -67,22 +67,23 @@ pub fn oci_build_layout(
     let base = repository.rsplit('/').next().unwrap_or(repository);
     let layout = outdir.join(base.to_owned() + "-oci-layout");
     let staging = outdir.join(base.to_owned() + "-oci-layout.tmp");
-    if staging.exists() {
-        std::fs::remove_dir_all(&staging)?;
+    let prev = outdir.join(base.to_owned() + "-oci-layout.prev");
+    dx_atomic_fs::commit::recover_tree_swap(&layout, &prev).map_err(io::Error::other)?;
+    for stale in [&staging, &prev] {
+        if stale.exists() {
+            std::fs::remove_dir_all(stale)?;
+        }
     }
     let reference = format!("{registry}/{repository}:{tag}");
-    let staged = oci_stage_layout(image_tar_src, &staging, &reference, os, architecture);
+    let staged = oci_stage_layout(image_tar_src, &staging, &reference, os, architecture)
+        .and_then(|()| {
+            dx_atomic_fs::commit::swap_tree(&layout, &prev, &staging).map_err(io::Error::other)
+        });
     if let Err(error) = staged {
-        drop(std::fs::remove_dir_all(&staging));
+        dx_atomic_fs::discard_dir(&staging);
         return Err(error);
     }
-    if layout.exists() {
-        std::fs::remove_dir_all(&layout)?;
-    }
-    if let Err(error) = std::fs::rename(&staging, &layout) {
-        drop(std::fs::remove_dir_all(&staging));
-        return Err(error);
-    }
+    dx_atomic_fs::discard_dir(&prev);
     Ok(layout)
 }
 
@@ -988,23 +989,10 @@ fn oci_copy_layer(reader: impl Read, name: &str, blobs: Option<&Path>) -> io::Re
     let Some(blobs) = blobs else {
         return oci_read_layer(reader, name, None);
     };
-    let temp = blobs.join(".layer.tmp");
-    let mut file = std::fs::File::create(&temp)?;
-    let layer = oci_read_layer(reader, name, Some(&mut file));
-    drop(file);
-    match layer {
-        Ok(layer) => {
-            std::fs::rename(
-                &temp,
-                blobs.join(layer.digest.trim_start_matches("sha256:")),
-            )?;
-            Ok(layer)
-        }
-        Err(error) => {
-            drop(std::fs::remove_file(&temp));
-            Err(error)
-        }
-    }
+    let mut staged = dx_atomic_fs::StagedFile::create(&blobs.join(".layer"))?;
+    let layer = oci_read_layer(reader, name, Some(staged.file_mut()))?;
+    staged.commit_as(&blobs.join(layer.digest.trim_start_matches("sha256:")))?;
+    Ok(layer)
 }
 
 /// Returns the config digest of the single image after the checks the layout enforces.

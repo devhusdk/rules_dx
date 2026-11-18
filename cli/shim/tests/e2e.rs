@@ -452,7 +452,7 @@ fn sigterm_mid_download_leaves_no_part_file() {
             .into_iter()
             .flatten()
             .flatten()
-            .any(|e| e.file_name().to_string_lossy().ends_with(".part"))
+            .any(|e| e.file_name().to_string_lossy().ends_with(".tmp"))
     };
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
     while !has_part() {

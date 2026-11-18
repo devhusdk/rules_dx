@@ -440,7 +440,7 @@ fn langs_bzl_is_generated_from_every_lang_json() {
         "langs.bzl cannot embed escapes"
     );
     let text = format!(
-        "\"\"\"Generated from every <lang>/lang.json by //core/modules:lang_json_test; refresh with UPDATE_EXPECT=1.\"\"\"\n\nLANGS = json.decode(\"\"\"{body}\"\"\")\n"
+        "\"\"\"Generated from every <lang>/lang.json by //core/modules:lang_json_test; refresh with UPDATE_EXPECT=1.\"\"\"\n\nvisibility([\"//core/...\", \"//ruby/...\", \"//tools/...\"])\n\nLANGS = json.decode(\"\"\"{body}\"\"\")\n"
     );
     let scratch_guard = dx_test_scratch::scratch("langs_bzl").unwrap();
     let scratch = scratch_guard.path();
@@ -653,7 +653,7 @@ fn gazelle_lock_registry_is_generated_from_every_lang_json() {
 #[test]
 fn starlark_lock_registry_is_generated_from_every_lang_json() {
     let mut text = String::from(
-        "\"\"\"Generated from every <lang>/lang.json setup.hubs entry with a lock.\"\"\"\n\nLOCK_REGISTRY = {\n",
+        "\"\"\"Generated from every <lang>/lang.json setup.hubs entry with a lock.\"\"\"\n\nvisibility([\"//core/...\", \"//deploy/...\", \"//julia/...\", \"//python/...\", \"//tools/...\"])\n\nLOCK_REGISTRY = {\n",
     );
     for entry in lock_registry_entries() {
         writeln!(text, "    {}: {{", entry["ecosystem"]).expect("write to String");

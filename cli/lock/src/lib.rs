@@ -6,14 +6,15 @@ mod http;
 mod model;
 mod scratch;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use globset::{Glob, GlobSetBuilder};
 
-pub use http::HttpFetch;
+pub use http::{DOWNLOADER_CONFIG_ENV, HttpFetch};
 pub use model::{Archive, Lock, PLATFORMS, Package, Resolution, SCHEMA, is_sha256};
 pub use scratch::Scratch;
 
@@ -74,7 +75,9 @@ pub trait Resolver {
 }
 
 /// Reads archives the lock has no digest for.
-pub trait Fetch {
+///
+/// It is called from several threads at once.
+pub trait Fetch: Sync {
     /// Downloads `url` and returns the sha256 of its bytes.
     ///
     /// # Errors
@@ -262,25 +265,110 @@ fn kept<'a>(old: Option<&'a [Package]>, package: &Package, wanted: &Archive) -> 
         .map(|archive| archive.sha256.as_str())
 }
 
-/// Fills every empty archive digest of `packages` from `old`, else from a download.
-fn fill_digests(
-    packages: &mut [Package],
-    old: Option<&[Package]>,
-    fetch: &dyn Fetch,
-) -> Result<(), Error> {
-    for entry in packages.iter_mut() {
-        let snapshot = entry.clone();
-        for wanted in &mut entry.archives {
-            if !wanted.sha256.is_empty() {
-                continue;
+/// The most archive downloads a lock step runs at once.
+const FETCH_JOBS: usize = 8;
+
+/// An archive that has no digest yet, with the package that names it.
+struct Job {
+    package: Package,
+    archive: Archive,
+}
+
+/// Fills every empty archive digest of `lock` from `old`, else from a download.
+///
+/// Downloads run on up to `FETCH_JOBS` threads, once per URL list; no new download starts after one fails.
+fn fill_all_digests(lock: &mut Lock, old: Option<&Lock>, fetch: &dyn Fetch) -> Result<(), Error> {
+    let mut jobs: Vec<Job> = Vec::new();
+    let mut queued = BTreeSet::new();
+    let mut queue = |packages: &mut [Package], previous: Option<&[Package]>| {
+        for entry in packages.iter_mut() {
+            let snapshot = entry.clone();
+            for wanted in &mut entry.archives {
+                if !wanted.sha256.is_empty() {
+                    continue;
+                }
+                if let Some(digest) = kept(previous, &snapshot, wanted) {
+                    digest.clone_into(&mut wanted.sha256);
+                } else if queued.insert(wanted.urls.clone()) {
+                    jobs.push(Job {
+                        package: snapshot.clone(),
+                        archive: wanted.clone(),
+                    });
+                }
             }
-            wanted.sha256 = match kept(old, &snapshot, wanted) {
-                Some(digest) => digest.to_owned(),
-                None => fetched(fetch, &snapshot, wanted)?,
-            };
+        }
+    };
+    queue(&mut lock.packages, old.map(|old| old.packages.as_slice()));
+    for (group, packages) in &mut lock.groups {
+        let previous = old.and_then(|old| old.groups.get(group)).map(Vec::as_slice);
+        queue(packages, previous);
+    }
+    let digests = fetched_all(&jobs, fetch)?;
+    let all = lock
+        .packages
+        .iter_mut()
+        .chain(lock.groups.values_mut().flatten());
+    for entry in all {
+        for wanted in &mut entry.archives {
+            if wanted.sha256.is_empty()
+                && let Some(digest) = digests.get(&wanted.urls)
+            {
+                digest.clone_into(&mut wanted.sha256);
+            }
         }
     }
     Ok(())
+}
+
+/// The digest of every job's archive by its URL list, or one error naming every failed download.
+fn fetched_all(jobs: &[Job], fetch: &dyn Fetch) -> Result<BTreeMap<Vec<String>, String>, Error> {
+    let next = AtomicUsize::new(0);
+    let failed = AtomicBool::new(false);
+    let worker = || {
+        let mut results = Vec::new();
+        while !failed.load(Ordering::Relaxed) {
+            let index = next.fetch_add(1, Ordering::Relaxed);
+            let Some(job) = jobs.get(index) else {
+                break;
+            };
+            let result = fetched(fetch, &job.package, &job.archive);
+            if result.is_err() {
+                failed.store(true, Ordering::Relaxed);
+            }
+            results.push((index, &job.archive.urls, result));
+        }
+        results
+    };
+    let mut results = std::thread::scope(|scope| {
+        let workers: Vec<_> = (0..jobs.len().min(FETCH_JOBS))
+            .map(|_| scope.spawn(worker))
+            .collect();
+        let mut results = Vec::new();
+        for handle in workers {
+            results.extend(
+                handle
+                    .join()
+                    .map_err(|_| Error::new("an archive download thread panicked"))?,
+            );
+        }
+        Ok::<_, Error>(results)
+    })?;
+    results.sort_by_key(|(index, _, _)| *index);
+    let mut digests = BTreeMap::new();
+    let mut failures = Vec::new();
+    for (_, urls, result) in results {
+        match result {
+            Ok(digest) => {
+                digests.insert(urls.clone(), digest);
+            }
+            Err(error) => failures.push(error.to_string()),
+        }
+    }
+    if failures.is_empty() {
+        Ok(digests)
+    } else {
+        Err(Error::new(failures.join("\n")))
+    }
 }
 
 fn fetched(fetch: &dyn Fetch, package: &Package, archive: &Archive) -> Result<String, Error> {
@@ -365,18 +453,7 @@ pub fn run(
             problems.join("\n")
         )));
     }
-    fill_digests(
-        &mut lock.packages,
-        old.as_ref().map(|old| old.packages.as_slice()),
-        fetch,
-    )?;
-    for (group, packages) in &mut lock.groups {
-        let previous = old
-            .as_ref()
-            .and_then(|old| old.groups.get(group))
-            .map(Vec::as_slice);
-        fill_digests(packages, previous, fetch)?;
-    }
+    fill_all_digests(&mut lock, old.as_ref(), fetch)?;
     let state = named_files(scratch.set(), &spec.state)?;
     for name in &state {
         let bytes = read(&scratch.set().join(name))?;
@@ -485,5 +562,99 @@ mod tests {
             "{error}"
         );
         assert!(all_named_files(dir.path(), &patterns(&["[.opam"])).is_err());
+    }
+
+    /// A fetcher whose digest is the sha256 of the URL; it fails for URLs ending in `/missing`.
+    #[derive(Default)]
+    struct Counting {
+        asked: std::sync::Mutex<Vec<String>>,
+        in_flight: AtomicUsize,
+        peak: AtomicUsize,
+    }
+
+    impl Fetch for Counting {
+        fn sha256(&self, url: &str) -> Result<String, Error> {
+            let now = self.in_flight.fetch_add(1, Ordering::SeqCst) + 1;
+            self.peak.fetch_max(now, Ordering::SeqCst);
+            std::thread::sleep(std::time::Duration::from_millis(20));
+            self.in_flight.fetch_sub(1, Ordering::SeqCst);
+            self.asked.lock().expect("asked").push(url.to_owned());
+            if url.ends_with("/missing") {
+                return Err(Error::new("HTTP 404"));
+            }
+            Ok(dx_digest::sha256_hex(url.as_bytes()))
+        }
+    }
+
+    fn package(name: &str, url: &str) -> Package {
+        Package {
+            name: name.to_owned(),
+            version: "1.0.0".to_owned(),
+            archives: vec![Archive {
+                urls: vec![url.to_owned()],
+                ..Archive::default()
+            }],
+            ..Package::default()
+        }
+    }
+
+    fn lock_of(packages: Vec<Package>, groups: BTreeMap<String, Vec<Package>>) -> Lock {
+        Lock {
+            schema: SCHEMA,
+            ecosystem: "fixture".to_owned(),
+            inputs: BTreeMap::new(),
+            packages,
+            groups,
+        }
+    }
+
+    #[test]
+    fn downloads_run_in_parallel_up_to_the_job_limit() {
+        let packages = (0..3 * FETCH_JOBS)
+            .map(|n| package(&format!("p{n}"), &format!("https://example.com/p{n}")))
+            .collect();
+        let mut lock = lock_of(packages, BTreeMap::new());
+        let fetch = Counting::default();
+        fill_all_digests(&mut lock, None, &fetch).expect("filled");
+        let peak = fetch.peak.load(Ordering::SeqCst);
+        assert!((2..=FETCH_JOBS).contains(&peak), "peak {peak}");
+        for entry in &lock.packages {
+            for archive in &entry.archives {
+                let url = archive.urls.first().expect("url");
+                assert_eq!(archive.sha256, dx_digest::sha256_hex(url.as_bytes()));
+            }
+        }
+    }
+
+    #[test]
+    fn the_same_urls_in_packages_and_a_group_are_fetched_once() {
+        let shared = "https://example.com/shared";
+        let groups = BTreeMap::from([("dev".to_owned(), vec![package("a", shared)])]);
+        let mut lock = lock_of(vec![package("a", shared)], groups);
+        let fetch = Counting::default();
+        fill_all_digests(&mut lock, None, &fetch).expect("filled");
+        assert_eq!(*fetch.asked.lock().expect("asked"), vec![shared.to_owned()]);
+        let digest = dx_digest::sha256_hex(shared.as_bytes());
+        let group = lock.groups.get("dev").expect("group");
+        for entry in lock.packages.iter().chain(group) {
+            assert_eq!(entry.archives.first().expect("archive").sha256, digest);
+        }
+    }
+
+    #[test]
+    fn one_missing_archive_among_many_fails_the_step() {
+        let mut packages: Vec<Package> = (0..2 * FETCH_JOBS)
+            .map(|n| package(&format!("p{n}"), &format!("https://example.com/p{n}")))
+            .collect();
+        packages.push(package("x", "https://example.com/missing"));
+        let mut lock = lock_of(packages, BTreeMap::new());
+        let error =
+            fill_all_digests(&mut lock, None, &Counting::default()).expect_err("a 404 fails");
+        assert!(
+            error
+                .to_string()
+                .contains("package x 1.0.0 has no archive to read"),
+            "{error}"
+        );
     }
 }

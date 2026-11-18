@@ -227,10 +227,10 @@ pub(super) fn changed_line_threshold(
         }
     } else {
         if let Some((code, message)) = &error {
-            writeln!(err, "dx: {message} ({code})").ok();
+            dx_output::write_stderr(err, format_args!("dx: {message} ({code})\n"));
         }
         for line in &lines {
-            writeln!(err, "dx: {line}").ok();
+            dx_output::write_stderr(err, format_args!("dx: {line}\n"));
         }
     }
     Ok(error.is_none())

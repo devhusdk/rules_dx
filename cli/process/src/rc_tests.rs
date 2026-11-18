@@ -1267,3 +1267,44 @@ fn continued_line_flag_is_seen() {
         .policy();
     assert!(!policy.disk_cache_gc);
 }
+
+fn downloader(machine: &Machine, read_user_rc: bool, options: &[&str]) -> Option<PathBuf> {
+    downloader_config(
+        &|name| machine.env.get(name).cloned(),
+        Path::new("/ws"),
+        &|path| machine.files.get(path).cloned(),
+        read_user_rc,
+        &[],
+        &strings(options),
+    )
+}
+
+#[test]
+fn the_last_effective_downloader_config_for_run_wins() {
+    let machine = Machine::local()
+        .file(
+            "/ws/.bazelrc",
+            "common --downloader_config=tools/a.cfg\nbuild --downloader_config %workspace%/b.cfg\ntest --downloader_config=/ignored.cfg\n",
+        )
+        .file("/home/u/.bazelrc", "run --downloader_config=/abs/c.cfg\n");
+    let mut workspace_b = PathBuf::from("/ws");
+    workspace_b.push("b.cfg");
+    assert_eq!(downloader(&machine, false, &[]), Some(workspace_b));
+    assert_eq!(
+        downloader(&machine, true, &[]),
+        Some(PathBuf::from("/abs/c.cfg"))
+    );
+    let mut flagged = PathBuf::from("/ws");
+    flagged.extend(["tools", "d.cfg"]);
+    assert_eq!(
+        downloader(&machine, true, &["--downloader_config=tools/d.cfg"]),
+        Some(flagged)
+    );
+    assert_eq!(downloader(&machine, true, &["--downloader_config="]), None);
+}
+
+#[test]
+fn no_downloader_config_is_none() {
+    let machine = Machine::local().file("/ws/.bazelrc", "build --jobs=4\n");
+    assert_eq!(downloader(&machine, true, &[]), None);
+}

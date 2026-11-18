@@ -203,12 +203,16 @@ pub fn npm_publish_args(
 /// Lists one gzip tar member table.
 pub fn npm_tar_members(tgz_path: &Path) -> io::Result<Vec<String>> {
     let file = std::fs::File::open(tgz_path)?;
-    let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(file));
     let mut members = Vec::new();
-    for entry in archive.entries()? {
-        let entry = entry?;
-        members.push(String::from_utf8_lossy(&entry.path_bytes()).into_owned());
-    }
+    dx_archive::visit(
+        file,
+        dx_archive::Format::TarGz,
+        crate::archive::LISTING_LIMITS,
+        |name, _, _| {
+            members.push(name.to_owned());
+            Ok(())
+        },
+    )?;
     Ok(members)
 }
 
@@ -223,7 +227,7 @@ pub fn npm_write_npmrc(host: &str, token: &str) -> io::Result<std::path::PathBuf
     match write_secure_file(&dir, ".npmrc", &npm_npmrc_line(host, token)) {
         Ok(path) => Ok(path),
         Err(error) => {
-            drop(std::fs::remove_dir_all(&dir));
+            dx_atomic_fs::discard_dir(&dir);
             Err(error)
         }
     }
@@ -418,7 +422,7 @@ pub fn npm_run_publish(npm: &Path, host: &str, token: &str, args: &[std::ffi::Os
             .arg(&npmrc),
     );
     if let Some(dir) = npmrc.parent() {
-        drop(std::fs::remove_dir_all(dir));
+        dx_atomic_fs::discard_dir(dir);
     }
     match output {
         Ok(out) => {
@@ -569,7 +573,7 @@ fn npm_api_check(
 ) -> Result<(String, Outcome), String> {
     let work = tempfile_stage_dir("npm-api-").map_err(|error| format!("npm_deploy: {error}"))?;
     let result = npm_api_diff(staged_tgz, name, check, &work);
-    drop(std::fs::remove_dir_all(&work));
+    dx_atomic_fs::discard_dir(&work);
     result
 }
 
@@ -921,6 +925,15 @@ mod tests {
                 "tarball": "npm_demo.tgz",
             })
         );
+    }
+
+    #[test]
+    fn npm_tar_members_refuses_a_dot_dot_member() {
+        let scratch = scratch_dir();
+        let tgz = scratch.path().join("escape.tgz");
+        std::fs::write(&tgz, raw_tar_gz("../package.json", b"{}")).expect("write");
+        let error = npm_tar_members(&tgz).expect_err("dot dot");
+        assert!(error.to_string().contains("'..'"), "{error}");
     }
 
     #[test]

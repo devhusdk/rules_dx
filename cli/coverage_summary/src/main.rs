@@ -52,7 +52,13 @@ struct Cli {
 }
 
 fn optional(path: &Path) -> Option<String> {
-    fs::read_to_string(path).ok()
+    fs::read(path)
+        .ok()
+        .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
+}
+
+fn at(path: &Path, err: std::io::Error) -> std::io::Error {
+    std::io::Error::new(err.kind(), format!("{}: {err}", path.display()))
 }
 
 fn inputs(cli: &Cli) -> Inputs {
@@ -84,12 +90,14 @@ fn inputs(cli: &Cli) -> Inputs {
 
 fn write(cli: &Cli) -> std::io::Result<()> {
     let body = render(&inputs(cli));
-    fs::write(cli.runner_temp.join("coverage_comment.md"), &body)?;
+    let comment = cli.runner_temp.join("coverage_comment.md");
+    fs::write(&comment, &body).map_err(|err| at(&comment, err))?;
     fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open(&cli.step_summary)?
-        .write_all(body.as_bytes())
+        .open(&cli.step_summary)
+        .and_then(|mut file| file.write_all(body.as_bytes()))
+        .map_err(|err| at(&cli.step_summary, err))
 }
 
 fn main() -> ExitCode {

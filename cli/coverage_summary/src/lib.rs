@@ -44,11 +44,16 @@ pub struct Inputs {
 /// Cell name of one platform and optional invocation id.
 #[must_use]
 pub fn cell(platform: &str, invocation_id: &str) -> String {
-    if invocation_id.is_empty() {
+    let cell = if invocation_id.is_empty() {
         format!("coverage {platform}")
     } else {
         format!("coverage {platform} {invocation_id}")
-    }
+    };
+    one_line(&cell).replace('<', "&lt;").replace('>', "&gt;")
+}
+
+fn one_line(text: &str) -> String {
+    text.replace(['\r', '\n'], " ").replace("```", "'''")
 }
 
 /// Marker line the publish step finds the cell's comment by.
@@ -105,7 +110,13 @@ fn source_lines(events: &[Value]) -> Vec<String> {
             event["code"] == "coverage_sources" || event["code"] == "coverage_sources_incomplete"
         })
         .take(MAX_SOURCE_LINES)
-        .map(|event| format!("{}: {}", text(&event["code"]), text(&event["message"])))
+        .map(|event| {
+            one_line(&format!(
+                "{}: {}",
+                text(&event["code"]),
+                text(&event["message"])
+            ))
+        })
         .collect()
 }
 
@@ -116,7 +127,7 @@ fn source_lines(events: &[Value]) -> Vec<String> {
     reason = "float to int casts saturate"
 )]
 pub fn clock(micros: f64) -> String {
-    let seconds = (micros / 1_000_000.0).floor() as i64;
+    let seconds = ((micros / 1_000_000.0).floor() as i64).max(0);
     format!("{}m{:02}s", seconds.div_euclid(60), seconds.rem_euclid(60))
 }
 
@@ -125,7 +136,7 @@ pub fn clock(micros: f64) -> String {
     reason = "float to int casts saturate"
 )]
 fn percent_of(part: f64, whole: f64) -> i64 {
-    (part * 100.0 / whole).floor() as i64
+    ((part * 100.0 / whole).floor() as i64).clamp(0, 100)
 }
 
 fn profile_line(id: &str, profile: &Value) -> Option<String> {

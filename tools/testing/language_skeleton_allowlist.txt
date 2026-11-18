@@ -2,7 +2,6 @@ entry-points appimage/lang.json
 entry-points elixir/lang.json
 export-kind elixir/defs.bzl
 extension-label core/quality/artifacts/extension.bzl
-extension-label gazelle/dispatch/extension.bzl
 extension-label third_party/dotnet/extension.bzl
 extension-name python/extensions.bzl
 fixture-hello android/tests/conformance/BUILD.bazel

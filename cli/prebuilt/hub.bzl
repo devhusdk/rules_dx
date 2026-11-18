@@ -2,7 +2,7 @@
 
 load(":tools.bzl", "JAR_TOOLS", "RELEASE_CPU", "RELEASE_OS", "TOOLS", "asset_name", "split_key")
 
-visibility(["//cli/...", "//gazelle/..."])
+visibility(["//cli/..."])
 
 KNOWN_OS = ["android", "freebsd", "ios", "linux", "macos", "openbsd", "windows"]
 

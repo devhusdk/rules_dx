@@ -8,7 +8,7 @@ A platform key is "<os>_<cpu>" in release asset spelling: os is linux, macos or
 windows, cpu is x86_64 or arm64, and a jar that runs anywhere uses "any".
 """
 
-visibility(["//cli/...", "//gazelle/..."])
+visibility(["//cli/..."])
 
 # Release asset spelling to @platforms constraint values.
 RELEASE_OS = {

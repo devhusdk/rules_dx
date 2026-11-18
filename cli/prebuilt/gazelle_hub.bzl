@@ -1,6 +1,6 @@
 """Plans the language list and renders the BUILD file of @dx_gazelle."""
 
-load("//cli/prebuilt:hub.bzl", "KNOWN_CPU", "KNOWN_OS")
+load(":hub.bzl", "KNOWN_CPU", "KNOWN_OS")
 
 visibility("private")
 

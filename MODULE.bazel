@@ -2247,7 +2247,7 @@ use_repo(dx_dev_hub, "dx_npm_link")
 dx_prebuilt = use_extension("//core:extensions.bzl", "dx_prebuilt")
 use_repo(dx_prebuilt, "dx_prebuilt")
 
-dx_gazelle = use_extension("//gazelle/dispatch:extension.bzl", "dx_gazelle")
+dx_gazelle = use_extension("//core:extensions.bzl", "dx_gazelle")
 dx_gazelle.language(library = "//gazelle/astro")
 dx_gazelle.language(library = "//gazelle/avro")
 dx_gazelle.language(library = "//gazelle/capnproto")

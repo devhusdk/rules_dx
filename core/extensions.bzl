@@ -1,7 +1,8 @@
-"""The core module extensions: dx_pins, dx_source_archives, dx_licenses and dx_prebuilt."""
+"""The core module extensions: dx_pins, dx_source_archives, dx_licenses, dx_prebuilt and dx_gazelle."""
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load("//cli/prebuilt:extension.bzl", _dx_prebuilt = "dx_prebuilt")
+load("//cli/prebuilt:gazelle.bzl", _dx_gazelle = "dx_gazelle")
 load(":license.bzl", "LICENSE_IDS", "accepted_terms", "terms_errors", "unknown_ids")
 load(":repo.bzl", "ARCHIVE_TYPES", "hub_repo", "pinned_archive")
 load(":root_only.bzl", "warn_dropped_tags")
@@ -204,3 +205,5 @@ dx_licenses = module_extension(
 )
 
 dx_prebuilt = _dx_prebuilt
+
+dx_gazelle = _dx_gazelle

@@ -1,10 +1,10 @@
 """Tests for the @dx_gazelle language list, source decision and hub BUILD text."""
 
-load("//cli/prebuilt:hub.bzl", "plan_assets", "plan_root")
-load("//cli/prebuilt:pins.bzl", "URL_TEMPLATE")
-load("//cli/prebuilt:tools.bzl", "TOOLS")
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(":hub.bzl", "DISPATCH", "builds_from_source", "hub_languages", "prebuilt_build", "render_hub_build")
+load(":gazelle_hub.bzl", "DISPATCH", "builds_from_source", "hub_languages", "prebuilt_build", "render_hub_build")
+load(":hub.bzl", "plan_assets", "plan_root")
+load(":pins.bzl", "URL_TEMPLATE")
+load(":tools.bzl", "TOOLS")
 
 visibility("private")
 

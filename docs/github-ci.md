@@ -136,7 +136,7 @@ Common failures:
 |---|---|
 | Rejected input | Use a value listed under [Inputs](#inputs). |
 | `Config value 'ci' is not defined in any .rc file` | Add the `.bazelrc` lines under [Caches](#caches). |
-| `advisory_refresh_failed` | Rerun the workflow, or run `bazel run @rules_dx//cli/advisory_prep --`. See [Advisory Snapshots](cli/commands/audit-update.md#advisory-snapshots). |
+| `advisory_refresh_failed` | Rerun the workflow, or run `bazel run @rules_dx//dx/advisory_prep --`. See [Advisory Snapshots](cli/commands/audit-update.md#advisory-snapshots). |
 | Stale `MODULE.bazel.lock` | Run `bazel mod deps` and commit the lock file. |
 | Skipped, cancelled or missing check | Rerun the pull request run. |
 

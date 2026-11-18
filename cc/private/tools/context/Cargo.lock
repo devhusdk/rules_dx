@@ -19,6 +19,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
+name = "advisory_prep"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "clap",
+ "tempfile",
+]
+
+[[package]]
 name = "aead"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1662,8 +1671,6 @@ dependencies = [
 name = "dx_advisory_prep"
 version = "0.0.0"
 dependencies = [
- "chrono",
- "clap",
  "crc32fast",
  "flate2",
  "serde",
@@ -2152,7 +2159,6 @@ dependencies = [
 name = "dx_tool_resolve"
 version = "0.0.0"
 dependencies = [
- "clap",
  "tempfile",
  "thiserror 2.0.20",
 ]
@@ -6045,6 +6051,13 @@ name = "toml_writer"
 version = "1.1.2+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d56353a2a665ad0f41a421187180aab746c8c325620617ad883a99a1cbe66d2"
+
+[[package]]
+name = "tool_resolve"
+version = "0.0.0"
+dependencies = [
+ "clap",
+]
 
 [[package]]
 name = "tower"

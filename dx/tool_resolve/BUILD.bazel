@@ -1,0 +1,67 @@
+load("@crates//:crates.bzl", "aliases")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_binary", "rust_test")
+
+# Maintainer runnable: `bazel run @rules_dx//dx/tool_resolve`. It lives under
+# dx/ so the public label set holds only what users build; the library stays
+# in //cli/tool_resolve because the CLI links it.
+package(default_visibility = ["//visibility:private"])
+
+rust_binary(
+    name = "tool_resolve",
+    srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "dx/tool_resolve",
+        normal = True,
+    ),
+    crate_name = "tool_resolve",
+    crate_root = "src/main.rs",
+    # keep
+    deps = [
+        "//cli/error:dx_error",
+        "//cli/process:dx_process",
+        "//cli/tool_resolve:dx_tool_resolve",
+        "@crates//:clap",
+    ],
+)
+
+rust_test(
+    name = "tool_resolve_bin_test",
+    size = "small",
+    srcs = [
+        "src/main.rs",
+        "src/main_tests.rs",
+    ],
+    aliases = aliases(
+        package_name = "dx/tool_resolve",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "tool_resolve",
+    crate_root = "src/main.rs",
+    # keep
+    deps = [
+        "//cli/error:dx_error",
+        "//cli/process:dx_process",
+        "//cli/tool_resolve:dx_tool_resolve",
+        "@crates//:clap",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

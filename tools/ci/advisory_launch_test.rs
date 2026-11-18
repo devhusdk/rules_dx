@@ -30,7 +30,7 @@ fn the_prepare_step_is_one_advisory_prep_run() {
     );
     for needle in [
         "bazel run --lockfile_mode=error",
-        "@rules_dx//cli/advisory_prep",
+        "@rules_dx//dx/advisory_prep",
         "--ci",
         "--workspace \"$GITHUB_WORKSPACE\"",
         "--out \"$GITHUB_WORKSPACE/.dx/local/advisory\"",

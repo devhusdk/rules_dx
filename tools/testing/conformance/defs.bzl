@@ -49,6 +49,7 @@ _QUALITY_CONFIGS = {
     "perl": "tool_overrides",
     "php": "tool_overrides",
     "powershell": "tool_overrides",
+    "qt": "tool_overrides",
     "rego": "shared",
     "rst": "shared",
     "ruby": "tool_overrides",

@@ -188,7 +188,7 @@ def _roslyn_impl(target, ctx):
         mnemonic = "CSharpRoslyn",
         progress_message = "Roslyn analyzers %{label}",
         executable = ctx.executable._capture,
-        arguments = ["--status", status.path, "--", wrapper.path, runtime.path, csc.path, args],
+        arguments = ["capture", "--status", status.path, "--", wrapper.path, runtime.path, csc.path, args],
         inputs = inputs,
         outputs = [sarif, status, out_tree],
         env = {"DOTNET_CLI_HOME": runtime.dirname},
@@ -203,7 +203,7 @@ roslyn_aspect = aspect(
     attr_aspects = ["upstream", "dx_tfm_variants"],
     attrs = {
         "_capture": attr.label(
-            default = "//core/quality/capture",
+            default = "@dx_prebuilt//:dx",
             executable = True,
             cfg = "exec",
             doc = "Runs one program with its streams and exit code written to files.",

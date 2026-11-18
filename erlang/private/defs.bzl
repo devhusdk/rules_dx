@@ -407,6 +407,7 @@ def _erlang_release_impl(ctx):
     out = ctx.actions.declare_directory(ctx.label.name)
     inputs = []
     args = ctx.actions.args()
+    args.add("release_tree")
     args.add(out.path)
     for app in apps:
         info = app[_ErlangAppInfo]
@@ -444,7 +445,7 @@ erlang_release = rule(
             providers = [_ErlangAppInfo],
             doc = "erlang_app targets to include, with their dependencies.",
         ),
-        "_release_tree": attr.label(default = Label("//cli/release_tree"), executable = True, cfg = "exec"),
+        "_release_tree": attr.label(default = Label("@dx_prebuilt//:dx"), executable = True, cfg = "exec"),
     },
     provides = [DefaultInfo],
 )

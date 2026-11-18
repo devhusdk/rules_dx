@@ -182,18 +182,30 @@ fn main() {
 
 // LCOV_EXCL_START - reason: thin multicall shim, issue: 6517, policy: docs/cli/commands/build-test-coverage.md
 fn run_as_tool() -> Option<i32> {
-    use dx_cli::multicall::{Tool, tool_for};
-    let mut args = std::env::args_os();
-    let tool = tool_for(&args.next()?)?;
-    let args: Vec<String> = args.map(|arg| arg.to_string_lossy().into_owned()).collect();
+    use dx_cli::multicall::{Tool, subcommand_for, tool_for};
+    let mut args = std::env::args_os().peekable();
+    let argv0 = args.next()?;
+    let tool = match tool_for(&argv0) {
+        Some(tool) => tool,
+        None => {
+            let tool = subcommand_for(args.peek()?)?;
+            args.next();
+            tool
+        }
+    };
+    let lossy = |args: std::iter::Peekable<std::env::ArgsOs>| -> Vec<String> {
+        args.map(|arg| arg.to_string_lossy().into_owned()).collect()
+    };
     Some(match tool {
-        Tool::Runner => quality_runner::entry::run_cli(&args),
-        Tool::Markdown => quality_markdown::entry::run_process(&args),
-        Tool::Notebook => quality_notebook::entry::run_process(&args),
-        Tool::LspCheck => lsp_check::entry::run_process(&args),
-        Tool::CollectNative => collect_native::run_process(args),
-        Tool::EnvShardWriter => env_shard::writer::run_process(&args),
-        Tool::CodegenShardWriter => codegen_shard::writer::run_process(&args),
+        Tool::Runner => quality_runner::entry::run_cli(&lossy(args)),
+        Tool::Markdown => quality_markdown::entry::run_process(&lossy(args)),
+        Tool::Notebook => quality_notebook::entry::run_process(&lossy(args)),
+        Tool::LspCheck => lsp_check::entry::run_process(&lossy(args)),
+        Tool::CollectNative => collect_native::run_process(lossy(args)),
+        Tool::EnvShardWriter => env_shard::writer::run_process(&lossy(args)),
+        Tool::CodegenShardWriter => codegen_shard::writer::run_process(&lossy(args)),
+        Tool::ReleaseTree => release_tree::run_process(&lossy(args)),
+        Tool::Capture => capture::run_process(args),
     })
 }
 // LCOV_EXCL_STOP - reason: end thin multicall shim, issue: 6517, policy: docs/cli/commands/build-test-coverage.md

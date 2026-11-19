@@ -21,9 +21,9 @@ load(":proto.bzl", "ts_proto_srcs")
 visibility(["//..."])
 
 _TS_COMPILER = {
-    "tsc": Label("@npm_typescript//:tsc"),
+    "tsc": Label("//typescript/private:tsc"),
     "tsc_worker": Label("@npm_typescript//:tsc_worker"),
-    "validator": Label("@npm_typescript//:validator"),
+    "validator": Label("//typescript/private:validator"),
 }
 
 def _dx_ts_project(**kwargs):

@@ -23,6 +23,8 @@ _C_SHIPFLAGS = _CPPFLAGS + [
     "-fno-strict-aliasing",
     "-falign-functions",
     "-fvisibility=hidden",
+    "-ffunction-sections",
+    "-fdata-sections",
     "-D_FILE_OFFSET_BITS=64",
     "-DNDEBUG",
     "-DJL_NDEBUG",
@@ -64,10 +66,23 @@ genrule(
 )
 
 genrule(
+    name = "jl_data_globals_defs",
+    srcs = ["src/jl_exported_data.inc"],
+    outs = ["gen/jl_data_globals_defs.inc"],
+    cmd = """{
+  grep 'XX(.*)' $< | sed -E 's/.*XX\\(([^,]+), .*\\).*/#define jl_\\1 (sysimg_global.\\1)/g'
+  grep 'YY(.*)' $< | sed -E 's/.*YY\\(([^,]+), .*\\).*/#define jl_\\1 (const_globals.jl\\1)/g'
+} > $@""",
+)
+
+genrule(
     name = "julia_expmap",
-    srcs = ["src/julia.expmap.in"],
+    srcs = [
+        "VERSION",
+        "src/julia.expmap.in",
+    ],
     outs = ["julia.expmap"],
-    cmd = "sed -e 's/@JULIA_SHLIB_SYMBOL_VERSION@/JL_LIBJULIA_1.12/' -e 's/@LLVM_SHLIB_SYMBOL_VERSION@/JL_LLVM_18.1/' $< > $@",
+    cmd = "v=$$(cut -d. -f1,2 $(execpath VERSION)) && sed -e \"s/@JULIA_SHLIB_SYMBOL_VERSION@/JL_LIBJULIA_$$v/\" -e 's/@LLVM_SHLIB_SYMBOL_VERSION@/JL_LLVM_20.1/' $(execpath src/julia.expmap.in) > $@",
 )
 
 cc_library(
@@ -253,6 +268,7 @@ cc_library(
         "src/*.c",
         "deps/valgrind/*.h",
     ]) + [
+        ":jl_data_globals_defs",
         ":jl_internal_funcs",
         ":julia_flisp_boot_inc",
         ":julia_version_h",
@@ -281,6 +297,7 @@ cc_library(
         "@julia_src_libllvm//:headers",
         "@julia_src_libunwind//:headers",
         "@julia_src_libuv//:headers",
+        "@julia_src_zstd//:headers",
     ],
     alwayslink = True,
 )
@@ -302,6 +319,8 @@ cc_library(
         "-fno-gnu-unique",
         "-falign-functions",
         "-fvisibility=hidden",
+        "-ffunction-sections",
+        "-fdata-sections",
         "-pedantic",
         "-D__STDC_CONSTANT_MACROS",
         "-D__STDC_FORMAT_MACROS",

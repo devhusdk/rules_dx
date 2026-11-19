@@ -133,7 +133,7 @@ rules_dx applies these patches in its own repository rules, so consumers get the
 
 ## julia
 
-`MODULE.bazel` patches the Julia 1.12.5 source archive for `//julia/private/runtime:libjulia_internal`: `deterministic_objectid.patch` gives a mutable object outside any image an `objectid` from a counter while Julia writes an image.
+`MODULE.bazel` patches the Julia 1.13.4 source archive for `//julia/private/runtime:libjulia_internal`: `deterministic_objectid.patch` gives a mutable object outside any image an `objectid` from a counter while Julia writes an image.
 
 ## kcov
 

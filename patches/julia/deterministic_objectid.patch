@@ -1,7 +1,7 @@
 Upstream: none (not yet sent upstream; rules_dx issue #13448)
 --- a/src/builtins.c
 +++ b/src/builtins.c
-@@ -312,6 +312,35 @@
+@@ -320,6 +320,35 @@
  
  // object_id ------------------------------------------------------------------
  
@@ -37,7 +37,7 @@ Upstream: none (not yet sent upstream; rules_dx issue #13448)
  static uintptr_t bits_hash(const void *b, size_t sz) JL_NOTSAFEPOINT
  {
      switch (sz) {
-@@ -365,10 +394,7 @@
+@@ -373,10 +402,7 @@
              i++;
              pe = pe->prev;
          }
@@ -49,7 +49,7 @@ Upstream: none (not yet sent upstream; rules_dx issue #13448)
      }
      if (tv == jl_uniontype_type) {
          return bitmix(bitmix(jl_object_id((jl_value_t*)tv),
-@@ -478,10 +504,7 @@
+@@ -486,10 +512,7 @@
              jl_module_t *m = (jl_module_t*)v;
              return m->hash;
          }

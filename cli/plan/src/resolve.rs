@@ -1,3 +1,4 @@
+pub mod base;
 pub mod changed;
 pub mod classify;
 pub mod codegen_expand;

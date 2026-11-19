@@ -466,6 +466,7 @@ Built-in selectors also run with no selector, except `bcr:newest`:
 - `github-actions` checks every remote `uses:` pin in `.github/workflows`. `github-actions:<owner>/<repo>` checks one repo. A pin is read from its tag (`@v4`) or from a trailing comment (`@<sha> # v4.1.0`).
 - `bazel:.bazelversion` checks `.bazelversion`.
 - `containers` compares each `oci.pull` digest in `MODULE.bazel` with the current digest of the image's `latest` tag. `containers:<name>` checks one pull. Apply a new digest with `dx update containers:<name> sha256:<digest> --apply`.
+- `pins` checks each `pins.json` a top-level `<dir>/lang.json` lists. A file with `cells` is one package, `pins:<path>`, against the latest GitHub release or gem. Each `archives` entry whose GitHub URL names a release tag holding its `version` is one package, `pins:<path>#<archive>`; other entries are skipped.
 - `bcr:newest` writes `core/modules/bcr_newest.json` from the newest stable BCR version of each `bazel_dep` in `MODULE.bazel`.
 - Pins with no readable version, and repos with no release, print `<set>:<package>: unknown (<reason>)` and an `update_outdated_unknown` warning. The exit code is unchanged.
 - Set `GH_TOKEN` or `GITHUB_TOKEN` to raise GitHub's limit of 60 requests an hour. The token goes to `api.github.com` only.
@@ -581,7 +582,7 @@ One `set:package` and one version widen that requirement, or declare the package
 | `bazel` | Tested version in the `single_version_override`, keeping patches. Falls back to the `bazel_dep` when there is no override or no `version`. `--floor --reason <text>` edits the `bazel_dep` version and the `# floor: <text>` lines above it. |
 | `containers` | The `oci.pull` digest. |
 | `github-actions` | A tag resolves to its commit SHA through `api.github.com` (`GH_TOKEN` or `GITHUB_TOKEN` when set). The SHA is written in every workflow that uses the action; a `# v4` comment becomes the tag. `--offline` fails a tag with `offline_required`; pass a SHA. |
-| `pins` | A `pins.json` that a top-level `<dir>/lang.json` lists: version, URLs and sha256 of every entry. |
+| `pins` | A `pins.json` that a top-level `<dir>/lang.json` lists: version, URLs, `strip_prefix` and sha256 of every cell. `pins:<path>#<archive>` moves only that `archives` entry. |
 | `cabal` | Bound in `build-depends`, then resolves again. |
 | `cargo` | Crate in every manifest that declares it, then `dx update --apply <set>`. |
 | `composer` | Constraint in `require` or `require-dev` of `composer.json`, keeping the operator, then `composer update <package> --with-all-dependencies --no-install` and the digest refresh. |

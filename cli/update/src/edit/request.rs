@@ -351,7 +351,7 @@ fn target_manifest<'a>(set: UpdateSet, package: &'a str, manifest: Option<&'a st
         }
         UpdateSet::GithubActions => WORKFLOW_DIR,
         UpdateSet::Containers => "MODULE.bazel",
-        UpdateSet::Pins => package,
+        UpdateSet::Pins => crate::pins::split(package).0,
         UpdateSet::Cargo
         | UpdateSet::Go
         | UpdateSet::Maven

@@ -536,8 +536,10 @@ fn resolve_pins_request(
         .and_then(std::fs::read_to_string)
         .map_err(|error| failed(ErrorKind::Failure, format!("cannot read {path}: {error}")))?;
     let fetch = super::update_outdated::registry_fetch();
-    let rewritten = dx_update::pins::rewrite(&text, version, &|url| fetch.download_sha256(url))
-        .map_err(|error| failed(error.kind(), format!("{error} (nothing widened)")))?;
+    let archive = dx_update::pins::split(&request.package).1;
+    let rewritten =
+        dx_update::pins::rewrite(&text, archive, version, &|url| fetch.download_sha256(url))
+            .map_err(|error| failed(error.kind(), format!("{error} (nothing widened)")))?;
     Ok(request.with_resolved_pins(rewritten.unwrap_or(text)))
 }
 

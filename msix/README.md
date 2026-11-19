@@ -19,6 +19,8 @@ tools/dx test //msix/...
 
 ### Use
 
+Declare the package and its signing launcher in a `BUILD.bazel` file:
+
 ```python
 load("@rules_dx//msix:defs.bzl", "msix_package", "msix_sign")
 
@@ -42,25 +44,36 @@ msix_sign(
 )
 ```
 
-`dx init` and `tools/dx generate` write `<binary>_msix` for a directory that
-holds a `Package.appxmanifest` whose `Logo` is a PNG path in the directory, a `NOTICE`, `LICENSE` or
-`COPYING` file and exactly one `*_binary` target. The `Identity` `Name`,
-`Publisher` and `Version` and the `DisplayName` come from the manifest.
+`dx init` and `tools/dx generate` write a `<binary>_msix` target for you
+when a directory holds:
+
+- a `Package.appxmanifest` whose `Logo` is a PNG path in the directory;
+- a `NOTICE`, `LICENSE` or `COPYING` file;
+- exactly one `*_binary` target.
+
+The target takes the `Identity` `Name`, `Publisher` and `Version` and the
+`DisplayName` from the manifest.
 
 Attributes:
 
-- `platform`: a Windows platform label such as `@rules_dx//msix:windows_arm64`. Builds
-  the package and its `binary`, `libs` and `data` for it. Unset uses the current target
-  platform. `target_compatible_with` only marks compatibility. Do not set it with `select()`.
-- `binary`: the `.exe`. Its target-configuration bytes are packaged at the package root.
-  Every `.dll` in its runfiles, such as its `dynamic_deps`, is packaged next to it.
+- `platform`: a Windows platform label such as
+  `@rules_dx//msix:windows_arm64`. The package and its `binary`, `libs`
+  and `data` build for it. Unset uses the current target platform. Do not
+  set it with `select()`. `target_compatible_with` only marks
+  compatibility; it does not pick the platform.
+- `binary`: the `.exe`, packaged at the package root as built for
+  `platform`. Every `.dll` in its runfiles, such as its `dynamic_deps`,
+  is packaged next to it.
 - `identity_name`: package identity name, 3 to 50 letters, digits, dots or dashes.
 - `publisher`: distinguished name that starts with `CN=`. It must match the
   signing certificate subject.
 - `version`: four parts, each 0 to 65535.
 - `logo`: PNG placed at `Assets/<file name>`.
 - `notice`: license and NOTICE files placed under `licenses/`. Required.
-- `libs`: extra DLLs placed next to the executable, such as plugins. A `libs` entry without a `.dll` fails analysis. A `libs` DLL with the same name as a different runfiles or `libs` DLL fails analysis.
+- `libs`: extra DLLs placed next to the executable, such as plugins.
+  Analysis, the step where Bazel reads BUILD files before it runs
+  anything, fails for a `libs` entry without a `.dll`, or for a `libs`
+  DLL with the same name as a different runfiles or `libs` DLL.
 - `data`: files placed under `share/`. Files keep their path relative to their
   data target's package. Files a data target collects from another package or
   repo keep only their file name. The same file listed twice is packaged once.
@@ -70,7 +83,8 @@ Attributes:
 - `display_name`, `description`, `publisher_display_name`: default to the
   identity name, the display name and the publisher CN, with escapes and
   quotes removed.
-- `min_version`, `max_version_tested`: four parts like `version`. Default to `10.0.17763.0` and `10.0.26100.0`.
+- `min_version`, `max_version_tested`: four parts like `version`.
+  Default to `10.0.17763.0` and `10.0.26100.0`.
 
 Two files that map to the same package path fail analysis.
 
@@ -94,13 +108,13 @@ bazel build //pkg:app --platforms=@rules_dx//msix:windows_arm64
 
 The `platform` attribute and `--platforms` do the same thing.
 
-The package digest changes between builds. The digests of the packaged files
-do not.
+The package digest changes between builds. The digests of the packaged
+files stay the same.
 
 ### Register a package
 
-Unsigned packages install only through a developer registration. Turn on
-Developer Mode, then, in Windows PowerShell:
+You install an unsigned package by registering it as a developer. Turn
+on Developer Mode, then run in Windows PowerShell:
 
 ```text
 mkdir $env:TEMP\app
@@ -115,21 +129,21 @@ cannot install or run an arm64 package.
 
 ### Sign
 
-`msix_sign` signs a copy of the package with a PFX certificate. Building it
-signs nothing. Signing happens only on `bazel run`. Set the password in
-`DX_MSIX_PFX_PASSWORD` when the PFX has one.
-
-Signing adds the certificate to the current user's `My` store for the run, then
-removes it and its private key, unless it was already there with its private
-key. An entry without a key is put back as it was. The password never goes on
-the `signtool` command line.
-
-`signtool` runs on an x64 or arm64 host and signs packages of either arch.
+`msix_sign` signs a copy of the package with a PFX certificate. Building
+it signs nothing; signing happens only on `bazel run`. If the PFX has a
+password, set it in `DX_MSIX_PFX_PASSWORD`.
 
 ```sh
 bazel run //pkg:app_sign -- -Pfx C:\certs\test.pfx -Out C:\out\app.msix
 bazel run //pkg:app_sign -- -Pfx C:\certs\test.pfx -Out C:\out\app.msix -Timestamp http://timestamp.example.com
 ```
+
+For the run, signing adds the certificate to the current user's `My`
+store. Afterwards it removes the certificate and its private key, unless
+both were already there. An entry that had no key is put back as it was.
+The password never goes on the `signtool` command line.
+
+`signtool` runs on an x64 or arm64 host and signs packages of either arch.
 
 Flags:
 
@@ -142,7 +156,8 @@ Flags:
   without the server, then signs a fresh copy with the server. The output has
   one timestamped signature.
 
-It checks the certificate before it runs `signtool`, and prints:
+The launcher checks the certificate before it runs `signtool`. It
+prints:
 
 ```text
 signed=<path>
@@ -197,22 +212,25 @@ You need no Windows SDK or Visual Studio install.
 The version is in `pins.json`.
 
 The package has `makeappx.exe` and `signtool.exe` for x64 and arm64 hosts.
-Its SHA-256 is pinned in `msix/private/pins.bzl`.
+Its SHA-256 is in `pins.json` too.
 
 ## Platforms
 
 MSIX packages build for `windows_x86_64` and `windows_arm64` targets, on a
 Windows x64 or arm64 host. `msix_package` and `msix_sign` add
 `@platforms//os:windows` to `target_compatible_with`, so `bazel build //...`
-skips them on Linux and macOS. A Windows target with another CPU fails
-analysis with `target platform is unsupported`. A build with no Windows
-execution platform fails analysis with
-`packaging needs a windows_x86_64 or windows_arm64 execution platform`.
+skips them on Linux and macOS.
+
+- A Windows target with another CPU fails analysis with
+  `target platform is unsupported`.
+- A build with no Windows execution platform, the platform that runs the
+  build tools, fails analysis with
+  `packaging needs a windows_x86_64 or windows_arm64 execution platform`.
 
 ## License
 
-The Build Tools license must be accepted in the root `MODULE.bazel`. Until it
-is, nothing is downloaded and packaging fails with
+Accept the Build Tools license in your root `MODULE.bazel`. Until you do,
+nothing is downloaded and packaging fails with
 `the Windows SDK Build Tools license (https://aka.ms/WinSDKLicenseURL) is not accepted`.
 
 ```python

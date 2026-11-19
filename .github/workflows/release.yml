@@ -121,7 +121,7 @@ jobs:
             printf '%s  %s\n' "$(sha256sum "out/$launcher" | cut -d' ' -f1)" "$launcher" > "out/$launcher.sha256"
             cat "out/$launcher.sha256" >> sums.tmp
             files="$files $launcher $launcher.sha256"
-            for tool in capnp flatc thrift; do
+            for tool in capnp flatc go thrift; do
               native="dx-$tool-${asset#dx-}"
               test -s "out/$native" || { echo "want a non-empty out/$native" >&2; exit 1; }
               printf '%s  %s\n' "$(sha256sum "out/$native" | cut -d' ' -f1)" "$native" > "out/$native.sha256"
@@ -195,7 +195,7 @@ jobs:
           files="$files dx-tool-sha256sums.txt"
           printf '%s\n' "$files" > out/files.list
           LC_ALL=C sort -k2 sums.tmp > out/dx-sha256sums.txt
-          test "$(wc -l < out/dx-sha256sums.txt)" -eq 47 || { echo "want 47 manifest lines, got $(wc -l < out/dx-sha256sums.txt)" >&2; exit 1; }
+          test "$(wc -l < out/dx-sha256sums.txt)" -eq 52 || { echo "want 52 manifest lines, got $(wc -l < out/dx-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-sha256sums.txt)
           test "$(wc -l < out/dx-gazelle-sha256sums.txt)" -eq 5 || { echo "want 5 gazelle manifest lines, got $(wc -l < out/dx-gazelle-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-gazelle-sha256sums.txt)
@@ -214,10 +214,13 @@ jobs:
           cp cli/prebuilt/pins.bzl "$pins"
           bazel run //tools/ci/fill_pins:fill_pins_bin -- "$RELEASE_TAG" --manifest "$PWD/out/dx-sha256sums.txt" --manifest "$PWD/out/dx-gazelle-sha256sums.txt" --manifest "$PWD/out/dx-jar-sha256sums.txt" --manifest "$PWD/out/dx-haskell-sha256sums.txt" --manifest "$PWD/out/dx-tool-sha256sums.txt" --pins "$pins" --repo "$GITHUB_REPOSITORY"
           bazel run //deploy/private/release:source_archive -- "$RELEASE_TAG" "$CANDIDATE_COMMIT" "$SOURCE_DIR" --pins "$pins"
-          for file in dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-jar-sha256sums.txt dx-haskell-sha256sums.txt dx-tool-sha256sums.txt files.list dx-*.sha256 dx-linux-x86_64 dx-linux-arm64 dx-macos-arm64 dx-windows-x86_64 dx-windows-arm64 dx-gazelle-linux-x86_64 dx-gazelle-linux-arm64 dx-gazelle-macos-arm64 dx-gazelle-windows-x86_64 dx-gazelle-windows-arm64 dx-launcher-linux-x86_64 dx-launcher-linux-arm64 dx-launcher-macos-arm64 dx-launcher-windows-x86_64 dx-launcher-windows-arm64 dx-capnp-* dx-flatc-* dx-thrift-* dx-topiary-* dx-progenitor-* dx-*-any.jar dx-hpc-lcov-* dx-weeder-* dx-hlint-* dx-ormolu-* dx-haskell-gmp-* dx-deadnix-* dx-selene-* dx-nixfmt-* dx-kcov-* dx-python-tools-*; do
-            case "$file" in *.tar.gz.sha256|*.zip.sha256) continue ;; esac
-            cp "out/$file" "$SOURCE_DIR/"
-          done
+          (
+            cd out
+            for file in dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-jar-sha256sums.txt dx-haskell-sha256sums.txt dx-tool-sha256sums.txt files.list dx-*.sha256 dx-linux-x86_64 dx-linux-arm64 dx-macos-arm64 dx-windows-x86_64 dx-windows-arm64 dx-gazelle-linux-x86_64 dx-gazelle-linux-arm64 dx-gazelle-macos-arm64 dx-gazelle-windows-x86_64 dx-gazelle-windows-arm64 dx-launcher-linux-x86_64 dx-launcher-linux-arm64 dx-launcher-macos-arm64 dx-launcher-windows-x86_64 dx-launcher-windows-arm64 dx-capnp-* dx-flatc-* dx-go-* dx-thrift-* dx-topiary-* dx-progenitor-* dx-*-any.jar dx-hpc-lcov-* dx-weeder-* dx-hlint-* dx-ormolu-* dx-haskell-gmp-* dx-deadnix-* dx-selene-* dx-nixfmt-* dx-kcov-* dx-python-tools-*; do
+              case "$file" in *.tar.gz.sha256|*.zip.sha256) continue ;; esac
+              cp "$file" "$SOURCE_DIR/"
+            done
+          )
           ls -l "$SOURCE_DIR"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

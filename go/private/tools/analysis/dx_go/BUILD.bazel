@@ -1,4 +1,5 @@
 load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
+load("@rules_go//go:def.bzl", "go_cross_binary")
 load("//go:defs.bzl", "go_binary", "go_library", "go_test")
 
 go_library(
@@ -20,6 +21,24 @@ go_binary(
     embed = [":dx_go_lib"],
     visibility = ["//:__subpackages__"],
 )
+
+# Release assets, one per host; .github/workflows/release-tools.yml builds them.
+[
+    go_cross_binary(
+        name = "dx_go_" + host,
+        platform = "@rules_go//go/toolchain:" + go_platform,
+        tags = ["manual"],
+        target = ":dx_go",
+        visibility = ["//visibility:private"],
+    )
+    for host, go_platform in {
+        "linux_arm64": "linux_arm64",
+        "linux_x86_64": "linux_amd64",
+        "macos_arm64": "darwin_arm64",
+        "windows_arm64": "windows_arm64",
+        "windows_x86_64": "windows_amd64",
+    }.items()
+]
 
 go_test(
     name = "dx_go_test",

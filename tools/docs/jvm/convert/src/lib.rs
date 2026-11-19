@@ -8,7 +8,12 @@
 //! is named `Name$` in `qualified`, so a class and its companion get distinct ids. Kinds `object`, `trait`, `typealias`, `function` and
 //! `property` are accepted only for the languages that have them.
 
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
@@ -90,9 +95,9 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
 pub fn run(options: &Options) -> Result<(), String> {
     let read = |path: &str| fs::read(path).map_err(|error| format!("cannot read {path}: {error}"));
     let json = String::from_utf8(read(&options.json)?)
-        .map_err(|_| format!("{} is not UTF-8", options.json))?;
+        .map_err(|error| format!("{} is not UTF-8: {error}", options.json))?;
     let manifest = String::from_utf8(read(&options.srcs_manifest)?)
-        .map_err(|_| format!("{} is not UTF-8", options.srcs_manifest))?;
+        .map_err(|error| format!("{} is not UTF-8: {error}", options.srcs_manifest))?;
     let mut deps = Vec::new();
     for path in &options.dep_shards {
         let shard = documentation_ir::decode_shard(&read(path)?)

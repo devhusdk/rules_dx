@@ -1,4 +1,9 @@
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 #![expect(
     clippy::disallowed_methods,
     reason = "runs local tools that exit on their own"
@@ -34,11 +39,7 @@ fn export(root: &Path, profile: &Path, objects: &[PathBuf]) -> Result<String, St
             String::from_utf8_lossy(&out.stderr)
         ));
     }
-    if profile.is_dir() {
-        fs::remove_dir_all(profile).ok();
-    } else {
-        fs::remove_file(profile).ok();
-    }
+    collect_native::remove_scratch(profile);
     let arch = apple::llvm_arch(env::consts::ARCH);
     let manifest = env::var("COVERAGE_MANIFEST").ok();
     let out = Command::new(&cov)
@@ -53,7 +54,7 @@ fn export(root: &Path, profile: &Path, objects: &[PathBuf]) -> Result<String, St
         .stderr(Stdio::piped())
         .output()
         .map_err(|e| format!("cannot run {}: {e}", cov.display()))?;
-    fs::remove_file(&merged).ok();
+    collect_native::remove_scratch(&merged);
     if !out.status.success() {
         let stderr = String::from_utf8_lossy(&out.stderr);
         if stderr.contains("no coverage data found") {
@@ -62,16 +63,18 @@ fn export(root: &Path, profile: &Path, objects: &[PathBuf]) -> Result<String, St
         }
         return Err(format!("llvm-cov export failed:\n{stderr}"));
     }
-    let report = String::from_utf8(out.stdout).map_err(|_| "llvm-cov wrote non-UTF-8")?;
+    let report = String::from_utf8(out.stdout)
+        .map_err(|error| format!("llvm-cov wrote non-UTF-8: {error}"))?;
     Ok(apple::rewrite_paths(&report, root))
 }
 
 fn collect() -> Result<(), String> {
-    let output = env::var("COVERAGE_OUTPUT_FILE").map_err(|_| "COVERAGE_OUTPUT_FILE is not set")?;
+    let output = env::var("COVERAGE_OUTPUT_FILE")
+        .map_err(|error| format!("COVERAGE_OUTPUT_FILE is not set: {error}"))?;
     let root = env::current_dir().map_err(|e| format!("cannot read the working directory: {e}"))?;
     let profile = env::var("TEST_UNDECLARED_OUTPUTS_DIR")
         .map(|dir| Path::new(&dir).join(apple::PROFDATA_NAME))
-        .map_err(|_| "TEST_UNDECLARED_OUTPUTS_DIR is not set")?;
+        .map_err(|error| format!("TEST_UNDECLARED_OUTPUTS_DIR is not set: {error}"))?;
     let objects =
         apple::covered_objects(&env::var("TEST_BINARIES_FOR_LLVM_COV").unwrap_or_default());
     let report = if !profile.exists() || objects.is_empty() {

@@ -187,6 +187,28 @@ fn a_signaled_child_reports_its_signal() {
 }
 
 #[test]
+fn an_unbounded_timeout_does_not_overflow_the_deadline() {
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
+    let spec = controlled_spec(scratch.path(), probe_argv(&[]), Duration::MAX);
+    match run(&spec).expect("a huge timeout is still a run") {
+        ChildOutcome::Finished { exit, .. } => assert_eq!(exit.code(), Some(0)),
+        outcome @ (ChildOutcome::TimedOut | ChildOutcome::OutputTooLarge { .. }) => {
+            panic!("unexpected outcome {outcome:?}")
+        }
+    }
+}
+
+#[test]
+fn a_huge_cleanup_budget_does_not_overflow() {
+    let huge = CleanupBudget {
+        graceful: Duration::MAX,
+        forced: Duration::MAX,
+        drain: Duration::MAX,
+    };
+    assert_eq!(huge.total(), Duration::MAX);
+}
+
+#[test]
 fn timeout_kills_a_sleeping_child_within_a_bound() {
     let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let spec = controlled_spec(

@@ -134,6 +134,23 @@ fn platform_configs_expand_when_enabled() {
 }
 
 #[test]
+fn platform_config_accepts_every_bazel_boolean_spelling() {
+    let os = std::env::consts::OS;
+    for on in ["True", "TRUE", "yes", "t", "y", "1"] {
+        let text = format!(
+            "common --enable_platform_specific_config={on}\nbuild:{os} --remote_executor=grpc://a\n"
+        );
+        assert!(Host::new().file(WS_RC, &text).remote(&[]), "{on}");
+    }
+    for off in ["False", "NO", "n", "f", "0"] {
+        let text = format!(
+            "common --enable_platform_specific_config\ncommon --enable_platform_specific_config={off}\nbuild:{os} --remote_executor=grpc://a\n"
+        );
+        assert!(!Host::new().file(WS_RC, &text).remote(&[]), "{off}");
+    }
+}
+
+#[test]
 fn imports_are_read_in_place() {
     let host = Host::new()
         .file(WS_RC, "import %workspace%/tools/remote.bazelrc\n")

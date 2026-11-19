@@ -69,7 +69,11 @@ fn no_color(env: Option<std::ffi::OsString>, rc_chose_color: bool) -> bool {
 
 fn keep_ui(argv: &[String], columns: Option<u16>, no_color: bool) -> Vec<String> {
     let command = argv.iter().skip(1).position(|arg| !arg.starts_with('-'));
-    let chosen = |flag: &str| argv.iter().any(|arg| arg.starts_with(flag));
+    let chosen = |flag: &str| {
+        argv.iter()
+            .take_while(|arg| *arg != "--")
+            .any(|arg| arg.starts_with(flag))
+    };
     let (Some(command), Some(columns)) = (command.map(|at| at + 1), columns) else {
         return argv.to_vec();
     };
@@ -213,6 +217,15 @@ mod tests {
         let kept = keep_ui(&plain, Some(120), false);
         assert!(!kept.iter().any(|arg| arg.starts_with("--color=")));
         assert!(!kept.iter().any(|arg| arg.starts_with("--curses=")));
+    }
+
+    #[test]
+    fn program_arguments_after_the_separator_are_not_the_users_choice() {
+        let args = argv(&["bazel", "run", "//a", "--", "--isatty=0", "--color=yes"]);
+        let kept = keep_ui(&args, Some(100), true);
+        assert!(kept.contains(&"--isatty=1".to_owned()));
+        assert!(kept.contains(&"--terminal_columns=100".to_owned()));
+        assert!(kept.contains(&"--color=no".to_owned()));
     }
 
     #[test]

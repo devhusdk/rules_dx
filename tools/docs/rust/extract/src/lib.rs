@@ -20,6 +20,7 @@ pub struct Options {
     pub package: String,
     pub krate: String,
     pub srcs_file: String,
+    pub generated: Vec<String>,
     pub out: String,
 }
 
@@ -34,7 +35,7 @@ pub struct Source {
 /// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
-    "usage: rust_extract --json FILE --package NAME --crate NAME --srcs-file FILE --out FILE"
+    "usage: rust_extract --json FILE --package NAME --crate NAME --srcs-file FILE [--generated PATH]... --out FILE"
 }
 
 /// Parses argv into inputs, or returns the rejection text.
@@ -45,13 +46,21 @@ pub fn usage() -> &'static str {
 pub fn parse(args: &[String]) -> Result<Options, String> {
     let mut flags = documentation_ir::tool::flags(
         args,
-        &["--json", "--package", "--crate", "--srcs-file", "--out"],
+        &[
+            "--json",
+            "--package",
+            "--crate",
+            "--srcs-file",
+            "--generated",
+            "--out",
+        ],
     )?;
     Ok(Options {
         json: flags.one("--json")?,
         package: flags.one("--package")?,
         krate: flags.one("--crate")?,
         srcs_file: flags.one("--srcs-file")?,
+        generated: flags.many("--generated"),
         out: flags.one("--out")?,
     })
 }
@@ -80,6 +89,18 @@ pub fn parse_sources(text: &str) -> Result<Vec<Source>, String> {
         });
     }
     Ok(sources)
+}
+
+/// Flags every source whose docs path is in `generated`; rules_rust symlinks plain srcs next to generated ones, so the file alone cannot tell them apart.
+#[must_use]
+pub fn mark_generated(sources: Vec<Source>, generated: &[String]) -> Vec<Source> {
+    sources
+        .into_iter()
+        .map(|source| Source {
+            generated: source.generated || generated.contains(&source.file),
+            ..source
+        })
+        .collect()
 }
 
 /// Maps one rustdoc span file to its docs path, or None when the crate does not own it.
@@ -120,7 +141,7 @@ pub fn run(options: &Options) -> String {
         Err(error) => return format!("cannot read srcs file '{}': {error}", options.srcs_file),
     };
     let sources = match parse_sources(&srcs) {
-        Ok(sources) => sources,
+        Ok(sources) => mark_generated(sources, &options.generated),
         Err(error) => return error,
     };
     let shard = match extract(&json, &options.package, &options.krate, &sources) {
@@ -1125,7 +1146,8 @@ fn function_signature(vis: &str, name: &str, function: &rustdoc_types::Function)
     if let Some(output) = &function.sig.output {
         write!(text, " -> {}", ty(output)).unwrap_or_default();
     }
-    text + &where_clause(&function.generics)
+    text.push_str(&where_clause(&function.generics));
+    text
 }
 
 fn trait_signature(vis: &str, name: &str, data: &rustdoc_types::Trait) -> String {
@@ -1140,7 +1162,8 @@ fn trait_signature(vis: &str, name: &str, data: &rustdoc_types::Trait) -> String
     if !data.bounds.is_empty() {
         write!(text, ": {}", bounds(&data.bounds)).unwrap_or_default();
     }
-    text + &where_clause(&data.generics)
+    text.push_str(&where_clause(&data.generics));
+    text
 }
 
 fn assoc_type_signature(
@@ -1158,7 +1181,8 @@ fn assoc_type_signature(
     if let Some(type_) = type_ {
         write!(text, " = {}", ty(type_)).unwrap_or_default();
     }
-    text + ";"
+    text.push(';');
+    text
 }
 
 fn item_fields(fields: &[Option<Id>]) -> Vec<bool> {

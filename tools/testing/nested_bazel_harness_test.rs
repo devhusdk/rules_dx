@@ -147,7 +147,7 @@ fn indirect_consumer(name: &str) -> Case {
         "MODULE.bazel",
         &format!(
             "{module}{}",
-            nested::compose::rules_flutter_override().unwrap_or_else(|error| panic!("{error}"))
+            nested::compose::rules_flutter_override()
         ),
     );
     let rules = resolve_runfiles("MODULE.bazel");

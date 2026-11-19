@@ -17,7 +17,6 @@ exports_files([
     "defs.bzl",
     "extensions.bzl",
     "lang.json",
-    "pins.json",
 ])
 
 # Profile mode for flutter_application, as a transition output: `"@rules_dx//flutter:profile": True`.

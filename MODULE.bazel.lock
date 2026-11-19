@@ -499,6 +499,8 @@
     "https://bcr.bazel.build/modules/rules_cuda/0.4.0/source.json": "b2f3ff92e6aea97740ae52cbcc6c47065d5c200db3dbc6d4ad599a04a4de64dc",
     "https://bcr.bazel.build/modules/rules_dart/0.9.1/MODULE.bazel": "f217634c3a587cfc055e311314aad71a4f0759abab2cab6078417c6063f6ba9e",
     "https://bcr.bazel.build/modules/rules_dart/0.9.1/source.json": "77adf8baa965216c56313ade09d13ef64ac30eb1a7b3d7bab390e2f3e3fa55b9",
+    "https://bcr.bazel.build/modules/rules_flutter/0.1.0/MODULE.bazel": "0d8d41f3137adef4250cc8de75df2a531f39f44b925fc3225d1c4c81351d49e3",
+    "https://bcr.bazel.build/modules/rules_flutter/0.1.0/source.json": "0a6d7db061fe48cfcd6e565d653344fad0ef5c680263c1711f164e1b39b0b6d1",
     "https://bcr.bazel.build/modules/rules_foreign_cc/0.17.0/MODULE.bazel": "9aac24f07a642f38ccc15131f580a62e2972a649f206d6ce333eef89878558dd",
     "https://bcr.bazel.build/modules/rules_foreign_cc/0.17.0/source.json": "045d9c347ceb45d10b023d3dac39e41214f1a111cf2920de35d6971c3e77cabc",
     "https://bcr.bazel.build/modules/rules_fuzzing/0.5.2/MODULE.bazel": "40c97d1144356f52905566c55811f13b299453a14ac7769dfba2ac38192337a8",
@@ -985,7 +987,7 @@
     "@@rules_flutter+//flutter:extensions.bzl%flutter": {
       "general": {
         "bzlTransitiveDigest": "ijCU4aUQvOqHD/VPDBc/2ibFWqajsjvi6OcYRtuzSJY=",
-        "usagesDigest": "zzAeVsIn/ij+FbV1RYjuc5YpxiEg+N3mxSfWkXuStIA=",
+        "usagesDigest": "cvYDphjkB4lcyuxkt6mvGFLE0SZuqAR8sIGMLgBmMd8=",
         "recordedInputs": [
           "REPO_MAPPING:apple_support+,bazel_skylib bazel_skylib+",
           "REPO_MAPPING:apple_support+,platforms platforms",
@@ -9208,7 +9210,7 @@
       },
       "os:linux,arch:amd64": {
         "bzlTransitiveDigest": "T84h6d0yQeT/AOyIWS8NagtobEg9RpCrbuzBCaosmdM=",
-        "usagesDigest": "/ZtVf3D3bCPyscZHeMRPnNr/K1SmnqSsKiqxjTR3GYg=",
+        "usagesDigest": "sVl7lycXgbahDQ093pGFKylKFl0EBklDidtG8N8uSkw=",
         "recordedInputs": [
           "REPO_MAPPING:rules_go+,bazel_tools bazel_tools",
           "REPO_MAPPING:rules_go+,io_bazel_rules_go rules_go+",

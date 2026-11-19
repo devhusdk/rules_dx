@@ -1,5 +1,5 @@
 load("@rules_dx//javascript:defs.bzl", "javascript_library")
-load("@rules_dx//typescript:defs.bzl", "ts_config", "typescript_binary", "typescript_library")
+load("@rules_dx//typescript:defs.bzl", "typescript_binary", "typescript_config", "typescript_library")
 
 # dx: written once, yours to edit
 
@@ -9,7 +9,7 @@ javascript_library(
     visibility = ["//visibility:public"],
 )
 
-ts_config(
+typescript_config(
     name = "tsconfig",
     src = "tsconfig.json",
     visibility = ["//visibility:public"],

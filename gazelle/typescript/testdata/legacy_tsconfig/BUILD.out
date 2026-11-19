@@ -1,0 +1,7 @@
+load("@rules_dx//typescript:defs.bzl", "typescript_config")
+
+typescript_config(
+    name = "tsconfig",
+    src = "tsconfig.json",
+    visibility = ["//visibility:public"],
+)

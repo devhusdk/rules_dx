@@ -680,8 +680,8 @@ empty upstream column are dx's own rules.
 |  |  | `@rules_dx//thrift:defs.bzl` | `thrift_java_library` |
 |  |  | `@rules_dx//thrift:defs.bzl` | `thrift_library` |
 |  |  | `@rules_dx//thrift:defs.bzl` | `thrift_rust_library` |
-|  |  | `@rules_dx//typescript:defs.bzl` | `ts_config` |
 |  |  | `@rules_dx//typescript:defs.bzl` | `typescript_bench` |
+|  |  | `@rules_dx//typescript:defs.bzl` | `typescript_config` |
 |  |  | `@rules_dx//typescript:defs.bzl` | `typescript_doc_shard` |
 |  |  | `@rules_dx//typescript:defs.bzl` | `typescript_fuzz_test` |
 |  |  | `@rules_dx//typescript:defs.bzl` | `typescript_playwright_test` |

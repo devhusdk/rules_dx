@@ -864,6 +864,7 @@ filegroup(
         "//rust/private/toolchain:module_srcs",
         "//rust/private/tools/msvc_paths:module_srcs",
         "//rust/private/tools/progenitor:module_srcs",
+        "//rust/private/tools/shard_runner:module_srcs",
         "//rust/private/tools/topiary:module_srcs",
         "//rust/tests:module_srcs",
         "//rust/tests/tonic:module_srcs",

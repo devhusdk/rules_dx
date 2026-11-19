@@ -58,40 +58,42 @@ tools/dx test //...
 
 ## Dependencies
 
-`go_library` requires `importpath`. `dx generate` fills it in as the `go.mod`
-module path plus the directory.
+Every `go_library` needs an `importpath`. `dx generate` fills it in: the
+`go.mod` module path plus the directory.
 
-Add the module to `go.mod` and wire it in `MODULE.bazel`:
+To use a third-party module, add it to `go.mod` and load `go.mod` in your
+`MODULE.bazel`:
 
 ```starlark
 go = use_extension("@rules_dx//go:extensions.bzl", "go")
 go.from_file(go_mod = "//:go.mod")
 ```
 
-Then run `dx generate --apply`. An import under a module that `go.mod`
-requires directly resolves to `@<repo>//<package>`. A module required only as
-`// indirect` fails with a hint to require it directly.
+Then run `dx generate --apply`. An import from a module that `go.mod` requires
+directly resolves to `@<repo>//<package>`. A module required only as
+`// indirect` fails, with a hint to require it directly.
 
 ## Quality
 
-| Check | Default tool | Opt-in tools |
-| --- | --- | --- |
-| Format | `gofumpt` | |
-| Typecheck | `gotype` | |
-| Lint | none | `errcheck`, `govet`, `staticcheck` |
+| Check | Default tools |
+| --- | --- |
+| Format | `gofumpt` |
+| Lint | `errcheck`, `govet`, `staticcheck`, `typos` |
+| Typecheck | `gotype` |
+
+To change the tools, set `[families.go]` in `dx.toml`.
 
 ## Toolchain
 
 ### cgo
 
-Ordinary cgo, meaning C sources and C++ through `cdeps` over a C ABI, runs with
-LLVM (the default) and with GCC on Linux x86_64 and arm64. Under GCC, libstdc++
-links statically. Race mode has its own test target (`gcc_cgo_race_test`) so a
-race failure never hides ordinary cgo. Windows and MSVC are not supported yet.
+cgo builds C sources, and C++ through `cdeps` behind a C ABI. It works with
+LLVM, the default, and with GCC on Linux x86_64 and arm64. Under GCC,
+libstdc++ links statically. cgo does not work on Windows or with MSVC.
 
-cgo needs a GNU-style C++ driver and ABI. With `cgo = True`, an MSVC or clang-cl
-toolchain fails at analysis, because rules_go would otherwise build the package
-without cgo.
+cgo needs a GNU-style C++ driver. With `cgo = True`, an MSVC or clang-cl
+toolchain fails at analysis, the step where Bazel reads BUILD files before it
+runs anything. So a package never builds without cgo by mistake.
 
 ## Rules
 

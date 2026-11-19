@@ -22,6 +22,25 @@ alias(
     visibility = ["//visibility:public"],
 )
 
+# The tonic, tokio and tokio-stream crates the default rust_prost_toolchain links into gRPC stubs.
+alias(
+    name = "tonic",
+    actual = "@rules_rust_prost//private/3rdparty/crates:tonic",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "tokio",
+    actual = "@rules_rust_prost//private/3rdparty/crates:tokio",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "tokio_stream",
+    actual = "@rules_rust_prost//private/3rdparty/crates:tokio-stream",
+    visibility = ["//visibility:public"],
+)
+
 # keep
 rust_library(
     name = "wasi_run",

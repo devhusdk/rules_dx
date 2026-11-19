@@ -112,6 +112,59 @@ The hub has one `lua_library` per rock. What the lock accepts:
 LuaRocks ecosystem, so `dx security` reports the set as uncovered. Accept
 that with `--accept uncovered:<set>`.
 
+### The lock without dx
+
+LuaRocks has no lockfile of its own, so the `luarocks` extension reads
+`luarocks.lock.json`. You can write it by hand when you use the rules
+without dx. List every rock you need, including the rocks they depend on:
+
+```json
+{
+  "schema": 1,
+  "ecosystem": "luarocks",
+  "packages": [
+    {
+      "name": "inspect",
+      "version": "3.1.3-0",
+      "deps": [],
+      "archives": [
+        {
+          "urls": ["https://github.com/kikito/inspect.lua/archive/v3.1.3.tar.gz"],
+          "sha256": "43386a613f9916186af4919f36392d8b8dad8c4428a5f8c85ebac80acba71eeb",
+          "strip_prefix": "inspect.lua-3.1.3"
+        }
+      ],
+      "extra": {"lua_modules": {"inspect": "inspect.lua"}}
+    }
+  ]
+}
+```
+
+Each package needs:
+
+| Field | What to write |
+| --- | --- |
+| `name` | The rock name. It becomes the target `@rocks//<name>`. |
+| `version` | The rock version, such as `3.1.3-0`. |
+| `deps` | The names of the rocks it needs. Each must be a package in the same lock. |
+| `archives` | The source archive: `https` `urls`, its `sha256` and the `strip_prefix` of its top directory. |
+| `extra.lua_modules` | Each module name and its `.lua` file inside the archive, from the `build.modules` table of the rockspec. |
+
+Get the `sha256` with `curl -L <url> | sha256sum`. Then add the hub to
+`MODULE.bazel`:
+
+```python
+luarocks = use_extension("@rules_dx//lua:extensions.bzl", "luarocks")
+luarocks.lock(
+    name = "rocks",
+    lock = "//:luarocks.lock.json",
+)
+use_repo(luarocks, "rocks")
+```
+
+`bazel build` fails with the reason when a field is missing or a module
+path does not end in the module name, such as `src/a/b.lua` for `a.b`.
+
 ### A package by hand
 
 You can also pin a pure-Lua package with `http_archive` and a `build_file`

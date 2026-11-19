@@ -19,9 +19,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use prebuilt_guard::{
-    allowlist, command_roots, compiled_binaries, consumer_line, guard_aspects, resolver_roots, stale,
-    unlisted,
-    wrapper_build, wrapper_bzl,
+    allowlist, command_roots, compiled_binaries, consumer_line, guard_aspects, resolver_roots,
+    stale, unlisted, wrapper_build, wrapper_bzl,
 };
 
 const ROOTS_REPO: &str = "dx_guard_roots";

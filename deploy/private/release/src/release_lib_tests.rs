@@ -817,6 +817,41 @@ fn release_errors_keep_their_sources() {
 }
 
 #[test]
+fn release_error_passes_ledger_and_publish_messages_through() {
+    use std::error::Error as _;
+
+    let error = ReleaseError::from(LedgerError::GhFailed {
+        stderr: "gh: release not found".to_owned(),
+    });
+    assert!(matches!(
+        error,
+        ReleaseError::Ledger(LedgerError::GhFailed { .. })
+    ));
+    assert_eq!(error.to_string(), "gh: release not found");
+    let ledger = error
+        .source()
+        .and_then(|source| source.downcast_ref::<LedgerError>());
+    assert!(matches!(ledger, Some(LedgerError::GhFailed { .. })));
+    let error = ReleaseError::from(PublishError::NoBcrLog);
+    assert!(matches!(
+        error,
+        ReleaseError::Publish(PublishError::NoBcrLog)
+    ));
+    assert_eq!(error.to_string(), "publish dry-run: no BCR dry-run log");
+    let publish = error
+        .source()
+        .and_then(|source| source.downcast_ref::<PublishError>());
+    assert!(matches!(publish, Some(PublishError::NoBcrLog)));
+    let missing = ReleaseError::MissingFlag { name: "--matrix" };
+    assert_eq!(
+        missing.to_string(),
+        "publish_dry_run_check: missing required --matrix <path>"
+    );
+    assert!(missing.source().is_none());
+    assert!(ReleaseError::BadApprove.source().is_none());
+}
+
+#[test]
 fn release_identity_comes_from_one_repository() {
     assert_eq!(RELEASE_REPOSITORY, "https://github.com/devhusdk/rules_dx");
     assert_eq!(RELEASE_REMOTE, "https://github.com/devhusdk/rules_dx.git");

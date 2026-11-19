@@ -233,6 +233,14 @@ pub enum ReleaseError {
     Cell(CellError),
     /// A release tag check failed.
     Tag(TagError),
+    /// A release ledger step failed.
+    Ledger(LedgerError),
+    /// A publish dry-run check failed.
+    Publish(PublishError),
+    /// `publish_dry_run_check` was run without a required flag.
+    MissingFlag { name: &'static str },
+    /// `publish_dry_run_check --approve` is not true or false.
+    BadApprove,
     /// `BUILD_WORKSPACE_DIRECTORY` is not an absolute path.
     NoWorkspace { tool: &'static str },
     /// A file operation failed.
@@ -248,6 +256,14 @@ impl fmt::Display for ReleaseError {
             Self::Candidate(source) => source.fmt(f),
             Self::Cell(source) => write!(f, "release_cell: {source}"),
             Self::Tag(source) => source.fmt(f),
+            Self::Ledger(source) => source.fmt(f),
+            Self::Publish(source) => source.fmt(f),
+            Self::MissingFlag { name } => {
+                write!(f, "publish_dry_run_check: missing required {name} <path>")
+            }
+            Self::BadApprove => f.write_str(
+                "publish_dry_run_check: --approve wants true/false (dry run records approval, never publishes)",
+            ),
             Self::NoWorkspace { tool } => write!(
                 f,
                 "{tool}: BUILD_WORKSPACE_DIRECTORY must be an absolute path (run with bazel run)"
@@ -263,8 +279,10 @@ impl std::error::Error for ReleaseError {
             Self::Candidate(source) => Some(source),
             Self::Cell(source) => Some(source),
             Self::Tag(source) => Some(source),
+            Self::Ledger(source) => Some(source),
+            Self::Publish(source) => Some(source),
             Self::Io { source, .. } => Some(source),
-            Self::NoWorkspace { .. } => None,
+            Self::NoWorkspace { .. } | Self::MissingFlag { .. } | Self::BadApprove => None,
         }
     }
 }
@@ -284,6 +302,18 @@ impl From<CellError> for ReleaseError {
 impl From<TagError> for ReleaseError {
     fn from(source: TagError) -> Self {
         Self::Tag(source)
+    }
+}
+
+impl From<LedgerError> for ReleaseError {
+    fn from(source: LedgerError) -> Self {
+        Self::Ledger(source)
+    }
+}
+
+impl From<PublishError> for ReleaseError {
+    fn from(source: PublishError) -> Self {
+        Self::Publish(source)
     }
 }
 

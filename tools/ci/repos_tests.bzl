@@ -1,7 +1,7 @@
 """Coverage of the walk behind @dx_test_tags_sources."""
 
 load("//core:defs.bzl", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(":repos.bzl", "consumer_fixture_file", "ignored_paths", "skipped", "walk")
+load(":repos.bzl", "consumer_fixture_file", "ignored_paths", "patch_header", "skipped", "walk")
 
 _BAZELIGNORE = """node_modules
 .claude/
@@ -115,6 +115,9 @@ def _checks():
         expect_equal("files", before.files, _FILES),
         expect_equal("new source file is in a listed directory", edited.listed, _DIRECTORIES),
         expect_equal("new source file is found", edited.files, sorted(_FILES + ["tools/ci/test.bzl"])),
+        expect_equal("patch header above the diff", patch_header("Upstream: a/b#1\nnote\n--- a/x\n+++ b/x\n"), "Upstream: a/b#1\nnote"),
+        expect_equal("patch without a header", patch_header("diff --git a/x b/x\nUpstream: a/b#1\n"), ""),
+        expect_equal("Upstream line inside the diff", patch_header("Upstream: a/b#1\n--- a/x\n+++ b/x\n+Upstream: c/d#2\n"), "Upstream: a/b#1"),
     ] + _unchanged(
         "lease file",
         ".dx/local/leases/process-groups",

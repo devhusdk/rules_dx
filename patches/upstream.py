@@ -23,6 +23,7 @@ import urllib.request
 _HEADER = re.compile(r"^Upstream:\s*(.+?)\s*$")
 _REF = re.compile(r"^([\w.-]+/[\w.-]+)#(\d+)$")
 _FIXED = re.compile(r"^fixed upstream in (\S+)$")
+# Keep in sync with _DIFF_START in tools/ci/repos.bzl.
 _DIFF_START = ("--- ", "diff ")
 
 # The newest releases (or tags, for repositories without releases) checked for

@@ -36,7 +36,7 @@ def _exec_native(tool):
     )
 
 # Haskell tools: windows_arm64 runs the x86_64 build under emulation.
-_HASKELL = ["linux_arm64", "macos_arm64", "windows_x86_64"]
+_HASKELL = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]
 
 def _haskell(tool, role, source):
     return struct(

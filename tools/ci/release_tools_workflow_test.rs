@@ -163,7 +163,8 @@ fn haskell_job_builds_every_haskell_asset() {
             )
         })
         .collect();
-    assert_eq!(found, HOSTS[1..]);
+    assert_eq!(found, HOSTS);
+    assert!(tools.contains("linux-x86_64) flags=(--platforms=//tools/platforms:linux_x86_64_musl --features=fully_static_link) ;;"));
     assert!(tools.contains("//haskell/private/coverage:hpc_lcov_source dx-hpc-lcov-$HOST"));
     assert!(tools.contains("//haskell/private/tools/weeder/bin:source dx-weeder-$HOST"));
     assert!(release.contains("for tool in dx-hpc-lcov dx-weeder; do"));
@@ -225,7 +226,7 @@ fn hackage_job_builds_hlint_and_ormolu() {
     assert!(tools.contains("asset=\"dx-$TOOL-$HOST\""));
     assert!(tools.contains("> \"$out/dx-$TOOL-LICENSE\""));
     assert!(release.contains("for asset in dx-hlint-linux-arm64 dx-hlint-macos-arm64 dx-ormolu-linux-arm64 dx-hlint-LICENSE dx-ormolu-LICENSE dx-haskell-gmp-LICENSE dx-haskell-gmp-source.tar.xz dx-haskell-gmp-source.patch; do"));
-    assert!(release.contains("test \"$(wc -l < out/dx-haskell-sha256sums.txt)\" -eq 15"));
+    assert!(release.contains("test \"$(wc -l < out/dx-haskell-sha256sums.txt)\" -eq 17"));
     assert!(release.contains("dx-hlint-* dx-ormolu-* dx-haskell-gmp-*"));
 }
 
@@ -253,11 +254,14 @@ fn haskell_job_ships_the_gmp_licence_and_source() {
         );
     }
     assert!(tools.contains("sha256 differs from haskell/pins.json $pin"));
-    assert!(
-        pins["archives"]["apk__gmp-dev"]["urls"][0]
-            .as_str()
-            .is_some_and(|url| url.ends_with("/gmp-dev-6.2.1-r3.apk"))
-    );
+    for cell in ["linux_arm64_musl", "linux_x86_64_musl"] {
+        assert!(
+            pins["archives"][format!("apk__gmp-dev__{cell}")]["urls"][0]
+                .as_str()
+                .is_some_and(|url| url.ends_with("/gmp-dev-6.2.1-r3.apk")),
+            "{cell}"
+        );
+    }
     assert!(
         pins["archives"]["gmp_source"]["urls"][0]
             .as_str()

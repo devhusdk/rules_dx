@@ -312,6 +312,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - host: linux-x86_64
+            runner: ubuntu-latest
           - host: linux-arm64
             runner: ubuntu-24.04-arm
           - host: macos-arm64
@@ -340,6 +342,7 @@ jobs:
           mkdir -p "$out"
           flags=()
           case "$HOST" in
+            linux-x86_64) flags=(--platforms=//tools/platforms:linux_x86_64_musl --features=fully_static_link) ;;
             linux-arm64) flags=(--platforms=//tools/platforms:linux_arm64_musl --features=fully_static_link) ;;
             windows-*) flags=(--//haskell/private/toolchain:ghc_mingw=True) ;;
           esac

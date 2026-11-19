@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: hermeticbuild/hermetic-llvm#975
 diff --git a/runtimes/BUILD.bazel b/runtimes/BUILD.bazel
 --- a/runtimes/BUILD.bazel
 +++ b/runtimes/BUILD.bazel

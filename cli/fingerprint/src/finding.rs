@@ -33,6 +33,9 @@ pub fn line_context_digest(file_bytes: &[u8], start_byte: u64) -> Option<[u8; 32
             .position(|byte| *byte == b'\n')
             .unwrap_or(tail.len());
     let mut line = file_bytes.get(line_start..line_end)?;
+    if line_start == 0 {
+        line = line.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(line);
+    }
     while let Some(rest) = line.strip_suffix(b"\r") {
         line = rest;
     }
@@ -65,8 +68,8 @@ fn key_of(
     message: &str,
     context: &[u8; 32],
 ) -> String {
-    let path = dx_path::spelling::posix_str(path);
-    let path = path.strip_prefix("./").unwrap_or(&path);
+    let path = path_key(path);
+    let path = path.as_str();
     let context = dx_digest::to_hex(context);
     let mut key = String::new();
     for field in [tool, rule, path, message, context.as_str()] {
@@ -74,6 +77,33 @@ fn key_of(
     }
     if !target.is_empty() {
         push_field(&mut key, target);
+    }
+    key
+}
+
+fn path_key(path: &str) -> String {
+    let path = dx_path::spelling::posix_str(&dx_path::verbatim::without_verbatim_str(path));
+    let mut key = if path.starts_with("//") {
+        "//".to_owned()
+    } else if path.starts_with('/') {
+        "/".to_owned()
+    } else {
+        String::new()
+    };
+    let segments = path
+        .split('/')
+        .filter(|segment| !segment.is_empty() && *segment != ".");
+    for (index, segment) in segments.enumerate() {
+        if index > 0 {
+            key.push('/');
+        }
+        if index == 0 && dx_path::drive_prefix(segment) {
+            let mut chars = segment.chars();
+            key.extend(chars.next().map(|letter| letter.to_ascii_lowercase()));
+            key.push_str(chars.as_str());
+        } else {
+            key.push_str(segment);
+        }
     }
     key
 }
@@ -164,6 +194,72 @@ mod tests {
             finding_fingerprint(&with_target),
             finding_fingerprint(&in_message)
         );
+    }
+
+    #[test]
+    fn redundant_path_segments_do_not_change_the_fingerprint() {
+        let plain = finding_fingerprint(&finding("t", "r", "src/a.rs", "m", b"x"));
+        for spelling in [
+            "././src/a.rs",
+            ".//src/a.rs",
+            "src//a.rs",
+            "src/./a.rs",
+            ".\\.\\src\\a.rs",
+        ] {
+            assert_eq!(
+                finding_fingerprint(&finding("t", "r", spelling, "m", b"x")),
+                plain,
+                "{spelling}"
+            );
+        }
+        assert_ne!(
+            finding_fingerprint(&finding("t", "r", "/src/a.rs", "m", b"x")),
+            plain
+        );
+        assert_ne!(
+            finding_fingerprint(&finding("t", "r", "src/../a.rs", "m", b"x")),
+            finding_fingerprint(&finding("t", "r", "a.rs", "m", b"x"))
+        );
+    }
+
+    #[test]
+    fn windows_drive_and_verbatim_spellings_share_a_fingerprint() {
+        let plain = finding_fingerprint(&finding("t", "r", "c:/repo/a.rs", "m", b"x"));
+        for spelling in [
+            "C:\\repo\\a.rs",
+            "\\\\?\\C:\\repo\\a.rs",
+            "//?/c:/repo/a.rs",
+        ] {
+            assert_eq!(
+                finding_fingerprint(&finding("t", "r", spelling, "m", b"x")),
+                plain,
+                "{spelling}"
+            );
+        }
+        let share = finding_fingerprint(&finding("t", "r", "\\\\srv\\share\\a.rs", "m", b"x"));
+        assert_eq!(
+            finding_fingerprint(&finding(
+                "t",
+                "r",
+                "\\\\?\\UNC\\srv\\share\\a.rs",
+                "m",
+                b"x"
+            )),
+            share
+        );
+        assert_ne!(
+            finding_fingerprint(&finding("t", "r", "/srv/share/a.rs", "m", b"x")),
+            share
+        );
+    }
+
+    #[test]
+    fn byte_order_mark_does_not_change_the_first_line() {
+        let plain = line_context_digest(b"a\nb", 0).expect("plain");
+        let marked = line_context_digest(b"\xEF\xBB\xBFa\nb", 3).expect("bom");
+        assert_eq!(plain, marked);
+        let inner = line_context_digest(b"x\n\xEF\xBB\xBFa", 2).expect("inner");
+        assert_ne!(inner, plain);
     }
 
     #[test]

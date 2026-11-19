@@ -862,6 +862,7 @@ LANGS = json.decode("""{
         "audit": [],
         "format": [],
         "lint": [
+          "dscanner",
           "typos"
         ],
         "typecheck": []

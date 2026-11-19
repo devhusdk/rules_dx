@@ -35,8 +35,12 @@ d cross_test windows_arm64
 d cross_test windows_x86_64
 d format_error_test *
 d format_test *
-d lint_error_test *
-d lint_test *
+d lint_error_test linux_arm64
+d lint_error_test macos_arm64
+d lint_error_test windows_x86_64
+d lint_test linux_arm64
+d lint_test macos_arm64
+d lint_test windows_x86_64
 elixir cross_test windows_x86_64
 erlang cross_test windows_x86_64
 flutter runfiles_test *

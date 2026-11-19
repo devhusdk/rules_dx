@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_d_lint_syntax_error
+capability LINT
+stages 1
+stage dscanner classes=d sources=matrix/d_broken.d
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR dscanner syntax matrix/d_broken.d 22 22 fixable=false "no identifier for declarator"
+terminal 1
+terminal ERROR dscanner syntax matrix/d_broken.d 22 22 fixable=false "no identifier for declarator"
+replacements 0

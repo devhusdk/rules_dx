@@ -15,6 +15,12 @@ d_library(
     target_compatible_with = D_COMPATIBLE_WITH,
 )
 
+d_library(
+    name = "lint_dirty",
+    srcs = ["lint_dirty.d"],
+    target_compatible_with = D_COMPATIBLE_WITH,
+)
+
 d_binary(
     name = "hello",
     srcs = ["main.d"],
@@ -71,6 +77,13 @@ dx_conformance_suite(
         "stale": "dub.selections.stale.json",
     },
     passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":conformance",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 4,
+        "lint_rule": "unused_variable_check",
+        "lint_source": "lint_dirty.d",
+    },
     runfiles = {
         "binary": ":runfiles_hello",
         "data": "data.txt",

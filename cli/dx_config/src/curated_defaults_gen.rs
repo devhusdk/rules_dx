@@ -47,7 +47,7 @@ pub const FAMILIES: &[CuratedFamily] = &[
     },
     CuratedFamily {
         id: "d",
-        lint: &["typos"],
+        lint: &["dscanner", "typos"],
         format: &[],
         typecheck: &[],
         audit: &[],
@@ -367,6 +367,7 @@ pub const TOOLS: &[&str] = &[
     "dialyzer",
     "djlint",
     "docstrfmt",
+    "dscanner",
     "elixirc",
     "elvis",
     "erlc",

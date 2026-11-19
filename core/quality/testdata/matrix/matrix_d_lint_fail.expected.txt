@@ -1,0 +1,13 @@
+producer //core/quality/testdata:matrix_d_lint_fail
+capability LINT
+stages 1
+stage dscanner classes=d sources=matrix/d_dirty.d
+completed_rounds 1
+convergence STABLE
+initial 2
+initial WARNING dscanner could_be_immutable_check matrix/d_dirty.d 48 48 fixable=false "Variable unused is never modified and could have been declared const or immutable."
+initial WARNING dscanner unused_variable_check matrix/d_dirty.d 48 48 fixable=false "Variable unused is never used."
+terminal 2
+terminal WARNING dscanner could_be_immutable_check matrix/d_dirty.d 48 48 fixable=false "Variable unused is never modified and could have been declared const or immutable."
+terminal WARNING dscanner unused_variable_check matrix/d_dirty.d 48 48 fixable=false "Variable unused is never used."
+replacements 0

@@ -348,6 +348,19 @@ pub(super) const TOOLS: &[ToolDef] = &[
         },
     },
     ToolDef {
+        id: "dscanner",
+        run: |backend, call| {
+            let (refs, names) = paths(call);
+            let strs: Vec<&str> = names.iter().map(String::as_str).collect();
+            let invocation = commands::dscanner_check(&call.tool.binary, &refs);
+            let out = run(backend, call, &invocation)?;
+            parsed(
+                call.tool_id,
+                parsers::parse_dscanner(&out.stdout, out.code, &strs),
+            )
+        },
+    },
+    ToolDef {
         id: "tinymist",
         run: |backend, call| {
             // One process per file: each run compiles one entry file.

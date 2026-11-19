@@ -196,12 +196,12 @@ def curated_defaults_unit_tests(name):
                 },
             ),
             expect_equal(
-                "d curated defaults are typos only",
+                "d curated defaults lint with dscanner and typos",
                 CURATED_DEFAULTS["d"],
                 {
                     "audit": [],
                     "format": [],
-                    "lint": ["typos"],
+                    "lint": ["dscanner", "typos"],
                     "typecheck": [],
                 },
             ),

@@ -98,6 +98,8 @@ rust_library(
         package_name = "cli/dx_cli",
         normal = True,
     ),
+    # Clippy reads this config for dx_cli instead of the workspace one.
+    compile_data = ["clippy.toml"],
     crate_name = "dx_cli",
     crate_root = "src/lib.rs",
     # keep
@@ -243,7 +245,6 @@ rust_test(
 rust_test(
     name = "dx_cli_test",
     size = "small",
-    shard_count = 8,
     srcs = [
         "src/adopt.rs",
         "src/adopt/agents.rs",
@@ -378,6 +379,7 @@ rust_test(
         normal_dev = True,
     ),
     compile_data = [
+        "clippy.toml",
         "src/exec/testdata/bazel_build_metrics.json",
         "src/exec/testdata/bazel_profile.json",
         "//docs:cli/commands/init.md",
@@ -407,6 +409,7 @@ rust_test(
         "DX_TEST_LYCHEE": "$(rootpath @dx_tools//:lychee)",
         "RUST_TEST_THREADS": "16",
     },
+    shard_count = 8,
     tags = ["resources:cpu:4"],
     # keep
     deps = [
@@ -470,6 +473,7 @@ rust_test(
 exports_files(
     [
         "Cargo.toml",
+        "clippy.toml",
         "src/bin_man.rs",
         "src/lib.rs",
         "src/main.rs",
@@ -489,7 +493,10 @@ real_source_target(
 real_source_target(
     name = "corpus_toml",
     tags = ["corpus"],
-    toml_srcs = ["Cargo.toml"],
+    toml_srcs = [
+        "Cargo.toml",
+        "clippy.toml",
+    ],
 )
 
 filegroup(

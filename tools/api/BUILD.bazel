@@ -268,19 +268,19 @@ filegroup(
 )
 
 # Fixtures whose forwards genquery does not build on every host. A genquery loads every select branch of its scope.
-_SWIFT_FORMAT = "swift-format is pinned for macos_arm64 only and fails to fetch on every other host (#14051)"
-
 _FORWARDS_PENDING = {
     "android": "closure selects every host's SDK (#14050)",
-    "apple": _SWIFT_FORMAT + "; macros take no **kwargs (#14051)",
     "cuda": "closure selects every host's SDK (#14050)",
     "erlang": "update: generator_function erlc_opts names no public function with a **kwargs param",
     "flutter": "not extracted (#14040, #14050)",
     "qt": "closure selects every host's SDK (#14050)",
-    "swift": _SWIFT_FORMAT,
 }
 
 _FORWARDS_SUBPACKAGES = {
+    "apple": [
+        "desk",
+        "phone",
+    ],
     "haskell": ["src"],
     "ocaml": [
         "src",

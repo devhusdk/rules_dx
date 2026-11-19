@@ -18605,7 +18605,31 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "platforms",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_swift_library_forward"
+          },
+          {
+            "attrs": [
+              "copts",
+              "features",
+              "module_name",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "visibility"
+            ],
+            "kind": "swift_library"
+          }
+        ],
         "name": "swift_library",
         "params": [
           {
@@ -18636,7 +18660,36 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "data",
+              "platforms",
+              "runtime_dlls",
+              "size",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "testonly",
+              "upstream"
+            ],
+            "kind": "_swift_forward_test"
+          },
+          {
+            "attrs": [
+              "copts",
+              "deps",
+              "features",
+              "linkopts",
+              "size",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "visibility"
+            ],
+            "kind": "swift_test"
+          }
+        ],
         "name": "swift_test",
         "params": [
           {

@@ -46,16 +46,37 @@ def _fetch(rctx, tool, pin, build):
     rctx.file("BUILD.bazel", build.replace("{binary}", binary))
     return rctx.repo_metadata(reproducible = True)
 
+_EXPORT_LINE = 'exports_files(["{binary}"])'
+
+_UNPINNED_GENRULE = """genrule(
+    name = "unpinned",
+    outs = [{binary}],
+    cmd = {cmd},
+)"""
+
+def _unpinned(rctx, tool, cell, cells, build):
+    # A genquery loads every select branch, so the repo must load on every host; only building the binary fails.
+    if _EXPORT_LINE not in build:
+        fail("{}: the BUILD file has no {} line".format(tool, _EXPORT_LINE))
+    binary = cells[sorted(cells)[0]]["binary"]
+    message = "no pinned {} archive for {}".format(tool, cell)
+    rctx.file("REPO.bazel", "")
+    rctx.file("BUILD.bazel", build.replace(_EXPORT_LINE, _UNPINNED_GENRULE.format(
+        binary = repr(binary),
+        cmd = repr("echo '{}' >&2; exit 1".format(message)),
+    )))
+    return rctx.repo_metadata(reproducible = True)
+
 def _host_archive_impl(rctx):
     cell = rctx.attr.aliases.get(host_cell(rctx), host_cell(rctx))
-    pin = json.decode(rctx.attr.cells).get(cell)
-    if pin == None:
-        fail("no pinned {} archive for {}".format(rctx.attr.tool, cell))
-    return _fetch(rctx, rctx.attr.tool, pin, rctx.attr.build)
+    cells = json.decode(rctx.attr.cells)
+    if cell not in cells:
+        return _unpinned(rctx, rctx.attr.tool, cell, cells, rctx.attr.build)
+    return _fetch(rctx, rctx.attr.tool, cells[cell], rctx.attr.build)
 
 host_archive_rule = repository_rule(
     implementation = _host_archive_impl,
-    doc = "Downloads the pinned archive of the host cell and writes its BUILD file.",
+    doc = "Downloads the pinned archive of the host cell and writes its BUILD file; on a host without a pin, building the binary fails.",
     attrs = {
         "aliases": attr.string_dict(doc = "Host cell to the pinned cell that serves it."),
         "build": attr.string(mandatory = True, doc = "BUILD file content; {binary} is replaced by the cell's binary path."),

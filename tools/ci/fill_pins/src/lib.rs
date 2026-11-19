@@ -31,10 +31,11 @@ const TOOL_COMPANIONS: [&str; 3] = ["-LICENSE", "-source.crate", "-source.tar.gz
 
 /// Licences and sources of the libraries linked into a family of tools, published
 /// once per release beside that family's assets.
-const LIBRARY_COMPANIONS: [&str; 3] = [
+const LIBRARY_COMPANIONS: [&str; 4] = [
     "dx-haskell-gmp-LICENSE",
     "dx-haskell-gmp-source.tar.xz",
     "dx-haskell-gmp-source.patch",
+    "dx-haskell-gmp-ghc-source.tar.xz",
 ];
 
 /// Files a release publishes beside a registry asset and lists in the same

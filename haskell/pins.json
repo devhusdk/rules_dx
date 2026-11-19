@@ -168,6 +168,12 @@
         "https://gmplib.org/repo/gmp-6.2/raw-rev/561a9c25298e"
       ]
     },
+    "gmp_ghc_source": {
+      "sha256": "5312838fe855512acfea6ea24197b8620643a823fe309dc6faceb3eee214f4f0",
+      "urls": [
+        "https://gitlab.haskell.org/ghc/gmp-tarballs/-/raw/01149ce3471128e9fe0feca607579981f4b64395/gmp-6.3.0-nodoc.tar.xz"
+      ]
+    },
     "rules_haskell": {
       "sha256": "86d126db53fa06ee935d94ee109420d3a68733377091f7914f62abe36c1972a1",
       "strip_prefix": "rules_haskell-826018312ea91c80ff66fde1e1e39f76c42c07b8",

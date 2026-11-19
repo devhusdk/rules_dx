@@ -108,6 +108,7 @@ fn haskell_manifest() -> String {
                 "dx-haskell-gmp-LICENSE",
                 "dx-haskell-gmp-source.tar.xz",
                 "dx-haskell-gmp-source.patch",
+                "dx-haskell-gmp-ghc-source.tar.xz",
             ]
             .map(|library| format!("{}  {library}\n", hash(6))),
         )
@@ -378,6 +379,7 @@ fn refuses_a_source_of_an_unknown_tool() {
         "dx-python-LICENSE",
         "dx-haskell-zlib-LICENSE",
         "dx-haskell-gmp-source.tar.gz",
+        "dx-haskell-gmp-ghc-source.tar.gz",
     ] {
         let dx = format!("{}{}  {asset}\n", manifest(), hash(3));
         let error = fill_pins::fill_from_manifests(

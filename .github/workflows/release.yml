@@ -174,7 +174,7 @@ jobs:
           test -s out/dx-weeder-LICENSE || { echo "want a non-empty out/dx-weeder-LICENSE" >&2; exit 1; }
           printf '%s  %s\n' "$(sha256sum out/dx-weeder-LICENSE | cut -d' ' -f1)" dx-weeder-LICENSE >> out/dx-haskell-sha256sums.txt
           files="$files dx-weeder-LICENSE"
-          for asset in dx-hlint-linux-arm64 dx-hlint-macos-arm64 dx-ormolu-linux-arm64 dx-hlint-LICENSE dx-ormolu-LICENSE dx-haskell-gmp-LICENSE dx-haskell-gmp-source.tar.xz dx-haskell-gmp-source.patch; do
+          for asset in dx-hlint-linux-arm64 dx-hlint-macos-arm64 dx-ormolu-linux-arm64 dx-hlint-LICENSE dx-ormolu-LICENSE dx-haskell-gmp-LICENSE dx-haskell-gmp-source.tar.xz dx-haskell-gmp-source.patch dx-haskell-gmp-ghc-source.tar.xz; do
             test -s "out/$asset" || { echo "want a non-empty out/$asset" >&2; exit 1; }
             printf '%s  %s\n' "$(sha256sum "out/$asset" | cut -d' ' -f1)" "$asset" >> out/dx-haskell-sha256sums.txt
             files="$files $asset"
@@ -209,7 +209,7 @@ jobs:
           (cd out && sha256sum -c dx-gazelle-sha256sums.txt)
           test "$(wc -l < out/dx-jar-sha256sums.txt)" -eq 8 || { echo "want 8 jar manifest lines, got $(wc -l < out/dx-jar-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-jar-sha256sums.txt)
-          test "$(wc -l < out/dx-haskell-sha256sums.txt)" -eq 17 || { echo "want 17 haskell manifest lines, got $(wc -l < out/dx-haskell-sha256sums.txt)" >&2; exit 1; }
+          test "$(wc -l < out/dx-haskell-sha256sums.txt)" -eq 18 || { echo "want 18 haskell manifest lines, got $(wc -l < out/dx-haskell-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-haskell-sha256sums.txt)
           test "$(wc -l < out/dx-tool-sha256sums.txt)" -eq 23 || { echo "want 23 tool manifest lines, got $(wc -l < out/dx-tool-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-tool-sha256sums.txt)

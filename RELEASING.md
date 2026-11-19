@@ -65,7 +65,7 @@ Run it from the tag: the workflow only attests the files when it runs on the tag
 - the source archive `rules_dx-0.1.0.tar.gz`, its `.sha256`, its attestation `rules_dx-0.1.0.tar.gz.intoto.jsonl`, and `source.json`
 - the `dx` archives, the `dx-launcher-<os>-<cpu>`, `dx-<tool>-<os>-<cpu>` code generator (capnp, flatc, oapi-codegen, thrift) and `dx-go-<os>-<cpu>` binaries and `dx-oapi-codegen-LICENSE`, listed in `dx-sha256sums.txt`
 - the `dx-gazelle-<os>-<cpu>` binaries, listed in `dx-gazelle-sha256sums.txt`
-- the `dx-<tool>-any.jar` JVM tools (avro_union, javac_check, javadoc_extract, jmh_generate, kotlinc_check, scalac_check), listed in `dx-jar-sha256sums.txt`
+- the `dx-<tool>-any.jar` JVM tools (avro_union, dokka_extract, javac_check, javadoc_extract, jmh_generate, kotlinc_check, scalac_check, scaladoc_extract), listed in `dx-jar-sha256sums.txt`
 - the `dx-<tool>-<os>-<cpu>` Haskell tools (hpc_lcov, weeder) for linux arm64, macOS arm64 and Windows x86_64, `dx-hlint-linux-arm64`, `dx-hlint-macos-arm64` and `dx-ormolu-linux-arm64`, with `dx-weeder-LICENSE`, `dx-hlint-LICENSE`, `dx-ormolu-LICENSE` and the statically linked GMP's `dx-haskell-gmp-LICENSE`, `dx-haskell-gmp-source.tar.xz` and `dx-haskell-gmp-source.patch`, listed in `dx-haskell-sha256sums.txt`
 - the `dx-<tool>-<os>-<cpu>` quality and coverage tools (deadnix, selene, nixfmt, kcov) with their `dx-<tool>-LICENSE` files, `dx-deadnix-source.crate`, `dx-kcov-source.tar.gz` and the `dx-python-tools-<os>-<cpu>.tar.gz` bundles, listed in `dx-tool-sha256sums.txt`
 

@@ -23,13 +23,15 @@ const PYTHON_HOSTS: [&str; 5] = [
     "windows-arm64",
 ];
 
-const JARS: [&str; 6] = [
+const JARS: [&str; 8] = [
     "dx-avro-union-any.jar",
+    "dx-dokka-extract-any.jar",
     "dx-javac-check-any.jar",
     "dx-javadoc-extract-any.jar",
     "dx-jmh-generate-any.jar",
     "dx-kotlinc-check-any.jar",
     "dx-scalac-check-any.jar",
+    "dx-scaladoc-extract-any.jar",
 ];
 
 const ASSETS: [&str; 9] = [
@@ -134,7 +136,7 @@ fn jars_job_builds_every_jar_asset() {
         assert!(tools.contains(jar), "{TOOLS} must build {jar}");
         assert!(release.contains(jar), "{RELEASE} must list {jar}");
     }
-    assert!(release.contains("test \"$(wc -l < out/dx-jar-sha256sums.txt)\" -eq 6"));
+    assert!(release.contains("test \"$(wc -l < out/dx-jar-sha256sums.txt)\" -eq 8"));
     assert!(release.contains("sha256sum -c dx-jar-sha256sums.txt"));
     assert!(release.contains("--manifest \"$PWD/out/dx-jar-sha256sums.txt\""));
 }

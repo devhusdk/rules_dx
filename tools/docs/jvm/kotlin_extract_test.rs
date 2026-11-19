@@ -187,7 +187,21 @@ impl Driver {
         self.run_owning(manifest, classpath, &[])
     }
 
+    fn run_with(&self, tool: &str, manifest: &Path, classpath: &Path) -> (i32, String) {
+        self.run_tool(tool, manifest, classpath, &[])
+    }
+
     fn run_owning(&self, manifest: &Path, classpath: &Path, own_jars: &[&str]) -> (i32, String) {
+        self.run_tool("DX_DOKKA_EXTRACT", manifest, classpath, own_jars)
+    }
+
+    fn run_tool(
+        &self,
+        tool: &str,
+        manifest: &Path,
+        classpath: &Path,
+        own_jars: &[&str],
+    ) -> (i32, String) {
         let own_jars_file = self.dir.join("own_jars.txt");
         let text = own_jars
             .iter()
@@ -195,7 +209,7 @@ impl Driver {
             .collect::<Vec<_>>()
             .concat();
         std::fs::write(&own_jars_file, text).expect("write the own jars");
-        let output = Command::new(dx_testing::env_file("DX_DOKKA_EXTRACT"))
+        let output = Command::new(dx_testing::env_file(tool))
             .arg("--srcs-manifest")
             .arg(manifest)
             .arg("--classpath-file")
@@ -258,6 +272,21 @@ fn an_empty_public_api_fails_and_writes_nothing() {
     let source = driver.source("Hidden.kt", "package hidden\n\ninternal class Hidden\n");
     let manifest = driver.manifest(&[source]);
     let (code, stderr) = driver.run(&manifest, &driver.classpath(&[]));
+    assert_eq!(code, 1, "{stderr}");
+    assert!(stderr.contains("no public declarations"), "{stderr}");
+    assert!(!driver.out().exists());
+}
+
+#[test]
+fn the_release_jar_fails_on_an_empty_public_api_and_writes_nothing() {
+    let driver = Driver::new("kotlin-release-empty");
+    let source = driver.source("Hidden.kt", "package hidden\n\ninternal class Hidden\n");
+    let manifest = driver.manifest(&[source]);
+    let (code, stderr) = driver.run_with(
+        "DX_DOKKA_EXTRACT_RELEASE",
+        &manifest,
+        &driver.classpath(&[]),
+    );
     assert_eq!(code, 1, "{stderr}");
     assert!(stderr.contains("no public declarations"), "{stderr}");
     assert!(!driver.out().exists());

@@ -18,11 +18,19 @@ pub fn is_bazel_file(path: &str) -> bool {
     ["BUILD", "BUILD.bazel", "MODULE.bazel"].contains(&name) || name.ends_with(".bzl")
 }
 
+/// Whether `path` names any Starlark file: a BUILD, MODULE.bazel or .bzl file, or the BUILD file of a repository.
+pub fn is_any_starlark(path: &str) -> bool {
+    is_starlark(path) || is_bazel_file(path)
+}
+
 /// Parses one BUILD or .bzl file.
-#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
-pub fn parse(path: &str, source: &str) -> AstModule {
+///
+/// # Errors
+///
+/// Returns the parse error, prefixed with `path`.
+pub fn parse(path: &str, source: &str) -> Result<AstModule, String> {
     AstModule::parse(path, source.to_owned(), &Dialect::Extended)
-        .unwrap_or_else(|error| panic!("{path}: does not parse: {}", error.without_diagnostic()))
+        .map_err(|error| format!("{path}: does not parse: {}", error.without_diagnostic()))
 }
 
 fn collect<'a>(expr: &'a AstExpr, out: &mut Vec<&'a AstExpr>) {

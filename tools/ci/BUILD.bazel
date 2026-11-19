@@ -1012,6 +1012,7 @@ rust_library(
         "dx_guard/lexer.rs",
         "dx_guard/lib.rs",
         "dx_guard/masked.rs",
+        "dx_guard/segments.rs",
         "dx_guard/snapshot.rs",
         "dx_guard/starlark.rs",
         "dx_guard/test_calls.rs",
@@ -1589,10 +1590,7 @@ rust_test(
 rust_test(
     name = "prose_rules_test",
     size = "small",
-    srcs = [
-        "guards/shared.rs",
-        "prose_rules_test.rs",
-    ],
+    srcs = ["prose_rules_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
         normal = True,
@@ -1609,7 +1607,7 @@ rust_test(
         "@dx_test_tags_sources//:sources.json",
     ],
     env = {
-        "DX_ALLOWLIST": "$(rlocationpath prose_rules_allowlist.txt)",
+        "ALLOWLIST": "$(rlocationpath prose_rules_allowlist.txt)",
         "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
         "DX_PATHS_JSON": "$(rlocationpath @dx_test_tags_sources//:all_paths.json)",
         "DX_PROSE_JSON": "$(rlocationpath @dx_test_tags_sources//:prose.json)",
@@ -1621,7 +1619,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
-        "//cli/test_scratch:dx_test_scratch",
+        ":dx_guard",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
@@ -1630,10 +1628,7 @@ rust_test(
 rust_test(
     name = "unreferenced_files_test",
     size = "small",
-    srcs = [
-        "guards/shared.rs",
-        "unreferenced_files_test.rs",
-    ],
+    srcs = ["unreferenced_files_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
         normal = True,
@@ -1650,7 +1645,7 @@ rust_test(
         "@dx_test_tags_sources//:sources.json",
     ],
     env = {
-        "DX_ALLOWLIST": "$(rlocationpath unreferenced_files_allowlist.txt)",
+        "ALLOWLIST": "$(rlocationpath unreferenced_files_allowlist.txt)",
         "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
         "DX_PATHS_JSON": "$(rlocationpath @dx_test_tags_sources//:all_paths.json)",
         "DX_PROSE_JSON": "$(rlocationpath @dx_test_tags_sources//:prose.json)",
@@ -1662,7 +1657,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
-        "//cli/test_scratch:dx_test_scratch",
+        ":dx_guard",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
@@ -1671,10 +1666,7 @@ rust_test(
 rust_test(
     name = "zero_compat_test",
     size = "small",
-    srcs = [
-        "guards/shared.rs",
-        "zero_compat_test.rs",
-    ],
+    srcs = ["zero_compat_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
         normal = True,
@@ -1692,7 +1684,7 @@ rust_test(
         "@dx_test_tags_sources//:sources.json",
     ],
     env = {
-        "DX_ALLOWLIST": "$(rlocationpath zero_compat_allowlist.txt)",
+        "ALLOWLIST": "$(rlocationpath zero_compat_allowlist.txt)",
         "DX_DEPRECATIONS": "$(rlocationpath //api:deprecations.txt)",
         "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
         "DX_PATHS_JSON": "$(rlocationpath @dx_test_tags_sources//:all_paths.json)",
@@ -1705,7 +1697,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
-        "//cli/test_scratch:dx_test_scratch",
+        ":dx_guard",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
@@ -1837,4 +1829,27 @@ filegroup(
     name = "module_srcs",
     srcs = glob(["**"]),
     visibility = ["//:__subpackages__"],
+)
+
+rust_test(
+    name = "dx_guard_test",
+    size = "small",
+    srcs = ["dx_guard_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "dx_guard_test",
+    crate_root = "dx_guard_test.rs",
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        ":dx_guard",
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+    ],
 )

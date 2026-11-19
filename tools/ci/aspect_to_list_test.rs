@@ -52,7 +52,7 @@ fn aspect_impls(root: &AstStmt) -> BTreeSet<String> {
 
 /// The `.to_list()` calls reachable from the aspect implementations of one Starlark file.
 fn count_file(path: &str, source: &str, counts: &mut Counts) {
-    let module = parse(path, source);
+    let module = parse(path, source).unwrap_or_else(|error| panic!("{error}"));
     let mut all = Vec::new();
     statements(module.statement(), &mut all);
     // Per function: the names it calls and its own `.to_list()` count.

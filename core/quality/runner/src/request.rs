@@ -17,6 +17,8 @@ pub struct RequestTool {
     /// Extra tool arguments from build settings; each tool decides which it accepts.
     pub args: Vec<String>,
     pub files: Vec<(String, String)>,
+    /// Files of `rel<TAB>exec` lines, staged like `files`.
+    pub file_lists: Vec<PathBuf>,
     pub env: Vec<(String, String)>,
     pub upstream: Vec<PathBuf>,
     pub search_paths: Vec<PathBuf>,
@@ -138,6 +140,8 @@ struct ToolDoc {
     args: Vec<String>,
     #[serde(default)]
     files: Vec<ToolFileDoc>,
+    #[serde(default)]
+    file_lists: Vec<String>,
     #[serde(default)]
     env: Vec<EnvDoc>,
     #[serde(default)]
@@ -327,6 +331,7 @@ fn check_tool(
     }
     let upstream = non_empty_paths("upstream diagnostics", tool_id, &doc.upstream)?;
     let search_paths = non_empty_paths("tool search path", tool_id, &doc.search_paths)?;
+    let file_lists = non_empty_paths("tool file list", tool_id, &doc.file_lists)?;
     let path_tools = check_path_tools(tool_id, doc)?;
     if binary.is_none() && upstream.is_empty() {
         return Err(RequestError::ToolWithoutBinary {
@@ -340,6 +345,7 @@ fn check_tool(
         dialect: doc.dialect.clone(),
         args: doc.args.clone(),
         files,
+        file_lists,
         env,
         upstream,
         search_paths,

@@ -1,5 +1,5 @@
 {
-  "checksum": "b0d0fb1e0fd3adc1aedf4ebb10e69889fcf0bf02a67b73e49ff43d2cf63156e4",
+  "checksum": "f712ab3c549dee1b540f814f754bb4d95033afb7a883b5d91a3326232dc63d30",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -4703,13 +4703,21 @@
       "common_attrs": {
         "edition": "2024"
       },
+      "library_target_name": "dx_coverlet",
       "license": "Apache-2.0",
       "license_ids": [
         "Apache-2.0"
       ],
       "name": "coverlet_launcher",
       "repository": null,
-      "targets": [],
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_coverlet",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
       "version": "0.0.0"
     },
     "cpufeatures 0.2.17": {
@@ -6206,13 +6214,21 @@
       "common_attrs": {
         "edition": "2024"
       },
+      "library_target_name": "dx_d_coverage",
       "license": "Apache-2.0",
       "license_ids": [
         "Apache-2.0"
       ],
       "name": "d_coverage_launcher",
       "repository": null,
-      "targets": [],
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_d_coverage",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
       "version": "0.0.0"
     },
     "d_extract 0.0.0": {
@@ -7691,10 +7707,6 @@
           {
             "id": "tempfile 3.27.0",
             "target": "tempfile"
-          },
-          {
-            "id": "thiserror 2.0.20",
-            "target": "thiserror"
           }
         ],
         "edition": "2024"

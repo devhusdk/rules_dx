@@ -1,7 +1,7 @@
 load("@crates//:crates.bzl", "aliases")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_binary", "rust_test")
-load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
+load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS)
 
@@ -11,31 +11,29 @@ real_source_target(
     tags = ["corpus"],
 )
 
-rust_binary(
-    name = "d_coverage_launcher",
+rust_library(
+    name = "dx_d_coverage",
     srcs = [
+        "src/lib.rs",
         "src/lst.rs",
-        "src/main.rs",
     ],
     aliases = aliases(
         package_name = "d/private/tools/d_coverage_launcher",
         normal = True,
     ),
-    crate_name = "d_coverage_launcher",
-    crate_root = "src/main.rs",
-    visibility = VIS_TOOLS_PUBLIC,
+    visibility = ["//cli/runtime:__pkg__"],
     deps = [],
 )
 
 rust_test(
-    name = "d_coverage_launcher_bin_test",
+    name = "dx_d_coverage_test",
     size = "small",
     aliases = aliases(
         package_name = "d/private/tools/d_coverage_launcher",
         normal = True,
         normal_dev = True,
     ),
-    crate = ":d_coverage_launcher",
+    crate = ":dx_d_coverage",
     deps = [],
 )
 
@@ -47,7 +45,7 @@ real_source_target(
 
 exports_files(
     [
-        "src/main.rs",
+        "src/lib.rs",
     ],
     visibility = ["//core/quality:__pkg__"],
 )

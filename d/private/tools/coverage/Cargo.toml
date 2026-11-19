@@ -4,6 +4,6 @@ name = "d_coverage_launcher"
 version = "0.0.0"
 edition = "2024"
 
-[[bin]]
-name = "d_coverage_launcher"
-path = "src/main.rs"
+[lib]
+name = "dx_d_coverage"
+path = "src/lib.rs"

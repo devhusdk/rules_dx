@@ -54,7 +54,7 @@ fn public_api_snapshot_is_in_the_consumer_surface() {
             .unwrap_or_else(|| panic!("{load} is not a @rules_dx// label"));
         assert!(
             listed.contains(label),
-            "{label} missing from the generated consumer surface"
+            "{label} missing from the generated consumer surface; list it in _STARLARK_SRCS in tools/api/BUILD.bazel and run bazel run //tools/api:update"
         );
     }
 }
@@ -80,7 +80,7 @@ fn entry_points_are_listed_in_the_consumer_surface() {
     for label in &entry {
         assert!(
             listed.contains(label),
-            "{label} missing from the generated consumer surface"
+            "{label} missing from the generated consumer surface; list it in _STARLARK_SRCS in tools/api/BUILD.bazel and run bazel run //tools/api:update"
         );
     }
     for label in &listed {

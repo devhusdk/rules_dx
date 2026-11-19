@@ -67,7 +67,7 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
         Err(reason) => return fail(out, err, &reason),
     };
     let after = advisory::rewrite(&before, &release);
-    let today = super::audit::today_utc(audit_today);
+    let today = dx_exec_core::audit_policy::today_utc(audit_today);
     let current = advisory::pins(&before);
     let mut lines = advisory::status(&current, &release, &today);
     let diff = advisory::diff(&before, &after);

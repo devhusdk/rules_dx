@@ -61,6 +61,8 @@ pub struct CommandBazel {
     pub dir: PathBuf,
 }
 
+const MAX_DETAIL_CHARS: usize = 400;
+
 const BAZEL_TIMEOUT: std::time::Duration = std::time::Duration::from_mins(30);
 
 fn run_detail(bin: &Path, error: &dx_process::capture::RunError) -> String {
@@ -168,7 +170,7 @@ pub fn first_line(stderr: &[u8]) -> Option<String> {
         .lines()
         .map(str::trim)
         .find(|line| !line.is_empty())
-        .map(str::to_owned)
+        .map(|line| line.chars().take(MAX_DETAIL_CHARS).collect())
 }
 
 /// Renders one inner Bazel failure as `exit <code>[: <first stderr line>]`.
@@ -205,7 +207,10 @@ pub fn validate_var(var: &str) -> Result<(), ResolveError> {
 
 /// Validates the tool label before Bazel ever runs.
 pub fn validate_label(label: &str) -> Result<(), ResolveError> {
-    if label.is_empty() || label.chars().any(char::is_whitespace) {
+    if label.is_empty()
+        || label.starts_with('-')
+        || label.chars().any(|c| c.is_whitespace() || c.is_control())
+    {
         return Err(ResolveError::Usage {
             detail: format!("--label {label:?} is not a plain Bazel label"),
         });
@@ -232,11 +237,21 @@ pub fn join_under(root: &str, rel: &str) -> PathBuf {
         .fold(PathBuf::from(root), |path, part| path.join(part))
 }
 
+fn stays_under_root(rel: &str) -> bool {
+    !rel.starts_with(['/', '\\'])
+        && !rel.as_bytes().get(1).is_some_and(|b| *b == b':')
+        && rel.split(['/', '\\']).all(|part| part != "..")
+}
+
 /// Renders one `NAME=value` environment file line.
 pub fn env_line(var: &str, path: &Path) -> Result<String, ResolveError> {
     validate_var(var)?;
-    let rendered = path.display().to_string();
-    if rendered.contains('\n') || rendered.contains('\r') {
+    let Some(rendered) = path.to_str() else {
+        return Err(ResolveError::Usage {
+            detail: format!("resolved path {path:?} is not valid UTF-8"),
+        });
+    };
+    if rendered.chars().any(char::is_control) {
         return Err(ResolveError::Usage {
             detail: format!("resolved path {rendered:?} cannot cross lines"),
         });
@@ -247,12 +262,30 @@ pub fn env_line(var: &str, path: &Path) -> Result<String, ResolveError> {
 /// Appends one line to the environment file, creating it when missing.
 pub fn append_env_file(env_file: &Path, line: &str) -> io::Result<()> {
     use std::fs::OpenOptions;
-    use std::io::Write;
+    use std::io::{Read, Seek, SeekFrom, Write};
+    let body = line.strip_suffix('\n');
+    if body.is_none_or(|body| body.is_empty() || body.contains(['\n', '\r'])) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "an environment file entry must be exactly one newline-terminated line",
+        ));
+    }
     let mut handle = OpenOptions::new()
         .create(true)
+        .read(true)
         .append(true)
         .open(env_file)?;
-    handle.write_all(line.as_bytes())
+    let mut entry = String::with_capacity(line.len() + 1);
+    if handle.metadata()?.len() > 0 {
+        let mut last = [0_u8; 1];
+        handle.seek(SeekFrom::End(-1))?;
+        handle.read_exact(&mut last)?;
+        if last != *b"\n" {
+            entry.push('\n');
+        }
+    }
+    entry.push_str(line);
+    handle.write_all(entry.as_bytes())
 }
 
 /// Resolves one tool label to its absolute artifact path, failing closed.
@@ -270,6 +303,12 @@ pub fn resolve(
     } else {
         bazel.execution_root()?
     };
+    if !stays_under_root(&rel) {
+        return Err(ResolveError::CqueryFailed {
+            label: label.to_owned(),
+            detail: format!("artifact path {rel:?} is not relative to the Bazel root"),
+        });
+    }
     let path = join_under(&root, &rel);
     if !path.is_file() {
         let label = label.to_owned();

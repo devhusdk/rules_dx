@@ -10,7 +10,7 @@ This page is generated. Do not edit it by hand. Run `bazel run //tools/api:updat
 - "Default" is the value dx uses when you leave the flag or argument out.
 - "Also" lists the other spellings of a flag.
 - A build setting is a flag you pass to Bazel as `--<setting>=<value>`. For an `alias`, "Default" names the setting it forwards to.
-- `pinned` in "Default" means the tool rules_dx pins. Set the flag to your own label to replace it.
+- `pinned` in "Default" means the tool rules_dx pins. Set the flag or argument to your own label to replace it.
 - An attribute is a named argument of a rule, macro or tag. "Required" says whether you must set it.
 
 ## Commands
@@ -3772,8 +3772,8 @@ Macro or function.
 | `rustc_flags` | no | `[]` |
 | `deps` | no | `None` |
 | `cc_deps` | no | `[]` |
-| `cxx` | no | `Label("@rules_dx//qt/private/tools/rust:cxx")` |
-| `cxx_qt` | no | `Label("@rules_dx//qt/private/tools/rust:cxx_qt")` |
+| `cxx` | no | pinned |
+| `cxx_qt` | no | pinned |
 | `generator` | no | `None` |
 | `uri` | no | `None` |
 | `version` | no | `"1.0"` |

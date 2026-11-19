@@ -17,7 +17,10 @@ filegroup(
 write_file(
     name = "release_jars_list",
     out = "release_jars.txt",
-    content = ["{} {}".format(deploy_jar(tool), asset_name(tool, "any")) for tool in JAR_TOOLS] + [""],
+    content = ["{} {}".format(
+        deploy_jar(tool),
+        asset_name(tool, "any"),
+    ) for tool in JAR_TOOLS] + [""],
 )
 
 filegroup(
@@ -1596,6 +1599,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        ":dx_guard",
         "//cli/plan:dx_plan",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
@@ -1746,6 +1750,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        ":dx_guard",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:starlark_syntax",
@@ -1784,6 +1789,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        ":dx_guard",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:starlark_syntax",
@@ -1811,6 +1817,7 @@ rust_test(
     crate_name = "workflow_files_test",
     crate_root = "workflow_files_test.rs",
     data = [
+        ":release_jars_list",
         "//.github:workflows/ci.yml",
         "//.github:workflows/dx-update.yml",
         "//.github:workflows/pr-check.yml",
@@ -1820,7 +1827,6 @@ rust_test(
         "//.github:workflows/release-tools.yml",
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-release.yml",
-        ":release_jars_list",
         "//deploy/private:BUILD.bazel",
         "//deploy/private:gate_sources",
         "//deploy/private/release:release_matrix",

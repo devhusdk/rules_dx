@@ -1,8 +1,9 @@
 //! The tree breaks no rule of the Checks section of docs/design/locks.md outside `tools/ci/lock_registry_allowlist.txt`, and the allowlist holds no spare line.
 
-use std::path::Path;
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::Path;
 
+use dx_guard::allowlist::{check_lines, line_differences, parse_lines};
 use serde_json::Value;
 use starlark_syntax::syntax::ast::{
     ArgumentP, AssignTargetP, AstExpr, AstLiteral, AstStmt, ExprP, StmtP,
@@ -106,8 +107,13 @@ fn languages(files: &BTreeMap<String, String>) -> Languages {
             if ENTRY_KEYS.iter().all(|key| entry.get(key).is_some()) {
                 out.registered.insert(ecosystem.to_owned());
             }
-            if let Some(label) = entry.get("extension").and_then(Value::as_str).and_then(local_label) {
-                out.hub_dirs.extend(extension_dir(&label).map(str::to_owned));
+            if let Some(label) = entry
+                .get("extension")
+                .and_then(Value::as_str)
+                .and_then(local_label)
+            {
+                out.hub_dirs
+                    .extend(extension_dir(&label).map(str::to_owned));
                 out.hub_extensions.insert(label);
             }
             for key in ["manifest", "lock", "state"] {
@@ -411,7 +417,11 @@ fn violations(tree: &Tree) -> BTreeSet<String> {
         .filter(|name| !name.contains('*') && *name != "MODULE.bazel")
         .collect();
     for (path, source) in &tree.sources {
-        if !Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("bzl")) || test_path(path) {
+        if !Path::new(path)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("bzl"))
+            || test_path(path)
+        {
             continue;
         }
         if lock_parser(path, source) {
@@ -434,14 +444,19 @@ fn violations(tree: &Tree) -> BTreeSet<String> {
         }
     }
     for (path, source) in &tree.lock_scan {
-        if Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("go")) {
+        if Path::new(path)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("go"))
+        {
             for name in stated_names(source).intersection(&names) {
                 out.insert(format!("name {path} {name}"));
             }
         }
     }
     for (path, source) in tree.files.iter().chain(&tree.lock_scan) {
-        if Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("go"))
+        if Path::new(path)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("go"))
             || (path.rsplit('/').next() != Some("MODULE.bazel")
                 && !path.ends_with(".fixture")
                 && !path.ends_with("module_fragment.bazel"))
@@ -453,7 +468,10 @@ fn violations(tree: &Tree) -> BTreeSet<String> {
         }
     }
     for (path, text) in &tree.files {
-        if !Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("md")) {
+        if !Path::new(path)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
+        {
             continue;
         }
         let lines = text
@@ -481,34 +499,9 @@ fn fix(line: &str) -> &'static str {
     }
 }
 
-/// The allowlist lines and what is wrong with the file itself.
-fn parse_allowlist(text: &str) -> (BTreeSet<String>, Vec<String>) {
-    let mut lines = BTreeSet::new();
-    let mut problems = Vec::new();
-    let mut previous: Option<&str> = None;
-    for line in text.lines() {
-        if line.trim() != line || line.is_empty() || fix(line) == fix("") {
-            problems.push(format!("malformed line: {line:?}"));
-            continue;
-        }
-        if previous.is_some_and(|before| before >= line) {
-            problems.push(format!("not sorted or repeated: {line:?}"));
-        }
-        previous = Some(line);
-        lines.insert(line.to_owned());
-    }
-    (lines, problems)
-}
-
-/// Lines that differ between the tree and the allowlist.
-fn differences(found: &BTreeSet<String>, allowed: &BTreeSet<String>) -> Vec<String> {
-    let new = found
-        .difference(allowed)
-        .map(|line| format!("new: {line}; {}", fix(line)));
-    let stale = allowed
-        .difference(found)
-        .map(|line| format!("stale: {line}; delete the allowlist line"));
-    new.chain(stale).collect()
+/// Whether `line` names a rule this test knows.
+fn well_formed(line: &str) -> bool {
+    !line.is_empty() && fix(line) != fix("")
 }
 
 /// Reads one runfile named by an environment variable.
@@ -597,8 +590,12 @@ fn the_tree_matches_the_allowlist() {
         languages >= MIN_LANGUAGES,
         "only {languages} lang.json files in the files snapshot"
     );
-    let (allowed, mut problems) = parse_allowlist(&read_input("LOCK_REGISTRY_ALLOWLIST"));
-    problems.extend(differences(&violations(&tree), &allowed));
+    let problems = check_lines(
+        &violations(&tree),
+        &read_input("LOCK_REGISTRY_ALLOWLIST"),
+        well_formed,
+        |line| fix(line).to_owned(),
+    );
     assert!(
         problems.is_empty(),
         "{ALLOWLIST} and the tree disagree:\n{}",
@@ -954,26 +951,32 @@ fn a_new_violation_and_a_stale_allowlist_line_fail() {
         entries.iter().map(|line| (*line).to_owned()).collect()
     };
     let allowed = lines(&["digests-file d/dub.digests.json", "registry dub"]);
-    assert_eq!(differences(&allowed, &allowed), Vec::<String>::new());
     assert_eq!(
-        differences(
+        line_differences(&allowed, &allowed, |line| fix(line).to_owned()),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        line_differences(
             &lines(&[
                 "digests-file d/dub.digests.json",
                 "registry dub",
                 "tag-attr d/extensions.bzl sha256"
             ]),
-            &allowed
+            &allowed,
+            |line| fix(line).to_owned()
         ),
         ["new: tag-attr d/extensions.bzl sha256; remove the attribute; the lock holds the value"]
     );
     assert_eq!(
-        differences(&lines(&["registry dub"]), &allowed),
+        line_differences(&lines(&["registry dub"]), &allowed, |line| fix(line)
+            .to_owned()),
         ["stale: digests-file d/dub.digests.json; delete the allowlist line"]
     );
     assert_eq!(
-        differences(
+        line_differences(
             &lines(&["resolve-doc php/README.md 1"]),
-            &lines(&["resolve-doc php/README.md 2"])
+            &lines(&["resolve-doc php/README.md 2"]),
+            |line| fix(line).to_owned()
         ),
         [
             "new: resolve-doc php/README.md 1; delete the line; the lock resolves the import",
@@ -984,11 +987,13 @@ fn a_new_violation_and_a_stale_allowlist_line_fail() {
 
 #[test]
 fn the_allowlist_is_sorted_lines_of_known_rules() {
-    let (lines, problems) = parse_allowlist("digests-file a/x.digests.json\nregistry dub\n");
+    let (lines, problems) =
+        parse_lines("digests-file a/x.digests.json\nregistry dub\n", well_formed);
     assert_eq!(lines.len(), 2);
     assert_eq!(problems, Vec::<String>::new());
-    let (_, problems) = parse_allowlist(
+    let (_, problems) = parse_lines(
         "registry zig\nregistry dub\nregistry dub\n# note\n\nother x\n registry a\n",
+        well_formed,
     );
     assert_eq!(
         problems,

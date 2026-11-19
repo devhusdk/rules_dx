@@ -1,6 +1,8 @@
 //! The shared guard helpers split source, check allowlists and match paths as the guards expect.
 
-use dx_guard::allowlist::{Counts, REMOVE, add, check, parse, render};
+use dx_guard::allowlist::{
+    Counts, Lines, REMOVE, add, check, check_lines, line_differences, parse, parse_lines, render,
+};
 use dx_guard::segments::{Piece, Segment, count_word, rust_segments, starlark_segments};
 use dx_guard::snapshot::{glob_match, tree, under};
 use serde_json as _;
@@ -59,6 +61,30 @@ fn malformed_unsorted_and_unknown_kind_lines_fail() {
             "malformed line: \" alias 1\"",
         ]
     );
+}
+
+#[test]
+fn whole_line_allowlists_report_new_stale_unsorted_and_padded_lines() {
+    let found: Lines = ["a x".to_owned(), "c x".to_owned()].into();
+    let fix = |line: &str| format!("drop {line}");
+    assert_eq!(
+        check_lines(&found, "a x\nb x\n", |line| line.ends_with('x'), fix),
+        [
+            "new: c x; drop c x",
+            "stale: b x; delete the allowlist line"
+        ]
+    );
+    let (lines, problems) = parse_lines("b x\na x\n c x\nd y\n", |line| line.ends_with('x'));
+    assert_eq!(lines.len(), 2);
+    assert_eq!(
+        problems,
+        [
+            "not sorted or repeated: \"a x\"",
+            "malformed line: \" c x\"",
+            "malformed line: \"d y\""
+        ]
+    );
+    assert!(line_differences(&found, &found, fix).is_empty());
 }
 
 #[test]

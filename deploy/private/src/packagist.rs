@@ -49,20 +49,22 @@ pub fn packagist_check_name(actual: &str, expected: &str) -> Result<(), String> 
 fn packagist_live_update(package: &str, repository_url: &str, username: &str, token: &str) -> i32 {
     let body = serde_json::json!({"repository": {"url": repository_url}}).to_string();
     let authorization = format!("Bearer {username}:{token}");
-    let result = crate::http::client().and_then(|client| {
-        client
-            .send(
-                dx_http::Method::Post,
-                PACKAGIST_UPDATE_URL,
-                &[
-                    ("Authorization", authorization.as_str()),
-                    ("Content-Type", "application/json"),
-                ],
-                dx_http::Body::Bytes(body.as_bytes()),
-                2048,
-            )
-            .map_err(|error| error.to_string())
-    });
+    let result = crate::http::client()
+        .map_err(|error| error.to_string())
+        .and_then(|client| {
+            client
+                .send(
+                    dx_http::Method::Post,
+                    PACKAGIST_UPDATE_URL,
+                    &[
+                        ("Authorization", authorization.as_str()),
+                        ("Content-Type", "application/json"),
+                    ],
+                    dx_http::Body::Bytes(body.as_bytes()),
+                    2048,
+                )
+                .map_err(|error| error.to_string())
+        });
     match result {
         Ok(response) => {
             let status = response.status;

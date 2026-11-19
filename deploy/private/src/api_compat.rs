@@ -1,5 +1,9 @@
 //! Public API compatibility rule shared by the registry adapters.
 
+use std::fmt;
+
+use dx_atomic_fs::path_io::{self, PathIoError};
+use dx_process::capture::RunError;
 use dx_semver::Version;
 
 /// What `api_compat` does with a breaking report.
@@ -150,6 +154,54 @@ pub enum Outcome {
     },
 }
 
+/// Why an `api_compat` check refused a deploy or could not fetch its baseline.
+#[derive(Debug)]
+pub enum ApiCompatError {
+    /// The change is breaking and the version bump is not major.
+    Breaking {
+        rule: String,
+        reason: String,
+        previous: String,
+        next: String,
+    },
+    /// The HTTP client could not be built.
+    Client { source: dx_http::Error },
+    /// A baseline download failed.
+    Query { url: String, source: dx_http::Error },
+    /// A git invocation failed.
+    Git { source: RunError },
+    /// An exported file could not be written.
+    Export { source: PathIoError },
+}
+
+impl fmt::Display for ApiCompatError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Breaking {
+                rule,
+                reason,
+                previous,
+                next,
+            } => write!(f, "{rule}: api compat: {reason} ({previous} -> {next})"),
+            Self::Client { source } => write!(f, "{source}"),
+            Self::Query { url, source } => write!(f, "cannot query {url}: {source}"),
+            Self::Git { source } => write!(f, "{source}"),
+            Self::Export { source } => write!(f, "{source}"),
+        }
+    }
+}
+
+impl std::error::Error for ApiCompatError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Breaking { .. } => None,
+            Self::Client { source } | Self::Query { source, .. } => Some(source),
+            Self::Git { source } => Some(source),
+            Self::Export { source } => Some(source),
+        }
+    }
+}
+
 /// How many breaking changes the report prints.
 const REPORT_LINES: usize = 40;
 
@@ -157,13 +209,13 @@ const REPORT_LINES: usize = 40;
 ///
 /// # Errors
 ///
-/// Returns the failure message when the mode is `fail` and the change is breaking without a major bump.
+/// Returns [`ApiCompatError::Breaking`] when the mode is `fail` and the change is breaking without a major bump.
 pub fn conclude(
     rule: &str,
     mode: ApiCompatMode,
     next: &str,
     outcome: Outcome,
-) -> Result<(), String> {
+) -> Result<(), ApiCompatError> {
     if mode == ApiCompatMode::Off {
         return Ok(());
     }
@@ -191,9 +243,12 @@ pub fn conclude(
         next.trim_start_matches('v'),
     );
     match breaking_refusal(mode, bump, count) {
-        Some(reason) => Err(format!(
-            "{rule}: api compat: {reason} ({previous} -> {next})"
-        )),
+        Some(reason) => Err(ApiCompatError::Breaking {
+            rule: rule.to_owned(),
+            reason,
+            previous,
+            next: next.to_owned(),
+        }),
         None => Ok(()),
     }
 }
@@ -234,13 +289,16 @@ pub fn workspace_dir() -> std::path::PathBuf {
 ///
 /// # Errors
 ///
-/// Returns the failure message when the git invocation fails.
-pub fn previous_git_tag(workspace: &std::path::Path, next: &str) -> Result<Option<String>, String> {
+/// Returns [`ApiCompatError::Git`] when the git invocation fails.
+pub fn previous_git_tag(
+    workspace: &std::path::Path,
+    next: &str,
+) -> Result<Option<String>, ApiCompatError> {
     let output = dx_process::capture::run_checked(
         dx_process::capture::git(workspace).args(["tag", "--list", "v*"]),
         dx_process::capture::DEFAULT_TIMEOUT,
     )
-    .map_err(|error| error.to_string())?;
+    .map_err(|source| ApiCompatError::Git { source })?;
     Ok(previous_tag(&output.stdout_text(), next))
 }
 
@@ -249,8 +307,9 @@ pub fn previous_git_tag(workspace: &std::path::Path, next: &str) -> Result<Optio
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn fetch(url: &str, limit: u64) -> Result<Option<Vec<u8>>, String> {
-    fetch_with(&crate::http::client()?, url, limit)
+pub fn fetch(url: &str, limit: u64) -> Result<Option<Vec<u8>>, ApiCompatError> {
+    let client = crate::http::client().map_err(|source| ApiCompatError::Client { source })?;
+    fetch_with(&client, url, limit)
 }
 
 /// Downloads `url` with `client` up to `limit` bytes; None when the server answers 404 or 410.
@@ -262,13 +321,16 @@ pub fn fetch_with(
     client: &dx_http::Client,
     url: &str,
     limit: u64,
-) -> Result<Option<Vec<u8>>, String> {
+) -> Result<Option<Vec<u8>>, ApiCompatError> {
     match client.bytes(url, &[], limit) {
         Ok(body) => Ok(Some(body)),
         Err(dx_http::Error::Status {
             code: 404 | 410, ..
         }) => Ok(None),
-        Err(error) => Err(format!("cannot query {url}: {error}")),
+        Err(source) => Err(ApiCompatError::Query {
+            url: url.to_owned(),
+            source,
+        }),
     }
 }
 
@@ -277,8 +339,9 @@ pub fn fetch_with(
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn fetch_to(url: &str, dest: &std::path::Path, limit: u64) -> Result<bool, String> {
-    fetch_to_with(&crate::http::client()?, url, dest, limit)
+pub fn fetch_to(url: &str, dest: &std::path::Path, limit: u64) -> Result<bool, ApiCompatError> {
+    let client = crate::http::client().map_err(|source| ApiCompatError::Client { source })?;
+    fetch_to_with(&client, url, dest, limit)
 }
 
 /// Downloads `url` with `client` up to `limit` bytes into `dest`; false when the server
@@ -292,13 +355,16 @@ pub fn fetch_to_with(
     url: &str,
     dest: &std::path::Path,
     limit: u64,
-) -> Result<bool, String> {
+) -> Result<bool, ApiCompatError> {
     match client.download_to(url, &[], dest, limit) {
         Ok(_) => Ok(true),
         Err(dx_http::Error::Status {
             code: 404 | 410, ..
         }) => Ok(false),
-        Err(error) => Err(format!("cannot query {url}: {error}")),
+        Err(source) => Err(ApiCompatError::Query {
+            url: url.to_owned(),
+            source,
+        }),
     }
 }
 
@@ -314,14 +380,14 @@ pub fn export_git_dir(
     rev: &str,
     dest: &std::path::Path,
     marker: &str,
-) -> Result<bool, String> {
-    let git = |args: &[&str]| -> Result<Vec<u8>, String> {
+) -> Result<bool, ApiCompatError> {
+    let git = |args: &[&str]| -> Result<Vec<u8>, ApiCompatError> {
         dx_process::capture::run_checked(
             dx_process::capture::git(workspace).args(args),
             dx_process::capture::DEFAULT_TIMEOUT,
         )
         .map(|output| output.stdout)
-        .map_err(|error| error.to_string())
+        .map_err(|source| ApiCompatError::Git { source })
     };
     let dir = rel_dir.trim_matches('/');
     let spec = if dir.is_empty() { "." } else { dir };
@@ -351,10 +417,10 @@ pub fn export_git_dir(
         let blob = git(&["cat-file", "blob", oid])?;
         let target = dest.join(rel);
         if let Some(parent) = target.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|error| format!("{}: {error}", parent.display()))?;
+            path_io::create_dir_all(parent).map_err(|source| ApiCompatError::Export { source })?;
         }
-        std::fs::write(&target, blob).map_err(|error| format!("{}: {error}", target.display()))?;
+        path_io::write_scratch(&target, &blob)
+            .map_err(|source| ApiCompatError::Export { source })?;
         found |= rel == marker;
     }
     Ok(found)
@@ -455,12 +521,15 @@ mod tests {
     #[test]
     fn conclude_passes_a_first_release_and_a_skip() {
         let fail = ApiCompatMode::Fail;
-        assert_eq!(
+        assert!(matches!(
             conclude("x_deploy", fail, "1.0.0", Outcome::FirstRelease),
             Ok(())
-        );
+        ));
         let skipped = Outcome::Skipped("registry unreachable".to_owned());
-        assert_eq!(conclude("x_deploy", fail, "1.0.0", skipped), Ok(()));
+        assert!(matches!(
+            conclude("x_deploy", fail, "1.0.0", skipped),
+            Ok(())
+        ));
     }
 
     #[test]
@@ -471,9 +540,10 @@ mod tests {
             "1.3.0",
             compared("1.2.0", &["gone"]),
         );
+        assert!(matches!(refused, Err(ApiCompatError::Breaking { .. })));
         assert_eq!(
-            refused,
-            Err("x_deploy: api compat: 1 breaking API change(s) need a major version bump (1.2.0 -> 1.3.0)".to_owned())
+            refused.expect_err("refused").to_string(),
+            "x_deploy: api compat: 1 breaking API change(s) need a major version bump (1.2.0 -> 1.3.0)"
         );
         let tags = conclude(
             "x_deploy",
@@ -481,27 +551,26 @@ mod tests {
             "v1.3.0",
             compared("v1.2.0", &["a", "b"]),
         );
-        assert!(tags.is_err_and(
-            |e| e.contains("2 breaking API change(s)") && e.contains("(v1.2.0 -> v1.3.0)")
-        ));
+        let tags = tags.expect_err("refused").to_string();
+        assert!(tags.contains("2 breaking API change(s)") && tags.contains("(v1.2.0 -> v1.3.0)"));
     }
 
     #[test]
     fn conclude_allows_a_major_bump_warn_off_and_no_changes() {
         let gone = || compared("1.2.0", &["gone"]);
-        assert_eq!(
+        assert!(matches!(
             conclude("x_deploy", ApiCompatMode::Fail, "2.0.0", gone()),
             Ok(())
-        );
-        assert_eq!(
+        ));
+        assert!(matches!(
             conclude("x_deploy", ApiCompatMode::Warn, "1.3.0", gone()),
             Ok(())
-        );
-        assert_eq!(
+        ));
+        assert!(matches!(
             conclude("x_deploy", ApiCompatMode::Off, "1.3.0", gone()),
             Ok(())
-        );
-        assert_eq!(
+        ));
+        assert!(matches!(
             conclude(
                 "x_deploy",
                 ApiCompatMode::Fail,
@@ -509,7 +578,7 @@ mod tests {
                 compared("1.2.0", &[])
             ),
             Ok(())
-        );
+        ));
     }
 
     #[test]
@@ -552,15 +621,15 @@ mod tests {
         dx_test_scratch::git(&repo, &repo, &["commit", "-q", "-m", "x"]).unwrap();
         dx_test_scratch::git(&repo, &repo, &["tag", "v1.0.0"]).unwrap();
         let dest = root.join("dest");
-        assert_eq!(
+        assert!(
             export_git_dir(
                 &repo,
                 "pkg",
                 "v1.0.0",
                 &dest,
                 Ecosystem::Cargo.manifest_name()
-            ),
-            Ok(true)
+            )
+            .expect("export")
         );
         assert_eq!(
             std::fs::read_to_string(dest.join("src/lib.rs")).expect("lib"),
@@ -569,35 +638,35 @@ mod tests {
         assert!(dest.join(Ecosystem::Cargo.manifest_name()).exists());
         assert!(!dest.join("other").exists() && !dest.join("x.txt").exists());
         let missing = root.join("missing");
-        assert_eq!(
-            export_git_dir(
+        assert!(
+            !export_git_dir(
                 &repo,
                 "other",
                 "v1.0.0",
                 &missing,
                 Ecosystem::Cargo.manifest_name()
-            ),
-            Ok(false)
+            )
+            .expect("export")
         );
-        assert_eq!(
+        assert!(
             export_git_dir(
                 &repo,
                 "other",
                 "v1.0.0",
                 &root.join("pub"),
                 Ecosystem::Pub.manifest_name()
-            ),
-            Ok(true)
+            )
+            .expect("export")
         );
-        assert_eq!(
-            export_git_dir(
+        assert!(
+            !export_git_dir(
                 &repo,
                 "nope",
                 "v1.0.0",
                 &missing,
                 Ecosystem::Cargo.manifest_name()
-            ),
-            Ok(false)
+            )
+            .expect("export")
         );
         let status = dx_process::capture::run_checked(
             dx_process::capture::git(&repo).args(["status", "--porcelain"]),
@@ -605,6 +674,31 @@ mod tests {
         )
         .expect("status");
         assert!(status.stdout.is_empty(), "{:?}", status.stdout);
+        dx_atomic_fs::discard_dir(&root);
+    }
+
+    #[test]
+    fn export_git_dir_reports_an_unwritable_dest() {
+        let root = std::env::temp_dir().join(format!("export-git-dir-file-{}", std::process::id()));
+        dx_atomic_fs::discard_dir(&root);
+        let repo = root.join("repo");
+        std::fs::create_dir_all(repo.join("pkg/src")).expect("dirs");
+        std::fs::write(repo.join("pkg/src/lib.rs"), "pub fn a() {}\n").expect("write");
+        dx_test_scratch::git(&repo, &repo, &["init", "-q"]).unwrap();
+        dx_test_scratch::git(&repo, &repo, &["add", "."]).unwrap();
+        dx_test_scratch::git(&repo, &repo, &["commit", "-q", "-m", "x"]).unwrap();
+        let blocker = root.join("blocker");
+        std::fs::write(&blocker, "x").expect("write");
+        let error = export_git_dir(
+            &repo,
+            "pkg",
+            "HEAD",
+            &blocker.join("dest"),
+            Ecosystem::Cargo.manifest_name(),
+        )
+        .expect_err("dest under a file");
+        assert!(matches!(error, ApiCompatError::Export { .. }), "{error:?}");
+        assert!(error.to_string().starts_with("cannot create "), "{error}");
         dx_atomic_fs::discard_dir(&root);
     }
 }

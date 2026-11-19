@@ -597,11 +597,15 @@ pub fn github_main_checked(
                 tag_text,
                 baseline,
             )
+            .map_err(|error| error.to_string())
         };
         let concluded = outcomes.and_then(|outcomes| {
             let results: Vec<_> = outcomes
                 .into_iter()
-                .map(|outcome| conclude("github_deploy", mode, tag_text, outcome))
+                .map(|outcome| {
+                    conclude("github_deploy", mode, tag_text, outcome)
+                        .map_err(|error| error.to_string())
+                })
                 .collect();
             results.into_iter().collect::<Result<(), String>>()
         });

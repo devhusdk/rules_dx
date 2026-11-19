@@ -311,7 +311,8 @@ fn index_path(name: &str) -> String {
 /// Returns the highest published version below `next`; None when there is none.
 fn published_below(crate_name: &str, next: &str) -> Result<Option<String>, String> {
     let url = format!("https://index.crates.io/{}", index_path(crate_name));
-    Ok(fetch(&url, 64 << 20)?
+    Ok(fetch(&url, 64 << 20)
+        .map_err(|error| error.to_string())?
         .and_then(|body| latest_published(&String::from_utf8_lossy(&body), next)))
 }
 
@@ -339,7 +340,7 @@ fn crates_api_check(
         let tag = match previous_git_tag(&workspace_dir(), version) {
             Ok(Some(tag)) => tag,
             Ok(None) => return Ok(Outcome::FirstRelease),
-            Err(error) => return Ok(Outcome::Skipped(error)),
+            Err(error) => return Ok(Outcome::Skipped(error.to_string())),
         };
         let dest = tempfile_stage_dir("crates-api-base-")
             .map_err(|error| format!("crates_deploy: {error}"))?;
@@ -430,7 +431,7 @@ fn crates_api_report(
         }
         None => Outcome::Skipped("cargo-semver-checks is not available".to_owned()),
     };
-    conclude("crates_deploy", mode, version, outcome)
+    conclude("crates_deploy", mode, version, outcome).map_err(|error| error.to_string())
 }
 
 /// Runs the crates deploy tool without an API compatibility check.

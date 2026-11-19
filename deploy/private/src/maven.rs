@@ -656,13 +656,13 @@ fn maven_api_check(
     let previous = if baseline == Baseline::Git {
         match previous_git_tag(&workspace_dir(), version) {
             Ok(tag) => tag.map(|tag| tag.trim_start_matches('v').to_owned()),
-            Err(error) => return Ok(Outcome::Skipped(error)),
+            Err(error) => return Ok(Outcome::Skipped(error.to_string())),
         }
     } else {
         match fetch(&format!("{dir}/maven-metadata.xml"), 1 << 20) {
             Ok(Some(body)) => previous_release(&String::from_utf8_lossy(&body), version),
             Ok(None) => None,
-            Err(error) => return Ok(Outcome::Skipped(error)),
+            Err(error) => return Ok(Outcome::Skipped(error.to_string())),
         }
     };
     let Some(previous) = previous else {
@@ -675,7 +675,7 @@ fn maven_api_check(
     let outcome = match fetch_to(&url, &baseline_jar, 512 << 20) {
         Ok(true) => maven_api_compare((java, japicmp), &previous, jar, &baseline_jar),
         Ok(false) => Ok(Outcome::Skipped(format!("{url} not found"))),
-        Err(error) => Ok(Outcome::Skipped(error)),
+        Err(error) => Ok(Outcome::Skipped(error.to_string())),
     };
     dx_atomic_fs::discard_dir(&staging);
     outcome
@@ -822,7 +822,9 @@ pub fn maven_main(spec: &MavenLaunch<'_>, argv: &[String]) -> i32 {
             &jar,
             MAVEN_CENTRAL_READ_URL,
         )
-        .and_then(|outcome| conclude("maven_deploy", mode, version, outcome));
+        .and_then(|outcome| {
+            conclude("maven_deploy", mode, version, outcome).map_err(|error| error.to_string())
+        });
         if let Err(error) = checked {
             eprintln!("{error}");
             return 1;
@@ -878,15 +880,17 @@ pub fn maven_main(spec: &MavenLaunch<'_>, argv: &[String]) -> i32 {
             println!("maven_deploy: Central Portal validation rejects unsigned bundles");
         }
         let name = format!("{group}:{artifact}:{version}");
-        match http::client().and_then(|client| {
-            maven_upload_bundle(
-                &client,
-                MAVEN_PUBLISHER_URL,
-                &http::bearer_basic(&live.username, &live.password),
-                &name,
-                &bundle,
-            )
-        }) {
+        match http::client()
+            .map_err(|error| error.to_string())
+            .and_then(|client| {
+                maven_upload_bundle(
+                    &client,
+                    MAVEN_PUBLISHER_URL,
+                    &http::bearer_basic(&live.username, &live.password),
+                    &name,
+                    &bundle,
+                )
+            }) {
             Ok(id) => {
                 println!(
                     "maven_deploy: uploaded {name} to {MAVEN_PUBLISHER_URL} as deployment {id}"
@@ -1647,7 +1651,9 @@ pub(crate) mod tests {
         let outcome =
             maven_api_compare((&java, &japicmp), "1.2.0", &new_jar, &old_jar).expect("ran");
         let fail = ApiCompatMode::Fail;
-        let refused = conclude("maven_deploy", fail, "1.3.0", outcome).expect_err("minor refused");
+        let refused = conclude("maven_deploy", fail, "1.3.0", outcome)
+            .expect_err("minor refused")
+            .to_string();
         assert!(refused.contains("1.2.0 -> 1.3.0"), "{refused}");
         let outcome =
             maven_api_compare((&java, &japicmp), "1.2.0", &new_jar, &old_jar).expect("ran");

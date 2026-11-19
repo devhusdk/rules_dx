@@ -126,7 +126,7 @@ fn stack_lock_hackage_entries_are_audited() {
 
 #[test]
 fn stack_fixture_lock_is_audited() {
-    let text = include_str!("../../../../haskell/tests/fixtures/stack/stack.yaml.lock");
+    let text = include_str!("../../../haskell/tests/fixtures/stack/stack.yaml.lock");
     assert_eq!(
         locked_names(Ecosystem::Cabal, "stack/stack.yaml.lock", text),
         [("split".to_owned(), "0.2.5".to_owned())]

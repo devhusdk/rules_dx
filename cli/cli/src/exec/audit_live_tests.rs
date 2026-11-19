@@ -1,4 +1,4 @@
-use super::super::test_support::*;
+use super::test_support::*;
 use dx_adopt::dependency_sets::Ecosystem;
 use dx_process::{ChildStatus, Runner};
 use std::cell::RefCell;
@@ -1357,12 +1357,12 @@ fn real_secret_paths(harness: &Harness) -> (Vec<String>, Option<String>) {
     let tool = dx_testing::env_file("DX_TEST_GITLEAKS");
     let tool = std::path::absolute(tool).expect("absolute gitleaks path");
     let runner = RealGitleaks { tool };
-    let bazel = super::QueryBazel {
+    let bazel = dx_exec_reports::pinned_tool::QueryBazel {
         query_runner: &RealGit,
         workspace: &harness.workspace,
         startup: &[],
     };
-    let (findings, incomplete, _) = super::run_secrets(
+    let (findings, incomplete, _) = dx_exec_audit::run_secrets(
         &harness.workspace,
         &runner,
         &RealGit,

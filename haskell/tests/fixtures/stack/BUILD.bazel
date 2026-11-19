@@ -11,7 +11,7 @@ exports_files([
 
 exports_files(
     ["stack.yaml.lock"],
-    visibility = ["//cli/cli:__pkg__"],
+    visibility = ["//cli/exec_audit:__pkg__"],
 )
 
 haskell_binary(

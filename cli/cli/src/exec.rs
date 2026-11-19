@@ -1,5 +1,10 @@
 mod affected;
-mod audit;
+#[cfg(test)]
+mod audit_consumer_tests;
+#[cfg(test)]
+mod audit_live_tests;
+#[cfg(test)]
+mod audit_reports_tests;
 mod auto_sync;
 mod bench;
 mod breaking_base;
@@ -371,7 +376,7 @@ fn dispatch_inner(invocation: &Invocation, env: Env<'_>) -> i32 {
         Command::Security if invocation.verify.is_some() => {
             security_verify::execute_verify(invocation, env)
         }
-        Command::Security | Command::License => audit::execute_audit(invocation, env),
+        Command::Security | Command::License => dx_exec_audit::execute_audit(invocation, env),
         Command::Update if update_advisory::selected(invocation) => {
             update_advisory::execute_update_advisory(invocation, env)
         }

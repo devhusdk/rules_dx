@@ -94,6 +94,7 @@ single_version_override(
     patches = ["//patches/rules_foreign_cc:cmake_4_5_0.patch"],
     version = "0.17.0",
 )
+
 bazel_dep(name = "ninja", version = "1.13.2", dev_dependency = True)
 bazel_dep(name = "m4", version = "1.4.21.bcr.8", dev_dependency = True)
 bazel_dep(name = "make", version = "4.4.1.bcr.3", dev_dependency = True)
@@ -2774,6 +2775,7 @@ crate.from_cargo(
         "//cli/bep:Cargo.toml",
         "//cli/cli:Cargo.toml",
         "//cli/exec_core:Cargo.toml",
+        "//cli/exec_audit:Cargo.toml",
         "//cli/exec_reports:Cargo.toml",
         "//cli/diff:Cargo.toml",
         "//cli/digest:Cargo.toml",

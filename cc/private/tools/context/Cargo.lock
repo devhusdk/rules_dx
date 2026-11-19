@@ -1884,6 +1884,17 @@ name = "dx_error"
 version = "0.0.0"
 
 [[package]]
+name = "dx_exec_audit"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.20",
+ "tracing",
+]
+
+[[package]]
 name = "dx_exec_core"
 version = "0.0.0"
 dependencies = [

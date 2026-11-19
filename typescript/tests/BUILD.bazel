@@ -27,6 +27,8 @@ build_test(
     targets = [
         "//svelte/tests/app:site",
         "//typescript/tests/fixtures/hello:hello_lib",
+        "//typescript/tests/fixtures/proto:event_proto_ts",
+        "//typescript/tests/fixtures/proto:user_proto_ts",
     ],
 )
 

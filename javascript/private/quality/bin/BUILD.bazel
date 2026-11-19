@@ -1,8 +1,5 @@
 load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
-load("//core/quality:fixtures.bzl", "real_source_target")
-load("//javascript/private/quality:defs.bzl", "js_tool")
-load("//javascript/private:windows_tool.bzl", "js_build_tool")
 load("@dx_npm_tools//javascript/private/quality:@bufbuild/protoc-gen-es/package_json.bzl", protoc_gen_es_bin = "bin")
 load("@dx_npm_tools//javascript/private/quality:@microsoft/api-extractor/package_json.bzl", api_extractor_bin = "bin")
 load("@dx_npm_tools//javascript/private/quality:@redocly/cli/package_json.bzl", redocly_bin = "bin")
@@ -10,6 +7,9 @@ load("@dx_npm_tools//javascript/private/quality:esbuild/package_json.bzl", esbui
 load("@dx_npm_tools//javascript/private/quality:gplint/package_json.bzl", gplint_bin = "bin")
 load("@dx_npm_tools//javascript/private/quality:typedoc/package_json.bzl", typedoc_bin = "bin")
 load("@dx_npm_tools//javascript/private/quality:wrangler/package_json.bzl", wrangler_bin = "bin")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//javascript/private:windows_tool.bzl", "js_build_tool")
+load("//javascript/private/quality:defs.bzl", "js_tool")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -266,6 +266,12 @@ api_extractor_bin.api_extractor_binary(
 
 protoc_gen_es_bin.protoc_gen_es_binary(
     name = "protoc_gen_es",
+    visibility = ["//visibility:public"],
+)
+
+js_build_tool(
+    name = "protoc_gen_es_tool",
+    tool = ":protoc_gen_es",
     visibility = ["//visibility:public"],
 )
 

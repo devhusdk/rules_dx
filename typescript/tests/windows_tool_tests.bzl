@@ -58,9 +58,15 @@ _CASES = [
     ("tsc", "//typescript/private:tsc", "@npm_typescript//:tsc"),
     ("vite", "//javascript/private:vite_build_tool", "//javascript/private:vite_tool"),
     ("svelte_tsc", "//javascript/private/quality/bin:svelte_tsc_tool", "//javascript/private/quality/bin:svelte_tsc"),
+    ("protoc_gen_es", "//javascript/private/quality/bin:protoc_gen_es_tool", "//javascript/private/quality/bin:protoc_gen_es"),
 ]
 
 def windows_tool_tests(name):
+    """Declares the shim and select tests for each js_build_tool case.
+
+    Args:
+        name: Name of the test suite.
+    """
     tests = []
     for case, alias, tool in _CASES:
         prefix = "{}_{}".format(name, case)

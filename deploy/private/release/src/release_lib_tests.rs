@@ -344,11 +344,20 @@ fn signing_dry_run_matches_shell() {
     assert!(out.contains("cosign verify-blob"));
     assert!(out.contains("cosign: v9.8.7 "));
     assert!(out.contains(SIGNING_BUNDLE_MEDIA_TYPE));
-    assert!(signing_run("", "ISSUER", &assets, true, &pin, outdir).is_err());
-    assert!(signing_run("ID", "ISS", &[], true, &pin, outdir).is_err());
+    let err = signing_run("", "ISSUER", &assets, true, &pin, outdir).expect_err("no identity");
+    assert!(matches!(err, SigningError::NoIdentity), "got {err:?}");
+    assert_eq!(
+        err.to_string(),
+        "signing: missing SIGNING_IDENTITY (owner-approved release workflow identity)"
+    );
+    let err = signing_run("ID", "ISS", &[], true, &pin, outdir).expect_err("no assets");
+    assert!(matches!(err, SigningError::NoAssets), "got {err:?}");
+    assert_eq!(err.to_string(), "signing: need at least one artifact");
     let err = signing_run("ID", "ISS", &assets, false, &pin, outdir).expect_err("missing cosign");
+    assert!(matches!(err, SigningError::Pin(_)), "got {err:?}");
     assert!(
-        err.contains("cannot hash cosign at /nonexistent/cosign"),
+        err.to_string()
+            .contains("cannot hash cosign at /nonexistent/cosign"),
         "got {err}"
     );
     let ok = signing_run("ID", "ISS", &assets, true, &pin, outdir).expect("dry");
@@ -1528,7 +1537,7 @@ fn signing_live_enforces_pinned_cosign() {
     let assets = [asset.to_string_lossy().into_owned()];
     let good = "GitVersion:    v9.8.7";
     let outdir = scratch.path().join("out");
-    let scenario = |name: &str, body: &str, sha: Option<&str>| -> Result<String, String> {
+    let scenario = |name: &str, body: &str, sha: Option<&str>| -> Result<String, SigningError> {
         let script = write_fake_cosign(&scratch.path().join(name), body);
         let actual = dx_digest::sha256_file_hex(&script).expect("hash fake cosign");
         let path = script.to_string_lossy().into_owned();
@@ -1547,30 +1556,38 @@ fn signing_live_enforces_pinned_cosign() {
     };
     let ok_body = fake_cosign(good, "exit 0", "exit 0");
     let err = scenario("wrong-sha", &ok_body, Some(&"0".repeat(64))).expect_err("wrong sha");
-    assert!(err.contains("has sha256"), "got {err}");
-    assert!(err.contains("refusing to sign"), "got {err}");
+    assert!(matches!(err, SigningError::Pin(_)), "got {err:?}");
+    assert!(err.to_string().contains("has sha256"), "got {err}");
+    assert!(err.to_string().contains("refusing to sign"), "got {err}");
     let err = scenario(
         "longer-version",
         &fake_cosign("GitVersion:    v9.8.70", "exit 0", "exit 0"),
         None,
     )
     .expect_err("v9.8.70");
-    assert!(err.contains("GitVersion must be v9.8.7"), "got {err}");
-    assert!(err.contains("got: v9.8.70"), "got {err}");
+    assert!(matches!(err, SigningError::Pin(_)), "got {err:?}");
+    assert!(
+        err.to_string().contains("GitVersion must be v9.8.7"),
+        "got {err}"
+    );
+    assert!(err.to_string().contains("got: v9.8.70"), "got {err}");
     let err = scenario(
         "version-elsewhere",
         &fake_cosign("cosign version v9.8.7 (go1.25)", "exit 0", "exit 0"),
         None,
     )
     .expect_err("no GitVersion line");
-    assert!(err.contains("got: none"), "got {err}");
+    assert!(matches!(err, SigningError::Pin(_)), "got {err:?}");
+    assert!(err.to_string().contains("got: none"), "got {err}");
     let err = scenario("sign-fails", &fake_cosign(good, "exit 1", "exit 0"), None)
         .expect_err("sign fails");
-    assert!(err.contains("failed for"), "got {err}");
-    assert!(err.contains("publishing nothing"), "got {err}");
+    assert!(matches!(err, SigningError::Sign(_)), "got {err:?}");
+    assert!(err.to_string().contains("failed for"), "got {err}");
+    assert!(err.to_string().contains("publishing nothing"), "got {err}");
     let err = scenario("verify-fails", &fake_cosign(good, "exit 0", "exit 1"), None)
         .expect_err("verify fails");
-    assert!(err.contains("bundle rejected"), "got {err}");
+    assert!(matches!(err, SigningError::Sign(_)), "got {err:?}");
+    assert!(err.to_string().contains("bundle rejected"), "got {err}");
     let bundle = outdir.join("artifact.bin.bundle");
     let ok = scenario(
         "all-ok",
@@ -1591,16 +1608,56 @@ fn signing_live_enforces_pinned_cosign() {
         None,
     )
     .expect_err("sign spawn fails");
-    assert!(err.contains("cosign sign-blob"), "got {err}");
-    assert!(err.starts_with("signing: cannot run '"), "got {err}");
+    assert!(matches!(err, SigningError::Sign(_)), "got {err:?}");
+    assert!(err.to_string().contains("cosign sign-blob"), "got {err}");
+    assert!(
+        err.to_string().starts_with("signing: cannot run '"),
+        "got {err}"
+    );
     let err = scenario(
         "gone-at-verify",
         &fake_cosign(good, "/bin/rm -f \"$0\"; exit 0", "exit 0"),
         None,
     )
     .expect_err("verify spawn fails");
-    assert!(err.contains("cannot run '"), "got {err}");
-    assert!(err.contains("cosign verify-blob"), "got {err}");
+    assert!(matches!(err, SigningError::Sign(_)), "got {err:?}");
+    assert!(err.to_string().contains("cannot run '"), "got {err}");
+    assert!(err.to_string().contains("cosign verify-blob"), "got {err}");
+    scratch.close().expect("cleanup");
+}
+
+#[cfg(unix)]
+#[test]
+fn signing_outdir_error_keeps_source() {
+    let scratch = scratch_dir();
+    let asset = write_artifact(scratch.path(), "artifact.bin", b"artifact bytes\n");
+    let assets = [asset.to_string_lossy().into_owned()];
+    let script = write_fake_cosign(
+        &scratch.path().join("bin"),
+        &fake_cosign("GitVersion:    v9.8.7", "exit 0", "exit 0"),
+    );
+    let sha256 = dx_digest::sha256_file_hex(&script).expect("hash fake cosign");
+    let path = script.to_string_lossy().into_owned();
+    let blocker = write_artifact(scratch.path(), "blocker", b"file\n");
+    let err = signing_run(
+        "ID",
+        "ISS",
+        &assets,
+        false,
+        &CosignPin {
+            path: &path,
+            version: "v9.8.7",
+            sha256: &sha256,
+        },
+        &blocker.join("out"),
+    )
+    .expect_err("outdir under a file");
+    assert!(matches!(err, SigningError::Outdir(_)), "got {err:?}");
+    assert!(
+        err.to_string().starts_with("signing: cannot create "),
+        "got {err}"
+    );
+    assert!(std::error::Error::source(&err).is_some());
     scratch.close().expect("cleanup");
 }
 
@@ -1636,6 +1693,11 @@ fn signing_records_track_failure_and_partial() {
     assert_eq!(states(&run("bad-first", "exit 1")), [OpState::Failed]);
     let partial = run("bad-second", "case \"$8\" in *second*) exit 1;; esac");
     assert_eq!(states(&partial), [OpState::Executed, OpState::Partial]);
+    assert!(
+        partial[1].detail.contains("bundle rejected"),
+        "got {}",
+        partial[1].detail
+    );
     let dry = signing_dry_run_records(&assets);
     assert!(dry.iter().all(|r| r.state == OpState::NotAuthorized));
     scratch.close().expect("cleanup");

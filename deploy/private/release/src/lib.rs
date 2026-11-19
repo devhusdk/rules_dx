@@ -758,9 +758,44 @@ pub fn render_signing_dry_run(
     out
 }
 
+/// A failed `signing_run`.
+#[derive(Debug)]
+pub enum SigningError {
+    NoAssets,
+    NoIdentity,
+    /// The cosign binary does not match its pin.
+    Pin(String),
+    Outdir(dx_atomic_fs::path_io::PathIoError),
+    /// The detail of the first failed or partial sign record.
+    Sign(String),
+}
+
+impl std::fmt::Display for SigningError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NoAssets => f.write_str("signing: need at least one artifact"),
+            Self::NoIdentity => f.write_str(
+                "signing: missing SIGNING_IDENTITY (owner-approved release workflow identity)",
+            ),
+            Self::Pin(message) | Self::Sign(message) => f.write_str(message),
+            Self::Outdir(source) => write!(f, "signing: {source}"),
+        }
+    }
+}
+
+impl std::error::Error for SigningError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Outdir(source) => Some(source),
+            Self::NoAssets | Self::NoIdentity | Self::Pin(_) | Self::Sign(_) => None,
+        }
+    }
+}
+
 /// # Errors
 ///
-/// Returns an error when the operation fails.
+/// Returns `SigningError` when no assets or identity are given, the cosign pin
+/// does not match, the outdir cannot be created, or an asset fails to sign.
 pub fn signing_run(
     identity: &str,
     issuer: &str,
@@ -768,15 +803,12 @@ pub fn signing_run(
     dry_run: bool,
     pin: &CosignPin<'_>,
     outdir: &Path,
-) -> Result<String, String> {
+) -> Result<String, SigningError> {
     if assets.is_empty() {
-        return Err("signing: need at least one artifact".to_owned());
+        return Err(SigningError::NoAssets);
     }
     if identity.is_empty() {
-        return Err(
-            "signing: missing SIGNING_IDENTITY (owner-approved release workflow identity)"
-                .to_owned(),
-        );
+        return Err(SigningError::NoIdentity);
     }
     if dry_run {
         return Ok(render_signing_dry_run(
@@ -803,16 +835,15 @@ fn signing_live(
     assets: &[String],
     pin: &CosignPin<'_>,
     outdir: &Path,
-) -> Result<String, String> {
-    check_pin(pin)?;
-    std::fs::create_dir_all(outdir)
-        .map_err(|error| format!("signing: cannot create {}: {error}", outdir.display()))?;
+) -> Result<String, SigningError> {
+    check_pin(pin).map_err(SigningError::Pin)?;
+    dx_atomic_fs::path_io::create_dir_all(outdir).map_err(SigningError::Outdir)?;
     let records = signing_sign_assets(identity, issuer, assets, pin, outdir);
     if let Some(bad) = records
         .iter()
         .find(|record| matches!(record.state, OpState::Failed | OpState::Partial))
     {
-        return Err(bad.detail.clone());
+        return Err(SigningError::Sign(bad.detail.clone()));
     }
     let mut out = String::new();
     writeln!(
@@ -864,13 +895,18 @@ pub fn signing_sign_assets(
                 OpState::Executed,
                 &format!("{asset} -> {bundle}"),
             )),
-            Err(detail) => {
+            Err(error) => {
                 let state = if records.is_empty() {
                     OpState::Failed
                 } else {
                     OpState::Partial
                 };
-                records.push(OpRecord::new("cosign-sign", &subject, state, &detail));
+                records.push(OpRecord::new(
+                    "cosign-sign",
+                    &subject,
+                    state,
+                    &error.to_string(),
+                ));
                 break;
             }
         }
@@ -884,9 +920,9 @@ fn signing_sign_one(
     asset: &str,
     bundle: &str,
     pin: &CosignPin<'_>,
-) -> Result<(), String> {
+) -> Result<(), SigningError> {
     let verify = signing_verify_argv(pin.path, asset, bundle, identity, issuer);
-    sign_one(pin, asset, bundle, false, Some(verify))
+    sign_one(pin, asset, bundle, false, Some(verify)).map_err(SigningError::Sign)
 }
 
 #[must_use]

@@ -1714,7 +1714,27 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "hdrs",
+              "srcs",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_cc_library_forward"
+          },
+          {
+            "attrs": [
+              "features",
+              "hdrs",
+              "srcs",
+              "tags",
+              "visibility"
+            ],
+            "kind": "cc_library"
+          }
+        ],
         "name": "cc_library",
         "params": [
           {
@@ -1766,7 +1786,30 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "env",
+              "size",
+              "srcs",
+              "testonly",
+              "upstream"
+            ],
+            "kind": "_cc_forward_test"
+          },
+          {
+            "attrs": [
+              "deps",
+              "features",
+              "linkstatic",
+              "size",
+              "srcs",
+              "tags",
+              "visibility"
+            ],
+            "kind": "cc_test"
+          }
+        ],
         "name": "cc_test",
         "params": [
           {
@@ -2985,7 +3028,28 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_d_library_forward"
+          },
+          {
+            "attrs": [
+              "dopts",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "visibility"
+            ],
+            "kind": "d_library"
+          }
+        ],
         "name": "d_library",
         "params": [
           {
@@ -3011,7 +3075,31 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "deps",
+              "size",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "testonly",
+              "upstream"
+            ],
+            "kind": "_d_forward_test"
+          },
+          {
+            "attrs": [
+              "dopts",
+              "size",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "visibility"
+            ],
+            "kind": "d_test"
+          }
+        ],
         "name": "d_test",
         "params": [
           {
@@ -6543,7 +6631,26 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "cgo",
+              "srcs",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_go_library_forward"
+          },
+          {
+            "attrs": [
+              "importpath",
+              "srcs",
+              "tags",
+              "visibility"
+            ],
+            "kind": "go_library"
+          }
+        ],
         "name": "go_library",
         "params": [
           {
@@ -6574,7 +6681,28 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "cgo",
+              "size",
+              "srcs",
+              "testonly",
+              "upstream"
+            ],
+            "kind": "_go_forward_test"
+          },
+          {
+            "attrs": [
+              "embed",
+              "size",
+              "srcs",
+              "tags",
+              "visibility"
+            ],
+            "kind": "go_test"
+          }
+        ],
         "name": "go_test",
         "params": [
           {
@@ -9190,7 +9318,15 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "srcs",
+              "visibility"
+            ],
+            "kind": "_lua_library"
+          }
+        ],
         "name": "lua_library",
         "params": [
           {
@@ -9216,7 +9352,28 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "size",
+              "srcs",
+              "testonly",
+              "upstream"
+            ],
+            "kind": "_lua_forward_test"
+          },
+          {
+            "attrs": [
+              "deps",
+              "main",
+              "size",
+              "srcs",
+              "tags",
+              "visibility"
+            ],
+            "kind": "_lua_test"
+          }
+        ],
         "name": "lua_test",
         "params": [
           {
@@ -10641,7 +10798,25 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "srcs",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_python_library_forward"
+          },
+          {
+            "attrs": [
+              "imports",
+              "srcs",
+              "tags",
+              "visibility"
+            ],
+            "kind": "py_library"
+          }
+        ],
         "name": "python_library",
         "params": [
           {
@@ -11375,7 +11550,16 @@
     "extensions": [],
     "functions": [
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "deps",
+              "size",
+              "srcs"
+            ],
+            "kind": "_rego_test"
+          }
+        ],
         "name": "rego_test",
         "params": [
           {
@@ -14859,7 +15043,25 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "srcs",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_zig_library_forward"
+          },
+          {
+            "attrs": [
+              "import_name",
+              "main",
+              "tags",
+              "visibility"
+            ],
+            "kind": "zig_library"
+          }
+        ],
         "name": "zig_library",
         "params": [
           {
@@ -14895,7 +15097,29 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "deps",
+              "size",
+              "srcs",
+              "testonly",
+              "upstream"
+            ],
+            "kind": "_zig_forward_test"
+          },
+          {
+            "attrs": [
+              "deps",
+              "main",
+              "size",
+              "tags",
+              "visibility",
+              "zigopts"
+            ],
+            "kind": "zig_test"
+          }
+        ],
         "name": "zig_test",
         "params": [
           {

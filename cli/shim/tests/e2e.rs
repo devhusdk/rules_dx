@@ -427,6 +427,30 @@ fn shim_version_and_where() {
     assert_eq!(fixture.server.hits(), 0);
 }
 
+#[cfg(unix)]
+#[test]
+fn where_prints_a_non_utf8_binary_path_byte_for_byte() {
+    use std::os::unix::ffi::{OsStrExt, OsStringExt};
+    let fixture = Fixture::new();
+    let mut raw = fixture.cache.path().as_os_str().as_bytes().to_vec();
+    raw.extend_from_slice(b"/\xff\xfe");
+    let cache = std::ffi::OsString::from_vec(raw.clone());
+    let output = fixture
+        .command(fixture.workspace.path(), &["shim", "where"])
+        .env("DX_CACHE_DIR", &cache)
+        .output()
+        .expect("run shim");
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert!(
+        output
+            .stdout
+            .windows(raw.len())
+            .any(|w| w == raw.as_slice()),
+        "{}",
+        stdout(&output)
+    );
+}
+
 #[test]
 fn unknown_shim_commands_are_usage_errors() {
     let fixture = Fixture::new();

@@ -69,7 +69,7 @@ pub fn run(options: &Options) -> Result<(), String> {
             .cloned()
             .ok_or_else(|| format!("source '{staged}' is not in the srcs manifest"))
     })?;
-    documentation_ir::tool::write_shard(&options.out, &shard)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
 }
 
 /// Joins the staged root and a griffe file path, which uses backslashes on Windows.

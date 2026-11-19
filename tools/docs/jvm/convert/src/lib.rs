@@ -94,7 +94,7 @@ pub fn run(options: &Options) -> Result<(), String> {
         deps.push(shard);
     }
     let shard = convert(&json, &options.language, &options.package, &manifest, &deps)?;
-    documentation_ir::tool::write_shard(&options.out, &shard)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
 }
 
 fn optional<'a>(object: &'a Map<String, Value>, key: &str) -> Option<&'a Value> {

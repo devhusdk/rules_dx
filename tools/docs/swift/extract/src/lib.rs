@@ -91,7 +91,7 @@ pub fn run(options: &Options) -> Result<(), String> {
         &options.package,
         &options.config,
     )?;
-    documentation_ir::tool::write_shard(&options.out, &shard)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
 }
 
 /// Reads every `<module>@<Other>.symbols.json` of `dir` as (Other, text), ordered by name.

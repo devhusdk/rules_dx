@@ -69,7 +69,7 @@ pub fn run(options: &Options) -> Result<(), String> {
     }
     pages.sort_by(|a, b| a.0.cmp(&b.0));
     let shard = convert(&pages, &options.package, &options.config)?;
-    documentation_ir::tool::write_shard(&options.out, &shard)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
 }
 
 /// Reads every page below `root`, keyed by its directory relative to `root`.

@@ -84,7 +84,7 @@ pub fn run(options: &Options) -> Result<(), String> {
         .map_err(|error| format!("cannot read {}: {error}", options.srcs))?;
     let docs: Vec<&str> = documents.iter().map(|(_, text)| text.as_str()).collect();
     let shard = convert(&docs, &manifest, &options.package, &options.language)?;
-    documentation_ir::tool::write_shard(&options.out, &shard)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
 }
 
 pub use documentation_ir::escape_segment;

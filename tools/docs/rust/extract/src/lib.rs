@@ -129,6 +129,7 @@ pub fn run(options: &Options) -> String {
     };
     documentation_ir::tool::write_shard(&options.out, &shard)
         .err()
+        .map(String::from)
         .unwrap_or_default()
 }
 

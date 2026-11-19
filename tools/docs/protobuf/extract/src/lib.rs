@@ -90,7 +90,7 @@ pub fn run(options: &Options) -> Result<(), String> {
     let bytes = fs::read(&options.descriptor)
         .map_err(|error| format!("cannot read {}: {error}", options.descriptor))?;
     let shard = convert(&bytes, options)?;
-    documentation_ir::tool::write_shard(&options.out, &shard)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
 }
 
 /// Strips the comment markers' shared leading space and trailing blank space.

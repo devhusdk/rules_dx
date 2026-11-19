@@ -7,7 +7,7 @@ load(":consumer_deps.bzl", "consumer_deps_json")
 load(":versions_rs.bzl", "versions_rs")
 load(":versions_tests.bzl", "versions_contract_tests")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//:__subpackages__"])
 
 versions_contract_tests(name = "versions_contract")
 

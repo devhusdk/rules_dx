@@ -875,6 +875,8 @@ Use a toolchain type when you register your own toolchain.
 | `@rules_dx//powershell:pester` | `alias` |
 | `@rules_dx//powershell:runfiles` | `alias` |
 | `@rules_dx//rust:build_script_cc_env` | `build_script_cc_env` |
+| `@rules_dx//rust:wasi_run` | `rust_library` |
+| `@rules_dx//rust:wasmtime` | `alias` |
 | `@rules_dx//thrift:thrift_compiler` | `alias` |
 | `@rules_dx//zig:kcov_build` | `config_setting` |
 
@@ -888,7 +890,6 @@ Run these with `bazel run <target>`.
 | `@rules_dx//cli/codegen_shard:codegen_shard_writer` | `rust_binary` |
 | `@rules_dx//cli/coverage_summary:coverage_summary` | `rust_binary` |
 | `@rules_dx//cli/env:env` | `rust_binary` |
-| `@rules_dx//cli/hpc_coverage:hpc_coverage` | `rust_binary` |
 | `@rules_dx//cli/launcher:exec_launcher` | `rust_binary` |
 | `@rules_dx//cli/ocaml_cc_driver:ocaml_cc_driver` | `rust_binary` |
 | `@rules_dx//cli/runtime:dx_runtime` | `rust_binary` |

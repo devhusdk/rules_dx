@@ -686,7 +686,7 @@ def _rust_browser_test(name, wasm, **kwargs):
         **forward
     )
 
-_WASMTIME = Label("//tools/testing/wasi:wasmtime")
+_WASMTIME = Label("//rust:wasmtime")
 
 _EXTRA_EXEC = "//command_line_option:extra_execution_platforms"
 

@@ -27,7 +27,7 @@ load(":coverage.bzl", "QT_COVERAGE_TRANSITION", "QtCoverageProbeInfo", "qt_cover
 load(":generate.bzl", _qt_generate = "qt_generate")
 load(":platform.bzl", "QT_PLATFORMS_ATTR", "QT_PLATFORM_TRANSITION")
 load(":providers.bzl", "QtInfo")
-load(":rust_bridge.bzl", "QT_BRIDGE_TOOL", _qt_rust_bridge = "qt_rust_bridge", _qt_rust_runtime_files = "qt_rust_runtime_files")
+load(":rust_bridge.bzl", _qt_rust_bridge = "qt_rust_bridge", _qt_rust_runtime_files = "qt_rust_runtime_files")
 load(":text.bzl", _qt_framework_path = "qt_framework_path", _qt_identifier = "qt_identifier", _qt_module_path = "qt_module_path", _qt_package_path = "qt_package_path", _qt_qmldir = "qt_qmldir", _qt_qrc = "qt_qrc", _qt_version_parts = "qt_version_parts")
 
 QT_CONF = _QT_CONF
@@ -587,7 +587,7 @@ def qt_rust_cc_library(
     _qt_rust_bridge(
         name = name + "_bridge",
         bridges = bridges,
-        generator = generator or QT_BRIDGE_TOOL,
+        generator = generator,
         tags = (kwargs.get("tags", None) or []) + ["manual"],
         visibility = visibility,
         **shared

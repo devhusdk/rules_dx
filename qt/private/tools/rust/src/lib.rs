@@ -4,7 +4,6 @@
 
 use std::fs;
 use std::path::Path;
-use std::process::ExitCode;
 
 use cxx_qt_gen::{
     CppFragment, CxxQtItem, GeneratedCppBlocks, GeneratedOpt, GeneratedRustBlocks, Parser,
@@ -24,7 +23,7 @@ const QML_TYPES: [(&str, &str); 8] = [
     ("::std::uint64_t", "qulonglong"),
 ];
 
-const USAGE: &str = "usage: qt_rust_bridge header <cxx.h>\n       qt_rust_bridge cxx <bridge.rs> <out.cxx.h> <out.cxx.cpp>\n       qt_rust_bridge qt <bridge.rs> <include> <out.cxxqt.h> <out.cxxqt.cpp> <out.cxx.h> <out.cxx.cpp>";
+const USAGE: &str = "usage: dx qt_rust_bridge header <cxx.h>\n       dx qt_rust_bridge cxx <bridge.rs> <out.cxx.h> <out.cxx.cpp>\n       dx qt_rust_bridge qt <bridge.rs> <include> <out.cxxqt.h> <out.cxxqt.cpp> <out.cxx.h> <out.cxx.cpp>";
 
 struct Generated {
     qobject: Option<(String, String)>,
@@ -32,13 +31,14 @@ struct Generated {
     source: Vec<u8>,
 }
 
-fn main() -> ExitCode {
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    match run(&args) {
-        Ok(()) => ExitCode::SUCCESS,
+/// Runs the generator with the arguments after its name and returns the exit code.
+#[must_use]
+pub fn run_process(args: &[String]) -> i32 {
+    match run(args) {
+        Ok(()) => 0,
         Err(message) => {
             eprintln!("qt_rust_bridge: {message}");
-            ExitCode::FAILURE
+            1
         }
     }
 }
@@ -157,7 +157,30 @@ fn generate(path: &str, include: Option<&str>) -> Result<Generated, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::qml_properties;
+    use super::{qml_properties, run_process};
+
+    fn args(words: &[&str]) -> Vec<String> {
+        words.iter().map(|word| (*word).to_owned()).collect()
+    }
+
+    #[test]
+    fn no_arguments_fail_with_usage() {
+        assert_eq!(run_process(&[]), 1);
+    }
+
+    #[test]
+    fn missing_bridge_fails() {
+        assert_eq!(run_process(&args(&["cxx", "missing.rs", "a", "b"])), 1);
+    }
+
+    #[test]
+    fn header_writes_cxx_h() {
+        let dir = std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR");
+        let out = std::path::Path::new(&dir).join("cxx.h");
+        let path = out.to_str().expect("utf-8 path");
+        assert_eq!(run_process(&args(&["header", path])), 0);
+        assert!(!std::fs::read(&out).expect("cxx.h").is_empty());
+    }
 
     #[test]
     fn property_types_use_qml_names() {

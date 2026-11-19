@@ -34,6 +34,7 @@ pub enum Tool {
     PerlExtract,
     ZigExtract,
     AndroidOps,
+    QtRustBridge,
 }
 
 /// The tool `dx` was started as, judged by the file stem of argv[0] so `.exe` does not matter.
@@ -74,6 +75,7 @@ pub fn subcommand_for(arg1: &OsStr) -> Option<Tool> {
         "perl_extract" => Some(Tool::PerlExtract),
         "zig_extract" => Some(Tool::ZigExtract),
         "android_ops" => Some(Tool::AndroidOps),
+        "qt_rust_bridge" => Some(Tool::QtRustBridge),
         _ => None,
     }
 }
@@ -157,6 +159,7 @@ mod tests {
             ("perl_extract", Tool::PerlExtract),
             ("zig_extract", Tool::ZigExtract),
             ("android_ops", Tool::AndroidOps),
+            ("qt_rust_bridge", Tool::QtRustBridge),
         ] {
             assert_eq!(subcommand_for(OsStr::new(name)), Some(tool), "{name}");
         }
@@ -181,6 +184,7 @@ mod tests {
             "perl_extract",
             "zig_extract",
             "android_ops",
+            "qt_rust_bridge",
         ] {
             assert_eq!(tool_for(OsStr::new(name)), None, "{name}");
         }

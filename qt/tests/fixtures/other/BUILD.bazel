@@ -1,5 +1,7 @@
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("//cc:defs.bzl", "cc_library")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//qt/private:rust_bridge.bzl", "qt_rust_bridge")
 
 exports_files(
     [
@@ -21,4 +23,21 @@ cc_library(
     testonly = True,
     hdrs = ["shared.h"],
     visibility = ["//visibility:public"],
+)
+
+write_file(
+    name = "stub_generator",
+    testonly = True,
+    out = "stub_generator.sh",
+    content = ["#!/bin/sh"],
+    is_executable = True,
+)
+
+qt_rust_bridge(
+    name = "custom_generator_bridge",
+    testonly = True,
+    bridges = ["bridge.rs"],
+    generator = ":stub_generator",
+    tags = ["manual"],
+    visibility = ["//qt/tests:__pkg__"],
 )

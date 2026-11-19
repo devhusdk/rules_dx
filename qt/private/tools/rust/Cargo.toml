@@ -4,9 +4,9 @@ name = "qt_rust_bridge"
 version = "0.0.0"
 edition = "2024"
 
-[[bin]]
+[lib]
 name = "qt_rust_bridge"
-path = "src/main.rs"
+path = "src/lib.rs"
 
 [dependencies]
 cxx = "1.0.205"

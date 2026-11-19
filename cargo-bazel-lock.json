@@ -1,5 +1,5 @@
 {
-  "checksum": "9ed2455d92d0cfef2b875cb17cc71fbd9dc303a9e49f1503559c6abbbf93d96a",
+  "checksum": "d23117cd66569d8547ac58bb29f6247e5623b60416e2b74be9128e0bd320ec03",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -21004,13 +21004,21 @@
         ],
         "edition": "2024"
       },
+      "library_target_name": "qt_rust_bridge",
       "license": "Apache-2.0",
       "license_ids": [
         "Apache-2.0"
       ],
       "name": "qt_rust_bridge",
       "repository": null,
-      "targets": [],
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "qt_rust_bridge",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
       "version": "0.0.0"
     },
     "qt_tests 0.0.0": {

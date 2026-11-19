@@ -3,23 +3,28 @@
 load(":constants.bzl", "QT_TOOL_ENV")
 load(":text.bzl", "qt_package_path", "qt_relative", "qt_stem")
 
-QT_BRIDGE_TOOL = Label("//qt/private/tools/rust:qt_rust_bridge")
-
 _CXX_QT_FILES = Label("//qt/private/tools/rust:cxx_qt_runtime_files")
 
 # cxx-qt formats the C++ it writes with the clang-format this names, read
 # in-process. Empty means none, so a host clang-format never changes the output.
 _BRIDGE_ENV = QT_TOOL_ENV | {"CLANG_FORMAT_BINARY": ""}
 
+def _generator(ctx):
+    if ctx.executable.generator:
+        return ctx.executable.generator, []
+    return ctx.executable._dx, ["qt_rust_bridge"]
+
 def _bridge(ctx, mode, src, outputs, include = None):
+    executable, prefix = _generator(ctx)
     args = ctx.actions.args()
+    args.add_all(prefix)
     args.add(mode)
     args.add(src)
     if include != None:
         args.add(include)
     args.add_all(outputs)
     ctx.actions.run(
-        executable = ctx.executable.generator,
+        executable = executable,
         arguments = [args],
         inputs = [src],
         outputs = outputs,
@@ -59,7 +64,8 @@ qt_rust_bridge = rule(
     doc = "Generates the C++ side of CXX-Qt bridges.",
     attrs = {
         "bridges": attr.label_list(allow_files = [".rs"], allow_empty = False, mandatory = True, doc = "Rust files holding one #[cxx_qt::bridge] module each."),
-        "generator": attr.label(cfg = "exec", executable = True, default = QT_BRIDGE_TOOL, doc = "Bridge generator."),
+        "generator": attr.label(cfg = "exec", executable = True, doc = "Bridge generator; defaults to `dx qt_rust_bridge`."),
+        "_dx": attr.label(default = Label("@dx_prebuilt//:dx"), executable = True, cfg = "exec"),
     },
 )
 
@@ -68,11 +74,13 @@ def _qt_rust_runtime_files_impl(ctx):
     headers = []
     sources = []
     cxx_h = ctx.actions.declare_file(root + "rust/cxx.h")
+    executable, prefix = _generator(ctx)
     args = ctx.actions.args()
+    args.add_all(prefix)
     args.add("header")
     args.add(cxx_h)
     ctx.actions.run(
-        executable = ctx.executable.generator,
+        executable = executable,
         arguments = [args],
         outputs = [cxx_h],
         env = QT_TOOL_ENV,
@@ -108,6 +116,7 @@ qt_rust_runtime_files = rule(
     doc = "Stages the CXX-Qt runtime headers and generates its CXX bridges.",
     attrs = {
         "files": attr.label(allow_files = [".h", ".cpp", ".rs"], default = _CXX_QT_FILES, doc = "CXX-Qt crate headers, C++ sources and bridges."),
-        "generator": attr.label(cfg = "exec", executable = True, default = QT_BRIDGE_TOOL, doc = "Bridge generator."),
+        "generator": attr.label(cfg = "exec", executable = True, doc = "Bridge generator; defaults to `dx qt_rust_bridge`."),
+        "_dx": attr.label(default = Label("@dx_prebuilt//:dx"), executable = True, cfg = "exec"),
     },
 )

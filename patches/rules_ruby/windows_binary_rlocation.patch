@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: bazel-contrib/rules_ruby#446
 diff -ruN a/ruby/private/binary/binary.cmd.tpl b/ruby/private/binary/binary.cmd.tpl
 --- a/ruby/private/binary/binary.cmd.tpl
 +++ b/ruby/private/binary/binary.cmd.tpl

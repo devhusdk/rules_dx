@@ -67,10 +67,12 @@ object Main {
             System.err.println("dokka_extract: the srcs manifest lists no sources")
             return 1
         }
+        val ownJars = readLines(flags.getValue("--own-jars-file")).toSet()
         val classpath = ArrayList<File>()
-        val classpathLines = readLines(flags.getValue("--classpath-file"))
+        // The classpath file lists every jar once in build order; sorting keeps the output stable.
+        val classpathLines = readLines(flags.getValue("--classpath-file")).sorted()
         for (line in classpathLines) {
-            if (line.isEmpty()) {
+            if (line.isEmpty() || line in ownJars) {
                 continue
             }
             if (!Files.exists(Paths.get(line))) {
@@ -148,14 +150,15 @@ object Main {
     private fun usage(message: String): Int {
         System.err.println(
             "dokka_extract: $message\nusage: dokka_extract --srcs-manifest FILE --classpath-file FILE" +
-                " --release N --out FILE"
+                " --own-jars-file FILE --release N --out FILE"
         )
         return 2
     }
 
     private const val DEFAULT_JDK = 17
     private const val STACK_LINES = 12
-    private val FLAGS = listOf("--srcs-manifest", "--classpath-file", "--release", "--out")
+    private val FLAGS =
+        listOf("--srcs-manifest", "--classpath-file", "--own-jars-file", "--release", "--out")
 
     /** Collects Dokka's messages; warnings and errors go to stderr, errors fail the run. */
     private class Logger : DokkaLogger {

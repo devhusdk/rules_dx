@@ -1,0 +1,3 @@
+load("//tools/testing/deep_graph:defs.bzl", "deep_graph_chains")
+
+deep_graph_chains(depth = 400)

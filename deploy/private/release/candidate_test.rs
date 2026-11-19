@@ -132,6 +132,7 @@ impl Fixture {
             remote.to_str().expect("utf8"),
             &self.candidate(),
         )
+        .map_err(|error| error.to_string())
     }
 
     fn push_tag(&self, remote: &Path) {
@@ -195,7 +196,7 @@ fn failed_detail(ledger: Result<String, String>) -> Result<String, String> {
 
 fn live_run(fixture: &Fixture, commit: &str) -> Result<String, String> {
     failed_detail(release_run(TAG, Some(commit), "1", false, || {
-        read_git_state(Some(&fixture.repo), TAG)
+        read_git_state(Some(&fixture.repo), TAG).map_err(|error| error.to_string())
     }))
 }
 
@@ -349,16 +350,19 @@ fn archive_check_needs_the_same_pins() {
         fixture.head
     ));
     assert_eq!(
-        source_archive_error(&filled, &fixture.repo, &candidate, Some(b"other\n")),
+        source_archive_error(&filled, &fixture.repo, &candidate, Some(b"other\n"))
+            .map_err(|error| error.to_string()),
         differs
     );
     assert_eq!(
-        source_archive_error(&filled, &fixture.repo, &candidate, None),
+        source_archive_error(&filled, &fixture.repo, &candidate, None)
+            .map_err(|error| error.to_string()),
         differs
     );
     let plain = fixture.archive("plain.tar.gz");
     assert_eq!(
-        source_archive_error(&plain, &fixture.repo, &candidate, Some(FILLED_PINS)),
+        source_archive_error(&plain, &fixture.repo, &candidate, Some(FILLED_PINS))
+            .map_err(|error| error.to_string()),
         differs
     );
 }
@@ -379,7 +383,8 @@ fn archive_check_with_pins_still_rejects_other_changes() {
     let bad = fixture.path("changed.tar.gz");
     repack(&changed, &bad);
     assert_eq!(
-        source_archive_error(&bad, &fixture.repo, &candidate, Some(FILLED_PINS)),
+        source_archive_error(&bad, &fixture.repo, &candidate, Some(FILLED_PINS))
+            .map_err(|error| error.to_string()),
         Err(format!(
             "candidate: archive member {module} differs from commit {}",
             fixture.head
@@ -402,13 +407,16 @@ fn pins_need_a_pins_file_in_the_commit() {
     let dst = fixture.path("none.tar.gz");
     let want = Err(format!("candidate: commit has no {PINS_PATH}"));
     assert_eq!(
-        build_source_archive(&fixture.repo, &candidate, &dst, Some(FILLED_PINS)).map(|_| ()),
+        build_source_archive(&fixture.repo, &candidate, &dst, Some(FILLED_PINS))
+            .map(|_| ())
+            .map_err(|error| error.to_string()),
         want
     );
     let plain = fixture.path("plain.tar.gz");
     build_source_archive(&fixture.repo, &candidate, &plain, None).expect("plain");
     assert_eq!(
-        source_archive_error(&plain, &fixture.repo, &candidate, Some(FILLED_PINS)),
+        source_archive_error(&plain, &fixture.repo, &candidate, Some(FILLED_PINS))
+            .map_err(|error| error.to_string()),
         want
     );
 }
@@ -438,7 +446,8 @@ fn archive_rejects_a_dropped_member() {
     let bad = fixture.path("dropped.tar.gz");
     repack(&kept, &bad);
     assert_eq!(
-        source_archive_error(&bad, &fixture.repo, &fixture.candidate(), None),
+        source_archive_error(&bad, &fixture.repo, &fixture.candidate(), None)
+            .map_err(|error| error.to_string()),
         Err(format!("candidate: archive drops member {dropped}"))
     );
     assert_eq!(fixture.refs(), before);
@@ -460,7 +469,8 @@ fn archive_rejects_a_changed_blob_and_mode() {
     let bad = fixture.path("changed.tar.gz");
     repack(&changed, &bad);
     assert_eq!(
-        source_archive_error(&bad, &fixture.repo, &fixture.candidate(), None),
+        source_archive_error(&bad, &fixture.repo, &fixture.candidate(), None)
+            .map_err(|error| error.to_string()),
         Err(format!(
             "candidate: archive member {module} differs from commit {}",
             fixture.head
@@ -475,7 +485,8 @@ fn archive_rejects_a_changed_blob_and_mode() {
     }
     repack(&moded, &bad);
     assert_eq!(
-        source_archive_error(&bad, &fixture.repo, &fixture.candidate(), None),
+        source_archive_error(&bad, &fixture.repo, &fixture.candidate(), None)
+            .map_err(|error| error.to_string()),
         Err(format!(
             "candidate: archive member {tool} has mode 644, want 755"
         ))
@@ -488,7 +499,8 @@ fn archive_rejects_a_changed_blob_and_mode() {
     ));
     repack(&extra, &bad);
     assert_eq!(
-        source_archive_error(&bad, &fixture.repo, &fixture.candidate(), None),
+        source_archive_error(&bad, &fixture.repo, &fixture.candidate(), None)
+            .map_err(|error| error.to_string()),
         Err(format!(
             "candidate: archive has extra member rules_dx-{VERSION}/extra.txt"
         ))
@@ -512,7 +524,8 @@ fn archive_rejects_a_wrong_strip_prefix() {
     let bad = fixture.path("prefix.tar.gz");
     repack(&renamed, &bad);
     let error = source_archive_error(&bad, &fixture.repo, &fixture.candidate(), None)
-        .expect_err("wrong prefix");
+        .expect_err("wrong prefix")
+        .to_string();
     assert!(
         error.contains("is outside strip prefix rules_dx-1.2.3-rc1/"),
         "{error}"
@@ -531,15 +544,17 @@ fn archive_rejects_a_foreign_sha() {
     let foreign = dx_test_scratch::git(&other, &other, &["rev-parse", "HEAD"]).unwrap();
     let candidate = Candidate::new(VERSION, &foreign).expect("candidate");
     let dst = fixture.path("foreign.tar.gz");
-    let error =
-        build_source_archive(&fixture.repo, &candidate, &dst, None).expect_err("foreign sha");
+    let error = build_source_archive(&fixture.repo, &candidate, &dst, None)
+        .expect_err("foreign sha")
+        .to_string();
     assert!(
         error.starts_with(&format!("candidate: commit {foreign} is not in ")),
         "{error}"
     );
     assert!(!dst.exists());
     let error = build_source_archive(&fixture.path("missing"), &fixture.candidate(), &dst, None)
-        .expect_err("non-repo");
+        .expect_err("non-repo")
+        .to_string();
     assert!(error.contains("is not in"), "{error}");
 }
 
@@ -563,7 +578,8 @@ fn archive_rejects_symlinks() {
         &fixture.path("link.tar.gz"),
         None,
     )
-    .expect_err("symlink");
+    .expect_err("symlink")
+    .to_string();
     assert_eq!(
         error,
         "candidate: link is a blob with mode 120000; only regular files are archived"
@@ -635,7 +651,8 @@ fn registry_source_rejects_wrong_version_prefix_and_integrity() {
     assert!(error.contains("integrity mismatch"), "{error}");
     assert!(Candidate::new("0.0.0", &fixture.head).is_err());
     let error = stage_local_registry(Path::new("relative"), &candidate, &archive)
-        .expect_err("relative registry");
+        .expect_err("relative registry")
+        .to_string();
     assert!(error.contains("must be absolute"), "{error}");
 }
 
@@ -804,7 +821,7 @@ fn tag_dirty_tree_and_non_repo_fail_closed() {
     let plain = fixture.path("plain");
     std::fs::create_dir_all(&plain).expect("plain");
     let error = failed_detail(release_run(TAG, Some(&fixture.head), "1", false, || {
-        read_git_state(Some(&plain), TAG)
+        read_git_state(Some(&plain), TAG).map_err(|error| error.to_string())
     }))
     .expect_err("non-repo");
     assert!(
@@ -891,11 +908,14 @@ fn release_source_rejects_relative_and_conflicting_out_dir() {
     let fixture = Fixture::new();
     let candidate = fixture.candidate();
     let error = write_release_source(&fixture.repo, &candidate, Path::new("relative"), None)
-        .expect_err("relative");
+        .expect_err("relative")
+        .to_string();
     assert!(error.contains("must be absolute"), "{error}");
     let out = fixture.path("conflict");
     write(&out.join("source.json"), b"{}\n");
-    let error = write_release_source(&fixture.repo, &candidate, &out, None).expect_err("conflict");
+    let error = write_release_source(&fixture.repo, &candidate, &out, None)
+        .expect_err("conflict")
+        .to_string();
     assert!(error.contains("different bytes"), "{error}");
     assert!(!out.join(format!("rules_dx-{VERSION}.tar.gz")).exists());
 }

@@ -1,0 +1,19 @@
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+load("//typescript:defs.bzl", "ts_config")
+
+bool_flag(
+    name = "deep_graph",
+    build_setting_default = False,
+)
+
+config_setting(
+    name = "enabled",
+    flag_values = {":deep_graph": "true"},
+    visibility = ["//tools/testing/deep_graph:__subpackages__"],
+)
+
+ts_config(
+    name = "tsconfig",
+    src = "tsconfig.json",
+    visibility = ["//tools/testing/deep_graph:__subpackages__"],
+)

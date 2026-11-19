@@ -23,21 +23,19 @@ def protobuf_shard_action(ctx, proto_info, protoc, windows, package, stem, extra
     if not sources:
         fail("protobuf_doc_shard " + str(ctx.label) + ": proto_library lists no .proto srcs")
 
-    own_set = proto_info.direct_descriptor_set
-    dep_sets = [f for f in proto_info.transitive_descriptor_sets.to_list() if f != own_set]
-
+    descriptor_sets = proto_info.transitive_descriptor_sets
     descriptor = ctx.actions.declare_file(stem + ".descriptor.pb")
     names = [_root_relative(src, root) for src in sources]
     args = ctx.actions.args()
     args.add("--proto_path=" + (root if root else "."))
-    args.add_joined("--descriptor_set_in", dep_sets, join_with = ";" if windows else ":", map_each = _path, omit_if_empty = True)
+    args.add_joined("--descriptor_set_in", descriptor_sets, join_with = ";" if windows else ":", map_each = _path, omit_if_empty = True)
     args.add("--include_source_info")
     args.add("--descriptor_set_out", descriptor)
     args.add_all(sources)
     ctx.actions.run(
         executable = protoc,
         arguments = [args],
-        inputs = depset(sources, transitive = [depset(dep_sets)]),
+        inputs = depset(sources, transitive = [descriptor_sets]),
         outputs = [descriptor],
         mnemonic = "DxDocsProtoc",
         toolchain = None,

@@ -1,5 +1,4 @@
 bicep/private/quality/bicep.bzl aspect-to-list 2
-capnproto/private/codegen.bzl aspect-to-list 2
 cc/private/clang_syntax.bzl aspect-to-list 2
 cc/private/quality/cc.bzl aspect-to-list 2
 core/codegen/codegen.bzl aspect-to-list 1
@@ -14,7 +13,6 @@ dart/private/quality/dart.bzl aspect-to-list 6
 dotnet/private/quality/dotnet.bzl aspect-to-list 1
 dotnet/private/quality/roslyn.bzl aspect-to-list 1
 erlang/private/quality/beam.bzl aspect-to-list 3
-flatbuffers/private/codegen.bzl aspect-to-list 1
 haskell/private/quality/haskell.bzl aspect-to-list 1
 java/private/quality/jvm.bzl aspect-to-list 4
 java/private/quality/jvm_check.bzl aspect-to-list 2
@@ -27,14 +25,10 @@ ruby/private/quality/ruby.bzl aspect-to-list 1
 rust/private/quality/rust.bzl aspect-to-list 1
 rust/private/quality/rust_clippy.bzl aspect-to-list 1
 terraform/private/quality/terraform.bzl aspect-to-list 2
-thrift/private/codegen.bzl aspect-to-list 2
 tools/docs/components/aspect.bzl aspect-to-list 1
 tools/docs/dart/defs.bzl aspect-to-list 2
-tools/docs/dotnet/shard.bzl aspect-to-list 1
 tools/docs/javascript/aspect.bzl aspect-to-list 1
 tools/docs/julia/aspect.bzl aspect-to-list 3
-tools/docs/jvm/shard.bzl aspect-to-list 2
-tools/docs/protobuf/defs.bzl aspect-to-list 1
 tools/docs/python/shard.bzl aspect-to-list 2
 tools/docs/ruby/aspect.bzl aspect-to-list 2
 typescript/private/quality/tsc.bzl aspect-to-list 3

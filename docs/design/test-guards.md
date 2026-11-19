@@ -57,3 +57,11 @@ The guards check the rules of `docs/design/tests.md`.
 - An action is keyed by `<label> <mnemonic> <output path>`. The job fails for an output that differs, for an action in one log only, and for an allowlist line for an action that does not differ or is in neither log.
 - `tools/ci/determinism_allowlist.txt` lists the actions that differ. It only shrinks; `//tools/ci:determinism_allowlist_test` holds the cap.
 - Measured on Linux with warm repository caches: 34 s and 33 s per build, 67 s for both.
+
+## Analysis scaling
+
+- `//tools/testing/deep_graph:defs.bzl` declares one linear chain per language: `go_library`, `java_library`, `kotlin_library`, `typescript_library`, `capnproto_library`, `julia_library` and `ruby_library`. `//tools/testing/deep_graph/d100` and `//tools/testing/deep_graph/d400` hold chains of depth 100 and 400. The targets are incompatible unless `--//tools/testing/deep_graph:deep_graph` is set.
+- `//tools/testing:analysis_scaling_check` runs, for each depth in a fresh output base, `bazel build --nobuild` over the package with the aspects of `dx lint`, `dx typecheck`, `dx format` and `dx docs`. A warm-up run loads the packages; the measured run changes a `--define`, so it reanalyzes, and writes `--profile`. The analysis time runs from the `Load and analyze dependencies` phase marker to the next phase marker.
+- It fails when depth 400 takes more than 8 or less than 2 times depth 100.
+- The `analysis-scaling` job of `.github/workflows/ci.yml` runs it with `bazel run` and passes Bazel with `--bazel`.
+- Measured on Linux: 12.4 s at depth 100, 35.2 s at depth 400, ratio 2.84.

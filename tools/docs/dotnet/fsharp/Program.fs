@@ -45,6 +45,17 @@ let fail message = raise (Failure message)
 let strings (root: JsonElement) (name: string) =
     [ for element in root.GetProperty(name).EnumerateArray() -> element.GetString() ]
 
+// The refs file lists every dependency ref once in build order; framework refs are dropped
+// by basename and the rest sorted, so the reference set does not depend on the graph shape.
+let dependencyRefs (root: JsonElement) =
+    let framework = set (strings root "framework_ref_names")
+
+    File.ReadAllLines(root.GetProperty("refs_file").GetString())
+    |> Array.filter (fun line -> line <> "" && not (framework.Contains(Path.GetFileName line)))
+    |> Array.distinct
+    |> Array.sort
+    |> List.ofArray
+
 let readContext (path: string) =
     use document = JsonDocument.Parse(File.ReadAllText path)
     let root = document.RootElement
@@ -52,7 +63,7 @@ let readContext (path: string) =
     { Assembly = root.GetProperty("assembly").GetString()
       Dll = root.GetProperty("dll").GetString()
       Xml = root.GetProperty("xml").GetString()
-      DepRefs = strings root "dep_refs"
+      DepRefs = dependencyRefs root
       Srcs = strings root "srcs" }
 
 let displayContext = FSharpDisplayContext.Empty.WithShortTypeNames true

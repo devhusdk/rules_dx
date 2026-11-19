@@ -901,7 +901,10 @@ dx_pins.archive(
     name = "dx_rules_dart_pub",
     dropped = ["MODULE.bazel"],
     key = "rules_dart",
-    patches = ["//patches/rules_dart:hermetic_tar.patch"],
+    patches = [
+        "//patches/rules_dart:hermetic_tar.patch",
+        "//patches/rules_dart:dx_bzl_srcs.patch",
+    ],
     pins = "//dart:pins.json",
 )
 dx_pins.archive(
@@ -1763,6 +1766,7 @@ single_version_override(
         "//patches/rules_dart:coverage.patch",
         "//patches/rules_dart:external_pkgsrcs.patch",
         "//patches/rules_dart:windows_long_dill.patch",
+        "//patches/rules_dart:dx_bzl_srcs.patch",
     ],
     version = "0.8.1",
 )

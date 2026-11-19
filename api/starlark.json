@@ -3117,6 +3117,437 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
+        "name": "dart_bench",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "srcs"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "main"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "deps"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "forwards": [],
+        "name": "dart_binary",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "srcs"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "main"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "forwards": [],
+        "name": "dart_js_binary",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "srcs"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "main"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "forwards": [],
+        "name": "dart_library",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "srcs"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "forwards": [],
+        "name": "dart_test",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "srcs"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "main"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "forwards": [],
+        "name": "dart_wasm_binary",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "srcs"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "main"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      }
+    ],
+    "load": "@rules_dx//dart:defs.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": [
+      {
+        "attrs": [
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "asset_deps",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "config",
+            "type": "STRING"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "deps",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "generator",
+            "type": "LABEL"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "generator_args",
+            "type": "STRING_LIST"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "generator_bin",
+            "type": "LABEL"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "language_version",
+            "type": "STRING"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "output_suffixes",
+            "type": "STRING_LIST"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "package",
+            "type": "LABEL"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "package_config",
+            "type": "LABEL"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "package_name",
+            "type": "STRING"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "parts",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "dart_codegen",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "deps",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "dart_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "lib",
+            "type": "LABEL"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "package",
+            "type": "STRING"
+          }
+        ],
+        "executable": false,
+        "name": "dart_doc_shard",
+        "test": false
+      }
+    ]
+  },
+  {
+    "aspects": [],
+    "extensions": [
+      {
+        "name": "pub",
+        "tag_classes": [
+          {
+            "attrs": [
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "ignore_hooks",
+                "type": "STRING_LIST"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "lock",
+                "type": "LABEL"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "name",
+                "type": "NAME"
+              },
+              {
+                "default": "\"error\"",
+                "mandatory": false,
+                "name": "on_version_conflict",
+                "type": "STRING"
+              }
+            ],
+            "name": "from_lock"
+          },
+          {
+            "attrs": [
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "deps",
+                "type": "STRING_LIST"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "name",
+                "type": "NAME"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "sha256",
+                "type": "STRING"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "version",
+                "type": "STRING"
+              }
+            ],
+            "name": "package"
+          }
+        ]
+      }
+    ],
+    "functions": [],
+    "load": "@rules_dx//dart:extensions.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [],
+    "extensions": [],
+    "functions": [
+      {
         "name": "archive_deploy",
         "params": [
           {

@@ -2,8 +2,8 @@
 //! against this checkout.
 
 use dx_nested::compose::{
-    dx_prebuilt_asset, llvm_override, rules_dx_override, rules_flutter_override, rules_py_override,
-    rules_rust_override, windows_support_override, write_root_patch_override,
+    dx_prebuilt_assets, llvm_override, rules_dx_override, rules_flutter_override,
+    rules_py_override, rules_rust_override, windows_support_override, write_root_patch_override,
 };
 use dx_nested::{self as nested, Case, footprint, plain_fixture};
 use dx_release_tools::candidate::file_url;
@@ -265,7 +265,7 @@ fn the_readme_quickstart_runs_as_written() {
     }
 
     // The overrides `tools/testing/consumer/pending.txt` still lists; a registry release needs none.
-    // The consumer pins the dx this test built, as a release's `pins.bzl` serves dx.
+    // The consumer pins the dx and launcher this test built, as a release's `pins.bzl` serves them.
     copy_rules_py_patches(&source, &case);
     let module_path = case.root().join("MODULE.bazel");
     let mut module = read_text(&module_path);
@@ -277,9 +277,20 @@ fn the_readme_quickstart_runs_as_written() {
     module.push_str(&windows_support_override());
     module.push_str(&apple_overrides(&source, case.root()));
     module.push_str(&rules_dx_override(&source));
-    let dx_sha256 = dx_testing::sha256_file(&dx).unwrap_or_else(|error| panic!("{error}"));
+    let launcher = resolve_runfiles(
+        &std::env::var("DX_LAUNCHER").expect("DX_LAUNCHER must name the launcher"),
+    );
+    let sha256 = |path: &std::path::Path| {
+        dx_testing::sha256_file(path).unwrap_or_else(|error| panic!("{error}"))
+    };
+    let (dx_url, dx_sha256) = (file_url(&dx), sha256(&dx));
+    let (launcher_url, launcher_sha256) = (file_url(&launcher), sha256(&launcher));
     module.push_str(
-        &dx_prebuilt_asset(&file_url(&dx), &dx_sha256).unwrap_or_else(|error| panic!("{error}")),
+        &dx_prebuilt_assets(&[
+            ("dx", &dx_url, &dx_sha256),
+            ("launcher", &launcher_url, &launcher_sha256),
+        ])
+        .unwrap_or_else(|error| panic!("{error}")),
     );
     write_text(&module_path, &module);
     if cfg!(windows) {

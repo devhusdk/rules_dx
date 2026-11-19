@@ -629,6 +629,7 @@ filegroup(
         "//core/quality/tiers/yamllint:module_srcs",
         "//core/quality/tiers/zanuda:module_srcs",
         "//core/quality/tiers/zizmor:module_srcs",
+        "//core/quality/tools/diff:module_srcs",
         "//core/quality/tools/nixfmt:module_srcs",
         "//core/quality/tools/nixfmt/bin:module_srcs",
         "//core/quality/tools/python:module_srcs",

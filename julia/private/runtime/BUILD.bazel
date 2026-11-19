@@ -1,6 +1,8 @@
+load("@dx_pins_data//:pins.bzl", "ARCHIVES")
 load("@rules_cc//cc:defs.bzl", "cc_binary")
 load("//cc/private/toolchain:select.bzl", "cc_toolchain_files")
 load("//core/modules:versions.bzl", "JULIA_RUNTIME_VERSION")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 load(":defs.bzl", "julia_runtime_files", "julia_shipped_libs")
@@ -20,6 +22,15 @@ _LIBJULIA_INTERNAL = "libjulia-internal.so." + JULIA_RUNTIME_VERSION
 
 julia_runtime_files(
     name = "julia_runtime_files",
+)
+
+starlark_test(
+    name = "julia_src_version_test",
+    size = "small",
+    mode = "unit",
+    checks = [
+        expect_equal("julia runtime source follows canonical", ARCHIVES["julia_src"]["strip_prefix"], "julia-" + JULIA_RUNTIME_VERSION),
+    ],
 )
 
 julia_shipped_libs(

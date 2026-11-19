@@ -118,7 +118,7 @@ PHP, Lua and Qt rules ship as their own modules: `rules_php`, `rules_lua` and `r
 
 1. Release `rules_dx` with the steps above and wait until its BCR pull request is merged.
 2. In the rule-set repository, set its `bazel_dep` on `rules_dx` to that release, then release the rule set to the BCR from its own `.bcr/` metadata. Its BCR presubmit builds the plain-Bazel fixture, with no `dx` CLI.
-3. Once the rule set is in the BCR, open a `rules_dx` pull request that raises its `bazel_dep` floor to the new version and updates `<lang>/defs.bzl` for any API change. Merge it before the next `rules_dx` release.
+3. Once the rule set is in the BCR, the weekly `dx-update.yml` run opens the floor-raise pull request on `dx-update/bazel--<rule set>`, such as `dx-update/bazel--rules_php`. It never auto-merges. To open it now, run the `dx-update` workflow by hand. Push changes to `<lang>/` on that branch for any rule-set API change, then merge it before the next `rules_dx` release.
 
 `upgrade-e2e.yml` fails when a rule set does not resolve to the floor of the `rules_dx` release, or when a rule set pulls `rules_dx` above that release.
 

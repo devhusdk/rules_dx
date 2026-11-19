@@ -7,9 +7,7 @@ pub const TOOL_LABEL: &str = dx_families::GITLEAKS;
 /// Shell command that exports the pinned Gitleaks path for a local run.
 #[must_use]
 pub fn resolve_command() -> String {
-    format!(
-        "export \"$(bazel run @rules_dx//dx/tool_resolve -- --label {TOOL_LABEL} --var {TOOL_ENV_VAR} --print)\""
-    )
+    format!("export \"$(dx tool_resolve --label {TOOL_LABEL} --var {TOOL_ENV_VAR} --print)\"")
 }
 
 pub const SARIF_FORMAT: &str = "sarif";
@@ -209,6 +207,13 @@ mod tests {
     use super::*;
 
     const BASE: &str = "/ws/.dx/config/gitleaks/base.toml";
+
+    #[test]
+    fn resolve_hint_runs_the_prebuilt_dx() {
+        let hint = resolve_command();
+        assert!(!hint.contains("bazel run"), "{hint}");
+        assert!(hint.contains("dx tool_resolve --label"), "{hint}");
+    }
 
     fn table(text: &str) -> toml::Table {
         toml::from_str(text).expect("generated config parses")

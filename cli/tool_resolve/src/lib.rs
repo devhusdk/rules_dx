@@ -2,6 +2,8 @@
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
+pub mod cli;
+
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;

@@ -173,6 +173,7 @@ rust_binary(
         "//cli/plan:dx_plan",
         "//cli/process:dx_process",
         "//cli/release_tree",
+        "//cli/tool_resolve:dx_tool_resolve",
         "//core/env/private/tools/env_shard",
         "//core/quality/capture:capture_lib",
         "//core/quality/lsp_check:lsp_check_lib",

@@ -65,6 +65,7 @@ pub enum Tool {
     ZigLock,
     BicepLock,
     TerraformLock,
+    ToolResolve,
 }
 
 /// The tool `dx` was started as, judged by the file stem of argv[0] so `.exe` does not matter.
@@ -136,6 +137,7 @@ pub fn subcommand_for(arg1: &OsStr) -> Option<Tool> {
         "zig_lock" => Some(Tool::ZigLock),
         "bicep_lock" => Some(Tool::BicepLock),
         "terraform_lock" => Some(Tool::TerraformLock),
+        "tool_resolve" => Some(Tool::ToolResolve),
         _ => None,
     }
 }
@@ -250,6 +252,7 @@ mod tests {
             ("zig_lock", Tool::ZigLock),
             ("bicep_lock", Tool::BicepLock),
             ("terraform_lock", Tool::TerraformLock),
+            ("tool_resolve", Tool::ToolResolve),
         ] {
             assert_eq!(subcommand_for(OsStr::new(name)), Some(tool), "{name}");
         }
@@ -304,6 +307,7 @@ mod tests {
             "zig_lock",
             "bicep_lock",
             "terraform_lock",
+            "tool_resolve",
             "diff",
         ] {
             assert_eq!(tool_for(OsStr::new(name)), None, "{name}");

@@ -2764,7 +2764,6 @@ crate.from_cargo(
         "//cli/coverage_summary:Cargo.toml",
         "//cli/tool_resolve:Cargo.toml",
         "//dx/advisory_prep:Cargo.toml",
-        "//dx/tool_resolve:Cargo.toml",
         "//cli/output:Cargo.toml",
         "//cli/path:Cargo.toml",
         "//cli/error:Cargo.toml",

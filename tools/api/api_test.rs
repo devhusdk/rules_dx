@@ -34,7 +34,12 @@ fn checked_in_snapshot_matches_the_code() {
             stale.push(format!("api/{name}"));
         }
     }
-    let surface = page::render(&files["cli.json"], &files["schemas.txt"]).expect("page renders");
+    let surface = page::render(
+        &files["cli.json"],
+        &files["labels.txt"],
+        &files["schemas.txt"],
+    )
+    .expect("page renders");
     let path = dx_testing::rlocation(&dx_testing::env_text("DX_SURFACE_PAGE"))
         .unwrap_or_else(|error| panic!("{}: {error}", page::PATH));
     if dx_testing::read_text(&path) != surface {

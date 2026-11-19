@@ -213,7 +213,7 @@ impl RuleGraph {
             if has_manual_tag(rule) {
                 graph.manual.insert(name.to_owned());
             }
-            if has_tag(rule, "release") {
+            if tags_of(rule).iter().any(|tag| tag == "release") {
                 graph.release.insert(name.to_owned());
             }
             if let Some(kind) = rule.get("ruleClass").and_then(Value::as_str) {
@@ -710,12 +710,19 @@ mod tests {
                 &["//app:bin"],
                 &["prerelease"],
             ),
+            graph_rule_of_kind(
+                "//app:notes",
+                "deployment",
+                &["//app:bin"],
+                &["release-notes"],
+            ),
             graph_rule_of_kind("//other:deploy", "deployment", &["//other:x"], &[]),
         ]);
         assert_eq!(
             graph.deployments(&strings(&["//app:main.rs"])),
             ["//app:deploy"]
         );
+        assert_eq!(graph.deployments(&strings(&["//..."])), ["//app:deploy"]);
         assert_eq!(graph.deployments(&[]), [] as [String; 0]);
     }
 

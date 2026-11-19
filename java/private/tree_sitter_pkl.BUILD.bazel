@@ -4,6 +4,11 @@ load("@rules_cc//cc:defs.bzl", "cc_binary")
 
 package(default_visibility = ["//visibility:public"])
 
+exports_files([
+    "LICENSE.txt",
+    "NOTICE.txt",
+])
+
 cc_binary(
     name = "tree-sitter-pkl.dll",
     srcs = [

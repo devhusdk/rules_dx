@@ -1,5 +1,6 @@
 # gazelle:ignore
 load("@aspect_rules_js//js:defs.bzl", "js_test")
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core/private/testing:defs.bzl", "expect_equal")
 load("//core/quality:fixtures.bzl", "real_source_target")
@@ -19,6 +20,26 @@ package(
 playwright_compatibility_tests(name = "playwright_compatibility_tests")
 
 windows_tool_tests(name = "windows_tool_tests")
+
+build_test(
+    name = "windows_ts_actions_build_test",
+    size = "small",
+    targets = [
+        "//svelte/tests/app:site",
+        "//typescript/tests/fixtures/hello:hello_lib",
+    ],
+)
+
+test_suite(
+    name = "windows_ts_actions",
+    tests = [
+        ":windows_tool_tests",
+        ":windows_ts_actions_build_test",
+        "//svelte/tests/typecheck:clean_exit_test",
+        "//svelte/tests/typecheck:clean_stdout_test",
+        "//typescript/tests/fixtures/hello:hello_typecheck_test",
+    ],
+)
 
 javascript_test(
     name = "playwright_pins_test",

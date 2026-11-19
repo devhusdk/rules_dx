@@ -1,6 +1,6 @@
 """Windows launcher shim for js_binary build tools. Removal tracked in #13889 (bazel-lib#1296)."""
 
-visibility(["//javascript/...", "//typescript/..."])
+visibility(["//astro/...", "//javascript/...", "//typescript/..."])
 
 _SHIM = "\r\n".join([
     "@echo off",
@@ -29,7 +29,10 @@ def _windows_js_tool_shim_impl(ctx):
         is_executable = True,
     )
     runfiles = ctx.attr.tool[DefaultInfo].default_runfiles.merge(ctx.runfiles(files = [executable]))
-    return [DefaultInfo(executable = shim, runfiles = runfiles)]
+    return [
+        DefaultInfo(executable = shim, runfiles = runfiles),
+        OutputGroupInfo(execroot_data_files = ctx.attr.tool[OutputGroupInfo].execroot_data_files),
+    ]
 
 windows_js_tool_shim = rule(
     implementation = _windows_js_tool_shim_impl,

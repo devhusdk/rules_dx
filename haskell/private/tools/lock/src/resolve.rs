@@ -10,7 +10,6 @@
 //! Resolves a cabal project into its freeze file and the packages of its lock.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::Write as _;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
@@ -427,7 +426,7 @@ pub fn freeze_text(pins: &BTreeMap<String, String>, state: Option<&str>) -> Stri
         .join(",\n             ");
     let mut out = format!("constraints: {body}\n");
     if let Some(state) = state {
-        writeln!(out, "index-state: hackage.haskell.org {state}").ok();
+        out.push_str(&format!("index-state: hackage.haskell.org {state}\n"));
     }
     out
 }

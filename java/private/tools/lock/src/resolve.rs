@@ -1,5 +1,10 @@
 //! Runs the `rules_jvm_external` Maven resolver on a version catalog with the pinned JDK.
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 
 use std::path::{Path, PathBuf};
 
@@ -29,7 +34,7 @@ impl Tools {
 }
 
 fn runfile(var: &str) -> Result<PathBuf, String> {
-    let value = std::env::var(var).map_err(|_| format!("{var} is not set"))?;
+    let value = std::env::var(var).map_err(|e| format!("{var} is not set: {e}"))?;
     let relative = value.strip_prefix("../").unwrap_or(&value);
     let root = match std::env::var_os("RUNFILES_DIR") {
         Some(root) => PathBuf::from(root),

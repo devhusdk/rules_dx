@@ -1,8 +1,9 @@
 //! No non-test Go or Rust file names a lock hub repository (`@<hub>//`, `@<hub>"` or `"<hub>//`) outside `tools/ci/lock_hub_names_allowlist.txt`, and the allowlist holds no spare line.
 
-use std::path::Path;
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::Path;
 
+use dx_guard::allowlist::{check_lines, line_differences, parse_lines};
 use serde_json::Value;
 use starlark_syntax as _;
 use yaml_serde as _;
@@ -57,7 +58,11 @@ fn violations(
     rust: &BTreeMap<String, String>,
     lock_scan: &BTreeMap<String, String>,
 ) -> BTreeSet<String> {
-    let go = lock_scan.iter().filter(|(path, _)| Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("go")));
+    let go = lock_scan.iter().filter(|(path, _)| {
+        Path::new(path)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("go"))
+    });
     let mut out = BTreeSet::new();
     for (path, source) in rust.iter().chain(go) {
         for hub in hubs.iter().filter(|hub| names_hub(source, hub)) {
@@ -67,34 +72,14 @@ fn violations(
     out
 }
 
-/// The allowlist lines and what is wrong with the file itself.
-fn parse_allowlist(text: &str) -> (BTreeSet<String>, Vec<String>) {
-    let mut lines = BTreeSet::new();
-    let mut problems = Vec::new();
-    let mut previous: Option<&str> = None;
-    for line in text.lines() {
-        if line.trim() != line || line.split(' ').count() != 3 || !line.starts_with("hub ") {
-            problems.push(format!("malformed line: {line:?}"));
-            continue;
-        }
-        if previous.is_some_and(|before| before >= line) {
-            problems.push(format!("not sorted or repeated: {line:?}"));
-        }
-        previous = Some(line);
-        lines.insert(line.to_owned());
-    }
-    (lines, problems)
+/// Whether `line` is `hub <path> <hub>`.
+fn well_formed(line: &str) -> bool {
+    line.split(' ').count() == 3 && line.starts_with("hub ")
 }
 
-/// Lines that differ between the tree and the allowlist.
-fn differences(found: &BTreeSet<String>, allowed: &BTreeSet<String>) -> Vec<String> {
-    let new = found
-        .difference(allowed)
-        .map(|line| format!("new: {line}; read the hub name from the lock registry"));
-    let stale = allowed
-        .difference(found)
-        .map(|line| format!("stale: {line}; delete the allowlist line"));
-    new.chain(stale).collect()
+/// What to do about a new line.
+fn fix(_line: &str) -> String {
+    "read the hub name from the lock registry".to_owned()
 }
 
 /// Reads one runfile named by an environment variable.
@@ -144,17 +129,22 @@ fn the_tree_matches_the_allowlist() {
     );
     let go = lock_scan
         .keys()
-        .filter(|path| Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("go")))
+        .filter(|path| {
+            Path::new(path)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("go"))
+        })
         .count();
     assert!(
         go >= MIN_GO,
         "only {go} non-test .go files in the lock scan snapshot"
     );
-    let (allowed, mut problems) = parse_allowlist(&read_input("LOCK_HUB_NAMES_ALLOWLIST"));
-    problems.extend(differences(
+    let problems = check_lines(
         &violations(&hubs(&files), &rust, &lock_scan),
-        &allowed,
-    ));
+        &read_input("LOCK_HUB_NAMES_ALLOWLIST"),
+        well_formed,
+        fix,
+    );
     assert!(
         problems.is_empty(),
         "{ALLOWLIST} and the tree disagree:\n{}",
@@ -213,24 +203,29 @@ fn a_longer_repository_name_passes() {
 #[test]
 fn a_new_line_and_a_stale_line_fail() {
     let allowed = lines(&["hub a.rs crates"]);
-    assert_eq!(differences(&allowed, &allowed), Vec::<String>::new());
     assert_eq!(
-        differences(&lines(&["hub a.rs crates", "hub b.go npm"]), &allowed),
+        line_differences(&allowed, &allowed, fix),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        line_differences(&lines(&["hub a.rs crates", "hub b.go npm"]), &allowed, fix),
         ["new: hub b.go npm; read the hub name from the lock registry"]
     );
     assert_eq!(
-        differences(&BTreeSet::new(), &allowed),
+        line_differences(&BTreeSet::new(), &allowed, fix),
         ["stale: hub a.rs crates; delete the allowlist line"]
     );
 }
 
 #[test]
 fn the_allowlist_is_sorted_hub_lines() {
-    let (found, problems) = parse_allowlist("hub a.rs crates\nhub b.go npm\n");
+    let (found, problems) = parse_lines("hub a.rs crates\nhub b.go npm\n", well_formed);
     assert_eq!(found.len(), 2);
     assert_eq!(problems, Vec::<String>::new());
-    let (_, problems) =
-        parse_allowlist("hub b.go npm\nhub a.rs crates\n\nname a.rs x\n hub c.rs npm\n");
+    let (_, problems) = parse_lines(
+        "hub b.go npm\nhub a.rs crates\n\nname a.rs x\n hub c.rs npm\n",
+        well_formed,
+    );
     assert_eq!(
         problems,
         [

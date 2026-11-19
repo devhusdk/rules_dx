@@ -244,11 +244,12 @@ fn release_writes_and_checks_the_tool_manifest() {
 #[test]
 fn macos_tools_ship_signed() {
     let text = read_runfiles(TOOLS);
-    assert!(text.contains("for tool in deadnix selene; do\n              file=\"$out/dx-$tool-$host\""));
+    assert!(text.contains(
+        "for tool in deadnix selene topiary progenitor; do\n              file=\"$out/dx-$tool-$host\""
+    ));
     assert!(text.contains(
         "codesign --verify --strict \"$file\" || codesign --sign - \"$file\"\n              codesign --verify --strict \"$file\""
     ));
-    assert!(text.contains("\"$out/dx-topiary-$host\" \"$out/dx-progenitor-$host\"; do"));
 }
 
 #[test]

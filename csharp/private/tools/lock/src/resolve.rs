@@ -618,3 +618,27 @@ impl Resolver for Nuget<'_> {
         })
     }
 }
+
+/// Runs the nuget lock step on `args`, the arguments after `dx csharp_lock`:
+/// `--dotnet=<path> --paket=<path>` and the `dx_lock::Args` flags. 0 when the lock is fresh or
+/// written, 1 when stale, 2 on failure.
+pub fn run_process(args: &[String]) -> i32 {
+    let (paths, rest) = match dx_lock::tool_paths(args, &["--dotnet", "--paket"]) {
+        Ok(split) => split,
+        Err(error) => {
+            eprintln!("csharp_lock: {error}");
+            return 2;
+        }
+    };
+    let mut paths = paths.into_iter();
+    let (Some(dotnet), Some(nupkg)) = (paths.next(), paths.next()) else {
+        return 2;
+    };
+    let Some(hub) = dx_families::hub("nuget") else {
+        return dx_lock::missing_hub("nuget");
+    };
+    let spec = Nuget::spec(hub);
+    let registry = Registry::new();
+    let nuget = Nuget::new(&spec, &registry).with_paket(Paket { dotnet, nupkg });
+    dx_lock::run_process(&spec, &nuget, &rest)
+}

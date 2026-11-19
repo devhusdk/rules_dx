@@ -707,4 +707,4 @@ Exit codes: `0`, `1`, `2`.
 | Schema | Version |
 | --- | --- |
 | `events.schema.json` | `4.0` |
-| `dx.schema.json` | `1.1` |
+| `dx.schema.json` | `1.2` |

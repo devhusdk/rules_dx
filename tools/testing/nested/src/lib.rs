@@ -2,6 +2,10 @@
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
+// Only the Windows code paths call dx_os_sys.
+#[cfg(not(windows))]
+use dx_os_sys as _;
+
 pub mod cache;
 pub mod compose;
 pub mod footprint;
@@ -1890,6 +1894,44 @@ impl Case {
         case.write(".bazelrc", &imports);
         case.write(".bazelignore", ".dx\n");
         case
+    }
+
+    /// Starts a case from the `<lang>/tests/consumer` fixture in the `DX_CONSUMER_JSON` snapshot.
+    ///
+    /// The module gets the fixture's extension lines, the root's patch overrides and
+    /// `extra_module`; every other fixture file is written as is.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the snapshot, the fixture module or the `rules_dx` checkout is missing.
+    pub fn language_consumer(name: &str, lang: &str, extra_module: &str) -> Result<Case, String> {
+        let snapshot = dx_testing::rlocation(dx_testing::env_text("DX_CONSUMER_JSON").trim())
+            .map_err(|error| format!("DX_CONSUMER_JSON: {error}"))?;
+        let files = compose::consumer_fixture(&dx_testing::read_text(&snapshot), lang)?;
+        let module = files
+            .get("consumer.MODULE.bazel")
+            .ok_or_else(|| format!("{lang}/tests/consumer/consumer.MODULE.bazel is missing"))?;
+        let source = dx_testing::rules_dx_source()?;
+        let case = Case::consumer_at(
+            name,
+            &source,
+            &format!(
+                "{}{}{}{extra_module}",
+                compose::module_body(module),
+                compose::rules_py_override(),
+                compose::rules_flutter_override()?,
+            ),
+        );
+        compose::write_rules_py_patches(case.root(), &source)?;
+        let overrides = compose::write_root_patch_overrides(case.root(), &source)?;
+        let composed = dx_testing::read_text(&case.root().join("MODULE.bazel"));
+        case.write("MODULE.bazel", &format!("{composed}{overrides}"));
+        for (rel, text) in &files {
+            if rel != "consumer.MODULE.bazel" {
+                case.write(rel, text);
+            }
+        }
+        Ok(case)
     }
 
     /// Writes `text` to `rel` under the workspace, creating its parent directories.

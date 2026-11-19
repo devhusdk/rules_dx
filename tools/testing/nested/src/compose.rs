@@ -1,5 +1,6 @@
 //! Composes the consumer MODULE.bazel from the one `dx init` writes.
 
+use std::collections::BTreeMap;
 use std::path::Path;
 
 fn starlark_string(text: &str) -> String {
@@ -216,7 +217,9 @@ fn without_module_line(snippet: &str) -> String {
         if line.starts_with("module(") {
             lines.next();
             let rest: Vec<&str> = lines.collect();
-            return rest.join("\n").trim_start().to_owned() + "\n";
+            let mut body = rest.join("\n").trim_start().to_owned();
+            body.push('\n');
+            return body;
         }
         if !line.starts_with('#') && !line.trim().is_empty() {
             break;
@@ -421,6 +424,36 @@ pub fn write_root_patch_override(
             .map_err(|err| format!("cannot copy {}: {err}", from.display()))?;
     }
     Ok(block)
+}
+
+/// The files of `<lang>/tests/consumer/` in a consumer.json snapshot, keyed by their path under it.
+///
+/// # Errors
+///
+/// Returns `Err` when the snapshot is not a JSON object of path to text.
+pub fn consumer_fixture(snapshot: &str, lang: &str) -> Result<BTreeMap<String, String>, String> {
+    let prefix = format!("{lang}/tests/consumer/");
+    let files: BTreeMap<String, String> =
+        serde_json::from_str(snapshot).map_err(|error| format!("consumer snapshot: {error}"))?;
+    Ok(files
+        .into_iter()
+        .filter_map(|(path, text)| Some((path.strip_prefix(&prefix)?.to_owned(), text)))
+        .collect())
+}
+
+/// The fixture module without its comments, `module` and `bazel_dep` lines, which the nested consumer writes.
+#[must_use]
+pub fn module_body(module: &str) -> String {
+    module
+        .lines()
+        .filter(|line| {
+            let line = line.trim_start();
+            !line.starts_with('#')
+                && !line.starts_with("module(")
+                && !line.starts_with("bazel_dep(")
+        })
+        .map(|line| format!("{line}\n"))
+        .collect()
 }
 
 #[cfg(test)]
@@ -645,5 +678,23 @@ mod tests {
             module.find("@llvm//toolchain:all").unwrap() < module.find("@x").unwrap(),
             "{module}"
         );
+    }
+
+    #[test]
+    fn consumer_fixture_keeps_one_language_under_its_relative_path() {
+        let snapshot =
+            r#"{"go/tests/consumer/BUILD.bazel": "a", "rust/tests/consumer/BUILD.bazel": "b"}"#;
+        let files = consumer_fixture(snapshot, "go").expect("parses");
+        assert_eq!(
+            files,
+            BTreeMap::from([("BUILD.bazel".to_owned(), "a".to_owned())])
+        );
+        assert!(consumer_fixture("[]", "go").is_err());
+    }
+
+    #[test]
+    fn module_body_drops_the_lines_the_consumer_writes() {
+        let module = "# yours\nmodule(name = \"m\")\nbazel_dep(name = \"rules_dx\", version = \"0\")\ngo = use_extension(\"x\", \"go\")\n";
+        assert_eq!(module_body(module), "go = use_extension(\"x\", \"go\")\n");
     }
 }

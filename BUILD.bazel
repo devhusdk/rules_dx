@@ -225,8 +225,7 @@ load("//javascript:defs.bzl", "javascript_library")
 # gazelle:exclude terraform/tests/fixtures
 # gazelle:exclude kubernetes/tests/fixtures
 # gazelle:exclude core/quality/testdata/api_spec
-# gazelle:exclude helm/tests/templates
-# gazelle:exclude helm/tests/dirty
+# gazelle:exclude helm/tests/fixtures
 # gazelle:exclude api_spec/tests/openapi.yaml
 # gazelle:exclude api_spec/tests/petstore.yaml
 # gazelle:exclude go/tests/fixtures/no_srcs

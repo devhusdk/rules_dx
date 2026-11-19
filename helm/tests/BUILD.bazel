@@ -1,195 +1,86 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//core:failure_test.bzl", "failure_test")
-load("//helm:defs.bzl", "helm_library")
 load(":defs_tests.bzl", "chart_provider_test", "owns_helm_class_test")
-
-helm_library(
-    name = "app",
-    srcs = [
-        "Chart.yaml",
-        "templates/cm.yaml",
-        "values.yaml",
-    ],
-    namespace = "prod",
-    release_name = "demo",
-    subcharts = ["charts/dep-1.0.0.tgz"],
-    values = ["values-prod.yaml"],
-)
 
 owns_helm_class_test(
     name = "owns_helm_class_test",
     size = "small",
-    target_under_test = ":app",
+    target_under_test = "//helm/tests/fixtures/chart:app",
 )
 
 chart_provider_test(
     name = "chart_provider_test",
     size = "small",
     expected_release_name = "demo",
-    target_under_test = ":app",
-)
-
-helm_library(
-    name = "dotted_release",
-    srcs = [
-        "Chart.yaml",
-        "templates/cm.yaml",
-        "values.yaml",
-    ],
-    namespace = "prod",
-    release_name = "my.app",
-    subcharts = ["charts/dep-1.0.0.tgz"],
-    values = ["values-prod.yaml"],
+    target_under_test = "//helm/tests/fixtures/chart:app",
 )
 
 chart_provider_test(
     name = "dotted_release_provider_test",
     size = "small",
     expected_release_name = "my.app",
-    target_under_test = ":dotted_release",
-)
-
-helm_library(
-    name = "empty_label_release",
-    srcs = ["Chart.yaml"],
-    release_name = "a..b",
-    tags = ["manual"],
+    target_under_test = "//helm/tests/fixtures/chart:dotted_release",
 )
 
 failure_test(
     name = "empty_label_release_fails",
     expected_failure_substring = "release_name 'a..b' must be dot-separated DNS-1123 labels",
-    target = ":empty_label_release",
-)
-
-helm_library(
-    name = "no_chart_yaml",
-    srcs = ["values.yaml"],
-    tags = ["manual"],
+    target = "//helm/tests/fixtures/chart:empty_label_release",
 )
 
 failure_test(
     name = "no_chart_yaml_fails",
-    expected_failure_substring = "srcs must contain helm/tests/Chart.yaml",
-    target = ":no_chart_yaml",
-)
-
-helm_library(
-    name = "bad_release",
-    srcs = ["Chart.yaml"],
-    release_name = "Bad_Name",
-    tags = ["manual"],
+    expected_failure_substring = "srcs must contain helm/tests/fixtures/chart/Chart.yaml",
+    target = "//helm/tests/fixtures/chart:no_chart_yaml",
 )
 
 failure_test(
     name = "bad_release_fails",
     expected_failure_substring = "release_name 'Bad_Name' must be dot-separated DNS-1123 labels",
-    target = ":bad_release",
-)
-
-helm_library(
-    name = "long_release",
-    srcs = ["Chart.yaml"],
-    release_name = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    tags = ["manual"],
+    target = "//helm/tests/fixtures/chart:bad_release",
 )
 
 failure_test(
     name = "long_release_fails",
     expected_failure_substring = "must be at most 53 characters (Helm limit)",
-    target = ":long_release",
-)
-
-helm_library(
-    name = "max_release",
-    srcs = ["Chart.yaml"],
-    release_name = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-)
-
-helm_library(
-    name = "long_namespace",
-    srcs = ["Chart.yaml"],
-    namespace = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    tags = ["manual"],
+    target = "//helm/tests/fixtures/chart:long_release",
 )
 
 failure_test(
     name = "long_namespace_fails",
     expected_failure_substring = "must be at most 63 characters",
-    target = ":long_namespace",
-)
-
-helm_library(
-    name = "bad_namespace",
-    srcs = ["Chart.yaml"],
-    namespace = "-lead",
-    tags = ["manual"],
+    target = "//helm/tests/fixtures/chart:long_namespace",
 )
 
 failure_test(
     name = "bad_namespace_fails",
     expected_failure_substring = "namespace '-lead' must be a DNS-1123 label",
-    target = ":bad_namespace",
-)
-
-helm_library(
-    name = "archive_in_srcs",
-    srcs = [
-        "Chart.yaml",
-        "charts/dep-1.0.0.tgz",
-    ],
-    tags = ["manual"],
+    target = "//helm/tests/fixtures/chart:bad_namespace",
 )
 
 failure_test(
     name = "archive_in_srcs_fails",
     expected_failure_substring = "belongs in subcharts, not srcs",
-    target = ":archive_in_srcs",
-)
-
-helm_library(
-    name = "misplaced_dependency",
-    srcs = ["Chart.yaml"],
-    subcharts = ["other/dep-1.0.0.tgz"],
-    tags = ["manual"],
+    target = "//helm/tests/fixtures/chart:archive_in_srcs",
 )
 
 failure_test(
     name = "misplaced_dependency_fails",
-    expected_failure_substring = "must be a .tgz under helm/tests/charts/",
-    target = ":misplaced_dependency",
-)
-
-helm_library(
-    name = "duplicate_file",
-    srcs = [
-        "Chart.yaml",
-        "values.yaml",
-    ],
-    tags = ["manual"],
-    values = ["values.yaml"],
+    expected_failure_substring = "must be a .tgz under helm/tests/fixtures/chart/charts/",
+    target = "//helm/tests/fixtures/chart:misplaced_dependency",
 )
 
 failure_test(
     name = "duplicate_file_fails",
-    expected_failure_substring = "duplicate file 'helm/tests/values.yaml'",
-    target = ":duplicate_file",
-)
-
-helm_library(
-    name = "foreign_src",
-    srcs = [
-        "Chart.yaml",
-        "//helm:lang.json",
-    ],
-    tags = ["manual"],
+    expected_failure_substring = "duplicate file 'helm/tests/fixtures/chart/values.yaml'",
+    target = "//helm/tests/fixtures/chart:duplicate_file",
 )
 
 failure_test(
     name = "foreign_src_fails",
     size = "small",
-    expected_failure_substring = "src 'helm/lang.json' must be under the chart package 'helm/tests'",
-    target = ":foreign_src",
+    expected_failure_substring = "src 'helm/lang.json' must be under the chart package 'helm/tests/fixtures/chart'",
+    target = "//helm/tests/fixtures/chart:foreign_src",
 )
 
 real_source_target(

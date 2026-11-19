@@ -4,9 +4,10 @@ use std::fs;
 use std::path::Path;
 
 use super::{
-    Rendered, check_rendered, decode_fragment, is_internal, pages, resolve, route_report,
-    split_target, usage,
+    AssetError, Page, Rendered, RenderedFinding, check_rendered, decode_fragment, first_publisher,
+    is_internal, pages, resolve, route_report, split_target, usage,
 };
+use documentation_ir::tool::PathIoError;
 
 fn write(dir: &Path, name: &str, body: &str) {
     let path = dir.join(name);
@@ -97,6 +98,11 @@ fn site(name: &str) -> dx_test_scratch::TempDir {
     guard
 }
 
+fn joined(findings: &[RenderedFinding]) -> String {
+    let lines: Vec<String> = findings.iter().map(ToString::to_string).collect();
+    lines.join("\n")
+}
+
 fn rendered(dir: &Path) -> Rendered {
     Rendered {
         root: dir.to_path_buf(),
@@ -108,10 +114,11 @@ fn rendered(dir: &Path) -> Rendered {
 fn a_complete_rendered_site_holds_together() {
     let guard = site("rendered-ok");
     let dir = guard.path();
-    assert_eq!(
-        check_rendered(&rendered(dir), &[]),
-        "",
-        "{}",
+    let findings = check_rendered(&rendered(dir), &[]);
+    assert!(
+        findings.is_empty(),
+        "{}\n{}",
+        joined(&findings),
         route_report(&rendered(dir))
     );
     fs::remove_dir_all(dir).expect("remove the rendered site");
@@ -121,7 +128,7 @@ fn a_complete_rendered_site_holds_together() {
 fn every_page_is_found_and_parsed() {
     let guard = site("rendered-pages");
     let dir = guard.path();
-    let found = pages(dir);
+    let found = pages(dir).expect("read the pages");
     let routes: Vec<&str> = found.iter().map(|page| page.route.as_str()).collect();
     assert_eq!(
         routes,
@@ -145,7 +152,7 @@ fn a_missing_asset_fails() {
     let guard = site("rendered-asset");
     let dir = guard.path();
     fs::remove_file(dir.join("book.js")).expect("remove the navigation script");
-    let report = check_rendered(&rendered(dir), &[]);
+    let report = joined(&check_rendered(&rendered(dir), &[]));
     assert!(report.contains("has no book.js"), "{report}");
     fs::remove_dir_all(dir).expect("remove the rendered site");
 }
@@ -155,7 +162,7 @@ fn a_missing_search_index_fails() {
     let guard = site("rendered-search");
     let dir = guard.path();
     fs::remove_file(dir.join("searchindex.js")).expect("remove the search index");
-    let report = check_rendered(&rendered(dir), &[]);
+    let report = joined(&check_rendered(&rendered(dir), &[]));
     assert!(report.contains("has no searchindex.js"), "{report}");
     fs::remove_dir_all(dir).expect("remove the rendered site");
 }
@@ -169,7 +176,7 @@ fn a_dangling_link_fails_with_its_target() {
         "page.html",
         &PAGE.replace("href=\"index.html\"", "href=\"gone.html\""),
     );
-    let report = check_rendered(&rendered(dir), &[]);
+    let report = joined(&check_rendered(&rendered(dir), &[]));
     assert!(report.contains("links to missing 'gone.html'"), "{report}");
     fs::remove_dir_all(dir).expect("remove the rendered site");
 }
@@ -186,7 +193,7 @@ fn a_dangling_anchor_fails_with_its_target() {
             "href=\"nested/deep.html#nope\"",
         ),
     );
-    let report = check_rendered(&rendered(dir), &[]);
+    let report = joined(&check_rendered(&rendered(dir), &[]));
     assert!(
         report.contains("links to missing anchor 'nested/deep.html#nope'"),
         "{report}"
@@ -198,18 +205,31 @@ fn with_link(link: &str) -> String {
     PAGE.replace("<p>", &format!("<p><a href=\"{link}\">x</a> "))
 }
 
-fn report_for(name: &str, page: &str) -> String {
+fn findings_for(name: &str, page: &str) -> Vec<RenderedFinding> {
     let guard = site(name);
     let dir = guard.path();
     write(dir, "page.html", page);
-    let report = check_rendered(&rendered(dir), &[]);
+    let findings = check_rendered(&rendered(dir), &[]);
     fs::remove_dir_all(dir).expect("remove the rendered site");
-    report
+    findings
+}
+
+fn report_for(name: &str, page: &str) -> String {
+    joined(&findings_for(name, page))
 }
 
 #[test]
 fn a_dangling_same_page_anchor_fails_like_a_cross_page_one() {
-    let bare = report_for("rendered-same", &with_link("#missing-heading"));
+    let findings = findings_for("rendered-same", &with_link("#missing-heading"));
+    assert!(
+        matches!(
+            findings.as_slice(),
+            [RenderedFinding::MissingAnchor { route, link }]
+                if route == "page.html" && link == "#missing-heading"
+        ),
+        "{findings:?}"
+    );
+    let bare = joined(&findings);
     assert!(
         bare.contains("page.html links to missing anchor '#missing-heading'"),
         "{bare}"
@@ -231,11 +251,8 @@ fn present_empty_and_query_fragments_hold() {
         "page.html?x=1#usage",
         "?x=1#usage",
     ] {
-        assert_eq!(
-            report_for("rendered-frag-ok", &with_link(link)),
-            "",
-            "{link}"
-        );
+        let findings = findings_for("rendered-frag-ok", &with_link(link));
+        assert!(findings.is_empty(), "{link}: {}", joined(&findings));
     }
     let bad = report_for("rendered-query-bad", &with_link("page.html?x=1#nope"));
     assert!(bad.contains("links to missing anchor"), "{bad}");
@@ -246,7 +263,8 @@ fn encoded_fragments_match_decoded_ids() {
     let page = with_link("#caf%C3%A9")
         .replace("id=\"usage\"", "id=\"café\"")
         .replace("\"#usage\"", "\"#café\"");
-    assert_eq!(report_for("rendered-enc", &page), "");
+    let findings = findings_for("rendered-enc", &page);
+    assert!(findings.is_empty(), "{}", joined(&findings));
     let plus = with_link("#a+b")
         .replace("id=\"usage\"", "id=\"a b\"")
         .replace("\"#usage\"", "\"#a b\"");
@@ -271,7 +289,7 @@ fn a_missing_reference_asset_fails() {
         "page.html",
         &PAGE.replace("href=\"../css/general.css\"", "href=\"../css/absent.css\""),
     );
-    let report = check_rendered(&rendered(dir), &[]);
+    let report = joined(&check_rendered(&rendered(dir), &[]));
     assert!(
         report.contains("references missing asset '../css/absent.css'"),
         "{report}"
@@ -288,7 +306,7 @@ fn a_page_without_a_title_or_heading_fails() {
         "page.html",
         r#"<!DOCTYPE html><html lang="en"><head></head><body><nav></nav><main><p>x</p></main></body></html>"#,
     );
-    let report = check_rendered(&rendered(dir), &[]);
+    let report = joined(&check_rendered(&rendered(dir), &[]));
     assert!(report.contains("page.html has no <title>"), "{report}");
     assert!(report.contains("page.html has no heading"), "{report}");
     assert!(
@@ -302,8 +320,12 @@ fn a_page_without_a_title_or_heading_fails() {
 fn an_empty_site_fails() {
     let guard = dx_test_scratch::scratch("rendered-empty").unwrap();
     let dir = guard.path();
-    let report = check_rendered(&rendered(dir), &[]);
-    assert_eq!(report, "rendered site has no HTML page");
+    let findings = check_rendered(&rendered(dir), &[]);
+    assert!(
+        matches!(findings.as_slice(), [RenderedFinding::NoPages]),
+        "{findings:?}"
+    );
+    assert_eq!(joined(&findings), "rendered site has no HTML page");
     fs::remove_dir_all(dir).expect("remove the rendered site");
 }
 
@@ -312,7 +334,7 @@ fn a_site_without_an_index_page_fails() {
     let guard = site("rendered-index");
     let dir = guard.path();
     fs::remove_file(dir.join("index.html")).expect("remove the index page");
-    let report = check_rendered(&rendered(dir), &[]);
+    let report = joined(&check_rendered(&rendered(dir), &[]));
     assert!(report.contains("has no index.html at its root"), "{report}");
     fs::remove_dir_all(dir).expect("remove the rendered site");
 }
@@ -321,7 +343,15 @@ fn a_site_without_an_index_page_fails() {
 fn a_forbidden_needle_is_reported_with_its_page() {
     let guard = site("rendered-forbid");
     let dir = guard.path();
-    let report = check_rendered(&rendered(dir), &["sidebar-toggle-anchor".to_string()]);
+    let findings = check_rendered(&rendered(dir), &["sidebar-toggle-anchor".to_string()]);
+    assert!(
+        findings.iter().any(|finding| matches!(
+            finding,
+            RenderedFinding::Publishes { route, .. } if route == "index.html"
+        )),
+        "{findings:?}"
+    );
+    let report = joined(&findings);
     assert!(
         report.contains("publishes \"sidebar-toggle-anchor\""),
         "{report}"
@@ -341,7 +371,7 @@ fn a_landing_page_without_navigation_widgets_fails() {
             .replace("id=\"mdbook-sidebar-toggle\"", "class=\"gone\"")
             .replace("id=\"mdbook-search-toggle\"", "class=\"gone\""),
     );
-    let report = check_rendered(&rendered(dir), &[]);
+    let report = joined(&check_rendered(&rendered(dir), &[]));
     assert!(
         report.contains("index.html has no search toggle"),
         "{report}"
@@ -365,7 +395,7 @@ fn a_landing_page_without_a_code_block_fails() {
             "",
         ),
     );
-    let report = check_rendered(&rendered(dir), &[]);
+    let report = joined(&check_rendered(&rendered(dir), &[]));
     assert!(
         report.contains("index.html renders no code block"),
         "{report}"
@@ -382,8 +412,12 @@ fn an_empty_search_object_fails() {
     let guard = site("rendered-search-object");
     let dir = guard.path();
     write(dir, "searchindex.js", "var search = 1;\n");
-    let report = check_rendered(&rendered(dir), &[]);
-    assert_eq!(report, "the search index holds no search object");
+    let findings = check_rendered(&rendered(dir), &[]);
+    assert!(
+        matches!(findings.as_slice(), [RenderedFinding::NoSearchObject]),
+        "{findings:?}"
+    );
+    assert_eq!(joined(&findings), "the search index holds no search object");
     fs::remove_dir_all(dir).expect("remove the rendered site");
 }
 
@@ -439,7 +473,8 @@ fn a_hashed_search_index_is_found() {
         dir.join("searchindex-c0036e0f.js"),
     )
     .expect("hash the search index");
-    assert_eq!(check_rendered(&rendered(dir), &[]), "");
+    let findings = check_rendered(&rendered(dir), &[]);
+    assert!(findings.is_empty(), "{}", joined(&findings));
     fs::remove_dir_all(dir).expect("remove the rendered site");
 }
 
@@ -448,7 +483,84 @@ fn several_search_indexes_fail() {
     let guard = site("rendered-two-indexes");
     let dir = guard.path();
     write(dir, "searchindex-c0036e0f.js", "window.search = {};\n");
-    let report = check_rendered(&rendered(dir), &[]);
-    assert_eq!(report, "rendered site has several searchindex.js files");
+    let findings = check_rendered(&rendered(dir), &[]);
+    assert!(
+        matches!(
+            findings.as_slice(),
+            [RenderedFinding::Asset(AssetError::Several { logical })] if logical == "searchindex.js"
+        ),
+        "{findings:?}"
+    );
+    assert_eq!(
+        joined(&findings),
+        "rendered site has several searchindex.js files"
+    );
+    fs::remove_dir_all(dir).expect("remove the rendered site");
+}
+
+fn read_path(findings: &[RenderedFinding]) -> Option<&Path> {
+    match findings {
+        [RenderedFinding::Read(error)] => Some(error.path()),
+        _ => None,
+    }
+}
+
+#[test]
+fn an_unreadable_page_is_reported_with_its_path() {
+    let guard = site("rendered-bad-page");
+    let dir = guard.path();
+    fs::write(dir.join("page.html"), b"\xff").expect("write");
+    let findings = check_rendered(&rendered(dir), &[]);
+    assert_eq!(
+        read_path(&findings),
+        Some(dir.join("page.html").as_path()),
+        "{findings:?}"
+    );
+    assert!(
+        route_report(&rendered(dir)).starts_with("cannot read"),
+        "{}",
+        route_report(&rendered(dir))
+    );
+    fs::remove_dir_all(dir).expect("remove the rendered site");
+}
+
+#[test]
+fn an_unreadable_search_index_is_reported_with_its_path() {
+    let guard = site("rendered-bad-index");
+    let dir = guard.path();
+    fs::write(dir.join("searchindex.js"), b"\xff").expect("write");
+    let findings = check_rendered(&rendered(dir), &[]);
+    assert_eq!(
+        read_path(&findings),
+        Some(dir.join("searchindex.js").as_path()),
+        "{findings:?}"
+    );
+    fs::remove_dir_all(dir).expect("remove the rendered site");
+}
+
+#[test]
+fn a_missing_root_is_reported_as_unlisted() {
+    let guard = dx_test_scratch::scratch("rendered-no-root").unwrap();
+    let root = guard.path().join("absent");
+    let findings = check_rendered(&rendered(&root), &[]);
+    assert!(
+        matches!(
+            findings.as_slice(),
+            [RenderedFinding::Read(PathIoError::List { path, .. })] if *path == root
+        ),
+        "{findings:?}"
+    );
+}
+
+#[test]
+fn a_vanished_page_fails_the_forbid_scan() {
+    let guard = site("rendered-vanished");
+    let dir = guard.path();
+    let gone = [Page {
+        route: "gone.html".to_string(),
+        ..Page::default()
+    }];
+    let error = first_publisher(dir, &gone, "x").unwrap_err();
+    assert_eq!(error.path(), dir.join("gone.html"));
     fs::remove_dir_all(dir).expect("remove the rendered site");
 }

@@ -103,6 +103,12 @@ pub fn aggregate(
             SetStatus::Unsupported => ReportedStatus::Unsupported,
             SetStatus::Failed => ReportedStatus::Failed,
         };
+        if matches!(
+            reported.get(&result.set),
+            Some(ReportedStatus::Unsupported | ReportedStatus::Failed)
+        ) {
+            continue;
+        }
         reported.insert(result.set.clone(), status);
     }
     let failed: BTreeSet<String> = reported
@@ -366,5 +372,20 @@ mod tests {
             .collect();
         assert_eq!(order, vec!["a-set", "b-set", "c-set"]);
         assert!(!report.overall_failure);
+    }
+
+    #[test]
+    fn a_failure_is_not_hidden_by_a_later_duplicate_result() {
+        let report = aggregate(
+            &sets(&["cargo-lock"]),
+            &outcomes(&[
+                ("cargo-lock", SetStatus::Failed),
+                ("cargo-lock", SetStatus::Updated),
+            ]),
+            &empty_deps(),
+        )
+        .expect("complete results aggregate");
+        assert!(report.overall_failure);
+        assert_eq!(report.failures(), vec!["cargo-lock".to_owned()]);
     }
 }

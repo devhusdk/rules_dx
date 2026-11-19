@@ -88,11 +88,10 @@ pub fn parse_release(json: &str) -> Result<Release, DxError> {
 /// Replaces the advisory lines of `text` the release has a pin for; every other line stays as it is.
 #[must_use]
 pub fn rewrite(text: &str, release: &Release) -> String {
-    let newest: BTreeMap<&str, &Pin> = release
-        .pins
-        .iter()
-        .map(|pin| (pin.family.as_str(), pin))
-        .collect();
+    let mut newest: BTreeMap<&str, &Pin> = BTreeMap::new();
+    for pin in &release.pins {
+        newest.entry(pin.family.as_str()).or_insert(pin);
+    }
     let mut out = String::with_capacity(text.len());
     for line in text.split_inclusive('\n') {
         let body = line.trim_end_matches(['\n', '\r']);
@@ -114,9 +113,22 @@ pub fn days_between(from: &str, to: &str) -> Option<i64> {
     let parse = |value: &str| {
         let mut parts = value.split('-').map(|part| part.parse::<i64>().ok());
         let (year, month, day) = (parts.next()??, parts.next()??, parts.next()??);
-        parts.next().is_none().then_some((year, month, day))
+        let valid = parts.next().is_none()
+            && (0..=9999).contains(&year)
+            && (1..=month_length(year, month)?).contains(&day);
+        valid.then_some((year, month, day))
     };
     Some(day_number(parse(to)?) - day_number(parse(from)?))
+}
+
+fn month_length(year: i64, month: i64) -> Option<i64> {
+    let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => Some(31),
+        4 | 6 | 9 | 11 => Some(30),
+        2 => Some(if leap { 29 } else { 28 }),
+        _ => None,
+    }
 }
 
 fn day_number((year, month, day): (i64, i64, i64)) -> i64 {
@@ -316,6 +328,48 @@ mod tests {
         assert!(!text.contains("- a@1"));
         assert!(
             pr_body(&release(), &[], &[]).contains("no advisory that the old snapshots did not")
+        );
+    }
+
+    #[test]
+    fn days_between_rejects_impossible_dates() {
+        for bad in [
+            "2026-13-01",
+            "2026-00-10",
+            "2026-02-30",
+            "2026-11-00",
+            "2026-04-31",
+        ] {
+            assert_eq!(days_between(bad, "2026-11-05"), None, "{bad}");
+        }
+        assert_eq!(days_between("2024-02-29", "2024-03-01"), Some(1));
+        assert_eq!(days_between("2026-02-29", "2026-03-01"), None);
+    }
+
+    #[test]
+    fn days_between_survives_huge_years() {
+        assert_eq!(
+            days_between("9223372036854775807-01-01", "2026-11-05"),
+            None
+        );
+        assert_eq!(
+            days_between("2026-11-05", "9223372036854775807-01-01"),
+            None
+        );
+    }
+
+    #[test]
+    fn the_first_pin_of_a_duplicated_family_wins_the_rewrite() {
+        let newest = parse_line(&pin_line("cargo", "2026-11-05", SHA_B)).expect("pin");
+        let older = parse_line(&pin_line("cargo", "2026-10-01", SHA_A)).expect("pin");
+        let release = Release {
+            tag: "2026-11-05".to_owned(),
+            pins: vec![newest, older],
+        };
+        let before = format!("{}\n", pin_line("cargo", "2026-01-01", SHA_A));
+        assert_eq!(
+            rewrite(&before, &release),
+            format!("{}\n", pin_line("cargo", "2026-11-05", SHA_B))
         );
     }
 }

@@ -43,12 +43,12 @@ real_jvm_docs_aspect = aspect(
         ),
         "_kotlin_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/jvm/dokka:dokka_extract"),
+            default = Label("@dx_prebuilt//:dokka_extract"),
             executable = True,
         ),
         "_scala_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/jvm/scaladoc:scaladoc_extract"),
+            default = Label("@dx_prebuilt//:scaladoc_extract"),
             executable = True,
         ),
     },

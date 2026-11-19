@@ -1,12 +1,13 @@
+load("@rules_java//java:defs.bzl", "java_binary")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//kotlin:defs.bzl", "kotlin_binary")
+load("//kotlin:defs.bzl", "kotlin_library")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
 
 # Dokka 2.2.0 brings kotlin-stdlib 2.0.21, so the sources keep to stable stdlib APIs.
-kotlin_binary(
-    name = "dokka_extract",
+kotlin_library(
+    name = "dokka_extract_lib",
     srcs = [
         "Docs.kt",
         "DxIrPlugin.kt",
@@ -17,7 +18,6 @@ kotlin_binary(
         "SourceMap.kt",
         "Types.kt",
     ],
-    main_class = "dx.docs.dokka.Main",
     # rules_kotlin cannot match an explicit resource_strip_prefix in an external repository.
     resources = ["src/main/resources/META-INF/services/org.jetbrains.dokka.plugability.DokkaPlugin"],
     runtime_deps = ["@dx_dokka//:org_jetbrains_dokka_analysis_kotlin_symbols"],
@@ -26,6 +26,12 @@ kotlin_binary(
         "@dx_dokka//:org_jetbrains_dokka_dokka_base",
         "@dx_dokka//:org_jetbrains_dokka_dokka_core",
     ],
+)
+
+java_binary(
+    name = "dokka_extract",
+    main_class = "dx.docs.dokka.Main",
+    runtime_deps = [":dokka_extract_lib"],
 )
 
 real_source_target(

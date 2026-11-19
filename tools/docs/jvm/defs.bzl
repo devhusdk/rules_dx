@@ -112,7 +112,7 @@ def java_doc_shard(name, lib, package = "", deps = [], **kwargs):
 
 docs_kotlin_shard = _jvm_shard_rule(
     language = "kotlin",
-    adapter = "//tools/docs/jvm/dokka:dokka_extract",
+    adapter = "@dx_prebuilt//:dokka_extract",
     mnemonic = "DxDocsDokka",
     extensions = ["kt"],
     toolchains = [KOTLIN_TOOLCHAIN],
@@ -130,7 +130,7 @@ def kotlin_doc_shard(name, lib, package = "", deps = [], **kwargs):
 
 docs_scala_shard = _jvm_shard_rule(
     language = "scala",
-    adapter = "//tools/docs/jvm/scaladoc:scaladoc_extract",
+    adapter = "@dx_prebuilt//:scaladoc_extract",
     mnemonic = "DxDocsScaladoc",
     extensions = ["scala"],
 )

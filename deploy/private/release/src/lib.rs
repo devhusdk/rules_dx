@@ -29,14 +29,15 @@ pub const RELEASE_REPOSITORY: &str = release_repository!();
 pub const RELEASE_REMOTE: &str = concat!(release_repository!(), ".git");
 
 pub use publish::{
-    PublishDryRunInputs, PublishDryRunOutcome, REPORT_SCHEMA, publish_dry_run_check, sha256sum_line,
+    PublishDryRunInputs, PublishDryRunOutcome, PublishError, REPORT_SCHEMA, publish_dry_run_check,
+    sha256sum_line,
 };
 
 pub use deploy::{
-    BcrDeployConfig, ReleaseDeployConfig, SigningDeployConfig, bcr_deploy,
+    BcrDeployConfig, DeployError, ReleaseDeployConfig, SigningDeployConfig, bcr_deploy,
     release_deploy_tool_main, signing_deploy,
 };
-pub use ledger::{OpRecord, OpState, ledger_exit, render_ledger};
+pub use ledger::{LedgerError, OpRecord, OpState, ledger_exit, render_ledger};
 pub use tool::release_tool_run;
 
 pub use dx_deploy_tools::signing::{

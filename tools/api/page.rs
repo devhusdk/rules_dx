@@ -156,11 +156,13 @@ fn labels_sections(page: &mut String, labels_txt: &str) -> Result<(), String> {
     let mut toolchain_types = Vec::new();
     let mut hubs = Vec::new();
     let mut targets = Vec::new();
+    let mut runnables = Vec::new();
     for row in &rows {
         match row.rule {
             "platform" => platforms.push(absolute(row.label)),
             "toolchain_type" => toolchain_types.push(absolute(row.label)),
             "hub" => hubs.push([code(row.label), code(&row.default)]),
+            "runnable" => runnables.push([code(&absolute(row.label)), code(&row.default)]),
             _ if !row.label.starts_with("//config:") && !row.rule.ends_with("_flag") => {
                 targets.push([code(&absolute(row.label)), code(row.rule)]);
             }
@@ -193,6 +195,11 @@ fn labels_sections(page: &mut String, labels_txt: &str) -> Result<(), String> {
     page.push_str("\n## Targets\n\n");
     page.push_str("| Target | Kind |\n| --- | --- |\n");
     for cells in &targets {
+        row(page, cells);
+    }
+    page.push_str("\n## Runnable targets\n\nRun these with `bazel run <target>`.\n\n");
+    page.push_str("| Target | Kind |\n| --- | --- |\n");
+    for cells in &runnables {
         row(page, cells);
     }
     Ok(())
@@ -324,7 +331,7 @@ mod tests {
             "//cuda:is_sm_90 config_setting\n",
             "//lua:toolchain_type toolchain_type\n",
             "//:dx alias\n",
-            "//deploy:bootstrap_offline rust_binary\n",
+            "//deploy:bootstrap_offline runnable native_binary\n",
             "@crates hub @rules_dx//rust:extensions.bzl%cargo\n",
         );
         let page = render(cli, labels, "events.schema.json 4.0 sha256:aa\n").expect("page renders");
@@ -350,7 +357,6 @@ mod tests {
             "| `events.schema.json` | `4.0` |",
             "| `@crates` | `@rules_dx//rust:extensions.bzl%cargo` |",
             "| `@rules_dx//:dx` | `alias` |",
-            "| `@rules_dx//deploy:bootstrap_offline` | `rust_binary` |",
         ] {
             assert!(
                 page.lines().any(|got| got == line),
@@ -368,6 +374,16 @@ mod tests {
                 "{label} in Build settings:\n{settings}"
             );
         }
+        let runnables = page
+            .split_once("## Runnable targets")
+            .map(|(_, rest)| rest.split_once("\n## ").map_or(rest, |(table, _)| table))
+            .expect("a Runnable targets section");
+        assert!(
+            runnables
+                .lines()
+                .any(|line| line == "| `@rules_dx//deploy:bootstrap_offline` | `native_binary` |"),
+            "{runnables}"
+        );
     }
 
     #[test]

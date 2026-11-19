@@ -17,17 +17,18 @@ fn checked_in_snapshot_matches_the_code() {
             })
             .collect()
     };
-    let lang_builds = builds(snapshot::lang_build_paths().expect("DX_API_LANG_BUILDS is set"));
-    let command_builds =
-        builds(snapshot::command_build_paths().expect("DX_API_COMMAND_BUILDS is set"));
+    let builds = snapshot::Builds {
+        langs: builds(snapshot::lang_build_paths().expect("DX_API_LANG_BUILDS is set")),
+        commands: builds(snapshot::command_build_paths().expect("DX_API_COMMAND_BUILDS is set")),
+        packages: builds(snapshot::package_build_paths().expect("DX_API_PACKAGE_BUILDS is set")),
+    };
     let starlark: Vec<Vec<u8>> = dx_testing::env_files("DX_API_STARLARK")
         .iter()
         .map(|path| {
             std::fs::read(path).unwrap_or_else(|error| panic!("{}: {error}", path.display()))
         })
         .collect();
-    let files =
-        snapshot::render(&lang_builds, &command_builds, &starlark).expect("snapshot renders");
+    let files = snapshot::render(&builds, &starlark).expect("snapshot renders");
     let paths = dx_testing::env_text("DX_API_SNAPSHOT");
     let mut stale = Vec::new();
     for (name, text) in &files {

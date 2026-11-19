@@ -3,6 +3,7 @@ load("//core/modules:langs.bzl", "LANGS")
 load("//rust:defs.bzl", "rust_binary", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 load(":bzl_srcs.bzl", "bzl_srcs")
+load(":public_builds.bzl", "public_builds")
 
 package(default_visibility = VIS_TOOLS)
 
@@ -38,6 +39,7 @@ _COMMAND_BUILDS = [
 _BUILDS_ENV = {
     "DX_API_COMMAND_BUILDS": " ".join(["$(rootpath %s)" % build for build in _COMMAND_BUILDS]),
     "DX_API_LANG_BUILDS": " ".join(["$(rootpath %s)" % build for build in _LANG_BUILDS]),
+    "DX_API_PACKAGE_BUILDS": "$(rootpaths :public_builds)",
 }
 
 _STARLARK_SRCS = [
@@ -85,6 +87,11 @@ bzl_srcs(
     for name, src in _STARLARK_DOCS.items()
 ]
 
+public_builds(
+    name = "public_builds",
+    srcs = ["//:module_srcs"],
+)
+
 filegroup(
     name = "starlark_docs",
     srcs = [":%s.binaryproto" % name for name in _STARLARK_DOCS],
@@ -101,7 +108,10 @@ rust_binary(
     compile_data = _SNAPSHOT_SRCS,
     crate_name = "update",
     crate_root = "update.rs",
-    data = [":starlark_docs"] + _LANG_BUILDS + _COMMAND_BUILDS,
+    data = [
+        ":public_builds",
+        ":starlark_docs",
+    ] + _LANG_BUILDS + _COMMAND_BUILDS,
     env = _BUILDS_ENV | {"DX_API_STARLARK": "$(rlocationpaths :starlark_docs)"},
     deps = _DEPS + ["@rules_rust//rust/runfiles"],
 )
@@ -118,6 +128,7 @@ rust_test(
     crate_name = "api_test",
     crate_root = "api_test.rs",
     data = [
+        ":public_builds",
         ":starlark_docs",
         "//api:snapshot",
         "//docs:supported-surface.md",
@@ -141,6 +152,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "bzl_srcs.bzl",
+        "public_builds.bzl",
     ],
     tags = ["corpus"],
 )

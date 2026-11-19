@@ -71,7 +71,7 @@ pub fn first_line(bytes: &[u8]) -> String {
 }
 
 pub(crate) fn parse_owners(stdout: &[u8], label: &str) -> Result<Vec<String>, ResolveError> {
-    let text = std::str::from_utf8(stdout).map_err(|_| {
+    let text = std::str::from_utf8(stdout).ok().ok_or_else(|| {
         ResolveError::query(
             label,
             QueryFailure::Output {
@@ -135,7 +135,8 @@ pub(crate) fn classify_generate_scopes(
             return Err(ResolveError::UnsupportedName { scope: raw.clone() });
         }
         let metadata = std::fs::symlink_metadata(workspace.join(&rel))
-            .map_err(|_| ResolveError::PathNotFound { scope: raw.clone() })?;
+            .ok()
+            .ok_or_else(|| ResolveError::PathNotFound { scope: raw.clone() })?;
         if metadata.is_dir() {
             targets.push(dir_pattern(&rel));
         } else if metadata.is_file() {

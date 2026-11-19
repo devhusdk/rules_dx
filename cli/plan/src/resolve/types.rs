@@ -1,4 +1,3 @@
-use std::fmt::Write as _;
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -323,7 +322,7 @@ impl ResolveError {
 fn list_with_more(candidates: &[String], total: usize) -> String {
     let mut text = candidates.join(", ");
     if total > candidates.len() {
-        write!(text, ", and {} more", total - candidates.len()).ok();
+        text.push_str(&format!(", and {} more", total - candidates.len()));
     }
     text
 }

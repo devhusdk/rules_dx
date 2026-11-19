@@ -22,6 +22,7 @@ rust_library(
     # keep
     deps = [
         "//cli/apply:dx_apply",
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/audit:dx_audit",
         "//cli/bep:dx_bep",
         "//cli/digest:dx_digest",
@@ -59,6 +60,7 @@ rust_test(
     # keep
     deps = [
         "//cli/apply:dx_apply",
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/audit:dx_audit",
         "//cli/bep:dx_bep",
         "//cli/digest:dx_digest",

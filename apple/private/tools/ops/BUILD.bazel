@@ -30,6 +30,8 @@ rust_library(
     }),
     visibility = [
         "//apple:__subpackages__",
+        "//cli/cli:__pkg__",
+        "//cli/runtime:__pkg__",
         "//flutter/tests/fixtures/flutter_app:__pkg__",
     ],
     deps = [
@@ -40,18 +42,6 @@ rust_library(
         "@crates//:serde_json",
         "@crates//:tempfile",
     ],
-)
-
-# keep
-rust_binary(
-    name = "apple_ops",
-    srcs = ["src/main.rs"],
-    crate_root = "src/main.rs",
-    visibility = [
-        "//apple:__subpackages__",
-        "//swift/private/tools:__pkg__",
-    ],
-    deps = [":ops"],
 )
 
 # keep
@@ -231,7 +221,6 @@ exports_files(
     [
         "src/app_check.rs",
         "src/lib.rs",
-        "src/main.rs",
         "src/xcframework_check.rs",
     ],
     visibility = ["//:__subpackages__"],

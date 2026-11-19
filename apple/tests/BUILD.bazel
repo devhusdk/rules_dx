@@ -18,6 +18,7 @@ load("//tools/testing/hermetic:defs.bzl", "nested_bazel_test")
 load(":cell_tests.bzl", "adhoc_signing_test", "cell_failure_test", "signing_probe", "signing_probe_device", "stub_library")
 load(":ios_app_tests.bzl", "apple_ios_app_tests")
 load(":ios_lib_tests.bzl", "ios_lib_test", "stub_archive", "stub_ios_lib")
+load(":launcher_tests.bzl", "apple_launcher_test")
 load(":license_tests.bzl", "apple_license_tests")
 load(":macos_app_tests.bzl", "apple_macos_app_tests")
 load(":platform_config_tests.bzl", "apple_platform_config_test")
@@ -102,6 +103,7 @@ real_source_target(
         "cell_tests.bzl",
         "ios_app_tests.bzl",
         "ios_lib_tests.bzl",
+        "launcher_tests.bzl",
         "license_tests.bzl",
         "macos_app_tests.bzl",
         "platform_config_tests.bzl",
@@ -654,6 +656,22 @@ failure_test(
     size = "small",
     expected_failure_substring = "simulator names the target simulator by name or UDID",
     target = ":boot_nowhere",
+)
+
+apple_simulator_boot(
+    name = "boot_phone",
+    simulator = "iPhone 16",
+)
+
+apple_launcher_test(
+    name = "boot_phone_test",
+    size = "small",
+    lines = [
+        "arg=simctl",
+        "arg=boot",
+        "env_default=DX_SIMCTL_DEVICE\tiPhone 16",
+    ],
+    target_under_test = ":boot_phone",
 )
 
 apple_simulator_launch(

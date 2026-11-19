@@ -30,7 +30,8 @@ def _export_impl(ctx):
     info = ctx.attr.meta[_ExportInfo]
     xcode = ctx.attr._xcode_config[apple_common.XcodeVersionConfig].xcode_version()
     launcher, _, launcher_runfiles = write_native_launcher(ctx, "\n".join([
-        "program=" + rlocation_path(ctx, ctx.executable._ops),
+        "program=" + rlocation_path(ctx, ctx.executable._runtime),
+        "env=DX_RUNTIME_TOOL\tapple_ops",
         "arg=export",
         "arg=" + info.bundle_id,
         "path=" + rlocation_path(ctx, info.ipa),
@@ -41,7 +42,7 @@ def _export_impl(ctx):
         executable = launcher,
         runfiles = launcher_runfiles.merge_all([
             ctx.attr.meta[DefaultInfo].default_runfiles,
-            ctx.attr._ops[0][DefaultInfo].default_runfiles,
+            ctx.attr._runtime[0][DefaultInfo].default_runfiles,
         ]),
     )
 
@@ -50,10 +51,11 @@ _export = rule(
     doc = "A launcher that signs one device app into a distributable IPA.",
     attrs = {
         "meta": attr.label(doc = "The export_meta target of the app.", mandatory = True, providers = [_ExportInfo]),
-        "_ops": attr.label(
-            default = Label("//apple/private/tools/ops:apple_ops"),
+        "_runtime": attr.label(
+            default = Label("@dx_prebuilt//:runtime"),
             executable = True,
             cfg = no_coverage_transition,
+            doc = "dx-runtime, whose apple_ops helper runs the operation.",
         ),
         "_xcode_config": attr.label(
             default = configuration_field(name = "xcode_config_label", fragment = "apple"),

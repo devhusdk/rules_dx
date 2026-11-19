@@ -34,6 +34,8 @@ pub enum Tool {
     PerlExtract,
     ZigExtract,
     AndroidOps,
+    #[cfg(not(windows))]
+    AppleOps,
     QtRustBridge,
     BeamExtract,
     CcExtract,
@@ -98,6 +100,8 @@ pub fn subcommand_for(arg1: &OsStr) -> Option<Tool> {
         "perl_extract" => Some(Tool::PerlExtract),
         "zig_extract" => Some(Tool::ZigExtract),
         "android_ops" => Some(Tool::AndroidOps),
+        #[cfg(not(windows))]
+        "apple_ops" => Some(Tool::AppleOps),
         "qt_rust_bridge" => Some(Tool::QtRustBridge),
         "beam_extract" => Some(Tool::BeamExtract),
         "cc_extract" => Some(Tool::CcExtract),
@@ -205,6 +209,8 @@ mod tests {
             ("perl_extract", Tool::PerlExtract),
             ("zig_extract", Tool::ZigExtract),
             ("android_ops", Tool::AndroidOps),
+            #[cfg(not(windows))]
+            ("apple_ops", Tool::AppleOps),
             ("qt_rust_bridge", Tool::QtRustBridge),
             ("beam_extract", Tool::BeamExtract),
             ("cc_extract", Tool::CcExtract),
@@ -253,6 +259,7 @@ mod tests {
             "perl_extract",
             "zig_extract",
             "android_ops",
+            "apple_ops",
             "qt_rust_bridge",
             "beam_extract",
             "cc_extract",

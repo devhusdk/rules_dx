@@ -12,8 +12,11 @@ const TOOL_ENV: &str = "DX_RUNTIME_TOOL";
 type Helper = fn() -> ExitCode;
 
 /// The helpers, by the name a rule sets in `DX_RUNTIME_TOOL`.
-const TOOLS: [(&str, Helper); 8] = [
+/// `apple_ops` is left out on Windows, where it does not build.
+const TOOLS: &[(&str, Helper)] = &[
     ("android_ops", dx_android_ops::main),
+    #[cfg(not(windows))]
+    ("apple_ops", dx_apple_ops::main),
     ("bench_report", dx_bench_report::main),
     ("coverlet", dx_coverlet::main),
     ("d_coverage", dx_d_coverage::main),
@@ -32,7 +35,11 @@ fn find(tool: &OsStr) -> Option<Helper> {
 }
 
 fn main() -> ExitCode {
-    let names = TOOLS.map(|(name, _)| name).join(", ");
+    let names = TOOLS
+        .iter()
+        .map(|(name, _)| *name)
+        .collect::<Vec<_>>()
+        .join(", ");
     let Some(tool) = std::env::var_os(TOOL_ENV) else {
         eprintln!("dx-runtime: {TOOL_ENV} is not set; want one of {names}");
         return ExitCode::from(2);
@@ -56,7 +63,7 @@ mod tests {
 
     #[test]
     fn every_helper_is_found_by_its_name() {
-        for (name, _) in TOOLS {
+        for (name, _) in TOOLS.iter().copied() {
             assert!(find(OsStr::new(name)).is_some(), "{name}");
         }
     }

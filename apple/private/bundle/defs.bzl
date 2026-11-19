@@ -83,6 +83,7 @@ def check_cell(ctx, kind, cell, sdk, mach_o_platform, platform, platform_type, m
     deployment = str(xcode_config.minimum_os_for_platform_type(platform_type))
     report = ctx.actions.declare_file(ctx.label.name + ".txt")
     args = ctx.actions.args()
+    args.add("apple_ops")
     args.add("library-check")
     args.add(kind)
     args.add(report)
@@ -100,7 +101,7 @@ def check_cell(ctx, kind, cell, sdk, mach_o_platform, platform, platform_type, m
     env.update(apple_common.apple_host_system_env(xcode_config))
     env.update(apple_common.target_apple_env(xcode_config, platform))
     ctx.actions.run(
-        executable = ctx.executable._check,
+        executable = ctx.executable._dx,
         arguments = [args],
         inputs = inputs,
         outputs = [report],

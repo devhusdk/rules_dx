@@ -29,6 +29,9 @@
    }
   ]
  },
+ "commands": {
+  "go": "@rules_dx//go/private/tools:go"
+ },
  "tools": [
     "errcheck",
     "gofumpt",

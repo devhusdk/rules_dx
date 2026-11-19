@@ -1,7 +1,7 @@
 use super::{BackendError, BackendPlan, CheckPlan, Path, ResolvedSet, Selection, bazel};
 
 /// The resolver label of the `setup.hubs` entry of `set`.
-fn resolver(set: &ResolvedSet) -> Result<&'static str, BackendError> {
+pub(super) fn resolver(set: &ResolvedSet) -> Result<&'static str, BackendError> {
     dx_families::hub(set.ecosystem.name())
         .and_then(|hub| hub.resolver.as_deref())
         .ok_or_else(|| BackendError::Unsupported {

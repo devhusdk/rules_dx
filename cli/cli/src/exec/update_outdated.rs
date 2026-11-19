@@ -237,7 +237,9 @@ fn opam_snapshot_dir(workspace: &Path) -> Result<PathBuf, DxError> {
         return Ok(PathBuf::from(dir));
     }
     let mut argv = dx_process::BazelHead::default().argv("run");
-    argv.extend(["@rules_dx//ocaml/private/tools:opam", "--", "snapshot-dir"].map(str::to_owned));
+    let opam = dx_families::command("ocaml", "opam")
+        .ok_or_else(|| DxError::infra("ocaml/lang.json names no opam command".to_owned()))?;
+    argv.extend([opam, "--", "snapshot-dir"].map(str::to_owned));
     let Some((program, tail)) = argv.split_first() else {
         return Err(DxError::infra("bazel run has no program".to_owned()));
     };

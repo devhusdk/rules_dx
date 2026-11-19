@@ -15,7 +15,7 @@ use dx_plan::args::Invocation;
 use std::path::{Path, PathBuf};
 
 pub(crate) const COSIGN_VAR: &str = "DX_COSIGN_BIN";
-pub(crate) const COSIGN_LABEL: &str = "@rules_dx//deploy/private/release:cosign";
+pub(crate) const COSIGN_LABEL: &str = dx_families::COSIGN;
 pub(crate) const ISSUER: &str = "https://token.actions.githubusercontent.com";
 pub(crate) const PROVENANCE_TYPE: &str = "https://slsa.dev/provenance/v1";
 pub(crate) const BUNDLE_SUFFIX: &str = ".sigstore.json";

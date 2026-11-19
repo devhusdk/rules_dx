@@ -52,6 +52,10 @@
         }
       }
     },
+    "commands": {
+      "type": "object",
+      "additionalProperties": {"type": "string", "minLength": 1}
+    },
     "tools": {"$ref": "#/$defs/strings"},
     "platforms": {
       "type": "array",

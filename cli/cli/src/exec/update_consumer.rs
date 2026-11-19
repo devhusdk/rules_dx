@@ -672,7 +672,13 @@ impl<'a> UvTools<'a> {
         let (python, python_detail) = if uv.is_some() {
             let done = match self.python.take() {
                 Some(done) => done,
-                None => self.resolve(be::UV_PYTHON_VAR, be::UV_PYTHON_LABEL),
+                None => match be::uv_python_label() {
+                    Some(label) => self.resolve(be::UV_PYTHON_VAR, label),
+                    None => (
+                        None,
+                        Some("python/lang.json names no python_interpreter command".to_owned()),
+                    ),
+                },
             };
             self.python = Some(done.clone());
             done

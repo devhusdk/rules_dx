@@ -19,8 +19,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use prebuilt_guard::{
-    allowlist, compiled_binaries, consumer_line, guard_aspects, stale, unlisted, wrapper_build,
-    wrapper_bzl,
+    allowlist, command_roots, compiled_binaries, consumer_line, guard_aspects, stale, unlisted,
+    wrapper_build, wrapper_bzl,
 };
 
 const ROOTS_REPO: &str = "dx_guard_roots";
@@ -130,7 +130,12 @@ fn check(bazel_bin: &str, workspace: &Path, out: &Path) -> Result<(), String> {
     let mut found_all = BTreeMap::new();
     let mut problems = Vec::new();
     for lang in &langs {
-        let query = format!("deps(@{ROOTS_REPO}//{lang}:check + @{ROOTS_REPO}//{lang}:docs)");
+        let mut roots = vec![
+            format!("@{ROOTS_REPO}//{lang}:check"),
+            format!("@{ROOTS_REPO}//{lang}:docs"),
+        ];
+        roots.extend(command_roots("", &[*lang]));
+        let query = format!("deps({})", roots.join(" + "));
         let run = bazel(
             bazel_bin,
             workspace,

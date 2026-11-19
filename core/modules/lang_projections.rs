@@ -178,7 +178,7 @@ fn families_languages_json(manifests: &BTreeMap<String, Value>) -> Result<String
     for manifest in manifests.values() {
         let mut row = Map::new();
         row.insert("name".to_owned(), manifest["name"].clone());
-        for key in ["quality", "docs", "setup"] {
+        for key in ["quality", "docs", "setup", "commands"] {
             if !manifest[key].is_null() {
                 row.insert(key.to_owned(), manifest[key].clone());
             }
@@ -439,6 +439,7 @@ mod tests {
                     "probes": {"lint": ["real_py_lint_probe_aspect"]},
                 },
                 "docs": {"bzl": "py/private/docs:docs.bzl", "aspects": ["real_py_docs_aspect"]},
+                "commands": {"python_interpreter": "@rules_dx//py:python"},
                 "setup": {"hubs": [
                     {"ecosystem": "pip", "manifest": "req.in", "lock": "req.txt", "hub": "pypi", "imports": "provides", "state": null},
                     {"ecosystem": "nolock", "manifest": "x", "lock": null, "hub": "h", "imports": "provides", "state": null},
@@ -488,6 +489,10 @@ mod tests {
         assert!(!ecosystems.contains("bare"), "{ecosystems}");
         let families = families_languages_json(&sample()).unwrap();
         assert!(families.contains("\"quality\": {"), "{families}");
+        assert!(
+            families.contains("\"python_interpreter\": \"@rules_dx//py:python\""),
+            "{families}"
+        );
         assert!(!families.contains("bare"), "{families}");
         assert!(!families.contains("depcheck"), "{families}");
     }

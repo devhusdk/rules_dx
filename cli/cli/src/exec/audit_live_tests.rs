@@ -617,7 +617,7 @@ pub(super) fn audit_live_without_hermetic_tool_fails_closed() {
     assert!(err.contains("ambient PATH lookup is rejected"), "{err}");
     assert!(err.contains("DX_GITLEAKS_BIN"), "{err}");
     assert!(err.contains("no such repository"), "{err}");
-    assert!(err.contains(dx_audit::secrets::RESOLVE_COMMAND), "{err}");
+    assert!(err.contains(&dx_audit::secrets::resolve_command()), "{err}");
     assert_eq!(calls.len(), 1, "{calls:?}");
     for word in ["cquery", "--output=files", dx_audit::secrets::TOOL_LABEL] {
         assert!(calls[0].contains(&word.to_owned()), "{calls:?}");
@@ -663,7 +663,7 @@ pub(super) fn audit_live_missing_resolved_artifact_fails_closed() {
     assert!(err.contains("audit_failed"), "{err}");
     assert!(err.contains("no file is there"), "{err}");
     assert!(err.contains("gitleaks"), "{err}");
-    assert!(err.contains(dx_audit::secrets::RESOLVE_COMMAND), "{err}");
+    assert!(err.contains(&dx_audit::secrets::resolve_command()), "{err}");
     assert!(runner.0.calls.borrow().is_empty(), "no launch");
 }
 

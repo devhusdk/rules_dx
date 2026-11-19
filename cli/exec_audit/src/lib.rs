@@ -795,7 +795,7 @@ fn gitleaks_path(
     bazel: &dyn dx_tool_resolve::Bazel,
     offline: bool,
 ) -> Result<PathBuf, DxError> {
-    use dx_audit::secrets::{RESOLVE_COMMAND, TOOL_ENV_VAR, TOOL_LABEL};
+    use dx_audit::secrets::{TOOL_ENV_VAR, TOOL_LABEL, resolve_command};
     use dx_exec_reports::pinned_tool::{PinnedTool, PinnedToolError, resolve_pinned};
     let tool = PinnedTool {
         var: TOOL_ENV_VAR,
@@ -803,10 +803,12 @@ fn gitleaks_path(
     };
     resolve_pinned(runner, bazel, &tool, offline).map_err(|error| match error {
         PinnedToolError::Invalid => DxError::failure(format!(
-            "secrets auditor unavailable: {TOOL_ENV_VAR} must be an absolute path to the pinned {TOOL_LABEL} artifact; ambient PATH lookup is rejected; set it with: {RESOLVE_COMMAND}"
+            "secrets auditor unavailable: {TOOL_ENV_VAR} must be an absolute path to the pinned {TOOL_LABEL} artifact; ambient PATH lookup is rejected; set it with: {}",
+            resolve_command()
         )),
         PinnedToolError::Unresolved { detail } => DxError::failure(format!(
-            "secrets auditor unavailable: could not resolve {TOOL_LABEL} through Bazel ({detail}); ambient PATH lookup is rejected; set {TOOL_ENV_VAR} with: {RESOLVE_COMMAND}"
+            "secrets auditor unavailable: could not resolve {TOOL_LABEL} through Bazel ({detail}); ambient PATH lookup is rejected; set {TOOL_ENV_VAR} with: {}",
+            resolve_command()
         )),
     })
 }

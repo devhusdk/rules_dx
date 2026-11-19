@@ -1216,6 +1216,30 @@ rust_test(
 )
 
 rust_test(
+    name = "command_labels_test",
+    size = "small",
+    srcs = ["command_labels_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "command_labels_test",
+    crate_root = "command_labels_test.rs",
+    data = ["@dx_test_tags_sources//:rust.json"],
+    env = {"DX_RUST_JSON": "$(rlocationpath @dx_test_tags_sources//:rust.json)"},
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:starlark_syntax",
+    ],
+)
+
+rust_test(
     name = "hub_literals_test",
     size = "small",
     srcs = ["hub_literals_test.rs"],

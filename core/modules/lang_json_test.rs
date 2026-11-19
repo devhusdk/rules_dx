@@ -65,12 +65,22 @@ fn value_problems(path: &str, value: &Value, schema: &Value, defs: &Value) -> Ve
             }
         }
         Value::Object(object) => {
-            let Some(properties) = schema["properties"].as_object() else {
-                return problems;
-            };
             let child = |key: &str| match path {
                 "" => key.to_owned(),
                 _ => format!("{path}.{key}"),
+            };
+            if schema["additionalProperties"].is_object() {
+                for (key, value) in object {
+                    problems.extend(value_problems(
+                        &child(key),
+                        value,
+                        &schema["additionalProperties"],
+                        defs,
+                    ));
+                }
+            }
+            let Some(properties) = schema["properties"].as_object() else {
+                return problems;
             };
             for key in schema["required"].as_array().into_iter().flatten() {
                 let key = key.as_str().expect("required key");
@@ -146,6 +156,21 @@ fn schema_rejects_a_bad_manifest() {
     assert!(found.contains("extra: not in the schema"), "{found}");
     assert!(found.contains("is not allowed"), "{found}");
     assert!(found.contains("duplicate items"), "{found}");
+}
+
+#[test]
+fn schema_rejects_an_empty_command() {
+    let schema: Value =
+        serde_json::from_str(&dx_testing::read_runfiles("core/modules/lang.schema.json"))
+            .expect("schema");
+    let bad = serde_json::json!({"commands": {"go": "", "mix": 1}});
+    let found = schema_problems(&bad, &schema);
+    for want in ["commands.go: empty string", "commands.mix: expected string"] {
+        assert!(
+            found.iter().any(|problem| problem == want),
+            "{want}: {found:?}"
+        );
+    }
 }
 
 #[test]

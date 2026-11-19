@@ -61,8 +61,8 @@ page lists every flag.
 | opam | [`opam_deploy`](#opam_deploy) |
 | Packagist | [`packagist_deploy`](#packagist_deploy) |
 
-Debug symbols: [`dx_split_debug_info`](#dx_split_debug_info),
-[`dx_dsym`](#dx_dsym) and [`dx_pdb`](#dx_pdb).
+Debug symbols: [`split_debug_info`](#split_debug_info),
+[`dsym`](#dsym) and [`pdb`](#pdb).
 
 ## Dry run and publish
 
@@ -82,12 +82,12 @@ publishes only with `DX_DEPLOY_LIVE=1`.
 `linux_package_deploy`. The build fails when the published files together are
 larger, and prints both sizes in bytes. Empty means no budget.
 
-`sbom` is optional. It is a `dx_sbom` target, and every `*_deploy` macro takes
+`sbom` is optional. It is a `sbom` target, and every `*_deploy` macro takes
 it. `dx deploy` prints `SBOM of <label>: <file> <n> packages`.
 
 Every `*_deploy` macro ends with the same four attributes: `tags`,
 `visibility`, `testonly` and `target_compatible_with`. Each one is passed on
-to the `dx_deployment` target and to every helper target the macro makes, such
+to the `deployment` target and to every helper target the macro makes, such
 as the `_config`, `_pack` and archive targets.
 
 
@@ -406,7 +406,7 @@ bazel build //pkg:ledger_release //pkg:ledger_release_checksum
 - `linkage`: `static` or `dynamic`. Defaults to `dynamic`.
 - `runtime`: files the app needs at run time. Each lands at the archive root
   under its own file name, mode 0644. Native libraries (`.dll`, `.dylib`,
-  `.so` or `.so.<n>`) must come through a `dx_native_runtime` target. A
+  `.so` or `.so.<n>`) must come through a `native_runtime` target. A
   plain file with such a name fails the build. Defaults to `[]`.
 - `format`: `tar.gz` or `zip`. Defaults to `tar.gz`.
 - `resources`: targets whose files land under `resources/`. Each file must
@@ -418,15 +418,15 @@ bazel build //pkg:ledger_release //pkg:ledger_release_checksum
 
 `IDENTITY.txt` lists `name`, `arch`, `os`, `linkage` and `min_runtime`.
 Then it has one sorted `runtime: <name> <version> <redistribution>` line per
-`dx_native_runtime` target in `runtime`.
+`native_runtime` target in `runtime`.
 
-A `dx_native_runtime` target records where a library comes from and whether
+A `native_runtime` target records where a library comes from and whether
 it may ship:
 
 ```starlark
-load("@rules_dx//deploy:defs.bzl", "dx_native_runtime")
+load("@rules_dx//deploy:defs.bzl", "native_runtime")
 
-dx_native_runtime(
+native_runtime(
     name = "vcruntime",
     srcs = ["vcruntime140.dll"],
     notice = "vcruntime_NOTICE.txt",
@@ -1318,7 +1318,7 @@ oci_deploy(
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 - `size_budget`: optional, such as `500MB`. The build fails when the image,
   the archive file or the layout directory tree, is larger.
-- `sbom`: optional. A `dx_sbom` target, attested to the pushed digest.
+- `sbom`: optional. A `sbom` target, attested to the pushed digest.
 - `scan`: `off`, `warn` or `fail`. Defaults to `fail`. Scans the staged
   image for vulnerabilities with `trivy`. See below.
 - `scan_severity`: the lowest severity the scan reports: `LOW`, `MEDIUM`,
@@ -1633,16 +1633,16 @@ Exit codes:
 - `1`: a version mismatch, a lint or package failure, a refused live run, or
   a failed push.
 
-## dx_split_debug_info
+## split_debug_info
 
-Use `dx_split_debug_info` to split the debug info out of a Linux `cc_binary`,
+Use `split_debug_info` to split the debug info out of a Linux `cc_binary`,
 so you can ship the stripped binary and keep the symbols. It only builds
 files.
 
 ```starlark
-load("@rules_dx//deploy:defs.bzl", "dx_split_debug_info")
+load("@rules_dx//deploy:defs.bzl", "split_debug_info")
 
-dx_split_debug_info(
+split_debug_info(
     name = "app_split",
     binary = ":app",
 )
@@ -1675,15 +1675,15 @@ Look up an address with `llvm-symbolizer`:
 llvm-symbolizer --obj=app_split.debug 0x401136
 ```
 
-## dx_dsym
+## dsym
 
-Use `dx_dsym` to pair the dSYM of a macOS `cc_binary` with that binary. It
+Use `dsym` to pair the dSYM of a macOS `cc_binary` with that binary. It
 only builds files.
 
 ```starlark
-load("@rules_dx//deploy:defs.bzl", "dx_dsym")
+load("@rules_dx//deploy:defs.bzl", "dsym")
 
-dx_dsym(
+dsym(
     name = "app_dsym",
     binary = ":app",
 )
@@ -1716,15 +1716,15 @@ Look up an address in the bundle with `llvm-symbolizer`:
 llvm-symbolizer --obj=app_dsym.dSYM/Contents/Resources/DWARF/app 0x100003f40
 ```
 
-## dx_pdb
+## pdb
 
-Use `dx_pdb` to pair the PDB of a Windows `cc_binary` with that binary. It
+Use `pdb` to pair the PDB of a Windows `cc_binary` with that binary. It
 only builds files.
 
 ```starlark
-load("@rules_dx//deploy:defs.bzl", "dx_pdb")
+load("@rules_dx//deploy:defs.bzl", "pdb")
 
-dx_pdb(
+pdb(
     name = "app_pdb",
     binary = ":app",
 )

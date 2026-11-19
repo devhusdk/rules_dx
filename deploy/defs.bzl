@@ -2,7 +2,7 @@
 
 load(
     "//deploy/private:defs.bzl",
-    _DxDeployInfo = "DxDeployInfo",
+    _DeployInfo = "DeployInfo",
     _NativeRuntimeInfo = "NativeRuntimeInfo",
     _archive_deploy = "archive_deploy",
     _cloudflare_pages_deploy = "cloudflare_pages_deploy",
@@ -10,13 +10,13 @@ load(
     _consumer_archive = "consumer_archive",
     _cpan_deploy = "cpan_deploy",
     _crates_deploy = "crates_deploy",
-    _dx_deployment = "dx_deployment",
-    _dx_dsym = "dx_dsym",
-    _dx_native_runtime = "dx_native_runtime",
-    _dx_pdb = "dx_pdb",
-    _dx_resources = "dx_resources",
-    _dx_sbom = "dx_sbom",
-    _dx_split_debug_info = "dx_split_debug_info",
+    _deployment = "deployment",
+    _dsym = "dsym",
+    _native_runtime = "native_runtime",
+    _pdb = "pdb",
+    _resources = "resources",
+    _sbom = "sbom",
+    _split_debug_info = "split_debug_info",
     _github_deploy = "github_deploy",
     _hackage_deploy = "hackage_deploy",
     _helm_chart_deploy = "helm_chart_deploy",
@@ -40,7 +40,7 @@ load(
 load("//deploy/private:qt.bzl", _qt_bundle_runtime = "qt_bundle_runtime", _qt_consumer_archive = "qt_consumer_archive")
 load("//deploy/private/offline:offline.bzl", _offline_bundle = "offline_bundle")
 
-DxDeployInfo = _DxDeployInfo
+DeployInfo = _DeployInfo
 NativeRuntimeInfo = _NativeRuntimeInfo
 archive_deploy = _archive_deploy
 cloudflare_pages_deploy = _cloudflare_pages_deploy
@@ -48,13 +48,13 @@ conan_deploy = _conan_deploy
 consumer_archive = _consumer_archive
 cpan_deploy = _cpan_deploy
 crates_deploy = _crates_deploy
-dx_deployment = _dx_deployment
-dx_dsym = _dx_dsym
-dx_native_runtime = _dx_native_runtime
-dx_pdb = _dx_pdb
-dx_resources = _dx_resources
-dx_sbom = _dx_sbom
-dx_split_debug_info = _dx_split_debug_info
+deployment = _deployment
+dsym = _dsym
+native_runtime = _native_runtime
+pdb = _pdb
+resources = _resources
+sbom = _sbom
+split_debug_info = _split_debug_info
 github_deploy = _github_deploy
 hackage_deploy = _hackage_deploy
 helm_chart_deploy = _helm_chart_deploy

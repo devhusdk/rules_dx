@@ -11,7 +11,7 @@ DxSbomInfo = provider(
 )
 
 DxSbomFileInfo = provider(
-    doc = "The SPDX document a dx_sbom target wrote.",
+    doc = "The SPDX document a sbom target wrote.",
     fields = {"file": "File: the <name>.spdx.json document."},
 )
 
@@ -75,7 +75,7 @@ def _dx_sbom_impl(ctx):
     )
     return [DefaultInfo(files = depset([out])), DxSbomFileInfo(file = out)]
 
-dx_sbom = rule(
+sbom = rule(
     implementation = _dx_sbom_impl,
     doc = "Writes <name>.spdx.json listing the crates in the dependency closure of `artifact`.",
     attrs = {

@@ -2,7 +2,7 @@
 
 load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget")
 load("//core:rlocation.bzl", "rlocation_path")
-load(":deployment.bzl", "dx_deployment")
+load(":deployment.bzl", "deployment")
 load(":validate_cpan.bzl", "cpan_dist_error", "cpan_name_error", "cpan_version_error")
 
 def _cpan_config_impl(ctx):
@@ -59,7 +59,7 @@ def cpan_deploy(name, dist, package = "", version = "", build_mode = "release", 
         **attrs
     )
 
-    dx_deployment(
+    deployment(
         name = name,
         sbom = sbom,
         config = ":" + config_target,

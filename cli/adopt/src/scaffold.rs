@@ -354,7 +354,7 @@ pub fn render_gitlab_caller() -> String {
 #[must_use]
 pub fn render_release_caller() -> String {
     let body = format!(
-        "name: release\non:\n  push:\n    tags: ['v*']\n  workflow_dispatch:\n    inputs:\n      deployables:\n        description: 'JSON array of dx_deployment labels to publish, in order. Empty publishes every dx_deployment tagged release.'\n        required: false\n        default: ''\n      publish:\n        description: 'Publish after the dry run. A dispatch from a branch only plans and dry-runs; publishing needs a tag.'\n        type: boolean\n        default: false\njobs:\n  release:\n    uses: {CONSUMER_WORKFLOW_OWNER}/{CONSUMER_WORKFLOW_REPO}/{RELEASE_WORKFLOW_PATH}@{CONSUMER_WORKFLOW_PIN}\n    with:\n      deployables: ${{{{ inputs.deployables }}}}\n      publish: ${{{{ github.event_name != 'workflow_dispatch' || inputs.publish }}}}\n    secrets: inherit\n    permissions:\n      contents: write\n      id-token: write\n      attestations: write\n      packages: write\n",
+        "name: release\non:\n  push:\n    tags: ['v*']\n  workflow_dispatch:\n    inputs:\n      deployables:\n        description: 'JSON array of deployment labels to publish, in order. Empty publishes every deployment tagged release.'\n        required: false\n        default: ''\n      publish:\n        description: 'Publish after the dry run. A dispatch from a branch only plans and dry-runs; publishing needs a tag.'\n        type: boolean\n        default: false\njobs:\n  release:\n    uses: {CONSUMER_WORKFLOW_OWNER}/{CONSUMER_WORKFLOW_REPO}/{RELEASE_WORKFLOW_PATH}@{CONSUMER_WORKFLOW_PIN}\n    with:\n      deployables: ${{{{ inputs.deployables }}}}\n      publish: ${{{{ github.event_name != 'workflow_dispatch' || inputs.publish }}}}\n    secrets: inherit\n    permissions:\n      contents: write\n      id-token: write\n      attestations: write\n      packages: write\n",
     );
     with_header(Ownership::Pin, ".github/workflows/release.yml", &body)
 }
@@ -783,7 +783,7 @@ pub fn plan_init_files_at(
         )
     };
     let mut files = plan_init_files_full(module_name, &branch, &extensions, &tools, ci)?;
-    if !crate::families::has_dx_deployment(root) {
+    if !crate::families::has_deployment(root) {
         files.retain(|file| file.path != ".github/workflows/release.yml");
     }
     if !root.join("BUILD").exists() && !root.join(ROOT_BUILD).exists() {
@@ -1137,7 +1137,7 @@ mod tests {
     }
 
     #[test]
-    fn release_caller_needs_a_dx_deployment_in_the_tree() {
+    fn release_caller_needs_a_deployment_in_the_tree() {
         let scratch = dx_test_scratch::scratch("dx-adopt-release-gate-").unwrap();
         let root = scratch.path();
         let has_release = |root: &std::path::Path| {
@@ -1147,7 +1147,10 @@ mod tests {
                 .any(|f| f.path == ".github/workflows/release.yml")
         };
         assert!(!has_release(root));
-        std::fs::write(root.join("BUILD.bazel"), "dx_deployment(name = \"npm\")\n")
+        std::fs::write(root.join("BUILD.bazel"), "cross_deployment(name = \"x\")\n")
+            .expect("build file");
+        assert!(!has_release(root));
+        std::fs::write(root.join("BUILD.bazel"), "deployment(name = \"npm\")\n")
             .expect("build file");
         assert!(has_release(root));
         scratch.close().expect("cleanup");

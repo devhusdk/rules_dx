@@ -41,7 +41,7 @@ def _native_runtime_impl(ctx):
         OutputGroupInfo(notice = depset([ctx.file.notice]) if ctx.file.notice else depset()),
     ]
 
-dx_native_runtime = rule(
+native_runtime = rule(
     implementation = _native_runtime_impl,
     doc = "Declares one native runtime library for consumer_archive.",
     attrs = {

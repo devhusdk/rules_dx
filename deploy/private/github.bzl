@@ -4,7 +4,7 @@ load("//core:rlocation.bzl", "rlocation_path")
 load("//deploy/private/release:signing.bzl", "CosignInfo", "SIGNING_COSIGN_VERSION")
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
 load(":config.bzl", "DEPLOY_TOOL", "DxRegistryArtifactsInfo", "deploy_attrs", "deploy_config", "deployment_budget")
-load(":deployment.bzl", "dx_deployment")
+load(":deployment.bzl", "deployment")
 load(":validate_github.bzl", "github_asset_collision_error", "github_notes_error", "github_tag_error")
 
 def _github_config_impl(ctx):
@@ -175,7 +175,7 @@ def github_deploy(name, artifacts, release_tag = "", tag_from_head = False, buil
         **attrs
     )
 
-    dx_deployment(
+    deployment(
         name = name,
         sbom = sbom,
         config = ":" + config_target,

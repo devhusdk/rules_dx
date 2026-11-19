@@ -1,6 +1,6 @@
 """Tests for the shipped crate inventory."""
 
-load("//deploy/private:native_runtime.bzl", "dx_native_runtime")
+load("//deploy/private:native_runtime.bzl", "native_runtime")
 load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load(":inventory.bzl", "ShippedCratesInfo", "crate_name_tag", "inventory_text_path", "license_text_member", "license_text_name", "shipped_crates_aspect", "shipped_inventory")
 
@@ -97,7 +97,7 @@ def inventory_runtime_file_tests(name, app):
         outs = [name + "_notice.txt"],
         cmd = "echo runtime notice words > $@",
     )
-    dx_native_runtime(
+    native_runtime(
         name = name + "_runtime",
         srcs = [name + "_lib.so"],
         notice = ":" + name + "_notice_text",

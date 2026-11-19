@@ -1,7 +1,7 @@
 load("//cc:defs.bzl", "cc_library")
 load("//deploy/private:archive.bzl", "consumer_archive")
-load("//deploy/private:native_runtime.bzl", "dx_native_runtime")
-load("//deploy/private:resources.bzl", "dx_resources")
+load("//deploy/private:native_runtime.bzl", "native_runtime")
+load("//deploy/private:resources.bzl", "resources")
 load("//core/private/testing:defs.bzl", "starlark_test")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
@@ -27,7 +27,7 @@ rust_binary(
     link_deps = [":greet"],
 )
 
-dx_resources(
+resources(
     name = "consumer_res",
     mappings = {"@consumer_resources//:banner.txt": "banner.txt"},
 )
@@ -138,7 +138,7 @@ rust_test(
     ],
 )
 
-dx_native_runtime(
+native_runtime(
     name = "demo_runtime",
     srcs = ["libdemo_runtime.so"],
     notice = "demo_runtime_NOTICE.txt",
@@ -147,14 +147,14 @@ dx_native_runtime(
     version = "1.2",
 )
 
-dx_native_runtime(
+native_runtime(
     name = "demo_os_runtime",
     redistribution = "os_supplied",
     source = "operating system",
     version = "2.17",
 )
 
-dx_native_runtime(
+native_runtime(
     name = "demo_build_runtime",
     srcs = ["libdemo_runtime.so"],
     redistribution = "build_only",
@@ -162,7 +162,7 @@ dx_native_runtime(
     version = "1.2",
 )
 
-dx_native_runtime(
+native_runtime(
     name = "demo_runtime_no_notice",
     srcs = ["libdemo_runtime.so"],
     redistribution = "app_local",
@@ -171,7 +171,7 @@ dx_native_runtime(
     version = "1.2",
 )
 
-dx_native_runtime(
+native_runtime(
     name = "demo_os_runtime_files",
     srcs = ["libdemo_runtime.so"],
     redistribution = "os_supplied",
@@ -180,7 +180,7 @@ dx_native_runtime(
     version = "2.17",
 )
 
-dx_native_runtime(
+native_runtime(
     name = "demo_runtime_no_version",
     srcs = ["libdemo_runtime.so"],
     notice = "demo_runtime_NOTICE.txt",
@@ -233,7 +233,7 @@ starlark_test(
     mode = "execution",
 )
 
-dx_resources(
+resources(
     name = "external_res",
     mappings = {"@consumer_archive_repo//:banner.txt": "banner.txt"},
 )
@@ -559,7 +559,7 @@ real_source_target(
     tags = ["corpus"],
 )
 
-dx_resources(
+resources(
     name = "long_path_res",
     mappings = {
         "@consumer_resources//:banner.txt": "textures/textures/textures/textures/textures/textures/textures/textures/textures/textures/icon.png",

@@ -139,6 +139,52 @@ fn the_built_in_license_table_passes_only_its_allow_list() {
 }
 
 #[test]
+fn an_inventory_text_must_exist_and_hold_words() {
+    let entry = |package: &str, set: &str| {
+        format!(
+            "[[inventory]]\npackage = \"{package}\"\nset = \"{set}\"\nlicense = \"MIT\"\nversions = \"1.0.0\"\ntext = \"third_party/licenses/{package}/LICENSE\"\n"
+        )
+    };
+    for (words, other, code) in [
+        (None, false, 1),
+        (Some(" \n\t"), false, 1),
+        (Some("MIT words\n"), false, 0),
+        (Some("MIT words\n"), true, 1),
+    ] {
+        let (status, out, err) = run_with(
+            &[
+                "license",
+                "//cc/private/tools/context:demo",
+                "--report=sarif=-",
+            ],
+            &AuditRunner::clean(),
+            &|harness| {
+                write_demo_license(harness, "MIT");
+                let mut policy = format!("schema_version = 1\n{}", entry("demo", "cargo"));
+                if other {
+                    policy.push_str(&entry("other", "npm"));
+                }
+                harness.write_source("license.toml", &policy);
+                if let Some(words) = words {
+                    harness.write_source("third_party/licenses/demo/LICENSE", words);
+                }
+            },
+        );
+        let case = format!("words {words:?}, other {other}");
+        assert_eq!(status, code, "{case}: {out}{err}");
+        assert_eq!(
+            out.contains("license/inventory-text-missing"),
+            code == 1,
+            "{case}: {out}{err}"
+        );
+        assert!(
+            !out.contains("license/missing-notice-text"),
+            "{case}: {out}{err}"
+        );
+    }
+}
+
+#[test]
 fn the_strict_tier_denies_a_license_the_standard_tier_only_reviews() {
     for (tier, reviewed) in [("standard", true), ("strict", false)] {
         let harness = Harness::new("license-tier");

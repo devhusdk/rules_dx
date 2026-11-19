@@ -79,6 +79,7 @@ fn workflow_is_reusable_and_read_only() {
         workflow["jobs"]["python-tools"]["permissions"]["contents"],
         "read"
     );
+    assert_eq!(workflow["jobs"]["go"]["permissions"]["contents"], "read");
 }
 
 #[test]
@@ -104,6 +105,18 @@ fn python_tools_job_builds_every_bundle_host() {
     assert!(text.contains("//core/quality/tools/python_bundle:dx_python_tools_${host//-/_}"));
     assert!(text.contains("asset=\"$out/dx-python-tools-$host.tar.gz\""));
     assert!(text.contains("name: release-tool-python-tools"));
+}
+
+#[test]
+fn go_job_cross_builds_every_host() {
+    let workflow = document(TOOLS).unwrap();
+    assert_eq!(workflow["jobs"]["go"]["runs-on"], "ubuntu-latest");
+    let text = read_runfiles(TOOLS);
+    assert!(text.contains("//go/private/tools/analysis/dx_go:dx_go_${host//-/_}"));
+    assert!(text.contains("asset=\"$out/dx-go-$host\""));
+    assert!(text.contains("cp \"$out/dx-go-linux-x86_64\" \"$check/dx_modfmt\""));
+    assert!(text.contains("./dx_modfmt -c"));
+    assert!(text.contains("name: release-tool-go"));
 }
 
 #[test]
@@ -279,6 +292,11 @@ fn release_writes_and_checks_the_tool_manifest() {
         "for tool in dx-deadnix dx-selene; do\n            for host in linux-x86_64 linux-arm64 macos-arm64 windows-x86_64; do\n              tool_asset=\"$tool-$host\""
     ));
     assert!(text.contains("--manifest \"$PWD/out/dx-tool-sha256sums.txt\""));
+    assert!(text.contains("test \"$(wc -l < out/dx-sha256sums.txt)\" -eq 52"));
+    assert!(text.contains("for tool in capnp flatc go thrift; do"));
+    assert!(text.contains(" dx-go-* "));
+    assert!(text.contains("cd out\n            for file in dx-sha256sums.txt "));
+    assert!(text.contains("cp \"$file\" \"$SOURCE_DIR/\""));
 }
 
 #[test]
@@ -301,6 +319,10 @@ fn release_consumer_checks_prebuilt_quality_tools() {
     ));
     assert!(text.contains("*\"dx_prebuilt/$KEY/$tool\"*) ;;"));
     assert!(text.contains("- $tool: $tool_files"));
+    assert!(text.contains("bazel cquery --output=files @rules_dx//config:tool_govet"));
+    assert!(text.contains("*\"dx_prebuilt/$KEY/dx_govet\"*) ;;"));
+    assert!(text.contains("bazel build @rules_dx//config:tool_modfmt"));
+    assert!(text.contains("\"$modfmt\" -c"));
 }
 
 #[test]

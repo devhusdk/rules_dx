@@ -55,6 +55,9 @@ def _checks():
     go_root = plan_root([_mod("app", True, assets = [_tag(name = "go")])], tools = ["dx", "launcher", "go"])
     go_assets = plan_assets("go", "1.2.3", {}, URL_TEMPLATE, go_root.overrides["go"], exe = "dx-go", repo_prefix = "dx_go_prebuilt_")
     go_build = consumer_build(unpinned, [], go_assets)
+    go_linux = [a for a in go_assets if a.key == "linux_x86_64"][0]
+    go_all_pinned = plan_assets("go", "1.2.3", {"go": {key: _HASH for key in TOOLS["go"].platforms}}, URL_TEMPLATE, {}, exe = "dx-go", repo_prefix = "dx_go_prebuilt_")
+    go_windows_arm = [a for a in go_all_pinned if a.key == "windows_aarch64"][0]
     source_jars = with_jars(alias_build(SOURCE_LABEL), plan_jars("1.2.3", {}, URL_TEMPLATE))
     pinned_jars = plan_jars("1.2.3", {"javac_check": {"any": _HASH}}, URL_TEMPLATE)
     pinned_jars_build = with_jars(pinned_build, pinned_jars)
@@ -206,9 +209,10 @@ def _checks():
         expect_false("an unpinned launcher platform downloads nothing", "dx_launcher_prebuilt_linux_aarch64" in launcher_build),
         expect_equal("dx and launcher share one config_setting per platform", both_build.count('name = "linux_x86_64",\n    constraint_values'), 1),
         expect_equal("a valid root has no error", pinned_root.error, ""),
-        expect_equal("a release builds no go assets yet", [line for line in registry_lines() if line.startswith("go ")], []),
-        expect_equal("an unreleased go plans only its overrides", [a.key for a in go_assets], ["linux_x86_64"]),
-        expect_equal("a go override downloads dx-go", go_assets[0].repo, "dx_go_prebuilt_linux_x86_64"),
+        expect_equal("a release builds dx-go for every platform", [line for line in registry_lines() if line.startswith("go ")], ["go linux_arm64 dx-go-linux-arm64", "go linux_x86_64 dx-go-linux-x86_64", "go macos_arm64 dx-go-macos-arm64", "go windows_arm64 dx-go-windows-arm64", "go windows_x86_64 dx-go-windows-x86_64"]),
+        expect_equal("an unpinned go downloads only its overrides", [a.key for a in go_assets if a.repo], ["linux_x86_64"]),
+        expect_equal("a go override downloads dx-go", go_linux.repo, "dx_go_prebuilt_linux_x86_64"),
+        expect_equal("a pinned windows arm64 downloads its own dx-go", go_windows_arm.repo, "dx_go_prebuilt_windows_aarch64"),
         expect_contains("a go override declares its download", go_build, 'name = "dx_govet_linux_x86_64",\n    src = "@dx_go_prebuilt_linux_x86_64//file:dx-go",\n    out = "linux_x86_64/dx_govet",'),
         expect_contains("a go tool selects its download", go_build, '":linux_x86_64": ":dx_staticcheck_linux_x86_64",'),
         expect_contains("other platforms build the go tool from source", go_build, '"//conditions:default": "{}",'.format(GO_TOOLS["dx_staticcheck"])),

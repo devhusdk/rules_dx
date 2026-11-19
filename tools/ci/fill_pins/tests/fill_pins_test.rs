@@ -3,8 +3,8 @@ use dx_test_scratch::scratch;
 use std::path::Path;
 use tempfile::TempDir;
 
-/// The C++ code generators release.yml adds to the dx manifest, one asset per platform each.
-const CC_TOOLS: [&str; 3] = ["capnp", "flatc", "thrift"];
+/// The per-platform tools release.yml adds to the dx manifest, one asset per platform each.
+const PLATFORM_TOOLS: [&str; 4] = ["capnp", "flatc", "go", "thrift"];
 
 const REPO: &str = "devhusdk/rules_dx";
 const NATIVE_TOOLS: [&str; 2] = ["progenitor", "topiary"];
@@ -57,7 +57,7 @@ fn manifest() -> String {
             lines.push(format!("{}  {asset}\n", hash(4)));
         }
     }
-    for (t, tool) in CC_TOOLS.iter().enumerate() {
+    for (t, tool) in PLATFORM_TOOLS.iter().enumerate() {
         for (n, asset) in assets(tool).iter().enumerate() {
             lines.push(format!("{}  {asset}\n", hash(21 + 5 * t + n)));
         }
@@ -187,7 +187,7 @@ fn the_registry_names_every_dx_release_asset() {
     assert_eq!(assets("dx"), want);
     assert_eq!(assets("gazelle").len(), want.len());
     assert_eq!(assets("launcher").len(), want.len());
-    for tool in CC_TOOLS {
+    for tool in PLATFORM_TOOLS {
         assert_eq!(assets(tool).len(), want.len());
     }
 }
@@ -222,7 +222,7 @@ fn writes_one_pin_per_tool_and_platform_and_keeps_the_head() {
             .entry("launcher".to_owned())
             .or_insert_with(Vec::new)
             .push((key.to_string(), hash(n + 16)));
-        for (t, tool) in CC_TOOLS.iter().enumerate() {
+        for (t, tool) in PLATFORM_TOOLS.iter().enumerate() {
             by_tool
                 .entry((*tool).to_owned())
                 .or_insert_with(Vec::new)

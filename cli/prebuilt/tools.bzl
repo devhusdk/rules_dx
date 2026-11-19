@@ -114,17 +114,7 @@ TOOLS = {
         member = "",
         main_class = "",
     ),
-    # The Go lint multicall; a release does not build it yet, so only a root
-    # dx_prebuilt.asset(name = "go") downloads it.
-    "go": struct(
-        asset = "dx-go-{os}-{cpu}",
-        role = "exec",
-        platforms = [],
-        fallbacks = {},
-        source = "@rules_dx//go/private/tools/analysis/dx_go:dx_go",
-        member = "",
-        main_class = "",
-    ),
+    "go": _native_exec("@rules_dx//go/private/tools/analysis/dx_go:dx_go"),
     # Android and iOS targets have no asset and build the launcher from source.
     "launcher": struct(
         asset = "dx-launcher-{os}-{cpu}",

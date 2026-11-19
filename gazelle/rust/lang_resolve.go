@@ -38,15 +38,42 @@ func resolveImportOverride(c *config.Config, name string) (bool, error) {
 	return false, nil
 }
 
-// builtinRunfilesImport is the crate name of `use runfiles::`; builtinRunfilesLabel is the default it resolves to.
 const (
 	builtinRunfilesImport = "runfiles"
 	builtinRunfilesLabel  = "@rules_rust//rust/runfiles"
+	rulesDxModule         = "rules_dx"
+	rustProstModule       = "rules_rust_prost"
 )
 
-// builtinImport reports whether name takes the built-in default: the runfiles crate, unless the manifest declares a crate of that name.
-func builtinImport(manifest *cargoManifest, name string) bool {
-	if name != builtinRunfilesImport {
+// builtinProstCrates are the crates rules_dx re-exports under //rust when the root module depends on rules_rust_prost.
+var builtinProstCrates = map[string]bool{"prost": true, "prost_types": true, "tonic": true}
+
+// builtinCrate reports whether name has a built-in default label.
+func builtinCrate(c *config.Config, name string) bool {
+	if name == builtinRunfilesImport {
+		return true
+	}
+	return builtinProstCrates[name] && c != nil && c.RepoRoot != "" && common.ModuleDeps(c.RepoRoot)[rustProstModule]
+}
+
+// builtinLabel is the default dep for a built-in crate, relative to from.
+func builtinLabel(c *config.Config, from label.Label, name string) string {
+	if name == builtinRunfilesImport {
+		return builtinRunfilesLabel
+	}
+	repo := ""
+	if c.ModuleToApparentName != nil {
+		repo = c.ModuleToApparentName(rulesDxModule)
+	}
+	if repo == "" {
+		repo = rulesDxModule
+	}
+	return label.New(repo, "rust", name).Rel(from.Repo, from.Pkg).String()
+}
+
+// builtinImport reports whether name takes a built-in default, unless the manifest declares a crate of that name.
+func builtinImport(c *config.Config, manifest *cargoManifest, name string) bool {
+	if !builtinCrate(c, name) {
 		return false
 	}
 	_, normal := manifest.normalDeps[name]
@@ -55,8 +82,8 @@ func builtinImport(manifest *cargoManifest, name string) bool {
 }
 
 // undeclaredImport reports whether no Cargo scope declares name and it is neither built in nor the crate itself.
-func undeclaredImport(manifest *cargoManifest, name string) bool {
-	if builtinImport(manifest, name) {
+func undeclaredImport(c *config.Config, manifest *cargoManifest, name string) bool {
+	if builtinImport(c, manifest, name) {
 		return false
 	}
 	for _, scope := range []map[string]cargoDependency{manifest.normalDeps, manifest.devDeps, manifest.buildDeps} {
@@ -90,7 +117,7 @@ func validateCargoImports(c *config.Config, manifest *cargoManifest, kind string
 		if err != nil {
 			return err
 		}
-		if mapped || builtinImport(manifest, name) || undeclaredImport(manifest, name) {
+		if mapped || builtinImport(c, manifest, name) || undeclaredImport(c, manifest, name) {
 			continue
 		}
 		_, normal := manifest.normalDeps[name]
@@ -111,7 +138,7 @@ func validateCargoImports(c *config.Config, manifest *cargoManifest, kind string
 		if err != nil {
 			return err
 		}
-		if mapped || builtinImport(manifest, name) || undeclaredImport(manifest, name) {
+		if mapped || builtinImport(c, manifest, name) || undeclaredImport(c, manifest, name) {
 			continue
 		}
 		_, normal := manifest.normalDeps[name]
@@ -136,7 +163,7 @@ func validateExampleImports(c *config.Config, manifest *cargoManifest, imports t
 		if err != nil {
 			return err
 		}
-		if mapped || builtinImport(manifest, name) || undeclaredImport(manifest, name) {
+		if mapped || builtinImport(c, manifest, name) || undeclaredImport(c, manifest, name) {
 			continue
 		}
 		_, normal := manifest.normalDeps[name]
@@ -157,7 +184,7 @@ func validateExampleImports(c *config.Config, manifest *cargoManifest, imports t
 		if err != nil {
 			return err
 		}
-		if mapped || builtinImport(manifest, name) || undeclaredImport(manifest, name) {
+		if mapped || builtinImport(c, manifest, name) || undeclaredImport(c, manifest, name) {
 			continue
 		}
 		_, normal := manifest.normalDeps[name]
@@ -183,7 +210,7 @@ func validateBuildImports(c *config.Config, manifest *cargoManifest, imports tar
 			if err != nil {
 				return err
 			}
-			if mapped || undeclaredImport(manifest, name) {
+			if mapped || undeclaredImport(c, manifest, name) {
 				continue
 			}
 			if _, ok := manifest.buildDeps[name]; !ok {
@@ -228,7 +255,7 @@ func noteRename(result *targetImports, name string, dep cargoDependency) {
 func localCargoImports(c *config.Config, manifest *cargoManifest, imports targetImports, includeDev bool) targetImports {
 	var result targetImports
 	for _, name := range imports.production {
-		if builtinImport(manifest, name) {
+		if builtinImport(c, manifest, name) {
 			result.production = append(result.production, name)
 			continue
 		}
@@ -243,20 +270,20 @@ func localCargoImports(c *config.Config, manifest *cargoManifest, imports target
 				noteGate(&result, name, dep)
 			} else if _, ok := lookupOverride(c, name); ok {
 				result.production = append(result.production, name)
-			} else if undeclaredImport(manifest, name) {
+			} else if undeclaredImport(c, manifest, name) {
 				result.production = append(result.production, name)
 				noteDeferred(&result, name)
 			}
 		} else if _, ok := lookupOverride(c, name); ok {
 			result.production = append(result.production, name)
-		} else if undeclaredImport(manifest, name) {
+		} else if undeclaredImport(c, manifest, name) {
 			result.production = append(result.production, name)
 			noteDeferred(&result, name)
 		}
 	}
 	if includeDev {
 		for _, name := range imports.test {
-			if builtinImport(manifest, name) {
+			if builtinImport(c, manifest, name) {
 				result.test = append(result.test, name)
 				continue
 			}
@@ -270,7 +297,7 @@ func localCargoImports(c *config.Config, manifest *cargoManifest, imports target
 				noteGate(&result, name, dep)
 			} else if _, ok := lookupOverride(c, name); ok {
 				result.test = append(result.test, name)
-			} else if undeclaredImport(manifest, name) {
+			} else if undeclaredImport(c, manifest, name) {
 				result.test = append(result.test, name)
 				noteDeferred(&result, name)
 			}
@@ -304,7 +331,7 @@ func appendMirrorPaths(result *targetImports, scopes ...map[string]cargoDependen
 func localCargoExampleImports(c *config.Config, manifest *cargoManifest, imports targetImports) targetImports {
 	var result targetImports
 	for _, name := range imports.production {
-		if builtinImport(manifest, name) {
+		if builtinImport(c, manifest, name) {
 			result.production = append(result.production, name)
 			continue
 		}
@@ -318,7 +345,7 @@ func localCargoExampleImports(c *config.Config, manifest *cargoManifest, imports
 			noteGate(&result, name, dep)
 		} else if _, ok := lookupOverride(c, name); ok {
 			result.production = append(result.production, name)
-		} else if undeclaredImport(manifest, name) {
+		} else if undeclaredImport(c, manifest, name) {
 			result.production = append(result.production, name)
 			noteDeferred(&result, name)
 		}
@@ -336,7 +363,7 @@ func localCargoBuildImports(c *config.Config, manifest *cargoManifest, imports t
 			noteGate(&result, name, dep)
 		} else if _, ok := lookupOverride(c, name); ok {
 			result.production = append(result.production, name)
-		} else if undeclaredImport(manifest, name) {
+		} else if undeclaredImport(c, manifest, name) {
 			result.production = append(result.production, name)
 			noteDeferred(&result, name)
 		}
@@ -348,7 +375,7 @@ func localCargoBuildImports(c *config.Config, manifest *cargoManifest, imports t
 			noteGate(&result, name, dep)
 		} else if _, ok := lookupOverride(c, name); ok {
 			result.test = append(result.test, name)
-		} else if undeclaredImport(manifest, name) {
+		} else if undeclaredImport(c, manifest, name) {
 			result.test = append(result.test, name)
 			noteDeferred(&result, name)
 		}
@@ -471,8 +498,8 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 				ignore.MarkUsed(from.Pkg)
 				continue
 			}
-			if name == builtinRunfilesImport {
-				deps[builtinRunfilesLabel] = true
+			if builtinCrate(c, name) {
+				deps[builtinLabel(c, from, name)] = true
 				continue
 			}
 			if imports.deferred[name] {

@@ -186,7 +186,7 @@ An import resolves in this order:
 | --- | --- |
 | `go` | `go.mod` direct requires, as `@<repo>//<package>`. An `// indirect` module fails. |
 | `java`, `kotlin`, `scala` | `maven_install.json`, as `@maven//:<group>_<artifact>`. A package in several artifacts needs a `resolve` mapping. |
-| `rust` | `Cargo.toml`. |
+| `rust` | `Cargo.toml`. An undeclared `runfiles` resolves to `@rules_rust//rust/runfiles`. When the root `MODULE.bazel` has a `bazel_dep` on `rules_rust_prost`, an undeclared `prost`, `prost_types` or `tonic` resolves to `@rules_dx//rust:<crate>`. |
 | `python` | `uv.lock`, as `@pypi//<name>`. Lowercase the name and replace `-`, `_`, `.` with `_`. A different import name needs a `resolve` mapping. |
 | `javascript`, `typescript` | Root `package.json`, as `//:node_modules/<package>`. |
 | `julia` | `[deps]` of `Project.toml`. Anything else needs a `resolve` line. |

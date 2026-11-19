@@ -208,7 +208,7 @@ def swift_fuzz_test(name, *, srcs = None, visibility = None, tags = None, copts 
     dx_fuzz_test(name, swift_binary, binary_kwargs, tags = tags, visibility = visibility, pinned_libfuzzer = False, **kwargs)
 
 def swift_bench(name, *, srcs = None, visibility = None, tags = None, **kwargs):
-    """A swift_binary timing loop run by `dx bench`; it links `//swift/private/bench` to write dx-bench.json."""
+    """A swift_binary timing loop run by `dx bench`; it links the rules_dx bench harness to write dx-bench.json."""
     dx_bench_test(
         name,
         swift_binary,

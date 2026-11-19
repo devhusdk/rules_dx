@@ -10,6 +10,7 @@ This page is generated. Do not edit it by hand. Run `bazel run //tools/api:updat
 - "Default" is the value dx uses when you leave the flag or argument out.
 - "Also" lists the other spellings of a flag.
 - A build setting is a flag you pass to Bazel as `--<setting>=<value>`. For an `alias`, "Default" names the setting it forwards to.
+- `pinned` in "Default" means the tool rules_dx pins. Set the flag to your own label to replace it.
 
 ## Commands
 
@@ -714,14 +715,14 @@ Exit codes: `0`, `1`, `2`.
 | `@rules_dx//config:extra_rustc_flag` | `alias` | `@rules_rust//rust/settings:extra_rustc_flag` |  |
 | `@rules_dx//config:rustc_output_diagnostics` | `alias` | `@rules_rust//rust/settings:rustc_output_diagnostics` |  |
 | `@rules_dx//config:tool_actionlint` | `label_flag` | `@dx_tools//:actionlint` |  |
-| `@rules_dx//config:tool_avro` | `label_flag` | `@rules_dx//java/private/quality/tools:avro_tools` |  |
+| `@rules_dx//config:tool_avro` | `label_flag` | pinned |  |
 | `@rules_dx//config:tool_capnp` | `label_flag` | `@dx_prebuilt//:capnp` |  |
 | `@rules_dx//config:tool_container_structure_test` | `label_flag` | `@dx_tools//:container_structure_test` |  |
-| `@rules_dx//config:tool_credo` | `label_flag` | `@rules_dx//elixir/private/tools:credo` |  |
+| `@rules_dx//config:tool_credo` | `label_flag` | pinned |  |
 | `@rules_dx//config:tool_dart` | `label_flag` | `@rules_dx//config:no_dart` |  |
-| `@rules_dx//config:tool_dialyzer` | `label_flag` | `@rules_dx//erlang/private/tools:dialyzer` |  |
-| `@rules_dx//config:tool_elvis` | `label_flag` | `@rules_dx//erlang/private/tools:elvis` |  |
-| `@rules_dx//config:tool_erlfmt` | `label_flag` | `@rules_dx//erlang/private/tools:erlfmt` |  |
+| `@rules_dx//config:tool_dialyzer` | `label_flag` | pinned |  |
+| `@rules_dx//config:tool_elvis` | `label_flag` | pinned |  |
+| `@rules_dx//config:tool_erlfmt` | `label_flag` | pinned |  |
 | `@rules_dx//config:tool_errcheck` | `label_flag` | `@dx_prebuilt//:dx_errcheck` |  |
 | `@rules_dx//config:tool_flatc` | `label_flag` | `@dx_prebuilt//:flatc` |  |
 | `@rules_dx//config:tool_gersemi` | `label_flag` | `@dx_tools//:gersemi` |  |
@@ -731,27 +732,27 @@ Exit codes: `0`, `1`, `2`.
 | `@rules_dx//config:tool_hadolint` | `label_flag` | `@dx_tools//:hadolint` |  |
 | `@rules_dx//config:tool_helm` | `label_flag` | `@dx_tools//:helm` |  |
 | `@rules_dx//config:tool_helmfmt` | `label_flag` | `@dx_tools//:helmfmt` |  |
-| `@rules_dx//config:tool_hlint` | `label_flag` | `@rules_dx//haskell/private/tools/hlint/bin` |  |
-| `@rules_dx//config:tool_jet` | `label_flag` | `@rules_dx//julia/private/tools/jet:jet` |  |
+| `@rules_dx//config:tool_hlint` | `label_flag` | pinned |  |
+| `@rules_dx//config:tool_jet` | `label_flag` | pinned |  |
 | `@rules_dx//config:tool_julia_format` | `label_flag` | `@rules_dx//config:no_julia_format` |  |
-| `@rules_dx//config:tool_julialint` | `label_flag` | `@rules_dx//julia/private/tools/lint:julialint` |  |
+| `@rules_dx//config:tool_julialint` | `label_flag` | pinned |  |
 | `@rules_dx//config:tool_kubeconform` | `label_flag` | `@dx_tools//:kubeconform` |  |
-| `@rules_dx//config:tool_luals` | `label_flag` | `@rules_dx//lua/private/tools:luals` |  |
-| `@rules_dx//config:tool_mix_format` | `label_flag` | `@rules_dx//elixir/private/tools:mix_format` |  |
+| `@rules_dx//config:tool_luals` | `label_flag` | pinned |  |
+| `@rules_dx//config:tool_mix_format` | `label_flag` | pinned |  |
 | `@rules_dx//config:tool_modfmt` | `label_flag` | `@dx_prebuilt//:dx_modfmt` |  |
 | `@rules_dx//config:tool_nixfmt` | `label_flag` | `@rules_dx//core/quality/tools/nixfmt/bin:nixfmt` |  |
 | `@rules_dx//config:tool_opa` | `label_flag` | `@dx_tools//:opa` |  |
-| `@rules_dx//config:tool_ormolu` | `label_flag` | `@rules_dx//haskell/private/tools/ormolu/bin` |  |
+| `@rules_dx//config:tool_ormolu` | `label_flag` | pinned |  |
 | `@rules_dx//config:tool_perlcritic` | `label_flag` | `@rules_dx//config:no_perlcritic` |  |
 | `@rules_dx//config:tool_perltidy` | `label_flag` | `@rules_dx//config:no_perltidy` |  |
-| `@rules_dx//config:tool_phpcs` | `label_flag` | `@rules_dx//php/private/tools:phpcs` |  |
-| `@rules_dx//config:tool_phpstan` | `label_flag` | `@rules_dx//php/private/tools:phpstan` |  |
+| `@rules_dx//config:tool_phpcs` | `label_flag` | pinned |  |
+| `@rules_dx//config:tool_phpstan` | `label_flag` | pinned |  |
 | `@rules_dx//config:tool_pkl` | `label_flag` | `@dx_tools//:pkl` |  |
 | `@rules_dx//config:tool_qmlformat` | `label_flag` | `@rules_dx//config:no_qmlformat` |  |
 | `@rules_dx//config:tool_qmllint` | `label_flag` | `@rules_dx//config:no_qmllint` |  |
 | `@rules_dx//config:tool_regal` | `label_flag` | `@dx_tools//:regal` |  |
 | `@rules_dx//config:tool_ruff` | `label_flag` | `@dx_tools//:ruff` |  |
-| `@rules_dx//config:tool_sorbet` | `label_flag` | `@rules_dx//ruby/private/tools:sorbet` |  |
+| `@rules_dx//config:tool_sorbet` | `label_flag` | pinned |  |
 | `@rules_dx//config:tool_staticcheck` | `label_flag` | `@dx_prebuilt//:dx_staticcheck` |  |
 | `@rules_dx//config:tool_stylua` | `label_flag` | `@dx_tools//:stylua` |  |
 | `@rules_dx//config:tool_swift_format` | `label_flag` | `@rules_dx//config:no_swift_format` |  |
@@ -759,7 +760,7 @@ Exit codes: `0`, `1`, `2`.
 | `@rules_dx//config:tool_terraform` | `label_flag` | `@dx_tools//:terraform` |  |
 | `@rules_dx//config:tool_thrift` | `label_flag` | `@dx_prebuilt//:thrift` |  |
 | `@rules_dx//config:tool_trivy` | `label_flag` | `@dx_tools//:trivy` |  |
-| `@rules_dx//config:tool_weeder` | `label_flag` | `@rules_dx//haskell/private/tools/weeder/bin` |  |
+| `@rules_dx//config:tool_weeder` | `label_flag` | pinned |  |
 | `@rules_dx//config:tool_zig_ast_check` | `label_flag` | `@rules_dx//config:no_zig_ast_check` |  |
 | `@rules_dx//config:tool_zig_fmt` | `label_flag` | `@rules_dx//config:no_zig_fmt` |  |
 | `@rules_dx//config:toolchain_linker_preference` | `alias` | `@rules_rust//rust/settings:toolchain_linker_preference` |  |

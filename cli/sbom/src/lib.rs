@@ -232,17 +232,22 @@ pub fn sha256_of(checksums: &[SpdxChecksum]) -> Option<&str> {
         .map(|checksum| checksum.value.as_str())
 }
 
+/// The `pkg:` path part of a purl, without its `#subpath` and `?qualifiers`.
+fn purl_path(locator: &str) -> Option<&str> {
+    let rest = locator.strip_prefix("pkg:")?;
+    let end = rest.find(['?', '#']).unwrap_or(rest.len());
+    rest.get(..end)
+}
+
 #[must_use]
 pub fn purl_name(locator: &str) -> Option<&str> {
-    let rest = locator.strip_prefix("pkg:")?;
-    let path = rest.split('@').next()?;
+    let path = purl_path(locator)?.split('@').next()?;
     path.rsplit('/').next().filter(|name| !name.is_empty())
 }
 
 #[must_use]
 pub fn purl_version(locator: &str) -> Option<&str> {
-    let rest = locator.strip_prefix("pkg:")?;
-    let (_, version) = rest.rsplit_once('@')?;
+    let (_, version) = purl_path(locator)?.rsplit_once('@')?;
     Some(version).filter(|version| !version.is_empty())
 }
 

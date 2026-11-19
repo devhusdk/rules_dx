@@ -188,6 +188,27 @@ fn purl_locators_split_into_name_and_version() {
 }
 
 #[test]
+fn purl_qualifiers_and_subpath_stay_out_of_name_and_version() {
+    assert_eq!(
+        purl_version("pkg:cargo/serde@1.0.0?arch=x86"),
+        Some("1.0.0")
+    );
+    assert_eq!(
+        purl_version("pkg:golang/github.com/a/b@v1#sub/dir"),
+        Some("v1")
+    );
+    assert_eq!(purl_name("pkg:golang/github.com/a/b@v1#sub/dir"), Some("b"));
+    assert_eq!(purl_name("pkg:cargo/serde?path=a/b"), Some("serde"));
+    assert_eq!(purl_name("pkg:cargo/serde#a/b"), Some("serde"));
+    assert_eq!(
+        purl_version("pkg:maven/g/a?repository_url=https://u@host/r"),
+        None,
+        "an @ inside a qualifier is not a version"
+    );
+    assert_eq!(purl_version("pkg:generic/dx@?arch=x"), None);
+}
+
+#[test]
 fn checksums_select_sha256_case_insensitively() {
     let checksums = vec![
         SpdxChecksum {

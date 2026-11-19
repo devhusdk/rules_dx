@@ -50,7 +50,8 @@ fn write_with(inputs: &SourceArchiveInputs<'_>, repo: Option<PathBuf>) -> Result
         &candidate,
         &inputs.out_dir,
         pins.as_deref(),
-    )?;
+    )
+    .map_err(|error| error.to_string())?;
     Ok(format!(
         "source_archive: wrote {} sha256 {} to {}\n",
         dx_release_tools::candidate::release_source_name(&candidate),

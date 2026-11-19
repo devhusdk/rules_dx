@@ -180,7 +180,7 @@ fn run(argv: &[String]) -> i32 {
     let dir = workspace_dir_of(std::env::var_os("BUILD_WORKSPACE_DIRECTORY"));
     if dry {
         return run_with(&tag, commit.as_deref(), &approve, dry, || {
-            candidate::read_git_state(dir.as_deref(), &tag)
+            candidate::read_git_state(dir.as_deref(), &tag).map_err(|error| error.to_string())
         });
     }
     let backend = GhBackend {
@@ -197,8 +197,11 @@ fn run(argv: &[String]) -> i32 {
         &tag,
         commit.as_deref(),
         &approve,
-        || candidate::read_git_state(dir.as_deref(), &tag),
-        |candidate| candidate::ls_remote_output(dir.as_deref(), candidate.remote(), candidate),
+        || candidate::read_git_state(dir.as_deref(), &tag).map_err(|error| error.to_string()),
+        |candidate| {
+            candidate::ls_remote_output(dir.as_deref(), candidate.remote(), candidate)
+                .map_err(|error| error.to_string())
+        },
         &backend,
         resolve_assets(argv),
     );

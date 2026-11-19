@@ -201,7 +201,7 @@ pub const DEPLOYMENTS_QUERY: &str = r#"kind("^deployment rule$", //...)"#;
 
 /// The query `reusable-release.yml` runs to pick the deployables.
 pub const RELEASE_DEPLOYMENTS_QUERY: &str =
-    r#"attr(tags, "[\\[ ]release[,\\]]", kind("^deployment rule$", //...))"#;
+    r#"attr(tags, "[\[ ]release[,\]]", kind("^deployment rule$", //...))"#;
 
 /// Lists the repo's `deployment` labels, marking the ones tagged release. Empty when the
 /// queries fail or find nothing.

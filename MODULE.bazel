@@ -1999,7 +1999,10 @@ use_repo(fpm, "fpm_fortran.tests.fixtures.fpm_deps")
 register_toolchains("@dx_fortran_toolchains//:all")
 
 zig = use_extension("@rules_zig//zig:extensions.bzl", "zig")
-zig.toolchain(zig_version = "0.17.0")
+
+# rules_zig 0.17.0 does not list Zig 0.17.1; drop this index when the rules_zig bazel_dep does.
+zig.index(file = "//zig/private:sdk_versions.json")
+zig.toolchain(zig_version = "0.17.1")
 
 zig_hub = use_extension("//zig:extensions.bzl", "zig", dev_dependency = True)
 zig_hub.lock(

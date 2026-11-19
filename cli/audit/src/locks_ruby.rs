@@ -10,6 +10,7 @@ enum Source {
 }
 
 pub fn parse_gemfile_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
+    let text = crate::locks::strip_bom(text);
     let mut source: Option<Source> = None;
     let mut in_specs = false;
     let mut saw_section = false;

@@ -125,6 +125,12 @@ const RC_CASES: &[RcCase] = &[
         Expect::Default,
     ),
     case(
+        "relative XDG_CACHE_HOME",
+        &[("XDG_CACHE_HOME", "rel")],
+        &[],
+        Expect::Default,
+    ),
+    case(
         "home rc",
         &[],
         &[(Rc::Home, "build --disk_cache=/x\n")],

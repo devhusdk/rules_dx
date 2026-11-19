@@ -118,33 +118,45 @@ bazelisk_pin() {
   [ -n "$bz_v" ] && [ -n "$bz_sum" ] && [ -n "$bz_cache" ] || return 1
   bz_dir=$bz_cache/dx/bazelisk/$bz_v
 }
-bazelisk_blocked() {
-  rm -f "$bz_tmp"
-  die "cannot download Bazelisk from $bz_host; allow it in the network settings or put bazel on PATH"
-}
-download_bazelisk() {
-  bz_url=https://github.com/bazelbuild/bazelisk/releases/download/v$bz_v/bazelisk-$bz_arch
-  echo "dx: bazel is not on PATH; fetching Bazelisk $bz_v to $bz_dir" >&2
-  mkdir -p "$bz_dir" || return 1
-  bz_host=${bz_url#https://}
-  bz_host=${bz_host%%/*}
+# Downloads $1 to the file $3 through a temp file and keeps it, executable, only when its sha256 is $2. $4 names it
+# and $5 holds its pin in messages. Returns 2 when curl or wget cannot fetch it.
+fetch_pinned() {
+  fp_tmp=$3.$$
+  mkdir -p "${3%/*}" || return 1
   if command -v curl >/dev/null 2>&1; then
-    curl -fsSL --proto '=https' --tlsv1.2 --retry 3 -o "$bz_tmp" "$bz_url" || bazelisk_blocked
+    curl -fsSL --proto '=https' --tlsv1.2 --retry 3 -o "$fp_tmp" "$1" || {
+      rm -f "$fp_tmp"
+      return 2
+    }
   elif command -v wget >/dev/null 2>&1; then
-    wget -q --https-only -O "$bz_tmp" "$bz_url" || bazelisk_blocked
+    wget -q --https-only -O "$fp_tmp" "$1" || {
+      rm -f "$fp_tmp"
+      return 2
+    }
   else
     echo "dx: neither curl nor wget is on PATH" >&2
     return 1
   fi
-  bz_got=$(sha256sum "$bz_tmp") || return 1
-  if [ "${bz_got%% *}" != "$bz_sum" ]; then
-    echo "dx: the Bazelisk download does not match its sha256 in tools/bazelisk/pin.env" >&2
+  fp_got=$(sha256sum "$fp_tmp") || fp_got=
+  if [ "${fp_got%% *}" != "$2" ]; then
+    rm -f "$fp_tmp"
+    echo "dx: the $4 download does not match its sha256 in $5" >&2
     return 1
   fi
-  chmod +x "$bz_tmp" && mv -f "$bz_tmp" "$bz_dir/bazel"
+  chmod +x "$fp_tmp" && mv -f "$fp_tmp" "$3" || {
+    rm -f "$fp_tmp"
+    return 1
+  }
+}
+download_bazelisk() {
+  bz_url=https://github.com/bazelbuild/bazelisk/releases/download/v$bz_v/bazelisk-$bz_arch
+  echo "dx: bazel is not on PATH; fetching Bazelisk $bz_v to $bz_dir" >&2
+  fetch_pinned "$bz_url" "$bz_sum" "$bz_dir/bazel" Bazelisk tools/bazelisk/pin.env || {
+    [ $? -ne 2 ] || die "cannot download Bazelisk from github.com; allow it in the network settings or put bazel on PATH"
+    return 1
+  }
 }
 if ! command -v bazel >/dev/null 2>&1 && bazelisk_pin; then
-  bz_tmp=$bz_dir/bazel.$$
   if [ -x "$bz_dir/bazel" ] || download_bazelisk; then
     PATH=$bz_dir:$PATH
     case $bz_arch in linux-amd64) bz_bazel_arch=linux-x86_64 ;; *) bz_bazel_arch=$bz_arch ;; esac
@@ -152,7 +164,53 @@ if ! command -v bazel >/dev/null 2>&1 && bazelisk_pin; then
     BAZELISK_BASE_URL=${BAZELISK_BASE_URL:-https://github.com/bazelbuild/bazel/releases/download}
     export PATH BAZELISK_BASE_URL
   fi
-  rm -f "$bz_tmp"
+fi
+# A release checkout pins the released dx in cli/prebuilt/pins.bzl. Linux runs that dx instead of building one when
+# the checkout is that release: a git checkout at tag v<DX_VERSION> with no tracked edits, or a release archive.
+# Sets pb_v, pb_url, pb_sum and pb_bin; fails when the checkout does not match.
+prebuilt_pin() {
+  case $os/$(uname -m) in
+  linux/x86_64) pb_key=linux_x86_64 ;;
+  linux/aarch64 | linux/arm64) pb_key=linux_arm64 ;;
+  *) return 1 ;;
+  esac
+  pb_v=
+  pb_url=
+  pb_sum=
+  pb_in=
+  [ -r "$root/cli/prebuilt/pins.bzl" ] || return 1
+  while IFS= read -r pb_line || [ -n "$pb_line" ]; do
+    pb_line=${pb_line%"$(printf '\r')"}
+    case $pb_line in
+    'DX_VERSION = "'*'"') pb_v=${pb_line#*\"} pb_v=${pb_v%\"} ;;
+    'URL_TEMPLATE = "'*'"') pb_url=${pb_line#*\"} pb_url=${pb_url%\"} ;;
+    '    "dx": {') pb_in=1 ;;
+    '    }'*) pb_in= ;;
+    "        \"$pb_key\": \""*'",') [ -z "$pb_in" ] || pb_sum=${pb_line#*: \"} pb_sum=${pb_sum%\",} ;;
+    esac
+  done <"$root/cli/prebuilt/pins.bzl"
+  [ -n "$pb_v" ] && [ "$pb_v" != 0.0.0 ] && [ -n "$pb_url" ] && [ -n "$pb_sum" ] || return 1
+  if [ -e "$root/.git" ]; then
+    command -v git >/dev/null 2>&1 || return 1
+    pb_head=$(git -C "$root" rev-parse -q --verify HEAD 2>/dev/null) || return 1
+    pb_tag=$(git -C "$root" rev-parse -q --verify "refs/tags/v$pb_v^{commit}" 2>/dev/null) || return 1
+    [ "$pb_head" = "$pb_tag" ] || return 1
+    git -C "$root" diff --quiet HEAD -- 2>/dev/null || return 1
+  fi
+  pb_cache=${XDG_CACHE_HOME:-${HOME:+$HOME/.cache}}
+  [ -n "$pb_cache" ] || return 1
+  pb_bin=$pb_cache/dx/prebuilt/$pb_sum/dx
+  pb_url=${pb_url%%"{version}"*}$pb_v${pb_url#*"{version}"}
+  pb_url=${pb_url%%"{asset}"*}dx-${pb_key%%_*}-${pb_key#*_}${pb_url#*"{asset}"}
+}
+if prebuilt_pin; then
+  if [ -x "$pb_bin" ] || {
+    echo "dx: fetching the released dx $pb_v to ${pb_bin%/*}" >&2
+    fetch_pinned "$pb_url" "$pb_sum" "$pb_bin" "released dx" cli/prebuilt/pins.bzl
+  }; then
+    exec "$pb_bin" "$@"
+  fi
+  echo "dx: cannot fetch the released dx $pb_v; building //cli/cli:dx instead" >&2
 fi
 # False only when curl or wget runs and cannot fetch $1. Redirects are followed: GitHub serves release files from
 # another host.

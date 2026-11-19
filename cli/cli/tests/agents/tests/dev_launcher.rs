@@ -1832,6 +1832,145 @@ mod sh {
         assert_eq!(std::fs::read_dir(&dir).expect("bazelisk dir").count(), 0);
     }
 
+    /// Writes release pins for the payload, with its real sha256 when `pinned`, and a fake curl
+    /// that serves the payload and logs each URL. A release archive has no .git.
+    fn released(name: &str, pinned: bool) -> SourceRepo {
+        let repo = source_repo(name);
+        let served = repo.base.join("payload");
+        let applets = dx_testing::env_files("DX_COREUTILS");
+        let sha256sum = applets[0].parent().expect("applets").join("sha256sum");
+        let out = Command::new(sha256sum)
+            .arg(&served)
+            .output()
+            .expect("sha256sum");
+        let text = String::from_utf8_lossy(&out.stdout).into_owned();
+        let sum = if pinned {
+            text.split(' ').next().expect("sum").to_owned()
+        } else {
+            "0".repeat(64)
+        };
+        std::fs::create_dir_all(repo.root().join("cli/prebuilt")).expect("prebuilt dir");
+        std::fs::write(
+            repo.root().join("cli/prebuilt/pins.bzl"),
+            format!(
+                "SCHEMA = 1\n\nDX_VERSION = \"1.2.3\"\n\nURL_TEMPLATE = \"https://github.com/devhusdk/rules_dx/releases/download/v{{version}}/{{asset}}\"\n\nPINS = {{\n    \"dx\": {{\n        \"linux_arm64\": \"{zero}\",\n        \"linux_x86_64\": \"{sum}\",\n    }},\n    \"launcher\": {{\n        \"linux_x86_64\": \"{zero}\",\n    }},\n}}\n",
+                zero = "1".repeat(64)
+            ),
+        )
+        .expect("pins");
+        repo.fake(
+            "uname",
+            "case $1 in -m) echo x86_64 ;; *) echo Linux ;; esac",
+        );
+        repo.fake(
+            "curl",
+            &format!(
+                "out=\nfor a in \"$@\"; do\n  [ \"$prev\" = -o ] && out=$a\n  prev=$a\ndone\nprintf '%s\\n' \"$a\" >> '{}'\ncp '{}' \"$out\"",
+                repo.base.join("fetches").display(),
+                served.display()
+            ),
+        );
+        repo
+    }
+
+    #[test]
+    fn a_release_checkout_runs_the_pinned_dx_without_building() {
+        let repo = released("dx-launcher-prebuilt-", true);
+        repo.run_ok();
+        repo.run_ok();
+        assert_eq!(repo.builds(), 0);
+        let fetches = std::fs::read_to_string(repo.base.join("fetches")).expect("fetch log");
+        assert_eq!(
+            fetches,
+            "https://github.com/devhusdk/rules_dx/releases/download/v1.2.3/dx-linux-x86_64\n",
+            "the second run reuses the fetched dx"
+        );
+    }
+
+    #[test]
+    fn a_release_checkout_builds_dx_when_the_download_does_not_match_its_pin() {
+        let repo = released("dx-launcher-prebuilt-bad-", false);
+        let (code, out, err) = repo.run_in(&repo.root(), &["status"]);
+        assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
+        assert!(
+            err.contains(
+                "dx: the released dx download does not match its sha256 in cli/prebuilt/pins.bzl\n"
+            ),
+            "{err}"
+        );
+        assert!(
+            err.contains("dx: cannot fetch the released dx 1.2.3; building //cli/cli:dx instead\n"),
+            "{err}"
+        );
+        assert_eq!(repo.builds(), 1);
+        let dir = repo.base.join("home/.cache/dx/prebuilt");
+        assert_eq!(
+            std::fs::read_dir(dir.join("0".repeat(64)))
+                .expect("prebuilt dir")
+                .count(),
+            0
+        );
+    }
+
+    #[test]
+    fn a_release_checkout_builds_dx_when_the_download_is_blocked() {
+        let repo = released("dx-launcher-prebuilt-blocked-", true);
+        repo.fake("curl", "exit 22");
+        let (code, out, err) = repo.run_in(&repo.root(), &["status"]);
+        assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
+        assert!(
+            err.contains("dx: cannot fetch the released dx 1.2.3"),
+            "{err}"
+        );
+        assert_eq!(repo.builds(), 1);
+    }
+
+    #[test]
+    fn a_git_checkout_runs_the_pinned_dx_only_at_its_clean_release_tag() {
+        let repo = released("dx-launcher-prebuilt-git-", true);
+        std::fs::create_dir_all(repo.root().join(".git")).expect("git dir");
+        let tag = repo.base.join("tag");
+        let dirty = repo.base.join("dirty");
+        repo.fake(
+            "git",
+            &format!(
+                "case $* in\n*' rev-parse -q --verify HEAD') echo aaaa ;;\n*' rev-parse -q --verify refs/tags/v1.2.3^{{commit}}') cat '{}' ;;\n*' diff --quiet HEAD --') [ ! -e '{}' ] ;;\n*) exit 9 ;;\nesac",
+                tag.display(),
+                dirty.display()
+            ),
+        );
+        std::fs::write(&tag, "bbbb\n").expect("tag");
+        repo.run_ok();
+        assert_eq!(repo.builds(), 1, "HEAD is not the release tag");
+        std::fs::write(&tag, "aaaa\n").expect("tag");
+        std::fs::write(&dirty, "").expect("dirty");
+        repo.run_ok();
+        assert!(
+            !repo.base.join("fetches").exists(),
+            "a tracked edit builds dx"
+        );
+        std::fs::remove_file(&dirty).expect("clean");
+        repo.run_ok();
+        assert_eq!(
+            std::fs::read_to_string(repo.base.join("fetches")).expect("fetch log"),
+            "https://github.com/devhusdk/rules_dx/releases/download/v1.2.3/dx-linux-x86_64\n"
+        );
+    }
+
+    #[test]
+    fn a_checkout_with_unfilled_pins_builds_dx() {
+        let repo = source_repo("dx-launcher-prebuilt-main-");
+        std::fs::create_dir_all(repo.root().join("cli/prebuilt")).expect("prebuilt dir");
+        std::fs::write(
+            repo.root().join("cli/prebuilt/pins.bzl"),
+            "SCHEMA = 1\n\nDX_VERSION = \"0.0.0\"\n\nURL_TEMPLATE = \"https://example.invalid/{asset}\"\n\nPINS = {}\n",
+        )
+        .expect("pins");
+        repo.fake("curl", "exit 22");
+        repo.run_ok();
+        assert_eq!(repo.builds(), 1);
+    }
+
     #[test]
     fn a_failed_first_build_names_a_blocked_bazel_download_host() {
         let repo = bazelisk_host("dx-launcher-blocked-bazel-", true);

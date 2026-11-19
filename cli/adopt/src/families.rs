@@ -235,25 +235,60 @@ mod tests {
 
     #[test]
     fn deployment_calls_from_rules_dx_deploy_count() {
-        let load = |label: &str, symbols: &str| format!("load(\"{label}\", {symbols})\n");
+        let load = |label: &str, symbols: &str, body: &str| {
+            format!("load(\"{label}\", {symbols})\n{body}")
+        };
         let defs = "@rules_dx//deploy:defs.bzl";
         for (text, repo) in [
-            (load(defs, "\"npm_deploy\"") + "npm_deploy(name = \"a\")\n", "rules_dx"),
-            (load(defs, "my = \"oci_deploy\"") + "my(name = \"a\")\n", "rules_dx"),
-            (load(defs, "\"deployment\"") + "deployment(name = \"a\")\n", "rules_dx"),
-            (load(defs, "\"dx_deployment\"") + "dx_deployment(name = \"a\")\n", "rules_dx"),
-            (load("//deploy:defs.bzl", "\"npm_deploy\"") + "npm_deploy(name = \"a\")\n", "rules_dx"),
-            (load("@dx//deploy:defs.bzl", "\"npm_deploy\"") + "npm_deploy(name = \"a\")\n", "dx"),
+            (
+                load(defs, "\"npm_deploy\"", "npm_deploy(name = \"a\")\n"),
+                "rules_dx",
+            ),
+            (
+                load(defs, "my = \"oci_deploy\"", "my(name = \"a\")\n"),
+                "rules_dx",
+            ),
+            (
+                load(defs, "\"deployment\"", "deployment(name = \"a\")\n"),
+                "rules_dx",
+            ),
+            (
+                load(defs, "\"dx_deployment\"", "dx_deployment(name = \"a\")\n"),
+                "rules_dx",
+            ),
+            (
+                load(
+                    "//deploy:defs.bzl",
+                    "\"npm_deploy\"",
+                    "npm_deploy(name = \"a\")\n",
+                ),
+                "rules_dx",
+            ),
+            (
+                load(
+                    "@dx//deploy:defs.bzl",
+                    "\"npm_deploy\"",
+                    "npm_deploy(name = \"a\")\n",
+                ),
+                "dx",
+            ),
         ] {
             assert!(declares_deployment(&text, repo), "{text}");
         }
         for text in [
-            load(defs, "\"consumer_archive\", \"dx_sbom\", \"sbom\"")
-                + "consumer_archive(name = \"a\")\ndx_sbom(name = \"b\")\nsbom(name = \"c\")\n",
-            load("@other//:defs.bzl", "\"npm_deploy\"") + "npm_deploy(name = \"a\")\n",
-            load(defs, "\"npm_deploy\"") + "x = 1\n",
-            load(defs, "\"deployment\"") + "cross_deployment(name = \"a\")\n",
-            load(defs, "\"npm_deploy\"") + "npm_deploy(\n",
+            load(
+                defs,
+                "\"consumer_archive\", \"dx_sbom\", \"sbom\"",
+                "consumer_archive(name = \"a\")\ndx_sbom(name = \"b\")\nsbom(name = \"c\")\n",
+            ),
+            load(
+                "@other//:defs.bzl",
+                "\"npm_deploy\"",
+                "npm_deploy(name = \"a\")\n",
+            ),
+            load(defs, "\"npm_deploy\"", "x = 1\n"),
+            load(defs, "\"deployment\"", "cross_deployment(name = \"a\")\n"),
+            load(defs, "\"npm_deploy\"", "npm_deploy(\n"),
         ] {
             assert!(!declares_deployment(&text, "rules_dx"), "{text}");
         }
@@ -266,9 +301,10 @@ mod tests {
         write(dir.path(), "a.py", "").unwrap();
         write(dir.path(), "src/b.rs", "").unwrap();
         write(dir.path(), "Dockerfile", "").unwrap();
+        write(dir.path(), "docs/guide.adoc", "").unwrap();
         assert_eq!(
             detected_families(dir.path()),
-            BTreeSet::from(["dockerfile", "python", "rust"].map(str::to_owned))
+            BTreeSet::from(["asciidoc", "dockerfile", "python", "rust"].map(str::to_owned))
         );
     }
 

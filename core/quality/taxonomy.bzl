@@ -5,10 +5,6 @@ load("//core/modules:langs.bzl", "LANGS")
 visibility("private")
 
 OTHER_FAMILIES = {
-    "asciidoc": struct(
-        owner = "//asciidoc:defs.bzl",
-        classes = ["asciidoc"],
-    ),
     "core": struct(
         owner = "other",
         classes = ["github_workflow"],

@@ -1283,7 +1283,7 @@ jobs:
           retention-days: 3
   scheduled-report:
     name: scheduled-report
-    if: ${{ always() && github.event_name == 'schedule' }}
+    if: ${{ always() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')) }}
     needs: [ci]
     timeout-minutes: 5
     runs-on: ubuntu-latest
@@ -1292,6 +1292,7 @@ jobs:
       issues: write
     steps:
       - name: Open, update or close the tracking issue
+        if: ${{ github.event_name == 'schedule' }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -1332,4 +1333,48 @@ jobs:
             gh issue comment "$number" --body "$body"
           else
             gh issue create --title "$title" --body "$body"
+          fi
+      - name: Publish the known red tests on main
+        if: ${{ github.ref == 'refs/heads/main' && needs.ci.result != 'cancelled' && needs.ci.result != 'skipped' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          HEAD_SHA: ${{ github.sha }}
+          CI_RESULT: ${{ needs.ci.result }}
+        run: |
+          set -euo pipefail
+          # Agents read this issue without a token; keep the fenced block one label per line.
+          labels=""
+          if [ "$CI_RESULT" != "success" ]; then
+            jobs=$(gh run view "$RUN_ID" --json jobs --jq '.jobs[] | select(.conclusion == "failure" or .conclusion == "timed_out") | .databaseId')
+            for job_id in $jobs; do
+              if ! log=$(gh api "repos/$GH_REPO/actions/jobs/$job_id/logs"); then
+                echo "::warning title=known-red::no log for job $job_id"
+                continue
+              fi
+              found=$(printf '%s\n' "$log" | tr -d '\r' | sed -E 's/^[0-9T:.Z-]+ //' \
+                | awk '/^(@[^ ]*)?\/\/[^ ]+ +(\(cached\) +)?(FAILED|TIMEOUT|NO STATUS|INCOMPLETE)/ { print $1 }')
+              labels="$labels${found:+$'\n'$found}"
+            done
+          fi
+          list=$(printf '%s\n' "$labels" | sed '/^$/d' | sort -u)
+          {
+            echo "Test labels that failed on the last main ci run: $RUN_URL"
+            echo "Commit: $HEAD_SHA. Result: $CI_RESULT. The workflow rewrites this issue after each main run."
+            echo
+            echo '```text'
+            if [ -n "$list" ]; then printf '%s\n' "$list"; fi
+            echo '```'
+          } > known-red.md
+          gh label create known-red --force --color B60205 --description "Tests that failed on the last main ci run"
+          number=$(gh issue list --state open --label known-red --json number --jq '.[0].number // empty')
+          if [ -n "$number" ]; then
+            gh issue edit "$number" --body-file known-red.md
+          else
+            url=$(gh issue create --title "ci: known red tests on main" --label known-red --body-file known-red.md)
+            if ! gh issue pin "$url"; then
+              echo "::warning title=known-red::could not pin $url"
+            fi
           fi

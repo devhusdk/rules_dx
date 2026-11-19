@@ -245,6 +245,7 @@ fn run_as_tool() -> Option<i32> {
         Tool::PhpLock => php_lock::run_process(&lossy(args)),
         Tool::PowershellLock => powershell_lock::run_process(&lossy(args)),
         Tool::RubyLock => ruby_lock::run_process(&lossy(args)),
+        Tool::JavaLock => maven_lock::run_process(&lossy(args)),
         Tool::Archiver => dx_deploy_tools::entry::archiver(&named("archiver", args)),
         Tool::Hasher => dx_deploy_tools::entry::hasher(&named("hasher", args)),
         Tool::SizeChecker => dx_deploy_tools::entry::size_checker(&named("size_checker", args)),

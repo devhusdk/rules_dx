@@ -270,6 +270,7 @@ jobs:
             "//tools/docs/jvm/javadoc:javadoc_extract_deploy.jar dx-javadoc-extract-any.jar"
             "//java/private/jmh:jmh_generate_deploy.jar dx-jmh-generate-any.jar"
             "//java/private/quality/tools/kotlinc_check:kotlinc_check_deploy.jar dx-kotlinc-check-any.jar"
+            "//java/private/tools/lock:resolver_deploy.jar dx-maven-resolver-any.jar"
             "//java/private/quality/tools/scalac_check:scalac_check_deploy.jar dx-scalac-check-any.jar"
             "//tools/docs/jvm/dokka:dokka_extract_deploy.jar dx-dokka-extract-any.jar"
             "//tools/docs/jvm/scaladoc:scaladoc_extract_deploy.jar dx-scaladoc-extract-any.jar"

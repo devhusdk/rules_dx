@@ -180,6 +180,7 @@ TOOLS = {
     "javac_check": _jar("javac_check", "@rules_dx//java/private/quality/tools/javac_check", "dx.quality.javac.Main"),
     "javadoc_extract": _jar("javadoc_extract", "@rules_dx//tools/docs/jvm/javadoc:javadoc_extract", "dx.docs.javadoc.Main"),
     "jmh_generate": _jar("jmh_generate", "@rules_dx//java/private/jmh:jmh_generate", "dx.bench.JmhGenerate"),
+    "maven_resolver": _jar("maven_resolver", "@rules_dx//java/private/tools/lock:resolver", "com.github.bazelbuild.rules_jvm_external.resolver.maven.MavenMain"),
     "kotlinc_check": _jar("kotlinc_check", "@rules_dx//java/private/quality/tools/kotlinc_check", "dx.quality.kotlinc.Main"),
     "scalac_check": _jar("scalac_check", "@rules_dx//java/private/quality/tools/scalac_check", "dx.quality.scalac.Main"),
     "scaladoc_extract": _jar("scaladoc_extract", "@rules_dx//tools/docs/jvm/scaladoc:scaladoc_extract", "dx.docs.scaladoc.Main"),

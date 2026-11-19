@@ -81,6 +81,12 @@ pinned_java_runtime(
     version = "25",
 )
 
+filegroup(
+    name = "jdk25_java",
+    srcs = [":jdk25"],
+    output_group = "java",
+)
+
 jar_lsp_tool(
     name = "pkl_lsp",
     driver = "@dx_prebuilt//:lsp_check",

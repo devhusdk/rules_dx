@@ -2,7 +2,5 @@
 # `label <canonical label> [<lang>...]  # reason`: a rules_dx binary the consumer may build;
 # with languages, only a consumer of one of those languages.
 # `untagged <tool>  # reason`: a registry tool no hub takes a dx_prebuilt.asset tag for.
-label @@rules_dx+//java/private/tools/lock:lock java  # the maven hub resolver; runs as a dx subcommand once it takes its runfiles as path arguments (#14080)
-label @@rules_dx+//java/private/tools/lock:resolver java  # the rules_jvm_external Maven resolver the maven hub resolver runs; ships as a prebuilt asset in #14080
 label @@rules_dx+//lua/private/runtime:launcher lua  # C++; links liblua, which a Lua consumer already builds from the BCR lua module
 untagged python_tools  # pinned only; the hub does not serve the bundle yet

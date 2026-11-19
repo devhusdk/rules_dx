@@ -116,7 +116,7 @@ dx class, as ecosystem (languages): manifest; state; hub. The lock is `<ecosyste
 ## Lock step
 
 - `resolver` labels one runnable rules_dx target. dx runs `bazel run <resolver> -- --dir <set directory>`, plus `--check` to compare only.
-- A `dx_subcommand` resolver target runs `dx <lang>_lock` from the prebuilt dx, so the step compiles nothing in a consumer.
+- A `dx_subcommand` resolver target runs `dx <lang>_lock` from the prebuilt dx, each `path_args` entry as `<flag>=<absolute path>`, so the step compiles nothing in a consumer.
 - No user BUILD file declares a lock, pin, resolve or digest target.
 - `dx generate --apply` runs the step for a set with a missing or stale lock, `dx update` to move versions, `dx check` with `--check`.
 - A dx class lock is stale when an `inputs` file has another sha256. For upstream class the resolver's frozen mode decides.

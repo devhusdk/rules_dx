@@ -3489,7 +3489,7 @@ use_repo(
 yard = use_extension("//tools/docs/ruby:extensions.bzl", "yard", dev_dependency = True)
 use_repo(yard, "dx_yard")
 
-doxygen = use_extension("//tools/docs/cc:extensions.bzl", "doxygen", dev_dependency = True)
+doxygen = use_extension("//tools/docs/cc:extensions.bzl", "doxygen")
 use_repo(doxygen, "dx_doxygen")
 
 playwright = use_extension("//typescript:extensions.bzl", "typescript_playwright")

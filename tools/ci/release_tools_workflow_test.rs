@@ -7,6 +7,7 @@ use dx_testing::read_runfiles;
 const TOOLS: &str = ".github/workflows/release-tools.yml";
 const RELEASE: &str = ".github/workflows/release.yml";
 const CONSUMER: &str = ".github/workflows/release-consumer.yml";
+const RELEASE_JARS: &str = "tools/ci/release_jars.txt";
 
 const HOSTS: [(&str, &str); 4] = [
     ("linux-x86_64", "ubuntu-latest"),
@@ -135,6 +136,14 @@ fn jars_job_builds_every_jar_asset() {
     for jar in JARS {
         assert!(tools.contains(jar), "{TOOLS} must build {jar}");
         assert!(release.contains(jar), "{RELEASE} must list {jar}");
+    }
+    let release_jars = read_runfiles(RELEASE_JARS);
+    assert_eq!(release_jars.lines().count(), JARS.len());
+    for line in release_jars.lines() {
+        assert!(
+            tools.contains(&format!("\"{line}\"")),
+            "{TOOLS} must build \"{line}\""
+        );
     }
     assert!(release.contains("test \"$(wc -l < out/dx-jar-sha256sums.txt)\" -eq 8"));
     assert!(release.contains("sha256sum -c dx-jar-sha256sums.txt"));

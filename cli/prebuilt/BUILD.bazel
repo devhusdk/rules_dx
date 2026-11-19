@@ -3,7 +3,7 @@ load("//core:failure_test.bzl", "failure_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":fail.bzl", "dx_unavailable")
 load(":gazelle_hub_tests.bzl", "dx_gazelle_hub_tests")
-load(":hub.bzl", "unsupported_message")
+load(":hub.bzl", "GO_TOOLS", "unsupported_message")
 load(":hub_tests.bzl", "dx_prebuilt_hub_tests")
 load(":tools.bzl", "registry_lines")
 
@@ -48,6 +48,14 @@ write_file(
         "//tools/ci/fill_pins:__pkg__",
         "//tools/testing/consumer:__pkg__",
     ],
+)
+
+# The hub targets the dx-go multicall serves, one name per line.
+write_file(
+    name = "go_hub_targets",
+    out = "go_hub_targets.txt",
+    content = sorted(GO_TOOLS) + [""],
+    visibility = ["//tools/testing/consumer:__pkg__"],
 )
 
 dx_unavailable(

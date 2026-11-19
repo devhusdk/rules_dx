@@ -8,7 +8,7 @@ A platform key is "<os>_<cpu>" in release asset spelling: os is linux, macos or
 windows, cpu is x86_64 or arm64, and a jar that runs anywhere uses "any".
 """
 
-visibility(["//cli/...", "//core/quality"])
+visibility(["//cli/...", "//core/quality", "//tools/ci"])
 
 # Release asset spelling to @platforms constraint values.
 RELEASE_OS = {
@@ -193,6 +193,11 @@ NATIVE_TOOLS = ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "kcov", "nixfm
 
 # The tools released as one platform-independent jar each.
 JAR_TOOLS = sorted([tool for tool, entry in TOOLS.items() if entry.main_class])
+
+def deploy_jar(tool):
+    """Returns the deploy jar label of a jar tool, as the release jars job builds it."""
+    source = Label(TOOLS[tool].source)
+    return "//{}:{}_deploy.jar".format(source.package, source.name)
 
 def split_key(key):
     """Returns (os, cpu) in release spelling for a platform key such as "linux_x86_64"."""

@@ -44,7 +44,10 @@ write_file(
     name = "registry",
     out = "registry.txt",
     content = registry_lines() + [""],
-    visibility = ["//tools/ci/fill_pins:__pkg__"],
+    visibility = [
+        "//tools/ci/fill_pins:__pkg__",
+        "//tools/testing/consumer:__pkg__",
+    ],
 )
 
 dx_unavailable(

@@ -6,12 +6,9 @@
 //! eagerly, a shorter one means the file is stale. Repositories of other language families must
 //! never show up, whatever the file says.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 
 use dx_nested::Case;
-use dx_nested::compose::{
-    rules_flutter_override, rules_py_override, write_root_patch_overrides, write_rules_py_patches,
-};
 
 /// Name fragments of repositories that belong to a language family the consumer does not use.
 /// A Go consumer has no reason to fetch any of them; another language's list may drop the ones
@@ -29,34 +26,6 @@ const FOREIGN: &[(&str, &[&str])] = &[(
         "scala",
     ],
 )];
-
-/// The consumer fixture files of `lang`, keyed by their path under `<lang>/tests/consumer/`.
-fn fixture(lang: &str) -> BTreeMap<String, String> {
-    let prefix = format!("{lang}/tests/consumer/");
-    let snapshot = dx_testing::rlocation(dx_testing::env_text("DX_CONSUMER_JSON").trim())
-        .unwrap_or_else(|error| panic!("DX_CONSUMER_JSON: {error}"));
-    let files: BTreeMap<String, String> =
-        dx_testing::serde_json::from_str(&dx_testing::read_text(&snapshot))
-            .unwrap_or_else(|error| panic!("{}: {error}", snapshot.display()));
-    files
-        .into_iter()
-        .filter_map(|(path, text)| Some((path.strip_prefix(&prefix)?.to_owned(), text)))
-        .collect()
-}
-
-/// The fixture module without its `module` and `bazel_dep` lines, which the nested consumer writes.
-fn module_body(module: &str) -> String {
-    module
-        .lines()
-        .filter(|line| {
-            let line = line.trim_start();
-            !line.starts_with('#')
-                && !line.starts_with("module(")
-                && !line.starts_with("bazel_dep(")
-        })
-        .map(|line| format!("{line}\n"))
-        .collect()
-}
 
 /// The names listed in a cold-start file: one per line, `#` comments and blank lines skipped.
 fn listed(text: &str) -> BTreeSet<String> {
@@ -121,31 +90,8 @@ fn a_fresh_consumer_fetches_only_its_cold_start_list() {
         .iter()
         .find(|(name, _)| *name == lang)
         .map_or(&[][..], |(_, fragments)| fragments);
-    let files = fixture(lang);
-    let module = files
-        .get("consumer.MODULE.bazel")
-        .unwrap_or_else(|| panic!("{lang}/tests/consumer/consumer.MODULE.bazel is missing"));
-    let source = dx_testing::rules_dx_source().unwrap_or_else(|error| panic!("{error}"));
-    let case = Case::consumer(
-        &format!("{lang}_cold_start"),
-        &format!(
-            "{}{}{}",
-            module_body(module),
-            rules_py_override(),
-            rules_flutter_override().unwrap_or_else(|error| panic!("{error}"))
-        ),
-    )
-    .unwrap_or_else(|error| panic!("{error}"));
-    write_rules_py_patches(case.root(), &source).unwrap_or_else(|error| panic!("{error}"));
-    let overrides =
-        write_root_patch_overrides(case.root(), &source).unwrap_or_else(|error| panic!("{error}"));
-    let composed = dx_testing::read_text(&case.root().join("MODULE.bazel"));
-    case.write("MODULE.bazel", &format!("{composed}{overrides}"));
-    for (rel, text) in &files {
-        if rel != "consumer.MODULE.bazel" {
-            case.write(rel, text);
-        }
-    }
+    let case = Case::language_consumer(&format!("{lang}_cold_start"), lang, "")
+        .unwrap_or_else(|error| panic!("{error}"));
     run_ok(&case, &["build", "--color=no", "--curses=no", "//..."]);
     run_ok(&case, &["test", "--color=no", "--curses=no", "//..."]);
     let info = run_ok(&case, &["info", "output_base"]);

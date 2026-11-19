@@ -1,0 +1,10 @@
+# What //tools/testing/consumer:go_prebuilt_guard_test lets a consumer compile.
+# `label <canonical label>  # reason`: a rules_dx binary the consumer may build.
+# `untagged <tool>  # reason`: a registry tool no hub takes a dx_prebuilt.asset tag for.
+untagged avro_union  # jar; the hub serves it only from pins.bzl
+untagged javac_check  # jar; the hub serves it only from pins.bzl
+untagged javadoc_extract  # jar; the hub serves it only from pins.bzl
+untagged jmh_generate  # jar; the hub serves it only from pins.bzl
+untagged kotlinc_check  # jar; the hub serves it only from pins.bzl
+untagged python_tools  # pinned only; the hub does not serve the bundle yet
+untagged scalac_check  # jar; the hub serves it only from pins.bzl

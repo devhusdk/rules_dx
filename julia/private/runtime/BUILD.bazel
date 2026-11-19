@@ -1,0 +1,95 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("//cc/private/toolchain:select.bzl", "cc_toolchain_files")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_test")
+load(":defs.bzl", "julia_runtime_files", "julia_shipped_libs")
+
+package(default_visibility = ["//julia:__subpackages__"])
+
+_LINUX_X86_64 = [
+    "@platforms//os:linux",
+    "@platforms//cpu:x86_64",
+]
+
+exports_files(glob(["*.BUILD.bazel"]))
+
+julia_runtime_files(
+    name = "julia_runtime_files",
+)
+
+julia_shipped_libs(
+    name = "shipped_libs",
+    libraries = [
+        "libjulia.so.1.12",
+        "libunwind.so.8",
+        "libz.so.1",
+        "libatomic.so.1",
+    ],
+    target_compatible_with = _LINUX_X86_64,
+)
+
+cc_binary(
+    name = "libjulia-internal.so.1.12.5",
+    additional_linker_inputs = ["@julia_src//:julia_expmap"],
+    linkopts = [
+        "-Wl,--version-script=$(execpath @julia_src//:julia_expmap)",
+        "-Wl,-soname,libjulia-internal.so.1.12",
+        "-Wl,-Bsymbolic-functions",
+        "-Wl,--enable-new-dtags",
+        "-Wl,-z,noexecstack",
+        "-Wl,-rpath,$$ORIGIN",
+        "-Wl,-rpath,$$ORIGIN/..",
+        "-Wl,--no-as-needed",
+        "-ldl",
+        "-lrt",
+        "-lpthread",
+        "-lm",
+        "-lstdc++",
+        "-lgcc_s",
+    ],
+    linkshared = True,
+    target_compatible_with = _LINUX_X86_64,
+    deps = [
+        ":shipped_libs",
+        "@julia_src//:libjulia_internal_objects",
+    ],
+)
+
+cc_toolchain_files(
+    name = "libjulia_internal",
+    srcs = [":libjulia-internal.so.1.12.5"],
+    compiler = "gcc",
+    extra_features = ["dynamic_libstdcxx"],
+    platforms = ["//tools/platforms:linux_x86_64"],
+    target_compatible_with = _LINUX_X86_64,
+    visibility = ["//julia:__subpackages__"],
+)
+
+rust_test(
+    name = "libjulia_internal_test",
+    size = "small",
+    srcs = ["libjulia_internal_test.rs"],
+    data = [
+        ":julia_runtime_files",
+        ":libjulia_internal",
+    ],
+    env = {
+        "DX_JULIA": "$(rootpath :julia_runtime_files)",
+        "DX_LIBJULIA_INTERNAL": "$(rootpaths :libjulia_internal)",
+    },
+    target_compatible_with = _LINUX_X86_64,
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+        "@crates//:object",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+    ],
+    tags = ["corpus"],
+)

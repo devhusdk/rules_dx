@@ -46,12 +46,12 @@ windows_select_test = analysistest.make(
 def _default_select_impl(ctx):
     env = analysistest.begin(ctx)
     executable = analysistest.target_under_test(env)[DefaultInfo].files_to_run.executable
-    asserts.equals(env, ctx.executable.tool.short_path, executable.short_path)
+    asserts.equals(env, ctx.attr.basename, executable.basename)
     return analysistest.end(env)
 
 default_select_test = analysistest.make(
     _default_select_impl,
-    attrs = {"tool": attr.label(default = "@npm_typescript//:tsc", executable = True, cfg = "target")},
+    attrs = {"basename": attr.string(mandatory = True)},
     # Pin a non-Windows platform: on a Windows host the default platform picks the shim.
     config_settings = {"//command_line_option:platforms": str(Label("//tools/platforms:linux_x86_64"))},
 )
@@ -74,6 +74,6 @@ def windows_tool_tests(name):
             basename = Label(alias).name + "_windows.bat",
             size = "small",
         )
-        default_select_test(name = prefix + "_default_select", target_under_test = alias, tool = tool, size = "small")
+        default_select_test(name = prefix + "_default_select", target_under_test = alias, basename = Label(tool).name, size = "small")
         tests += [prefix + "_shim", prefix + "_windows_select", prefix + "_default_select"]
     native.test_suite(name = name, tests = tests)

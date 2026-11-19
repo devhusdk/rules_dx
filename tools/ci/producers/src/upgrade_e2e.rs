@@ -1,10 +1,131 @@
 //! Upgrades a throwaway consumer from one `rules_dx` version to another and back, running tests after each step.
 
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use dx_module_bazel::{ModuleFile, Value, compare_module_versions};
+
 const BCR_URL: &str = "https://bcr.bazel.build";
+
+/// The rule-set modules that rules_dx owns, as named in `docs/design/layout.md` (see #12607 for renames).
+const RULE_SETS: [&str; 3] = ["rules_php", "rules_lua", "rules_qt"];
+
+fn bcr_url() -> String {
+    std::env::var("BCR_URL").unwrap_or_else(|_| BCR_URL.to_string())
+}
+
+/// The non-dev `bazel_dep` versions a rules_dx `MODULE.bazel` declares on the rule-set modules.
+fn rule_set_floors(module_text: &str) -> Result<BTreeMap<String, String>, String> {
+    let module = ModuleFile::parse(module_text).map_err(|error| error.to_string())?;
+    Ok(module
+        .calls_named("bazel_dep")
+        .filter(|dep| !matches!(dep.arg("dev_dependency"), Some(Value::Ident(value)) if value == "True"))
+        .filter_map(|dep| {
+            let name = dep.str("name").filter(|name| RULE_SETS.contains(name))?;
+            Some((name.to_string(), dep.str("version")?.to_string()))
+        })
+        .collect())
+}
+
+/// Every module of a `bazel mod graph --output=json` with the versions it appears at.
+fn resolved(graph_json: &str) -> Result<BTreeMap<String, BTreeSet<String>>, String> {
+    fn walk(node: &serde_json::Value, found: &mut BTreeMap<String, BTreeSet<String>>) {
+        if let Some(name) = node.get("name").and_then(serde_json::Value::as_str) {
+            let version = node
+                .get("version")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or_default();
+            found
+                .entry(name.to_string())
+                .or_default()
+                .insert(version.to_string());
+        }
+        for child in node
+            .get("dependencies")
+            .and_then(serde_json::Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            walk(child, found);
+        }
+    }
+    let root: serde_json::Value = serde_json::from_str(graph_json)
+        .map_err(|error| format!("mod graph output is not JSON: {error}"))?;
+    let mut found = BTreeMap::new();
+    walk(&root, &mut found);
+    Ok(found)
+}
+
+fn shown(versions: Option<&BTreeSet<String>>) -> String {
+    versions.map_or_else(
+        || "nothing".to_string(),
+        |versions| versions.iter().cloned().collect::<Vec<_>>().join(", "),
+    )
+}
+
+/// Checks that the consumer names no rule set, each rule set resolves to exactly its rules_dx floor,
+/// and rules_dx resolves to `rules_dx` when given.
+fn rule_set_problems(
+    consumer_module: &str,
+    floors: &BTreeMap<String, String>,
+    resolved: &BTreeMap<String, BTreeSet<String>>,
+    rules_dx: Option<&str>,
+) -> Result<(), String> {
+    let consumer = ModuleFile::parse(consumer_module).map_err(|error| error.to_string())?;
+    let mut problems = Vec::new();
+    for dep in consumer.calls_named("bazel_dep") {
+        if let Some(name) = dep.str("name").filter(|name| RULE_SETS.contains(name)) {
+            problems.push(format!(
+                "the consumer MODULE.bazel names {name}; it must come only through rules_dx"
+            ));
+        }
+    }
+    for name in RULE_SETS {
+        let found = resolved.get(name);
+        match floors.get(name) {
+            Some(wanted) => {
+                if found.is_none_or(|found| found.len() != 1 || !found.contains(wanted)) {
+                    problems.push(format!(
+                        "{name} resolved to {}, wanted the rules_dx floor {wanted}",
+                        shown(found)
+                    ));
+                }
+            }
+            None => {
+                if found.is_some() {
+                    problems.push(format!(
+                        "{name} resolved to {}, wanted nothing: rules_dx declares no floor",
+                        shown(found)
+                    ));
+                }
+            }
+        }
+    }
+    if let Some(wanted) = rules_dx {
+        let found = resolved.get("rules_dx");
+        if found.is_none_or(|found| found.len() != 1 || !found.contains(wanted)) {
+            let above = found.is_some_and(|found| {
+                found
+                    .iter()
+                    .any(|version| compare_module_versions(version, wanted).is_gt())
+            });
+            let mut message = format!("rules_dx resolved to {}, wanted {wanted}", shown(found));
+            if above {
+                message.push_str(
+                    ": a rule set depends on a newer rules_dx; release rules_dx before the rule set that depends on it",
+                );
+            }
+            problems.push(message);
+        }
+    }
+    if problems.is_empty() {
+        Ok(())
+    } else {
+        Err(problems.join("\n"))
+    }
+}
 
 struct Args {
     from: String,
@@ -179,6 +300,31 @@ fn expect_version(root: &Path, work: &Path, consumer: &Path, version: &str) -> R
         .map_err(|_| format!("dx upgrade --to {version} still reports stale files"))
 }
 
+/// Checks the consumer's resolved rule sets against the floors of rules_dx `version`.
+/// `local` reads the floors from the checkout, whose `local_path_override` hides the rules_dx version.
+fn expect_rule_sets(root: &Path, work: &Path, version: &str, local: bool) -> Result<(), String> {
+    let floors_text = if local {
+        read(&root.join("MODULE.bazel"))?
+    } else {
+        output(
+            "curl",
+            &[
+                "-fsSL",
+                &format!("{}/modules/rules_dx/{version}/MODULE.bazel", bcr_url()),
+            ],
+            work,
+        )?
+    };
+    let graph = output("bazel", &["mod", "graph", "--output=json"], work)?;
+    rule_set_problems(
+        &read(&work.join("MODULE.bazel"))?,
+        &rule_set_floors(&floors_text)?,
+        &resolved(&graph)?,
+        (!local).then_some(version),
+    )
+    .map_err(|problems| format!("rule sets at rules_dx {version}:\n{problems}"))
+}
+
 struct Scratch(PathBuf);
 
 impl Drop for Scratch {
@@ -193,6 +339,7 @@ fn scenario(root: &Path, work: &Path, from: &str, to: &str, local: bool) -> Resu
     let module = work.join("MODULE.bazel");
     std::fs::write(&module, consumer_module(from)).map_err(|error| error.to_string())?;
     dx(work, &["init"])?;
+    expect_rule_sets(root, work, from, false)?;
     run("bazel", &["test", "//..."], work)?;
     if local {
         let mut text = read(&module)?;
@@ -207,6 +354,7 @@ fn scenario(root: &Path, work: &Path, from: &str, to: &str, local: bool) -> Resu
     for version in [to, from] {
         dx(work, &["upgrade", "--to", version, "--apply"])?;
         expect_version(root, work, work, version)?;
+        expect_rule_sets(root, work, version, local)?;
         run("bazel", &["test", "//..."], work)?;
     }
     Ok(())
@@ -220,7 +368,7 @@ pub fn e2e(args: &[String]) -> Result<(), String> {
         resolve_only,
     } = parse(args)?;
     if from.is_empty() || to.is_empty() {
-        let url = std::env::var("BCR_URL").unwrap_or_else(|_| BCR_URL.to_string());
+        let url = bcr_url();
         let root = std::env::current_dir().map_err(|error| error.to_string())?;
         let metadata = output(
             "curl",
@@ -267,7 +415,12 @@ pub fn e2e(args: &[String]) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{module_version, parse, resolve, unyanked};
+    use std::collections::{BTreeMap, BTreeSet};
+
+    use super::{
+        module_version, parse, resolve, resolved as graph_versions, rule_set_floors,
+        rule_set_problems, unyanked,
+    };
 
     const META: &str =
         r#"{"versions":["1.0.0","1.1.0","1.2.0","1.3.0"],"yanked_versions":{"1.3.0":"bad"}}"#;
@@ -333,5 +486,114 @@ mod tests {
         let text = "module(\n    name = \"rules_dx\",\n    version = \"2.4.6\",\n)\n\nbazel_dep(name = \"x\", version = \"1\")\n";
         assert_eq!(module_version(text).as_deref(), Some("2.4.6"));
         assert_eq!(module_version("module(name = \"x\")\n"), None);
+    }
+
+    const RULES_DX_0_2: &str = "module(name = \"rules_dx\", version = \"0.2.0\")\n\nbazel_dep(name = \"rules_php\", version = \"0.2.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.1.1\")\nbazel_dep(name = \"rules_qt\", version = \"0.3.0\", dev_dependency = True)\n";
+    const CONSUMER: &str = "module(name = \"upgrade_e2e\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.2.0\")\n";
+
+    fn graph(rules_dx: &str, php: &str) -> String {
+        format!(
+            r#"{{"name":"upgrade_e2e","version":"","dependencies":[{{"name":"rules_dx","version":"{rules_dx}","dependencies":[{{"name":"rules_php","version":"{php}","dependencies":[{{"name":"rules_dx","version":"{rules_dx}","unexpanded":true}}]}}]}}]}}"#
+        )
+    }
+
+    fn versions(graph: &str) -> BTreeMap<String, BTreeSet<String>> {
+        graph_versions(graph).expect("graph")
+    }
+
+    #[test]
+    fn floors_read_only_non_dev_rule_set_deps() {
+        let floors = rule_set_floors(RULES_DX_0_2).expect("floors");
+        assert_eq!(
+            floors.into_iter().collect::<Vec<_>>(),
+            vec![("rules_php".to_string(), "0.2.0".to_string())]
+        );
+    }
+
+    #[test]
+    fn the_graph_walk_merges_nested_duplicates() {
+        let found = versions(&graph("0.2.0", "0.2.0"));
+        assert_eq!(found["rules_dx"].len(), 1);
+        assert!(found["rules_php"].contains("0.2.0"));
+    }
+
+    #[test]
+    fn no_floors_and_no_rule_sets_pass() {
+        let graph = r#"{"name":"upgrade_e2e","version":"","dependencies":[{"name":"rules_dx","version":"0.1.0","dependencies":[]}]}"#;
+        assert_eq!(
+            rule_set_problems(CONSUMER, &BTreeMap::new(), &versions(graph), Some("0.1.0")),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn a_rule_set_at_its_floor_passes() {
+        let floors = rule_set_floors(RULES_DX_0_2).expect("floors");
+        assert_eq!(
+            rule_set_problems(CONSUMER, &floors, &versions(&graph("0.2.0", "0.2.0")), Some("0.2.0")),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn a_raised_floor_left_behind_fails_and_names_the_rule_set() {
+        let floors = rule_set_floors(RULES_DX_0_2).expect("floors");
+        let error = rule_set_problems(
+            CONSUMER,
+            &floors,
+            &versions(&graph("0.2.0", "0.1.0")),
+            Some("0.2.0"),
+        )
+        .expect_err("stale rule set");
+        assert!(error.contains("rules_php resolved to 0.1.0, wanted the rules_dx floor 0.2.0"), "{error}");
+    }
+
+    #[test]
+    fn a_rule_set_without_a_floor_fails() {
+        let error = rule_set_problems(
+            CONSUMER,
+            &BTreeMap::new(),
+            &versions(&graph("0.2.0", "0.1.0")),
+            Some("0.2.0"),
+        )
+        .expect_err("unfloored rule set");
+        assert!(error.contains("rules_php resolved to 0.1.0, wanted nothing"), "{error}");
+    }
+
+    #[test]
+    fn a_consumer_rule_set_dep_fails() {
+        let consumer = format!("{CONSUMER}bazel_dep(name = \"rules_php\", version = \"0.2.0\")\n");
+        let floors = rule_set_floors(RULES_DX_0_2).expect("floors");
+        let error = rule_set_problems(
+            &consumer,
+            &floors,
+            &versions(&graph("0.2.0", "0.2.0")),
+            Some("0.2.0"),
+        )
+        .expect_err("consumer names a rule set");
+        assert!(error.contains("names rules_php"), "{error}");
+    }
+
+    #[test]
+    fn rules_dx_above_the_target_fails_with_the_release_order() {
+        let floors = rule_set_floors(RULES_DX_0_2).expect("floors");
+        let error = rule_set_problems(
+            CONSUMER,
+            &floors,
+            &versions(&graph("0.3.0", "0.2.0")),
+            Some("0.2.0"),
+        )
+        .expect_err("rules_dx pulled up");
+        assert!(error.contains("rules_dx resolved to 0.3.0, wanted 0.2.0"), "{error}");
+        assert!(error.contains("release rules_dx before the rule set"), "{error}");
+    }
+
+    #[test]
+    fn local_mode_skips_the_rules_dx_version() {
+        let floors = rule_set_floors(RULES_DX_0_2).expect("floors");
+        assert_eq!(
+            rule_set_problems(CONSUMER, &floors, &versions(&graph("", "0.2.0")), None),
+            Ok(())
+        );
     }
 }

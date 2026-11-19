@@ -17,7 +17,8 @@ mod run;
 #[cfg(test)]
 mod run_tests;
 
-fn main() {
+/// Runs the test and converts its coverage; the `hpc_coverage` helper of dx-runtime.
+pub fn main() -> std::process::ExitCode {
     let args: Vec<std::ffi::OsString> = std::env::args_os().skip(1).collect();
     match run::run(&args, &|name| std::env::var_os(name)) {
         Ok(code) => std::process::exit(code),

@@ -101,7 +101,8 @@ fn run(args: &[String]) -> Result<(), String> {
         .map_err(|error| format!("could not write dx-bench.json: {error}"))
 }
 
-fn main() -> ExitCode {
+/// Runs one benchmark binary; the `bench_report` helper of dx-runtime.
+pub fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     match run(&args) {
         Ok(()) => ExitCode::SUCCESS,

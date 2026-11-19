@@ -3,15 +3,15 @@
 load("@rules_android//providers:providers.bzl", "AndroidBundleInfo", "ApkInfo")
 load("@rules_android//rules:rules.bzl", "android_binary")
 load("@rules_android//rules/android_application:android_application_rule.bzl", "android_application")
-load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
-load("//core:no_coverage.bzl", "no_coverage_transition")
-load("//core:resources.bzl", "dx_heavy_resources")
 load("@rules_java//java/common:java_common.bzl", "java_common")
 load("//android/private/platforms:defs.bzl", "api_floor")
 load("//android/private/sdk:repos.bzl", "BUILD_TOOLS", "SDK_PLATFORM")
+load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
+load("//core:no_coverage.bzl", "no_coverage_transition")
+load("//core:resources.bzl", "dx_heavy_resources")
+load("//core/quality:sources.bzl", "single_target")
 load(":repos.bzl", "ABI_PLATFORMS", "abi_errors", "abi_platforms", "app_id_errors", "manifest_lib_name")
 load(":validate.bzl", "android_aab_check_errors", "android_apk_manifest_errors", "android_apk_set_errors", "android_release_sign_errors", "rust_android_apk_errors")
-load("//core/quality:sources.bzl", "single_target")
 
 _TARGET_SDK = SDK_PLATFORM.removeprefix("android-")
 
@@ -25,7 +25,9 @@ _BUNDLETOOL = Label("//android/private/packaging:bundletool")
 
 _DEBUG_KEYSTORE = Label("@rules_android//tools/android:debug_keystore")
 
-_OPS = Label("//android/private/packaging/ops:android_ops")
+_RUNTIME = Label("//cli/runtime:dx_runtime")
+
+_DX = Label("@dx_prebuilt//:dx")
 
 _ADB = Label("@dx_android_sdk//:adb")
 
@@ -35,9 +37,9 @@ def _key(ctx, short_path):
     return ctx.workspace_name + "/" + short_path
 
 def _ops_launcher(ctx, lines, runfiles):
-    text = "\n".join(["program=" + _key(ctx, ctx.executable._ops.short_path)] + lines) + "\n"
+    text = "\n".join(["program=" + _key(ctx, ctx.executable._runtime.short_path), "env=DX_RUNTIME_TOOL\tandroid_ops"] + lines) + "\n"
     launcher, _, launcher_runfiles = write_native_launcher(ctx, text)
-    merged = launcher_runfiles.merge_all([ctx.attr._ops[0][DefaultInfo].default_runfiles] + runfiles)
+    merged = launcher_runfiles.merge_all([ctx.attr._runtime[0][DefaultInfo].default_runfiles] + runfiles)
     return DefaultInfo(executable = launcher, runfiles = merged)
 
 def _manifest_text(app_id, activity, api_level, library, permissions, version_code, version_name):
@@ -213,7 +215,7 @@ def android_rust_apk(
             version_code = version_code,
             version_name = version_name,
             tags = ["manual"],
-        testonly = testonly,
+            testonly = testonly,
             visibility = ["//visibility:private"],
         )
     _apk_file(
@@ -475,7 +477,7 @@ _adb_launcher = rule(
         "selection": attr.label(doc = "Selection target that fails analysis on a rejected declaration."),
         "serial": attr.string(default = "", doc = "Device or emulator serial the operation targets."),
         "_adb": attr.label(default = _ADB, cfg = "exec", allow_files = True, doc = "Pinned adb; empty without the platform-tools package."),
-        "_ops": attr.label(default = _OPS, cfg = no_coverage_transition, executable = True, doc = "The Android operations program."),
+        "_runtime": attr.label(default = _RUNTIME, cfg = no_coverage_transition, executable = True, doc = "dx-runtime, whose android_ops helper runs the operation."),
     } | NATIVE_LAUNCHER_ATTRS,
 )
 
@@ -642,7 +644,7 @@ _sign_launcher = rule(
         "_apksigner_jar": attr.label(default = _APKSIGNER_JAR, cfg = "exec", allow_single_file = True),
         "_bundletool": attr.label(default = _BUNDLETOOL, cfg = "exec", executable = True),
         "_java_runtime": attr.label(default = _JAVA_RUNTIME, cfg = "exec", providers = [java_common.JavaRuntimeInfo]),
-        "_ops": attr.label(default = _OPS, cfg = no_coverage_transition, executable = True, doc = "The Android operations program."),
+        "_runtime": attr.label(default = _RUNTIME, cfg = no_coverage_transition, executable = True, doc = "dx-runtime, whose android_ops helper runs the operation."),
         "_zipalign": attr.label(default = _ZIPALIGN, cfg = "exec", allow_single_file = True),
     } | NATIVE_LAUNCHER_ATTRS,
 )
@@ -729,7 +731,7 @@ _package_check_test = rule(
         "resources": attr.string_list(default = [], doc = "type/name resources the bundle must resolve."),
         "selection": attr.label(doc = "Selection target that fails analysis on a rejected declaration."),
         "_bundletool": attr.label(default = _BUNDLETOOL, cfg = "target", executable = True, doc = "Pinned bundletool."),
-        "_ops": attr.label(default = _OPS, cfg = no_coverage_transition, executable = True, doc = "The Android operations program."),
+        "_runtime": attr.label(default = _RUNTIME, cfg = no_coverage_transition, executable = True, doc = "dx-runtime, whose android_ops helper runs the operation."),
     } | NATIVE_LAUNCHER_ATTRS,
 )
 
@@ -766,8 +768,9 @@ def _apk_set_impl(ctx):
     bundletool = ctx.attr._bundletool[DefaultInfo].files_to_run
     java = ctx.attr._java_runtime[java_common.JavaRuntimeInfo]
     ctx.actions.run(
-        executable = ctx.executable._ops,
+        executable = ctx.executable._dx,
         arguments = [
+            "android_ops",
             "apk-set",
             bundletool.executable.path,
             aabs[0].path,
@@ -799,6 +802,6 @@ android_apk_set = rule(
         "_bundletool": attr.label(default = _BUNDLETOOL, executable = True, cfg = "exec", doc = "Pinned bundletool."),
         "_java_runtime": attr.label(default = _JAVA_RUNTIME, cfg = "exec", providers = [java_common.JavaRuntimeInfo]),
         "_keystore": attr.label(default = _DEBUG_KEYSTORE, allow_single_file = True, doc = "Public rules_android debug keystore; debug installs only."),
-        "_ops": attr.label(default = _OPS, executable = True, cfg = "exec", doc = "The Android operations program."),
+        "_dx": attr.label(default = _DX, executable = True, cfg = "exec", doc = "dx, whose android_ops subcommand builds the APK set."),
     },
 )

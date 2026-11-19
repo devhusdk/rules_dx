@@ -89,7 +89,6 @@
 //cli/codegen_shard:codegen_shard_writer runnable rust_binary
 //cli/coverage_summary:coverage_summary runnable rust_binary
 //cli/env:env runnable rust_binary
-//cli/hpc_coverage:hpc_coverage runnable rust_binary
 //cli/launcher:exec_launcher runnable rust_binary
 //cli/ocaml_cc_driver:ocaml_cc_driver runnable rust_binary
 //cli/runtime:dx_runtime runnable rust_binary

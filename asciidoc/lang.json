@@ -20,5 +20,16 @@
   "pins": [],
   "entry_points": [
     "asciidoc_library"
-  ]
+  ],
+  "quality": {
+    "bzl": "core/quality:families/core.bzl",
+    "classes": [
+      "asciidoc"
+    ],
+    "file_extensions": [
+      ".adoc",
+      ".asc",
+      ".asciidoc"
+    ]
+  }
 }

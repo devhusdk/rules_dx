@@ -1,6 +1,6 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
-use std::path::Path;
+use std::path::{Component, Path};
 use std::process::Command;
 pub use tempfile::TempDir;
 
@@ -51,12 +51,18 @@ fn scratch_base(lookup: impl Fn(&str) -> Option<std::ffi::OsString>) -> std::pat
 ///
 /// Fails when the directory cannot be created.
 pub fn scratch(prefix: &str) -> Result<TempDir, String> {
-    let bounded = bounded_prefix(prefix);
-    let base = scratch_base(|key| std::env::var_os(key));
+    scratch_in(&scratch_base(|key| std::env::var_os(key)), prefix)
+}
+
+/// Creates the scratch dir under `base`, making `base` and absolutizing it first.
+fn scratch_in(base: &Path, prefix: &str) -> Result<TempDir, String> {
+    std::fs::create_dir_all(base).map_err(|err| format!("test scratch creates {base:?}: {err}"))?;
+    let base = std::path::absolute(base)
+        .map_err(|err| format!("test scratch resolves {base:?}: {err}"))?;
     tempfile::Builder::new()
-        .prefix(&bounded)
+        .prefix(&bounded_prefix(prefix))
         .tempdir_in(&base)
-        .map_err(|err| format!("test scratch creates {prefix:?}: {err}"))
+        .map_err(|err| format!("test scratch creates {prefix:?} in {base:?}: {err}"))
 }
 
 /// Writes `text` to `root/rel`, creating missing parent directories.
@@ -65,6 +71,12 @@ pub fn scratch(prefix: &str) -> Result<TempDir, String> {
 ///
 /// Fails when a parent directory or the file cannot be written.
 pub fn write(root: &Path, rel: &str, text: &str) -> Result<(), String> {
+    let stays_inside = Path::new(rel)
+        .components()
+        .all(|part| matches!(part, Component::Normal(_) | Component::CurDir));
+    if !stays_inside {
+        return Err(format!("test scratch refuses {rel:?}: it leaves {root:?}"));
+    }
     let full = root.join(rel);
     if let Some(parent) = full.parent() {
         std::fs::create_dir_all(parent)
@@ -97,6 +109,13 @@ pub fn isolate_git<'a>(cmd: &'a mut Command, sandbox: &Path) -> &'a mut Command 
         "GIT_COMMON_DIR",
         "GIT_CONFIG_PARAMETERS",
         "GIT_CONFIG_COUNT",
+        "GIT_AUTHOR_NAME",
+        "GIT_AUTHOR_EMAIL",
+        "GIT_AUTHOR_DATE",
+        "GIT_COMMITTER_NAME",
+        "GIT_COMMITTER_EMAIL",
+        "GIT_COMMITTER_DATE",
+        "GIT_NAMESPACE",
     ] {
         cmd.env_remove(var);
     }
@@ -130,10 +149,17 @@ pub fn git(root: &Path, sandbox: &Path, args: &[&str]) -> Result<String, String>
     let output = dx_process::capture::run_captured(&mut cmd, GIT_DEADLINE)
         .map_err(|err| format!("git {args:?} in {root:?}: {err}"))?;
     if !output.success() {
-        return Err(format!(
-            "git {args:?} failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        ));
+        let stderr = output.stderr_text();
+        let detail = if stderr.is_empty() {
+            output.stdout_text().trim().to_owned()
+        } else {
+            stderr
+        };
+        let status = output.code.map_or_else(
+            || "killed by a signal".to_owned(),
+            |code| format!("exit {code}"),
+        );
+        return Err(format!("git {args:?} failed ({status}): {detail}"));
     }
     Ok(output.stdout_text().trim().to_owned())
 }
@@ -397,5 +423,93 @@ mod tests {
             eventually::<()>("a thing", std::time::Duration::from_millis(50), || None),
             Err("timed out waiting for a thing".to_owned())
         );
+    }
+
+    #[test]
+    fn write_refuses_paths_that_leave_the_root() {
+        let dir = scratch("dx-test-scratch-escape-").unwrap();
+        let root = dir.path().join("root");
+        std::fs::create_dir_all(&root).unwrap();
+        let outside = dir.path().join("outside.txt");
+        let absolute = outside.to_string_lossy().into_owned();
+        for rel in [
+            absolute.as_str(),
+            "../outside.txt",
+            "a/../../outside.txt",
+            "C:\\x\\y",
+        ] {
+            let result = write(&root, rel, "x");
+            if cfg!(windows) || rel != "C:\\x\\y" {
+                assert!(result.is_err(), "{rel} must be refused");
+            }
+        }
+        assert!(!outside.exists(), "nothing written outside the root");
+    }
+
+    #[test]
+    fn git_error_names_stdout_when_stderr_is_empty() {
+        let sandbox = scratch("git-empty-stderr").unwrap();
+        let root = sandbox.path().join("repo");
+        std::fs::create_dir_all(&root).unwrap();
+        git(&root, sandbox.path(), &["init", "-q"]).unwrap();
+        git(
+            &root,
+            sandbox.path(),
+            &["commit", "-q", "--allow-empty", "-m", "x"],
+        )
+        .unwrap();
+        let err = git(&root, sandbox.path(), &["commit", "-m", "again"]).unwrap_err();
+        assert!(err.contains("nothing to commit"), "{err}");
+        assert!(err.contains("exit"), "{err}");
+    }
+
+    #[test]
+    fn isolate_git_drops_identity_and_date_overrides() {
+        let sandbox = scratch("git-identity").unwrap();
+        let root = sandbox.path().join("repo");
+        std::fs::create_dir_all(&root).unwrap();
+        git(&root, sandbox.path(), &["init", "-q"]).unwrap();
+        let mut commit = Command::new("git");
+        commit.arg("-C").arg(&root).args([
+            "-c",
+            "user.name=dx",
+            "-c",
+            "user.email=dx@example.com",
+            "commit",
+            "-q",
+            "--allow-empty",
+            "-m",
+            "x",
+        ]);
+        for var in [
+            "GIT_AUTHOR_NAME",
+            "GIT_AUTHOR_EMAIL",
+            "GIT_COMMITTER_NAME",
+            "GIT_COMMITTER_EMAIL",
+        ] {
+            commit.env(var, "ambient");
+        }
+        isolate_git(&mut commit, sandbox.path());
+        assert!(commit.status().unwrap().success());
+        assert_eq!(
+            git(
+                &root,
+                sandbox.path(),
+                &["log", "-1", "--format=%an <%ae> %cn <%ce>"]
+            )
+            .unwrap(),
+            "dx <dx@example.com> dx <dx@example.com>"
+        );
+    }
+
+    #[test]
+    fn scratch_creates_a_missing_base_and_returns_absolute_paths() {
+        let dir = scratch("dx-test-scratch-base-").unwrap();
+        let missing = dir.path().join("not/yet");
+        let made = scratch_in(&missing, "dx-x-").unwrap();
+        assert!(made.path().is_dir());
+        assert!(made.path().is_absolute());
+        let relative = scratch_in(Path::new("."), "dx-rel-").unwrap();
+        assert!(relative.path().is_absolute(), "{:?}", relative.path());
     }
 }

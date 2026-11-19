@@ -46,12 +46,14 @@ windows_select_test = analysistest.make(
 def _default_select_impl(ctx):
     env = analysistest.begin(ctx)
     executable = analysistest.target_under_test(env)[DefaultInfo].files_to_run.executable
-    asserts.equals(env, ctx.executable.tool, executable)
+    asserts.equals(env, ctx.executable.tool.short_path, executable.short_path)
     return analysistest.end(env)
 
 default_select_test = analysistest.make(
     _default_select_impl,
     attrs = {"tool": attr.label(default = "@npm_typescript//:tsc", executable = True, cfg = "target")},
+    # Pin a non-Windows platform: on a Windows host the default platform picks the shim.
+    config_settings = {"//command_line_option:platforms": str(Label("//tools/platforms:linux_x86_64"))},
 )
 
 _CASES = [
@@ -61,6 +63,7 @@ _CASES = [
 ]
 
 def windows_tool_tests(name):
+    """Defines shim, Windows select and default select tests for each wrapped tool."""
     tests = []
     for case, alias, tool in _CASES:
         prefix = "{}_{}".format(name, case)

@@ -17,7 +17,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .map_err(|error| format!("{}: {error}", file.display()))?;
         lang_builds.push((snapshot::package_of(&path)?, text));
     }
-    let files = snapshot::render(&lang_builds)?;
+    let runfiles = runfiles::Runfiles::create()?;
+    let mut starlark = Vec::new();
+    for key in std::env::var("DX_API_STARLARK")?.split_whitespace() {
+        let file =
+            runfiles::rlocation!(runfiles, key).ok_or(format!("{key} is not in the runfiles"))?;
+        starlark
+            .push(std::fs::read(&file).map_err(|error| format!("{}: {error}", file.display()))?);
+    }
+    let files = snapshot::render(&lang_builds, &starlark)?;
     let snapshot_file = |name: &str| files.get(name).ok_or(format!("the snapshot has no {name}"));
     let surface = page::render(
         snapshot_file("cli.json")?,

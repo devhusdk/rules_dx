@@ -4,10 +4,12 @@ use std::collections::BTreeMap;
 
 use dx_module_bazel::{ModuleFile, Value as Arg};
 use dx_plan::args::{help_environment, help_surface};
+use prost::Message;
 use serde_json::{Value, json};
+use stardoc_output_proto::stardoc_output::{AttributeInfo, FunctionParamInfo, ModuleInfo};
 
 /// The files under `api/` this crate writes, in the order `update` writes them.
-pub const FILES: [&str; 3] = ["cli.json", "labels.txt", "schemas.txt"];
+pub const FILES: [&str; 4] = ["cli.json", "labels.txt", "schemas.txt", "starlark.json"];
 
 /// The rules in `config/BUILD.bazel` whose targets are public flags.
 const FLAG_RULES: [&str; 5] = [
@@ -28,9 +30,10 @@ const LANG_RULES: [&str; 2] = ["platform", "toolchain_type"];
 const PUBLIC: &str = "//visibility:public";
 
 /// Every file under `api/`, by name, as `update` writes it. `lang_builds` holds each language package and the text
-/// of its `BUILD.bazel`.
+/// of its `BUILD.bazel`; `starlark` holds the `starlark_doc_extract` binaryproto of each public `.bzl` file.
 pub fn render(
     lang_builds: &[(String, String)],
+    starlark: &[Vec<u8>],
 ) -> Result<BTreeMap<&'static str, String>, Box<dyn std::error::Error>> {
     let mut labels = labels_txt(CONFIG_BUILD)?;
     labels.push_str(&lang_labels_txt(lang_builds)?);
@@ -39,7 +42,165 @@ pub fn render(
         (FILES[0], cli_json()?),
         (FILES[1], labels),
         (FILES[2], schemas_txt()),
+        (FILES[3], starlark_json(starlark)?),
     ]))
+}
+
+/// One entry per public `.bzl` file with the signatures of its symbols: rule, macro, aspect, repository rule and tag
+/// class attrs, function params and provider fields. Docstrings and attrs Bazel defines for every rule are left out.
+fn starlark_json(modules: &[Vec<u8>]) -> Result<String, Box<dyn std::error::Error>> {
+    let mut entries = Vec::new();
+    for bytes in modules {
+        let module = ModuleInfo::decode(bytes.as_slice())?;
+        let rules = module
+            .rule_info
+            .iter()
+            .map(|rule| {
+                (
+                    rule.rule_name.clone(),
+                    json!({
+                        "name": rule.rule_name,
+                        "executable": rule.executable,
+                        "test": rule.test,
+                        "attrs": attrs_json(&rule.attribute),
+                    }),
+                )
+            })
+            .collect();
+        let macros = module
+            .macro_info
+            .iter()
+            .map(|item| {
+                (
+                    item.macro_name.clone(),
+                    json!({ "name": item.macro_name, "attrs": attrs_json(&item.attribute) }),
+                )
+            })
+            .collect();
+        let functions = module
+            .func_info
+            .iter()
+            .map(|function| {
+                (
+                    function.function_name.clone(),
+                    json!({ "name": function.function_name, "params": params_json(&function.parameter) }),
+                )
+            })
+            .collect();
+        let providers = module
+            .provider_info
+            .iter()
+            .map(|provider| {
+                let mut fields: Vec<&str> = provider
+                    .field_info
+                    .iter()
+                    .map(|field| field.name.as_str())
+                    .collect();
+                fields.sort_unstable();
+                (
+                    provider.provider_name.clone(),
+                    json!({ "name": provider.provider_name, "fields": fields }),
+                )
+            })
+            .collect();
+        let aspects = module
+            .aspect_info
+            .iter()
+            .map(|aspect| {
+                (
+                    aspect.aspect_name.clone(),
+                    json!({ "name": aspect.aspect_name, "attrs": attrs_json(&aspect.attribute) }),
+                )
+            })
+            .collect();
+        let extensions = module
+            .module_extension_info
+            .iter()
+            .map(|extension| {
+                let tag_classes = sorted_by_name(
+                    extension
+                        .tag_class
+                        .iter()
+                        .map(|tag| {
+                            (
+                                tag.tag_name.clone(),
+                                json!({ "name": tag.tag_name, "attrs": attrs_json(&tag.attribute) }),
+                            )
+                        })
+                        .collect(),
+                );
+                (
+                    extension.extension_name.clone(),
+                    json!({ "name": extension.extension_name, "tag_classes": tag_classes }),
+                )
+            })
+            .collect();
+        let repository_rules = module
+            .repository_rule_info
+            .iter()
+            .map(|rule| {
+                (
+                    rule.rule_name.clone(),
+                    json!({ "name": rule.rule_name, "attrs": attrs_json(&rule.attribute) }),
+                )
+            })
+            .collect();
+        entries.push((
+            module.file.clone(),
+            json!({
+                "load": module.file,
+                "rules": sorted_by_name(rules),
+                "macros": sorted_by_name(macros),
+                "functions": sorted_by_name(functions),
+                "providers": sorted_by_name(providers),
+                "aspects": sorted_by_name(aspects),
+                "extensions": sorted_by_name(extensions),
+                "repository_rules": sorted_by_name(repository_rules),
+            }),
+        ));
+    }
+    let mut text = serde_json::to_string_pretty(&sorted_by_name(entries))?;
+    text.push('\n');
+    Ok(text)
+}
+
+fn sorted_by_name(mut items: Vec<(String, Value)>) -> Vec<Value> {
+    items.sort_by(|left, right| left.0.cmp(&right.0));
+    items.into_iter().map(|(_, value)| value).collect()
+}
+
+fn attrs_json(attrs: &[AttributeInfo]) -> Vec<Value> {
+    sorted_by_name(
+        attrs
+            .iter()
+            .filter(|attr| !attr.natively_defined)
+            .map(|attr| {
+                (
+                    attr.name.clone(),
+                    json!({
+                        "name": attr.name,
+                        "type": attr.r#type().as_str_name(),
+                        "default": attr.default_value,
+                        "mandatory": attr.mandatory,
+                    }),
+                )
+            })
+            .collect(),
+    )
+}
+
+/// Params stay in declaration order: callers may pass them by position.
+fn params_json(params: &[FunctionParamInfo]) -> Vec<Value> {
+    params
+        .iter()
+        .map(|param| {
+            json!({
+                "name": param.name,
+                "default": param.default_value,
+                "mandatory": param.mandatory,
+            })
+        })
+        .collect()
 }
 
 /// The `$(rootpaths)` of every language `BUILD.bazel`, from `DX_API_LANG_BUILDS`.
@@ -256,7 +417,135 @@ pub fn unbumped_schemas(checked_in: &str, current: &str) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{FILES, hub_labels_txt, labels_txt, lang_labels_txt, render, unbumped_schemas};
+    use prost::Message;
+    use stardoc_output_proto::stardoc_output::{
+        AttributeInfo, AttributeType, FunctionParamInfo, MacroInfo, ModuleExtensionInfo,
+        ModuleExtensionTagClassInfo, ModuleInfo, ProviderFieldInfo, ProviderInfo, RuleInfo,
+        StarlarkFunctionInfo,
+    };
+
+    use super::{
+        FILES, hub_labels_txt, labels_txt, lang_labels_txt, render, starlark_json, unbumped_schemas,
+    };
+
+    fn attr(name: &str, default: &str, doc: &str) -> AttributeInfo {
+        AttributeInfo {
+            name: name.to_owned(),
+            doc_string: doc.to_owned(),
+            r#type: AttributeType::String.into(),
+            default_value: default.to_owned(),
+            ..AttributeInfo::default()
+        }
+    }
+
+    fn module(default: &str, doc: &str) -> Vec<u8> {
+        ModuleInfo {
+            file: "@rules_dx//demo:defs.bzl".to_owned(),
+            module_docstring: doc.to_owned(),
+            rule_info: vec![RuleInfo {
+                rule_name: "demo_binary".to_owned(),
+                doc_string: doc.to_owned(),
+                executable: true,
+                attribute: vec![
+                    attr("srcs", default, doc),
+                    AttributeInfo {
+                        natively_defined: true,
+                        ..attr("tags", "[]", doc)
+                    },
+                ],
+                ..RuleInfo::default()
+            }],
+            macro_info: vec![MacroInfo {
+                macro_name: "demo_macro".to_owned(),
+                doc_string: doc.to_owned(),
+                attribute: vec![attr("mode", "\"fast\"", doc)],
+                ..MacroInfo::default()
+            }],
+            func_info: vec![StarlarkFunctionInfo {
+                function_name: "demo_test".to_owned(),
+                doc_string: doc.to_owned(),
+                parameter: vec![
+                    FunctionParamInfo {
+                        name: "name".to_owned(),
+                        doc_string: doc.to_owned(),
+                        mandatory: true,
+                        ..FunctionParamInfo::default()
+                    },
+                    FunctionParamInfo {
+                        name: "args".to_owned(),
+                        doc_string: doc.to_owned(),
+                        default_value: "[]".to_owned(),
+                        ..FunctionParamInfo::default()
+                    },
+                ],
+                ..StarlarkFunctionInfo::default()
+            }],
+            provider_info: vec![ProviderInfo {
+                provider_name: "DemoInfo".to_owned(),
+                doc_string: doc.to_owned(),
+                field_info: vec![
+                    ProviderFieldInfo {
+                        name: "outputs".to_owned(),
+                        doc_string: doc.to_owned(),
+                    },
+                    ProviderFieldInfo {
+                        name: "inputs".to_owned(),
+                        doc_string: doc.to_owned(),
+                    },
+                ],
+                ..ProviderInfo::default()
+            }],
+            module_extension_info: vec![ModuleExtensionInfo {
+                extension_name: "demo".to_owned(),
+                doc_string: doc.to_owned(),
+                tag_class: vec![ModuleExtensionTagClassInfo {
+                    tag_name: "toolchain".to_owned(),
+                    doc_string: doc.to_owned(),
+                    attribute: vec![attr("version", default, doc)],
+                }],
+                ..ModuleExtensionInfo::default()
+            }],
+            ..ModuleInfo::default()
+        }
+        .encode_to_vec()
+    }
+
+    #[test]
+    fn starlark_json_keeps_signatures_and_drops_docs() {
+        let text = starlark_json(&[module("[]", "Old docs.")]).expect("module decodes");
+        assert_eq!(
+            text,
+            starlark_json(&[module("[]", "New docs.")]).expect("module decodes")
+        );
+        assert_ne!(
+            text,
+            starlark_json(&[module("[\"a.txt\"]", "Old docs.")]).expect("module decodes")
+        );
+        let json: serde_json::Value = serde_json::from_str(&text).expect("starlark.json parses");
+        let entry = &json[0];
+        assert_eq!(entry["load"], "@rules_dx//demo:defs.bzl");
+        assert_eq!(
+            entry["rules"][0],
+            serde_json::json!({
+                "name": "demo_binary",
+                "executable": true,
+                "test": false,
+                "attrs": [{"name": "srcs", "type": "STRING", "default": "[]", "mandatory": false}],
+            })
+        );
+        assert_eq!(entry["macros"][0]["attrs"][0]["default"], "\"fast\"");
+        assert_eq!(entry["functions"][0]["params"][0]["name"], "name");
+        assert_eq!(entry["functions"][0]["params"][1]["default"], "[]");
+        assert_eq!(
+            entry["providers"][0]["fields"],
+            serde_json::json!(["inputs", "outputs"])
+        );
+        assert_eq!(
+            entry["extensions"][0]["tag_classes"][0]["attrs"][0]["name"],
+            "version"
+        );
+        assert!(!text.contains("docs"), "{text}");
+    }
 
     #[test]
     fn labels_list_each_flag_with_its_default_and_values() {
@@ -352,7 +641,11 @@ platform(name = "hidden", visibility = ["//visibility:private"])
     #[test]
     fn the_snapshot_covers_every_file_and_flag_detail() {
         let msix = "package(default_visibility = [\"//visibility:public\"])\ntoolchain_type(name = \"toolchain_type\")\n";
-        let files = render(&[("msix".to_owned(), msix.to_owned())]).expect("snapshot renders");
+        let files = render(
+            &[("msix".to_owned(), msix.to_owned())],
+            &[module("[]", "Docs.")],
+        )
+        .expect("snapshot renders");
         assert_eq!(files.keys().copied().collect::<Vec<_>>(), {
             let mut names = FILES.to_vec();
             names.sort_unstable();
@@ -387,6 +680,11 @@ platform(name = "hidden", visibility = ["//visibility:private"])
             "{cli}"
         );
         assert!(files["schemas.txt"].starts_with("events.schema.json "));
+        assert!(
+            files["starlark.json"].contains("\"load\": \"@rules_dx//demo:defs.bzl\""),
+            "{}",
+            files["starlark.json"]
+        );
         assert!(
             files["labels.txt"]
                 .lines()

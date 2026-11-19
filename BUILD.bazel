@@ -9,6 +9,7 @@ load("//javascript:defs.bzl", "js_library")
 # gazelle:resolve rust marker_proto //core/env/private/proto:marker_proto_rs
 # gazelle:resolve rust proto //core/quality/result/proto:result_proto_rs
 # gazelle:resolve rust result_proto //core/quality/result/proto:result_proto_rs
+# gazelle:resolve rust stardoc_output_proto //tools/api/stardoc:stardoc_output_proto_rs
 # gazelle:resolve rust prost @rules_rust_prost//private/3rdparty/crates:prost
 # gazelle:resolve rust runfiles @rules_rust//rust/runfiles
 # gazelle:resolve rust serde @crates//:serde
@@ -891,6 +892,7 @@ filegroup(
         "//thrift/private/crates:module_srcs",
         "//thrift/tests:module_srcs",
         "//tools/api:module_srcs",
+        "//tools/api/stardoc:module_srcs",
         "//tools/bazelisk:module_srcs",
         "//tools/bazelrc:module_srcs",
         "//tools/ci:module_srcs",

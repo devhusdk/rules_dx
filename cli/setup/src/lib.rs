@@ -279,12 +279,14 @@ pub fn read_current_pair(workspace_root: &Path) -> Result<Option<SetupPair>, Com
     let pointer_target = fs::read_link(&current).map_err(|e| CommitError::CurrentInvalid {
         reason: format!("cannot read {}: {e}", current.display()),
     })?;
-    let environment = fs::read_link(current.join(ENVIRONMENT_LINK_NAME))
-        .ok()
-        .and_then(|target| generation_from_link_target(&target));
-    let generated = fs::read_link(current.join(GENERATED_LINK_NAME))
-        .ok()
-        .and_then(|target| generation_from_link_target(&target));
+    let environment_target = fs::read_link(current.join(ENVIRONMENT_LINK_NAME)).ok();
+    let generated_target = fs::read_link(current.join(GENERATED_LINK_NAME)).ok();
+    let environment = environment_target
+        .as_deref()
+        .and_then(generation_from_link_target);
+    let generated = generated_target
+        .as_deref()
+        .and_then(generation_from_link_target);
     let (Some(environment), Some(generated)) = (environment, generated) else {
         return Err(CommitError::CurrentInvalid {
             reason: format!(
@@ -297,6 +299,18 @@ pub fn read_current_pair(workspace_root: &Path) -> Result<Option<SetupPair>, Com
         environment,
         generated,
     };
+    let in_layout = environment_target.as_deref().and_then(Path::to_str)
+        == Some(expected_environment_target(&pair).as_str())
+        && generated_target.as_deref().and_then(Path::to_str)
+            == Some(expected_generated_target(&pair).as_str());
+    if !in_layout {
+        return Err(CommitError::CurrentInvalid {
+            reason: format!(
+                "{} links leave the setup layout; refusing to adopt foreign state",
+                current.display()
+            ),
+        });
+    }
     let want = setup_hex(&pair);
     let pointed = pointer_target
         .file_name()

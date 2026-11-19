@@ -1,5 +1,5 @@
-// Command godoc_json extracts one Go package's exported API with go/doc and writes it as JSON.
-package main
+// Package godoc extracts one Go package's exported API with go/doc and writes it as JSON.
+package godoc
 
 import (
 	"bufio"

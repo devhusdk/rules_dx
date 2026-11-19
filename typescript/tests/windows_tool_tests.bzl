@@ -46,12 +46,13 @@ windows_select_test = analysistest.make(
 def _default_select_impl(ctx):
     env = analysistest.begin(ctx)
     executable = analysistest.target_under_test(env)[DefaultInfo].files_to_run.executable
-    asserts.equals(env, ctx.executable.tool, executable)
+    asserts.equals(env, ctx.attr.tool.label, executable.owner)
     return analysistest.end(env)
 
 default_select_test = analysistest.make(
     _default_select_impl,
     attrs = {"tool": attr.label(default = "@npm_typescript//:tsc", executable = True, cfg = "target")},
+    config_settings = {"//command_line_option:platforms": str(Label("//tools/platforms:linux_x86_64"))},
 )
 
 _CASES = [

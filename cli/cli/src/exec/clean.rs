@@ -152,6 +152,18 @@ fn remove_entry(path: &Path, display: &str, removed: &mut Vec<Removed>) -> io::R
     Ok(())
 }
 
+/// Removes a lease directory once it is empty.
+fn remove_empty_dir(path: &Path) {
+    let Err(error) = fs::remove_dir(path) else {
+        return;
+    };
+    // A held lease keeps its directory; that is the normal case, so it is not logged.
+    let kind = error.kind();
+    if kind != io::ErrorKind::NotFound && kind != io::ErrorKind::DirectoryNotEmpty {
+        tracing::info!(%error, path = %path.display(), "cannot remove lease directory");
+    }
+}
+
 fn remove_dead_leases(root: &Path, display: &str, removed: &mut Vec<Removed>) -> io::Result<()> {
     let Ok(kinds) = fs::read_dir(root) else {
         return Ok(());
@@ -175,9 +187,9 @@ fn remove_dead_leases(root: &Path, display: &str, removed: &mut Vec<Removed>) ->
             );
             remove_entry(&path, &shown, removed)?;
         }
-        fs::remove_dir(kind.path()).ok();
+        remove_empty_dir(&kind.path());
     }
-    fs::remove_dir(root).ok();
+    remove_empty_dir(root);
     Ok(())
 }
 

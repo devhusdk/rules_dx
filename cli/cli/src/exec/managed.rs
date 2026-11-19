@@ -62,13 +62,13 @@ pub(crate) fn execute_managed(invocation: &Invocation, mut env: Env<'_>) -> i32 
     ) {
         Ok(code) => code,
         Err(exit) => {
-            std::fs::remove_file(&bep).ok();
+            dx_atomic_fs::discard_file(&bep);
             return exit;
         }
     };
     let action_counts = read_actions(&bep, env.actions);
     if bazel_code != 0 {
-        std::fs::remove_file(&bep).ok();
+        dx_atomic_fs::discard_file(&bep);
         if json {
             return report_collection_failure(
                 &mut env,
@@ -221,7 +221,7 @@ fn commit_collection(
     let prepared = match prepare_managed_sides(workspace, workspace, bep) {
         Ok(prepared) => prepared,
         Err(error) => {
-            std::fs::remove_file(bep).ok();
+            dx_atomic_fs::discard_file(bep);
             return Err(report_dx_error(
                 invocation.output,
                 env.out,
@@ -244,7 +244,7 @@ fn commit_collection(
                 CODE_MANAGED_COMMIT_FAILED
             };
             let error = map_commit_error(error);
-            std::fs::remove_file(bep).ok();
+            dx_atomic_fs::discard_file(bep);
             return Err(report_dx_error(
                 invocation.output,
                 env.out,
@@ -255,13 +255,15 @@ fn commit_collection(
         }
     };
     drop(prepared.leases);
-    std::fs::remove_file(bep).ok();
+    dx_atomic_fs::discard_file(bep);
     let record = super::sync_fingerprint::Record {
         targets: invocation.targets.clone(),
         artifacts: prepared.artifacts,
         sources: prepared.sources,
     };
-    super::sync_fingerprint::record(workspace, &record, None).ok();
+    if let Err(error) = super::sync_fingerprint::record(workspace, &record, None) {
+        tracing::info!(%error, "cannot record the sync fingerprint");
+    }
     let previous = before.filter(|hex| *hex != dx_setup::setup_hex(&pair));
     Ok((pair, outcome, previous))
 }

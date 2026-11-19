@@ -56,7 +56,9 @@ fn open_up(dir: &std::path::Path) {
                 use std::os::unix::fs::PermissionsExt;
                 permissions.set_mode(0o700);
             }
-            std::fs::set_permissions(&path, permissions).ok();
+            if let Err(error) = std::fs::set_permissions(&path, permissions) {
+                tracing::info!(%error, path = %path.display(), "cannot make writable");
+            }
             open_up(&path);
         }
     }
@@ -68,11 +70,13 @@ fn remove_tree(dir: &std::path::Path) {
     if std::fs::remove_dir_all(dir).is_ok() {
         return;
     }
-    if let Ok(meta) = std::fs::metadata(dir) {
-        std::fs::set_permissions(dir, meta.permissions()).ok();
+    if let Ok(meta) = std::fs::metadata(dir)
+        && let Err(error) = std::fs::set_permissions(dir, meta.permissions())
+    {
+        tracing::info!(%error, path = %dir.display(), "cannot reset permissions");
     }
     open_up(dir);
-    std::fs::remove_dir_all(dir).ok();
+    dx_atomic_fs::discard_dir(dir);
 }
 
 pub(super) fn file_name(rel: &str) -> &str {

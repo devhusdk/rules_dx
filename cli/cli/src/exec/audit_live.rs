@@ -2,7 +2,6 @@ use super::super::test_support::*;
 use dx_adopt::dependency_sets::Ecosystem;
 use dx_process::{ChildStatus, Runner};
 use std::cell::RefCell;
-use std::fmt::Write as _;
 use std::io;
 use std::path::Path;
 use std::rc::Rc;
@@ -70,7 +69,7 @@ impl Runner for AuditRunner {
                 if arg == "--report-path"
                     && let Some(path) = argv.get(index + 1)
                 {
-                    std::fs::write(path, sarif.as_bytes()).ok();
+                    std::fs::write(path, sarif.as_bytes()).expect("write the fake report");
                 }
             }
         }
@@ -79,7 +78,7 @@ impl Runner for AuditRunner {
                 if arg == "--output"
                     && let Some(path) = argv.get(index + 1)
                 {
-                    std::fs::write(path, report.as_bytes()).ok();
+                    std::fs::write(path, report.as_bytes()).expect("write the fake report");
                 }
             }
         }
@@ -215,7 +214,10 @@ pub(super) fn write_all_lock_families(harness: &Harness) {
     write_nuget_lock(harness);
     write_go_mod(harness);
     harness.write_source(
-        &format!("third_party/powershell/{}", Ecosystem::PowerShell.lockfile()),
+        &format!(
+            "third_party/powershell/{}",
+            Ecosystem::PowerShell.lockfile()
+        ),
         "{\n  \"modules\": {}\n}\n",
     );
 }
@@ -834,7 +836,7 @@ fn security_exception(set: &str, package: &str, versions: &str, expires: &str) -
         ("reason", "reviewed"),
         ("expires", expires),
     ] {
-        writeln!(text, "{key} = {value:?}").ok();
+        text.push_str(&format!("{key} = {value:?}\n"));
     }
     text
 }

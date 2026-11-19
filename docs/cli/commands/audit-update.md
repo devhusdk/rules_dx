@@ -510,6 +510,12 @@ tools/dx update --pr --automerge=none --max-prs=2
 
 Each dependency set gets one pull request on `dx-update/<set>`, such as `dx-update/github-actions`. Characters other than letters, digits, `.`, `_` and `-` become `-` in branch names.
 
+A `<set>:<package>` selector gives each picked package its own pull request on `dx-update/<set>--<package>`, such as `dx-update/bazel--rules_php`. A run over the whole set leaves out a package while its own pull request is open, and never closes that pull request:
+
+```bash
+tools/dx update --pr --allow-major --automerge=none bazel:rules_php
+```
+
 For each set, dx:
 
 1. Resets the branch to the base commit.
@@ -544,7 +550,7 @@ Skips:
 - Skips do not change the exit code.
 - If the token may not create pull requests, the run fails and names the setting "Allow GitHub Actions to create and approve pull requests".
 
-After the sets, dx closes open `dx-update/` pull requests on the base branch that this run covers but that have no updates left. It deletes the branch, comments `dx update: no updates left for this group.` and prints `closed #<n>`. Pull requests from forks are left alone.
+After the sets, dx closes open `dx-update/<set>` pull requests on the base branch for whole sets this run covers but that have no updates left. It deletes the branch, comments `dx update: no updates left for this group.` and prints `closed #<n>`. Pull requests from forks are left alone.
 
 | Code | Meaning |
 | --- | --- |

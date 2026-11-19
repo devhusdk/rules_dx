@@ -80,7 +80,8 @@ fn run() -> Result<i32, String> {
     Ok(status.code().unwrap_or(1))
 }
 
-fn main() {
+/// Runs the D test named by `DX_D_COVERAGE_UPSTREAM` and writes its LCOV report.
+pub fn main() -> std::process::ExitCode {
     let code = run().unwrap_or_else(|message| {
         eprintln!("dx: {message}");
         1

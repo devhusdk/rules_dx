@@ -158,14 +158,14 @@ php_checks_test(
         expect_equal(
             "the coverage descriptor runs the coverage runner with the tree, pcov, php, the ini flags and the tokens",
             coverage_descriptor(
-                "_main/tools/coverage_run",
+                "_main/cli/runtime/dx_runtime",
                 "_main/t.php",
                 "pcov+/pcov.so",
                 "php+/php",
                 {"a": "b c"},
                 _TEST,
             ),
-            "program=_main/tools/coverage_run\npath=_main/t.php\npath=pcov+/pcov.so\npath=php+/php\narg=-n\narg=-d\narg=a=b c\narg=--\npath=phpunit/phpunit.phar\narg=--bootstrap\npath=_main/t.php/vendor/autoload.php\narg=--no-configuration\narg=--fail-on-empty-test-suite\narg=--do-not-cache-test-index\nenv_flag=--log-junit\tXML_OUTPUT_FILE\n",
+            "program=_main/cli/runtime/dx_runtime\nenv=DX_RUNTIME_TOOL\tphp_coverage\npath=_main/t.php\npath=pcov+/pcov.so\npath=php+/php\narg=-n\narg=-d\narg=a=b c\narg=--\npath=phpunit/phpunit.phar\narg=--bootstrap\npath=_main/t.php/vendor/autoload.php\narg=--no-configuration\narg=--fail-on-empty-test-suite\narg=--do-not-cache-test-index\nenv_flag=--log-junit\tXML_OUTPUT_FILE\n",
         ),
         expect_equal(
             "the descriptor names the program, ini flags and tokens",

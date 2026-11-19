@@ -9,6 +9,9 @@ rust_binary(
     crate_name = "dx_runtime",
     deps = [
         "//cli/fuzz_run:dx_fuzz_run",
+        "//d/private/tools/coverage:dx_d_coverage",
+        "//dotnet/private/coverage:dx_coverlet",
+        "//php/private/coverage:dx_php_coverage",
         "//rego/private/launcher:dx_opa_test",
     ],
 )

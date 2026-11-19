@@ -59,6 +59,7 @@ def _d_test_coverage(ctx, upstream):
         env.update(upstream[RunEnvironmentInfo].environment)
         inherited = upstream[RunEnvironmentInfo].inherited_environment
     env["DX_D_COVERAGE_UPSTREAM"] = rlocation_path(ctx, exe)
+    env["DX_RUNTIME_TOOL"] = "d_coverage"
     return struct(
         instrumented = instrumented,
         env = RunEnvironmentInfo(environment = env, inherited_environment = inherited),
@@ -74,7 +75,7 @@ _d_forward_test = dx_executable_forward_rule(
         extra_attrs = dx_lcov_merger_attr() | {
             "deps": attr.label_list(doc = "Dependencies of the wrapped test, whose sources count for coverage."),
             "_d_coverage_launcher": attr.label(
-                default = Label("//d/private/tools/coverage:d_coverage_launcher"),
+                default = Label("//cli/runtime:dx_runtime"),
                 executable = True,
                 cfg = no_coverage_transition,
             ),

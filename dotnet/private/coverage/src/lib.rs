@@ -340,7 +340,8 @@ fn run() -> Result<i32, String> {
     Ok(code)
 }
 
-fn main() {
+/// Runs the .NET test named by `DX_COVERLET_CONFIG` under coverlet.
+pub fn main() -> std::process::ExitCode {
     let code = run().unwrap_or_else(|message| {
         eprintln!("dx: {message}");
         1

@@ -1,5 +1,5 @@
 load("//php/private/quality:corpus.bzl", "php_corpus")
-load("//rust:defs.bzl", "rust_binary", "rust_test")
+load("//rust:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
@@ -10,11 +10,10 @@ php_corpus(
     tags = ["corpus"],
 )
 
-rust_binary(
-    name = "coverage_run",
-    srcs = ["src/main.rs"],
-    crate_name = "coverage",
-    crate_root = "src/main.rs",
+rust_library(
+    name = "dx_php_coverage",
+    srcs = ["src/lib.rs"],
+    visibility = ["//cli/runtime:__pkg__"],
     deps = [
         "//cli/lcov:dx_lcov",
         "//cli/path:dx_path",
@@ -23,13 +22,13 @@ rust_binary(
 
 exports_files(
     [
-        "src/main.rs",
+        "src/lib.rs",
     ],
     visibility = ["//core/quality:__pkg__"],
 )
 
 rust_test(
-    name = "coverage_test",
+    name = "dx_php_coverage_test",
     size = "small",
-    crate = ":coverage_run",
+    crate = ":dx_php_coverage",
 )

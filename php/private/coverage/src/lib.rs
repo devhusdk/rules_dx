@@ -138,7 +138,8 @@ fn run(request: &Request) -> Result<i32, String> {
     Ok(status.code().unwrap_or(1))
 }
 
-fn main() {
+/// Runs PHPUnit under PCOV with the command line arguments and writes its LCOV report.
+pub fn main() -> std::process::ExitCode {
     let args: Vec<OsString> = env::args_os().skip(1).collect();
     let Some(request) = request(&args) else {
         eprintln!(

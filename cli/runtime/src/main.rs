@@ -9,9 +9,12 @@ use std::process::ExitCode;
 const TOOL_ENV: &str = "DX_RUNTIME_TOOL";
 
 /// The helpers, by the name a rule sets in `DX_RUNTIME_TOOL`.
-const TOOLS: [(&str, fn() -> ExitCode); 2] = [
+const TOOLS: [(&str, fn() -> ExitCode); 5] = [
+    ("coverlet", dx_coverlet::main),
+    ("d_coverage", dx_d_coverage::main),
     ("fuzz_run", dx_fuzz_run::main),
     ("opa_test", dx_opa_test::main),
+    ("php_coverage", dx_php_coverage::main),
 ];
 
 /// The helper a rule named, if there is one.

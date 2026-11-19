@@ -172,12 +172,15 @@ test_tags_sources = repository_rule(
     doc = "Snapshots every BUILD and .bzl file of the root module, and its MODULE.bazel, lang.json, pins.json, .bazelrc, .bazelignore, workflow, non-test .rs, non-test Go, module fragment, Rust, shell, template and rc code, patch header, language README, repository BUILD, language page and consumer fixture files, and the paths under its language directories, watching each directory and file it reads. Skips the paths .bazelignore lists other than the language tests/consumer directories, .git, node_modules, target, bazel-* and directory symlinks.",
 )
 
+# real_source_target is a fixture-only //core/quality macro that snapshot.rs would reject as non-public.
+_API_INTERNAL_MACROS = ["real_source_target"]
+
 _API_SCOPE = """
 filegroup(
     name = "dx_api_forwards_scope",
-    srcs = [":" + n for n, r in existing_rules().items() if r["generator_function"]],
+    srcs = [":" + n for n, r in existing_rules().items() if r["generator_function"] and r["generator_function"] not in %r],
 )
-"""
+""" % _API_INTERNAL_MACROS
 
 def _api_skipped(name):
     return name == "consumer.MODULE.bazel" or name.endswith(".png")
@@ -207,10 +210,17 @@ def _api_fixtures_impl(rctx):
                 rctx.file(child, text)
     if pending:
         fail("the consumer fixtures hold more than %d directories" % _MAX_DIRS)
+    for entry in root.get_child("bcr_test_module").readdir(watch = "yes"):
+        if entry.is_dir or entry.basename == "MODULE.bazel":
+            continue
+        text = rctx.read(entry, watch = "yes")
+        if entry.basename == "BUILD.bazel":
+            text += _API_SCOPE
+        rctx.file("bcr_test_module/" + entry.basename, text)
     rctx.file("BUILD.bazel", "")
     return rctx.repo_metadata(reproducible = True)
 
 api_fixtures = repository_rule(
     implementation = _api_fixtures_impl,
-    doc = "Copies every file under each <lang>/tests/consumer directory but consumer.MODULE.bazel and .png files, appending to each BUILD.bazel a dx_api_forwards_scope filegroup of the targets a macro created, watching each directory and file it reads.",
+    doc = "Copies every file under each <lang>/tests/consumer directory but consumer.MODULE.bazel and .png files, and the top-level files of bcr_test_module but MODULE.bazel, appending to each BUILD.bazel a dx_api_forwards_scope filegroup of the targets a public macro created, watching each directory and file it reads.",
 )

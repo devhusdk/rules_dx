@@ -39,22 +39,6 @@ reason = "The crate ships no license file; its NOTICE entry names the declared l
 expires = "2027-10-27"
 
 [[exception]]
-package = "cxx-qt"
-set = "cargo"
-license = "MIT OR Apache-2.0"
-versions = "=0.10.0"
-reason = "The crate ships no license file; its NOTICE entry names the declared license."
-expires = "2027-11-19"
-
-[[exception]]
-package = "cxx-qt-gen"
-set = "cargo"
-license = "MIT OR Apache-2.0"
-versions = "=0.10.0"
-reason = "The crate ships no license file; its NOTICE entry names the declared license."
-expires = "2027-11-19"
-
-[[exception]]
 package = "fxhash"
 set = "cargo"
 license = "Apache-2.0/MIT"
@@ -157,3 +141,17 @@ license = "MIT OR Apache-2.0"
 versions = "=0.1.0"
 reason = "The crate ships no license file; its NOTICE entry names the declared license."
 expires = "2027-10-27"
+
+[[inventory]]
+package = "cxx-qt"
+set = "cargo"
+license = "MIT OR Apache-2.0"
+versions = "=0.10.0"
+text = "third_party/licenses/cargo/cxx-qt-v0.10.0/LICENSE"
+
+[[inventory]]
+package = "cxx-qt-gen"
+set = "cargo"
+license = "MIT OR Apache-2.0"
+versions = "=0.10.0"
+text = "third_party/licenses/cargo/cxx-qt-v0.10.0/LICENSE"

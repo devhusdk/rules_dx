@@ -344,6 +344,11 @@ filegroup(
 )
 
 filegroup(
+    name = "license_texts",
+    srcs = glob(["third_party/licenses/**"]),
+)
+
+filegroup(
     name = "lang_json",
     srcs = [
         "//android:lang.json",
@@ -415,6 +420,7 @@ filegroup(
         "MODULE.bazel",
         "MODULE.bazel.lock",
         "cargo-bazel-lock.json",
+        ":license_texts",
         "license.toml",
         "security.toml",
         "//.devcontainer:module_srcs",

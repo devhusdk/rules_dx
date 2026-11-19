@@ -48,6 +48,7 @@ fn checked_in_snapshot_matches_the_code() {
     }
     let surface = page::render(
         &files["cli.json"],
+        &files["starlark.json"],
         &files["labels.txt"],
         &files["schemas.txt"],
     )

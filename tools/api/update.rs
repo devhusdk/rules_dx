@@ -38,6 +38,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let snapshot_file = |name: &str| files.get(name).ok_or(format!("the snapshot has no {name}"));
     let surface = page::render(
         snapshot_file("cli.json")?,
+        snapshot_file("starlark.json")?,
         snapshot_file("labels.txt")?,
         snapshot_file("schemas.txt")?,
     )?;

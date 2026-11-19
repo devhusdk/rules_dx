@@ -43,12 +43,73 @@ struct Env {
     default_for: Option<String>,
 }
 
+/// One public `.bzl` file in `starlark.json`.
+#[derive(Deserialize)]
+struct Module {
+    load: String,
+    rules: Vec<Rule>,
+    macros: Vec<Named>,
+    functions: Vec<Function>,
+    providers: Vec<Provider>,
+    aspects: Vec<Named>,
+    extensions: Vec<Extension>,
+    repository_rules: Vec<Named>,
+}
+
+#[derive(Deserialize)]
+struct Rule {
+    name: String,
+    executable: bool,
+    test: bool,
+    attrs: Vec<Attr>,
+}
+
+/// A symbol whose signature is a list of attrs: a macro, aspect, repository rule or tag class.
+#[derive(Deserialize)]
+struct Named {
+    name: String,
+    attrs: Vec<Attr>,
+}
+
+#[derive(Deserialize)]
+struct Attr {
+    name: String,
+    r#type: String,
+    default: String,
+    mandatory: bool,
+}
+
+#[derive(Deserialize)]
+struct Function {
+    name: String,
+    params: Vec<Param>,
+}
+
+#[derive(Deserialize)]
+struct Param {
+    name: String,
+    default: String,
+    mandatory: bool,
+}
+
+#[derive(Deserialize)]
+struct Provider {
+    name: String,
+    fields: Vec<String>,
+}
+
+#[derive(Deserialize)]
+struct Extension {
+    name: String,
+    tag_classes: Vec<Named>,
+}
+
 const HEADER: &str = "# Supported surface
 
-This page lists every `dx` command, flag, argument and environment variable, every build setting, platform, \
-toolchain type, hub repository and target rules_dx makes public, and the version of each file format dx reads or \
-writes. Use it to check what \
-your scripts, CI and `BUILD` files can rely on.
+This page lists every `dx` command, flag, argument and environment variable, every `.bzl` file you can load with \
+its rules, macros, attributes, providers and module extensions, every build setting, platform, toolchain type, hub \
+repository and target rules_dx makes public, and the version of each file format dx reads or writes. Use it to \
+check what your scripts, CI, `MODULE.bazel` and `BUILD` files can rely on.
 
 This page is generated. Do not edit it by hand. Run `bazel run //tools/api:update` to refresh it.
 
@@ -61,18 +122,21 @@ switch that takes no value.
 - A build setting is a flag you pass to Bazel as `--<setting>=<value>`. For an `alias`, \"Default\" names the \
 setting it forwards to.
 - `pinned` in \"Default\" means the tool rules_dx pins. Set the flag to your own label to replace it.
+- An attribute is a named argument of a rule, macro or tag. \"Required\" says whether you must set it.
 ";
 
 /// The module name users load rules_dx labels from.
 const MODULE: &str = "@rules_dx";
 
-/// The page for the snapshot texts `cli.json`, `labels.txt` and `schemas.txt`.
+/// The page for the snapshot texts `cli.json`, `starlark.json`, `labels.txt` and `schemas.txt`.
 pub fn render(
     cli_json: &str,
+    starlark_json: &str,
     labels_txt: &str,
     schemas_txt: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let cli: Cli = serde_json::from_str(cli_json)?;
+    let modules: Vec<Module> = serde_json::from_str(starlark_json)?;
     let mut page = String::from(HEADER);
     page.push_str("\n## Commands\n");
     for command in &cli.commands {
@@ -84,6 +148,7 @@ pub fn render(
         let default_for = env.default_for.as_deref().map(code).unwrap_or_default();
         row(&mut page, &[code(&env.name), code(&env.shape), default_for]);
     }
+    starlark_sections(&mut page, &modules);
     labels_sections(&mut page, labels_txt)?;
     page.push_str("\n## File formats\n\n");
     page.push_str("| Schema | Version |\n| --- | --- |\n");
@@ -134,6 +199,106 @@ fn command_section(page: &mut String, command: &Command) {
                 list(&flag.defaults, ""),
             ],
         );
+    }
+}
+
+fn starlark_sections(page: &mut String, modules: &[Module]) {
+    page.push_str("\n## Starlark files\n\nLoad a symbol in a `BUILD` or `.bzl` file with `load(\"<file>\", \"<symbol>\")`. \
+Use a module extension in `MODULE.bazel` with `use_extension(\"<file>\", \"<extension>\")`.\n");
+    for module in modules {
+        page.push_str(&format!("\n### `{}`\n", module.load));
+        for rule in &module.rules {
+            let kind = match (rule.test, rule.executable) {
+                (true, _) => "Test rule. Run it with `bazel test`.",
+                (false, true) => "Rule. Run it with `bazel run`.",
+                (false, false) => "Rule.",
+            };
+            symbol_heading(page, &rule.name, kind);
+            attrs_table(page, &rule.attrs);
+        }
+        for item in &module.macros {
+            symbol_heading(page, &item.name, "Macro.");
+            attrs_table(page, &item.attrs);
+        }
+        for function in &module.functions {
+            symbol_heading(page, &function.name, "Macro or function.");
+            if function.params.is_empty() {
+                page.push_str("No arguments.\n");
+                continue;
+            }
+            page.push_str("| Argument | Required | Default |\n| --- | --- | --- |\n");
+            for param in &function.params {
+                row(
+                    page,
+                    &[
+                        code(&param.name),
+                        yes_no(param.mandatory),
+                        optional_code(&param.default),
+                    ],
+                );
+            }
+        }
+        for provider in &module.providers {
+            symbol_heading(page, &provider.name, "Provider.");
+            if provider.fields.is_empty() {
+                page.push_str("No fields.\n");
+            } else {
+                page.push_str(&format!("Fields: {}.\n", list(&provider.fields, "")));
+            }
+        }
+        for aspect in &module.aspects {
+            symbol_heading(page, &aspect.name, "Aspect.");
+            attrs_table(page, &aspect.attrs);
+        }
+        for rule in &module.repository_rules {
+            symbol_heading(page, &rule.name, "Repository rule.");
+            attrs_table(page, &rule.attrs);
+        }
+        for extension in &module.extensions {
+            symbol_heading(page, &extension.name, "Module extension.");
+            if extension.tag_classes.is_empty() {
+                page.push_str("No tags.\n");
+            }
+            for (index, tag) in extension.tag_classes.iter().enumerate() {
+                if index > 0 {
+                    page.push('\n');
+                }
+                page.push_str(&format!("Tag `{}.{}`:\n\n", extension.name, tag.name));
+                attrs_table(page, &tag.attrs);
+            }
+        }
+    }
+}
+
+fn symbol_heading(page: &mut String, name: &str, kind: &str) {
+    page.push_str(&format!("\n#### `{name}`\n\n{kind}\n\n"));
+}
+
+fn attrs_table(page: &mut String, attrs: &[Attr]) {
+    if attrs.is_empty() {
+        page.push_str("No attributes.\n");
+        return;
+    }
+    page.push_str("| Attribute | Type | Required | Default |\n| --- | --- | --- | --- |\n");
+    for attr in attrs {
+        row(
+            page,
+            &[
+                code(&attr.name),
+                code(&attr.r#type.to_lowercase()),
+                yes_no(attr.mandatory),
+                optional_code(&attr.default),
+            ],
+        );
+    }
+}
+
+/// A code span, or an empty cell when there is no value.
+fn optional_code(text: &str) -> String {
+    if text.is_empty() {
+        String::new()
+    } else {
+        code(text)
     }
 }
 
@@ -344,7 +509,18 @@ mod tests {
             "//deploy:bootstrap_offline runnable native_binary\n",
             "@crates hub @rules_dx//rust:extensions.bzl%cargo\n",
         );
-        let page = render(cli, labels, "events.schema.json 4.0 sha256:aa\n").expect("page renders");
+        let starlark = r#"[{"load":"@rules_dx//demo:defs.bzl",
+            "rules":[{"name":"demo_test","executable":true,"test":true,"attrs":[
+                {"name":"srcs","type":"LABEL_LIST","default":"[]","mandatory":false},
+                {"name":"name","type":"NAME","default":"","mandatory":true}]}],
+            "macros":[],"aspects":[],"repository_rules":[],
+            "functions":[{"name":"demo_binary","params":[{"name":"name","default":"","mandatory":true},
+                {"name":"mode","default":"\"a|b\"","mandatory":false}]}],
+            "providers":[{"name":"DemoInfo","fields":["files","roots"]}],
+            "extensions":[{"name":"demo","tag_classes":[{"name":"lock","attrs":[
+                {"name":"lock","type":"LABEL","default":"","mandatory":true}]}]}]}]"#;
+        let page = render(cli, starlark, labels, "events.schema.json 4.0 sha256:aa\n")
+            .expect("page renders");
         for line in [
             "### `dx test`",
             "Exit codes: `0`, `2`.",
@@ -367,6 +543,16 @@ mod tests {
             "| `events.schema.json` | `4.0` |",
             "| `@crates` | `@rules_dx//rust:extensions.bzl%cargo` |",
             "| `@rules_dx//:dx` | `alias` |",
+            "### `@rules_dx//demo:defs.bzl`",
+            "#### `demo_test`",
+            "Test rule. Run it with `bazel test`.",
+            "| `srcs` | `label_list` | no | `[]` |",
+            "| `name` | `name` | yes |  |",
+            "#### `demo_binary`",
+            "| `mode` | no | `\"a\\|b\"` |",
+            "Fields: `files`, `roots`.",
+            "Tag `demo.lock`:",
+            "| `lock` | `label` | yes |  |",
         ] {
             assert!(
                 page.lines().any(|got| got == line),
@@ -399,14 +585,16 @@ mod tests {
 
     #[test]
     fn a_broken_snapshot_is_an_error() {
-        assert!(render("{}", "", "").is_err());
+        assert!(render("{}", "[]", "", "").is_err());
+        let cli = r#"{"commands":[],"environment":[]}"#;
+        assert!(render(cli, "[{}]", "", "").is_err());
     }
 
     #[test]
     fn a_broken_labels_line_is_an_error() {
         let cli = r#"{"commands":[],"environment":[]}"#;
-        assert!(render(cli, "//config:x\n", "").is_err());
-        assert!(render(cli, "//config:x string_flag \"open\n", "").is_err());
-        assert!(render(cli, "//config:x string_flag \"a\" not-a-list\n", "").is_err());
+        assert!(render(cli, "[]", "//config:x\n", "").is_err());
+        assert!(render(cli, "[]", "//config:x string_flag \"open\n", "").is_err());
+        assert!(render(cli, "[]", "//config:x string_flag \"a\" not-a-list\n", "").is_err());
     }
 }

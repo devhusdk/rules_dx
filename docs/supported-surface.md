@@ -1,6 +1,6 @@
 # Supported surface
 
-This page lists every `dx` command, flag, argument and environment variable, every build setting, platform, toolchain type, hub repository and target rules_dx makes public, and the version of each file format dx reads or writes. Use it to check what your scripts, CI and `BUILD` files can rely on.
+This page lists every `dx` command, flag, argument and environment variable, every `.bzl` file you can load with its rules, macros, attributes, providers and module extensions, every build setting, platform, toolchain type, hub repository and target rules_dx makes public, and the version of each file format dx reads or writes. Use it to check what your scripts, CI, `MODULE.bazel` and `BUILD` files can rely on.
 
 This page is generated. Do not edit it by hand. Run `bazel run //tools/api:update` to refresh it.
 
@@ -11,6 +11,7 @@ This page is generated. Do not edit it by hand. Run `bazel run //tools/api:updat
 - "Also" lists the other spellings of a flag.
 - A build setting is a flag you pass to Bazel as `--<setting>=<value>`. For an `alias`, "Default" names the setting it forwards to.
 - `pinned` in "Default" means the tool rules_dx pins. Set the flag to your own label to replace it.
+- An attribute is a named argument of a rule, macro or tag. "Required" says whether you must set it.
 
 ## Commands
 
@@ -703,6 +704,4131 @@ Exit codes: `0`, `1`, `2`.
 | `NO_COLOR` | `non-empty` |  |
 | `BUILD_WORKSPACE_DIRECTORY` | `dir` |  |
 | `BUILD_WORKING_DIRECTORY` | `dir` |  |
+
+## Starlark files
+
+Load a symbol in a `BUILD` or `.bzl` file with `load("<file>", "<symbol>")`. Use a module extension in `MODULE.bazel` with `use_extension("<file>", "<extension>")`.
+
+### `@rules_dx//ansible:defs.bzl`
+
+#### `ansible_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `playbooks` | `label_list` | no | `[]` |
+| `srcs` | `label_list` | no | `[]` |
+
+### `@rules_dx//ansible:extensions.bzl`
+
+#### `ansible`
+
+Module extension.
+
+Tag `ansible.lock`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `lock` | `label` | yes |  |
+| `name` | `name` | yes |  |
+
+### `@rules_dx//api_spec:defs.bzl`
+
+#### `api_spec_go_client`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `codegen_path` | `string` | no | `""` |
+| `name` | `name` | yes |  |
+| `out` | `string` | no | `""` |
+| `package` | `string` | yes |  |
+| `root` | `label` | no | `None` |
+| `spec` | `label` | yes |  |
+
+#### `api_spec_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `refs` | `label_list` | no | `[]` |
+| `srcs` | `label_list` | no | `[]` |
+
+#### `api_spec_python_client`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `codegen_path` | `string` | no | `""` |
+| `name` | `name` | yes |  |
+| `out` | `string` | no | `""` |
+| `root` | `label` | no | `None` |
+| `spec` | `label` | yes |  |
+
+#### `api_spec_rust_client`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `codegen_path` | `string` | no | `""` |
+| `name` | `name` | yes |  |
+| `out` | `string` | no | `""` |
+| `root` | `label` | no | `None` |
+| `spec` | `label` | yes |  |
+
+#### `api_spec_typescript_client`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `codegen_path` | `string` | no | `""` |
+| `name` | `name` | yes |  |
+| `out` | `string` | no | `""` |
+| `root` | `label` | no | `None` |
+| `spec` | `label` | yes |  |
+
+#### `ApiSpecInfo`
+
+Provider.
+
+Fields: `files`, `roots`.
+
+### `@rules_dx//appimage:defs.bzl`
+
+#### `appimage_package`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `target_compatible_with` | no | `None` |
+| `kwargs` | no |  |
+
+#### `AppImageInfo`
+
+Provider.
+
+Fields: `identity`, `image`, `name`, `version`.
+
+### `@rules_dx//appimage:extensions.bzl`
+
+#### `appimage`
+
+Module extension.
+
+No tags.
+
+### `@rules_dx//apple:defs.bzl`
+
+#### `apple_dynamic_xcframework_import`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `bundle_only` | `boolean` | no | `False` |
+| `deps` | `label_list` | no | `[]` |
+| `library_identifiers` | `string_dict` | no | `{}` |
+| `name` | `name` | yes |  |
+| `xcframework_imports` | `label_list` | yes |  |
+
+#### `apple_ios_app`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `library` | no | `None` |
+| `frameworks` | no | `[]` |
+| `entry` | no | `None` |
+| `srcs` | no | `None` |
+| `hdrs` | no | `[]` |
+| `deps` | no | `None` |
+| `platform` | no | `None` |
+| `bundle_id` | no | `""` |
+| `version` | no | `""` |
+| `deployment` | no | `""` |
+| `xcode_version` | no | `""` |
+| `resources` | no | `[]` |
+| `infoplists` | no | `[]` |
+| `families` | no | `["iphone"]` |
+| `entitlements` | no | `None` |
+| `provisioning_profile` | no | `None` |
+| `tags` | no | `None` |
+| `testonly` | no | `False` |
+| `visibility` | no | `None` |
+
+#### `apple_ios_app_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `app` | yes |  |
+| `srcs` | no | `None` |
+| `deployment` | no | `""` |
+| `device_type` | no | `""` |
+| `os_version` | no | `""` |
+| `deps` | no | `None` |
+| `tags` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `apple_ios_export`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `app` | yes |  |
+| `visibility` | no | `None` |
+
+#### `apple_ios_lib`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `[]` |
+| `deps` | no | `[]` |
+| `proc_macro_deps` | no | `[]` |
+| `crate_root` | no | `None` |
+| `crate_name` | no | `None` |
+| `edition` | no | `None` |
+| `hdrs` | no | `[]` |
+| `platform` | no | `None` |
+| `triple` | no | `""` |
+| `sdk` | no | `""` |
+| `deployment` | no | `""` |
+| `xcode_version` | no | `""` |
+| `crate_features` | no | `[]` |
+| `rustc_flags` | no | `[]` |
+| `frameworks` | no | `[]` |
+| `tags` | no | `[]` |
+| `testonly` | no | `False` |
+| `visibility` | no | `None` |
+
+#### `apple_ios_xcframework`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `library` | no | `None` |
+| `hdrs` | no | `[]` |
+| `deps` | no | `None` |
+| `bundle_id` | no | `""` |
+| `bundle_name` | no | `""` |
+| `version` | no | `""` |
+| `deployment` | no | `""` |
+| `xcode_version` | no | `""` |
+| `platforms` | no | `[]` |
+| `resources` | no | `[]` |
+| `infoplists` | no | `[]` |
+| `tags` | no | `None` |
+| `testonly` | no | `False` |
+| `visibility` | no | `None` |
+
+#### `apple_macos_app`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `hdrs` | no | `[]` |
+| `deps` | no | `None` |
+| `entry` | no | `None` |
+| `library` | no | `None` |
+| `frameworks` | no | `[]` |
+| `plugins` | no | `[]` |
+| `resources` | no | `[]` |
+| `infoplists` | no | `[]` |
+| `bundle_id` | no | `""` |
+| `version` | no | `""` |
+| `deployment` | no | `""` |
+| `platform` | no | `None` |
+| `xcode_version` | no | `""` |
+| `entitlements` | no | `None` |
+| `provisioning_profile` | no | `None` |
+| `tags` | no | `None` |
+| `testonly` | no | `False` |
+| `visibility` | no | `None` |
+
+#### `apple_macos_notarize`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `app` | yes |  |
+| `visibility` | no | `None` |
+
+#### `apple_macos_sign`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `app` | yes |  |
+| `visibility` | no | `None` |
+
+#### `apple_simulator_boot`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `simulator` | no | `""` |
+| `visibility` | no | `None` |
+
+#### `apple_simulator_install`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `app` | yes |  |
+| `simulator` | no | `""` |
+| `visibility` | no | `None` |
+
+#### `apple_simulator_launch`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `bundle_id` | yes |  |
+| `simulator` | no | `""` |
+| `visibility` | no | `None` |
+
+### `@rules_dx//apple:extensions.bzl`
+
+#### `apple`
+
+Module extension.
+
+No tags.
+
+### `@rules_dx//asciidoc:defs.bzl`
+
+#### `asciidoc_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `srcs` | `label_list` | no | `[]` |
+
+### `@rules_dx//astro:defs.bzl`
+
+#### `astro_build`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `config` | yes |  |
+| `node_modules` | yes |  |
+| `package_json` | no | `None` |
+| `public` | no | `None` |
+| `ssr_entry` | no | `None` |
+| `deps` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `astro_doc_shard`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `tsconfig` | yes |  |
+| `entry_points` | yes |  |
+| `package` | yes |  |
+| `node_modules` | yes |  |
+| `package_json` | no | `None` |
+| `deps` | no | `[]` |
+| `kwargs` | no |  |
+
+#### `astro_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `astro_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `node_modules` | yes |  |
+| `data` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//avro:defs.bzl`
+
+#### `avro_cc_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `codegen_path` | `string` | no | `""` |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `namespace` | `string` | no | `""` |
+
+#### `avro_java_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `codegen_path` | `string` | no | `""` |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+
+#### `avro_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `srcs` | `label_list` | no | `[]` |
+
+#### `avro_doc_shard`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `avro` | yes |  |
+| `package` | no | `""` |
+| `kwargs` | no |  |
+
+#### `AvroInfo`
+
+Provider.
+
+Fields: `direct_deps`, `direct_srcs`, `label`, `transitive_srcs`.
+
+### `@rules_dx//avro:extensions.bzl`
+
+#### `avro_cc`
+
+Module extension.
+
+No tags.
+
+### `@rules_dx//bicep:defs.bzl`
+
+#### `bicep_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `data` | `label_list` | no | `[]` |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `srcs` | `label_list` | no | `[]` |
+
+#### `bicep_registry_module`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `cache_root` | `string` | no | `""` |
+| `digest` | `string` | no | `""` |
+| `name` | `name` | yes |  |
+| `ref` | `string` | yes |  |
+| `srcs` | `label_list` | no | `[]` |
+
+### `@rules_dx//bicep:extensions.bzl`
+
+#### `bicep`
+
+Module extension.
+
+Tag `bicep.lock`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `lock` | `label` | yes |  |
+| `name` | `name` | yes |  |
+
+### `@rules_dx//capnproto:defs.bzl`
+
+#### `capnproto_cc_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `codegen_path` | `string` | no | `""` |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+
+#### `capnproto_java_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `codegen_path` | `string` | no | `""` |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+
+#### `capnproto_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `srcs` | `label_list` | no | `[]` |
+
+#### `capnproto_rust_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `library` | yes |  |
+| `crate_name` | no | `None` |
+| `deps` | no | `None` |
+| `codegen_path` | no | `None` |
+| `kwargs` | no |  |
+
+#### `CapnprotoInfo`
+
+Provider.
+
+Fields: `direct_deps`, `direct_srcs`, `direct_staged`, `label`, `stage_root`, `stage_roots`, `staged`, `transitive_imports`, `transitive_srcs`.
+
+### `@rules_dx//cc:defs.bzl`
+
+#### `cc_bench`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `tags` | no | `None` |
+| `deps` | no | `None` |
+| `kwargs` | no |  |
+
+#### `cc_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `cc_doc_shard`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `lib` | yes |  |
+| `package` | no | `""` |
+| `kwargs` | no |  |
+
+#### `cc_fuzz_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `tags` | no | `None` |
+| `copts` | no | `None` |
+| `linkopts` | no | `None` |
+| `kwargs` | no |  |
+
+#### `cc_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `hdrs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `cc_objc_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `cc_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//cloudformation:defs.bzl`
+
+#### `cloudformation_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `srcs` | `label_list` | no | `[]` |
+
+### `@rules_dx//cmake:defs.bzl`
+
+#### `cmake_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `srcs` | `label_list` | no | `[]` |
+
+### `@rules_dx//core:extensions.bzl`
+
+#### `dx_gazelle`
+
+Module extension.
+
+Tag `dx_gazelle.asset`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `cpu` | `string` | yes |  |
+| `name` | `name` | yes |  |
+| `os` | `string` | yes |  |
+| `sha256` | `string` | yes |  |
+| `url` | `string` | yes |  |
+
+Tag `dx_gazelle.from_source`:
+
+No attributes.
+
+Tag `dx_gazelle.language`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `library` | `label` | yes |  |
+
+#### `dx_licenses`
+
+Module extension.
+
+Tag `dx_licenses.accept`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `ids` | `string_list` | yes |  |
+| `terms_sha256` | `string_dict` | no | `{}` |
+
+#### `dx_pins`
+
+Module extension.
+
+Tag `dx_pins.archive`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `build` | `label` | no | `None` |
+| `bzl_srcs` | `boolean` | no | `False` |
+| `crlf` | `string_list` | no | `[]` |
+| `dropped` | `string_list` | no | `[]` |
+| `files` | `label_dict_unary` | no | `{}` |
+| `key` | `string` | no | `""` |
+| `name` | `name` | yes |  |
+| `patches` | `label_list` | no | `[]` |
+| `pins` | `label` | yes |  |
+| `required` | `string_list` | no | `[]` |
+
+Tag `dx_pins.data`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `name` | `name` | yes |  |
+| `pins` | `label` | yes |  |
+
+Tag `dx_pins.pin`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `aliases` | `string_dict` | no | `{}` |
+| `build` | `label` | no | `None` |
+| `compatible_with` | `string` | no | `"exec"` |
+| `exec_aliases` | `string_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `pins` | `label` | yes |  |
+| `toolchain_type` | `label` | no | `None` |
+
+#### `dx_prebuilt`
+
+Module extension.
+
+Tag `dx_prebuilt.asset`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `cpu` | `string` | yes |  |
+| `name` | `name` | yes |  |
+| `os` | `string` | yes |  |
+| `sha256` | `string` | yes |  |
+| `url` | `string` | yes |  |
+
+Tag `dx_prebuilt.from_source`:
+
+No attributes.
+
+### `@rules_dx//csharp:defs.bzl`
+
+#### `csharp_bench`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `deps` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `csharp_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `upstream_visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `csharp_doc_shard`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `library` | yes |  |
+| `package` | no | `""` |
+| `kwargs` | no |  |
+
+#### `csharp_fuzz_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `deps` | no | `None` |
+| `visibility` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `csharp_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `csharp_proto_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `proto` | yes |  |
+| `deps` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `csharp_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//csharp:extensions.bzl`
+
+#### `nuget`
+
+Module extension.
+
+Tag `nuget.lock`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `lock` | `label` | yes |  |
+| `name` | `name` | yes |  |
+
+### `@rules_dx//cuda:defs.bzl`
+
+#### `cuda_component_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `component` | `label` | yes |  |
+| `component_name` | `string` | yes |  |
+| `name` | `name` | yes |  |
+
+#### `cuda_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `cuda_archs` | yes |  |
+| `deps` | no | `None` |
+| `hdrs` | no | `None` |
+| `visibility` | no | `None` |
+| `tags` | no | `None` |
+| `target_compatible_with` | no | `None` |
+| `rdc` | no | `False` |
+| `cuda_copts` | no | `None` |
+| `kwargs` | no |  |
+
+#### `cuda_doc_shard`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `lib` | yes |  |
+| `package` | no | `""` |
+| `kwargs` | no |  |
+
+#### `cuda_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `cuda_archs` | yes |  |
+| `hdrs` | no | `None` |
+| `visibility` | no | `None` |
+| `tags` | no | `None` |
+| `target_compatible_with` | no | `None` |
+| `rdc` | no | `False` |
+| `kwargs` | no |  |
+
+#### `cuda_objects`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `cuda_archs` | yes |  |
+| `hdrs` | no | `None` |
+| `deps` | no | `None` |
+| `visibility` | no | `None` |
+| `tags` | no | `None` |
+| `target_compatible_with` | no | `None` |
+| `kwargs` | no |  |
+
+#### `cuda_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `cuda_archs` | yes |  |
+| `deps` | no | `None` |
+| `hdrs` | no | `None` |
+| `visibility` | no | `None` |
+| `tags` | no | `None` |
+| `target_compatible_with` | no | `None` |
+| `rdc` | no | `False` |
+| `min_compute_capability` | no | `None` |
+| `min_driver` | no | `None` |
+| `env` | no | `None` |
+| `data` | no | `None` |
+| `cuda_copts` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//cuda:extensions.bzl`
+
+#### `cuda_component_repo`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `license_error` | yes |  |
+| `kwargs` | no |  |
+
+#### `cuda_component_repo_name`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `component` | yes |  |
+| `platform` | yes |  |
+| `version` | yes |  |
+
+#### `cuda_license_error`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `ids` | yes |  |
+
+#### `cuda`
+
+Module extension.
+
+No tags.
+
+### `@rules_dx//d:defs.bzl`
+
+#### `d_doc_shard`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `config` | `string` | no | `""` |
+| `lib` | `label` | yes |  |
+| `name` | `name` | yes |  |
+| `package` | `string` | no | `""` |
+
+#### `d_bench`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `d_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `d_fuzz_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `tags` | no | `None` |
+| `dopts` | no | `None` |
+| `linkopts` | no | `None` |
+| `kwargs` | no |  |
+
+#### `d_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `d_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//d:extensions.bzl`
+
+#### `d`
+
+Module extension.
+
+No tags.
+
+#### `dub`
+
+Module extension.
+
+Tag `dub.lock`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `lock` | `label` | yes |  |
+| `name` | `name` | yes |  |
+
+### `@rules_dx//dockerfile:defs.bzl`
+
+#### `dockerfile_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `srcs` | `label_list` | no | `[]` |
+
+### `@rules_dx//dotnet:defs.bzl`
+
+### `@rules_dx//dotnet:extensions.bzl`
+
+#### `dotnet`
+
+Module extension.
+
+Tag `dotnet.toolchain`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `dotnet_version` | `string` | no | `""` |
+| `name` | `name` | no | `"dotnet"` |
+
+### `@rules_dx//elixir:defs.bzl`
+
+#### `elixir_app`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `visibility` | no | `None` |
+| `testonly` | no | `False` |
+| `kwargs` | no |  |
+
+#### `elixir_bench`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `tags` | no | `None` |
+| `deps` | no | `None` |
+| `kwargs` | no |  |
+
+#### `elixir_doc_shard`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `app` | yes |  |
+| `package` | no | `""` |
+| `kwargs` | no |  |
+
+#### `elixir_escript_archive`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `elixir_escript_headers`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `module` | yes |  |
+
+#### `elixir_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//elixir:extensions.bzl`
+
+#### `elixir`
+
+Module extension.
+
+No tags.
+
+#### `hex`
+
+Module extension.
+
+Tag `hex.lock`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `lock` | `label` | yes |  |
+| `name` | `name` | yes |  |
+
+### `@rules_dx//erlang:defs.bzl`
+
+#### `erlang_release`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `apps` | `label_list` | yes |  |
+| `name` | `name` | yes |  |
+
+#### `erlang_app`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | no | `"erlang_app"` |
+| `visibility` | no | `None` |
+| `testonly` | no | `False` |
+| `kwargs` | no |  |
+
+#### `erlang_bench`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `suite_name` | no | `""` |
+| `tags` | no | `None` |
+| `runtime_deps` | no | `None` |
+| `kwargs` | no |  |
+
+#### `erlang_bytecode`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `erlang_ct_suite_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `suite_name` | no | `""` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `erlang_doc_shard`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `app` | yes |  |
+| `package` | no | `""` |
+| `kwargs` | no |  |
+
+#### `erlang_erlc_opts`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `kwargs` | no |  |
+
+#### `erlang_escript_archive`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `erlang_eunit_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | no | `"eunit"` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `erlang_nif`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `hdrs` | no | `[]` |
+| `deps` | no | `None` |
+| `copts` | no | `[]` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `erlang_test_app`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | no | `"test_erlang_app"` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `erlang_xrl_yrl`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `kwargs` | no |  |
+
+#### `ErlangAppInfo`
+
+Provider.
+
+Fields: `app_name`, `beam`, `deps`, `extra_apps`, `include`, `license_files`, `priv`, `srcs`.
+
+### `@rules_dx//erlang:extensions.bzl`
+
+#### `erlang`
+
+Module extension.
+
+No tags.
+
+### `@rules_dx//flatbuffers:defs.bzl`
+
+#### `flatbuffers_cc_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `codegen_path` | `string` | no | `""` |
+| `deps` | `label_list` | no | `[]` |
+| `gen_object_api` | `boolean` | no | `False` |
+| `name` | `name` | yes |  |
+
+#### `flatbuffers_java_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `codegen_path` | `string` | no | `""` |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+
+#### `flatbuffers_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `srcs` | `label_list` | no | `[]` |
+
+#### `flatbuffers_conform_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `library` | yes |  |
+| `baseline` | yes |  |
+| `root` | no | `None` |
+| `baseline_root` | no | `None` |
+| `kwargs` | no |  |
+
+#### `flatbuffers_rust_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `library` | yes |  |
+| `crate_name` | no | `None` |
+| `deps` | no | `None` |
+| `root` | no | `None` |
+| `codegen_path` | no | `None` |
+| `kwargs` | no |  |
+
+#### `FlatBuffersInfo`
+
+Provider.
+
+Fields: `direct_srcs`, `direct_staged`, `stage_root`, `stage_roots`, `staged`, `transitive_srcs`.
+
+### `@rules_dx//fortran:defs.bzl`
+
+#### `fortran_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `fortran_doc_shard`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `lib` | yes |  |
+| `package` | no | `""` |
+| `kwargs` | no |  |
+
+#### `fortran_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `fortran_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//fortran:extensions.bzl`
+
+#### `fortran`
+
+Module extension.
+
+No tags.
+
+#### `fpm`
+
+Module extension.
+
+Tag `fpm.lock`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `lock` | `label` | yes |  |
+| `name` | `name` | yes |  |
+
+### `@rules_dx//fsharp:defs.bzl`
+
+#### `fsharp_bench`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `deps` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `fsharp_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `upstream_visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `fsharp_doc_shard`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `library` | yes |  |
+| `package` | no | `""` |
+| `kwargs` | no |  |
+
+#### `fsharp_fuzz_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `deps` | no | `None` |
+| `visibility` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `fsharp_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `fsharp_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//go:defs.bzl`
+
+#### `go_bench`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `go_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `go_doc_shard`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `library` | yes |  |
+| `package` | no | `""` |
+| `goos` | no | `"linux"` |
+| `goarch` | no | `"amd64"` |
+| `build_tags` | no | `[]` |
+| `kwargs` | no |  |
+
+#### `go_fuzz_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `target` | yes |  |
+| `visibility` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `go_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `importpath` | yes |  |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `go_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//go:extensions.bzl`
+
+#### `go`
+
+Module extension.
+
+Tag `go.archive_override`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `patch_cmds` | `string_list` | no | `[]` |
+| `patch_strip` | `int` | no | `0` |
+| `patches` | `label_list` | no | `[]` |
+| `path` | `string` | yes |  |
+| `sha256` | `string` | no | `""` |
+| `strip_prefix` | `string` | no | `""` |
+| `urls` | `string_list` | no | `[]` |
+
+Tag `go.config`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `check_direct_dependencies` | `string` | no | `""` |
+| `debug_mode` | `boolean` | no | `False` |
+| `go_env` | `string_dict` | no | `{}` |
+| `go_env_inherit` | `string_list` | no | `[]` |
+
+Tag `go.from_file`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `fail_on_version_conflict` | `boolean` | no | `True` |
+| `go_mod` | `label` | no | `None` |
+| `go_work` | `label` | no | `None` |
+
+Tag `go.gazelle_default_attributes`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `build_extra_args` | `string_list` | no | `[]` |
+| `build_file_generation` | `string` | no | `"on"` |
+| `directives` | `string_list` | no | `[]` |
+
+Tag `go.gazelle_override`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `build_extra_args` | `string_list` | no | `[]` |
+| `build_file_generation` | `string` | no | `"on"` |
+| `directives` | `string_list` | no | `[]` |
+| `path` | `string` | yes |  |
+
+Tag `go.module`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `build_file_proto_mode` | `string` | no | `""` |
+| `build_naming_convention` | `string` | no | `""` |
+| `indirect` | `boolean` | no | `False` |
+| `local_path` | `string` | no | `""` |
+| `path` | `string` | yes |  |
+| `sum` | `string` | no | `""` |
+| `version` | `string` | yes |  |
+
+Tag `go.module_override`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `patch_cmds` | `string_list` | no | `[]` |
+| `patch_strip` | `int` | no | `0` |
+| `patches` | `label_list` | no | `[]` |
+| `path` | `string` | yes |  |
+| `repo_name` | `string` | no | `""` |
+
+### `@rules_dx//haskell:defs.bzl`
+
+#### `haskell_doc_shard`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `config` | `string` | no | `""` |
+| `lib` | `label` | yes |  |
+| `name` | `name` | yes |  |
+| `package` | `string` | no | `""` |
+
+#### `haskell_bench`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `haskell_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `haskell_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `testonly` | no | `False` |
+| `kwargs` | no |  |
+
+#### `haskell_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//haskell:extensions.bzl`
+
+#### `cabal`
+
+Module extension.
+
+Tag `cabal.lock`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `lock` | `label` | yes |  |
+| `name` | `name` | yes |  |
+
+#### `haskell`
+
+Module extension.
+
+No tags.
+
+### `@rules_dx//helm:defs.bzl`
+
+#### `helm_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `name` | `name` | yes |  |
+| `namespace` | `string` | no | `"default"` |
+| `release_name` | `string` | no | `"release"` |
+| `srcs` | `label_list` | no | `[]` |
+| `subcharts` | `label_list` | no | `[]` |
+| `values` | `label_list` | no | `[]` |
+
+### `@rules_dx//java:defs.bzl`
+
+#### `java_bench`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `deps` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `java_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `java_doc_shard`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `lib` | yes |  |
+| `package` | no | `""` |
+| `deps` | no | `[]` |
+| `kwargs` | no |  |
+
+#### `java_fuzz_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `target_class` | no | `None` |
+| `deps` | no | `None` |
+| `visibility` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `java_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `java_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//javascript:defs.bzl`
+
+#### `javascript_bench`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `main` | no | `None` |
+| `node_modules` | yes |  |
+| `data` | no | `None` |
+| `args` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `javascript_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `javascript_doc_shard`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `tsconfig` | yes |  |
+| `entry_points` | yes |  |
+| `package` | yes |  |
+| `deps` | no | `[]` |
+| `options` | no | `[]` |
+| `kwargs` | no |  |
+
+#### `javascript_fuzz_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `main` | no | `None` |
+| `node_modules` | yes |  |
+| `data` | no | `None` |
+| `visibility` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `javascript_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `javascript_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `runner` | no | `"jest"` |
+| `node_modules` | no | `None` |
+| `data` | no | `None` |
+| `package_json` | no | `None` |
+| `visibility` | no | `None` |
+| `env_inherit` | no | `None` |
+| `kwargs` | no |  |
+
+#### `javascript_wasm_bindgen_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `bindgen` | yes |  |
+| `deps` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `javascript_web_app`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `html` | yes |  |
+| `bindgen` | yes |  |
+| `assets` | no | `None` |
+| `threads` | no | `False` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `javascript_web_bundle`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `app` | yes |  |
+| `bundler` | yes |  |
+| `config` | no | `None` |
+| `entry` | no | `None` |
+| `bundler_args` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//javascript:extensions.bzl`
+
+#### `javascript_dev_hub`
+
+Module extension.
+
+Tag `javascript_dev_hub.link`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `hub` | `string` | yes |  |
+| `name` | `name` | yes |  |
+
+#### `npm`
+
+Module extension.
+
+Tag `npm.npm_exclude_package_contents`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `package` | `string` | yes |  |
+| `patterns` | `string_list` | no | `[]` |
+| `presets` | `string_list` | no | `["basic"]` |
+
+Tag `npm.npm_import`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `bins` | `string_dict` | no | `{}` |
+| `commit` | `string` | no | `""` |
+| `custom_postinstall` | `string` | no | `""` |
+| `deps` | `string_dict` | no | `{}` |
+| `exclude_package_contents` | `string_list` | no | `[]` |
+| `exclude_package_contents_presets` | `string_list` | no | `["basic"]` |
+| `extra_build_content` | `string` | no | `""` |
+| `extract_full_archive` | `boolean` | no | `False` |
+| `integrity` | `string` | no | `""` |
+| `lifecycle_build_target` | `boolean` | no | `False` |
+| `lifecycle_hooks` | `string_list` | no | `[]` |
+| `lifecycle_hooks_env` | `string_list` | no | `[]` |
+| `lifecycle_hooks_execution_requirements` | `string_list` | no | `["no-sandbox"]` |
+| `lifecycle_hooks_use_default_shell_env` | `boolean` | no | `False` |
+| `name` | `name` | no | `""` |
+| `npm_auth` | `string` | no | `""` |
+| `npm_auth_basic` | `string` | no | `""` |
+| `npm_auth_password` | `string` | no | `""` |
+| `npm_auth_username` | `string` | no | `""` |
+| `package` | `string` | yes |  |
+| `package_visibility` | `string_list` | no | `["//visibility:public"]` |
+| `patch_args` | `string_list` | no | `["-p0"]` |
+| `patch_tool` | `label` | no | `None` |
+| `patches` | `label_list` | no | `[]` |
+| `replace_package` | `string` | no | `""` |
+| `root_package` | `string` | no | `""` |
+| `url` | `string` | no | `""` |
+| `version` | `string` | yes |  |
+
+Tag `npm.npm_replace_package`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `package` | `string` | yes |  |
+| `replacement` | `label` | yes |  |
+
+Tag `npm.npm_translate_lock`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `bins` | `string_list_dict` | no | `{}` |
+| `credential_helpers` | `label_string_dict` | no | `{}` |
+| `custom_postinstalls` | `string_dict` | no | `{}` |
+| `data` | `label_list` | no | `[]` |
+| `external_repository_action_cache` | `string` | no | `".aspect/rules/external_repository_action_cache"` |
+| `generate_bzl_library_targets` | `boolean` | no | `False` |
+| `lifecycle_hooks` | `string_list_dict` | no | `{}` |
+| `lifecycle_hooks_envs` | `string_list_dict` | no | `{}` |
+| `lifecycle_hooks_exclude` | `string_list` | no | `[]` |
+| `lifecycle_hooks_execution_requirements` | `string_list_dict` | no | `{}` |
+| `lifecycle_hooks_no_sandbox` | `boolean` | no | `True` |
+| `lifecycle_hooks_use_default_shell_env` | `string_dict` | no | `{}` |
+| `name` | `name` | no | `""` |
+| `no_dev` | `boolean` | no | `False` |
+| `no_optional` | `boolean` | no | `False` |
+| `node_toolchain_prefix` | `string` | no | `"nodejs"` |
+| `npm_package_lock` | `label` | no | `None` |
+| `npm_package_target_name` | `string` | no | `"pkg"` |
+| `npmrc` | `label` | no | `None` |
+| `package_visibility` | `string_list_dict` | no | `{}` |
+| `patch_args` | `string_list_dict` | no | `{"*": ["-p0"]}` |
+| `patch_tool` | `label` | no | `None` |
+| `patches` | `string_list_dict` | no | `{}` |
+| `pnpm_lock` | `label` | no | `None` |
+| `preupdate` | `label_list` | no | `[]` |
+| `public_hoist_packages` | `string_list_dict` | no | `{}` |
+| `quiet` | `boolean` | no | `True` |
+| `run_lifecycle_hooks` | `boolean` | no | `True` |
+| `update_pnpm_lock` | `boolean` | no | `False` |
+| `use_home_npmrc` | `boolean` | no | `False` |
+| `use_pnpm` | `label` | no | `"@pnpm//:package/bin/pnpm.cjs"` |
+| `verify_node_modules_ignored` | `label` | no | `None` |
+| `verify_patches` | `label` | no | `None` |
+| `yarn_lock` | `label` | no | `None` |
+
+#### `pnpm`
+
+Module extension.
+
+Tag `pnpm.pnpm`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `include_npm` | `boolean` | no | `False` |
+| `name` | `name` | no | `"pnpm"` |
+| `patch_args` | `string_list` | no | `["-p1"]` |
+| `patches` | `label_list` | no | `[]` |
+| `pnpm_version` | `string` | no | `""` |
+| `pnpm_version_from` | `label` | no | `None` |
+| `pnpm_version_integrity` | `string` | no | `""` |
+
+### `@rules_dx//julia:defs.bzl`
+
+#### `julia_bench`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `deps` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `julia_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `julia_doc_shard`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `lib` | yes |  |
+| `module` | no | `""` |
+| `package` | no | `""` |
+| `kwargs` | no |  |
+
+#### `julia_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `julia_standalone_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `kwargs` | no |  |
+
+#### `julia_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//julia:extensions.bzl`
+
+#### `julia`
+
+Module extension.
+
+Tag `julia.from_manifest`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `lockfile` | `label` | no | `None` |
+| `manifest` | `label` | no | `None` |
+| `manifests` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `pkg_server` | `string` | no | `"https://pkg.julialang.org"` |
+
+Tag `julia.install`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `lockfile` | `label` | no | `None` |
+| `manifest` | `label` | no | `None` |
+| `manifests` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `pkg_server` | `string` | no | `"https://pkg.julialang.org"` |
+
+Tag `julia.pkg_annotation`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `dep` | `string` | yes |  |
+| `patch_args` | `string_list` | no | `[]` |
+| `patch_tool` | `string` | no | `""` |
+| `patches` | `label_list` | no | `[]` |
+
+#### `julia_toolchain`
+
+Module extension.
+
+Tag `julia_toolchain.toolchain`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `linker` | `string` | no | `"julia"` |
+| `version` | `string` | yes |  |
+
+### `@rules_dx//kotlin:defs.bzl`
+
+#### `kotlin_bench`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `deps` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `kotlin_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `kotlin_doc_shard`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `lib` | yes |  |
+| `package` | no | `""` |
+| `deps` | no | `[]` |
+| `kwargs` | no |  |
+
+#### `kotlin_fuzz_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `target_class` | no | `None` |
+| `deps` | no | `None` |
+| `visibility` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `kotlin_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `kotlin_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//kubernetes:defs.bzl`
+
+#### `kubernetes_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `srcs` | `label_list` | no | `[]` |
+
+#### `kubernetes_schemas`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `crd_schemas` | `label_string_dict` | no | `{}` |
+| `kubernetes_version` | `string` | yes |  |
+| `name` | `name` | yes |  |
+| `schemas` | `label_list` | no | `[]` |
+| `skip_kinds` | `string_list` | no | `[]` |
+
+### `@rules_dx//lua:defs.bzl`
+
+#### `lua_bench`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `deps` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `lua_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `lua_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `lua_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//lua:extensions.bzl`
+
+#### `lua`
+
+Module extension.
+
+No tags.
+
+#### `luarocks`
+
+Module extension.
+
+Tag `luarocks.lock`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `lock` | `label` | yes |  |
+| `name` | `name` | yes |  |
+
+### `@rules_dx//make:defs.bzl`
+
+#### `make_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `srcs` | `label_list` | no | `[]` |
+
+### `@rules_dx//mdx:defs.bzl`
+
+#### `mdx_build`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `config` | yes |  |
+| `node_modules` | yes |  |
+| `package_json` | no | `None` |
+| `public` | no | `None` |
+| `ssr_entry` | no | `None` |
+| `deps` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `mdx_doc_shard`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `tsconfig` | yes |  |
+| `entry_points` | yes |  |
+| `package` | yes |  |
+| `deps` | no | `[]` |
+| `kwargs` | no |  |
+
+#### `mdx_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `mdx_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `node_modules` | yes |  |
+| `data` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//msix:defs.bzl`
+
+#### `msix_package`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `target_compatible_with` | no | `None` |
+| `kwargs` | no |  |
+
+#### `msix_sign`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `package` | yes |  |
+| `target_compatible_with` | no | `None` |
+| `kwargs` | no |  |
+
+#### `MsixInfo`
+
+Provider.
+
+Fields: `arch`, `identity`, `name`, `package`, `publisher`, `version`.
+
+### `@rules_dx//msix:extensions.bzl`
+
+#### `msix`
+
+Module extension.
+
+No tags.
+
+### `@rules_dx//ocaml:defs.bzl`
+
+#### `ocaml_lex`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `name` | `name` | yes |  |
+| `opts` | `string_list` | no | `[]` |
+| `out` | `output` | yes |  |
+| `src` | `label` | no | `None` |
+
+#### `ocaml_bench`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `main` | no | `None` |
+| `deps` | no | `None` |
+| `visibility` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `ocaml_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `ocaml_doc_shard`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `lib` | yes |  |
+| `package` | no | `""` |
+| `config` | no | `"odoc=3.2.2"` |
+| `kwargs` | no |  |
+
+#### `ocaml_dune_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `kwargs` | no |  |
+
+#### `ocaml_fuzz_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `main` | no | `None` |
+| `deps` | no | `None` |
+| `visibility` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `ocaml_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `ocaml_module`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `struct` | yes |  |
+| `sig` | no | `None` |
+| `visibility` | no | `None` |
+| `instrument_coverage` | no | `True` |
+| `coverage_ppx` | no | `False` |
+| `kwargs` | no |  |
+
+#### `ocaml_signature`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `src` | yes |  |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `ocaml_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `OCamlCmtInfo`
+
+Provider.
+
+Fields: `owned`.
+
+### `@rules_dx//ocaml:extensions.bzl`
+
+#### `ocaml`
+
+Module extension.
+
+No tags.
+
+#### `opam`
+
+Module extension.
+
+Tag `opam.annotation`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `build_file` | `label` | no | `None` |
+| `library` | `string` | no | `""` |
+| `package` | `string` | yes |  |
+| `strip_prefix` | `string` | no | `""` |
+
+Tag `opam.lock`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `lock` | `label` | yes |  |
+| `name` | `name` | yes |  |
+
+### `@rules_dx//perl:defs.bzl`
+
+#### `perl_bench`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `deps` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `perl_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `perl_doc_shard`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `lib` | yes |  |
+| `package` | no | `""` |
+| `kwargs` | no |  |
+
+#### `perl_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `perl_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//perl:extensions.bzl`
+
+#### `cpan`
+
+Module extension.
+
+Tag `cpan.lock`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `lock` | `label` | yes |  |
+| `name` | `name` | yes |  |
+
+#### `perl_pod`
+
+Module extension.
+
+No tags.
+
+### `@rules_dx//php:defs.bzl`
+
+#### `php_bench`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `data` | no | `None` |
+| `env` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `php_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `php_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `php_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//php:extensions.bzl`
+
+#### `composer`
+
+Module extension.
+
+Tag `composer.lock`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `lock` | `label` | yes |  |
+| `name` | `name` | yes |  |
+
+#### `php`
+
+Module extension.
+
+No tags.
+
+### `@rules_dx//powershell:defs.bzl`
+
+#### `powershell_doc_shard`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `config` | `string` | no | `""` |
+| `manifest` | `label` | no | `None` |
+| `name` | `name` | yes |  |
+| `package` | `string` | no | `""` |
+| `srcs` | `label_list` | yes |  |
+
+#### `powershell_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `powershell_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `powershell_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//powershell:extensions.bzl`
+
+#### `powershell`
+
+Module extension.
+
+Tag `powershell.lock`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `lock` | `label` | yes |  |
+| `name` | `name` | yes |  |
+
+### `@rules_dx//python:defs.bzl`
+
+#### `python_bench`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `args` | no | `None` |
+| `tags` | no | `None` |
+| `deps` | no | `None` |
+| `kwargs` | no |  |
+
+#### `python_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `python_doc_shard`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `library` | yes |  |
+| `package` | no | `""` |
+| `docstyle` | no | `"google"` |
+| `kwargs` | no |  |
+
+#### `python_fuzz_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `python_grpc_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `proto` | yes |  |
+| `py_proto` | yes |  |
+| `grpc_tools` | no | `"@pypi//grpcio_tools"` |
+| `grpc` | no | `"@pypi//grpcio"` |
+| `dep_group` | no | `None` |
+| `kwargs` | no |  |
+
+#### `python_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `python_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `runner` | no | `"pytest"` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//qt:defs.bzl`
+
+#### `qt_frameworks`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+
+#### `qt_bundle`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `binary` | yes |  |
+| `qml_modules` | no | `[]` |
+| `licenses` | no | `[]` |
+| `display` | no | `[]` |
+| `plugins` | no | `[]` |
+| `qt` | no | `"@@+qt+dx_qt"` |
+| `kwargs` | no |  |
+
+#### `qt_cc_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `hdrs` | no | `[]` |
+| `moc_hdrs` | no | `[]` |
+| `forms` | no | `[]` |
+| `resources` | no | `[]` |
+| `resource_prefix` | no | `"/"` |
+| `translations` | no | `[]` |
+| `deps` | no | `None` |
+| `modules` | no | `["core"]` |
+| `qt` | no | `"@@+qt+dx_qt"` |
+| `plugins` | no | `[]` |
+| `copts` | no | `[]` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `qt_cc_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `hdrs` | no | `[]` |
+| `moc_hdrs` | no | `[]` |
+| `forms` | no | `[]` |
+| `resources` | no | `[]` |
+| `resource_prefix` | no | `"/"` |
+| `translations` | no | `[]` |
+| `deps` | no | `None` |
+| `modules` | no | `["core"]` |
+| `qt` | no | `"@@+qt+dx_qt"` |
+| `copts` | no | `[]` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `qt_cc_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `hdrs` | no | `[]` |
+| `moc_hdrs` | no | `[]` |
+| `forms` | no | `[]` |
+| `resources` | no | `[]` |
+| `resource_prefix` | no | `"/"` |
+| `translations` | no | `[]` |
+| `deps` | no | `None` |
+| `modules` | no | `["core", "test"]` |
+| `qt` | no | `"@@+qt+dx_qt"` |
+| `plugins` | no | `[]` |
+| `copts` | no | `[]` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `qt_qml_module`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `uri` | yes |  |
+| `version` | no | `"1.0"` |
+| `qml_srcs` | no | `[]` |
+| `qml_depends` | no | `[]` |
+| `srcs` | no | `None` |
+| `hdrs` | no | `[]` |
+| `moc_hdrs` | no | `[]` |
+| `resources` | no | `[]` |
+| `resource_prefix` | no | `"/"` |
+| `translations` | no | `[]` |
+| `deps` | no | `None` |
+| `modules` | no | `["qml"]` |
+| `qt` | no | `"@@+qt+dx_qt"` |
+| `copts` | no | `[]` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `qt_rust_cc_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `bridges` | yes |  |
+| `rust` | yes |  |
+| `cc_deps` | no | `[]` |
+| `generator` | no | `None` |
+| `uri` | no | `None` |
+| `version` | no | `"1.0"` |
+| `qml_srcs` | no | `[]` |
+| `qml_depends` | no | `[]` |
+| `modules` | no | `None` |
+| `qt` | no | `"@@+qt+dx_qt"` |
+| `copts` | no | `[]` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `qt_rust_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `bridges` | yes |  |
+| `srcs` | no | `None` |
+| `crate_root` | no | `None` |
+| `crate_name` | no | `None` |
+| `crate_features` | no | `None` |
+| `rustc_flags` | no | `[]` |
+| `deps` | no | `None` |
+| `cc_deps` | no | `[]` |
+| `cxx` | no | `Label("@rules_dx//qt/private/tools/rust:cxx")` |
+| `cxx_qt` | no | `Label("@rules_dx//qt/private/tools/rust:cxx_qt")` |
+| `generator` | no | `None` |
+| `uri` | no | `None` |
+| `version` | no | `"1.0"` |
+| `qml_srcs` | no | `[]` |
+| `qml_depends` | no | `[]` |
+| `modules` | no | `None` |
+| `qt` | no | `"@@+qt+dx_qt"` |
+| `copts` | no | `[]` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//qt:extensions.bzl`
+
+#### `qt`
+
+Module extension.
+
+Tag `qt.cell`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `constraints` | `label_list` | no | `[]` |
+| `layout` | `string` | no | `"linux"` |
+| `name` | `name` | yes |  |
+| `spec` | `label` | yes |  |
+
+Tag `qt.configure`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `mirror` | `string` | no | `""` |
+| `runtime_mirror` | `string` | no | `""` |
+| `version` | `string` | no | `"6.12.0"` |
+
+### `@rules_dx//rego:defs.bzl`
+
+#### `rego_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `data` | `label_list` | no | `[]` |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `srcs` | `label_list` | no | `[]` |
+
+#### `rego_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//rst:defs.bzl`
+
+#### `rst_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `srcs` | `label_list` | no | `[]` |
+
+### `@rules_dx//ruby:defs.bzl`
+
+#### `ruby_bench`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `data` | no | `None` |
+| `env` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `ruby_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `ruby_doc_shard`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `lib` | yes |  |
+| `package` | no | `""` |
+| `deps` | no | `[]` |
+| `kwargs` | no |  |
+
+#### `ruby_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `ruby_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//ruby:extensions.bzl`
+
+#### `ruby`
+
+Module extension.
+
+Tag `ruby.lock`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `lock` | `label` | yes |  |
+| `name` | `name` | yes |  |
+
+Tag `ruby.toolchain`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `name` | `name` | no | `"ruby"` |
+
+#### `ruby_coverage`
+
+Module extension.
+
+No tags.
+
+### `@rules_dx//rust:defs.bzl`
+
+#### `rust_bench`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `crate` | no | `None` |
+| `crate_features` | no | `None` |
+| `tags` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `rust_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `crate_name` | no | `None` |
+| `edition` | no | `"2024"` |
+| `visibility` | no | `None` |
+| `wasm` | no | `None` |
+| `runtime_dlls` | no | `None` |
+| `kwargs` | no |  |
+
+#### `rust_build_script`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `build_script_env` | no | `None` |
+| `toolchains` | no | `None` |
+| `use_cc_toolchain` | no | `None` |
+| `kwargs` | no |  |
+
+#### `rust_docs_site`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `libraries` | yes |  |
+| `prose` | yes |  |
+| `book_toml` | yes |  |
+| `prose_route` | no | `"prose.md"` |
+| `source_url` | no | `""` |
+
+#### `rust_fuzz_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `deps` | no | `None` |
+| `visibility` | no | `None` |
+| `tags` | no | `None` |
+| `rustc_flags` | no | `None` |
+| `rustc_env` | no | `None` |
+| `libfuzzer_sys` | yes |  |
+| `kwargs` | no |  |
+
+#### `rust_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `crate_name` | no | `None` |
+| `edition` | no | `"2024"` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `rust_proc_macro`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `crate_name` | no | `None` |
+| `edition` | no | `"2024"` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `rust_shared_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `crate_name` | no | `None` |
+| `edition` | no | `"2024"` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `rust_static_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `crate_name` | no | `None` |
+| `edition` | no | `"2024"` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `rust_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `crate` | no | `None` |
+| `edition` | no | `"2024"` |
+| `visibility` | no | `None` |
+| `wasm` | no | `None` |
+| `preopens` | no | `None` |
+| `runtime` | no | `None` |
+| `coverage_lib` | no | `None` |
+| `runtime_dlls` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//rust:extensions.bzl`
+
+#### `cargo`
+
+Module extension.
+
+Tag `cargo.annotation`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `additive_build_file` | `label` | no | `None` |
+| `additive_build_file_content` | `string` | no | `""` |
+| `alias_rule` | `string` | no | `""` |
+| `build_script_compile_data` | `string_list` | no | `[]` |
+| `build_script_data` | `string_list` | no | `[]` |
+| `build_script_data_glob` | `string_list` | no | `[]` |
+| `build_script_deps` | `string_list` | no | `[]` |
+| `build_script_env` | `string_dict` | no | `{}` |
+| `build_script_env_files` | `string_list` | no | `[]` |
+| `build_script_exec_properties` | `string_dict` | no | `{}` |
+| `build_script_link_deps` | `string_list` | no | `[]` |
+| `build_script_proc_macro_deps` | `string_list` | no | `[]` |
+| `build_script_rundir` | `string` | no | `""` |
+| `build_script_rustc_env` | `string_dict` | no | `{}` |
+| `build_script_toolchains` | `label_list` | no | `[]` |
+| `build_script_tools` | `string_list` | no | `[]` |
+| `build_script_use_cc_toolchain` | `string` | no | `"auto"` |
+| `build_script_use_default_shell_env` | `string` | no | `"auto"` |
+| `compile_data` | `string_list` | no | `[]` |
+| `compile_data_glob` | `string_list` | no | `[]` |
+| `compile_data_glob_excludes` | `string_list` | no | `[]` |
+| `crate` | `string` | yes |  |
+| `crate_features` | `string_list` | no | `[]` |
+| `data` | `string_list` | no | `[]` |
+| `data_glob` | `string_list` | no | `[]` |
+| `deps` | `string_list` | no | `[]` |
+| `disable_pipelining` | `boolean` | no | `False` |
+| `extra_aliased_targets` | `string_dict` | no | `{}` |
+| `gen_all_binaries` | `boolean` | no | `False` |
+| `gen_binaries` | `string_list` | no | `[]` |
+| `gen_build_script` | `string` | no | `"auto"` |
+| `label_injections` | `label_string_dict` | no | `{}` |
+| `link_deps` | `string_list` | no | `[]` |
+| `override_target_bin` | `label` | no | `None` |
+| `override_target_build_script` | `label` | no | `None` |
+| `override_target_lib` | `label` | no | `None` |
+| `override_target_proc_macro` | `label` | no | `None` |
+| `patch_args` | `string_list` | no | `[]` |
+| `patch_tool` | `string` | no | `""` |
+| `patches` | `label_list` | no | `[]` |
+| `proc_macro_deps` | `string_list` | no | `[]` |
+| `repositories` | `string_list` | no | `[]` |
+| `rustc_env` | `string_dict` | no | `{}` |
+| `rustc_env_files` | `string_list` | no | `[]` |
+| `rustc_flags` | `string_list` | no | `[]` |
+| `shallow_since` | `string` | no | `""` |
+| `version` | `string` | no | `"*"` |
+
+Tag `cargo.annotation_select`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `build_script_compile_data` | `string_list` | no | `[]` |
+| `build_script_data` | `string_list` | no | `[]` |
+| `build_script_deps` | `string_list` | no | `[]` |
+| `build_script_env` | `string_dict` | no | `{}` |
+| `build_script_env_files` | `string_list` | no | `[]` |
+| `build_script_exec_properties` | `string_dict` | no | `{}` |
+| `build_script_link_deps` | `string_list` | no | `[]` |
+| `build_script_proc_macro_deps` | `string_list` | no | `[]` |
+| `build_script_rundir` | `string` | no | `""` |
+| `build_script_rustc_env` | `string_dict` | no | `{}` |
+| `build_script_tools` | `string_list` | no | `[]` |
+| `compile_data` | `string_list` | no | `[]` |
+| `crate` | `string` | yes |  |
+| `crate_features` | `string_list` | no | `[]` |
+| `data` | `string_list` | no | `[]` |
+| `deps` | `string_list` | no | `[]` |
+| `link_deps` | `string_list` | no | `[]` |
+| `proc_macro_deps` | `string_list` | no | `[]` |
+| `repositories` | `string_list` | no | `[]` |
+| `rustc_env` | `string_dict` | no | `{}` |
+| `rustc_env_files` | `string_list` | no | `[]` |
+| `rustc_flags` | `string_list` | no | `[]` |
+| `triples` | `string_list` | yes |  |
+| `version` | `string` | no | `"*"` |
+
+Tag `cargo.from_cargo`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `cargo_config` | `label` | no | `None` |
+| `cargo_lockfile` | `label` | no | `None` |
+| `generate_binaries` | `boolean` | no | `False` |
+| `generate_build_scripts` | `boolean` | no | `True` |
+| `host_tools` | `label` | no | `"@rust_host_tools"` |
+| `isolated` | `boolean` | no | `True` |
+| `lockfile` | `label` | no | `None` |
+| `manifests` | `label_list` | no | `[]` |
+| `name` | `name` | no | `"crates"` |
+| `skip_cargo_lockfile_overwrite` | `boolean` | no | `False` |
+| `strip_internal_dependencies_from_cargo_lockfile` | `boolean` | no | `False` |
+| `supported_platform_triples` | `string_list` | no | `["aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "wasm32-unknown-unknown", "wasm32-wasip1", "x86_64-pc-windows-msvc", "x86_64-unknown-linux-gnu", "x86_64-unknown-nixos-gnu"]` |
+
+Tag `cargo.from_specs`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `cargo_config` | `label` | no | `None` |
+| `cargo_lockfile` | `label` | no | `None` |
+| `generate_binaries` | `boolean` | no | `False` |
+| `generate_build_scripts` | `boolean` | no | `True` |
+| `host_tools` | `label` | no | `"@rust_host_tools"` |
+| `isolated` | `boolean` | no | `True` |
+| `lockfile` | `label` | no | `None` |
+| `name` | `name` | no | `"crates"` |
+| `skip_cargo_lockfile_overwrite` | `boolean` | no | `False` |
+| `strip_internal_dependencies_from_cargo_lockfile` | `boolean` | no | `False` |
+| `supported_platform_triples` | `string_list` | no | `["aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "wasm32-unknown-unknown", "wasm32-wasip1", "x86_64-pc-windows-msvc", "x86_64-unknown-linux-gnu", "x86_64-unknown-nixos-gnu"]` |
+
+Tag `cargo.render_config`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `build_file_template` | `string` | no | `"//:BUILD.{name}-{version}.bazel"` |
+| `crate_alias_template` | `string` | no | `"@{repository}//{name}-{version}"` |
+| `crate_label_template` | `string` | no | `"@{repository}__{name}-{version}//:{target}"` |
+| `crate_repository_template` | `string` | no | `"{repository}__{name}-{version}"` |
+| `crates_module_template` | `string` | no | `"//:{file}"` |
+| `default_alias_rule_bzl` | `label` | no | `None` |
+| `default_alias_rule_name` | `string` | no | `"alias"` |
+| `default_package_name` | `string` | no | `""` |
+| `generate_cargo_toml_env_vars` | `boolean` | no | `True` |
+| `generate_rules_license_metadata` | `boolean` | no | `False` |
+| `generate_target_compatible_with` | `boolean` | no | `True` |
+| `incompatible_no_root_alias_targets` | `boolean` | no | `False` |
+| `platforms_template` | `string` | no | `"@rules_rust//rust/platform:{triple}"` |
+| `regen_command` | `string` | no | `""` |
+| `repositories` | `string_list` | no | `[]` |
+| `vendor_mode` | `string` | no | `""` |
+
+Tag `cargo.spec`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `artifact` | `string` | no | `""` |
+| `branch` | `string` | no | `""` |
+| `default_features` | `boolean` | no | `True` |
+| `features` | `string_list` | no | `[]` |
+| `git` | `string` | no | `""` |
+| `lib` | `boolean` | no | `False` |
+| `package` | `string` | yes |  |
+| `package_alias` | `string` | no | `""` |
+| `path` | `string` | no | `""` |
+| `repositories` | `string_list` | no | `[]` |
+| `rev` | `string` | no | `""` |
+| `tag` | `string` | no | `""` |
+| `version` | `string` | no | `""` |
+
+Tag `cargo.splicing_config`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `repositories` | `string_list` | no | `[]` |
+| `resolver_version` | `string` | no | `"2"` |
+
+#### `rust`
+
+Module extension.
+
+Tag `rust.repository_set`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allocator_library` | `label` | no | `None` |
+| `auth` | `string_dict` | no | `{}` |
+| `auth_patterns` | `string_dict` | no | `{}` |
+| `dev_components` | `boolean` | no | `False` |
+| `dlltool` | `label` | no | `None` |
+| `edition` | `string` | no | `""` |
+| `exec_compatible_with` | `label_list` | no | `[]` |
+| `exec_triple` | `string` | no | `""` |
+| `extra_exec_rustc_flags` | `string_list` | no | `[]` |
+| `extra_rustc_flags` | `string_list` | no | `[]` |
+| `global_allocator_library` | `label` | no | `None` |
+| `name` | `name` | no | `""` |
+| `netrc` | `string` | no | `""` |
+| `opt_level` | `string_dict` | no | `{}` |
+| `rustfmt_version` | `string` | no | `"nightly/2026-10-15"` |
+| `sha256s` | `string_dict` | no | `{}` |
+| `strip_level` | `string_dict` | no | `{}` |
+| `target_compatible_with` | `label_list` | no | `[]` |
+| `target_settings` | `label_list` | no | `[]` |
+| `target_triple` | `string` | no | `""` |
+| `urls` | `string_list` | no | `["https://static.rust-lang.org/dist/{}.tar.xz"]` |
+| `versions` | `string_list` | no | `[]` |
+
+Tag `rust.toolchain`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `aliases` | `string_dict` | no | `{}` |
+| `allocator_library` | `label` | no | `None` |
+| `dev_components` | `boolean` | no | `False` |
+| `dlltool` | `label` | no | `None` |
+| `edition` | `string` | no | `""` |
+| `extra_exec_rustc_flags` | `string_list` | no | `[]` |
+| `extra_exec_rustc_flags_triples` | `string_list_dict` | no | `{}` |
+| `extra_rustc_flags` | `string_list` | no | `[]` |
+| `extra_rustc_flags_triples` | `string_list_dict` | no | `{}` |
+| `extra_target_triples` | `string_list` | no | `["aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "wasm32-unknown-unknown", "wasm32-wasip1", "wasm32-wasip2"]` |
+| `global_allocator_library` | `label` | no | `None` |
+| `opt_level` | `string_dict` | no | `{}` |
+| `rust_analyzer_version` | `string` | no | `""` |
+| `rustfmt_toolchain_triples` | `string_dict` | no | `{}` |
+| `rustfmt_version` | `string` | no | `"nightly/2026-10-15"` |
+| `sha256s` | `string_dict` | no | `{}` |
+| `strip_level` | `string_dict` | no | `{}` |
+| `target_settings` | `label_list` | no | `[]` |
+| `urls` | `string_list` | no | `["https://static.rust-lang.org/dist/{}.tar.xz"]` |
+| `versions` | `string_list` | no | `["1.99.1", "nightly/2026-10-15"]` |
+
+#### `rust_toolchains`
+
+Module extension.
+
+No tags.
+
+### `@rules_dx//sql:defs.bzl`
+
+#### `sql_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | `[]` |
+| `dialect` | `string` | no | `""` |
+| `name` | `name` | yes |  |
+| `srcs` | `label_list` | no | `[]` |
+
+### `@rules_dx//svelte:defs.bzl`
+
+#### `svelte_build`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `config` | yes |  |
+| `node_modules` | yes |  |
+| `package_json` | no | `None` |
+| `public` | no | `None` |
+| `ssr_entry` | no | `None` |
+| `deps` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `svelte_doc_shard`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `tsconfig` | yes |  |
+| `entry_points` | yes |  |
+| `package` | yes |  |
+| `node_modules` | yes |  |
+| `package_json` | no | `None` |
+| `deps` | no | `[]` |
+| `kwargs` | no |  |
+
+#### `svelte_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `svelte_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `node_modules` | yes |  |
+| `data` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//swift:defs.bzl`
+
+#### `swift_doc_shard`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `config` | `string` | no | `""` |
+| `lib` | `label` | yes |  |
+| `name` | `name` | yes |  |
+| `package` | `string` | no | `""` |
+
+#### `swift_interop_hint`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `exclude_hdrs` | `label_list` | no | `[]` |
+| `module_map` | `label` | no | `None` |
+| `module_name` | `string` | no | `""` |
+| `name` | `name` | yes |  |
+| `suppressed` | `boolean` | no | `False` |
+
+#### `swift_library_group`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+
+#### `swift_bench`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `swift_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `platforms` | no | `None` |
+| `kwargs` | no |  |
+
+#### `swift_fuzz_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `tags` | no | `None` |
+| `copts` | no | `None` |
+| `linkopts` | no | `None` |
+| `kwargs` | no |  |
+
+#### `swift_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `platforms` | no | `None` |
+| `kwargs` | no |  |
+
+#### `swift_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `platforms` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//terraform:defs.bzl`
+
+#### `terraform_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `providers` | `label_list` | no | `[]` |
+| `srcs` | `label_list` | no | `[]` |
+
+#### `terraform_provider`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `name` | `name` | yes |  |
+| `source` | `string` | yes |  |
+| `srcs` | `label_list` | yes |  |
+| `target` | `string` | yes |  |
+| `version` | `string` | yes |  |
+
+### `@rules_dx//terraform:extensions.bzl`
+
+#### `terraform`
+
+Module extension.
+
+Tag `terraform.lock`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `lock` | `label` | yes |  |
+| `name` | `name` | yes |  |
+
+### `@rules_dx//thrift:defs.bzl`
+
+#### `thrift_cc_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `codegen_path` | `string` | no | `""` |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+
+#### `thrift_java_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `codegen_path` | `string` | no | `""` |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+
+#### `thrift_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `srcs` | `label_list` | no | `[]` |
+
+#### `thrift_rust_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `library` | yes |  |
+| `crate_name` | no | `None` |
+| `deps` | no | `None` |
+| `codegen_path` | no | `None` |
+| `kwargs` | no |  |
+
+#### `ThriftInfo`
+
+Provider.
+
+Fields: `direct_deps`, `direct_srcs`, `direct_staged`, `label`, `stage_root`, `stage_roots`, `staged`, `transitive_includes`, `transitive_srcs`.
+
+### `@rules_dx//typescript:defs.bzl`
+
+#### `typescript_bench`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `main` | no | `None` |
+| `node_modules` | yes |  |
+| `data` | no | `None` |
+| `args` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `typescript_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `deps` | no | `None` |
+| `data` | no | `None` |
+| `tsconfig` | no | `None` |
+| `transpiler` | no | `None` |
+| `declaration` | no | `None` |
+| `size` | no | `"small"` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `typescript_config`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `kwargs` | no |  |
+
+#### `typescript_doc_shard`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `tsconfig` | yes |  |
+| `entry_points` | yes |  |
+| `package` | yes |  |
+| `deps` | no | `[]` |
+| `options` | no | `[]` |
+| `kwargs` | no |  |
+
+#### `typescript_fuzz_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `main` | no | `None` |
+| `node_modules` | yes |  |
+| `data` | no | `None` |
+| `deps` | no | `None` |
+| `visibility` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `typescript_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `declaration_srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `typescript_playwright_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `config` | yes |  |
+| `node_modules` | yes |  |
+| `app` | no | `None` |
+| `data` | no | `None` |
+| `package_json` | no | `None` |
+| `visibility` | no | `None` |
+| `env_inherit` | no | `None` |
+| `kwargs` | no |  |
+
+#### `typescript_proto_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `proto` | yes |  |
+| `deps` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `typescript_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `runner` | no | `"jest"` |
+| `node_modules` | no | `None` |
+| `data` | no | `None` |
+| `deps` | no | `None` |
+| `tsconfig` | no | `None` |
+| `transpiler` | no | `None` |
+| `declaration` | no | `None` |
+| `declaration_srcs` | no | `None` |
+| `package_json` | no | `None` |
+| `visibility` | no | `None` |
+| `env_inherit` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//vue:defs.bzl`
+
+#### `vue_build`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `config` | yes |  |
+| `node_modules` | yes |  |
+| `package_json` | no | `None` |
+| `public` | no | `None` |
+| `ssr_entry` | no | `None` |
+| `deps` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `vue_doc_shard`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `tsconfig` | yes |  |
+| `entry_points` | yes |  |
+| `package` | yes |  |
+| `node_modules` | yes |  |
+| `package_json` | no | `None` |
+| `deps` | no | `[]` |
+| `kwargs` | no |  |
+
+#### `vue_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `vue_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `node_modules` | yes |  |
+| `data` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//zig:defs.bzl`
+
+#### `zig_doc_shard`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `config` | `string` | no | `""` |
+| `lib` | `label` | yes |  |
+| `name` | `name` | yes |  |
+| `package` | `string` | no | `""` |
+
+#### `zig_bench`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `visibility` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `zig_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `zig_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `main` | yes |  |
+| `srcs` | no | `None` |
+| `import_name` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `zig_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//zig:extensions.bzl`
+
+#### `zig`
+
+Module extension.
+
+Tag `zig.lock`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `lock` | `label` | yes |  |
+| `name` | `name` | yes |  |
 
 ## Build settings
 

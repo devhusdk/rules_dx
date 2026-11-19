@@ -73,6 +73,8 @@ rust_test(
         normal_dev = True,
     ),
     compile_data = [
+        "exec_log_fixtures/cache_first.log.zst",
+        "exec_log_fixtures/cache_second.log.zst",
         "exec_log_fixtures/first.log.zst",
         "exec_log_fixtures/second.log.zst",
     ],
@@ -355,6 +357,8 @@ rust_test(
     name = "determinism_check_test",
     size = "small",
     compile_data = [
+        "exec_log_fixtures/cache_first.log.zst",
+        "exec_log_fixtures/cache_second.log.zst",
         "exec_log_fixtures/first.log.zst",
         "exec_log_fixtures/second.log.zst",
     ],

@@ -341,7 +341,7 @@ fn dx_build(
             .map(|(tool, _)| format!("\"{}_config\"", tool.config.id))
             .collect();
         text.push_str(&format!(
-            "load(\"@{repo}//core/quality:native_config.bzl\", {})\n",
+            "load(\"@{repo}//core:defs.bzl\", {})\n",
             symbols.join(", ")
         ));
     }

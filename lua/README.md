@@ -135,7 +135,7 @@ typecheck = ["luals"]
 
 The [config reference](../docs/cli/commands/config.md#dxtoml) covers
 `dx.toml`. Bind each tool's config with the rule of the same name from
-`@rules_dx//core/quality:native_config.bzl`.
+`@rules_dx//core:defs.bzl`.
 
 ### Format with StyLua
 
@@ -174,7 +174,7 @@ Tag a test `no-coverage` to skip it.
 ## API docs
 
 `dx docs` documents a `lua_library` with `lua_doc_shard(name, lib, package)`
-from `@rules_dx//tools/docs/lua:defs.bzl`. It runs the pinned LDoc 1.5.0 on
+from `@rules_dx//core:defs.bzl`. It runs the pinned LDoc 1.5.0 on
 the pinned Lua over the library's own sources and writes a DocIr shard.
 Nothing needs to be installed.
 

@@ -16,7 +16,6 @@ use dx_plan::args::{Command, Invocation};
 use dx_plan::reports::{Destination, plan_reports};
 use dx_plan::resolve::QueryRunner;
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::Write as _;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -312,9 +311,12 @@ fn load_pinned(
         Err(error) => return Err(fetch_error(format!("could not read the cache: {error}"))),
     };
     check_pin_sha(&pin, label, &bytes)?;
-    let text = String::from_utf8(bytes).map_err(|_| AuditError::AdvisoryUtf8 {
-        set: label.to_owned(),
-        rel: pin.cache_rel(),
+    let text = String::from_utf8(bytes).map_err(|error| {
+        tracing::info!(%error, "advisory snapshot is not valid UTF-8");
+        AuditError::AdvisoryUtf8 {
+            set: label.to_owned(),
+            rel: pin.cache_rel(),
+        }
     })?;
     let advisories =
         dx_audit::vuln::parse_snapshot(&text).map_err(|detail| AuditError::AdvisoryParse {
@@ -686,12 +688,11 @@ fn bazel_coverage_diagnostic(
         count(BazelSource::Extension),
     );
     if !inventory.unrecorded_extensions.is_empty() {
-        write!(
-            message,
+        message.push_str(&format!(
             "; {} root module extensions have no entry in {lock_rel} (reproducible, or the lock is stale), so their repos are not listed: {}",
             inventory.unrecorded_extensions.len(),
             inventory.unrecorded_extensions.join(", ")
-        ).ok();
+        ));
     }
     DiagnosticEvent {
         rule: Some(format!(
@@ -2090,7 +2091,10 @@ fn json_summary(out: &mut dyn Write, err: &mut dyn Write, s: &AuditSummary<'_>) 
                     ),
                 )?;
                 for line in message.lines() {
-                    writeln!(err, "dx: {code}: audit {family_name}: {line}").ok();
+                    dx_output::write_stderr(
+                        err,
+                        format_args!("dx: {code}: audit {family_name}: {line}\n"),
+                    );
                 }
             }
         }
@@ -2120,7 +2124,10 @@ fn text_summary(out: &mut dyn Write, err: &mut dyn Write, s: &AuditSummary<'_>) 
             | dx_audit::outcome::FamilyStatus::Incomplete => {
                 let code = s.failure_code(family_name);
                 for line in message.lines() {
-                    writeln!(err, "dx: {code}: audit {family_name}: {line}").ok();
+                    dx_output::write_stderr(
+                        err,
+                        format_args!("dx: {code}: audit {family_name}: {line}\n"),
+                    );
                 }
             }
         }

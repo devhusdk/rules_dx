@@ -167,7 +167,7 @@ fn execute_docs_with(
         Err(exit) => return exit,
     };
     if bazel_code != 0 {
-        std::fs::remove_file(&bep).ok();
+        dx_atomic_fs::discard_file(&bep);
         if json {
             return report_docs_failure(&mut env, bazel_code, &scope_text);
         }
@@ -178,7 +178,7 @@ fn execute_docs_with(
         Err(exit) => return exit,
     };
     if !invocation.serve {
-        std::fs::remove_file(&bep).ok();
+        dx_atomic_fs::discard_file(&bep);
         if json
             && let Err(exit) = emit_event(env.out, &command_finished(0, &FinishedCounts::default()))
         {
@@ -186,7 +186,7 @@ fn execute_docs_with(
         }
         return 0;
     }
-    std::fs::remove_file(&bep).ok();
+    dx_atomic_fs::discard_file(&bep);
     serve_docs(invocation, &mut env, preview, sites, index, &scope_text)
 }
 
@@ -291,7 +291,7 @@ fn locate_sites(
                     index = Some(dir);
                 }
                 Err(error) => {
-                    std::fs::remove_file(bep).ok();
+                    dx_atomic_fs::discard_file(bep);
                     return Err(report_dx_error(
                         invocation.output,
                         env.out,
@@ -302,7 +302,7 @@ fn locate_sites(
                 }
             },
             Err(error) => {
-                std::fs::remove_file(bep).ok();
+                dx_atomic_fs::discard_file(bep);
                 return Err(report_dx_error(
                     invocation.output,
                     env.out,
@@ -394,25 +394,27 @@ fn open_browser(env: &mut Env<'_>, url: &str) {
     let open_argv = opener_argv(url);
     match env.runner.run(&open_argv, env.workspace, &[]) {
         Ok(status) if status.code == Some(0) => {}
-        Ok(status) => {
-            match status.code {
-                Some(code) => writeln!(
-                    env.err,
-                    "dx: warning: browser open exited with code {code} for {url} (continuing preview)"
-                ),
-                None => writeln!(
-                    env.err,
-                    "dx: warning: browser open was terminated by a signal for {url} (continuing preview)"
-                ),
-            }
-            .ok();
-        }
-        Err(error) => {
-            writeln!(
+        Ok(status) => match status.code {
+            Some(code) => dx_output::write_stderr(
                 env.err,
-                "dx: warning: failed to open browser for {url}: {error} (continuing preview)",
-            )
-            .ok();
+                format_args!(
+                    "dx: warning: browser open exited with code {code} for {url} (continuing preview)\n"
+                ),
+            ),
+            None => dx_output::write_stderr(
+                env.err,
+                format_args!(
+                    "dx: warning: browser open was terminated by a signal for {url} (continuing preview)\n"
+                ),
+            ),
+        },
+        Err(error) => {
+            dx_output::write_stderr(
+                env.err,
+                format_args!(
+                    "dx: warning: failed to open browser for {url}: {error} (continuing preview)\n"
+                ),
+            );
         }
     }
 }

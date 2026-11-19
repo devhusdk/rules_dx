@@ -121,7 +121,7 @@ impl SharedChecks {
 
     fn discard(&mut self) {
         if let Some(build) = self.build.take() {
-            std::fs::remove_file(&build.bep).ok();
+            dx_atomic_fs::discard_file(&build.bep);
         }
     }
 }
@@ -205,7 +205,7 @@ impl SharedBuild {
         ) {
             Ok(code) => code,
             Err(exit) => {
-                std::fs::remove_file(&bep).ok();
+                dx_atomic_fs::discard_file(&bep);
                 *kind = PhaseKind::Host;
                 return Err(exit);
             }

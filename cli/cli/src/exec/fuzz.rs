@@ -105,14 +105,14 @@ fn fuzz_targets(
         Err(error) => return resolve_failed(invocation.output, out, err, &error),
     };
     if labels.is_empty() {
-        writeln!(err, "dx: no dx-fuzz targets in scope").ok();
+        dx_output::write_stderr(err, format_args!("dx: no dx-fuzz targets in scope\n"));
         return 0;
     }
     let mut status = 0;
     for label in &labels {
         let dir = out_dir(label);
         if let Err(error) = std::fs::create_dir_all(workspace.join(&dir)) {
-            writeln!(err, "dx: cannot create {dir}: {error}").ok();
+            dx_output::write_stderr(err, format_args!("dx: cannot create {dir}: {error}\n"));
             return 1;
         }
         let mut app_args = vec![
@@ -130,7 +130,7 @@ fn fuzz_targets(
             Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
         };
         if !invocation.quiet {
-            writeln!(err, "Fuzzing {label} for {seconds}s").ok();
+            dx_output::write_stderr(err, format_args!("Fuzzing {label} for {seconds}s\n"));
         }
         let exit = match run_bazel_app(invocation, out, err, workspace, runner, &plan.argv, &[]) {
             Ok(exit) => exit,
@@ -159,19 +159,23 @@ fn fuzz_targets(
                         return exit;
                     }
                 } else {
-                    writeln!(
+                    dx_output::write_stderr(
                         err,
-                        "dx: {label} crashed; reproduce with: {}",
-                        shell_join(&repro)
-                    )
-                    .ok();
+                        format_args!(
+                            "dx: {label} crashed; reproduce with: {}\n",
+                            shell_join(&repro)
+                        ),
+                    );
                 }
                 if status == 0 {
                     status = 1;
                 }
             }
             (None, code) => {
-                writeln!(err, "dx: fuzz_failed: {run} exited {code}").ok();
+                dx_output::write_stderr(
+                    err,
+                    format_args!("dx: fuzz_failed: {run} exited {code}\n"),
+                );
                 if status == 0 {
                     status = code;
                 }

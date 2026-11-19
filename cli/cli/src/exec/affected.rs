@@ -1,7 +1,9 @@
 use super::execute;
 use super::umbrella::lint_commits;
 use dx_adopt::DEFAULT_BRANCH_CANDIDATES;
-use dx_exec_core::common::{Env, emit_built, emit_event, refusal, resolve_failed, set_field};
+use dx_exec_core::common::{
+    Env, check_stdout_write, emit_built, emit_event, refusal, resolve_failed, set_field,
+};
 use dx_output::{FinishedCounts, OutputMode, command_finished, command_started};
 use dx_plan::args::{Command, Invocation};
 use dx_plan::resolve::{
@@ -590,7 +592,7 @@ fn resolve_plan(
         None => affected_base(workspace, query_runner, invocation.base.as_deref()),
     }?;
     if text {
-        writeln!(err, "{}", resolving_line(&base)).ok();
+        dx_output::write_stderr(err, format_args!("{}\n", resolving_line(&base)));
     }
     let mut plan = plan(
         invocation.command,
@@ -686,7 +688,7 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
         return finished_empty(invocation, &plan, workspace, out, err);
     }
     if text {
-        writeln!(err, "{}", plan.summary()).ok();
+        dx_output::write_stderr(err, format_args!("{}\n", plan.summary()));
     }
     let mut next = invocation.clone();
     next.affected = false;
@@ -756,8 +758,18 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
             edit_commit_json,
         },
     );
-    injector.finish().ok();
-    code
+    exit_after_finish(code, injector.finish())
+}
+
+/// Keeps a failing exit code; a clean run fails when the held-back first line cannot be written.
+fn exit_after_finish(code: i32, finished: std::io::Result<()>) -> i32 {
+    if code != 0 {
+        return code;
+    }
+    match check_stdout_write(finished) {
+        Ok(()) => 0,
+        Err(exit) => exit,
+    }
 }
 
 #[cfg(test)]
@@ -1746,6 +1758,14 @@ mod tests {
         assert_eq!(plan.generate, labels(&["//svc:all", "//svc/api/..."]));
         narrow_to_scope(&mut plan, &labels(&["//web/..."]));
         assert!(plan.empty());
+    }
+
+    #[test]
+    fn exit_after_finish_keeps_the_code_or_reports_the_stdout_failure() {
+        assert_eq!(exit_after_finish(0, Ok(())), 0);
+        let broken = || Err(std::io::Error::from(std::io::ErrorKind::BrokenPipe));
+        assert_eq!(exit_after_finish(0, broken()), dx_process::EXIT_BROKEN_PIPE);
+        assert_eq!(exit_after_finish(3, broken()), 3);
     }
 
     #[test]

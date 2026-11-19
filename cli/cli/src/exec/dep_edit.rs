@@ -766,7 +766,7 @@ fn refresh_failed(
     } else {
         CODE_UPDATE_FAILED
     };
-    writeln!(err, "dx: {code}: {message}").ok();
+    dx_output::write_stderr(err, format_args!("dx: {code}: {message}\n"));
     if invocation.output == OutputMode::Json {
         if let Err(exit) = emit_built(
             out,

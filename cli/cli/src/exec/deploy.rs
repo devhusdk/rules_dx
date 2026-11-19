@@ -52,15 +52,19 @@ fn write_artifact_notes(
     info: &dx_plan::resolve::DeployInfo,
 ) {
     if !info.size_budget.is_empty() {
-        writeln!(
+        dx_output::write_stderr(
             err,
-            "Size of {label}: {}",
-            size_line(workspace, &info.size_stamp, &info.size_budget)
-        )
-        .ok();
+            format_args!(
+                "Size of {label}: {}\n",
+                size_line(workspace, &info.size_stamp, &info.size_budget)
+            ),
+        );
     }
     if !info.sbom.is_empty() {
-        writeln!(err, "SBOM of {label}: {}", sbom_line(workspace, &info.sbom)).ok();
+        dx_output::write_stderr(
+            err,
+            format_args!("SBOM of {label}: {}\n", sbom_line(workspace, &info.sbom)),
+        );
     }
 }
 
@@ -170,7 +174,7 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         } else {
             build_plan.summary.clone()
         };
-        writeln!(err, "{summary}").ok();
+        dx_output::write_stderr(err, format_args!("{summary}\n"));
     }
     let built = match run_bazel(
         invocation,
@@ -192,12 +196,13 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
     }
     if !invocation.applies() && !info.has_provider {
         if !invocation.quiet {
-            writeln!(
+            dx_output::write_stderr(
                 err,
-                "Validated {label} (built, not published; publish with: {})",
-                publish_command(invocation, &label)
-            )
-            .ok();
+                format_args!(
+                    "Validated {label} (built, not published; publish with: {})\n",
+                    publish_command(invocation, &label)
+                ),
+            );
         }
         return 0;
     }
@@ -210,12 +215,13 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         build_mode,
     );
     if code == 0 && !invocation.applies() && !invocation.quiet {
-        writeln!(
+        dx_output::write_stderr(
             err,
-            "Dry run of {label} (nothing published; publish with: {})",
-            publish_command(invocation, &label)
-        )
-        .ok();
+            format_args!(
+                "Dry run of {label} (nothing published; publish with: {})\n",
+                publish_command(invocation, &label)
+            ),
+        );
     }
     code
 }

@@ -138,10 +138,15 @@ pub(crate) fn refresh_and_warn(
     };
     let message = error.message();
     if output == OutputMode::Json {
-        if emit_built(out, warning_event(message)).is_ok() {
-            flush_out(out).ok();
+        if emit_built(out, warning_event(message)).is_ok()
+            && let Err(code) = flush_out(out)
+        {
+            tracing::info!(code, "cannot flush the warning event");
         }
     } else {
-        writeln!(err, "dx: {CODE_IDE_REFRESH_FAILED}: {message}").ok();
+        dx_output::write_stderr(
+            err,
+            format_args!("dx: {CODE_IDE_REFRESH_FAILED}: {message}\n"),
+        );
     }
 }

@@ -3,9 +3,7 @@ mod audit;
 mod auto_sync;
 mod bench;
 mod breaking_base;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod build_failures;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod changed_coverage;
 mod check_build;
 mod clean;
@@ -19,7 +17,6 @@ mod deploy;
 mod docs;
 mod docs_index;
 mod dx_asset;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod failure_reports;
 pub mod first_run;
 mod fuzz;
@@ -36,21 +33,13 @@ mod managed_prepare;
 mod managed_staging;
 pub mod preset_sync;
 mod profile_report;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod quality;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod quality_apply;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod quality_emit;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod quality_patch;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod quality_reconcile;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod quality_reports;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod quality_security;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod results;
 mod run;
 mod security_verify;
@@ -60,31 +49,19 @@ mod startup_defaults_launcher_tests;
 mod sync_fingerprint;
 mod sync_prune;
 mod test_filter;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod test_reports;
 #[cfg(test)]
 pub(crate) mod test_support;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod umbrella;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod update;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod update_add_missing;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod update_advisory;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 pub(crate) mod update_outdated;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod update_pr;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod update_prune;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod update_unused;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod update_version;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod update_version_add;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod workflow;
 mod worktree;
 
@@ -336,7 +313,10 @@ fn init_then_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
     ) {
         Ok(_) => 0,
         Err(error) => {
-            writeln!(err, "dx: .dx not synced after generate: {error}").ok();
+            dx_output::write_stderr(
+                err,
+                format_args!("dx: .dx not synced after generate: {error}\n"),
+            );
             1
         }
     }

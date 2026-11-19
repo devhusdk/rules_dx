@@ -30,7 +30,8 @@
   ]
  },
  "commands": {
-  "go": "@rules_dx//go/private/tools:go"
+  "go": "@rules_dx//go/private/tools:go",
+  "gopackagesdriver": "@rules_dx//go/private/ide:gopackagesdriver"
  },
  "tools": [
     "errcheck",

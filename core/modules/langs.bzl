@@ -491,6 +491,11 @@ LANGS = json.decode("""{
     "tools": []
   },
   "cc": {
+    "commands": {
+      "clangd": "@rules_dx//cc/private/tools/context:clangd",
+      "identity": "@rules_dx//cc/private/tools/context:identity",
+      "identity_exec": "@rules_dx//cc/private/tools/context:identity_exec"
+    },
     "depcheck": "cc",
     "docs": {
       "aspects": [
@@ -720,6 +725,9 @@ LANGS = json.decode("""{
     ]
   },
   "csharp": {
+    "commands": {
+      "dotnet_tool": "@rules_dx//csharp/private/ide:dotnet_tool"
+    },
     "depcheck": "csharp",
     "ecosystems": [
       "nuget"
@@ -1528,6 +1536,9 @@ LANGS = json.decode("""{
     }
   },
   "fsharp": {
+    "commands": {
+      "dotnet_tool": "@rules_dx//fsharp/private/ide:dotnet_tool"
+    },
     "depcheck": "fsharp",
     "ecosystems": [
       "nuget"
@@ -1566,7 +1577,8 @@ LANGS = json.decode("""{
   },
   "go": {
     "commands": {
-      "go": "@rules_dx//go/private/tools:go"
+      "go": "@rules_dx//go/private/tools:go",
+      "gopackagesdriver": "@rules_dx//go/private/ide:gopackagesdriver"
     },
     "depcheck": "go",
     "docs": {
@@ -1825,6 +1837,9 @@ LANGS = json.decode("""{
     ]
   },
   "java": {
+    "commands": {
+      "java_tool": "@rules_dx//java/private/ide:java_tool"
+    },
     "depcheck": "java",
     "docs": {
       "aspects": [
@@ -2927,7 +2942,8 @@ LANGS = json.decode("""{
   },
   "python": {
     "commands": {
-      "python_interpreter": "@rules_dx//cli/update:python_interpreter"
+      "python_interpreter": "@rules_dx//cli/update:python_interpreter",
+      "python_tool": "@rules_dx//python/private/ide:python_tool"
     },
     "depcheck": "python",
     "docs": {
@@ -3256,6 +3272,10 @@ LANGS = json.decode("""{
     ]
   },
   "rust": {
+    "commands": {
+      "discover": "@rules_dx//rust/private/ide:discover",
+      "flycheck": "@rules_dx//rust/private/ide:flycheck"
+    },
     "depcheck": "rust",
     "docs": {
       "aspects": [
@@ -3773,6 +3793,9 @@ LANGS = json.decode("""{
     ]
   },
   "typescript": {
+    "commands": {
+      "tsdk": "@rules_dx//typescript/private/ide:tsdk"
+    },
     "depcheck": "ts",
     "docs": {
       "aspects": [

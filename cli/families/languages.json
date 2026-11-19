@@ -260,6 +260,11 @@
       }
     },
     {
+      "commands": {
+        "clangd": "@rules_dx//cc/private/tools/context:clangd",
+        "identity": "@rules_dx//cc/private/tools/context:identity",
+        "identity_exec": "@rules_dx//cc/private/tools/context:identity_exec"
+      },
       "docs": {
         "aspects": [
           "real_cc_docs_aspect"
@@ -415,6 +420,9 @@
       }
     },
     {
+      "commands": {
+        "dotnet_tool": "@rules_dx//csharp/private/ide:dotnet_tool"
+      },
       "name": "csharp",
       "setup": {
         "hubs": [
@@ -866,7 +874,14 @@
     },
     {
       "commands": {
-        "go": "@rules_dx//go/private/tools:go"
+        "dotnet_tool": "@rules_dx//fsharp/private/ide:dotnet_tool"
+      },
+      "name": "fsharp"
+    },
+    {
+      "commands": {
+        "go": "@rules_dx//go/private/tools:go",
+        "gopackagesdriver": "@rules_dx//go/private/ide:gopackagesdriver"
       },
       "docs": {
         "aspects": [
@@ -1029,6 +1044,9 @@
       }
     },
     {
+      "commands": {
+        "java_tool": "@rules_dx//java/private/ide:java_tool"
+      },
       "docs": {
         "aspects": [
           "real_jvm_docs_aspect"
@@ -1721,7 +1739,8 @@
     },
     {
       "commands": {
-        "python_interpreter": "@rules_dx//cli/update:python_interpreter"
+        "python_interpreter": "@rules_dx//cli/update:python_interpreter",
+        "python_tool": "@rules_dx//python/private/ide:python_tool"
       },
       "docs": {
         "aspects": [
@@ -1906,6 +1925,10 @@
       }
     },
     {
+      "commands": {
+        "discover": "@rules_dx//rust/private/ide:discover",
+        "flycheck": "@rules_dx//rust/private/ide:flycheck"
+      },
       "docs": {
         "aspects": [
           "real_rust_docs_aspect"
@@ -2215,6 +2238,9 @@
       }
     },
     {
+      "commands": {
+        "tsdk": "@rules_dx//typescript/private/ide:tsdk"
+      },
       "docs": {
         "aspects": [
           "real_typescript_docs_aspect"

@@ -84,7 +84,6 @@ fn frozen_identities_match_starlark() {
     assert_eq!(OUTPUT_GROUP, "dx_env_plans");
     assert_eq!(SHARD_SUFFIX, ".dxenv.pb");
     assert_eq!(ENV_ASPECT, "core/env/private:plan.bzl%dx_env_plan_aspect");
-    assert_eq!(REPOSITORY_TARGET, "dx:env");
 }
 
 #[test]

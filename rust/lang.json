@@ -29,6 +29,10 @@
       }
     ]
   },
+  "commands": {
+    "discover": "@rules_dx//rust/private/ide:discover",
+    "flycheck": "@rules_dx//rust/private/ide:flycheck"
+  },
   "tools": [
     "clippy",
     "rustc",

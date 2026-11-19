@@ -1233,6 +1233,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        "//cli/families:dx_families",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:starlark_syntax",

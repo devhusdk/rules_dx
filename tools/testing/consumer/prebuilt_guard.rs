@@ -326,13 +326,17 @@ mod tests {
                 "@rules_dx//core/quality/artifacts:gitleaks",
                 "@rules_dx//core/quality/artifacts:trivy",
                 "@rules_dx//:dx",
+                "@rules_dx//dx:env",
+                "@rules_dx//dx:codegen",
+                "@rules_dx//tools/docs/site:scope_tools",
+                "@rules_dx//dx/tool_resolve",
                 "@rules_dx//go/private/tools:go",
+                "@rules_dx//go/private/ide:gopackagesdriver",
+                "@rules_dx//rust/private/ide:discover",
+                "@rules_dx//rust/private/ide:flycheck",
             ]
         );
-        assert_eq!(
-            command_roots("", &[]).last().map(String::as_str),
-            Some("//:dx")
-        );
+        assert!(command_roots("", &[]).contains(&"//:dx".to_owned()));
     }
 
     #[test]

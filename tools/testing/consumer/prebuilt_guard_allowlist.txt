@@ -6,3 +6,4 @@ label @@rules_dx+//java/private/tools/lock:lock java  # the maven hub resolver; 
 label @@rules_dx+//java/private/tools/lock:resolver java  # the rules_jvm_external Maven resolver the maven hub resolver runs; ships as a prebuilt asset in #14080
 label @@rules_dx+//lua/private/runtime:launcher lua  # C++; links liblua, which a Lua consumer already builds from the BCR lua module
 untagged python_tools  # pinned only; the hub does not serve the bundle yet
+label @@rules_dx+//dx/tool_resolve:tool_resolve  # the dx audit gitleaks hint and reusable-consumer.yml run it (#14082)

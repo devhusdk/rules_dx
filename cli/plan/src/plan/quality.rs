@@ -307,8 +307,9 @@ pub fn plan_docs(
         startup_options,
         &required,
     )?;
-    plan.argv
-        .push(rules_dx_label("tools/docs/site:scope_tools"));
+    plan.argv.push(rules_dx_label(dx_families::repo_relative(
+        dx_families::DOCS_SCOPE_TOOLS,
+    )));
     Ok(plan)
 }
 

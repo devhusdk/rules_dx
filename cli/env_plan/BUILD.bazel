@@ -20,6 +20,7 @@ rust_library(
     ) + [
         "//cli/bep:dx_bep",
         "//cli/digest:dx_digest",
+        "//cli/families:dx_families",
         "//cli/fingerprint:dx_fingerprint",
         "//cli/roots:dx_roots",
         "//core/env/private/tools/env_shard",
@@ -49,6 +50,7 @@ rust_test(
     ) + [
         "//cli/bep:dx_bep",
         "//cli/digest:dx_digest",
+        "//cli/families:dx_families",
         "//cli/fingerprint:dx_fingerprint",
         "//cli/roots:dx_roots",
         "//core/env/private/tools/env_shard",

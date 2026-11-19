@@ -26,8 +26,11 @@ SHFMT_FORMAT_REMOTE = _qualified("shfmt", "format")
 # binary built for the exec platform (cfg = "exec"), the staged sources and configs,
 # and the runner's hermetic env (no HOME, no host PATH, no network). A stage runs
 # remotely only when every tool in it is listed here, see dx_stage_execution_requirements.
+# PATH helpers a tool spawns must be pinned files; a stage that runs runfiles
+# launchers stays local.
 REMOTE_QUALIFIED = [
     SHFMT_FORMAT_REMOTE,
+    _qualified("actionlint", "lint"),
     _qualified("biome", "format"),
     _qualified("biome", "lint"),
     _qualified("buildifier", "format"),
@@ -40,7 +43,9 @@ REMOTE_QUALIFIED = [
     _qualified("taplo", "format"),
     _qualified("typos", "lint"),
     _qualified("typstyle", "format"),
+    _qualified("vale", "lint"),
     _qualified("yamlfmt", "format"),
+    _qualified("zizmor", "lint"),
 ]
 
 def dx_is_local_only(requirements):
@@ -98,9 +103,12 @@ def dx_is_remote_qualified(tool, capability):
             return remote_record_error(record) == ""
     return False
 
-def dx_stage_execution_requirements(stage_tools, capability):
-    """Returns remote-capable requirements only when every stage is qualified."""
-    if len(stage_tools) == 0:
+def dx_stage_execution_requirements(stage_tools, capability, run_tools = []):
+    """Returns remote-capable requirements only when every stage is qualified and no runfiles launcher runs."""
+
+    # Runfiles launchers stay local: the runner hands them RUNFILES_MANIFEST_FILE,
+    # which a remote executor does not stage.
+    if len(stage_tools) == 0 or len(run_tools) > 0:
         return {DX_NO_REMOTE_EXEC: "1"}
     for tool in stage_tools:
         if not dx_is_remote_qualified(tool, capability):

@@ -140,6 +140,31 @@ def execution_requirements_unit_tests(name):
                 dx_stage_execution_requirements(["buildifier"], "lint"),
                 {},
             ),
+            expect_equal(
+                "the workflow lint stage runs remotely",
+                dx_stage_execution_requirements(["actionlint", "zizmor"], "lint"),
+                {},
+            ),
+            expect_equal(
+                "the vale lint stage runs remotely without converters",
+                dx_stage_execution_requirements(["vale"], "lint"),
+                {},
+            ),
+            expect_equal(
+                "a vale lint stage with a converter stays local",
+                dx_stage_execution_requirements(["vale"], "lint", run_tools = ["converter"]),
+                {DX_NO_REMOTE_EXEC: "1"},
+            ),
+            expect_equal(
+                "any stage with a runfiles launcher stays local",
+                dx_stage_execution_requirements(["shfmt"], "format", run_tools = ["x"]),
+                {DX_NO_REMOTE_EXEC: "1"},
+            ),
+            expect_equal(
+                "a qualified tool beside an unqualified one stays local",
+                dx_stage_execution_requirements(["actionlint", "lychee"], "lint"),
+                {DX_NO_REMOTE_EXEC: "1"},
+            ),
         ] + [
             expect_equal(
                 record["tool"] + " " + record["capability"] + " remote record validates",

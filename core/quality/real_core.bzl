@@ -481,7 +481,7 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
         if len(found.env) > 0:
             tool_env_entries.setdefault(tool, []).extend(found.env)
         run_tools = run_tools + found.run_tools
-    requirements = dict(dx_stage_execution_requirements(stage_tools, capability))
+    requirements = dict(dx_stage_execution_requirements(stage_tools, capability, run_tools))
     if "buf" in stage_tools and capability == "lint" and hasattr(ctx.attr, "_breaking_against"):
         images = ctx.files._breaking_against
         if len(images) > 1:

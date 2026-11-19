@@ -151,7 +151,7 @@ pub enum CandidateError {
         path: PathBuf,
         source: io::Error,
     },
-    /// A check that still reports a string failed; removed by #13874.
+    /// A check that still reports a string failed.
     Check(String),
     InvalidCommit {
         commit: String,

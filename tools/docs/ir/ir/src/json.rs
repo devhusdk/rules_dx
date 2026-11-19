@@ -47,7 +47,7 @@ impl fmt::Display for JsonError {
 
 impl std::error::Error for JsonError {}
 
-/// Bridge for callers that still return `String`; removed in #13803.
+/// Bridge for callers that still return `String`.
 impl From<JsonError> for String {
     fn from(error: JsonError) -> Self {
         error.to_string()
@@ -194,13 +194,19 @@ mod tests {
         );
         assert_eq!(
             rejected(strings(&o, "m", "T")),
-            (JsonProblem::NonStringItem, "T 'm' holds a non-string".to_owned())
+            (
+                JsonProblem::NonStringItem,
+                "T 'm' holds a non-string".to_owned()
+            )
         );
     }
 
     #[test]
     fn string_shim_keeps_the_text() {
-        let text: String = field(&object(), "zz", "T").map(|_| ()).map_err(String::from).unwrap_err();
+        let text: String = field(&object(), "zz", "T")
+            .map(|_| ())
+            .map_err(String::from)
+            .unwrap_err();
         assert_eq!(text, "T has no 'zz'");
     }
 }

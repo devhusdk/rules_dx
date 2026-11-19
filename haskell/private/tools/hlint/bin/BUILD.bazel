@@ -14,7 +14,10 @@ alias(
         "//haskell/private/toolchain:cell_macos_arm64": "@haskell_hlint_hackage//:hlint-exe-hlint",
         "//conditions:default": "@dx_tools//:hlint",
     }),
-    visibility = ["//visibility:public"],
+    visibility = [
+        "//:__subpackages__",
+        "@dx_prebuilt//:__pkg__",
+    ],
 )
 
 real_source_target(

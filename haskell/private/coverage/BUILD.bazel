@@ -25,7 +25,7 @@ haskell_binary(
     name = "hpc_lcov_source",
     srcs = ["src/HpcLcov.hs"],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
-    visibility = ["//visibility:public"],
+    visibility = VIS_TOOLS + ["@dx_prebuilt//:__pkg__"],
     deps = [
         "@dx_haskell_toolchains//lib:base",
         "@dx_haskell_toolchains//lib:containers",

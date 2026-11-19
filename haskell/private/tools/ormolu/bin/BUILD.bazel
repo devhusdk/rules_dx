@@ -13,7 +13,10 @@ alias(
         "//haskell/private/toolchain:cell_linux_arm64": "@haskell_ormolu_hackage//:ormolu-exe-ormolu",
         "//conditions:default": "@dx_tools//:ormolu",
     }),
-    visibility = ["//visibility:public"],
+    visibility = [
+        "//:__subpackages__",
+        "@dx_prebuilt//:__pkg__",
+    ],
 )
 
 real_source_target(

@@ -2,6 +2,460 @@
   {
     "aspects": [],
     "extensions": [],
+    "functions": [
+      {
+        "name": "android_adb_install",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "apk"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "serial"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "apk_set"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          }
+        ]
+      },
+      {
+        "name": "android_adb_log",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "serial"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          }
+        ]
+      },
+      {
+        "name": "android_adb_start",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "app_id"
+          },
+          {
+            "default": "\"android.app.NativeActivity\"",
+            "mandatory": false,
+            "name": "activity"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "serial"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          }
+        ]
+      },
+      {
+        "name": "android_check",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "package"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "platforms"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "resources"
+          },
+          {
+            "default": "\"small\"",
+            "mandatory": false,
+            "name": "size"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "target_compatible_with"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          }
+        ]
+      },
+      {
+        "forwards": [],
+        "name": "android_java_library",
+        "params": [
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "forwards": [],
+        "name": "android_kotlin_library",
+        "params": [
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "forwards": [],
+        "name": "android_native_library",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "rust_srcs"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "c_srcs"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "hdrs"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "crate_name"
+          },
+          {
+            "default": "\"2024\"",
+            "mandatory": false,
+            "name": "edition"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "platforms"
+          },
+          {
+            "default": "31",
+            "mandatory": false,
+            "name": "api_level"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "crate_features"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "rustc_flags"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "copts"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "linkopts"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "forwards": [],
+        "name": "android_rust_apk",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "app_id"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "deps"
+          },
+          {
+            "default": "[Label(\"@rules_dx//android:arm64-v8a\"), Label(\"@rules_dx//android:x86_64\")]",
+            "mandatory": false,
+            "name": "platforms"
+          },
+          {
+            "default": "\"android.app.NativeActivity\"",
+            "mandatory": false,
+            "name": "activity"
+          },
+          {
+            "default": "0",
+            "mandatory": false,
+            "name": "api_level"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "assets"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "assets_dir"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "custom_package"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "manifest"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "permissions"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "resource_files"
+          },
+          {
+            "default": "1",
+            "mandatory": false,
+            "name": "version_code"
+          },
+          {
+            "default": "\"1.0\"",
+            "mandatory": false,
+            "name": "version_name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "android_sign",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "package"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "schemes"
+          },
+          {
+            "default": "0",
+            "mandatory": false,
+            "name": "min_sdk"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          }
+        ]
+      }
+    ],
+    "load": "@rules_dx//android:defs.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": [
+      {
+        "attrs": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "aab",
+            "type": "LABEL"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "device_spec",
+            "type": "LABEL"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          }
+        ],
+        "executable": false,
+        "name": "android_apk_set",
+        "test": false
+      }
+    ]
+  },
+  {
+    "aspects": [],
+    "extensions": [
+      {
+        "name": "android",
+        "tag_classes": [
+          {
+            "attrs": [
+              {
+                "default": "0",
+                "mandatory": false,
+                "name": "api_level",
+                "type": "INT"
+              },
+              {
+                "default": "True",
+                "mandatory": false,
+                "name": "enabled",
+                "type": "BOOLEAN"
+              },
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "extra_packages",
+                "type": "STRING_LIST"
+              },
+              {
+                "default": "\"\"",
+                "mandatory": false,
+                "name": "mirror",
+                "type": "STRING"
+              }
+            ],
+            "name": "configure"
+          }
+        ]
+      },
+      {
+        "name": "android_sdk_repository",
+        "tag_classes": [
+          {
+            "attrs": [
+              {
+                "default": "0",
+                "mandatory": false,
+                "name": "api_level",
+                "type": "INT"
+              },
+              {
+                "default": "\"\"",
+                "mandatory": false,
+                "name": "build_tools_version",
+                "type": "STRING"
+              },
+              {
+                "default": "\"\"",
+                "mandatory": false,
+                "name": "path",
+                "type": "STRING"
+              }
+            ],
+            "name": "configure"
+          }
+        ]
+      }
+    ],
+    "functions": [],
+    "load": "@rules_dx//android:extensions.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [],
+    "extensions": [],
     "functions": [],
     "load": "@rules_dx//ansible:defs.bzl",
     "macros": [],

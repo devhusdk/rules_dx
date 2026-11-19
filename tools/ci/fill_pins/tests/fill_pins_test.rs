@@ -89,8 +89,15 @@ fn haskell_manifest() -> String {
         .flat_map(|tool| assets(tool))
         .map(|asset| format!("{}  {asset}\n", hash(4)))
         .chain(
-            ["weeder", "hlint", "ormolu"]
-                .map(|tool| format!("{}  dx-{tool}-LICENSE\n", hash(5))),
+            ["weeder", "hlint", "ormolu"].map(|tool| format!("{}  dx-{tool}-LICENSE\n", hash(5))),
+        )
+        .chain(
+            [
+                "dx-haskell-gmp-LICENSE",
+                "dx-haskell-gmp-source.tar.xz",
+                "dx-haskell-gmp-source.patch",
+            ]
+            .map(|library| format!("{}  {library}\n", hash(6))),
         )
         .collect::<Vec<String>>()
         .concat()
@@ -345,7 +352,12 @@ fn accepts_a_tool_source_archive_as_a_companion() {
 
 #[test]
 fn refuses_a_source_of_an_unknown_tool() {
-    for asset in ["dx-nope-source.crate", "dx-python-LICENSE"] {
+    for asset in [
+        "dx-nope-source.crate",
+        "dx-python-LICENSE",
+        "dx-haskell-zlib-LICENSE",
+        "dx-haskell-gmp-source.tar.gz",
+    ] {
         let dx = format!("{}{}  {asset}\n", manifest(), hash(3));
         let error = fill_pins::fill_from_manifests(
             "v1.2.3",

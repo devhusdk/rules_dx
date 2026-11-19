@@ -170,7 +170,7 @@ TOOLS = {
         member = "",
         main_class = "",
     ),
-    # Pinned only; the hub serves it once #10545 lands.
+    # Pinned only: the hub does not serve this bundle.
     "python_tools": struct(
         asset = "dx-python-tools-{os}-{cpu}.tar.gz",
         role = "exec",

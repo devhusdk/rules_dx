@@ -1816,6 +1816,7 @@ rust_test(
         "//deploy/private:gate_sources",
         "//deploy/private/release:release_matrix",
         "//docs:github-ci.md",
+        "//haskell:pins.json",
         "//tools/ci/producers:src/pr_check.rs",
     ],
     env = {"DX_RELEASE_MATRIX": "$(rootpath //deploy/private/release:release_matrix)"},

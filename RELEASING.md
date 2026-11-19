@@ -85,7 +85,7 @@ After you fix the cause, run the workflow again with the same command.
 
 Open the draft on GitHub, check the notes and files, and publish it.
 
-Publishing starts `release-consumer.yml`. It builds a small consumer project against the published source archive on each platform and checks that `@rules_dx//:dx` is the prebuilt download and prints `0.1.0`, and that topiary and progenitor are the prebuilt downloads. To run it again:
+Publishing starts `release-consumer.yml`. It builds a small consumer project against the published source archive on each platform and checks that `@rules_dx//:dx` is the prebuilt download and prints `0.1.0`, that topiary and progenitor are the prebuilt downloads, and on `windows-arm64` that the `pkl_lsp` natives jar packs the prebuilt tree-sitter DLLs. To run it again:
 
 ```sh
 gh workflow run release-consumer.yml -f tag=v0.1.0

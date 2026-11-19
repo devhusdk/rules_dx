@@ -361,6 +361,16 @@ fn release_consumer_checks_prebuilt_quality_tools() {
     assert!(text.contains("*\"dx_prebuilt/$KEY/dx_govet\"*) ;;"));
     assert!(text.contains("bazel build @rules_dx//config:tool_modfmt"));
     assert!(text.contains("\"$modfmt\" -c"));
+    assert!(text.contains(
+        "actions=\"$(bazel aquery --output=text 'mnemonic(\"JarLspNatives\", @rules_dx//java/private/quality/tools:pkl_lsp)')\""
+    ));
+    assert!(text.contains("*\"dx_tree_sitter_prebuilt_$KEY/file/tree-sitter.dll\"*) ;;"));
+    assert!(text.contains("*\"dx_tree_sitter_pkl_prebuilt_$KEY/file/tree-sitter-pkl.dll\"*) ;;"));
+    assert!(text.contains("*jvm_tree_sitter*) echo"));
+    assert!(text.contains(
+        "bazel build --output_groups=natives @rules_dx//java/private/quality/tools:pkl_lsp"
+    ));
+    assert!(text.contains("- pkl_lsp natives: $natives"));
 }
 
 #[test]

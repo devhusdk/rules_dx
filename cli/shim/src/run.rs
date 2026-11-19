@@ -178,8 +178,11 @@ fn shim_command_to(args: &[OsString], out: &mut dyn Write) -> Result<i32, ShimEr
     }
 }
 
+/// `dx_families::DX`; the shim does not link `dx_families`.
+const DX: &str = "@rules_dx//:dx";
+
 fn via_bazel(args: Vec<OsString>) -> Result<i32, ShimError> {
-    let mut full: Vec<OsString> = vec!["run".into(), "@rules_dx//:dx".into(), "--".into()];
+    let mut full: Vec<OsString> = vec!["run".into(), DX.into(), "--".into()];
     full.extend(args);
     exec(Path::new("bazel"), full)
 }
@@ -227,6 +230,11 @@ fn exec(bin: &Path, args: Vec<OsString>) -> Result<i32, ShimError> {
 mod tests {
     use super::*;
     use std::io::Read;
+
+    #[test]
+    fn bazel_runs_the_dx_command_target() {
+        assert_eq!(DX, dx_families::DX);
+    }
 
     #[test]
     fn version_prints_the_shim_version() {

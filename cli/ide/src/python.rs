@@ -9,7 +9,7 @@ const OUTPUT_GROUP: &str = "install_dir";
 pub const PLUGIN: Plugin = Plugin {
     name: "python",
     extensions: &["py"],
-    labels: &["python/private/ide:python_tool"],
+    commands: &[("python", "python_tool")],
     outputs: &["python", SITE_PACKAGES],
     write,
 };

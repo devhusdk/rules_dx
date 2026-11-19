@@ -30,6 +30,9 @@
       }
     ]
   },
+  "commands": {
+    "dotnet_tool": "@rules_dx//csharp/private/ide:dotnet_tool"
+  },
   "tools": [
     "csc",
     "csharpier",

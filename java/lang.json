@@ -29,6 +29,9 @@
       }
     ]
   },
+  "commands": {
+    "java_tool": "@rules_dx//java/private/ide:java_tool"
+  },
   "tools": [
     "google_java_format",
     "javac",

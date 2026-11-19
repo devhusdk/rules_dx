@@ -139,7 +139,6 @@ fn frozen_identities_match_starlark() {
         CODEGEN_ASPECT,
         "core/codegen:codegen.bzl%dx_codegen_plan_aspect"
     );
-    assert_eq!(REPOSITORY_TARGET, "dx:codegen");
 }
 
 #[test]

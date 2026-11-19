@@ -19,6 +19,11 @@
       }
     ]
   },
+  "commands": {
+    "clangd": "@rules_dx//cc/private/tools/context:clangd",
+    "identity": "@rules_dx//cc/private/tools/context:identity",
+    "identity_exec": "@rules_dx//cc/private/tools/context:identity_exec"
+  },
   "tools": [
     "clang_format",
     "clang_syntax",

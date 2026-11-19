@@ -12,10 +12,10 @@ const AQUERY: &str = r#"mnemonic("CppCompile|ObjcCompile", //...)"#;
 pub const PLUGIN: Plugin = Plugin {
     name: "cc",
     extensions: &["c", "cc", "cpp", "cxx", "h", "hh", "hpp", "m", "mm"],
-    labels: &[
-        "cc/private/tools/context:clangd",
-        "cc/private/tools/context:identity",
-        "cc/private/tools/context:identity_exec",
+    commands: &[
+        ("cc", "clangd"),
+        ("cc", "identity"),
+        ("cc", "identity_exec"),
     ],
     outputs: &["compile_commands.json", "clangd"],
     write,

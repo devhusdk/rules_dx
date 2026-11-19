@@ -769,7 +769,7 @@ pub fn init_apply_command(root: &Path) -> String {
     if root.join(LAUNCHER_SH_REL).is_file() {
         format!("{LAUNCHER_SH_REL} init --apply")
     } else {
-        "bazel run @rules_dx//:dx -- init --apply".to_owned()
+        format!("bazel run {} -- init --apply", dx_families::DX)
     }
 }
 
@@ -843,6 +843,17 @@ fn sync(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn launchers_bazel_run_the_dx_command_target() {
+        for script in [LAUNCHER_SH, LAUNCHER_CMD] {
+            let runs: Vec<&str> = script.split("bazel run ").skip(1).collect();
+            assert!(!runs.is_empty());
+            for run in runs {
+                assert!(run.starts_with(&format!("{} ", dx_families::DX)), "{run}");
+            }
+        }
+    }
     use crate::write_version_pins;
 
     /// Small tests get 60s in all; one stuck launcher must fail its test well before that.

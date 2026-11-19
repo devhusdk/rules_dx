@@ -33,7 +33,8 @@
     ]
   },
   "commands": {
-    "python_interpreter": "@rules_dx//cli/update:python_interpreter"
+    "python_interpreter": "@rules_dx//cli/update:python_interpreter",
+    "python_tool": "@rules_dx//python/private/ide:python_tool"
   },
   "tools": [
     "pydoclint",

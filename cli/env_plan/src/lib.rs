@@ -16,9 +16,6 @@ pub const SHARD_SUFFIX: &str = ".dxenv.pb";
 /// Repo-relative label; qualify it with [`aspect_label`].
 pub const ENV_ASPECT: &str = "core/env/private:plan.bzl%dx_env_plan_aspect";
 
-/// Repo-relative label; qualify it with [`repository_target`].
-pub const REPOSITORY_TARGET: &str = "dx:env";
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EnvScope {
     Repository,
@@ -56,7 +53,7 @@ pub fn aspect_label(repo: &str) -> String {
 /// Returns the repository target in the `rules_dx` repository named `repo`.
 #[must_use]
 pub fn repository_target(repo: &str) -> String {
-    format!("@{repo}//{REPOSITORY_TARGET}")
+    format!("@{repo}//{}", dx_families::repo_relative(dx_families::ENV))
 }
 
 #[must_use]

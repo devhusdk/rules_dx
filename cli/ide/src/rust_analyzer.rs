@@ -7,7 +7,7 @@ use crate::{Ctx, Plugin};
 pub const PLUGIN: Plugin = Plugin {
     name: "rust_analyzer",
     extensions: &["rs"],
-    labels: &["rust/private/ide:flycheck", "rust/private/ide:discover"],
+    commands: &[("rust", "flycheck"), ("rust", "discover")],
     outputs: &[
         "flycheck.exe",
         "discover_bazel_rust_project.exe",

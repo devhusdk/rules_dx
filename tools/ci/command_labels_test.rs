@@ -1,4 +1,4 @@
-//! No non-test source under `cli/update`, `cli/cli`, `cli/audit` or `cli/exec_audit` spells a `@rules_dx//` target dx runs; those come from `dx_families`.
+//! No non-test source under `DIRS` spells a `@rules_dx//` target, or a target dx runs without the repo; those come from `dx_families`.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -8,7 +8,37 @@ use yaml_serde as _;
 /// Fewer snapshot entries than this under the checked dirs means the sweep lost the tree.
 const MIN_RUST: usize = 100;
 
-const DIRS: [&str; 4] = ["cli/update/", "cli/cli/", "cli/audit/", "cli/exec_audit/"];
+const DIRS: [&str; 10] = [
+    "cli/update/",
+    "cli/cli/",
+    "cli/audit/",
+    "cli/exec_audit/",
+    "cli/plan/",
+    "cli/ide/",
+    "cli/shim/",
+    "cli/adopt/",
+    "cli/env_plan/",
+    "cli/codegen/",
+];
+
+/// `(path, label)` pairs that may stay inline.
+const EXEMPT: [(&str, &str); 2] = [
+    // The shim does not link dx_families; its test pins the label to `dx_families::DX`.
+    ("cli/shim/src/run.rs", "@rules_dx//:dx"),
+    // A toolchain written into the consumer's MODULE.bazel, not a target dx runs.
+    (
+        "cli/adopt/src/lock_hubs.rs",
+        "@rules_dx//rust:build_script_cc_env",
+    ),
+];
+
+/// The repo-relative spelling of every `dx_families` command label but `:dx`, quoted.
+fn bare_labels() -> Vec<String> {
+    dx_families::command_labels()
+        .filter(|label| *label != dx_families::DX)
+        .map(|label| format!("\"{}\"", dx_families::repo_relative(label)))
+        .collect()
+}
 
 /// The source up to its first `#[cfg(test)]` line.
 fn non_test(source: &str) -> &str {
@@ -30,8 +60,10 @@ fn checked(path: &str) -> bool {
         && !path.contains("/tests/")
 }
 
-/// The `path:line` of every string literal that starts with `@rules_dx//` and is not a `.bzl` label.
+/// The `path:line` of every string literal that starts with `@rules_dx//` and is not a `.bzl` label,
+/// or that is a command label without `@rules_dx//`.
 fn violations(rust: &BTreeMap<String, String>) -> BTreeSet<String> {
+    let bare = bare_labels();
     let mut out = BTreeSet::new();
     for (path, source) in rust.iter().filter(|(path, _)| checked(path)) {
         for (index, line) in non_test(source).lines().enumerate() {
@@ -40,10 +72,13 @@ fn violations(rust: &BTreeMap<String, String>) -> BTreeSet<String> {
             }
             for (at, _) in line.match_indices("\"@rules_dx//") {
                 let rest = line.get(at + 1..).expect("string slice within bounds");
-                let literal = rest.split('"').next().unwrap_or(rest);
-                if !literal.ends_with(".bzl") {
+                let literal = rest.split(['"', '\\']).next().unwrap_or(rest);
+                if !literal.ends_with(".bzl") && !EXEMPT.contains(&(path.as_str(), literal)) {
                     out.insert(format!("{path}:{} {literal}", index + 1));
                 }
+            }
+            for quoted in bare.iter().filter(|quoted| line.contains(quoted.as_str())) {
+                out.insert(format!("{path}:{} {}", index + 1, quoted.trim_matches('"')));
             }
         }
     }
@@ -93,6 +128,24 @@ fn a_command_label_is_a_violation() {
 }
 
 #[test]
+fn a_bare_command_label_is_a_violation() {
+    let rust = texts(&[
+        (
+            "cli/ide/src/go.rs",
+            "commands: &[\"go/private/ide:gopackagesdriver\"],\n",
+        ),
+        ("cli/env_plan/src/lib.rs", "const T: &str = \"dx:env\";\n"),
+    ]);
+    assert_eq!(
+        violations(&rust),
+        BTreeSet::from([
+            "cli/env_plan/src/lib.rs:1 dx:env".to_owned(),
+            "cli/ide/src/go.rs:1 go/private/ide:gopackagesdriver".to_owned(),
+        ])
+    );
+}
+
+#[test]
 fn bzl_labels_tests_comments_and_other_dirs_pass() {
     let rust = texts(&[
         (
@@ -103,7 +156,15 @@ fn bzl_labels_tests_comments_and_other_dirs_pass() {
             "cli/cli/src/exec/audit_live_tests.rs",
             "\"@rules_dx//:dx\"\n",
         ),
-        ("cli/plan/src/plan.rs", "\"@rules_dx//:dx\"\n"),
+        ("cli/deploy/src/plan.rs", "\"@rules_dx//:dx\"\n"),
+        (
+            "cli/adopt/src/licenses.rs",
+            "\"use_extension(\\\"@rules_dx//core:extensions.bzl\\\", \\\"x\\\")\"\n",
+        ),
+        (
+            "cli/shim/src/run.rs",
+            "const DX: &str = \"@rules_dx//:dx\";\n",
+        ),
         (
             "cli/audit/src/a.rs",
             "format!(\"bazel run @rules_dx//:dx\")\n",

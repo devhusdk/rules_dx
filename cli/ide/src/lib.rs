@@ -44,10 +44,30 @@ pub struct Ctx<'a> {
 pub struct Plugin {
     pub name: &'static str,
     pub extensions: &'static [&'static str],
-    pub labels: &'static [&'static str],
+    /// `(language, tool)` keys of the `lang.json` `commands` the plug-in builds.
+    pub commands: &'static [(&'static str, &'static str)],
     /// Paths the plug-in writes, relative to `.dx/local/ide/<name>`.
     pub outputs: &'static [&'static str],
     pub write: fn(&Ctx<'_>) -> Result<(), DxError>,
+}
+
+impl Plugin {
+    /// The `rules_dx`-relative labels of `commands`.
+    ///
+    /// # Panics
+    ///
+    /// When a `commands` key names no `lang.json` command; `every_plugin_command_resolves` rules that out.
+    #[must_use]
+    pub fn labels(&self) -> Vec<&'static str> {
+        self.commands
+            .iter()
+            .map(|(lang, tool)| {
+                let label = dx_families::command(lang, tool)
+                    .unwrap_or_else(|| panic!("{lang}/lang.json has no {tool} command"));
+                dx_families::repo_relative(label)
+            })
+            .collect()
+    }
 }
 
 /// Builds `rules_dx` labels and returns the absolute paths of their files.
@@ -129,9 +149,9 @@ fn refresh_with(
     remove_stale(workspace, plugins, &active);
     let mut labels: Vec<String> = Vec::new();
     for plugin in &active {
-        for label in plugin.labels {
+        for label in plugin.labels() {
             if !labels.iter().any(|l| l == label) {
-                labels.push((*label).to_owned());
+                labels.push(label.to_owned());
             }
         }
     }
@@ -334,6 +354,25 @@ mod tests {
         assert_eq!(STATE_FILE, format!("{IDE_DIR}/state.json"));
     }
 
+    #[test]
+    fn every_plugin_command_resolves() {
+        for plugin in PLUGINS {
+            for (lang, tool) in plugin.commands {
+                assert!(
+                    dx_families::command(lang, tool).is_some(),
+                    "{}: {lang}/lang.json has no {tool} command",
+                    plugin.name
+                );
+            }
+        }
+        assert!(
+            PLUGINS
+                .iter()
+                .flat_map(|plugin| plugin.labels())
+                .any(|label| label == "go/private/ide:gopackagesdriver")
+        );
+    }
+
     struct Fake {
         calls: Cell<usize>,
         lib: PathBuf,
@@ -490,7 +529,7 @@ mod tests {
         let bad = Plugin {
             name: "bad",
             extensions: &["bad"],
-            labels: &[],
+            commands: &[],
             outputs: &[],
             write: fail,
         };

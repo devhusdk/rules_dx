@@ -2,6 +2,8 @@
 
 use std::collections::BTreeMap;
 use std::ffi::OsString;
+use std::fmt;
+use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -65,17 +67,46 @@ impl ReleaseBackend for GhBackend {
 
 type StagedAssets = (Vec<(String, String)>, BTreeMap<String, String>);
 
-fn stage_assets(assets: &[String]) -> Result<StagedAssets, String> {
+#[derive(Debug)]
+enum StageError {
+    InvalidPath { asset: String },
+    Hash { asset: String, source: io::Error },
+}
+
+impl fmt::Display for StageError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidPath { asset } => write!(f, "release: invalid asset path {asset}"),
+            Self::Hash { asset, source } => write!(f, "release: cannot hash {asset}: {source}"),
+        }
+    }
+}
+
+impl std::error::Error for StageError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::InvalidPath { .. } => None,
+            Self::Hash { source, .. } => Some(source),
+        }
+    }
+}
+
+fn stage_assets(assets: &[String]) -> Result<StagedAssets, StageError> {
     let mut staged = Vec::new();
     let mut paths = BTreeMap::new();
     for asset in assets {
         let name = Path::new(asset)
             .file_name()
             .and_then(|name| name.to_str())
-            .ok_or_else(|| format!("release: invalid asset path {asset}"))?
+            .ok_or_else(|| StageError::InvalidPath {
+                asset: asset.clone(),
+            })?
             .to_owned();
-        let sha = dx_digest::sha256_file_hex(Path::new(asset))
-            .map_err(|err| format!("release: cannot hash {asset}: {err}"))?;
+        let sha =
+            dx_digest::sha256_file_hex(Path::new(asset)).map_err(|source| StageError::Hash {
+                asset: asset.clone(),
+                source,
+            })?;
         staged.push((name.clone(), sha));
         paths.insert(name, asset.clone());
     }
@@ -90,7 +121,12 @@ fn asset_records(
 ) -> Vec<OpRecord> {
     let mut records = match stage_assets(assets) {
         Ok((staged, paths)) => sync_assets(backend, tag, &staged, &paths, approved),
-        Err(err) => vec![OpRecord::new("asset-stage", tag, OpState::Failed, &err)],
+        Err(err) => vec![OpRecord::new(
+            "asset-stage",
+            tag,
+            OpState::Failed,
+            &err.to_string(),
+        )],
     };
     records.push(OpRecord::new(
         "publish",
@@ -518,5 +554,21 @@ mod tests {
         );
         assert_eq!(code, 1);
         assert!(text.contains("asset-stage"));
+        assert!(text.contains("release: cannot hash"), "{text}");
+    }
+
+    #[test]
+    fn stage_errors_keep_their_text() {
+        let error = stage_assets(&["..".to_owned()]).unwrap_err();
+        assert!(matches!(error, StageError::InvalidPath { .. }));
+        assert_eq!(error.to_string(), "release: invalid asset path ..");
+        let error = stage_assets(&["/nonexistent/a.bin".to_owned()]).unwrap_err();
+        assert!(matches!(error, StageError::Hash { .. }));
+        assert!(
+            error
+                .to_string()
+                .starts_with("release: cannot hash /nonexistent/a.bin: "),
+            "{error}"
+        );
     }
 }

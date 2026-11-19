@@ -1,3 +1,7 @@
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 use dx_deploy_tools::{archive_extract, archive_listing};
 use dx_testing::{env_file, image_machine};
 use std::process::Command;

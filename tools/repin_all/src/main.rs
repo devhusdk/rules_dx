@@ -1,6 +1,10 @@
 //! Forwards a repin request to dx update, which owns the pinned versions.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 use std::ffi::OsString;
 use std::path::PathBuf;

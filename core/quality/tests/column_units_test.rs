@@ -1,5 +1,9 @@
 //! Runs pinned tools on lines with an astral emoji and `é` before the finding,
 //! so each parser's column units are checked against what the tool reports.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use dx_testing::env_file;
 use std::path::{Path, PathBuf};

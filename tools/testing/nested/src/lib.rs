@@ -1,6 +1,10 @@
 //! Runs nested Bazel servers for tests: one server under `TEST_TMPDIR`, hermetic environments and the fake Bazel.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 // Only the Windows code paths call dx_os_sys.
 #[cfg(not(windows))]

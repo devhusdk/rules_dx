@@ -7,6 +7,10 @@
 //! It writes one `<stem>_capnp.rs` per owned schema and a `lib.rs` that declares
 //! them as top-level modules. Any failure exits non-zero and never leaves a
 //! partial crate: the caller declares every output, so a missing one fails the action.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write as _;

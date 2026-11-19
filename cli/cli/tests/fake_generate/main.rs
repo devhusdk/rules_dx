@@ -1,6 +1,10 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 //! Stands in for `bazel`, `uv` and `python` in `dx generate` tests; the name it
 //! runs as picks the behaviour.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 use std::path::Path;
 use std::process::ExitCode;

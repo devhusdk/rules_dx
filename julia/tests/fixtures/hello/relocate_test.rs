@@ -1,3 +1,7 @@
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 use std::path::{Path, PathBuf};
 
 fn place(from: &Path, to: &Path) {

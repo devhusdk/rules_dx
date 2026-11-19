@@ -1,4 +1,8 @@
 //! Device, emulator and API 34 libraries carry the architecture and API level they were built for.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use std::env;
 use std::process::Command;

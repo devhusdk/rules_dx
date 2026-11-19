@@ -1,4 +1,8 @@
 //! Installs and launches the Flutter fixture app on the booted host template simulator and uninstalls it afterwards.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use std::path::{Path, PathBuf};
 use std::process::Command;

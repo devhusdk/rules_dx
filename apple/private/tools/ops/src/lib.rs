@@ -1,6 +1,10 @@
 //! The Apple operations: simulators, test simulators, running a macOS app, export, signing and notarization.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 pub mod app_check;
 pub mod codesign;

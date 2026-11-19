@@ -1,4 +1,8 @@
 #![cfg(unix)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;

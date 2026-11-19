@@ -1,4 +1,8 @@
 //! Asserts the rendered user site is a real multi-page documentation website.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use dx_site_check::rendered::asset;
 use std::collections::BTreeSet;

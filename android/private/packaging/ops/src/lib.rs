@@ -1,5 +1,9 @@
 //! The Android packaging operations: adb, APK sets, package checks and release signing.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 pub mod adb;
 pub mod apk_set;

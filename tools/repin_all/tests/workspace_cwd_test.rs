@@ -1,4 +1,8 @@
 //! Runs `repin_all` against a fake dx in a scratch runfiles tree and checks how it launches dx.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};

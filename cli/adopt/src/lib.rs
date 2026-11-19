@@ -5,6 +5,13 @@
     clippy::print_stdout,
     clippy::string_slice
 )]
+#![cfg_attr(
+    test,
+    expect(
+        clippy::disallowed_methods,
+        reason = "tests run local programs under the Bazel test timeout"
+    )
+)]
 
 pub mod avro_cpp;
 pub mod build_output;

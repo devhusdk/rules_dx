@@ -1,4 +1,8 @@
 //! Checks the Vue, Svelte, Astro and MDX fixture shards and the converter's failure handling.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use std::process::Command;
 

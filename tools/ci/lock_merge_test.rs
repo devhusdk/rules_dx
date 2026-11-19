@@ -1,3 +1,7 @@
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 use dx_testing::env_file;
 use serde_json::{Value, json};
 use std::path::Path;
@@ -30,7 +34,11 @@ fn fresh_repos(factor: &str) -> Vec<String> {
 }
 
 fn stale_repos(factor: &str) -> Vec<String> {
-    vec![format!("stale_{factor}"), "shared".to_owned(), "dropped".to_owned()]
+    vec![
+        format!("stale_{factor}"),
+        "shared".to_owned(),
+        "dropped".to_owned(),
+    ]
 }
 
 /// A lock as one platform job writes it: fresh for its own factor, stale for every other.
@@ -111,7 +119,10 @@ fn every_factor_takes_its_own_platform_entry_whole() {
         );
     }
     assert_eq!(
-        entries.as_object().expect("the extension is an object").len(),
+        entries
+            .as_object()
+            .expect("the extension is an object")
+            .len(),
         PLATFORMS.len()
     );
     assert_eq!(

@@ -1,3 +1,7 @@
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 use dx_testing::{env_file, resolve_runfiles};
 use std::path::PathBuf;
 use std::process::{Command, Output};

@@ -1,4 +1,11 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![cfg_attr(
+    test,
+    expect(
+        clippy::disallowed_methods,
+        reason = "tests run local programs under the Bazel test timeout"
+    )
+)]
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 

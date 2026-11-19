@@ -14,3 +14,11 @@ reason = "build dx Bazel argv with plan::bazel_argv so the shared settings stay 
 [[disallowed-methods]]
 path = "dx_process::startup_argv"
 reason = "verbs that need settings go through plan::bazel_argv or BazelHead; allow only for verbs without settings (query, info)"
+
+[[disallowed-methods]]
+path = "std::process::Command::output"
+reason = "use dx_process::capture::run_checked or dx_lock::Scratch::run so the child has a timeout"
+
+[[disallowed-methods]]
+path = "std::process::Command::status"
+reason = "use dx_process::capture::run_checked or dx_lock::Scratch::run so the child has a timeout"

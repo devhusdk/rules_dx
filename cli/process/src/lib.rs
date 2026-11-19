@@ -5,6 +5,10 @@
     clippy::print_stdout,
     clippy::string_slice
 )]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 use dx_error::DxError;
 use std::ffi::{OsStr, OsString};

@@ -1,4 +1,8 @@
 //! Creates the output directories, runs one command and writes its exit code and output to a log; exits 0 once the log is written.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 use std::process::{Command, ExitCode};
 

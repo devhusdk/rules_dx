@@ -1,4 +1,8 @@
 //! Checks the Ruby fixture shards and the YARD driver's and converter's failure handling.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};

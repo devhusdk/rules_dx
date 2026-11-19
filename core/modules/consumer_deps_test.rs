@@ -13,7 +13,6 @@ const SAME_FLOOR: &[&[&str]] = &[&["rules_rust", "rules_rust_wasm_bindgen"]];
 const UNPINNED: &[&str] = &[
     "bazel_features",
     "tar.bzl",
-    "yaml.bzl",
     "rules_batch",
     "rules_flutter",
 ];

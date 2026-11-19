@@ -1,4 +1,4 @@
-MODULE.bazel compat-word 2
+MODULE.bazel compat-word 1
 android/private/sdk/repos.bzl compat-word 4
 capnproto/tests/defs_tests.bzl compat-word 3
 cc/BUILD.bazel alias 2
@@ -63,7 +63,6 @@ cuda/tests/cell_tests.bzl compat-word 10
 d/private/toolchain/pins.bzl compat-word 1
 d/tests/toolchain_tests.bzl compat-word 2
 dart/private/providers.bzl reexport 1
-dart/private/pub.bzl reexport 1
 deploy/private/BUILD.bazel compat-word 14
 deploy/private/api_compat.bzl compat-word 9
 deploy/private/api_compat_tests.bzl compat-word 23

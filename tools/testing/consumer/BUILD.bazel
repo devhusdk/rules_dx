@@ -2,6 +2,7 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 load("//tools/testing/hermetic:defs.bzl", "nested_bazel_test")
 load(":fixtures.bzl", "CONSUMER_FIXTURES", "consumer_fixture_tests")
+load(":prebuilt_guard.bzl", "PREBUILT_JARS")
 
 consumer_fixture_tests(
     name = "fixture_tests",
@@ -58,12 +59,42 @@ nested_bazel_test(
     ],
 )
 
+# A nested Bazel java, kotlin, scala, avro and bench consumer with every jar tool pointed at a
+# file:// download. Fails when a jar tool builds from source or its download is never fetched.
+nested_bazel_test(
+    name = "jvm_prebuilt_guard_test",
+    size = "small",
+    srcs = ["jvm_prebuilt_guard_test.rs"],
+    crate_name = "jvm_prebuilt_guard_test",
+    crate_root = "jvm_prebuilt_guard_test.rs",
+    data = [
+        "//:module_srcs",
+        "//java/tests/fixtures/bench:Sum.java",
+        "//patches/rules_py:patches",
+        "@dx_test_tags_sources//:consumer.json",
+    ] + [jar.deploy_jar for jar in PREBUILT_JARS],
+    env = {
+        "DX_BENCH_SOURCE": "$(rlocationpath //java/tests/fixtures/bench:Sum.java)",
+        "DX_CONSUMER_JSON": "$(rlocationpath @dx_test_tags_sources//:consumer.json)",
+        "DX_JAR_TOOLS": " ".join([
+            "{}|{}|$(rlocationpath {})".format(jar.tool, jar.package, jar.deploy_jar)
+            for jar in PREBUILT_JARS
+        ]),
+    },
+    network = True,
+    deps = [
+        "//tools/testing:dx_testing",
+        "//tools/testing/nested:dx_nested",
+    ],
+)
+
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
     starlark_srcs = [
         "BUILD.bazel",
         "fixtures.bzl",
+        "prebuilt_guard.bzl",
     ],
     tags = ["corpus"],
 )

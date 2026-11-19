@@ -6,11 +6,12 @@
 //! eagerly, a shorter one means the file is stale. Repositories of other language families must
 //! never show up, whatever the file says.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 
 use dx_nested::Case;
 use dx_nested::compose::{
-    rules_flutter_override, rules_py_override, write_root_patch_overrides, write_rules_py_patches,
+    consumer_fixture, rules_flutter_override, rules_py_override, write_root_patch_overrides,
+    write_rules_py_patches,
 };
 
 /// Name fragments of repositories that belong to a language family the consumer does not use.
@@ -29,20 +30,6 @@ const FOREIGN: &[(&str, &[&str])] = &[(
         "scala",
     ],
 )];
-
-/// The consumer fixture files of `lang`, keyed by their path under `<lang>/tests/consumer/`.
-fn fixture(lang: &str) -> BTreeMap<String, String> {
-    let prefix = format!("{lang}/tests/consumer/");
-    let snapshot = dx_testing::rlocation(dx_testing::env_text("DX_CONSUMER_JSON").trim())
-        .unwrap_or_else(|error| panic!("DX_CONSUMER_JSON: {error}"));
-    let files: BTreeMap<String, String> =
-        dx_testing::serde_json::from_str(&dx_testing::read_text(&snapshot))
-            .unwrap_or_else(|error| panic!("{}: {error}", snapshot.display()));
-    files
-        .into_iter()
-        .filter_map(|(path, text)| Some((path.strip_prefix(&prefix)?.to_owned(), text)))
-        .collect()
-}
 
 /// The fixture module without its `module` and `bazel_dep` lines, which the nested consumer writes.
 fn module_body(module: &str) -> String {
@@ -121,7 +108,7 @@ fn a_fresh_consumer_fetches_only_its_cold_start_list() {
         .iter()
         .find(|(name, _)| *name == lang)
         .map_or(&[][..], |(_, fragments)| fragments);
-    let files = fixture(lang);
+    let files = consumer_fixture(lang);
     let module = files
         .get("consumer.MODULE.bazel")
         .unwrap_or_else(|| panic!("{lang}/tests/consumer/consumer.MODULE.bazel is missing"));

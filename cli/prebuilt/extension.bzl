@@ -3,24 +3,24 @@
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 load("//core:repo.bzl", "hub_repo")
 load(":hub.bzl", "SOURCE_LABEL", "alias_build", "consumer_build", "plan_assets", "plan_jars", "plan_native_tools", "plan_root", "with_jars", "with_native_tools")
-load(":tools.bzl", "NATIVE_TOOLS")
+load(":tools.bzl", "JAR_TOOLS", "NATIVE_TOOLS")
 load(":pins.bzl", "DX_VERSION", "PINS", "URL_TEMPLATE")
 
 # Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
 visibility("public")
 
 # The asset tag of every prebuilt hub: name is the tool, os and cpu the
-# @platforms values the binary runs on.
+# @platforms values the binary runs on, or "any" and "any" for a jar tool.
 ASSET_ATTRS = {
-    "cpu": attr.string(doc = "The @platforms//cpu value the binary runs on.", mandatory = True),
+    "cpu": attr.string(doc = "The @platforms//cpu value the binary runs on; \"any\" for a jar tool.", mandatory = True),
     "name": attr.string(doc = "The tool, as named in cli/prebuilt/tools.bzl.", mandatory = True),
-    "os": attr.string(doc = "The @platforms//os value the binary runs on.", mandatory = True),
+    "os": attr.string(doc = "The @platforms//os value the binary runs on; \"any\" for a jar tool.", mandatory = True),
     "sha256": attr.string(doc = "The binary's sha256.", mandatory = True),
     "url": attr.string(doc = "The binary's download URL.", mandatory = True),
 }
 
 _asset = tag_class(
-    doc = "Adds or replaces dx, the launcher, the Go lint tools or a native tool for one os and cpu; honoured only in the root module.",
+    doc = "Adds or replaces dx, the launcher, the Go lint tools, a native tool for one os and cpu, or a jar tool; honoured only in the root module.",
     attrs = ASSET_ATTRS,
 )
 
@@ -54,7 +54,7 @@ _from_source = tag_class(
 )
 
 def _dx_prebuilt_impl(module_ctx):
-    plan = plan_root(module_ctx.modules, tools = ["dx", "launcher", "go"] + NATIVE_TOOLS)
+    plan = plan_root(module_ctx.modules, tools = ["dx", "launcher", "go"] + NATIVE_TOOLS + JAR_TOOLS)
     if plan.error:
         fail(plan.error)
     rules_dx_is_root = any([m.name == "rules_dx" and m.is_root for m in module_ctx.modules])
@@ -82,7 +82,7 @@ def _dx_prebuilt_impl(module_ctx):
             exe = "dx-go",
             repo_prefix = "dx_go_prebuilt_",
         )
-        jars = plan_jars(DX_VERSION, PINS, URL_TEMPLATE)
+        jars = plan_jars(DX_VERSION, PINS, URL_TEMPLATE, plan.overrides)
         native_tools = plan_native_tools(DX_VERSION, PINS, URL_TEMPLATE, plan.overrides)
         declare_downloads(assets + launcher_assets + go_assets + [a for tool in sorted(native_tools) for a in native_tools[tool]])
         _declare_jars(jars)

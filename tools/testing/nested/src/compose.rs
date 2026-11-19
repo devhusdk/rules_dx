@@ -1,5 +1,6 @@
 //! Composes the consumer MODULE.bazel from the one `dx init` writes.
 
+use std::collections::BTreeMap;
 use std::path::Path;
 
 fn starlark_string(text: &str) -> String {
@@ -421,6 +422,22 @@ pub fn write_root_patch_override(
             .map_err(|err| format!("cannot copy {}: {err}", from.display()))?;
     }
     Ok(block)
+}
+
+/// The consumer fixture files of `lang` from the `DX_CONSUMER_JSON` snapshot, keyed by their
+/// path under `<lang>/tests/consumer/`.
+#[must_use]
+pub fn consumer_fixture(lang: &str) -> BTreeMap<String, String> {
+    let prefix = format!("{lang}/tests/consumer/");
+    let snapshot = dx_testing::rlocation(dx_testing::env_text("DX_CONSUMER_JSON").trim())
+        .unwrap_or_else(|error| panic!("DX_CONSUMER_JSON: {error}"));
+    let files: BTreeMap<String, String> =
+        dx_testing::serde_json::from_str(&dx_testing::read_text(&snapshot))
+            .unwrap_or_else(|error| panic!("{}: {error}", snapshot.display()));
+    files
+        .into_iter()
+        .filter_map(|(path, text)| Some((path.strip_prefix(&prefix)?.to_owned(), text)))
+        .collect()
 }
 
 #[cfg(test)]

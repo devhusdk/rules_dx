@@ -59,6 +59,10 @@ def _checks():
     pinned_jars = plan_jars("1.2.3", {"javac_check": {"any": _HASH}}, URL_TEMPLATE)
     pinned_jars_build = with_jars(pinned_build, pinned_jars)
     javac = [j for j in pinned_jars if j.tool == "javac_check"][0]
+    jar_root = plan_root([_mod("app", True, assets = [_tag(name = "javac_check", os = "any", cpu = "any")])], tools = ["dx"] + JAR_TOOLS)
+    jar_linux = plan_root([_mod("app", True, assets = [_tag(name = "javac_check")])], tools = ["dx"] + JAR_TOOLS)
+    dx_any = plan_root([_mod("app", True, assets = [_tag(os = "any", cpu = "any")])], tools = ["dx"] + JAR_TOOLS)
+    overridden_javac = [j for j in plan_jars("1.2.3", {}, URL_TEMPLATE, jar_root.overrides) if j.tool == "javac_check"][0]
     source_native = with_native_tools(alias_build(SOURCE_LABEL), plan_native_tools("1.2.3", {}, URL_TEMPLATE, {}))
     native = plan_native_tools("1.2.3", {"topiary": {"linux_x86_64": _HASH, "windows_x86_64": _HASH}}, URL_TEMPLATE, {})
     native_build = with_native_tools(pinned_build, native)
@@ -190,6 +194,10 @@ def _checks():
         expect_contains("an asset name is the tool", badname.error, 'name is one of the tools ["dx"]'),
         expect_contains("cpu uses @platforms spelling", badcpu.error, "cpu one of"),
         expect_contains("one asset per os and cpu", twice.error, "a second asset for the same os and cpu"),
+        expect_equal("a jar asset takes any os and cpu", (jar_root.error, jar_root.overrides["javac_check"].keys()), ("", ["any"])),
+        expect_contains("a jar asset rejects a native os", jar_linux.error, 'dx_prebuilt.asset(name = "javac_check", os = "linux", cpu = "x86_64"): a jar tool takes os = "any" and cpu = "any"'),
+        expect_contains("a native asset rejects any", dx_any.error, "os must be one of"),
+        expect_equal("an overridden jar keeps its asset and downloads the override", (overridden_javac.asset, overridden_javac.repo, overridden_javac.url), ("dx-javac-check-any.jar", "dx_prebuilt_javac_check", "https://mirror/dx")),
         expect_true("from_source builds from source", sourced.source),
         expect_true("rules_dx as root builds from source", rooted.source),
         expect_false("a consumer root does not build from source", pinned_root.source),

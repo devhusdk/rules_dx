@@ -3,6 +3,7 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = [
     "//avro:__subpackages__",
+    "//tools/testing/consumer:__pkg__",
     "@dx_prebuilt//:__pkg__",
 ])
 

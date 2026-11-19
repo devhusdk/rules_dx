@@ -99,6 +99,12 @@ Use these steps when you or an agent start from a fresh Linux checkout, such as 
 
    The line holds no key; `--config=bb-ro` reads it from `BUILDBUDDY_API_KEY`.
 
+   Or export the flags for the launcher instead. They apply only to the launcher's build of dx, in every checkout, slots included. Add `--ui_event_filters=+info` to see the `remote cache hit` count:
+
+   ```sh
+   export DX_LAUNCHER_BAZEL_FLAGS='--config=bb-ro --ui_event_filters=+info'
+   ```
+
    When `bazel` is not on `PATH`, `tools/dx` downloads the Bazelisk pinned in `tools/bazelisk/pin.env` from GitHub, checks its sha256 and keeps it in `~/.cache/dx/bazelisk`. That Bazelisk fetches Bazel from GitHub releases too, unless you set `BAZELISK_BASE_URL`. Without the remote cache, on 4 CPUs and 8 GB of memory, the first `tools/dx --version` takes about 9 minutes, including the Bazelisk and Bazel downloads. It uses up to 4.5 GB of memory and about 7 GB of disk.
 
    The first run needs these hosts: `github.com` and `release-assets.githubusercontent.com` for the Bazelisk and Bazel downloads, and `bcr.bazel.build`, the Bazel module registry. If the network blocks one, `tools/dx` stops with a line that names the host; allow it in the container's network settings.
@@ -111,6 +117,12 @@ Use these steps when you or an agent start from a fresh Linux checkout, such as 
    ~/.cache/dx/bazelisk/*/bazel shutdown
    cd "$(tools/dx worktree add <branch> --create=origin/main --path-only)"
    tools/dx --version
+   ```
+
+   A slot starts without `user.bazelrc`. To read the remote cache there, write the line again before `tools/dx --version`:
+
+   ```sh
+   echo 'common --config=bb-ro' >> user.bazelrc
    ```
 
    Without the remote cache, on 4 CPUs and 15 GB of memory, `worktree add` takes about 5 seconds and the slot's first `tools/dx --version` about 4 minutes. The slot's Bazel server uses about 1.6 GB of memory, and the slot adds about 4.3 GB of disk. If you skip `bazel shutdown`, the primary server stays up for 15 idle minutes and holds about 1.5 GB more.

@@ -1,3 +1,4 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_test")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -15,4 +16,16 @@ rust_test(
     name = "shard_runner_test",
     size = "small",
     crate = ":shard_runner",
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

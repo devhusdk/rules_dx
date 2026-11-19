@@ -98,10 +98,22 @@ public static class Program
         context.Srcs = Strings(root, "srcs");
         context.Defines = Strings(root, "defines");
         context.AllowUnsafe = root.GetProperty("allow_unsafe_blocks").GetBoolean();
-        context.References = Strings(root, "references");
+        context.References = DependencyRefs(root);
         context.FrameworkRefs = Strings(root, "framework_refs");
         context.OwnRef = root.GetProperty("own_ref").GetString();
         return context;
+    }
+
+    // The refs file lists every dependency ref once in build order; framework refs are dropped
+    // by basename and the rest sorted, so the reference set does not depend on the graph shape.
+    private static List<string> DependencyRefs(JsonElement root)
+    {
+        HashSet<string> framework = new HashSet<string>(Strings(root, "framework_ref_names"), StringComparer.Ordinal);
+        return File.ReadAllLines(root.GetProperty("refs_file").GetString())
+            .Where(line => line.Length > 0 && !framework.Contains(Path.GetFileName(line)))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(line => line, StringComparer.Ordinal)
+            .ToList();
     }
 
     private static List<string> Strings(JsonElement root, string name)

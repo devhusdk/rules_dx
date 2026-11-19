@@ -8,7 +8,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
 import javax.tools.DocumentationTool;
@@ -33,6 +36,7 @@ public final class Main {
   private static int run(String[] args) throws IOException {
     String manifest = null;
     String classpathFile = null;
+    String ownJarsFile = null;
     String release = null;
     String out = null;
     for (int index = 0; index < args.length; index += 2) {
@@ -47,6 +51,9 @@ public final class Main {
         case "--classpath-file":
           classpathFile = value;
           break;
+        case "--own-jars-file":
+          ownJarsFile = value;
+          break;
         case "--release":
           release = value;
           break;
@@ -57,8 +64,13 @@ public final class Main {
           return usage("unknown argument '" + args[index] + "'");
       }
     }
-    if (manifest == null || classpathFile == null || release == null || out == null) {
-      return usage("--srcs-manifest, --classpath-file, --release and --out are required");
+    if (manifest == null
+        || classpathFile == null
+        || ownJarsFile == null
+        || release == null
+        || out == null) {
+      return usage(
+          "--srcs-manifest, --classpath-file, --own-jars-file, --release and --out are required");
     }
     DocumentationTool tool = ToolProvider.getSystemDocumentationTool();
     if (tool == null) {
@@ -82,9 +94,12 @@ public final class Main {
       System.err.println("javadoc_extract: the srcs manifest lists no sources");
       return 1;
     }
-    List<String> classpath = new ArrayList<>();
+    Set<String> ownJars =
+        new HashSet<>(Files.readAllLines(Paths.get(ownJarsFile), StandardCharsets.UTF_8));
+    // The classpath file lists every jar once in build order; sorting keeps the output stable.
+    Set<String> classpath = new TreeSet<>();
     for (String line : Files.readAllLines(Paths.get(classpathFile), StandardCharsets.UTF_8)) {
-      if (line.isEmpty()) {
+      if (line.isEmpty() || ownJars.contains(line)) {
         continue;
       }
       if (!Files.exists(Paths.get(line))) {
@@ -144,7 +159,7 @@ public final class Main {
         "javadoc_extract: "
             + message
             + "\nusage: javadoc_extract --srcs-manifest FILE --classpath-file FILE"
-            + " --release N --out FILE");
+            + " --own-jars-file FILE --release N --out FILE");
     return 2;
   }
 }

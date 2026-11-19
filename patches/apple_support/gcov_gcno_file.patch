@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: bazelbuild/apple_support#693
 diff --git a/crosstool/cc_toolchain_config.bzl b/crosstool/cc_toolchain_config.bzl
 --- a/crosstool/cc_toolchain_config.bzl
 +++ b/crosstool/cc_toolchain_config.bzl

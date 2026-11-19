@@ -59,6 +59,7 @@ Some upstream fixes are carried as rules_dx code instead of a patch, such as ext
 | `rules_dart` | 0.8.1 | `coverage.patch` | `dart_test` writes LCOV under `bazel coverage`: the test launcher passes `--coverage` to `package:test` and converts the report. Only a test built with coverage collects it, so a subject built without `--collect_code_coverage` reports none. Consumer fix: #11417 |
 | `rules_dart` | 0.8.1 | `external_pkgsrcs.patch` | Sources of packages from an external repository are staged into `.pkgsrcs`, which `copy_to_directory` otherwise drops. Consumer fix: #11417 |
 | `rules_dart` | 0.8.1 | `windows_long_dill.patch` | Root only. On Windows `test_runner.dart` resolves the symlinked kernel snapshot before starting the test |
+| `rules_dart` | 0.8.1 | `dx_bzl_srcs.patch` | Root only. `dart/private` and `dart/pub/private` each have a public `dx_bzl_srcs` filegroup of their Starlark files, for `starlark_doc_extract` deps; the `dx_rules_dart_pub` archive applies it too (drop with the rules_dart 0.10.0 bump) |
 | `rules_java` | 9.9.0 | `toolchains_gate.patch` | Root only. The default Java toolchain definitions have `target_settings = ["@@//config:toolchains_on", ...]` |
 | `rules_flutter` | 0.0.8 | `lock_extension.patch` | Root only. The `flutter` extension is not reproducible, so a lockfile written on one host does not pin another |
 | `rules_flutter` | 0.0.8 | `registrant_javacopts.patch` | The Android plugin registrant compiles without `-Xlint:all` warnings about source 8. Consumer fix: #11417 |

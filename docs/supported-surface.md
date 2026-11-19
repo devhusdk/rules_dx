@@ -1805,6 +1805,148 @@ Tag `dub.lock`:
 | `lock` | `label` | yes |  |
 | `name` | `name` | yes |  |
 
+### `@rules_dx//dart:defs.bzl`
+
+#### `dart_codegen`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `asset_deps` | `label_list` | no | `[]` |
+| `config` | `string` | no | `""` |
+| `data` | `label_list` | no | `[]` |
+| `deps` | `label_list` | no | `[]` |
+| `generator` | `label` | no | `None` |
+| `generator_args` | `string_list` | no | `[]` |
+| `generator_bin` | `label` | no | `None` |
+| `language_version` | `string` | no | `""` |
+| `name` | `name` | yes |  |
+| `output_suffixes` | `string_list` | yes |  |
+| `package` | `label` | no | `None` |
+| `package_config` | `label` | no | `None` |
+| `package_name` | `string` | no | `""` |
+| `parts` | `label_list` | no | `[]` |
+| `src` | `label` | yes |  |
+
+#### `dart_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `dart_doc_shard`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `lib` | `label` | yes |  |
+| `name` | `name` | yes |  |
+| `package` | `string` | no | `""` |
+
+#### `dart_bench`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `deps` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `dart_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `dart_js_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `dart_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `dart_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `dart_wasm_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+### `@rules_dx//dart:extensions.bzl`
+
+#### `pub`
+
+Module extension.
+
+Tag `pub.from_lock`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `ignore_hooks` | `string_list` | no | `[]` |
+| `lock` | `label` | yes |  |
+| `name` | `name` | yes |  |
+| `on_version_conflict` | `string` | no | `"error"` |
+
+Tag `pub.package`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `deps` | `string_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `sha256` | `string` | yes |  |
+| `version` | `string` | yes |  |
+
 ### `@rules_dx//deploy:defs.bzl`
 
 #### `deployment`

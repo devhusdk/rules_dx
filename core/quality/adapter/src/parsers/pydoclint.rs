@@ -6,10 +6,12 @@ fn pydoclint_violation(line: &str) -> Result<(u64, &str, String), ParseError> {
     let (line_text, rest) = line
         .split_once(':')
         .ok_or_else(|| missing(TOOL, "violation", line))?;
-    let number = line_text.parse::<u64>().map_err(|_| ParseError::Shape {
-        tool: TOOL,
-        detail: format!("malformed violation: {line:?}"),
-    })?;
+    let number = line_text
+        .parse::<u64>()
+        .map_err(|error| ParseError::Shape {
+            tool: TOOL,
+            detail: format!("malformed violation: {line:?}: {error}"),
+        })?;
     let rest = rest
         .strip_prefix(' ')
         .ok_or_else(|| missing(TOOL, "violation", line))?;

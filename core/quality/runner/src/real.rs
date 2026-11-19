@@ -1,6 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::{OsStr, OsString};
-use std::fmt::Write as _;
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -191,11 +190,11 @@ fn unix_shim(binary: &str, env: &[(String, String)]) -> String {
     use dx_process::shell::quote;
     let mut out = String::from("#!/bin/sh\n");
     for (key, value) in env {
-        write!(out, "{key}={}\nexport {key}\n", quote(value)).ok();
+        out.push_str(&format!("{key}={}\nexport {key}\n", quote(value)));
     }
     // The child PATH is only the shim dir.
     out.push_str("unset PATH\n");
-    writeln!(out, "exec {} \"$@\"", quote(binary)).ok();
+    out.push_str(&format!("exec {} \"$@\"\n", quote(binary)));
     out
 }
 
@@ -210,13 +209,13 @@ fn windows_shim(binary: &str, env: &[(String, String)]) -> Result<String, String
         if bad(key) || bad(value) {
             return Err(format!("unsafe character in {key} value"));
         }
-        write!(out, "set \"{key}={value}\"\r\n").ok();
+        out.push_str(&format!("set \"{key}={value}\"\r\n"));
     }
     if bad(binary) {
         return Err("unsafe character in launcher path".to_owned());
     }
     out.push_str("set \"PATH=\"\r\n");
-    write!(out, "\"{binary}\" %*\r\n").ok();
+    out.push_str(&format!("\"{binary}\" %*\r\n"));
     Ok(out)
 }
 

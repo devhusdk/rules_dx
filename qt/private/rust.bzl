@@ -29,10 +29,7 @@ def qt_rust_library(
         copts = [],
         visibility = None,
         **kwargs):
-    """Declares a Rust crate with CXX-Qt bridges and the Qt C++ library they generate.
-
-    `qt` is the Qt SDK repository, such as `"@my_qt"`. `None` uses the Qt SDK rules_dx pins.
-    """
+    """Declares a Rust crate with CXX-Qt bridges and the Qt C++ library they generate. `qt` is the Qt SDK repository, such as `"@my_qt"`. `None` uses the Qt SDK rules_dx pins."""
     srcs = srcs or []
     crate_features = crate_features or []
     deps = deps or []

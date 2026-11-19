@@ -396,10 +396,7 @@ def qt_cc_library(
         copts = [],
         visibility = None,
         **kwargs):
-    """Declares a C++ library whose moc, uic and rcc outputs are generated from declared inputs.
-
-    `qt` is the Qt SDK repository, such as `"@my_qt"`. `None` uses the Qt SDK rules_dx pins.
-    """
+    """Declares a C++ library whose moc, uic and rcc outputs are generated from declared inputs. `qt` is the Qt SDK repository, such as `"@my_qt"`. `None` uses the Qt SDK rules_dx pins."""
     qt = qt or QT_REPOSITORY
     srcs = srcs or []
     deps = deps or []
@@ -423,10 +420,7 @@ def qt_qml_module(
         copts = [],
         visibility = None,
         **kwargs):
-    """Declares a QML module with its qmldir, qmltypes, resources and C++ types.
-
-    `qt` is the Qt SDK repository, such as `"@my_qt"`. `None` uses the Qt SDK rules_dx pins.
-    """
+    """Declares a QML module with its qmldir, qmltypes, resources and C++ types. `qt` is the Qt SDK repository, such as `"@my_qt"`. `None` uses the Qt SDK rules_dx pins."""
     qt = qt or QT_REPOSITORY
     srcs = srcs or []
     deps = deps or []
@@ -511,10 +505,7 @@ def qt_cc_binary(
         copts = [],
         visibility = None,
         **kwargs):
-    """Declares a Qt executable over cc_binary.
-
-    `qt` is the Qt SDK repository, such as `"@my_qt"`. `None` uses the Qt SDK rules_dx pins.
-    """
+    """Declares a Qt executable over cc_binary. `qt` is the Qt SDK repository, such as `"@my_qt"`. `None` uses the Qt SDK rules_dx pins."""
     qt = qt or QT_REPOSITORY
     srcs = srcs or []
     deps = deps or []
@@ -537,10 +528,7 @@ def qt_cc_test(
         copts = [],
         visibility = None,
         **kwargs):
-    """Declares a QtTest executable over cc_test.
-
-    `qt` is the Qt SDK repository, such as `"@my_qt"`. `None` uses the Qt SDK rules_dx pins.
-    """
+    """Declares a QtTest executable over cc_test. `qt` is the Qt SDK repository, such as `"@my_qt"`. `None` uses the Qt SDK rules_dx pins."""
     qt = qt or QT_REPOSITORY
     srcs = srcs or []
     deps = deps or []
@@ -593,10 +581,7 @@ def qt_rust_cc_library(
         copts = [],
         visibility = None,
         **kwargs):
-    """Declares the Qt C++ library generated from CXX-Qt bridges of one Rust crate.
-
-    `qt` is the Qt SDK repository, such as `"@my_qt"`. `None` uses the Qt SDK rules_dx pins.
-    """
+    """Declares the Qt C++ library generated from CXX-Qt bridges of one Rust crate. `qt` is the Qt SDK repository, such as `"@my_qt"`. `None` uses the Qt SDK rules_dx pins."""
     qt = qt or QT_REPOSITORY
     _gate(kwargs)
     testonly = kwargs.get("testonly", None)

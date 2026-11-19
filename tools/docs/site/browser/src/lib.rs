@@ -2,21 +2,139 @@
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
-use std::fmt::Write as _;
-use std::io::{Read, Write};
+use std::fmt::{self, Write as _};
+use std::io::{self, Read, Write};
 use std::net::{TcpListener, TcpStream};
+use std::num::ParseIntError;
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Command, ExitStatus, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use dx_atomic_fs::path_io::{self, PathIoError};
 use serde_json::Value;
 
 const CONTROL_PORT: u16 = 2828;
 const LAUNCH_BUDGET: Duration = Duration::from_secs(90);
+const LAUNCH_ATTEMPTS: u32 = 3;
 const STEP_TIMEOUT: Duration = Duration::from_secs(45);
 const LOG_TAIL_LINES: usize = 40;
 const SETTLE: Duration = Duration::from_millis(600);
+
+/// Why the browser cannot be started or driven.
+#[derive(Debug)]
+pub enum BrowserError {
+    Profile(PathIoError),
+    OpenLog(io::Error),
+    Spawn {
+        firefox: PathBuf,
+        source: io::Error,
+    },
+    Exited {
+        status: ExitStatus,
+        port: u16,
+        report: String,
+    },
+    NoControlPort {
+        port: u16,
+        last: io::Error,
+        tail: String,
+    },
+    ArmSocket(io::Error),
+    Send {
+        command: String,
+        source: io::Error,
+    },
+    NoReply {
+        command: String,
+    },
+    ParseReply {
+        command: String,
+        source: serde_json::Error,
+    },
+    Failed {
+        command: String,
+        error: Value,
+    },
+    ReadReply(io::Error),
+    FrameLength {
+        digits: String,
+        source: ParseIntError,
+    },
+    FrameByte {
+        byte: u8,
+    },
+    NeverLoaded {
+        url: String,
+    },
+}
+
+impl fmt::Display for BrowserError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Profile(error) => write!(f, "browser: {error}"),
+            Self::OpenLog(error) => write!(f, "browser: cannot open the browser log: {error}"),
+            Self::Spawn { firefox, source } => {
+                write!(f, "browser: cannot run '{}': {source}", firefox.display())
+            }
+            Self::Exited {
+                status,
+                port,
+                report,
+            } => write!(
+                f,
+                "browser: Firefox exited with {status} before opening its control port on {port}\n{report}"
+            ),
+            Self::NoControlPort { port, last, tail } => write!(
+                f,
+                "browser: Firefox opened no control port on {port} ({last})\n{tail}"
+            ),
+            Self::ArmSocket(error) => {
+                write!(f, "browser: cannot arm the control socket: {error}")
+            }
+            Self::Send { command, source } => write!(f, "browser: cannot send {command}: {source}"),
+            Self::NoReply { command } => write!(f, "browser: {command} got no reply"),
+            Self::ParseReply { command, source } => {
+                write!(f, "browser: cannot parse a reply to {command}: {source}")
+            }
+            Self::Failed { command, error } => write!(f, "browser: {command} failed: {error}"),
+            Self::ReadReply(error) => write!(f, "browser: cannot read a reply: {error}"),
+            Self::FrameLength { digits, source } => {
+                write!(
+                    f,
+                    "browser: cannot read a frame length '{digits}': {source}"
+                )
+            }
+            Self::FrameByte { byte } => write!(
+                f,
+                "browser: frame length holds the byte {:?}",
+                char::from(*byte)
+            ),
+            Self::NeverLoaded { url } => write!(f, "browser: '{url}' never finished loading"),
+        }
+    }
+}
+
+impl std::error::Error for BrowserError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Profile(error) => Some(error),
+            Self::OpenLog(source)
+            | Self::Spawn { source, .. }
+            | Self::NoControlPort { last: source, .. }
+            | Self::ArmSocket(source)
+            | Self::Send { source, .. }
+            | Self::ReadReply(source) => Some(source),
+            Self::ParseReply { source, .. } => Some(source),
+            Self::FrameLength { source, .. } => Some(source),
+            Self::Exited { .. }
+            | Self::NoReply { .. }
+            | Self::Failed { .. }
+            | Self::FrameByte { .. }
+            | Self::NeverLoaded { .. } => None,
+        }
+    }
+}
 
 /// One headless Firefox driven over its Marionette control port.
 pub struct Browser {
@@ -33,20 +151,21 @@ impl Browser {
     /// # Errors
     ///
     /// Returns an error when the operation fails.
-    pub fn start(firefox: &Path, profile: &Path) -> Result<Self, String> {
+    pub fn start(firefox: &Path, profile: &Path) -> Result<Self, BrowserError> {
         let deadline = Instant::now() + LAUNCH_BUDGET;
-        let mut last = String::new();
-        for attempt in 0..3 {
+        let mut attempt = 0;
+        loop {
             match Browser::attempt(firefox, profile, attempt, deadline) {
                 Ok(browser) => return Ok(browser),
                 Err(Launch::Fatal(error)) => return Err(error),
-                Err(Launch::Retry(error)) => last = error,
-            }
-            if Instant::now() >= deadline {
-                break;
+                Err(Launch::Retry(error)) => {
+                    attempt += 1;
+                    if attempt == LAUNCH_ATTEMPTS || Instant::now() >= deadline {
+                        return Err(error);
+                    }
+                }
             }
         }
-        Err(last)
     }
 
     fn attempt(
@@ -58,19 +177,13 @@ impl Browser {
         let port = control_port();
         let home = profile.join(format!("attempt-{attempt}"));
         dx_atomic_fs::discard_dir(&home);
-        std::fs::create_dir_all(&home).map_err(|error| {
-            Launch::Fatal(format!(
-                "browser: cannot create the profile '{}': {error}",
-                home.display()
-            ))
-        })?;
-        std::fs::write(
-            home.join("user.js"),
-            format!("user_pref(\"marionette.port\", {port});\n"),
+        let profile_error = |error| Launch::Fatal(BrowserError::Profile(error));
+        path_io::create_dir_all(&home).map_err(profile_error)?;
+        path_io::write_scratch(
+            &home.join("user.js"),
+            format!("user_pref(\"marionette.port\", {port});\n").as_bytes(),
         )
-        .map_err(|error| {
-            Launch::Fatal(format!("browser: cannot write the profile prefs: {error}"))
-        })?;
+        .map_err(profile_error)?;
         let log = home.join("browser.log");
         let mut child = Command::new(firefox)
             .arg("--headless")
@@ -84,15 +197,16 @@ impl Browser {
             .env_remove("DISPLAY")
             .stdin(Stdio::null())
             .stdout(Stdio::null())
-            .stderr(std::fs::File::create(&log).map_err(|error| {
-                Launch::Fatal(format!("browser: cannot open the browser log: {error}"))
-            })?)
+            .stderr(
+                std::fs::File::create(&log)
+                    .map_err(|error| Launch::Fatal(BrowserError::OpenLog(error)))?,
+            )
             .spawn()
-            .map_err(|error| {
-                Launch::Fatal(format!(
-                    "browser: cannot run '{}': {error}",
-                    firefox.display()
-                ))
+            .map_err(|source| {
+                Launch::Fatal(BrowserError::Spawn {
+                    firefox: firefox.to_path_buf(),
+                    source,
+                })
             })?;
         let control = match wait_for_control(&mut child, &log, port, deadline) {
             Ok(control) => control,
@@ -130,7 +244,7 @@ impl Browser {
     /// # Errors
     ///
     /// Returns an error when the operation fails.
-    pub fn set_viewport(&mut self, width: u64, height: u64) -> Result<(), String> {
+    pub fn set_viewport(&mut self, width: u64, height: u64) -> Result<(), BrowserError> {
         self.call(
             "WebDriver:SetWindowRect",
             serde_json::json!({ "x": 0, "y": 0, "width": width, "height": height }),
@@ -144,14 +258,16 @@ impl Browser {
     /// # Errors
     ///
     /// Returns an error when the operation fails.
-    pub fn navigate(&mut self, url: &str) -> Result<(), String> {
+    pub fn navigate(&mut self, url: &str) -> Result<(), BrowserError> {
         self.call("WebDriver:Navigate", serde_json::json!({ "url": url }))?;
         let loaded = format!(
             "return document.readyState === 'complete' && window.location.href === {};",
             serde_json::to_string(url).unwrap_or_else(|_| "\"\"".to_string())
         );
         if !wait_for(self, &loaded, 60)? {
-            return Err(format!("browser: '{url}' never finished loading"));
+            return Err(BrowserError::NeverLoaded {
+                url: url.to_owned(),
+            });
         }
         Ok(())
     }
@@ -161,7 +277,7 @@ impl Browser {
     /// # Errors
     ///
     /// Returns an error when the operation fails.
-    pub fn press(&mut self, key: &str) -> Result<(), String> {
+    pub fn press(&mut self, key: &str) -> Result<(), BrowserError> {
         let actions = serde_json::json!({
             "actions": [{
                 "type": "key",
@@ -182,7 +298,7 @@ impl Browser {
     /// # Errors
     ///
     /// Returns an error when the operation fails.
-    pub fn script(&mut self, source: &str) -> Result<Value, String> {
+    pub fn script(&mut self, source: &str) -> Result<Value, BrowserError> {
         let value = self.call(
             "WebDriver:ExecuteScript",
             serde_json::json!({ "script": source, "args": [] }),
@@ -195,7 +311,7 @@ impl Browser {
     /// # Errors
     ///
     /// Returns an error when the operation fails.
-    pub fn text(&mut self, source: &str) -> Result<String, String> {
+    pub fn text(&mut self, source: &str) -> Result<String, BrowserError> {
         Ok(self
             .script(source)?
             .as_str()
@@ -208,7 +324,7 @@ impl Browser {
     /// # Errors
     ///
     /// Returns an error when the operation fails.
-    pub fn count(&mut self, source: &str) -> Result<u64, String> {
+    pub fn count(&mut self, source: &str) -> Result<u64, BrowserError> {
         Ok(self.script(source)?.as_u64().unwrap_or_default())
     }
 
@@ -217,7 +333,7 @@ impl Browser {
     /// # Errors
     ///
     /// Returns an error when the operation fails.
-    pub fn truthy(&mut self, source: &str) -> Result<bool, String> {
+    pub fn truthy(&mut self, source: &str) -> Result<bool, BrowserError> {
         Ok(match self.script(source)? {
             Value::Null => false,
             Value::Bool(yes) => yes,
@@ -228,25 +344,33 @@ impl Browser {
         })
     }
 
-    fn call(&mut self, name: &str, params: Value) -> Result<Value, String> {
+    fn call(&mut self, name: &str, params: Value) -> Result<Value, BrowserError> {
         self.next_id += 1;
         let message =
             Value::Array(vec![0.into(), self.next_id.into(), name.into(), params]).to_string();
         let framed = format!("{}:{message}", message.len());
         self.stream
             .set_read_timeout(Some(STEP_TIMEOUT))
-            .map_err(|error| format!("browser: cannot arm the control socket: {error}"))?;
+            .map_err(BrowserError::ArmSocket)?;
         self.stream
             .write_all(framed.as_bytes())
             .and_then(|()| self.stream.flush())
-            .map_err(|error| format!("browser: cannot send {name}: {error}"))?;
+            .map_err(|source| BrowserError::Send {
+                command: name.to_owned(),
+                source,
+            })?;
         loop {
             let frame = self.read_frame()?;
             let Some(frame) = frame else {
-                return Err(format!("browser: {name} got no reply"));
+                return Err(BrowserError::NoReply {
+                    command: name.to_owned(),
+                });
             };
-            let frame: Value = serde_json::from_str(&frame)
-                .map_err(|error| format!("browser: cannot parse a reply to {name}: {error}"))?;
+            let frame: Value =
+                serde_json::from_str(&frame).map_err(|source| BrowserError::ParseReply {
+                    command: name.to_owned(),
+                    source,
+                })?;
             let Some(parts) = frame.as_array() else {
                 continue;
             };
@@ -262,20 +386,23 @@ impl Browser {
             let error = error.clone();
             let result = result.clone();
             if !error.is_null() {
-                return Err(format!("browser: {name} failed: {error}"));
+                return Err(BrowserError::Failed {
+                    command: name.to_owned(),
+                    error,
+                });
             }
             return Ok(result);
         }
     }
 
-    fn read_frame(&mut self) -> Result<Option<String>, String> {
+    fn read_frame(&mut self) -> Result<Option<String>, BrowserError> {
         let mut reader = Frame::default();
         loop {
             let mut byte = [0u8; 1];
             let read = self
                 .stream
                 .read(&mut byte)
-                .map_err(|error| format!("browser: cannot read a reply: {error}"))?;
+                .map_err(BrowserError::ReadReply)?;
             if read == 0 {
                 return Ok(None);
             }
@@ -303,14 +430,14 @@ struct Frame {
 }
 
 impl Frame {
-    fn push(&mut self, byte: u8) -> Result<Option<String>, String> {
+    fn push(&mut self, byte: u8) -> Result<Option<String>, BrowserError> {
         if self.length.is_none() {
             if byte == b':' {
-                self.length = Some(self.digits.parse::<usize>().map_err(|error| {
-                    format!(
-                        "browser: cannot read a frame length '{}': {error}",
-                        self.digits
-                    )
+                self.length = Some(self.digits.parse::<usize>().map_err(|source| {
+                    BrowserError::FrameLength {
+                        digits: self.digits.clone(),
+                        source,
+                    }
                 })?);
                 self.digits.clear();
                 if self.length == Some(0) {
@@ -320,10 +447,7 @@ impl Frame {
             } else if byte.is_ascii_digit() {
                 self.digits.push(byte as char);
             } else {
-                return Err(format!(
-                    "browser: frame length holds the byte {:?}",
-                    byte as char
-                ));
+                return Err(BrowserError::FrameByte { byte });
             }
         } else {
             self.body.push(byte);
@@ -358,8 +482,8 @@ pub fn firefox_executable(root: &Path) -> String {
 
 /// Tells a launch that cannot succeed apart from one worth retrying on a fresh port.
 enum Launch {
-    Fatal(String),
-    Retry(String),
+    Fatal(BrowserError),
+    Retry(BrowserError),
 }
 
 fn wait_for_control(
@@ -370,24 +494,25 @@ fn wait_for_control(
 ) -> Result<TcpStream, Launch> {
     loop {
         if let Ok(Some(status)) = child.try_wait() {
-            return Err(Launch::Fatal(format!(
-                "browser: Firefox exited with {status} before opening its control port on {port}\n{}{}",
-                missing_libraries(log),
-                log_tail(log)
-            )));
+            return Err(Launch::Fatal(BrowserError::Exited {
+                status,
+                port,
+                report: format!("{}{}", missing_libraries(log), log_tail(log)),
+            }));
         }
         let last = match TcpStream::connect(("127.0.0.1", port)) {
             Ok(stream) => {
                 drop(stream.set_nodelay(true));
                 return Ok(stream);
             }
-            Err(error) => error.to_string(),
+            Err(error) => error,
         };
         if Instant::now() >= deadline {
-            return Err(Launch::Retry(format!(
-                "browser: Firefox opened no control port on {port} ({last})\n{}",
-                log_tail(log)
-            )));
+            return Err(Launch::Retry(BrowserError::NoControlPort {
+                port,
+                last,
+                tail: log_tail(log),
+            }));
         }
         thread::sleep(Duration::from_millis(500));
     }
@@ -441,7 +566,7 @@ fn settle() {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn wait_for(browser: &mut Browser, source: &str, seconds: u64) -> Result<bool, String> {
+pub fn wait_for(browser: &mut Browser, source: &str, seconds: u64) -> Result<bool, BrowserError> {
     let deadline = Instant::now() + Duration::from_secs(seconds);
     loop {
         if browser.truthy(source)? {

@@ -48,11 +48,39 @@ pub fn run_process(args: &[String]) -> i32 {
             Ok(()) => 0,
             Err(error) => report(&error.to_string()),
         },
-        Err((detail, usage)) => reject(detail, usage),
+        Err(detail) => reject(detail, usage()),
     }
 }
 
-fn parse_rendered(args: &[String]) -> Result<(rendered::Rendered, Vec<String>), String> {
+/// A rejected command line.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ArgsError {
+    MissingValue {
+        flag: String,
+        operand: &'static str,
+    },
+    Unknown {
+        flag: String,
+    },
+    Required {
+        flag: &'static str,
+        operand: &'static str,
+    },
+}
+
+impl fmt::Display for ArgsError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::MissingValue { flag, operand } => write!(f, "{flag} needs a {operand}"),
+            Self::Unknown { flag } => write!(f, "unknown argument '{flag}'"),
+            Self::Required { flag, operand } => write!(f, "{flag} {operand} is required"),
+        }
+    }
+}
+
+impl std::error::Error for ArgsError {}
+
+fn parse_rendered(args: &[String]) -> Result<(rendered::Rendered, Vec<String>), ArgsError> {
     let mut rendered = rendered::Rendered::default();
     let mut forbid: Vec<String> = Vec::new();
     let mut index = 0;
@@ -63,17 +91,23 @@ fn parse_rendered(args: &[String]) -> Result<(rendered::Rendered, Vec<String>), 
             continue;
         }
         let Some(value) = args.get(index + 1) else {
-            return Err(format!("{flag} needs a DIR"));
+            return Err(ArgsError::MissingValue {
+                flag,
+                operand: "DIR",
+            });
         };
         match flag.as_str() {
             "--rendered" => rendered.root = std::path::PathBuf::from(value),
             "--forbid" => forbid.push(value.clone()),
-            other => return Err(format!("unknown argument '{other}'")),
+            _ => return Err(ArgsError::Unknown { flag }),
         }
         index += 2;
     }
     if rendered.root.as_os_str().is_empty() {
-        return Err("--rendered DIR is required".to_string());
+        return Err(ArgsError::Required {
+            flag: "--rendered",
+            operand: "DIR",
+        });
     }
     Ok((rendered, forbid))
 }
@@ -99,19 +133,22 @@ pub fn usage() -> String {
     line
 }
 
-/// Parses argv into inputs, or returns the usage rejection text.
+/// Parses argv into inputs.
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn parse_args(args: &[String]) -> Result<Inputs, (String, String)> {
+/// Returns an error for an unknown flag, a flag without a value or a missing required flag.
+pub fn parse_args(args: &[String]) -> Result<Inputs, ArgsError> {
     let mut inputs = Inputs::default();
     let mut index = 0;
     while let Some(flag) = args.get(index).map(String::as_str) {
         match flag {
             "--book" | "--api" | "--records" | "--shard" | "--prose" | "--data" => {
                 let Some(value) = args.get(index + 1) else {
-                    return Err((format!("{flag} needs a FILE"), usage()));
+                    return Err(ArgsError::MissingValue {
+                        flag: flag.to_owned(),
+                        operand: "FILE",
+                    });
                 };
                 match flag {
                     "--book" => inputs.book = Some(value.clone()),
@@ -123,22 +160,25 @@ pub fn parse_args(args: &[String]) -> Result<Inputs, (String, String)> {
                 }
             }
             _ => {
-                return Err((format!("unknown argument '{flag}'"), usage()));
+                return Err(ArgsError::Unknown {
+                    flag: flag.to_owned(),
+                });
             }
         }
         index += 2;
     }
-    if inputs.book.is_none() {
-        return Err(("--book FILE is required".to_string(), usage()));
-    }
-    if inputs.api.is_none() {
-        return Err(("--api FILE is required".to_string(), usage()));
-    }
-    if inputs.shards.is_empty() {
-        return Err(("--shard FILE is required".to_string(), usage()));
-    }
-    if inputs.prose.is_empty() {
-        return Err(("--prose FILE is required".to_string(), usage()));
+    for (flag, missing) in [
+        ("--book", inputs.book.is_none()),
+        ("--api", inputs.api.is_none()),
+        ("--shard", inputs.shards.is_empty()),
+        ("--prose", inputs.prose.is_empty()),
+    ] {
+        if missing {
+            return Err(ArgsError::Required {
+                flag,
+                operand: "FILE",
+            });
+        }
     }
     Ok(inputs)
 }

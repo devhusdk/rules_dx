@@ -6,7 +6,8 @@ use documentation_ir::encode_shard;
 use documentation_ir::proto::{DocIr, Symbol};
 
 use super::{
-    CheckError, Inputs, anchor_name, check, first_field, has_empty_link_target, inline_targets,
+    ArgsError, CheckError, Inputs, anchor_name, check, first_field, has_empty_link_target,
+    inline_targets,
     link_targets, parse_args, resolve_route, split_reference, tidy,
 };
 
@@ -119,30 +120,31 @@ fn routes_resolve_against_the_directory_of_the_page() {
 
 #[test]
 fn the_required_arguments_are_checked_in_order() {
-    assert_eq!(
-        parse_args(&args(&["--nope", "x"])).unwrap_err().0,
-        "unknown argument '--nope'"
+    let error = |argv: &[&str]| parse_args(&args(argv)).unwrap_err();
+    let unknown = error(&["--nope", "x"]);
+    assert_eq!(unknown.to_string(), "unknown argument '--nope'");
+    assert!(matches!(unknown, ArgsError::Unknown { .. }), "{unknown:?}");
+    let missing = error(&["--book"]);
+    assert_eq!(missing.to_string(), "--book needs a FILE");
+    assert!(
+        matches!(missing, ArgsError::MissingValue { .. }),
+        "{missing:?}"
     );
-    assert_eq!(
-        parse_args(&args(&["--book"])).unwrap_err().0,
-        "--book needs a FILE"
-    );
-    assert_eq!(
-        parse_args(&args(&["--api", "api.md"])).unwrap_err().0,
-        "--book FILE is required"
-    );
-    assert_eq!(
-        parse_args(&args(&["--book", "b", "--api", "a"]))
-            .unwrap_err()
-            .0,
-        "--shard FILE is required"
-    );
-    assert_eq!(
-        parse_args(&args(&["--book", "b", "--api", "a", "--shard", "s"]))
-            .unwrap_err()
-            .0,
-        "--prose FILE is required"
-    );
+    for (argv, flag) in [
+        (&["--api", "api.md"][..], "--book"),
+        (&["--book", "b", "--api", "a"][..], "--shard"),
+        (
+            &["--book", "b", "--api", "a", "--shard", "s"][..],
+            "--prose",
+        ),
+    ] {
+        let required = error(argv);
+        assert_eq!(required.to_string(), format!("{flag} FILE is required"));
+        assert!(
+            matches!(required, ArgsError::Required { flag: named, .. } if named == flag),
+            "{required:?}"
+        );
+    }
 }
 
 #[test]

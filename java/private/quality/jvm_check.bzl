@@ -1,5 +1,6 @@
 """Type-checks a JVM target with its compiler (javac, kotlinc, scalac) and records the diagnostics."""
 
+load("@rules_android//providers:providers.bzl", "AndroidIdeInfo")
 load("@rules_java//java:java_utils.bzl", "utils")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_java//java/common:java_plugin_info.bzl", "JavaPluginInfo")
@@ -39,7 +40,8 @@ def _jvm_android_sdk_impl(_target, ctx):
 
 jvm_android_sdk_aspect = aspect(
     implementation = _jvm_android_sdk_impl,
-    doc = "Exposes the android.jar of the resolved Android SDK for android_library and kt_android_library targets.",
+    doc = "Exposes the android.jar of the resolved Android SDK for android_library and kt_android_library targets. Applies only to targets that advertise AndroidIdeInfo.",
+    required_providers = [AndroidIdeInfo],
     toolchains = [config_common.toolchain_type(_ANDROID_SDK_TOOLCHAIN_TYPE, mandatory = False)],
 )
 

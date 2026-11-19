@@ -106,6 +106,25 @@ pub fn compiled_binaries(cquery: &str) -> BTreeMap<String, BTreeSet<String>> {
     found
 }
 
+/// The `srcs` query whose labels are the source-compiled JVM rules `label` depends on.
+pub fn jvm_sources_query(label: &str) -> String {
+    format!("attr(srcs, \"\\[.+\\]\", kind(\"(java|kt_jvm|scala)_\", deps({label})))")
+}
+
+/// Whether `cquery --output=label` lines of [`jvm_sources_query`] name a rules_dx rule.
+pub fn compiles_rules_dx_sources(cquery: &str) -> bool {
+    cquery
+        .lines()
+        .any(|line| line.trim().trim_start_matches('@').starts_with("rules_dx+"))
+}
+
+/// Whether every line of a found binary is a `java_binary`, the one kind that may only launch jars.
+pub fn java_binary_only(lines: &BTreeSet<String>) -> bool {
+    lines
+        .iter()
+        .all(|line| line.trim_start_matches('_').starts_with("java_binary "))
+}
+
 /// The problems: compiled binaries not allowlisted, and allowlisted labels no longer compiled.
 pub fn problems(
     found: &BTreeMap<String, BTreeSet<String>>,
@@ -244,6 +263,27 @@ pub fn wrapper_build(targets: &[&str]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_java_binary_without_rules_dx_sources_launches_jars() {
+        assert_eq!(
+            jvm_sources_query("@@rules_dx+//t:detekt"),
+            "attr(srcs, \"\\[.+\\]\", kind(\"(java|kt_jvm|scala)_\", deps(@@rules_dx+//t:detekt)))"
+        );
+        assert!(java_binary_only(&BTreeSet::from([
+            "java_binary rule @@rules_dx+//t:detekt (abc)".to_owned(),
+            "java_binary rule @@rules_dx+//t:detekt (exec)".to_owned(),
+        ])));
+        assert!(!java_binary_only(&BTreeSet::from([
+            "rust_binary rule @@rules_dx+//cli/cli:dx (abc)".to_owned(),
+        ])));
+        assert!(!compiles_rules_dx_sources(
+            "@@rules_java+//toolchains:singlejar (exec)\n"
+        ));
+        assert!(compiles_rules_dx_sources(
+            "@@rules_dx+//java/private/quality/tools/javac_check:javac_check_lib (abc)\n"
+        ));
+    }
 
     #[test]
     fn stub_url_has_three_slashes_before_a_drive() {

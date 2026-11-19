@@ -10,13 +10,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map_err(|_| "run with `bazel run //tools/api:update`")?;
     let root = PathBuf::from(root);
     let dir = root.join("api");
-    let mut lang_builds = Vec::new();
-    for path in snapshot::lang_build_paths()? {
-        let file = root.join(&path);
-        let text = std::fs::read_to_string(&file)
-            .map_err(|error| format!("{}: {error}", file.display()))?;
-        lang_builds.push((snapshot::package_of(&path)?, text));
-    }
+    let builds = |paths: Vec<String>| -> Result<Vec<(String, String)>, String> {
+        paths
+            .into_iter()
+            .map(|path| {
+                let file = root.join(&path);
+                let text = std::fs::read_to_string(&file)
+                    .map_err(|error| format!("{}: {error}", file.display()))?;
+                Ok((snapshot::package_of(&path)?, text))
+            })
+            .collect()
+    };
+    let lang_builds = builds(snapshot::lang_build_paths()?)?;
+    let command_builds = builds(snapshot::command_build_paths()?)?;
     let runfiles = runfiles::Runfiles::create()?;
     let mut starlark = Vec::new();
     for key in std::env::var("DX_API_STARLARK")?.split_whitespace() {
@@ -25,7 +31,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         starlark
             .push(std::fs::read(&file).map_err(|error| format!("{}: {error}", file.display()))?);
     }
-    let files = snapshot::render(&lang_builds, &starlark)?;
+    let files = snapshot::render(&lang_builds, &command_builds, &starlark)?;
     let snapshot_file = |name: &str| files.get(name).ok_or(format!("the snapshot has no {name}"));
     let surface = page::render(
         snapshot_file("cli.json")?,

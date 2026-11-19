@@ -45,8 +45,9 @@ struct Env {
 
 const HEADER: &str = "# Supported surface
 
-This page lists every `dx` command, flag, argument and environment variable, every build setting, platform and \
-toolchain type rules_dx makes public, and the version of each file format dx reads or writes. Use it to check what \
+This page lists every `dx` command, flag, argument and environment variable, every build setting, platform, \
+toolchain type, hub repository and target rules_dx makes public, and the version of each file format dx reads or \
+writes. Use it to check what \
 your scripts, CI and `BUILD` files can rely on.
 
 This page is generated. Do not edit it by hand. Run `bazel run //tools/api:update` to refresh it.
@@ -153,10 +154,16 @@ fn labels_sections(page: &mut String, labels_txt: &str) -> Result<(), String> {
     page.push_str("| Setting | Kind | Default | Values |\n| --- | --- | --- | --- |\n");
     let mut platforms = Vec::new();
     let mut toolchain_types = Vec::new();
+    let mut hubs = Vec::new();
+    let mut targets = Vec::new();
     for row in &rows {
         match row.rule {
             "platform" => platforms.push(absolute(row.label)),
             "toolchain_type" => toolchain_types.push(absolute(row.label)),
+            "hub" => hubs.push([code(row.label), code(&row.default)]),
+            _ if !row.label.starts_with("//config:") => {
+                targets.push([code(&absolute(row.label)), code(row.rule)]);
+            }
             _ => self::row(
                 page,
                 &[
@@ -178,6 +185,16 @@ fn labels_sections(page: &mut String, labels_txt: &str) -> Result<(), String> {
         "\n## Toolchain types\n\nUse a toolchain type when you register your own toolchain.\n\n",
     );
     bullets(page, &toolchain_types);
+    page.push_str("\n## Hub repositories\n\n");
+    page.push_str("| Repository | Extension |\n| --- | --- |\n");
+    for cells in &hubs {
+        row(page, cells);
+    }
+    page.push_str("\n## Targets\n\n");
+    page.push_str("| Target | Kind |\n| --- | --- |\n");
+    for cells in &targets {
+        row(page, cells);
+    }
     Ok(())
 }
 
@@ -304,6 +321,9 @@ mod tests {
             "//config:toolchains bool_flag False\n",
             "//apple:macos_arm64 platform\n",
             "//lua:toolchain_type toolchain_type\n",
+            "//:dx alias\n",
+            "//deploy:bootstrap_offline rust_binary\n",
+            "@crates hub @rules_dx//rust:extensions.bzl%cargo\n",
         );
         let page = render(cli, labels, "events.schema.json 4.0 sha256:aa\n").expect("page renders");
         for line in [
@@ -324,10 +344,24 @@ mod tests {
             "- `@rules_dx//apple:macos_arm64`",
             "- `@rules_dx//lua:toolchain_type`",
             "| `events.schema.json` | `4.0` |",
+            "| `@crates` | `@rules_dx//rust:extensions.bzl%cargo` |",
+            "| `@rules_dx//:dx` | `alias` |",
+            "| `@rules_dx//deploy:bootstrap_offline` | `rust_binary` |",
         ] {
             assert!(
                 page.lines().any(|got| got == line),
                 "missing {line:?} in\n{page}"
+            );
+        }
+        let settings = page
+            .split_once("## Build settings")
+            .and_then(|(_, rest)| rest.split_once("\n## "))
+            .map(|(table, _)| table)
+            .expect("a Build settings section");
+        for label in ["@crates", "//:dx", "bootstrap_offline"] {
+            assert!(
+                !settings.contains(label),
+                "{label} in Build settings:\n{settings}"
             );
         }
     }

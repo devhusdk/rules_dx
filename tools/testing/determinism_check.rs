@@ -216,10 +216,7 @@ mod tests {
             &dir,
         )
         .unwrap();
-        assert!(
-            lines[0].contains(" //:changed Genrule "),
-            "{lines:?}"
-        );
+        assert!(lines[0].contains(" //:changed Genrule "), "{lines:?}");
         assert!(lines[1].starts_with("  origin: changed.txt: "), "{lines:?}");
         assert!(lines[2].starts_with("  input changed.txt: "), "{lines:?}");
         assert_eq!(lines[3], "not remote cacheable, ran every time:");

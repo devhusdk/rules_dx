@@ -602,7 +602,10 @@ impl<'a> Tracer<'a> {
                     (None, _) => format!("origin: {path}: only in the second log"),
                 }],
                 Some(at) => {
-                    let made_by = format!("origin: {path} made by {}", self.key(at));
+                    let made_by = format!(
+                        "origin: {path} made by {}",
+                        self.second.key(self.spawn(at)?)
+                    );
                     match self.why(at)? {
                         Why::NotInFirst => {
                             vec![format!("{made_by}, which the first log does not have")]
@@ -624,8 +627,11 @@ impl<'a> Tracer<'a> {
         Ok(out)
     }
 
-    fn key(&self, at: usize) -> String {
-        self.second.key(&self.second.spawns[at])
+    fn spawn(&self, at: usize) -> Result<&'a Spawn, String> {
+        self.second
+            .spawns
+            .get(at)
+            .ok_or_else(|| format!("producer {at} is not a spawn"))
     }
 
     fn why(&mut self, at: usize) -> Result<Why, String> {
@@ -634,8 +640,8 @@ impl<'a> Tracer<'a> {
         }
         // A spawn that reads its own output would recurse forever; it stops here instead.
         self.memo.insert(at, Why::Inputs(Rc::default()));
-        let new = &self.second.spawns[at];
-        let why = match self.earlier.get(&self.key(at)).copied() {
+        let new = self.spawn(at)?;
+        let why = match self.earlier.get(&self.second.key(new)).copied() {
             None => Why::NotInFirst,
             Some(old) if old.args != new.args || old.env != new.env => Why::ArgsOrEnv,
             Some(old) if !old.digest.is_empty() && old.digest == new.digest => Why::SameInputs,
@@ -653,11 +659,7 @@ impl<'a> Tracer<'a> {
     }
 }
 
-fn spawn_changes(
-    tracer: &mut Tracer<'_>,
-    old: &Spawn,
-    new: &Spawn,
-) -> Result<Vec<String>, String> {
+fn spawn_changes(tracer: &mut Tracer<'_>, old: &Spawn, new: &Spawn) -> Result<Vec<String>, String> {
     let (old_inputs, new_inputs) = (tracer.first.inputs(old)?, tracer.second.inputs(new)?);
     let origins = tracer.origins(&old_inputs, &new_inputs)?;
     let mut lines: Vec<String> = origins.iter().take(ORIGIN_LINES).cloned().collect();
@@ -1012,7 +1014,10 @@ mod tests {
         assert_eq!(at(SAME), None, "{lines:?}");
         assert_eq!(
             lines[changed + 3..],
-            ["not remote cacheable, ran every time:", "  Genrule: 1, 0.0s total"]
+            [
+                "not remote cacheable, ran every time:",
+                "  Genrule: 1, 0.0s total"
+            ]
         );
     }
 
@@ -1032,7 +1037,10 @@ mod tests {
         assert!(lines[2].starts_with("  input changed.txt: "), "{lines:?}");
         assert_eq!(
             lines[3..],
-            ["not remote cacheable, ran every time:", "  Genrule: 1, 0.1s total"]
+            [
+                "not remote cacheable, ran every time:",
+                "  Genrule: 1, 0.1s total"
+            ]
         );
     }
 
@@ -1216,7 +1224,10 @@ mod tests {
         assert_eq!(lines[0], "2.0s //:top Genrule top.out (linux-sandbox)");
         assert_eq!(
             lines[3..],
-            ["not remote cacheable, ran every time:", "  TestRunner: 2, 10.0s total"]
+            [
+                "not remote cacheable, ran every time:",
+                "  TestRunner: 2, 10.0s total"
+            ]
         );
     }
 

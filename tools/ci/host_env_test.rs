@@ -131,7 +131,7 @@ fn text_kinds(text: &str, mut add: impl FnMut(&str)) {
 }
 
 fn scan_starlark(path: &str, source: &str, counts: &mut Counts) {
-    let module = parse(path, source);
+    let module = parse(path, source).unwrap_or_else(|error| panic!("{error}"));
     for expr in exprs(module.statement()) {
         if let Some(text) = string(expr) {
             if host_path(text) || windows_dir(text) {

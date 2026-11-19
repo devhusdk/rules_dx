@@ -1,5 +1,6 @@
 //! No Rust source allows a strict tier lint, every `#[expect(...)]` gives a reason, panic-family expects stay in tools/testing or `tools/ci/lint_expect_allowlist.txt`, the repo-wide clippy flags carry the strict tier, and no source discards a result where those lints cannot see it.
 
+use dx_guard::allowlist::{Counts, hit, verify};
 use dx_guard::lexer::{Token, rust_tokens};
 use dx_guard::snapshot::snapshot;
 use serde_json as _;
@@ -211,18 +212,18 @@ fn passes_other_attributes() {
 
 #[test]
 fn panic_family_expects_stay_in_test_support_or_the_allowlist() {
-    let mut counts = guard_scan::Counts::new();
+    let mut counts = Counts::new();
     for (path, source) in snapshot() {
         let rust = Path::new(&path)
             .extension()
             .is_some_and(|ext| ext.eq_ignore_ascii_case("rs"));
         if rust && !path.starts_with(TEST_SUPPORT) {
             for lint in panic_expects(&source) {
-                guard_scan::hit(&mut counts, &path, &lint);
+                hit(&mut counts, &path, &lint);
             }
         }
     }
-    guard_scan::verify(&counts, &PANIC_FAMILY);
+    verify(&counts, &PANIC_FAMILY);
 }
 
 #[test]

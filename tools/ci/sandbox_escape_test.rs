@@ -125,7 +125,7 @@ impl Scan {
     }
 
     fn starlark(&mut self, path: &str, source: &str) {
-        let module = parse(path, source);
+        let module = parse(path, source).unwrap_or_else(|error| panic!("{error}"));
         let mut all = Vec::new();
         statements(module.statement(), &mut all);
         for stmt in all {

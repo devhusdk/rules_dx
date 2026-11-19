@@ -221,7 +221,7 @@ fn scan_files(files: &[(String, String)]) -> (Counts, Vec<String>) {
 #[test]
 fn rule_set_files_load_only_what_the_allowlist_permits() {
     let root = dx_testing::source_snapshot();
-    let files = tree(&root);
+    let files = tree(&root).unwrap_or_else(|error| panic!("{}: {error}", root.display()));
     let scanned = files
         .iter()
         .filter(|(path, _)| rule_set_of(path).is_some() && is_bazel_file(path))

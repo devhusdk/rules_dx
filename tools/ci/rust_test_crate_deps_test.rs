@@ -45,7 +45,7 @@ fn normal_only(expr: &AstExpr) -> bool {
 }
 
 fn violations(path: &str, source: &str) -> Vec<String> {
-    let ast = parse(path, source);
+    let ast = parse(path, source).unwrap_or_else(|error| panic!("{error}"));
     let mut out = Vec::new();
     for expr in exprs(ast.statement()) {
         let ExprP::Call(callee, call) = &expr.node else {

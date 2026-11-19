@@ -49,6 +49,9 @@ ASPECT_RULES_TS_VERSION = "3.10.1"
 ASPECT_RULES_JEST_VERSION = "0.26.0"
 RULES_NODEJS_VERSION = "6.7.7"
 TYPESCRIPT_VERSION = "6.0.3"
+
+# dx_npm_tools and the docs component extractors load the TypeScript compiler API, which 7.x does not ship.
+TYPESCRIPT_API_VERSION = "6.0.3"
 TYPEDOC_VERSION = "0.28.20"
 VUE_COMPONENT_META_VERSION = "3.3.14"
 SVELTE2TSX_VERSION = "0.7.63"

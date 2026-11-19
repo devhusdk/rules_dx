@@ -1,6 +1,6 @@
 """Component API reference shard action, free of any JavaScript rule set."""
 
-load("//core/modules:versions.bzl", "ASTRO_COMPILER_VERSION", "MDX_VERSION", "SVELTE2TSX_VERSION", "SVELTE_VERSION", "TYPESCRIPT_VERSION", "VUE_COMPONENT_META_VERSION")
+load("//core/modules:versions.bzl", "ASTRO_COMPILER_VERSION", "MDX_VERSION", "SVELTE2TSX_VERSION", "SVELTE_VERSION", "TYPESCRIPT_API_VERSION", "VUE_COMPONENT_META_VERSION")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
 META_SCHEMA = "dx-component-meta/1"
@@ -14,7 +14,7 @@ COMPONENT_LANGUAGES = {
 
 def component_config(language, tsconfig, entry_points):
     """Returns the configuration identity recorded on every symbol of one project."""
-    return "tsconfig=" + tsconfig + ";entry=" + ",".join(entry_points) + ";meta-json=" + META_SCHEMA + ";" + COMPONENT_LANGUAGES[language].tools + ";typescript=" + TYPESCRIPT_VERSION
+    return "tsconfig=" + tsconfig + ";entry=" + ",".join(entry_points) + ";meta-json=" + META_SCHEMA + ";" + COMPONENT_LANGUAGES[language].tools + ";typescript=" + TYPESCRIPT_API_VERSION
 
 def component_shard_action(ctx, extract, meta, shard, language, package, source_prefix, config):
     """Converts one dx-component-meta/1 JSON into a DocIr shard."""

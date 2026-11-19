@@ -1,7 +1,7 @@
 """Component API reference shards built from the pinned component metadata tools."""
 
 load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
-load("//core/modules:versions.bzl", "ASTRO_COMPILER_VERSION", "MDX_VERSION", "SVELTE2TSX_VERSION", "SVELTE_VERSION", "TYPESCRIPT_VERSION", "VUE_COMPONENT_META_VERSION")
+load("//core/modules:versions.bzl", "ASTRO_COMPILER_VERSION", "MDX_VERSION", "SVELTE2TSX_VERSION", "SVELTE_VERSION", "TYPESCRIPT_API_VERSION", "VUE_COMPONENT_META_VERSION")
 load("//tools/docs/components:shard.bzl", "component_shard_action")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
@@ -65,7 +65,7 @@ def vue_doc_shard(name, srcs, tsconfig, entry_points, package, node_modules, pac
         language = "vue",
         package = package,
         source_prefix = native.package_name(),
-        config = "tsconfig=" + tsconfig + ";entry=" + ",".join(entry_points) + ";meta-json=" + _META_SCHEMA + ";vue-component-meta=" + VUE_COMPONENT_META_VERSION + ";typescript=" + TYPESCRIPT_VERSION,
+        config = "tsconfig=" + tsconfig + ";entry=" + ",".join(entry_points) + ";meta-json=" + _META_SCHEMA + ";vue-component-meta=" + VUE_COMPONENT_META_VERSION + ";typescript=" + TYPESCRIPT_API_VERSION,
         **kwargs
     )
 
@@ -98,7 +98,7 @@ def svelte_doc_shard(name, srcs, tsconfig, entry_points, package, node_modules, 
         language = "svelte",
         package = package,
         source_prefix = native.package_name(),
-        config = "tsconfig=" + tsconfig + ";entry=" + ",".join(entry_points) + ";meta-json=" + _META_SCHEMA + ";svelte2tsx=" + SVELTE2TSX_VERSION + ";svelte=" + SVELTE_VERSION + ";typescript=" + TYPESCRIPT_VERSION,
+        config = "tsconfig=" + tsconfig + ";entry=" + ",".join(entry_points) + ";meta-json=" + _META_SCHEMA + ";svelte2tsx=" + SVELTE2TSX_VERSION + ";svelte=" + SVELTE_VERSION + ";typescript=" + TYPESCRIPT_API_VERSION,
         **kwargs
     )
 
@@ -131,7 +131,7 @@ def astro_doc_shard(name, srcs, tsconfig, entry_points, package, node_modules, p
         language = "astro",
         package = package,
         source_prefix = native.package_name(),
-        config = "tsconfig=" + tsconfig + ";entry=" + ",".join(entry_points) + ";meta-json=" + _META_SCHEMA + ";astro-compiler=" + ASTRO_COMPILER_VERSION + ";typescript=" + TYPESCRIPT_VERSION,
+        config = "tsconfig=" + tsconfig + ";entry=" + ",".join(entry_points) + ";meta-json=" + _META_SCHEMA + ";astro-compiler=" + ASTRO_COMPILER_VERSION + ";typescript=" + TYPESCRIPT_API_VERSION,
         **kwargs
     )
 
@@ -164,6 +164,6 @@ def mdx_doc_shard(name, srcs, tsconfig, entry_points, package, deps = [], **kwar
         language = "mdx",
         package = package,
         source_prefix = native.package_name(),
-        config = "tsconfig=" + tsconfig + ";entry=" + ",".join(entry_points) + ";meta-json=" + _META_SCHEMA + ";mdx=" + MDX_VERSION + ";typescript=" + TYPESCRIPT_VERSION,
+        config = "tsconfig=" + tsconfig + ";entry=" + ",".join(entry_points) + ";meta-json=" + _META_SCHEMA + ";mdx=" + MDX_VERSION + ";typescript=" + TYPESCRIPT_API_VERSION,
         **kwargs
     )
